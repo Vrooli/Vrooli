@@ -229,7 +229,7 @@ func TestExtractDOMTree_ErrorHandling(t *testing.T) {
 		assert.Contains(t, err.Error(), "returned no data")
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles missing value payload", func(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles missing result payload", func(t *testing.T) {
 		mockRunner := &mockAutomationRunner{
 			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
 				return []autocontracts.StepOutcome{
@@ -246,7 +246,7 @@ func TestExtractDOMTree_ErrorHandling(t *testing.T) {
 		_, err := handler.ExtractDOMTree(context.Background(), "https://example.com")
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "missing value payload")
+		assert.Contains(t, err.Error(), "missing result payload")
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles no matching outcome", func(t *testing.T) {
@@ -293,7 +293,7 @@ func TestExtractDOMTree_Success(t *testing.T) {
 						NodeID:  "dom.extract",
 						Success: true,
 						ExtractedData: map[string]any{
-							"value": map[string]any{
+							"result": map[string]any{
 								"tagName":  "BODY",
 								"id":       "main",
 								"children": []any{},
@@ -409,7 +409,7 @@ func TestGetDOMTreeJSON(t *testing.T) {
 						NodeID:  "dom.extract",
 						Success: true,
 						ExtractedData: map[string]any{
-							"value": map[string]any{
+							"result": map[string]any{
 								"tagName": "BODY",
 								"id":      "root",
 							},

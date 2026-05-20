@@ -291,7 +291,7 @@ func TestElementAnalysisHandler_extractPageElements(t *testing.T) {
 				NodeID:   "analysis.evaluate",
 				StepType: "evaluate",
 				ExtractedData: map[string]any{
-					"value": map[string]any{
+					"result": map[string]any{
 						"elements": []any{
 							map[string]any{
 								"text":      "Login",
@@ -374,7 +374,7 @@ func TestElementAnalysisHandler_extractPageElements(t *testing.T) {
 				NodeID:   "analysis.evaluate",
 				StepType: "evaluate",
 				ExtractedData: map[string]any{
-					"value": map[string]any{
+					"result": map[string]any{
 						"elements": []any{
 							map[string]any{
 								"text":      "Login",

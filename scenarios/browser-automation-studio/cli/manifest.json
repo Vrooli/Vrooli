@@ -856,7 +856,7 @@
         {
           "name": "get",
           "description": "Get a single execution by ID.",
-          "flags": [
+          "positionals": [
             { "name": "execution-id", "required": true, "description": "Execution UUID" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "GetExecution" },
@@ -869,7 +869,7 @@
         {
           "name": "timeline",
           "description": "Fetch the proto timeline for an execution.",
-          "flags": [
+          "positionals": [
             { "name": "execution-id", "required": true, "description": "Execution UUID" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "GetExecutionTimeline" },
@@ -882,7 +882,7 @@
         {
           "name": "stop",
           "description": "Stop a running execution.",
-          "flags": [
+          "positionals": [
             { "name": "execution-id", "required": true, "description": "Execution UUID" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "StopExecution" },
@@ -895,8 +895,10 @@
         {
           "name": "resume",
           "description": "Resume an interrupted execution from its last checkpoint.",
+          "positionals": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID" }
+          ],
           "flags": [
-            { "name": "execution-id", "required": true, "description": "Execution UUID" },
             { "name": "resume-url", "description": "Optional URL to navigate to before resuming" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "ResumeExecution" },
@@ -909,7 +911,7 @@
         {
           "name": "screenshots",
           "description": "List screenshots captured during an execution.",
-          "flags": [
+          "positionals": [
             { "name": "execution-id", "required": true, "description": "Execution UUID" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "GetExecutionScreenshots" },
@@ -922,7 +924,7 @@
         {
           "name": "recorded-videos",
           "description": "List recorded video artifacts for an execution.",
-          "flags": [
+          "positionals": [
             { "name": "execution-id", "required": true, "description": "Execution UUID" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "GetExecutionRecordedVideos" },
@@ -935,7 +937,7 @@
         {
           "name": "recorded-traces",
           "description": "List recorded Playwright trace artifacts for an execution.",
-          "flags": [
+          "positionals": [
             { "name": "execution-id", "required": true, "description": "Execution UUID" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "GetExecutionRecordedTraces" },
@@ -948,7 +950,7 @@
         {
           "name": "recorded-har",
           "description": "List recorded HAR archives for an execution.",
-          "flags": [
+          "positionals": [
             { "name": "execution-id", "required": true, "description": "Execution UUID" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "GetExecutionRecordedHar" },
@@ -961,8 +963,10 @@
         {
           "name": "seed-cleanup",
           "description": "Schedule deferred seed cleanup for a previously executed seed scenario.",
+          "positionals": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID" }
+          ],
           "flags": [
-            { "name": "execution-id", "required": true, "description": "Execution UUID" },
             { "name": "cleanup-token", "required": true, "description": "Opaque cleanup token returned when the seed was applied" },
             { "name": "seed-scenario", "description": "Seed scenario identifier (defaults to browser-automation-studio)" }
           ],
