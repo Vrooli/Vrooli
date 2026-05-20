@@ -94,8 +94,8 @@
             { "name": "name", "required": true, "description": "Tool slug to invoke" }
           ],
           "flags": [
-            { "name": "args", "description": "JSON object of tool arguments (default: {})" },
-            { "name": "args-file", "description": "Path to a JSON file with tool arguments" }
+            { "name": "args", "description": "JSON object of tool arguments (default: {})", "bind": { "field": "arguments", "kind": "json_inline" } },
+            { "name": "args-file", "description": "Path to a JSON file with tool arguments", "bind": { "field": "arguments", "kind": "json_file" } }
           ],
           "binding": { "kind": "connect-rpc", "service": "ToolsService", "method": "Execute" },
           "governance": {
@@ -503,7 +503,7 @@
             { "name": "project-id", "required": true, "description": "Project UUID" },
             { "name": "name", "required": true, "description": "Workflow name" },
             { "name": "folder-path", "description": "Folder path within the project" },
-            { "name": "flow-file", "description": "Path to JSON file containing the V2 flow definition" },
+            { "name": "flow-file", "description": "Path to JSON file containing the V2 flow definition", "bind": { "field": "flow_definition", "kind": "json_file" } },
             { "name": "ai-prompt", "description": "Optional AI prompt used to generate the workflow" }
           ],
           "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "CreateWorkflow" },
@@ -524,7 +524,7 @@
             { "name": "description", "description": "Updated description" },
             { "name": "folder-path", "description": "Updated folder path" },
             { "name": "tags", "description": "Comma-separated tag list" },
-            { "name": "flow-file", "description": "Path to JSON file with updated V2 flow definition" },
+            { "name": "flow-file", "description": "Path to JSON file with updated V2 flow definition", "bind": { "field": "flow_definition", "kind": "json_file" } },
             { "name": "change-description", "description": "Description of this change" },
             { "name": "source", "description": "Change source (manual|autosave|import|ai_generated|recording)" },
             { "name": "expected-version", "description": "Optimistic-lock version (required to avoid conflicts)" }
@@ -556,9 +556,9 @@
             { "name": "workflow-id", "required": true, "description": "Workflow UUID" }
           ],
           "flags": [
-            { "name": "version", "description": "Workflow version to execute (default: latest)" },
-            { "name": "wait", "bool": true, "description": "Wait for completion before responding" },
-            { "name": "parameters-file", "description": "Path to JSON file with ExecutionParameters" },
+            { "name": "version", "description": "Workflow version to execute (default: latest)", "bind": { "field": "workflow_version" } },
+            { "name": "wait", "bool": true, "description": "Wait for completion before responding", "bind": { "field": "wait_for_completion" } },
+            { "name": "parameters-file", "description": "Path to JSON file with ExecutionParameters", "bind": { "field": "parameters", "kind": "json_file" } },
             { "name": "requires-video", "bool": true, "description": "Record playwright video" },
             { "name": "requires-trace", "bool": true, "description": "Record playwright trace.zip" },
             { "name": "requires-har", "bool": true, "description": "Record HAR archive" },
@@ -577,11 +577,11 @@
           "name": "execute-adhoc",
           "description": "Execute a workflow definition without persisting it.",
           "flags": [
-            { "name": "flow-file", "required": true, "description": "Path to JSON file with the adhoc V2 flow definition" },
-            { "name": "wait", "bool": true, "description": "Wait for completion before responding" },
+            { "name": "flow-file", "required": true, "description": "Path to JSON file with the adhoc V2 flow definition", "bind": { "field": "flow_definition", "kind": "json_file" } },
+            { "name": "wait", "bool": true, "description": "Wait for completion before responding", "bind": { "field": "wait_for_completion" } },
             { "name": "name", "description": "Optional label for the adhoc execution" },
             { "name": "description", "description": "Optional description for the adhoc execution" },
-            { "name": "parameters-file", "description": "Path to JSON file with ExecutionParameters" },
+            { "name": "parameters-file", "description": "Path to JSON file with ExecutionParameters", "bind": { "field": "parameters", "kind": "json_file" } },
             { "name": "requires-video", "bool": true, "description": "Record playwright video" },
             { "name": "requires-trace", "bool": true, "description": "Record playwright trace.zip" },
             { "name": "requires-har", "bool": true, "description": "Record HAR archive" },
@@ -600,7 +600,7 @@
           "name": "validate",
           "description": "Validate a workflow definition.",
           "flags": [
-            { "name": "flow-file", "required": true, "description": "Path to JSON file with the V2 flow definition" }
+            { "name": "flow-file", "required": true, "description": "Path to JSON file with the V2 flow definition", "bind": { "field": "workflow", "kind": "json_file" } }
           ],
           "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "ValidateWorkflow" },
           "governance": {
@@ -613,7 +613,7 @@
           "name": "validate-resolved",
           "description": "Validate a workflow definition whose tokens have already been substituted.",
           "flags": [
-            { "name": "flow-file", "required": true, "description": "Path to JSON file with the V2 flow definition" }
+            { "name": "flow-file", "required": true, "description": "Path to JSON file with the V2 flow definition", "bind": { "field": "workflow", "kind": "json_file" } }
           ],
           "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "ValidateResolvedWorkflow" },
           "governance": {
@@ -629,8 +629,8 @@
             { "name": "workflow-id", "required": true, "description": "Workflow UUID" }
           ],
           "flags": [
-            { "name": "prompt", "required": true, "description": "Natural-language modification prompt" },
-            { "name": "flow-file", "required": true, "description": "Path to JSON file with current V2 flow definition" }
+            { "name": "prompt", "required": true, "description": "Natural-language modification prompt", "bind": { "field": "modification_prompt" } },
+            { "name": "flow-file", "required": true, "description": "Path to JSON file with current V2 flow definition", "bind": { "field": "current_flow", "kind": "json_file" } }
           ],
           "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "ModifyWorkflow" },
           "governance": {
@@ -746,7 +746,7 @@
             { "name": "type", "description": "Workflow type: action | flow | case" },
             { "name": "description", "description": "Optional workflow description" },
             { "name": "tags", "description": "Comma-separated tags" },
-            { "name": "flow-file", "description": "Path to a JSON file containing the WorkflowDefinitionV2 body" }
+            { "name": "flow-file", "description": "Path to a JSON file containing the ProjectWorkflowFileWrite body (top-level keys: name, description, tags, flow_definition, metadata, settings)", "bind": { "field": "workflow", "kind": "json_file" } }
           ],
           "binding": { "kind": "connect-rpc", "service": "ProjectFilesService", "method": "WriteProjectWorkflowFile" },
           "governance": {
@@ -1055,7 +1055,7 @@
           "name": "set",
           "description": "Replace the persisted replay configuration with a JSON payload read from --config-file or stdin.",
           "flags": [
-            { "name": "config-file", "description": "Path to a JSON file containing the replay configuration; omit to read stdin." }
+            { "name": "config-file", "description": "Path to a JSON file containing the replay configuration; omit to read stdin.", "bind": { "field": "config", "kind": "json_file" } }
           ],
           "binding": { "kind": "connect-rpc", "service": "ReplayConfigService", "method": "Put" },
           "governance": {
@@ -1426,7 +1426,7 @@
           ],
           "flags": [
             { "name": "name", "description": "New display name" },
-            { "name": "browser-profile", "description": "Inline JSON for the BrowserProfile blob (anti-detection / fingerprint / behavior / proxy)" }
+            { "name": "browser-profile", "description": "Inline JSON for the BrowserProfile blob (anti-detection / fingerprint / behavior / proxy)", "bind": { "field": "browser_profile", "kind": "json_inline" } }
           ],
           "binding": { "kind": "connect-rpc", "service": "SessionProfilesService", "method": "Update" },
           "governance": {
@@ -1482,7 +1482,7 @@
           "name": "diagnostics",
           "description": "Trigger a manual diagnostic run. Pass --options-file with a JSON body matching playwright-driver's DiagnosticRunRequest.",
           "flags": [
-            { "name": "options-file", "description": "Path to a JSON file with the diagnostic options body" }
+            { "name": "options-file", "description": "Path to a JSON file with the diagnostic options body", "bind": { "field": "options", "kind": "json_file" } }
           ],
           "binding": { "kind": "connect-rpc", "service": "ObservabilityService", "method": "RunDiagnostics" },
           "governance": {
@@ -1525,7 +1525,7 @@
           "name": "pipeline-test",
           "description": "Run the autonomous end-to-end recording-pipeline self-test.",
           "flags": [
-            { "name": "options-file", "description": "Path to a JSON file with the pipeline test options" }
+            { "name": "options-file", "description": "Path to a JSON file with the pipeline test options", "bind": { "field": "options", "kind": "json_file" } }
           ],
           "binding": { "kind": "connect-rpc", "service": "ObservabilityService", "method": "RunPipelineTest" },
           "governance": {

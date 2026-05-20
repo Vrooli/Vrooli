@@ -48,6 +48,9 @@ const (
 	// AdoptionsServiceRefreshAdoptionsProcedure is the fully-qualified name of the AdoptionsService's
 	// RefreshAdoptions RPC.
 	AdoptionsServiceRefreshAdoptionsProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/RefreshAdoptions"
+	// AdoptionsServiceResolveAdoptionPathProcedure is the fully-qualified name of the
+	// AdoptionsService's ResolveAdoptionPath RPC.
+	AdoptionsServiceResolveAdoptionPathProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ResolveAdoptionPath"
 )
 
 // AdoptionsServiceClient is a client for the
@@ -58,6 +61,10 @@ type AdoptionsServiceClient interface {
 	ReapplyAdoption(context.Context, *connect.Request[adoptions.ReapplyAdoptionRequest]) (*connect.Response[adoptions.ReapplyAdoptionResponse], error)
 	DeleteAdoption(context.Context, *connect.Request[adoptions.DeleteAdoptionRequest]) (*connect.Response[adoptions.DeleteAdoptionResponse], error)
 	RefreshAdoptions(context.Context, *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error)
+	// ResolveAdoptionPath returns the canonical filesystem path for an adopted
+	// component, computed from the target scenario's UI manifest (or a
+	// heuristic / fallback when the manifest is missing). Read-only.
+	ResolveAdoptionPath(context.Context, *connect.Request[adoptions.ResolveAdoptionPathRequest]) (*connect.Response[adoptions.ResolveAdoptionPathResponse], error)
 }
 
 // NewAdoptionsServiceClient constructs a client for the
@@ -102,16 +109,23 @@ func NewAdoptionsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(adoptionsServiceMethods.ByName("RefreshAdoptions")),
 			connect.WithClientOptions(opts...),
 		),
+		resolveAdoptionPath: connect.NewClient[adoptions.ResolveAdoptionPathRequest, adoptions.ResolveAdoptionPathResponse](
+			httpClient,
+			baseURL+AdoptionsServiceResolveAdoptionPathProcedure,
+			connect.WithSchema(adoptionsServiceMethods.ByName("ResolveAdoptionPath")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adoptionsServiceClient implements AdoptionsServiceClient.
 type adoptionsServiceClient struct {
-	listAdoptions    *connect.Client[adoptions.ListAdoptionsRequest, adoptions.ListAdoptionsResponse]
-	applyAdoption    *connect.Client[adoptions.ApplyAdoptionRequest, adoptions.ApplyAdoptionResponse]
-	reapplyAdoption  *connect.Client[adoptions.ReapplyAdoptionRequest, adoptions.ReapplyAdoptionResponse]
-	deleteAdoption   *connect.Client[adoptions.DeleteAdoptionRequest, adoptions.DeleteAdoptionResponse]
-	refreshAdoptions *connect.Client[adoptions.RefreshAdoptionsRequest, adoptions.RefreshAdoptionsResponse]
+	listAdoptions       *connect.Client[adoptions.ListAdoptionsRequest, adoptions.ListAdoptionsResponse]
+	applyAdoption       *connect.Client[adoptions.ApplyAdoptionRequest, adoptions.ApplyAdoptionResponse]
+	reapplyAdoption     *connect.Client[adoptions.ReapplyAdoptionRequest, adoptions.ReapplyAdoptionResponse]
+	deleteAdoption      *connect.Client[adoptions.DeleteAdoptionRequest, adoptions.DeleteAdoptionResponse]
+	refreshAdoptions    *connect.Client[adoptions.RefreshAdoptionsRequest, adoptions.RefreshAdoptionsResponse]
+	resolveAdoptionPath *connect.Client[adoptions.ResolveAdoptionPathRequest, adoptions.ResolveAdoptionPathResponse]
 }
 
 // ListAdoptions calls vrooli.react_component_library.v1.adoptions.AdoptionsService.ListAdoptions.
@@ -141,6 +155,12 @@ func (c *adoptionsServiceClient) RefreshAdoptions(ctx context.Context, req *conn
 	return c.refreshAdoptions.CallUnary(ctx, req)
 }
 
+// ResolveAdoptionPath calls
+// vrooli.react_component_library.v1.adoptions.AdoptionsService.ResolveAdoptionPath.
+func (c *adoptionsServiceClient) ResolveAdoptionPath(ctx context.Context, req *connect.Request[adoptions.ResolveAdoptionPathRequest]) (*connect.Response[adoptions.ResolveAdoptionPathResponse], error) {
+	return c.resolveAdoptionPath.CallUnary(ctx, req)
+}
+
 // AdoptionsServiceHandler is an implementation of the
 // vrooli.react_component_library.v1.adoptions.AdoptionsService service.
 type AdoptionsServiceHandler interface {
@@ -149,6 +169,10 @@ type AdoptionsServiceHandler interface {
 	ReapplyAdoption(context.Context, *connect.Request[adoptions.ReapplyAdoptionRequest]) (*connect.Response[adoptions.ReapplyAdoptionResponse], error)
 	DeleteAdoption(context.Context, *connect.Request[adoptions.DeleteAdoptionRequest]) (*connect.Response[adoptions.DeleteAdoptionResponse], error)
 	RefreshAdoptions(context.Context, *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error)
+	// ResolveAdoptionPath returns the canonical filesystem path for an adopted
+	// component, computed from the target scenario's UI manifest (or a
+	// heuristic / fallback when the manifest is missing). Read-only.
+	ResolveAdoptionPath(context.Context, *connect.Request[adoptions.ResolveAdoptionPathRequest]) (*connect.Response[adoptions.ResolveAdoptionPathResponse], error)
 }
 
 // NewAdoptionsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -188,6 +212,12 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 		connect.WithSchema(adoptionsServiceMethods.ByName("RefreshAdoptions")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adoptionsServiceResolveAdoptionPathHandler := connect.NewUnaryHandler(
+		AdoptionsServiceResolveAdoptionPathProcedure,
+		svc.ResolveAdoptionPath,
+		connect.WithSchema(adoptionsServiceMethods.ByName("ResolveAdoptionPath")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.react_component_library.v1.adoptions.AdoptionsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdoptionsServiceListAdoptionsProcedure:
@@ -200,6 +230,8 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 			adoptionsServiceDeleteAdoptionHandler.ServeHTTP(w, r)
 		case AdoptionsServiceRefreshAdoptionsProcedure:
 			adoptionsServiceRefreshAdoptionsHandler.ServeHTTP(w, r)
+		case AdoptionsServiceResolveAdoptionPathProcedure:
+			adoptionsServiceResolveAdoptionPathHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -227,4 +259,8 @@ func (UnimplementedAdoptionsServiceHandler) DeleteAdoption(context.Context, *con
 
 func (UnimplementedAdoptionsServiceHandler) RefreshAdoptions(context.Context, *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.RefreshAdoptions is not implemented"))
+}
+
+func (UnimplementedAdoptionsServiceHandler) ResolveAdoptionPath(context.Context, *connect.Request[adoptions.ResolveAdoptionPathRequest]) (*connect.Response[adoptions.ResolveAdoptionPathResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ResolveAdoptionPath is not implemented"))
 }

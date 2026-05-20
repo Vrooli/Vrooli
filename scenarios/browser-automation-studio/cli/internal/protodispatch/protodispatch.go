@@ -27,6 +27,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"strings"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -145,9 +147,33 @@ func hydrateFromContext(rc cliapp.RunContext, md protoreflect.MessageDescriptor,
 		return nil
 	}
 
+	// Phase 1: apply explicit Bind directives from the manifest. These
+	// take precedence over the scalar-by-name fallback because they
+	// exist specifically to disambiguate cases the fallback can't reach
+	// (file paths, JSON literals, target-field rename).
+	boundFields := make(map[protoreflect.Name]struct{})
+	for _, entry := range rc.FlagBindings() {
+		if !entry.Provided && entry.Value == "" {
+			continue
+		}
+		fd := md.Fields().ByName(protoreflect.Name(entry.Bind.Field))
+		if fd == nil {
+			return fmt.Errorf("flag --%s binds to unknown field %q on %s", entry.Name, entry.Bind.Field, md.FullName())
+		}
+		if err := applyBind(msg, fd, entry); err != nil {
+			return fmt.Errorf("flag --%s: %w", entry.Name, err)
+		}
+		boundFields[fd.Name()] = struct{}{}
+	}
+
+	// Phase 2: scalar fallback for un-bound flags whose name matches a
+	// top-level field name.
 	fields := md.Fields()
 	for i := 0; i < fields.Len(); i++ {
 		fd := fields.Get(i)
+		if _, taken := boundFields[fd.Name()]; taken {
+			continue
+		}
 		names := candidateNames(fd)
 		for _, name := range names {
 			val, ok := lookupValue(rc, name)
@@ -160,6 +186,112 @@ func hydrateFromContext(rc cliapp.RunContext, md protoreflect.MessageDescriptor,
 			break
 		}
 	}
+	return nil
+}
+
+// applyBind projects a single FlagBindEntry onto a proto field per the
+// declared decoding kind.
+func applyBind(msg *dynamicpb.Message, fd protoreflect.FieldDescriptor, entry cliapp.FlagBindEntry) error {
+	kind := entry.Bind.Kind
+	if kind == "" {
+		// Default: bool flags imply boolean presence; valued flags
+		// imply a string value (used for the "rename only" case where
+		// the proto field is named differently from the flag).
+		if entry.Bool {
+			kind = "raw_string" // bool flags route through setScalar's Bool branch below
+		} else {
+			kind = "raw_string"
+		}
+	}
+	switch kind {
+	case "raw_string":
+		val := entry.Value
+		if entry.Bool {
+			if entry.Provided {
+				val = "true"
+			} else {
+				val = "false"
+			}
+		}
+		if val == "" && !entry.Provided {
+			return nil
+		}
+		return setScalar(msg, fd, val)
+	case "json_inline":
+		body := strings.TrimSpace(entry.Value)
+		if body == "" {
+			return nil
+		}
+		return decodeJSONIntoField(msg, fd, []byte(body), "inline")
+	case "json_file":
+		path := strings.TrimSpace(entry.Value)
+		if path == "" {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read file %q: %w", path, err)
+		}
+		return decodeJSONIntoField(msg, fd, data, path)
+	default:
+		return fmt.Errorf("unsupported bind kind %q", kind)
+	}
+}
+
+// decodeJSONIntoField protojson-decodes `body` into the given field. For
+// message-typed fields it decodes into a dynamic sub-message; for map and
+// list fields it merges via a wrapper message; for scalar fields it
+// treats the body as a JSON scalar and copies in via setScalar.
+func decodeJSONIntoField(msg *dynamicpb.Message, fd protoreflect.FieldDescriptor, body []byte, source string) error {
+	if fd.IsMap() {
+		// Decoding directly into a map field via protojson is awkward
+		// because dynamicpb maps don't accept JSON merge at the field
+		// level. Wrap in a synthetic single-field message that mirrors
+		// the parent, then copy the populated map out.
+		return mergeMapFromJSON(msg, fd, body, source)
+	}
+	if fd.IsList() {
+		return fmt.Errorf("bind to repeated field %s from %s: not supported (use --request)", fd.Name(), source)
+	}
+	switch fd.Kind() {
+	case protoreflect.MessageKind:
+		sub := dynamicpb.NewMessage(fd.Message())
+		if err := protojson.Unmarshal(body, sub); err != nil {
+			return fmt.Errorf("decode %s: %w", source, err)
+		}
+		msg.Set(fd, protoreflect.ValueOfMessage(sub))
+		return nil
+	case protoreflect.BytesKind:
+		// Accept either a JSON string (base64) or a raw byte body.
+		var s string
+		if err := json.Unmarshal(body, &s); err == nil {
+			msg.Set(fd, protoreflect.ValueOfBytes([]byte(s)))
+			return nil
+		}
+		msg.Set(fd, protoreflect.ValueOfBytes(body))
+		return nil
+	default:
+		var scalar interface{}
+		if err := json.Unmarshal(body, &scalar); err != nil {
+			return fmt.Errorf("decode %s: %w", source, err)
+		}
+		return setScalar(msg, fd, fmt.Sprint(scalar))
+	}
+}
+
+// mergeMapFromJSON populates a dynamicpb map field from a JSON object
+// body by routing through protojson at the parent-message level.
+func mergeMapFromJSON(msg *dynamicpb.Message, fd protoreflect.FieldDescriptor, body []byte, source string) error {
+	wrapper := map[string]json.RawMessage{fd.JSONName(): json.RawMessage(body)}
+	wrapped, err := json.Marshal(wrapper)
+	if err != nil {
+		return fmt.Errorf("wrap map for %s: %w", source, err)
+	}
+	tmp := dynamicpb.NewMessage(msg.Descriptor())
+	if err := protojson.Unmarshal(wrapped, tmp); err != nil {
+		return fmt.Errorf("decode map %s: %w", source, err)
+	}
+	msg.Set(fd, tmp.Get(fd))
 	return nil
 }
 

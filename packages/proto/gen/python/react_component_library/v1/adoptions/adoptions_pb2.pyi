@@ -26,6 +26,14 @@ class LocalStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     LOCAL_STATUS_MODIFIED: _ClassVar[LocalStatus]
     LOCAL_STATUS_MISSING: _ClassVar[LocalStatus]
     LOCAL_STATUS_UNKNOWN: _ClassVar[LocalStatus]
+
+class ResolveSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RESOLVE_SOURCE_UNSPECIFIED: _ClassVar[ResolveSource]
+    RESOLVE_SOURCE_EXPLICIT: _ClassVar[ResolveSource]
+    RESOLVE_SOURCE_TEMPLATE_MANIFEST: _ClassVar[ResolveSource]
+    RESOLVE_SOURCE_HEURISTIC: _ClassVar[ResolveSource]
+    RESOLVE_SOURCE_FALLBACK: _ClassVar[ResolveSource]
 LIBRARY_VERSION_STATUS_UNSPECIFIED: LibraryVersionStatus
 LIBRARY_VERSION_STATUS_CURRENT: LibraryVersionStatus
 LIBRARY_VERSION_STATUS_BEHIND: LibraryVersionStatus
@@ -37,6 +45,11 @@ LOCAL_STATUS_CLEAN: LocalStatus
 LOCAL_STATUS_MODIFIED: LocalStatus
 LOCAL_STATUS_MISSING: LocalStatus
 LOCAL_STATUS_UNKNOWN: LocalStatus
+RESOLVE_SOURCE_UNSPECIFIED: ResolveSource
+RESOLVE_SOURCE_EXPLICIT: ResolveSource
+RESOLVE_SOURCE_TEMPLATE_MANIFEST: ResolveSource
+RESOLVE_SOURCE_HEURISTIC: ResolveSource
+RESOLVE_SOURCE_FALLBACK: ResolveSource
 
 class Adoption(_message.Message):
     __slots__ = ("id", "component_id", "library_id", "scenario", "adopted_path", "adopted_version", "library_version_status", "local_status", "status_detail", "created_at", "refreshed_at", "source_sha256", "applied_at")
@@ -139,6 +152,30 @@ class RefreshAdoptionsRequest(_message.Message):
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     def __init__(self, component_id: _Optional[str] = ...) -> None: ...
+
+class ResolveAdoptionPathRequest(_message.Message):
+    __slots__ = ("component_id", "scenario", "override_path", "feature")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    OVERRIDE_PATH_FIELD_NUMBER: _ClassVar[int]
+    FEATURE_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    scenario: str
+    override_path: str
+    feature: str
+    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., override_path: _Optional[str] = ..., feature: _Optional[str] = ...) -> None: ...
+
+class ResolveAdoptionPathResponse(_message.Message):
+    __slots__ = ("path", "source", "slot", "warnings")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    SLOT_FIELD_NUMBER: _ClassVar[int]
+    WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    source: ResolveSource
+    slot: str
+    warnings: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, path: _Optional[str] = ..., source: _Optional[_Union[ResolveSource, str]] = ..., slot: _Optional[str] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RefreshAdoptionsResponse(_message.Message):
     __slots__ = ("adoptions", "library_current", "library_behind", "library_deprecated", "library_missing", "library_unknown", "local_clean", "local_modified", "local_missing", "local_unknown")

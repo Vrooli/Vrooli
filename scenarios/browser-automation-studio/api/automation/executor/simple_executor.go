@@ -44,6 +44,17 @@ type executionContext struct {
 
 type navigationState struct {
 	hasNavigated bool
+	// lastAttempt records the most recent navigate step that ran in this
+	// execution but did not mark hasNavigated (i.e. failed). It exists so
+	// ensureNavigation can report *why* a guard tripped instead of the
+	// misleading "no prior navigate step" message when one actually ran.
+	lastAttempt *failedNavigateAttempt
+}
+
+type failedNavigateAttempt struct {
+	nodeID  string
+	url     string
+	summary string
 }
 
 // NewSimpleExecutor constructs a SimpleExecutor. If no sequencer is supplied,
@@ -446,8 +457,12 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			}
 		}
 
-		if normalized.Success && isNavigateInstruction(instruction) {
-			markNavigation(execCtx.navigation)
+		if isNavigateInstruction(instruction) {
+			if normalized.Success {
+				markNavigation(execCtx.navigation)
+			} else {
+				recordFailedNavigate(execCtx.navigation, instruction, e.failureMessage(normalized))
+			}
 		}
 
 		newSession, resetErr := e.maybeResetSession(ctx, eng, spec, session, reuseMode)
@@ -1148,6 +1163,17 @@ func (e *SimpleExecutor) ensureNavigation(ctx context.Context, req Request, exec
 	}
 	startURL := strings.TrimSpace(req.StartURL)
 	if startURL == "" {
+		if attempt := lastFailedNavigate(execCtx.navigation); attempt != nil {
+			return session, fmt.Errorf(
+				"navigation required before step %q (%s): prior navigate step %q (url=%s) failed: %s; "+
+					"fix the navigate target or add a fallback (CLI: --start-url <url>)",
+				nodeID,
+				stepType,
+				attempt.nodeID,
+				attempt.url,
+				attempt.summary,
+			)
+		}
 		return session, fmt.Errorf(
 			"navigation required before step %q (%s): no prior navigate step and no start_url provided; "+
 				"add a navigate node in a parent workflow or pass execution parameters start_url (CLI: --start-url <url>)",
@@ -1208,6 +1234,7 @@ func markNavigation(state *navigationState) {
 		return
 	}
 	state.hasNavigated = true
+	state.lastAttempt = nil
 }
 
 func resetNavigation(state *navigationState) {
@@ -1215,6 +1242,31 @@ func resetNavigation(state *navigationState) {
 		return
 	}
 	state.hasNavigated = false
+	state.lastAttempt = nil
+}
+
+func recordFailedNavigate(state *navigationState, instruction contracts.CompiledInstruction, summary string) {
+	if state == nil {
+		return
+	}
+	url := ""
+	if action := instruction.Action; action != nil {
+		if nav := action.GetNavigate(); nav != nil {
+			url = nav.GetUrl()
+		}
+	}
+	state.lastAttempt = &failedNavigateAttempt{
+		nodeID:  instruction.NodeID,
+		url:     url,
+		summary: summary,
+	}
+}
+
+func lastFailedNavigate(state *navigationState) *failedNavigateAttempt {
+	if state == nil {
+		return nil
+	}
+	return state.lastAttempt
 }
 
 func shouldResetNavigation(reuseMode engine.SessionReuseMode, session engine.EngineSession) bool {
