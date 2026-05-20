@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package vrooli.cli_health.v1.validation;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/validation;validation_v1";
+
+// =============================================================================
+// VALIDATION DOMAIN — manifest/proto/CLI cross-validation
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain validation
+// @stability unstable
+//
+// Wire contract for the ValidationService Connect-RPC service. Validates a
+// scenario's CLI manifest against its proto descriptors, .vrooli/endpoints.json,
+// and structural conventions. Returns a structured Finding list so consumers
+// (CLI, UI, test-genie) can render or filter by severity.
+//
+// Consumed by:
+//   - API: handlers/validation/connect_handler.go implements ValidationServiceHandler.
+//   - CLI: cli/domains/validate/handlers.go calls the generated Connect-Go client.
+//   - UI:  ui/src/api/validation.ts (Phase 4) exposes the generated Connect-Web client.
+// =============================================================================
+
+service ValidationService {
+  rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
+}
+
+// Severity classifies a Finding for filtering and rendering. ERROR causes
+// `passed=false`; WARNING and INFO are advisory.
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_ERROR = 1;
+  SEVERITY_WARNING = 2;
+  SEVERITY_INFO = 3;
+}
+
+// Finding is a single validation result tied to a location inside the
+// scenario (e.g., manifest path, proto file, endpoints.json key).
+message Finding {
+  Severity severity = 1;
+  // Stable machine code (e.g., "manifest.missing_binding"). Tooling filters
+  // by code; do not localize.
+  string code = 2;
+  // Human-meaningful location pointer (path + jsonpath/anchor).
+  string location = 3;
+  // Human-readable description of the issue.
+  string message = 4;
+  // Optional remediation hint.
+  string suggestion = 5;
+}
+
+// Summary is a rollup of Finding counts by severity. Useful for one-line
+// renders and quick CLI exit-code decisions.
+message Summary {
+  int32 errors = 1;
+  int32 warnings = 2;
+  int32 infos = 3;
+}
+
+// ValidateScenarioRequest names a scenario by its scenario id (the
+// directory name under scenarios/).
+message ValidateScenarioRequest {
+  string scenario = 1;
+}
+
+// ValidateScenarioResponse echoes the scenario id and reports findings.
+// `passed` is true iff no Finding has SEVERITY_ERROR.
+message ValidateScenarioResponse {
+  string scenario = 1;
+  bool passed = 2;
+  repeated Finding findings = 3;
+  Summary summary = 4;
+}

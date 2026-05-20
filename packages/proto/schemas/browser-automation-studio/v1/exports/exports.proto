@@ -1,0 +1,277 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.exports;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports;exports";
+
+// =============================================================================
+// EXPORTS DOMAIN — persisted export library (video/gif/JSON/HTML replays).
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain exports
+// @stability stable
+//
+// ExportsService owns the persisted export-library record set: rendered
+// replays (mp4/gif), JSON export packages, and HTML interactive replays
+// produced by the replay export pipeline. Each row tracks metadata about
+// the produced artifact (name, format, storage URL, duration, file size,
+// AI-generated caption, status).
+//
+// The actual replay-export bytes path (POST /executions/{id}/export) stays
+// on chi as a RESTException because it streams binary content and writes
+// to a caller-supplied output_dir. ExportsService is exclusively the
+// metadata/library + lifecycle surface.
+//
+// USAGE CONTEXTS:
+//   - API:  api/handlers/exports_service/service.go
+//   - UI:   ui/src/api/exports.ts (export store + library views)
+//   - CLI:  bas exports list | get | create | update | delete | status |
+//                  generate-caption | reveal | open-folder
+// =============================================================================
+
+service ExportsService {
+  // ListExports lists exports, optionally filtered by execution_id or
+  // workflow_id. When neither filter is supplied returns the full library
+  // page (limit/offset honored).
+  rpc ListExports(ListExportsRequest) returns (ListExportsResponse);
+
+  // CreateExport records a new export library row. The caller has already
+  // produced the underlying artifact (mp4/gif/json/html) and supplies the
+  // storage URL and computed metadata.
+  rpc CreateExport(CreateExportRequest) returns (CreateExportResponse);
+
+  // GetExport returns a single export row by id.
+  rpc GetExport(GetExportRequest) returns (GetExportResponse);
+
+  // UpdateExport applies a partial update to an export row. Unset fields
+  // are left unchanged. Server-managed columns (id, execution_id,
+  // workflow_id, created_at) cannot be updated.
+  rpc UpdateExport(UpdateExportRequest) returns (UpdateExportResponse);
+
+  // DeleteExport removes an export row. The underlying storage file is
+  // intentionally not deleted; cleanup is handled by TTL rules or periodic
+  // jobs (see handler comment in legacy DeleteExport).
+  rpc DeleteExport(DeleteExportRequest) returns (DeleteExportResponse);
+
+  // GetExportStatus returns a compact status snapshot for reconnection
+  // scenarios (status, format, name, storage_url, file_size_bytes, error).
+  rpc GetExportStatus(GetExportStatusRequest) returns (GetExportStatusResponse);
+
+  // GenerateExportCaption asks the configured AI provider for a short
+  // social/share caption for the export. Persists the generated caption
+  // and returns it together with the updated export.
+  rpc GenerateExportCaption(GenerateExportCaptionRequest) returns (GenerateExportCaptionResponse);
+
+  // RevealExport opens the system file manager and selects/highlights the
+  // export's storage file (equivalent to "Show in Finder" / "Show in
+  // Explorer"). Linux falls back to opening the containing folder.
+  rpc RevealExport(RevealExportRequest) returns (RevealExportResponse);
+
+  // OpenExportFolder opens the folder containing the export's storage
+  // file in the system file manager (no selection).
+  rpc OpenExportFolder(OpenExportFolderRequest) returns (OpenExportFolderResponse);
+}
+
+// =============================================================================
+// Shared messages
+// =============================================================================
+
+// Export is the canonical representation of a single export-library row.
+message Export {
+  string id = 1;
+  string execution_id = 2;
+  // Optional workflow this export was rendered from.
+  string workflow_id = 3;
+  string name = 4;
+  // Format: "mp4" | "gif" | "json" | "html".
+  string format = 5;
+  // Free-form export settings blob (theme preset, cursor preset, etc.).
+  google.protobuf.Struct settings = 6;
+  string storage_url = 7;
+  string thumbnail_url = 8;
+  // Nullable; absent when not yet measured.
+  optional int64 file_size_bytes = 9;
+  optional int32 duration_ms = 10;
+  optional int32 frame_count = 11;
+  string ai_caption = 12;
+  google.protobuf.Timestamp ai_caption_generated_at = 13;
+  // Status: "pending" | "processing" | "completed" | "failed".
+  string status = 14;
+  string error = 15;
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  // Joined convenience fields.
+  string workflow_name = 18;
+  google.protobuf.Timestamp execution_date = 19;
+}
+
+// =============================================================================
+// ListExports
+// =============================================================================
+
+message ListExportsRequest {
+  // Optional. Filter by execution UUID. Mutually-preferred over
+  // workflow_id when both are set (matches legacy precedence).
+  string execution_id = 1;
+  // Optional. Filter by workflow UUID.
+  string workflow_id = 2;
+  // Pagination. Server applies defaults when zero/negative.
+  int32 limit = 3;
+  int32 offset = 4;
+}
+
+message ListExportsResponse {
+  repeated Export exports = 1;
+  int32 total = 2;
+}
+
+// =============================================================================
+// CreateExport
+// =============================================================================
+
+message CreateExportRequest {
+  // Required. Execution this export was rendered from.
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+  // Optional. Workflow id (if known).
+  string workflow_id = 2;
+  // Required. Display name.
+  string name = 3 [(buf.validate.field).string.min_len = 1];
+  // Required. One of "mp4" | "gif" | "json" | "html" (case-insensitive).
+  string format = 4 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Struct settings = 5;
+  string storage_url = 6;
+  string thumbnail_url = 7;
+  optional int64 file_size_bytes = 8;
+  optional int32 duration_ms = 9;
+  optional int32 frame_count = 10;
+  // Optional. One of "pending" | "processing" | "completed" | "failed".
+  // Defaults to "completed".
+  string status = 11;
+}
+
+message CreateExportResponse {
+  string export_id = 1;
+  // "created" on success.
+  string status = 2;
+  Export export = 3;
+}
+
+// =============================================================================
+// GetExport
+// =============================================================================
+
+message GetExportRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetExportResponse {
+  Export export = 1;
+}
+
+// =============================================================================
+// UpdateExport
+// =============================================================================
+
+message UpdateExportRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  string name = 2;
+  google.protobuf.Struct settings = 3;
+  string storage_url = 4;
+  string thumbnail_url = 5;
+  optional int64 file_size_bytes = 6;
+  optional int32 duration_ms = 7;
+  optional int32 frame_count = 8;
+  string ai_caption = 9;
+  string status = 10;
+  string error = 11;
+}
+
+message UpdateExportResponse {
+  string export_id = 1;
+  // "updated" on success.
+  string status = 2;
+  Export export = 3;
+}
+
+// =============================================================================
+// DeleteExport
+// =============================================================================
+
+message DeleteExportRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message DeleteExportResponse {
+  string export_id = 1;
+  // "deleted" on success.
+  string status = 2;
+}
+
+// =============================================================================
+// GetExportStatus
+// =============================================================================
+
+message GetExportStatusRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetExportStatusResponse {
+  string export_id = 1;
+  string execution_id = 2;
+  // "pending" | "processing" | "completed" | "failed".
+  string status = 3;
+  string format = 4;
+  string name = 5;
+  string storage_url = 6;
+  optional int64 file_size_bytes = 7;
+  string error = 8;
+}
+
+// =============================================================================
+// GenerateExportCaption
+// =============================================================================
+
+message GenerateExportCaptionRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GenerateExportCaptionResponse {
+  string export_id = 1;
+  string caption = 2;
+  Export export = 3;
+}
+
+// =============================================================================
+// RevealExport
+// =============================================================================
+
+message RevealExportRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message RevealExportResponse {
+  string export_id = 1;
+  string path = 2;
+  // "revealed" on success.
+  string status = 3;
+}
+
+// =============================================================================
+// OpenExportFolder
+// =============================================================================
+
+message OpenExportFolderRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message OpenExportFolderResponse {
+  string export_id = 1;
+  string folder = 2;
+  // "opened" on success.
+  string status = 3;
+}

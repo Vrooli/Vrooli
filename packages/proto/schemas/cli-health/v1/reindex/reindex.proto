@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package vrooli.cli_health.v1.reindex;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/reindex;reindex_v1";
+
+// =============================================================================
+// REINDEX DOMAIN — async corpus reconciliation jobs
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain reindex
+// @stability unstable
+//
+// Wire contract for the ReindexService Connect-RPC service. Long-running:
+// Reindex starts a job and returns a job_id; ReindexStatus polls; ReindexCancel
+// requests cooperative cancellation. A scenario filter narrows scope; dry-run
+// returns planned upsert/delete counts without touching the vector store.
+//
+// Consumed by:
+//   - API: handlers/reindex/connect_handler.go implements ReindexServiceHandler.
+//   - CLI: cli/domains/reindex/handlers.go calls the generated Connect-Go client.
+// =============================================================================
+
+service ReindexService {
+  rpc Reindex(ReindexRequest) returns (ReindexResponse);
+  rpc ReindexStatus(ReindexStatusRequest) returns (ReindexStatusResponse);
+  rpc ReindexCancel(ReindexCancelRequest) returns (ReindexCancelResponse);
+}
+
+// ReindexRequest starts a reconcile job. Empty scenario means "all scenarios".
+// dry_run computes planned upserts/deletes without writing to Qdrant.
+message ReindexRequest {
+  string scenario = 1;
+  bool dry_run = 2;
+}
+
+// ReindexResponse returns the assigned job_id plus the planned upsert/delete
+// counts the orchestrator computed before execution. Counts are exact for
+// dry_run; for real runs they are the planned (pre-execution) figures.
+message ReindexResponse {
+  string job_id = 1;
+  int32 planned_upserts = 2;
+  int32 planned_deletes = 3;
+  bool dry_run = 4;
+}
+
+// ReindexStatusRequest looks up a job by its assigned id.
+message ReindexStatusRequest {
+  string job_id = 1;
+}
+
+// ReindexStatusResponse reports progress and terminal state for a job.
+// State values: "pending", "running", "succeeded", "failed", "cancelled".
+message ReindexStatusResponse {
+  string job_id = 1;
+  string state = 2;
+  int32 processed = 3;
+  int32 total = 4;
+  // Empty unless state == "failed".
+  string error = 5;
+}
+
+// ReindexCancelRequest requests cooperative cancellation. Idempotent; cancelling
+// a terminal job is a no-op.
+message ReindexCancelRequest {
+  string job_id = 1;
+}
+
+// ReindexCancelResponse reports whether the cancel signal was accepted. False
+// when the job was already terminal at the time of the request.
+message ReindexCancelResponse {
+  string job_id = 1;
+  bool cancelled = 2;
+}
