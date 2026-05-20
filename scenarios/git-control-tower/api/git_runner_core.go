@@ -134,6 +134,9 @@ func (r *ExecGitRunner) Commit(ctx context.Context, repoDir string, message stri
 	if options.Amend {
 		args = append(args, "--amend")
 	}
+	if options.NoVerify {
+		args = append(args, "--no-verify")
+	}
 	if options.NoEdit {
 		args = append(args, "--no-edit")
 	} else {

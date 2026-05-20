@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
-import type { CommitCheckRun, RepoHistoryEntry } from "../lib/api";
+import type { CommitCheckRun, PrecommitRunResult, RepoHistoryEntry } from "../lib/api";
 import { XCircle } from "lucide-react";
 
 export interface CommitPanelPrecommitProgress {
@@ -21,6 +21,15 @@ export interface CommitPanelPrecommitProgress {
   elapsedMs: number;
   tail: string[];
   onCancel?: () => void;
+  // Persistent failure state (shown after the stream finishes with a non-passing status).
+  failedResult?: PrecommitRunResult | null;
+  onDismissFailure?: () => void;
+  onCommitAnyway?: () => void;
+  onRunAgain?: () => void;
+  onDisable?: () => void;
+  isCommittingAnyway?: boolean;
+  isRunningAgain?: boolean;
+  isDisablingChecks?: boolean;
 }
 
 function formatElapsedShort(ms: number): string {
@@ -456,7 +465,7 @@ export function CommitPanel({
                 <span className="tabular-nums">{formatElapsedShort(precommitProgress.elapsedMs)}</span>
               </div>
               <p className="mt-2 text-[11px] text-sky-200/70">
-                This is the pre-commit hook, not a hang. Drift check may take 30s–2min if many shared packages were touched.
+                This is the pre-commit hook running configured checks before the commit. It may take a while…
               </p>
               {precommitProgress.tail.length > 0 && (
                 <pre className="mt-3 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-2 text-[11px] text-slate-200">
@@ -475,6 +484,79 @@ export function CommitPanel({
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Pre-commit failure — persistent until user dismisses */}
+          {!precommitProgress?.running && precommitProgress?.failedResult && (
+            <div
+              className="rounded-md border border-red-800/60 bg-red-950/30 p-3 text-xs text-red-100"
+              role="alert"
+              data-testid="commit-precommit-failure"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-red-50">
+                    Pre-commit checks did not pass
+                  </div>
+                  <div className="mt-1 text-[11px] text-red-200/80">
+                    The commit was not created. You can fix the issue and try again, or commit anyway if the checks allow it.
+                  </div>
+                </div>
+                {precommitProgress.onDismissFailure && (
+                  <button
+                    type="button"
+                    onClick={precommitProgress.onDismissFailure}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-red-800/60 text-red-200 hover:bg-red-900/40"
+                    aria-label="Dismiss pre-commit failure"
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="mt-3 rounded border border-red-900/60 bg-red-950/50 p-2 text-[11px]">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium text-red-100">{precommitProgress.failedResult.summary}</span>
+                  <span className="text-red-200/70">exit {precommitProgress.failedResult.exit_code}</span>
+                </div>
+                {(precommitProgress.failedResult.stdout || precommitProgress.failedResult.stderr) && (
+                  <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-2 text-[11px] text-slate-200">
+                    {[precommitProgress.failedResult.stdout, precommitProgress.failedResult.stderr].filter(Boolean).join("\n")}
+                  </pre>
+                )}
+              </div>
+              <div className="mt-3 flex flex-wrap justify-end gap-2">
+                {precommitProgress.onRunAgain && (
+                  <button
+                    type="button"
+                    onClick={precommitProgress.onRunAgain}
+                    disabled={precommitProgress.isRunningAgain}
+                    className="inline-flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800 disabled:opacity-60"
+                  >
+                    Run Again
+                  </button>
+                )}
+                {precommitProgress.onCommitAnyway && precommitProgress.failedResult.override_allowed && (
+                  <button
+                    type="button"
+                    onClick={precommitProgress.onCommitAnyway}
+                    disabled={precommitProgress.isCommittingAnyway}
+                    className="inline-flex items-center gap-1 rounded border border-amber-700/70 bg-amber-950/40 px-2 py-1 text-[11px] text-amber-100 hover:bg-amber-900/40 disabled:opacity-60"
+                  >
+                    Commit Anyway
+                  </button>
+                )}
+                {precommitProgress.onDisable && (
+                  <button
+                    type="button"
+                    onClick={precommitProgress.onDisable}
+                    disabled={precommitProgress.isDisablingChecks}
+                    className="inline-flex items-center gap-1 rounded border border-red-800/70 px-2 py-1 text-[11px] text-red-200 hover:bg-red-900/40 disabled:opacity-60"
+                  >
+                    Disable Checks
+                  </button>
+                )}
+              </div>
             </div>
           )}
 

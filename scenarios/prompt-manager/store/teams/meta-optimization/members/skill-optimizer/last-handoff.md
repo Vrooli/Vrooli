@@ -1,34 +1,34 @@
 ### Skill picked this heartbeat
-- `screaming-architecture-audit` - usage-weighted ladder; skipped pending/recent candidates (`knowledge-observatory-tools`, `visited-tracker-tools`, `swarm-manager-backlog-tools`, `architecture-scope`) and selected next popular active skill with no prior visit.
+- `browser-automation-studio` - usage-weighted ladder; skipped `knowledge-observatory-tools`, `visited-tracker-tools`, and `swarm-manager-backlog-tools` due pending skill-optimizer decisions; skipped `architecture-scope` and `screaming-architecture-audit` as recently visited/no fresh drift.
 
 ### Disposition
-- no-action
+- improve
 
 ### Baseline
-- Tokens: 269 lines / 1,995 words / 14,070 chars
-- Usage: 10 inbound consumers
-- Drift age: no prior visit found; no fresh drift found
+- Tokens: 590 lines / 2,678 words / 23,432 chars
+- Usage: 8 inbound consumers
+- Drift age: no prior visit found; fresh drift found 2026-05-20
 
 ### Expected delta
-- No durable change proposed. Skill remains a judgment-heavy architecture/refactoring lens; no exact CLI/Action owner exists. Measured by preserving no new queue pressure while recording visit/audit evidence.
+- Remove immediately failing singular BAS command examples and one prompt-manager typo. Measure by confirming the skill no longer contains `browser-automation-studio workflow `, `browser-automation-studio session `, or `prompt-manager skills read`, and that documented groups match `browser-automation-studio workflows --help`, `session-profiles --help`, and `schema --help`.
 
 ### Artifacts updated
 - SKILL_AUDIT.md: unchanged; write surface allowed knowledge/decisions/handoff only
-- ACTION_AUDIT.md: unchanged
+- ACTION_AUDIT.md: unchanged as working file; knowledge snapshot written
 - ACTION_CONVERSION_QUEUE.md: unchanged
 - DEPRECATION_QUEUE.md: unchanged
 
 ### Action check
-- Discover: `prompt-manager discover "screaming architecture audit domain vocabulary module dependency structure" --type all` returned related skills only, no exact Action. A second discover returned generic Actions including `bas.audit`.
-- Existing Action inspected: `bas.audit`
-- Validation: `prompt-manager action validate bas.audit` passed; valid/runnable, with warning that owner scenario lacks CLI manifest governance. Not applicable as architecture audit owner because it is a browser UI health capture Action.
+- Discover: `prompt-manager discover "browser automation studio capture screenshot console logs network workflow audit" --type all` returned existing BAS Actions: `bas.audit`, `bas.screenshot`, `bas.console-logs`, `bas.status`, `bas.network`, `bas.screenshot.mobile`
+- Existing Action inspected: `bas.audit`, `bas.screenshot`
+- Validation: `prompt-manager action validate bas.audit` and `prompt-manager action validate bas.screenshot` both valid/runnable, with warning that owning scenario lacks `cli/manifest.json` governance
 
 ### Decisions raised this heartbeat
-- None. Also responded to challenge on `dec-1779142599530774097`: accepted/narrowed the proposal to the accepted trim-and-pointer remedy, with no companion references absent new consumer evidence.
+- `dec-1779315407263556076` - `skill-improvement` - update `browser-automation-studio` to current BAS plural command groups and fix stale examples
 
 ### Knowledge entries written
-- `knw-1779228952524873648` - `challenge-resolution-record/dec-1779142599530774097`
-- `knw-1779229074097717036` - `skill-visited/screaming-architecture-audit`
-- `knw-1779229074098180326` - `skill-audit/2026-05-19`
-- `knw-1779229074224155170` - `action-visited/bas.audit`
-- `action-audit/YYYY-MM-DD`: not written; Action audit unchanged
+- `knw-1779315470516975876` - `skill-visited/browser-automation-studio`
+- `knw-1779315470516166434` - `skill-audit/2026-05-20`
+- `knw-1779315470655486789` - `action-visited/bas.audit`
+- `knw-1779315470655279028` - `action-visited/bas.screenshot`
+- `knw-1779315470655869099` - `action-audit/2026-05-20`

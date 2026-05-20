@@ -178,6 +178,10 @@ type CommitOptions struct {
 	AuthorEmail string
 	Amend       bool
 	NoEdit      bool
+	// NoVerify passes --no-verify to git commit, bypassing client-side hooks
+	// (pre-commit, commit-msg). Used when the caller has explicitly chosen to
+	// override precommit checks.
+	NoVerify bool
 }
 
 // gitCredentialEnv builds environment variables and a cleanup function for

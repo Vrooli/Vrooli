@@ -295,7 +295,7 @@ func (f *FakeGitRunner) Unstage(ctx context.Context, repoDir string, paths []str
 
 // Commit simulates creating a commit.
 func (f *FakeGitRunner) Commit(ctx context.Context, repoDir string, message string, options CommitOptions) (string, error) {
-	f.recordCall("Commit", repoDir, message, options.AuthorName, options.AuthorEmail)
+	f.recordCall("Commit", repoDir, message, options.AuthorName, options.AuthorEmail, fmt.Sprintf("no_verify=%v", options.NoVerify))
 
 	if f.CommitError != nil {
 		return "", f.CommitError

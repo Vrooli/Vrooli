@@ -2,12 +2,6 @@
   "teamId": "meta-optimization",
   "queuePolicy": "bounded-parallel",
   "maxConcurrentRuns": 3,
-  "running": [
-    {
-      "AgentID": "skill-optimizer",
-      "ProfileKey": "",
-      "RunID": "af4f529e-448d-4823-bbcc-9382a8181994"
-    }
-  ],
+  "running": [],
   "queue": null
 }

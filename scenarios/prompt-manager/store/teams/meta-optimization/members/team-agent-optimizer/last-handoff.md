@@ -2,34 +2,34 @@
 - agent
 
 ### Target picked
-- `run-introspector` - agent-default ladder; skipped covered/recent low-health nodes, then selected next low-health active node at 0.51 with no prior visit entry.
+- `debt-curator` - agent-default ladder; skipped covered/recent low-health nodes, then selected next low-health active meta-optimization member with no prior visit entry.
 
 ### Disposition
-- improve candidate; no decision raised due owned-context cap.
+- improve candidate; no decision raised due owned-context cap and team governance ceiling.
 
 ### Evidence
-- `prompt-manager graph node run-introspector` reports health 0.51 with only membership inbound and `cli:prompt-manager` outbound.
-- Member is active and useful: latest run lesson `run-lesson-report/2026-05-18` supported capability-gap `dec-1779144543464355217`.
-- Generated required memory includes `friction-report/run-execution/*`, and recent heartbeats wrote that topic.
-- `prompt-manager graph topics --team meta-optimization` flags five `run-introspector` `friction-report/run-execution/*` writes as `actual_writer_undeclared` because outputs declare only `run-lesson-report/*`.
+- `prompt-manager graph node debt-curator` reports health 0.56 with one membership inbound and only `cli:prompt-manager` / `cli:vrooli` outbound.
+- Member is active and useful: latest handoff reviewed 139 storage entries, evaluated five promotion candidates, and wrote `debt-scan/2026-05-19` plus recurring workaround friction.
+- `prompt-manager graph topics --team meta-optimization` flags five `debt-curator` `friction-report/recurring-workaround/*` writes as `actual_writer_undeclared` because outputs declare only `debt-scan/*`.
+- Current debt-curator task requires `friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>`, so this is promotion/routing drift rather than role failure.
 
 ### Expected delta
-- When queue allows, clarify routing: either declare `friction-report/run-execution/*` as a `run-introspector` output or route these through `friction-inbox/*` / `report-friction` so `friction-curator` remains the declared writer.
-- Measure with `prompt-manager graph topics --team meta-optimization`: no new `run-introspector` `actual_writer_undeclared` errors for run-execution friction.
+- When queue allows, clarify routing: either declare `friction-report/recurring-workaround/*` as a `debt-curator` output or route recurring workaround reports through `friction-curator` / `report-friction`.
+- Measure with `prompt-manager graph topics --team meta-optimization`: no new `debt-curator` `actual_writer_undeclared` errors for recurring-workaround friction.
 
 ### Capability architecture
 - weak
 - Primary layer gap: promotion-routing
-- Routing: team-agent-optimizer once owned-context pending count drops below 4; coordinates with existing storage/friction capability-gap `dec-1779144543464355217`.
+- Routing: team-agent-optimizer once owned-context pending count drops below 4; coordinates with recurring storage/friction output drift already seen for run-introspector and toolchain-validator.
 
 ### Artifacts updated
 - AGENT_AUDIT.md: not edited because this run’s write surface allows knowledge, decisions, and handoff only.
 - DEPRECATION_QUEUE.md: unchanged.
 
 ### Decisions raised this heartbeat
-- None. Owned-context pending count is already 4: `dec-1778797938232697845`, `dec-1778884421236613535`, `dec-1779057112765291497`, `dec-1779143529470088721`.
+- None. Owned-context pending count is already 4: `dec-1778797938232697845`, `dec-1778884421236613535`, `dec-1779057112765291497`, `dec-1779143529470088721`. Total team pending count is 14, above the governance ceiling.
 
 ### Knowledge entries written
-- `agent-visited/run-introspector` (`knw-1779229899895926455`)
-- `agent-audit/2026-05-19` (`knw-1779229915880820101`)
-- `friction-report/prompt-team-agent-storage/2026-05-19/run-introspector-undeclared-run-execution-friction-output` (`knw-1779229928986456831`)
+- `agent-visited/debt-curator` (`knw-1779316306089697111`)
+- `agent-audit/2026-05-20` (`knw-1779316306197613136`)
+- `friction-report/prompt-team-agent-storage/2026-05-20/debt-curator-undeclared-recurring-workaround-output` (`knw-1779316306198997338`)

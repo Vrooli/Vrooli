@@ -113,6 +113,7 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 		AuthorEmail: strings.TrimSpace(req.AuthorEmail),
 		Amend:       req.Amend,
 		NoEdit:      noEdit,
+		NoVerify:    req.SkipPrecommitOnce,
 	})
 	if err != nil {
 		return &CommitResponse{

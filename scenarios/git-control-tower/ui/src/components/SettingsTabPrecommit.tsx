@@ -190,7 +190,7 @@ export function SettingsTabPrecommit({ repoId, isMobile = false }: SettingsTabPr
             <span className="tabular-nums">{formatElapsed(precommitStream.state.elapsedMs)}</span>
           </div>
           <p className="mt-2 text-[11px] text-sky-200/70">
-            Drift check may take 30s–2min if many shared packages were touched.
+            Running configured pre-commit checks. This may take a while…
           </p>
           {precommitStream.state.tail.length > 0 && (
             <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-2 text-[11px] text-slate-200">

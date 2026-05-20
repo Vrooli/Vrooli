@@ -127,6 +127,9 @@ func TestCreateCommitPrecommitBlocksAndOverrideSkips(t *testing.T) {
 	if !committed.Success || !passingGit.AssertCalled("Commit") {
 		t.Fatalf("override response = %#v", committed)
 	}
+	if !passingGit.AssertCalledWith("Commit", "no_verify=true") {
+		t.Fatalf("override commit must pass --no-verify so installed git hooks are bypassed; calls=%v", passingGit.Calls)
+	}
 }
 
 func TestCreateCommitRecordsPassingPrecommitCheck(t *testing.T) {
