@@ -19,6 +19,9 @@ Use this document to answer:
 | UI build | 5-10 minutes accepted for current Vite module graph | lifecycle/test-genie build logs | inherited |
 | API health | responsive under lifecycle health timeout | `/health` check | active |
 | UI health | responsive under lifecycle health timeout | `/health` check | active |
+| Lighthouse accessibility | ≥95 per route | `npx lighthouse <route>` (manual) | target |
+| Lighthouse best-practices | ≥90 per route | `npx lighthouse <route>` (manual) | target |
+| axe-core violations | 0 on every page test | `pnpm test -- --run *.a11y` | enforced |
 
 ## Current Measurements
 
@@ -42,6 +45,39 @@ Use this document to answer:
 4. Record persistent findings in this document or
    [`PROBLEMS.md`](PROBLEMS.md) depending on whether they are accepted
    constraints or unresolved debt.
+
+## Accessibility & Responsive Verification
+
+The plan in `UI_REBUILD_PLAN.md` calls for Lighthouse a11y ≥95 /
+best-practices ≥90 on every route, plus a mobile-viewport sweep at
+360×640.
+
+**Static (already automated):**
+
+- Every page has an `*.a11y.test.tsx` running `axe-core` (run via
+  `pnpm test -- --run *.a11y`).
+- Selector registry in `ui/src/consts/selectors.ts` keeps every
+  data-testid typed and parameter-checked.
+- Filter chips on Search / Inventory / Validation expand to
+  `min-h-touch` on mobile (`md:min-h-0` shrinks back on desktop) so
+  they meet the 44px tap-target rule on phones without bulking up the
+  desktop layout.
+
+**Manual capture (do this before any release):**
+
+1. `vrooli scenario start ui-health`
+2. Open the UI in a browser. For each of `/`, `/validation`,
+   `/search`, `/inventory`, `/reindex`, `/settings`, run:
+   `npx lighthouse <url> --only-categories=accessibility,best-practices --view`
+3. Record results in the table below.
+4. Resize to 360×640 and walk every page. Note any overflowing text,
+   missing hit targets, or focus-trap escapes in `PROBLEMS.md`.
+
+### Lighthouse capture log
+
+| Route | Accessibility | Best-practices | Date | Source |
+|---|---|---|---|---|
+| (not captured) | n/a | n/a | 2026-05-20 | pending manual run |
 
 ## Cross-References
 

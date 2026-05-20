@@ -345,6 +345,27 @@ const literalSelectors = {
     root: "error-boundary-root",
     retryButton: "error-boundary-retry",
   },
+  dashboard: {
+    stats: {
+      scenariosValidated: "dashboard-stat-scenarios-validated",
+      surfacesIndexed: "dashboard-stat-surfaces-indexed",
+      openIssues: "dashboard-stat-open-issues",
+    },
+    activity: {
+      list: "dashboard-activity-list",
+      empty: "dashboard-activity-empty",
+    },
+    quickActions: {
+      search: "dashboard-quick-action-search",
+      validate: "dashboard-quick-action-validate",
+      reindex: "dashboard-quick-action-reindex",
+      inventory: "dashboard-quick-action-inventory",
+    },
+    apiStatus: {
+      card: "dashboard-api-status",
+      dependency: "dashboard-api-dependency",
+    },
+  },
   validation: {
     form: "validation-form",
     scenarioInput: "validation-scenario-input",
@@ -515,6 +536,13 @@ const dynamicSelectorDefinitions = {
     resultOpen: defineDynamicSelector({
       description: "Search result open-in-inventory link by zero-based index",
       testIdPattern: "search-result-open-${index}",
+      params: { index: { type: "number" } },
+    }),
+  },
+  dashboard: {
+    activityRow: defineDynamicSelector({
+      description: "Dashboard activity feed row by zero-based index",
+      testIdPattern: "dashboard-activity-row-${index}",
       params: { index: { type: "number" } },
     }),
   },

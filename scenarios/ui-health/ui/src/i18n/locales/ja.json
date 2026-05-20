@@ -58,14 +58,39 @@
         "openIssues": "未解決の問題"
       },
       "activity": {
-        "heading": "最近のアクティビティ",
-        "empty": "最近のアクティビティはありません。"
+        "heading": "Recent activity",
+        "empty": "No recent activity. Trigger a validation or reindex to populate this feed.",
+        "kindValidation": "Validation",
+        "kindReindex": "Reindex",
+        "validationPassed": "passed",
+        "validationFailed": "failed",
+        "errorsLabel": "{{count}} error(s)",
+        "warningsLabel": "{{count}} warning(s)",
+        "openValidation": "Open validation for {{scenario}}",
+        "openJob": "Open job {{jobId}}"
       },
       "quickActions": {
-        "heading": "クイックアクション",
-        "search": "サーフェスを検索",
-        "validate": "シナリオを検証",
-        "reindex": "今すぐ再インデックス"
+        "heading": "Quick actions",
+        "search": "Search surfaces",
+        "validate": "Validate a scenario",
+        "reindex": "Reindex now",
+        "inventory": "Inventory"
+      },
+      "apiStatus": {
+        "heading": "API status",
+        "service": "Service",
+        "version": "Version",
+        "uptime": "Uptime",
+        "uptimeSeconds": "{{seconds}}s",
+        "readiness": "Readiness",
+        "ready": "Ready",
+        "notReady": "Not ready",
+        "dependencies": "Dependencies",
+        "noDependencies": "No dependencies reported.",
+        "latency": "{{ms}} ms",
+        "loading": "Loading status…",
+        "error": "Status unavailable: {{message}}",
+        "indexedSurfaces": "Indexed surfaces"
       }
     },
     "settings": {

@@ -290,8 +290,8 @@ function FilterChip({
       data-testid={testId}
       className={
         active
-          ? "rounded-pill bg-app-primary px-3 py-1 text-xs font-medium text-app-primary-foreground"
-          : "rounded-pill border border-app-border bg-app-surface px-3 py-1 text-xs font-medium text-app-foreground hover:bg-app-surface-muted"
+          ? "rounded-pill bg-app-primary px-3 py-1 text-xs font-medium text-app-primary-foreground min-h-touch md:min-h-0"
+          : "rounded-pill border border-app-border bg-app-surface px-3 py-1 text-xs font-medium text-app-foreground hover:bg-app-surface-muted min-h-touch md:min-h-0"
       }
     >
       {label}

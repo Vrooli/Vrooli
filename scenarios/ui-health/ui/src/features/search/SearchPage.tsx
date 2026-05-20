@@ -85,8 +85,8 @@ export function SearchPage() {
                   data-testid={selectors.search.kindFilter({ kind: k })}
                   className={
                     active
-                      ? "rounded-pill bg-app-primary px-3 py-1 text-xs font-medium text-app-primary-foreground"
-                      : "rounded-pill border border-app-border bg-app-surface px-3 py-1 text-xs font-medium text-app-foreground hover:bg-app-surface-muted"
+                      ? "rounded-pill bg-app-primary px-3 py-1 text-xs font-medium text-app-primary-foreground min-h-touch md:min-h-0"
+                      : "rounded-pill border border-app-border bg-app-surface px-3 py-1 text-xs font-medium text-app-foreground hover:bg-app-surface-muted min-h-touch md:min-h-0"
                   }
                 >
                   <span>{t(KIND_LABEL_KEY[k])}</span>
