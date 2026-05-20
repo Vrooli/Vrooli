@@ -1,0 +1,78 @@
+{
+  "description": "`WidgetDeclaration` proto in `packages/proto/schemas/ui-health/v1/contracts/widget.proto` is fully defined with field semantics documented; a per-framework JSDoc tag (`@vrooliWidget` block) lets components opt in to being embedded as a chat widget. No consumer ships in v1; agent-inbox unified retrieval is the eventual consumer. Documented in this PRD as a deliverable so it survives in the requirements registry.",
+  "module_id": "MOD-P1-008",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-006"
+      ],
+      "description": "A `WidgetDeclaration` protobuf message must be defined in `packages/proto/schemas/ui-health/v1/contracts/widget.proto`. All fields must have documented semantics. A per-framework JSDoc tag (`@vrooliWidget` block) must be defined to allow React components to opt in to being embedded as a chat widget. The proto and JSDoc tag are a forward-looking contract; no runtime consumer ships in v1. The definition must be recorded in the requirements registry as a deliverable.",
+      "id": "REQ-P1-004",
+      "prd_ref": "OT-P1-003",
+      "status": "draft",
+      "title": "WidgetDeclaration Proto Contract Definition",
+      "validation": [
+        {
+          "notes": "Proto file compiles without errors using protoc",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Every field in WidgetDeclaration has a comment documenting its semantics",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "`@vrooliWidget` JSDoc tag is parseable by the JSDoc parser used in the provenance pipeline",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A React component annotated with `@vrooliWidget` is correctly identified as a widget candidate during scanning",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Parse a React component file containing a `@vrooliWidget` JSDoc block and confirm WidgetDeclaration proto fields are populated",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm the proto definition is present in the proto registry and accessible to other packages",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The WidgetDeclaration contract is registered and versioned so future consumers (e.g., agent-inbox) can implement retrieval without a breaking change",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No v1 runtime consumer is required; existence of proto and JSDoc standard satisfies the deliverable",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "WidgetDeclaration contract defined"
+}

@@ -1,0 +1,89 @@
+{
+  "_metadata": {
+    "entity": "ui-health",
+    "generated_at": "2026-05-20T13:57:40-04:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-deterministic-manifest-validation/module.json",
+    "02-semantic-ui-surface-search/module.json",
+    "03-on-demand-reindexing-with-framework-disp/module.json",
+    "04-componentprovenance-contract-is-single-s/module.json",
+    "05-test-genie-phase-ui-health-integration/module.json",
+    "06-drift-detection-between-sqlite-and-jsdoc/module.json",
+    "07-reindex-job-lifecycle-verbs/module.json",
+    "08-widgetdeclaration-contract-defined/module.json",
+    "09-ui-inspection-surface/module.json",
+    "10-framework-dispatch-resolver-is-data-driv/module.json",
+    "11-widget-standard-consumer-integration/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-deterministic-manifest-validation",
+      "priority": "P0",
+      "title": "Deterministic manifest validation"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-semantic-ui-surface-search",
+      "priority": "P0",
+      "title": "Semantic UI-surface search"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-on-demand-reindexing-with-framework-disp",
+      "priority": "P0",
+      "title": "On-demand reindexing with framework dispatch"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-componentprovenance-contract-is-single-s",
+      "priority": "P0",
+      "title": "ComponentProvenance contract is single source of truth"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-test-genie-phase-ui-health-integration",
+      "priority": "P0",
+      "title": "test-genie phase_ui_health integration"
+    },
+    {
+      "id": "MOD-P1-006",
+      "path": "06-drift-detection-between-sqlite-and-jsdoc",
+      "priority": "P1",
+      "title": "Drift detection between SQLite and JSDoc"
+    },
+    {
+      "id": "MOD-P1-007",
+      "path": "07-reindex-job-lifecycle-verbs",
+      "priority": "P1",
+      "title": "Reindex job lifecycle verbs"
+    },
+    {
+      "id": "MOD-P1-008",
+      "path": "08-widgetdeclaration-contract-defined",
+      "priority": "P1",
+      "title": "WidgetDeclaration contract defined"
+    },
+    {
+      "id": "MOD-P1-009",
+      "path": "09-ui-inspection-surface",
+      "priority": "P1",
+      "title": "UI inspection surface"
+    },
+    {
+      "id": "MOD-P2-010",
+      "path": "10-framework-dispatch-resolver-is-data-driv",
+      "priority": "P2",
+      "title": "Framework dispatch resolver is data-driven"
+    },
+    {
+      "id": "MOD-P2-011",
+      "path": "11-widget-standard-consumer-integration",
+      "priority": "P2",
+      "title": "Widget standard consumer integration"
+    }
+  ]
+}
