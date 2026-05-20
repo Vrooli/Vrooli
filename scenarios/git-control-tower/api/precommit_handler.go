@@ -37,6 +37,28 @@ func (s *Server) handlePrecommitSave(w http.ResponseWriter, r *http.Request) {
 	hctx.Resp.OK(cfg)
 }
 
+func (s *Server) handlePrecommitRunStream(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, maxPrecommitTimeoutSeconds*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+	var req PrecommitRunRequest
+	if r.Body != nil && r.ContentLength != 0 {
+		if !ParseJSONBody(w, r, &req) {
+			return
+		}
+	}
+	emitter, err := newSSEEmitter(w)
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+	if _, err := s.precommit.RunStream(hctx.Ctx, hctx.RepoDir, req, emitter); err != nil {
+		emitter.Emit(PrecommitStreamEvent{Type: "error", Error: err.Error()})
+	}
+}
+
 func (s *Server) handlePrecommitRun(w http.ResponseWriter, r *http.Request) {
 	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, maxPrecommitTimeoutSeconds*time.Second)
 	if hctx == nil {

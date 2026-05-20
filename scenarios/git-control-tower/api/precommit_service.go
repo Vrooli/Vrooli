@@ -14,6 +14,8 @@ const (
 	defaultPrecommitTimeoutSeconds = 300
 	maxPrecommitTimeoutSeconds     = 1800
 	precommitOutputLimit           = 24000
+
+	defaultPrecommitCommand = "vrooli hygiene --fail-on error"
 )
 
 type PrecommitService struct {
@@ -65,19 +67,22 @@ func (s *PrecommitService) Get(ctx context.Context, repoDir string) (PrecommitCo
 	}
 	row := s.db.QueryRowContext(ctx, `
 		SELECT enabled, command, working_directory, timeout_seconds, run_before_commit, allow_override,
-			last_status, last_exit_code, last_summary, last_stdout, last_stderr, last_duration_ms, last_timestamp
+			last_status, last_exit_code, last_summary, last_stdout, last_stderr, last_duration_ms, last_timestamp,
+			hook_install_status, hook_install_reason, hook_existing_kind, hook_installed_at
 		FROM git_repo_precommit
 		WHERE repo_path = ?
 	`, repoDir)
 	var (
-		enabled, runBeforeCommit, allowOverride int
-		lastStatus, lastSummary                 sql.NullString
-		lastStdout, lastStderr                  sql.NullString
-		lastExitCode, lastDuration              sql.NullInt64
-		lastTimestamp                           sql.NullString
+		enabled, runBeforeCommit, allowOverride                   int
+		lastStatus, lastSummary                                   sql.NullString
+		lastStdout, lastStderr                                    sql.NullString
+		lastExitCode, lastDuration                                sql.NullInt64
+		lastTimestamp                                             sql.NullString
+		hookStatus, hookReason, hookExistingKind, hookInstalledAt sql.NullString
 	)
 	err := row.Scan(&enabled, &cfg.Command, &cfg.WorkingDirectory, &cfg.TimeoutSeconds, &runBeforeCommit, &allowOverride,
-		&lastStatus, &lastExitCode, &lastSummary, &lastStdout, &lastStderr, &lastDuration, &lastTimestamp)
+		&lastStatus, &lastExitCode, &lastSummary, &lastStdout, &lastStderr, &lastDuration, &lastTimestamp,
+		&hookStatus, &hookReason, &hookExistingKind, &hookInstalledAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return cfg, nil
@@ -102,6 +107,32 @@ func (s *PrecommitService) Get(ctx context.Context, repoDir string) (PrecommitCo
 			result.Timestamp = parsed
 		}
 		cfg.LastResult = &result
+	}
+	if hookStatus.Valid {
+		hook := &PrecommitHookState{
+			Status:       hookStatus.String,
+			Reason:       hookReason.String,
+			ExistingKind: hookExistingKind.String,
+		}
+		if hookInstalledAt.Valid {
+			if parsed, err := time.Parse(time.RFC3339Nano, hookInstalledAt.String); err == nil {
+				hook.InstalledAt = parsed
+			}
+		}
+		cfg.Hook = hook
+	}
+	if info, err := ReadInstalledHook(ctx, repoDir); err == nil {
+		if cfg.Hook == nil {
+			cfg.Hook = &PrecommitHookState{}
+		}
+		cfg.Hook.Path = info.Path
+		cfg.Hook.HooksPath = info.HooksPath
+		if info.Kind != HookKindGCT && info.Kind != HookKindNone {
+			cfg.Hook.ExistingHookPreview = info.Preview
+			if cfg.Hook.ExistingKind == "" {
+				cfg.Hook.ExistingKind = info.Kind
+			}
+		}
 	}
 	return normalizePrecommitConfig(repoDir, cfg), nil
 }
@@ -129,7 +160,51 @@ func (s *PrecommitService) Save(ctx context.Context, repoDir string, cfg Precomm
 	if err != nil {
 		return PrecommitConfig{}, fmt.Errorf("save precommit config: %w", err)
 	}
+	hookResult := s.reconcileHook(ctx, repoDir, cfg)
+	_ = s.persistHookState(ctx, repoDir, hookResult)
 	return s.Get(ctx, repoDir)
+}
+
+func (s *PrecommitService) reconcileHook(ctx context.Context, repoDir string, cfg PrecommitConfig) HookInstallResult {
+	if cfg.Enabled {
+		result, err := InstallHook(ctx, repoDir, cfg.Command)
+		if err != nil && result.Reason == "" {
+			result.Reason = err.Error()
+		}
+		return result
+	}
+	result, err := UninstallHook(ctx, repoDir)
+	if err != nil && result.Reason == "" {
+		result.Reason = err.Error()
+	}
+	return result
+}
+
+func (s *PrecommitService) persistHookState(ctx context.Context, repoDir string, result HookInstallResult) error {
+	if s == nil || s.db == nil {
+		return nil
+	}
+	status := "fallback"
+	if result.Installed {
+		status = "installed"
+	} else if strings.HasPrefix(result.Reason, "removed") || strings.HasPrefix(result.Reason, "no hook installed") {
+		status = "uninstalled"
+	}
+	installedAt := sql.NullString{}
+	if !result.InstalledAt.IsZero() {
+		installedAt.Valid = true
+		installedAt.String = result.InstalledAt.UTC().Format(time.RFC3339Nano)
+	}
+	_, err := s.db.ExecContext(ctx, `
+		UPDATE git_repo_precommit
+		SET hook_install_status = ?,
+			hook_install_reason = ?,
+			hook_existing_kind = ?,
+			hook_installed_at = ?,
+			updated_at = ?
+		WHERE repo_path = ?
+	`, status, result.Reason, result.ExistingHookKind, installedAt, time.Now().UTC().Format(time.RFC3339Nano), repoDir)
+	return err
 }
 
 func (s *PrecommitService) Run(ctx context.Context, repoDir string, req PrecommitRunRequest) (PrecommitRunResult, error) {
@@ -228,6 +303,8 @@ func (s *PrecommitService) saveLastResult(ctx context.Context, repoDir string, r
 
 func defaultPrecommitConfig(repoDir string) PrecommitConfig {
 	return PrecommitConfig{
+		Enabled:          true,
+		Command:          defaultPrecommitCommand,
 		WorkingDirectory: repoDir,
 		TimeoutSeconds:   defaultPrecommitTimeoutSeconds,
 		RunBeforeCommit:  true,

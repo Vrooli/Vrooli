@@ -17,6 +17,7 @@ import {
   type PrecommitConfig,
   type PrecommitRunRequest,
   type PrecommitRunResponse,
+  type PrecommitStreamEvent,
   type DiscardRequest,
   type DiscardResponse,
   type IgnoreRequest,
@@ -182,6 +183,69 @@ export async function runPrecommit(request: PrecommitRunRequest = {}, repoId?: s
     }
   }
   return handleResponse<PrecommitRunResponse>(res);
+}
+
+export interface PrecommitStreamHandlers {
+  onEvent?: (event: PrecommitStreamEvent) => void;
+  signal?: AbortSignal;
+}
+
+export async function runPrecommitStream(
+  request: PrecommitRunRequest = {},
+  repoId: string | undefined,
+  handlers: PrecommitStreamHandlers = {}
+): Promise<PrecommitStreamEvent> {
+  const url = buildApiUrl("/repo/precommit/run/stream", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { ...buildRepoHeaders(repoId), Accept: "text/event-stream" },
+    body: JSON.stringify(request),
+    signal: handlers.signal,
+  });
+  if (!res.ok || !res.body) {
+    throw new Error(`precommit stream failed: ${res.status} ${res.statusText}`);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let last: PrecommitStreamEvent | null = null;
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let sep = buffer.indexOf("\n\n");
+    while (sep !== -1) {
+      const block = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      const event = parseSSEEvent(block);
+      if (event) {
+        last = event;
+        handlers.onEvent?.(event);
+        if (event.type === "finished" || event.type === "error") {
+          return event;
+        }
+      }
+      sep = buffer.indexOf("\n\n");
+    }
+  }
+  if (last) return last;
+  throw new Error("precommit stream closed without finished event");
+}
+
+function parseSSEEvent(block: string): PrecommitStreamEvent | null {
+  let data = "";
+  for (const rawLine of block.split("\n")) {
+    const line = rawLine.replace(/\r$/, "");
+    if (line.startsWith("data:")) {
+      data += line.slice(5).replace(/^ /, "");
+    }
+  }
+  if (!data) return null;
+  try {
+    return JSON.parse(data) as PrecommitStreamEvent;
+  } catch {
+    return null;
+  }
 }
 
 export async function discardFiles(request: DiscardRequest, repoId?: string): Promise<DiscardResponse> {

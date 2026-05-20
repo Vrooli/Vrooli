@@ -36,6 +36,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/precommit", s.handlePrecommitGet).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/precommit", s.handlePrecommitSave).Methods("PUT")
 	s.router.HandleFunc("/api/v1/repo/precommit/run", s.handlePrecommitRun).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/precommit/run/stream", s.handlePrecommitRunStream).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/approved-changes", s.handleApprovedChanges).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/approved-changes/preview", s.handleApprovedChangesPreview).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/provenance", s.handleProvenance).Methods("GET")

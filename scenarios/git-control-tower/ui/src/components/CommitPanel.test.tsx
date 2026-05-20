@@ -40,6 +40,46 @@ describe("CommitPanel", () => {
     expect(screen.getByText(/set upstream before amending/i)).toBeInTheDocument();
   });
 
+  it("shows live precommit progress panel with elapsed and tail", () => {
+    render(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: x"
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={true}
+        precommitProgress={{
+          running: true,
+          command: "vrooli hygiene --fail-on error",
+          elapsedMs: 12500,
+          tail: ["check 1 ok", "check 2 ok", "running drift..."],
+          onCancel: vi.fn(),
+        }}
+      />
+    );
+
+    const progress = screen.getByTestId("commit-precommit-progress");
+    expect(progress).toBeInTheDocument();
+    expect(progress).toHaveTextContent(/Running pre-commit/i);
+    expect(progress).toHaveTextContent(/12\.5s/);
+    expect(progress).toHaveTextContent(/running drift/);
+    expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+  });
+
+  it("hides precommit progress panel when not running", () => {
+    render(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: x"
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        precommitProgress={{ running: false, elapsedMs: 0, tail: [] }}
+      />
+    );
+    expect(screen.queryByTestId("commit-precommit-progress")).not.toBeInTheDocument();
+  });
+
   it("shows commit checks in history mode", () => {
     render(
       <CommitPanel

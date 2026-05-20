@@ -10,6 +10,17 @@ type PrecommitConfig struct {
 	RunBeforeCommit  bool                `json:"run_before_commit"`
 	AllowOverride    bool                `json:"allow_override"`
 	LastResult       *PrecommitRunResult `json:"last_result,omitempty"`
+	Hook             *PrecommitHookState `json:"hook,omitempty"`
+}
+
+type PrecommitHookState struct {
+	Status              string    `json:"status"`
+	Reason              string    `json:"reason,omitempty"`
+	ExistingKind        string    `json:"existing_kind,omitempty"`
+	ExistingHookPreview string    `json:"existing_hook_preview,omitempty"`
+	Path                string    `json:"path,omitempty"`
+	HooksPath           string    `json:"hooks_path,omitempty"`
+	InstalledAt         time.Time `json:"installed_at,omitempty"`
 }
 
 type PrecommitRunRequest struct {

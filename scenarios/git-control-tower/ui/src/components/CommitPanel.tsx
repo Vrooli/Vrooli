@@ -13,6 +13,24 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import type { CommitCheckRun, RepoHistoryEntry } from "../lib/api";
+import { XCircle } from "lucide-react";
+
+export interface CommitPanelPrecommitProgress {
+  running: boolean;
+  command?: string;
+  elapsedMs: number;
+  tail: string[];
+  onCancel?: () => void;
+}
+
+function formatElapsedShort(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}m ${s.toString().padStart(2, "0")}s`;
+}
 
 interface CommitPanelProps {
   stagedCount: number;
@@ -44,6 +62,8 @@ interface CommitPanelProps {
   // History mode - disables the panel
   isHistoryMode?: boolean;
   historyCommit?: Pick<RepoHistoryEntry, "hash" | "subject" | "checks"> | null;
+  // Pre-commit live progress (driven by useStreamPrecommit in the parent)
+  precommitProgress?: CommitPanelPrecommitProgress;
 }
 
 function CommitErrorDisplay({ error }: { error: string }) {
@@ -175,7 +195,8 @@ export function CommitPanel({
   pushTarget,
   sourceBranch,
   isHistoryMode = false,
-  historyCommit
+  historyCommit,
+  precommitProgress
 }: CommitPanelProps) {
   const [useConventional, setUseConventional] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -411,6 +432,49 @@ export function CommitPanel({
                   />
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Pre-commit live progress */}
+          {precommitProgress?.running && (
+            <div
+              className="rounded-md border border-sky-800/60 bg-sky-950/30 p-3 text-xs text-sky-100"
+              role="status"
+              aria-live="polite"
+              data-testid="commit-precommit-progress"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2 font-medium">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Running pre-commit
+                  {precommitProgress.command && (
+                    <code className="text-sky-200 truncate max-w-[16rem]" title={precommitProgress.command}>
+                      {precommitProgress.command}
+                    </code>
+                  )}
+                </span>
+                <span className="tabular-nums">{formatElapsedShort(precommitProgress.elapsedMs)}</span>
+              </div>
+              <p className="mt-2 text-[11px] text-sky-200/70">
+                This is the pre-commit hook, not a hang. Drift check may take 30s–2min if many shared packages were touched.
+              </p>
+              {precommitProgress.tail.length > 0 && (
+                <pre className="mt-3 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-2 text-[11px] text-slate-200">
+                  {precommitProgress.tail.join("\n")}
+                </pre>
+              )}
+              {precommitProgress.onCancel && (
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={precommitProgress.onCancel}
+                    className="inline-flex items-center gap-1 rounded border border-red-700/60 px-2 py-1 text-[11px] text-red-200 hover:bg-red-900/40"
+                  >
+                    <XCircle className="h-3 w-3" />
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

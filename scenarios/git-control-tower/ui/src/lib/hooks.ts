@@ -18,6 +18,7 @@ export {
   usePrecommitConfig,
   useSavePrecommitConfig,
   useRunPrecommit,
+  useStreamPrecommit,
   useDiscardFiles,
   useIgnoreFile,
   usePush,

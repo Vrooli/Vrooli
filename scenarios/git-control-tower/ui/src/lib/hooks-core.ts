@@ -2,6 +2,7 @@
 // Core Git/Repo Hooks — health, status, diff, stage, commit, branches, files
 // ============================================================================
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./hooks-query-keys";
 import {
@@ -19,6 +20,7 @@ import {
   fetchPrecommitConfig,
   savePrecommitConfig,
   runPrecommit,
+  runPrecommitStream,
   discardFiles,
   ignoreFile,
   pushToRemote,
@@ -59,6 +61,7 @@ import type {
   ContentSearchResponse,
   PrecommitConfig,
   PrecommitRunRequest,
+  PrecommitStreamEvent,
 } from "./api";
 
 export function useHealth() {
@@ -189,6 +192,87 @@ export function useRunPrecommit(repoId?: string | null) {
       queryClient.invalidateQueries({ queryKey: ["repo", "precommit", repoId ?? "default"] });
     },
   });
+}
+
+export interface PrecommitStreamState {
+  running: boolean;
+  command?: string;
+  elapsedMs: number;
+  tail: string[];
+  finished?: PrecommitStreamEvent;
+  error?: string;
+}
+
+export function useStreamPrecommit(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  const [state, setState] = useState<PrecommitStreamState>({ running: false, elapsedMs: 0, tail: [] });
+  const startedAtRef = useRef<number | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const tickRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (tickRef.current !== null) window.clearInterval(tickRef.current);
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  const reset = useCallback(() => {
+    setState({ running: false, elapsedMs: 0, tail: [] });
+  }, []);
+
+  const run = useCallback(
+    async (request: PrecommitRunRequest = {}): Promise<PrecommitStreamEvent> => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      startedAtRef.current = Date.now();
+      setState({ running: true, elapsedMs: 0, tail: [], command: request.command });
+      if (tickRef.current !== null) window.clearInterval(tickRef.current);
+      tickRef.current = window.setInterval(() => {
+        const startedAt = startedAtRef.current;
+        if (startedAt !== null) {
+          setState((prev) => (prev.running ? { ...prev, elapsedMs: Date.now() - startedAt } : prev));
+        }
+      }, 250);
+
+      try {
+        const final = await runPrecommitStream(request, repoId ?? undefined, {
+          signal: controller.signal,
+          onEvent: (event) => {
+            setState((prev) => {
+              const next: PrecommitStreamState = { ...prev };
+              if (event.command) next.command = event.command;
+              if (event.tail) next.tail = event.tail;
+              next.elapsedMs = event.elapsed_ms;
+              return next;
+            });
+          },
+        });
+        setState((prev) => ({ ...prev, running: false, finished: final, error: final.error }));
+        queryClient.invalidateQueries({ queryKey: ["repo", "precommit", repoId ?? "default"] });
+        return final;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setState((prev) => ({ ...prev, running: false, error: message }));
+        throw err;
+      } finally {
+        if (tickRef.current !== null) {
+          window.clearInterval(tickRef.current);
+          tickRef.current = null;
+        }
+        abortRef.current = null;
+        startedAtRef.current = null;
+      }
+    },
+    [queryClient, repoId]
+  );
+
+  return { state, run, cancel, reset };
 }
 
 export function useDiscardFiles(repoId?: string | null) {

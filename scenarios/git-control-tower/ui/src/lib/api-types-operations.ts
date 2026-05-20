@@ -103,6 +103,17 @@ export interface PrecommitConfig {
   run_before_commit: boolean;
   allow_override: boolean;
   last_result?: PrecommitRunResult;
+  hook?: PrecommitHookState;
+}
+
+export interface PrecommitHookState {
+  status: "installed" | "fallback" | "uninstalled" | string;
+  reason?: string;
+  existing_kind?: "user" | "framework" | "gct" | "none" | string;
+  existing_hook_preview?: string;
+  path?: string;
+  hooks_path?: string;
+  installed_at?: string;
 }
 
 export interface PrecommitRunRequest {
@@ -114,6 +125,17 @@ export interface PrecommitRunRequest {
 export interface PrecommitRunResponse {
   success: boolean;
   result: PrecommitRunResult;
+}
+
+export type PrecommitStreamEventType = "started" | "progress" | "finished" | "error";
+
+export interface PrecommitStreamEvent {
+  type: PrecommitStreamEventType;
+  elapsed_ms: number;
+  command?: string;
+  tail?: string[];
+  result?: PrecommitRunResult;
+  error?: string;
 }
 
 export interface DiscardRequest {

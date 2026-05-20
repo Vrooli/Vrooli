@@ -47,6 +47,7 @@ import {
   usePrecommitConfig,
   useSavePrecommitConfig,
   useRunPrecommit,
+  useStreamPrecommit,
   useDiscardFiles,
   useIgnoreFile,
   usePush,
@@ -439,6 +440,14 @@ export default function App() {
   const precommitConfigQuery = usePrecommitConfig(repoId);
   const savePrecommitConfigMutation = useSavePrecommitConfig(repoId);
   const runPrecommitMutation = useRunPrecommit(repoId);
+  const precommitStream = useStreamPrecommit(repoId);
+  const precommitProgressProps = {
+    running: precommitStream.state.running,
+    command: precommitStream.state.command,
+    elapsedMs: precommitStream.state.elapsedMs,
+    tail: precommitStream.state.tail,
+    onCancel: precommitStream.cancel,
+  };
   const discardMutation = useDiscardFiles(repoId);
   const ignoreMutation = useIgnoreFile(repoId);
   const pushMutation = usePush(repoId);
@@ -1080,7 +1089,7 @@ export default function App() {
   }, []);
 
   const handleCommit = useCallback(
-    (
+    async (
       message: string,
       options: { conventional: boolean; amend: boolean; authorName?: string; authorEmail?: string }
     ) => {
@@ -1094,8 +1103,32 @@ export default function App() {
         author_email: options.authorEmail
       };
 
+      const precommitCfg = precommitConfigQuery.data;
+      const shouldStream = Boolean(precommitCfg?.enabled && precommitCfg.run_before_commit);
+      if (shouldStream) {
+        try {
+          const finished = await precommitStream.run({});
+          if (finished.type === "error") {
+            setCommitError(finished.error || "precommit stream failed");
+            return;
+          }
+          const result = finished.result;
+          if (!result || result.status !== "passed") {
+            if (result) {
+              setPrecommitFailure(result);
+              setPendingPrecommitCommit(request);
+            }
+            setCommitError(undefined);
+            return;
+          }
+        } catch (err) {
+          setCommitError(err instanceof Error ? err.message : String(err));
+          return;
+        }
+      }
+
       commitMutation.mutate(
-        request,
+        { ...request, skip_precommit_once: shouldStream || undefined },
         {
           onSuccess: (result) => {
             if (result.success && result.hash) {
@@ -1125,7 +1158,7 @@ export default function App() {
         }
       );
     },
-    [commitMutation, selectedIsStaged]
+    [commitMutation, precommitConfigQuery.data, precommitStream, selectedIsStaged]
   );
 
   const handleRunPrecommitAgain = useCallback(() => {
@@ -2123,7 +2156,8 @@ export default function App() {
             onUseApprovedMessage={handleUseApprovedMessage}
             isUsingApprovedMessage={approvedPreviewMutation.isPending}
             onCommit={handleCommit}
-            isCommitting={commitMutation.isPending}
+            isCommitting={commitMutation.isPending || precommitStream.state.running}
+            precommitProgress={precommitProgressProps}
             commitError={commitError}
             defaultAuthorName={statusQuery.data?.author?.name}
             defaultAuthorEmail={statusQuery.data?.author?.email}
@@ -2385,7 +2419,8 @@ export default function App() {
             onUseApprovedMessage={handleUseApprovedMessage}
             isUsingApprovedMessage={approvedPreviewMutation.isPending}
             onCommit={handleCommit}
-            isCommitting={commitMutation.isPending}
+            isCommitting={commitMutation.isPending || precommitStream.state.running}
+            precommitProgress={precommitProgressProps}
             commitError={commitError}
             defaultAuthorName={statusQuery.data?.author?.name}
             defaultAuthorEmail={statusQuery.data?.author?.email}
