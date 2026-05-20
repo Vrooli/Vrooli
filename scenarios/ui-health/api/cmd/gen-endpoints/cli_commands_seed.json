@@ -7,24 +7,34 @@
       "endpoint_id": "health"
     },
     {
-      "name": "notes list",
-      "description": "List all notes (newest-first, default limit 100)",
-      "endpoint_id": "notes_list"
+      "name": "validate scenario",
+      "description": "Validate a scenario's UI manifest, slot directories, and overlay rules",
+      "endpoint_id": "validation_validate_scenario"
     },
     {
-      "name": "notes create",
-      "description": "Create a note (--title TITLE [--body BODY])",
-      "endpoint_id": "notes_create"
+      "name": "search query",
+      "description": "Search the UI-surface index (AI-first with text fallback)",
+      "endpoint_id": "search_query"
     },
     {
-      "name": "notes get",
-      "description": "Get a note by id",
-      "endpoint_id": "notes_get"
+      "name": "search status",
+      "description": "Report search backend availability",
+      "endpoint_id": "search_status"
     },
     {
-      "name": "notes attach",
-      "description": "Upload an attachment for a note (--file PATH)",
-      "endpoint_id": "notes_attach"
+      "name": "reindex run",
+      "description": "Start a reindex job",
+      "endpoint_id": "reindex_run"
+    },
+    {
+      "name": "reindex status",
+      "description": "Poll a reindex job's progress",
+      "endpoint_id": "reindex_status"
+    },
+    {
+      "name": "reindex cancel",
+      "description": "Cancel an in-flight reindex job",
+      "endpoint_id": "reindex_cancel"
     }
   ]
 }

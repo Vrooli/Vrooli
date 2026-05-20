@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"ui-health/internal/aisearch"
 	"ui-health/internal/clock"
 	"ui-health/internal/modules"
 	"ui-health/internal/server"
@@ -16,23 +17,15 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 	_ "modernc.org/sqlite"
 
 	healthH "ui-health/handlers/health"
-	notesH "ui-health/handlers/notes"
+	reindexH "ui-health/handlers/reindex"
+	searchH "ui-health/handlers/search"
+	validationH "ui-health/handlers/validation"
 )
 
-// sqliteDSN resolves the SQLite database file path and wraps it in a DSN
-// with the canonical pragma string. Resolution order:
-//
-//  1. SQLITE_PATH env — the canonical override.
-//  2. SQLITE_DB env — alias accepted for symmetry with other scenarios.
-//  3. storage.NewResolver(ProfileAuto) — the storage-steer-mandated
-//     filesystem-safe-by-default location.
-//
-// The pragmas mirror agent-inbox; tweak in lockstep with
-// internal/testutil/db.NewSQLite so production and tests open files the
-// same way.
 func sqliteDSN() (string, error) {
 	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
 		return sqliteFileDSN(path)
@@ -73,8 +66,6 @@ func sqliteFileDSN(path string) (string, error) {
 }
 
 func main() {
-	// Preflight checks must run first so the binary can re-exec itself
-	// after a stale-source rebuild before any listeners are opened.
 	if preflight.Run(preflight.Config{ScenarioName: "ui-health"}) {
 		return
 	}
@@ -98,15 +89,46 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	logger := log.Default()
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		log.Fatalf("resolve repo root: %v", err)
+	}
+
+	// AI search wiring: embedder + vector store + discovery + reconciler.
+	searchCfg := aisearch.LoadConfigFromEnv()
+	embedder := aisearch.NewEmbedder(searchCfg.EmbedModel)
+	vectorStore := aisearch.NewVectorStore(searchCfg.QdrantURL, searchCfg.QdrantAPIKey, aisearch.DefaultCollection, aisearch.DefaultVectorSize)
+	discovery := aisearch.NewFilesystemDiscoverySource(repoRoot)
+	aiService := aisearch.NewService(aisearch.Options{
+		Embedder:    embedder,
+		VectorStore: vectorStore,
+		Discovery:   discovery,
+		Parallelism: searchCfg.ReconcileParallelism,
+	})
+
+	if err := aiService.EnsureCollection(context.Background()); err != nil {
+		logger.Printf("[ui-health] qdrant collection ensure failed (continuing with degraded search): %v", err)
+	}
+
+	syncCtx, cancelSync := context.WithCancel(context.Background())
+	syncLoop := aisearch.NewSyncLoop(aiService.Reconciler())
+	go syncLoop.Start(syncCtx)
+
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "ui-health-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, log.Default()),
+		validationH.Module(logger, repoRoot),
+		searchH.Module(logger, aiService),
+		reindexH.Module(logger, reindexH.ServiceAdapter{Service: aiService}),
 	)
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: srv.Handler(),
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			cancelSync()
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

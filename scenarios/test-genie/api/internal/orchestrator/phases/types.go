@@ -16,6 +16,7 @@ type Name string
 const (
 	Structure    Name = "structure"
 	Contracts    Name = "contracts"
+	UIHealth     Name = "ui-health"
 	Standards    Name = "standards"
 	Dependencies Name = "dependencies"
 	Lint         Name = "lint"

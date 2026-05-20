@@ -49,6 +49,13 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Description:    "Validates cli/manifest.json bindings against proto descriptors via cli-health.",
 	})
 	register(Spec{
+		Name:           UIHealth,
+		Runner:         runUIHealthPhase,
+		Optional:       false,
+		DefaultTimeout: 60 * time.Second,
+		Description:    "Validates ui/manifest.json bindings, slot directories, and overlay rules via ui-health.",
+	})
+	register(Spec{
 		Name:           Standards,
 		Runner:         runStandardsPhase,
 		Optional:       false,
