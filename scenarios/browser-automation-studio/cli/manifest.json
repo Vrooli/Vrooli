@@ -12,15 +12,14 @@
           "description": "Capture artifacts from a single page load",
           "flags": [
             { "name": "url", "required": true, "description": "Target URL to load" },
-            { "name": "captures", "description": "Comma-separated artifact types: screenshot,console,network,video,dom,performance" },
+            { "name": "capture", "description": "Comma-separated artifact types: screenshot,console-logs,network,video,dom,performance" },
             { "name": "dimensions", "description": "Preset viewport: mobile|tablet|desktop" },
             { "name": "width", "description": "Viewport width (overrides dimensions)" },
             { "name": "height", "description": "Viewport height (overrides dimensions)" },
             { "name": "device-scale-factor", "description": "Viewport device scale factor" },
             { "name": "wait-for", "description": "Wait condition before capture (load|networkidle|selector:...)" },
-            { "name": "out-dir", "description": "Output directory for artifact files" },
+            { "name": "out", "description": "Server-relative output directory for artifact files" },
             { "name": "label", "description": "Optional label tagged onto every produced artifact" },
-            { "name": "json", "bool": true, "description": "Emit raw CaptureResponse JSON instead of report" },
             { "name": "dry-run", "bool": true, "description": "Send X-Dry-Run header; server validates without producing artifacts" }
           ],
           "binding": { "kind": "connect-rpc", "service": "CaptureService", "method": "Capture" },

@@ -108,7 +108,15 @@ func makeHandler(core *cliapp.ScenarioApp, svc protoreflect.ServiceDescriptor, m
 		if resp == nil || resp.Msg == nil {
 			return fmt.Errorf("%s: server returned no response", procedure)
 		}
-		return renderProtoJSON(rc.Stdout(), resp.Msg)
+		// When the user passed --json, emit the raw protojson body (bytes
+		// fields included). Otherwise, swap bytes payloads for a length
+		// summary so the human format doesn't dump kilobytes of base64
+		// to a terminal (the original motivation: ai preview-screenshot
+		// returning ~75 KB of raw screenshotPng).
+		if rc.JSON() {
+			return renderProtoJSON(rc.Stdout(), resp.Msg)
+		}
+		return renderProtoJSONRedacted(rc.Stdout(), resp.Msg)
 	}
 }
 
@@ -271,6 +279,112 @@ func setScalar(msg *dynamicpb.Message, fd protoreflect.FieldDescriptor, raw stri
 		// Message-typed fields require --request JSON; skip.
 	}
 	return nil
+}
+
+// renderProtoJSONRedacted renders a response message as JSON with every
+// bytes-typed field replaced by a `"<N bytes redacted; pass --json for raw>"`
+// placeholder. This is the default for human output so commands
+// returning embedded binary payloads (screenshots, captured files,
+// PDFs) don't fire kilobytes of base64 at a TTY.
+//
+// Implementation: marshal to JSON via protojson, decode into a generic
+// map, walk the message descriptor + map in lockstep to overwrite bytes
+// fields by their protojson key, then re-marshal the redacted map. We
+// keep the protojson key (JSONName/camelCase) as the lookup so we
+// remain shape-compatible with protojson output.
+func renderProtoJSONRedacted(w io.Writer, msg proto.Message) error {
+	opts := protojson.MarshalOptions{Multiline: true, Indent: "  ", EmitUnpopulated: true}
+	raw, err := opts.Marshal(msg)
+	if err != nil {
+		return renderProtoJSON(w, msg)
+	}
+	var generic map[string]interface{}
+	if err := json.Unmarshal(raw, &generic); err != nil {
+		// Couldn't decode — fall back to the raw protojson output.
+		_, _ = w.Write(raw)
+		_, _ = w.Write([]byte{'\n'})
+		return nil
+	}
+
+	redactBytesInJSON(msg.ProtoReflect().Descriptor(), generic)
+
+	out, err := json.MarshalIndent(generic, "", "  ")
+	if err != nil {
+		return renderProtoJSON(w, msg)
+	}
+	_, _ = w.Write(out)
+	_, _ = w.Write([]byte{'\n'})
+	return nil
+}
+
+// redactBytesInJSON walks `node` (a protojson-shaped JSON object) using
+// `md` as the proto schema for that level. Any field whose descriptor
+// has Kind=BytesKind gets its JSON value replaced with a summary string.
+// Nested messages, lists, and maps recurse.
+func redactBytesInJSON(md protoreflect.MessageDescriptor, node map[string]interface{}) {
+	fields := md.Fields()
+	for i := 0; i < fields.Len(); i++ {
+		fd := fields.Get(i)
+		key := fd.JSONName()
+		val, ok := node[key]
+		if !ok {
+			continue
+		}
+		if val == nil {
+			continue
+		}
+
+		switch {
+		case fd.IsList():
+			if fd.Kind() == protoreflect.BytesKind {
+				arr, _ := val.([]interface{})
+				totalBytes := 0
+				for _, item := range arr {
+					if s, ok := item.(string); ok {
+						totalBytes += approxBytesFromBase64Len(len(s))
+					}
+				}
+				node[key] = fmt.Sprintf("<%d entries, %d bytes total redacted; pass --json for raw>", len(arr), totalBytes)
+				continue
+			}
+			if fd.Kind() == protoreflect.MessageKind {
+				arr, _ := val.([]interface{})
+				for _, item := range arr {
+					if obj, ok := item.(map[string]interface{}); ok {
+						redactBytesInJSON(fd.Message(), obj)
+					}
+				}
+			}
+		case fd.IsMap():
+			if fd.MapValue().Kind() == protoreflect.MessageKind {
+				if mp, ok := val.(map[string]interface{}); ok {
+					for _, v := range mp {
+						if obj, ok := v.(map[string]interface{}); ok {
+							redactBytesInJSON(fd.MapValue().Message(), obj)
+						}
+					}
+				}
+			}
+		default:
+			switch fd.Kind() {
+			case protoreflect.BytesKind:
+				s, _ := val.(string)
+				node[key] = fmt.Sprintf("<%d bytes redacted; pass --json for raw>", approxBytesFromBase64Len(len(s)))
+			case protoreflect.MessageKind:
+				if obj, ok := val.(map[string]interface{}); ok {
+					redactBytesInJSON(fd.Message(), obj)
+				}
+			}
+		}
+	}
+}
+
+// approxBytesFromBase64Len returns the number of bytes a base64-encoded
+// string of length n decodes to, ignoring exact padding (off by ±2).
+// We avoid an actual decode just to count.
+func approxBytesFromBase64Len(n int) int {
+	// 4 base64 chars → 3 bytes.
+	return (n * 3) / 4
 }
 
 func renderProtoJSON(w io.Writer, msg proto.Message) error {

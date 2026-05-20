@@ -5,6 +5,15 @@
 // The handler builds a typed CaptureRequest from flags and dispatches
 // through cli-core's Connect HTTP client. Output mirrors the wire shape
 // when --json is set; otherwise it renders a Mutation Contract report.
+//
+// Why this isn't generic protodispatch: capture has a custom human
+// formatter (Result/What Changed/Next Command Mutation Contract),
+// nested-message flag mapping (Dimensions, WaitFor oneof),
+// header-based --dry-run, and CSV→repeated-enum parsing — none of
+// which the scalar-only generic dispatcher supports. cli/manifest.json
+// remains authoritative for the flag surface; cli/capture/manifest_capture_test.go
+// asserts the ArgSchema below ⊇ the manifest's declared flags so future
+// drift fails the test suite.
 package capture
 
 import (
@@ -23,9 +32,9 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// Commands returns the `capture` CommandGroup. The shape mirrors the
-// existing workflow/recordings/etc. domains so registration in
-// cli/domains/domains.go is one line.
+// Commands returns the `capture` CommandGroup. The Args/RunCtx form
+// routes --help through cli-core's renderHelp (so flags are listed
+// automatically) and parses flags into a RunContext we read below.
 func Commands(ctx *appctx.Context) cliapp.CommandGroup {
 	return cliapp.CommandGroup{
 		Title: "Capture",
@@ -34,10 +43,32 @@ func Commands(ctx *appctx.Context) cliapp.CommandGroup {
 				Name:        "capture",
 				NeedsAPI:    true,
 				Description: "Capture screenshot/console/network/video/DOM/performance artifacts from a single page load",
-				Run: func(args []string) error {
-					return runCapture(ctx, args)
+				Args:        captureArgSchema(),
+				RunCtx: func(rc cliapp.RunContext) error {
+					return runCaptureRC(ctx, rc)
 				},
 			},
+		},
+	}
+}
+
+// captureArgSchema returns the declarative flag surface. Keep names
+// aligned with cli/manifest.json's "capture" group; the parity test
+// in manifest_capture_test.go enforces that every manifest-declared
+// flag has a matching entry here.
+func captureArgSchema() cliapp.ArgSchema {
+	return cliapp.ArgSchema{
+		Flags: []cliapp.Flag{
+			{Name: "url", Required: true, Description: "http(s) URL OR `scenario=<slug>,path=<path>` shorthand"},
+			{Name: "capture", Description: "Comma-separated artifact types: screenshot,console-logs,network,video,dom,performance (default: screenshot)"},
+			{Name: "dimensions", Description: "Preset viewport: mobile (390x844) | tablet (768x1024) | desktop (1440x900)"},
+			{Name: "width", Description: "Explicit viewport width (overrides preset)"},
+			{Name: "height", Description: "Explicit viewport height (overrides preset)"},
+			{Name: "device-scale-factor", Description: "CSS pixel ratio (0.5-4.0)"},
+			{Name: "wait-for", Description: "Readiness: CSS selector | 'networkidle' | timeout in ms"},
+			{Name: "out", Description: "Server-relative output directory for artifact files"},
+			{Name: "label", Description: "Label echoed into the artifact bundle"},
+			{Name: "dry-run", Bool: true, Description: "Send X-Dry-Run header; server validates without producing artifacts"},
 		},
 	}
 }
@@ -59,20 +90,61 @@ type captureFlags struct {
 	dryRun            bool
 }
 
-func runCapture(ctx *appctx.Context, args []string) error {
-	for _, a := range args {
-		if a == "--help" || a == "-h" {
-			printCaptureHelp(ctx.Name)
-			return nil
+// flagsFromContext lifts a captureFlags out of a parsed RunContext.
+// Mirrors parseCaptureFlags so the proto-build / render paths stay
+// unchanged.
+func flagsFromContext(rc cliapp.RunContext) (captureFlags, error) {
+	f := captureFlags{
+		url:        strings.TrimSpace(rc.Flag("url")),
+		dimensions: strings.ToLower(strings.TrimSpace(rc.Flag("dimensions"))),
+		waitFor:    rc.Flag("wait-for"),
+		outDir:     rc.Flag("out"),
+		label:      rc.Flag("label"),
+		json:       rc.JSON(),
+		dryRun:     rc.BoolFlag("dry-run"),
+	}
+	if csv := rc.Flag("capture"); csv != "" {
+		for _, tok := range strings.Split(csv, ",") {
+			tok = strings.TrimSpace(tok)
+			if tok != "" {
+				f.captures = append(f.captures, tok)
+			}
 		}
 	}
+	if v := rc.Flag("width"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return f, fmt.Errorf("--width: %w", err)
+		}
+		f.width = n
+		f.hasWidth = true
+	}
+	if v := rc.Flag("height"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return f, fmt.Errorf("--height: %w", err)
+		}
+		f.height = n
+		f.hasHeight = true
+	}
+	if v := rc.Flag("device-scale-factor"); v != "" {
+		n, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return f, fmt.Errorf("--device-scale-factor: %w", err)
+		}
+		f.deviceScaleFactor = n
+		f.hasDeviceScale = true
+	}
+	if f.url == "" {
+		return f, fmt.Errorf("--url is required")
+	}
+	return f, nil
+}
 
-	f, err := parseCaptureFlags(args)
+func runCaptureRC(ctx *appctx.Context, rc cliapp.RunContext) error {
+	f, err := flagsFromContext(rc)
 	if err != nil {
 		return err
-	}
-	if strings.TrimSpace(f.url) == "" {
-		return fmt.Errorf("--url is required")
 	}
 
 	req, err := buildCaptureRequest(f)
@@ -99,6 +171,9 @@ func runCapture(ctx *appctx.Context, args []string) error {
 	return renderCaptureResponse(resp.Msg, f.json)
 }
 
+// parseCaptureFlags is retained for the test suite — it exercises the
+// same captureFlags shape that production builds via flagsFromContext.
+// Both code paths feed buildCaptureRequest unchanged.
 func parseCaptureFlags(args []string) (captureFlags, error) {
 	f := captureFlags{}
 	needsValue := func(i int, name string) (string, error) {
@@ -322,7 +397,7 @@ func renderCaptureResponse(msg *capturev1.CaptureResponse, asJSON bool) error {
 
 	nextCmd := []string{
 		"`browser-automation-studio capture --url <...> --capture screenshot,console-logs,network --out <dir>` — full audit",
-		"`browser-automation-studio execution show <id>` — inspect this execution",
+		"`browser-automation-studio executions get <id>` — inspect this execution",
 	}
 
 	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
@@ -370,36 +445,4 @@ func captureTypeLabel(t capturev1.CaptureType) string {
 		return "performance"
 	}
 	return "unspecified"
-}
-
-func printCaptureHelp(cliName string) {
-	fmt.Printf("Usage: %s capture --url <url-or-shorthand> [options]\n\n", cliName)
-	fmt.Println("Capture artifacts from a single page load.")
-	fmt.Println()
-	fmt.Println("Required:")
-	fmt.Println("  --url <url>             http(s) URL OR `scenario=<slug>,path=<path>` shorthand")
-	fmt.Println()
-	fmt.Println("Artifacts:")
-	fmt.Println("  --capture <csv>         comma-separated: screenshot,console-logs,network,video,dom,performance")
-	fmt.Println("                          (default: screenshot)")
-	fmt.Println()
-	fmt.Println("Viewport:")
-	fmt.Println("  --dimensions <preset>   mobile (390x844) | tablet (768x1024) | desktop (1440x900)")
-	fmt.Println("  --width <int>           explicit width (overrides preset)")
-	fmt.Println("  --height <int>          explicit height (overrides preset)")
-	fmt.Println("  --device-scale-factor <f> CSS pixel ratio (0.5-4.0)")
-	fmt.Println()
-	fmt.Println("Readiness:")
-	fmt.Println("  --wait-for <spec>       CSS selector | 'networkidle' | timeout in ms")
-	fmt.Println()
-	fmt.Println("Output:")
-	fmt.Println("  --out <dir>             server-relative output directory")
-	fmt.Println("  --label <s>             echoed into the artifact bundle")
-	fmt.Println("  --json                  emit proto wire shape")
-	fmt.Println("  --dry-run               validate without producing artifacts")
-	fmt.Println()
-	fmt.Println("Examples:")
-	fmt.Printf("  %s capture --url scenario=app-monitor,path=/ --capture screenshot\n", cliName)
-	fmt.Printf("  %s capture --url https://example.com --capture screenshot,console-logs --dimensions mobile\n", cliName)
-	fmt.Printf("  %s capture --url scenario=swarm-manager,path=/backlog --capture screenshot,console-logs,network --out /tmp/audit\n", cliName)
 }
