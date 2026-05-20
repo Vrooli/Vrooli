@@ -185,7 +185,15 @@ func main() {
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
-		adoptionsH.ModuleFromService(adoptionsSvc, log.Default()),
+		adoptionsH.ModuleFromService(
+			adoptionsSvc,
+			log.Default(),
+			adoptionsH.WithResolver(
+				adoptionsH.BuildResolver(filepath.Dir(scenariosRoot)),
+				&adoptionsH.FSSlotReader{Components: componentsSvc, LibraryRoot: sourceRoot},
+				adoptionsH.LibraryFromComponents(componentsSvc),
+			),
+		),
 		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver)),
 		depsH.ModuleFromService(depsSvc, log.Default()),
 		healthH.Module(db, "react-component-library-api", "1.0.0"),

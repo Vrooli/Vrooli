@@ -220,7 +220,12 @@
       "issueIncompatibleMajor": "{{name}} يحمل إصداراً رئيسياً غير متوافق (المُعلَن {{declared}}, السيناريو {{scenario}}).",
       "issueUnparseableRange": "{{name}} النطاق المُعلَن {{declared}} غير قابل للتحليل.",
       "issueUnparseableTarget": "{{name}} إصدار السيناريو {{scenario}} غير قابل للتحليل.",
-      "issueUnknown": "{{name}}: مشكلة تبعية ({{declared}} مقابل {{scenario}})."
+      "issueUnknown": "{{name}}: مشكلة تبعية ({{declared}} مقابل {{scenario}}).",
+      "pathSourceExplicit": "تجاوز يدوي",
+      "pathSourceTemplateManifest": "من بيان القالب",
+      "pathSourceHeuristic": "اكتشاف — تحقق",
+      "pathSourceFallback": "احتياطي — تحقق",
+      "pathResolving": "جارٍ حل المسار…"
     },
     "status": {
       "current": "محدث",

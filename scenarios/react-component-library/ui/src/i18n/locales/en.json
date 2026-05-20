@@ -220,7 +220,12 @@
       "issueIncompatibleMajor": "{{name}} has an incompatible major version (declared {{declared}}, scenario {{scenario}}).",
       "issueUnparseableRange": "{{name}} declared range {{declared}} is unparseable.",
       "issueUnparseableTarget": "{{name}} version {{scenario}} in the target scenario is unparseable.",
-      "issueUnknown": "{{name}}: dependency issue ({{declared}} vs {{scenario}})."
+      "issueUnknown": "{{name}}: dependency issue ({{declared}} vs {{scenario}}).",
+      "pathSourceExplicit": "Manual override",
+      "pathSourceTemplateManifest": "From template manifest",
+      "pathSourceHeuristic": "Heuristic — verify",
+      "pathSourceFallback": "Fallback — verify",
+      "pathResolving": "Resolving path…"
     },
     "status": {
       "current": "Current",

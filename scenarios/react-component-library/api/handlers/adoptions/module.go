@@ -49,13 +49,32 @@ func ModuleWithRoot(db *sql.DB, clk clock.Clock, library adoptions.LibraryReader
 	return ModuleFromService(svc, logger)
 }
 
+// ModuleOption customises ModuleFromService. New optional dependencies (e.g.
+// the path resolver for ResolveAdoptionPath) are added here instead of
+// growing the function signature.
+type ModuleOption func(*Deps)
+
+// WithResolver wires the adoption-path resolver and the slot reader used by
+// ResolveAdoptionPath. Without this option the RPC returns CodeUnimplemented.
+func WithResolver(resolver *adoptions.Resolver, slot SlotReader, library adoptions.LibraryReader) ModuleOption {
+	return func(d *Deps) {
+		d.Resolver = resolver
+		d.SlotReader = slot
+		d.Library = library
+	}
+}
+
 // ModuleFromService mounts a prebuilt adoptions.Service. main.go uses
 // this variant when the service is shared with sibling modules.
-func ModuleFromService(svc adoptions.Service, logger *log.Logger) module.Module {
-	connectPath, connectHandler := adoptionsconnect.NewAdoptionsServiceHandler(NewConnectHandler(Deps{
+func ModuleFromService(svc adoptions.Service, logger *log.Logger, opts ...ModuleOption) module.Module {
+	deps := Deps{
 		Service: svc,
 		Logger:  logger,
-	}))
+	}
+	for _, opt := range opts {
+		opt(&deps)
+	}
+	connectPath, connectHandler := adoptionsconnect.NewAdoptionsServiceHandler(NewConnectHandler(deps))
 	return module.Module{
 		Name: "adoptions",
 		Mount: func(r *mux.Router) {
@@ -244,5 +263,36 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 500, Code: "internal", Description: "Repository or filesystem failure"},
 		},
 		CLIMapping: &module.CLIMapping{Command: "react-component-library adoptions refresh"},
+	},
+	{
+		ID:          "adoptions_resolve_path",
+		Path:        adoptionsconnect.AdoptionsServiceResolveAdoptionPathProcedure,
+		Method:      "POST",
+		Summary:     "Resolve the canonical adopted path for a component+scenario",
+		Description: "Computes the filesystem path an adoption would land at, using the target scenario's UI manifest (template-manifest source), a heuristic, or a fallback. Read-only.",
+		Category:    "adoptions",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"component_id":  "string",
+				"scenario":      "string",
+				"override_path": "string (optional)",
+				"feature":       "string (optional, when slot requiresFeature)",
+			},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"path":     "string (relative to scenario root)",
+				"source":   "ResolveSource enum",
+				"slot":     "string (slot name used)",
+				"warnings": "array<string>",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing component_id, scenario, or unsubstituted path token"},
+			{Status: 501, Code: "unimplemented", Description: "Resolver not configured (server lacks repo-root wiring)"},
+		},
+		CLIMapping: &module.CLIMapping{Command: "react-component-library adoptions resolve-path", Args: []string{"<component_id>", "<scenario>"}},
 	},
 }

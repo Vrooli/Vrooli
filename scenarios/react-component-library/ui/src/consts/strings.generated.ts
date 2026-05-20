@@ -233,6 +233,11 @@ export const strings = {
       issueUnparseableRange: "adoptions.create.issueUnparseableRange",
       issueUnparseableTarget: "adoptions.create.issueUnparseableTarget",
       issueUnknown: "adoptions.create.issueUnknown",
+      pathSourceExplicit: "adoptions.create.pathSourceExplicit",
+      pathSourceTemplateManifest: "adoptions.create.pathSourceTemplateManifest",
+      pathSourceHeuristic: "adoptions.create.pathSourceHeuristic",
+      pathSourceFallback: "adoptions.create.pathSourceFallback",
+      pathResolving: "adoptions.create.pathResolving",
     },
     status: {
       current: "adoptions.status.current",

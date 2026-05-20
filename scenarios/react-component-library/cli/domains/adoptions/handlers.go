@@ -139,6 +139,59 @@ func (h *handlers) refresh(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) resolvePath(ctx cliapp.RunContext) error {
+	req := &adoptionsv1.ResolveAdoptionPathRequest{
+		ComponentId:  ctx.Positional("component-id"),
+		Scenario:     ctx.Positional("scenario"),
+		OverridePath: ctx.Flag("override"),
+		Feature:      ctx.Flag("feature"),
+	}
+	resp, err := h.client.ResolveAdoptionPath(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("resolve adoption path", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no resolve response")
+	}
+	results := []string{
+		fmt.Sprintf("path:   %s", resp.Msg.Path),
+		fmt.Sprintf("source: %s", resolveSourceLabel(resp.Msg.Source)),
+		fmt.Sprintf("slot:   %s", nonEmpty(resp.Msg.Slot, "(unset)")),
+	}
+	for _, w := range resp.Msg.Warnings {
+		results = append(results, "warning: "+w)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Resolved %s -> %s", req.ComponentId, resp.Msg.Path)},
+		ResultsHeading: "Resolution",
+		Results:        results,
+		RetrievalHints: []string{
+			"`adoptions apply <component-id> <scenario> <adopted-path>` — copy the file into place",
+		},
+	})
+}
+
+func resolveSourceLabel(s adoptionsv1.ResolveSource) string {
+	switch s {
+	case adoptionsv1.ResolveSource_RESOLVE_SOURCE_EXPLICIT:
+		return "explicit"
+	case adoptionsv1.ResolveSource_RESOLVE_SOURCE_TEMPLATE_MANIFEST:
+		return "template-manifest"
+	case adoptionsv1.ResolveSource_RESOLVE_SOURCE_HEURISTIC:
+		return "heuristic"
+	case adoptionsv1.ResolveSource_RESOLVE_SOURCE_FALLBACK:
+		return "fallback"
+	}
+	return "unspecified"
+}
+
+func nonEmpty(s, fallback string) string {
+	if s == "" {
+		return fallback
+	}
+	return s
+}
+
 func formatAdoption(a *adoptionsv1.Adoption) string {
 	if a == nil {
 		return "(nil)"

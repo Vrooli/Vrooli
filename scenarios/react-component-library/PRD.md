@@ -54,6 +54,20 @@
 - Voice & messaging: Terse, developer-facing. No marketing copy. Errors are structured and actionable (for example: "header parse failed at /path:line — missing `@version`").
 - Branding hooks: Inherits Vrooli operational-console tokens (`vrooli-default` design kit, `react-vite-tailwind` adapter). The P1 theme-preview switcher applies *only* to preview content, never to the library's chrome.
 
+## 🗂 Deferred: Manifest postApply Actions
+
+The `scenario-ui-manifest/v1` schema reserves room (via `additionalProperties: true` on slot objects) for declarative `postApply` actions an adoption could trigger after writing the source file. Three actions are queued for a v2 schema bump:
+
+1. **barrel-export** — append the new component to a slot-owned `index.ts` barrel so consumers can `import { X } from "@/layout"` without per-file imports.
+2. **route-register** — append a new route entry to `ui/src/app/routes.tsx` when the adopted component lands in the `page` slot.
+3. **i18n-merge** — merge supplied locale fragments into each `ui/src/i18n/locales/<locale>.json` for components that ship their own strings.
+
+**Why deferred:** the four-source path resolver (explicit / template-manifest / heuristic / fallback) is the highest-value change. Adding action runners doubles the surface area we need to test and gives users a new way to corrupt their tree if a runner is buggy. Ship the path resolver first; promote one action at a time to v2 once we have evidence the manifest contract holds up in practice.
+
+**Tracking:** when v2 starts, register a runner interface in `internal/adoptions/postapply/`, gate the per-action runner behind a manifest opt-in (`slot.postApply: ["barrel-export"]`), and back-fill behaviour with golden-file fixtures of the affected files. Schema migration is additive — slot objects keep `additionalProperties: true`, so v1 manifests upgrade silently when the runner ships.
+
+**Linked contract:** `templates/scenarios/react-vite/ui/manifest.json`, `.vrooli/schemas/scenario-ui-manifest.schema.json`, `docs/concepts/UI-ARCHITECTURE.md` (template scenario).
+
 ## 📎 Appendix
 - Reference scenarios: `app-monitor` (iframe-bridge integration, device-emulation hooks, inspector overlay), `flow-verifier` (newest template alignment, DESIGN.md shape), `reference-react-vite` (golden-reference layout).
 - Substrate packages: `@vrooli/iframe-bridge`, `package:api-core/storage`, `package:api-core/database/schemas`.

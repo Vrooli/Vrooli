@@ -6,7 +6,7 @@ import { Input } from "../../components/ui/input";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { adoptionsClient } from "../../api/adoptions";
+import { adoptionsClient, ResolveSource } from "../../api/adoptions";
 import {
   depsClient,
   IssueKind,
@@ -36,6 +36,10 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
   const [componentId, setComponentId] = useState("");
   const [scenario, setScenario] = useState("");
   const [adoptedPath, setAdoptedPath] = useState("");
+  const [pathUserEdited, setPathUserEdited] = useState(false);
+  const [pathSource, setPathSource] = useState<ResolveSource>(ResolveSource.UNSPECIFIED);
+  const [pathWarnings, setPathWarnings] = useState<string[]>([]);
+  const [pathResolving, setPathResolving] = useState(false);
   const [adoptedVersion, setAdoptedVersion] = useState("");
   const [ack, setAck] = useState(false);
   const [verdict, setVerdict] = useState<ValidateAdoptionResponse | null>(null);
@@ -47,6 +51,10 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
       setComponentId("");
       setScenario("");
       setAdoptedPath("");
+      setPathUserEdited(false);
+      setPathSource(ResolveSource.UNSPECIFIED);
+      setPathWarnings([]);
+      setPathResolving(false);
       setAdoptedVersion("");
       setAck(false);
       setVerdict(null);
@@ -54,6 +62,42 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
       setOverwriteRequired(false);
     }
   }, [open]);
+
+  // ResolveAdoptionPath pre-fills the adopted-path input from the target
+  // scenario's UI manifest. Skips when the user has hand-edited the input —
+  // we don't clobber their typing.
+  useEffect(() => {
+    if (!open) return;
+    if (pathUserEdited) return;
+    const cid = componentId.trim();
+    const sc = scenario.trim();
+    if (!cid || !sc) {
+      setPathSource(ResolveSource.UNSPECIFIED);
+      setPathWarnings([]);
+      return;
+    }
+    let cancelled = false;
+    setPathResolving(true);
+    adoptionsClient
+      .resolveAdoptionPath({ componentId: cid, scenario: sc })
+      .then((res) => {
+        if (cancelled) return;
+        setAdoptedPath(res.path);
+        setPathSource(res.source);
+        setPathWarnings(res.warnings ?? []);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPathSource(ResolveSource.UNSPECIFIED);
+        setPathWarnings([]);
+      })
+      .finally(() => {
+        if (!cancelled) setPathResolving(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, componentId, scenario, pathUserEdited]);
 
   useEffect(() => {
     setOverwriteRequired(false);
@@ -174,9 +218,18 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
             <Input
               data-testid={selectors.adoptions.createAdoptedPath}
               value={adoptedPath}
-              onChange={(e) => setAdoptedPath(e.target.value)}
+              onChange={(e) => {
+                setAdoptedPath(e.target.value);
+                setPathUserEdited(true);
+                setPathSource(ResolveSource.EXPLICIT);
+              }}
               placeholder={t(strings.adoptions.create.adoptedPathPlaceholder)}
               className="mt-1"
+            />
+            <PathSourceBadge
+              resolving={pathResolving}
+              source={pathSource}
+              warnings={pathWarnings}
             />
           </label>
           <label className="block text-xs text-slate-400">
@@ -318,6 +371,88 @@ function VerdictBlock({
       )}
     </div>
   );
+}
+
+interface PathSourceBadgeProps {
+  resolving: boolean;
+  source: ResolveSource;
+  warnings: string[];
+}
+
+function PathSourceBadge({ resolving, source, warnings }: PathSourceBadgeProps) {
+  const { t } = useTranslation();
+  if (resolving) {
+    return (
+      <p
+        data-testid={selectors.adoptions.createPathSource}
+        data-path-source="resolving"
+        className="mt-1 text-[11px] text-slate-400"
+      >
+        {t(strings.adoptions.create.pathResolving)}
+      </p>
+    );
+  }
+  if (source === ResolveSource.UNSPECIFIED) {
+    return null;
+  }
+  const { label, tone, slug } = pathSourceMeta(source, t);
+  return (
+    <>
+      <span
+        data-testid={selectors.adoptions.createPathSource}
+        data-path-source={slug}
+        className={"mt-1 inline-block rounded-md border px-2 py-0.5 text-[11px] " + tone}
+      >
+        {label}
+      </span>
+      {warnings.length > 0 && (
+        <ul className="mt-1 space-y-0.5 text-[11px] text-amber-300">
+          {warnings.map((w, idx) => (
+            <li
+              key={idx}
+              data-testid={selectors.adoptions.createPathWarning}
+            >
+              {w}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+function pathSourceMeta(
+  source: ResolveSource,
+  t: ReturnType<typeof useTranslation>["t"],
+): { label: string; tone: string; slug: string } {
+  switch (source) {
+    case ResolveSource.EXPLICIT:
+      return {
+        label: t(strings.adoptions.create.pathSourceExplicit),
+        tone: "border-sky-700/40 bg-sky-900/20 text-sky-200",
+        slug: "explicit",
+      };
+    case ResolveSource.TEMPLATE_MANIFEST:
+      return {
+        label: t(strings.adoptions.create.pathSourceTemplateManifest),
+        tone: "border-emerald-700/40 bg-emerald-900/20 text-emerald-200",
+        slug: "template-manifest",
+      };
+    case ResolveSource.HEURISTIC:
+      return {
+        label: t(strings.adoptions.create.pathSourceHeuristic),
+        tone: "border-amber-700/40 bg-amber-900/20 text-amber-200",
+        slug: "heuristic",
+      };
+    case ResolveSource.FALLBACK:
+      return {
+        label: t(strings.adoptions.create.pathSourceFallback),
+        tone: "border-amber-700/40 bg-amber-900/20 text-amber-200",
+        slug: "fallback",
+      };
+    default:
+      return { label: "", tone: "", slug: "unspecified" };
+  }
 }
 
 function formatIssue(

@@ -431,6 +431,8 @@ const literalSelectors = {
     createVerdictIssue: "adoptions-create-verdict-issue",
     createVerdictAck: "adoptions-create-verdict-ack",
     createError: "adoptions-create-error",
+    createPathSource: "adoptions-create-path-source",
+    createPathWarning: "adoptions-create-path-warning",
   },
   versions: {
     card: "versions-card",

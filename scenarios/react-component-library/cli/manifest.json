@@ -63,6 +63,20 @@
           ],
           "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "RefreshAdoptions" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+        },
+        {
+          "name": "resolve-path",
+          "description": "Compute the canonical adopted path for a component in a target scenario (uses the scenario's UI manifest)",
+          "positionals": [
+            { "name": "component-id", "required": true, "description": "Library component id" },
+            { "name": "scenario", "required": true, "description": "Target scenario name" }
+          ],
+          "flags": [
+            { "name": "override", "description": "Use this path instead and validate path safety" },
+            { "name": "feature", "description": "Feature folder name (required when the slot needs one)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "ResolveAdoptionPath" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     },

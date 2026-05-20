@@ -3,6 +3,7 @@
   "displayName": "Button",
   "description": "Accessible action button with variant styling.",
   "tags": ["form", "interactive"],
+  "slot": "ui-primitive",
   "latest": "1.0.0",
   "draft": "",
   "deprecatedVersions": []

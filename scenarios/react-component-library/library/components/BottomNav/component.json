@@ -3,6 +3,7 @@
   "displayName": "Bottom Nav",
   "description": "Mobile-first bottom navigation bar with safe-area spacing, active state styling, and accessible link semantics.",
   "tags": ["layout", "navigation", "mobile"],
+  "slot": "layout-nav",
   "latest": "1.0.0",
   "draft": "",
   "deprecatedVersions": []

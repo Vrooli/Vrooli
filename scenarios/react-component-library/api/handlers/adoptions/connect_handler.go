@@ -13,8 +13,18 @@ import (
 
 // Deps wires the seams the Connect adoptions handler needs.
 type Deps struct {
-	Service adoptions.Service
-	Logger  *log.Logger
+	Service    adoptions.Service
+	Logger     *log.Logger
+	// Resolver computes adopted paths for ResolveAdoptionPath. Optional: when
+	// nil, ResolveAdoptionPath returns connect.CodeUnimplemented.
+	Resolver *adoptions.Resolver
+	// SlotReader looks up a component's declared slot. Optional, paired with
+	// Resolver.
+	SlotReader SlotReader
+	// Library is the component lookup the handler uses to fetch DisplayName
+	// (for token substitution in ResolveAdoptionPath). Optional in tests
+	// that don't exercise the resolver path.
+	Library adoptions.LibraryReader
 }
 
 type connectHandler struct {

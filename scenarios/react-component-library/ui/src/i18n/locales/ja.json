@@ -216,7 +216,12 @@
       "issueIncompatibleMajor": "{{name}} のメジャーバージョンが非互換です(宣言 {{declared}}, シナリオ {{scenario}})。",
       "issueUnparseableRange": "{{name}} の宣言範囲 {{declared}} を解析できません。",
       "issueUnparseableTarget": "{{name}} のシナリオ側バージョン {{scenario}} を解析できません。",
-      "issueUnknown": "{{name}}: 依存関係の問題({{declared}} vs {{scenario}})。"
+      "issueUnknown": "{{name}}: 依存関係の問題({{declared}} vs {{scenario}})。",
+      "pathSourceExplicit": "手動オーバーライド",
+      "pathSourceTemplateManifest": "テンプレートマニフェストから",
+      "pathSourceHeuristic": "ヒューリスティック — 確認してください",
+      "pathSourceFallback": "フォールバック — 確認してください",
+      "pathResolving": "パスを解決中…"
     },
     "status": {
       "current": "最新",
