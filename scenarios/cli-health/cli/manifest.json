@@ -1,0 +1,7 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "cli-health",
+  "description": "Cross-scenario CLI manifest validation and AI command discovery. Schema-validated against cli-manifest/v1 and cross-validated against the scenario's proto descriptors. Loaded by cli/main.go via cliapp.LoadFromManifest. Command groups will be added in Phase 1 (validate, search, reindex).",
+  "groups": [],
+  "omitted": []
+}

@@ -1,0 +1,75 @@
+{
+  "_metadata": {
+    "entity": "cli-health",
+    "generated_at": "2026-05-19T14:24:08-04:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-deterministic-manifest-validation/module.json",
+    "02-semantic-and-text-mode-command-search/module.json",
+    "03-dependency-status-reporting/module.json",
+    "04-on-demand-and-scheduled-reindexing/module.json",
+    "05-test-genie-contracts-phase-integration/module.json",
+    "06-manifest-scaffolding-command/module.json",
+    "07-non-canonical-cli-pattern-detection/module.json",
+    "08-scenario-auditor-rule-integration/module.json",
+    "09-shared-ai-search-package-extraction/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-deterministic-manifest-validation",
+      "priority": "P0",
+      "title": "Deterministic manifest validation"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-semantic-and-text-mode-command-search",
+      "priority": "P0",
+      "title": "Semantic and text-mode command search"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-dependency-status-reporting",
+      "priority": "P0",
+      "title": "Dependency status reporting"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-on-demand-and-scheduled-reindexing",
+      "priority": "P0",
+      "title": "On-demand and scheduled reindexing"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-test-genie-contracts-phase-integration",
+      "priority": "P0",
+      "title": "Test-genie Contracts phase integration"
+    },
+    {
+      "id": "MOD-P1-006",
+      "path": "06-manifest-scaffolding-command",
+      "priority": "P1",
+      "title": "Manifest scaffolding command"
+    },
+    {
+      "id": "MOD-P1-007",
+      "path": "07-non-canonical-cli-pattern-detection",
+      "priority": "P1",
+      "title": "Non-canonical CLI pattern detection"
+    },
+    {
+      "id": "MOD-P2-008",
+      "path": "08-scenario-auditor-rule-integration",
+      "priority": "P2",
+      "title": "Scenario-auditor rule integration"
+    },
+    {
+      "id": "MOD-P2-009",
+      "path": "09-shared-ai-search-package-extraction",
+      "priority": "P2",
+      "title": "Shared AI search package extraction"
+    }
+  ]
+}

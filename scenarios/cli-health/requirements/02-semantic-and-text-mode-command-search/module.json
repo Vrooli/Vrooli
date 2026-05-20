@@ -1,0 +1,130 @@
+{
+  "description": "`cli-health search \"\u003cquery\u003e\"` returns ranked commands across all adopting scenarios in AI mode; `--text` fallback operates without Ollama or Qdrant.",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-007"
+      ],
+      "description": "The `cli-health search \"\u003cquery\u003e\"` command (default mode) must embed the query using the `nomic-embed-text` model via Ollama, query the Qdrant vector store for the top-K nearest command embeddings across all indexed scenarios, and return results ranked by cosine similarity. Results must include at minimum: command name, scenario name, short description, and similarity score. The command must achieve recall@5 ≥ 0.8 on the hand-labeled query corpus stored at `scenarios/cli-health/testdata/search_queries.json`.",
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-002",
+      "status": "draft",
+      "title": "AI Semantic Search via Qdrant and nomic-embed-text",
+      "validation": [
+        {
+          "notes": "Given a mocked Ollama embed response and mocked Qdrant search response, search returns results sorted descending by similarity score",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given a Qdrant result set, the output includes command name, scenario name, description, and score for each hit",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test for the manifest scan discovery source: given a synthetic manifest, all non-omitted commands are emitted as indexable documents",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Embedded integration test with real Qdrant and real Ollama: index a known command set, run 5 representative queries, assert top result is the expected command",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Recall@5 evaluation test: run all ~20 queries from search_queries.json against a populated index and assert recall@5 ≥ 0.8",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AI search returns results within an acceptable latency budget on a warm local stack (no explicit cap defined for AI mode; cap applies to --text mode only)",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Developers can discover CLI commands across scenarios using natural language without knowing exact command names",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "cli",
+      "description": "When `cli-health search \"\u003cquery\u003e\" --text` is specified, or when Ollama or Qdrant are unavailable, the command must fall back to a pure text-based search over command names, descriptions, and flag metadata loaded directly from manifest files. No network calls to Ollama or Qdrant may be made in this mode. Results must be returned in under 2 seconds on a cold local stack. The `--text` flag must be explicitly documented in the command help output.",
+      "id": "REQ-P0-005",
+      "prd_ref": "OT-P0-002",
+      "status": "draft",
+      "title": "Text-mode Search Fallback Without Ollama or Qdrant",
+      "validation": [
+        {
+          "notes": "Given --text flag, the Qdrant and Ollama clients are never invoked",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given a set of synthetic manifests and a query matching a command description substring, --text search returns that command in results",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given --text flag, results are ranked by relevance heuristic (e.g., term frequency or string similarity score)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `cli-health search \"create user\" --text` with Ollama and Qdrant services stopped; assert nonzero results returned and exit code 0",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Measure wall-clock time for --text search across all 6 adopting scenarios on a cold stack and assert \u003c 2s",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "--text search must return results in \u003c 2 seconds on a cold local stack with all adopting scenario manifests loaded",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Teams without GPU/Ollama infrastructure can still use CLI discovery; CI pipelines without AI services remain functional",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Semantic and text-mode command search"
+}

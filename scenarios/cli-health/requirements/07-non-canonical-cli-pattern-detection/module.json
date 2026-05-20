@@ -1,0 +1,64 @@
+{
+  "description": "A `packages/cli-core` usage check across scenarios flags any scenario whose CLI does not follow the canonical pattern, surfacing findings as warnings in validation output.",
+  "module_id": "MOD-P1-007",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "The `cli-health validate \u003cscenario\u003e` command (and optionally a standalone audit sub-command) must inspect each scenario's CLI entry point to verify it uses the canonical `packages/cli-core` pattern. Scenarios whose CLI does not import or delegate to `cli-core` in the expected manner must produce a warning-level finding with code NON_CANONICAL_CLI_PATTERN, including the scenario name and the detected pattern deviation. These findings must not fail validation (exit code remains 0) but must appear in the validation output.",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "Non-Canonical CLI Pattern Detection Across Scenarios",
+      "validation": [
+        {
+          "notes": "Given a scenario CLI entry point that does not import cli-core, validate returns NON_CANONICAL_CLI_PATTERN at warning severity",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given a scenario CLI entry point that correctly uses cli-core, validate returns zero NON_CANONICAL_CLI_PATTERN findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given a NON_CANONICAL_CLI_PATTERN warning and no error-level findings, exit code is 0",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `cli-health validate` across all 6 adopting scenarios; assert all pass (exit 0) and any NON_CANONICAL_CLI_PATTERN warnings are reported for non-conformant scenarios",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Introduce a synthetic scenario with a hand-rolled CLI bypassing cli-core; assert NON_CANONICAL_CLI_PATTERN warning is produced",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Enforcing the canonical CLI pattern ensures consistent behaviour, flag parsing, and error formatting across all scenario CLIs",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Non-canonical CLI pattern detection"
+}

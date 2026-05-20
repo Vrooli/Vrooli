@@ -1,0 +1,79 @@
+{
+  "description": "The AI search pipeline currently duplicated verbatim from `prompt-manager/api/aisearch/` is extracted into a shared package consumed by both scenarios, eliminating future drift between the two implementations.",
+  "module_id": "MOD-P2-009",
+  "prd_ref": "OT-P2-002",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-004",
+        "REQ-P0-005"
+      ],
+      "description": "The AI search pipeline (embedding generation via Ollama, vector upsert/query via Qdrant, similarity ranking) currently duplicated between `cli-health` and `prompt-manager/api/aisearch/` must be extracted into a shared internal package (e.g., `packages/aisearch`). Both `cli-health` and `prompt-manager` must consume this shared package. The extraction must not alter observable search behaviour for either consumer. This requirement is deferred from v1 per technical constraints; no extraction shall occur on day 1.",
+      "id": "REQ-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "draft",
+      "title": "Extraction of AI Search Pipeline into a Shared Package",
+      "validation": [
+        {
+          "notes": "Given the shared package API, cli-health's search service compiles and passes all existing unit tests without modification to test assertions",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given the shared package API, prompt-manager's aisearch module compiles and passes all existing unit tests without modification to test assertions",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The shared package has its own unit test suite covering embed, upsert, query, and rank functions independently",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "After extraction, run the full recall@5 evaluation (search_queries.json) against cli-health and assert recall@5 ≥ 0.8 is maintained",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run prompt-manager's existing integration tests after extraction and assert no regressions",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Assert no verbatim-duplicated embedding or Qdrant client code remains in either cli-health or prompt-manager source trees",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Post-extraction --text search on cli-health still returns results in \u003c 2s on a cold local stack",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Eliminating code duplication reduces the risk of the two implementations diverging, lowering long-term maintenance cost",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Shared AI search package extraction"
+}
