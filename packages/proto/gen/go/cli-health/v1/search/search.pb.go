@@ -140,11 +140,13 @@ func (x *SearchRequest) GetMode() Mode {
 // SearchResult is one hit from the corpus. Source identifies which document
 // type produced the hit ("manifest" or "help").
 type SearchResult struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	Scenario    string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Group       string                 `protobuf:"bytes,2,opt,name=group,proto3" json:"group,omitempty"`
-	Name        string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The CLI this command belongs to — a scenario id (e.g. "cli-health") or an
+	// external CLI name registered with the discovery source (e.g. "vrooli").
+	Origin      string `protobuf:"bytes,1,opt,name=origin,proto3" json:"origin,omitempty"`
+	Group       string `protobuf:"bytes,2,opt,name=group,proto3" json:"group,omitempty"`
+	Name        string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	// Higher is better. AI mode returns cosine similarity; TEXT mode returns
 	// a normalized lexical score in [0, 1].
 	Score float64 `protobuf:"fixed64,5,opt,name=score,proto3" json:"score,omitempty"`
@@ -184,9 +186,9 @@ func (*SearchResult) Descriptor() ([]byte, []int) {
 	return file_cli_health_v1_search_search_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SearchResult) GetScenario() string {
+func (x *SearchResult) GetOrigin() string {
 	if x != nil {
-		return x.Scenario
+		return x.Origin
 	}
 	return ""
 }
@@ -419,9 +421,9 @@ const file_cli_health_v1_search_search_proto_rawDesc = "" +
 	"\rSearchRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x125\n" +
-	"\x04mode\x18\x03 \x01(\x0e2!.vrooli.cli_health.v1.search.ModeR\x04mode\"\xa4\x01\n" +
-	"\fSearchResult\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x14\n" +
+	"\x04mode\x18\x03 \x01(\x0e2!.vrooli.cli_health.v1.search.ModeR\x04mode\"\xa0\x01\n" +
+	"\fSearchResult\x12\x16\n" +
+	"\x06origin\x18\x01 \x01(\tR\x06origin\x12\x14\n" +
 	"\x05group\x18\x02 \x01(\tR\x05group\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x14\n" +

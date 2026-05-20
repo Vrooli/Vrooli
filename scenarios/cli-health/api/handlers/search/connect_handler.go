@@ -55,7 +55,7 @@ func (h *connectHandler) Search(ctx context.Context, req *connect.Request[search
 	}
 	for _, hit := range resp.Results {
 		wire.Results = append(wire.Results, &searchv1.SearchResult{
-			Scenario:    hit.Scenario,
+			Origin:      hit.Origin,
 			Group:       hit.Group,
 			Name:        hit.Name,
 			Description: hit.Description,

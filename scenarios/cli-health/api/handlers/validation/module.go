@@ -22,7 +22,7 @@ var ProtoFile = validationv1.File_cli_health_v1_validation_validation_proto
 // Connect-RPC service handler mounted at the generated procedure path. No
 // REST exception — every RPC is proto-typed. The validator is constructed
 // with the default filesystem/buf/JSONSchema seams rooted at repoRoot.
-func Module(logger *log.Logger, repoRoot string) module.Module {
+func Module(logger *log.Logger, repoRoot string, reservedNames []string) module.Module {
 	validator := manifestvalidation.New(manifestvalidation.Deps{
 		Manifests: manifestvalidation.NewFilesystemManifestLoader(repoRoot),
 		Schema:    manifestvalidation.NewJSONSchemaValidator(repoRoot),
@@ -30,8 +30,9 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 		Logger:    logger,
 	})
 	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(NewConnectHandler(Deps{
-		Logger:    logger,
-		Validator: validator,
+		Logger:        logger,
+		Validator:     validator,
+		ReservedNames: reservedNames,
 	}))
 	return module.Module{
 		Name: "validation",

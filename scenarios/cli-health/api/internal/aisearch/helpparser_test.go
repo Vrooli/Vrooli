@@ -1,0 +1,294 @@
+package aisearch
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"testing"
+)
+
+// vrooliRootHelp mirrors the shape of `vrooli --help`: top-level section
+// headers ending in `:`, indented `<name>  <description>` rows.
+const vrooliRootHelp = `Vrooli CLI
+
+Usage:
+  vrooli <command> [options]
+
+Lifecycle Commands:
+    setup              Initialize the development environment
+    develop            Start development servers
+    build              Build project-level binaries
+
+Scenario Management:
+    scenario           Manage scenarios from their source locations
+
+Options:
+  --help, -h           Show help
+  --json               Emit JSON output
+`
+
+const vrooliScenarioHelp = `Vrooli Scenario Commands
+
+Usage:
+  vrooli scenario <subcommand> [options]
+
+Read-only Commands:
+    list               List discovered scenarios
+    info               Show scenario metadata
+
+Lifecycle and Utility Commands:
+    start              Start a scenario
+    stop               Stop a running scenario
+`
+
+const vrooliScenarioStartHelp = `Usage:
+  vrooli scenario start <scenario-name>... [options]
+
+Start a scenario
+
+Options:
+  --path <path>
+  --best-effort
+  --json               Emit JSON output
+`
+
+// promptManagerHelp uses the cli-core "Commands:" with category-subheader
+// shape — category lines have no description and must be tolerated.
+const promptManagerHelp = `prompt-manager CLI
+
+Usage:
+  prompt-manager <command> [options]
+
+Global Options:
+  --api-base <url>   Override API base URL
+  --no-color         Disable ANSI color output
+
+Commands:
+  Meta
+    help               Show this help message
+    version            Show CLI version
+
+  Health
+    status             Check API health
+
+  Skills
+    skill              Manage skills (list|show|read|add)
+`
+
+func staticRunner(t *testing.T, table map[string]string) (helpRunner, *int) {
+	t.Helper()
+	calls := 0
+	run := func(_ context.Context, bin string, args []string) ([]byte, error) {
+		calls++
+		key := strings.TrimSpace(bin + " " + strings.Join(args, " "))
+		if out, ok := table[key]; ok {
+			return []byte(out), nil
+		}
+		return nil, errors.New("no help fixture for: " + key)
+	}
+	return run, &calls
+}
+
+func TestParseHelpTree_VrooliRecurses(t *testing.T) {
+	run, _ := staticRunner(t, map[string]string{
+		"vrooli":                vrooliRootHelp,
+		"vrooli scenario":       vrooliScenarioHelp,
+		"vrooli scenario start": vrooliScenarioStartHelp,
+		"vrooli scenario list":  "Usage: vrooli scenario list\n\nList discovered scenarios\n",
+		"vrooli scenario info":  "Usage: vrooli scenario info\n\nShow scenario metadata\n",
+		"vrooli scenario stop":  "Usage: vrooli scenario stop\n\nStop a running scenario\n",
+		"vrooli setup":          "Usage: vrooli setup\n\nInitialize the dev environment\n",
+		"vrooli develop":        "Usage: vrooli develop\n\nStart dev servers\n",
+		"vrooli build":          "Usage: vrooli build\n\nBuild project\n",
+	})
+	records := ParseHelpTree(context.Background(), run, "vrooli", HelpTreeOptions{Origin: "vrooli"})
+
+	paths := make(map[string]CommandRecord, len(records))
+	for _, r := range records {
+		paths[r.FullPath] = r
+	}
+
+	wantLeaves := []string{
+		"vrooli setup",
+		"vrooli develop",
+		"vrooli build",
+		"vrooli scenario list",
+		"vrooli scenario info",
+		"vrooli scenario start",
+		"vrooli scenario stop",
+	}
+	for _, want := range wantLeaves {
+		if _, ok := paths[want]; !ok {
+			t.Errorf("missing leaf %q; got: %v", want, keys(paths))
+		}
+	}
+
+	// No options/flags should sneak in as command names.
+	for path := range paths {
+		if strings.Contains(path, "--") {
+			t.Errorf("leaf path contains flag-looking token: %q", path)
+		}
+	}
+
+	// Origin is set on every record.
+	for _, r := range records {
+		if r.Origin != "vrooli" {
+			t.Errorf("record %q has Origin=%q, want %q", r.FullPath, r.Origin, "vrooli")
+		}
+		if r.Source != SourceHelp {
+			t.Errorf("record %q has Source=%q, want %q", r.FullPath, r.Source, SourceHelp)
+		}
+	}
+
+	// Group is populated for depth>=2 leaves.
+	if got := paths["vrooli scenario start"]; got.Group != "scenario" {
+		t.Errorf("vrooli scenario start: Group=%q, want %q", got.Group, "scenario")
+	}
+	// Group is empty for depth=1 leaves.
+	if got := paths["vrooli setup"]; got.Group != "" {
+		t.Errorf("vrooli setup: Group=%q, want empty", got.Group)
+	}
+}
+
+func TestParseHelpTree_DepthLimit(t *testing.T) {
+	run, _ := staticRunner(t, map[string]string{
+		"vrooli":                vrooliRootHelp,
+		"vrooli scenario":       vrooliScenarioHelp,
+		"vrooli scenario start": vrooliScenarioStartHelp,
+		"vrooli setup":          "Usage: vrooli setup\n\nInitialize\n",
+		"vrooli develop":        "Usage: vrooli develop\n\nStart servers\n",
+		"vrooli build":          "Usage: vrooli build\n\nBuild\n",
+	})
+	// MaxDepth=1 means: do not recurse past the root. Every entry from
+	// `vrooli --help` becomes a leaf, including `scenario` (no recursion into
+	// `vrooli scenario --help`).
+	records := ParseHelpTree(context.Background(), run, "vrooli", HelpTreeOptions{Origin: "vrooli", MaxDepth: 1})
+	paths := make(map[string]bool, len(records))
+	for _, r := range records {
+		paths[r.FullPath] = true
+		if tokens := len(strings.Fields(r.FullPath)); tokens > 2 {
+			t.Errorf("MaxDepth=1 but emitted leaf at %d tokens: %q", tokens, r.FullPath)
+		}
+	}
+	for _, want := range []string{"vrooli setup", "vrooli develop", "vrooli build", "vrooli scenario"} {
+		if !paths[want] {
+			t.Errorf("missing depth-1 leaf %q; got %v", want, recordPaths(records))
+		}
+	}
+}
+
+func TestParseHelpTree_SkipsOptionsAndFlags(t *testing.T) {
+	run, _ := staticRunner(t, map[string]string{
+		"vrooli":          vrooliRootHelp,
+		"vrooli setup":    "Usage: vrooli setup\n\nInitialize\n",
+		"vrooli develop":  "Usage: vrooli develop\n\nStart servers\n",
+		"vrooli build":    "Usage: vrooli build\n\nBuild\n",
+		"vrooli scenario": "no subcommands here\n",
+	})
+	records := ParseHelpTree(context.Background(), run, "vrooli", HelpTreeOptions{Origin: "vrooli"})
+	for _, r := range records {
+		// `--help`, `--json`, etc. must never appear as a command name.
+		if strings.HasPrefix(r.Name, "-") {
+			t.Errorf("flag leaked as command: %q", r.Name)
+		}
+	}
+}
+
+func TestParseHelpTree_CategoryLabelsIgnored(t *testing.T) {
+	run, _ := staticRunner(t, map[string]string{
+		"prompt-manager":         promptManagerHelp,
+		"prompt-manager help":    "show help",
+		"prompt-manager version": "1.0.0",
+		"prompt-manager status":  "ok",
+		"prompt-manager skill":   "manage skills",
+	})
+	records := ParseHelpTree(context.Background(), run, "prompt-manager", HelpTreeOptions{Origin: "prompt-manager"})
+	names := make(map[string]bool)
+	for _, r := range records {
+		names[r.Name] = true
+	}
+	// Category subheaders (Meta, Health, Skills) must not become records.
+	for _, label := range []string{"Meta", "Health", "Skills"} {
+		if names[label] {
+			t.Errorf("category label %q leaked as command record", label)
+		}
+	}
+	// Actual commands must.
+	for _, want := range []string{"help", "version", "status", "skill"} {
+		if !names[want] {
+			t.Errorf("missing command %q; got names=%v", want, names)
+		}
+	}
+}
+
+func TestParseHelpTree_BinaryMissing(t *testing.T) {
+	run := func(context.Context, string, []string) ([]byte, error) {
+		return nil, errors.New("exec: file not found")
+	}
+	records := ParseHelpTree(context.Background(), run, "ghost", HelpTreeOptions{Origin: "ghost"})
+	if len(records) != 1 {
+		t.Fatalf("want 1 stub, got %d", len(records))
+	}
+	if records[0].Source != SourceHelpFailed {
+		t.Errorf("Source=%q, want %q", records[0].Source, SourceHelpFailed)
+	}
+	if records[0].FullPath != "ghost" {
+		t.Errorf("FullPath=%q, want %q", records[0].FullPath, "ghost")
+	}
+}
+
+func TestParseHelpTree_EmptyOutput(t *testing.T) {
+	run := func(context.Context, string, []string) ([]byte, error) {
+		return []byte("   \n\n"), nil
+	}
+	records := ParseHelpTree(context.Background(), run, "blank", HelpTreeOptions{Origin: "blank"})
+	if len(records) != 1 {
+		t.Fatalf("want 1 stub, got %d", len(records))
+	}
+	if records[0].Source != SourceHelpFailed {
+		t.Errorf("Source=%q, want %q", records[0].Source, SourceHelpFailed)
+	}
+}
+
+func TestParseHelpTree_CycleDetection(t *testing.T) {
+	// A buggy CLI where `<bin> <sub> --help` returns the same text as
+	// `<bin> --help`. The parser must treat <sub> as a leaf, not infinite-loop.
+	const looped = `Usage:
+  loopy <command>
+
+Commands:
+    inner              Inner command
+`
+	run, _ := staticRunner(t, map[string]string{
+		"loopy":       looped,
+		"loopy inner": looped, // same signature as root
+	})
+	records := ParseHelpTree(context.Background(), run, "loopy", HelpTreeOptions{Origin: "loopy"})
+	// `loopy inner` should be a single leaf record; the parser must not
+	// re-walk the same help blob.
+	count := 0
+	for _, r := range records {
+		if r.FullPath == "loopy inner" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("loopy inner emitted %d times, want 1; records: %v", count, recordPaths(records))
+	}
+}
+
+func keys(m map[string]CommandRecord) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}
+
+func recordPaths(records []CommandRecord) []string {
+	out := make([]string, 0, len(records))
+	for _, r := range records {
+		out = append(out, r.FullPath)
+	}
+	return out
+}

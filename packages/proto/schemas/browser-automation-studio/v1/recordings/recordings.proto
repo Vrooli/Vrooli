@@ -1,0 +1,372 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.recordings;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/recordings;recordings";
+
+// =============================================================================
+// RECORDINGS DOMAIN — live recording-session sub-resources.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain recordings
+// @stability stable
+//
+// RecordingsService owns the 19 sub-resources hanging off
+// /recordings/sessions/{profile_id}/...:
+//   - Storage state (cookies + localStorage)
+//   - Service workers (live, via playwright-driver)
+//   - Browser history (persisted)
+//   - Saved tabs
+//
+// Session-profile CRUD itself lives on SessionProfilesService (sibling proto).
+// The recording-lifecycle (Create/Start/Stop) messages live in
+// recording/session.proto (no service yet); WebSocket frame streams and the
+// internal /history-callback webhook stay as documented REST exceptions.
+//
+// USAGE CONTEXTS:
+//   - API:  api/handlers/recordings/service.go
+//   - UI:   ui/src/api/recordings.ts
+//   - CLI:  bas recordings storage|service-workers|history|tabs ...
+// =============================================================================
+
+service RecordingsService {
+  // ---------------------------------------------------------------------------
+  // Storage state (persisted cookies + localStorage)
+  // ---------------------------------------------------------------------------
+
+  // GetStorageState returns cookies and localStorage for a session profile,
+  // with HttpOnly cookie values masked.
+  rpc GetStorageState(GetStorageStateRequest) returns (GetStorageStateResponse);
+
+  // ClearAllStorage erases every cookie and origin from the profile.
+  rpc ClearAllStorage(ClearAllStorageRequest) returns (StorageMutationResponse);
+
+  // ClearAllCookies erases every cookie (origins unchanged).
+  rpc ClearAllCookies(ClearAllCookiesRequest) returns (StorageMutationResponse);
+
+  // DeleteCookiesByDomain removes every cookie whose domain matches.
+  rpc DeleteCookiesByDomain(DeleteCookiesByDomainRequest) returns (StorageMutationResponse);
+
+  // DeleteCookie removes a single (domain, name) cookie.
+  rpc DeleteCookie(DeleteCookieRequest) returns (StorageMutationResponse);
+
+  // ClearAllLocalStorage erases every origin (cookies unchanged).
+  rpc ClearAllLocalStorage(ClearAllLocalStorageRequest) returns (StorageMutationResponse);
+
+  // DeleteLocalStorageByOrigin removes every localStorage item under origin.
+  rpc DeleteLocalStorageByOrigin(DeleteLocalStorageByOriginRequest) returns (StorageMutationResponse);
+
+  // DeleteLocalStorageItem removes a single localStorage entry by (origin, name).
+  rpc DeleteLocalStorageItem(DeleteLocalStorageItemRequest) returns (StorageMutationResponse);
+
+  // ---------------------------------------------------------------------------
+  // Service workers (live, via playwright-driver)
+  // ---------------------------------------------------------------------------
+
+  // GetServiceWorkers lists registered service workers for the live session
+  // bound to a profile. Returns an empty list (and the empty-session message)
+  // when the profile has no active session.
+  rpc GetServiceWorkers(GetServiceWorkersRequest) returns (GetServiceWorkersResponse);
+
+  // ClearAllServiceWorkers unregisters every service worker on the live session.
+  rpc ClearAllServiceWorkers(ClearAllServiceWorkersRequest) returns (ClearAllServiceWorkersResponse);
+
+  // DeleteServiceWorker unregisters one service worker by scope_url.
+  rpc DeleteServiceWorker(DeleteServiceWorkerRequest) returns (DeleteServiceWorkerResponse);
+
+  // ---------------------------------------------------------------------------
+  // Browser history (persisted)
+  // ---------------------------------------------------------------------------
+
+  // GetHistory returns the persisted navigation history, TTL-pruned.
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+
+  // ClearHistory removes every history entry.
+  rpc ClearHistory(ClearHistoryRequest) returns (HistoryMutationResponse);
+
+  // DeleteHistoryEntry removes a single entry by id.
+  rpc DeleteHistoryEntry(DeleteHistoryEntryRequest) returns (HistoryMutationResponse);
+
+  // UpdateHistorySettings adjusts retention/capture settings; settings ranges
+  // are enforced by the persistence layer.
+  rpc UpdateHistorySettings(UpdateHistorySettingsRequest) returns (UpdateHistorySettingsResponse);
+
+  // NavigateToHistoryURL re-navigates the live session to a URL from history.
+  rpc NavigateToHistoryURL(NavigateToHistoryURLRequest) returns (NavigateToHistoryURLResponse);
+
+  // ---------------------------------------------------------------------------
+  // Saved tabs
+  // ---------------------------------------------------------------------------
+
+  // GetSessionTabs returns the tabs saved for session restoration.
+  rpc GetSessionTabs(GetSessionTabsRequest) returns (GetSessionTabsResponse);
+
+  // ClearSessionTabs erases every saved tab.
+  rpc ClearSessionTabs(ClearSessionTabsRequest) returns (ClearSessionTabsResponse);
+
+  // DeleteSessionTab removes one tab by its zero-based order index and
+  // renumbers the remaining tabs.
+  rpc DeleteSessionTab(DeleteSessionTabRequest) returns (DeleteSessionTabResponse);
+}
+
+// =============================================================================
+// Storage state messages
+// =============================================================================
+
+message Cookie {
+  string name = 1;
+  string value = 2;
+  // True when value was redacted (HttpOnly).
+  bool value_masked = 3;
+  string domain = 4;
+  string path = 5;
+  double expires = 6;
+  bool http_only = 7;
+  bool secure = 8;
+  string same_site = 9;
+}
+
+message LocalStorageItem {
+  string name = 1;
+  string value = 2;
+}
+
+message Origin {
+  string origin = 1;
+  repeated LocalStorageItem local_storage = 2;
+}
+
+message StorageStats {
+  int32 cookie_count = 1;
+  int32 local_storage_count = 2;
+  int32 origin_count = 3;
+}
+
+message GetStorageStateRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetStorageStateResponse {
+  repeated Cookie cookies = 1;
+  repeated Origin origins = 2;
+  StorageStats stats = 3;
+}
+
+message ClearAllStorageRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ClearAllCookiesRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteCookiesByDomainRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  string domain = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteCookieRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  string domain = 2 [(buf.validate.field).string.min_len = 1];
+  string name = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+message ClearAllLocalStorageRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteLocalStorageByOriginRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  string origin = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteLocalStorageItemRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  string origin = 2 [(buf.validate.field).string.min_len = 1];
+  string name = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+message StorageMutationResponse {
+  // Outcome marker: "cleared" / "deleted" — preserves the legacy contract.
+  string status = 1;
+}
+
+// =============================================================================
+// Service worker messages
+// =============================================================================
+
+message ServiceWorkerInfo {
+  string registration_id = 1;
+  string scope_url = 2;
+  string script_url = 3;
+  // stopped | running | activating | installed
+  string status = 4;
+  string version_id = 5;
+}
+
+message ServiceWorkerDomainOverride {
+  string domain = 1;
+  // allow | block
+  string mode = 2;
+}
+
+message ServiceWorkerControl {
+  // allow | block | block-on-domain | unregister-all
+  string mode = 1;
+  repeated ServiceWorkerDomainOverride domain_overrides = 2;
+  repeated string blocked_domains = 3;
+}
+
+message GetServiceWorkersRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetServiceWorkersResponse {
+  // Empty when no live session is bound to the profile.
+  string session_id = 1;
+  repeated ServiceWorkerInfo workers = 2;
+  ServiceWorkerControl control = 3;
+  // Informational message (e.g. "No active session for this profile").
+  string message = 4;
+}
+
+message ClearAllServiceWorkersRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ClearAllServiceWorkersResponse {
+  string session_id = 1;
+  int32 unregistered_count = 2;
+  string message = 3;
+}
+
+message DeleteServiceWorkerRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  // URL-decoded scope URL of the worker to unregister.
+  string scope_url = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteServiceWorkerResponse {
+  string session_id = 1;
+  string unregistered = 2;
+}
+
+// =============================================================================
+// History messages
+// =============================================================================
+
+message HistoryEntry {
+  string id = 1;
+  string url = 2;
+  string title = 3;
+  // ISO 8601.
+  string timestamp = 4;
+  // Base64-encoded JPEG thumbnail (~150x100). Optional.
+  string thumbnail = 5;
+}
+
+message HistorySettings {
+  int32 max_entries = 1;
+  int32 retention_days = 2;
+  bool capture_thumbnails = 3;
+}
+
+message HistoryStats {
+  int32 total_entries = 1;
+  string oldest_entry = 2;
+  string newest_entry = 3;
+}
+
+message GetHistoryRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetHistoryResponse {
+  repeated HistoryEntry entries = 1;
+  HistorySettings settings = 2;
+  HistoryStats stats = 3;
+}
+
+message ClearHistoryRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteHistoryEntryRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  string entry_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message HistoryMutationResponse {
+  // Outcome marker: "cleared" / "deleted".
+  string status = 1;
+  // For DeleteHistoryEntry, echoes the deleted id.
+  string id = 2;
+}
+
+message UpdateHistorySettingsRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  HistorySettings settings = 2;
+}
+
+message UpdateHistorySettingsResponse {
+  HistorySettings settings = 1;
+  int32 history_count = 2;
+}
+
+message NavigateToHistoryURLRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  string url = 2 [(buf.validate.field).string.min_len = 1];
+  // Playwright wait_until: load | domcontentloaded | networkidle | commit.
+  string wait_until = 3;
+  int32 timeout_ms = 4;
+}
+
+message NavigateToHistoryURLResponse {
+  string url = 1;
+  string title = 2;
+  bool can_go_back = 3;
+  bool can_go_forward = 4;
+}
+
+// =============================================================================
+// Tab messages
+// =============================================================================
+
+message TabInfo {
+  string url = 1;
+  string title = 2;
+  bool is_active = 3;
+  int32 order = 4;
+}
+
+message GetSessionTabsRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetSessionTabsResponse {
+  repeated TabInfo tabs = 1;
+}
+
+message ClearSessionTabsRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ClearSessionTabsResponse {
+  // "cleared".
+  string status = 1;
+  string profile_id = 2;
+}
+
+message DeleteSessionTabRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  int32 order = 2;
+}
+
+message DeleteSessionTabResponse {
+  // "deleted".
+  string status = 1;
+  string profile_id = 2;
+}

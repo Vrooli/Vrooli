@@ -114,6 +114,10 @@ func main() {
 	embedder := aisearch.NewEmbedder(searchCfg.EmbedModel)
 	vectorStore := aisearch.NewVectorStore(searchCfg.QdrantURL, searchCfg.QdrantAPIKey, aisearch.DefaultCollection, aisearch.DefaultVectorSize)
 	discovery := aisearch.NewFilesystemDiscoverySource(repoRoot)
+	// Index the top-level vrooli CLI alongside scenario CLIs. The
+	// records carry Origin="vrooli"; the validation handler rejects
+	// "vrooli" because no proto contract exists for it.
+	discovery.ExternalCLIs = []aisearch.ExternalCLI{{Name: "vrooli", Binary: "vrooli"}}
 	aiService := aisearch.NewService(aisearch.Options{
 		Embedder:    embedder,
 		VectorStore: vectorStore,
@@ -136,7 +140,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "cli-health-api", "1.0.0"),
-		validationH.Module(logger, repoRoot),
+		validationH.Module(logger, repoRoot, externalCLINames(discovery.ListExternalCLIs())),
 		searchH.Module(logger, aiService),
 		reindexH.Module(logger, reindexH.ServiceAdapter{Service: aiService}),
 	)
@@ -150,4 +154,12 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func externalCLINames(clis []aisearch.ExternalCLI) []string {
+	out := make([]string, 0, len(clis))
+	for _, c := range clis {
+		out = append(out, c.Name)
+	}
+	return out
 }

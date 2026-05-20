@@ -52,7 +52,7 @@ func (h *handlers) query(ctx cliapp.RunContext) error {
 	}
 	results := make([]string, 0, len(resp.Msg.Results))
 	for i, r := range resp.Msg.Results {
-		full := strings.TrimSpace(strings.Join([]string{r.Scenario, r.Group, r.Name}, " "))
+		full := strings.TrimSpace(strings.Join([]string{r.Origin, r.Group, r.Name}, " "))
 		desc := truncate(r.Description, 80)
 		results = append(results, fmt.Sprintf("%d. %s — %s [score=%.3f source=%s]",
 			i+1, full, desc, r.Score, r.Source))

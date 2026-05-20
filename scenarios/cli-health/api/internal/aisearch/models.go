@@ -13,7 +13,7 @@ import "time"
 // source (manifest or --help fallback). It is the unit that gets embedded,
 // stored, and returned by Search.
 type CommandRecord struct {
-	Scenario    string   `json:"scenario"`
+	Origin      string   `json:"origin"`
 	Group       string   `json:"group,omitempty"`
 	Name        string   `json:"name"`
 	FullPath    string   `json:"fullPath"` // "<scenario> <group> <name>" canonical command
@@ -28,7 +28,7 @@ type CommandRecord struct {
 // SearchHit is the per-result projection returned by Service.Search.
 type SearchHit struct {
 	ID           string   `json:"id"`
-	Scenario     string   `json:"scenario"`
+	Origin       string   `json:"origin"`
 	Group        string   `json:"group,omitempty"`
 	Name         string   `json:"name"`
 	FullPath     string   `json:"fullPath"`

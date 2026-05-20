@@ -6,7 +6,7 @@ import (
 
 func TestPayloadHash_StableAcrossNoOpRebuilds(t *testing.T) {
 	r := CommandRecord{
-		Scenario: "demo", Group: "x", Name: "y", FullPath: "demo x y",
+		Origin: "demo", Group: "x", Name: "y", FullPath: "demo x y",
 		Description: "list things", Flags: []string{"json"}, Tags: []string{"effect:read"},
 		Binding: "Svc.M", Source: SourceManifest,
 	}
@@ -25,7 +25,7 @@ func TestPayloadHash_StableAcrossNoOpRebuilds(t *testing.T) {
 }
 
 func TestPayloadHash_ChangesOnFieldEdit(t *testing.T) {
-	a := CommandRecord{Scenario: "demo", Name: "x", FullPath: "demo x", Source: SourceManifest}
+	a := CommandRecord{Origin: "demo", Name: "x", FullPath: "demo x", Source: SourceManifest}
 	b := a
 	b.Description = "now with a description"
 	ha, _ := buildCommandPayload(a, composeCommandEmbeddingText(a))[payloadHashKey].(string)
@@ -37,13 +37,13 @@ func TestPayloadHash_ChangesOnFieldEdit(t *testing.T) {
 
 func TestPayloadToHit_FullProjection(t *testing.T) {
 	r := CommandRecord{
-		Scenario: "demo", Group: "x", Name: "y", FullPath: "demo x y",
+		Origin: "demo", Group: "x", Name: "y", FullPath: "demo x y",
 		Description: "d", Flags: []string{"json"}, Tags: []string{"effect:read"},
 		Binding: "Svc.M", Source: SourceManifest,
 	}
 	p := buildCommandPayload(r, composeCommandEmbeddingText(r))
 	hit := payloadToHit("pt-1", 0.83, p)
-	if hit.ID != "pt-1" || hit.Scenario != "demo" || hit.FullPath != "demo x y" {
+	if hit.ID != "pt-1" || hit.Origin != "demo" || hit.FullPath != "demo x y" {
 		t.Errorf("bad identity: %+v", hit)
 	}
 	if hit.Score != 0.83 || hit.ScorePercent != 83 {

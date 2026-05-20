@@ -10,7 +10,9 @@ import (
 
 // staticDiscovery is a deterministic DiscoverySource for tests.
 type staticDiscovery struct {
-	scenarios map[string][]CommandRecord
+	scenarios    map[string][]CommandRecord
+	externalCLIs []ExternalCLI
+	external     map[string][]CommandRecord
 }
 
 func (s *staticDiscovery) ListScenarios(_ context.Context) ([]string, error) {
@@ -23,6 +25,19 @@ func (s *staticDiscovery) ListScenarios(_ context.Context) ([]string, error) {
 
 func (s *staticDiscovery) Discover(_ context.Context, scenario string) ([]CommandRecord, error) {
 	return s.scenarios[scenario], nil
+}
+
+func (s *staticDiscovery) ListExternalCLIs() []ExternalCLI {
+	if len(s.externalCLIs) == 0 {
+		return nil
+	}
+	out := make([]ExternalCLI, len(s.externalCLIs))
+	copy(out, s.externalCLIs)
+	return out
+}
+
+func (s *staticDiscovery) DiscoverExternal(_ context.Context, cli ExternalCLI) ([]CommandRecord, error) {
+	return s.external[cli.Name], nil
 }
 
 // fakeEmbedder returns a deterministic vector with one dimension set per term
@@ -84,6 +99,7 @@ func (s *fakeVectorStore) Upsert(_ context.Context, id string, _ []float64, payl
 	}
 	return nil
 }
+
 func (s *fakeVectorStore) Delete(_ context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -91,18 +107,21 @@ func (s *fakeVectorStore) Delete(_ context.Context, id string) error {
 	delete(s.hashes, id)
 	return nil
 }
+
 func (s *fakeVectorStore) BatchDelete(ctx context.Context, ids []string) error {
 	for _, id := range ids {
 		_ = s.Delete(ctx, id)
 	}
 	return nil
 }
+
 func (s *fakeVectorStore) Search(_ context.Context, _ []float64, _ int, _ float64) ([]SearchResult, error) {
 	if s.searchErr != nil {
 		return nil, s.searchErr
 	}
 	return s.searchOut, nil
 }
+
 func (s *fakeVectorStore) CountPoints(_ context.Context) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -111,6 +130,7 @@ func (s *fakeVectorStore) CountPoints(_ context.Context) (int, error) {
 	}
 	return len(s.points), nil
 }
+
 func (s *fakeVectorStore) ScrollIDs(_ context.Context) (map[string]ScrollItem, error) {
 	if s.scrollErr != nil {
 		return nil, s.scrollErr
@@ -138,15 +158,21 @@ func sampleCorpus() *staticDiscovery {
 	return &staticDiscovery{
 		scenarios: map[string][]CommandRecord{
 			"demo": {
-				{Scenario: "demo", Group: "things", Name: "list", FullPath: "demo things list",
-					Description: "List things from the database", Source: SourceManifest},
-				{Scenario: "demo", Group: "things", Name: "show", FullPath: "demo things show",
-					Description: "Show one thing", Source: SourceManifest},
+				{
+					Origin: "demo", Group: "things", Name: "list", FullPath: "demo things list",
+					Description: "List things from the database", Source: SourceManifest,
+				},
+				{
+					Origin: "demo", Group: "things", Name: "show", FullPath: "demo things show",
+					Description: "Show one thing", Source: SourceManifest,
+				},
 			},
 			"other": {
-				{Scenario: "other", Group: "validate", Name: "manifest", FullPath: "other validate manifest",
+				{
+					Origin: "other", Group: "validate", Name: "manifest", FullPath: "other validate manifest",
 					Description: "Validate the CLI manifest", Source: SourceManifest,
-					Tags: []string{"validate"}},
+					Tags: []string{"validate"},
+				},
 			},
 		},
 	}
@@ -196,7 +222,7 @@ func TestService_AIMode_PropagatesEmbedderError(t *testing.T) {
 func TestService_AIMode_ReturnsVectorHits(t *testing.T) {
 	emb := &fakeEmbedder{available: true}
 	store := newFakeStore()
-	rec := CommandRecord{Scenario: "demo", Name: "x", FullPath: "demo x", Source: SourceManifest}
+	rec := CommandRecord{Origin: "demo", Name: "x", FullPath: "demo x", Source: SourceManifest}
 	store.searchOut = []SearchResult{{
 		ID:      PointIDForCommand(rec.FullPath),
 		Score:   0.91,
@@ -249,10 +275,14 @@ func TestReconciler_ModifiedRecord_ProducesExactlyOneUpsert(t *testing.T) {
 	disc := &staticDiscovery{
 		scenarios: map[string][]CommandRecord{
 			"demo": {
-				{Scenario: "demo", Group: "g", Name: "a", FullPath: "demo g a",
-					Description: "alpha", Source: SourceManifest},
-				{Scenario: "demo", Group: "g", Name: "b", FullPath: "demo g b",
-					Description: "beta", Source: SourceManifest},
+				{
+					Origin: "demo", Group: "g", Name: "a", FullPath: "demo g a",
+					Description: "alpha", Source: SourceManifest,
+				},
+				{
+					Origin: "demo", Group: "g", Name: "b", FullPath: "demo g b",
+					Description: "beta", Source: SourceManifest,
+				},
 			},
 		},
 	}
@@ -290,6 +320,51 @@ func TestReconciler_ModifiedRecord_ProducesExactlyOneUpsert(t *testing.T) {
 	// And only one new embed call: we re-embedded the edited record only.
 	if emb.calls-callsAfterFirst != 1 {
 		t.Errorf("embed calls = %d, want 1", emb.calls-callsAfterFirst)
+	}
+}
+
+func TestReindex_WalksScenariosAndExternalCLIs(t *testing.T) {
+	disc := &staticDiscovery{
+		scenarios: map[string][]CommandRecord{
+			"demo": {
+				{
+					Origin: "demo", Group: "g", Name: "a", FullPath: "demo g a",
+					Description: "alpha", Source: SourceManifest,
+				},
+			},
+		},
+		externalCLIs: []ExternalCLI{{Name: "vrooli", Binary: "vrooli"}},
+		external: map[string][]CommandRecord{
+			"vrooli": {
+				{
+					Origin: "vrooli", Group: "scenario", Name: "start",
+					FullPath: "vrooli scenario start", Description: "Start a scenario",
+					Source: SourceHelp,
+				},
+			},
+		},
+	}
+	emb := &fakeEmbedder{available: true}
+	store := newFakeStore()
+	svc := newTestService(disc, emb, store)
+	job, err := svc.Reindex(context.Background(), "", false)
+	if err != nil {
+		t.Fatalf("Reindex: %v", err)
+	}
+	waitJob(t, svc, job.ID)
+
+	// Both origins must be reflected in the store payload.
+	origins := map[string]int{}
+	for _, p := range store.points {
+		if v, _ := p["origin"].(string); v != "" {
+			origins[v]++
+		}
+	}
+	if origins["demo"] == 0 {
+		t.Errorf("scenario origin 'demo' missing; got %v", origins)
+	}
+	if origins["vrooli"] == 0 {
+		t.Errorf("external origin 'vrooli' missing; got %v", origins)
 	}
 }
 

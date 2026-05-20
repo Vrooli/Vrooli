@@ -171,7 +171,7 @@ func (s *Service) textSearch(ctx context.Context, query string, limit int) (*Sea
 			scoredHits = append(scoredHits, scored{
 				hit: SearchHit{
 					ID:           PointIDForCommand(r.FullPath),
-					Scenario:     r.Scenario,
+					Origin:       r.Origin,
 					Group:        r.Group,
 					Name:         r.Name,
 					FullPath:     r.FullPath,

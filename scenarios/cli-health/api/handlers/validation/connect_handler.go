@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -20,6 +21,11 @@ import (
 type Deps struct {
 	Logger    *log.Logger
 	Validator Validator
+	// ReservedNames are non-scenario CLI names that should be rejected with
+	// InvalidArgument rather than fed to the scenario validator. Sourced from
+	// the aisearch ExternalCLIs config so vrooli (and any future ExternalCLI)
+	// can't be misinterpreted as a scenario.
+	ReservedNames []string
 }
 
 // Validator is the slice of manifestvalidation.Service the handler exercises.
@@ -46,6 +52,11 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("validation.ValidateScenario: validator not wired"))
 	}
 	scenario := req.Msg.GetScenario()
+	for _, reserved := range h.deps.ReservedNames {
+		if strings.EqualFold(strings.TrimSpace(reserved), strings.TrimSpace(scenario)) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s is not a scenario; only scenario CLIs are validated", scenario))
+		}
+	}
 	report, err := h.deps.Validator.ValidateScenario(ctx, scenario)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)

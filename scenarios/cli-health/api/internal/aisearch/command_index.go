@@ -34,7 +34,7 @@ func composeCommandEmbeddingText(r CommandRecord) string {
 // the payload_hash that drives the reconciler's drift detection.
 func buildCommandPayload(r CommandRecord, embeddingText string) map[string]interface{} {
 	p := map[string]interface{}{
-		"scenario":    r.Scenario,
+		"origin":      r.Origin,
 		"group":       r.Group,
 		"name":        r.Name,
 		"full_path":   r.FullPath,
@@ -72,6 +72,17 @@ func NewCommandDescriptor(store VectorStore, src DiscoverySource) CollectionDesc
 					out = append(out, &r)
 				}
 			}
+			for _, cli := range src.ListExternalCLIs() {
+				records, err := src.DiscoverExternal(ctx, cli)
+				if err != nil {
+					log.Printf("[cli-health/aisearch] discover external %s: %v", cli.Name, err)
+					continue
+				}
+				for i := range records {
+					r := records[i]
+					out = append(out, &r)
+				}
+			}
 			return out, nil
 		},
 		ComposeText: func(snap ItemSnapshot) string {
@@ -93,7 +104,7 @@ func NewCommandDescriptor(store VectorStore, src DiscoverySource) CollectionDesc
 // an empty hit when the payload is missing required fields — never panics.
 func payloadToHit(id string, score float64, payload map[string]interface{}) SearchHit {
 	hit := SearchHit{ID: id, Score: score, ScorePercent: int(score*100 + 0.5)}
-	hit.Scenario, _ = payload["scenario"].(string)
+	hit.Origin, _ = payload["origin"].(string)
 	hit.Group, _ = payload["group"].(string)
 	hit.Name, _ = payload["name"].(string)
 	hit.FullPath, _ = payload["full_path"].(string)

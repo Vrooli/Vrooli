@@ -11,8 +11,8 @@ import (
 )
 
 // Embedder generates text embeddings. The production implementation shells
-// out to `resource-ollama gateway embed`; tests substitute fakes via
-// newEmbedderWithRunner.
+// out to `resource-ollama gateway embed`; tests inject fakes implementing
+// this interface directly.
 type Embedder interface {
 	Embed(ctx context.Context, text string) ([]float64, error)
 	Available(ctx context.Context) bool
@@ -37,18 +37,6 @@ func NewEmbedder(model string) Embedder {
 		bin:   defaultEmbedderBin,
 		model: model,
 		run:   defaultRunner,
-	}
-}
-
-// newEmbedderWithRunner is the test seam.
-func newEmbedderWithRunner(model string, run embedderRunner) Embedder {
-	if strings.TrimSpace(model) == "" {
-		model = DefaultEmbedModel
-	}
-	return &cliEmbedder{
-		bin:   defaultEmbedderBin,
-		model: model,
-		run:   run,
 	}
 }
 

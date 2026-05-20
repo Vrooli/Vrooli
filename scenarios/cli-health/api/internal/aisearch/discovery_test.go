@@ -48,7 +48,7 @@ func TestFilesystemDiscoverySource_ManifestParse(t *testing.T) {
 		t.Fatalf("want 1 record, got %d (%+v)", len(records), records)
 	}
 	r := records[0]
-	if r.Scenario != "demo" || r.Group != "things" || r.Name != "list" {
+	if r.Origin != "demo" || r.Group != "things" || r.Name != "list" {
 		t.Errorf("unexpected identity: %+v", r)
 	}
 	if r.FullPath != "demo things list" {
@@ -93,8 +93,8 @@ func TestFilesystemDiscoverySource_HelpFallback_NoBinary(t *testing.T) {
 	if records[0].Source != SourceHelpFailed {
 		t.Errorf("Source = %q, want %q", records[0].Source, SourceHelpFailed)
 	}
-	if records[0].Scenario != "ghost" {
-		t.Errorf("Scenario = %q", records[0].Scenario)
+	if records[0].Origin != "ghost" {
+		t.Errorf("Origin = %q", records[0].Origin)
 	}
 }
 

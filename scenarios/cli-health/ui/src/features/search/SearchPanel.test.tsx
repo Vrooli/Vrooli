@@ -26,7 +26,7 @@ describe("SearchPanel", () => {
     vi.mocked(searchClient.search).mockResolvedValue({
       results: [
         {
-          scenario: "cli-health",
+          origin: "cli-health",
           group: "validate",
           name: "scenario",
           description: "Validate a scenario manifest.",

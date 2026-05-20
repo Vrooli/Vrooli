@@ -111,12 +111,12 @@ export function SearchPanel() {
             <ul data-testid={selectors.search.results} className="mt-2 space-y-2">
               {results.map((r, i) => (
                 <li
-                  key={`${r.scenario}/${r.group}/${r.name}/${i}`}
+                  key={`${r.origin}/${r.group}/${r.name}/${i}`}
                   data-testid={selectors.search.result}
                   className="rounded-md border border-app-border bg-app-surface-muted p-3"
                 >
                   <p className="font-mono text-sm">
-                    {r.scenario} {r.group} {r.name}
+                    {r.origin} {r.group} {r.name}
                   </p>
                   {r.description && (
                     <p className="mt-1 text-sm text-app-muted-foreground">{r.description}</p>

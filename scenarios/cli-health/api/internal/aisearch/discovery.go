@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -29,6 +30,16 @@ const (
 type DiscoverySource interface {
 	Discover(ctx context.Context, scenario string) ([]CommandRecord, error)
 	ListScenarios(ctx context.Context) ([]string, error)
+	ListExternalCLIs() []ExternalCLI
+	DiscoverExternal(ctx context.Context, cli ExternalCLI) ([]CommandRecord, error)
+}
+
+// ExternalCLI is a non-scenario CLI (e.g. the top-level `vrooli` binary)
+// that should be indexed alongside scenario CLIs. Origin records under
+// these entries carry the configured Name (not a scenario id).
+type ExternalCLI struct {
+	Name   string // origin display name (e.g. "vrooli")
+	Binary string // exec.LookPath name or absolute path
 }
 
 // FilesystemDiscoverySource walks the repo's scenarios/ tree, reads
@@ -39,7 +50,20 @@ type DiscoverySource interface {
 type FilesystemDiscoverySource struct {
 	RepoRoot      string
 	HelpTimeout   time.Duration
-	HelpBinaryEnv string // optional override; when set, this env var holds the binary path
+	HelpBinaryEnv string        // optional override; when set, this env var holds the binary path
+	ExternalCLIs  []ExternalCLI // non-scenario CLIs (e.g. vrooli) indexed alongside scenarios
+
+	mu        sync.Mutex
+	helpCache map[string]helpCacheEntry // keyed by absolute binary path
+}
+
+// helpCacheEntry holds the parsed help tree for a binary at a given mtime.
+// On reindex the entry is reused when the binary file has not changed since
+// it was cached — avoids the recursive subprocess fan-out on every reindex.
+type helpCacheEntry struct {
+	mtime   time.Time
+	origin  string
+	records []CommandRecord
 }
 
 // NewFilesystemDiscoverySource returns a discovery source rooted at repoRoot.
@@ -48,6 +72,43 @@ func NewFilesystemDiscoverySource(repoRoot string) *FilesystemDiscoverySource {
 		RepoRoot:    repoRoot,
 		HelpTimeout: 5 * time.Second,
 	}
+}
+
+// ListExternalCLIs returns a copy of the configured ExternalCLIs slice.
+// Returned slice is safe to mutate.
+func (d *FilesystemDiscoverySource) ListExternalCLIs() []ExternalCLI {
+	if len(d.ExternalCLIs) == 0 {
+		return nil
+	}
+	out := make([]ExternalCLI, len(d.ExternalCLIs))
+	copy(out, d.ExternalCLIs)
+	return out
+}
+
+// DiscoverExternal walks the given ExternalCLI's --help tree and emits one
+// CommandRecord per leaf, with Origin = cli.Name. Mirrors
+// helpFallback but does not consult the scenarios/ tree or a manifest.
+func (d *FilesystemDiscoverySource) DiscoverExternal(ctx context.Context, cli ExternalCLI) ([]CommandRecord, error) {
+	name := strings.TrimSpace(cli.Name)
+	if name == "" {
+		return nil, fmt.Errorf("external CLI name is required")
+	}
+	bin := strings.TrimSpace(cli.Binary)
+	if bin == "" {
+		bin = name
+	}
+	if resolved, err := exec.LookPath(bin); err == nil {
+		bin = resolved
+	} else {
+		return []CommandRecord{{
+			Origin:      name,
+			Name:        name,
+			FullPath:    name,
+			Source:      SourceHelpFailed,
+			Description: fmt.Sprintf("External CLI %s: binary %q not found on PATH; index entry is a stub.", name, cli.Binary),
+		}}, nil
+	}
+	return d.parseHelpTreeCached(ctx, bin, name), nil
 }
 
 // ListScenarios returns every directory under scenarios/ in the repo.
@@ -111,7 +172,7 @@ func parseManifestRecords(scenario string, raw []byte) ([]CommandRecord, error) 
 		groupName := strings.TrimSpace(group.Name)
 		for _, cmd := range group.Commands {
 			rec := CommandRecord{
-				Scenario:    scenario,
+				Origin:      scenario,
 				Group:       groupName,
 				Name:        strings.TrimSpace(cmd.Name),
 				Description: strings.TrimSpace(cmd.Description),
@@ -167,43 +228,90 @@ func canonicalFullPath(scenario, group, name string) string {
 	return strings.Join(parts, " ")
 }
 
-// helpFallback returns a single record per scenario, derived from a
-// best-effort invocation of `<binary> --help`. On any failure the record is
-// emitted with Source=help-failed so the scenario is still discoverable.
-func (d *FilesystemDiscoverySource) helpFallback(ctx context.Context, scenario string) []CommandRecord {
-	bin := d.resolveBinary(scenario)
-	rec := CommandRecord{
-		Scenario: scenario,
-		Name:     scenario,
-		FullPath: scenario,
-		Source:   SourceHelpFailed,
-	}
+// helpFallback walks the CLI's `--help` tree recursively and emits one
+// CommandRecord per leaf command. On any failure (binary missing, exec
+// error, unparseable output) a single Source=help-failed stub is emitted so
+// the CLI remains discoverable by name.
+func (d *FilesystemDiscoverySource) helpFallback(ctx context.Context, origin string) []CommandRecord {
+	bin := d.resolveBinary(origin)
 	if bin == "" {
-		rec.Description = fmt.Sprintf("Scenario %s has no CLI manifest and no binary on PATH; index entry is a stub.", scenario)
-		return []CommandRecord{rec}
+		return []CommandRecord{{
+			Origin:      origin,
+			Name:        origin,
+			FullPath:    origin,
+			Source:      SourceHelpFailed,
+			Description: fmt.Sprintf("Scenario %s has no CLI manifest and no binary on PATH; index entry is a stub.", origin),
+		}}
 	}
+	return d.parseHelpTreeCached(ctx, bin, origin)
+}
+
+// parseHelpTreeCached returns the help-derived CommandRecords for bin,
+// reusing a cached parse when the binary's mtime is unchanged. The cache
+// lives for the lifetime of the FilesystemDiscoverySource (typically the
+// process lifetime).
+func (d *FilesystemDiscoverySource) parseHelpTreeCached(ctx context.Context, bin, origin string) []CommandRecord {
+	mtime, ok := binaryMtime(bin)
+	if ok {
+		d.mu.Lock()
+		entry, hit := d.helpCache[bin]
+		d.mu.Unlock()
+		if hit && entry.mtime.Equal(mtime) && entry.origin == origin {
+			return cloneRecords(entry.records)
+		}
+	}
+
+	records := ParseHelpTree(ctx, d.helpRunner(), bin, HelpTreeOptions{Origin: origin, MaxDepth: defaultHelpMaxDepth})
+
+	if ok {
+		d.mu.Lock()
+		if d.helpCache == nil {
+			d.helpCache = make(map[string]helpCacheEntry)
+		}
+		d.helpCache[bin] = helpCacheEntry{mtime: mtime, origin: origin, records: cloneRecords(records)}
+		d.mu.Unlock()
+	}
+	return records
+}
+
+func binaryMtime(bin string) (time.Time, bool) {
+	info, err := os.Stat(bin)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return info.ModTime(), true
+}
+
+func cloneRecords(in []CommandRecord) []CommandRecord {
+	out := make([]CommandRecord, len(in))
+	copy(out, in)
+	return out
+}
+
+// helpRunner returns the production helpRunner that shells out to the
+// binary, applying HelpTimeout per invocation.
+func (d *FilesystemDiscoverySource) helpRunner() helpRunner {
 	timeout := d.HelpTimeout
 	if timeout <= 0 {
 		timeout = 5 * time.Second
 	}
-	cctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	cmd := exec.CommandContext(cctx, bin, "--help")
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		rec.Description = fmt.Sprintf("Help invocation failed: %v", err)
-		return []CommandRecord{rec}
+	return func(ctx context.Context, bin string, args []string) ([]byte, error) {
+		cctx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		argv := append(append([]string{}, args...), "--help")
+		cmd := exec.CommandContext(cctx, bin, argv...)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			msg := strings.TrimSpace(stderr.String())
+			if msg != "" {
+				return nil, fmt.Errorf("%s: %w", msg, err)
+			}
+			return nil, err
+		}
+		return stdout.Bytes(), nil
 	}
-	out := strings.TrimSpace(stdout.String())
-	if out == "" {
-		rec.Description = "Help invocation returned no output"
-		return []CommandRecord{rec}
-	}
-	rec.Source = SourceHelp
-	rec.Description = truncateForEmbedding(firstNonEmptyLine(out)+"\n"+out, 1800)
-	return []CommandRecord{rec}
 }
 
 func (d *FilesystemDiscoverySource) resolveBinary(scenario string) string {

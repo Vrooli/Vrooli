@@ -38,7 +38,7 @@
   },
   "search": {
     "title": "Command search",
-    "description": "Find CLI commands across all scenarios. Switch to text mode if Ollama or Qdrant is unavailable.",
+    "description": "Find CLI commands across every scenario and the top-level vrooli CLI. Switch to text mode if Ollama or Qdrant is unavailable.",
     "placeholder": "Search commands…",
     "submit": "Search",
     "modeAi": "AI",

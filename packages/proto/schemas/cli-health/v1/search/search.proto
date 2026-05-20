@@ -50,7 +50,9 @@ message SearchRequest {
 // SearchResult is one hit from the corpus. Source identifies which document
 // type produced the hit ("manifest" or "help").
 message SearchResult {
-  string scenario = 1;
+  // The CLI this command belongs to — a scenario id (e.g. "cli-health") or an
+  // external CLI name registered with the discovery source (e.g. "vrooli").
+  string origin = 1;
   string group = 2;
   string name = 3;
   string description = 4;

@@ -27,20 +27,20 @@ class SearchRequest(_message.Message):
     def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ..., mode: _Optional[_Union[Mode, str]] = ...) -> None: ...
 
 class SearchResult(_message.Message):
-    __slots__ = ("scenario", "group", "name", "description", "score", "source")
-    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("origin", "group", "name", "description", "score", "source")
+    ORIGIN_FIELD_NUMBER: _ClassVar[int]
     GROUP_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     SCORE_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
-    scenario: str
+    origin: str
     group: str
     name: str
     description: str
     score: float
     source: str
-    def __init__(self, scenario: _Optional[str] = ..., group: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., score: _Optional[float] = ..., source: _Optional[str] = ...) -> None: ...
+    def __init__(self, origin: _Optional[str] = ..., group: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., score: _Optional[float] = ..., source: _Optional[str] = ...) -> None: ...
 
 class SearchResponse(_message.Message):
     __slots__ = ("results", "mode_used")

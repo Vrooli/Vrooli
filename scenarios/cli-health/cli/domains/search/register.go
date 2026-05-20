@@ -23,5 +23,9 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("search: load from manifest: %w", err)
 	}
+	// Allow `cli-health search "<query>"` as shorthand for `cli-health search
+	// query "<query>"`. The query subcommand is the dominant verb here and
+	// agent prompts/docs are easier to author against the bare form.
+	group.DefaultSubcommand = "query"
 	return group, nil
 }
