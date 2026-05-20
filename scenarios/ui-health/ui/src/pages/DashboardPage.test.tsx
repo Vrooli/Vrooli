@@ -66,6 +66,29 @@ describe("DashboardPage", () => {
     expect(await screen.findByTestId(selectors.dashboard.activity.empty)).toBeInTheDocument();
   });
 
+  it("renders the API-status error envelope when fetchHealth rejects", async () => {
+    vi.mocked(fetchHealth).mockRejectedValueOnce(new Error("nope"));
+    renderWithProviders(<DashboardPage />);
+    const card = await screen.findByTestId(selectors.dashboard.apiStatus.card);
+    await waitFor(() => expect(card.querySelector('[role="alert"]')).not.toBeNull());
+  });
+
+  it("renders dependency rows when the health response carries them", async () => {
+    vi.mocked(fetchHealth).mockResolvedValueOnce(
+      makeHealthResponse({
+        dependencies: {
+          postgres: { connected: true, latencyMs: 12, error: "" },
+          ollama: { connected: false, latencyMs: 0, error: "down" },
+        },
+      }),
+    );
+    renderWithProviders(<DashboardPage />);
+    await waitFor(() => {
+      const rows = screen.getAllByTestId(selectors.dashboard.apiStatus.dependency);
+      expect(rows).toHaveLength(2);
+    });
+  });
+
   it("renders merged activity rows when runs and jobs exist in storage", async () => {
     window.localStorage.setItem(
       "ui-health.validation.recent.v1",

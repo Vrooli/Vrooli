@@ -78,5 +78,11 @@
       ]
     }
   ],
-  "omitted": []
+  "omitted": [
+    {
+      "service": "InventoryService",
+      "method": "ScanScenario",
+      "reason": "Scan is exposed transitively via ReindexService.Reindex (which calls the reconciler that internally runs ScanScenario per scenario). No standalone CLI surface — UI uses the Connect client directly for ad-hoc per-scenario inventory views."
+    }
+  ]
 }

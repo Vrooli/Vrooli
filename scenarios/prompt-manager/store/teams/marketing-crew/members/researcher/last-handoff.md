@@ -1,51 +1,44 @@
 ### Inputs reviewed
-- Research brief, previous handoff, storage map, topic contract, team charter/member contract, and heartbeat instructions.
 - `research-inbox/*`: empty.
-- Pending decisions: `dec-1778790757599330605` still pending; live challenge records mark it resolved, despite the brief saying open.
-- Recent `audience-scan/*` and `monetization-benchmark-adjacent-record/*`.
-- Could not read `docs/marketing/evidence/research/README.md` or append `audience-scans.jsonl`: workspace checkout is empty.
-- CLI works through stored binary but warns rebuild failed because `/home/matthalloran8/.vrooli/bin` is read-only; generated command docs are stale because `knowledge-add --by` is now rejected.
+- Pending decisions and challenge records for `dec-1778790757599330605`; live storage shows the challenge resolved, despite brief text calling it open.
+- Recent `audience-scan/*`, `workflow-scan/*`, `skill-scan/*`, and `monetization-benchmark-adjacent-record/*`.
+- Could not read `docs/marketing/evidence/research/README.md` or append `audience-scans.jsonl`: checkout is still empty.
 
 ### Scan summary
-- Inbox was empty, so ran a proactive baseline scan on agent observability/evaluation proof surfaces.
-- Evidence cluster: production-agent platforms now emphasize traces, evals, human feedback/annotation, monitoring, prompt/version iteration, cost/token tracking, retention, self-host/data control, OpenTelemetry, and audit/RBAC controls.
-- Sources used:
-  - https://www.langchain.com/pricing
-  - https://arize.com/pricing/
-  - https://langfuse.com/
-  - https://docs.wandb.ai/weave
-  - https://site.wandb.ai/agents
+Ran proactive baseline scan on template/plugin marketplaces as AI workflow distribution and onboarding proof surfaces. Sources:
+- https://n8n.io/workflows/
+- https://zapier.com/templates
+- https://help.zapier.com/hc/en-us/articles/24393442652557-Build-an-agent-in-Zapier-Agents
+- https://marketplace.dify.ai/?language=en-US
+- https://docs.langflow.org/
+- https://crewai.com/amp
 
 ### Routed signals
-- `audience-scan/2026-05-18`: `knw-1779136341477079937`
-- `workflow-scan/agent-observability-eval-proof-surfaces-2026-05-18`: `knw-1779136341476537155`
-- `competitor-record/agent-observability-platform-proof-surface-positioning-2026-05-18`: `knw-1779136341476537385`
-- `monetization-benchmark-adjacent-record/agent-observability-trace-eval-retention-billing-2026-05-18`: `knw-1779136341703884304`
+- `audience-scan/2026-05-20`: `knw-1779309114699028056`
+- `workflow-scan/template-plugin-marketplace-distribution-2026-05-20`: `knw-1779309114699704697`
+- `format-scan/template-gallery-as-proof-surface-2026-05-20`: `knw-1779309114852728003`
+- `competitor-record/template-plugin-marketplace-positioning-2026-05-20`: `knw-1779309114853184654`
+- `channel-scan/template-marketplaces-as-acquisition-channel-2026-05-20`: `knw-1779309140348617579`
+- `skill-scan/marketplace-plugin-skill-packaging-2026-05-20`: `knw-1779309140347962388`
 
 ### Convergence candidates
-- Small-team-lead evidence continues converging around production-agent proof surfaces: trace what happened, evaluate regressions, review/approve failures, track cost, retain/export evidence, and control deployment/data posture.
-- This extends prior 2026-05-16/17 scans but is still best treated as watch evidence until product parity is verified.
+Template/plugin marketplaces appear to be converging as category proof surfaces: reusable artifacts, copied templates, plugin categories, creator/verified contribution, and prototype-to-managed-operation paths. Treat as watch evidence until product parity and distribution surface are verified.
 
 ### Decisions raised
-- None. New canon/capability decisions were not warranted this run.
-- Existing `dec-1778790757599330605` remains pending with resolved challenge guardrail: acceptance should incorporate `knw-1778877137629609823`, not only the broad original wording.
+None. Existing researcher audience decision remains pending; today’s evidence does not warrant a new canon/channel/post-type decision.
 
 ### Skill or capability gaps
-- No new capability-gap decision raised.
-- Recurring environment friction remains: empty checkout blocks direct doc reads and `audience-scans.jsonl` append.
-- CLI/generated-doc drift observed: `prompt-manager team knowledge-add --by=...` is now invalid; identity is auto-attributed.
+No new gap raised. Recurring environment friction remains: empty checkout blocks doc reads and append-only working-state updates.
 
 ### Cross-team entries written
-- `monetization-benchmark-adjacent-record/agent-observability-trace-eval-retention-billing-2026-05-18`: trace/eval/retention/uptime/span-ingestion/self-host billing evidence for monetization review.
+- `monetization-benchmark-adjacent-record/template-marketplace-packaging-and-ownership-2026-05-20`: `knw-1779309140494570612`
 
 ### Supersessions
-- None.
-- `dec-1778790757599330605` challenge state is resolved in live storage; no supersession needed.
+None. `dec-1778790757599330605` challenge state remains resolved in live storage; acceptance should incorporate `knw-1778877137629609823`.
 
 ### Knowledge entry written
-- Primary snapshot: `knw-1779136341477079937`
-- Supporting entries: `knw-1779136341476537155`, `knw-1779136341476537385`, `knw-1779136341703884304`
+Primary snapshot: `knw-1779309114699028056`  
+Supporting entries: `knw-1779309114699704697`, `knw-1779309114852728003`, `knw-1779309114853184654`, `knw-1779309140348617579`, `knw-1779309140347962388`, `knw-1779309140494570612`
 
 ### Pending-telemetry note
-- Engagement, reach, audience-size, install, activation, retention, conversion, and Vrooli product-parity metrics remain `pending-telemetry`.
-- Pricing, feature lists, trace/eval limits, and self-host claims are source-reported and must be reverified against official pages before canonical copy.
+Engagement, reach, audience-size, install, activation, retention, conversion, and Vrooli product-parity metrics remain `pending-telemetry`. Marketplace counts, categories, and positioning are source-reported and should be reverified before canonical copy.

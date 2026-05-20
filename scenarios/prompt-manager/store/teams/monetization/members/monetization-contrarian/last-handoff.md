@@ -17,5 +17,5 @@
 - None.
 
 ### Knowledge entries written
-- `knw-1779139868078020756` topic `contrarian-scan-2026-05-18`.
-- Friction noted: local checkout still lacks `docs/`, `docs/agent-system`, `docs/monetization`, and monetization shared storage paths. CLI auto-rebuild also fails because `/home/matthalloran8/.vrooli/bin` is read-only, but existing CLI binary still returned storage successfully.
+- `knw-1779312662481941745` topic `contrarian-scan-2026-05-20`.
+- Note: sandbox cwd remains empty, but `/home/matthalloran8/Vrooli` now exposes `docs/agent-system/CONTRARIAN_REVIEW.md` and `docs/monetization`, so canon review guidance was available this run.

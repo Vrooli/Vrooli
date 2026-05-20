@@ -88,6 +88,54 @@ describe("JobDetailPage", () => {
     await waitFor(() => expect(reindexCancel).toHaveBeenCalledWith("job-3"));
   });
 
+  it("renders job error text when status returns an error message", async () => {
+    vi.mocked(reindexStatus).mockResolvedValue({
+      jobId: "job-err",
+      state: "failed",
+      processed: 0,
+      total: 0,
+      error: "qdrant down",
+    } satisfies ReindexStatus);
+    renderWithProviders(
+      <Routes>
+        <Route path="/reindex/:jobId" element={<JobDetailPage />} />
+      </Routes>,
+      { routerEntries: ["/reindex/job-err"] },
+    );
+    expect(await screen.findByTestId(selectors.reindex.detail.error)).toBeInTheDocument();
+  });
+
+  it("renders the cached job's triggeredAt + dryRun from tracked storage", async () => {
+    window.localStorage.setItem(
+      "ui-health.reindex.tracked.v1",
+      JSON.stringify([
+        {
+          jobId: "job-tracked",
+          scenario: "ui-health",
+          dryRun: true,
+          triggeredAt: "2026-05-20T10:00:00.000Z",
+          plannedUpserts: 0,
+          plannedDeletes: 0,
+        },
+      ]),
+    );
+    vi.mocked(reindexStatus).mockResolvedValue({
+      jobId: "job-tracked",
+      state: "running",
+      processed: 0,
+      total: 1,
+      error: "",
+    } satisfies ReindexStatus);
+    renderWithProviders(
+      <Routes>
+        <Route path="/reindex/:jobId" element={<JobDetailPage />} />
+      </Routes>,
+      { routerEntries: ["/reindex/job-tracked"] },
+    );
+    const meta = await screen.findByTestId(selectors.reindex.detail.meta);
+    expect(meta.textContent).toContain("ui-health");
+  });
+
   it("renders the error envelope when the status API throws", async () => {
     vi.mocked(reindexStatus).mockRejectedValueOnce(new Error("nope"));
     renderWithProviders(

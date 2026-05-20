@@ -6,14 +6,13 @@
   "enabled": true,
   "schedule": "0 18 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-19T22:00:00Z",
-    "endedAt": "2026-05-19T22:01:41Z",
-    "status": "failed",
-    "runId": "ba5ea895-62c3-4aab-b3ec-05a1705f5123",
-    "logPath": "../store/teams/meta-optimization/members/toolchain-validator/logs/2026-05-19T22-00-00Z.log",
-    "error": "sandbox error during no_exit_info: sandbox process ended without exit info"
+    "startedAt": "2026-05-20T22:00:00Z",
+    "endedAt": "2026-05-20T22:02:41Z",
+    "status": "completed",
+    "runId": "a6ca9fd8-a1c8-4e24-b926-4941a1299931",
+    "logPath": "../store/teams/meta-optimization/members/toolchain-validator/logs/2026-05-20T22-00-00Z.log"
   },
-  "revision": 95,
+  "revision": 98,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-05-19T22:01:41Z"
+  "updatedAt": "2026-05-20T22:02:41Z"
 }

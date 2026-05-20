@@ -6,13 +6,12 @@
   "enabled": true,
   "schedule": "15 18 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-19T22:15:00Z",
-    "endedAt": "2026-05-19T22:18:11Z",
-    "status": "completed",
-    "runId": "c5c7f371-7bde-4eb1-afa4-2f3f99df8320",
-    "logPath": "../store/teams/meta-optimization/members/skill-optimizer/logs/2026-05-19T22-15-00Z.log"
+    "startedAt": "2026-05-20T22:15:00Z",
+    "status": "running",
+    "runId": "af4f529e-448d-4823-bbcc-9382a8181994",
+    "logPath": "../store/teams/meta-optimization/members/skill-optimizer/logs/2026-05-20T22-15-00Z.log"
   },
-  "revision": 97,
+  "revision": 99,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-05-19T22:18:11Z"
+  "updatedAt": "2026-05-20T22:15:00Z"
 }

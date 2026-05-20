@@ -6,13 +6,13 @@
   "enabled": true,
   "schedule": "0 */6 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-20T16:00:00Z",
-    "endedAt": "2026-05-20T16:02:36Z",
+    "startedAt": "2026-05-20T22:00:00Z",
+    "endedAt": "2026-05-20T22:02:51Z",
     "status": "completed",
-    "runId": "9865c8ae-004b-4ab0-b7df-984526f3d756",
-    "logPath": "../store/teams/scenario-qa/members/programmatic-qa-runner/logs/2026-05-20T16-00-00Z.log"
+    "runId": "b82d7eab-015a-4170-a59b-1a3f896bda9d",
+    "logPath": "../store/teams/scenario-qa/members/programmatic-qa-runner/logs/2026-05-20T22-00-00Z.log"
   },
-  "revision": 206,
+  "revision": 209,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-05-20T16:02:36Z"
+  "updatedAt": "2026-05-20T22:02:51Z"
 }
