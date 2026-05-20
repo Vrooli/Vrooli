@@ -163,7 +163,7 @@ func TestService_AnalyzeElements_HappyPath(t *testing.T) {
 			Success: true,
 			NodeID:  "analysis.evaluate",
 			ExtractedData: map[string]any{
-				"value": map[string]any{
+				"result": map[string]any{
 					"elements": []any{
 						map[string]any{
 							"text": "Login", "tagName": "BUTTON", "type": "button",
@@ -254,7 +254,7 @@ func TestService_GetDOMTree_Happy(t *testing.T) {
 			Success: true,
 			NodeID:  "dom.extract",
 			ExtractedData: map[string]any{
-				"value": map[string]any{"tagName": "BODY", "id": "root"},
+				"result": map[string]any{"tagName": "BODY", "id": "root"},
 			},
 		},
 	}

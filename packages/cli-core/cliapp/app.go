@@ -50,6 +50,12 @@ type SubcommandGroup struct {
 	Subcommands []Command
 	// NeedsAPI applies to all subcommands unless overridden
 	NeedsAPI bool
+	// DefaultSubcommand, when non-empty, names the subcommand to invoke when
+	// args[0] is not a known subcommand and not a help token. Lets a group
+	// accept `<group> <free-form args>` as shorthand for
+	// `<group> <default> <free-form args>` — useful when one subcommand is so
+	// dominant that requiring it harms ergonomics (e.g. search).
+	DefaultSubcommand string
 }
 
 // AppOptions configure a CLI application with common behaviors.
@@ -181,6 +187,18 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 		}
 	}
 
+	if cmd == nil && group.DefaultSubcommand != "" {
+		for i := range group.Subcommands {
+			if group.Subcommands[i].Name == group.DefaultSubcommand {
+				cmd = &group.Subcommands[i]
+				break
+			}
+		}
+		if cmd == nil {
+			return fmt.Errorf("subcommand group %q declares DefaultSubcommand %q but no such subcommand exists", group.Name, group.DefaultSubcommand)
+		}
+		return a.dispatchCommand(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd, args)
+	}
 	if cmd == nil {
 		return fmt.Errorf("Unknown subcommand: %s %s\nRun '%s %s help' for available subcommands", group.Name, args[0], a.opts.Name, group.Name)
 	}

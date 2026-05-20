@@ -28,6 +28,7 @@ import (
 	componentsH "react-component-library/handlers/components"
 	depsH "react-component-library/handlers/deps"
 	healthH "react-component-library/handlers/health"
+	inventoryH "react-component-library/handlers/inventory"
 	previewH "react-component-library/handlers/preview"
 	themesH "react-component-library/handlers/themes"
 	versionsH "react-component-library/handlers/versions"
@@ -38,6 +39,7 @@ import (
 	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
 	themesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/themes"
 	versionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions"
+	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/inventory"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -50,6 +52,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, componentsH.Endpoints...)
 	out = append(out, depsH.Endpoints...)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, inventoryH.Endpoints...)
 	out = append(out, previewH.Endpoints...)
 	out = append(out, themesH.Endpoints...)
 	out = append(out, versionsH.Endpoints...)
@@ -73,6 +76,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "adoptions", File: adoptionsv1.File_react_component_library_v1_adoptions_adoptions_proto},
 		{Module: "components", File: componentsv1.File_react_component_library_v1_components_components_proto},
 		{Module: "deps", File: depsv1.File_react_component_library_v1_deps_deps_proto},
+		{Module: "inventory", File: inventoryv1.File_ui_health_v1_inventory_inventory_proto},
 		{Module: "preview", File: previewv1.File_react_component_library_v1_preview_preview_proto},
 		{Module: "themes", File: themesv1.File_react_component_library_v1_themes_themes_proto},
 		{Module: "versions", File: versionsv1.File_react_component_library_v1_versions_versions_proto},

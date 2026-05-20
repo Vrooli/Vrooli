@@ -27,7 +27,7 @@ func newRepoTestDB(t *testing.T) (*sqlx.DB, uuid.UUID, uuid.UUID, uuid.UUID) {
 
 	dbPath := filepath.Join(t.TempDir(), "uxmetrics-test.db")
 	dsn := fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)",
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_time_format=sqlite",
 		dbPath,
 	)
 	db, err := sqlx.Connect("sqlite", dsn)

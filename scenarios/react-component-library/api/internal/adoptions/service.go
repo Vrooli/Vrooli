@@ -538,17 +538,26 @@ func firstNonEmpty(values ...string) string {
 }
 
 func formatProvenance(v components.ComponentVersion, adoptionID string, appliedAt time.Time) string {
+	// JSDoc tag names align 1:1 with ui-health's ComponentProvenance proto:
+	//   @vrooliComponentSource       -> library
+	//   @vrooliComponentVersion      -> library_version
+	//   @vrooliComponentAdoption     -> adoption_id
+	//   @vrooliComponentAppliedAt    -> applied_at
+	//   @vrooliComponentSourceSha256 -> source_sha256
+	//   @vrooliComponentDriftHash    -> drift_hash (equal to source_sha256 at
+	//                                   adoption time; recomputed at scan time)
 	return fmt.Sprintf(`/**
  * @vrooliComponentSource %s
  * @vrooliComponentVersion %s
  * @vrooliComponentAdoption %s
  * @vrooliComponentAppliedAt %s
  * @vrooliComponentSourceSha256 %s
+ * @vrooliComponentDriftHash %s
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
  */
-`, v.LibraryID, v.Version, adoptionID, appliedAt.UTC().Format(time.RFC3339), v.ContentSHA256)
+`, v.LibraryID, v.Version, adoptionID, appliedAt.UTC().Format(time.RFC3339), v.ContentSHA256, v.ContentSHA256)
 }
 
 func stripSourceHeader(src string) string {

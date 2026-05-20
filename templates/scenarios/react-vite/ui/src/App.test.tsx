@@ -1,23 +1,19 @@
 /**
  * App tests — smoke only.
  *
- * App is a 15-line composition of <AppShell> + per-feature cards.
- * Per-feature behaviour is covered in features/<name>/<Name>Card.test.tsx;
- * shell + locale switching live in components/AppShell.test.tsx. This
- * file's job is to assert the composition: a real <App /> mounts the
- * shell selectors.
- *
- * No per-feature mocks are installed here on purpose: feature cards
- * own their own mock setup in their per-feature tests. If a scenario
- * deletes a feature, this file does not need to change — the smoke is
- * shell-only.
+ * `App` is a tiny composition of `<Providers>` + `<AppRouter>`. Per-route
+ * behaviour lives in `app/routes.test.tsx`, shell wiring in
+ * `layout/AppShell.test.tsx`, theme persistence in
+ * `theme/ThemeProvider.test.tsx`. This file uses `TestAppRouter` directly
+ * because `<App>` mounts `createBrowserRouter`, which doesn't play with the
+ * memory-router wrapper inside `renderWithProviders`.
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "./test-utils";
-
-import App from "./App";
+import { Providers } from "./app/providers";
+import { TestAppRouter } from "./app/routes";
 import { selectors } from "./consts/selectors";
 
 describe("App composition", () => {
@@ -25,8 +21,13 @@ describe("App composition", () => {
     cleanup();
   });
 
-  it("renders the shell title (smoke: composition wires up)", () => {
-    renderWithProviders(<App />);
+  it("renders the shell title (smoke: providers + routes wire up)", () => {
+    renderWithProviders(
+      <Providers>
+        <TestAppRouter initialEntries={["/"]} />
+      </Providers>,
+      { withoutRouter: true },
+    );
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
   });
 });

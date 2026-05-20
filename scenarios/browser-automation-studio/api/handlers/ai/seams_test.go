@@ -104,7 +104,7 @@ func TestSeams_DOMHandlerWithMockRunner(t *testing.T) {
 				NodeID:   "dom.extract",
 				StepType: "evaluate",
 				ExtractedData: map[string]any{
-					"value": map[string]any{
+					"result": map[string]any{
 						"tagName":  "BODY",
 						"children": []any{},
 					},

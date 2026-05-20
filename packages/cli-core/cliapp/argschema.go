@@ -39,7 +39,30 @@ type Flag struct {
 	Required    bool
 	Default     string
 	Bool        bool
+	// Bind, when non-zero, tells the protodispatch handler that this
+	// flag's value populates a specific proto field via a specific
+	// encoding. Without it, hydrateFromContext falls back to matching
+	// the flag name against top-level scalar fields by name.
+	Bind FlagBind
 }
+
+// FlagBind declares how a flag's value should be projected onto a proto
+// request field. Used by protodispatch when the flag's name doesn't
+// match the target field (e.g. --flow-file → flow_definition) or when
+// the value is a file path or JSON literal rather than a scalar.
+type FlagBind struct {
+	// Field is the snake_case proto field name on the RPC request.
+	Field string
+	// Kind selects the decoding strategy:
+	//   - "json_file":   value is a path; load + protojson-decode into the field
+	//   - "json_inline": value is a JSON literal; protojson-decode into the field
+	//   - "raw_string":  value is the literal string; set as a string field
+	//   - "":            no special handling (scalar fallback)
+	Kind string
+}
+
+// IsZero reports whether the binding is unset.
+func (b FlagBind) IsZero() bool { return b.Field == "" && b.Kind == "" }
 
 // Validate returns an error if the schema is malformed. Schemas should be
 // validated at registration time so programmer errors surface before any
@@ -91,6 +114,19 @@ func (s ArgSchema) Validate() error {
 		}
 		if f.Bool && f.Default != "" {
 			return fmt.Errorf("flag %q is Bool; Default must be empty (presence implies true)", name)
+		}
+		if !f.Bind.IsZero() {
+			if strings.TrimSpace(f.Bind.Field) == "" {
+				return fmt.Errorf("flag %q has bind with empty field", name)
+			}
+			switch f.Bind.Kind {
+			case "", "raw_string", "json_inline", "json_file":
+			default:
+				return fmt.Errorf("flag %q bind.kind %q not in {raw_string,json_inline,json_file}", name, f.Bind.Kind)
+			}
+			if f.Bool && f.Bind.Kind != "" && f.Bind.Kind != "raw_string" {
+				return fmt.Errorf("flag %q is Bool; bind.kind must be empty or raw_string", name)
+			}
 		}
 	}
 	return nil

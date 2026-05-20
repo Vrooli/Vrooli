@@ -87,7 +87,25 @@
         "description": { "type": "string" },
         "required": { "type": "boolean", "default": false },
         "default": { "type": "string" },
-        "bool": { "type": "boolean", "default": false }
+        "bool": { "type": "boolean", "default": false },
+        "bind": {
+          "type": "object",
+          "description": "Maps the flag's parsed value onto a specific proto request field via the named decoding strategy. Consumed by generic dispatchers (protodispatch) so hand-rolled handlers are not required for file-bearing or JSON-payload flags.",
+          "required": ["field"],
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "description": "snake_case proto field name on the RPC request message."
+            },
+            "kind": {
+              "type": "string",
+              "enum": ["raw_string", "json_inline", "json_file"],
+              "description": "Decoding strategy. raw_string: value used verbatim as a string field. json_inline: value parsed as a JSON literal into the target message field. json_file: value treated as a filesystem path, file contents JSON-decoded into the target message field."
+            }
+          }
+        }
       },
       "allOf": [
         {

@@ -300,6 +300,67 @@ func TestAppSubcommandHelpSkipsStaleCheckAndPreflight(t *testing.T) {
 	}
 }
 
+// TestAppSubcommandGroup_DefaultSubcommandFallback verifies that when a
+// SubcommandGroup declares DefaultSubcommand, unknown args[0] tokens are
+// routed there with the full arg slice (not args[1:]) — preserving the
+// shorthand `<group> <free-form args>` form.
+func TestAppSubcommandGroup_DefaultSubcommandFallback(t *testing.T) {
+	var capturedArgs []string
+	app := NewApp(AppOptions{
+		Name: "demo",
+		SubcommandGroups: []SubcommandGroup{{
+			Name:              "search",
+			Description:       "search ops",
+			DefaultSubcommand: "query",
+			Subcommands: []Command{
+				{
+					Name:        "query",
+					Description: "search corpus",
+					Run: func(args []string) error {
+						capturedArgs = args
+						return nil
+					},
+				},
+				{
+					Name:        "status",
+					Description: "backend status",
+					Run: func(args []string) error {
+						t.Fatal("status should not be invoked for unknown subcommand")
+						return nil
+					},
+				},
+			},
+		}},
+	})
+
+	if err := app.Run([]string{"search", "validate", "manifest"}); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(capturedArgs) != 2 || capturedArgs[0] != "validate" || capturedArgs[1] != "manifest" {
+		t.Fatalf("expected query to receive [validate manifest], got %v", capturedArgs)
+	}
+
+	// Known subcommand still wins over the default.
+	statusCalled := false
+	app2 := NewApp(AppOptions{
+		Name: "demo",
+		SubcommandGroups: []SubcommandGroup{{
+			Name:              "search",
+			DefaultSubcommand: "query",
+			Subcommands: []Command{
+				{Name: "query", Run: func([]string) error { t.Fatal("query should not run"); return nil }},
+				{Name: "status", Run: func([]string) error { statusCalled = true; return nil }},
+			},
+		}},
+	})
+	if err := app2.Run([]string{"search", "status"}); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if !statusCalled {
+		t.Fatalf("explicit subcommand should still match before falling back to default")
+	}
+}
+
 // --- dispatchCommand routing (RunCtx vs Run vs neither) -------------------
 //
 // The dispatcher routes a Command's execution through either the declarative

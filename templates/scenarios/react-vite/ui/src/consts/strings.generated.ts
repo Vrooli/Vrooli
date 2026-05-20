@@ -17,6 +17,38 @@ export const strings = {
     eyebrow: "app.eyebrow",
     description: "app.description",
   },
+  layout: {
+    sidebarLabel: "layout.sidebarLabel",
+    bottomNavLabel: "layout.bottomNavLabel",
+    nav: {
+      dashboard: "layout.nav.dashboard",
+      notes: "layout.nav.notes",
+      settings: "layout.nav.settings",
+    },
+  },
+  theme: {
+    switcherLabel: "theme.switcherLabel",
+    choice: {
+      light: "theme.choice.light",
+      dark: "theme.choice.dark",
+      system: "theme.choice.system",
+    },
+  },
+  pages: {
+    dashboard: {
+      title: "pages.dashboard.title",
+      description: "pages.dashboard.description",
+      statPlaceholderLabel: "pages.dashboard.statPlaceholderLabel",
+    },
+    notes: {
+      title: "pages.notes.title",
+    },
+    settings: {
+      title: "pages.settings.title",
+      themeHeading: "pages.settings.themeHeading",
+      localeHeading: "pages.settings.localeHeading",
+    },
+  },
   health: {
     title: "health.title",
     loading: "health.loading",

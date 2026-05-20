@@ -52,6 +52,17 @@ type RunContext interface {
 	// RenderOperational routes an OperationalReport to either JSON or human output.
 	RenderOperational(report OperationalReport) error
 
+	// FlagBindings returns the subset of declared flags with non-zero
+	// Bind metadata. Generic dispatchers (protodispatch) use this to
+	// project --foo-file / --request-payload style flags onto specific
+	// proto request fields without per-domain glue code.
+	FlagBindings() []FlagBindEntry
+
+	// FlagDeclared reports whether the named flag exists in the schema.
+	// Useful for handlers that probe for optional flags declared only by
+	// some command variants.
+	FlagDeclared(name string) bool
+
 	// Core returns the underlying ScenarioApp for handlers that need direct
 	// API access beyond Call[Req,Resp].
 	Core() *ScenarioApp
@@ -153,6 +164,54 @@ func (r *runContext) RenderOperational(report OperationalReport) error {
 }
 
 func (r *runContext) Core() *ScenarioApp { return r.core }
+
+// FlagBindEntry pairs a declared flag's name with its parsed bind metadata
+// and whether the user supplied the flag (BoolFlag-style "provided" signal).
+type FlagBindEntry struct {
+	Name     string
+	Bind     FlagBind
+	Bool     bool
+	Provided bool
+	Value    string
+}
+
+func (r *runContext) FlagBindings() []FlagBindEntry {
+	var out []FlagBindEntry
+	for _, f := range r.schema.Flags {
+		if f.Bind.IsZero() {
+			continue
+		}
+		entry := FlagBindEntry{
+			Name: f.Name,
+			Bind: f.Bind,
+			Bool: f.Bool,
+		}
+		if v, ok := r.flagValues[f.Name]; ok {
+			entry.Value = v
+			entry.Provided = true
+		} else if r.flagSet[f.Name] {
+			entry.Provided = true
+		} else if f.Default != "" {
+			entry.Value = f.Default
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+func (r *runContext) FlagDeclared(name string) bool {
+	for _, f := range r.schema.Flags {
+		if f.Name == name {
+			return true
+		}
+		for _, a := range f.Aliases {
+			if a == name {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 func (r *runContext) Stdout() io.Writer {
 	if r.stdout == nil {

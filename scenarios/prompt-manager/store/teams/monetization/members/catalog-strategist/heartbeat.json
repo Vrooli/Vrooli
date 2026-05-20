@@ -6,14 +6,13 @@
   "enabled": true,
   "schedule": "30 14 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-19T18:30:00Z",
-    "endedAt": "2026-05-19T18:33:46Z",
-    "status": "failed",
-    "runId": "e8568e0d-96bb-4af0-9d39-3ff37e1252a6",
-    "logPath": "../store/teams/monetization/members/catalog-strategist/logs/2026-05-19T18-30-00Z.log",
-    "error": "=== Process Log (stderr) | Sandbox ed18f841-2201-4c2d-8830-93943dc85139 | Started 2026-05-19T14:30:01-04:00 ===\n\n2026-05-19T18:30:06.482568Z ERROR codex_models_manager::manager: failed to refresh available models: timeout waiting for child process to exit\n2026-05-19T18:30:11.532833Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest(\"http/request failed: error sending request for url (https://chatgpt.com/backend-api/wham/apps)\")))\n2026-05-19T18:30:11.608403Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: Try again, url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-19T18:30:16.695905Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: Try again, url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-19T18:30:21.901164Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: Try again, url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-19T18:30:27.279484Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: Try again, url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-19T18:30:33.066201Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: Try again, url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-19T18:30:39.799222Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: Try again, url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-19T18:30:48.004225Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: Try again, url: wss://chatgpt.com/backend-api/codex/responses\n\n=== Process Exited: code 1 signal 0 oom false | 2026-05-19T14:33:42-04:00 ===\n"
+    "startedAt": "2026-05-20T18:30:00Z",
+    "endedAt": "2026-05-20T18:33:51Z",
+    "status": "completed",
+    "runId": "a9578531-8afd-46ba-8879-b2422482e56b",
+    "logPath": "../store/teams/monetization/members/catalog-strategist/logs/2026-05-20T18-30-00Z.log"
   },
-  "revision": 89,
+  "revision": 92,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-05-19T18:33:46Z"
+  "updatedAt": "2026-05-20T18:33:51Z"
 }

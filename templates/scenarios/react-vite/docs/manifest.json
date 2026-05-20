@@ -217,6 +217,22 @@
             "forbiddenPlaceholders": ["[TODO]"],
             "requiredLinks": ["../reference/configuration.md"]
           }
+        },
+        {
+          "path": "concepts/UI-ARCHITECTURE.md",
+          "docType": "ui-architecture",
+          "title": "UI Architecture",
+          "aliases": ["ui-layout", "ui-slots", "slot-taxonomy"],
+          "description": "Canonical ui/ source layout and the slot taxonomy consumed by the adoption resolver",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["ui-architecture", "ui-slot-taxonomy"],
+          "maturity": "active",
+          "requiredBy": ["generated"],
+          "completion": "optional",
+          "validation": {
+            "requiredHeadings": ["Purpose Of This Document", "Source Layout", "Slots Are A Contract", "Adoption Resolver Flow", "Extending The Manifest", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
         }
       ]
     },
@@ -411,6 +427,22 @@
             "requiredHeadings": ["Environment variables", "Service manifest (`.vrooli/service.json`)", "Schema bootstrap", "CLI config file", "API-base resolution precedence", "Test/CI configuration", "Cross-references"],
             "forbiddenPlaceholders": ["[TODO]"],
             "requiredLinks": [".vrooli/service.json"]
+          }
+        },
+        {
+          "path": "reference/ui-manifest.md",
+          "docType": "ui-manifest-reference",
+          "title": "UI Manifest",
+          "aliases": ["ui-slots-reference", "scenario-ui-manifest"],
+          "description": "Slot table, path-pattern tokens, and adoption-resolver resolution order for the scenario UI manifest",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["ui-manifest-reference"],
+          "maturity": "active",
+          "requiredBy": ["generated"],
+          "completion": "optional",
+          "validation": {
+            "requiredHeadings": ["Contract", "Slots (v1)", "Path-Pattern Tokens", "Resolution Order (Adoption Resolver)", "Overlays", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"]
           }
         }
       ]

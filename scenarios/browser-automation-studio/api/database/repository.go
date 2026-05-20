@@ -223,6 +223,11 @@ func (r *repository) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUI
 		return result, nil
 	}
 
+	// last_execution is an aggregate (MAX), so the result column has no
+	// declared SQL type that the driver could use to auto-convert text
+	// to time.Time. Scan into a string and parse explicitly — keeps the
+	// time format contract (RFC3339Nano) visible in code instead of
+	// relying on the driver's column-type heuristic.
 	query, args, err := sqlx.In(`
 		SELECT
 			p.id AS project_id,
@@ -240,16 +245,34 @@ func (r *repository) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUI
 	}
 
 	query = r.db.Rebind(query)
-	var stats []*ProjectStats
-	if err := r.db.SelectContext(ctx, &stats, query, args...); err != nil {
+	type rawStats struct {
+		ProjectID      uuid.UUID      `db:"project_id"`
+		WorkflowCount  int            `db:"workflow_count"`
+		ExecutionCount int            `db:"execution_count"`
+		LastExecution  sql.NullString `db:"last_execution"`
+	}
+	var rows []*rawStats
+	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
 		return nil, fmt.Errorf("failed to get project stats: %w", err)
 	}
 
-	for _, row := range stats {
+	for _, row := range rows {
 		if row == nil {
 			continue
 		}
-		result[row.ProjectID] = row
+		stats := &ProjectStats{
+			ProjectID:      row.ProjectID,
+			WorkflowCount:  row.WorkflowCount,
+			ExecutionCount: row.ExecutionCount,
+		}
+		if row.LastExecution.Valid {
+			parsed, err := parseTimestamp(row.LastExecution.String)
+			if err != nil {
+				return nil, fmt.Errorf("parse last_execution for project %s: %w", row.ProjectID, err)
+			}
+			stats.LastExecution = &parsed
+		}
+		result[row.ProjectID] = stats
 	}
 	for _, id := range projectIDs {
 		if _, ok := result[id]; !ok {
@@ -257,6 +280,36 @@ func (r *repository) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUI
 		}
 	}
 	return result, nil
+}
+
+// parseTimestamp parses the text shapes SQLite stores time values in
+// for this scenario:
+//
+//   - modernc.org/sqlite's _time_format=sqlite shape (the production
+//     and test DSN both opt into it):
+//     "2006-01-02 15:04:05.999999999-07:00".
+//   - SQLite's CURRENT_TIMESTAMP default ("2006-01-02 15:04:05"),
+//     produced when a NULL value falls through to the column DEFAULT.
+//   - RFC3339Nano, for rows repaired in place via the one-shot script
+//     at /tmp/browser-automation-studio/migrate-fix-execution-timestamps.sh
+//     (those rows were Go time.Time.String() pre-fix; the repair
+//     rewrote them to RFC3339Nano).
+//
+// Aggregate columns (MAX(started_at), MIN(...)) strip the declared
+// SQL type so the driver's auto-conversion can't fire; callers must
+// scan as string and use this helper.
+func parseTimestamp(raw string) (time.Time, error) {
+	for _, layout := range []string{
+		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05",
+		time.RFC3339Nano,
+		time.RFC3339,
+	} {
+		if t, err := time.Parse(layout, raw); err == nil {
+			return t.UTC(), nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unrecognized timestamp format: %q", raw)
 }
 
 // ============================================================================

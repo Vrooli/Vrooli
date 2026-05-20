@@ -33,6 +33,10 @@ service AdoptionsService {
   rpc ReapplyAdoption(ReapplyAdoptionRequest) returns (ReapplyAdoptionResponse);
   rpc DeleteAdoption(DeleteAdoptionRequest) returns (DeleteAdoptionResponse);
   rpc RefreshAdoptions(RefreshAdoptionsRequest) returns (RefreshAdoptionsResponse);
+  // ResolveAdoptionPath returns the canonical filesystem path for an adopted
+  // component, computed from the target scenario's UI manifest (or a
+  // heuristic / fallback when the manifest is missing). Read-only.
+  rpc ResolveAdoptionPath(ResolveAdoptionPathRequest) returns (ResolveAdoptionPathResponse);
 }
 
 enum LibraryVersionStatus {
@@ -146,6 +150,40 @@ message RefreshAdoptionsRequest {
   // Optional: scope the refresh to a single component_id. Empty =
   // every adoption in the registry.
   string component_id = 1;
+}
+
+// Source enum for ResolveAdoptionPath. The UI renders this as a badge so users
+// know whether to trust the pre-filled path.
+enum ResolveSource {
+  RESOLVE_SOURCE_UNSPECIFIED = 0;
+  RESOLVE_SOURCE_EXPLICIT = 1;            // Caller supplied an override.
+  RESOLVE_SOURCE_TEMPLATE_MANIFEST = 2;   // Resolved via the template's ui/manifest.json.
+  RESOLVE_SOURCE_HEURISTIC = 3;           // Manifest absent; matched directory by name.
+  RESOLVE_SOURCE_FALLBACK = 4;            // No manifest, no heuristic match — last resort.
+}
+
+message ResolveAdoptionPathRequest {
+  // Required. Soft FK to components.id.
+  string component_id = 1;
+  // Required. Target scenario name.
+  string scenario = 2;
+  // Optional. When non-empty, bypasses the manifest and is returned as-is
+  // (after a path-safety check) with source = EXPLICIT.
+  string override_path = 3;
+  // Optional. Feature folder name; required when the slot's manifest entry
+  // sets requiresFeature.
+  string feature = 4;
+}
+
+message ResolveAdoptionPathResponse {
+  // Resolved path, relative to the scenario root.
+  string path = 1;
+  // How the resolver arrived at the path.
+  ResolveSource source = 2;
+  // Slot name used during resolution (echoed for UI badge rendering).
+  string slot = 3;
+  // Non-fatal warnings (e.g. "manifest unavailable; using heuristic match").
+  repeated string warnings = 4;
 }
 
 message RefreshAdoptionsResponse {

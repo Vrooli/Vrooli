@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package vrooli.ui_health.v1.validation;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/validation;validation_v1";
+
+// =============================================================================
+// VALIDATION DOMAIN — UI manifest / on-disk reconciliation
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain validation
+// @stability unstable
+//
+// Wire contract for the ValidationService Connect-RPC service. Validates a
+// scenario's ui/manifest.json (template) + .vrooli/ui-manifest.json (overlay)
+// against the scenario-ui-manifest/v1 JSON schema, the on-disk slot
+// directories, and the template-vs-overlay rules. Returns a structured
+// Finding list so consumers (CLI, UI, test-genie) can render or filter.
+//
+// Consumed by:
+//   - API: handlers/validation/connect_handler.go implements ValidationServiceHandler.
+//   - CLI: cli/domains/validate/handlers.go calls the generated Connect-Go client.
+//   - UI:  ui/src/api/validation.ts exposes the generated Connect-Web client.
+//   - test-genie: phase_ui_health shells out to `ui-health validate scenario`.
+// =============================================================================
+
+service ValidationService {
+  rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
+}
+
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_ERROR = 1;
+  SEVERITY_WARNING = 2;
+  SEVERITY_INFO = 3;
+}
+
+// Finding is a single validation result tied to a location inside the
+// scenario (manifest path, slot directory, on-disk file).
+message Finding {
+  Severity severity = 1;
+  string code = 2;
+  string location = 3;
+  string message = 4;
+  string suggestion = 5;
+}
+
+message Summary {
+  int32 errors = 1;
+  int32 warnings = 2;
+  int32 infos = 3;
+}
+
+message ValidateScenarioRequest {
+  string scenario = 1;
+}
+
+message ValidateScenarioResponse {
+  string scenario = 1;
+  bool passed = 2;
+  repeated Finding findings = 3;
+  Summary summary = 4;
+}

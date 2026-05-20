@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package vrooli.ui_health.v1.search;
+
+import "ui-health/v1/contracts/provenance/provenance.proto";
+import "ui-health/v1/contracts/widget/widget.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/search;search_v1";
+
+// =============================================================================
+// SEARCH DOMAIN — cross-scenario UI surface discovery
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain search
+// @stability unstable
+//
+// Wire contract for the SearchService Connect-RPC service. Indexes every
+// scenario's UI surface (components, pages, features, hooks) into a local
+// Qdrant collection (ui-health-surface) and serves AI-first semantic queries
+// with deterministic text fallback. Each result carries the canonical
+// ComponentProvenance and (when applicable) WidgetDeclaration payload so
+// callers can filter client-side without an extra round-trip.
+// =============================================================================
+
+service SearchService {
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc Status(StatusRequest) returns (StatusResponse);
+}
+
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  MODE_AI = 1;
+  MODE_TEXT = 2;
+}
+
+// SurfaceKind classifies a UI surface record by the manifest slot family
+// that contains it. Slot vocabulary is owned by scenario-ui-manifest/v1;
+// this enum is the indexable rollup for filter UX.
+enum SurfaceKind {
+  SURFACE_KIND_UNSPECIFIED = 0;
+  SURFACE_KIND_COMPONENT = 1;
+  SURFACE_KIND_PAGE = 2;
+  SURFACE_KIND_FEATURE = 3;
+  SURFACE_KIND_HOOK = 4;
+  SURFACE_KIND_LAYOUT = 5;
+  SURFACE_KIND_OTHER = 6;
+}
+
+message SearchRequest {
+  string query = 1;
+  int32 limit = 2;
+  Mode mode = 3;
+}
+
+// SearchResult is one hit. The provenance + widget fields are payload-attached
+// at index time so the API does not have to re-scan source files on every
+// query.
+message SearchResult {
+  string scenario = 1;
+  string slot = 2;
+  SurfaceKind kind = 3;
+  string display_name = 4;
+  string description = 5;
+  string file_path = 6;
+  double score = 7;
+  vrooli.ui_health.v1.contracts.provenance.ComponentProvenance provenance = 8;
+  vrooli.ui_health.v1.contracts.widget.WidgetDeclaration widget = 9;
+}
+
+message SearchResponse {
+  repeated SearchResult results = 1;
+  Mode mode_used = 2;
+}
+
+message StatusRequest {
+}
+
+message StatusResponse {
+  bool available = 1;
+  bool ollama = 2;
+  bool qdrant = 3;
+  int32 indexed_count = 4;
+  string last_reconcile_at = 5;
+  string last_reconcile_outcome = 6;
+}

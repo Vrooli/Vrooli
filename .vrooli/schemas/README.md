@@ -46,6 +46,9 @@ The most important source-of-truth rule is:
 - `deprecated-resources.schema.json`
   Defines the schema for `.vrooli/deprecated-resources.json`.
 
+- `scenario-ui-manifest.schema.json`
+  Defines `templates/scenarios/<id>/ui/manifest.json` (and any scenario-level overrides) — the contract that declares where UI building blocks (`layout-shell`, `page`, `ui-primitive`, etc.) live inside a scenario's UI source tree. Owned by the template the scenario was generated from. Consumed by `react-component-library`'s adoptions resolver to compute canonical filesystem paths for adopted components. `$id: scenario-ui-manifest/v1`.
+
 ### Generated Artifacts
 
 - `resource-definitions.json`

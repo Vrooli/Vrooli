@@ -325,6 +325,22 @@ const literalSelectors = {
   locale: {
     switcher: "locale-switcher",
   },
+  layout: {
+    shell: "layout-shell",
+    topBar: "layout-top-bar",
+    sidebar: "layout-sidebar",
+    bottomNav: "layout-bottom-nav",
+    main: "layout-main",
+  },
+  theme: {
+    switcher: "theme-switcher",
+    select: "theme-select",
+  },
+  pages: {
+    dashboard: "page-dashboard",
+    notes: "page-notes",
+    settings: "page-settings",
+  },
   errorBoundary: {
     root: "error-boundary-root",
     retryButton: "error-boundary-retry",
@@ -344,6 +360,30 @@ const dynamicSelectorDefinitions = {
     toggle: defineDynamicSelector({
       description: "Locale toggle button by language code",
       testIdPattern: "locale-toggle-${code}",
+      params: { code: { type: "enum", values: LOCALE_CODES } },
+    }),
+  },
+  layout: {
+    sidebarLink: defineDynamicSelector({
+      description: "Sidebar navigation link by canonical nav key",
+      testIdPattern: "layout-sidebar-link-${key}",
+      params: { key: { type: "enum", values: ["dashboard", "notes", "settings"] as const } },
+    }),
+    bottomNavLink: defineDynamicSelector({
+      description: "Bottom-nav link by canonical nav key",
+      testIdPattern: "layout-bottom-nav-link-${key}",
+      params: { key: { type: "enum", values: ["dashboard", "notes", "settings"] as const } },
+    }),
+  },
+  settingsPage: {
+    themeOption: defineDynamicSelector({
+      description: "Theme choice radio button on the settings page",
+      testIdPattern: "page-settings-theme-${choice}",
+      params: { choice: { type: "enum", values: ["light", "dark", "system"] as const } },
+    }),
+    localeOption: defineDynamicSelector({
+      description: "Locale choice radio button on the settings page",
+      testIdPattern: "page-settings-locale-${code}",
       params: { code: { type: "enum", values: LOCALE_CODES } },
     }),
   },

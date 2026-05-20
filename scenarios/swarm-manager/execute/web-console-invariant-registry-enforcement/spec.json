@@ -1,0 +1,32 @@
+{
+  "acceptance_allow": [
+    "scenarios/web-console/docs/**",
+    "scenarios/web-console/api/**",
+    "scenarios/web-console/ui/src/**"
+  ],
+  "acceptance_deny": [
+    "scenarios/web-console/ui/node_modules/**",
+    "scenarios/web-console/coverage/**"
+  ],
+  "created": "2026-05-20T07:05:55Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "ec4eb0dc-0fd6-4255-af37-c49a72cb5d1f",
+    "task_id": "9eb87177-6751-4406-a66c-5cf4d479718c",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "Quality audit 2026-05-20 using invariant-discovery-and-enforcement found material invariant-surface drift in Web Console. Evidence: docs/internal/INVARIANTS.md is titled Replay / Idempotency Invariants and is organized as state-mutating operations, safe retry patterns, TTS/voice tables, unsafe operations, speaker verification, and event guards, not the current invariant registry shape with Critical Invariants, Enforcement Mechanisms, Important Invariants, and Gaps. Its entries cite broad locations such as TerminalPane.tsx or voice_stream_ws.go rather than path:file:line anchors and enforcing tests. The codebase has zero code INVARIANT tags (rg -n INVARIANT: api ui/src docs returned no matches) even though real enforcement points exist: api/internal/sessions/idempotency.go:52-78 enforces TTL and eviction behavior; api/internal/policy/policy.go:15-31 and :45-72 enforce closed policy modes, preset durations, and custom duration bounds; ui/src/domains/tts-playback/flow/transition.ts:45-68 enforces playback state payload invariants and :70-83 checks runtime/formal transition drift; ui/src/test-utils/modeltest/formal.ts:147-200 validates formal artifact freshness, invariant presence, generated checks, and coverage. A parallel docs/internal/ASSUMPTIONS.md still exists with retired assumptions such as PTY binary safety, session IDs are UUIDs, single operator per server, parent handles auth, keepalive shorter than proxy timeout, schema initialization before first request, and SQL files relative to binary. The invariant skill says ASSUMPTIONS.md should be triaged into Enforce, Soften, or Accept and emptied/deleted, and Tier-2 invariants should be code-tagged, code-anchored, test-linked, and registry-listed. Current docs also include stale anchors for deleted speaker-verification files (voice_stream_ws.go, voice_transcribe.go, speaker_verification_config.go), so the registry is not reliable for future agents.\n\nDraft plan: (1) Inventory candidate invariants from docs/internal/INVARIANTS.md and docs/internal/ASSUMPTIONS.md, classify each as Enforce, Soften, or Accept, and demote local-only rules out of the registry. (2) Rewrite docs/internal/INVARIANTS.md into the canonical four-section registry: Critical Invariants, Enforcement Mechanisms, Important Invariants, and Gaps. Use names, statements, mechanisms, path:file:line code anchors, enforcing tests, and notes. (3) Add // INVARIANT: \u003ccamelCaseName\u003e tags at representative enforcement sites for registry-worthy rules, starting with sessionCreationIdempotencyKeyTTL, policyModeClosedSet, policyCustomDurationBounds, playbackStateCarriesCurrentEvent, playbackTransitionMatchesFormalModel, eventHistoryIsBounded, and audioToolsWireShapeStaysServerSide where code/tests already exist. (4) Link each tag to a sibling test name or comment using the same invariant name; for formal-model invariants, point to the formal replay/freshness tests and generated artifact checks. (5) Migrate docs/internal/ASSUMPTIONS.md: enforced rules become tagged invariants or tests, unrealistic/fragile assumptions become PROBLEMS.md softened-out or accepted gaps, then remove the parallel assumptions file or leave only a short migration pointer if the full migration cannot land in one pass. (6) Add a lightweight registry drift test, likely in api/docs_structure_test.go or a new docs invariant test, that checks INVARIANT tag format, unique names, test/doc linkage for Tier-2 rows, and absence of the retired ASSUMPTIONS.md surface. (7) Run focused Go and UI tests touching docs structure, policy/idempotency, endpoint/formal checks, and audio boundary.\n\nAcceptance: code contains named INVARIANT anchors for all registry-worthy critical invariants; docs/internal/INVARIANTS.md has the canonical four sections and no broad unanchored Location-only rows; every Tier-2 row has a path:file:line anchor and an enforcing test/build check; docs/internal/ASSUMPTIONS.md is migrated or explicitly reduced to a temporary migration pointer with remaining entries represented as Gaps/PROBLEMS; stale speaker-verification file anchors are removed or corrected to current code; a focused docs/registry test fails on bad tag format or registry/code drift. Suggested skills: invariant-discovery-and-enforcement, knowledge-observatory-tools, temporal-flow-audit for state-machine entries, seam-discovery-and-enforcement for seam parity entries.",
+  "effort": "M",
+  "kind": "execute",
+  "name": "web-console-invariant-registry-enforcement",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "quality-audit",
+    "web-console",
+    "invariants",
+    "testability"
+  ],
+  "title": "Make Web Console invariants code-anchored and registry-enforced",
+  "updated": "2026-05-20T07:05:55Z"
+}

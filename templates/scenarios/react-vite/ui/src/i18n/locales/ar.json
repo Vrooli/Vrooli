@@ -5,6 +5,38 @@
     "eyebrow": "قالب السيناريو",
     "description": "واجهة المستخدم البدائية هذه بسيطة عن قصد. استبدلها بتجربة خاصة بالسيناريو مع الحفاظ على اتفاقيات التصميم (Tailwind + shadcn) وتوصيل API كما هو."
   },
+  "layout": {
+    "sidebarLabel": "التنقل الرئيسي",
+    "bottomNavLabel": "التنقل الرئيسي",
+    "nav": {
+      "dashboard": "لوحة التحكم",
+      "notes": "الملاحظات",
+      "settings": "الإعدادات"
+    }
+  },
+  "theme": {
+    "switcherLabel": "المظهر",
+    "choice": {
+      "light": "فاتح",
+      "dark": "داكن",
+      "system": "النظام"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "لوحة التحكم",
+      "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
+      "statPlaceholderLabel": "إحصائية"
+    },
+    "notes": {
+      "title": "الملاحظات"
+    },
+    "settings": {
+      "title": "الإعدادات",
+      "themeHeading": "المظهر",
+      "localeHeading": "اللغة"
+    }
+  },
   "health": {
     "title": "حالة API",
     "loading": "جارٍ التحقق من حالة API…",

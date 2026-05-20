@@ -128,8 +128,16 @@ func sqliteDSN(log *logrus.Logger) (string, error) {
 		log.WithField("path", root).Info("Using SQLite database")
 	}
 
+	// _time_format=sqlite makes the modernc.org/sqlite driver bind
+	// time.Time values as "2006-01-02 15:04:05.999999999-07:00" (one of
+	// its built-in parseable layouts). Without it the driver falls
+	// back to time.Time.String() ("2026-05-20 14:42:49.49 +0000 UTC"),
+	// which the same driver cannot read back into *time.Time — every
+	// SELECT into a timestamp field 500s with "unsupported Scan". See
+	// modernc.org/sqlite@v1.40.1/sqlite.go formatTime() for the
+	// upstream default.
 	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=page_size(4096)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(268435456)",
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=page_size(4096)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(268435456)&_time_format=sqlite",
 		root,
 	), nil
 }

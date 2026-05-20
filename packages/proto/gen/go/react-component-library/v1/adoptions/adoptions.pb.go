@@ -135,6 +135,63 @@ func (LocalStatus) EnumDescriptor() ([]byte, []int) {
 	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{1}
 }
 
+// Source enum for ResolveAdoptionPath. The UI renders this as a badge so users
+// know whether to trust the pre-filled path.
+type ResolveSource int32
+
+const (
+	ResolveSource_RESOLVE_SOURCE_UNSPECIFIED       ResolveSource = 0
+	ResolveSource_RESOLVE_SOURCE_EXPLICIT          ResolveSource = 1 // Caller supplied an override.
+	ResolveSource_RESOLVE_SOURCE_TEMPLATE_MANIFEST ResolveSource = 2 // Resolved via the template's ui/manifest.json.
+	ResolveSource_RESOLVE_SOURCE_HEURISTIC         ResolveSource = 3 // Manifest absent; matched directory by name.
+	ResolveSource_RESOLVE_SOURCE_FALLBACK          ResolveSource = 4 // No manifest, no heuristic match — last resort.
+)
+
+// Enum value maps for ResolveSource.
+var (
+	ResolveSource_name = map[int32]string{
+		0: "RESOLVE_SOURCE_UNSPECIFIED",
+		1: "RESOLVE_SOURCE_EXPLICIT",
+		2: "RESOLVE_SOURCE_TEMPLATE_MANIFEST",
+		3: "RESOLVE_SOURCE_HEURISTIC",
+		4: "RESOLVE_SOURCE_FALLBACK",
+	}
+	ResolveSource_value = map[string]int32{
+		"RESOLVE_SOURCE_UNSPECIFIED":       0,
+		"RESOLVE_SOURCE_EXPLICIT":          1,
+		"RESOLVE_SOURCE_TEMPLATE_MANIFEST": 2,
+		"RESOLVE_SOURCE_HEURISTIC":         3,
+		"RESOLVE_SOURCE_FALLBACK":          4,
+	}
+)
+
+func (x ResolveSource) Enum() *ResolveSource {
+	p := new(ResolveSource)
+	*p = x
+	return p
+}
+
+func (x ResolveSource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ResolveSource) Descriptor() protoreflect.EnumDescriptor {
+	return file_react_component_library_v1_adoptions_adoptions_proto_enumTypes[2].Descriptor()
+}
+
+func (ResolveSource) Type() protoreflect.EnumType {
+	return &file_react_component_library_v1_adoptions_adoptions_proto_enumTypes[2]
+}
+
+func (x ResolveSource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ResolveSource.Descriptor instead.
+func (ResolveSource) EnumDescriptor() ([]byte, []int) {
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{2}
+}
+
 type Adoption struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// UUID assigned by the API on create.
@@ -769,6 +826,152 @@ func (x *RefreshAdoptionsRequest) GetComponentId() string {
 	return ""
 }
 
+type ResolveAdoptionPathRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required. Soft FK to components.id.
+	ComponentId string `protobuf:"bytes,1,opt,name=component_id,json=componentId,proto3" json:"component_id,omitempty"`
+	// Required. Target scenario name.
+	Scenario string `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Optional. When non-empty, bypasses the manifest and is returned as-is
+	// (after a path-safety check) with source = EXPLICIT.
+	OverridePath string `protobuf:"bytes,3,opt,name=override_path,json=overridePath,proto3" json:"override_path,omitempty"`
+	// Optional. Feature folder name; required when the slot's manifest entry
+	// sets requiresFeature.
+	Feature       string `protobuf:"bytes,4,opt,name=feature,proto3" json:"feature,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveAdoptionPathRequest) Reset() {
+	*x = ResolveAdoptionPathRequest{}
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveAdoptionPathRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveAdoptionPathRequest) ProtoMessage() {}
+
+func (x *ResolveAdoptionPathRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveAdoptionPathRequest.ProtoReflect.Descriptor instead.
+func (*ResolveAdoptionPathRequest) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ResolveAdoptionPathRequest) GetComponentId() string {
+	if x != nil {
+		return x.ComponentId
+	}
+	return ""
+}
+
+func (x *ResolveAdoptionPathRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *ResolveAdoptionPathRequest) GetOverridePath() string {
+	if x != nil {
+		return x.OverridePath
+	}
+	return ""
+}
+
+func (x *ResolveAdoptionPathRequest) GetFeature() string {
+	if x != nil {
+		return x.Feature
+	}
+	return ""
+}
+
+type ResolveAdoptionPathResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Resolved path, relative to the scenario root.
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// How the resolver arrived at the path.
+	Source ResolveSource `protobuf:"varint,2,opt,name=source,proto3,enum=vrooli.react_component_library.v1.adoptions.ResolveSource" json:"source,omitempty"`
+	// Slot name used during resolution (echoed for UI badge rendering).
+	Slot string `protobuf:"bytes,3,opt,name=slot,proto3" json:"slot,omitempty"`
+	// Non-fatal warnings (e.g. "manifest unavailable; using heuristic match").
+	Warnings      []string `protobuf:"bytes,4,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveAdoptionPathResponse) Reset() {
+	*x = ResolveAdoptionPathResponse{}
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveAdoptionPathResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveAdoptionPathResponse) ProtoMessage() {}
+
+func (x *ResolveAdoptionPathResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveAdoptionPathResponse.ProtoReflect.Descriptor instead.
+func (*ResolveAdoptionPathResponse) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ResolveAdoptionPathResponse) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ResolveAdoptionPathResponse) GetSource() ResolveSource {
+	if x != nil {
+		return x.Source
+	}
+	return ResolveSource_RESOLVE_SOURCE_UNSPECIFIED
+}
+
+func (x *ResolveAdoptionPathResponse) GetSlot() string {
+	if x != nil {
+		return x.Slot
+	}
+	return ""
+}
+
+func (x *ResolveAdoptionPathResponse) GetWarnings() []string {
+	if x != nil {
+		return x.Warnings
+	}
+	return nil
+}
+
 type RefreshAdoptionsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Updated rows after the refresh, in the same order ListAdoptions
@@ -790,7 +993,7 @@ type RefreshAdoptionsResponse struct {
 
 func (x *RefreshAdoptionsResponse) Reset() {
 	*x = RefreshAdoptionsResponse{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[10]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -802,7 +1005,7 @@ func (x *RefreshAdoptionsResponse) String() string {
 func (*RefreshAdoptionsResponse) ProtoMessage() {}
 
 func (x *RefreshAdoptionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[10]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -815,7 +1018,7 @@ func (x *RefreshAdoptionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshAdoptionsResponse.ProtoReflect.Descriptor instead.
 func (*RefreshAdoptionsResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{10}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RefreshAdoptionsResponse) GetAdoptions() []*Adoption {
@@ -937,7 +1140,17 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x18\n" +
 	"\x16DeleteAdoptionResponse\"<\n" +
 	"\x17RefreshAdoptionsRequest\x12!\n" +
-	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\"\xd2\x03\n" +
+	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\"\x9a\x01\n" +
+	"\x1aResolveAdoptionPathRequest\x12!\n" +
+	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x1a\n" +
+	"\bscenario\x18\x02 \x01(\tR\bscenario\x12#\n" +
+	"\roverride_path\x18\x03 \x01(\tR\foverridePath\x12\x18\n" +
+	"\afeature\x18\x04 \x01(\tR\afeature\"\xb5\x01\n" +
+	"\x1bResolveAdoptionPathResponse\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12R\n" +
+	"\x06source\x18\x02 \x01(\x0e2:.vrooli.react_component_library.v1.adoptions.ResolveSourceR\x06source\x12\x12\n" +
+	"\x04slot\x18\x03 \x01(\tR\x04slot\x12\x1a\n" +
+	"\bwarnings\x18\x04 \x03(\tR\bwarnings\"\xd2\x03\n" +
 	"\x18RefreshAdoptionsResponse\x12S\n" +
 	"\tadoptions\x18\x01 \x03(\v25.vrooli.react_component_library.v1.adoptions.AdoptionR\tadoptions\x12'\n" +
 	"\x0flibrary_current\x18\x02 \x01(\x05R\x0elibraryCurrent\x12%\n" +
@@ -963,13 +1176,20 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\x12LOCAL_STATUS_CLEAN\x10\x01\x12\x19\n" +
 	"\x15LOCAL_STATUS_MODIFIED\x10\x02\x12\x18\n" +
 	"\x14LOCAL_STATUS_MISSING\x10\x03\x12\x18\n" +
-	"\x14LOCAL_STATUS_UNKNOWN\x10\x042\xa1\x06\n" +
+	"\x14LOCAL_STATUS_UNKNOWN\x10\x04*\xad\x01\n" +
+	"\rResolveSource\x12\x1e\n" +
+	"\x1aRESOLVE_SOURCE_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17RESOLVE_SOURCE_EXPLICIT\x10\x01\x12$\n" +
+	" RESOLVE_SOURCE_TEMPLATE_MANIFEST\x10\x02\x12\x1c\n" +
+	"\x18RESOLVE_SOURCE_HEURISTIC\x10\x03\x12\x1b\n" +
+	"\x17RESOLVE_SOURCE_FALLBACK\x10\x042\xcc\a\n" +
 	"\x10AdoptionsService\x12\x96\x01\n" +
 	"\rListAdoptions\x12A.vrooli.react_component_library.v1.adoptions.ListAdoptionsRequest\x1aB.vrooli.react_component_library.v1.adoptions.ListAdoptionsResponse\x12\x96\x01\n" +
 	"\rApplyAdoption\x12A.vrooli.react_component_library.v1.adoptions.ApplyAdoptionRequest\x1aB.vrooli.react_component_library.v1.adoptions.ApplyAdoptionResponse\x12\x9c\x01\n" +
 	"\x0fReapplyAdoption\x12C.vrooli.react_component_library.v1.adoptions.ReapplyAdoptionRequest\x1aD.vrooli.react_component_library.v1.adoptions.ReapplyAdoptionResponse\x12\x99\x01\n" +
 	"\x0eDeleteAdoption\x12B.vrooli.react_component_library.v1.adoptions.DeleteAdoptionRequest\x1aC.vrooli.react_component_library.v1.adoptions.DeleteAdoptionResponse\x12\x9f\x01\n" +
-	"\x10RefreshAdoptions\x12D.vrooli.react_component_library.v1.adoptions.RefreshAdoptionsRequest\x1aE.vrooli.react_component_library.v1.adoptions.RefreshAdoptionsResponseBbZ`github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions;adoptions_v1b\x06proto3"
+	"\x10RefreshAdoptions\x12D.vrooli.react_component_library.v1.adoptions.RefreshAdoptionsRequest\x1aE.vrooli.react_component_library.v1.adoptions.RefreshAdoptionsResponse\x12\xa8\x01\n" +
+	"\x13ResolveAdoptionPath\x12G.vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathRequest\x1aH.vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathResponseBbZ`github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions;adoptions_v1b\x06proto3"
 
 var (
 	file_react_component_library_v1_adoptions_adoptions_proto_rawDescOnce sync.Once
@@ -983,48 +1203,54 @@ func file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP() []b
 	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescData
 }
 
-var file_react_component_library_v1_adoptions_adoptions_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_react_component_library_v1_adoptions_adoptions_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_react_component_library_v1_adoptions_adoptions_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_react_component_library_v1_adoptions_adoptions_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_react_component_library_v1_adoptions_adoptions_proto_goTypes = []any{
-	(LibraryVersionStatus)(0),        // 0: vrooli.react_component_library.v1.adoptions.LibraryVersionStatus
-	(LocalStatus)(0),                 // 1: vrooli.react_component_library.v1.adoptions.LocalStatus
-	(*Adoption)(nil),                 // 2: vrooli.react_component_library.v1.adoptions.Adoption
-	(*ListAdoptionsRequest)(nil),     // 3: vrooli.react_component_library.v1.adoptions.ListAdoptionsRequest
-	(*ListAdoptionsResponse)(nil),    // 4: vrooli.react_component_library.v1.adoptions.ListAdoptionsResponse
-	(*ApplyAdoptionRequest)(nil),     // 5: vrooli.react_component_library.v1.adoptions.ApplyAdoptionRequest
-	(*ApplyAdoptionResponse)(nil),    // 6: vrooli.react_component_library.v1.adoptions.ApplyAdoptionResponse
-	(*ReapplyAdoptionRequest)(nil),   // 7: vrooli.react_component_library.v1.adoptions.ReapplyAdoptionRequest
-	(*ReapplyAdoptionResponse)(nil),  // 8: vrooli.react_component_library.v1.adoptions.ReapplyAdoptionResponse
-	(*DeleteAdoptionRequest)(nil),    // 9: vrooli.react_component_library.v1.adoptions.DeleteAdoptionRequest
-	(*DeleteAdoptionResponse)(nil),   // 10: vrooli.react_component_library.v1.adoptions.DeleteAdoptionResponse
-	(*RefreshAdoptionsRequest)(nil),  // 11: vrooli.react_component_library.v1.adoptions.RefreshAdoptionsRequest
-	(*RefreshAdoptionsResponse)(nil), // 12: vrooli.react_component_library.v1.adoptions.RefreshAdoptionsResponse
-	(*timestamppb.Timestamp)(nil),    // 13: google.protobuf.Timestamp
+	(LibraryVersionStatus)(0),           // 0: vrooli.react_component_library.v1.adoptions.LibraryVersionStatus
+	(LocalStatus)(0),                    // 1: vrooli.react_component_library.v1.adoptions.LocalStatus
+	(ResolveSource)(0),                  // 2: vrooli.react_component_library.v1.adoptions.ResolveSource
+	(*Adoption)(nil),                    // 3: vrooli.react_component_library.v1.adoptions.Adoption
+	(*ListAdoptionsRequest)(nil),        // 4: vrooli.react_component_library.v1.adoptions.ListAdoptionsRequest
+	(*ListAdoptionsResponse)(nil),       // 5: vrooli.react_component_library.v1.adoptions.ListAdoptionsResponse
+	(*ApplyAdoptionRequest)(nil),        // 6: vrooli.react_component_library.v1.adoptions.ApplyAdoptionRequest
+	(*ApplyAdoptionResponse)(nil),       // 7: vrooli.react_component_library.v1.adoptions.ApplyAdoptionResponse
+	(*ReapplyAdoptionRequest)(nil),      // 8: vrooli.react_component_library.v1.adoptions.ReapplyAdoptionRequest
+	(*ReapplyAdoptionResponse)(nil),     // 9: vrooli.react_component_library.v1.adoptions.ReapplyAdoptionResponse
+	(*DeleteAdoptionRequest)(nil),       // 10: vrooli.react_component_library.v1.adoptions.DeleteAdoptionRequest
+	(*DeleteAdoptionResponse)(nil),      // 11: vrooli.react_component_library.v1.adoptions.DeleteAdoptionResponse
+	(*RefreshAdoptionsRequest)(nil),     // 12: vrooli.react_component_library.v1.adoptions.RefreshAdoptionsRequest
+	(*ResolveAdoptionPathRequest)(nil),  // 13: vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathRequest
+	(*ResolveAdoptionPathResponse)(nil), // 14: vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathResponse
+	(*RefreshAdoptionsResponse)(nil),    // 15: vrooli.react_component_library.v1.adoptions.RefreshAdoptionsResponse
+	(*timestamppb.Timestamp)(nil),       // 16: google.protobuf.Timestamp
 }
 var file_react_component_library_v1_adoptions_adoptions_proto_depIdxs = []int32{
 	0,  // 0: vrooli.react_component_library.v1.adoptions.Adoption.library_version_status:type_name -> vrooli.react_component_library.v1.adoptions.LibraryVersionStatus
 	1,  // 1: vrooli.react_component_library.v1.adoptions.Adoption.local_status:type_name -> vrooli.react_component_library.v1.adoptions.LocalStatus
-	13, // 2: vrooli.react_component_library.v1.adoptions.Adoption.created_at:type_name -> google.protobuf.Timestamp
-	13, // 3: vrooli.react_component_library.v1.adoptions.Adoption.refreshed_at:type_name -> google.protobuf.Timestamp
-	2,  // 4: vrooli.react_component_library.v1.adoptions.ListAdoptionsResponse.adoptions:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
-	2,  // 5: vrooli.react_component_library.v1.adoptions.ApplyAdoptionResponse.adoption:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
-	2,  // 6: vrooli.react_component_library.v1.adoptions.ReapplyAdoptionResponse.adoption:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
-	2,  // 7: vrooli.react_component_library.v1.adoptions.RefreshAdoptionsResponse.adoptions:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
-	3,  // 8: vrooli.react_component_library.v1.adoptions.AdoptionsService.ListAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.ListAdoptionsRequest
-	5,  // 9: vrooli.react_component_library.v1.adoptions.AdoptionsService.ApplyAdoption:input_type -> vrooli.react_component_library.v1.adoptions.ApplyAdoptionRequest
-	7,  // 10: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReapplyAdoption:input_type -> vrooli.react_component_library.v1.adoptions.ReapplyAdoptionRequest
-	9,  // 11: vrooli.react_component_library.v1.adoptions.AdoptionsService.DeleteAdoption:input_type -> vrooli.react_component_library.v1.adoptions.DeleteAdoptionRequest
-	11, // 12: vrooli.react_component_library.v1.adoptions.AdoptionsService.RefreshAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.RefreshAdoptionsRequest
-	4,  // 13: vrooli.react_component_library.v1.adoptions.AdoptionsService.ListAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.ListAdoptionsResponse
-	6,  // 14: vrooli.react_component_library.v1.adoptions.AdoptionsService.ApplyAdoption:output_type -> vrooli.react_component_library.v1.adoptions.ApplyAdoptionResponse
-	8,  // 15: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReapplyAdoption:output_type -> vrooli.react_component_library.v1.adoptions.ReapplyAdoptionResponse
-	10, // 16: vrooli.react_component_library.v1.adoptions.AdoptionsService.DeleteAdoption:output_type -> vrooli.react_component_library.v1.adoptions.DeleteAdoptionResponse
-	12, // 17: vrooli.react_component_library.v1.adoptions.AdoptionsService.RefreshAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.RefreshAdoptionsResponse
-	13, // [13:18] is the sub-list for method output_type
-	8,  // [8:13] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	16, // 2: vrooli.react_component_library.v1.adoptions.Adoption.created_at:type_name -> google.protobuf.Timestamp
+	16, // 3: vrooli.react_component_library.v1.adoptions.Adoption.refreshed_at:type_name -> google.protobuf.Timestamp
+	3,  // 4: vrooli.react_component_library.v1.adoptions.ListAdoptionsResponse.adoptions:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
+	3,  // 5: vrooli.react_component_library.v1.adoptions.ApplyAdoptionResponse.adoption:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
+	3,  // 6: vrooli.react_component_library.v1.adoptions.ReapplyAdoptionResponse.adoption:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
+	2,  // 7: vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathResponse.source:type_name -> vrooli.react_component_library.v1.adoptions.ResolveSource
+	3,  // 8: vrooli.react_component_library.v1.adoptions.RefreshAdoptionsResponse.adoptions:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
+	4,  // 9: vrooli.react_component_library.v1.adoptions.AdoptionsService.ListAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.ListAdoptionsRequest
+	6,  // 10: vrooli.react_component_library.v1.adoptions.AdoptionsService.ApplyAdoption:input_type -> vrooli.react_component_library.v1.adoptions.ApplyAdoptionRequest
+	8,  // 11: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReapplyAdoption:input_type -> vrooli.react_component_library.v1.adoptions.ReapplyAdoptionRequest
+	10, // 12: vrooli.react_component_library.v1.adoptions.AdoptionsService.DeleteAdoption:input_type -> vrooli.react_component_library.v1.adoptions.DeleteAdoptionRequest
+	12, // 13: vrooli.react_component_library.v1.adoptions.AdoptionsService.RefreshAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.RefreshAdoptionsRequest
+	13, // 14: vrooli.react_component_library.v1.adoptions.AdoptionsService.ResolveAdoptionPath:input_type -> vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathRequest
+	5,  // 15: vrooli.react_component_library.v1.adoptions.AdoptionsService.ListAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.ListAdoptionsResponse
+	7,  // 16: vrooli.react_component_library.v1.adoptions.AdoptionsService.ApplyAdoption:output_type -> vrooli.react_component_library.v1.adoptions.ApplyAdoptionResponse
+	9,  // 17: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReapplyAdoption:output_type -> vrooli.react_component_library.v1.adoptions.ReapplyAdoptionResponse
+	11, // 18: vrooli.react_component_library.v1.adoptions.AdoptionsService.DeleteAdoption:output_type -> vrooli.react_component_library.v1.adoptions.DeleteAdoptionResponse
+	15, // 19: vrooli.react_component_library.v1.adoptions.AdoptionsService.RefreshAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.RefreshAdoptionsResponse
+	14, // 20: vrooli.react_component_library.v1.adoptions.AdoptionsService.ResolveAdoptionPath:output_type -> vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathResponse
+	15, // [15:21] is the sub-list for method output_type
+	9,  // [9:15] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_react_component_library_v1_adoptions_adoptions_proto_init() }
@@ -1037,8 +1263,8 @@ func file_react_component_library_v1_adoptions_adoptions_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_react_component_library_v1_adoptions_adoptions_proto_rawDesc), len(file_react_component_library_v1_adoptions_adoptions_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   11,
+			NumEnums:      3,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

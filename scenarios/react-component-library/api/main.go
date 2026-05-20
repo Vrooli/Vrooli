@@ -22,9 +22,12 @@ import (
 	componentsH "react-component-library/handlers/components"
 	depsH "react-component-library/handlers/deps"
 	healthH "react-component-library/handlers/health"
+	inventoryH "react-component-library/handlers/inventory"
 	previewH "react-component-library/handlers/preview"
 	themesH "react-component-library/handlers/themes"
 	versionsH "react-component-library/handlers/versions"
+
+	"react-component-library/internal/uimanifest"
 
 	adoptionsInternal "react-component-library/internal/adoptions"
 	componentsInternal "react-component-library/internal/components"
@@ -197,6 +200,7 @@ func main() {
 		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver)),
 		depsH.ModuleFromService(depsSvc, log.Default()),
 		healthH.Module(db, "react-component-library-api", "1.0.0"),
+		inventoryH.Module(log.Default(), scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),
 		previewH.Module(componentsSvc, log.Default()),
 		themesH.ModuleFromService(themesSvc, log.Default()),
 		versionsH.Module(db, clock.System{}, versionsResolver, log.Default()),

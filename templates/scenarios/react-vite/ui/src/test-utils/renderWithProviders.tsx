@@ -8,24 +8,30 @@
  *   - I18nextProvider bound to the same singleton `App.tsx` consumes, so
  *     `useTranslation()` resolves the same catalogs in tests as in
  *     production (cimode by default — see `src/test-setup.ts`)
+ *   - ThemeProvider with an explicit initial choice so tests don't depend on
+ *     localStorage or `prefers-color-scheme`
+ *   - MemoryRouter so components that use react-router (NavLink, Outlet,
+ *     useNavigate) render without crashing
  *
  * Usage:
  *
  *   import { renderWithProviders } from "@/test-utils";
  *   const { queryClient } = renderWithProviders(<MyComponent />);
  *
+ *   // Render a specific route:
+ *   renderWithProviders(<App />, { routerEntries: ["/notes"] });
+ *
  * The returned `queryClient` is exposed for tests that need to seed the
  * cache or assert queries fired (e.g. `queryClient.getQueryData(...)`).
- *
- * Future providers (router, theme, auth) layer in here so component
- * tests need not be edited individually when the app shell grows.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type RenderOptions, type RenderResult, render } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { I18nextProvider } from "react-i18next";
+import { MemoryRouter } from "react-router-dom";
 
 import { i18n } from "../i18n";
+import { ThemeProvider, type ThemeChoice } from "../theme/ThemeProvider";
 
 export interface ProviderRenderOptions extends Omit<RenderOptions, "wrapper"> {
   /**
@@ -34,6 +40,21 @@ export interface ProviderRenderOptions extends Omit<RenderOptions, "wrapper"> {
    * mutation state after the render returns.
    */
   queryClient?: QueryClient;
+  /**
+   * Initial entries for the in-memory router. Defaults to `["/"]`. Pass a
+   * specific path (e.g. `["/notes"]`) to render a particular route.
+   */
+  routerEntries?: string[];
+  /**
+   * Initial theme choice for the ThemeProvider. Defaults to `"light"` so tests
+   * never read localStorage or `prefers-color-scheme`.
+   */
+  initialTheme?: ThemeChoice;
+  /**
+   * When true, skip wrapping in MemoryRouter. Use for tests that already
+   * render a `<RouterProvider>` of their own (e.g. routing tests).
+   */
+  withoutRouter?: boolean;
 }
 
 export interface ProviderRenderResult extends RenderResult {
@@ -52,13 +73,27 @@ export function renderWithProviders(
   ui: ReactElement,
   options: ProviderRenderOptions = {},
 ): ProviderRenderResult {
-  const { queryClient = buildClient(), ...rest } = options;
+  const {
+    queryClient = buildClient(),
+    routerEntries = ["/"],
+    initialTheme = "light",
+    withoutRouter = false,
+    ...rest
+  } = options;
 
-  const Wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      <I18nextProvider i18n={i18n}>{children}</I18nextProvider>
-    </QueryClientProvider>
-  );
+  const Wrapper = ({ children }: { children: ReactNode }) => {
+    const themed = (
+      <ThemeProvider initialChoice={initialTheme}>{children}</ThemeProvider>
+    );
+    const routed = withoutRouter ? themed : (
+      <MemoryRouter initialEntries={routerEntries}>{themed}</MemoryRouter>
+    );
+    return (
+      <QueryClientProvider client={queryClient}>
+        <I18nextProvider i18n={i18n}>{routed}</I18nextProvider>
+      </QueryClientProvider>
+    );
+  };
 
   return { ...render(ui, { wrapper: Wrapper, ...rest }), queryClient };
 }

@@ -16,7 +16,7 @@
 - None this heartbeat.
 
 ### Triage snapshot
-- friction-triage-record/2026-05-20 updated as `knw-1779278425212742591`
+- friction-triage-record/2026-05-20 updated as `knw-1779292831275238497`
 
 ### Patterns surfaced to debt-curator
 - None this heartbeat.

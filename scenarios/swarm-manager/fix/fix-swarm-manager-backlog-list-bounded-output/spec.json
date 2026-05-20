@@ -1,0 +1,27 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/cli/**",
+    "scenarios/swarm-manager/api/internal/backlog/**",
+    "packages/proto/schemas/swarm-manager/v1/api/backlog.proto",
+    "packages/proto/gen/go/swarm-manager/v1/api/**"
+  ],
+  "created": "2026-05-20T08:02:59Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "e5dedb61-d557-4c3a-86ff-c57fb5f7b49f",
+    "task_id": "68a88fc3-ba65-4273-9518-e6101f08391b",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "Bug investigation confirmed that `swarm-manager backlog list --kind execute` returns and renders every matching item by default, producing 1,358 human-output lines and a 393,423-byte JSON payload for 196 execute items in the current environment. The `backlog list` CLI has filters for kind/status/archived/scenario/json but no --limit or pagination flag, and `/api/v1/backlog` returns all items after filtering. Add an agent-safe bounded default or visible --limit/page controls, preserve an explicit full-output mode for operators, and include truncation metadata/markers in human and JSON output. Regression coverage should assert broad list calls stay bounded while full output remains available.",
+  "kind": "fix",
+  "name": "fix-swarm-manager-backlog-list-bounded-output",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "scenario-qa",
+    "bug-investigation",
+    "cli-output"
+  ],
+  "title": "Bound swarm-manager backlog list output",
+  "updated": "2026-05-20T08:02:59Z"
+}

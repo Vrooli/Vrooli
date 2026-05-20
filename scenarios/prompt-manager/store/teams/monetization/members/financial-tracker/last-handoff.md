@@ -21,9 +21,9 @@
 - Retention, churn, NRR, ARPU, LTV: `pending-telemetry`
 
 ### Material deltas since last snapshot
-- No material financial delta since `ledger-snapshot/2026-05-18`.
-- Local `ledger.jsonl` still had entries only through 2026-04-27 before this append; today’s append is the first file-backed catch-up entry after prior knowledge-only snapshots.
-- Pending benchmark decision `dec-1778875348622351458` does not change current ledger math.
+- No material financial delta since `ledger-snapshot/2026-05-19`.
+- Source/shared state was accessible at `/home/matthalloran8/Vrooli`; sandbox cwd was empty.
+- File-backed `ledger.jsonl` still had entries only through 2026-04-27 before today’s append.
 
 ### Flags raised
 - `operator-inputs-unpopulated`
@@ -51,5 +51,5 @@
 - Gateway usage and token cost attribution: TELEMETRY_ROADMAP Gap 4.
 
 ### Knowledge entry written
-- `ledger-snapshot/2026-05-19`: `knw-1779213791639586336`
-- Ledger entry appended: `ledger-1779213737892032050`
+- `ledger-snapshot/2026-05-20`: `knw-1779300162163053505`
+- Ledger entry appended: `ledger-1779300084666586410`

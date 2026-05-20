@@ -222,9 +222,9 @@ func (h *DOMHandler) ExtractDOMTree(ctx context.Context, url string) (string, er
 		if raw == nil {
 			return "", errors.New("dom extraction returned no data")
 		}
-		value, ok := raw["value"]
+		value, ok := raw["result"]
 		if !ok {
-			return "", errors.New("dom extraction missing value payload")
+			return "", errors.New("dom extraction missing result payload")
 		}
 		encoded, marshalErr := json.Marshal(value)
 		if marshalErr != nil {

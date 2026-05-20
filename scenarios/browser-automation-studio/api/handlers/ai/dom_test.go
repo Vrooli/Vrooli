@@ -80,7 +80,7 @@ func TestExtractDOMTree_URLNormalization(t *testing.T) {
 					{
 						NodeID:        "dom.extract",
 						Success:       true,
-						ExtractedData: map[string]any{"value": map[string]any{"tagName": "BODY"}},
+						ExtractedData: map[string]any{"result": map[string]any{"tagName": "BODY"}},
 					},
 				}, nil, nil
 			},
@@ -107,7 +107,7 @@ func TestExtractDOMTree_URLNormalization(t *testing.T) {
 					{
 						NodeID:        "dom.extract",
 						Success:       true,
-						ExtractedData: map[string]any{"value": map[string]any{"tagName": "BODY"}},
+						ExtractedData: map[string]any{"result": map[string]any{"tagName": "BODY"}},
 					},
 				}, nil, nil
 			},
@@ -133,7 +133,7 @@ func TestExtractDOMTree_URLNormalization(t *testing.T) {
 					{
 						NodeID:        "dom.extract",
 						Success:       true,
-						ExtractedData: map[string]any{"value": map[string]any{"tagName": "BODY"}},
+						ExtractedData: map[string]any{"result": map[string]any{"tagName": "BODY"}},
 					},
 				}, nil, nil
 			},
@@ -330,7 +330,7 @@ func TestExtractDOMTree_Success(t *testing.T) {
 					{
 						NodeID:        "dom.extract",
 						Success:       true,
-						ExtractedData: map[string]any{"value": map[string]any{}},
+						ExtractedData: map[string]any{"result": map[string]any{}},
 					},
 				}, nil, nil
 			},
@@ -355,7 +355,7 @@ func TestExtractDOMTree_Success(t *testing.T) {
 					{
 						NodeID:        "dom.extract",
 						Success:       true,
-						ExtractedData: map[string]any{"value": map[string]any{}},
+						ExtractedData: map[string]any{"result": map[string]any{}},
 					},
 				}, nil, nil
 			},
