@@ -1,0 +1,110 @@
+{
+  "description": "Define and validate a manifest schema declaring domains, allowed_dependencies, shared substrate locations, domain glossaries, signal weights, confidence thresholds, and transitional declarations as the trust anchor for intended architecture.",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "Cartographer must define and validate a manifest schema (AC-MANIFEST-SCHEMA) that serves as the authoritative trust anchor for intended architecture. The manifest must declare: domains and their ownership boundaries; allowed_dependencies between domains (AC-MANIFEST-BOUNDARIES); shared substrate locations; domain glossaries (AC-MANIFEST-GLOSSARY); signal weights and confidence thresholds (AC-MANIFEST-OVERLAY); and transitional declarations. The parser must reject invalid manifests with structured errors. Weights and thresholds declared in the manifest override built-in defaults. Full schema reference documentation must be published under docs/reference (AC-MANIFEST-DOCS).",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "draft",
+      "title": "API Manifest Contract — Schema, Validation, and Trust Anchor",
+      "validation": [
+        {
+          "notes": "AC-MANIFEST-SCHEMA: Valid manifest parses without errors and produces a fully populated manifest model",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-MANIFEST-SCHEMA: Missing required fields (e.g., domains) produce structured validation errors with field path and message",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-MANIFEST-SCHEMA: Unknown top-level keys produce a warning, not a hard failure, unless strict mode is enabled",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-MANIFEST-BOUNDARIES: allowed_dependencies declared as A→B do not generate a drift conflict when A imports B",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-MANIFEST-BOUNDARIES: A dependency A→C not declared in allowed_dependencies produces a cross-domain violation conflict",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-MANIFEST-OVERLAY: Signal weight override in manifest is applied and replaces built-in default weight in aggregator",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-MANIFEST-OVERLAY: Confidence threshold override is respected by severity classification logic",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-MANIFEST-GLOSSARY: Domain glossary terms are parsed into a term→domain map accessible to the symbol-glossary signal",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Round-trip: parse → validate → serialize → re-parse manifest produces identical manifest model",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Manifest with intentional boundary violations loads successfully and produces the expected number of drift conflicts when compared against a fixture graph",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "docs/reference/manifest-schema.md exists and its field descriptions match the parser's validation rules (smoke test)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A platform engineer can author a manifest from the docs/reference schema alone and have it accepted on first validation",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Manifest schema version is declared and validated so stale manifests from prior versions are detected and flagged",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "API Manifest Contract"
+}

@@ -1,0 +1,108 @@
+{
+  "description": "Emit ordered migration plans as per-domain file-move and import-rewrite operations applied one domain at a time with atomic commits; whole-scenario big-bang apply is discouraged and guarded by analytics.",
+  "module_id": "MOD-P0-007",
+  "prd_ref": "OT-P0-007",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-003",
+        "REQ-P0-008",
+        "REQ-P0-009"
+      ],
+      "description": "Cartographer must emit ordered migration plans (AC-APPLY-PLAN) as per-domain file-move and import-rewrite operations. Per-domain file moves (AC-APPLY-MOVES) and import rewrites for Go (AC-APPLY-IMPORTS-GO) must be applied one domain at a time with atomic commit-per-domain semantics (AC-APPLY-ATOMIC). Whole-scenario big-bang apply must be gated by a warning and explicit acknowledgment (AC-APPLY-WHOLE-SCENARIO-GUARD) and is strongly discouraged. Every apply operation must verify build-green status before reporting success. Migration plans must be persisted as analytics events.",
+      "id": "REQ-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "draft",
+      "title": "Per-Domain Apply — Ordered Migration Plans with Atomic Commits",
+      "validation": [
+        {
+          "notes": "AC-APPLY-PLAN: Migration plan is emitted as an ordered list of operations (move, rewrite) per domain with no cross-domain ordering ambiguity",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-APPLY-MOVES: File move operation updates directory structure and records the old and new paths",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-APPLY-IMPORTS-GO: Import rewrite updates all Go import paths referencing the moved file's old package path",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-APPLY-ATOMIC: If any operation in a domain's plan fails, all operations for that domain are rolled back",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-APPLY-WHOLE-SCENARIO-GUARD: Invoking whole-scenario apply without --acknowledge-big-bang flag returns an error and surfaces the big-bang revert warning",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Per-domain apply of a 50-file domain in bas/fixtures/medium-realistic/ completes in \u003c10 seconds including build verification",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "After per-domain apply, arch-cart validate reports zero new drift conflicts for the migrated domain",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Whole-scenario apply with --acknowledge-big-bang flag proceeds but logs a warning event in analytics",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Atomic rollback: injecting a failure mid-plan leaves the repository in its pre-apply state",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Per-domain apply (file moves + import rewrites) for a 50-file domain completes in \u003c10 seconds including build verification",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A migration performed domain-by-domain produces a clean git history with one commit per domain",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The migration plan is human-readable and can be reviewed before execution",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Per-Domain Apply"
+}

@@ -1,0 +1,65 @@
+{
+  "description": "File detected conflicts and migration plans as initiative items in swarm-manager for human triage on scenarios the agent cannot complete autonomously.",
+  "module_id": "MOD-P2-018",
+  "prd_ref": "OT-P2-003",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-003",
+        "REQ-P0-009"
+      ],
+      "description": "Cartographer must file detected conflicts and migration plans as initiative items in swarm-manager for human triage when the agent determines it cannot complete the resolution autonomously. The integration must use swarm-manager's defined intake API and tag items with cartographer scenario context, conflict type, and severity. Items must not be duplicated if an identical conflict is already open in swarm-manager.",
+      "id": "REQ-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "draft",
+      "title": "swarm-manager Backlog Integration for Unresolvable Conflicts",
+      "validation": [
+        {
+          "notes": "Deduplication logic: filing a conflict already present in swarm-manager updates the existing item rather than creating a duplicate",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Initiative item payload includes scenario_id, conflict_id, conflict_type, severity, and suggested_fixes",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end: arch-cart conflicts file --unresolvable against a fixture scenario creates initiative items in a swarm-manager test instance",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Re-running the file command with the same conflicts does not create duplicate items in swarm-manager",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Human reviewers in swarm-manager see all cartographer-unresolvable conflicts with enough context to triage without running cartographer themselves",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Swarm-manager items are linked back to cartographer conflict IDs for traceability",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "swarm-manager Backlog Integration"
+}

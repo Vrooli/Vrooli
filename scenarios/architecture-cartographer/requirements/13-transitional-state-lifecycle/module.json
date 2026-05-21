@@ -1,0 +1,100 @@
+{
+  "description": "Support explicit manifest declarations for re-export shims, adapters, and duplicated types pending merge; auto-detect undeclared-transitional patterns as warning conflicts; enforce two-tier strictness (--mid-migration tolerates, --strict errors when expires_when predicates fire).",
+  "module_id": "MOD-P1-013",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-002",
+        "REQ-P0-003"
+      ],
+      "description": "Cartographer must support explicit manifest declarations for transitional architecture states including re-export shims, adapters, and duplicated types pending merge (AC-TRANSITIONAL-DECL). Undeclared transitional patterns must be auto-detected and emitted as warning-severity conflicts (AC-TRANSITIONAL-DETECT). The expires_when predicate in transitional declarations must be evaluated at analysis time to determine if a transitional state has expired (AC-TRANSITIONAL-EXPIRES). Two strictness modes must be supported: --mid-migration (tolerates declared transitional patterns) and --strict (errors when expires_when predicates fire) (AC-TRANSITIONAL-STRICTNESS).",
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "draft",
+      "title": "Transitional State Lifecycle — Declarations, Detection, and Strictness Modes",
+      "validation": [
+        {
+          "notes": "AC-TRANSITIONAL-DECL: Manifest parser correctly reads transitional declaration fields (pattern, expires_when, description)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-TRANSITIONAL-DETECT: A re-export shim not declared in the manifest produces a warning conflict of type undeclared-transitional",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-TRANSITIONAL-EXPIRES: An expires_when predicate based on date is evaluated against current time and fires when past due",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-TRANSITIONAL-EXPIRES: An expires_when predicate based on a graph condition (e.g., symbol removed) is evaluated against the current graph",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-TRANSITIONAL-STRICTNESS: --mid-migration mode allows declared transitional patterns without surfacing them as errors",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-TRANSITIONAL-STRICTNESS: --strict mode converts expired transitional declarations into error-severity conflicts",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Fixture scenario with a declared re-export shim: --mid-migration produces no conflict; --strict after expiry produces an error conflict",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Fixture scenario with an undeclared adapter pattern: auto-detect produces a warning conflict regardless of strictness mode",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Transitional declaration round-trip: declared in manifest → loaded → evaluated → result matches expected strictness output",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A team mid-migration can run in --mid-migration mode without noise from known transitional patterns",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Expired transitional states are not silently ignored; --strict ensures they are surfaced before merge",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Transitional State Lifecycle"
+}

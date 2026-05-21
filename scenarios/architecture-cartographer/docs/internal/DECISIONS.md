@@ -1,0 +1,48 @@
+# Decisions — Architecture Cartographer
+
+This document records durable decisions and tradeoffs future agents
+should not accidentally relitigate.
+
+## Purpose Of This Document
+
+Use this document when a choice:
+
+- affects multiple files or future agents,
+- rejects a plausible alternative,
+- changes architecture, deployment, data, security, monetization, or
+  testing direction,
+- needs a revisit trigger.
+
+Routine implementation notes belong in [`PROGRESS.md`](PROGRESS.md).
+Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
+
+## Decision Log
+
+| Date | Decision | Context | Consequences | Revisit Trigger |
+|---|---|---|---|---|
+| 2026-05-21 | Use the generated `react-vite` scenario documentation contract. | Scenario scaffold was generated from the template. | Docs start with stubs and maturity metadata in `docs/manifest.json`. | Revisit when scenario adopts a different template or doc contract. |
+| 2026-05-21 | Three-layer scenario architecture (language code-graph → framework semantics → applications). | Source-code parsing is needed by multiple consumers (cartographer + react-component-library). Pure regex-based parsing in react-component-library has been flagged as brittle. | Cartographer takes a hard dependency on two new scenarios (`go-code-graph`, `typescript-code-graph`). Cartographer must never parse source code itself. react-component-library is upgraded (not depended on by cartographer) to consume `typescript-code-graph`. | Revisit only if the layering proves too granular in practice and a measured friction point emerges. Document the friction and propose consolidation before reversing. |
+| 2026-05-21 | No embeddings or Ollama/Qdrant dependency in v1. | Deterministic signals (path tokens, import clusters, importer voting, test coupling, symbol glossary, git co-edit) are expected to cover the vast majority of auto-placements. Embeddings introduce silently-wrong placements — incompatible with the auto-apply confidence tier. | Cartographer ships standalone with no external model dependency in v1. The embedding-based suggestion ranker is deferred to P2 (OT-P2-001) as a suggestion mechanism only — never auto-applied. | Revisit only if v1 evidence shows the deterministic ladder leaves a high residual of unanswerable conflicts and offline evaluation demonstrates embeddings would close the gap. |
+| 2026-05-21 | Conflict envelope shape is stable across versions. | Adding new conflict types is the primary extensibility axis. Allowing the envelope shape to change with each new type would force every consumer (CLI, UI, BAS scenarios) to track schema versions. | New detectors plug into the existing envelope. `Conflict.SuggestedFixes[]` is the variable surface; the envelope itself is fixed. | Revisit only if a fundamental requirement (e.g., multi-graph conflicts) cannot be expressed within the current shape. Treat any change as a breaking version bump. |
+| 2026-05-21 | Pluggable Detector / Resolver / Signal / Recipe interfaces defined on day one. | The extensibility story is the value proposition. Hard-coded switch statements over conflict types or signal names would calcify the orchestration layer the moment a new type is added. | Each plug-in type has a registry. Orchestration dispatches by `Name()` and never enumerates concrete types. Adding a new conflict type, signal, or recipe is a single struct file + registry entry. | None — this is permanent. If a registry pattern becomes a friction point, the fix is local to that registry, not the dispatch contract. |
+| 2026-05-21 | Per-domain apply is the primary path. Whole-scenario apply is discouraged and requires explicit acknowledgment. | The swarm-manager 2026-05-13 big-bang migration was reverted because 96K LOC of changes could not be incrementally validated. Per-domain apply enforces the smallest atomic unit that still produces a clean commit boundary. | `arch-cart apply <domain>` is the canonical command. `arch-cart apply --all` exists but surfaces a warning and requires `--i-understand-the-risk`. CI integration recommends per-domain apply over `--all`. | None — this is permanent. The scar tissue is sufficient. |
+| 2026-05-21 | Analytics ships in v0.1, not deferred. | Override tracking is the highest-value signal for calibrating the ladder and identifying recipe candidates. Ranked CLI suggestions depend on N≥5 historical samples; without analytics from day one, that data does not exist. | Cartographer carries an analytics schema, event capture, and history/stats commands from the first release. Storage cost is small (hundreds of rows per migration). | None — this is permanent. |
+| 2026-05-21 | Minimum N≥5 historical samples before showing success rates in CLI suggestions. | Showing "100% success (1/1)" or "0% (0/2)" is statistically meaningless and actively misleading to agents trying to choose between fix options. | Below the threshold, fix suggestions show the description and command but omit the rate field. | Revisit only if domain-specific calibration shows a different threshold works better; never below N=3. |
+| 2026-05-21 | Build-green guardrail is a first-class seam, not a per-recipe check. | Every code-modifying operation must verify build-green before reporting success. Per-recipe checks would diverge in subtle ways (one recipe forgets to wait for cache invalidation, another runs the wrong target). | `BuildGuard` is one seam that every apply path consumes. `--force` requires `--note` and is logged. | None — this is permanent. |
+| 2026-05-21 | CLI follows the human-friendly contract: every conflict surfaces a classified pattern, 2–4 ranked fix options with pre-baked commands and caveats, and explicit "no good automatic option" honesty when signals are insufficient. | Pure "your problem now" CLI output forces the agent to reinvent decision support for every conflict. Fabricated suggestions are worse — they burn trust. | Every conflict carries `SuggestedFixes[]`. Empty list is honest, not a failure. Suggested commands are copy-paste runnable. Caveats are required when surfacing a risky option. | None — this is the durable UX contract. |
+| 2026-05-21 | Cartographer dogfoods itself in CI once apply ships. | The cartographer is built using the same rules it enforces. Drift in its own architecture would be acutely embarrassing — and the dogfooding test is the strongest possible regression detector. | CI runs `arch-cart conflicts list architecture-cartographer` (against the cartographer's own manifest) and fails on any unresolved conflict above `warn` severity. | None — this is permanent once it lands. |
+| 2026-05-21 | Signal weights and confidence thresholds live in the manifest, not in code. | The ladder is per-scenario tunable. Hard-coding weights would force a release for every reprioritization. | Manifest schema declares `signal_weights:` and `confidence_thresholds:` overrides; defaults live in the schema. `arch-cart calibrate` proposes adjustments based on override data; human acceptance always required before weights change. | None. |
+
+## Superseded Decisions
+
+| Date | Superseded Decision | Replacement | Notes |
+|---|---|---|---|
+| None yet. | n/a | n/a | Add when a durable decision is replaced. |
+
+## Cross-References
+
+- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — system architecture and intentional deviations
+- [`../concepts/SIGNAL_LADDER.md`](../concepts/SIGNAL_LADDER.md) — pluggable signal contract
+- [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — dependency decisions
+- [`PROBLEMS.md`](PROBLEMS.md) — unresolved drift and debt
+- [`PROGRESS.md`](PROGRESS.md) — completed work history

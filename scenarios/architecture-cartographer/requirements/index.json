@@ -1,0 +1,159 @@
+{
+  "_metadata": {
+    "entity": "architecture-cartographer",
+    "generated_at": "2026-05-21T10:44:28-04:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-ground-truth-code-graph/module.json",
+    "02-api-manifest-contract/module.json",
+    "03-drift-findings-engine/module.json",
+    "04-pluggable-signal-ladder-for-auto-placeme/module.json",
+    "05-cycle-detection-and-classification/module.json",
+    "06-conflict-driven-cli-workbench/module.json",
+    "07-per-domain-apply/module.json",
+    "08-build-green-baseline-guardrail/module.json",
+    "09-analytics-from-day-one/module.json",
+    "10-connect-rpc-cli-ui-parity/module.json",
+    "11-ui-graph-visualization/module.json",
+    "12-refactor-recipes/module.json",
+    "13-transitional-state-lifecycle/module.json",
+    "14-snapshot-persistence/module.json",
+    "15-knowledge-observatory-ui-health-integrat/module.json",
+    "16-embedding-based-suggestion-ranker/module.json",
+    "17-additional-language-coverage/module.json",
+    "18-swarm-manager-backlog-integration/module.json",
+    "19-recipe-identification-pipeline/module.json",
+    "20-signal-weight-calibration/module.json",
+    "21-architecture-maturity-scoring/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-ground-truth-code-graph",
+      "priority": "P0",
+      "title": "Ground-Truth Code Graph"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-api-manifest-contract",
+      "priority": "P0",
+      "title": "API Manifest Contract"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-drift-findings-engine",
+      "priority": "P0",
+      "title": "Drift Findings Engine"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-pluggable-signal-ladder-for-auto-placeme",
+      "priority": "P0",
+      "title": "Pluggable Signal Ladder for Auto-Placement"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-cycle-detection-and-classification",
+      "priority": "P0",
+      "title": "Cycle Detection and Classification"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-conflict-driven-cli-workbench",
+      "priority": "P0",
+      "title": "Conflict-Driven CLI Workbench"
+    },
+    {
+      "id": "MOD-P0-007",
+      "path": "07-per-domain-apply",
+      "priority": "P0",
+      "title": "Per-Domain Apply"
+    },
+    {
+      "id": "MOD-P0-008",
+      "path": "08-build-green-baseline-guardrail",
+      "priority": "P0",
+      "title": "Build-Green Baseline Guardrail"
+    },
+    {
+      "id": "MOD-P0-009",
+      "path": "09-analytics-from-day-one",
+      "priority": "P0",
+      "title": "Analytics from Day One"
+    },
+    {
+      "id": "MOD-P0-010",
+      "path": "10-connect-rpc-cli-ui-parity",
+      "priority": "P0",
+      "title": "Connect-RPC + CLI + UI Parity"
+    },
+    {
+      "id": "MOD-P1-011",
+      "path": "11-ui-graph-visualization",
+      "priority": "P1",
+      "title": "UI Graph Visualization"
+    },
+    {
+      "id": "MOD-P1-012",
+      "path": "12-refactor-recipes",
+      "priority": "P1",
+      "title": "Refactor Recipes (First Batch)"
+    },
+    {
+      "id": "MOD-P1-013",
+      "path": "13-transitional-state-lifecycle",
+      "priority": "P1",
+      "title": "Transitional State Lifecycle"
+    },
+    {
+      "id": "MOD-P1-014",
+      "path": "14-snapshot-persistence",
+      "priority": "P1",
+      "title": "Snapshot Persistence"
+    },
+    {
+      "id": "MOD-P1-015",
+      "path": "15-knowledge-observatory-ui-health-integrat",
+      "priority": "P1",
+      "title": "knowledge-observatory + ui-health Integration"
+    },
+    {
+      "id": "MOD-P2-016",
+      "path": "16-embedding-based-suggestion-ranker",
+      "priority": "P2",
+      "title": "Embedding-Based Suggestion Ranker"
+    },
+    {
+      "id": "MOD-P2-017",
+      "path": "17-additional-language-coverage",
+      "priority": "P2",
+      "title": "Additional Language Coverage"
+    },
+    {
+      "id": "MOD-P2-018",
+      "path": "18-swarm-manager-backlog-integration",
+      "priority": "P2",
+      "title": "swarm-manager Backlog Integration"
+    },
+    {
+      "id": "MOD-P2-019",
+      "path": "19-recipe-identification-pipeline",
+      "priority": "P2",
+      "title": "Recipe Identification Pipeline"
+    },
+    {
+      "id": "MOD-P2-020",
+      "path": "20-signal-weight-calibration",
+      "priority": "P2",
+      "title": "Signal-Weight Calibration"
+    },
+    {
+      "id": "MOD-P2-021",
+      "path": "21-architecture-maturity-scoring",
+      "priority": "P2",
+      "title": "Architecture Maturity Scoring"
+    }
+  ]
+}
