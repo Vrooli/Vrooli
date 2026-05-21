@@ -23,10 +23,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "architecture-cartographer/handlers/health"
-	notesH "architecture-cartographer/handlers/notes"
 	localdb "architecture-cartographer/internal/database"
-
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/notes"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -36,7 +33,6 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...)
 	return out
 }
 
@@ -62,22 +58,19 @@ type ProtoFileEntry struct {
 // AllProtoFiles returns the proto FileDescriptor backing each
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
-	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_architecture_cartographer_v1_notes_notes_proto},
-	}
+	return []ProtoFileEntry{}
 }
 
 // AllSchemas returns every domain's schema provider plus the system
 // schema (always first; cross-cutting infrastructure runs before any
 // domain table). Consumed by main.go's database.EnsureSchemas call.
 //
-// Order matters: system → health → notes → … (domains alphabetical).
+// Order matters: system → health → … (domains alphabetical).
 // Postgres scenarios that put `CREATE EXTENSION ...` in system.sql rely
 // on system running before any domain that references the extension.
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema),
 	}
 }

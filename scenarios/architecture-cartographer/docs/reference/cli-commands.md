@@ -89,55 +89,14 @@ Read values back without an argument:
 architecture-cartographer configure api_base
 ```
 
-## Scenario commands — `notes` (CRUD reference)
+## Scenario commands
 
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario.
-
-### `architecture-cartographer notes list`
-
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
-
-```bash
-architecture-cartographer notes list
-architecture-cartographer notes list --json
-```
-
-### `architecture-cartographer notes create --title <title> [--body <body>]`
-
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
-
-```bash
-architecture-cartographer notes create --title "First note" --body "Hello world"
-```
-
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
-
-### `architecture-cartographer notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
-
-```bash
-architecture-cartographer notes get abc123
-```
-
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
-
-### `architecture-cartographer notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
-
-```bash
-architecture-cartographer notes attach abc123 --file ./example.png
-```
+> Product-domain commands (`graph`, `manifest`, `conflicts`, `signals`,
+> `apply`, `analytics`) ship as each implementation phase lands. Until
+> then the only scenario-specific command is the auto-provided
+> `status` (health check) inherited from cli-core's
+> `StandardScenarioApp`. Each new domain will be added here when its
+> Phase lands (see the implementation plan).
 
 ## Output contracts
 
@@ -159,8 +118,9 @@ helpers).
 
 ## Adding a new command
 
-For a new domain, copy the notes command group first, then replace it
-once your real domain is green.
+For a new domain, scaffold a new group in `cli/manifest.json` and
+matching `cli/domains/<domain>/` package per the canonical pattern;
+the existing health command group is the simplest live example.
 
 For a command inside an existing domain:
 

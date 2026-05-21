@@ -4,9 +4,9 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-`notes` is a worked example from the template, not product scope; it
-will be removed once the first real domain is green per Gate 7 in
-[`../START-HERE.md`](../START-HERE.md).
+The template's `notes` example domain has been removed (Phase 0 of the
+implementation plan). All inventory rows below describe the cartographer's
+own product domains.
 
 ## Purpose Of This Document
 
@@ -33,7 +33,6 @@ its own home in [`SIGNAL_LADDER.md`](SIGNAL_LADDER.md).
 | signals | Score chunk-to-domain assignments via pluggable, deterministic signals; aggregate into explainable verdicts. | Service / scoring | Signal scores and verdict explanations. | API, CLI | OT-P0-004 (MOD-P0-004) | `api/internal/signals/`, `api/handlers/signals/`, `cli/domains/signals/`, `packages/proto/schemas/architecture-cartographer/v1/signals/` |
 | apply | Emit per-domain migration plans and execute file moves + import rewrites with build-green guardrail. | Service / mutation | Migration plans, apply history. | API, CLI, UI | OT-P0-007, OT-P0-008 (MOD-P0-007, MOD-P0-008) | `api/internal/apply/`, `api/handlers/apply/`, `cli/domains/apply/`, `ui/src/features/apply/`, `packages/proto/schemas/architecture-cartographer/v1/apply/` |
 | analytics | Persist conflict events, resolution outcomes, auto-placement verdicts, overrides, and build deltas; serve history + stats. | Reporting / query | Append-only event log. | API, CLI, UI | OT-P0-009 (MOD-P0-009) | `api/internal/analytics/`, `api/handlers/analytics/`, `cli/domains/analytics/`, `ui/src/features/analytics/`, `packages/proto/schemas/architecture-cartographer/v1/analytics/` |
-| notes | Worked CRUD reference with attachment upload exception. | CRUD / entity (placeholder) | Notes and attachment metadata. | API, CLI, UI | Template starter only. | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/architecture-cartographer/v1/notes/` |
 
 ## Domain Details
 
@@ -200,15 +199,6 @@ its own home in [`SIGNAL_LADDER.md`](SIGNAL_LADDER.md).
   capture across all domains), performance (history query bounded by
   scenario size).
 - Related docs: [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md).
-
-### notes (template starter)
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Status: **scheduled for removal** per Gate 7 once the first real
-  domain (likely `graph`) is green across API, CLI, UI, and tests.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`.
 
 ## Shared Concepts
 

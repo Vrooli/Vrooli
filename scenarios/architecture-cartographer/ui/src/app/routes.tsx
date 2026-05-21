@@ -7,7 +7,6 @@ import {
 
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
-import { NotesPage } from "../pages/NotesPage";
 import { SettingsPage } from "../pages/SettingsPage";
 
 /**
@@ -22,7 +21,6 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: "notes", element: <NotesPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },
@@ -33,11 +31,27 @@ export const routes: RouteObject[] = [
  * doesn't fail in test environments where `window.location` semantics differ
  * from production.
  */
+// Opt into the v7 React Router future flags so the v6→v7 transition warnings
+// stay silent in production renders and (critically) in tests, where the
+// shared test-setup treats every console.warn as a hard failure.
+//
+// The flag set is split: `v7_startTransition` is read off the
+// `RouterProvider` `future` prop; the remaining flags are read off the
+// data router's `future` option (createBrowserRouter / createMemoryRouter).
+const dataRouterFuture = {
+  v7_relativeSplatPath: true,
+  v7_fetcherPersist: true,
+  v7_normalizeFormMethod: true,
+  v7_partialHydration: true,
+  v7_skipActionErrorRevalidation: true,
+} as const;
+const routerProviderFuture = { v7_startTransition: true } as const;
+
 export function AppRouter() {
   // Re-create per mount so HMR / re-mounts pick up updated routes during dev
   // and so tests that manipulate `window.history` see fresh routing each time.
-  const router = createBrowserRouter(routes);
-  return <RouterProvider router={router} />;
+  const router = createBrowserRouter(routes, { future: dataRouterFuture });
+  return <RouterProvider router={router} future={routerProviderFuture} />;
 }
 
 /**
@@ -45,6 +59,6 @@ export function AppRouter() {
  * specific starting URL. Only used by `routes.test.tsx`.
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
-  const router = createMemoryRouter(routes, { initialEntries });
-  return <RouterProvider router={router} />;
+  const router = createMemoryRouter(routes, { initialEntries, future: dataRouterFuture });
+  return <RouterProvider router={router} future={routerProviderFuture} />;
 }

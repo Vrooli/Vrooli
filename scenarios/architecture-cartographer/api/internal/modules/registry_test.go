@@ -89,16 +89,20 @@ func TestAllSchemas_AppliesIdempotently(t *testing.T) {
 // matching EndpointDescriptor in AllEndpoints() whose Path equals
 // "/" + service.FullName + "/" + method.Name.
 //
-// Lifted from a per-domain test (formerly
-// api/handlers/notes/module_test.go) so the safety net applies
-// automatically to every Connect-mounted domain registered in
-// AllProtoFiles() — agents adding a new domain no longer have to
-// remember to copy the parity test.
+// The safety net applies automatically to every Connect-mounted domain
+// registered in AllProtoFiles() — agents adding a new domain no longer
+// have to remember to copy the parity test.
 //
 // On failure the message names the proto method, the expected path,
 // and the module, so the fix is mechanical: either add the matching
 // EndpointDescriptor (referencing the generated *Procedure constant
 // from the *v1connect package) or remove the rpc from the proto file.
+//
+// AllProtoFiles() may be empty during early-phase development before
+// any product domain has wired itself in; in that case the parity
+// check is trivially satisfied. Once the first Connect domain lands
+// (Phase 10 of the implementation plan), the registry is non-empty
+// and this test fully exercises the parity contract.
 func TestProtoConnectParity(t *testing.T) {
 	endpoints := modules.AllEndpoints()
 	byPath := make(map[string]int, len(endpoints))
@@ -107,10 +111,6 @@ func TestProtoConnectParity(t *testing.T) {
 	}
 
 	files := modules.AllProtoFiles()
-	require.NotEmpty(t, files,
-		"AllProtoFiles() returned no entries; every Connect-mounted "+
-			"domain module must be registered there")
-
 	for _, entry := range files {
 		services := entry.File.Services()
 		require.NotZero(t, services.Len(),

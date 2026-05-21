@@ -18,10 +18,10 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	seed := filepath.Join(t.TempDir(), "seed.json")
 	writeSeed(t, seed, []CLICommand{
 		{Name: "status", Description: "Health check", EndpointID: "health"},
-		{Name: "notes list", Description: "List notes", EndpointID: "notes_list"},
-		{Name: "notes create", Description: "Create note", EndpointID: "notes_create"},
-		{Name: "notes get", Description: "Get note", EndpointID: "notes_get"},
-		{Name: "notes attach", Description: "Attach file", EndpointID: "notes_attach"},
+		{Name: "alpha list", Description: "Synthetic CLI fixture", EndpointID: "alpha_list"},
+		{Name: "alpha create", Description: "Synthetic CLI fixture", EndpointID: "alpha_create"},
+		{Name: "alpha get", Description: "Synthetic CLI fixture", EndpointID: "alpha_get"},
+		{Name: "alpha attach", Description: "Synthetic CLI fixture", EndpointID: "alpha_attach"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -102,15 +102,15 @@ func TestCrossCheck_PassesWhenSeeded(t *testing.T) {
 }
 
 // TestStripBinaryPrefix is the smallest unit on the command-name
-// normalisation step: the endpoint's "architecture-cartographer notes list"
-// must compare against the seed's "notes list".
+// normalisation step: the endpoint's "architecture-cartographer alpha list"
+// must compare against the seed's "alpha list".
 func TestStripBinaryPrefix(t *testing.T) {
 	cases := []struct {
 		in   string
 		want string
 	}{
 		{in: "architecture-cartographer status", want: "status"},
-		{in: "architecture-cartographer notes list", want: "notes list"},
+		{in: "architecture-cartographer alpha list", want: "alpha list"},
 		{in: "already-stripped", want: "already-stripped"},
 		{in: "architecture-cartographer", want: "architecture-cartographer"}, // no trailing space → preserved
 	}

@@ -22,7 +22,6 @@ import (
 	_ "modernc.org/sqlite"
 
 	healthH "architecture-cartographer/handlers/health"
-	notesH "architecture-cartographer/handlers/notes"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -104,7 +103,6 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "architecture-cartographer-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
