@@ -1,0 +1,194 @@
+syntax = "proto3";
+
+package vrooli.architecture_cartographer.v1.apply;
+
+import "architecture-cartographer/v1/conflicts/conflicts.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/apply;apply_v1";
+
+// =============================================================================
+// APPLY DOMAIN — v0.1 stub
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain apply
+// @stability beta
+//
+// Wire contract for the ApplyService Connect-RPC service. v0.1 ships the
+// full proto surface and registers the service; the execution body for
+// RunApply is intentionally CodeUnimplemented. PlanApply returns the
+// deterministic operation list that would execute (no toolchain
+// required). ListApplyHistory + GetBuildBaseline return empty responses.
+//
+// Cross-cutting envelopes defined here and imported by other domains:
+//   - Operation        (one atomic apply step)
+//   - OperationKind    (move_file, rewrite_import, etc.)
+//   - Plan             (an ordered set of Operations)
+//   - ApplyStatus      (lifecycle state of an apply run)
+// =============================================================================
+
+// OperationKind enumerates the atomic units of apply work. The set is
+// closed in v0.1 (adding a new kind is a manifest_version bump).
+enum OperationKind {
+  OPERATION_KIND_UNSPECIFIED = 0;
+  // Move a file from one path to another. import-rewrite is paired
+  // automatically.
+  OPERATION_KIND_MOVE_FILE = 1;
+  // Rewrite import paths in a file (Go imports + TypeScript imports).
+  OPERATION_KIND_REWRITE_IMPORT = 2;
+  // Delete a file (used by force_resolved cleanup paths).
+  OPERATION_KIND_DELETE_FILE = 3;
+  // Create a new file (used by glue recipes — P1).
+  OPERATION_KIND_CREATE_FILE = 4;
+}
+
+// ApplyStatus is the lifecycle state of an apply run.
+enum ApplyStatus {
+  APPLY_STATUS_UNSPECIFIED = 0;
+  APPLY_STATUS_PLANNED = 1;
+  APPLY_STATUS_RUNNING = 2;
+  APPLY_STATUS_BUILD_GREEN = 3;
+  APPLY_STATUS_BUILD_RED = 4;
+  APPLY_STATUS_REVERTED = 5;
+  APPLY_STATUS_COMMITTED = 6;
+}
+
+// Operation is one atomic step in a plan.
+message Operation {
+  // Stable identifier within the plan.
+  string id = 1;
+  OperationKind kind = 2;
+  // Source path (e.g., file to move). Empty for create.
+  string from_path = 3;
+  // Target path (e.g., destination for move). Empty for delete.
+  string to_path = 4;
+  // Optional structured payload (canonical-form JSON) interpreted by
+  // the resolver/recipe owning this operation kind (e.g., the set of
+  // import substitutions for rewrite_import).
+  bytes payload = 5;
+  // Conflict ids the operation resolves (informational; analytics
+  // pairs operations to conflicts via this list).
+  repeated string resolves_conflict_ids = 6;
+}
+
+// Plan is an ordered set of Operations. Plans are per-domain in v0.1.
+message Plan {
+  // Stable identifier.
+  string id = 1;
+  // Target scenario name.
+  string scenario = 2;
+  // Domain the plan targets.
+  string domain = 3;
+  // Operations in the order they will execute.
+  repeated Operation operations = 4;
+  // Conflict ids this plan addresses (often a superset of the union of
+  // Operation.resolves_conflict_ids).
+  repeated string conflict_ids = 5;
+  google.protobuf.Timestamp planned_at = 6;
+}
+
+// ApplyRun records one execution of a Plan.
+message ApplyRun {
+  string id = 1;
+  string plan_id = 2;
+  string scenario = 3;
+  string domain = 4;
+  ApplyStatus status = 5;
+  // BuildGuard output (toolchain stdout + structured result). Empty in
+  // v0.1 because the build-green guardrail is unwired.
+  string build_log = 6;
+  // Server time at the moment the run started.
+  google.protobuf.Timestamp started_at = 7;
+  // Server time at the moment the run reached a terminal status.
+  google.protobuf.Timestamp finished_at = 8;
+}
+
+// BuildBaseline records the toolchain green/red state pre-apply.
+// v0.1 returns an empty baseline because BuildGuard is unwired.
+message BuildBaseline {
+  string scenario = 1;
+  bool green = 2;
+  // Toolchain (e.g., "go", "tsc").
+  string toolchain = 3;
+  // Recorded output lines (last N).
+  string log = 4;
+  google.protobuf.Timestamp captured_at = 5;
+}
+
+// =============================================================================
+// APPLY SERVICE
+// =============================================================================
+
+service ApplyService {
+  // PlanApply derives the deterministic operation list that would
+  // execute for the given domain, given the current resolved conflict
+  // state. Implemented in v0.1; does NOT require any toolchain.
+  rpc PlanApply(PlanApplyRequest) returns (PlanApplyResponse);
+
+  // RunApply executes a previously-planned Plan. v0.1 always returns
+  // CodeUnimplemented with a typed message pointing to the next-phase
+  // plan. The handler is registered so CLI parity is preserved.
+  rpc RunApply(RunApplyRequest) returns (RunApplyResponse);
+
+  // ListApplyHistory paginates apply runs. v0.1 returns empty.
+  rpc ListApplyHistory(ListApplyHistoryRequest) returns (ListApplyHistoryResponse);
+
+  // GetBuildBaseline returns the toolchain green/red baseline. v0.1
+  // returns an empty baseline; the field gates the v0.2 apply path.
+  rpc GetBuildBaseline(GetBuildBaselineRequest) returns (GetBuildBaselineResponse);
+}
+
+message PlanApplyRequest {
+  string scenario = 1;
+  // Domain to plan apply for; required.
+  string domain = 2;
+  // Optional filter: only plan operations for these conflict ids. When
+  // empty, the planner targets every conflict assigned to the domain.
+  repeated string conflict_ids = 3;
+  bool dry_run = 4;
+}
+
+message PlanApplyResponse {
+  Plan plan = 1;
+  bool dry_run = 2;
+}
+
+message RunApplyRequest {
+  string plan_id = 1;
+  // Acknowledge that v0.1 RunApply is unimplemented; reserved for the
+  // v0.2 path that requires an explicit operator opt-in.
+  bool acknowledge_v01_unimplemented = 2;
+}
+
+message RunApplyResponse {
+  ApplyRun run = 1;
+}
+
+message ListApplyHistoryRequest {
+  string scenario = 1;
+  string domain = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListApplyHistoryResponse {
+  repeated ApplyRun runs = 1;
+  string next_page_token = 2;
+}
+
+message GetBuildBaselineRequest {
+  string scenario = 1;
+}
+
+message GetBuildBaselineResponse {
+  BuildBaseline baseline = 1;
+}
+
+// PlanWithContext is a convenience envelope used by analytics+conflicts
+// when persisting plan deltas. Exposed here so other domains can import
+// the bundled view without re-fetching the source conflicts.
+message PlanWithContext {
+  Plan plan = 1;
+  repeated vrooli.architecture_cartographer.v1.conflicts.Conflict conflicts = 2;
+}

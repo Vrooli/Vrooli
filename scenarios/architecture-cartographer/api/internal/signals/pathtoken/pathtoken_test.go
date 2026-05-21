@@ -1,0 +1,76 @@
+package pathtoken_test
+
+import (
+	"context"
+	"testing"
+
+	"architecture-cartographer/internal/graph"
+	"architecture-cartographer/internal/manifest"
+	"architecture-cartographer/internal/signals"
+	"architecture-cartographer/internal/signals/pathtoken"
+)
+
+func gctx() signals.GraphContext {
+	return signals.NewGraphContext("demo", graph.GraphSnapshot{}, manifest.ManifestDefinition{
+		Domains: []manifest.DomainSpec{
+			{Name: "conflicts", Paths: []string{"internal/conflicts/**"}},
+			{Name: "graph", Paths: []string{"internal/graph/**"}},
+		},
+	})
+}
+
+func TestScore_PathMatchesDomain(t *testing.T) {
+	sig := pathtoken.New()
+	out := sig.Score(context.Background(), gctx(), graph.Chunk{
+		ID: "c-1", Path: "internal/conflicts/service.go",
+	})
+	if len(out) != 1 {
+		t.Fatalf("want 1 score, got %+v", out)
+	}
+	if out[0].Domain != "conflicts" {
+		t.Fatalf("unexpected domain: %s", out[0].Domain)
+	}
+	if out[0].Value <= 0 || out[0].Value > 1 {
+		t.Fatalf("value out of range: %f", out[0].Value)
+	}
+	if len(out[0].Evidence) == 0 {
+		t.Fatal("evidence must not be empty")
+	}
+}
+
+func TestScore_NoMatchReturnsEmpty(t *testing.T) {
+	sig := pathtoken.New()
+	out := sig.Score(context.Background(), gctx(), graph.Chunk{
+		ID: "c-1", Path: "internal/foo/bar.go",
+	})
+	if len(out) != 0 {
+		t.Fatalf("want no scores, got %+v", out)
+	}
+}
+
+func TestScore_Reproducible(t *testing.T) {
+	sig := pathtoken.New()
+	a := sig.Score(context.Background(), gctx(), graph.Chunk{Path: "internal/conflicts/service.go"})
+	b := sig.Score(context.Background(), gctx(), graph.Chunk{Path: "internal/conflicts/service.go"})
+	if len(a) != len(b) || a[0].Value != b[0].Value {
+		t.Fatalf("not reproducible: %+v vs %+v", a, b)
+	}
+}
+
+func TestScore_Bounded(t *testing.T) {
+	sig := pathtoken.New()
+	out := sig.Score(context.Background(), gctx(), graph.Chunk{Path: "conflicts.go"})
+	for _, s := range out {
+		if s.Value < 0 || s.Value > 1 {
+			t.Fatalf("out-of-bounds value: %f", s.Value)
+		}
+	}
+}
+
+func TestScore_EmptyPathReturnsEmpty(t *testing.T) {
+	sig := pathtoken.New()
+	out := sig.Score(context.Background(), gctx(), graph.Chunk{})
+	if len(out) != 0 {
+		t.Fatalf("want no scores on empty path, got %+v", out)
+	}
+}

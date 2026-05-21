@@ -1,0 +1,313 @@
+syntax = "proto3";
+
+package vrooli.architecture_cartographer.v1.conflicts;
+
+import "architecture-cartographer/v1/signals/signals.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts;conflicts_v1";
+
+// =============================================================================
+// CONFLICTS DOMAIN
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain conflicts
+// @stability stable
+//
+// Wire contract for the ConflictsService Connect-RPC service. The
+// conflicts domain owns drift detection, the pluggable Detector / Resolver
+// registries, and the per-conflict lifecycle state machine. Conflict
+// envelope shape is locked in v0.1: new detectors do not add fields to
+// Conflict; new optional fields on Fix are allowed.
+//
+// Cross-cutting envelopes defined here and imported by other domains:
+//   - Conflict          (canonical envelope; consumed by analytics + apply)
+//   - Fix               (suggested resolution)
+//   - ConflictEvidence  (kind + locator + payload; intentionally distinct
+//                        from signals.Evidence so detector evidence can
+//                        evolve independently)
+//   - Severity          (manifest-driven severity tag)
+//   - ResolutionStatus  (lifecycle state)
+// =============================================================================
+
+// Severity classifies how blocking a conflict is. Mirrors the manifest's
+// severity declaration for each conflict type.
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_INFO = 1;
+  SEVERITY_WARN = 2;
+  SEVERITY_ERROR = 3;
+  SEVERITY_BLOCKER = 4;
+}
+
+// ResolutionStatus is the lifecycle state of a conflict.
+//
+// Transitions (enforced by the flow contract in
+// internal/conflicts/flow/flow.json):
+//
+//   detected ── assign ──> assigned ── resolve ──> resolved ── validate ──> validated
+//        │           │            │                     │                       │
+//        │           └── split ──>┴── resolve (force) ──┴── commit ───────────> committed
+//        │                                                                       │
+//        └─── force_resolve ─────────────────────────────────────────────────> force_resolved
+enum ResolutionStatus {
+  RESOLUTION_STATUS_UNSPECIFIED = 0;
+  RESOLUTION_STATUS_DETECTED = 1;
+  RESOLUTION_STATUS_ASSIGNED = 2;
+  RESOLUTION_STATUS_SPLIT = 3;
+  RESOLUTION_STATUS_RESOLVED = 4;
+  RESOLUTION_STATUS_VALIDATED = 5;
+  RESOLUTION_STATUS_COMMITTED = 6;
+  RESOLUTION_STATUS_FORCE_RESOLVED = 7;
+}
+
+// FixKind enumerates the operator-facing categories of suggested fixes.
+// New kinds are added through a manifest schema bump (manifest_version).
+enum FixKind {
+  FIX_KIND_UNSPECIFIED = 0;
+  FIX_KIND_MOVE_FILE = 1;
+  FIX_KIND_REASSIGN_DOMAIN = 2;
+  FIX_KIND_BREAK_CYCLE = 3;
+  FIX_KIND_ADD_DEPENDENCY = 4;
+  FIX_KIND_ADD_TRANSITIONAL = 5;
+}
+
+// ConflictEvidence is one detector-supplied piece of justification.
+message ConflictEvidence {
+  // Stable kind identifier (e.g., "scc_member", "import_edge",
+  // "verdict_top_domain", "manifest_declared_domain").
+  string kind = 1;
+  // Human-readable summary shown in CLI/UI.
+  string summary = 2;
+  // Optional locator (e.g., file path, edge string, scc id).
+  string locator = 3;
+  // Optional structured payload bytes (canonical-form JSON). Reserved
+  // for detectors that need to round-trip more than a string.
+  bytes payload = 4;
+}
+
+// Fix is one suggested resolution attached to a Conflict by a detector.
+// Fixes are advisory; resolvers may run a fix only when the operator
+// (or apply) selects it.
+message Fix {
+  // Stable identifier within the Conflict.
+  string id = 1;
+  FixKind kind = 2;
+  // Resolver name expected to execute this fix (e.g., "mislocated_file").
+  string resolver = 3;
+  // Human-readable summary shown in CLI/UI.
+  string summary = 4;
+  // Optional structured payload (canonical-form JSON) the resolver
+  // consumes to perform the fix.
+  bytes payload = 5;
+  // Confidence score in [0, 1] attached to this fix (e.g., the verdict
+  // value that drove a mislocated_file detection).
+  double confidence = 6;
+}
+
+// Conflict is the canonical envelope a Detector emits. Shape is stable
+// in v0.1; adding optional fields on Fix is allowed; adding required
+// fields on Conflict is forbidden.
+message Conflict {
+  // Stable identifier (UUID).
+  string id = 1;
+  // Target scenario name.
+  string scenario = 2;
+  // Detector name (e.g., "cycle", "mislocated_file").
+  string detector = 3;
+  // Conflict type (e.g., "cycle", "mislocated_file"). Often matches
+  // detector but distinguished for cases where one detector emits
+  // multiple types.
+  string type = 4;
+  // Optional sub-classification (e.g., for cycle: "type-only",
+  // "junk-drawer", "cross-domain", "within-domain").
+  string subtype = 5;
+  Severity severity = 6;
+  // Repo-relative locations the conflict touches.
+  repeated string locations = 7;
+  // Domains the conflict touches (manifest-declared; empty when the
+  // locations are not yet assigned to any domain).
+  repeated string domains = 8;
+  // Detector-supplied evidence.
+  repeated ConflictEvidence evidence = 9;
+  // Suggested resolutions, ranked best-first by the detector.
+  repeated Fix suggested_fixes = 10;
+  ResolutionStatus status = 11;
+  // Operator-assigned domain (when status is ASSIGNED or beyond). Empty
+  // when no operator assignment has been made.
+  string assigned_domain = 12;
+  // Operator note attached on resolve / force_resolve.
+  string resolution_note = 13;
+  // Snapshot id the conflict was detected against.
+  string snapshot_id = 14;
+  // Optional verdict that the detector consulted (e.g., for
+  // mislocated_file). Provided so analytics can pair the verdict to
+  // the conflict it produced without round-tripping the registry.
+  vrooli.architecture_cartographer.v1.signals.Verdict verdict = 15;
+  google.protobuf.Timestamp detected_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+}
+
+// DetectorDescriptor describes one registered detector.
+message DetectorDescriptor {
+  string name = 1;
+  string description = 2;
+  string stability = 3;
+  // Conflict types this detector can emit.
+  repeated string emits_types = 4;
+}
+
+// ResolverDescriptor describes one registered resolver.
+message ResolverDescriptor {
+  string name = 1;
+  string description = 2;
+  string stability = 3;
+  // Fix kinds this resolver handles.
+  repeated FixKind handles_kinds = 4;
+  // True when the resolver requires `apply` to execute (v0.1 surfaces
+  // this so the CLI can communicate the deferral).
+  bool requires_apply = 5;
+}
+
+// =============================================================================
+// CONFLICTS SERVICE
+// =============================================================================
+
+service ConflictsService {
+  // DetectConflicts runs every registered detector against the target
+  // scenario's current graph snapshot + manifest, persists the
+  // emitted conflicts, and returns them. Honors Idempotency-Key.
+  rpc DetectConflicts(DetectConflictsRequest) returns (DetectConflictsResponse);
+
+  // ListConflicts paginates conflicts for a scenario.
+  rpc ListConflicts(ListConflictsRequest) returns (ListConflictsResponse);
+
+  // GetConflict returns one conflict by id.
+  rpc GetConflict(GetConflictRequest) returns (GetConflictResponse);
+
+  // AssignConflict moves the conflict to ASSIGNED and records the
+  // operator's choice of domain. Honors X-Dry-Run.
+  rpc AssignConflict(AssignConflictRequest) returns (AssignConflictResponse);
+
+  // ResolveConflict moves the conflict to RESOLVED (or FORCE_RESOLVED
+  // when force=true). v0.1 records intent only; the actual mutation
+  // happens in `apply` (which is unimplemented in v0.1). Honors X-Dry-Run.
+  rpc ResolveConflict(ResolveConflictRequest) returns (ResolveConflictResponse);
+
+  // ReopenConflict moves a resolved conflict back to DETECTED. Honors
+  // X-Dry-Run.
+  rpc ReopenConflict(ReopenConflictRequest) returns (ReopenConflictResponse);
+
+  // ValidateConflicts re-runs detection + diff against the current
+  // resolution state and returns the residual conflict set. Used by
+  // `arch-cart validate <scenario>` and by the dogfood gate.
+  rpc ValidateConflicts(ValidateConflictsRequest) returns (ValidateConflictsResponse);
+
+  // ListDetectors returns the registered detector set.
+  rpc ListDetectors(ListDetectorsRequest) returns (ListDetectorsResponse);
+
+  // ListResolvers returns the registered resolver set.
+  rpc ListResolvers(ListResolversRequest) returns (ListResolversResponse);
+}
+
+message DetectConflictsRequest {
+  string scenario = 1;
+  // Snapshot id; when empty, DetectConflicts extracts a fresh snapshot.
+  string snapshot_id = 2;
+  string idempotency_key = 3;
+}
+
+message DetectConflictsResponse {
+  repeated Conflict conflicts = 1;
+}
+
+message ListConflictsRequest {
+  string scenario = 1;
+  // Optional filter: only return conflicts in these statuses.
+  repeated ResolutionStatus statuses = 2;
+  // Optional filter: only return conflicts of these types.
+  repeated string types = 3;
+  int32 page_size = 4;
+  string page_token = 5;
+}
+
+message ListConflictsResponse {
+  repeated Conflict conflicts = 1;
+  string next_page_token = 2;
+}
+
+message GetConflictRequest {
+  string id = 1;
+}
+
+message GetConflictResponse {
+  Conflict conflict = 1;
+}
+
+message AssignConflictRequest {
+  string id = 1;
+  // Domain to assign (must be declared in the manifest).
+  string domain = 2;
+  // Operator note (optional).
+  string note = 3;
+  bool dry_run = 4;
+}
+
+message AssignConflictResponse {
+  Conflict conflict = 1;
+  bool dry_run = 2;
+}
+
+message ResolveConflictRequest {
+  string id = 1;
+  // Operator note (optional, recommended).
+  string note = 2;
+  // When true, transitions to FORCE_RESOLVED, marking that the
+  // operator chose to ignore the conflict.
+  bool force = 3;
+  bool dry_run = 4;
+}
+
+message ResolveConflictResponse {
+  Conflict conflict = 1;
+  bool dry_run = 2;
+  // True when the resolver flagged this resolution as deferred to
+  // `apply`. v0.1 sets this to true for every fix that requires file
+  // movement, because apply is unimplemented.
+  bool apply_deferred = 3;
+}
+
+message ReopenConflictRequest {
+  string id = 1;
+  string note = 2;
+  bool dry_run = 3;
+}
+
+message ReopenConflictResponse {
+  Conflict conflict = 1;
+  bool dry_run = 2;
+}
+
+message ValidateConflictsRequest {
+  string scenario = 1;
+}
+
+message ValidateConflictsResponse {
+  // Conflicts still outstanding after resolution state is applied.
+  repeated Conflict conflicts = 1;
+  // True when there are zero outstanding conflicts of severity >= ERROR.
+  bool clean = 2;
+}
+
+message ListDetectorsRequest {}
+
+message ListDetectorsResponse {
+  repeated DetectorDescriptor detectors = 1;
+}
+
+message ListResolversRequest {}
+
+message ListResolversResponse {
+  repeated ResolverDescriptor resolvers = 1;
+}

@@ -9,9 +9,27 @@ import (
 	"path/filepath"
 	"strings"
 
+	"architecture-cartographer/internal/analytics"
+	"architecture-cartographer/internal/apply"
 	"architecture-cartographer/internal/clock"
+	"architecture-cartographer/internal/conflicts"
+	"architecture-cartographer/internal/conflicts/detectors/cycle"
+	"architecture-cartographer/internal/conflicts/detectors/mislocatedfile"
+	mislocatedresolver "architecture-cartographer/internal/conflicts/resolvers/mislocatedfile"
+	"architecture-cartographer/internal/git"
+	"architecture-cartographer/internal/graph"
+	"architecture-cartographer/internal/graph/gocodegraph"
+	"architecture-cartographer/internal/graph/tscodegraph"
+	"architecture-cartographer/internal/manifest"
 	"architecture-cartographer/internal/modules"
 	"architecture-cartographer/internal/server"
+	"architecture-cartographer/internal/signals"
+	"architecture-cartographer/internal/signals/gitcoedit"
+	"architecture-cartographer/internal/signals/importcluster"
+	"architecture-cartographer/internal/signals/importervoting"
+	"architecture-cartographer/internal/signals/pathtoken"
+	"architecture-cartographer/internal/signals/symbolglossary"
+	"architecture-cartographer/internal/signals/testcoupling"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -21,7 +39,13 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	analyticsH "architecture-cartographer/handlers/analytics"
+	applyH "architecture-cartographer/handlers/apply"
+	conflictsH "architecture-cartographer/handlers/conflicts"
+	graphH "architecture-cartographer/handlers/graph"
 	healthH "architecture-cartographer/handlers/health"
+	manifestH "architecture-cartographer/handlers/manifest"
+	signalsH "architecture-cartographer/handlers/signals"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -100,9 +124,57 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	// Wire per-domain services. Production wires the sqlite repository
+	// in every domain that persists; signals is stateless. Adapter
+	// stubs return IntegrationError until go-code-graph and
+	// typescript-code-graph ship.
+	clk := clock.System{}
+	primary := db.Primary()
+
+	graphSvc := graph.NewService(
+		graph.NewSQLiteRepository(primary, clk), clk,
+		gocodegraph.New(""), tscodegraph.New(""),
+	)
+	manifestSvc := manifest.NewService(manifest.NewSQLiteRepository(primary, clk))
+	analyticsSvc := analytics.NewService(analytics.NewSQLiteRepository(primary, clk))
+
+	signalsReg := signals.NewRegistry(
+		pathtoken.New(),
+		importcluster.New(),
+		symbolglossary.New(),
+		importervoting.New(),
+		testcoupling.New(),
+		gitcoedit.New(git.NewRealRunner()),
+	)
+	signalsSvc := signals.NewService(
+		signalsReg, signals.NewAggregator(signalsReg, nil),
+		signals.NewGraphSnapshotProvider(graphSvc),
+		manifestSvc,
+	)
+
+	conflictsRepo := conflicts.NewSQLiteRepository(primary, clk)
+	conflictsSvc := conflicts.NewServiceWithAnalytics(
+		conflictsRepo,
+		conflicts.NewRegistry(cycle.New(), mislocatedfile.New()),
+		conflicts.NewResolverRegistry(mislocatedresolver.New()),
+		conflicts.NewAnalyticsAdapter(analyticsSvc),
+	)
+
+	applySvc := apply.NewService(
+		apply.NewSQLiteRepository(primary, clk),
+		conflictsSvc,
+		apply.NewRecipeRegistry(),
+	)
+
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: clk, Logger: log.Default()},
 		healthH.Module(db, "architecture-cartographer-api", "1.0.0"),
+		analyticsH.Module(analyticsSvc),
+		applyH.Module(applySvc),
+		conflictsH.Module(conflictsH.Deps{Conflicts: conflictsSvc, Graph: graphSvc, Manifest: manifestSvc}),
+		graphH.Module(graphSvc),
+		manifestH.Module(manifestSvc),
+		signalsH.Module(signalsSvc),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

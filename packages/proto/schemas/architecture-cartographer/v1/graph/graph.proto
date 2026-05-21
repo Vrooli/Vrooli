@@ -1,0 +1,232 @@
+syntax = "proto3";
+
+package vrooli.architecture_cartographer.v1.graph;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph;graph_v1";
+
+// =============================================================================
+// GRAPH DOMAIN
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain graph
+// @stability stable
+//
+// Wire contract for the GraphService Connect-RPC service. The graph domain
+// owns extraction, normalization, and persistence of immutable graph
+// snapshots produced by the language code-graph scenarios (go-code-graph,
+// typescript-code-graph). Parsing itself lives strictly in the language
+// scenarios — graph never imports a parser.
+//
+// Cross-cutting envelopes defined here and imported by other domains:
+//   - GraphSnapshot   (used by conflict detection + signal scoring)
+//   - FileNode / PackageNode / SymbolNode / ImportEdge (graph nodes/edges)
+//   - Chunk           (the unit of scoring; consumed by signals)
+//
+// Consumed by:
+//   - API: handlers/graph/connect_handler.go implements the generated
+//          GraphServiceHandler interface from the graph_v1connect package.
+//   - UI:  ui/src/api/graph.ts (graph viewer feature lands in a later plan).
+//   - CLI: cli/domains/graph/handlers.go calls the generated Connect-Go
+//          client and renders via cliapp.ListReport / cliapp.MutationReport.
+// =============================================================================
+
+// Language identifies the source language a node/edge belongs to.
+enum Language {
+  LANGUAGE_UNSPECIFIED = 0;
+  LANGUAGE_GO = 1;
+  LANGUAGE_TYPESCRIPT = 2;
+}
+
+// FileNode is one source file in the target scenario.
+message FileNode {
+  // Stable node identifier ("file:" + repo-relative path).
+  string id = 1;
+  // Repo-relative path (e.g., "api/internal/conflicts/service.go").
+  string path = 2;
+  // Owning package node id (transitively from PackageNode.id).
+  string package_id = 3;
+  // Source language.
+  Language language = 4;
+  // Approximate line count (best-effort, not load-bearing).
+  int32 lines = 5;
+  // True when the file is a test file (e.g., *_test.go, *.test.ts).
+  bool is_test = 6;
+}
+
+// PackageNode is one logical package or module.
+message PackageNode {
+  // Stable node identifier ("pkg:" + import path).
+  string id = 1;
+  // Canonical import path (e.g., "github.com/x/y/z" or "@vrooli/foo").
+  string import_path = 2;
+  // Repo-relative directory containing the package (best-effort; empty
+  // when the package is external / outside the target scenario).
+  string directory = 3;
+  // Source language.
+  Language language = 4;
+  // True when the package belongs to the target scenario (false for
+  // standard library, third-party deps, or other scenarios).
+  bool internal = 5;
+}
+
+// SymbolNode is one exported identifier (function, type, constant, etc.).
+message SymbolNode {
+  // Stable node identifier ("sym:" + package_id + ":" + name).
+  string id = 1;
+  // Identifier (e.g., "DetectConflicts", "FakeRepository").
+  string name = 2;
+  // Owning package node id.
+  string package_id = 3;
+  // Owning file node id (the file declaring the symbol).
+  string file_id = 4;
+  // Kind of symbol, e.g., "func", "type", "const", "var", "iface".
+  string kind = 5;
+  // True when the symbol is exported from its package.
+  bool exported = 6;
+}
+
+// ImportEdge is a directed dependency from a file or package to a package.
+message ImportEdge {
+  // Source node id (FileNode.id or PackageNode.id).
+  string from = 1;
+  // Target package node id.
+  string to_package_id = 2;
+  // Per-symbol granularity when the language graph reports it; empty
+  // when the importer pulls the package by side effect only.
+  repeated string symbol_ids = 3;
+  // True when the edge is test-only (importer is a test file).
+  bool test_only = 4;
+}
+
+// Chunk is the unit of scoring. Day-one signals score one chunk at a
+// time. v0.1 chunks correspond 1:1 with a FileNode; richer chunkings
+// (function-level, symbol-cluster) are P1.
+message Chunk {
+  // Stable chunk identifier.
+  string id = 1;
+  // The file node represented by this chunk.
+  string file_id = 2;
+  // Repo-relative path (denormalized for log readability).
+  string path = 3;
+  // Optional: the manifest-declared domain currently owning this chunk.
+  // Empty when the file is not yet declared in any domain's paths.
+  string current_domain = 4;
+}
+
+// GraphSnapshot is the normalized, immutable result of extracting a
+// language graph. Cartographer never mutates a snapshot after
+// construction — all downstream consumers receive a value-copy.
+message GraphSnapshot {
+  // Stable identifier ("snap:" + scenario + ":" + content_hash).
+  string id = 1;
+  // Target scenario name (e.g., "architecture-cartographer").
+  string scenario = 2;
+  // Content hash over the inputs that produced this snapshot. Used as
+  // the cache key. Stable across re-extractions when nothing changes.
+  string content_hash = 3;
+  // Source language(s) covered by this snapshot. Multi-language
+  // scenarios produce one snapshot per language and combine downstream.
+  repeated Language languages = 4;
+  // Server time at the moment the snapshot was first persisted.
+  google.protobuf.Timestamp extracted_at = 5;
+  // Total elapsed wall-clock extraction time in milliseconds.
+  int64 extraction_ms = 6;
+  // All nodes in the graph, deduped by id.
+  repeated FileNode files = 7;
+  repeated PackageNode packages = 8;
+  repeated SymbolNode symbols = 9;
+  // All edges in the graph, deduped by (from, to_package_id) pair.
+  repeated ImportEdge imports = 10;
+}
+
+// =============================================================================
+// GRAPH SERVICE
+// =============================================================================
+
+service GraphService {
+  // ExtractGraph asks the language code-graph adapter(s) for a fresh
+  // graph of the target scenario, normalizes the result, persists it,
+  // and returns the snapshot.
+  rpc ExtractGraph(ExtractGraphRequest) returns (ExtractGraphResponse);
+
+  // GetGraphSnapshot returns a persisted snapshot by id.
+  rpc GetGraphSnapshot(GetGraphSnapshotRequest) returns (GetGraphSnapshotResponse);
+
+  // ListGraphSnapshots paginates persisted snapshots for a scenario.
+  rpc ListGraphSnapshots(ListGraphSnapshotsRequest) returns (ListGraphSnapshotsResponse);
+
+  // ClearGraphSnapshots removes cached snapshots for a scenario.
+  // Honors X-Dry-Run.
+  rpc ClearGraphSnapshots(ClearGraphSnapshotsRequest) returns (ClearGraphSnapshotsResponse);
+
+  // ExportGraph returns the snapshot in a serializable shape (e.g.,
+  // JSON) for offline analysis or fixture authoring.
+  rpc ExportGraph(ExportGraphRequest) returns (ExportGraphResponse);
+}
+
+message ExtractGraphRequest {
+  // Target scenario name.
+  string scenario = 1;
+  // Optional language filter. Empty means auto-detect.
+  repeated Language languages = 2;
+  // Optional Idempotency-Key passthrough for caller-controlled dedupe.
+  string idempotency_key = 3;
+}
+
+message ExtractGraphResponse {
+  GraphSnapshot snapshot = 1;
+  // True when the snapshot was served from cache (content_hash hit).
+  bool from_cache = 2;
+}
+
+message GetGraphSnapshotRequest {
+  // GraphSnapshot.id.
+  string id = 1;
+}
+
+message GetGraphSnapshotResponse {
+  GraphSnapshot snapshot = 1;
+}
+
+message ListGraphSnapshotsRequest {
+  // Filter to one scenario; empty lists all.
+  string scenario = 1;
+  // Cursor pagination.
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListGraphSnapshotsResponse {
+  repeated GraphSnapshot snapshots = 1;
+  string next_page_token = 2;
+}
+
+message ClearGraphSnapshotsRequest {
+  // Filter to one scenario; required.
+  string scenario = 1;
+  // True returns the count that would have been deleted without
+  // performing the deletion.
+  bool dry_run = 2;
+}
+
+message ClearGraphSnapshotsResponse {
+  // Number of snapshots deleted (or that would have been on dry-run).
+  int32 deleted = 1;
+  bool dry_run = 2;
+}
+
+message ExportGraphRequest {
+  // GraphSnapshot.id.
+  string id = 1;
+}
+
+message ExportGraphResponse {
+  // Serialized snapshot in the requested format. v0.1 returns
+  // canonical-form JSON bytes.
+  bytes payload = 1;
+  // Content-type of the payload (e.g., "application/json").
+  string content_type = 2;
+}

@@ -10,19 +10,16 @@ import (
 	"architecture-cartographer/internal/module"
 )
 
-// TestRun_ProducesValidJSON exercises the codegen end-to-end: writes
-// the manifest to a temp file, reads it back, asserts it's valid JSON
-// with the canonical envelope shape.
+// TestRun_ProducesValidJSON exercises the codegen end-to-end: runs the
+// pipeline against the canonical seed (the real cli_commands_seed.json),
+// reads the output back, and asserts it's valid JSON with the canonical
+// envelope shape.
 func TestRun_ProducesValidJSON(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "endpoints.json")
-	seed := filepath.Join(t.TempDir(), "seed.json")
-	writeSeed(t, seed, []CLICommand{
-		{Name: "status", Description: "Health check", EndpointID: "health"},
-		{Name: "alpha list", Description: "Synthetic CLI fixture", EndpointID: "alpha_list"},
-		{Name: "alpha create", Description: "Synthetic CLI fixture", EndpointID: "alpha_create"},
-		{Name: "alpha get", Description: "Synthetic CLI fixture", EndpointID: "alpha_get"},
-		{Name: "alpha attach", Description: "Synthetic CLI fixture", EndpointID: "alpha_attach"},
-	})
+	// Use the on-disk seed so we exercise the same data the production
+	// build uses. The test runs from cmd/gen-endpoints so the relative
+	// path resolves the same way `go run ./cmd/gen-endpoints` would.
+	seed := "cli_commands_seed.json"
 
 	if err := run(output, seed); err != nil {
 		t.Fatalf("run: %v", err)
@@ -52,8 +49,21 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 5 {
-		t.Errorf("cli_commands count = %d, want 5", len(got.CLICommands))
+	// At least the canonical health entry must be present; production
+	// scenarios add many more — we don't pin the exact count because new
+	// domains land alongside their CLI entries in the same commit.
+	if len(got.CLICommands) == 0 {
+		t.Error("cli_commands must be non-empty")
+	}
+	foundStatus := false
+	for _, c := range got.CLICommands {
+		if c.Name == "status" {
+			foundStatus = true
+			break
+		}
+	}
+	if !foundStatus {
+		t.Error("cli_commands must include the canonical 'status' entry")
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

@@ -216,14 +216,16 @@ func validRESTReason(r module.RESTReason) bool {
 	return false
 }
 
-// stripBinaryPrefix removes the leading "architecture-cartographer " from a CLI
-// command string. The CLI commands seed lists the subcommand names
-// without the binary prefix because the binary name is substituted
-// per-scenario at generation time.
+// stripBinaryPrefix removes the leading binary-name prefix from a CLI
+// command string. The CLI commands seed lists subcommand names without
+// the binary prefix because the binary name is substituted per-scenario
+// at generation time. Both the scenario-id form ("architecture-cartographer ")
+// and the short binary name ("arch-cart ") are recognized.
 func stripBinaryPrefix(cmd string) string {
-	const prefix = "architecture-cartographer "
-	if len(cmd) > len(prefix) && cmd[:len(prefix)] == prefix {
-		return cmd[len(prefix):]
+	for _, prefix := range []string{"architecture-cartographer ", "arch-cart "} {
+		if len(cmd) > len(prefix) && cmd[:len(prefix)] == prefix {
+			return cmd[len(prefix):]
+		}
 	}
 	return cmd
 }

@@ -31,14 +31,17 @@ func EvaluateProtectedGitAllowlist(cfg types.ProtectedConfig, command string, ar
 	}
 	verb := firstArg(args)
 	if verb == "" {
-		return "git invoked without a verb; allowlist enforces a verb-level policy. Use one of: " + strings.Join(cfg.GitAllowlist, ", ")
+		return "git invoked without a verb in a sandboxed run. Before retrying with a verb, note: git operations are almost always a human's responsibility, not an agent's. Direct git is restricted to read-only verbs in this sandbox (" + strings.Join(cfg.GitAllowlist, ", ") + "); anything mutating belongs to the human."
 	}
 	for _, allowed := range cfg.GitAllowlist {
 		if allowed == verb {
 			return ""
 		}
 	}
-	return "git verb \"" + verb + "\" is not in the protected-mode allowlist (" + strings.Join(cfg.GitAllowlist, ", ") + "). For mutating git operations, route through Git Control Tower instead of direct git invocations."
+	return "git verb \"" + verb + "\" is blocked in this sandboxed run.\n\n" +
+		"Git operations are almost always a human's responsibility, not an agent's. Even verbs that look safe — commit, branch, stash, checkout, reset, rebase, merge, pull, push, clean — should not be run by an agent unless the user has explicitly authorized git work for this specific task. In the overwhelming majority of cases the correct action here is to STOP and leave the repository alone; let the human decide when and how to commit, reset, rebase, or clean up.\n\n" +
+		"If you find yourself reaching for git to \"save progress\", \"clean up\", \"undo a mistake\", \"sync with main\", or \"check what changed\" beyond a read-only diff, you are very likely doing something the user did not ask for. Reconsider what you were about to do — the human will handle the git side.\n\n" +
+		"If, and only if, you have explicit authorization from the user for a git operation as part of this task, route it through the git-control-tower CLI (not direct git). Direct git is restricted to read-only verbs (" + strings.Join(cfg.GitAllowlist, ", ") + ") in this sandbox, and you must not attempt to bypass this restriction by aliasing, scripting around, or invoking git through another tool."
 }
 
 func firstArg(args []string) string {

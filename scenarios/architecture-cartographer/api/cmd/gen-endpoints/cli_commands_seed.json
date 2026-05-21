@@ -5,6 +5,39 @@
       "name": "status",
       "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
       "endpoint_id": "health"
-    }
+    },
+
+    { "name": "history",              "description": "Page the append-only analytics event log",                          "endpoint_id": "analytics.list-events" },
+    { "name": "stats",                "description": "Show analytics stats roll-up (N<5 suppressed)",                     "endpoint_id": "analytics.get-stats" },
+    { "name": "placements list",      "description": "List placement outcomes for a scenario",                            "endpoint_id": "analytics.list-placements" },
+    { "name": "override record",      "description": "Record an operator override of a verdict",                          "endpoint_id": "analytics.record-override" },
+
+    { "name": "apply plan",           "description": "Deterministically plan a per-domain apply (v0.1: read-only)",       "endpoint_id": "apply.plan" },
+    { "name": "apply run",            "description": "Run a planned apply (v0.1: returns unimplemented)",                 "endpoint_id": "apply.run" },
+    { "name": "apply history",        "description": "List apply runs (empty in v0.1)",                                   "endpoint_id": "apply.list-history" },
+    { "name": "apply baseline",       "description": "Show the toolchain build baseline (empty in v0.1)",                 "endpoint_id": "apply.get-build-baseline" },
+
+    { "name": "conflicts list",       "description": "Detect + list conflicts for a scenario",                            "endpoint_id": "conflicts.detect" },
+    { "name": "conflict show",        "description": "Show one persisted conflict",                                       "endpoint_id": "conflicts.get" },
+    { "name": "conflict assign",      "description": "Assign a conflict to a target domain",                              "endpoint_id": "conflicts.assign" },
+    { "name": "conflict resolve",     "description": "Resolve a conflict (force-resolve with --force)",                   "endpoint_id": "conflicts.resolve" },
+    { "name": "conflict reopen",      "description": "Re-open a resolved or force-resolved conflict",                     "endpoint_id": "conflicts.reopen" },
+    { "name": "validate",             "description": "Validate cartographer-clean closure (zero outstanding conflicts)",  "endpoint_id": "conflicts.validate" },
+    { "name": "detectors list",       "description": "List registered Detector plug-ins",                                 "endpoint_id": "conflicts.list-detectors" },
+    { "name": "resolvers list",       "description": "List registered Resolver plug-ins",                                 "endpoint_id": "conflicts.list-resolvers" },
+
+    { "name": "graph extract",        "description": "Extract a fresh graph snapshot and persist it",                     "endpoint_id": "graph.extract" },
+    { "name": "graph show",           "description": "Show a persisted graph snapshot by id",                             "endpoint_id": "graph.get" },
+    { "name": "graph list",           "description": "List persisted graph snapshots",                                    "endpoint_id": "graph.list" },
+    { "name": "graph clear",          "description": "Clear cached graph snapshots for a scenario",                       "endpoint_id": "graph.clear" },
+    { "name": "graph export",         "description": "Export a snapshot as canonical-form JSON bytes",                    "endpoint_id": "graph.export" },
+
+    { "name": "manifest validate",    "description": "Validate (parse + structurally check + persist) a manifest source", "endpoint_id": "manifest.validate" },
+    { "name": "manifest show",        "description": "Show the persisted manifest for a scenario",                        "endpoint_id": "manifest.get" },
+    { "name": "manifest list-domains","description": "List declared domains for a scenario",                              "endpoint_id": "manifest.list-domains" },
+
+    { "name": "signals score",        "description": "Score a chunk through every registered Signal",                     "endpoint_id": "signals.score" },
+    { "name": "signals explain",      "description": "Explain a verdict with full per-signal evidence",                   "endpoint_id": "signals.explain" },
+    { "name": "signals list",         "description": "List registered Signal plug-ins",                                   "endpoint_id": "signals.list" }
   ]
 }

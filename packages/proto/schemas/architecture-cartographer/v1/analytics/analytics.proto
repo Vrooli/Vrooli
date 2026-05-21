@@ -1,0 +1,231 @@
+syntax = "proto3";
+
+package vrooli.architecture_cartographer.v1.analytics;
+
+import "architecture-cartographer/v1/conflicts/conflicts.proto";
+import "architecture-cartographer/v1/signals/signals.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/analytics;analytics_v1";
+
+// =============================================================================
+// ANALYTICS DOMAIN
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain analytics
+// @stability stable
+//
+// Wire contract for the AnalyticsService Connect-RPC service. Analytics
+// is append-only from the first commit: every conflict detection,
+// resolution, override, auto-placement verdict, and apply outcome lands
+// here. Stats with N<5 suppress success-rate fields per the threshold
+// rule documented in DOMAINS.md::analytics::Threshold rule.
+//
+// Cross-cutting envelopes defined here and imported by other domains:
+//   - Event           (append-only record)
+//   - EventKind       (closed enum; new kinds bump manifest_version)
+//   - Placement       (auto-placement verdict outcome row)
+//   - Override        (operator override of a verdict)
+// =============================================================================
+
+// EventKind enumerates the closed set of recordable events.
+enum EventKind {
+  EVENT_KIND_UNSPECIFIED = 0;
+  EVENT_KIND_CONFLICT_DETECTED = 1;
+  EVENT_KIND_CONFLICT_ASSIGNED = 2;
+  EVENT_KIND_CONFLICT_RESOLVED = 3;
+  EVENT_KIND_CONFLICT_REOPENED = 4;
+  EVENT_KIND_CONFLICT_FORCE_RESOLVED = 5;
+  EVENT_KIND_VERDICT_PRODUCED = 6;
+  EVENT_KIND_PLACEMENT_AUTO = 7;
+  EVENT_KIND_PLACEMENT_SUGGEST = 8;
+  EVENT_KIND_OVERRIDE_RECORDED = 9;
+  EVENT_KIND_APPLY_PLANNED = 10;
+  EVENT_KIND_APPLY_RAN = 11;
+  EVENT_KIND_APPLY_BUILD_GREEN = 12;
+  EVENT_KIND_APPLY_BUILD_RED = 13;
+  EVENT_KIND_APPLY_REVERTED = 14;
+}
+
+// Event is one append-only row. Corrections are new rows with
+// corrects_event_id set to the row being corrected; no UPDATE or DELETE
+// is allowed on the events table.
+message Event {
+  // Stable identifier (UUID).
+  string id = 1;
+  EventKind kind = 2;
+  // Target scenario name.
+  string scenario = 3;
+  // Optional domain context (e.g., "conflicts", "graph") — empty for
+  // scenario-wide events.
+  string domain = 4;
+  // Optional conflict id when the event is conflict-shaped.
+  string conflict_id = 5;
+  // Optional chunk id when the event is verdict/placement-shaped.
+  string chunk_id = 6;
+  // Optional plan/run id when the event is apply-shaped.
+  string plan_id = 7;
+  string run_id = 8;
+  // Optional corrections pointer; identifies a prior event being
+  // corrected by this row.
+  string corrects_event_id = 9;
+  // Structured payload (canonical-form JSON). Consumers decode based on
+  // EventKind. Defined as bytes to avoid pulling every concrete message
+  // type into this proto.
+  bytes payload = 10;
+  // Operator who triggered the event ("agent" or a human handle).
+  string actor = 11;
+  google.protobuf.Timestamp recorded_at = 12;
+}
+
+// Placement is one auto-placement verdict outcome row. v0.1 keeps a
+// separate placements table for cheap stats queries (vs. scanning the
+// events log every time `arch-cart stats` is called).
+message Placement {
+  string id = 1;
+  string scenario = 2;
+  string chunk_id = 3;
+  string chunk_path = 4;
+  // Verdict the aggregator produced.
+  vrooli.architecture_cartographer.v1.signals.Verdict verdict = 5;
+  // Did the operator accept the auto-placement (or did they override)?
+  // Empty when the verdict is in SUGGEST tier and no operator action
+  // has been taken yet.
+  string outcome = 6; // "auto_placed", "suggested", "overridden", "rejected"
+  // True when the verdict was acted on automatically (no operator gate).
+  bool auto_acted = 7;
+  google.protobuf.Timestamp recorded_at = 8;
+}
+
+// Override is one operator override of a verdict. Highest-value
+// calibration signal — the recorder pairs override to the original
+// verdict so the success rate is computed correctly.
+message Override {
+  string id = 1;
+  string scenario = 2;
+  string chunk_id = 3;
+  // The verdict's recommended domain.
+  string verdict_domain = 4;
+  // The operator's chosen domain.
+  string chosen_domain = 5;
+  // Operator note.
+  string note = 6;
+  // Optional pointer to the original verdict_produced event.
+  string verdict_event_id = 7;
+  google.protobuf.Timestamp recorded_at = 8;
+}
+
+// StatsSummary is the response shape for GetStats.
+message StatsSummary {
+  // Target scenario.
+  string scenario = 1;
+  // Total conflicts detected (lifetime).
+  int64 conflicts_detected = 2;
+  // Total conflicts resolved.
+  int64 conflicts_resolved = 3;
+  // Total conflicts force-resolved.
+  int64 conflicts_force_resolved = 4;
+  // Total placements auto-acted on.
+  int64 placements_auto = 5;
+  // Total placements suggested.
+  int64 placements_suggest = 6;
+  // Total operator overrides recorded.
+  int64 overrides = 7;
+  // Verdict-success rate in [0, 1]. Suppressed (zero + suppressed=true)
+  // when observation count is below the threshold (N<5).
+  double verdict_success_rate = 8;
+  // True when verdict_success_rate is suppressed for low N.
+  bool verdict_success_rate_suppressed = 9;
+  // N for the verdict-success calculation.
+  int64 verdict_observation_count = 10;
+}
+
+// =============================================================================
+// ANALYTICS SERVICE
+// =============================================================================
+
+service AnalyticsService {
+  // ListEvents paginates the append-only event log.
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+
+  // GetStats returns a roll-up of conflict + placement + override
+  // counts and the threshold-suppressed verdict success rate.
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+
+  // ListPlacements paginates placement rows for a scenario.
+  rpc ListPlacements(ListPlacementsRequest) returns (ListPlacementsResponse);
+
+  // RecordOverride appends an Override row. Honors Idempotency-Key and
+  // X-Dry-Run.
+  rpc RecordOverride(RecordOverrideRequest) returns (RecordOverrideResponse);
+}
+
+message ListEventsRequest {
+  string scenario = 1;
+  // Optional filter: only return these kinds.
+  repeated EventKind kinds = 2;
+  // Optional cutoff: only return events at or after this time.
+  google.protobuf.Timestamp since = 3;
+  int32 page_size = 4;
+  string page_token = 5;
+}
+
+message ListEventsResponse {
+  repeated Event events = 1;
+  string next_page_token = 2;
+}
+
+message GetStatsRequest {
+  string scenario = 1;
+}
+
+message GetStatsResponse {
+  StatsSummary stats = 1;
+}
+
+message ListPlacementsRequest {
+  string scenario = 1;
+  // Optional filter: only return placements with these outcomes.
+  repeated string outcomes = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListPlacementsResponse {
+  repeated Placement placements = 1;
+  string next_page_token = 2;
+}
+
+message RecordOverrideRequest {
+  string scenario = 1;
+  string chunk_id = 2;
+  // The verdict's recommended domain.
+  string verdict_domain = 3;
+  // The operator's chosen domain.
+  string chosen_domain = 4;
+  string note = 5;
+  // Pointer to the original verdict event (informational).
+  string verdict_event_id = 6;
+  string idempotency_key = 7;
+  bool dry_run = 8;
+}
+
+message RecordOverrideResponse {
+  Override override = 1;
+  bool dry_run = 2;
+}
+
+// VerdictPayload is the canonical decode target for Event.payload when
+// kind=EVENT_KIND_VERDICT_PRODUCED. Defined here (rather than inlined
+// into Event) so consumers can import the type without scanning the
+// events table.
+message VerdictPayload {
+  vrooli.architecture_cartographer.v1.signals.Verdict verdict = 1;
+}
+
+// ConflictPayload is the canonical decode target for Event.payload when
+// kind ∈ {DETECTED, ASSIGNED, RESOLVED, REOPENED, FORCE_RESOLVED}.
+message ConflictPayload {
+  vrooli.architecture_cartographer.v1.conflicts.Conflict conflict = 1;
+}

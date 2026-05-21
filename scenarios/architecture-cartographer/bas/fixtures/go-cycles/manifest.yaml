@@ -1,0 +1,18 @@
+manifest_version: v1
+scenario: go-cycles
+domains:
+  - name: alpha
+    paths:
+      - pkg/alpha/**
+    allowed_dependencies: []
+  - name: beta
+    paths:
+      - pkg/beta/**
+    allowed_dependencies: []
+shared_substrate: []
+signal_weights: {}
+thresholds:
+  - tier: auto_place
+    min_value: 0.85
+  - tier: suggest
+    min_value: 0.55
