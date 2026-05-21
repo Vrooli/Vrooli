@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 	"time"
+	"web-console/internal/events"
 
 	"connectrpc.com/connect"
 
 	eventsH "web-console/handlers/events"
-	"web-console/internal/events"
 
 	eventsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/events"
 )

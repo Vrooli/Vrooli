@@ -34,7 +34,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
 	"web-console/internal/module"
 	"web-console/internal/modules"
 )

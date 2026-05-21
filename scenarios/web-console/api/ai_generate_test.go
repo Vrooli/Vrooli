@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"web-console/internal/events"
+	"web-console/internal/metrics"
+	"web-console/internal/ptyfake"
 
 	intai "web-console/internal/ai"
 
@@ -14,9 +17,6 @@ import (
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/ai"
 
-	"web-console/internal/events"
-	"web-console/internal/metrics"
-	"web-console/internal/ptyfake"
 	intworkspace "web-console/internal/workspace"
 )
 

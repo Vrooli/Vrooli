@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+	"web-console/internal/audioports"
 
 	conversationH "web-console/handlers/conversation"
-	"web-console/internal/audioports"
 )
 
 // conversationAdapter implements conversationH.Service against the server's

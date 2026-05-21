@@ -125,21 +125,46 @@ func (p AutoHealPolicy) Validate() error {
 	return nil
 }
 
+// MaxFailureCooldown caps exponential backoff so auto-heal cannot be silenced
+// indefinitely. Without a cap, a few-dozen failed restarts pushed cooldowns
+// into the multi-day range, leaving broken scenarios effectively unrecoverable
+// until manual intervention.
+const MaxFailureCooldown = 1 * time.Hour
+
 // CalculateFailureCooldown returns the cooldown after a failed auto-heal attempt.
 // For failures below MaxRestartAttempts, BaseCooldown is used.
 // Once failures reach MaxRestartAttempts, cooldown grows exponentially:
-// BaseCooldown * 2^(consecutiveFailures - MaxRestartAttempts + 1).
+// BaseCooldown * 2^(consecutiveFailures - MaxRestartAttempts + 1), capped at
+// MaxFailureCooldown.
 func (p AutoHealPolicy) CalculateFailureCooldown(consecutiveFailures int) time.Duration {
 	if consecutiveFailures <= 0 {
 		return p.BaseCooldown
 	}
 	if consecutiveFailures < p.MaxRestartAttempts {
-		return p.BaseCooldown
+		return capCooldown(p.BaseCooldown)
 	}
 
 	shift := consecutiveFailures - p.MaxRestartAttempts + 1
-	multiplier := 1 << shift
-	return time.Duration(multiplier) * p.BaseCooldown
+	// Saturate the shift before computing the multiplier to avoid integer
+	// overflow at very large failure counts (1 << 62 would still be valid as
+	// an int64, but 1 << 63 wraps negative). 30 is well past the point the
+	// cap kicks in for any sane BaseCooldown.
+	if shift > 30 {
+		return capCooldown(MaxFailureCooldown)
+	}
+	multiplier := time.Duration(1 << shift)
+	cooldown := multiplier * p.BaseCooldown
+	if cooldown < 0 || cooldown > MaxFailureCooldown {
+		return MaxFailureCooldown
+	}
+	return cooldown
+}
+
+func capCooldown(d time.Duration) time.Duration {
+	if d > MaxFailureCooldown {
+		return MaxFailureCooldown
+	}
+	return d
 }
 
 // HealTracker tracks the healing state for a single check

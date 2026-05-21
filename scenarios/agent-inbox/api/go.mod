@@ -1,8 +1,6 @@
 module agent-inbox
 
-go 1.24.0
-
-toolchain go1.24.11
+go 1.25.0
 
 require (
 	github.com/google/uuid v1.6.0
@@ -13,7 +11,7 @@ require (
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
-	modernc.org/sqlite v1.45.0
+	modernc.org/sqlite v1.50.1
 )
 
 require (
@@ -25,10 +23,9 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
-	golang.org/x/sys v0.37.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260209200024-4cfbd4190f57 // indirect
-	modernc.org/libc v1.67.6 // indirect
+	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )

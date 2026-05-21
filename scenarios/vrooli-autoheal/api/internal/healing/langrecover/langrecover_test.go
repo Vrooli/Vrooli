@@ -37,6 +37,11 @@ func TestDetectGoSignature(t *testing.T) {
 			GoSignatureMissingModule,
 		},
 		{
+			"updates-to-go-mod-needed",
+			"go: updates to go.mod needed; to update it:\n\tgo mod tidy",
+			GoSignatureMissingModule,
+		},
+		{
 			"unrelated",
 			"build failed: syntax error in foo.go",
 			GoSignatureNone,
@@ -164,6 +169,71 @@ func TestRecoverGo_MissingSum_RunsModDownloadAndDetectsSumChange(t *testing.T) {
 	}
 }
 
+func TestRecoverGo_MissingSum_EscalatesToTidyWhenDownloadDoesNotChangeSum(t *testing.T) {
+	// On real scenarios we observed `go mod download` exit 0 without adding
+	// the missing h1 hash to go.sum. RecoverGo must escalate to `go mod tidy`
+	// in that case so the scenario actually builds afterward.
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "api", "go.mod"), "module x\n")
+	mustWrite(t, filepath.Join(dir, "api", "go.sum"), "old\n")
+
+	var commands [][]string
+	runner := func(_ context.Context, runDir, name string, args ...string) ([]byte, error) {
+		commands = append(commands, append([]string{name}, args...))
+		// download is a no-op (does not change go.sum); tidy rewrites it.
+		if strings.Join(args, " ") == "mod tidy" {
+			mustWrite(t, filepath.Join(runDir, "go.sum"), "tidied\n")
+			return []byte("tidied"), nil
+		}
+		return []byte("downloaded"), nil
+	}
+
+	res, err := RecoverGo(context.Background(), runner, dir, GoSignatureMissingSum)
+	if err != nil {
+		t.Fatalf("RecoverGo error: %v", err)
+	}
+	if len(commands) != 2 {
+		t.Fatalf("expected 2 runner invocations (download then tidy), got %v", commands)
+	}
+	if strings.Join(commands[0][1:], " ") != "mod download" {
+		t.Fatalf("first call should be `go mod download`, got %v", commands[0])
+	}
+	if strings.Join(commands[1][1:], " ") != "mod tidy" {
+		t.Fatalf("second call should be `go mod tidy`, got %v", commands[1])
+	}
+	if !res.ModifiedTrackedFiles {
+		t.Fatalf("ModifiedTrackedFiles should be true after tidy rewrites go.sum")
+	}
+	if !strings.Contains(res.Command, "go mod tidy") {
+		t.Fatalf("expected Command to record escalation, got %q", res.Command)
+	}
+}
+
+func TestRecoverGo_MissingSum_DoesNotEscalateWhenDownloadSucceeds(t *testing.T) {
+	// When `go mod download` already updates go.sum, RecoverGo must not run
+	// the more expensive `go mod tidy` redundantly.
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "api", "go.mod"), "module x\n")
+	mustWrite(t, filepath.Join(dir, "api", "go.sum"), "old\n")
+
+	var calls int
+	runner := func(_ context.Context, runDir, name string, args ...string) ([]byte, error) {
+		calls++
+		mustWrite(t, filepath.Join(runDir, "go.sum"), "rewritten\n")
+		return nil, nil
+	}
+	res, err := RecoverGo(context.Background(), runner, dir, GoSignatureMissingSum)
+	if err != nil {
+		t.Fatalf("RecoverGo error: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("expected 1 runner call (download only), got %d", calls)
+	}
+	if res.Command != "go mod download" {
+		t.Fatalf("Command should remain `go mod download` when no escalation, got %q", res.Command)
+	}
+}
+
 func TestRecoverGo_MissingModule_RunsModTidy(t *testing.T) {
 	dir := t.TempDir()
 	mustWrite(t, filepath.Join(dir, "api", "go.mod"), "module x\n")
@@ -265,6 +335,108 @@ func TestRecoverPnpm_LinkingFailedRemovesNodeModules(t *testing.T) {
 	}
 	if !strings.Contains(res.Output, "rm -rf node_modules") {
 		t.Fatalf("expected rm marker in output, got %q", res.Output)
+	}
+}
+
+func TestDecideRepoRoot(t *testing.T) {
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "go.mod"), "module vrooli\n")
+
+	t.Run("go signature triggers repo-root decision", func(t *testing.T) {
+		d := DecideRepoRoot("missing go.sum entry for module foo", dir)
+		if d.Kind != KindRepoRoot || d.GoSig != GoSignatureMissingSum {
+			t.Fatalf("got %+v", d)
+		}
+		if !d.Has() {
+			t.Fatalf("expected Has=true")
+		}
+	})
+	t.Run("no go.mod at root means no decision", func(t *testing.T) {
+		empty := t.TempDir()
+		if d := DecideRepoRoot("missing go.sum entry", empty); d.Has() {
+			t.Fatalf("expected empty decision, got %+v", d)
+		}
+	})
+	t.Run("no signature in log means no decision", func(t *testing.T) {
+		if d := DecideRepoRoot("syntax error", dir); d.Has() {
+			t.Fatalf("expected empty decision, got %+v", d)
+		}
+	})
+}
+
+func TestRecoverRepoRootGo_MissingSum_RunsModDownload(t *testing.T) {
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "go.mod"), "module vrooli\n")
+	mustWrite(t, filepath.Join(dir, "go.sum"), "old\n")
+
+	var called struct {
+		dir  string
+		args []string
+	}
+	runner := func(_ context.Context, runDir, _ string, args ...string) ([]byte, error) {
+		called.dir = runDir
+		called.args = args
+		mustWrite(t, filepath.Join(runDir, "go.sum"), "new\n")
+		return []byte("downloaded\n"), nil
+	}
+	res, err := RecoverRepoRootGo(context.Background(), runner, dir, GoSignatureMissingSum)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if called.dir != dir {
+		t.Fatalf("expected runner dir=%s, got %s", dir, called.dir)
+	}
+	if strings.Join(called.args, " ") != "mod download" {
+		t.Fatalf("expected `go mod download`, got %v", called.args)
+	}
+	if res.Kind != KindRepoRoot {
+		t.Fatalf("expected Kind=%q, got %q", KindRepoRoot, res.Kind)
+	}
+	if !res.ModifiedTrackedFiles || len(res.ModifiedPaths) != 1 || res.ModifiedPaths[0] != "go.sum" {
+		t.Fatalf("expected go.sum mutation, got %+v", res.ModifiedPaths)
+	}
+}
+
+func TestRecoverRepoRootGo_MissingModule_RunsModTidy(t *testing.T) {
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "go.mod"), "module vrooli\n")
+	var args []string
+	runner := func(_ context.Context, _, _ string, a ...string) ([]byte, error) {
+		args = a
+		return nil, nil
+	}
+	if _, err := RecoverRepoRootGo(context.Background(), runner, dir, GoSignatureMissingModule); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(args, " ") != "mod tidy" {
+		t.Fatalf("expected `go mod tidy`, got %v", args)
+	}
+}
+
+func TestRecoverRepoRootGo_MissingGoModErrors(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := RecoverRepoRootGo(context.Background(), nil, dir, GoSignatureMissingSum); err == nil {
+		t.Fatalf("expected error when go.mod absent at repo root")
+	}
+}
+
+func TestRecoverRepoRootGo_NoSignatureIsNoop(t *testing.T) {
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "go.mod"), "module vrooli\n")
+	called := false
+	runner := func(context.Context, string, string, ...string) ([]byte, error) {
+		called = true
+		return nil, nil
+	}
+	res, err := RecoverRepoRootGo(context.Background(), runner, dir, GoSignatureNone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Fatal("runner should not have been called")
+	}
+	if res.Kind != "" {
+		t.Fatalf("expected empty result, got %+v", res)
 	}
 }
 

@@ -3,10 +3,9 @@ package audioports
 import (
 	"context"
 	"errors"
+	"web-console/integrations/audiotools"
 
 	"connectrpc.com/connect"
-
-	"web-console/integrations/audiotools"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"

@@ -1,9 +1,9 @@
 package audio_runtime
 
 import (
-	audioruntimeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/audio_runtime/audio_runtime_v1connect"
-
 	"web-console/internal/module"
+
+	audioruntimeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/audio_runtime/audio_runtime_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

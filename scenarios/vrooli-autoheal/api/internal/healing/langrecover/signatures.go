@@ -26,7 +26,11 @@ func DetectGoSignature(output string) GoSignature {
 	}
 	lower := strings.ToLower(output)
 	if strings.Contains(lower, "no required module provides package") ||
-		strings.Contains(lower, "inconsistent vendoring") {
+		strings.Contains(lower, "inconsistent vendoring") ||
+		strings.Contains(lower, "updates to go.mod needed") {
+		// "updates to go.mod needed" is emitted by `go build` when go.mod is
+		// out of sync with imports — only `go mod tidy` resolves it, since
+		// the dependency graph itself needs updating.
 		return GoSignatureMissingModule
 	}
 	if strings.Contains(lower, "missing go.sum entry") {

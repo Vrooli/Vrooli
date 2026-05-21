@@ -116,8 +116,8 @@
         },
         {
           "name": "build-loop",
-          "run": "cd cli/loop && go build -o ../vrooli-autoheal-loop .",
-          "description": "Compile cross-platform Go loop binary for watchdog"
+          "run": "cd cli/loop && go build -o ../vrooli-autoheal-loop.new . && sync -f ../vrooli-autoheal-loop.new && mv -f ../vrooli-autoheal-loop.new ../vrooli-autoheal-loop && sync -f ../vrooli-autoheal-loop",
+          "description": "Compile cross-platform Go loop binary for watchdog. Atomic install (write .new, sync, rename, sync) mirrors root Makefile atomic_install — prevents zero-byte stub on crash mid-write."
         },
         {
           "name": "install-ui-deps",

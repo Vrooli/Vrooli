@@ -382,21 +382,26 @@ func detectAPIPort(config *Config) string {
 	return ""
 }
 
+// buildVrooliCmd constructs an *exec.Cmd that invokes the project vrooli CLI
+// with --no-stale-check forced as the first global flag. This prevents the
+// loop from ever triggering a Go rebuild of the project CLI during recovery —
+// a broken top-level go.mod would otherwise cascade through the stale-check
+// rebuild path and lock the host out of autoheal.
+func buildVrooliCmd(vrooliCmdPath string, subArgs ...string) *exec.Cmd {
+	args := append([]string{"--no-stale-check"}, subArgs...)
+	if runtime.GOOS == "windows" && !strings.HasSuffix(vrooliCmdPath, ".bat") {
+		psCmd := fmt.Sprintf("& '%s'", vrooliCmdPath)
+		for _, a := range args {
+			psCmd += " " + a
+		}
+		return exec.Command("powershell", "-Command", psCmd)
+	}
+	return exec.Command(vrooliCmdPath, args...)
+}
+
 // getPortFromVrooliCLI tries to get the port using vrooli scenario port command
 func getPortFromVrooliCLI(config *Config) string {
-	var cmd *exec.Cmd
-
-	switch runtime.GOOS {
-	case "windows":
-		if strings.HasSuffix(config.VrooliCmdPath, ".bat") {
-			cmd = exec.Command(config.VrooliCmdPath, "scenario", "port", config.ScenarioName, "API_PORT")
-		} else {
-			cmd = exec.Command("powershell", "-Command",
-				fmt.Sprintf("& '%s' scenario port %s API_PORT", config.VrooliCmdPath, config.ScenarioName))
-		}
-	default:
-		cmd = exec.Command(config.VrooliCmdPath, "scenario", "port", config.ScenarioName, "API_PORT")
-	}
+	cmd := buildVrooliCmd(config.VrooliCmdPath, "scenario", "port", config.ScenarioName, "API_PORT")
 
 	cmd.Env = append(os.Environ(), fmt.Sprintf("VROOLI_ROOT=%s", config.VrooliRoot))
 
@@ -415,19 +420,7 @@ func getPortFromVrooliCLI(config *Config) string {
 }
 
 func getPortFromScenarioStatus(config *Config) string {
-	var cmd *exec.Cmd
-
-	switch runtime.GOOS {
-	case "windows":
-		if strings.HasSuffix(config.VrooliCmdPath, ".bat") {
-			cmd = exec.Command(config.VrooliCmdPath, "scenario", "status", config.ScenarioName, "--json")
-		} else {
-			cmd = exec.Command("powershell", "-Command",
-				fmt.Sprintf("& '%s' scenario status %s --json", config.VrooliCmdPath, config.ScenarioName))
-		}
-	default:
-		cmd = exec.Command(config.VrooliCmdPath, "scenario", "status", config.ScenarioName, "--json")
-	}
+	cmd := buildVrooliCmd(config.VrooliCmdPath, "scenario", "status", config.ScenarioName, "--json")
 
 	cmd.Env = append(os.Environ(), fmt.Sprintf("VROOLI_ROOT=%s", config.VrooliRoot))
 
@@ -559,19 +552,7 @@ func ensureAPIRunning(config *Config) error {
 
 // startAPI starts the scenario using vrooli
 func startAPI(config *Config) error {
-	var cmd *exec.Cmd
-
-	switch runtime.GOOS {
-	case "windows":
-		if strings.HasSuffix(config.VrooliCmdPath, ".bat") {
-			cmd = exec.Command(config.VrooliCmdPath, "scenario", "start", config.ScenarioName, "--best-effort")
-		} else {
-			cmd = exec.Command("powershell", "-Command",
-				fmt.Sprintf("& '%s' scenario start %s --best-effort", config.VrooliCmdPath, config.ScenarioName))
-		}
-	default:
-		cmd = exec.Command(config.VrooliCmdPath, "scenario", "start", config.ScenarioName, "--best-effort")
-	}
+	cmd := buildVrooliCmd(config.VrooliCmdPath, "scenario", "start", config.ScenarioName, "--best-effort")
 
 	cmd.Env = append(os.Environ(), fmt.Sprintf("VROOLI_ROOT=%s", config.VrooliRoot))
 
@@ -590,19 +571,7 @@ func restartAPI(config *Config) error {
 		return fmt.Errorf("vrooli command not found")
 	}
 
-	var cmd *exec.Cmd
-
-	switch runtime.GOOS {
-	case "windows":
-		if strings.HasSuffix(config.VrooliCmdPath, ".bat") {
-			cmd = exec.Command(config.VrooliCmdPath, "scenario", "restart", config.ScenarioName, "--best-effort")
-		} else {
-			cmd = exec.Command("powershell", "-Command",
-				fmt.Sprintf("& '%s' scenario restart %s --best-effort", config.VrooliCmdPath, config.ScenarioName))
-		}
-	default:
-		cmd = exec.Command(config.VrooliCmdPath, "scenario", "restart", config.ScenarioName, "--best-effort")
-	}
+	cmd := buildVrooliCmd(config.VrooliCmdPath, "scenario", "restart", config.ScenarioName, "--best-effort")
 
 	cmd.Env = append(os.Environ(), fmt.Sprintf("VROOLI_ROOT=%s", config.VrooliRoot))
 

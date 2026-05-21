@@ -44,8 +44,15 @@ func TestHealth_Healthy(t *testing.T) {
 	if !ok {
 		t.Fatal("dependencies field missing or invalid")
 	}
-	if deps["database"] != "connected" {
-		t.Errorf("database = %v, want connected", deps["database"])
+	db, ok := deps["database"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("dependencies.database should be a DependencyStatus object, got %T", deps["database"])
+	}
+	if db["connected"] != true {
+		t.Errorf("dependencies.database.connected = %v, want true", db["connected"])
+	}
+	if db["database"] != "sqlite" {
+		t.Errorf("dependencies.database.database = %v, want sqlite", db["database"])
 	}
 }
 
@@ -68,8 +75,15 @@ func TestHealth_Unhealthy(t *testing.T) {
 	if !ok {
 		t.Fatal("dependencies field missing or invalid")
 	}
-	if deps["database"] != "disconnected" {
-		t.Errorf("database = %v, want disconnected", deps["database"])
+	db, ok := deps["database"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("dependencies.database should be a DependencyStatus object, got %T", deps["database"])
+	}
+	if db["connected"] != false {
+		t.Errorf("dependencies.database.connected = %v, want false", db["connected"])
+	}
+	if db["error"] == nil {
+		t.Errorf("dependencies.database.error should be populated when unhealthy")
 	}
 }
 

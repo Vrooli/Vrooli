@@ -483,6 +483,105 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 	}
 }
 
+func TestScenarioCheckRun_DriftSignatureFromLifecycleLog(t *testing.T) {
+	// When `scenario status` reports stopped, the failure cause lives in the
+	// lifecycle run log, not the status output. The check must read the log
+	// tail and surface the appropriate recommendedAction.
+	tests := []struct {
+		name              string
+		logTail           string
+		expectedRoot      string
+		expectedAction    string
+		expectedSource    string
+	}{
+		{
+			name:           "go-mod-tidy needed",
+			logTail:        "[1/6] build-api\ngo: updates to go.mod needed; to update it:\n\tgo mod tidy\n",
+			expectedRoot:   rootCauseGoModuleDrift,
+			expectedAction: recommendedActionRecoverGo,
+			expectedSource: "lifecycle-log",
+		},
+		{
+			name:           "missing go.sum",
+			logTail:        "main.go:19:2: missing go.sum entry for module providing package modernc.org/sqlite (imported by flow-verifier); to add:\n\tgo get flow-verifier\n",
+			expectedRoot:   rootCauseGoModuleDrift,
+			expectedAction: recommendedActionRecoverGo,
+			expectedSource: "lifecycle-log",
+		},
+		{
+			name:           "pnpm outdated lockfile",
+			logTail:        "ERR_PNPM_OUTDATED_LOCKFILE Cannot install with frozen-lockfile because pnpm-lock.yaml is not up to date\n",
+			expectedRoot:   rootCausePnpmInstallDrift,
+			expectedAction: recommendedActionRecoverPnpm,
+			expectedSource: "lifecycle-log",
+		},
+		{
+			name:           "no drift signature",
+			logTail:        "scenario started successfully then died from OOM\n",
+			expectedRoot:   "",
+			expectedAction: "",
+			expectedSource: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExecutor := checks.NewMockExecutor()
+			mockExecutor.Responses["vrooli scenario status broken --json"] = checks.MockResponse{
+				Output: []byte(`{"success":true,"scenario":{"name":"broken","status":"stopped","health_status":null}}`),
+			}
+			logTail := tt.logTail
+			check := NewScenarioCheck("broken", true,
+				WithScenarioExecutor(mockExecutor),
+				WithScenarioLifecycleLogReader(func() string { return logTail }),
+			)
+			result := check.Run(context.Background())
+			if result.Status != checks.StatusCritical {
+				t.Fatalf("status = %v, want critical", result.Status)
+			}
+			gotRoot, _ := result.Details["rootCause"].(string)
+			gotAction, _ := result.Details["recommendedAction"].(string)
+			gotSource, _ := result.Details["driftSource"].(string)
+			if gotRoot != tt.expectedRoot {
+				t.Errorf("rootCause = %q, want %q", gotRoot, tt.expectedRoot)
+			}
+			if gotAction != tt.expectedAction {
+				t.Errorf("recommendedAction = %q, want %q", gotAction, tt.expectedAction)
+			}
+			if gotSource != tt.expectedSource {
+				t.Errorf("driftSource = %q, want %q", gotSource, tt.expectedSource)
+			}
+		})
+	}
+}
+
+func TestScenarioCheckRun_StatusOutputDriftBeatsLog(t *testing.T) {
+	// If the status output already contains a drift signature, prefer it
+	// (driftSource = status-output) and do not fall back to the log.
+	mockExecutor := checks.NewMockExecutor()
+	statusOut := `{"success":true,"scenario":{"name":"broken","status":"stopped","health_status":null},"info":{"setupReasons":["missing go.sum entry for module providing package x"]}}`
+	mockExecutor.Responses["vrooli scenario status broken --json"] = checks.MockResponse{
+		Output: []byte(statusOut),
+	}
+	logReaderCalled := false
+	check := NewScenarioCheck("broken", true,
+		WithScenarioExecutor(mockExecutor),
+		WithScenarioLifecycleLogReader(func() string {
+			logReaderCalled = true
+			return "ERR_PNPM_OUTDATED_LOCKFILE foo"
+		}),
+	)
+	result := check.Run(context.Background())
+	if got, _ := result.Details["driftSource"].(string); got != "status-output" {
+		t.Errorf("driftSource = %q, want status-output", got)
+	}
+	if got, _ := result.Details["recommendedAction"].(string); got != recommendedActionRecoverGo {
+		t.Errorf("recommendedAction = %q, want %q", got, recommendedActionRecoverGo)
+	}
+	if logReaderCalled {
+		t.Error("log reader should not be invoked when status output already matched")
+	}
+}
+
 func TestScenarioCheckRun_APIDownFallsBackToDirectHealthCheck(t *testing.T) {
 	tests := []struct {
 		name           string

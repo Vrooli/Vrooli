@@ -23,4 +23,5 @@ None.
 ### Surface for technique graduation
 None.
 
-Note for next run: the task brief’s PoR paths `docs/scenario-qa/taxonomies/bug-report/README.md` and `docs/scenario-qa/methods/investigation/README.md` were not present at the workspace root during this heartbeat; not blocking because the inbox was empty.
+Note for next run: the expected PoR/team files were still not present at the workspace root during this heartbeat:
+`docs/scenario-qa`, `docs/agent-system`, and `scenarios/prompt-manager/store/teams/scenario-qa/shared`. This did not block the run because the bug inbox was empty.

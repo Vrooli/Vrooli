@@ -17,7 +17,7 @@ type Decision struct {
 
 // Has reports whether the decision selected a healable strategy.
 func (d Decision) Has() bool {
-	if d.Kind == KindGo {
+	if d.Kind == KindGo || d.Kind == KindRepoRoot {
 		return d.GoSig != GoSignatureNone
 	}
 	if d.Kind == KindPnpm {
@@ -49,6 +49,20 @@ func Decide(failureLog, scenarioDir string) Decision {
 		if sig := DetectPnpmSignature(failureLog); sig != PnpmSignatureNone {
 			return Decision{Kind: KindPnpm, PnpmSig: sig, ScenarioDir: scenarioDir}
 		}
+	}
+	return Decision{}
+}
+
+// DecideRepoRoot inspects a failure log and the repo root path; if a Go
+// signature matches and go.mod is present at the repo root, returns a
+// Decision{Kind: KindRepoRoot}. Used to heal a broken top-level workspace
+// distinct from any single scenario.
+func DecideRepoRoot(failureLog, repoRoot string) Decision {
+	if repoRoot == "" || !exists(filepath.Join(repoRoot, "go.mod")) {
+		return Decision{}
+	}
+	if sig := DetectGoSignature(failureLog); sig != GoSignatureNone {
+		return Decision{Kind: KindRepoRoot, GoSig: sig, ScenarioDir: repoRoot}
 	}
 	return Decision{}
 }

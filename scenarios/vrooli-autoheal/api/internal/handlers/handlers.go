@@ -140,14 +140,22 @@ func (h *Handlers) SetSystemEventService(service *systemevents.Service) {
 	h.systemEventService = service
 }
 
-// Health returns basic service health for lifecycle checks
+// Health returns basic service health for lifecycle checks.
+//
+// The dependencies map uses the structured DependencyStatus shape expected by
+// the lifecycle registry's schema validator (api-core/health.Response). Emitting
+// plain string values causes the registry to flag the scenario unhealthy with
+// "cannot unmarshal string into Go struct field Response.dependencies".
 func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 	status := "healthy"
-	dbStatus := "connected"
-
-	if err := h.pingStoreForHealth(); err != nil {
+	pingErr := h.pingStoreForHealth()
+	dbDependency := map[string]interface{}{
+		"connected": pingErr == nil,
+		"database":  "sqlite",
+	}
+	if pingErr != nil {
 		status = "unhealthy"
-		dbStatus = "disconnected"
+		dbDependency["error"] = pingErr.Error()
 	}
 
 	response := map[string]interface{}{
@@ -156,8 +164,8 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 		"version":   "1.0.0",
 		"readiness": status == "healthy",
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"dependencies": map[string]string{
-			"database": dbStatus,
+		"dependencies": map[string]interface{}{
+			"database": dbDependency,
 		},
 	}
 

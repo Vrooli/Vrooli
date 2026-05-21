@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"web-console/internal/events"
+	"web-console/internal/metrics"
+	"web-console/internal/ptyfake"
 
 	intai "web-console/internal/ai"
 
@@ -15,9 +18,6 @@ import (
 
 	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation"
 
-	"web-console/internal/events"
-	"web-console/internal/metrics"
-	"web-console/internal/ptyfake"
 	intsessions "web-console/internal/sessions"
 	intworkspace "web-console/internal/workspace"
 )

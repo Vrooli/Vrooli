@@ -1,5 +1,5 @@
 ### Pending decisions reviewed
-- 13
+- 14
 
 ### Clean proposals
 - `dec-1778796166725303185`
@@ -15,10 +15,12 @@
 - `dec-1779144543464355217`
 
 ### Challenge notes written
-- None.
+- `dec-1779315407263556076`: excessive pending decisions / governance ceiling - technically grounded BAS skill drift proposal was raised while team pending count is 14, above the ceiling of 12, and it does not supersede or shrink the queue.
 
 ### Challenge resolution updates
-- `dec-1779142599530774097`: resolved - skill-optimizer accepted the challenge and narrowed the proposal to the accepted trim/pointer remedy from `dec-1776982635141465033`; companion references remain out of scope without new consumer evidence.
+- `dec-1778971728228105895`: resolved - prior premature Action / missing CLI ownership challenge remains resolved; do not re-litigate.
+- `dec-1779142599530774097`: resolved - prior prose-sprawl challenge remains resolved after author narrowed to accepted trim/pointer remedy.
+- `dec-1779315407263556076`: open - needs defer/merge/supersession until queue drops below 12 or the proposal shrinks the queue.
 
 ### Action proposal checks
 - `dec-1778796166725303185`: not Action-related
@@ -31,15 +33,17 @@
 - `dec-1779057112765291497`: not Action-related
 - `dec-1779058180482147600`: clean
 - `dec-1779141739837517904`: not Action-related
-- `dec-1779142599530774097`: not Action-related; prose-sprawl challenge now resolved by author narrowing
+- `dec-1779142599530774097`: not Action-related; prior prose-sprawl challenge resolved
 - `dec-1779143529470088721`: not Action-related
 - `dec-1779144543464355217`: clean
+- `dec-1779315407263556076`: clean Action check; challenged only for governance ceiling
 
 ### Stale-decision scan
 - No stale pending decisions.
 
 ### Decisions raised this heartbeat
-- None. Team pending count is 13, above the 12 ceiling, and no rejection/framework-update decision was warranted.
+- None. Team pending count is 14, above the 12 ceiling; no rejection/framework-update decision was warranted.
 
 ### Knowledge entries written
-- `knw-1779231664717410983` - `challenge-resolution-record/dec-1779142599530774097`
+- `knw-1779318078443882779` - `challenge-report/dec-1779315407263556076`
+- `knw-1779318078595726645` - `challenge-resolution-record/dec-1779315407263556076`

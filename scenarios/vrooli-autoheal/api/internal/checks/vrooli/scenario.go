@@ -34,6 +34,11 @@ type ScenarioCheck struct {
 	client       *integration.Client
 	directHealth func(context.Context) (bool, string)
 	recoveryPoll scenarioRecoveryPollConfig
+	// readLifecycleLog returns the tail of the most recent lifecycle run log
+	// for this scenario. Used to detect drift signatures (go.mod, pnpm) that
+	// only surface during start/setup attempts, not in `scenario status` output.
+	// Returns "" if no log is available. Overridable for tests.
+	readLifecycleLog func() string
 }
 
 const (
@@ -77,6 +82,13 @@ func WithScenarioDirectHealthChecker(checker func(context.Context) (bool, string
 	}
 }
 
+// WithScenarioLifecycleLogReader overrides the lifecycle-log reader (for testing).
+func WithScenarioLifecycleLogReader(reader func() string) ScenarioCheckOption {
+	return func(c *ScenarioCheck) {
+		c.readLifecycleLog = reader
+	}
+}
+
 // WithScenarioRecoveryPolling configures recovery verification polling.
 // Intended for tests to avoid long waits and nondeterminism.
 func WithScenarioRecoveryPolling(timeout, interval, initialDelay time.Duration) ScenarioCheckOption {
@@ -117,10 +129,53 @@ func NewScenarioCheck(scenarioName string, critical bool, opts ...ScenarioCheckO
 			initialDelay: 5 * time.Second,
 		},
 	}
+	c.readLifecycleLog = func() string {
+		return readScenarioLifecycleLogTail(c.scenarioName, lifecycleLogTailBytes)
+	}
 	for _, opt := range opts {
 		opt(c)
 	}
 	return c
+}
+
+// lifecycleLogTailBytes bounds how much of the run log we feed to drift
+// detection. The build failure tail is small (handful of lines); we cap to
+// keep memory and substring scans cheap.
+const lifecycleLogTailBytes = 16 * 1024
+
+// readScenarioLifecycleLogTail returns the last n bytes of
+// ~/.vrooli/logs/<scenario>.log. Returns "" if the file is missing or
+// unreadable; drift detection treats empty input as "no signature".
+func readScenarioLifecycleLogTail(scenarioName string, n int64) string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	path := filepath.Join(homeDir, ".vrooli", "logs", scenarioName+".log")
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return ""
+	}
+	size := info.Size()
+	if size == 0 {
+		return ""
+	}
+	if size > n {
+		if _, err := f.Seek(size-n, 0); err != nil {
+			return ""
+		}
+	}
+	buf := make([]byte, n)
+	read, err := f.Read(buf)
+	if err != nil && read == 0 {
+		return ""
+	}
+	return string(buf[:read])
 }
 
 func (c *ScenarioCheck) ID() string                 { return c.id }
@@ -221,17 +276,7 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 	// Language-specific drift signatures take precedence: they map to cheaper,
 	// more targeted recovery actions (recover-go / recover-pnpm) than the
 	// catch-all setup-restart, which rebuilds bundles and re-runs full setup.
-	switch {
-	case langrecover.DetectGoSignature(outputText) != langrecover.GoSignatureNone:
-		result.Details["rootCause"] = rootCauseGoModuleDrift
-		result.Details["recommendedAction"] = recommendedActionRecoverGo
-	case langrecover.DetectPnpmSignature(outputText) != langrecover.PnpmSignatureNone:
-		result.Details["rootCause"] = rootCausePnpmInstallDrift
-		result.Details["recommendedAction"] = recommendedActionRecoverPnpm
-	case hasSharedPackageDriftSignature(outputText):
-		result.Details["rootCause"] = rootCauseSharedPackageDrift
-		result.Details["recommendedAction"] = recommendedActionSetupRestart
-	}
+	c.applyDriftSignature(&result, outputText, scenarioStatus)
 
 	if !parsed.Success {
 		result.Status = CLIStatusToCheckStatus(CLIStatusUnclear, c.critical)
@@ -778,6 +823,54 @@ func (c *ScenarioCheck) executeDiagnose(ctx context.Context, start time.Time) ch
 	result.Success = true
 	result.Message = "Diagnostic information gathered for " + c.scenarioName
 	return result
+}
+
+// applyDriftSignature records the first matching drift signature into result.Details
+// (rootCause + recommendedAction), choosing the cheapest applicable recovery action.
+//
+// The CLI's `scenario status` output rarely contains build-failure text — when a
+// scenario is stopped, the failure cause lives in the lifecycle run log written
+// during the previous start/setup attempt. We try the status output first (it
+// occasionally contains drift hints from the CLI), and fall back to the
+// lifecycle log tail when the scenario is non-running and no signature was
+// found in the status output.
+func (c *ScenarioCheck) applyDriftSignature(result *checks.Result, statusOutput, scenarioStatus string) {
+	if c.recordDriftFromOutput(result, statusOutput, "status-output") {
+		return
+	}
+	if scenarioStatus == "running" {
+		return
+	}
+	if c.readLifecycleLog == nil {
+		return
+	}
+	logTail := c.readLifecycleLog()
+	if logTail == "" {
+		return
+	}
+	c.recordDriftFromOutput(result, logTail, "lifecycle-log")
+}
+
+// recordDriftFromOutput returns true if a signature was matched and recorded.
+func (c *ScenarioCheck) recordDriftFromOutput(result *checks.Result, output, source string) bool {
+	switch {
+	case langrecover.DetectGoSignature(output) != langrecover.GoSignatureNone:
+		result.Details["rootCause"] = rootCauseGoModuleDrift
+		result.Details["recommendedAction"] = recommendedActionRecoverGo
+		result.Details["driftSource"] = source
+		return true
+	case langrecover.DetectPnpmSignature(output) != langrecover.PnpmSignatureNone:
+		result.Details["rootCause"] = rootCausePnpmInstallDrift
+		result.Details["recommendedAction"] = recommendedActionRecoverPnpm
+		result.Details["driftSource"] = source
+		return true
+	case hasSharedPackageDriftSignature(output):
+		result.Details["rootCause"] = rootCauseSharedPackageDrift
+		result.Details["recommendedAction"] = recommendedActionSetupRestart
+		result.Details["driftSource"] = source
+		return true
+	}
+	return false
 }
 
 // readAPIPID reads the start-api PID for this scenario from the lifecycle

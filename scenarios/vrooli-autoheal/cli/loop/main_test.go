@@ -3,8 +3,42 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"runtime"
+	"strings"
 	"testing"
 )
+
+func TestBuildVrooliCmd_InjectsNoStaleCheck(t *testing.T) {
+	cases := [][]string{
+		{"scenario", "port", "vrooli-autoheal", "API_PORT"},
+		{"scenario", "status", "vrooli-autoheal", "--json"},
+		{"scenario", "start", "vrooli-autoheal", "--best-effort"},
+		{"scenario", "restart", "vrooli-autoheal", "--best-effort"},
+	}
+	for _, sub := range cases {
+		cmd := buildVrooliCmd("/tmp/vrooli", sub...)
+		joined := strings.Join(cmd.Args, " ")
+		if !strings.Contains(joined, "--no-stale-check") {
+			t.Errorf("argv missing --no-stale-check for %v: %v", sub, cmd.Args)
+			continue
+		}
+		idxFlag := indexOf(cmd.Args, "--no-stale-check")
+		idxSub := indexOf(cmd.Args, sub[0])
+		if idxFlag < 0 || idxSub < 0 || idxFlag > idxSub {
+			t.Errorf("--no-stale-check must precede %q in %v", sub[0], cmd.Args)
+		}
+	}
+	_ = runtime.GOOS
+}
+
+func indexOf(s []string, want string) int {
+	for i, v := range s {
+		if v == want {
+			return i
+		}
+	}
+	return -1
+}
 
 func TestRunTick_RequestsCompactResponse(t *testing.T) {
 	t.Helper()

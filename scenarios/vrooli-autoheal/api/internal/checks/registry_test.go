@@ -1548,6 +1548,41 @@ func TestSetAutoHealPolicy_RejectsInvalidPolicy(t *testing.T) {
 	}
 }
 
+func TestCalculateFailureCooldown_CapsAtMaxFailureCooldown(t *testing.T) {
+	policy := AutoHealPolicy{
+		BaseCooldown:         5 * time.Minute,
+		MaxRestartAttempts:   3,
+		FastActionTimeout:    DefaultFastActionTimeout,
+		RestartActionTimeout: DefaultRestartActionTimeout,
+		TimeoutRetryCooldown: DefaultTimeoutRetryCooldown,
+	}
+	if err := policy.Validate(); err != nil {
+		t.Fatalf("policy invalid: %v", err)
+	}
+
+	// Below threshold: BaseCooldown (capped).
+	if got := policy.CalculateFailureCooldown(1); got != policy.BaseCooldown {
+		t.Errorf("failure=1: got %v, want %v", got, policy.BaseCooldown)
+	}
+
+	// At threshold (3): 5m * 2^1 = 10m.
+	if got := policy.CalculateFailureCooldown(3); got != 10*time.Minute {
+		t.Errorf("failure=3: got %v, want 10m", got)
+	}
+
+	// Past the cap: must saturate at MaxFailureCooldown.
+	for _, failures := range []int{20, 50, 1000} {
+		if got := policy.CalculateFailureCooldown(failures); got != MaxFailureCooldown {
+			t.Errorf("failure=%d: got %v, want %v (cap)", failures, got, MaxFailureCooldown)
+		}
+	}
+
+	// Extreme value must not overflow into negative durations.
+	if got := policy.CalculateFailureCooldown(1<<30); got != MaxFailureCooldown {
+		t.Errorf("very large failures: got %v, want %v", got, MaxFailureCooldown)
+	}
+}
+
 func TestHealTrackerCooldownHelpers(t *testing.T) {
 	now := time.Now()
 	tracker := HealTracker{

@@ -1,8 +1,6 @@
 module github.com/ecosystem-manager/api
 
-go 1.24.0
-
-toolchain go1.24.11
+go 1.25.0
 
 require (
 	github.com/gorilla/handlers v1.5.2
@@ -62,7 +60,7 @@ require (
 	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea // indirect
 	golang.org/x/mod v0.11.0 // indirect
 	golang.org/x/net v0.38.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/tools v0.10.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251213004720-97cd9d5aeac2 // indirect
 	google.golang.org/grpc v1.71.0 // indirect

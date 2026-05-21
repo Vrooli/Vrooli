@@ -6,13 +6,13 @@
   "enabled": true,
   "schedule": "30 19 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-19T23:30:00Z",
-    "endedAt": "2026-05-19T23:34:01Z",
+    "startedAt": "2026-05-20T23:30:00Z",
+    "endedAt": "2026-05-20T23:32:46Z",
     "status": "completed",
-    "runId": "04570941-76fa-45d4-9d34-fe5ddcb05c2f",
-    "logPath": "../store/teams/infra-health/members/runtime-health-scanner/logs/2026-05-19T23-30-00Z.log"
+    "runId": "69576f25-8225-46a7-87f5-1f14b89af43a",
+    "logPath": "../store/teams/infra-health/members/runtime-health-scanner/logs/2026-05-20T23-30-00Z.log"
   },
-  "revision": 70,
+  "revision": 73,
   "createdAt": "2026-04-28T00:00:00Z",
-  "updatedAt": "2026-05-19T23:34:01Z"
+  "updatedAt": "2026-05-20T23:32:46Z"
 }

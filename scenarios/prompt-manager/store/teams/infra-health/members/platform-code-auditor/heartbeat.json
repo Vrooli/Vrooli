@@ -6,13 +6,14 @@
   "enabled": true,
   "schedule": "0 20 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-20T00:00:00Z",
-    "endedAt": "2026-05-20T00:02:51Z",
-    "status": "completed",
-    "runId": "b86de833-2a15-4f1b-b721-2c9d3e26b586",
-    "logPath": "../store/teams/infra-health/members/platform-code-auditor/logs/2026-05-20T00-00-00Z.log"
+    "startedAt": "2026-05-21T00:00:00Z",
+    "endedAt": "2026-05-21T00:03:16Z",
+    "status": "failed",
+    "runId": "3e5e5c82-6edb-4f1f-8f99-9b54eafa3d62",
+    "logPath": "../store/teams/infra-health/members/platform-code-auditor/logs/2026-05-21T00-00-00Z.log",
+    "error": "sandbox error during no_exit_info: sandbox process ended without exit info"
   },
-  "revision": 69,
+  "revision": 72,
   "createdAt": "2026-04-28T00:00:00Z",
-  "updatedAt": "2026-05-20T00:02:51Z"
+  "updatedAt": "2026-05-21T00:03:16Z"
 }

@@ -27,6 +27,20 @@ func RecoverGo(ctx context.Context, runner Runner, scenarioDir string, sig GoSig
 		return Result{Kind: KindGo}, fmt.Errorf("no go.mod under %s: %w", apiDir, err)
 	}
 
+	relWorkDir := relPath(scenarioDir, apiDir)
+	result, runErr := runGoRecoverySequence(ctx, runner, apiDir, relWorkDir, KindGo, sig)
+	if result.Err == nil {
+		result.Err = runErr
+	}
+	return result, nil
+}
+
+// runGoRecoverySequence executes the recovery command for the given signature
+// against modDir, then escalates to `go mod tidy` if go.sum was not modified
+// for a MissingSum signature. The escalation handles cases where `go mod
+// download` exits 0 without adding the required hashes (observed on Go 1.25
+// when go.sum already has the /go.mod entry but not the package h1 hash).
+func runGoRecoverySequence(ctx context.Context, runner Runner, modDir, relWorkDir string, kind Kind, sig GoSignature) (Result, error) {
 	var args []string
 	switch sig {
 	case GoSignatureMissingSum:
@@ -39,24 +53,72 @@ func RecoverGo(ctx context.Context, runner Runner, scenarioDir string, sig GoSig
 		return Result{}, fmt.Errorf("unknown go signature %v", sig)
 	}
 
-	pre := readGoModFingerprint(apiDir)
-	out, runErr := runner(ctx, apiDir, "go", args...)
-	post := readGoModFingerprint(apiDir)
+	pre := readGoModFingerprint(modDir)
+	out, runErr := runner(ctx, modDir, "go", args...)
+	post := readGoModFingerprint(modDir)
+	combinedOut := string(out)
+	commands := []string{"go " + strings.Join(args, " ")}
 
-	relWorkDir := relPath(scenarioDir, apiDir)
-	result := Result{
-		Kind:       KindGo,
-		Command:    "go " + strings.Join(args, " "),
-		WorkingDir: relWorkDir,
-		Output:     capOutput(string(out)),
-	}
-	for _, f := range []string{"go.mod", "go.sum"} {
-		if pre[f] != post[f] {
-			result.ModifiedTrackedFiles = true
-			result.ModifiedPaths = append(result.ModifiedPaths, filepath.Join(relWorkDir, f))
+	sumChanged := pre["go.sum"] != post["go.sum"]
+	modChanged := pre["go.mod"] != post["go.mod"]
+	// Escalate: for MissingSum, if `go mod download` didn't actually update
+	// go.sum, fall back to `go mod tidy`. download can succeed silently
+	// without adding the missing h1 hash in some Go versions / sum-only states.
+	if sig == GoSignatureMissingSum && !sumChanged && runErr == nil {
+		tidyOut, tidyErr := runner(ctx, modDir, "go", "mod", "tidy")
+		post = readGoModFingerprint(modDir)
+		combinedOut = appendOutput(combinedOut, "\n--- escalated: go mod tidy ---\n", string(tidyOut))
+		commands = append(commands, "go mod tidy")
+		if tidyErr != nil {
+			runErr = tidyErr
 		}
+		sumChanged = pre["go.sum"] != post["go.sum"]
+		modChanged = pre["go.mod"] != post["go.mod"]
+	}
+
+	result := Result{
+		Kind:       kind,
+		Command:    strings.Join(commands, " && "),
+		WorkingDir: relWorkDir,
+		Output:     capOutput(combinedOut),
+	}
+	if modChanged {
+		result.ModifiedTrackedFiles = true
+		result.ModifiedPaths = append(result.ModifiedPaths, filepath.Join(relWorkDir, "go.mod"))
+	}
+	if sumChanged {
+		result.ModifiedTrackedFiles = true
+		result.ModifiedPaths = append(result.ModifiedPaths, filepath.Join(relWorkDir, "go.sum"))
 	}
 	if runErr != nil {
+		result.Err = runErr
+	}
+	return result, runErr
+}
+
+func appendOutput(parts ...string) string {
+	var b strings.Builder
+	for _, p := range parts {
+		b.WriteString(p)
+	}
+	return b.String()
+}
+
+// RecoverRepoRootGo runs the appropriate Go recovery command for the given
+// signature directly in the repo root (which holds its own go.mod). Mirrors
+// RecoverGo but does not append "api/" to the directory — used to heal a
+// broken top-level workspace (e.g., after a shared-package change cascades
+// into go.mod drift).
+func RecoverRepoRootGo(ctx context.Context, runner Runner, repoRoot string, sig GoSignature) (Result, error) {
+	if runner == nil {
+		runner = DefaultRunner
+	}
+	if _, err := os.Stat(filepath.Join(repoRoot, "go.mod")); err != nil {
+		return Result{Kind: KindRepoRoot}, fmt.Errorf("no go.mod at repo root %s: %w", repoRoot, err)
+	}
+
+	result, runErr := runGoRecoverySequence(ctx, runner, repoRoot, ".", KindRepoRoot, sig)
+	if result.Err == nil {
 		result.Err = runErr
 	}
 	return result, nil

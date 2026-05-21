@@ -1,29 +1,29 @@
 ### Window inspected
-2026-05-19 durable autoheal incidents, autoheal status, latest 50 autoheal actions, 24h trends/transitions, and action timeline.
+2026-05-20 durable autoheal incidents, autoheal status, latest 50 autoheal actions, 24h trends/transitions, action timeline, owned pending decisions, and prior runtime-health knowledge.
 
 ### Signal counts
-42 open incidents: 30 host_integrity, 11 unclean_boot, 1 autoheal_failure. Autoheal status: 62 checks, 50 ok, 10 warning, 2 critical. Latest 50 actions: 22 successes, 28 failures: 26 `exit status 1`, 2 `action timed out`.
+46 open incidents: 34 host_integrity, 11 unclean_boot, 1 autoheal_failure. Autoheal status: 62 checks, 43 ok, 11 warning, 8 critical. Latest 50 actions: 15 successes, 35 failures: 26 `missing_go_sum`, 4 `sudo_requires_tty`, 2 `go_mod_tidy_needed`, 1 `generated_strings_stale`, 1 `lifecycle_lock`, 1 timeout.
 
 ### Signal picked
-Scenario restart setup/build prerequisite failures.
+Repeat privileged infra DNS/network remediation-capability failure.
 
 ### Pattern observed
-18 of latest 50 actions failed with `missing go.sum entry`: 8 `scenario-git-control-tower`, 5 `scenario-flow-verifier`, 4 `scenario-web-console`, 1 `scenario-tidiness-manager`. Most cited `github.com/go-chi/chi/v5` from `packages/api-core/connectx`; one cited `github.com/santhosh-tekuri/jsonschema/v5` from `packages/cli-core/cliapp`. Affected scenarios later reported healthy, so generic action failure overstates unresolved outage and hides a shared remediation blocker.
+Action IDs `11025`/`11028` for `infra-network flush-arp-cache` and `11026`/`11029` for `infra-dns restart-resolved` failed on 2026-05-18 and 2026-05-19 in 4-8ms with `sudo: a terminal is required` / password required. Current 24h trends show both checks 100% ok, so remediation failed while checks recovered naturally.
 
 ### Hypothesized root cause
-Autoheal restart handling does not classify lifecycle setup/build prerequisite failures as deterministic remediation blockers keyed by package/module/source state, so retries continue as generic `exit status 1`.
+Autoheal action contracts do not distinguish privileged host mutation requirements or noninteractive privilege unavailability from generic command failure.
 
 ### Proposed action
-Raised `dec-1779233619542808422`: classify missing module-sum/setup-build failures as `permanent_build_prerequisite_failure`, suppress duplicate restart attempts until source state changes, keep health separate from remediation capability, and route a scenario-quality/platform-package payload.
+No new decision raised: four runtime-health-scanner owned-context decisions are already pending. When capacity allows, propose privileged action preflight plus operator-artifact routing and recovery-aware suppression.
 
 ### Measurement plan
-Track action id, scenario, phase, step, error class, missing module/package, package path, source-state fingerprint, duplicate suppression decision, last health transition, post-action health status, and recovery path.
+Track action privilege requirement, preflight result, remediation mode, action/check/action IDs, transition timestamps, current/post-action health, natural recovery timing, suppression decision, and operator artifact path.
 
 ### Missing CLI or telemetry surfaces
-Action history lacks structured `phase`, `step`, `package/module`, `source_fingerprint`, `duplicate_of`, and `post_action_health`.
+Action history lacks structured `requires_privilege`, `privilege_preflight`, `remediation_mode`, `duplicate_of`, `post_action_health`, and `operator_artifact_path`.
 
 ### Decisions raised
-`dec-1779233619542808422`.
+None; skipped due owned-context pending decision cap.
 
 ### Knowledge entries written
-`knw-1779233607585587538` on `runtime-health-audit/2026-05-19`.
+`knw-1779319945357063769` on `runtime-health-audit/2026-05-20`.

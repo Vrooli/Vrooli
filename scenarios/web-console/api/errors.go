@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-
 	"web-console/session"
 
 	"github.com/gorilla/mux"

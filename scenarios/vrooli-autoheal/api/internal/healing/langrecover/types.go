@@ -15,8 +15,9 @@ import (
 type Kind string
 
 const (
-	KindGo   Kind = "go"
-	KindPnpm Kind = "pnpm"
+	KindGo       Kind = "go"
+	KindPnpm     Kind = "pnpm"
+	KindRepoRoot Kind = "repo-root"
 )
 
 // Result is the outcome of a single recovery strategy invocation.

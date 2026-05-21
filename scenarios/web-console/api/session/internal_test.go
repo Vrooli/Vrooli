@@ -2,7 +2,6 @@ package session
 
 import (
 	"testing"
-
 	"web-console/internal/ptyfake"
 )
 
