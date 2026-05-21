@@ -16,7 +16,7 @@
 - None this heartbeat.
 
 ### Triage snapshot
-- friction-triage-record/2026-05-21 updated as `knw-1779364824920426420`
+- friction-triage-record/2026-05-21 updated as `knw-1779379229776747017`
 
 ### Patterns surfaced to debt-curator
 - None this heartbeat.
@@ -24,4 +24,3 @@
 ### Notes
 - `friction-inbox/` was empty on final check.
 - `docs/meta-optimization/taxonomies/friction-report/README.md` remains absent; no validation was required because there were no inbox entries.
-- Snapshot write succeeded without legacy `--by`.

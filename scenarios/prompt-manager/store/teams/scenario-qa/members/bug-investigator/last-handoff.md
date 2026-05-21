@@ -15,16 +15,10 @@ None. No inbox entry required investigation.
 No drain action needed.
 
 ### Backlog item / decision created
-None.
+None. Note: `bug-resolution-proposal` currently has 4 pending decisions, so future runs should skip new owned-context decisions unless that count drops.
 
 ### Capability-gap raised
 None.
 
 ### Surface for technique graduation
 None.
-
-Note for next run: the expected PoR files still did not appear from the workspace root when checked:
-`docs/scenario-qa/taxonomies/bug-report/README.md`
-`docs/scenario-qa/methods/investigation/README.md`
-
-This did not block the run because the bug inbox was empty.
