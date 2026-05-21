@@ -186,12 +186,15 @@ func (x *ReindexStatusRequest) GetJobId() string {
 }
 
 type ReindexStatusResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
-	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
-	Processed     int32                  `protobuf:"varint,3,opt,name=processed,proto3" json:"processed,omitempty"`
-	Total         int32                  `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
-	Error         string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	JobId     string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	State     string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	Processed int32                  `protobuf:"varint,3,opt,name=processed,proto3" json:"processed,omitempty"`
+	Total     int32                  `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	Error     string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	// Non-fatal advisory messages from the reindex job. Surfaced even on
+	// state="succeeded_empty" so operators don't read a 0/0 no-op as healthy.
+	Warnings      []string `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -259,6 +262,13 @@ func (x *ReindexStatusResponse) GetError() string {
 		return x.Error
 	}
 	return ""
+}
+
+func (x *ReindexStatusResponse) GetWarnings() []string {
+	if x != nil {
+		return x.Warnings
+	}
+	return nil
 }
 
 type ReindexCancelRequest struct {
@@ -371,13 +381,14 @@ const file_ui_health_v1_reindex_reindex_proto_rawDesc = "" +
 	"\x0fplanned_deletes\x18\x03 \x01(\x05R\x0eplannedDeletes\x12\x17\n" +
 	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"-\n" +
 	"\x14ReindexStatusRequest\x12\x15\n" +
-	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"\x8e\x01\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"\xaa\x01\n" +
 	"\x15ReindexStatusResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12\x1c\n" +
 	"\tprocessed\x18\x03 \x01(\x05R\tprocessed\x12\x14\n" +
 	"\x05total\x18\x04 \x01(\x05R\x05total\x12\x14\n" +
-	"\x05error\x18\x05 \x01(\tR\x05error\"-\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\x12\x1a\n" +
+	"\bwarnings\x18\x06 \x03(\tR\bwarnings\"-\n" +
 	"\x14ReindexCancelRequest\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"L\n" +
 	"\x15ReindexCancelResponse\x12\x15\n" +

@@ -16,7 +16,7 @@ import (
 
 type Reindexer interface {
 	Reindex(ctx context.Context, scenario string, dryRun bool) (jobID string, plannedUpserts, plannedDeletes int, err error)
-	ReindexStatus(jobID string) (state string, processed, total int, errMsg string, ok bool)
+	ReindexStatus(jobID string) (state string, processed, total int, errMsg string, warnings []string, ok bool)
 	ReindexCancel(jobID string) bool
 }
 
@@ -58,7 +58,7 @@ func (h *connectHandler) ReindexStatus(_ context.Context, req *connect.Request[r
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("reindex service not configured"))
 	}
 	jobID := req.Msg.GetJobId()
-	state, processed, total, errMsg, ok := h.deps.Reindexer.ReindexStatus(jobID)
+	state, processed, total, errMsg, warnings, ok := h.deps.Reindexer.ReindexStatus(jobID)
 	if !ok {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("reindex job not found"))
 	}
@@ -68,6 +68,7 @@ func (h *connectHandler) ReindexStatus(_ context.Context, req *connect.Request[r
 		Processed: int32(processed),
 		Total:     int32(total),
 		Error:     errMsg,
+		Warnings:  warnings,
 	}), nil
 }
 
@@ -96,17 +97,18 @@ func (a ServiceAdapter) Reindex(ctx context.Context, scenario string, dryRun boo
 	return safeString(exp["job_id"]), up, del, nil
 }
 
-func (a ServiceAdapter) ReindexStatus(jobID string) (string, int, int, string, bool) {
+func (a ServiceAdapter) ReindexStatus(jobID string) (string, int, int, string, []string, bool) {
 	job, ok := a.Service.ReindexStatus(jobID)
 	if !ok {
-		return "", 0, 0, "", false
+		return "", 0, 0, "", nil, false
 	}
 	exp := a.Service.JobExport(job)
 	state, _ := exp["state"].(string)
 	processed, _ := exp["processed"].(int)
 	total, _ := exp["total"].(int)
 	errMsg, _ := exp["error"].(string)
-	return state, processed, total, errMsg, true
+	warnings, _ := exp["warnings"].([]string)
+	return state, processed, total, errMsg, warnings, true
 }
 
 func (a ServiceAdapter) ReindexCancel(jobID string) bool { return a.Service.ReindexCancel(jobID) }

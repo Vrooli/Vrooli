@@ -91,6 +91,21 @@ func (s *Service) ValidateScenario(_ context.Context, scenario string) (Report, 
 	}
 
 	rep := Report{Scenario: scenario}
+
+	// Short-circuit scenarios that have no UI surface at all.
+	// A scenario "has UI" if it ships a ui/ directory with a package.json
+	// (the react-vite template guarantees this) or any framework-recognizable
+	// entry. Without one, manifest validation has nothing to assert against.
+	if !scenarioHasUI(scenarioDir) {
+		rep.Findings = append(rep.Findings, Finding{
+			Severity: SeverityInfo,
+			Code:     "no_ui_surface",
+			Location: scenarioDir,
+			Message:  "scenario has no ui/ directory; skipping UI manifest validation",
+		})
+		return finalize(rep), nil
+	}
+
 	tmplManifest, tmplPath, tmplFinds := s.loadTemplateManifest(scenario)
 	rep.Findings = append(rep.Findings, tmplFinds...)
 	if tmplManifest == nil {
@@ -157,10 +172,11 @@ func (s *Service) loadTemplateManifest(scenario string) (*uiManifest, string, []
 	}
 	if svc.Generation.Template.ID == "" {
 		return nil, "", []Finding{{
-			Severity: SeverityError,
-			Code:     "template_id_missing",
-			Location: svcPath,
-			Message:  "generation.template.id is not declared",
+			Severity:   SeverityWarning,
+			Code:       "template_id_missing",
+			Location:   svcPath,
+			Message:    "generation.template.id is not declared; scenario was not generated from a tracked template",
+			Suggestion: "Declare generation.template.id in service.json to enable template-aware validation",
 		}}
 	}
 	mfPath := filepath.Join(s.RepoRoot, "templates", "scenarios", svc.Generation.Template.ID, "ui", "manifest.json")
@@ -168,9 +184,9 @@ func (s *Service) loadTemplateManifest(scenario string) (*uiManifest, string, []
 	if err != nil {
 		return nil, mfPath, []Finding{{
 			Severity: SeverityError,
-			Code:     "template_manifest_missing",
+			Code:     "template_unknown",
 			Location: mfPath,
-			Message:  fmt.Sprintf("template %s: ui/manifest.json missing", svc.Generation.Template.ID),
+			Message:  fmt.Sprintf("template %q referenced by service.json has no ui/manifest.json at %s", svc.Generation.Template.ID, mfPath),
 		}}
 	}
 	var mf uiManifest
@@ -307,6 +323,13 @@ func validateSlotsOnDisk(repoRoot, scenario string, mf uiManifest, mfPath string
 			})
 			continue
 		}
+		// Placeholder dirs (e.g. "ui/src/features/{feature}") aren't real
+		// paths — they're patterns. Resolve the parent and inspect concrete
+		// instances instead of stat-ing the literal placeholder string.
+		if tokenRE.MatchString(slot.Dir) {
+			finds = append(finds, validatePlaceholderSlot(repoRoot, scenario, name, slot.Dir)...)
+			continue
+		}
 		full := filepath.Join(repoRoot, "scenarios", scenario, slot.Dir)
 		info, err := os.Stat(full)
 		if err != nil {
@@ -337,6 +360,85 @@ func validateSlotsOnDisk(repoRoot, scenario string, mf uiManifest, mfPath string
 		}
 	}
 	return finds
+}
+
+// validatePlaceholderSlot handles slots whose dir contains a `{token}`
+// placeholder. The parent (the path segments before the first placeholder)
+// must exist; the placeholder segment may resolve to zero or more concrete
+// subdirectories (e.g. one per feature). Zero instances is an info finding,
+// not a missing-directory warning, because the placeholder path itself was
+// never supposed to exist on disk.
+func validatePlaceholderSlot(repoRoot, scenario, slotName, dir string) []Finding {
+	segments := strings.Split(filepath.ToSlash(dir), "/")
+	var parentParts []string
+	for _, seg := range segments {
+		if tokenRE.MatchString(seg) {
+			break
+		}
+		parentParts = append(parentParts, seg)
+	}
+	parentRel := strings.Join(parentParts, "/")
+	parentAbs := filepath.Join(repoRoot, "scenarios", scenario, parentRel)
+	info, err := os.Stat(parentAbs)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []Finding{{
+				Severity: SeverityWarning,
+				Code:     "slot_parent_dir_missing",
+				Location: parentAbs,
+				Message:  fmt.Sprintf("slot %q: parent directory %q does not exist on disk", slotName, parentRel),
+			}}
+		}
+		return []Finding{{
+			Severity: SeverityError,
+			Code:     "slot_dir_stat_failed",
+			Location: parentAbs,
+			Message:  fmt.Sprintf("slot %q: stat parent dir: %v", slotName, err),
+		}}
+	}
+	if !info.IsDir() {
+		return []Finding{{
+			Severity: SeverityError,
+			Code:     "slot_dir_not_directory",
+			Location: parentAbs,
+			Message:  fmt.Sprintf("slot %q: parent path %q is not a directory", slotName, parentRel),
+		}}
+	}
+	entries, err := os.ReadDir(parentAbs)
+	if err != nil {
+		return []Finding{{
+			Severity: SeverityError,
+			Code:     "slot_dir_stat_failed",
+			Location: parentAbs,
+			Message:  fmt.Sprintf("slot %q: read parent dir: %v", slotName, err),
+		}}
+	}
+	instances := 0
+	for _, e := range entries {
+		if e.IsDir() {
+			instances++
+		}
+	}
+	if instances == 0 {
+		return []Finding{{
+			Severity: SeverityInfo,
+			Code:     "slot_instances_empty",
+			Location: parentAbs,
+			Message:  fmt.Sprintf("slot %q: no concrete instances under %q yet", slotName, parentRel),
+		}}
+	}
+	return nil
+}
+
+// scenarioHasUI reports whether the scenario directory contains a UI surface
+// worth validating. The react-vite template guarantees ui/package.json; we
+// use that as a stable signal. Hand-built UIs with a different layout can
+// add a marker file later if needed.
+func scenarioHasUI(scenarioDir string) bool {
+	if _, err := os.Stat(filepath.Join(scenarioDir, "ui", "package.json")); err == nil {
+		return true
+	}
+	return false
 }
 
 // v1 path-pattern token vocabulary.

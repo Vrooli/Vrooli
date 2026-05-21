@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file dev-routing/v1/routing/routing.proto.
  */
 export const file_dev_routing_v1_routing_routing: GenFile = /*@__PURE__*/
-  fileDesc("CiRkZXYtcm91dGluZy92MS9yb3V0aW5nL3JvdXRpbmcucHJvdG8SHXZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nIiUKFkluc3RhbGxUZXN0UG9vbFJlcXVlc3QSCwoDZHNuGAEgASgJIhkKF0luc3RhbGxUZXN0UG9vbFJlc3BvbnNlIhYKFENsZWFyVGVzdFBvb2xSZXF1ZXN0IhcKFUNsZWFyVGVzdFBvb2xSZXNwb25zZTKPAgoOUm91dGluZ1NlcnZpY2USgAEKD0luc3RhbGxUZXN0UG9vbBI1LnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkluc3RhbGxUZXN0UG9vbFJlcXVlc3QaNi52cm9vbGkuZGV2X3JvdXRpbmcudjEucm91dGluZy5JbnN0YWxsVGVzdFBvb2xSZXNwb25zZRJ6Cg1DbGVhclRlc3RQb29sEjMudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuQ2xlYXJUZXN0UG9vbFJlcXVlc3QaNC52cm9vbGkuZGV2X3JvdXRpbmcudjEucm91dGluZy5DbGVhclRlc3RQb29sUmVzcG9uc2VCUlpQZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kZXYtcm91dGluZy92MS9yb3V0aW5nO3JvdXRpbmdfdjFiBnByb3RvMw");
+  fileDesc("CiRkZXYtcm91dGluZy92MS9yb3V0aW5nL3JvdXRpbmcucHJvdG8SHXZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nIjcKFkluc3RhbGxUZXN0UG9vbFJlcXVlc3QSCwoDZHNuGAEgASgJEhAKCGxlYXNlX2lkGAIgASgJIjIKF0luc3RhbGxUZXN0UG9vbFJlc3BvbnNlEhcKD2FjdGl2ZV9sZWFzZV9pZBgBIAEoCSIoChRDbGVhclRlc3RQb29sUmVxdWVzdBIQCghsZWFzZV9pZBgBIAEoCSIXChVDbGVhclRlc3RQb29sUmVzcG9uc2UyjwIKDlJvdXRpbmdTZXJ2aWNlEoABCg9JbnN0YWxsVGVzdFBvb2wSNS52cm9vbGkuZGV2X3JvdXRpbmcudjEucm91dGluZy5JbnN0YWxsVGVzdFBvb2xSZXF1ZXN0GjYudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuSW5zdGFsbFRlc3RQb29sUmVzcG9uc2USegoNQ2xlYXJUZXN0UG9vbBIzLnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkNsZWFyVGVzdFBvb2xSZXF1ZXN0GjQudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuQ2xlYXJUZXN0UG9vbFJlc3BvbnNlQlJaUGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vZGV2LXJvdXRpbmcvdjEvcm91dGluZztyb3V0aW5nX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.dev_routing.v1.routing.InstallTestPoolRequest
@@ -25,6 +25,15 @@ export type InstallTestPoolRequest = Message<"vrooli.dev_routing.v1.routing.Inst
    * @generated from field: string dsn = 1;
    */
   dsn: string;
+
+  /**
+   * lease_id identifies the orchestrator's per-run claim on the scenario.
+   * The scenario rejects an install if the slot is already held under a
+   * different lease_id. Same lease_id installs are idempotent.
+   *
+   * @generated from field: string lease_id = 2;
+   */
+  leaseId: string;
 };
 
 /**
@@ -38,6 +47,14 @@ export const InstallTestPoolRequestSchema: GenMessage<InstallTestPoolRequest> = 
  * @generated from message vrooli.dev_routing.v1.routing.InstallTestPoolResponse
  */
 export type InstallTestPoolResponse = Message<"vrooli.dev_routing.v1.routing.InstallTestPoolResponse"> & {
+  /**
+   * active_lease_id reports the lease that owns the installed pool. On a
+   * successful install it equals the request's lease_id; on a conflict
+   * response detail it reports the existing holder.
+   *
+   * @generated from field: string active_lease_id = 1;
+   */
+  activeLeaseId: string;
 };
 
 /**
@@ -51,6 +68,12 @@ export const InstallTestPoolResponseSchema: GenMessage<InstallTestPoolResponse> 
  * @generated from message vrooli.dev_routing.v1.routing.ClearTestPoolRequest
  */
 export type ClearTestPoolRequest = Message<"vrooli.dev_routing.v1.routing.ClearTestPoolRequest"> & {
+  /**
+   * lease_id must match the active install. Mismatch yields FailedPrecondition.
+   *
+   * @generated from field: string lease_id = 1;
+   */
+  leaseId: string;
 };
 
 /**
@@ -80,7 +103,8 @@ export const RoutingService: GenService<{
   /**
    * InstallTestPool opens a new database connection pool against dsn and
    * installs it as the active test pool on the receiving scenario. If a
-   * previous test pool was installed it is replaced (and closed).
+   * previous test pool exists under a *different* lease_id the call is
+   * rejected; under the *same* lease_id it is idempotent (retry-safe).
    *
    * @generated from rpc vrooli.dev_routing.v1.routing.RoutingService.InstallTestPool
    */
@@ -90,9 +114,9 @@ export const RoutingService: GenService<{
     output: typeof InstallTestPoolResponseSchema;
   },
   /**
-   * ClearTestPool closes any installed test pool and reverts routing to the
-   * primary pool only. Idempotent: clearing when no pool is installed is a
-   * no-op success.
+   * ClearTestPool closes the installed test pool and reverts routing to the
+   * primary pool. The caller's lease_id must match the active install.
+   * Idempotent under match: clearing when no pool is installed is a no-op success.
    *
    * @generated from rpc vrooli.dev_routing.v1.routing.RoutingService.ClearTestPool
    */

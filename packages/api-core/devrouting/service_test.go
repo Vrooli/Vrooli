@@ -61,21 +61,44 @@ func TestRegister_DevMode_MountsHandler(t *testing.T) {
 
 	client := routing_v1connect.NewRoutingServiceClient(http.DefaultClient, srv.URL)
 
-	// ClearTestPool is a safe no-op call; succeeds.
-	if _, err := client.ClearTestPool(context.Background(), connect.NewRequest(&routingv1.ClearTestPoolRequest{})); err != nil {
+	// ClearTestPool on an empty slot is a no-op success.
+	if _, err := client.ClearTestPool(context.Background(), connect.NewRequest(&routingv1.ClearTestPoolRequest{LeaseId: "lease-a"})); err != nil {
 		t.Fatalf("ClearTestPool: %v", err)
 	}
 
 	// InstallTestPool with a fresh sqlite path.
 	dsn := filepath.Join(t.TempDir(), "test.db")
-	if _, err := client.InstallTestPool(context.Background(), connect.NewRequest(&routingv1.InstallTestPoolRequest{Dsn: dsn})); err != nil {
+	resp, err := client.InstallTestPool(context.Background(), connect.NewRequest(&routingv1.InstallTestPoolRequest{Dsn: dsn, LeaseId: "lease-a"}))
+	if err != nil {
 		t.Fatalf("InstallTestPool: %v", err)
+	}
+	if resp.Msg.GetActiveLeaseId() != "lease-a" {
+		t.Fatalf("active_lease_id = %q, want lease-a", resp.Msg.GetActiveLeaseId())
 	}
 	if !db.HasTestPool() {
 		t.Fatalf("expected test pool installed")
 	}
 
-	if _, err := client.ClearTestPool(context.Background(), connect.NewRequest(&routingv1.ClearTestPoolRequest{})); err != nil {
+	// Conflicting install under a different lease → AlreadyExists.
+	dsn2 := filepath.Join(t.TempDir(), "test2.db")
+	_, err = client.InstallTestPool(context.Background(), connect.NewRequest(&routingv1.InstallTestPoolRequest{Dsn: dsn2, LeaseId: "lease-b"}))
+	if err == nil {
+		t.Fatalf("expected AlreadyExists, got nil")
+	}
+	if connect.CodeOf(err) != connect.CodeAlreadyExists {
+		t.Fatalf("expected CodeAlreadyExists, got %v", connect.CodeOf(err))
+	}
+
+	// Clearing with the wrong lease → FailedPrecondition.
+	_, err = client.ClearTestPool(context.Background(), connect.NewRequest(&routingv1.ClearTestPoolRequest{LeaseId: "lease-b"}))
+	if err == nil {
+		t.Fatalf("expected FailedPrecondition on wrong-lease clear, got nil")
+	}
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("expected CodeFailedPrecondition, got %v", connect.CodeOf(err))
+	}
+
+	if _, err := client.ClearTestPool(context.Background(), connect.NewRequest(&routingv1.ClearTestPoolRequest{LeaseId: "lease-a"})); err != nil {
 		t.Fatalf("ClearTestPool 2: %v", err)
 	}
 	if db.HasTestPool() {
@@ -98,7 +121,7 @@ func TestRegister_ProductionMode_NoOp(t *testing.T) {
 
 	client := routing_v1connect.NewRoutingServiceClient(http.DefaultClient, srv.URL)
 	// Path is not mounted → request fails (404 / unknown procedure).
-	_, err := client.ClearTestPool(context.Background(), connect.NewRequest(&routingv1.ClearTestPoolRequest{}))
+	_, err := client.ClearTestPool(context.Background(), connect.NewRequest(&routingv1.ClearTestPoolRequest{LeaseId: "lease-a"}))
 	if err == nil {
 		t.Fatalf("expected error calling unmounted ClearTestPool in production, got nil")
 	}

@@ -26,10 +26,38 @@ import (
 // substitute the entire seam by passing a different *RoutedDB constructed
 // against in-memory drivers.
 type RoutedDB struct {
-	mu      sync.RWMutex
-	primary *sql.DB
-	test    *sql.DB
-	cfg     Config
+	mu        sync.RWMutex
+	primary   *sql.DB
+	test      *sql.DB
+	testLease string
+	cfg       Config
+}
+
+// ErrLeaseConflict is returned by InstallTestPool when a test pool is
+// already installed under a different lease_id. ActiveLeaseID exposes the
+// current owner so callers can surface a useful conflict message.
+type ErrLeaseConflict struct {
+	ActiveLeaseID string
+}
+
+func (e *ErrLeaseConflict) Error() string {
+	if e.ActiveLeaseID == "" {
+		return "database.RoutedDB: test pool already installed"
+	}
+	return fmt.Sprintf("database.RoutedDB: test pool already installed under lease %q", e.ActiveLeaseID)
+}
+
+// ErrLeaseMismatch is returned by ClearTestPool when the caller's
+// lease_id does not match the active install.
+type ErrLeaseMismatch struct {
+	ActiveLeaseID string
+}
+
+func (e *ErrLeaseMismatch) Error() string {
+	if e.ActiveLeaseID == "" {
+		return "database.RoutedDB: lease mismatch (no active install)"
+	}
+	return fmt.Sprintf("database.RoutedDB: lease mismatch (active lease %q)", e.ActiveLeaseID)
 }
 
 // Open opens a database connection following the same DSN-resolution and
@@ -81,13 +109,29 @@ func (r *RoutedDB) HasTestPool() bool {
 	return r.test != nil
 }
 
-// InstallTestPool opens a new connection pool against dsn using the same
-// driver as the primary pool and installs it as the active test pool. If a
-// previous test pool was installed, it is closed first.
-func (r *RoutedDB) InstallTestPool(ctx context.Context, dsn string) error {
+// InstallTestPool opens a new pool against dsn and installs it as the
+// active test pool under leaseID. Lease semantics:
+//
+//   - No pool installed: install under leaseID (empty string is allowed —
+//     it represents an un-claimed ad-hoc install used only by direct
+//     operator tooling).
+//   - Pool installed under same leaseID: idempotent — close the old pool,
+//     install the new one under the same lease. Retry-safe.
+//   - Pool installed under a different leaseID: reject with
+//     *ErrLeaseConflict carrying the active lease.
+func (r *RoutedDB) InstallTestPool(ctx context.Context, dsn, leaseID string) error {
 	if dsn == "" {
 		return errors.New("database.RoutedDB.InstallTestPool: dsn is empty")
 	}
+
+	r.mu.Lock()
+	if r.test != nil && r.testLease != leaseID {
+		active := r.testLease
+		r.mu.Unlock()
+		return &ErrLeaseConflict{ActiveLeaseID: active}
+	}
+	r.mu.Unlock()
+
 	testCfg := r.cfg
 	testCfg.DSN = dsn
 	pool, err := Connect(ctx, testCfg)
@@ -96,8 +140,17 @@ func (r *RoutedDB) InstallTestPool(ctx context.Context, dsn string) error {
 	}
 
 	r.mu.Lock()
+	// Re-check under exclusive lock — another caller may have installed
+	// between the read above and here.
+	if r.test != nil && r.testLease != leaseID {
+		active := r.testLease
+		r.mu.Unlock()
+		_ = pool.Close()
+		return &ErrLeaseConflict{ActiveLeaseID: active}
+	}
 	old := r.test
 	r.test = pool
+	r.testLease = leaseID
 	r.mu.Unlock()
 
 	if old != nil {
@@ -106,12 +159,34 @@ func (r *RoutedDB) InstallTestPool(ctx context.Context, dsn string) error {
 	return nil
 }
 
-// ClearTestPool closes any installed test pool and reverts routing to the
-// primary pool only.
-func (r *RoutedDB) ClearTestPool() error {
+// ActiveLeaseID returns the lease_id currently owning the installed test
+// pool, or empty string if no pool is installed.
+func (r *RoutedDB) ActiveLeaseID() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.testLease
+}
+
+// ClearTestPool closes the installed test pool and reverts routing to the
+// primary pool. Lease semantics:
+//
+//   - No pool installed: no-op success regardless of leaseID.
+//   - Pool installed under same leaseID: clear.
+//   - Pool installed under a different leaseID: reject with *ErrLeaseMismatch.
+func (r *RoutedDB) ClearTestPool(leaseID string) error {
 	r.mu.Lock()
+	if r.test == nil {
+		r.mu.Unlock()
+		return nil
+	}
+	if r.testLease != leaseID {
+		active := r.testLease
+		r.mu.Unlock()
+		return &ErrLeaseMismatch{ActiveLeaseID: active}
+	}
 	old := r.test
 	r.test = nil
+	r.testLease = ""
 	r.mu.Unlock()
 
 	if old != nil {
@@ -128,6 +203,7 @@ func (r *RoutedDB) Close() error {
 	test := r.test
 	r.primary = nil
 	r.test = nil
+	r.testLease = ""
 	r.mu.Unlock()
 
 	var errPrimary, errTest error

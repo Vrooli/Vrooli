@@ -7,6 +7,7 @@ import (
 	goruntime "runtime"
 	"testing"
 
+	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/storage/sqlfiles"
 	"test-genie/internal/storage/sqlitedb"
 
@@ -44,6 +45,9 @@ func open(t *testing.T, includeSeed bool) *sql.DB {
 
 	if err := sqlfiles.ExecFile(db, filepath.Join(scenarioRoot(), "initialization", "sqlite", "schema.sql")); err != nil {
 		t.Fatalf("apply sqlite schema: %v", err)
+	}
+	if _, err := db.Exec(playbooksclaims.Schema()); err != nil {
+		t.Fatalf("apply playbooksclaims schema: %v", err)
 	}
 	if includeSeed {
 		if err := sqlfiles.ExecFile(db, filepath.Join(scenarioRoot(), "initialization", "sqlite", "seed.sql")); err != nil {

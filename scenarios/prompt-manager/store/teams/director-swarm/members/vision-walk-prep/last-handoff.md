@@ -1,14 +1,14 @@
 ### Retrospective
 
-Current run date: **2026-05-20**. Refreshed snapshot recorded as `vision-walk-record/2026-05-20/prep-refresh` (`knw-1779267690736541501`).
+Current run date: **2026-05-21**. Refreshed snapshot recorded as `vision-walk-record/2026-05-21/prep-refresh` (`knw-1779354141676273675`).
 
-- **Throughput:** `completed_last_7_days=0`, `created_last_7_days=58`; `completed_last_30_days=27`, `created_last_30_days=106`, net +79.
-- **Portfolio size:** **450 total items**: 312 backlog, 125 completed, 6 failed, 6 in_review, 1 queued.
+- **Throughput:** `completed_last_7_days=0`, `created_last_7_days=56`; `completed_last_30_days=27`, `created_last_30_days=107`, net +80.
+- **Portfolio size:** **451 total items**: 313 backlog, 125 completed, 6 failed, 6 in_review, 1 queued.
 - **Governance lanes:** still 7 active by lane state, queue depth 0: investigate 3/6, execute 3/3, review 1/8, reconcile 0/2.
-- **Rollup mismatches persist:** stats dashboard says backlog 107 and completed all-time 52; overview says backlog 312 and completed 125. Initiative list reports 60 initiatives; overview reports 58 active initiatives.
-- **Execution caveat persists:** `swarm-manager execution list` still returns 95 execution runs, mostly historical `needs_fixup`/failed/completed rows rather than visible running/queued rows; stats sessions show 34 sessions, 3 active, failed session rate 26.9%.
+- **Rollup mismatches persist:** stats dashboard says backlog 108 and completed all-time 52; overview says backlog 313 and completed 125. Initiative list reports 60 initiatives; overview reports 58 active initiatives.
+- **Execution caveat persists:** `swarm-manager execution list` still returns 95 execution runs, mostly historical `needs_fixup`/failed/completed rows; stats sessions show 34 sessions, 3 active, failed session rate 26.9%.
 
-Strategic frame worsened slightly since the previous prep: 7-day net growth moved from +54 on 2026-05-18 to +58 on 2026-05-20, still with zero 7-day completions.
+Strategic frame is still unhealthy: 7-day net growth improved slightly from +58 to +56, but completions remain zero and 30-day net growth rose to +80.
 
 GCT remains flat:
 
@@ -19,7 +19,7 @@ GCT remains flat:
 - `gct-release-pipeline` 0/2
 - `gct-pre-commit-security` 1/5
 
-GCT unblocker evidence still centers on `fix/qa-git-control-tower-tests-playbook-schema-20260515` and `execute/qa-git-control-tower-code-quality-20260408`, with adjacent QA dependencies now including test-genie GCT depth/readiness plus workspace-sandbox and visual-baseline paths.
+GCT unblocker evidence still centers on `fix/qa-git-control-tower-tests-playbook-schema-20260515` and `execute/qa-git-control-tower-code-quality-20260408`.
 
 ### Portfolio Decisions
 
@@ -34,7 +34,7 @@ GCT unblocker evidence still centers on `fix/qa-git-control-tower-tests-playbook
   - Recommends promoting `fix/qa-git-control-tower-tests-playbook-schema-20260515` and `execute/qa-git-control-tower-code-quality-20260408`.
   - Walk prompt: whether GCT feature work should explicitly wait behind shared QA unblockers.
 
-**Queue caveat:** `dec-1777312920606447957` social-media-scheduler still appears pending. Treat it as relevant publishing-pipeline infrastructure, not the primary portfolio decision unless the walk turns toward marketing ops.
+**Queue caveat:** `dec-1777312920606447957` social-media-scheduler is still pending. Treat it as publishing-pipeline infrastructure, not the primary portfolio decision unless the walk turns toward marketing ops.
 
 ### Strategist Decisions
 
@@ -46,9 +46,12 @@ No strategist team is visible in `prompt-manager team list`; `prompt-manager tea
 
 - **`dec-1778875348622351458` — Add SaaS Capital retention/churn benchmarks**
   - Adds private B2B SaaS NRR/GRR comps to `BENCHMARKS.md`.
+  - Contrarian scan on 2026-05-20 scored it clean.
   - Applicability remains medium: useful for retention target realism, not direct proof for low-ACV dev-tool pricing.
 
-Pricing trough remains deferred until **2026-06-25**. Financial tracker/operator cash-flow data still has no useful fresh input in this run.
+Financial tracker remains quiet: `operator-inputs.json::lastUpdatedAt` is still null, cash/burn are pending operator input, and revenue/retention telemetry remains absent. Pricing trough remains deferred until **2026-06-25**.
+
+Fresh monetization context: two opportunity candidates were added on 2026-05-18 and remain no-fire: `lifestyle-money-and-meals-coach-add-on` and `ai-built-app-hardening-service-line`.
 
 ### Marketing Decisions
 
@@ -60,19 +63,23 @@ Pricing trough remains deferred until **2026-06-25**. Financial tracker/operator
 - **`dec-1778873456617563354`** — OSS platform has no active first-publish proposal.
 - **`dec-1778878881483178807`** — Close obsolete rejection/amendment proposal.
 
-Marketing signal remains: prose/voice was not the blocker. Source evidence, first-publish coverage, and media/provenance capability are the blockers.
+Marketing signal remains: prose/voice is not the blocker. Source evidence, first-publish coverage, and media/provenance capability are the blockers.
+
+Fresh marketing context from 2026-05-20: researcher added template/plugin marketplace watch evidence across n8n, Zapier, Dify, Langflow, and CrewAI. This suggests future Vrooli proof/acquisition surfaces may need copyable scenario/template artifacts with provenance and credential boundaries, but it is watch evidence only, not an active publish proposal.
 
 ### Meta-Optimization Decisions
 
-Meta queue is now **13 pending**. Main clusters:
+Meta queue is now **10 pending**, down from 13 in the prior prep.
 
-- False-signal/tooling precision: `dec-1778796166725303185`, `dec-1778884421236613535`, `dec-1779141739837517904`.
-- Runner/preflight failures: `dec-1778885362329320192`, `dec-1779058180482147600`, `dec-1779144543464355217`.
-- Skill and CLI contract cleanup: `dec-1778969859880763739`, `dec-1779056258579774059`, `dec-1779142599530774097`.
-- Agent/topic graph health: `dec-1778797938232697845`, `dec-1779057112765291497`, `dec-1779143529470088721`.
+Main clusters:
+
+- Skill/CLI contract cleanup: `dec-1778969859880763739`, `dec-1779056258579774059`, `dec-1779142599530774097`, new `dec-1779315407263556076` for browser-automation-studio stale singular command examples.
+- Runner/preflight/friction failures: `dec-1779058180482147600`, `dec-1779144543464355217`.
+- Agent/topic graph health: `dec-1779057112765291497`, `dec-1779143529470088721`.
 - Programmatic conversion candidate: `dec-1778971728228105895`.
+- Toolchain validation precision: `dec-1779141739837517904`.
 
-Walk framing: meta has broadened into a tooling-contract cleanup backlog. If operator wants review-load reduction, prioritize items that prevent repeated bad signals: storage/friction write path, runner preflights, and graph/topic validation precision.
+Walk framing: meta review load improved, but remaining items still cluster around stale generated instructions, CLI drift, runner preflights, and graph/topic validation precision.
 
 ### Infra-Health Decisions
 
@@ -84,17 +91,17 @@ Walk framing: meta has broadened into a tooling-contract cleanup backlog. If ope
 - **`dec-1778974408126433951`** — Classify scenario CLI discovery / manifest parse failures as permanent config defects.
 - **`dec-1778976129287933384`** — Complete lifecycle Stop/Restart cleanup bookkeeping even when ports remain bound.
 - **`dec-1779060889232051080`** — Make system MCE telemetry probe capability-aware.
-- **`dec-1779233619542808422`** — New: classify lifecycle setup/build prerequisite failures, especially missing `go.sum` entries, as deterministic autoheal remediation blockers.
+- **`dec-1779233619542808422`** — Classify lifecycle setup/build prerequisite failures, especially missing `go.sum` entries, as deterministic autoheal remediation blockers.
 
-Infra-health theme: recovery loops still need sharper classification across lock contention, permanent config defects, host capability limits, and deterministic build prerequisites.
+Infra-health contrarian re-reviewed five items on 2026-05-21 and raised no challenges. Runtime-health scanner also found privileged host mutation autoheal actions failing due to noninteractive sudo, but did not raise a new decision because runtime-health owned-context pending capacity is already full.
 
 ### Life Audit Prompts
 
-- **Backlog growth without conversion:** 58 created and 0 completed in 7 days. Is this still intentional planning expansion, or should scope creation pause until closures resume?
+- **Backlog growth without conversion:** 56 created and 0 completed in 7 days. Is scope creation still intentional planning expansion, or should new scope pause until closures resume?
 - **GCT unblocker choice:** decide whether next push explicitly prioritizes GCT QA/review unblockers over dependent GCT feature work.
 - **OSS first-publish reset:** decide whether first publish waits for richer GCT provenance/media capability or uses a simpler non-GCT story once evidence access is restored.
 - **Design-language foundation:** still the cleanest non-GCT planning decision if the walk needs constructive under-authored priority-7 scope.
-- **Financial/lifestyle audit:** revisit the 2026-05-14 budgeting signal: budget coaching, meal/grocery planning, Type-B planning support, and Life OS automation.
+- **Lifestyle/finance signal:** revisit the 2026-05-14 budgeting signal plus monetization’s `lifestyle-money-and-meals-coach-add-on` candidate: budget coaching, meal/grocery planning, Type-B planning support, and Life OS automation.
 
 ### Big Picture Context
 
@@ -103,8 +110,8 @@ Infra-health theme: recovery loops still need sharper classification across lock
 - **Lifestyle/family state:** routines-app 0/4, inventory-app 0/3, contact-book-plus 0/2, lifestyle-demand-validation 0/1.
 - **Marketing:** OSS coverage still missing; first-publish proposal should wait on evidence-path restoration or be deliberately reframed.
 - **Monetization:** live queue is light; retention/churn benchmark update is the only active pending monetization decision.
-- **Infra-health:** strongest signals are lifecycle/run recovery classification, heartbeat stop controls, autoheal lock-awareness, and runner preflight gaps.
-- **Portfolio:** active execution lane state exists, but backlog-item completion remains flat while creation accelerates.
+- **Infra-health:** strongest signals are lifecycle/run recovery classification, heartbeat stop controls, autoheal lock-awareness, runner preflight gaps, and deterministic build-prerequisite handling.
+- **Portfolio:** active execution lane state exists, but backlog-item completion remains flat while scope continues to grow.
 
 Prior durable walk memories still relevant:
 

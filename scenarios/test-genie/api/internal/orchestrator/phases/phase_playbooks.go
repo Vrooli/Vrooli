@@ -2,6 +2,7 @@ package phases
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,7 +17,10 @@ import (
 	"test-genie/internal/playbooks"
 	"test-genie/internal/playbooks/config"
 	"test-genie/internal/playbooks/isolation"
+	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/shared"
+
+	"github.com/google/uuid"
 
 	playbookregistry "test-genie/internal/playbooks/registry"
 
@@ -69,6 +73,47 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 			FailureClassification: FailureClassSystem,
 		}
 	}
+
+	if env.Claims == nil {
+		return RunReport{
+			Err:                   fmt.Errorf("playbooks claims service is not wired into the workspace environment"),
+			FailureClassification: FailureClassSystem,
+			Remediation:           "Bootstrap must call ScenarioWorkspace.SetClaims before running the playbooks phase.",
+		}
+	}
+
+	leaseID := uuid.NewString()
+	startedBy := resolveClaimActor()
+	claim, claimErr := env.Claims.TryAcquire(ctx, playbooksclaims.AcquireInput{
+		ScenarioName: env.ScenarioName,
+		RunID:        leaseID,
+		Mode:         playbooksclaims.ModeRouted, // refined below once eligibility decides
+		StartedBy:    startedBy,
+	})
+	if claimErr != nil {
+		var busy *playbooksclaims.ErrBusy
+		if errors.As(claimErr, &busy) {
+			shared.LogWarn(logWriter, "playbooks phase busy: scenario %q already held by run %s (started_by=%s, expires=%s)",
+				env.ScenarioName, busy.Holder.RunID, busy.Holder.StartedBy, busy.Holder.ExpiresAt.Format(time.RFC3339))
+			return RunReport{
+				Err:                   claimErr,
+				FailureClassification: FailureClassMisconfiguration,
+				Remediation:           "Wait for the active run to finish, retry with --wait, or force-release the claim via test-genie claims release.",
+			}
+		}
+		return RunReport{
+			Err:                   fmt.Errorf("acquire playbooks claim: %w", claimErr),
+			FailureClassification: FailureClassSystem,
+		}
+	}
+	stopHeartbeat := env.Claims.StartHeartbeat(ctx, env.ScenarioName, claim.RunID)
+	defer stopHeartbeat()
+	defer func() {
+		if err := env.Claims.Release(context.Background(), env.ScenarioName, claim.RunID); err != nil {
+			shared.LogWarn(logWriter, "failed to release playbooks claim run=%s: %v", claim.RunID, err)
+		}
+	}()
+	shared.LogStep(logWriter, "acquired playbooks claim run=%s (TTL %s, heartbeat %s)", claim.RunID, env.Claims.TTL(), playbooksclaims.HeartbeatInterval)
 
 	playbooksCfg, err := config.Load(env.ScenarioDir)
 	if err != nil {
@@ -180,9 +225,20 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 			shared.LogWarn(logWriter, "routed-path pre-flight failed (%v); using fallback path", reason)
 			return runPlaybooksFallback(ctx, env, logWriter, playbooksCfg, registry, needs, isoResult, retainIsolation)
 		}
-		return runPlaybooksRouted(ctx, env, logWriter, playbooksCfg, registry, needs, isoResult, retainIsolation, client, dsn)
+		return runPlaybooksRouted(ctx, env, logWriter, playbooksCfg, registry, needs, isoResult, retainIsolation, client, dsn, leaseID)
 	}
 	return runPlaybooksFallback(ctx, env, logWriter, playbooksCfg, registry, needs, isoResult, retainIsolation)
+}
+
+// resolveClaimActor reports the actor that started a playbooks run. Best
+// effort — falls back to "test-genie" if no env hint is set.
+func resolveClaimActor() string {
+	for _, key := range []string{"TEST_GENIE_STARTED_BY", "USER", "LOGNAME"} {
+		if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+			return v
+		}
+	}
+	return "test-genie"
 }
 
 // writeFallbackViolationsBlock prepends a structured violations summary to
@@ -225,6 +281,7 @@ func runPlaybooksRouted(
 	retainIsolation bool,
 	client routing_v1connect.RoutingServiceClient,
 	dsn string,
+	leaseID string,
 ) RunReport {
 	shared.LogStep(logWriter, "playbooks routed path (run=%s) — no scenario restart", isoResult.RunID)
 	for _, res := range isoResult.Resources {
@@ -241,7 +298,7 @@ func runPlaybooksRouted(
 		}
 	}
 
-	if _, err := client.InstallTestPool(ctx, connect.NewRequest(&routingv1.InstallTestPoolRequest{Dsn: dsn})); err != nil {
+	if _, err := client.InstallTestPool(ctx, connect.NewRequest(&routingv1.InstallTestPoolRequest{Dsn: dsn, LeaseId: leaseID})); err != nil {
 		_ = isoResult.Cleanup(context.Background())
 		return RunReport{
 			Err:                   fmt.Errorf("install test pool on %s: %w", env.ScenarioName, err),
@@ -252,7 +309,7 @@ func runPlaybooksRouted(
 	shared.LogStep(logWriter, "installed routed test pool on %s", env.ScenarioName)
 
 	defer func() {
-		_, clearErr := client.ClearTestPool(context.Background(), connect.NewRequest(&routingv1.ClearTestPoolRequest{}))
+		_, clearErr := client.ClearTestPool(context.Background(), connect.NewRequest(&routingv1.ClearTestPoolRequest{LeaseId: leaseID}))
 		if clearErr != nil {
 			shared.LogWarn(logWriter, "failed to clear routed test pool: %v", clearErr)
 		}

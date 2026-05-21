@@ -47,6 +47,9 @@ message ReindexStatusResponse {
   int32 processed = 3;
   int32 total = 4;
   string error = 5;
+  // Non-fatal advisory messages from the reindex job. Surfaced even on
+  // state="succeeded_empty" so operators don't read a 0/0 no-op as healthy.
+  repeated string warnings = 6;
 }
 
 message ReindexCancelRequest {

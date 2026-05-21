@@ -46,6 +46,7 @@ func (o *SuiteOrchestrator) loadExecutionPlanContext(req SuiteExecutionRequest) 
 	}
 
 	ws.SetRuntimeURLs(req.UIURL, req.APIURL, resolveBrowserlessURL(req.BrowserlessURL))
+	ws.SetClaims(o.claims)
 
 	env := ws.Environment()
 	config, err := workspacepkg.LoadTestingConfig(env.ScenarioDir)

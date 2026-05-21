@@ -21,13 +21,15 @@
     },
     "layout-shell": {
       "dir": "ui/src/layout",
-      "description": "App shell (AppShell, root container components).",
-      "pathPattern": "{dir}/{ComponentName}.tsx"
+      "description": "App shell (AppShell, root container components). Shares the layout dir with layout-nav by design.",
+      "pathPattern": "{dir}/{ComponentName}.tsx",
+      "multiFile": true
     },
     "layout-nav": {
       "dir": "ui/src/layout",
-      "description": "Navigation surfaces inside the shell (Sidebar, TopBar, BottomNav).",
-      "pathPattern": "{dir}/{ComponentName}.tsx"
+      "description": "Navigation surfaces inside the shell (Sidebar, TopBar, BottomNav). Shares the layout dir with layout-shell by design.",
+      "pathPattern": "{dir}/{ComponentName}.tsx",
+      "multiFile": true
     },
     "page": {
       "dir": "ui/src/pages",

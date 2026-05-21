@@ -27,7 +27,11 @@ type InstallTestPoolRequest struct {
 	// against. Format follows the scenario's primary driver — Postgres URL or
 	// SQLite file path. test-genie owns provisioning and migration of the
 	// underlying database; the scenario only opens a pool.
-	Dsn           string `protobuf:"bytes,1,opt,name=dsn,proto3" json:"dsn,omitempty"`
+	Dsn string `protobuf:"bytes,1,opt,name=dsn,proto3" json:"dsn,omitempty"`
+	// lease_id identifies the orchestrator's per-run claim on the scenario.
+	// The scenario rejects an install if the slot is already held under a
+	// different lease_id. Same lease_id installs are idempotent.
+	LeaseId       string `protobuf:"bytes,2,opt,name=lease_id,json=leaseId,proto3" json:"lease_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -69,8 +73,19 @@ func (x *InstallTestPoolRequest) GetDsn() string {
 	return ""
 }
 
+func (x *InstallTestPoolRequest) GetLeaseId() string {
+	if x != nil {
+		return x.LeaseId
+	}
+	return ""
+}
+
 type InstallTestPoolResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// active_lease_id reports the lease that owns the installed pool. On a
+	// successful install it equals the request's lease_id; on a conflict
+	// response detail it reports the existing holder.
+	ActiveLeaseId string `protobuf:"bytes,1,opt,name=active_lease_id,json=activeLeaseId,proto3" json:"active_lease_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -105,8 +120,17 @@ func (*InstallTestPoolResponse) Descriptor() ([]byte, []int) {
 	return file_dev_routing_v1_routing_routing_proto_rawDescGZIP(), []int{1}
 }
 
+func (x *InstallTestPoolResponse) GetActiveLeaseId() string {
+	if x != nil {
+		return x.ActiveLeaseId
+	}
+	return ""
+}
+
 type ClearTestPoolRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// lease_id must match the active install. Mismatch yields FailedPrecondition.
+	LeaseId       string `protobuf:"bytes,1,opt,name=lease_id,json=leaseId,proto3" json:"lease_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -139,6 +163,13 @@ func (x *ClearTestPoolRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ClearTestPoolRequest.ProtoReflect.Descriptor instead.
 func (*ClearTestPoolRequest) Descriptor() ([]byte, []int) {
 	return file_dev_routing_v1_routing_routing_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ClearTestPoolRequest) GetLeaseId() string {
+	if x != nil {
+		return x.LeaseId
+	}
+	return ""
 }
 
 type ClearTestPoolResponse struct {
@@ -181,11 +212,14 @@ var File_dev_routing_v1_routing_routing_proto protoreflect.FileDescriptor
 
 const file_dev_routing_v1_routing_routing_proto_rawDesc = "" +
 	"\n" +
-	"$dev-routing/v1/routing/routing.proto\x12\x1dvrooli.dev_routing.v1.routing\"*\n" +
+	"$dev-routing/v1/routing/routing.proto\x12\x1dvrooli.dev_routing.v1.routing\"E\n" +
 	"\x16InstallTestPoolRequest\x12\x10\n" +
-	"\x03dsn\x18\x01 \x01(\tR\x03dsn\"\x19\n" +
-	"\x17InstallTestPoolResponse\"\x16\n" +
-	"\x14ClearTestPoolRequest\"\x17\n" +
+	"\x03dsn\x18\x01 \x01(\tR\x03dsn\x12\x19\n" +
+	"\blease_id\x18\x02 \x01(\tR\aleaseId\"A\n" +
+	"\x17InstallTestPoolResponse\x12&\n" +
+	"\x0factive_lease_id\x18\x01 \x01(\tR\ractiveLeaseId\"1\n" +
+	"\x14ClearTestPoolRequest\x12\x19\n" +
+	"\blease_id\x18\x01 \x01(\tR\aleaseId\"\x17\n" +
 	"\x15ClearTestPoolResponse2\x8f\x02\n" +
 	"\x0eRoutingService\x12\x80\x01\n" +
 	"\x0fInstallTestPool\x125.vrooli.dev_routing.v1.routing.InstallTestPoolRequest\x1a6.vrooli.dev_routing.v1.routing.InstallTestPoolResponse\x12z\n" +

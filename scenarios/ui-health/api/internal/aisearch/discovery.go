@@ -4,20 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
-	"connectrpc.com/connect"
+	"ui-health/integrations/reactcomponentlibrary"
 
 	contractsprovenancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/contracts/provenance"
 	contractswidgetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/contracts/widget"
 	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/inventory"
-	"github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/inventory/inventory_v1connect"
 )
 
 // DiscoverySource enumerates scenarios and produces SurfaceRecord values
@@ -39,47 +36,48 @@ type InventoryClient interface {
 // FrameworkDispatchRule pairs a service.json template id with the
 // component-library scenario id that implements InventoryService for that
 // framework. v1 has exactly one rule (react-vite → react-component-library);
-// future rules append without code changes.
+// future rules append without code changes. The dispatch URL is *not*
+// stored here — it is resolved per-call via the integrations adapter so
+// scenario restarts don't poison the dispatcher (interop-steer §9).
 type FrameworkDispatchRule struct {
 	TemplateID string // e.g. "react-vite"
 	Library    string // e.g. "react-component-library"
-	BaseURL    string // e.g. "http://127.0.0.1:14210"
 }
 
-// DefaultDispatchRules returns the v1 rule set. The base URL is sourced from
-// the per-library lifecycle defaults; callers may override via the
-// UI_HEALTH_RCL_URL env var.
+// DefaultDispatchRules returns the v1 rule set.
 func DefaultDispatchRules() []FrameworkDispatchRule {
 	return []FrameworkDispatchRule{
-		{
-			TemplateID: "react-vite",
-			Library:    "react-component-library",
-			BaseURL:    envString("UI_HEALTH_RCL_URL", "http://127.0.0.1:14210"),
-		},
+		{TemplateID: "react-vite", Library: "react-component-library"},
 	}
 }
 
 // FilesystemDiscoverySource walks the repo's scenarios/ tree, resolves each
 // scenario's framework from service.json, and dispatches the scan to the
-// matching component-library scenario over Connect-RPC.
+// matching component-library scenario over Connect-RPC. Outbound calls go
+// through per-library integration adapters that own discovery, retry, and
+// transport-failure re-resolution.
 type FilesystemDiscoverySource struct {
 	RepoRoot string
 	Rules    []FrameworkDispatchRule
 	Clients  map[string]InventoryClient // keyed by library id; built lazily
-	HTTP     *http.Client
 
-	mu    sync.Mutex
-	built bool
+	mu sync.Mutex
 }
 
 // NewFilesystemDiscoverySource constructs a discovery source rooted at the
-// given repo path with the default dispatch rules.
+// given repo path with the default dispatch rules and the production
+// react-component-library integration adapter (api-core/discovery-backed,
+// with re-resolution on transport failure).
 func NewFilesystemDiscoverySource(repoRoot string) *FilesystemDiscoverySource {
 	return &FilesystemDiscoverySource{
 		RepoRoot: repoRoot,
 		Rules:    DefaultDispatchRules(),
-		Clients:  map[string]InventoryClient{},
-		HTTP:     &http.Client{Timeout: 30 * time.Second},
+		Clients: map[string]InventoryClient{
+			"react-component-library": reactcomponentlibrary.New(
+				reactcomponentlibrary.DefaultResolver(),
+				reactcomponentlibrary.DefaultPolicy(),
+			),
+		},
 	}
 }
 
@@ -126,7 +124,10 @@ func (d *FilesystemDiscoverySource) Discover(ctx context.Context, scenario strin
 	if !ok {
 		return nil, nil
 	}
-	client := d.clientFor(rule)
+	client, ok := d.clientFor(rule)
+	if !ok {
+		return nil, fmt.Errorf("no InventoryClient registered for library %q", rule.Library)
+	}
 	resp, err := client.ScanScenario(ctx, scenario)
 	if err != nil {
 		return nil, fmt.Errorf("scan %s via %s: %w", scenario, rule.Library, err)
@@ -174,28 +175,11 @@ func (d *FilesystemDiscoverySource) lookupRule(templateID string) (FrameworkDisp
 	return FrameworkDispatchRule{}, false
 }
 
-func (d *FilesystemDiscoverySource) clientFor(rule FrameworkDispatchRule) InventoryClient {
+func (d *FilesystemDiscoverySource) clientFor(rule FrameworkDispatchRule) (InventoryClient, bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if c, ok := d.Clients[rule.Library]; ok && c != nil {
-		return c
-	}
-	gen := inventory_v1connect.NewInventoryServiceClient(d.HTTP, rule.BaseURL)
-	c := &connectInventoryClient{gen: gen}
-	d.Clients[rule.Library] = c
-	return c
-}
-
-type connectInventoryClient struct {
-	gen inventory_v1connect.InventoryServiceClient
-}
-
-func (c *connectInventoryClient) ScanScenario(ctx context.Context, scenario string) (*inventoryv1.ScanScenarioResponse, error) {
-	resp, err := c.gen.ScanScenario(ctx, connect.NewRequest(&inventoryv1.ScanScenarioRequest{Scenario: scenario}))
-	if err != nil {
-		return nil, err
-	}
-	return resp.Msg, nil
+	c, ok := d.Clients[rule.Library]
+	return c, ok && c != nil
 }
 
 // readTemplateID extracts generation.template.id from a scenario's

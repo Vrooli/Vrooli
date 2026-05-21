@@ -14,6 +14,8 @@ import (
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/playbooks"
 	"test-genie/internal/playbooks/isolation"
+	"test-genie/internal/playbooksclaims"
+	playbooksclaimsmocks "test-genie/internal/playbooksclaims/mocks"
 	"test-genie/internal/shared"
 )
 
@@ -89,6 +91,7 @@ func newPlaybooksTestHarness(t *testing.T) *playbooksTestHarness {
 
 	testDir := filepath.Join(scenarioDir, "test")
 
+	claimsSvc := playbooksclaims.NewService(playbooksclaims.Config{Repo: playbooksclaimsmocks.NewFakeRepository()})
 	return &playbooksTestHarness{
 		env: workspace.Environment{
 			ScenarioName:  scenarioName,
@@ -96,6 +99,7 @@ func newPlaybooksTestHarness(t *testing.T) *playbooksTestHarness {
 			TestDir:       testDir,
 			AppRoot:       appRoot,
 			TargetRuntime: &fakeTargetRuntime{},
+			Claims:        claimsSvc,
 		},
 		scenarioDir: scenarioDir,
 		testDir:     testDir,

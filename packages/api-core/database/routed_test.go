@@ -7,10 +7,15 @@ import (
 	"sync"
 	"testing"
 
+	"errors"
+
 	_ "modernc.org/sqlite"
 
 	"github.com/vrooli/api-core/database"
 )
+
+// errorsAs is a tiny helper so test expressions stay one-liners.
+func errorsAs(err error, target any) bool { return errors.As(err, target) }
 
 // openSQLitePool opens a fresh SQLite pool at path. Tests use unique file
 // paths so the two pools live in separate files even when both are "test"
@@ -80,7 +85,7 @@ func TestRoutedDB_RoutesByContext(t *testing.T) {
 		t.Fatalf("pre-install test-mode without pool: got %q, want PRIMARY (fallback)", got)
 	}
 
-	if err := r.InstallTestPool(ctxPlain, testPath); err != nil {
+	if err := r.InstallTestPool(ctxPlain, testPath, "lease-route"); err != nil {
 		t.Fatalf("install test pool: %v", err)
 	}
 
@@ -92,7 +97,7 @@ func TestRoutedDB_RoutesByContext(t *testing.T) {
 		t.Fatalf("post-install test-mode: got %q, want TEST", got)
 	}
 
-	if err := r.ClearTestPool(); err != nil {
+	if err := r.ClearTestPool("lease-route"); err != nil {
 		t.Fatalf("clear test pool: %v", err)
 	}
 
@@ -118,7 +123,7 @@ func TestRoutedDB_TransactionsArePoolBound(t *testing.T) {
 	}
 	defer r.Close()
 
-	if err := r.InstallTestPool(context.Background(), testPath); err != nil {
+	if err := r.InstallTestPool(context.Background(), testPath, "lease-tx"); err != nil {
 		t.Fatalf("install test pool: %v", err)
 	}
 
@@ -172,9 +177,10 @@ func TestRoutedDB_TransactionsArePoolBound(t *testing.T) {
 	}
 }
 
-// TestRoutedDB_InstallTestPoolReplaces verifies that a second install closes
-// the previous test pool.
-func TestRoutedDB_InstallTestPoolReplaces(t *testing.T) {
+// TestRoutedDB_InstallTestPool_SameLeaseReplaces verifies the idempotent
+// retry contract: a second install with the same lease replaces the
+// previous pool.
+func TestRoutedDB_InstallTestPool_SameLeaseReplaces(t *testing.T) {
 	dir := t.TempDir()
 	primaryPath := filepath.Join(dir, "primary.db")
 	firstTestPath := filepath.Join(dir, "test1.db")
@@ -191,15 +197,85 @@ func TestRoutedDB_InstallTestPoolReplaces(t *testing.T) {
 	defer r.Close()
 
 	ctx := context.Background()
-	if err := r.InstallTestPool(ctx, firstTestPath); err != nil {
+	if err := r.InstallTestPool(ctx, firstTestPath, "lease-a"); err != nil {
 		t.Fatalf("install 1: %v", err)
 	}
-	if err := r.InstallTestPool(ctx, secondTestPath); err != nil {
-		t.Fatalf("install 2: %v", err)
+	if err := r.InstallTestPool(ctx, secondTestPath, "lease-a"); err != nil {
+		t.Fatalf("install 2 (same lease): %v", err)
 	}
 
 	if got := readMarker(t, r, database.WithTestMode(ctx)); got != "TEST2" {
 		t.Fatalf("after replace, test pool marker = %q, want TEST2", got)
+	}
+}
+
+// TestRoutedDB_InstallTestPool_RejectsDifferentLease asserts the
+// concurrency guard: a second install under a different lease must be
+// rejected with *ErrLeaseConflict.
+func TestRoutedDB_InstallTestPool_RejectsDifferentLease(t *testing.T) {
+	dir := t.TempDir()
+	primaryPath := filepath.Join(dir, "primary.db")
+	firstTestPath := filepath.Join(dir, "test1.db")
+	secondTestPath := filepath.Join(dir, "test2.db")
+	seedPool(t, primaryPath, "PRIMARY")
+	seedPool(t, firstTestPath, "TEST1")
+	seedPool(t, secondTestPath, "TEST2")
+
+	r, err := openSQLitePool(t, primaryPath)
+	if err != nil {
+		t.Fatalf("open routed: %v", err)
+	}
+	defer r.Close()
+
+	ctx := context.Background()
+	if err := r.InstallTestPool(ctx, firstTestPath, "lease-a"); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+
+	err = r.InstallTestPool(ctx, secondTestPath, "lease-b")
+	var conflict *database.ErrLeaseConflict
+	if !errorsAs(err, &conflict) {
+		t.Fatalf("expected *ErrLeaseConflict, got %v", err)
+	}
+	if conflict.ActiveLeaseID != "lease-a" {
+		t.Fatalf("active lease = %q, want lease-a", conflict.ActiveLeaseID)
+	}
+
+	// The original pool is still installed.
+	if got := readMarker(t, r, database.WithTestMode(ctx)); got != "TEST1" {
+		t.Fatalf("post-conflict test marker = %q, want TEST1", got)
+	}
+}
+
+// TestRoutedDB_ClearTestPool_RejectsMismatchedLease asserts Clear honors leases.
+func TestRoutedDB_ClearTestPool_RejectsMismatchedLease(t *testing.T) {
+	dir := t.TempDir()
+	primaryPath := filepath.Join(dir, "primary.db")
+	testPath := filepath.Join(dir, "test.db")
+	seedPool(t, primaryPath, "PRIMARY")
+	seedPool(t, testPath, "TEST")
+
+	r, err := openSQLitePool(t, primaryPath)
+	if err != nil {
+		t.Fatalf("open routed: %v", err)
+	}
+	defer r.Close()
+
+	if err := r.InstallTestPool(context.Background(), testPath, "lease-a"); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+
+	err = r.ClearTestPool("lease-b")
+	var mismatch *database.ErrLeaseMismatch
+	if !errorsAs(err, &mismatch) {
+		t.Fatalf("expected *ErrLeaseMismatch, got %v", err)
+	}
+	if mismatch.ActiveLeaseID != "lease-a" {
+		t.Fatalf("active lease = %q, want lease-a", mismatch.ActiveLeaseID)
+	}
+
+	if err := r.ClearTestPool("lease-a"); err != nil {
+		t.Fatalf("clear with matching lease: %v", err)
 	}
 }
 
@@ -245,11 +321,11 @@ func TestRoutedDB_ConcurrentInstallAndQuery(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 25; i++ {
-			if err := r.InstallTestPool(context.Background(), testPath); err != nil {
+			if err := r.InstallTestPool(context.Background(), testPath, "lease-flap"); err != nil {
 				t.Errorf("install: %v", err)
 				return
 			}
-			if err := r.ClearTestPool(); err != nil {
+			if err := r.ClearTestPool("lease-flap"); err != nil {
 				t.Errorf("clear: %v", err)
 				return
 			}

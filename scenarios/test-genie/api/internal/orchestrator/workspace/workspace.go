@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/shared"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
@@ -35,6 +36,10 @@ type Environment struct {
 	APIURL         string // Base URL for the scenario API (e.g., "http://localhost:8080")
 	BrowserlessURL string // URL for Browserless service (e.g., "http://localhost:4110")
 	TargetRuntime  TargetRuntime
+	// Claims governs single-slot concurrency for the playbooks phase. Nil
+	// means the orchestrator was wired without claim support — phases will
+	// refuse to run the playbooks path in that case (a wiring bug).
+	Claims *playbooksclaims.Service
 }
 
 // TargetRuntime manages the lifecycle of the scenario under test when a phase
@@ -63,6 +68,7 @@ type ScenarioWorkspace struct {
 	apiURL         string
 	browserlessURL string
 	targetRuntime  TargetRuntime
+	claims         *playbooksclaims.Service
 }
 
 // Options configures scenario workspace resolution.
@@ -173,7 +179,17 @@ func (w *ScenarioWorkspace) Environment() Environment {
 		APIURL:          w.apiURL,
 		BrowserlessURL:  w.browserlessURL,
 		TargetRuntime:   w.targetRuntime,
+		Claims:          w.claims,
 	}
+}
+
+// SetClaims configures the playbooks-claims service used to guard
+// concurrent playbooks runs against the same scenario.
+func (w *ScenarioWorkspace) SetClaims(svc *playbooksclaims.Service) {
+	if w == nil {
+		return
+	}
+	w.claims = svc
 }
 
 // SetRuntimeURLs configures the runtime service URLs for phases that need to connect

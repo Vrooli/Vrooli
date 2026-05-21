@@ -46,6 +46,7 @@ type reindexJob struct {
 	Plan       *DriftReport
 	Apply      *ApplyResult
 	Err        string
+	Warnings   []string
 	StartedAt  time.Time
 	FinishedAt time.Time
 	cancel     context.CancelFunc
@@ -285,7 +286,11 @@ func (s *Service) Status(ctx context.Context) StatusReport {
 			}
 		}
 	}
-	rep.Available = rep.Ollama && rep.Qdrant
+	// Search is only "available" when backends are up AND the corpus has
+	// content. An empty corpus means queries will return zero results
+	// regardless of the question — that's not a usable state, even if the
+	// dependencies are technically reachable.
+	rep.Available = rep.Ollama && rep.Qdrant && rep.IndexedCount > 0
 	st := s.reconciler.Status()
 	if st.FinishedAt != "" {
 		rep.LastReconcileAt = st.FinishedAt
@@ -359,6 +364,19 @@ func (s *Service) runReindex(ctx context.Context, job *reindexJob) {
 	}
 
 	apply, err := s.reconciler.Apply(ctx, plan)
+
+	// Inspect post-apply corpus state to detect silent no-ops. If the apply
+	// succeeded but the corpus is still empty, the framework dispatcher
+	// (e.g., react-component-library) is almost certainly unreachable or
+	// returned zero surfaces. Surface that as a warning so the operator
+	// doesn't read "succeeded processed=0/0" and assume search is wired up.
+	var postCount int
+	if s.vectorStore != nil {
+		if n, cerr := s.vectorStore.CountPoints(ctx); cerr == nil {
+			postCount = n
+		}
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	job.Apply = apply
@@ -371,7 +389,13 @@ func (s *Service) runReindex(ctx context.Context, job *reindexJob) {
 			job.Err = err.Error()
 		}
 	default:
-		job.State = "succeeded"
+		if postCount == 0 && !plan.HasWork() {
+			job.State = "succeeded_empty"
+			job.Warnings = append(job.Warnings,
+				"reindex produced an empty corpus; check that a framework dispatcher (e.g. react-component-library) is running and reachable, or that scenarios declare generation.template.id")
+		} else {
+			job.State = "succeeded"
+		}
 	}
 }
 
@@ -431,6 +455,7 @@ func (s *Service) JobExport(job *reindexJob) map[string]interface{} {
 		"processed":       processed,
 		"total":           total,
 		"error":           job.Err,
+		"warnings":        append([]string(nil), job.Warnings...),
 		"started_at":      job.StartedAt.Format(time.RFC3339),
 		"finished_at":     formatIfNotZero(job.FinishedAt),
 	}

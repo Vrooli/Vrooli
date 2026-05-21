@@ -13,6 +13,7 @@ import (
 	"test-genie/internal/fix"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
+	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/queue"
 	"test-genie/internal/requirements"
 	"test-genie/internal/requirementsimprove"
@@ -39,6 +40,7 @@ type Bootstrapped struct {
 	FixService                 *fix.Service
 	RequirementsImproveService *requirementsimprove.Service
 	RequirementsSyncer         *RequirementsSyncerAdapter
+	PlaybooksClaims            *playbooksclaims.Service
 	// Tool Discovery Protocol support
 	ToolRegistry *toolregistry.Registry
 	ToolHandler  *toolexecution.Handler
@@ -95,6 +97,10 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	scenarioService := scenarios.NewScenarioDirectoryService(scenarioRepo, scenarioLister, cfg.ScenariosRoot)
 
 	executionSvc := execution.NewSuiteExecutionService(runner, executionRepo, suiteRequestService)
+
+	claimsRepo := playbooksclaims.NewSqliteRepository(db)
+	claimsService := playbooksclaims.NewService(playbooksclaims.Config{Repo: claimsRepo})
+	runner.SetClaims(claimsService)
 
 	// Create agent-manager service
 	agentEnabled := os.Getenv("AGENT_MANAGER_ENABLED") != "false"
@@ -171,6 +177,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		FixService:                 fixService,
 		RequirementsImproveService: reqImproveService,
 		RequirementsSyncer:         reqSyncer,
+		PlaybooksClaims:            claimsService,
 		ToolRegistry:               toolReg,
 		ToolHandler:                toolHandler,
 	}, nil

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	goruntime "runtime"
 
+	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/storage/sqlfiles"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -25,6 +26,9 @@ func ApplySchema(db *sql.DB, includeSeed bool) error {
 	if err := sqlfiles.ExecFile(db, schemaPath); err != nil {
 		return err
 	}
+	if err := applyDomainSchemas(db); err != nil {
+		return err
+	}
 	if !includeSeed {
 		return nil
 	}
@@ -38,6 +42,24 @@ func ApplySchema(db *sql.DB, includeSeed bool) error {
 
 func ensureDatabaseSchema(db *sql.DB) error {
 	return ApplySchema(db, true)
+}
+
+// applyDomainSchemas runs the declarative DDL owned by per-domain packages.
+// Each schema must be idempotent (CREATE TABLE IF NOT EXISTS) so this is
+// safe to call on every boot.
+func applyDomainSchemas(db *sql.DB) error {
+	domains := []struct {
+		name string
+		ddl  string
+	}{
+		{"playbooksclaims", playbooksclaims.Schema()},
+	}
+	for _, d := range domains {
+		if _, err := db.Exec(d.ddl); err != nil {
+			return fmt.Errorf("domain schema %q: %w", d.name, err)
+		}
+	}
+	return nil
 }
 
 func resolveInitializationFile(name string) (string, error) {

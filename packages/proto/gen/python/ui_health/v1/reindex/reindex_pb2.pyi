@@ -1,5 +1,7 @@
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
+from collections.abc import Iterable as _Iterable
 from typing import ClassVar as _ClassVar, Optional as _Optional
 
 DESCRIPTOR: _descriptor.FileDescriptor
@@ -31,18 +33,20 @@ class ReindexStatusRequest(_message.Message):
     def __init__(self, job_id: _Optional[str] = ...) -> None: ...
 
 class ReindexStatusResponse(_message.Message):
-    __slots__ = ("job_id", "state", "processed", "total", "error")
+    __slots__ = ("job_id", "state", "processed", "total", "error", "warnings")
     JOB_ID_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
     PROCESSED_FIELD_NUMBER: _ClassVar[int]
     TOTAL_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
+    WARNINGS_FIELD_NUMBER: _ClassVar[int]
     job_id: str
     state: str
     processed: int
     total: int
     error: str
-    def __init__(self, job_id: _Optional[str] = ..., state: _Optional[str] = ..., processed: _Optional[int] = ..., total: _Optional[int] = ..., error: _Optional[str] = ...) -> None: ...
+    warnings: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, job_id: _Optional[str] = ..., state: _Optional[str] = ..., processed: _Optional[int] = ..., total: _Optional[int] = ..., error: _Optional[str] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ReindexCancelRequest(_message.Message):
     __slots__ = ("job_id",)

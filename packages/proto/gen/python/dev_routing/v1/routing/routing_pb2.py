@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$dev-routing/v1/routing/routing.proto\x12\x1dvrooli.dev_routing.v1.routing\"*\n\x16InstallTestPoolRequest\x12\x10\n\x03\x64sn\x18\x01 \x01(\tR\x03\x64sn\"\x19\n\x17InstallTestPoolResponse\"\x16\n\x14\x43learTestPoolRequest\"\x17\n\x15\x43learTestPoolResponse2\x8f\x02\n\x0eRoutingService\x12\x80\x01\n\x0fInstallTestPool\x12\x35.vrooli.dev_routing.v1.routing.InstallTestPoolRequest\x1a\x36.vrooli.dev_routing.v1.routing.InstallTestPoolResponse\x12z\n\rClearTestPool\x12\x33.vrooli.dev_routing.v1.routing.ClearTestPoolRequest\x1a\x34.vrooli.dev_routing.v1.routing.ClearTestPoolResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing;routing_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$dev-routing/v1/routing/routing.proto\x12\x1dvrooli.dev_routing.v1.routing\"E\n\x16InstallTestPoolRequest\x12\x10\n\x03\x64sn\x18\x01 \x01(\tR\x03\x64sn\x12\x19\n\x08lease_id\x18\x02 \x01(\tR\x07leaseId\"A\n\x17InstallTestPoolResponse\x12&\n\x0f\x61\x63tive_lease_id\x18\x01 \x01(\tR\ractiveLeaseId\"1\n\x14\x43learTestPoolRequest\x12\x19\n\x08lease_id\x18\x01 \x01(\tR\x07leaseId\"\x17\n\x15\x43learTestPoolResponse2\x8f\x02\n\x0eRoutingService\x12\x80\x01\n\x0fInstallTestPool\x12\x35.vrooli.dev_routing.v1.routing.InstallTestPoolRequest\x1a\x36.vrooli.dev_routing.v1.routing.InstallTestPoolResponse\x12z\n\rClearTestPool\x12\x33.vrooli.dev_routing.v1.routing.ClearTestPoolRequest\x1a\x34.vrooli.dev_routing.v1.routing.ClearTestPoolResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing;routing_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,13 +33,13 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZPgithub.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing;routing_v1'
   _globals['_INSTALLTESTPOOLREQUEST']._serialized_start=71
-  _globals['_INSTALLTESTPOOLREQUEST']._serialized_end=113
-  _globals['_INSTALLTESTPOOLRESPONSE']._serialized_start=115
-  _globals['_INSTALLTESTPOOLRESPONSE']._serialized_end=140
-  _globals['_CLEARTESTPOOLREQUEST']._serialized_start=142
-  _globals['_CLEARTESTPOOLREQUEST']._serialized_end=164
-  _globals['_CLEARTESTPOOLRESPONSE']._serialized_start=166
-  _globals['_CLEARTESTPOOLRESPONSE']._serialized_end=189
-  _globals['_ROUTINGSERVICE']._serialized_start=192
-  _globals['_ROUTINGSERVICE']._serialized_end=463
+  _globals['_INSTALLTESTPOOLREQUEST']._serialized_end=140
+  _globals['_INSTALLTESTPOOLRESPONSE']._serialized_start=142
+  _globals['_INSTALLTESTPOOLRESPONSE']._serialized_end=207
+  _globals['_CLEARTESTPOOLREQUEST']._serialized_start=209
+  _globals['_CLEARTESTPOOLREQUEST']._serialized_end=258
+  _globals['_CLEARTESTPOOLRESPONSE']._serialized_start=260
+  _globals['_CLEARTESTPOOLRESPONSE']._serialized_end=283
+  _globals['_ROUTINGSERVICE']._serialized_start=286
+  _globals['_ROUTINGSERVICE']._serialized_end=557
 # @@protoc_insertion_point(module_scope)

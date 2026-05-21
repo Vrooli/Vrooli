@@ -28,12 +28,13 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/
 service RoutingService {
   // InstallTestPool opens a new database connection pool against dsn and
   // installs it as the active test pool on the receiving scenario. If a
-  // previous test pool was installed it is replaced (and closed).
+  // previous test pool exists under a *different* lease_id the call is
+  // rejected; under the *same* lease_id it is idempotent (retry-safe).
   rpc InstallTestPool(InstallTestPoolRequest) returns (InstallTestPoolResponse);
 
-  // ClearTestPool closes any installed test pool and reverts routing to the
-  // primary pool only. Idempotent: clearing when no pool is installed is a
-  // no-op success.
+  // ClearTestPool closes the installed test pool and reverts routing to the
+  // primary pool. The caller's lease_id must match the active install.
+  // Idempotent under match: clearing when no pool is installed is a no-op success.
   rpc ClearTestPool(ClearTestPoolRequest) returns (ClearTestPoolResponse);
 }
 
@@ -43,10 +44,23 @@ message InstallTestPoolRequest {
   // SQLite file path. test-genie owns provisioning and migration of the
   // underlying database; the scenario only opens a pool.
   string dsn = 1;
+
+  // lease_id identifies the orchestrator's per-run claim on the scenario.
+  // The scenario rejects an install if the slot is already held under a
+  // different lease_id. Same lease_id installs are idempotent.
+  string lease_id = 2;
 }
 
-message InstallTestPoolResponse {}
+message InstallTestPoolResponse {
+  // active_lease_id reports the lease that owns the installed pool. On a
+  // successful install it equals the request's lease_id; on a conflict
+  // response detail it reports the existing holder.
+  string active_lease_id = 1;
+}
 
-message ClearTestPoolRequest {}
+message ClearTestPoolRequest {
+  // lease_id must match the active install. Mismatch yields FailedPrecondition.
+  string lease_id = 1;
+}
 
 message ClearTestPoolResponse {}

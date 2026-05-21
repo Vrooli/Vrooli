@@ -18,6 +18,7 @@ import (
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/orchestrator/requirements"
 	"test-genie/internal/orchestrator/targetruntime"
+	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/shared"
 
 	"github.com/google/uuid"
@@ -94,6 +95,16 @@ type SuiteOrchestrator struct {
 	requirements  requirements.Syncer
 	phaseToggles  *phaseToggleStore
 	newRuntime    func(name, scenarioDir string) *targetruntime.Manager
+	claims        *playbooksclaims.Service
+}
+
+// SetClaims wires the playbooks-claims service used by the playbooks phase
+// to guard against concurrent runs against the same scenario.
+func (o *SuiteOrchestrator) SetClaims(svc *playbooksclaims.Service) {
+	if o == nil {
+		return
+	}
+	o.claims = svc
 }
 
 // SuiteExecutionRequest configures a single test execution run.

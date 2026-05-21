@@ -10,6 +10,7 @@ package devrouting
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"os"
 
@@ -35,16 +36,31 @@ func NewService(db *database.RoutedDB) *Service {
 }
 
 // InstallTestPool implements routing_v1connect.RoutingServiceHandler.
+//
+// Lease conflicts map to connect.CodeAlreadyExists; the response carries
+// the active lease so callers can surface a useful error. Other failures
+// map to CodeInternal.
 func (s *Service) InstallTestPool(ctx context.Context, req *connect.Request[routingv1.InstallTestPoolRequest]) (*connect.Response[routingv1.InstallTestPoolResponse], error) {
-	if err := s.db.InstallTestPool(ctx, req.Msg.GetDsn()); err != nil {
+	leaseID := req.Msg.GetLeaseId()
+	if err := s.db.InstallTestPool(ctx, req.Msg.GetDsn(), leaseID); err != nil {
+		var conflict *database.ErrLeaseConflict
+		if errors.As(err, &conflict) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, err)
+		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&routingv1.InstallTestPoolResponse{}), nil
+	return connect.NewResponse(&routingv1.InstallTestPoolResponse{ActiveLeaseId: leaseID}), nil
 }
 
 // ClearTestPool implements routing_v1connect.RoutingServiceHandler.
-func (s *Service) ClearTestPool(ctx context.Context, _ *connect.Request[routingv1.ClearTestPoolRequest]) (*connect.Response[routingv1.ClearTestPoolResponse], error) {
-	if err := s.db.ClearTestPool(); err != nil {
+//
+// Lease mismatches map to connect.CodeFailedPrecondition.
+func (s *Service) ClearTestPool(ctx context.Context, req *connect.Request[routingv1.ClearTestPoolRequest]) (*connect.Response[routingv1.ClearTestPoolResponse], error) {
+	if err := s.db.ClearTestPool(req.Msg.GetLeaseId()); err != nil {
+		var mismatch *database.ErrLeaseMismatch
+		if errors.As(err, &mismatch) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&routingv1.ClearTestPoolResponse{}), nil

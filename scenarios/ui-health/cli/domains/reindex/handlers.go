@@ -61,12 +61,20 @@ func (h *handlers) status(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no status response")
 	}
+	summary := []string{
+		fmt.Sprintf("Job %s: state=%s processed=%d/%d", resp.Msg.JobId, resp.Msg.State, resp.Msg.Processed, resp.Msg.Total),
+	}
+	if resp.Msg.Error != "" {
+		summary = append(summary, fmt.Sprintf("error: %s", resp.Msg.Error))
+	}
+	results := []string{}
+	for _, w := range resp.Msg.GetWarnings() {
+		results = append(results, "[WARN] "+w)
+	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary: []string{
-			fmt.Sprintf("Job %s: state=%s processed=%d/%d", resp.Msg.JobId, resp.Msg.State, resp.Msg.Processed, resp.Msg.Total),
-		},
+		Summary:        summary,
 		ResultsHeading: "Status",
-		Results:        []string{},
+		Results:        results,
 	})
 }
 

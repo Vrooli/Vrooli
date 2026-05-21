@@ -45,11 +45,12 @@ const (
 type RoutingServiceClient interface {
 	// InstallTestPool opens a new database connection pool against dsn and
 	// installs it as the active test pool on the receiving scenario. If a
-	// previous test pool was installed it is replaced (and closed).
+	// previous test pool exists under a *different* lease_id the call is
+	// rejected; under the *same* lease_id it is idempotent (retry-safe).
 	InstallTestPool(context.Context, *connect.Request[routing.InstallTestPoolRequest]) (*connect.Response[routing.InstallTestPoolResponse], error)
-	// ClearTestPool closes any installed test pool and reverts routing to the
-	// primary pool only. Idempotent: clearing when no pool is installed is a
-	// no-op success.
+	// ClearTestPool closes the installed test pool and reverts routing to the
+	// primary pool. The caller's lease_id must match the active install.
+	// Idempotent under match: clearing when no pool is installed is a no-op success.
 	ClearTestPool(context.Context, *connect.Request[routing.ClearTestPoolRequest]) (*connect.Response[routing.ClearTestPoolResponse], error)
 }
 
@@ -100,11 +101,12 @@ func (c *routingServiceClient) ClearTestPool(ctx context.Context, req *connect.R
 type RoutingServiceHandler interface {
 	// InstallTestPool opens a new database connection pool against dsn and
 	// installs it as the active test pool on the receiving scenario. If a
-	// previous test pool was installed it is replaced (and closed).
+	// previous test pool exists under a *different* lease_id the call is
+	// rejected; under the *same* lease_id it is idempotent (retry-safe).
 	InstallTestPool(context.Context, *connect.Request[routing.InstallTestPoolRequest]) (*connect.Response[routing.InstallTestPoolResponse], error)
-	// ClearTestPool closes any installed test pool and reverts routing to the
-	// primary pool only. Idempotent: clearing when no pool is installed is a
-	// no-op success.
+	// ClearTestPool closes the installed test pool and reverts routing to the
+	// primary pool. The caller's lease_id must match the active install.
+	// Idempotent under match: clearing when no pool is installed is a no-op success.
 	ClearTestPool(context.Context, *connect.Request[routing.ClearTestPoolRequest]) (*connect.Response[routing.ClearTestPoolResponse], error)
 }
 

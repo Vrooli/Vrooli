@@ -23,5 +23,8 @@ None.
 ### Surface for technique graduation
 None.
 
-Note for next run: the expected PoR/team files were still not present at the workspace root during this heartbeat:
-`docs/scenario-qa`, `docs/agent-system`, and `scenarios/prompt-manager/store/teams/scenario-qa/shared`. This did not block the run because the bug inbox was empty.
+Note for next run: the expected PoR files still did not appear from the workspace root when checked:
+`docs/scenario-qa/taxonomies/bug-report/README.md`
+`docs/scenario-qa/methods/investigation/README.md`
+
+This did not block the run because the bug inbox was empty.
