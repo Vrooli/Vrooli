@@ -1066,6 +1066,24 @@ re-balloon the file silently.
 [CODE: `internal/runtime/profile.go::ProfileResolver` /
 `internal/runtime/git_allowlist.go::EvaluateProtectedGitAllowlist`]
 
+### Behavior config seam (`internal/config/behavior.go`)
+
+Operator-tunable runtime behavior is loaded at boot from
+`<scenarioDir>/.vrooli/config.json` under the top-level `behavior` key
+and injected into `Handlers.Behavior`. Today it carries the protected-
+mode git rejection-message templates (`gitDenyMessageTemplate`,
+`gitNoVerbMessageTemplate`) plus an API-side default allowlist; future
+runtime knobs add new fields here rather than new env vars.
+
+Greenfield contract: a missing file or missing `behavior` key resolves
+to `DefaultBehavior()` (empty), and `EvaluateProtectedGitAllowlist`
+falls back to its hardcoded strong defaults. Only malformed JSON
+aborts startup so the operator notices.
+
+[CODE: `internal/config/behavior.go::BehaviorConfig` /
+`internal/config/behavior_loader.go::LoadBehavior` /
+`internal/runtime/git_allowlist.go::GitDenyMessages`]
+
 ### Service carving
 
 `internal/sandbox/service.go` (2,825 LOC, 60+ methods) was split into

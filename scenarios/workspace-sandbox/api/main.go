@@ -283,6 +283,15 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize profile store: %w", err)
 	}
+
+	// Behavior is loaded from <scenarioDir>/.vrooli/config.json's `behavior`
+	// key. Missing file or missing key resolves to DefaultBehavior() — the
+	// runtime evaluator falls back to its hardcoded messages in that case.
+	// A malformed config is a startup error so the operator sees it loudly.
+	behavior, err := config.LoadBehavior(scenarioDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load behavior config: %w", err)
+	}
 	// Snapshot the profile registry once at startup so the request-path
 	// resolver is detached from the underlying file (Round 4 Phase 9).
 	// Admin Save/Delete handlers refresh the snapshot via
@@ -315,6 +324,7 @@ func NewServer() (*Server, error) {
 		DriverSlot:      driverSlot,
 		DB:              db,
 		Config:          cfg,
+		Behavior:        behavior,
 		StatsGetter:     repo, // Repository implements StatsGetter
 		ProcessTracker:  processTracker,
 		ProcessLogger:   processLogger,

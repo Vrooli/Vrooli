@@ -4,11 +4,13 @@ import (
 	"context"
 	"os/exec"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/connectx"
 
 	repoH "git-control-tower/handlers/repo"
 	worktreeH "git-control-tower/handlers/worktree"
 	repoD "git-control-tower/internal/repo"
+	"git-control-tower/internal/policygate"
 	worktreeD "git-control-tower/internal/worktree"
 )
 
@@ -49,8 +51,14 @@ func (s *Server) mountConnectHandlers() {
 	worktreeSvc := worktreeD.NewService(inspector, mutator)
 	repoSvc := repoD.NewService(inspector)
 
-	wtPath, wtHandler := worktreeH.NewHandler(worktreeH.Deps{Service: worktreeSvc})
-	repoPath, repoHandler := repoH.NewHandler(repoH.Deps{Service: repoSvc})
+	// Agent-access policy gate. Connect interceptor enforces the
+	// configured AgentAccess policy (default: confirm — agents must
+	// pass X-Vrooli-Authorized: true). See policygate.Decide for the
+	// matrix and `.vrooli/config.json` for the operator surface.
+	policyOpt := connect.WithInterceptors(policygate.NewInterceptor(s.policy.Policy, policygate.StdAuditLogger()))
+
+	wtPath, wtHandler := worktreeH.NewHandler(worktreeH.Deps{Service: worktreeSvc}, policyOpt)
+	repoPath, repoHandler := repoH.NewHandler(repoH.Deps{Service: repoSvc}, policyOpt)
 
 	connectx.RegisterServices(s.router,
 		connectx.ServiceMount{Path: wtPath, Handler: wtHandler},

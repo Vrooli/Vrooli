@@ -107,6 +107,38 @@ the `claimedBranchesFn` test seam in `api/branch_handler.go`, which
 defaults to `worktree.Inspector.ClaimedBranches` in production and is
 override-able in tests so the existing branch flow never hits real git.
 
+## Policy Gate
+
+Mutating Connect-RPC methods on the GCT API are gated by an
+agent-access policy: `allow | warn | confirm | deny`. The default is
+`confirm` — agents must pass an explicit override flag (
+`--i-was-explicitly-authorized` / `VROOLI_GCT_AUTHORIZED=true`) or the
+call is refused with a strong rejection message redirecting the work
+back to the human.
+
+The gate is enforced in two layers:
+
+- **CLI (point of intent):** `cli/internal/callerheader.New()` is
+  installed as a Connect client interceptor; it stamps every outbound
+  request with `X-Vrooli-Caller: <kind>` (from `cliutil.DetectCallerKind()`)
+  and `X-Vrooli-Authorized: true` when the agent-override env var is
+  set.
+- **API (defense in depth):** `api/internal/policygate.NewInterceptor()`
+  is installed as a Connect server interceptor on the worktree + repo
+  handlers. It reads the headers, falls back to its own
+  `DetectCallerKind()` if the header is missing, applies the
+  `policygate.Decide()` matrix, and emits a structured audit-log line
+  for every gate decision.
+
+Read-only Connect methods bypass the gate. Per-command policy
+granularity is intentionally deferred — see PROBLEMS.md.
+
+Operator surface: `scenarios/git-control-tower/.vrooli/config.json`
+`policy` block. See `api/internal/config/config.go` for the schema,
+`docs/internal/SEAMS.md` for the loader/interceptor seams, and
+`packages/cli-core/docs/reference/agent-detection-signals.md` for the
+detection-signal catalog the gate relies on.
+
 ## Cross-references
 
 - API endpoint catalog: [docs/reference/api-endpoints.md](../reference/api-endpoints.md)

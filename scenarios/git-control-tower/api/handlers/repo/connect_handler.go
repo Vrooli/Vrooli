@@ -38,8 +38,10 @@ func NewServer(d Deps) *Server {
 }
 
 // NewHandler returns the procedure prefix and http.Handler for mounting.
-func NewHandler(d Deps) (string, http.Handler) {
-	return repoconnect.NewRepoServiceHandler(NewServer(d))
+// Extra connect.HandlerOption values (e.g. interceptors wired by main.go)
+// are passed through to NewRepoServiceHandler.
+func NewHandler(d Deps, opts ...connect.HandlerOption) (string, http.Handler) {
+	return repoconnect.NewRepoServiceHandler(NewServer(d), opts...)
 }
 
 func (s *Server) GetRepoStatus(ctx context.Context, req *connect.Request[repov1.GetRepoStatusRequest]) (*connect.Response[repov1.GetRepoStatusResponse], error) {

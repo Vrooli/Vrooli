@@ -9,14 +9,20 @@ import (
 	worktreev1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/worktree"
 	worktreeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/worktree/worktree_v1connect"
 
+	"git-control-tower/cli/internal/callerheader"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
 // clientFactory builds a generated WorktreeServiceClient from the
 // scenario app. Replaced in tests to inject an httptest-backed client.
+// The callerheader interceptor stamps every outbound request with
+// X-Vrooli-Caller (and X-Vrooli-Authorized when the agent-override env
+// var is set) so the server's policygate interceptor can decide.
 var clientFactory = func(core *cliapp.ScenarioApp) worktreeconnect.WorktreeServiceClient {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	return worktreeconnect.NewWorktreeServiceClient(httpClient, baseURL)
+	return worktreeconnect.NewWorktreeServiceClient(httpClient, baseURL,
+		connect.WithInterceptors(callerheader.New()))
 }
 
 type handlers struct {

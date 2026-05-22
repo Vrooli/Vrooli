@@ -243,6 +243,30 @@ production seam impls are only reachable at runtime. If you find
 yourself reaching for a real-git integration test, add another
 table-driven case against `FakeInspector` / `FakeMutator` instead.
 
+## Agent-Access Policy Gate Seams
+
+The agent-access policy gate (see `docs/concepts/ARCHITECTURE.md` →
+"Policy Gate") introduces three narrow seams that are all individually
+unit-testable without standing up a full server:
+
+| Seam | Declaration | Production Impl | Test Double | Why it exists |
+|---|---|---|---|---|
+| Policy config loader | `api/internal/config/config.go::Load` | Reads `<scenarioDir>/.vrooli/config.json` `policy` block, merges over `DefaultConfig()`. | Table-driven `config_test.go` writes synthetic JSON into a `t.TempDir()` directory. | Lets an operator tune `agentAccess`/`callerDetection`/override-flag/message template without rebuilding. |
+| Gate decision (pure) | `api/internal/policygate/policygate.go::Decide` | Pure function over `(CallerKind, CommandSpec, OverrideFlags, PolicyConfig)`. | Matrix tests in `policygate_test.go`. | Single source of truth for the allow/warn/deny/confirm matrix. Importable from both the API interceptor and the (future) CLI gate. |
+| Connect server interceptor | `api/internal/policygate/interceptor.go::NewInterceptor` | Wraps unary Connect handlers; reads `X-Vrooli-Caller` + `X-Vrooli-Authorized`, falls back to `cliutil.DetectCallerKind()`, applies `Decide`. | `interceptor_test.go` mounts a `UnimplementedWorktreeServiceHandler` shim with the interceptor and asserts allow/deny/warn paths. | Defense in depth for direct curl callers and the canonical enforcement layer. |
+| Connect client header stamp | `cli/internal/callerheader/interceptor.go::New` | Stamps every outbound RPC with `X-Vrooli-Caller` + (when env says so) `X-Vrooli-Authorized`. | `interceptor_test.go` mounts a recording handler. | Lets the CLI tell the server who the caller is without making the server guess. |
+
+Audit log line shape (emitted by the server interceptor's
+`StdAuditLogger`):
+
+```
+policygate event caller=<kind> procedure=<proc> effect=<write|destructive> policy=<agentAccess> decision=<allow|warn|deny> authorized=<bool>
+```
+
+Operator-facing config file:
+`scenarios/git-control-tower/.vrooli/config.json` (top-level `policy`
+key). See `api/internal/config/config.go` for schema.
+
 ## Verification Checklist
 
 When adding new behavior, verify:

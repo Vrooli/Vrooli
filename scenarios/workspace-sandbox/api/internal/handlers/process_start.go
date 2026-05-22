@@ -82,7 +82,10 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 	// Protected-mode git allowlist enforcement. Mirrors Exec — agent
 	// processes launched here would otherwise be able to bypass the
 	// /exec allowlist by spawning git directly.
-	if reason := runtime.EvaluateProtectedGitAllowlist(sb.Behavior.Protected, req.Command, req.Args); reason != "" {
+	if reason := runtime.EvaluateProtectedGitAllowlist(sb.Behavior.Protected, runtime.GitDenyMessages{
+		Blocked: h.Behavior.Protected.GitDenyMessageTemplate,
+		NoVerb:  h.Behavior.Protected.GitNoVerbMessageTemplate,
+	}, req.Command, req.Args); reason != "" {
 		writeJSONStatus(w, http.StatusForbidden, map[string]any{
 			"error":   "git_verb_blocked",
 			"verb":    firstArg(req.Args),

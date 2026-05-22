@@ -4,6 +4,27 @@ This document tracks known issues, open questions, and ideas deferred for future
 
 ## Open Issues
 
+### Behavior config seam — deferred follow-ups (2026-05-21)
+
+- **Wire-level override.** Today the rejection-message template comes
+  from the API-side scenario config (`<scenarioDir>/.vrooli/config.json`
+  `behavior.protected.gitDenyMessageTemplate`). The per-sandbox
+  `types.ProtectedConfig` (sent by agent-manager) does not carry a
+  template override. Add a `GitDenyMessageTemplate` wire field once a
+  real use case for per-sandbox messaging appears.
+- **Operator override plumbing.** The behavior loader supports custom
+  templates via `.vrooli/config.json`, but the runtime
+  `VROOLI_*_CONFIG_OVERRIDE_<key>=<json>` env-var override pattern
+  hinted at in the plan (§6) is intentionally deferred — only add the
+  loader path until an operator asks.
+- **Per-mode allowlist.** Today the `behavior.protected.gitAllowlist`
+  applies whenever the sandbox carries a non-empty
+  `ProtectedConfig.GitAllowlist`. If protected mode grows tiers ("read-
+  only", "minimal-write", "full"), the config schema would gain a
+  per-mode block. Defer until a second mode lands.
+
+
+
 ### Linux-Only Implementation
 - **Issue**: Primary driver (overlayfs + bwrap) only works on Linux
 - **Impact**: macOS and Windows users cannot use the sandbox

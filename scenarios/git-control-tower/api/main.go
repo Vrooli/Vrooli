@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"git-control-tower/internal/config"
 	"git-control-tower/ssh"
 
 	gorillahandlers "github.com/gorilla/handlers"
@@ -18,6 +19,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 	_ "modernc.org/sqlite" // Pure-Go SQLite driver (CGO-free, enables static builds)
 )
 
@@ -29,6 +31,7 @@ type Config struct {
 // Server wires the HTTP router and database connection
 type Server struct {
 	config               *Config
+	policy               config.Config
 	db                   *sql.DB
 	router               *mux.Router
 	git                  GitRunner
@@ -66,8 +69,17 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 
+	// Agent-access policy config (from <scenarioDir>/.vrooli/config.json
+	// `policy` block). Missing file / missing key falls back to
+	// DefaultConfig (confirm + broad + standard override flag).
+	policyCfg, err := loadPolicyConfig()
+	if err != nil {
+		return nil, fmt.Errorf("load policy config: %w", err)
+	}
+
 	srv := &Server{
 		config:       cfg,
+		policy:       policyCfg,
 		db:           db,
 		router:       mux.NewRouter(),
 		git:          &ExecGitRunner{GitPath: "git"},
@@ -211,6 +223,24 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
 	})
+}
+
+// loadPolicyConfig resolves the GCT scenario directory and loads its
+// `.vrooli/config.json` `policy` block. Greenfield: missing file or
+// missing key resolves to DefaultConfig; only malformed JSON or invalid
+// values bubble up.
+func loadPolicyConfig() (config.Config, error) {
+	repoRoot, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		// Without a repo root we can't find the scenario dir; fall
+		// back to defaults rather than failing boot.
+		return config.DefaultConfig(), nil
+	}
+	scenarioDir, err := repocontract.ResolveScenarioPath(repoRoot, "git-control-tower")
+	if err != nil {
+		return config.DefaultConfig(), nil
+	}
+	return config.Load(scenarioDir)
 }
 
 func requireEnv(key string) string {

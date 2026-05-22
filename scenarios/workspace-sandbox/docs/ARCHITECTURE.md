@@ -655,6 +655,25 @@ What do you want to control?
 
 ---
 
+## Operator-tunable Behavior Config
+
+A subset of runtime knobs are exposed in
+`scenarios/workspace-sandbox/.vrooli/config.json` under the top-level
+`behavior` key so operators can tune them without rebuilding. Today this
+covers:
+
+- `behavior.protected.gitAllowlist` — API-side default allowlist of `git`
+  verbs (per-sandbox wire payloads still win when non-empty).
+- `behavior.protected.gitDenyMessageTemplate` — rejection-message template
+  for blocked verbs. Supports `{verb}` and `{allowlist}` placeholders.
+- `behavior.protected.gitNoVerbMessageTemplate` — message template for bare
+  `git` (no verb) calls. Supports `{allowlist}`.
+
+Empty templates fall back to the hardcoded strong defaults in
+`internal/runtime/git_allowlist.go`. A missing config file or missing
+`behavior` key is fine; only a malformed JSON file aborts startup. See
+[SEAMS.md "Behavior config seam"](./SEAMS.md) for the loader contract.
+
 ## Further Reading
 
 - [README.md](../README.md) - Quick start and usage

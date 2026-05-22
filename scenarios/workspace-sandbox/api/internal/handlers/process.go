@@ -116,7 +116,10 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 	// Protected-mode git allowlist enforcement. When the sandbox carries a
 	// non-empty Behavior.Protected.GitAllowlist, requests targeting `git`
 	// (by basename) are restricted to the allowed verbs.
-	if reason := runtime.EvaluateProtectedGitAllowlist(sb.Behavior.Protected, req.Command, req.Args); reason != "" {
+	if reason := runtime.EvaluateProtectedGitAllowlist(sb.Behavior.Protected, runtime.GitDenyMessages{
+		Blocked: h.Behavior.Protected.GitDenyMessageTemplate,
+		NoVerb:  h.Behavior.Protected.GitNoVerbMessageTemplate,
+	}, req.Command, req.Args); reason != "" {
 		writeJSONStatus(w, http.StatusForbidden, map[string]any{
 			"error":   "git_verb_blocked",
 			"verb":    firstArg(req.Args),

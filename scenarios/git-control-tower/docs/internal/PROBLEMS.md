@@ -68,6 +68,48 @@ here:
   "create worktree from this branch" one-click flow aligned with
   Claude Code's `isolation: "worktree"` integration.
 
+## Agent-Access Policy Gate — Deferred Work
+
+The agent-access policy gate landed in 2026-05-21 (see ARCHITECTURE.md
+"Policy Gate"). The following items were scoped out of the initial
+landing and are tracked here:
+
+- **Per-command policy granularity.** Today the policy is coarse: one
+  `agentAccess` value applies to every mutating Connect method.
+  Per-procedure overrides (e.g. allow `LockWorktree` for agents but
+  deny `RemoveWorktree`) would let operators tune the gate without
+  flipping the global lever. Defer until at least one operator asks.
+
+- **REST-backed domain coverage.** The Connect-RPC interceptor gates
+  only `WorktreeService` and `RepoService` methods today. The legacy
+  REST-backed domains (`repo` writes outside `GetRepoStatus`,
+  `branch`, `review`, `audit` writes) carry their own mutation paths
+  that bypass the Connect interceptor. The plan is to migrate those
+  domains to Connect-RPC (per "Next incremental-migration candidate"
+  above) — when they migrate, register their procedures in
+  `policygate.MutatingProcedures`.
+
+- **Global `--i-was-explicitly-authorized` CLI flag.** Today the
+  override is wired via the `VROOLI_GCT_AUTHORIZED` env var that the
+  callerheader interceptor reads. A first-class global flag would
+  produce friendlier ergonomics (`git-control-tower repo commit
+  --i-was-explicitly-authorized`); plumb it through `cliapp`'s flag
+  layer in a follow-up.
+
+- **PROBLEMS.md entry for unverified opencode signal.** Per
+  `packages/cli-core/docs/reference/agent-detection-signals.md` the
+  opencode `OPENCODE_PID` signal is confirmed via static analysis but
+  not yet observationally confirmed inside a real opencode-launched
+  shell. Re-verify once agent-manager grows an opencode runner that
+  actually spawns opencode (today the runner shells to claude
+  internally).
+
+- **Detection for additional runtimes.** Cursor (background agent),
+  Gemini CLI, Grok CLI — same verification methodology as codex/
+  opencode; deferred until agent-manager runners exist for each. Until
+  then, the gate falls through to `CallerKindUnknown` (treated as
+  human) for those sessions, recoverable via `VROOLI_CALLER=agent`.
+
 ## Deferred Ideas
 
 - Multi-repo support (path switching, isolation, multi-tenant auth).

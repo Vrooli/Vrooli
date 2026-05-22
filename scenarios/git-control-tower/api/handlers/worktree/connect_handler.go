@@ -48,9 +48,11 @@ func NewServer(d Deps) *Server {
 
 // NewHandler returns the (procedure-prefix, http.Handler) pair the
 // router mounts. Splits NewServer + NewHandler so tests can build a
-// Server in-process without instantiating an HTTP transport.
-func NewHandler(d Deps) (string, http.Handler) {
-	return worktreeconnect.NewWorktreeServiceHandler(NewServer(d))
+// Server in-process without instantiating an HTTP transport. Extra
+// connect.HandlerOption values (e.g. interceptor wiring from main.go)
+// are passed through to NewWorktreeServiceHandler.
+func NewHandler(d Deps, opts ...connect.HandlerOption) (string, http.Handler) {
+	return worktreeconnect.NewWorktreeServiceHandler(NewServer(d), opts...)
 }
 
 // isDryRun returns true when the X-Dry-Run header is set to "true" on

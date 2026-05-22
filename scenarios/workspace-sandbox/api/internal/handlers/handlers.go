@@ -44,6 +44,7 @@ type Handlers struct {
 	DriverSlot      *driver.Slot       // Atomic holder for the active driver (hot-swap via SwitchDriver)
 	DB              Pinger
 	Config          config.Config         // Unified configuration for accessing levers
+	Behavior        config.BehaviorConfig // Operator-tunable behavior knobs (loaded from .vrooli/config.json)
 	StatsGetter     StatsGetter           // For retrieving sandbox statistics
 	ProcessTracker  *process.Tracker      // For tracking sandbox processes (OT-P0-008)
 	ProcessLogger   *process.Logger       // For capturing process logs (Phase 2)
