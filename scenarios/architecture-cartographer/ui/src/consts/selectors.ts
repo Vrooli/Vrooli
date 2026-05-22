@@ -323,12 +323,94 @@ const literalSelectors = {
     select: "theme-select",
   },
   pages: {
-    dashboard: "page-dashboard",
+    overview: "page-overview",
+    newTarget: "page-new-target",
+    targetWorkspace: "page-target-workspace",
     settings: "page-settings",
+  },
+  features: {
+    targets: {
+      recent: {
+        root: "feature-targets-recent",
+        empty: "feature-targets-recent-empty",
+      },
+      newForm: {
+        root: "feature-targets-new-form",
+        scenarioInput: "feature-targets-new-form-scenario-input",
+        scenarioInputError: "feature-targets-new-form-scenario-error",
+        submitButton: "feature-targets-new-form-submit",
+        successBanner: "feature-targets-new-form-success",
+        errorBanner: "feature-targets-new-form-error",
+        openWorkspaceLink: "feature-targets-new-form-open-workspace",
+      },
+      activeSnapshots: {
+        root: "feature-targets-active-snapshots",
+        loading: "feature-targets-active-snapshots-loading",
+        error: "feature-targets-active-snapshots-error",
+        empty: "feature-targets-active-snapshots-empty",
+      },
+    },
   },
   errorBoundary: {
     root: "error-boundary-root",
     retryButton: "error-boundary-retry",
+  },
+  shared: {
+    emptyState: {
+      root: "shared-empty-state",
+      title: "shared-empty-state-title",
+      description: "shared-empty-state-description",
+      action: "shared-empty-state-action",
+    },
+    loadingState: {
+      root: "shared-loading-state",
+    },
+    errorState: {
+      root: "shared-error-state",
+      title: "shared-error-state-title",
+      message: "shared-error-state-message",
+      retryButton: "shared-error-state-retry",
+    },
+    routeErrorFallback: {
+      root: "shared-route-error-fallback",
+      retryButton: "shared-route-error-fallback-retry",
+      homeButton: "shared-route-error-fallback-home",
+    },
+    dataTable: {
+      root: "shared-data-table",
+      empty: "shared-data-table-empty",
+      rowCount: "shared-data-table-row-count",
+    },
+    splitPane: {
+      root: "shared-split-pane",
+      primary: "shared-split-pane-primary",
+      secondary: "shared-split-pane-secondary",
+      handle: "shared-split-pane-handle",
+    },
+    diffView: {
+      root: "shared-diff-view",
+    },
+    keyboardShortcut: {
+      root: "shared-keyboard-shortcut",
+    },
+  },
+  ui: {
+    badge: { root: "ui-badge" },
+    card: { root: "ui-card", header: "ui-card-header", body: "ui-card-body" },
+    dialog: {
+      root: "ui-dialog",
+      backdrop: "ui-dialog-backdrop",
+      panel: "ui-dialog-panel",
+      title: "ui-dialog-title",
+      closeButton: "ui-dialog-close",
+    },
+    select: { root: "ui-select" },
+    tabs: { root: "ui-tabs", list: "ui-tabs-list" },
+    tooltip: { root: "ui-tooltip" },
+    checkbox: { root: "ui-checkbox" },
+    radio: { root: "ui-radio" },
+    code: { root: "ui-code" },
+    kbd: { root: "ui-kbd" },
   },
 } satisfies LiteralSelectorTree;
 
@@ -352,13 +434,81 @@ const dynamicSelectorDefinitions = {
     sidebarLink: defineDynamicSelector({
       description: "Sidebar navigation link by canonical nav key",
       testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "settings"] as const } },
+      params: { key: { type: "enum", values: ["overview", "targets", "settings"] as const } },
     }),
     bottomNavLink: defineDynamicSelector({
       description: "Bottom-nav link by canonical nav key",
       testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "settings"] as const } },
+      params: { key: { type: "enum", values: ["overview", "targets", "settings"] as const } },
     }),
+  },
+  shared: {
+    dataTable: {
+      row: defineDynamicSelector({
+        description: "Data-table row by stable id",
+        testIdPattern: "shared-data-table-row-${id}",
+        params: { id: { type: "string" } },
+      }),
+      cell: defineDynamicSelector({
+        description: "Data-table cell by row id + column key",
+        testIdPattern: "shared-data-table-cell-${id}-${column}",
+        params: { id: { type: "string" }, column: { type: "string" } },
+      }),
+    },
+    severityBadge: {
+      root: defineDynamicSelector({
+        description: "Severity badge by level",
+        testIdPattern: "shared-severity-badge-${level}",
+        params: {
+          level: {
+            type: "enum",
+            values: ["info", "low", "medium", "high", "critical"] as const,
+          },
+        },
+      }),
+    },
+  },
+  ui: {
+    tabs: {
+      trigger: defineDynamicSelector({
+        description: "Tab trigger by tab value",
+        testIdPattern: "ui-tabs-trigger-${value}",
+        params: { value: { type: "string" } },
+      }),
+      panel: defineDynamicSelector({
+        description: "Tab panel by tab value",
+        testIdPattern: "ui-tabs-panel-${value}",
+        params: { value: { type: "string" } },
+      }),
+    },
+  },
+  features: {
+    targets: {
+      recent: {
+        item: defineDynamicSelector({
+          description: "Recent-target list item by scenario name",
+          testIdPattern: "feature-targets-recent-item-${scenario}",
+          params: { scenario: { type: "string" } },
+        }),
+        openButton: defineDynamicSelector({
+          description: "Recent-target open button by scenario name",
+          testIdPattern: "feature-targets-recent-open-${scenario}",
+          params: { scenario: { type: "string" } },
+        }),
+        removeButton: defineDynamicSelector({
+          description: "Recent-target remove button by scenario name",
+          testIdPattern: "feature-targets-recent-remove-${scenario}",
+          params: { scenario: { type: "string" } },
+        }),
+      },
+      activeSnapshots: {
+        item: defineDynamicSelector({
+          description: "Active-snapshot row by snapshot id",
+          testIdPattern: "feature-targets-active-snapshot-${id}",
+          params: { id: { type: "string" } },
+        }),
+      },
+    },
   },
   settingsPage: {
     themeOption: defineDynamicSelector({

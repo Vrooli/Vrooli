@@ -4,12 +4,27 @@
  * (header + landmark nav + main + bottom landmark nav). Feature cards keep
  * their own a11y tests.
  */
-import { afterEach, beforeEach, describe, it } from "vitest";
-import { cleanup } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
+import { selectors } from "../consts/selectors";
 import { setLocale } from "../i18n";
 import { TestAppRouter } from "../app/routes";
+
+vi.mock("../api/graph", () => ({
+  graphClient: {
+    listGraphSnapshots: vi.fn().mockResolvedValue({ snapshots: [], nextPageToken: "" }),
+    extractGraph: vi.fn().mockResolvedValue({ snapshot: undefined, fromCache: false }),
+  },
+}));
+vi.mock("../api/health", () => ({
+  fetchHealth: vi.fn().mockResolvedValue({
+    status: "ok",
+    service: "architecture-cartographer-api",
+    timestamp: new Date(0).toISOString(),
+  }),
+}));
 
 describe("AppShell accessibility", () => {
   beforeEach(async () => {
@@ -25,6 +40,14 @@ describe("AppShell accessibility", () => {
       <TestAppRouter initialEntries={["/"]} />,
       { withoutRouter: true },
     );
+    // Wait for the overview's snapshot query to settle into its empty
+    // state so axe scans a stable DOM. Without this, useQuery's resolution
+    // races the test teardown and surfaces as an unwrapped-act warning.
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(selectors.features.targets.activeSnapshots.empty),
+      ).toBeInTheDocument();
+    });
     await expectNoA11yViolations(container);
   });
 });

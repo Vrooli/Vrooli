@@ -14,14 +14,14 @@
 export const strings = {
   app: {
     title: "app.title",
-    eyebrow: "app.eyebrow",
-    description: "app.description",
   },
   layout: {
     sidebarLabel: "layout.sidebarLabel",
     bottomNavLabel: "layout.bottomNavLabel",
+    mainContentLabel: "layout.mainContentLabel",
     nav: {
-      dashboard: "layout.nav.dashboard",
+      overview: "layout.nav.overview",
+      targets: "layout.nav.targets",
       settings: "layout.nav.settings",
     },
   },
@@ -34,15 +34,54 @@ export const strings = {
     },
   },
   pages: {
-    dashboard: {
-      title: "pages.dashboard.title",
-      description: "pages.dashboard.description",
-      statPlaceholderLabel: "pages.dashboard.statPlaceholderLabel",
+    overview: {
+      title: "pages.overview.title",
+      description: "pages.overview.description",
+      recentTargetsHeading: "pages.overview.recentTargetsHeading",
+      activeSnapshotsHeading: "pages.overview.activeSnapshotsHeading",
+      healthHeading: "pages.overview.healthHeading",
+      noActiveSnapshots: "pages.overview.noActiveSnapshots",
+      loadingSnapshots: "pages.overview.loadingSnapshots",
+      snapshotsError: "pages.overview.snapshotsError",
+      startExtraction: "pages.overview.startExtraction",
+    },
+    newTarget: {
+      title: "pages.newTarget.title",
+      description: "pages.newTarget.description",
+      scenarioPathLabel: "pages.newTarget.scenarioPathLabel",
+      scenarioPathHint: "pages.newTarget.scenarioPathHint",
+      submitButton: "pages.newTarget.submitButton",
+      submitting: "pages.newTarget.submitting",
+      successMessage: "pages.newTarget.successMessage",
+      fromCacheMessage: "pages.newTarget.fromCacheMessage",
+      openWorkspace: "pages.newTarget.openWorkspace",
+      validationRequired: "pages.newTarget.validationRequired",
+      validationInvalid: "pages.newTarget.validationInvalid",
+    },
+    targetWorkspace: {
+      title: "pages.targetWorkspace.title",
+      scenarioLabel: "pages.targetWorkspace.scenarioLabel",
+      subnavComingSoon: "pages.targetWorkspace.subnavComingSoon",
     },
     settings: {
       title: "pages.settings.title",
       themeHeading: "pages.settings.themeHeading",
       localeHeading: "pages.settings.localeHeading",
+    },
+  },
+  targets: {
+    recent: {
+      openButton: "targets.recent.openButton",
+      removeAriaLabel: "targets.recent.removeAriaLabel",
+      emptyTitle: "targets.recent.emptyTitle",
+      emptyDescription: "targets.recent.emptyDescription",
+      openedAt: "targets.recent.openedAt",
+    },
+    snapshots: {
+      snapshotIdLabel: "targets.snapshots.snapshotIdLabel",
+      scenarioLabel: "targets.snapshots.scenarioLabel",
+      extractedAtLabel: "targets.snapshots.extractedAtLabel",
+      openButton: "targets.snapshots.openButton",
     },
   },
   health: {
@@ -86,6 +125,43 @@ export const strings = {
     title: "errorBoundary.title",
     message: "errorBoundary.message",
     retry: "errorBoundary.retry",
+  },
+  shared: {
+    empty: {
+      title: "shared.empty.title",
+      description: "shared.empty.description",
+    },
+    loading: {
+      label: "shared.loading.label",
+    },
+    error: {
+      title: "shared.error.title",
+      retry: "shared.error.retry",
+    },
+    dataTable: {
+      empty: "shared.dataTable.empty",
+    },
+    severity: {
+      info: "shared.severity.info",
+      low: "shared.severity.low",
+      medium: "shared.severity.medium",
+      high: "shared.severity.high",
+      critical: "shared.severity.critical",
+    },
+    diff: {
+      added: "shared.diff.added",
+      removed: "shared.diff.removed",
+      unchanged: "shared.diff.unchanged",
+    },
+    splitPane: {
+      resizeHandle: "shared.splitPane.resizeHandle",
+    },
+    routeError: {
+      title: "shared.routeError.title",
+      message: "shared.routeError.message",
+      retry: "shared.routeError.retry",
+      home: "shared.routeError.home",
+    },
   },
 } as const;
 

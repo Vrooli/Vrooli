@@ -3,7 +3,11 @@ import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
-const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
+const THEME_OPTIONS = [
+  { value: "light", labelKey: strings.theme.choice.light },
+  { value: "dark", labelKey: strings.theme.choice.dark },
+  { value: "system", labelKey: strings.theme.choice.system },
+] as const satisfies ReadonlyArray<{ value: ThemeChoice; labelKey: string }>;
 
 /**
  * Settings page. Surfaces the locale and theme selectors as a real page (in
@@ -30,21 +34,21 @@ export function SettingsPage() {
           {t(strings.pages.settings.themeHeading)}
         </h3>
         <div role="radiogroup" aria-label={t(strings.theme.switcherLabel)} className="flex gap-2">
-          {THEME_CHOICES.map((c) => (
+          {THEME_OPTIONS.map(({ value, labelKey }) => (
             <button
-              key={c}
+              key={value}
               type="button"
               role="radio"
-              aria-checked={choice === c}
-              onClick={() => setTheme(c)}
-              data-testid={selectors.settingsPage.themeOption({ choice: c })}
+              aria-checked={choice === value}
+              onClick={() => setTheme(value)}
+              data-testid={selectors.settingsPage.themeOption({ choice: value })}
               className={
-                choice === c
+                choice === value
                   ? "rounded-control bg-app-primary px-3 py-1 text-sm font-medium text-app-primary-foreground"
                   : "rounded-control border border-app-border px-3 py-1 text-sm text-app-foreground hover:bg-app-surface-muted"
               }
             >
-              {t(strings.theme.choice[c])}
+              {t(labelKey)}
             </button>
           ))}
         </div>

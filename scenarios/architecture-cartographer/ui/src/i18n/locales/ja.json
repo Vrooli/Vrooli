@@ -1,15 +1,15 @@
 {
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: Architecture Cartographer のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
-    "title": "Architecture Cartographer",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "title": "Architecture Cartographer"
   },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
     "bottomNavLabel": "モバイルナビゲーション",
+    "mainContentLabel": "メインコンテンツ",
     "nav": {
-      "dashboard": "ダッシュボード",
+      "overview": "概要",
+      "targets": "ターゲット",
       "settings": "設定"
     }
   },
@@ -22,15 +22,54 @@
     }
   },
   "pages": {
-    "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
+    "overview": {
+      "title": "概要",
+      "description": "最近のターゲット、アクティブなスナップショット、システムのヘルス。",
+      "recentTargetsHeading": "最近のターゲット",
+      "activeSnapshotsHeading": "アクティブなスナップショット",
+      "healthHeading": "システムヘルス",
+      "noActiveSnapshots": "スナップショットはまだ抽出されていません。",
+      "loadingSnapshots": "スナップショットを読み込み中…",
+      "snapshotsError": "スナップショットを読み込めませんでした。",
+      "startExtraction": "新しいターゲット"
+    },
+    "newTarget": {
+      "title": "新しいターゲット",
+      "description": "シナリオを選んで新しいグラフスナップショットを抽出します。",
+      "scenarioPathLabel": "シナリオ名",
+      "scenarioPathHint": "scenarios/ 配下のシナリオディレクトリ名 (例: architecture-cartographer)。",
+      "submitButton": "グラフを抽出",
+      "submitting": "抽出中…",
+      "successMessage": "スナップショット {{snapshotId}} を {{durationMs}} ms で抽出しました。",
+      "fromCacheMessage": "スナップショット {{snapshotId}} をキャッシュから取得しました。",
+      "openWorkspace": "ワークスペースを開く",
+      "validationRequired": "シナリオ名を入力してください。",
+      "validationInvalid": "シナリオ名にスラッシュや空白を含めることはできません。"
+    },
+    "targetWorkspace": {
+      "title": "ターゲット",
+      "scenarioLabel": "シナリオ:",
+      "subnavComingSoon": "ワークスペースのセクション (Graph、Manifest、Conflicts、Apply、Analytics) は後続フェーズで提供されます。"
     },
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
+    }
+  },
+  "targets": {
+    "recent": {
+      "openButton": "開く",
+      "removeAriaLabel": "{{scenario}} を最近のターゲットから削除",
+      "emptyTitle": "最近のターゲットはありません",
+      "emptyDescription": "シナリオからグラフを抽出してワークスペースを開始してください。",
+      "openedAt": "最終アクセス: {{at}}"
+    },
+    "snapshots": {
+      "snapshotIdLabel": "スナップショット:",
+      "scenarioLabel": "シナリオ:",
+      "extractedAtLabel": "抽出日時:",
+      "openButton": "開く"
     }
   },
   "health": {
@@ -71,5 +110,42 @@
     "title": "問題が発生しました",
     "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
     "retry": "再試行"
+  },
+  "shared": {
+    "empty": {
+      "title": "表示する項目はありません",
+      "description": "まだデータがありません。"
+    },
+    "loading": {
+      "label": "読み込み中…"
+    },
+    "error": {
+      "title": "このビューを読み込めません",
+      "retry": "再試行"
+    },
+    "dataTable": {
+      "empty": "行がありません。"
+    },
+    "severity": {
+      "info": "情報",
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "critical": "重大"
+    },
+    "diff": {
+      "added": "追加",
+      "removed": "削除",
+      "unchanged": "変更なし"
+    },
+    "splitPane": {
+      "resizeHandle": "パネルのサイズを変更"
+    },
+    "routeError": {
+      "title": "このページの読み込みに失敗しました",
+      "message": "ルートのレンダリング中に問題が発生しました。再試行するか、概要に戻ってください。",
+      "retry": "再試行",
+      "home": "概要に戻る"
+    }
   }
 }

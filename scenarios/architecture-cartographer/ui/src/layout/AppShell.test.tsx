@@ -3,7 +3,7 @@
  * + main + bottom nav) and the locale switcher seam. Page content is exercised
  * in the per-page tests; this file only verifies the shell composes correctly.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -14,6 +14,22 @@ import en from "../i18n/locales/en.json";
 import ja from "../i18n/locales/ja.json";
 import ar from "../i18n/locales/ar.json";
 import { TestAppRouter } from "../app/routes";
+
+// Overview renders the targets feature which hits ListGraphSnapshots; stub
+// the client so the shell tests don't depend on a live API.
+vi.mock("../api/graph", () => ({
+  graphClient: {
+    listGraphSnapshots: vi.fn().mockResolvedValue({ snapshots: [], nextPageToken: "" }),
+    extractGraph: vi.fn().mockResolvedValue({ snapshot: undefined, fromCache: false }),
+  },
+}));
+vi.mock("../api/health", () => ({
+  fetchHealth: vi.fn().mockResolvedValue({
+    status: "ok",
+    service: "architecture-cartographer-api",
+    timestamp: new Date(0).toISOString(),
+  }),
+}));
 
 const renderShell = () =>
   renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
@@ -43,7 +59,7 @@ describe("AppShell structure (cimode)", () => {
 
   it("renders the canonical nav links in both sidebar and bottom nav", () => {
     renderShell();
-    for (const key of ["dashboard", "settings"] as const) {
+    for (const key of ["overview", "targets", "settings"] as const) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
       expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
     }
@@ -62,7 +78,7 @@ describe("Locale switching through the shell (real locales)", () => {
   it("renders English copy by default and reflects it on <html>", async () => {
     renderShell();
     // Sidebar + bottom-nav both render the label, so there will be ≥1 match.
-    expect((await screen.findAllByText(en.layout.nav.dashboard)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(en.layout.nav.overview)).length).toBeGreaterThan(0);
     expect(document.documentElement.lang).toBe("en");
     expect(document.documentElement.dir).toBe("ltr");
   });
@@ -73,7 +89,7 @@ describe("Locale switching through the shell (real locales)", () => {
     await user.click(screen.getByTestId(selectors.locale.toggle({ code: "ja" })));
 
     await waitFor(() => {
-      expect(screen.getAllByText(ja.layout.nav.dashboard).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(ja.layout.nav.overview).length).toBeGreaterThan(0);
     });
     expect(document.documentElement.lang).toBe("ja");
   });
@@ -85,7 +101,7 @@ describe("Locale switching through the shell (real locales)", () => {
 
     await waitFor(() => {
       expect(document.documentElement.dir).toBe("rtl");
-      expect(screen.getAllByText(ar.layout.nav.dashboard).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(ar.layout.nav.overview).length).toBeGreaterThan(0);
     });
   });
 });

@@ -1,15 +1,15 @@
 {
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Architecture Cartographer are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Architecture Cartographer",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "title": "Architecture Cartographer"
   },
   "layout": {
     "sidebarLabel": "Primary navigation",
     "bottomNavLabel": "Mobile navigation",
+    "mainContentLabel": "Main content",
     "nav": {
-      "dashboard": "Dashboard",
+      "overview": "Overview",
+      "targets": "Targets",
       "settings": "Settings"
     }
   },
@@ -22,15 +22,54 @@
     }
   },
   "pages": {
-    "dashboard": {
-      "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
+    "overview": {
+      "title": "Overview",
+      "description": "Recent targets, active snapshots, and system health.",
+      "recentTargetsHeading": "Recent targets",
+      "activeSnapshotsHeading": "Active snapshots",
+      "healthHeading": "System health",
+      "noActiveSnapshots": "No snapshots have been extracted yet.",
+      "loadingSnapshots": "Loading snapshots…",
+      "snapshotsError": "Couldn't load snapshots.",
+      "startExtraction": "New target"
+    },
+    "newTarget": {
+      "title": "New target",
+      "description": "Pick a scenario and extract a fresh graph snapshot.",
+      "scenarioPathLabel": "Scenario name",
+      "scenarioPathHint": "The scenario directory name under scenarios/ (e.g. architecture-cartographer).",
+      "submitButton": "Extract graph",
+      "submitting": "Extracting…",
+      "successMessage": "Snapshot {{snapshotId}} extracted in {{durationMs}} ms.",
+      "fromCacheMessage": "Snapshot {{snapshotId}} served from cache.",
+      "openWorkspace": "Open workspace",
+      "validationRequired": "Enter a scenario name.",
+      "validationInvalid": "Scenario name may not contain slashes or whitespace."
+    },
+    "targetWorkspace": {
+      "title": "Target",
+      "scenarioLabel": "Scenario:",
+      "subnavComingSoon": "Workspace sections (Graph, Manifest, Conflicts, Apply, Analytics) ship in subsequent phases."
     },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language"
+    }
+  },
+  "targets": {
+    "recent": {
+      "openButton": "Open",
+      "removeAriaLabel": "Remove {{scenario}} from recent targets",
+      "emptyTitle": "No recent targets",
+      "emptyDescription": "Extract a graph from a scenario to start a workspace.",
+      "openedAt": "Last opened {{at}}"
+    },
+    "snapshots": {
+      "snapshotIdLabel": "Snapshot:",
+      "scenarioLabel": "Scenario:",
+      "extractedAtLabel": "Extracted:",
+      "openButton": "Open"
     }
   },
   "health": {
@@ -74,5 +113,42 @@
     "title": "Something went wrong",
     "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
     "retry": "Try again"
+  },
+  "shared": {
+    "empty": {
+      "title": "Nothing to show",
+      "description": "There's no data here yet."
+    },
+    "loading": {
+      "label": "Loading…"
+    },
+    "error": {
+      "title": "Couldn't load this view",
+      "retry": "Try again"
+    },
+    "dataTable": {
+      "empty": "No rows."
+    },
+    "severity": {
+      "info": "Info",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
+    },
+    "diff": {
+      "added": "Added",
+      "removed": "Removed",
+      "unchanged": "Unchanged"
+    },
+    "splitPane": {
+      "resizeHandle": "Resize panels"
+    },
+    "routeError": {
+      "title": "This page failed to load",
+      "message": "Something went wrong while rendering this route. Try again, or return to the overview.",
+      "retry": "Try again",
+      "home": "Back to overview"
+    }
   }
 }

@@ -6,21 +6,27 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
-import { DashboardPage } from "../pages/DashboardPage";
+import { NewTargetPage } from "../pages/NewTargetPage";
+import { OverviewPage } from "../pages/OverviewPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { TargetWorkspacePage } from "../pages/TargetWorkspacePage";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
  * from the same config the production app uses.
  *
- * Add new pages by appending to the `children` array.
+ * Per-target sub-routes (graph, manifest, conflicts, apply, analytics) land
+ * as children of `targets/:encodedPath` in later phases. The workspace
+ * already renders an `<Outlet />` ready to host them.
  */
 export const routes: RouteObject[] = [
   {
     path: "/",
     element: <AppShell />,
     children: [
-      { index: true, element: <DashboardPage /> },
+      { index: true, element: <OverviewPage /> },
+      { path: "targets/new", element: <NewTargetPage /> },
+      { path: "targets/:encodedPath", element: <TargetWorkspacePage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

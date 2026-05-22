@@ -2,13 +2,17 @@ import { strings } from "../consts/strings";
 
 /**
  * Canonical nav-item list shared by `Sidebar` and `BottomNav` so the two
- * surfaces never drift. Replace these entries when this scenario's routes
- * change. `key` doubles as the selector parameter so tests can target a
- * specific link without binding to the translated label.
+ * surfaces never drift. `key` doubles as the selector parameter so tests can
+ * target a specific link without binding to the translated label.
+ *
+ * Shell-level nav is intentionally narrow: it points at the cross-target
+ * surfaces (Overview, Targets, Settings). Per-target sections (Graph,
+ * Manifest, Conflicts, Apply, Analytics) appear as a sub-nav inside the
+ * target workspace, not here.
  */
 export interface NavItem {
   /** Selector parameter; stable across locales. */
-  key: "dashboard" | "settings";
+  key: "overview" | "targets" | "settings";
   /** Router path. */
   path: string;
   /** True when this is the index route (used for `<NavLink end>`). */
@@ -18,6 +22,7 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
+  { key: "overview", path: "/", end: true, labelKey: strings.layout.nav.overview },
+  { key: "targets", path: "/targets/new", labelKey: strings.layout.nav.targets },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];

@@ -23,10 +23,19 @@ const readStoredChoice = (): ThemeChoice => {
   return "system";
 };
 
+const getMatchMedia = (): typeof window.matchMedia | undefined => {
+  if (typeof window === "undefined") return undefined;
+  // jsdom and older runtimes may lack matchMedia even though the DOM lib
+  // types declare it as required. Treat it as optional at the value level.
+  const candidate: unknown = (window as { matchMedia?: unknown }).matchMedia;
+  return typeof candidate === "function" ? (candidate as typeof window.matchMedia) : undefined;
+};
+
 const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
   if (choice === "light" || choice === "dark") return choice;
-  if (typeof window === "undefined" || !window.matchMedia) return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  const mm = getMatchMedia();
+  if (!mm) return "light";
+  return mm("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
 
 const applyTheme = (resolved: "light" | "dark", choice: ThemeChoice) => {
@@ -55,9 +64,10 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   }, [resolved, choice]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return undefined;
     if (choice !== "system") return undefined;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const mm = getMatchMedia();
+    if (!mm) return undefined;
+    const mq = mm("(prefers-color-scheme: dark)");
     const handler = () => setResolved(mq.matches ? "dark" : "light");
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
