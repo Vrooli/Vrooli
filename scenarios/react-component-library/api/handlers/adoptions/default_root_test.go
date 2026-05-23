@@ -35,7 +35,6 @@ func TestDefaultScenariosRoot_ResolvesViaContract(t *testing.T) {
 
 	t.Setenv("VROOLI_ROOT", tempRepo)
 	t.Setenv("VROOLI_SOURCE_ROOT", tempRepo)
-	t.Setenv("ADOPTIONS_SCENARIOS_ROOT", "") // make sure no override leaks
 
 	got, err := defaultScenariosRoot()
 	if err != nil {
@@ -44,19 +43,6 @@ func TestDefaultScenariosRoot_ResolvesViaContract(t *testing.T) {
 	want := filepath.Join(tempRepo, "scenarios")
 	if got != want {
 		t.Fatalf("defaultScenariosRoot() = %q; want %q", got, want)
-	}
-}
-
-// TestDefaultScenariosRoot_EnvOverride confirms the ADOPTIONS_SCENARIOS_ROOT
-// env override still wins (kept for backwards compat with existing tests).
-func TestDefaultScenariosRoot_EnvOverride(t *testing.T) {
-	t.Setenv("ADOPTIONS_SCENARIOS_ROOT", "/explicit/path")
-	got, err := defaultScenariosRoot()
-	if err != nil {
-		t.Fatalf("defaultScenariosRoot: %v", err)
-	}
-	if got != "/explicit/path" {
-		t.Fatalf("defaultScenariosRoot() = %q; want /explicit/path", got)
 	}
 }
 

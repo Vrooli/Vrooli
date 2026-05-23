@@ -143,10 +143,13 @@ func collapsePredatesTemplateLayout(finds []Finding, totalSlots int, scenarioRoo
 			missing++
 		}
 	}
-	// Collapse only when the layout-mismatch dominates: at least half the
-	// slots are missing AND there are at least 3 such findings. Below that
-	// threshold the per-slot signal is more useful than a summary.
-	if missing < 3 || missing*2 < totalSlots {
+	// Collapse when the per-slot warnings become a "storm": at least 3
+	// missing slot dirs AND at least a quarter of the template's slots
+	// missing. Below that, individual slot signals remain more useful than
+	// a single summary. The 25% ratio + 3-finding floor catches scenarios
+	// that predate the new layout (typically 4+ of 14 slots missing) while
+	// keeping detail for scenarios that just lack one or two dirs.
+	if missing < 3 || missing*4 < totalSlots {
 		return finds
 	}
 	kept := make([]Finding, 0, len(finds)-missing+1)

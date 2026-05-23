@@ -105,6 +105,7 @@ func main() {
 		VectorStore: vectorStore,
 		Discovery:   discovery,
 		Parallelism: searchCfg.ReconcileParallelism,
+		Threshold:   searchCfg.SearchThreshold,
 	})
 
 	if err := aiService.EnsureCollection(context.Background()); err != nil {

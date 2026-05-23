@@ -15,13 +15,10 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	adoptionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions/adoptions_v1connect"
 
@@ -127,21 +124,17 @@ func (l *componentsLibrary) GetVersion(ctx context.Context, componentID, version
 	return l.svc.GetVersion(ctx, componentID, version)
 }
 
-// defaultScenariosRoot resolves the on-disk root the adopted-file
-// reader walks. Override via ADOPTIONS_SCENARIOS_ROOT env. Default is
-// the repo's top-level `scenarios/` so apply/refresh can write and read
-// peer-scenario trees without extra wiring.
+// defaultScenariosRoot resolves the on-disk scenarios root via the canonical
+// repo-contract discovery (VROOLI_SOURCE_ROOT / VROOLI_ROOT env vars, then
+// CWD, then the executable's directory) plus the contract's declared
+// top-level scenarios dir. There is no scenario-local env override: the
+// repo-contract envs are the single source of truth.
 func defaultScenariosRoot() (string, error) {
-	if path := strings.TrimSpace(os.Getenv("ADOPTIONS_SCENARIOS_ROOT")); path != "" {
-		return path, nil
+	contract, repoRoot, err := repocontract.LoadDefaultFromEnvOrCWD()
+	if err != nil {
+		return "", fmt.Errorf("resolve scenarios root via repo-contract: %w", err)
 	}
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", fmt.Errorf("resolve adoptions scenarios root: runtime caller unavailable")
-	}
-	path := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", ".."))
-	path = filepath.Join(path, "scenarios")
-	return path, nil
+	return contract.TopLevelDir(repoRoot, "scenarios")
 }
 
 // Endpoints is the machine-readable description of the adoptions

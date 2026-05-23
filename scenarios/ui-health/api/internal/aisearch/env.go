@@ -18,6 +18,7 @@ const (
 	EnvQdrantURL            = "UI_HEALTH_QDRANT_URL"
 	EnvQdrantAPIKey         = "UI_HEALTH_QDRANT_API_KEY"
 	EnvOllamaModel          = "UI_HEALTH_EMBED_MODEL"
+	EnvSearchThreshold      = "UI_HEALTH_SEARCH_THRESHOLD"
 
 	DefaultSyncInterval         = 5 * time.Minute
 	DefaultReconcileParallelism = 4
@@ -26,6 +27,12 @@ const (
 	DefaultVectorSize           = 768
 	DefaultEmbedModel           = "nomic-embed-text"
 	DefaultQdrantURL            = "http://127.0.0.1:6333"
+	// DefaultSearchThreshold drops vector hits whose cosine score is below
+	// ~0.55. Empirically, scores from nomic-embed-text + the ui-surface
+	// corpus settle in the 0.45–0.65 band; matches under 0.55 are
+	// effectively random and crowd out the "(no matches)" signal users
+	// need when asking about something the corpus doesn't contain.
+	DefaultSearchThreshold = 0.55
 )
 
 // Config holds reconciler/sync-loop tunables read from environment.
@@ -36,6 +43,7 @@ type Config struct {
 	QdrantURL            string
 	QdrantAPIKey         string
 	EmbedModel           string
+	SearchThreshold      float64
 }
 
 func LoadConfigFromEnv() Config {
@@ -46,7 +54,27 @@ func LoadConfigFromEnv() Config {
 		QdrantURL:            envString(EnvQdrantURL, DefaultQdrantURL),
 		QdrantAPIKey:         envString(EnvQdrantAPIKey, ""),
 		EmbedModel:           envString(EnvOllamaModel, DefaultEmbedModel),
+		SearchThreshold:      envFloat(EnvSearchThreshold, DefaultSearchThreshold),
 	}
+}
+
+func envFloat(name string, def float64) float64 {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return def
+	}
+	v, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		log.Printf("[ui-health/aisearch] invalid env %s=%q, using default %g", name, raw, def)
+		return def
+	}
+	if v < 0 {
+		return 0
+	}
+	if v > 1 {
+		return 1
+	}
+	return v
 }
 
 func envDuration(name string, def time.Duration) time.Duration {
