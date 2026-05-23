@@ -1,0 +1,109 @@
+{
+  "description": "Ship a UI surface that lets an operator paste a scenario path, see the extracted nodes/edges/leading comments/warnings, view server health (including Node sidecar status), and inspect recent extraction calls.",
+  "module_id": "MOD-P0-011",
+  "prd_ref": "OT-P0-011",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-006",
+        "REQ-P0-008",
+        "REQ-P0-009"
+      ],
+      "description": "Ship a UI surface that provides operators with interactive graph exploration and system diagnostics. The UI must support: (1) accepting a scenario path input and triggering extraction, (2) displaying extracted nodes with their kinds, names, and leading_comments, (3) displaying edges with their kinds and endpoints, (4) displaying structured Warnings[] from partial extraction, (5) showing server health status including Node sidecar state from /health, and (6) displaying a log of recent extraction calls with timestamps and outcome. The UI must use Connect-RPC clients exclusively (no direct REST calls).",
+      "id": "REQ-P0-011",
+      "prd_ref": "OT-P0-011",
+      "status": "draft",
+      "title": "Graph Explorer and Diagnostics UI",
+      "validation": [
+        {
+          "notes": "Test node rendering component displays NodeKind, name, and leading_comments correctly",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test edge rendering component displays EdgeKind, source node, and target node",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test warnings panel renders all Warning entries with file, kind, and message fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test health status indicator reflects UP/RESTARTING/FAILED states from /health endpoint",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test recent-calls log renders extraction timestamp, path, node count, and outcome",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-UI-EXPLORER: UI extraction of a fixture path displays correct node/edge counts matching CLI output",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-UI-WARNINGS: UI displays structured warnings when extracting a fixture with intentional parse errors",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-UI-HEALTH: UI health panel reflects sidecar RESTARTING state within 5 seconds of a sidecar kill",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "UI Connect-RPC calls succeed and return data for all supported operations",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "UI renders a 200-file project graph within 3 seconds of receiving the Extract response",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "An operator can identify a misconfigured project by reading the warnings panel without consulting logs",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "An operator can confirm sidecar health without accessing server infrastructure directly",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Graph Explorer + Diagnostics UI"
+}

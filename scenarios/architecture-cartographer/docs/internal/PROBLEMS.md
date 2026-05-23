@@ -49,19 +49,19 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-05-21 — go-code-graph and typescript-code-graph do not exist yet
+### 2026-05-21 — go-code-graph and typescript-code-graph do not exist yet (initialized 2026-05-23, not implemented)
 
-**Symptom:** Cartographer cannot be implemented end-to-end because the two scenarios it depends on for source-code parsing have not been created.
+**Symptom:** Cartographer cannot be implemented end-to-end because the two scenarios it depends on for source-code parsing — `go-code-graph` and `typescript-code-graph` — are initialized (PRD, requirements, docs in place at `scenarios/go-code-graph/` and `scenarios/typescript-code-graph/` as of 2026-05-23) but no domain implementation has shipped in either scenario. Cartographer's `graph` and `apply` domains still cannot call real `Extract` / `Rewrite` endpoints.
 
-**Root cause:** Layered scenario architecture (see [`DECISIONS.md`](DECISIONS.md), entry 2026-05-21) requires graph extraction to live in language-specific scenarios. Those scenarios are scheduled but not built.
+**Root cause:** Layered scenario architecture (see [`DECISIONS.md`](DECISIONS.md), entry 2026-05-21) requires graph extraction to live in language-specific scenarios. The 2026-05-23 initialization session generated both scenarios from the `react-vite` template, authored full PRDs (10 P0 + 5 P1 + 5 P2 for Go; 12 P0 + 6 P1 + 6 P2 for TS), generated and validated requirements (15 modules `healthy` for Go; 18 modules `healthy` for TS), and filled the docs surface — but did not implement the `graph` or `rewrite` domains. The Node sidecar for `typescript-code-graph` (REQ-P0-009) is also unimplemented.
 
-**Workaround:** None at the implementation level. PRD and requirements can be authored without the dependencies existing; implementation must wait until at least `go-code-graph` ships.
+**Workaround:** Cartographer's `e2e_lang_graph_test.go` remains build-tagged off (`//go:build e2e_lang_graph`). Cartographer's `bas/fixtures/go-cycles/expected-graph.json` is hand-curated and stands in for what `go-code-graph` will eventually return.
 
-**Real fix:** Build `go-code-graph` and `typescript-code-graph` per launch sequencing in `PRD.md`. Cartographer integration adapters then consume them via Connect-RPC.
+**Real fix:** Implement the P0 operational targets in both scenarios per their launch sequencing. For Go: deterministic `Extract` against `golang.org/x/tools/go/packages`, two-step `Rewrite`, fixture determinism gate. For TS: Node sidecar bootstrap first (REQ-P0-009), then `Extract` with leading-comment fidelity, then `Rewrite`. Once at least `go-code-graph`'s `Extract` is shipping, unstub `e2e_lang_graph_test.go`. The Go-source fixture for `bas/fixtures/go-cycles/` belongs in `scenarios/go-code-graph/bas/fixtures/go-cycles/` per the fixture-split decision; cartographer keeps `expected-conflicts.json` and references the language-scenario's `expected-graph.json` (or keeps a copy as integration-test input).
 
-**Owner:** Unassigned. Same team that builds the cartographer is the most likely candidate.
+**Owner:** Next implementation agent. Plan is to drive each scenario in its own chat per the user's preference.
 
-**Refs:** [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — Intentional Deviations; [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — Scenario Dependencies; PRD.md — Launch sequencing step 1.
+**Refs:** [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — Intentional Deviations; [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — Scenario Dependencies; PRD.md — Launch sequencing step 1; `scenarios/go-code-graph/` and `scenarios/typescript-code-graph/` PRDs and PROBLEMS.md.
 
 ### 2026-05-21 — `vrooli scenario requirements validate` and `lint-prd` are broken by an unrelated test-genie build error
 

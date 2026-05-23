@@ -1,0 +1,108 @@
+{
+  "description": "Every capability is exposed through proto + Connect-RPC. The CLI (`go-code-graph extract`, `go-code-graph rewrite plan`, `go-code-graph rewrite apply`) is a translation layer over Connect clients; the UI is the same. No REST/JSON workarounds.",
+  "module_id": "MOD-P0-007",
+  "prd_ref": "OT-P0-007",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-002",
+        "REQ-P0-001",
+        "REQ-P0-003"
+      ],
+      "description": "Every capability of go-code-graph (Extract, Rewrite plan, Rewrite apply) must be exposed as a Connect-RPC service defined in proto. The CLI commands (go-code-graph extract, go-code-graph rewrite plan, go-code-graph rewrite apply) must be implemented as thin translation layers that construct Connect client requests and format responses for human consumption. The UI must similarly consume the same Connect-RPC endpoints. No REST/JSON workarounds, HTTP handler shortcuts, or capability-only-in-CLI/UI implementations are permitted. All three surfaces (proto+RPC, CLI, UI) must have full capability parity.",
+      "id": "REQ-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "draft",
+      "title": "Connect-RPC Primary Interface with CLI and UI as Translation Layers",
+      "validation": [
+        {
+          "notes": "Test that CLI extract command constructs a valid ExtractRequest proto and calls the Connect client (mock the client)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that CLI rewrite plan command constructs a valid RewriteRequest without plan_id and calls the Connect client",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that CLI rewrite apply command constructs a valid RewriteRequest with plan_id and apply flag and calls the Connect client",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that CLI output formatting handles all response fields (nodes, edges, warnings, plan_id)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify no direct HTTP handler or REST endpoint is registered outside Connect-RPC routing",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI go-code-graph extract against a live server returns the same graph as a direct Connect-RPC call with identical request",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI go-code-graph rewrite plan returns the same plan_id and operation log as a direct Connect-RPC call",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "UI Extract invocation produces the same graph as CLI and direct Connect-RPC call for the same scenario_path",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Connect-RPC service descriptor lists exactly the methods: Extract, RewritePlan, RewriteApply",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Any new capability added to the proto service is automatically available to CLI and UI without separate implementation",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No feature exists in CLI or UI that is not expressed in the proto service definition",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Connect-RPC is the single integration point for all automated consumers (cartographer, etc.)",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Connect-RPC + CLI + UI Parity"
+}

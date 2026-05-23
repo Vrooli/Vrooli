@@ -1,0 +1,80 @@
+{
+  "description": "Ship a UI surface where an operator can drop a fixture directory (Go source + expected-graph.json) and see the diff between expected and actual extraction. Directly accelerates the determinism tests that consumers like cartographer depend on.",
+  "module_id": "MOD-P1-011",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-008",
+        "REQ-P0-009",
+        "REQ-P0-007"
+      ],
+      "description": "Ship a UI surface where an operator can provide a fixture directory path (containing Go source files and an expected-graph.json) and trigger an extraction comparison. The UI must display a structured diff between the expected-graph.json and the actual extracted graph, highlighting added nodes/edges, removed nodes/edges, and changed fields. This surface directly accelerates fixture authoring and debugging for the golden determinism gate.",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "draft",
+      "title": "Fixture Validator UI for Determinism Diff Inspection",
+      "validation": [
+        {
+          "notes": "Test diff computation function: given expected and actual graphs, produces structured diff with added/removed/changed entries",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test diff renderer component: added nodes shown in green, removed nodes in red, changed fields highlighted",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that an identical expected and actual graph produces an empty diff and a passing indicator",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end UI test: operator provides go-cycles fixture path, UI extracts graph and shows zero-diff against expected-graph.json",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end UI test: operator provides a fixture with a modified expected-graph.json; UI shows the specific node/edge differences",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Fixture validator UI invokes only the Extract Connect-RPC endpoint; no direct filesystem reads from the browser",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Fixture authors can validate expected-graph.json correctness without running CLI or reading raw JSON",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cartographer team can use the validator UI to confirm extraction behavior before updating expected fixtures",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Fixture Validator UI"
+}

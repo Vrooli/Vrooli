@@ -1,0 +1,107 @@
+{
+  "description": "Implement `Extract(ExtractRequest{scenario_path}) → Graph` against `ts-morph` using a fixed Project configuration that returns files, modules, top-level declarations (components, hooks, classes, interfaces, types, functions, vars, consts), and import edges plus intra-module symbol references; byte-stable serialization for identical inputs.",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-002",
+        "REQ-P0-009"
+      ],
+      "description": "Implement the Extract(ExtractRequest{scenario_path}) → Graph function using ts-morph with a fixed, reproducible Project configuration. The extracted graph must include all source files, module boundaries, top-level declarations (React components, hooks, classes, interfaces, types, functions, variables, and constants), import edges, and intra-module symbol references. Serialization of the resulting graph must be byte-stable: identical inputs always produce byte-for-byte identical outputs regardless of invocation time, process ID, or environment ordering.",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Deterministic Graph Extraction via ts-morph",
+      "validation": [
+        {
+          "notes": "Table-driven tests for each declaration kind (component, hook, class, interface, type, function, var, const) verify correct NodeKind assignment",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that import edge extraction captures both named and default imports with correct source/target node IDs",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test intra-module symbol reference extraction for re-used identifiers within the same file",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test byte-stable serialization: serialize the same in-memory Graph struct twice and assert byte equality",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that serialization field ordering is deterministic (maps sorted by key, arrays sorted by stable criteria)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-EXTRACT-DETERMINISM: Run Extract twice on ts-junk-drawer fixture and assert the two response payloads are byte-for-byte identical",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run Extract on ts-jsdoc-tags fixture and compare to expected-graph.json byte-for-byte",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run Extract concurrently 10 times on the same path and assert all responses are byte-for-byte identical",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify extracted graph includes all expected nodes and edges for a known multi-file TS project",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract completes in under 5 seconds for a 200-file TS project end-to-end including Connect-RPC and sidecar round-trip",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Golden-fixture extraction from a clean clone produces output identical to the committed expected-graph.json",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All declaration kinds documented in the PRD are represented in the extracted graph for a representative project",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Deterministic Graph Extraction"
+}

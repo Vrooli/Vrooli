@@ -41,9 +41,13 @@ This is a deliberate choice — see Intentional Deviations in
 
 ### `go-code-graph`
 
-- **Status**: REQUIRED — scenario does not yet exist; cartographer
-  blocks on its arrival. Documented as Intentional Deviation in
-  [`ARCHITECTURE.md`](ARCHITECTURE.md).
+- **Status**: REQUIRED — scenario was initialized 2026-05-23 at
+  `scenarios/go-code-graph/` (PRD, requirements, docs in place) but
+  is not yet implemented. Cartographer's `graph` and `apply` domains
+  block on its `Extract` and `Rewrite` services going live.
+  Documented as Intentional Deviation in
+  [`ARCHITECTURE.md`](ARCHITECTURE.md) and as the load-bearing
+  problem in [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md).
 - **Why this scenario, not in-process parsing**: Cartographer must
   never parse source code directly (see Architecture Rules in
   [`../START-HERE.md`](../START-HERE.md) and the
@@ -72,8 +76,12 @@ This is a deliberate choice — see Intentional Deviations in
 
 ### `typescript-code-graph`
 
-- **Status**: REQUIRED — scenario does not yet exist; cartographer
-  blocks on its arrival. Same Intentional Deviation entry as above.
+- **Status**: REQUIRED — scenario was initialized 2026-05-23 at
+  `scenarios/typescript-code-graph/` (PRD, requirements, docs in
+  place) but is not yet implemented. Adds a Node sidecar process
+  hosting `ts-morph` (REQ-P0-009 in that scenario) that must ship
+  before the `graph` and `rewrite` domains can land. Same
+  Intentional Deviation entry as above.
 - **Why this scenario, not in-process parsing**: Identical reasoning
   to `go-code-graph`. Additionally, `react-component-library` is
   scheduled to migrate from its current regex-based parsing onto

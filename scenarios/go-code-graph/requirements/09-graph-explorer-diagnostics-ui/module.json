@@ -1,0 +1,101 @@
+{
+  "description": "Ship a UI surface that lets an operator paste a scenario path, see the extracted nodes/edges/warnings, view server health, and inspect recent extraction calls. The graph explorer is the human debug path when an automated consumer reports unexpected results.",
+  "module_id": "MOD-P0-009",
+  "prd_ref": "OT-P0-009",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-007",
+        "REQ-P0-001",
+        "REQ-P0-005"
+      ],
+      "description": "Ship a UI surface that enables operators to: (1) paste a scenario_path and trigger extraction, (2) browse the extracted graph nodes, edges, and warnings in a structured view, (3) view server health status, and (4) inspect a log of recent extraction calls including timestamps and result summaries. This UI is the human debug path when automated consumers report unexpected extraction results. The UI must consume the Connect-RPC service exclusively (no direct DB queries or internal API shortcuts).",
+      "id": "REQ-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "draft",
+      "title": "Graph Explorer and Diagnostics UI Surface",
+      "validation": [
+        {
+          "notes": "Test graph node list component renders all node kinds correctly given a mock graph response",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test graph edge list component renders import and reference edges with source/target labels",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test warnings panel renders structured warnings (file, kind, message) for partial graph responses",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test server health indicator displays healthy/unhealthy state based on Connect-RPC health check response",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test recent extractions log displays entries with timestamp, scenario_path, node count, warning count",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end UI test: operator enters a valid scenario_path, clicks extract, graph nodes and edges appear in the explorer",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end UI test: operator enters a path with parse errors, partial graph and warnings panel both populate",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Server health panel reflects actual server status (healthy when server is up, unhealthy when server is down)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Recent calls log updates after each extraction without page refresh",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Operator can identify the root cause of an unexpected extraction result without accessing server logs or running CLI commands",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "UI is accessible from a browser without installing any local tooling beyond a web browser",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Graph Explorer + Diagnostics UI"
+}

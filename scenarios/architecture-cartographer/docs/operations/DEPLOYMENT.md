@@ -16,7 +16,7 @@ Use this document to answer:
 
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
-| Local Vrooli stack | target for v1 | Vrooli lifecycle; Go toolchain; Node/pnpm; SQLite path; `go-code-graph` and `typescript-code-graph` scenarios running on same host | Cartographer is pre-implementation; language-graph dependency scenarios do not yet exist (see [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md)). |
+| Local Vrooli stack | target for v1 | Vrooli lifecycle; Go toolchain; Node/pnpm; SQLite path; `go-code-graph` and `typescript-code-graph` scenarios running on same host | Cartographer is pre-implementation; language-graph dependency scenarios exist (initialized 2026-05-23) but are not yet implemented (see [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md)). |
 | Desktop/mobile app | deferred | Cross-platform runtime; packaged UI/API; bundled language-graph scenarios | Run `cross-platform-readiness` audit; resolve how language toolchains (Go, TS) are packaged for offline use. |
 | Managed cloud/SaaS | deferred | Hosted runtime; auth; per-tenant isolation; observability; cost model | Cartographer reads source code — multi-tenant exposure requires authorization (see [`../internal/SECURITY.md`](../internal/SECURITY.md)). Substantial work. |
 | Enterprise/self-host | deferred | Install docs; backup/restore; support model; license model | Requires operational hardening; not in v1 scope. |

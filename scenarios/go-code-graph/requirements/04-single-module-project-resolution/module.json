@@ -1,0 +1,99 @@
+{
+  "description": "`Extract` and `Rewrite` operate on exactly one `go.mod` per call. Reject ambiguous inputs (no `go.mod` discoverable, multiple `go.mod` files, or `go.work` workspace) with a typed error explaining which file to point at.",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-002"
+      ],
+      "description": "Both Extract and Rewrite must operate on exactly one go.mod per call. The system must discover the go.mod from the provided scenario_path and reject all ambiguous cases with a typed, actionable error. Rejection cases: (1) no go.mod discoverable in or above the scenario_path, (2) multiple go.mod files found within the scenario_path subtree, (3) a go.work workspace file is present. Each rejection must return a distinct typed error identifying the conflicting file paths and instructing the operator which file to point at.",
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "draft",
+      "title": "Single go.mod Enforcement and Ambiguous Input Rejection",
+      "validation": [
+        {
+          "notes": "Test rejection when no go.mod exists in or above scenario_path, error includes path searched",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test rejection when multiple go.mod files exist within scenario_path subtree, error lists all discovered go.mod paths",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test rejection when a go.work file is detected, error identifies the go.work path and instructs single-module usage",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test successful discovery when exactly one go.mod exists at or above scenario_path",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Table-driven tests for go.mod discovery across nested directory structures",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract on a directory with no go.mod returns a typed NoGoModError with the searched path",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract on a directory containing two go.mod files returns a typed AmbiguousGoModError listing both paths",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract on a directory with go.work returns a typed GoWorkUnsupportedError identifying the go.work file",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract on a valid single-module directory succeeds without error",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Error messages include specific file paths and actionable instructions so operators can resolve without guessing",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Typed errors are distinct proto message types (not generic strings) so consumers can programmatically handle each case",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Single-Module Project Resolution"
+}

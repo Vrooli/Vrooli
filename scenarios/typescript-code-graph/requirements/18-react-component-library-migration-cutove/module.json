@@ -1,0 +1,81 @@
+{
+  "description": "With this scenario shipped and OT-P0-003 stable, coordinate the `react-component-library` upgrade off its current regex parsing onto a typescript-code-graph client. (Work executed in the rcl scenario; this OT tracks the cross-scenario coordination commitment.)",
+  "module_id": "MOD-P1-018",
+  "prd_ref": "OT-P1-006",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-003",
+        "REQ-P0-010",
+        "REQ-P1-004",
+        "REQ-P1-005"
+      ],
+      "description": "With OT-P0-003 (leading-comment metadata) stable and this scenario fully shipped, coordinate the react-component-library (rcl) scenario's migration from its current @vrooliWidget*/@vrooliComponent* regex-based annotation parsing to a typescript-code-graph client. This requirement tracks the cross-scenario coordination commitment: providing a stable client library or SDK, validating the leading_comments contract against rcl's full annotation corpus, and ensuring the ts-jsdoc-tags golden fixture covers all annotation patterns rcl depends on. The actual migration work executes in the rcl scenario.",
+      "id": "REQ-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "draft",
+      "title": "react-component-library Migration Cutover Coordination",
+      "validation": [
+        {
+          "notes": "Test that the typescript-code-graph client library exposes a typed ExtractResponse with leading_comments accessible on each node",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that the client library correctly handles the Warnings[] field for partial graph responses",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-RCL-MIGRATION: Run typescript-code-graph extraction against rcl's component fixture set and assert all @vrooliWidget and @vrooliComponent annotations appear in leading_comments",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Coordinate with rcl team to validate that graph output for their top 20 components matches expectations before cutover",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify ts-jsdoc-tags golden fixture covers all annotation patterns in rcl's @vrooliWidget corpus",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "rcl team signs off that typescript-code-graph leading_comments output is a functional replacement for their regex parser",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Migration cutover date agreed between typescript-code-graph and rcl scenario owners",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No regression in rcl component discovery after cutover to typescript-code-graph client",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "react-component-library Migration Cutover"
+}

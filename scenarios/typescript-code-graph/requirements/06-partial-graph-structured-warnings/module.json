@@ -1,0 +1,93 @@
+{
+  "description": "When source files fail to parse or imports are unresolvable, return a partial graph plus a `Warnings[]` list of `{file, kind, message}` entries. Hard fail only on catastrophic project errors (missing `tsconfig.json`, unreadable path, broken parser process). Mid-migration scenarios are first-class inputs.",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "OT-P0-006",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "When individual source files fail to parse or import references cannot be resolved, the Extract operation must return a partial graph covering all successfully parsed content plus a Warnings[] list. Each warning entry must be a structured object with fields: file (absolute path), kind (enum: PARSE_ERROR, UNRESOLVABLE_IMPORT, etc.), and message (human-readable description). Hard failures (panic-level) are reserved exclusively for catastrophic conditions: missing tsconfig.json, unreadable scenario path, or a sidecar process that has exhausted its restart budget. Mid-migration projects with broken imports or syntax errors are first-class supported inputs.",
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "draft",
+      "title": "Partial Graph Extraction with Structured Warnings",
+      "validation": [
+        {
+          "notes": "Test that a project with one unparseable file returns a partial graph excluding that file plus a PARSE_ERROR warning",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that an unresolvable import produces an UNRESOLVABLE_IMPORT warning with the correct file and import path",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test Warning struct serialization includes file, kind, and message fields with correct types",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that multiple warnings are aggregated and all returned in a single response",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a missing tsconfig.json triggers a hard error, not a warning",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-PARTIAL-GRAPH: Extract on a fixture project with one intentionally broken import returns a graph with all other nodes plus one warning entry",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract on a fixture with a syntax error in one file returns partial graph and PARSE_ERROR warning; remaining files are fully represented",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify that the Warnings[] field is included in the Connect-RPC response proto envelope",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A team running typescript-code-graph against a mid-migration monorepo receives usable graph data rather than a total failure",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Warnings are surfaced in the UI Graph Explorer alongside the partial graph results",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Partial Graph + Structured Warnings"
+}
