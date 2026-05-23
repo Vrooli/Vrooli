@@ -329,9 +329,40 @@ const literalSelectors = {
     targetWorkspace: "page-target-workspace",
     targetConflicts: "page-target-conflicts",
     targetConflictDetail: "page-target-conflict-detail",
+    targetGraph: "page-target-graph",
+    targetApply: "page-target-apply",
+    targetApplyDomain: "page-target-apply-domain",
+    targetManifest: "page-target-manifest",
+    targetAnalytics: "page-target-analytics",
+    history: "page-history",
     settings: "page-settings",
   },
   features: {
+    graph: {
+      canvas: {
+        root: "feature-graph-canvas",
+        loading: "feature-graph-canvas-loading",
+        error: "feature-graph-canvas-error",
+        empty: "feature-graph-canvas-empty",
+        fallback: "feature-graph-canvas-fallback",
+        summary: "feature-graph-canvas-summary",
+      },
+      accessibleList: {
+        root: "feature-graph-accessible-list",
+        empty: "feature-graph-accessible-list-empty",
+      },
+      filterBar: {
+        root: "feature-graph-filter-bar",
+        loading: "feature-graph-filter-bar-loading",
+        error: "feature-graph-filter-bar-error",
+        empty: "feature-graph-filter-bar-empty",
+        allChip: "feature-graph-filter-bar-all",
+      },
+      legend: {
+        root: "feature-graph-legend",
+        noConflict: "feature-graph-legend-no-conflict",
+      },
+    },
     conflicts: {
       list: {
         root: "feature-conflicts-list",
@@ -356,6 +387,90 @@ const literalSelectors = {
         root: "feature-conflicts-workbench",
         emptyDetail: "feature-conflicts-workbench-empty-detail",
       },
+    },
+    apply: {
+      overview: {
+        root: "feature-apply-overview",
+        baseline: "feature-apply-overview-baseline",
+        state: "feature-apply-overview-state",
+      },
+      plan: {
+        root: "feature-apply-plan",
+        loading: "feature-apply-plan-loading",
+        error: "feature-apply-plan-error",
+        empty: "feature-apply-plan-empty",
+        planButton: "feature-apply-plan-button",
+        dryRunButton: "feature-apply-plan-dry-run-button",
+        applyButton: "feature-apply-plan-apply-button",
+      },
+      dryRun: {
+        root: "feature-apply-dry-run",
+        empty: "feature-apply-dry-run-empty",
+      },
+      confirmDialog: {
+        root: "feature-apply-confirm-dialog",
+        noteInput: "feature-apply-confirm-dialog-note",
+        noteError: "feature-apply-confirm-dialog-note-error",
+        confirmButton: "feature-apply-confirm-dialog-confirm",
+        cancelButton: "feature-apply-confirm-dialog-cancel",
+      },
+      history: {
+        root: "feature-apply-history",
+        loading: "feature-apply-history-loading",
+        error: "feature-apply-history-error",
+        empty: "feature-apply-history-empty",
+      },
+    },
+    manifest: {
+      view: {
+        root: "feature-manifest-view",
+        loading: "feature-manifest-view-loading",
+        error: "feature-manifest-view-error",
+        empty: "feature-manifest-view-empty",
+        validateButton: "feature-manifest-view-validate",
+        copyButton: "feature-manifest-view-copy",
+      },
+      validation: {
+        root: "feature-manifest-validation",
+        validBanner: "feature-manifest-validation-valid",
+        invalidBanner: "feature-manifest-validation-invalid",
+      },
+      inventory: {
+        root: "feature-manifest-inventory",
+        empty: "feature-manifest-inventory-empty",
+      },
+    },
+    analytics: {
+      stats: {
+        root: "feature-analytics-stats",
+        loading: "feature-analytics-stats-loading",
+        error: "feature-analytics-stats-error",
+        suppressed: "feature-analytics-stats-suppressed",
+      },
+      events: {
+        root: "feature-analytics-events",
+        loading: "feature-analytics-events-loading",
+        error: "feature-analytics-events-error",
+        empty: "feature-analytics-events-empty",
+      },
+      placements: {
+        root: "feature-analytics-placements",
+        loading: "feature-analytics-placements-loading",
+        error: "feature-analytics-placements-error",
+        empty: "feature-analytics-placements-empty",
+      },
+      buildDeltas: {
+        root: "feature-analytics-build-deltas",
+        empty: "feature-analytics-build-deltas-empty",
+      },
+    },
+    settingsExt: {
+      root: "feature-settings-ext",
+      densityToggle: "feature-settings-ext-density",
+      reducedMotionToggle: "feature-settings-ext-reduced-motion",
+      handednessToggle: "feature-settings-ext-handedness",
+      defaultScenarioInput: "feature-settings-ext-default-scenario",
+      defaultDomainInput: "feature-settings-ext-default-domain",
     },
     targets: {
       recent: {
@@ -462,12 +577,12 @@ const dynamicSelectorDefinitions = {
     sidebarLink: defineDynamicSelector({
       description: "Sidebar navigation link by canonical nav key",
       testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["overview", "targets", "settings"] as const } },
+      params: { key: { type: "enum", values: ["overview", "targets", "history", "settings"] as const } },
     }),
     bottomNavLink: defineDynamicSelector({
       description: "Bottom-nav link by canonical nav key",
       testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["overview", "targets", "settings"] as const } },
+      params: { key: { type: "enum", values: ["overview", "targets", "history", "settings"] as const } },
     }),
     workspaceSubnavLink: defineDynamicSelector({
       description: "Workspace sub-nav tab link by canonical key",
@@ -521,6 +636,41 @@ const dynamicSelectorDefinitions = {
     },
   },
   features: {
+    graph: {
+      canvas: {
+        node: defineDynamicSelector({
+          description: "Graph canvas node by node id",
+          testIdPattern: "feature-graph-canvas-node-${id}",
+          params: { id: { type: "string" } },
+        }),
+      },
+      accessibleList: {
+        item: defineDynamicSelector({
+          description: "Graph accessible-list item by node id",
+          testIdPattern: "feature-graph-accessible-list-item-${id}",
+          params: { id: { type: "string" } },
+        }),
+      },
+      filterBar: {
+        chip: defineDynamicSelector({
+          description: "Graph filter-bar chip by domain key",
+          testIdPattern: "feature-graph-filter-bar-chip-${key}",
+          params: { key: { type: "string" } },
+        }),
+      },
+      legend: {
+        severity: defineDynamicSelector({
+          description: "Graph legend row by severity level",
+          testIdPattern: "feature-graph-legend-${level}",
+          params: {
+            level: {
+              type: "enum",
+              values: ["info", "low", "medium", "high", "critical"] as const,
+            },
+          },
+        }),
+      },
+    },
     conflicts: {
       list: {
         row: defineDynamicSelector({
@@ -564,6 +714,51 @@ const dynamicSelectorDefinitions = {
           params: { id: { type: "string" } },
         }),
       },
+    },
+    apply: {
+      plan: {
+        operationRow: defineDynamicSelector({
+          description: "Apply plan operation row by operation id",
+          testIdPattern: "feature-apply-plan-op-${id}",
+          params: { id: { type: "string" } },
+        }),
+        domainLink: defineDynamicSelector({
+          description: "Apply plan per-domain link by domain key",
+          testIdPattern: "feature-apply-plan-domain-${key}",
+          params: { key: { type: "string" } },
+        }),
+      },
+      history: {
+        row: defineDynamicSelector({
+          description: "Apply history row by apply run id",
+          testIdPattern: "feature-apply-history-row-${id}",
+          params: { id: { type: "string" } },
+        }),
+      },
+    },
+    manifest: {
+      diagnostic: defineDynamicSelector({
+        description: "Manifest diagnostic row by diagnostic index",
+        testIdPattern: "feature-manifest-diagnostic-${index}",
+        params: { index: { type: "number" } },
+      }),
+      domainRow: defineDynamicSelector({
+        description: "Manifest domain inventory row by domain name",
+        testIdPattern: "feature-manifest-domain-${name}",
+        params: { name: { type: "string" } },
+      }),
+    },
+    analytics: {
+      eventRow: defineDynamicSelector({
+        description: "Analytics event row by event id",
+        testIdPattern: "feature-analytics-event-${id}",
+        params: { id: { type: "string" } },
+      }),
+      placementRow: defineDynamicSelector({
+        description: "Analytics placement row by placement id",
+        testIdPattern: "feature-analytics-placement-${id}",
+        params: { id: { type: "string" } },
+      }),
     },
     targets: {
       recent: {

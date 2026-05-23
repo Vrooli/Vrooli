@@ -49,14 +49,16 @@ describe("TargetWorkspacePage", () => {
     }
   });
 
-  it("makes only the conflicts tab navigable in Phase 4 (others render as disabled chips)", () => {
+  it("renders graph + conflicts as navigable; the remaining tabs render as disabled chips", () => {
     renderAt("/targets/demo");
     const conflicts = screen.getByTestId(selectors.layout.workspaceSubnavLink({ key: "conflicts" }));
     expect(conflicts.tagName).toBe("A");
+    const graph = screen.getByTestId(selectors.layout.workspaceSubnavLink({ key: "graph" }));
+    expect(graph.tagName).toBe("A");
 
-    for (const key of ["graph", "manifest", "apply", "analytics"] as const) {
+    for (const key of ["manifest", "apply", "analytics"] as const) {
       const item = screen.getByTestId(selectors.layout.workspaceSubnavLink({ key }));
-      expect(item.getAttribute("aria-disabled")).toBe("true");
+      expect(item.tagName).toBe("A");
     }
   });
 });

@@ -12,7 +12,7 @@ import { strings } from "../consts/strings";
  */
 export interface NavItem {
   /** Selector parameter; stable across locales. */
-  key: "overview" | "targets" | "settings";
+  key: "overview" | "targets" | "history" | "settings";
   /** Router path. */
   path: string;
   /** True when this is the index route (used for `<NavLink end>`). */
@@ -24,5 +24,6 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "overview", path: "/", end: true, labelKey: strings.layout.nav.overview },
   { key: "targets", path: "/targets/new", labelKey: strings.layout.nav.targets },
+  { key: "history", path: "/history", labelKey: strings.layout.nav.history },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];

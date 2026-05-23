@@ -6,11 +6,18 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
+import { RouteErrorFallback } from "../components/RouteErrorFallback";
+import { HistoryPage } from "../pages/HistoryPage";
 import { NewTargetPage } from "../pages/NewTargetPage";
 import { OverviewPage } from "../pages/OverviewPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { TargetAnalyticsPage } from "../pages/TargetAnalyticsPage";
+import { TargetApplyDomainPage } from "../pages/TargetApplyDomainPage";
+import { TargetApplyPage } from "../pages/TargetApplyPage";
 import { TargetConflictDetailPage } from "../pages/TargetConflictDetailPage";
 import { TargetConflictsPage } from "../pages/TargetConflictsPage";
+import { TargetGraphPage } from "../pages/TargetGraphPage";
+import { TargetManifestPage } from "../pages/TargetManifestPage";
 import { TargetWorkspacePage } from "../pages/TargetWorkspacePage";
 
 /**
@@ -25,6 +32,7 @@ export const routes: RouteObject[] = [
   {
     path: "/",
     element: <AppShell />,
+    errorElement: <RouteErrorFallback />,
     children: [
       { index: true, element: <OverviewPage /> },
       { path: "targets/new", element: <NewTargetPage /> },
@@ -32,10 +40,16 @@ export const routes: RouteObject[] = [
         path: "targets/:encodedPath",
         element: <TargetWorkspacePage />,
         children: [
+          { path: "graph", element: <TargetGraphPage /> },
+          { path: "manifest", element: <TargetManifestPage /> },
           { path: "conflicts", element: <TargetConflictsPage /> },
           { path: "conflicts/:conflictId", element: <TargetConflictDetailPage /> },
+          { path: "apply", element: <TargetApplyPage /> },
+          { path: "apply/:domainKey", element: <TargetApplyDomainPage /> },
+          { path: "analytics", element: <TargetAnalyticsPage /> },
         ],
       },
+      { path: "history", element: <HistoryPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

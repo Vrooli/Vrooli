@@ -17,6 +17,33 @@ vi.mock("../api/graph", () => ({
   graphClient: {
     listGraphSnapshots: vi.fn().mockResolvedValue({ snapshots: [], nextPageToken: "" }),
     extractGraph: vi.fn().mockResolvedValue({ snapshot: undefined, fromCache: false }),
+    getGraphSnapshot: vi.fn().mockResolvedValue({ snapshot: undefined }),
+  },
+}));
+
+vi.mock("../api/manifest", () => ({
+  manifestClient: {
+    listDomains: vi.fn().mockResolvedValue({ domains: [] }),
+    getManifest: vi.fn().mockResolvedValue({ manifest: undefined }),
+    validateManifest: vi.fn().mockResolvedValue({ manifest: undefined, diagnostics: [], valid: true }),
+  },
+}));
+
+vi.mock("../api/apply", () => ({
+  applyClient: {
+    getBuildBaseline: vi.fn().mockResolvedValue({ baseline: undefined }),
+    listApplyHistory: vi.fn().mockResolvedValue({ runs: [], nextPageToken: "" }),
+    planApply: vi.fn().mockResolvedValue({ plan: undefined, dryRun: false }),
+    runApply: vi.fn(),
+  },
+}));
+
+vi.mock("../api/analytics", () => ({
+  analyticsClient: {
+    getStats: vi.fn().mockResolvedValue({ stats: undefined }),
+    listEvents: vi.fn().mockResolvedValue({ events: [], nextPageToken: "" }),
+    listPlacements: vi.fn().mockResolvedValue({ placements: [], nextPageToken: "" }),
+    recordOverride: vi.fn(),
   },
 }));
 
@@ -67,6 +94,14 @@ describe("AppRouter", () => {
     expect(screen.getByTestId(selectors.pages.targetWorkspace)).toBeInTheDocument();
   });
 
+  it("renders the graph page at /targets/:encodedPath/graph", async () => {
+    renderWithProviders(
+      <TestAppRouter initialEntries={["/targets/demo/graph"]} />,
+      { withoutRouter: true },
+    );
+    expect(await screen.findByTestId(selectors.pages.targetGraph)).toBeInTheDocument();
+  });
+
   it("renders the conflicts page at /targets/:encodedPath/conflicts", async () => {
     renderWithProviders(
       <TestAppRouter initialEntries={["/targets/demo/conflicts"]} />,
@@ -81,6 +116,43 @@ describe("AppRouter", () => {
       { withoutRouter: true },
     );
     expect(await screen.findByTestId(selectors.pages.targetConflictDetail)).toBeInTheDocument();
+  });
+
+  it("renders the manifest page at /targets/:encodedPath/manifest", async () => {
+    renderWithProviders(
+      <TestAppRouter initialEntries={["/targets/demo/manifest"]} />,
+      { withoutRouter: true },
+    );
+    expect(await screen.findByTestId(selectors.pages.targetManifest)).toBeInTheDocument();
+  });
+
+  it("renders the apply page at /targets/:encodedPath/apply", async () => {
+    renderWithProviders(
+      <TestAppRouter initialEntries={["/targets/demo/apply"]} />,
+      { withoutRouter: true },
+    );
+    expect(await screen.findByTestId(selectors.pages.targetApply)).toBeInTheDocument();
+  });
+
+  it("renders the per-domain apply page at /targets/:encodedPath/apply/:domainKey", async () => {
+    renderWithProviders(
+      <TestAppRouter initialEntries={["/targets/demo/apply/foo"]} />,
+      { withoutRouter: true },
+    );
+    expect(await screen.findByTestId(selectors.pages.targetApplyDomain)).toBeInTheDocument();
+  });
+
+  it("renders the analytics page at /targets/:encodedPath/analytics", async () => {
+    renderWithProviders(
+      <TestAppRouter initialEntries={["/targets/demo/analytics"]} />,
+      { withoutRouter: true },
+    );
+    expect(await screen.findByTestId(selectors.pages.targetAnalytics)).toBeInTheDocument();
+  });
+
+  it("renders the cross-target history page at /history", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/history"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.history)).toBeInTheDocument();
   });
 
   it("renders the settings page at /settings", () => {

@@ -10,6 +10,7 @@
     "nav": {
       "overview": "Overview",
       "targets": "Targets",
+      "history": "History",
       "settings": "Settings"
     },
     "subnav": {
@@ -92,10 +93,159 @@
       "title": "Conflict",
       "backToList": "Back to all conflicts"
     },
+    "targetGraph": {
+      "title": "Graph",
+      "description": "Browse the extracted dependency graph and overlay active conflicts.",
+      "loading": "Loading graph snapshot…",
+      "errorTitle": "Couldn't load the graph snapshot.",
+      "emptyTitle": "No graph snapshot yet",
+      "emptyDescription": "Extract a snapshot for this target to see its dependency graph.",
+      "fallbackTitle": "The graph canvas crashed.",
+      "fallbackMessage": "Rendering the graph hit an unexpected error. Try reloading the page.",
+      "summaryNodes": "{{count}} nodes",
+      "summaryEdges": "{{count}} edges"
+    },
+    "targetApply": {
+      "title": "Apply",
+      "description": "Plan, dry-run, and commit per-domain file moves and import rewrites.",
+      "selectDomainPrompt": "Pick a domain to plan an apply.",
+      "loading": "Loading apply data…",
+      "errorTitle": "Couldn't load apply state.",
+      "noPlan": "No plan generated yet.",
+      "domainHeading": "Domain",
+      "operationsHeading": "Operations",
+      "noOperations": "No operations needed.",
+      "historyHeading": "Recent runs",
+      "historyEmpty": "No apply runs recorded yet.",
+      "baselineHeading": "Build baseline",
+      "baselineUnknown": "Baseline not captured.",
+      "baselineGreen": "Build green ({{toolchain}})",
+      "baselineRed": "Build red ({{toolchain}})",
+      "planButton": "Plan apply",
+      "planning": "Planning…",
+      "dryRunButton": "Dry-run",
+      "applyButton": "Run apply",
+      "applying": "Applying…",
+      "applyUnimplementedTitle": "Apply execution not yet wired",
+      "applyUnimplementedMessage": "v0.1 returns CodeUnimplemented for RunApply. The plan and dry-run paths work; the commit path lands in v0.2.",
+      "forceConfirmTitle": "Force apply over a red baseline?",
+      "forceConfirmMessage": "Build was red before this apply. Provide a note explaining why the apply is acceptable anyway.",
+      "forceNoteLabel": "Note",
+      "forceNotePlaceholder": "Why is this force-apply acceptable?",
+      "forceNoteRequired": "A note is required to force-apply.",
+      "confirmButton": "Confirm",
+      "cancelButton": "Cancel"
+    },
+    "targetManifest": {
+      "title": "Manifest",
+      "description": "Validate and review the architecture manifest for this scenario.",
+      "loading": "Loading manifest…",
+      "errorTitle": "Couldn't load the manifest.",
+      "empty": "No manifest stored yet — validate one to populate this view.",
+      "validateButton": "Validate",
+      "validating": "Validating…",
+      "validHeading": "Manifest valid",
+      "invalidHeading": "Manifest has errors",
+      "diagnosticsHeading": "Diagnostics",
+      "noDiagnostics": "No diagnostics — manifest is clean.",
+      "domainsHeading": "Declared domains",
+      "noDomains": "No domains declared.",
+      "columns": {
+        "severity": "Severity",
+        "code": "Code",
+        "path": "Path",
+        "location": "Location",
+        "message": "Message",
+        "name": "Domain",
+        "paths": "Paths",
+        "allowedDeps": "Allowed deps"
+      }
+    },
+    "targetAnalytics": {
+      "title": "Analytics",
+      "description": "Conflict, placement, and apply outcome history for this scenario.",
+      "statsHeading": "Stats",
+      "statsLoading": "Loading stats…",
+      "statsError": "Couldn't load stats.",
+      "statsConflictsDetected": "Conflicts detected",
+      "statsConflictsResolved": "Conflicts resolved",
+      "statsConflictsForce": "Force-resolved",
+      "statsPlacementsAuto": "Placements (auto)",
+      "statsPlacementsSuggest": "Placements (suggest)",
+      "statsOverrides": "Overrides",
+      "statsVerdictSuccess": "Verdict success rate",
+      "statsVerdictSuppressed": "Suppressed — needs ≥ 5 observations ({{count}} so far).",
+      "eventsHeading": "Events",
+      "eventsLoading": "Loading events…",
+      "eventsError": "Couldn't load events.",
+      "eventsEmpty": "No events recorded yet.",
+      "placementsHeading": "Placements",
+      "placementsLoading": "Loading placements…",
+      "placementsError": "Couldn't load placements.",
+      "placementsEmpty": "No placement verdicts recorded.",
+      "buildDeltasHeading": "Build deltas",
+      "buildDeltasEmpty": "No apply runs to compute build deltas from.",
+      "columns": {
+        "kind": "Kind",
+        "actor": "Actor",
+        "domain": "Domain",
+        "conflictId": "Conflict",
+        "chunkId": "Chunk",
+        "chunkPath": "Path",
+        "outcome": "Outcome"
+      }
+    },
+    "history": {
+      "title": "History",
+      "description": "Cross-target apply, conflict, and placement history.",
+      "scenarioLabel": "Scenario",
+      "noScenario": "Open a target to populate history."
+    },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
-      "localeHeading": "Language"
+      "localeHeading": "Language",
+      "preferencesHeading": "Preferences",
+      "densityLabel": "Density",
+      "densityComfortable": "Comfortable",
+      "densityDense": "Dense",
+      "reducedMotionLabel": "Reduce motion",
+      "reducedMotionHint": "Disable non-essential animations even when the OS preference is unset.",
+      "handednessLabel": "Mobile primary action placement",
+      "handednessLeft": "Left",
+      "handednessRight": "Right",
+      "defaultScenarioLabel": "Default scenario",
+      "defaultScenarioHint": "Pre-fills the new-target form.",
+      "defaultDomainLabel": "Default graph domain filter",
+      "defaultDomainHint": "Comma-separated domain names."
+    }
+  },
+  "features": {
+    "graph": {
+      "canvas": {
+        "ariaLabel": "Dependency graph for {{scenario}}",
+        "nodeAriaLabel": "{{label}}, domain {{domain}}, {{conflict}}",
+        "nodeConflictPresent": "in {{severity}} conflict",
+        "nodeConflictAbsent": "no active conflict"
+      },
+      "filterBar": {
+        "label": "Filter by domain",
+        "allDomains": "All",
+        "noDomains": "No domains declared in the manifest."
+      },
+      "accessibleList": {
+        "title": "All nodes",
+        "description": "Keyboard-navigable list of every node in the snapshot.",
+        "domainLabel": "Domain:",
+        "noDomain": "(unassigned)",
+        "conflictLabel": "Conflict:",
+        "noConflict": "none"
+      },
+      "legend": {
+        "title": "Legend",
+        "noConflict": "No conflict",
+        "conflictPrefix": "Conflict ({{level}})"
+      }
     }
   },
   "conflicts": {
@@ -143,6 +293,50 @@
       "scenarioLabel": "Scenario:",
       "extractedAtLabel": "Extracted:",
       "openButton": "Open"
+    }
+  },
+  "apply": {
+    "status": {
+      "baseline_captured": "Baseline captured",
+      "plan_generated": "Plan generated",
+      "dry_run_ok": "Dry-run OK",
+      "applied": "Applied",
+      "committed": "Committed",
+      "refused_build_break": "Refused (build break)",
+      "force_committed": "Force-committed"
+    },
+    "operationKind": {
+      "unspecified": "Unspecified",
+      "move_file": "Move file",
+      "rewrite_import": "Rewrite import",
+      "delete_file": "Delete file",
+      "create_file": "Create file"
+    }
+  },
+  "manifest": {
+    "severity": {
+      "info": "Info",
+      "warn": "Warn",
+      "error": "Error"
+    }
+  },
+  "analytics": {
+    "eventKind": {
+      "unspecified": "Unspecified",
+      "conflict_detected": "Conflict detected",
+      "conflict_assigned": "Conflict assigned",
+      "conflict_resolved": "Conflict resolved",
+      "conflict_reopened": "Conflict reopened",
+      "conflict_force_resolved": "Conflict force-resolved",
+      "verdict_produced": "Verdict produced",
+      "placement_auto": "Placement (auto)",
+      "placement_suggest": "Placement (suggest)",
+      "override_recorded": "Override recorded",
+      "apply_planned": "Apply planned",
+      "apply_ran": "Apply ran",
+      "apply_build_green": "Apply build green",
+      "apply_build_red": "Apply build red",
+      "apply_reverted": "Apply reverted"
     }
   },
   "health": {

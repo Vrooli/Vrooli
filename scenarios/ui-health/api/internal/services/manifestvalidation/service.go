@@ -117,10 +117,53 @@ func (s *Service) ValidateScenario(_ context.Context, scenario string) (Report, 
 
 	merged := mergeManifests(tmplManifest, overlay)
 	rep.Findings = append(rep.Findings, validateOverlayKeys(tmplManifest, overlay, overlayPath)...)
-	rep.Findings = append(rep.Findings, validateSlotsOnDisk(s.RepoRoot, scenario, merged, tmplPath)...)
+	slotFinds := validateSlotsOnDisk(s.RepoRoot, scenario, merged, tmplPath)
+	slotFinds = collapsePredatesTemplateLayout(slotFinds, len(merged.Slots), filepath.Join(s.RepoRoot, "scenarios", scenario))
+	rep.Findings = append(rep.Findings, slotFinds...)
 	rep.Findings = append(rep.Findings, validateSlotPaths(merged, tmplPath)...)
 	rep.Findings = append(rep.Findings, validateSlotOverlap(merged, tmplPath)...)
 	return finalize(rep), nil
+}
+
+// collapsePredatesTemplateLayout replaces a storm of slot_dir_missing /
+// slot_parent_dir_missing findings with a single ui_predates_template_layout
+// warning when most of the template's slots have no on-disk counterpart.
+//
+// Rationale: scenarios generated before the v1 ui/manifest.json template
+// landed have working UIs that don't conform to the new slot layout. One
+// summary signal is more actionable than N per-slot warnings — the slots
+// aren't missing one-by-one, the whole layout pre-dates the contract.
+func collapsePredatesTemplateLayout(finds []Finding, totalSlots int, scenarioRoot string) []Finding {
+	if totalSlots == 0 {
+		return finds
+	}
+	missing := 0
+	for _, f := range finds {
+		if f.Code == "slot_dir_missing" || f.Code == "slot_parent_dir_missing" {
+			missing++
+		}
+	}
+	// Collapse only when the layout-mismatch dominates: at least half the
+	// slots are missing AND there are at least 3 such findings. Below that
+	// threshold the per-slot signal is more useful than a summary.
+	if missing < 3 || missing*2 < totalSlots {
+		return finds
+	}
+	kept := make([]Finding, 0, len(finds)-missing+1)
+	for _, f := range finds {
+		if f.Code == "slot_dir_missing" || f.Code == "slot_parent_dir_missing" {
+			continue
+		}
+		kept = append(kept, f)
+	}
+	kept = append(kept, Finding{
+		Severity:   SeverityWarning,
+		Code:       "ui_predates_template_layout",
+		Location:   scenarioRoot,
+		Message:    fmt.Sprintf("scenario's UI does not conform to the template's slot layout (%d of %d declared slot directories are missing on disk)", missing, totalSlots),
+		Suggestion: "Migrate the UI to the template's slot layout, or declare a .vrooli/ui-manifest.json overlay that remaps slot dirs to the scenario's actual structure",
+	})
+	return kept
 }
 
 // uiManifest is the minimal in-memory view of a ui/manifest.json.
@@ -171,11 +214,15 @@ func (s *Service) loadTemplateManifest(scenario string) (*uiManifest, string, []
 		}}
 	}
 	if svc.Generation.Template.ID == "" {
+		// Pre-template-tracking scenarios still have working UIs; treat as
+		// "validation impossible" (warn), not "scenario broken" (error). This
+		// keeps phase_ui_health and other gates from failing across the
+		// existing fleet until each scenario backfills generation.template.id.
 		return nil, "", []Finding{{
 			Severity:   SeverityWarning,
 			Code:       "template_id_missing",
 			Location:   svcPath,
-			Message:    "generation.template.id is not declared; scenario was not generated from a tracked template",
+			Message:    "generation.template.id is not declared; scenario predates template tracking, so UI manifest validation is skipped",
 			Suggestion: "Declare generation.template.id in service.json to enable template-aware validation",
 		}}
 	}

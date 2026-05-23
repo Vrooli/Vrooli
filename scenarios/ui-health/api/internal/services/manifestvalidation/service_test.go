@@ -50,6 +50,63 @@ func TestValidateScenario_MissingSlotDir(t *testing.T) {
 	}
 }
 
+func TestValidateScenario_PredatesTemplateLayoutCollapses(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	// Template declares 4 leaf slots; none of their dirs exist on disk.
+	setupFixture(t, root, "demo", "demo-template", map[string]uiManifestFix{
+		"layout-shell": {Dir: "ui/src/layout"},
+		"layout-nav":   {Dir: "ui/src/layout-nav"},
+		"page":         {Dir: "ui/src/pages"},
+		"theme-token":  {Dir: "ui/src/theme"},
+	}, nil)
+	// Scenario has ui/package.json (so it counts as having a UI) but none
+	// of the slot directories — i.e. it predates the slot layout.
+
+	svc := New(root, nil)
+	rep, err := svc.ValidateScenario(context.Background(), "demo")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	if got := findingCount(rep, "slot_dir_missing"); got != 0 {
+		t.Fatalf("expected per-slot warnings to be collapsed, got %d slot_dir_missing", got)
+	}
+	if got := findingCount(rep, "ui_predates_template_layout"); got != 1 {
+		t.Fatalf("expected 1 ui_predates_template_layout finding, got %d (findings: %+v)", got, rep.Findings)
+	}
+	if !rep.Passed {
+		t.Fatalf("predates-template should warn but pass; got %+v", rep.Findings)
+	}
+}
+
+func TestValidateScenario_FewMissingSlotsAreNotCollapsed(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	// 4 slots, only 1 missing — per-slot signal is more useful than summary.
+	setupFixture(t, root, "demo", "demo-template", map[string]uiManifestFix{
+		"layout-shell": {Dir: "ui/src/layout"},
+		"layout-nav":   {Dir: "ui/src/layout-nav"},
+		"page":         {Dir: "ui/src/pages"},
+		"theme-token":  {Dir: "ui/src/theme"},
+	}, nil)
+	mustMkdirAll(t, filepath.Join(root, "scenarios", "demo", "ui", "src", "layout"))
+	mustMkdirAll(t, filepath.Join(root, "scenarios", "demo", "ui", "src", "layout-nav"))
+	mustMkdirAll(t, filepath.Join(root, "scenarios", "demo", "ui", "src", "pages"))
+	// theme is missing.
+
+	svc := New(root, nil)
+	rep, err := svc.ValidateScenario(context.Background(), "demo")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	if got := findingCount(rep, "slot_dir_missing"); got != 1 {
+		t.Fatalf("expected 1 slot_dir_missing (no collapse), got %d (findings: %+v)", got, rep.Findings)
+	}
+	if got := findingCount(rep, "ui_predates_template_layout"); got != 0 {
+		t.Fatalf("expected 0 ui_predates_template_layout (not enough missing), got %d", got)
+	}
+}
+
 func TestValidateScenario_UnknownOverlaySlot(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
@@ -144,8 +201,17 @@ func TestValidateScenario_TemplateIDMissingIsWarning(t *testing.T) {
 	if got := findingCount(rep, "template_id_missing"); got != 1 {
 		t.Fatalf("expected 1 template_id_missing finding, got %d", got)
 	}
+	// Pre-template-tracking is a "validation impossible" state, not a defect —
+	// the scenario still has a working UI. Surfacing as a warning lets gates
+	// like phase_ui_health pass across the legacy fleet until each scenario
+	// backfills generation.template.id.
 	if !rep.Passed {
-		t.Fatalf("expected passed (warning only); got findings: %+v", rep.Findings)
+		t.Fatalf("template_id_missing must not fail validation; got findings: %+v", rep.Findings)
+	}
+	for _, f := range rep.Findings {
+		if f.Code == "template_id_missing" && f.Severity != SeverityWarning {
+			t.Fatalf("template_id_missing severity = %q, want %q", f.Severity, SeverityWarning)
+		}
 	}
 }
 

@@ -26,11 +26,11 @@ export interface WorkspaceSubNavItem {
 }
 
 export const WORKSPACE_SUBNAV: readonly WorkspaceSubNavItem[] = [
-  { key: "graph", labelKey: strings.layout.subnav.graph, available: false, subPath: "graph" },
-  { key: "manifest", labelKey: strings.layout.subnav.manifest, available: false, subPath: "manifest" },
+  { key: "graph", labelKey: strings.layout.subnav.graph, available: true, subPath: "graph" },
+  { key: "manifest", labelKey: strings.layout.subnav.manifest, available: true, subPath: "manifest" },
   { key: "conflicts", labelKey: strings.layout.subnav.conflicts, available: true, subPath: "conflicts" },
-  { key: "apply", labelKey: strings.layout.subnav.apply, available: false, subPath: "apply" },
-  { key: "analytics", labelKey: strings.layout.subnav.analytics, available: false, subPath: "analytics" },
+  { key: "apply", labelKey: strings.layout.subnav.apply, available: true, subPath: "apply" },
+  { key: "analytics", labelKey: strings.layout.subnav.analytics, available: true, subPath: "analytics" },
 ];
 
 /** Build the route path for a sub-nav item, encoding the scenario for the URL. */

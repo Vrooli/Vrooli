@@ -9,7 +9,7 @@ import { WorkspaceSubNav } from "./WorkspaceSubNav";
 afterEach(() => cleanup());
 
 describe("WorkspaceSubNav", () => {
-  it("renders all five sections, with conflicts as the only navigable link in Phase 4", () => {
+  it("renders every workspace section as a navigable link", () => {
     renderWithProviders(
       <MemoryRouter
         initialEntries={["/targets/demo"]}
@@ -21,14 +21,10 @@ describe("WorkspaceSubNav", () => {
     );
 
     expect(screen.getByTestId(selectors.layout.subnav)).toBeInTheDocument();
-    expect(
-      screen.getByTestId(selectors.layout.workspaceSubnavLink({ key: "conflicts" })),
-    ).toHaveAttribute("href", "/targets/demo/conflicts");
-
-    for (const key of ["graph", "manifest", "apply", "analytics"] as const) {
-      const chip = screen.getByTestId(selectors.layout.workspaceSubnavLink({ key }));
-      expect(chip.tagName).toBe("SPAN");
-      expect(chip.getAttribute("aria-disabled")).toBe("true");
+    for (const key of ["graph", "manifest", "conflicts", "apply", "analytics"] as const) {
+      expect(
+        screen.getByTestId(selectors.layout.workspaceSubnavLink({ key })),
+      ).toHaveAttribute("href", `/targets/demo/${key}`);
     }
   });
 

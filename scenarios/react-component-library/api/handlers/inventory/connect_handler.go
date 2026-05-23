@@ -143,6 +143,18 @@ func (h *connectHandler) ScanScenario(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(resp), nil
 }
 
+// isTestFile reports whether a basename is a test/story/spec/test-utility
+// file that should not appear in the production-surface inventory.
+func isTestFile(base string) bool {
+	lower := strings.ToLower(base)
+	for _, suf := range []string{".test.tsx", ".test.jsx", ".spec.tsx", ".spec.jsx", ".stories.tsx", ".stories.jsx"} {
+		if strings.HasSuffix(lower, suf) {
+			return true
+		}
+	}
+	return false
+}
+
 // walkTSX returns every .tsx file under dir, recursively. Non-existent dir
 // returns os.ErrNotExist; callers may treat that as "skip slot".
 func walkTSX(dir string) ([]string, error) {
@@ -159,14 +171,28 @@ func walkTSX(dir string) ([]string, error) {
 			return walkErr
 		}
 		if fi.IsDir() {
-			if strings.HasPrefix(fi.Name(), ".") || fi.Name() == "node_modules" {
+			name := fi.Name()
+			// Skip dotfiles, node_modules, and conventional test/test-utility
+			// dirs (__tests__, test-utils, __mocks__). Surfaces under these
+			// dirs are infrastructure, not user-facing UI.
+			if strings.HasPrefix(name, ".") || name == "node_modules" ||
+				name == "__tests__" || name == "test-utils" || name == "__mocks__" {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		if strings.HasSuffix(path, ".tsx") || strings.HasSuffix(path, ".jsx") {
-			out = append(out, path)
+		if !(strings.HasSuffix(path, ".tsx") || strings.HasSuffix(path, ".jsx")) {
+			return nil
 		}
+		// Exclude test files from the inventory: ui-health is a discovery
+		// index of *production* surfaces, and test-only files (renderWith-
+		// Providers, *.test.tsx, *.spec.tsx, .stories.tsx) crowd the search
+		// results without representing reusable UI.
+		base := fi.Name()
+		if isTestFile(base) {
+			return nil
+		}
+		out = append(out, path)
 		return nil
 	})
 	if err != nil {

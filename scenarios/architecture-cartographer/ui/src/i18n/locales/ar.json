@@ -10,6 +10,7 @@
     "nav": {
       "overview": "النظرة العامة",
       "targets": "الأهداف",
+      "history": "السجل",
       "settings": "الإعدادات"
     },
     "subnav": {
@@ -92,10 +93,159 @@
       "title": "التعارض",
       "backToList": "العودة إلى كل التعارضات"
     },
+    "targetGraph": {
+      "title": "الرسم البياني",
+      "description": "تصفّح الرسم البياني للاعتماديات المُستخرَج وعرض التعارضات النشطة فوقه.",
+      "loading": "جارٍ تحميل لقطة الرسم البياني…",
+      "errorTitle": "تعذّر تحميل لقطة الرسم البياني.",
+      "emptyTitle": "لا توجد لقطة رسم بياني بعد",
+      "emptyDescription": "استخرج لقطة لهذا الهدف لرؤية رسم اعتمادياته البياني.",
+      "fallbackTitle": "تعطّلت لوحة الرسم البياني.",
+      "fallbackMessage": "حدث خطأ غير متوقع أثناء عرض الرسم البياني. أعد تحميل الصفحة.",
+      "summaryNodes": "{{count}} عقدة",
+      "summaryEdges": "{{count}} حافة"
+    },
+    "targetApply": {
+      "title": "تطبيق",
+      "description": "خطّط، شغّل تجربة، ثم نفّذ نقل الملفات وإعادة كتابة الاستيرادات لكل نطاق.",
+      "selectDomainPrompt": "اختر نطاقًا للتخطيط.",
+      "loading": "جارٍ تحميل بيانات التطبيق…",
+      "errorTitle": "تعذّر تحميل حالة التطبيق.",
+      "noPlan": "لا توجد خطة بعد.",
+      "domainHeading": "النطاق",
+      "operationsHeading": "العمليات",
+      "noOperations": "لا توجد عمليات مطلوبة.",
+      "historyHeading": "آخر التشغيلات",
+      "historyEmpty": "لا توجد تشغيلات مسجّلة.",
+      "baselineHeading": "خط أساس البناء",
+      "baselineUnknown": "لم يُلتقط خط الأساس.",
+      "baselineGreen": "البناء أخضر ({{toolchain}})",
+      "baselineRed": "البناء أحمر ({{toolchain}})",
+      "planButton": "خطّط",
+      "planning": "جارٍ التخطيط…",
+      "dryRunButton": "تجربة",
+      "applyButton": "نفّذ",
+      "applying": "جارٍ التنفيذ…",
+      "applyUnimplementedTitle": "تنفيذ التطبيق غير مكتمل",
+      "applyUnimplementedMessage": "v0.1 تُرجع CodeUnimplemented من RunApply. تعمل التخطيط والتجربة فقط حاليًا.",
+      "forceConfirmTitle": "تطبيق قسري فوق خط أساس أحمر؟",
+      "forceConfirmMessage": "كان البناء أحمر قبل التطبيق. أدخل سببًا.",
+      "forceNoteLabel": "ملاحظة",
+      "forceNotePlaceholder": "لماذا التطبيق القسري مقبول؟",
+      "forceNoteRequired": "الملاحظة مطلوبة للتطبيق القسري.",
+      "confirmButton": "تأكيد",
+      "cancelButton": "إلغاء"
+    },
+    "targetManifest": {
+      "title": "البيان",
+      "description": "تحقق من بيان العمارة لهذا السيناريو واطّلع عليه.",
+      "loading": "جارٍ تحميل البيان…",
+      "errorTitle": "تعذّر تحميل البيان.",
+      "empty": "لا يوجد بيان محفوظ — تحقق منه لملء هذا العرض.",
+      "validateButton": "تحقّق",
+      "validating": "جارٍ التحقق…",
+      "validHeading": "البيان صالح",
+      "invalidHeading": "البيان يحتوي أخطاء",
+      "diagnosticsHeading": "التشخيصات",
+      "noDiagnostics": "لا توجد تشخيصات — البيان نظيف.",
+      "domainsHeading": "النطاقات المعلنة",
+      "noDomains": "لا توجد نطاقات معلنة.",
+      "columns": {
+        "severity": "الخطورة",
+        "code": "الرمز",
+        "path": "المسار",
+        "location": "الموقع",
+        "message": "الرسالة",
+        "name": "النطاق",
+        "paths": "المسارات",
+        "allowedDeps": "التبعيات المسموحة"
+      }
+    },
+    "targetAnalytics": {
+      "title": "التحليلات",
+      "description": "تاريخ التعارضات والتعيينات ونتائج التطبيق لهذا السيناريو.",
+      "statsHeading": "الإحصاءات",
+      "statsLoading": "جارٍ تحميل الإحصاءات…",
+      "statsError": "تعذّر تحميل الإحصاءات.",
+      "statsConflictsDetected": "تعارضات مكتشفة",
+      "statsConflictsResolved": "تعارضات محلولة",
+      "statsConflictsForce": "حلول قسرية",
+      "statsPlacementsAuto": "تعيينات (تلقائية)",
+      "statsPlacementsSuggest": "تعيينات (مقترحة)",
+      "statsOverrides": "تجاوزات",
+      "statsVerdictSuccess": "معدل نجاح الحكم",
+      "statsVerdictSuppressed": "مُخفى — يلزم 5 ملاحظات على الأقل (حاليًا {{count}}).",
+      "eventsHeading": "الأحداث",
+      "eventsLoading": "جارٍ تحميل الأحداث…",
+      "eventsError": "تعذّر تحميل الأحداث.",
+      "eventsEmpty": "لا توجد أحداث مسجّلة.",
+      "placementsHeading": "التعيينات",
+      "placementsLoading": "جارٍ تحميل التعيينات…",
+      "placementsError": "تعذّر تحميل التعيينات.",
+      "placementsEmpty": "لا توجد أحكام تعيين مسجّلة.",
+      "buildDeltasHeading": "فروق البناء",
+      "buildDeltasEmpty": "لا توجد تشغيلات تطبيق لحساب الفروق منها.",
+      "columns": {
+        "kind": "النوع",
+        "actor": "الفاعل",
+        "domain": "النطاق",
+        "conflictId": "التعارض",
+        "chunkId": "القطعة",
+        "chunkPath": "المسار",
+        "outcome": "النتيجة"
+      }
+    },
+    "history": {
+      "title": "السجلّ",
+      "description": "سجلّ التطبيقات والتعارضات والتعيينات عبر الأهداف.",
+      "scenarioLabel": "السيناريو",
+      "noScenario": "افتح هدفًا لرؤية السجل."
+    },
     "settings": {
       "title": "الإعدادات",
       "themeHeading": "المظهر",
-      "localeHeading": "اللغة"
+      "localeHeading": "اللغة",
+      "preferencesHeading": "التفضيلات",
+      "densityLabel": "الكثافة",
+      "densityComfortable": "مريحة",
+      "densityDense": "كثيفة",
+      "reducedMotionLabel": "تقليل الحركة",
+      "reducedMotionHint": "تعطيل الحركات غير الجوهرية.",
+      "handednessLabel": "موضع الإجراء الرئيسي للجوال",
+      "handednessLeft": "يسار",
+      "handednessRight": "يمين",
+      "defaultScenarioLabel": "السيناريو الافتراضي",
+      "defaultScenarioHint": "يُملأ تلقائيًا في نموذج الهدف الجديد.",
+      "defaultDomainLabel": "تصفية النطاق الافتراضية للرسم البياني",
+      "defaultDomainHint": "أسماء نطاقات مفصولة بفواصل."
+    }
+  },
+  "features": {
+    "graph": {
+      "canvas": {
+        "ariaLabel": "رسم بياني للاعتماديات للسيناريو {{scenario}}",
+        "nodeAriaLabel": "{{label}}، المجال {{domain}}، {{conflict}}",
+        "nodeConflictPresent": "في تعارض بدرجة {{severity}}",
+        "nodeConflictAbsent": "لا يوجد تعارض نشط"
+      },
+      "filterBar": {
+        "label": "تصفية حسب المجال",
+        "allDomains": "الكل",
+        "noDomains": "لا توجد مجالات معلنة في البيان."
+      },
+      "accessibleList": {
+        "title": "كل العقد",
+        "description": "قائمة قابلة للتنقل عبر لوحة المفاتيح بكل العقد في اللقطة.",
+        "domainLabel": "المجال:",
+        "noDomain": "(غير معيّن)",
+        "conflictLabel": "التعارض:",
+        "noConflict": "لا شيء"
+      },
+      "legend": {
+        "title": "وسيلة الإيضاح",
+        "noConflict": "لا يوجد تعارض",
+        "conflictPrefix": "تعارض ({{level}})"
+      }
     }
   },
   "conflicts": {
@@ -143,6 +293,50 @@
       "scenarioLabel": "السيناريو:",
       "extractedAtLabel": "تم الاستخراج:",
       "openButton": "فتح"
+    }
+  },
+  "apply": {
+    "status": {
+      "baseline_captured": "تم التقاط خط الأساس",
+      "plan_generated": "تم إنشاء الخطة",
+      "dry_run_ok": "نجحت التجربة",
+      "applied": "مُطبَّق",
+      "committed": "مُلتزم",
+      "refused_build_break": "مرفوض (كسر البناء)",
+      "force_committed": "التزام قسري"
+    },
+    "operationKind": {
+      "unspecified": "غير محدد",
+      "move_file": "نقل ملف",
+      "rewrite_import": "إعادة كتابة الاستيراد",
+      "delete_file": "حذف ملف",
+      "create_file": "إنشاء ملف"
+    }
+  },
+  "manifest": {
+    "severity": {
+      "info": "معلومات",
+      "warn": "تحذير",
+      "error": "خطأ"
+    }
+  },
+  "analytics": {
+    "eventKind": {
+      "unspecified": "غير محدد",
+      "conflict_detected": "تعارض مكتشف",
+      "conflict_assigned": "تعارض معيَّن",
+      "conflict_resolved": "تعارض محلول",
+      "conflict_reopened": "تعارض مُعاد فتحه",
+      "conflict_force_resolved": "تعارض محلول قسرًا",
+      "verdict_produced": "حكم منتَج",
+      "placement_auto": "تعيين (تلقائي)",
+      "placement_suggest": "تعيين (مقترح)",
+      "override_recorded": "تجاوز مسجَّل",
+      "apply_planned": "تطبيق مخطَّط",
+      "apply_ran": "تطبيق منفَّذ",
+      "apply_build_green": "بناء أخضر",
+      "apply_build_red": "بناء أحمر",
+      "apply_reverted": "تطبيق مُتراجَع"
     }
   },
   "health": {

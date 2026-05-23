@@ -10,6 +10,7 @@
     "nav": {
       "overview": "概要",
       "targets": "ターゲット",
+      "history": "履歴",
       "settings": "設定"
     },
     "subnav": {
@@ -92,10 +93,159 @@
       "title": "コンフリクト",
       "backToList": "コンフリクト一覧へ戻る"
     },
+    "targetGraph": {
+      "title": "グラフ",
+      "description": "抽出された依存グラフを閲覧し、アクティブなコンフリクトを重ねて表示します。",
+      "loading": "グラフスナップショットを読み込み中…",
+      "errorTitle": "グラフスナップショットを読み込めませんでした。",
+      "emptyTitle": "グラフスナップショットはありません",
+      "emptyDescription": "依存グラフを表示するには、このターゲットのスナップショットを抽出してください。",
+      "fallbackTitle": "グラフキャンバスがクラッシュしました。",
+      "fallbackMessage": "グラフのレンダリング中に予期しないエラーが発生しました。ページを再読み込みしてください。",
+      "summaryNodes": "{{count}} ノード",
+      "summaryEdges": "{{count}} エッジ"
+    },
+    "targetApply": {
+      "title": "適用",
+      "description": "ドメインごとのファイル移動・インポート書き換えを計画・ドライラン・コミットします。",
+      "selectDomainPrompt": "計画するドメインを選択してください。",
+      "loading": "適用データを読み込み中…",
+      "errorTitle": "適用状態を読み込めませんでした。",
+      "noPlan": "計画はまだありません。",
+      "domainHeading": "ドメイン",
+      "operationsHeading": "操作",
+      "noOperations": "必要な操作はありません。",
+      "historyHeading": "最近の実行",
+      "historyEmpty": "適用実行の記録はありません。",
+      "baselineHeading": "ビルドベースライン",
+      "baselineUnknown": "ベースライン未取得。",
+      "baselineGreen": "ビルドグリーン ({{toolchain}})",
+      "baselineRed": "ビルドレッド ({{toolchain}})",
+      "planButton": "計画",
+      "planning": "計画中…",
+      "dryRunButton": "ドライラン",
+      "applyButton": "実行",
+      "applying": "実行中…",
+      "applyUnimplementedTitle": "適用実行は未実装",
+      "applyUnimplementedMessage": "v0.1 では RunApply は CodeUnimplemented を返します。コミットパスは v0.2 で対応予定。",
+      "forceConfirmTitle": "ビルドレッドのまま強制適用しますか?",
+      "forceConfirmMessage": "適用前のビルドはレッドでした。許容できる理由のメモを入力してください。",
+      "forceNoteLabel": "メモ",
+      "forceNotePlaceholder": "強制適用が許容できる理由は?",
+      "forceNoteRequired": "強制適用にはメモが必要です。",
+      "confirmButton": "確定",
+      "cancelButton": "キャンセル"
+    },
+    "targetManifest": {
+      "title": "マニフェスト",
+      "description": "このシナリオのアーキテクチャマニフェストを検証・確認します。",
+      "loading": "マニフェストを読み込み中…",
+      "errorTitle": "マニフェストを読み込めませんでした。",
+      "empty": "マニフェスト未保存 — 検証して取り込んでください。",
+      "validateButton": "検証",
+      "validating": "検証中…",
+      "validHeading": "マニフェスト有効",
+      "invalidHeading": "マニフェストにエラーあり",
+      "diagnosticsHeading": "診断",
+      "noDiagnostics": "診断なし — マニフェストはクリーンです。",
+      "domainsHeading": "宣言ドメイン",
+      "noDomains": "ドメイン未宣言。",
+      "columns": {
+        "severity": "重大度",
+        "code": "コード",
+        "path": "パス",
+        "location": "場所",
+        "message": "メッセージ",
+        "name": "ドメイン",
+        "paths": "パス",
+        "allowedDeps": "許可された依存"
+      }
+    },
+    "targetAnalytics": {
+      "title": "アナリティクス",
+      "description": "このシナリオのコンフリクト・配置・適用結果履歴。",
+      "statsHeading": "統計",
+      "statsLoading": "統計を読み込み中…",
+      "statsError": "統計を読み込めませんでした。",
+      "statsConflictsDetected": "検出済みコンフリクト",
+      "statsConflictsResolved": "解決済みコンフリクト",
+      "statsConflictsForce": "強制解決",
+      "statsPlacementsAuto": "配置 (自動)",
+      "statsPlacementsSuggest": "配置 (提案)",
+      "statsOverrides": "オーバーライド",
+      "statsVerdictSuccess": "判定成功率",
+      "statsVerdictSuppressed": "抑制中 — 5 件以上必要 (現在 {{count}})。",
+      "eventsHeading": "イベント",
+      "eventsLoading": "イベントを読み込み中…",
+      "eventsError": "イベントを読み込めませんでした。",
+      "eventsEmpty": "イベントの記録はありません。",
+      "placementsHeading": "配置",
+      "placementsLoading": "配置を読み込み中…",
+      "placementsError": "配置を読み込めませんでした。",
+      "placementsEmpty": "配置判定の記録はありません。",
+      "buildDeltasHeading": "ビルド差分",
+      "buildDeltasEmpty": "ビルド差分計算用の適用実行がありません。",
+      "columns": {
+        "kind": "種別",
+        "actor": "操作者",
+        "domain": "ドメイン",
+        "conflictId": "コンフリクト",
+        "chunkId": "チャンク",
+        "chunkPath": "パス",
+        "outcome": "結果"
+      }
+    },
+    "history": {
+      "title": "履歴",
+      "description": "シナリオ横断の適用・コンフリクト・配置履歴。",
+      "scenarioLabel": "シナリオ",
+      "noScenario": "履歴を表示するにはターゲットを開いてください。"
+    },
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
-      "localeHeading": "言語"
+      "localeHeading": "言語",
+      "preferencesHeading": "設定",
+      "densityLabel": "密度",
+      "densityComfortable": "標準",
+      "densityDense": "密集",
+      "reducedMotionLabel": "モーションを抑制",
+      "reducedMotionHint": "OS の設定に関わらず非必須アニメーションを無効化します。",
+      "handednessLabel": "モバイル主要アクション配置",
+      "handednessLeft": "左",
+      "handednessRight": "右",
+      "defaultScenarioLabel": "既定のシナリオ",
+      "defaultScenarioHint": "新規ターゲットフォームに自動入力されます。",
+      "defaultDomainLabel": "既定のグラフドメイン絞り込み",
+      "defaultDomainHint": "コンマ区切りのドメイン名。"
+    }
+  },
+  "features": {
+    "graph": {
+      "canvas": {
+        "ariaLabel": "{{scenario}} の依存グラフ",
+        "nodeAriaLabel": "{{label}}、ドメイン {{domain}}、{{conflict}}",
+        "nodeConflictPresent": "{{severity}} のコンフリクトあり",
+        "nodeConflictAbsent": "アクティブなコンフリクトなし"
+      },
+      "filterBar": {
+        "label": "ドメインで絞り込み",
+        "allDomains": "すべて",
+        "noDomains": "マニフェストにドメインが宣言されていません。"
+      },
+      "accessibleList": {
+        "title": "すべてのノード",
+        "description": "スナップショット内の全ノードのキーボード操作可能な一覧。",
+        "domainLabel": "ドメイン:",
+        "noDomain": "(未割り当て)",
+        "conflictLabel": "コンフリクト:",
+        "noConflict": "なし"
+      },
+      "legend": {
+        "title": "凡例",
+        "noConflict": "コンフリクトなし",
+        "conflictPrefix": "コンフリクト ({{level}})"
+      }
     }
   },
   "conflicts": {
@@ -143,6 +293,50 @@
       "scenarioLabel": "シナリオ:",
       "extractedAtLabel": "抽出日時:",
       "openButton": "開く"
+    }
+  },
+  "apply": {
+    "status": {
+      "baseline_captured": "ベースライン取得",
+      "plan_generated": "計画生成",
+      "dry_run_ok": "ドライラン OK",
+      "applied": "適用済み",
+      "committed": "コミット済み",
+      "refused_build_break": "拒否 (ビルド失敗)",
+      "force_committed": "強制コミット"
+    },
+    "operationKind": {
+      "unspecified": "未指定",
+      "move_file": "ファイル移動",
+      "rewrite_import": "インポート書き換え",
+      "delete_file": "ファイル削除",
+      "create_file": "ファイル作成"
+    }
+  },
+  "manifest": {
+    "severity": {
+      "info": "情報",
+      "warn": "警告",
+      "error": "エラー"
+    }
+  },
+  "analytics": {
+    "eventKind": {
+      "unspecified": "未指定",
+      "conflict_detected": "コンフリクト検出",
+      "conflict_assigned": "コンフリクト割り当て",
+      "conflict_resolved": "コンフリクト解決",
+      "conflict_reopened": "コンフリクト再オープン",
+      "conflict_force_resolved": "コンフリクト強制解決",
+      "verdict_produced": "判定生成",
+      "placement_auto": "配置 (自動)",
+      "placement_suggest": "配置 (提案)",
+      "override_recorded": "オーバーライド記録",
+      "apply_planned": "適用計画",
+      "apply_ran": "適用実行",
+      "apply_build_green": "ビルドグリーン",
+      "apply_build_red": "ビルドレッド",
+      "apply_reverted": "適用ロールバック"
     }
   },
   "health": {
