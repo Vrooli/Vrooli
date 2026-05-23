@@ -9,15 +9,17 @@ import { AppShell } from "../layout/AppShell";
 import { NewTargetPage } from "../pages/NewTargetPage";
 import { OverviewPage } from "../pages/OverviewPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { TargetConflictDetailPage } from "../pages/TargetConflictDetailPage";
+import { TargetConflictsPage } from "../pages/TargetConflictsPage";
 import { TargetWorkspacePage } from "../pages/TargetWorkspacePage";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
  * from the same config the production app uses.
  *
- * Per-target sub-routes (graph, manifest, conflicts, apply, analytics) land
- * as children of `targets/:encodedPath` in later phases. The workspace
- * already renders an `<Outlet />` ready to host them.
+ * Per-target sub-routes for graph / manifest / apply / analytics land in
+ * later phases — conflicts is the first to ship and demonstrates the
+ * nested-route + workspace-subnav pattern.
  */
 export const routes: RouteObject[] = [
   {
@@ -26,7 +28,14 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <OverviewPage /> },
       { path: "targets/new", element: <NewTargetPage /> },
-      { path: "targets/:encodedPath", element: <TargetWorkspacePage /> },
+      {
+        path: "targets/:encodedPath",
+        element: <TargetWorkspacePage />,
+        children: [
+          { path: "conflicts", element: <TargetConflictsPage /> },
+          { path: "conflicts/:conflictId", element: <TargetConflictDetailPage /> },
+        ],
+      },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

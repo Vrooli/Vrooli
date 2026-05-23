@@ -11,6 +11,14 @@
       "overview": "النظرة العامة",
       "targets": "الأهداف",
       "settings": "الإعدادات"
+    },
+    "subnav": {
+      "label": "أقسام مساحة العمل",
+      "graph": "الرسم البياني",
+      "manifest": "البيان",
+      "conflicts": "التعارضات",
+      "apply": "التطبيق",
+      "analytics": "التحليلات"
     }
   },
   "theme": {
@@ -48,13 +56,78 @@
     },
     "targetWorkspace": {
       "title": "الهدف",
-      "scenarioLabel": "السيناريو:",
-      "subnavComingSoon": "أقسام مساحة العمل (Graph وManifest وConflicts وApply وAnalytics) ستتوفر في مراحل لاحقة."
+      "scenarioLabel": "السيناريو:"
+    },
+    "conflicts": {
+      "title": "التعارضات",
+      "description": "راجع التعارضات المكتشفة مقابل البيان.",
+      "listEmptyTitle": "لا توجد تعارضات",
+      "listEmptyDescription": "شغّل الاكتشاف لإظهار التعارضات.",
+      "loading": "جارٍ تحميل التعارضات…",
+      "errorTitle": "تعذّر تحميل التعارضات.",
+      "detectButton": "تشغيل الاكتشاف",
+      "detecting": "جارٍ الاكتشاف…",
+      "validateButton": "إعادة التحقق",
+      "validating": "جارٍ التحقق…",
+      "detailNotFound": "لم يتم العثور على التعارض.",
+      "selectConflictPrompt": "اختر تعارضاً لعرض التفاصيل.",
+      "columns": {
+        "id": "المعرّف",
+        "type": "النوع",
+        "severity": "الخطورة",
+        "domains": "المجالات",
+        "status": "الحالة"
+      },
+      "evidenceHeading": "الأدلة",
+      "noEvidence": "لا توجد أدلة مسجلة.",
+      "fixesHeading": "الإصلاحات المقترحة",
+      "noFixes": "لا توجد إصلاحات تلقائية.",
+      "locationsHeading": "المواقع",
+      "assignedDomainLabel": "المجال المُسنَد:",
+      "noAssignedDomain": "(لا يوجد)",
+      "snapshotLabel": "اللقطة:",
+      "confidenceLabel": "الثقة: {{value}}"
+    },
+    "conflictDetail": {
+      "title": "التعارض",
+      "backToList": "العودة إلى كل التعارضات"
     },
     "settings": {
       "title": "الإعدادات",
       "themeHeading": "المظهر",
       "localeHeading": "اللغة"
+    }
+  },
+  "conflicts": {
+    "status": {
+      "detected": "مكتشف",
+      "assigned": "مُسنَد",
+      "split": "مُقسَّم",
+      "resolved": "محلول",
+      "validated": "مُتحقَّق",
+      "committed": "مُلتزَم",
+      "force_resolved": "حل قسري"
+    },
+    "actions": {
+      "assign": "إسناد",
+      "split": "تقسيم",
+      "resolve": "حل",
+      "force_resolve": "حل قسري",
+      "validate": "تحقّق",
+      "commit": "التزام",
+      "reopen": "إعادة فتح",
+      "pending": "جارٍ العمل…",
+      "assignDomainPrompt": "أدخل المجال لإسناده:",
+      "notePlaceholder": "لماذا يُعد هذا الحل مقبولاً؟",
+      "forceNoteRequired": "يتطلب الحل القسري ملاحظة."
+    },
+    "fixKind": {
+      "unspecified": "غير محدّد",
+      "move_file": "نقل الملف",
+      "reassign_domain": "إعادة إسناد المجال",
+      "break_cycle": "كسر الدورة",
+      "add_dependency": "إضافة تبعية",
+      "add_transitional": "إضافة انتقالي"
     }
   },
   "targets": {

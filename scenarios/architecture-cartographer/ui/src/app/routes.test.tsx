@@ -30,6 +30,20 @@ vi.mock("../api/health", () => ({
   }),
 }));
 
+// Stub the conflicts Connect client — the conflicts page calls ListConflicts
+// on mount and the workbench would otherwise need a live backend.
+vi.mock("../api/conflicts", () => ({
+  conflictsClient: {
+    listConflicts: vi.fn().mockResolvedValue({ conflicts: [], nextPageToken: "" }),
+    getConflict: vi.fn().mockResolvedValue({ conflict: undefined }),
+    detectConflicts: vi.fn().mockResolvedValue({ conflicts: [] }),
+    validateConflicts: vi.fn().mockResolvedValue({ conflicts: [], clean: true }),
+    assignConflict: vi.fn(),
+    resolveConflict: vi.fn(),
+    reopenConflict: vi.fn(),
+  },
+}));
+
 describe("AppRouter", () => {
   afterEach(() => {
     cleanup();
@@ -51,6 +65,22 @@ describe("AppRouter", () => {
       { withoutRouter: true },
     );
     expect(screen.getByTestId(selectors.pages.targetWorkspace)).toBeInTheDocument();
+  });
+
+  it("renders the conflicts page at /targets/:encodedPath/conflicts", async () => {
+    renderWithProviders(
+      <TestAppRouter initialEntries={["/targets/demo/conflicts"]} />,
+      { withoutRouter: true },
+    );
+    expect(await screen.findByTestId(selectors.pages.targetConflicts)).toBeInTheDocument();
+  });
+
+  it("renders the conflict detail at /targets/:encodedPath/conflicts/:conflictId", async () => {
+    renderWithProviders(
+      <TestAppRouter initialEntries={["/targets/demo/conflicts/c-1"]} />,
+      { withoutRouter: true },
+    );
+    expect(await screen.findByTestId(selectors.pages.targetConflictDetail)).toBeInTheDocument();
   });
 
   it("renders the settings page at /settings", () => {

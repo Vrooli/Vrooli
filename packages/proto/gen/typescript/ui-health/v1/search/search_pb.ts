@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ui-health/v1/search/search.proto.
  */
 export const file_ui_health_v1_search_search: GenFile = /*@__PURE__*/
-  fileDesc("CiB1aS1oZWFsdGgvdjEvc2VhcmNoL3NlYXJjaC5wcm90bxIadnJvb2xpLnVpX2hlYWx0aC52MS5zZWFyY2giXQoNU2VhcmNoUmVxdWVzdBINCgVxdWVyeRgBIAEoCRINCgVsaW1pdBgCIAEoBRIuCgRtb2RlGAMgASgOMiAudnJvb2xpLnVpX2hlYWx0aC52MS5zZWFyY2guTW9kZSLOAgoMU2VhcmNoUmVzdWx0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHNsb3QYAiABKAkSNQoEa2luZBgDIAEoDjInLnZyb29saS51aV9oZWFsdGgudjEuc2VhcmNoLlN1cmZhY2VLaW5kEhQKDGRpc3BsYXlfbmFtZRgEIAEoCRITCgtkZXNjcmlwdGlvbhgFIAEoCRIRCglmaWxlX3BhdGgYBiABKAkSDQoFc2NvcmUYByABKAESUQoKcHJvdmVuYW5jZRgIIAEoCzI9LnZyb29saS51aV9oZWFsdGgudjEuY29udHJhY3RzLnByb3ZlbmFuY2UuQ29tcG9uZW50UHJvdmVuYW5jZRJHCgZ3aWRnZXQYCSABKAsyNy52cm9vbGkudWlfaGVhbHRoLnYxLmNvbnRyYWN0cy53aWRnZXQuV2lkZ2V0RGVjbGFyYXRpb24igAEKDlNlYXJjaFJlc3BvbnNlEjkKB3Jlc3VsdHMYASADKAsyKC52cm9vbGkudWlfaGVhbHRoLnYxLnNlYXJjaC5TZWFyY2hSZXN1bHQSMwoJbW9kZV91c2VkGAIgASgOMiAudnJvb2xpLnVpX2hlYWx0aC52MS5zZWFyY2guTW9kZSIPCg1TdGF0dXNSZXF1ZXN0IpUBCg5TdGF0dXNSZXNwb25zZRIRCglhdmFpbGFibGUYASABKAgSDgoGb2xsYW1hGAIgASgIEg4KBnFkcmFudBgDIAEoCBIVCg1pbmRleGVkX2NvdW50GAQgASgFEhkKEWxhc3RfcmVjb25jaWxlX2F0GAUgASgJEh4KFmxhc3RfcmVjb25jaWxlX291dGNvbWUYBiABKAkqOAoETW9kZRIUChBNT0RFX1VOU1BFQ0lGSUVEEAASCwoHTU9ERV9BSRABEg0KCU1PREVfVEVYVBACKsABCgtTdXJmYWNlS2luZBIcChhTVVJGQUNFX0tJTkRfVU5TUEVDSUZJRUQQABIaChZTVVJGQUNFX0tJTkRfQ09NUE9ORU5UEAESFQoRU1VSRkFDRV9LSU5EX1BBR0UQAhIYChRTVVJGQUNFX0tJTkRfRkVBVFVSRRADEhUKEVNVUkZBQ0VfS0lORF9IT09LEAQSFwoTU1VSRkFDRV9LSU5EX0xBWU9VVBAFEhYKElNVUkZBQ0VfS0lORF9PVEhFUhAGMtEBCg1TZWFyY2hTZXJ2aWNlEl8KBlNlYXJjaBIpLnZyb29saS51aV9oZWFsdGgudjEuc2VhcmNoLlNlYXJjaFJlcXVlc3QaKi52cm9vbGkudWlfaGVhbHRoLnYxLnNlYXJjaC5TZWFyY2hSZXNwb25zZRJfCgZTdGF0dXMSKS52cm9vbGkudWlfaGVhbHRoLnYxLnNlYXJjaC5TdGF0dXNSZXF1ZXN0GioudnJvb2xpLnVpX2hlYWx0aC52MS5zZWFyY2guU3RhdHVzUmVzcG9uc2VCTlpMZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby91aS1oZWFsdGgvdjEvc2VhcmNoO3NlYXJjaF92MWIGcHJvdG8z", [file_ui_health_v1_contracts_provenance_provenance, file_ui_health_v1_contracts_widget_widget]);
+  fileDesc("CiB1aS1oZWFsdGgvdjEvc2VhcmNoL3NlYXJjaC5wcm90bxIadnJvb2xpLnVpX2hlYWx0aC52MS5zZWFyY2giXQoNU2VhcmNoUmVxdWVzdBINCgVxdWVyeRgBIAEoCRINCgVsaW1pdBgCIAEoBRIuCgRtb2RlGAMgASgOMiAudnJvb2xpLnVpX2hlYWx0aC52MS5zZWFyY2guTW9kZSLOAgoMU2VhcmNoUmVzdWx0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHNsb3QYAiABKAkSNQoEa2luZBgDIAEoDjInLnZyb29saS51aV9oZWFsdGgudjEuc2VhcmNoLlN1cmZhY2VLaW5kEhQKDGRpc3BsYXlfbmFtZRgEIAEoCRITCgtkZXNjcmlwdGlvbhgFIAEoCRIRCglmaWxlX3BhdGgYBiABKAkSDQoFc2NvcmUYByABKAESUQoKcHJvdmVuYW5jZRgIIAEoCzI9LnZyb29saS51aV9oZWFsdGgudjEuY29udHJhY3RzLnByb3ZlbmFuY2UuQ29tcG9uZW50UHJvdmVuYW5jZRJHCgZ3aWRnZXQYCSABKAsyNy52cm9vbGkudWlfaGVhbHRoLnYxLmNvbnRyYWN0cy53aWRnZXQuV2lkZ2V0RGVjbGFyYXRpb24ilwEKDlNlYXJjaFJlc3BvbnNlEjkKB3Jlc3VsdHMYASADKAsyKC52cm9vbGkudWlfaGVhbHRoLnYxLnNlYXJjaC5TZWFyY2hSZXN1bHQSMwoJbW9kZV91c2VkGAIgASgOMiAudnJvb2xpLnVpX2hlYWx0aC52MS5zZWFyY2guTW9kZRIVCg1pbmRleGVkX2NvdW50GAMgASgFIg8KDVN0YXR1c1JlcXVlc3QisQEKDlN0YXR1c1Jlc3BvbnNlEhEKCWF2YWlsYWJsZRgBIAEoCBIOCgZvbGxhbWEYAiABKAgSDgoGcWRyYW50GAMgASgIEhUKDWluZGV4ZWRfY291bnQYBCABKAUSGQoRbGFzdF9yZWNvbmNpbGVfYXQYBSABKAkSHgoWbGFzdF9yZWNvbmNpbGVfb3V0Y29tZRgGIAEoCRIaChJiYWNrZW5kc19yZWFjaGFibGUYByABKAgqOAoETW9kZRIUChBNT0RFX1VOU1BFQ0lGSUVEEAASCwoHTU9ERV9BSRABEg0KCU1PREVfVEVYVBACKsABCgtTdXJmYWNlS2luZBIcChhTVVJGQUNFX0tJTkRfVU5TUEVDSUZJRUQQABIaChZTVVJGQUNFX0tJTkRfQ09NUE9ORU5UEAESFQoRU1VSRkFDRV9LSU5EX1BBR0UQAhIYChRTVVJGQUNFX0tJTkRfRkVBVFVSRRADEhUKEVNVUkZBQ0VfS0lORF9IT09LEAQSFwoTU1VSRkFDRV9LSU5EX0xBWU9VVBAFEhYKElNVUkZBQ0VfS0lORF9PVEhFUhAGMtEBCg1TZWFyY2hTZXJ2aWNlEl8KBlNlYXJjaBIpLnZyb29saS51aV9oZWFsdGgudjEuc2VhcmNoLlNlYXJjaFJlcXVlc3QaKi52cm9vbGkudWlfaGVhbHRoLnYxLnNlYXJjaC5TZWFyY2hSZXNwb25zZRJfCgZTdGF0dXMSKS52cm9vbGkudWlfaGVhbHRoLnYxLnNlYXJjaC5TdGF0dXNSZXF1ZXN0GioudnJvb2xpLnVpX2hlYWx0aC52MS5zZWFyY2guU3RhdHVzUmVzcG9uc2VCTlpMZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby91aS1oZWFsdGgvdjEvc2VhcmNoO3NlYXJjaF92MWIGcHJvdG8z", [file_ui_health_v1_contracts_provenance_provenance, file_ui_health_v1_contracts_widget_widget]);
 
 /**
  * @generated from message vrooli.ui_health.v1.search.SearchRequest
@@ -117,6 +117,15 @@ export type SearchResponse = Message<"vrooli.ui_health.v1.search.SearchResponse"
    * @generated from field: vrooli.ui_health.v1.search.Mode mode_used = 2;
    */
   modeUsed: Mode;
+
+  /**
+   * Total UI surfaces in the searchable corpus at query time. Lets callers
+   * distinguish "no hits" (real miss) from "empty corpus" (reindex never ran
+   * or returned nothing).
+   *
+   * @generated from field: int32 indexed_count = 3;
+   */
+  indexedCount: number;
 };
 
 /**
@@ -144,6 +153,9 @@ export const StatusRequestSchema: GenMessage<StatusRequest> = /*@__PURE__*/
  */
 export type StatusResponse = Message<"vrooli.ui_health.v1.search.StatusResponse"> & {
   /**
+   * True when backends are reachable AND the corpus has content. An empty
+   * corpus is not a usable state for AI search regardless of backend health.
+   *
    * @generated from field: bool available = 1;
    */
   available: boolean;
@@ -172,6 +184,15 @@ export type StatusResponse = Message<"vrooli.ui_health.v1.search.StatusResponse"
    * @generated from field: string last_reconcile_outcome = 6;
    */
   lastReconcileOutcome: string;
+
+  /**
+   * True when ollama AND qdrant are both reachable, regardless of corpus.
+   * Distinguishes "AI search is offline" (false) from "AI search is online
+   * but has nothing indexed yet" (true with indexed_count=0).
+   *
+   * @generated from field: bool backends_reachable = 7;
+   */
+  backendsReachable: boolean;
 };
 
 /**

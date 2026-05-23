@@ -11,6 +11,14 @@
       "overview": "Overview",
       "targets": "Targets",
       "settings": "Settings"
+    },
+    "subnav": {
+      "label": "Workspace sections",
+      "graph": "Graph",
+      "manifest": "Manifest",
+      "conflicts": "Conflicts",
+      "apply": "Apply",
+      "analytics": "Analytics"
     }
   },
   "theme": {
@@ -48,13 +56,78 @@
     },
     "targetWorkspace": {
       "title": "Target",
-      "scenarioLabel": "Scenario:",
-      "subnavComingSoon": "Workspace sections (Graph, Manifest, Conflicts, Apply, Analytics) ship in subsequent phases."
+      "scenarioLabel": "Scenario:"
+    },
+    "conflicts": {
+      "title": "Conflicts",
+      "description": "Review drift findings detected against the manifest.",
+      "listEmptyTitle": "No conflicts",
+      "listEmptyDescription": "Run detection to surface drift findings.",
+      "loading": "Loading conflicts…",
+      "errorTitle": "Couldn't load conflicts.",
+      "detectButton": "Run detection",
+      "detecting": "Detecting…",
+      "validateButton": "Re-validate",
+      "validating": "Validating…",
+      "detailNotFound": "Conflict not found.",
+      "selectConflictPrompt": "Select a conflict to see detail.",
+      "columns": {
+        "id": "ID",
+        "type": "Type",
+        "severity": "Severity",
+        "domains": "Domains",
+        "status": "Status"
+      },
+      "evidenceHeading": "Evidence",
+      "noEvidence": "No evidence recorded.",
+      "fixesHeading": "Suggested fixes",
+      "noFixes": "No automated fixes available.",
+      "locationsHeading": "Locations",
+      "assignedDomainLabel": "Assigned domain:",
+      "noAssignedDomain": "(none)",
+      "snapshotLabel": "Snapshot:",
+      "confidenceLabel": "confidence: {{value}}"
+    },
+    "conflictDetail": {
+      "title": "Conflict",
+      "backToList": "Back to all conflicts"
     },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language"
+    }
+  },
+  "conflicts": {
+    "status": {
+      "detected": "Detected",
+      "assigned": "Assigned",
+      "split": "Split",
+      "resolved": "Resolved",
+      "validated": "Validated",
+      "committed": "Committed",
+      "force_resolved": "Force-resolved"
+    },
+    "actions": {
+      "assign": "Assign",
+      "split": "Split",
+      "resolve": "Resolve",
+      "force_resolve": "Force resolve",
+      "validate": "Validate",
+      "commit": "Commit",
+      "reopen": "Reopen",
+      "pending": "Working…",
+      "assignDomainPrompt": "Enter the domain to assign:",
+      "notePlaceholder": "Why is this resolution acceptable?",
+      "forceNoteRequired": "Force-resolution requires a note."
+    },
+    "fixKind": {
+      "unspecified": "Unspecified",
+      "move_file": "Move file",
+      "reassign_domain": "Reassign domain",
+      "break_cycle": "Break cycle",
+      "add_dependency": "Add dependency",
+      "add_transitional": "Add transitional"
     }
   },
   "targets": {

@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "architecture-cartographer.conflict-resolution.ui",
+  "domain": "conflicts",
+  "description": "UI projection of the per-conflict lifecycle state machine. Mirrors docs/concepts/FLOWS.md::Conflict resolution and the API-side flow at api/internal/conflicts/flow/flow.json. The UI's transition function in transition.ts is the runtime authority for action gating; flow.test.ts replays this declaration to guarantee they agree. Adding a new state or transition requires updating canTransition in api/internal/conflicts/service.go, the API flow JSON, this UI flow JSON, transition.ts, and flow.test.ts together.",
+  "states": [
+    { "id": "detected", "initial": true, "description": "Conflict was emitted by a detector and persisted with status=detected." },
+    { "id": "assigned", "description": "Operator assigned the conflict to a target domain." },
+    { "id": "split", "description": "Conflict was split into per-domain sub-conflicts (deferred to v0.2 — UI surfaces but does not yet trigger)." },
+    { "id": "resolved", "description": "Conflict resolution has been recorded; apply still required for file movement." },
+    { "id": "validated", "description": "Resolved conflict has been validated against a fresh detection run." },
+    { "id": "committed", "description": "Validated resolution has been committed via apply (terminal)." },
+    { "id": "force_resolved", "description": "Operator explicitly chose to ignore the conflict (force-resolve)." }
+  ],
+  "events": [
+    { "id": "assign", "description": "Operator calls AssignConflict with a manifest-declared domain." },
+    { "id": "split", "description": "Operator calls SplitConflict (v0.2)." },
+    { "id": "resolve", "description": "Operator calls ResolveConflict with force=false." },
+    { "id": "force_resolve", "description": "Operator calls ResolveConflict with force=true." },
+    { "id": "validate", "description": "Operator runs ValidateConflicts and the conflict is no longer outstanding." },
+    { "id": "commit", "description": "Apply pipeline commits the resolved conflict." },
+    { "id": "reopen", "description": "Operator calls ReopenConflict." }
+  ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": false }
+  },
+  "transitions": [
+    { "from": "detected", "event": "assign", "to": "assigned" },
+    { "from": "detected", "event": "split", "to": "split" },
+    { "from": "detected", "event": "resolve", "to": "resolved" },
+    { "from": "detected", "event": "force_resolve", "to": "force_resolved" },
+    { "from": "detected", "event": "validate", "to": "detected" },
+    { "from": "detected", "event": "commit", "to": "detected" },
+    { "from": "detected", "event": "reopen", "to": "detected" },
+
+    { "from": "assigned", "event": "assign", "to": "assigned" },
+    { "from": "assigned", "event": "split", "to": "split" },
+    { "from": "assigned", "event": "resolve", "to": "resolved" },
+    { "from": "assigned", "event": "force_resolve", "to": "force_resolved" },
+    { "from": "assigned", "event": "validate", "to": "assigned" },
+    { "from": "assigned", "event": "commit", "to": "assigned" },
+    { "from": "assigned", "event": "reopen", "to": "detected" },
+
+    { "from": "split", "event": "assign", "to": "split" },
+    { "from": "split", "event": "split", "to": "split" },
+    { "from": "split", "event": "resolve", "to": "resolved" },
+    { "from": "split", "event": "force_resolve", "to": "force_resolved" },
+    { "from": "split", "event": "validate", "to": "split" },
+    { "from": "split", "event": "commit", "to": "split" },
+    { "from": "split", "event": "reopen", "to": "detected" },
+
+    { "from": "resolved", "event": "assign", "to": "resolved" },
+    { "from": "resolved", "event": "split", "to": "resolved" },
+    { "from": "resolved", "event": "resolve", "to": "resolved" },
+    { "from": "resolved", "event": "force_resolve", "to": "resolved" },
+    { "from": "resolved", "event": "validate", "to": "validated" },
+    { "from": "resolved", "event": "commit", "to": "resolved" },
+    { "from": "resolved", "event": "reopen", "to": "detected" },
+
+    { "from": "validated", "event": "assign", "to": "validated" },
+    { "from": "validated", "event": "split", "to": "validated" },
+    { "from": "validated", "event": "resolve", "to": "validated" },
+    { "from": "validated", "event": "force_resolve", "to": "validated" },
+    { "from": "validated", "event": "validate", "to": "validated" },
+    { "from": "validated", "event": "commit", "to": "committed" },
+    { "from": "validated", "event": "reopen", "to": "detected" },
+
+    { "from": "committed", "event": "assign", "to": "committed" },
+    { "from": "committed", "event": "split", "to": "committed" },
+    { "from": "committed", "event": "resolve", "to": "committed" },
+    { "from": "committed", "event": "force_resolve", "to": "committed" },
+    { "from": "committed", "event": "validate", "to": "committed" },
+    { "from": "committed", "event": "commit", "to": "committed" },
+    { "from": "committed", "event": "reopen", "to": "committed" },
+
+    { "from": "force_resolved", "event": "assign", "to": "force_resolved" },
+    { "from": "force_resolved", "event": "split", "to": "force_resolved" },
+    { "from": "force_resolved", "event": "resolve", "to": "force_resolved" },
+    { "from": "force_resolved", "event": "force_resolve", "to": "force_resolved" },
+    { "from": "force_resolved", "event": "validate", "to": "force_resolved" },
+    { "from": "force_resolved", "event": "commit", "to": "force_resolved" },
+    { "from": "force_resolved", "event": "reopen", "to": "detected" }
+  ],
+  "invariants": [
+    { "id": "detected_is_initial", "description": "Every conflict starts in 'detected'." },
+    { "id": "committed_is_terminal", "description": "No event moves a conflict out of 'committed'." },
+    { "id": "no_skip_to_committed", "description": "'detected' cannot transition directly to 'committed'; it must pass through 'validated'." },
+    { "id": "reopen_returns_to_detected", "description": "'reopen' from any non-terminal, non-initial state returns to 'detected'." }
+  ]
+}

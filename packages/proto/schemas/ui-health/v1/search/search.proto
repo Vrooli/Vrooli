@@ -71,16 +71,26 @@ message SearchResult {
 message SearchResponse {
   repeated SearchResult results = 1;
   Mode mode_used = 2;
+  // Total UI surfaces in the searchable corpus at query time. Lets callers
+  // distinguish "no hits" (real miss) from "empty corpus" (reindex never ran
+  // or returned nothing).
+  int32 indexed_count = 3;
 }
 
 message StatusRequest {
 }
 
 message StatusResponse {
+  // True when backends are reachable AND the corpus has content. An empty
+  // corpus is not a usable state for AI search regardless of backend health.
   bool available = 1;
   bool ollama = 2;
   bool qdrant = 3;
   int32 indexed_count = 4;
   string last_reconcile_at = 5;
   string last_reconcile_outcome = 6;
+  // True when ollama AND qdrant are both reachable, regardless of corpus.
+  // Distinguishes "AI search is offline" (false) from "AI search is online
+  // but has nothing indexed yet" (true with indexed_count=0).
+  bool backends_reachable = 7;
 }

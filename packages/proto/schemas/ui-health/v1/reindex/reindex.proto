@@ -50,6 +50,23 @@ message ReindexStatusResponse {
   // Non-fatal advisory messages from the reindex job. Surfaced even on
   // state="succeeded_empty" so operators don't read a 0/0 no-op as healthy.
   repeated string warnings = 6;
+  // Per-scenario dispatch outcomes. One entry per scenario the job
+  // attempted to discover. Lets operators distinguish "dispatcher silently
+  // returned zero surfaces" from "no scenarios were eligible".
+  repeated ScenarioDispatchOutcome scenario_outcomes = 7;
+}
+
+// ScenarioDispatchOutcome reports the result of a single scenario's discovery
+// pass. surfaces_found is the count returned by the framework dispatcher;
+// error is set when discovery itself failed (template_id missing, dispatcher
+// unreachable, etc).
+message ScenarioDispatchOutcome {
+  string scenario = 1;
+  int32 surfaces_found = 2;
+  string error = 3;
+  // Framework template id (e.g. "react-vite") resolved from service.json.
+  // Empty when the scenario has no generation.template.id.
+  string template_id = 4;
 }
 
 message ReindexCancelRequest {

@@ -6,12 +6,12 @@ import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { useScenarioPath } from "../hooks/useScenarioPath";
 import { useRecentTargets } from "../features/targets/hooks/useRecentTargets";
+import { WorkspaceSubNav } from "../layout/WorkspaceSubNav";
 
 /**
  * TargetWorkspacePage — shell for everything that operates against a single
- * target scenario. Phase 3 lands the shell with an `<Outlet />` so the
- * per-section sub-routes (graph, manifest, conflicts, apply, analytics) can
- * mount into it as they land in subsequent phases.
+ * target scenario. Renders the per-target sub-nav (Graph/Manifest/Conflicts/
+ * Apply/Analytics) and an `<Outlet />` for the selected section.
  *
  * Side-effect: opening a target records it in the recent-targets list so it
  * surfaces on the overview the next time the user lands.
@@ -47,9 +47,7 @@ export function TargetWorkspacePage() {
           <span className="font-mono text-app-foreground">{scenario}</span>
         </p>
       </header>
-      <p className="rounded-panel border border-dashed border-app-border bg-app-surface p-4 text-sm text-app-muted-foreground">
-        {t(strings.pages.targetWorkspace.subnavComingSoon)}
-      </p>
+      <WorkspaceSubNav scenario={scenario} />
       <Outlet />
     </section>
   );

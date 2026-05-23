@@ -11,6 +11,14 @@
       "overview": "概要",
       "targets": "ターゲット",
       "settings": "設定"
+    },
+    "subnav": {
+      "label": "ワークスペースセクション",
+      "graph": "グラフ",
+      "manifest": "マニフェスト",
+      "conflicts": "コンフリクト",
+      "apply": "適用",
+      "analytics": "アナリティクス"
     }
   },
   "theme": {
@@ -48,13 +56,78 @@
     },
     "targetWorkspace": {
       "title": "ターゲット",
-      "scenarioLabel": "シナリオ:",
-      "subnavComingSoon": "ワークスペースのセクション (Graph、Manifest、Conflicts、Apply、Analytics) は後続フェーズで提供されます。"
+      "scenarioLabel": "シナリオ:"
+    },
+    "conflicts": {
+      "title": "コンフリクト",
+      "description": "マニフェストに対して検出されたドリフトを確認します。",
+      "listEmptyTitle": "コンフリクトはありません",
+      "listEmptyDescription": "ドリフトを抽出するには検出を実行してください。",
+      "loading": "コンフリクトを読み込み中…",
+      "errorTitle": "コンフリクトを読み込めませんでした。",
+      "detectButton": "検出を実行",
+      "detecting": "検出中…",
+      "validateButton": "再検証",
+      "validating": "検証中…",
+      "detailNotFound": "コンフリクトが見つかりません。",
+      "selectConflictPrompt": "詳細を表示するコンフリクトを選択してください。",
+      "columns": {
+        "id": "ID",
+        "type": "種類",
+        "severity": "深刻度",
+        "domains": "ドメイン",
+        "status": "ステータス"
+      },
+      "evidenceHeading": "エビデンス",
+      "noEvidence": "エビデンスは記録されていません。",
+      "fixesHeading": "推奨される修正",
+      "noFixes": "自動修正はありません。",
+      "locationsHeading": "場所",
+      "assignedDomainLabel": "割り当てドメイン:",
+      "noAssignedDomain": "(なし)",
+      "snapshotLabel": "スナップショット:",
+      "confidenceLabel": "信頼度: {{value}}"
+    },
+    "conflictDetail": {
+      "title": "コンフリクト",
+      "backToList": "コンフリクト一覧へ戻る"
     },
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
+    }
+  },
+  "conflicts": {
+    "status": {
+      "detected": "検出",
+      "assigned": "割り当て済み",
+      "split": "分割済み",
+      "resolved": "解決済み",
+      "validated": "検証済み",
+      "committed": "コミット済み",
+      "force_resolved": "強制解決"
+    },
+    "actions": {
+      "assign": "割り当て",
+      "split": "分割",
+      "resolve": "解決",
+      "force_resolve": "強制解決",
+      "validate": "検証",
+      "commit": "コミット",
+      "reopen": "再オープン",
+      "pending": "処理中…",
+      "assignDomainPrompt": "割り当てるドメインを入力してください:",
+      "notePlaceholder": "この解決が許容できる理由は?",
+      "forceNoteRequired": "強制解決にはメモが必要です。"
+    },
+    "fixKind": {
+      "unspecified": "未指定",
+      "move_file": "ファイル移動",
+      "reassign_domain": "ドメイン再割り当て",
+      "break_cycle": "循環の解消",
+      "add_dependency": "依存追加",
+      "add_transitional": "経過的宣言の追加"
     }
   },
   "targets": {

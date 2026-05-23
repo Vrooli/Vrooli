@@ -308,9 +308,13 @@ func (x *SearchResult) GetWidget() *widget.WidgetDeclaration {
 }
 
 type SearchResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Results       []*SearchResult        `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
-	ModeUsed      Mode                   `protobuf:"varint,2,opt,name=mode_used,json=modeUsed,proto3,enum=vrooli.ui_health.v1.search.Mode" json:"mode_used,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Results  []*SearchResult        `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	ModeUsed Mode                   `protobuf:"varint,2,opt,name=mode_used,json=modeUsed,proto3,enum=vrooli.ui_health.v1.search.Mode" json:"mode_used,omitempty"`
+	// Total UI surfaces in the searchable corpus at query time. Lets callers
+	// distinguish "no hits" (real miss) from "empty corpus" (reindex never ran
+	// or returned nothing).
+	IndexedCount  int32 `protobuf:"varint,3,opt,name=indexed_count,json=indexedCount,proto3" json:"indexed_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -359,6 +363,13 @@ func (x *SearchResponse) GetModeUsed() Mode {
 	return Mode_MODE_UNSPECIFIED
 }
 
+func (x *SearchResponse) GetIndexedCount() int32 {
+	if x != nil {
+		return x.IndexedCount
+	}
+	return 0
+}
+
 type StatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -396,15 +407,21 @@ func (*StatusRequest) Descriptor() ([]byte, []int) {
 }
 
 type StatusResponse struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Available            bool                   `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
-	Ollama               bool                   `protobuf:"varint,2,opt,name=ollama,proto3" json:"ollama,omitempty"`
-	Qdrant               bool                   `protobuf:"varint,3,opt,name=qdrant,proto3" json:"qdrant,omitempty"`
-	IndexedCount         int32                  `protobuf:"varint,4,opt,name=indexed_count,json=indexedCount,proto3" json:"indexed_count,omitempty"`
-	LastReconcileAt      string                 `protobuf:"bytes,5,opt,name=last_reconcile_at,json=lastReconcileAt,proto3" json:"last_reconcile_at,omitempty"`
-	LastReconcileOutcome string                 `protobuf:"bytes,6,opt,name=last_reconcile_outcome,json=lastReconcileOutcome,proto3" json:"last_reconcile_outcome,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when backends are reachable AND the corpus has content. An empty
+	// corpus is not a usable state for AI search regardless of backend health.
+	Available            bool   `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
+	Ollama               bool   `protobuf:"varint,2,opt,name=ollama,proto3" json:"ollama,omitempty"`
+	Qdrant               bool   `protobuf:"varint,3,opt,name=qdrant,proto3" json:"qdrant,omitempty"`
+	IndexedCount         int32  `protobuf:"varint,4,opt,name=indexed_count,json=indexedCount,proto3" json:"indexed_count,omitempty"`
+	LastReconcileAt      string `protobuf:"bytes,5,opt,name=last_reconcile_at,json=lastReconcileAt,proto3" json:"last_reconcile_at,omitempty"`
+	LastReconcileOutcome string `protobuf:"bytes,6,opt,name=last_reconcile_outcome,json=lastReconcileOutcome,proto3" json:"last_reconcile_outcome,omitempty"`
+	// True when ollama AND qdrant are both reachable, regardless of corpus.
+	// Distinguishes "AI search is offline" (false) from "AI search is online
+	// but has nothing indexed yet" (true with indexed_count=0).
+	BackendsReachable bool `protobuf:"varint,7,opt,name=backends_reachable,json=backendsReachable,proto3" json:"backends_reachable,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *StatusResponse) Reset() {
@@ -479,6 +496,13 @@ func (x *StatusResponse) GetLastReconcileOutcome() string {
 	return ""
 }
 
+func (x *StatusResponse) GetBackendsReachable() bool {
+	if x != nil {
+		return x.BackendsReachable
+	}
+	return false
+}
+
 var File_ui_health_v1_search_search_proto protoreflect.FileDescriptor
 
 const file_ui_health_v1_search_search_proto_rawDesc = "" +
@@ -499,18 +523,20 @@ const file_ui_health_v1_search_search_proto_rawDesc = "" +
 	"\n" +
 	"provenance\x18\b \x01(\v2=.vrooli.ui_health.v1.contracts.provenance.ComponentProvenanceR\n" +
 	"provenance\x12O\n" +
-	"\x06widget\x18\t \x01(\v27.vrooli.ui_health.v1.contracts.widget.WidgetDeclarationR\x06widget\"\x93\x01\n" +
+	"\x06widget\x18\t \x01(\v27.vrooli.ui_health.v1.contracts.widget.WidgetDeclarationR\x06widget\"\xb8\x01\n" +
 	"\x0eSearchResponse\x12B\n" +
 	"\aresults\x18\x01 \x03(\v2(.vrooli.ui_health.v1.search.SearchResultR\aresults\x12=\n" +
-	"\tmode_used\x18\x02 \x01(\x0e2 .vrooli.ui_health.v1.search.ModeR\bmodeUsed\"\x0f\n" +
-	"\rStatusRequest\"\xe5\x01\n" +
+	"\tmode_used\x18\x02 \x01(\x0e2 .vrooli.ui_health.v1.search.ModeR\bmodeUsed\x12#\n" +
+	"\rindexed_count\x18\x03 \x01(\x05R\findexedCount\"\x0f\n" +
+	"\rStatusRequest\"\x94\x02\n" +
 	"\x0eStatusResponse\x12\x1c\n" +
 	"\tavailable\x18\x01 \x01(\bR\tavailable\x12\x16\n" +
 	"\x06ollama\x18\x02 \x01(\bR\x06ollama\x12\x16\n" +
 	"\x06qdrant\x18\x03 \x01(\bR\x06qdrant\x12#\n" +
 	"\rindexed_count\x18\x04 \x01(\x05R\findexedCount\x12*\n" +
 	"\x11last_reconcile_at\x18\x05 \x01(\tR\x0flastReconcileAt\x124\n" +
-	"\x16last_reconcile_outcome\x18\x06 \x01(\tR\x14lastReconcileOutcome*8\n" +
+	"\x16last_reconcile_outcome\x18\x06 \x01(\tR\x14lastReconcileOutcome\x12-\n" +
+	"\x12backends_reachable\x18\a \x01(\bR\x11backendsReachable*8\n" +
 	"\x04Mode\x12\x14\n" +
 	"\x10MODE_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aMODE_AI\x10\x01\x12\r\n" +

@@ -317,6 +317,7 @@ const literalSelectors = {
     sidebar: "layout-sidebar",
     bottomNav: "layout-bottom-nav",
     main: "layout-main",
+    subnav: "layout-workspace-subnav",
   },
   theme: {
     switcher: "theme-switcher",
@@ -326,9 +327,36 @@ const literalSelectors = {
     overview: "page-overview",
     newTarget: "page-new-target",
     targetWorkspace: "page-target-workspace",
+    targetConflicts: "page-target-conflicts",
+    targetConflictDetail: "page-target-conflict-detail",
     settings: "page-settings",
   },
   features: {
+    conflicts: {
+      list: {
+        root: "feature-conflicts-list",
+        loading: "feature-conflicts-list-loading",
+        error: "feature-conflicts-list-error",
+        empty: "feature-conflicts-list-empty",
+        detectButton: "feature-conflicts-list-detect",
+        validateButton: "feature-conflicts-list-validate",
+      },
+      detail: {
+        root: "feature-conflicts-detail",
+        loading: "feature-conflicts-detail-loading",
+        notFound: "feature-conflicts-detail-not-found",
+        evidence: "feature-conflicts-detail-evidence",
+        fixes: "feature-conflicts-detail-fixes",
+        locations: "feature-conflicts-detail-locations",
+        backLink: "feature-conflicts-detail-back",
+        actions: "feature-conflicts-detail-actions",
+        assignedDomain: "feature-conflicts-detail-assigned-domain",
+      },
+      workbench: {
+        root: "feature-conflicts-workbench",
+        emptyDetail: "feature-conflicts-workbench-empty-detail",
+      },
+    },
     targets: {
       recent: {
         root: "feature-targets-recent",
@@ -441,6 +469,16 @@ const dynamicSelectorDefinitions = {
       testIdPattern: "layout-bottom-nav-link-${key}",
       params: { key: { type: "enum", values: ["overview", "targets", "settings"] as const } },
     }),
+    workspaceSubnavLink: defineDynamicSelector({
+      description: "Workspace sub-nav tab link by canonical key",
+      testIdPattern: "layout-workspace-subnav-${key}",
+      params: {
+        key: {
+          type: "enum",
+          values: ["graph", "manifest", "conflicts", "apply", "analytics"] as const,
+        },
+      },
+    }),
   },
   shared: {
     dataTable: {
@@ -483,6 +521,50 @@ const dynamicSelectorDefinitions = {
     },
   },
   features: {
+    conflicts: {
+      list: {
+        row: defineDynamicSelector({
+          description: "Conflict list row by conflict id",
+          testIdPattern: "feature-conflicts-list-row-${id}",
+          params: { id: { type: "string" } },
+        }),
+        openButton: defineDynamicSelector({
+          description: "Conflict list open detail link by conflict id",
+          testIdPattern: "feature-conflicts-list-open-${id}",
+          params: { id: { type: "string" } },
+        }),
+      },
+      detail: {
+        actionButton: defineDynamicSelector({
+          description: "Conflict detail action button by flow event",
+          testIdPattern: "feature-conflicts-detail-action-${event}",
+          params: {
+            event: {
+              type: "enum",
+              values: [
+                "assign",
+                "split",
+                "resolve",
+                "force_resolve",
+                "validate",
+                "commit",
+                "reopen",
+              ] as const,
+            },
+          },
+        }),
+        evidenceItem: defineDynamicSelector({
+          description: "Conflict detail evidence item by index",
+          testIdPattern: "feature-conflicts-detail-evidence-${index}",
+          params: { index: { type: "number" } },
+        }),
+        fixItem: defineDynamicSelector({
+          description: "Conflict detail suggested-fix item by id",
+          testIdPattern: "feature-conflicts-detail-fix-${id}",
+          params: { id: { type: "string" } },
+        }),
+      },
+    },
     targets: {
       recent: {
         item: defineDynamicSelector({

@@ -4,7 +4,6 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
-import { strings } from "../consts/strings";
 import { TargetWorkspacePage } from "./TargetWorkspacePage";
 
 afterEach(() => cleanup());
@@ -40,12 +39,24 @@ describe("TargetWorkspacePage", () => {
     ).toContain("space and/slash");
   });
 
-  it("renders the placeholder note about upcoming sub-sections", () => {
+  it("renders the workspace sub-nav with all five sections", () => {
     renderAt("/targets/demo");
-    // cimode renders key paths; the placeholder note exists to advertise
-    // that sub-nav sections (Graph, Manifest, …) arrive in later phases.
-    expect(
-      screen.getByText(strings.pages.targetWorkspace.subnavComingSoon),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.subnav)).toBeInTheDocument();
+    for (const key of ["graph", "manifest", "conflicts", "apply", "analytics"] as const) {
+      expect(
+        screen.getByTestId(selectors.layout.workspaceSubnavLink({ key })),
+      ).toBeInTheDocument();
+    }
+  });
+
+  it("makes only the conflicts tab navigable in Phase 4 (others render as disabled chips)", () => {
+    renderAt("/targets/demo");
+    const conflicts = screen.getByTestId(selectors.layout.workspaceSubnavLink({ key: "conflicts" }));
+    expect(conflicts.tagName).toBe("A");
+
+    for (const key of ["graph", "manifest", "apply", "analytics"] as const) {
+      const item = screen.getByTestId(selectors.layout.workspaceSubnavLink({ key }));
+      expect(item.getAttribute("aria-disabled")).toBe("true");
+    }
   });
 });

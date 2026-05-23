@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"ui-health/v1/reindex/reindex.proto\x12\x1bvrooli.ui_health.v1.reindex\"E\n\x0eReindexRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x17\n\x07\x64ry_run\x18\x02 \x01(\x08R\x06\x64ryRun\"\x93\x01\n\x0fReindexResponse\x12\x15\n\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\'\n\x0fplanned_upserts\x18\x02 \x01(\x05R\x0eplannedUpserts\x12\'\n\x0fplanned_deletes\x18\x03 \x01(\x05R\x0eplannedDeletes\x12\x17\n\x07\x64ry_run\x18\x04 \x01(\x08R\x06\x64ryRun\"-\n\x14ReindexStatusRequest\x12\x15\n\x06job_id\x18\x01 \x01(\tR\x05jobId\"\xaa\x01\n\x15ReindexStatusResponse\x12\x15\n\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x14\n\x05state\x18\x02 \x01(\tR\x05state\x12\x1c\n\tprocessed\x18\x03 \x01(\x05R\tprocessed\x12\x14\n\x05total\x18\x04 \x01(\x05R\x05total\x12\x14\n\x05\x65rror\x18\x05 \x01(\tR\x05\x65rror\x12\x1a\n\x08warnings\x18\x06 \x03(\tR\x08warnings\"-\n\x14ReindexCancelRequest\x12\x15\n\x06job_id\x18\x01 \x01(\tR\x05jobId\"L\n\x15ReindexCancelResponse\x12\x15\n\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x1c\n\tcancelled\x18\x02 \x01(\x08R\tcancelled2\xe6\x02\n\x0eReindexService\x12\x64\n\x07Reindex\x12+.vrooli.ui_health.v1.reindex.ReindexRequest\x1a,.vrooli.ui_health.v1.reindex.ReindexResponse\x12v\n\rReindexStatus\x12\x31.vrooli.ui_health.v1.reindex.ReindexStatusRequest\x1a\x32.vrooli.ui_health.v1.reindex.ReindexStatusResponse\x12v\n\rReindexCancel\x12\x31.vrooli.ui_health.v1.reindex.ReindexCancelRequest\x1a\x32.vrooli.ui_health.v1.reindex.ReindexCancelResponseBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/reindex;reindex_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"ui-health/v1/reindex/reindex.proto\x12\x1bvrooli.ui_health.v1.reindex\"E\n\x0eReindexRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x17\n\x07\x64ry_run\x18\x02 \x01(\x08R\x06\x64ryRun\"\x93\x01\n\x0fReindexResponse\x12\x15\n\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\'\n\x0fplanned_upserts\x18\x02 \x01(\x05R\x0eplannedUpserts\x12\'\n\x0fplanned_deletes\x18\x03 \x01(\x05R\x0eplannedDeletes\x12\x17\n\x07\x64ry_run\x18\x04 \x01(\x08R\x06\x64ryRun\"-\n\x14ReindexStatusRequest\x12\x15\n\x06job_id\x18\x01 \x01(\tR\x05jobId\"\x8d\x02\n\x15ReindexStatusResponse\x12\x15\n\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x14\n\x05state\x18\x02 \x01(\tR\x05state\x12\x1c\n\tprocessed\x18\x03 \x01(\x05R\tprocessed\x12\x14\n\x05total\x18\x04 \x01(\x05R\x05total\x12\x14\n\x05\x65rror\x18\x05 \x01(\tR\x05\x65rror\x12\x1a\n\x08warnings\x18\x06 \x03(\tR\x08warnings\x12\x61\n\x11scenario_outcomes\x18\x07 \x03(\x0b\x32\x34.vrooli.ui_health.v1.reindex.ScenarioDispatchOutcomeR\x10scenarioOutcomes\"\x93\x01\n\x17ScenarioDispatchOutcome\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12%\n\x0esurfaces_found\x18\x02 \x01(\x05R\rsurfacesFound\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror\x12\x1f\n\x0btemplate_id\x18\x04 \x01(\tR\ntemplateId\"-\n\x14ReindexCancelRequest\x12\x15\n\x06job_id\x18\x01 \x01(\tR\x05jobId\"L\n\x15ReindexCancelResponse\x12\x15\n\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x1c\n\tcancelled\x18\x02 \x01(\x08R\tcancelled2\xe6\x02\n\x0eReindexService\x12\x64\n\x07Reindex\x12+.vrooli.ui_health.v1.reindex.ReindexRequest\x1a,.vrooli.ui_health.v1.reindex.ReindexResponse\x12v\n\rReindexStatus\x12\x31.vrooli.ui_health.v1.reindex.ReindexStatusRequest\x1a\x32.vrooli.ui_health.v1.reindex.ReindexStatusResponse\x12v\n\rReindexCancel\x12\x31.vrooli.ui_health.v1.reindex.ReindexCancelRequest\x1a\x32.vrooli.ui_health.v1.reindex.ReindexCancelResponseBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/reindex;reindex_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -39,11 +39,13 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_REINDEXSTATUSREQUEST']._serialized_start=288
   _globals['_REINDEXSTATUSREQUEST']._serialized_end=333
   _globals['_REINDEXSTATUSRESPONSE']._serialized_start=336
-  _globals['_REINDEXSTATUSRESPONSE']._serialized_end=506
-  _globals['_REINDEXCANCELREQUEST']._serialized_start=508
-  _globals['_REINDEXCANCELREQUEST']._serialized_end=553
-  _globals['_REINDEXCANCELRESPONSE']._serialized_start=555
-  _globals['_REINDEXCANCELRESPONSE']._serialized_end=631
-  _globals['_REINDEXSERVICE']._serialized_start=634
-  _globals['_REINDEXSERVICE']._serialized_end=992
+  _globals['_REINDEXSTATUSRESPONSE']._serialized_end=605
+  _globals['_SCENARIODISPATCHOUTCOME']._serialized_start=608
+  _globals['_SCENARIODISPATCHOUTCOME']._serialized_end=755
+  _globals['_REINDEXCANCELREQUEST']._serialized_start=757
+  _globals['_REINDEXCANCELREQUEST']._serialized_end=802
+  _globals['_REINDEXCANCELRESPONSE']._serialized_start=804
+  _globals['_REINDEXCANCELRESPONSE']._serialized_end=880
+  _globals['_REINDEXSERVICE']._serialized_start=883
+  _globals['_REINDEXSERVICE']._serialized_end=1241
 # @@protoc_insertion_point(module_scope)

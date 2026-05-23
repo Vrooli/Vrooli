@@ -1,8 +1,8 @@
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from collections.abc import Iterable as _Iterable
-from typing import ClassVar as _ClassVar, Optional as _Optional
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -33,20 +33,34 @@ class ReindexStatusRequest(_message.Message):
     def __init__(self, job_id: _Optional[str] = ...) -> None: ...
 
 class ReindexStatusResponse(_message.Message):
-    __slots__ = ("job_id", "state", "processed", "total", "error", "warnings")
+    __slots__ = ("job_id", "state", "processed", "total", "error", "warnings", "scenario_outcomes")
     JOB_ID_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
     PROCESSED_FIELD_NUMBER: _ClassVar[int]
     TOTAL_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_OUTCOMES_FIELD_NUMBER: _ClassVar[int]
     job_id: str
     state: str
     processed: int
     total: int
     error: str
     warnings: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, job_id: _Optional[str] = ..., state: _Optional[str] = ..., processed: _Optional[int] = ..., total: _Optional[int] = ..., error: _Optional[str] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
+    scenario_outcomes: _containers.RepeatedCompositeFieldContainer[ScenarioDispatchOutcome]
+    def __init__(self, job_id: _Optional[str] = ..., state: _Optional[str] = ..., processed: _Optional[int] = ..., total: _Optional[int] = ..., error: _Optional[str] = ..., warnings: _Optional[_Iterable[str]] = ..., scenario_outcomes: _Optional[_Iterable[_Union[ScenarioDispatchOutcome, _Mapping]]] = ...) -> None: ...
+
+class ScenarioDispatchOutcome(_message.Message):
+    __slots__ = ("scenario", "surfaces_found", "error", "template_id")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SURFACES_FOUND_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    TEMPLATE_ID_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    surfaces_found: int
+    error: str
+    template_id: str
+    def __init__(self, scenario: _Optional[str] = ..., surfaces_found: _Optional[int] = ..., error: _Optional[str] = ..., template_id: _Optional[str] = ...) -> None: ...
 
 class ReindexCancelRequest(_message.Message):
     __slots__ = ("job_id",)

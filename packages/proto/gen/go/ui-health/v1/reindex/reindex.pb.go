@@ -194,9 +194,13 @@ type ReindexStatusResponse struct {
 	Error     string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
 	// Non-fatal advisory messages from the reindex job. Surfaced even on
 	// state="succeeded_empty" so operators don't read a 0/0 no-op as healthy.
-	Warnings      []string `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Warnings []string `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	// Per-scenario dispatch outcomes. One entry per scenario the job
+	// attempted to discover. Lets operators distinguish "dispatcher silently
+	// returned zero surfaces" from "no scenarios were eligible".
+	ScenarioOutcomes []*ScenarioDispatchOutcome `protobuf:"bytes,7,rep,name=scenario_outcomes,json=scenarioOutcomes,proto3" json:"scenario_outcomes,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ReindexStatusResponse) Reset() {
@@ -271,6 +275,87 @@ func (x *ReindexStatusResponse) GetWarnings() []string {
 	return nil
 }
 
+func (x *ReindexStatusResponse) GetScenarioOutcomes() []*ScenarioDispatchOutcome {
+	if x != nil {
+		return x.ScenarioOutcomes
+	}
+	return nil
+}
+
+// ScenarioDispatchOutcome reports the result of a single scenario's discovery
+// pass. surfaces_found is the count returned by the framework dispatcher;
+// error is set when discovery itself failed (template_id missing, dispatcher
+// unreachable, etc).
+type ScenarioDispatchOutcome struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	SurfacesFound int32                  `protobuf:"varint,2,opt,name=surfaces_found,json=surfacesFound,proto3" json:"surfaces_found,omitempty"`
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	// Framework template id (e.g. "react-vite") resolved from service.json.
+	// Empty when the scenario has no generation.template.id.
+	TemplateId    string `protobuf:"bytes,4,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioDispatchOutcome) Reset() {
+	*x = ScenarioDispatchOutcome{}
+	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioDispatchOutcome) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioDispatchOutcome) ProtoMessage() {}
+
+func (x *ScenarioDispatchOutcome) ProtoReflect() protoreflect.Message {
+	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioDispatchOutcome.ProtoReflect.Descriptor instead.
+func (*ScenarioDispatchOutcome) Descriptor() ([]byte, []int) {
+	return file_ui_health_v1_reindex_reindex_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ScenarioDispatchOutcome) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *ScenarioDispatchOutcome) GetSurfacesFound() int32 {
+	if x != nil {
+		return x.SurfacesFound
+	}
+	return 0
+}
+
+func (x *ScenarioDispatchOutcome) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *ScenarioDispatchOutcome) GetTemplateId() string {
+	if x != nil {
+		return x.TemplateId
+	}
+	return ""
+}
+
 type ReindexCancelRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
@@ -280,7 +365,7 @@ type ReindexCancelRequest struct {
 
 func (x *ReindexCancelRequest) Reset() {
 	*x = ReindexCancelRequest{}
-	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[4]
+	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -292,7 +377,7 @@ func (x *ReindexCancelRequest) String() string {
 func (*ReindexCancelRequest) ProtoMessage() {}
 
 func (x *ReindexCancelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[4]
+	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -305,7 +390,7 @@ func (x *ReindexCancelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReindexCancelRequest.ProtoReflect.Descriptor instead.
 func (*ReindexCancelRequest) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_reindex_reindex_proto_rawDescGZIP(), []int{4}
+	return file_ui_health_v1_reindex_reindex_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ReindexCancelRequest) GetJobId() string {
@@ -325,7 +410,7 @@ type ReindexCancelResponse struct {
 
 func (x *ReindexCancelResponse) Reset() {
 	*x = ReindexCancelResponse{}
-	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[5]
+	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -337,7 +422,7 @@ func (x *ReindexCancelResponse) String() string {
 func (*ReindexCancelResponse) ProtoMessage() {}
 
 func (x *ReindexCancelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[5]
+	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -350,7 +435,7 @@ func (x *ReindexCancelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReindexCancelResponse.ProtoReflect.Descriptor instead.
 func (*ReindexCancelResponse) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_reindex_reindex_proto_rawDescGZIP(), []int{5}
+	return file_ui_health_v1_reindex_reindex_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ReindexCancelResponse) GetJobId() string {
@@ -381,14 +466,21 @@ const file_ui_health_v1_reindex_reindex_proto_rawDesc = "" +
 	"\x0fplanned_deletes\x18\x03 \x01(\x05R\x0eplannedDeletes\x12\x17\n" +
 	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"-\n" +
 	"\x14ReindexStatusRequest\x12\x15\n" +
-	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"\xaa\x01\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"\x8d\x02\n" +
 	"\x15ReindexStatusResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12\x1c\n" +
 	"\tprocessed\x18\x03 \x01(\x05R\tprocessed\x12\x14\n" +
 	"\x05total\x18\x04 \x01(\x05R\x05total\x12\x14\n" +
 	"\x05error\x18\x05 \x01(\tR\x05error\x12\x1a\n" +
-	"\bwarnings\x18\x06 \x03(\tR\bwarnings\"-\n" +
+	"\bwarnings\x18\x06 \x03(\tR\bwarnings\x12a\n" +
+	"\x11scenario_outcomes\x18\a \x03(\v24.vrooli.ui_health.v1.reindex.ScenarioDispatchOutcomeR\x10scenarioOutcomes\"\x93\x01\n" +
+	"\x17ScenarioDispatchOutcome\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12%\n" +
+	"\x0esurfaces_found\x18\x02 \x01(\x05R\rsurfacesFound\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1f\n" +
+	"\vtemplate_id\x18\x04 \x01(\tR\n" +
+	"templateId\"-\n" +
 	"\x14ReindexCancelRequest\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"L\n" +
 	"\x15ReindexCancelResponse\x12\x15\n" +
@@ -411,27 +503,29 @@ func file_ui_health_v1_reindex_reindex_proto_rawDescGZIP() []byte {
 	return file_ui_health_v1_reindex_reindex_proto_rawDescData
 }
 
-var file_ui_health_v1_reindex_reindex_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_ui_health_v1_reindex_reindex_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_ui_health_v1_reindex_reindex_proto_goTypes = []any{
-	(*ReindexRequest)(nil),        // 0: vrooli.ui_health.v1.reindex.ReindexRequest
-	(*ReindexResponse)(nil),       // 1: vrooli.ui_health.v1.reindex.ReindexResponse
-	(*ReindexStatusRequest)(nil),  // 2: vrooli.ui_health.v1.reindex.ReindexStatusRequest
-	(*ReindexStatusResponse)(nil), // 3: vrooli.ui_health.v1.reindex.ReindexStatusResponse
-	(*ReindexCancelRequest)(nil),  // 4: vrooli.ui_health.v1.reindex.ReindexCancelRequest
-	(*ReindexCancelResponse)(nil), // 5: vrooli.ui_health.v1.reindex.ReindexCancelResponse
+	(*ReindexRequest)(nil),          // 0: vrooli.ui_health.v1.reindex.ReindexRequest
+	(*ReindexResponse)(nil),         // 1: vrooli.ui_health.v1.reindex.ReindexResponse
+	(*ReindexStatusRequest)(nil),    // 2: vrooli.ui_health.v1.reindex.ReindexStatusRequest
+	(*ReindexStatusResponse)(nil),   // 3: vrooli.ui_health.v1.reindex.ReindexStatusResponse
+	(*ScenarioDispatchOutcome)(nil), // 4: vrooli.ui_health.v1.reindex.ScenarioDispatchOutcome
+	(*ReindexCancelRequest)(nil),    // 5: vrooli.ui_health.v1.reindex.ReindexCancelRequest
+	(*ReindexCancelResponse)(nil),   // 6: vrooli.ui_health.v1.reindex.ReindexCancelResponse
 }
 var file_ui_health_v1_reindex_reindex_proto_depIdxs = []int32{
-	0, // 0: vrooli.ui_health.v1.reindex.ReindexService.Reindex:input_type -> vrooli.ui_health.v1.reindex.ReindexRequest
-	2, // 1: vrooli.ui_health.v1.reindex.ReindexService.ReindexStatus:input_type -> vrooli.ui_health.v1.reindex.ReindexStatusRequest
-	4, // 2: vrooli.ui_health.v1.reindex.ReindexService.ReindexCancel:input_type -> vrooli.ui_health.v1.reindex.ReindexCancelRequest
-	1, // 3: vrooli.ui_health.v1.reindex.ReindexService.Reindex:output_type -> vrooli.ui_health.v1.reindex.ReindexResponse
-	3, // 4: vrooli.ui_health.v1.reindex.ReindexService.ReindexStatus:output_type -> vrooli.ui_health.v1.reindex.ReindexStatusResponse
-	5, // 5: vrooli.ui_health.v1.reindex.ReindexService.ReindexCancel:output_type -> vrooli.ui_health.v1.reindex.ReindexCancelResponse
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	4, // 0: vrooli.ui_health.v1.reindex.ReindexStatusResponse.scenario_outcomes:type_name -> vrooli.ui_health.v1.reindex.ScenarioDispatchOutcome
+	0, // 1: vrooli.ui_health.v1.reindex.ReindexService.Reindex:input_type -> vrooli.ui_health.v1.reindex.ReindexRequest
+	2, // 2: vrooli.ui_health.v1.reindex.ReindexService.ReindexStatus:input_type -> vrooli.ui_health.v1.reindex.ReindexStatusRequest
+	5, // 3: vrooli.ui_health.v1.reindex.ReindexService.ReindexCancel:input_type -> vrooli.ui_health.v1.reindex.ReindexCancelRequest
+	1, // 4: vrooli.ui_health.v1.reindex.ReindexService.Reindex:output_type -> vrooli.ui_health.v1.reindex.ReindexResponse
+	3, // 5: vrooli.ui_health.v1.reindex.ReindexService.ReindexStatus:output_type -> vrooli.ui_health.v1.reindex.ReindexStatusResponse
+	6, // 6: vrooli.ui_health.v1.reindex.ReindexService.ReindexCancel:output_type -> vrooli.ui_health.v1.reindex.ReindexCancelResponse
+	4, // [4:7] is the sub-list for method output_type
+	1, // [1:4] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_ui_health_v1_reindex_reindex_proto_init() }
@@ -445,7 +539,7 @@ func file_ui_health_v1_reindex_reindex_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ui_health_v1_reindex_reindex_proto_rawDesc), len(file_ui_health_v1_reindex_reindex_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

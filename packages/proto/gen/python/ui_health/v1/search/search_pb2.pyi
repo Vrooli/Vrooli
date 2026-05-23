@@ -68,29 +68,33 @@ class SearchResult(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., slot: _Optional[str] = ..., kind: _Optional[_Union[SurfaceKind, str]] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., file_path: _Optional[str] = ..., score: _Optional[float] = ..., provenance: _Optional[_Union[_provenance_pb2.ComponentProvenance, _Mapping]] = ..., widget: _Optional[_Union[_widget_pb2.WidgetDeclaration, _Mapping]] = ...) -> None: ...
 
 class SearchResponse(_message.Message):
-    __slots__ = ("results", "mode_used")
+    __slots__ = ("results", "mode_used", "indexed_count")
     RESULTS_FIELD_NUMBER: _ClassVar[int]
     MODE_USED_FIELD_NUMBER: _ClassVar[int]
+    INDEXED_COUNT_FIELD_NUMBER: _ClassVar[int]
     results: _containers.RepeatedCompositeFieldContainer[SearchResult]
     mode_used: Mode
-    def __init__(self, results: _Optional[_Iterable[_Union[SearchResult, _Mapping]]] = ..., mode_used: _Optional[_Union[Mode, str]] = ...) -> None: ...
+    indexed_count: int
+    def __init__(self, results: _Optional[_Iterable[_Union[SearchResult, _Mapping]]] = ..., mode_used: _Optional[_Union[Mode, str]] = ..., indexed_count: _Optional[int] = ...) -> None: ...
 
 class StatusRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
 class StatusResponse(_message.Message):
-    __slots__ = ("available", "ollama", "qdrant", "indexed_count", "last_reconcile_at", "last_reconcile_outcome")
+    __slots__ = ("available", "ollama", "qdrant", "indexed_count", "last_reconcile_at", "last_reconcile_outcome", "backends_reachable")
     AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     OLLAMA_FIELD_NUMBER: _ClassVar[int]
     QDRANT_FIELD_NUMBER: _ClassVar[int]
     INDEXED_COUNT_FIELD_NUMBER: _ClassVar[int]
     LAST_RECONCILE_AT_FIELD_NUMBER: _ClassVar[int]
     LAST_RECONCILE_OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    BACKENDS_REACHABLE_FIELD_NUMBER: _ClassVar[int]
     available: bool
     ollama: bool
     qdrant: bool
     indexed_count: int
     last_reconcile_at: str
     last_reconcile_outcome: str
-    def __init__(self, available: _Optional[bool] = ..., ollama: _Optional[bool] = ..., qdrant: _Optional[bool] = ..., indexed_count: _Optional[int] = ..., last_reconcile_at: _Optional[str] = ..., last_reconcile_outcome: _Optional[str] = ...) -> None: ...
+    backends_reachable: bool
+    def __init__(self, available: _Optional[bool] = ..., ollama: _Optional[bool] = ..., qdrant: _Optional[bool] = ..., indexed_count: _Optional[int] = ..., last_reconcile_at: _Optional[str] = ..., last_reconcile_outcome: _Optional[str] = ..., backends_reachable: _Optional[bool] = ...) -> None: ...
