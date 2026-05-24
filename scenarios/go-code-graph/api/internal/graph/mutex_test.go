@@ -72,3 +72,45 @@ func TestPathMutexParallelDifferentKeys(t *testing.T) {
 		t.Fatalf("different-key acquisitions did not run in parallel: elapsed=%v", elapsed)
 	}
 }
+
+// TestPathMutexLRUEvictsIdle verifies that once idle-entry count exceeds
+// the configured capacity, the LRU idle entry is evicted on the next
+// release. Held entries (refs > 0) are exempt.
+func TestPathMutexLRUEvictsIdle(t *testing.T) {
+	t.Parallel()
+	mu := intgraph.NewPathMutexWithCapacity(2)
+
+	// Lock+release three distinct keys in order. After the third
+	// release the LRU ("/a") must be evicted, leaving "/b" and "/c".
+	for _, k := range []string{"/a", "/b", "/c"} {
+		mu.Lock(k)()
+	}
+	if got, want := mu.Len(), 2; got != want {
+		t.Fatalf("Len after 3 distinct idle entries: got %d want %d", got, want)
+	}
+}
+
+// TestPathMutexLRUKeepsHeld verifies that held entries are never
+// evicted even when the registry is over capacity, while the LRU
+// idle entry is the one to go.
+func TestPathMutexLRUKeepsHeld(t *testing.T) {
+	t.Parallel()
+	mu := intgraph.NewPathMutexWithCapacity(2)
+
+	// Hold "/a" for the duration of the test.
+	releaseA := mu.Lock("/a")
+	defer releaseA()
+
+	// "/b" goes idle, then "/c" goes idle. With cap=2 and "/a" held,
+	// the LRU eviction on "/c" release must drop "/b" (LRU idle), not
+	// "/a" (held).
+	mu.Lock("/b")()
+	mu.Lock("/c")()
+
+	// Expect {/a (held), /c (MRU idle)}; /b evicted.
+	if got := mu.Len(); got != 2 {
+		t.Fatalf("Len after over-cap release with one held: got %d want 2", got)
+	}
+	// Re-locking "/b" must succeed (it just creates a new entry).
+	mu.Lock("/b")()
+}

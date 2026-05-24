@@ -49,73 +49,23 @@ Use this section for deferred findings from `screaming-architecture-audit`. Do n
 |---|---|---|---|
 | (none open) | — | — | — |
 
-### 2026-05-23 — `Extract` proto envelope under-emits cartographer-relevant attributes
+### 2026-05-23 — `Extract` proto envelope under-emits cartographer-relevant attributes (partial fix 2026-05-24)
 
-**Symptom:** Cartographer's `RawGraph` shape (in `scenarios/architecture-cartographer/api/internal/graph/types.go`) carries fields that go-code-graph does not yet populate over the wire, so the cartographer-side translator (`scenarios/architecture-cartographer/api/internal/graph/gocodegraph/client.go`, `protoToRawGraph`) leaves them at Go zero values. Concretely:
+**Status (2026-05-24):** Partially closed. `lines` (real signal, computed from `*ast.File` end-position) and `internal` (path-based heuristic) now flow through and are consumed by cartographer's `protoToRawGraph`. `is_test` and `test_only` are emitted on the wire but always serialize as `"false"` today because the loader still runs `packages.Config{Tests: false}` — test files do not appear in `p.GoFiles`, so the basename heuristic never fires.
 
-- `FileNode.Lines` — go-code-graph emits no `lines` attribute on `NODE_KIND_FILE` nodes. Cartographer leaves `0`.
-- `FileNode.IsTest` — go-code-graph emits no `is_test` attribute (today `Normalize()` doesn't split `GoFiles` vs `TestGoFiles`; it only reads `p.GoFiles`). Cartographer leaves `false`. Test-file coverage is silently lost.
-- `PackageNode.Internal` — go-code-graph emits no `internal` attribute on package nodes. Cartographer leaves `false`. Used by cartographer's domain-classification heuristics, so the loss is observable.
-- `ImportEdge.TestOnly` — go-code-graph emits no `test_only` attribute on `EDGE_KIND_IMPORT` edges (only `_test.go`-only imports should set this). Cartographer leaves `false`.
-- `ImportEdge.SymbolIDs` — no analogue in the proto envelope. Cartographer cannot reconstruct symbol-level import provenance from `Extract` output.
+**Remaining gap:** Switch `internal/graph/loader_packages.go` to `Tests: true` and add a variant-merge pass in `Normalize` so test variants of a package (same `PkgPath`, different IDs; `ForTest` non-empty) are folded back into the canonical entry rather than skipped by `seenPkg[pkgID]`. Filter synthetic test-binary packages (`PkgPath` ending in `.test`). Once merged, `p.TestGoFiles` / `p.XTestGoFiles` populate `is_test`, and the diff between prod and test-variant `Imports` populates `test_only` on edges. Add a `go-tests` fixture exercising both branches; the determinism gate enforces stability.
 
-**Root cause:** `internal/graph/normalize.go` only writes the attributes it needs for go-code-graph's own determinism gate (`language`, `import_path`, `package_id`, `file_id`, `exported`, plus the `kind` tag added in `handlers/graph/adapter.go`). The producer side was designed for go-code-graph's own consumers first; the cartographer-side requirements (richer FileNode/PackageNode/ImportEdge attributes) were not yet visible when the proto contract was first wired.
+`ImportEdge.SymbolIDs` (symbol-level import provenance) remains unmapped — no analogue exists in the proto envelope today and needs a proto contract turn before any producer work.
 
-**Workaround:** Cartographer's translator preserves all proto fields it does see (the `protoToRawGraph` mapping in `client.go`) and leaves zero values on missing fields rather than silently dropping the node. Determinism is unaffected because the missing fields are non-discriminating; only the downstream domain-classification accuracy is degraded.
+**Refs:** `internal/graph/normalize.go` (current `lines` / `internal` emit + placeholder `is_test` / `test_only`), `internal/graph/loader_packages.go` (`Tests: false` switch site), `scenarios/architecture-cartographer/api/internal/graph/gocodegraph/client.go` (`protoToRawGraph` now reads all four new attributes).
 
-**Real fix:** Extend `Normalize()` (and the package loader feeding it) to emit:
+### 2026-05-23 — Per-path mutex memory leak — closed 2026-05-24
 
-1. `file:` nodes with `lines` (counted from the file's `*ast.File`'s `Fset.Position(...).Line` of the EOF token) and `is_test` (true when the basename ends in `_test.go` or the file is in `p.TestGoFiles`/`p.XTestGoFiles`).
-2. `package:` nodes with `internal` (true when the import path matches `*/internal/*` or `internal/*`).
-3. `import:` edges with `test_only` (true when the edge originates only from a `*_test.go` file). This requires walking `p.TestImports` separately and merging.
+**Status:** Closed. `PathMutex` is now bounded by an LRU with refcount-based eviction (capacity 10,000 by default). Held entries are never evicted; idle entries are dropped LRU-first when over capacity. See `internal/graph/mutex.go` and the `TestPathMutexLRU*` tests.
 
-Then update `cloneAttributes` in `handlers/graph/adapter.go` to whitelist the new attributes (it already pass-throughs the full map, so this is "no-op" for emission but worth a doc note). Cartographer-side: extend `protoToRawGraph` to read the new attributes. Determinism gate (Phase 4 fixtures) will catch regressions.
+### 2026-05-23 — In-memory `PlanStore` + Operation Log gap — closed 2026-05-24
 
-**Owner:** Next go-code-graph implementation pass (or paired with cartographer's domain-classification improvements; whichever surfaces first).
-
-**Refs:** `internal/graph/normalize.go`, `handlers/graph/adapter.go`, `scenarios/architecture-cartographer/api/internal/graph/gocodegraph/client.go` (`protoToRawGraph` data-loss notes), `scenarios/architecture-cartographer/api/internal/graph/types.go`.
-
-### 2026-05-23 — Per-path mutex memory leak
-
-**Symptom:** `graph.PathMutex` registers a `sync.Mutex` per absolute scenario path it has ever seen and never evicts it. In a long-running scenario in CI (or a multi-tenant operator setup) the internal `sync.Map` grows monotonically. Memory growth is small per entry but unbounded over time.
-
-**Root cause:** v1 implementation prioritises correctness (serialization invariant per path) over reclamation. There is no LRU eviction or refcount-based cleanup.
-
-**Workaround:** None needed for v1's expected workload (single-operator, dozens of distinct scenario paths). Restart the scenario if a process accumulates thousands of stale entries.
-
-**Real fix:** Switch the registry to a bounded LRU (capacity ~10,000) with refcount-based eviction so the entry only goes away once no goroutine holds the mutex. Recorded as deferred in plan §11 of `~/.vrooli/plans/go-code-graph-proto-api-cli-implementation.md`.
-
-**Owner:** Future infra-pass on `internal/graph/mutex.go`.
-
-**Refs:** `internal/graph/mutex.go`, plan §11 risk table.
-
-### 2026-05-23 — In-memory `PlanStore` evaporates on restart
-
-**Symptom:** `RewritePlan` returns a `plan_id`; if the scenario restarts before the operator calls `RewriteApply`, the plan is gone and `RewriteApply` returns `InvalidArgument` ("plan_id unknown"). The operator must re-plan.
-
-**Root cause:** `internal/rewrite/store_memory.go::MemoryStore` is an in-process `sync.Map`. No persistence backend in v1.
-
-**Workaround:** Always run `plan` and `apply` back-to-back in the same scenario uptime. The cartographer consumer re-plans before every apply, so this does not block the integration today.
-
-**Real fix:** Land REQ-P1-002 — a SQLite-backed `PlanStore` implementation (`internal/rewrite/store_sqlite.go`) wired through the existing `PlanStore` seam. The interface is already in place; only the implementation and its `mocks/` peer change. Persist `{plan_id, scenario_path, normalized_operations, created_at}` and optionally a TTL.
-
-**Owner:** Next rewrite-domain implementation pass.
-
-**Refs:** `internal/rewrite/store.go`, `internal/rewrite/store_memory.go`, `requirements/02-two-step-rewrite/module.json` (REQ-P1-002).
-
-### 2026-05-23 — SQLite Operation Log not implemented
-
-**Symptom:** The PRD calls for a durable Operation Log (REQ-P1-002) so operators can audit historical rewrite plans and applies after a scenario restart. Today no such log exists; `MemoryStore` records plans only, no apply results.
-
-**Root cause:** Deferred from the v1 implementation plan (plan §4 Out of Scope, plan §11). Only the in-memory `PlanStore` shipped.
-
-**Workaround:** Operators that need an audit trail should diff against git after each `apply` (the scenario never invokes git itself, but the operator owns the working tree). Per-op `OperationResult` records flow back through the API response synchronously, so the immediate-consumer view is intact.
-
-**Real fix:** REQ-P1-002 — add a SQLite-backed log of `(plan_id, op_index, kind, status, message, applied_at)` rows. Likely lives alongside the persistent `PlanStore` (same SQLite file, two tables).
-
-**Owner:** Same pass as the persistent `PlanStore`.
-
-**Refs:** `requirements/02-two-step-rewrite/module.json` (REQ-P1-002).
+**Status:** Closed (REQ-P1-002 landed). `internal/rewrite/store_sqlite.go` is now the production `PlanStore`, wired in `api/main.go` against the scenario's existing SQLite handle. The same struct satisfies `OperationLog` so non-dry-run `Apply` calls record one row per operation in `rewrite_operation_log`. Schema lives in `internal/rewrite/schema.sql` and registers through `handlers/rewrite/endpoints.go::Schema` → `modules.AllSchemas`. `MemoryStore` is retained for in-process tests that don't need a real DB.
 
 ### 2026-05-23 — Fixture Validator UI not implemented
 
@@ -131,19 +81,9 @@ Then update `cloneAttributes` in `handlers/graph/adapter.go` to whitelist the ne
 
 **Refs:** `requirements/01-deterministic-graph-extraction/module.json` (REQ-P1-001), `bas/fixtures/`.
 
-### 2026-05-23 — `include_vendor` flag is wired through but not honored
+### 2026-05-23 — `include_vendor` flag is wired through but not honored — closed 2026-05-24
 
-**Symptom:** `ExtractRequest.include_vendor` flows from CLI flag (`--include-vendor`) to the proto field to the service input, and is set on the underlying `packages.Config`. But the loader does not filter vendor packages out of the result when `include_vendor=false`; both values currently return the same graph. The flag is silently a no-op for filtering purposes.
-
-**Root cause:** REQ-P1-003 deep-handling was deferred. The proto contract reservation and CLI flag landed in v1 so the wire shape is stable; the actual vendor-filtering pass on the loaded `[]*packages.Package` was descoped.
-
-**Workaround:** Document the behaviour and warn operators. Today the vendor directory contents simply appear as additional `package:` nodes in every extraction; downstream consumers (cartographer) tolerate this.
-
-**Real fix:** REQ-P1-003 — in `internal/graph/normalize.go`, filter packages whose `PkgPath` contains `/vendor/` (and their incident edges) when `LoadOptions.IncludeVendor == false`. Update the determinism fixtures or add a `go-vendored` fixture so the test surface exercises both branches.
-
-**Owner:** Next graph-domain implementation pass.
-
-**Refs:** `internal/graph/normalize.go`, `internal/graph/loader.go::LoadOptions`, `requirements/01-deterministic-graph-extraction/module.json` (REQ-P1-003).
+**Status:** Closed (REQ-P1-003 landed). `Service.Extract` now post-filters vendored packages (directory-based: any package whose source directory contains a `vendor/` segment) when `LoadOptions.IncludeVendor=false`. See `internal/graph/service.go::filterVendorPackages` and the synthetic unit test in `internal/graph/vendor_filter_test.go`. A real-Go-module `go-vendored` determinism fixture is left as follow-up; the unit test exercises the filter directly against synthetic `*packages.Package` values.
 
 ### 2026-05-23 — Extended method-set coverage not implemented
 

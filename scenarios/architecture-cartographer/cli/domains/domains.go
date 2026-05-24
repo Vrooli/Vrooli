@@ -1,16 +1,19 @@
 package domains
 
 import (
+	"fmt"
+
 	"github.com/vrooli/cli-core/cliapp"
+
+	"architecture-cartographer/cli/domains/graph"
 )
 
 // CommandGroups aggregates flat command groups from domain packages.
 //
 // Keep app.go focused on CLI metadata and cli-core wiring. As the scenario
-// grows, add domains like domains/conflicts or domains/graph and append
-// their registrations here. For greenfield scenarios, domain packages are
-// the default architecture; do not treat flat command files as the long-term
-// plan.
+// grows, add domains like domains/conflicts and append their registrations
+// here. For greenfield scenarios, domain packages are the default
+// architecture; do not treat flat command files as the long-term plan.
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 	_ = core
 	return nil
@@ -26,12 +29,16 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // This is the CLI side of the domain-module pattern; the API side uses
 // the same one-liner-per-domain shape via server.New(deps, modules...).
 //
-// The architecture-cartographer scenario will register its product
-// domains (graph, manifest, conflicts, signals, apply, analytics) here
-// as each phase of the implementation plan lands; until then the slice
-// is empty.
+// The remaining product domains (manifest, conflicts, signals, apply,
+// analytics) land as each phase ships.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	_ = core
-	_ = manifest
-	return []cliapp.SubcommandGroup{}, nil
+	out := make([]cliapp.SubcommandGroup, 0, 1)
+
+	graphGroup, err := graph.Register(core, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("register graph: %w", err)
+	}
+	out = append(out, graphGroup)
+
+	return out, nil
 }

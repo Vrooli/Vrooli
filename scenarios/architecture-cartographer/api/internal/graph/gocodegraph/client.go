@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"connectrpc.com/connect"
 
@@ -29,6 +30,19 @@ import (
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph/graph_v1connect"
 )
+
+// atoiAttr decodes an integer-valued attribute string, returning 0 when
+// the attribute is absent or unparseable.
+func atoiAttr(s string) int {
+	if s == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
+}
 
 // ScenarioName is the canonical scenario identifier the discovery
 // layer uses to resolve the go-code-graph base URL. It is also the
@@ -173,6 +187,8 @@ func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 				Path:      n.GetPath(),
 				PackageID: attrs["package_id"],
 				Language:  graph.LanguageGo,
+				Lines:     atoiAttr(attrs["lines"]),
+				IsTest:    attrs["is_test"] == "true",
 			})
 		case commonv1.NodeKind_NODE_KIND_PACKAGE:
 			// Go-specific symbol kinds (go_type, go_func, …) ride
@@ -189,6 +205,7 @@ func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 					ImportPath: importPath,
 					Directory:  n.GetPath(),
 					Language:   graph.LanguageGo,
+					Internal:   attrs["internal"] == "true",
 				})
 			} else {
 				out.Symbols = append(out.Symbols, graph.SymbolNode{

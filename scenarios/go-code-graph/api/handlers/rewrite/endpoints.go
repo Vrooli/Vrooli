@@ -5,9 +5,10 @@
 //
 //   - Endpoints: the machine-readable descriptors for RewritePlan /
 //     RewriteApply that the codegen + registry walk.
-//   - Schema(): a no-op stub kept here so a future stateful turn
-//     (REQ-P1-002 Operation Log) is a one-line schema swap rather than
-//     a structural change.
+//   - Schema(): the rewrite-domain DDL (rewrite_plans +
+//     rewrite_operation_log) re-exported from internal/rewrite so the
+//     registry's AllSchemas walk picks it up uniformly with other
+//     domains.
 //
 // The handler logic lives in handlers/graph/handler.go where the
 // connect-handler struct holds references to BOTH *intgraph.Service
@@ -16,6 +17,7 @@ package rewrite
 
 import (
 	"go-code-graph/internal/module"
+	intrewrite "go-code-graph/internal/rewrite"
 
 	"github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph/graph_v1connect"
 )
@@ -92,8 +94,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 }
 
-// Schema returns "" — rewrite is stateless in v1. Kept here so the
-// registry's AllSchemas walk is uniform across domains; a future
-// REQ-P1-002 SQLite-backed Operation Log replaces this with the
-// schema DDL.
-func Schema() string { return "" }
+// Schema re-exports the rewrite domain's DDL (rewrite_plans +
+// rewrite_operation_log) for EnsureSchemas. The actual SQL lives in
+// internal/rewrite/schema.sql per the domain-owns-its-tables convention.
+func Schema() string { return intrewrite.Schema() }

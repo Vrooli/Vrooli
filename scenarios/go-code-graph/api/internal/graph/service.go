@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/tools/go/packages"
 )
 
 // Service orchestrates the Extract flow: validate input → acquire the
@@ -66,8 +68,56 @@ func (s *Service) Extract(ctx context.Context, in ExtractInput) (Graph, []Warnin
 		}
 	}
 
+	if !in.IncludeVendor {
+		pkgs = filterVendorPackages(pkgs)
+	}
+
 	graph, warnings := Normalize(pkgs, abs)
 	return graph, warnings, nil
+}
+
+// filterVendorPackages drops packages whose loaded source directory sits
+// inside a `vendor/` subtree of the scenario root. This implements
+// REQ-P1-003: with IncludeVendor=false (the default) vendored packages
+// must not appear in the extracted graph even when the host module
+// vendored its dependencies.
+//
+// Filtering is directory-based, not import-path-based, because Go modules
+// rewrite vendored imports back to their original paths
+// (e.g. github.com/foo/bar) while keeping the source under
+// scenarioRoot/vendor/github.com/foo/bar/. PkgPath alone is therefore
+// not sufficient.
+func filterVendorPackages(pkgs []*packages.Package) []*packages.Package {
+	vendorSeg := string(filepath.Separator) + "vendor" + string(filepath.Separator)
+	out := pkgs[:0:0]
+	for _, p := range pkgs {
+		if p == nil {
+			continue
+		}
+		dir := packageDir(p)
+		if dir == "" {
+			out = append(out, p)
+			continue
+		}
+		if strings.Contains(dir, vendorSeg) {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+// packageDir returns the directory holding a package's first Go file,
+// or "" if the package has no Go files. Used for vendor-filter source
+// classification.
+func packageDir(p *packages.Package) string {
+	if len(p.GoFiles) > 0 {
+		return filepath.Dir(p.GoFiles[0])
+	}
+	if len(p.CompiledGoFiles) > 0 {
+		return filepath.Dir(p.CompiledGoFiles[0])
+	}
+	return ""
 }
 
 // preflightProject inspects the scenario path BEFORE the loader runs

@@ -113,8 +113,8 @@ func main() {
 	graphSvc := intgraph.NewService(loader, pathMutex)
 
 	executor := intrewrite.NewFSExecutor()
-	planStore := intrewrite.NewMemoryStore()
-	rewriteSvc := intrewrite.NewService(planStore, executor, pathMutex)
+	planStore := intrewrite.NewSQLiteStore(db.Primary(), clock.System{})
+	rewriteSvc := intrewrite.NewServiceWithLog(planStore, executor, pathMutex, planStore)
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},

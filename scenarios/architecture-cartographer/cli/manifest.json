@@ -1,7 +1,65 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "architecture-cartographer",
-  "description": "Architecture Cartographer CLI surface. Schema-validated against cli-manifest/v1 and cross-validated against the per-domain Connect-RPC proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. Product-domain groups (graph, manifest, conflicts, signals, apply, analytics) are added as each implementation phase lands; until then this manifest declares only the standard scenario shape.",
-  "groups": [],
-  "omitted": []
+  "description": "Architecture Cartographer CLI surface. Schema-validated against cli-manifest/v1 and cross-validated against the per-domain Connect-RPC proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "graph",
+      "description": "Extract architecture graphs by composing language code-graph adapters",
+      "commands": [
+        {
+          "name": "extract",
+          "description": "Extract a normalized cross-language graph for a target scenario",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name (e.g., 'go-code-graph')"
+            }
+          ],
+          "flags": [
+            {
+              "name": "idempotency-key",
+              "description": "Idempotency-Key passthrough for caller-controlled dedupe"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "ExtractGraph"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "GraphService",
+      "method": "GetGraphSnapshot",
+      "reason": "Snapshots are intermediate state owned by the API; CLI consumers retrieve them via `graph extract <scenario>` which returns the snapshot inline. A standalone `graph get <id>` will land alongside the snapshot-history feature."
+    },
+    {
+      "service": "GraphService",
+      "method": "ListGraphSnapshots",
+      "reason": "Snapshot history is an API-side audit surface; the CLI exposes only the freshest snapshot per scenario today. A `graph list <scenario>` command will land alongside snapshot-history UX."
+    },
+    {
+      "service": "GraphService",
+      "method": "ClearGraphSnapshots",
+      "reason": "Cache invalidation is administrative; will be exposed via an explicit admin-only subcommand once governance metadata for destructive cache ops is finalized."
+    },
+    {
+      "service": "GraphService",
+      "method": "ExportGraph",
+      "reason": "Export is a tooling-side concern (fixture authoring, offline analysis); will land alongside the fixture-validator surface."
+    }
+  ]
 }

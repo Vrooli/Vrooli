@@ -59,9 +59,9 @@ func AllProtoFiles() []ProtoFileEntry {
 // schema (always first; cross-cutting infrastructure runs before any
 // domain table). Consumed by main.go's database.EnsureSchemas call.
 //
-// graph and rewrite are stateless in v1. Their Schema() helpers return
-// "" — included here so a future stateful turn (REQ-P1-002 Operation
-// Log) is a one-line schema swap.
+// graph is stateless in v1; its Schema() returns "". rewrite owns
+// rewrite_plans + rewrite_operation_log (REQ-P1-002) via
+// internal/rewrite/schema.sql.
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),

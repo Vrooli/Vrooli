@@ -34,9 +34,10 @@ var loadMode = packages.NeedFiles |
 	packages.NeedDeps
 
 // Load runs packages.Load with the fixed mode rooted at scenarioPath.
-// IncludeVendor is currently advisory — the underlying loader follows
-// the module's own vendor/ presence; the flag is reserved for REQ-P1-003
-// to gate post-load filtering once that requirement lands.
+// IncludeVendor is honored by Service.Extract via a post-load directory
+// filter (filterVendorPackages); the packages loader itself runs with
+// its default vendor behavior so the wire shape of returned packages is
+// uniform across both branches.
 func (l *PackagesLoaderImpl) Load(ctx context.Context, scenarioPath string, opts LoadOptions) ([]*packages.Package, error) {
 	cfg := &packages.Config{
 		Context: ctx,

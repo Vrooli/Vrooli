@@ -62,6 +62,13 @@ func (c *Client) SupportedLanguages() []graph.Language {
 // language-agnostic RawGraph shape. Connect errors are classified
 // into graph.IntegrationError per classifyConnectError.
 func (c *Client) Extract(ctx context.Context, scenario string) (graph.RawGraph, error) {
+	if c.baseURL == "" {
+		return graph.RawGraph{}, graph.IntegrationError{
+			Kind:     "scenario_unreachable",
+			Scenario: ScenarioName,
+			Cause:    errors.New("empty baseURL: discovery layer did not resolve typescript-code-graph"),
+		}
+	}
 	resp, err := c.rpc.Extract(ctx, connect.NewRequest(&graphv1.ExtractRequest{
 		ScenarioPath: scenario,
 	}))

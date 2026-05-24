@@ -5,6 +5,8 @@ import (
 	"go/token"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -58,9 +60,14 @@ func Normalize(pkgs []*packages.Package, scenarioRoot string) (Graph, []Warning)
 				Attributes: map[string]string{
 					"language":    string(LanguageGo),
 					"import_path": p.PkgPath,
+					"internal":    boolAttr(isInternalImportPath(p.PkgPath)),
 				},
 			})
 		}
+
+		// Index syntax files by absolute path so we can count source lines
+		// without a second filesystem read.
+		linesByAbs := fileLineCounts(p)
 
 		// File nodes, sorted by basename.
 		files := append([]string(nil), p.GoFiles...)
@@ -76,6 +83,8 @@ func Normalize(pkgs []*packages.Package, scenarioRoot string) (Graph, []Warning)
 				Attributes: map[string]string{
 					"language":   string(LanguageGo),
 					"package_id": pkgID,
+					"is_test":    boolAttr(isTestFile(abs)),
+					"lines":      intAttr(linesByAbs[abs]),
 				},
 			})
 		}
@@ -101,6 +110,9 @@ func Normalize(pkgs []*packages.Package, scenarioRoot string) (Graph, []Warning)
 				Kind: EdgeKindImport,
 				From: pkgID,
 				To:   toID,
+				Attributes: map[string]string{
+					"test_only": boolAttr(false),
+				},
 			})
 		}
 	}
@@ -270,6 +282,61 @@ func boolAttr(b bool) string {
 		return "true"
 	}
 	return "false"
+}
+
+// intAttr renders a non-negative int as its decimal string.
+func intAttr(n int) string {
+	if n < 0 {
+		n = 0
+	}
+	return strconv.Itoa(n)
+}
+
+// isTestFile returns true when the file basename ends in "_test.go", the
+// Go convention for test files. Today the loader is configured with
+// Tests:false, so test files do not appear in p.GoFiles and this returns
+// false for every emitted file. The attribute is still emitted so the
+// wire shape is stable for consumers and a future Tests:true switch
+// produces meaningful values without a fixture re-cut.
+func isTestFile(absPath string) bool {
+	return strings.HasSuffix(filepath.Base(absPath), "_test.go")
+}
+
+// isInternalImportPath returns true when path matches the Go convention
+// for internal-only packages: either starts with "internal/" or contains
+// "/internal/" or "/internal" as a trailing segment.
+func isInternalImportPath(path string) bool {
+	if path == "internal" || strings.HasPrefix(path, "internal/") {
+		return true
+	}
+	if strings.Contains(path, "/internal/") || strings.HasSuffix(path, "/internal") {
+		return true
+	}
+	return false
+}
+
+// fileLineCounts returns a map from absolute file path to the file's
+// last line number, computed from p.Fset. Files whose syntax was not
+// parsed (or whose Fset entry is missing) get a zero count.
+func fileLineCounts(p *packages.Package) map[string]int {
+	out := make(map[string]int, len(p.GoFiles))
+	if p.Fset == nil {
+		return out
+	}
+	for _, syn := range p.Syntax {
+		if syn == nil {
+			continue
+		}
+		pos := p.Fset.Position(syn.End())
+		if pos.Filename == "" {
+			continue
+		}
+		// End() points at the byte after the last token; Line is the
+		// physical line of that position. For well-formed Go files this
+		// is the line of the trailing newline.
+		out[pos.Filename] = pos.Line
+	}
+	return out
 }
 
 // relPath returns the scenario-rooted relative path when scenarioRoot

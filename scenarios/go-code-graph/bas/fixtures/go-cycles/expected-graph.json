@@ -7,8 +7,16 @@
       "path": "pkga/a.go",
       "attributes": [
         [
+          "is_test",
+          "false"
+        ],
+        [
           "language",
           "go"
+        ],
+        [
+          "lines",
+          "16"
         ],
         [
           "package_id",
@@ -23,8 +31,16 @@
       "path": "pkgb/b.go",
       "attributes": [
         [
+          "is_test",
+          "false"
+        ],
+        [
           "language",
           "go"
+        ],
+        [
+          "lines",
+          "16"
         ],
         [
           "package_id",
@@ -139,6 +155,10 @@
           "github.com/vrooli/fixtures/go-cycles/pkga"
         ],
         [
+          "internal",
+          "false"
+        ],
+        [
           "language",
           "go"
         ]
@@ -155,6 +175,10 @@
           "github.com/vrooli/fixtures/go-cycles/pkgb"
         ],
         [
+          "internal",
+          "false"
+        ],
+        [
           "language",
           "go"
         ]
@@ -166,7 +190,13 @@
       "id": "import:package:github.com/vrooli/fixtures/go-cycles/pkgb->package:github.com/vrooli/fixtures/go-cycles/pkga",
       "kind": "import",
       "from": "package:github.com/vrooli/fixtures/go-cycles/pkgb",
-      "to": "package:github.com/vrooli/fixtures/go-cycles/pkga"
+      "to": "package:github.com/vrooli/fixtures/go-cycles/pkga",
+      "attributes": [
+        [
+          "test_only",
+          "false"
+        ]
+      ]
     }
   ]
 }

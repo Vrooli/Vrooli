@@ -131,9 +131,21 @@ func main() {
 	clk := clock.System{}
 	primary := db.Primary()
 
+	// Register only the code-graph adapters whose discovery URL is
+	// configured. Operators wire each scenario via env (GO_CODE_GRAPH_URL,
+	// TYPESCRIPT_CODE_GRAPH_URL); unconfigured adapters are intentionally
+	// omitted so a missing target language returns a clean "no adapter
+	// registered" error rather than per-call scenario_unreachable noise.
+	adapters := make([]graph.CodeGraphAdapter, 0, 2)
+	if u := strings.TrimSpace(os.Getenv("GO_CODE_GRAPH_URL")); u != "" {
+		adapters = append(adapters, gocodegraph.New(u))
+	}
+	if u := strings.TrimSpace(os.Getenv("TYPESCRIPT_CODE_GRAPH_URL")); u != "" {
+		adapters = append(adapters, tscodegraph.New(u))
+	}
 	graphSvc := graph.NewService(
 		graph.NewSQLiteRepository(primary, clk), clk,
-		gocodegraph.New(""), tscodegraph.New(""),
+		adapters...,
 	)
 	manifestSvc := manifest.NewService(manifest.NewSQLiteRepository(primary, clk))
 	analyticsSvc := analytics.NewService(analytics.NewSQLiteRepository(primary, clk))

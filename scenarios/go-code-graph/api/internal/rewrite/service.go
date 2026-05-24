@@ -19,13 +19,27 @@ type Service struct {
 	store    PlanStore
 	executor RewriteExecutor
 	mu       *intgraph.PathMutex
+	oplog    OperationLog
 }
 
-// NewService wires the production Service. The same *intgraph.PathMutex
-// instance must be shared with the graph domain so concurrent
-// Extract/Apply calls for the same scenario_path serialize (OT-P0-006).
+// NewService wires the production Service with a no-op operation log.
+// The same *intgraph.PathMutex instance must be shared with the graph
+// domain so concurrent Extract/Apply calls for the same scenario_path
+// serialize (OT-P0-006). Callers that want REQ-P1-002 persistent
+// audit rows should use NewServiceWithLog.
 func NewService(store PlanStore, executor RewriteExecutor, mu *intgraph.PathMutex) *Service {
-	return &Service{store: store, executor: executor, mu: mu}
+	return NewServiceWithLog(store, executor, mu, NoopOperationLog{})
+}
+
+// NewServiceWithLog wires the production Service with an explicit
+// OperationLog (REQ-P1-002). Pass *SQLiteStore (which satisfies both
+// PlanStore and OperationLog) to get durable audit rows; tests wire
+// NoopOperationLog (the default) so apply paths stay disk-free.
+func NewServiceWithLog(store PlanStore, executor RewriteExecutor, mu *intgraph.PathMutex, oplog OperationLog) *Service {
+	if oplog == nil {
+		oplog = NoopOperationLog{}
+	}
+	return &Service{store: store, executor: executor, mu: mu, oplog: oplog}
 }
 
 // Plan validates, normalizes, hashes, persists, and returns the plan.
@@ -136,6 +150,10 @@ func (s *Service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 			Message:   execErr.Error(),
 		})
 	}
+	// Record the per-op outcome to the operation log. We swallow the
+	// log error and surface only the apply result — audit failure must
+	// not mask a successful (or partially successful) apply.
+	_ = s.oplog.RecordApply(ctx, plan.ID, results)
 	return ApplyResult{PlanID: plan.ID, Results: results, DryRun: false}, nil
 }
 
