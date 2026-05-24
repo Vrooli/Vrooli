@@ -78,6 +78,18 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | The fake under `internal/testutil/mocks/` (cross-domain) or `internal/<dom>/mocks/` (per-domain) that substitutes. |
 | **Why it exists** | The class of bug it prevents or the test ergonomic it enables. |
 
+## Seam Registry
+
+The authoritative quick-reference table. Detailed rows for each seam follow below.
+
+| Seam | Interface | Production wiring | Test wiring | Owner package |
+|---|---|---|---|---|
+| `clock.Clock` | `internal/clock/clock.go::Clock` (`Now() time.Time`) | `clock.System{}` constructed in `api/main.go`; passed via `server.Deps`. | `internal/testutil/mocks::FakeClock` (`Now`, `Advance`, `SetNow`). | `internal/clock` |
+| `httpc.Doer` | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) | Production `*http.Client` (satisfies `Doer` directly); first outbound consumer wires it from `main.go`. | `internal/testutil/mocks::FakeDoer` (canned response queue, recorded request log). | `internal/httpc` |
+| `graph.PackagesLoader` | `internal/graph/loader.go::PackagesLoader` (`Load(ctx, scenarioPath string, opts LoadOptions) ([]*packages.Package, error)`) | `PackagesLoaderImpl` constructed via `graph.NewPackagesLoader()` in `main.go` with the fixed load mode `NeedFiles \| NeedImports \| NeedTypes \| NeedSyntax \| NeedTypesInfo \| NeedName \| NeedDeps`. | `internal/graph/mocks::FakeLoader` (canned `[]*packages.Package` from `bas/fixtures/`). | `internal/graph` |
+| `rewrite.RewriteExecutor` | `internal/rewrite/executor.go::RewriteExecutor` (`Execute(ctx context.Context, scenarioRoot string, op Operation) error`) | `FSExecutor` constructed via `rewrite.NewFSExecutor()` in `main.go`; uses `os.Rename` for `FileMove` and `go/parser` + `go/printer` for `ImportRewrite`. | `internal/rewrite/mocks::FakeExecutor` (records ops, optional panic-after-N for partial-failure tests). | `internal/rewrite` |
+| `rewrite.PlanStore` | `internal/rewrite/store.go::PlanStore` (`Save(ctx, Plan) error`, `Load(ctx, PlanID) (Plan, bool, error)`) | `MemoryStore` constructed via `rewrite.NewMemoryStore()` in `main.go`. In-memory `sync.Map`; plans do not persist across restarts (see [`PROBLEMS.md`](PROBLEMS.md)). | `internal/rewrite/mocks::FakeStore` (deterministic, no TTL). | `internal/rewrite` |
+
 ## Current seams
 
 ### Clock
@@ -106,49 +118,9 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Shared api-core schema execution surface |
 | **Interface** | `api-core/database::SchemaExecer` (`ExecContext(ctx, query, args...)`) consumed by `database.EnsureSchemas`. |
-| **Production wiring** | `main.go` and sqlite tests pass a real `*sql.DB`; the notes sqlite helper composes scenario-specific providers (`localdb.SystemSchema`, `notes.Schema`) before applying them. |
+| **Production wiring** | `main.go` passes a real `*sql.DB`. This scenario carries no per-domain schemas in v1 (the `graph` domain is stateless; `rewrite` plans live in an in-memory store), so the registry composes only `localdb.SystemSchema`. |
 | **Test fake** | `api-core/databasetest::FakeExecer` is the canonical fake when a test needs to assert schema application order or injected execution failures without opening a real database. |
-| **Why it exists** | Schema application is shared-package behavior, but each scenario owns its provider list. Keep scenario-specific schema composition local; use `databasetest.FakeExecer` only for tests of code that consumes the shared `SchemaExecer` interface directly. |
-
-### notes.Repository (notes persistence)
-
-| | |
-|---|---|
-| **Seam** | Notes persistence (CRUD) |
-| **Interface** | `internal/notes/repository.go::Repository` (`Create`, `Get`, `List`) |
-| **Production wiring** | `handlers/notes/module.go::Module(...)` constructs `notes.NewSQLiteRepository(db, clk)` and passes it into `notes.NewService(repo)`. `main.go` only sees the returned `module.Module`; note-specific dependencies do not appear on `server.Deps`. Wire shape lives in `packages/proto/schemas/go-code-graph/v1/notes/notes.proto`. |
-| **Test fake** | `internal/notes/mocks::FakeRepository` (co-located with the domain — in-memory slice, per-method error knobs `CreateErr` / `GetErr` / `ListErr`, atomic call counters). Used by `internal/notes/service_test.go` to drive the service against a controllable persistence layer. |
-| **Why it exists** | Repository owns the persistence contract — sqlite SQL today, anything else tomorrow. The handler depends on `notes.Service`, not directly on the repository, so a backend swap doesn't ripple through transport. The repository test in `internal/notes/sqlite_test.go` substitutes the real handle to pin SQL semantics (ordering, limit, RFC3339 round-trip). |
-
-### notes.Service (notes application layer)
-
-| | |
-|---|---|
-| **Seam** | Notes application surface (validation, defaults, cross-handler policy) |
-| **Interface** | `internal/notes/service.go::Service` (`Create(CreateInput) → Note`, `Get(id) → Note`, `List(limit) → []Note`) |
-| **Production wiring** | `handlers/notes/module.go::Module(db, clk, logger)` constructs `notes.NewSQLiteRepository(db, clk)` then `notes.NewService(repo)` then `NewConnectHandler(Deps{Service: svc, Logger: logger})` — fully internal to the notes module. `main.go` only sees the `module.Module` returned from that constructor; per-domain services don't appear on `server.Deps`. The handler imports `internal/notes` for both the interface and the typed sentinels (`ErrInvalidNote`, `ErrNoteNotFound`) it translates at the transport edge. |
-| **Test fake** | `internal/notes/mocks::FakeService` (co-located with the domain — records `CreateInputs`, returns canned `CreateOut` / `GetByID` / `ListOut`, per-method error knobs). Used by `handlers/notes/connect_handler_test.go` to drive the handler without validation/repository plumbing in scope. |
-| **Why it exists** | Validation (`title required` after whitespace trim) and default substitution (`defaultListLimit = 100` when caller passes 0) are business policy, not transport policy. Putting them in the service keeps the handler thin and makes the same rules reachable from any future surface (batch jobs, scheduled imports, additional RPCs) without copy-paste. Two-mock split (`FakeRepository` for service tests, `FakeService` for handler tests) means handler tests don't seed sqlite-shaped state to assert routing. |
-
-### notes.AttachmentsRepository (attachment metadata persistence)
-
-| | |
-|---|---|
-| **Seam** | Note attachment metadata persistence |
-| **Interface** | `internal/notes/repository.go::AttachmentsRepository` (`CreateAttachment`, `ListAttachmentKeys`) |
-| **Production wiring** | `handlers/notes/module.go::Module(...)` constructs `notes.NewSQLiteAttachmentsRepository(db, clk)` (declared in `internal/notes/sqlite.go`, methods in `attachments_sqlite.go`) and passes it into `notes.NewAttachmentsService(...)`. The opaque file bytes go to `BlobStore` (separate seam below); only the typed metadata row passes through this interface. |
-| **Test fake** | `internal/notes/mocks::FakeAttachmentsRepository` (co-located with the domain — in-memory `Attachments` slice, per-method error knobs `CreateErr` / `ListErr`, atomic call counters, UploadedAt backfill mirroring the sqlite repository). Used by `internal/notes/attachments_service_test.go` to drive the attachments service against a controllable persistence layer. |
-| **Why it exists** | Splitting attachment-metadata persistence from notes persistence keeps the per-method surface narrow (the notes repository never grows attachment-shaped methods) and lets the attachments service remain transport-agnostic. The repository test in `internal/notes/sqlite_test.go::TestSQLiteRepository_AttachmentMetadataRoundTrip` substitutes the real handle to pin SQL semantics; service tests use the fake. |
-
-### notes.AttachmentsService (attachment application layer)
-
-| | |
-|---|---|
-| **Seam** | Note attachment application surface (validation, parent-note lookup, repository delegation) |
-| **Interface** | `internal/notes/attachments_service.go::AttachmentsService` (`Create(CreateAttachmentInput) → Attachment`) |
-| **Production wiring** | `handlers/notes/module.go::Module(...)` constructs `notes.NewAttachmentsService(notesRepo, attachmentsRepo)` then passes it as `AttachmentsDeps.Service` into `NewAttachmentsHandler(...)`. The handler is the multipart REST exception (the only non-Connect transport in the notes domain); the service stays unaware of multipart and HTTP. |
-| **Test fake** | `internal/notes/mocks::FakeAttachmentsService` (records `CreateInputs`, returns canned `CreateOut` or synthesises an Attachment from the input, gated on `CreateErr`). Available for any future handler test that wants to assert routing/multipart wiring without standing up the real notes-and-attachments service tree. |
-| **Why it exists** | Attachment validation (note id + key required after trim, positive size, parent note must exist) is business policy; multipart parsing and BlobStore I/O are transport policy. Keeping them split means a future scenario that adds a non-multipart attachment surface (CLI direct upload, scheduled import, gRPC stream) reuses the same validation without copy-paste. Two-mock split (`FakeAttachmentsRepository` for service tests, `FakeAttachmentsService` for handler tests) mirrors the notes Repository/Service convention. |
+| **Why it exists** | Schema application is shared-package behavior, but each scenario owns its provider list. Use `databasetest.FakeExecer` only for tests of code that consumes the shared `SchemaExecer` interface directly. |
 
 ### Connect router (proto-typed transport)
 
@@ -176,8 +148,8 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Declarative CLI command surface — single source of truth for groups, commands, args, governance, and proto-method bindings. |
 | **Interface** | `cli/manifest.json` validated against `.vrooli/schemas/cli-manifest.schema.json` (`cli-manifest/v1`); resolved via `repocontract.ScenarioCLIManifestPath`; consumed by `cliapp.LoadFromManifest(raw, groupName, bindings)` where `bindings` is `map["<Service>.<Method>"]func(RunContext) error`. |
-| **Production wiring** | `cli/manifest_embed.go` embeds the manifest bytes; `cli/app.go` passes them to `domains.SubcommandGroups(core, manifest)`; each domain's `Register(core, manifest)` calls `cliapp.LoadFromManifest` with its group name and a bindings map keyed by `Service.Method`. The `notes attach` REST exception is appended outside the manifest path because cli-manifest/v1 only models `binding.kind=connect-rpc`. |
-| **Test fake** | `cli-core/cliapp::RequireProtoServiceCoverage(t, manifest, fd, serviceName)` asserts every RPC on the bound proto service has either a binding or an entry in the manifest's `omitted` array — see `cli/domains/notes/notes_manifest_test.go`. `cliapp.ParseManifest` covers structural validation in isolation. |
+| **Production wiring** | `cli/manifest_embed.go` embeds the manifest bytes; `cli/app.go` passes them to `domains.SubcommandGroups(core, manifest)`; each domain's `Register(core, manifest)` calls `cliapp.LoadFromManifest` with its group name and a bindings map keyed by `Service.Method`. This scenario has no REST exceptions in v1 — every binding is `kind=connect-rpc`. |
+| **Test fake** | `cli-core/cliapp::RequireProtoServiceCoverage(t, manifest, fd, serviceName)` asserts every RPC on the bound proto service has either a binding or an entry in the manifest's `omitted` array — see `cli/domains/graph/manifest_test.go`. `cliapp.ParseManifest` covers structural validation in isolation. |
 | **Why it exists** | Without this seam, adding a new RPC to the proto compiles fine while the CLI silently lacks a corresponding command, and prompt-manager has no governance signal — every action falls back to `CertaintyOwnerOnly` and is rejected. The manifest crystallises both the command surface and the safety properties (effect, run_eligible, permissions, requires_confirmation) so the coverage test fails fast and prompt-manager can derive certainty automatically. |
 
 ### BlobStore (opaque bytes)
@@ -186,9 +158,9 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Binary object storage for REST multipart edges |
 | **Interface** | `api-core/blobstore::BlobStore` (`Put`, `Get`, `Delete`) |
-| **Production wiring** | A domain module that exposes multipart endpoints owns its blob store. The notes reference resolves filesystem-backed storage in `handlers/notes/module.go::defaultBlobStore()`; tests inject `blobstore.NewMemoryBlobStore()` through `ModuleWithBlobStore(...)`. |
-| **Test fake** | `api-core/blobstore.MemoryBlobStore` or a domain-local fake lets handler tests assert metadata and failure behavior without touching the filesystem. |
-| **Why it exists** | Connect-RPC is the default for proto-typed payloads, but opaque bytes are not proto payloads. Keeping bytes behind `BlobStore` lets the handler stay transport-focused and lets future scenarios swap filesystem, S3, or another object store without changing domain services. |
+| **Production wiring** | Unwired in this scenario in v1: neither `graph` nor `rewrite` exposes a multipart endpoint. Documented here as the canonical pattern for any future domain that needs opaque-bytes ingress. |
+| **Test fake** | `api-core/blobstore.MemoryBlobStore` is the standard fake when a future domain wires this seam. |
+| **Why it exists** | Connect-RPC is the default for proto-typed payloads, but opaque bytes are not proto payloads. Keeping bytes behind `BlobStore` lets a future multipart handler stay transport-focused and lets the scenario swap filesystem, S3, or another object store without changing domain services. |
 
 ### module.Module (domain composition)
 
@@ -196,8 +168,8 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Domain-to-server composition; the contract every handler package returns from its `Module(...)` constructor. |
 | **Interface** | `internal/module/module.go::Module` (`Name string`, `Mount func(r *mux.Router)`, `Endpoints []EndpointDescriptor`). Data type, not behaviour — modules don't have methods. |
-| **Production wiring** | `main.go` calls `healthH.Module(...)`, `notesH.Module(...)`, ..., and passes the slice to `server.New(deps, modules...)`. The server iterates `m.Mount(s.router)` after registering the logging middleware. |
-| **Test fake** | A literal `module.Module{Name: "stub", Mount: func(r){...}}` in `internal/server/server_test.go` proves the iteration; per-domain `module_test.go` files (`handlers/notes/module_test.go`, `handlers/health/module_test.go`) exercise the real constructors against in-memory fixtures. |
+| **Production wiring** | `main.go` calls `healthH.Module(...)`, `graphH.Module(...)`, `rewriteH.Module(...)`, and passes the slice to `server.New(deps, modules...)`. The server iterates `m.Mount(s.router)` after registering the logging middleware. |
+| **Test fake** | A literal `module.Module{Name: "stub", Mount: func(r){...}}` in `internal/server/server_test.go` proves the iteration; per-domain `module_test.go` files (`handlers/graph/module_test.go`, `handlers/rewrite/module_test.go`, `handlers/health/module_test.go`) exercise the real constructors against in-memory fixtures. |
 | **Why it exists** | Eliminates the central registry that would otherwise grow per-domain fields on `server.Deps` and per-domain wiring lines in `routes.go`. Adding a domain means creating files; deleting one means removing files. The endpoint descriptors travel with the module, so `.vrooli/endpoints.json` codegen has a single source per domain (no manual JSON editing). |
 
 ### Endpoints codegen (manifest source-of-truth)
@@ -220,16 +192,6 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | None. The system file ships empty in the template and is verified empty by `internal/database/system_test.go::TestSystemSchema_IsEmpty` (a deliberate tripwire — adding a `CREATE TABLE` here forces a "yes, this is genuinely cross-cutting" decision). |
 | **Why it exists** | Some bits don't belong to any one domain — postgres extensions, type definitions, reporting views. Putting them in a domain package would force fictional ownership. The system home is honest: cross-cutting goes here, single-domain bits go in `internal/<dom>/schema.sql`. |
 
-### notes.Schema (per-domain schema)
-
-| | |
-|---|---|
-| **Seam** | Notes domain SQL contribution |
-| **Interface** | `internal/notes/schema.go::Schema() string` (consumed via `handlers/notes/module.go::Schema` re-export, then `api-core/database.SchemaProvider`) |
-| **Production wiring** | `internal/modules/registry.go::AllSchemas()` includes `apidb.SchemaProviderFunc(notesH.Schema)`; applied at boot via `apidb.EnsureSchemas`. |
-| **Test fake** | `internal/notes/sqlite_test.go::newSchemaDB` uses `db.NewSQLite(t)` + `apidb.EnsureSchemas(...)` with the system + notes providers. Repository tests get a fresh table without touching the central registry. |
-| **Why it exists** | Domain ownership of the schema. Adding a column lands in the same diff as the Go change. Deleting `internal/notes/` deletes the table definition with it, so removed domains do not leave tables created on boot. The `handlers/notes/module.go::Schema` re-export keeps the registry's import surface narrow — it imports handler packages, not their internal peers. |
-
 ### Doer (outbound HTTP)
 
 | | |
@@ -240,45 +202,45 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
-### PackagesLoader (Go parser delegation) — planned
+### PackagesLoader (Go parser delegation)
 
 | | |
 |---|---|
-| **Seam** | The single point where `golang.org/x/tools/go/packages.Load` is invoked. Hides the parser library from the rest of the `graph` domain so tests can substitute deterministic graph fixtures without spinning up real `go/packages` loads. |
-| **Interface** | `internal/graph/loader.go::PackagesLoader` (`Load(ctx, dir string) ([]*packages.Package, error)` — planned). |
-| **Production wiring** | `main.go` constructs `graph.GoPackagesLoader{Config: ...}` with the fixed load mode (`NeedFiles \| NeedImports \| NeedTypes \| NeedSyntax \| NeedTypesInfo \| NeedName \| NeedDeps`) and passes it via `server.Deps`. |
+| **Seam** | The single point where `golang.org/x/tools/go/packages.Load` is invoked. Hides the parser library from the rest of the `graph` domain so tests substitute deterministic graph fixtures without spinning up real `go/packages` loads. |
+| **Interface** | `internal/graph/loader.go::PackagesLoader` (`Load(ctx, scenarioPath string, opts LoadOptions) ([]*packages.Package, error)`). |
+| **Production wiring** | `main.go` constructs `graph.NewPackagesLoader()` (returns `*PackagesLoaderImpl`) with the fixed load mode `NeedFiles \| NeedImports \| NeedTypes \| NeedSyntax \| NeedTypesInfo \| NeedName \| NeedDeps`. Compile-time check: `var _ PackagesLoader = (*PackagesLoaderImpl)(nil)`. |
 | **Test fake** | `internal/graph/mocks::FakeLoader` (returns canned `[]*packages.Package` fixtures from `bas/fixtures/`). |
 | **Why it exists** | Real `go/packages.Load` is slow and requires an on-disk module. Unit tests that exercise normalization, warning aggregation, and graph-hash determinism must not spin it up. The seam also fixes the load mode in production so consumers can rely on byte-stable output. |
 
-### RewriteExecutor (file mutation) — planned
+### RewriteExecutor (file mutation)
 
 | | |
 |---|---|
-| **Seam** | The point where file moves and AST-level import rewrites mutate disk. Substituted in tests so apply semantics (atomic per-op, mid-state on crash) can be exercised without dirtying a real filesystem. |
-| **Interface** | `internal/rewrite/executor.go::Executor` (`ApplyOp(ctx, op Operation) error` — planned). |
-| **Production wiring** | `main.go` constructs `rewrite.OSExecutor{FS: realFS, GoAST: realASTRewriter}` and passes it via `server.Deps`. |
-| **Test fake** | `internal/rewrite/mocks::FakeExecutor` (in-memory file map with optional panic-after-N injection for partial-failure tests). |
-| **Why it exists** | Apply semantics intentionally leave disk torn on mid-op failure; verifying that contract requires a substituable executor that can panic deterministically. Real filesystem races would also flake tests. |
+| **Seam** | The point where file moves and AST-level import rewrites mutate disk. Substituted in tests so apply semantics (per-op status, partial-failure surfacing) can be exercised without dirtying a real filesystem. |
+| **Interface** | `internal/rewrite/executor.go::RewriteExecutor` (`Execute(ctx context.Context, scenarioRoot string, op Operation) error`). |
+| **Production wiring** | `main.go` constructs `rewrite.NewFSExecutor()` (returns `*FSExecutor`). `FileMove` uses `os.Rename`; `ImportRewrite` walks `.go` files with `go/parser` + `go/printer`. Never invokes `git` or `go build` (enforced by `internal/rewrite/no_external_command_test.go`). |
+| **Test fake** | `internal/rewrite/mocks::FakeExecutor` (records ops, optional error-after-N injection for partial-failure tests). |
+| **Why it exists** | Apply semantics intentionally leave disk torn on mid-op failure; verifying that contract requires a substitutable executor that can fail deterministically. Real filesystem races would also flake tests. |
 
-### PlanRegistry (in-process plan store) — planned
-
-| | |
-|---|---|
-| **Seam** | The in-process map holding `RewritePlan` results keyed by `plan_id` with 5-minute TTL. Substitutable so apply tests can construct plans without round-tripping `RewritePlan` first. |
-| **Interface** | `internal/rewrite/registry.go::PlanRegistry` (`Get(planID) (Plan, bool); Put(planID, plan, ttl)` — planned). |
-| **Production wiring** | `main.go` constructs `rewrite.NewMemoryPlanRegistry(clock.System{}, 5*time.Minute)` and passes it via `server.Deps`. |
-| **Test fake** | `internal/rewrite/mocks::FakePlanRegistry` (deterministic, no TTL — explicit removal only) combined with `FakeClock` for TTL-expiry tests. |
-| **Why it exists** | TTL expiry must be exercised in tests, and tests must not need to run for 5 real minutes. The clock seam plus a deterministic registry makes that mechanical. |
-
-### PathMutex (per-path serialization) — planned
+### PlanStore (in-process plan store)
 
 | | |
 |---|---|
-| **Seam** | The registry of per-path mutexes that serializes concurrent extraction and apply on the same `scenario_path`. Substitutable so concurrency tests can use a deterministic-ordering fake to surface ordering bugs. |
-| **Interface** | `internal/graph/pathmutex.go::PathMutex` (`Lock(path string) (unlock func(), err error)` — planned). |
-| **Production wiring** | `main.go` constructs `graph.NewPathMutexRegistry()` (a `sync.Map` of `sync.Mutex`) and passes it via `server.Deps`. |
-| **Test fake** | `internal/graph/mocks::FakePathMutex` (records lock/unlock order, lets tests force interleavings). |
-| **Why it exists** | Concurrent-access bugs are the highest-risk class of bug in this scenario. The seam lets tests exercise ordering deterministically rather than relying on race-detector luck. |
+| **Seam** | The in-process map holding `RewritePlan` results keyed by `plan_id`. Substitutable so apply tests can construct plans without round-tripping `RewritePlan` first. |
+| **Interface** | `internal/rewrite/store.go::PlanStore` (`Save(ctx, Plan) error`, `Load(ctx, PlanID) (Plan, bool, error)`). |
+| **Production wiring** | `main.go` constructs `rewrite.NewMemoryStore()` (returns `*MemoryStore`, a `sync.Map`). Plans do not expire in v1 and do not persist across restarts — see [`PROBLEMS.md`](PROBLEMS.md). |
+| **Test fake** | `internal/rewrite/mocks::FakeStore` (deterministic in-memory map; explicit removal only). |
+| **Why it exists** | Apply tests need to seed a known plan without exercising the planning code path. The seam also pre-positions us for the SQLite-backed Operation Log (REQ-P1-002) without ripping up service callers. |
+
+### PathMutex (per-path serialization)
+
+| | |
+|---|---|
+| **Seam** | The registry of per-path mutexes that serializes concurrent extraction and apply on the same `scenario_path`. Lives inside the `graph` package; both `graph.Service` and `rewrite.Service` consume the same instance via `server.Deps` so cross-domain calls for the same path serialize. |
+| **Interface** | `internal/graph/mutex.go::PathMutex` (concrete type, not interface — `Lock(path string) (unlock func())`). Substitution happens at the consumer level: tests construct their own `*PathMutex` (or no mutex at all) per case rather than mocking the type. |
+| **Production wiring** | `main.go` constructs a single `graph.NewPathMutex()` and passes it into both `graph.NewService(...)` and `rewrite.NewService(...)`. Keyed by `filepath.Abs(scenarioPath)`. |
+| **Test fake** | None. Concurrency tests (`internal/graph/mutex_test.go`) drive the real type with controlled goroutine interleavings via `testing.T.Parallel()` + channel sync. |
+| **Why it exists** | `go/packages.Load` is CPU-heavy and not safe to run concurrently against the same module; `Rewrite apply` mutating the same files concurrently with `Extract` is incoherent. The mutex makes the serialization invariant mechanical. The memory-leak risk (unbounded map growth) is recorded in [`PROBLEMS.md`](PROBLEMS.md). |
 
 ## Adding a new seam
 
@@ -301,34 +263,12 @@ why a boundary lives where it does and what still needs follow-up.
 
 ### Domain-scoped packages, not generic `services/`
 
-When a seam belongs to a domain (notes, tasks, users, …), it lives in
+When a seam belongs to a domain (graph, rewrite, …), it lives in
 `internal/<domain>/`, NOT in `internal/database/` or
-`internal/services/`. The notes package is the canonical example — copy
-its layout:
-
-```
-internal/notes/
-  types.go         # Note, CreateInput, ErrInvalidNote, ErrNoteNotFound
-  repository.go    # Repository interface
-  sqlite.go        # NewSQLiteRepository (production impl)
-  sqlite_test.go   # Repository tests against real sqlite
-  service.go       # Service interface + impl (validation, defaults)
-  service_test.go  # Service tests against FakeRepository
-  schema.sql       # Domain-owned table DDL (Pass-3 pattern)
-  schema.go        # //go:embed schema.sql + Schema() string
-  schema_test.go   # Embed-content tripwire
-  mocks/           # Co-located test fakes (package mocks)
-    repository.go
-    service.go
-    repository_test.go
-    service_test.go
-```
-
-Mocks are co-located under `internal/<dom>/mocks/`, NOT under
-`internal/testutil/mocks/`. `mocks/repository.go` defines
-`FakeRepository`; `mocks/service.go` defines `FakeService`. Deleting
-`internal/<dom>/` takes the mocks, schema, and tests along in one
-sweep.
+`internal/services/`. The `graph` and `rewrite` packages are the
+canonical examples in this scenario — domain-local types, seams,
+service, and `mocks/` directory all sit together. Deleting
+`internal/<dom>/` takes the mocks and tests along in one sweep.
 
 `internal/database/` retains only cross-cutting infrastructure
 (`Pinger`, `SystemSchema` for the empty/cross-cutting SQL home) —
@@ -393,11 +333,11 @@ the goal is the same: production wires once, tests substitute.
 
 | | |
 |---|---|
-| **Seam** | UI ↔ API per-domain endpoints (canonical CRUD reference: `api/notes.ts`) |
-| **Module** | `ui/src/api/notes.ts` exports `notesClient = createClient(NotesService, transport)` and `uploadAttachment(...)` for the multipart REST exception. |
-| **Production wiring** | Feature components wire generated client methods through `useQuery` / `useMutation`, for example `notesClient.listNotes({})` and `notesClient.createNote({ title, body })`. Multipart flows call `uploadAttachment`, which uses `FormData` plus `uploadFile()` and returns generated metadata. |
-| **Test fake** | Component tests use inline `vi.mock("./api/notes", async (importOriginal) => ...)` and replace `notesClient` methods or `uploadAttachment`. Factories build generated proto types, including `Timestamp` values. |
-| **Why it exists** | The canonical per-domain client pattern. Mirror this shape when adding a second domain client: export the generated Connect client, keep binary-upload helpers beside it when needed, and let components consume typed results rather than hand-written response interfaces. |
+| **Seam** | UI ↔ API per-domain endpoints |
+| **Module** | `ui/src/api/graph.ts` (planned) exports the generated `GoCodeGraphService` client via `createClient(GoCodeGraphService, transport)`. UI is out of scope for v1; this row records the contract for the eventual Graph Explorer (REQ-P0-009). |
+| **Production wiring** | Feature components wire generated client methods through `useQuery` / `useMutation` (e.g. `graphClient.extract({ scenarioPath })`). |
+| **Test fake** | Component tests use inline `vi.mock("./api/graph", async (importOriginal) => ...)` and replace client methods. Factories build generated proto types. |
+| **Why it exists** | The canonical per-domain client pattern. Export the generated Connect client and let components consume typed results rather than hand-written response interfaces. |
 
 ### ErrorBoundary (render-error catch)
 

@@ -184,6 +184,44 @@ For detailed product ownership, update [`DOMAINS.md`](DOMAINS.md).
 For persistence and retention, update [`DATA.md`](DATA.md). For
 temporal behavior, update [`FLOWS.md`](FLOWS.md).
 
+## Zone Map
+
+Every product path lives in exactly one of these layers. Add a row when a new directory appears; do not let domain logic leak into a transport-edge or infra row.
+
+| Path | Layer | Owner | Purpose |
+|---|---|---|---|
+| `api/handlers/health` | Transport edge | health | Liveness probe (template-inherited; only REST-shaped surface). |
+| `api/handlers/graph` | Transport edge | graph + rewrite | Connect-RPC handlers for `GoCodeGraphService`. Owns all three RPC mounts (`Extract`, `RewritePlan`, `RewriteApply`) on a single service. |
+| `api/handlers/rewrite` | Registry | rewrite | EndpointDescriptors only; no Connect handler is mounted here. The rewrite RPCs live on the graph handler because the proto service is shared. |
+| `api/internal/graph` | Domain logic | graph | Extract orchestration, package-loader seam, deterministic normalization, graph hashing, per-path mutex, warning aggregation. |
+| `api/internal/rewrite` | Domain logic | rewrite | Plan/apply orchestration, operation normalization, plan store seam, executor seam. |
+| `api/internal/clock` | Infrastructure | shared | `clock.Clock` seam; deterministic time. |
+| `api/internal/httpc` | Infrastructure | shared | `httpc.Doer` seam; outbound HTTP boundary. |
+| `api/internal/database` | Infrastructure | shared | DB reachability probe + cross-cutting `SystemSchema`. |
+| `api/internal/httpx` | Infrastructure | shared | Shared HTTP helpers (status writer, content negotiation). |
+| `api/internal/middleware` | Infrastructure | shared | Logging middleware composed by the server. |
+| `api/internal/module` | Infrastructure | shared | Shared module + endpoint descriptor types. |
+| `api/internal/modules` | Infrastructure | shared | Registry: schemas, endpoints, proto file entries. |
+| `api/internal/server` | Infrastructure | shared | Compose modules + middleware into one HTTP server. |
+| `api/internal/testutil` | Infrastructure | shared | Cross-domain test harnesses, fakes (`FakeClock`, `FakePinger`, `FakeDoer`), no-prod-import quarantine. |
+| `cli/domains/graph` | CLI thin wrapper | graph | `graph extract` command; wires generated Connect client; default human output. |
+| `cli/domains/rewrite` | CLI thin wrapper | rewrite | `rewrite plan` and `rewrite apply` commands; honors `--dry-run` via `X-Dry-Run`. |
+| `cli/internal/...` | CLI infrastructure | shared | Manifest embed, dispatcher glue, testutil. |
+| `bas/fixtures/go-cycles` | Test fixtures | graph | Cyclic-import Go module + `expected-graph.json` for byte-stable determinism gate. |
+| `bas/fixtures/go-mislocated` | Test fixtures | graph | Mislocated-file Go module + `expected-graph.json` for the same gate. |
+
+## API Surface
+
+Every public method on `GoCodeGraphService`. Maturity follows the standard scale (L0 stub → L3 production-ready with seam + tests + determinism gate).
+
+| Method | Domain | Maturity | Notes |
+|---|---|---|---|
+| `Extract` | graph | L3 | Deterministic graph from a Go module. `ExtractRequest{scenario_path, include_vendor}` → `ExtractResponse{graph, warnings, extraction_ms, graph_hash}`. Per-file parse failures surface as `Warning`s, never errors. |
+| `RewritePlan` | rewrite | L3 | Validate + normalize operations and return a deterministic `plan_id`. No disk mutation. |
+| `RewriteApply` | rewrite | L3 | Execute a previously planned set of operations. Honors `X-Dry-Run: true` (mapped to `apply: false`-style synthetic result). Never invokes `git` or `go build`. |
+
+**No REST exceptions.** Every product surface is Connect-RPC. The only non-Connect endpoint is the template-inherited `GET /health` ops probe, which carries `RESTReasonOpsProbe` per `api/internal/module/module.go`. `cmd/gen-endpoints --check` enforces this.
+
 ## Architecture Maturity
 
 Generated scenarios start with a mature template shape and starter
@@ -191,7 +229,7 @@ reference domains. Replace this table as the scenario becomes real.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Reference-ready | Domain-owned notes stack, module registry, per-domain schema, documented seams. | Starter domains must be replaced with scenario-specific capabilities. |
+| API | Production | `graph` and `rewrite` domains owned end-to-end with documented seams; `notes` template residue removed. | Per-path mutex is unbounded (see [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md)); `PlanStore` is in-memory. |
 | UI | Reference-ready | Feature folders, typed API clients, selector/i18n registries, modeltest helpers. | Real scenarios may need routing/state patterns once multiple screens exist. |
 | CLI | Reference-ready | Domain command groups wrap API calls and render reports. | New domains must add commands intentionally; CLI should remain thin. |
 | Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints. | Scenario-specific stubs must be filled or marked not-applicable. |

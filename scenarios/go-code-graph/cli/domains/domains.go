@@ -1,7 +1,8 @@
 package domains
 
 import (
-	"go-code-graph/cli/domains/notes"
+	"go-code-graph/cli/domains/graph"
+	"go-code-graph/cli/domains/rewrite"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -26,19 +27,18 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 //
 // This is the CLI side of the domain-module pattern; the API side uses
 // the same one-liner-per-domain shape via server.New(deps, modules...).
-// See docs/concepts/ARCHITECTURE.md "Domain modules" for the canonical
-// pattern when swapping the notes reference for your scenario's first
-// domain.
 //
 // For API-backed commands the manifest carries the declarative surface
 // (governance, flags, positionals, RPC binding). Handlers stay in
-// handlers.go and are wired via the bindings map; refer to
-// templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
-// handlers bindings seam) for the contract.
+// handlers.go and are wired via the bindings map.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	notesGroup, err := notes.Register(core, manifest)
+	graphGroup, err := graph.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{notesGroup}, nil
+	rewriteGroup, err := rewrite.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{graphGroup, rewriteGroup}, nil
 }

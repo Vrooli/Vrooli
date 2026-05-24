@@ -25,178 +25,150 @@
       ],
       "cli_mapping": {
         "command": "go-code-graph status"
-      }
-    },
-    {
-      "id": "notes_list",
-      "path": "/vrooli.go_code_graph.v1.notes.NotesService/ListNotes",
-      "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
       },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.go_code_graph.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ],
-      "cli_mapping": {
-        "command": "go-code-graph notes list"
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
       }
     },
     {
-      "id": "notes_create",
-      "path": "/vrooli.go_code_graph.v1.notes.NotesService/CreateNote",
+      "id": "graph_extract",
+      "path": "/vrooli.go_code_graph.v1.graph.GoCodeGraphService/Extract",
       "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
+      "summary": "Extract a deterministic Go graph",
+      "description": "Loads the Go module rooted at scenario_path and returns the normalized graph + warnings + extraction time + graph hash.",
+      "category": "graph",
       "request": {
         "type": "object",
         "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
+          "include_vendor": "boolean (default false)",
+          "scenario_path": "string (required, absolute or scenario-relative module root)"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "note": "Note"
+          "extraction_ms": "int64",
+          "graph": "common.v1.CodeGraph",
+          "graph_hash": "string (hex sha256 of canonical graph)",
+          "warnings": "array<common.v1.CodeGraphWarning>"
         }
       },
       "errors": [
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
+          "description": "Missing or invalid scenario_path; no/multiple go.mod"
         },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.go_code_graph.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ],
-      "cli_mapping": {
-        "command": "go-code-graph notes create",
-        "args": [
-          "--title",
-          "<title>",
-          "--body",
-          "<body>"
-        ]
-      }
-    },
-    {
-      "id": "notes_get",
-      "path": "/vrooli.go_code_graph.v1.notes.NotesService/GetNote",
-      "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
         {
           "status": 404,
           "code": "not_found",
-          "description": "No note with that id exists"
+          "description": "scenario_path unreadable"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "go.work multi-module workspaces are not supported in v1"
         },
         {
           "status": 500,
           "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.go_code_graph.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+          "description": "Loader failure"
         }
       ],
       "cli_mapping": {
-        "command": "go-code-graph notes get",
+        "command": "go-code-graph graph extract",
         "args": [
-          "<id>"
+          "<path>",
+          "[--include-vendor]"
         ]
       }
     },
     {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
+      "id": "rewrite_plan",
+      "path": "/vrooli.go_code_graph.v1.graph.GoCodeGraphService/RewritePlan",
       "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
+      "summary": "Plan a set of rewrite operations",
+      "description": "Validates and normalizes a list of FileMove/ImportRewrite operations and returns a plan_id. No filesystem changes.",
+      "category": "rewrite",
       "request": {
-        "type": "multipart/form-data",
+        "type": "object",
         "properties": {
-          "file": "file (required)"
+          "operations": "array<Operation> (required, ≥1)",
+          "scenario_path": "string (required)"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "attachment": "Attachment"
+          "normalized_operations": "array<Operation>",
+          "plan_id": "string"
         }
       },
       "errors": [
         {
           "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
+          "code": "invalid_argument",
+          "description": "Empty operations list or malformed op"
         },
         {
           "status": 500,
           "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
+          "description": "Plan persistence failure"
         }
       ],
       "cli_mapping": {
-        "command": "go-code-graph notes attach",
+        "command": "go-code-graph rewrite plan",
         "args": [
-          "<id>",
-          "--file",
-          "<path>"
+          "<ops.json>"
+        ]
+      }
+    },
+    {
+      "id": "rewrite_apply",
+      "path": "/vrooli.go_code_graph.v1.graph.GoCodeGraphService/RewriteApply",
+      "method": "POST",
+      "summary": "Apply a previously-planned rewrite",
+      "description": "Executes the operations associated with plan_id. Caller must set apply=true; apply=false is rejected with InvalidArgument so dry-run callers do not accidentally mutate. X-Dry-Run: true header threads through to a synthetic-OK response without invoking the executor.",
+      "category": "rewrite",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "boolean (must be true)",
+          "plan_id": "string (required)",
+          "scenario_path": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dry_run": "boolean",
+          "plan_id": "string",
+          "results": "array<OperationResult>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unknown plan_id, apply=false, or malformed input"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Plan was created for a different scenario_path"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Executor or persistence failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "go-code-graph rewrite apply",
+        "args": [
+          "<plan_id>",
+          "[--dry-run]"
         ]
       }
     }
@@ -208,24 +180,19 @@
       "endpoint_id": "health"
     },
     {
-      "name": "notes list",
-      "description": "List all notes (newest-first, default limit 100)",
-      "endpoint_id": "notes_list"
+      "name": "graph extract",
+      "description": "Extract a deterministic graph for a Go module (<path> [--include-vendor])",
+      "endpoint_id": "graph_extract"
     },
     {
-      "name": "notes create",
-      "description": "Create a note (--title TITLE [--body BODY])",
-      "endpoint_id": "notes_create"
+      "name": "rewrite plan",
+      "description": "Validate and normalize a list of rewrite operations (<ops.json> --scenario-path PATH)",
+      "endpoint_id": "rewrite_plan"
     },
     {
-      "name": "notes get",
-      "description": "Get a note by id",
-      "endpoint_id": "notes_get"
-    },
-    {
-      "name": "notes attach",
-      "description": "Upload an attachment for a note (--file PATH)",
-      "endpoint_id": "notes_attach"
+      "name": "rewrite apply",
+      "description": "Execute a previously-planned set of operations (<plan_id> --scenario-path PATH)",
+      "endpoint_id": "rewrite_apply"
     }
   ]
 }

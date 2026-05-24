@@ -7,24 +7,19 @@
       "endpoint_id": "health"
     },
     {
-      "name": "notes list",
-      "description": "List all notes (newest-first, default limit 100)",
-      "endpoint_id": "notes_list"
+      "name": "graph extract",
+      "description": "Extract a deterministic graph for a Go module (<path> [--include-vendor])",
+      "endpoint_id": "graph_extract"
     },
     {
-      "name": "notes create",
-      "description": "Create a note (--title TITLE [--body BODY])",
-      "endpoint_id": "notes_create"
+      "name": "rewrite plan",
+      "description": "Validate and normalize a list of rewrite operations (<ops.json> --scenario-path PATH)",
+      "endpoint_id": "rewrite_plan"
     },
     {
-      "name": "notes get",
-      "description": "Get a note by id",
-      "endpoint_id": "notes_get"
-    },
-    {
-      "name": "notes attach",
-      "description": "Upload an attachment for a note (--file PATH)",
-      "endpoint_id": "notes_attach"
+      "name": "rewrite apply",
+      "description": "Execute a previously-planned set of operations (<plan_id> --scenario-path PATH)",
+      "endpoint_id": "rewrite_apply"
     }
   ]
 }

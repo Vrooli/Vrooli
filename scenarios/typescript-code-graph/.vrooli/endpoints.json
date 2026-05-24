@@ -25,178 +25,168 @@
       ],
       "cli_mapping": {
         "command": "typescript-code-graph status"
-      }
-    },
-    {
-      "id": "notes_list",
-      "path": "/vrooli.typescript_code_graph.v1.notes.NotesService/ListNotes",
-      "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
       },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.typescript_code_graph.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ],
-      "cli_mapping": {
-        "command": "typescript-code-graph notes list"
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
       }
     },
     {
-      "id": "notes_create",
-      "path": "/vrooli.typescript_code_graph.v1.notes.NotesService/CreateNote",
+      "id": "graph_extract",
+      "path": "/vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/Extract",
       "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
+      "summary": "Extract a deterministic TypeScript graph",
+      "description": "Loads the TypeScript project rooted at scenario_path via the Node sidecar (ts-morph) and returns the normalized graph + warnings + extraction time + graph hash. Declaration nodes carry their leading_comments[] verbatim — REQ-P0-003.",
+      "category": "graph",
       "request": {
         "type": "object",
         "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
+          "scenario_path": "string (required, absolute path to the project root containing tsconfig.json)"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "note": "Note"
+          "extraction_ms": "int64",
+          "graph": "common.v1.CodeGraph",
+          "graph_hash": "string (hex sha256 of canonical graph)",
+          "sidecar_request_id": "string (uuid of the originating sidecar IPC request)",
+          "warnings": "array<common.v1.CodeGraphWarning>"
         }
       },
       "errors": [
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
+          "description": "Missing or non-absolute scenario_path; no/multiple tsconfig.json"
         },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.typescript_code_graph.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ],
-      "cli_mapping": {
-        "command": "typescript-code-graph notes create",
-        "args": [
-          "--title",
-          "<title>",
-          "--body",
-          "<body>"
-        ]
-      }
-    },
-    {
-      "id": "notes_get",
-      "path": "/vrooli.typescript_code_graph.v1.notes.NotesService/GetNote",
-      "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
         {
           "status": 404,
           "code": "not_found",
-          "description": "No note with that id exists"
+          "description": "scenario_path unreadable"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "pnpm/yarn workspaces are not supported in v1"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Node sidecar is unhealthy or permanently failed"
+        },
+        {
+          "status": 504,
+          "code": "deadline_exceeded",
+          "description": "Sidecar call exceeded its deadline"
         },
         {
           "status": 500,
           "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.typescript_code_graph.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+          "description": "Unexpected sidecar or normalization failure"
         }
       ],
       "cli_mapping": {
-        "command": "typescript-code-graph notes get",
+        "command": "typescript-code-graph extract",
         "args": [
-          "<id>"
+          "<path>"
         ]
       }
     },
     {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
+      "id": "rewrite_plan",
+      "path": "/vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/RewritePlan",
       "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
+      "summary": "Plan a TypeScript rewrite",
+      "description": "Validates and normalizes a list of FileMove / ImportRewrite operations and returns a deterministic plan_id. Identical normalized inputs produce identical plan_ids; the (scenario_path, plan_id) composite scopes plans per project.",
+      "category": "rewrite",
       "request": {
-        "type": "multipart/form-data",
+        "type": "object",
         "properties": {
-          "file": "file (required)"
+          "operations": "array<rewrite.v1.Operation> (>=1; each must set exactly one of file_move / import_rewrite)",
+          "scenario_path": "string (required, absolute path)"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "attachment": "Attachment"
+          "normalized_operations": "array<rewrite.v1.Operation>",
+          "plan_id": "string (sha256-hex of normalized operations)"
         }
       },
       "errors": [
         {
           "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
+          "code": "invalid_argument",
+          "description": "Missing scenario_path, empty operations, absolute/parent path, or both/neither oneof arm set"
         },
         {
           "status": 500,
           "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
+          "description": "Plan store save failed"
         }
       ],
       "cli_mapping": {
-        "command": "typescript-code-graph notes attach",
+        "command": "typescript-code-graph rewrite plan",
         "args": [
-          "<id>",
-          "--file",
-          "<path>"
+          "<ops.json>"
+        ]
+      }
+    },
+    {
+      "id": "rewrite_apply",
+      "path": "/vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/RewriteApply",
+      "method": "POST",
+      "summary": "Apply a TypeScript rewrite plan",
+      "description": "Executes the operations recorded under plan_id against the project at scenario_path. The apply flag must be true; X-Dry-Run: true header short-circuits before the sidecar call and returns synthetic OK results.",
+      "category": "rewrite",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "bool (must be true; false is rejected with InvalidArgument)",
+          "plan_id": "string (required, returned by RewritePlan)",
+          "scenario_path": "string (required, absolute path; must match the plan's scenario)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dry_run": "bool (true when the request rode in with X-Dry-Run: true)",
+          "plan_id": "string",
+          "results": "array<rewrite.v1.OperationResult> (1:1 with normalized operations)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario_path / plan_id, or apply=false"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Plan not found for this scenario (mismatched scenario_path or unknown plan_id)"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Node sidecar is unhealthy or permanently failed"
+        },
+        {
+          "status": 504,
+          "code": "deadline_exceeded",
+          "description": "Sidecar call exceeded its deadline"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Unexpected sidecar or plan store failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "typescript-code-graph rewrite apply",
+        "args": [
+          "<plan_id>"
         ]
       }
     }
@@ -208,24 +198,19 @@
       "endpoint_id": "health"
     },
     {
-      "name": "notes list",
-      "description": "List all notes (newest-first, default limit 100)",
-      "endpoint_id": "notes_list"
+      "name": "extract",
+      "description": "Extract a deterministic TypeScript graph for the project at <path> (Phase 7 will ship the CLI binding; this seed entry is committed in Phase 4 so the proto/Connect parity gate stays green).",
+      "endpoint_id": "graph_extract"
     },
     {
-      "name": "notes create",
-      "description": "Create a note (--title TITLE [--body BODY])",
-      "endpoint_id": "notes_create"
+      "name": "rewrite plan",
+      "description": "Plan a TypeScript rewrite from <ops.json> (Phase 5 ships the API stub; Phase 7 ships the CLI binding).",
+      "endpoint_id": "rewrite_plan"
     },
     {
-      "name": "notes get",
-      "description": "Get a note by id",
-      "endpoint_id": "notes_get"
-    },
-    {
-      "name": "notes attach",
-      "description": "Upload an attachment for a note (--file PATH)",
-      "endpoint_id": "notes_attach"
+      "name": "rewrite apply",
+      "description": "Apply the rewrite plan identified by <plan_id> (Phase 5 ships the API stub; Phase 7 ships the CLI binding).",
+      "endpoint_id": "rewrite_apply"
     }
   ]
 }

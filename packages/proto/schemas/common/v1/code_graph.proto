@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package common.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
+
+// =============================================================================
+// SHARED CODE-GRAPH ENVELOPE
+// =============================================================================
+//
+// @layer 0
+// @domain common
+// @stability stable
+//
+// Language-agnostic graph envelope consumed by go-code-graph and
+// typescript-code-graph (and future siblings). The envelope is intentionally
+// minimal: every language-specific concern rides on NodeKind extensions and
+// the per-node/edge `attributes` map. The producing scenario must not invent
+// fields here without a matching consumer agreement.
+//
+// NodeKind reserves tag ranges per producer:
+//   - 100..199 for Go (go-code-graph)
+//   - 200..299 for TypeScript (typescript-code-graph)
+//
+// This keeps the envelope diff-free when a sibling adds a kind: each
+// producer authors its kinds inside its reserved range without coordinating
+// at this file.
+// =============================================================================
+
+message CodeGraph {
+  // Nodes in stable id-sorted order; producers normalize before serializing.
+  repeated CodeGraphNode nodes = 1;
+  // Edges in stable id-sorted order.
+  repeated CodeGraphEdge edges = 2;
+}
+
+message CodeGraphNode {
+  // Stable id of the form "<kind>:<path>[:<name>]" — content-free identifier
+  // chosen so two identical inputs produce byte-identical graphs.
+  string id = 1;
+  NodeKind kind = 2;
+  // Human-readable name (file basename, package import path, symbol name, ...).
+  string name = 3;
+  // File or package path, relative to the scenario root when possible.
+  string path = 4;
+  // Adapter-specific attributes keyed in lower_snake_case. Reserved keys
+  // shared across producers: "language", "package_id", "exported".
+  map<string, string> attributes = 5;
+  // Leading documentation comments harvested by producers that track them
+  // (TypeScript). Empty for Go in v1.
+  repeated string leading_comments = 6;
+}
+
+message CodeGraphEdge {
+  string id = 1;
+  EdgeKind kind = 2;
+  string from_node_id = 3;
+  string to_node_id = 4;
+  map<string, string> attributes = 5;
+}
+
+message CodeGraphWarning {
+  CodeGraphWarningKind kind = 1;
+  // File the warning applies to. May be empty for project-level warnings.
+  string file = 2;
+  // Human-readable message; never a substitute for the typed kind.
+  string message = 3;
+}
+
+enum NodeKind {
+  NODE_KIND_UNSPECIFIED = 0;
+  NODE_KIND_FILE = 1;
+  NODE_KIND_PACKAGE = 2;
+  NODE_KIND_MODULE = 3;
+  // Producer-owned ranges. Do not reuse across producers.
+  reserved 100 to 199;  // Go (see go-code-graph)
+  reserved 200 to 299;  // TypeScript (see typescript-code-graph)
+}
+
+enum EdgeKind {
+  EDGE_KIND_UNSPECIFIED = 0;
+  EDGE_KIND_IMPORT = 1;
+  EDGE_KIND_INTRA_PACKAGE_REF = 2;
+  EDGE_KIND_RE_EXPORT = 3;
+}
+
+enum CodeGraphWarningKind {
+  CODE_GRAPH_WARNING_KIND_UNSPECIFIED = 0;
+  CODE_GRAPH_WARNING_KIND_PARSE_ERROR = 1;
+  CODE_GRAPH_WARNING_KIND_UNRESOLVED_IMPORT = 2;
+  CODE_GRAPH_WARNING_KIND_TYPE_CHECK_FAILURE = 3;
+  CODE_GRAPH_WARNING_KIND_AMBIGUOUS_DECLARATION = 4;
+}

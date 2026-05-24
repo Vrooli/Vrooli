@@ -39,19 +39,81 @@ This file ships empty in newly generated scenarios. Append entries as they appea
 
 ## Entries
 
-### 2026-05-23 — Implementation has not started
+### 2026-05-23 — Deferred: persistent Operation Log (REQ-P1-002)
 
-**Symptom:** No `graph`, `rewrite`, or `sidecar` domain code exists. `Extract` and `Rewrite` Connect-RPC services are not registered. The Node sidecar (`sidecar/`) is not yet present. The `notes` example domain from the react-vite template is still present.
+**Symptom:** `RewritePlan` results live in an in-memory `MemoryPlanStore`; restarting the API forgets every plan that hasn't been applied. Callers that planned just before a restart see `FailedPrecondition` on `RewriteApply`.
 
-**Root cause:** The scenario was freshly generated from the `react-vite` template. PRD, requirements, and docs were authored in the initialization session, but no product implementation has been done yet.
+**Root cause:** P1 scope only — SQLite-backed persistence is intentionally not implemented for v1.
 
-**Workaround:** Consumers (architecture-cartographer, react-component-library) that depend on typescript-code-graph remain blocked. Cartographer's `e2e_lang_graph_test.go` is build-tagged-off precisely for this reason; rcl's regex parser is still in production.
+**Workaround:** Consumers re-plan immediately before applying. Plan derivation is deterministic (PlanID is content-hashed), so re-planning yields the same `plan_id` as long as the operation list and scenario state are unchanged.
 
-**Real fix:** Implement the `sidecar`, `graph`, and `rewrite` domains per the PRD operational targets. Start with the sidecar bootstrap (REQ-P0-009) because both `graph` and `rewrite` depend on it. Replace the `notes` example domain. See Gate 6 + Gate 7 in [`../START-HERE.md`](../START-HERE.md).
+**Real fix:** Add a `SQLitePlanStore` implementation behind the existing `rewrite.PlanStore` seam; wire it in `main.go` instead of `NewMemoryPlanStore()`. The seam is already in place; this is purely additive.
 
-**Owner:** Next implementation agent.
+**Owner:** Unassigned (P1 backlog).
 
-**Refs:** `requirements/`, `../../PRD.md`, cartographer's `docs/internal/PROBLEMS.md` "typescript-code-graph does not exist yet" entry (now obsolete — this scenario exists, just not implemented).
+**Refs:** REQ-P1-002. Seam: `docs/internal/SEAMS.md` "PlanStore".
+
+### 2026-05-23 — Deferred: Fixture Validator UI (REQ-P1-001)
+
+**Symptom:** No UI surface for browsing or validating extraction fixtures (`bas/fixtures/ts-junk-drawer`, `ts-jsdoc-tags`). Fixture drift is caught only by `internal/graph/integration_test.go` byte-for-byte comparison.
+
+**Root cause:** Out of scope for this plan. The debug graph explorer covers per-scenario extraction; a dedicated fixture-validator surface is P1.
+
+**Workaround:** Re-run `go test ./internal/graph/... -run TestIntegration -race` and read the diff on failure.
+
+**Real fix:** Add a UI route under `ui/src/features/fixtures/` consuming `Extract` + a fixture-diff helper. Out of scope here.
+
+**Owner:** Unassigned (P1 backlog).
+
+**Refs:** REQ-P1-001.
+
+### 2026-05-23 — Deferred: react-component-library migration cutover (REQ-P1-006)
+
+**Symptom:** `react-component-library` still uses regex JSDoc-tag scraping in production. It has not yet adopted typescript-code-graph's `leading_comments[]` field on declaration nodes.
+
+**Root cause:** Migration is coordinated separately from this plan. The cutover blocks on `leading_comments` being stable across releases — which it now is.
+
+**Workaround:** rcl continues to ship its regex parser. typescript-code-graph's `ts-jsdoc-tags` fixture (`bas/fixtures/ts-jsdoc-tags/expected-graph.json`) is the **contract anchor**: any change to leading-comment fidelity must update that fixture and is reviewed as a breaking change.
+
+**Real fix:** rcl's own migration plan, tracked in its scenario. Verified prerequisite from this side: `leading_comments` round-trips verbatim (whitespace + trailing newlines) — covered by `internal/graph/leading_comments_test.go` and pinned by the fixture.
+
+**Owner:** react-component-library maintainer.
+
+**Refs:** REQ-P1-006. Contract anchor: `bas/fixtures/ts-jsdoc-tags/expected-graph.json`.
+
+### 2026-05-23 — Deferred: in-process Go-native TS parser (REQ-P2-006)
+
+**Symptom:** The Node sidecar is the only TypeScript parser implementation. Spawning a Node child adds startup cost (~hundreds of ms cold), occupies a process slot, and introduces a non-Go runtime in the deployment surface.
+
+**Root cause:** No Go-native TypeScript parser with `ts-morph` parity currently exists. Building one is a P2 research item, not a P0 deliverable.
+
+**Workaround:** None. The sidecar is the production path.
+
+**Real fix:** When (and only when) a Go-native parser reaches `ts-morph` parity on the fixture suite, add a second `SidecarClient` implementation. **Important:** the `SidecarClient` seam exists for tests, NOT as a strategy/plugin abstraction over hypothetical alternative parsers. Adding a second production implementation requires re-justifying the seam shape (it currently leaks IPC-flavoured concerns like `Heartbeat`).
+
+**Owner:** Unassigned (P2 research).
+
+**Refs:** REQ-P2-006. Architecture deviation: `docs/concepts/ARCHITECTURE.md` "Intentional Deviations" 2026-05-23 Node sidecar entry.
+
+### 2026-05-23 — Footgun: cancellable context passed to `Supervisor.Start`
+
+**Symptom:** The Node child can be killed before the orderly shutdown sequence runs, surfacing as a missing graceful-shutdown log line and occasionally a spurious "sidecar exited unexpectedly" warning on API teardown.
+
+**Root cause:** `internal/sidecar/supervisor.go` spawns the child via `exec.CommandContext(ctx, ...)`. If the `ctx` passed to `Start` is cancelled (for example, a request-scoped context, or a context tied to a parent goroutine that completes early), the kernel sends SIGKILL immediately — racing the explicit `Shutdown` path that sends `{type:"shutdown"}` on stdin and waits for a graceful exit.
+
+**Workaround:** Always pass `context.Background()` to `Supervisor.Start`. Use the explicit `Shutdown(shutdownCtx)` method (with its own deadline) for teardown. `main.go` already does this correctly; this entry exists so future callers (test harnesses, alternative entrypoints, embedded use) don't re-discover it.
+
+**Real fix:** Either (a) document the contract on `Start` and trust callers (current state), or (b) defensively wrap the supplied context inside `Supervisor.Start` so cancellation only signals the supervisor goroutine, not the child process. (b) hides the lifecycle from the caller and was rejected in Phase 6 — leaving as a documented footgun.
+
+**Owner:** Unassigned.
+
+**Refs:** Discovered Phase 6 of the implementation plan. See `internal/sidecar/supervisor.go::Start`, `Shutdown`.
+
+### 2026-05-23 — Implementation has not started (historical — superseded)
+
+**Symptom (historical):** No `graph`, `rewrite`, or `sidecar` domain code exists.
+
+**Resolution:** Resolved by Phases 1-8 of `typescript-code-graph-proto-api-cli-implementation-with-node-sidecar.md`. All three domains shipped; `notes` removed; cartographer's `tscodegraph/client.go` upgraded from stub to real Connect client. Phase 9 (docs + lifecycle) closes the plan. Kept as a historical marker; remove on next janitorial pass.
 
 ### 2026-05-23 — Template `notes` test fails linter on generation
 
@@ -67,26 +129,19 @@ This file ships empty in newly generated scenarios. Append entries as they appea
 
 **Refs:** `templates/scenarios/react-vite/`. Same issue surfaces in `go-code-graph` (sibling scenario generated minutes earlier).
 
-### 2026-05-23 — Node sidecar bootstrap directory does not exist
+### 2026-05-23 — Node sidecar bootstrap (historical — resolved)
 
-**Symptom:** No `sidecar/` directory at the scenario root. There is no `package.json`, no `tsconfig.json`, no `src/index.ts` for the sidecar.
+**Symptom (historical):** No `sidecar/` directory at the scenario root.
 
-**Root cause:** The `react-vite` template does not anticipate language-sidecar scenarios. It seeds `api/`, `cli/`, `ui/`, but not a separate Node code tree alongside them.
-
-**Workaround:** None. The sidecar must be hand-authored as part of REQ-P0-009 (Node Sidecar With Lifecycle Supervision).
-
-**Real fix:** Create `sidecar/` with `package.json` (pinning `ts-morph`), `tsconfig.json`, and `src/` directory containing the IPC protocol implementation. The sidecar build step needs wiring into the scenario's `Makefile` and `.vrooli/service.json`. See SEAMS for the planned `SidecarClient` interface contract.
-
-**Owner:** Next implementation agent (Phase 2 of launch sequencing per PRD).
-
-**Refs:** PRD OT-P0-009, REQ-P0-009.
+**Resolution:** Resolved by Phase 2 of the implementation plan. `sidecar/{package.json, tsconfig.json, src/, tests/, scripts/build.mjs}` ship complete; `dist/index.js` is gated by `.vrooli/service.json` lifecycle setup. Kept as a historical marker; remove on next janitorial pass.
 
 ## Architecture Drift
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| `notes` example domain | Present in the scaffold; not part of product scope. | Counts against domain map clarity; surfaces in DOMAINS.md as "template starter only". | Remove per Gate 7 in `START-HERE.md` once the first real domain is green. |
-| `sidecar/` directory absent | Required by REQ-P0-009; not seeded by template. | Blocks `graph` and `rewrite` implementation. | Hand-author as the first implementation phase. |
+| _(none currently tracked)_ | — | — | — |
+
+Previous entries (`notes` example domain present, `sidecar/` absent) were resolved by Phases 1 and 2 of the implementation plan; see historical entries above.
 
 ## Cross-references
 

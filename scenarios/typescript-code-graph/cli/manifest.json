@@ -1,47 +1,61 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "typescript-code-graph",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "TypeScript Code Graph CLI surface. Single source of truth for the `graph` and `rewrite` domains: schema-validated against cli-manifest/v1 and cross-validated against the TypeScriptCodeGraphService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. Mirrors the go-code-graph manifest shape — same proto service surface, different language target.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "graph",
+      "description": "Extract code graphs from TypeScript projects",
       "commands": [
         {
-          "name": "list",
-          "description": "List all notes",
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "ListNotes" },
+          "name": "extract",
+          "description": "Extract a deterministic graph for a TypeScript project",
+          "positionals": [
+            { "name": "path", "required": true, "description": "Path to TypeScript project root (contains tsconfig.json)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "TypeScriptCodeGraphService", "method": "Extract" },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": ["network:internal", "filesystem:read"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "rewrite",
+      "description": "Two-step plan/apply rewrites",
+      "commands": [
+        {
+          "name": "plan",
+          "description": "Validate and normalize a list of rewrite operations",
+          "positionals": [
+            { "name": "ops-file", "required": true, "description": "Path to JSON file describing operations" }
+          ],
+          "flags": [
+            { "name": "scenario-path", "required": true, "description": "TypeScript project root the ops target" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "TypeScriptCodeGraphService", "method": "RewritePlan" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read"]
           }
         },
         {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            { "name": "title", "required": true, "description": "Note title" },
-            { "name": "body", "description": "Note body" }
+          "name": "apply",
+          "description": "Execute a previously-planned set of operations",
+          "positionals": [
+            { "name": "plan-id", "required": true, "description": "Plan id returned by `rewrite plan`" }
           ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CreateNote" },
+          "flags": [
+            { "name": "scenario-path", "required": true, "description": "TypeScript project root the plan was authored against" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "TypeScriptCodeGraphService", "method": "RewriteApply" },
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
-        },
-        {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            { "name": "id", "required": true, "description": "Note id" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "GetNote" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": ["network:internal", "filesystem:write"]
           }
         }
       ]

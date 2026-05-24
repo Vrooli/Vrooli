@@ -1,0 +1,172 @@
+{
+  "nodes": [
+    {
+      "id": "file:pkga/a.go",
+      "kind": "file",
+      "name": "a.go",
+      "path": "pkga/a.go",
+      "attributes": [
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-cycles/pkga"
+        ]
+      ]
+    },
+    {
+      "id": "file:pkgb/b.go",
+      "kind": "file",
+      "name": "b.go",
+      "path": "pkgb/b.go",
+      "attributes": [
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-cycles/pkgb"
+        ]
+      ]
+    },
+    {
+      "id": "go_func:package:github.com/vrooli/fixtures/go-cycles/pkga:CallB",
+      "kind": "go_func",
+      "name": "CallB",
+      "path": "pkga/a.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:pkga/a.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-cycles/pkga"
+        ]
+      ]
+    },
+    {
+      "id": "go_func:package:github.com/vrooli/fixtures/go-cycles/pkgb:Greet",
+      "kind": "go_func",
+      "name": "Greet",
+      "path": "pkgb/b.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:pkgb/b.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-cycles/pkgb"
+        ]
+      ]
+    },
+    {
+      "id": "go_type:package:github.com/vrooli/fixtures/go-cycles/pkga:TypeA",
+      "kind": "go_type",
+      "name": "TypeA",
+      "path": "pkga/a.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:pkga/a.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-cycles/pkga"
+        ]
+      ]
+    },
+    {
+      "id": "go_type:package:github.com/vrooli/fixtures/go-cycles/pkgb:TypeB",
+      "kind": "go_type",
+      "name": "TypeB",
+      "path": "pkgb/b.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:pkgb/b.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-cycles/pkgb"
+        ]
+      ]
+    },
+    {
+      "id": "package:github.com/vrooli/fixtures/go-cycles/pkga",
+      "kind": "package",
+      "name": "pkga",
+      "path": "github.com/vrooli/fixtures/go-cycles/pkga",
+      "attributes": [
+        [
+          "import_path",
+          "github.com/vrooli/fixtures/go-cycles/pkga"
+        ],
+        [
+          "language",
+          "go"
+        ]
+      ]
+    },
+    {
+      "id": "package:github.com/vrooli/fixtures/go-cycles/pkgb",
+      "kind": "package",
+      "name": "pkgb",
+      "path": "github.com/vrooli/fixtures/go-cycles/pkgb",
+      "attributes": [
+        [
+          "import_path",
+          "github.com/vrooli/fixtures/go-cycles/pkgb"
+        ],
+        [
+          "language",
+          "go"
+        ]
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "import:package:github.com/vrooli/fixtures/go-cycles/pkgb->package:github.com/vrooli/fixtures/go-cycles/pkga",
+      "kind": "import",
+      "from": "package:github.com/vrooli/fixtures/go-cycles/pkgb",
+      "to": "package:github.com/vrooli/fixtures/go-cycles/pkga"
+    }
+  ]
+}

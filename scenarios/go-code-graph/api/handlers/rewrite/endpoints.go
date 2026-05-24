@@ -1,0 +1,99 @@
+// Package rewrite is the handler-layer home for the rewrite RPCs. It
+// owns no Connect mount of its own — the GoCodeGraphService Connect
+// handler is mounted by handlers/graph because the proto declaration
+// is a single service. This package contributes:
+//
+//   - Endpoints: the machine-readable descriptors for RewritePlan /
+//     RewriteApply that the codegen + registry walk.
+//   - Schema(): a no-op stub kept here so a future stateful turn
+//     (REQ-P1-002 Operation Log) is a one-line schema swap rather than
+//     a structural change.
+//
+// The handler logic lives in handlers/graph/handler.go where the
+// connect-handler struct holds references to BOTH *intgraph.Service
+// AND *intrewrite.Service. See the doc comment on handlers/graph/module.go.
+package rewrite
+
+import (
+	"go-code-graph/internal/module"
+
+	"github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph/graph_v1connect"
+)
+
+// Endpoints is the machine-readable description of the two rewrite
+// Connect procedures. Paths reference the generated Procedure
+// constants so renaming an RPC in graph.proto breaks this file at
+// compile time. The complementary parity test in registry_test.go
+// walks the proto FileDescriptor and asserts every rpc has exactly
+// one matching entry across all handler packages.
+var Endpoints = []module.EndpointDescriptor{
+	{
+		ID:          "rewrite_plan",
+		Path:        graph_v1connect.GoCodeGraphServiceRewritePlanProcedure,
+		Method:      "POST",
+		Summary:     "Plan a set of rewrite operations",
+		Description: "Validates and normalizes a list of FileMove/ImportRewrite operations and returns a plan_id. No filesystem changes.",
+		Category:    "rewrite",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"scenario_path": "string (required)",
+				"operations":    "array<Operation> (required, ≥1)",
+			},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"plan_id":               "string",
+				"normalized_operations": "array<Operation>",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Empty operations list or malformed op"},
+			{Status: 500, Code: "internal", Description: "Plan persistence failure"},
+		},
+		CLIMapping: &module.CLIMapping{
+			Command: "go-code-graph rewrite plan",
+			Args:    []string{"<ops.json>"},
+		},
+	},
+	{
+		ID:          "rewrite_apply",
+		Path:        graph_v1connect.GoCodeGraphServiceRewriteApplyProcedure,
+		Method:      "POST",
+		Summary:     "Apply a previously-planned rewrite",
+		Description: "Executes the operations associated with plan_id. Caller must set apply=true; apply=false is rejected with InvalidArgument so dry-run callers do not accidentally mutate. X-Dry-Run: true header threads through to a synthetic-OK response without invoking the executor.",
+		Category:    "rewrite",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"scenario_path": "string (required)",
+				"plan_id":       "string (required)",
+				"apply":         "boolean (must be true)",
+			},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"plan_id": "string",
+				"results": "array<OperationResult>",
+				"dry_run": "boolean",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Unknown plan_id, apply=false, or malformed input"},
+			{Status: 412, Code: "failed_precondition", Description: "Plan was created for a different scenario_path"},
+			{Status: 500, Code: "internal", Description: "Executor or persistence failure"},
+		},
+		CLIMapping: &module.CLIMapping{
+			Command: "go-code-graph rewrite apply",
+			Args:    []string{"<plan_id>", "[--dry-run]"},
+		},
+	},
+}
+
+// Schema returns "" — rewrite is stateless in v1. Kept here so the
+// registry's AllSchemas walk is uniform across domains; a future
+// REQ-P1-002 SQLite-backed Operation Log replaces this with the
+// schema DDL.
+func Schema() string { return "" }

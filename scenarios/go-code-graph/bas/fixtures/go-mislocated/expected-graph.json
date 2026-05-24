@@ -1,0 +1,117 @@
+{
+  "nodes": [
+    {
+      "id": "file:right/r.go",
+      "kind": "file",
+      "name": "r.go",
+      "path": "right/r.go",
+      "attributes": [
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-mislocated/right"
+        ]
+      ]
+    },
+    {
+      "id": "file:wrongdir/m.go",
+      "kind": "file",
+      "name": "m.go",
+      "path": "wrongdir/m.go",
+      "attributes": [
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-mislocated/wrongdir"
+        ]
+      ]
+    },
+    {
+      "id": "go_func:package:github.com/vrooli/fixtures/go-mislocated/right:Hello",
+      "kind": "go_func",
+      "name": "Hello",
+      "path": "right/r.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:right/r.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-mislocated/right"
+        ]
+      ]
+    },
+    {
+      "id": "go_func:package:github.com/vrooli/fixtures/go-mislocated/wrongdir:Mislocated",
+      "kind": "go_func",
+      "name": "Mislocated",
+      "path": "wrongdir/m.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:wrongdir/m.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-mislocated/wrongdir"
+        ]
+      ]
+    },
+    {
+      "id": "package:github.com/vrooli/fixtures/go-mislocated/right",
+      "kind": "package",
+      "name": "right",
+      "path": "github.com/vrooli/fixtures/go-mislocated/right",
+      "attributes": [
+        [
+          "import_path",
+          "github.com/vrooli/fixtures/go-mislocated/right"
+        ],
+        [
+          "language",
+          "go"
+        ]
+      ]
+    },
+    {
+      "id": "package:github.com/vrooli/fixtures/go-mislocated/wrongdir",
+      "kind": "package",
+      "name": "right",
+      "path": "github.com/vrooli/fixtures/go-mislocated/wrongdir",
+      "attributes": [
+        [
+          "import_path",
+          "github.com/vrooli/fixtures/go-mislocated/wrongdir"
+        ],
+        [
+          "language",
+          "go"
+        ]
+      ]
+    }
+  ],
+  "edges": []
+}

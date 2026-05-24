@@ -1,0 +1,82 @@
+{
+  "edges": [],
+  "nodes": [
+    {
+      "attributes": {
+        "language": "typescript"
+      },
+      "id": "file:src/widget.tsx",
+      "kind": 1,
+      "leading_comments": [],
+      "name": "widget.tsx",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "exported": "true",
+        "kind": "TS_NODE_KIND_COMPONENT",
+        "language": "typescript"
+      },
+      "id": "ts_component:src/widget.tsx:FeaturedCard",
+      "kind": 201,
+      "leading_comments": [
+        "/** @vrooliWidget kind=card */"
+      ],
+      "name": "FeaturedCard",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "exported": "true",
+        "kind": "TS_NODE_KIND_COMPONENT",
+        "language": "typescript"
+      },
+      "id": "ts_component:src/widget.tsx:Heading",
+      "kind": 201,
+      "leading_comments": [
+        "/** @vrooliComponent name=Heading */"
+      ],
+      "name": "Heading",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "exported": "true",
+        "kind": "TS_NODE_KIND_CONST",
+        "language": "typescript"
+      },
+      "id": "ts_const:src/widget.tsx:CONFIG",
+      "kind": 208,
+      "leading_comments": [
+        "/* block */"
+      ],
+      "name": "CONFIG",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "exported": "true",
+        "kind": "TS_NODE_KIND_FUNCTION",
+        "language": "typescript"
+      },
+      "id": "ts_function:src/widget.tsx:plainHelper",
+      "kind": 206,
+      "leading_comments": [
+        "// single-line"
+      ],
+      "name": "plainHelper",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "kind": "TS_NODE_KIND_MODULE",
+        "language": "typescript"
+      },
+      "id": "ts_module:src/widget.tsx",
+      "kind": 200,
+      "leading_comments": [],
+      "name": "widget.tsx",
+      "path": "src/widget.tsx"
+    }
+  ]
+}

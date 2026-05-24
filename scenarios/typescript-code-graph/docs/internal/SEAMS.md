@@ -240,55 +240,54 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
-### SidecarClient (Node sidecar delegation) — planned
+### SidecarClient (Node sidecar delegation)
 
 | | |
 |---|---|
 | **Seam** | The single Go-side surface for communicating with the Node sidecar over IPC. Hides JSON framing, request IDs, timeouts, and error decoding from the `graph` and `rewrite` domains. |
-| **Interface** | `internal/sidecar/client.go::SidecarClient` (`Extract(ctx, req) (resp, err); ApplyRewrite(ctx, req) (resp, err); Heartbeat(ctx) error` — planned). |
-| **Production wiring** | `main.go` constructs `sidecar.NewClient(supervisor)` where the supervisor (also constructed in `main.go`) owns the spawned Node child. The client is passed to `server.Deps`. |
-| **Test fake** | `internal/sidecar/mocks::FakeSidecarClient` (returns canned responses, lets tests force `SidecarUnavailable` / `SidecarTimeout` errors deterministically). |
-| **Why it exists** | Tests for `graph` and `rewrite` must not spin up a real Node child. The seam pins the API the sidecar implements (so the Node code and the Go code can be developed independently as long as the IPC schema matches) and makes failure-injection mechanical. |
+| **Interface** | `internal/sidecar/client.go::SidecarClient` (`Extract`, `RewritePlan`, `RewriteApply`, `Heartbeat`). |
+| **Production wiring** | `main.go` constructs `sidecar.NewSupervisor(...)` then passes it (it satisfies `SidecarClient`) into `graph.NewService` and `rewrite.NewService`. The supervisor owns the spawned Node child (`sidecar/dist/index.js`). |
+| **Test fake** | `internal/sidecar/mocks::FakeSidecarClient` returns canned responses and lets tests force `SidecarUnavailable` / `SidecarTimeout` errors deterministically. Used by `internal/graph/service_test.go` and `internal/rewrite/service_test.go`. |
+| **Why it exists** | Tests for `graph` and `rewrite` must not spin up a real Node child. The seam pins the API the sidecar implements (so the Node code and the Go code can be developed independently as long as the IPC schema matches) and makes failure-injection mechanical. The seam is for tests, **not** for hypothetical alternative implementations (REQ-P2-006 in-process parser is out of scope; see `PROBLEMS.md`). |
 
-### SidecarSupervisor (process lifecycle) — planned
-
-| | |
-|---|---|
-| **Seam** | Process supervisor that owns spawn, handshake, heartbeat, exit-detection, and restart-with-backoff for the Node child. Substitutable so the in-process state machine can be exercised without launching real Node. |
-| **Interface** | `internal/sidecar/supervisor.go::Supervisor` (`State() Status; Send(req) (resp, err); Stop()` — planned). |
-| **Production wiring** | `main.go` constructs `sidecar.NewSupervisor(sidecar.Config{BinaryPath: ..., HeartbeatInterval: 10*time.Second, MaxRestartAttempts: 5})` and starts the goroutine. |
-| **Test fake** | `internal/sidecar/mocks::FakeSupervisor` (state machine without real spawns; lets tests transition states programmatically). |
-| **Why it exists** | The supervisor's state machine is the highest-risk class of bug in this scenario (process lifecycle, restart logic, IPC framing). Tests need deterministic transitions, not real `exec.Command` calls. |
-
-### RewriteExecutor (sidecar-delegated mutation) — planned
+### SidecarSupervisor (process lifecycle)
 
 | | |
 |---|---|
-| **Seam** | The point where file moves and import rewrites are *requested* from the sidecar (which performs them via `ts-morph`). Substituted in tests so apply semantics can be exercised without round-tripping through real `ts-morph`. |
-| **Interface** | `internal/rewrite/executor.go::Executor` (`ApplyOp(ctx, op Operation) error` — planned, wraps `SidecarClient.ApplyRewrite`). |
-| **Production wiring** | `main.go` constructs `rewrite.NewSidecarExecutor(sidecarClient)` and passes it via `server.Deps`. |
-| **Test fake** | `internal/rewrite/mocks::FakeExecutor` (in-memory file map with optional panic-after-N injection for partial-failure tests). |
-| **Why it exists** | Apply semantics intentionally leave disk torn on mid-op failure; verifying that contract requires a substituable executor that can panic deterministically. |
+| **Seam** | Process supervisor that owns spawn, handshake, heartbeat, exit-detection, restart-with-backoff, cancellation, and stdio framing for the Node child. The supervisor *is* the production `SidecarClient` — there is no separate adapter. |
+| **Interface** | `internal/sidecar/supervisor.go::Supervisor` (constructor `NewSupervisor(Config)`; satisfies `SidecarClient`). |
+| **Production wiring** | `main.go` constructs `sidecar.NewSupervisor(sidecar.Config{BinaryPath: <repo>/sidecar/dist/index.js, HeartbeatInterval: ..., MaxRestartAttempts: ...})`, calls `Start(context.Background())`, and registers `Shutdown` on the server shutdown hook. |
+| **Test fake** | Substituted at the `SidecarClient` boundary via `internal/sidecar/mocks::FakeSidecarClient`. The supervisor itself is exercised with a real fake Node peer at `internal/sidecar/testdata/fake_sidecar.js` plus the in-process restart/backoff/heartbeat unit tests (`restart_test.go`, `backoff_test.go`, `heartbeat_test.go`, `cancel_test.go`, `framing_test.go`). |
+| **Why it exists** | The supervisor's state machine is the highest-risk class of bug in this scenario (process lifecycle, restart logic, IPC framing). Splitting client from supervisor proved unnecessary — the production seam is `SidecarClient`; the supervisor is the only implementation. |
 
-### PlanRegistry (in-process plan store) — planned
-
-| | |
-|---|---|
-| **Seam** | The in-process map holding `RewritePlan` results keyed by `plan_id` with 5-minute TTL. |
-| **Interface** | `internal/rewrite/registry.go::PlanRegistry` (`Get(planID) (Plan, bool); Put(planID, plan, ttl)` — planned). |
-| **Production wiring** | `main.go` constructs `rewrite.NewMemoryPlanRegistry(clock.System{}, 5*time.Minute)` and passes it via `server.Deps`. |
-| **Test fake** | `internal/rewrite/mocks::FakePlanRegistry` (deterministic, no TTL — explicit removal only) combined with `FakeClock` for TTL-expiry tests. |
-| **Why it exists** | TTL expiry must be exercised in tests, and tests must not need to run for 5 real minutes. |
-
-### PathMutex (per-path serialization) — planned
+### PlanStore (in-process plan registry)
 
 | | |
 |---|---|
-| **Seam** | The registry of per-path mutexes that serializes concurrent extraction and apply on the same `scenario_path` at the Go layer. (The sidecar also serializes internally — defense in depth.) |
-| **Interface** | `internal/graph/pathmutex.go::PathMutex` (`Lock(path string) (unlock func(), err error)` — planned). |
-| **Production wiring** | `main.go` constructs `graph.NewPathMutexRegistry()` and passes it via `server.Deps`. |
-| **Test fake** | `internal/graph/mocks::FakePathMutex` (records lock/unlock order, lets tests force interleavings). |
-| **Why it exists** | Concurrent-access bugs are the highest-risk class of bug. The seam lets tests exercise ordering deterministically. |
+| **Seam** | The in-process map holding `RewritePlan` results keyed by `(scenario_path, plan_id)`. Composite-keyed to prevent cross-scenario replay if two scenarios derive the same hash-based `PlanID`. |
+| **Interface** | `internal/rewrite/store.go::PlanStore` (`Save(plan) error`, `Get(scenarioPath, id) (Plan, error)` returning `ErrPlanNotFound`). |
+| **Production wiring** | `main.go` constructs `rewrite.NewMemoryPlanStore()` and passes it into `rewrite.NewService(...)`. |
+| **Test fake** | `internal/rewrite/mocks::FakePlanStore` (per-method error knobs + recorded calls). Production `*MemoryPlanStore` is also used directly in tests when failure injection isn't needed. |
+| **Why it exists** | (1) Apply semantics must be exercisable without depending on Save side effects from a prior Plan call (`FailedPrecondition` paths need an empty store). (2) Persistence is deferred (see `PROBLEMS.md` REQ-P1-002); when SQLite-backed persistence lands, only the production wiring in `main.go` changes — domain code stays put. |
+
+### PathMutex (per-path serialization — substrate, no fake)
+
+| | |
+|---|---|
+| **Seam** | The registry of per-absolute-path locks that serializes concurrent `Extract` and `RewriteApply` on the same `scenario_path` at the Go layer. (The sidecar also serializes internally — defense in depth.) **Shared** between the `graph` and `rewrite` domains: there is one `PathMutex` per API process, wired into both services. |
+| **Interface** | `internal/graph/pathmutex.go::PathMutex` (concrete type, not interface). Constructor `NewPathMutex()`; method `Lock(absPath string) func()` returns an unlock closure. |
+| **Production wiring** | `main.go` constructs one `intgraph.NewPathMutex()` and passes the same instance to both `graph.NewService(...)` and `rewrite.NewService(...)`. |
+| **Test fake** | **None.** This is substrate — the concrete type is correct and fast; tests use the real `PathMutex` directly (see `mutex_test.go`). Substitution would lose the property under test (real per-path serialization). |
+| **Why it exists** | Concurrent-access bugs against `ts-morph` Project state are the highest-risk class of bug. Sharing one mutex across graph and rewrite means an in-flight `Extract` blocks a concurrent `RewriteApply` for the same path — the only correct behaviour. Listed here so the shared instance is discoverable. |
+
+### Ambient template-inherited seams
+
+The react-vite template ships two seams used by middleware/HTTP outbound that this scenario inherits but does not currently consume from product domains. They remain available for future use.
+
+| Seam | Where declared | Production wiring | Test wiring | Rationale |
+|---|---|---|---|---|
+| `clock.Clock` | `internal/clock/clock.go` | `main.go` constructs `clock.System{}`; passed via `server.Deps`. | `internal/testutil/mocks::FakeClock` (`Advance`, `SetNow`). | Middleware request-duration logging relies on deterministic time. Documented at top of this file ("Clock" section). |
+| `httpc.Doer` | `internal/httpc/doer.go` | Ships unwired by intent; `*http.Client` satisfies the interface when a domain needs outbound HTTP. | `internal/testutil/mocks::FakeDoer` (response queue + recorded requests). | Outbound HTTP boundary; pre-declared so the first consumer doesn't reinvent ad-hoc mocking. Documented above ("Doer" section). |
 
 ## Adding a new seam
 

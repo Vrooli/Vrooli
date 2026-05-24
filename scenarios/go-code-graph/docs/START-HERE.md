@@ -6,6 +6,18 @@ protocol: complete the gates in order, check them off as you go, and
 do not start product implementation until the charter and requirements
 gates are complete.
 
+> **Status:** Gates 0–7 are complete for this scenario. The `notes`
+> template residue has been removed and the real `graph` and `rewrite`
+> domains ship in `api/internal/`, `api/handlers/`, and
+> `cli/domains/`. References to `notes` below are preserved as the
+> generic template protocol (this same file is the initialization
+> guide for every new scenario); read them as "the worked example
+> that used to live here" rather than as outstanding work for
+> go-code-graph. The current durable maps live in
+> [`concepts/ARCHITECTURE.md`](concepts/ARCHITECTURE.md),
+> [`internal/SEAMS.md`](internal/SEAMS.md), and
+> [`internal/PROBLEMS.md`](internal/PROBLEMS.md).
+
 Run `make orient` from this scenario directory whenever you want a
 machine-readable progress check for these gates. It delegates to
 `vrooli scenario orient go-code-graph`, which reads the temporary

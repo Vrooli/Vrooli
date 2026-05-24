@@ -1,5 +1,5 @@
 {
-  "_comment": "Source of truth for the cli_commands[] portion of .vrooli/endpoints.json. Hand-maintained because the CLI is a separate Go module from the API; cross-module codegen would force one to import the other. Each entry mirrors a real subcommand registered in cli/domains/<dom>/register.go (or cli-core's StandardScenarioApp built-ins). Codegen verifies every cli_mapping.command in endpoints[] has a matching name here.",
+  "_comment": "Source of truth for the cli_commands[] portion of .vrooli/endpoints.json. Hand-maintained because the CLI is a separate Go module from the API; cross-module codegen would force one to import the other. Each entry mirrors a real subcommand registered in cli/domains/<dom>/register.go (or cli-core's StandardScenarioApp built-ins). Codegen verifies every cli_mapping.command in endpoints[] has a matching name here. Product subcommands (graph extract, rewrite plan, rewrite apply) land here as the corresponding domains ship.",
   "cli_commands": [
     {
       "name": "status",
@@ -7,24 +7,19 @@
       "endpoint_id": "health"
     },
     {
-      "name": "notes list",
-      "description": "List all notes (newest-first, default limit 100)",
-      "endpoint_id": "notes_list"
+      "name": "extract",
+      "description": "Extract a deterministic TypeScript graph for the project at <path> (Phase 7 will ship the CLI binding; this seed entry is committed in Phase 4 so the proto/Connect parity gate stays green).",
+      "endpoint_id": "graph_extract"
     },
     {
-      "name": "notes create",
-      "description": "Create a note (--title TITLE [--body BODY])",
-      "endpoint_id": "notes_create"
+      "name": "rewrite plan",
+      "description": "Plan a TypeScript rewrite from <ops.json> (Phase 5 ships the API stub; Phase 7 ships the CLI binding).",
+      "endpoint_id": "rewrite_plan"
     },
     {
-      "name": "notes get",
-      "description": "Get a note by id",
-      "endpoint_id": "notes_get"
-    },
-    {
-      "name": "notes attach",
-      "description": "Upload an attachment for a note (--file PATH)",
-      "endpoint_id": "notes_attach"
+      "name": "rewrite apply",
+      "description": "Apply the rewrite plan identified by <plan_id> (Phase 5 ships the API stub; Phase 7 ships the CLI binding).",
+      "endpoint_id": "rewrite_apply"
     }
   ]
 }

@@ -241,6 +241,80 @@ Every durable scenario document should be registered in
 `docs/manifest.json`. Put deep domain-specific documentation under
 `docs/domains/<domain>/` when `DOMAINS.md` would become noisy.
 
+## Zone Map
+
+Every top-level directory under the scenario root has exactly one owner and one purpose. The boundary rules in the last column are mechanical (enforced by `no_prod_import_test.go` and `no_external_command_test.go` where applicable) — they are not stylistic preferences.
+
+| Path | Owner | Purpose | Boundary rules |
+|---|---|---|---|
+| `api/` | API service | Go HTTP/Connect-RPC server; business logic; per-path serialization; sidecar supervision. | Module root. Subdirectory rules below. |
+| `api/cmd/gen-endpoints/` | Codegen | Generates `.vrooli/endpoints.json` from the modules registry. | Pure tool; not imported by production code. |
+| `api/handlers/{graph,health,rewrite}/` | Transport edge | Connect handler factories, proto<->domain translation, error-code mapping. | Imports `internal/<domain>` for the service interface; never the repository or persistence directly. |
+| `api/internal/graph/` | Graph domain | Extract orchestration, NodeID/EdgeID derivation, hashing, normalization, error mapping, leading-comment passthrough. | Forbidden imports: `os/exec` (sidecar only), `time` for wall-clock (use `clock.Clock`), `net/http` (use `httpc.Doer`), sibling product domains. |
+| `api/internal/rewrite/` | Rewrite domain | RewritePlan/Apply orchestration, PlanID stability, in-memory PlanStore, dry-run short-circuit. | Same import-quarantine as `graph/`. `no_external_command_test.go` asserts no `exec.Command` to git/tsc/pnpm/node from this package. |
+| `api/internal/sidecar/` | Sidecar substrate | **Only** package allowed to `import "os/exec"`. Owns spawn, framing, handshake, heartbeat, restart-with-backoff, cancellation, and the `SidecarClient`/`Supervisor` types. | Importable by `main.go` (wiring) and test packages. Not importable by `graph`/`rewrite` (they take `SidecarClient` via constructor). |
+| `api/internal/{clock,httpc,httpx,middleware,module,modules,server,database,testutil}/` | Template substrate | Cross-cutting infrastructure inherited from the react-vite template. | See react-vite template docs. |
+| `api/internal/{graph,rewrite,sidecar}/mocks/` | Per-domain fakes | `FakeSidecarClient`, `FakePlanStore`. Co-located with the domain. | Test-only via `testutil/no_prod_import_test.go`. |
+| `api/internal/sidecar/testdata/fake_sidecar.js` | Test fixture | Minimal Node IPC peer for supervisor tests (avoids the real `dist/index.js`). | Test-only. |
+| `cli/` | CLI binary | Thin wrapper over the Connect-RPC API. `cli-core` argument parsing + manifest-driven dispatch. | No business logic. Forbidden: hand-rolled HTTP/JSON; must use generated Connect-Go client. |
+| `cli/domains/{graph,rewrite}/` | Per-domain commands | `extract`, `rewrite plan`, `rewrite apply` handlers. | Each `Register(core, manifest)` binds proto methods to handlers. No HTTP code. |
+| `cli/internal/testutil/` | CLI test helpers | RunContext factories per `cli-core/cliapptest`. | Test-only. |
+| `cli/{install.sh,install.ps1,manifest.json,manifest_embed.go}` | CLI install + surface | `manifest.json` is the declarative command surface (cli-manifest/v1). | `RequireProtoServiceCoverage` test enforces every RPC has a binding or `omitted` entry. |
+| `sidecar/` | Node sidecar | `ts-morph`-based extract + rewrite peer. JSON-over-stdio IPC. Self-contained Node project (pinned `ts-morph`, `--frozen-lockfile`). | Owns the IPC protocol definition (`src/protocol.ts`) as source of truth. |
+| `sidecar/src/` | Sidecar runtime | `index.ts` (stdio loop), `protocol.ts` (message envelopes), `extract.ts`, `rewrite.ts`, `framing.ts`, `handshake.ts`, `lock.ts` (per-path serialization), `logger.ts` (stderr only). | **`console.log` to stdout is forbidden** — would corrupt the framer. All logs go to stderr via `logger.ts`. `child_process.spawn`/`exec`/`execSync` are intercepted in tests and must never be called in production code. |
+| `sidecar/scripts/build.mjs` | Build script | esbuild bundle → `dist/index.js`. | Single-file bundle; only runtime dep is `ts-morph` (devDeps stripped). |
+| `sidecar/tests/` | Sidecar tests | vitest suite (`protocol`, `extract`, `lock`, `rewrite`, `no-external-command`). | Run via `pnpm test`. |
+| `sidecar/dist/index.js` | Build output | Bundled sidecar entrypoint. | Gated by `.vrooli/service.json` lifecycle setup; checked into VCS for `vrooli scenario start` zero-network startup. |
+| `bas/` | Browser-automation fixtures | UI demo flows + extraction fixtures for the debug UI. | BAS-owned shape; see `bas/registry.json`. |
+| `bas/{actions,cases,fixtures,flows,seeds}/` | BAS sub-zones | Standard BAS layout. | Per BAS scenario conventions. |
+
+## API Surface
+
+The full proto-typed product surface (excluding template `/health` REST probe). Every row is wire-traceable: the request/response messages live at `packages/proto/schemas/typescript-code-graph/v1/{graph,rewrite}/*.proto`; the CLI binding is declared in `cli/manifest.json` and dispatched by `cli/domains/<group>/`.
+
+| RPC | Request | Response | Errors | CLI binding |
+|---|---|---|---|---|
+| `TypeScriptCodeGraphService.Extract` | `ExtractRequest{scenario_path}` | `ExtractResponse{graph, warnings, extraction_ms, graph_hash}` | `InvalidArgument` (no tsconfig, multiple tsconfig), `NotFound` (path unreadable), `Unimplemented` (pnpm workspace), `Unavailable` (sidecar down), `DeadlineExceeded`, `Internal` | `typescript-code-graph extract <path>` |
+| `TypeScriptCodeGraphService.RewritePlan` | `RewritePlanRequest{scenario_path, operations[]}` | `RewritePlanResponse{plan_id, normalized_operations}` | `InvalidArgument` (no ops, conflicting ops), `Internal` | `typescript-code-graph rewrite plan <ops.json>` |
+| `TypeScriptCodeGraphService.RewriteApply` | `RewriteApplyRequest{scenario_path, plan_id, apply}` | `RewriteApplyResponse{plan_id, results[], dry_run}` | `InvalidArgument`, `FailedPrecondition` (plan unknown / expired), `Unavailable`, `Internal` | `typescript-code-graph rewrite apply <plan_id>` (honours `X-Dry-Run: true`) |
+| `HealthService.Check` | `CheckRequest{}` | `CheckResponse{status, sidecar_status, ...}` | `Internal` | `typescript-code-graph status` |
+
+Template-inherited REST exception: `GET /health` carries `RESTReasonOpsProbe`. There are no other REST endpoints.
+
+## Sidecar Architecture
+
+The scenario is the first in the template to host a long-lived non-Go child process. The Go side never calls `ts-morph` directly; it asks the Node sidecar over a line-delimited JSON stream on stdio.
+
+```
++----------------------------------+        +------------------------------+
+|              api/                |        |          sidecar/            |
+|                                  |        |                              |
+|  handlers/graph                  |        |   src/index.ts               |
+|  handlers/rewrite                |        |     (stdio loop, framing,    |
+|        |                         |        |      per-path lock,          |
+|        v                         |        |      extract/rewrite ts-morph)|
+|  internal/graph.Service          |        |                              |
+|  internal/rewrite.Service        |        |              ^               |
+|        |                         |        |              |               |
+|        v                         |        |     line-delimited JSON      |
+|  internal/sidecar.SidecarClient  |        |        on stdin/stdout       |
+|        |                         |        |     stderr -> Go logger      |
+|        v                         |        |              |               |
+|  internal/sidecar.Supervisor     |  spawn |              |               |
+|     (exec.CommandContext) -------+------> | node dist/index.js           |
+|     handshake / heartbeat /      |        |                              |
+|     restart-with-backoff         |        |                              |
++----------------------------------+        +------------------------------+
+```
+
+Boundary contracts:
+
+- **One spawn point.** `internal/sidecar.Supervisor` is the only place that imports `os/exec`. Drift is caught by `internal/{graph,rewrite}/no_prod_import_test.go` and `internal/rewrite/no_external_command_test.go`.
+- **One IPC contract.** `sidecar/src/protocol.ts` defines every message type; every request carries a UUID-v4 `request_id`; every response echoes it. Cancellation is best-effort: `{type:"cancel", request_id}` resolves the local future immediately, sidecar discards any late completion.
+- **Two-layer per-path serialization.** Go-side `graph.PathMutex` and sidecar-side `Map<scenarioPath, Promise<void>>` chain both serialize. Defense in depth; a future caller that bypasses the Go side still sees correct semantics.
+- **Stderr-only logging.** `console.log` to stdout would corrupt the framer. `sidecar/src/logger.ts` redirects all sidecar logs to stderr; the Go side reads stderr on a separate goroutine.
+- **Shutdown order.** `Supervisor.Shutdown(ctx)` sends `{type:"shutdown"}`, waits up to the context deadline, then `cmd.Process.Kill()` if the child hasn't exited. **Footgun** (see `../internal/PROBLEMS.md`): the context passed to `Supervisor.Start` must not be cancelled before `Shutdown` runs — `exec.CommandContext` will kill the child as soon as the start context is cancelled, racing the orderly shutdown path.
+
 ## Cross-References
 
 - [`START-HERE.md`](../START-HERE.md) — first implementation workflow

@@ -9,11 +9,6 @@
 // the static side: the Endpoints slice each handler exports for
 // codegen, and the Schema() function each handler re-exports for
 // EnsureSchemas.
-//
-// Adding a domain: add two lines below — one in AllEndpoints, one in
-// AllSchemas. The runtime constructor lands in main.go's server.New
-// call as a third line. Three central lines per new domain, no other
-// central registry mutations.
 package modules
 
 import (
@@ -22,21 +17,21 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	graphH "go-code-graph/handlers/graph"
 	healthH "go-code-graph/handlers/health"
-	notesH "go-code-graph/handlers/notes"
+	rewriteH "go-code-graph/handlers/rewrite"
 	localdb "go-code-graph/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/notes"
+	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
 // stable order (system endpoints first, then domains alphabetically).
-// The stable order is what makes the diff-exit-code CI check on
-// .vrooli/endpoints.json meaningful.
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...)
+	out = append(out, graphH.Endpoints...)
+	out = append(out, rewriteH.Endpoints...)
 	return out
 }
 
@@ -45,25 +40,18 @@ func AllEndpoints() []module.EndpointDescriptor {
 // global parity test in registry_test.go walks every entry and asserts
 // each rpc method in the FileDescriptor has exactly one matching
 // EndpointDescriptor in AllEndpoints().
-//
-// Adding a Connect-RPC domain: append one line below. The global parity
-// test then covers it automatically — there is no per-domain parity
-// test to write.
-//
-// REST-exception-only domains (none in the template today) are simply
-// not listed here; the global test never inspects them, and the
-// gen-endpoints validateTransport pass enforces their RESTException
-// tags at codegen time.
 type ProtoFileEntry struct {
 	Module string
 	File   protoreflect.FileDescriptor
 }
 
 // AllProtoFiles returns the proto FileDescriptor backing each
-// Connect-mounted domain module, in registration order.
+// Connect-mounted FileDescriptor. graph and rewrite are split at the
+// handlers/<dom>/ layer but ride a single GoCodeGraphService declared
+// in graph.proto, so this list has one entry covering both.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_go_code_graph_v1_notes_notes_proto},
+		{Module: "go_code_graph", File: graphv1.File_go_code_graph_v1_graph_graph_proto},
 	}
 }
 
@@ -71,13 +59,14 @@ func AllProtoFiles() []ProtoFileEntry {
 // schema (always first; cross-cutting infrastructure runs before any
 // domain table). Consumed by main.go's database.EnsureSchemas call.
 //
-// Order matters: system → health → notes → … (domains alphabetical).
-// Postgres scenarios that put `CREATE EXTENSION ...` in system.sql rely
-// on system running before any domain that references the extension.
+// graph and rewrite are stateless in v1. Their Schema() helpers return
+// "" — included here so a future stateful turn (REQ-P1-002 Operation
+// Log) is a one-line schema swap.
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema),
+		apidb.SchemaProviderFunc(graphH.Schema),
+		apidb.SchemaProviderFunc(rewriteH.Schema),
 	}
 }

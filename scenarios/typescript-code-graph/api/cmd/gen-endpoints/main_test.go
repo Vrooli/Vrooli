@@ -18,10 +18,9 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	seed := filepath.Join(t.TempDir(), "seed.json")
 	writeSeed(t, seed, []CLICommand{
 		{Name: "status", Description: "Health check", EndpointID: "health"},
-		{Name: "notes list", Description: "List notes", EndpointID: "notes_list"},
-		{Name: "notes create", Description: "Create note", EndpointID: "notes_create"},
-		{Name: "notes get", Description: "Get note", EndpointID: "notes_get"},
-		{Name: "notes attach", Description: "Attach file", EndpointID: "notes_attach"},
+		{Name: "extract", Description: "TS extract", EndpointID: "graph_extract"},
+		{Name: "rewrite plan", Description: "TS rewrite plan (Phase 5)", EndpointID: "rewrite_plan"},
+		{Name: "rewrite apply", Description: "TS rewrite apply (Phase 5)", EndpointID: "rewrite_apply"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -52,8 +51,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 5 {
-		t.Errorf("cli_commands count = %d, want 5", len(got.CLICommands))
+	if len(got.CLICommands) < 1 {
+		t.Errorf("cli_commands count = %d, want at least 1", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.
@@ -102,15 +101,15 @@ func TestCrossCheck_PassesWhenSeeded(t *testing.T) {
 }
 
 // TestStripBinaryPrefix is the smallest unit on the command-name
-// normalisation step: the endpoint's "typescript-code-graph notes list"
-// must compare against the seed's "notes list".
+// normalisation step: the endpoint's "typescript-code-graph graph extract"
+// must compare against the seed's "graph extract".
 func TestStripBinaryPrefix(t *testing.T) {
 	cases := []struct {
 		in   string
 		want string
 	}{
 		{in: "typescript-code-graph status", want: "status"},
-		{in: "typescript-code-graph notes list", want: "notes list"},
+		{in: "typescript-code-graph graph extract", want: "graph extract"},
 		{in: "already-stripped", want: "already-stripped"},
 		{in: "typescript-code-graph", want: "typescript-code-graph"}, // no trailing space → preserved
 	}

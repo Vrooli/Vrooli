@@ -1,0 +1,270 @@
+{
+  "edges": [
+    {
+      "attributes": {
+        "specifier": "./lib/types"
+      },
+      "from_node_id": "ts_module:src/index.ts",
+      "id": "re_export:ts_module:src/index.ts->ts_module:src/lib/types.ts",
+      "kind": 3,
+      "to_node_id": "ts_module:src/lib/types.ts"
+    },
+    {
+      "attributes": {
+        "specifier": "./lib/utils"
+      },
+      "from_node_id": "ts_module:src/index.ts",
+      "id": "re_export:ts_module:src/index.ts->ts_module:src/lib/utils.ts",
+      "kind": 3,
+      "to_node_id": "ts_module:src/lib/utils.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "attributes": {
+        "language": "typescript"
+      },
+      "id": "file:src/components/Button.tsx",
+      "kind": 1,
+      "leading_comments": [],
+      "name": "Button.tsx",
+      "path": "src/components/Button.tsx"
+    },
+    {
+      "attributes": {
+        "language": "typescript"
+      },
+      "id": "file:src/hooks/useCounter.ts",
+      "kind": 1,
+      "leading_comments": [],
+      "name": "useCounter.ts",
+      "path": "src/hooks/useCounter.ts"
+    },
+    {
+      "attributes": {
+        "language": "typescript"
+      },
+      "id": "file:src/index.ts",
+      "kind": 1,
+      "leading_comments": [],
+      "name": "index.ts",
+      "path": "src/index.ts"
+    },
+    {
+      "attributes": {
+        "language": "typescript"
+      },
+      "id": "file:src/lib/Service.ts",
+      "kind": 1,
+      "leading_comments": [],
+      "name": "Service.ts",
+      "path": "src/lib/Service.ts"
+    },
+    {
+      "attributes": {
+        "language": "typescript"
+      },
+      "id": "file:src/lib/types.ts",
+      "kind": 1,
+      "leading_comments": [],
+      "name": "types.ts",
+      "path": "src/lib/types.ts"
+    },
+    {
+      "attributes": {
+        "language": "typescript"
+      },
+      "id": "file:src/lib/utils.ts",
+      "kind": 1,
+      "leading_comments": [],
+      "name": "utils.ts",
+      "path": "src/lib/utils.ts"
+    },
+    {
+      "attributes": {
+        "exported": "true",
+        "kind": "TS_NODE_KIND_CLASS",
+        "language": "typescript"
+      },
+      "id": "ts_class:src/lib/Service.ts:Service",
+      "kind": 203,
+      "leading_comments": [],
+      "name": "Service",
+      "path": "src/lib/Service.ts"
+    },
+    {
+      "attributes": {
+        "exported": "true",
+        "kind": "TS_NODE_KIND_COMPONENT",
+        "language": "typescript"
+      },
+      "id": "ts_component:src/components/Button.tsx:Button",
+      "kind": 201,
+      "leading_comments": [],
+      "name": "Button",
+      "path": "src/components/Button.tsx"
+    },
+    {
+      "attributes": {
+        "exported": "true",
+        "kind": "TS_NODE_KIND_CONST",
+        "language": "typescript"
+      },
+      "id": "ts_const:src/lib/utils.ts:PI",
+      "kind": 208,
+      "leading_comments": [],
+      "name": "PI",
+      "path": "src/lib/utils.ts"
+    },
+    {
+      "attributes": {
+        "exported": "true",
+        "kind": "TS_NODE_KIND_FUNCTION",
+        "language": "typescript"
+      },
+      "id": "ts_function:src/lib/utils.ts:add",
+      "kind": 206,
+      "leading_comments": [],
+      "name": "add",
+      "path": "src/lib/utils.ts"
+    },
+    {
+      "attributes": {
+        "exported": "true",
+        "kind": "TS_NODE_KIND_HOOK",
+        "language": "typescript"
+      },
+      "id": "ts_hook:src/hooks/useCounter.ts:useCounter",
+      "kind": 202,
+      "leading_comments": [],
+      "name": "useCounter",
+      "path": "src/hooks/useCounter.ts"
+    },
+    {
+      "attributes": {
+        "exported": "true",
+        "kind": "TS_NODE_KIND_INTERFACE",
+        "language": "typescript"
+      },
+      "id": "ts_interface:src/lib/types.ts:User",
+      "kind": 204,
+      "leading_comments": [],
+      "name": "User",
+      "path": "src/lib/types.ts"
+    },
+    {
+      "attributes": {
+        "kind": "TS_NODE_KIND_MODULE",
+        "language": "typescript"
+      },
+      "id": "ts_module:src/components/Button.tsx",
+      "kind": 200,
+      "leading_comments": [],
+      "name": "Button.tsx",
+      "path": "src/components/Button.tsx"
+    },
+    {
+      "attributes": {
+        "kind": "TS_NODE_KIND_MODULE",
+        "language": "typescript"
+      },
+      "id": "ts_module:src/hooks/useCounter.ts",
+      "kind": 200,
+      "leading_comments": [],
+      "name": "useCounter.ts",
+      "path": "src/hooks/useCounter.ts"
+    },
+    {
+      "attributes": {
+        "kind": "TS_NODE_KIND_MODULE",
+        "language": "typescript"
+      },
+      "id": "ts_module:src/index.ts",
+      "kind": 200,
+      "leading_comments": [],
+      "name": "index.ts",
+      "path": "src/index.ts"
+    },
+    {
+      "attributes": {
+        "kind": "TS_NODE_KIND_MODULE",
+        "language": "typescript"
+      },
+      "id": "ts_module:src/lib/Service.ts",
+      "kind": 200,
+      "leading_comments": [],
+      "name": "Service.ts",
+      "path": "src/lib/Service.ts"
+    },
+    {
+      "attributes": {
+        "kind": "TS_NODE_KIND_MODULE",
+        "language": "typescript"
+      },
+      "id": "ts_module:src/lib/types.ts",
+      "kind": 200,
+      "leading_comments": [],
+      "name": "types.ts",
+      "path": "src/lib/types.ts"
+    },
+    {
+      "attributes": {
+        "kind": "TS_NODE_KIND_MODULE",
+        "language": "typescript"
+      },
+      "id": "ts_module:src/lib/utils.ts",
+      "kind": 200,
+      "leading_comments": [],
+      "name": "utils.ts",
+      "path": "src/lib/utils.ts"
+    },
+    {
+      "attributes": {
+        "kind": "TS_NODE_KIND_RE_EXPORT",
+        "language": "typescript",
+        "specifier": "./lib/types"
+      },
+      "id": "ts_re_export:src/index.ts:./lib/types",
+      "kind": 209,
+      "leading_comments": [],
+      "name": "./lib/types",
+      "path": "src/index.ts"
+    },
+    {
+      "attributes": {
+        "kind": "TS_NODE_KIND_RE_EXPORT",
+        "language": "typescript",
+        "specifier": "./lib/utils"
+      },
+      "id": "ts_re_export:src/index.ts:./lib/utils",
+      "kind": 209,
+      "leading_comments": [],
+      "name": "./lib/utils",
+      "path": "src/index.ts"
+    },
+    {
+      "attributes": {
+        "exported": "true",
+        "kind": "TS_NODE_KIND_TYPE",
+        "language": "typescript"
+      },
+      "id": "ts_type:src/lib/types.ts:UserId",
+      "kind": 205,
+      "leading_comments": [],
+      "name": "UserId",
+      "path": "src/lib/types.ts"
+    },
+    {
+      "attributes": {
+        "exported": "true",
+        "kind": "TS_NODE_KIND_VAR",
+        "language": "typescript"
+      },
+      "id": "ts_var:src/lib/utils.ts:counter",
+      "kind": 207,
+      "leading_comments": [],
+      "name": "counter",
+      "path": "src/lib/utils.ts"
+    }
+  ]
+}

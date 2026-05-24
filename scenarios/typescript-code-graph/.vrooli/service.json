@@ -63,10 +63,37 @@
     "freshness": {
       "inputs": [
         "cli/**",
-        ".vrooli/service.json"
+        ".vrooli/service.json",
+        "sidecar/src/**",
+        "sidecar/package.json",
+        "sidecar/pnpm-lock.yaml",
+        "sidecar/tsconfig.json",
+        "sidecar/scripts/build.mjs"
       ]
     }
   },
+  "hostTools": [
+    {
+      "name": "node",
+      "required": true,
+      "reason": "Node sidecar runtime (>=20) \u2014 runs the bundled ts-morph parser child process. The supervisor execs `node sidecar/dist/index.js` on API start; without Node, the API returns Unavailable on every Extract/RewriteApply call.",
+      "when": [
+        "setup",
+        "develop",
+        "production"
+      ],
+      "notes": "Version constraint: >=20.0.0. Pinned by the sidecar's package.json engines field and the esbuild target in sidecar/scripts/build.mjs."
+    },
+    {
+      "name": "pnpm",
+      "required": true,
+      "reason": "Sidecar dependency installer; used only for the sidecar's own deps (ts-morph + devDeps). Never invoked against consumer projects.",
+      "when": [
+        "setup"
+      ],
+      "notes": "Honours pnpm-lock.yaml via --frozen-lockfile for reproducible builds."
+    }
+  ],
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -107,7 +134,7 @@
       "startup_grace_period": 15000
     },
     "setup": {
-      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
+      "description": "Build API, sidecar bundle, and UI assets declared by the manifest-driven lifecycle contract",
       "condition": {
         "checks": [
           {
@@ -124,18 +151,42 @@
             "type": "ui-bundle",
             "bundle_path": "ui/dist/index.html",
             "source_dir": "ui/src"
+          },
+          {
+            "type": "file",
+            "path": "sidecar/dist/index.js"
           }
         ]
       },
       "steps": [
         {
+          "name": "check-node",
+          "run": "command -v node >/dev/null 2>&1 || { echo 'ERROR: node is required (>=20). Install Node.js 20+ before running setup; the API supervisor will spawn `node sidecar/dist/index.js`.' >&2; exit 1; }; NODE_MAJOR=$(node -e 'console.log(process.versions.node.split(\".\")[0])'); if [ \"$NODE_MAJOR\" -lt 20 ]; then echo \"ERROR: node $NODE_MAJOR detected; sidecar requires node >=20.\" >&2; exit 1; fi",
+          "description": "Verify Node.js >=20 is on PATH (required by the sidecar runtime)"
+        },
+        {
+          "name": "check-pnpm",
+          "run": "command -v pnpm >/dev/null 2>&1 || command -v corepack >/dev/null 2>&1 || { echo 'ERROR: pnpm (or corepack) is required to install sidecar deps. Install pnpm or enable corepack before running setup.' >&2; exit 1; }",
+          "description": "Verify pnpm/corepack is available for the sidecar build"
+        },
+        {
+          "name": "install-sidecar-deps",
+          "run": "cd sidecar && (corepack pnpm install --frozen-lockfile || pnpm install --frozen-lockfile)",
+          "description": "Install Node sidecar dependencies (ts-morph + devDeps) reproducibly via pnpm-lock.yaml"
+        },
+        {
+          "name": "build-sidecar",
+          "run": "cd sidecar && (corepack pnpm run build || pnpm run build)",
+          "description": "Bundle sidecar runtime to sidecar/dist/index.js"
+        },
+        {
           "name": "build-api",
-          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o typescript-code-graph-api .",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o typescript-code-graph-api .",
           "description": "Build Go API server"
         },
         {
           "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -143,7 +194,7 @@
         },
         {
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
           "description": "Build production UI bundle"
         }
       ]
@@ -153,7 +204,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api \u0026\u0026 ./typescript-code-graph-api",
+          "run": "cd api && ./typescript-code-graph-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -162,7 +213,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui \u0026\u0026 node server.js",
+          "run": "cd ui && node server.js",
           "description": "Serve production UI bundle",
           "background": true,
           "condition": {

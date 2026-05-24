@@ -107,10 +107,9 @@ func TestProtoConnectParity(t *testing.T) {
 	}
 
 	files := modules.AllProtoFiles()
-	require.NotEmpty(t, files,
-		"AllProtoFiles() returned no entries; every Connect-mounted "+
-			"domain module must be registered there")
-
+	// May be empty before any Connect-mounted product domain has shipped
+	// (the template-inherited health domain is REST-only). Parity still
+	// holds vacuously in that case.
 	for _, entry := range files {
 		services := entry.File.Services()
 		require.NotZero(t, services.Len(),

@@ -21,8 +21,12 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	graphH "go-code-graph/handlers/graph"
 	healthH "go-code-graph/handlers/health"
-	notesH "go-code-graph/handlers/notes"
+	rewriteH "go-code-graph/handlers/rewrite"
+
+	intgraph "go-code-graph/internal/graph"
+	intrewrite "go-code-graph/internal/rewrite"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -101,10 +105,22 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	// Wire the production seams once. graph and rewrite share a single
+	// per-path mutex so concurrent Extract / Apply calls for the same
+	// scenario_path serialize against each other (OT-P0-006).
+	pathMutex := intgraph.NewPathMutex()
+	loader := intgraph.NewPackagesLoader()
+	graphSvc := intgraph.NewService(loader, pathMutex)
+
+	executor := intrewrite.NewFSExecutor()
+	planStore := intrewrite.NewMemoryStore()
+	rewriteSvc := intrewrite.NewService(planStore, executor, pathMutex)
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "go-code-graph-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, log.Default()),
+		graphH.Module(graphSvc, rewriteSvc, log.Default()),
+		rewriteH.Module(rewriteSvc, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
