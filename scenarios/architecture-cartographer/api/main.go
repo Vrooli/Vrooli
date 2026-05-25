@@ -19,6 +19,7 @@ import (
 	"architecture-cartographer/internal/git"
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/graph/gocodegraph"
+	"architecture-cartographer/internal/graph/scenariopath"
 	"architecture-cartographer/internal/graph/tscodegraph"
 	"architecture-cartographer/internal/manifest"
 	"architecture-cartographer/internal/modules"
@@ -34,9 +35,11 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 	_ "modernc.org/sqlite"
 
 	analyticsH "architecture-cartographer/handlers/analytics"
@@ -47,6 +50,45 @@ import (
 	manifestH "architecture-cartographer/handlers/manifest"
 	signalsH "architecture-cartographer/handlers/signals"
 )
+
+// tsProjectCandidates returns the ordered probe list for locating a
+// scenario's TypeScript project directory (a dir containing
+// tsconfig.json). Defaults to ui/ then the scenario root; override the
+// subdir list with CARTOGRAPHER_TS_PROJECT_DIRS (comma-separated,
+// scenario-relative; "." means the scenario root).
+func tsProjectCandidates() []scenariopath.Candidate {
+	return projectCandidates("CARTOGRAPHER_TS_PROJECT_DIRS", []string{"ui", "."}, "tsconfig.json")
+}
+
+// goProjectCandidates returns the ordered probe list for locating a
+// scenario's Go project directory (a dir containing go.mod). Defaults to
+// api/ then cli/ then the scenario root; override with
+// CARTOGRAPHER_GO_PROJECT_DIRS.
+func goProjectCandidates() []scenariopath.Candidate {
+	return projectCandidates("CARTOGRAPHER_GO_PROJECT_DIRS", []string{"api", "cli", "."}, "go.mod")
+}
+
+// projectCandidates builds the candidate probe list for a language,
+// honoring an optional comma-separated env override of the subdir order.
+func projectCandidates(envKey string, defaultSubdirs []string, marker string) []scenariopath.Candidate {
+	subdirs := defaultSubdirs
+	if raw := strings.TrimSpace(os.Getenv(envKey)); raw != "" {
+		parsed := make([]string, 0, len(defaultSubdirs))
+		for _, p := range strings.Split(raw, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				parsed = append(parsed, p)
+			}
+		}
+		if len(parsed) > 0 {
+			subdirs = parsed
+		}
+	}
+	out := make([]scenariopath.Candidate, 0, len(subdirs))
+	for _, d := range subdirs {
+		out = append(out, scenariopath.Candidate{Subdir: d, Marker: marker})
+	}
+	return out
+}
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
 // with the canonical pragma string. Resolution order:
@@ -131,17 +173,25 @@ func main() {
 	clk := clock.System{}
 	primary := db.Primary()
 
-	// Register only the code-graph adapters whose discovery URL is
-	// configured. Operators wire each scenario via env (GO_CODE_GRAPH_URL,
-	// TYPESCRIPT_CODE_GRAPH_URL); unconfigured adapters are intentionally
-	// omitted so a missing target language returns a clean "no adapter
-	// registered" error rather than per-call scenario_unreachable noise.
-	adapters := make([]graph.CodeGraphAdapter, 0, 2)
-	if u := strings.TrimSpace(os.Getenv("GO_CODE_GRAPH_URL")); u != "" {
-		adapters = append(adapters, gocodegraph.New(u))
+	// Code-graph adapters reach their sibling producer scenarios over
+	// Connect, resolving the (dynamic) sibling API port per call via
+	// api-core discovery (`vrooli scenario port <slug>`). Both adapters
+	// are always registered; for a given target scenario each adapter
+	// probes for its own language's project directory (ui/ → TypeScript,
+	// api//cli/ → Go) and contributes nothing when absent, and the graph
+	// service skips any producer that is not running. A missing language
+	// or stopped producer therefore degrades gracefully instead of
+	// erroring the whole extract.
+	resolver := discovery.NewResolver(discovery.ResolverConfig{})
+	repoRoot, repoErr := repocontract.FindRepoRootFromEnvOrCWD()
+	if repoErr != nil {
+		log.Printf("cartographer: repo root resolution failed; code-graph adapters cannot locate project dirs: %v", repoErr)
 	}
-	if u := strings.TrimSpace(os.Getenv("TYPESCRIPT_CODE_GRAPH_URL")); u != "" {
-		adapters = append(adapters, tscodegraph.New(u))
+	tsProjects := scenariopath.NewResolver(repoRoot, tsProjectCandidates())
+	goProjects := scenariopath.NewResolver(repoRoot, goProjectCandidates())
+	adapters := []graph.CodeGraphAdapter{
+		gocodegraph.New(gocodegraph.Config{URLResolver: resolver, ProjectPath: goProjects.Resolve}),
+		tscodegraph.New(tscodegraph.Config{URLResolver: resolver, ProjectPath: tsProjects.Resolve}),
 	}
 	graphSvc := graph.NewService(
 		graph.NewSQLiteRepository(primary, clk), clk,
@@ -208,4 +258,3 @@ func main() {
 		log.Fatalf("Server error: %v", err)
 	}
 }
-

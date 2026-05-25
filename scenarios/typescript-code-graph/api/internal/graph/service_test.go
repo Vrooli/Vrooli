@@ -58,8 +58,8 @@ func TestService_Extract_PermanentlyUnhealthy(t *testing.T) {
 func TestService_Extract_SidecarExtractError_NoTsConfig(t *testing.T) {
 	fake := &sidecarmocks.FakeSidecarClient{
 		StatusValue: sidecar.StatusReady,
-		ExtractFn: func(ctx context.Context, p string) (sidecar.RawGraph, []sidecar.Warning, error) {
-			return sidecar.RawGraph{}, nil, &sidecar.ExtractError{Kind: "no_tsconfig_found", Message: "no tsconfig"}
+		ExtractFn: func(ctx context.Context, p string) (sidecar.ExtractResult, error) {
+			return sidecar.ExtractResult{}, &sidecar.ExtractError{Kind: "no_tsconfig_found", Message: "no tsconfig"}
 		},
 	}
 	svc := newService(t, fake)
@@ -72,8 +72,8 @@ func TestService_Extract_SidecarExtractError_NoTsConfig(t *testing.T) {
 func TestService_Extract_SidecarExtractError_Workspace(t *testing.T) {
 	fake := &sidecarmocks.FakeSidecarClient{
 		StatusValue: sidecar.StatusReady,
-		ExtractFn: func(ctx context.Context, p string) (sidecar.RawGraph, []sidecar.Warning, error) {
-			return sidecar.RawGraph{}, nil, &sidecar.ExtractError{Kind: "workspace_unsupported"}
+		ExtractFn: func(ctx context.Context, p string) (sidecar.ExtractResult, error) {
+			return sidecar.ExtractResult{}, &sidecar.ExtractError{Kind: "workspace_unsupported"}
 		},
 	}
 	svc := newService(t, fake)
@@ -86,8 +86,8 @@ func TestService_Extract_SidecarExtractError_Workspace(t *testing.T) {
 func TestService_Extract_SidecarUnavailableSentinel(t *testing.T) {
 	fake := &sidecarmocks.FakeSidecarClient{
 		StatusValue: sidecar.StatusReady,
-		ExtractFn: func(ctx context.Context, p string) (sidecar.RawGraph, []sidecar.Warning, error) {
-			return sidecar.RawGraph{}, nil, sidecar.ErrSidecarUnavailable
+		ExtractFn: func(ctx context.Context, p string) (sidecar.ExtractResult, error) {
+			return sidecar.ExtractResult{}, sidecar.ErrSidecarUnavailable
 		},
 	}
 	svc := newService(t, fake)
@@ -100,17 +100,21 @@ func TestService_Extract_SidecarUnavailableSentinel(t *testing.T) {
 func TestService_Extract_HappyPath_NormalizesAndHashes(t *testing.T) {
 	fake := &sidecarmocks.FakeSidecarClient{
 		StatusValue: sidecar.StatusReady,
-		ExtractFn: func(ctx context.Context, p string) (sidecar.RawGraph, []sidecar.Warning, error) {
+		ExtractFn: func(ctx context.Context, p string) (sidecar.ExtractResult, error) {
 			require.Equal(t, "/abs/proj", p)
-			return sidecar.RawGraph{
-				Nodes: []sidecar.RawNode{
-					{ID: "z", Kind: 1, Name: "z.ts", Path: "src/z.ts"},
-					{ID: "a", Kind: 201, Name: "Btn", Path: "src/Btn.tsx"},
+			return sidecar.ExtractResult{
+				Graph: sidecar.RawGraph{
+					Nodes: []sidecar.RawNode{
+						{ID: "z", Kind: 1, Name: "z.ts", Path: "src/z.ts"},
+						{ID: "a", Kind: 201, Name: "Btn", Path: "src/Btn.tsx"},
+					},
+					Edges: []sidecar.RawEdge{
+						{ID: "e1", Kind: 1, FromNodeID: "a", ToNodeID: "z"},
+					},
 				},
-				Edges: []sidecar.RawEdge{
-					{ID: "e1", Kind: 1, FromNodeID: "a", ToNodeID: "z"},
-				},
-			}, []sidecar.Warning{{Code: "parse_failure", Message: "x", Path: "src/z.ts"}}, nil
+				Warnings:  []sidecar.Warning{{Kind: 1, Message: "x", File: "src/z.ts"}},
+				RequestID: "req-happy-1",
+			}, nil
 		},
 	}
 	svc := newService(t, fake)
@@ -120,6 +124,7 @@ func TestService_Extract_HappyPath_NormalizesAndHashes(t *testing.T) {
 	require.Equal(t, "a", out.Graph.Nodes[0].ID, "nodes must be sorted by id")
 	require.Equal(t, graph.NodeKindComponent, out.Graph.Nodes[0].Kind)
 	require.NotEmpty(t, out.GraphHash)
+	require.Equal(t, "req-happy-1", out.SidecarRequestID, "sidecar_request_id must be threaded through")
 	require.Len(t, out.Warnings, 1)
 	require.Equal(t, graph.WarningKindParseError, out.Warnings[0].Kind)
 	require.Equal(t, 1, fake.ExtractCalls)
@@ -128,8 +133,8 @@ func TestService_Extract_HappyPath_NormalizesAndHashes(t *testing.T) {
 func TestService_Extract_PropagatesContextCancel(t *testing.T) {
 	fake := &sidecarmocks.FakeSidecarClient{
 		StatusValue: sidecar.StatusReady,
-		ExtractFn: func(ctx context.Context, p string) (sidecar.RawGraph, []sidecar.Warning, error) {
-			return sidecar.RawGraph{}, nil, context.Canceled
+		ExtractFn: func(ctx context.Context, p string) (sidecar.ExtractResult, error) {
+			return sidecar.ExtractResult{}, context.Canceled
 		},
 	}
 	svc := newService(t, fake)

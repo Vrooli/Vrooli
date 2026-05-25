@@ -210,18 +210,18 @@ func fromSidecarResults(ops []Operation, side []sidecar.OperationResult) []Apply
 	return out
 }
 
-// normalizeStatus maps sidecar status strings (which may use either
-// the short or the proto enum-name form) onto the canonical
-// OPERATION_STATUS_* enum-name strings.
+// normalizeStatus validates the sidecar's per-op status against the
+// single canonical spelling. The sidecar emits exactly
+// "OPERATION_STATUS_OK" / "OPERATION_STATUS_FAILED" (pinned in
+// sidecar/src/rewrite.ts); any other value — including the empty string
+// — is treated as a failure rather than silently coerced to OK, so a
+// drifting or malfunctioning sidecar can never masquerade a failure as a
+// success.
 func normalizeStatus(s string) string {
 	switch s {
-	case "ok", "OK", "OPERATION_STATUS_OK":
-		return StatusOK
-	case "failed", "FAILED", "OPERATION_STATUS_FAILED":
-		return StatusFailed
-	case "":
+	case StatusOK:
 		return StatusOK
 	default:
-		return s
+		return StatusFailed
 	}
 }

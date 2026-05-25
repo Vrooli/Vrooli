@@ -92,7 +92,7 @@ describe("no external command", () => {
           { import_rewrite: { old_path: "./util", new_path: "./renamed" } },
         ],
       });
-      expect(results[0]!.ok).toBe(true);
+      expect(results[0]!.status).toBe("OPERATION_STATUS_OK");
       expect(calls).toEqual([]);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });

@@ -104,11 +104,10 @@ func startRealSupervisor(t *testing.T) *sidecar.Supervisor {
 		HandshakeTimeout:  10 * time.Second,
 		StderrSink:        stderr,
 	})
-	// The supervisor derives its rootCtx from the ctx passed to Start,
-	// and rootCtx scopes the child process via exec.CommandContext —
-	// a WithTimeout ctx with `defer cancel()` would kill the sidecar
-	// the moment this helper returns. Use Background; Shutdown in the
-	// t.Cleanup below performs the orderly tear-down.
+	// Start's ctx scopes only the handshake window (the child's lifetime
+	// is owned by the supervisor's internal context), so any ctx is safe
+	// here; Shutdown in the t.Cleanup below performs the orderly
+	// tear-down.
 	if err := sup.Start(context.Background()); err != nil {
 		t.Fatalf("sup.Start: %v\nsidecar stderr:\n%s", err, stderr.String())
 	}

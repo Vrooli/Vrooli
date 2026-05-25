@@ -40,7 +40,7 @@ func TestCancelPendingExtract(t *testing.T) {
 	callCtx, cancel := context.WithCancel(context.Background())
 	errCh := make(chan error, 1)
 	go func() {
-		_, _, err := s.Extract(callCtx, "/tmp/example")
+		_, err := s.Extract(callCtx, "/tmp/example")
 		errCh <- err
 	}()
 

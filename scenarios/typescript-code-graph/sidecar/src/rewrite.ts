@@ -42,8 +42,7 @@ export async function applyRewrite(args: {
       );
     } else {
       results.push({
-        ok: false,
-        touched: 0,
+        status: "OPERATION_STATUS_FAILED",
         message: "operation must set either file_move or import_rewrite",
       });
     }
@@ -69,17 +68,15 @@ function applyFileMove(
     const sf = project.getSourceFile(absFrom);
     if (!sf) {
       return {
-        ok: false,
-        touched: 0,
+        status: "OPERATION_STATUS_FAILED",
         message: `source file not found in project: ${op.from_path}`,
       };
     }
     sf.move(absTo);
-    return { ok: true, touched: 1, message: "" };
+    return { status: "OPERATION_STATUS_OK", message: "" };
   } catch (err) {
     return {
-      ok: false,
-      touched: 0,
+      status: "OPERATION_STATUS_FAILED",
       message: `file_move failed: ${(err as Error).message}`,
     };
   }
@@ -107,11 +104,13 @@ function applyImportRewrite(
       }
       if (fileChanged) touched++;
     }
-    return { ok: true, touched, message: "" };
+    return {
+      status: "OPERATION_STATUS_OK",
+      message: touched > 0 ? `rewrote imports in ${touched} file(s)` : "",
+    };
   } catch (err) {
     return {
-      ok: false,
-      touched: 0,
+      status: "OPERATION_STATUS_FAILED",
       message: `import_rewrite failed: ${(err as Error).message}`,
     };
   }

@@ -10,11 +10,14 @@ package tscodegraph
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"connectrpc.com/connect"
 
 	"architecture-cartographer/internal/graph"
+
+	"github.com/vrooli/api-core/discovery"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph"
@@ -27,23 +30,46 @@ import (
 // upstream classification has a stable key.
 const ScenarioName = "typescript-code-graph"
 
-// Client is the production CodeGraphAdapter for TypeScript. It holds
-// a single Connect-RPC client constructed in New and reused for the
-// lifetime of the adapter; the underlying *http.Client is the
-// stdlib default so callers control timeouts via context.
-type Client struct {
-	baseURL string
-	rpc     graph_v1connect.TypeScriptCodeGraphServiceClient
+// URLResolver resolves a scenario's API base URL at call time. The
+// production implementation is *discovery.Resolver (api-core), which
+// shells out to `vrooli scenario port <slug>` on every call so a
+// sibling's dynamic port is always current. Tests inject
+// discovery.NewStaticResolver(server.URL).
+type URLResolver interface {
+	ResolveScenarioURLDefault(ctx context.Context, scenarioSlug string) (string, error)
 }
 
-// New returns a Client wired against baseURL (resolved by the
-// scenario-discovery layer). The Connect client is constructed
-// eagerly so per-call hot path stays allocation-free.
-func New(baseURL string) *Client {
-	return &Client{
-		baseURL: baseURL,
-		rpc:     graph_v1connect.NewTypeScriptCodeGraphServiceClient(http.DefaultClient, baseURL),
+// ProjectPathFn resolves a target scenario name to the absolute path of
+// its TypeScript project (a directory containing tsconfig.json).
+// found == false means the scenario has no TypeScript project; the
+// adapter then contributes nothing instead of calling the producer.
+type ProjectPathFn func(scenarioName string) (path string, found bool, err error)
+
+// Config wires a Client. URLResolver and ProjectPath are required in
+// production; HTTPClient defaults to http.DefaultClient.
+type Config struct {
+	URLResolver URLResolver
+	ProjectPath ProjectPathFn
+	HTTPClient  connect.HTTPClient
+}
+
+// Client is the production CodeGraphAdapter for TypeScript. It resolves
+// the producer URL and the target's TS project path per call (the
+// underlying *http.Client default leaves timeouts to context), so it
+// tolerates the producer restarting on a new port between extractions.
+type Client struct {
+	urls       URLResolver
+	projectOf  ProjectPathFn
+	httpClient connect.HTTPClient
+}
+
+// New builds a Client from Config.
+func New(cfg Config) *Client {
+	hc := cfg.HTTPClient
+	if hc == nil {
+		hc = http.DefaultClient
 	}
+	return &Client{urls: cfg.URLResolver, projectOf: cfg.ProjectPath, httpClient: hc}
 }
 
 var _ graph.CodeGraphAdapter = (*Client)(nil)
@@ -57,25 +83,65 @@ func (c *Client) SupportedLanguages() []graph.Language {
 	return []graph.Language{graph.LanguageTypeScript}
 }
 
-// Extract performs an Extract call against the typescript-code-graph
-// scenario and translates the proto response into the adapter's
-// language-agnostic RawGraph shape. Connect errors are classified
-// into graph.IntegrationError per classifyConnectError.
+// Extract resolves the target scenario's TypeScript project directory,
+// resolves the typescript-code-graph producer URL via discovery, calls
+// its Extract RPC, and translates the proto response into the adapter's
+// language-agnostic RawGraph. A scenario with no TS project yields an
+// empty graph (not an error). Discovery and Connect failures are
+// classified into graph.IntegrationError.
 func (c *Client) Extract(ctx context.Context, scenario string) (graph.RawGraph, error) {
-	if c.baseURL == "" {
+	if c.projectOf == nil || c.urls == nil {
 		return graph.RawGraph{}, graph.IntegrationError{
-			Kind:     "scenario_unreachable",
+			Kind:     "internal",
 			Scenario: ScenarioName,
-			Cause:    errors.New("empty baseURL: discovery layer did not resolve typescript-code-graph"),
+			Cause:    errors.New("tscodegraph adapter not fully configured (missing URLResolver or ProjectPath)"),
 		}
 	}
-	resp, err := c.rpc.Extract(ctx, connect.NewRequest(&graphv1.ExtractRequest{
-		ScenarioPath: scenario,
+	projectPath, found, err := c.projectOf(scenario)
+	if err != nil {
+		return graph.RawGraph{}, graph.IntegrationError{
+			Kind:     "internal",
+			Scenario: ScenarioName,
+			Cause:    fmt.Errorf("resolve TS project path for %q: %w", scenario, err),
+		}
+	}
+	if !found {
+		// Scenario has no TypeScript project; contribute nothing.
+		return graph.RawGraph{}, nil
+	}
+	baseURL, err := c.urls.ResolveScenarioURLDefault(ctx, ScenarioName)
+	if err != nil {
+		return graph.RawGraph{}, classifyResolveError(err)
+	}
+	rpc := graph_v1connect.NewTypeScriptCodeGraphServiceClient(c.httpClient, baseURL)
+	resp, err := rpc.Extract(ctx, connect.NewRequest(&graphv1.ExtractRequest{
+		ScenarioPath: projectPath,
 	}))
 	if err != nil {
 		return graph.RawGraph{}, classifyConnectError(err)
 	}
 	return protoToRawGraph(resp.Msg), nil
+}
+
+// classifyResolveError maps an api-core discovery failure onto the typed
+// graph.IntegrationError kinds cartographer's service understands. A
+// not-running / unreachable producer becomes "scenario_unreachable" so
+// the service can skip this language rather than failing the whole
+// cross-language extract.
+func classifyResolveError(err error) error {
+	kind := "internal"
+	var de *discovery.Error
+	if errors.As(err, &de) {
+		switch de.Kind {
+		case discovery.ErrScenarioNotRunning, discovery.ErrVrooliNotFound, discovery.ErrCommandFailed, discovery.ErrInvalidPort:
+			kind = "scenario_unreachable"
+		case discovery.ErrTimeout:
+			kind = "scenario_timeout"
+		default:
+			kind = "internal"
+		}
+	}
+	return graph.IntegrationError{Kind: kind, Scenario: ScenarioName, Cause: err}
 }
 
 // classifyConnectError maps a connect.Error code to the typed

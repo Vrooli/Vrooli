@@ -87,7 +87,7 @@
         }
       ],
       "cli_mapping": {
-        "command": "typescript-code-graph extract",
+        "command": "typescript-code-graph graph extract",
         "args": [
           "<path>"
         ]
@@ -198,18 +198,18 @@
       "endpoint_id": "health"
     },
     {
-      "name": "extract",
-      "description": "Extract a deterministic TypeScript graph for the project at <path> (Phase 7 will ship the CLI binding; this seed entry is committed in Phase 4 so the proto/Connect parity gate stays green).",
+      "name": "graph extract",
+      "description": "Extract a deterministic TypeScript graph for the project at <path>.",
       "endpoint_id": "graph_extract"
     },
     {
       "name": "rewrite plan",
-      "description": "Plan a TypeScript rewrite from <ops.json> (Phase 5 ships the API stub; Phase 7 ships the CLI binding).",
+      "description": "Plan a TypeScript rewrite from <ops.json>.",
       "endpoint_id": "rewrite_plan"
     },
     {
       "name": "rewrite apply",
-      "description": "Apply the rewrite plan identified by <plan_id> (Phase 5 ships the API stub; Phase 7 ships the CLI binding).",
+      "description": "Apply the rewrite plan identified by <plan_id>.",
       "endpoint_id": "rewrite_apply"
     }
   ]

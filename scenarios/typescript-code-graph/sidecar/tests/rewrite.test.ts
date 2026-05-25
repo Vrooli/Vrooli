@@ -54,8 +54,7 @@ describe("applyRewrite", () => {
     });
 
     expect(results).toHaveLength(1);
-    expect(results[0]!.ok).toBe(true);
-    expect(results[0]!.touched).toBe(1);
+    expect(results[0]!.status).toBe("OPERATION_STATUS_OK");
 
     // File should be at new path
     expect(fs.existsSync(path.join(tmpDir, "src/lib/util.ts"))).toBe(true);
@@ -77,8 +76,8 @@ describe("applyRewrite", () => {
       ],
     });
 
-    expect(results[0]!.ok).toBe(true);
-    expect(results[0]!.touched).toBe(2);
+    expect(results[0]!.status).toBe("OPERATION_STATUS_OK");
+    expect(results[0]!.message).toBe("rewrote imports in 2 file(s)");
     expect(fs.readFileSync(path.join(tmpDir, "src/a.ts"), "utf8")).toMatch(
       /from\s+["']\.\/util-renamed["']/,
     );
@@ -87,7 +86,7 @@ describe("applyRewrite", () => {
     );
   });
 
-  it("returns ok=false for a move whose source file is not in the project", async () => {
+  it("returns FAILED for a move whose source file is not in the project", async () => {
     write("src/main.ts", `export const M = 1;\n`);
     const results = await applyRewrite({
       scenarioPath: tmpDir,
@@ -100,16 +99,16 @@ describe("applyRewrite", () => {
         },
       ],
     });
-    expect(results[0]!.ok).toBe(false);
+    expect(results[0]!.status).toBe("OPERATION_STATUS_FAILED");
     expect(results[0]!.message).toMatch(/not found/);
   });
 
-  it("returns ok=false when neither file_move nor import_rewrite is set", async () => {
+  it("returns FAILED when neither file_move nor import_rewrite is set", async () => {
     write("src/main.ts", `export const M = 1;\n`);
     const results = await applyRewrite({
       scenarioPath: tmpDir,
       operations: [{}],
     });
-    expect(results[0]!.ok).toBe(false);
+    expect(results[0]!.status).toBe("OPERATION_STATUS_FAILED");
   });
 });

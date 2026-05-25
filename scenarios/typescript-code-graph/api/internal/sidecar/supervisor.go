@@ -117,8 +117,16 @@ func NewSupervisor(cfg Config) *Supervisor {
 }
 
 // Start spawns the child, performs the handshake, and launches the
-// supervisor and heartbeat goroutines. The provided ctx scopes the
-// child process lifetime — cancelling it tears down the supervisor.
+// supervisor and heartbeat goroutines.
+//
+// The provided ctx scopes ONLY the synchronous startup window (the
+// initial handshake): cancelling it before Start returns aborts startup
+// and tears the child down. Once Start returns, the caller's ctx no
+// longer governs anything — the child process lifetime is owned by the
+// supervisor's internal context (rooted at context.Background()) and is
+// torn down exclusively via Shutdown. This means a caller may safely
+// pass a request-scoped or otherwise short-lived ctx to Start without
+// risking a SIGKILL of the running child when that ctx later cancels.
 func (s *Supervisor) Start(ctx context.Context) error {
 	s.mu.Lock()
 	if s.started {
@@ -132,9 +140,12 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		return fmt.Errorf("sidecar: dist path not found: %w", err)
 	}
 
-	s.rootCtx, s.rootCancel = context.WithCancel(ctx)
+	// The child's lifetime is owned by the supervisor, NOT the caller.
+	// rootCtx is rooted at Background and cancelled only by Shutdown (or
+	// permanent failure below) — never by the caller's startup ctx.
+	s.rootCtx, s.rootCancel = context.WithCancel(context.Background())
 
-	if err := s.spawn(); err != nil {
+	if err := s.spawn(ctx); err != nil {
 		// supervisor goroutine never started; mark permanent so callers
 		// don't wait forever on supDone.
 		s.mu.Lock()
@@ -150,10 +161,14 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	return nil
 }
 
-// spawn launches a fresh child and performs the handshake. Caller
-// must NOT hold s.mu. On success the supervisor's status is READY and
+// spawn launches a fresh child and performs the handshake. Caller must
+// NOT hold s.mu. The child process is bound to the supervisor-owned
+// rootCtx (so it outlives any per-call ctx); startupCtx scopes only the
+// handshake wait, letting an initial Start abort cleanly if its caller
+// cancels mid-startup. On respawn the supervisor passes rootCtx as the
+// startupCtx. On success the supervisor's status is READY and
 // cmd/stdin/writer fields are populated.
-func (s *Supervisor) spawn() error {
+func (s *Supervisor) spawn(startupCtx context.Context) error {
 	s.mu.Lock()
 	s.status = StatusRestarting
 	s.mu.Unlock()
@@ -202,7 +217,7 @@ func (s *Supervisor) spawn() error {
 	go s.readLoop(stdout, gen, readerDone)
 
 	// Synchronous handshake before declaring ready.
-	if err := s.doHandshake(); err != nil {
+	if err := s.doHandshake(startupCtx); err != nil {
 		// Force the child down so the supervisor goroutine observes a
 		// crash and applies backoff.
 		_ = cmd.Process.Kill()
@@ -218,8 +233,11 @@ func (s *Supervisor) spawn() error {
 }
 
 // doHandshake performs the initial handshake. Must be called after
-// spawn so the writer / pending registry are wired.
-func (s *Supervisor) doHandshake() error {
+// spawn so the writer / pending registry are wired. startupCtx scopes
+// the handshake wait only: cancelling it aborts startup but does not
+// (by itself) kill the already-spawned child — spawn does that
+// explicitly on the error path.
+func (s *Supervisor) doHandshake(startupCtx context.Context) error {
 	reqID := uuid.NewString()
 	ch := s.registerPending(reqID)
 	defer s.unregisterPending(reqID)
@@ -248,6 +266,8 @@ func (s *Supervisor) doHandshake() error {
 		return nil
 	case <-time.After(s.cfg.HandshakeTimeout):
 		return ErrSidecarTimeout
+	case <-startupCtx.Done():
+		return startupCtx.Err()
 	case <-s.rootCtx.Done():
 		return s.rootCtx.Err()
 	}
@@ -394,8 +414,10 @@ func (s *Supervisor) supervise() {
 		}
 
 		// Try to respawn. If spawn itself fails (e.g. dist gone), loop
-		// will re-record and eventually exhaust budget.
-		if err := s.spawn(); err != nil {
+		// will re-record and eventually exhaust budget. The respawn's
+		// handshake is scoped to rootCtx (no external caller ctx exists
+		// here) so a Shutdown mid-respawn aborts it.
+		if err := s.spawn(s.rootCtx); err != nil {
 			fmt.Fprintf(s.cfg.StderrSink, "sidecar: respawn failed: %v\n", err)
 			// Force a zero-wait child so cmd.Wait above returns
 			// immediately on the next iteration: use a dummy by leaving
@@ -515,10 +537,10 @@ type extractRequest struct {
 }
 
 type extractResponse struct {
-	Graph         RawGraph  `json:"graph"`
-	Warnings      []Warning `json:"warnings"`
-	ExtractionMS  int64     `json:"extraction_ms"`
-	GraphHash     string    `json:"graph_hash"`
+	Graph        RawGraph  `json:"graph"`
+	Warnings     []Warning `json:"warnings"`
+	ExtractionMS int64     `json:"extraction_ms"`
+	GraphHash    string    `json:"graph_hash"`
 }
 
 // rewriteApplyRequest / rewriteApplyResponse mirror plan §8.4 wire shapes.
@@ -540,9 +562,9 @@ type cancelRequest struct {
 }
 
 // Extract implements SidecarClient.
-func (s *Supervisor) Extract(ctx context.Context, scenarioPath string) (RawGraph, []Warning, error) {
+func (s *Supervisor) Extract(ctx context.Context, scenarioPath string) (ExtractResult, error) {
 	if st := s.Status(); st != StatusReady {
-		return RawGraph{}, nil, s.statusErr(st)
+		return ExtractResult{}, s.statusErr(st)
 	}
 	reqID := uuid.NewString()
 	ch := s.registerPending(reqID)
@@ -554,40 +576,41 @@ func (s *Supervisor) Extract(ctx context.Context, scenarioPath string) (RawGraph
 	w := s.writer
 	s.mu.Unlock()
 	if w == nil {
-		return RawGraph{}, nil, ErrSidecarUnavailable
+		return ExtractResult{}, ErrSidecarUnavailable
 	}
 	if err := w.Write(extractRequest{Type: "extract", RequestID: reqID, ScenarioPath: scenarioPath}); err != nil {
-		return RawGraph{}, nil, fmt.Errorf("%w: %v", ErrSidecarUnavailable, err)
+		return ExtractResult{}, fmt.Errorf("%w: %v", ErrSidecarUnavailable, err)
 	}
 
 	select {
 	case resp := <-ch:
-		return s.decodeExtractResponse(resp)
+		return s.decodeExtractResponse(reqID, resp)
 	case <-ctx.Done():
-		// Best-effort cancel IPC; resolve locally regardless.
+		// Best-effort cancel IPC; resolve locally regardless. The reqID
+		// still travels back so callers can correlate the cancelled work.
 		_ = w.Write(cancelRequest{Type: "cancel", RequestID: reqID})
-		return RawGraph{}, nil, ctx.Err()
+		return ExtractResult{RequestID: reqID}, ctx.Err()
 	}
 }
 
-func (s *Supervisor) decodeExtractResponse(resp rawResponse) (RawGraph, []Warning, error) {
+func (s *Supervisor) decodeExtractResponse(reqID string, resp rawResponse) (ExtractResult, error) {
 	switch resp.kind {
 	case "extract":
 		var er extractResponse
 		if err := json.Unmarshal(resp.raw, &er); err != nil {
-			return RawGraph{}, nil, fmt.Errorf("decode extract: %w", err)
+			return ExtractResult{RequestID: reqID}, fmt.Errorf("decode extract: %w", err)
 		}
-		return er.Graph, er.Warnings, nil
+		return ExtractResult{Graph: er.Graph, Warnings: er.Warnings, RequestID: reqID}, nil
 	case "error":
 		var ee errorEnvelope
 		if err := json.Unmarshal(resp.raw, &ee); err != nil {
-			return RawGraph{}, nil, fmt.Errorf("decode error envelope: %w", err)
+			return ExtractResult{RequestID: reqID}, fmt.Errorf("decode error envelope: %w", err)
 		}
-		return RawGraph{}, nil, ee.toExtractError()
+		return ExtractResult{RequestID: reqID}, ee.toExtractError()
 	case "__drained__":
-		return RawGraph{}, nil, ErrSidecarUnavailable
+		return ExtractResult{RequestID: reqID}, ErrSidecarUnavailable
 	default:
-		return RawGraph{}, nil, fmt.Errorf("unexpected response kind %q", resp.kind)
+		return ExtractResult{RequestID: reqID}, fmt.Errorf("unexpected response kind %q", resp.kind)
 	}
 }
 

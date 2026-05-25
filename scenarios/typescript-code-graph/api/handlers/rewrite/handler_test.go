@@ -129,8 +129,8 @@ func TestRewriteApply_RealApplyHitsSidecar(t *testing.T) {
 		StatusValue: sidecar.StatusReady,
 		RewriteApplyFn: func(ctx context.Context, p string, ops []sidecar.Operation) ([]sidecar.OperationResult, error) {
 			out := make([]sidecar.OperationResult, len(ops))
-			for i, op := range ops {
-				out[i] = sidecar.OperationResult{Operation: op, Status: "ok"}
+			for i := range ops {
+				out[i] = sidecar.OperationResult{Status: "OPERATION_STATUS_OK"}
 			}
 			return out, nil
 		},

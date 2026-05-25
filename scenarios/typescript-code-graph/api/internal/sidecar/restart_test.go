@@ -55,9 +55,9 @@ func TestSupervisorRespawnsAfterCrash(t *testing.T) {
 	require.Equal(t, StatusReady, st)
 
 	// New Extract on the replacement child should succeed.
-	graph, _, err := s.Extract(ctx, "/tmp/example")
+	res, err := s.Extract(ctx, "/tmp/example")
 	require.NoError(t, err)
-	require.Empty(t, graph.Nodes)
+	require.Empty(t, res.Graph.Nodes)
 }
 
 // TestInFlightRequestDrainsOnCrash starts an Extract against a fake
@@ -89,7 +89,7 @@ func TestInFlightRequestDrainsOnCrash(t *testing.T) {
 	// after the heartbeat kills the child.
 	errCh := make(chan error, 1)
 	go func() {
-		_, _, err := s.Extract(ctx, "/tmp/example")
+		_, err := s.Extract(ctx, "/tmp/example")
 		errCh <- err
 	}()
 

@@ -59,6 +59,14 @@ func (s *service) ExtractGraph(ctx context.Context, in ExtractGraphInput) (Graph
 		}
 		raw, err := adapter.Extract(ctx, scenario)
 		if err != nil {
+			// Graceful degradation: when a backing producer scenario is
+			// not running, skip that language rather than failing the
+			// whole cross-language extract. Any other error (invalid
+			// input, timeout, internal) still aborts.
+			var ie IntegrationError
+			if errors.As(err, &ie) && ie.Kind == "scenario_unreachable" {
+				continue
+			}
 			return GraphSnapshot{}, false, err
 		}
 		combined.Languages = append(combined.Languages, raw.Languages...)

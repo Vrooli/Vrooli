@@ -18,9 +18,9 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	seed := filepath.Join(t.TempDir(), "seed.json")
 	writeSeed(t, seed, []CLICommand{
 		{Name: "status", Description: "Health check", EndpointID: "health"},
-		{Name: "extract", Description: "TS extract", EndpointID: "graph_extract"},
-		{Name: "rewrite plan", Description: "TS rewrite plan (Phase 5)", EndpointID: "rewrite_plan"},
-		{Name: "rewrite apply", Description: "TS rewrite apply (Phase 5)", EndpointID: "rewrite_apply"},
+		{Name: "graph extract", Description: "TS extract", EndpointID: "graph_extract"},
+		{Name: "rewrite plan", Description: "TS rewrite plan", EndpointID: "rewrite_plan"},
+		{Name: "rewrite apply", Description: "TS rewrite apply", EndpointID: "rewrite_apply"},
 	})
 
 	if err := run(output, seed); err != nil {

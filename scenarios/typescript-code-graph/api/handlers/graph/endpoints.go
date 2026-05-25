@@ -49,7 +49,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 500, Code: "internal", Description: "Unexpected sidecar or normalization failure"},
 		},
 		CLIMapping: &module.CLIMapping{
-			Command: "typescript-code-graph extract",
+			Command: "typescript-code-graph graph extract",
 			Args:    []string{"<path>"},
 		},
 	},

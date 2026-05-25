@@ -132,4 +132,35 @@ export const X = 1;`,
     expect(importEdges.length).toBeGreaterThan(0);
     expect(importEdges[0]!.from_node_id).toBe("ts_module:src/main.ts");
   });
+
+  it("emits a WK_UNRESOLVED_IMPORT warning for a dangling relative import (D3)", () => {
+    const project = inMemoryProject();
+    project.createSourceFile(
+      "/proj/src/main.ts",
+      `import { Gone } from "./does-not-exist"; export const M = Gone;`,
+    );
+    const out = extract({ scenarioPath: "/proj", _project: project, _rootDirOverride: "/proj" });
+
+    // The dangling edge is still emitted (consumers see the dependency)...
+    const importEdges = out.graph.edges.filter((e) => e.kind === 1);
+    expect(importEdges.length).toBeGreaterThan(0);
+
+    // ...AND an additive UNRESOLVED_IMPORT (kind=2) warning is raised so
+    // consumers can distinguish a real edge from a dangling one.
+    const unresolved = out.warnings.filter((w) => w.kind === 2);
+    expect(unresolved.length).toBe(1);
+    expect(unresolved[0]!.file).toBe("src/main.ts");
+    expect(unresolved[0]!.message).toBe("./does-not-exist");
+  });
+
+  it("does not warn for external (bare) specifiers", () => {
+    const project = inMemoryProject();
+    project.createSourceFile(
+      "/proj/src/main.ts",
+      `import { useState } from "react"; export const M = useState;`,
+    );
+    const out = extract({ scenarioPath: "/proj", _project: project, _rootDirOverride: "/proj" });
+    // Bare specifiers are external: no edge, no warning.
+    expect(out.warnings.filter((w) => w.kind === 2).length).toBe(0);
+  });
 });

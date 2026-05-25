@@ -52,14 +52,19 @@ func TestHandlerExtractHappyPath(t *testing.T) {
 	t.Parallel()
 	fake := &sidecarmocks.FakeSidecarClient{
 		StatusValue: sidecar.StatusReady,
-		ExtractFn: func(ctx context.Context, p string) (sidecar.RawGraph, []sidecar.Warning, error) {
-			return sidecar.RawGraph{
-				Nodes: []sidecar.RawNode{
-					{ID: "file:src/a.ts", Kind: 1, Name: "a.ts", Path: "src/a.ts"},
-					{ID: "ts_component:m:Btn", Kind: 201, Name: "Btn", Path: "src/Btn.tsx",
-						LeadingComments: []string{"/** @vrooliWidget */"}},
+		ExtractFn: func(ctx context.Context, p string) (sidecar.ExtractResult, error) {
+			return sidecar.ExtractResult{
+				Graph: sidecar.RawGraph{
+					Nodes: []sidecar.RawNode{
+						{ID: "file:src/a.ts", Kind: 1, Name: "a.ts", Path: "src/a.ts"},
+						{
+							ID: "ts_component:m:Btn", Kind: 201, Name: "Btn", Path: "src/Btn.tsx",
+							LeadingComments: []string{"/** @vrooliWidget */"},
+						},
+					},
 				},
-			}, nil, nil
+				RequestID: "req-handler-1",
+			}, nil
 		},
 	}
 	svc := intgraph.NewService(fake, intgraph.NewPathMutex())
@@ -73,6 +78,8 @@ func TestHandlerExtractHappyPath(t *testing.T) {
 	require.Len(t, resp.Msg.GetGraph().GetNodes(), 2)
 	require.NotEmpty(t, resp.Msg.GetGraphHash())
 	require.GreaterOrEqual(t, resp.Msg.GetExtractionMs(), int64(0))
+	require.Equal(t, "req-handler-1", resp.Msg.GetSidecarRequestId(),
+		"sidecar_request_id must round-trip onto the proto response")
 
 	// Find the component node; its leading_comments must survive verbatim
 	// and attributes["kind"] should report the TS-specific enum name.
@@ -112,8 +119,8 @@ func TestHandlerExtractWorkspaceUnsupported(t *testing.T) {
 	t.Parallel()
 	fake := &sidecarmocks.FakeSidecarClient{
 		StatusValue: sidecar.StatusReady,
-		ExtractFn: func(ctx context.Context, p string) (sidecar.RawGraph, []sidecar.Warning, error) {
-			return sidecar.RawGraph{}, nil, &sidecar.ExtractError{Kind: "workspace_unsupported"}
+		ExtractFn: func(ctx context.Context, p string) (sidecar.ExtractResult, error) {
+			return sidecar.ExtractResult{}, &sidecar.ExtractError{Kind: "workspace_unsupported"}
 		},
 	}
 	svc := intgraph.NewService(fake, intgraph.NewPathMutex())
@@ -127,8 +134,8 @@ func TestHandlerExtractNotFound(t *testing.T) {
 	t.Parallel()
 	fake := &sidecarmocks.FakeSidecarClient{
 		StatusValue: sidecar.StatusReady,
-		ExtractFn: func(ctx context.Context, p string) (sidecar.RawGraph, []sidecar.Warning, error) {
-			return sidecar.RawGraph{}, nil, &sidecar.ExtractError{Kind: "path_unreadable"}
+		ExtractFn: func(ctx context.Context, p string) (sidecar.ExtractResult, error) {
+			return sidecar.ExtractResult{}, &sidecar.ExtractError{Kind: "path_unreadable"}
 		},
 	}
 	svc := intgraph.NewService(fake, intgraph.NewPathMutex())

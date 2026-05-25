@@ -18,7 +18,7 @@ import (
 type FakeSidecarClient struct {
 	mu sync.Mutex
 
-	ExtractFn      func(ctx context.Context, scenarioPath string) (sidecar.RawGraph, []sidecar.Warning, error)
+	ExtractFn      func(ctx context.Context, scenarioPath string) (sidecar.ExtractResult, error)
 	RewriteApplyFn func(ctx context.Context, scenarioPath string, ops []sidecar.Operation) ([]sidecar.OperationResult, error)
 	ShutdownFn     func(ctx context.Context) error
 	StatusValue    sidecar.Status
@@ -29,13 +29,13 @@ type FakeSidecarClient struct {
 }
 
 // Extract records the call and dispatches to ExtractFn.
-func (f *FakeSidecarClient) Extract(ctx context.Context, scenarioPath string) (sidecar.RawGraph, []sidecar.Warning, error) {
+func (f *FakeSidecarClient) Extract(ctx context.Context, scenarioPath string) (sidecar.ExtractResult, error) {
 	f.mu.Lock()
 	f.ExtractCalls++
 	fn := f.ExtractFn
 	f.mu.Unlock()
 	if fn == nil {
-		return sidecar.RawGraph{}, nil, nil
+		return sidecar.ExtractResult{}, nil
 	}
 	return fn(ctx, scenarioPath)
 }

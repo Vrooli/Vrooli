@@ -61,13 +61,48 @@ func TestServicePlan_RejectsEmptyOps(t *testing.T) {
 	}
 }
 
+// TestServiceApply_RejectsNonCanonicalStatus pins the D4 contract: the
+// sidecar emits exactly "OPERATION_STATUS_OK"; any other spelling
+// (including the empty string or a legacy "ok") is treated as a failure,
+// never silently coerced to OK.
+func TestServiceApply_RejectsNonCanonicalStatus(t *testing.T) {
+	for _, bad := range []string{"ok", "OK", "", "OPERATION_STATUS_WEIRD"} {
+		bad := bad
+		fake := &sidecarmocks.FakeSidecarClient{
+			StatusValue: sidecar.StatusReady,
+			RewriteApplyFn: func(ctx context.Context, p string, ops []sidecar.Operation) ([]sidecar.OperationResult, error) {
+				out := make([]sidecar.OperationResult, len(ops))
+				for i := range ops {
+					out[i] = sidecar.OperationResult{Status: bad}
+				}
+				return out, nil
+			},
+		}
+		svc, _ := newSvc(t, fake)
+		planOut, err := svc.Plan(context.Background(), rewrite.PlanInput{
+			ScenarioPath: "/abs/proj",
+			Operations:   []rewrite.Operation{{FileMove: &rewrite.FileMove{FromPath: "a.ts", ToPath: "b.ts"}}},
+		})
+		if err != nil {
+			t.Fatalf("Plan: %v", err)
+		}
+		out, err := svc.Apply(context.Background(), rewrite.ApplyInput{ScenarioPath: "/abs/proj", PlanID: planOut.PlanID})
+		if err != nil {
+			t.Fatalf("Apply: %v", err)
+		}
+		if out.Results[0].Status != rewrite.StatusFailed {
+			t.Errorf("status %q should normalize to FAILED, got %q", bad, out.Results[0].Status)
+		}
+	}
+}
+
 func TestServiceApply_HappyPath(t *testing.T) {
 	fake := &sidecarmocks.FakeSidecarClient{
 		StatusValue: sidecar.StatusReady,
 		RewriteApplyFn: func(ctx context.Context, p string, ops []sidecar.Operation) ([]sidecar.OperationResult, error) {
 			out := make([]sidecar.OperationResult, len(ops))
-			for i, op := range ops {
-				out[i] = sidecar.OperationResult{Operation: op, Status: "OPERATION_STATUS_OK"}
+			for i := range ops {
+				out[i] = sidecar.OperationResult{Status: "OPERATION_STATUS_OK"}
 			}
 			return out, nil
 		},

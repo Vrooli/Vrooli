@@ -36,7 +36,7 @@ The five domains map onto the operational targets in [`../../PRD.md`](../../PRD.
 - Owns: the IPC contract with the Node sidecar, normalization rules from raw `ts-morph` output to the shared envelope, warning aggregation, the per-path mutex registry, and the graph-hash derivation. The graph domain does **not** own sidecar lifecycle — that is `sidecar`'s job.
 - Does not own: storage (graph is returned, not persisted in v1), the shared envelope itself (lives in `common/v1/`), sidecar process management (delegated to `sidecar`), or rewriting (that is `rewrite`'s job).
 - API: `api/internal/graph/`, `api/handlers/graph/`. Connect-RPC service `TypeScriptCodeGraphService` with method `Extract`.
-- CLI: `cli/domains/graph/` with `typescript-code-graph extract <path>` (default human output, optional `--json`).
+- CLI: `cli/domains/graph/` with `typescript-code-graph graph extract <path>` (default human output, optional `--json`).
 - UI: `ui/src/features/graph/` — surfaces a read-only graph display for the `explorer` feature to consume. Renders leading-comment metadata inline (collapsed by default).
 - Storage: none in v1.
 - Requirements: REQ-P0-001 (deterministic extraction), REQ-P0-002 (shared envelope adoption), REQ-P0-003 (leading-comment metadata), REQ-P0-005 (single-project resolution), REQ-P0-006 (partial-graph warnings), REQ-P0-007 (per-path serialization).

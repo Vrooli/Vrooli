@@ -12,10 +12,29 @@ import (
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/graph/tscodegraph"
 
+	"github.com/vrooli/api-core/discovery"
+
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph/graph_v1connect"
 )
+
+// passthroughProject is a ProjectPathFn stub that treats the scenario
+// name as the project path (always found). It keeps the Connect-hop
+// tests focused on transport behavior; the real fs probing lives in the
+// scenariopath package's own tests.
+func passthroughProject(scenario string) (string, bool, error) {
+	return scenario, true, nil
+}
+
+// newClient builds a tscodegraph client pointed at baseURL via a static
+// discovery resolver, with the passthrough project resolver.
+func newClient(baseURL string) *tscodegraph.Client {
+	return tscodegraph.New(tscodegraph.Config{
+		URLResolver: discovery.NewStaticResolver(baseURL),
+		ProjectPath: passthroughProject,
+	})
+}
 
 // fakeService is a programmable TypeScriptCodeGraphServiceHandler used
 // by the in-process Connect server tests.
@@ -46,7 +65,7 @@ func startServer(t *testing.T, svc *fakeService) string {
 }
 
 func TestClient_NameAndLanguages(t *testing.T) {
-	c := tscodegraph.New("http://localhost:0")
+	c := newClient("http://localhost:0")
 	if got := c.Name(); got != "typescript" {
 		t.Fatalf("Name=%q want %q", got, "typescript")
 	}
@@ -97,7 +116,7 @@ func TestClient_Extract_HappyPath(t *testing.T) {
 			}), nil
 		},
 	}
-	c := tscodegraph.New(startServer(t, svc))
+	c := newClient(startServer(t, svc))
 
 	raw, err := c.Extract(context.Background(), "demo")
 	if err != nil {
@@ -157,7 +176,7 @@ func TestClient_Extract_ErrorMapping(t *testing.T) {
 					return nil, connect.NewError(tc.code, errors.New("simulated"))
 				},
 			}
-			c := tscodegraph.New(startServer(t, svc))
+			c := newClient(startServer(t, svc))
 			_, err := c.Extract(context.Background(), "demo")
 			var ie graph.IntegrationError
 			if !errors.As(err, &ie) {
@@ -188,7 +207,7 @@ func TestClient_Extract_ContextCancellation(t *testing.T) {
 			return nil, connect.NewError(connect.CodeCanceled, ctx.Err())
 		},
 	}
-	c := tscodegraph.New(startServer(t, svc))
+	c := newClient(startServer(t, svc))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel immediately
@@ -202,5 +221,51 @@ func TestClient_Extract_ContextCancellation(t *testing.T) {
 	}
 	if ie.Scenario != tscodegraph.ScenarioName {
 		t.Fatalf("Scenario=%q", ie.Scenario)
+	}
+}
+
+// failingResolver returns a fixed discovery error so tests can exercise
+// the scenario_unreachable classification without a live producer.
+type failingResolver struct{ err error }
+
+func (f failingResolver) ResolveScenarioURLDefault(context.Context, string) (string, error) {
+	return "", f.err
+}
+
+func TestClient_Extract_NoTSProject_EmptyGraph(t *testing.T) {
+	c := tscodegraph.New(tscodegraph.Config{
+		URLResolver: discovery.NewStaticResolver("http://localhost:0"),
+		ProjectPath: func(string) (string, bool, error) { return "", false, nil },
+	})
+	raw, err := c.Extract(context.Background(), "demo")
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if n := len(raw.Files) + len(raw.Packages) + len(raw.Symbols) + len(raw.Imports); n != 0 {
+		t.Fatalf("want empty graph for scenario with no TS project, got %d elements", n)
+	}
+}
+
+func TestClient_Extract_ProjectResolveError_Internal(t *testing.T) {
+	c := tscodegraph.New(tscodegraph.Config{
+		URLResolver: discovery.NewStaticResolver("http://localhost:0"),
+		ProjectPath: func(string) (string, bool, error) { return "", false, errors.New("boom") },
+	})
+	_, err := c.Extract(context.Background(), "demo")
+	var ie graph.IntegrationError
+	if !errors.As(err, &ie) || ie.Kind != "internal" {
+		t.Fatalf("want internal IntegrationError, got %v", err)
+	}
+}
+
+func TestClient_Extract_DiscoveryUnreachable(t *testing.T) {
+	c := tscodegraph.New(tscodegraph.Config{
+		URLResolver: failingResolver{err: &discovery.Error{Kind: discovery.ErrScenarioNotRunning, Scenario: tscodegraph.ScenarioName}},
+		ProjectPath: passthroughProject,
+	})
+	_, err := c.Extract(context.Background(), "demo")
+	var ie graph.IntegrationError
+	if !errors.As(err, &ie) || ie.Kind != "scenario_unreachable" {
+		t.Fatalf("want scenario_unreachable IntegrationError, got %v", err)
 	}
 }

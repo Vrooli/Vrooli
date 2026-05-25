@@ -95,19 +95,38 @@ This file ships empty in newly generated scenarios. Append entries as they appea
 
 **Refs:** REQ-P2-006. Architecture deviation: `docs/concepts/ARCHITECTURE.md` "Intentional Deviations" 2026-05-23 Node sidecar entry.
 
-### 2026-05-23 — Footgun: cancellable context passed to `Supervisor.Start`
+### 2026-05-24 — Deferred: cross-scenario CI smoke test (E1)
 
-**Symptom:** The Node child can be killed before the orderly shutdown sequence runs, surfacing as a missing graceful-shutdown log line and occasionally a spurious "sidecar exited unexpectedly" warning on API teardown.
+**Symptom:** No automated coverage of the live cross-scenario Connect hop (cartographer's `tscodegraph.Client` → typescript-code-graph API → Node sidecar). The in-process integration tests in `internal/graph/integration_test.go` prove the IPC chain and the Connect wire path within this module, but nothing exercises cartographer's real client wrapper end-to-end, so a regression that stubbed `architecture-cartographer/.../tscodegraph/client.go` would not be caught by CI.
 
-**Root cause:** `internal/sidecar/supervisor.go` spawns the child via `exec.CommandContext(ctx, ...)`. If the `ctx` passed to `Start` is cancelled (for example, a request-scoped context, or a context tied to a parent goroutine that completes early), the kernel sends SIGKILL immediately — racing the explicit `Shutdown` path that sends `{type:"shutdown"}` on stdin and waits for a graceful exit.
+**Root cause:** The two scenarios are separate Go modules that intentionally talk only over Connect/HTTP (no cross-module import), and CI runs targeted Go tests rather than booting scenarios. A faithful test therefore needs either a `tscg`-binary exec harness (cartographer test execs the SQLite-backed tscg API + node sidecar on a random port and points its real client at it) or a full scripted scenario boot — both are new CI machinery.
 
-**Workaround:** Always pass `context.Background()` to `Supervisor.Start`. Use the explicit `Shutdown(shutdownCtx)` method (with its own deadline) for teardown. `main.go` already does this correctly; this entry exists so future callers (test harnesses, alternative entrypoints, embedded use) don't re-discover it.
+**Workaround:** Manual operator validation (parent plan §10 #10–14): restart both scenarios and run `architecture-cartographer graph extract <ts scenario>` to confirm a non-empty real graph.
 
-**Real fix:** Either (a) document the contract on `Start` and trust callers (current state), or (b) defensively wrap the supplied context inside `Supervisor.Start` so cancellation only signals the supervisor goroutine, not the child process. (b) hides the lifecycle from the caller and was rejected in Phase 6 — leaving as a documented footgun.
+**Real fix:** Add the binary-exec smoke test (preferred: lives in cartographer's module, uses the real client, no Postgres needed) plus a CI step that pre-builds the tscg API binary + sidecar dist. Must be proven to fail when the client is reverted to a stub.
 
-**Owner:** Unassigned.
+**Owner:** Unassigned. Deferred 2026-05-24 by maintainer decision (correctness fixes D1–D5 landed; E1 follows separately).
 
-**Refs:** Discovered Phase 6 of the implementation plan. See `internal/sidecar/supervisor.go::Start`, `Shutdown`.
+**Refs:** `~/.vrooli/plans/typescript-code-graph-hardening-validation-gates-loose-ends-and-enhancements.md` Phase E1; DoD #7.
+
+### 2026-05-24 — Deferred: sidecar hardening enhancements E2–E6
+
+**Symptom:** Six operability enhancements from the hardening plan are scoped but not yet implemented:
+- **E2 — ts-morph upgrade workflow:** no `make update-ts-morph` target to bump the pin, rebuild `dist/`, regenerate fixtures, and print the diff for review. The next ts-morph bump risks silent fixture drift.
+- **E3 — performance benchmark gate (MOD-P0-012 / OT-P0-012):** no `bench`-tagged Go benchmarks asserting the synthetic 200-file (<5s) / 2000-file (<30s) budgets.
+- **E4 — structured sidecar logging:** the supervisor's stderr pump (`supervisor.go`, the `io.Copy(s.cfg.StderrSink, stderr)` goroutine) routes raw bytes to a sink instead of the API's structured logger with `request_id` correlation. (Invariant to preserve: the sidecar must never write non-framed data to stdout.)
+- **E5 — cancel acknowledgment IPC:** cancel is fire-and-forget; the sidecar does not emit a `{type:"cancel_ack", request_id}` reply, so the supervisor cannot distinguish "work discarded" from "result arrived just before cancel". Additive — bump `ProtocolVersion` only if the handshake contract changes.
+- **E6 — PlanStore TTL eviction:** `rewrite.MemoryPlanStore` never evicts; a long-running API grows unbounded. A ~1h TTL is an independent stopgap, superseded by the future SQLite store (REQ-P1-002).
+
+**Root cause:** Scoped as post-merge-optional in the hardening plan; only E1 was gating, and E1 was itself deferred.
+
+**Workaround:** None needed — these are operability/regression-safety improvements, not correctness bugs.
+
+**Real fix:** Implement per the plan's Phase E (priority order E2→E6).
+
+**Owner:** Unassigned. Deferred 2026-05-24.
+
+**Refs:** `~/.vrooli/plans/typescript-code-graph-hardening-validation-gates-loose-ends-and-enhancements.md` Phase E.
 
 ### 2026-05-23 — Implementation has not started (historical — superseded)
 

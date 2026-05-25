@@ -12,10 +12,34 @@ import (
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/graph/gocodegraph"
 
+	"github.com/vrooli/api-core/discovery"
+
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph/graph_v1connect"
 )
+
+// passthroughProject treats the scenario name as the project path
+// (always found), keeping the Connect-hop tests focused on transport.
+func passthroughProject(scenario string) (string, bool, error) {
+	return scenario, true, nil
+}
+
+// newClient builds a gocodegraph client pointed at baseURL via a static
+// discovery resolver, with the passthrough project resolver.
+func newClient(baseURL string) *gocodegraph.Client {
+	return gocodegraph.New(gocodegraph.Config{
+		URLResolver: discovery.NewStaticResolver(baseURL),
+		ProjectPath: passthroughProject,
+	})
+}
+
+// failingResolver returns a fixed discovery error.
+type failingResolver struct{ err error }
+
+func (f failingResolver) ResolveScenarioURLDefault(context.Context, string) (string, error) {
+	return "", f.err
+}
 
 // fakeService is a programmable GoCodeGraphServiceHandler used by the
 // in-process Connect server tests.
@@ -46,7 +70,7 @@ func startServer(t *testing.T, svc *fakeService) string {
 }
 
 func TestClient_NameAndLanguages(t *testing.T) {
-	c := gocodegraph.New("http://localhost:0")
+	c := newClient("http://localhost:0")
 	if got := c.Name(); got != "go" {
 		t.Fatalf("Name=%q want %q", got, "go")
 	}
@@ -56,8 +80,11 @@ func TestClient_NameAndLanguages(t *testing.T) {
 	}
 }
 
-func TestClient_EmptyBaseURLReturnsScenarioUnreachable(t *testing.T) {
-	c := gocodegraph.New("")
+func TestClient_DiscoveryUnreachableReturnsScenarioUnreachable(t *testing.T) {
+	c := gocodegraph.New(gocodegraph.Config{
+		URLResolver: failingResolver{err: &discovery.Error{Kind: discovery.ErrScenarioNotRunning, Scenario: gocodegraph.ScenarioName}},
+		ProjectPath: passthroughProject,
+	})
 	_, err := c.Extract(context.Background(), "demo")
 	var ie graph.IntegrationError
 	if !errors.As(err, &ie) {
@@ -68,6 +95,20 @@ func TestClient_EmptyBaseURLReturnsScenarioUnreachable(t *testing.T) {
 	}
 	if ie.Scenario != gocodegraph.ScenarioName {
 		t.Fatalf("Scenario=%q", ie.Scenario)
+	}
+}
+
+func TestClient_NoGoProject_EmptyGraph(t *testing.T) {
+	c := gocodegraph.New(gocodegraph.Config{
+		URLResolver: discovery.NewStaticResolver("http://localhost:0"),
+		ProjectPath: func(string) (string, bool, error) { return "", false, nil },
+	})
+	raw, err := c.Extract(context.Background(), "demo")
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if n := len(raw.Files) + len(raw.Packages) + len(raw.Symbols) + len(raw.Imports); n != 0 {
+		t.Fatalf("want empty graph for scenario with no Go project, got %d elements", n)
 	}
 }
 
@@ -127,7 +168,7 @@ func TestClient_Extract_HappyPath(t *testing.T) {
 			}), nil
 		},
 	}
-	c := gocodegraph.New(startServer(t, svc))
+	c := newClient(startServer(t, svc))
 
 	raw, err := c.Extract(context.Background(), "demo")
 	if err != nil {
@@ -195,7 +236,7 @@ func TestClient_Extract_ModulePromotesToPackage(t *testing.T) {
 			}), nil
 		},
 	}
-	c := gocodegraph.New(startServer(t, svc))
+	c := newClient(startServer(t, svc))
 	raw, err := c.Extract(context.Background(), "demo")
 	if err != nil {
 		t.Fatalf("Extract: %v", err)
@@ -230,7 +271,7 @@ func TestClient_Extract_ErrorMapping(t *testing.T) {
 					return nil, connect.NewError(tc.code, errors.New("simulated"))
 				},
 			}
-			c := gocodegraph.New(startServer(t, svc))
+			c := newClient(startServer(t, svc))
 			_, err := c.Extract(context.Background(), "demo")
 			var ie graph.IntegrationError
 			if !errors.As(err, &ie) {
@@ -256,7 +297,7 @@ func TestClient_Extract_ContextCancellation(t *testing.T) {
 			return nil, connect.NewError(connect.CodeCanceled, ctx.Err())
 		},
 	}
-	c := gocodegraph.New(startServer(t, svc))
+	c := newClient(startServer(t, svc))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

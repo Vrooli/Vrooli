@@ -1,5 +1,5 @@
 {
-  "description": "Every capability is exposed through proto + Connect-RPC. The CLI (`typescript-code-graph extract`, `typescript-code-graph rewrite plan`, `typescript-code-graph rewrite apply`) is a translation layer over Connect clients; the UI is the same. No REST/JSON workarounds.",
+  "description": "Every capability is exposed through proto + Connect-RPC. The CLI (`typescript-code-graph graph extract`, `typescript-code-graph rewrite plan`, `typescript-code-graph rewrite apply`) is a translation layer over Connect clients; the UI is the same. No REST/JSON workarounds.",
   "module_id": "MOD-P0-008",
   "prd_ref": "OT-P0-008",
   "priority": "P0",
@@ -11,7 +11,7 @@
         "REQ-P0-004",
         "REQ-P0-009"
       ],
-      "description": "Every capability exposed by typescript-code-graph must be available through all three surfaces with full parity: (1) Connect-RPC proto service definitions, (2) CLI commands (typescript-code-graph extract, typescript-code-graph rewrite plan, typescript-code-graph rewrite apply), and (3) UI. The CLI must be implemented as a thin translation layer over Connect-RPC clients — no business logic in the CLI layer. The UI must use the same Connect-RPC clients. REST/JSON workarounds, direct function calls bypassing Connect-RPC, and capability gaps between surfaces are prohibited.",
+      "description": "Every capability exposed by typescript-code-graph must be available through all three surfaces with full parity: (1) Connect-RPC proto service definitions, (2) CLI commands (typescript-code-graph graph extract, typescript-code-graph rewrite plan, typescript-code-graph rewrite apply), and (3) UI. The CLI must be implemented as a thin translation layer over Connect-RPC clients — no business logic in the CLI layer. The UI must use the same Connect-RPC clients. REST/JSON workarounds, direct function calls bypassing Connect-RPC, and capability gaps between surfaces are prohibited.",
       "id": "REQ-P0-008",
       "prd_ref": "OT-P0-008",
       "status": "draft",

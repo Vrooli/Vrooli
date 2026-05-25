@@ -89,9 +89,8 @@ rl.on('line', (line) => {
       send({
         type: 'rewrite_apply',
         request_id: msg.request_id,
-        results: (msg.operations || []).map((op) => ({
-          operation: op,
-          status: 'OK',
+        results: (msg.operations || []).map(() => ({
+          status: 'OPERATION_STATUS_OK',
           message: '',
         })),
       });

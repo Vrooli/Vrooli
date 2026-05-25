@@ -40,6 +40,17 @@ type RawGraph struct {
 	Edges []RawEdge `json:"edges"`
 }
 
+// ExtractResult bundles everything a single Extract call yields. The
+// RequestID is the supervisor-minted UUID that scoped the underlying
+// IPC request — domain code threads it onto ExtractResponse.sidecar_request_id
+// so an API caller can correlate a graph with the exact sidecar request
+// (and its stderr log lines) that produced it.
+type ExtractResult struct {
+	Graph     RawGraph
+	Warnings  []Warning
+	RequestID string
+}
+
 // RawNode is a single graph node as emitted by the sidecar. Kind is the
 // numeric common.v1.NodeKind enum value (1=FILE, 2=PACKAGE, 3=MODULE,
 // 200..209 for TS-specific). The TS-specific enum *name* (e.g.
@@ -65,11 +76,16 @@ type RawEdge struct {
 	Attributes map[string]string `json:"attributes,omitempty"`
 }
 
-// Warning is a non-fatal diagnostic surfaced during extraction.
+// Warning is a non-fatal diagnostic surfaced during extraction. The
+// wire shape mirrors common.v1.CodeGraphWarning exactly: a numeric
+// CodeGraphWarningKind (1=PARSE_ERROR, 2=UNRESOLVED_IMPORT,
+// 3=TYPE_CHECK_FAILURE, 4=AMBIGUOUS_DECLARATION), the file the warning
+// applies to, and a human-readable message. The graph domain decodes
+// Kind into its typed WarningKind.
 type Warning struct {
-	Code    string `json:"code"`
+	Kind    int32  `json:"kind"`
+	File    string `json:"file,omitempty"`
 	Message string `json:"message"`
-	Path    string `json:"path,omitempty"`
 }
 
 // Operation is a discriminated union — exactly one of the embedded
@@ -94,10 +110,13 @@ type ImportRewrite struct {
 	NewPath string `json:"new_path"`
 }
 
-// OperationResult mirrors the per-operation outcome the sidecar
-// reports in a rewrite_apply_ok response.
+// OperationResult mirrors the per-operation outcome the sidecar reports
+// in a rewrite_apply response. The wire shape is exactly {status,
+// message}: Status is the canonical proto OperationStatus enum name
+// ("OPERATION_STATUS_OK" / "OPERATION_STATUS_FAILED"). The sidecar does
+// not echo the operation — the rewrite domain zips results back onto the
+// request operations by index.
 type OperationResult struct {
-	Operation Operation `json:"operation"`
-	Status    string    `json:"status"`
-	Message   string    `json:"message,omitempty"`
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
 }

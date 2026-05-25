@@ -38,6 +38,54 @@ func TestService_ExtractGraph_NoAdapter(t *testing.T) {
 	}
 }
 
+func TestService_ExtractGraph_SkipsUnreachableAdapter(t *testing.T) {
+	// One adapter's backing producer is down (scenario_unreachable); the
+	// other succeeds. The extract must skip the unreachable one and still
+	// produce a snapshot from the reachable one rather than aborting.
+	repo := &mocks.FakeRepository{}
+	down := &mocks.FakeCodeGraphAdapter{
+		NameValue:      "typescript",
+		LanguagesValue: []graph.Language{graph.LanguageTypeScript},
+		ExtractErr:     graph.IntegrationError{Kind: "scenario_unreachable", Scenario: "typescript-code-graph"},
+	}
+	up := newAdapter(graph.LanguageGo, graph.RawGraph{
+		Languages: []graph.Language{graph.LanguageGo},
+		Packages:  []graph.PackageNode{{ID: "pkg:demo", ImportPath: "demo", Language: graph.LanguageGo, Internal: true}},
+	})
+	svc := graph.NewService(repo, newClock(), down, up)
+
+	snap, fromCache, err := svc.ExtractGraph(context.Background(), graph.ExtractGraphInput{Scenario: "demo"})
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if fromCache {
+		t.Fatal("first extract should not be from cache")
+	}
+	if snap.ContentHash == "" {
+		t.Fatal("expected a snapshot from the reachable adapter")
+	}
+	if len(repo.Snapshots) != 1 {
+		t.Fatalf("want 1 persisted snapshot, got %d", len(repo.Snapshots))
+	}
+}
+
+func TestService_ExtractGraph_PropagatesNonUnreachableError(t *testing.T) {
+	// A non-unreachable adapter error (e.g. invalid_argument) must still
+	// abort the whole extract — graceful-skip is scoped to producers that
+	// are simply not running.
+	bad := &mocks.FakeCodeGraphAdapter{
+		NameValue:      "typescript",
+		LanguagesValue: []graph.Language{graph.LanguageTypeScript},
+		ExtractErr:     graph.IntegrationError{Kind: "invalid_argument", Scenario: "typescript-code-graph"},
+	}
+	svc := graph.NewService(&mocks.FakeRepository{}, newClock(), bad)
+	_, _, err := svc.ExtractGraph(context.Background(), graph.ExtractGraphInput{Scenario: "demo"})
+	var ie graph.IntegrationError
+	if !errors.As(err, &ie) || ie.Kind != "invalid_argument" {
+		t.Fatalf("want invalid_argument IntegrationError to propagate, got %v", err)
+	}
+}
+
 func TestService_ExtractGraph_PersistsAndCaches(t *testing.T) {
 	repo := &mocks.FakeRepository{}
 	raw := graph.RawGraph{

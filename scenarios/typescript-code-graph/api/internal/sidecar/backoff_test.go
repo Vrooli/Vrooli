@@ -42,7 +42,7 @@ func TestSupervisorExhaustsRestartBudget(t *testing.T) {
 		"supervisor should be permanently unhealthy after exhausting restart budget")
 
 	// Subsequent requests must surface the permanent error.
-	_, _, err := s.Extract(context.Background(), "/tmp/example")
+	_, err := s.Extract(context.Background(), "/tmp/example")
 	require.True(t,
 		errors.Is(err, ErrSidecarPermanentlyUnhealthy),
 		"expected ErrSidecarPermanentlyUnhealthy, got %v", err)

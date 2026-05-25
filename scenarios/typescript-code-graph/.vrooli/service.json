@@ -153,8 +153,10 @@
             "source_dir": "ui/src"
           },
           {
-            "type": "file",
-            "path": "sidecar/dist/index.js"
+            "type": "files",
+            "paths": [
+              "sidecar/dist/index.js"
+            ]
           }
         ]
       },

@@ -25,16 +25,18 @@ func TestLeadingCommentsPassThroughVerbatim(t *testing.T) {
 
 	fake := &sidecarmocks.FakeSidecarClient{
 		StatusValue: sidecar.StatusReady,
-		ExtractFn: func(ctx context.Context, p string) (sidecar.RawGraph, []sidecar.Warning, error) {
-			return sidecar.RawGraph{
-				Nodes: []sidecar.RawNode{{
-					ID:              "ts_component:ts_module:root:WidgetCard",
-					Kind: 201,
-					Name:            "WidgetCard",
-					Path:            "src/Widget.tsx",
-					LeadingComments: wantComments,
-				}},
-			}, nil, nil
+		ExtractFn: func(ctx context.Context, p string) (sidecar.ExtractResult, error) {
+			return sidecar.ExtractResult{
+				Graph: sidecar.RawGraph{
+					Nodes: []sidecar.RawNode{{
+						ID:              "ts_component:ts_module:root:WidgetCard",
+						Kind:            201,
+						Name:            "WidgetCard",
+						Path:            "src/Widget.tsx",
+						LeadingComments: wantComments,
+					}},
+				},
+			}, nil
 		},
 	}
 

@@ -274,7 +274,7 @@ The full proto-typed product surface (excluding template `/health` REST probe). 
 
 | RPC | Request | Response | Errors | CLI binding |
 |---|---|---|---|---|
-| `TypeScriptCodeGraphService.Extract` | `ExtractRequest{scenario_path}` | `ExtractResponse{graph, warnings, extraction_ms, graph_hash}` | `InvalidArgument` (no tsconfig, multiple tsconfig), `NotFound` (path unreadable), `Unimplemented` (pnpm workspace), `Unavailable` (sidecar down), `DeadlineExceeded`, `Internal` | `typescript-code-graph extract <path>` |
+| `TypeScriptCodeGraphService.Extract` | `ExtractRequest{scenario_path}` | `ExtractResponse{graph, warnings, extraction_ms, graph_hash, sidecar_request_id}` | `InvalidArgument` (no tsconfig, multiple tsconfig), `NotFound` (path unreadable), `Unimplemented` (pnpm workspace), `Unavailable` (sidecar down), `DeadlineExceeded`, `Internal` | `typescript-code-graph graph extract <path>` |
 | `TypeScriptCodeGraphService.RewritePlan` | `RewritePlanRequest{scenario_path, operations[]}` | `RewritePlanResponse{plan_id, normalized_operations}` | `InvalidArgument` (no ops, conflicting ops), `Internal` | `typescript-code-graph rewrite plan <ops.json>` |
 | `TypeScriptCodeGraphService.RewriteApply` | `RewriteApplyRequest{scenario_path, plan_id, apply}` | `RewriteApplyResponse{plan_id, results[], dry_run}` | `InvalidArgument`, `FailedPrecondition` (plan unknown / expired), `Unavailable`, `Internal` | `typescript-code-graph rewrite apply <plan_id>` (honours `X-Dry-Run: true`) |
 | `HealthService.Check` | `CheckRequest{}` | `CheckResponse{status, sidecar_status, ...}` | `Internal` | `typescript-code-graph status` |

@@ -58,6 +58,7 @@ const EK_RE_EXPORT = 3;
 
 // common.v1.CodeGraphWarningKind
 const WK_PARSE_ERROR = 1;
+const WK_UNRESOLVED_IMPORT = 2;
 const WK_TYPE_CHECK_FAILURE = 3;
 
 // Short kind segments used in node ids: "<kind>:<path>[:<name>]"
@@ -192,21 +193,31 @@ export function extract(input: ExtractInput): ExtractOutput {
     // Imports + Re-exports
     for (const imp of sf.getImportDeclarations()) {
       const spec = imp.getModuleSpecifierValue();
-      const target = resolveSpecifier(rootDir, sf, spec);
-      if (!target) continue;
+      const res = resolveSpecifier(rootDir, sf, spec);
+      if (!res.target) continue;
+      // The guessed edge is still emitted so consumers see the
+      // dependency; the warning is additive so they can tell a real
+      // edge from a dangling one (REQ-P0 D3).
+      if (res.unresolved) {
+        warnings.push({ kind: WK_UNRESOLVED_IMPORT, file: relPath, message: spec });
+      }
       edges.push({
-        id: `import:${moduleId}->${target}`,
+        id: `import:${moduleId}->${res.target}`,
         kind: EK_IMPORT,
         from_node_id: moduleId,
-        to_node_id: target,
+        to_node_id: res.target,
         attributes: { specifier: spec },
       });
     }
     for (const exp of sf.getExportDeclarations()) {
       const spec = exp.getModuleSpecifierValue();
       if (!spec) continue; // `export { foo }` without `from` is intra-file
-      const target = resolveSpecifier(rootDir, sf, spec);
-      if (!target) continue;
+      const res = resolveSpecifier(rootDir, sf, spec);
+      if (!res.target) continue;
+      if (res.unresolved) {
+        warnings.push({ kind: WK_UNRESOLVED_IMPORT, file: relPath, message: spec });
+      }
+      const target = res.target;
       // Emit a TS_RE_EXPORT node + an EDGE_KIND_RE_EXPORT edge.
       const reExpId = `${KIND_SHORT[TS_NODE_KIND_RE_EXPORT]}:${relPath}:${spec}`;
       nodes.push({
@@ -510,14 +521,26 @@ function relativize(rootDir: string, absPath: string): string {
   return rel.split(path.sep).join("/");
 }
 
+// ResolveResult tells the caller both the edge target and whether the
+// specifier actually resolved on disk. A null target means the
+// specifier is external (bare) and should be skipped entirely — no edge,
+// no warning. A non-null target with `unresolved: true` means we emit a
+// best-effort (dangling) edge AND a WK_UNRESOLVED_IMPORT warning.
+interface ResolveResult {
+  target: string | null;
+  unresolved: boolean;
+}
+
 function resolveSpecifier(
   rootDir: string,
   sf: SourceFile,
   spec: string,
-): string | null {
+): ResolveResult {
   // Only resolve relative specifiers in v1 — bare specifiers (e.g. "react")
   // are external and we don't emit nodes for them.
-  if (!spec.startsWith(".") && !spec.startsWith("/")) return null;
+  if (!spec.startsWith(".") && !spec.startsWith("/")) {
+    return { target: null, unresolved: false };
+  }
   const fromDir = path.dirname(sf.getFilePath());
   const candidates = [
     spec,
@@ -531,14 +554,14 @@ function resolveSpecifier(
     const abs = path.resolve(fromDir, c);
     if (fs.existsSync(abs)) {
       const rel = relativize(rootDir, abs);
-      return `ts_module:${rel}`;
+      return { target: `ts_module:${rel}`, unresolved: false };
     }
   }
   // Couldn't resolve on disk; still emit a pointer using the literal path
   // (relative to the importing file's dir) so consumers see the unresolved
-  // edge. Caller may want to fold this into a warning.
+  // edge, and flag it as unresolved so the caller emits a warning.
   const guess = relativize(rootDir, path.resolve(fromDir, spec));
-  return `ts_module:${guess}`;
+  return { target: `ts_module:${guess}`, unresolved: true };
 }
 
 interface DiagChainLike {

@@ -64,18 +64,19 @@ func TestSupervisorHappyPath(t *testing.T) {
 
 	require.Equal(t, StatusReady, s.Status())
 
-	graph, warnings, err := s.Extract(ctx, "/tmp/example")
+	res, err := s.Extract(ctx, "/tmp/example")
 	require.NoError(t, err)
-	require.Empty(t, graph.Nodes)
-	require.Empty(t, graph.Edges)
-	require.Empty(t, warnings)
+	require.Empty(t, res.Graph.Nodes)
+	require.Empty(t, res.Graph.Edges)
+	require.Empty(t, res.Warnings)
+	require.NotEmpty(t, res.RequestID, "Extract must surface the IPC request id")
 
 	results, err := s.RewriteApply(ctx, "/tmp/example", []Operation{
 		{FileMove: &FileMove{From: "a.ts", To: "b.ts"}},
 	})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
-	require.Equal(t, "OK", results[0].Status)
+	require.Equal(t, "OPERATION_STATUS_OK", results[0].Status)
 }
 
 func TestSupervisorShutdownStopsChild(t *testing.T) {
@@ -91,6 +92,41 @@ func TestSupervisorShutdownStopsChild(t *testing.T) {
 	require.NoError(t, s.Shutdown(shutdownCtx))
 
 	// After shutdown, the supervisor goroutine has returned.
+	select {
+	case <-s.supDone:
+	case <-time.After(time.Second):
+		t.Fatal("supDone did not close after Shutdown")
+	}
+}
+
+// TestSupervisorStartCtxCancelDoesNotKillChild pins the D5 contract: the
+// ctx passed to Start scopes only the startup/handshake window. Once
+// Start returns, cancelling that ctx must NOT tear the child down —
+// teardown happens exclusively through Shutdown.
+func TestSupervisorStartCtxCancelDoesNotKillChild(t *testing.T) {
+	requireNode(t)
+	s := newTestSupervisor(t)
+
+	startCtx, cancelStart := context.WithCancel(context.Background())
+	require.NoError(t, s.Start(startCtx))
+	require.Equal(t, StatusReady, s.Status())
+
+	// Cancel the caller's startup ctx and give any erroneous SIGKILL
+	// plenty of time to propagate.
+	cancelStart()
+	time.Sleep(300 * time.Millisecond)
+
+	// The child must still be alive and serving requests.
+	require.Equal(t, StatusReady, s.Status(),
+		"child must survive cancellation of the Start ctx")
+	res, err := s.Extract(context.Background(), "/tmp/example")
+	require.NoError(t, err, "Extract must still succeed after Start ctx cancel")
+	require.NotEmpty(t, res.RequestID)
+
+	// Graceful teardown still works via Shutdown.
+	shutdownCtx, c := context.WithTimeout(context.Background(), 2*time.Second)
+	defer c()
+	require.NoError(t, s.Shutdown(shutdownCtx))
 	select {
 	case <-s.supDone:
 	case <-time.After(time.Second):

@@ -11,8 +11,10 @@ import "context"
 type SidecarClient interface {
 	// Extract requests a graph for the project rooted at scenarioPath.
 	// ctx.Done() triggers a best-effort cancel IPC and resolves the
-	// pending future locally with ctx.Err().
-	Extract(ctx context.Context, scenarioPath string) (RawGraph, []Warning, error)
+	// pending future locally with ctx.Err(). The returned
+	// ExtractResult.RequestID is the supervisor-minted UUID for the
+	// underlying IPC request (non-empty whenever the sidecar was reached).
+	Extract(ctx context.Context, scenarioPath string) (ExtractResult, error)
 
 	// RewriteApply executes the given operations against the project at
 	// scenarioPath. The result slice matches ops 1:1.

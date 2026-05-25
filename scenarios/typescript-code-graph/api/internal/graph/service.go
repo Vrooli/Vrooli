@@ -36,10 +36,11 @@ func NewService(client sidecar.SidecarClient, mu *PathMutex) *Service {
 // ExtractOutput. Errors are typed ExtractError so handlers can map them
 // to Connect codes via ErrorToConnectCode.
 //
-// ExtractionMs and SidecarRequestID are NOT populated here — the
-// supervisor seam does not expose them today, and timing belongs to
-// the transport layer. The handler is responsible for both, projecting
-// onto the proto ExtractResponse with its own clock.
+// SidecarRequestID is populated from the sidecar seam (the supervisor-
+// minted IPC request UUID) so callers can correlate a graph with the
+// exact sidecar request that produced it. ExtractionMs is NOT populated
+// here — timing belongs to the transport layer, and the handler measures
+// it with its own clock when projecting onto the proto ExtractResponse.
 func (s *Service) Extract(ctx context.Context, in ExtractInput) (ExtractOutput, error) {
 	path := strings.TrimSpace(in.ScenarioPath)
 	if path == "" {
@@ -68,18 +69,19 @@ func (s *Service) Extract(ctx context.Context, in ExtractInput) (ExtractOutput, 
 		}
 	}
 
-	raw, sideWarnings, err := s.client.Extract(ctx, abs)
+	res, err := s.client.Extract(ctx, abs)
 	if err != nil {
 		return ExtractOutput{}, fromSidecarError(abs, err)
 	}
 
-	g := Normalize(raw)
-	warnings := fromSidecarWarnings(sideWarnings)
+	g := Normalize(res.Graph)
+	warnings := fromSidecarWarnings(res.Warnings)
 	hash := GraphHash(g)
 
 	return ExtractOutput{
-		Graph:     g,
-		Warnings:  warnings,
-		GraphHash: hash,
+		Graph:            g,
+		Warnings:         warnings,
+		GraphHash:        hash,
+		SidecarRequestID: res.RequestID,
 	}, nil
 }

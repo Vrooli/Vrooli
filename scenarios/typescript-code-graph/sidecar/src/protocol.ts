@@ -131,10 +131,13 @@ export interface ExtractResponse {
   warnings: CodeGraphWarning[];
 }
 
+// Canonical per-operation status. Mirrors proto OperationStatus enum
+// names exactly so the Go side can pass them straight through with no
+// remapping — there is exactly ONE accepted spelling on the wire.
+export type OperationStatus = "OPERATION_STATUS_OK" | "OPERATION_STATUS_FAILED";
+
 export interface OperationResult {
-  ok: boolean;
-  // Number of files touched (move=1, import_rewrite=N).
-  touched: number;
+  status: OperationStatus;
   message: string;
 }
 
