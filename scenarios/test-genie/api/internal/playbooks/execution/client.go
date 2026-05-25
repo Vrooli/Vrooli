@@ -1,19 +1,26 @@
 package execution
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
+
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
-	"google.golang.org/protobuf/encoding/protojson"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
+	commonpb "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 const (
@@ -27,10 +34,19 @@ const (
 	WorkflowExecutionTimeout = 3 * time.Minute
 )
 
-var protoJSONUnmarshal = protojson.UnmarshalOptions{
-	// Reject unknown fields to catch contract drift with BAS responses.
-	DiscardUnknown: false,
-}
+var (
+	// protoJSONUnmarshal accepts BAS responses with the strictness that
+	// catches contract drift — unknown fields fail loudly.
+	protoJSONUnmarshal = protojson.UnmarshalOptions{DiscardUnknown: false}
+	// protoJSONMarshal serializes proto responses back to JSON for artifact
+	// persistence (timeline blobs written to disk).
+	protoJSONMarshal = protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}
+	// flowDefinitionUnmarshal accepts the playbook author's workflow JSON.
+	// We allow unknown fields here so test-genie keeps working when BAS
+	// adds optional knobs to the workflow proto — the playbook itself is
+	// out-of-band content and should not break on additive schema changes.
+	flowDefinitionUnmarshal = protojson.UnmarshalOptions{DiscardUnknown: true}
+)
 
 // ProgressCallback is called periodically during workflow execution with status updates.
 // It receives the current status and elapsed time. Return an error to abort waiting.
@@ -52,6 +68,11 @@ type ExecutionParams struct {
 	// Env contains project/user configuration (@env/ namespace).
 	// Read-only, inherited by all subflows unchanged.
 	Env map[string]any `json:"env,omitempty"`
+	// ExtraHeaders, when non-empty, are attached to every HTTP request the
+	// browser context makes during workflow execution (Playwright's
+	// extraHTTPHeaders). Used by test-genie to inject the test-mode header
+	// so the scenario's RoutedDB serves the test pool for the run.
+	ExtraHeaders map[string]string `json:"-"`
 }
 
 // Client defines the interface for BAS API operations.
@@ -137,11 +158,25 @@ func DefaultClientConfig() ClientConfig {
 	}
 }
 
-// HTTPClient is the HTTP-based BAS client implementation.
+// HTTPClient talks to BAS using Connect-RPC for the proto-typed surface
+// (workflows, executions) and plain HTTP for the two endpoints that are
+// not part of the Connect schema: the /api/v1/health probe and asset
+// downloads. The two surfaces share one *http.Client so timeouts and
+// transport settings stay in lockstep.
 type HTTPClient struct {
-	baseURL    string
-	httpClient *http.Client
-	config     ClientConfig
+	// baseURL keeps the caller-facing "http://host:port/api/v1" form so
+	// downstream code that constructs asset URLs against it continues to
+	// work unchanged.
+	baseURL string
+	// connectBaseURL is baseURL with any trailing "/api/v1" stripped.
+	// BAS mounts Connect handlers at the bare proto path under the root
+	// (e.g. /browser_automation_studio.v1.WorkflowsService/...), not under
+	// /api/v1.
+	connectBaseURL string
+	httpClient     *http.Client
+	workflows      apiconnect.WorkflowsServiceClient
+	executions     apiconnect.ExecutionsServiceClient
+	config         ClientConfig
 }
 
 // NewClient creates a new BAS HTTP client with default timeouts.
@@ -151,7 +186,6 @@ func NewClient(baseURL string) *HTTPClient {
 
 // NewClientWithConfig creates a new BAS HTTP client with custom timeouts.
 func NewClientWithConfig(baseURL string, cfg ClientConfig) *HTTPClient {
-	// Apply defaults for zero values
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = DefaultTimeout
 	}
@@ -162,20 +196,33 @@ func NewClientWithConfig(baseURL string, cfg ClientConfig) *HTTPClient {
 		cfg.WorkflowExecutionTimeout = WorkflowExecutionTimeout
 	}
 
-	return &HTTPClient{
-		baseURL:    baseURL,
-		httpClient: &http.Client{Timeout: cfg.Timeout},
-		config:     cfg,
-	}
-}
+	httpClient := &http.Client{Timeout: cfg.Timeout}
+	connectBase := strings.TrimRight(baseURL, "/")
+	connectBase = strings.TrimSuffix(connectBase, "/api/v1")
 
-// WithHTTPClient sets a custom HTTP client (for testing).
-func (c *HTTPClient) WithHTTPClient(client *http.Client) *HTTPClient {
-	c.httpClient = client
+	c := &HTTPClient{
+		baseURL:        baseURL,
+		connectBaseURL: connectBase,
+		httpClient:     httpClient,
+		config:         cfg,
+	}
+	c.workflows = apiconnect.NewWorkflowsServiceClient(httpClient, connectBase)
+	c.executions = apiconnect.NewExecutionsServiceClient(httpClient, connectBase)
 	return c
 }
 
-// Health checks if the BAS API is healthy.
+// WithHTTPClient sets a custom HTTP client (for testing). Reconstructs the
+// Connect clients so they share the override.
+func (c *HTTPClient) WithHTTPClient(client *http.Client) *HTTPClient {
+	c.httpClient = client
+	c.workflows = apiconnect.NewWorkflowsServiceClient(client, c.connectBaseURL)
+	c.executions = apiconnect.NewExecutionsServiceClient(client, c.connectBaseURL)
+	return c
+}
+
+// Health checks if the BAS API is healthy. This stays REST because the
+// health probe is intentionally outside the Connect schema — it is meant
+// to be reachable without proto plumbing.
 func (c *HTTPClient) Health(ctx context.Context) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/health", nil)
 	if err != nil {
@@ -196,7 +243,6 @@ func (c *HTTPClient) Health(ctx context.Context) error {
 
 // WaitForHealth waits until BAS becomes healthy or timeout.
 func (c *HTTPClient) WaitForHealth(ctx context.Context) error {
-	// Check immediately first - BAS might already be healthy
 	if err := c.Health(ctx); err == nil {
 		return nil
 	}
@@ -224,152 +270,112 @@ func (c *HTTPClient) WaitForHealth(ctx context.Context) error {
 // ValidateResolved validates a resolved workflow before execution.
 // This is the pre-flight check that catches unresolved tokens and schema errors.
 func (c *HTTPClient) ValidateResolved(ctx context.Context, definition map[string]any) (*ValidationResult, error) {
-	payload := map[string]any{
-		"workflow": definition,
-		"strict":   true, // Use strict mode to catch all issues
-	}
-
-	body, err := json.Marshal(payload)
+	def, err := definitionToProto(definition)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal validation request: %w", err)
+		return nil, fmt.Errorf("validate: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/workflows/validate-resolved", bytes.NewReader(body))
+	resp, err := c.workflows.ValidateResolvedWorkflow(ctx, connect.NewRequest(&basapi.ValidateWorkflowRequest{
+		Workflow: def,
+	}))
 	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	data, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("validation request failed: status=%s body=%s", resp.Status, strings.TrimSpace(string(data)))
+		return nil, fmt.Errorf("validation request failed: %w", err)
 	}
 
-	var result ValidationResult
-	if err := json.Unmarshal(data, &result); err != nil {
-		return nil, fmt.Errorf("failed to decode validation response: %w", err)
+	result := resp.Msg.GetResult()
+	if result == nil {
+		return &ValidationResult{Valid: true}, nil
 	}
 
-	return &result, nil
+	out := &ValidationResult{
+		Valid:         result.GetValid(),
+		SchemaVersion: result.GetSchemaVersion(),
+	}
+	for _, issue := range result.GetErrors() {
+		out.Errors = append(out.Errors, protoIssueToLocal(issue))
+	}
+	for _, issue := range result.GetWarnings() {
+		out.Warnings = append(out.Warnings, protoIssueToLocal(issue))
+	}
+	return out, nil
 }
 
 // ExecuteWorkflow starts a workflow execution and returns the execution ID.
-// This is a convenience wrapper that calls ExecuteWorkflowWithParams with nil params.
+// Convenience wrapper that calls ExecuteWorkflowWithParams with nil params.
 func (c *HTTPClient) ExecuteWorkflow(ctx context.Context, definition map[string]any, name, description string) (string, error) {
 	return c.ExecuteWorkflowWithParams(ctx, definition, name, description, nil)
 }
 
 // ExecuteWorkflowWithParams starts a workflow execution with namespace-aware parameters.
-// It sends plain JSON that matches BAS's expected ExecuteAdhocWorkflowRequest format.
-// Note: We intentionally avoid proto serialization here because BAS uses standard JSON
-// decoding, and proto enum serialization would convert node types like "navigate" to
-// "STEP_TYPE_NAVIGATE" which BAS doesn't recognize.
 func (c *HTTPClient) ExecuteWorkflowWithParams(ctx context.Context, definition map[string]any, name, description string, params *ExecutionParams) (string, error) {
-	// Build plain JSON request matching BAS's ExecuteAdhocWorkflowRequest struct
-	reqBody := map[string]any{
-		"flow_definition": definition,
+	def, err := definitionToProto(definition)
+	if err != nil {
+		return "", fmt.Errorf("execute: %w", err)
 	}
 
-	// Add metadata with workflow name if provided
-	meta := make(map[string]any)
-	if strings.TrimSpace(name) != "" {
-		meta["name"] = name
-	}
-	if strings.TrimSpace(description) != "" {
-		meta["description"] = description
-	}
-	if len(meta) > 0 {
-		reqBody["metadata"] = meta
+	req := &basexecution.ExecuteAdhocRequest{
+		FlowDefinition: def,
 	}
 
-	// Add namespace-aware execution parameters if provided
+	if strings.TrimSpace(name) != "" || strings.TrimSpace(description) != "" {
+		req.Metadata = &basexecution.ExecutionMetadata{
+			Name:        strings.TrimSpace(name),
+			Description: strings.TrimSpace(description),
+		}
+	}
+
 	if params != nil {
-		execParams := make(map[string]any)
+		execParams := &basexecution.ExecutionParameters{}
+		populated := false
 		if params.ProjectRoot != "" {
-			execParams["project_root"] = params.ProjectRoot
+			pr := params.ProjectRoot
+			execParams.ProjectRoot = &pr
+			populated = true
 		}
 		if len(params.InitialParams) > 0 {
-			execParams["initial_params"] = params.InitialParams
+			execParams.InitialParams = anyMapToJsonValueMap(params.InitialParams)
+			populated = true
 		}
 		if len(params.InitialStore) > 0 {
-			execParams["initial_store"] = params.InitialStore
+			execParams.InitialStore = anyMapToJsonValueMap(params.InitialStore)
+			populated = true
 		}
 		if len(params.Env) > 0 {
-			execParams["env"] = params.Env
+			execParams.Env = anyMapToJsonValueMap(params.Env)
+			populated = true
 		}
-		if len(execParams) > 0 {
-			// Keep this aligned with browser-automation-studio/v1/execution.ExecuteAdhocRequest.
-			reqBody["parameters"] = execParams
+		if len(params.ExtraHeaders) > 0 {
+			execParams.BrowserProfile = &basbase.BrowserProfile{
+				ExtraHeaders: params.ExtraHeaders,
+			}
+			populated = true
+		}
+		if populated {
+			req.Parameters = execParams
 		}
 	}
 
-	body, err := json.Marshal(reqBody)
+	resp, err := c.workflows.ExecuteAdhocWorkflow(ctx, connect.NewRequest(req))
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal request: %w", err)
+		return "", fmt.Errorf("workflow execution failed: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/workflows/execute-adhoc", bytes.NewReader(body))
-	if err != nil {
-		return "", err
+	executionID := strings.TrimSpace(resp.Msg.GetExecutionId())
+	if executionID == "" {
+		return "", errors.New("execution_id missing in response")
 	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	data, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode >= 300 {
-		return "", fmt.Errorf("workflow execution failed: status=%s body=%s", resp.Status, strings.TrimSpace(string(data)))
-	}
-
-	// Parse response - BAS returns {"execution_id": "...", "status": "...", ...}
-	var result struct {
-		ExecutionID string `json:"execution_id"`
-	}
-	if err := json.Unmarshal(data, &result); err != nil {
-		return "", fmt.Errorf("failed to decode response: %w (body=%s)", err, strings.TrimSpace(string(data)))
-	}
-
-	if strings.TrimSpace(result.ExecutionID) == "" {
-		return "", fmt.Errorf("execution_id missing in response: %s", strings.TrimSpace(string(data)))
-	}
-
-	return result.ExecutionID, nil
+	return executionID, nil
 }
 
 // GetStatus retrieves the status of an execution.
 func (c *HTTPClient) GetStatus(ctx context.Context, executionID string) (*basexecution.Execution, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/executions/%s", c.baseURL, executionID), nil)
+	resp, err := c.executions.GetExecution(ctx, connect.NewRequest(&basapi.GetExecutionRequest{
+		ExecutionId: executionID,
+	}))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("status lookup failed: %w", err)
 	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	data, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("status lookup failed: status=%s body=%s", resp.Status, strings.TrimSpace(string(data)))
-	}
-
-	var status basexecution.Execution
-	if err := protoJSONUnmarshal.Unmarshal(data, &status); err != nil {
-		return nil, fmt.Errorf("failed to decode status (proto violation): %w", err)
-	}
-
-	return &status, nil
+	return resp.Msg.GetExecution(), nil
 }
 
 // WaitForCompletion waits for a workflow to complete.
@@ -382,7 +388,6 @@ func (c *HTTPClient) WaitForCompletion(ctx context.Context, executionID string) 
 func (c *HTTPClient) WaitForCompletionWithProgress(ctx context.Context, executionID string, callback ProgressCallback) error {
 	start := time.Now()
 
-	// Helper to check status and return appropriate result
 	checkStatus := func() (done bool, status *basexecution.Execution, err error) {
 		status, err = c.GetStatus(ctx, executionID)
 		if err != nil {
@@ -406,7 +411,6 @@ func (c *HTTPClient) WaitForCompletionWithProgress(ctx context.Context, executio
 		return false, status, nil
 	}
 
-	// Check immediately first - workflow might already be done
 	if done, status, err := checkStatus(); done {
 		if callback != nil {
 			_ = callback(status, time.Since(start))
@@ -418,7 +422,6 @@ func (c *HTTPClient) WaitForCompletionWithProgress(ctx context.Context, executio
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
-	// Track last progress report time for throttling
 	lastProgressReport := time.Now()
 	progressInterval := 5 * time.Second
 
@@ -433,7 +436,6 @@ func (c *HTTPClient) WaitForCompletionWithProgress(ctx context.Context, executio
 		case <-ticker.C:
 			done, status, err := checkStatus()
 
-			// Report progress if callback provided and interval elapsed
 			if callback != nil && time.Since(lastProgressReport) >= progressInterval {
 				if callbackErr := callback(status, time.Since(start)); callbackErr != nil {
 					return fmt.Errorf("progress callback aborted: %w", callbackErr)
@@ -442,7 +444,6 @@ func (c *HTTPClient) WaitForCompletionWithProgress(ctx context.Context, executio
 			}
 
 			if done {
-				// Final progress report
 				if callback != nil {
 					_ = callback(status, time.Since(start))
 				}
@@ -452,35 +453,23 @@ func (c *HTTPClient) WaitForCompletionWithProgress(ctx context.Context, executio
 	}
 }
 
-// GetTimeline retrieves the timeline data for an execution and validates it against the proto contract.
-// It returns the parsed proto message alongside the raw JSON for artifact persistence.
+// GetTimeline retrieves the timeline data for an execution. Returns the
+// parsed proto alongside a JSON re-encoding so callers that need to persist
+// the timeline as an artifact can do so without a second round trip.
 func (c *HTTPClient) GetTimeline(ctx context.Context, executionID string) (*bastimeline.ExecutionTimeline, []byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/executions/%s/timeline", c.baseURL, executionID), nil)
+	resp, err := c.executions.GetExecutionTimeline(ctx, connect.NewRequest(&basapi.GetExecutionTimelineRequest{
+		ExecutionId: executionID,
+	}))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("timeline fetch failed: %w", err)
 	}
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, nil, err
+	timeline := resp.Msg
+	data, marshalErr := protoJSONMarshal.Marshal(timeline)
+	if marshalErr != nil {
+		return timeline, nil, fmt.Errorf("re-encode timeline: %w", marshalErr)
 	}
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if resp.StatusCode >= 300 {
-		return nil, data, fmt.Errorf("timeline fetch failed: status=%s body=%s", resp.Status, strings.TrimSpace(string(data)))
-	}
-
-	var timeline bastimeline.ExecutionTimeline
-	if err := protoJSONUnmarshal.Unmarshal(data, &timeline); err != nil {
-		return nil, data, fmt.Errorf("failed to decode timeline (proto violation): %w", err)
-	}
-
-	return &timeline, data, nil
+	return timeline, data, nil
 }
 
 // TimelineSummary contains parsed timeline statistics.
@@ -543,43 +532,45 @@ func (c *HTTPClient) BaseURL() string {
 
 // GetScreenshots retrieves screenshot metadata for an execution.
 func (c *HTTPClient) GetScreenshots(ctx context.Context, executionID string) ([]Screenshot, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/executions/%s/screenshots", c.baseURL, executionID), nil)
+	resp, err := c.executions.GetExecutionScreenshots(ctx, connect.NewRequest(&basapi.GetExecutionScreenshotsRequest{
+		ExecutionId: executionID,
+	}))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("screenshots fetch failed: %w", err)
 	}
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
+	msg := resp.Msg
+	out := make([]Screenshot, 0, len(msg.GetScreenshots()))
+	for _, s := range msg.GetScreenshots() {
+		shot := s.GetScreenshot()
+		entry := Screenshot{
+			StepName:    s.GetStepLabel(),
+			StepIndex:   int(s.GetStepIndex()),
+			ExecutionID: msg.GetExecutionId(),
+		}
+		if shot != nil {
+			entry.ID = shot.GetArtifactId()
+			entry.StorageURL = shot.GetUrl()
+			entry.ThumbnailURL = shot.GetThumbnailUrl()
+			entry.Width = int(shot.GetWidth())
+			entry.Height = int(shot.GetHeight())
+			entry.SizeBytes = shot.GetSizeBytes()
+		}
+		if ts := s.GetTimestamp(); ts != nil {
+			entry.Timestamp = ts.AsTime().UTC().Format(time.RFC3339Nano)
+		}
+		out = append(out, entry)
 	}
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("screenshots fetch failed: status=%s body=%s", resp.Status, strings.TrimSpace(string(data)))
-	}
-
-	var result struct {
-		Screenshots []Screenshot `json:"screenshots"`
-	}
-	if err := json.Unmarshal(data, &result); err != nil {
-		return nil, fmt.Errorf("failed to decode screenshots response: %w", err)
-	}
-
-	return result.Screenshots, nil
+	return out, nil
 }
 
 // DownloadAsset downloads an asset by URL. The URL can be absolute or relative to the BAS API.
 func (c *HTTPClient) DownloadAsset(ctx context.Context, assetURL string) ([]byte, error) {
-	// Handle relative URLs by prepending base URL (without /api/v1 suffix)
 	fullURL := assetURL
 	if !strings.HasPrefix(assetURL, "http://") && !strings.HasPrefix(assetURL, "https://") {
-		// Remove /api/v1 suffix from baseURL if present for asset downloads
-		baseForAssets := strings.TrimSuffix(c.baseURL, "/api/v1")
+		// Asset URLs from BAS are absolute paths rooted at the host
+		// (e.g. /api/v1/storage/...), so prepend the bare host.
+		baseForAssets := c.connectBaseURL
 		if strings.HasPrefix(assetURL, "/") {
 			fullURL = baseForAssets + assetURL
 		} else {
@@ -592,7 +583,6 @@ func (c *HTTPClient) DownloadAsset(ctx context.Context, assetURL string) ([]byte
 		return nil, err
 	}
 
-	// Use a longer timeout for asset downloads
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -605,4 +595,131 @@ func (c *HTTPClient) DownloadAsset(ctx context.Context, assetURL string) ([]byte
 	}
 
 	return io.ReadAll(resp.Body)
+}
+
+// definitionToProto converts a workflow definition expressed as a JSON
+// map into the BAS workflow proto. The map shape is the proto-JSON
+// representation a playbook author writes — we round-trip it through
+// JSON so protojson can drive the type checking.
+func definitionToProto(definition map[string]any) (*basworkflows.WorkflowDefinitionV2, error) {
+	if definition == nil {
+		return nil, errors.New("workflow definition is nil")
+	}
+	raw, err := json.Marshal(definition)
+	if err != nil {
+		return nil, fmt.Errorf("marshal workflow definition: %w", err)
+	}
+	out := &basworkflows.WorkflowDefinitionV2{}
+	if err := flowDefinitionUnmarshal.Unmarshal(raw, out); err != nil {
+		return nil, fmt.Errorf("decode workflow definition into proto: %w", err)
+	}
+	return out, nil
+}
+
+// protoIssueToLocal converts a proto WorkflowValidationIssue into the
+// local representation used by playbook callers. We keep a local struct
+// rather than exposing the proto type so callers do not have to depend
+// on the proto enum for severity.
+func protoIssueToLocal(issue *basapi.WorkflowValidationIssue) ValidationIssue {
+	if issue == nil {
+		return ValidationIssue{}
+	}
+	sev := strings.ToLower(strings.TrimPrefix(issue.GetSeverity().String(), "VALIDATION_SEVERITY_"))
+	return ValidationIssue{
+		Severity: sev,
+		Code:     issue.GetCode(),
+		Message:  issue.GetMessage(),
+		NodeID:   issue.GetNodeId(),
+		NodeType: strings.ToLower(strings.TrimPrefix(issue.GetNodeType().String(), "ACTION_TYPE_")),
+		Field:    issue.GetField(),
+		Pointer:  issue.GetPointer(),
+		Hint:     issue.GetHint(),
+	}
+}
+
+// anyMapToJsonValueMap wraps each value in a JsonValue proto via the
+// structpb bridge — protojson knows how to serialize structpb.Value into
+// the JsonValue oneof, so this preserves nested structure faithfully.
+func anyMapToJsonValueMap(m map[string]any) map[string]*commonpb.JsonValue {
+	if len(m) == 0 {
+		return nil
+	}
+	out := make(map[string]*commonpb.JsonValue, len(m))
+	for k, v := range m {
+		jv := anyToJsonValue(v)
+		if jv == nil {
+			continue
+		}
+		out[k] = jv
+	}
+	return out
+}
+
+// anyToJsonValue converts an arbitrary Go value (produced by json.Unmarshal
+// or a hand-built map literal) into a commonpb.JsonValue. We handle the
+// shapes test-genie actually passes — primitives, maps, slices, nil —
+// without pulling in the full BAS typeconv package.
+func anyToJsonValue(v any) *commonpb.JsonValue {
+	if v == nil {
+		return &commonpb.JsonValue{Kind: &commonpb.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}}
+	}
+	switch val := v.(type) {
+	case bool:
+		return &commonpb.JsonValue{Kind: &commonpb.JsonValue_BoolValue{BoolValue: val}}
+	case int:
+		return &commonpb.JsonValue{Kind: &commonpb.JsonValue_IntValue{IntValue: int64(val)}}
+	case int32:
+		return &commonpb.JsonValue{Kind: &commonpb.JsonValue_IntValue{IntValue: int64(val)}}
+	case int64:
+		return &commonpb.JsonValue{Kind: &commonpb.JsonValue_IntValue{IntValue: val}}
+	case float32:
+		return &commonpb.JsonValue{Kind: &commonpb.JsonValue_DoubleValue{DoubleValue: float64(val)}}
+	case float64:
+		// json.Unmarshal produces float64 for numeric literals; treat
+		// whole-number floats as int so the receiving side sees the
+		// expected proto IntValue.
+		if val == float64(int64(val)) {
+			return &commonpb.JsonValue{Kind: &commonpb.JsonValue_IntValue{IntValue: int64(val)}}
+		}
+		return &commonpb.JsonValue{Kind: &commonpb.JsonValue_DoubleValue{DoubleValue: val}}
+	case string:
+		return &commonpb.JsonValue{Kind: &commonpb.JsonValue_StringValue{StringValue: val}}
+	case json.Number:
+		if i, err := val.Int64(); err == nil {
+			return &commonpb.JsonValue{Kind: &commonpb.JsonValue_IntValue{IntValue: i}}
+		}
+		if f, err := val.Float64(); err == nil {
+			return &commonpb.JsonValue{Kind: &commonpb.JsonValue_DoubleValue{DoubleValue: f}}
+		}
+		return nil
+	case []byte:
+		return &commonpb.JsonValue{Kind: &commonpb.JsonValue_BytesValue{BytesValue: val}}
+	case map[string]any:
+		obj := &commonpb.JsonObject{Fields: make(map[string]*commonpb.JsonValue, len(val))}
+		for k, item := range val {
+			if jv := anyToJsonValue(item); jv != nil {
+				obj.Fields[k] = jv
+			}
+		}
+		return &commonpb.JsonValue{Kind: &commonpb.JsonValue_ObjectValue{ObjectValue: obj}}
+	case []any:
+		list := &commonpb.JsonList{Values: make([]*commonpb.JsonValue, 0, len(val))}
+		for _, item := range val {
+			if jv := anyToJsonValue(item); jv != nil {
+				list.Values = append(list.Values, jv)
+			}
+		}
+		return &commonpb.JsonValue{Kind: &commonpb.JsonValue_ListValue{ListValue: list}}
+	default:
+		// Fallback: round-trip through JSON to canonicalize.
+		raw, err := json.Marshal(val)
+		if err != nil {
+			return nil
+		}
+		var tmp any
+		if err := json.Unmarshal(raw, &tmp); err != nil {
+			return nil
+		}
+		return anyToJsonValue(tmp)
+	}
 }

@@ -24,6 +24,7 @@ import (
 
 	playbookregistry "test-genie/internal/playbooks/registry"
 
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/discovery"
 
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing"
@@ -211,7 +212,7 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 	}
 
 	if useRouted {
-		dsn, dsnErr := extractTestDSN(isoResult.Env)
+		dsn, dsnErr := extractTestDSN(isoResult.Env, needs.PrimaryDriver)
 		var client routing_v1connect.RoutingServiceClient
 		var clientErr error
 		if dsnErr == nil {
@@ -318,12 +319,16 @@ func runPlaybooksRouted(
 		}
 	}()
 
-	extraInitial := map[string]any{
-		"test_mode_header": "X-Vrooli-Test-Mode",
-		"test_mode_value":  "1",
+	// Attach the test-mode header to every browser request BAS makes during
+	// playbook execution. BAS forwards this map as Playwright's
+	// extraHTTPHeaders on the browser context, so each UI→API call carries
+	// it and the scenario's TestModeMiddleware routes the request to the
+	// installed test pool.
+	extraHeaders := map[string]string{
+		apihttp.TestModeHeader: apihttp.TestModeValue,
 	}
 
-	report := runLoadedPlaybooksPhase(ctx, env, logWriter, playbooksCfg, registry, isoResult.Env, extraInitial)
+	report := runLoadedPlaybooksPhase(ctx, env, logWriter, playbooksCfg, registry, isoResult.Env, extraHeaders)
 
 	if retainIsolation && len(isoResult.Resources) > 0 {
 		for _, res := range isoResult.Resources {
@@ -431,20 +436,37 @@ func runPlaybooksFallback(
 }
 
 // extractTestDSN pulls the test database DSN out of the isolation env map.
-// Postgres URL wins; SQLite path is the fallback. Returns an error if
-// neither is present.
-func extractTestDSN(env map[string]string) (string, error) {
-	if v := strings.TrimSpace(env["POSTGRES_URL"]); v != "" {
-		return v, nil
+// When primaryDriver names a driver ("postgres" or "sqlite"), the matching
+// DSN env var wins so the chosen DSN aligns with what the scenario's
+// RoutedDB was opened with — installing a postgres URL into a sqlite-driven
+// pool hangs PingContext indefinitely. When primaryDriver is empty (db-detect
+// could not pick a clear winner), the legacy postgres-first order applies.
+// Returns an error if no usable DSN is present.
+func extractTestDSN(env map[string]string, primaryDriver string) (string, error) {
+	postgres := func() string {
+		if v := strings.TrimSpace(env["POSTGRES_URL"]); v != "" {
+			return v
+		}
+		return strings.TrimSpace(env["DATABASE_URL"])
 	}
-	if v := strings.TrimSpace(env["DATABASE_URL"]); v != "" {
-		return v, nil
+	sqlite := func() string {
+		if v := strings.TrimSpace(env["SQLITE_PATH"]); v != "" {
+			return v
+		}
+		return strings.TrimSpace(env["SQLITE_DB"])
 	}
-	if v := strings.TrimSpace(env["SQLITE_PATH"]); v != "" {
-		return v, nil
+
+	var ordered [2]func() string
+	switch primaryDriver {
+	case "sqlite":
+		ordered = [2]func() string{sqlite, postgres}
+	default:
+		ordered = [2]func() string{postgres, sqlite}
 	}
-	if v := strings.TrimSpace(env["SQLITE_DB"]); v != "" {
-		return v, nil
+	for _, fn := range ordered {
+		if v := fn(); v != "" {
+			return v, nil
+		}
 	}
 	return "", fmt.Errorf("no test DSN found in isolation env (looked for POSTGRES_URL, DATABASE_URL, SQLITE_PATH, SQLITE_DB)")
 }
@@ -456,7 +478,7 @@ func runLoadedPlaybooksPhase(
 	playbooksCfg *config.Config,
 	registry playbooks.Registry,
 	seedEnv map[string]string,
-	extraInitialParams map[string]any,
+	extraHeaders map[string]string,
 ) RunReport {
 	return RunPhase(ctx, logWriter, "playbooks",
 		func() (*playbooks.RunResult, error) {
@@ -473,8 +495,8 @@ func runLoadedPlaybooksPhase(
 					return phaseCommandExecutor(ctx, "", logWriter, "vrooli", "scenario", "start", scenario, "--clean-stale")
 				}),
 			}
-			if len(extraInitialParams) > 0 {
-				opts = append(opts, playbooks.WithExtraInitialParams(extraInitialParams))
+			if len(extraHeaders) > 0 {
+				opts = append(opts, playbooks.WithExtraHeaders(extraHeaders))
 			}
 			runner := playbooks.New(playbooks.Config{
 				ScenarioDir:  env.ScenarioDir,

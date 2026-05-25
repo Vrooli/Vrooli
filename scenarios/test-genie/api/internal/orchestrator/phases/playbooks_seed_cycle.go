@@ -40,6 +40,12 @@ type resourceNeeds struct {
 	RequirePostgres bool
 	RequireRedis    bool
 	RequireSQLite   bool
+	// PrimaryDriver identifies the scenario's primary database driver
+	// ("postgres" or "sqlite") when detection has strong evidence
+	// (e.g. a Go driver import). Empty when no single driver dominates.
+	// Used by the routed path to pick a DSN that matches the scenario's
+	// actual driver, avoiding hangs from cross-driver DSN injection.
+	PrimaryDriver string
 	SQLiteEnvVars   []string
 }
 
@@ -319,8 +325,33 @@ func resolveDBNeeds(ctx context.Context, env workspace.Environment, logWriter io
 		RequirePostgres: report.Required("postgres"),
 		RequireRedis:    report.Required("redis"),
 		RequireSQLite:   report.Required("sqlite"),
+		PrimaryDriver:   primaryDriver(report),
 		SQLiteEnvVars:   manifest.SQLitePathEnvVars(),
 	}
+}
+
+// primaryDriver returns "postgres" or "sqlite" when one has strictly
+// stronger evidence than the other (per Evidence.Priority), and empty
+// otherwise. The empty case means "no winner — fall back to the caller's
+// default DSN order" (caller-defined behavior).
+func primaryDriver(report dbdetect.DetectionReport) string {
+	pgPriority := decisionPriority(report, "postgres")
+	sqlitePriority := decisionPriority(report, "sqlite")
+	if pgPriority > sqlitePriority {
+		return "postgres"
+	}
+	if sqlitePriority > pgPriority {
+		return "sqlite"
+	}
+	return ""
+}
+
+func decisionPriority(report dbdetect.DetectionReport, db string) dbdetect.Priority {
+	res, ok := report.Results[db]
+	if !ok || !res.Required || res.Decision == nil {
+		return 0
+	}
+	return res.Decision.Priority
 }
 
 func applyEnv(env map[string]string) func() {

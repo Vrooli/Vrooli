@@ -2,6 +2,7 @@ package phases
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,14 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"connectrpc.com/connect"
+
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/playbooks"
@@ -140,25 +149,105 @@ func (h *playbooksTestHarness) writeTestingJSON(t *testing.T, content string) {
 	}
 }
 
+// stubBAS implements just enough of the two BAS Connect services to keep
+// the playbooks phase test path happy. Methods this test path does not
+// hit return connect.CodeUnimplemented so any unexpected call surfaces
+// loudly instead of silently passing.
+type stubBAS struct{}
+
+func (stubBAS) ListWorkflows(context.Context, *connect.Request[basapi.ListWorkflowsRequest]) (*connect.Response[basapi.ListWorkflowsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ListWorkflows"))
+}
+func (stubBAS) GetWorkflow(context.Context, *connect.Request[basapi.GetWorkflowRequest]) (*connect.Response[basapi.GetWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: GetWorkflow"))
+}
+func (stubBAS) CreateWorkflow(context.Context, *connect.Request[basapi.CreateWorkflowRequest]) (*connect.Response[basapi.CreateWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: CreateWorkflow"))
+}
+func (stubBAS) UpdateWorkflow(context.Context, *connect.Request[basapi.UpdateWorkflowRequest]) (*connect.Response[basapi.UpdateWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: UpdateWorkflow"))
+}
+func (stubBAS) DeleteWorkflow(context.Context, *connect.Request[basapi.DeleteWorkflowRequest]) (*connect.Response[basapi.DeleteWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: DeleteWorkflow"))
+}
+func (stubBAS) ExecuteWorkflow(context.Context, *connect.Request[basapi.ExecuteWorkflowRequest]) (*connect.Response[basapi.ExecuteWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ExecuteWorkflow"))
+}
+func (stubBAS) ExecuteAdhocWorkflow(_ context.Context, _ *connect.Request[basexecution.ExecuteAdhocRequest]) (*connect.Response[basexecution.ExecuteAdhocResponse], error) {
+	return connect.NewResponse(&basexecution.ExecuteAdhocResponse{
+		ExecutionId: "exec-123",
+		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING,
+	}), nil
+}
+func (stubBAS) ValidateWorkflow(context.Context, *connect.Request[basapi.ValidateWorkflowRequest]) (*connect.Response[basapi.ValidateWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ValidateWorkflow"))
+}
+func (stubBAS) ValidateResolvedWorkflow(_ context.Context, _ *connect.Request[basapi.ValidateWorkflowRequest]) (*connect.Response[basapi.ValidateWorkflowResponse], error) {
+	return connect.NewResponse(&basapi.ValidateWorkflowResponse{
+		Result: &basapi.WorkflowValidationResult{Valid: true},
+	}), nil
+}
+func (stubBAS) ModifyWorkflow(context.Context, *connect.Request[basapi.ModifyWorkflowRequest]) (*connect.Response[basapi.UpdateWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ModifyWorkflow"))
+}
+func (stubBAS) ListWorkflowVersions(context.Context, *connect.Request[basapi.ListWorkflowVersionsRequest]) (*connect.Response[basapi.WorkflowVersionList], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ListWorkflowVersions"))
+}
+func (stubBAS) GetWorkflowVersion(context.Context, *connect.Request[basapi.GetWorkflowVersionRequest]) (*connect.Response[basapi.WorkflowVersion], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: GetWorkflowVersion"))
+}
+func (stubBAS) RestoreWorkflowVersion(context.Context, *connect.Request[basapi.RestoreWorkflowVersionRequest]) (*connect.Response[basapi.RestoreWorkflowVersionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: RestoreWorkflowVersion"))
+}
+
+func (stubBAS) ListExecutions(context.Context, *connect.Request[basapi.ListExecutionsRequest]) (*connect.Response[basapi.ListExecutionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ListExecutions"))
+}
+func (stubBAS) GetExecution(_ context.Context, _ *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
+	return connect.NewResponse(&basapi.GetExecutionResponse{
+		Execution: &basexecution.Execution{
+			ExecutionId: "exec-123",
+			Status:      basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
+		},
+	}), nil
+}
+func (stubBAS) GetExecutionTimeline(_ context.Context, _ *connect.Request[basapi.GetExecutionTimelineRequest]) (*connect.Response[bastimeline.ExecutionTimeline], error) {
+	return connect.NewResponse(&bastimeline.ExecutionTimeline{}), nil
+}
+func (stubBAS) StopExecution(context.Context, *connect.Request[basapi.StopExecutionRequest]) (*connect.Response[basapi.StopExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: StopExecution"))
+}
+func (stubBAS) ResumeExecution(context.Context, *connect.Request[basapi.ResumeExecutionRequest]) (*connect.Response[basapi.ResumeExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ResumeExecution"))
+}
+func (stubBAS) GetExecutionScreenshots(context.Context, *connect.Request[basapi.GetExecutionScreenshotsRequest]) (*connect.Response[basexecution.GetScreenshotsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: GetExecutionScreenshots"))
+}
+func (stubBAS) GetExecutionRecordedVideos(context.Context, *connect.Request[basapi.GetExecutionArtifactsRequest]) (*connect.Response[basapi.GetExecutionVideosResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: GetExecutionRecordedVideos"))
+}
+func (stubBAS) GetExecutionRecordedTraces(context.Context, *connect.Request[basapi.GetExecutionArtifactsRequest]) (*connect.Response[basapi.GetExecutionTracesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: GetExecutionRecordedTraces"))
+}
+func (stubBAS) GetExecutionRecordedHar(context.Context, *connect.Request[basapi.GetExecutionArtifactsRequest]) (*connect.Response[basapi.GetExecutionHarResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: GetExecutionRecordedHar"))
+}
+func (stubBAS) ScheduleExecutionSeedCleanup(context.Context, *connect.Request[basapi.ScheduleSeedCleanupRequest]) (*connect.Response[basapi.ScheduleSeedCleanupResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ScheduleExecutionSeedCleanup"))
+}
+
 func newStubBASServer(t *testing.T) (*httptest.Server, string) {
 	t.Helper()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/v1/health":
-			w.WriteHeader(http.StatusOK)
-		case "/api/v1/workflows/validate-resolved":
-			_, _ = w.Write([]byte(`{"valid":true,"errors":[]}`))
-		case "/api/v1/workflows/execute-adhoc":
-			_, _ = w.Write([]byte(`{"execution_id":"exec-123"}`))
-		case "/api/v1/executions/exec-123":
-			_, _ = w.Write([]byte(`{"execution_id":"exec-123","status":"EXECUTION_STATUS_COMPLETED","progress":100}`))
-		case "/api/v1/executions/exec-123/timeline":
-			_, _ = w.Write([]byte(`{"execution_id":"exec-123","status":"EXECUTION_STATUS_COMPLETED","progress":100,"frames":[],"logs":[]}`))
-		default:
-			http.NotFound(w, r)
-		}
-	}))
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/health", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	wfPath, wfHandler := apiconnect.NewWorkflowsServiceHandler(stubBAS{})
+	exPath, exHandler := apiconnect.NewExecutionsServiceHandler(stubBAS{})
+	mux.Handle(wfPath, wfHandler)
+	mux.Handle(exPath, exHandler)
 
+	server := httptest.NewServer(mux)
 	port := strings.TrimPrefix(server.URL, "http://127.0.0.1:")
 	port = strings.TrimPrefix(port, "http://localhost:")
 	return server, port
@@ -245,8 +334,8 @@ func TestRunPlaybooksPhaseObserverModeSkipsIsolationAndRestart(t *testing.T) {
 		]
 	}`)
 	h.writeWorkflow(t, "bas/cases/01-basic/test.json", `{
-  "metadata": {"description": "basic", "version": 1},
-  "nodes": [{"id":"n1","type":"navigate","data":{"destinationType":"url","url":"http://example.com"}}],
+  "metadata": {"description": "basic", "version": "1"},
+  "nodes": [{"id":"n1","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_URL","url":"http://example.com"}}}],
   "edges": []
 }`)
 
@@ -317,8 +406,8 @@ func TestRunPlaybooksPhaseSQLiteScenarioUsesIsolationOutsideObserverMode(t *test
 		]
 	}`)
 	h.writeWorkflow(t, "bas/cases/01-basic/test.json", `{
-  "metadata": {"description": "basic", "version": 1},
-  "nodes": [{"id":"n1","type":"navigate","data":{"destinationType":"url","url":"http://example.com"}}],
+  "metadata": {"description": "basic", "version": "1"},
+  "nodes": [{"id":"n1","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_URL","url":"http://example.com"}}}],
   "edges": []
 }`)
 
@@ -498,8 +587,8 @@ func TestRunPlaybooksPhaseIsolationEnvRestoredBeforeBAS(t *testing.T) {
 	// Minimal registry + workflow so runner executes BAS path.
 	h.writeRegistry(t, `{"playbooks":[{"file":"bas/cases/01-basic/test.json","description":"test","order":"01.01","requirements":[],"fixtures":[],"reset":"none"}]}`)
 	h.writeWorkflow(t, "bas/cases/01-basic/test.json", `{
-  "metadata": {"description": "basic", "version": 1},
-  "nodes": [{"id":"n1","type":"navigate","data":{"destinationType":"url","url":"http://example.com"}}],
+  "metadata": {"description": "basic", "version": "1"},
+  "nodes": [{"id":"n1","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_URL","url":"http://example.com"}}}],
   "edges": []
 }`)
 

@@ -83,8 +83,8 @@ type Runner struct {
 	logWriter io.Writer
 
 	// Runtime state
-	seedState          map[string]any // Cached seed state for passing to BAS as initial_params
-	extraInitialParams map[string]any // Caller-supplied params merged into initial_params (test-mode header, etc.)
+	seedState    map[string]any    // Cached seed state for passing to BAS as initial_params
+	extraHeaders map[string]string // Headers attached to every browser request (Playwright extraHTTPHeaders) — used to carry the test-mode header to the scenario API.
 }
 
 // Option configures a Runner.
@@ -198,13 +198,14 @@ func WithSeedEnv(env map[string]string) Option {
 	}
 }
 
-// WithExtraInitialParams supplies additional key/value pairs that are merged
-// into the BAS initial_params payload alongside loaded seed state. Used by
-// the playbooks phase to pass routing-related signals (test-mode header
-// name + value) so playbooks can attach the header to HTTP-step requests.
-func WithExtraInitialParams(extra map[string]any) Option {
+// WithExtraHeaders supplies HTTP headers that BAS attaches to the browser
+// context as Playwright extraHTTPHeaders. Every UI→API request the browser
+// makes during workflow execution carries these headers — used by the
+// routed-test-database path to send X-Vrooli-Test-Mode: 1 so the scenario's
+// RoutedDB serves the test pool.
+func WithExtraHeaders(headers map[string]string) Option {
 	return func(r *Runner) {
-		r.extraInitialParams = extra
+		r.extraHeaders = headers
 	}
 }
 
@@ -476,19 +477,10 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry) Result {
 	if execDescription == "" {
 		execDescription = execName
 	}
-	mergedInitial := r.seedState
-	if len(r.extraInitialParams) > 0 {
-		mergedInitial = make(map[string]any, len(r.seedState)+len(r.extraInitialParams))
-		for k, v := range r.seedState {
-			mergedInitial[k] = v
-		}
-		for k, v := range r.extraInitialParams {
-			mergedInitial[k] = v
-		}
-	}
 	execParams := &execution.ExecutionParams{
 		ProjectRoot:   projectRoot,
-		InitialParams: mergedInitial,
+		InitialParams: r.seedState,
+		ExtraHeaders:  r.extraHeaders,
 	}
 	if r.config.ScenarioName == BASScenarioName && len(r.seedState) > 0 {
 		execParams.Env = map[string]any{

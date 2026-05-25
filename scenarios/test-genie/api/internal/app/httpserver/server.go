@@ -18,6 +18,7 @@ import (
 	"test-genie/internal/fix"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
+	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/queue"
 	"test-genie/internal/requirementsimprove"
 	"test-genie/internal/scenarios"
@@ -55,6 +56,7 @@ type Dependencies struct {
 	FixService                 fixService
 	RequirementsImproveService requirementsImproveService
 	RequirementsSyncer         requirementsSyncer
+	PlaybooksClaims            *playbooksclaims.Service
 	Logger                     Logger
 	// Tool Discovery Protocol support
 	ToolRegistry *toolregistry.Registry
@@ -132,6 +134,7 @@ type Server struct {
 	fixService                 fixService
 	requirementsImproveService requirementsImproveService
 	requirementsSyncer         requirementsSyncer
+	playbooksClaims            *playbooksclaims.Service
 	seedSessions               map[string]*seedSession
 	seedSessionsByScenario     map[string]string
 	seedSessionsMu             sync.Mutex
@@ -190,6 +193,7 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		fixService:                 deps.FixService,
 		requirementsImproveService: deps.RequirementsImproveService,
 		requirementsSyncer:         deps.RequirementsSyncer,
+		playbooksClaims:            deps.PlaybooksClaims,
 		seedSessions:               make(map[string]*seedSession),
 		seedSessionsByScenario:     make(map[string]string),
 		toolRegistry:               deps.ToolRegistry,
@@ -260,6 +264,11 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/active", s.handleGetActiveRequirementsImprove).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/{id}", s.handleGetRequirementsImprove).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/{id}/stop", s.handleStopRequirementsImprove).Methods("POST")
+
+	// Playbooks-claims routes (concurrency-guard inspection / force-release)
+	apiRouter.HandleFunc("/playbooks/claims", s.handleListPlaybooksClaims).Methods("GET")
+	apiRouter.HandleFunc("/playbooks/claims/{scenario}", s.handleGetPlaybooksClaim).Methods("GET")
+	apiRouter.HandleFunc("/playbooks/claims/{scenario}/release", s.handleReleasePlaybooksClaim).Methods("POST")
 
 	// Tool Discovery Protocol routes
 	if s.toolRegistry != nil {
