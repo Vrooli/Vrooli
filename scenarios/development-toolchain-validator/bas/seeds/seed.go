@@ -1,13 +1,19 @@
 // Go seed for the routed-e2e path in development-toolchain-validator.
 //
-// test-genie's playbooks phase invokes this with SQLITE_PATH (or
-// POSTGRES_URL) pointing at the per-run test database. The seed opens
-// that DSN, inserts a single fixture row, and writes coverage/runtime/
-// seed-state.json so BAS can echo the fixture identifier back through
-// initial_params.
+// test-genie's playbooks phase invokes this with SQLITE_PATH pointing
+// at the per-run test database. The seed:
 //
-// This file is the routed-path counterpart to a bash seed; it stays Go
-// so the same code works on Linux, macOS, and Windows runners.
+//  1. Applies the `goldens` schema (copy of api/internal/golden/schema.sql)
+//     because RoutedDB.InstallTestPool installs a fresh pool but does not
+//     run app schemas against it.
+//  2. Inserts one Golden row with slug "routed-smoke-001".
+//  3. Writes coverage/runtime/seed-state.json so BAS can reference the
+//     fixture identifier via initial_params.
+//
+// The BAS playbook in bas/flows/routed-smoke.json then navigates to the
+// goldens index (/) and asserts the slug is visible — which is only true
+// if the UI→API request was routed to the test pool. If routing fails,
+// the slug is absent from the primary pool and the assertion fails.
 
 //go:build ignore
 
@@ -22,45 +28,69 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 
 	_ "modernc.org/sqlite"
 )
 
+// goldensSchema mirrors api/internal/golden/schema.sql. Kept in sync
+// manually — see SEAMS doc for the goldens table contract. Idempotent
+// (CREATE TABLE IF NOT EXISTS), so re-runs on the same DSN are no-ops.
+const goldensSchema = `
+CREATE TABLE IF NOT EXISTS goldens (
+  id                      TEXT PRIMARY KEY,
+  slug                    TEXT NOT NULL UNIQUE,
+  template_id             TEXT NOT NULL,
+  template_version_pinned TEXT NOT NULL,
+  path                    TEXT NOT NULL,
+  created_at              TEXT NOT NULL,
+  last_regenerated_at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_goldens_slug ON goldens(slug);
+`
+
 func main() {
 	dsn := resolveDSN()
 	if dsn == "" {
-		log.Fatalf("seed: no SQLITE_PATH / SQLITE_DB / POSTGRES_URL / DATABASE_URL in env")
+		log.Fatalf("seed: no SQLITE_PATH / SQLITE_DB in env")
 	}
 
-	driver := "sqlite"
-	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
-		driver = "postgres"
-	}
-
-	db, err := sql.Open(driver, dsn)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
-		log.Fatalf("seed: open %s: %v", driver, err)
+		log.Fatalf("seed: open sqlite: %v", err)
 	}
 	defer db.Close()
 
 	ctx := context.Background()
 
-	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS routed_smoke_fixture (id TEXT PRIMARY KEY, marker TEXT NOT NULL)`); err != nil {
-		log.Fatalf("seed: create routed_smoke_fixture: %v", err)
+	if _, err := db.ExecContext(ctx, goldensSchema); err != nil {
+		log.Fatalf("seed: apply goldens schema: %v", err)
 	}
 
-	fixtureID := "routed-smoke-001"
-	fixtureMarker := "ROUTED_TEST_POOL_VISIBLE"
-	if _, err := db.ExecContext(ctx, `INSERT OR IGNORE INTO routed_smoke_fixture (id, marker) VALUES (?, ?)`, fixtureID, fixtureMarker); err != nil {
-		log.Fatalf("seed: insert fixture: %v", err)
+	fixtureSlug := "routed-smoke-001"
+	fixtureID := uuid.NewString()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	const insertSQL = `
+INSERT INTO goldens (id, slug, template_id, template_version_pinned, path, created_at, last_regenerated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(slug) DO NOTHING
+`
+	if _, err := db.ExecContext(ctx, insertSQL,
+		fixtureID, fixtureSlug,
+		"routed-smoke-template", "0.0.0",
+		"docs/routed-smoke/golden.md",
+		now, now,
+	); err != nil {
+		log.Fatalf("seed: insert golden: %v", err)
 	}
 
 	// Write coverage/runtime/seed-state.json so the playbooks runner picks
-	// up these values and forwards them to BAS via initial_params. The
-	// path follows test-genie's seed-state convention.
+	// up these values and forwards them to BAS via initial_params.
 	seedState := map[string]any{
-		"routed_smoke_fixture_id":     fixtureID,
-		"routed_smoke_fixture_marker": fixtureMarker,
+		"routed_smoke_golden_slug": fixtureSlug,
+		"routed_smoke_golden_id":   fixtureID,
 	}
 	outDir := os.Getenv("PLAYBOOKS_SEED_STATE_DIR")
 	if outDir == "" {
@@ -78,11 +108,11 @@ func main() {
 		log.Fatalf("seed: write %s: %v", outPath, err)
 	}
 
-	fmt.Printf("seed: inserted routed_smoke_fixture id=%s marker=%s; seed-state written to %s\n", fixtureID, fixtureMarker, outPath)
+	fmt.Printf("seed: inserted golden slug=%s id=%s; seed-state written to %s\n", fixtureSlug, fixtureID, outPath)
 }
 
 func resolveDSN() string {
-	for _, key := range []string{"SQLITE_PATH", "SQLITE_DB", "POSTGRES_URL", "DATABASE_URL"} {
+	for _, key := range []string{"SQLITE_PATH", "SQLITE_DB"} {
 		if v := strings.TrimSpace(os.Getenv(key)); v != "" {
 			return v
 		}

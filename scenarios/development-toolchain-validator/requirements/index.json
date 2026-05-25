@@ -27,7 +27,8 @@
     "18-per-skill-cost-budget-alerts/module.json",
     "19-webhook-notifications/module.json",
     "20-manifest-auto-generation/module.json",
-    "21-input-output-token-breakdown/module.json"
+    "21-input-output-token-breakdown/module.json",
+    "30-routed-test-database-proof/module.json"
   ],
   "modules": [
     { "id": "MOD-P0-001", "path": "01-golden-registry-and-regeneration", "priority": "P0", "title": "Golden Registry & Regeneration" },
@@ -50,6 +51,7 @@
     { "id": "MOD-P2-002", "path": "18-per-skill-cost-budget-alerts", "priority": "P2", "title": "Per-Skill Cost Budget Alerts" },
     { "id": "MOD-P2-003", "path": "19-webhook-notifications", "priority": "P2", "title": "Webhook Notifications" },
     { "id": "MOD-P2-004", "path": "20-manifest-auto-generation", "priority": "P2", "title": "Manifest Auto-Generation from Observed Diffs" },
-    { "id": "MOD-P2-005", "path": "21-input-output-token-breakdown", "priority": "P2", "title": "Input/Output Token Breakdown" }
+    { "id": "MOD-P2-005", "path": "21-input-output-token-breakdown", "priority": "P2", "title": "Input/Output Token Breakdown" },
+    { "id": "MOD-INFRA-001", "path": "30-routed-test-database-proof", "priority": "P1", "title": "Routed Test-Database Proof" }
   ]
 }

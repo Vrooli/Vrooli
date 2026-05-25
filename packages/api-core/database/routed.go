@@ -5,8 +5,29 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 )
+
+// validateDSNMatchesDriver rejects DSNs whose scheme is clearly meant for
+// a different driver than the pool's configured one. Catches the common
+// mistake of handing a postgres URL to a sqlite-driven RoutedDB (which
+// otherwise hangs inside PingContext) and vice versa.
+func validateDSNMatchesDriver(driver, dsn string) error {
+	lower := strings.ToLower(strings.TrimSpace(dsn))
+	looksLikePostgres := strings.HasPrefix(lower, "postgres://") || strings.HasPrefix(lower, "postgresql://")
+	switch driver {
+	case DriverPostgres:
+		if !looksLikePostgres {
+			return fmt.Errorf("dsn does not look like a postgres URL (driver=%q): %s", driver, dsn)
+		}
+	case DriverSQLite, DriverSQLiteLegacy:
+		if looksLikePostgres {
+			return fmt.Errorf("dsn looks like a postgres URL but pool driver is %q: %s", driver, dsn)
+		}
+	}
+	return nil
+}
 
 // RoutedDB wraps a primary *sql.DB pool with an optional, runtime-installable
 // test pool. Per-request routing is driven by IsTestMode(ctx): when the
@@ -122,6 +143,9 @@ func (r *RoutedDB) HasTestPool() bool {
 func (r *RoutedDB) InstallTestPool(ctx context.Context, dsn, leaseID string) error {
 	if dsn == "" {
 		return errors.New("database.RoutedDB.InstallTestPool: dsn is empty")
+	}
+	if err := validateDSNMatchesDriver(r.cfg.Driver, dsn); err != nil {
+		return fmt.Errorf("install test pool: %w", err)
 	}
 
 	r.mu.Lock()

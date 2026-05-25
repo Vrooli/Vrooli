@@ -491,6 +491,28 @@ Use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARG
 
 ---
 
+### **9. Database Isolation (Automatic)**
+
+When test-genie runs your playbooks, the scenario's database is automatically isolated — every test run hits a per-run test database, not the real one. **You write your workflows exactly the same way** regardless; nothing about the BAS JSON changes.
+
+How it works (two paths, test-genie picks one):
+
+| Path | What happens | When |
+|---|---|---|
+| **Routed** | A per-run test pool is installed on the running scenario via RPC. test-genie injects `X-Vrooli-Test-Mode: 1` as a browser-context header so every UI→API request from your playbook hits the test pool. No restart. | Scenario uses `*database.RoutedDB` + mounts `apihttp.TestModeMiddleware` (the `react-vite` template ships in this shape — new scenarios get it for free). |
+| **Fallback** | Scenario is stopped, restarted with env pointing at the test DB, playbooks run, then restarted normally. | Scenario still holds raw `*sql.DB` handles or otherwise can't be routed. |
+
+What this means for test authors:
+
+- **Seed data**: any `bas/seeds/seed.go` runs against the test DB, not prod. Seed freely — it won't leak.
+- **Mutations are safe**: workflows can create, update, delete — the changes go to the test DB and are torn down after the run.
+- **Don't try to set the test-mode header yourself** in workflow JSON. It's already attached at the browser context for every request; doing it again per-step is redundant and confusing.
+- **If your test only passes against prod data**, it's not really an E2E test — it's an observation. Fix it: seed what you need.
+
+Full details (mode flag, opt-in for new scenarios, lease/concurrency model) live in `path:docs/agent-system/routed-test-db.md`. Test authors usually don't need to read it.
+
+---
+
 ### **10. Output Expectations**
 
 You may update:
