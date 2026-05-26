@@ -17,4 +17,6 @@ export const queryKeys = {
   run: (id: string) => ["run", id] as const,
   restores: (targetId = "") => ["restores", targetId] as const,
   restore: (id: string) => ["restore", id] as const,
+  targetSuggestions: ["targetSuggestions"] as const,
+  destinationSuggestions: ["destinationSuggestions"] as const,
 };

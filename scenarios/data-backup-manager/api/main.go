@@ -23,6 +23,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	destinationsH "data-backup-manager/handlers/destinations"
+	discoveryH "data-backup-manager/handlers/discovery"
 	healthH "data-backup-manager/handlers/health"
 	plansH "data-backup-manager/handlers/plans"
 	restoresH "data-backup-manager/handlers/restores"
@@ -30,11 +31,13 @@ import (
 	targetsH "data-backup-manager/handlers/targets"
 
 	destint "data-backup-manager/internal/destinations"
+	discoveryint "data-backup-manager/internal/discovery"
 	plansint "data-backup-manager/internal/plans"
 	restoresint "data-backup-manager/internal/restores"
 	runsint "data-backup-manager/internal/runs"
 	schedint "data-backup-manager/internal/scheduler"
 	"data-backup-manager/internal/sources"
+	"data-backup-manager/internal/sysmounts"
 	targetsint "data-backup-manager/internal/targets"
 )
 
@@ -154,6 +157,21 @@ func main() {
 		Clock:        clk,
 	})
 
+	// Discovery: read-only onboarding suggestions. Scans well-known runtime
+	// state (~/.vrooli) for targets and mounted volumes for destinations,
+	// filtering against the live catalog + a dismissals table. Suggestions are
+	// derived; only dismissals persist. The protected-path set is computed here
+	// (runtime root + registered destinations + registered target locators) —
+	// wider than the destinations service's own protectedRoot (D4).
+	discoverySvc := discoveryint.NewService(discoveryint.Deps{
+		Volumes:      sysmounts.New(),
+		Sources:      discoveryint.NewWellKnownScanner(),
+		Targets:      discoveryTargetCatalog{svc: targetsSvc},
+		Destinations: discoveryDestCatalog{svc: destSvc},
+		Protected:    discoveryProtectedPaths{runtimeRoot: discoveryint.RuntimeRoot(), targets: targetsSvc, dests: destSvc},
+		Dismissals:   discoveryint.NewSQLiteDismissalStore(db, clk),
+	})
+
 	// In-process scheduler: fires due plans on their cadence (OT-P0-005).
 	scheduler := schedint.New(clk, planSource{svc: plansSvc}, runTrigger{svc: runsSvc})
 	startScheduler(context.Background(), scheduler, logger)
@@ -166,6 +184,7 @@ func main() {
 		server.Deps{Clock: clk, Logger: logger},
 		healthH.ModuleWithPosture(db, "data-backup-manager-api", "1.0.0", posture, logEventSink{logger: logger}),
 		destinationsH.Module(db, clk, kopia, protectedRoot, logger),
+		discoveryH.Module(discoverySvc, logger),
 		plansH.Module(db, clk, logger),
 		restoresH.Module(restoresSvc, logger),
 		runsH.Module(runsSvc, verifiedLookup{svc: restoresSvc}, logger),

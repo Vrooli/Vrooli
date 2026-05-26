@@ -12,6 +12,7 @@ import (
 
 	"data-backup-manager/internal/clock"
 	destint "data-backup-manager/internal/destinations"
+	discoveryint "data-backup-manager/internal/discovery"
 	plansint "data-backup-manager/internal/plans"
 	restoresint "data-backup-manager/internal/restores"
 	runsint "data-backup-manager/internal/runs"
@@ -105,6 +106,80 @@ func (a verifiedLookup) LastVerifiedByTarget(ctx context.Context) (map[string]ru
 		out[s.TargetID] = runsH.VerifiedInfo{LastVerifiedAt: s.LastVerifiedAt, SnapshotID: s.SnapshotID}
 	}
 	return out, nil
+}
+
+// catalogScanLimit is a generous upper bound for the "list everything" catalog
+// reads the discovery filters need; the catalogs are small (one row per
+// registered target/destination), so a fixed cap avoids paging ceremony.
+const catalogScanLimit = 100000
+
+// discoveryTargetCatalog adapts targets.Service to discovery.TargetCatalog so
+// already-registered sources are filtered out of target suggestions.
+type discoveryTargetCatalog struct{ svc targetsint.Service }
+
+func (a discoveryTargetCatalog) ListAll(ctx context.Context) ([]discoveryint.ExistingTarget, error) {
+	ts, err := a.svc.List(ctx, "", catalogScanLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]discoveryint.ExistingTarget, 0, len(ts))
+	for _, t := range ts {
+		out = append(out, discoveryint.ExistingTarget{Owner: t.Owner, Name: t.Name, Locator: t.Locator})
+	}
+	return out, nil
+}
+
+// discoveryDestCatalog adapts destinations.Service to discovery.DestinationCatalog
+// so already-used locations are filtered out of destination suggestions.
+type discoveryDestCatalog struct{ svc destint.Service }
+
+func (a discoveryDestCatalog) ListAll(ctx context.Context) ([]discoveryint.ExistingDestination, error) {
+	ds, err := a.svc.ListDestinations(ctx, catalogScanLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]discoveryint.ExistingDestination, 0, len(ds))
+	for _, d := range ds {
+		out = append(out, discoveryint.ExistingDestination{Location: d.Location})
+	}
+	return out, nil
+}
+
+// discoveryProtectedPaths satisfies discovery.ProtectedPaths. The destinations
+// service's own protectedRoot (just SCENARIO_DATA_DIR) is too narrow for
+// destination filtering, so discovery's set is the resolved runtime root + every
+// registered destination location + every registered target locator (Contract
+// Decision D4). A volume overlapping any of these is flagged unsafe.
+type discoveryProtectedPaths struct {
+	runtimeRoot string
+	targets     targetsint.Service
+	dests       destint.Service
+}
+
+func (a discoveryProtectedPaths) ProtectedPaths(ctx context.Context) ([]string, error) {
+	paths := make([]string, 0, 8)
+	if strings.TrimSpace(a.runtimeRoot) != "" {
+		paths = append(paths, a.runtimeRoot)
+	}
+	ds, err := a.dests.ListDestinations(ctx, catalogScanLimit)
+	if err != nil {
+		return nil, err
+	}
+	for _, d := range ds {
+		if d.Location != "" {
+			paths = append(paths, d.Location)
+		}
+	}
+	ts, err := a.targets.List(ctx, "", catalogScanLimit)
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range ts {
+		if t.Locator != "" {
+			paths = append(paths, t.Locator)
+		}
+	}
+	return paths, nil
 }
 
 // runTrigger adapts runs.Service to scheduler.RunTrigger (scheduler-fired runs).

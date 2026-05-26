@@ -251,6 +251,36 @@ against fakes.
 | **Test fake** | `internal/sources/mocks::FakeCapturer` — claims a `SourceKind`, returns deterministic bytes or an injected failure via `CaptureFn`/`RestoreFn`, records calls. Runs/restores service tests build a Registry of fakes to drive fan-out and partial-failure without touching real sources. |
 | **Why it exists** | The six kinds differ wildly (tar vs `VACUUM INTO` vs `pg_dump` vs prefix dump vs snapshot API vs object mirror) but the runs/restores orchestration is identical across them. The seam lets the workflow be tested once against fakes; per-kind round-trip correctness is proven by integration tests in `internal/sources/<kind>_test.go` (fs/sqlite always; the rest gated on their resources). |
 
+### VolumeScanner (OS mount enumeration for discovery)
+
+| | |
+|---|---|
+| **Seam** | The OS boundary for enumerating mounted volumes (the destination-suggestion source). |
+| **Interface** | `internal/discovery/seams.go::VolumeScanner` (`Scan(ctx) → []Volume`). |
+| **Production wiring** | `sysmounts.New()` (`internal/sysmounts/`) — the ONLY package allowed to import `gopsutil/v3/disk`. gopsutil supplies enumeration + free/total; a gopsutil-free per-OS classifier (`classify.go`) adds removable/network classification (Linux reads an injectable `/sys/block/<dev>/removable`; macOS keys off `/Volumes`; Windows stays conservative). |
+| **Test fake** | `internal/discovery/mocks::FakeVolumeScanner` (fixed slice or error). The removable classifier itself is unit-tested against a fixture `/sys/block` tree in `internal/sysmounts/classify_test.go`. |
+| **Why it exists** | Confines the one third-party dependency (gopsutil) and all OS-specific drive logic to one package so the discovery domain stays hermetic and the removable heuristic is testable without real hardware. |
+
+### TargetSourceScanner (well-known runtime-state scan for discovery)
+
+| | |
+|---|---|
+| **Seam** | Enumerates well-known sources worth protecting (the target-suggestion source). |
+| **Interface** | `internal/discovery/seams.go::TargetSourceScanner` (`Scan(ctx) → []TargetCandidate`). |
+| **Production wiring** | `discovery.NewWellKnownScanner()` reads a data-driven manifest scoped to the resolved runtime root (`APP_DATA_DIR`/`VROOLI_DATA`/`~/.vrooli`): `plans`, `state`, `config`, `secrets.json` (filesystem) and `runtime.db` (sqlite). Strictly read-only — stats paths and bounded-walks directory sizes; never reads file contents (e.g. `secrets.json` is suggested by path/size only). |
+| **Test fake** | `internal/discovery/mocks::FakeTargetSourceScanner`; the production scanner is tested against a temp runtime root in `wellknown_test.go`. |
+| **Why it exists** | Lets discovery suggest the right runtime state without the domain hard-coding paths, and keeps scenario-store scanning a future, additive `rootKind` (deferred). |
+
+### discovery catalogs + ProtectedPaths + DismissalStore
+
+| | |
+|---|---|
+| **Seam** | The live-catalog readers and dismissal writer the discovery service filters against. |
+| **Interface** | `internal/discovery/seams.go`: `TargetCatalog`/`DestinationCatalog` (`ListAll`), `ProtectedPaths` (`ProtectedPaths(ctx) → []string`), `DismissalStore` (`IsDismissed`/`Dismiss`). |
+| **Production wiring** | Composition-root adapters in `api/adapters.go` (`discoveryTargetCatalog`, `discoveryDestCatalog`, `discoveryProtectedPaths`) over the targets/destinations services; `DismissalStore` = `discovery.NewSQLiteDismissalStore`. `ProtectedPaths` = runtime root + every registered destination location + every registered target locator — deliberately wider than the destinations service's own `protectedRoot` (just `SCENARIO_DATA_DIR`), which is too narrow for destination filtering (Contract Decision D4). |
+| **Test fake** | `internal/discovery/mocks` (`FakeTargetCatalog`, `FakeDestinationCatalog`, `FakeProtectedPaths`, `FakeDismissalStore`). |
+| **Why it exists** | Keeps discovery decoupled from sibling domains (it reads their projections, never imports them) and keeps suggestions derived: only dismissals persist, so an accepted suggestion disappears once it exists in the catalog. |
+
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching

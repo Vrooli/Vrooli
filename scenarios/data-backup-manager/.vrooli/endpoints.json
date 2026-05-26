@@ -312,6 +312,117 @@
       }
     },
     {
+      "id": "discovery_target_suggestions",
+      "path": "/vrooli.data_backup_manager.v1.discovery.DiscoveryService/ListTargetSuggestions",
+      "method": "POST",
+      "summary": "List target suggestions",
+      "description": "Scans well-known Vrooli runtime state (~/.vrooli) read-only and returns ranked, non-dismissed sources worth protecting that are not yet registered. Accept one by calling TargetsService.RegisterTarget with its owner/name/source_kind/locator.",
+      "category": "discovery",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "suggestions": "array<TargetSuggestion>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Scan or catalog read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List target suggestions",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.discovery.DiscoveryService/ListTargetSuggestions -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager discovery targets"
+      }
+    },
+    {
+      "id": "discovery_destination_suggestions",
+      "path": "/vrooli.data_backup_manager.v1.discovery.DiscoveryService/ListDestinationSuggestions",
+      "method": "POST",
+      "summary": "List destination suggestions",
+      "description": "Enumerates mounted volumes (OS-agnostic) and returns ranked, non-dismissed places to back up to, removable/external drives first, with the separate-root rule applied. Accept one by calling DestinationsService.CreateDestination with a filesystem backend at its location.",
+      "category": "discovery",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "suggestions": "array<DestinationSuggestion>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Volume scan or catalog read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List destination suggestions",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.discovery.DiscoveryService/ListDestinationSuggestions -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager discovery destinations"
+      }
+    },
+    {
+      "id": "discovery_dismiss",
+      "path": "/vrooli.data_backup_manager.v1.discovery.DiscoveryService/DismissSuggestion",
+      "method": "POST",
+      "summary": "Dismiss a suggestion",
+      "description": "Hides a suggestion permanently by its stable id. Idempotent — re-dismissing is a no-op success. Dismissed suggestions never reappear on rescans.",
+      "category": "discovery",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dismissed": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Dismissal write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Dismiss a suggestion",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.discovery.DiscoveryService/DismissSuggestion -H 'Content-Type: application/json' -d '{\"id\":\"b0e3a8fa79aefd10\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager discovery dismiss",
+        "args": [
+          "--id",
+          "<id>"
+        ]
+      }
+    },
+    {
       "id": "plans_create",
       "path": "/vrooli.data_backup_manager.v1.plans.PlansService/CreatePlan",
       "method": "POST",
@@ -1168,6 +1279,21 @@
       "name": "destinations usage",
       "description": "Show a destination's usage vs cap",
       "endpoint_id": "destinations_usage"
+    },
+    {
+      "name": "discovery targets",
+      "description": "List suggested targets worth protecting (well-known ~/.vrooli runtime state)",
+      "endpoint_id": "discovery_target_suggestions"
+    },
+    {
+      "name": "discovery destinations",
+      "description": "List suggested destinations (mounted volumes / plugged-in drives) to back up to",
+      "endpoint_id": "discovery_destination_suggestions"
+    },
+    {
+      "name": "discovery dismiss",
+      "description": "Dismiss a suggestion permanently by id",
+      "endpoint_id": "discovery_dismiss"
     },
     {
       "name": "plans create",

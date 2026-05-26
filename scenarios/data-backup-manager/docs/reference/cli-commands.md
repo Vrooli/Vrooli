@@ -143,6 +143,28 @@ A destination is rejected if its path would fall under the storage root
 it is meant to protect (separate-root rule). The cap defaults to
 alert + block.
 
+### `data-backup-manager discovery ...`
+
+Onboarding suggestions, discovered read-only from the local environment.
+Use these on a fresh install to see what's worth protecting and where to
+back it up, instead of wiring the five nouns by hand.
+
+```bash
+data-backup-manager discovery targets        # well-known ~/.vrooli runtime state worth protecting
+data-backup-manager discovery destinations   # mounted volumes / plugged-in drives to back up to
+data-backup-manager discovery dismiss --id <id>   # hide a suggestion permanently
+```
+
+There is intentionally **no `accept` command**. Each suggestion prints the
+exact values to enable it — accepting one is just the existing
+`targets register …` (using the suggestion's owner/name/kind/locator) or
+`destinations create …` (using its location, `--backend filesystem`). This
+keeps a single source of truth and reuses their validation (separate-root
+rule, encryption-on). Suggestions are derived every call and filtered
+against the live catalog + dismissals, so once you register/create one it
+stops appearing. A destination suggestion flagged `separate-root=UNSAFE`
+overlaps protected data and `destinations create` would reject it.
+
 ### `data-backup-manager plans ...`
 
 Bind targets to destinations with a schedule and retention.

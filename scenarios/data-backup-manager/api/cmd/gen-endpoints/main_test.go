@@ -115,14 +115,3 @@ func TestStripBinaryPrefix(t *testing.T) {
 		}
 	}
 }
-
-func writeSeed(t *testing.T, path string, commands []CLICommand) {
-	t.Helper()
-	body, err := json.MarshalIndent(seedFile{CLICommands: commands}, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal seed: %v", err)
-	}
-	if err := os.WriteFile(path, body, 0o644); err != nil {
-		t.Fatalf("write seed: %v", err)
-	}
-}

@@ -42,6 +42,7 @@ template-provided readiness surface and is retained.
 | restores | Restore a target to a location; verify mode test-restores to scratch and checksums. | Workflow / job | Restore records, verify outcomes, last-verified-per-target. | API, CLI, UI | OT-P0-006, OT-P1-004 | `api/internal/restores/`, `api/handlers/restores/`, `cli/domains/restores/`, `ui/src/features/restores/`, `packages/proto/schemas/data-backup-manager/v1/restores/` |
 | sources | Source-kind handlers that turn a registered source into snapshottable bytes. | Strategy / adapter | No durable product data; owns the per-kind capture/restore behavior. | API (internal), CLI (diagnostics) | OT-P0-002, OT-P1-001 | `api/internal/sources/`, `packages/proto/schemas/data-backup-manager/v1/sources/` |
 | health | Report runtime readiness, dependency reachability, and overdue/failed backup posture. | Reporting / query | No product data. | API, UI | OT-P0-010 | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/data-backup-manager/v1/health/` |
+| discovery | Read-only onboarding suggestions: well-known targets worth protecting and mounted-volume destinations to back up to. | Reporting / query | Only dismissals (suggestions are derived, never stored). | API, CLI, UI | OT-P0-001, OT-P1-005 | `api/internal/discovery/`, `api/internal/sysmounts/`, `api/handlers/discovery/`, `cli/domains/discovery/`, `ui/src/features/discovery/`, `packages/proto/schemas/data-backup-manager/v1/discovery/` |
 
 ## Domain Details
 
@@ -221,6 +222,38 @@ template-provided readiness surface and is retained.
 - Requirements: OT-P0-010 (health & observability).
 - Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md),
   [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md).
+
+### discovery
+
+- Purpose: remove the cold-start cliff. A fresh install protects nothing
+  until the operator wires up the five nouns by hand; discovery scans the
+  local environment read-only and surfaces one-click suggestions —
+  targets worth protecting and destinations worth backing up to.
+- Primary archetype: reporting / query (suggestions are derived).
+- Owns: only a `discovery_dismissals` table. Suggestions are recomputed
+  every call and filtered against the live catalog + dismissals, so an
+  accepted suggestion disappears once it exists as a real target/dest.
+- Does not own: registration or creation. "Accepting" a suggestion calls
+  the existing `RegisterTarget` / `CreateDestination` (single source of
+  truth; reuses separate-root + encryption-on validation) — there is no
+  "accept" RPC. The scanners never write to, or read the contents of, any
+  scanned path (`secrets.json` is suggested by path/size only).
+- Scope (v1): target suggestions cover `~/.vrooli` runtime state only
+  (`plans`, `state`, `config`, `secrets.json`, `runtime.db`); scenario
+  stores are a deferred, additive `rootKind`. Destination suggestions come
+  from mounted volumes, ranking plugged-in removable drives first, with a
+  protected-path overlap check (its own set, wider than the destinations
+  service's `protectedRoot` — see SEAMS.md D4).
+- API: `api/internal/discovery/` (+ `api/internal/sysmounts/` for the
+  OS volume seam), `api/handlers/discovery/`.
+- CLI: `cli/domains/discovery/` (`targets`, `destinations`, `dismiss`).
+- UI: `ui/src/features/discovery/SuggestionsPanel.tsx` (Overview
+  onboarding centerpiece when the catalog is empty).
+- Storage: `api/internal/discovery/schema.sql` (`discovery_dismissals`).
+- Requirements: OT-P0-001 (self-registration ergonomics), OT-P1-005
+  (prompt-manager / runtime store coverage).
+- Related docs: [`../internal/SEAMS.md`](../internal/SEAMS.md),
+  [`../reference/cli-commands.md`](../reference/cli-commands.md).
 
 ## Shared Concepts
 

@@ -28,11 +28,17 @@ vi.mock("../api/runs", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api/runs")>()),
   listTargetStatus: vi.fn(),
 }));
+vi.mock("../api/discovery", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../api/discovery")>()),
+  listTargetSuggestions: vi.fn(),
+  listDestinationSuggestions: vi.fn(),
+}));
 
 import * as healthApi from "../api/health";
 import * as targetsApi from "../api/targets";
 import * as destinationsApi from "../api/destinations";
 import * as runsApi from "../api/runs";
+import * as discoveryApi from "../api/discovery";
 import { SourceKind } from "../api/targets";
 import { BackendKind, CapPolicy, UsageState } from "../api/destinations";
 import { RunStatus } from "../api/runs";
@@ -66,6 +72,9 @@ beforeEach(() => {
       usageState: UsageState.WITHIN,
     },
   ] as never);
+  // Default: no suggestions, so existing assertions stay focused on the catalog.
+  vi.mocked(discoveryApi.listTargetSuggestions).mockResolvedValue([] as never);
+  vi.mocked(discoveryApi.listDestinationSuggestions).mockResolvedValue([] as never);
 });
 
 afterEach(() => cleanup());
@@ -105,12 +114,35 @@ describe("OverviewPage", () => {
     expect(within(storage).getByRole("progressbar")).toBeInTheDocument();
   });
 
-  it("shows the setup CTA when nothing is configured", async () => {
+  it("shows the setup CTA when nothing is configured and no suggestions exist", async () => {
     vi.mocked(targetsApi.listTargets).mockResolvedValue([] as never);
     vi.mocked(destinationsApi.listDestinations).mockResolvedValue([] as never);
     vi.mocked(runsApi.listTargetStatus).mockResolvedValue([] as never);
 
     renderWithProviders(<OverviewPage />);
     expect(await screen.findByTestId(selectors.overview.setupCta)).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.discovery.panel)).not.toBeInTheDocument();
+  });
+
+  it("leads with the onboarding Suggestions panel when the catalog is empty but suggestions exist", async () => {
+    vi.mocked(targetsApi.listTargets).mockResolvedValue([] as never);
+    vi.mocked(destinationsApi.listDestinations).mockResolvedValue([] as never);
+    vi.mocked(runsApi.listTargetStatus).mockResolvedValue([] as never);
+    vi.mocked(discoveryApi.listTargetSuggestions).mockResolvedValue([
+      {
+        id: "ts1",
+        owner: "vrooli",
+        name: "plans",
+        sourceKind: SourceKind.FILESYSTEM,
+        locator: "/home/u/.vrooli/plans",
+        rationale: "Your Vrooli plans.",
+        approxBytes: 4096n,
+      },
+    ] as never);
+
+    renderWithProviders(<OverviewPage />);
+    // The suggestions panel is the onboarding centerpiece; no manual setup CTA.
+    expect(await screen.findByTestId(selectors.discovery.panel)).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.overview.setupCta)).not.toBeInTheDocument();
   });
 });

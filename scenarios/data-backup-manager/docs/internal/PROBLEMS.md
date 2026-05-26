@@ -173,6 +173,36 @@ history, guided restore/verify, against the generated Connect-Web clients.
 
 **Owner:** unassigned. **Refs:** `UI-ARCHITECTURE.md`; requirements module 08.
 
+### 2026-05-26 — `vrooli scenario test` blocked by a pre-existing HIGH standards false-positive
+
+**Symptom:** `vrooli scenario test data-backup-manager` fails its `standards`
+phase on one HIGH finding: `Direct sql.Open() Without api-core →
+api/internal/sources/sqlite.go:32` (rule `database_backoff` /
+`routed-test-db-v1`), plus benign non-blocking findings (3 MEDIUM, 1 LOW).
+`fail_on=high`, so only the HIGH blocks. The `lint`, `smoke`, and all other
+phases pass.
+
+**Root cause:** The SQLite source capturer must `sql.Open` an *arbitrary
+external target database file* to run `VACUUM INTO` (a consistent copy). The
+`database_backoff` rule flags any `sql.Open` in a non-exempt file, but
+api-core's `database.Open` is designed for the scenario's *own* routed DB via
+`SQLITE_PATH`/`SQLITE_DB` env vars — it cannot open an arbitrary external file
+path. So this is a genuine false-positive, and the rule has no inline
+suppression (exemptions are path-based: `*_test.go`, `testutil/`, `migrations/`,
+`init/`, `scripts/`, `tools/`). Pre-existing since the API+CLI pass; unrelated
+to the `discovery` domain (discovery uses the injected `SQLExecutor` seam, never
+`sql.Open`).
+
+**Real fix (one of):** (a) add a path/dir exemption for source-capturer files to
+the `scenario-auditor` rule's `isExemptPath` (edits a different scenario; affects
+all scenarios — coordinate); or (b) teach api-core's `database.Open` to accept an
+explicit external SQLite DSN and route the capturer through it; or (c) downgrade
+this rule for external-target opens. Do NOT contort the capturer — the
+`sql.Open` here is correct.
+
+**Owner:** unassigned. **Refs:** `api/internal/sources/sqlite.go`;
+`scenarios/scenario-auditor/api/rules/api/database_backoff.go`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

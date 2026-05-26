@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -257,20 +256,4 @@ func formatDestination(d *destinationsv1.Destination) string {
 		d.CapBytes, capPolicyLabel(d.CapPolicy),
 		d.UsageBytes, usageStateLabel(d.UsageState),
 		created)
-}
-
-// parseCommaSeparated splits a comma-separated string into a slice, trimming spaces.
-func parseCommaSeparated(s string) []string {
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			result = append(result, p)
-		}
-	}
-	return result
 }

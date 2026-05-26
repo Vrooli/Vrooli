@@ -12,6 +12,7 @@
 import type {
   BackendSlug,
   CapPolicySlug,
+  DriveClassSlug,
   OutcomeSlug,
   RestoreStatusSlug,
   RunStatusSlug,
@@ -89,3 +90,10 @@ export const TRIGGER_STRINGS = {
   scheduler: strings.status.trigger.scheduler,
   manual: strings.status.trigger.manual,
 } satisfies Record<TriggerSlug, StringKey>;
+
+export const DRIVE_CLASS_STRINGS = {
+  unknown: strings.status.driveClass.unknown,
+  removable: strings.status.driveClass.removable,
+  fixed: strings.status.driveClass.fixed,
+  network: strings.status.driveClass.network,
+} satisfies Record<DriveClassSlug, StringKey>;

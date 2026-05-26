@@ -335,6 +335,12 @@ const literalSelectors = {
     coverageEmpty: "overview-coverage-empty",
     setupCta: "overview-setup-cta",
   },
+  discovery: {
+    panel: "discovery-panel",
+    targetsGroup: "discovery-targets-group",
+    destinationsGroup: "discovery-destinations-group",
+    empty: "discovery-empty",
+  },
   targets: {
     table: "targets-table",
     registerButton: "targets-register-button",
@@ -444,6 +450,23 @@ const dynamicSelectorDefinitions = {
       description: "Coverage-grid row for one target by id",
       testIdPattern: "overview-coverage-row-${targetId}",
       params: { targetId: { type: "string" } },
+    }),
+  },
+  discovery: {
+    suggestionRow: defineDynamicSelector({
+      description: "Suggestion row (target or destination) by stable suggestion id",
+      testIdPattern: "discovery-suggestion-${id}",
+      params: { id: { type: "string" } },
+    }),
+    enableButton: defineDynamicSelector({
+      description: "Enable (accept) button for a suggestion by stable id",
+      testIdPattern: "discovery-enable-${id}",
+      params: { id: { type: "string" } },
+    }),
+    dismissButton: defineDynamicSelector({
+      description: "Dismiss button for a suggestion by stable id",
+      testIdPattern: "discovery-dismiss-${id}",
+      params: { id: { type: "string" } },
     }),
   },
   targets: {

@@ -124,6 +124,14 @@ The product vocabulary is fixed and decouples *what is backed up* from
   test-restores to scratch and checksums (records last-verified).
   A verified restore is the gate before any committed runtime data is
   removed from git.
+- **Discovery** (onboarding helper, not a noun in the core model) — a
+  read-only domain that scans the local environment and *suggests*
+  targets to protect (well-known `~/.vrooli` runtime state) and
+  destinations to back up to (mounted volumes, removable drives first).
+  Suggestions are derived (only dismissals persist); accepting one calls
+  the existing `RegisterTarget` / `CreateDestination`, so it never
+  becomes a second write path. The OS volume scan is confined behind the
+  `internal/sysmounts` seam (the one place `gopsutil` is imported).
 
 Self-registration mirrors agent-manager's `EnsureProfile`: scenarios
 re-register idempotently on boot, so the catalog is reconstructable and

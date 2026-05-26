@@ -27,6 +27,7 @@ import {
   BackendKind,
 } from "@vrooli/proto-types/data-backup-manager/v1/destinations/destinations_pb";
 import { SourceKind } from "@vrooli/proto-types/data-backup-manager/v1/sources/sources_pb";
+import { DriveClass } from "@vrooli/proto-types/data-backup-manager/v1/discovery/discovery_pb";
 
 /** Semantic status tone. Maps to the DESIGN.md color roles. */
 export type Tone = "neutral" | "primary" | "info" | "success" | "warning" | "danger";
@@ -261,6 +262,25 @@ export const SOURCE_KIND_OPTIONS: ReadonlyArray<{ kind: SourceKind; slug: Source
   { kind: SourceKind.QDRANT, slug: "qdrant" },
   { kind: SourceKind.OBJECT_STORAGE, slug: "objectStorage" },
 ];
+
+// ---- Drive class (discovery destination suggestions) ------------------------
+
+export type DriveClassSlug = "unknown" | "removable" | "fixed" | "network";
+
+export function driveClassMeta(c: DriveClass): StatusMeta<DriveClassSlug> {
+  switch (c) {
+    // A plugged-in removable/external drive is the highlighted offsite-style
+    // destination — primary tone draws the eye.
+    case DriveClass.REMOVABLE:
+      return { tone: "primary", slug: "removable" };
+    case DriveClass.FIXED:
+      return { tone: "info", slug: "fixed" };
+    case DriveClass.NETWORK:
+      return { tone: "info", slug: "network" };
+    default:
+      return { tone: "neutral", slug: "unknown" };
+  }
+}
 
 // ---- Verified-restore posture (the product's spine) -------------------------
 

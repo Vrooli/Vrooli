@@ -94,6 +94,12 @@
       "unknown": "—",
       "scheduler": "Scheduled",
       "manual": "Manual"
+    },
+    "driveClass": {
+      "unknown": "Unknown",
+      "removable": "Removable drive",
+      "fixed": "Fixed volume",
+      "network": "Network mount"
     }
   },
   "posture": {
@@ -124,6 +130,22 @@
     "setupCtaPlans": "Create a plan",
     "usageOfCap": "{{used}} of {{cap}}",
     "usageUncapped": "{{used}} used"
+  },
+  "discovery": {
+    "title": "Suggestions",
+    "subtitle": "Things worth protecting and places to back up to, discovered on this machine.",
+    "onboardingTitle": "Nothing is protected yet",
+    "onboardingBody": "We scanned this machine and found things worth backing up. Enable a target and a destination to begin — the first verified restore proves it actually works.",
+    "targetsHeading": "Protect these",
+    "destinationsHeading": "Back up here",
+    "targetsEmpty": "No new sources to suggest — everything found is already registered.",
+    "destinationsEmpty": "No writable volumes found to suggest as destinations.",
+    "enable": "Enable",
+    "enabling": "Enabling…",
+    "dismiss": "Dismiss",
+    "unsafe": "Overlaps protected data — can't be used",
+    "approxSize": "≈{{size}}",
+    "freeOfTotal": "{{free}} free of {{total}}"
   },
   "targets": {
     "subtitle": "Runtime state registered for backup. Scenarios usually register themselves; you can also add or remove targets here.",

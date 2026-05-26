@@ -63,8 +63,12 @@ func TestCreatePlanCommand(t *testing.T) {
 
 	hs := newHandlers(app)
 	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
-		{Name: "name"}, {Name: "targets"}, {Name: "destinations"},
-		{Name: "schedule"}, {Name: "keep-latest"}, {Name: "enabled"},
+		{Name: "name"},
+		{Name: "targets"},
+		{Name: "destinations"},
+		{Name: "schedule"},
+		{Name: "keep-latest"},
+		{Name: "enabled"},
 	}}
 	ctx, stdout := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{

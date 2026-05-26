@@ -26,10 +26,10 @@ func TestFilesystemSource_RoundTrip(t *testing.T) {
 	srcDir := t.TempDir()
 	files := map[string][]byte{
 		"readme.txt":          []byte("hello world\n"),
-		"subdir/data.bin":     []byte{0x00, 0x01, 0x02, 0xAB, 0xCD},
+		"subdir/data.bin":     {0x00, 0x01, 0x02, 0xAB, 0xCD},
 		"subdir/nested/a.txt": []byte("nested a\n"),
 		"subdir/nested/b.txt": []byte("nested b\n"),
-		"another/empty.txt":   []byte{},
+		"another/empty.txt":   {},
 	}
 	for rel, content := range files {
 		full := filepath.Join(srcDir, rel)

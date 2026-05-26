@@ -2,11 +2,12 @@ package modeltest_test
 
 import (
 	"crypto/sha256"
-	"data-backup-manager/internal/testutil/modeltest"
 	"encoding/hex"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"data-backup-manager/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"
 )

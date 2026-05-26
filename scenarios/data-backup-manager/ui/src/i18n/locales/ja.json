@@ -94,6 +94,12 @@
       "unknown": "—",
       "scheduler": "スケジュール",
       "manual": "手動"
+    },
+    "driveClass": {
+      "unknown": "不明",
+      "removable": "リムーバブルドライブ",
+      "fixed": "固定ボリューム",
+      "network": "ネットワークマウント"
     }
   },
   "posture": {
@@ -123,6 +129,22 @@
     "setupCtaPlans": "プランを作成",
     "usageOfCap": "{{cap}} 中 {{used}}",
     "usageUncapped": "{{used}} 使用中"
+  },
+  "discovery": {
+    "title": "提案",
+    "subtitle": "このマシンで見つかった、保護すべき対象とバックアップ先。",
+    "onboardingTitle": "まだ何も保護されていません",
+    "onboardingBody": "このマシンをスキャンし、バックアップする価値のあるものを見つけました。ターゲットとバックアップ先を有効にして開始してください。最初の検証付き復元で実際に機能することが証明されます。",
+    "targetsHeading": "保護する対象",
+    "destinationsHeading": "バックアップ先",
+    "targetsEmpty": "新たに提案する対象はありません。見つかったものはすべて登録済みです。",
+    "destinationsEmpty": "バックアップ先として提案できる書き込み可能なボリュームが見つかりません。",
+    "enable": "有効化",
+    "enabling": "有効化中…",
+    "dismiss": "却下",
+    "unsafe": "保護対象と重複しているため使用できません",
+    "approxSize": "≈{{size}}",
+    "freeOfTotal": "{{total}} 中 {{free}} 空き"
   },
   "targets": {
     "subtitle": "バックアップ対象として登録されたランタイム状態。通常はシナリオが自動登録しますが、ここで手動で追加・削除することもできます。",

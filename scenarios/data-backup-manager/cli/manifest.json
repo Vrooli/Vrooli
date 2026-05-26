@@ -154,6 +154,45 @@
       ]
     },
     {
+      "name": "discovery",
+      "description": "Onboarding suggestions: targets worth protecting and destinations to back up to (accept by calling targets register / destinations create)",
+      "commands": [
+        {
+          "name": "targets",
+          "description": "List suggested targets worth protecting (well-known ~/.vrooli runtime state)",
+          "binding": { "kind": "connect-rpc", "service": "DiscoveryService", "method": "ListTargetSuggestions" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "destinations",
+          "description": "List suggested destinations (mounted volumes / plugged-in drives) to back up to",
+          "binding": { "kind": "connect-rpc", "service": "DiscoveryService", "method": "ListDestinationSuggestions" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "dismiss",
+          "description": "Dismiss a suggestion permanently by id",
+          "flags": [
+            { "name": "id", "required": true, "description": "Stable suggestion id (from discovery targets/destinations)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "DiscoveryService", "method": "DismissSuggestion" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
       "name": "plans",
       "description": "Manage backup plans (bind targets to destinations on a schedule)",
       "commands": [
