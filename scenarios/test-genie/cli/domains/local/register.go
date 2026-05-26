@@ -1,6 +1,7 @@
 package local
 
 import (
+	"test-genie/cli/eligibility"
 	"test-genie/cli/internal/deps"
 	"test-genie/cli/playbooksseed"
 	"test-genie/cli/registry"
@@ -40,6 +41,12 @@ func Register(runtime deps.Runtime) cliapp.CommandGroup {
 				NeedsAPI:    false,
 				Description: "Inspect and sync scenario requirements",
 				Run:         func(args []string) error { return requirements.Run(args) },
+			},
+			{
+				Name:        "eligibility",
+				NeedsAPI:    true,
+				Description: "Check whether a scenario qualifies for the routed test-db path",
+				Run:         func(args []string) error { return eligibility.Run(runtime.APIClient, args) },
 			},
 			{
 				Name:        "playbooks-seed",

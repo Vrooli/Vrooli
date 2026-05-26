@@ -45,6 +45,18 @@ func TestParseWorkflowMetadata(t *testing.T) {
 			json:    `{invalid`,
 			wantErr: true,
 		},
+		{
+			name:     "name preferred over description",
+			json:     `{"metadata":{"name":"smoke-test","description":"Long-form rationale that should not become the filename","execution_mode":"observer"},"nodes":[],"edges":[]}`,
+			wantName: "smoke-test",
+			wantMode: "observer",
+		},
+		{
+			name:     "falls back to description when name is empty",
+			json:     `{"metadata":{"description":"Legacy file without name","execution_mode":"observer"},"nodes":[],"edges":[]}`,
+			wantName: "Legacy file without name",
+			wantMode: "observer",
+		},
 	}
 
 	for _, tt := range tests {

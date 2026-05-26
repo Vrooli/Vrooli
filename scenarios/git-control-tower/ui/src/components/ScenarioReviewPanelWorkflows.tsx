@@ -1,9 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, Minus, Anchor, Camera } from "lucide-react";
 import { Button } from "./ui/button";
 import { buildWorkflowVideoUrl } from "../lib/api";
 import type { ExecutionMode, WorkflowCaptureResult } from "../lib/api";
 import { MediaLightbox, MutationErrorBanner, sanitizePagePath, formatDuration, type LightboxItem } from "./ScenarioReviewPanelShared";
+import { IsolationBadge } from "./IsolationBadge";
+import { useScenarioIsolation, type ScenarioIsolation } from "../hooks/useScenarioIsolation";
 
 export const EXECUTION_MODE_COLORS: Record<ExecutionMode, string> = {
   observer: "bg-green-900/50 text-green-300 border-green-700/50",
@@ -49,7 +51,25 @@ export function WorkflowsTab({
   onSelectedModesChange?: (modes: ExecutionMode[]) => void;
   onViewRoleChange?: (role: "baseline" | "capture") => void;
 }) {
-  const [selectedModes, setSelectedModesInternal] = useState<Set<ExecutionMode>>(() => new Set(initialSelectedModes ?? ["observer"]));
+  const isolation = useScenarioIsolation(scenarioSlug);
+  const isolationDefaultModes = useMemo<ExecutionMode[]>(
+    () => (isolation.status === "routed" ? ["observer", "mutating", "destructive"] : ["observer"]),
+    [isolation.status],
+  );
+  const [selectedModes, setSelectedModesInternal] = useState<Set<ExecutionMode>>(
+    () => new Set(initialSelectedModes ?? isolationDefaultModes),
+  );
+  const [hasManualModeSelection, setHasManualModeSelection] = useState<boolean>(!!initialSelectedModes && initialSelectedModes.length > 0);
+  const [modeSelectorOpen, setModeSelectorOpen] = useState<boolean>(isolation.status !== "routed");
+
+  // When isolation resolves, sync defaults if the user hasn't explicitly
+  // picked modes yet. We do not overwrite an explicit selection — only the
+  // initial implicit default tracks the badge.
+  useEffect(() => {
+    if (isolation.status === "loading" || hasManualModeSelection) return;
+    setSelectedModesInternal(new Set(isolationDefaultModes));
+    setModeSelectorOpen(isolation.status !== "routed");
+  }, [isolation.status, isolationDefaultModes, hasManualModeSelection]);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   // Which role's results to show in the table ("capture" by default, toggle to "baseline")
   const [viewRole, setViewRoleInternal] = useState<"baseline" | "capture">(initialViewRole ?? "capture");
@@ -62,6 +82,7 @@ export function WorkflowsTab({
       onSelectedModesChange?.(Array.from(next));
       return next;
     });
+    setHasManualModeSelection(true);
   }, [onSelectedModesChange]);
 
   const setViewRole = useCallback((role: "baseline" | "capture") => {
@@ -120,28 +141,37 @@ export function WorkflowsTab({
   // No captures at all — empty state
   if (!baseline && !capture) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+      <div className="space-y-3 py-6">
         <MutationErrorBanner error={mutationError ?? null} onDismiss={onDismissError} />
-        <Play className="h-8 w-8 mb-3 opacity-50" />
-        <p className="text-sm">No workflow captures yet</p>
-        <p className="text-xs mt-1 mb-3 text-slate-600">Set a baseline to start comparing workflow results</p>
-        {basAvailable ? (
-          <>
-            <ExecutionModeSelector selectedModes={selectedModes} onToggle={toggleMode} />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onBaseline(modesArray)}
-              disabled={isRunning || selectedModes.size === 0}
-              className="h-7 text-xs gap-1 mt-2"
-            >
-              {isRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Anchor className="h-3 w-3" />}
-              Set Baseline
-            </Button>
-          </>
-        ) : (
-          <p className="text-xs">Start browser-automation-studio to enable workflow captures</p>
-        )}
+        <IsolationBadge isolation={isolation} />
+        <div className="flex flex-col items-center justify-center text-slate-500 pt-2">
+          <Play className="h-8 w-8 mb-3 opacity-50" />
+          <p className="text-sm">No workflow captures yet</p>
+          <p className="text-xs mt-1 mb-3 text-slate-600">Set a baseline to start comparing workflow results</p>
+          {basAvailable ? (
+            <>
+              <ModeFilterDisclosure
+                isolation={isolation}
+                selectedModes={selectedModes}
+                onToggle={toggleMode}
+                open={modeSelectorOpen}
+                onOpenChange={setModeSelectorOpen}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onBaseline(modesArray)}
+                disabled={isRunning || selectedModes.size === 0}
+                className="h-7 text-xs gap-1 mt-2"
+              >
+                {isRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Anchor className="h-3 w-3" />}
+                Set Baseline
+              </Button>
+            </>
+          ) : (
+            <p className="text-xs">Start browser-automation-studio to enable workflow captures</p>
+          )}
+        </div>
       </div>
     );
   }
@@ -149,7 +179,8 @@ export function WorkflowsTab({
   return (
     <div className="space-y-4">
       <MutationErrorBanner error={mutationError ?? null} onDismiss={onDismissError} />
-      {/* Action buttons + execution mode selector */}
+      <IsolationBadge isolation={isolation} />
+      {/* Action buttons + execution mode selector (demoted to a disclosure) */}
       <div className="flex items-center gap-2 flex-wrap">
         <Button
           variant="outline"
@@ -172,7 +203,13 @@ export function WorkflowsTab({
           {capture ? "Re-capture" : "Capture"}
         </Button>
         <div className="ml-auto">
-          <ExecutionModeSelector selectedModes={selectedModes} onToggle={toggleMode} />
+          <ModeFilterDisclosure
+            isolation={isolation}
+            selectedModes={selectedModes}
+            onToggle={toggleMode}
+            open={modeSelectorOpen}
+            onOpenChange={setModeSelectorOpen}
+          />
         </div>
       </div>
 
@@ -353,10 +390,14 @@ export function WorkflowsTab({
 
 function ExecutionModeSelector({ selectedModes, onToggle }: { selectedModes: Set<ExecutionMode>; onToggle: (mode: ExecutionMode) => void }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-slate-400">Modes:</span>
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-xs text-slate-400">Filter:</span>
       {(["observer", "mutating", "destructive"] as ExecutionMode[]).map(mode => (
-        <label key={mode} className="flex items-center gap-1 text-xs cursor-pointer">
+        <label
+          key={mode}
+          className="flex items-center gap-1 text-xs cursor-pointer"
+          title={`Include workflows tagged execution_mode=${mode}`}
+        >
           <input
             type="checkbox"
             checked={selectedModes.has(mode)}
@@ -368,6 +409,46 @@ function ExecutionModeSelector({ selectedModes, onToggle }: { selectedModes: Set
           </span>
         </label>
       ))}
+    </div>
+  );
+}
+
+// ModeFilterDisclosure wraps ExecutionModeSelector in a collapsible
+// disclosure. The disclosure is collapsed-by-default when isolation is
+// confirmed routed (no reason to filter for safety) and expanded otherwise.
+// The legend distinguishes filter-as-filter from any data-safety claim.
+function ModeFilterDisclosure({
+  isolation,
+  selectedModes,
+  onToggle,
+  open,
+  onOpenChange,
+}: {
+  isolation: ScenarioIsolation;
+  selectedModes: Set<ExecutionMode>;
+  onToggle: (mode: ExecutionMode) => void;
+  open: boolean;
+  onOpenChange: (next: boolean) => void;
+}) {
+  const summary = Array.from(selectedModes).join(", ") || "none";
+  return (
+    <div className="flex items-center gap-2 flex-wrap text-xs">
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        className="inline-flex items-center gap-1 text-slate-400 hover:text-slate-200"
+        aria-expanded={open}
+      >
+        {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        Filter modes
+        <span className="text-slate-500">({summary})</span>
+      </button>
+      {open && <ExecutionModeSelector selectedModes={selectedModes} onToggle={onToggle} />}
+      {open && isolation.status === "not_routed" && (
+        <span className="text-[10px] text-amber-300/80">
+          Selecting non-observer modes will run against the scenario's primary database.
+        </span>
+      )}
     </div>
   );
 }

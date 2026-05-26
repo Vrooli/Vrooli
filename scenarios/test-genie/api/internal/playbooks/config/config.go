@@ -32,6 +32,14 @@ type Config struct {
 	BAS       BASConfig       `json:"bas"`
 	Seeds     SeedsConfig     `json:"seeds"`
 	Artifacts ArtifactsConfig `json:"artifacts"`
+
+	// AllowEmptyTestPool opts the scenario out of the hard-fail check on
+	// routed runs where zero requests exercised the test pool. Default false:
+	// a routed run that never hits the test DB is treated as
+	// FailureClassMisconfiguration. Set true for playbooks that legitimately
+	// never read or write through the API (pure UI navigation, static-page
+	// smoke checks, etc).
+	AllowEmptyTestPool bool `json:"allow_empty_test_pool"`
 }
 
 // BASConfig holds Vrooli Ascension connection settings.
@@ -141,10 +149,11 @@ type testingJSON struct {
 // rawConfig is the JSON shape for playbooks config that preserves "unset" vs "false"
 // for booleans via pointer fields. Config is the merged runtime config.
 type rawConfig struct {
-	Enabled   *bool           `json:"enabled"`
-	BAS       *rawBASConfig   `json:"bas"`
-	Seeds     *rawSeedsConfig `json:"seeds"`
-	Artifacts *rawArtifacts   `json:"artifacts"`
+	Enabled            *bool           `json:"enabled"`
+	BAS                *rawBASConfig   `json:"bas"`
+	Seeds              *rawSeedsConfig `json:"seeds"`
+	Artifacts          *rawArtifacts   `json:"artifacts"`
+	AllowEmptyTestPool *bool           `json:"allow_empty_test_pool"`
 }
 
 type rawBASConfig struct {
@@ -197,6 +206,10 @@ func Load(scenarioDir string) (*Config, error) {
 	// Top-level enabled flag (only when explicitly set)
 	if loaded.Enabled != nil {
 		cfg.Enabled = *loaded.Enabled
+	}
+
+	if loaded.AllowEmptyTestPool != nil {
+		cfg.AllowEmptyTestPool = *loaded.AllowEmptyTestPool
 	}
 
 	// BAS config

@@ -43,12 +43,31 @@ type RuleCount struct {
 }
 
 // ViolationExcerpt is one line of the scan's top-violations list.
+//
+// Source carries the auditor's underlying rule key when the visible RuleID
+// has been consolidated. scenario-auditor groups the three routing rules
+// (routed_database_drivers, routed_database_handle_capture, database_backoff)
+// under a single public RuleID (`routed-test-db-v1`) but preserves the
+// originating rule name in `source`. The routing-eligibility decision keys
+// off Source when present.
 type ViolationExcerpt struct {
 	Severity   string `json:"severity"`
 	RuleID     string `json:"rule_id,omitempty"`
+	Source     string `json:"source,omitempty"`
 	Title      string `json:"title,omitempty"`
 	FilePath   string `json:"file_path,omitempty"`
 	LineNumber int    `json:"line_number,omitempty"`
+}
+
+// CanonicalRuleID returns Source when set, falling back to RuleID. This is
+// the value the routing-eligibility decision matches against, insulating it
+// from the auditor's consolidation of routing rules under a single public
+// RuleID.
+func (v ViolationExcerpt) CanonicalRuleID() string {
+	if strings.TrimSpace(v.Source) != "" {
+		return v.Source
+	}
+	return v.RuleID
 }
 
 // ViolationSummary is the auditor's structured scan result.

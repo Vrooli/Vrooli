@@ -57,6 +57,7 @@ func NewApp() (*App, error) {
 				Seed:       playbooksseed.NewClient(core.APIClient),
 				Status:     status.NewClient(core.APIClient),
 				HTTPClient: core.HTTPClient,
+				APIClient:  core.APIClient,
 			})
 		},
 	})

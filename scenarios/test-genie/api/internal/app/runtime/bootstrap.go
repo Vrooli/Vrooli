@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"test-genie/agentmanager"
+	appelig "test-genie/internal/app/eligibility"
+	"test-genie/internal/eligibility"
 	"test-genie/internal/execution"
 	"test-genie/internal/fix"
 	"test-genie/internal/orchestrator"
@@ -41,6 +43,7 @@ type Bootstrapped struct {
 	RequirementsImproveService *requirementsimprove.Service
 	RequirementsSyncer         *RequirementsSyncerAdapter
 	PlaybooksClaims            *playbooksclaims.Service
+	EligibilityService         *appelig.Service
 	// Tool Discovery Protocol support
 	ToolRegistry *toolregistry.Registry
 	ToolHandler  *toolexecution.Handler
@@ -101,6 +104,15 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	claimsRepo := playbooksclaims.NewSqliteRepository(db)
 	claimsService := playbooksclaims.NewService(playbooksclaims.Config{Repo: claimsRepo})
 	runner.SetClaims(claimsService)
+
+	// Construct the routed-test-db eligibility checker once at process
+	// startup and share it between the playbooks phase and the Connect
+	// EligibilityService handler. Sharing the instance lets a CLI/GCT
+	// eligibility lookup reuse the scan cache primed by the playbooks
+	// phase (and vice versa).
+	routingEligibility := eligibility.NewChecker(0)
+	phases.SetRoutingChecker(routingEligibility)
+	eligibilityService := appelig.NewService(routingEligibility, cfg.ScenariosRoot)
 
 	// Create agent-manager service
 	agentEnabled := os.Getenv("AGENT_MANAGER_ENABLED") != "false"
@@ -178,6 +190,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		RequirementsImproveService: reqImproveService,
 		RequirementsSyncer:         reqSyncer,
 		PlaybooksClaims:            claimsService,
+		EligibilityService:         eligibilityService,
 		ToolRegistry:               toolReg,
 		ToolHandler:                toolHandler,
 	}, nil

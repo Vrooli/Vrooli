@@ -63,6 +63,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/capabilities", s.handleCapabilities).Methods("GET")
 	s.router.HandleFunc("/api/v1/scenarios", s.handleScenarioList).Methods("GET")
 	s.router.HandleFunc("/api/v1/scenarios/{slug}/envelope", s.handleScenarioEnvelope).Methods("GET")
+	s.router.HandleFunc("/api/v1/scenarios/{slug}/isolation", s.handleScenarioIsolation).Methods("GET")
 	s.router.HandleFunc("/api/v1/audit", s.handleAuditQuery).Methods("GET")
 
 	// Credentials management endpoints

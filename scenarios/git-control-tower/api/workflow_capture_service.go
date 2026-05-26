@@ -268,9 +268,12 @@ func discoverWorkflows(fs FileIO, repoDir, scenarioSlug string) ([]discoveredWor
 }
 
 // parseWorkflowMetadata extracts name and execution_mode from workflow JSON.
+// Prefers metadata.name (the BAS WorkflowDefinitionV2 contract); falls back to
+// metadata.description for older workflow files that pre-date the name field.
 func parseWorkflowMetadata(data []byte) (name, executionMode string, err error) {
 	var doc struct {
 		Metadata struct {
+			Name          string `json:"name"`
 			Description   string `json:"description"`
 			ExecutionMode string `json:"execution_mode"`
 		} `json:"metadata"`
@@ -279,7 +282,10 @@ func parseWorkflowMetadata(data []byte) (name, executionMode string, err error) 
 		return "", "", err
 	}
 
-	name = doc.Metadata.Description
+	name = doc.Metadata.Name
+	if name == "" {
+		name = doc.Metadata.Description
+	}
 	if name == "" {
 		name = "unnamed"
 	}

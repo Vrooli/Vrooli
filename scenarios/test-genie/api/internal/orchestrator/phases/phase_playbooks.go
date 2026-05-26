@@ -57,6 +57,18 @@ type eligibilityChecker interface {
 
 var routingChecker eligibilityChecker = eligibility.NewChecker(0)
 
+// SetRoutingChecker overrides the package-level routing-eligibility checker.
+// Called from app bootstrap so the HTTP Connect handler and the playbooks
+// phase share a single Checker (and its per-process scan cache). The
+// declaration-time default is kept so unit tests that don't go through
+// bootstrap continue to work without setup.
+func SetRoutingChecker(c eligibilityChecker) {
+	if c == nil {
+		return
+	}
+	routingChecker = c
+}
+
 // resolveScenarioRoutingClient returns a Connect-RPC client for the running
 // scenario's RoutingService. Tests override it to return a stub.
 var resolveScenarioRoutingClient = func(ctx context.Context, scenarioName string) (routing_v1connect.RoutingServiceClient, error) {
@@ -230,6 +242,35 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 	decision := decidePlaybooksPath(elig, eligErr, forcedFallback)
 
 	needs := resolveDBNeeds(ctx, env, logWriter)
+
+	// Early routed preflight — client resolution + RoutingService probe. Both
+	// only need the scenario name (not the isolation env), so running them
+	// before isoManager.Prepare avoids burning a testcontainer when the
+	// scenario can't accept the routed path (e.g. it's in production mode and
+	// returns 404 on the RoutingService route). DSN extraction still has to
+	// happen after Prepare since it reads the isolation env.
+	var routingClient routing_v1connect.RoutingServiceClient
+	if decision.IsRouted() {
+		client, prefErr := runPlaybooksRoutedClientPreflight(ctx, env.ScenarioName)
+		if prefErr != nil {
+			decision = preflightFailureDecision(prefErr)
+		} else {
+			routingClient = client
+		}
+	}
+
+	// If we're committed to the fallback path and the runtime manager isn't
+	// wired, fail before spending time on isolation. The routed path doesn't
+	// touch TargetRuntime, so this gate only applies to the fallback branch.
+	if !decision.IsRouted() && env.TargetRuntime == nil {
+		writePathDecisionBlock(logWriter, decision)
+		return RunReport{
+			Err:                   fmt.Errorf("target runtime manager is not configured"),
+			FailureClassification: FailureClassSystem,
+			Remediation:           "Run playbooks through test-genie execute so the target scenario lifecycle can be managed.",
+		}
+	}
+
 	isoManager := isolationManagerFactory(isolation.Config{
 		ScenarioName:    env.ScenarioName,
 		RequirePostgres: needs.RequirePostgres,
@@ -251,16 +292,16 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 	}
 
 	if decision.IsRouted() {
-		client, dsn, prefErr := runPlaybooksRoutedPreflight(ctx, env.ScenarioName, isoResult.Env, needs.PrimaryDriver)
-		if prefErr != nil {
-			decision = preflightFailureDecision(prefErr)
+		dsn, dsnErr := extractTestDSN(isoResult.Env, needs.PrimaryDriver)
+		if dsnErr != nil {
+			decision = preflightFailureDecision(fmt.Errorf("%w: %v", errNoTestDSN, dsnErr))
 			writePathDecisionBlock(logWriter, decision)
 			return runPlaybooksFallback(ctx, env, logWriter, playbooksCfg, registry, needs, isoResult, retainIsolation)
 		}
 		decision.LeaseID = leaseID
 		decision.DSNDriver = needs.PrimaryDriver
 		writePathDecisionBlock(logWriter, decision)
-		return runPlaybooksRouted(ctx, env, logWriter, playbooksCfg, registry, needs, isoResult, retainIsolation, client, dsn, leaseID)
+		return runPlaybooksRouted(ctx, env, logWriter, playbooksCfg, registry, needs, isoResult, retainIsolation, routingClient, dsn, leaseID)
 	}
 
 	writePathDecisionBlock(logWriter, decision)
@@ -341,26 +382,26 @@ var (
 	errRoutingServiceDisabled   = errors.New("routed pre-flight: scenario RoutingService is not mounted (production mode?)")
 )
 
-// runPlaybooksRoutedPreflight verifies the routed path's pre-flight checks
-// before InstallTestPool is attempted. Returns the routing client and the
-// DSN to install. Errors are classified via errors.Is against the package
-// sentinels above.
-func runPlaybooksRoutedPreflight(ctx context.Context, scenarioName string, isoEnv map[string]string, primaryDriver string) (routing_v1connect.RoutingServiceClient, string, error) {
-	dsn, err := extractTestDSN(isoEnv, primaryDriver)
-	if err != nil {
-		return nil, "", fmt.Errorf("%w: %v", errNoTestDSN, err)
-	}
+// runPlaybooksRoutedClientPreflight verifies the env-independent routed
+// pre-flight checks: the scenario's RoutingService client is resolvable and
+// the RoutingService route is mounted (i.e. the scenario is not in
+// production mode). Runs before isolation Prepare so a 404 doesn't waste a
+// testcontainer boot.
+//
+// DSN extraction is intentionally not part of this preflight — it needs the
+// isolation env and so runs after Prepare in runPlaybooksPhase.
+func runPlaybooksRoutedClientPreflight(ctx context.Context, scenarioName string) (routing_v1connect.RoutingServiceClient, error) {
 	client, err := resolveScenarioRoutingClient(ctx, scenarioName)
 	if err != nil {
-		return nil, "", fmt.Errorf("%w: %v", errRoutingClientUnreachable, err)
+		return nil, fmt.Errorf("%w: %v", errRoutingClientUnreachable, err)
 	}
 	if err := probeRoutingServiceEnabled(ctx, scenarioName); err != nil {
 		if errors.Is(err, errRoutingServiceDisabled) {
-			return nil, "", err
+			return nil, err
 		}
-		return nil, "", fmt.Errorf("%w: %v", errRoutingClientUnreachable, err)
+		return nil, fmt.Errorf("%w: %v", errRoutingClientUnreachable, err)
 	}
-	return client, dsn, nil
+	return client, nil
 }
 
 // resolveClaimActor reports the actor that started a playbooks run. Best
@@ -502,12 +543,7 @@ func runPlaybooksRouted(
 			shared.LogWarn(logWriter, "failed to clear routed test pool: %v", clearErr)
 		} else if stats := clearResp.Msg.GetStats(); stats != nil {
 			shared.LogInfo(logWriter, "routed lease stats: test_pool_requests=%d primary_during_test_mode_requests=%d", stats.GetTestPoolRequests(), stats.GetPrimaryDuringTestModeRequests())
-			if stats.GetPrimaryDuringTestModeRequests() > 0 {
-				report.Observations = append(report.Observations, NewWarningObservation(fmt.Sprintf("routed bypass detected: %d request(s) carried X-Vrooli-Test-Mode:1 but were served from the primary pool — some code path holds a raw *sql.DB", stats.GetPrimaryDuringTestModeRequests())))
-			}
-			if stats.GetTestPoolRequests() == 0 {
-				report.Observations = append(report.Observations, NewWarningObservation("routed e2e ran without exercising the test pool: 0 test-mode requests reached RoutedDB — verify the X-Vrooli-Test-Mode header reaches the API"))
-			}
+			applyLeaseStatsResult(&report, stats.GetTestPoolRequests(), stats.GetPrimaryDuringTestModeRequests(), playbooksCfg)
 		}
 		if err := isoResult.Cleanup(context.Background()); err != nil {
 			shared.LogWarn(logWriter, "failed to clean up isolation resources: %v", err)
@@ -628,6 +664,54 @@ func runPlaybooksFallback(
 	}
 
 	return report
+}
+
+// applyLeaseStatsResult promotes the routed-lease post-run stats into hard
+// failures unless the scenario has opted out via
+// playbooks.allow_empty_test_pool in .vrooli/testing.json.
+//
+//   - primary_during_test_mode_requests > 0 ("bypass"): a request carried
+//     X-Vrooli-Test-Mode:1 but was served from the primary pool. This is
+//     always a real defect — some code path holds a raw *sql.DB instead of
+//     going through RoutedDB. Hard failure unless opted out.
+//   - test_pool_requests == 0 ("empty pool"): no request ever exercised the
+//     test pool during the run. Either the header didn't round-trip, the
+//     playbooks never touched the API, or the playbooks are pure UI smoke.
+//     Hard failure unless opted out.
+//
+// If the report already carries an error from the playbooks execution, the
+// stats issues are appended as warning observations instead — the playbook
+// failure is the more useful signal and shouldn't be overwritten.
+func applyLeaseStatsResult(report *RunReport, testPoolRequests, primaryDuringTestMode int64, playbooksCfg *config.Config) {
+	allowEmpty := playbooksCfg != nil && playbooksCfg.AllowEmptyTestPool
+
+	if primaryDuringTestMode > 0 {
+		msg := fmt.Sprintf("routed bypass detected: %d request(s) carried X-Vrooli-Test-Mode:1 but were served from the primary pool — some code path holds a raw *sql.DB", primaryDuringTestMode)
+		switch {
+		case allowEmpty:
+			report.Observations = append(report.Observations, NewWarningObservation(msg))
+		case report.Err != nil:
+			report.Observations = append(report.Observations, NewWarningObservation(msg))
+		default:
+			report.Err = errors.New(msg)
+			report.FailureClassification = FailureClassMisconfiguration
+			report.Remediation = "Migrate the bypassing call site to *database.RoutedDB (run scenario-auditor to find raw *sql.DB captures), or set playbooks.allow_empty_test_pool=true in .vrooli/testing.json to acknowledge this advisory."
+		}
+	}
+
+	if testPoolRequests == 0 {
+		msg := "routed e2e ran without exercising the test pool: 0 test-mode requests reached RoutedDB — verify the X-Vrooli-Test-Mode header reaches the API or that the playbooks touch the API at all"
+		switch {
+		case allowEmpty:
+			report.Observations = append(report.Observations, NewWarningObservation(msg))
+		case report.Err != nil:
+			report.Observations = append(report.Observations, NewWarningObservation(msg))
+		default:
+			report.Err = errors.New(msg)
+			report.FailureClassification = FailureClassMisconfiguration
+			report.Remediation = "Add at least one UI→API interaction to the playbooks so the test pool is exercised, or set playbooks.allow_empty_test_pool=true in .vrooli/testing.json if the playbooks are read-only by design."
+		}
+	}
 }
 
 // extractTestDSN pulls the test database DSN out of the isolation env map.

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"test-genie/agentmanager"
+	appelig "test-genie/internal/app/eligibility"
 	"test-genie/internal/execution"
 	"test-genie/internal/fix"
 	"test-genie/internal/orchestrator"
@@ -29,6 +30,8 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"google.golang.org/protobuf/encoding/protojson"
+
+	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/eligibility/eligibility_v1connect"
 )
 
 // Config controls the HTTP transport settings.
@@ -57,6 +60,7 @@ type Dependencies struct {
 	RequirementsImproveService requirementsImproveService
 	RequirementsSyncer         requirementsSyncer
 	PlaybooksClaims            *playbooksclaims.Service
+	EligibilityService         *appelig.Service
 	Logger                     Logger
 	// Tool Discovery Protocol support
 	ToolRegistry *toolregistry.Registry
@@ -135,6 +139,7 @@ type Server struct {
 	requirementsImproveService requirementsImproveService
 	requirementsSyncer         requirementsSyncer
 	playbooksClaims            *playbooksclaims.Service
+	eligibilityService         *appelig.Service
 	seedSessions               map[string]*seedSession
 	seedSessionsByScenario     map[string]string
 	seedSessionsMu             sync.Mutex
@@ -194,6 +199,7 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		requirementsImproveService: deps.RequirementsImproveService,
 		requirementsSyncer:         deps.RequirementsSyncer,
 		playbooksClaims:            deps.PlaybooksClaims,
+		eligibilityService:         deps.EligibilityService,
 		seedSessions:               make(map[string]*seedSession),
 		seedSessionsByScenario:     make(map[string]string),
 		toolRegistry:               deps.ToolRegistry,
@@ -269,6 +275,16 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/playbooks/claims", s.handleListPlaybooksClaims).Methods("GET")
 	apiRouter.HandleFunc("/playbooks/claims/{scenario}", s.handleGetPlaybooksClaim).Methods("GET")
 	apiRouter.HandleFunc("/playbooks/claims/{scenario}/release", s.handleReleasePlaybooksClaim).Methods("POST")
+
+	// Eligibility Connect-RPC service. The handler resolves a per-scenario
+	// auditor scan and reports whether the scenario qualifies for the
+	// routed-test-db path. gorilla/mux matches the full path prefix the
+	// Connect handler emits; the {rest:.*} suffix forwards every method
+	// under that prefix to the generated handler.
+	if s.eligibilityService != nil {
+		path, handler := eligibility_v1connect.NewEligibilityServiceHandler(s.eligibilityService)
+		s.router.PathPrefix(path).Handler(handler)
+	}
 
 	// Tool Discovery Protocol routes
 	if s.toolRegistry != nil {

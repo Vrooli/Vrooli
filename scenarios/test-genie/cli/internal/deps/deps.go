@@ -20,4 +20,5 @@ type Runtime struct {
 	Seed       *playbooksseed.Client
 	Status     *status.Client
 	HTTPClient *cliutil.HTTPClient
+	APIClient  *cliutil.APIClient
 }

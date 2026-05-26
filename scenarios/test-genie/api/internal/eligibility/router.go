@@ -128,7 +128,7 @@ func decide(summary *ViolationSummary) Eligibility {
 
 	var related []ViolationExcerpt
 	for _, v := range summary.TopViolations {
-		switch v.RuleID {
+		switch v.CanonicalRuleID() {
 		case RuleRoutedDrivers:
 			if severityAtLeast(v.Severity, "high") {
 				elig.Routed = false

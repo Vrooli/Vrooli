@@ -176,3 +176,35 @@ func TestLoadInvalidJSON(t *testing.T) {
 		t.Error("expected error for invalid JSON")
 	}
 }
+
+func TestLoadAllowEmptyTestPool(t *testing.T) {
+	tmpDir := t.TempDir()
+	vrooliDir := filepath.Join(tmpDir, ".vrooli")
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	testingJSON := `{"playbooks": {"allow_empty_test_pool": true}}`
+	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(testingJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !cfg.AllowEmptyTestPool {
+		t.Error("expected AllowEmptyTestPool to be true")
+	}
+}
+
+func TestLoadAllowEmptyTestPoolDefaultsFalse(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfg, err := Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.AllowEmptyTestPool {
+		t.Error("expected AllowEmptyTestPool to default to false (strict)")
+	}
+}

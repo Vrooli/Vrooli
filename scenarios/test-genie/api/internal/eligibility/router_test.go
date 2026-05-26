@@ -50,6 +50,31 @@ func TestDecide_HighDatabaseBackoff_Fallback(t *testing.T) {
 	}
 }
 
+// Regression: scenario-auditor groups the three routing rules under a
+// single public RuleID (`routed-test-db-v1`) and exposes the originating
+// rule name via the `source` field. The decision must key off `source`
+// (via CanonicalRuleID) so consolidation can't silently route everything.
+func TestDecide_ConsolidatedRuleID_UsesSourceForMatching(t *testing.T) {
+	s := &ViolationSummary{
+		Total: 1,
+		TopViolations: []ViolationExcerpt{
+			{
+				Severity: "medium",
+				RuleID:   "routed-test-db-v1",
+				Source:   RuleRoutedHandleCapture,
+				FilePath: "api/internal/eventlog/repository.go",
+			},
+		},
+	}
+	e := decide(s)
+	if e.Routed {
+		t.Fatalf("expected fallback when source=routed_database_handle_capture even under consolidated rule_id")
+	}
+	if len(e.Violations) != 1 {
+		t.Fatalf("expected the violation to be carried into the excerpt list; got %+v", e.Violations)
+	}
+}
+
 func TestDecide_LowHandleCapture_StaysRouted(t *testing.T) {
 	// Low severity from handle-capture should NOT disqualify; only
 	// medium-or-higher does.

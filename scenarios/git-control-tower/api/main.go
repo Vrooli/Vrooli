@@ -49,6 +49,8 @@ type Server struct {
 	visualCaptureStorage *VisualCaptureStorage
 	periodicCapture      *PeriodicCapture
 	testGenieClient      *TestGenieClient
+	testGenieEligibility *TestGenieEligibilityClient
+	isolationCache       *IsolationCache
 	tidinessClient       *TidinessManagerClient
 	agentManagerClient   *AgentManagerClient
 	auditorClient        *AuditorClient
@@ -172,6 +174,8 @@ func (s *Server) initClients() error {
 
 	s.basClient = NewBrowserAutomationClient(30 * time.Second)
 	s.testGenieClient = NewTestGenieClient(600 * time.Second)
+	s.testGenieEligibility = NewTestGenieEligibilityClient(15 * time.Second)
+	s.isolationCache = NewIsolationCache(30 * time.Second)
 	s.tidinessClient = NewTidinessManagerClient(30 * time.Second)
 	s.agentManagerClient = NewAgentManagerClient(120 * time.Second)
 	s.auditorClient = NewAuditorClient(120 * time.Second)
