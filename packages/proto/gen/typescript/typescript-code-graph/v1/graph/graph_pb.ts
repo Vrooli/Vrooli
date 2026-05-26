@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file typescript-code-graph/v1/graph/graph.proto.
  */
 export const file_typescript_code_graph_v1_graph_graph: GenFile = /*@__PURE__*/
-  fileDesc("Cip0eXBlc2NyaXB0LWNvZGUtZ3JhcGgvdjEvZ3JhcGgvZ3JhcGgucHJvdG8SJXZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEuZ3JhcGgiJwoORXh0cmFjdFJlcXVlc3QSFQoNc2NlbmFyaW9fcGF0aBgBIAEoCSKsAQoPRXh0cmFjdFJlc3BvbnNlEiMKBWdyYXBoGAEgASgLMhQuY29tbW9uLnYxLkNvZGVHcmFwaBItCgh3YXJuaW5ncxgCIAMoCzIbLmNvbW1vbi52MS5Db2RlR3JhcGhXYXJuaW5nEhUKDWV4dHJhY3Rpb25fbXMYAyABKAMSEgoKZ3JhcGhfaGFzaBgEIAEoCRIaChJzaWRlY2FyX3JlcXVlc3RfaWQYBSABKAkicwoSUmV3cml0ZVBsYW5SZXF1ZXN0EhUKDXNjZW5hcmlvX3BhdGgYASABKAkSRgoKb3BlcmF0aW9ucxgCIAMoCzIyLnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEucmV3cml0ZS5PcGVyYXRpb24ieQoTUmV3cml0ZVBsYW5SZXNwb25zZRIPCgdwbGFuX2lkGAEgASgJElEKFW5vcm1hbGl6ZWRfb3BlcmF0aW9ucxgCIAMoCzIyLnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEucmV3cml0ZS5PcGVyYXRpb24iTAoTUmV3cml0ZUFwcGx5UmVxdWVzdBIVCg1zY2VuYXJpb19wYXRoGAEgASgJEg8KB3BsYW5faWQYAiABKAkSDQoFYXBwbHkYAyABKAgigwEKFFJld3JpdGVBcHBseVJlc3BvbnNlEg8KB3BsYW5faWQYASABKAkSSQoHcmVzdWx0cxgCIAMoCzI4LnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEucmV3cml0ZS5PcGVyYXRpb25SZXN1bHQSDwoHZHJ5X3J1bhgDIAEoCCqwAgoKVHNOb2RlS2luZBIcChhUU19OT0RFX0tJTkRfVU5TUEVDSUZJRUQQABIYChNUU19OT0RFX0tJTkRfTU9EVUxFEMgBEhsKFlRTX05PREVfS0lORF9DT01QT05FTlQQyQESFgoRVFNfTk9ERV9LSU5EX0hPT0sQygESFwoSVFNfTk9ERV9LSU5EX0NMQVNTEMsBEhsKFlRTX05PREVfS0lORF9JTlRFUkZBQ0UQzAESFgoRVFNfTk9ERV9LSU5EX1RZUEUQzQESGgoVVFNfTk9ERV9LSU5EX0ZVTkNUSU9OEM4BEhUKEFRTX05PREVfS0lORF9WQVIQzwESFwoSVFNfTk9ERV9LSU5EX0NPTlNUENABEhsKFlRTX05PREVfS0lORF9SRV9FWFBPUlQQ0QEyrQMKGlR5cGVTY3JpcHRDb2RlR3JhcGhTZXJ2aWNlEnoKB0V4dHJhY3QSNS52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLkV4dHJhY3RSZXF1ZXN0GjYudnJvb2xpLnR5cGVzY3JpcHRfY29kZV9ncmFwaC52MS5ncmFwaC5FeHRyYWN0UmVzcG9uc2UiABKGAQoLUmV3cml0ZVBsYW4SOS52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLlJld3JpdGVQbGFuUmVxdWVzdBo6LnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEuZ3JhcGguUmV3cml0ZVBsYW5SZXNwb25zZSIAEokBCgxSZXdyaXRlQXBwbHkSOi52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLlJld3JpdGVBcHBseVJlcXVlc3QaOy52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLlJld3JpdGVBcHBseVJlc3BvbnNlIgBCWFpWZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby90eXBlc2NyaXB0LWNvZGUtZ3JhcGgvdjEvZ3JhcGg7Z3JhcGhfdjFiBnByb3RvMw", [file_common_v1_code_graph, file_typescript_code_graph_v1_rewrite_rewrite]);
+  fileDesc("Cip0eXBlc2NyaXB0LWNvZGUtZ3JhcGgvdjEvZ3JhcGgvZ3JhcGgucHJvdG8SJXZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEuZ3JhcGgiJwoORXh0cmFjdFJlcXVlc3QSFQoNc2NlbmFyaW9fcGF0aBgBIAEoCSKsAQoPRXh0cmFjdFJlc3BvbnNlEiMKBWdyYXBoGAEgASgLMhQuY29tbW9uLnYxLkNvZGVHcmFwaBItCgh3YXJuaW5ncxgCIAMoCzIbLmNvbW1vbi52MS5Db2RlR3JhcGhXYXJuaW5nEhUKDWV4dHJhY3Rpb25fbXMYAyABKAMSEgoKZ3JhcGhfaGFzaBgEIAEoCRIaChJzaWRlY2FyX3JlcXVlc3RfaWQYBSABKAkicwoSUmV3cml0ZVBsYW5SZXF1ZXN0EhUKDXNjZW5hcmlvX3BhdGgYASABKAkSRgoKb3BlcmF0aW9ucxgCIAMoCzIyLnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEucmV3cml0ZS5PcGVyYXRpb24ieQoTUmV3cml0ZVBsYW5SZXNwb25zZRIPCgdwbGFuX2lkGAEgASgJElEKFW5vcm1hbGl6ZWRfb3BlcmF0aW9ucxgCIAMoCzIyLnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEucmV3cml0ZS5PcGVyYXRpb24iTAoTUmV3cml0ZUFwcGx5UmVxdWVzdBIVCg1zY2VuYXJpb19wYXRoGAEgASgJEg8KB3BsYW5faWQYAiABKAkSDQoFYXBwbHkYAyABKAgigwEKFFJld3JpdGVBcHBseVJlc3BvbnNlEg8KB3BsYW5faWQYASABKAkSSQoHcmVzdWx0cxgCIAMoCzI4LnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEucmV3cml0ZS5PcGVyYXRpb25SZXN1bHQSDwoHZHJ5X3J1bhgDIAEoCCIVChNMaXN0Rml4dHVyZXNSZXF1ZXN0Ij8KC0ZpeHR1cmVJbmZvEgwKBG5hbWUYASABKAkSDAoEcGF0aBgCIAEoCRIUCgxoYXNfZXhwZWN0ZWQYAyABKAgiXAoUTGlzdEZpeHR1cmVzUmVzcG9uc2USRAoIZml4dHVyZXMYASADKAsyMi52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLkZpeHR1cmVJbmZvIiYKFlZhbGlkYXRlRml4dHVyZVJlcXVlc3QSDAoEbmFtZRgBIAEoCSJ5ChdWYWxpZGF0ZUZpeHR1cmVSZXNwb25zZRIOCgZwYXNzZWQYASABKAgSDAoEZGlmZhgCIAEoCRIWCg5leHBlY3RlZF9ieXRlcxgDIAEoAxIUCgxhY3R1YWxfYnl0ZXMYBCABKAMSEgoKZ3JhcGhfaGFzaBgFIAEoCSqwAgoKVHNOb2RlS2luZBIcChhUU19OT0RFX0tJTkRfVU5TUEVDSUZJRUQQABIYChNUU19OT0RFX0tJTkRfTU9EVUxFEMgBEhsKFlRTX05PREVfS0lORF9DT01QT05FTlQQyQESFgoRVFNfTk9ERV9LSU5EX0hPT0sQygESFwoSVFNfTk9ERV9LSU5EX0NMQVNTEMsBEhsKFlRTX05PREVfS0lORF9JTlRFUkZBQ0UQzAESFgoRVFNfTk9ERV9LSU5EX1RZUEUQzQESGgoVVFNfTk9ERV9LSU5EX0ZVTkNUSU9OEM4BEhUKEFRTX05PREVfS0lORF9WQVIQzwESFwoSVFNfTk9ERV9LSU5EX0NPTlNUENABEhsKFlRTX05PREVfS0lORF9SRV9FWFBPUlQQ0QEyzgUKGlR5cGVTY3JpcHRDb2RlR3JhcGhTZXJ2aWNlEnoKB0V4dHJhY3QSNS52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLkV4dHJhY3RSZXF1ZXN0GjYudnJvb2xpLnR5cGVzY3JpcHRfY29kZV9ncmFwaC52MS5ncmFwaC5FeHRyYWN0UmVzcG9uc2UiABKGAQoLUmV3cml0ZVBsYW4SOS52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLlJld3JpdGVQbGFuUmVxdWVzdBo6LnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEuZ3JhcGguUmV3cml0ZVBsYW5SZXNwb25zZSIAEokBCgxSZXdyaXRlQXBwbHkSOi52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLlJld3JpdGVBcHBseVJlcXVlc3QaOy52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLlJld3JpdGVBcHBseVJlc3BvbnNlIgASiQEKDExpc3RGaXh0dXJlcxI6LnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEuZ3JhcGguTGlzdEZpeHR1cmVzUmVxdWVzdBo7LnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEuZ3JhcGguTGlzdEZpeHR1cmVzUmVzcG9uc2UiABKSAQoPVmFsaWRhdGVGaXh0dXJlEj0udnJvb2xpLnR5cGVzY3JpcHRfY29kZV9ncmFwaC52MS5ncmFwaC5WYWxpZGF0ZUZpeHR1cmVSZXF1ZXN0Gj4udnJvb2xpLnR5cGVzY3JpcHRfY29kZV9ncmFwaC52MS5ncmFwaC5WYWxpZGF0ZUZpeHR1cmVSZXNwb25zZSIAQlhaVmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdHlwZXNjcmlwdC1jb2RlLWdyYXBoL3YxL2dyYXBoO2dyYXBoX3YxYgZwcm90bzM", [file_common_v1_code_graph, file_typescript_code_graph_v1_rewrite_rewrite]);
 
 /**
  * @generated from message vrooli.typescript_code_graph.v1.graph.ExtractRequest
@@ -205,6 +205,135 @@ export const RewriteApplyResponseSchema: GenMessage<RewriteApplyResponse> = /*@_
   messageDesc(file_typescript_code_graph_v1_graph_graph, 5);
 
 /**
+ * @generated from message vrooli.typescript_code_graph.v1.graph.ListFixturesRequest
+ */
+export type ListFixturesRequest = Message<"vrooli.typescript_code_graph.v1.graph.ListFixturesRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.typescript_code_graph.v1.graph.ListFixturesRequest.
+ * Use `create(ListFixturesRequestSchema)` to create a new message.
+ */
+export const ListFixturesRequestSchema: GenMessage<ListFixturesRequest> = /*@__PURE__*/
+  messageDesc(file_typescript_code_graph_v1_graph_graph, 6);
+
+/**
+ * FixtureInfo describes one golden fixture directory under bas/fixtures/.
+ *
+ * @generated from message vrooli.typescript_code_graph.v1.graph.FixtureInfo
+ */
+export type FixtureInfo = Message<"vrooli.typescript_code_graph.v1.graph.FixtureInfo"> & {
+  /**
+   * Directory name, e.g. "ts-junk-drawer". Used as the ValidateFixture key.
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * Scenario-relative path, e.g. "bas/fixtures/ts-junk-drawer".
+   *
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * True when an expected-graph.json baseline exists for byte comparison.
+   *
+   * @generated from field: bool has_expected = 3;
+   */
+  hasExpected: boolean;
+};
+
+/**
+ * Describes the message vrooli.typescript_code_graph.v1.graph.FixtureInfo.
+ * Use `create(FixtureInfoSchema)` to create a new message.
+ */
+export const FixtureInfoSchema: GenMessage<FixtureInfo> = /*@__PURE__*/
+  messageDesc(file_typescript_code_graph_v1_graph_graph, 7);
+
+/**
+ * @generated from message vrooli.typescript_code_graph.v1.graph.ListFixturesResponse
+ */
+export type ListFixturesResponse = Message<"vrooli.typescript_code_graph.v1.graph.ListFixturesResponse"> & {
+  /**
+   * Fixtures in stable name-sorted order.
+   *
+   * @generated from field: repeated vrooli.typescript_code_graph.v1.graph.FixtureInfo fixtures = 1;
+   */
+  fixtures: FixtureInfo[];
+};
+
+/**
+ * Describes the message vrooli.typescript_code_graph.v1.graph.ListFixturesResponse.
+ * Use `create(ListFixturesResponseSchema)` to create a new message.
+ */
+export const ListFixturesResponseSchema: GenMessage<ListFixturesResponse> = /*@__PURE__*/
+  messageDesc(file_typescript_code_graph_v1_graph_graph, 8);
+
+/**
+ * @generated from message vrooli.typescript_code_graph.v1.graph.ValidateFixtureRequest
+ */
+export type ValidateFixtureRequest = Message<"vrooli.typescript_code_graph.v1.graph.ValidateFixtureRequest"> & {
+  /**
+   * Fixture directory name as returned by ListFixtures.
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message vrooli.typescript_code_graph.v1.graph.ValidateFixtureRequest.
+ * Use `create(ValidateFixtureRequestSchema)` to create a new message.
+ */
+export const ValidateFixtureRequestSchema: GenMessage<ValidateFixtureRequest> = /*@__PURE__*/
+  messageDesc(file_typescript_code_graph_v1_graph_graph, 9);
+
+/**
+ * @generated from message vrooli.typescript_code_graph.v1.graph.ValidateFixtureResponse
+ */
+export type ValidateFixtureResponse = Message<"vrooli.typescript_code_graph.v1.graph.ValidateFixtureResponse"> & {
+  /**
+   * True when the canonical JSON is byte-identical to expected-graph.json.
+   *
+   * @generated from field: bool passed = 1;
+   */
+  passed: boolean;
+
+  /**
+   * Unified line diff (expected vs actual) when passed=false; empty on pass.
+   *
+   * @generated from field: string diff = 2;
+   */
+  diff: string;
+
+  /**
+   * @generated from field: int64 expected_bytes = 3;
+   */
+  expectedBytes: bigint;
+
+  /**
+   * @generated from field: int64 actual_bytes = 4;
+   */
+  actualBytes: bigint;
+
+  /**
+   * Hex sha256 of the extracted graph (matches ExtractResponse.graph_hash).
+   *
+   * @generated from field: string graph_hash = 5;
+   */
+  graphHash: string;
+};
+
+/**
+ * Describes the message vrooli.typescript_code_graph.v1.graph.ValidateFixtureResponse.
+ * Use `create(ValidateFixtureResponseSchema)` to create a new message.
+ */
+export const ValidateFixtureResponseSchema: GenMessage<ValidateFixtureResponse> = /*@__PURE__*/
+  messageDesc(file_typescript_code_graph_v1_graph_graph, 10);
+
+/**
  * TypeScript-specific NodeKind values. Tag numbers live in the common
  * envelope's reserved 200..299 range. Producers attach the typed kind
  * via CodeGraphNode.attributes["kind"] = "<TsNodeKind>" on nodes whose
@@ -342,6 +471,32 @@ export const TypeScriptCodeGraphService: GenService<{
     methodKind: "unary";
     input: typeof RewriteApplyRequestSchema;
     output: typeof RewriteApplyResponseSchema;
+  },
+  /**
+   * ListFixtures enumerates the golden determinism fixtures shipped with the
+   * scenario (bas/fixtures/<name>/). The browser cannot read these files
+   * directly, so the server lists them for the Fixture Validator UI.
+   *
+   * @generated from rpc vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService.ListFixtures
+   */
+  listFixtures: {
+    methodKind: "unary";
+    input: typeof ListFixturesRequestSchema;
+    output: typeof ListFixturesResponseSchema;
+  },
+  /**
+   * ValidateFixture re-runs Extract against a named fixture server-side
+   * (through the sidecar) and byte-compares the canonical JSON against the
+   * fixture's expected-graph.json. Promotes the determinism integration test
+   * to an RPC so humans can run it from the UI without faking the comparison
+   * client-side.
+   *
+   * @generated from rpc vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService.ValidateFixture
+   */
+  validateFixture: {
+    methodKind: "unary";
+    input: typeof ValidateFixtureRequestSchema;
+    output: typeof ValidateFixtureResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_typescript_code_graph_v1_graph_graph, 0);

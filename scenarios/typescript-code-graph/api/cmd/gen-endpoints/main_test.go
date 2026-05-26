@@ -19,6 +19,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	writeSeed(t, seed, []CLICommand{
 		{Name: "status", Description: "Health check", EndpointID: "health"},
 		{Name: "graph extract", Description: "TS extract", EndpointID: "graph_extract"},
+		{Name: "graph list-fixtures", Description: "List fixtures", EndpointID: "graph_list_fixtures"},
+		{Name: "graph validate-fixture", Description: "Validate fixture", EndpointID: "graph_validate_fixture"},
 		{Name: "rewrite plan", Description: "TS rewrite plan", EndpointID: "rewrite_plan"},
 		{Name: "rewrite apply", Description: "TS rewrite apply", EndpointID: "rewrite_apply"},
 	})

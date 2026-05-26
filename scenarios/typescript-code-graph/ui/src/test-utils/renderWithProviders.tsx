@@ -86,7 +86,12 @@ export function renderWithProviders(
       <ThemeProvider initialChoice={initialTheme}>{children}</ThemeProvider>
     );
     const routed = withoutRouter ? themed : (
-      <MemoryRouter initialEntries={routerEntries}>{themed}</MemoryRouter>
+      <MemoryRouter
+        initialEntries={routerEntries}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
+        {themed}
+      </MemoryRouter>
     );
     return (
       <QueryClientProvider client={queryClient}>

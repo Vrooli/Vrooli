@@ -19,6 +19,30 @@
             "run_eligible": true,
             "permissions": ["network:internal", "filesystem:read"]
           }
+        },
+        {
+          "name": "list-fixtures",
+          "description": "List the golden determinism fixtures shipped with the scenario",
+          "positionals": [],
+          "binding": { "kind": "connect-rpc", "service": "TypeScriptCodeGraphService", "method": "ListFixtures" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read"]
+          }
+        },
+        {
+          "name": "validate-fixture",
+          "description": "Re-extract a fixture and byte-compare against its expected-graph.json",
+          "positionals": [
+            { "name": "name", "required": true, "description": "Fixture directory name (see `graph list-fixtures`)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "TypeScriptCodeGraphService", "method": "ValidateFixture" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read"]
+          }
         }
       ]
     },

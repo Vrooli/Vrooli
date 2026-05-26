@@ -94,6 +94,82 @@
       }
     },
     {
+      "id": "graph_list_fixtures",
+      "path": "/vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/ListFixtures",
+      "method": "POST",
+      "summary": "List golden determinism fixtures",
+      "description": "Enumerates the fixture directories under bas/fixtures so the Fixture Validator UI can offer them without reading repo files in the browser.",
+      "category": "graph",
+      "response": {
+        "type": "object",
+        "properties": {
+          "fixtures": "array<{name:string, path:string, has_expected:bool}>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Fixtures directory unreadable"
+        }
+      ],
+      "cli_mapping": {
+        "command": "typescript-code-graph graph list-fixtures"
+      }
+    },
+    {
+      "id": "graph_validate_fixture",
+      "path": "/vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/ValidateFixture",
+      "method": "POST",
+      "summary": "Validate a fixture against its golden graph",
+      "description": "Re-runs Extract against a named fixture server-side (through the sidecar) and byte-compares the canonical JSON against expected-graph.json, returning pass/fail plus a line diff.",
+      "category": "graph",
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string (required, fixture directory name)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "actual_bytes": "int64",
+          "diff": "string (line diff; empty on pass)",
+          "expected_bytes": "int64",
+          "graph_hash": "string (hex sha256 of canonical graph)",
+          "passed": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing or path-escaping fixture name"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Fixture not found"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Fixture has no expected-graph.json baseline"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Extraction or comparison failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "typescript-code-graph graph validate-fixture",
+        "args": [
+          "<name>"
+        ]
+      }
+    },
+    {
       "id": "rewrite_plan",
       "path": "/vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/RewritePlan",
       "method": "POST",
@@ -201,6 +277,16 @@
       "name": "graph extract",
       "description": "Extract a deterministic TypeScript graph for the project at <path>.",
       "endpoint_id": "graph_extract"
+    },
+    {
+      "name": "graph list-fixtures",
+      "description": "List the golden determinism fixtures shipped with the scenario.",
+      "endpoint_id": "graph_list_fixtures"
+    },
+    {
+      "name": "graph validate-fixture",
+      "description": "Re-extract a fixture and byte-compare against its expected-graph.json.",
+      "endpoint_id": "graph_validate_fixture"
     },
     {
       "name": "rewrite plan",

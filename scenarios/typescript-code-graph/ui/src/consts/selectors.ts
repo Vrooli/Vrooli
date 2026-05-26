@@ -323,12 +323,129 @@ const literalSelectors = {
     select: "theme-select",
   },
   pages: {
-    dashboard: "page-dashboard",
+    workbench: "page-workbench",
     settings: "page-settings",
   },
   errorBoundary: {
     root: "error-boundary-root",
     retryButton: "error-boundary-retry",
+  },
+  shared: {
+    emptyState: {
+      root: "empty-state-root",
+      title: "empty-state-title",
+      description: "empty-state-description",
+      action: "empty-state-action",
+    },
+    errorState: {
+      root: "error-state-root",
+      title: "error-state-title",
+      message: "error-state-message",
+      retryButton: "error-state-retry",
+    },
+    loadingState: {
+      root: "loading-state-root",
+    },
+  },
+  ui: {
+    tabs: {
+      root: "tabs-root",
+      list: "tabs-list",
+    },
+  },
+  workbench: {
+    extractBar: {
+      root: "workbench-extract-bar",
+      target: "workbench-extract-target",
+      projectDir: "workbench-extract-project-dir",
+      submit: "workbench-extract-submit",
+    },
+    stats: {
+      root: "workbench-stats",
+      files: "workbench-stat-files",
+      modules: "workbench-stat-modules",
+      symbols: "workbench-stat-symbols",
+      imports: "workbench-stat-imports",
+      warnings: "workbench-stat-warnings",
+      hash: "workbench-stat-hash",
+    },
+    status: {
+      loading: "workbench-status-loading",
+      error: "workbench-status-error",
+      empty: "workbench-status-empty",
+      workspaceUnsupported: "workbench-status-workspace-unsupported",
+    },
+  },
+  features: {
+    explorer: {
+      root: "explorer-root",
+      canvas: {
+        root: "explorer-canvas-root",
+        summary: "explorer-canvas-summary",
+      },
+      accessibleList: {
+        root: "explorer-accessible-list-root",
+        empty: "explorer-accessible-list-empty",
+      },
+      legend: {
+        root: "explorer-legend-root",
+      },
+      filterBar: {
+        root: "explorer-filter-bar-root",
+        allChip: "explorer-filter-bar-all",
+        empty: "explorer-filter-bar-empty",
+      },
+      cycleBanner: "explorer-cycle-banner",
+      drilldown: {
+        root: "explorer-drilldown-root",
+        title: "explorer-drilldown-title",
+        empty: "explorer-drilldown-empty",
+      },
+    },
+    sidecar: {
+      root: "sidecar-status-root",
+      loading: "sidecar-status-loading",
+      error: "sidecar-status-error",
+      message: "sidecar-status-message",
+    },
+    warnings: {
+      root: "warnings-root",
+      empty: "warnings-empty",
+      list: "warnings-list",
+      summary: "warnings-summary",
+    },
+    rewrite: {
+      root: "rewrite-root",
+      opsEditor: {
+        root: "rewrite-ops-editor",
+        empty: "rewrite-ops-empty",
+        addFileMove: "rewrite-add-file-move",
+        addImportRewrite: "rewrite-add-import-rewrite",
+      },
+      plan: {
+        button: "rewrite-plan-button",
+        result: "rewrite-plan-result",
+        empty: "rewrite-plan-empty",
+      },
+      apply: {
+        button: "rewrite-apply-button",
+        result: "rewrite-apply-result",
+        confirmDialog: {
+          root: "rewrite-apply-confirm",
+          confirm: "rewrite-apply-confirm-yes",
+          cancel: "rewrite-apply-confirm-cancel",
+        },
+      },
+    },
+    fixtures: {
+      root: "fixtures-root",
+      list: "fixtures-list",
+      empty: "fixtures-empty",
+      loading: "fixtures-loading",
+      error: "fixtures-error",
+      result: "fixtures-result",
+      diff: "fixtures-diff",
+    },
   },
 } satisfies LiteralSelectorTree;
 
@@ -352,13 +469,134 @@ const dynamicSelectorDefinitions = {
     sidebarLink: defineDynamicSelector({
       description: "Sidebar navigation link by canonical nav key",
       testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "settings"] as const } },
+      params: { key: { type: "enum", values: ["workbench", "settings"] as const } },
     }),
     bottomNavLink: defineDynamicSelector({
       description: "Bottom-nav link by canonical nav key",
       testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "settings"] as const } },
+      params: { key: { type: "enum", values: ["workbench", "settings"] as const } },
     }),
+  },
+  ui: {
+    tabs: {
+      trigger: defineDynamicSelector({
+        description: "Tab trigger button by tab value",
+        testIdPattern: "tabs-trigger-${value}",
+        params: { value: { type: "string" } },
+      }),
+      panel: defineDynamicSelector({
+        description: "Tab panel by tab value",
+        testIdPattern: "tabs-panel-${value}",
+        params: { value: { type: "string" } },
+      }),
+    },
+  },
+  shared: {
+    severityBadge: {
+      root: defineDynamicSelector({
+        description: "Severity badge by level",
+        testIdPattern: "severity-badge-${level}",
+        params: {
+          level: {
+            type: "enum",
+            values: ["info", "low", "medium", "high", "critical"] as const,
+          },
+        },
+      }),
+    },
+  },
+  features: {
+    explorer: {
+      canvas: {
+        node: defineDynamicSelector({
+          description: "Graph canvas node group by node id",
+          testIdPattern: "explorer-canvas-node-${id}",
+          params: { id: { type: "string" } },
+        }),
+      },
+      accessibleList: {
+        item: defineDynamicSelector({
+          description: "Accessible-list row by node id",
+          testIdPattern: "explorer-accessible-item-${id}",
+          params: { id: { type: "string" } },
+        }),
+      },
+      filterBar: {
+        chip: defineDynamicSelector({
+          description: "Domain filter chip by package key",
+          testIdPattern: "explorer-filter-chip-${key}",
+          params: { key: { type: "string" } },
+        }),
+      },
+      legend: {
+        severity: defineDynamicSelector({
+          description: "Legend severity row by level",
+          testIdPattern: "explorer-legend-${level}",
+          params: {
+            level: {
+              type: "enum",
+              values: ["info", "low", "medium", "high", "critical"] as const,
+            },
+          },
+        }),
+      },
+      drilldown: {
+        symbol: defineDynamicSelector({
+          description: "File-drilldown symbol row by node id",
+          testIdPattern: "explorer-drilldown-symbol-${id}",
+          params: { id: { type: "string" } },
+        }),
+        symbolComments: defineDynamicSelector({
+          description: "Leading-comments / JSDoc block for a symbol row by node id",
+          testIdPattern: "explorer-drilldown-symbol-comments-${id}",
+          params: { id: { type: "string" } },
+        }),
+      },
+    },
+    sidecar: {
+      indicator: defineDynamicSelector({
+        description: "Sidecar status indicator by status token",
+        testIdPattern: "sidecar-status-indicator-${status}",
+        params: {
+          status: {
+            type: "enum",
+            values: [
+              "unspecified",
+              "ready",
+              "unhealthy",
+              "restarting",
+              "permanently_unhealthy",
+            ] as const,
+          },
+        },
+      }),
+    },
+    warnings: {
+      item: defineDynamicSelector({
+        description: "Warning row by index",
+        testIdPattern: "warnings-item-${index}",
+        params: { index: { type: "number" } },
+      }),
+    },
+    rewrite: {
+      opRow: defineDynamicSelector({
+        description: "Rewrite operation editor row by index",
+        testIdPattern: "rewrite-op-row-${index}",
+        params: { index: { type: "number" } },
+      }),
+      opResult: defineDynamicSelector({
+        description: "Rewrite apply per-operation result row by index",
+        testIdPattern: "rewrite-op-result-${index}",
+        params: { index: { type: "number" } },
+      }),
+    },
+    fixtures: {
+      item: defineDynamicSelector({
+        description: "Fixture list row by fixture name",
+        testIdPattern: "fixtures-item-${name}",
+        params: { name: { type: "string" } },
+      }),
+    },
   },
   settingsPage: {
     themeOption: defineDynamicSelector({

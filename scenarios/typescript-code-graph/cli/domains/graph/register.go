@@ -25,7 +25,9 @@ const GroupName = "graph"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"TypeScriptCodeGraphService.Extract": h.extract,
+		"TypeScriptCodeGraphService.Extract":         h.extract,
+		"TypeScriptCodeGraphService.ListFixtures":    h.listFixtures,
+		"TypeScriptCodeGraphService.ValidateFixture": h.validateFixture,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

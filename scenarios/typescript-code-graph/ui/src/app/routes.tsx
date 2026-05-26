@@ -6,7 +6,7 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
-import { DashboardPage } from "../pages/DashboardPage";
+import { WorkbenchPage } from "../pages/WorkbenchPage";
 import { SettingsPage } from "../pages/SettingsPage";
 
 /**
@@ -15,12 +15,16 @@ import { SettingsPage } from "../pages/SettingsPage";
  *
  * Add new pages by appending to the `children` array.
  */
+// This module also exports the AppRouter/TestAppRouter components; the route
+// table is data, not a component, so Fast Refresh's "components only" rule does
+// not apply here.
+// eslint-disable-next-line react-refresh/only-export-components
 export const routes: RouteObject[] = [
   {
     path: "/",
     element: <AppShell />,
     children: [
-      { index: true, element: <DashboardPage /> },
+      { index: true, element: <WorkbenchPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },
@@ -34,8 +38,10 @@ export const routes: RouteObject[] = [
 export function AppRouter() {
   // Re-create per mount so HMR / re-mounts pick up updated routes during dev
   // and so tests that manipulate `window.history` see fresh routing each time.
-  const router = createBrowserRouter(routes);
-  return <RouterProvider router={router} />;
+  const router = createBrowserRouter(routes, {
+    future: { v7_relativeSplatPath: true },
+  });
+  return <RouterProvider router={router} future={{ v7_startTransition: true }} />;
 }
 
 /**
@@ -43,6 +49,9 @@ export function AppRouter() {
  * specific starting URL. Only used by `routes.test.tsx`.
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
-  const router = createMemoryRouter(routes, { initialEntries });
-  return <RouterProvider router={router} />;
+  const router = createMemoryRouter(routes, {
+    initialEntries,
+    future: { v7_relativeSplatPath: true },
+  });
+  return <RouterProvider router={router} future={{ v7_startTransition: true }} />;
 }

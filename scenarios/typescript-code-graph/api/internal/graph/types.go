@@ -118,10 +118,10 @@ type Node struct {
 // Edge is the union row emitted on the proto wire.
 type Edge struct {
 	ID         string            `json:"id"`
-	Kind       EdgeKind           `json:"kind"`
-	From       string             `json:"from"`
-	To         string             `json:"to"`
-	Attributes map[string]string  `json:"attributes,omitempty"`
+	Kind       EdgeKind          `json:"kind"`
+	From       string            `json:"from"`
+	To         string            `json:"to"`
+	Attributes map[string]string `json:"attributes,omitempty"`
 }
 
 // WarningKind classifies non-fatal extraction issues.

@@ -14,6 +14,7 @@ type heartbeatRequest struct {
 	RequestID string `json:"request_id"`
 }
 
+//nolint:unused // documented §8.4 response wire shape; intentionally retained for protocol reference.
 type heartbeatResponse struct {
 	Type      string `json:"type"`
 	RequestID string `json:"request_id"`

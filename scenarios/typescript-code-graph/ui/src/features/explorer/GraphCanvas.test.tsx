@@ -10,10 +10,10 @@ import { buildGraphLayout } from "./lib/graphAdapter";
 
 const graph = create(CodeGraphSchema, {
   nodes: [
-    { id: "package:m/a", kind: NodeKind.PACKAGE, name: "a", path: "m/a" },
-    { id: "package:m/b", kind: NodeKind.PACKAGE, name: "b", path: "m/b" },
+    { id: "ts_module:src/a.ts", kind: NodeKind.MODULE, name: "a.ts", path: "src/a.ts", attributes: { kind: "TS_NODE_KIND_MODULE" } },
+    { id: "ts_module:src/b.ts", kind: NodeKind.MODULE, name: "b.ts", path: "src/b.ts", attributes: { kind: "TS_NODE_KIND_MODULE" } },
   ],
-  edges: [{ id: "e", kind: EdgeKind.IMPORT, fromNodeId: "package:m/a", toNodeId: "package:m/b" }],
+  edges: [{ id: "e", kind: EdgeKind.IMPORT, fromNodeId: "ts_module:src/a.ts", toNodeId: "ts_module:src/b.ts" }],
 });
 
 describe("GraphCanvas", () => {
@@ -25,13 +25,13 @@ describe("GraphCanvas", () => {
     expect(screen.getByTestId(selectors.features.explorer.canvas.summary)).toBeInTheDocument();
   });
 
-  it("renders one focusable node group per package node", () => {
+  it("renders one focusable node group per module node", () => {
     renderWithProviders(<GraphCanvas layout={buildGraphLayout(graph)} target="m" />);
     expect(
-      screen.getByTestId(selectors.features.explorer.canvas.node({ id: "package:m/a" })),
+      screen.getByTestId(selectors.features.explorer.canvas.node({ id: "ts_module:src/a.ts" })),
     ).toBeInTheDocument();
     expect(
-      screen.getByTestId(selectors.features.explorer.canvas.node({ id: "package:m/b" })),
+      screen.getByTestId(selectors.features.explorer.canvas.node({ id: "ts_module:src/b.ts" })),
     ).toBeInTheDocument();
   });
 });

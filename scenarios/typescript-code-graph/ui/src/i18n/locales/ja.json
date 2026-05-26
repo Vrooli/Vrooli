@@ -1,15 +1,14 @@
 {
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: TypeScript Code Graph のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
-    "title": "TypeScript Code Graph",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "title": "TypeScript Code Graph"
   },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
-    "bottomNavLabel": "メインナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "mainLabel": "メインコンテンツ",
     "nav": {
-      "dashboard": "ダッシュボード",
+      "workbench": "ワークベンチ",
       "settings": "設定"
     }
   },
@@ -22,10 +21,9 @@
     }
   },
   "pages": {
-    "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
+    "workbench": {
+      "title": "ワークベンチ",
+      "description": "抽出した TypeScript コードグラフの検査、警告の診断、インポート書き換えの作成、ゴールデンフィクスチャに対する決定性の検証を行います。"
     },
     "settings": {
       "title": "設定",
@@ -45,6 +43,190 @@
   },
   "notifications": {
     "summary": "{{count}} 件の通知"
+  },
+  "shared": {
+    "loading": {
+      "label": "読み込み中…"
+    },
+    "error": {
+      "title": "問題が発生しました",
+      "retry": "再試行"
+    }
+  },
+  "workbench": {
+    "extract": {
+      "targetLabel": "TypeScript プロジェクトパス",
+      "targetPlaceholder": "scenarios/typescript-code-graph または絶対プロジェクトルート",
+      "projectDirLabel": "プロジェクトディレクトリの上書き",
+      "projectDirPlaceholder": "任意のベースディレクトリ",
+      "submit": "抽出",
+      "submitting": "抽出中…"
+    },
+    "stats": {
+      "files": "ファイル",
+      "modules": "モジュール",
+      "symbols": "シンボル",
+      "imports": "インポート",
+      "warnings": "警告",
+      "hash": "グラフハッシュ",
+      "durationLabel": "{{count}} ミリ秒で抽出"
+    },
+    "status": {
+      "idleTitle": "まだグラフがありません",
+      "idleDescription": "TypeScript プロジェクトパスを入力して抽出を実行し、モジュールグラフを検査します。",
+      "errorTitle": "抽出に失敗しました"
+    },
+    "workspaceUnsupported": {
+      "title": "pnpm ワークスペースは v1 では未対応です",
+      "description": "このプロジェクトルートには pnpm-workspace.yaml が含まれています。マルチプロジェクトのワークスペースは typescript-code-graph v1 の対象外です（OT-P2-005 参照）。単一プロジェクト（tsconfig.json 1 つ）を指定して抽出してください。"
+    },
+    "tabs": {
+      "label": "ワークベンチビュー",
+      "graph": "グラフ",
+      "warnings": "警告",
+      "rewrite": "書き換え",
+      "fixtures": "フィクスチャ"
+    }
+  },
+  "sidecar": {
+    "title": "ts-morph サイドカー",
+    "loading": "サイドカーを確認中…",
+    "unreachable": "サイドカーのステータスを取得できません",
+    "lastMessage": "最新メッセージ:",
+    "status": {
+      "unspecified": "不明",
+      "ready": "準備完了",
+      "unhealthy": "異常",
+      "restarting": "再起動中",
+      "permanentlyUnhealthy": "恒久的に異常"
+    }
+  },
+  "explorer": {
+    "canvas": {
+      "ariaLabel": "{{target}} のモジュール依存グラフ",
+      "summaryPackages": "{{count}} モジュール",
+      "summaryImports": "{{count}} 依存",
+      "nodeAriaLabel": "モジュール {{label}}。{{cycle}}",
+      "nodeCyclePresent": "インポートサイクル内",
+      "nodeCycleAbsent": "インポートサイクルなし"
+    },
+    "accessibleList": {
+      "title": "モジュール（テキストビュー）",
+      "description": "上のグラフのすべてのモジュールノードを反映する、キーボード操作可能なリスト。",
+      "importsLabel": "依存先:"
+    },
+    "emptyTitle": "モジュールがありません",
+    "emptyDescription": "このプロジェクトはモジュールノードを生成しませんでした。",
+    "legend": {
+      "title": "凡例",
+      "package": "モジュール",
+      "cycle": "インポートサイクル"
+    },
+    "filterBar": {
+      "label": "モジュールをフィルター",
+      "all": "すべてのモジュール",
+      "none": "フィルターするモジュールがありません。"
+    },
+    "cycleBanner": {
+      "title": "インポートサイクルを検出",
+      "message": "{{count}} モジュールがインポートサイクルに関与しています。"
+    },
+    "files": {
+      "title": "ファイル",
+      "empty": "このグラフにファイルはありません。",
+      "symbolCount": "{{count}} シンボル"
+    },
+    "symbols": {
+      "title": "シンボル",
+      "selectFile": "ファイルを選択してシンボルを一覧表示します。",
+      "empty": "このファイルにシンボルが見つかりません。",
+      "exported": "エクスポート済み",
+      "unexported": "未エクスポート",
+      "jsdocLabel": "先頭コメント / JSDoc"
+    },
+    "kind": {
+      "component": "コンポーネント",
+      "hook": "フック",
+      "class": "クラス",
+      "interface": "インターフェース",
+      "type": "型",
+      "function": "関数",
+      "var": "変数",
+      "const": "定数",
+      "reExport": "再エクスポート",
+      "unknown": "シンボル"
+    }
+  },
+  "warnings": {
+    "title": "診断",
+    "description": "直近の抽出で発生した解析警告と未解決インポート。",
+    "empty": "警告はありません — 抽出はクリーンでした。",
+    "fileLabel": "ファイル:",
+    "projectLevel": "プロジェクトレベル",
+    "count": "{{count}} 件の警告",
+    "kind": {
+      "parse_error": "解析エラー",
+      "unresolved_import": "未解決インポート",
+      "type_check_failure": "型チェック失敗",
+      "ambiguous_declaration": "曖昧な宣言",
+      "unspecified": "警告"
+    }
+  },
+  "rewrite": {
+    "title": "書き換えワークベンチ",
+    "description": "ファイルシステム操作を作成し、ドライランのプランをプレビューしてから適用します。",
+    "ops": {
+      "title": "操作",
+      "empty": "まだ操作がありません。ファイル移動またはインポート書き換えを追加してください。",
+      "addFileMove": "ファイル移動を追加",
+      "addImportRewrite": "インポート書き換えを追加",
+      "fileMove": "ファイル移動",
+      "importRewrite": "インポート書き換え",
+      "fromPath": "移動元パス",
+      "toPath": "移動先パス",
+      "oldImport": "旧インポートパス",
+      "newImport": "新インポートパス",
+      "remove": "操作を削除"
+    },
+    "plan": {
+      "button": "プランをプレビュー（ドライラン）",
+      "planning": "計画中…",
+      "title": "計画された操作",
+      "planIdLabel": "プラン ID:",
+      "empty": "プランをプレビューして正規化された操作を表示します。",
+      "count": "{{count}} 操作"
+    },
+    "apply": {
+      "button": "プランを適用",
+      "applying": "適用中…",
+      "confirmTitle": "ファイルシステムに書き換えを適用しますか？",
+      "confirmMessage": "{{target}} 配下のファイルを変更します。元に戻せません — 必要に応じて git で復元してください。",
+      "confirm": "適用",
+      "cancel": "キャンセル",
+      "resultTitle": "適用結果",
+      "dryRunNote": "ドライラン — ファイルは変更されていません。",
+      "status": {
+        "ok": "OK",
+        "failed": "失敗"
+      }
+    }
+  },
+  "fixtures": {
+    "title": "フィクスチャ検証",
+    "description": "ゴールデンフィクスチャをサーバー側で実行し、その出力を期待されるグラフとバイト単位で比較します。",
+    "empty": "利用可能なフィクスチャがありません。",
+    "validate": "検証",
+    "validating": "検証中…",
+    "passed": "合格",
+    "failed": "不合格",
+    "passMessage": "出力は expected-graph.json とバイト単位で一致しています。",
+    "failMessage": "出力は expected-graph.json と異なります。",
+    "diffTitle": "差分（期待 vs 実際）",
+    "expectedBytes": "期待 {{count}} バイト",
+    "actualBytes": "実際 {{count}} バイト",
+    "hashLabel": "グラフハッシュ:",
+    "hasExpected": "期待されるグラフあり",
+    "noExpected": "期待されるグラフなし"
   },
   "errors": {
     "canceled": "Operation canceled.",

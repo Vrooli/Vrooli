@@ -80,3 +80,80 @@ func (h *handlers) extract(ctx cliapp.RunContext) error {
 		},
 	})
 }
+
+// listFixtures calls TypeScriptCodeGraphService.ListFixtures and renders the
+// golden determinism fixtures the server ships (the browser/CLI can't read
+// bas/fixtures/* directly, so this RPC is the only path to the list).
+func (h *handlers) listFixtures(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListFixtures(context.Background(), connect.NewRequest(&graphv1.ListFixturesRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("list fixtures", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no list-fixtures response")
+	}
+
+	var results []string
+	for _, f := range resp.Msg.GetFixtures() {
+		status := "no expected graph"
+		if f.GetHasExpected() {
+			status = "expected graph present"
+		}
+		results = append(results, fmt.Sprintf("%s (%s) — %s", f.GetName(), f.GetPath(), status))
+	}
+	sort.Strings(results)
+
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("%d fixture(s) available.", len(resp.Msg.GetFixtures()))},
+		ResultsHeading: "Fixtures",
+		Results:        results,
+		RetrievalHints: []string{
+			"`graph validate-fixture <name>` — re-extract and byte-compare a fixture",
+		},
+	})
+}
+
+// validateFixture calls TypeScriptCodeGraphService.ValidateFixture, which
+// re-extracts a named fixture server-side and byte-compares the canonical JSON
+// against its expected-graph.json. A failing comparison exits non-zero so the
+// command is usable as a determinism gate in scripts.
+func (h *handlers) validateFixture(ctx cliapp.RunContext) error {
+	name := ctx.Positional("name")
+
+	resp, err := h.client.ValidateFixture(context.Background(), connect.NewRequest(&graphv1.ValidateFixtureRequest{
+		Name: name,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("validate fixture %q", name), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no validate-fixture response")
+	}
+
+	verdict := "PASS"
+	if !resp.Msg.GetPassed() {
+		verdict = "FAIL"
+	}
+	summary := []string{
+		fmt.Sprintf(
+			"%s — fixture %q (expected %d bytes, actual %d bytes, hash=%s)",
+			verdict, name, resp.Msg.GetExpectedBytes(), resp.Msg.GetActualBytes(), resp.Msg.GetGraphHash(),
+		),
+	}
+	var results []string
+	if !resp.Msg.GetPassed() && resp.Msg.GetDiff() != "" {
+		results = append(results, resp.Msg.GetDiff())
+	}
+
+	if renderErr := cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        summary,
+		ResultsHeading: "Diff (expected vs actual)",
+		Results:        results,
+	}); renderErr != nil {
+		return renderErr
+	}
+	if !resp.Msg.GetPassed() {
+		return fmt.Errorf("fixture %q does not match its expected graph", name)
+	}
+	return nil
+}

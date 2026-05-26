@@ -43,6 +43,12 @@ const (
 	// TypeScriptCodeGraphServiceRewriteApplyProcedure is the fully-qualified name of the
 	// TypeScriptCodeGraphService's RewriteApply RPC.
 	TypeScriptCodeGraphServiceRewriteApplyProcedure = "/vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/RewriteApply"
+	// TypeScriptCodeGraphServiceListFixturesProcedure is the fully-qualified name of the
+	// TypeScriptCodeGraphService's ListFixtures RPC.
+	TypeScriptCodeGraphServiceListFixturesProcedure = "/vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/ListFixtures"
+	// TypeScriptCodeGraphServiceValidateFixtureProcedure is the fully-qualified name of the
+	// TypeScriptCodeGraphService's ValidateFixture RPC.
+	TypeScriptCodeGraphServiceValidateFixtureProcedure = "/vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/ValidateFixture"
 )
 
 // TypeScriptCodeGraphServiceClient is a client for the
@@ -60,6 +66,16 @@ type TypeScriptCodeGraphServiceClient interface {
 	// Dry-run callers set the X-Dry-Run: true header instead — the
 	// service short-circuits before invoking the sidecar.
 	RewriteApply(context.Context, *connect.Request[graph.RewriteApplyRequest]) (*connect.Response[graph.RewriteApplyResponse], error)
+	// ListFixtures enumerates the golden determinism fixtures shipped with the
+	// scenario (bas/fixtures/<name>/). The browser cannot read these files
+	// directly, so the server lists them for the Fixture Validator UI.
+	ListFixtures(context.Context, *connect.Request[graph.ListFixturesRequest]) (*connect.Response[graph.ListFixturesResponse], error)
+	// ValidateFixture re-runs Extract against a named fixture server-side
+	// (through the sidecar) and byte-compares the canonical JSON against the
+	// fixture's expected-graph.json. Promotes the determinism integration test
+	// to an RPC so humans can run it from the UI without faking the comparison
+	// client-side.
+	ValidateFixture(context.Context, *connect.Request[graph.ValidateFixtureRequest]) (*connect.Response[graph.ValidateFixtureResponse], error)
 }
 
 // NewTypeScriptCodeGraphServiceClient constructs a client for the
@@ -92,14 +108,28 @@ func NewTypeScriptCodeGraphServiceClient(httpClient connect.HTTPClient, baseURL 
 			connect.WithSchema(typeScriptCodeGraphServiceMethods.ByName("RewriteApply")),
 			connect.WithClientOptions(opts...),
 		),
+		listFixtures: connect.NewClient[graph.ListFixturesRequest, graph.ListFixturesResponse](
+			httpClient,
+			baseURL+TypeScriptCodeGraphServiceListFixturesProcedure,
+			connect.WithSchema(typeScriptCodeGraphServiceMethods.ByName("ListFixtures")),
+			connect.WithClientOptions(opts...),
+		),
+		validateFixture: connect.NewClient[graph.ValidateFixtureRequest, graph.ValidateFixtureResponse](
+			httpClient,
+			baseURL+TypeScriptCodeGraphServiceValidateFixtureProcedure,
+			connect.WithSchema(typeScriptCodeGraphServiceMethods.ByName("ValidateFixture")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // typeScriptCodeGraphServiceClient implements TypeScriptCodeGraphServiceClient.
 type typeScriptCodeGraphServiceClient struct {
-	extract      *connect.Client[graph.ExtractRequest, graph.ExtractResponse]
-	rewritePlan  *connect.Client[graph.RewritePlanRequest, graph.RewritePlanResponse]
-	rewriteApply *connect.Client[graph.RewriteApplyRequest, graph.RewriteApplyResponse]
+	extract         *connect.Client[graph.ExtractRequest, graph.ExtractResponse]
+	rewritePlan     *connect.Client[graph.RewritePlanRequest, graph.RewritePlanResponse]
+	rewriteApply    *connect.Client[graph.RewriteApplyRequest, graph.RewriteApplyResponse]
+	listFixtures    *connect.Client[graph.ListFixturesRequest, graph.ListFixturesResponse]
+	validateFixture *connect.Client[graph.ValidateFixtureRequest, graph.ValidateFixtureResponse]
 }
 
 // Extract calls vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService.Extract.
@@ -117,6 +147,17 @@ func (c *typeScriptCodeGraphServiceClient) RewriteApply(ctx context.Context, req
 	return c.rewriteApply.CallUnary(ctx, req)
 }
 
+// ListFixtures calls vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService.ListFixtures.
+func (c *typeScriptCodeGraphServiceClient) ListFixtures(ctx context.Context, req *connect.Request[graph.ListFixturesRequest]) (*connect.Response[graph.ListFixturesResponse], error) {
+	return c.listFixtures.CallUnary(ctx, req)
+}
+
+// ValidateFixture calls
+// vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService.ValidateFixture.
+func (c *typeScriptCodeGraphServiceClient) ValidateFixture(ctx context.Context, req *connect.Request[graph.ValidateFixtureRequest]) (*connect.Response[graph.ValidateFixtureResponse], error) {
+	return c.validateFixture.CallUnary(ctx, req)
+}
+
 // TypeScriptCodeGraphServiceHandler is an implementation of the
 // vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService service.
 type TypeScriptCodeGraphServiceHandler interface {
@@ -132,6 +173,16 @@ type TypeScriptCodeGraphServiceHandler interface {
 	// Dry-run callers set the X-Dry-Run: true header instead — the
 	// service short-circuits before invoking the sidecar.
 	RewriteApply(context.Context, *connect.Request[graph.RewriteApplyRequest]) (*connect.Response[graph.RewriteApplyResponse], error)
+	// ListFixtures enumerates the golden determinism fixtures shipped with the
+	// scenario (bas/fixtures/<name>/). The browser cannot read these files
+	// directly, so the server lists them for the Fixture Validator UI.
+	ListFixtures(context.Context, *connect.Request[graph.ListFixturesRequest]) (*connect.Response[graph.ListFixturesResponse], error)
+	// ValidateFixture re-runs Extract against a named fixture server-side
+	// (through the sidecar) and byte-compares the canonical JSON against the
+	// fixture's expected-graph.json. Promotes the determinism integration test
+	// to an RPC so humans can run it from the UI without faking the comparison
+	// client-side.
+	ValidateFixture(context.Context, *connect.Request[graph.ValidateFixtureRequest]) (*connect.Response[graph.ValidateFixtureResponse], error)
 }
 
 // NewTypeScriptCodeGraphServiceHandler builds an HTTP handler from the service implementation. It
@@ -159,6 +210,18 @@ func NewTypeScriptCodeGraphServiceHandler(svc TypeScriptCodeGraphServiceHandler,
 		connect.WithSchema(typeScriptCodeGraphServiceMethods.ByName("RewriteApply")),
 		connect.WithHandlerOptions(opts...),
 	)
+	typeScriptCodeGraphServiceListFixturesHandler := connect.NewUnaryHandler(
+		TypeScriptCodeGraphServiceListFixturesProcedure,
+		svc.ListFixtures,
+		connect.WithSchema(typeScriptCodeGraphServiceMethods.ByName("ListFixtures")),
+		connect.WithHandlerOptions(opts...),
+	)
+	typeScriptCodeGraphServiceValidateFixtureHandler := connect.NewUnaryHandler(
+		TypeScriptCodeGraphServiceValidateFixtureProcedure,
+		svc.ValidateFixture,
+		connect.WithSchema(typeScriptCodeGraphServiceMethods.ByName("ValidateFixture")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case TypeScriptCodeGraphServiceExtractProcedure:
@@ -167,6 +230,10 @@ func NewTypeScriptCodeGraphServiceHandler(svc TypeScriptCodeGraphServiceHandler,
 			typeScriptCodeGraphServiceRewritePlanHandler.ServeHTTP(w, r)
 		case TypeScriptCodeGraphServiceRewriteApplyProcedure:
 			typeScriptCodeGraphServiceRewriteApplyHandler.ServeHTTP(w, r)
+		case TypeScriptCodeGraphServiceListFixturesProcedure:
+			typeScriptCodeGraphServiceListFixturesHandler.ServeHTTP(w, r)
+		case TypeScriptCodeGraphServiceValidateFixtureProcedure:
+			typeScriptCodeGraphServiceValidateFixtureHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -186,4 +253,12 @@ func (UnimplementedTypeScriptCodeGraphServiceHandler) RewritePlan(context.Contex
 
 func (UnimplementedTypeScriptCodeGraphServiceHandler) RewriteApply(context.Context, *connect.Request[graph.RewriteApplyRequest]) (*connect.Response[graph.RewriteApplyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService.RewriteApply is not implemented"))
+}
+
+func (UnimplementedTypeScriptCodeGraphServiceHandler) ListFixtures(context.Context, *connect.Request[graph.ListFixturesRequest]) (*connect.Response[graph.ListFixturesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService.ListFixtures is not implemented"))
+}
+
+func (UnimplementedTypeScriptCodeGraphServiceHandler) ValidateFixture(context.Context, *connect.Request[graph.ValidateFixtureRequest]) (*connect.Response[graph.ValidateFixtureResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService.ValidateFixture is not implemented"))
 }

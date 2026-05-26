@@ -369,7 +369,7 @@ export function buildFileIndex(graph: CodeGraph | undefined): FileEntry[] {
       name: node.name,
       kind: node.attributes.kind ?? "unknown",
       exported: node.attributes.exported === "true",
-      leadingComments: node.leadingComments ?? [],
+      leadingComments: node.leadingComments,
     });
     symbolsByPath.set(node.path, list);
   }

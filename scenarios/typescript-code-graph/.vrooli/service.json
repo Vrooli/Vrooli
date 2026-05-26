@@ -173,8 +173,8 @@
         },
         {
           "name": "install-sidecar-deps",
-          "run": "cd sidecar && (corepack pnpm install --frozen-lockfile || pnpm install --frozen-lockfile)",
-          "description": "Install Node sidecar dependencies (ts-morph + devDeps) reproducibly via pnpm-lock.yaml"
+          "run": "cd sidecar && (corepack pnpm install --frozen-lockfile --ignore-workspace || pnpm install --frozen-lockfile --ignore-workspace)",
+          "description": "Install Node sidecar dependencies (ts-morph + devDeps) reproducibly via pnpm-lock.yaml. --ignore-workspace isolates from the repo-root pnpm workspace (mirrors the install-ui-deps step) so the per-project lockfile is honoured instead of resolving to an absent root lockfile."
         },
         {
           "name": "build-sidecar",

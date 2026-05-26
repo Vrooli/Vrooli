@@ -15,8 +15,10 @@ func TestDomainToProtoGraph_FoldsKinds(t *testing.T) {
 		Nodes: []intgraph.Node{
 			{ID: "f", Kind: intgraph.NodeKindFile, Path: "src/a.ts"},
 			{ID: "m", Kind: intgraph.NodeKindModule, Path: "."},
-			{ID: "c", Kind: intgraph.NodeKindComponent, Name: "Btn", Path: "src/Btn.tsx",
-				LeadingComments: []string{"/** doc */"}},
+			{
+				ID: "c", Kind: intgraph.NodeKindComponent, Name: "Btn", Path: "src/Btn.tsx",
+				LeadingComments: []string{"/** doc */"},
+			},
 		},
 	}
 	p := domainToProtoGraph(g)

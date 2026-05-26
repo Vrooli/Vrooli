@@ -1,6 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { create } from "@bufbuild/protobuf";
 import {
   CodeGraphWarningSchema,
@@ -14,8 +13,8 @@ import { WarningsTab } from "./WarningsTab";
 const warnings = [
   create(CodeGraphWarningSchema, {
     kind: CodeGraphWarningKind.UNRESOLVED_IMPORT,
-    file: "pkga/a.go",
-    message: "cannot find package",
+    file: "src/a.ts",
+    message: "cannot resolve module",
   }),
   create(CodeGraphWarningSchema, {
     kind: CodeGraphWarningKind.PARSE_ERROR,
@@ -28,25 +27,19 @@ describe("WarningsTab", () => {
   afterEach(cleanup);
 
   it("renders one row per warning with a severity badge", () => {
-    renderWithProviders(
-      <WarningsTab warnings={warnings} includeVendor={false} onToggleVendor={() => {}} />,
-    );
+    renderWithProviders(<WarningsTab warnings={warnings} />);
     expect(screen.getByTestId(selectors.features.warnings.item({ index: 0 }))).toBeInTheDocument();
     expect(screen.getByTestId(selectors.features.warnings.item({ index: 1 }))).toBeInTheDocument();
   });
 
   it("shows the empty state when there are no warnings", () => {
-    renderWithProviders(<WarningsTab warnings={[]} includeVendor={false} onToggleVendor={() => {}} />);
+    renderWithProviders(<WarningsTab warnings={[]} />);
     expect(screen.getByTestId(selectors.features.warnings.empty)).toBeInTheDocument();
   });
 
-  it("fires onToggleVendor when the vendor checkbox is toggled", async () => {
-    const user = userEvent.setup();
-    const onToggle = vi.fn();
-    renderWithProviders(
-      <WarningsTab warnings={[]} includeVendor={false} onToggleVendor={onToggle} />,
-    );
-    await user.click(screen.getByTestId(selectors.features.warnings.vendorToggle));
-    expect(onToggle).toHaveBeenCalledWith(true);
+  it("renders the project-level label for a warning with no file", () => {
+    renderWithProviders(<WarningsTab warnings={warnings} />);
+    // The second warning (file: "") renders the project-level fallback.
+    expect(screen.getByTestId(selectors.features.warnings.item({ index: 1 }))).toBeInTheDocument();
   });
 });

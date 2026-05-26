@@ -64,7 +64,8 @@ type childExtraEnv []string
 
 // pending holds the bookkeeping for an outstanding request.
 type pending struct {
-	ch     chan rawResponse
+	ch chan rawResponse
+	//nolint:unused // reserved for drainPending crash-unblock wiring; retained as documented intent.
 	cancel func() // called by drainPending to unblock waiters on crash
 }
 

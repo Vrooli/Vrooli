@@ -27,6 +27,10 @@ type Deps struct {
 	GraphService   *intgraph.Service
 	RewriteService *intrewrite.Service
 	Logger         *log.Logger
+	// FixturesDir overrides the golden-fixtures root for ListFixtures /
+	// ValidateFixture. Empty falls back to the env var / scenario-relative
+	// default (see fixtures_handler.go).
+	FixturesDir string
 }
 
 type connectHandler struct {

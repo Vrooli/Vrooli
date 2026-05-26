@@ -5,7 +5,7 @@ import { create } from "@bufbuild/protobuf";
 import {
   ListFixturesResponseSchema,
   ValidateFixtureResponseSchema,
-} from "@vrooli/proto-types/go-code-graph/v1/graph/graph_pb";
+} from "@vrooli/proto-types/typescript-code-graph/v1/graph/graph_pb";
 
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
@@ -14,7 +14,7 @@ vi.mock("../../api/graph", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/graph")>();
   return {
     ...actual,
-    goCodeGraphClient: {
+    tsCodeGraphClient: {
       extract: vi.fn(),
       rewritePlan: vi.fn(),
       rewriteApply: vi.fn(),
@@ -25,14 +25,14 @@ vi.mock("../../api/graph", async (importOriginal) => {
 });
 
 import { FixturesTab } from "./FixturesTab";
-import { goCodeGraphClient } from "../../api/graph";
+import { tsCodeGraphClient } from "../../api/graph";
 
-const client = vi.mocked(goCodeGraphClient);
+const client = vi.mocked(tsCodeGraphClient);
 
 const listResponse = create(ListFixturesResponseSchema, {
   fixtures: [
-    { name: "go-cycles", path: "bas/fixtures/go-cycles", hasExpected: true },
-    { name: "go-mislocated", path: "bas/fixtures/go-mislocated", hasExpected: true },
+    { name: "ts-jsdoc-tags", path: "bas/fixtures/ts-jsdoc-tags", hasExpected: true },
+    { name: "ts-junk-drawer", path: "bas/fixtures/ts-junk-drawer", hasExpected: true },
   ],
 });
 
@@ -46,9 +46,9 @@ describe("FixturesTab", () => {
     client.listFixtures.mockResolvedValue(listResponse);
     renderWithProviders(<FixturesTab />);
     await waitFor(() => {
-      expect(screen.getByTestId(selectors.features.fixtures.item({ name: "go-cycles" }))).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.features.fixtures.item({ name: "ts-junk-drawer" }))).toBeInTheDocument();
     });
-    expect(screen.getByTestId(selectors.features.fixtures.item({ name: "go-mislocated" }))).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.features.fixtures.item({ name: "ts-jsdoc-tags" }))).toBeInTheDocument();
   });
 
   it("renders a pass result when validation succeeds", async () => {
@@ -63,9 +63,9 @@ describe("FixturesTab", () => {
       }),
     );
     renderWithProviders(<FixturesTab />);
-    await waitFor(() => screen.getByTestId(selectors.features.fixtures.item({ name: "go-cycles" })));
+    await waitFor(() => screen.getByTestId(selectors.features.fixtures.item({ name: "ts-junk-drawer" })));
 
-    const row = screen.getByTestId(selectors.features.fixtures.item({ name: "go-cycles" }));
+    const row = screen.getByTestId(selectors.features.fixtures.item({ name: "ts-junk-drawer" }));
     await user.click(within(row).getByRole("button"));
 
     await waitFor(() => {
@@ -87,9 +87,9 @@ describe("FixturesTab", () => {
       }),
     );
     renderWithProviders(<FixturesTab />);
-    await waitFor(() => screen.getByTestId(selectors.features.fixtures.item({ name: "go-mislocated" })));
+    await waitFor(() => screen.getByTestId(selectors.features.fixtures.item({ name: "ts-jsdoc-tags" })));
 
-    const row = screen.getByTestId(selectors.features.fixtures.item({ name: "go-mislocated" }));
+    const row = screen.getByTestId(selectors.features.fixtures.item({ name: "ts-jsdoc-tags" }));
     await user.click(within(row).getByRole("button"));
 
     await waitFor(() => {

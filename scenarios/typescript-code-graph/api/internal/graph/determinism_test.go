@@ -28,7 +28,8 @@ func TestExtractDeterminism(t *testing.T) {
 		cancel()
 		require.NoError(t, err, "run %d", i)
 
-		canonical := canonicalGraphJSON(t, out.Graph)
+		canonical, err := graph.CanonicalJSON(out.Graph)
+		require.NoError(t, err, "run %d: canonicalize", i)
 		if i == 0 {
 			firstHash = out.GraphHash
 			firstJSON = canonical

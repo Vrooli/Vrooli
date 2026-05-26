@@ -2,6 +2,7 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
+import { THEME_CHOICE_LABELS } from "../theme/themeChoiceLabels";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
@@ -64,7 +65,7 @@ export function TopBar() {
           >
             {THEME_CHOICES.map((c) => (
               <option key={c} value={c}>
-                {t(strings.theme.choice[c])}
+                {t(THEME_CHOICE_LABELS[c])}
               </option>
             ))}
           </select>

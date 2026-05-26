@@ -10,12 +10,12 @@ import { buildGraphLayout } from "./lib/graphAdapter";
 
 const cyclicGraph = create(CodeGraphSchema, {
   nodes: [
-    { id: "package:m/a", kind: NodeKind.PACKAGE, name: "a", path: "m/a" },
-    { id: "package:m/b", kind: NodeKind.PACKAGE, name: "b", path: "m/b" },
+    { id: "ts_module:src/a.ts", kind: NodeKind.MODULE, name: "a.ts", path: "src/a.ts", attributes: { kind: "TS_NODE_KIND_MODULE" } },
+    { id: "ts_module:src/b.ts", kind: NodeKind.MODULE, name: "b.ts", path: "src/b.ts", attributes: { kind: "TS_NODE_KIND_MODULE" } },
   ],
   edges: [
-    { id: "e1", kind: EdgeKind.IMPORT, fromNodeId: "package:m/a", toNodeId: "package:m/b" },
-    { id: "e2", kind: EdgeKind.IMPORT, fromNodeId: "package:m/b", toNodeId: "package:m/a" },
+    { id: "e1", kind: EdgeKind.IMPORT, fromNodeId: "ts_module:src/a.ts", toNodeId: "ts_module:src/b.ts" },
+    { id: "e2", kind: EdgeKind.IMPORT, fromNodeId: "ts_module:src/b.ts", toNodeId: "ts_module:src/a.ts" },
   ],
 });
 

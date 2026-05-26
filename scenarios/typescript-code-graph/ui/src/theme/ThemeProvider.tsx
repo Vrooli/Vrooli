@@ -25,6 +25,9 @@ const readStoredChoice = (): ThemeChoice => {
 
 const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
   if (choice === "light" || choice === "dark") return choice;
+  // SSR / jsdom guard: the DOM lib types window.matchMedia as always present,
+  // but it is absent under SSR and unstubbed jsdom — the runtime check is real.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (typeof window === "undefined" || !window.matchMedia) return "light";
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
@@ -55,6 +58,8 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   }, [resolved, choice]);
 
   useEffect(() => {
+    // SSR / jsdom guard — see resolveChoice above.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (typeof window === "undefined" || !window.matchMedia) return undefined;
     if (choice !== "system") return undefined;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -76,6 +81,9 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
+// Co-located with the ThemeProvider component by design; the hook is the
+// canonical accessor for the context this file owns.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
   if (!ctx) {
