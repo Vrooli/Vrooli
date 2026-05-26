@@ -256,6 +256,52 @@
             }
           }
         },
+        "diagnostics": {
+          "type": "object",
+          "description": "Rich diagnostic artifacts captured by BAS during workflow execution. Defaults are cheap (console only); enable richer capture for baselines/regression diagnosis.",
+          "properties": {
+            "video": {
+              "type": "boolean",
+              "default": false,
+              "description": "Record a Playwright video of each workflow"
+            },
+            "console": {
+              "type": "boolean",
+              "default": true,
+              "description": "Capture browser console logs (cheap; default on)"
+            },
+            "network": {
+              "type": "boolean",
+              "default": false,
+              "description": "Capture network request/response events"
+            },
+            "har": {
+              "type": "boolean",
+              "default": false,
+              "description": "Record a HAR archive of network traffic"
+            },
+            "trace": {
+              "type": "boolean",
+              "default": false,
+              "description": "Record a Playwright trace (zip) for time-travel debugging"
+            },
+            "dom": {
+              "type": "boolean",
+              "default": false,
+              "description": "Capture DOM snapshots"
+            }
+          }
+        },
+        "continue_on_failure": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run all selected workflows even after one fails, instead of stopping at the first failure"
+        },
+        "workflow_filter": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Restrict execution to the named workflows (by file/registry key). Empty means run all."
+        },
         "execution": {
           "type": "object",
           "description": "Workflow execution settings",

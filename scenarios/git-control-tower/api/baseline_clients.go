@@ -120,62 +120,6 @@ func (c baselineRunsClient) CompareRuns(ctx context.Context, scenario, runIDA, r
 	return out, nil
 }
 
-// baselineAuditor wraps scenario-auditor's standards check (start + poll) and
-// normalizes violations into baseline.Issue values for diffing.
-type baselineAuditor struct {
-	client      *AuditorClient
-	pollTimeout time.Duration
-}
-
-func (a baselineAuditor) Scan(ctx context.Context, scenario, scanType string) ([]baseline.Issue, error) {
-	job, err := a.client.StartCheck(ctx, scenario, scanType)
-	if err != nil {
-		return nil, fmt.Errorf("start auditor check: %w", err)
-	}
-	deadline := time.Now().Add(a.pollTimeout)
-	status := job.Status
-	for {
-		switch strings.ToLower(status.Status) {
-		case "completed", "complete", "done", "finished":
-			return violationsToIssues(status.Result), nil
-		case "failed", "error", "cancelled", "canceled":
-			return nil, fmt.Errorf("auditor check %s: %s", status.Status, status.Error)
-		}
-		if time.Now().After(deadline) {
-			return nil, fmt.Errorf("auditor check timed out after %s", a.pollTimeout)
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
-		s, perr := a.client.GetJobStatus(ctx, job.JobID)
-		if perr != nil {
-			return nil, fmt.Errorf("poll auditor job: %w", perr)
-		}
-		status = *s
-	}
-}
-
-func violationsToIssues(result *AuditorCheckResult) []baseline.Issue {
-	if result == nil {
-		return nil
-	}
-	issues := make([]baseline.Issue, 0, len(result.Violations))
-	for _, v := range result.Violations {
-		// Key excludes the volatile line number so a shifted-but-identical
-		// violation is not misread as cleared+regressed.
-		key := strings.Join([]string{v.Standard, v.Type, v.FilePath, v.Title}, "|")
-		issues = append(issues, baseline.Issue{
-			Key:      key,
-			Severity: v.Severity,
-			Title:    v.Title,
-			FilePath: v.FilePath,
-		})
-	}
-	return issues
-}
-
 // baselineVisualClient wraps GCT's visual snapshot capture + storage.
 type baselineVisualClient struct {
 	bas     *BrowserAutomationClient
@@ -227,17 +171,32 @@ func (baselineStalenessProbe) Since(ctx context.Context, repoDir, sha string) (i
 	}
 	commits, _ := strconv.Atoi(strings.TrimSpace(commitsOut))
 
-	filesOut, err := gitReadOnly(ctx, repoDir, "diff", "--name-only", sha, "HEAD")
+	// Distinct files changed since the baseline sha, INCLUDING uncommitted
+	// edits. `git diff --name-only <sha>` (no second ref) compares the baseline
+	// sha against the working tree, so it captures both committed-since changes
+	// and uncommitted modifications — the common mid-implementation agent case
+	// that the old `sha..HEAD` form reported as zero drift.
+	changed := map[string]struct{}{}
+	diffOut, err := gitReadOnly(ctx, repoDir, "diff", "--name-only", sha)
 	if err != nil {
 		return commits, 0, err
 	}
-	files := 0
-	for _, line := range strings.Split(strings.TrimSpace(filesOut), "\n") {
-		if strings.TrimSpace(line) != "" {
-			files++
+	for _, line := range strings.Split(strings.TrimSpace(diffOut), "\n") {
+		if s := strings.TrimSpace(line); s != "" {
+			changed[s] = struct{}{}
 		}
 	}
-	return commits, files, nil
+	// Untracked files aren't in `git diff`; pull them from porcelain status.
+	if statusOut, serr := gitReadOnly(ctx, repoDir, "status", "--porcelain", "--untracked-files=all"); serr == nil {
+		for _, line := range strings.Split(statusOut, "\n") {
+			if len(line) > 3 {
+				if path := strings.TrimSpace(line[3:]); path != "" {
+					changed[path] = struct{}{}
+				}
+			}
+		}
+	}
+	return commits, len(changed), nil
 }
 
 func gitReadOnly(ctx context.Context, repoDir string, args ...string) (string, error) {
@@ -285,20 +244,21 @@ func (s *Server) newBaselineService() *baseline.Service {
 	exec := baselineExecutor{client: s.testGenieClient}
 	// 15-minute timeout: diff triggers a fresh test-genie run before comparing.
 	runs := newBaselineRunsClient(15 * time.Minute)
-	auditor := baselineAuditor{client: s.auditorClient, pollTimeout: 10 * time.Minute}
 	visual := baselineVisualClient{bas: s.basClient, storage: s.visualCaptureStorage, fs: OSFileIO{}}
-	snaps := baseline.NewSnapshotStore(s.storageResolver)
 
+	// structure → test-genie "structure" phase; rules → "standards" phase. Both
+	// run through test-genie (which itself invokes scenario-auditor for
+	// standards), so GCT pins runs rather than calling scenario-auditor directly
+	// (Decision 3) — mirroring workflows↔playbooks.
 	adapters := map[string]baseline.SurfaceAdapter{
 		baseline.SurfaceWorkflows: baseline.NewWorkflowsAdapter(exec, runs),
 		baseline.SurfaceTests:     baseline.NewTestsAdapter(exec, runs),
-		baseline.SurfaceStructure: baseline.NewStructureAdapter(auditor, snaps),
-		baseline.SurfaceRules:     baseline.NewRulesAdapter(auditor, snaps),
+		baseline.SurfaceStructure: baseline.NewStructureAdapter(exec, runs),
+		baseline.SurfaceRules:     baseline.NewRulesAdapter(exec, runs),
 		baseline.SurfaceVisuals:   baseline.NewVisualsAdapter(visual),
 	}
 	return baseline.NewService(baseline.Deps{
 		Storage:  baseline.NewStorage(s.storageResolver),
-		Snaps:    snaps,
 		Adapters: adapters,
 		Probe:    baselineStalenessProbe{},
 		Runs:     runs,

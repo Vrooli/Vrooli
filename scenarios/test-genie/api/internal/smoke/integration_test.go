@@ -100,7 +100,7 @@ window.__vrooliBridgeChildInstalled = true;
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		result, err := runner.Run(ctx, "test-scenario", tmpDir)
+		result, err := runner.Run(ctx, "test-scenario", tmpDir, "20251208-151044-itsmoke0")
 		if err != nil {
 			t.Fatalf("Runner.Run() error = %v", err)
 		}

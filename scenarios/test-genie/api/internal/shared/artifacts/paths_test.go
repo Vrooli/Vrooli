@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+const testRunID = "20251208-151044-a1b2c3d4"
+
 func TestPhaseResultsPath(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -16,25 +18,25 @@ func TestPhaseResultsPath(t *testing.T) {
 			name:        "smoke phase",
 			scenarioDir: "/scenarios/test-scenario",
 			filename:    "smoke.json",
-			want:        "/scenarios/test-scenario/coverage/phase-results/smoke.json",
+			want:        "/scenarios/test-scenario/coverage/runs/" + testRunID + "/phase-results/smoke.json",
 		},
 		{
 			name:        "unit phase",
 			scenarioDir: "/scenarios/my-app",
 			filename:    "unit.json",
-			want:        "/scenarios/my-app/coverage/phase-results/unit.json",
+			want:        "/scenarios/my-app/coverage/runs/" + testRunID + "/phase-results/unit.json",
 		},
 		{
 			name:        "playbooks phase",
 			scenarioDir: "/home/user/project",
 			filename:    "playbooks.json",
-			want:        "/home/user/project/coverage/phase-results/playbooks.json",
+			want:        "/home/user/project/coverage/runs/" + testRunID + "/phase-results/playbooks.json",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := PhaseResultsPath(tt.scenarioDir, tt.filename)
+			got := PhaseResultsPath(tt.scenarioDir, testRunID, tt.filename)
 			want := filepath.FromSlash(tt.want)
 			if got != want {
 				t.Errorf("PhaseResultsPath() = %q, want %q", got, want)
@@ -54,24 +56,35 @@ func TestUISmokeArtifactPath(t *testing.T) {
 			name:        "screenshot",
 			scenarioDir: "/scenarios/test",
 			filename:    "screenshot.png",
-			want:        "/scenarios/test/coverage/ui-smoke/screenshot.png",
+			want:        "/scenarios/test/coverage/runs/" + testRunID + "/ui-smoke/screenshot.png",
 		},
 		{
 			name:        "console logs",
 			scenarioDir: "/scenarios/test",
 			filename:    "console.json",
-			want:        "/scenarios/test/coverage/ui-smoke/console.json",
+			want:        "/scenarios/test/coverage/runs/" + testRunID + "/ui-smoke/console.json",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := UISmokeArtifactPath(tt.scenarioDir, tt.filename)
+			got := UISmokeArtifactPath(tt.scenarioDir, testRunID, tt.filename)
 			want := filepath.FromSlash(tt.want)
 			if got != want {
 				t.Errorf("UISmokeArtifactPath() = %q, want %q", got, want)
 			}
 		})
+	}
+}
+
+func TestRunDirAndIndexPath(t *testing.T) {
+	scenarioDir := "/scenarios/test"
+
+	if got, want := RunDir(scenarioDir, testRunID), filepath.FromSlash("/scenarios/test/coverage/runs/"+testRunID); got != want {
+		t.Errorf("RunDir() = %q, want %q", got, want)
+	}
+	if got, want := RunsIndexPath(scenarioDir), filepath.FromSlash("/scenarios/test/coverage/runs.index.json"); got != want {
+		t.Errorf("RunsIndexPath() = %q, want %q", got, want)
 	}
 }
 
@@ -95,23 +108,18 @@ func TestAllCoverageSubdirs(t *testing.T) {
 	scenarioDir := "/scenarios/test"
 	dirs := AllCoverageSubdirs(scenarioDir)
 
-	// Should have 10 directories
-	if len(dirs) != 10 {
-		t.Errorf("AllCoverageSubdirs() returned %d dirs, want 10", len(dirs))
-	}
-
-	// Verify key directories are included
+	// Per-run directories are created lazily; only scenario-global dirs are here.
 	expected := []string{
 		"/scenarios/test/coverage/logs",
 		"/scenarios/test/coverage/latest",
-		"/scenarios/test/coverage/phase-results",
-		"/scenarios/test/coverage/ui-smoke",
-		"/scenarios/test/coverage/automation",
-		"/scenarios/test/coverage/lighthouse",
-		"/scenarios/test/coverage/unit",
+		"/scenarios/test/coverage/runs",
 		"/scenarios/test/coverage/sync",
 		"/scenarios/test/coverage/manual-validations",
 		"/scenarios/test/coverage/runtime",
+	}
+
+	if len(dirs) != len(expected) {
+		t.Fatalf("AllCoverageSubdirs() returned %d dirs, want %d", len(dirs), len(expected))
 	}
 
 	for i, exp := range expected {
@@ -125,7 +133,7 @@ func TestAllCoverageSubdirs(t *testing.T) {
 func TestRelativePaths(t *testing.T) {
 	tests := []struct {
 		name     string
-		fn       func(string) string
+		fn       func(runID, filename string) string
 		filename string
 		want     string
 	}{
@@ -133,31 +141,31 @@ func TestRelativePaths(t *testing.T) {
 			name:     "phase results",
 			fn:       RelativePhaseResultsPath,
 			filename: "unit.json",
-			want:     "coverage/phase-results/unit.json",
+			want:     "coverage/runs/" + testRunID + "/phase-results/unit.json",
 		},
 		{
 			name:     "ui smoke",
 			fn:       RelativeUISmokeArtifactPath,
 			filename: "screenshot.png",
-			want:     "coverage/ui-smoke/screenshot.png",
+			want:     "coverage/runs/" + testRunID + "/ui-smoke/screenshot.png",
 		},
 		{
 			name:     "automation",
 			fn:       RelativeAutomationArtifactPath,
 			filename: "workflow.timeline.json",
-			want:     "coverage/automation/workflow.timeline.json",
+			want:     "coverage/runs/" + testRunID + "/automation/workflow.timeline.json",
 		},
 		{
 			name:     "lighthouse",
 			fn:       RelativeLighthouseArtifactPath,
 			filename: "home.json",
-			want:     "coverage/lighthouse/home.json",
+			want:     "coverage/runs/" + testRunID + "/lighthouse/home.json",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.fn(tt.filename)
+			got := tt.fn(testRunID, tt.filename)
 			want := filepath.FromSlash(tt.want)
 			if got != want {
 				t.Errorf("%s() = %q, want %q", tt.name, got, want)
@@ -194,19 +202,17 @@ func TestManualValidationsPath(t *testing.T) {
 }
 
 func TestConstantConsistency(t *testing.T) {
-	// Verify that PhaseResultsDir constant matches what's used in paths.go and writer.go
-	if PhaseResultsDir != "coverage/phase-results" {
-		t.Errorf("PhaseResultsDir = %q, want %q", PhaseResultsDir, "coverage/phase-results")
+	if RunsDir != "coverage/runs" {
+		t.Errorf("RunsDir = %q, want %q", RunsDir, "coverage/runs")
 	}
-
-	// Verify automation dir matches playbooks constant
-	if AutomationDir != "coverage/automation" {
-		t.Errorf("AutomationDir = %q, want %q", AutomationDir, "coverage/automation")
+	if PhaseResultsSubdir != "phase-results" {
+		t.Errorf("PhaseResultsSubdir = %q, want %q", PhaseResultsSubdir, "phase-results")
 	}
-
-	// Verify lighthouse dir
-	if LighthouseDir != "coverage/lighthouse" {
-		t.Errorf("LighthouseDir = %q, want %q", LighthouseDir, "coverage/lighthouse")
+	if AutomationSubdir != "automation" {
+		t.Errorf("AutomationSubdir = %q, want %q", AutomationSubdir, "automation")
+	}
+	if LighthouseSubdir != "lighthouse" {
+		t.Errorf("LighthouseSubdir = %q, want %q", LighthouseSubdir, "lighthouse")
 	}
 }
 

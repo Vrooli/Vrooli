@@ -11,7 +11,7 @@ import (
 	"test-genie/internal/smoke"
 )
 
-func stubSmokeRunForPhase(t *testing.T, fn func(ctx context.Context, scenarioName, scenarioDir, uiURL string, logWriter io.Writer) (*smoke.PhaseResult, error)) {
+func stubSmokeRunForPhase(t *testing.T, fn func(ctx context.Context, scenarioName, scenarioDir, uiURL, runID string, logWriter io.Writer) (*smoke.PhaseResult, error)) {
 	t.Helper()
 	prev := smokeRunForPhase
 	smokeRunForPhase = fn
@@ -36,7 +36,7 @@ func TestRunSmokePhasePassesExplicitUIURL(t *testing.T) {
 	}
 
 	var gotUIURL string
-	stubSmokeRunForPhase(t, func(ctx context.Context, scenarioName, scenarioDir, uiURL string, logWriter io.Writer) (*smoke.PhaseResult, error) {
+	stubSmokeRunForPhase(t, func(ctx context.Context, scenarioName, scenarioDir, uiURL, runID string, logWriter io.Writer) (*smoke.PhaseResult, error) {
 		gotUIURL = uiURL
 		return &smoke.PhaseResult{
 			Success: true,
@@ -69,7 +69,7 @@ func TestRunSmokePhaseSurfacesConsoleWarnings(t *testing.T) {
 		t.Fatalf("failed to enable ui smoke testing: %v", err)
 	}
 
-	stubSmokeRunForPhase(t, func(ctx context.Context, scenarioName, scenarioDir, uiURL string, logWriter io.Writer) (*smoke.PhaseResult, error) {
+	stubSmokeRunForPhase(t, func(ctx context.Context, scenarioName, scenarioDir, uiURL, runID string, logWriter io.Writer) (*smoke.PhaseResult, error) {
 		return &smoke.PhaseResult{
 			Success: true,
 			Message: "ui smoke passed",

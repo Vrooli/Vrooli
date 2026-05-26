@@ -34,7 +34,7 @@ import (
 func TestGraphMaterialization_ExercisesRealWriters(t *testing.T) {
 	srv := newTestServer(t)
 	h := srv.Handler()
-	rootDir := srv.scenarioRoot
+	rootDir := testDataRoot(t)
 
 	// Create an initiative so subsequent items land in its graph.
 	mustPost(t, h, "/api/v1/initiatives", map[string]any{
@@ -200,7 +200,7 @@ func mustDelete(t *testing.T, h http.Handler, path string) {
 func TestGraphMaterialization_ExercisesInitiativesService(t *testing.T) {
 	srv := newTestServer(t)
 	h := srv.Handler()
-	rootDir := srv.scenarioRoot
+	rootDir := testDataRoot(t)
 
 	mustPost(t, h, "/api/v1/initiatives", map[string]any{
 		"name":        "svc-init",
@@ -305,7 +305,7 @@ func mustDeleteBody(t *testing.T, h http.Handler, path string, body any) {
 func TestGraphMaterialization_ExecutionStatusInvalidates(t *testing.T) {
 	srv := newTestServer(t)
 	h := srv.Handler()
-	rootDir := srv.scenarioRoot
+	rootDir := testDataRoot(t)
 
 	mustPost(t, h, "/api/v1/initiatives", map[string]any{
 		"name":        "exec-init",

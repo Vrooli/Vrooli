@@ -83,6 +83,10 @@ message BaselineManifest {
   GitState git = 6;
   map<string, SurfacePointer> surfaces = 7;
   int32 schema_version = 8;
+  // skipped records surfaces requested at capture time but not captured
+  // (surface_id → reason). Persisted so show/diff reveal a partial baseline
+  // instead of letting it masquerade as complete.
+  map<string, string> skipped = 9;
 }
 
 // SurfaceDiff is one surface's comparison verdict.
@@ -175,6 +179,9 @@ message DiffBaselineResponse {
   repeated SurfaceDiff surfaces = 4;
   // verdict is the worst per-surface verdict, driving the CLI exit code.
   string verdict = 5;
+  // dirty_warning is non-empty when the current working tree is dirty, where
+  // failures may stem from uncommitted changes rather than the diff itself.
+  string dirty_warning = 6;
 }
 
 message DeleteBaselineRequest {

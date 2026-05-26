@@ -55,6 +55,12 @@ func manifestToProto(m bl.BaselineManifest) *baselinesv1.BaselineManifest {
 	for id, ptr := range m.Surfaces {
 		out.Surfaces[id] = pointerToProto(ptr)
 	}
+	if len(m.Skipped) > 0 {
+		out.Skipped = make(map[string]string, len(m.Skipped))
+		for id, reason := range m.Skipped {
+			out.Skipped[id] = reason
+		}
+	}
 	return out
 }
 

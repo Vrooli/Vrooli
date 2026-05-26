@@ -162,7 +162,8 @@ func (s *Server) DiffBaseline(ctx context.Context, req *connect.Request[baseline
 			FilesChanged: int32(res.Staleness.FilesChanged),
 			LikelyStale:  res.Staleness.LikelyStale,
 		},
-		Verdict: string(res.Verdict),
+		Verdict:      string(res.Verdict),
+		DirtyWarning: res.DirtyWarning,
 	}
 	for _, d := range res.Surfaces {
 		out.Surfaces = append(out.Surfaces, surfaceDiffToProto(d))

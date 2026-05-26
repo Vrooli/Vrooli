@@ -22,6 +22,7 @@ type Args struct {
 	Phases                 []string
 	Skip                   []string
 	RequestID              string
+	DiagnosticsPreset      string
 	FailFast               bool
 	Stream                 bool
 	NoStream               bool // Explicitly disable streaming (use spinner instead)

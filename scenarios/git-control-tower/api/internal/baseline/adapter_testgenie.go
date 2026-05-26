@@ -50,6 +50,37 @@ func NewTestsAdapter(exec Executor, runs RunsClient) SurfaceAdapter {
 	}
 }
 
+// NewStructureAdapter builds the structure surface adapter, scoped to
+// test-genie's "structure" phase (scenario layout, manifests, and JSON health).
+// Structure is a static check with no browser diagnostics.
+func NewStructureAdapter(exec Executor, runs RunsClient) SurfaceAdapter {
+	return &testGenieAdapter{
+		surfaceID: SurfaceStructure,
+		phases:    []string{"structure"},
+		fastDiag:  "none",
+		fullDiag:  "none",
+		exec:      exec,
+		runs:      runs,
+	}
+}
+
+// NewRulesAdapter builds the rules surface adapter, scoped to test-genie's
+// "standards" phase. test-genie already runs scenario-auditor's standards rules
+// inside that phase, so GCT pins the run rather than calling scenario-auditor
+// directly (Decision 3 — test-genie owns runs, GCT owns baselines). Running the
+// full test-genie suite therefore refreshes rules just like running just the
+// rules surface runs only the standards phase — mirroring workflows↔playbooks.
+func NewRulesAdapter(exec Executor, runs RunsClient) SurfaceAdapter {
+	return &testGenieAdapter{
+		surfaceID: SurfaceRules,
+		phases:    []string{"standards"},
+		fastDiag:  "none",
+		fullDiag:  "none",
+		exec:      exec,
+		runs:      runs,
+	}
+}
+
 func (a *testGenieAdapter) ID() string { return a.surfaceID }
 
 func (a *testGenieAdapter) Available(_ context.Context, _ Target) bool {

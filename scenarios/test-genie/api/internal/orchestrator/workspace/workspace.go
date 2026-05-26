@@ -20,6 +20,16 @@ var validScenarioName = regexp.MustCompile(`^[a-zA-Z0-9\-_]+$`)
 // Environment exposes scenario paths and runtime URLs so phase runners can inspect files
 // and connect to running services without shell scripts.
 type Environment struct {
+	// RunID keys all artifact writes for this execution under
+	// coverage/runs/<RunID>/. The orchestrator mints it once per run and
+	// threads it into every phase writer.
+	RunID string
+
+	// DiagnosticsPreset, when non-empty ("none"|"light"|"full"), overrides the
+	// playbooks diagnostics config for this run. Empty leaves testing.json in
+	// control.
+	DiagnosticsPreset string
+
 	ScenarioName string
 	ScenarioDir  string
 	// TestDir is the legacy "testing workspace" root. Vrooli no longer requires

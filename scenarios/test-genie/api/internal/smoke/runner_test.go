@@ -296,7 +296,7 @@ func TestRunner_Run_DisabledViaConfig(t *testing.T) {
 	}
 
 	r := NewRunner("http://localhost:4110")
-	result, err := r.Run(context.Background(), "test-scenario", tmpDir)
+	result, err := r.Run(context.Background(), "test-scenario", tmpDir, "20251208-151044-runnert0")
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -333,7 +333,7 @@ func TestRunner_Run_CustomTimeouts(t *testing.T) {
 	// The runner will try to connect to browserless and fail (since no browserless is running)
 	// but we can verify the config was loaded correctly by checking the result
 	r := NewRunner("http://localhost:4110")
-	result, err := r.Run(context.Background(), "test-scenario", tmpDir)
+	result, err := r.Run(context.Background(), "test-scenario", tmpDir, "20251208-151044-runnert0")
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -348,7 +348,7 @@ func TestRunner_Run_NoUIDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	r := NewRunner("http://localhost:4110")
-	result, err := r.Run(context.Background(), "test-scenario", tmpDir)
+	result, err := r.Run(context.Background(), "test-scenario", tmpDir, "20251208-151044-runnert0")
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}

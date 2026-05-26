@@ -3,9 +3,9 @@ package evidence
 
 import (
 	"context"
+	"encoding/json"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"time"
 
 	"test-genie/internal/requirements/types"
@@ -93,7 +93,12 @@ func (l *loader) LoadPhaseResults(ctx context.Context, scenarioRoot string) (typ
 
 	evidenceMap := make(types.EvidenceMap)
 
-	dir := filepath.Join(scenarioRoot, sharedartifacts.PhaseResultsDir)
+	runID := l.latestRunID(scenarioRoot)
+	if runID == "" {
+		return evidenceMap, nil
+	}
+
+	dir := sharedartifacts.RunPhaseResultsDir(scenarioRoot, runID)
 	if l.reader.Exists(dir) {
 		results, err := loadPhaseResultsFromDir(ctx, l.reader, dir)
 		if err == nil {
@@ -102,6 +107,22 @@ func (l *loader) LoadPhaseResults(ctx context.Context, scenarioRoot string) (typ
 	}
 
 	return evidenceMap, nil
+}
+
+// latestRunID reads coverage/latest/manifest.json (via the injected reader) and
+// returns the run_id of the most recent run, or "" when none is recorded.
+func (l *loader) latestRunID(scenarioRoot string) string {
+	data, err := l.reader.ReadFile(sharedartifacts.LatestManifestPath(scenarioRoot))
+	if err != nil {
+		return ""
+	}
+	var manifest struct {
+		RunID string `json:"run_id"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return ""
+	}
+	return manifest.RunID
 }
 
 // LoadVitestEvidence loads evidence from vitest coverage files.

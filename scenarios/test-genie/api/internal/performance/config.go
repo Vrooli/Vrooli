@@ -14,6 +14,9 @@ type Config struct {
 	// ScenarioName is the name of the scenario (typically the directory name).
 	ScenarioName string
 
+	// RunID keys artifact writes under coverage/runs/<RunID>/.
+	RunID string
+
 	// Expectations holds custom validation expectations from .vrooli/testing.json.
 	Expectations *Expectations
 

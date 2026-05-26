@@ -4,11 +4,18 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
-func TestResolveLinuxDefaultsAndXDG(t *testing.T) {
+// TestResolveDefaultIsRuntimeHomeOnLinux proves the user-profile default resolves
+// under the operator runtime home and is OS-agnostic: RuntimeOS=linux and XDG env
+// sentinels do not steer it (the XDG branch was removed). Complements the
+// platform_test.go T-S1/T-S2 coverage from the resolver entry point.
+func TestResolveDefaultIsRuntimeHomeOnLinux(t *testing.T) {
 	t.Parallel()
 
+	const home = "/home/test"
 	r := mustResolver(t, ResolverConfig{
 		AppID:     "vrooli",
 		Profile:   ProfileAuto,
@@ -17,9 +24,7 @@ func TestResolveLinuxDefaultsAndXDG(t *testing.T) {
 			"XDG_DATA_HOME":  "/xdg/data",
 			"XDG_STATE_HOME": "/xdg/state",
 		}),
-		UserHomeDir:   func() (string, error) { return "/home/test", nil },
-		UserConfigDir: func() (string, error) { return "/home/test/.config", nil },
-		UserCacheDir:  func() (string, error) { return "/home/test/.cache", nil },
+		UserHomeDir: func() (string, error) { return home, nil },
 	})
 
 	paths, err := r.Resolve(Options{ScenarioID: "landing-page-business-suite"})
@@ -27,20 +32,24 @@ func TestResolveLinuxDefaultsAndXDG(t *testing.T) {
 		t.Fatalf("Resolve() error = %v", err)
 	}
 
-	if paths.ConfigDir != filepath.Join("/home/test/.config", "vrooli", "landing-page-business-suite") {
-		t.Fatalf("ConfigDir = %q", paths.ConfigDir)
-	}
-	if paths.DataDir != filepath.Join("/xdg/data", "vrooli", "landing-page-business-suite") {
-		t.Fatalf("DataDir = %q", paths.DataDir)
-	}
-	if paths.CacheDir != filepath.Join("/home/test/.cache", "vrooli", "landing-page-business-suite") {
-		t.Fatalf("CacheDir = %q", paths.CacheDir)
-	}
-	if paths.LogsDir != filepath.Join("/xdg/state/logs", "vrooli", "landing-page-business-suite") {
-		t.Fatalf("LogsDir = %q", paths.LogsDir)
-	}
-	if paths.StateDir != filepath.Join("/xdg/state", "vrooli", "landing-page-business-suite") {
-		t.Fatalf("StateDir = %q", paths.StateDir)
+	for cls, got := range map[string]string{
+		repocontract.HomeKeyConfig: paths.ConfigDir,
+		repocontract.HomeKeyData:   paths.DataDir,
+		repocontract.HomeKeyCache:  paths.CacheDir,
+		repocontract.HomeKeyLogs:   paths.LogsDir,
+		repocontract.HomeKeyState:  paths.StateDir,
+	} {
+		root, err := repocontract.RuntimeHomeEntryPath(home, cls)
+		if err != nil {
+			t.Fatalf("RuntimeHomeEntryPath(%q) error = %v", cls, err)
+		}
+		want := filepath.Join(root, "vrooli", "landing-page-business-suite")
+		if got != want {
+			t.Errorf("%s dir = %q, want %q", cls, got, want)
+		}
+		if strings.Contains(got, "/xdg/") {
+			t.Errorf("%s dir = %q still contains XDG segment", cls, got)
+		}
 	}
 }
 

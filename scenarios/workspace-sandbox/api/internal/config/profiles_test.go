@@ -387,14 +387,13 @@ func TestFileProfileStoreUsesCanonicalConfigPath(t *testing.T) {
 	home := t.TempDir()
 	scenarioDir := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 
 	store, err := NewFileProfileStore(scenarioDir)
 	if err != nil {
 		t.Fatalf("NewFileProfileStore() error = %v", err)
 	}
 
-	canonicalPath := filepath.Join(home, ".config", "vrooli", "workspace-sandbox", "profiles.json")
+	canonicalPath := filepath.Join(home, ".vrooli", "config", "vrooli", "workspace-sandbox", "profiles.json")
 	if store.path != canonicalPath {
 		t.Fatalf("store.path = %q, want %q", store.path, canonicalPath)
 	}

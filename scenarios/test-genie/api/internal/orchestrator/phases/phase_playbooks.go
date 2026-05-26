@@ -176,6 +176,17 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 		playbooksCfg = config.Default()
 	}
 
+	// A per-run diagnostics preset (from `test-genie execute --diagnostics-preset`)
+	// overrides whatever testing.json declared.
+	if env.DiagnosticsPreset != "" {
+		if diag, ok := config.DiagnosticsPreset(env.DiagnosticsPreset); ok {
+			playbooksCfg.Diagnostics = diag
+			logPhaseStep(logWriter, "diagnostics preset %q applied", env.DiagnosticsPreset)
+		} else {
+			shared.LogWarn(logWriter, "unknown diagnostics preset %q; using config defaults", env.DiagnosticsPreset)
+		}
+	}
+
 	if playbooksCfg != nil && !playbooksCfg.Enabled {
 		shared.LogWarn(logWriter, "playbooks phase disabled via .vrooli/testing.json (playbooks.enabled=false)")
 		return RunReport{
@@ -776,6 +787,7 @@ func runLoadedPlaybooksPhase(
 			runner := playbooks.New(playbooks.Config{
 				ScenarioDir:  env.ScenarioDir,
 				ScenarioName: env.ScenarioName,
+				RunID:        env.RunID,
 				TestDir:      env.TestDir,
 				AppRoot:      env.AppRoot,
 			}, opts...)

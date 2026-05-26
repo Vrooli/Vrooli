@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -265,7 +266,7 @@ func TestServiceJSONDependenciesFetcherUsesContractResolvedServicePath(t *testin
 func writeRepoContractFixture(t *testing.T, root string) {
 	t.Helper()
 
-	for _, dir := range []string{".vrooli", "scenarios", "resources", "packages", "cmd", "internal"} {
+	for _, dir := range []string{".vrooli", "scenarios", "resources", "templates", "packages", "cmd", "internal"} {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
@@ -274,29 +275,36 @@ func writeRepoContractFixture(t *testing.T, root string) {
 		t.Fatalf("write go.mod: %v", err)
 	}
 
-	contract := `{
-  "$schema": "schemas/repo-contract.schema.json",
-  "version": "1.0.0",
-  "platform": {"mode": "cross_platform_go_native", "legacy_project_bash_supported": false},
-  "root": {"markers": {"required_dirs": [".vrooli", "scenarios", "resources", "packages", "cmd", "internal"], "required_files": ["go.mod"]}},
-  "layout": {"project_config_dir": ".vrooli", "scenario_dir": "scenarios", "resource_dir": "resources", "template_dir": "templates", "package_dir": "packages", "command_dir": "cmd", "internal_dir": "internal", "docs_dir": "docs"},
-  "scenario": {"required_files": [".vrooli/service.json"], "well_known_paths": {"service": ".vrooli/service.json", "docs": "docs", "requirements": "requirements", "api": "api", "ui": "ui", "cli": "cli", "initialization": "initialization"}},
-  "resource": {"manifest": "resource.json", "well_known_paths": {"docs": "docs", "initialization": "initialization"}},
-  "globs": {"syntax": "doublestar", "root_relative": true, "case_sensitive": true, "allow_absolute": false, "path_format": "slash_normalized"},
-  "environment": {"variables": {"repo_root": "VROOLI_ROOT", "source_root": "VROOLI_SOURCE_ROOT", "sandbox_id": "VROOLI_SANDBOX_ID", "sandbox_merged": "VROOLI_SANDBOX_MERGED", "sandbox_scope": "VROOLI_SANDBOX_SCOPE"}},
-  "sandbox": {"full_repo_scopes": ["", ".", "/"], "scenario_scope_prefix": "scenarios/"},
-  "profiles": {
-    "mini_vrooli_bundle": {
-      "description": "fixture profile",
-      "parameters": ["scenario", "resources[*]"],
-      "include": [".vrooli", "cmd", "internal", "packages", "scenarios/{scenario}", "resources/{resources[*]}"],
-      "optional_include": ["docs", "go.mod"],
-      "exclude": [".git/**"]
-    }
-  }
-}`
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), []byte(contract), 0o644); err != nil {
+	// Copy the live repo's .vrooli/repo-contract.json verbatim rather than
+	// hand-typing a literal. This keeps the single source of truth authoritative
+	// and prevents the fixture from drifting when the contract schema gains a
+	// required field (e.g. runtime_home).
+	contract := liveRepoContract(t)
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), contract, 0o644); err != nil {
 		t.Fatalf("write repo-contract.json: %v", err)
+	}
+}
+
+// liveRepoContract reads the repository's authoritative
+// .vrooli/repo-contract.json by walking up from this source file until the
+// contract is found, returning the raw bytes for verbatim copy into a fixture.
+func liveRepoContract(t *testing.T) []byte {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed; cannot locate live repo contract")
+	}
+	dir := filepath.Dir(filename)
+	for {
+		candidate := filepath.Join(dir, ".vrooli", "repo-contract.json")
+		if data, err := os.ReadFile(candidate); err == nil {
+			return data
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("could not locate .vrooli/repo-contract.json above test package")
+		}
+		dir = parent
 	}
 }
 

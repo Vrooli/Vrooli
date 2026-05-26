@@ -15,6 +15,7 @@ import (
 
 	"test-genie/agentmanager"
 	appelig "test-genie/internal/app/eligibility"
+	apprun "test-genie/internal/app/runs"
 	"test-genie/internal/execution"
 	"test-genie/internal/fix"
 	"test-genie/internal/orchestrator"
@@ -32,6 +33,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/eligibility/eligibility_v1connect"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
 
 // Config controls the HTTP transport settings.
@@ -61,6 +63,7 @@ type Dependencies struct {
 	RequirementsSyncer         requirementsSyncer
 	PlaybooksClaims            *playbooksclaims.Service
 	EligibilityService         *appelig.Service
+	RunsService                *apprun.Service
 	Logger                     Logger
 	// Tool Discovery Protocol support
 	ToolRegistry *toolregistry.Registry
@@ -140,6 +143,7 @@ type Server struct {
 	requirementsSyncer         requirementsSyncer
 	playbooksClaims            *playbooksclaims.Service
 	eligibilityService         *appelig.Service
+	runsService                *apprun.Service
 	seedSessions               map[string]*seedSession
 	seedSessionsByScenario     map[string]string
 	seedSessionsMu             sync.Mutex
@@ -200,6 +204,7 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		requirementsSyncer:         deps.RequirementsSyncer,
 		playbooksClaims:            deps.PlaybooksClaims,
 		eligibilityService:         deps.EligibilityService,
+		runsService:                deps.RunsService,
 		seedSessions:               make(map[string]*seedSession),
 		seedSessionsByScenario:     make(map[string]string),
 		toolRegistry:               deps.ToolRegistry,
@@ -283,6 +288,13 @@ func (s *Server) setupRoutes() {
 	// under that prefix to the generated handler.
 	if s.eligibilityService != nil {
 		path, handler := eligibility_v1connect.NewEligibilityServiceHandler(s.eligibilityService)
+		s.router.PathPrefix(path).Handler(handler)
+	}
+
+	// Runs Connect-RPC service: enumerates/compares/pins the append-only run
+	// index. Consumed by the test-genie CLI and GCT baseline adapters.
+	if s.runsService != nil {
+		path, handler := runs_v1connect.NewRunsServiceHandler(s.runsService)
 		s.router.PathPrefix(path).Handler(handler)
 	}
 

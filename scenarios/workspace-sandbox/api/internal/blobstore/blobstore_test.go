@@ -9,7 +9,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 
@@ -23,6 +22,13 @@ func newTestStore(t *testing.T) (*Store, string) {
 	t.Helper()
 
 	root := t.TempDir()
+
+	// Pin all storage class roots under the test temp dir via the sanctioned
+	// override (VROOLI_STORAGE_ROOT). The user-profile default now resolves under
+	// the operator runtime home (~/.vrooli) and no longer honors XDG env vars, so
+	// the override is the way to keep tests hermetic.
+	t.Setenv("VROOLI_STORAGE_ROOT", root)
+
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
 		AppID:   "vrooli-test",
 		Profile: storage.ProfileAuto,
@@ -30,17 +36,6 @@ func newTestStore(t *testing.T) (*Store, string) {
 	if err != nil {
 		t.Fatalf("storage.NewResolver: %v", err)
 	}
-
-	// Wire the resolver to our test root by injecting RootOverride
-	// via a wrapper Store: the public NewResolver doesn't take
-	// RootOverride, but Resolver.Resolve does — so we override at
-	// path-resolution time by configuring the env var the resolver
-	// reads.
-	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "data"))
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
-	t.Setenv("XDG_CACHE_HOME", filepath.Join(root, "cache"))
-	t.Setenv("XDG_STATE_HOME", filepath.Join(root, "state"))
-	t.Setenv("XDG_RUNTIME_DIR", filepath.Join(root, "runtime"))
 
 	store, err := New(resolver)
 	if err != nil {

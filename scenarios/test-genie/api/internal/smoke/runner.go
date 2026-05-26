@@ -97,8 +97,9 @@ func WithAutoStart(enabled bool) RunnerOption {
 	}
 }
 
-// Run executes a UI smoke test for the given scenario.
-func (r *Runner) Run(ctx context.Context, scenarioName, scenarioDir string) (*Result, error) {
+// Run executes a UI smoke test for the given scenario. runID keys all artifacts
+// under coverage/runs/<runID>/.
+func (r *Runner) Run(ctx context.Context, scenarioName, scenarioDir, runID string) (*Result, error) {
 	cfg := orchestrator.Config{
 		ScenarioName:     scenarioName,
 		ScenarioDir:      scenarioDir,
@@ -138,7 +139,7 @@ func (r *Runner) Run(ctx context.Context, scenarioName, scenarioDir string) (*Re
 		orchestrator.WithLogger(r.logger),
 		orchestrator.WithPreflightChecker(checker),
 		orchestrator.WithBrowserClient(browser.NewClient(r.browserlessURL, browser.WithTimeout(cfg.Timeout+cfg.HandshakeTimeout+20*time.Second))),
-		orchestrator.WithArtifactWriter(artifacts.NewWriter()),
+		orchestrator.WithArtifactWriter(artifacts.NewWriter(artifacts.WithRunID(runID))),
 		orchestrator.WithHandshakeDetector(handshake.NewDetector()),
 		orchestrator.WithPayloadGenerator(browser.NewPayloadGenerator()),
 	}

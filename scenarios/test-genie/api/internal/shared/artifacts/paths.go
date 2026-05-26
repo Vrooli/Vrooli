@@ -55,21 +55,28 @@ const (
 	// LatestDir holds pointers and manifests for the most recent run.
 	LatestDir = "coverage/latest"
 
-	// PhaseResultsDir is where per-phase JSON summaries are written.
+	// RunsDir is the root for append-only, runID-keyed run artifacts.
+	// Each run writes under coverage/runs/<runID>/{phase-results,ui-smoke,...}.
+	RunsDir = "coverage/runs"
+
+	// RunsIndexFile is the append-only index of all runs, stored under coverage/.
+	RunsIndexFile = "runs.index.json"
+
+	// PhaseResultsSubdir is the per-run subdirectory for phase JSON summaries.
 	// Each phase writes <phase>.json here (e.g., smoke.json, unit.json).
-	PhaseResultsDir = "coverage/phase-results"
+	PhaseResultsSubdir = "phase-results"
 
-	// UISmokeDir holds UI smoke test artifacts (screenshots, console logs, etc).
-	UISmokeDir = "coverage/ui-smoke"
+	// UISmokeSubdir is the per-run subdirectory for UI smoke artifacts.
+	UISmokeSubdir = "ui-smoke"
 
-	// AutomationDir holds playbook execution timeline artifacts.
-	AutomationDir = "coverage/automation"
+	// AutomationSubdir is the per-run subdirectory for playbook timelines.
+	AutomationSubdir = "automation"
 
-	// LighthouseDir holds Lighthouse performance audit reports.
-	LighthouseDir = "coverage/lighthouse"
+	// LighthouseSubdir is the per-run subdirectory for Lighthouse reports.
+	LighthouseSubdir = "lighthouse"
 
-	// UnitDir holds unit test failure artifacts (READMEs with context).
-	UnitDir = "coverage/unit"
+	// UnitSubdir is the per-run subdirectory for unit test failure artifacts.
+	UnitSubdir = "unit"
 
 	// SyncDir holds requirement synchronization metadata.
 	SyncDir = "coverage/sync"
@@ -145,29 +152,64 @@ const (
 // Path Builders - Returns absolute paths given scenario root
 // ============================================================================
 
-// PhaseResultsPath returns the absolute path for a phase results file.
-func PhaseResultsPath(scenarioDir, filename string) string {
-	return filepath.Join(scenarioDir, PhaseResultsDir, filename)
+// RunDir returns the absolute path for a specific run's artifact root.
+func RunDir(scenarioDir, runID string) string {
+	return filepath.Join(scenarioDir, RunsDir, runID)
 }
 
-// UISmokeArtifactPath returns the absolute path for a UI smoke artifact.
-func UISmokeArtifactPath(scenarioDir, filename string) string {
-	return filepath.Join(scenarioDir, UISmokeDir, filename)
+// RunPhaseResultsDir returns the absolute per-run phase-results directory.
+func RunPhaseResultsDir(scenarioDir, runID string) string {
+	return filepath.Join(RunDir(scenarioDir, runID), PhaseResultsSubdir)
 }
 
-// AutomationArtifactPath returns the absolute path for an automation/playbook artifact.
-func AutomationArtifactPath(scenarioDir, filename string) string {
-	return filepath.Join(scenarioDir, AutomationDir, filename)
+// RunUISmokeDir returns the absolute per-run UI smoke directory.
+func RunUISmokeDir(scenarioDir, runID string) string {
+	return filepath.Join(RunDir(scenarioDir, runID), UISmokeSubdir)
 }
 
-// LighthouseArtifactPath returns the absolute path for a Lighthouse artifact.
-func LighthouseArtifactPath(scenarioDir, filename string) string {
-	return filepath.Join(scenarioDir, LighthouseDir, filename)
+// RunAutomationDir returns the absolute per-run automation directory.
+func RunAutomationDir(scenarioDir, runID string) string {
+	return filepath.Join(RunDir(scenarioDir, runID), AutomationSubdir)
 }
 
-// UnitArtifactPath returns the absolute path for a unit test artifact.
-func UnitArtifactPath(scenarioDir, testName string) string {
-	return filepath.Join(scenarioDir, UnitDir, testName)
+// RunLighthouseDir returns the absolute per-run Lighthouse directory.
+func RunLighthouseDir(scenarioDir, runID string) string {
+	return filepath.Join(RunDir(scenarioDir, runID), LighthouseSubdir)
+}
+
+// RunUnitDir returns the absolute per-run unit directory.
+func RunUnitDir(scenarioDir, runID string) string {
+	return filepath.Join(RunDir(scenarioDir, runID), UnitSubdir)
+}
+
+// RunsIndexPath returns the absolute path to the append-only runs index.
+func RunsIndexPath(scenarioDir string) string {
+	return filepath.Join(scenarioDir, CoverageRoot, RunsIndexFile)
+}
+
+// PhaseResultsPath returns the absolute path for a phase results file in a run.
+func PhaseResultsPath(scenarioDir, runID, filename string) string {
+	return filepath.Join(RunPhaseResultsDir(scenarioDir, runID), filename)
+}
+
+// UISmokeArtifactPath returns the absolute path for a UI smoke artifact in a run.
+func UISmokeArtifactPath(scenarioDir, runID, filename string) string {
+	return filepath.Join(RunUISmokeDir(scenarioDir, runID), filename)
+}
+
+// AutomationArtifactPath returns the absolute path for an automation/playbook artifact in a run.
+func AutomationArtifactPath(scenarioDir, runID, filename string) string {
+	return filepath.Join(RunAutomationDir(scenarioDir, runID), filename)
+}
+
+// LighthouseArtifactPath returns the absolute path for a Lighthouse artifact in a run.
+func LighthouseArtifactPath(scenarioDir, runID, filename string) string {
+	return filepath.Join(RunLighthouseDir(scenarioDir, runID), filename)
+}
+
+// UnitArtifactPath returns the absolute path for a unit test artifact in a run.
+func UnitArtifactPath(scenarioDir, runID, testName string) string {
+	return filepath.Join(RunUnitDir(scenarioDir, runID), testName)
 }
 
 // SyncMetadataPath returns the absolute path for sync metadata.
@@ -207,16 +249,14 @@ func VitestRequirementsPaths(scenarioDir string) []string {
 // Directory Creation Helpers
 // ============================================================================
 
-// AllCoverageSubdirs returns all coverage subdirectories that may need creation.
+// AllCoverageSubdirs returns the scenario-global coverage subdirectories that
+// may need creation. Per-run directories under coverage/runs/<runID>/ are
+// created lazily by writers once the runID is known.
 func AllCoverageSubdirs(scenarioDir string) []string {
 	return []string{
 		filepath.Join(scenarioDir, LogsDir),
 		filepath.Join(scenarioDir, LatestDir),
-		filepath.Join(scenarioDir, PhaseResultsDir),
-		filepath.Join(scenarioDir, UISmokeDir),
-		filepath.Join(scenarioDir, AutomationDir),
-		filepath.Join(scenarioDir, LighthouseDir),
-		filepath.Join(scenarioDir, UnitDir),
+		filepath.Join(scenarioDir, RunsDir),
 		filepath.Join(scenarioDir, SyncDir),
 		filepath.Join(scenarioDir, ManualValidationsDir),
 		filepath.Join(scenarioDir, RuntimeDir),
@@ -227,24 +267,24 @@ func AllCoverageSubdirs(scenarioDir string) []string {
 // Relative Path Helpers (for artifact references in JSON output)
 // ============================================================================
 
-// RelativePhaseResultsPath returns the relative path for a phase results file.
-func RelativePhaseResultsPath(filename string) string {
-	return filepath.Join(PhaseResultsDir, filename)
+// RelativePhaseResultsPath returns the run-relative path for a phase results file.
+func RelativePhaseResultsPath(runID, filename string) string {
+	return filepath.Join(RunsDir, runID, PhaseResultsSubdir, filename)
 }
 
-// RelativeUISmokeArtifactPath returns the relative path for a UI smoke artifact.
-func RelativeUISmokeArtifactPath(filename string) string {
-	return filepath.Join(UISmokeDir, filename)
+// RelativeUISmokeArtifactPath returns the run-relative path for a UI smoke artifact.
+func RelativeUISmokeArtifactPath(runID, filename string) string {
+	return filepath.Join(RunsDir, runID, UISmokeSubdir, filename)
 }
 
-// RelativeAutomationArtifactPath returns the relative path for an automation artifact.
-func RelativeAutomationArtifactPath(filename string) string {
-	return filepath.Join(AutomationDir, filename)
+// RelativeAutomationArtifactPath returns the run-relative path for an automation artifact.
+func RelativeAutomationArtifactPath(runID, filename string) string {
+	return filepath.Join(RunsDir, runID, AutomationSubdir, filename)
 }
 
-// RelativeLighthouseArtifactPath returns the relative path for a Lighthouse artifact.
-func RelativeLighthouseArtifactPath(filename string) string {
-	return filepath.Join(LighthouseDir, filename)
+// RelativeLighthouseArtifactPath returns the run-relative path for a Lighthouse artifact.
+func RelativeLighthouseArtifactPath(runID, filename string) string {
+	return filepath.Join(RunsDir, runID, LighthouseSubdir, filename)
 }
 
 // RunLogsDir builds the absolute path for a specific run's logs.

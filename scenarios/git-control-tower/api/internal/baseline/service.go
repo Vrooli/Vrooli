@@ -20,7 +20,6 @@ func PinOwner(name string) string { return "gct:baseline:" + name }
 // history; GCT owns baselines.
 type Service struct {
 	storage    *Storage
-	snaps      *SnapshotStore
 	adapters   map[string]SurfaceAdapter
 	probe      StalenessProbe
 	runs       RunsClient
@@ -31,7 +30,6 @@ type Service struct {
 // Deps wires the Service. Adapters is keyed by surface ID.
 type Deps struct {
 	Storage    *Storage
-	Snaps      *SnapshotStore
 	Adapters   map[string]SurfaceAdapter
 	Probe      StalenessProbe
 	Runs       RunsClient
@@ -53,7 +51,6 @@ func NewService(d Deps) *Service {
 	}
 	return &Service{
 		storage:    d.Storage,
-		snaps:      d.Snaps,
 		adapters:   d.Adapters,
 		probe:      d.Probe,
 		runs:       d.Runs,
@@ -121,10 +118,21 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (CreateResult, 
 	if req.Capture {
 		target := Target{RepoID: req.RepoID, RepoDir: req.RepoDir, Scenario: req.Scenario}
 		opts := CaptureOptions{Fast: req.Fast, PinnedBy: PinOwner(req.Name)}
-		for _, id := range s.surfacesToCapture(ctx, target, req.Include) {
+		want := req.Include
+		if len(want) == 0 {
+			want = AllSurfaces
+		}
+		for _, id := range want {
 			adapter := s.adapters[id]
 			if adapter == nil {
 				skipped[id] = "no adapter registered"
+				continue
+			}
+			// An unavailable surface (owning subsystem unreachable) is recorded
+			// as skipped, not silently dropped — otherwise the baseline would
+			// look complete when it isn't.
+			if !adapter.Available(ctx, target) {
+				skipped[id] = "surface unavailable at capture time (owning subsystem not reachable)"
 				continue
 			}
 			ptr, capErr := adapter.Capture(ctx, target, opts)
@@ -134,6 +142,9 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (CreateResult, 
 			}
 			manifest.Surfaces[id] = ptr
 		}
+	}
+	if len(skipped) > 0 {
+		manifest.Skipped = skipped
 	}
 
 	if err := s.storage.Save(req.RepoID, manifest, CreateOnly); err != nil {
@@ -149,23 +160,6 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (CreateResult, 
 	return res, nil
 }
 
-// surfacesToCapture resolves the requested surface set (or all) to those that
-// report Available.
-func (s *Service) surfacesToCapture(ctx context.Context, t Target, include []string) []string {
-	want := include
-	if len(want) == 0 {
-		want = AllSurfaces
-	}
-	var out []string
-	for _, id := range want {
-		adapter := s.adapters[id]
-		if adapter != nil && adapter.Available(ctx, t) {
-			out = append(out, id)
-		}
-	}
-	return out
-}
-
 // Get returns a single baseline manifest.
 func (s *Service) Get(ctx context.Context, repoID int64, scenario, branch, name string) (BaselineManifest, error) {
 	return s.storage.Load(repoID, scenario, branch, name)
@@ -179,11 +173,12 @@ func (s *Service) List(ctx context.Context, repoID int64, scenario, branch strin
 // DiffResult is the cross-surface comparison of a baseline against the current
 // working tree.
 type DiffResult struct {
-	Manifest   BaselineManifest
-	CurrentGit git.State
-	Staleness  Staleness
-	Surfaces   []SurfaceDiff
-	Verdict    Verdict
+	Manifest     BaselineManifest
+	CurrentGit   git.State
+	Staleness    Staleness
+	Surfaces     []SurfaceDiff
+	Verdict      Verdict
+	DirtyWarning string // non-empty when the current tree is dirty (verdicts are most suspect then)
 }
 
 // Diff compares a baseline against the current working tree. surface, when
@@ -202,6 +197,9 @@ func (s *Service) Diff(ctx context.Context, repoID int64, repoDir, scenario, bra
 
 	target := Target{RepoID: repoID, RepoDir: repoDir, Scenario: scenario}
 	res := DiffResult{Manifest: manifest, CurrentGit: cur, Staleness: stale, Verdict: VerdictClean}
+	if cur.Dirty {
+		res.DirtyWarning = fmt.Sprintf("working tree is dirty (%s) — failures may be caused by uncommitted changes rather than the diff itself", cur.DirtySummary)
+	}
 
 	ids := s.sortedSurfaceIDs(manifest)
 	for _, id := range ids {
@@ -222,21 +220,37 @@ func (s *Service) Diff(ctx context.Context, repoID int64, repoDir, scenario, bra
 		res.Surfaces = append(res.Surfaces, d)
 		res.Verdict = WorseVerdict(res.Verdict, d.Verdict)
 	}
+
+	// Surfaces requested but never captured (recorded in manifest.Skipped) are
+	// reported as not-comparable so a partial baseline cannot masquerade as a
+	// clean one — the diff explicitly says "this surface was never captured".
+	for _, id := range sortedSkippedIDs(manifest) {
+		if surface != "" && id != surface {
+			continue
+		}
+		if _, captured := manifest.Surfaces[id]; captured {
+			continue
+		}
+		d := notComparable(id, "surface was not captured in this baseline: "+manifest.Skipped[id])
+		res.Surfaces = append(res.Surfaces, d)
+		res.Verdict = WorseVerdict(res.Verdict, VerdictNotComparable)
+	}
+
 	if surface != "" && len(res.Surfaces) == 0 {
 		return DiffResult{}, fmt.Errorf("surface %q not present in baseline %q", surface, name)
 	}
 	return res, nil
 }
 
-// Delete removes a baseline and releases the test-genie runs it pinned plus any
-// GCT-local issue snapshots it owned.
+// Delete removes a baseline and releases the test-genie runs it pinned. Visual
+// snapshots live in VisualCaptureStorage under its own retention and are left
+// alone (Decision 1 — the baseline owns pointers, not the artifacts).
 func (s *Service) Delete(ctx context.Context, repoID int64, scenario, branch, name string) error {
 	manifest, err := s.storage.Load(repoID, scenario, branch, name)
 	if err != nil {
 		return err
 	}
 	s.unpinSurfaces(ctx, manifest)
-	s.deleteLocalSnapshots(repoID, manifest)
 	return s.storage.Delete(repoID, scenario, branch, name)
 }
 
@@ -290,18 +304,15 @@ func (s *Service) unpinSurfaces(ctx context.Context, m BaselineManifest) {
 	}
 }
 
-// deleteLocalSnapshots removes GCT-local issue snapshots (structure/rules).
-// Visual snapshots live in VisualCaptureStorage under its own retention and are
-// left alone.
-func (s *Service) deleteLocalSnapshots(repoID int64, m BaselineManifest) {
-	if s.snaps == nil {
-		return
+// sortedSkippedIDs returns the manifest's skipped surface IDs in canonical
+// order (same ordering rule as sortedSurfaceIDs).
+func sortedSkippedIDs(m BaselineManifest) []string {
+	ids := make([]string, 0, len(m.Skipped))
+	for id := range m.Skipped {
+		ids = append(ids, id)
 	}
-	for id, ptr := range m.Surfaces {
-		if ptr.Kind == KindGCTLocalSnapshot && (id == SurfaceStructure || id == SurfaceRules) {
-			_ = s.snaps.Delete(repoID, m.Scenario, ptr.Ref)
-		}
-	}
+	sortSurfaceIDs(ids)
+	return ids
 }
 
 func (s *Service) sortedSurfaceIDs(m BaselineManifest) []string {
@@ -309,7 +320,13 @@ func (s *Service) sortedSurfaceIDs(m BaselineManifest) []string {
 	for id := range m.Surfaces {
 		ids = append(ids, id)
 	}
-	// Stable canonical order: AllSurfaces order first, then any extras.
+	sortSurfaceIDs(ids)
+	return ids
+}
+
+// sortSurfaceIDs orders surface IDs by the canonical AllSurfaces order first,
+// then any extras alphabetically.
+func sortSurfaceIDs(ids []string) {
 	rank := map[string]int{}
 	for i, id := range AllSurfaces {
 		rank[id] = i
@@ -325,5 +342,4 @@ func (s *Service) sortedSurfaceIDs(m BaselineManifest) []string {
 		}
 		return ids[a] < ids[b]
 	})
-	return ids
 }

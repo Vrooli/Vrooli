@@ -159,6 +159,10 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	noOp := func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
 		return phasespkg.RunReport{}
 	}
+	// ui-health shells out to the ui-health binary against a real scenario; stub
+	// it here (preserving its weight-20 position) so orchestration tests don't
+	// depend on that external tool.
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.UIHealth, Runner: noOp, Optional: false, Weight: 20})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Performance, Runner: noOp, Optional: true, Weight: 60})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Smoke, Runner: noOp, Optional: true, Weight: 70})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Integration, Runner: noOp, Weight: 90})
@@ -212,10 +216,10 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		if !result.Success {
 			t.Fatalf("expected success, got failure: %#v", result)
 		}
-		if len(result.Phases) != 12 {
-			t.Fatalf("expected twelve phases, got %d", len(result.Phases))
+		if len(result.Phases) != 13 {
+			t.Fatalf("expected thirteen phases, got %d", len(result.Phases))
 		}
-		expected := []string{"structure", "contracts", "standards", "dependencies", "lint", "docs", "performance", "smoke", "unit", "integration", "playbooks", "business"}
+		expected := []string{"structure", "contracts", "ui-health", "standards", "dependencies", "lint", "docs", "performance", "smoke", "integration", "unit", "playbooks", "business"}
 		for _, phase := range result.Phases {
 			if phase.Status != "passed" {
 				t.Fatalf("phase %s expected passed, got %s", phase.Name, phase.Status)
@@ -256,7 +260,7 @@ func TestBuildWarningSummaryGroupsWarningObservationsByPhase(t *testing.T) {
 		},
 	}
 
-	summary := BuildWarningSummary(results)
+	summary := BuildWarningSummary("20251208-151044-warnsum0", results)
 	if summary.Total != 2 {
 		t.Fatalf("expected two warnings, got %#v", summary)
 	}
@@ -276,7 +280,7 @@ func TestBuildWarningSummaryGroupsWarningObservationsByPhase(t *testing.T) {
 	if warning.LogPath != "coverage/logs/run/performance.log" {
 		t.Fatalf("expected log path to be copied, got %q", warning.LogPath)
 	}
-	if warning.ArtifactPath != filepath.Join("coverage", "phase-results", "performance.json") {
+	if warning.ArtifactPath != filepath.Join("coverage", "runs", "20251208-151044-warnsum0", "phase-results", "performance.json") {
 		t.Fatalf("expected artifact path, got %q", warning.ArtifactPath)
 	}
 }
@@ -637,8 +641,8 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 				t.Fatalf("expected integration phase to be disabled via testing config")
 			}
 		}
-		if len(result.Phases) != 11 {
-			t.Fatalf("expected eleven phases after disabling integration, got %d", len(result.Phases))
+		if len(result.Phases) != 12 {
+			t.Fatalf("expected twelve phases after disabling integration, got %d", len(result.Phases))
 		}
 	})
 }

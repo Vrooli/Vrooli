@@ -24,13 +24,25 @@ func NewConnectHTTPClient(app *ScenarioApp) (connect.HTTPClient, string) {
 	if app == nil {
 		return &scenarioConnectHTTPClient{}, ""
 	}
-	baseURL := ""
-	if app.baseOptions != nil {
-		baseURL = app.APIRootBase()
-	}
 	var timeout time.Duration
 	if app.HTTPClient != nil {
 		timeout = app.HTTPClient.Timeout()
+	}
+	return NewConnectHTTPClientWithTimeout(app, timeout)
+}
+
+// NewConnectHTTPClientWithTimeout is NewConnectHTTPClient with an explicit
+// per-client timeout. Use it for inherently long-running RPCs (e.g. a handler
+// that synchronously triggers a multi-minute test suite) where the scenario's
+// default client timeout would abort the call while the server is still
+// working. A zero timeout means no client-side deadline.
+func NewConnectHTTPClientWithTimeout(app *ScenarioApp, timeout time.Duration) (connect.HTTPClient, string) {
+	if app == nil {
+		return &scenarioConnectHTTPClient{}, ""
+	}
+	baseURL := ""
+	if app.baseOptions != nil {
+		baseURL = app.APIRootBase()
 	}
 	httpClient := &http.Client{Timeout: timeout}
 	return &scenarioConnectHTTPClient{app: app, client: httpClient}, baseURL

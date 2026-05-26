@@ -1,0 +1,280 @@
+package runs
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"syscall"
+	"time"
+
+	sharedartifacts "test-genie/internal/shared/artifacts"
+)
+
+// Run status values recorded in the index.
+const (
+	StatusInProgress = "in_progress"
+	StatusPassed     = "passed"
+	StatusFailed     = "failed"
+	StatusAborted    = "aborted"
+)
+
+// ErrRunNotFound is returned when a run ID is absent from the index.
+var ErrRunNotFound = errors.New("run not found in index")
+
+// ErrRunPinned is returned when a delete is attempted on a pinned run without force.
+var ErrRunPinned = errors.New("run is pinned; unpin or use force to delete")
+
+// DiagnosticsConfig is the serialized diagnostics profile a run was executed
+// with. It is immutable once the run completes (Decision 4 in Plan A).
+type DiagnosticsConfig struct {
+	Video   bool `json:"video"`
+	Console bool `json:"console"`
+	Network bool `json:"network"`
+	HAR     bool `json:"har"`
+	Trace   bool `json:"trace"`
+	DOM     bool `json:"dom"`
+}
+
+// PinRecord protects a run from retention GC while an external consumer (e.g.
+// a git-control-tower baseline) references it.
+type PinRecord struct {
+	PinnedBy string    `json:"pinned_by"`
+	PinnedAt time.Time `json:"pinned_at"`
+	Reason   string    `json:"reason,omitempty"`
+}
+
+// PhaseRecord is a compact per-phase summary stored in the index for fast
+// enumeration without reading per-run phase-results files.
+type PhaseRecord struct {
+	Name            string `json:"name"`
+	Status          string `json:"status"`
+	DurationSeconds int    `json:"duration_seconds"`
+}
+
+// RunRecord is the index entry for a single test-genie execution.
+type RunRecord struct {
+	RunID           string            `json:"run_id"`
+	Scenario        string            `json:"scenario"`
+	StartedAt       time.Time         `json:"started_at"`
+	CompletedAt     time.Time         `json:"completed_at,omitempty"`
+	Status          string            `json:"status"`
+	Phases          []PhaseRecord     `json:"phases,omitempty"`
+	GitSha          string            `json:"git_sha,omitempty"`
+	GitBranch       string            `json:"git_branch,omitempty"`
+	GitDirty        bool              `json:"git_dirty,omitempty"`
+	GitDirtySummary string            `json:"git_dirty_summary,omitempty"`
+	Diagnostics     DiagnosticsConfig `json:"diagnostics"`
+	Pins            []PinRecord       `json:"pins,omitempty"`
+}
+
+// IsPinned reports whether the run is protected from retention GC.
+func (r RunRecord) IsPinned() bool { return len(r.Pins) > 0 }
+
+// Index is the append-only run index backed by coverage/runs.index.json. All
+// mutations serialize through an advisory flock on a sibling lock file so
+// concurrent test-genie processes (multiple agents on one box) cannot corrupt
+// it.
+type Index struct {
+	path     string
+	lockPath string
+}
+
+// NewIndex returns the Index for a scenario directory.
+func NewIndex(scenarioDir string) *Index {
+	path := sharedartifacts.RunsIndexPath(scenarioDir)
+	return &Index{path: path, lockPath: path + ".lock"}
+}
+
+// Path returns the absolute path to the index file.
+func (i *Index) Path() string { return i.path }
+
+// withLock runs fn while holding an exclusive advisory lock on the index.
+func (i *Index) withLock(fn func() error) error {
+	if err := os.MkdirAll(filepath.Dir(i.lockPath), 0o755); err != nil {
+		return fmt.Errorf("create index dir: %w", err)
+	}
+	lf, err := os.OpenFile(i.lockPath, os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return fmt.Errorf("open index lock: %w", err)
+	}
+	defer lf.Close()
+
+	if err := syscall.Flock(int(lf.Fd()), syscall.LOCK_EX); err != nil {
+		return fmt.Errorf("acquire index lock: %w", err)
+	}
+	defer func() { _ = syscall.Flock(int(lf.Fd()), syscall.LOCK_UN) }()
+
+	return fn()
+}
+
+// readUnlocked loads the records without locking (callers hold the lock).
+func (i *Index) readUnlocked() ([]RunRecord, error) {
+	data, err := os.ReadFile(i.path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read index: %w", err)
+	}
+	if len(data) == 0 {
+		return nil, nil
+	}
+	var records []RunRecord
+	if err := json.Unmarshal(data, &records); err != nil {
+		return nil, fmt.Errorf("parse index: %w", err)
+	}
+	return records, nil
+}
+
+// writeUnlocked atomically replaces the index file (callers hold the lock).
+func (i *Index) writeUnlocked(records []RunRecord) error {
+	data, err := json.MarshalIndent(records, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal index: %w", err)
+	}
+	tmp := i.path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return fmt.Errorf("write index tmp: %w", err)
+	}
+	if err := os.Rename(tmp, i.path); err != nil {
+		return fmt.Errorf("replace index: %w", err)
+	}
+	return nil
+}
+
+// List returns all run records sorted newest-first (by StartedAt, then RunID).
+func (i *Index) List() ([]RunRecord, error) {
+	var records []RunRecord
+	err := i.withLock(func() error {
+		loaded, err := i.readUnlocked()
+		if err != nil {
+			return err
+		}
+		records = loaded
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.SliceStable(records, func(a, b int) bool {
+		if records[a].StartedAt.Equal(records[b].StartedAt) {
+			return records[a].RunID > records[b].RunID
+		}
+		return records[a].StartedAt.After(records[b].StartedAt)
+	})
+	return records, nil
+}
+
+// Find returns the record for a run ID, or ErrRunNotFound.
+func (i *Index) Find(runID string) (RunRecord, error) {
+	var found RunRecord
+	var ok bool
+	err := i.withLock(func() error {
+		records, err := i.readUnlocked()
+		if err != nil {
+			return err
+		}
+		for _, r := range records {
+			if r.RunID == runID {
+				found, ok = r, true
+				return nil
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return RunRecord{}, err
+	}
+	if !ok {
+		return RunRecord{}, ErrRunNotFound
+	}
+	return found, nil
+}
+
+// Append adds a new record. If a record with the same RunID already exists it
+// is replaced (idempotent upsert for the start-then-finalize lifecycle).
+func (i *Index) Append(rec RunRecord) error {
+	return i.withLock(func() error {
+		records, err := i.readUnlocked()
+		if err != nil {
+			return err
+		}
+		for idx, r := range records {
+			if r.RunID == rec.RunID {
+				records[idx] = rec
+				return i.writeUnlocked(records)
+			}
+		}
+		records = append(records, rec)
+		return i.writeUnlocked(records)
+	})
+}
+
+// Update mutates an existing record under lock. Returns ErrRunNotFound if the
+// run is absent.
+func (i *Index) Update(runID string, mutate func(*RunRecord) error) error {
+	return i.withLock(func() error {
+		records, err := i.readUnlocked()
+		if err != nil {
+			return err
+		}
+		for idx := range records {
+			if records[idx].RunID == runID {
+				if err := mutate(&records[idx]); err != nil {
+					return err
+				}
+				return i.writeUnlocked(records)
+			}
+		}
+		return ErrRunNotFound
+	})
+}
+
+// Remove deletes a record by run ID. Missing runs are a no-op.
+func (i *Index) Remove(runID string) error {
+	return i.withLock(func() error {
+		records, err := i.readUnlocked()
+		if err != nil {
+			return err
+		}
+		filtered := records[:0]
+		for _, r := range records {
+			if r.RunID != runID {
+				filtered = append(filtered, r)
+			}
+		}
+		return i.writeUnlocked(filtered)
+	})
+}
+
+// Pin adds a pin to a run, protecting it from retention GC. Re-pinning by the
+// same PinnedBy is idempotent (updates the reason/timestamp).
+func (i *Index) Pin(runID string, pin PinRecord) error {
+	return i.Update(runID, func(r *RunRecord) error {
+		for idx := range r.Pins {
+			if r.Pins[idx].PinnedBy == pin.PinnedBy {
+				r.Pins[idx] = pin
+				return nil
+			}
+		}
+		r.Pins = append(r.Pins, pin)
+		return nil
+	})
+}
+
+// Unpin removes the pin owned by pinnedBy. Absent pins are a no-op.
+func (i *Index) Unpin(runID, pinnedBy string) error {
+	return i.Update(runID, func(r *RunRecord) error {
+		filtered := r.Pins[:0]
+		for _, p := range r.Pins {
+			if p.PinnedBy != pinnedBy {
+				filtered = append(filtered, p)
+			}
+		}
+		r.Pins = filtered
+		return nil
+	})
+}

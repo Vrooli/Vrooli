@@ -12,10 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"sync/atomic"
 	"time"
-
-	"github.com/google/uuid"
 
 	"git-control-tower/internal/git"
 )
@@ -93,14 +90,20 @@ type SurfacePointer struct {
 // data/<repoID>/baselines/<scenario>/<branch>/<name>.json. It owns no
 // artifacts — only pointers into the owning subsystems.
 type BaselineManifest struct {
-	Name          string                    `json:"name"`
-	Scenario      string                    `json:"scenario"`
-	Branch        string                    `json:"branch"`
-	CreatedAt     time.Time                 `json:"created_at"`
-	CreatedBy     string                    `json:"created_by,omitempty"` // "agent" | "ui:matt"
-	Git           git.State                 `json:"git"`
-	Surfaces      map[string]SurfacePointer `json:"surfaces"`
-	SchemaVersion int                       `json:"schema_version"`
+	Name      string                    `json:"name"`
+	Scenario  string                    `json:"scenario"`
+	Branch    string                    `json:"branch"`
+	CreatedAt time.Time                 `json:"created_at"`
+	CreatedBy string                    `json:"created_by,omitempty"` // "agent" | "ui:matt"
+	Git       git.State                 `json:"git"`
+	Surfaces  map[string]SurfacePointer `json:"surfaces"`
+	// Skipped records surfaces that were requested at capture time but not
+	// captured — keyed surfaceID → reason (adapter unavailable or capture
+	// failed). Persisting it lets show/diff reveal a partial baseline instead
+	// of letting it masquerade as complete: a baseline that never captured
+	// `tests` must not read as "tests clean".
+	Skipped       map[string]string `json:"skipped,omitempty"`
+	SchemaVersion int               `json:"schema_version"`
 }
 
 // Validate checks the required fields are present. It does not validate
@@ -116,18 +119,4 @@ func (m BaselineManifest) Validate() error {
 		return fmt.Errorf("branch is required")
 	}
 	return nil
-}
-
-// idSeq is the monotonic counter folded into artifact IDs to close the
-// multi-core nanosecond-collision window described in Plan A §2.2.
-var idSeq int64
-
-// NewArtifactID generates a collision-resistant ID for a new GCT-local
-// artifact (e.g. a structure/rules snapshot). It combines a monotonic
-// nanosecond+sequence prefix with a 6-char UUID suffix, replacing the bare
-// time.Now().UnixNano() scheme (greenfield — Plan A §2.2).
-func NewArtifactID() string {
-	n := time.Now().UnixNano()*1000 + atomic.AddInt64(&idSeq, 1)%1000
-	suffix := strings.ReplaceAll(uuid.NewString(), "-", "")[:6]
-	return fmt.Sprintf("%d-%s", n, suffix)
 }

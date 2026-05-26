@@ -34,7 +34,7 @@ func runSmokePhase(ctx context.Context, env workspace.Environment, logWriter io.
 	logPhaseStep(logWriter, "running UI smoke test for %s", env.ScenarioName)
 
 	// Run the smoke test
-	phaseResult, err := smokeRunForPhase(ctx, env.ScenarioName, env.ScenarioDir, env.UIURL, logWriter)
+	phaseResult, err := smokeRunForPhase(ctx, env.ScenarioName, env.ScenarioDir, env.UIURL, env.RunID, logWriter)
 	if err != nil {
 		return RunReport{
 			Err:                   err,

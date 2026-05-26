@@ -43,7 +43,7 @@ type PhaseResult struct {
 
 // RunForPhase executes UI smoke test and returns a result suitable for phase integration.
 // It looks up browserless URL from environment or uses default.
-func RunForPhase(ctx context.Context, scenarioName, scenarioDir, uiURL string, logWriter io.Writer) (*PhaseResult, error) {
+func RunForPhase(ctx context.Context, scenarioName, scenarioDir, uiURL, runID string, logWriter io.Writer) (*PhaseResult, error) {
 	browserlessURL := GetBrowserlessURL()
 
 	opts := []RunnerOption{WithRunnerLogger(logWriter)}
@@ -52,7 +52,7 @@ func RunForPhase(ctx context.Context, scenarioName, scenarioDir, uiURL string, l
 	}
 
 	runner := NewRunner(browserlessURL, opts...)
-	result, err := runner.Run(ctx, scenarioName, scenarioDir)
+	result, err := runner.Run(ctx, scenarioName, scenarioDir, runID)
 	if err != nil {
 		return nil, fmt.Errorf("ui smoke execution failed: %w", err)
 	}

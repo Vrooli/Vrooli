@@ -20,6 +20,7 @@ func runPerformancePhase(ctx context.Context, env workspace.Environment, logWrit
 			runner := performance.New(performance.Config{
 				ScenarioDir:  env.ScenarioDir,
 				ScenarioName: env.ScenarioName,
+				RunID:        env.RunID,
 				Expectations: expectations,
 				UIURL:        env.UIURL,
 			}, performance.WithLogger(logWriter))

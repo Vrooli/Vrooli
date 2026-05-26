@@ -85,10 +85,14 @@ func TestLoader_LoadPhaseResults_NoDirectory(t *testing.T) {
 
 func TestLoader_LoadPhaseResults_WithFiles(t *testing.T) {
 	reader := newMemReader()
-	reader.dirs["/test/scenario/coverage/phase-results"] = []fs.DirEntry{
+	const runID = "20251208-151044-loadtest"
+	// The latest manifest points the loader at the most recent run.
+	reader.files["/test/scenario/coverage/latest/manifest.json"] = []byte(`{"run_id":"` + runID + `"}`)
+	runDir := "/test/scenario/coverage/runs/" + runID + "/phase-results"
+	reader.dirs[runDir] = []fs.DirEntry{
 		&memDirEntry{name: "unit.json", isDir: false},
 	}
-	reader.files["/test/scenario/coverage/phase-results/unit.json"] = []byte(`{
+	reader.files[runDir+"/unit.json"] = []byte(`{
 		"phase": "unit",
 		"status": "passed",
 		"duration_seconds": 5.5,

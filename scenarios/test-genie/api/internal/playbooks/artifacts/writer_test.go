@@ -13,6 +13,8 @@ import (
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
+const pbRunID = "20251208-151044-cafef00d"
+
 func TestWriterWriteTimeline(t *testing.T) {
 	tempDir := t.TempDir()
 	scenarioDir := filepath.Join(tempDir, "scenario")
@@ -20,7 +22,7 @@ func TestWriterWriteTimeline(t *testing.T) {
 		t.Fatalf("failed to create scenario dir: %v", err)
 	}
 
-	writer := NewWriter(scenarioDir, "test-scenario", tempDir)
+	writer := NewWriter(scenarioDir, "test-scenario", pbRunID, tempDir)
 	timelineData := []byte(`{"frames": [{"step_type": "navigate"}]}`)
 
 	path, err := writer.WriteTimeline("bas/cases/login.json", timelineData)
@@ -29,7 +31,7 @@ func TestWriterWriteTimeline(t *testing.T) {
 	}
 
 	// Verify file was created
-	fullPath := filepath.Join(scenarioDir, sharedartifacts.AutomationDir, "bas-cases-login.timeline.json")
+	fullPath := filepath.Join(sharedartifacts.RunAutomationDir(scenarioDir, pbRunID), "bas-cases-login.timeline.json")
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
 		t.Fatalf("failed to read timeline file: %v", err)
@@ -49,14 +51,14 @@ func TestWriterWriteTimelineCreatesDirectory(t *testing.T) {
 	scenarioDir := filepath.Join(tempDir, "scenario")
 	// Don't create scenario dir - should be created automatically
 
-	writer := NewWriter(scenarioDir, "test-scenario", tempDir)
+	writer := NewWriter(scenarioDir, "test-scenario", pbRunID, tempDir)
 	_, err := writer.WriteTimeline("workflow.json", []byte("{}"))
 	if err != nil {
 		t.Fatalf("expected success, got error: %v", err)
 	}
 
 	// Verify directory was created
-	timelineDirPath := filepath.Join(scenarioDir, sharedartifacts.AutomationDir)
+	timelineDirPath := sharedartifacts.RunAutomationDir(scenarioDir, pbRunID)
 	if _, err := os.Stat(timelineDirPath); err != nil {
 		t.Error("expected timeline directory to be created")
 	}
@@ -69,7 +71,7 @@ func TestWriterWritePhaseResults(t *testing.T) {
 		t.Fatalf("failed to create scenario dir: %v", err)
 	}
 
-	writer := NewWriter(scenarioDir, "test-scenario", tempDir)
+	writer := NewWriter(scenarioDir, "test-scenario", pbRunID, tempDir)
 
 	results := []types.Result{
 		{
@@ -92,7 +94,7 @@ func TestWriterWritePhaseResults(t *testing.T) {
 	}
 
 	// Verify file was created
-	path := filepath.Join(scenarioDir, sharedartifacts.PhaseResultsDir, sharedartifacts.PhaseResultsPlaybooks)
+	path := filepath.Join(sharedartifacts.RunPhaseResultsDir(scenarioDir, pbRunID), sharedartifacts.PhaseResultsPlaybooks)
 	content, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read phase results: %v", err)
@@ -129,7 +131,7 @@ func TestWriterWritePhaseResultsWithErrors(t *testing.T) {
 		t.Fatalf("failed to create scenario dir: %v", err)
 	}
 
-	writer := NewWriter(scenarioDir, "test-scenario", tempDir)
+	writer := NewWriter(scenarioDir, "test-scenario", pbRunID, tempDir)
 
 	results := []types.Result{
 		{
@@ -146,7 +148,7 @@ func TestWriterWritePhaseResultsWithErrors(t *testing.T) {
 		t.Fatalf("expected success, got error: %v", err)
 	}
 
-	path := filepath.Join(scenarioDir, sharedartifacts.PhaseResultsDir, sharedartifacts.PhaseResultsPlaybooks)
+	path := filepath.Join(sharedartifacts.RunPhaseResultsDir(scenarioDir, pbRunID), sharedartifacts.PhaseResultsPlaybooks)
 	content, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read phase results: %v", err)
@@ -167,7 +169,7 @@ func TestWriterWritePhaseResultsWithErrors(t *testing.T) {
 
 func TestWriterWritePhaseResultsEmpty(t *testing.T) {
 	tempDir := t.TempDir()
-	writer := NewWriter(tempDir, "test", tempDir)
+	writer := NewWriter(tempDir, "test", pbRunID, tempDir)
 
 	err := writer.WritePhaseResults(nil)
 	if err != nil {

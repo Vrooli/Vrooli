@@ -15,7 +15,7 @@ import (
 
 func TestWriteWorkflowArtifacts_Basic(t *testing.T) {
 	tempDir := t.TempDir()
-	writer := NewWriter(tempDir, "test-scenario", tempDir)
+	writer := NewWriter(tempDir, "test-scenario", pbRunID, tempDir)
 
 	timelineData := []byte(`{"frames":[],"logs":[]}`)
 	parsed := &execution.ParsedTimeline{
@@ -76,7 +76,7 @@ func TestWriteWorkflowArtifacts_Basic(t *testing.T) {
 
 func TestWriteWorkflowArtifacts_WithScreenshots(t *testing.T) {
 	tempDir := t.TempDir()
-	writer := NewWriter(tempDir, "test-scenario", tempDir)
+	writer := NewWriter(tempDir, "test-scenario", pbRunID, tempDir)
 
 	parsed := &execution.ParsedTimeline{
 		ExecutionID: "exec-123",
@@ -122,7 +122,7 @@ func TestWriteWorkflowArtifacts_WithScreenshots(t *testing.T) {
 
 func TestWriteWorkflowArtifacts_WithLogs(t *testing.T) {
 	tempDir := t.TempDir()
-	writer := NewWriter(tempDir, "test-scenario", tempDir)
+	writer := NewWriter(tempDir, "test-scenario", pbRunID, tempDir)
 
 	parsed := &execution.ParsedTimeline{
 		ExecutionID: "exec-123",
@@ -173,7 +173,7 @@ func TestWriteWorkflowArtifacts_WithLogs(t *testing.T) {
 
 func TestWriteWorkflowArtifacts_WithAssertions(t *testing.T) {
 	tempDir := t.TempDir()
-	writer := NewWriter(tempDir, "test-scenario", tempDir)
+	writer := NewWriter(tempDir, "test-scenario", pbRunID, tempDir)
 
 	parsed := &execution.ParsedTimeline{
 		ExecutionID: "exec-123",
@@ -225,7 +225,7 @@ func TestWriteWorkflowArtifacts_WithAssertions(t *testing.T) {
 
 func TestWriteWorkflowArtifacts_WithDOM(t *testing.T) {
 	tempDir := t.TempDir()
-	writer := NewWriter(tempDir, "test-scenario", tempDir)
+	writer := NewWriter(tempDir, "test-scenario", pbRunID, tempDir)
 
 	parsed := &execution.ParsedTimeline{
 		ExecutionID: "exec-123",
@@ -401,7 +401,7 @@ func TestGenerateWorkflowReadme_Failure(t *testing.T) {
 
 func TestWorkflowDir_Sanitization(t *testing.T) {
 	tempDir := t.TempDir()
-	writer := NewWriter(tempDir, "test-scenario", tempDir)
+	writer := NewWriter(tempDir, "test-scenario", pbRunID, tempDir)
 
 	tests := []string{
 		"bas/cases/simple.json",
@@ -417,7 +417,7 @@ func TestWorkflowDir_Sanitization(t *testing.T) {
 			t.Errorf("workflow dir contains invalid chars: %s", dir)
 		}
 		// Should be under AutomationDir
-		if !strings.Contains(dir, sharedartifacts.AutomationDir) {
+		if !strings.Contains(dir, sharedartifacts.AutomationSubdir) {
 			t.Errorf("workflow dir not under automation dir: %s", dir)
 		}
 	}

@@ -13,7 +13,6 @@ func newTestService(t *testing.T, adapters map[string]SurfaceAdapter, runs RunsC
 	st := newTestStorage(t)
 	svc := NewService(Deps{
 		Storage:    st,
-		Snaps:      newTestSnapshotStore(t),
 		Adapters:   adapters,
 		Runs:       runs,
 		CaptureGit: fixedGit(gitState),
@@ -81,6 +80,56 @@ func TestServiceDiffAggregatesVerdict(t *testing.T) {
 	}
 	if res.Verdict != VerdictRegression {
 		t.Fatalf("expected overall regression, got %s", res.Verdict)
+	}
+}
+
+func TestServicePartialBaselineDoesNotMasqueradeAsComplete(t *testing.T) {
+	// Request tests + workflows, but only register a tests adapter. workflows
+	// must be persisted as skipped and reported not-comparable on diff so the
+	// baseline can't read as "workflows clean".
+	exec := &fakeExecutor{result: ExecResult{Success: true, Phases: []PhaseStatus{{"unit", "passed"}}}}
+	runs := &fakeRuns{}
+	adapters := map[string]SurfaceAdapter{SurfaceTests: NewTestsAdapter(exec, runs)}
+	svc, _ := newTestService(t, adapters, runs, git.State{Branch: "agi", Sha: "abc"})
+
+	res, err := svc.Create(context.Background(), CreateRequest{
+		RepoID: 1, Scenario: "foo", Name: "p",
+		Include: []string{SurfaceTests, SurfaceWorkflows}, Capture: true,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if _, ok := res.Manifest.Skipped[SurfaceWorkflows]; !ok {
+		t.Fatalf("workflows should be persisted as skipped, got skipped=%v", res.Manifest.Skipped)
+	}
+
+	// Reload to confirm the skip survived persistence (not just the in-memory result).
+	reloaded, err := svc.Get(context.Background(), 1, "foo", "agi", "p")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if _, ok := reloaded.Skipped[SurfaceWorkflows]; !ok {
+		t.Fatalf("persisted manifest lost the skipped surface: %+v", reloaded)
+	}
+
+	diff, err := svc.Diff(context.Background(), 1, "/repo", "foo", "agi", "p", "")
+	if err != nil {
+		t.Fatalf("Diff: %v", err)
+	}
+	var sawWorkflowsNotComparable bool
+	for _, d := range diff.Surfaces {
+		if d.SurfaceID == SurfaceWorkflows {
+			if d.Verdict != VerdictNotComparable {
+				t.Fatalf("uncaptured workflows should be not-comparable, got %s", d.Verdict)
+			}
+			sawWorkflowsNotComparable = true
+		}
+	}
+	if !sawWorkflowsNotComparable {
+		t.Fatal("diff omitted the uncaptured workflows surface — partial baseline masquerading as complete")
+	}
+	if diff.Verdict != VerdictNotComparable {
+		t.Fatalf("overall verdict should be not-comparable when a surface was never captured, got %s", diff.Verdict)
 	}
 }
 

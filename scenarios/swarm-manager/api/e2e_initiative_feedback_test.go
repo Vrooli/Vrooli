@@ -129,7 +129,7 @@ func TestE2EInitiativeFeedback_FullHTTPFlow(t *testing.T) {
 
 	srv := newTestServer(t)
 	h := srv.Handler()
-	rootDir := srv.scenarioRoot
+	rootDir := testDataRoot(t)
 
 	const initiative = "e2e-fb"
 
@@ -420,7 +420,7 @@ func TestE2EInitiativeFeedback_MultipartAttachmentRoundTrip(t *testing.T) {
 
 	srv := newTestServer(t)
 	h := srv.Handler()
-	rootDir := srv.scenarioRoot
+	rootDir := testDataRoot(t)
 
 	const initiative = "e2e-fb-attach"
 

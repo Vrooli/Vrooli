@@ -57,6 +57,7 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		Skip:                   parsed.Skip,
 		FailFast:               parsed.FailFast,
 		SuiteRequestID:         parsed.RequestID,
+		DiagnosticsPreset:      parsed.DiagnosticsPreset,
 		UIURL:                  parsed.UIURL,
 		APIURL:                 parsed.APIURL,
 		BrowserlessURL:         parsed.BrowserlessURL,
@@ -218,6 +219,7 @@ func ParseArgs(args []string) (Args, error) {
 	fs.StringVar(&out.PhasesCSV, "phases", "", "Comma-separated phases to run")
 	fs.StringVar(&out.SkipCSV, "skip", "", "Comma-separated phases to skip")
 	fs.StringVar(&out.RequestID, "request-id", "", "Link to suite request")
+	fs.StringVar(&out.DiagnosticsPreset, "diagnostics-preset", "", "Playbooks diagnostics capture: none|light|full (overrides testing.json)")
 	fs.BoolVar(&out.FailFast, "fail-fast", false, "Stop on first failure")
 	fs.BoolVar(&out.Stream, "stream", false, "Force streaming mode (default for TTY)")
 	fs.BoolVar(&out.NoStream, "no-stream", false, "Disable streaming, use progress spinner instead")

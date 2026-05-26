@@ -63,6 +63,32 @@ All subcommands accept `--json` for machine output. `diff` exit codes:
 `0` safe to proceed (clean, or only new/preexisting failures), `1` regression
 (something that passed at baseline fails now), `2` not-comparable.
 
+### Surfaces
+
+Every surface is backed by a test-genie phase except `visuals` (GCT-local
+snapshot capture). Capturing a surface runs the phase, pins the test-genie run,
+and `diff` compares via `RunsService.CompareRuns` — the same boundary as
+workflows↔playbooks (test-genie owns runs, GCT owns baselines):
+
+| Surface | test-genie phase(s) |
+| --- | --- |
+| `workflows` | `playbooks` |
+| `tests` | `unit`, `integration`, `smoke` |
+| `structure` | `structure` (layout / manifest / JSON health) |
+| `rules` | `standards` (scenario-auditor standards rules, run inside test-genie) |
+| `visuals` | n/a — GCT-local visual snapshot |
+
+Because rules and structure are test-genie phases, running the full test-genie
+suite for a scenario refreshes them, and `snapshot --include rules` runs only
+the `standards` phase.
+
+A surface that was requested but could not be captured (owning subsystem
+unreachable, capture error) is recorded as **skipped** on the manifest. `show`
+lists skipped surfaces and `diff` reports them as `not-comparable` (driving exit
+`2`), so a partial baseline never masquerades as a clean one. `diff` also warns
+when the current working tree is dirty, since failures may then stem from
+uncommitted changes rather than the diff itself.
+
 ## CLI–API parity gaps
 
 Several API surfaces don't have CLI commands yet (e.g. visual capture,

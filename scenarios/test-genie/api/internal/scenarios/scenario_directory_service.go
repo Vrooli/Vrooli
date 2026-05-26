@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"test-genie/internal/shared"
+	sharedruns "test-genie/internal/shared/runs"
 	"test-genie/internal/smoke"
 )
 
@@ -332,7 +333,7 @@ func (s *ScenarioDirectoryService) RunUISmoke(ctx context.Context, scenario stri
 	}
 
 	runner := smoke.NewRunner(browserlessURL, opts...)
-	result, err := runner.Run(ctx, scenario, dir)
+	result, err := runner.Run(ctx, scenario, dir, sharedruns.NewRunID())
 	if err != nil {
 		return nil, fmt.Errorf("ui smoke test failed: %w", err)
 	}
@@ -402,7 +403,7 @@ func (s *ScenarioDirectoryService) RunUISmokeWithOpts(ctx context.Context, scena
 	}
 
 	runner := smoke.NewRunner(browserlessURL, runnerOpts...)
-	result, err := runner.Run(ctx, scenario, dir)
+	result, err := runner.Run(ctx, scenario, dir, sharedruns.NewRunID())
 	if err != nil {
 		return nil, fmt.Errorf("ui smoke test failed: %w", err)
 	}

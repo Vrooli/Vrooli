@@ -1,49 +1,63 @@
 package artifacts
 
 import (
+	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 )
 
-// MigrationResult tracks what was migrated.
-type MigrationResult struct {
-	// FilesMoved counts files moved to new locations.
-	FilesMoved int
-	// DirectoriesCreated counts directories created.
-	DirectoriesCreated int
-	// Errors lists any errors encountered during migration.
-	Errors []error
-	// Actions lists human-readable descriptions of actions taken.
-	Actions []string
-}
-
-// MigrationOptions configures migration behavior.
-type MigrationOptions struct {
-	// DryRun previews what would be migrated without making changes.
-	DryRun bool
-	// Verbose prints detailed progress information.
-	Verbose bool
-	// Logger receives verbose output (defaults to io.Discard).
-	Logger io.Writer
-}
-
-// Migrate checks for artifacts in legacy locations and moves them to canonical paths.
-// This helps scenarios transition to the standardized artifact structure.
-func Migrate(scenarioDir string, opts MigrationOptions) (*MigrationResult, error) {
-	if opts.Logger == nil {
-		opts.Logger = io.Discard
+// LatestRunID reads coverage/latest/manifest.json and returns the run_id of the
+// most recent run. It returns an empty string (no error) when no run has been
+// recorded yet.
+func LatestRunID(scenarioDir string) (string, error) {
+	data, err := os.ReadFile(LatestManifestPath(scenarioDir))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", fmt.Errorf("failed to read latest manifest: %w", err)
 	}
-
-	result := &MigrationResult{}
-
-	return result, nil
+	var manifest struct {
+		RunID string `json:"run_id"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return "", fmt.Errorf("failed to parse latest manifest: %w", err)
+	}
+	return manifest.RunID, nil
 }
 
-// EnsureCoverageStructure creates all standard coverage directories.
-// This is useful for initializing a new scenario or ensuring the structure exists.
+// LegacyArtifactDirs lists the pre-Plan-A flat artifact directories that the
+// runID-keyed layout replaces. They are deleted on startup (greenfield: no
+// migration of their contents into coverage/runs/<runID>/).
+func LegacyArtifactDirs(scenarioDir string) []string {
+	return []string{
+		filepath.Join(scenarioDir, CoverageRoot, "phase-results"),
+		filepath.Join(scenarioDir, CoverageRoot, "automation"),
+		filepath.Join(scenarioDir, CoverageRoot, "ui-smoke"),
+		filepath.Join(scenarioDir, CoverageRoot, "lighthouse"),
+		filepath.Join(scenarioDir, CoverageRoot, "unit"),
+	}
+}
+
+// RemoveLegacyArtifactDirs deletes the pre-Plan-A flat artifact directories.
+// This is a one-shot greenfield cleanup; their contents are not re-importable
+// as runs and are not migrated.
+func RemoveLegacyArtifactDirs(scenarioDir string) error {
+	for _, dir := range LegacyArtifactDirs(scenarioDir) {
+		if err := os.RemoveAll(dir); err != nil {
+			return fmt.Errorf("failed to remove legacy artifact dir %s: %w", dir, err)
+		}
+	}
+	return nil
+}
+
+// EnsureCoverageStructure creates all standard coverage directories and clears
+// any leftover legacy artifact directories from the pre-runID layout.
 func EnsureCoverageStructure(scenarioDir string) error {
+	if err := RemoveLegacyArtifactDirs(scenarioDir); err != nil {
+		return err
+	}
 	for _, dir := range AllCoverageSubdirs(scenarioDir) {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("failed to create %s: %w", dir, err)

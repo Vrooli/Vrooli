@@ -12,6 +12,8 @@ import (
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
+const smokeRunID = "20251208-151044-0badf00d"
+
 // mockFileSystem records filesystem operations for testing.
 type mockFileSystem struct {
 	files    map[string][]byte
@@ -45,7 +47,7 @@ func (m *mockFileSystem) MkdirAll(path string, perm os.FileMode) error {
 
 func TestWriter_WriteAll(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	// Create a simple PNG (minimal valid PNG header for testing)
 	screenshotData := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
@@ -87,7 +89,7 @@ func TestWriter_WriteAll(t *testing.T) {
 	}
 
 	// Check directory was created
-	expectedDir := "/scenarios/test/coverage/ui-smoke"
+	expectedDir := "/scenarios/test/coverage/runs/20251208-151044-0badf00d/ui-smoke"
 	if !fs.dirs[expectedDir] {
 		t.Errorf("expected directory %s to be created", expectedDir)
 	}
@@ -110,7 +112,7 @@ func TestWriter_WriteAll(t *testing.T) {
 
 func TestWriter_WriteAll_MinimalResponse(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	response := &orchestrator.BrowserResponse{
 		Success: true,
@@ -136,7 +138,7 @@ func TestWriter_WriteAll_MinimalResponse(t *testing.T) {
 
 func TestWriter_WriteResultJSON(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	result := &orchestrator.Result{
 		Scenario:   "test",
@@ -150,13 +152,13 @@ func TestWriter_WriteResultJSON(t *testing.T) {
 		t.Fatalf("WriteResultJSON() error = %v", err)
 	}
 
-	expectedPath := "/scenarios/test/coverage/ui-smoke/latest.json"
+	expectedPath := "/scenarios/test/coverage/runs/20251208-151044-0badf00d/ui-smoke/latest.json"
 	if _, exists := fs.files[expectedPath]; !exists {
 		t.Errorf("expected file %s to be written", expectedPath)
 	}
 
 	// Phase pointer should be written for quick discovery.
-	phasePath := "/scenarios/test/coverage/phase-results/smoke.json"
+	phasePath := "/scenarios/test/coverage/runs/20251208-151044-0badf00d/phase-results/smoke.json"
 	if _, exists := fs.files[phasePath]; !exists {
 		t.Errorf("expected file %s to be written", phasePath)
 	}
@@ -190,8 +192,8 @@ func TestAbsPath(t *testing.T) {
 		want string
 	}{
 		{
-			path: "/scenarios/test/coverage/ui-smoke/screenshot.png",
-			want: "/scenarios/test/coverage/ui-smoke/screenshot.png",
+			path: "/scenarios/test/coverage/runs/20251208-151044-0badf00d/ui-smoke/screenshot.png",
+			want: "/scenarios/test/coverage/runs/20251208-151044-0badf00d/ui-smoke/screenshot.png",
 		},
 		{
 			path: "/a/b/c/d/e.txt",
@@ -211,7 +213,7 @@ func TestAbsPath(t *testing.T) {
 func TestWriter_WriteAll_MkdirError(t *testing.T) {
 	fs := newMockFileSystem()
 	fs.mkdirErr = os.ErrPermission
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	response := &orchestrator.BrowserResponse{Success: true}
 
@@ -223,7 +225,7 @@ func TestWriter_WriteAll_MkdirError(t *testing.T) {
 
 func TestWriter_WriteAll_InvalidScreenshot(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	response := &orchestrator.BrowserResponse{
 		Success:    true,
@@ -241,7 +243,7 @@ func TestWriter_WriteAll_WriteScreenshotError(t *testing.T) {
 		mockFileSystem: newMockFileSystem(),
 		errorOnFile:    "screenshot.png",
 	}
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	screenshotData := []byte{0x89, 0x50, 0x4E, 0x47}
 	screenshotB64 := base64.StdEncoding.EncodeToString(screenshotData)
@@ -262,7 +264,7 @@ func TestWriter_WriteAll_WriteConsoleError(t *testing.T) {
 		mockFileSystem: newMockFileSystem(),
 		errorOnFile:    "console.json",
 	}
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	response := &orchestrator.BrowserResponse{
 		Success: true,
@@ -282,7 +284,7 @@ func TestWriter_WriteAll_WriteNetworkError(t *testing.T) {
 		mockFileSystem: newMockFileSystem(),
 		errorOnFile:    "network.json",
 	}
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	response := &orchestrator.BrowserResponse{
 		Success: true,
@@ -302,7 +304,7 @@ func TestWriter_WriteAll_WriteHTMLError(t *testing.T) {
 		mockFileSystem: newMockFileSystem(),
 		errorOnFile:    "dom.html",
 	}
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	response := &orchestrator.BrowserResponse{
 		Success: true,
@@ -320,7 +322,7 @@ func TestWriter_WriteAll_WriteRawError(t *testing.T) {
 		mockFileSystem: newMockFileSystem(),
 		errorOnFile:    "raw.json",
 	}
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	response := &orchestrator.BrowserResponse{
 		Success: true,
@@ -336,7 +338,7 @@ func TestWriter_WriteAll_WriteRawError(t *testing.T) {
 func TestWriter_WriteResultJSON_MkdirError(t *testing.T) {
 	fs := newMockFileSystem()
 	fs.mkdirErr = os.ErrPermission
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	result := &orchestrator.Result{Status: orchestrator.StatusPassed}
 
@@ -351,7 +353,7 @@ func TestWriter_WriteResultJSON_WriteError(t *testing.T) {
 		mockFileSystem: newMockFileSystem(),
 		errorOnFile:    "latest.json",
 	}
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	result := &orchestrator.Result{Status: orchestrator.StatusPassed}
 
@@ -363,7 +365,7 @@ func TestWriter_WriteResultJSON_WriteError(t *testing.T) {
 
 func TestWriter_WriteAll_InvalidRawJSON(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	response := &orchestrator.BrowserResponse{
 		Success: true,
@@ -378,8 +380,9 @@ func TestWriter_WriteAll_InvalidRawJSON(t *testing.T) {
 }
 
 func TestCoverageDir(t *testing.T) {
-	dir := coverageDir("/scenarios/test")
-	expected := "/scenarios/test/coverage/ui-smoke"
+	w := NewWriter(WithRunID(smokeRunID))
+	dir := w.coverageDir("/scenarios/test")
+	expected := sharedartifacts.RunUISmokeDir("/scenarios/test", smokeRunID)
 	if dir != expected {
 		t.Errorf("coverageDir() = %q, want %q", dir, expected)
 	}
@@ -416,7 +419,7 @@ func containsSubstring(s, sub string) bool {
 
 func TestWriter_WriteReadme_Success(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	result := &orchestrator.Result{
 		Scenario:   "test-scenario",
@@ -439,7 +442,7 @@ func TestWriter_WriteReadme_Success(t *testing.T) {
 		t.Fatalf("WriteReadme() error = %v", err)
 	}
 
-	expectedPath := "/scenarios/test/coverage/ui-smoke/README.md"
+	expectedPath := "/scenarios/test/coverage/runs/20251208-151044-0badf00d/ui-smoke/README.md"
 	if _, exists := fs.files[expectedPath]; !exists {
 		t.Errorf("expected file %s to be written", expectedPath)
 	}
@@ -458,7 +461,7 @@ func TestWriter_WriteReadme_Success(t *testing.T) {
 
 func TestWriter_WriteReadme_FailedStatus(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	result := &orchestrator.Result{
 		Scenario: "test-scenario",
@@ -476,7 +479,7 @@ func TestWriter_WriteReadme_FailedStatus(t *testing.T) {
 		t.Fatalf("WriteReadme() error = %v", err)
 	}
 
-	expectedPath := "/scenarios/test/coverage/ui-smoke/README.md"
+	expectedPath := "/scenarios/test/coverage/runs/20251208-151044-0badf00d/ui-smoke/README.md"
 	content := string(fs.files[expectedPath])
 	if !containsSubstring(content, "❌") {
 		t.Error("README should contain failure emoji for failed status")
@@ -488,7 +491,7 @@ func TestWriter_WriteReadme_FailedStatus(t *testing.T) {
 
 func TestWriter_WriteReadme_SkippedStatus(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	result := &orchestrator.Result{
 		Scenario: "test-scenario",
@@ -501,7 +504,7 @@ func TestWriter_WriteReadme_SkippedStatus(t *testing.T) {
 		t.Fatalf("WriteReadme() error = %v", err)
 	}
 
-	expectedPath := "/scenarios/test/coverage/ui-smoke/README.md"
+	expectedPath := "/scenarios/test/coverage/runs/20251208-151044-0badf00d/ui-smoke/README.md"
 	content := string(fs.files[expectedPath])
 	if !containsSubstring(content, "⏭️") {
 		t.Error("README should contain skip emoji for skipped status")
@@ -510,7 +513,7 @@ func TestWriter_WriteReadme_SkippedStatus(t *testing.T) {
 
 func TestWriter_WriteReadme_BlockedStatus(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	result := &orchestrator.Result{
 		Scenario: "test-scenario",
@@ -523,7 +526,7 @@ func TestWriter_WriteReadme_BlockedStatus(t *testing.T) {
 		t.Fatalf("WriteReadme() error = %v", err)
 	}
 
-	expectedPath := "/scenarios/test/coverage/ui-smoke/README.md"
+	expectedPath := "/scenarios/test/coverage/runs/20251208-151044-0badf00d/ui-smoke/README.md"
 	content := string(fs.files[expectedPath])
 	if !containsSubstring(content, "🚫") {
 		t.Error("README should contain blocked emoji for blocked status")
@@ -536,7 +539,7 @@ func TestWriter_WriteReadme_BlockedStatus(t *testing.T) {
 func TestWriter_WriteReadme_MkdirError(t *testing.T) {
 	fs := newMockFileSystem()
 	fs.mkdirErr = os.ErrPermission
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	result := &orchestrator.Result{Status: orchestrator.StatusPassed}
 
@@ -551,7 +554,7 @@ func TestWriter_WriteReadme_WriteError(t *testing.T) {
 		mockFileSystem: newMockFileSystem(),
 		errorOnFile:    "README.md",
 	}
-	w := NewWriter(WithFileSystem(fs))
+	w := NewWriter(WithFileSystem(fs), WithRunID("20251208-151044-0badf00d"))
 
 	result := &orchestrator.Result{Status: orchestrator.StatusPassed}
 

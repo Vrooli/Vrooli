@@ -179,11 +179,29 @@ type ScreenshotData struct {
 	Data      []byte
 }
 
+// WriteDiagnosticArtifact persists a recorded diagnostic file (video/trace/har)
+// under coverage/runs/<runID>/automation/<workflow>/<kind>/<filename> and
+// returns the absolute path written.
+func (w *FileWriter) WriteDiagnosticArtifact(workflowFile, kind, filename string, data []byte) (string, error) {
+	if len(data) == 0 {
+		return "", nil
+	}
+	dir := filepath.Join(w.workflowDir(workflowFile), kind)
+	if err := w.EnsureDir(dir); err != nil {
+		return "", fmt.Errorf("failed to create %s dir: %w", kind, err)
+	}
+	path := filepath.Join(dir, sharedartifacts.SanitizeFilename(filename))
+	if err := w.WriteFile(path, data); err != nil {
+		return "", fmt.Errorf("failed to write %s artifact: %w", kind, err)
+	}
+	return path, nil
+}
+
 // workflowDir returns the directory path for a workflow's artifacts.
 func (w *FileWriter) workflowDir(workflowFile string) string {
 	// Sanitize workflow file path to create a valid directory name
 	sanitized := sharedartifacts.SanitizeFilenameWithoutExtension(workflowFile)
-	return filepath.Join(w.ScenarioDir, sharedartifacts.AutomationDir, sanitized)
+	return filepath.Join(sharedartifacts.RunAutomationDir(w.ScenarioDir, w.RunID), sanitized)
 }
 
 // writeJSON writes data as pretty-printed JSON.
@@ -280,25 +298,6 @@ func GenerateScreenshotFilename(ref ScreenshotRef) string {
 	stepType = strings.ReplaceAll(stepType, "/", "-")
 	stepType = strings.ReplaceAll(stepType, " ", "-")
 	return fmt.Sprintf("step-%02d-%s.png", ref.StepIndex, stepType)
-}
-
-// Legacy method for backward compatibility
-// WriteTimeline writes a timeline dump to the automation directory (flat structure).
-// Deprecated: Use WriteWorkflowArtifacts for full artifact collection.
-func (w *FileWriter) WriteTimelineLegacy(workflowFile string, timelineData []byte) (string, error) {
-	targetDir := filepath.Join(w.ScenarioDir, sharedartifacts.AutomationDir)
-	if err := w.EnsureDir(targetDir); err != nil {
-		return "", fmt.Errorf("failed to create timeline dir: %w", err)
-	}
-
-	filename := sharedartifacts.SanitizeFilenameWithoutExtension(workflowFile)
-	path := filepath.Join(targetDir, filename+".timeline.json")
-
-	if err := w.WriteFile(path, timelineData); err != nil {
-		return "", fmt.Errorf("failed to write timeline: %w", err)
-	}
-
-	return sharedartifacts.RelPath(w.appRoot, path), nil
 }
 
 // RequirementCoverageEntry represents a single requirement's coverage from playbooks.

@@ -14,9 +14,10 @@ import (
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
-// Writer persists test artifacts to the filesystem.
+// Writer persists test artifacts to the filesystem under coverage/runs/<runID>/.
 type Writer struct {
-	fs sharedartifacts.FileSystem
+	fs    sharedartifacts.FileSystem
+	runID string
 }
 
 // NewWriter creates a new artifact Writer.
@@ -40,9 +41,16 @@ func WithFileSystem(fs sharedartifacts.FileSystem) WriterOption {
 	}
 }
 
-// coverageDir returns the coverage directory path for UI smoke artifacts.
-func coverageDir(scenarioDir string) string {
-	return filepath.Join(scenarioDir, sharedartifacts.UISmokeDir)
+// WithRunID keys all artifacts under coverage/runs/<runID>/.
+func WithRunID(runID string) WriterOption {
+	return func(w *Writer) {
+		w.runID = runID
+	}
+}
+
+// coverageDir returns the run-keyed UI smoke artifacts directory.
+func (w *Writer) coverageDir(scenarioDir string) string {
+	return sharedartifacts.RunUISmokeDir(scenarioDir, w.runID)
 }
 
 // Ensure Writer implements orchestrator.ArtifactWriter.
@@ -50,7 +58,7 @@ var _ orchestrator.ArtifactWriter = (*Writer)(nil)
 
 // WriteAll writes all artifacts and returns their paths.
 func (w *Writer) WriteAll(ctx context.Context, scenarioDir, scenarioName string, response *orchestrator.BrowserResponse) (*orchestrator.ArtifactPaths, error) {
-	dir := coverageDir(scenarioDir)
+	dir := w.coverageDir(scenarioDir)
 	if err := w.fs.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create coverage directory: %w", err)
 	}
@@ -130,7 +138,7 @@ func (w *Writer) WriteAll(ctx context.Context, scenarioDir, scenarioName string,
 
 // WriteResultJSON writes a result object as JSON.
 func (w *Writer) WriteResultJSON(ctx context.Context, scenarioDir, scenarioName string, result interface{}) error {
-	dir := coverageDir(scenarioDir)
+	dir := w.coverageDir(scenarioDir)
 	if err := w.fs.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("failed to create coverage directory: %w", err)
 	}
@@ -151,7 +159,7 @@ func (w *Writer) WriteResultJSON(ctx context.Context, scenarioDir, scenarioName 
 // WriteReadme generates a README.md summarizing the test results.
 // Returns the absolute path to the written README.
 func (w *Writer) WriteReadme(ctx context.Context, scenarioDir, scenarioName string, result *orchestrator.Result) (string, error) {
-	dir := coverageDir(scenarioDir)
+	dir := w.coverageDir(scenarioDir)
 	if err := w.fs.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("failed to create coverage directory: %w", err)
 	}
@@ -178,7 +186,7 @@ func (w *Writer) writePhasePointer(scenarioDir, scenarioName string, result inte
 		}
 	}
 
-	phaseDir := filepath.Join(scenarioDir, sharedartifacts.PhaseResultsDir)
+	phaseDir := sharedartifacts.RunPhaseResultsDir(scenarioDir, w.runID)
 	if err := w.fs.MkdirAll(phaseDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create phase results directory: %w", err)
 	}

@@ -17,15 +17,16 @@ import (
 )
 
 type suiteExecutionPayload struct {
-	ScenarioName   string   `json:"scenarioName"`
-	SuiteRequestID string   `json:"suiteRequestId"`
-	Preset         string   `json:"preset"`
-	Phases         []string `json:"phases"`
-	Skip           []string `json:"skip"`
-	FailFast       bool     `json:"failFast"`
-	UIURL          string   `json:"uiUrl"`
-	APIURL         string   `json:"apiUrl"`
-	BrowserlessURL string   `json:"browserlessUrl"`
+	ScenarioName      string   `json:"scenarioName"`
+	SuiteRequestID    string   `json:"suiteRequestId"`
+	Preset            string   `json:"preset"`
+	Phases            []string `json:"phases"`
+	Skip              []string `json:"skip"`
+	FailFast          bool     `json:"failFast"`
+	DiagnosticsPreset string   `json:"diagnosticsPreset"`
+	UIURL             string   `json:"uiUrl"`
+	APIURL            string   `json:"apiUrl"`
+	BrowserlessURL    string   `json:"browserlessUrl"`
 	// ScenarioPath is the absolute physical scenario directory to read and write.
 	ScenarioPath string `json:"scenarioPath"`
 	// LogicalRepoRoot and LogicalScenarioRelPath describe where repo-relative
@@ -56,6 +57,7 @@ func buildSuiteExecutionInput(payload suiteExecutionPayload) (execution.SuiteExe
 		Phases:                 payload.Phases,
 		Skip:                   payload.Skip,
 		FailFast:               payload.FailFast,
+		DiagnosticsPreset:      strings.TrimSpace(payload.DiagnosticsPreset),
 		UIURL:                  strings.TrimSpace(payload.UIURL),
 		APIURL:                 strings.TrimSpace(payload.APIURL),
 		BrowserlessURL:         strings.TrimSpace(payload.BrowserlessURL),

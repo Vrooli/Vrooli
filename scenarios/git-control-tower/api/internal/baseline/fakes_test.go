@@ -2,21 +2,9 @@ package baseline
 
 import (
 	"context"
-	"testing"
-
-	"github.com/vrooli/api-core/storage"
 
 	"git-control-tower/internal/git"
 )
-
-func newTestSnapshotStore(t *testing.T) *SnapshotStore {
-	t.Helper()
-	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli"})
-	if err != nil {
-		t.Fatalf("NewResolver: %v", err)
-	}
-	return NewSnapshotStoreAt(resolver, t.TempDir())
-}
 
 // fakeExecutor returns a canned ExecResult and records the phases/diagnostics
 // it was asked to run.
@@ -77,25 +65,6 @@ func (f *fakeRuns) UnpinRun(_ context.Context, scenario, runID, by string) error
 
 func (f *fakeRuns) CompareRuns(_ context.Context, _, _, _, _ string) (CompareResult, error) {
 	return f.compare, f.compareErr
-}
-
-// fakeAuditor returns a queue of scan results (capture, then diff).
-type fakeAuditor struct {
-	results [][]Issue
-	idx     int
-	err     error
-}
-
-func (f *fakeAuditor) Scan(_ context.Context, _, _ string) ([]Issue, error) {
-	if f.err != nil {
-		return nil, f.err
-	}
-	if f.idx >= len(f.results) {
-		return nil, nil
-	}
-	r := f.results[f.idx]
-	f.idx++
-	return r, nil
 }
 
 type fakeVisual struct {

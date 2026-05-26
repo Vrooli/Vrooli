@@ -96,7 +96,53 @@ func (r *Runner) collectWorkflowArtifacts(
 		workflowArtifacts.Proto = timeline
 	}
 
+	// Download rich diagnostics (video/trace/HAR) when the run requested them.
+	r.downloadDiagnostics(ctx, entry.File, executionID, fileWriter)
+
 	return workflowArtifacts, parseErr
+}
+
+// downloadDiagnostics fetches and persists the video/trace/HAR artifacts that
+// were recorded for the execution, according to the run's diagnostics config.
+// Console/network/DOM are embedded in the timeline and handled elsewhere.
+func (r *Runner) downloadDiagnostics(ctx context.Context, workflowFile, executionID string, fileWriter *artifacts.FileWriter) {
+	diag := r.playbooksConfig.Diagnostics
+	kinds := []struct {
+		enabled bool
+		kind    string
+		fetch   func(context.Context, string) ([]execution.RecordedArtifact, error)
+	}{
+		{diag.Video, "video", r.basClient.GetRecordedVideos},
+		{diag.Trace, "trace", r.basClient.GetRecordedTraces},
+		{diag.HAR, "har", r.basClient.GetRecordedHar},
+	}
+	for _, k := range kinds {
+		if !k.enabled {
+			continue
+		}
+		items, err := k.fetch(ctx, executionID)
+		if err != nil {
+			shared.LogWarn(r.logWriter, "failed to list %s artifacts for %s: %v", k.kind, workflowFile, err)
+			continue
+		}
+		for _, item := range items {
+			if item.StorageURL == "" {
+				continue
+			}
+			data, dlErr := r.basClient.DownloadAsset(ctx, item.StorageURL)
+			if dlErr != nil {
+				shared.LogWarn(r.logWriter, "failed to download %s artifact %s: %v", k.kind, item.Filename, dlErr)
+				continue
+			}
+			filename := item.Filename
+			if filename == "" {
+				filename = k.kind
+			}
+			if _, wErr := fileWriter.WriteDiagnosticArtifact(workflowFile, k.kind, filename, data); wErr != nil {
+				shared.LogWarn(r.logWriter, "failed to write %s artifact for %s: %v", k.kind, workflowFile, wErr)
+			}
+		}
+	}
 }
 
 // getSummaryFromParsed extracts TimelineSummary from parsed timeline.

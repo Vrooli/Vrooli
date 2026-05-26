@@ -39,17 +39,6 @@ func TestManifestJSONRoundTrip(t *testing.T) {
 	}
 }
 
-func TestNewArtifactIDUnique(t *testing.T) {
-	seen := map[string]bool{}
-	for i := 0; i < 10000; i++ {
-		id := NewArtifactID()
-		if seen[id] {
-			t.Fatalf("duplicate artifact ID: %s", id)
-		}
-		seen[id] = true
-	}
-}
-
 func TestWorseVerdictOrdering(t *testing.T) {
 	cases := []struct{ a, b, want Verdict }{
 		{VerdictClean, VerdictRegression, VerdictRegression},

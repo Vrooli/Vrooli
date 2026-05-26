@@ -42,7 +42,7 @@ func (m *mockFileSystem) MkdirAll(path string, perm os.FileMode) error {
 }
 
 func TestNewWriter(t *testing.T) {
-	w := NewWriter("/scenario/dir", "test-scenario")
+	w := NewWriter("/scenario/dir", "test-scenario", "20251208-151044-feedface")
 	if w == nil {
 		t.Fatal("expected non-nil writer")
 	}
@@ -56,24 +56,24 @@ func TestNewWriter(t *testing.T) {
 
 func TestFileWriter_WritePageReport(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter("/scenario/dir", "test-scenario", sharedartifacts.WithFileSystem(fs))
+	w := NewWriter("/scenario/dir", "test-scenario", "20251208-151044-feedface", sharedartifacts.WithFileSystem(fs))
 
 	rawResponse := []byte(`{"categories": {"performance": {"score": 0.85}}}`)
 	path, err := w.WritePageReport("home", rawResponse)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if path != "coverage/lighthouse/home.json" {
-		t.Errorf("expected path 'coverage/lighthouse/home.json', got %q", path)
+	if path != "coverage/runs/20251208-151044-feedface/lighthouse/home.json" {
+		t.Errorf("expected path 'coverage/runs/20251208-151044-feedface/lighthouse/home.json', got %q", path)
 	}
 
 	// Check that directory was created
-	if !fs.dirs["/scenario/dir/coverage/lighthouse"] {
+	if !fs.dirs["/scenario/dir/coverage/runs/20251208-151044-feedface/lighthouse"] {
 		t.Error("expected lighthouse directory to be created")
 	}
 
 	// Check that file was written
-	data, ok := fs.files["/scenario/dir/coverage/lighthouse/home.json"]
+	data, ok := fs.files["/scenario/dir/coverage/runs/20251208-151044-feedface/lighthouse/home.json"]
 	if !ok {
 		t.Fatal("expected file to be written")
 	}
@@ -87,7 +87,7 @@ func TestFileWriter_WritePageReport(t *testing.T) {
 
 func TestFileWriter_WritePageReport_EmptyResponse(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter("/scenario/dir", "test-scenario", sharedartifacts.WithFileSystem(fs))
+	w := NewWriter("/scenario/dir", "test-scenario", "20251208-151044-feedface", sharedartifacts.WithFileSystem(fs))
 
 	path, err := w.WritePageReport("home", nil)
 	if err != nil {
@@ -100,7 +100,7 @@ func TestFileWriter_WritePageReport_EmptyResponse(t *testing.T) {
 
 func TestFileWriter_WritePageReport_SanitizesFilename(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter("/scenario/dir", "test-scenario", sharedartifacts.WithFileSystem(fs))
+	w := NewWriter("/scenario/dir", "test-scenario", "20251208-151044-feedface", sharedartifacts.WithFileSystem(fs))
 
 	rawResponse := []byte(`{}`)
 	path, err := w.WritePageReport("home/with spaces & special!", rawResponse)
@@ -109,7 +109,7 @@ func TestFileWriter_WritePageReport_SanitizesFilename(t *testing.T) {
 	}
 
 	// Should be sanitized to a valid filename
-	expected := "coverage/lighthouse/home-with-spaces-special.json"
+	expected := "coverage/runs/20251208-151044-feedface/lighthouse/home-with-spaces-special.json"
 	if path != expected {
 		t.Errorf("expected path %q, got %q", expected, path)
 	}
@@ -117,7 +117,7 @@ func TestFileWriter_WritePageReport_SanitizesFilename(t *testing.T) {
 
 func TestFileWriter_WritePhaseResults(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter("/scenario/dir", "test-scenario", sharedartifacts.WithFileSystem(fs))
+	w := NewWriter("/scenario/dir", "test-scenario", "20251208-151044-feedface", sharedartifacts.WithFileSystem(fs))
 
 	result := &lighthouse.AuditResult{
 		PageResults: []lighthouse.PageResult{
@@ -138,12 +138,12 @@ func TestFileWriter_WritePhaseResults(t *testing.T) {
 	}
 
 	// Check directory was created
-	if !fs.dirs["/scenario/dir/coverage/phase-results"] {
+	if !fs.dirs["/scenario/dir/coverage/runs/20251208-151044-feedface/phase-results"] {
 		t.Error("expected phase-results directory to be created")
 	}
 
 	// Check file was written
-	data, ok := fs.files["/scenario/dir/coverage/phase-results/lighthouse.json"]
+	data, ok := fs.files["/scenario/dir/coverage/runs/20251208-151044-feedface/phase-results/lighthouse.json"]
 	if !ok {
 		t.Fatal("expected phase results file to be written")
 	}
@@ -167,7 +167,7 @@ func TestFileWriter_WritePhaseResults(t *testing.T) {
 
 func TestFileWriter_WritePhaseResults_Skipped(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter("/scenario/dir", "test-scenario", sharedartifacts.WithFileSystem(fs))
+	w := NewWriter("/scenario/dir", "test-scenario", "20251208-151044-feedface", sharedartifacts.WithFileSystem(fs))
 
 	result := &lighthouse.AuditResult{Skipped: true}
 
@@ -184,7 +184,7 @@ func TestFileWriter_WritePhaseResults_Skipped(t *testing.T) {
 
 func TestFileWriter_WriteSummary(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter("/scenario/dir", "test-scenario", sharedartifacts.WithFileSystem(fs))
+	w := NewWriter("/scenario/dir", "test-scenario", "20251208-151044-feedface", sharedartifacts.WithFileSystem(fs))
 
 	result := &lighthouse.AuditResult{
 		PageResults: []lighthouse.PageResult{
@@ -211,12 +211,12 @@ func TestFileWriter_WriteSummary(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if path != "coverage/lighthouse/summary.json" {
-		t.Errorf("expected path 'coverage/lighthouse/summary.json', got %q", path)
+	if path != "coverage/runs/20251208-151044-feedface/lighthouse/summary.json" {
+		t.Errorf("expected path 'coverage/runs/20251208-151044-feedface/lighthouse/summary.json', got %q", path)
 	}
 
 	// Verify contents
-	data := fs.files["/scenario/dir/coverage/lighthouse/summary.json"]
+	data := fs.files["/scenario/dir/coverage/runs/20251208-151044-feedface/lighthouse/summary.json"]
 	var summary map[string]interface{}
 	if err := json.Unmarshal(data, &summary); err != nil {
 		t.Fatalf("failed to unmarshal summary: %v", err)
@@ -238,7 +238,7 @@ func TestFileWriter_WriteSummary(t *testing.T) {
 
 func TestFileWriter_WriteSummary_Skipped(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter("/scenario/dir", "test-scenario", sharedartifacts.WithFileSystem(fs))
+	w := NewWriter("/scenario/dir", "test-scenario", "20251208-151044-feedface", sharedartifacts.WithFileSystem(fs))
 
 	result := &lighthouse.AuditResult{Skipped: true}
 

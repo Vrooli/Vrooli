@@ -25,7 +25,9 @@ import (
 
 	workspacepkg "test-genie/internal/orchestrator/workspace"
 
+	playbooksconfig "test-genie/internal/playbooks/config"
 	sharedartifacts "test-genie/internal/shared/artifacts"
+	sharedruns "test-genie/internal/shared/runs"
 )
 
 var (
@@ -115,6 +117,10 @@ type SuiteExecutionRequest struct {
 	Skip         []string `json:"skip,omitempty"`
 	FailFast     bool     `json:"failFast"`
 
+	// DiagnosticsPreset ("none"|"light"|"full"), when set, overrides the
+	// playbooks diagnostics config for this run (richer BAS artifact capture).
+	DiagnosticsPreset string `json:"diagnosticsPreset,omitempty"`
+
 	// Runtime URLs for phases that need to connect to running services.
 	// UIURL/APIURL are optional overrides; when omitted, Test Genie manages the
 	// target scenario lifecycle and discovers URLs from lifecycle process metadata.
@@ -136,6 +142,7 @@ type SuiteExecutionRequest struct {
 type SuiteExecutionResult struct {
 	ExecutionID         uuid.UUID              `json:"executionId,omitempty"`
 	SuiteRequestID      *uuid.UUID             `json:"suiteRequestId,omitempty"`
+	RunID               string                 `json:"runId,omitempty"`
 	ScenarioName        string                 `json:"scenarioName"`
 	StartedAt           time.Time              `json:"startedAt"`
 	CompletedAt         time.Time              `json:"completedAt"`
@@ -413,7 +420,25 @@ func (o *SuiteOrchestrator) runSelectedPhases(
 }
 
 func newRunID() string {
-	return fmt.Sprintf("%s-%s", time.Now().UTC().Format("20060102-150405"), uuid.NewString()[:8])
+	return sharedruns.NewRunID()
+}
+
+// resolveRunDiagnostics maps the per-run diagnostics preset to the index's
+// serialized diagnostics shape. An empty/unknown preset records the cheap
+// default (console only), matching the playbooks config default.
+func resolveRunDiagnostics(preset string) sharedruns.DiagnosticsConfig {
+	d, ok := playbooksconfig.DiagnosticsPreset(strings.TrimSpace(preset))
+	if !ok {
+		d = playbooksconfig.DiagnosticsConfig{Console: true}
+	}
+	return sharedruns.DiagnosticsConfig{
+		Video:   d.Video,
+		Console: d.Console,
+		Network: d.Network,
+		HAR:     d.HAR,
+		Trace:   d.Trace,
+		DOM:     d.DOM,
+	}
 }
 
 func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*preparedExecution, error) {
@@ -424,6 +449,8 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 	scenario := planCtx.env.ScenarioName
 
 	runID := newRunID()
+	planCtx.env.RunID = runID
+	planCtx.env.DiagnosticsPreset = strings.TrimSpace(req.DiagnosticsPreset)
 	if err := sharedartifacts.EnsureCoverageStructure(planCtx.env.ScenarioDir); err != nil {
 		return nil, err
 	}
@@ -433,6 +460,18 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 		return nil, fmt.Errorf("failed to create run log directory: %w", err)
 	}
 
+	// Record the run as in-progress so it is enumerable mid-flight; finalize
+	// updates it to its terminal status.
+	if err := sharedruns.NewIndex(planCtx.env.ScenarioDir).Append(sharedruns.RunRecord{
+		RunID:       runID,
+		Scenario:    scenario,
+		StartedAt:   time.Now().UTC(),
+		Status:      sharedruns.StatusInProgress,
+		Diagnostics: resolveRunDiagnostics(req.DiagnosticsPreset),
+	}); err != nil {
+		log.Printf("failed to record run %s in index: %v", runID, err)
+	}
+
 	return &preparedExecution{
 		env:       planCtx.env,
 		config:    planCtx.config,
@@ -440,6 +479,7 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 		runID:     runID,
 		runLogDir: runLogDir,
 		result: &SuiteExecutionResult{
+			RunID:               runID,
 			ScenarioName:        scenario,
 			StartedAt:           time.Now().UTC(),
 			PresetUsed:          planCtx.plan.PresetUsed,
@@ -462,11 +502,12 @@ func (o *SuiteOrchestrator) finalizeExecution(
 	emit ExecutionEventCallback,
 ) *SuiteExecutionResult {
 	result := prepared.result
+	result.RunID = prepared.runID
 	result.CompletedAt = time.Now().UTC()
 	result.Success = !anyFailure
 	result.Phases = phaseResults
 	result.PhaseSummary = SummarizePhases(phaseResults)
-	result.WarningSummary = BuildWarningSummary(phaseResults)
+	result.WarningSummary = BuildWarningSummary(prepared.env.RunID, phaseResults)
 
 	if emit != nil {
 		emit(ExecutionEvent{
@@ -487,13 +528,51 @@ func (o *SuiteOrchestrator) finalizeExecution(
 		log.Printf("failed to write latest manifest: %v", err)
 	}
 
+	o.finalizeRunRecord(prepared.env.ScenarioDir, prepared.runID, result, phaseResults)
+
+	// Enforce run retention in the background so a large/old history can't grow
+	// unbounded. Pinned runs (e.g. GCT baselines) are always preserved.
+	scenarioDir := prepared.env.ScenarioDir
+	go func() {
+		if _, err := sharedruns.GC(context.Background(), scenarioDir, sharedruns.DefaultRetentionPolicy()); err != nil {
+			log.Printf("run retention GC failed: %v", err)
+		}
+	}()
+
 	o.syncRequirementsIfNeeded(ctx, prepared.env, prepared.config, req, prepared.plan, phaseResults)
 	return result
 }
 
+// finalizeRunRecord updates the run index entry with terminal status, per-phase
+// summaries, and completion time. Pins set by external consumers are preserved
+// because Update mutates the existing record in place.
+func (o *SuiteOrchestrator) finalizeRunRecord(scenarioDir, runID string, result *SuiteExecutionResult, phaseResults []PhaseExecutionResult) {
+	status := sharedruns.StatusPassed
+	if !result.Success {
+		status = sharedruns.StatusFailed
+	}
+	phases := make([]sharedruns.PhaseRecord, 0, len(phaseResults))
+	for _, p := range phaseResults {
+		phases = append(phases, sharedruns.PhaseRecord{
+			Name:            p.Name,
+			Status:          p.Status,
+			DurationSeconds: p.DurationSeconds,
+		})
+	}
+	err := sharedruns.NewIndex(scenarioDir).Update(runID, func(r *sharedruns.RunRecord) error {
+		r.Status = status
+		r.CompletedAt = result.CompletedAt
+		r.Phases = phases
+		return nil
+	})
+	if err != nil {
+		log.Printf("failed to finalize run %s in index: %v", runID, err)
+	}
+}
+
 // BuildWarningSummary converts WARNING observations into a deterministic
 // execution-level summary while preserving the phase execution order.
-func BuildWarningSummary(results []PhaseExecutionResult) WarningSummary {
+func BuildWarningSummary(runID string, results []PhaseExecutionResult) WarningSummary {
 	summary := WarningSummary{}
 	for _, phase := range results {
 		phaseSummary := PhaseWarningSummary{Name: phase.Name}
@@ -505,7 +584,7 @@ func BuildWarningSummary(results []PhaseExecutionResult) WarningSummary {
 				Message:      strings.TrimSpace(observation.Text),
 				Source:       "observation",
 				LogPath:      phase.LogPath,
-				ArtifactPath: phaseArtifactPath(phase.Name),
+				ArtifactPath: phaseArtifactPath(runID, phase.Name),
 			})
 		}
 		if len(phaseSummary.Warnings) == 0 {
@@ -518,12 +597,12 @@ func BuildWarningSummary(results []PhaseExecutionResult) WarningSummary {
 	return summary
 }
 
-func phaseArtifactPath(phaseName string) string {
+func phaseArtifactPath(runID, phaseName string) string {
 	name := strings.TrimSpace(phaseName)
 	if name == "" {
 		return ""
 	}
-	return filepath.Join(sharedartifacts.PhaseResultsDir, name+".json")
+	return sharedartifacts.RelativePhaseResultsPath(runID, name+".json")
 }
 
 func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
@@ -937,7 +1016,7 @@ func (o *SuiteOrchestrator) writeLatestManifest(scenarioDir, runLogDir, runID st
 		"phases":       phaseEntries,
 	}
 
-	writer := sharedartifacts.NewBaseWriter(scenarioDir, filepath.Base(scenarioDir))
+	writer := sharedartifacts.NewBaseWriter(scenarioDir, filepath.Base(scenarioDir), runID)
 	return writer.WriteJSON(sharedartifacts.LatestManifestPath(scenarioDir), manifest)
 }
 

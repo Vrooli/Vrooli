@@ -98,5 +98,15 @@
         }
       ]
     }
+  ],
+  "omitted": [
+    { "service": "BaselinesService", "method": "CreateBaseline", "reason": "Hand-written in cli/domains/baseline (baseline create) via a custom Connect client with human-formatted output; not manifest-bound. Same pattern as the other non-worktree domains pending Connect-RPC manifest migration." },
+    { "service": "BaselinesService", "method": "SnapshotForBaseline", "reason": "Hand-written in cli/domains/baseline (baseline snapshot) — custom Connect client with rich human output and dirty-tree/skip warnings; not manifest-bound." },
+    { "service": "BaselinesService", "method": "GetBaseline", "reason": "Hand-written in cli/domains/baseline (baseline show) — custom Connect client; not manifest-bound." },
+    { "service": "BaselinesService", "method": "ListBaselines", "reason": "Hand-written in cli/domains/baseline (baseline list) — custom Connect client; not manifest-bound." },
+    { "service": "BaselinesService", "method": "DiffBaseline", "reason": "Hand-written in cli/domains/baseline (baseline diff) — custom Connect client with diff exit codes 0/1/2; not manifest-bound." },
+    { "service": "BaselinesService", "method": "DeleteBaseline", "reason": "Hand-written in cli/domains/baseline (baseline delete) — custom Connect client; not manifest-bound." },
+    { "service": "BaselinesService", "method": "EditBaseline", "reason": "Hand-written in cli/domains/baseline (baseline edit) — custom Connect client; not manifest-bound." },
+    { "service": "RepoService", "method": "GetRepoStatus", "reason": "Legacy REST-backed repo domain; stays hand-written until RepoService migrates to Connect-RPC (see manifest description)." }
   ]
 }

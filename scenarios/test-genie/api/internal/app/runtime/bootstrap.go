@@ -10,6 +10,7 @@ import (
 
 	"test-genie/agentmanager"
 	appelig "test-genie/internal/app/eligibility"
+	apprun "test-genie/internal/app/runs"
 	"test-genie/internal/eligibility"
 	"test-genie/internal/execution"
 	"test-genie/internal/fix"
@@ -44,6 +45,7 @@ type Bootstrapped struct {
 	RequirementsSyncer         *RequirementsSyncerAdapter
 	PlaybooksClaims            *playbooksclaims.Service
 	EligibilityService         *appelig.Service
+	RunsService                *apprun.Service
 	// Tool Discovery Protocol support
 	ToolRegistry *toolregistry.Registry
 	ToolHandler  *toolexecution.Handler
@@ -113,6 +115,9 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	routingEligibility := eligibility.NewChecker(0)
 	phases.SetRoutingChecker(routingEligibility)
 	eligibilityService := appelig.NewService(routingEligibility, cfg.ScenariosRoot)
+
+	// RunsService exposes the append-only run index over Connect-RPC.
+	runsService := apprun.NewService(cfg.ScenariosRoot)
 
 	// Create agent-manager service
 	agentEnabled := os.Getenv("AGENT_MANAGER_ENABLED") != "false"
@@ -191,6 +196,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		RequirementsSyncer:         reqSyncer,
 		PlaybooksClaims:            claimsService,
 		EligibilityService:         eligibilityService,
+		RunsService:                runsService,
 		ToolRegistry:               toolReg,
 		ToolHandler:                toolHandler,
 	}, nil

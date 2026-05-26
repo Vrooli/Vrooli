@@ -148,7 +148,7 @@ func newestRequirementChange(dir string) (time.Time, error) {
 func newestArtifact(dir string) (time.Time, error) {
 	var latest time.Time
 	candidates := []string{
-		filepath.Join(dir, "coverage", "phase-results"),
+		filepath.Join(dir, "coverage", "runs"),
 		filepath.Join(dir, "ui", "coverage", "vitest-requirements.json"),
 		filepath.Join(dir, "coverage", "manual-validations"),
 	}

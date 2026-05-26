@@ -33,6 +33,18 @@ type Config struct {
 	Seeds     SeedsConfig     `json:"seeds"`
 	Artifacts ArtifactsConfig `json:"artifacts"`
 
+	// Diagnostics selects which rich artifacts (video, trace, HAR, etc.) BAS
+	// captures during workflow execution. Defaults are cheap (console only).
+	Diagnostics DiagnosticsConfig `json:"diagnostics"`
+
+	// ContinueOnFailure runs all selected workflows even after one fails,
+	// instead of stopping at the first failure. Default false.
+	ContinueOnFailure bool `json:"continue_on_failure"`
+
+	// WorkflowFilter, when non-empty, restricts execution to the named
+	// workflows (by file/registry key). Empty means run all.
+	WorkflowFilter []string `json:"workflow_filter"`
+
 	// AllowEmptyTestPool opts the scenario out of the hard-fail check on
 	// routed runs where zero requests exercised the test pool. Default false:
 	// a routed run that never hits the test DB is treated as
@@ -67,6 +79,41 @@ type ArtifactsConfig struct {
 	RetainOnSuccess bool   `json:"retain_on_success"`
 }
 
+// DiagnosticsConfig toggles the rich diagnostic artifacts BAS captures per
+// workflow. These map onto BAS ExecuteWorkflowOptions and ArtifactCollectionConfig.
+type DiagnosticsConfig struct {
+	Video   bool `json:"video"`   // Playwright recordVideo (default false)
+	Console bool `json:"console"` // console logs (default true; cheap)
+	Network bool `json:"network"` // network events (default false)
+	HAR     bool `json:"har"`     // HAR archive (default false)
+	Trace   bool `json:"trace"`   // Playwright trace (default false)
+	DOM     bool `json:"dom"`     // DOM snapshots (default false)
+}
+
+// Diagnostics preset names accepted by the --diagnostics-preset CLI flag.
+const (
+	DiagnosticsPresetNone  = "none"
+	DiagnosticsPresetLight = "light"
+	DiagnosticsPresetFull  = "full"
+)
+
+// DiagnosticsPreset maps a preset name to a DiagnosticsConfig. "light" captures
+// console only (screenshots/DOM are governed by ArtifactsConfig); "full"
+// captures everything; "none" captures nothing. The bool reports whether the
+// name was recognized.
+func DiagnosticsPreset(name string) (DiagnosticsConfig, bool) {
+	switch name {
+	case DiagnosticsPresetNone:
+		return DiagnosticsConfig{}, true
+	case DiagnosticsPresetLight, "":
+		return DiagnosticsConfig{Console: true}, true
+	case DiagnosticsPresetFull:
+		return DiagnosticsConfig{Video: true, Console: true, Network: true, HAR: true, Trace: true, DOM: true}, true
+	default:
+		return DiagnosticsConfig{}, false
+	}
+}
+
 // Default returns a Config with default values.
 func Default() *Config {
 	return &Config{
@@ -89,6 +136,9 @@ func Default() *Config {
 			DOMSnapshots:    true,
 			OutputDir:       "coverage/automation",
 			RetainOnSuccess: false,
+		},
+		Diagnostics: DiagnosticsConfig{
+			Console: true,
 		},
 	}
 }
@@ -153,7 +203,19 @@ type rawConfig struct {
 	BAS                *rawBASConfig   `json:"bas"`
 	Seeds              *rawSeedsConfig `json:"seeds"`
 	Artifacts          *rawArtifacts   `json:"artifacts"`
+	Diagnostics        *rawDiagnostics `json:"diagnostics"`
+	ContinueOnFailure  *bool           `json:"continue_on_failure"`
+	WorkflowFilter     []string        `json:"workflow_filter"`
 	AllowEmptyTestPool *bool           `json:"allow_empty_test_pool"`
+}
+
+type rawDiagnostics struct {
+	Video   *bool `json:"video"`
+	Console *bool `json:"console"`
+	Network *bool `json:"network"`
+	HAR     *bool `json:"har"`
+	Trace   *bool `json:"trace"`
+	DOM     *bool `json:"dom"`
 }
 
 type rawBASConfig struct {
@@ -210,6 +272,37 @@ func Load(scenarioDir string) (*Config, error) {
 
 	if loaded.AllowEmptyTestPool != nil {
 		cfg.AllowEmptyTestPool = *loaded.AllowEmptyTestPool
+	}
+
+	if loaded.ContinueOnFailure != nil {
+		cfg.ContinueOnFailure = *loaded.ContinueOnFailure
+	}
+
+	if loaded.WorkflowFilter != nil {
+		cfg.WorkflowFilter = loaded.WorkflowFilter
+	}
+
+	// Diagnostics config (only override fields that are explicitly set)
+	if loaded.Diagnostics != nil {
+		d := loaded.Diagnostics
+		if d.Video != nil {
+			cfg.Diagnostics.Video = *d.Video
+		}
+		if d.Console != nil {
+			cfg.Diagnostics.Console = *d.Console
+		}
+		if d.Network != nil {
+			cfg.Diagnostics.Network = *d.Network
+		}
+		if d.HAR != nil {
+			cfg.Diagnostics.HAR = *d.HAR
+		}
+		if d.Trace != nil {
+			cfg.Diagnostics.Trace = *d.Trace
+		}
+		if d.DOM != nil {
+			cfg.Diagnostics.DOM = *d.DOM
+		}
 	}
 
 	// BAS config

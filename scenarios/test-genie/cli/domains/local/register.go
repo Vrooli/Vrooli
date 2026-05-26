@@ -7,6 +7,7 @@ import (
 	"test-genie/cli/registry"
 	"test-genie/cli/requirements"
 	"test-genie/cli/runlocal"
+	"test-genie/cli/runs"
 	"test-genie/cli/storage"
 	"test-genie/cli/uismoke"
 
@@ -47,6 +48,12 @@ func Register(runtime deps.Runtime) cliapp.CommandGroup {
 				NeedsAPI:    true,
 				Description: "Check whether a scenario qualifies for the routed test-db path",
 				Run:         func(args []string) error { return eligibility.Run(runtime.APIClient, args) },
+			},
+			{
+				Name:        "runs",
+				NeedsAPI:    true,
+				Description: "Inspect, pin, compare, and delete recorded test runs",
+				Run:         func(args []string) error { return runs.Run(runtime.APIClient, args) },
 			},
 			{
 				Name:        "playbooks-seed",

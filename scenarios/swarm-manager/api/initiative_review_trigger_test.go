@@ -26,7 +26,7 @@ import (
 func TestInitiativeReviewTrigger_E2E(t *testing.T) {
 	srv := newTestServer(t)
 	h := srv.Handler()
-	rootDir := srv.scenarioRoot
+	rootDir := testDataRoot(t)
 
 	// 1. Create initiative owning one item.
 	mustPost(t, h, "/api/v1/initiatives", map[string]any{
@@ -101,7 +101,7 @@ func TestInitiativeReviewTrigger_E2E(t *testing.T) {
 func TestInitiativeReviewTrigger_NotReady_DoesNotFlip(t *testing.T) {
 	srv := newTestServer(t)
 	h := srv.Handler()
-	rootDir := srv.scenarioRoot
+	rootDir := testDataRoot(t)
 
 	mustPost(t, h, "/api/v1/initiatives", map[string]any{
 		"name":     "rev-partial",
@@ -173,7 +173,7 @@ func seedSpec(t *testing.T, rootDir, kind, name string, spec map[string]any) {
 func TestInitiativeReviewTrigger_AllFailed_Triggers(t *testing.T) {
 	srv := newTestServer(t)
 	h := srv.Handler()
-	rootDir := srv.scenarioRoot
+	rootDir := testDataRoot(t)
 
 	mustPost(t, h, "/api/v1/initiatives", map[string]any{
 		"name":     "rev-all-failed",
@@ -210,7 +210,7 @@ func TestInitiativeReviewTrigger_AllFailed_Triggers(t *testing.T) {
 func TestInitiativeReviewTrigger_MixedTerminals_Triggers(t *testing.T) {
 	srv := newTestServer(t)
 	h := srv.Handler()
-	rootDir := srv.scenarioRoot
+	rootDir := testDataRoot(t)
 
 	mustPost(t, h, "/api/v1/initiatives", map[string]any{
 		"name":     "rev-mixed",
@@ -261,7 +261,7 @@ func TestInitiativeReviewTrigger_MixedTerminals_Triggers(t *testing.T) {
 func TestInitiativeReviewTrigger_FeedbackLockBlocks(t *testing.T) {
 	srv := newTestServer(t)
 	h := srv.Handler()
-	rootDir := srv.scenarioRoot
+	rootDir := testDataRoot(t)
 
 	mustPost(t, h, "/api/v1/initiatives", map[string]any{
 		"name":     "rev-locked",

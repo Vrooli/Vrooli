@@ -57,6 +57,7 @@ func applyEnv(env map[string]string) func() {
 type Config struct {
 	ScenarioDir  string
 	ScenarioName string
+	RunID        string // keys artifact writes under coverage/runs/<RunID>/
 	TestDir      string
 	AppRoot      string
 	Verbose      bool // Enable detailed progress logging
@@ -113,7 +114,7 @@ func New(cfg Config, opts ...Option) *Runner {
 		r.seedManager = seeds.NewManager(cfg.ScenarioDir, cfg.AppRoot, cfg.TestDir, r.logWriter)
 	}
 	if r.artifactWriter == nil {
-		r.artifactWriter = artifacts.NewWriter(cfg.ScenarioDir, cfg.ScenarioName, cfg.AppRoot)
+		r.artifactWriter = artifacts.NewWriter(cfg.ScenarioDir, cfg.ScenarioName, cfg.RunID, cfg.AppRoot)
 	}
 
 	return r
@@ -262,7 +263,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 
 	// Initialize trace writer if not injected
 	if r.traceWriter == nil {
-		tw, err := artifacts.NewTraceWriter(r.config.ScenarioDir, r.config.ScenarioName)
+		tw, err := artifacts.NewTraceWriter(r.config.ScenarioDir, r.config.ScenarioName, r.config.RunID)
 		if err != nil {
 			shared.LogWarn(r.logWriter, "failed to create trace writer: %v", err)
 			r.traceWriter = &artifacts.NullTraceWriter{}
@@ -481,6 +482,7 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry) Result {
 		ProjectRoot:   projectRoot,
 		InitialParams: r.seedState,
 		ExtraHeaders:  r.extraHeaders,
+		Diagnostics:   r.playbooksConfig.Diagnostics,
 	}
 	if r.config.ScenarioName == BASScenarioName && len(r.seedState) > 0 {
 		execParams.Env = map[string]any{

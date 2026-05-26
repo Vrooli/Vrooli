@@ -129,13 +129,12 @@ func TestInitSchema_WithLegacyRunsTable_AddsInvestigationColumns(t *testing.T) {
 func TestDataDirPrefersCanonicalStorageOverLegacyFallbackEnv(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
 	t.Setenv("SQLITE_DATABASE_PATH", filepath.Join(home, "legacy-sqlite-root"))
 	t.Setenv("VROOLI_DATA", filepath.Join(home, "legacy-vrooli-data"))
 	t.Setenv("AM_SQLITE_PATH", "")
 
 	got := DataDir()
-	want := filepath.Join(home, ".local", "share", "vrooli", "agent-manager")
+	want := filepath.Join(home, ".vrooli", "data", "vrooli", "agent-manager")
 	if got != want {
 		t.Fatalf("DataDir() = %q, want %q", got, want)
 	}
@@ -144,7 +143,6 @@ func TestDataDirPrefersCanonicalStorageOverLegacyFallbackEnv(t *testing.T) {
 func TestSQLiteDSNUsesCanonicalPathWithoutLegacyMigration(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
 	t.Setenv("AM_SQLITE_PATH", "")
 	t.Setenv("DATABASE_URL", "")
 	t.Setenv("SQLITE_DATABASE_PATH", filepath.Join(home, "legacy-sqlite-root"))
@@ -154,7 +152,7 @@ func TestSQLiteDSNUsesCanonicalPathWithoutLegacyMigration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqliteDSN() error = %v", err)
 	}
-	wantPath := filepath.Join(home, ".local", "share", "vrooli", "agent-manager", "agent-manager.db")
+	wantPath := filepath.Join(home, ".vrooli", "data", "vrooli", "agent-manager", "agent-manager.db")
 	if !strings.Contains(dsn, wantPath) {
 		t.Fatalf("sqliteDSN() = %q, want path containing %q", dsn, wantPath)
 	}

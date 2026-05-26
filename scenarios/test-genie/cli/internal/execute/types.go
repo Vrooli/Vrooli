@@ -14,6 +14,10 @@ type Request struct {
 	FailFast       bool     `json:"failFast"`
 	SuiteRequestID string   `json:"suiteRequestId,omitempty"`
 
+	// DiagnosticsPreset ("none"|"light"|"full") overrides the playbooks
+	// diagnostics config for this run (richer BAS artifact capture).
+	DiagnosticsPreset string `json:"diagnosticsPreset,omitempty"`
+
 	// Runtime URLs for phases that need to connect to running services.
 	// UIURL/APIURL are optional overrides; when omitted, Test Genie manages the
 	// target scenario lifecycle and discovers URLs from lifecycle process metadata.

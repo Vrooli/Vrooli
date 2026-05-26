@@ -2,6 +2,7 @@ package baseline
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	baselinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines"
@@ -53,8 +54,8 @@ func printSnapshot(resp *baselinesv1.SnapshotForBaselineResponse) {
 		}
 		fmt.Printf("  surfaces: %s\n", strings.Join(parts, " "))
 	}
-	for surface, reason := range resp.GetSkipped() {
-		fmt.Printf("  skipped %s: %s\n", surface, reason)
+	for _, surface := range stringKeysSorted(resp.GetSkipped()) {
+		fmt.Printf("  ⚠ skipped %s: %s\n", surface, resp.GetSkipped()[surface])
 	}
 	if w := resp.GetDirtyWarning(); w != "" {
 		fmt.Printf("⚠ %s\n", w)
@@ -88,6 +89,9 @@ func printDiff(resp *baselinesv1.DiffBaselineResponse) {
 		printLines("cleared", s.GetCleared())
 	}
 	fmt.Println()
+	if w := resp.GetDirtyWarning(); w != "" {
+		fmt.Printf("⚠ %s\n", w)
+	}
 	fmt.Printf("Overall: %s %s\n", verdictMark(resp.GetVerdict()), resp.GetVerdict())
 }
 
@@ -104,7 +108,11 @@ func printList(baselines []*baselinesv1.BaselineManifest) {
 	}
 	fmt.Printf("Baselines (%d):\n", len(baselines))
 	for _, b := range baselines {
-		fmt.Printf("  %-20s branch=%-12s surfaces=%d  %s\n", b.GetName(), b.GetBranch(), len(b.GetSurfaces()), b.GetCreatedAt())
+		skipped := ""
+		if n := len(b.GetSkipped()); n > 0 {
+			skipped = fmt.Sprintf(" skipped=%d", n)
+		}
+		fmt.Printf("  %-20s branch=%-12s surfaces=%d%s  %s\n", b.GetName(), b.GetBranch(), len(b.GetSurfaces()), skipped, b.GetCreatedAt())
 	}
 }
 
@@ -124,6 +132,22 @@ func printShow(b *baselinesv1.BaselineManifest) {
 		p := b.GetSurfaces()[id]
 		fmt.Printf("    %-10s kind=%s ref=%s  %s\n", id, p.GetKind(), p.GetRef(), summaryText(p.GetSummary()))
 	}
+	if skipped := b.GetSkipped(); len(skipped) > 0 {
+		fmt.Println("  not captured (this baseline cannot speak to these surfaces):")
+		for _, id := range stringKeysSorted(skipped) {
+			fmt.Printf("    ⚠ %-10s %s\n", id, skipped[id])
+		}
+	}
+}
+
+// stringKeysSorted returns a map's keys in stable sorted order.
+func stringKeysSorted(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // summaryText renders the compact per-surface JSON summary as a flat string.

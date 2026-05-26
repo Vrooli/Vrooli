@@ -63,7 +63,7 @@ func (r *Runner) createLighthouseValidator() lighthouse.Validator {
 	}
 
 	// Create artifact writer for report generation
-	artifactWriter := artifacts.NewWriter(r.config.ScenarioDir, r.config.ScenarioName)
+	artifactWriter := artifacts.NewWriter(r.config.ScenarioDir, r.config.ScenarioName, r.config.RunID)
 
 	// Lighthouse uses CLI directly (Google's official Lighthouse CLI)
 	return lighthouse.New(lighthouse.ValidatorConfig{

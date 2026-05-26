@@ -14,6 +14,8 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	playbooksconfig "test-genie/internal/playbooks/config"
+
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -73,6 +75,10 @@ type ExecutionParams struct {
 	// extraHTTPHeaders). Used by test-genie to inject the test-mode header
 	// so the scenario's RoutedDB serves the test pool for the run.
 	ExtraHeaders map[string]string `json:"-"`
+	// Diagnostics selects which rich artifacts BAS captures for this workflow.
+	// It maps onto ExecuteWorkflowOptions (video/trace/HAR) and
+	// ArtifactCollectionConfig (console/network/DOM).
+	Diagnostics playbooksconfig.DiagnosticsConfig `json:"-"`
 }
 
 // Client defines the interface for BAS API operations.
@@ -99,6 +105,12 @@ type Client interface {
 	GetTimeline(ctx context.Context, executionID string) (*bastimeline.ExecutionTimeline, []byte, error)
 	// GetScreenshots retrieves screenshot metadata for an execution.
 	GetScreenshots(ctx context.Context, executionID string) ([]Screenshot, error)
+	// GetRecordedVideos lists recorded videos for an execution.
+	GetRecordedVideos(ctx context.Context, executionID string) ([]RecordedArtifact, error)
+	// GetRecordedTraces lists recorded Playwright traces for an execution.
+	GetRecordedTraces(ctx context.Context, executionID string) ([]RecordedArtifact, error)
+	// GetRecordedHar lists recorded HAR archives for an execution.
+	GetRecordedHar(ctx context.Context, executionID string) ([]RecordedArtifact, error)
 	// DownloadAsset downloads an asset (screenshot, artifact) by URL.
 	DownloadAsset(ctx context.Context, assetURL string) ([]byte, error)
 	// BaseURL returns the base URL of the BAS API (for constructing asset URLs).
@@ -350,6 +362,27 @@ func (c *HTTPClient) ExecuteWorkflowWithParams(ctx context.Context, definition m
 			}
 			populated = true
 		}
+
+		// Diagnostics → execution-time options (video/trace/HAR are recorder
+		// flags) and per-execution artifact-collection toggles (console/network/DOM).
+		diag := params.Diagnostics
+		if diag.Video || diag.Trace || diag.HAR {
+			req.Options = &basexecution.ExecuteWorkflowOptions{
+				RequiresVideo: diag.Video,
+				RequiresTrace: diag.Trace,
+				RequiresHar:   diag.HAR,
+			}
+		}
+		if diag.Console || diag.Network || diag.DOM {
+			console, network, dom := diag.Console, diag.Network, diag.DOM
+			execParams.ArtifactConfig = &basexecution.ArtifactCollectionConfig{
+				CollectConsoleLogs:   &console,
+				CollectNetworkEvents: &network,
+				CollectDomSnapshots:  &dom,
+			}
+			populated = true
+		}
+
 		if populated {
 			req.Parameters = execParams
 		}
@@ -562,6 +595,57 @@ func (c *HTTPClient) GetScreenshots(ctx context.Context, executionID string) ([]
 		out = append(out, entry)
 	}
 	return out, nil
+}
+
+// RecordedArtifact references a recorded diagnostic file (video, trace, or HAR)
+// produced when the corresponding ExecuteWorkflowOptions flag was set.
+type RecordedArtifact struct {
+	Filename    string
+	StorageURL  string
+	ContentType string
+}
+
+func toRecordedArtifacts(files []*basapi.ExecutionFileArtifact) []RecordedArtifact {
+	out := make([]RecordedArtifact, 0, len(files))
+	for _, f := range files {
+		if f == nil {
+			continue
+		}
+		out = append(out, RecordedArtifact{
+			Filename:    f.GetArtifactId(),
+			StorageURL:  f.GetStorageUrl(),
+			ContentType: f.GetContentType(),
+		})
+	}
+	return out
+}
+
+// GetRecordedVideos lists the recorded videos for an execution (requires
+// ExecuteWorkflowOptions.RequiresVideo to have been set at launch).
+func (c *HTTPClient) GetRecordedVideos(ctx context.Context, executionID string) ([]RecordedArtifact, error) {
+	resp, err := c.executions.GetExecutionRecordedVideos(ctx, connect.NewRequest(&basapi.GetExecutionArtifactsRequest{ExecutionId: executionID}))
+	if err != nil {
+		return nil, fmt.Errorf("videos fetch failed: %w", err)
+	}
+	return toRecordedArtifacts(resp.Msg.GetVideos()), nil
+}
+
+// GetRecordedTraces lists the recorded Playwright traces for an execution.
+func (c *HTTPClient) GetRecordedTraces(ctx context.Context, executionID string) ([]RecordedArtifact, error) {
+	resp, err := c.executions.GetExecutionRecordedTraces(ctx, connect.NewRequest(&basapi.GetExecutionArtifactsRequest{ExecutionId: executionID}))
+	if err != nil {
+		return nil, fmt.Errorf("traces fetch failed: %w", err)
+	}
+	return toRecordedArtifacts(resp.Msg.GetTraces()), nil
+}
+
+// GetRecordedHar lists the recorded HAR archives for an execution.
+func (c *HTTPClient) GetRecordedHar(ctx context.Context, executionID string) ([]RecordedArtifact, error) {
+	resp, err := c.executions.GetExecutionRecordedHar(ctx, connect.NewRequest(&basapi.GetExecutionArtifactsRequest{ExecutionId: executionID}))
+	if err != nil {
+		return nil, fmt.Errorf("har fetch failed: %w", err)
+	}
+	return toRecordedArtifacts(resp.Msg.GetHarFiles()), nil
 }
 
 // DownloadAsset downloads an asset by URL. The URL can be absolute or relative to the BAS API.

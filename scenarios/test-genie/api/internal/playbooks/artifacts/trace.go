@@ -79,10 +79,10 @@ type FileTraceWriter struct {
 	closed  bool
 }
 
-// NewTraceWriter creates a new trace writer for a scenario.
-// The trace file is written to coverage/automation/<scenario>-<timestamp>.trace.jsonl
-func NewTraceWriter(scenarioDir, scenarioName string) (*FileTraceWriter, error) {
-	targetDir := filepath.Join(scenarioDir, sharedartifacts.AutomationDir)
+// NewTraceWriter creates a new trace writer for a scenario run.
+// The trace file is written to coverage/runs/<runID>/automation/<scenario>-<timestamp>.trace.jsonl
+func NewTraceWriter(scenarioDir, scenarioName, runID string) (*FileTraceWriter, error) {
+	targetDir := sharedartifacts.RunAutomationDir(scenarioDir, runID)
 	if err := os.MkdirAll(targetDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create trace directory: %w", err)
 	}

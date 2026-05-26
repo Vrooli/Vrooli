@@ -58,11 +58,10 @@ func newArchiveTestEnv(t *testing.T) *archiveTestEnv {
 	t.Helper()
 
 	tmp := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", filepath.Join(tmp, "data"))
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmp, "config"))
-	t.Setenv("XDG_CACHE_HOME", filepath.Join(tmp, "cache"))
-	t.Setenv("XDG_STATE_HOME", filepath.Join(tmp, "state"))
-	t.Setenv("XDG_RUNTIME_DIR", filepath.Join(tmp, "runtime"))
+	// Pin storage class roots under the test temp dir via the sanctioned
+	// override; the user-profile default now resolves under the operator runtime
+	// home (~/.vrooli) and no longer honors XDG env vars.
+	t.Setenv("VROOLI_STORAGE_ROOT", tmp)
 
 	sqliteDB := db.NewSQLite(t)
 	repo := repository.NewSandboxRepository(sqliteDB, clock.System{})
@@ -744,11 +743,10 @@ func TestSnapshot_Approve_Idempotent(t *testing.T) {
 // plain status flip.
 func TestSnapshot_NoArchiveSeam_Bypassed(t *testing.T) {
 	tmp := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", filepath.Join(tmp, "data"))
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmp, "config"))
-	t.Setenv("XDG_CACHE_HOME", filepath.Join(tmp, "cache"))
-	t.Setenv("XDG_STATE_HOME", filepath.Join(tmp, "state"))
-	t.Setenv("XDG_RUNTIME_DIR", filepath.Join(tmp, "runtime"))
+	// Pin storage class roots under the test temp dir via the sanctioned
+	// override; the user-profile default now resolves under the operator runtime
+	// home (~/.vrooli) and no longer honors XDG env vars.
+	t.Setenv("VROOLI_STORAGE_ROOT", tmp)
 
 	sqliteDB := db.NewSQLite(t)
 	repo := repository.NewSandboxRepository(sqliteDB, clock.System{})

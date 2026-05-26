@@ -44,6 +44,7 @@ func NewServer() (*httpserver.Server, error) {
 		RequirementsSyncer:         deps.RequirementsSyncer,
 		PlaybooksClaims:            deps.PlaybooksClaims,
 		EligibilityService:         deps.EligibilityService,
+		RunsService:                deps.RunsService,
 		ToolRegistry:               deps.ToolRegistry,
 		ToolHandler:                deps.ToolHandler,
 	}

@@ -30,16 +30,17 @@ type FileWriter struct {
 	*sharedartifacts.BaseWriter
 }
 
-// NewWriter creates a new artifact writer.
-func NewWriter(scenarioDir, scenarioName string, opts ...sharedartifacts.BaseWriterOption) *FileWriter {
+// NewWriter creates a new artifact writer. runID keys all artifacts under
+// coverage/runs/<runID>/lighthouse/.
+func NewWriter(scenarioDir, scenarioName, runID string, opts ...sharedartifacts.BaseWriterOption) *FileWriter {
 	return &FileWriter{
-		BaseWriter: sharedartifacts.NewBaseWriter(scenarioDir, scenarioName, opts...),
+		BaseWriter: sharedartifacts.NewBaseWriter(scenarioDir, scenarioName, runID, opts...),
 	}
 }
 
-// lighthouseDir returns the lighthouse artifacts directory path.
+// lighthouseDir returns the run-keyed lighthouse artifacts directory path.
 func (w *FileWriter) lighthouseDir() string {
-	return filepath.Join(w.ScenarioDir, sharedartifacts.LighthouseDir)
+	return sharedartifacts.RunLighthouseDir(w.ScenarioDir, w.RunID)
 }
 
 // WritePageReport writes the raw Lighthouse JSON report for a single page.
@@ -64,7 +65,7 @@ func (w *FileWriter) WritePageReport(pageID string, rawResponse []byte) (string,
 		return "", fmt.Errorf("failed to write page report: %w", err)
 	}
 
-	return sharedartifacts.RelativeLighthouseArtifactPath(filename), nil
+	return sharedartifacts.RelativeLighthouseArtifactPath(w.RunID, filename), nil
 }
 
 // WriteHTMLReport writes the Lighthouse HTML report for a single page.
@@ -87,7 +88,7 @@ func (w *FileWriter) WriteHTMLReport(pageID string, htmlContent []byte) (string,
 		return "", fmt.Errorf("failed to write HTML report: %w", err)
 	}
 
-	return sharedartifacts.RelativeLighthouseArtifactPath(filename), nil
+	return sharedartifacts.RelativeLighthouseArtifactPath(w.RunID, filename), nil
 }
 
 // WritePhaseResults writes the phase results JSON for integration with the business phase.
@@ -117,7 +118,7 @@ func (w *FileWriter) WriteSummary(result *lighthouse.AuditResult) (string, error
 		return "", fmt.Errorf("failed to write summary: %w", err)
 	}
 
-	return sharedartifacts.RelativeLighthouseArtifactPath(sharedartifacts.LighthouseSummary), nil
+	return sharedartifacts.RelativeLighthouseArtifactPath(w.RunID, sharedartifacts.LighthouseSummary), nil
 }
 
 // buildPhaseOutput constructs the phase results structure for requirements integration.

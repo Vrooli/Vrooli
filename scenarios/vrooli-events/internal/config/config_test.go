@@ -110,10 +110,9 @@ func TestLoad_InvalidEnvFallsBackToDefault(t *testing.T) {
 func TestDefaultDBPathUsesCanonicalStorage(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
 
 	got := defaultDBPath()
-	want := filepath.Join(home, ".local", "share", "vrooli", "vrooli-events", "events.db")
+	want := filepath.Join(home, ".vrooli", "data", "vrooli", "vrooli-events", "events.db")
 	if got != want {
 		t.Fatalf("defaultDBPath() = %q, want %q", got, want)
 	}

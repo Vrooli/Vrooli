@@ -24,10 +24,11 @@ type FileWriter struct {
 	appRoot string
 }
 
-// NewWriter creates a new artifact writer.
-func NewWriter(scenarioDir, scenarioName, appRoot string, opts ...sharedartifacts.BaseWriterOption) *FileWriter {
+// NewWriter creates a new artifact writer. runID keys all artifacts under
+// coverage/runs/<runID>/automation/.
+func NewWriter(scenarioDir, scenarioName, runID, appRoot string, opts ...sharedartifacts.BaseWriterOption) *FileWriter {
 	return &FileWriter{
-		BaseWriter: sharedartifacts.NewBaseWriter(scenarioDir, scenarioName, opts...),
+		BaseWriter: sharedartifacts.NewBaseWriter(scenarioDir, scenarioName, runID, opts...),
 		appRoot:    appRoot,
 	}
 }
@@ -35,7 +36,7 @@ func NewWriter(scenarioDir, scenarioName, appRoot string, opts ...sharedartifact
 // WriteTimeline writes a timeline dump for a workflow execution.
 // Returns the relative path to the artifact.
 func (w *FileWriter) WriteTimeline(workflowFile string, timelineData []byte) (string, error) {
-	targetDir := filepath.Join(w.ScenarioDir, sharedartifacts.AutomationDir)
+	targetDir := sharedartifacts.RunAutomationDir(w.ScenarioDir, w.RunID)
 	if err := w.EnsureDir(targetDir); err != nil {
 		return "", fmt.Errorf("failed to create timeline dir: %w", err)
 	}

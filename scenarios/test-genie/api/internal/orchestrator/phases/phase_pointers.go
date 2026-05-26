@@ -39,8 +39,8 @@ func writePhasePointer(env workspace.Environment, phaseName string, report RunRe
 		}
 	}
 
-	writer := sharedartifacts.NewBaseWriter(env.ScenarioDir, env.ScenarioName)
-	targetDir := filepath.Join(env.ScenarioDir, sharedartifacts.PhaseResultsDir)
+	writer := sharedartifacts.NewBaseWriter(env.ScenarioDir, env.ScenarioName, env.RunID)
+	targetDir := sharedartifacts.RunPhaseResultsDir(env.ScenarioDir, env.RunID)
 	if err := writer.EnsureDir(targetDir); err != nil {
 		shared.LogWarn(logWriter, "failed to create phase results dir: %v", err)
 		return

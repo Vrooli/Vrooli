@@ -124,19 +124,6 @@ type RunsClient interface {
 	CompareRuns(ctx context.Context, scenario, runIDA, runIDB, phase string) (CompareResult, error)
 }
 
-// Issue is a normalized scenario-auditor finding with a stable diff key.
-type Issue struct {
-	Key      string `json:"key"` // stable identity for diffing (excludes volatile line numbers)
-	Severity string `json:"severity"`
-	Title    string `json:"title"`
-	FilePath string `json:"file_path"`
-}
-
-// Auditor wraps a scenario-auditor standards scan (structure or rules).
-type Auditor interface {
-	Scan(ctx context.Context, scenario, scanType string) ([]Issue, error)
-}
-
 // VisualSnapshot is the metadata of a GCT-local visual snapshot set.
 type VisualSnapshot struct {
 	SnapshotID      string

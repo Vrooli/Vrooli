@@ -208,3 +208,80 @@ func TestLoadAllowEmptyTestPoolDefaultsFalse(t *testing.T) {
 		t.Error("expected AllowEmptyTestPool to default to false (strict)")
 	}
 }
+
+func TestDiagnosticsDefault(t *testing.T) {
+	cfg := Default()
+	if !cfg.Diagnostics.Console {
+		t.Error("expected console diagnostics on by default (cheap)")
+	}
+	if cfg.Diagnostics.Video || cfg.Diagnostics.HAR || cfg.Diagnostics.Trace || cfg.Diagnostics.Network || cfg.Diagnostics.DOM {
+		t.Errorf("expected only console enabled by default, got %#v", cfg.Diagnostics)
+	}
+}
+
+func TestDiagnosticsPreset(t *testing.T) {
+	cases := []struct {
+		name      string
+		wantOK    bool
+		wantVideo bool
+		wantCons  bool
+	}{
+		{name: "none", wantOK: true, wantVideo: false, wantCons: false},
+		{name: "light", wantOK: true, wantVideo: false, wantCons: true},
+		{name: "", wantOK: true, wantVideo: false, wantCons: true},
+		{name: "full", wantOK: true, wantVideo: true, wantCons: true},
+		{name: "bogus", wantOK: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, ok := DiagnosticsPreset(tc.name)
+			if ok != tc.wantOK {
+				t.Fatalf("DiagnosticsPreset(%q) ok=%v, want %v", tc.name, ok, tc.wantOK)
+			}
+			if !tc.wantOK {
+				return
+			}
+			if d.Video != tc.wantVideo {
+				t.Errorf("preset %q video=%v, want %v", tc.name, d.Video, tc.wantVideo)
+			}
+			if d.Console != tc.wantCons {
+				t.Errorf("preset %q console=%v, want %v", tc.name, d.Console, tc.wantCons)
+			}
+		})
+	}
+	// "full" should enable every diagnostic.
+	full, _ := DiagnosticsPreset("full")
+	if !(full.Video && full.Console && full.Network && full.HAR && full.Trace && full.DOM) {
+		t.Errorf("full preset should enable everything, got %#v", full)
+	}
+}
+
+func TestLoadDiagnosticsFromTestingJSON(t *testing.T) {
+	tmpDir := t.TempDir()
+	vrooliDir := filepath.Join(tmpDir, ".vrooli")
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	testingJSON := `{"playbooks": {"diagnostics": {"video": true, "console": false}, "continue_on_failure": true, "workflow_filter": ["login"]}}`
+	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(testingJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !cfg.Diagnostics.Video {
+		t.Error("expected video diagnostics enabled from config")
+	}
+	if cfg.Diagnostics.Console {
+		t.Error("expected console explicitly disabled by config")
+	}
+	if !cfg.ContinueOnFailure {
+		t.Error("expected continue_on_failure true")
+	}
+	if len(cfg.WorkflowFilter) != 1 || cfg.WorkflowFilter[0] != "login" {
+		t.Errorf("expected workflow_filter [login], got %v", cfg.WorkflowFilter)
+	}
+}

@@ -43,7 +43,7 @@ class SurfacePointer(_message.Message):
     def __init__(self, surface_id: _Optional[str] = ..., kind: _Optional[str] = ..., ref: _Optional[str] = ..., captured_at: _Optional[str] = ..., summary: _Optional[str] = ...) -> None: ...
 
 class BaselineManifest(_message.Message):
-    __slots__ = ("name", "scenario", "branch", "created_at", "created_by", "git", "surfaces", "schema_version")
+    __slots__ = ("name", "scenario", "branch", "created_at", "created_by", "git", "surfaces", "schema_version", "skipped")
     class SurfacesEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -51,6 +51,13 @@ class BaselineManifest(_message.Message):
         key: str
         value: SurfacePointer
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[SurfacePointer, _Mapping]] = ...) -> None: ...
+    class SkippedEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     NAME_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
@@ -59,6 +66,7 @@ class BaselineManifest(_message.Message):
     GIT_FIELD_NUMBER: _ClassVar[int]
     SURFACES_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
     name: str
     scenario: str
     branch: str
@@ -67,7 +75,8 @@ class BaselineManifest(_message.Message):
     git: GitState
     surfaces: _containers.MessageMap[str, SurfacePointer]
     schema_version: int
-    def __init__(self, name: _Optional[str] = ..., scenario: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ..., created_by: _Optional[str] = ..., git: _Optional[_Union[GitState, _Mapping]] = ..., surfaces: _Optional[_Mapping[str, SurfacePointer]] = ..., schema_version: _Optional[int] = ...) -> None: ...
+    skipped: _containers.ScalarMap[str, str]
+    def __init__(self, name: _Optional[str] = ..., scenario: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ..., created_by: _Optional[str] = ..., git: _Optional[_Union[GitState, _Mapping]] = ..., surfaces: _Optional[_Mapping[str, SurfacePointer]] = ..., schema_version: _Optional[int] = ..., skipped: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class SurfaceDiff(_message.Message):
     __slots__ = ("surface_id", "verdict", "regressions", "new_failures", "preexisting", "cleared", "summary")
@@ -222,18 +231,20 @@ class DiffBaselineRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., surface: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
 
 class DiffBaselineResponse(_message.Message):
-    __slots__ = ("baseline", "current_git", "staleness", "surfaces", "verdict")
+    __slots__ = ("baseline", "current_git", "staleness", "surfaces", "verdict", "dirty_warning")
     BASELINE_FIELD_NUMBER: _ClassVar[int]
     CURRENT_GIT_FIELD_NUMBER: _ClassVar[int]
     STALENESS_FIELD_NUMBER: _ClassVar[int]
     SURFACES_FIELD_NUMBER: _ClassVar[int]
     VERDICT_FIELD_NUMBER: _ClassVar[int]
+    DIRTY_WARNING_FIELD_NUMBER: _ClassVar[int]
     baseline: BaselineManifest
     current_git: GitState
     staleness: Staleness
     surfaces: _containers.RepeatedCompositeFieldContainer[SurfaceDiff]
     verdict: str
-    def __init__(self, baseline: _Optional[_Union[BaselineManifest, _Mapping]] = ..., current_git: _Optional[_Union[GitState, _Mapping]] = ..., staleness: _Optional[_Union[Staleness, _Mapping]] = ..., surfaces: _Optional[_Iterable[_Union[SurfaceDiff, _Mapping]]] = ..., verdict: _Optional[str] = ...) -> None: ...
+    dirty_warning: str
+    def __init__(self, baseline: _Optional[_Union[BaselineManifest, _Mapping]] = ..., current_git: _Optional[_Union[GitState, _Mapping]] = ..., staleness: _Optional[_Union[Staleness, _Mapping]] = ..., surfaces: _Optional[_Iterable[_Union[SurfaceDiff, _Mapping]]] = ..., verdict: _Optional[str] = ..., dirty_warning: _Optional[str] = ...) -> None: ...
 
 class DeleteBaselineRequest(_message.Message):
     __slots__ = ("scenario", "name", "branch", "repo_id")

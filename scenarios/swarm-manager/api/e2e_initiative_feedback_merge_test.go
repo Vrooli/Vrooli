@@ -62,7 +62,7 @@ func TestE2EInitiativeFeedback_MergeItemsAppliesAndRetargets(t *testing.T) {
 
 	srv := newTestServer(t)
 	h := srv.Handler()
-	rootDir := srv.scenarioRoot
+	rootDir := testDataRoot(t)
 
 	const initiative = "e2e-merge"
 

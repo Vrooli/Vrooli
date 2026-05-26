@@ -50,7 +50,6 @@ func TestBackendSmoke(t *testing.T) {
 func TestSQLiteDSNIgnoresLegacyFallbackEnv(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
 	t.Setenv("BAS_SQLITE_PATH", "")
 	t.Setenv("DATABASE_URL", "")
 	t.Setenv("SQLITE_DATABASE_PATH", filepath.Join(home, "legacy-sqlite-root"))
@@ -60,7 +59,7 @@ func TestSQLiteDSNIgnoresLegacyFallbackEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqliteDSN() error = %v", err)
 	}
-	wantPath := filepath.Join(home, ".local", "share", "vrooli", "browser-automation-studio", "browser-automation-studio.db")
+	wantPath := filepath.Join(home, ".vrooli", "data", "vrooli", "browser-automation-studio", "browser-automation-studio.db")
 	if !strings.Contains(dsn, wantPath) {
 		t.Fatalf("sqliteDSN() = %q, want path containing %q", dsn, wantPath)
 	}

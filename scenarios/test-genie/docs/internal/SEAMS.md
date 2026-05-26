@@ -22,6 +22,15 @@ Seams declared in `scenarios/test-genie/api/internal/`. Drift is gated by
 | `eligibility.FetchRegisteredRules` | `eligibility/path_decision.go` | `GET /api/v1/rules` via `RequestJSON` | tests override to return a canned `map[string]struct{}` | Used by `AssertRulesObserved` to verify the routing rules are registered + enabled in the auditor. |
 | `eligibility.Checker.Invalidate` | `eligibility/router.go` | per-scenario cache eviction | unit-tested in `path_decision_test.go` | Called from the playbooks defer so a successive run in the same test-genie process picks up code fixes. |
 
+## Run history & diagnostics
+
+| Seam | Declaration | Production impl | Test double | Why |
+|---|---|---|---|---|
+| Run index | `internal/shared/runs/index.go` (`Index`) | Append-only `coverage/runs.index.json`, `flock`-protected, atomic temp-file rename; addressed per-scenario by `NewIndex(scenarioDir)`. | Exercised directly against a `t.TempDir()` in `index_test.go` (incl. 50-goroutine concurrent-append torture) — concrete store, not faked. | Stops the old overwrite-per-run model; gives every run a stable runID key so GCT baselines can pin/compare (Decision 3). |
+| Retention GC | `internal/shared/runs/retention.go` (`GC`, `DefaultRetentionPolicy`) | Keeps last N + everything pinned; oldest-unpinned evicted first; runs in background on execute completion. | `retention_test.go` against `t.TempDir()`. | Bounds disk while never dropping a run an external consumer pinned (`len(Pins) > 0`). |
+| Diagnostics → BAS plumbing | `internal/playbooks/config/config.go` (`DiagnosticsConfig`) → `internal/playbooks/execution/client.go` | `--diagnostics-preset {none,light,full}` sets `ExecuteWorkflowOptions` (`RequiresVideo/Har/Trace`) + `ArtifactCollectionConfig` toggles. | `config_test.go` (preset parsing/defaults). | Per-run diagnostics depth is immutable once a run completes (Decision 4); baselines just pin runs of differing depth. |
+| RunsService RPC | `internal/app/runs/service.go` | Thin Connect-RPC wrapper over `internal/shared/runs.Index`; `scenariosRoot` resolves a slug → run index path. | `service_test.go` against `t.TempDir()`. | The HTTP surface the test-genie CLI and GCT baseline adapters consume. |
+
 ## Related docs
 
 - [`docs/agent-system/routed-test-db.md`](../../../../docs/agent-system/routed-test-db.md)
