@@ -26,10 +26,11 @@ func (s Service) Run(req Request) (Report, error) {
 	if req.FailOn == "" {
 		req.FailOn = SeverityError
 	}
-	if !req.IncludeContract && !req.IncludePlans && !req.IncludeDrift {
+	if !req.IncludeContract && !req.IncludePlans && !req.IncludeDrift && !req.IncludePnpmConfig {
 		req.IncludeContract = true
 		req.IncludePlans = true
 		req.IncludeDrift = true
+		req.IncludePnpmConfig = true
 	}
 	report := Report{Root: root, Success: true}
 
@@ -176,6 +177,11 @@ func (s Service) Run(req Request) (Report, error) {
 				report.Actions = append(report.Actions, action)
 			}
 		}
+	}
+
+	if req.IncludePnpmConfig {
+		s.checkPnpmConfig(&report, req.FixSafe)
+		s.checkScenarioPnpm(&report)
 	}
 
 	if req.FixSafe && req.Plans && len(report.PlanCandidates) > 0 {

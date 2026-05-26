@@ -39,6 +39,37 @@ func TestParseRequestRejectsConflictingModes(t *testing.T) {
 	if _, err := ParseRequest([]string{"--drift-only", "--no-drift"}); err == nil {
 		t.Fatalf("ParseRequest accepted drift-only with no-drift")
 	}
+	if _, err := ParseRequest([]string{"--pnpm-only", "--contract-only"}); err == nil {
+		t.Fatalf("ParseRequest accepted conflicting pnpm+contract-only")
+	}
+}
+
+func TestParseRequestSupportsPnpmOnly(t *testing.T) {
+	req, err := ParseRequest([]string{"--pnpm-only", "--fix-safe"})
+	if err != nil {
+		t.Fatalf("ParseRequest: %v", err)
+	}
+	if !req.PnpmOnly {
+		t.Fatalf("PnpmOnly = false, want true")
+	}
+	if !req.FixSafe {
+		t.Fatalf("FixSafe = false, want true")
+	}
+}
+
+func TestRenderShowsConfigFixes(t *testing.T) {
+	report := hygieneapp.Report{
+		Root:        "/repo",
+		Success:     true,
+		ConfigFixes: []string{"restored canonical pnpm-workspace.yaml (comment block + workspace settings)"},
+	}
+	var out bytes.Buffer
+	if err := Render(&out, cliout.FormatHuman, report, OutputModeDefault); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if !strings.Contains(out.String(), "Config fixes applied:") {
+		t.Fatalf("render missing config fixes section:\n%s", out.String())
+	}
 }
 
 func TestParseRequestSupportsDriftFlags(t *testing.T) {

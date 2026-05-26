@@ -1,11 +1,20 @@
-# Workspace configuration for shared packages only
-# IMPORTANT: Do NOT add scenarios/**/ui here!
-# Scenarios must remain completely isolated to prevent dependency conflicts.
-# Shared package adoption is governed by `vrooli package ...` plus
-# package manifests under packages/*/.vrooli/package.json.
-# This keeps scenarios isolated while preserving explicit reuse.
-packageManager: "pnpm@10.14.0"
-link-workspace-packages: false
-shared-workspace-lockfile: false
+# Root workspace configuration - shared packages only (packages/*).
+# IMPORTANT: Do NOT add scenarios/**/ui or any scenarios/* path here.
+# Scenarios must stay fully isolated to prevent dependency conflicts; they
+# install with "pnpm install --ignore-workspace" and never join this workspace.
+# Shared-package adoption is governed by "vrooli package ..." plus package
+# manifests under packages/*/.vrooli/package.json.
+# This file is the single source of truth for root workspace settings; do not
+# reintroduce a root .npmrc. pnpm rewrites this file and strips these comments;
+# run "vrooli hygiene --fix-safe" to restore them. Enforced by "vrooli hygiene".
+
 packages:
   - packages/*
+
+autoInstallPeers: false
+link-workspace-packages: false
+shared-workspace-lockfile: false
+packageManager: pnpm@10.14.0
+public-hoist-pattern:
+  - "*eslint*"
+  - "*prettier*"

@@ -67,6 +67,7 @@ type Report struct {
 	Actions          []Action                     `json:"actions,omitempty"`
 	PlanCandidates   []PlanCandidate              `json:"plan_candidates,omitempty"`
 	FixesApplied     []PlanFix                    `json:"fixes_applied,omitempty"`
+	ConfigFixes      []string                     `json:"config_fixes,omitempty"`
 	Contract         contractapp.ValidationOutput `json:"contract,omitempty"`
 	SharedDrift      *shareddriftapp.Report       `json:"shared_drift,omitempty"`
 	BlockingFailures int                          `json:"blocking_failures"`
@@ -74,10 +75,11 @@ type Report struct {
 }
 
 type Request struct {
-	FixSafe         bool
-	Plans           bool
-	FailOn          Severity
-	IncludePlans    bool
-	IncludeContract bool
-	IncludeDrift    bool
+	FixSafe           bool
+	Plans             bool
+	FailOn            Severity
+	IncludePlans      bool
+	IncludeContract   bool
+	IncludeDrift      bool
+	IncludePnpmConfig bool
 }

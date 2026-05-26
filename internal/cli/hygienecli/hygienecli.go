@@ -20,6 +20,7 @@ type Request struct {
 	ContractOnly bool
 	PlansOnly    bool
 	DriftOnly    bool
+	PnpmOnly     bool
 	NoDrift      bool
 }
 
@@ -48,6 +49,7 @@ func CommandSpec() commandtree.Spec[string] {
 				{Name: "--plans-only", Description: "Run only plan lifecycle hygiene checks"},
 				{Name: "--contract-only", Description: "Run only repository contract hygiene checks"},
 				{Name: "--drift-only", Description: "Run only the shared-package drift check"},
+				{Name: "--pnpm-only", Description: "Run only the pnpm workspace config checks"},
 				{Name: "--no-drift", Description: "Skip the shared-package drift check"},
 				commandtree.JSONOption(),
 			},
@@ -89,15 +91,16 @@ func ParseRequest(args []string) (Request, error) {
 	plansOnly := parsed.HasFlag("--plans-only")
 	contractOnly := parsed.HasFlag("--contract-only")
 	driftOnly := parsed.HasFlag("--drift-only")
+	pnpmOnly := parsed.HasFlag("--pnpm-only")
 	noDrift := parsed.HasFlag("--no-drift")
 	onlyCount := 0
-	for _, set := range []bool{plansOnly, contractOnly, driftOnly} {
+	for _, set := range []bool{plansOnly, contractOnly, driftOnly, pnpmOnly} {
 		if set {
 			onlyCount++
 		}
 	}
 	if onlyCount > 1 {
-		return Request{}, fmt.Errorf("--plans-only, --contract-only, and --drift-only are mutually exclusive")
+		return Request{}, fmt.Errorf("--plans-only, --contract-only, --drift-only, and --pnpm-only are mutually exclusive")
 	}
 	if driftOnly && noDrift {
 		return Request{}, fmt.Errorf("--drift-only and --no-drift are mutually exclusive")
@@ -110,6 +113,7 @@ func ParseRequest(args []string) (Request, error) {
 		PlansOnly:    plansOnly,
 		ContractOnly: contractOnly,
 		DriftOnly:    driftOnly,
+		PnpmOnly:     pnpmOnly,
 		NoDrift:      noDrift,
 	}, nil
 }
@@ -151,6 +155,12 @@ func Render(w io.Writer, format cliout.Format, report hygieneapp.Report, mode Ou
 		_, _ = fmt.Fprintln(w, "\nFixes applied:")
 		for _, fix := range report.FixesApplied {
 			_, _ = fmt.Fprintf(w, "- imported %s -> %s\n", fix.Source, fix.Plan.Path)
+		}
+	}
+	if len(report.ConfigFixes) > 0 {
+		_, _ = fmt.Fprintln(w, "\nConfig fixes applied:")
+		for _, fix := range report.ConfigFixes {
+			_, _ = fmt.Fprintf(w, "- %s\n", fix)
 		}
 	}
 	renderNextSteps(w, report, true)
