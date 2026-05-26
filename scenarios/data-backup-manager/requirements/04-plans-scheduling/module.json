@@ -1,0 +1,49 @@
+{
+  "_metadata": {
+    "module": "plans-scheduling",
+    "description": "Plans bind targets to destinations with schedule and retention; the scheduler runs them.",
+    "prd_ref": "OT-P0-004",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DBM-PLAN-001",
+      "title": "Many-to-many plans with schedule and retention",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "plan",
+      "criticality": "P0",
+      "description": "A plan binds one or more targets to one or more destinations and carries a schedule and a retention policy. One target may belong to multiple plans (e.g. daily-to-local and weekly-to-offsite).",
+      "tags": ["plan", "schedule", "retention", "many-to-many"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "ref": "api/internal/plans/service_test.go::TestPlan_ManyToManyBindings",
+          "notes": "Create a plan spanning multiple targets/destinations; assert a target can appear in two plans."
+        }
+      ]
+    },
+    {
+      "id": "DBM-SCHED-001",
+      "title": "Scheduled and on-demand execution",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "execution",
+      "criticality": "P0",
+      "description": "An in-process scheduler triggers plan runs on their cadence; operators and scenarios can trigger a run on demand. No external orchestrator (no n8n).",
+      "tags": ["scheduler", "execution", "on-demand"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "ref": "api/internal/scheduler/scheduler_test.go::TestScheduler_FiresAndManualTrigger",
+          "notes": "Advance a fake clock to fire a due plan; assert a run is created; assert manual trigger creates a run immediately."
+        }
+      ]
+    }
+  ]
+}

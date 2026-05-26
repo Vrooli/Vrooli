@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "data-backup-manager",
+  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "notes",
+      "description": "Manage notes (CRUD reference)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List all notes",
+          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "ListNotes" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a note",
+          "flags": [
+            { "name": "title", "required": true, "description": "Note title" },
+            { "name": "body", "description": "Note body" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CreateNote" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a note by id",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Note id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "GetNote" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": []
+}

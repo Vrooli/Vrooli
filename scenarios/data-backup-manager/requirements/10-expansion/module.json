@@ -1,0 +1,79 @@
+{
+  "_metadata": {
+    "module": "expansion",
+    "description": "P2 expansion capabilities tracked for the future; not scheduled for initial delivery.",
+    "prd_ref": "OT-P2-001",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DBM-BACKEND-EXT",
+      "title": "Additional kopia backends",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "destination",
+      "criticality": "P2",
+      "description": "B2, GCS, Azure, and SFTP destination kinds via kopia backends.",
+      "tags": ["destination", "backends", "expansion"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred; add per-backend integration tests when implemented."
+        }
+      ]
+    },
+    {
+      "id": "DBM-REPL-001",
+      "title": "Cross-destination replication",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "replication",
+      "criticality": "P2",
+      "description": "Replicate snapshots between destinations to support offsite tiers.",
+      "tags": ["replication", "offsite", "expansion"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred; design and tests when scheduled."
+        }
+      ]
+    },
+    {
+      "id": "DBM-ANALYTICS-001",
+      "title": "Backup analytics & trends",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "analytics",
+      "criticality": "P2",
+      "description": "Usage and growth trends per destination and target.",
+      "tags": ["analytics", "trends", "expansion"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred; depends on accumulated run history."
+        }
+      ]
+    },
+    {
+      "id": "DBM-DRILL-001",
+      "title": "Automated restore drills",
+      "status": "planned",
+      "prd_ref": "OT-P2-004",
+      "category": "restore.verify",
+      "criticality": "P2",
+      "description": "Scheduled, reported restore verification across plans (continuous proof of recoverability).",
+      "tags": ["restore", "drills", "verify", "expansion"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred; builds on the P0 verify operation and the scheduler."
+        }
+      ]
+    }
+  ]
+}

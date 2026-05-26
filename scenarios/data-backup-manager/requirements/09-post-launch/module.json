@@ -1,0 +1,123 @@
+{
+  "_metadata": {
+    "module": "post-launch",
+    "description": "P1 capabilities to add after the P0 backbone is proven.",
+    "prd_ref": "OT-P1-001",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DBM-HOOK-001",
+      "title": "Quiesce pre/post hooks for app-consistent snapshots",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "consistency",
+      "criticality": "P1",
+      "description": "A target can declare pre/post hooks (e.g. flush, pause writes) so live databases and stateful scenarios get application-consistent snapshots.",
+      "tags": ["quiesce", "consistency", "hooks"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "ref": "api/internal/runs/hooks_test.go::TestRun_QuiesceHooks",
+          "notes": "Assert pre-hook runs before capture and post-hook after, with failure aborting the run cleanly."
+        }
+      ]
+    },
+    {
+      "id": "DBM-RET-001",
+      "title": "GFS retention policies per plan",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "retention",
+      "criticality": "P1",
+      "description": "Grandfather-father-son retention configurable per plan, applied through kopia snapshot policies.",
+      "tags": ["retention", "gfs"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "ref": "api/internal/plans/retention_test.go::TestRetention_GFS",
+          "notes": "Simulate snapshots over time; assert kept set matches GFS policy."
+        }
+      ]
+    },
+    {
+      "id": "DBM-DEST-DRYRUN",
+      "title": "Destination reachability dry-run",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "destination",
+      "criticality": "P1",
+      "description": "Verify a destination is reachable and writable before a plan depends on it.",
+      "tags": ["destination", "dry-run", "preflight"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "ref": "api/internal/destinations/dryrun_test.go::TestDestination_DryRun",
+          "notes": "Assert dry-run passes for a good destination and fails clearly for an unreachable/read-only one."
+        }
+      ]
+    },
+    {
+      "id": "DBM-RST-GRAN",
+      "title": "Restore granularity (path / point-in-time)",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "restore",
+      "criticality": "P1",
+      "description": "Restore a single path or a chosen point-in-time from a snapshot, not just the whole artifact.",
+      "tags": ["restore", "granularity", "point-in-time"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "ref": "api/internal/restores/granular_test.go::TestRestore_SinglePathAndPIT",
+          "notes": "Restore one file and a prior snapshot version; assert correct content/version."
+        }
+      ]
+    },
+    {
+      "id": "DBM-MIG-PM",
+      "title": "prompt-manager store migration (first customer)",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "adoption",
+      "criticality": "P1",
+      "description": "prompt-manager registers store/teams/** as a target, a verified restore is proven, and the data stops being committed to git.",
+      "tags": ["adoption", "prompt-manager", "migration"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Register prompt-manager store target; run verified restore; confirm git no longer tracks the churned runtime files."
+        }
+      ]
+    },
+    {
+      "id": "DBM-ALERT-001",
+      "title": "Alerting integration",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "observability",
+      "criticality": "P1",
+      "description": "Stale and failed backups surface through platform monitoring/notifications.",
+      "tags": ["alerting", "notifications"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "ref": "api/internal/runs/alert_test.go::TestAlert_StaleOrFailed",
+          "notes": "Assert an alert/event is emitted on stale or failed backup."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "_metadata": {
+    "module": "surfaces",
+    "description": "API, CLI, and UI expose the same registration/destination/plan/run/restore model over one Connect-RPC contract.",
+    "prd_ref": "OT-P0-011",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DBM-API-001",
+      "title": "Connect-RPC API contract",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "api",
+      "criticality": "P0",
+      "description": "All operations (register/deregister targets, manage destinations/plans, trigger runs, restore/verify, query catalog/health) are exposed via Connect-RPC defined in packages/proto/schemas/data-backup-manager/v1.",
+      "tags": ["api", "connect-rpc", "proto"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/handlers/backup/handler_test.go::TestBackupService_Contract",
+          "notes": "Exercise each RPC against the service with fakes; assert request/response shapes."
+        }
+      ]
+    },
+    {
+      "id": "DBM-CLI-001",
+      "title": "CLI surface for operators and self-registration",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "cli",
+      "criticality": "P0",
+      "description": "The CLI wraps the API so scenarios can self-register targets at setup/lifecycle (e.g. data-backup-manager register ...) and operators can manage destinations/plans, trigger runs, and restore.",
+      "tags": ["cli"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "cli/domains/backup/commands_test.go::TestRegisterCommand",
+          "notes": "Assert register/destination/plan/run/restore commands parse and call the API client."
+        }
+      ]
+    },
+    {
+      "id": "DBM-UI-001",
+      "title": "UI for destinations, plans, runs, storage, restore",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The UI presents destinations (with storage usage vs cap), plans, run history with status, and a guided restore/verify flow, using platform design tokens and WCAG AA patterns.",
+      "tags": ["ui"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "planned",
+          "ref": "ui/src/features/backup/__tests__/BackupDashboard.test.tsx::renders run history and storage state",
+          "notes": "Render with mocked client; assert status/usage surfaces and restore entry point."
+        }
+      ]
+    }
+  ]
+}

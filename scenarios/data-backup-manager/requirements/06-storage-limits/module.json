@@ -1,0 +1,49 @@
+{
+  "_metadata": {
+    "module": "storage-limits",
+    "description": "Per-destination storage caps that default to alert+block and never silently delete backups.",
+    "prd_ref": "OT-P0-008",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DBM-LIM-001",
+      "title": "Per-destination caps with usage accounting",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "storage-limits",
+      "criticality": "P0",
+      "description": "Each destination has a configurable storage cap. Current usage is read from kopia repository stats and compared against the cap, surfaced as within/near/over.",
+      "tags": ["storage-limits", "usage", "stats"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "ref": "api/internal/destinations/limits_test.go::TestLimits_UsageState",
+          "notes": "Seed usage; assert within/near/over thresholds computed from repo stats."
+        }
+      ]
+    },
+    {
+      "id": "DBM-LIM-002",
+      "title": "Default alert+block, configurable",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "storage-limits.policy",
+      "criticality": "P0",
+      "description": "Over-cap behavior is configurable but defaults to alert+block: alert and refuse new writes rather than evict. Eviction happens only through an explicit retention policy, never silently to stay under a cap.",
+      "tags": ["storage-limits", "policy", "alert-block", "safety"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "ref": "api/internal/destinations/limits_test.go::TestLimits_DefaultAlertBlock",
+          "notes": "Drive a destination over cap; assert default blocks new backup + raises alert and does not delete existing snapshots."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "_metadata": {
+    "module": "destinations-encryption",
+    "description": "Multiple encrypted backup destinations backed by kopia repositories with vault-sourced secrets.",
+    "prd_ref": "OT-P0-003",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DBM-DEST-001",
+      "title": "Multiple destinations as kopia repositories",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "destination",
+      "criticality": "P0",
+      "description": "Create and manage multiple destinations, each a kopia repository of a given kind (local filesystem, S3/MinIO). A destination must not be allowed to point under the storage root it would protect.",
+      "tags": ["destination", "kopia", "repository"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "ref": "api/internal/destinations/service_test.go::TestCreateDestinations_FsAndS3",
+          "notes": "Create fs + S3 destinations; assert connect/status; assert self-root destination is rejected."
+        }
+      ]
+    },
+    {
+      "id": "DBM-ENC-001",
+      "title": "Encryption on by default, secrets from vault",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "destination.security",
+      "criticality": "P0",
+      "description": "Every destination is created encrypted by default. Repository passphrases and backend access keys are read from the vault resource at runtime and never written to config files or argv.",
+      "tags": ["encryption", "vault", "secrets"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "ref": "api/internal/destinations/encryption_test.go::TestDestination_EncryptedByDefault",
+          "notes": "Assert repository status reports a non-null encryption algorithm; assert secrets resolved via vault, absent from persisted config."
+        }
+      ]
+    }
+  ]
+}

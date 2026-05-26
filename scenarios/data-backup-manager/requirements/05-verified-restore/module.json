@@ -1,0 +1,49 @@
+{
+  "_metadata": {
+    "module": "verified-restore",
+    "description": "Restore is first-class: restore to a location and verify by test-restoring to scratch and checksumming.",
+    "prd_ref": "OT-P0-006",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DBM-RST-001",
+      "title": "Restore a target from a snapshot",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "restore",
+      "criticality": "P0",
+      "description": "Restore a target's snapshot to a chosen location for each source kind, using the kopia repository plus the source kind's restore step (pg restore, qdrant upload, etc.).",
+      "tags": ["restore"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "ref": "api/internal/restores/service_test.go::TestRestore_PerSourceKind",
+          "notes": "For each source kind, backup then restore to a scratch location and assert equivalence."
+        }
+      ]
+    },
+    {
+      "id": "DBM-RST-002",
+      "title": "Verify mode (test-restore + checksum)",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "restore.verify",
+      "criticality": "P0",
+      "description": "A verify operation test-restores a snapshot to a scratch location and checksums the result, recording a last-verified timestamp per target. This is the gate before any committed runtime data is removed from git.",
+      "tags": ["restore", "verify", "integrity", "gate"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "ref": "api/internal/restores/verify_test.go::TestVerify_RecordsLastVerified",
+          "notes": "Run verify; assert scratch is cleaned up, checksum matches source manifest, last_verified_at is set."
+        }
+      ]
+    }
+  ]
+}
