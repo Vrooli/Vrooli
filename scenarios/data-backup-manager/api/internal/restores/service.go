@@ -27,6 +27,9 @@ type Service interface {
 	GetRestore(ctx context.Context, id string) (Restore, error)
 	// ListRestores returns records newest-first, optionally filtered by target.
 	ListRestores(ctx context.Context, targetID string, limit int) ([]Restore, error)
+	// LastVerifiedByTarget returns the latest successful verify per target
+	// (the proven-restorable rollup), optionally filtered to targetIDs.
+	LastVerifiedByTarget(ctx context.Context, targetIDs []string) ([]VerifiedStatus, error)
 }
 
 // Deps bundles the seams the restores service orchestrates.
@@ -188,6 +191,10 @@ func (s *service) ListRestores(ctx context.Context, targetID string, limit int) 
 		limit = defaultRestoreListLimit
 	}
 	return s.deps.Repo.ListRestores(ctx, strings.TrimSpace(targetID), limit)
+}
+
+func (s *service) LastVerifiedByTarget(ctx context.Context, targetIDs []string) ([]VerifiedStatus, error) {
+	return s.deps.Repo.LastVerifiedByTarget(ctx, targetIDs)
 }
 
 // failRestore records a failed restore and persists it. If persistence fails,

@@ -2,6 +2,7 @@ package runs
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -13,6 +14,18 @@ import (
 
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/runs"
 )
+
+var errVerifiedBoom = errors.New("verified lookup failed")
+
+// fakeVerified satisfies VerifiedLookup for handler tests.
+type fakeVerified struct {
+	m   map[string]VerifiedInfo
+	err error
+}
+
+func (f fakeVerified) LastVerifiedByTarget(context.Context) (map[string]VerifiedInfo, error) {
+	return f.m, f.err
+}
 
 // TestRunsService_Contract exercises each RunsService RPC against the handler
 // backed by a fake service, asserting the domain→wire translation (status and
@@ -72,6 +85,49 @@ func TestRunsService_Contract(t *testing.T) {
 		}
 		if len(resp.Msg.Statuses) != 1 || resp.Msg.Statuses[0].LastRunStatus != runsv1.RunStatus_RUN_STATUS_COMPLETED {
 			t.Fatalf("status rollup wrong: %+v", resp.Msg.Statuses)
+		}
+	})
+
+	t.Run("ListTargetStatus composes verified posture per target", func(t *testing.T) {
+		verifiedAt := time.Unix(1700001111, 0).UTC()
+		svc := &mocks.FakeService{StatusOut: []internalruns.TargetStatus{
+			// t1: backed up AND verified.
+			{TargetID: "t1", LastRunStatus: internalruns.RunCompleted, LastSuccessAt: time.Unix(1700000000, 0).UTC()},
+			// t2: backed up but NEVER verified — the central distinction.
+			{TargetID: "t2", LastRunStatus: internalruns.RunCompleted, LastSuccessAt: time.Unix(1700000000, 0).UTC()},
+		}}
+		verified := fakeVerified{m: map[string]VerifiedInfo{
+			"t1": {LastVerifiedAt: verifiedAt, SnapshotID: "snap-verified"},
+		}}
+		h := NewConnectHandler(Deps{Service: svc, Verified: verified})
+		resp, err := h.ListTargetStatus(ctx, connect.NewRequest(&runsv1.ListTargetStatusRequest{}))
+		if err != nil {
+			t.Fatalf("ListTargetStatus: %v", err)
+		}
+		byID := map[string]*runsv1.TargetStatus{}
+		for _, s := range resp.Msg.Statuses {
+			byID[s.TargetId] = s
+		}
+		t1 := byID["t1"]
+		if t1 == nil || t1.LastVerifiedAt == nil || !t1.LastVerifiedAt.AsTime().Equal(verifiedAt) {
+			t.Fatalf("t1 should carry last_verified_at %v: %+v", verifiedAt, t1)
+		}
+		if t1.LastVerifiedSnapshotId != "snap-verified" {
+			t.Errorf("t1 verified snapshot = %q, want snap-verified", t1.LastVerifiedSnapshotId)
+		}
+		// The whole point: a backed-up-but-unverified target reports NO verify.
+		t2 := byID["t2"]
+		if t2 == nil || t2.LastVerifiedAt != nil || t2.LastVerifiedSnapshotId != "" {
+			t.Fatalf("t2 is backed up but never verified; last_verified must be unset: %+v", t2)
+		}
+	})
+
+	t.Run("verified-lookup error surfaces as an RPC error", func(t *testing.T) {
+		svc := &mocks.FakeService{StatusOut: []internalruns.TargetStatus{{TargetID: "t1"}}}
+		h := NewConnectHandler(Deps{Service: svc, Verified: fakeVerified{err: errVerifiedBoom}})
+		_, err := h.ListTargetStatus(ctx, connect.NewRequest(&runsv1.ListTargetStatusRequest{}))
+		if err == nil {
+			t.Fatal("expected an error when the verified lookup fails")
 		}
 	})
 

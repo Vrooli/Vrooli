@@ -3,6 +3,7 @@ package runs
 import (
 	"context"
 	"log"
+	"time"
 
 	internalruns "data-backup-manager/internal/runs"
 
@@ -12,10 +13,29 @@ import (
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/runs"
 )
 
+// VerifiedInfo is the proven-restorable rollup for one target: the latest
+// successful verify and the snapshot it proved.
+type VerifiedInfo struct {
+	LastVerifiedAt time.Time
+	SnapshotID     string
+}
+
+// VerifiedLookup supplies the latest successful verify per target, keyed by
+// target id, so ListTargetStatus can carry "proven restorable" posture
+// alongside "backed up" posture in a single call (no per-target fan-out).
+//
+// seam: satisfied by an adapter over restores.Service in main.go. Optional — a
+// nil lookup yields no verified data, so every target renders as unverified.
+type VerifiedLookup interface {
+	LastVerifiedByTarget(ctx context.Context) (map[string]VerifiedInfo, error)
+}
+
 // Deps wires the seams the Connect runs handler needs.
 type Deps struct {
 	Service internalruns.Service
-	Logger  *log.Logger
+	// Verified is optional; when nil, ListTargetStatus omits verified posture.
+	Verified VerifiedLookup
+	Logger   *log.Logger
 }
 
 type connectHandler struct {
@@ -66,9 +86,26 @@ func (h *connectHandler) ListTargetStatus(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, h.translate("ListTargetStatus", err)
 	}
+
+	// Enrich with proven-restorable posture from restore history. A target with
+	// a recent backup but no (or a stale) verify is the case the UI flags — so
+	// "verified" is composed here, not derived from run history.
+	var verified map[string]VerifiedInfo
+	if h.deps.Verified != nil {
+		verified, err = h.deps.Verified.LastVerifiedByTarget(ctx)
+		if err != nil {
+			return nil, h.translate("ListTargetStatus", err)
+		}
+	}
+
 	resp := &runsv1.ListTargetStatusResponse{Statuses: make([]*runsv1.TargetStatus, 0, len(statuses))}
 	for _, s := range statuses {
-		resp.Statuses = append(resp.Statuses, targetStatusToProto(s))
+		ps := targetStatusToProto(s)
+		if v, ok := verified[s.TargetID]; ok && !v.LastVerifiedAt.IsZero() {
+			ps.LastVerifiedAt = timestamppb.New(v.LastVerifiedAt)
+			ps.LastVerifiedSnapshotId = v.SnapshotID
+		}
+		resp.Statuses = append(resp.Statuses, ps)
 	}
 	return connect.NewResponse(resp), nil
 }

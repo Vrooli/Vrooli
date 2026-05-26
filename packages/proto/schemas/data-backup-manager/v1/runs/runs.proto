@@ -87,11 +87,23 @@ message Run {
 
 // TargetStatus is the last-success / last-run rollup for one target, derived
 // from run history (powers the catalog and the health overdue check).
+//
+// "Backed up" (last_success_at) and "proven restorable" (last_verified_at) are
+// distinct: a target may have a recent successful backup yet never have been
+// verified. The UI treats verified-restore age as the primary posture signal
+// and flags backed-up-but-unverified targets distinctly, so this rollup carries
+// both in one owner-scoped call (no per-target restore-history fan-out).
 message TargetStatus {
   string target_id = 1;
   google.protobuf.Timestamp last_success_at = 2;
   RunStatus last_run_status = 3;
   google.protobuf.Timestamp last_run_at = 4;
+  // Latest successful VERIFY restore for this target (proven-restorable age).
+  // Unset means backed up but never verified — surfaced as an unverified chip.
+  google.protobuf.Timestamp last_verified_at = 5;
+  // Snapshot id of that latest successful verify; powers a "verify the same
+  // point again" shortcut. Empty when last_verified_at is unset.
+  string last_verified_snapshot_id = 6;
 }
 
 message TriggerRunRequest {

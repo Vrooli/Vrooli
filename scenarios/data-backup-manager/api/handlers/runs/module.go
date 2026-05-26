@@ -16,11 +16,13 @@ import (
 // reference domains, the run service is constructed in main.go (it needs
 // cross-domain lookup adapters for plans/targets/destinations plus the engine
 // and source registry), so this module takes the already-built service. The
-// schema is static and re-exported via Schema().
-func Module(svc internalruns.Service, logger *log.Logger) module.Module {
+// verified lookup (proven-restorable rollup) is likewise composed in main.go
+// over the restores service. The schema is static and re-exported via Schema().
+func Module(svc internalruns.Service, verified VerifiedLookup, logger *log.Logger) module.Module {
 	connectPath, connectHandler := runsconnect.NewRunsServiceHandler(NewConnectHandler(Deps{
-		Service: svc,
-		Logger:  logger,
+		Service:  svc,
+		Verified: verified,
+		Logger:   logger,
 	}))
 	return module.Module{
 		Name: "runs",

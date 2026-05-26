@@ -36,6 +36,13 @@ service RoutingService {
   // primary pool. The caller's lease_id must match the active install.
   // Idempotent under match: clearing when no pool is installed is a no-op success.
   rpc ClearTestPool(ClearTestPoolRequest) returns (ClearTestPoolResponse);
+
+  // HeartbeatTestPool extends the active lease's expiry. The caller's
+  // lease_id must match the active install (FailedPrecondition otherwise).
+  // The scenario uses an internal TTL as a defensive timeout: if the
+  // orchestrator crashes between Install and Clear, the lease expires and
+  // routing reverts to the primary pool without manual intervention.
+  rpc HeartbeatTestPool(HeartbeatTestPoolRequest) returns (HeartbeatTestPoolResponse);
 }
 
 message InstallTestPoolRequest {
@@ -49,6 +56,13 @@ message InstallTestPoolRequest {
   // The scenario rejects an install if the slot is already held under a
   // different lease_id. Same lease_id installs are idempotent.
   string lease_id = 2;
+
+  // lease_ttl_ms is the maximum time, in milliseconds, that the scenario
+  // should hold the test pool without a HeartbeatTestPool call. Zero means
+  // "use the scenario default" (currently 90s). On expiry, RoutedDB reverts
+  // routing to the primary pool — a defensive timeout for an orchestrator
+  // crashing between Install and Clear.
+  int64 lease_ttl_ms = 3;
 }
 
 message InstallTestPoolResponse {
@@ -63,4 +77,33 @@ message ClearTestPoolRequest {
   string lease_id = 1;
 }
 
-message ClearTestPoolResponse {}
+message ClearTestPoolResponse {
+  // stats reports per-lease routing counters observed during the run. Used
+  // by test-genie's playbooks phase to detect that a "routed" run actually
+  // exercised the test pool (test_pool_requests > 0) and to flag bypass
+  // attempts (primary_during_test_mode_requests > 0).
+  LeaseStats stats = 1;
+}
+
+message HeartbeatTestPoolRequest {
+  // lease_id must match the active install. Mismatch yields FailedPrecondition.
+  string lease_id = 1;
+}
+
+message HeartbeatTestPoolResponse {
+  // expires_at_unix_ms is the new absolute expiry timestamp, in unix
+  // milliseconds, after the heartbeat extends the lease.
+  int64 expires_at_unix_ms = 1;
+}
+
+// LeaseStats are advisory counters tracked per-lease on the scenario side.
+//
+// test_pool_requests counts requests served from the installed test pool
+// (i.e. routing succeeded). primary_during_test_mode_requests counts
+// requests that carried X-Vrooli-Test-Mode:1 but were served from the
+// primary pool anyway — a sign that some code path holds a raw *sql.DB
+// instead of going through RoutedDB.
+message LeaseStats {
+  int64 test_pool_requests = 1;
+  int64 primary_during_test_mode_requests = 2;
+}

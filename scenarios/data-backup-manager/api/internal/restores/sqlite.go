@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"data-backup-manager/internal/clock"
@@ -110,6 +111,58 @@ func (s *sqliteRepository) ListRestores(ctx context.Context, targetID string, li
 		return nil, fmt.Errorf("iterate restores: %w", err)
 	}
 	return out, nil
+}
+
+func (s *sqliteRepository) LastVerifiedByTarget(ctx context.Context, targetIDs []string) ([]VerifiedStatus, error) {
+	// Newest verified-first; the first row seen per target is its latest verify.
+	query := `
+SELECT target_id, last_verified_at, snapshot_id
+FROM restores
+WHERE status = ? AND mode = ? %s
+ORDER BY last_verified_at DESC, id DESC`
+	where := ""
+	args := []any{string(RestoreVerified), string(ModeVerify)}
+	if len(targetIDs) > 0 {
+		where = "AND target_id IN (" + placeholders(len(targetIDs)) + ")"
+		for _, id := range targetIDs {
+			args = append(args, id)
+		}
+	}
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(query, where), args...)
+	if err != nil {
+		return nil, fmt.Errorf("last verified by target: %w", err)
+	}
+	defer rows.Close()
+
+	seen := map[string]struct{}{}
+	var out []VerifiedStatus
+	for rows.Next() {
+		var targetID, verifiedRaw, snapshotID string
+		if err := rows.Scan(&targetID, &verifiedRaw, &snapshotID); err != nil {
+			return nil, fmt.Errorf("scan verified status: %w", err)
+		}
+		if _, ok := seen[targetID]; ok {
+			continue // first row per target is the latest verify
+		}
+		seen[targetID] = struct{}{}
+		out = append(out, VerifiedStatus{
+			TargetID:       targetID,
+			LastVerifiedAt: parseTime(verifiedRaw),
+			SnapshotID:     snapshotID,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate verified statuses: %w", err)
+	}
+	return out, nil
+}
+
+// placeholders returns "?,?,…" with n placeholders for an IN clause.
+func placeholders(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	return strings.TrimSuffix(strings.Repeat("?,", n), ",")
 }
 
 type rowScanner interface{ Scan(dest ...any) error }

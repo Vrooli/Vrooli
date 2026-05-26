@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file dev-routing/v1/routing/routing.proto.
  */
 export const file_dev_routing_v1_routing_routing: GenFile = /*@__PURE__*/
-  fileDesc("CiRkZXYtcm91dGluZy92MS9yb3V0aW5nL3JvdXRpbmcucHJvdG8SHXZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nIjcKFkluc3RhbGxUZXN0UG9vbFJlcXVlc3QSCwoDZHNuGAEgASgJEhAKCGxlYXNlX2lkGAIgASgJIjIKF0luc3RhbGxUZXN0UG9vbFJlc3BvbnNlEhcKD2FjdGl2ZV9sZWFzZV9pZBgBIAEoCSIoChRDbGVhclRlc3RQb29sUmVxdWVzdBIQCghsZWFzZV9pZBgBIAEoCSIXChVDbGVhclRlc3RQb29sUmVzcG9uc2UyjwIKDlJvdXRpbmdTZXJ2aWNlEoABCg9JbnN0YWxsVGVzdFBvb2wSNS52cm9vbGkuZGV2X3JvdXRpbmcudjEucm91dGluZy5JbnN0YWxsVGVzdFBvb2xSZXF1ZXN0GjYudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuSW5zdGFsbFRlc3RQb29sUmVzcG9uc2USegoNQ2xlYXJUZXN0UG9vbBIzLnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkNsZWFyVGVzdFBvb2xSZXF1ZXN0GjQudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuQ2xlYXJUZXN0UG9vbFJlc3BvbnNlQlJaUGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vZGV2LXJvdXRpbmcvdjEvcm91dGluZztyb3V0aW5nX3YxYgZwcm90bzM");
+  fileDesc("CiRkZXYtcm91dGluZy92MS9yb3V0aW5nL3JvdXRpbmcucHJvdG8SHXZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nIk0KFkluc3RhbGxUZXN0UG9vbFJlcXVlc3QSCwoDZHNuGAEgASgJEhAKCGxlYXNlX2lkGAIgASgJEhQKDGxlYXNlX3R0bF9tcxgDIAEoAyIyChdJbnN0YWxsVGVzdFBvb2xSZXNwb25zZRIXCg9hY3RpdmVfbGVhc2VfaWQYASABKAkiKAoUQ2xlYXJUZXN0UG9vbFJlcXVlc3QSEAoIbGVhc2VfaWQYASABKAkiUQoVQ2xlYXJUZXN0UG9vbFJlc3BvbnNlEjgKBXN0YXRzGAEgASgLMikudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuTGVhc2VTdGF0cyIsChhIZWFydGJlYXRUZXN0UG9vbFJlcXVlc3QSEAoIbGVhc2VfaWQYASABKAkiNwoZSGVhcnRiZWF0VGVzdFBvb2xSZXNwb25zZRIaChJleHBpcmVzX2F0X3VuaXhfbXMYASABKAMiUwoKTGVhc2VTdGF0cxIaChJ0ZXN0X3Bvb2xfcmVxdWVzdHMYASABKAMSKQohcHJpbWFyeV9kdXJpbmdfdGVzdF9tb2RlX3JlcXVlc3RzGAIgASgDMpgDCg5Sb3V0aW5nU2VydmljZRKAAQoPSW5zdGFsbFRlc3RQb29sEjUudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuSW5zdGFsbFRlc3RQb29sUmVxdWVzdBo2LnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkluc3RhbGxUZXN0UG9vbFJlc3BvbnNlEnoKDUNsZWFyVGVzdFBvb2wSMy52cm9vbGkuZGV2X3JvdXRpbmcudjEucm91dGluZy5DbGVhclRlc3RQb29sUmVxdWVzdBo0LnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkNsZWFyVGVzdFBvb2xSZXNwb25zZRKGAQoRSGVhcnRiZWF0VGVzdFBvb2wSNy52cm9vbGkuZGV2X3JvdXRpbmcudjEucm91dGluZy5IZWFydGJlYXRUZXN0UG9vbFJlcXVlc3QaOC52cm9vbGkuZGV2X3JvdXRpbmcudjEucm91dGluZy5IZWFydGJlYXRUZXN0UG9vbFJlc3BvbnNlQlJaUGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vZGV2LXJvdXRpbmcvdjEvcm91dGluZztyb3V0aW5nX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.dev_routing.v1.routing.InstallTestPoolRequest
@@ -34,6 +34,17 @@ export type InstallTestPoolRequest = Message<"vrooli.dev_routing.v1.routing.Inst
    * @generated from field: string lease_id = 2;
    */
   leaseId: string;
+
+  /**
+   * lease_ttl_ms is the maximum time, in milliseconds, that the scenario
+   * should hold the test pool without a HeartbeatTestPool call. Zero means
+   * "use the scenario default" (currently 90s). On expiry, RoutedDB reverts
+   * routing to the primary pool — a defensive timeout for an orchestrator
+   * crashing between Install and Clear.
+   *
+   * @generated from field: int64 lease_ttl_ms = 3;
+   */
+  leaseTtlMs: bigint;
 };
 
 /**
@@ -87,6 +98,15 @@ export const ClearTestPoolRequestSchema: GenMessage<ClearTestPoolRequest> = /*@_
  * @generated from message vrooli.dev_routing.v1.routing.ClearTestPoolResponse
  */
 export type ClearTestPoolResponse = Message<"vrooli.dev_routing.v1.routing.ClearTestPoolResponse"> & {
+  /**
+   * stats reports per-lease routing counters observed during the run. Used
+   * by test-genie's playbooks phase to detect that a "routed" run actually
+   * exercised the test pool (test_pool_requests > 0) and to flag bypass
+   * attempts (primary_during_test_mode_requests > 0).
+   *
+   * @generated from field: vrooli.dev_routing.v1.routing.LeaseStats stats = 1;
+   */
+  stats?: LeaseStats | undefined;
 };
 
 /**
@@ -95,6 +115,75 @@ export type ClearTestPoolResponse = Message<"vrooli.dev_routing.v1.routing.Clear
  */
 export const ClearTestPoolResponseSchema: GenMessage<ClearTestPoolResponse> = /*@__PURE__*/
   messageDesc(file_dev_routing_v1_routing_routing, 3);
+
+/**
+ * @generated from message vrooli.dev_routing.v1.routing.HeartbeatTestPoolRequest
+ */
+export type HeartbeatTestPoolRequest = Message<"vrooli.dev_routing.v1.routing.HeartbeatTestPoolRequest"> & {
+  /**
+   * lease_id must match the active install. Mismatch yields FailedPrecondition.
+   *
+   * @generated from field: string lease_id = 1;
+   */
+  leaseId: string;
+};
+
+/**
+ * Describes the message vrooli.dev_routing.v1.routing.HeartbeatTestPoolRequest.
+ * Use `create(HeartbeatTestPoolRequestSchema)` to create a new message.
+ */
+export const HeartbeatTestPoolRequestSchema: GenMessage<HeartbeatTestPoolRequest> = /*@__PURE__*/
+  messageDesc(file_dev_routing_v1_routing_routing, 4);
+
+/**
+ * @generated from message vrooli.dev_routing.v1.routing.HeartbeatTestPoolResponse
+ */
+export type HeartbeatTestPoolResponse = Message<"vrooli.dev_routing.v1.routing.HeartbeatTestPoolResponse"> & {
+  /**
+   * expires_at_unix_ms is the new absolute expiry timestamp, in unix
+   * milliseconds, after the heartbeat extends the lease.
+   *
+   * @generated from field: int64 expires_at_unix_ms = 1;
+   */
+  expiresAtUnixMs: bigint;
+};
+
+/**
+ * Describes the message vrooli.dev_routing.v1.routing.HeartbeatTestPoolResponse.
+ * Use `create(HeartbeatTestPoolResponseSchema)` to create a new message.
+ */
+export const HeartbeatTestPoolResponseSchema: GenMessage<HeartbeatTestPoolResponse> = /*@__PURE__*/
+  messageDesc(file_dev_routing_v1_routing_routing, 5);
+
+/**
+ * LeaseStats are advisory counters tracked per-lease on the scenario side.
+ *
+ * test_pool_requests counts requests served from the installed test pool
+ * (i.e. routing succeeded). primary_during_test_mode_requests counts
+ * requests that carried X-Vrooli-Test-Mode:1 but were served from the
+ * primary pool anyway — a sign that some code path holds a raw *sql.DB
+ * instead of going through RoutedDB.
+ *
+ * @generated from message vrooli.dev_routing.v1.routing.LeaseStats
+ */
+export type LeaseStats = Message<"vrooli.dev_routing.v1.routing.LeaseStats"> & {
+  /**
+   * @generated from field: int64 test_pool_requests = 1;
+   */
+  testPoolRequests: bigint;
+
+  /**
+   * @generated from field: int64 primary_during_test_mode_requests = 2;
+   */
+  primaryDuringTestModeRequests: bigint;
+};
+
+/**
+ * Describes the message vrooli.dev_routing.v1.routing.LeaseStats.
+ * Use `create(LeaseStatsSchema)` to create a new message.
+ */
+export const LeaseStatsSchema: GenMessage<LeaseStats> = /*@__PURE__*/
+  messageDesc(file_dev_routing_v1_routing_routing, 6);
 
 /**
  * @generated from service vrooli.dev_routing.v1.routing.RoutingService
@@ -124,6 +213,20 @@ export const RoutingService: GenService<{
     methodKind: "unary";
     input: typeof ClearTestPoolRequestSchema;
     output: typeof ClearTestPoolResponseSchema;
+  },
+  /**
+   * HeartbeatTestPool extends the active lease's expiry. The caller's
+   * lease_id must match the active install (FailedPrecondition otherwise).
+   * The scenario uses an internal TTL as a defensive timeout: if the
+   * orchestrator crashes between Install and Clear, the lease expires and
+   * routing reverts to the primary pool without manual intervention.
+   *
+   * @generated from rpc vrooli.dev_routing.v1.routing.RoutingService.HeartbeatTestPool
+   */
+  heartbeatTestPool: {
+    methodKind: "unary";
+    input: typeof HeartbeatTestPoolRequestSchema;
+    output: typeof HeartbeatTestPoolResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_dev_routing_v1_routing_routing, 0);

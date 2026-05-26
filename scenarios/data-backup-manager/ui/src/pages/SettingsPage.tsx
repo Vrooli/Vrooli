@@ -1,9 +1,17 @@
 import { selectors } from "../consts/selectors";
-import { strings } from "../consts/strings";
+import { strings, type StringKey } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
+
+// Static map so the unused-keys lint sees each `theme.choice.*` leaf (a dynamic
+// `strings.theme.choice[c]` lookup is invisible to that audit).
+const THEME_CHOICE_STRINGS = {
+  light: strings.theme.choice.light,
+  dark: strings.theme.choice.dark,
+  system: strings.theme.choice.system,
+} satisfies Record<ThemeChoice, StringKey>;
 
 /**
  * Settings page. Surfaces the locale and theme selectors as a real page (in
@@ -44,7 +52,7 @@ export function SettingsPage() {
                   : "rounded-control border border-app-border px-3 py-1 text-sm text-app-foreground hover:bg-app-surface-muted"
               }
             >
-              {t(strings.theme.choice[c])}
+              {t(THEME_CHOICE_STRINGS[c])}
             </button>
           ))}
         </div>

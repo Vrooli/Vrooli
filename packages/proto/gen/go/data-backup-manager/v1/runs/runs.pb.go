@@ -386,14 +386,26 @@ func (x *Run) GetOutcomes() []*TargetOutcome {
 
 // TargetStatus is the last-success / last-run rollup for one target, derived
 // from run history (powers the catalog and the health overdue check).
+//
+// "Backed up" (last_success_at) and "proven restorable" (last_verified_at) are
+// distinct: a target may have a recent successful backup yet never have been
+// verified. The UI treats verified-restore age as the primary posture signal
+// and flags backed-up-but-unverified targets distinctly, so this rollup carries
+// both in one owner-scoped call (no per-target restore-history fan-out).
 type TargetStatus struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TargetId      string                 `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
 	LastSuccessAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=last_success_at,json=lastSuccessAt,proto3" json:"last_success_at,omitempty"`
 	LastRunStatus RunStatus              `protobuf:"varint,3,opt,name=last_run_status,json=lastRunStatus,proto3,enum=vrooli.data_backup_manager.v1.runs.RunStatus" json:"last_run_status,omitempty"`
 	LastRunAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_run_at,json=lastRunAt,proto3" json:"last_run_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Latest successful VERIFY restore for this target (proven-restorable age).
+	// Unset means backed up but never verified — surfaced as an unverified chip.
+	LastVerifiedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=last_verified_at,json=lastVerifiedAt,proto3" json:"last_verified_at,omitempty"`
+	// Snapshot id of that latest successful verify; powers a "verify the same
+	// point again" shortcut. Empty when last_verified_at is unset.
+	LastVerifiedSnapshotId string `protobuf:"bytes,6,opt,name=last_verified_snapshot_id,json=lastVerifiedSnapshotId,proto3" json:"last_verified_snapshot_id,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *TargetStatus) Reset() {
@@ -452,6 +464,20 @@ func (x *TargetStatus) GetLastRunAt() *timestamppb.Timestamp {
 		return x.LastRunAt
 	}
 	return nil
+}
+
+func (x *TargetStatus) GetLastVerifiedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastVerifiedAt
+	}
+	return nil
+}
+
+func (x *TargetStatus) GetLastVerifiedSnapshotId() string {
+	if x != nil {
+		return x.LastVerifiedSnapshotId
+	}
+	return ""
 }
 
 type TriggerRunRequest struct {
@@ -1023,12 +1049,14 @@ const file_data_backup_manager_v1_runs_runs_proto_rawDesc = "" +
 	"started_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12;\n" +
 	"\vfinished_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"finishedAt\x12M\n" +
-	"\boutcomes\x18\a \x03(\v21.vrooli.data_backup_manager.v1.runs.TargetOutcomeR\boutcomes\"\x82\x02\n" +
+	"\boutcomes\x18\a \x03(\v21.vrooli.data_backup_manager.v1.runs.TargetOutcomeR\boutcomes\"\x83\x03\n" +
 	"\fTargetStatus\x12\x1b\n" +
 	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12B\n" +
 	"\x0flast_success_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\rlastSuccessAt\x12U\n" +
 	"\x0flast_run_status\x18\x03 \x01(\x0e2-.vrooli.data_backup_manager.v1.runs.RunStatusR\rlastRunStatus\x12:\n" +
-	"\vlast_run_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tlastRunAt\"5\n" +
+	"\vlast_run_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tlastRunAt\x12D\n" +
+	"\x10last_verified_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x0elastVerifiedAt\x129\n" +
+	"\x19last_verified_snapshot_id\x18\x06 \x01(\tR\x16lastVerifiedSnapshotId\"5\n" +
 	"\x11TriggerRunRequest\x12 \n" +
 	"\aplan_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06planId\"O\n" +
 	"\x12TriggerRunResponse\x129\n" +
@@ -1132,26 +1160,27 @@ var file_data_backup_manager_v1_runs_runs_proto_depIdxs = []int32{
 	17, // 8: vrooli.data_backup_manager.v1.runs.TargetStatus.last_success_at:type_name -> google.protobuf.Timestamp
 	0,  // 9: vrooli.data_backup_manager.v1.runs.TargetStatus.last_run_status:type_name -> vrooli.data_backup_manager.v1.runs.RunStatus
 	17, // 10: vrooli.data_backup_manager.v1.runs.TargetStatus.last_run_at:type_name -> google.protobuf.Timestamp
-	4,  // 11: vrooli.data_backup_manager.v1.runs.TriggerRunResponse.run:type_name -> vrooli.data_backup_manager.v1.runs.Run
-	4,  // 12: vrooli.data_backup_manager.v1.runs.GetRunResponse.run:type_name -> vrooli.data_backup_manager.v1.runs.Run
-	4,  // 13: vrooli.data_backup_manager.v1.runs.ListRunsResponse.runs:type_name -> vrooli.data_backup_manager.v1.runs.Run
-	5,  // 14: vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse.statuses:type_name -> vrooli.data_backup_manager.v1.runs.TargetStatus
-	14, // 15: vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse.entries:type_name -> vrooli.data_backup_manager.v1.runs.SnapshotEntry
-	6,  // 16: vrooli.data_backup_manager.v1.runs.RunsService.TriggerRun:input_type -> vrooli.data_backup_manager.v1.runs.TriggerRunRequest
-	8,  // 17: vrooli.data_backup_manager.v1.runs.RunsService.GetRun:input_type -> vrooli.data_backup_manager.v1.runs.GetRunRequest
-	10, // 18: vrooli.data_backup_manager.v1.runs.RunsService.ListRuns:input_type -> vrooli.data_backup_manager.v1.runs.ListRunsRequest
-	12, // 19: vrooli.data_backup_manager.v1.runs.RunsService.ListTargetStatus:input_type -> vrooli.data_backup_manager.v1.runs.ListTargetStatusRequest
-	15, // 20: vrooli.data_backup_manager.v1.runs.RunsService.BrowseSnapshot:input_type -> vrooli.data_backup_manager.v1.runs.BrowseSnapshotRequest
-	7,  // 21: vrooli.data_backup_manager.v1.runs.RunsService.TriggerRun:output_type -> vrooli.data_backup_manager.v1.runs.TriggerRunResponse
-	9,  // 22: vrooli.data_backup_manager.v1.runs.RunsService.GetRun:output_type -> vrooli.data_backup_manager.v1.runs.GetRunResponse
-	11, // 23: vrooli.data_backup_manager.v1.runs.RunsService.ListRuns:output_type -> vrooli.data_backup_manager.v1.runs.ListRunsResponse
-	13, // 24: vrooli.data_backup_manager.v1.runs.RunsService.ListTargetStatus:output_type -> vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse
-	16, // 25: vrooli.data_backup_manager.v1.runs.RunsService.BrowseSnapshot:output_type -> vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse
-	21, // [21:26] is the sub-list for method output_type
-	16, // [16:21] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	17, // 11: vrooli.data_backup_manager.v1.runs.TargetStatus.last_verified_at:type_name -> google.protobuf.Timestamp
+	4,  // 12: vrooli.data_backup_manager.v1.runs.TriggerRunResponse.run:type_name -> vrooli.data_backup_manager.v1.runs.Run
+	4,  // 13: vrooli.data_backup_manager.v1.runs.GetRunResponse.run:type_name -> vrooli.data_backup_manager.v1.runs.Run
+	4,  // 14: vrooli.data_backup_manager.v1.runs.ListRunsResponse.runs:type_name -> vrooli.data_backup_manager.v1.runs.Run
+	5,  // 15: vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse.statuses:type_name -> vrooli.data_backup_manager.v1.runs.TargetStatus
+	14, // 16: vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse.entries:type_name -> vrooli.data_backup_manager.v1.runs.SnapshotEntry
+	6,  // 17: vrooli.data_backup_manager.v1.runs.RunsService.TriggerRun:input_type -> vrooli.data_backup_manager.v1.runs.TriggerRunRequest
+	8,  // 18: vrooli.data_backup_manager.v1.runs.RunsService.GetRun:input_type -> vrooli.data_backup_manager.v1.runs.GetRunRequest
+	10, // 19: vrooli.data_backup_manager.v1.runs.RunsService.ListRuns:input_type -> vrooli.data_backup_manager.v1.runs.ListRunsRequest
+	12, // 20: vrooli.data_backup_manager.v1.runs.RunsService.ListTargetStatus:input_type -> vrooli.data_backup_manager.v1.runs.ListTargetStatusRequest
+	15, // 21: vrooli.data_backup_manager.v1.runs.RunsService.BrowseSnapshot:input_type -> vrooli.data_backup_manager.v1.runs.BrowseSnapshotRequest
+	7,  // 22: vrooli.data_backup_manager.v1.runs.RunsService.TriggerRun:output_type -> vrooli.data_backup_manager.v1.runs.TriggerRunResponse
+	9,  // 23: vrooli.data_backup_manager.v1.runs.RunsService.GetRun:output_type -> vrooli.data_backup_manager.v1.runs.GetRunResponse
+	11, // 24: vrooli.data_backup_manager.v1.runs.RunsService.ListRuns:output_type -> vrooli.data_backup_manager.v1.runs.ListRunsResponse
+	13, // 25: vrooli.data_backup_manager.v1.runs.RunsService.ListTargetStatus:output_type -> vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse
+	16, // 26: vrooli.data_backup_manager.v1.runs.RunsService.BrowseSnapshot:output_type -> vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse
+	22, // [22:27] is the sub-list for method output_type
+	17, // [17:22] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_data_backup_manager_v1_runs_runs_proto_init() }

@@ -295,19 +295,6 @@ const literalSelectors = {
     eyebrow: "app-eyebrow",
     description: "app-description",
   },
-  health: {
-    card: "health-card",
-    loading: "health-loading",
-    error: "health-error",
-    statusValue: "health-status-value",
-    serviceValue: "health-service-value",
-    timestampValue: "health-timestamp-value",
-    refreshButton: "health-refresh-button",
-    refreshCount: "health-refresh-count",
-  },
-  notifications: {
-    summary: "notifications-summary",
-  },
   locale: {
     switcher: "locale-switcher",
   },
@@ -323,8 +310,90 @@ const literalSelectors = {
     select: "theme-select",
   },
   pages: {
-    dashboard: "page-dashboard",
+    overview: "page-overview",
+    targets: "page-targets",
+    destinations: "page-destinations",
+    plans: "page-plans",
+    runs: "page-runs",
+    restores: "page-restores",
     settings: "page-settings",
+  },
+  // Shared async-section affordances (loading/error/empty/retry) used across
+  // every surface so e2e flows can wait on a stable state.
+  async: {
+    loading: "async-loading",
+    error: "async-error",
+    retry: "async-retry",
+    empty: "async-empty",
+  },
+  overview: {
+    posture: "overview-posture",
+    postureHeadline: "overview-posture-headline",
+    storage: "overview-storage",
+    storageEmpty: "overview-storage-empty",
+    coverage: "overview-coverage",
+    coverageEmpty: "overview-coverage-empty",
+    setupCta: "overview-setup-cta",
+  },
+  targets: {
+    table: "targets-table",
+    registerButton: "targets-register-button",
+    form: "targets-form",
+    formOwner: "targets-form-owner",
+    formName: "targets-form-name",
+    formKind: "targets-form-kind",
+    formLocator: "targets-form-locator",
+    formSubmit: "targets-form-submit",
+    inspector: "targets-inspector",
+    verifyLatest: "targets-verify-latest",
+    deregisterButton: "targets-deregister-button",
+    deregisterConfirm: "targets-deregister-confirm",
+  },
+  destinations: {
+    list: "destinations-list",
+    createButton: "destinations-create-button",
+    form: "destinations-form",
+    formName: "destinations-form-name",
+    formBackend: "destinations-form-backend",
+    formLocation: "destinations-form-location",
+    formCap: "destinations-form-cap",
+    formPolicy: "destinations-form-policy",
+    formSubmit: "destinations-form-submit",
+    editButton: "destinations-edit-button",
+    deleteButton: "destinations-delete-button",
+    deleteConfirm: "destinations-delete-confirm",
+    deleteRepoToggle: "destinations-delete-repo-toggle",
+  },
+  plans: {
+    list: "plans-list",
+    createButton: "plans-create-button",
+    form: "plans-form",
+    formName: "plans-form-name",
+    formSchedule: "plans-form-schedule",
+    formKeepLatest: "plans-form-keep-latest",
+    formEnabled: "plans-form-enabled",
+    targetPicker: "plans-target-picker",
+    destinationPicker: "plans-destination-picker",
+    summary: "plans-summary",
+    formSubmit: "plans-form-submit",
+    runNowButton: "plans-run-now-button",
+    deleteButton: "plans-delete-button",
+  },
+  runs: {
+    table: "runs-table",
+  },
+  restores: {
+    list: "restores-list",
+    startButton: "restores-start-button",
+    verifyButton: "restores-verify-button",
+    restoreButton: "restores-restore-button",
+    restoreConfirm: "restores-restore-confirm",
+    restoreLocation: "restores-restore-location",
+    restoreConfirmButton: "restores-restore-confirm-button",
+  },
+  snapshot: {
+    browser: "snapshot-browser",
+    up: "snapshot-up",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -352,12 +421,69 @@ const dynamicSelectorDefinitions = {
     sidebarLink: defineDynamicSelector({
       description: "Sidebar navigation link by canonical nav key",
       testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "settings"] as const } },
+      params: {
+        key: {
+          type: "enum",
+          values: ["overview", "targets", "destinations", "plans", "runs", "restores", "settings"] as const,
+        },
+      },
     }),
     bottomNavLink: defineDynamicSelector({
       description: "Bottom-nav link by canonical nav key",
       testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "settings"] as const } },
+      params: {
+        key: {
+          type: "enum",
+          values: ["overview", "targets", "destinations", "plans", "runs", "restores", "settings"] as const,
+        },
+      },
+    }),
+  },
+  overview: {
+    coverageRow: defineDynamicSelector({
+      description: "Coverage-grid row for one target by id",
+      testIdPattern: "overview-coverage-row-${targetId}",
+      params: { targetId: { type: "string" } },
+    }),
+  },
+  targets: {
+    row: defineDynamicSelector({
+      description: "Targets table row by target id",
+      testIdPattern: "targets-row-${id}",
+      params: { id: { type: "string" } },
+    }),
+  },
+  destinations: {
+    row: defineDynamicSelector({
+      description: "Destinations list row by destination id",
+      testIdPattern: "destinations-row-${id}",
+      params: { id: { type: "string" } },
+    }),
+  },
+  plans: {
+    row: defineDynamicSelector({
+      description: "Plans list row by plan id",
+      testIdPattern: "plans-row-${id}",
+      params: { id: { type: "string" } },
+    }),
+  },
+  runs: {
+    row: defineDynamicSelector({
+      description: "Runs table row by run id",
+      testIdPattern: "runs-row-${id}",
+      params: { id: { type: "string" } },
+    }),
+    outcomeRow: defineDynamicSelector({
+      description: "Per-target outcome row within an expanded run, by target id",
+      testIdPattern: "runs-outcome-row-${targetId}",
+      params: { targetId: { type: "string" } },
+    }),
+  },
+  restores: {
+    row: defineDynamicSelector({
+      description: "Restores list row by restore id",
+      testIdPattern: "restores-row-${id}",
+      params: { id: { type: "string" } },
     }),
   },
   settingsPage: {

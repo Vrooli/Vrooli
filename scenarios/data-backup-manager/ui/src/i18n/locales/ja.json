@@ -1,17 +1,21 @@
 {
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: Data Backup Manager のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
-    "title": "Data Backup Manager",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "title": "Data Backup Manager"
   },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
     "bottomNavLabel": "モバイルナビゲーション",
     "nav": {
-      "dashboard": "ダッシュボード",
+      "overview": "概要",
+      "targets": "ターゲット",
+      "destinations": "保存先",
+      "plans": "プラン",
+      "runs": "実行",
+      "restores": "リストア",
       "settings": "設定"
-    }
+    },
+    "mainLabel": "メインコンテンツ"
   },
   "theme": {
     "switcherLabel": "テーマ",
@@ -21,30 +25,222 @@
       "system": "システム"
     }
   },
-  "pages": {
-    "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
+  "common": {
+    "retry": "再試行",
+    "loadError": "読み込めませんでした。",
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "save": "保存",
+    "saving": "保存中…",
+    "create": "作成",
+    "never": "なし"
+  },
+  "status": {
+    "run": {
+      "unknown": "不明",
+      "pending": "保留中",
+      "capturing": "取得中",
+      "snapshotting": "スナップショット作成中",
+      "completed": "完了",
+      "partialFailed": "一部失敗",
+      "failed": "失敗"
     },
+    "outcome": {
+      "unknown": "不明",
+      "succeeded": "成功",
+      "failed": "失敗",
+      "blocked": "上限でブロック"
+    },
+    "restore": {
+      "unknown": "不明",
+      "requested": "要求済み",
+      "restoring": "リストア中",
+      "verifying": "検証中",
+      "verified": "検証済み",
+      "restored": "リストア済み",
+      "failed": "失敗"
+    },
+    "usage": {
+      "unknown": "不明",
+      "within": "上限内",
+      "near": "上限間近",
+      "over": "上限超過"
+    },
+    "capPolicy": {
+      "unknown": "不明",
+      "alertBlock": "警告してブロック",
+      "alertOnly": "警告のみ"
+    },
+    "backend": {
+      "unknown": "不明",
+      "filesystem": "ファイルシステム",
+      "s3": "S3 / MinIO"
+    },
+    "sourceKind": {
+      "unknown": "不明",
+      "filesystem": "ファイルシステム",
+      "sqlite": "SQLite",
+      "postgres": "Postgres",
+      "redis": "Redis",
+      "qdrant": "Qdrant",
+      "objectStorage": "オブジェクトストレージ"
+    },
+    "verified": {
+      "verified": "検証済み",
+      "stale": "検証が古い",
+      "unverified": "未検証"
+    },
+    "trigger": {
+      "unknown": "—",
+      "scheduler": "スケジュール",
+      "manual": "手動"
+    }
+  },
+  "posture": {
+    "title": "バックアップ状態",
+    "loading": "状態を確認中…",
+    "error": "バックアップ状態を取得できませんでした。",
+    "allClear": "すべてのターゲットが保護され、上限内です",
+    "attention": "{{count}} 件のターゲットに対応が必要です",
+    "overdue": "{{count}} 件が期限超過または失敗",
+    "unverified": "{{count}} 件が未検証",
+    "readinessLabel": "API",
+    "serviceLabel": "サービス"
+  },
+  "overview": {
+    "title": "概要",
+    "subtitle": "このプラットフォームが保護するすべての対象のバックアップと検証付きリストアの状態。",
+    "storageHeading": "保存先",
+    "storageEmpty": "保存先がまだありません。",
+    "coverageHeading": "カバレッジ",
+    "coverageEmpty": "まだバックアップ対象のターゲットがありません。",
+    "lastBackupLabel": "バックアップ",
+    "verifiedLabel": "検証",
+    "ownerFallback": "未割り当て",
+    "setupTitle": "保護を設定",
+    "setupBody": "暗号化された保存先を作成し、ターゲットを結び付けるプランを作成します。最初の検証付きリストアでバックアップが実際に機能することを確認できます。",
+    "setupCtaDestinations": "保存先を追加",
+    "setupCtaPlans": "プランを作成",
+    "usageOfCap": "{{cap}} 中 {{used}}",
+    "usageUncapped": "{{used}} 使用中"
+  },
+  "targets": {
+    "subtitle": "バックアップ対象として登録されたランタイム状態。通常はシナリオが自動登録しますが、ここで手動で追加・削除することもできます。",
+    "register": "ターゲットを登録",
+    "empty": "登録されたターゲットはまだありません。",
+    "emptyHint": "シナリオは自身のターゲットを登録します。手動で登録することもできます。",
+    "owner": "オーナー",
+    "ownerHint": "この状態を所有するシナリオまたはサービス（例: prompt-manager）。",
+    "name": "名前",
+    "nameHint": "オーナー内で一意の名前（例: store）。",
+    "kind": "ソース種別",
+    "locator": "ロケーター",
+    "locatorHint": "パスやグロブ、データベース名、キープレフィックス、コレクション、バケット — 種別により解釈されます。秘密情報は不可。",
+    "ownerRequired": "オーナーは必須です。",
+    "nameRequired": "名前は必須です。",
+    "locatorRequired": "ロケーターは必須です。",
+    "deregister": "登録解除",
+    "deregisterTitle": "このターゲットを登録解除しますか？",
+    "deregisterBody": "{{name}} をカタログから削除します。保存先の既存スナップショットは保持されます。",
+    "registerError": "ターゲットを登録できませんでした。",
+    "detailsTitle": "ターゲットの詳細",
+    "restoreHistory": "リストア・検証履歴",
+    "noRestores": "このターゲットのリストア・検証はまだありません。"
+  },
+  "destinations": {
+    "subtitle": "バックアップの書き込み先となる暗号化された kopia リポジトリ。パスフレーズやキーは vault に保存され、ここには保持されません。",
+    "create": "保存先を追加",
+    "empty": "保存先がまだありません。",
+    "emptyHint": "バックアッププランを作成する前に、暗号化された保存先を追加してください。",
+    "name": "名前",
+    "nameHint": "このリポジトリの短く一意なラベル。",
+    "backend": "バックエンド",
+    "location": "場所",
+    "locationHint": "ファイルシステムのパスまたは S3 URI。このマネージャーが保護するデータの配下にあってはいけません。",
+    "cap": "ストレージ上限（GB）",
+    "capHint": "0 は上限なし。上限を維持するためにバックアップが自動削除されることはありません。",
+    "policy": "上限ポリシー",
+    "encryption": "暗号化",
+    "secretRef": "シークレット参照",
+    "nameRequired": "名前は必須です。",
+    "locationRequired": "場所は必須です。",
+    "createTitle": "保存先を追加",
+    "editTitle": "保存先を編集",
+    "editLockedHint": "リポジトリ作成後はバックエンドと場所は固定され、上限のみ編集できます。",
+    "delete": "削除",
+    "deleteTitle": "この保存先を削除しますか？",
+    "deleteBody": "{{name}} をマネージャーから削除します。",
+    "deleteRepo": "基盤となるリポジトリとそのスナップショットも削除する",
+    "deleteRepoHint": "オフのままにすると、暗号化されたスナップショットはディスクに残ります。",
+    "createError": "保存先を作成できませんでした。",
+    "updateError": "保存先を更新できませんでした。"
+  },
+  "plans": {
+    "subtitle": "ターゲットと保存先をスケジュールと保持ポリシーで結び付けます。スケジューラーが各プランをそのcadenceで実行し、今すぐ実行することもできます。",
+    "create": "プランを作成",
+    "empty": "プランがまだありません。",
+    "emptyHint": "プランには少なくとも1つのターゲットと1つの保存先が必要です。先に保存先を追加し、ターゲットを登録してください。",
+    "name": "名前",
+    "schedule": "スケジュール",
+    "scheduleHint": "cron式（例: 毎晩02:00は 0 2 * * *）。",
+    "keepLatest": "最新を保持",
+    "keepLatestHint": "ターゲットごとに保持するスナップショット数。0 はすべて保持。",
+    "enabled": "有効",
+    "targets": "ターゲット",
+    "destinations": "保存先",
+    "nameRequired": "名前は必須です。",
+    "needTarget": "少なくとも1つのターゲットを選択してください。",
+    "needDestination": "少なくとも1つの保存先を選択してください。",
+    "noTargets": "登録されたターゲットがまだありません。",
+    "noDestinations": "保存先がまだありません。",
+    "summary": "{{targets}} ターゲット → {{destinations}} 保存先 · 保持 {{keep}}",
+    "runNow": "今すぐ実行",
+    "noRuns": "未実行",
+    "delete": "削除",
+    "deleteTitle": "このプランを削除しますか？",
+    "deleteBody": "{{name}} を削除します。既存のスナップショットは保持されます。",
+    "createTitle": "プランを作成",
+    "editTitle": "プランを編集",
+    "createError": "プランを作成できませんでした。",
+    "updateError": "プランを更新できませんでした。"
+  },
+  "runs": {
+    "subtitle": "すべてのプラン実行を新しい順に表示。実行を展開するとターゲットごとの結果を確認できます。",
+    "empty": "実行がまだありません。",
+    "emptyHint": "プラン画面からプランを実行するか、スケジューラーをお待ちください。",
+    "outcomesHeading": "ターゲットごとの結果"
+  },
+  "restores": {
+    "subtitle": "バックアップが復元できることを証明（検証）するか、場所に書き戻します（リストア）。検証は非破壊的で推奨されます。",
+    "empty": "リストア・検証がまだありません。",
+    "emptyHint": "プランを実行したら、スナップショットを検証して復元可能であることを証明します。",
+    "start": "リストア／検証",
+    "modeRestore": "リストア",
+    "modeVerify": "検証",
+    "chooseSnapshot": "スナップショット",
+    "chooseSnapshotHint": "スナップショットは成功した実行から取得されます。検証またはリストアするものを選択してください。",
+    "noSnapshots": "利用可能なスナップショットがまだありません。先にプランを実行してください。",
+    "browse": "内容を表示",
+    "verify": "検証",
+    "verifyHint": "スクラッチに試験リストアしてチェックサムを取ります。非破壊的です。",
+    "restore": "リストア…",
+    "location": "リストア先の場所",
+    "locationHint": "スナップショットを書き込む絶対パス。",
+    "locationRequired": "リストア先の場所は必須です。",
+    "restoreConfirmBody": "{{target}} をスナップショット {{snapshot}} から {{location}} に書き込みます。その場所のデータは上書きされます。",
+    "verifyError": "スナップショットを検証できませんでした。",
+    "restoreError": "スナップショットをリストアできませんでした。"
+  },
+  "snapshot": {
+    "empty": "このパスは空です。",
+    "up": "上へ"
+  },
+  "pages": {
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
     }
-  },
-  "health": {
-    "title": "API ステータス",
-    "loading": "API のステータスを確認中…",
-    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
-    "refresh": "再読み込み",
-    "refreshCount": "{{count}} 回更新しました",
-    "statusLabel": "ステータス:",
-    "serviceLabel": "サービス:",
-    "timestampLabel": "タイムスタンプ:"
-  },
-  "notifications": {
-    "summary": "{{count}} 件の通知"
   },
   "errors": {
     "canceled": "Operation canceled.",

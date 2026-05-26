@@ -31,7 +31,13 @@ type InstallTestPoolRequest struct {
 	// lease_id identifies the orchestrator's per-run claim on the scenario.
 	// The scenario rejects an install if the slot is already held under a
 	// different lease_id. Same lease_id installs are idempotent.
-	LeaseId       string `protobuf:"bytes,2,opt,name=lease_id,json=leaseId,proto3" json:"lease_id,omitempty"`
+	LeaseId string `protobuf:"bytes,2,opt,name=lease_id,json=leaseId,proto3" json:"lease_id,omitempty"`
+	// lease_ttl_ms is the maximum time, in milliseconds, that the scenario
+	// should hold the test pool without a HeartbeatTestPool call. Zero means
+	// "use the scenario default" (currently 90s). On expiry, RoutedDB reverts
+	// routing to the primary pool — a defensive timeout for an orchestrator
+	// crashing between Install and Clear.
+	LeaseTtlMs    int64 `protobuf:"varint,3,opt,name=lease_ttl_ms,json=leaseTtlMs,proto3" json:"lease_ttl_ms,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -78,6 +84,13 @@ func (x *InstallTestPoolRequest) GetLeaseId() string {
 		return x.LeaseId
 	}
 	return ""
+}
+
+func (x *InstallTestPoolRequest) GetLeaseTtlMs() int64 {
+	if x != nil {
+		return x.LeaseTtlMs
+	}
+	return 0
 }
 
 type InstallTestPoolResponse struct {
@@ -173,7 +186,12 @@ func (x *ClearTestPoolRequest) GetLeaseId() string {
 }
 
 type ClearTestPoolResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// stats reports per-lease routing counters observed during the run. Used
+	// by test-genie's playbooks phase to detect that a "routed" run actually
+	// exercised the test pool (test_pool_requests > 0) and to flag bypass
+	// attempts (primary_during_test_mode_requests > 0).
+	Stats         *LeaseStats `protobuf:"bytes,1,opt,name=stats,proto3" json:"stats,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -208,22 +226,191 @@ func (*ClearTestPoolResponse) Descriptor() ([]byte, []int) {
 	return file_dev_routing_v1_routing_routing_proto_rawDescGZIP(), []int{3}
 }
 
+func (x *ClearTestPoolResponse) GetStats() *LeaseStats {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
+type HeartbeatTestPoolRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// lease_id must match the active install. Mismatch yields FailedPrecondition.
+	LeaseId       string `protobuf:"bytes,1,opt,name=lease_id,json=leaseId,proto3" json:"lease_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HeartbeatTestPoolRequest) Reset() {
+	*x = HeartbeatTestPoolRequest{}
+	mi := &file_dev_routing_v1_routing_routing_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeartbeatTestPoolRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeartbeatTestPoolRequest) ProtoMessage() {}
+
+func (x *HeartbeatTestPoolRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_dev_routing_v1_routing_routing_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeartbeatTestPoolRequest.ProtoReflect.Descriptor instead.
+func (*HeartbeatTestPoolRequest) Descriptor() ([]byte, []int) {
+	return file_dev_routing_v1_routing_routing_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *HeartbeatTestPoolRequest) GetLeaseId() string {
+	if x != nil {
+		return x.LeaseId
+	}
+	return ""
+}
+
+type HeartbeatTestPoolResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// expires_at_unix_ms is the new absolute expiry timestamp, in unix
+	// milliseconds, after the heartbeat extends the lease.
+	ExpiresAtUnixMs int64 `protobuf:"varint,1,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *HeartbeatTestPoolResponse) Reset() {
+	*x = HeartbeatTestPoolResponse{}
+	mi := &file_dev_routing_v1_routing_routing_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeartbeatTestPoolResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeartbeatTestPoolResponse) ProtoMessage() {}
+
+func (x *HeartbeatTestPoolResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_dev_routing_v1_routing_routing_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeartbeatTestPoolResponse.ProtoReflect.Descriptor instead.
+func (*HeartbeatTestPoolResponse) Descriptor() ([]byte, []int) {
+	return file_dev_routing_v1_routing_routing_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *HeartbeatTestPoolResponse) GetExpiresAtUnixMs() int64 {
+	if x != nil {
+		return x.ExpiresAtUnixMs
+	}
+	return 0
+}
+
+// LeaseStats are advisory counters tracked per-lease on the scenario side.
+//
+// test_pool_requests counts requests served from the installed test pool
+// (i.e. routing succeeded). primary_during_test_mode_requests counts
+// requests that carried X-Vrooli-Test-Mode:1 but were served from the
+// primary pool anyway — a sign that some code path holds a raw *sql.DB
+// instead of going through RoutedDB.
+type LeaseStats struct {
+	state                         protoimpl.MessageState `protogen:"open.v1"`
+	TestPoolRequests              int64                  `protobuf:"varint,1,opt,name=test_pool_requests,json=testPoolRequests,proto3" json:"test_pool_requests,omitempty"`
+	PrimaryDuringTestModeRequests int64                  `protobuf:"varint,2,opt,name=primary_during_test_mode_requests,json=primaryDuringTestModeRequests,proto3" json:"primary_during_test_mode_requests,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
+}
+
+func (x *LeaseStats) Reset() {
+	*x = LeaseStats{}
+	mi := &file_dev_routing_v1_routing_routing_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaseStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaseStats) ProtoMessage() {}
+
+func (x *LeaseStats) ProtoReflect() protoreflect.Message {
+	mi := &file_dev_routing_v1_routing_routing_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaseStats.ProtoReflect.Descriptor instead.
+func (*LeaseStats) Descriptor() ([]byte, []int) {
+	return file_dev_routing_v1_routing_routing_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *LeaseStats) GetTestPoolRequests() int64 {
+	if x != nil {
+		return x.TestPoolRequests
+	}
+	return 0
+}
+
+func (x *LeaseStats) GetPrimaryDuringTestModeRequests() int64 {
+	if x != nil {
+		return x.PrimaryDuringTestModeRequests
+	}
+	return 0
+}
+
 var File_dev_routing_v1_routing_routing_proto protoreflect.FileDescriptor
 
 const file_dev_routing_v1_routing_routing_proto_rawDesc = "" +
 	"\n" +
-	"$dev-routing/v1/routing/routing.proto\x12\x1dvrooli.dev_routing.v1.routing\"E\n" +
+	"$dev-routing/v1/routing/routing.proto\x12\x1dvrooli.dev_routing.v1.routing\"g\n" +
 	"\x16InstallTestPoolRequest\x12\x10\n" +
 	"\x03dsn\x18\x01 \x01(\tR\x03dsn\x12\x19\n" +
-	"\blease_id\x18\x02 \x01(\tR\aleaseId\"A\n" +
+	"\blease_id\x18\x02 \x01(\tR\aleaseId\x12 \n" +
+	"\flease_ttl_ms\x18\x03 \x01(\x03R\n" +
+	"leaseTtlMs\"A\n" +
 	"\x17InstallTestPoolResponse\x12&\n" +
 	"\x0factive_lease_id\x18\x01 \x01(\tR\ractiveLeaseId\"1\n" +
 	"\x14ClearTestPoolRequest\x12\x19\n" +
-	"\blease_id\x18\x01 \x01(\tR\aleaseId\"\x17\n" +
-	"\x15ClearTestPoolResponse2\x8f\x02\n" +
+	"\blease_id\x18\x01 \x01(\tR\aleaseId\"X\n" +
+	"\x15ClearTestPoolResponse\x12?\n" +
+	"\x05stats\x18\x01 \x01(\v2).vrooli.dev_routing.v1.routing.LeaseStatsR\x05stats\"5\n" +
+	"\x18HeartbeatTestPoolRequest\x12\x19\n" +
+	"\blease_id\x18\x01 \x01(\tR\aleaseId\"H\n" +
+	"\x19HeartbeatTestPoolResponse\x12+\n" +
+	"\x12expires_at_unix_ms\x18\x01 \x01(\x03R\x0fexpiresAtUnixMs\"\x84\x01\n" +
+	"\n" +
+	"LeaseStats\x12,\n" +
+	"\x12test_pool_requests\x18\x01 \x01(\x03R\x10testPoolRequests\x12H\n" +
+	"!primary_during_test_mode_requests\x18\x02 \x01(\x03R\x1dprimaryDuringTestModeRequests2\x98\x03\n" +
 	"\x0eRoutingService\x12\x80\x01\n" +
 	"\x0fInstallTestPool\x125.vrooli.dev_routing.v1.routing.InstallTestPoolRequest\x1a6.vrooli.dev_routing.v1.routing.InstallTestPoolResponse\x12z\n" +
-	"\rClearTestPool\x123.vrooli.dev_routing.v1.routing.ClearTestPoolRequest\x1a4.vrooli.dev_routing.v1.routing.ClearTestPoolResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing;routing_v1b\x06proto3"
+	"\rClearTestPool\x123.vrooli.dev_routing.v1.routing.ClearTestPoolRequest\x1a4.vrooli.dev_routing.v1.routing.ClearTestPoolResponse\x12\x86\x01\n" +
+	"\x11HeartbeatTestPool\x127.vrooli.dev_routing.v1.routing.HeartbeatTestPoolRequest\x1a8.vrooli.dev_routing.v1.routing.HeartbeatTestPoolResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing;routing_v1b\x06proto3"
 
 var (
 	file_dev_routing_v1_routing_routing_proto_rawDescOnce sync.Once
@@ -237,23 +424,29 @@ func file_dev_routing_v1_routing_routing_proto_rawDescGZIP() []byte {
 	return file_dev_routing_v1_routing_routing_proto_rawDescData
 }
 
-var file_dev_routing_v1_routing_routing_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_dev_routing_v1_routing_routing_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_dev_routing_v1_routing_routing_proto_goTypes = []any{
-	(*InstallTestPoolRequest)(nil),  // 0: vrooli.dev_routing.v1.routing.InstallTestPoolRequest
-	(*InstallTestPoolResponse)(nil), // 1: vrooli.dev_routing.v1.routing.InstallTestPoolResponse
-	(*ClearTestPoolRequest)(nil),    // 2: vrooli.dev_routing.v1.routing.ClearTestPoolRequest
-	(*ClearTestPoolResponse)(nil),   // 3: vrooli.dev_routing.v1.routing.ClearTestPoolResponse
+	(*InstallTestPoolRequest)(nil),    // 0: vrooli.dev_routing.v1.routing.InstallTestPoolRequest
+	(*InstallTestPoolResponse)(nil),   // 1: vrooli.dev_routing.v1.routing.InstallTestPoolResponse
+	(*ClearTestPoolRequest)(nil),      // 2: vrooli.dev_routing.v1.routing.ClearTestPoolRequest
+	(*ClearTestPoolResponse)(nil),     // 3: vrooli.dev_routing.v1.routing.ClearTestPoolResponse
+	(*HeartbeatTestPoolRequest)(nil),  // 4: vrooli.dev_routing.v1.routing.HeartbeatTestPoolRequest
+	(*HeartbeatTestPoolResponse)(nil), // 5: vrooli.dev_routing.v1.routing.HeartbeatTestPoolResponse
+	(*LeaseStats)(nil),                // 6: vrooli.dev_routing.v1.routing.LeaseStats
 }
 var file_dev_routing_v1_routing_routing_proto_depIdxs = []int32{
-	0, // 0: vrooli.dev_routing.v1.routing.RoutingService.InstallTestPool:input_type -> vrooli.dev_routing.v1.routing.InstallTestPoolRequest
-	2, // 1: vrooli.dev_routing.v1.routing.RoutingService.ClearTestPool:input_type -> vrooli.dev_routing.v1.routing.ClearTestPoolRequest
-	1, // 2: vrooli.dev_routing.v1.routing.RoutingService.InstallTestPool:output_type -> vrooli.dev_routing.v1.routing.InstallTestPoolResponse
-	3, // 3: vrooli.dev_routing.v1.routing.RoutingService.ClearTestPool:output_type -> vrooli.dev_routing.v1.routing.ClearTestPoolResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	6, // 0: vrooli.dev_routing.v1.routing.ClearTestPoolResponse.stats:type_name -> vrooli.dev_routing.v1.routing.LeaseStats
+	0, // 1: vrooli.dev_routing.v1.routing.RoutingService.InstallTestPool:input_type -> vrooli.dev_routing.v1.routing.InstallTestPoolRequest
+	2, // 2: vrooli.dev_routing.v1.routing.RoutingService.ClearTestPool:input_type -> vrooli.dev_routing.v1.routing.ClearTestPoolRequest
+	4, // 3: vrooli.dev_routing.v1.routing.RoutingService.HeartbeatTestPool:input_type -> vrooli.dev_routing.v1.routing.HeartbeatTestPoolRequest
+	1, // 4: vrooli.dev_routing.v1.routing.RoutingService.InstallTestPool:output_type -> vrooli.dev_routing.v1.routing.InstallTestPoolResponse
+	3, // 5: vrooli.dev_routing.v1.routing.RoutingService.ClearTestPool:output_type -> vrooli.dev_routing.v1.routing.ClearTestPoolResponse
+	5, // 6: vrooli.dev_routing.v1.routing.RoutingService.HeartbeatTestPool:output_type -> vrooli.dev_routing.v1.routing.HeartbeatTestPoolResponse
+	4, // [4:7] is the sub-list for method output_type
+	1, // [1:4] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_dev_routing_v1_routing_routing_proto_init() }
@@ -267,7 +460,7 @@ func file_dev_routing_v1_routing_routing_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_dev_routing_v1_routing_routing_proto_rawDesc), len(file_dev_routing_v1_routing_routing_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

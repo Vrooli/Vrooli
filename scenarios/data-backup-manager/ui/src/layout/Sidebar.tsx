@@ -24,24 +24,28 @@ export function Sidebar() {
       <p className="px-2 pb-2 text-xs uppercase tracking-wide text-app-muted-foreground">
         {t(strings.layout.sidebarLabel)}
       </p>
-      {NAV_ITEMS.map((item) => (
-        <NavLink
-          key={item.path}
-          to={item.path}
-          end={item.end}
-          data-testid={selectors.layout.sidebarLink({ key: item.key })}
-          className={({ isActive }) =>
-            [
-              "rounded-control px-3 py-2 text-sm font-medium transition-colors",
-              isActive
-                ? "bg-app-primary text-app-primary-foreground"
-                : "text-app-foreground hover:bg-app-surface-muted",
-            ].join(" ")
-          }
-        >
-          {t(item.labelKey)}
-        </NavLink>
-      ))}
+      {NAV_ITEMS.map((item) => {
+        const Icon = item.icon;
+        return (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            end={item.end}
+            data-testid={selectors.layout.sidebarLink({ key: item.key })}
+            className={({ isActive }) =>
+              [
+                "flex items-center gap-2.5 rounded-control px-3 py-2 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-app-primary text-app-primary-foreground"
+                  : "text-app-foreground hover:bg-app-surface-muted",
+              ].join(" ")
+            }
+          >
+            <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
+            {t(item.labelKey)}
+          </NavLink>
+        );
+      })}
     </nav>
   );
 }

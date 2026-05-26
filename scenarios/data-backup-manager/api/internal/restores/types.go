@@ -55,6 +55,16 @@ type Restore struct {
 	Error          string
 }
 
+// VerifiedStatus is the latest successful verify for one target, derived from
+// restore history. It is the "proven-restorable" half of a target's posture
+// (the runs rollup owns the "backed up" half). Powers the verified-restore-age
+// metric and the unverified chip without a per-target restore-history fan-out.
+type VerifiedStatus struct {
+	TargetID       string
+	LastVerifiedAt time.Time
+	SnapshotID     string // snapshot that was proven restorable
+}
+
 // ErrRestoreNotFound is the typed sentinel for an unknown restore id.
 type ErrRestoreNotFound struct{ ID string }
 

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	runsH "data-backup-manager/handlers/runs"
+
 	"data-backup-manager/internal/clock"
 	destint "data-backup-manager/internal/destinations"
 	plansint "data-backup-manager/internal/plans"
@@ -85,6 +87,24 @@ func (a restoreDestinationLookup) DestinationForRestore(ctx context.Context, des
 		return restoresint.DestinationForRestore{}, err
 	}
 	return restoresint.DestinationForRestore{ID: d.ID, Name: d.Name}, nil
+}
+
+// verifiedLookup adapts restores.Service to the runs handler's VerifiedLookup
+// seam: it rolls the latest successful verify per target into a map so
+// ListTargetStatus can report proven-restorable posture in one call. This is
+// the composition seam that keeps the runs domain from importing restores.
+type verifiedLookup struct{ svc restoresint.Service }
+
+func (a verifiedLookup) LastVerifiedByTarget(ctx context.Context) (map[string]runsH.VerifiedInfo, error) {
+	statuses, err := a.svc.LastVerifiedByTarget(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]runsH.VerifiedInfo, len(statuses))
+	for _, s := range statuses {
+		out[s.TargetID] = runsH.VerifiedInfo{LastVerifiedAt: s.LastVerifiedAt, SnapshotID: s.SnapshotID}
+	}
+	return out, nil
 }
 
 // runTrigger adapts runs.Service to scheduler.RunTrigger (scheduler-fired runs).

@@ -1,17 +1,21 @@
 {
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Data Backup Manager are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Data Backup Manager",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "title": "Data Backup Manager"
   },
   "layout": {
     "sidebarLabel": "Primary navigation",
     "bottomNavLabel": "Mobile navigation",
     "nav": {
-      "dashboard": "Dashboard",
+      "overview": "Overview",
+      "targets": "Targets",
+      "destinations": "Destinations",
+      "plans": "Plans",
+      "runs": "Runs",
+      "restores": "Restores",
       "settings": "Settings"
-    }
+    },
+    "mainLabel": "Main content"
   },
   "theme": {
     "switcherLabel": "Theme",
@@ -21,33 +25,223 @@
       "system": "System"
     }
   },
-  "pages": {
-    "dashboard": {
-      "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
+  "common": {
+    "retry": "Try again",
+    "loadError": "Couldn't load this.",
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "saving": "Saving…",
+    "create": "Create",
+    "never": "Never"
+  },
+  "status": {
+    "run": {
+      "unknown": "Unknown",
+      "pending": "Pending",
+      "capturing": "Capturing",
+      "snapshotting": "Snapshotting",
+      "completed": "Completed",
+      "partialFailed": "Partial failure",
+      "failed": "Failed"
     },
+    "outcome": {
+      "unknown": "Unknown",
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "blocked": "Cap blocked"
+    },
+    "restore": {
+      "unknown": "Unknown",
+      "requested": "Requested",
+      "restoring": "Restoring",
+      "verifying": "Verifying",
+      "verified": "Verified",
+      "restored": "Restored",
+      "failed": "Failed"
+    },
+    "usage": {
+      "unknown": "Unknown",
+      "within": "Within cap",
+      "near": "Near cap",
+      "over": "Over cap"
+    },
+    "capPolicy": {
+      "unknown": "Unknown",
+      "alertBlock": "Alert & block",
+      "alertOnly": "Alert only"
+    },
+    "backend": {
+      "unknown": "Unknown",
+      "filesystem": "Filesystem",
+      "s3": "S3 / MinIO"
+    },
+    "sourceKind": {
+      "unknown": "Unknown",
+      "filesystem": "Filesystem",
+      "sqlite": "SQLite",
+      "postgres": "Postgres",
+      "redis": "Redis",
+      "qdrant": "Qdrant",
+      "objectStorage": "Object storage"
+    },
+    "verified": {
+      "verified": "Verified",
+      "stale": "Verify stale",
+      "unverified": "Unverified"
+    },
+    "trigger": {
+      "unknown": "—",
+      "scheduler": "Scheduled",
+      "manual": "Manual"
+    }
+  },
+  "posture": {
+    "title": "Backup posture",
+    "loading": "Checking posture…",
+    "error": "Couldn't read backup posture.",
+    "allClear": "All targets protected and within cap",
+    "attention": "{{count}} targets need attention",
+    "attention_one": "{{count}} target needs attention",
+    "overdue": "{{count}} overdue or failed",
+    "unverified": "{{count}} not yet verified",
+    "readinessLabel": "API",
+    "serviceLabel": "Service"
+  },
+  "overview": {
+    "title": "Overview",
+    "subtitle": "Backup and verified-restore posture across everything this platform protects.",
+    "storageHeading": "Destinations",
+    "storageEmpty": "No destinations yet.",
+    "coverageHeading": "Coverage",
+    "coverageEmpty": "No targets are being backed up yet.",
+    "lastBackupLabel": "Backed up",
+    "verifiedLabel": "Verified",
+    "ownerFallback": "Unassigned",
+    "setupTitle": "Set up protection",
+    "setupBody": "Create an encrypted destination, then a plan that binds your targets to it. The first verified restore proves the backup actually works.",
+    "setupCtaDestinations": "Add a destination",
+    "setupCtaPlans": "Create a plan",
+    "usageOfCap": "{{used}} of {{cap}}",
+    "usageUncapped": "{{used}} used"
+  },
+  "targets": {
+    "subtitle": "Runtime state registered for backup. Scenarios usually register themselves; you can also add or remove targets here.",
+    "register": "Register target",
+    "empty": "No targets registered yet.",
+    "emptyHint": "Scenarios register their own targets. You can also register one manually.",
+    "owner": "Owner",
+    "ownerHint": "The scenario or service that owns this state (e.g. prompt-manager).",
+    "name": "Name",
+    "nameHint": "Owner-scoped unique name (e.g. store).",
+    "kind": "Source kind",
+    "locator": "Locator",
+    "locatorHint": "Path or glob, database name, key prefix, collection, or bucket — interpreted by kind. Never a secret.",
+    "ownerRequired": "Owner is required.",
+    "nameRequired": "Name is required.",
+    "locatorRequired": "Locator is required.",
+    "deregister": "Deregister",
+    "deregisterTitle": "Deregister this target?",
+    "deregisterBody": "Removes {{name}} from the catalog. Existing snapshots in destinations are kept.",
+    "registerError": "Couldn't register the target.",
+    "detailsTitle": "Target details",
+    "restoreHistory": "Restore & verify history",
+    "noRestores": "No restore or verify runs for this target yet."
+  },
+  "destinations": {
+    "subtitle": "Encrypted kopia repositories your backups are written to. Passphrases and keys live in vault — never here.",
+    "create": "Add destination",
+    "empty": "No destinations yet.",
+    "emptyHint": "Add an encrypted destination before you can create a backup plan.",
+    "name": "Name",
+    "nameHint": "A short, unique label for this repository.",
+    "backend": "Backend",
+    "location": "Location",
+    "locationHint": "A filesystem path or an S3 URI. Must not live under the data this manager protects.",
+    "cap": "Storage cap (GB)",
+    "capHint": "0 means no cap. Backups are never silently deleted to stay under it.",
+    "policy": "Cap policy",
+    "encryption": "Encryption",
+    "secretRef": "Secret reference",
+    "nameRequired": "Name is required.",
+    "locationRequired": "Location is required.",
+    "createTitle": "Add destination",
+    "editTitle": "Edit destination",
+    "editLockedHint": "Backend and location are fixed once the repository exists; only the cap is editable.",
+    "delete": "Delete",
+    "deleteTitle": "Delete this destination?",
+    "deleteBody": "Removes {{name}} from the manager.",
+    "deleteRepo": "Also delete the underlying repository and its snapshots",
+    "deleteRepoHint": "Leave off to keep the encrypted snapshots on disk.",
+    "createError": "Couldn't create the destination.",
+    "updateError": "Couldn't update the destination."
+  },
+  "plans": {
+    "subtitle": "Bind targets to destinations on a schedule with a retention policy. The scheduler runs each plan on its cadence; you can also run one now.",
+    "create": "Create plan",
+    "empty": "No plans yet.",
+    "emptyHint": "A plan needs at least one target and one destination. Add a destination and register a target first.",
+    "name": "Name",
+    "schedule": "Schedule",
+    "scheduleHint": "Cron expression, e.g. 0 2 * * * for nightly at 02:00.",
+    "keepLatest": "Keep latest",
+    "keepLatestHint": "How many snapshots to retain per target. 0 keeps all.",
+    "enabled": "Enabled",
+    "targets": "Targets",
+    "destinations": "Destinations",
+    "nameRequired": "Name is required.",
+    "needTarget": "Select at least one target.",
+    "needDestination": "Select at least one destination.",
+    "noTargets": "No targets registered yet.",
+    "noDestinations": "No destinations yet.",
+    "summary": "{{targets}} targets → {{destinations}} destinations · keep {{keep}}",
+    "runNow": "Run now",
+    "noRuns": "Not run yet",
+    "delete": "Delete",
+    "deleteTitle": "Delete this plan?",
+    "deleteBody": "Removes {{name}}. Existing snapshots are kept.",
+    "createTitle": "Create plan",
+    "editTitle": "Edit plan",
+    "createError": "Couldn't create the plan.",
+    "updateError": "Couldn't update the plan."
+  },
+  "runs": {
+    "subtitle": "Every plan execution, newest first. Expand a run to see its per-target outcomes.",
+    "empty": "No runs yet.",
+    "emptyHint": "Trigger a plan from the Plans page, or wait for the scheduler.",
+    "outcomesHeading": "Per-target outcomes"
+  },
+  "restores": {
+    "subtitle": "Prove a backup restores (verify), or write it back to a location (restore). A verify is non-destructive and encouraged.",
+    "empty": "No restores or verifies yet.",
+    "emptyHint": "Once a plan has run, verify a snapshot to prove it's restorable.",
+    "start": "Restore or verify",
+    "modeRestore": "Restore",
+    "modeVerify": "Verify",
+    "chooseSnapshot": "Snapshot",
+    "chooseSnapshotHint": "Snapshots come from successful runs. Pick one to verify or restore.",
+    "noSnapshots": "No snapshots available yet. Run a plan first.",
+    "browse": "Browse contents",
+    "verify": "Verify",
+    "verifyHint": "Test-restores to scratch and checksums it. Non-destructive.",
+    "restore": "Restore…",
+    "location": "Restore to location",
+    "locationHint": "Absolute path the snapshot will be written to.",
+    "locationRequired": "A restore location is required.",
+    "restoreConfirmBody": "Writes {{target}} from snapshot {{snapshot}} to {{location}}. This overwrites data at that location.",
+    "verifyError": "Couldn't verify the snapshot.",
+    "restoreError": "Couldn't restore the snapshot."
+  },
+  "snapshot": {
+    "empty": "This path is empty.",
+    "up": "Up"
+  },
+  "pages": {
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language"
     }
-  },
-  "health": {
-    "title": "API Health",
-    "loading": "Checking API status…",
-    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
-    "refresh": "Refresh",
-    "refreshCount": "Refreshed {{count}} times",
-    "refreshCount_one": "Refreshed once",
-    "statusLabel": "Status:",
-    "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
-  },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_zero": "No notifications",
-    "summary_one": "1 notification"
   },
   "errors": {
     "canceled": "Operation canceled.",

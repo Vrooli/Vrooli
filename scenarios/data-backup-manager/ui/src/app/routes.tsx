@@ -1,3 +1,7 @@
+/* eslint-disable react-refresh/only-export-components --
+ * The route table (`routes`) is exported alongside the router components on
+ * purpose so tests build an in-memory router from the same config. The
+ * Fast-Refresh-only warning about mixed exports is accepted here. */
 import {
   createBrowserRouter,
   createMemoryRouter,
@@ -6,7 +10,12 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
-import { DashboardPage } from "../pages/DashboardPage";
+import { OverviewPage } from "../pages/OverviewPage";
+import { TargetsPage } from "../pages/TargetsPage";
+import { DestinationsPage } from "../pages/DestinationsPage";
+import { PlansPage } from "../pages/PlansPage";
+import { RunsPage } from "../pages/RunsPage";
+import { RestoresPage } from "../pages/RestoresPage";
 import { SettingsPage } from "../pages/SettingsPage";
 
 /**
@@ -20,7 +29,12 @@ export const routes: RouteObject[] = [
     path: "/",
     element: <AppShell />,
     children: [
-      { index: true, element: <DashboardPage /> },
+      { index: true, element: <OverviewPage /> },
+      { path: "targets", element: <TargetsPage /> },
+      { path: "destinations", element: <DestinationsPage /> },
+      { path: "plans", element: <PlansPage /> },
+      { path: "runs", element: <RunsPage /> },
+      { path: "restores", element: <RestoresPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

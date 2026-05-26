@@ -39,6 +39,9 @@ const (
 	// RoutingServiceClearTestPoolProcedure is the fully-qualified name of the RoutingService's
 	// ClearTestPool RPC.
 	RoutingServiceClearTestPoolProcedure = "/vrooli.dev_routing.v1.routing.RoutingService/ClearTestPool"
+	// RoutingServiceHeartbeatTestPoolProcedure is the fully-qualified name of the RoutingService's
+	// HeartbeatTestPool RPC.
+	RoutingServiceHeartbeatTestPoolProcedure = "/vrooli.dev_routing.v1.routing.RoutingService/HeartbeatTestPool"
 )
 
 // RoutingServiceClient is a client for the vrooli.dev_routing.v1.routing.RoutingService service.
@@ -52,6 +55,12 @@ type RoutingServiceClient interface {
 	// primary pool. The caller's lease_id must match the active install.
 	// Idempotent under match: clearing when no pool is installed is a no-op success.
 	ClearTestPool(context.Context, *connect.Request[routing.ClearTestPoolRequest]) (*connect.Response[routing.ClearTestPoolResponse], error)
+	// HeartbeatTestPool extends the active lease's expiry. The caller's
+	// lease_id must match the active install (FailedPrecondition otherwise).
+	// The scenario uses an internal TTL as a defensive timeout: if the
+	// orchestrator crashes between Install and Clear, the lease expires and
+	// routing reverts to the primary pool without manual intervention.
+	HeartbeatTestPool(context.Context, *connect.Request[routing.HeartbeatTestPoolRequest]) (*connect.Response[routing.HeartbeatTestPoolResponse], error)
 }
 
 // NewRoutingServiceClient constructs a client for the vrooli.dev_routing.v1.routing.RoutingService
@@ -77,13 +86,20 @@ func NewRoutingServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(routingServiceMethods.ByName("ClearTestPool")),
 			connect.WithClientOptions(opts...),
 		),
+		heartbeatTestPool: connect.NewClient[routing.HeartbeatTestPoolRequest, routing.HeartbeatTestPoolResponse](
+			httpClient,
+			baseURL+RoutingServiceHeartbeatTestPoolProcedure,
+			connect.WithSchema(routingServiceMethods.ByName("HeartbeatTestPool")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // routingServiceClient implements RoutingServiceClient.
 type routingServiceClient struct {
-	installTestPool *connect.Client[routing.InstallTestPoolRequest, routing.InstallTestPoolResponse]
-	clearTestPool   *connect.Client[routing.ClearTestPoolRequest, routing.ClearTestPoolResponse]
+	installTestPool   *connect.Client[routing.InstallTestPoolRequest, routing.InstallTestPoolResponse]
+	clearTestPool     *connect.Client[routing.ClearTestPoolRequest, routing.ClearTestPoolResponse]
+	heartbeatTestPool *connect.Client[routing.HeartbeatTestPoolRequest, routing.HeartbeatTestPoolResponse]
 }
 
 // InstallTestPool calls vrooli.dev_routing.v1.routing.RoutingService.InstallTestPool.
@@ -94,6 +110,11 @@ func (c *routingServiceClient) InstallTestPool(ctx context.Context, req *connect
 // ClearTestPool calls vrooli.dev_routing.v1.routing.RoutingService.ClearTestPool.
 func (c *routingServiceClient) ClearTestPool(ctx context.Context, req *connect.Request[routing.ClearTestPoolRequest]) (*connect.Response[routing.ClearTestPoolResponse], error) {
 	return c.clearTestPool.CallUnary(ctx, req)
+}
+
+// HeartbeatTestPool calls vrooli.dev_routing.v1.routing.RoutingService.HeartbeatTestPool.
+func (c *routingServiceClient) HeartbeatTestPool(ctx context.Context, req *connect.Request[routing.HeartbeatTestPoolRequest]) (*connect.Response[routing.HeartbeatTestPoolResponse], error) {
+	return c.heartbeatTestPool.CallUnary(ctx, req)
 }
 
 // RoutingServiceHandler is an implementation of the vrooli.dev_routing.v1.routing.RoutingService
@@ -108,6 +129,12 @@ type RoutingServiceHandler interface {
 	// primary pool. The caller's lease_id must match the active install.
 	// Idempotent under match: clearing when no pool is installed is a no-op success.
 	ClearTestPool(context.Context, *connect.Request[routing.ClearTestPoolRequest]) (*connect.Response[routing.ClearTestPoolResponse], error)
+	// HeartbeatTestPool extends the active lease's expiry. The caller's
+	// lease_id must match the active install (FailedPrecondition otherwise).
+	// The scenario uses an internal TTL as a defensive timeout: if the
+	// orchestrator crashes between Install and Clear, the lease expires and
+	// routing reverts to the primary pool without manual intervention.
+	HeartbeatTestPool(context.Context, *connect.Request[routing.HeartbeatTestPoolRequest]) (*connect.Response[routing.HeartbeatTestPoolResponse], error)
 }
 
 // NewRoutingServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -129,12 +156,20 @@ func NewRoutingServiceHandler(svc RoutingServiceHandler, opts ...connect.Handler
 		connect.WithSchema(routingServiceMethods.ByName("ClearTestPool")),
 		connect.WithHandlerOptions(opts...),
 	)
+	routingServiceHeartbeatTestPoolHandler := connect.NewUnaryHandler(
+		RoutingServiceHeartbeatTestPoolProcedure,
+		svc.HeartbeatTestPool,
+		connect.WithSchema(routingServiceMethods.ByName("HeartbeatTestPool")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.dev_routing.v1.routing.RoutingService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RoutingServiceInstallTestPoolProcedure:
 			routingServiceInstallTestPoolHandler.ServeHTTP(w, r)
 		case RoutingServiceClearTestPoolProcedure:
 			routingServiceClearTestPoolHandler.ServeHTTP(w, r)
+		case RoutingServiceHeartbeatTestPoolProcedure:
+			routingServiceHeartbeatTestPoolHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -150,4 +185,8 @@ func (UnimplementedRoutingServiceHandler) InstallTestPool(context.Context, *conn
 
 func (UnimplementedRoutingServiceHandler) ClearTestPool(context.Context, *connect.Request[routing.ClearTestPoolRequest]) (*connect.Response[routing.ClearTestPoolResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.dev_routing.v1.routing.RoutingService.ClearTestPool is not implemented"))
+}
+
+func (UnimplementedRoutingServiceHandler) HeartbeatTestPool(context.Context, *connect.Request[routing.HeartbeatTestPoolRequest]) (*connect.Response[routing.HeartbeatTestPoolResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.dev_routing.v1.routing.RoutingService.HeartbeatTestPool is not implemented"))
 }

@@ -87,16 +87,20 @@ class Run(_message.Message):
     def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., trigger: _Optional[_Union[TriggerSource, str]] = ..., status: _Optional[_Union[RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., outcomes: _Optional[_Iterable[_Union[TargetOutcome, _Mapping]]] = ...) -> None: ...
 
 class TargetStatus(_message.Message):
-    __slots__ = ("target_id", "last_success_at", "last_run_status", "last_run_at")
+    __slots__ = ("target_id", "last_success_at", "last_run_status", "last_run_at", "last_verified_at", "last_verified_snapshot_id")
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     LAST_SUCCESS_AT_FIELD_NUMBER: _ClassVar[int]
     LAST_RUN_STATUS_FIELD_NUMBER: _ClassVar[int]
     LAST_RUN_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_VERIFIED_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_VERIFIED_SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
     target_id: str
     last_success_at: _timestamp_pb2.Timestamp
     last_run_status: RunStatus
     last_run_at: _timestamp_pb2.Timestamp
-    def __init__(self, target_id: _Optional[str] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_run_status: _Optional[_Union[RunStatus, str]] = ..., last_run_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    last_verified_at: _timestamp_pb2.Timestamp
+    last_verified_snapshot_id: str
+    def __init__(self, target_id: _Optional[str] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_run_status: _Optional[_Union[RunStatus, str]] = ..., last_run_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_verified_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_verified_snapshot_id: _Optional[str] = ...) -> None: ...
 
 class TriggerRunRequest(_message.Message):
     __slots__ = ("plan_id",)

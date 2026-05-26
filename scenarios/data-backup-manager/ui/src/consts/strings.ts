@@ -60,4 +60,15 @@
  *   - Test IDs (those go in `selectors.ts`).
  *   - Non-user-facing strings (API URLs, log messages, internal enum codes).
  */
+import type { Strings } from "./strings.generated";
+
 export { strings, type Strings } from "./strings.generated";
+
+/**
+ * Union of every leaf key-path in the registry (e.g. `"status.run.completed"`).
+ * This is the set of values `t()` accepts, so dynamic lookups
+ * (`RUN_STATUS_STRINGS[slug]`) can be typed `StringKey` and stay assignable to
+ * `t()` without widening to `string` (which `t()`'s strict key typing rejects).
+ */
+type LeafValues<T> = T extends string ? T : { [K in keyof T]: LeafValues<T[K]> }[keyof T];
+export type StringKey = LeafValues<Strings>;

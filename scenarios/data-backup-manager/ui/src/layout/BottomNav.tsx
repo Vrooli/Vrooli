@@ -17,24 +17,31 @@ export function BottomNav() {
     <nav
       data-testid={selectors.layout.bottomNav}
       aria-label={t(strings.layout.bottomNavLabel)}
-      className="flex shrink-0 items-stretch justify-around border-t border-app-border bg-app-surface md:hidden"
+      className="flex shrink-0 items-stretch justify-around border-t border-app-border bg-app-surface pb-[env(safe-area-inset-bottom)] md:hidden"
     >
-      {NAV_ITEMS.map((item) => (
-        <NavLink
-          key={item.path}
-          to={item.path}
-          end={item.end}
-          data-testid={selectors.layout.bottomNavLink({ key: item.key })}
-          className={({ isActive }) =>
-            [
-              "flex flex-1 items-center justify-center px-2 py-3 text-xs font-medium",
-              isActive ? "text-app-primary" : "text-app-muted-foreground",
-            ].join(" ")
-          }
-        >
-          {t(item.labelKey)}
-        </NavLink>
-      ))}
+      {NAV_ITEMS.map((item) => {
+        const Icon = item.icon;
+        return (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            end={item.end}
+            aria-label={t(item.labelKey)}
+            data-testid={selectors.layout.bottomNavLink({ key: item.key })}
+            className={({ isActive }) =>
+              [
+                "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2",
+                isActive ? "text-app-primary" : "text-app-muted-foreground",
+              ].join(" ")
+            }
+          >
+            <Icon aria-hidden="true" className="h-5 w-5 shrink-0" />
+            <span className="w-full truncate text-center text-[10px] font-medium leading-tight">
+              {t(item.labelKey)}
+            </span>
+          </NavLink>
+        );
+      })}
     </nav>
   );
 }

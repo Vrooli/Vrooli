@@ -168,7 +168,7 @@ func main() {
 		destinationsH.Module(db, clk, kopia, protectedRoot, logger),
 		plansH.Module(db, clk, logger),
 		restoresH.Module(restoresSvc, logger),
-		runsH.Module(runsSvc, logger),
+		runsH.Module(runsSvc, verifiedLookup{svc: restoresSvc}, logger),
 		targetsH.Module(db, clk, logger),
 	)
 
