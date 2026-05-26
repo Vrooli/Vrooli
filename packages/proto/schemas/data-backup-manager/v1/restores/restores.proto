@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package vrooli.data_backup_manager.v1.restores;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/restores;restores_v1";
+
+// =============================================================================
+// RESTORES DOMAIN — restore to a location + verify gate
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain restores
+// @stability stable
+//
+// Wire contract for RestoresService. Restore exports a target's snapshot to a
+// chosen location. Verify test-restores to a scratch directory, checksums the
+// result, records last-verified-per-target, and cleans up scratch — it is the
+// gate that must pass before any committed runtime data is removed from git.
+// A false "verified" is the worst possible failure (OT-P0-006).
+//
+// Restore lifecycle states are modeled at Level 2 in
+// api/internal/restores/flow/ per docs/concepts/FLOWS.md.
+// =============================================================================
+
+service RestoresService {
+  rpc RestoreTarget(RestoreTargetRequest) returns (RestoreTargetResponse);
+  rpc VerifyTarget(VerifyTargetRequest) returns (VerifyTargetResponse);
+  rpc GetRestore(GetRestoreRequest) returns (GetRestoreResponse);
+  rpc ListRestores(ListRestoresRequest) returns (ListRestoresResponse);
+}
+
+// RestoreMode distinguishes a real restore from a verify test-restore.
+enum RestoreMode {
+  RESTORE_MODE_UNSPECIFIED = 0;
+  // Restore to a caller-chosen location.
+  RESTORE_MODE_RESTORE = 1;
+  // Test-restore to scratch + checksum; scratch is cleaned up afterward.
+  RESTORE_MODE_VERIFY = 2;
+}
+
+// RestoreStatus is the lifecycle state of a restore/verify operation.
+enum RestoreStatus {
+  RESTORE_STATUS_UNSPECIFIED = 0;
+  RESTORE_STATUS_REQUESTED = 1;
+  RESTORE_STATUS_RESTORING = 2;
+  RESTORE_STATUS_VERIFYING = 3;
+  RESTORE_STATUS_VERIFIED = 4;
+  RESTORE_STATUS_RESTORED = 5;
+  RESTORE_STATUS_FAILED = 6;
+}
+
+// Restore is the canonical wire shape for a restore/verify record.
+message Restore {
+  string id = 1;
+  string target_id = 2;
+  string destination_id = 3;
+  string snapshot_id = 4;
+  RestoreMode mode = 5;
+  RestoreStatus status = 6;
+  // Restore destination path (restore mode); empty for verify.
+  string location = 7;
+  // Checksum of the restored artifact (verify mode evidence).
+  string checksum = 8;
+  // Set when a verify succeeds; the git-removal gate timestamp.
+  google.protobuf.Timestamp last_verified_at = 9;
+  google.protobuf.Timestamp requested_at = 10;
+  google.protobuf.Timestamp finished_at = 11;
+  // Failure reason; empty on success.
+  string error = 12;
+}
+
+message RestoreTargetRequest {
+  string target_id = 1 [(buf.validate.field).string.min_len = 1];
+  string destination_id = 2 [(buf.validate.field).string.min_len = 1];
+  string snapshot_id = 3 [(buf.validate.field).string.min_len = 1];
+  // Filesystem location to restore into.
+  string location = 4 [(buf.validate.field).string.min_len = 1];
+}
+
+message RestoreTargetResponse {
+  Restore restore = 1;
+}
+
+message VerifyTargetRequest {
+  string target_id = 1 [(buf.validate.field).string.min_len = 1];
+  string destination_id = 2 [(buf.validate.field).string.min_len = 1];
+  string snapshot_id = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+message VerifyTargetResponse {
+  Restore restore = 1;
+}
+
+message GetRestoreRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetRestoreResponse {
+  Restore restore = 1;
+}
+
+message ListRestoresRequest {
+  // Optional target filter.
+  string target_id = 1;
+  int32 page_size = 2 [(buf.validate.field).int32.gte = 0];
+  string page_token = 3;
+}
+
+message ListRestoresResponse {
+  repeated Restore restores = 1;
+  string next_page_token = 2;
+}

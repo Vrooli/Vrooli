@@ -49,38 +49,6 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-05-26 — Inherited react-vite template test-compile defect (notes module)
-
-**Symptom:** `api/handlers/notes/module_test.go` does not compile. It
-calls `db.NewSQLite(t)` (which returns `*sql.DB`) and passes the result
-into `notes.ModuleWithBlobStore(...)`, whose first parameter is
-`*database.RoutedDB`. The types do not match, so the test package fails
-to build.
-
-**Root cause:** A defect in the upstream `react-vite` scenario template,
-not in this scenario's design. The same mismatch is present in
-`templates/scenarios/react-vite/`, so every scenario scaffolded from
-that template inherits it. The seam (`ModuleWithBlobStore`) expects a
-`*database.RoutedDB`; the test helper (`NewSQLite`) hands back a raw
-`*sql.DB`.
-
-**Workaround:** None needed in the short term — the `notes` domain is
-example-only and slated for removal (see `PROGRESS.md`). Removing the
-`notes` domain removes the failing test.
-
-**Real fix:** Fix the template so `db.NewSQLite` returns (or is wrapped
-into) a `*database.RoutedDB`, or so `ModuleWithBlobStore` accepts the
-helper's type. Should be fixed at the template source
-(`templates/scenarios/react-vite/`) so it stops propagating to new
-scaffolds.
-
-**Owner:** unassigned (template owner).
-
-**Refs:** `api/handlers/notes/module_test.go:27,33,43,49`;
-`api/handlers/notes/module.go:43`;
-`api/internal/testutil/db/sqlite.go:49`; template mirror under
-`templates/scenarios/react-vite/`.
-
 ### 2026-05-26 — Redis source backups are best-effort, not point-in-time
 
 **Symptom:** A Redis source backup may not represent a single
@@ -106,6 +74,104 @@ design limitation, not a bug.
 
 **Refs:** `DECISIONS.md` (six source kinds; Redis best-effort);
 `PRD.md` source-kind notes and OT-P1-001 (quiesce hooks).
+
+### 2026-05-26 — Run/restore flows modeled at Level 2, not the Level-5 flow-verifier model
+
+**Symptom:** `FLOWS.md` targets a Level-5 checked formal model (flow.json +
+generated Quint + replay) for the backup-run and verified-restore flows. The
+implementation ships Level-2 only: pure `Transition`/`CheckInvariants` +
+matrix/trace tests in `api/internal/runs/lifecycle.go` and
+`api/internal/restores/lifecycle.go`.
+
+**Root cause:** Deliberate scope decision in the API+CLI implementation plan —
+Level 2 captures the load-bearing invariants (partial-failure isolation, the
+verify gate, no-eviction) executably; the Level-5 machinery is additive.
+
+**Workaround:** The Level-2 transition functions and their tests are the
+source of truth today; `flow-verifier verify check` passes because there are no
+`flow.json` files to check.
+
+**Real fix:** Scaffold `flow-verifier flows new api/internal/runs --flow-id
+backup-run --lang go` (and the restore flow), port the transition tables, and
+wire replay — promoting both flows to Level 5.
+
+**Owner:** unassigned. **Refs:** `FLOWS.md` (Deferred/Unmodeled Flows);
+`internal/runs/lifecycle.go`; `internal/restores/lifecycle.go`.
+
+### 2026-05-26 — Source resource-CLI surfaces are assumed, not yet reconciled
+
+**Symptom:** The postgres/redis/qdrant/object source capturers shell out to
+`resource-postgres|redis|qdrant|minio` with an assumed subcommand/flag surface
+(e.g. `resource-postgres dump --database <n> --output <f>`). The real resource
+CLIs may differ.
+
+**Root cause:** The capturers were built to the design ideal before each source
+resource CLI's exact surface was verified. Their unit tests assert the argv we
+build; the round-trip integration tests are gated behind `DBM_SOURCE_INTEGRATION=1`.
+
+**Workaround:** Filesystem + SQLite kinds need no resource and round-trip in
+default tests. The other four are integration-gated and inert until enabled.
+
+**Real fix:** Run each gated integration test against the real resource, then
+reconcile the argv in `api/internal/sources/{postgres,redis,qdrant,object}.go`
+with the actual CLI (fix-substrate the resource CLI if a needed verb is
+missing). Update the assumed-surface table in the source files.
+
+**Owner:** unassigned. **Refs:** `internal/sources/*.go`; `INTEGRATIONS.md`.
+
+### 2026-05-26 — vault secret-read CLI is a stub; snapshot-browse assumes a kopia verb
+
+**Symptom:** (1) `INTEGRATIONS.md` assumes a `resource-vault secret get` CLI,
+but that surface is a stub. (2) `RunsService.BrowseSnapshot` shells out to
+`resource-kopia snapshot browse`, a command the kopia resource does not yet
+expose.
+
+**Root cause:** Both are substrate gaps surfaced during implementation. Source
+credentials are sidestepped today by having each source resource CLI
+self-source its own credentials (so no direct vault read is needed). Snapshot
+browse has no resource-kopia equivalent yet.
+
+**Workaround:** Source capture works without a raw vault read. Snapshot browse
+returns whatever `resource-kopia snapshot browse` yields; the catalog
+unit tests use the fake engine, so default tests are unaffected.
+
+**Real fix:** (1) Only add `resource-vault secret get` if a concrete source
+genuinely needs a raw secret the manager must pass. (2) Add a
+`resource-kopia snapshot browse|ls --json` command (fix-substrate) and confirm
+the engine parse in `internal/engine/kopia.go::BrowseSnapshot`.
+
+**Owner:** unassigned. **Refs:** `internal/engine/kopia.go`;
+`INTEGRATIONS.md`; the kopia resource.
+
+### 2026-05-26 — ListTargetStatus owner filter not wired
+
+**Symptom:** `RunsService.ListTargetStatus` accepts an `owner` field but ignores
+it — runs keys purely on target id and has no target→owner mapping.
+
+**Root cause:** The runs domain does not own targets; resolving owners would
+couple it to the targets domain.
+
+**Workaround:** v1 returns all targets seen in run history. The health rollup
+applies its own thresholds without owner filtering.
+
+**Real fix:** Resolve owner→target-ids via a targets adapter at the handler
+edge and pass the id set to the repository (which already filters by id).
+
+**Owner:** unassigned. **Refs:** `handlers/runs/connect_handler.go::ListTargetStatus`;
+`internal/runs/repository.go::TargetStatuses`.
+
+### 2026-05-26 — UI is a deliberate follow-up (DBM-UI-001 not implemented)
+
+**Symptom:** The scenario ships API + CLI; `ui/src/features/*` is still the
+template shape. DBM-UI-001 is unmet.
+
+**Root cause:** The implementation pass was scoped to API + CLI. The proto
+contracts authored here are exactly what the UI will consume.
+
+**Real fix:** A dedicated UI plan: destinations (usage-vs-cap), plans, run
+history, guided restore/verify, against the generated Connect-Web clients.
+
+**Owner:** unassigned. **Refs:** `UI-ARCHITECTURE.md`; requirements module 08.
 
 ## Architecture Drift
 

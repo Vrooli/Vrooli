@@ -16,7 +16,15 @@ import (
 // /api/v1/health is what API clients use so they only have to know
 // one base path.
 func Module(pinger database.Pinger, service, version string) module.Module {
-	h := NewHandler(Deps{Pinger: pinger, Service: service, Version: version})
+	return ModuleWithPosture(pinger, service, version, nil, nil)
+}
+
+// ModuleWithPosture is the production variant that additionally reports backup
+// posture: when posture is non-nil, an Optional "backups" check degrades the
+// status (HTTP 200, readiness true) on overdue/failed backups and emits a
+// posture event through events. main.go wires a runs-backed posture adapter.
+func ModuleWithPosture(pinger database.Pinger, service, version string, posture BackupPosture, events PostureEventSink) module.Module {
+	h := NewHandler(Deps{Pinger: pinger, Service: service, Version: version, Posture: posture, Events: events})
 	return module.Module{
 		Name: "health",
 		Mount: func(r *mux.Router) {

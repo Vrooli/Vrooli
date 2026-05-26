@@ -1,7 +1,11 @@
 package domains
 
 import (
-	"data-backup-manager/cli/domains/notes"
+	"data-backup-manager/cli/domains/destinations"
+	"data-backup-manager/cli/domains/plans"
+	"data-backup-manager/cli/domains/restores"
+	"data-backup-manager/cli/domains/runs"
+	"data-backup-manager/cli/domains/targets"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -36,9 +40,31 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	notesGroup, err := notes.Register(core, manifest)
+	targetsGroup, err := targets.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{notesGroup}, nil
+	destinationsGroup, err := destinations.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	plansGroup, err := plans.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	runsGroup, err := runs.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	restoresGroup, err := restores.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{
+		targetsGroup,
+		destinationsGroup,
+		plansGroup,
+		runsGroup,
+		restoresGroup,
+	}, nil
 }

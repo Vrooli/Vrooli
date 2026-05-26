@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package vrooli.data_backup_manager.v1.sources;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/sources;sources_v1";
+
+// =============================================================================
+// SOURCES — shared source-kind vocabulary
+// =============================================================================
+//
+// @layer 4  (shared domain vocabulary)
+// @domain sources
+// @stability stable
+//
+// The `sources` domain is an internal strategy/adapter layer (api/internal/
+// sources/) with no durable product data and no Connect-RPC service of its
+// own — runs and restores invoke it in-process. This proto exists only to
+// centralize the fixed source-kind vocabulary so targets, runs, and restores
+// all speak the same enum on the wire. There is intentionally no `service`
+// block here; this file is not listed in modules.AllProtoFiles.
+//
+// Adding a v1 source kind: append an enum value with the next number (never
+// renumber), then implement the matching SourceCapture in api/internal/
+// sources/ and document it in docs/concepts/DOMAINS.md.
+// =============================================================================
+
+// SourceKind enumerates the supported backup source kinds. The six v1 kinds
+// are fixed by OT-P0-002; each maps to one SourceCapture implementation in
+// api/internal/sources/.
+enum SourceKind {
+  // Unset / unknown. Rejected by RegisterTarget validation.
+  SOURCE_KIND_UNSPECIFIED = 0;
+
+  // A filesystem path or glob, captured storage-root-relative for portability.
+  SOURCE_KIND_FILESYSTEM = 1;
+
+  // A SQLite database, captured via a consistent VACUUM INTO copy.
+  SOURCE_KIND_SQLITE = 2;
+
+  // A Postgres database/schema, captured via pg_dump through the postgres
+  // resource CLI.
+  SOURCE_KIND_POSTGRES = 3;
+
+  // A Redis key namespace, captured best-effort via prefix SCAN+DUMP. Not a
+  // transactional point-in-time snapshot.
+  SOURCE_KIND_REDIS = 4;
+
+  // A Qdrant collection, captured via the snapshot API.
+  SOURCE_KIND_QDRANT = 5;
+
+  // An object-storage bucket/prefix (S3/MinIO), captured by mirroring objects.
+  SOURCE_KIND_OBJECT_STORAGE = 6;
+}

@@ -10,7 +10,7 @@
     {
       "id": "DBM-PLAN-001",
       "title": "Many-to-many plans with schedule and retention",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-004",
       "category": "plan",
       "criticality": "P0",
@@ -20,7 +20,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/plans/service_test.go::TestPlan_ManyToManyBindings",
           "notes": "Create a plan spanning multiple targets/destinations; assert a target can appear in two plans."
         }
@@ -29,7 +29,7 @@
     {
       "id": "DBM-SCHED-001",
       "title": "Scheduled and on-demand execution",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-005",
       "category": "execution",
       "criticality": "P0",
@@ -39,7 +39,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/scheduler/scheduler_test.go::TestScheduler_FiresAndManualTrigger",
           "notes": "Advance a fake clock to fire a due plan; assert a run is created; assert manual trigger creates a run immediately."
         }

@@ -453,6 +453,275 @@ func (x *RewriteApplyResponse) GetDryRun() bool {
 	return false
 }
 
+type ListFixturesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListFixturesRequest) Reset() {
+	*x = ListFixturesRequest{}
+	mi := &file_go_code_graph_v1_graph_graph_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListFixturesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListFixturesRequest) ProtoMessage() {}
+
+func (x *ListFixturesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_go_code_graph_v1_graph_graph_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListFixturesRequest.ProtoReflect.Descriptor instead.
+func (*ListFixturesRequest) Descriptor() ([]byte, []int) {
+	return file_go_code_graph_v1_graph_graph_proto_rawDescGZIP(), []int{6}
+}
+
+// FixtureInfo describes one golden fixture directory under bas/fixtures/.
+type FixtureInfo struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Directory name, e.g. "go-cycles". Used as the ValidateFixture key.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Scenario-relative path, e.g. "bas/fixtures/go-cycles".
+	Path string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	// True when an expected-graph.json baseline exists for byte comparison.
+	HasExpected   bool `protobuf:"varint,3,opt,name=has_expected,json=hasExpected,proto3" json:"has_expected,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FixtureInfo) Reset() {
+	*x = FixtureInfo{}
+	mi := &file_go_code_graph_v1_graph_graph_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FixtureInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FixtureInfo) ProtoMessage() {}
+
+func (x *FixtureInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_go_code_graph_v1_graph_graph_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FixtureInfo.ProtoReflect.Descriptor instead.
+func (*FixtureInfo) Descriptor() ([]byte, []int) {
+	return file_go_code_graph_v1_graph_graph_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *FixtureInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *FixtureInfo) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *FixtureInfo) GetHasExpected() bool {
+	if x != nil {
+		return x.HasExpected
+	}
+	return false
+}
+
+type ListFixturesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Fixtures in stable name-sorted order.
+	Fixtures      []*FixtureInfo `protobuf:"bytes,1,rep,name=fixtures,proto3" json:"fixtures,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListFixturesResponse) Reset() {
+	*x = ListFixturesResponse{}
+	mi := &file_go_code_graph_v1_graph_graph_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListFixturesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListFixturesResponse) ProtoMessage() {}
+
+func (x *ListFixturesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_go_code_graph_v1_graph_graph_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListFixturesResponse.ProtoReflect.Descriptor instead.
+func (*ListFixturesResponse) Descriptor() ([]byte, []int) {
+	return file_go_code_graph_v1_graph_graph_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ListFixturesResponse) GetFixtures() []*FixtureInfo {
+	if x != nil {
+		return x.Fixtures
+	}
+	return nil
+}
+
+type ValidateFixtureRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Fixture directory name as returned by ListFixtures.
+	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateFixtureRequest) Reset() {
+	*x = ValidateFixtureRequest{}
+	mi := &file_go_code_graph_v1_graph_graph_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateFixtureRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateFixtureRequest) ProtoMessage() {}
+
+func (x *ValidateFixtureRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_go_code_graph_v1_graph_graph_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateFixtureRequest.ProtoReflect.Descriptor instead.
+func (*ValidateFixtureRequest) Descriptor() ([]byte, []int) {
+	return file_go_code_graph_v1_graph_graph_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ValidateFixtureRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type ValidateFixtureResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when the canonical JSON is byte-identical to expected-graph.json.
+	Passed bool `protobuf:"varint,1,opt,name=passed,proto3" json:"passed,omitempty"`
+	// Unified line diff (expected vs actual) when passed=false; empty on pass.
+	Diff          string `protobuf:"bytes,2,opt,name=diff,proto3" json:"diff,omitempty"`
+	ExpectedBytes int64  `protobuf:"varint,3,opt,name=expected_bytes,json=expectedBytes,proto3" json:"expected_bytes,omitempty"`
+	ActualBytes   int64  `protobuf:"varint,4,opt,name=actual_bytes,json=actualBytes,proto3" json:"actual_bytes,omitempty"`
+	// Hex sha256 of the extracted graph (matches ExtractResponse.graph_hash).
+	GraphHash     string `protobuf:"bytes,5,opt,name=graph_hash,json=graphHash,proto3" json:"graph_hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateFixtureResponse) Reset() {
+	*x = ValidateFixtureResponse{}
+	mi := &file_go_code_graph_v1_graph_graph_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateFixtureResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateFixtureResponse) ProtoMessage() {}
+
+func (x *ValidateFixtureResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_go_code_graph_v1_graph_graph_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateFixtureResponse.ProtoReflect.Descriptor instead.
+func (*ValidateFixtureResponse) Descriptor() ([]byte, []int) {
+	return file_go_code_graph_v1_graph_graph_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ValidateFixtureResponse) GetPassed() bool {
+	if x != nil {
+		return x.Passed
+	}
+	return false
+}
+
+func (x *ValidateFixtureResponse) GetDiff() string {
+	if x != nil {
+		return x.Diff
+	}
+	return ""
+}
+
+func (x *ValidateFixtureResponse) GetExpectedBytes() int64 {
+	if x != nil {
+		return x.ExpectedBytes
+	}
+	return 0
+}
+
+func (x *ValidateFixtureResponse) GetActualBytes() int64 {
+	if x != nil {
+		return x.ActualBytes
+	}
+	return 0
+}
+
+func (x *ValidateFixtureResponse) GetGraphHash() string {
+	if x != nil {
+		return x.GraphHash
+	}
+	return ""
+}
+
 var File_go_code_graph_v1_graph_graph_proto protoreflect.FileDescriptor
 
 const file_go_code_graph_v1_graph_graph_proto_rawDesc = "" +
@@ -482,7 +751,23 @@ const file_go_code_graph_v1_graph_graph_proto_rawDesc = "" +
 	"\x14RewriteApplyResponse\x12\x17\n" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12J\n" +
 	"\aresults\x18\x02 \x03(\v20.vrooli.go_code_graph.v1.rewrite.OperationResultR\aresults\x12\x17\n" +
-	"\adry_run\x18\x03 \x01(\bR\x06dryRun*\xbb\x01\n" +
+	"\adry_run\x18\x03 \x01(\bR\x06dryRun\"\x15\n" +
+	"\x13ListFixturesRequest\"X\n" +
+	"\vFixtureInfo\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12!\n" +
+	"\fhas_expected\x18\x03 \x01(\bR\vhasExpected\"^\n" +
+	"\x14ListFixturesResponse\x12F\n" +
+	"\bfixtures\x18\x01 \x03(\v2*.vrooli.go_code_graph.v1.graph.FixtureInfoR\bfixtures\",\n" +
+	"\x16ValidateFixtureRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"\xae\x01\n" +
+	"\x17ValidateFixtureResponse\x12\x16\n" +
+	"\x06passed\x18\x01 \x01(\bR\x06passed\x12\x12\n" +
+	"\x04diff\x18\x02 \x01(\tR\x04diff\x12%\n" +
+	"\x0eexpected_bytes\x18\x03 \x01(\x03R\rexpectedBytes\x12!\n" +
+	"\factual_bytes\x18\x04 \x01(\x03R\vactualBytes\x12\x1d\n" +
+	"\n" +
+	"graph_hash\x18\x05 \x01(\tR\tgraphHash*\xbb\x01\n" +
 	"\n" +
 	"GoNodeKind\x12\x1c\n" +
 	"\x18GO_NODE_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
@@ -491,11 +776,13 @@ const file_go_code_graph_v1_graph_graph_proto_rawDesc = "" +
 	"\x10GO_NODE_KIND_VAR\x10f\x12\x16\n" +
 	"\x12GO_NODE_KIND_CONST\x10g\x12\x1a\n" +
 	"\x16GO_NODE_KIND_INTERFACE\x10h\x12\x17\n" +
-	"\x13GO_NODE_KIND_METHOD\x10i2\xf3\x02\n" +
+	"\x13GO_NODE_KIND_METHOD\x10i2\xf3\x04\n" +
 	"\x12GoCodeGraphService\x12j\n" +
 	"\aExtract\x12-.vrooli.go_code_graph.v1.graph.ExtractRequest\x1a..vrooli.go_code_graph.v1.graph.ExtractResponse\"\x00\x12v\n" +
 	"\vRewritePlan\x121.vrooli.go_code_graph.v1.graph.RewritePlanRequest\x1a2.vrooli.go_code_graph.v1.graph.RewritePlanResponse\"\x00\x12y\n" +
-	"\fRewriteApply\x122.vrooli.go_code_graph.v1.graph.RewriteApplyRequest\x1a3.vrooli.go_code_graph.v1.graph.RewriteApplyResponse\"\x00BPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph;graph_v1b\x06proto3"
+	"\fRewriteApply\x122.vrooli.go_code_graph.v1.graph.RewriteApplyRequest\x1a3.vrooli.go_code_graph.v1.graph.RewriteApplyResponse\"\x00\x12y\n" +
+	"\fListFixtures\x122.vrooli.go_code_graph.v1.graph.ListFixturesRequest\x1a3.vrooli.go_code_graph.v1.graph.ListFixturesResponse\"\x00\x12\x82\x01\n" +
+	"\x0fValidateFixture\x125.vrooli.go_code_graph.v1.graph.ValidateFixtureRequest\x1a6.vrooli.go_code_graph.v1.graph.ValidateFixtureResponse\"\x00BPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph;graph_v1b\x06proto3"
 
 var (
 	file_go_code_graph_v1_graph_graph_proto_rawDescOnce sync.Once
@@ -510,7 +797,7 @@ func file_go_code_graph_v1_graph_graph_proto_rawDescGZIP() []byte {
 }
 
 var file_go_code_graph_v1_graph_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_go_code_graph_v1_graph_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_go_code_graph_v1_graph_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_go_code_graph_v1_graph_graph_proto_goTypes = []any{
 	(GoNodeKind)(0),                 // 0: vrooli.go_code_graph.v1.graph.GoNodeKind
 	(*ExtractRequest)(nil),          // 1: vrooli.go_code_graph.v1.graph.ExtractRequest
@@ -519,28 +806,38 @@ var file_go_code_graph_v1_graph_graph_proto_goTypes = []any{
 	(*RewritePlanResponse)(nil),     // 4: vrooli.go_code_graph.v1.graph.RewritePlanResponse
 	(*RewriteApplyRequest)(nil),     // 5: vrooli.go_code_graph.v1.graph.RewriteApplyRequest
 	(*RewriteApplyResponse)(nil),    // 6: vrooli.go_code_graph.v1.graph.RewriteApplyResponse
-	(*v1.CodeGraph)(nil),            // 7: common.v1.CodeGraph
-	(*v1.CodeGraphWarning)(nil),     // 8: common.v1.CodeGraphWarning
-	(*rewrite.Operation)(nil),       // 9: vrooli.go_code_graph.v1.rewrite.Operation
-	(*rewrite.OperationResult)(nil), // 10: vrooli.go_code_graph.v1.rewrite.OperationResult
+	(*ListFixturesRequest)(nil),     // 7: vrooli.go_code_graph.v1.graph.ListFixturesRequest
+	(*FixtureInfo)(nil),             // 8: vrooli.go_code_graph.v1.graph.FixtureInfo
+	(*ListFixturesResponse)(nil),    // 9: vrooli.go_code_graph.v1.graph.ListFixturesResponse
+	(*ValidateFixtureRequest)(nil),  // 10: vrooli.go_code_graph.v1.graph.ValidateFixtureRequest
+	(*ValidateFixtureResponse)(nil), // 11: vrooli.go_code_graph.v1.graph.ValidateFixtureResponse
+	(*v1.CodeGraph)(nil),            // 12: common.v1.CodeGraph
+	(*v1.CodeGraphWarning)(nil),     // 13: common.v1.CodeGraphWarning
+	(*rewrite.Operation)(nil),       // 14: vrooli.go_code_graph.v1.rewrite.Operation
+	(*rewrite.OperationResult)(nil), // 15: vrooli.go_code_graph.v1.rewrite.OperationResult
 }
 var file_go_code_graph_v1_graph_graph_proto_depIdxs = []int32{
-	7,  // 0: vrooli.go_code_graph.v1.graph.ExtractResponse.graph:type_name -> common.v1.CodeGraph
-	8,  // 1: vrooli.go_code_graph.v1.graph.ExtractResponse.warnings:type_name -> common.v1.CodeGraphWarning
-	9,  // 2: vrooli.go_code_graph.v1.graph.RewritePlanRequest.operations:type_name -> vrooli.go_code_graph.v1.rewrite.Operation
-	9,  // 3: vrooli.go_code_graph.v1.graph.RewritePlanResponse.normalized_operations:type_name -> vrooli.go_code_graph.v1.rewrite.Operation
-	10, // 4: vrooli.go_code_graph.v1.graph.RewriteApplyResponse.results:type_name -> vrooli.go_code_graph.v1.rewrite.OperationResult
-	1,  // 5: vrooli.go_code_graph.v1.graph.GoCodeGraphService.Extract:input_type -> vrooli.go_code_graph.v1.graph.ExtractRequest
-	3,  // 6: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewritePlan:input_type -> vrooli.go_code_graph.v1.graph.RewritePlanRequest
-	5,  // 7: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewriteApply:input_type -> vrooli.go_code_graph.v1.graph.RewriteApplyRequest
-	2,  // 8: vrooli.go_code_graph.v1.graph.GoCodeGraphService.Extract:output_type -> vrooli.go_code_graph.v1.graph.ExtractResponse
-	4,  // 9: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewritePlan:output_type -> vrooli.go_code_graph.v1.graph.RewritePlanResponse
-	6,  // 10: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewriteApply:output_type -> vrooli.go_code_graph.v1.graph.RewriteApplyResponse
-	8,  // [8:11] is the sub-list for method output_type
-	5,  // [5:8] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	12, // 0: vrooli.go_code_graph.v1.graph.ExtractResponse.graph:type_name -> common.v1.CodeGraph
+	13, // 1: vrooli.go_code_graph.v1.graph.ExtractResponse.warnings:type_name -> common.v1.CodeGraphWarning
+	14, // 2: vrooli.go_code_graph.v1.graph.RewritePlanRequest.operations:type_name -> vrooli.go_code_graph.v1.rewrite.Operation
+	14, // 3: vrooli.go_code_graph.v1.graph.RewritePlanResponse.normalized_operations:type_name -> vrooli.go_code_graph.v1.rewrite.Operation
+	15, // 4: vrooli.go_code_graph.v1.graph.RewriteApplyResponse.results:type_name -> vrooli.go_code_graph.v1.rewrite.OperationResult
+	8,  // 5: vrooli.go_code_graph.v1.graph.ListFixturesResponse.fixtures:type_name -> vrooli.go_code_graph.v1.graph.FixtureInfo
+	1,  // 6: vrooli.go_code_graph.v1.graph.GoCodeGraphService.Extract:input_type -> vrooli.go_code_graph.v1.graph.ExtractRequest
+	3,  // 7: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewritePlan:input_type -> vrooli.go_code_graph.v1.graph.RewritePlanRequest
+	5,  // 8: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewriteApply:input_type -> vrooli.go_code_graph.v1.graph.RewriteApplyRequest
+	7,  // 9: vrooli.go_code_graph.v1.graph.GoCodeGraphService.ListFixtures:input_type -> vrooli.go_code_graph.v1.graph.ListFixturesRequest
+	10, // 10: vrooli.go_code_graph.v1.graph.GoCodeGraphService.ValidateFixture:input_type -> vrooli.go_code_graph.v1.graph.ValidateFixtureRequest
+	2,  // 11: vrooli.go_code_graph.v1.graph.GoCodeGraphService.Extract:output_type -> vrooli.go_code_graph.v1.graph.ExtractResponse
+	4,  // 12: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewritePlan:output_type -> vrooli.go_code_graph.v1.graph.RewritePlanResponse
+	6,  // 13: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewriteApply:output_type -> vrooli.go_code_graph.v1.graph.RewriteApplyResponse
+	9,  // 14: vrooli.go_code_graph.v1.graph.GoCodeGraphService.ListFixtures:output_type -> vrooli.go_code_graph.v1.graph.ListFixturesResponse
+	11, // 15: vrooli.go_code_graph.v1.graph.GoCodeGraphService.ValidateFixture:output_type -> vrooli.go_code_graph.v1.graph.ValidateFixtureResponse
+	11, // [11:16] is the sub-list for method output_type
+	6,  // [6:11] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_go_code_graph_v1_graph_graph_proto_init() }
@@ -554,7 +851,7 @@ func file_go_code_graph_v1_graph_graph_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_go_code_graph_v1_graph_graph_proto_rawDesc), len(file_go_code_graph_v1_graph_graph_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   6,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

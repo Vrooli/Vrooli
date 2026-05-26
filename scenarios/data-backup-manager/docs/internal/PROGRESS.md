@@ -14,7 +14,8 @@ work lands, not while work is still speculative.
 | 2026-05-26 | matthalloran8 | done | Authored PRD and requirements: runtime-state backup with self-registration, six source kinds, kopia-backed encrypted destinations, many-to-many plans, in-process scheduler, and verified restore. |
 | 2026-05-26 | matthalloran8 | done | Wrote companion `kopia` resource plan (`docs/plans/kopia-resource-plan.md`, repo root) — the engine this scenario wraps. |
 | 2026-05-26 | matthalloran8 | done | Locked architecture decisions (see `DECISIONS.md`): kopia wrap, Source/Destination/Plan model, encryption-on default, alert+block storage limits, verified-restore gate, separate-root rule, no n8n. |
-| 2026-05-26 | matthalloran8 | in-progress | Filled INTERNAL/OPERATIONS/BUSINESS docs to reflect the locked design. No application code implemented yet; `notes` example domain pending removal. |
+| 2026-05-26 | matthalloran8 | done | Filled INTERNAL/OPERATIONS/BUSINESS docs to reflect the locked design. |
+| 2026-05-26 | matthalloran8 | done | **API+CLI implementation pass.** Removed the `notes` example domain (API/CLI/proto/gen). Authored proto for targets/destinations/plans/runs/restores (+ shared `sources` SourceKind) and regenerated. Built the KopiaEngine + CommandRunner + sources.Capturer seams (wrapping `resource-kopia` and the source resource CLIs). Implemented all five Connect-RPC domains + the health backup-posture rollup; per-domain SQLite schema; idempotent registration; encryption-on/separate-root/alert+block destination rules; many-to-many plans + in-process scheduler; run fan-out with partial-failure isolation and storage-cap block (never evict); verified-restore gate (false-verified prevented). CLI command per RPC + self-registration. All P0 requirement validations green; `make endpoints`/proto-parity/seam gates pass (25 endpoints/25 CLI commands). UI (DBM-UI-001) and P1/P2 are explicit follow-ups (see PROBLEMS). |
 
 ## Entry Template
 

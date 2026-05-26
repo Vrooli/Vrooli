@@ -1,0 +1,93 @@
+// Package runs is the domain-scoped home for backup-run execution: one run is
+// one execution of a plan that, for each member target × destination, captures
+// the source, checks the destination cap, writes a kopia snapshot, applies
+// retention, and records a per-target outcome. A single target's failure does
+// not abort the others — the run is partial_failed. Runs surface
+// last-success-per-target for the catalog and health views.
+//
+// The orchestration depends on narrow reader/effect seams this package
+// declares (deps.go): PlanLookup, TargetLookup, DestinationLookup, the
+// KopiaEngine, the sources Registry, an EventSink, and the Repository. None of
+// the sibling domains import runs, so there is no import cycle; main.go wires
+// thin adapters from the concrete services to these seams.
+package runs
+
+import (
+	"fmt"
+	"time"
+)
+
+// RunStatus is the lifecycle state of a run. The legal transitions and
+// invariants live in lifecycle.go (the Level-2 workflow model).
+type RunStatus string
+
+const (
+	RunPending       RunStatus = "pending"
+	RunCapturing     RunStatus = "capturing"
+	RunSnapshotting  RunStatus = "snapshotting"
+	RunCompleted     RunStatus = "completed"
+	RunPartialFailed RunStatus = "partial_failed"
+	RunFailed        RunStatus = "failed"
+)
+
+// TriggerSource records who started a run.
+type TriggerSource string
+
+const (
+	TriggerScheduler TriggerSource = "scheduler"
+	TriggerManual    TriggerSource = "manual"
+)
+
+// OutcomeStatus is the per (target × destination) result within a run.
+type OutcomeStatus string
+
+const (
+	OutcomeSucceeded OutcomeStatus = "succeeded"
+	OutcomeFailed    OutcomeStatus = "failed"
+	OutcomeBlocked   OutcomeStatus = "blocked" // storage-cap block; no bytes written
+)
+
+// TargetOutcome is one target×destination result inside a run.
+type TargetOutcome struct {
+	TargetID      string
+	DestinationID string
+	Status        OutcomeStatus
+	SnapshotID    string
+	Bytes         int64
+	Error         string
+	StartedAt     time.Time
+	FinishedAt    time.Time
+}
+
+// Run is the internal domain shape for one plan execution.
+type Run struct {
+	ID         string
+	PlanID     string
+	Trigger    TriggerSource
+	Status     RunStatus
+	StartedAt  time.Time
+	FinishedAt time.Time
+	Outcomes   []TargetOutcome
+}
+
+// TargetStatus is the last-success / last-run rollup for one target, derived
+// from run history. Powers the catalog and the health overdue check.
+type TargetStatus struct {
+	TargetID      string
+	LastSuccessAt time.Time
+	LastRunStatus RunStatus
+	LastRunAt     time.Time
+}
+
+// ErrRunNotFound is the typed sentinel for an unknown run id.
+type ErrRunNotFound struct{ ID string }
+
+func (e ErrRunNotFound) Error() string { return fmt.Sprintf("run %q not found", e.ID) }
+
+// ErrInvalidRun is the typed validation sentinel.
+type ErrInvalidRun struct {
+	Field  string
+	Reason string
+}
+
+func (e ErrInvalidRun) Error() string { return fmt.Sprintf("%s: %s", e.Field, e.Reason) }

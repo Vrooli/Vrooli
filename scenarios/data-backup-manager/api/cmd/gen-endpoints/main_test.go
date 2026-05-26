@@ -15,14 +15,9 @@ import (
 // with the canonical envelope shape.
 func TestRun_ProducesValidJSON(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "endpoints.json")
-	seed := filepath.Join(t.TempDir(), "seed.json")
-	writeSeed(t, seed, []CLICommand{
-		{Name: "status", Description: "Health check", EndpointID: "health"},
-		{Name: "notes list", Description: "List notes", EndpointID: "notes_list"},
-		{Name: "notes create", Description: "Create note", EndpointID: "notes_create"},
-		{Name: "notes get", Description: "Get note", EndpointID: "notes_get"},
-		{Name: "notes attach", Description: "Attach file", EndpointID: "notes_attach"},
-	})
+	// Use the real seed so this test stays in sync as domains are added — the
+	// cross-check between AllEndpoints() CLIMappings and the seed is the point.
+	seed := "cli_commands_seed.json"
 
 	if err := run(output, seed); err != nil {
 		t.Fatalf("run: %v", err)
@@ -52,8 +47,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 5 {
-		t.Errorf("cli_commands count = %d, want 5", len(got.CLICommands))
+	if len(got.CLICommands) == 0 {
+		t.Error("manifest must include at least one cli_command (from the real seed)")
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.
@@ -102,15 +97,15 @@ func TestCrossCheck_PassesWhenSeeded(t *testing.T) {
 }
 
 // TestStripBinaryPrefix is the smallest unit on the command-name
-// normalisation step: the endpoint's "data-backup-manager notes list"
-// must compare against the seed's "notes list".
+// normalisation step: the endpoint's "data-backup-manager targets list"
+// must compare against the seed's "targets list".
 func TestStripBinaryPrefix(t *testing.T) {
 	cases := []struct {
 		in   string
 		want string
 	}{
 		{in: "data-backup-manager status", want: "status"},
-		{in: "data-backup-manager notes list", want: "notes list"},
+		{in: "data-backup-manager targets list", want: "targets list"},
 		{in: "already-stripped", want: "already-stripped"},
 		{in: "data-backup-manager", want: "data-backup-manager"}, // no trailing space → preserved
 	}

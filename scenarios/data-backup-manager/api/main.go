@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"data-backup-manager/internal/clock"
+	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/modules"
 	"data-backup-manager/internal/server"
 
@@ -21,8 +22,20 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	destinationsH "data-backup-manager/handlers/destinations"
 	healthH "data-backup-manager/handlers/health"
-	notesH "data-backup-manager/handlers/notes"
+	plansH "data-backup-manager/handlers/plans"
+	restoresH "data-backup-manager/handlers/restores"
+	runsH "data-backup-manager/handlers/runs"
+	targetsH "data-backup-manager/handlers/targets"
+
+	destint "data-backup-manager/internal/destinations"
+	plansint "data-backup-manager/internal/plans"
+	restoresint "data-backup-manager/internal/restores"
+	runsint "data-backup-manager/internal/runs"
+	schedint "data-backup-manager/internal/scheduler"
+	"data-backup-manager/internal/sources"
+	targetsint "data-backup-manager/internal/targets"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -101,10 +114,62 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	// The backup engine (resource-kopia) wrapped behind the KopiaEngine seam,
+	// and the storage root the manager protects (a destination must not point
+	// under it — the separate-root rule). SCENARIO_DATA_DIR is set by the
+	// lifecycle; empty in bare dev runs, which makes the rule permissive.
+	clk := clock.System{}
+	logger := log.Default()
+	kopia := engine.NewKopiaCLI()
+	protectedRoot := strings.TrimSpace(os.Getenv("SCENARIO_DATA_DIR"))
+
+	// Concrete domain services used both for mounting (via each module) and as
+	// the backing for the cross-domain adapters the run orchestration needs.
+	targetsSvc := targetsint.NewService(targetsint.NewSQLiteRepository(db, clk))
+	destSvc := destint.NewService(destint.NewSQLiteRepository(db, clk), kopia, protectedRoot)
+	plansSvc := plansint.NewService(plansint.NewSQLiteRepository(db, clk))
+
+	// The run orchestration: capture (sources) + snapshot/retention (engine),
+	// cap-block via destinations, reading plans/targets through adapters.
+	sourceRegistry := sources.NewProductionRegistry(sources.ExecRunner{})
+	runsSvc := runsint.NewService(runsint.Deps{
+		Repo:         runsint.NewSQLiteRepository(db, clk),
+		Plans:        planLookup{svc: plansSvc},
+		Targets:      targetLookup{svc: targetsSvc},
+		Destinations: destinationLookup{svc: destSvc},
+		Engine:       kopia,
+		Sources:      sourceRegistry,
+		Events:       logEventSink{logger: logger},
+		Clock:        clk,
+	})
+
+	// Restore + verify gate: restore a target to a location, or test-restore to
+	// scratch + checksum (verify), recording last-verified (OT-P0-006).
+	restoresSvc := restoresint.NewService(restoresint.Deps{
+		Repo:         restoresint.NewSQLiteRepository(db, clk),
+		Targets:      restoreTargetLookup{svc: targetsSvc},
+		Destinations: restoreDestinationLookup{svc: destSvc},
+		Engine:       kopia,
+		Sources:      sourceRegistry,
+		Clock:        clk,
+	})
+
+	// In-process scheduler: fires due plans on their cadence (OT-P0-005).
+	scheduler := schedint.New(clk, planSource{svc: plansSvc}, runTrigger{svc: runsSvc})
+	startScheduler(context.Background(), scheduler, logger)
+
+	// Health reports backup posture (degraded when targets are overdue/failed)
+	// in addition to liveness, and emits a posture event for monitoring.
+	posture := backupPosture{runs: runsSvc, clock: clk, overdueAfter: overdueAfter()}
+
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
-		healthH.Module(db, "data-backup-manager-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, log.Default()),
+		server.Deps{Clock: clk, Logger: logger},
+		healthH.ModuleWithPosture(db, "data-backup-manager-api", "1.0.0", posture, logEventSink{logger: logger}),
+		destinationsH.Module(db, clk, kopia, protectedRoot, logger),
+		plansH.Module(db, clk, logger),
+		restoresH.Module(restoresSvc, logger),
+		runsH.Module(runsSvc, logger),
+		targetsH.Module(db, clk, logger),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -126,4 +191,3 @@ func main() {
 		log.Fatalf("Server error: %v", err)
 	}
 }
-

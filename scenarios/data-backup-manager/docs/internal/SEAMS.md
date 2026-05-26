@@ -110,45 +110,26 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `api-core/databasetest::FakeExecer` is the canonical fake when a test needs to assert schema application order or injected execution failures without opening a real database. |
 | **Why it exists** | Schema application is shared-package behavior, but each scenario owns its provider list. Keep scenario-specific schema composition local; use `databasetest.FakeExecer` only for tests of code that consumes the shared `SchemaExecer` interface directly. |
 
-### notes.Repository (notes persistence)
+### Per-domain Repository + Service seams
 
-| | |
-|---|---|
-| **Seam** | Notes persistence (CRUD) |
-| **Interface** | `internal/notes/repository.go::Repository` (`Create`, `Get`, `List`) |
-| **Production wiring** | `handlers/notes/module.go::Module(...)` constructs `notes.NewSQLiteRepository(db, clk)` and passes it into `notes.NewService(repo)`. `main.go` only sees the returned `module.Module`; note-specific dependencies do not appear on `server.Deps`. Wire shape lives in `packages/proto/schemas/data-backup-manager/v1/notes/notes.proto`. |
-| **Test fake** | `internal/notes/mocks::FakeRepository` (co-located with the domain — in-memory slice, per-method error knobs `CreateErr` / `GetErr` / `ListErr`, atomic call counters). Used by `internal/notes/service_test.go` to drive the service against a controllable persistence layer. |
-| **Why it exists** | Repository owns the persistence contract — sqlite SQL today, anything else tomorrow. The handler depends on `notes.Service`, not directly on the repository, so a backend swap doesn't ripple through transport. The repository test in `internal/notes/sqlite_test.go` substitutes the real handle to pin SQL semantics (ordering, limit, RFC3339 round-trip). |
+Every product domain follows the same two-seam shape (the `targets` domain is
+the canonical reference; copy it). The `notes` example domain that shipped with
+the template has been removed.
 
-### notes.Service (notes application layer)
+| Domain | Repository (persistence seam) | Service (application seam) | Production wiring | Test fakes |
+|---|---|---|---|---|
+| targets | `internal/targets/repository.go::Repository` (Create/Update/GetByOwnerName/GetByID/List/DeleteByOwnerName) | `internal/targets/service.go::Service` (Register idempotent upsert, Deregister, Get, List) | `handlers/targets/module.go::Module(db, clk, logger)` builds repo→service→connect handler | `internal/targets/mocks::{FakeRepository, FakeService}` |
+| destinations | `internal/destinations/repository.go::Repository` | `internal/destinations/service.go::Service` (Create→RepoCreate/RepoStatus, separate-root rule, usage-vs-cap, `WouldBlock`) | `handlers/destinations/module.go::Module(db, clk, KopiaEngine, protectedRoot, logger)` | `internal/destinations/mocks::{FakeRepository, FakeService}` |
+| plans | `internal/plans/repository.go::Repository` (membership tables) | `internal/plans/service.go::Service` (+ `SchedulablePlans` for the scheduler) | `handlers/plans/module.go::Module(db, clk, logger)` | `internal/plans/mocks::{FakeRepository, FakeService}` |
+| runs | `internal/runs/repository.go::Repository` (runs + outcomes + last-success rollup) | `internal/runs/service.go::Service` (TriggerRun orchestration; deps via `deps.go` seams) | service built in `main.go` (needs cross-domain adapters), mounted via `handlers/runs/module.go::Module(svc, logger)` | `internal/runs/mocks::{FakeRepository, FakeService, FakePlanLookup, FakeTargetLookup, FakeDestinationLookup, FakeEventSink}` |
+| restores | `internal/restores/repository.go::Repository` | `internal/restores/service.go::Service` (RestoreTarget, VerifyTarget gate) | service built in `main.go`, mounted via `handlers/restores/module.go::Module(svc, logger)` | `internal/restores/mocks::{FakeService, FakeTargetLookup, FakeDestinationLookup}` |
 
-| | |
-|---|---|
-| **Seam** | Notes application surface (validation, defaults, cross-handler policy) |
-| **Interface** | `internal/notes/service.go::Service` (`Create(CreateInput) → Note`, `Get(id) → Note`, `List(limit) → []Note`) |
-| **Production wiring** | `handlers/notes/module.go::Module(db, clk, logger)` constructs `notes.NewSQLiteRepository(db, clk)` then `notes.NewService(repo)` then `NewConnectHandler(Deps{Service: svc, Logger: logger})` — fully internal to the notes module. `main.go` only sees the `module.Module` returned from that constructor; per-domain services don't appear on `server.Deps`. The handler imports `internal/notes` for both the interface and the typed sentinels (`ErrInvalidNote`, `ErrNoteNotFound`) it translates at the transport edge. |
-| **Test fake** | `internal/notes/mocks::FakeService` (co-located with the domain — records `CreateInputs`, returns canned `CreateOut` / `GetByID` / `ListOut`, per-method error knobs). Used by `handlers/notes/connect_handler_test.go` to drive the handler without validation/repository plumbing in scope. |
-| **Why it exists** | Validation (`title required` after whitespace trim) and default substitution (`defaultListLimit = 100` when caller passes 0) are business policy, not transport policy. Putting them in the service keeps the handler thin and makes the same rules reachable from any future surface (batch jobs, scheduled imports, additional RPCs) without copy-paste. Two-mock split (`FakeRepository` for service tests, `FakeService` for handler tests) means handler tests don't seed sqlite-shaped state to assert routing. |
-
-### notes.AttachmentsRepository (attachment metadata persistence)
-
-| | |
-|---|---|
-| **Seam** | Note attachment metadata persistence |
-| **Interface** | `internal/notes/repository.go::AttachmentsRepository` (`CreateAttachment`, `ListAttachmentKeys`) |
-| **Production wiring** | `handlers/notes/module.go::Module(...)` constructs `notes.NewSQLiteAttachmentsRepository(db, clk)` (declared in `internal/notes/sqlite.go`, methods in `attachments_sqlite.go`) and passes it into `notes.NewAttachmentsService(...)`. The opaque file bytes go to `BlobStore` (separate seam below); only the typed metadata row passes through this interface. |
-| **Test fake** | `internal/notes/mocks::FakeAttachmentsRepository` (co-located with the domain — in-memory `Attachments` slice, per-method error knobs `CreateErr` / `ListErr`, atomic call counters, UploadedAt backfill mirroring the sqlite repository). Used by `internal/notes/attachments_service_test.go` to drive the attachments service against a controllable persistence layer. |
-| **Why it exists** | Splitting attachment-metadata persistence from notes persistence keeps the per-method surface narrow (the notes repository never grows attachment-shaped methods) and lets the attachments service remain transport-agnostic. The repository test in `internal/notes/sqlite_test.go::TestSQLiteRepository_AttachmentMetadataRoundTrip` substitutes the real handle to pin SQL semantics; service tests use the fake. |
-
-### notes.AttachmentsService (attachment application layer)
-
-| | |
-|---|---|
-| **Seam** | Note attachment application surface (validation, parent-note lookup, repository delegation) |
-| **Interface** | `internal/notes/attachments_service.go::AttachmentsService` (`Create(CreateAttachmentInput) → Attachment`) |
-| **Production wiring** | `handlers/notes/module.go::Module(...)` constructs `notes.NewAttachmentsService(notesRepo, attachmentsRepo)` then passes it as `AttachmentsDeps.Service` into `NewAttachmentsHandler(...)`. The handler is the multipart REST exception (the only non-Connect transport in the notes domain); the service stays unaware of multipart and HTTP. |
-| **Test fake** | `internal/notes/mocks::FakeAttachmentsService` (records `CreateInputs`, returns canned `CreateOut` or synthesises an Attachment from the input, gated on `CreateErr`). Available for any future handler test that wants to assert routing/multipart wiring without standing up the real notes-and-attachments service tree. |
-| **Why it exists** | Attachment validation (note id + key required after trim, positive size, parent note must exist) is business policy; multipart parsing and BlobStore I/O are transport policy. Keeping them split means a future scenario that adds a non-multipart attachment surface (CLI direct upload, scheduled import, gRPC stream) reuses the same validation without copy-paste. Two-mock split (`FakeAttachmentsRepository` for service tests, `FakeAttachmentsService` for handler tests) mirrors the notes Repository/Service convention. |
+The cross-domain reader/effect seams the runs and restores orchestration depend
+on (`PlanLookup`, `TargetLookup`, `DestinationLookup`, `EventSink`, restores'
+`TargetLookup`/`DestinationLookup`) are declared in each consumer's `deps.go`
+and satisfied by thin adapters in `api/adapters.go` (the composition root) over
+the concrete sibling services — keeping the domains decoupled and unit-testable
+against fakes.
 
 ### Connect router (proto-typed transport)
 
@@ -220,15 +201,15 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | None. The system file ships empty in the template and is verified empty by `internal/database/system_test.go::TestSystemSchema_IsEmpty` (a deliberate tripwire — adding a `CREATE TABLE` here forces a "yes, this is genuinely cross-cutting" decision). |
 | **Why it exists** | Some bits don't belong to any one domain — postgres extensions, type definitions, reporting views. Putting them in a domain package would force fictional ownership. The system home is honest: cross-cutting goes here, single-domain bits go in `internal/<dom>/schema.sql`. |
 
-### notes.Schema (per-domain schema)
+### Per-domain Schema (domain-owned SQL)
 
 | | |
 |---|---|
-| **Seam** | Notes domain SQL contribution |
-| **Interface** | `internal/notes/schema.go::Schema() string` (consumed via `handlers/notes/module.go::Schema` re-export, then `api-core/database.SchemaProvider`) |
-| **Production wiring** | `internal/modules/registry.go::AllSchemas()` includes `apidb.SchemaProviderFunc(notesH.Schema)`; applied at boot via `apidb.EnsureSchemas`. |
-| **Test fake** | `internal/notes/sqlite_test.go::newSchemaDB` uses `db.NewSQLite(t)` + `apidb.EnsureSchemas(...)` with the system + notes providers. Repository tests get a fresh table without touching the central registry. |
-| **Why it exists** | Domain ownership of the schema. Adding a column lands in the same diff as the Go change. Deleting `internal/notes/` deletes the table definition with it, so removed domains do not leave tables created on boot. The `handlers/notes/module.go::Schema` re-export keeps the registry's import surface narrow — it imports handler packages, not their internal peers. |
+| **Seam** | Each domain's SQL contribution |
+| **Interface** | `internal/<domain>/schema.go::Schema() string` (consumed via `handlers/<domain>/module.go::Schema` re-export, then `api-core/database.SchemaProvider`). Domains: targets, destinations, plans, runs, restores. |
+| **Production wiring** | `internal/modules/registry.go::AllSchemas()` lists `apidb.SchemaProviderFunc(<domain>H.Schema)` for each domain (system → health → destinations → plans → restores → runs → targets); applied at boot via `apidb.EnsureSchemas`. |
+| **Test fake** | Each domain's `sqlite_test.go` builds a fresh handle with `db.NewSQLite(t)` + `apidb.EnsureSchemas(...)` over the system + that domain's provider, so repository tests get a real table without touching the central registry. |
+| **Why it exists** | Domain ownership of the schema. Adding a column lands in the same diff as the Go change. Deleting `internal/<domain>/` deletes the table definition with it, so removed domains do not leave tables created on boot. The `handlers/<domain>/module.go::Schema` re-export keeps the registry's import surface narrow. |
 
 ### Doer (outbound HTTP)
 
@@ -239,6 +220,36 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Production wiring** | Ships unwired in production by intent (no consumer until a real outbound call lands). `*http.Client` satisfies `Doer` directly via the compile-time assertion in `doer.go`; the first scenario to need an outbound call adds the field to `server.Deps` and wires `&http.Client{Timeout: …}` from `main.go`. |
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
+
+### KopiaEngine (backup engine boundary)
+
+| | |
+|---|---|
+| **Seam** | The single boundary to the wrapped backup engine (`resource-kopia`). |
+| **Interface** | `internal/engine/kopia.go::KopiaEngine` (`RepoCreate`, `RepoStatus`, `RepoStats`, `SnapshotCreate`/`List`/`Restore`/`Verify`, `BrowseSnapshot`, `PolicySet`). |
+| **Production wiring** | `engine.NewKopiaCLI()` shells out to `resource-kopia` through the `CommandRunner` seam; wired once and threaded into the destinations, runs, and restores modules. Lives in the substrate `internal/engine/` package (consumed by three domains), mirroring the `httpc.Doer` ambient-seam shape. |
+| **Test fake** | `internal/testutil/mocks::FakeKopiaEngine` — per-method overridable func fields with minimally-working defaults (RepoCreate remembers the repo, SnapshotCreate returns deterministic ids, RepoStatus reports encryption on), plus a `Calls` log. A test programs `RepoStatsFn`/`SnapshotVerifyFn` etc. to drive cap-block and checksum-mismatch paths. |
+| **Why it exists** | Backup/restore/verify must be substitutable so domain tests stay hermetic — they assert "the run snapshotted into the right repo and applied retention", not real kopia behavior. Encryption-on-by-default and "kopia owns the passphrase via vault" mean no secret ever crosses this interface; the production impl never puts a passphrase in argv. Real-engine behavior is covered by integration tests gated behind `KOPIA_INTEGRATION`. |
+
+### CommandRunner (process-exec boundary for resource-kopia)
+
+| | |
+|---|---|
+| **Seam** | Process-exec boundary the production `KopiaCLI` shells through. |
+| **Interface** | `internal/engine/kopia.go::CommandRunner` (`Run(ctx, args...) ([]byte, error)`). |
+| **Production wiring** | `engine.ExecRunner{Binary: "resource-kopia"}` runs the wrapped CLI via `os/exec` and returns stdout. |
+| **Test fake** | A recording fake (queued stdout + recorded argv) lets engine unit tests assert the exact `resource-kopia` argv — notably that secrets never appear as flags — and stub kopia's JSON without installing kopia. |
+| **Why it exists** | Keeps argv construction and kopia-JSON parsing unit-testable without a kopia install, and makes the "no secret in argv" invariant a fast assertion rather than an integration-only property. |
+
+### sources.Capturer (per-source-kind capture/restore)
+
+| | |
+|---|---|
+| **Seam** | The per-source-kind boundary that turns a source into a snapshottable artifact and applies a restored artifact back. |
+| **Interface** | `internal/sources/sources.go::Capturer` (`Kind`, `Capture(CaptureSpec) → Artifact`, `Restore(RestoreSpec)`). Resolved by kind through `sources.Registry`. |
+| **Production wiring** | `sources.NewRegistry(fs, sqlite, postgres, redis, qdrant, object)` is built once (each impl in `internal/sources/<kind>.go`) and held by the runs and restores modules, which dispatch each target to the matching capturer. Filesystem/SQLite need no resource; postgres/redis/qdrant/object wrap their source resource CLIs (which self-source credentials, sidestepping the vault secret-read gap). |
+| **Test fake** | `internal/sources/mocks::FakeCapturer` — claims a `SourceKind`, returns deterministic bytes or an injected failure via `CaptureFn`/`RestoreFn`, records calls. Runs/restores service tests build a Registry of fakes to drive fan-out and partial-failure without touching real sources. |
+| **Why it exists** | The six kinds differ wildly (tar vs `VACUUM INTO` vs `pg_dump` vs prefix dump vs snapshot API vs object mirror) but the runs/restores orchestration is identical across them. The seam lets the workflow be tested once against fakes; per-kind round-trip correctness is proven by integration tests in `internal/sources/<kind>_test.go` (fs/sqlite always; the rest gated on their resources). |
 
 ## Adding a new seam
 

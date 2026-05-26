@@ -1,0 +1,159 @@
+syntax = "proto3";
+
+package vrooli.data_backup_manager.v1.destinations;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations;destinations_v1";
+
+// =============================================================================
+// DESTINATIONS DOMAIN — encrypted kopia repositories
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain destinations
+// @stability stable
+//
+// Wire contract for DestinationsService. Each destination is one kopia
+// repository (filesystem or S3/MinIO). Invariants enforced server-side:
+// encryption is always on (OT-P0-007); a destination MUST NOT point under
+// the storage root it would protect (separate-root rule); storage caps
+// default to alert+block — never silent eviction (OT-P0-008).
+//
+// Destinations persist only references to vault-held secrets, never the
+// secrets themselves; the kopia resource sources passphrases from vault.
+// =============================================================================
+
+service DestinationsService {
+  rpc CreateDestination(CreateDestinationRequest) returns (CreateDestinationResponse);
+  rpc GetDestination(GetDestinationRequest) returns (GetDestinationResponse);
+  rpc ListDestinations(ListDestinationsRequest) returns (ListDestinationsResponse);
+  rpc UpdateDestination(UpdateDestinationRequest) returns (UpdateDestinationResponse);
+  rpc DeleteDestination(DeleteDestinationRequest) returns (DeleteDestinationResponse);
+  rpc GetDestinationUsage(GetDestinationUsageRequest) returns (GetDestinationUsageResponse);
+}
+
+// BackendKind is the kopia repository backend.
+enum BackendKind {
+  BACKEND_KIND_UNSPECIFIED = 0;
+  // Local filesystem repository.
+  BACKEND_KIND_FILESYSTEM = 1;
+  // S3-compatible object storage (S3/MinIO).
+  BACKEND_KIND_S3 = 2;
+}
+
+// CapPolicy is the over-cap behavior. Defaults to alert+block.
+enum CapPolicy {
+  CAP_POLICY_UNSPECIFIED = 0;
+  // Alert AND refuse new writes when usage would exceed the cap. Never evicts.
+  CAP_POLICY_ALERT_BLOCK = 1;
+  // Alert only; allow the write to proceed past the cap.
+  CAP_POLICY_ALERT_ONLY = 2;
+}
+
+// UsageState classifies current usage against the cap.
+enum UsageState {
+  USAGE_STATE_UNSPECIFIED = 0;
+  // Comfortably under the cap.
+  USAGE_STATE_WITHIN = 1;
+  // Approaching the cap (default >= 90%).
+  USAGE_STATE_NEAR = 2;
+  // At or over the cap.
+  USAGE_STATE_OVER = 3;
+}
+
+// Destination is the canonical wire shape for a backup destination.
+message Destination {
+  string id = 1;
+  // Operator-facing unique name.
+  string name = 2;
+  BackendKind backend_kind = 3;
+  // Backend location: a filesystem path (filesystem) or an s3://bucket/prefix
+  // endpoint reference (s3). Never holds credentials.
+  string location = 4;
+  // Configurable storage cap in bytes. Zero means "no cap".
+  int64 cap_bytes = 5;
+  CapPolicy cap_policy = 6;
+  // Reported kopia encryption algorithm; non-empty for every destination
+  // (encryption is always on).
+  string encryption_algorithm = 7;
+  // Reference (not value) to the vault entry holding this destination's
+  // passphrase/access keys. The kopia resource resolves it at call time.
+  string secret_ref = 8;
+  // Current bytes used, read from kopia repository stats (best-effort cache).
+  int64 usage_bytes = 9;
+  UsageState usage_state = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message CreateDestinationRequest {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  BackendKind backend_kind = 2 [
+    (buf.validate.field).enum = {
+      defined_only: true,
+      not_in: [0]
+    }
+  ];
+  string location = 3 [(buf.validate.field).string.min_len = 1];
+  int64 cap_bytes = 4 [(buf.validate.field).int64.gte = 0];
+  // Optional; defaults to CAP_POLICY_ALERT_BLOCK when unspecified.
+  CapPolicy cap_policy = 5;
+}
+
+message CreateDestinationResponse {
+  Destination destination = 1;
+}
+
+message GetDestinationRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetDestinationResponse {
+  Destination destination = 1;
+}
+
+message ListDestinationsRequest {
+  int32 page_size = 1 [(buf.validate.field).int32.gte = 0];
+  string page_token = 2;
+}
+
+message ListDestinationsResponse {
+  repeated Destination destinations = 1;
+  string next_page_token = 2;
+}
+
+message UpdateDestinationRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  // New cap in bytes; zero means "no cap".
+  int64 cap_bytes = 2 [(buf.validate.field).int64.gte = 0];
+  // Optional; leaves policy unchanged when unspecified.
+  CapPolicy cap_policy = 3;
+}
+
+message UpdateDestinationResponse {
+  Destination destination = 1;
+}
+
+message DeleteDestinationRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  // When false (default), removing the destination record does NOT delete the
+  // underlying kopia repository. Reserved for future explicit repo teardown.
+  bool delete_repository = 2;
+}
+
+message DeleteDestinationResponse {
+  bool removed = 1;
+}
+
+message GetDestinationUsageRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetDestinationUsageResponse {
+  int64 usage_bytes = 1;
+  int64 cap_bytes = 2;
+  UsageState usage_state = 3;
+  CapPolicy cap_policy = 4;
+}

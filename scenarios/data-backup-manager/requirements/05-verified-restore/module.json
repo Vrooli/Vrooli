@@ -10,7 +10,7 @@
     {
       "id": "DBM-RST-001",
       "title": "Restore a target from a snapshot",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-006",
       "category": "restore",
       "criticality": "P0",
@@ -20,7 +20,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/restores/service_test.go::TestRestore_PerSourceKind",
           "notes": "For each source kind, backup then restore to a scratch location and assert equivalence."
         }
@@ -29,7 +29,7 @@
     {
       "id": "DBM-RST-002",
       "title": "Verify mode (test-restore + checksum)",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-006",
       "category": "restore.verify",
       "criticality": "P0",
@@ -39,7 +39,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/restores/verify_test.go::TestVerify_RecordsLastVerified",
           "notes": "Run verify; assert scratch is cleaned up, checksum matches source manifest, last_verified_at is set."
         }

@@ -1,30 +1,35 @@
 {
   "_comment": "Source of truth for the cli_commands[] portion of .vrooli/endpoints.json. Hand-maintained because the CLI is a separate Go module from the API; cross-module codegen would force one to import the other. Each entry mirrors a real subcommand registered in cli/domains/<dom>/register.go (or cli-core's StandardScenarioApp built-ins). Codegen verifies every cli_mapping.command in endpoints[] has a matching name here.",
   "cli_commands": [
-    {
-      "name": "status",
-      "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
-      "endpoint_id": "health"
-    },
-    {
-      "name": "notes list",
-      "description": "List all notes (newest-first, default limit 100)",
-      "endpoint_id": "notes_list"
-    },
-    {
-      "name": "notes create",
-      "description": "Create a note (--title TITLE [--body BODY])",
-      "endpoint_id": "notes_create"
-    },
-    {
-      "name": "notes get",
-      "description": "Get a note by id",
-      "endpoint_id": "notes_get"
-    },
-    {
-      "name": "notes attach",
-      "description": "Upload an attachment for a note (--file PATH)",
-      "endpoint_id": "notes_attach"
-    }
+    { "name": "status", "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)", "endpoint_id": "health" },
+
+    { "name": "targets register", "description": "Register (upsert) a backup target keyed by owner+name", "endpoint_id": "targets_register" },
+    { "name": "targets deregister", "description": "Deregister a backup target by owner+name", "endpoint_id": "targets_deregister" },
+    { "name": "targets get", "description": "Get a backup target by id", "endpoint_id": "targets_get" },
+    { "name": "targets list", "description": "List backup targets (optionally filtered by owner)", "endpoint_id": "targets_list" },
+
+    { "name": "destinations create", "description": "Create a destination (kopia repository)", "endpoint_id": "destinations_create" },
+    { "name": "destinations get", "description": "Get a destination by id", "endpoint_id": "destinations_get" },
+    { "name": "destinations list", "description": "List destinations", "endpoint_id": "destinations_list" },
+    { "name": "destinations update", "description": "Update a destination's cap and policy", "endpoint_id": "destinations_update" },
+    { "name": "destinations delete", "description": "Delete a destination (does not delete the repository)", "endpoint_id": "destinations_delete" },
+    { "name": "destinations usage", "description": "Show a destination's usage vs cap", "endpoint_id": "destinations_usage" },
+
+    { "name": "plans create", "description": "Create a backup plan (targets×destinations, schedule, retention)", "endpoint_id": "plans_create" },
+    { "name": "plans get", "description": "Get a plan by id", "endpoint_id": "plans_get" },
+    { "name": "plans list", "description": "List plans", "endpoint_id": "plans_list" },
+    { "name": "plans update", "description": "Update a plan", "endpoint_id": "plans_update" },
+    { "name": "plans delete", "description": "Delete a plan", "endpoint_id": "plans_delete" },
+
+    { "name": "runs trigger", "description": "Trigger a backup run for a plan", "endpoint_id": "runs_trigger" },
+    { "name": "runs get", "description": "Get a run by id", "endpoint_id": "runs_get" },
+    { "name": "runs list", "description": "List runs (optionally by plan)", "endpoint_id": "runs_list" },
+    { "name": "runs status", "description": "Show last-success per target", "endpoint_id": "runs_target_status" },
+    { "name": "runs browse", "description": "Browse a snapshot's contents", "endpoint_id": "runs_browse_snapshot" },
+
+    { "name": "restores restore", "description": "Restore a target's snapshot to a location", "endpoint_id": "restores_restore" },
+    { "name": "restores verify", "description": "Verify a snapshot (test-restore + checksum); the git-removal gate", "endpoint_id": "restores_verify" },
+    { "name": "restores get", "description": "Get a restore record by id", "endpoint_id": "restores_get" },
+    { "name": "restores list", "description": "List restore records (optionally by target)", "endpoint_id": "restores_list" }
   ]
 }

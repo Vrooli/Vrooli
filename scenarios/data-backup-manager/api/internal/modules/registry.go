@@ -22,11 +22,19 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	destinationsH "data-backup-manager/handlers/destinations"
 	healthH "data-backup-manager/handlers/health"
-	notesH "data-backup-manager/handlers/notes"
+	plansH "data-backup-manager/handlers/plans"
+	restoresH "data-backup-manager/handlers/restores"
+	runsH "data-backup-manager/handlers/runs"
+	targetsH "data-backup-manager/handlers/targets"
 	localdb "data-backup-manager/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/notes"
+	destinationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations"
+	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/plans"
+	restoresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/restores"
+	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/runs"
+	targetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/targets"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -36,7 +44,11 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...)
+	out = append(out, destinationsH.Endpoints...)
+	out = append(out, plansH.Endpoints...)
+	out = append(out, restoresH.Endpoints...)
+	out = append(out, runsH.Endpoints...)
+	out = append(out, targetsH.Endpoints...)
 	return out
 }
 
@@ -63,7 +75,11 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_data_backup_manager_v1_notes_notes_proto},
+		{Module: "destinations", File: destinationsv1.File_data_backup_manager_v1_destinations_destinations_proto},
+		{Module: "plans", File: plansv1.File_data_backup_manager_v1_plans_plans_proto},
+		{Module: "restores", File: restoresv1.File_data_backup_manager_v1_restores_restores_proto},
+		{Module: "runs", File: runsv1.File_data_backup_manager_v1_runs_runs_proto},
+		{Module: "targets", File: targetsv1.File_data_backup_manager_v1_targets_targets_proto},
 	}
 }
 
@@ -71,13 +87,17 @@ func AllProtoFiles() []ProtoFileEntry {
 // schema (always first; cross-cutting infrastructure runs before any
 // domain table). Consumed by main.go's database.EnsureSchemas call.
 //
-// Order matters: system → health → notes → … (domains alphabetical).
+// Order matters: system → health → … (domains alphabetical).
 // Postgres scenarios that put `CREATE EXTENSION ...` in system.sql rely
 // on system running before any domain that references the extension.
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema),
+		apidb.SchemaProviderFunc(destinationsH.Schema),
+		apidb.SchemaProviderFunc(plansH.Schema),
+		apidb.SchemaProviderFunc(restoresH.Schema),
+		apidb.SchemaProviderFunc(runsH.Schema),
+		apidb.SchemaProviderFunc(targetsH.Schema),
 	}
 }

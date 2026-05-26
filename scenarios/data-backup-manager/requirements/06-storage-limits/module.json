@@ -10,7 +10,7 @@
     {
       "id": "DBM-LIM-001",
       "title": "Per-destination caps with usage accounting",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-008",
       "category": "storage-limits",
       "criticality": "P0",
@@ -20,7 +20,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/destinations/limits_test.go::TestLimits_UsageState",
           "notes": "Seed usage; assert within/near/over thresholds computed from repo stats."
         }
@@ -29,7 +29,7 @@
     {
       "id": "DBM-LIM-002",
       "title": "Default alert+block, configurable",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-008",
       "category": "storage-limits.policy",
       "criticality": "P0",
@@ -39,7 +39,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/destinations/limits_test.go::TestLimits_DefaultAlertBlock",
           "notes": "Drive a destination over cap; assert default blocks new backup + raises alert and does not delete existing snapshots."
         }

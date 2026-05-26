@@ -10,7 +10,7 @@
     {
       "id": "DBM-REG-001",
       "title": "Idempotent target registration keyed by owner+name",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-001",
       "category": "registration",
       "criticality": "P0",
@@ -20,7 +20,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/targets/service_test.go::TestRegisterTarget_Idempotent",
           "notes": "Register, re-register identical (no-op), re-register changed (update); assert single row and latest spec."
         }
@@ -29,7 +29,7 @@
     {
       "id": "DBM-REG-002",
       "title": "Deregistration and reconstructable catalog",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-001",
       "category": "registration",
       "criticality": "P0",
@@ -39,7 +39,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/targets/service_test.go::TestDeregisterAndReconstruct",
           "notes": "Deregister removes target; rebuild catalog from a fresh re-register sequence and assert equivalence."
         }

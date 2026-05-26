@@ -37,6 +37,17 @@ service GoCodeGraphService {
   // the filesystem. Caller must set apply=true; apply=false is rejected
   // with InvalidArgument so dry-run callers do not accidentally mutate.
   rpc RewriteApply(RewriteApplyRequest) returns (RewriteApplyResponse) {}
+
+  // ListFixtures enumerates the golden determinism fixtures shipped with the
+  // scenario (bas/fixtures/<name>/). The browser cannot read these files
+  // directly, so the server lists them for the Fixture Validator UI.
+  rpc ListFixtures(ListFixturesRequest) returns (ListFixturesResponse) {}
+
+  // ValidateFixture re-runs Extract against a named fixture server-side and
+  // byte-compares the canonical JSON against the fixture's
+  // expected-graph.json. Promotes the determinism integration test to an RPC
+  // so humans can run it from the UI without faking the comparison client-side.
+  rpc ValidateFixture(ValidateFixtureRequest) returns (ValidateFixtureResponse) {}
 }
 
 // -----------------------------------------------------------------------------
@@ -114,4 +125,41 @@ message RewriteApplyResponse {
   // True when the request rode in with X-Dry-Run: true. The response
   // mirrors what an apply would have produced but no executor was invoked.
   bool dry_run = 3;
+}
+
+// -----------------------------------------------------------------------------
+// Fixture validation
+// -----------------------------------------------------------------------------
+
+message ListFixturesRequest {}
+
+// FixtureInfo describes one golden fixture directory under bas/fixtures/.
+message FixtureInfo {
+  // Directory name, e.g. "go-cycles". Used as the ValidateFixture key.
+  string name = 1;
+  // Scenario-relative path, e.g. "bas/fixtures/go-cycles".
+  string path = 2;
+  // True when an expected-graph.json baseline exists for byte comparison.
+  bool has_expected = 3;
+}
+
+message ListFixturesResponse {
+  // Fixtures in stable name-sorted order.
+  repeated FixtureInfo fixtures = 1;
+}
+
+message ValidateFixtureRequest {
+  // Fixture directory name as returned by ListFixtures.
+  string name = 1;
+}
+
+message ValidateFixtureResponse {
+  // True when the canonical JSON is byte-identical to expected-graph.json.
+  bool passed = 1;
+  // Unified line diff (expected vs actual) when passed=false; empty on pass.
+  string diff = 2;
+  int64 expected_bytes = 3;
+  int64 actual_bytes = 4;
+  // Hex sha256 of the extracted graph (matches ExtractResponse.graph_hash).
+  string graph_hash = 5;
 }

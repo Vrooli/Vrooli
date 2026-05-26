@@ -10,7 +10,7 @@
     {
       "id": "DBM-CAT-001",
       "title": "Catalog and run history",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-009",
       "category": "catalog",
       "criticality": "P0",
@@ -20,7 +20,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/runs/service_test.go::TestCatalog_ListAndLastSuccess",
           "notes": "After runs, assert listings and last-success-per-target; assert snapshot browse returns entries."
         }
@@ -29,7 +29,7 @@
     {
       "id": "DBM-OBS-001",
       "title": "Health endpoint flags overdue/failed backups",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-010",
       "category": "observability",
       "criticality": "P0",
@@ -39,7 +39,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/handlers/health/handler_test.go::TestHealth_DegradedOnOverdue",
           "notes": "Seed an overdue/failed target; assert health degraded and an event is emitted."
         }

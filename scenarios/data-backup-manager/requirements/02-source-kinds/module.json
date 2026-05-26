@@ -10,7 +10,7 @@
     {
       "id": "DBM-SRC-FS",
       "title": "Filesystem source capture",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-002",
       "category": "source.filesystem",
       "criticality": "P0",
@@ -20,7 +20,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/sources/fs_test.go::TestFilesystemSource_RoundTrip",
           "notes": "Snapshot a temp tree, restore, assert byte-identical."
         }
@@ -29,7 +29,7 @@
     {
       "id": "DBM-SRC-SQLITE",
       "title": "SQLite source capture",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-002",
       "category": "source.sqlite",
       "criticality": "P0",
@@ -39,7 +39,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/sources/sqlite_test.go::TestSqliteSource_VacuumIntoConsistent",
           "notes": "Snapshot under concurrent writes; restore; assert integrity_check ok."
         }
@@ -48,7 +48,7 @@
     {
       "id": "DBM-SRC-POSTGRES",
       "title": "Postgres source capture",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-002",
       "category": "source.postgres",
       "criticality": "P0",
@@ -58,7 +58,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/sources/postgres_test.go::TestPostgresSource_DumpRestore",
           "notes": "Dump a seeded schema, restore to a scratch schema, assert row equality."
         }
@@ -67,7 +67,7 @@
     {
       "id": "DBM-SRC-REDIS",
       "title": "Redis source capture (best-effort namespace)",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-002",
       "category": "source.redis",
       "criticality": "P0",
@@ -77,7 +77,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/sources/redis_test.go::TestRedisSource_PrefixDumpRestore",
           "notes": "Seed prefixed keys, capture, restore into clean instance, assert key/value equality."
         }
@@ -86,7 +86,7 @@
     {
       "id": "DBM-SRC-QDRANT",
       "title": "Qdrant source capture",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-002",
       "category": "source.qdrant",
       "criticality": "P0",
@@ -96,7 +96,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/sources/qdrant_test.go::TestQdrantSource_SnapshotRestore",
           "notes": "Snapshot a seeded collection, restore, assert point count and a sample vector match."
         }
@@ -105,7 +105,7 @@
     {
       "id": "DBM-SRC-OBJECT",
       "title": "Object-storage source capture",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-002",
       "category": "source.object",
       "criticality": "P0",
@@ -115,7 +115,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/sources/object_test.go::TestObjectSource_MirrorRestore",
           "notes": "Mirror a seeded prefix, restore to a new prefix, assert object set + checksums."
         }

@@ -81,3 +81,43 @@ class RewriteApplyResponse(_message.Message):
     results: _containers.RepeatedCompositeFieldContainer[_rewrite_pb2.OperationResult]
     dry_run: bool
     def __init__(self, plan_id: _Optional[str] = ..., results: _Optional[_Iterable[_Union[_rewrite_pb2.OperationResult, _Mapping]]] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+
+class ListFixturesRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class FixtureInfo(_message.Message):
+    __slots__ = ("name", "path", "has_expected")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    HAS_EXPECTED_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    path: str
+    has_expected: bool
+    def __init__(self, name: _Optional[str] = ..., path: _Optional[str] = ..., has_expected: _Optional[bool] = ...) -> None: ...
+
+class ListFixturesResponse(_message.Message):
+    __slots__ = ("fixtures",)
+    FIXTURES_FIELD_NUMBER: _ClassVar[int]
+    fixtures: _containers.RepeatedCompositeFieldContainer[FixtureInfo]
+    def __init__(self, fixtures: _Optional[_Iterable[_Union[FixtureInfo, _Mapping]]] = ...) -> None: ...
+
+class ValidateFixtureRequest(_message.Message):
+    __slots__ = ("name",)
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    def __init__(self, name: _Optional[str] = ...) -> None: ...
+
+class ValidateFixtureResponse(_message.Message):
+    __slots__ = ("passed", "diff", "expected_bytes", "actual_bytes", "graph_hash")
+    PASSED_FIELD_NUMBER: _ClassVar[int]
+    DIFF_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_BYTES_FIELD_NUMBER: _ClassVar[int]
+    GRAPH_HASH_FIELD_NUMBER: _ClassVar[int]
+    passed: bool
+    diff: str
+    expected_bytes: int
+    actual_bytes: int
+    graph_hash: str
+    def __init__(self, passed: _Optional[bool] = ..., diff: _Optional[str] = ..., expected_bytes: _Optional[int] = ..., actual_bytes: _Optional[int] = ..., graph_hash: _Optional[str] = ...) -> None: ...

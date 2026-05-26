@@ -248,19 +248,32 @@ temporal behavior, update [`FLOWS.md`](FLOWS.md).
 
 ## Architecture Maturity
 
-The template ships a mature shape and a reference vertical slice. The
-backup-manager domains (targets, destinations, plans, runs, restores,
-sources) are **designed but not yet built**; this table tracks the gap.
-Implementation status lives in `requirements/` and
-[`../internal/PROGRESS.md`](../internal/PROGRESS.md), not here.
+The template ships a mature shape and a reference vertical slice. As of the
+API+CLI implementation pass, all six backup-manager domains are **built and
+green** (Connect-RPC services, per-domain SQLite schema, wrapped kopia/source
+seams). The UI remains a designed-only follow-up. Implementation status lives
+in `requirements/` and [`../internal/PROGRESS.md`](../internal/PROGRESS.md).
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Template reference-ready; product domains designed-only | Module registry, per-domain schema, documented seams from the template. | The six product domains must be implemented as proto-backed Connect-RPC services; the kopia/vault seams must be wired. |
-| UI | Template reference-ready; product features designed-only | Feature folders, typed API clients, selector/i18n registries. | Destinations (usage-vs-cap), plans, run history, and guided restore/verify features to be built per [`UI-ARCHITECTURE.md`](UI-ARCHITECTURE.md). |
-| CLI | Template reference-ready; product commands designed-only | Domain command groups wrap API calls and render reports. | Self-registration and operator destination/plan/run/restore commands to be added (see [`../reference/cli-commands.md`](../reference/cli-commands.md)). |
-| Docs | Contract-ready, filled to the locked design | Concept and reference docs describe the intended contract; manifest registers docs, maturity, and validation hints. | Reference contracts firm up once proto messages are authored. |
-| Engine integration | Plan-only | `docs/plans/kopia-resource-plan.md` (repo root) defines the wrapped `resource-kopia` surface. | The `kopia` resource must exist before runs/restores can function. |
+| API | Built — 5 Connect-RPC services + health rollup | `targets/destinations/plans/runs/restores` Connect services in `api/handlers/<domain>/`, transport-free domain cores in `api/internal/<domain>/`, per-domain schema, `validateTransport` + proto-parity gates green. 25 endpoints in `.vrooli/endpoints.json`. | P1/P2 features (quiesce hooks, GFS retention, restore granularity); owner-filter on `ListTargetStatus` (see PROBLEMS). |
+| CLI | Built — command per RPC + self-registration | `cli/domains/<domain>/` wraps each RPC via generated Connect clients; manifest-driven; `RequireProtoServiceCoverage` per domain. | — |
+| UI | Designed-only (explicit follow-up plan) | Feature folders + typed client patterns from the template. | Destinations (usage-vs-cap), plans, run history, guided restore/verify to be built per [`UI-ARCHITECTURE.md`](UI-ARCHITECTURE.md). |
+| Docs | Filled to the locked design; reconciled to built state | Concept + reference docs; SEAMS registry updated with KopiaEngine/CommandRunner/Capturer; PROBLEMS tracks deferrals. | — |
+| Engine integration | Built — wrapped behind the KopiaEngine seam | `api/internal/engine/kopia.go` shells out to the fully-implemented `resource-kopia` CLI; encryption always on; kopia owns repo passphrases via vault. Real-engine paths covered by integration tests gated on `KOPIA_INTEGRATION` / source resources. | Snapshot browsing assumes a `resource-kopia snapshot browse` command (see PROBLEMS). |
+
+### API surface (built)
+
+| Domain | Service | Methods |
+|---|---|---|
+| targets | `TargetsService` | RegisterTarget, DeregisterTarget, GetTarget, ListTargets |
+| destinations | `DestinationsService` | CreateDestination, GetDestination, ListDestinations, UpdateDestination, DeleteDestination, GetDestinationUsage |
+| plans | `PlansService` | CreatePlan, GetPlan, ListPlans, UpdatePlan, DeletePlan |
+| runs | `RunsService` | TriggerRun, GetRun, ListRuns, ListTargetStatus, BrowseSnapshot |
+| restores | `RestoresService` | RestoreTarget, VerifyTarget, GetRestore, ListRestores |
+| health | (REST ops-probe) | GET /health (degrades on overdue/failed backups) |
+
+No REST exceptions beyond the template's `GET /health` ops-probe — every product operation is proto-expressible.
 
 Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later

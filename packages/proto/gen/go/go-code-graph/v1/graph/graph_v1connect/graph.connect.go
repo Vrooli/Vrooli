@@ -42,6 +42,12 @@ const (
 	// GoCodeGraphServiceRewriteApplyProcedure is the fully-qualified name of the GoCodeGraphService's
 	// RewriteApply RPC.
 	GoCodeGraphServiceRewriteApplyProcedure = "/vrooli.go_code_graph.v1.graph.GoCodeGraphService/RewriteApply"
+	// GoCodeGraphServiceListFixturesProcedure is the fully-qualified name of the GoCodeGraphService's
+	// ListFixtures RPC.
+	GoCodeGraphServiceListFixturesProcedure = "/vrooli.go_code_graph.v1.graph.GoCodeGraphService/ListFixtures"
+	// GoCodeGraphServiceValidateFixtureProcedure is the fully-qualified name of the
+	// GoCodeGraphService's ValidateFixture RPC.
+	GoCodeGraphServiceValidateFixtureProcedure = "/vrooli.go_code_graph.v1.graph.GoCodeGraphService/ValidateFixture"
 )
 
 // GoCodeGraphServiceClient is a client for the vrooli.go_code_graph.v1.graph.GoCodeGraphService
@@ -56,6 +62,15 @@ type GoCodeGraphServiceClient interface {
 	// the filesystem. Caller must set apply=true; apply=false is rejected
 	// with InvalidArgument so dry-run callers do not accidentally mutate.
 	RewriteApply(context.Context, *connect.Request[graph.RewriteApplyRequest]) (*connect.Response[graph.RewriteApplyResponse], error)
+	// ListFixtures enumerates the golden determinism fixtures shipped with the
+	// scenario (bas/fixtures/<name>/). The browser cannot read these files
+	// directly, so the server lists them for the Fixture Validator UI.
+	ListFixtures(context.Context, *connect.Request[graph.ListFixturesRequest]) (*connect.Response[graph.ListFixturesResponse], error)
+	// ValidateFixture re-runs Extract against a named fixture server-side and
+	// byte-compares the canonical JSON against the fixture's
+	// expected-graph.json. Promotes the determinism integration test to an RPC
+	// so humans can run it from the UI without faking the comparison client-side.
+	ValidateFixture(context.Context, *connect.Request[graph.ValidateFixtureRequest]) (*connect.Response[graph.ValidateFixtureResponse], error)
 }
 
 // NewGoCodeGraphServiceClient constructs a client for the
@@ -88,14 +103,28 @@ func NewGoCodeGraphServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(goCodeGraphServiceMethods.ByName("RewriteApply")),
 			connect.WithClientOptions(opts...),
 		),
+		listFixtures: connect.NewClient[graph.ListFixturesRequest, graph.ListFixturesResponse](
+			httpClient,
+			baseURL+GoCodeGraphServiceListFixturesProcedure,
+			connect.WithSchema(goCodeGraphServiceMethods.ByName("ListFixtures")),
+			connect.WithClientOptions(opts...),
+		),
+		validateFixture: connect.NewClient[graph.ValidateFixtureRequest, graph.ValidateFixtureResponse](
+			httpClient,
+			baseURL+GoCodeGraphServiceValidateFixtureProcedure,
+			connect.WithSchema(goCodeGraphServiceMethods.ByName("ValidateFixture")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // goCodeGraphServiceClient implements GoCodeGraphServiceClient.
 type goCodeGraphServiceClient struct {
-	extract      *connect.Client[graph.ExtractRequest, graph.ExtractResponse]
-	rewritePlan  *connect.Client[graph.RewritePlanRequest, graph.RewritePlanResponse]
-	rewriteApply *connect.Client[graph.RewriteApplyRequest, graph.RewriteApplyResponse]
+	extract         *connect.Client[graph.ExtractRequest, graph.ExtractResponse]
+	rewritePlan     *connect.Client[graph.RewritePlanRequest, graph.RewritePlanResponse]
+	rewriteApply    *connect.Client[graph.RewriteApplyRequest, graph.RewriteApplyResponse]
+	listFixtures    *connect.Client[graph.ListFixturesRequest, graph.ListFixturesResponse]
+	validateFixture *connect.Client[graph.ValidateFixtureRequest, graph.ValidateFixtureResponse]
 }
 
 // Extract calls vrooli.go_code_graph.v1.graph.GoCodeGraphService.Extract.
@@ -113,6 +142,16 @@ func (c *goCodeGraphServiceClient) RewriteApply(ctx context.Context, req *connec
 	return c.rewriteApply.CallUnary(ctx, req)
 }
 
+// ListFixtures calls vrooli.go_code_graph.v1.graph.GoCodeGraphService.ListFixtures.
+func (c *goCodeGraphServiceClient) ListFixtures(ctx context.Context, req *connect.Request[graph.ListFixturesRequest]) (*connect.Response[graph.ListFixturesResponse], error) {
+	return c.listFixtures.CallUnary(ctx, req)
+}
+
+// ValidateFixture calls vrooli.go_code_graph.v1.graph.GoCodeGraphService.ValidateFixture.
+func (c *goCodeGraphServiceClient) ValidateFixture(ctx context.Context, req *connect.Request[graph.ValidateFixtureRequest]) (*connect.Response[graph.ValidateFixtureResponse], error) {
+	return c.validateFixture.CallUnary(ctx, req)
+}
+
 // GoCodeGraphServiceHandler is an implementation of the
 // vrooli.go_code_graph.v1.graph.GoCodeGraphService service.
 type GoCodeGraphServiceHandler interface {
@@ -125,6 +164,15 @@ type GoCodeGraphServiceHandler interface {
 	// the filesystem. Caller must set apply=true; apply=false is rejected
 	// with InvalidArgument so dry-run callers do not accidentally mutate.
 	RewriteApply(context.Context, *connect.Request[graph.RewriteApplyRequest]) (*connect.Response[graph.RewriteApplyResponse], error)
+	// ListFixtures enumerates the golden determinism fixtures shipped with the
+	// scenario (bas/fixtures/<name>/). The browser cannot read these files
+	// directly, so the server lists them for the Fixture Validator UI.
+	ListFixtures(context.Context, *connect.Request[graph.ListFixturesRequest]) (*connect.Response[graph.ListFixturesResponse], error)
+	// ValidateFixture re-runs Extract against a named fixture server-side and
+	// byte-compares the canonical JSON against the fixture's
+	// expected-graph.json. Promotes the determinism integration test to an RPC
+	// so humans can run it from the UI without faking the comparison client-side.
+	ValidateFixture(context.Context, *connect.Request[graph.ValidateFixtureRequest]) (*connect.Response[graph.ValidateFixtureResponse], error)
 }
 
 // NewGoCodeGraphServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -152,6 +200,18 @@ func NewGoCodeGraphServiceHandler(svc GoCodeGraphServiceHandler, opts ...connect
 		connect.WithSchema(goCodeGraphServiceMethods.ByName("RewriteApply")),
 		connect.WithHandlerOptions(opts...),
 	)
+	goCodeGraphServiceListFixturesHandler := connect.NewUnaryHandler(
+		GoCodeGraphServiceListFixturesProcedure,
+		svc.ListFixtures,
+		connect.WithSchema(goCodeGraphServiceMethods.ByName("ListFixtures")),
+		connect.WithHandlerOptions(opts...),
+	)
+	goCodeGraphServiceValidateFixtureHandler := connect.NewUnaryHandler(
+		GoCodeGraphServiceValidateFixtureProcedure,
+		svc.ValidateFixture,
+		connect.WithSchema(goCodeGraphServiceMethods.ByName("ValidateFixture")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.go_code_graph.v1.graph.GoCodeGraphService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case GoCodeGraphServiceExtractProcedure:
@@ -160,6 +220,10 @@ func NewGoCodeGraphServiceHandler(svc GoCodeGraphServiceHandler, opts ...connect
 			goCodeGraphServiceRewritePlanHandler.ServeHTTP(w, r)
 		case GoCodeGraphServiceRewriteApplyProcedure:
 			goCodeGraphServiceRewriteApplyHandler.ServeHTTP(w, r)
+		case GoCodeGraphServiceListFixturesProcedure:
+			goCodeGraphServiceListFixturesHandler.ServeHTTP(w, r)
+		case GoCodeGraphServiceValidateFixtureProcedure:
+			goCodeGraphServiceValidateFixtureHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -179,4 +243,12 @@ func (UnimplementedGoCodeGraphServiceHandler) RewritePlan(context.Context, *conn
 
 func (UnimplementedGoCodeGraphServiceHandler) RewriteApply(context.Context, *connect.Request[graph.RewriteApplyRequest]) (*connect.Response[graph.RewriteApplyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewriteApply is not implemented"))
+}
+
+func (UnimplementedGoCodeGraphServiceHandler) ListFixtures(context.Context, *connect.Request[graph.ListFixturesRequest]) (*connect.Response[graph.ListFixturesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.go_code_graph.v1.graph.GoCodeGraphService.ListFixtures is not implemented"))
+}
+
+func (UnimplementedGoCodeGraphServiceHandler) ValidateFixture(context.Context, *connect.Request[graph.ValidateFixtureRequest]) (*connect.Response[graph.ValidateFixtureResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.go_code_graph.v1.graph.GoCodeGraphService.ValidateFixture is not implemented"))
 }

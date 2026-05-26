@@ -10,7 +10,7 @@
     {
       "id": "DBM-API-001",
       "title": "Connect-RPC API contract",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-011",
       "category": "api",
       "criticality": "P0",
@@ -20,7 +20,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/handlers/backup/handler_test.go::TestBackupService_Contract",
           "notes": "Exercise each RPC against the service with fakes; assert request/response shapes."
         }
@@ -29,7 +29,7 @@
     {
       "id": "DBM-CLI-001",
       "title": "CLI surface for operators and self-registration",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-011",
       "category": "cli",
       "criticality": "P0",
@@ -39,7 +39,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "ref": "cli/domains/backup/commands_test.go::TestRegisterCommand",
           "notes": "Assert register/destination/plan/run/restore commands parse and call the API client."
         }

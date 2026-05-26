@@ -1,0 +1,242 @@
+package destinations
+
+import (
+	"context"
+	"path/filepath"
+	"strings"
+
+	"data-backup-manager/internal/engine"
+)
+
+// defaultListLimit caps List when the caller passes 0.
+const defaultListLimit = 100
+
+// nearCapThreshold is the fraction of cap_bytes at which usage transitions from
+// WITHIN to NEAR (i.e. >= 90 % of cap).
+const nearCapThreshold = 0.90
+
+// Service is the application surface the destinations handlers depend on. It
+// owns validation, the separate-root rule, encryption-on proof, and the
+// cap-decision method the runs domain calls.
+type Service interface {
+	// CreateDestination validates and creates a destination, provisioning the
+	// underlying kopia repository. Returns ErrInvalidDestination on validation
+	// failure (including separate-root violation).
+	CreateDestination(ctx context.Context, in CreateInput) (Destination, error)
+
+	// GetDestination returns a destination by id. ErrDestinationNotFound
+	// propagates verbatim.
+	GetDestination(ctx context.Context, id string) (Destination, error)
+
+	// ListDestinations returns up to pageSize destinations ordered by name.
+	// pageSize <= 0 uses the default.
+	ListDestinations(ctx context.Context, pageSize int) ([]Destination, error)
+
+	// UpdateDestination updates the mutable fields (cap_bytes, cap_policy) of an
+	// existing destination.
+	UpdateDestination(ctx context.Context, in UpdateInput) (Destination, error)
+
+	// DeleteDestination removes a destination's catalog row. It does NOT delete
+	// the underlying kopia repository unless delete_repository is explicitly
+	// requested (v1: repository deletion is never performed; the flag is ignored).
+	DeleteDestination(ctx context.Context, id string, deleteRepository bool) (bool, error)
+
+	// GetDestinationUsage returns current usage bytes, cap, state, and policy
+	// for the given destination.
+	GetDestinationUsage(ctx context.Context, id string) (UsageReport, error)
+
+	// WouldBlock reports whether a write of pendingBytes to the given destination
+	// would be blocked by the cap policy. With CAP_POLICY_ALERT_BLOCK and
+	// cap_bytes > 0, returns blocked=true when current usage + pendingBytes
+	// exceeds cap_bytes. CAP_POLICY_ALERT_ONLY never blocks; cap_bytes == 0
+	// (no cap) never blocks. WouldBlock never deletes anything.
+	WouldBlock(ctx context.Context, destinationID string, pendingBytes int64) (blocked bool, reason string, err error)
+}
+
+// UsageReport is the result type returned by GetDestinationUsage.
+type UsageReport struct {
+	UsageBytes int64
+	CapBytes   int64
+	UsageState UsageState
+	CapPolicy  CapPolicy
+}
+
+type service struct {
+	repo          Repository
+	eng           engine.KopiaEngine
+	protectedRoot string
+}
+
+// NewService constructs the production Service.
+func NewService(repo Repository, eng engine.KopiaEngine, protectedRoot string) Service {
+	return &service{
+		repo:          repo,
+		eng:           eng,
+		protectedRoot: filepath.Clean(protectedRoot),
+	}
+}
+
+// Compile-time guarantee.
+var _ Service = (*service)(nil)
+
+func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destination, error) {
+	name := strings.TrimSpace(in.Name)
+	if name == "" {
+		return Destination{}, ErrInvalidDestination{Field: "name", Reason: "required"}
+	}
+	if !in.Backend.Valid() {
+		return Destination{}, ErrInvalidDestination{Field: "backend_kind", Reason: "must be filesystem or s3"}
+	}
+	location := strings.TrimSpace(in.Location)
+	if location == "" {
+		return Destination{}, ErrInvalidDestination{Field: "location", Reason: "required"}
+	}
+
+	// Separate-root rule: a filesystem destination must not point under the
+	// protectedRoot (the storage root the manager protects).
+	if in.Backend == BackendFilesystem {
+		clean := filepath.Clean(location)
+		if clean == s.protectedRoot || strings.HasPrefix(clean, s.protectedRoot+string(filepath.Separator)) {
+			return Destination{}, ErrInvalidDestination{
+				Field:  "location",
+				Reason: "filesystem destination must not point inside the protected root",
+			}
+		}
+	}
+
+	capPolicy := in.CapPolicy
+	if capPolicy == "" {
+		capPolicy = CapPolicyAlertBlock
+	}
+
+	// Build the kopia RepoSpec and create the repository.
+	spec := engine.RepoSpec{
+		Name:    name,
+		Backend: string(in.Backend),
+	}
+	switch in.Backend {
+	case BackendFilesystem:
+		spec.Path = location
+	case BackendS3:
+		spec.Bucket = location
+	}
+
+	if err := s.eng.RepoCreate(ctx, spec); err != nil {
+		return Destination{}, err
+	}
+
+	// RepoStatus proves encryption is on (EncryptionAlgorithm must be non-empty).
+	status, err := s.eng.RepoStatus(ctx, name)
+	if err != nil {
+		return Destination{}, err
+	}
+	if status.EncryptionAlgorithm == "" {
+		return Destination{}, ErrInvalidDestination{
+			Field:  "encryption_algorithm",
+			Reason: "kopia repository did not report an encryption algorithm; encryption must be on",
+		}
+	}
+
+	d := Destination{
+		Name:                name,
+		BackendKind:         in.Backend,
+		Location:            location,
+		CapBytes:            in.CapBytes,
+		CapPolicy:           capPolicy,
+		EncryptionAlgorithm: status.EncryptionAlgorithm,
+		SecretRef:           in.SecretRef,
+	}
+
+	return s.repo.Create(ctx, d)
+}
+
+func (s *service) GetDestination(ctx context.Context, id string) (Destination, error) {
+	if strings.TrimSpace(id) == "" {
+		return Destination{}, ErrInvalidDestination{Field: "id", Reason: "required"}
+	}
+	return s.repo.GetByID(ctx, id)
+}
+
+func (s *service) ListDestinations(ctx context.Context, pageSize int) ([]Destination, error) {
+	if pageSize <= 0 {
+		pageSize = defaultListLimit
+	}
+	return s.repo.List(ctx, pageSize)
+}
+
+func (s *service) UpdateDestination(ctx context.Context, in UpdateInput) (Destination, error) {
+	if strings.TrimSpace(in.ID) == "" {
+		return Destination{}, ErrInvalidDestination{Field: "id", Reason: "required"}
+	}
+	existing, err := s.repo.GetByID(ctx, in.ID)
+	if err != nil {
+		return Destination{}, err
+	}
+	existing.CapBytes = in.CapBytes
+	if in.CapPolicy != "" {
+		existing.CapPolicy = in.CapPolicy
+	}
+	return s.repo.Update(ctx, existing)
+}
+
+func (s *service) DeleteDestination(ctx context.Context, id string, deleteRepository bool) (bool, error) {
+	if strings.TrimSpace(id) == "" {
+		return false, ErrInvalidDestination{Field: "id", Reason: "required"}
+	}
+	// TODO: when deleteRepository is true, delete the underlying kopia repo.
+	// For v1 we never delete the repo — the flag is intentionally ignored here.
+	_ = deleteRepository
+	return s.repo.Delete(ctx, id)
+}
+
+func (s *service) GetDestinationUsage(ctx context.Context, id string) (UsageReport, error) {
+	d, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return UsageReport{}, err
+	}
+	stats, err := s.eng.RepoStats(ctx, d.Name)
+	if err != nil {
+		return UsageReport{}, err
+	}
+	state := computeUsageState(stats.SizeBytes, d.CapBytes)
+	return UsageReport{
+		UsageBytes: stats.SizeBytes,
+		CapBytes:   d.CapBytes,
+		UsageState: state,
+		CapPolicy:  d.CapPolicy,
+	}, nil
+}
+
+func (s *service) WouldBlock(ctx context.Context, destinationID string, pendingBytes int64) (bool, string, error) {
+	d, err := s.repo.GetByID(ctx, destinationID)
+	if err != nil {
+		return false, "", err
+	}
+	// No cap or alert-only policy: never block.
+	if d.CapBytes == 0 || d.CapPolicy == CapPolicyAlertOnly {
+		return false, "", nil
+	}
+	// ALERT_BLOCK: block when current usage + pending would exceed cap.
+	stats, err := s.eng.RepoStats(ctx, d.Name)
+	if err != nil {
+		return false, "", err
+	}
+	if stats.SizeBytes+pendingBytes > d.CapBytes {
+		return true, "storage cap exceeded; write blocked by alert+block policy", nil
+	}
+	return false, "", nil
+}
+
+// computeUsageState classifies usage against cap. cap == 0 means no cap → always WITHIN.
+func computeUsageState(usageBytes, capBytes int64) UsageState {
+	if capBytes == 0 {
+		return UsageStateWithin
+	}
+	if usageBytes >= capBytes {
+		return UsageStateOver
+	}
+	if float64(usageBytes) >= float64(capBytes)*nearCapThreshold {
+		return UsageStateNear
+	}
+	return UsageStateWithin
+}

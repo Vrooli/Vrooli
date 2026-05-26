@@ -10,7 +10,7 @@
     {
       "id": "DBM-DEST-001",
       "title": "Multiple destinations as kopia repositories",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-003",
       "category": "destination",
       "criticality": "P0",
@@ -20,7 +20,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/destinations/service_test.go::TestCreateDestinations_FsAndS3",
           "notes": "Create fs + S3 destinations; assert connect/status; assert self-root destination is rejected."
         }
@@ -29,7 +29,7 @@
     {
       "id": "DBM-ENC-001",
       "title": "Encryption on by default, secrets from vault",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-007",
       "category": "destination.security",
       "criticality": "P0",
@@ -39,7 +39,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/internal/destinations/encryption_test.go::TestDestination_EncryptedByDefault",
           "notes": "Assert repository status reports a non-null encryption algorithm; assert secrets resolved via vault, absent from persisted config."
         }
