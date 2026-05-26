@@ -39,7 +39,7 @@ workflow model.
   1. Snapshot build baseline (`go build ./...` for Go, `tsc --noEmit` for TS). Recorded in `apply_runs` as `baseline_status`.
   2. Extract graph (delegated to `go-code-graph` / `typescript-code-graph`) and cache as snapshot.
   3. Load manifest; validate; compute diff vs. graph; emit Conflict envelopes.
-  4. Loop: agent runs `arch-cart conflicts list` → resolves conflicts for one domain → runs `arch-cart validate` → runs `arch-cart apply <domain>`.
+  4. Loop: agent runs `arch-cart conflicts list` → resolves conflicts for one domain → runs `arch-cart conflicts validate` → runs `arch-cart apply <domain>`.
   5. Per-domain apply enforces build-green guard against baseline; on regression, refuses to commit unless `--force --note`.
   6. When all required domains are clean, `arch-cart migrate finalize <scenario>` ends the migration; transitional declarations whose `expires_when` predicates fire become hard errors.
 - Outputs: per-domain commits, finalized migration record, analytics history.
@@ -57,14 +57,14 @@ workflow model.
   - `assigned` — agent has assigned the conflict to a target domain (optional, applies to placement-type conflicts).
   - `split` — agent has elected to split a file along chunk boundaries (applies to mixed-responsibility conflicts).
   - `resolved` — agent has applied a fix (mechanical or manual); not yet re-validated.
-  - `validated` — `arch-cart validate` re-checked the graph and confirms the conflict is gone.
+  - `validated` — `arch-cart conflicts validate` re-checked the graph and confirms the conflict is gone.
   - `committed` — included in a per-domain apply that landed atomically.
   - `force_resolved` — closed with `--force --note` against a still-failing validate; logged in analytics.
 - Illegal transitions:
   - `detected` → `committed` (must pass through `validated`).
-  - `validated` → `detected` (use `arch-cart conflict reopen` if needed; produces a new id).
+  - `validated` → `detected` (use `arch-cart conflicts reopen` if needed; produces a new id).
   - `committed` → anything (terminal).
-- Failure modes: agent assigns to a domain that does not exist in the manifest; agent splits along chunks that re-introduce a different conflict; `arch-cart validate` times out on a very large graph.
+- Failure modes: agent assigns to a domain that does not exist in the manifest; agent splits along chunks that re-introduce a different conflict; `arch-cart conflicts validate` times out on a very large graph.
 - Tests (planned): unit (state machine completeness); integration (workbench loop against fixture conflicts); CLI smoke (`list → show → assign → resolve → validate`).
 - Requirements: OT-P0-003, OT-P0-005, OT-P0-006.
 

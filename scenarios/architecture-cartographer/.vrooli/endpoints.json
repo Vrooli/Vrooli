@@ -39,7 +39,7 @@
       "description": "Cursor-paginated event log with optional kind + since filters.",
       "category": "analytics",
       "cli_mapping": {
-        "command": "arch-cart history"
+        "command": "arch-cart analytics events"
       }
     },
     {
@@ -50,7 +50,7 @@
       "description": "Returns counts + verdict success rate with N<5 suppression.",
       "category": "analytics",
       "cli_mapping": {
-        "command": "arch-cart stats"
+        "command": "arch-cart analytics stats"
       }
     },
     {
@@ -61,7 +61,7 @@
       "description": "Cursor-paginated placement rows for a scenario.",
       "category": "analytics",
       "cli_mapping": {
-        "command": "arch-cart placements list"
+        "command": "arch-cart analytics placements"
       }
     },
     {
@@ -72,7 +72,7 @@
       "description": "Appends an Override row. Honors Idempotency-Key and X-Dry-Run.",
       "category": "analytics",
       "cli_mapping": {
-        "command": "arch-cart override record"
+        "command": "arch-cart analytics override-record"
       }
     },
     {
@@ -127,7 +127,7 @@
       "description": "Runs every registered Detector against a scenario's graph snapshot + manifest, persists the resulting Conflict envelopes, and emits one analytics event per detection.",
       "category": "conflicts",
       "cli_mapping": {
-        "command": "arch-cart conflicts list"
+        "command": "arch-cart conflicts detect"
       }
     },
     {
@@ -149,7 +149,7 @@
       "description": "Returns the Conflict envelope for the supplied id.",
       "category": "conflicts",
       "cli_mapping": {
-        "command": "arch-cart conflict show"
+        "command": "arch-cart conflicts show"
       }
     },
     {
@@ -160,7 +160,7 @@
       "description": "Transitions the conflict to ASSIGNED with the supplied target domain. Honors X-Dry-Run.",
       "category": "conflicts",
       "cli_mapping": {
-        "command": "arch-cart conflict assign"
+        "command": "arch-cart conflicts assign"
       }
     },
     {
@@ -171,7 +171,7 @@
       "description": "Transitions the conflict to RESOLVED (or FORCE_RESOLVED with force=true). Honors X-Dry-Run. ApplyDeferred=true when the chosen fix requires file movement, which is unimplemented in v0.1.",
       "category": "conflicts",
       "cli_mapping": {
-        "command": "arch-cart conflict resolve"
+        "command": "arch-cart conflicts resolve"
       }
     },
     {
@@ -182,7 +182,7 @@
       "description": "Transitions a resolved/force-resolved/validated conflict back to DETECTED. Honors X-Dry-Run.",
       "category": "conflicts",
       "cli_mapping": {
-        "command": "arch-cart conflict reopen"
+        "command": "arch-cart conflicts reopen"
       }
     },
     {
@@ -193,7 +193,7 @@
       "description": "Returns outstanding conflicts and a clean=true gate when zero error-severity rows remain. Used by the dogfood test.",
       "category": "conflicts",
       "cli_mapping": {
-        "command": "arch-cart validate"
+        "command": "arch-cart conflicts validate"
       }
     },
     {
@@ -204,7 +204,7 @@
       "description": "Returns the set of Detector plug-ins compiled into this binary.",
       "category": "conflicts",
       "cli_mapping": {
-        "command": "arch-cart detectors list"
+        "command": "arch-cart conflicts detectors"
       }
     },
     {
@@ -215,7 +215,7 @@
       "description": "Returns the set of Resolver plug-ins compiled into this binary.",
       "category": "conflicts",
       "cli_mapping": {
-        "command": "arch-cart resolvers list"
+        "command": "arch-cart conflicts resolvers"
       }
     },
     {
@@ -235,10 +235,7 @@
       "method": "POST",
       "summary": "Get a persisted snapshot by id",
       "description": "Returns the canonical-form GraphSnapshot for the supplied id.",
-      "category": "graph",
-      "cli_mapping": {
-        "command": "arch-cart graph show"
-      }
+      "category": "graph"
     },
     {
       "id": "graph.list",
@@ -246,10 +243,7 @@
       "method": "POST",
       "summary": "List persisted snapshots",
       "description": "Cursor-paginated list of persisted snapshots, optionally filtered by scenario.",
-      "category": "graph",
-      "cli_mapping": {
-        "command": "arch-cart graph list"
-      }
+      "category": "graph"
     },
     {
       "id": "graph.clear",
@@ -257,10 +251,7 @@
       "method": "POST",
       "summary": "Clear cached snapshots",
       "description": "Removes cached snapshots for the scenario. Honors X-Dry-Run.",
-      "category": "graph",
-      "cli_mapping": {
-        "command": "arch-cart graph clear"
-      }
+      "category": "graph"
     },
     {
       "id": "graph.export",
@@ -268,10 +259,7 @@
       "method": "POST",
       "summary": "Export snapshot bytes",
       "description": "Returns the persisted snapshot serialized as canonical-form JSON bytes for offline analysis or fixture authoring.",
-      "category": "graph",
-      "cli_mapping": {
-        "command": "arch-cart graph export"
-      }
+      "category": "graph"
     },
     {
       "id": "manifest.validate",
@@ -347,22 +335,22 @@
       "endpoint_id": "health"
     },
     {
-      "name": "history",
+      "name": "analytics events",
       "description": "Page the append-only analytics event log",
       "endpoint_id": "analytics.list-events"
     },
     {
-      "name": "stats",
+      "name": "analytics stats",
       "description": "Show analytics stats roll-up (N<5 suppressed)",
       "endpoint_id": "analytics.get-stats"
     },
     {
-      "name": "placements list",
+      "name": "analytics placements",
       "description": "List placement outcomes for a scenario",
       "endpoint_id": "analytics.list-placements"
     },
     {
-      "name": "override record",
+      "name": "analytics override-record",
       "description": "Record an operator override of a verdict",
       "endpoint_id": "analytics.record-override"
     },
@@ -387,42 +375,47 @@
       "endpoint_id": "apply.get-build-baseline"
     },
     {
-      "name": "conflicts list",
-      "description": "Detect + list conflicts for a scenario",
+      "name": "conflicts detect",
+      "description": "Detect + persist conflicts for a scenario",
       "endpoint_id": "conflicts.detect"
     },
     {
-      "name": "conflict show",
+      "name": "conflicts list",
+      "description": "List persisted conflicts for a scenario",
+      "endpoint_id": "conflicts.list"
+    },
+    {
+      "name": "conflicts show",
       "description": "Show one persisted conflict",
       "endpoint_id": "conflicts.get"
     },
     {
-      "name": "conflict assign",
+      "name": "conflicts assign",
       "description": "Assign a conflict to a target domain",
       "endpoint_id": "conflicts.assign"
     },
     {
-      "name": "conflict resolve",
+      "name": "conflicts resolve",
       "description": "Resolve a conflict (force-resolve with --force)",
       "endpoint_id": "conflicts.resolve"
     },
     {
-      "name": "conflict reopen",
+      "name": "conflicts reopen",
       "description": "Re-open a resolved or force-resolved conflict",
       "endpoint_id": "conflicts.reopen"
     },
     {
-      "name": "validate",
+      "name": "conflicts validate",
       "description": "Validate cartographer-clean closure (zero outstanding conflicts)",
       "endpoint_id": "conflicts.validate"
     },
     {
-      "name": "detectors list",
+      "name": "conflicts detectors",
       "description": "List registered Detector plug-ins",
       "endpoint_id": "conflicts.list-detectors"
     },
     {
-      "name": "resolvers list",
+      "name": "conflicts resolvers",
       "description": "List registered Resolver plug-ins",
       "endpoint_id": "conflicts.list-resolvers"
     },
@@ -430,26 +423,6 @@
       "name": "graph extract",
       "description": "Extract a fresh graph snapshot and persist it",
       "endpoint_id": "graph.extract"
-    },
-    {
-      "name": "graph show",
-      "description": "Show a persisted graph snapshot by id",
-      "endpoint_id": "graph.get"
-    },
-    {
-      "name": "graph list",
-      "description": "List persisted graph snapshots",
-      "endpoint_id": "graph.list"
-    },
-    {
-      "name": "graph clear",
-      "description": "Clear cached graph snapshots for a scenario",
-      "endpoint_id": "graph.clear"
-    },
-    {
-      "name": "graph export",
-      "description": "Export a snapshot as canonical-form JSON bytes",
-      "endpoint_id": "graph.export"
     },
     {
       "name": "manifest validate",

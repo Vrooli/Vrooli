@@ -17,42 +17,42 @@ import (
 type OperationKind string
 
 const (
-	OperationKindMoveFile       OperationKind = "move_file"
-	OperationKindRewriteImport  OperationKind = "rewrite_import"
-	OperationKindDeleteFile     OperationKind = "delete_file"
-	OperationKindCreateFile     OperationKind = "create_file"
+	OperationKindMoveFile      OperationKind = "move_file"
+	OperationKindRewriteImport OperationKind = "rewrite_import"
+	OperationKindDeleteFile    OperationKind = "delete_file"
+	OperationKindCreateFile    OperationKind = "create_file"
 )
 
 // ApplyStatus is the lifecycle state of an apply run.
 type ApplyStatus string
 
 const (
-	ApplyStatusPlanned     ApplyStatus = "planned"
-	ApplyStatusRunning     ApplyStatus = "running"
-	ApplyStatusBuildGreen  ApplyStatus = "build_green"
-	ApplyStatusBuildRed    ApplyStatus = "build_red"
-	ApplyStatusReverted    ApplyStatus = "reverted"
-	ApplyStatusCommitted   ApplyStatus = "committed"
+	ApplyStatusPlanned    ApplyStatus = "planned"
+	ApplyStatusRunning    ApplyStatus = "running"
+	ApplyStatusBuildGreen ApplyStatus = "build_green"
+	ApplyStatusBuildRed   ApplyStatus = "build_red"
+	ApplyStatusReverted   ApplyStatus = "reverted"
+	ApplyStatusCommitted  ApplyStatus = "committed"
 )
 
 // Operation is one atomic step in a plan.
 type Operation struct {
-	ID                    string
-	Kind                  OperationKind
-	FromPath              string
-	ToPath                string
-	Payload               []byte
-	ResolvesConflictIDs   []string
+	ID                  string
+	Kind                OperationKind
+	FromPath            string
+	ToPath              string
+	Payload             []byte
+	ResolvesConflictIDs []string
 }
 
 // Plan is an ordered set of Operations targeting one domain.
 type Plan struct {
-	ID           string
-	Scenario     string
-	Domain       string
-	Operations   []Operation
-	ConflictIDs  []string
-	PlannedAt    time.Time
+	ID          string
+	Scenario    string
+	Domain      string
+	Operations  []Operation
+	ConflictIDs []string
+	PlannedAt   time.Time
 }
 
 // ApplyRun records one execution of a Plan.
@@ -100,4 +100,3 @@ func (e ErrApplyUnimplemented) Error() string {
 	}
 	return fmt.Sprintf("apply run not implemented in v0.1; tracked by %s", e.NextPlan)
 }
-

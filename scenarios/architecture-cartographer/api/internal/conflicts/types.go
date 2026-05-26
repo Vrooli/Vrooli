@@ -28,25 +28,25 @@ const (
 type ResolutionStatus string
 
 const (
-	ResolutionStatusDetected       ResolutionStatus = "detected"
-	ResolutionStatusAssigned       ResolutionStatus = "assigned"
-	ResolutionStatusSplit          ResolutionStatus = "split"
-	ResolutionStatusResolved       ResolutionStatus = "resolved"
-	ResolutionStatusValidated      ResolutionStatus = "validated"
-	ResolutionStatusCommitted      ResolutionStatus = "committed"
-	ResolutionStatusForceResolved  ResolutionStatus = "force_resolved"
+	ResolutionStatusDetected      ResolutionStatus = "detected"
+	ResolutionStatusAssigned      ResolutionStatus = "assigned"
+	ResolutionStatusSplit         ResolutionStatus = "split"
+	ResolutionStatusResolved      ResolutionStatus = "resolved"
+	ResolutionStatusValidated     ResolutionStatus = "validated"
+	ResolutionStatusCommitted     ResolutionStatus = "committed"
+	ResolutionStatusForceResolved ResolutionStatus = "force_resolved"
 )
 
 // FixKind enumerates the operator-facing fix categories.
 type FixKind string
 
 const (
-	FixKindUnspecified      FixKind = ""
-	FixKindMoveFile         FixKind = "move_file"
-	FixKindReassignDomain   FixKind = "reassign_domain"
-	FixKindBreakCycle       FixKind = "break_cycle"
-	FixKindAddDependency    FixKind = "add_dependency"
-	FixKindAddTransitional  FixKind = "add_transitional"
+	FixKindUnspecified     FixKind = ""
+	FixKindMoveFile        FixKind = "move_file"
+	FixKindReassignDomain  FixKind = "reassign_domain"
+	FixKindBreakCycle      FixKind = "break_cycle"
+	FixKindAddDependency   FixKind = "add_dependency"
+	FixKindAddTransitional FixKind = "add_transitional"
 )
 
 // Evidence is one detector-supplied justification.
@@ -69,23 +69,23 @@ type Fix struct {
 
 // Conflict is the canonical envelope a Detector emits.
 type Conflict struct {
-	ID              string
-	Scenario        string
-	Detector        string
-	Type            string
-	Subtype         string
-	Severity        Severity
-	Locations       []string
-	Domains         []string
-	Evidence        []Evidence
-	SuggestedFixes  []Fix
-	Status          ResolutionStatus
-	AssignedDomain  string
-	ResolutionNote  string
-	SnapshotID      string
-	Verdict         *signals.Verdict
-	DetectedAt      time.Time
-	UpdatedAt       time.Time
+	ID             string
+	Scenario       string
+	Detector       string
+	Type           string
+	Subtype        string
+	Severity       Severity
+	Locations      []string
+	Domains        []string
+	Evidence       []Evidence
+	SuggestedFixes []Fix
+	Status         ResolutionStatus
+	AssignedDomain string
+	ResolutionNote string
+	SnapshotID     string
+	Verdict        *signals.Verdict
+	DetectedAt     time.Time
+	UpdatedAt      time.Time
 }
 
 // DetectorDescriptor describes one registered detector.

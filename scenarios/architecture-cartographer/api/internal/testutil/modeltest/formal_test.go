@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
 	"architecture-cartographer/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

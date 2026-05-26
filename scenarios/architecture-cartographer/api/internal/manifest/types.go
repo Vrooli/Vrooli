@@ -56,15 +56,15 @@ type DomainSpec struct {
 
 // ManifestDefinition is the root document.
 type ManifestDefinition struct {
-	Version          ManifestVersion
-	Scenario         string
-	Domains          []DomainSpec
-	SharedSubstrate  []string
-	SignalWeights    SignalWeights
-	Thresholds       []Threshold
-	Transitional     []TransitionalDeclaration
-	ParsedAt         time.Time
-	ContentHash      string
+	Version         ManifestVersion
+	Scenario        string
+	Domains         []DomainSpec
+	SharedSubstrate []string
+	SignalWeights   SignalWeights
+	Thresholds      []Threshold
+	Transitional    []TransitionalDeclaration
+	ParsedAt        time.Time
+	ContentHash     string
 }
 
 // Diagnostic is one validation finding.

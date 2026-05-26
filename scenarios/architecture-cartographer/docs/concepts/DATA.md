@@ -49,7 +49,7 @@ Data falls into five categories:
 | Conflict records | conflicts | SQLite `conflicts` table | `api/internal/conflicts/schema.sql` | Retained per scenario migration; cleared when migration is finalized. | Conflict envelope shape stable across versions. |
 | Resolution log | conflicts | SQLite `conflict_resolutions` table | `api/internal/conflicts/schema.sql` | Same lifecycle as conflict records. | Includes resolution method, agent note, --force note. |
 | Apply history | apply | SQLite `apply_runs` and `apply_operations` tables | `api/internal/apply/schema.sql` | Indefinite; growth bounded by migration cadence. | Each row records a `(scenario, domain, operations, baseline_status, post_status)`. |
-| Analytics event log | analytics | SQLite `events` append-only table | `api/internal/analytics/schema.sql` | Indefinite. Volume small (hundreds of rows per migration). | Source data for `arch-cart history` and `arch-cart stats`. |
+| Analytics event log | analytics | SQLite `events` append-only table | `api/internal/analytics/schema.sql` | Indefinite. Volume small (hundreds of rows per migration). | Source data for `arch-cart analytics events` and `arch-cart analytics stats`. |
 | Auto-placement verdicts | analytics (via signals) | SQLite `placements` table | `api/internal/analytics/schema.sql` | Same lifecycle as analytics events. | Includes signal scores, aggregator verdict, override flag if agent overrode. |
 | Notes | notes (template placeholder) | SQLite | `api/internal/notes/schema.sql` | Removed when notes domain is removed per Gate 7. | Will be deleted; not product scope. |
 
@@ -89,7 +89,7 @@ the code that interprets them. For schema evolution:
 |---|---|---|---|
 | `arch-cart graph export <scenario>` | JSON (graph snapshot) | graph | Planned for P0 — used to ship a graph as a baseline artifact in PRs. |
 | `arch-cart conflicts export <scenario>` | JSON | conflicts | Planned for P0 — used by CI to report drift. |
-| `arch-cart history export` | JSON | analytics | Planned for P1 — feeds cross-scenario calibration analyses. |
+| `arch-cart analytics events export` | JSON | analytics | Planned for P1 — feeds cross-scenario calibration analyses. |
 | Manifest import | JSON / YAML | manifest | Read from target scenario; cartographer does not own manifest files. |
 
 ## Retention And Deletion
@@ -116,7 +116,7 @@ other sensitive material if a scenario has been carelessly committed.
 - **Analytics never stores source bodies** — only structural
   identifiers (file paths, symbol names, conflict types, severity,
   scores).
-- **`arch-cart history export` strips evidence values** that contain
+- **`arch-cart analytics events export` strips evidence values** that contain
   arbitrary text (the `Evidence` field on a verdict may contain
   symbol names but never source bodies); a redaction pass is required
   before sharing exports outside the scenario maintainers.

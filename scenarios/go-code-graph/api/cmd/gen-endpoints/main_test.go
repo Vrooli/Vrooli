@@ -19,6 +19,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	writeSeed(t, seed, []CLICommand{
 		{Name: "status", Description: "Health check", EndpointID: "health"},
 		{Name: "graph extract", Description: "Extract graph", EndpointID: "graph_extract"},
+		{Name: "graph list-fixtures", Description: "List fixtures", EndpointID: "graph_list_fixtures"},
+		{Name: "graph validate-fixture", Description: "Validate fixture", EndpointID: "graph_validate_fixture"},
 		{Name: "rewrite plan", Description: "Plan rewrite", EndpointID: "rewrite_plan"},
 		{Name: "rewrite apply", Description: "Apply rewrite", EndpointID: "rewrite_apply"},
 	})
@@ -51,8 +53,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 4 {
-		t.Errorf("cli_commands count = %d, want 4", len(got.CLICommands))
+	if len(got.CLICommands) != 6 {
+		t.Errorf("cli_commands count = %d, want 6", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

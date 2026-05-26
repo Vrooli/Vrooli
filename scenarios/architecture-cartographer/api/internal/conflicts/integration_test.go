@@ -121,11 +121,11 @@ func manifestFromFixture(t *testing.T, path string) manifest.ManifestDefinition 
 type expectedConflicts struct {
 	Scenario  string `json:"scenario"`
 	Conflicts []struct {
-		Detector              string   `json:"detector"`
-		Type                  string   `json:"type"`
-		Severity              string   `json:"severity"`
-		LocationsMin          int      `json:"locations_min"`
-		EvidenceKindsInclude  []string `json:"evidence_kinds_include"`
+		Detector             string   `json:"detector"`
+		Type                 string   `json:"type"`
+		Severity             string   `json:"severity"`
+		LocationsMin         int      `json:"locations_min"`
+		EvidenceKindsInclude []string `json:"evidence_kinds_include"`
 	} `json:"conflicts"`
 }
 

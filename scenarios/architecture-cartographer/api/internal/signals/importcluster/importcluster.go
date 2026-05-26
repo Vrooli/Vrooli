@@ -27,8 +27,8 @@ type Signal struct{}
 // New returns the production signal.
 func New() *Signal { return &Signal{} }
 
-func (Signal) Name() string                            { return "import-cluster" }
-func (Signal) DefaultWeight() float64                  { return 1.0 }
+func (Signal) Name() string                               { return "import-cluster" }
+func (Signal) DefaultWeight() float64                     { return 1.0 }
 func (Signal) IsAvailable(context.Context) (bool, string) { return true, "" }
 
 func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Chunk) []signals.Score {

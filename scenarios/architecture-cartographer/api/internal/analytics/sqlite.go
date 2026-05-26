@@ -303,4 +303,3 @@ func matchesOutcomes(o string, allowed []string) bool {
 	}
 	return false
 }
-

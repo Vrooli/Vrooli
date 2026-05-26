@@ -53,4 +53,58 @@ var Endpoints = []module.EndpointDescriptor{
 			Args:    []string{"<path>", "[--include-vendor]"},
 		},
 	},
+	{
+		ID:          "graph_list_fixtures",
+		Path:        graph_v1connect.GoCodeGraphServiceListFixturesProcedure,
+		Method:      "POST",
+		Summary:     "List golden determinism fixtures",
+		Description: "Enumerates the fixture directories under bas/fixtures so the Fixture Validator UI can offer them without reading repo files in the browser.",
+		Category:    "graph",
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"fixtures": "array<{name:string, path:string, has_expected:bool}>",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 500, Code: "internal", Description: "Fixtures directory unreadable"},
+		},
+		CLIMapping: &module.CLIMapping{
+			Command: "go-code-graph graph list-fixtures",
+		},
+	},
+	{
+		ID:          "graph_validate_fixture",
+		Path:        graph_v1connect.GoCodeGraphServiceValidateFixtureProcedure,
+		Method:      "POST",
+		Summary:     "Validate a fixture against its golden graph",
+		Description: "Re-runs Extract against a named fixture server-side and byte-compares the canonical JSON against expected-graph.json, returning pass/fail plus a line diff.",
+		Category:    "graph",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"name": "string (required, fixture directory name)",
+			},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"passed":         "boolean",
+				"diff":           "string (line diff; empty on pass)",
+				"expected_bytes": "int64",
+				"actual_bytes":   "int64",
+				"graph_hash":     "string (hex sha256 of canonical graph)",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing or path-escaping fixture name"},
+			{Status: 404, Code: "not_found", Description: "Fixture not found"},
+			{Status: 412, Code: "failed_precondition", Description: "Fixture has no expected-graph.json baseline"},
+			{Status: 500, Code: "internal", Description: "Extraction or comparison failure"},
+		},
+		CLIMapping: &module.CLIMapping{
+			Command: "go-code-graph graph validate-fixture",
+			Args:    []string{"<name>"},
+		},
+	},
 }

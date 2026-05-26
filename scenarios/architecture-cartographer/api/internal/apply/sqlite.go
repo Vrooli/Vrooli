@@ -39,9 +39,9 @@ type planPayload struct {
 }
 
 const (
-	insertPlanSQL = `INSERT INTO apply_plans (id, scenario, domain, payload, planned_at) VALUES (?, ?, ?, ?, ?)`
-	selectPlanSQL = `SELECT id, scenario, domain, payload, planned_at FROM apply_plans WHERE id = ?`
-	listRunsSQL   = `SELECT id, plan_id, scenario, domain, status, build_log, started_at, finished_at FROM apply_runs WHERE scenario = ? ORDER BY started_at DESC, id DESC LIMIT ?`
+	insertPlanSQL  = `INSERT INTO apply_plans (id, scenario, domain, payload, planned_at) VALUES (?, ?, ?, ?, ?)`
+	selectPlanSQL  = `SELECT id, scenario, domain, payload, planned_at FROM apply_plans WHERE id = ?`
+	listRunsSQL    = `SELECT id, plan_id, scenario, domain, status, build_log, started_at, finished_at FROM apply_runs WHERE scenario = ? ORDER BY started_at DESC, id DESC LIMIT ?`
 	getBaselineSQL = `SELECT scenario, green, toolchain, log, captured_at FROM apply_baselines WHERE scenario = ?`
 )
 
@@ -68,9 +68,9 @@ func (r *sqliteRepository) SavePlan(ctx context.Context, p Plan) (Plan, error) {
 func (r *sqliteRepository) GetPlan(ctx context.Context, id string) (Plan, error) {
 	row := r.db.QueryRowContext(ctx, selectPlanSQL, id)
 	var (
-		p          Plan
-		payload    []byte
-		plannedAt  string
+		p         Plan
+		payload   []byte
+		plannedAt string
 	)
 	if err := row.Scan(&p.ID, &p.Scenario, &p.Domain, &payload, &plannedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -108,9 +108,9 @@ func (r *sqliteRepository) ListRuns(ctx context.Context, f ListRunsFilter) (RunP
 	var out []ApplyRun
 	for rows.Next() {
 		var (
-			a       ApplyRun
-			status  string
-			started string
+			a        ApplyRun
+			status   string
+			started  string
 			finished string
 		)
 		if err := rows.Scan(&a.ID, &a.PlanID, &a.Scenario, &a.Domain, &status, &a.BuildLog, &started, &finished); err != nil {

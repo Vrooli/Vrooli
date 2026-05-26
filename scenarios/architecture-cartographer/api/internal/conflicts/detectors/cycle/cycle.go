@@ -5,15 +5,15 @@
 // Sub-classification (encoded in Conflict.Subtype) per requirements
 // REQ-P0-005:
 //   - "type-only"     — every edge in the cycle is types-only (best
-//                       break: lift the shared type into a leaf
-//                       package).
+//     break: lift the shared type into a leaf
+//     package).
 //   - "junk-drawer"   — at least one package in the SCC is imported by
-//                       many otherwise-unrelated packages (smell of a
-//                       "utils" or "common" drawer).
+//     many otherwise-unrelated packages (smell of a
+//     "utils" or "common" drawer).
 //   - "cross-domain"  — packages in the SCC belong to >1 declared
-//                       domains in the manifest.
+//     domains in the manifest.
 //   - "within-domain" — packages in the SCC all belong to the same
-//                       declared domain; usually a small refactor.
+//     declared domain; usually a small refactor.
 package cycle
 
 import (
@@ -32,8 +32,11 @@ type Detector struct{}
 // New returns the production cycle detector.
 func New() *Detector { return &Detector{} }
 
-func (Detector) Name() string        { return "cycle" }
-func (Detector) Description() string { return "Detects strongly-connected components in the package import graph." }
+func (Detector) Name() string { return "cycle" }
+func (Detector) Description() string {
+	return "Detects strongly-connected components in the package import graph."
+}
+
 func (Detector) EmitsTypes() []string {
 	return []string{"cycle"}
 }

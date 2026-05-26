@@ -22,8 +22,11 @@ type Detector struct{}
 // New returns the production detector.
 func New() *Detector { return &Detector{} }
 
-func (Detector) Name() string        { return "mislocated_file" }
-func (Detector) Description() string { return "Flags files whose verdict-recommended domain differs from the manifest declaration." }
+func (Detector) Name() string { return "mislocated_file" }
+func (Detector) Description() string {
+	return "Flags files whose verdict-recommended domain differs from the manifest declaration."
+}
+
 func (Detector) EmitsTypes() []string {
 	return []string{"mislocated_file"}
 }
@@ -48,13 +51,13 @@ func (d Detector) Detect(ctx context.Context, in conflicts.DetectInput) ([]confl
 		// Build payload describing the move.
 		payload := []byte(fmt.Sprintf(`{"from_domain":%q,"to_domain":%q,"path":%q}`, current, v.TopDomain, chunk.Path))
 		conflict := conflicts.Conflict{
-			Scenario: in.Scenario,
-			Detector: d.Name(),
-			Type:     "mislocated_file",
-			Subtype:  classifyMove(current, v.TopDomain),
-			Severity: conflicts.SeverityWarn,
+			Scenario:  in.Scenario,
+			Detector:  d.Name(),
+			Type:      "mislocated_file",
+			Subtype:   classifyMove(current, v.TopDomain),
+			Severity:  conflicts.SeverityWarn,
 			Locations: []string{chunk.Path},
-			Domains:  filterEmpty(current, v.TopDomain),
+			Domains:   filterEmpty(current, v.TopDomain),
 			Evidence: []conflicts.Evidence{
 				{
 					Kind:    "verdict_top_domain",

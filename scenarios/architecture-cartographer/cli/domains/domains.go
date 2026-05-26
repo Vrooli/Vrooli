@@ -5,7 +5,12 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 
+	"architecture-cartographer/cli/domains/analytics"
+	"architecture-cartographer/cli/domains/apply"
+	"architecture-cartographer/cli/domains/conflicts"
 	"architecture-cartographer/cli/domains/graph"
+	manifestdomain "architecture-cartographer/cli/domains/manifest"
+	"architecture-cartographer/cli/domains/signals"
 )
 
 // CommandGroups aggregates flat command groups from domain packages.
@@ -29,16 +34,46 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // This is the CLI side of the domain-module pattern; the API side uses
 // the same one-liner-per-domain shape via server.New(deps, modules...).
 //
-// The remaining product domains (manifest, conflicts, signals, apply,
-// analytics) land as each phase ships.
+// As each product domain (manifest, signals, apply, analytics) ships its
+// CLI surface, add a Register call here.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	out := make([]cliapp.SubcommandGroup, 0, 1)
+	out := make([]cliapp.SubcommandGroup, 0, 6)
 
 	graphGroup, err := graph.Register(core, manifest)
 	if err != nil {
 		return nil, fmt.Errorf("register graph: %w", err)
 	}
 	out = append(out, graphGroup)
+
+	conflictsGroup, err := conflicts.Register(core, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("register conflicts: %w", err)
+	}
+	out = append(out, conflictsGroup)
+
+	manifestGroup, err := manifestdomain.Register(core, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("register manifest: %w", err)
+	}
+	out = append(out, manifestGroup)
+
+	signalsGroup, err := signals.Register(core, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("register signals: %w", err)
+	}
+	out = append(out, signalsGroup)
+
+	analyticsGroup, err := analytics.Register(core, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("register analytics: %w", err)
+	}
+	out = append(out, analyticsGroup)
+
+	applyGroup, err := apply.Register(core, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("register apply: %w", err)
+	}
+	out = append(out, applyGroup)
 
 	return out, nil
 }

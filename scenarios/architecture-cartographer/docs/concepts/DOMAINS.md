@@ -108,9 +108,11 @@ its own home in [`SIGNAL_LADDER.md`](SIGNAL_LADDER.md).
 - Does not own: signal scoring (that is the `signals` domain),
   mechanical fix execution (that is the `apply` domain).
 - API: `api/internal/conflicts/`, `api/handlers/conflicts/`.
-- CLI: `cli/domains/conflicts/` — `arch-cart conflicts list`,
-  `arch-cart conflict show <id>`, `arch-cart conflict assign`,
-  `arch-cart conflict resolve`, `arch-cart validate`.
+- CLI: `cli/domains/conflicts/` — `arch-cart conflicts detect`,
+  `arch-cart conflicts list`, `arch-cart conflicts show <id>`,
+  `arch-cart conflicts assign`, `arch-cart conflicts resolve`,
+  `arch-cart conflicts reopen`, `arch-cart conflicts validate`,
+  `arch-cart conflicts detectors`, `arch-cart conflicts resolvers`.
 - UI: `ui/src/features/conflicts/` — conflict workbench.
 - Storage: conflict records in SQLite (id, type, severity, locations,
   description, suggested_fixes, evidence, resolved, resolution).
@@ -189,8 +191,9 @@ its own home in [`SIGNAL_LADDER.md`](SIGNAL_LADDER.md).
 - Does not own: the events themselves (each domain emits its own
   events through a shared analytics seam).
 - API: `api/internal/analytics/`, `api/handlers/analytics/`.
-- CLI: `cli/domains/analytics/` — `arch-cart history`,
-  `arch-cart stats`, `arch-cart calibrate` (P2).
+- CLI: `cli/domains/analytics/` — `arch-cart analytics events`,
+  `arch-cart analytics stats`, `arch-cart analytics placements`,
+  `arch-cart analytics override-record`, `arch-cart calibrate` (P2).
 - UI: `ui/src/features/analytics/` — history dashboards.
 - Storage: append-only SQLite event log.
 - Threshold rule: success rates are not surfaced until at least N=5

@@ -25,6 +25,11 @@ type Deps struct {
 	GraphService   *intgraph.Service
 	RewriteService *intrewrite.Service
 	Logger         *log.Logger
+	// FixturesDir is the directory holding golden determinism fixtures
+	// (bas/fixtures by default, resolved relative to the server's working
+	// directory). Empty falls back to "bas/fixtures". Powers the
+	// ListFixtures / ValidateFixture RPCs.
+	FixturesDir string
 }
 
 // connectHandler implements graph_v1connect.GoCodeGraphServiceHandler.

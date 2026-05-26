@@ -24,7 +24,7 @@ type FakeSignal struct {
 	ScoreCalls atomic.Int64
 }
 
-func (f *FakeSignal) Name() string         { return f.NameValue }
+func (f *FakeSignal) Name() string           { return f.NameValue }
 func (f *FakeSignal) DefaultWeight() float64 { return f.Weight }
 func (f *FakeSignal) Score(_ context.Context, _ signals.GraphContext, _ graph.Chunk) []signals.Score {
 	f.ScoreCalls.Add(1)
@@ -32,6 +32,7 @@ func (f *FakeSignal) Score(_ context.Context, _ signals.GraphContext, _ graph.Ch
 	copy(out, f.Returns)
 	return out
 }
+
 func (f *FakeSignal) IsAvailable(_ context.Context) (bool, string) {
 	return f.Available, f.UnavailableMsg
 }
@@ -82,9 +83,9 @@ var _ signals.ManifestProvider = (*FakeManifestProvider)(nil)
 
 // FakeService satisfies signals.Service for handler tests.
 type FakeService struct {
-	Verdict   signals.Verdict
-	Signals   []signals.SignalDescriptor
-	NextErr   error
+	Verdict      signals.Verdict
+	Signals      []signals.SignalDescriptor
+	NextErr      error
 	ScoreCalls   atomic.Int64
 	ExplainCalls atomic.Int64
 	ListCalls    atomic.Int64

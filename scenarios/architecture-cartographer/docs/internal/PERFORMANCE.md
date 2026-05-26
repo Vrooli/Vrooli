@@ -30,9 +30,9 @@ cache is warm where applicable.
 | `arch-cart graph extract` (cached, unchanged) | any size | < 500ms | Cache hit returns the persisted snapshot | budgeted |
 | Signal scoring (full ladder) | 2000-file graph, all candidate domains | < 2s | Unit benchmark | budgeted |
 | `arch-cart conflicts list` | 2000-file graph, detectors complete | < 3s | Integration timing test | budgeted |
-| `arch-cart conflict show <id>` | one conflict + source range | < 200ms | Unit + integration | budgeted |
+| `arch-cart conflicts show <id>` | one conflict + source range | < 200ms | Unit + integration | budgeted |
 | `arch-cart apply <domain>` (50-file domain) | file moves + import rewrites + build-green verification | < 10s | Integration timing test | budgeted |
-| `arch-cart history` | any scenario history | < 500ms | SQLite query | budgeted |
+| `arch-cart analytics events` | any scenario history | < 500ms | SQLite query | budgeted |
 | UI graph render | ≤200 nodes | < 1s | Vitest perf | budgeted |
 | UI graph render | ≤2000 nodes | < 5s | Vitest perf | budgeted |
 | UI build | full vite production build | accepted at 5–10 min | lifecycle/test-genie build logs | inherited |

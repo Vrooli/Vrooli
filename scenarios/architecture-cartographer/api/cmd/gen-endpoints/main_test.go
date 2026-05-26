@@ -20,8 +20,11 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	// build uses. The test runs from cmd/gen-endpoints so the relative
 	// path resolves the same way `go run ./cmd/gen-endpoints` would.
 	seed := "cli_commands_seed.json"
+	// cli/manifest.json sits at the scenario root; from cmd/gen-endpoints
+	// that is three levels up (cmd/gen-endpoints -> cmd -> api -> root).
+	cliManifest := filepath.Join("..", "..", "..", "cli", "manifest.json")
 
-	if err := run(output, seed); err != nil {
+	if err := run(output, seed, cliManifest); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 
@@ -111,6 +114,60 @@ func TestCrossCheck_PassesWhenSeeded(t *testing.T) {
 	}
 }
 
+// TestVerifySeedRegistered_FailsOnUnregisteredCommand pins the tightened
+// (no-longer-hollow) gate: a seed command that resolves to neither a
+// cli/manifest.json group+command nor a cli-core built-in fails codegen.
+func TestVerifySeedRegistered_FailsOnUnregisteredCommand(t *testing.T) {
+	registered := map[string]struct{}{"conflicts list": {}}
+	commands := []CLICommand{
+		{Name: "status"},          // built-in — allowed
+		{Name: "conflicts list"},  // registered — allowed
+		{Name: "conflicts ghost"}, // neither — must fail
+	}
+
+	err := verifySeedRegistered(commands, registered)
+	if err == nil {
+		t.Fatal("expected verifySeedRegistered to fail on an unregistered seed command")
+	}
+	if !strings.Contains(err.Error(), "conflicts ghost") {
+		t.Errorf("error %q must name the unregistered command", err.Error())
+	}
+	if strings.Contains(err.Error(), "conflicts list") {
+		t.Errorf("error %q must not flag the registered command", err.Error())
+	}
+}
+
+// TestVerifySeedRegistered_PassesWhenAllResolve confirms the happy path:
+// built-ins and registered group+command names both resolve.
+func TestVerifySeedRegistered_PassesWhenAllResolve(t *testing.T) {
+	registered := map[string]struct{}{"conflicts list": {}, "apply plan": {}}
+	commands := []CLICommand{
+		{Name: "status"},
+		{Name: "conflicts list"},
+		{Name: "apply plan"},
+	}
+	if err := verifySeedRegistered(commands, registered); err != nil {
+		t.Errorf("expected pass; got %v", err)
+	}
+}
+
+// TestSeedResolvesAgainstRealManifest is the end-to-end regression guard:
+// the on-disk seed must resolve against the on-disk cli/manifest.json, so
+// the two cannot silently drift.
+func TestSeedResolvesAgainstRealManifest(t *testing.T) {
+	seed, err := loadSeed("cli_commands_seed.json")
+	if err != nil {
+		t.Fatalf("load seed: %v", err)
+	}
+	registered, err := loadRegisteredCommands(filepath.Join("..", "..", "..", "cli", "manifest.json"))
+	if err != nil {
+		t.Fatalf("load cli manifest: %v", err)
+	}
+	if err := verifySeedRegistered(seed.CLICommands, registered); err != nil {
+		t.Fatalf("seed does not resolve against cli/manifest.json: %v", err)
+	}
+}
+
 // TestStripBinaryPrefix is the smallest unit on the command-name
 // normalisation step: the endpoint's "architecture-cartographer alpha list"
 // must compare against the seed's "alpha list".
@@ -128,16 +185,5 @@ func TestStripBinaryPrefix(t *testing.T) {
 		if got := stripBinaryPrefix(tc.in); got != tc.want {
 			t.Errorf("stripBinaryPrefix(%q) = %q, want %q", tc.in, got, tc.want)
 		}
-	}
-}
-
-func writeSeed(t *testing.T, path string, commands []CLICommand) {
-	t.Helper()
-	body, err := json.MarshalIndent(seedFile{CLICommands: commands}, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal seed: %v", err)
-	}
-	if err := os.WriteFile(path, body, 0o644); err != nil {
-		t.Fatalf("write seed: %v", err)
 	}
 }

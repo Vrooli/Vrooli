@@ -39,9 +39,9 @@ Use this document to answer:
 |---|---|---|---|
 | API logs | lifecycle-managed API process | `make logs` | Request logging uses deterministic clock seam in tests; structured JSON in production. |
 | UI logs | lifecycle-managed UI server | `make logs` | Production bundle server logs only. |
-| Analytics events | SQLite `events` table | `arch-cart history` and `arch-cart stats` | Append-only; never trimmed automatically. |
-| Apply audit log | SQLite `apply_runs` table | `arch-cart history --filter applies` | Includes baseline status, post status, force notes. |
-| Force-note audit | derived from analytics | `arch-cart history --filter force-notes` | Quarterly review per [`RUNBOOK.md`](RUNBOOK.md). |
+| Analytics events | SQLite `events` table | `arch-cart analytics events` and `arch-cart analytics stats` | Append-only; never trimmed automatically. |
+| Apply audit log | SQLite `apply_runs` table | `arch-cart analytics events --filter applies` | Includes baseline status, post status, force notes. |
+| Force-note audit | derived from analytics | `arch-cart analytics events --filter force-notes` | Quarterly review per [`RUNBOOK.md`](RUNBOOK.md). |
 | Calibration proposals | analytics + signal weights | `arch-cart calibrate --dry-run` | Monthly review per [`RUNBOOK.md`](RUNBOOK.md). |
 
 ## Metrics
@@ -82,7 +82,7 @@ deployment tier matures, the signals are already understood.
 
 | Gap | Impact | Revisit Trigger |
 |---|---|---|
-| Cross-scenario calibration analytics | Per-scenario history is local SQLite. Aggregating across scenarios requires either each developer running `arch-cart history export` and combining manually, or a shared analytics resource. | When cartographer adoption crosses ~3 active scenarios. P2 in-scope. |
+| Cross-scenario calibration analytics | Per-scenario history is local SQLite. Aggregating across scenarios requires either each developer running `arch-cart analytics events export` and combining manually, or a shared analytics resource. | When cartographer adoption crosses ~3 active scenarios. P2 in-scope. |
 | Histogram of conflict-detection latency | Without per-run latency capture, performance regressions are caught only by deliberate timing tests. | Add when v1 ships and real workloads exist. |
 | Recipe success rate when shipped | Required for the recipe-identification pipeline (OT-P2-004). | When the first recipe ships (P1). |
 | Product / business telemetry | Cartographer has no GTM funnel in v1; if it later ships as a SaaS or shared offering, usage telemetry is needed. | See [`../business/MONETIZATION.md`](../business/MONETIZATION.md) revisit triggers. |

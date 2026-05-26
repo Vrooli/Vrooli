@@ -25,7 +25,9 @@ const GroupName = "graph"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"GoCodeGraphService.Extract": h.extract,
+		"GoCodeGraphService.Extract":         h.extract,
+		"GoCodeGraphService.ListFixtures":    h.listFixtures,
+		"GoCodeGraphService.ValidateFixture": h.validateFixture,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

@@ -86,6 +86,10 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
+// useTheme is the canonical consumer hook for ThemeContext and is
+// deliberately co-located with its provider; the react-refresh rule only
+// concerns HMR fast-refresh, not correctness.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
   if (!ctx) {

@@ -15,7 +15,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Detect conflicts",
 		Description: "Runs every registered Detector against a scenario's graph snapshot + manifest, persists the resulting Conflict envelopes, and emits one analytics event per detection.",
 		Category:    "conflicts",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart conflicts list"},
+		CLIMapping:  &module.CLIMapping{Command: "arch-cart conflicts detect"},
 	},
 	{
 		ID:          "conflicts.list",
@@ -33,7 +33,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Get one conflict",
 		Description: "Returns the Conflict envelope for the supplied id.",
 		Category:    "conflicts",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart conflict show"},
+		CLIMapping:  &module.CLIMapping{Command: "arch-cart conflicts show"},
 	},
 	{
 		ID:          "conflicts.assign",
@@ -42,7 +42,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Assign a conflict to a domain",
 		Description: "Transitions the conflict to ASSIGNED with the supplied target domain. Honors X-Dry-Run.",
 		Category:    "conflicts",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart conflict assign"},
+		CLIMapping:  &module.CLIMapping{Command: "arch-cart conflicts assign"},
 	},
 	{
 		ID:          "conflicts.resolve",
@@ -51,7 +51,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Resolve a conflict",
 		Description: "Transitions the conflict to RESOLVED (or FORCE_RESOLVED with force=true). Honors X-Dry-Run. ApplyDeferred=true when the chosen fix requires file movement, which is unimplemented in v0.1.",
 		Category:    "conflicts",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart conflict resolve"},
+		CLIMapping:  &module.CLIMapping{Command: "arch-cart conflicts resolve"},
 	},
 	{
 		ID:          "conflicts.reopen",
@@ -60,7 +60,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Reopen a conflict",
 		Description: "Transitions a resolved/force-resolved/validated conflict back to DETECTED. Honors X-Dry-Run.",
 		Category:    "conflicts",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart conflict reopen"},
+		CLIMapping:  &module.CLIMapping{Command: "arch-cart conflicts reopen"},
 	},
 	{
 		ID:          "conflicts.validate",
@@ -69,7 +69,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Validate cartographer-clean closure",
 		Description: "Returns outstanding conflicts and a clean=true gate when zero error-severity rows remain. Used by the dogfood test.",
 		Category:    "conflicts",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart validate"},
+		CLIMapping:  &module.CLIMapping{Command: "arch-cart conflicts validate"},
 	},
 	{
 		ID:          "conflicts.list-detectors",
@@ -78,7 +78,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "List registered detectors",
 		Description: "Returns the set of Detector plug-ins compiled into this binary.",
 		Category:    "conflicts",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart detectors list"},
+		CLIMapping:  &module.CLIMapping{Command: "arch-cart conflicts detectors"},
 	},
 	{
 		ID:          "conflicts.list-resolvers",
@@ -87,6 +87,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "List registered resolvers",
 		Description: "Returns the set of Resolver plug-ins compiled into this binary.",
 		Category:    "conflicts",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart resolvers list"},
+		CLIMapping:  &module.CLIMapping{Command: "arch-cart conflicts resolvers"},
 	},
 }

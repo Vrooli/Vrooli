@@ -28,6 +28,10 @@ import { TargetWorkspacePage } from "../pages/TargetWorkspacePage";
  * later phases — conflicts is the first to ship and demonstrates the
  * nested-route + workspace-subnav pattern.
  */
+// The route table is intentionally co-located with the router-provider
+// components in this file; splitting it out solely to satisfy the HMR-only
+// react-refresh rule would scatter the canonical config tests depend on.
+// eslint-disable-next-line react-refresh/only-export-components
 export const routes: RouteObject[] = [
   {
     path: "/",

@@ -29,6 +29,24 @@ func GraphHash(g Graph) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// CanonicalJSON returns the pretty-printed (2-space indent) canonical JSON
+// serialization of g — byte-for-byte identical to the bytes stored in a
+// fixture's expected-graph.json. Like GraphHash it projects attribute maps to
+// sorted key/value pairs and disables HTML escaping so identical Graph values
+// always serialize identically. The trailing newline mirrors json.Encoder and
+// the UPDATE_FIXTURES bootstrap path in the determinism integration test.
+//
+// This is the production seam the ValidateFixture RPC compares against; the
+// determinism test keeps its own in-test copy so the two never silently drift.
+func CanonicalJSON(g Graph) []byte {
+	buf := &bytes.Buffer{}
+	enc := json.NewEncoder(buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(canonicalGraph(g))
+	return buf.Bytes()
+}
+
 // canonicalGraph rebuilds Graph with attribute maps materialized as
 // sorted key/value pairs. JSON serialization of Go maps already sorts
 // keys lexicographically, but we explicitly project to an ordered

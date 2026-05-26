@@ -44,13 +44,13 @@ type VerdictProvider interface {
 // not depend on the signals package's full interface. Mirrors the
 // fields a detector cares about.
 type Verdict struct {
-	ChunkID        string
-	ChunkPath      string
-	Tier           string
-	TopDomain      string
-	TopValue       float64
-	RunnerUpDomain string
-	RunnerUpValue  float64
-	Tied           bool
+	ChunkID         string
+	ChunkPath       string
+	Tier            string
+	TopDomain       string
+	TopValue        float64
+	RunnerUpDomain  string
+	RunnerUpValue   float64
+	Tied            bool
 	EvidenceSummary string
 }

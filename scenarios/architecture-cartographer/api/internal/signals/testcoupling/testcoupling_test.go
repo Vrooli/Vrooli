@@ -40,7 +40,7 @@ func TestScore_TestFilesInDomainProduceScore(t *testing.T) {
 
 func TestScore_NoTestImportersReturnsEmpty(t *testing.T) {
 	snap := graph.GraphSnapshot{
-		Files: []graph.FileNode{{ID: "file:src", PackageID: "pkg:src"}},
+		Files:    []graph.FileNode{{ID: "file:src", PackageID: "pkg:src"}},
 		Packages: []graph.PackageNode{{ID: "pkg:src"}},
 	}
 	out := testcoupling.New().Score(context.Background(), signals.NewGraphContext("demo", snap, manifest.ManifestDefinition{}), graph.Chunk{FileID: "file:src"})

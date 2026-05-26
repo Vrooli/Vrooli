@@ -197,8 +197,8 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Seam** | Pluggable mechanical fix executor |
 | **Interface** | `internal/conflicts/resolver.go::Resolver` (`Name() string` matching a `Conflict.Type`; `Apply(c Conflict, args []string) error`) |
 | **Production wiring** | `internal/conflicts/registry.go::DefaultResolvers()` registers resolvers for conflict types that have a deterministic mechanical fix (initially: `mislocated_file`). Code-body refactors stay in agent-Edit territory — there is no resolver for cycle resolution in v1 because the design decision (interface inversion, type extraction, etc.) cannot be auto-made. |
-| **Test fake** | `internal/conflicts/mocks::FakeResolver` (records `Apply` calls, returns canned error). Used to assert CLI `conflict resolve` dispatches to the right resolver. |
-| **Why it exists** | Some conflicts have mechanical resolutions (move a misplaced file → file move + import rewrites). Putting the mechanical action behind a resolver keeps `Apply` flows uniform; conflicts that require human judgment simply have no resolver registered and surface as "manual: edit code and run `arch-cart validate`." |
+| **Test fake** | `internal/conflicts/mocks::FakeResolver` (records `Apply` calls, returns canned error). Used to assert CLI `conflicts resolve` dispatches to the right resolver. |
+| **Why it exists** | Some conflicts have mechanical resolutions (move a misplaced file → file move + import rewrites). Putting the mechanical action behind a resolver keeps `Apply` flows uniform; conflicts that require human judgment simply have no resolver registered and surface as "manual: edit code and run `arch-cart conflicts validate`." |
 
 ### Signal (chunk→domain scorer — pluggable, day-one)
 

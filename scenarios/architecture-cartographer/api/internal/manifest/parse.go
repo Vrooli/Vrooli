@@ -26,13 +26,13 @@ const (
 // decode either encoding through the same path. Time/hash fields are
 // populated by Parse, not by the source document.
 type rawManifest struct {
-	ManifestVersion string                  `yaml:"manifest_version" json:"manifest_version"`
-	Scenario        string                  `yaml:"scenario"         json:"scenario"`
-	Domains         []rawDomain             `yaml:"domains"          json:"domains"`
-	SharedSubstrate []string                `yaml:"shared_substrate" json:"shared_substrate"`
-	SignalWeights   map[string]float64      `yaml:"signal_weights"   json:"signal_weights"`
-	Thresholds      []rawThreshold          `yaml:"thresholds"       json:"thresholds"`
-	Transitional    []rawTransitional       `yaml:"transitional"     json:"transitional"`
+	ManifestVersion string             `yaml:"manifest_version" json:"manifest_version"`
+	Scenario        string             `yaml:"scenario"         json:"scenario"`
+	Domains         []rawDomain        `yaml:"domains"          json:"domains"`
+	SharedSubstrate []string           `yaml:"shared_substrate" json:"shared_substrate"`
+	SignalWeights   map[string]float64 `yaml:"signal_weights"   json:"signal_weights"`
+	Thresholds      []rawThreshold     `yaml:"thresholds"       json:"thresholds"`
+	Transitional    []rawTransitional  `yaml:"transitional"     json:"transitional"`
 }
 
 type rawDomain struct {
@@ -119,16 +119,10 @@ func Parse(source []byte, hint ContentType) (m ManifestDefinition, detectedType 
 		})
 	}
 	for _, t := range raw.Thresholds {
-		m.Thresholds = append(m.Thresholds, Threshold{Tier: t.Tier, MinValue: t.MinValue})
+		m.Thresholds = append(m.Thresholds, Threshold(t))
 	}
 	for _, t := range raw.Transitional {
-		m.Transitional = append(m.Transitional, TransitionalDeclaration{
-			ID:          t.ID,
-			Kind:        t.Kind,
-			Locator:     t.Locator,
-			Rationale:   t.Rationale,
-			ExpiresWhen: t.ExpiresWhen,
-		})
+		m.Transitional = append(m.Transitional, TransitionalDeclaration(t))
 	}
 	return m, detectedType, diagnostics, nil
 }

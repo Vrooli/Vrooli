@@ -116,8 +116,10 @@ func TestDetect_DeterministicOrder(t *testing.T) {
 			{ID: "pkg:d", Internal: true, Directory: "d"},
 		},
 		Imports: []graph.ImportEdge{
-			{From: "pkg:a", ToPackageID: "pkg:b"}, {From: "pkg:b", ToPackageID: "pkg:a"},
-			{From: "pkg:c", ToPackageID: "pkg:d"}, {From: "pkg:d", ToPackageID: "pkg:c"},
+			{From: "pkg:a", ToPackageID: "pkg:b"},
+			{From: "pkg:b", ToPackageID: "pkg:a"},
+			{From: "pkg:c", ToPackageID: "pkg:d"},
+			{From: "pkg:d", ToPackageID: "pkg:c"},
 		},
 	}
 	first, _ := cycle.New().Detect(context.Background(), detectInput(snap, manifest.ManifestDefinition{}))

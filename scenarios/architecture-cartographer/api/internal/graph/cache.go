@@ -1,10 +1,9 @@
 package graph
 
-// Cache is the in-memory cache key shape used by service.go to avoid
-// re-extracting a graph that was already produced this run. The
-// Repository's FindByHash lookup is the cross-run cache; this in-memory
-// map is the per-run optimisation. Phase 5 adds the production wiring.
-type cacheKey struct {
-	scenario    string
-	contentHash string
-}
+// Per-run in-memory graph cache (planned, Phase 5).
+//
+// service.go's cross-run cache is the Repository's FindByHash lookup. A
+// per-run in-memory cache keyed by (scenario, contentHash) is a planned
+// optimisation to avoid re-extracting a graph already produced this run.
+// The key type lands here alongside its production wiring in Phase 5;
+// it is intentionally omitted until then so it is not dead code.

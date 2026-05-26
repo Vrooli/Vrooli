@@ -15,9 +15,9 @@ plus the expected outputs:
 | Name | Language | Exercises |
 |---|---|---|
 | [`go-cycles/`](go-cycles/) | Go | `cycle` detector — a deliberate cross-package import cycle |
-| [`go-mislocated/`](go-mislocated/) | Go | _planned_ — `mislocated_file` detector exercising the signals aggregator |
-| [`ts-junk-drawer/`](ts-junk-drawer/) | TypeScript | _planned_ — a `utils.ts` imported by every domain |
-| [`medium-realistic/`](medium-realistic/) | mixed | _planned_ — ~200-file mixed scenario for performance + multi-detector regression |
+| `go-mislocated/` | Go | _planned_ — `mislocated_file` detector exercising the signals aggregator |
+| `ts-junk-drawer/` | TypeScript | _planned_ — a `utils.ts` imported by every domain |
+| `medium-realistic/` | mixed | _planned_ — ~200-file mixed scenario for performance + multi-detector regression |
 
 ## Why fixtures live under `bas/`
 

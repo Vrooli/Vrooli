@@ -17,8 +17,11 @@ type Resolver struct{}
 // New returns the production resolver.
 func New() *Resolver { return &Resolver{} }
 
-func (Resolver) Name() string                { return "mislocated_file" }
-func (Resolver) Description() string         { return "Records intent to move a file to the verdict-recommended domain. Actual movement deferred to apply." }
+func (Resolver) Name() string { return "mislocated_file" }
+func (Resolver) Description() string {
+	return "Records intent to move a file to the verdict-recommended domain. Actual movement deferred to apply."
+}
+
 func (Resolver) HandlesKinds() []conflicts.FixKind {
 	return []conflicts.FixKind{conflicts.FixKindMoveFile}
 }

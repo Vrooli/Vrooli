@@ -13,10 +13,10 @@ import (
 // GraphContext is created via NewGraphContext so callers can't construct
 // half-populated contexts.
 type GraphContext struct {
-	Scenario  string
-	Snapshot  graph.GraphSnapshot
-	Manifest  manifest.ManifestDefinition
-	Caches    *Caches
+	Scenario string
+	Snapshot graph.GraphSnapshot
+	Manifest manifest.ManifestDefinition
+	Caches   *Caches
 }
 
 // Caches is the shared cache surface. Empty in Phase 2; Phase 3 wires

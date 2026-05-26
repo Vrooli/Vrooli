@@ -7,6 +7,14 @@ import (
 )
 
 // Endpoints describes the graph domain's Connect-RPC routes.
+//
+// Only graph.extract carries a CLIMapping: it is the single graph RPC
+// wired into the CLI today. GetGraphSnapshot, ListGraphSnapshots,
+// ClearGraphSnapshots, and ExportGraph are intentionally NOT exposed as
+// CLI commands yet — they are documented in cli/manifest.json::omitted
+// with reasons. The parity gate (cmd/gen-endpoints) enforces the
+// invariant that a CLIMapping is present iff a registered CLI command
+// mirrors it, so these stay CLIMapping-free until their commands land.
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "graph.extract",
@@ -24,7 +32,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Get a persisted snapshot by id",
 		Description: "Returns the canonical-form GraphSnapshot for the supplied id.",
 		Category:    "graph",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart graph show"},
 	},
 	{
 		ID:          "graph.list",
@@ -33,7 +40,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "List persisted snapshots",
 		Description: "Cursor-paginated list of persisted snapshots, optionally filtered by scenario.",
 		Category:    "graph",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart graph list"},
 	},
 	{
 		ID:          "graph.clear",
@@ -42,7 +48,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Clear cached snapshots",
 		Description: "Removes cached snapshots for the scenario. Honors X-Dry-Run.",
 		Category:    "graph",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart graph clear"},
 	},
 	{
 		ID:          "graph.export",
@@ -51,6 +56,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Export snapshot bytes",
 		Description: "Returns the persisted snapshot serialized as canonical-form JSON bytes for offline analysis or fixture authoring.",
 		Category:    "graph",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart graph export"},
 	},
 }

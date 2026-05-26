@@ -41,8 +41,8 @@ func (s *Signal) WithLookback(lb string) *Signal {
 	return &cp
 }
 
-func (Signal) Name() string             { return "git-co-edit" }
-func (Signal) DefaultWeight() float64   { return 0.6 }
+func (Signal) Name() string           { return "git-co-edit" }
+func (Signal) DefaultWeight() float64 { return 0.6 }
 
 func (s *Signal) IsAvailable(ctx context.Context) (bool, string) {
 	if s.runner == nil {

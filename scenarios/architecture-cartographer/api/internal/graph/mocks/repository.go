@@ -18,17 +18,17 @@ type FakeRepository struct {
 
 	Snapshots []graph.GraphSnapshot
 
-	SaveErr      error
-	GetErr       error
-	FindErr      error
-	ListErr      error
-	ClearErr     error
+	SaveErr  error
+	GetErr   error
+	FindErr  error
+	ListErr  error
+	ClearErr error
 
-	SaveCalls    atomic.Int64
-	GetCalls     atomic.Int64
-	FindCalls    atomic.Int64
-	ListCalls    atomic.Int64
-	ClearCalls   atomic.Int64
+	SaveCalls  atomic.Int64
+	GetCalls   atomic.Int64
+	FindCalls  atomic.Int64
+	ListCalls  atomic.Int64
+	ClearCalls atomic.Int64
 }
 
 func (f *FakeRepository) SaveSnapshot(_ context.Context, s graph.GraphSnapshot) (graph.GraphSnapshot, error) {
@@ -129,12 +129,12 @@ var _ graph.Repository = (*FakeRepository)(nil)
 // does not block cartographer development because this fake is the
 // real seam every test consumes.
 type FakeCodeGraphAdapter struct {
-	NameValue       string
-	LanguagesValue  []graph.Language
-	Raw             graph.RawGraph
-	ExtractErr      error
-	ExtractCalls    atomic.Int64
-	LastScenario    string
+	NameValue      string
+	LanguagesValue []graph.Language
+	Raw            graph.RawGraph
+	ExtractErr     error
+	ExtractCalls   atomic.Int64
+	LastScenario   string
 }
 
 func (a *FakeCodeGraphAdapter) Name() string {

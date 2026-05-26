@@ -95,6 +95,35 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `api/main.go` (resolver + project candidates); `internal/graph/scenariopath/`; `internal/graph/{tscodegraph,gocodegraph}/client.go`; `internal/graph/service.go` graceful skip; parent plan §10 #13.
 
+### 2026-05-25 — CLI conflict-workbench gap closed; seed↔CLI parity now enforced
+
+**Symptom (historical):** The API shipped six fully-implemented Connect-RPC
+domains, but `cli/domains/domains.go` registered only `graph`. The conflict
+workbench (OT-P0-006) and ~24 of 28 capabilities had no CLI entry point.
+The parity gate was hollow: `cli_commands_seed.json` listed all 28 commands
+and claimed each "mirrors a real subcommand," but codegen only checked
+`endpoints.json ↔ seed.json` consistency — both hand-maintained — so the
+claim could be false while the gate stayed green.
+
+**Resolution:** Wired the five missing domains (`conflicts`, `manifest`,
+`signals`, `analytics`, `apply`) as thin Connect-RPC wrappers (see the
+2026-05-25 PROGRESS entry). The gate is no longer hollow:
+`cmd/gen-endpoints/verifySeedRegistered` reads `cli/manifest.json` and fails
+the build if any seed command resolves to neither a registered group+command
+nor a cli-core built-in. The invariant is now **a CLIMapping is present on an
+endpoint iff a registered CLI command mirrors it** — the four omitted graph
+RPCs (`GetGraphSnapshot`/`ListGraphSnapshots`/`ClearGraphSnapshots`/`ExportGraph`)
+therefore carry no CLIMapping and stay documented in `cli/manifest.json::omitted`.
+
+**Remaining deferral:** `apply run` is wired as a command but the API still
+returns `CodeUnimplemented` (`ErrApplyUnimplemented`). Apply *execution* is a
+separate, later plan; the CLI surfaces the unimplemented state as a clean
+capability-not-available message, not a crash.
+
+**Refs:** `cli/domains/{conflicts,manifest,signals,analytics,apply}/`;
+`cli/manifest.json`; `api/cmd/gen-endpoints/{main.go,main_test.go,cli_commands_seed.json}`;
+`api/handlers/graph/endpoints.go` (CLIMapping removal).
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

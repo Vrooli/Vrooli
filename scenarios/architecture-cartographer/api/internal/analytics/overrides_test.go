@@ -37,7 +37,7 @@ func TestOverrideRecording_RejectsMissingChunkID(t *testing.T) {
 	svc := analytics.NewService(repo)
 
 	_, err := svc.RecordOverride(context.Background(), analytics.Override{
-		Scenario:     "demo",
+		Scenario:      "demo",
 		VerdictDomain: "graph",
 		ChosenDomain:  "signals",
 	})

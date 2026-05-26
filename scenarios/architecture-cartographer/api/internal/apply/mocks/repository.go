@@ -17,8 +17,8 @@ import (
 type FakeRepository struct {
 	mu sync.Mutex
 
-	Plans []apply.Plan
-	Runs  []apply.ApplyRun
+	Plans    []apply.Plan
+	Runs     []apply.ApplyRun
 	Baseline apply.BuildBaseline
 
 	SaveErr     error
@@ -135,13 +135,13 @@ var _ apply.ConflictLister = (*FakeConflictLister)(nil)
 
 // FakeBuildGuard implements apply.BuildGuard.
 type FakeBuildGuard struct {
-	NameValue       string
-	BaselineResult  apply.BuildBaseline
-	BaselineErr     error
-	VerifyResult    apply.BuildBaseline
-	VerifyErr       error
-	BaselineCalls   atomic.Int64
-	VerifyCalls     atomic.Int64
+	NameValue      string
+	BaselineResult apply.BuildBaseline
+	BaselineErr    error
+	VerifyResult   apply.BuildBaseline
+	VerifyErr      error
+	BaselineCalls  atomic.Int64
+	VerifyCalls    atomic.Int64
 }
 
 func (f *FakeBuildGuard) Name() string { return f.NameValue }
@@ -149,6 +149,7 @@ func (f *FakeBuildGuard) Baseline(_ context.Context, _ string) (apply.BuildBasel
 	f.BaselineCalls.Add(1)
 	return f.BaselineResult, f.BaselineErr
 }
+
 func (f *FakeBuildGuard) Verify(_ context.Context, _ string) (apply.BuildBaseline, error) {
 	f.VerifyCalls.Add(1)
 	return f.VerifyResult, f.VerifyErr

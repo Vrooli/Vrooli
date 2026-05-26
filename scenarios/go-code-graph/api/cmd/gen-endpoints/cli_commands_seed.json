@@ -12,6 +12,16 @@
       "endpoint_id": "graph_extract"
     },
     {
+      "name": "graph list-fixtures",
+      "description": "List the golden determinism fixtures shipped with the scenario",
+      "endpoint_id": "graph_list_fixtures"
+    },
+    {
+      "name": "graph validate-fixture",
+      "description": "Re-extract a fixture and byte-compare against its expected-graph.json (<name>)",
+      "endpoint_id": "graph_validate_fixture"
+    },
+    {
       "name": "rewrite plan",
       "description": "Validate and normalize a list of rewrite operations (<ops.json> --scenario-path PATH)",
       "endpoint_id": "rewrite_plan"

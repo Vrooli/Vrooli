@@ -18,10 +18,10 @@ type FakeRepository struct {
 
 	Conflicts []conflicts.Conflict
 
-	UpsertErr      error
-	GetErr         error
-	UpdateErr      error
-	ListErr        error
+	UpsertErr error
+	GetErr    error
+	UpdateErr error
+	ListErr   error
 
 	UpsertCalls atomic.Int64
 	GetCalls    atomic.Int64
@@ -164,18 +164,18 @@ var _ conflicts.Detector = (*FakeDetector)(nil)
 
 // FakeResolver implements conflicts.Resolver for service tests.
 type FakeResolver struct {
-	NameValue       string
+	NameValue        string
 	DescriptionValue string
-	Kinds           []conflicts.FixKind
-	NeedsApply      bool
-	ResolveErr      error
-	ResolveCalls    atomic.Int64
+	Kinds            []conflicts.FixKind
+	NeedsApply       bool
+	ResolveErr       error
+	ResolveCalls     atomic.Int64
 }
 
-func (f *FakeResolver) Name() string                       { return f.NameValue }
-func (f *FakeResolver) Description() string                { return f.DescriptionValue }
-func (f *FakeResolver) HandlesKinds() []conflicts.FixKind  { return f.Kinds }
-func (f *FakeResolver) RequiresApply() bool                { return f.NeedsApply }
+func (f *FakeResolver) Name() string                      { return f.NameValue }
+func (f *FakeResolver) Description() string               { return f.DescriptionValue }
+func (f *FakeResolver) HandlesKinds() []conflicts.FixKind { return f.Kinds }
+func (f *FakeResolver) RequiresApply() bool               { return f.NeedsApply }
 func (f *FakeResolver) Resolve(_ context.Context, _ conflicts.Conflict, _ conflicts.Fix) error {
 	f.ResolveCalls.Add(1)
 	return f.ResolveErr

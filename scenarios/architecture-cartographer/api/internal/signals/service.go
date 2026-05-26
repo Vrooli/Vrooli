@@ -95,4 +95,3 @@ func (s *service) score(ctx context.Context, in ScoreInput) (Verdict, error) {
 func (s *service) ListSignals(ctx context.Context, _ string) ([]SignalDescriptor, error) {
 	return s.registry.Describe(ctx), nil
 }
-

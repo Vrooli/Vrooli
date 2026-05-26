@@ -2,13 +2,13 @@
 // deterministic signal registry, per-signal scoring, and the aggregator.
 //
 // Signal invariants (enforced in code, asserted in tests):
-//   1. Pure — given the same (chunk, graph, manifest), produces the same Score.
-//   2. No mutation — never mutates the graph or manifest.
-//   3. Self-explaining — every Score carries Evidence; aggregator refuses
-//      empty Evidence and treats the signal as broken.
-//   4. Bounded — Score.Value in [0, 1].
-//   5. Cheap — caches (community detection, glossary lookups) live on
-//      GraphContext, not on the signal.
+//  1. Pure — given the same (chunk, graph, manifest), produces the same Score.
+//  2. No mutation — never mutates the graph or manifest.
+//  3. Self-explaining — every Score carries Evidence; aggregator refuses
+//     empty Evidence and treats the signal as broken.
+//  4. Bounded — Score.Value in [0, 1].
+//  5. Cheap — caches (community detection, glossary lookups) live on
+//     GraphContext, not on the signal.
 //
 // Phase 2 ships the types + registry stubs; Phase 3 fills in the
 // detectors / aggregator and the six day-one signals.
@@ -54,16 +54,16 @@ type DomainValue struct {
 
 // Verdict is the aggregator's output for one chunk.
 type Verdict struct {
-	ChunkID         string
-	ChunkPath       string
-	Tier            Tier
-	TopDomain       string
-	TopValue        float64
-	RunnerUpDomain  string
-	RunnerUpValue   float64
-	Scores          []Score
-	DomainValues    []DomainValue
-	Tied            bool
+	ChunkID        string
+	ChunkPath      string
+	Tier           Tier
+	TopDomain      string
+	TopValue       float64
+	RunnerUpDomain string
+	RunnerUpValue  float64
+	Scores         []Score
+	DomainValues   []DomainValue
+	Tied           bool
 }
 
 // SignalDescriptor describes one registered signal.

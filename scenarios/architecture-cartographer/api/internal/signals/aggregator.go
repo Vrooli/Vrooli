@@ -12,8 +12,8 @@ import (
 // the production day-one signals; Phase 2 ships the aggregation core
 // + tier dispatch so it can be tested with mocks.FakeSignal.
 type Aggregator struct {
-	registry        *Registry
-	weights         map[string]float64
+	registry         *Registry
+	weights          map[string]float64
 	autoPlaceMinimum float64
 	suggestMinimum   float64
 	tieDelta         float64
@@ -63,9 +63,9 @@ func (a *Aggregator) Aggregate(ctx context.Context, gctx GraphContext, chunk gra
 	domainValues := normalizeDomainValues(domainTotals, weightSum)
 
 	v := Verdict{
-		ChunkID:   chunk.ID,
-		ChunkPath: chunk.Path,
-		Scores:    scores,
+		ChunkID:      chunk.ID,
+		ChunkPath:    chunk.Path,
+		Scores:       scores,
 		DomainValues: domainValues,
 	}
 

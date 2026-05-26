@@ -22,8 +22,8 @@ type Signal struct{}
 // New returns the production signal.
 func New() *Signal { return &Signal{} }
 
-func (Signal) Name() string             { return "path-token" }
-func (Signal) DefaultWeight() float64   { return 1.5 }
+func (Signal) Name() string           { return "path-token" }
+func (Signal) DefaultWeight() float64 { return 1.5 }
 func (Signal) IsAvailable(context.Context) (bool, string) {
 	return true, ""
 }

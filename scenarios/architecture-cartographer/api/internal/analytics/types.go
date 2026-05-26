@@ -41,27 +41,27 @@ const (
 // Event is one append-only record. Payload is canonical-form JSON
 // bytes; consumers decode based on Kind.
 type Event struct {
-	ID               string
-	Kind             EventKind
-	Scenario         string
-	Domain           string
-	ConflictID       string
-	ChunkID          string
-	PlanID           string
-	RunID            string
-	CorrectsEventID  string
-	Payload          []byte
-	Actor            string
-	RecordedAt       time.Time
+	ID              string
+	Kind            EventKind
+	Scenario        string
+	Domain          string
+	ConflictID      string
+	ChunkID         string
+	PlanID          string
+	RunID           string
+	CorrectsEventID string
+	Payload         []byte
+	Actor           string
+	RecordedAt      time.Time
 }
 
 // Placement is one auto-placement outcome row. Kept separate from
 // events for cheap stats queries.
 type Placement struct {
-	ID         string
-	Scenario   string
-	ChunkID    string
-	ChunkPath  string
+	ID        string
+	Scenario  string
+	ChunkID   string
+	ChunkPath string
 	// Verdict serialized canonical-form JSON of signals.Verdict.
 	VerdictJSON []byte
 	Outcome     string // "auto_placed" | "suggested" | "overridden" | "rejected"
@@ -84,16 +84,16 @@ type Override struct {
 // StatsSummary is the response shape for Service.GetStats. Suppresses
 // success-rate fields when N<5 (the calibration threshold).
 type StatsSummary struct {
-	Scenario                       string
-	ConflictsDetected              int64
-	ConflictsResolved              int64
-	ConflictsForceResolved         int64
-	PlacementsAuto                 int64
-	PlacementsSuggest              int64
-	Overrides                      int64
-	VerdictSuccessRate             float64
-	VerdictSuccessRateSuppressed   bool
-	VerdictObservationCount        int64
+	Scenario                     string
+	ConflictsDetected            int64
+	ConflictsResolved            int64
+	ConflictsForceResolved       int64
+	PlacementsAuto               int64
+	PlacementsSuggest            int64
+	Overrides                    int64
+	VerdictSuccessRate           float64
+	VerdictSuccessRateSuppressed bool
+	VerdictObservationCount      int64
 }
 
 // MinVerdictObservations is the threshold below which success rate is
