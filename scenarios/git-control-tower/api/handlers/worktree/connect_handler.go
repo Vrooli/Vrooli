@@ -93,10 +93,10 @@ func (s *Server) CreateWorktree(ctx context.Context, req *connect.Request[worktr
 		}
 		return connect.NewResponse(&worktreev1.CreateWorktreeResponse{
 			Worktree: domainToProto(worktree.Worktree{
-				Path:     in.NewWorktreePath,
-				Name:     baseName(in.NewWorktreePath),
-				Branch:   in.ExistingBranch + in.NewBranchName,
-				Detached: in.Mode() == worktree.CreateModeDetachedCommit,
+				Path:       in.NewWorktreePath,
+				Name:       baseName(in.NewWorktreePath),
+				Branch:     in.ExistingBranch + in.NewBranchName,
+				Detached:   in.Mode() == worktree.CreateModeDetachedCommit,
 				HeadCommit: in.Commit,
 			}),
 			DryRun: true,

@@ -10,17 +10,17 @@ import (
 // Err fields per method before invocation; the Calls slice records
 // every call in invocation order.
 type FakeMutator struct {
-	AddResult       worktree.Worktree
-	AddErr          error
-	RemoveErr       error
-	LockResult      worktree.Worktree
-	LockErr         error
-	UnlockResult    worktree.Worktree
-	UnlockErr       error
-	MoveResult      worktree.Worktree
-	MoveErr         error
-	PruneResult     worktree.PruneResult
-	PruneErr        error
+	AddResult    worktree.Worktree
+	AddErr       error
+	RemoveErr    error
+	LockResult   worktree.Worktree
+	LockErr      error
+	UnlockResult worktree.Worktree
+	UnlockErr    error
+	MoveResult   worktree.Worktree
+	MoveErr      error
+	PruneResult  worktree.PruneResult
+	PruneErr     error
 
 	AddCalls    []worktree.CreateInput
 	RemoveCalls []RemoveCall

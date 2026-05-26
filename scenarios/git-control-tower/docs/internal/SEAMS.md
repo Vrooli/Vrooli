@@ -267,6 +267,28 @@ Operator-facing config file:
 `scenarios/git-control-tower/.vrooli/config.json` (top-level `policy`
 key). See `api/internal/config/config.go` for schema.
 
+## Baseline Surface-Adapter Seams
+
+**Location**: `api/internal/baseline/` (declarations) + `api/baseline_clients.go` (production wiring) + `api/internal/git/state.go`.
+
+The baseline subsystem captures and diffs a scenario's cross-surface review state (workflows, tests, structure, visuals, rules). It owns *pointers*, not artifacts (Decision 1). Every external dependency is an injected interface so the orchestration `Service` and the five adapters are unit-testable with fakes — the `baseline` package never imports the flat `main` package (no import cycle), so all live-dependency wiring lives in `baseline_clients.go`.
+
+| Seam | Declaration | Production Impl | Test Double | Why it exists |
+|---|---|---|---|---|
+| `SurfaceAdapter` | `internal/baseline/adapter.go` | `NewWorkflowsAdapter` / `NewTestsAdapter` / `NewStructureAdapter` / `NewRulesAdapter` / `NewVisualsAdapter` | `fakeAdapter` in `adapter_test.go` | One contract per review surface: `Capture`/`Diff`/`Available`. Service orchestrates; adapters own surface logic (Decision 3). |
+| `Executor` | `internal/baseline/adapter.go` | `baselineExecutor` (test-genie execute API) in `baseline_clients.go` | `fakeExecutor` in `fakes_test.go` | Triggers a phase-scoped test-genie run and returns the runID. |
+| `RunsClient` | `internal/baseline/adapter.go` | `baselineRunsClient` (test-genie `RunsService` Connect-RPC) | `fakeRunsClient` in `fakes_test.go` | Pin/unpin/compare runs; the workflows+tests adapters diff via `CompareRuns`. |
+| `Auditor` | `internal/baseline/adapter.go` | `baselineAuditor` (scenario-auditor start+poll) | `fakeAuditor` in `fakes_test.go` | Structure/rules scans normalized to line-number-stable `Issue` keys. |
+| `VisualClient` | `internal/baseline/adapter.go` | `baselineVisualClient` (GCT visual capture + storage) | `fakeVisualClient` in `fakes_test.go` | GCT-local visual snapshot capture/lookup. |
+| `StalenessProbe` | `internal/baseline/adapter.go` | `baselineStalenessProbe` (read-only `git rev-list`/`diff`) | injected fake in `service_test.go` | Commits/files-changed since the baseline sha; read-only (`feedback_no_git_mutations`). |
+| `CaptureGit` | `internal/baseline/service.go` (`Deps.CaptureGit`) | `git.Capture` (`internal/git/state.go`) | injected func in `service_test.go` | Reads sha/branch/dirty/detached; sandbox-aware; never mutates. |
+| `SnapshotStore` | `internal/baseline/localsnap.go` | `NewSnapshotStore` over the api-core storage resolver | `t.TempDir()`-rooted store in `storage_test.go` | GCT-local JSON snapshots for structure/rules issue sets. |
+
+Seam guardrails:
+- The `baseline` package imports neither `main` nor `connectrpc.com/connect`; transport + live clients stay in `baseline_clients.go` / `handlers/baseline/`.
+- Baseline manifests are pointers only — adapters reference test-genie runs (pinned) or GCT-local snapshot IDs; they never copy artifacts.
+- `BaselineStorage` is branch-scoped and `flock`-protected (`storage.go`); writes are atomic temp-file renames.
+
 ## Verification Checklist
 
 When adding new behavior, verify:
@@ -280,6 +302,7 @@ When adding new behavior, verify:
 - Repo registry updates go through `RepoService`/`RepoStore`.
 - Tests can swap in `FakeGitRunner`, `FakeWorkspaceSandboxAPI`, or `SQLiteRepoStore` (memory DB).
 - Cross-scenario HTTP client tests use `api/internal/testutil/httpx`.
-- Repository layout fixtures use `api/internal/testutil/fixtures`.
+- Repository layout fixtures use `api/internal/testutil/fixtures` — `WriteRepoContract` copies the **live** `.vrooli/repo-contract.json` verbatim; never hand-type a contract literal (it drifts when the schema gains a required field).
+- Baseline surface dependencies (`Executor`, `RunsClient`, `Auditor`, `VisualClient`, `StalenessProbe`, `CaptureGit`) are injected via `baseline.Deps`; tests use the fakes in `internal/baseline/fakes_test.go`, never live clients.
 - SQLite persistence tests use `api/internal/testutil/db`.
 - UI tests use the shared setup and React Query/fetch/viewport helpers.

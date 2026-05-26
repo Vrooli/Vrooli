@@ -17,9 +17,9 @@ import (
 // TestGenieEligibilityClient calls test-genie's EligibilityService Connect-RPC.
 // It is a thin wrapper: the GCT isolation handler is the only consumer.
 type TestGenieEligibilityClient struct {
-	timeout      time.Duration
-	resolveURL   func(ctx context.Context) (string, error)
-	makeClient   func(baseURL string) eligibility_v1connect.EligibilityServiceClient
+	timeout    time.Duration
+	resolveURL func(ctx context.Context) (string, error)
+	makeClient func(baseURL string) eligibility_v1connect.EligibilityServiceClient
 }
 
 // NewTestGenieEligibilityClient returns a client that resolves the live

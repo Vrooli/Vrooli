@@ -1473,7 +1473,7 @@ func TestIncidentRemediationsListsCandidates(t *testing.T) {
 }
 
 func TestGenerateIncidentRemediationPersistsArtifactReference(t *testing.T) {
-	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("VROOLI_STATE_ROOT", t.TempDir())
 	store := &mockStore{incident: testRemediationIncident()}
 	h := setupTestHandlers(store)
 

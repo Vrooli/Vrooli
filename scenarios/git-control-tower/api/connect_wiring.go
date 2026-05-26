@@ -7,10 +7,11 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/connectx"
 
+	baselineH "git-control-tower/handlers/baseline"
 	repoH "git-control-tower/handlers/repo"
 	worktreeH "git-control-tower/handlers/worktree"
-	repoD "git-control-tower/internal/repo"
 	"git-control-tower/internal/policygate"
+	repoD "git-control-tower/internal/repo"
 	worktreeD "git-control-tower/internal/worktree"
 )
 
@@ -60,8 +61,16 @@ func (s *Server) mountConnectHandlers() {
 	wtPath, wtHandler := worktreeH.NewHandler(worktreeH.Deps{Service: worktreeSvc}, policyOpt)
 	repoPath, repoHandler := repoH.NewHandler(repoH.Deps{Service: repoSvc}, policyOpt)
 
+	// Baselines: cross-surface review baseline substrate. The handler resolves
+	// the active repo and delegates capture/diff to baseline.Service.
+	baselinePath, baselineHandler := baselineH.NewHandler(baselineH.Deps{
+		Service: s.newBaselineService(),
+		Repos:   baselineRepoResolver{repos: s.repos},
+	}, policyOpt)
+
 	connectx.RegisterServices(s.router,
 		connectx.ServiceMount{Path: wtPath, Handler: wtHandler},
 		connectx.ServiceMount{Path: repoPath, Handler: repoHandler},
+		connectx.ServiceMount{Path: baselinePath, Handler: baselineHandler},
 	)
 }

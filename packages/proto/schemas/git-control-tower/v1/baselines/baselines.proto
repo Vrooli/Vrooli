@@ -1,0 +1,203 @@
+syntax = "proto3";
+
+package vrooli.git_control_tower.v1.baselines;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines;baselines_v1";
+
+// =============================================================================
+// BASELINES DOMAIN — cross-surface review baselines
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain baselines
+// @stability unstable
+//
+// Wire contract for BaselinesService, the surface over git-control-tower's
+// cross-surface baseline substrate. A baseline is a manifest of POINTERS
+// (Decision 1 — it owns no artifacts) into the surfaces that make up a
+// scenario's review state: workflows, tests, structure, visuals, rules.
+//
+// A baseline is the regression-diagnosis primitive that replaces `git stash`:
+// capture a baseline before implementing, diff it afterwards to ask "did my
+// change cause this failure, or was it preexisting?" without ever touching the
+// working tree.
+//
+// Consumed by:
+//   - CLI: `git-control-tower baseline {snapshot,diff,list,show,delete,create,
+//     edit}`.
+//   - UI (Plan B): baseline management surface.
+//
+// Storage is branch-scoped (Decision 2): data/<repoID>/baselines/<scenario>/
+// <branch>/<name>.json. Diff verdicts mirror test-genie's RunsService
+// classifier: clean / regression / new-failure / preexisting / not-comparable.
+// =============================================================================
+
+service BaselinesService {
+  // CreateBaseline writes a manifest WITHOUT capturing surfaces (power-user /
+  // UI path — pointers assembled manually via EditBaseline).
+  rpc CreateBaseline(CreateBaselineRequest) returns (CreateBaselineResponse);
+  // SnapshotForBaseline creates a baseline AND captures every requested
+  // surface (the agent path).
+  rpc SnapshotForBaseline(SnapshotForBaselineRequest) returns (SnapshotForBaselineResponse);
+  // GetBaseline returns a single baseline manifest.
+  rpc GetBaseline(GetBaselineRequest) returns (GetBaselineResponse);
+  // ListBaselines enumerates baselines for a scenario (optionally one branch).
+  rpc ListBaselines(ListBaselinesRequest) returns (ListBaselinesResponse);
+  // DiffBaseline compares a baseline against the current working tree.
+  rpc DiffBaseline(DiffBaselineRequest) returns (DiffBaselineResponse);
+  // DeleteBaseline removes a baseline and unpins the test-genie runs it held.
+  rpc DeleteBaseline(DeleteBaselineRequest) returns (DeleteBaselineResponse);
+  // EditBaseline re-points one surface at a different (pinned) test-genie run.
+  rpc EditBaseline(EditBaselineRequest) returns (EditBaselineResponse);
+}
+
+// GitState is the repository state recorded at capture time.
+message GitState {
+  string sha = 1;
+  string branch = 2;
+  bool detached = 3;
+  bool dirty = 4;
+  string dirty_summary = 5;
+  string commit_message = 6;
+  string commit_author = 7;
+  string commit_date = 8; // RFC3339
+  bool sandboxed = 9;
+}
+
+// SurfacePointer references a surface artifact by stable ID.
+message SurfacePointer {
+  string surface_id = 1;
+  string kind = 2; // test-genie-run | gct-local-snapshot | external
+  string ref = 3;
+  string captured_at = 4; // RFC3339
+  string summary = 5;     // surface-specific short summary (raw JSON)
+}
+
+// BaselineManifest is the stored baseline document.
+message BaselineManifest {
+  string name = 1;
+  string scenario = 2;
+  string branch = 3;
+  string created_at = 4; // RFC3339
+  string created_by = 5;
+  GitState git = 6;
+  map<string, SurfacePointer> surfaces = 7;
+  int32 schema_version = 8;
+}
+
+// SurfaceDiff is one surface's comparison verdict.
+message SurfaceDiff {
+  string surface_id = 1;
+  // verdict: clean | regression | new-failure | preexisting | not-comparable
+  string verdict = 2;
+  repeated string regressions = 3;
+  repeated string new_failures = 4;
+  repeated string preexisting = 5;
+  repeated string cleared = 6;
+  string summary = 7;
+}
+
+// Staleness reports working-tree drift from the baseline commit.
+message Staleness {
+  int32 commits_since = 1;
+  int32 files_changed = 2;
+  bool likely_stale = 3;
+}
+
+message CreateBaselineRequest {
+  string scenario = 1;
+  string name = 2;
+  string branch = 3; // empty = current branch
+  repeated string include = 4;
+  bool fast = 5;
+  string created_by = 6;
+  string reason = 7;
+  int64 repo_id = 8; // 0 = active repo
+}
+
+message CreateBaselineResponse {
+  BaselineManifest baseline = 1;
+  map<string, string> skipped = 2; // surface_id → reason it was skipped
+  string dirty_warning = 3;
+}
+
+message SnapshotForBaselineRequest {
+  string scenario = 1;
+  string name = 2;
+  string branch = 3;
+  repeated string include = 4;
+  bool fast = 5;
+  string created_by = 6;
+  string reason = 7;
+  int64 repo_id = 8;
+}
+
+message SnapshotForBaselineResponse {
+  BaselineManifest baseline = 1;
+  map<string, string> skipped = 2;
+  string dirty_warning = 3;
+}
+
+message GetBaselineRequest {
+  string scenario = 1;
+  string name = 2;
+  string branch = 3; // empty = current branch
+  int64 repo_id = 4;
+}
+
+message GetBaselineResponse {
+  BaselineManifest baseline = 1;
+}
+
+message ListBaselinesRequest {
+  string scenario = 1;
+  string branch = 2; // empty + all_branches=false = current branch
+  bool all_branches = 3;
+  int64 repo_id = 4;
+}
+
+message ListBaselinesResponse {
+  repeated BaselineManifest baselines = 1;
+}
+
+message DiffBaselineRequest {
+  string scenario = 1;
+  string name = 2;
+  string branch = 3;
+  string surface = 4; // empty = all surfaces
+  int64 repo_id = 5;
+}
+
+message DiffBaselineResponse {
+  BaselineManifest baseline = 1;
+  GitState current_git = 2;
+  Staleness staleness = 3;
+  repeated SurfaceDiff surfaces = 4;
+  // verdict is the worst per-surface verdict, driving the CLI exit code.
+  string verdict = 5;
+}
+
+message DeleteBaselineRequest {
+  string scenario = 1;
+  string name = 2;
+  string branch = 3;
+  int64 repo_id = 4;
+}
+
+message DeleteBaselineResponse {
+  bool deleted = 1;
+}
+
+message EditBaselineRequest {
+  string scenario = 1;
+  string name = 2;
+  string branch = 3;
+  string surface = 4;
+  string pin_run_id = 5;
+  string reason = 6;
+  int64 repo_id = 7;
+}
+
+message EditBaselineResponse {
+  BaselineManifest baseline = 1;
+}

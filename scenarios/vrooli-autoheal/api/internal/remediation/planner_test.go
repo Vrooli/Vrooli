@@ -12,7 +12,7 @@ import (
 
 func TestGenerateWritesNVIDIARemediationArtifactUnderUserState(t *testing.T) {
 	stateRoot := t.TempDir()
-	t.Setenv("XDG_STATE_HOME", stateRoot)
+	t.Setenv("VROOLI_STATE_ROOT", stateRoot)
 	service, err := NewService()
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
@@ -64,7 +64,7 @@ func TestGenerateWritesNVIDIARemediationArtifactUnderUserState(t *testing.T) {
 
 func TestOutcomeUpdatesGeneratedArtifactMetadata(t *testing.T) {
 	stateRoot := t.TempDir()
-	t.Setenv("XDG_STATE_HOME", stateRoot)
+	t.Setenv("VROOLI_STATE_ROOT", stateRoot)
 	service, err := NewService()
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)

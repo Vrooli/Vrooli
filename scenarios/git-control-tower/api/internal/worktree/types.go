@@ -55,12 +55,12 @@ type CreateInput struct {
 	RepoPath        string
 	NewWorktreePath string
 	// Exactly one of ExistingBranch / NewBranchName / Commit is set.
-	ExistingBranch  string
-	NewBranchName   string
-	NewBranchStart  string
-	Commit          string
-	Force           bool
-	Track           bool
+	ExistingBranch string
+	NewBranchName  string
+	NewBranchStart string
+	Commit         string
+	Force          bool
+	Track          bool
 }
 
 // CreateMode classifies the create variant. Used both by Service

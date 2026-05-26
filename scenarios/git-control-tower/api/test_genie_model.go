@@ -2,16 +2,18 @@ package main
 
 // TestExecutionRequest mirrors POST /api/v1/executions body in test-genie.
 type TestExecutionRequest struct {
-	ScenarioName string   `json:"scenarioName"`
-	Preset       string   `json:"preset,omitempty"`
-	Phases       []string `json:"phases,omitempty"`
-	Skip         []string `json:"skip,omitempty"`
-	FailFast     bool     `json:"failFast,omitempty"`
+	ScenarioName      string   `json:"scenarioName"`
+	Preset            string   `json:"preset,omitempty"`
+	Phases            []string `json:"phases,omitempty"`
+	Skip              []string `json:"skip,omitempty"`
+	FailFast          bool     `json:"failFast,omitempty"`
+	DiagnosticsPreset string   `json:"diagnosticsPreset,omitempty"` // none | light | full
 }
 
 // TestExecutionResult mirrors test-genie SuiteExecutionResult.
 type TestExecutionResult struct {
 	ExecutionID  string            `json:"executionId"`
+	RunID        string            `json:"runId,omitempty"` // runID-keyed history (pin/compare via RunsService)
 	ScenarioName string            `json:"scenarioName"`
 	Success      bool              `json:"success"`
 	StartedAt    string            `json:"startedAt"`

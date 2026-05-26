@@ -110,7 +110,6 @@ func TestLoaderSaveAndLoadGlobal(t *testing.T) {
 	originalHome := os.Getenv("HOME")
 	t.Cleanup(func() { _ = os.Setenv("HOME", originalHome) })
 	_ = os.Setenv("HOME", tempDir)
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tempDir, ".config"))
 
 	loader := NewLoader(tempDir)
 	cfg := DefaultConfig()
@@ -129,7 +128,7 @@ func TestLoaderSaveAndLoadGlobal(t *testing.T) {
 		t.Fatalf("expected loaded version test-1.0.0, got %#v", loaded)
 	}
 
-	expectedPath := filepath.Join(tempDir, ".config", "vrooli", "scenario-completeness-scoring", GlobalConfigFile)
+	expectedPath := filepath.Join(tempDir, ".vrooli", "config", "vrooli", "scenario-completeness-scoring", GlobalConfigFile)
 	if _, err := os.Stat(expectedPath); err != nil {
 		t.Fatalf("expected config file at %s: %v", expectedPath, err)
 	}
@@ -141,7 +140,6 @@ func TestLoaderUsesCanonicalGlobalConfigPath(t *testing.T) {
 	originalHome := os.Getenv("HOME")
 	t.Cleanup(func() { _ = os.Setenv("HOME", originalHome) })
 	_ = os.Setenv("HOME", tempDir)
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tempDir, ".config"))
 
 	loader := NewLoader(tempDir)
 	loaded, err := loader.LoadGlobal()
@@ -152,7 +150,7 @@ func TestLoaderUsesCanonicalGlobalConfigPath(t *testing.T) {
 		t.Fatalf("expected default config version to be populated")
 	}
 
-	newPath := filepath.Join(tempDir, ".config", "vrooli", "scenario-completeness-scoring", GlobalConfigFile)
+	newPath := filepath.Join(tempDir, ".vrooli", "config", "vrooli", "scenario-completeness-scoring", GlobalConfigFile)
 	if err := loader.SaveGlobal(loaded); err != nil {
 		t.Fatalf("SaveGlobal() error = %v", err)
 	}

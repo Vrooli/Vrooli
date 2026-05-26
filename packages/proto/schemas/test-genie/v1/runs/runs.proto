@@ -1,0 +1,173 @@
+syntax = "proto3";
+
+package vrooli.test_genie.v1.runs;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs;runs_v1";
+
+// =============================================================================
+// TEST-GENIE RUNS DOMAIN — append-only run history
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain test-genie
+// @stability unstable
+//
+// Wire contract for RunsService, the surface over test-genie's append-only run
+// index (coverage/runs.index.json). Each test-genie execution produces a stable
+// runID-keyed record; this service enumerates, inspects, pins, compares, and
+// deletes those records.
+//
+// Consumed by:
+//   - test-genie CLI: `test-genie runs {list,show,delete,pin,unpin,compare}`.
+//   - git-control-tower baseline adapters: pin a run to a baseline and compare
+//     a baseline run against the current run for regression diagnosis.
+//
+// Pins protect a run from retention GC while an external consumer references
+// it. Comparison classifies each phase as clean / regression / new-failure /
+// preexisting / not-comparable.
+// =============================================================================
+
+service RunsService {
+  // ListRuns enumerates runs for a scenario, newest-first.
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
+  // GetRun returns a single run record.
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  // DeleteRun removes a run's artifacts and index entry. Pinned runs require force.
+  rpc DeleteRun(DeleteRunRequest) returns (DeleteRunResponse);
+  // PinRun protects a run from retention GC on behalf of an external consumer.
+  rpc PinRun(PinRunRequest) returns (PinRunResponse);
+  // UnpinRun removes a consumer's pin.
+  rpc UnpinRun(UnpinRunRequest) returns (UnpinRunResponse);
+  // CompareRuns classifies the per-phase differences between two runs.
+  rpc CompareRuns(CompareRunsRequest) returns (CompareRunsResponse);
+  // GetPhaseArtifact returns the raw phase-results JSON for a run+phase.
+  rpc GetPhaseArtifact(GetPhaseArtifactRequest) returns (GetPhaseArtifactResponse);
+}
+
+// DiagnosticsInfo is the serialized diagnostics profile a run executed with.
+message DiagnosticsInfo {
+  bool video = 1;
+  bool console = 2;
+  bool network = 3;
+  bool har = 4;
+  bool trace = 5;
+  bool dom = 6;
+}
+
+// PinInfo is a single external pin protecting the run from GC.
+message PinInfo {
+  string pinned_by = 1;
+  string pinned_at = 2; // RFC3339
+  string reason = 3;
+}
+
+// PhaseInfo is a compact per-phase summary.
+message PhaseInfo {
+  string name = 1;
+  string status = 2; // passed | failed | skipped
+  double duration_seconds = 3;
+}
+
+// RunInfo mirrors the run index record.
+message RunInfo {
+  string run_id = 1;
+  string scenario = 2;
+  string started_at = 3;   // RFC3339
+  string completed_at = 4; // RFC3339, empty if in-progress
+  string status = 5;       // in_progress | passed | failed | aborted
+  repeated PhaseInfo phases = 6;
+  string git_sha = 7;
+  string git_branch = 8;
+  bool git_dirty = 9;
+  string git_dirty_summary = 10;
+  DiagnosticsInfo diagnostics = 11;
+  repeated PinInfo pins = 12;
+}
+
+message ListRunsRequest {
+  string scenario = 1;
+  string status = 2; // optional filter: passed | failed | ...
+  int32 limit = 3;   // 0 = all
+}
+
+message ListRunsResponse {
+  repeated RunInfo runs = 1;
+}
+
+message GetRunRequest {
+  string scenario = 1;
+  string run_id = 2;
+}
+
+message GetRunResponse {
+  RunInfo run = 1;
+}
+
+message DeleteRunRequest {
+  string scenario = 1;
+  string run_id = 2;
+  bool force = 3; // required to delete a pinned run
+}
+
+message DeleteRunResponse {
+  bool deleted = 1;
+}
+
+message PinRunRequest {
+  string scenario = 1;
+  string run_id = 2;
+  string pinned_by = 3; // e.g. "gct:baseline:plan-7c3"
+  string reason = 4;
+}
+
+message PinRunResponse {
+  RunInfo run = 1;
+}
+
+message UnpinRunRequest {
+  string scenario = 1;
+  string run_id = 2;
+  string pinned_by = 3;
+}
+
+message UnpinRunResponse {
+  RunInfo run = 1;
+}
+
+message CompareRunsRequest {
+  string scenario = 1;
+  string run_id_a = 2; // baseline
+  string run_id_b = 3; // current
+  string phase = 4;    // optional: restrict to one phase
+}
+
+// PhaseDiff classifies the difference for a single phase between run A and B.
+message PhaseDiff {
+  string phase = 1;
+  string status_a = 2;
+  string status_b = 3;
+  // verdict: clean | regression | new-failure | preexisting | not-comparable
+  string verdict = 4;
+  repeated string regressions = 5;          // passing in A, failing in B
+  repeated string new_failures = 6;         // absent in A, failing in B
+  repeated string preexisting_failures = 7; // failing in both
+  repeated string cleared_failures = 8;     // failing in A, passing in B
+}
+
+message CompareRunsResponse {
+  repeated PhaseDiff phases = 1;
+  // verdict is the worst per-phase verdict (regression > not-comparable >
+  // new-failure > clean), driving the CLI exit code.
+  string verdict = 2;
+}
+
+message GetPhaseArtifactRequest {
+  string scenario = 1;
+  string run_id = 2;
+  string phase = 3;
+}
+
+message GetPhaseArtifactResponse {
+  string content = 1;      // raw phase-results JSON
+  string content_type = 2; // "application/json"
+}

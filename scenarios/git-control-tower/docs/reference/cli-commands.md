@@ -41,6 +41,28 @@ Run `git-control-tower <group> --help` or `git-control-tower <group>
 | --- | --- |
 | `list`     | Query audit logs (`[--operation=TYPE] [--limit=N]`) |
 
+## `baseline` — Cross-surface review baselines (replaces `git stash` for diagnosis)
+
+A baseline is a manifest of pointers into a scenario's review surfaces
+(workflows, tests, structure, visuals, rules) captured before a change.
+`diff` it afterwards to ask "did my change cause this failure, or was it
+preexisting?" without touching the working tree. Backed by the
+`BaselinesService` Connect-RPC.
+
+| Subcommand | Description |
+| --- | --- |
+| `snapshot` | Capture a baseline (`--scenario --name [--branch] [--include w,t,...] [--fast\|--full] [--reason]`) |
+| `diff`     | Diff against the working tree (`--scenario --name [--branch] [--surface]`); exit `1` on regression, `2` on not-comparable |
+| `list`     | List baselines (`--scenario [--branch] [--all-branches]`) |
+| `show`     | Show one baseline (`--scenario --name [--branch]`) |
+| `delete`   | Delete a baseline and unpin its test-genie runs (`--scenario --name [--branch]`) |
+| `create`   | Create an empty baseline, no capture (`--scenario --name [--branch]`) |
+| `edit`     | Re-point a surface at a pinned test-genie run (`--scenario --name --surface --pin-run <runID>`) |
+
+All subcommands accept `--json` for machine output. `diff` exit codes:
+`0` safe to proceed (clean, or only new/preexisting failures), `1` regression
+(something that passed at baseline fails now), `2` not-comparable.
+
 ## CLI–API parity gaps
 
 Several API surfaces don't have CLI commands yet (e.g. visual capture,
