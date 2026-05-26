@@ -85,7 +85,7 @@ func TestRoutedDB_RoutesByContext(t *testing.T) {
 		t.Fatalf("pre-install test-mode without pool: got %q, want PRIMARY (fallback)", got)
 	}
 
-	if err := r.InstallTestPool(ctxPlain, testPath, "lease-route"); err != nil {
+	if err := r.InstallTestPool(ctxPlain, testPath, "lease-route", 0); err != nil {
 		t.Fatalf("install test pool: %v", err)
 	}
 
@@ -123,7 +123,7 @@ func TestRoutedDB_TransactionsArePoolBound(t *testing.T) {
 	}
 	defer r.Close()
 
-	if err := r.InstallTestPool(context.Background(), testPath, "lease-tx"); err != nil {
+	if err := r.InstallTestPool(context.Background(), testPath, "lease-tx", 0); err != nil {
 		t.Fatalf("install test pool: %v", err)
 	}
 
@@ -197,10 +197,10 @@ func TestRoutedDB_InstallTestPool_SameLeaseReplaces(t *testing.T) {
 	defer r.Close()
 
 	ctx := context.Background()
-	if err := r.InstallTestPool(ctx, firstTestPath, "lease-a"); err != nil {
+	if err := r.InstallTestPool(ctx, firstTestPath, "lease-a", 0); err != nil {
 		t.Fatalf("install 1: %v", err)
 	}
-	if err := r.InstallTestPool(ctx, secondTestPath, "lease-a"); err != nil {
+	if err := r.InstallTestPool(ctx, secondTestPath, "lease-a", 0); err != nil {
 		t.Fatalf("install 2 (same lease): %v", err)
 	}
 
@@ -228,11 +228,11 @@ func TestRoutedDB_InstallTestPool_RejectsDifferentLease(t *testing.T) {
 	defer r.Close()
 
 	ctx := context.Background()
-	if err := r.InstallTestPool(ctx, firstTestPath, "lease-a"); err != nil {
+	if err := r.InstallTestPool(ctx, firstTestPath, "lease-a", 0); err != nil {
 		t.Fatalf("install: %v", err)
 	}
 
-	err = r.InstallTestPool(ctx, secondTestPath, "lease-b")
+	err = r.InstallTestPool(ctx, secondTestPath, "lease-b", 0)
 	var conflict *database.ErrLeaseConflict
 	if !errorsAs(err, &conflict) {
 		t.Fatalf("expected *ErrLeaseConflict, got %v", err)
@@ -261,7 +261,7 @@ func TestRoutedDB_ClearTestPool_RejectsMismatchedLease(t *testing.T) {
 	}
 	defer r.Close()
 
-	if err := r.InstallTestPool(context.Background(), testPath, "lease-a"); err != nil {
+	if err := r.InstallTestPool(context.Background(), testPath, "lease-a", 0); err != nil {
 		t.Fatalf("install: %v", err)
 	}
 
@@ -321,7 +321,7 @@ func TestRoutedDB_ConcurrentInstallAndQuery(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 25; i++ {
-			if err := r.InstallTestPool(context.Background(), testPath, "lease-flap"); err != nil {
+			if err := r.InstallTestPool(context.Background(), testPath, "lease-flap", 0); err != nil {
 				t.Errorf("install: %v", err)
 				return
 			}

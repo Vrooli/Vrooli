@@ -13,6 +13,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -42,7 +43,8 @@ func NewService(db *database.RoutedDB) *Service {
 // map to CodeInternal.
 func (s *Service) InstallTestPool(ctx context.Context, req *connect.Request[routingv1.InstallTestPoolRequest]) (*connect.Response[routingv1.InstallTestPoolResponse], error) {
 	leaseID := req.Msg.GetLeaseId()
-	if err := s.db.InstallTestPool(ctx, req.Msg.GetDsn(), leaseID); err != nil {
+	ttl := time.Duration(req.Msg.GetLeaseTtlMs()) * time.Millisecond
+	if err := s.db.InstallTestPool(ctx, req.Msg.GetDsn(), leaseID, ttl); err != nil {
 		var conflict *database.ErrLeaseConflict
 		if errors.As(err, &conflict) {
 			return nil, connect.NewError(connect.CodeAlreadyExists, err)
@@ -54,8 +56,12 @@ func (s *Service) InstallTestPool(ctx context.Context, req *connect.Request[rout
 
 // ClearTestPool implements routing_v1connect.RoutingServiceHandler.
 //
-// Lease mismatches map to connect.CodeFailedPrecondition.
+// Lease mismatches map to connect.CodeFailedPrecondition. The response
+// carries a LeaseStats snapshot taken just before the clear so callers
+// (test-genie) can detect that the routed run actually exercised the test
+// pool.
 func (s *Service) ClearTestPool(ctx context.Context, req *connect.Request[routingv1.ClearTestPoolRequest]) (*connect.Response[routingv1.ClearTestPoolResponse], error) {
+	snapshot := s.db.LeaseStats()
 	if err := s.db.ClearTestPool(req.Msg.GetLeaseId()); err != nil {
 		var mismatch *database.ErrLeaseMismatch
 		if errors.As(err, &mismatch) {
@@ -63,7 +69,28 @@ func (s *Service) ClearTestPool(ctx context.Context, req *connect.Request[routin
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&routingv1.ClearTestPoolResponse{}), nil
+	return connect.NewResponse(&routingv1.ClearTestPoolResponse{
+		Stats: &routingv1.LeaseStats{
+			TestPoolRequests:               snapshot.TestPoolRequests,
+			PrimaryDuringTestModeRequests:  snapshot.PrimaryDuringTestModeRequests,
+		},
+	}), nil
+}
+
+// HeartbeatTestPool extends the active lease's expiry. Lease mismatches
+// map to connect.CodeFailedPrecondition.
+func (s *Service) HeartbeatTestPool(ctx context.Context, req *connect.Request[routingv1.HeartbeatTestPoolRequest]) (*connect.Response[routingv1.HeartbeatTestPoolResponse], error) {
+	expiresAt, err := s.db.HeartbeatTestPool(req.Msg.GetLeaseId(), 0)
+	if err != nil {
+		var mismatch *database.ErrLeaseMismatch
+		if errors.As(err, &mismatch) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&routingv1.HeartbeatTestPoolResponse{
+		ExpiresAtUnixMs: expiresAt.UnixMilli(),
+	}), nil
 }
 
 // Mux is the minimal interface satisfied by *http.ServeMux and the
