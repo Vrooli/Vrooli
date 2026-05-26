@@ -26,22 +26,28 @@ func buildRuntimeRoot(t *testing.T) string {
 			}
 		}
 	}
-	// Well-known (should appear).
+	// Durable (regenerable=false in the contract → should appear).
 	mkdirWithFile("plans", "p.md", "plan body")
 	mkdirWithFile("state", "s.json", "{}")
 	mkdirWithFile("config", "c.yaml", "k: v")
+	mkdirWithFile("data", "d.bin", "durable")
+	// runtime.db lives under state/ (contract runtime_db path = state/runtime.db).
+	if err := os.WriteFile(filepath.Join(root, "state", "runtime.db"), []byte("SQLitefakebytes"), 0o644); err != nil {
+		t.Fatalf("write runtime.db: %v", err)
+	}
 	if err := os.WriteFile(filepath.Join(root, "secrets.json"), []byte(`{"k":"v"}`), 0o600); err != nil {
 		t.Fatalf("write secrets: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "runtime.db"), []byte("SQLitefakebytes"), 0o644); err != nil {
-		t.Fatalf("write runtime.db: %v", err)
+	if err := os.WriteFile(filepath.Join(root, "secrets.enc.json"), []byte(`{"enc":"v"}`), 0o600); err != nil {
+		t.Fatalf("write secrets.enc: %v", err)
 	}
-	// Ephemeral (should NOT appear).
+	// Regenerable (should NOT appear).
 	mkdirWithFile("logs", "a.log", "noise")
 	mkdirWithFile("cache", "x", "noise")
 	mkdirWithFile("metrics", "m", "noise")
 	mkdirWithFile("bin", "tool", "noise")
 	mkdirWithFile("processes", "p", "noise")
+	mkdirWithFile("build", "b", "noise")
 	return root
 }
 
@@ -59,7 +65,10 @@ func TestWellKnownScannerCoversRuntimeStateOnly(t *testing.T) {
 		byName[c.Name] = c
 	}
 
-	wantNames := []string{"plans", "state", "config", "secrets", "runtime-db"}
+	// The durable inventory is contract-driven: plans/state/config/data plus the
+	// secrets pair and the runtime DB. `data` is now first-class (it was silently
+	// omitted by the old hard-coded list).
+	wantNames := []string{"plans", "state", "config", "data", "secrets", "secrets-enc", "runtime-db"}
 	if len(got) != len(wantNames) {
 		t.Fatalf("expected %d candidates, got %d: %+v", len(wantNames), len(got), got)
 	}
@@ -76,20 +85,29 @@ func TestWellKnownScannerCoversRuntimeStateOnly(t *testing.T) {
 		}
 	}
 
-	// runtime.db is suggested as a SQLite source (Contract Decision D5).
+	// data/ must be suggested (regression guard for the old omission).
+	if _, ok := byName["data"]; !ok {
+		t.Error("data must be suggested as a durable target")
+	}
+
+	// runtime.db is suggested as a SQLite source (Contract Decision D5) and lives
+	// under state/ per the contract runtime_db path.
 	if k := byName["runtime-db"].SourceKind; k != sources.KindSQLite {
 		t.Errorf("runtime-db source kind = %q, want sqlite", k)
+	}
+	if base := filepath.Base(byName["runtime-db"].Locator); base != "runtime.db" {
+		t.Errorf("runtime-db locator base = %q, want runtime.db", base)
 	}
 	if k := byName["plans"].SourceKind; k != sources.KindFilesystem {
 		t.Errorf("plans source kind = %q, want filesystem", k)
 	}
 
-	// No ephemeral dirs leaked in.
+	// No regenerable dirs leaked in.
 	for _, c := range got {
 		base := filepath.Base(c.Locator)
-		for _, banned := range []string{"logs", "cache", "metrics", "bin", "processes"} {
+		for _, banned := range []string{"logs", "cache", "metrics", "bin", "processes", "build"} {
 			if base == banned {
-				t.Errorf("ephemeral dir %q must not be suggested", banned)
+				t.Errorf("regenerable dir %q must not be suggested", banned)
 			}
 		}
 	}

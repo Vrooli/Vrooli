@@ -60,7 +60,10 @@ func LogsHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
 }
 
 func cleanScenarioLogs(root, home, name string, stdout io.Writer) error {
-	logsDir := process.ScenarioLogsDir(home, name)
+	logsDir, err := process.ScenarioLogsDir(home, name)
+	if err != nil {
+		return err
+	}
 	if _, err := os.Stat(logsDir); err != nil {
 		if os.IsNotExist(err) {
 			_, _ = fmt.Fprintf(stdout, "No log directory found for scenario '%s'. Nothing to clean.\n", name)
@@ -102,7 +105,10 @@ func cleanScenarioLogs(root, home, name string, stdout io.Writer) error {
 }
 
 func showScenarioRuntimeLogs(home, name string, opts LogOptions, stdout io.Writer) error {
-	logsDir := process.ScenarioLogsDir(home, name)
+	logsDir, err := process.ScenarioLogsDir(home, name)
+	if err != nil {
+		return err
+	}
 	paths, err := filepath.Glob(filepath.Join(logsDir, "*.log"))
 	if err != nil {
 		return err
@@ -124,7 +130,10 @@ func showScenarioRuntimeLogs(home, name string, opts LogOptions, stdout io.Write
 }
 
 func showScenarioStepLog(home, name string, opts LogOptions, stdout io.Writer) error {
-	logsDir := process.ScenarioLogsDir(home, name)
+	logsDir, err := process.ScenarioLogsDir(home, name)
+	if err != nil {
+		return err
+	}
 	suffix := ".log"
 	if opts.Previous {
 		suffix = ".log.bak"
@@ -156,7 +165,10 @@ func showScenarioStepLog(home, name string, opts LogOptions, stdout io.Writer) e
 
 func showScenarioLifecycleLog(root, home, name string, opts LogOptions, stdout, stderr io.Writer) error {
 	_ = stderr
-	path := process.ScenarioLifecycleLogPath(home, name)
+	path, err := process.ScenarioLifecycleLogPath(home, name)
+	if err != nil {
+		return err
+	}
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("no lifecycle log found for scenario %q", name)
@@ -195,7 +207,11 @@ func writeScenarioLogSnapshotNotice(w io.Writer) {
 
 func writeScenarioLogDiscovery(root, home, name string, stdout, stderr io.Writer) error {
 	_ = stderr
-	paths, err := filepath.Glob(filepath.Join(process.ScenarioLogsDir(home, name), "vrooli.*."+name+".*.log"))
+	logsDir, err := process.ScenarioLogsDir(home, name)
+	if err != nil {
+		return err
+	}
+	paths, err := filepath.Glob(filepath.Join(logsDir, "vrooli.*."+name+".*.log"))
 	if err != nil {
 		return err
 	}

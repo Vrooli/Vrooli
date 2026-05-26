@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/portspec"
@@ -320,7 +321,11 @@ func runProtoGenerate(repoRoot string) error {
 // pruned records as StopReport result items. The sweep is best-effort: an
 // unreadable scenario directory is skipped, not reported as an error.
 func (c *Controller) cleanStaleScenarioRecords() ([]control.ResultItem, error) {
-	root := filepath.Join(c.Home, ".vrooli", "processes", "scenarios")
+	processesDir, err := repocontract.RuntimeHomeEntryPath(c.Home, repocontract.HomeKeyProcesses)
+	if err != nil {
+		return nil, err
+	}
+	root := filepath.Join(processesDir, "scenarios")
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -373,7 +378,10 @@ func (c *Controller) DiagnosePort(port int, scenarioName string) (PortDiagnostic
 		return PortDiagnostic{}, err
 	}
 
-	lockPath := network.LockPath(c.Home, port)
+	lockPath, err := network.LockPath(c.Home, port)
+	if err != nil {
+		return PortDiagnostic{}, err
+	}
 	var lock *LockInfo
 	if info, err := os.Stat(lockPath); err == nil && !info.IsDir() {
 		lockInfo, err := readLockFileFn(lockPath)
@@ -669,12 +677,14 @@ func processPathBase(path string) string {
 func vrooliOwnedPrefixes(root, home string) []string {
 	sep := string(filepath.Separator)
 	prefixes := []string{
-		filepath.Join(home, ".vrooli") + sep,
 		filepath.Join(root, "scenarios") + sep,
 		filepath.Join(root, "resources") + sep,
 		filepath.Join(root, "bin") + sep,
 		filepath.Join(root, "packages") + sep,
 		filepath.Join(root, "cmd") + sep,
+	}
+	if vrooliHome, err := repocontract.VrooliUserRoot(home); err == nil {
+		prefixes = append(prefixes, vrooliHome+sep)
 	}
 	return prefixes
 }

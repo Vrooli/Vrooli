@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 const systemdUserUnitName = "vrooli-runtime-supervisor.service"
@@ -43,7 +45,7 @@ func InstallService(ctx context.Context, opts ServiceInstallOptions) (ServiceIns
 	home := strings.TrimSpace(opts.HomeDir)
 	if home == "" {
 		var err error
-		home, err = os.UserHomeDir()
+		home, err = config.HomeDir()
 		if err != nil {
 			return ServiceInstallResult{}, fmt.Errorf("resolve user home: %w", err)
 		}

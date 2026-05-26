@@ -15,8 +15,10 @@ import (
 	"syscall"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cliinstall"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/lifecycle"
@@ -73,7 +75,7 @@ type setupDeps struct {
 	loadProject                 func(string) (scenario.Scenario, error)
 	markComplete                func(string, string) error
 	syncResourceSchema          func(string) error
-	newCLIInstallManager        func(root, home string) cliInstallManager
+	newCLIInstallManager        func(root, home string) (cliInstallManager, error)
 	resolveHostRequirements     func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error)
 	inspectRequirements         func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error)
 	ensureRequirements          func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error)
@@ -99,7 +101,7 @@ func defaultSetupDeps() setupDeps {
 		loadProject:        project.LoadProject,
 		markComplete:       markComplete,
 		syncResourceSchema: syncResourceSchemaArtifacts,
-		newCLIInstallManager: func(root, home string) cliInstallManager {
+		newCLIInstallManager: func(root, home string) (cliInstallManager, error) {
 			return cliinstall.NewManager(root, home)
 		},
 		resolveHostRequirements: hostreq.Resolve,
@@ -154,6 +156,13 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 		if err := ensureProjectFilesystem(root, home); err != nil {
 			return err
 		}
+		// Heal any root-owned strays a prior sudo'd run left in the operator's
+		// home. No-op unless this invocation is itself root-via-sudo.
+		if reowned, rerr := config.ReconcileVrooliOwnership(); rerr != nil {
+			fmt.Fprintf(stderr, "warning: could not reconcile ~/.vrooli ownership: %v\n", rerr)
+		} else if reowned > 0 {
+			fmt.Fprintf(stdout, "Reclaimed ownership of %d root-owned entries under ~/.vrooli.\n", reowned)
+		}
 	}
 	requirements, err := s.deps.resolveHostRequirements(root, home, hostreq.ResolveOptions{
 		Environment: opts.Environment,
@@ -192,7 +201,10 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	if err := s.deps.syncResourceSchema(root); err != nil {
 		return err
 	}
-	cliManager := s.deps.newCLIInstallManager(root, home)
+	cliManager, err := s.deps.newCLIInstallManager(root, home)
+	if err != nil {
+		return err
+	}
 	if err := cliManager.InstallEnabledResourceCLIs(); err != nil {
 		return err
 	}
@@ -209,7 +221,8 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 }
 
 func RunBuild(root, home string, stdout, stderr io.Writer) error {
-	if err := os.MkdirAll(filepath.Join(root, ".vrooli", "build"), 0o755); err != nil {
+	buildDir := filepath.Join(config.RepoConfigDir(root), "build")
+	if err := os.MkdirAll(buildDir, 0o755); err != nil {
 		return err
 	}
 
@@ -221,10 +234,10 @@ func RunBuild(root, home string, stdout, stderr io.Writer) error {
 	}
 	buildTime := time.Now().UTC().Format(time.RFC3339)
 
-	if err := buildProjectBinary(root, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "./cmd/vrooli-api", []string{"cmd/vrooli-api", "internal"}, gitCommit, buildTime, stdout, stderr); err != nil {
+	if err := buildProjectBinary(root, filepath.Join(buildDir, "vrooli-api"), "./cmd/vrooli-api", []string{"cmd/vrooli-api", "internal"}, gitCommit, buildTime, stdout, stderr); err != nil {
 		return err
 	}
-	if err := buildProjectBinary(root, filepath.Join(root, ".vrooli", "build", "vrooli"), "./cmd/vrooli", []string{"cmd/vrooli", "internal"}, gitCommit, buildTime, stdout, stderr); err != nil {
+	if err := buildProjectBinary(root, filepath.Join(buildDir, "vrooli"), "./cmd/vrooli", []string{"cmd/vrooli", "internal"}, gitCommit, buildTime, stdout, stderr); err != nil {
 		return err
 	}
 	return nil
@@ -326,16 +339,29 @@ func ensureProjectFilesystem(root, home string) error {
 	if err != nil {
 		return err
 	}
-	paths := []string{
+	// Repo-project paths (under the repo root, covered by layout.project_config_dir).
+	for _, path := range []string{
 		filepath.Join(root, "data"),
-		filepath.Join(root, ".vrooli", "build"),
-		filepath.Join(home, ".vrooli", "bin"),
-		filepath.Join(home, ".vrooli", "logs"),
-		filepath.Join(home, ".vrooli", "processes"),
-		locator.SetupStateDir(),
-	}
-	for _, path := range paths {
+		filepath.Join(config.RepoConfigDir(root), "build"),
+	} {
 		if err := os.MkdirAll(path, 0o755); err != nil {
+			return err
+		}
+	}
+	// Operator-home paths: resolve names from the runtime_home authority and
+	// route every create through the owned-write seam so a sudo'd setup never
+	// leaves root-owned dirs in the operator's home.
+	homeDirs := make([]string, 0, 4)
+	for _, key := range []string{repocontract.HomeKeyBin, repocontract.HomeKeyLogs, repocontract.HomeKeyProcesses} {
+		dir, err := repocontract.RuntimeHomeEntryPath(home, key)
+		if err != nil {
+			return err
+		}
+		homeDirs = append(homeDirs, dir)
+	}
+	homeDirs = append(homeDirs, locator.SetupStateDir())
+	for _, dir := range homeDirs {
+		if _, err := config.EnsureOwnedDir(dir); err != nil {
 			return err
 		}
 	}
@@ -431,7 +457,7 @@ type resourceRunner interface {
 }
 
 func enabledResourceNames(root string) ([]string, error) {
-	servicePath := filepath.Join(root, ".vrooli", "service.json")
+	servicePath := filepath.Join(config.RepoConfigDir(root), "service.json")
 	manifest, err := scenario.ReadService(servicePath)
 	if err != nil {
 		return nil, err
@@ -559,13 +585,21 @@ func apiAlreadyHealthy(port int) (bool, error) {
 }
 
 func buildAPILaunchSpec(root, home string, env []string, port int) (apiLaunchSpec, error) {
-	logFile := filepath.Join(home, ".vrooli", "logs", "vrooli-api.log")
+	logsDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyLogs)
+	if err != nil {
+		return apiLaunchSpec{}, err
+	}
+	binDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
+	if err != nil {
+		return apiLaunchSpec{}, err
+	}
+	logFile := filepath.Join(logsDir, "vrooli-api.log")
 	for _, candidate := range []struct {
 		command string
 		args    []string
 	}{
-		{command: filepath.Join(root, ".vrooli", "build", "vrooli-api")},
-		{command: filepath.Join(home, ".vrooli", "bin", "vrooli-api")},
+		{command: filepath.Join(config.RepoConfigDir(root), "build", "vrooli-api")},
+		{command: filepath.Join(binDir, "vrooli-api")},
 		{command: "go", args: []string{"run", "./cmd/vrooli-api"}},
 	} {
 		if candidate.command == "go" {
@@ -809,8 +843,7 @@ func markComplete(home, root string) error {
 	if err != nil {
 		return err
 	}
-	stateDir := locator.SetupStateDir()
-	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+	if _, err := config.EnsureOwnedDir(locator.SetupStateDir()); err != nil {
 		return err
 	}
 
@@ -825,10 +858,7 @@ func markComplete(home, root string) error {
 		return err
 	}
 	data = append(data, '\n')
-	if err := os.WriteFile(locator.SetupCompletePath(), data, 0o644); err != nil {
-		return err
-	}
-	return nil
+	return config.WriteOwnedFile(locator.SetupCompletePath(), data, 0o644)
 }
 
 // runSetupStatus runs an inspection-only pass and prints the grouped overview.

@@ -9,6 +9,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 const (
@@ -59,19 +62,23 @@ func readTextFile(path string) (string, error) {
 
 func persistentFallbackSession(home string) (string, error) {
 	if strings.TrimSpace(home) == "" {
-		resolved, err := os.UserHomeDir()
+		resolved, err := config.HomeDir()
 		if err != nil {
 			return "", fmt.Errorf("resolve home directory: %w", err)
 		}
 		home = resolved
 	}
-	path := filepath.Join(home, ".vrooli", "state", sessionFile)
+	stateDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(stateDir, sessionFile)
 	if token, err := readTextFile(path); err == nil && token != "" {
 		return token, nil
 	} else if err != nil && !os.IsNotExist(err) {
 		return "", fmt.Errorf("read host session fallback token: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if _, err := config.EnsureOwnedDir(filepath.Dir(path)); err != nil {
 		return "", fmt.Errorf("prepare host session directory: %w", err)
 	}
 	var raw [16]byte
@@ -79,7 +86,7 @@ func persistentFallbackSession(home string) (string, error) {
 		return "", fmt.Errorf("generate host session fallback token: %w", err)
 	}
 	token := hex.EncodeToString(raw[:])
-	if err := os.WriteFile(path, []byte(token+"\n"), 0o600); err != nil {
+	if err := config.WriteOwnedFile(path, []byte(token+"\n"), 0o600); err != nil {
 		return "", fmt.Errorf("write host session fallback token: %w", err)
 	}
 	return token, nil

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
@@ -45,6 +46,7 @@ var (
 type Manager struct {
 	Root          string
 	Home          string
+	stateDir      string // resolved once from the runtime_home authority
 	Now           func() time.Time
 	ResourcePorts map[string]int
 }
@@ -113,16 +115,22 @@ func NewManager(root, home string) (*Manager, error) {
 	if err != nil {
 		return nil, err
 	}
+	cleanHome := filepath.Clean(home)
+	stateDir, err := process.ScenarioStateDir(cleanHome)
+	if err != nil {
+		return nil, err
+	}
 	return &Manager{
 		Root:          filepath.Clean(root),
-		Home:          filepath.Clean(home),
+		Home:          cleanHome,
+		stateDir:      stateDir,
 		Now:           time.Now,
 		ResourcePorts: registry.ResourcePorts,
 	}, nil
 }
 
 func (m *Manager) StateDir() string {
-	return process.ScenarioStateDir(m.Home)
+	return m.stateDir
 }
 
 func (m *Manager) lockPath(port int) string {
@@ -134,7 +142,8 @@ func (m *Manager) mutationLockPath(port int) string {
 }
 
 func (m *Manager) EnsureStateDir() error {
-	return os.MkdirAll(m.StateDir(), 0o755)
+	_, err := config.EnsureOwnedDir(m.StateDir())
+	return err
 }
 
 func (m *Manager) ReadLock(port int) (Lock, bool, error) {
@@ -262,6 +271,7 @@ func (m *Manager) acquireMutationLock(port int) (func(), error) {
 				_ = os.Remove(path)
 				return nil, closeErr
 			}
+			_ = config.ChownToInvokingUser(path)
 			return func() {
 				_ = os.Remove(path)
 			}, nil
@@ -360,7 +370,8 @@ func writeFileAtomically(path string, data []byte, perm os.FileMode) error {
 		cleanup()
 		return err
 	}
-	return nil
+	// A sudo'd write would otherwise leave this root-owned in the operator's home.
+	return config.ChownToInvokingUser(path)
 }
 
 func (m *Manager) CleanStaleLocks() error {

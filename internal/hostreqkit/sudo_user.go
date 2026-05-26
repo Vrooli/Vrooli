@@ -46,6 +46,7 @@ package hostreqkit
 import (
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -67,6 +68,37 @@ func InvokingUser() string {
 		}
 	}
 	return strings.TrimSpace(os.Getenv("USER"))
+}
+
+// InvokingUserIDs returns the numeric uid/gid of the operator who escalated via
+// sudo, read from the authoritative $SUDO_UID/$SUDO_GID that sudo itself sets
+// (no /etc/passwd parse needed). `ok` is true only when the process is
+// root-via-sudo and both ids parse to a non-root uid — exactly the case where
+// an in-process write into the operator's home would otherwise be left owned by
+// root. When `ok` is false the caller must NOT chown: either no escalation
+// happened (writes already land as the right user) or the target identity is
+// unknown.
+func InvokingUserIDs() (uid int, gid int, ok bool) {
+	if !RunningAsRootFn() {
+		return 0, 0, false
+	}
+	if strings.TrimSpace(os.Getenv("SUDO_USER")) == "" {
+		return 0, 0, false
+	}
+	uidStr := strings.TrimSpace(os.Getenv("SUDO_UID"))
+	gidStr := strings.TrimSpace(os.Getenv("SUDO_GID"))
+	if uidStr == "" || gidStr == "" {
+		return 0, 0, false
+	}
+	u, err := strconv.Atoi(uidStr)
+	if err != nil || u == 0 {
+		return 0, 0, false
+	}
+	g, err := strconv.Atoi(gidStr)
+	if err != nil {
+		return 0, 0, false
+	}
+	return u, g, true
 }
 
 // InvokingUserHomeDir returns the home directory of InvokingUser. Reads

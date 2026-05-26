@@ -10,6 +10,7 @@
     "platform",
     "root",
     "layout",
+    "runtime_home",
     "scenario",
     "resource",
     "globs",
@@ -92,6 +93,40 @@
         "command_dir": { "$ref": "#/definitions/slashPath" },
         "internal_dir": { "$ref": "#/definitions/slashPath" },
         "docs_dir": { "$ref": "#/definitions/slashPath" }
+      },
+      "additionalProperties": false
+    },
+    "runtime_home": {
+      "type": "object",
+      "description": "Structural authority for the operator runtime home ($HOME/.vrooli): its directory name and the well-known entries inside it. Distinct from layout.project_config_dir (the repo-relative .vrooli). Resolution (sudo-awareness) is NOT defined here — only structure.",
+      "required": ["dir_name", "env_overrides", "entries", "scoped"],
+      "properties": {
+        "dir_name": {
+          "type": "string",
+          "const": ".vrooli",
+          "description": "Name of the runtime-home directory relative to the operator's OS home."
+        },
+        "env_overrides": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/envVarName" },
+          "description": "Environment variables that may override the resolved home root. Empty: no overrides are honored (single resolution path)."
+        },
+        "entries": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/definitions/homeEntry" },
+          "description": "Well-known entries directly under the runtime home, keyed by stable logical name."
+        },
+        "scoped": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Slash-normalized home-relative template path with {param} placeholders."
+          },
+          "description": "Parameterized home-relative paths (e.g. per-scenario, per-project) expanded with caller-supplied params."
+        }
       },
       "additionalProperties": false
     },
@@ -235,6 +270,35 @@
     "envVarName": {
       "type": "string",
       "pattern": "^[A-Z][A-Z0-9_]*$"
+    },
+    "homeEntry": {
+      "type": "object",
+      "required": ["path", "kind", "regenerable"],
+      "properties": {
+        "path": {
+          "$ref": "#/definitions/slashPath",
+          "description": "Home-relative path of this entry."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["dir", "file"],
+          "description": "Whether this entry is a directory or a file."
+        },
+        "regenerable": {
+          "type": "boolean",
+          "description": "True if the data here can be reconstructed by the platform (caches, logs, build output); false if it is durable operator state that must be preserved."
+        },
+        "format": {
+          "type": "string",
+          "enum": ["sqlite", "json"],
+          "description": "On-disk format hint for file entries."
+        },
+        "sensitive": {
+          "type": "boolean",
+          "description": "True if the entry holds secrets and must never be read into UIs or logs."
+        }
+      },
+      "additionalProperties": false
     },
     "profile": {
       "type": "object",

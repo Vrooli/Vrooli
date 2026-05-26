@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 )
 
@@ -54,8 +55,46 @@ func invokingUserHomeWhenSudoed() (string, bool) {
 	return home, true
 }
 
-func VrooliDir(home string) string {
-	return filepath.Join(home, ".vrooli")
+// VrooliHome returns the absolute operator runtime-home root (the sudo-aware
+// $HOME joined with the contract's runtime_home dir name). This is the single
+// internal resolution entrypoint for the runtime home: sudo-awareness comes
+// from HomeDir(); the structural name comes from the repo contract. Contract
+// load failure is a hard error (no fallback).
+func VrooliHome() (string, error) {
+	home, err := HomeDir()
+	if err != nil {
+		return "", err
+	}
+	return repocontract.VrooliUserRoot(home)
+}
+
+// VrooliPath resolves a well-known runtime-home entry (by repocontract.HomeKey*)
+// and optionally joins consumer-specific sub-components beneath it. The entry
+// name always comes from the contract; sub-components are caller structure under
+// that contract-defined root.
+func VrooliPath(key string, sub ...string) (string, error) {
+	home, err := HomeDir()
+	if err != nil {
+		return "", err
+	}
+	base, err := repocontract.RuntimeHomeEntryPath(home, key)
+	if err != nil {
+		return "", err
+	}
+	if len(sub) == 0 {
+		return base, nil
+	}
+	return filepath.Join(append([]string{base}, sub...)...), nil
+}
+
+// VrooliScopedPath expands a parameterized runtime-home template (by
+// repocontract.Scoped*) against the sudo-aware home.
+func VrooliScopedPath(key string, params map[string]string) (string, error) {
+	home, err := HomeDir()
+	if err != nil {
+		return "", err
+	}
+	return repocontract.RuntimeHomeScopedPath(home, key, params)
 }
 
 func RepoConfigDir(root string) string {

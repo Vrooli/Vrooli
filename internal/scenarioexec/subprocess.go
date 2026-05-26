@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/api-core/scenariocli"
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -66,7 +67,8 @@ func LocateTestGenieCLI(lookPath func(string) (string, error), root, home string
 	_ = lookPath
 	path, err := scenariocli.ResolveExecutable(root, home, "test-genie")
 	if err != nil {
-		homeCLI := filepath.Join(config.VrooliDir(home), "bin", "test-genie")
+		homeCLI, _ := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
+		homeCLI = filepath.Join(homeCLI, "test-genie")
 		return "", fmt.Errorf("test-genie CLI not found via manifest-driven resolution (checked VROOLI_TEST_GENIE_CLI and attempted %s): %w", homeCLI, err)
 	}
 	return path, nil
@@ -74,10 +76,11 @@ func LocateTestGenieCLI(lookPath func(string) (string, error), root, home string
 
 func LocateScenarioCompletenessCLI(lookPath func(string) (string, error), root string) (string, error) {
 	_ = lookPath
-	home, _ := os.UserHomeDir()
+	home, _ := config.HomeDir()
 	path, err := scenariocli.ResolveExecutable(root, home, "scenario-completeness-scoring")
 	if err != nil {
-		homeCLI := filepath.Join(config.VrooliDir(home), "bin", "scenario-completeness-scoring")
+		homeCLI, _ := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
+		homeCLI = filepath.Join(homeCLI, "scenario-completeness-scoring")
 		return "", fmt.Errorf("scenario-completeness-scoring CLI not found via manifest-driven resolution (attempted %s): %w", homeCLI, err)
 	}
 	return path, nil

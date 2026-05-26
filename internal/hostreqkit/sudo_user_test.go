@@ -19,6 +19,53 @@ func TestInvokingUserPrefersSudoUserWhenRoot(t *testing.T) {
 	}
 }
 
+func TestInvokingUserIDsReadsSudoEnvWhenRoot(t *testing.T) {
+	origRoot := RunningAsRootFn
+	defer func() { RunningAsRootFn = origRoot }()
+	RunningAsRootFn = func() bool { return true }
+
+	t.Setenv("SUDO_USER", "alice")
+	t.Setenv("SUDO_UID", "1000")
+	t.Setenv("SUDO_GID", "1001")
+
+	uid, gid, ok := InvokingUserIDs()
+	if !ok {
+		t.Fatal("InvokingUserIDs ok = false, want true")
+	}
+	if uid != 1000 || gid != 1001 {
+		t.Fatalf("InvokingUserIDs = (%d,%d), want (1000,1001)", uid, gid)
+	}
+}
+
+func TestInvokingUserIDsNotOkCases(t *testing.T) {
+	cases := []struct {
+		name    string
+		root    bool
+		sudoUsr string
+		uid     string
+		gid     string
+	}{
+		{"not root", false, "alice", "1000", "1001"},
+		{"root without sudo", true, "", "1000", "1001"},
+		{"missing uid", true, "alice", "", "1001"},
+		{"non-numeric uid", true, "alice", "x", "1001"},
+		{"root uid rejected", true, "alice", "0", "0"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			origRoot := RunningAsRootFn
+			defer func() { RunningAsRootFn = origRoot }()
+			RunningAsRootFn = func() bool { return tc.root }
+			t.Setenv("SUDO_USER", tc.sudoUsr)
+			t.Setenv("SUDO_UID", tc.uid)
+			t.Setenv("SUDO_GID", tc.gid)
+			if _, _, ok := InvokingUserIDs(); ok {
+				t.Fatalf("InvokingUserIDs ok = true, want false for %q", tc.name)
+			}
+		})
+	}
+}
+
 func TestInvokingUserFallsBackToUserWhenNotRoot(t *testing.T) {
 	origRoot := RunningAsRootFn
 	defer func() { RunningAsRootFn = origRoot }()

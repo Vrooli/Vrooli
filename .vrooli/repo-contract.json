@@ -1,6 +1,6 @@
 {
   "$schema": "schemas/repo-contract.schema.json",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "platform": {
     "mode": "cross_platform_go_native",
     "legacy_project_bash_supported": false
@@ -30,6 +30,29 @@
     "command_dir": "cmd",
     "internal_dir": "internal",
     "docs_dir": "docs"
+  },
+  "runtime_home": {
+    "dir_name": ".vrooli",
+    "env_overrides": [],
+    "entries": {
+      "plans": { "path": "plans", "kind": "dir", "regenerable": false },
+      "state": { "path": "state", "kind": "dir", "regenerable": false },
+      "config": { "path": "config", "kind": "dir", "regenerable": false },
+      "data": { "path": "data", "kind": "dir", "regenerable": false },
+      "runtime_db": { "path": "state/runtime.db", "kind": "file", "regenerable": false, "format": "sqlite" },
+      "secrets": { "path": "secrets.json", "kind": "file", "regenerable": false, "format": "json", "sensitive": true },
+      "secrets_enc": { "path": "secrets.enc.json", "kind": "file", "regenerable": false, "format": "json", "sensitive": true },
+      "bin": { "path": "bin", "kind": "dir", "regenerable": true },
+      "cache": { "path": "cache", "kind": "dir", "regenerable": true },
+      "logs": { "path": "logs", "kind": "dir", "regenerable": true },
+      "metrics": { "path": "metrics", "kind": "dir", "regenerable": true },
+      "processes": { "path": "processes", "kind": "dir", "regenerable": true },
+      "build": { "path": "build", "kind": "dir", "regenerable": true }
+    },
+    "scoped": {
+      "scenario_secrets": "scenarios/{scenario}/secrets.json",
+      "project_state": "state/projects/{project_key}"
+    }
   },
   "scenario": {
     "required_files": [

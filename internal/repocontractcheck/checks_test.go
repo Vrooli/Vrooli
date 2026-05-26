@@ -31,6 +31,54 @@ func TestRunReportsChecksAgainstLiveRepo(t *testing.T) {
 	}
 }
 
+func TestNoRuntimeHomeLiteralsPassesOnLiveRepo(t *testing.T) {
+	report, err := Run(repoRoot(t))
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	for _, check := range report.Checks {
+		if check.Name == "no_runtime_home_literals" {
+			if !check.Passed {
+				t.Fatalf("no_runtime_home_literals must pass on the live repo (a home-dir .vrooli literal slipped in): %s", check.Message)
+			}
+			return
+		}
+	}
+	t.Fatal("no_runtime_home_literals check missing from report")
+}
+
+func TestNoRuntimeHomeLiteralsTripsOnReintroducedLiteral(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	root := fixture.Root
+	// Reintroduce a home-dir .vrooli join in the platform surface (internal/).
+	testkitgo.WriteRelativeFile(t, root, "internal/drift/drift.go",
+		"package drift\n\nimport \"path/filepath\"\n\nfunc logsDir(home string) string {\n\treturn filepath.Join(home, \".vrooli\", \"logs\")\n}\n")
+
+	report, err := Run(root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if !hasFailedCheck(report, "no_runtime_home_literals") {
+		t.Fatalf("expected no_runtime_home_literals failure, got %+v", report.Checks)
+	}
+}
+
+func TestNoRuntimeHomeLiteralsAllowsAnnotatedProjectConfig(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	root := fixture.Root
+	// A home-join that is genuinely the repo-project dir, annotated, must pass.
+	testkitgo.WriteRelativeFile(t, root, "internal/okpkg/ok.go",
+		"package okpkg\n\nimport \"path/filepath\"\n\nfunc projectConfig(home string) string {\n\treturn filepath.Join(home, \".vrooli\") // repo-contract:project-config\n}\n")
+
+	report, err := Run(root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if hasFailedCheck(report, "no_runtime_home_literals") {
+		t.Fatalf("annotated repo-project use must not trip the guard: %+v", report.Checks)
+	}
+}
+
 func TestRunRequiresRoot(t *testing.T) {
 	if _, err := Run(""); err == nil {
 		t.Fatal("expected error for empty root")

@@ -14,6 +14,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/logx"
+	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/vroolierr"
@@ -207,7 +208,11 @@ func (a *App) GetAppLogs(w http.ResponseWriter, r *http.Request) {
 		respondError(w, newAPIError(status, code, fmt.Sprintf("failed to get logs for %s", name), err))
 		return
 	}
-	logPath := filepath.Join(a.Home, ".vrooli", "logs", name+".log")
+	logPath, err := process.ScenarioLifecycleLogPath(a.Home, name)
+	if err != nil {
+		respondError(w, newAPIError(http.StatusInternalServerError, "scenario_logs_read_failed", "failed to get logs", err))
+		return
+	}
 	output, err := a.readTail(logPath, lines)
 	if err != nil {
 		a.logError("Scenario log file read failed", err, logx.AttrScenario, name)

@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // APIConfig stores common CLI connection settings.
@@ -53,7 +55,11 @@ func ResolveConfigDir(appName string, envVars ...string) (string, error) {
 		return "", fmt.Errorf("unable to resolve config directory")
 	}
 
-	namespaced := filepath.Join(home, ".vrooli", "config", appName)
+	configDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyConfig)
+	if err != nil {
+		return "", err
+	}
+	namespaced := filepath.Join(configDir, appName)
 	legacy := filepath.Join(home, "."+appName)
 	if info, err := os.Stat(legacy); err == nil && info.IsDir() {
 		return ensureDir(legacy)

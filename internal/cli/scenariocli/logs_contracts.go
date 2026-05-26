@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/process"
 )
@@ -70,7 +71,11 @@ func ShowLogsUsage(w io.Writer) error {
 	if home == "" {
 		return ErrScenarioLogsUsage
 	}
-	logsRoot := filepath.Join(home, ".vrooli", "logs", "scenarios")
+	logsDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyLogs)
+	if err != nil {
+		return err
+	}
+	logsRoot := filepath.Join(logsDir, "scenarios")
 	entries, err := os.ReadDir(logsRoot)
 	if err != nil {
 		if os.IsNotExist(err) {

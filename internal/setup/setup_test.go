@@ -110,10 +110,10 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 		return nil
 	}
 	manager := &stubCLIInstallManager{}
-	svc.deps.newCLIInstallManager = func(root, home string) cliInstallManager {
+	svc.deps.newCLIInstallManager = func(root, home string) (cliInstallManager, error) {
 		manager.root = root
 		manager.home = home
-		return manager
+		return manager, nil
 	}
 
 	if err := svc.RunSetupWithOptions(root, home, Options{Resources: "none"}, io.Discard, io.Discard); err != nil {
@@ -1003,7 +1003,7 @@ func stubSetupDeps(t *testing.T) *setupService {
 	t.Helper()
 	deps := defaultSetupDeps()
 	deps.syncResourceSchema = func(root string) error { return nil }
-	deps.newCLIInstallManager = func(root, home string) cliInstallManager { return &stubCLIInstallManager{} }
+	deps.newCLIInstallManager = func(root, home string) (cliInstallManager, error) { return &stubCLIInstallManager{}, nil }
 	return newSetupService(deps)
 }
 

@@ -16,6 +16,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/discovery"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -45,9 +46,10 @@ type Installer interface {
 }
 
 type Manager struct {
-	Root      string
-	Home      string
-	Installer Installer
+	Root       string
+	Home       string
+	installDir string // resolved once from the runtime_home authority (bin entry)
+	Installer  Installer
 }
 
 type InstallMetadata struct {
@@ -77,12 +79,27 @@ func (s InstallLocationStatus) PathMismatch() bool {
 	return s.Resolved && !s.ResolvedCanonical
 }
 
-func NewManager(root, home string) *Manager {
-	return &Manager{
-		Root:      filepath.Clean(root),
-		Home:      filepath.Clean(home),
-		Installer: GoInstaller{},
+func NewManager(root, home string) (*Manager, error) {
+	// Resolve the home sudo-aware when unset — never bare os.UserHomeDir, which
+	// would point a sudo'd process's CLI installs at /root/.vrooli/bin.
+	if strings.TrimSpace(home) == "" {
+		resolved, err := config.HomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("resolve home directory: %w", err)
+		}
+		home = resolved
 	}
+	cleanHome := filepath.Clean(home)
+	installDir, err := repocontract.RuntimeHomeEntryPath(cleanHome, repocontract.HomeKeyBin)
+	if err != nil {
+		return nil, fmt.Errorf("resolve cli install dir: %w", err)
+	}
+	return &Manager{
+		Root:       filepath.Clean(root),
+		Home:       cleanHome,
+		installDir: installDir,
+		Installer:  GoInstaller{},
+	}, nil
 }
 
 func ScenarioBinaryName(name string) string {
@@ -181,7 +198,10 @@ func (m *Manager) DiscoverScenarioCLI(name string) (InstallableCLI, error) {
 	if err != nil {
 		return InstallableCLI{}, err
 	}
-	servicePath := filepath.Join(scenarioRoot, ".vrooli", "service.json")
+	servicePath, err := contract.ScenarioFile(m.Root, name, "service")
+	if err != nil {
+		return InstallableCLI{}, err
+	}
 	if err := requireFile(servicePath); err != nil {
 		return InstallableCLI{}, fmt.Errorf("discover scenario CLI %q: %w", name, err)
 	}
@@ -348,13 +368,7 @@ func (m *Manager) DiscoverEnabledResourceCLIReport() (DiscoveryReport, error) {
 }
 
 func (m *Manager) InstallDir() string {
-	if strings.TrimSpace(m.Home) != "" {
-		return filepath.Join(m.Home, ".vrooli", "bin")
-	}
-	if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
-		return filepath.Join(home, ".vrooli", "bin")
-	}
-	return filepath.Join(".", ".vrooli", "bin")
+	return m.installDir
 }
 
 func (m *Manager) InstalledBinaryPath(item InstallableCLI) string {
@@ -630,10 +644,7 @@ func (m *Manager) writeInstallMetadata(item InstallableCLI, meta InstallMetadata
 		return err
 	}
 	data = append(data, '\n')
-	if err := os.MkdirAll(filepath.Dir(m.InstallMetadataPath(item)), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(m.InstallMetadataPath(item), data, 0o644)
+	return config.WriteOwnedFile(m.InstallMetadataPath(item), data, 0o644)
 }
 
 func (m *Manager) computeInstallFingerprint(item InstallableCLI) (string, error) {

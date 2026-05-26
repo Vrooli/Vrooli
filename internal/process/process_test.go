@@ -334,18 +334,21 @@ func TestWriteAndRemoveScenarioRecordMaintainsProcessMetadataContract(t *testing
 		t.Fatalf("WriteScenarioRecord: %v", err)
 	}
 
-	processDir := ScenarioProcessDir(home, "alpha")
+	processDir, err := ScenarioProcessDir(home, "alpha")
+	if err != nil {
+		t.Fatalf("ScenarioProcessDir: %v", err)
+	}
 	if processDir != filepath.Join(home, ".vrooli", "processes", "scenarios", "alpha") {
 		t.Fatalf("ScenarioProcessDir = %q", processDir)
 	}
-	if ScenarioLogsDir(home, "alpha") != filepath.Join(home, ".vrooli", "logs", "scenarios", "alpha") {
-		t.Fatalf("ScenarioLogsDir mismatch")
+	if got, err := ScenarioLogsDir(home, "alpha"); err != nil || got != filepath.Join(home, ".vrooli", "logs", "scenarios", "alpha") {
+		t.Fatalf("ScenarioLogsDir = %q, err=%v", got, err)
 	}
-	if ScenarioLifecycleLogPath(home, "alpha") != filepath.Join(home, ".vrooli", "logs", "alpha.log") {
-		t.Fatalf("ScenarioLifecycleLogPath mismatch")
+	if got, err := ScenarioLifecycleLogPath(home, "alpha"); err != nil || got != filepath.Join(home, ".vrooli", "logs", "alpha.log") {
+		t.Fatalf("ScenarioLifecycleLogPath = %q, err=%v", got, err)
 	}
-	if ScenarioStateDir(home) != filepath.Join(home, ".vrooli", "state", "scenarios") {
-		t.Fatalf("ScenarioStateDir mismatch")
+	if got, err := ScenarioStateDir(home); err != nil || got != filepath.Join(home, ".vrooli", "state", "scenarios") {
+		t.Fatalf("ScenarioStateDir = %q, err=%v", got, err)
 	}
 
 	recordPath := filepath.Join(processDir, "start-api.json")

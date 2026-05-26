@@ -81,6 +81,10 @@ func validateContractDoc(doc contractDoc) error {
 		}
 	}
 
+	if err := validateRuntimeHome(doc.RuntimeHome); err != nil {
+		return err
+	}
+
 	if err := validateSlashPaths("scenario.required_files", doc.Scenario.RequiredFiles); err != nil {
 		return err
 	}
@@ -142,6 +146,49 @@ func validateContractDoc(doc contractDoc) error {
 	return nil
 }
 
+func validateRuntimeHome(spec RuntimeHomeSpec) error {
+	if spec.DirName != ".vrooli" {
+		return &Error{Kind: ErrInvalidContract, Message: "runtime_home.dir_name must be \".vrooli\"", Details: spec.DirName}
+	}
+	for _, name := range spec.EnvOverrides {
+		if err := validateEnvVarName("runtime_home.env_overrides", name); err != nil {
+			return err
+		}
+	}
+	if len(spec.Entries) == 0 {
+		return &Error{Kind: ErrInvalidContract, Message: "runtime_home.entries must not be empty"}
+	}
+	seenPaths := map[string]struct{}{}
+	for key, entry := range spec.Entries {
+		if strings.TrimSpace(key) == "" {
+			return &Error{Kind: ErrInvalidContract, Message: "runtime_home.entries has an empty key"}
+		}
+		field := "runtime_home.entries." + key
+		if err := validateSlashPath(field+".path", entry.Path); err != nil {
+			return err
+		}
+		if entry.Kind != "dir" && entry.Kind != "file" {
+			return &Error{Kind: ErrInvalidContract, Message: field + ".kind must be \"dir\" or \"file\"", Details: entry.Kind}
+		}
+		if entry.Format != "" && entry.Format != "sqlite" && entry.Format != "json" {
+			return &Error{Kind: ErrInvalidContract, Message: field + ".format must be \"sqlite\" or \"json\"", Details: entry.Format}
+		}
+		if _, dup := seenPaths[entry.Path]; dup {
+			return &Error{Kind: ErrInvalidContract, Message: "runtime_home.entries contains duplicate path", Details: entry.Path}
+		}
+		seenPaths[entry.Path] = struct{}{}
+	}
+	for key, tmpl := range spec.Scoped {
+		if strings.TrimSpace(key) == "" {
+			return &Error{Kind: ErrInvalidContract, Message: "runtime_home.scoped has an empty key"}
+		}
+		if err := validateSlashPath("runtime_home.scoped."+key, tmpl); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func validateVersion(version string) error {
 	parts := strings.Split(strings.TrimSpace(version), ".")
 	if len(parts) != 3 {
@@ -164,6 +211,7 @@ func validateVersion(version string) error {
 
 func deepCopyContractDoc(doc contractDoc) contractDoc {
 	out := doc
+	out.RuntimeHome = cloneRuntimeHomeSpec(doc.RuntimeHome)
 	out.Root.Markers.RequiredDirs = slicesClone(doc.Root.Markers.RequiredDirs)
 	out.Root.Markers.RequiredFiles = slicesClone(doc.Root.Markers.RequiredFiles)
 	out.Scenario.RequiredFiles = slicesClone(doc.Scenario.RequiredFiles)

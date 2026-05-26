@@ -13,13 +13,13 @@ import (
 	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/config"
+
 	_ "modernc.org/sqlite"
 )
 
-const (
-	defaultDatabaseFile = "runtime.db"
-	defaultBindHost     = "127.0.0.1"
-)
+const defaultBindHost = "127.0.0.1"
 
 type Config struct {
 	HomeDir  string
@@ -37,15 +37,19 @@ type realClock struct{}
 
 func (realClock) Now() time.Time { return time.Now().UTC() }
 
+// DefaultDBPath resolves the runtime registry SQLite path from the runtime_home
+// authority. When homeDir is empty it falls back to the sudo-aware resolver in
+// internal/config (never bare os.UserHomeDir, which would point a sudo'd process
+// at /root).
 func DefaultDBPath(homeDir string) (string, error) {
 	if strings.TrimSpace(homeDir) == "" {
-		dir, err := os.UserHomeDir()
+		dir, err := config.HomeDir()
 		if err != nil {
 			return "", fmt.Errorf("resolve home directory: %w", err)
 		}
 		homeDir = dir
 	}
-	return filepath.Join(homeDir, ".vrooli", "state", defaultDatabaseFile), nil
+	return repocontract.RuntimeHomeEntryPath(homeDir, repocontract.HomeKeyRuntimeDB)
 }
 
 func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
@@ -64,7 +68,7 @@ func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
 	}
 	readOnly := cfg.ReadOnly || strings.TrimSpace(os.Getenv("VROOLI_SANDBOX_MERGED")) != ""
 	if !readOnly {
-		if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
+		if _, err := config.EnsureOwnedDir(filepath.Dir(dbPath)); err != nil {
 			return nil, fmt.Errorf("prepare runtime registry directory: %w", err)
 		}
 	}

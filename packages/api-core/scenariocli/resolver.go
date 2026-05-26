@@ -80,7 +80,7 @@ func ResolveExecutableContext(ctx context.Context, root, home, name string) (str
 	if err := ensureScenarioCLI(ctx, root, strings.TrimSpace(home), item); err != nil {
 		return "", err
 	}
-	return installedBinaryPath(home, item.binaryName), nil
+	return installedBinaryPath(home, item.binaryName)
 }
 
 func ResolveExecutableFromRepoRoot(name string) (string, error) {
@@ -105,7 +105,10 @@ func discoverScenarioCLI(root, name string) (scenarioCLI, error) {
 	if err != nil {
 		return scenarioCLI{}, err
 	}
-	servicePath := filepath.Join(scenarioRoot, ".vrooli", "service.json")
+	servicePath, err := contract.ScenarioFile(root, name, "service")
+	if err != nil {
+		return scenarioCLI{}, err
+	}
 	if err := requireFile(servicePath); err != nil {
 		return scenarioCLI{}, fmt.Errorf("discover scenario CLI %q: %w", name, err)
 	}
@@ -204,7 +207,10 @@ func (cfg *cliConfig) validate() error {
 }
 
 func ensureScenarioCLI(ctx context.Context, root, home string, item scenarioCLI) error {
-	binaryPath := installedBinaryPath(home, item.binaryName)
+	binaryPath, err := installedBinaryPath(home, item.binaryName)
+	if err != nil {
+		return err
+	}
 	if _, err := os.Stat(binaryPath); err == nil {
 		current, currentErr := installedBinaryCurrent(home, item)
 		if currentErr != nil {
@@ -235,7 +241,10 @@ func installedBinaryCurrent(home string, item scenarioCLI) (bool, error) {
 }
 
 func installScenarioCLI(ctx context.Context, root, home string, item scenarioCLI) error {
-	installDir := installDir(home)
+	installDir, err := installDir(home)
+	if err != nil {
+		return err
+	}
 	switch item.config.Adapter.Kind {
 	case "go_module":
 		installerDir, err := cliInstallerDir(root, item.modulePath)
@@ -329,28 +338,40 @@ func cliInstallerDir(root, modulePath string) (string, error) {
 	return "", fmt.Errorf("locate cli installer for module %s", modulePath)
 }
 
-func installDir(home string) string {
+func installDir(home string) (string, error) {
 	home = strings.TrimSpace(home)
 	if home == "" {
-		var err error
-		home, err = userHomeDir()
+		resolved, err := userHomeDir()
 		if err != nil {
-			return filepath.Join(".", ".vrooli", "bin")
+			return "", err
 		}
+		home = resolved
 	}
-	return filepath.Join(home, ".vrooli", "bin")
+	return repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
 }
 
-func installedBinaryPath(home, binaryName string) string {
-	return filepath.Join(installDir(home), strings.TrimSpace(binaryName))
+func installedBinaryPath(home, binaryName string) (string, error) {
+	dir, err := installDir(home)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, strings.TrimSpace(binaryName)), nil
 }
 
-func installMetadataPath(home string, item scenarioCLI) string {
-	return installedBinaryPath(home, item.binaryName) + ".build.meta"
+func installMetadataPath(home string, item scenarioCLI) (string, error) {
+	binPath, err := installedBinaryPath(home, item.binaryName)
+	if err != nil {
+		return "", err
+	}
+	return binPath + ".build.meta", nil
 }
 
 func readInstallMetadata(home string, item scenarioCLI) (installMetadata, bool, error) {
-	data, err := os.ReadFile(installMetadataPath(home, item))
+	metaPath, err := installMetadataPath(home, item)
+	if err != nil {
+		return installMetadata{}, false, err
+	}
+	data, err := os.ReadFile(metaPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return installMetadata{}, false, nil
@@ -359,7 +380,7 @@ func readInstallMetadata(home string, item scenarioCLI) (installMetadata, bool, 
 	}
 	var meta installMetadata
 	if err := json.Unmarshal(data, &meta); err != nil {
-		return installMetadata{}, false, fmt.Errorf("parse install metadata %s: %w", installMetadataPath(home, item), err)
+		return installMetadata{}, false, fmt.Errorf("parse install metadata %s: %w", metaPath, err)
 	}
 	return meta, true, nil
 }
@@ -370,7 +391,10 @@ func writeInstallMetadata(home string, item scenarioCLI, meta installMetadata) e
 		return err
 	}
 	data = append(data, '\n')
-	path := installMetadataPath(home, item)
+	path, err := installMetadataPath(home, item)
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}

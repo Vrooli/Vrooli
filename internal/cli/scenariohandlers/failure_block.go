@@ -75,7 +75,9 @@ func writeLifecycleFailureBlock(w io.Writer, verb, name, home string, err error)
 	}
 	_, _ = fmt.Fprintf(w, "  Error: %s\n", shortErrorMessage(err))
 	if home != "" && name != "" {
-		_, _ = fmt.Fprintf(w, "  Full log: %s\n", process.ScenarioLifecycleLogPath(home, name))
+		if logPath, err := process.ScenarioLifecycleLogPath(home, name); err == nil {
+			_, _ = fmt.Fprintf(w, "  Full log: %s\n", logPath)
+		}
 	}
 	if name != "" {
 		_, _ = fmt.Fprintf(w, "  Tail:     vrooli scenario logs %s --tail 100\n", name)

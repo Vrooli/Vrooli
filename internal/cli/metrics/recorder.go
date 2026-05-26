@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 const (
@@ -65,9 +68,17 @@ type Recorder struct {
 // onError, if non-nil, is invoked for each IO failure. It must not panic.
 // Recording is always non-fatal; errors are never returned to the caller.
 func New(home string, onError func(error)) *Recorder {
+	disabled := envDisabled(os.Getenv(EnvDisable))
+	path := ""
+	if root, err := repocontract.VrooliUserRoot(home); err == nil {
+		path = filepath.Join(root, metricsDirName, timingsFileName)
+	} else {
+		// Without a resolvable runtime home there is nowhere to record; stay a no-op.
+		disabled = true
+	}
 	r := &Recorder{
-		path:     filepath.Join(home, ".vrooli", metricsDirName, timingsFileName),
-		disabled: envDisabled(os.Getenv(EnvDisable)),
+		path:     path,
+		disabled: disabled,
 		onError:  onError,
 	}
 	return r
@@ -89,7 +100,7 @@ func (r *Recorder) Record(e Event) {
 	defer r.mu.Unlock()
 
 	dir := filepath.Dir(r.path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if _, err := config.EnsureOwnedDir(dir); err != nil {
 		r.report(err)
 		return
 	}
@@ -103,6 +114,7 @@ func (r *Recorder) Record(e Event) {
 		return
 	}
 	defer f.Close()
+	_ = config.ChownToInvokingUser(r.path)
 	if _, err := f.Write(line); err != nil {
 		r.report(err)
 	}
@@ -126,7 +138,7 @@ func (r *Recorder) ensureReadme(dir string) {
 	if _, err := os.Stat(readmePath); err == nil {
 		return
 	}
-	_ = os.WriteFile(readmePath, []byte(readmeContent), 0o644)
+	_ = config.WriteOwnedFile(readmePath, []byte(readmeContent), 0o644)
 }
 
 func (r *Recorder) report(err error) {

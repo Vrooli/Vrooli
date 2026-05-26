@@ -58,6 +58,8 @@ func Run(root string) (Report, error) {
 	}{
 		{name: "phase1_semantics", fn: checkPhase1Semantics},
 		{name: "canonical_markers_and_paths", fn: checkCanonicalMarkersAndPaths},
+		{name: "runtime_home_section", fn: checkRuntimeHomeSection},
+		{name: "no_runtime_home_literals", fn: checkNoRuntimeHomeLiterals},
 		{name: "live_repo_structure", fn: checkLiveRepoStructure},
 		{name: "project_config_surface", fn: checkProjectConfigSurface},
 		{name: "excluded_legacy_rules_and_paths", fn: checkExcludedLegacyRulesAndPaths},
@@ -209,6 +211,170 @@ func checkCanonicalMarkersAndPaths(contract *repocontract.Contract, root string,
 		return fmt.Errorf("resource.well_known_paths = %#v", resource.WellKnownPaths)
 	}
 	return nil
+}
+
+// checkRuntimeHomeSection enforces the structural invariants of the
+// runtime_home authority: the canonical dir name, the complete well-known entry
+// inventory, the no-override policy (CD-2), and the scoped templates. This is
+// the single source of truth for the operator runtime home ($HOME/.vrooli);
+// drift here would split-brain every consumer.
+func checkRuntimeHomeSection(contract *repocontract.Contract, root string, raw string) error {
+	spec := contract.RuntimeHomeSpec()
+	if spec.DirName != ".vrooli" {
+		return fmt.Errorf("runtime_home.dir_name = %q, want \".vrooli\"", spec.DirName)
+	}
+	if len(spec.EnvOverrides) != 0 {
+		return fmt.Errorf("runtime_home.env_overrides must be empty (CD-2: no home-root overrides), got %v", spec.EnvOverrides)
+	}
+
+	type wantEntry struct {
+		path        string
+		kind        string
+		regenerable bool
+	}
+	expected := map[string]wantEntry{
+		"plans":       {"plans", "dir", false},
+		"state":       {"state", "dir", false},
+		"config":      {"config", "dir", false},
+		"data":        {"data", "dir", false},
+		"runtime_db":  {"state/runtime.db", "file", false},
+		"secrets":     {"secrets.json", "file", false},
+		"secrets_enc": {"secrets.enc.json", "file", false},
+		"bin":         {"bin", "dir", true},
+		"cache":       {"cache", "dir", true},
+		"logs":        {"logs", "dir", true},
+		"metrics":     {"metrics", "dir", true},
+		"processes":   {"processes", "dir", true},
+		"build":       {"build", "dir", true},
+	}
+	if len(spec.Entries) != len(expected) {
+		return fmt.Errorf("runtime_home.entries has %d entries, want %d", len(spec.Entries), len(expected))
+	}
+	seenPaths := map[string]string{}
+	for key, want := range expected {
+		entry, ok := spec.Entries[key]
+		if !ok {
+			return fmt.Errorf("runtime_home.entries missing required key %q", key)
+		}
+		if entry.Path != want.path {
+			return fmt.Errorf("runtime_home.entries.%s.path = %q, want %q", key, entry.Path, want.path)
+		}
+		if entry.Kind != want.kind {
+			return fmt.Errorf("runtime_home.entries.%s.kind = %q, want %q", key, entry.Kind, want.kind)
+		}
+		if entry.Regenerable != want.regenerable {
+			return fmt.Errorf("runtime_home.entries.%s.regenerable = %v, want %v", key, entry.Regenerable, want.regenerable)
+		}
+	}
+	for key, entry := range spec.Entries {
+		if prior, dup := seenPaths[entry.Path]; dup {
+			return fmt.Errorf("runtime_home.entries %q and %q share path %q", prior, key, entry.Path)
+		}
+		seenPaths[entry.Path] = key
+	}
+	if spec.Entries["secrets"].Sensitive != true || spec.Entries["secrets_enc"].Sensitive != true {
+		return fmt.Errorf("runtime_home secrets entries must be marked sensitive")
+	}
+
+	expectedScoped := map[string]string{
+		"scenario_secrets": "scenarios/{scenario}/secrets.json",
+		"project_state":    "state/projects/{project_key}",
+	}
+	if !mapsEqual(spec.Scoped, expectedScoped) {
+		return fmt.Errorf("runtime_home.scoped = %#v, want %#v", spec.Scoped, expectedScoped)
+	}
+	return nil
+}
+
+// runtimeHomeLiteralPattern matches the drift signature this guard bans: joining
+// a home-derived value (any identifier/selector whose name contains "home",
+// case-insensitive — home, homeDir, c.Home, l.home, userHome, …) directly with
+// the ".vrooli" literal. That is an operator-runtime-home assumption and MUST go
+// through internal/config.VrooliPath / repocontract.RuntimeHome* instead.
+// Repo-project joins (filepath.Join(root, ".vrooli", …)) are deliberately NOT
+// matched — that .vrooli is the contract-covered project config dir, a distinct
+// concept (HARD CONSTRAINT #6).
+var runtimeHomeLiteralPattern = regexp.MustCompile(`filepath\.Join\([^,)]*(?i:home)[^,)]*,\s*"\.vrooli"`)
+
+// homeSubpathLiteralPattern catches compound home-subpath literals like
+// "~/.vrooli/logs" or "/.vrooli/state" that smuggle the runtime-home structure
+// into a single string.
+var homeSubpathLiteralPattern = regexp.MustCompile(`"[~/][^"]*\.vrooli/`)
+
+const runtimeHomeAllowComment = "repo-contract:project-config"
+
+// checkNoRuntimeHomeLiterals makes runtime-home path drift fail CI: once every
+// consumer resolves the operator home through the contract authority, a newly
+// reintroduced `filepath.Join(home, ".vrooli", …)` (or a "~/.vrooli/…" literal)
+// trips this guard. The structural authority (packages/repo-contract-go) and
+// the check package itself are exempt; a line may opt out with a trailing
+// `// repo-contract:project-config` comment when the ".vrooli" is genuinely the
+// repo-project dir.
+func checkNoRuntimeHomeLiterals(contract *repocontract.Contract, root string, raw string) error {
+	// Scope: the platform surface this guard governs (cmd/internal/packages).
+	// Per-scenario runtime-home access is migrated and guarded separately as each
+	// scenario adopts the authority; data-backup-manager already resolves via the
+	// contract (no home literal to catch).
+	var violations []string
+	for _, topLevel := range []string{"cmd", "internal", "packages"} {
+		base := filepath.Join(root, topLevel)
+		err := filepath.WalkDir(base, func(path string, d os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				if os.IsNotExist(walkErr) {
+					return filepath.SkipDir
+				}
+				return walkErr
+			}
+			if d.IsDir() {
+				switch d.Name() {
+				case ".git", "node_modules", "vendor", "gen", "dist", "build", "data":
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") {
+				// Tests legitimately construct fake $HOME/.vrooli trees as fixtures;
+				// the guard protects production runtime-home resolution.
+				return nil
+			}
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			rel = filepath.ToSlash(rel)
+			// The structural authority owns the literal; the check package asserts it.
+			if strings.HasPrefix(rel, "packages/repo-contract-go/") ||
+				strings.HasPrefix(rel, "internal/repocontractcheck/") ||
+				strings.HasPrefix(rel, "internal/repocontractmeta/") {
+				return nil
+			}
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return readErr
+			}
+			for i, line := range strings.Split(string(data), "\n") {
+				if strings.Contains(line, runtimeHomeAllowComment) {
+					continue
+				}
+				if strings.HasPrefix(strings.TrimSpace(line), "//") {
+					continue // comments/docs are not drift
+				}
+				if runtimeHomeLiteralPattern.MatchString(line) || homeSubpathLiteralPattern.MatchString(line) {
+					violations = append(violations, fmt.Sprintf("%s:%d", rel, i+1))
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("scan runtime-home literals under %s: %w", topLevel, err)
+		}
+	}
+	if len(violations) == 0 {
+		return nil
+	}
+	sort.Strings(violations)
+	return fmt.Errorf("runtime-home literal drift (use config.VrooliPath / repocontract.RuntimeHome*, or annotate repo-project uses with // %s): %s",
+		runtimeHomeAllowComment, strings.Join(violations, "; "))
 }
 
 func checkLiveRepoStructure(contract *repocontract.Contract, root string, raw string) error {

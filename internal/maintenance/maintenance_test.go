@@ -17,6 +17,26 @@ import (
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
+// mustProcDir / mustStateDir resolve runtime-home paths for tests; the process
+// helpers now return errors (they resolve via the runtime_home contract).
+func mustProcDir(t *testing.T, home, name string) string {
+	t.Helper()
+	dir, err := process.ScenarioProcessDir(home, name)
+	if err != nil {
+		t.Fatalf("ScenarioProcessDir(%q, %q): %v", home, name, err)
+	}
+	return dir
+}
+
+func mustStateDir(t *testing.T, home string) string {
+	t.Helper()
+	dir, err := process.ScenarioStateDir(home)
+	if err != nil {
+		t.Fatalf("ScenarioStateDir(%q): %v", home, err)
+	}
+	return dir
+}
+
 type maintenanceTestClock struct {
 	mu  sync.Mutex
 	now time.Time
@@ -218,7 +238,7 @@ func TestListOrphansFiltersTrackedAncestors(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	if err := os.MkdirAll(process.ScenarioProcessDir(home, "alpha"), 0o755); err != nil {
+	if err := os.MkdirAll(mustProcDir(t, home, "alpha"), 0o755); err != nil {
 		t.Fatalf("mkdir process dir: %v", err)
 	}
 	if err := process.WriteScenarioRecord(home, "alpha", "start-api", process.Record{PID: 4100, PGID: 4100}); err != nil {
@@ -300,7 +320,7 @@ func TestListOrphansHonorsTrackedProcessGroup(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	if err := os.MkdirAll(process.ScenarioProcessDir(home, "alpha"), 0o755); err != nil {
+	if err := os.MkdirAll(mustProcDir(t, home, "alpha"), 0o755); err != nil {
 		t.Fatalf("mkdir process dir: %v", err)
 	}
 	if err := process.WriteScenarioRecord(home, "alpha", "start-ui", process.Record{PID: 4100, PGID: 9000}); err != nil {
@@ -474,7 +494,7 @@ func TestListOrphansHonorsTrackedSession(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	if err := os.MkdirAll(process.ScenarioProcessDir(home, "alpha"), 0o755); err != nil {
+	if err := os.MkdirAll(mustProcDir(t, home, "alpha"), 0o755); err != nil {
 		t.Fatalf("mkdir process dir: %v", err)
 	}
 	if err := process.WriteScenarioRecord(home, "alpha", "start-ui", process.Record{PID: 4100, PGID: 4100}); err != nil {
@@ -513,7 +533,7 @@ func TestListOrphansIgnoresSessionOneMatch(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	if err := os.MkdirAll(process.ScenarioProcessDir(home, "alpha"), 0o755); err != nil {
+	if err := os.MkdirAll(mustProcDir(t, home, "alpha"), 0o755); err != nil {
 		t.Fatalf("mkdir process dir: %v", err)
 	}
 	if err := process.WriteScenarioRecord(home, "alpha", "start-api", process.Record{PID: 4100, PGID: 4100}); err != nil {
@@ -550,7 +570,7 @@ func TestKillOrphansPrunesStaleRecords(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	if err := os.MkdirAll(process.ScenarioProcessDir(home, "alpha"), 0o755); err != nil {
+	if err := os.MkdirAll(mustProcDir(t, home, "alpha"), 0o755); err != nil {
 		t.Fatalf("mkdir process dir: %v", err)
 	}
 	// Record points at a PID that's definitely not running.
@@ -569,7 +589,7 @@ func TestKillOrphansPrunesStaleRecords(t *testing.T) {
 		t.Fatalf("KillOrphans: %v", err)
 	}
 
-	recordPath := filepath.Join(process.ScenarioProcessDir(home, "alpha"), "start-api.json")
+	recordPath := filepath.Join(mustProcDir(t, home, "alpha"), "start-api.json")
 	if _, err := os.Stat(recordPath); !os.IsNotExist(err) {
 		t.Fatalf("stale record should have been pruned; stat err=%v", err)
 	}
@@ -581,7 +601,7 @@ func TestCleanStaleRecordsIsBestEffort(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	if err := os.MkdirAll(process.ScenarioProcessDir(home, "alpha"), 0o755); err != nil {
+	if err := os.MkdirAll(mustProcDir(t, home, "alpha"), 0o755); err != nil {
 		t.Fatalf("mkdir process dir: %v", err)
 	}
 	if err := process.WriteScenarioRecord(home, "alpha", "start-api", process.Record{PID: 123456789}); err != nil {
@@ -1314,7 +1334,7 @@ func TestListOrphansExcludesVrooliCLIInvocation(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	if err := os.MkdirAll(process.ScenarioProcessDir(home, "alpha"), 0o755); err != nil {
+	if err := os.MkdirAll(mustProcDir(t, home, "alpha"), 0o755); err != nil {
 		t.Fatalf("mkdir process dir: %v", err)
 	}
 
@@ -1390,7 +1410,7 @@ func TestParseProcessTableLineRejectsTooFewFields(t *testing.T) {
 func TestCleanStaleLocksRemovesOnlyDeadOwners(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	stateDir := process.ScenarioStateDir(home)
+	stateDir := mustStateDir(t, home)
 	if err := os.MkdirAll(stateDir, 0o755); err != nil {
 		t.Fatalf("mkdir state dir: %v", err)
 	}
@@ -1423,7 +1443,7 @@ func TestCleanStaleLocksRemovesOnlyDeadOwners(t *testing.T) {
 func TestDiagnosePortBuildsRecommendations(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	stateDir := process.ScenarioStateDir(home)
+	stateDir := mustStateDir(t, home)
 	if err := os.MkdirAll(stateDir, 0o755); err != nil {
 		t.Fatalf("mkdir state dir: %v", err)
 	}
@@ -1605,7 +1625,7 @@ func TestSnapshotReturnsSharedHealthMetrics(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	if err := os.MkdirAll(process.ScenarioProcessDir(home, "alpha"), 0o755); err != nil {
+	if err := os.MkdirAll(mustProcDir(t, home, "alpha"), 0o755); err != nil {
 		t.Fatalf("mkdir process dir: %v", err)
 	}
 	if err := process.WriteScenarioRecord(home, "alpha", "start-api", process.Record{PID: 4100, PGID: 4100}); err != nil {

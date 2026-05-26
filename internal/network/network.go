@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/process"
 )
 
@@ -45,16 +46,28 @@ type PortInspection struct {
 	Inspection ListenerInspection `json:"inspection"`
 }
 
-func LockPath(home string, port int) string {
-	return filepath.Join(process.ScenarioStateDir(home), fmt.Sprintf(".port_%d.lock", port))
+func LockPath(home string, port int) (string, error) {
+	stateDir, err := process.ScenarioStateDir(home)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(stateDir, fmt.Sprintf(".port_%d.lock", port)), nil
 }
 
-func mutationLockPath(home string, port int) string {
-	return filepath.Join(process.ScenarioStateDir(home), fmt.Sprintf(".port_%d.guard", port))
+func mutationLockPath(home string, port int) (string, error) {
+	stateDir, err := process.ScenarioStateDir(home)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(stateDir, fmt.Sprintf(".port_%d.guard", port)), nil
 }
 
 func ListLocks(home string) ([]LockInfo, error) {
-	pattern := filepath.Join(process.ScenarioStateDir(home), ".port_*.lock")
+	stateDir, err := process.ScenarioStateDir(home)
+	if err != nil {
+		return nil, err
+	}
+	pattern := filepath.Join(stateDir, ".port_*.lock")
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, err
@@ -123,8 +136,11 @@ func InspectPortListeners(port int) (PortInspection, error) {
 // guard, so maintenance cleanup and runtime lock writers share the same safety
 // contract for lock-file mutation.
 func PruneStaleLocks(home string) ([]LockInfo, error) {
-	stateDir := process.ScenarioStateDir(home)
-	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+	stateDir, err := process.ScenarioStateDir(home)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := config.EnsureOwnedDir(stateDir); err != nil {
 		return nil, err
 	}
 
@@ -157,7 +173,10 @@ type mutationGuard struct {
 func removeStaleLock(home string, port int) (bool, error) {
 	removed := false
 	err := withMutationLock(home, port, func() error {
-		lockPath := LockPath(home, port)
+		lockPath, err := LockPath(home, port)
+		if err != nil {
+			return err
+		}
 		lock, err := ReadLockFile(lockPath)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -187,7 +206,10 @@ func withMutationLock(home string, port int, fn func() error) error {
 }
 
 func acquireMutationLock(home string, port int) (func(), error) {
-	path := mutationLockPath(home, port)
+	path, err := mutationLockPath(home, port)
+	if err != nil {
+		return nil, err
+	}
 	deadline := time.Now().Add(mutationLockTimeout)
 	payload := []byte(fmt.Sprintf("%d:%d\n", os.Getpid(), time.Now().UTC().Unix()))
 
@@ -203,6 +225,7 @@ func acquireMutationLock(home string, port int) (func(), error) {
 				_ = os.Remove(path)
 				return nil, closeErr
 			}
+			_ = config.ChownToInvokingUser(path)
 			return func() {
 				_ = os.Remove(path)
 			}, nil

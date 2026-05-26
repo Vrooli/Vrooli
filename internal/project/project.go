@@ -353,7 +353,10 @@ func dockerDaemonDoctorCheck() DoctorCheck {
 }
 
 func (c *Controller) cliInstallLocationChecks() ([]DoctorCheck, error) {
-	manager := cliinstall.NewManager(c.Root, c.Home)
+	manager, err := cliinstall.NewManager(c.Root, c.Home)
+	if err != nil {
+		return nil, err
+	}
 
 	scenarioReport, err := manager.DiscoverScenarioCLIReport()
 	if err != nil {

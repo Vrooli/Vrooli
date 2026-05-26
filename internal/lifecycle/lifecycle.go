@@ -280,7 +280,11 @@ func (r *Runner) runtimeDeps() lifecycleDeps {
 	}
 	if deps.runResourceCLI == nil {
 		deps.runResourceCLI = func(name string, args []string, stdout, stderr io.Writer) error {
-			if err := cliinstall.NewManager(r.Root, r.Home).EnsureResourceCLI(name); err != nil {
+			manager, err := cliinstall.NewManager(r.Root, r.Home)
+			if err != nil {
+				return fmt.Errorf("ensure resource CLI %s: %w", name, err)
+			}
+			if err := manager.EnsureResourceCLI(name); err != nil {
 				return fmt.Errorf("ensure resource CLI %s: %w", name, err)
 			}
 			return resources.NewController(r.Root, r.Home).RunResourceCLI(name, args, stdout, stderr)
@@ -623,7 +627,10 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, customPath string, inc
 		return err
 	}
 
-	processDir := process.ScenarioProcessDir(r.Home, name)
+	processDir, err := process.ScenarioProcessDir(r.Home, name)
+	if err != nil {
+		return err
+	}
 	stepFiles, globErr := filepath.Glob(filepath.Join(processDir, "*.json"))
 	if globErr != nil {
 		return globErr

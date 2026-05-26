@@ -55,9 +55,6 @@ func TestHomeDirFallsBackToUserHomeDir(t *testing.T) {
 }
 
 func TestConfigDirectoryHelpers(t *testing.T) {
-	if got := VrooliDir("/tmp/home"); got != filepath.Join("/tmp/home", ".vrooli") {
-		t.Fatalf("VrooliDir = %q", got)
-	}
 	if got := RepoConfigDir("/repo"); got != filepath.Join("/repo", ".vrooli") {
 		t.Fatalf("RepoConfigDir = %q", got)
 	}

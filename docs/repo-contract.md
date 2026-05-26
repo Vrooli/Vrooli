@@ -117,6 +117,26 @@ Secrets are intentionally outside the repo surface. The canonical shared plainte
 
 Generated runtime and lifecycle state is also intentionally outside the repo surface. Project-scoped setup/resource markers live under `~/.vrooli/state/projects/<project-key>/`, where `<project-key>` is derived from the cleaned absolute project root. This lets one operator keep separate state for multiple local checkouts without allowing `.vrooli/state/` to drift into the repository.
 
+## Operator Runtime Home (`~/.vrooli`)
+
+There are **two distinct `.vrooli` directories** and they must never be conflated:
+
+- **Repo-project `.vrooli/`** (`<repoRoot>/.vrooli`) — the checked-in metadata surface above, covered by `layout.project_config_dir`.
+- **Operator runtime home `~/.vrooli`** (`$HOME/.vrooli`) — the per-operator runtime tree where the platform writes plans, state, config, data, the runtime DB, secrets, logs, caches, etc. Its structure is the single machine-readable authority `runtime_home` in `.vrooli/repo-contract.json`.
+
+**Structure vs. resolution (the split that keeps this drift-proof):**
+
+- **Structure** — the directory name (`.vrooli`) and the well-known entry inventory — lives in `runtime_home` and is read through `packages/repo-contract-go` (`RuntimeHome`, `RuntimeHomeEntry(ies)`, `ScopedRuntimePath`, and the `HomeKey*` constants). These helpers are pure functions of a supplied `home`; they never resolve `home` themselves.
+- **Resolution** — turning "the operator's home" into a concrete path, **sudo-aware** — lives in `internal/config.HomeDir`. A sudo'd process resolves the *invoking* user's home (via `$SUDO_USER`), never `/root`. Internal code calls `config.VrooliHome` / `config.VrooliPath(<HomeKey>, sub…)` / `config.VrooliScopedPath`; shared `packages/*` receive the resolver by injection (the `home` parameter), wired to `config.HomeDir` at composition roots. `packages/*` never import `internal/*`.
+
+**`runtime_home` entries** carry a `regenerable` flag: `false` = durable operator state that must be preserved (`plans`, `state`, `config`, `data`, `runtime_db` = `state/runtime.db`, `secrets`, `secrets_enc`); `true` = reconstructable (`bin`, `cache`, `logs`, `metrics`, `processes`, `build`). The flag is the only policy-bearing field and is structural (is the data reconstructable?), not a backup opinion. `data-backup-manager` keys its backup-target suggestions on `regenerable == false`.
+
+**No fallback.** A missing or invalid contract is a hard error; no consumer falls back to a hand-rolled `~/.vrooli/...` path. `runtime_home`-scoped templates (`scenario_secrets`, `project_state`) are expanded via `ScopedRuntimePath` with validated identifier params.
+
+**File ownership under sudo.** Home *writes* route through the owned-write seam (`config.EnsureOwnedDir` / `WriteOwnedFile` / `EnsureVrooliDir` / `WriteVrooliFile`), which — when running root-via-sudo — `Lchown`s exactly the path components it creates back to the invoking user (`$SUDO_UID:$SUDO_GID`). `config.ReconcileVrooliOwnership` (run by `vrooli setup`) reclaims pre-existing root-owned strays; it only ever touches root-owned entries, never follows symlinks, and never escapes the home root. Windows is a no-op.
+
+**Drift guard.** The `no_runtime_home_literals` check (`vrooli contract validate` / `make hygiene`) fails CI if `cmd/`, `internal/`, or `packages/` code joins a home-derived value with `".vrooli"` (or embeds a `"~/.vrooli/…"` literal) instead of going through the authority. A line that genuinely means the **repo-project** `.vrooli` can opt out with a trailing `// repo-contract:project-config` comment. `packages/repo-contract-go/**`, `internal/repocontractcheck/**`, and `internal/repocontractmeta/**` are exempt (they define the authority).
+
 ## Compatibility Policy
 
 - The contract describes the future-state Go-native cross-platform structure only.

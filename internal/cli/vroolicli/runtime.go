@@ -208,7 +208,10 @@ func (app *App) installedScenarioCLINames() []string {
 		if err != nil || strings.TrimSpace(home) == "" {
 			return
 		}
-		manager := cliinstall.NewManager("", home)
+		manager, err := cliinstall.NewManager("", home)
+		if err != nil {
+			return
+		}
 		names, err := manager.InstalledScenarioCLINames()
 		if err != nil {
 			return
@@ -432,7 +435,10 @@ func (app *App) ensureScenarioCLI(ctx *CommandContext, name string) error {
 	if err != nil {
 		return err
 	}
-	manager := cliinstall.NewManager(ctx.Root, home)
+	manager, err := cliinstall.NewManager(ctx.Root, home)
+	if err != nil {
+		return err
+	}
 	preStatus, _ := manager.InspectScenarioCLIInstallLocation(name, app.LookPathFn)
 	if app.EnsureScenarioCLIFn != nil {
 		if err := app.EnsureScenarioCLIFn(ctx.Root, home, name); err != nil {
@@ -463,7 +469,11 @@ func (app *App) ensureResourceCLI(ctx *CommandContext, name string) error {
 	if app.EnsureResourceCLIFn != nil {
 		return app.EnsureResourceCLIFn(ctx.Root, home, name)
 	}
-	return cliinstall.NewManager(ctx.Root, home).EnsureResourceCLI(name)
+	manager, err := cliinstall.NewManager(ctx.Root, home)
+	if err != nil {
+		return err
+	}
+	return manager.EnsureResourceCLI(name)
 }
 
 func (app *App) locateTestGenieCLI(root, home string) (string, error) {
@@ -479,7 +489,10 @@ func (app *App) locateScenarioCompletenessCLI(root, home string) (string, error)
 }
 
 func (app *App) resolveScenarioCLIExecutable(root, home, name string) (string, error) {
-	manager := cliinstall.NewManager(root, home)
+	manager, err := cliinstall.NewManager(root, home)
+	if err != nil {
+		return "", err
+	}
 	item, err := manager.DiscoverScenarioCLI(name)
 	if err != nil {
 		return "", err

@@ -13,10 +13,11 @@ const (
 type contractDoc struct {
 	Schema      string       `json:"$schema"`
 	Version     string       `json:"version"`
-	Platform    Platform     `json:"platform"`
-	Root        Root         `json:"root"`
-	Layout      Layout       `json:"layout"`
-	Scenario    ScenarioSpec `json:"scenario"`
+	Platform    Platform        `json:"platform"`
+	Root        Root            `json:"root"`
+	Layout      Layout          `json:"layout"`
+	RuntimeHome RuntimeHomeSpec `json:"runtime_home"`
+	Scenario    ScenarioSpec    `json:"scenario"`
 	Resource    ResourceSpec `json:"resource"`
 	Globs       GlobSpec     `json:"globs"`
 	Environment struct {
@@ -123,6 +124,11 @@ func (c *Contract) Layout() Layout {
 	return c.doc.Layout
 }
 
+// RuntimeHomeSpec returns a deep copy of the runtime-home structural spec.
+func (c *Contract) RuntimeHomeSpec() RuntimeHomeSpec {
+	return cloneRuntimeHomeSpec(c.doc.RuntimeHome)
+}
+
 func (c *Contract) Scenario() ScenarioSpec {
 	return ScenarioSpec{
 		RequiredFiles:  slices.Clone(c.doc.Scenario.RequiredFiles),
@@ -198,6 +204,21 @@ func (c *Contract) ResourceRoot(repoRoot, resource string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(filepath.Clean(repoRoot), filepath.FromSlash(c.doc.Layout.ResourceDir), resource), nil
+}
+
+func cloneRuntimeHomeSpec(in RuntimeHomeSpec) RuntimeHomeSpec {
+	out := RuntimeHomeSpec{
+		DirName:      in.DirName,
+		EnvOverrides: slices.Clone(in.EnvOverrides),
+		Scoped:       cloneStringMap(in.Scoped),
+	}
+	if len(in.Entries) > 0 {
+		out.Entries = make(map[string]RuntimeHomeEntrySpec, len(in.Entries))
+		for key, entry := range in.Entries {
+			out.Entries[key] = entry
+		}
+	}
+	return out
 }
 
 func cloneStringMap(in map[string]string) map[string]string {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/ports"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -196,7 +197,10 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 		Defined:  true,
 		Status:   PhaseExecutionSkipped,
 	}
-	lifecycleLogPath := process.ScenarioLifecycleLogPath(r.Home, item.Slug)
+	lifecycleLogPath, err := process.ScenarioLifecycleLogPath(r.Home, item.Slug)
+	if err != nil {
+		return result, err
+	}
 	for index, step := range phase.Steps {
 		if strings.TrimSpace(step.Run) == "" {
 			continue
@@ -310,8 +314,11 @@ func injectTestGenieAutoStart(command string) string {
 
 func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step scenario.PhaseStep, env map[string]string) error {
 	processID := fmt.Sprintf("vrooli.%s.%s.%s", phase, item.Slug, step.Name)
-	logDir := process.ScenarioLogsDir(r.Home, item.Slug)
-	if err := os.MkdirAll(logDir, 0o755); err != nil {
+	logDir, err := process.ScenarioLogsDir(r.Home, item.Slug)
+	if err != nil {
+		return err
+	}
+	if _, err := config.EnsureOwnedDir(logDir); err != nil {
 		return err
 	}
 	logFile := filepath.Join(logDir, processID+".log")
@@ -418,8 +425,11 @@ func (r *Runner) runWithLifecycleLog(ctx lifecycleLogContext, fn func(logWriter,
 	if strings.TrimSpace(ctx.Phase) == "" {
 		ctx.Phase = "unknown"
 	}
-	path := process.ScenarioLifecycleLogPath(r.Home, ctx.Scenario)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	path, err := process.ScenarioLifecycleLogPath(r.Home, ctx.Scenario)
+	if err != nil {
+		return err
+	}
+	if _, err := config.EnsureOwnedDir(filepath.Dir(path)); err != nil {
 		return err
 	}
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
@@ -427,6 +437,7 @@ func (r *Runner) runWithLifecycleLog(ctx lifecycleLogContext, fn func(logWriter,
 		return err
 	}
 	defer file.Close()
+	_ = config.ChownToInvokingUser(path)
 
 	logWriter := io.MultiWriter(r.consoleOut(), file)
 	childWriter := io.MultiWriter(r.childStdoutConsole(), file)

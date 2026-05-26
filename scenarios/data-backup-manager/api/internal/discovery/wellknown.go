@@ -5,85 +5,56 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	"data-backup-manager/internal/sources"
 )
 
-// rootKind names which base directory an entry's relPath is resolved against.
-// v1 ships only "runtime" (→ ~/.vrooli). A future "repo" kind (resolved via
-// packages/repo-contract-go) will add scenarios/*/store entries WITHOUT
-// reworking this scanner — that is the deferred Track-B target scope (D9).
-type rootKind string
-
-const (
-	rootRuntime rootKind = "runtime"
-	// rootRepo rootKind = "repo" // DEFERRED (D9): scenario stores.
-)
-
-// wellKnownEntry is one manifest row. The manifest is data, not branching
-// logic, so extending coverage is appending rows.
-type wellKnownEntry struct {
-	relPath    string
-	root       rootKind
-	owner      string
-	name       string
-	sourceKind sources.SourceKind
-	isFile     bool
-	rationale  string
-}
-
-// wellKnownManifest is the v1 (~/.vrooli-only) set of runtime state worth
-// protecting. Ephemeral dirs (logs, cache, metrics, bin, processes) are
-// deliberately absent — not listing them is how they're excluded.
-var wellKnownManifest = []wellKnownEntry{
-	{
-		relPath: "plans", root: rootRuntime, owner: platformOwner, name: "plans",
-		sourceKind: sources.KindFilesystem,
-		rationale:  "Your authored Vrooli plans and backlog — the record of what the system is building.",
-	},
-	{
-		relPath: "state", root: rootRuntime, owner: platformOwner, name: "state",
-		sourceKind: sources.KindFilesystem,
-		rationale:  "Vrooli runtime state — durable working data scenarios accumulate.",
-	},
-	{
-		relPath: "config", root: rootRuntime, owner: platformOwner, name: "config",
-		sourceKind: sources.KindFilesystem,
-		rationale:  "Vrooli configuration — how this installation is wired up.",
-	},
-	{
-		relPath: "secrets.json", root: rootRuntime, owner: platformOwner, name: "secrets",
-		sourceKind: sources.KindFilesystem, isFile: true,
-		rationale: "Vrooli secrets store — irreplaceable credentials (backed up encrypted; contents never read here).",
-	},
-	{
-		relPath: "runtime.db", root: rootRuntime, owner: platformOwner, name: "runtime-db",
-		sourceKind: sources.KindSQLite, isFile: true,
-		rationale: "Vrooli runtime database — captured as a consistent SQLite copy.",
-	},
+// dbmRationale is the scenario's opinion layer over the runtime_home authority:
+// for each durable (non-regenerable) contract entry, the operator-facing name
+// and the "why back this up" copy. The set of *what* to protect comes entirely
+// from the contract (entries with regenerable=false); this table only adds
+// presentation. An entry missing here falls back to its contract key + a
+// generic rationale, so a new durable contract entry is never silently dropped.
+var dbmRationale = map[string]struct {
+	name      string
+	rationale string
+}{
+	repocontract.HomeKeyPlans:      {"plans", "Your authored Vrooli plans and backlog — the record of what the system is building."},
+	repocontract.HomeKeyState:      {"state", "Vrooli runtime state — durable working data scenarios accumulate."},
+	repocontract.HomeKeyConfig:     {"config", "Vrooli configuration — how this installation is wired up."},
+	repocontract.HomeKeyData:       {"data", "Durable scenario data — application state scenarios persist between runs."},
+	repocontract.HomeKeyRuntimeDB:  {"runtime-db", "Vrooli runtime database — captured as a consistent SQLite copy."},
+	repocontract.HomeKeySecrets:    {"secrets", "Vrooli secrets store — irreplaceable credentials (backed up encrypted; contents never read here)."},
+	repocontract.HomeKeySecretsEnc: {"secrets-enc", "Encrypted Vrooli secrets store — irreplaceable credentials (contents never read here)."},
 }
 
 // defaultMaxScanEntries bounds the shallow size estimate so a target with a
 // huge tree never stalls the RPC on a deep walk.
 const defaultMaxScanEntries = 4096
 
-// WellKnownScanner probes the resolved runtime root for the manifest entries.
-// It is strictly read-only: it stats paths and (for directories) reads entry
-// metadata for a bounded size estimate. It never reads file contents.
+// WellKnownScanner probes the resolved runtime root for the durable entries the
+// repo contract declares (regenerable=false). It is strictly read-only: it stats
+// paths and (for directories) reads entry metadata for a bounded size estimate.
+// It never reads file contents.
 type WellKnownScanner struct {
 	runtimeRoot    string
 	maxScanEntries int
 }
 
-// NewWellKnownScanner resolves the runtime root portably (APP_DATA_DIR ||
-// VROOLI_DATA || ~/.vrooli) and constructs the production scanner.
+// NewWellKnownScanner resolves the runtime root via the runtime_home authority
+// (the operator's $HOME joined with the contract dir name). There are no
+// APP_DATA_DIR/VROOLI_DATA overrides (Contract Decision CD-2): the scenario uses
+// the same single resolution path as the rest of the platform.
 func NewWellKnownScanner() *WellKnownScanner {
-	return &WellKnownScanner{runtimeRoot: resolveRuntimeRoot(), maxScanEntries: defaultMaxScanEntries}
+	return &WellKnownScanner{runtimeRoot: RuntimeRoot(), maxScanEntries: defaultMaxScanEntries}
 }
 
 // NewWellKnownScannerWithRoot constructs a scanner rooted at an explicit
-// directory — used by tests to point at a temp tree.
+// runtime-home directory — used by tests to point at a temp tree.
 func NewWellKnownScannerWithRoot(root string) *WellKnownScanner {
 	return &WellKnownScanner{runtimeRoot: root, maxScanEntries: defaultMaxScanEntries}
 }
@@ -91,24 +62,28 @@ func NewWellKnownScannerWithRoot(root string) *WellKnownScanner {
 // Compile-time guarantee.
 var _ TargetSourceScanner = (*WellKnownScanner)(nil)
 
-// Scan returns a candidate for each manifest entry that exists and is non-empty
-// under the runtime root. Missing or empty paths are silently skipped.
+// Scan returns a candidate for each durable runtime_home entry that exists and
+// is non-empty under the runtime root. Regenerable entries (bin/cache/logs/…)
+// are excluded by the contract flag, not by omission. Missing or empty paths are
+// silently skipped.
 func (w *WellKnownScanner) Scan(ctx context.Context) ([]TargetCandidate, error) {
 	if strings.TrimSpace(w.runtimeRoot) == "" {
 		return nil, nil
 	}
-	out := make([]TargetCandidate, 0, len(wellKnownManifest))
-	for _, e := range wellKnownManifest {
-		if e.root != rootRuntime {
-			continue // v1: only runtime-rooted entries are wired.
-		}
-		abs := filepath.Join(w.runtimeRoot, e.relPath)
+	entries, err := durableEntries()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]TargetCandidate, 0, len(entries))
+	for _, e := range entries {
+		abs := filepath.Join(w.runtimeRoot, filepath.FromSlash(e.RelPath))
 		info, err := os.Stat(abs)
 		if err != nil {
 			continue // missing or unreadable → not a candidate.
 		}
+		isFile := e.Kind == "file"
 		var approx int64
-		if e.isFile {
+		if isFile {
 			if info.IsDir() || info.Size() == 0 {
 				continue
 			}
@@ -117,23 +92,70 @@ func (w *WellKnownScanner) Scan(ctx context.Context) ([]TargetCandidate, error) 
 			if !info.IsDir() {
 				continue
 			}
-			entries, derr := os.ReadDir(abs)
-			if derr != nil || len(entries) == 0 {
+			dirEntries, derr := os.ReadDir(abs)
+			if derr != nil || len(dirEntries) == 0 {
 				continue // unreadable or empty dir → not worth protecting.
 			}
 			approx = w.boundedDirSize(ctx, abs)
 		}
+		meta := dbmRationale[e.Key]
+		name := meta.name
+		if name == "" {
+			name = e.Key
+		}
+		rationale := meta.rationale
+		if rationale == "" {
+			rationale = "Durable Vrooli runtime data."
+		}
 		out = append(out, TargetCandidate{
-			Owner:       e.owner,
-			Name:        e.name,
-			SourceKind:  e.sourceKind,
+			Owner:       platformOwner,
+			Name:        name,
+			SourceKind:  sourceKindFor(e),
 			Locator:     abs,
-			Rationale:   e.rationale,
+			Rationale:   rationale,
 			ApproxBytes: approx,
 		})
 	}
 	return out, nil
 }
+
+// sourceKindFor maps a contract entry's declared format to a capture strategy:
+// sqlite-formatted files get a consistent SQLite copy; everything else is a
+// filesystem capture.
+func sourceKindFor(e repocontract.HomeEntry) sources.SourceKind {
+	if e.Format == "sqlite" {
+		return sources.KindSQLite
+	}
+	return sources.KindFilesystem
+}
+
+// durableEntries returns the contract's runtime_home entries with
+// regenerable=false, sorted by key for deterministic output. The home value is
+// irrelevant here — only the relative structure/flags are used — so a fixed
+// placeholder is passed and only RelPath/Kind/Format are consumed.
+func durableEntries() ([]repocontract.HomeEntry, error) {
+	contract, _, err := repocontract.LoadDefaultFromEnvOrCWD()
+	if err != nil {
+		return nil, err
+	}
+	all, err := contract.RuntimeHomeEntries(placeholderHome)
+	if err != nil {
+		return nil, err
+	}
+	durable := make([]repocontract.HomeEntry, 0, len(all))
+	for _, e := range all {
+		if e.Regenerable {
+			continue
+		}
+		durable = append(durable, e)
+	}
+	sort.Slice(durable, func(i, j int) bool { return durable[i].Key < durable[j].Key })
+	return durable, nil
+}
+
+// placeholderHome is a fixed home used only to extract relative structure from
+// the contract; the resulting AbsPath is discarded (RelPath is what's used).
+const placeholderHome = "/__dbm_runtime_home__"
 
 // boundedDirSize sums regular-file sizes under root, bailing out after
 // maxScanEntries files or on context cancellation. It reads only metadata, never
@@ -160,24 +182,19 @@ func (w *WellKnownScanner) boundedDirSize(ctx context.Context, root string) int6
 	return total
 }
 
-// RuntimeRoot exposes the portably-resolved Vrooli runtime root so the
-// composition root can include it in the protected-path set (Contract Decision
-// D4) without duplicating the resolution logic.
-func RuntimeRoot() string { return resolveRuntimeRoot() }
-
-// resolveRuntimeRoot resolves the Vrooli runtime root portably. Order:
-// APP_DATA_DIR, then VROOLI_DATA, then the user's ~/.vrooli. Returns "" when no
-// home can be resolved (the scanner then yields no candidates).
-func resolveRuntimeRoot() string {
-	if v := strings.TrimSpace(os.Getenv("APP_DATA_DIR")); v != "" {
-		return v
-	}
-	if v := strings.TrimSpace(os.Getenv("VROOLI_DATA")); v != "" {
-		return v
-	}
+// RuntimeRoot resolves the Vrooli runtime root (the operator's ~/.vrooli) via the
+// runtime_home authority, so the composition root can include it in the
+// protected-path set (Contract Decision D4) without duplicating resolution.
+// The scenario API runs as the operator (not under sudo), so os.UserHomeDir is
+// the correct home here; there are no env overrides (CD-2).
+func RuntimeRoot() string {
 	home, err := os.UserHomeDir()
 	if err != nil || strings.TrimSpace(home) == "" {
 		return ""
 	}
-	return filepath.Join(home, ".vrooli")
+	root, err := repocontract.VrooliUserRoot(home)
+	if err != nil {
+		return ""
+	}
+	return root
 }

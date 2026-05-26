@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 )
 
@@ -48,25 +49,49 @@ func HomeDir() (string, error) {
 	return config.HomeDir()
 }
 
-func ScenarioProcessDir(home, name string) string {
-	return filepath.Join(home, ".vrooli", "processes", "scenarios", name)
+// ScenarioProcessDir resolves <home>/.vrooli/processes/scenarios/<name> from the
+// runtime_home authority. Returns an error if the contract cannot be loaded.
+func ScenarioProcessDir(home, name string) (string, error) {
+	root, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyProcesses)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, "scenarios", name), nil
 }
 
-func ScenarioLogsDir(home, name string) string {
-	return filepath.Join(home, ".vrooli", "logs", "scenarios", name)
+// ScenarioLogsDir resolves <home>/.vrooli/logs/scenarios/<name>.
+func ScenarioLogsDir(home, name string) (string, error) {
+	root, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyLogs)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, "scenarios", name), nil
 }
 
-func ScenarioLifecycleLogPath(home, name string) string {
-	return filepath.Join(home, ".vrooli", "logs", name+".log")
+// ScenarioLifecycleLogPath resolves <home>/.vrooli/logs/<name>.log.
+func ScenarioLifecycleLogPath(home, name string) (string, error) {
+	root, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyLogs)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, name+".log"), nil
 }
 
-func ScenarioStateDir(home string) string {
-	return filepath.Join(home, ".vrooli", "state", "scenarios")
+// ScenarioStateDir resolves <home>/.vrooli/state/scenarios.
+func ScenarioStateDir(home string) (string, error) {
+	root, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, "scenarios"), nil
 }
 
 func WriteScenarioRecord(home, name, step string, record Record) error {
-	processDir := ScenarioProcessDir(home, name)
-	if err := os.MkdirAll(processDir, 0o755); err != nil {
+	processDir, err := ScenarioProcessDir(home, name)
+	if err != nil {
+		return err
+	}
+	if _, err := config.EnsureOwnedDir(processDir); err != nil {
 		return fmt.Errorf("create process dir %s: %w", processDir, err)
 	}
 
@@ -87,19 +112,22 @@ func WriteScenarioRecord(home, name, step string, record Record) error {
 	data = append(data, '\n')
 
 	recordPath := filepath.Join(processDir, step+".json")
-	if err := os.WriteFile(recordPath, data, 0o644); err != nil {
+	if err := config.WriteOwnedFile(recordPath, data, 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", recordPath, err)
 	}
 
 	pidPath := filepath.Join(processDir, step+".pid")
-	if err := os.WriteFile(pidPath, []byte(strconv.Itoa(record.PID)+"\n"), 0o644); err != nil {
+	if err := config.WriteOwnedFile(pidPath, []byte(strconv.Itoa(record.PID)+"\n"), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", pidPath, err)
 	}
 	return nil
 }
 
 func RemoveScenarioRecord(home, name, step string) error {
-	processDir := ScenarioProcessDir(home, name)
+	processDir, err := ScenarioProcessDir(home, name)
+	if err != nil {
+		return err
+	}
 	recordPath := filepath.Join(processDir, step+".json")
 	pidPath := filepath.Join(processDir, step+".pid")
 
@@ -113,7 +141,10 @@ func RemoveScenarioRecord(home, name, step string) error {
 }
 
 func ReadScenarioRecords(home, name string) ([]Record, error) {
-	processDir := filepath.Join(home, ".vrooli", "processes", "scenarios", name)
+	processDir, err := ScenarioProcessDir(home, name)
+	if err != nil {
+		return nil, err
+	}
 	files, err := filepath.Glob(filepath.Join(processDir, "*.json"))
 	if err != nil {
 		return nil, err
@@ -190,7 +221,11 @@ func SummarizeScenario(name string, records []Record) ScenarioRuntime {
 }
 
 func DiscoverRunningScenarios(home string, valid func(string) bool) ([]ScenarioRuntime, error) {
-	processRoot := filepath.Join(home, ".vrooli", "processes", "scenarios")
+	processesRoot, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyProcesses)
+	if err != nil {
+		return nil, err
+	}
+	processRoot := filepath.Join(processesRoot, "scenarios")
 	entries, err := os.ReadDir(processRoot)
 	if err != nil {
 		if os.IsNotExist(err) {

@@ -325,7 +325,11 @@ func TestExecutePhaseDetailedWrapsStepFailuresWithContext(t *testing.T) {
 	if phaseErr.ExitCode() != 7 {
 		t.Fatalf("phaseErr.ExitCode() = %d, want 7", phaseErr.ExitCode())
 	}
-	if !strings.Contains(phaseErr.Error(), process.ScenarioLifecycleLogPath(home, "alpha")) {
+	logPath, logErr := process.ScenarioLifecycleLogPath(home, "alpha")
+	if logErr != nil {
+		t.Fatalf("ScenarioLifecycleLogPath: %v", logErr)
+	}
+	if !strings.Contains(phaseErr.Error(), logPath) {
 		t.Fatalf("phaseErr.Error() = %q", phaseErr.Error())
 	}
 }
@@ -353,7 +357,11 @@ func TestRunPhaseDetailedWritesLifecycleRunBoundaries(t *testing.T) {
 		t.Fatalf("RunPhaseDetailed: %v", err)
 	}
 
-	data, err := os.ReadFile(process.ScenarioLifecycleLogPath(home, "alpha"))
+	logPath, err := process.ScenarioLifecycleLogPath(home, "alpha")
+	if err != nil {
+		t.Fatalf("ScenarioLifecycleLogPath: %v", err)
+	}
+	data, err := os.ReadFile(logPath)
 	if err != nil {
 		t.Fatalf("read lifecycle log: %v", err)
 	}
@@ -396,7 +404,11 @@ func TestRunPhaseDetailedWritesFailureBoundaryDetails(t *testing.T) {
 		t.Fatal("expected RunPhaseDetailed to fail")
 	}
 
-	data, err := os.ReadFile(process.ScenarioLifecycleLogPath(home, "alpha"))
+	logPath, err := process.ScenarioLifecycleLogPath(home, "alpha")
+	if err != nil {
+		t.Fatalf("ScenarioLifecycleLogPath: %v", err)
+	}
+	data, err := os.ReadFile(logPath)
 	if err != nil {
 		t.Fatalf("read lifecycle log: %v", err)
 	}

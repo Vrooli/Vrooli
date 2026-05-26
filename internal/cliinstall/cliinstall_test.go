@@ -21,6 +21,17 @@ import (
 	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
+// mustManager constructs a Manager and fails the test on error. NewManager now
+// resolves the install dir from the runtime_home contract, which can error.
+func mustManager(t *testing.T, root, home string) *Manager {
+	t.Helper()
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager(%q, %q): %v", root, home, err)
+	}
+	return manager
+}
+
 // computeScenarioCLIFingerprint is a test-only helper that exercises the
 // canonical FreshnessSpec path end-to-end.
 func computeScenarioCLIFingerprint(item InstallableCLI) (string, error) {
@@ -134,7 +145,7 @@ func TestDiscoverScenarioCLIs(t *testing.T) {
 	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
 	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "beta", "beta/cli")
 
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	items, err := manager.DiscoverScenarioCLIs()
 	if err != nil {
 		t.Fatalf("DiscoverScenarioCLIs: %v", err)
@@ -168,7 +179,7 @@ func TestDiscoverScenarioCLIReportIncludesFailuresWithoutAborting(t *testing.T) 
   }
 }`)
 
-	report, err := NewManager(fixture.Root, fixture.Home).DiscoverScenarioCLIReport()
+	report, err := mustManager(t, fixture.Root, fixture.Home).DiscoverScenarioCLIReport()
 	if err != nil {
 		t.Fatalf("DiscoverScenarioCLIReport: %v", err)
 	}
@@ -188,7 +199,7 @@ func TestDiscoverScenarioCLIsIncludesShellScriptAdapter(t *testing.T) {
 	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "alpha"), "#!/usr/bin/env bash\nexit 0\n")
 	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
 
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	item, err := manager.DiscoverScenarioCLI("alpha")
 	if err != nil {
 		t.Fatalf("DiscoverScenarioCLI: %v", err)
@@ -209,7 +220,7 @@ func TestDiscoverScenarioCLIDoesNotInferGoModuleFromLayoutWithoutManifest(t *tes
 	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
 	testkitgo.WriteRelativeFile(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "main.go"), "package main\nfunc main() {}\n")
 
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	_, err := manager.DiscoverScenarioCLI("alpha")
 	if err == nil {
 		t.Fatal("expected missing CLI manifest error, got nil")
@@ -227,7 +238,7 @@ func TestDiscoverScenarioCLIDoesNotInferShellScriptFromLayoutWithoutManifest(t *
 	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "alpha"), "#!/usr/bin/env bash\nexit 0\n")
 	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
 
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	_, err := manager.DiscoverScenarioCLI("alpha")
 	if err == nil {
 		t.Fatal("expected missing CLI manifest error, got nil")
@@ -255,7 +266,7 @@ func TestDiscoverEnabledResourceCLIs(t *testing.T) {
 		)),
 	))
 
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	items, err := manager.DiscoverEnabledResourceCLIs()
 	if err != nil {
 		t.Fatalf("DiscoverEnabledResourceCLIs: %v", err)
@@ -280,7 +291,7 @@ func TestDiscoverResourceCLIsReturnsAllInstallableModules(t *testing.T) {
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "redis", "resource-redis/cli")
 
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	items, err := manager.DiscoverResourceCLIs()
 	if err != nil {
 		t.Fatalf("DiscoverResourceCLIs: %v", err)
@@ -299,7 +310,7 @@ func TestDiscoverResourceCLIIncludesShellScriptAdapter(t *testing.T) {
 	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "resource-postgres"), "#!/usr/bin/env bash\nexit 0\n")
 	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
 
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	item, err := manager.DiscoverResourceCLI("postgres")
 	if err != nil {
 		t.Fatalf("DiscoverResourceCLI: %v", err)
@@ -319,7 +330,7 @@ func TestDiscoverResourceCLIDoesNotInferGoModuleFromLayoutWithoutEnabledManifest
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
 	testkitgo.WriteRelativeFile(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "main.go"), "package main\nfunc main() {}\n")
 
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	_, err := manager.DiscoverResourceCLI("postgres")
 	if err == nil {
 		t.Fatal("expected missing CLI manifest error, got nil")
@@ -336,7 +347,7 @@ func TestDiscoverResourceCLIDoesNotInferShellScriptFromLayoutWithoutEnabledManif
 	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "resource-postgres"), "#!/usr/bin/env bash\nexit 0\n")
 	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
 
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	_, err := manager.DiscoverResourceCLI("postgres")
 	if err == nil {
 		t.Fatal("expected missing CLI manifest error, got nil")
@@ -355,7 +366,7 @@ func TestDiscoverScenarioCLIsReturnsUnexpectedErrors(t *testing.T) {
 	}
 	writeGoScenarioCLIManifest(t, fixture.Root, "alpha")
 
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	_, err := manager.DiscoverScenarioCLIs()
 	if err == nil {
 		t.Fatal("expected discovery error, got nil")
@@ -376,7 +387,7 @@ func TestInstallAllScenarioCLIsInvokesInstaller(t *testing.T) {
 	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "beta", "beta/cli")
 
 	installer := &stubInstaller{}
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	manager.Installer = installer
 
 	if err := manager.InstallAllScenarioCLIs(); err != nil {
@@ -398,7 +409,7 @@ func TestEnsureScenarioCLIInstallsWhenMissing(t *testing.T) {
 	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
 
 	installer := &stubInstaller{}
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	manager.Installer = installer
 
 	if err := manager.EnsureScenarioCLI("alpha"); err != nil {
@@ -418,7 +429,7 @@ func TestEnsureScenarioCLIShellScriptInstallsWhenMissing(t *testing.T) {
 	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
 
 	installer := &stubInstaller{}
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	manager.Installer = installer
 
 	if err := manager.EnsureScenarioCLI("alpha"); err != nil {
@@ -439,7 +450,7 @@ func TestInspectScenarioCLIInstallLocationReportsPathMismatch(t *testing.T) {
 	writeGoScenarioCLIManifest(t, fixture.Root, "alpha")
 	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
 
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	canonical := filepath.Join(fixture.Home, ".vrooli", "bin", "alpha")
 	if err := os.MkdirAll(filepath.Dir(canonical), 0o755); err != nil {
 		t.Fatalf("mkdir install dir: %v", err)
@@ -473,7 +484,7 @@ func TestInspectScenarioCLIInstallLocationHandlesCommandNotFound(t *testing.T) {
 	writeGoScenarioCLIManifest(t, fixture.Root, "alpha")
 	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
 
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	status, err := manager.InspectScenarioCLIInstallLocation("alpha", func(string) (string, error) {
 		return "", exec.ErrNotFound
 	})
@@ -495,7 +506,7 @@ func TestEnsureResourceCLISkipsWhenInstalled(t *testing.T) {
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
 
 	installer := &stubInstaller{}
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	manager.Installer = installer
 
 	binaryPath := filepath.Join(fixture.Home, ".vrooli", "bin", "resource-postgres")
@@ -532,7 +543,7 @@ func TestEnsureResourceCLIReinstallsCorruptCurrentBinary(t *testing.T) {
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
 
 	installer := &stubInstaller{}
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	manager.Installer = installer
 
 	binaryPath := filepath.Join(fixture.Home, ".vrooli", "bin", "resource-postgres")
@@ -569,7 +580,7 @@ func TestEnsureResourceCLIInstallsWhenMetadataMissing(t *testing.T) {
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
 
 	installer := &stubInstaller{}
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	manager.Installer = installer
 
 	binaryPath := filepath.Join(fixture.Home, ".vrooli", "bin", "resource-postgres")
@@ -595,7 +606,7 @@ func TestEnsureResourceCLIReinstallsWhenFingerprintStale(t *testing.T) {
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
 
 	installer := &stubInstaller{}
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	manager.Installer = installer
 
 	binaryPath := filepath.Join(fixture.Home, ".vrooli", "bin", "resource-postgres")
@@ -625,7 +636,7 @@ func TestEnsureResourceCLIShellScriptInstallsWhenMissing(t *testing.T) {
 	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
 
 	installer := &stubInstaller{}
-	manager := NewManager(fixture.Root, fixture.Home)
+	manager := mustManager(t, fixture.Root, fixture.Home)
 	manager.Installer = installer
 
 	if err := manager.EnsureResourceCLI("postgres"); err != nil {
@@ -641,7 +652,7 @@ func TestEnsureResourceCLIShellScriptInstallsWhenMissing(t *testing.T) {
 
 func TestRepoEnabledResourceCLIsAreAllDiscoverable(t *testing.T) {
 	root := testkitgo.ProjectRoot(t)
-	manager := NewManager(root, t.TempDir())
+	manager := mustManager(t, root, t.TempDir())
 
 	items, err := manager.DiscoverEnabledResourceCLIs()
 	if err != nil {
@@ -683,7 +694,7 @@ func TestRepoEnabledResourceCLIsAreAllDiscoverable(t *testing.T) {
 
 func TestInstallResourceCLIWithGoInstallerCreatesBinaryAndMetadata(t *testing.T) {
 	root := testkitgo.ProjectRoot(t)
-	manager := NewManager(root, t.TempDir())
+	manager := mustManager(t, root, t.TempDir())
 	if err := manager.InstallResourceCLI("postgres"); err != nil {
 		t.Fatalf("InstallResourceCLI: %v", err)
 	}
@@ -730,7 +741,7 @@ func TestComputeScenarioCLIFingerprintIncludesManifestForGoModule(t *testing.T) 
 		}),
 	))
 
-	item, err := NewManager(fixture.Root, t.TempDir()).DiscoverScenarioCLI("alpha")
+	item, err := mustManager(t, fixture.Root, t.TempDir()).DiscoverScenarioCLI("alpha")
 	if err != nil {
 		t.Fatalf("DiscoverScenarioCLI: %v", err)
 	}
@@ -780,7 +791,7 @@ func TestComputeResourceCLIFingerprintIncludesManifestForGoModule(t *testing.T) 
 	}
 	testresource.WriteResourceManifest(t, fixture.Root, "alpha", manifest)
 
-	item, err := NewManager(fixture.Root, t.TempDir()).DiscoverResourceCLI("alpha")
+	item, err := mustManager(t, fixture.Root, t.TempDir()).DiscoverResourceCLI("alpha")
 	if err != nil {
 		t.Fatalf("DiscoverResourceCLI: %v", err)
 	}
@@ -849,7 +860,7 @@ func TestInstalledScenarioCLINames(t *testing.T) {
 		t.Fatalf("mkdir subdir: %v", err)
 	}
 
-	manager := &Manager{Home: home}
+	manager := mustManager(t, t.TempDir(), home)
 	got, err := manager.InstalledScenarioCLINames()
 	if err != nil {
 		t.Fatalf("InstalledScenarioCLINames: %v", err)
@@ -861,7 +872,7 @@ func TestInstalledScenarioCLINames(t *testing.T) {
 }
 
 func TestInstalledScenarioCLINamesMissingDir(t *testing.T) {
-	manager := &Manager{Home: t.TempDir()}
+	manager := mustManager(t, t.TempDir(), t.TempDir())
 	got, err := manager.InstalledScenarioCLINames()
 	if err != nil {
 		t.Fatalf("expected nil error for missing dir, got %v", err)

@@ -9,19 +9,20 @@ import (
 	"strings"
 	"unicode"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 )
 
 const (
-	stateProjectsDir = "state/projects"
-	setupDirName     = "setup"
-	projectKeyHash   = 12
+	setupDirName   = "setup"
+	projectKeyHash = 12
 )
 
 type Locator struct {
-	home string
-	root string
-	key  string
+	home          string
+	root          string
+	key           string
+	setupStateDir string
 }
 
 func NewLocator(home, root string) (Locator, error) {
@@ -42,10 +43,19 @@ func NewLocator(home, root string) (Locator, error) {
 		resolvedRoot = absRoot
 	}
 	resolvedRoot = filepath.Clean(resolvedRoot)
+	cleanHome := filepath.Clean(resolvedHome)
+	key := projectKey(resolvedRoot)
+	// Resolve the project-state directory from the runtime_home authority. The
+	// contract is required; a load failure surfaces here (no fallback).
+	projectStateDir, err := repocontract.RuntimeHomeScopedPath(cleanHome, repocontract.ScopedProjectState, map[string]string{"project_key": key})
+	if err != nil {
+		return Locator{}, fmt.Errorf("resolve project state dir: %w", err)
+	}
 	return Locator{
-		home: filepath.Clean(resolvedHome),
-		root: resolvedRoot,
-		key:  projectKey(resolvedRoot),
+		home:          cleanHome,
+		root:          resolvedRoot,
+		key:           key,
+		setupStateDir: filepath.Join(projectStateDir, setupDirName),
 	}, nil
 }
 
@@ -70,7 +80,7 @@ func (l Locator) ProjectKey() string {
 }
 
 func (l Locator) SetupStateDir() string {
-	return filepath.Join(config.VrooliDir(l.home), filepath.FromSlash(stateProjectsDir), l.key, setupDirName)
+	return l.setupStateDir
 }
 
 func (l Locator) SetupCompletePath() string {

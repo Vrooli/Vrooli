@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	apicoresecrets "github.com/vrooli/api-core/secrets"
+	repocontract "github.com/vrooli/repo-contract-go"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -511,7 +512,11 @@ func expandTemplateWithContext(value string, env map[string]string, extra map[st
 func buildTemplateContext(root, home, resourceName string) map[string]string {
 	dataRoot := strings.TrimSpace(os.Getenv("VROOLI_DATA"))
 	if dataRoot == "" && home != "" {
-		dataRoot = filepath.Join(home, ".vrooli", "data")
+		// Resource-env output var: the data root name comes from the runtime_home
+		// authority, not a hard-coded literal.
+		if resolved, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyData); err == nil {
+			dataRoot = resolved
+		}
 	}
 
 	context := map[string]string{

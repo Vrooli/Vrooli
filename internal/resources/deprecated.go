@@ -11,6 +11,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 type DeprecatedResource struct {
@@ -120,8 +123,12 @@ func (c *Controller) DeprecateResource(name string) (DeprecationReport, error) {
 	if err != nil {
 		return DeprecationReport{}, err
 	}
-	archiveDir := filepath.Join(c.archiveRoot(), fmt.Sprintf("%s-%s", now.Format("20060102-150405"), name))
-	if err := os.MkdirAll(archiveDir, 0o755); err != nil {
+	archiveBase, err := c.archiveRoot()
+	if err != nil {
+		return DeprecationReport{}, err
+	}
+	archiveDir := filepath.Join(archiveBase, fmt.Sprintf("%s-%s", now.Format("20060102-150405"), name))
+	if _, err := config.EnsureOwnedDir(archiveDir); err != nil {
 		return DeprecationReport{}, fmt.Errorf("create archive dir %s: %w", archiveDir, err)
 	}
 	archiveHash, err := writeArchive(archiveDir, collection.Sources)
@@ -335,8 +342,12 @@ func (c *Controller) removeResourceDirectory(name string) error {
 	path := filepath.Join(c.Root, "resources", name)
 	if _, err := os.Stat(path); err == nil {
 		if err := os.RemoveAll(path); err != nil {
-			remnantsRoot := filepath.Join(c.archiveRoot(), "remnants")
-			if mkErr := os.MkdirAll(remnantsRoot, 0o755); mkErr != nil {
+			archiveBase, archiveErr := c.archiveRoot()
+			if archiveErr != nil {
+				return fmt.Errorf("remove resource directory %s: %w", path, err)
+			}
+			remnantsRoot := filepath.Join(archiveBase, "remnants")
+			if _, mkErr := config.EnsureOwnedDir(remnantsRoot); mkErr != nil {
 				return fmt.Errorf("remove resource directory %s: %w", path, err)
 			}
 			target := filepath.Join(remnantsRoot, fmt.Sprintf("%s-%s", time.Now().UTC().Format("20060102-150405"), name))
@@ -428,17 +439,21 @@ func (c *Controller) deprecationReplacement(name string) string {
 	return ""
 }
 
-func (c *Controller) archiveRoot() string {
+func (c *Controller) archiveRoot() (string, error) {
 	home := strings.TrimSpace(c.Home)
 	if home == "" {
-		if resolved, err := os.UserHomeDir(); err == nil {
-			home = resolved
+		// Sudo-aware: never bare os.UserHomeDir (would archive under /root).
+		resolved, err := config.HomeDir()
+		if err != nil {
+			return "", fmt.Errorf("resolve home for resource archive: %w", err)
 		}
+		home = resolved
 	}
-	if home == "" {
-		home = c.Root
+	root, err := repocontract.VrooliUserRoot(home)
+	if err != nil {
+		return "", err
 	}
-	return filepath.Join(home, ".vrooli", "archive", "resources")
+	return filepath.Join(root, "archive", "resources"), nil
 }
 
 func archiveSourcesFromDir(root, targetPrefix string) (archiveCollection, error) {

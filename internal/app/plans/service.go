@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	configpkg "github.com/vrooli/vrooli/internal/config"
 )
 
@@ -269,7 +270,14 @@ func (s Service) storageDir() string {
 			home = resolved
 		}
 	}
-	return filepath.Join(configpkg.VrooliDir(home), "plans")
+	// Plans dir name comes from the runtime_home authority. A contract-load
+	// failure is catastrophic; return empty so callers fail loudly rather than
+	// writing to a hand-rolled path.
+	dir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyPlans)
+	if err != nil {
+		return ""
+	}
+	return dir
 }
 
 func (s Service) indexPath() string {

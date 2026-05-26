@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 type BlueprintArchivedResource struct {
@@ -91,8 +93,12 @@ func (c *Controller) ArchiveResourceToBlueprint(name string) (BlueprintArchiveRe
 	if err != nil {
 		return BlueprintArchiveReport{}, err
 	}
-	archiveDir := filepath.Join(c.archiveRoot(), fmt.Sprintf("%s-%s", now.Format("20060102-150405"), name))
-	if err := os.MkdirAll(archiveDir, 0o755); err != nil {
+	archiveBase, err := c.archiveRoot()
+	if err != nil {
+		return BlueprintArchiveReport{}, err
+	}
+	archiveDir := filepath.Join(archiveBase, fmt.Sprintf("%s-%s", now.Format("20060102-150405"), name))
+	if _, err := config.EnsureOwnedDir(archiveDir); err != nil {
 		return BlueprintArchiveReport{}, fmt.Errorf("create archive dir %s: %w", archiveDir, err)
 	}
 	archiveHash, err := writeArchive(archiveDir, collection.Sources)

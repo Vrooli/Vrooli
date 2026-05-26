@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/shell"
 )
@@ -152,7 +153,11 @@ func trackedProcessStats(home string, processTable map[int]processTableEntry) (m
 	trackedCount := 0
 	runningTracked := 0
 
-	processRoot := filepath.Join(home, ".vrooli", "processes", "scenarios")
+	processesDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyProcesses)
+	if err != nil {
+		return nil, nil, 0, 0, err
+	}
+	processRoot := filepath.Join(processesDir, "scenarios")
 	entries, err := os.ReadDir(processRoot)
 	if err != nil {
 		if !os.IsNotExist(err) {
