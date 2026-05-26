@@ -46,7 +46,7 @@ type resourceNeeds struct {
 	// Used by the routed path to pick a DSN that matches the scenario's
 	// actual driver, avoiding hangs from cross-driver DSN injection.
 	PrimaryDriver string
-	SQLiteEnvVars   []string
+	SQLiteEnvVars []string
 }
 
 // Cleanup tears down isolation resources and restarts the scenario to normal resources.
@@ -321,13 +321,19 @@ func resolveDBNeeds(ctx context.Context, env workspace.Environment, logWriter io
 	if logWriter != nil {
 		_, _ = logWriter.Write([]byte(report.FormatHuman()))
 	}
-	return resourceNeeds{
+	needs := resourceNeeds{
 		RequirePostgres: report.Required("postgres"),
 		RequireRedis:    report.Required("redis"),
 		RequireSQLite:   report.Required("sqlite"),
 		PrimaryDriver:   primaryDriver(report),
 		SQLiteEnvVars:   manifest.SQLitePathEnvVars(),
 	}
+	if needs.PrimaryDriver == "" {
+		shared.LogWarn(logWriter, "db-detect did not pick a primary driver — routed path will not be used")
+	} else {
+		shared.LogInfo(logWriter, "db-detect primary driver = %s", needs.PrimaryDriver)
+	}
+	return needs
 }
 
 // primaryDriver returns "postgres" or "sqlite" when one has strictly

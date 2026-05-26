@@ -41,8 +41,21 @@ var isolationManagerFactory = func(cfg isolation.Config) isolationProvider {
 	return isolation.NewManager(cfg)
 }
 
-// routingChecker is the eligibility decider; tests override it.
-var routingChecker = eligibility.NewChecker(0)
+// routedLeaseTTL bounds how long the scenario will hold the test pool
+// without a HeartbeatTestPool. test-genie heartbeats at routedLeaseTTL/3.
+const routedLeaseTTL = 90 * time.Second
+
+// eligibilityChecker is the seam over eligibility.Checker so tests can swap
+// in a stub without touching the auditor HTTP path.
+//
+// seam: routingChecker — production wires *eligibility.Checker; tests
+// override the package var to inject canned PathDecisions / errors.
+type eligibilityChecker interface {
+	Check(ctx context.Context, scenario string, mapping workspace.Mapping) (eligibility.Eligibility, error)
+	Invalidate(scenario string)
+}
+
+var routingChecker eligibilityChecker = eligibility.NewChecker(0)
 
 // resolveScenarioRoutingClient returns a Connect-RPC client for the running
 // scenario's RoutingService. Tests override it to return a stub.
@@ -52,6 +65,35 @@ var resolveScenarioRoutingClient = func(ctx context.Context, scenarioName string
 		return nil, fmt.Errorf("resolve %s API URL: %w", scenarioName, err)
 	}
 	return routing_v1connect.NewRoutingServiceClient(http.DefaultClient, baseURL), nil
+}
+
+// probeRoutingServiceEnabled issues a cheap HTTP GET against the scenario's
+// RoutingService route. A 404 means devrouting.Register did not mount the
+// handler — almost always because the scenario is in production mode
+// (projectmeta.IsDevelopment() returned false). Any other response (200,
+// 405, 415, …) means the handler is mounted and the routed path is viable.
+//
+// seam: probeRoutingServiceEnabled — production hits the live scenario;
+// tests override to short-circuit.
+var probeRoutingServiceEnabled = func(ctx context.Context, scenarioName string) error {
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, scenarioName)
+	if err != nil {
+		return fmt.Errorf("resolve %s API URL: %w", scenarioName, err)
+	}
+	probeURL := strings.TrimRight(baseURL, "/") + routing_v1connect.RoutingServiceInstallTestPoolProcedure
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, probeURL, nil)
+	if err != nil {
+		return fmt.Errorf("build probe request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("probe %s: %w", probeURL, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return errRoutingServiceDisabled
+	}
+	return nil
 }
 
 type staticRegistryLoader struct {
@@ -177,18 +219,15 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 		}
 	}
 
-	// Routing eligibility check — the routed path requires the scenario to
-	// have been migrated to *database.RoutedDB and to expose RoutingService
-	// in dev mode. If anything is off, we drop straight into the fallback
-	// path with a violations block.
+	// Routing eligibility — the routed path requires the scenario to have
+	// been migrated to *database.RoutedDB and to expose RoutingService in
+	// dev mode. The decision is consolidated into a single PathDecision so
+	// the structured log block is the only operator-facing surface.
 	elig, eligErr := routingChecker.Check(ctx, env.ScenarioName, mapping)
-	useRouted := eligErr == nil && elig.Routed && os.Getenv("TEST_GENIE_FORCE_FALLBACK") != "1"
+	defer routingChecker.Invalidate(env.ScenarioName)
 
-	if eligErr != nil {
-		shared.LogWarn(logWriter, "routed-path eligibility check failed: %v (falling back to restart-based path)", eligErr)
-	} else if !elig.Routed {
-		writeFallbackViolationsBlock(logWriter, elig.Violations)
-	}
+	forcedFallback := os.Getenv("TEST_GENIE_FORCE_FALLBACK") == "1"
+	decision := decidePlaybooksPath(elig, eligErr, forcedFallback)
 
 	needs := resolveDBNeeds(ctx, env, logWriter)
 	isoManager := isolationManagerFactory(isolation.Config{
@@ -211,24 +250,117 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 		}
 	}
 
-	if useRouted {
-		dsn, dsnErr := extractTestDSN(isoResult.Env, needs.PrimaryDriver)
-		var client routing_v1connect.RoutingServiceClient
-		var clientErr error
-		if dsnErr == nil {
-			client, clientErr = resolveScenarioRoutingClient(ctx, env.ScenarioName)
-		}
-		if dsnErr != nil || clientErr != nil {
-			reason := dsnErr
-			if reason == nil {
-				reason = clientErr
-			}
-			shared.LogWarn(logWriter, "routed-path pre-flight failed (%v); using fallback path", reason)
+	if decision.IsRouted() {
+		client, dsn, prefErr := runPlaybooksRoutedPreflight(ctx, env.ScenarioName, isoResult.Env, needs.PrimaryDriver)
+		if prefErr != nil {
+			decision = preflightFailureDecision(prefErr)
+			writePathDecisionBlock(logWriter, decision)
 			return runPlaybooksFallback(ctx, env, logWriter, playbooksCfg, registry, needs, isoResult, retainIsolation)
 		}
+		decision.LeaseID = leaseID
+		decision.DSNDriver = needs.PrimaryDriver
+		writePathDecisionBlock(logWriter, decision)
 		return runPlaybooksRouted(ctx, env, logWriter, playbooksCfg, registry, needs, isoResult, retainIsolation, client, dsn, leaseID)
 	}
+
+	writePathDecisionBlock(logWriter, decision)
 	return runPlaybooksFallback(ctx, env, logWriter, playbooksCfg, registry, needs, isoResult, retainIsolation)
+}
+
+// decidePlaybooksPath consolidates the routed-vs-fallback choice into a
+// single PathDecision so all branches emit the same structured log block.
+func decidePlaybooksPath(elig eligibility.Eligibility, eligErr error, forcedFallback bool) eligibility.PathDecision {
+	if forcedFallback {
+		return eligibility.PathDecision{
+			Path:   eligibility.PathFallbackForcedEnv,
+			Reason: "TEST_GENIE_FORCE_FALLBACK=1 forces the fallback path",
+		}
+	}
+	if eligErr != nil {
+		return eligibility.PathDecision{
+			Path:   eligibility.PathFallbackAuditorUnreachable,
+			Reason: fmt.Sprintf("scenario-auditor scan did not complete: %v", eligErr),
+		}
+	}
+	if elig.RuleAssertion != nil {
+		return eligibility.PathDecision{
+			Path:          eligibility.PathFallbackRules,
+			RuleAssertion: elig.RuleAssertion,
+			Reason:        "scenario-auditor scan did not include one or more required routing rules",
+		}
+	}
+	if !elig.Routed {
+		return eligibility.PathDecision{
+			Path:       eligibility.PathFallbackRules,
+			Violations: elig.Violations,
+			Reason:     "scenario-auditor flagged routing-rule violations",
+		}
+	}
+	return eligibility.PathDecision{
+		Path:   eligibility.PathRouted,
+		Reason: "routed e2e path — no scenario restart",
+	}
+}
+
+// preflightFailureDecision wraps a pre-flight error into a PathDecision with
+// the correct PreflightFailure tag (or PathFallbackProductionMode when the
+// scenario's RoutingService route is not mounted).
+func preflightFailureDecision(err error) eligibility.PathDecision {
+	switch {
+	case errors.Is(err, errRoutingServiceDisabled):
+		return eligibility.PathDecision{
+			Path:   eligibility.PathFallbackProductionMode,
+			Reason: err.Error(),
+		}
+	case errors.Is(err, errNoTestDSN):
+		return eligibility.PathDecision{
+			Path:             eligibility.PathFallbackPreflight,
+			PreflightFailure: eligibility.PreflightFailureNoDSN,
+			Reason:           err.Error(),
+		}
+	case errors.Is(err, errRoutingClientUnreachable):
+		return eligibility.PathDecision{
+			Path:             eligibility.PathFallbackPreflight,
+			PreflightFailure: eligibility.PreflightFailureRoutingUnreachable,
+			Reason:           err.Error(),
+		}
+	}
+	return eligibility.PathDecision{
+		Path:             eligibility.PathFallbackPreflight,
+		PreflightFailure: eligibility.PreflightFailureNone,
+		Reason:           err.Error(),
+	}
+}
+
+// errNoTestDSN and errRoutingClientUnreachable are the two typed pre-flight
+// errors. Pre-flight wraps the underlying reason with these sentinels so the
+// PathDecision can classify the failure.
+var (
+	errNoTestDSN                = errors.New("routed pre-flight: no usable test DSN in isolation env")
+	errRoutingClientUnreachable = errors.New("routed pre-flight: scenario routing client unreachable")
+	errRoutingServiceDisabled   = errors.New("routed pre-flight: scenario RoutingService is not mounted (production mode?)")
+)
+
+// runPlaybooksRoutedPreflight verifies the routed path's pre-flight checks
+// before InstallTestPool is attempted. Returns the routing client and the
+// DSN to install. Errors are classified via errors.Is against the package
+// sentinels above.
+func runPlaybooksRoutedPreflight(ctx context.Context, scenarioName string, isoEnv map[string]string, primaryDriver string) (routing_v1connect.RoutingServiceClient, string, error) {
+	dsn, err := extractTestDSN(isoEnv, primaryDriver)
+	if err != nil {
+		return nil, "", fmt.Errorf("%w: %v", errNoTestDSN, err)
+	}
+	client, err := resolveScenarioRoutingClient(ctx, scenarioName)
+	if err != nil {
+		return nil, "", fmt.Errorf("%w: %v", errRoutingClientUnreachable, err)
+	}
+	if err := probeRoutingServiceEnabled(ctx, scenarioName); err != nil {
+		if errors.Is(err, errRoutingServiceDisabled) {
+			return nil, "", err
+		}
+		return nil, "", fmt.Errorf("%w: %v", errRoutingClientUnreachable, err)
+	}
+	return client, dsn, nil
 }
 
 // resolveClaimActor reports the actor that started a playbooks run. Best
@@ -242,27 +374,54 @@ func resolveClaimActor() string {
 	return "test-genie"
 }
 
-// writeFallbackViolationsBlock prepends a structured violations summary to
-// the phase log so operators understand why the fallback path was taken.
-func writeFallbackViolationsBlock(logWriter io.Writer, violations []eligibility.ViolationExcerpt) {
-	shared.LogWarn(logWriter, "⚠ Routed e2e path unavailable — fallback used. Violations:")
-	if len(violations) == 0 {
-		shared.LogWarn(logWriter, "  (no specific excerpts; run scenario-auditor standards scan for details)")
+// writePathDecisionBlock emits the structured routed-vs-fallback decision
+// summary at the top of the phase log. Every routed-or-fallback choice goes
+// through this — no silent fall-throughs.
+//
+// See docs/agent-system/routed-test-db.md ("Decision log block") for the
+// canonical format.
+func writePathDecisionBlock(logWriter io.Writer, decision eligibility.PathDecision) {
+	switch decision.Path {
+	case eligibility.PathRouted:
+		shared.LogStep(logWriter, "✓ Routed e2e path — lease=%s driver=%s reason=%s", decision.LeaseID, decision.DSNDriver, decision.Reason)
 		return
+	default:
+		shared.LogWarn(logWriter, "⚠ Playbooks path=%s — fallback used. Reason: %s", decision.Path, decision.Reason)
 	}
-	for _, v := range violations {
-		loc := v.FilePath
-		if v.LineNumber > 0 {
-			loc = fmt.Sprintf("%s:%d", v.FilePath, v.LineNumber)
+
+	switch decision.Path {
+	case eligibility.PathFallbackRules:
+		if decision.RuleAssertion != nil && len(decision.RuleAssertion.MissingRules) > 0 {
+			shared.LogWarn(logWriter, "  Missing routing rules in scan (rule unregistered or disabled): %s", strings.Join(decision.RuleAssertion.MissingRules, ", "))
+			shared.LogWarn(logWriter, "  Remediation: enable the rules in scenario-auditor; see docs/agent-system/routed-test-db.md")
+			return
 		}
-		if loc == "" {
-			loc = "(see scenario-auditor)"
+		if len(decision.Violations) == 0 {
+			shared.LogWarn(logWriter, "  (no specific excerpts; run scenario-auditor standards scan for details)")
+			return
 		}
-		title := v.Title
-		if title == "" {
-			title = v.RuleID
+		for _, v := range decision.Violations {
+			loc := v.FilePath
+			if v.LineNumber > 0 {
+				loc = fmt.Sprintf("%s:%d", v.FilePath, v.LineNumber)
+			}
+			if loc == "" {
+				loc = "(see scenario-auditor)"
+			}
+			title := v.Title
+			if title == "" {
+				title = v.RuleID
+			}
+			shared.LogWarn(logWriter, "  [%s] %s %s — %s", strings.ToUpper(v.Severity), v.RuleID, loc, title)
 		}
-		shared.LogWarn(logWriter, "  [%s] %s %s — %s", strings.ToUpper(v.Severity), v.RuleID, loc, title)
+	case eligibility.PathFallbackPreflight:
+		shared.LogWarn(logWriter, "  Pre-flight check: %s", decision.PreflightFailure)
+	case eligibility.PathFallbackAuditorUnreachable:
+		shared.LogWarn(logWriter, "  Remediation: run `scenario-auditor system status` to confirm the auditor is reachable.")
+	case eligibility.PathFallbackForcedEnv:
+		shared.LogWarn(logWriter, "  Unset TEST_GENIE_FORCE_FALLBACK to allow the routed path.")
+	case eligibility.PathFallbackProductionMode:
+		shared.LogWarn(logWriter, "  The target scenario is in production mode; set VROOLI_TEST_MODE_FORCE_ENABLE=1 or switch .vrooli/service.json mode to \"development\".")
 	}
 }
 
@@ -283,7 +442,7 @@ func runPlaybooksRouted(
 	client routing_v1connect.RoutingServiceClient,
 	dsn string,
 	leaseID string,
-) RunReport {
+) (report RunReport) {
 	shared.LogStep(logWriter, "playbooks routed path (run=%s) — no scenario restart", isoResult.RunID)
 	for _, res := range isoResult.Resources {
 		shared.LogInfo(logWriter, "  %s -> %s", res.Name, res.Endpoint)
@@ -299,7 +458,12 @@ func runPlaybooksRouted(
 		}
 	}
 
-	if _, err := client.InstallTestPool(ctx, connect.NewRequest(&routingv1.InstallTestPoolRequest{Dsn: dsn, LeaseId: leaseID})); err != nil {
+	installReq := &routingv1.InstallTestPoolRequest{
+		Dsn:        dsn,
+		LeaseId:    leaseID,
+		LeaseTtlMs: int64(routedLeaseTTL / time.Millisecond),
+	}
+	if _, err := client.InstallTestPool(ctx, connect.NewRequest(installReq)); err != nil {
 		_ = isoResult.Cleanup(context.Background())
 		return RunReport{
 			Err:                   fmt.Errorf("install test pool on %s: %w", env.ScenarioName, err),
@@ -307,12 +471,43 @@ func runPlaybooksRouted(
 			Remediation:           "Check the scenario's logs for routing/install errors; confirm projectmeta.IsDevelopment() returns true and that devrouting.Register is called.",
 		}
 	}
-	shared.LogStep(logWriter, "installed routed test pool on %s", env.ScenarioName)
+	shared.LogStep(logWriter, "installed routed test pool on %s (lease TTL %s)", env.ScenarioName, routedLeaseTTL)
+
+	// Heartbeat the lease at 1/3 of the TTL so a stuck orchestrator never
+	// silently passes the expiry threshold.
+	hbCtx, hbCancel := context.WithCancel(ctx)
+	hbDone := make(chan struct{})
+	go func() {
+		defer close(hbDone)
+		ticker := time.NewTicker(routedLeaseTTL / 3)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-hbCtx.Done():
+				return
+			case <-ticker.C:
+				if _, err := client.HeartbeatTestPool(hbCtx, connect.NewRequest(&routingv1.HeartbeatTestPoolRequest{LeaseId: leaseID})); err != nil {
+					shared.LogWarn(logWriter, "routed lease heartbeat failed: %v", err)
+				}
+			}
+		}
+	}()
 
 	defer func() {
-		_, clearErr := client.ClearTestPool(context.Background(), connect.NewRequest(&routingv1.ClearTestPoolRequest{LeaseId: leaseID}))
+		hbCancel()
+		<-hbDone
+
+		clearResp, clearErr := client.ClearTestPool(context.Background(), connect.NewRequest(&routingv1.ClearTestPoolRequest{LeaseId: leaseID}))
 		if clearErr != nil {
 			shared.LogWarn(logWriter, "failed to clear routed test pool: %v", clearErr)
+		} else if stats := clearResp.Msg.GetStats(); stats != nil {
+			shared.LogInfo(logWriter, "routed lease stats: test_pool_requests=%d primary_during_test_mode_requests=%d", stats.GetTestPoolRequests(), stats.GetPrimaryDuringTestModeRequests())
+			if stats.GetPrimaryDuringTestModeRequests() > 0 {
+				report.Observations = append(report.Observations, NewWarningObservation(fmt.Sprintf("routed bypass detected: %d request(s) carried X-Vrooli-Test-Mode:1 but were served from the primary pool — some code path holds a raw *sql.DB", stats.GetPrimaryDuringTestModeRequests())))
+			}
+			if stats.GetTestPoolRequests() == 0 {
+				report.Observations = append(report.Observations, NewWarningObservation("routed e2e ran without exercising the test pool: 0 test-mode requests reached RoutedDB — verify the X-Vrooli-Test-Mode header reaches the API"))
+			}
 		}
 		if err := isoResult.Cleanup(context.Background()); err != nil {
 			shared.LogWarn(logWriter, "failed to clean up isolation resources: %v", err)
@@ -328,7 +523,7 @@ func runPlaybooksRouted(
 		apihttp.TestModeHeader: apihttp.TestModeValue,
 	}
 
-	report := runLoadedPlaybooksPhase(ctx, env, logWriter, playbooksCfg, registry, isoResult.Env, extraHeaders)
+	report = runLoadedPlaybooksPhase(ctx, env, logWriter, playbooksCfg, registry, isoResult.Env, extraHeaders)
 
 	if retainIsolation && len(isoResult.Resources) > 0 {
 		for _, res := range isoResult.Resources {
@@ -436,39 +631,35 @@ func runPlaybooksFallback(
 }
 
 // extractTestDSN pulls the test database DSN out of the isolation env map.
-// When primaryDriver names a driver ("postgres" or "sqlite"), the matching
-// DSN env var wins so the chosen DSN aligns with what the scenario's
-// RoutedDB was opened with — installing a postgres URL into a sqlite-driven
-// pool hangs PingContext indefinitely. When primaryDriver is empty (db-detect
-// could not pick a clear winner), the legacy postgres-first order applies.
-// Returns an error if no usable DSN is present.
+// primaryDriver must name the scenario's primary driver ("postgres" or
+// "sqlite") so the chosen DSN aligns with what the scenario's RoutedDB was
+// opened with — installing a postgres URL into a sqlite-driven pool hangs
+// PingContext indefinitely. An empty primaryDriver is treated as
+// disqualifying (db-detect couldn't pick a winner — better to fall back
+// than to guess).
 func extractTestDSN(env map[string]string, primaryDriver string) (string, error) {
-	postgres := func() string {
-		if v := strings.TrimSpace(env["POSTGRES_URL"]); v != "" {
-			return v
-		}
-		return strings.TrimSpace(env["DATABASE_URL"])
-	}
-	sqlite := func() string {
-		if v := strings.TrimSpace(env["SQLITE_PATH"]); v != "" {
-			return v
-		}
-		return strings.TrimSpace(env["SQLITE_DB"])
-	}
-
-	var ordered [2]func() string
 	switch primaryDriver {
-	case "sqlite":
-		ordered = [2]func() string{sqlite, postgres}
-	default:
-		ordered = [2]func() string{postgres, sqlite}
-	}
-	for _, fn := range ordered {
-		if v := fn(); v != "" {
+	case "postgres":
+		if v := strings.TrimSpace(env["POSTGRES_URL"]); v != "" {
 			return v, nil
 		}
+		if v := strings.TrimSpace(env["DATABASE_URL"]); v != "" {
+			return v, nil
+		}
+		return "", fmt.Errorf("primary driver is postgres but isolation env has no POSTGRES_URL or DATABASE_URL")
+	case "sqlite":
+		if v := strings.TrimSpace(env["SQLITE_PATH"]); v != "" {
+			return v, nil
+		}
+		if v := strings.TrimSpace(env["SQLITE_DB"]); v != "" {
+			return v, nil
+		}
+		return "", fmt.Errorf("primary driver is sqlite but isolation env has no SQLITE_PATH or SQLITE_DB")
+	case "":
+		return "", fmt.Errorf("db-detect did not pick a primary driver — skipping routed path")
+	default:
+		return "", fmt.Errorf("unsupported primary driver %q", primaryDriver)
 	}
-	return "", fmt.Errorf("no test DSN found in isolation env (looked for POSTGRES_URL, DATABASE_URL, SQLITE_PATH, SQLITE_DB)")
 }
 
 func runLoadedPlaybooksPhase(

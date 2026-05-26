@@ -2,6 +2,7 @@ package eligibility
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -27,6 +28,13 @@ type Eligibility struct {
 	// Violations is the subset of the scan's TopViolations relevant to the
 	// routing decision. Empty when Routed is true.
 	Violations []ViolationExcerpt
+
+	// RuleAssertion is non-nil when the auditor scan did not include one or
+	// more of the three routing rules (rule is unregistered or disabled).
+	// A non-nil assertion disqualifies the scenario even when there are no
+	// observed violations: an unchecked rule is not the same as a passing
+	// one.
+	RuleAssertion *RuleAssertion
 
 	// Summary is the full scan summary the routing decision was made from.
 	// Both phase_standards and phase_playbooks consume it for their own
@@ -79,10 +87,31 @@ func (c *Checker) Check(ctx context.Context, scenario string, mapping workspace.
 
 	elig := decide(summary)
 
+	// Independent of violations, verify that the auditor actually ran the
+	// three routing-rule checks. A scan that skipped them cannot certify
+	// eligibility — treat as disqualifying.
+	registered, regErr := FetchRegisteredRules(ctx, baseURL)
+	if regErr != nil {
+		return Eligibility{}, fmt.Errorf("scenario-auditor rule registry: %w", regErr)
+	}
+	if assertion := AssertRulesObserved(registered, RuleRoutedDrivers, RuleRoutedHandleCapture, RuleDatabaseBackoff); assertion != nil {
+		elig.Routed = false
+		elig.RuleAssertion = assertion
+	}
+
 	c.mu.Lock()
 	c.cache[scenario] = elig
 	c.mu.Unlock()
 	return elig, nil
+}
+
+// Invalidate drops the cached eligibility for a single scenario so the next
+// Check re-fetches. Used by the playbooks-phase claim defer so a successive
+// run in the same test-genie process picks up code fixes made between runs.
+func (c *Checker) Invalidate(scenario string) {
+	c.mu.Lock()
+	delete(c.cache, scenario)
+	c.mu.Unlock()
 }
 
 // decide applies the §F.3 contract:

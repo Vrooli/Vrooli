@@ -158,44 +158,56 @@ type stubBAS struct{}
 func (stubBAS) ListWorkflows(context.Context, *connect.Request[basapi.ListWorkflowsRequest]) (*connect.Response[basapi.ListWorkflowsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ListWorkflows"))
 }
+
 func (stubBAS) GetWorkflow(context.Context, *connect.Request[basapi.GetWorkflowRequest]) (*connect.Response[basapi.GetWorkflowResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: GetWorkflow"))
 }
+
 func (stubBAS) CreateWorkflow(context.Context, *connect.Request[basapi.CreateWorkflowRequest]) (*connect.Response[basapi.CreateWorkflowResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: CreateWorkflow"))
 }
+
 func (stubBAS) UpdateWorkflow(context.Context, *connect.Request[basapi.UpdateWorkflowRequest]) (*connect.Response[basapi.UpdateWorkflowResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: UpdateWorkflow"))
 }
+
 func (stubBAS) DeleteWorkflow(context.Context, *connect.Request[basapi.DeleteWorkflowRequest]) (*connect.Response[basapi.DeleteWorkflowResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: DeleteWorkflow"))
 }
+
 func (stubBAS) ExecuteWorkflow(context.Context, *connect.Request[basapi.ExecuteWorkflowRequest]) (*connect.Response[basapi.ExecuteWorkflowResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ExecuteWorkflow"))
 }
+
 func (stubBAS) ExecuteAdhocWorkflow(_ context.Context, _ *connect.Request[basexecution.ExecuteAdhocRequest]) (*connect.Response[basexecution.ExecuteAdhocResponse], error) {
 	return connect.NewResponse(&basexecution.ExecuteAdhocResponse{
 		ExecutionId: "exec-123",
 		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING,
 	}), nil
 }
+
 func (stubBAS) ValidateWorkflow(context.Context, *connect.Request[basapi.ValidateWorkflowRequest]) (*connect.Response[basapi.ValidateWorkflowResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ValidateWorkflow"))
 }
+
 func (stubBAS) ValidateResolvedWorkflow(_ context.Context, _ *connect.Request[basapi.ValidateWorkflowRequest]) (*connect.Response[basapi.ValidateWorkflowResponse], error) {
 	return connect.NewResponse(&basapi.ValidateWorkflowResponse{
 		Result: &basapi.WorkflowValidationResult{Valid: true},
 	}), nil
 }
+
 func (stubBAS) ModifyWorkflow(context.Context, *connect.Request[basapi.ModifyWorkflowRequest]) (*connect.Response[basapi.UpdateWorkflowResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ModifyWorkflow"))
 }
+
 func (stubBAS) ListWorkflowVersions(context.Context, *connect.Request[basapi.ListWorkflowVersionsRequest]) (*connect.Response[basapi.WorkflowVersionList], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ListWorkflowVersions"))
 }
+
 func (stubBAS) GetWorkflowVersion(context.Context, *connect.Request[basapi.GetWorkflowVersionRequest]) (*connect.Response[basapi.WorkflowVersion], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: GetWorkflowVersion"))
 }
+
 func (stubBAS) RestoreWorkflowVersion(context.Context, *connect.Request[basapi.RestoreWorkflowVersionRequest]) (*connect.Response[basapi.RestoreWorkflowVersionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: RestoreWorkflowVersion"))
 }
@@ -203,6 +215,7 @@ func (stubBAS) RestoreWorkflowVersion(context.Context, *connect.Request[basapi.R
 func (stubBAS) ListExecutions(context.Context, *connect.Request[basapi.ListExecutionsRequest]) (*connect.Response[basapi.ListExecutionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ListExecutions"))
 }
+
 func (stubBAS) GetExecution(_ context.Context, _ *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
 	return connect.NewResponse(&basapi.GetExecutionResponse{
 		Execution: &basexecution.Execution{
@@ -211,27 +224,35 @@ func (stubBAS) GetExecution(_ context.Context, _ *connect.Request[basapi.GetExec
 		},
 	}), nil
 }
+
 func (stubBAS) GetExecutionTimeline(_ context.Context, _ *connect.Request[basapi.GetExecutionTimelineRequest]) (*connect.Response[bastimeline.ExecutionTimeline], error) {
 	return connect.NewResponse(&bastimeline.ExecutionTimeline{}), nil
 }
+
 func (stubBAS) StopExecution(context.Context, *connect.Request[basapi.StopExecutionRequest]) (*connect.Response[basapi.StopExecutionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: StopExecution"))
 }
+
 func (stubBAS) ResumeExecution(context.Context, *connect.Request[basapi.ResumeExecutionRequest]) (*connect.Response[basapi.ResumeExecutionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ResumeExecution"))
 }
+
 func (stubBAS) GetExecutionScreenshots(context.Context, *connect.Request[basapi.GetExecutionScreenshotsRequest]) (*connect.Response[basexecution.GetScreenshotsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: GetExecutionScreenshots"))
 }
+
 func (stubBAS) GetExecutionRecordedVideos(context.Context, *connect.Request[basapi.GetExecutionArtifactsRequest]) (*connect.Response[basapi.GetExecutionVideosResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: GetExecutionRecordedVideos"))
 }
+
 func (stubBAS) GetExecutionRecordedTraces(context.Context, *connect.Request[basapi.GetExecutionArtifactsRequest]) (*connect.Response[basapi.GetExecutionTracesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: GetExecutionRecordedTraces"))
 }
+
 func (stubBAS) GetExecutionRecordedHar(context.Context, *connect.Request[basapi.GetExecutionArtifactsRequest]) (*connect.Response[basapi.GetExecutionHarResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: GetExecutionRecordedHar"))
 }
+
 func (stubBAS) ScheduleExecutionSeedCleanup(context.Context, *connect.Request[basapi.ScheduleSeedCleanupRequest]) (*connect.Response[basapi.ScheduleSeedCleanupResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ScheduleExecutionSeedCleanup"))
 }
