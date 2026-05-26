@@ -19,7 +19,7 @@
  *   const { queryClient } = renderWithProviders(<MyComponent />);
  *
  *   // Render a specific route:
- *   renderWithProviders(<App />, { routerEntries: ["/notes"] });
+ *   renderWithProviders(<App />, { routerEntries: ["/settings"] });
  *
  * The returned `queryClient` is exposed for tests that need to seed the
  * cache or assert queries fired (e.g. `queryClient.getQueryData(...)`).
@@ -42,7 +42,7 @@ export interface ProviderRenderOptions extends Omit<RenderOptions, "wrapper"> {
   queryClient?: QueryClient;
   /**
    * Initial entries for the in-memory router. Defaults to `["/"]`. Pass a
-   * specific path (e.g. `["/notes"]`) to render a particular route.
+   * specific path (e.g. `["/settings"]`) to render a particular route.
    */
   routerEntries?: string[];
   /**
@@ -86,7 +86,12 @@ export function renderWithProviders(
       <ThemeProvider initialChoice={initialTheme}>{children}</ThemeProvider>
     );
     const routed = withoutRouter ? themed : (
-      <MemoryRouter initialEntries={routerEntries}>{themed}</MemoryRouter>
+      <MemoryRouter
+        initialEntries={routerEntries}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
+        {themed}
+      </MemoryRouter>
     );
     return (
       <QueryClientProvider client={queryClient}>
