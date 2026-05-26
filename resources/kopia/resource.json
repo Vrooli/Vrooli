@@ -1,0 +1,148 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "kopia",
+  "display_name": "Kopia",
+  "description": "Content-addressed, client-side-encrypted backup engine (kopia) wrapped behind the resource-kopia CLI. Provides deduplicated, compressed, encrypted snapshots to filesystem and S3/MinIO repositories for the data-backup-manager scenario.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-kopia",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-kopia"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    }
+  },
+  "template": "external-cli",
+  "driver": "external-cli",
+  "binary": "kopia",
+  "version_args": [
+    "--version"
+  ],
+  "portability_tier": "full",
+  "category": "storage",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "command": [
+        "kopia",
+        "--version"
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "orchestration": {
+    "startup_order": 300,
+    "startup_timeout_seconds": 15,
+    "startup_time_estimate": "3-8s",
+    "dependencies": [
+      "vault"
+    ],
+    "recovery_attempts": 2,
+    "priority": "low"
+  },
+  "install": {
+    "platforms": {
+      "linux": [
+        "bash",
+        "-lc",
+        "set -euo pipefail; KOPIA_VERSION=0.23.0; DEST=\"${HOME:?HOME not set}/.vrooli/bin\"; BIN=\"$DEST/kopia\"; if [ -x \"$BIN\" ] && \"$BIN\" --version 2>/dev/null | grep -q \"$KOPIA_VERSION\"; then echo \"kopia $KOPIA_VERSION already installed at $BIN\"; exit 0; fi; arch=$(uname -m); case \"$arch\" in x86_64|amd64) karch=x64 ;; aarch64|arm64) karch=arm64 ;; armv7l|armhf|arm) karch=arm ;; *) echo \"Unsupported architecture: $arch\" >&2; exit 1 ;; esac; asset=\"kopia-${KOPIA_VERSION}-linux-${karch}.tar.gz\"; base=\"https://github.com/kopia/kopia/releases/download/v${KOPIA_VERSION}\"; tmp=$(mktemp -d); trap 'rm -rf \"$tmp\"' EXIT; curl -fsSL \"$base/$asset\" -o \"$tmp/$asset\"; curl -fsSL \"$base/checksums.txt\" -o \"$tmp/checksums.txt\"; if command -v sha256sum >/dev/null 2>&1; then (cd \"$tmp\" && grep \" $asset$\" checksums.txt | sha256sum -c -); else (cd \"$tmp\" && grep \" $asset$\" checksums.txt | shasum -a 256 -c -); fi; tar -xzf \"$tmp/$asset\" -C \"$tmp\"; mkdir -p \"$DEST\"; install -m 0755 \"$tmp/${asset%.tar.gz}/kopia\" \"$BIN\"; echo \"installed kopia $KOPIA_VERSION to $BIN\""
+      ],
+      "macos": [
+        "bash",
+        "-lc",
+        "set -euo pipefail; KOPIA_VERSION=0.23.0; DEST=\"${HOME:?HOME not set}/.vrooli/bin\"; BIN=\"$DEST/kopia\"; if [ -x \"$BIN\" ] && \"$BIN\" --version 2>/dev/null | grep -q \"$KOPIA_VERSION\"; then echo \"kopia $KOPIA_VERSION already installed at $BIN\"; exit 0; fi; arch=$(uname -m); case \"$arch\" in arm64) karch=arm64 ;; x86_64) karch=x64 ;; *) echo \"Unsupported architecture: $arch\" >&2; exit 1 ;; esac; asset=\"kopia-${KOPIA_VERSION}-macOS-${karch}.tar.gz\"; base=\"https://github.com/kopia/kopia/releases/download/v${KOPIA_VERSION}\"; tmp=$(mktemp -d); trap 'rm -rf \"$tmp\"' EXIT; curl -fsSL \"$base/$asset\" -o \"$tmp/$asset\"; curl -fsSL \"$base/checksums.txt\" -o \"$tmp/checksums.txt\"; if command -v sha256sum >/dev/null 2>&1; then (cd \"$tmp\" && grep \" $asset$\" checksums.txt | sha256sum -c -); else (cd \"$tmp\" && grep \" $asset$\" checksums.txt | shasum -a 256 -c -); fi; tar -xzf \"$tmp/$asset\" -C \"$tmp\"; mkdir -p \"$DEST\"; install -m 0755 \"$tmp/${asset%.tar.gz}/kopia\" \"$BIN\"; echo \"installed kopia $KOPIA_VERSION to $BIN\""
+      ],
+      "windows": [
+        "powershell",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$ErrorActionPreference='Stop'; $v='0.23.0'; $dest=Join-Path $env:USERPROFILE '.vrooli\\bin'; $bin=Join-Path $dest 'kopia.exe'; if (Test-Path $bin) { $cur = & $bin --version 2>$null; if ($cur -match [regex]::Escape($v)) { Write-Output \"kopia $v already installed at $bin\"; exit 0 } }; $asset=\"kopia-$v-windows-x64.zip\"; $base=\"https://github.com/kopia/kopia/releases/download/v$v\"; $tmp=(New-Item -ItemType Directory -Path (Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString()))).FullName; Invoke-WebRequest -Uri \"$base/$asset\" -OutFile (Join-Path $tmp $asset); Invoke-WebRequest -Uri \"$base/checksums.txt\" -OutFile (Join-Path $tmp 'checksums.txt'); $want=(((Select-String -Path (Join-Path $tmp 'checksums.txt') -Pattern ([regex]::Escape($asset))).Line) -split '\\s+')[0]; $got=(Get-FileHash -Algorithm SHA256 -Path (Join-Path $tmp $asset)).Hash.ToLower(); if ($got -ne $want.ToLower()) { throw \"checksum mismatch for $asset\" }; Expand-Archive -Path (Join-Path $tmp $asset) -DestinationPath $tmp -Force; $exe=Get-ChildItem -Path $tmp -Recurse -Filter 'kopia.exe' | Select-Object -First 1; New-Item -ItemType Directory -Force -Path $dest | Out-Null; Copy-Item -Path $exe.FullName -Destination $bin -Force; Write-Output \"installed kopia $v to $bin\""
+      ]
+    }
+  },
+  "credentials": {
+    "secret_ref": "secret/resources/kopia",
+    "env": [
+      {
+        "env": "KOPIA_PASSWORD",
+        "label": "Kopia repository passphrase",
+        "description": "Per-repository client-side encryption passphrase. System-generated (32+ chars) on repo creation and stored in Vault; never user-typed and never written to a config file. Without it, an encrypted repository cannot be opened.",
+        "classification": "infrastructure",
+        "required": true,
+        "default_hint": "Auto-generated 32+ character random string"
+      },
+      {
+        "env": "AWS_ACCESS_KEY_ID",
+        "label": "S3 access key ID",
+        "description": "Access key for an S3/MinIO-compatible backend. Only required for repositories created with --backend s3.",
+        "classification": "user",
+        "required": false
+      },
+      {
+        "env": "AWS_SECRET_ACCESS_KEY",
+        "label": "S3 secret access key",
+        "description": "Secret key for an S3/MinIO-compatible backend. Only required for repositories created with --backend s3.",
+        "classification": "user",
+        "required": false
+      }
+    ]
+  },
+  "environment_exports": {
+    "static": {
+      "KOPIA_RESOURCE_CLI": "resource-kopia"
+    },
+    "from_runtime_env": [
+      "KOPIA_STATE_DIR",
+      "KOPIA_CONFIG_DIR"
+    ]
+  },
+  "capabilities": {
+    "supports_logs": false,
+    "supports_content_ops": true
+  },
+  "template_version": "2"
+}

@@ -1,4 +1,4 @@
-module resource-vault/cli
+module resource-kopia/cli
 
 go 1.24.0
 
