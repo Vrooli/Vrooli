@@ -86,18 +86,7 @@ func StreamWSHandler(d Deps) http.Handler {
 			_ = conn.WriteJSON(m)
 		}
 
-		env := envelope.FromHTTP(r.Header)
-		start := sttchain.StreamStart{
-			Language: r.URL.Query().Get("language"),
-			// `format` declares the inbound codec (audioformat vocabulary,
-			// e.g. "webm", "pcm_s16le"). Empty = undeclared; the Segmenter
-			// sniffs the first chunk.
-			InputFormat:  r.URL.Query().Get("format"),
-			BYOKProvider: env.Provider,
-			BYOKKey:      env.Key,
-			LPBSToken:    env.LPBSToken,
-			UserIdentity: env.UserIdentity,
-		}
+		start := buildStreamStart(r)
 		cfg := resolveStreamPipelineConfigFromDeps(ctx, d)
 		seg := segmenter.New(segmenter.Deps{Chain: d.Chain, Selector: d.Selector, Engine: d.Engine})
 
@@ -203,6 +192,26 @@ func StreamWSHandler(d Deps) http.Handler {
 		default:
 		}
 	})
+}
+
+// buildStreamStart maps the WS request's query params + auth envelope to
+// the transport-free StreamStart. The `format` query param declares the
+// inbound codec (audioformat vocabulary, e.g. "webm", "pcm_s16le"); an
+// empty value leaves the Segmenter to sniff the first chunk
+// (declare-or-sniff). This mirrors the Connect transport's mapping of
+// StreamStart.input_format so both transports declare the codec the same
+// way — see the parity test.
+func buildStreamStart(r *http.Request) sttchain.StreamStart {
+	q := r.URL.Query()
+	env := envelope.FromHTTP(r.Header)
+	return sttchain.StreamStart{
+		Language:     q.Get("language"),
+		InputFormat:  q.Get("format"),
+		BYOKProvider: env.Provider,
+		BYOKKey:      env.Key,
+		LPBSToken:    env.LPBSToken,
+		UserIdentity: env.UserIdentity,
+	}
 }
 
 // resolveStreamPipelineConfigFromDeps reads the persisted operator

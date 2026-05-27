@@ -61,6 +61,13 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Category: "tts",
 	},
 	{
+		ID:       "tts.get_supported_formats",
+		Path:     "/vrooli.audio_tools.v1.tts.TTSService/GetSupportedFormats",
+		Method:   "POST",
+		Summary:  "Report the TTS egress audio-format capability matrix",
+		Category: "tts",
+	},
+	{
 		ID:       "tts.record_playback_event",
 		Path:     "/vrooli.audio_tools.v1.tts.TTSService/RecordPlaybackEvent",
 		Method:   "POST",

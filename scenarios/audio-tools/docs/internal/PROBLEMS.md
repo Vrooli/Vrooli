@@ -119,9 +119,23 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Real fix:** Update `@audio-tools/embed` (or the browser WS upgrade in `handlers/stt/stream_ws.go`) to transcode WebM/Opus → PCM before the bytes reach the strategy. Cleanest path: AudioWorklet in the embed emits PCM frames directly. Alternative: ffmpeg-wasm or a Go-side WebM demuxer at the WS boundary.
 
-**Resolution (RESOLVED 2026-05-27):** Closed by the centralized audio-format substrate (`internal/audioformat`). The Segmenter now routes every PCM-consuming strategy's chunks through `audioformat`: a declared (or sniffed) codec is normalized to canonical PCM via **one long-lived ffmpeg process per session** (`audioformat.StreamDecoder`), so `VADSegmentStrategy`/`OverlapAgree` get clean PCM and emit live partials/segments against a WebM/Opus stream — no init-segment hack, server-side. `StreamStart` now carries `input_format`; the WS `format` query param + Connect `input_format` proto field declare the codec (declare-first, sniff-fallback). A `pcm_s16le` declaration takes an ffmpeg-free fast-path (the future AudioWorklet embed). When local ffmpeg is absent for a non-PCM stream the selector's capability gate downgrades to `BufferedFallback` (whole file → Whisper's own decoder), surfaced via `DoneEvent.FellBackToUnary`. The batch path and TTS egress route through the same substrate (`PrepareForWhisper` / `OutputFormat`).
+**Resolution (RESOLVED 2026-05-27):** Closed by the centralized audio-format substrate (`internal/audioformat`). The Segmenter now routes every PCM-consuming strategy's chunks through `audioformat`: a declared (or sniffed) codec is normalized to canonical PCM via **one long-lived ffmpeg process per session** (`audioformat.StreamDecoder`), so `VADSegmentStrategy`/`OverlapAgree` get clean PCM and emit live partials/segments against a WebM/Opus stream — no init-segment hack, server-side. `StreamStart` now carries `input_format`; the WS `format` query param + Connect `input_format` proto field declare the codec (declare-first, sniff-fallback). A `pcm_s16le` declaration takes an ffmpeg-free fast-path. When local ffmpeg is absent for a non-PCM stream the selector's capability gate downgrades to `BufferedFallback` (whole file → Whisper's own decoder), surfaced via `DoneEvent.FellBackToUnary`. The batch path and TTS egress route through the same substrate (`PrepareForWhisper` / `OutputFormat`).
+
+**Embed PCM fast-path (RESOLVED 2026-05-27):** `VoiceStreamProvider` (`@audio-tools/embed`) no longer uses MediaRecorder/WebM. It now captures raw PCM through the `pcmCapture` seam (ScriptProcessor on the shared AudioContext — same proven pattern as `audioUtils.createPassiveCapturePipeline`; AudioWorklet migration tracked below), downsamples to canonical 16 kHz mono s16le (`hooks/voice/pcm.ts`), and declares `format=pcm_s16le` on the WS URL — so browser sessions hit the server's identity fast-path with zero server-side ffmpeg. The HTTP fallback + speaker-rejection retry wrap the captured PCM as a WAV blob. Pure conversion logic is unit-tested (`pcm.test.ts`); the capture seam is dependency-injected so `VoiceStreamProvider.tailDrop.test.ts` drives synthetic frames without a real AudioContext. **Not yet browser-validated** — the live AudioContext/ScriptProcessor wiring needs a real-browser smoke check (mic → live partials; confirm no ffmpeg process spawns for the session).
 
 **Owner:** resolved.
+
+### 2026-05-27 — ScriptProcessorNode → AudioWorklet migration (deferred)
+
+**Symptom:** Two PCM capture sites use the deprecated `ScriptProcessorNode`: the wake-word `createPassiveCapturePipeline` (`hooks/voice/audioUtils.ts`) and the new streaming `createScriptProcessorPcmCapture` (`hooks/voice/pcmCapture.ts`). ScriptProcessor runs on the main thread and is deprecated in favor of `AudioWorkletNode`.
+
+**Root cause:** ScriptProcessor is universally supported and kept deliberately for broad browser coverage; AudioWorklet requires loading a separate module script and more setup. Both sites carry `eslint-disable @typescript-eslint/no-deprecated` with this rationale.
+
+**Real fix:** Introduce a single AudioWorklet processor that emits Float32 frames and back both capture sites with it. The `pcmCapture.PcmCaptureFactory` seam already isolates this — swap the production factory only; `VoiceStreamProvider` and its tests are unaffected.
+
+**Owner:** unassigned.
+
+**Refs:** `hooks/voice/pcmCapture.ts`, `hooks/voice/audioUtils.ts`.
 
 ### 2026-05-27 — OverlapAgree sliding-window commit logic (deferred)
 

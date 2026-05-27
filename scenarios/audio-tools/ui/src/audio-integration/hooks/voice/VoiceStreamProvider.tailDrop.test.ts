@@ -2,16 +2,17 @@
  * Tail-drop arming for the auto-stop path. See plan
  * /home/matthalloran8/.vrooli/plans/audio-tools-auto-stop-tail-drop.md.
  *
- * The contract:
- *  1. After dropTail(), subsequent ondataavailable blobs are NOT sent to the
+ * The contract (now over the PCM capture seam rather than MediaRecorder):
+ *  1. After dropTail(), subsequent captured PCM frames are NOT sent to the
  *     WebSocket (they would be words the user spoke after the visual stop).
- *  2. stop() while armed sends {type:"done"} synchronously (no waiting for
- *     the encoder's onstop) and skips snapshotLastTurn (no tail retention).
- *  3. start() resets the flag — subsequent ondataavailable resumes sending.
+ *  2. stop() while armed sends {type:"done"} and skips snapshotLastTurn
+ *     (no tail retention).
+ *  3. start() resets the flag — subsequent frames resume sending.
  */
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 
 import { VoiceStreamProvider } from "./VoiceStreamProvider";
+import type { PcmCapture, PcmCaptureFactory } from "./pcmCapture";
 
 class FakeWebSocket {
   static OPEN = 1;
@@ -39,31 +40,23 @@ class FakeWebSocket {
   }
 }
 
-class FakeMediaRecorder {
-  static instances: FakeMediaRecorder[] = [];
-  static isTypeSupported = vi.fn(() => true);
-  state: "inactive" | "recording" = "inactive";
-  ondataavailable: ((e: { data: Blob }) => void) | null = null;
-  onstop: (() => void) | null = null;
-  start = vi.fn(() => {
-    this.state = "recording";
-  });
-  stop = vi.fn(() => {
-    this.state = "inactive";
-    this.onstop?.();
-  });
-  constructor(_stream: MediaStream, _opts?: unknown) {
-    FakeMediaRecorder.instances.push(this);
-  }
-}
-
-function fakeBlob(size: number): Blob {
+// Fake PCM capture seam: records the onFrame callback so the test can push
+// synthetic frames, and tracks stop() calls. Replaces the real
+// AudioContext/ScriptProcessor wiring (unavailable in jsdom).
+let currentOnFrame: ((samples: Float32Array, sampleRate: number) => void) | null = null;
+let captureStops = 0;
+const fakeCaptureFactory: PcmCaptureFactory = (_stream, onFrame): PcmCapture => {
+  currentOnFrame = onFrame;
   return {
-    size,
-    type: "audio/webm",
-    // Provide arrayBuffer() so the prod-path microtask resolves.
-    arrayBuffer: () => Promise.resolve(new ArrayBuffer(size)),
-  } as unknown as Blob;
+    stop() {
+      captureStops++;
+    },
+  };
+};
+
+/** Push a synthetic 16 kHz frame (identity path, no resampling). */
+function pushFrame(samples = 256): void {
+  currentOnFrame?.(new Float32Array(samples).fill(0.5), 16_000);
 }
 
 function fakeStream(): MediaStream {
@@ -78,18 +71,18 @@ describe("VoiceStreamProvider tail-drop", () => {
 
   beforeEach(() => {
     FakeWebSocket.instances = [];
-    FakeMediaRecorder.instances = [];
+    currentOnFrame = null;
+    captureStops = 0;
     (globalThis as unknown as { WebSocket: typeof FakeWebSocket }).WebSocket = FakeWebSocket;
-    (globalThis as unknown as { MediaRecorder: typeof FakeMediaRecorder }).MediaRecorder =
-      FakeMediaRecorder;
     Object.defineProperty(navigator, "mediaDevices", {
       configurable: true,
-      value: { getUserMedia: vi.fn(async () => fakeStream()) },
+      value: { getUserMedia: vi.fn(() => Promise.resolve(fakeStream())) },
     });
     // console.info is allowed by test-setup; silence it here so the
     // tail-drop log line doesn't clutter test output.
     infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     provider = new VoiceStreamProvider();
+    provider.captureFactory = fakeCaptureFactory;
   });
 
   afterEach(() => {
@@ -97,65 +90,82 @@ describe("VoiceStreamProvider tail-drop", () => {
     infoSpy.mockRestore();
   });
 
-  async function startAndOpenWs(): Promise<{ ws: FakeWebSocket; rec: FakeMediaRecorder }> {
+  async function startAndOpenWs(): Promise<FakeWebSocket> {
     await provider.start();
     // Drain microtask queue so the FakeWebSocket onopen fires.
     await Promise.resolve();
-    const ws = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]!;
-    const rec = FakeMediaRecorder.instances[FakeMediaRecorder.instances.length - 1]!;
-    return { ws, rec };
+    return FakeWebSocket.instances[FakeWebSocket.instances.length - 1]!;
   }
 
-  it("drops ondataavailable blobs after dropTail() is armed", async () => {
-    const { ws, rec } = await startAndOpenWs();
-    // Pre-arm: a chunk should be forwarded.
-    rec.ondataavailable?.({ data: fakeBlob(1024) });
-    await Promise.resolve(); // resolve the arrayBuffer().then microtask
+  it("drops captured frames after dropTail() is armed", async () => {
+    const ws = await startAndOpenWs();
+    // Pre-arm: a frame should be forwarded.
+    pushFrame();
     const sendsBeforeArm = ws.send.mock.calls.length;
     expect(sendsBeforeArm).toBeGreaterThanOrEqual(1);
 
     provider.dropTail();
-    rec.ondataavailable?.({ data: fakeBlob(2048) });
-    await Promise.resolve();
+    pushFrame();
     // No additional send after arming.
     expect(ws.send.mock.calls.length).toBe(sendsBeforeArm);
   });
 
-  it("sends {type:done} synchronously and skips tail retention when armed", async () => {
-    const { ws, rec } = await startAndOpenWs();
-    // Push one chunk pre-arm so allChunks has something snapshotLastTurn
+  it("sends binary PCM frames (s16le bytes) over the socket", async () => {
+    const ws = await startAndOpenWs();
+    pushFrame(128);
+    const lastCall = ws.send.mock.calls.at(-1);
+    expect(lastCall).toBeDefined();
+    const payload = lastCall![0] as ArrayBufferView;
+    expect(ArrayBuffer.isView(payload)).toBe(true);
+    // 128 samples * 2 bytes/sample of s16le PCM.
+    expect(payload.byteLength).toBe(256);
+  });
+
+  it("sends {type:done} and skips tail retention when armed", async () => {
+    const ws = await startAndOpenWs();
+    // Push one frame pre-arm so allPcm has something snapshotLastTurn
     // *could* retain — proving the skip actually skips.
-    rec.ondataavailable?.({ data: fakeBlob(1024) });
-    await Promise.resolve();
+    pushFrame();
     ws.send.mockClear();
 
     provider.dropTail();
     provider.stop();
-    // done message went out before any onstop callback fired.
     const doneCalls = ws.send.mock.calls.filter((args) => {
       const payload = args[0];
       return typeof payload === "string" && payload.includes('"done"');
     });
     expect(doneCalls.length).toBe(1);
-    // The encoder may still emit a final ondataavailable; gate must drop it.
-    rec.ondataavailable?.({ data: fakeBlob(4096) });
-    await Promise.resolve();
-    expect(ws.send.mock.calls.length).toBe(doneCalls.length);
-    // No retained tail.
+    // Capture is stopped, so no more frames arrive; no retained tail.
     expect(provider.getLastTurnAudio()).toBeNull();
   });
 
+  it("retains the turn audio as a WAV blob when not armed", async () => {
+    const ws = await startAndOpenWs();
+    pushFrame();
+    provider.stop();
+    void ws;
+    const retained = provider.getLastTurnAudio();
+    expect(retained).not.toBeNull();
+    expect(retained!.mimeType).toBe("audio/wav");
+    expect(retained!.blob.size).toBeGreaterThan(44); // header + samples
+  });
+
   it("clears the tail-drop flag on the next start()", async () => {
-    const first = await startAndOpenWs();
+    await startAndOpenWs();
     provider.dropTail();
     provider.stop();
     // Fresh session.
     const second = await startAndOpenWs();
-    expect(second.rec).not.toBe(first.rec);
-    second.ws.send.mockClear();
-    second.rec.ondataavailable?.({ data: fakeBlob(512) });
-    await Promise.resolve();
+    second.send.mockClear();
+    pushFrame();
     // Send happens again; the new session is not still armed.
-    expect(second.ws.send.mock.calls.length).toBeGreaterThanOrEqual(1);
+    expect(second.send.mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("stops the capture on stop()", async () => {
+    await startAndOpenWs();
+    const before = captureStops;
+    provider.stop();
+    expect(captureStops).toBe(before + 1);
   });
 });

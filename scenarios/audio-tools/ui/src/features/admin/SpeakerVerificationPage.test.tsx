@@ -2,6 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
+import { selectors } from "../../consts/selectors";
+
 vi.mock("../../services/speakerAdmin", () => ({
   getSpeakerStatus: vi.fn().mockResolvedValue({
     config: {
@@ -48,8 +50,10 @@ function renderWithClient() {
 describe("SpeakerVerificationPage", () => {
   it("renders status + enrolled profile from the speaker service", async () => {
     renderWithClient();
-    await waitFor(() => expect(screen.getByText("Alice")).toBeInTheDocument());
-    expect(screen.getByText("ecapa-tdnn")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByTestId(selectors.speakerAdmin.profileName({ id: "p1" }))).toHaveTextContent("Alice"),
+    );
+    expect(screen.getByTestId(selectors.speakerAdmin.profileModel({ id: "p1" }))).toHaveTextContent("ecapa-tdnn");
     // Profile count chip
     expect(screen.getByText(/1 profile/i)).toBeInTheDocument();
   });

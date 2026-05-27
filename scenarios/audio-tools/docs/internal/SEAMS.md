@@ -674,6 +674,31 @@ Lives in `ui/src/audio-integration/hooks/voice/autoStopDecision.ts`.
 helper; do not introduce a parallel snapshot store. The 250 ms staleness
 threshold is exported once as `SERVER_VAD_STALE_MS` and consumed by both.
 
+### `voice/pcmCapture.PcmCaptureFactory` (embed PCM capture seam)
+
+The browser-streaming provider captures microphone audio as raw PCM rather
+than MediaRecorder/WebM, so it can declare `format=pcm_s16le` and hit the
+server's ffmpeg-free fast-path. Lives in
+`ui/src/audio-integration/hooks/voice/pcmCapture.ts`.
+
+- **Interface**: `PcmCaptureFactory = (stream, onFrame) => PcmCapture`. The
+  factory wires the Web Audio graph and invokes `onFrame(Float32Array,
+  sampleRate)` per delivered frame; `PcmCapture.stop()` tears the graph down.
+- **Production wiring**: `createScriptProcessorPcmCapture` taps the shared
+  AudioContext via a `ScriptProcessorNode` (same proven pattern as
+  `audioUtils.createPassiveCapturePipeline`; AudioWorklet migration is a
+  tracked PROBLEMS.md follow-up).
+- **Test seam**: `VoiceStreamProvider.captureFactory` defaults to the
+  production factory; `VoiceStreamProvider.tailDrop.test.ts` injects a fake
+  that records the `onFrame` callback and lets the test push synthetic
+  frames — no real AudioContext (jsdom has none).
+- **Why a seam**: isolates the only un-unit-testable part (live Web Audio
+  wiring) from the provider's send/buffer/drop/retain policy, and lets the
+  AudioWorklet migration swap one factory without touching the provider or
+  its tests. The pure Float32→s16le + WAV conversion lives separately in
+  `voice/pcm.ts` (fully unit-tested in `pcm.test.ts`).
+- **Consumed by**: `VoiceStreamProvider.ts` only.
+
 ## Cross-references
 
 - Test fakes lifecycle and naming convention: [`docs/internal/TESTING.md`](TESTING.md).

@@ -212,6 +212,15 @@ Whisper both depend on it. ffmpeg low-latency decode flags
 (`-flush_packets 1`, decode-only, `-loglevel error`) are fixed-internal,
 not levers, for predictable latency and a minimal untrusted-input surface.
 
+To inspect the live capability matrix, run `audio-tools stt formats`
+(accepted ingress codecs + whether the local ffmpeg decode backend is
+present + the canonical PCM target) and `audio-tools tts formats`
+(producible egress containers). Both print human-readable output and are
+backed by the `STTService.GetSupportedFormats` / `TTSService.GetSupportedFormats`
+RPCs, which read the `internal/audioformat` substrate's vocabulary. When
+ffmpeg is absent, batch STT still decodes containers via Whisper's own
+decoder; only live non-PCM streaming degrades to buffered whole-file decode.
+
 ### Whisper concurrency
 
 Local STT calls to the Whisper resource are bounded by a semaphore

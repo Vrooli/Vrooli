@@ -90,11 +90,10 @@
   "speakerAdmin": {
     "pageTitle": "Speaker Verification",
     "pageDescription": "Manage enrolled speaker profiles and verification mode for the STT pipeline.",
-    "capabilityAvailable": "Available",
-    "capabilityDegraded": "Degraded",
-    "capabilityUnavailable": "Unavailable",
-    "capabilityUninitialized": "Uninitialized",
-    "capabilityUnknown": "Unknown",
+    "statusTitle": "Status",
+    "statusResourceReady": "Resource ready",
+    "statusProfileConfigured": "Profile configured",
+    "statusProfileExists": "Profile exists",
     "configEnabled": "Verification enabled",
     "configThreshold": "Acceptance threshold",
     "configMode": "Mode",
@@ -106,12 +105,15 @@
     "rejectShowMuted": "Show muted",
     "profilesTitle": "Enrolled profiles",
     "profilesEmpty": "No profiles enrolled yet.",
+    "colId": "ID",
+    "colName": "Name",
+    "colModel": "Model",
+    "colSampleRate": "Sample rate",
+    "colActions": "actions",
     "unbindButton": "Unbind",
     "deleteButton": "Delete",
     "thresholdHelp": "Score required for a transcript to pass (0–1).",
-    "saveChanges": "Save changes",
-    "savedToast": "Configuration saved.",
-    "errorToast": "Could not save configuration."
+    "saveChanges": "Save changes"
   },
   "wakeWordAdmin": {
     "pageTitle": "Wake Word",
@@ -120,7 +122,8 @@
   },
   "streamConfigAdmin": {
     "pageTitle": "Stream Config",
-    "pageDescription": "Tune the streaming STT pipeline parameters."
+    "pageDescription": "Tune the streaming STT pipeline parameters.",
+    "notImplemented": "Stream-config tuning UI not yet implemented in this scenario UI."
   },
   "overview": {
     "openDiagnostics": "Open Diagnostics",

@@ -19,6 +19,20 @@ import (
 	"audio-tools/internal/testutil/mocks"
 )
 
+// TestBuildStreamStart asserts the WS transport maps `language` and the
+// `format` codec declaration off the query string. An omitted format
+// leaves InputFormat empty so the Segmenter sniffs (declare-or-sniff).
+func TestBuildStreamStart(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/voice/stream?language=es&format=pcm_s16le", nil)
+	start := buildStreamStart(req)
+	require.Equal(t, "es", start.Language)
+	require.Equal(t, "pcm_s16le", start.InputFormat)
+
+	bare := httptest.NewRequest(http.MethodGet, "/api/v1/voice/stream", nil)
+	require.Empty(t, buildStreamStart(bare).InputFormat)
+	require.Empty(t, buildStreamStart(bare).Language)
+}
+
 // TestStreamWS_UpgradeRejectedWithoutChain asserts that when the chain
 // is not wired the handler returns 503 instead of upgrading. This
 // exercises the early-return guard path.

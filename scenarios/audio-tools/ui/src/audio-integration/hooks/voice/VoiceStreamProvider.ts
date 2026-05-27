@@ -1,21 +1,34 @@
 // DOC: docs/internal/SEAMS.md#voice-input-provider-seam
 //
 // VoiceStreamProvider — WebSocket streaming transcription provider (preferred).
-// Streams audio chunks to the Go backend over WebSocket for real-time partial
-// transcription via Whisper. Falls back to HTTP batch transcription if the
-// WebSocket connection fails after all reconnect attempts are exhausted.
+// Captures microphone audio as raw 16 kHz mono signed-16-bit PCM and streams
+// it to the Go backend over WebSocket for real-time partial transcription via
+// Whisper. Declaring `format=pcm_s16le` takes the server's ffmpeg-free
+// fast-path (the audioformat substrate's identity decoder), so browser
+// sessions never spin up a server-side transcoder. Falls back to HTTP batch
+// transcription if the WebSocket fails after all reconnect attempts.
 //
 // Audio capture starts immediately on mic acquisition (not on WS open) to
-// eliminate the audio gap between getUserMedia and WebSocket connection.
-// Chunks are buffered in pendingChunks until the WebSocket is ready.
+// eliminate the gap between getUserMedia and WebSocket connection. PCM frames
+// captured before the socket opens are buffered in pendingChunks and flushed
+// on open.
 
 import { transcribeAudioWithRetry, buildVoiceStreamWsUrl } from "../../api/voice";
 import type { LastTurnAudio, TranscriptionProvider } from "./types";
-import { AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, WHISPER_FAILED_SENTINEL, computeFinalTimeout } from "./types";
+import { WHISPER_FAILED_SENTINEL, computeFinalTimeout } from "./types";
+import { createScriptProcessorPcmCapture, type PcmCapture, type PcmCaptureFactory } from "./pcmCapture";
+import { concatInt16, encodeWavFromPcm16, frameToCanonicalPcm16, TARGET_SAMPLE_RATE } from "./pcm";
 
 export class VoiceStreamProvider implements TranscriptionProvider {
   private ws: WebSocket | null = null;
-  private mediaRecorder: MediaRecorder | null = null;
+  /** Live PCM capture, or null when not recording. */
+  private capture: PcmCapture | null = null;
+  /**
+   * PCM capture factory seam. Production wires the ScriptProcessor-based
+   * capture; tests inject a fake that lets them push synthetic frames
+   * without a real AudioContext.
+   */
+  captureFactory: PcmCaptureFactory = createScriptProcessorPcmCapture;
   private stream: MediaStream | null = null;
   private finalReceived = false;
   private finalTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -25,33 +38,33 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   private recordingStartTime = 0;
   /** Timestamp when stop() was called -- used to measure stop-to-final latency. */
   private stopTime = 0;
-  private pendingChunks: ArrayBuffer[] = [];
+  private pendingChunks: ArrayBufferView[] = [];
   /**
-   * All audio chunks collected for the current turn (every segment, accepted
-   * or rejected). Used for two purposes:
-   *   1. HTTP fallback if WebSocket streaming fails entirely.
+   * All canonical PCM captured this turn (every frame, accepted or rejected).
+   * Used for two purposes:
+   *   1. HTTP fallback (wrapped as WAV) if WebSocket streaming fails entirely.
    *   2. Full-turn retention for the "Transcribe anyway" retry flow when
    *      speaker verification rejects a segment — see `lastTurn` below.
    * Cleared on each new `start()`.
    */
-  private allChunks: Blob[] = [];
+  private allPcm: Int16Array[] = [];
   /**
-   * Retained audio from the most recent completed turn. Snapshotted in
+   * Retained audio from the most recent completed turn, snapshotted in
    * `stop()` or `dispose()` so the hook can offer a bypass-filter retry
    * after rejection. Released by `disposeLastTurn()` or the next `start()`.
    */
   private lastTurn: LastTurnAudio | null = null;
-  /** Mime type of retained audio (webm/opus or webm, set at MediaRecorder init). */
-  private lastTurnMimeType = "audio/webm";
-  /** Running count of audio chunks sent via WebSocket. */
+  /** Container type of retained audio. PCM capture is wrapped as WAV. */
+  private static readonly RETAINED_MIME_TYPE = "audio/wav";
+  /** Running count of PCM frames sent via WebSocket. */
   private chunkCount = 0;
   /** Running total of bytes sent via WebSocket. */
   private totalBytesSent = 0;
   /**
-   * When true, the `ondataavailable` handler drops incoming chunks instead
-   * of forwarding to the WS, and `stop()` skips `snapshotLastTurn()` and
-   * sends `{ type: "done" }` synchronously. Armed by `dropTail()` from the
-   * auto-stop path; reset on each `start()`.
+   * When true, the frame handler drops incoming PCM instead of forwarding
+   * to the WS, and `stop()` sends `{ type: "done" }` synchronously and skips
+   * tail retention. Armed by `dropTail()` from the auto-stop path; reset on
+   * each `start()`.
    */
   private tailDropArmed = false;
   private droppedChunkCount = 0;
@@ -103,12 +116,11 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   }
 
   /**
-   * Arm in-flight audio drop. Subsequent `ondataavailable` blobs are
-   * discarded instead of being sent over the WS, and `stop()` will commit
-   * the server-side segment immediately without retaining a tail blob.
-   * Called by the auto-stop path so post-verdict audio (the encoder's
-   * 250 ms chunk in progress + anything spoken during teardown) does not
-   * leak into the transcription.
+   * Arm in-flight audio drop. Subsequent captured PCM frames are discarded
+   * instead of being sent over the WS, and `stop()` will commit the
+   * server-side segment immediately without retaining a tail blob. Called by
+   * the auto-stop path so post-verdict audio (anything spoken during
+   * teardown) does not leak into the transcription.
    */
   dropTail(): void {
     this.tailDropArmed = true;
@@ -116,23 +128,31 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   }
 
   /**
-   * Build a retained `LastTurnAudio` from the currently-collected chunks.
-   * Called at turn end (stop or dispose) so the hook can offer a retry
-   * without requiring the user to re-record.
+   * Handle one captured PCM frame: downsample to the canonical 16 kHz rate,
+   * convert to signed-16-bit PCM, and forward it to the WebSocket (or buffer
+   * it until the socket opens). Frames are dropped while tail-drop is armed.
+   * Retains the canonical PCM for the HTTP fallback / retry path.
    */
-  private snapshotLastTurn(): void {
-    if (this.allChunks.length === 0) {
-      this.lastTurn = null;
+  private handleFrame(samples: Float32Array, sampleRate: number): void {
+    if (this.tailDropArmed) {
+      this.droppedChunkCount++;
       return;
     }
-    const blob = new Blob(this.allChunks, { type: this.lastTurnMimeType });
-    const durationMs = Math.max(0, Date.now() - this.recordingStartTime);
-    this.lastTurn = {
-      blob,
-      mimeType: this.lastTurnMimeType,
-      durationMs,
-      capturedAt: Date.now(),
-    };
+    const pcm16 = frameToCanonicalPcm16(samples, sampleRate);
+    if (pcm16.length === 0) return;
+    this.chunkCount++;
+    this.totalBytesSent += pcm16.byteLength;
+    // Keep a copy for HTTP fallback / retry in case streaming fails entirely.
+    this.allPcm.push(pcm16);
+    // The Int16Array is a fresh full-buffer allocation, so sending the view
+    // sends exactly its s16le bytes as one binary WS frame.
+    const ws = this.ws;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(pcm16);
+    } else {
+      // Buffer until WebSocket connects (or during reconnection).
+      this.pendingChunks.push(pcm16);
+    }
   }
 
   /** Send a segment-boundary signal to the backend, triggering a high-quality
@@ -153,6 +173,26 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       console.debug("[voice] VAD %s sent at +%dms, chunks=%d, bytes=%d",
         msgType, elapsed, this.chunkCount, this.totalBytesSent);
     }
+  }
+
+  /**
+   * Build a retained `LastTurnAudio` (WAV) from the captured PCM. Called at
+   * turn end (stop or dispose) so the hook can offer a retry without
+   * requiring the user to re-record.
+   */
+  private snapshotLastTurn(): void {
+    if (this.allPcm.length === 0) {
+      this.lastTurn = null;
+      return;
+    }
+    const blob = encodeWavFromPcm16(concatInt16(this.allPcm), TARGET_SAMPLE_RATE);
+    const durationMs = Math.max(0, Date.now() - this.recordingStartTime);
+    this.lastTurn = {
+      blob,
+      mimeType: VoiceStreamProvider.RETAINED_MIME_TYPE,
+      durationMs,
+      capturedAt: Date.now(),
+    };
   }
 
   private setupWsHandlers(ws: WebSocket): void {
@@ -190,7 +230,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
           if (!this.firstPartialLogged) {
             const latency = Date.now() - this.recordingStartTime;
             console.info("[voice] First partial received, latency=%dms, text=%s",
-              latency, msg.text.length > 60 ? msg.text.slice(0, 60) + "\u2026" : msg.text);
+              latency, msg.text.length > 60 ? msg.text.slice(0, 60) + "…" : msg.text);
             this.firstPartialLogged = true;
           }
           this.onPartial?.(msg.text);
@@ -218,7 +258,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     };
 
     ws.onerror = () => {
-      console.warn("[voice] WebSocket error \u2014 will attempt HTTP fallback on close");
+      console.warn("[voice] WebSocket error — will attempt HTTP fallback on close");
       // Don't emit error here; onclose fires after onerror and will handle fallback.
     };
 
@@ -226,9 +266,8 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       console.info("[voice] WebSocket closed, finalReceived:", this.finalReceived);
       if (this.finalReceived || this.intentionallyStopped) return;
 
-      // Attempt reconnect with exponential backoff if recording is still active.
-      if (this.reconnectAttempt < VoiceStreamProvider.MAX_RECONNECTS
-          && this.mediaRecorder?.state === "recording") {
+      // Attempt reconnect with exponential backoff if capture is still active.
+      if (this.reconnectAttempt < VoiceStreamProvider.MAX_RECONNECTS && this.capture) {
         const delay = VoiceStreamProvider.RECONNECT_DELAYS[this.reconnectAttempt] ?? 3_000;
         this.reconnectAttempt++;
         console.warn("[voice] WebSocket reconnect attempt %d/%d, delay=%dms, pendingChunks=%d",
@@ -264,17 +303,17 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   }
 
   /**
-   * Fall back to HTTP transcription using all collected audio chunks.
+   * Fall back to HTTP transcription using all captured PCM, wrapped as WAV.
    * Called when WebSocket streaming fails and all reconnects are exhausted.
    */
   private attemptHttpFallback(): void {
-    if (this.allChunks.length === 0) {
+    if (this.allPcm.length === 0) {
       this.onError?.(WHISPER_FAILED_SENTINEL);
       return;
     }
-    console.warn("[voice] Streaming failed \u2014 falling back to HTTP transcription");
-    const blob = new Blob(this.allChunks, { type: "audio/webm" });
-    this.allChunks = [];
+    console.warn("[voice] Streaming failed — falling back to HTTP transcription");
+    const blob = encodeWavFromPcm16(concatInt16(this.allPcm), TARGET_SAMPLE_RATE);
+    this.allPcm = [];
     const httpFallbackStart = Date.now();
     transcribeAudioWithRetry(blob, 2, this.language)
       .then((text) => {
@@ -331,7 +370,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     // This prevents holding an idle connection on the server indefinitely.
     if (this.preConnectTimer) clearTimeout(this.preConnectTimer);
     this.preConnectTimer = setTimeout(() => {
-      if (this.ws && !this.mediaRecorder) {
+      if (this.ws && !this.capture) {
         // No recording started — close the idle pre-connection
         this.ws.close();
         this.ws = null;
@@ -358,10 +397,10 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       this.ws.close();
       this.ws = null;
     }
-    if (this.mediaRecorder?.state === "recording") {
-      this.mediaRecorder.stop();
+    if (this.capture) {
+      this.capture.stop();
+      this.capture = null;
     }
-    this.mediaRecorder = null;
 
     // ── Stream acquisition ──
     // DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
@@ -396,48 +435,17 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     this.recordingStartTime = Date.now();
     this.stopTime = 0;
     this.pendingChunks = [];
-    this.allChunks = [];
+    this.allPcm = [];
     this.chunkCount = 0;
     this.totalBytesSent = 0;
     this.lastTurn = null;
     this.tailDropArmed = false;
     this.droppedChunkCount = 0;
 
-    // Start MediaRecorder IMMEDIATELY after mic acquisition.
-    // Chunks are buffered in pendingChunks until the WebSocket connects.
-    // This eliminates the audio gap between getUserMedia and WS open.
-    this.lastTurnMimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-      ? "audio/webm;codecs=opus"
-      : "audio/webm";
-    this.mediaRecorder = new MediaRecorder(this.stream, {
-      mimeType: this.lastTurnMimeType,
-      audioBitsPerSecond: AUDIO_BITRATE,
-    });
-    this.mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) {
-        if (this.tailDropArmed) {
-          this.droppedChunkCount++;
-          return;
-        }
-        this.chunkCount++;
-        this.totalBytesSent += e.data.size;
-        // Keep a copy for HTTP fallback in case streaming fails entirely.
-        this.allChunks.push(e.data);
-        void e.data.arrayBuffer().then((buf) => {
-          // Capture a local reference: the turn may have ended (and the WS
-          // reassigned) between when this microtask was queued and when it
-          // runs. Reading this.ws twice across the check + send would race.
-          const ws = this.ws;
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(buf);
-          } else {
-            // Buffer until WebSocket connects (or during reconnection)
-            this.pendingChunks.push(buf);
-          }
-        });
-      }
-    };
-    this.mediaRecorder.start(STREAM_CHUNK_INTERVAL_MS);
+    // Start PCM capture IMMEDIATELY after mic acquisition. Frames are
+    // buffered in pendingChunks until the WebSocket connects. This
+    // eliminates the audio gap between getUserMedia and WS open.
+    this.capture = this.captureFactory(this.stream, (samples, rate) => this.handleFrame(samples, rate));
 
     // ── WebSocket connection ──
     // Reuse a pre-connected WebSocket if available (from preConnect()).
@@ -473,57 +481,31 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     console.info("[voice] Stop: recordingDuration=%dms, chunks=%d, bytes=%d",
       recordingDuration, this.chunkCount, this.totalBytesSent);
 
-    // Tail-drop path: server already declared end-of-utterance, commit the
-    // already-buffered segment NOW and skip tail retention. The encoder is
-    // still allowed to finish (its final ondataavailable is dropped by the
-    // ondataavailable gate above).
+    // Stop PCM capture. Unlike MediaRecorder there is no buffered encoder
+    // tail to flush — ScriptProcessor delivers frames synchronously up to
+    // disconnect — so end-of-utterance can be signalled immediately.
+    if (this.capture) {
+      this.capture.stop();
+      this.capture = null;
+    }
+    if (!this.retainStream) {
+      this.stream?.getTracks().forEach((t) => t.stop());
+      this.stream = null;
+    }
+
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: "done" }));
+    }
+
+    // Tail-drop path: the server already declared end-of-utterance, so skip
+    // tail retention. Otherwise retain the turn's audio for a possible
+    // bypass-filter retry.
     if (this.tailDropArmed) {
-      if (this.ws?.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify({ type: "done" }));
-      }
       if (this.droppedChunkCount > 0) {
-        console.info("[voice] tail-drop dropped %d chunks", this.droppedChunkCount);
+        console.info("[voice] tail-drop dropped %d frames", this.droppedChunkCount);
       }
-      if (this.mediaRecorder?.state === "recording") {
-        this.mediaRecorder.onstop = () => {
-          if (!this.retainStream) {
-            this.stream?.getTracks().forEach((t) => t.stop());
-            this.stream = null;
-          }
-        };
-        this.mediaRecorder.stop();
-      } else if (!this.retainStream) {
-        this.stream?.getTracks().forEach((t) => t.stop());
-        this.stream = null;
-      }
-    } else if (this.mediaRecorder?.state === "recording") {
-      // Defer "done" signal until after final data is flushed.
-      this.mediaRecorder.onstop = () => {
-        if (this.ws?.readyState === WebSocket.OPEN) {
-          this.ws.send(JSON.stringify({ type: "done" }));
-        }
-        // Snapshot retained audio AFTER the final ondataavailable fires so the
-        // retained blob includes the last tail of the turn.
-        this.snapshotLastTurn();
-        // When retainStream is true (low-latency mode), keep the stream alive
-        // for re-use in subsequent recordings. The mic readiness module manages
-        // the stream lifecycle instead.
-        // DOC: docs/internal/VOICE-LATENCY.md#audio-ducking-deep-dive
-        if (!this.retainStream) {
-          this.stream?.getTracks().forEach((t) => t.stop());
-          this.stream = null;
-        }
-      };
-      this.mediaRecorder.stop();
     } else {
-      if (this.ws?.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify({ type: "done" }));
-      }
       this.snapshotLastTurn();
-      if (!this.retainStream) {
-        this.stream?.getTracks().forEach((t) => t.stop());
-        this.stream = null;
-      }
     }
 
     if (!this.finalReceived) {
@@ -548,8 +530,9 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       clearTimeout(this.preConnectTimer);
       this.preConnectTimer = null;
     }
-    if (this.mediaRecorder?.state === "recording") {
-      this.mediaRecorder.stop();
+    if (this.capture) {
+      this.capture.stop();
+      this.capture = null;
     }
     this.ws?.close();
     this.ws = null;

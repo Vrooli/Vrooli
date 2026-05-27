@@ -3,7 +3,7 @@
 // /home/matthalloran8/.vrooli/plans/server-driven-mic-ring-streamvadstate-event.md
 // §9 item 4 for the contract this file enforces.
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 
 import {
   useServerVadStateStore,
@@ -26,13 +26,8 @@ describe("useServerVadStateStore", () => {
   });
 
   it("setServerVadState records a tick, stamps receivedAt, and notifies subscribers", () => {
-    const fn = vi.fn();
-    const unsub = (useServerVadStateStore as unknown as {
-      getState: () => unknown;
-    }) ? null : null;
-    // Subscribe via the React useSyncExternalStore subscribe path: the
-    // public hook is React-only; we exercise notification through the
-    // direct setter and inspect state after.
+    // The public hook is React-only; we exercise the notification path
+    // through the direct setter and inspect state after.
     setServerVadState({ voiced: false, silenceElapsedMs: 200, silenceTimeoutMs: 1500, tickSeq: 1 });
     const after = useServerVadStateStore.getState();
     expect(after.voiced).toBe(false);
@@ -40,9 +35,6 @@ describe("useServerVadStateStore", () => {
     expect(after.silenceTimeoutMs).toBe(1500);
     expect(after.tickSeq).toBe(1);
     expect(after.receivedAt).toBeGreaterThan(0);
-    // Avoid unused-var lint
-    void fn;
-    void unsub;
   });
 
   it("drops strictly out-of-order tickSeq (proto bidi safety net)", () => {

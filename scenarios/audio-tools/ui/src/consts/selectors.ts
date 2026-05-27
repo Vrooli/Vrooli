@@ -320,6 +320,18 @@ const dynamicSelectorDefinitions = {
       params: { code: { type: "enum", values: LOCALE_CODES } },
     }),
   },
+  speakerAdmin: {
+    profileName: defineDynamicSelector({
+      description: "Speaker profile display-name cell by profile id",
+      testIdPattern: "speaker-profile-name-${id}",
+      params: { id: { type: "string" } },
+    }),
+    profileModel: defineDynamicSelector({
+      description: "Speaker profile model cell by profile id",
+      testIdPattern: "speaker-profile-model-${id}",
+      params: { id: { type: "string" } },
+    }),
+  },
 } satisfies DynamicSelectorTree;
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);

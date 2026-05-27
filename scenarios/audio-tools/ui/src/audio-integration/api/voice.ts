@@ -195,9 +195,13 @@ export function createVoiceApi(client: AudioToolsClient) {
   const api = {
     buildVoiceStreamWsUrl(language?: string): string {
       const wsBase = apiBaseToWsBase(client.baseUrl.replace(/\/$/, ""));
-      const url = `${wsBase}/api/v1/voice/stream`;
-      if (language) return `${url}?language=${encodeURIComponent(language)}`;
-      return url;
+      // The embed streams raw 16 kHz mono signed-16-bit PCM, so it declares
+      // `format=pcm_s16le` to take the server's ffmpeg-free fast-path (the
+      // audioformat substrate's identity decoder). See VoiceStreamProvider
+      // + handlers/stt/stream_ws.go::buildStreamStart.
+      const params = new URLSearchParams({ format: "pcm_s16le" });
+      if (language) params.set("language", language);
+      return `${wsBase}/api/v1/voice/stream?${params.toString()}`;
     },
 
     async transcribeAudio(audioBlob: Blob, language?: string): Promise<string> {

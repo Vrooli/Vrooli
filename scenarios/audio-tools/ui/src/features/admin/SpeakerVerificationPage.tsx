@@ -9,6 +9,7 @@ import { ApiErrorState } from "../../components/composites/ApiErrorState";
 import { LoadingRows } from "../../components/composites/LoadingRows";
 import { useTranslation } from "../../i18n";
 import { strings } from "../../consts/strings";
+import { selectors } from "../../consts/selectors";
 import {
   deleteSpeakerProfile,
   getSpeakerStatus,
@@ -68,7 +69,7 @@ export function SpeakerVerificationPage() {
           title={t(strings.speakerAdmin.pageTitle)}
           description={t(strings.speakerAdmin.pageDescription)}
         />
-        <ApiErrorState error={status.error} onRetry={() => status.refetch()} />
+        <ApiErrorState error={status.error} onRetry={() => void status.refetch()} />
       </div>
     );
   }
@@ -83,7 +84,7 @@ export function SpeakerVerificationPage() {
         description={t(strings.speakerAdmin.pageDescription)}
       />
 
-      <Panel title="Status">
+      <Panel title={t(strings.speakerAdmin.statusTitle)}>
         <div className="flex items-center gap-2 px-4 pt-3 text-xs">
           <StatusDot tone={capabilityTone(st.capability)} label={st.capabilityLabel || st.capability} />
           <span className="text-app-muted-foreground">
@@ -91,11 +92,11 @@ export function SpeakerVerificationPage() {
           </span>
         </div>
         <dl className="grid grid-cols-2 gap-2 px-4 py-3 text-xs">
-          <dt className="text-app-muted-foreground">Resource ready</dt>
+          <dt className="text-app-muted-foreground">{t(strings.speakerAdmin.statusResourceReady)}</dt>
           <dd>{String(st.resourceReady)}</dd>
-          <dt className="text-app-muted-foreground">Profile configured</dt>
+          <dt className="text-app-muted-foreground">{t(strings.speakerAdmin.statusProfileConfigured)}</dt>
           <dd>{String(st.profileConfigured)}</dd>
-          <dt className="text-app-muted-foreground">Profile exists</dt>
+          <dt className="text-app-muted-foreground">{t(strings.speakerAdmin.statusProfileExists)}</dt>
           <dd>{String(st.profileExists)}</dd>
         </dl>
       </Panel>
@@ -106,10 +107,16 @@ export function SpeakerVerificationPage() {
           onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
+            // FormData.get returns string | File | null; coerce to a string
+            // field value without risking File's default stringification.
+            const field = (name: string, fallback: string): string => {
+              const v = fd.get(name);
+              return typeof v === "string" ? v : fallback;
+            };
             const enabled = fd.get("enabled") === "on";
-            const threshold = parseFloat(String(fd.get("threshold") ?? "0"));
-            const mode = String(fd.get("mode") ?? "filter") as SpeakerModeLabel;
-            const rejectBehavior = String(fd.get("rejectBehavior") ?? "drop") as RejectBehaviorLabel;
+            const threshold = parseFloat(field("threshold", "0"));
+            const mode = field("mode", "filter") as SpeakerModeLabel;
+            const rejectBehavior = field("rejectBehavior", "drop") as RejectBehaviorLabel;
             saveMut.mutate({ enabled, threshold, mode, rejectBehavior });
           }}
         >
@@ -167,19 +174,19 @@ export function SpeakerVerificationPage() {
           <Table>
             <THead>
               <TR>
-                <TH>ID</TH>
-                <TH>Name</TH>
-                <TH>Model</TH>
-                <TH>Sample rate</TH>
-                <TH aria-label="actions" />
+                <TH>{t(strings.speakerAdmin.colId)}</TH>
+                <TH>{t(strings.speakerAdmin.colName)}</TH>
+                <TH>{t(strings.speakerAdmin.colModel)}</TH>
+                <TH>{t(strings.speakerAdmin.colSampleRate)}</TH>
+                <TH aria-label={t(strings.speakerAdmin.colActions)} />
               </TR>
             </THead>
             <TBody>
               {st.profiles.map((p) => (
                 <TR key={p.id}>
                   <TD className="font-mono text-xs">{p.id}</TD>
-                  <TD>{p.displayName}</TD>
-                  <TD>{p.modelName}</TD>
+                  <TD data-testid={selectors.speakerAdmin.profileName({ id: p.id })}>{p.displayName}</TD>
+                  <TD data-testid={selectors.speakerAdmin.profileModel({ id: p.id })}>{p.modelName}</TD>
                   <TD>{p.sampleRate}</TD>
                   <TD className="flex gap-2">
                     <Button

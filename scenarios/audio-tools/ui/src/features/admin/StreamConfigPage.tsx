@@ -19,7 +19,7 @@ export function StreamConfigPage() {
       />
       <Panel title={t(strings.streamConfigAdmin.pageTitle)}>
         <p className="px-4 py-3 text-sm text-app-muted-foreground">
-          Stream-config tuning UI not yet implemented in this scenario UI.
+          {t(strings.streamConfigAdmin.notImplemented)}
         </p>
       </Panel>
     </div>

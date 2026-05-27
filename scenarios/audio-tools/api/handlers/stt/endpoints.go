@@ -23,6 +23,7 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		ID: "stt.stream_ws", Path: "/api/v1/voice/stream", Method: "GET", Summary: "Browser-voice WebSocket transport", Category: "stt",
 		RESTException: &modulekit.RESTException{Reason: modulekit.RESTReasonOpsProbe, Note: "WebSocket transport — see docs/internal/SEAMS.md. Will move to TransportReason: websocket_transport when template constant lands (R-PROTO)."},
 	},
+	{ID: "stt.get_supported_formats", Path: "/vrooli.audio_tools.v1.stt.STTService/GetSupportedFormats", Method: "POST", Summary: "Report the STT ingress audio-format capability matrix", Category: "stt"},
 	{ID: "stt.get_stream_config", Path: "/vrooli.audio_tools.v1.stt.STTService/GetStreamConfig", Method: "POST", Category: "stt"},
 	{ID: "stt.update_stream_config", Path: "/vrooli.audio_tools.v1.stt.STTService/UpdateStreamConfig", Method: "POST", Category: "stt"},
 	{ID: "stt.get_wakeword_config", Path: "/vrooli.audio_tools.v1.stt.STTService/GetWakeWordConfig", Method: "POST", Category: "stt"},

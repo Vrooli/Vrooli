@@ -408,6 +408,14 @@
       }
     },
     {
+      "id": "stt.get_supported_formats",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/GetSupportedFormats",
+      "method": "POST",
+      "summary": "Report the STT ingress audio-format capability matrix",
+      "description": "",
+      "category": "stt"
+    },
+    {
       "id": "stt.get_stream_config",
       "path": "/vrooli.audio_tools.v1.stt.STTService/GetStreamConfig",
       "method": "POST",
@@ -596,6 +604,14 @@
       "path": "/vrooli.audio_tools.v1.tts.TTSService/GetStatus",
       "method": "POST",
       "summary": "TTS service status snapshot",
+      "description": "",
+      "category": "tts"
+    },
+    {
+      "id": "tts.get_supported_formats",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/GetSupportedFormats",
+      "method": "POST",
+      "summary": "Report the TTS egress audio-format capability matrix",
       "description": "",
       "category": "tts"
     },

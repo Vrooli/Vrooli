@@ -39,14 +39,22 @@ const FEATURE_SLUGS: Record<AudioToolsFeature, string> = {
   [AudioToolsFeature.AUDIO_PROVIDER_ROUTING]: "audio-provider-routing",
 };
 
+// The numeric members of the AudioToolsFeature enum. Object.values of a
+// numeric enum yields both the reverse-mapped names (strings) and the
+// numeric values; the type guard keeps only the latter as enum values.
+const FEATURE_VALUES = Object.values(AudioToolsFeature).filter(
+  (v): v is AudioToolsFeature => typeof v === "number",
+);
+
 (function assertCoverage() {
-  for (const key of Object.keys(AudioToolsFeature)) {
-    const numeric = Number(AudioToolsFeature[key as keyof typeof AudioToolsFeature]);
-    if (!Number.isFinite(numeric)) continue;
-    if (numeric === AudioToolsFeature.UNSPECIFIED) continue;
-    if (!FEATURE_SLUGS[numeric as AudioToolsFeature]) {
+  // FEATURE_SLUGS is typed Record<AudioToolsFeature, string>, so the compiler
+  // already enforces an entry per enum member; this runtime guard catches a
+  // hand-edited empty slug and points at the Go mirror that must also change.
+  for (const value of FEATURE_VALUES) {
+    if (value === AudioToolsFeature.UNSPECIFIED) continue;
+    if (!FEATURE_SLUGS[value]) {
       throw new Error(
-        `audio-integration/features.ts: missing slug for AudioToolsFeature.${key} (${numeric}). ` +
+        `audio-integration/features.ts: missing slug for AudioToolsFeature.${AudioToolsFeature[value]} (${value}). ` +
           "Add the entry to FEATURE_SLUGS and to clients/go/audiotools/features.go.",
       );
     }
@@ -55,7 +63,7 @@ const FEATURE_SLUGS: Record<AudioToolsFeature, string> = {
 
 /** Returns the wire-slug for an AudioToolsFeature enum value. Empty string for UNSPECIFIED. */
 export function featureSlug(f: AudioToolsFeature): string {
-  return FEATURE_SLUGS[f] ?? "";
+  return FEATURE_SLUGS[f];
 }
 
 /** All registered feature slugs in stable (alphabetical) order. */
