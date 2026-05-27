@@ -678,6 +678,14 @@ func (h *handlers) speakerConfig(ctx cliapp.RunContext) error {
 		cfg.FallbackWithoutVerification = b
 		mask.Paths = append(mask.Paths, "fallback_without_verification")
 	}
+	if v := ctx.Flag("extraction-enabled"); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("--extraction-enabled must be true|false: %q", v)
+		}
+		cfg.ExtractionEnabled = b
+		mask.Paths = append(mask.Paths, "extraction_enabled")
+	}
 	profilesFlag := ctx.Flag("profiles")
 	bindFlag := ctx.Flag("bind-profile")
 	if profilesFlag != "" && bindFlag != "" {
@@ -707,7 +715,7 @@ func (h *handlers) speakerConfig(ctx cliapp.RunContext) error {
 		mask.Paths = append(mask.Paths, "profile_ids")
 	}
 	if len(mask.Paths) == 0 {
-		return fmt.Errorf("at least one flag must be set (--mode, --threshold, --enabled, --profiles, --bind-profile, --reject-behavior, --fallback)")
+		return fmt.Errorf("at least one flag must be set (--mode, --threshold, --enabled, --profiles, --bind-profile, --reject-behavior, --fallback, --extraction-enabled)")
 	}
 	resp, err := h.admin.UpdateSpeakerConfig(context.Background(), connect.NewRequest(&sttv1.UpdateSpeakerConfigRequest{
 		UpdateMask: mask,
@@ -724,6 +732,7 @@ func (h *handlers) speakerConfig(ctx cliapp.RunContext) error {
 	fmt.Fprintf(ctx.Stdout(), "  reject_behavior = %s\n", rejectBehaviorLabel(out.GetRejectBehavior()))
 	fmt.Fprintf(ctx.Stdout(), "  active_profiles = %v\n", out.GetProfileIds())
 	fmt.Fprintf(ctx.Stdout(), "  fallback        = %t\n", out.GetFallbackWithoutVerification())
+	fmt.Fprintf(ctx.Stdout(), "  extraction      = %t\n", out.GetExtractionEnabled())
 	return nil
 }
 

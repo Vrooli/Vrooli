@@ -20,10 +20,13 @@ type SpeakerVerdict struct {
 	FallbackUsed bool
 }
 
-// SpeakerIsolation is the pluggable audio-domain identity check. The manifest's
-// active speakerIsolation method selects which implementation is wired
-// ("verification" today; "targetExtraction" is reserved). Swapping the method
-// is a one-field manifest edit — callers never branch on the method name.
+// SpeakerIsolation is the pluggable audio-domain identity check for the EGRESS
+// gate: it can Emit/Drop/Reject a finished segment's text but cannot substitute
+// audio. The manifest's active speakerIsolation method selects which
+// implementation is wired ("verification" today). Swapping the method is a
+// one-field manifest edit — callers never branch on the method name. Isolating
+// the audio itself (target-speaker extraction) is the complementary INGRESS
+// seam ingress.TargetExtractor, gated by config — not an egress method.
 //
 // seam: SpeakerIsolation is the audio-domain egress seam (SEAMS.md row
 // "egress.SpeakerIsolation"). Production wires the verification adapter

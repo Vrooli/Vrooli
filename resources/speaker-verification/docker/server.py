@@ -27,18 +27,36 @@ from typing import Any, Dict, List, Optional, Tuple
 import torch
 import torchaudio
 from fastapi import FastAPI, File, Form, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 # ---------------------------------------------------------------------------
 # Configuration (all overridable via environment for compose / GPU overlays)
 # ---------------------------------------------------------------------------
 
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = "0.2.0"
 MODEL_NAME = os.environ.get(
     "SPEAKER_VERIFICATION_MODEL", "speechbrain/spkrec-ecapa-voxceleb"
 )
 EMBEDDING_DIM = 192
 SAMPLE_RATE = 16000
+
+# Target-speaker extraction = source separation (split the mixture into N voices)
+# + ECAPA target-selection (pick the separated source whose embedding best
+# matches the enrolled profile). The published SepFormer separation checkpoints
+# (wsj02mix / libri2mix, 2 speakers) run at 8 kHz; the 16 kHz checkpoints are
+# enhancement (single-source denoise), not separation. So the default is the
+# 8 kHz 2-speaker model and audio is resampled 16k↔8k around it. Which variant +
+# match threshold perform best on real two-speaker audio is an empirical spike
+# (GPU) — see docs/extraction.md — hence model, rate, and threshold are tunable.
+EXTRACTION_MODEL = os.environ.get(
+    "SPEAKER_EXTRACTION_MODEL", "speechbrain/sepformer-wsj02mix"
+)
+EXTRACTION_SAMPLE_RATE = int(
+    os.environ.get("SPEAKER_EXTRACTION_SAMPLE_RATE", "8000")
+)
+EXTRACTION_MATCH_THRESHOLD = float(
+    os.environ.get("SPEAKER_EXTRACTION_MATCH_THRESHOLD", "0.25")
+)
 
 DEVICE = os.environ.get("SPEAKER_VERIFICATION_DEVICE", "cpu").strip().lower()
 if DEVICE == "cuda" and not torch.cuda.is_available():
@@ -58,9 +76,10 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="Speaker Verification", version=SERVER_VERSION)
 
-# Lazily-initialized model handle. Loaded on first use so /ready can report
+# Lazily-initialized model handles. Loaded on first use so /ready can report
 # liveness even before the (one-time) model download completes.
 _classifier = None
+_separator = None
 
 
 def _now_iso() -> str:
@@ -81,6 +100,45 @@ def _load_model():
         run_opts={"device": DEVICE},
     )
     return _classifier
+
+
+def _load_separator():
+    """Load (and cache) the SepFormer source-separation model. Idempotent.
+
+    Imported lazily so the module imports cleanly without model weights, and so
+    a deployment that never enables extraction never pays the download/load
+    cost.
+    """
+    global _separator
+    if _separator is not None:
+        return _separator
+    from speechbrain.inference.separation import SepformerSeparation
+
+    _separator = SepformerSeparation.from_hparams(
+        source=EXTRACTION_MODEL,
+        savedir=str(MODEL_CACHE_DIR / "sepformer-extraction"),
+        run_opts={"device": DEVICE},
+    )
+    return _separator
+
+
+def _embed_waveform(waveform: "torch.Tensor") -> List[float]:
+    """L2-normalized 192-dim ECAPA embedding from an in-memory 16 kHz mono
+    waveform tensor of shape (1, num_samples)."""
+    classifier = _load_model()
+    with torch.no_grad():
+        emb = classifier.encode_batch(waveform)
+    vec = emb.squeeze().detach().cpu()
+    vec = torch.nn.functional.normalize(vec, dim=0)
+    return vec.tolist()
+
+
+def _waveform_to_pcm16(waveform: "torch.Tensor") -> bytes:
+    """Encode a mono float waveform (1, n) in [-1, 1] to little-endian s16 PCM."""
+    samples = waveform.squeeze().detach().cpu()
+    clipped = torch.clamp(samples, -1.0, 1.0)
+    ints = (clipped * 32767.0).round().to(torch.int16)
+    return ints.numpy().tobytes()
 
 
 # ---------------------------------------------------------------------------
@@ -160,19 +218,59 @@ def _embed(raw: bytes) -> Tuple[List[float], float]:
     Returns (embedding, audio_seconds).
     """
     waveform, audio_seconds = _decode_to_waveform(raw)
-    classifier = _load_model()
-    with torch.no_grad():
-        emb = classifier.encode_batch(waveform)
-    # encode_batch returns (batch, 1, dim); squeeze to (dim,).
-    vec = emb.squeeze().detach().cpu()
-    vec = torch.nn.functional.normalize(vec, dim=0)
-    return vec.tolist(), audio_seconds
+    return _embed_waveform(waveform), audio_seconds
 
 
 def _cosine(a: List[float], b: List[float]) -> float:
     ta = torch.tensor(a, dtype=torch.float32)
     tb = torch.tensor(b, dtype=torch.float32)
     return float(torch.nn.functional.cosine_similarity(ta, tb, dim=0).item())
+
+
+def _extract_target(
+    waveform: "torch.Tensor", profile_embedding: List[float]
+) -> Tuple[bytes, float]:
+    """Isolate the enrolled speaker from a 16 kHz mono mixture.
+
+    Separates the mixture into candidate sources, embeds each with ECAPA, and
+    returns (pcm16, score) for the source whose embedding is the closest cosine
+    match to the enrolled profile. The returned PCM is 16 kHz mono s16le,
+    matching the input contract so it can re-enter the STT pipeline directly.
+    """
+    separator = _load_separator()
+
+    mix = waveform  # (1, n) @ SAMPLE_RATE
+    if EXTRACTION_SAMPLE_RATE != SAMPLE_RATE:
+        mix = torchaudio.functional.resample(mix, SAMPLE_RATE, EXTRACTION_SAMPLE_RATE)
+
+    with torch.no_grad():
+        # SepformerSeparation.separate_batch expects (batch, time) and returns
+        # (batch, time, n_sources).
+        est = separator.separate_batch(mix)
+    est = est.squeeze(0)  # (time, n_sources)
+    n_sources = int(est.shape[-1])
+
+    best_pcm: Optional[bytes] = None
+    best_score = -1.0
+    for i in range(n_sources):
+        src = est[:, i].unsqueeze(0)  # (1, time) @ EXTRACTION_SAMPLE_RATE
+        # Separators attenuate sources; renormalize so amplitude/embedding are
+        # comparable to enrollment.
+        peak = float(src.abs().max())
+        if peak > 0:
+            src = src / peak
+        if EXTRACTION_SAMPLE_RATE != SAMPLE_RATE:
+            src = torchaudio.functional.resample(src, EXTRACTION_SAMPLE_RATE, SAMPLE_RATE)
+        score = _cosine(profile_embedding, _embed_waveform(src))
+        if score > best_score:
+            best_score = score
+            best_pcm = _waveform_to_pcm16(src)
+
+    if best_pcm is None:
+        # No sources came back (degenerate model output): return the mixture so
+        # recognition still proceeds rather than dropping the audio.
+        return _waveform_to_pcm16(waveform), 0.0
+    return best_pcm, best_score
 
 
 # ---------------------------------------------------------------------------
@@ -254,6 +352,9 @@ def info() -> Dict[str, Any]:
         "sample_rate": SAMPLE_RATE,
         "version": SERVER_VERSION,
         "embedding_dim": EMBEDDING_DIM,
+        "extraction_model": EXTRACTION_MODEL,
+        "extraction_sample_rate": EXTRACTION_SAMPLE_RATE,
+        "extraction_match_threshold": EXTRACTION_MATCH_THRESHOLD,
     }
 
 
@@ -370,16 +471,41 @@ async def verify(
 @app.post("/v1/extract")
 async def extract(
     profile_id: str = Form(""),
-    verify: str = Form("false"),
+    verify: str = Form("false"),  # noqa: ARG001 -- reserved; the body IS the cleaned audio
     audio: UploadFile = File(...),
-) -> JSONResponse:
-    # Target-speaker extraction is a RESERVED capability. The ECAPA-TDNN
-    # embedding model does not perform source separation; a dedicated
-    # extraction model would be required. The audio-tools side treats this as
-    # reserved/not-yet-implemented.
-    return JSONResponse(
-        status_code=501,
-        content={"error": "target speaker extraction not implemented"},
+):
+    """Isolate the enrolled speaker's voice from a mixture (target-speaker
+    extraction). Returns the cleaned audio as raw 16 kHz mono s16le PCM in the
+    body, with X-Speaker-Score / X-Speaker-Matched / X-Duration-Ms /
+    X-Audio-Seconds headers — the contract the audio-tools Go client parses.
+    """
+    record = _load_profile(profile_id.strip())
+    if record is None:
+        return JSONResponse(status_code=404, content={"error": "profile not found"})
+
+    raw = await audio.read()
+    if not raw:
+        return JSONResponse(status_code=400, content={"error": "empty audio upload"})
+
+    start = time.perf_counter()
+    try:
+        waveform, audio_seconds = _decode_to_waveform(raw)
+        cleaned_pcm, score = _extract_target(waveform, record["embedding"])
+    except Exception as exc:  # noqa: BLE001 -- surface decode/model failures
+        return JSONResponse(
+            status_code=400, content={"error": f"extraction failed: {exc}"}
+        )
+    duration_ms = (time.perf_counter() - start) * 1000.0
+
+    return Response(
+        content=cleaned_pcm,
+        media_type="application/octet-stream",
+        headers={
+            "X-Speaker-Score": f"{score:.6f}",
+            "X-Speaker-Matched": "true" if score >= EXTRACTION_MATCH_THRESHOLD else "false",
+            "X-Duration-Ms": f"{duration_ms:.3f}",
+            "X-Audio-Seconds": f"{audio_seconds:.3f}",
+        },
     )
 
 

@@ -71,7 +71,7 @@ func (o *OverlapAgree) Run(
 	var buf []byte
 	cursor := 0         // start offset of next window to transcribe
 	committed := ""     // prefix already emitted as Segments
-	var recent []string // last (CommitRuns-1) full-window transcripts for agreement
+	var recent []string // last CommitRuns full-window transcripts for agreement
 	var lastTier sttchain.ProviderTier
 	var lastProviderID, lastModelID string
 	var totalLatencyMs float64
@@ -117,6 +117,10 @@ func (o *OverlapAgree) Run(
 		copy(audio, buf[cursor:end])
 		res, err := transcribe(audio)
 		if err != nil {
+			// A failed window surfaces one Error and advances — it does NOT
+			// abort the stream. A transient provider hiccup must not lose the
+			// rest of an utterance; the next window simply re-covers overlapping
+			// audio (advance < window), so a single failure is self-healing.
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
 			cursor += advanceBytes
 			return
@@ -164,6 +168,15 @@ func (o *OverlapAgree) Run(
 		case ch, ok := <-chunks:
 			if !ok {
 				// Final transcribe over the remaining tail (if any).
+				//
+				// This deliberately commits a SINGLE un-agreed transcription:
+				// trailing speech shorter than one window (or whose confirming
+				// window never arrived because the stream ended) would otherwise
+				// be lost. LocalAgreement's two-run safety net does not apply to
+				// the last fragment, so we trust this one transcription. The
+				// risk — committing a hallucinated tail on near-silence — is
+				// covered downstream by the egress hallucination filter (default
+				// on), which drops known Whisper silence-hallucination phrases.
 				if len(buf)-cursor > 0 {
 					tail := make([]byte, len(buf)-cursor)
 					copy(tail, buf[cursor:])

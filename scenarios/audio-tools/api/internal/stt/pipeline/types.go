@@ -36,16 +36,3 @@ type SpeakerStatus struct {
 	Info              *SpeakerResourceInfo
 	CheckedAt         string
 }
-
-// SpeakerEnrollment is the transport view of a successful enroll call.
-// Field-for-field projection of SpeakerEnrollmentResponse — the JSON-
-// tagged shape used on the resource wire.
-type SpeakerEnrollment struct {
-	ProfileID              string
-	DisplayName            string
-	EmbeddingDim           int
-	SampleRate             int
-	EnrollmentAudioSeconds float64
-	ModelName              string
-	CreatedAt              string
-}

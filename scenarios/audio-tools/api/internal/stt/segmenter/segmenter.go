@@ -48,6 +48,14 @@ type Deps struct {
 	// speaker isolation is disabled/off). The egress gate's audio-domain stage
 	// uses it; it never changes mid-session.
 	SpeakerIsolation egress.SpeakerIsolation
+
+	// SpeakerExtraction is the per-session PRE-recognition target-speaker
+	// extractor, built by the transport from the live SpeakerConfig + resource
+	// client (nil when extraction is disabled/off). The ingress pipeline runs it
+	// to isolate the enrolled speaker's audio before the VAD/recognizer see it —
+	// engine-agnostic, unlike the egress SpeakerIsolation gate. Never changes
+	// mid-session.
+	SpeakerExtraction ingress.TargetExtractor
 }
 
 // Segmenter is the per-session orchestrator. Construct via New, call
@@ -207,25 +215,41 @@ func (s *Segmenter) buildGate(cfg stt.StreamConfig) *egress.Gate {
 	return egress.NewGate(stages...)
 }
 
-// buildIngress constructs the per-session pre-recognition enhancement pipeline.
-// Returns nil (no enhancement) unless denoise is enabled in config AND ffmpeg
-// is available — denoise is backed by an ffmpeg afftdn filter, so "config on
-// but no ffmpeg" degrades to a no-op rather than failing the session (mirrors
-// the selector's BufferedFallback downgrade when ffmpeg is absent). Denoise is
-// engine-agnostic (it cleans canonical PCM upstream of recognition), so it is
-// gated here on capability + config rather than via a per-engine manifest flag.
+// buildIngress constructs the per-session pre-recognition enhancement pipeline,
+// composing (in order) denoise then target-speaker extraction. Both stages are
+// engine-agnostic (they operate on canonical PCM upstream of recognition), so
+// they are gated here on capability + config rather than via a per-engine
+// manifest flag. Returns nil when no stage applies (the Pipeline is then never
+// wired — zero overhead).
+//
+//   - Denoise: enabled in config AND ffmpeg available. "config on but no ffmpeg"
+//     degrades to a no-op (mirrors the selector's BufferedFallback downgrade).
+//   - Extraction: a SpeakerExtraction extractor was built for the session (the
+//     transport builds it only when extraction is enabled + a profile is bound).
+//
+// Ordering: denoise first (clean steady background noise), then extraction
+// (isolate the target speaker from any remaining co-occurring voices).
 func (s *Segmenter) buildIngress(cfg stt.StreamConfig) *ingress.Pipeline {
-	if !cfg.DenoiseEnabled {
+	var enhancers []ingress.Enhancer
+
+	if cfg.DenoiseEnabled {
+		eng := s.deps.Engine
+		if eng == nil {
+			eng = audioformat.New()
+		}
+		if eng.HasFfmpeg() {
+			enhancers = append(enhancers, ingress.DenoiseEnhancer{Runner: eng})
+		}
+	}
+
+	if s.deps.SpeakerExtraction != nil {
+		enhancers = append(enhancers, ingress.ExtractionEnhancer{Extractor: s.deps.SpeakerExtraction})
+	}
+
+	if len(enhancers) == 0 {
 		return nil
 	}
-	eng := s.deps.Engine
-	if eng == nil {
-		eng = audioformat.New()
-	}
-	if !eng.HasFfmpeg() {
-		return nil
-	}
-	return ingress.NewPipeline(ingress.DenoiseEnhancer{Runner: eng})
+	return ingress.NewPipeline(enhancers...)
 }
 
 // runEgress reads events from the strategy's inner channel, runs each

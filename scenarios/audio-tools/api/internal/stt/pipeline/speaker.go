@@ -3,7 +3,6 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"audio-tools/internal/audioformat"
 )
@@ -22,7 +21,6 @@ type SpeakerDecision struct {
 	Threshold    float64
 	Mode         string
 	ErrorMessage string
-	Extracted    bool
 }
 
 // EvaluateSpeaker runs the configured profiles against the supplied audio
@@ -100,97 +98,9 @@ func EvaluateSpeaker(ctx context.Context, cfg SpeakerConfig, client *SpeakerClie
 	return decision
 }
 
-// ExtractTargetSpeaker attempts to isolate the enrolled speaker's voice from
-// the audio mixture using Target Speaker Extraction (TSE). Returns the
-// cleaned audio and a gate decision. Falls back to verification-only when
-// extraction is disabled or unavailable.
-//
-// DOC: docs/internal/SEAMS.md#extract-target-speaker-seam
-func ExtractTargetSpeaker(ctx context.Context, cfg SpeakerConfig, client *SpeakerClient, audio []byte) ([]byte, SpeakerDecision) {
-	if !cfg.ExtractionEnabled || !cfg.Enabled || cfg.Mode == "off" {
-		return audio, EvaluateSpeaker(ctx, cfg, client, audio)
-	}
-	if len(cfg.ProfileIDs) == 0 || client == nil {
-		return audio, EvaluateSpeaker(ctx, cfg, client, audio)
-	}
-
-	extractCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-
-	var bestScore float64
-	var bestProfileID string
-	var bestAudio []byte
-	for _, profileID := range cfg.ProfileIDs {
-		result, err := client.Extract(extractCtx, audio, profileID, true)
-		if err != nil {
-			packageLogger.Printf("speaker-extraction: profile %s failed: %v", profileID, err)
-			continue
-		}
-		if result.Score > bestScore {
-			bestScore = result.Score
-			bestProfileID = profileID
-			bestAudio = result.Audio
-		}
-		if result.Matched {
-			return result.Audio, SpeakerDecision{
-				Enabled:   true,
-				Applied:   true,
-				Matched:   true,
-				Score:     result.Score,
-				Threshold: cfg.Threshold,
-				ProfileID: profileID,
-				Mode:      cfg.Mode,
-				Extracted: true,
-				Allowed:   true,
-			}
-		}
-	}
-
-	if bestProfileID == "" {
-		packageLogger.Printf("speaker-extraction: all profiles failed, falling back to verify-only")
-		return audio, EvaluateSpeaker(ctx, cfg, client, audio)
-	}
-
-	decision := SpeakerDecision{
-		Enabled:   true,
-		Applied:   true,
-		Matched:   false,
-		Score:     bestScore,
-		Threshold: cfg.Threshold,
-		ProfileID: bestProfileID,
-		Mode:      cfg.Mode,
-		Extracted: true,
-	}
-	if cfg.Mode == "advisory" {
-		decision.Allowed = true
-		return bestAudio, decision
-	}
-	decision.Allowed = false
-	return nil, decision
-}
-
 func FormatSpeakerDecisionError(decision SpeakerDecision) string {
 	if decision.ErrorMessage == "" {
 		return "speaker verification failed"
 	}
 	return fmt.Sprintf("speaker verification failed: %s", decision.ErrorMessage)
-}
-
-func containsString(ss []string, s string) bool {
-	for _, v := range ss {
-		if v == s {
-			return true
-		}
-	}
-	return false
-}
-
-func removeString(ss []string, s string) []string {
-	result := make([]string, 0, len(ss))
-	for _, v := range ss {
-		if v != s {
-			result = append(result, v)
-		}
-	}
-	return result
 }

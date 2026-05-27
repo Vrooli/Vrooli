@@ -177,10 +177,14 @@ func (c *SpeakerClient) ListProfiles(ctx context.Context) (SpeakerProfileList, e
 	return out, err
 }
 
+// Enroll uploads enrollment audio to the resource, which decodes it (by
+// content sniffing — filename is cosmetic) and computes the owning embedding.
+// Callers normalize to canonical-PCM WAV before calling so the enrollment
+// embedding matches the verification embedding; filename reflects that.
 func (c *SpeakerClient) Enroll(
 	ctx context.Context,
 	audio []byte,
-	profileID, displayName, notes string,
+	profileID, displayName, notes, filename string,
 ) (SpeakerEnrollmentResponse, error) {
 	var out SpeakerEnrollmentResponse
 	err := c.postMultipart(
@@ -192,7 +196,7 @@ func (c *SpeakerClient) Enroll(
 			"notes":        notes,
 		},
 		"audio",
-		"enrollment.webm",
+		filename,
 		audio,
 		&out,
 	)

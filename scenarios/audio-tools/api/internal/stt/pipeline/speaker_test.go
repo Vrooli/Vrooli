@@ -2,9 +2,70 @@ package pipeline
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
+
+// fakeVerifyClient stands up a /v1/verify endpoint that reports matched =
+// (score >= threshold), so EvaluateSpeaker's mode semantics can be exercised
+// without real ECAPA.
+func fakeVerifyClient(t *testing.T, score float64) *SpeakerClient {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseMultipartForm(1 << 20)
+		threshold, _ := strconv.ParseFloat(r.FormValue("threshold"), 64)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"profile_id": r.FormValue("profile_id"),
+			"matched":    score >= threshold,
+			"score":      score,
+			"threshold":  threshold,
+		})
+	}))
+	t.Cleanup(srv.Close)
+	return &SpeakerClient{BaseURL: srv.URL, Doer: http.DefaultClient}
+}
+
+// TestEvaluateSpeakerFilterMatchAndNonMatch proves the filter-mode gate: a
+// matching score allows the segment; a non-matching score blocks it (the
+// non-target voice is dropped).
+func TestEvaluateSpeakerFilterMatchAndNonMatch(t *testing.T) {
+	cfg := SpeakerConfig{Enabled: true, Mode: "filter", Threshold: 0.5, ProfileIDs: []string{"p1"}}
+
+	match := EvaluateSpeaker(context.Background(), cfg, fakeVerifyClient(t, 0.9), []byte("pcm"))
+	if !match.Allowed || !match.Matched || !match.Applied {
+		t.Fatalf("matching score must allow + mark matched/applied: %+v", match)
+	}
+
+	nonMatch := EvaluateSpeaker(context.Background(), cfg, fakeVerifyClient(t, 0.1), []byte("pcm"))
+	if nonMatch.Allowed {
+		t.Fatalf("filter mode must block a non-matching voice: %+v", nonMatch)
+	}
+	if !nonMatch.Applied {
+		t.Fatalf("verification ran, so Applied must be true even on non-match: %+v", nonMatch)
+	}
+}
+
+// TestEvaluateSpeakerAdvisoryAllowsNonMatch proves advisory mode scores but
+// never blocks: a non-matching segment is still Allowed, with Applied=true so
+// consumers can see the gate ran and the score it produced.
+func TestEvaluateSpeakerAdvisoryAllowsNonMatch(t *testing.T) {
+	cfg := SpeakerConfig{Enabled: true, Mode: "advisory", Threshold: 0.5, ProfileIDs: []string{"p1"}}
+	got := EvaluateSpeaker(context.Background(), cfg, fakeVerifyClient(t, 0.1), []byte("pcm"))
+	if !got.Allowed {
+		t.Fatalf("advisory mode must always allow: %+v", got)
+	}
+	if !got.Applied {
+		t.Fatalf("advisory still RUNS verification -> Applied=true: %+v", got)
+	}
+	if got.Matched {
+		t.Fatalf("non-matching score must not report Matched: %+v", got)
+	}
+}
 
 func TestEvaluateSpeakerDisabled(t *testing.T) {
 	cfg := SpeakerConfig{Enabled: false}
@@ -54,18 +115,5 @@ func TestFormatSpeakerDecisionError(t *testing.T) {
 	d := SpeakerDecision{ErrorMessage: "boom"}
 	if got := FormatSpeakerDecisionError(d); !strings.Contains(got, "boom") {
 		t.Fatalf("expected error message threaded through, got %q", got)
-	}
-}
-
-func TestContainsRemoveStringHelpers(t *testing.T) {
-	if !containsString([]string{"a", "b"}, "b") {
-		t.Fatalf("containsString(true) failed")
-	}
-	if containsString([]string{"a", "b"}, "c") {
-		t.Fatalf("containsString(false) failed")
-	}
-	got := removeString([]string{"a", "b", "a"}, "a")
-	if len(got) != 1 || got[0] != "b" {
-		t.Fatalf("removeString didn't remove all: %v", got)
 	}
 }

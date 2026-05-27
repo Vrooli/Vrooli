@@ -64,3 +64,29 @@ func (f *FakeEnhancer) Process(ctx context.Context, in <-chan sttchain.AudioChun
 }
 
 var _ ingress.Enhancer = (*FakeEnhancer)(nil)
+
+// FakeTargetExtractor is a programmable ingress.TargetExtractor. Tests set
+// Transform to compute cleaned PCM from the window (default: identity) or Err
+// to force a per-window failure. Windows records every window it observed so a
+// test can assert how the stream was chunked.
+type FakeTargetExtractor struct {
+	Transform func([]byte) []byte
+	Err       error
+	Windows   [][]byte
+}
+
+// Extract implements ingress.TargetExtractor.
+func (f *FakeTargetExtractor) Extract(_ context.Context, pcm []byte) ([]byte, error) {
+	win := make([]byte, len(pcm))
+	copy(win, pcm)
+	f.Windows = append(f.Windows, win)
+	if f.Err != nil {
+		return nil, f.Err
+	}
+	if f.Transform != nil {
+		return f.Transform(pcm), nil
+	}
+	return pcm, nil
+}
+
+var _ ingress.TargetExtractor = (*FakeTargetExtractor)(nil)

@@ -380,12 +380,26 @@ is enabled. The audio-domain stage is **engine-independent** (it operates on the
 segment's canonical-PCM bytes, not the transcript) and pluggable: the manifest's
 active `speakerIsolation.active` method selects the `egress.SpeakerIsolation`
 implementation (`verification` today wraps `pipeline.EvaluateSpeaker` against the
-`speaker-verification` resource; `targetExtraction` is reserved). It only applies
-to segments that carry audio (the Whisper VAD path), so Passthrough engines
-bypass it. The verification adapter lives in the handler layer (not `pipeline`)
-to avoid the `egress → sttchain → pipeline` import cycle. Seams: `egress.Stage`,
+`speaker-verification` resource). It only applies to segments that carry audio
+(the Whisper VAD path), so Passthrough engines bypass it. The verification
+adapter lives in the handler layer (not `pipeline`) to avoid the
+`egress → sttchain → pipeline` import cycle. Seams: `egress.Stage`,
 `egress.SpeakerIsolation`, `sttengine.Registry` (see
 [`../internal/SEAMS.md`](../internal/SEAMS.md)).
+
+The egress gate can only DROP a segment's text. To remove an interfering voice
+from the **audio** — isolating the enrolled speaker before recognition — the
+`Segmenter` runs a pre-recognition **ingress** pipeline (`internal/stt/ingress`,
+the symmetric counterpart of egress): ordered `ingress.Enhancer`s wrap the
+canonical-PCM stream before the VAD/strategy see it. Production enhancers are
+`DenoiseEnhancer` (ffmpeg afftdn, gated on `denoise_enabled`) and
+`ExtractionEnhancer` (target-speaker extraction via the `ingress.TargetExtractor`
+seam — source separation + ECAPA target-selection in the `speaker-verification`
+resource, gated on `extraction_enabled` + a bound profile). Both are config-gated
+(no manifest flag) and engine-agnostic in principle; v1 wires them on the Whisper
+PCM path. The extraction adapter also lives in the handler layer to avoid the
+`ingress → sttchain → pipeline` cycle. Seam: `ingress.Enhancer`,
+`ingress.TargetExtractor`.
 
 ### Audio-format substrate (`internal/audioformat`)
 

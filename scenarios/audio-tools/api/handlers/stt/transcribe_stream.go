@@ -109,7 +109,7 @@ func (h *connectHandler) TranscribeStream(
 	}
 
 	events := make(chan sttchain.StreamEvent, 16)
-	seg := segmenter.New(segmenter.Deps{Chain: h.deps.Chain, Selector: h.deps.Selector, Engine: h.deps.Engine, Registry: h.deps.Registry, SpeakerIsolation: currentSpeakerIsolation(h.deps)})
+	seg := segmenter.New(segmenter.Deps{Chain: h.deps.Chain, Selector: h.deps.Selector, Engine: h.deps.Engine, Registry: h.deps.Registry, SpeakerIsolation: currentSpeakerIsolation(h.deps), SpeakerExtraction: currentSpeakerExtraction(h.deps)})
 	cfg := h.resolveStreamPipelineConfig(ctx)
 	runErrCh := make(chan error, 1)
 	go func() {

@@ -335,17 +335,6 @@ func (s *Service) SpeakerInfo(ctx context.Context) (SpeakerResourceInfo, bool) {
 	return info, true
 }
 
-func (s *Service) EnrollSpeaker(ctx context.Context, audio []byte, profileID, displayName, notes string) (SpeakerEnrollment, error) {
-	if s.speakerClient == nil {
-		return SpeakerEnrollment{}, errors.New("speaker verification resource is not configured")
-	}
-	enrollment, err := s.speakerClient.Enroll(ctx, audio, profileID, displayName, notes)
-	if err != nil {
-		return SpeakerEnrollment{}, err
-	}
-	return SpeakerEnrollment(enrollment), nil
-}
-
 func (s *Service) DeleteSpeakerBackend(ctx context.Context, profileID string) error {
 	if s.speakerClient == nil {
 		return errors.New("speaker verification resource is not configured")

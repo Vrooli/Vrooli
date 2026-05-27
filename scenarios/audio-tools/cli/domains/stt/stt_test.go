@@ -150,6 +150,7 @@ func TestSpeakerConfigSet(t *testing.T) {
 		{Name: "bind-profile"},
 		{Name: "reject-behavior"},
 		{Name: "fallback"},
+		{Name: "extraction-enabled"},
 	}}
 	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"mode": "filter", "threshold": "0.8", "enabled": "true"},
@@ -160,6 +161,35 @@ func TestSpeakerConfigSet(t *testing.T) {
 	require.Contains(t, out, "mode            = filter")
 	require.Contains(t, out, "threshold       = 0.80")
 	require.Contains(t, out, "enabled         = true")
+}
+
+// --extraction-enabled maps to the extraction_enabled mask path and is echoed
+// in the resolved-config output.
+func TestSpeakerConfigSetExtraction(t *testing.T) {
+	var gotMask []string
+	app := mountSTT(t, &fakeSvc{
+		updateSpeakerCfg: func(req *sttv1.UpdateSpeakerConfigRequest) (*sttv1.SpeakerConfig, error) {
+			gotMask = req.GetUpdateMask().GetPaths()
+			return &sttv1.SpeakerConfig{ExtractionEnabled: req.GetConfig().GetExtractionEnabled()}, nil
+		},
+	})
+	h := newHandlers(app)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
+		{Name: "mode"},
+		{Name: "threshold"},
+		{Name: "enabled"},
+		{Name: "profiles"},
+		{Name: "bind-profile"},
+		{Name: "reject-behavior"},
+		{Name: "fallback"},
+		{Name: "extraction-enabled"},
+	}}
+	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"extraction-enabled": "true"},
+	})
+	require.NoError(t, h.speakerConfig(ctx))
+	require.ElementsMatch(t, []string{"extraction_enabled"}, gotMask)
+	require.Contains(t, buf.String(), "extraction      = true")
 }
 
 // speaker-config with no flags is a usage error (nothing to update).
@@ -174,6 +204,7 @@ func TestSpeakerConfigNoFlags(t *testing.T) {
 		{Name: "bind-profile"},
 		{Name: "reject-behavior"},
 		{Name: "fallback"},
+		{Name: "extraction-enabled"},
 	}}
 	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{})
 	require.Error(t, h.speakerConfig(ctx))

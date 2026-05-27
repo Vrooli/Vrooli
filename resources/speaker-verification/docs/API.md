@@ -151,27 +151,40 @@ original `created_at`.
 }
 ```
 
-### Extract (Reserved)
+### Extract (Target-Speaker Extraction)
 
 **POST** `/v1/extract` (`multipart/form-data`)
 
 | Field | Type | Notes |
 |---|---|---|
-| `profile_id` | string | Reserved |
-| `verify` | `"true"`/`"false"` | Reserved |
-| `audio` | file | Reserved |
+| `profile_id` | string | Enrolled profile to isolate against (required) |
+| `verify` | `"true"`/`"false"` | Reserved; the body IS the cleaned audio |
+| `audio` | file | The mixture to isolate the enrolled speaker from |
 
-Target-speaker **extraction** (source separation that isolates one speaker from
-a mixture) is a **reserved** capability. The ECAPA-TDNN embedding model does not
-perform separation; wiring it requires a dedicated separation model. Until then
-this endpoint returns:
+Target-speaker **extraction** isolates the enrolled speaker's voice from a
+mixture (a second person, background speech). It is **source separation**
+(SepFormer splits the mixture into candidate voices) **+ ECAPA target-selection**
+(the separated source whose embedding best matches the enrolled profile is
+returned). See [`extraction.md`](extraction.md) for the model choice and tuning.
+
+**Response** — the cleaned audio as raw bytes, not JSON:
 
 ```
-HTTP/1.1 501 Not Implemented
-{"error": "target speaker extraction not implemented"}
+HTTP/1.1 200 OK
+Content-Type: application/octet-stream
+X-Speaker-Score: 0.842137          # cosine similarity of the selected source
+X-Speaker-Matched: true            # score >= SPEAKER_EXTRACTION_MATCH_THRESHOLD
+X-Duration-Ms: 1832.4
+X-Audio-Seconds: 2.500
+
+<16 kHz mono signed-16 little-endian PCM bytes>
 ```
 
-The audio-tools client treats extraction as a reserved capability.
+`404` if the profile is unknown; `400` on empty/undecodable audio.
+
+The separation model, its sample rate, and the match threshold are tunable via
+the `SPEAKER_EXTRACTION_MODEL`, `SPEAKER_EXTRACTION_SAMPLE_RATE`, and
+`SPEAKER_EXTRACTION_MATCH_THRESHOLD` environment variables.
 
 ### Delete a Profile
 

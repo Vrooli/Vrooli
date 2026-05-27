@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	localdb "audio-tools/internal/database"
 	"audio-tools/internal/modules"
 
 	"github.com/vrooli/api-core/database"
@@ -37,6 +38,10 @@ func OpenDB(ctx context.Context, env Env) (*sql.DB, string, error) {
 	if err := database.EnsureSchemas(ctx, db, modules.AllSchemas()...); err != nil {
 		_ = db.Close()
 		return nil, dsn, fmt.Errorf("ensure schemas: %w", err)
+	}
+	if err := localdb.ApplyMigrations(ctx, db); err != nil {
+		_ = db.Close()
+		return nil, dsn, fmt.Errorf("apply migrations: %w", err)
 	}
 	return db, dsn, nil
 }

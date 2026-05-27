@@ -167,11 +167,13 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Owner:** unassigned (operator hardware).
 
-### 2026-05-27 — Target-speaker extraction reserved (deferred)
+### 2026-05-27 — Target-speaker extraction (IMPLEMENTED; empirical tuning pending)
 
-**Symptom:** `SpeakerConfig.ExtractionEnabled` + `pipeline.ExtractTargetSpeaker` exist, but the `speaker-verification` resource returns HTTP 501 for `/v1/extract` and the manifest marks `speakerIsolation.methods.targetExtraction.status = "reserved"`.
+**Symptom (original):** `SpeakerConfig.ExtractionEnabled` + `pipeline.ExtractTargetSpeaker` existed, but the `speaker-verification` resource returned HTTP 501 for `/v1/extract`; nothing isolated the enrolled speaker's audio.
 
-**Status:** Deferred by design — verification ships first. The manifest reserves the slot and `egress.EgressStages` skips a `reserved` active method, so switching the active isolation method to extraction is a one-field manifest edit once a target-speaker-extraction backend (e.g. a TSE model) is added to the resource.
+**Resolution (2026-05-27):** Implemented as a pre-recognition **ingress** stage, not an egress method (egress can only drop text; isolation must substitute audio). `resources/speaker-verification` `/v1/extract` now runs SepFormer source separation + ECAPA target-selection and returns the isolated 16 kHz mono s16le PCM. The Go side adds `ingress.TargetExtractor`/`ingress.ExtractionEnhancer` (`internal/stt/ingress/extraction.go`), the handler-layer adapter `speakerExtraction` + `currentSpeakerExtraction` (built only when `extraction_enabled` + a bound profile), wired in `Segmenter.buildIngress` (config-gated like denoise — no manifest flag) and reachable via `audio-tools stt speaker-config --extraction-enabled`. The orphaned `pipeline.ExtractTargetSpeaker` (egress-shaped, zero callers) was deleted. Tested with fakes: `internal/stt/ingress/extraction_test.go`, `internal/stt/segmenter/ingress_build_test.go`, `handlers/stt/speaker_extraction_test.go`; resource non-model paths in `test/integration-test.sh`.
+
+**Pending (environment-gated):** the separation-model spike — which SepFormer checkpoint + match threshold work best on real two-speaker audio, and CPU-vs-GPU latency — needs a GPU + model download + a live two-speaker A/B. Default OFF; degrades to passthrough if the resource/model is unavailable. See `resources/speaker-verification/docs/extraction.md`.
 
 **Owner:** unassigned.
 

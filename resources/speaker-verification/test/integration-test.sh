@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Speaker Verification Integration Test
 # Tests real speaker enrollment + verification functionality against a running
-# service. Tests API endpoints, profile lifecycle, and the reserved extract path.
+# service. Tests API endpoints, profile lifecycle, and target-speaker extraction.
 
 set -euo pipefail
 
@@ -192,28 +192,68 @@ test_enroll_and_verify() {
     return 1
 }
 
-test_extract_reserved() {
-    local test_name="extract reserved (501)"
+test_extract_unknown_profile() {
+    local test_name="extract unknown profile (404)"
 
     if ! ensure_test_audio; then
         log_test_result "$test_name" "SKIP" "no ffmpeg to synthesize test audio"
         return 2
     fi
 
+    # Unknown-profile path is model-free (profile lookup happens before the
+    # separator loads), so this always runs fast and proves the endpoint is live.
     local status_code
     status_code=$(curl -s -o /dev/null -w "%{http_code}" \
         -X POST "$BASE_URL/v1/extract" \
-        -F "profile_id=${TEST_PROFILE_ID}" \
+        -F "profile_id=does-not-exist-$(date +%s)" \
         -F "verify=false" \
         -F "audio=@${TEST_AUDIO_FILE}" \
         --max-time 30 2>/dev/null)
 
-    if [[ "$status_code" == "501" ]]; then
-        log_test_result "$test_name" "PASS" "extract correctly reports reserved (HTTP 501)"
+    if [[ "$status_code" == "404" ]]; then
+        log_test_result "$test_name" "PASS" "extract reports 404 for an unknown profile"
         return 0
     fi
 
-    log_test_result "$test_name" "FAIL" "extract returned HTTP $status_code (expected 501)"
+    log_test_result "$test_name" "FAIL" "extract returned HTTP $status_code (expected 404)"
+    return 1
+}
+
+test_extract_isolates_enrolled() {
+    local test_name="extract isolates enrolled speaker"
+
+    if ! ensure_test_audio; then
+        log_test_result "$test_name" "SKIP" "no ffmpeg to synthesize test audio"
+        return 2
+    fi
+
+    # Happy path loads + runs SepFormer; the first call may trigger a model
+    # download, so use a generous timeout and SKIP (not FAIL) on
+    # timeout/unavailability — model provisioning is an environment concern, not
+    # a contract regression. A contract regression is a NON-200 status.
+    local resp status_code score
+    resp=$(curl -s -D - -o /dev/null -w "\n%{http_code}" \
+        -X POST "$BASE_URL/v1/extract" \
+        -F "profile_id=${TEST_PROFILE_ID}" \
+        -F "verify=true" \
+        -F "audio=@${TEST_AUDIO_FILE}" \
+        --max-time 300 2>/dev/null) || {
+        log_test_result "$test_name" "SKIP" "extract request failed/timed out (separation model may be downloading)"
+        return 2
+    }
+    status_code=$(echo "$resp" | tail -n1)
+    score=$(echo "$resp" | grep -i "^X-Speaker-Score:" | tr -d '\r' | awk '{print $2}')
+
+    if [[ "$status_code" == "200" && -n "$score" ]]; then
+        log_test_result "$test_name" "PASS" "extract returned cleaned audio (X-Speaker-Score=${score})"
+        return 0
+    fi
+    if [[ -z "$status_code" ]]; then
+        log_test_result "$test_name" "SKIP" "no response (separation model may be unavailable)"
+        return 2
+    fi
+
+    log_test_result "$test_name" "FAIL" "extract returned HTTP ${status_code} without a score header"
     return 1
 }
 
@@ -271,7 +311,8 @@ SERVICE_TESTS=(
     "test_list_profiles_endpoint"
     "test_container_status"
     "test_enroll_and_verify"
-    "test_extract_reserved"
+    "test_extract_unknown_profile"
+    "test_extract_isolates_enrolled"
     "test_delete_profile"
 )
 

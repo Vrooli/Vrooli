@@ -248,9 +248,66 @@ resource (SpeechBrain ECAPA-TDNN), which owns the embeddings.
 | `speaker.reject_behavior` | enum: `drop`, `show-muted` | `drop` | operator | What the consumer does with a rejected segment. |
 | `speaker.fallback_without_verification` | bool | `false` | operator | When the resource is down or no profile is bound: `true` lets segments through (flagged unverified on the rejection event), `false` rejects. |
 
-The active isolation **method** (`verification` today, `targetExtraction`
-reserved) is selected by the engine manifest's `speakerIsolation.active`
-field — swapping it is a one-field manifest edit, not an operator lever.
+The active egress isolation **method** (`verification`) is selected by the
+engine manifest's `speakerIsolation.active` field — swapping it is a one-field
+manifest edit, not an operator lever. (The egress gate filters *text*; isolating
+the *audio* of the enrolled speaker is the separate ingress stage below.)
+
+### Target-speaker extraction ("pull my voice out") — ingress stage
+
+Where verification (above) DROPS a finished segment's text when it doesn't match
+the enrolled speaker, **extraction removes the interfering voice from the audio
+itself, BEFORE recognition** — so the recognizer only ever hears the enrolled
+speaker. It is a pre-recognition ingress stage (source separation + ECAPA
+target-selection in the `speaker-verification` resource), gated by config:
+
+| Lever | Type | Default | Audience | Trade-off |
+|---|---|---|---|---|
+| `speaker.extraction_enabled` | bool | `false` | operator | Isolate the enrolled speaker's voice before recognition. Requires `speaker.enabled=true`, a bound profile, and the extraction-capable resource. Adds per-window latency (SepFormer); GPU recommended for interactive use. |
+
+```bash
+# Enable (after enrolling + binding a profile, as above):
+audio-tools stt speaker-config --extraction-enabled true
+```
+
+Like denoise, extraction is gated on config + resource availability (no manifest
+flag), and currently runs on the Whisper PCM path; if the resource is down or no
+target is found in the mixture, it degrades to passing the original audio
+through rather than dropping it. Extraction (isolates audio) and verification
+(filters text) are complementary and may both be enabled.
+
+**Default posture: OFF.** Verification ships disabled (`speaker.enabled=false`,
+effectively `mode=off`) so the gate adds zero overhead until an operator opts
+in. Turning it on is a single CLI call once a profile is enrolled:
+
+```bash
+# 1. Enroll your voice (Web Console → Voice Input, or the CLI), then confirm it:
+audio-tools stt speaker-status            # shows profiles + their enrollment seconds
+
+# 2. Bind the profile and switch on filter mode:
+audio-tools stt speaker-config --enabled true --mode filter \
+    --profile-ids <profile-id> --threshold 0.35
+
+# 3. Validate live: speak yourself (text should pass), then have a second
+#    person / play music over you (their text should be dropped). advisory
+#    mode scores without blocking if you want to tune the threshold first:
+audio-tools stt speaker-config --mode advisory   # observe scores, then flip to filter
+```
+
+> **Prerequisite — enrollment fidelity.** Reliable matching depends on the
+> enrollment audio being preprocessed the same way the verify path is. The
+> enroll handler normalizes uploaded audio to canonical PCM (16 kHz mono
+> s16le) and WAV-wraps it before embedding — identical to the per-segment
+> verify path — so the enrollment and verification embeddings are comparable.
+> After enrolling, re-confirm the threshold (`0.35` default) against your own
+> voice in `advisory` mode before committing to `filter`.
+
+> **Scope — Whisper VAD path only.** The gate runs over each segment's
+> canonical PCM, which only the VAD/overlap (Whisper) strategies produce.
+> Native-streaming engines (Kyutai `passthrough`) emit no per-segment audio,
+> so verification cannot run on them and segments pass through unverified.
+> Audio-domain *target extraction* (isolating your voice before recognition)
+> is the engine-agnostic answer and is tracked separately.
 
 ### Audio format: per-session declaration, not a lever
 

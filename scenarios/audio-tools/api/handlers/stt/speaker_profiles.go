@@ -12,9 +12,11 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
+	"audio-tools/internal/audioformat"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
 
@@ -28,15 +30,30 @@ func (h *connectHandler) ListSpeakerProfiles(ctx context.Context, _ *connect.Req
 	}
 	out := make([]*sttv1.SpeakerProfile, 0, len(rows))
 	for _, p := range rows {
-		out = append(out, &sttv1.SpeakerProfile{
-			Id:           p.ID,
-			DisplayName:  p.Name,
-			CreatedAt:    protomap.TimeToProto(p.CreatedAt),
-			UpdatedAt:    protomap.TimeToProto(p.CreatedAt),
-			EmbeddingDim: int32(len(p.Embedding)),
-		})
+		out = append(out, speakerProfileToProto(p))
 	}
 	return connect.NewResponse(&sttv1.ListSpeakerProfilesResponse{Profiles: out, Count: int32(len(out))}), nil
+}
+
+// speakerProfileToProto projects a stored profile to the wire shape, surfacing
+// the enrollment metadata cached at enroll time (List/Status both render it).
+// EmbeddingDim falls back to the locally stored embedding length only when the
+// cached dim is zero (older rows enrolled before the metadata column existed).
+func speakerProfileToProto(p store.SpeakerProfile) *sttv1.SpeakerProfile {
+	embeddingDim := int32(p.EmbeddingDim)
+	if embeddingDim == 0 {
+		embeddingDim = int32(len(p.Embedding))
+	}
+	return &sttv1.SpeakerProfile{
+		Id:                     p.ID,
+		DisplayName:            p.Name,
+		CreatedAt:              protomap.TimeToProto(p.CreatedAt),
+		UpdatedAt:              protomap.TimeToProto(p.CreatedAt),
+		ModelName:              p.ModelName,
+		EmbeddingDim:           embeddingDim,
+		SampleRate:             int32(p.SampleRate),
+		EnrollmentAudioSeconds: p.EnrollmentAudioSeconds,
+	}
 }
 
 func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.Request[sttv1.EnrollSpeakerProfileRequest]) (*connect.Response[sttv1.EnrollSpeakerProfileResponse], error) {
@@ -54,12 +71,19 @@ func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.
 	if id == "" {
 		id = uuid.NewString()
 	}
+	// Normalize the uploaded audio to canonical-PCM WAV before enrolling so the
+	// enrollment embedding is computed from the SAME audio characteristics the
+	// streaming verify path uses (pipeline/speaker.go wraps canonical PCM in a
+	// WAV header too). Without this, enrollment embeddings would come from the
+	// browser's lossy WebM/Opus while verification embeddings come from clean
+	// decoded PCM — an apples-to-oranges pairing that degrades matching.
+	enrollAudio, enrollFilename := h.normalizeEnrollAudio(ctx, m.GetAudio(), m.GetFormat())
 	// Enroll against the speaker-verification resource: it computes and OWNS
 	// the real ECAPA embedding (keyed by profile id) used by streaming verify.
-	// audio-tools persists only the profile metadata + binding locally — the
+	// audio-tools persists the profile metadata + binding locally — the
 	// embedding never round-trips back, so the resource stays the single
 	// authority for identity comparison.
-	enroll, err := h.deps.SpeakerResource.Enroll(ctx, m.GetAudio(), id, m.GetDisplayName(), m.GetNotes())
+	enroll, err := h.deps.SpeakerResource.Enroll(ctx, enrollAudio, id, m.GetDisplayName(), m.GetNotes(), enrollFilename)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("speaker-verification enroll: %w", err))
 	}
@@ -67,7 +91,12 @@ func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.
 		id = enroll.ProfileID
 	}
 	if err := h.deps.Speaker.Upsert(ctx, store.SpeakerProfile{
-		ID: id, Name: m.GetDisplayName(),
+		ID:                     id,
+		Name:                   m.GetDisplayName(),
+		EnrollmentAudioSeconds: enroll.EnrollmentAudioSeconds,
+		SampleRate:             enroll.SampleRate,
+		EmbeddingDim:           enroll.EmbeddingDim,
+		ModelName:              enroll.ModelName,
 	}); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -92,6 +121,34 @@ func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.
 		},
 		Config: cfg.toProto(),
 	}), nil
+}
+
+// normalizeEnrollAudio decodes uploaded enrollment audio (honoring the declared
+// format) to canonical PCM and WAV-wraps it, so the enrollment embedding is
+// computed from the same audio the verify path produces. It returns the audio
+// bytes to enroll plus an honest filename. When the engine is unwired or the
+// format is unknown/undecodable, it returns the original bytes (the resource
+// decodes by content sniffing) and logs the degraded, lower-fidelity path —
+// enrollment still succeeds, it just isn't preprocessing-matched to verify.
+func (h *connectHandler) normalizeEnrollAudio(ctx context.Context, audio []byte, format commonv1.AudioFormat) ([]byte, string) {
+	if h.deps.Engine == nil {
+		return audio, "enrollment.bin"
+	}
+	codec, ok := audioformat.FromProto(format)
+	if !ok {
+		if h.deps.Logger != nil {
+			h.deps.Logger.Printf("speaker-enroll: unknown audio format %v; enrolling raw bytes (resource will sniff)", format)
+		}
+		return audio, "enrollment.bin"
+	}
+	pcm, err := h.deps.Engine.Normalize(ctx, codec, audio)
+	if err != nil {
+		if h.deps.Logger != nil {
+			h.deps.Logger.Printf("speaker-enroll: normalize %s failed (%v); enrolling raw bytes", codec, err)
+		}
+		return audio, "enrollment.bin"
+	}
+	return audioformat.WAVFromCanonicalPCM(pcm), "enrollment.wav"
 }
 
 func (h *connectHandler) ClearSpeakerProfileBinding(_ context.Context, _ *connect.Request[sttv1.ClearSpeakerProfileBindingRequest]) (*connect.Response[sttv1.ClearSpeakerProfileBindingResponse], error) {
