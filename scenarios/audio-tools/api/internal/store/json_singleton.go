@@ -90,6 +90,27 @@ func (s *STTStreamConfigStore) Set(ctx context.Context, configJSON string) error
 	return s.s.set(ctx, []string{configJSON})
 }
 
+// STTSpeakerConfigStore persists a single JSON-encoded speaker-verification
+// config (mode/threshold/profile bindings). Same shape as the stream config
+// store; the enrolled profiles themselves live in the speaker_profiles table.
+type STTSpeakerConfigStore struct{ s jsonSingleton }
+
+func NewSTTSpeakerConfigStore(db *sql.DB) *STTSpeakerConfigStore {
+	return &STTSpeakerConfigStore{s: jsonSingleton{db: db, table: "stt_speaker_config", cols: []string{"config_json"}}}
+}
+
+func (s *STTSpeakerConfigStore) Get(ctx context.Context) (string, bool, error) {
+	v, ok, err := s.s.get(ctx)
+	if !ok || err != nil {
+		return "", false, err
+	}
+	return v[0], true, nil
+}
+
+func (s *STTSpeakerConfigStore) Set(ctx context.Context, configJSON string) error {
+	return s.s.set(ctx, []string{configJSON})
+}
+
 // TTSConfigStore persists both the TTS config and the summarize config
 // as JSON in the same row (mirrors the in-proc Config + SummarizeConfig
 // pair used by internal/tts).

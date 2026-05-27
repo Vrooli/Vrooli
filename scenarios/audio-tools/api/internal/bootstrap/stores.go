@@ -20,6 +20,7 @@ type Stores struct {
 	Wakeword       *store.WakeWordStore
 	Speaker        *store.SpeakerStore
 	STTStream      *store.STTStreamConfigStore
+	STTSpeaker     *store.STTSpeakerConfigStore
 	TTSConfig      *store.TTSConfigStore
 	Playback       *store.PlaybackStore
 	BYOK           *byokstore.Store
@@ -64,6 +65,7 @@ func BuildStores(db *sql.DB, env Env) (Stores, error) {
 		Wakeword:       store.NewWakeWordStore(db),
 		Speaker:        store.NewSpeakerStore(db),
 		STTStream:      store.NewSTTStreamConfigStore(db),
+		STTSpeaker:     store.NewSTTSpeakerConfigStore(db),
 		TTSConfig:      store.NewTTSConfigStore(db),
 		Playback:       store.NewPlaybackStore(db),
 		BYOK:           byokStore,

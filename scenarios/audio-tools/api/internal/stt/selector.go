@@ -97,6 +97,13 @@ type StreamConfig struct {
 	VADFilterEnabled           bool
 	NoSpeechThreshold          float64
 	LogProbThreshold           float64
+
+	// DenoiseEnabled turns on the pre-recognition ingress denoise stage
+	// (ffmpeg afftdn on the canonical-PCM stream, before the VAD and Whisper
+	// see it). Off by default; the Segmenter applies it only to the Whisper
+	// PCM-buffering strategies (VADSegment/OverlapAgree) and only when ffmpeg
+	// is available.
+	DenoiseEnabled bool
 }
 
 // Defaults returns the operator defaults documented in

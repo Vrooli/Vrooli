@@ -88,7 +88,7 @@ class TranscribeResponse(_message.Message):
     def __init__(self, text: _Optional[str] = ..., detected_language: _Optional[str] = ..., duration_seconds: _Optional[float] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ...) -> None: ...
 
 class StreamConfig(_message.Message):
-    __slots__ = ("flush_interval_ms", "min_delta_bytes", "overlap_bytes", "persistent_mode", "wake_word_enabled", "wake_word_threshold", "segment_silence_ms", "streaming_mode", "strategy_preference", "vad_silence_ms", "overlap_window_ms", "overlap_commit_runs", "hallucination_filter_enabled", "vad_filter_enabled", "no_speech_threshold", "logprob_threshold", "engine_id")
+    __slots__ = ("flush_interval_ms", "min_delta_bytes", "overlap_bytes", "persistent_mode", "wake_word_enabled", "wake_word_threshold", "segment_silence_ms", "streaming_mode", "strategy_preference", "vad_silence_ms", "overlap_window_ms", "overlap_commit_runs", "hallucination_filter_enabled", "vad_filter_enabled", "no_speech_threshold", "logprob_threshold", "engine_id", "denoise_enabled")
     FLUSH_INTERVAL_MS_FIELD_NUMBER: _ClassVar[int]
     MIN_DELTA_BYTES_FIELD_NUMBER: _ClassVar[int]
     OVERLAP_BYTES_FIELD_NUMBER: _ClassVar[int]
@@ -106,6 +106,7 @@ class StreamConfig(_message.Message):
     NO_SPEECH_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
     LOGPROB_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
     ENGINE_ID_FIELD_NUMBER: _ClassVar[int]
+    DENOISE_ENABLED_FIELD_NUMBER: _ClassVar[int]
     flush_interval_ms: int
     min_delta_bytes: int
     overlap_bytes: int
@@ -123,7 +124,8 @@ class StreamConfig(_message.Message):
     no_speech_threshold: float
     logprob_threshold: float
     engine_id: str
-    def __init__(self, flush_interval_ms: _Optional[int] = ..., min_delta_bytes: _Optional[int] = ..., overlap_bytes: _Optional[int] = ..., persistent_mode: _Optional[bool] = ..., wake_word_enabled: _Optional[bool] = ..., wake_word_threshold: _Optional[float] = ..., segment_silence_ms: _Optional[int] = ..., streaming_mode: _Optional[_Union[StreamingMode, str]] = ..., strategy_preference: _Optional[_Union[StrategyPreference, str]] = ..., vad_silence_ms: _Optional[int] = ..., overlap_window_ms: _Optional[int] = ..., overlap_commit_runs: _Optional[int] = ..., hallucination_filter_enabled: _Optional[bool] = ..., vad_filter_enabled: _Optional[bool] = ..., no_speech_threshold: _Optional[float] = ..., logprob_threshold: _Optional[float] = ..., engine_id: _Optional[str] = ...) -> None: ...
+    denoise_enabled: bool
+    def __init__(self, flush_interval_ms: _Optional[int] = ..., min_delta_bytes: _Optional[int] = ..., overlap_bytes: _Optional[int] = ..., persistent_mode: _Optional[bool] = ..., wake_word_enabled: _Optional[bool] = ..., wake_word_threshold: _Optional[float] = ..., segment_silence_ms: _Optional[int] = ..., streaming_mode: _Optional[_Union[StreamingMode, str]] = ..., strategy_preference: _Optional[_Union[StrategyPreference, str]] = ..., vad_silence_ms: _Optional[int] = ..., overlap_window_ms: _Optional[int] = ..., overlap_commit_runs: _Optional[int] = ..., hallucination_filter_enabled: _Optional[bool] = ..., vad_filter_enabled: _Optional[bool] = ..., no_speech_threshold: _Optional[float] = ..., logprob_threshold: _Optional[float] = ..., engine_id: _Optional[str] = ..., denoise_enabled: _Optional[bool] = ...) -> None: ...
 
 class GetStreamConfigRequest(_message.Message):
     __slots__ = ()
@@ -584,16 +586,18 @@ class StreamError(_message.Message):
     def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
 class StreamVadState(_message.Message):
-    __slots__ = ("voiced", "silence_elapsed_ms", "silence_timeout_ms", "tick_seq")
+    __slots__ = ("voiced", "silence_elapsed_ms", "silence_timeout_ms", "tick_seq", "silence_timed_out")
     VOICED_FIELD_NUMBER: _ClassVar[int]
     SILENCE_ELAPSED_MS_FIELD_NUMBER: _ClassVar[int]
     SILENCE_TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
     TICK_SEQ_FIELD_NUMBER: _ClassVar[int]
+    SILENCE_TIMED_OUT_FIELD_NUMBER: _ClassVar[int]
     voiced: bool
     silence_elapsed_ms: int
     silence_timeout_ms: int
     tick_seq: int
-    def __init__(self, voiced: _Optional[bool] = ..., silence_elapsed_ms: _Optional[int] = ..., silence_timeout_ms: _Optional[int] = ..., tick_seq: _Optional[int] = ...) -> None: ...
+    silence_timed_out: bool
+    def __init__(self, voiced: _Optional[bool] = ..., silence_elapsed_ms: _Optional[int] = ..., silence_timeout_ms: _Optional[int] = ..., tick_seq: _Optional[int] = ..., silence_timed_out: _Optional[bool] = ...) -> None: ...
 
 class StreamDone(_message.Message):
     __slots__ = ("final_text", "provider_tier", "provider_id", "model_id", "latency_ms", "fell_back_to_unary")

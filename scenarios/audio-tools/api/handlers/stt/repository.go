@@ -15,6 +15,14 @@ type STTStreamConfigRepository interface {
 	Set(ctx context.Context, configJSON string) error
 }
 
+// SpeakerConfigRepository persists the speaker-verification config doc
+// (mode/threshold/profile bindings) so it survives a restart. The enrolled
+// profiles themselves persist via SpeakerRepository.
+type SpeakerConfigRepository interface {
+	Get(ctx context.Context) (string, bool, error)
+	Set(ctx context.Context, configJSON string) error
+}
+
 type WakewordRepository interface {
 	Upsert(ctx context.Context, t store.WakeWordTemplate) error
 	Delete(ctx context.Context, id string) (bool, error)
@@ -30,6 +38,7 @@ type SpeakerRepository interface {
 
 var (
 	_ STTStreamConfigRepository = (*store.STTStreamConfigStore)(nil)
+	_ SpeakerConfigRepository   = (*store.STTSpeakerConfigStore)(nil)
 	_ WakewordRepository        = (*store.WakeWordStore)(nil)
 	_ SpeakerRepository         = (*store.SpeakerStore)(nil)
 )

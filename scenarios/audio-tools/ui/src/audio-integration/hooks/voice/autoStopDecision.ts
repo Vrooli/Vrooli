@@ -7,9 +7,15 @@
 // Precedence (strict):
 //   1. If a server tick has EVER arrived this session (receivedAt > 0), the
 //      server is the sole authority — client VAD never fires stop:
-//        a. Fresh tick (within SERVER_VAD_STALE_MS) that has reached its
-//           configured silenceTimeoutMs → stop with source "server".
-//        b. Otherwise → continue. A briefly stale tick (> staleTickMs) does
+//        a. The server latched silence_timed_out (silenceTimedOut, sticky in
+//           the store) → stop with source "server", REGARDLESS of freshness.
+//           The server emits the threshold tick exactly once (the frame it
+//           cuts the segment) then goes quiet, so a crossed threshold must
+//           NOT be un-crossed by the tick going stale — that was the wedge.
+//        b. Fresh tick (within SERVER_VAD_STALE_MS) that has reached its
+//           configured silenceTimeoutMs → stop with source "server". (Backstop
+//           for transports that drop the flag; same outcome.)
+//        c. Otherwise → continue. A briefly stale tick (> staleTickMs) does
 //           NOT hand authority back to the client; if it did, the client's
 //           RMS VAD — which is more aggressive than the server's PCM-frame
 //           detector — would fire false-positive stops mid-utterance.
@@ -55,6 +61,13 @@ export function decideAutoStop(input: AutoStopInputs): AutoStopVerdict {
   // Briefly stale ticks do NOT re-enable client fallback — that's the source
   // of the mid-utterance false positives we're trying to eliminate.
   if (serverVad.receivedAt > 0) {
+    // Latched timeout: the server told us the silence threshold was reached.
+    // This is sticky in the store, so it survives the freshness window — the
+    // crossed threshold is terminal and must not be un-crossed by a stale
+    // tick. Freshness only gates the BELOW-timeout case below.
+    if (serverVad.silenceTimedOut) {
+      return { kind: "stop", source: "server" };
+    }
     const tickIsFresh = nowPerf - serverVad.receivedAt <= staleTickMs;
     if (
       tickIsFresh &&

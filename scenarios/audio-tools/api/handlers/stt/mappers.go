@@ -63,6 +63,12 @@ type streamCfgDoc struct {
 	VADFilterEnabled           *bool   `json:"vad_filter_enabled,omitempty"`
 	NoSpeechThreshold          float64 `json:"no_speech_threshold"`
 	LogProbThreshold           float64 `json:"logprob_threshold"`
+
+	// DenoiseEnabled toggles the pre-recognition ingress denoise stage. A plain
+	// bool (not *bool) because the default is OFF — an absent field reads as
+	// false, which is exactly the intended default, so no presence tracking is
+	// needed (unlike the default-true egress filters above).
+	DenoiseEnabled bool `json:"denoise_enabled"`
 }
 
 func (d streamCfgDoc) toProto() *sttv1.StreamConfig {
@@ -84,6 +90,7 @@ func (d streamCfgDoc) toProto() *sttv1.StreamConfig {
 		VadFilterEnabled:           boolOrTrue(d.VADFilterEnabled),
 		NoSpeechThreshold:          d.NoSpeechThreshold,
 		LogprobThreshold:           d.LogProbThreshold,
+		DenoiseEnabled:             d.DenoiseEnabled,
 	}
 }
 

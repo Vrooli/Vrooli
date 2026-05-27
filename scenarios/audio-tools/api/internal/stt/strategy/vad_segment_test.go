@@ -118,3 +118,71 @@ func TestVADSegmenter_VadStateBeforeFlushReachesTimeout(t *testing.T) {
 	require.GreaterOrEqual(t, lastSilenceBeforeSeg.SilenceElapsedMs, int64(700-20),
 		"last silence tick must reach close to SilenceMs (got %d)", lastSilenceBeforeSeg.SilenceElapsedMs)
 }
+
+// TestVADSegmenter_EmitsTickAtOrPastTimeout is the auto-stop SSOT regression.
+// The client's decideAutoStop fires ONLY on a tick with
+// SilenceElapsedMs >= SilenceTimeoutMs. The emit throttle once skipped that
+// exact threshold-crossing tick (the last emitted elapsed landed a frame
+// short, e.g. 2960 of 3000) while the segment cut reset the silence counter on
+// the same frame — so the client never observed the threshold and the
+// auto-stop ring hung visually full without ever stopping. Unlike
+// "...ReachesTimeout" above (which only checks "close to"), this asserts the
+// strict >= contract the decision boundary depends on.
+func TestVADSegmenter_EmitsTickAtOrPastTimeout(t *testing.T) {
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	prov.TranscribeFn = func(context.Context, sttchain.Request) (*sttchain.Result, error) {
+		return &sttchain.Result{Text: "seg", Tier: sttchain.TierLocal, ProviderID: "fake", ModelID: "fake"}, nil
+	}
+	strat := &strategy.VADSegmenter{Provider: prov, SilenceMs: 1000}
+	// 100 ms tone, then 1400 ms silence — well past the 1000 ms threshold, so
+	// the silence counter crosses silenceFramesNeeded and the cut fires.
+	audio := append(testaudio.SineSamples(440, 100), testaudio.SilenceSamples(1400)...)
+	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(audio))
+
+	ticks := vadStateEvents(got)
+	require.NotEmpty(t, ticks, "expected vad-state ticks")
+	reached := false
+	for _, ev := range ticks {
+		require.Greater(t, ev.SilenceTimeoutMs, int64(0), "timeout must be positive")
+		if ev.SilenceElapsedMs >= ev.SilenceTimeoutMs {
+			reached = true
+		}
+	}
+	require.True(t, reached,
+		"auto-stop contract: a vad-state tick must reach SilenceElapsedMs >= SilenceTimeoutMs at the silence threshold (decideAutoStop depends on it)")
+}
+
+// TestVADSegmenter_SetsSilenceTimedOutAtTimeout is the latch-signal contract.
+// The client latches one-shot auto-stop on the self-describing SilenceTimedOut
+// flag rather than re-deriving the threshold from a float compare inside a
+// 250 ms freshness window (the old wedge: the single threshold tick aged out
+// of the window before the RAF loop consumed it, and no further ticks arrive
+// after the segment cut). This asserts the server sets SilenceTimedOut exactly
+// on the threshold-crossing tick, and never before the threshold is reached.
+func TestVADSegmenter_SetsSilenceTimedOutAtTimeout(t *testing.T) {
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	prov.TranscribeFn = func(context.Context, sttchain.Request) (*sttchain.Result, error) {
+		return &sttchain.Result{Text: "seg", Tier: sttchain.TierLocal, ProviderID: "fake", ModelID: "fake"}, nil
+	}
+	strat := &strategy.VADSegmenter{Provider: prov, SilenceMs: 1000}
+	audio := append(testaudio.SineSamples(440, 100), testaudio.SilenceSamples(1400)...)
+	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(audio))
+
+	ticks := vadStateEvents(got)
+	require.NotEmpty(t, ticks, "expected vad-state ticks")
+	timedOutSeen := false
+	for i, ev := range ticks {
+		if ev.SilenceTimedOut {
+			timedOutSeen = true
+			require.GreaterOrEqual(t, ev.SilenceElapsedMs, ev.SilenceTimeoutMs,
+				"tick #%d set SilenceTimedOut but elapsed (%d) is below timeout (%d)",
+				i, ev.SilenceElapsedMs, ev.SilenceTimeoutMs)
+		} else {
+			require.Less(t, ev.SilenceElapsedMs, ev.SilenceTimeoutMs,
+				"tick #%d left SilenceTimedOut=false but elapsed (%d) already reached timeout (%d)",
+				i, ev.SilenceElapsedMs, ev.SilenceTimeoutMs)
+		}
+	}
+	require.True(t, timedOutSeen,
+		"auto-stop latch contract: exactly one threshold-crossing tick must carry SilenceTimedOut=true")
+}

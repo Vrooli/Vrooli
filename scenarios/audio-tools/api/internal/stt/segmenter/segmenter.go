@@ -22,6 +22,7 @@ import (
 	"audio-tools/internal/audioformat"
 	"audio-tools/internal/stt"
 	"audio-tools/internal/stt/egress"
+	"audio-tools/internal/stt/ingress"
 	voice "audio-tools/internal/stt/pipeline"
 	"audio-tools/internal/sttengine"
 )
@@ -133,6 +134,23 @@ func (s *Segmenter) Run(
 		start = nstart
 	}
 
+	// Pre-recognition ingress enhancement (denoise). Scoped to the Whisper
+	// PCM-buffering strategies (VADSegment/OverlapAgree) — the streaming
+	// Passthrough engines are validated separately — and gated on config +
+	// ffmpeg availability inside buildIngress. Wraps the canonical-PCM stream
+	// so both the server-side VAD and Whisper see the cleaned audio.
+	if requiresPCMDecode(selection.Kind) {
+		if pipeline := s.buildIngress(cfg); pipeline != nil {
+			enhanced, cleanup, ierr := pipeline.Process(ctx, pcmChunks)
+			if ierr != nil {
+				emitTerminal(events, ierr)
+				return ierr
+			}
+			defer cleanup()
+			pcmChunks = enhanced
+		}
+	}
+
 	// Stamp the session VAD-filter lever onto the start so every batch call
 	// the strategy makes enables faster-whisper's silence filter.
 	start.VADFilter = cfg.VADFilterEnabled
@@ -187,6 +205,27 @@ func (s *Segmenter) buildGate(cfg stt.StreamConfig) *egress.Gate {
 		stages = append(stages, egress.SpeakerStage{Isolation: params.SpeakerIsolation})
 	}
 	return egress.NewGate(stages...)
+}
+
+// buildIngress constructs the per-session pre-recognition enhancement pipeline.
+// Returns nil (no enhancement) unless denoise is enabled in config AND ffmpeg
+// is available — denoise is backed by an ffmpeg afftdn filter, so "config on
+// but no ffmpeg" degrades to a no-op rather than failing the session (mirrors
+// the selector's BufferedFallback downgrade when ffmpeg is absent). Denoise is
+// engine-agnostic (it cleans canonical PCM upstream of recognition), so it is
+// gated here on capability + config rather than via a per-engine manifest flag.
+func (s *Segmenter) buildIngress(cfg stt.StreamConfig) *ingress.Pipeline {
+	if !cfg.DenoiseEnabled {
+		return nil
+	}
+	eng := s.deps.Engine
+	if eng == nil {
+		eng = audioformat.New()
+	}
+	if !eng.HasFfmpeg() {
+		return nil
+	}
+	return ingress.NewPipeline(ingress.DenoiseEnhancer{Runner: eng})
 }
 
 // runEgress reads events from the strategy's inner channel, runs each

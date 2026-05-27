@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   useServerVadStateStore,
   setServerVadState,
+  resetServerVadState,
   _resetServerVadStateForTesting,
 } from "./useServerVadStateStore";
 
@@ -70,5 +71,24 @@ describe("useServerVadStateStore", () => {
     const snap = useServerVadStateStore.getState();
     expect(snap.tickSeq).toBe(0);
     expect(snap.receivedAt).toBe(0);
+  });
+
+  it("latches silenceTimedOut sticky once observed; a later tick can't un-latch it", () => {
+    // The auto-stop wedge fix: the server emits the threshold tick once, then
+    // goes quiet. The latch must survive any subsequent (or stale) tick so the
+    // one-shot stop decision can fire even after the freshness window lapses.
+    setServerVadState({ voiced: false, silenceElapsedMs: 1500, silenceTimeoutMs: 1500, tickSeq: 1, silenceTimedOut: true });
+    expect(useServerVadStateStore.getState().silenceTimedOut).toBe(true);
+    setServerVadState({ voiced: false, silenceElapsedMs: 1600, silenceTimeoutMs: 1500, tickSeq: 2 });
+    expect(useServerVadStateStore.getState().silenceTimedOut).toBe(true);
+  });
+
+  it("resetServerVadState clears the sticky latch (session-scoped)", () => {
+    setServerVadState({ voiced: false, silenceElapsedMs: 1500, silenceTimeoutMs: 1500, tickSeq: 1, silenceTimedOut: true });
+    resetServerVadState();
+    const snap = useServerVadStateStore.getState();
+    expect(snap.silenceTimedOut).toBe(false);
+    expect(snap.receivedAt).toBe(0);
+    expect(snap.tickSeq).toBe(0);
   });
 });

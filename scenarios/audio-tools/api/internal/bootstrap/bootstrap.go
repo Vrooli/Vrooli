@@ -194,6 +194,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 			Clock:           clock.System{},
 			Usage:           usageRecorder,
 			StreamConfig:    stores.STTStream,
+			SpeakerConfig:   stores.STTSpeaker,
 			Wakeword:        stores.Wakeword,
 			Speaker:         stores.Speaker,
 		}),

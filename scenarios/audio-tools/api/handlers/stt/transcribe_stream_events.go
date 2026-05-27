@@ -81,6 +81,7 @@ func protoForEvent(ev sttchain.StreamEvent) *sttv1.TranscribeStreamEvent {
 					SilenceElapsedMs: ev.VadState.SilenceElapsedMs,
 					SilenceTimeoutMs: ev.VadState.SilenceTimeoutMs,
 					TickSeq:          ev.VadState.TickSeq,
+					SilenceTimedOut:  ev.VadState.SilenceTimedOut,
 				},
 			},
 		}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 	"sync"
 )
 
@@ -82,6 +83,43 @@ func (e *Engine) NewStreamDecoder(ctx context.Context, codec Codec) (StreamDecod
 	proc, err := e.process.Start(ctx, "ffmpeg", args)
 	if err != nil {
 		return nil, fmt.Errorf("audio-tools/audioformat: start decode process: %w", err)
+	}
+	return newProcessDecoder(proc), nil
+}
+
+// NewStreamFilter builds a per-session PCM→PCM ffmpeg filter process: it reads
+// canonical PCM (s16le / 16 kHz / mono, headerless) from stdin, applies the
+// given ffmpeg -af filter chain, and emits canonical PCM. It reuses the same
+// streaming wrapper as NewStreamDecoder (Write / Frames / CloseInput / Close),
+// so callers drive it identically. Unlike NewStreamDecoder there is no PCM
+// fast-path — the whole point is to transform the PCM.
+//
+// This is the substrate for the pre-recognition ingress enhancement stage
+// (internal/stt/ingress): e.g. afftdn FFT denoise. ffmpeg absent →
+// ErrFfmpegRequired so the caller can gate the stage off.
+func (e *Engine) NewStreamFilter(ctx context.Context, filter string) (StreamDecoder, error) {
+	if strings.TrimSpace(filter) == "" {
+		return nil, fmt.Errorf("audio-tools/audioformat: NewStreamFilter requires a non-empty -af filter")
+	}
+	if !e.hasFfmpeg() {
+		return nil, ErrFfmpegRequired
+	}
+	args := []string{
+		"-loglevel", "error",
+		"-f", "s16le",
+		"-ar", fmt.Sprint(CanonicalSampleRate),
+		"-ac", fmt.Sprint(CanonicalChannels),
+		"-i", "pipe:0",
+		"-af", filter,
+		"-f", "s16le",
+		"-ar", fmt.Sprint(CanonicalSampleRate),
+		"-ac", fmt.Sprint(CanonicalChannels),
+		"-flush_packets", "1",
+		"pipe:1",
+	}
+	proc, err := e.process.Start(ctx, "ffmpeg", args)
+	if err != nil {
+		return nil, fmt.Errorf("audio-tools/audioformat: start filter process: %w", err)
 	}
 	return newProcessDecoder(proc), nil
 }

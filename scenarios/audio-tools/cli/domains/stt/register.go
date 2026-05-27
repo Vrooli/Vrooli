@@ -76,9 +76,46 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 						{Name: "vad-filter", Description: "true|false — enable faster-whisper's built-in silence filter on /asr (default true)"},
 						{Name: "no-speech-threshold", Description: "Egress drop when mean no_speech_prob exceeds this AND avg_logprob is below logprob-threshold; range (0,1] (default 0.6)"},
 						{Name: "logprob-threshold", Description: "Paired with no-speech-threshold; range [-10,0) (default -1.0)"},
+						{Name: "denoise", Description: "true|false — pre-recognition ffmpeg afftdn denoise on the canonical-PCM stream (Whisper vad/overlap only; needs ffmpeg). Default off"},
 					},
 				},
 				RunCtx: h.streamConfigSet,
+			},
+			{
+				Name:        "speaker-status",
+				Description: "Show speaker-verification config, resource capability, and enrolled profiles. Notes the Whisper-only protection caveat.",
+				RunCtx:      h.speakerStatus,
+			},
+			{
+				Name:        "speaker-config",
+				Description: "Update speaker-verification config. Only provided flags are mutated.",
+				Args: cliapp.ArgSchema{
+					Flags: []cliapp.Flag{
+						{Name: "mode", Description: "off|filter|advisory — verification mode (off disables gating)"},
+						{Name: "threshold", Description: "Cosine-similarity accept threshold; 0..1 (default 0.7; same-speaker ~0.9, different ~0.1)"},
+						{Name: "enabled", Description: "true|false — master enable for speaker verification"},
+						{Name: "profiles", Description: "Comma-separated profile ids to set as the active binding (replaces the list)"},
+						{Name: "bind-profile", Description: "Append a single profile id to the active binding (reads current list first)"},
+						{Name: "reject-behavior", Description: "drop|show-muted — what to do with a rejected segment (default drop)"},
+						{Name: "fallback", Description: "true|false — let audio through when no profile/resource is available"},
+					},
+				},
+				RunCtx: h.speakerConfig,
+			},
+			{
+				Name:        "speaker-enroll",
+				Description: "Enroll a voice profile from an audio file. Use --activate to bind+enable in one step.",
+				Args: cliapp.ArgSchema{
+					Flags: []cliapp.Flag{
+						{Name: "file", Required: true, Description: "Audio file path (wav recommended)"},
+						{Name: "profile", Description: "Profile id (empty = server-generated)"},
+						{Name: "label", Description: "Human display name for the profile"},
+						{Name: "notes", Description: "Optional notes stored with the profile"},
+						{Name: "format", Description: "Audio format hint (default wav)"},
+						{Name: "activate", Description: "true|false — bind as active profile and enable verification (default off)"},
+					},
+				},
+				RunCtx: h.speakerEnroll,
 			},
 		},
 	}

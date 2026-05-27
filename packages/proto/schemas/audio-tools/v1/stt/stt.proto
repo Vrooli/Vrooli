@@ -184,6 +184,13 @@ message StreamConfig {
   // the Local tier honors it — BYOK/Vrooli tiers stream natively. Read the
   // valid ids from ListEngines; do not hardcode.
   string engine_id = 17;
+
+  // denoise_enabled turns on the pre-recognition ingress denoise stage
+  // (ffmpeg afftdn on the canonical-PCM stream, before the VAD and Whisper see
+  // it). Off by default; applies only to the Whisper PCM-buffering strategies
+  // (vad/overlap) and only when ffmpeg is available. Improves silence
+  // detection + accuracy in noisy environments.
+  bool denoise_enabled = 18;
 }
 
 message GetStreamConfigRequest {}
@@ -567,6 +574,13 @@ message StreamVadState {
   int64 silence_elapsed_ms = 2;
   int64 silence_timeout_ms = 3;
   uint64 tick_seq = 4;
+  // silence_timed_out is true on the single threshold-crossing tick where
+  // silence_elapsed_ms first reaches silence_timeout_ms — the same frame the
+  // server cuts the segment. After the cut the server emits no further ticks
+  // until voice resumes, so this is a one-shot, self-describing "you have hit
+  // the timeout" signal. One-shot clients latch on it instead of racing a
+  // freshness window against a float comparison (see autoStopDecision.ts).
+  bool silence_timed_out = 5;
 }
 
 message StreamDone {

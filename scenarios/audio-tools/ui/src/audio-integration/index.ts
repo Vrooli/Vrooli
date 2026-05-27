@@ -14,6 +14,7 @@ export { useHydrateVoiceConfig } from "./hooks/useHydrateVoiceConfig";
 export {
   useServerVadStateStore,
   setServerVadState,
+  resetServerVadState,
   _resetServerVadStateForTesting,
   SERVER_VAD_STALE_MS,
 } from "./hooks/useServerVadStateStore";

@@ -5,18 +5,45 @@ package stt
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
 
 	"connectrpc.com/connect"
 
+	"audio-tools/internal/logx"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/stt/egress"
 	sttpipeline "audio-tools/internal/stt/pipeline"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
+
+// loadPersistedSpeakerCfg hydrates the in-process speaker-config cell from the
+// persisted row. Best-effort: a missing or corrupt row leaves the defaults.
+func loadPersistedSpeakerCfg(ctx context.Context, repo SpeakerConfigRepository, log logx.Logger) {
+	raw, ok, err := repo.Get(ctx)
+	if err != nil {
+		if log != nil {
+			log.Printf("speaker-config: load failed, using defaults: %v", err)
+		}
+		return
+	}
+	if !ok || raw == "" {
+		return
+	}
+	var d speakerCfgDoc
+	if err := json.Unmarshal([]byte(raw), &d); err != nil {
+		if log != nil {
+			log.Printf("speaker-config: corrupt persisted config, using defaults: %v", err)
+		}
+		return
+	}
+	speakerCfgMu.Lock()
+	speakerCfg = d
+	speakerCfgMu.Unlock()
+}
 
 // In-process speaker config; the single audio-tools instance owns the cell.
 var (
@@ -93,7 +120,7 @@ var speakerConfigAllowedPaths = map[string]struct{}{
 	"extraction_enabled":            {},
 }
 
-func (h *connectHandler) UpdateSpeakerConfig(_ context.Context, req *connect.Request[sttv1.UpdateSpeakerConfigRequest]) (*connect.Response[sttv1.UpdateSpeakerConfigResponse], error) {
+func (h *connectHandler) UpdateSpeakerConfig(ctx context.Context, req *connect.Request[sttv1.UpdateSpeakerConfigRequest]) (*connect.Response[sttv1.UpdateSpeakerConfigResponse], error) {
 	m := req.Msg
 	mask := m.GetUpdateMask()
 	if mask == nil || len(mask.GetPaths()) == 0 {
@@ -104,6 +131,7 @@ func (h *connectHandler) UpdateSpeakerConfig(_ context.Context, req *connect.Req
 	}
 	cfg := m.GetConfig()
 	speakerCfgMu.Lock()
+	defer speakerCfgMu.Unlock()
 	d := speakerCfg
 	if protomap.MaskHas(mask, "enabled") {
 		d.Enabled = cfg.GetEnabled()
@@ -126,8 +154,18 @@ func (h *connectHandler) UpdateSpeakerConfig(_ context.Context, req *connect.Req
 	if protomap.MaskHas(mask, "extraction_enabled") {
 		d.ExtractionEnabled = cfg.GetExtractionEnabled()
 	}
+	// Persist BEFORE committing to the cell so an I/O failure leaves the
+	// in-memory state and the stored row consistent (no half-applied config).
+	if h.deps.SpeakerConfig != nil {
+		raw, err := json.Marshal(d)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("encode speaker config: %w", err))
+		}
+		if err := h.deps.SpeakerConfig.Set(ctx, string(raw)); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("persist speaker config: %w", err))
+		}
+	}
 	speakerCfg = d
-	speakerCfgMu.Unlock()
 	return connect.NewResponse(&sttv1.UpdateSpeakerConfigResponse{Config: d.toProto()}), nil
 }
 

@@ -13,6 +13,7 @@ function snapshot(over: Partial<ServerVadStateSnapshot> = {}): ServerVadStateSna
     silenceTimeoutMs: 0,
     receivedAt: 0,
     tickSeq: 0,
+    silenceTimedOut: false,
     ...over,
   };
 }
@@ -132,6 +133,44 @@ describe("decideAutoStop", () => {
       staleTickMs: STALE_MS,
     });
     expect(verdict).toEqual({ kind: "stop", source: "server" });
+  });
+
+  it("stops on a latched silenceTimedOut tick EVEN WHEN the tick is stale", () => {
+    // The wedge regression: the server emits the threshold tick once (then goes
+    // quiet after the cut). If the RAF loop misses the 250ms freshness window,
+    // the float-compare branch never fires and the session hangs forever. The
+    // sticky silenceTimedOut latch must stop regardless of tick age.
+    const verdict = decideAutoStop({
+      serverVad: snapshot({
+        receivedAt: NOW - 5000, // very stale
+        silenceElapsedMs: 1500,
+        silenceTimeoutMs: 1500,
+        tickSeq: 8,
+        silenceTimedOut: true,
+      }),
+      clientVadResult: null,
+      nowPerf: NOW,
+      staleTickMs: STALE_MS,
+    });
+    expect(verdict).toEqual({ kind: "stop", source: "server" });
+  });
+
+  it("does NOT stop on a stale below-timeout tick when silenceTimedOut is false", () => {
+    // Below-timeout staleness must continue (not stop, not hand back to client)
+    // — only the latch or a fresh at-timeout tick may stop.
+    const verdict = decideAutoStop({
+      serverVad: snapshot({
+        receivedAt: NOW - 5000,
+        silenceElapsedMs: 600,
+        silenceTimeoutMs: 1500,
+        tickSeq: 4,
+        silenceTimedOut: false,
+      }),
+      clientVadResult: "stop",
+      nowPerf: NOW,
+      staleTickMs: STALE_MS,
+    });
+    expect(verdict).toEqual({ kind: "continue" });
   });
 
   it("non-stop client actions never trigger fallback stop", () => {

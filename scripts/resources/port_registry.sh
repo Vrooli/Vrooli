@@ -14,6 +14,7 @@ declare -g -A RESOURCE_PORTS=(
     ["ollama"]="11434"         # LLM inference engine
     ["litellm"]="11435"        # LiteLLM unified LLM proxy server
     ["whisper"]="8090"         # Speech-to-text service (keeping original port)
+    ["kyutai-stt"]="8094"      # Kyutai streaming speech-to-text (WebSocket); 8094 avoids 8090-8093
     ["unstructured-io"]="11450" # Document processing and extraction
     ["nsfw-detector"]="11451"  # NSFW content detection and moderation AI
     ["segment-anything"]="11454"  # Segment Anything Model (SAM2/HQ-SAM) foundation segmentation service

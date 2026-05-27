@@ -39,6 +39,7 @@ type Deps struct {
 	Clock           clock.Clock
 	Usage           usagereport.Recorder
 	StreamConfig    STTStreamConfigRepository
+	SpeakerConfig   SpeakerConfigRepository
 	Wakeword        WakewordRepository
 	Speaker         SpeakerRepository
 }
@@ -55,6 +56,13 @@ func NewConnectHandler(d Deps) *connectHandler {
 	}
 	if d.Clock == nil {
 		panic("stt.NewConnectHandler requires Deps.Clock")
+	}
+	// Hydrate the in-process speaker-config cell from its persisted row so the
+	// mode/threshold/profile bindings survive a restart (profiles always
+	// persisted; bindings used to be lost). Best-effort: a missing/corrupt row
+	// leaves the documented defaults in place.
+	if d.SpeakerConfig != nil {
+		loadPersistedSpeakerCfg(context.Background(), d.SpeakerConfig, d.Logger)
 	}
 	return &connectHandler{deps: d}
 }

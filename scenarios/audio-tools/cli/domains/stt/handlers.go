@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -379,6 +380,8 @@ func (h *handlers) streamConfigGet(ctx cliapp.RunContext) error {
 	fmt.Fprintf(ctx.Stdout(), "  vad_filter           = %t\n", cfg.GetVadFilterEnabled())
 	fmt.Fprintf(ctx.Stdout(), "  no_speech_threshold  = %.2f\n", floatOrDefault(cfg.GetNoSpeechThreshold(), 0.6))
 	fmt.Fprintf(ctx.Stdout(), "  logprob_threshold    = %.2f\n", floatOrDefault(cfg.GetLogprobThreshold(), -1.0))
+	fmt.Fprintf(ctx.Stdout(), "Ingress gate (pre-recognition audio):\n")
+	fmt.Fprintf(ctx.Stdout(), "  denoise              = %t\n", cfg.GetDenoiseEnabled())
 	fmt.Fprintf(ctx.Stdout(), "Legacy partial-window fields (still used by browser WS):\n")
 	fmt.Fprintf(ctx.Stdout(), "  flush_interval_ms    = %d\n", cfg.GetFlushIntervalMs())
 	fmt.Fprintf(ctx.Stdout(), "  min_delta_bytes      = %d\n", cfg.GetMinDeltaBytes())
@@ -471,6 +474,14 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 		cfg.LogprobThreshold = f
 		mask.Paths = append(mask.Paths, "logprob_threshold")
 	}
+	if v := ctx.Flag("denoise"); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("--denoise must be true|false: %q", v)
+		}
+		cfg.DenoiseEnabled = b
+		mask.Paths = append(mask.Paths, "denoise_enabled")
+	}
 	if len(mask.Paths) == 0 {
 		return fmt.Errorf("at least one streaming/egress lever flag must be set (e.g. --streaming-mode, --strategy-preference, --vad-silence-ms, --overlap-window-ms, --overlap-commit-runs, --hallucination-filter, --vad-filter, --no-speech-threshold, --logprob-threshold)")
 	}
@@ -493,6 +504,7 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 	fmt.Fprintf(ctx.Stdout(), "  vad_filter           = %t\n", out.GetVadFilterEnabled())
 	fmt.Fprintf(ctx.Stdout(), "  no_speech_threshold  = %.2f\n", floatOrDefault(out.GetNoSpeechThreshold(), 0.6))
 	fmt.Fprintf(ctx.Stdout(), "  logprob_threshold    = %.2f\n", floatOrDefault(out.GetLogprobThreshold(), -1.0))
+	fmt.Fprintf(ctx.Stdout(), "  denoise              = %t\n", out.GetDenoiseEnabled())
 	return nil
 }
 
@@ -515,4 +527,241 @@ func intOrDefault(v, def int32) int32 {
 		return def
 	}
 	return v
+}
+
+// ----- speaker verification ----------------------------------------
+
+func speakerModeFromFlag(s string) (sttv1.SpeakerMode, error) {
+	switch s {
+	case "off":
+		return sttv1.SpeakerMode_SPEAKER_MODE_OFF, nil
+	case "filter":
+		return sttv1.SpeakerMode_SPEAKER_MODE_FILTER, nil
+	case "advisory":
+		return sttv1.SpeakerMode_SPEAKER_MODE_ADVISORY, nil
+	default:
+		return sttv1.SpeakerMode_SPEAKER_MODE_UNSPECIFIED, fmt.Errorf("--mode must be off|filter|advisory: %q", s)
+	}
+}
+
+func speakerModeLabel(m sttv1.SpeakerMode) string {
+	switch m {
+	case sttv1.SpeakerMode_SPEAKER_MODE_OFF:
+		return "off"
+	case sttv1.SpeakerMode_SPEAKER_MODE_FILTER:
+		return "filter"
+	case sttv1.SpeakerMode_SPEAKER_MODE_ADVISORY:
+		return "advisory"
+	default:
+		return "unspecified"
+	}
+}
+
+func rejectBehaviorFromFlag(s string) (sttv1.RejectBehavior, error) {
+	switch s {
+	case "drop":
+		return sttv1.RejectBehavior_REJECT_BEHAVIOR_DROP, nil
+	case "show-muted":
+		return sttv1.RejectBehavior_REJECT_BEHAVIOR_SHOW_MUTED, nil
+	default:
+		return sttv1.RejectBehavior_REJECT_BEHAVIOR_UNSPECIFIED, fmt.Errorf("--reject-behavior must be drop|show-muted: %q", s)
+	}
+}
+
+func rejectBehaviorLabel(r sttv1.RejectBehavior) string {
+	switch r {
+	case sttv1.RejectBehavior_REJECT_BEHAVIOR_DROP:
+		return "drop"
+	case sttv1.RejectBehavior_REJECT_BEHAVIOR_SHOW_MUTED:
+		return "show-muted"
+	default:
+		return "unspecified"
+	}
+}
+
+func boolPtr(b bool) *bool { return &b }
+
+func splitCSV(s string) []string {
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if t := strings.TrimSpace(p); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// speakerStatus prints the live speaker-verification config, resource
+// capability, and enrolled profiles. Surfaces the Whisper-only caveat so a
+// user enabling it on the streaming engine isn't silently unprotected.
+func (h *handlers) speakerStatus(ctx cliapp.RunContext) error {
+	resp, err := h.admin.GetSpeakerStatus(context.Background(), connect.NewRequest(&sttv1.GetSpeakerStatusRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("get-speaker-status", err, nil)
+	}
+	st := resp.Msg.GetStatus()
+	if st == nil {
+		return fmt.Errorf("server returned no speaker status")
+	}
+	cfg := st.GetConfig()
+	fmt.Fprintf(ctx.Stdout(), "Speaker verification:\n")
+	fmt.Fprintf(ctx.Stdout(), "  capability      = %s (%s)\n", st.GetCapability(), st.GetCapabilityLabel())
+	fmt.Fprintf(ctx.Stdout(), "  resource_ready  = %t\n", st.GetResourceReady())
+	fmt.Fprintf(ctx.Stdout(), "  enabled         = %t\n", cfg.GetEnabled())
+	fmt.Fprintf(ctx.Stdout(), "  mode            = %s\n", speakerModeLabel(cfg.GetMode()))
+	fmt.Fprintf(ctx.Stdout(), "  threshold       = %.2f\n", cfg.GetThreshold())
+	fmt.Fprintf(ctx.Stdout(), "  reject_behavior = %s\n", rejectBehaviorLabel(cfg.GetRejectBehavior()))
+	fmt.Fprintf(ctx.Stdout(), "  active_profiles = %v\n", cfg.GetProfileIds())
+	fmt.Fprintf(ctx.Stdout(), "  enrolled        = %d profile(s)\n", st.GetProfileCount())
+	for _, p := range st.GetProfiles() {
+		active := ""
+		for _, id := range cfg.GetProfileIds() {
+			if id == p.GetId() {
+				active = " [active]"
+				break
+			}
+		}
+		fmt.Fprintf(ctx.Stdout(), "    - %s (%s, %.1fs)%s\n", p.GetId(), p.GetDisplayName(), p.GetEnrollmentAudioSeconds(), active)
+	}
+	if cfg.GetEnabled() && cfg.GetMode() != sttv1.SpeakerMode_SPEAKER_MODE_OFF {
+		fmt.Fprintf(ctx.Stdout(), "  note: speaker isolation only protects the Whisper VAD path (per-segment\n")
+		fmt.Fprintf(ctx.Stdout(), "        PCM). The Kyutai streaming engine emits no per-segment audio, so it\n")
+		fmt.Fprintf(ctx.Stdout(), "        is NOT gated by speaker verification.\n")
+	}
+	return nil
+}
+
+// speakerConfig mutates the speaker-verification config. Only provided flags
+// are changed. --profiles replaces the active binding list; --bind-profile
+// appends one (reads the current list first).
+func (h *handlers) speakerConfig(ctx cliapp.RunContext) error {
+	mask := &fieldmaskpb.FieldMask{}
+	cfg := &sttv1.SpeakerConfig{}
+	if v := ctx.Flag("mode"); v != "" {
+		m, err := speakerModeFromFlag(v)
+		if err != nil {
+			return err
+		}
+		cfg.Mode = m
+		mask.Paths = append(mask.Paths, "mode")
+	}
+	if v := ctx.Flag("threshold"); v != "" {
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return fmt.Errorf("--threshold must be a number: %q", v)
+		}
+		cfg.Threshold = f
+		mask.Paths = append(mask.Paths, "threshold")
+	}
+	if v := ctx.Flag("enabled"); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("--enabled must be true|false: %q", v)
+		}
+		cfg.Enabled = b
+		mask.Paths = append(mask.Paths, "enabled")
+	}
+	if v := ctx.Flag("reject-behavior"); v != "" {
+		r, err := rejectBehaviorFromFlag(v)
+		if err != nil {
+			return err
+		}
+		cfg.RejectBehavior = r
+		mask.Paths = append(mask.Paths, "reject_behavior")
+	}
+	if v := ctx.Flag("fallback"); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("--fallback must be true|false: %q", v)
+		}
+		cfg.FallbackWithoutVerification = b
+		mask.Paths = append(mask.Paths, "fallback_without_verification")
+	}
+	profilesFlag := ctx.Flag("profiles")
+	bindFlag := ctx.Flag("bind-profile")
+	if profilesFlag != "" && bindFlag != "" {
+		return fmt.Errorf("use either --profiles (replace) or --bind-profile (append), not both")
+	}
+	if profilesFlag != "" {
+		cfg.ProfileIds = splitCSV(profilesFlag)
+		mask.Paths = append(mask.Paths, "profile_ids")
+	}
+	if bindFlag != "" {
+		cur, err := h.admin.GetSpeakerConfig(context.Background(), connect.NewRequest(&sttv1.GetSpeakerConfigRequest{}))
+		if err != nil {
+			return cliapp.WrapAPIError("get-speaker-config", err, nil)
+		}
+		ids := append([]string{}, cur.Msg.GetConfig().GetProfileIds()...)
+		already := false
+		for _, id := range ids {
+			if id == bindFlag {
+				already = true
+				break
+			}
+		}
+		if !already {
+			ids = append(ids, bindFlag)
+		}
+		cfg.ProfileIds = ids
+		mask.Paths = append(mask.Paths, "profile_ids")
+	}
+	if len(mask.Paths) == 0 {
+		return fmt.Errorf("at least one flag must be set (--mode, --threshold, --enabled, --profiles, --bind-profile, --reject-behavior, --fallback)")
+	}
+	resp, err := h.admin.UpdateSpeakerConfig(context.Background(), connect.NewRequest(&sttv1.UpdateSpeakerConfigRequest{
+		UpdateMask: mask,
+		Config:     cfg,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("update-speaker-config", err, nil)
+	}
+	out := resp.Msg.GetConfig()
+	fmt.Fprintf(ctx.Stdout(), "Updated. Resolved speaker config:\n")
+	fmt.Fprintf(ctx.Stdout(), "  enabled         = %t\n", out.GetEnabled())
+	fmt.Fprintf(ctx.Stdout(), "  mode            = %s\n", speakerModeLabel(out.GetMode()))
+	fmt.Fprintf(ctx.Stdout(), "  threshold       = %.2f\n", out.GetThreshold())
+	fmt.Fprintf(ctx.Stdout(), "  reject_behavior = %s\n", rejectBehaviorLabel(out.GetRejectBehavior()))
+	fmt.Fprintf(ctx.Stdout(), "  active_profiles = %v\n", out.GetProfileIds())
+	fmt.Fprintf(ctx.Stdout(), "  fallback        = %t\n", out.GetFallbackWithoutVerification())
+	return nil
+}
+
+// speakerEnroll enrolls a voice profile from an audio file. Pass --activate to
+// bind it as an active profile and enable verification in one step.
+func (h *handlers) speakerEnroll(ctx cliapp.RunContext) error {
+	path := ctx.Flag("file")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", path, err)
+	}
+	req := &sttv1.EnrollSpeakerProfileRequest{
+		Audio:       data,
+		Format:      audioFormatFromFlag(ctx.Flag("format")),
+		ProfileId:   ctx.Flag("profile"),
+		DisplayName: ctx.Flag("label"),
+		Notes:       ctx.Flag("notes"),
+	}
+	if v := ctx.Flag("activate"); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("--activate must be true|false: %q", v)
+		}
+		req.AddToActive = boolPtr(b)
+		req.Enable = boolPtr(b)
+	}
+	resp, err := h.admin.EnrollSpeakerProfile(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("enroll-speaker-profile", err, nil)
+	}
+	en := resp.Msg.GetEnrollment()
+	fmt.Fprintf(ctx.Stdout(), "Enrolled speaker profile:\n")
+	fmt.Fprintf(ctx.Stdout(), "  profile_id   = %s\n", en.GetProfileId())
+	fmt.Fprintf(ctx.Stdout(), "  display_name = %s\n", en.GetDisplayName())
+	fmt.Fprintf(ctx.Stdout(), "  audio_secs   = %.1f\n", en.GetEnrollmentAudioSeconds())
+	fmt.Fprintf(ctx.Stdout(), "  model        = %s (dim %d)\n", en.GetModelName(), en.GetEmbeddingDim())
+	if cfg := resp.Msg.GetConfig(); cfg != nil {
+		fmt.Fprintf(ctx.Stdout(), "  active_now   = %v (enabled=%t)\n", cfg.GetProfileIds(), cfg.GetEnabled())
+	}
+	return nil
 }

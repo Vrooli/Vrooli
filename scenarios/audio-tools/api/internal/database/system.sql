@@ -90,6 +90,15 @@ CREATE TABLE IF NOT EXISTS tts_config (
   updated_at TEXT NOT NULL
 );
 
+-- Speaker-verification config (mode/threshold/profile bindings). Single row,
+-- mirrors stt_stream_config. Profiles themselves live in speaker_profiles;
+-- this persists only the active binding+mode so it survives a restart.
+CREATE TABLE IF NOT EXISTS stt_speaker_config (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  config_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS playback_events (
   event_id TEXT PRIMARY KEY,
   emitted_at TEXT NOT NULL,

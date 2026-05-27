@@ -101,6 +101,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     silenceElapsedMs: number;
     silenceTimeoutMs: number;
     tickSeq: number;
+    silenceTimedOut: boolean;
   }) => void) | null = null;
 
   getStream(): MediaStream | null {
@@ -210,6 +211,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
           silenceElapsedMs?: number;
           silenceTimeoutMs?: number;
           tickSeq?: number;
+          silenceTimedOut?: boolean;
         };
         if (msg.type === "segment-final" && msg.text !== undefined) {
           this.onSegmentFinal?.(msg.text, msg.segmentIndex ?? 0);
@@ -223,6 +225,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
             silenceElapsedMs: msg.silenceElapsedMs ?? 0,
             silenceTimeoutMs: msg.silenceTimeoutMs ?? 0,
             tickSeq: msg.tickSeq ?? 0,
+            silenceTimedOut: Boolean(msg.silenceTimedOut),
           });
         } else if (msg.type === "speaker-status") {
           this.onSpeakerStatus?.(Boolean(msg.enabled), Boolean(msg.profileConfigured));

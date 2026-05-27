@@ -83,6 +83,13 @@ func newStreamCfgStoreT(t *testing.T) *store.STTStreamConfigStore {
 	return store.NewSTTStreamConfigStore(d)
 }
 
+func newSpeakerCfgStoreT(t *testing.T) *store.STTSpeakerConfigStore {
+	t.Helper()
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema)))
+	return store.NewSTTSpeakerConfigStore(d)
+}
+
 // Reset the in-process speaker-config cell between tests that mutate it.
 func resetSpeakerCfg() {
 	speakerCfgMu.Lock()
@@ -106,6 +113,63 @@ func TestSpeakerCfgDoc_ToProto_RoundTrip(t *testing.T) {
 	require.Equal(t, sttv1.RejectBehavior_REJECT_BEHAVIOR_DROP, p.GetRejectBehavior())
 	require.True(t, p.GetFallbackWithoutVerification())
 	require.True(t, p.GetExtractionEnabled())
+}
+
+// TestSpeakerConfig_PersistsAcrossRestart is the B2 contract: speaker
+// mode/threshold/profile bindings must survive a process restart. Previously
+// they lived only in the in-process cell and were lost on every restart while
+// profiles persisted — so "only my voice" silently disabled itself.
+func TestSpeakerConfig_PersistsAcrossRestart(t *testing.T) {
+	scs := newSpeakerCfgStoreT(t)
+	resetSpeakerCfg()
+
+	// Session 1: enable filter mode with a bound profile + custom threshold.
+	c1 := newSTTClient(t, Deps{SpeakerConfig: scs})
+	_, err := c1.UpdateSpeakerConfig(context.Background(), connect.NewRequest(&sttv1.UpdateSpeakerConfigRequest{
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"enabled", "mode", "threshold", "profile_ids"}},
+		Config: &sttv1.SpeakerConfig{
+			Enabled:    true,
+			Mode:       sttv1.SpeakerMode_SPEAKER_MODE_FILTER,
+			Threshold:  0.82,
+			ProfileIds: []string{"my-voice"},
+		},
+	}))
+	require.NoError(t, err)
+
+	// Simulate a restart: blow away the in-process cell, then construct a fresh
+	// handler against the SAME store. NewConnectHandler must rehydrate the cell.
+	resetSpeakerCfg()
+	c2 := newSTTClient(t, Deps{SpeakerConfig: scs})
+	got, err := c2.GetSpeakerConfig(context.Background(), connect.NewRequest(&sttv1.GetSpeakerConfigRequest{}))
+	require.NoError(t, err)
+	cfg := got.Msg.GetConfig()
+	require.True(t, cfg.GetEnabled(), "enabled must survive restart")
+	require.Equal(t, sttv1.SpeakerMode_SPEAKER_MODE_FILTER, cfg.GetMode())
+	require.Equal(t, 0.82, cfg.GetThreshold())
+	require.Equal(t, []string{"my-voice"}, cfg.GetProfileIds())
+}
+
+// TestStreamConfig_DenoiseRoundTrip is the Phase C config-plumbing contract:
+// denoise_enabled must survive the proto → streamCfgDoc → sqlite → proto path
+// and default off when never set.
+func TestStreamConfig_DenoiseRoundTrip(t *testing.T) {
+	scs := newStreamCfgStoreT(t)
+	c := newSTTClient(t, Deps{StreamConfig: scs})
+
+	// Default: off.
+	res, err := c.GetStreamConfig(context.Background(), connect.NewRequest(&sttv1.GetStreamConfigRequest{}))
+	require.NoError(t, err)
+	require.False(t, res.Msg.GetConfig().GetDenoiseEnabled(), "denoise must default off")
+
+	// Enable + round-trip.
+	_, err = c.UpdateStreamConfig(context.Background(), connect.NewRequest(&sttv1.UpdateStreamConfigRequest{
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"denoise_enabled"}},
+		Config:     &sttv1.StreamConfig{DenoiseEnabled: true},
+	}))
+	require.NoError(t, err)
+	got, err := c.GetStreamConfig(context.Background(), connect.NewRequest(&sttv1.GetStreamConfigRequest{}))
+	require.NoError(t, err)
+	require.True(t, got.Msg.GetConfig().GetDenoiseEnabled(), "denoise_enabled must persist + round-trip")
 }
 
 func TestStreamCfgDoc_ToProtoAndDefaults(t *testing.T) {

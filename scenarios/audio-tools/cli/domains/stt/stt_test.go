@@ -25,9 +25,26 @@ import (
 type fakeSvc struct {
 	sttconnect.UnimplementedSTTServiceHandler
 	sttconnect.UnimplementedSTTAdminServiceHandler
-	transcribe func(*sttv1.TranscribeRequest) (*sttv1.TranscribeResponse, error)
-	getCfg     func() (*sttv1.StreamConfig, error)
-	getFormats func() *sttv1.GetSupportedFormatsResponse
+	transcribe       func(*sttv1.TranscribeRequest) (*sttv1.TranscribeResponse, error)
+	getCfg           func() (*sttv1.StreamConfig, error)
+	getFormats       func() *sttv1.GetSupportedFormatsResponse
+	updateSpeakerCfg func(*sttv1.UpdateSpeakerConfigRequest) (*sttv1.SpeakerConfig, error)
+	getSpeakerStatus func() *sttv1.SpeakerStatus
+}
+
+func (f *fakeSvc) UpdateSpeakerConfig(_ context.Context, req *connect.Request[sttv1.UpdateSpeakerConfigRequest]) (*connect.Response[sttv1.UpdateSpeakerConfigResponse], error) {
+	if f.updateSpeakerCfg != nil {
+		cfg, err := f.updateSpeakerCfg(req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(&sttv1.UpdateSpeakerConfigResponse{Config: cfg}), nil
+	}
+	return connect.NewResponse(&sttv1.UpdateSpeakerConfigResponse{Config: req.Msg.GetConfig()}), nil
+}
+
+func (f *fakeSvc) GetSpeakerStatus(_ context.Context, _ *connect.Request[sttv1.GetSpeakerStatusRequest]) (*connect.Response[sttv1.GetSpeakerStatusResponse], error) {
+	return connect.NewResponse(&sttv1.GetSpeakerStatusResponse{Status: f.getSpeakerStatus()}), nil
 }
 
 func (f *fakeSvc) GetSupportedFormats(_ context.Context, _ *connect.Request[sttv1.GetSupportedFormatsRequest]) (*connect.Response[sttv1.GetSupportedFormatsResponse], error) {
@@ -108,6 +125,84 @@ func TestStreamConfigGet(t *testing.T) {
 	require.Contains(t, out, "vad_silence_ms       = 700")
 	require.Contains(t, out, "overlap_window_ms    = 2500")
 	require.Contains(t, out, "overlap_commit_runs  = 3")
+}
+
+// speaker-config builds a field mask from the provided flags and prints the
+// resolved config. --mode/--threshold/--enabled must map to the right paths.
+func TestSpeakerConfigSet(t *testing.T) {
+	var gotMask []string
+	app := mountSTT(t, &fakeSvc{
+		updateSpeakerCfg: func(req *sttv1.UpdateSpeakerConfigRequest) (*sttv1.SpeakerConfig, error) {
+			gotMask = req.GetUpdateMask().GetPaths()
+			return &sttv1.SpeakerConfig{
+				Enabled:   req.GetConfig().GetEnabled(),
+				Mode:      req.GetConfig().GetMode(),
+				Threshold: req.GetConfig().GetThreshold(),
+			}, nil
+		},
+	})
+	h := newHandlers(app)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
+		{Name: "mode"},
+		{Name: "threshold"},
+		{Name: "enabled"},
+		{Name: "profiles"},
+		{Name: "bind-profile"},
+		{Name: "reject-behavior"},
+		{Name: "fallback"},
+	}}
+	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"mode": "filter", "threshold": "0.8", "enabled": "true"},
+	})
+	require.NoError(t, h.speakerConfig(ctx))
+	require.ElementsMatch(t, []string{"mode", "threshold", "enabled"}, gotMask)
+	out := buf.String()
+	require.Contains(t, out, "mode            = filter")
+	require.Contains(t, out, "threshold       = 0.80")
+	require.Contains(t, out, "enabled         = true")
+}
+
+// speaker-config with no flags is a usage error (nothing to update).
+func TestSpeakerConfigNoFlags(t *testing.T) {
+	app := mountSTT(t, &fakeSvc{})
+	h := newHandlers(app)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
+		{Name: "mode"},
+		{Name: "threshold"},
+		{Name: "enabled"},
+		{Name: "profiles"},
+		{Name: "bind-profile"},
+		{Name: "reject-behavior"},
+		{Name: "fallback"},
+	}}
+	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{})
+	require.Error(t, h.speakerConfig(ctx))
+}
+
+// speaker-status surfaces the Whisper-only protection caveat when verification
+// is enabled, so a user on the streaming engine isn't silently unprotected.
+func TestSpeakerStatusWhisperCaveat(t *testing.T) {
+	app := mountSTT(t, &fakeSvc{
+		getSpeakerStatus: func() *sttv1.SpeakerStatus {
+			return &sttv1.SpeakerStatus{
+				Config: &sttv1.SpeakerConfig{
+					Enabled: true, Mode: sttv1.SpeakerMode_SPEAKER_MODE_FILTER,
+					Threshold: 0.7, ProfileIds: []string{"my-voice"},
+				},
+				Capability: "available", CapabilityLabel: "Speaker store",
+				ResourceReady: true, ProfileCount: 1,
+				Profiles: []*sttv1.SpeakerProfile{{Id: "my-voice", DisplayName: "Me", EnrollmentAudioSeconds: 12.5}},
+			}
+		},
+	})
+	h := newHandlers(app)
+	ctx, buf := cliapptest.NewCapturedRunContext(app, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
+	require.NoError(t, h.speakerStatus(ctx))
+	out := buf.String()
+	require.Contains(t, out, "mode            = filter")
+	require.Contains(t, out, "my-voice")
+	require.Contains(t, out, "[active]")
+	require.Contains(t, out, "Kyutai streaming engine emits no per-segment audio")
 }
 
 // formats prints the capability matrix as human-readable lines and surfaces

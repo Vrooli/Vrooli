@@ -460,9 +460,15 @@ type StreamConfig struct {
 	// "whisper-local"). Empty resolves to the manifest's default engine. Only
 	// the Local tier honors it — BYOK/Vrooli tiers stream natively. Read the
 	// valid ids from ListEngines; do not hardcode.
-	EngineId      string `protobuf:"bytes,17,opt,name=engine_id,json=engineId,proto3" json:"engine_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	EngineId string `protobuf:"bytes,17,opt,name=engine_id,json=engineId,proto3" json:"engine_id,omitempty"`
+	// denoise_enabled turns on the pre-recognition ingress denoise stage
+	// (ffmpeg afftdn on the canonical-PCM stream, before the VAD and Whisper see
+	// it). Off by default; applies only to the Whisper PCM-buffering strategies
+	// (vad/overlap) and only when ffmpeg is available. Improves silence
+	// detection + accuracy in noisy environments.
+	DenoiseEnabled bool `protobuf:"varint,18,opt,name=denoise_enabled,json=denoiseEnabled,proto3" json:"denoise_enabled,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *StreamConfig) Reset() {
@@ -612,6 +618,13 @@ func (x *StreamConfig) GetEngineId() string {
 		return x.EngineId
 	}
 	return ""
+}
+
+func (x *StreamConfig) GetDenoiseEnabled() bool {
+	if x != nil {
+		return x.DenoiseEnabled
+	}
+	return false
 }
 
 type GetStreamConfigRequest struct {
@@ -3654,8 +3667,15 @@ type StreamVadState struct {
 	SilenceElapsedMs int64                  `protobuf:"varint,2,opt,name=silence_elapsed_ms,json=silenceElapsedMs,proto3" json:"silence_elapsed_ms,omitempty"`
 	SilenceTimeoutMs int64                  `protobuf:"varint,3,opt,name=silence_timeout_ms,json=silenceTimeoutMs,proto3" json:"silence_timeout_ms,omitempty"`
 	TickSeq          uint64                 `protobuf:"varint,4,opt,name=tick_seq,json=tickSeq,proto3" json:"tick_seq,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// silence_timed_out is true on the single threshold-crossing tick where
+	// silence_elapsed_ms first reaches silence_timeout_ms — the same frame the
+	// server cuts the segment. After the cut the server emits no further ticks
+	// until voice resumes, so this is a one-shot, self-describing "you have hit
+	// the timeout" signal. One-shot clients latch on it instead of racing a
+	// freshness window against a float comparison (see autoStopDecision.ts).
+	SilenceTimedOut bool `protobuf:"varint,5,opt,name=silence_timed_out,json=silenceTimedOut,proto3" json:"silence_timed_out,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *StreamVadState) Reset() {
@@ -3714,6 +3734,13 @@ func (x *StreamVadState) GetTickSeq() uint64 {
 		return x.TickSeq
 	}
 	return 0
+}
+
+func (x *StreamVadState) GetSilenceTimedOut() bool {
+	if x != nil {
+		return x.SilenceTimedOut
+	}
+	return false
 }
 
 type StreamDone struct {
@@ -3824,7 +3851,7 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"providerId\x12\x19\n" +
 	"\bmodel_id\x18\x06 \x01(\tR\amodelId\x12\x1d\n" +
 	"\n" +
-	"latency_ms\x18\a \x01(\x01R\tlatencyMs\"\xac\a\n" +
+	"latency_ms\x18\a \x01(\x01R\tlatencyMs\"\xd5\a\n" +
 	"\fStreamConfig\x12*\n" +
 	"\x11flush_interval_ms\x18\x01 \x01(\x05R\x0fflushIntervalMs\x12&\n" +
 	"\x0fmin_delta_bytes\x18\x02 \x01(\x05R\rminDeltaBytes\x12#\n" +
@@ -3845,7 +3872,8 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\x12vad_filter_enabled\x18\x0e \x01(\bR\x10vadFilterEnabled\x12G\n" +
 	"\x13no_speech_threshold\x18\x0f \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\xf0?)\x00\x00\x00\x00\x00\x00\x00\x00R\x11noSpeechThreshold\x12D\n" +
 	"\x11logprob_threshold\x18\x10 \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x00\x00)\x00\x00\x00\x00\x00\x00$\xc0R\x10logprobThreshold\x12\x1b\n" +
-	"\tengine_id\x18\x11 \x01(\tR\bengineId\"\x18\n" +
+	"\tengine_id\x18\x11 \x01(\tR\bengineId\x12'\n" +
+	"\x0fdenoise_enabled\x18\x12 \x01(\bR\x0edenoiseEnabled\"\x18\n" +
 	"\x16GetStreamConfigRequest\"Z\n" +
 	"\x17GetStreamConfigResponse\x12?\n" +
 	"\x06config\x18\x01 \x01(\v2'.vrooli.audio_tools.v1.stt.StreamConfigR\x06config\"\x1c\n" +
@@ -4055,12 +4083,13 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\rfallback_used\x18\x02 \x01(\bR\ffallbackUsed\";\n" +
 	"\vStreamError\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\x9f\x01\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xcb\x01\n" +
 	"\x0eStreamVadState\x12\x16\n" +
 	"\x06voiced\x18\x01 \x01(\bR\x06voiced\x12,\n" +
 	"\x12silence_elapsed_ms\x18\x02 \x01(\x03R\x10silenceElapsedMs\x12,\n" +
 	"\x12silence_timeout_ms\x18\x03 \x01(\x03R\x10silenceTimeoutMs\x12\x19\n" +
-	"\btick_seq\x18\x04 \x01(\x04R\atickSeq\"\x84\x02\n" +
+	"\btick_seq\x18\x04 \x01(\x04R\atickSeq\x12*\n" +
+	"\x11silence_timed_out\x18\x05 \x01(\bR\x0fsilenceTimedOut\"\x84\x02\n" +
 	"\n" +
 	"StreamDone\x12\x1d\n" +
 	"\n" +

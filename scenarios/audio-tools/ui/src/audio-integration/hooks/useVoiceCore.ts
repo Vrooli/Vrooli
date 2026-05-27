@@ -35,7 +35,7 @@ import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoise
 import { getSharedAudioContext, ensureAudioContextOnGesture, installAudioContextKeepalive, teardownAudioContextKeepalive } from "../index";
 import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive, installVisibilityHandler } from "../index";
 import { VoiceStreamProvider } from "../index";
-import { setServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./useServerVadStateStore";
+import { setServerVadState, resetServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./useServerVadStateStore";
 import { decideAutoStop } from "./voice/autoStopDecision";
 import { WhisperProvider } from "../index";
 import { WebSpeechProvider } from "../index";
@@ -756,6 +756,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     startingRef.current = true;
     stopRequestedRef.current = false;
     sessionCountRef.current++;
+    // Clear any server-VAD snapshot from a prior session BEFORE the first
+    // tick of this one. The sticky silenceTimedOut latch (and the prior
+    // session's receivedAt) would otherwise leak across sessions and stop
+    // the new recording instantly. See useServerVadStateStore.resetServerVadState.
+    resetServerVadState();
 
     // Show "preparing" state immediately for visual feedback
     const prepareStart = Date.now();

@@ -43,6 +43,7 @@ type wsMessage struct {
 	SilenceElapsedMs *int64  `json:"silenceElapsedMs,omitempty"`
 	SilenceTimeoutMs *int64  `json:"silenceTimeoutMs,omitempty"`
 	TickSeq          *uint64 `json:"tickSeq,omitempty"`
+	SilenceTimedOut  *bool   `json:"silenceTimedOut,omitempty"`
 }
 
 // StreamWSHandler is the browser-voice WebSocket transport. It opens
@@ -147,12 +148,14 @@ func StreamWSHandler(d Deps) http.Handler {
 					elapsed := ev.VadState.SilenceElapsedMs
 					timeout := ev.VadState.SilenceTimeoutMs
 					seq := ev.VadState.TickSeq
+					timedOut := ev.VadState.SilenceTimedOut
 					writeJSON(wsMessage{
 						Type:             wsMsgVadState,
 						Voiced:           &voiced,
 						SilenceElapsedMs: &elapsed,
 						SilenceTimeoutMs: &timeout,
 						TickSeq:          &seq,
+						SilenceTimedOut:  &timedOut,
 					})
 				}
 			case sttchain.StreamEventSpeakerRejection:

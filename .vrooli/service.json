@@ -70,6 +70,9 @@
         "enabled": true,
         "required": false
       },
+      "kyutai-stt": {
+        "enabled": true
+      },
       "litellm": {
         "enabled": true
       },
@@ -170,6 +173,9 @@
         "description": "Privacy-respecting search engine",
         "enabled": true,
         "required": true
+      },
+      "speaker-verification": {
+        "enabled": true
       },
       "twilio": {
         "credentials_file": "~/.vrooli/twilio-credentials.json",

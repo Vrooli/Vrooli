@@ -38,6 +38,15 @@ export interface ServerVadStateSnapshot {
   receivedAt: number;
   /** Per-stream monotonic counter from the server. 0 means "no tick yet". */
   tickSeq: number;
+  /**
+   * LATCHED: the server set silence_timed_out on a threshold-crossing tick
+   * this session. The server emits that tick exactly once (the same frame it
+   * cuts the segment) and then stops emitting until voice resumes, so we keep
+   * the flag sticky once observed. The one-shot stop decision reads this
+   * instead of racing the SERVER_VAD_STALE_MS freshness window against a
+   * float comparison. Cleared by resetServerVadState() at recording start.
+   */
+  silenceTimedOut: boolean;
 }
 
 const INITIAL_STATE: ServerVadStateSnapshot = {
@@ -46,6 +55,7 @@ const INITIAL_STATE: ServerVadStateSnapshot = {
   silenceTimeoutMs: 0,
   receivedAt: 0,
   tickSeq: 0,
+  silenceTimedOut: false,
 };
 
 let state: ServerVadStateSnapshot = INITIAL_STATE;
@@ -76,7 +86,12 @@ function getSnapshot(): ServerVadStateSnapshot {
  * ring jump backward by more than ~50 ms.
  */
 export function setServerVadState(
-  next: Pick<ServerVadStateSnapshot, "voiced" | "silenceElapsedMs" | "silenceTimeoutMs" | "tickSeq">,
+  next: Pick<ServerVadStateSnapshot, "voiced" | "silenceElapsedMs" | "silenceTimeoutMs" | "tickSeq"> & {
+    // Optional on input: transports that predate the flag (or non-timeout
+    // ticks) simply omit it and it coerces to false. The stored snapshot
+    // always carries a concrete boolean; the latch below keeps it sticky.
+    silenceTimedOut?: boolean;
+  },
 ): void {
   // tickSeq monotonicity — drop strictly older frames.
   if (state.tickSeq > 0 && next.tickSeq > 0 && next.tickSeq < state.tickSeq) {
@@ -100,14 +115,26 @@ export function setServerVadState(
         ? performance.now()
         : Date.now(),
     tickSeq: next.tickSeq,
+    // Sticky latch: once the server reports the timeout was reached, keep it
+    // set for the rest of the session even if later (or stale) ticks clear it.
+    silenceTimedOut: state.silenceTimedOut || Boolean(next.silenceTimedOut),
   };
   emit();
 }
 
-/** Test-only: reset between specs. */
-export function _resetServerVadStateForTesting(): void {
+/**
+ * Clear the snapshot. MUST be called at the start of each recording session
+ * so the sticky silenceTimedOut latch (and the prior session's receivedAt)
+ * cannot leak across sessions and instantly stop the next recording.
+ */
+export function resetServerVadState(): void {
   state = INITIAL_STATE;
   emit();
+}
+
+/** Test-only alias of resetServerVadState for spec setup/teardown. */
+export function _resetServerVadStateForTesting(): void {
+  resetServerVadState();
 }
 
 /**

@@ -291,6 +291,13 @@ type VadStateEvent struct {
 	SilenceElapsedMs int64
 	SilenceTimeoutMs int64
 	TickSeq          uint64
+	// SilenceTimedOut is true only on the threshold-crossing tick where
+	// SilenceElapsedMs first reaches SilenceTimeoutMs (the same frame the
+	// segment is cut). It is the self-describing one-shot auto-stop signal;
+	// after the cut no further ticks are emitted until voice resumes, so
+	// clients must latch on it rather than re-deriving it from a float
+	// comparison inside a staleness window. See StreamVadState in stt.proto.
+	SilenceTimedOut bool
 }
 
 type DoneEvent struct {

@@ -55,6 +55,8 @@ func (h *connectHandler) resolveStreamPipelineConfig(ctx context.Context) sttpkg
 	if d.LogProbThreshold != 0 {
 		cfg.LogProbThreshold = d.LogProbThreshold
 	}
+	// Ingress denoise: plain bool, default off — read directly.
+	cfg.DenoiseEnabled = d.DenoiseEnabled
 	return cfg
 }
 
@@ -196,6 +198,7 @@ var streamConfigAllowedPaths = map[string]struct{}{
 	"vad_filter_enabled":           {},
 	"no_speech_threshold":          {},
 	"logprob_threshold":            {},
+	"denoise_enabled":              {},
 }
 
 func (h *connectHandler) UpdateStreamConfig(ctx context.Context, req *connect.Request[sttv1.UpdateStreamConfigRequest]) (*connect.Response[sttv1.UpdateStreamConfigResponse], error) {
@@ -267,6 +270,9 @@ func (h *connectHandler) UpdateStreamConfig(ctx context.Context, req *connect.Re
 	}
 	if protomap.MaskHas(mask, "logprob_threshold") {
 		d.LogProbThreshold = cfg.GetLogprobThreshold()
+	}
+	if protomap.MaskHas(mask, "denoise_enabled") {
+		d.DenoiseEnabled = cfg.GetDenoiseEnabled()
 	}
 	if err := validateStreamingLevers(d); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)

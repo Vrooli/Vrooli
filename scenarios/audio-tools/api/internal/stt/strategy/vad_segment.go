@@ -106,6 +106,13 @@ func (v *VADSegmenter) Run(
 	if silenceFramesNeeded < 1 {
 		silenceFramesNeeded = 1
 	}
+	// The vad-state ticks echo the frame-QUANTISED silence threshold actually
+	// used for the cut (silenceFramesNeeded * FrameMs), not the raw SilenceMs.
+	// The client's auto-stop fires on silenceElapsedMs >= silenceTimeoutMs, and
+	// silenceElapsedMs only ever takes frame-quantised values; echoing the raw
+	// SilenceMs would leave the threshold unreachable whenever FrameMs does not
+	// divide SilenceMs evenly.
+	silenceTimeoutMs := int64(silenceFramesNeeded * v.FrameMs)
 	preRollBytes := v.SampleRate * v.PreRollMs / 1000 * sampleBytes
 	trailingPadBytes := v.SampleRate * v.TrailingPadMs / 1000 * sampleBytes
 
@@ -136,7 +143,7 @@ func (v *VADSegmenter) Run(
 	if clk == nil {
 		clk = clock.System{}
 	}
-	emitVad := func(voiced bool, silenceElapsedMs int64, frameIdx int) {
+	emitVad := func(voiced bool, silenceElapsedMs int64, frameIdx int, timedOut bool) {
 		tickSeq++
 		lastEmitFrameIdx = frameIdx
 		lastEmittedVoiced = voiced
@@ -146,8 +153,9 @@ func (v *VADSegmenter) Run(
 			VadState: &sttchain.VadStateEvent{
 				Voiced:           voiced,
 				SilenceElapsedMs: silenceElapsedMs,
-				SilenceTimeoutMs: int64(v.SilenceMs),
+				SilenceTimeoutMs: silenceTimeoutMs,
 				TickSeq:          tickSeq,
+				SilenceTimedOut:  timedOut,
 			},
 		}
 	}
@@ -268,8 +276,17 @@ func (v *VADSegmenter) Run(
 						shouldEmit = true
 					}
 				}
+				// Always emit the threshold-crossing tick, bypassing the
+				// throttle. The segment cut below resets silentFrames on this
+				// same frame, so a throttled-away tick here means the client
+				// never observes silenceElapsedMs >= silenceTimeoutMs and hangs
+				// with the auto-stop ring visually full (no stop fires).
+				timedOut := silentFrames >= silenceFramesNeeded
+				if timedOut {
+					shouldEmit = true
+				}
 				if shouldEmit {
-					emitVad(voicedNow, silenceElapsedMs, currentFrameIdx)
+					emitVad(voicedNow, silenceElapsedMs, currentFrameIdx, timedOut)
 				}
 			}
 
