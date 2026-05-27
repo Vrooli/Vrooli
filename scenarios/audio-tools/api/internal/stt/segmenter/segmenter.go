@@ -287,6 +287,8 @@ func runEgress(ctx context.Context, gate *egress.Gate, in <-chan sttchain.Stream
 					SpeakerRejection: &sttchain.SpeakerRejectionEvent{
 						Reason:       dec.Reason,
 						FallbackUsed: dec.FallbackUsed,
+						Score:        dec.Score,
+						Threshold:    dec.Threshold,
 					},
 				}
 			default: // Emit

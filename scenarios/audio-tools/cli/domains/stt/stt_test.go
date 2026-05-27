@@ -219,6 +219,7 @@ func TestSpeakerStatusWhisperCaveat(t *testing.T) {
 				Config: &sttv1.SpeakerConfig{
 					Enabled: true, Mode: sttv1.SpeakerMode_SPEAKER_MODE_FILTER,
 					Threshold: 0.7, ProfileIds: []string{"my-voice"},
+					ExtractionEnabled: true,
 				},
 				Capability: "available", CapabilityLabel: "Speaker store",
 				ResourceReady: true, ProfileCount: 1,
@@ -231,6 +232,7 @@ func TestSpeakerStatusWhisperCaveat(t *testing.T) {
 	require.NoError(t, h.speakerStatus(ctx))
 	out := buf.String()
 	require.Contains(t, out, "mode            = filter")
+	require.Contains(t, out, "extraction      = true")
 	require.Contains(t, out, "my-voice")
 	require.Contains(t, out, "[active]")
 	require.Contains(t, out, "Kyutai streaming engine emits no per-segment audio")

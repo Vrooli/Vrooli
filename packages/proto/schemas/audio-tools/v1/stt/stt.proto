@@ -556,6 +556,13 @@ message StreamWakeWord {
 message StreamSpeakerRejection {
   string reason = 1;
   bool fallback_used = 2;
+  // score is the best cosine-similarity the active speaker profiles produced
+  // for the rejected segment (0 when verification could not actually run);
+  // threshold is the configured match cutoff. Clients surface "score X <
+  // threshold Y" on the rejection banner — without these the banner can only
+  // show 0.00/0.00.
+  double score = 3;
+  double threshold = 4;
 }
 
 message StreamError {

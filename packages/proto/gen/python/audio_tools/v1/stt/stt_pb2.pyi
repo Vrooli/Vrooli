@@ -570,12 +570,16 @@ class StreamWakeWord(_message.Message):
     def __init__(self, score: _Optional[float] = ..., sample_id: _Optional[str] = ...) -> None: ...
 
 class StreamSpeakerRejection(_message.Message):
-    __slots__ = ("reason", "fallback_used")
+    __slots__ = ("reason", "fallback_used", "score", "threshold")
     REASON_FIELD_NUMBER: _ClassVar[int]
     FALLBACK_USED_FIELD_NUMBER: _ClassVar[int]
+    SCORE_FIELD_NUMBER: _ClassVar[int]
+    THRESHOLD_FIELD_NUMBER: _ClassVar[int]
     reason: str
     fallback_used: bool
-    def __init__(self, reason: _Optional[str] = ..., fallback_used: _Optional[bool] = ...) -> None: ...
+    score: float
+    threshold: float
+    def __init__(self, reason: _Optional[str] = ..., fallback_used: _Optional[bool] = ..., score: _Optional[float] = ..., threshold: _Optional[float] = ...) -> None: ...
 
 class StreamError(_message.Message):
     __slots__ = ("code", "message")

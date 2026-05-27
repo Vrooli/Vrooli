@@ -74,6 +74,7 @@ export interface SpeakerConfig {
   mode: SpeakerModeLabel;
   rejectBehavior: RejectBehaviorLabel;
   fallbackWithoutVerification: boolean;
+  extractionEnabled: boolean;
 }
 
 export interface SpeakerProfile {
@@ -103,6 +104,7 @@ function decodeConfig(c: {
   mode?: SpeakerMode;
   rejectBehavior?: RejectBehavior;
   fallbackWithoutVerification?: boolean;
+  extractionEnabled?: boolean;
 } | undefined): SpeakerConfig {
   return {
     enabled: c?.enabled ?? false,
@@ -111,6 +113,7 @@ function decodeConfig(c: {
     mode: speakerModeToLabel(c?.mode),
     rejectBehavior: rejectBehaviorToLabel(c?.rejectBehavior),
     fallbackWithoutVerification: c?.fallbackWithoutVerification ?? false,
+    extractionEnabled: c?.extractionEnabled ?? false,
   };
 }
 
@@ -163,6 +166,7 @@ export async function updateSpeakerConfig(patch: Partial<SpeakerConfig>): Promis
   if (patch.mode !== undefined) { cfg.mode = speakerModeFromLabel(patch.mode); paths.push("mode"); }
   if (patch.rejectBehavior !== undefined) { cfg.rejectBehavior = rejectBehaviorFromLabel(patch.rejectBehavior); paths.push("reject_behavior"); }
   if (patch.fallbackWithoutVerification !== undefined) { cfg.fallbackWithoutVerification = patch.fallbackWithoutVerification; paths.push("fallback_without_verification"); }
+  if (patch.extractionEnabled !== undefined) { cfg.extractionEnabled = patch.extractionEnabled; paths.push("extraction_enabled"); }
   const resp = await client.updateSpeakerConfig({
     updateMask: create(FieldMaskSchema, { paths }),
     config: cfg,

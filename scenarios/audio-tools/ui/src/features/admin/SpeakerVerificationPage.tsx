@@ -98,6 +98,8 @@ export function SpeakerVerificationPage() {
           <dd>{String(st.profileConfigured)}</dd>
           <dt className="text-app-muted-foreground">{t(strings.speakerAdmin.statusProfileExists)}</dt>
           <dd>{String(st.profileExists)}</dd>
+          <dt className="text-app-muted-foreground">{t(strings.speakerAdmin.statusExtraction)}</dt>
+          <dd>{String(cfg.extractionEnabled)}</dd>
         </dl>
       </Panel>
 
@@ -117,7 +119,8 @@ export function SpeakerVerificationPage() {
             const threshold = parseFloat(field("threshold", "0"));
             const mode = field("mode", "filter") as SpeakerModeLabel;
             const rejectBehavior = field("rejectBehavior", "drop") as RejectBehaviorLabel;
-            saveMut.mutate({ enabled, threshold, mode, rejectBehavior });
+            const extractionEnabled = fd.get("extraction") === "on";
+            saveMut.mutate({ enabled, threshold, mode, rejectBehavior, extractionEnabled });
           }}
         >
           <label className="flex items-center gap-2 text-sm">
@@ -159,6 +162,11 @@ export function SpeakerVerificationPage() {
               <option value="show-muted">{t(strings.speakerAdmin.rejectShowMuted)}</option>
             </select>
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="extraction" defaultChecked={cfg.extractionEnabled} />
+            {t(strings.speakerAdmin.configExtraction)}
+          </label>
+          <span className="text-xs text-app-muted-foreground">{t(strings.speakerAdmin.extractionHelp)}</span>
           <div>
             <Button type="submit" disabled={saveMut.isPending}>
               {t(strings.speakerAdmin.saveChanges)}

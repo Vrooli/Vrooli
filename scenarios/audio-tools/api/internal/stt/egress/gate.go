@@ -55,6 +55,11 @@ type SegmentDecision struct {
 	// profile) under FallbackWithoutVerification semantics. Surfaced on the
 	// rejection event so the consumer knows verification did not actually run.
 	FallbackUsed bool
+	// Score / Threshold are stamped by the speaker stage from the isolation
+	// verdict so the rejection event can carry the real similarity numbers to
+	// the UI banner. Gate-only — stripped before the segment reaches the wire.
+	Score     float64
+	Threshold float64
 }
 
 // Stage is one ordered post-recognition check. A stage is pure with respect

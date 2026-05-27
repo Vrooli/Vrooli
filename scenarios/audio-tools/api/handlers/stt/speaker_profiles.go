@@ -101,13 +101,33 @@ func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	speakerCfgMu.Lock()
+	d := speakerCfg
+	changed := false
 	if m.AddToActive != nil && *m.AddToActive {
-		speakerCfg.ProfileIDs = append(speakerCfg.ProfileIDs, id)
+		d.ProfileIDs = appendUnique(d.ProfileIDs, id)
+		changed = true
 	}
 	if m.Enable != nil && *m.Enable {
-		speakerCfg.Enabled = true
+		d.Enabled = true
+		// "Enabled" with mode=off is an inert dead state: the gate never runs,
+		// so enrollment appears to do nothing. Lift a freshly-enabled config to
+		// advisory (verify + annotate, never drops) so the enrolled voice
+		// actually takes effect. An explicit filter/advisory choice is preserved
+		// — only the inert "off" (or an unset mode) is replaced.
+		if d.Mode == "" || d.Mode == "off" {
+			d.Mode = "advisory"
+		}
+		changed = true
 	}
-	cfg := speakerCfg
+	// Persist the binding/enable so it survives a restart (loadPersistedSpeakerCfg
+	// rehydrates from the same row). Only write when something actually changed.
+	if changed {
+		if err := h.persistSpeakerCfgLocked(ctx, d); err != nil {
+			speakerCfgMu.Unlock()
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
+	cfg := d
 	speakerCfgMu.Unlock()
 	return connect.NewResponse(&sttv1.EnrollSpeakerProfileResponse{
 		Enrollment: &sttv1.SpeakerEnrollment{

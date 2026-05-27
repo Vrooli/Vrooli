@@ -53,6 +53,37 @@ var (
 	speakerCfg   = defaultSpeakerCfg()
 )
 
+// persistSpeakerCfgLocked writes the speaker-config doc to the persistent store
+// (when configured) and then commits it to the in-process cell. Persist happens
+// BEFORE the commit so an I/O failure leaves the cell and the stored row
+// consistent (no half-applied config). Callers MUST hold speakerCfgMu. Shared by
+// UpdateSpeakerConfig and the enroll handler so the durability invariant lives
+// in one place.
+func (h *connectHandler) persistSpeakerCfgLocked(ctx context.Context, d speakerCfgDoc) error {
+	if h.deps.SpeakerConfig != nil {
+		raw, err := json.Marshal(d)
+		if err != nil {
+			return fmt.Errorf("encode speaker config: %w", err)
+		}
+		if err := h.deps.SpeakerConfig.Set(ctx, string(raw)); err != nil {
+			return fmt.Errorf("persist speaker config: %w", err)
+		}
+	}
+	speakerCfg = d
+	return nil
+}
+
+// appendUnique returns list with v appended only when absent, in a freshly
+// allocated slice so callers never mutate a shared backing array.
+func appendUnique(list []string, v string) []string {
+	for _, x := range list {
+		if x == v {
+			return list
+		}
+	}
+	return append(append([]string{}, list...), v)
+}
+
 // speakerVerification adapts pipeline.EvaluateSpeaker (cosine-similarity
 // verification against the speaker-verification resource) to the
 // egress.SpeakerIsolation seam. It lives in the handler layer — not pipeline —
@@ -67,7 +98,7 @@ type speakerVerification struct {
 
 func (s speakerVerification) Evaluate(ctx context.Context, audio []byte) egress.SpeakerVerdict {
 	d := sttpipeline.EvaluateSpeaker(ctx, s.cfg, s.client, audio)
-	v := egress.SpeakerVerdict{Allowed: d.Allowed}
+	v := egress.SpeakerVerdict{Allowed: d.Allowed, Score: d.Score, Threshold: d.Threshold}
 	if !d.Allowed {
 		v.Reason = sttpipeline.FormatSpeakerDecisionError(d)
 	}
@@ -228,16 +259,9 @@ func (h *connectHandler) UpdateSpeakerConfig(ctx context.Context, req *connect.R
 	}
 	// Persist BEFORE committing to the cell so an I/O failure leaves the
 	// in-memory state and the stored row consistent (no half-applied config).
-	if h.deps.SpeakerConfig != nil {
-		raw, err := json.Marshal(d)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("encode speaker config: %w", err))
-		}
-		if err := h.deps.SpeakerConfig.Set(ctx, string(raw)); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("persist speaker config: %w", err))
-		}
+	if err := h.persistSpeakerCfgLocked(ctx, d); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	speakerCfg = d
 	return connect.NewResponse(&sttv1.UpdateSpeakerConfigResponse{Config: d.toProto()}), nil
 }
 

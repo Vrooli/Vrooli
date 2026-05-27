@@ -57,6 +57,8 @@ func protoForEvent(ev sttchain.StreamEvent) *sttv1.TranscribeStreamEvent {
 				SpeakerRejection: &sttv1.StreamSpeakerRejection{
 					Reason:       ev.SpeakerRejection.Reason,
 					FallbackUsed: ev.SpeakerRejection.FallbackUsed,
+					Score:        ev.SpeakerRejection.Score,
+					Threshold:    ev.SpeakerRejection.Threshold,
 				},
 			},
 		}

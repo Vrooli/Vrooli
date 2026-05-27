@@ -17,10 +17,26 @@ func TestSpeakerStage_AllowEmitsRejectBlocks(t *testing.T) {
 	out := allow.Apply(ctx, egress.SegmentDecision{Text: "hi", Audio: []byte("pcm"), Outcome: egress.Emit})
 	require.Equal(t, egress.Emit, out.Outcome)
 
-	reject := egress.SpeakerStage{Isolation: &mocks.FakeSpeakerIsolation{Verdict: egress.SpeakerVerdict{Allowed: false, Reason: "not enrolled"}}}
+	reject := egress.SpeakerStage{Isolation: &mocks.FakeSpeakerIsolation{Verdict: egress.SpeakerVerdict{Allowed: false, Reason: "not enrolled", Score: 0.12, Threshold: 0.7}}}
 	out = reject.Apply(ctx, egress.SegmentDecision{Text: "music", Audio: []byte("pcm"), Outcome: egress.Emit})
 	require.Equal(t, egress.Reject, out.Outcome)
 	require.Equal(t, "not enrolled", out.Reason)
+	// The verdict's similarity numbers must land on the decision so the
+	// rejection event (and the UI banner) can show the real score/threshold
+	// instead of 0.00/0.00.
+	require.InDelta(t, 0.12, out.Score, 1e-9)
+	require.InDelta(t, 0.7, out.Threshold, 1e-9)
+}
+
+// TestSpeakerStage_StampsScoreOnAllow proves the stage also carries the
+// similarity numbers when a segment is allowed — advisory-mode annotations
+// rely on the score being present even when nothing is dropped.
+func TestSpeakerStage_StampsScoreOnAllow(t *testing.T) {
+	stage := egress.SpeakerStage{Isolation: &mocks.FakeSpeakerIsolation{Verdict: egress.SpeakerVerdict{Allowed: true, Score: 0.88, Threshold: 0.7}}}
+	out := stage.Apply(context.Background(), egress.SegmentDecision{Text: "hi", Audio: []byte("pcm"), Outcome: egress.Emit})
+	require.Equal(t, egress.Emit, out.Outcome)
+	require.InDelta(t, 0.88, out.Score, 1e-9)
+	require.InDelta(t, 0.7, out.Threshold, 1e-9)
 }
 
 func TestSpeakerStage_FallbackFlagPropagates(t *testing.T) {

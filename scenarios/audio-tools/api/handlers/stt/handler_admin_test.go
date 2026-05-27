@@ -333,6 +333,61 @@ func TestEnrollSpeakerProfile_HappyPath(t *testing.T) {
 	require.Equal(t, "sp-Z", res.Msg.GetEnrollment().GetProfileId())
 	require.Contains(t, res.Msg.GetConfig().GetProfileIds(), "sp-Z")
 	require.True(t, res.Msg.GetConfig().GetEnabled())
+	// Enabling from the inert default (mode=off) lifts to advisory so the
+	// enrolled voice actually takes effect instead of staying a no-op.
+	require.Equal(t, sttv1.SpeakerMode_SPEAKER_MODE_ADVISORY, res.Msg.GetConfig().GetMode())
+}
+
+// TestEnrollSpeakerProfile_AutoAdvisoryPersistsAndPreservesExplicitMode covers
+// the enroll-side config contract: (1) enabling from the inert mode=off default
+// lifts to advisory and PERSISTS (survives a restart, like UpdateSpeakerConfig),
+// and (2) an explicit filter/advisory choice is never silently downgraded by a
+// later re-enroll.
+func TestEnrollSpeakerProfile_AutoAdvisoryPersistsAndPreservesExplicitMode(t *testing.T) {
+	scs := newSpeakerCfgStoreT(t)
+	resetSpeakerCfg()
+	t.Cleanup(resetSpeakerCfg)
+	sp := newSpeakerStoreT(t)
+
+	enable := true
+	addToActive := true
+	c1 := newSTTClient(t, Deps{Speaker: sp, SpeakerResource: fakeSpeakerResource(t), SpeakerConfig: scs})
+	res, err := c1.EnrollSpeakerProfile(context.Background(), connect.NewRequest(&sttv1.EnrollSpeakerProfileRequest{
+		ProfileId:   "sp-A",
+		DisplayName: "Ann",
+		Audio:       []byte("RAW-AUDIO-BYTES"),
+		AddToActive: &addToActive,
+		Enable:      &enable,
+	}))
+	require.NoError(t, err)
+	require.Equal(t, sttv1.SpeakerMode_SPEAKER_MODE_ADVISORY, res.Msg.GetConfig().GetMode())
+
+	// Restart: blow away the cell, rehydrate from the same store. advisory + the
+	// binding + enabled must all have been persisted by the enroll handler.
+	resetSpeakerCfg()
+	c2 := newSTTClient(t, Deps{Speaker: sp, SpeakerResource: fakeSpeakerResource(t), SpeakerConfig: scs})
+	got, err := c2.GetSpeakerConfig(context.Background(), connect.NewRequest(&sttv1.GetSpeakerConfigRequest{}))
+	require.NoError(t, err)
+	require.True(t, got.Msg.GetConfig().GetEnabled(), "enabled must persist across restart")
+	require.Equal(t, sttv1.SpeakerMode_SPEAKER_MODE_ADVISORY, got.Msg.GetConfig().GetMode())
+	require.Contains(t, got.Msg.GetConfig().GetProfileIds(), "sp-A")
+
+	// Operator deliberately switches to filter; a later re-enroll must NOT
+	// downgrade that explicit choice back to advisory.
+	_, err = c2.UpdateSpeakerConfig(context.Background(), connect.NewRequest(&sttv1.UpdateSpeakerConfigRequest{
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"mode"}},
+		Config:     &sttv1.SpeakerConfig{Mode: sttv1.SpeakerMode_SPEAKER_MODE_FILTER},
+	}))
+	require.NoError(t, err)
+	res2, err := c2.EnrollSpeakerProfile(context.Background(), connect.NewRequest(&sttv1.EnrollSpeakerProfileRequest{
+		ProfileId:   "sp-B",
+		DisplayName: "Bea",
+		Audio:       []byte("RAW-AUDIO-BYTES"),
+		AddToActive: &addToActive,
+		Enable:      &enable,
+	}))
+	require.NoError(t, err)
+	require.Equal(t, sttv1.SpeakerMode_SPEAKER_MODE_FILTER, res2.Msg.GetConfig().GetMode(), "explicit filter must not be downgraded")
 }
 
 func TestEnrollSpeakerProfile_AudioRequired(t *testing.T) {

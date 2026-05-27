@@ -613,6 +613,7 @@ func (h *handlers) speakerStatus(ctx cliapp.RunContext) error {
 	fmt.Fprintf(ctx.Stdout(), "  threshold       = %.2f\n", cfg.GetThreshold())
 	fmt.Fprintf(ctx.Stdout(), "  reject_behavior = %s\n", rejectBehaviorLabel(cfg.GetRejectBehavior()))
 	fmt.Fprintf(ctx.Stdout(), "  active_profiles = %v\n", cfg.GetProfileIds())
+	fmt.Fprintf(ctx.Stdout(), "  extraction      = %t\n", cfg.GetExtractionEnabled())
 	fmt.Fprintf(ctx.Stdout(), "  enrolled        = %d profile(s)\n", st.GetProfileCount())
 	for _, p := range st.GetProfiles() {
 		active := ""

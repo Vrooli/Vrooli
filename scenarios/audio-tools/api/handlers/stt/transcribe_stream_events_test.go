@@ -42,3 +42,24 @@ func TestProtoForEvent_VadStateNilDropsEvent(t *testing.T) {
 	got := protoForEvent(sttchain.StreamEvent{Kind: sttchain.StreamEventVadState, VadState: nil})
 	require.Nil(t, got)
 }
+
+// TestProtoForEvent_SpeakerRejectionCarriesScore asserts the chain→proto
+// bridge forwards the similarity score and threshold so the Connect transport
+// surfaces the same numbers as the WS transport — without them the rejection
+// banner can only show 0.00/0.00.
+func TestProtoForEvent_SpeakerRejectionCarriesScore(t *testing.T) {
+	in := sttchain.StreamEvent{
+		Kind: sttchain.StreamEventSpeakerRejection,
+		SpeakerRejection: &sttchain.SpeakerRejectionEvent{
+			Reason:    "speaker verification failed",
+			Score:     0.42,
+			Threshold: 0.7,
+		},
+	}
+	got := protoForEvent(in)
+	require.NotNil(t, got)
+	sr, ok := got.Event.(*sttv1.TranscribeStreamEvent_SpeakerRejection)
+	require.True(t, ok, "envelope must hold a SpeakerRejection oneof; got %T", got.Event)
+	require.InDelta(t, 0.42, sr.SpeakerRejection.GetScore(), 1e-9)
+	require.InDelta(t, 0.7, sr.SpeakerRejection.GetThreshold(), 1e-9)
+}

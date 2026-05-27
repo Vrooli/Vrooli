@@ -76,6 +76,10 @@ func TestSpeakerVerificationIsolation_RejectsNonMatch(t *testing.T) {
 	dec := egress.SpeakerStage{Isolation: iso}.Apply(context.Background(), egress.SegmentDecision{Text: "nickelback lyrics", Audio: []byte("pcm")})
 	require.Equal(t, egress.Reject, dec.Outcome)
 	require.NotEmpty(t, dec.Reason)
+	// The real resource score (0.1) and configured threshold (0.35) must reach
+	// the decision so the rejection banner shows them rather than 0.00/0.00.
+	require.InDelta(t, 0.1, dec.Score, 1e-6)
+	require.InDelta(t, 0.35, dec.Threshold, 1e-6)
 }
 
 // TestSpeakerVerificationIsolation_FallbackWhenNoProfile proves fallback

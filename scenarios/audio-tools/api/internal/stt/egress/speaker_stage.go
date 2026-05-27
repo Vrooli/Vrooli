@@ -18,6 +18,12 @@ type SpeakerVerdict struct {
 	// FallbackWithoutVerification semantics — surfaced so the consumer knows
 	// the gate did not truly verify.
 	FallbackUsed bool
+	// Score is the best cosine-similarity the active profiles produced for this
+	// segment (0 when verification could not run). Threshold is the configured
+	// match cutoff. Both are surfaced on the rejection event so the UI banner
+	// can show the real "score X < threshold Y" instead of 0.00/0.00.
+	Score     float64
+	Threshold float64
 }
 
 // SpeakerIsolation is the pluggable audio-domain identity check for the EGRESS
@@ -53,6 +59,8 @@ func (s SpeakerStage) Apply(ctx context.Context, in SegmentDecision) SegmentDeci
 		return in // no isolation wired, or no audio to verify -> emit unchanged
 	}
 	v := s.Isolation.Evaluate(ctx, in.Audio)
+	in.Score = v.Score
+	in.Threshold = v.Threshold
 	if v.Allowed {
 		in.FallbackUsed = v.FallbackUsed
 		return in

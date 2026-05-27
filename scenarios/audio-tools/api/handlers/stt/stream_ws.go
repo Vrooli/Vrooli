@@ -160,7 +160,11 @@ func StreamWSHandler(d Deps) http.Handler {
 				}
 			case sttchain.StreamEventSpeakerRejection:
 				if ev.SpeakerRejection != nil {
-					writeJSON(wsMessage{Type: wsMsgSegmentRejected})
+					writeJSON(wsMessage{
+						Type:      wsMsgSegmentRejected,
+						Score:     ev.SpeakerRejection.Score,
+						Threshold: ev.SpeakerRejection.Threshold,
+					})
 				}
 			case sttchain.StreamEventError:
 				msg := ""

@@ -271,6 +271,12 @@ type WakeWordEvent struct {
 type SpeakerRejectionEvent struct {
 	Reason       string
 	FallbackUsed bool
+	// Score is the best cosine-similarity the active profiles produced for the
+	// rejected segment (0 when verification could not run); Threshold is the
+	// configured match cutoff. The browser transport forwards both so the
+	// rejection banner shows the real numbers rather than 0.00/0.00.
+	Score     float64
+	Threshold float64
 }
 
 // VadStateEvent is a periodic snapshot of the server-side VAD silence

@@ -3552,9 +3552,16 @@ func (x *StreamWakeWord) GetSampleId() string {
 }
 
 type StreamSpeakerRejection struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Reason        string                 `protobuf:"bytes,1,opt,name=reason,proto3" json:"reason,omitempty"`
-	FallbackUsed  bool                   `protobuf:"varint,2,opt,name=fallback_used,json=fallbackUsed,proto3" json:"fallback_used,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Reason       string                 `protobuf:"bytes,1,opt,name=reason,proto3" json:"reason,omitempty"`
+	FallbackUsed bool                   `protobuf:"varint,2,opt,name=fallback_used,json=fallbackUsed,proto3" json:"fallback_used,omitempty"`
+	// score is the best cosine-similarity the active speaker profiles produced
+	// for the rejected segment (0 when verification could not actually run);
+	// threshold is the configured match cutoff. Clients surface "score X <
+	// threshold Y" on the rejection banner — without these the banner can only
+	// show 0.00/0.00.
+	Score         float64 `protobuf:"fixed64,3,opt,name=score,proto3" json:"score,omitempty"`
+	Threshold     float64 `protobuf:"fixed64,4,opt,name=threshold,proto3" json:"threshold,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3601,6 +3608,20 @@ func (x *StreamSpeakerRejection) GetFallbackUsed() bool {
 		return x.FallbackUsed
 	}
 	return false
+}
+
+func (x *StreamSpeakerRejection) GetScore() float64 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+func (x *StreamSpeakerRejection) GetThreshold() float64 {
+	if x != nil {
+		return x.Threshold
+	}
+	return 0
 }
 
 type StreamError struct {
@@ -4077,10 +4098,12 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\x04text\x18\x01 \x01(\tR\x04text\"C\n" +
 	"\x0eStreamWakeWord\x12\x14\n" +
 	"\x05score\x18\x01 \x01(\x01R\x05score\x12\x1b\n" +
-	"\tsample_id\x18\x02 \x01(\tR\bsampleId\"U\n" +
+	"\tsample_id\x18\x02 \x01(\tR\bsampleId\"\x89\x01\n" +
 	"\x16StreamSpeakerRejection\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12#\n" +
-	"\rfallback_used\x18\x02 \x01(\bR\ffallbackUsed\";\n" +
+	"\rfallback_used\x18\x02 \x01(\bR\ffallbackUsed\x12\x14\n" +
+	"\x05score\x18\x03 \x01(\x01R\x05score\x12\x1c\n" +
+	"\tthreshold\x18\x04 \x01(\x01R\tthreshold\";\n" +
 	"\vStreamError\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"\xcb\x01\n" +
