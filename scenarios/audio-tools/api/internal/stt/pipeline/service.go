@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"audio-tools/internal/audioformat"
 	"audio-tools/internal/capabilities"
 	"audio-tools/internal/logx"
 )
@@ -37,7 +38,13 @@ type Service struct {
 
 	whisperURL string
 	httpClient HTTPDoer
-	transcode  func(context.Context, []byte) ([]byte, error)
+	engine     *audioformat.Engine
+	// whisperSem bounds concurrent Whisper /asr calls to the resource's
+	// documented ceiling (5). Over-limit callers BLOCK on acquire (queue
+	// with backpressure) — they never error. The cap is the real
+	// multi-session ceiling, upstream of the audio-format layer; the format
+	// substrate must not mask it. nil disables the bound.
+	whisperSem chan struct{}
 	Logger     logx.Logger
 }
 
@@ -57,8 +64,8 @@ func (s *Service) SetLogger(l logx.Logger) {
 	s.Logger = l
 }
 
-// NewService constructs a Service. transcodeFn may be nil — TranscribeBytes
-// then passes the raw audio through.
+// NewService constructs a Service. engine may be nil — the Service then
+// builds a default audioformat.Engine (production ffmpeg backends).
 func NewService(
 	cfg Config,
 	cfgPath string,
@@ -71,9 +78,13 @@ func NewService(
 	skipVerifyCount *atomic.Int64,
 	whisperURL string,
 	httpClient HTTPDoer,
-	transcode func(context.Context, []byte) ([]byte, error),
+	engine *audioformat.Engine,
 ) *Service {
+	if engine == nil {
+		engine = audioformat.New()
+	}
 	return &Service{
+		whisperSem:      make(chan struct{}, DefaultWhisperConcurrency),
 		config:          cfg,
 		configPath:      cfgPath,
 		wakeWord:        wake,
@@ -85,7 +96,7 @@ func NewService(
 		skipVerifyCount: skipVerifyCount,
 		whisperURL:      whisperURL,
 		httpClient:      httpClient,
-		transcode:       transcode,
+		engine:          engine,
 	}
 }
 
@@ -96,9 +107,19 @@ func (s *Service) SetWhisperURL(u string) { s.whisperURL = u }
 // transcription transport.
 func (s *Service) SetHTTPClient(c HTTPDoer) { s.httpClient = c }
 
-// SetTranscode is provided for tests that need a passthrough transcoder.
-func (s *Service) SetTranscode(fn func(context.Context, []byte) ([]byte, error)) {
-	s.transcode = fn
+// SetEngine overrides the audio-format engine. Tests use this to inject
+// an Engine wired to a fake ffmpeg Runner / process.
+func (s *Service) SetEngine(e *audioformat.Engine) { s.engine = e }
+
+// SetWhisperConcurrency resizes the Whisper concurrency bound. n<=0
+// disables the bound. Intended for operator config and tests; existing
+// in-flight calls keep their slot until they finish.
+func (s *Service) SetWhisperConcurrency(n int) {
+	if n <= 0 {
+		s.whisperSem = nil
+		return
+	}
+	s.whisperSem = make(chan struct{}, n)
 }
 
 // SetSpeakerClient is provided for tests that need a custom resource client.
@@ -153,8 +174,19 @@ func (s *Service) SetWakeWordTemplate(tmpl *WakeWordTemplate) {
 	s.wakeWord = tmpl
 }
 
-func (s *Service) transcribe(ctx context.Context, audio []byte, language string, doTranscode bool, initialPrompt string) (string, error) {
-	return TranscribeBytes(ctx, s.whisperURL, s.httpClient, s.transcode, audio, language, doTranscode, initialPrompt)
+func (s *Service) transcribe(ctx context.Context, audio []byte, format, language, initialPrompt string) (string, error) {
+	// Bound concurrent Whisper calls to the resource cap; block (queue),
+	// never error, when full. ctx-aware so a cancelled session releases its
+	// place in line instead of deadlocking.
+	if s.whisperSem != nil {
+		select {
+		case s.whisperSem <- struct{}{}:
+			defer func() { <-s.whisperSem }()
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
+	return TranscribeBytes(ctx, s.whisperURL, s.httpClient, s.engine, audio, format, language, initialPrompt)
 }
 
 // ----- Pipeline state API -----
@@ -192,8 +224,12 @@ func (s *Service) FormatSpeakerDecisionError(d SpeakerDecision) string {
 	return FormatSpeakerDecisionError(d)
 }
 
-func (s *Service) Transcribe(ctx context.Context, audio []byte, language string) (string, error) {
-	return s.transcribe(ctx, audio, language, true, "")
+// Transcribe sends audio to Whisper. format is the audioformat codec
+// vocabulary describing the bytes ("webm", "pcm_s16le", "wav", ...);
+// empty means "sniff". The audioformat substrate wraps canonical PCM in a
+// WAV header and passes real containers straight to Whisper's own decoder.
+func (s *Service) Transcribe(ctx context.Context, audio []byte, format, language, initialPrompt string) (string, error) {
+	return s.transcribe(ctx, audio, format, language, initialPrompt)
 }
 
 func (s *Service) IsWhisperHallucination(text string) bool {

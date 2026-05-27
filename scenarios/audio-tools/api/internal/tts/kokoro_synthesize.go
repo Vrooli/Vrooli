@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"audio-tools/internal/audioformat"
 	"audio-tools/internal/httpc"
 )
 
@@ -79,15 +80,12 @@ func (k *KokoroSynthesizer) Synthesize(ctx context.Context, req SynthesizeReques
 	return resp.Body, contentType, nil
 }
 
+// responseFormatContentType is the fallback content type when the kokoro
+// resource omits its own Content-Type header. It delegates to the
+// audioformat substrate so the mapping is defined in exactly one place.
 func responseFormatContentType(format string) string {
-	switch format {
-	case "wav":
-		return "audio/wav"
-	case "opus":
-		return "audio/opus"
-	case "flac":
-		return "audio/flac"
-	default:
-		return "audio/mpeg"
+	if f, ok := audioformat.OutputFormatFromString(format); ok {
+		return f.ContentType()
 	}
+	return audioformat.OutputMP3.ContentType()
 }

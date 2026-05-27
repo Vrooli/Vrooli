@@ -10,6 +10,7 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/protomap"
 	"audio-tools/internal/stt/segmenter"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -97,14 +98,18 @@ func (h *connectHandler) TranscribeStream(
 		Language:                startCfg.Language,
 		InitialPrompt:           startCfg.InitialPrompt,
 		SkipSpeakerVerification: startCfg.SkipSpeakerVerification,
-		BYOKProvider:            env.Provider,
-		BYOKKey:                 env.Key,
-		LPBSToken:               env.LPBSToken,
-		UserIdentity:            env.UserIdentity,
+		// input_format declares the inbound codec; empty proto enum maps to
+		// "" so the Segmenter sniffs the first chunk.
+		InputFormat:     protomap.AudioFormatFromProto(startCfg.GetInputFormat()),
+		InputSampleRate: startCfg.GetInputSampleRateHz(),
+		BYOKProvider:    env.Provider,
+		BYOKKey:         env.Key,
+		LPBSToken:       env.LPBSToken,
+		UserIdentity:    env.UserIdentity,
 	}
 
 	events := make(chan sttchain.StreamEvent, 16)
-	seg := segmenter.New(segmenter.Deps{Chain: h.deps.Chain, Selector: h.deps.Selector})
+	seg := segmenter.New(segmenter.Deps{Chain: h.deps.Chain, Selector: h.deps.Selector, Engine: h.deps.Engine})
 	cfg := h.resolveStreamPipelineConfig(ctx)
 	runErrCh := make(chan error, 1)
 	go func() {

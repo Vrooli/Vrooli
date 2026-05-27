@@ -82,6 +82,7 @@ func (b *BufferedFallback) Run(
 run:
 	req := sttchain.Request{
 		Audio:                   buf,
+		Format:                  start.InputFormat,
 		Language:                start.Language,
 		InitialPrompt:           start.InitialPrompt,
 		SkipSpeakerVerification: start.SkipSpeakerVerification,

@@ -200,6 +200,27 @@ Lever rules (per [control-surface-tunable-levers-design]):
   precedence remains the fixed BYOK → Vrooli → Local order defined in
   the PRD.
 
+### Audio format: per-session declaration, not a lever
+
+The inbound **codec is per-session client-declared, not an operator
+lever**. Clients SHOULD declare it (WS `?format=` query param / Connect
+`StreamStart.input_format`); when omitted, the `internal/audioformat`
+substrate sniffs the first chunk's magic bytes. Declaring `pcm_s16le`
+takes an ffmpeg-free fast-path. The canonical internal STT representation
+(16-bit LE PCM, mono, 16 kHz) is **fixed, not tunable** — VAD RMS and
+Whisper both depend on it. ffmpeg low-latency decode flags
+(`-flush_packets 1`, decode-only, `-loglevel error`) are fixed-internal,
+not levers, for predictable latency and a minimal untrusted-input surface.
+
+### Whisper concurrency
+
+Local STT calls to the Whisper resource are bounded by a semaphore
+(`DefaultWhisperConcurrency = 5`, matching the resource cap in
+`resources/whisper/docs/API.md`). Over-limit callers **block (queue with
+backpressure), never error**; a cancelled session releases its slot. This
+is the true multi-session ceiling, upstream of the format layer — raising
+it means scaling the Whisper resource, not just the bound.
+
 ## Summarize model policy
 
 The local summarize provider uses Ollama. Model selection is centralized in

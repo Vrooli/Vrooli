@@ -119,7 +119,29 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Real fix:** Update `@audio-tools/embed` (or the browser WS upgrade in `handlers/stt/stream_ws.go`) to transcode WebM/Opus → PCM before the bytes reach the strategy. Cleanest path: AudioWorklet in the embed emits PCM frames directly. Alternative: ffmpeg-wasm or a Go-side WebM demuxer at the WS boundary.
 
+**Resolution (RESOLVED 2026-05-27):** Closed by the centralized audio-format substrate (`internal/audioformat`). The Segmenter now routes every PCM-consuming strategy's chunks through `audioformat`: a declared (or sniffed) codec is normalized to canonical PCM via **one long-lived ffmpeg process per session** (`audioformat.StreamDecoder`), so `VADSegmentStrategy`/`OverlapAgree` get clean PCM and emit live partials/segments against a WebM/Opus stream — no init-segment hack, server-side. `StreamStart` now carries `input_format`; the WS `format` query param + Connect `input_format` proto field declare the codec (declare-first, sniff-fallback). A `pcm_s16le` declaration takes an ffmpeg-free fast-path (the future AudioWorklet embed). When local ffmpeg is absent for a non-PCM stream the selector's capability gate downgrades to `BufferedFallback` (whole file → Whisper's own decoder), surfaced via `DoneEvent.FellBackToUnary`. The batch path and TTS egress route through the same substrate (`PrepareForWhisper` / `OutputFormat`).
+
+**Owner:** resolved.
+
+### 2026-05-27 — OverlapAgree sliding-window commit logic (deferred)
+
+**Symptom:** `OverlapAgree` (LocalAgreement) rarely commits text. It slides windows by `advanceBytes` (default WindowMs/2) but compares transcript prefixes across windows that cover *misaligned* audio spans, so the longest-agreed-prefix check rarely matches; the final tail flush emits only `buf[cursor:]`, dropping earlier committed text.
+
+**Root cause:** Algorithmic — the window advance and the prefix-agreement comparison are not aligned to the same audio offset. Independent of audio format.
+
+**Status:** Deferred / out of scope of the audio-format substrate work. That work only guarantees `OverlapAgree` now *receives clean canonical PCM* (previously it ran on compressed WebM bytes). The commit-logic rewrite is a distinct workstream; `VADSegment` remains the enabled default.
+
 **Owner:** unassigned.
+
+### 2026-05-27 — Whisper 5-concurrent ceiling (known capacity limit)
+
+**Symptom:** The local Whisper resource accepts at most 5 concurrent `/asr` requests (`resources/whisper/docs/API.md`). With many simultaneous streaming sessions (each calling `Transcribe` per VAD segment) plus batch uploads, the sidecar is the real throughput wall — upstream of the audio-format layer.
+
+**Mitigation (in place):** `pipeline.Service` bounds concurrent Whisper calls with a semaphore (`DefaultWhisperConcurrency = 5`); over-limit callers **block (queue with backpressure), never error**, and a cancelled session's ctx releases its place in line. The audio-format substrate must not mask this ceiling — one user looks fine, ten queue. Resizable via `SetWhisperConcurrency`.
+
+**Status:** Known limit, bounded. Raising it requires scaling the Whisper resource (more workers/replicas), not a code change here.
+
+**Owner:** resolved (bounded).
 
 **Refs:** `handlers/stt/stream_ws.go`, `internal/stt/strategy/webm.go`, `internal/stt/strategy/vad_segment.go`, `scenarios/audio-tools/embed/`.
 

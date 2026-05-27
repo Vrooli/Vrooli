@@ -41,6 +41,7 @@ func (r *recorderProvider) Model() string                    { return "fake" }
 func (r *recorderProvider) Traits() sttchain.ProviderTraits {
 	return sttchain.ProviderTraits{Batch: true}
 }
+
 func (r *recorderProvider) TranscribeStreaming(context.Context, sttchain.StreamStart, <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error) {
 	return nil, nil
 }

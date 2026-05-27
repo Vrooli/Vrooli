@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"audio-tools/internal/audioformat"
 	"audio-tools/internal/logx"
 )
 
@@ -17,13 +18,6 @@ const (
 	maxSummarizeTimeout      = 300
 	maxTTSSpeed              = 4.0
 )
-
-var formatContentTypes = map[string]struct{}{
-	"mp3":  {},
-	"wav":  {},
-	"opus": {},
-	"flac": {},
-}
 
 type CacheKey struct {
 	EventID string
@@ -184,9 +178,13 @@ func (s *Service) Synthesize(ctx context.Context, in SynthesizeInput) (Synthesiz
 		}
 	}
 	if normalized.ResponseFormat == "" {
-		normalized.ResponseFormat = "mp3"
+		normalized.ResponseFormat = string(audioformat.OutputMP3)
 	}
-	if _, ok := formatContentTypes[normalized.ResponseFormat]; !ok {
+	// The audioformat substrate is the single source of truth for the TTS
+	// output-format vocabulary (mp3/wav/opus/flac). The kokoro engine
+	// encodes to the requested format itself (as Whisper decodes ingress
+	// itself), so this is a vocabulary check, not a re-encode.
+	if _, ok := audioformat.OutputFormatFromString(normalized.ResponseFormat); !ok {
 		return SynthesizeResult{}, fmt.Errorf("%w: unsupported response_format; use mp3, wav, opus, or flac", ErrInvalidArgument)
 	}
 	if normalized.Speed <= 0 {

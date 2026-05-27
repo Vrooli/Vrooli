@@ -35,6 +35,7 @@
 | `sttchain.Chain.Probe` / `ttschain.Chain.Probe` / `summarizechain.Chain.Probe` | Inherited from embedded `*tiered.Coordinator` | `internal/ai/chains/tiered/tiered.go` | `handlers/tts` GetStatus + `cli/domains/settings` (`settings providers`) — returns `tiered.ProbeResult` |
 | `stt.MultipartTranscribeHandler` / `audio.multipartTranscodeHandler` | Concrete | `handlers/{stt,audio}/` | UI multipart upload paths |
 | `audio.Runner` + `audio.DefaultRunner` + `audio.SetFfmpegAvailableForTest` | Interface + var + test seam | `internal/audio/transcode.go` | `handlers/audio` unit tests substitute a fake Runner and seed ffmpeg presence so happy-path / error branches run without an ffmpeg binary on PATH |
+| `audioformat.ProcessRunner` / `audioformat.Process` / `audioformat.StreamDecoder` | Interface + per-session decoder | `internal/audioformat/stream.go` | streaming STT live decode (one ffmpeg child per non-PCM session); `FakeProcessRunner` keeps ffmpeg off the unit-test path |
 | `stt.StreamWSHandler` | Concrete | `handlers/stt/stream_ws.go` | mounts `/api/v1/voice/stream` over `voice.Service.HandleStreamWS` |
 | `stt.Segmenter` | Concrete | `internal/stt/segmenter/` | WS handler + Connect bidi handler (one impl, two transports) |
 | `stt.StrategySelector` | Concrete | `internal/stt/selector.go` | `stt.Segmenter` at session start |
@@ -252,6 +253,16 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Production wiring** | `runFfmpeg` / `runFfprobeJSON` in `internal/audio/` delegate to `DefaultRunner.Run(...)`. Tests swap `DefaultRunner` for the duration of the test, paired with `audio.SetFfmpegAvailableForTest(true, true)` to bypass the binary-presence cache. |
 | **Test fake** | `internal/audio/mocks::FakeRunner` (records `Calls`, returns canned `Stdout` / `Err`, optional `Respond(name, args)` for argv-aware behaviour). |
 | **Why it exists** | The binaries aren't available in CI runners or unit-test envs by default. Without the seam, every ops-level test (Transcode, Trim, Volume, Normalize, Split, Merge, Probe) would require ffmpeg on PATH — flaky at best, blocked at worst. The fake lets the same suite pin argv shape and per-format branches in isolation. |
+
+### audioformat streaming-decode seams (ProcessRunner / Process / StreamDecoder)
+
+| | |
+|---|---|
+| **Seam** | The long-lived ffmpeg decode subprocess the `internal/audioformat` substrate uses to convert a live, container-framed STT stream (WebM/Opus/…) into canonical PCM. One decoder per session; the PCM fast-path uses no process at all. |
+| **Interface** | `internal/audioformat/stream.go::ProcessRunner` (`Start(ctx, name, args) (Process, error)`) plus the `audioformat.Process` handle (`Write`/`Read`/`CloseInput`/`Close`) and the per-session `audioformat.StreamDecoder` it backs. Production wires `execProcessRunner` (a real `exec.CommandContext` ffmpeg child, ctx-bound so cancel kills it). |
+| **Production wiring** | `audioformat.New()` defaults `ProcessRunner = execProcessRunner{}`; `Engine.NewStreamDecoder(ctx, codec)` starts one process for non-PCM codecs and returns an identity decoder for `pcm_s16le`. The Segmenter owns the decoder lifecycle (feeder + adapter goroutines, teardown on return/ctx). |
+| **Test fake** | `internal/audioformat/mocks::FakeProcessRunner` / `FakeProcess` (in-memory pipes with a configurable transform; records `Start` argv; honors ctx cancel) and `mocks::FakeStreamDecoder`. They let stream/segmenter tests exercise decode + partial-frame buffering + ctx-cancel teardown without spawning ffmpeg. |
+| **Why it exists** | Streaming VAD/OverlapAgree run int16 RMS + byte slicing and require canonical PCM; the only way to decode a compressed live stream incrementally is a long-lived ffmpeg process. The seam keeps ffmpeg off the unit-test path and lets the goroutine-leak + alignment behavior be asserted deterministically. The one-shot ffmpeg (batch / TTS encode) keeps using the existing `audio.Runner` seam. |
 
 ### capabilities.Checker (runtime capability probe)
 

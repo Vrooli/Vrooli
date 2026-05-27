@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/audioformat"
 	"audio-tools/internal/stt"
 )
 
@@ -27,6 +28,10 @@ import (
 type Deps struct {
 	Chain    *sttchain.Chain
 	Selector *stt.Selector
+	// Engine is the audio-format substrate. The Segmenter routes inbound
+	// chunks through it to guarantee PCM-consuming strategies receive
+	// canonical PCM. May be nil — a default Engine is built lazily.
+	Engine *audioformat.Engine
 }
 
 // Segmenter is the per-session orchestrator. Construct via New, call
@@ -85,7 +90,30 @@ func (s *Segmenter) Run(
 	// In that case we proceed with the strategy and let its event
 	// stream carry the underlying problem.
 
-	return selection.Strategy.Run(ctx, start, chunks, events)
+	// PCM-consuming strategies (VADSegment, OverlapAgree) require canonical
+	// PCM. Route the inbound chunks through the audioformat substrate here
+	// — the single per-session injection point both transports inherit, so
+	// the WS and Connect paths cannot drift. BufferedFallback and
+	// Passthrough see the raw bytes (the former hands the whole file to
+	// Whisper, the latter's native provider decodes for itself).
+	pcmChunks := chunks
+	if requiresPCMDecode(selection.Kind) {
+		normalized, nstart, cleanup, nerr := s.normalizeChunks(ctx, start, chunks, events)
+		if nerr != nil {
+			return nerr // error + Done already emitted
+		}
+		defer cleanup()
+		pcmChunks = normalized
+		start = nstart
+	}
+
+	return selection.Strategy.Run(ctx, start, pcmChunks, events)
+}
+
+// requiresPCMDecode mirrors stt.Selector's gate: only VADSegment and
+// OverlapAgree consume canonical PCM frames.
+func requiresPCMDecode(kind sttchain.StrategyKind) bool {
+	return kind == sttchain.StrategyVADSegment || kind == sttchain.StrategyOverlapAgree
 }
 
 func emitTerminal(events chan<- sttchain.StreamEvent, err error) {

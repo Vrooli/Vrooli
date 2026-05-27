@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 
+	"audio-tools/internal/audioformat"
 	"audio-tools/internal/envx"
 	"audio-tools/internal/logx"
 )
@@ -31,6 +32,12 @@ func SetPackageLogger(l logx.Logger) logx.Logger {
 const (
 	MaxAudioSize                  = 10 << 20
 	MaxSpeakerEnrollmentAudioSize = 20 << 20
+
+	// DefaultWhisperConcurrency is the resource-documented ceiling on
+	// concurrent Whisper /asr requests (resources/whisper/docs/API.md).
+	// The Service bounds local STT calls to this so N>5 concurrent
+	// sessions queue instead of overrunning the sidecar.
+	DefaultWhisperConcurrency = 5
 )
 
 // seam: HTTPDoer sends outbound transcription requests. Production wires an
@@ -65,32 +72,43 @@ func ResolveWhisperURLWith(env envx.Reader) string {
 // TranscribeBytes sends audio bytes to the Whisper /asr endpoint and returns
 // the transcribed text.
 //
-// When transcode is non-nil and used, audio is transcoded to 16kHz mono WAV
-// via ffmpeg for best accuracy. The language parameter is an ISO-639-1 code
-// (e.g. "en"); when empty, Whisper auto-detects. initialPrompt provides
-// Whisper with context from previous transcription segments.
+// The audioformat engine owns container handling: canonical PCM is wrapped
+// in a WAV header (ffmpeg-free) and real containers pass straight to
+// Whisper's own decoder. format is the audioformat codec vocabulary
+// describing the bytes; empty triggers a magic-byte sniff. The language
+// parameter is an ISO-639-1 code (e.g. "en"); when empty, Whisper
+// auto-detects. initialPrompt provides Whisper with context from previous
+// transcription segments.
 func TranscribeBytes(
 	ctx context.Context,
 	whisperURL string,
 	httpClient HTTPDoer,
-	transcode func(context.Context, []byte) ([]byte, error),
+	engine *audioformat.Engine,
 	audio []byte,
+	format string,
 	language string,
-	doTranscode bool,
 	initialPrompt string,
 ) (string, error) {
-	filename := "recording.webm"
-	transcoded := audio
-	if doTranscode && transcode != nil {
-		out, tcErr := transcode(ctx, audio)
-		if tcErr != nil {
-			packageLogger.Printf("voice: transcode failed, sending raw: %v", tcErr)
-			out = audio
+	if engine == nil {
+		engine = audioformat.New()
+	}
+	codec := audioformat.CodecFromString(format)
+	if codec == audioformat.CodecUnknown {
+		// Undeclared: sniff the leading bytes. Detect returns ErrUnknownFormat
+		// if the stream is neither declared nor recognizable.
+		head := audio
+		if len(head) > 64 {
+			head = head[:64]
 		}
-		transcoded = out
-		if len(transcoded) > 0 && len(audio) > 0 && &transcoded[0] != &audio[0] {
-			filename = "recording.wav"
+		sniffed, derr := audioformat.Detect(audioformat.CodecUnknown, head)
+		if derr != nil {
+			return "", derr
 		}
+		codec = sniffed
+	}
+	transcoded, filename, err := engine.PrepareForWhisper(codec, audio)
+	if err != nil {
+		return "", err
 	}
 
 	targetURL := whisperURL

@@ -68,6 +68,10 @@ func AudioFormatToProto(s string) commonv1.AudioFormat {
 		return commonv1.AudioFormat_AUDIO_FORMAT_WEBM
 	case "opus":
 		return commonv1.AudioFormat_AUDIO_FORMAT_OPUS
+	case "aac":
+		return commonv1.AudioFormat_AUDIO_FORMAT_AAC
+	case "pcm_s16le", "pcm":
+		return commonv1.AudioFormat_AUDIO_FORMAT_PCM_S16LE
 	default:
 		return commonv1.AudioFormat_AUDIO_FORMAT_UNSPECIFIED
 	}
@@ -87,6 +91,10 @@ func AudioFormatFromProto(f commonv1.AudioFormat) string {
 		return "webm"
 	case commonv1.AudioFormat_AUDIO_FORMAT_OPUS:
 		return "opus"
+	case commonv1.AudioFormat_AUDIO_FORMAT_AAC:
+		return "aac"
+	case commonv1.AudioFormat_AUDIO_FORMAT_PCM_S16LE:
+		return "pcm_s16le"
 	default:
 		return ""
 	}

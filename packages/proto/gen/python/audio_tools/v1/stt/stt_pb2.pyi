@@ -416,16 +416,20 @@ class TranscribeStreamRequest(_message.Message):
     def __init__(self, start: _Optional[_Union[StreamStart, _Mapping]] = ..., audio_chunk: _Optional[bytes] = ..., end: _Optional[_Union[StreamEnd, _Mapping]] = ...) -> None: ...
 
 class StreamStart(_message.Message):
-    __slots__ = ("config", "language", "initial_prompt", "skip_speaker_verification")
+    __slots__ = ("config", "language", "initial_prompt", "skip_speaker_verification", "input_format", "input_sample_rate_hz")
     CONFIG_FIELD_NUMBER: _ClassVar[int]
     LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     INITIAL_PROMPT_FIELD_NUMBER: _ClassVar[int]
     SKIP_SPEAKER_VERIFICATION_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FORMAT_FIELD_NUMBER: _ClassVar[int]
+    INPUT_SAMPLE_RATE_HZ_FIELD_NUMBER: _ClassVar[int]
     config: StreamConfig
     language: str
     initial_prompt: str
     skip_speaker_verification: bool
-    def __init__(self, config: _Optional[_Union[StreamConfig, _Mapping]] = ..., language: _Optional[str] = ..., initial_prompt: _Optional[str] = ..., skip_speaker_verification: _Optional[bool] = ...) -> None: ...
+    input_format: _common_pb2.AudioFormat
+    input_sample_rate_hz: int
+    def __init__(self, config: _Optional[_Union[StreamConfig, _Mapping]] = ..., language: _Optional[str] = ..., initial_prompt: _Optional[str] = ..., skip_speaker_verification: _Optional[bool] = ..., input_format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., input_sample_rate_hz: _Optional[int] = ...) -> None: ...
 
 class StreamEnd(_message.Message):
     __slots__ = ()

@@ -22,6 +22,7 @@ import (
 	usageH "audio-tools/handlers/usage"
 
 	intaudio "audio-tools/internal/audio"
+	"audio-tools/internal/audioformat"
 	"audio-tools/internal/byok"
 	"audio-tools/internal/capabilities"
 	"audio-tools/internal/clock"
@@ -85,6 +86,11 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 	}
 	capsRegistry := capabilities.NewRegistry(capabilities.Known, capsCheckers, 30*time.Second)
 	skipVerifyCount := &atomic.Int64{}
+	// audioEngine is the single audio-format substrate: one instance shared
+	// across the STT pipeline (Whisper-container handling), the streaming
+	// Segmenter (live PCM decode), the selector capability gate, and TTS
+	// egress. It holds no per-session state.
+	audioEngine := audioformat.New()
 	voiceSvc := sttpipeline.NewService(
 		sttpipeline.Config{},
 		"", nil, "",
@@ -93,7 +99,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 		capsRegistry,
 		skipVerifyCount,
 		env.WhisperURL+"/asr?output=json",
-		doer, nil,
+		doer, audioEngine,
 	)
 
 	ttsCache := inttts.NewCache(64 * 1024 * 1024)
@@ -170,8 +176,9 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 		}),
 		sttH.Module(sttH.Deps{
 			Chain:        chs.STT,
-			Selector:     sttpkg.NewSelector(chs.STT),
+			Selector:     sttpkg.NewSelectorWith(chs.STT, audioEngine),
 			Voice:        voiceSvc,
+			Engine:       audioEngine,
 			Logger:       logger,
 			Clock:        clock.System{},
 			Usage:        usageRecorder,

@@ -145,6 +145,16 @@ type StreamStart struct {
 	InitialPrompt           string
 	SkipSpeakerVerification bool
 	SampleRate              int32 // 0 = adapter default
+	// InputFormat declares the codec of the inbound AudioChunk bytes
+	// (audioformat vocabulary: "webm", "opus", "pcm_s16le", ...). Empty
+	// means undeclared — the Segmenter sniffs the first chunk. The
+	// Segmenter rewrites this to "pcm_s16le" before handing the start to a
+	// PCM-consuming strategy, so a strategy's Request.Format always matches
+	// the bytes it actually holds.
+	InputFormat string
+	// InputSampleRate is a hint about the inbound bytes' sample rate; it
+	// never changes the fixed internal target (16 kHz). 0 = unknown.
+	InputSampleRate int32
 	// Per-request creds (same shape as Request) so streaming sessions
 	// can carry BYOK/LPBS credentials without piggy-backing on Request.
 	BYOKProvider string
@@ -153,8 +163,15 @@ type StreamStart struct {
 	UserIdentity string
 }
 
-// AudioChunk is one chunk of raw audio bytes in the stream input channel.
-// Format is implicit (provider-dependent; usually 16-bit PCM @ sample_rate).
+// AudioChunk is one chunk of audio bytes in the stream input channel.
+//
+// The codec is whatever StreamStart.InputFormat declared on ingress. By
+// the time a strategy consumes chunks, the Segmenter has routed them
+// through the audioformat substrate, so PCM-consuming strategies
+// (VADSegment, OverlapAgree) are guaranteed canonical 16-bit LE PCM,
+// mono, 16 kHz. The raw, pre-normalization bytes only ever reach
+// BufferedFallback (which hands the whole reassembled file to Whisper)
+// and Passthrough (whose native provider decodes for itself).
 type AudioChunk struct {
 	Audio []byte
 }

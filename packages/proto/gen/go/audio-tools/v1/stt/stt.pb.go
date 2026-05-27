@@ -2525,8 +2525,17 @@ type StreamStart struct {
 	Language                string                 `protobuf:"bytes,2,opt,name=language,proto3" json:"language,omitempty"`
 	InitialPrompt           string                 `protobuf:"bytes,3,opt,name=initial_prompt,json=initialPrompt,proto3" json:"initial_prompt,omitempty"`
 	SkipSpeakerVerification bool                   `protobuf:"varint,4,opt,name=skip_speaker_verification,json=skipSpeakerVerification,proto3" json:"skip_speaker_verification,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// input_format declares the codec of the audio bytes the client will
+	// send on this session. Clients SHOULD set it; the audioformat substrate
+	// sniffs as a fallback when it is AUDIO_FORMAT_UNSPECIFIED. Declaring
+	// AUDIO_FORMAT_PCM_S16LE takes the ffmpeg-free fast-path.
+	InputFormat common.AudioFormat `protobuf:"varint,5,opt,name=input_format,json=inputFormat,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"input_format,omitempty"`
+	// input_sample_rate_hz is a hint about the inbound bytes (e.g. a PCM
+	// capture rate). It does NOT change the fixed internal target
+	// (16 kHz mono); the substrate resamples to canonical regardless.
+	InputSampleRateHz int32 `protobuf:"varint,6,opt,name=input_sample_rate_hz,json=inputSampleRateHz,proto3" json:"input_sample_rate_hz,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *StreamStart) Reset() {
@@ -2585,6 +2594,20 @@ func (x *StreamStart) GetSkipSpeakerVerification() bool {
 		return x.SkipSpeakerVerification
 	}
 	return false
+}
+
+func (x *StreamStart) GetInputFormat() common.AudioFormat {
+	if x != nil {
+		return x.InputFormat
+	}
+	return common.AudioFormat(0)
+}
+
+func (x *StreamStart) GetInputSampleRateHz() int32 {
+	if x != nil {
+		return x.InputSampleRateHz
+	}
+	return 0
 }
 
 type StreamEnd struct {
@@ -3418,12 +3441,14 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\vaudio_chunk\x18\x02 \x01(\fH\x00R\n" +
 	"audioChunk\x128\n" +
 	"\x03end\x18\x03 \x01(\v2$.vrooli.audio_tools.v1.stt.StreamEndH\x00R\x03endB\t\n" +
-	"\apayload\"\xcd\x01\n" +
+	"\apayload\"\xcc\x02\n" +
 	"\vStreamStart\x12?\n" +
 	"\x06config\x18\x01 \x01(\v2'.vrooli.audio_tools.v1.stt.StreamConfigR\x06config\x12\x1a\n" +
 	"\blanguage\x18\x02 \x01(\tR\blanguage\x12%\n" +
 	"\x0einitial_prompt\x18\x03 \x01(\tR\rinitialPrompt\x12:\n" +
-	"\x19skip_speaker_verification\x18\x04 \x01(\bR\x17skipSpeakerVerification\"\v\n" +
+	"\x19skip_speaker_verification\x18\x04 \x01(\bR\x17skipSpeakerVerification\x12L\n" +
+	"\finput_format\x18\x05 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatR\vinputFormat\x12/\n" +
+	"\x14input_sample_rate_hz\x18\x06 \x01(\x05R\x11inputSampleRateHz\"\v\n" +
 	"\tStreamEnd\"\x9f\x04\n" +
 	"\x15TranscribeStreamEvent\x12D\n" +
 	"\asegment\x18\x01 \x01(\v2(.vrooli.audio_tools.v1.stt.StreamSegmentH\x00R\asegment\x12D\n" +
@@ -3608,24 +3633,25 @@ var file_audio_tools_v1_stt_stt_proto_depIdxs = []int32{
 	42, // 37: vrooli.audio_tools.v1.stt.TranscribeStreamRequest.start:type_name -> vrooli.audio_tools.v1.stt.StreamStart
 	43, // 38: vrooli.audio_tools.v1.stt.TranscribeStreamRequest.end:type_name -> vrooli.audio_tools.v1.stt.StreamEnd
 	6,  // 39: vrooli.audio_tools.v1.stt.StreamStart.config:type_name -> vrooli.audio_tools.v1.stt.StreamConfig
-	45, // 40: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.segment:type_name -> vrooli.audio_tools.v1.stt.StreamSegment
-	46, // 41: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.partial:type_name -> vrooli.audio_tools.v1.stt.StreamPartial
-	47, // 42: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.wake_word:type_name -> vrooli.audio_tools.v1.stt.StreamWakeWord
-	48, // 43: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.speaker_rejection:type_name -> vrooli.audio_tools.v1.stt.StreamSpeakerRejection
-	49, // 44: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.error:type_name -> vrooli.audio_tools.v1.stt.StreamError
-	51, // 45: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.done:type_name -> vrooli.audio_tools.v1.stt.StreamDone
-	50, // 46: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.vad_state:type_name -> vrooli.audio_tools.v1.stt.StreamVadState
-	53, // 47: vrooli.audio_tools.v1.stt.StreamSegment.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
-	53, // 48: vrooli.audio_tools.v1.stt.StreamDone.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
-	4,  // 49: vrooli.audio_tools.v1.stt.STTService.Transcribe:input_type -> vrooli.audio_tools.v1.stt.TranscribeRequest
-	41, // 50: vrooli.audio_tools.v1.stt.STTService.TranscribeStream:input_type -> vrooli.audio_tools.v1.stt.TranscribeStreamRequest
-	5,  // 51: vrooli.audio_tools.v1.stt.STTService.Transcribe:output_type -> vrooli.audio_tools.v1.stt.TranscribeResponse
-	44, // 52: vrooli.audio_tools.v1.stt.STTService.TranscribeStream:output_type -> vrooli.audio_tools.v1.stt.TranscribeStreamEvent
-	51, // [51:53] is the sub-list for method output_type
-	49, // [49:51] is the sub-list for method input_type
-	49, // [49:49] is the sub-list for extension type_name
-	49, // [49:49] is the sub-list for extension extendee
-	0,  // [0:49] is the sub-list for field type_name
+	52, // 40: vrooli.audio_tools.v1.stt.StreamStart.input_format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	45, // 41: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.segment:type_name -> vrooli.audio_tools.v1.stt.StreamSegment
+	46, // 42: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.partial:type_name -> vrooli.audio_tools.v1.stt.StreamPartial
+	47, // 43: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.wake_word:type_name -> vrooli.audio_tools.v1.stt.StreamWakeWord
+	48, // 44: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.speaker_rejection:type_name -> vrooli.audio_tools.v1.stt.StreamSpeakerRejection
+	49, // 45: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.error:type_name -> vrooli.audio_tools.v1.stt.StreamError
+	51, // 46: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.done:type_name -> vrooli.audio_tools.v1.stt.StreamDone
+	50, // 47: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.vad_state:type_name -> vrooli.audio_tools.v1.stt.StreamVadState
+	53, // 48: vrooli.audio_tools.v1.stt.StreamSegment.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
+	53, // 49: vrooli.audio_tools.v1.stt.StreamDone.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
+	4,  // 50: vrooli.audio_tools.v1.stt.STTService.Transcribe:input_type -> vrooli.audio_tools.v1.stt.TranscribeRequest
+	41, // 51: vrooli.audio_tools.v1.stt.STTService.TranscribeStream:input_type -> vrooli.audio_tools.v1.stt.TranscribeStreamRequest
+	5,  // 52: vrooli.audio_tools.v1.stt.STTService.Transcribe:output_type -> vrooli.audio_tools.v1.stt.TranscribeResponse
+	44, // 53: vrooli.audio_tools.v1.stt.STTService.TranscribeStream:output_type -> vrooli.audio_tools.v1.stt.TranscribeStreamEvent
+	52, // [52:54] is the sub-list for method output_type
+	50, // [50:52] is the sub-list for method input_type
+	50, // [50:50] is the sub-list for extension type_name
+	50, // [50:50] is the sub-list for extension extendee
+	0,  // [0:50] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_stt_stt_proto_init() }

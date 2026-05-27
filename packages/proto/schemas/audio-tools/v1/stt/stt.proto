@@ -374,6 +374,15 @@ message StreamStart {
   string language = 2;
   string initial_prompt = 3;
   bool skip_speaker_verification = 4;
+  // input_format declares the codec of the audio bytes the client will
+  // send on this session. Clients SHOULD set it; the audioformat substrate
+  // sniffs as a fallback when it is AUDIO_FORMAT_UNSPECIFIED. Declaring
+  // AUDIO_FORMAT_PCM_S16LE takes the ffmpeg-free fast-path.
+  vrooli.audio_tools.v1.common.AudioFormat input_format = 5;
+  // input_sample_rate_hz is a hint about the inbound bytes (e.g. a PCM
+  // capture rate). It does NOT change the fixed internal target
+  // (16 kHz mono); the substrate resamples to canonical regardless.
+  int32 input_sample_rate_hz = 6;
 }
 
 message StreamEnd {}

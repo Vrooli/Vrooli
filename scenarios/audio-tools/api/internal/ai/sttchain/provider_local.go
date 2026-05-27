@@ -57,7 +57,7 @@ func (p *LocalProvider) Transcribe(ctx context.Context, req Request) (*Result, e
 		clk = clock.System{}
 	}
 	start := clk.Now()
-	text, err := p.svc.Transcribe(ctx, req.Audio, req.Language)
+	text, err := p.svc.Transcribe(ctx, req.Audio, req.Format, req.Language, req.InitialPrompt)
 	if err != nil {
 		return nil, err
 	}

@@ -21,6 +21,7 @@ class AudioFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     AUDIO_FORMAT_WEBM: _ClassVar[AudioFormat]
     AUDIO_FORMAT_OPUS: _ClassVar[AudioFormat]
     AUDIO_FORMAT_AAC: _ClassVar[AudioFormat]
+    AUDIO_FORMAT_PCM_S16LE: _ClassVar[AudioFormat]
 
 class ResponseFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -54,6 +55,7 @@ AUDIO_FORMAT_OGG: AudioFormat
 AUDIO_FORMAT_WEBM: AudioFormat
 AUDIO_FORMAT_OPUS: AudioFormat
 AUDIO_FORMAT_AAC: AudioFormat
+AUDIO_FORMAT_PCM_S16LE: AudioFormat
 RESPONSE_FORMAT_UNSPECIFIED: ResponseFormat
 RESPONSE_FORMAT_MP3: ResponseFormat
 RESPONSE_FORMAT_WAV: ResponseFormat

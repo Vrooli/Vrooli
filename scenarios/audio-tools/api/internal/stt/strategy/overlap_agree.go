@@ -89,6 +89,7 @@ func (o *OverlapAgree) Run(
 	transcribe := func(audio []byte) (*sttchain.Result, error) {
 		req := sttchain.Request{
 			Audio:                   audio,
+			Format:                  start.InputFormat,
 			Language:                start.Language,
 			InitialPrompt:           committed,
 			SkipSpeakerVerification: start.SkipSpeakerVerification,

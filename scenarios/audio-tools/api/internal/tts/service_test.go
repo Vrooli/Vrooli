@@ -103,6 +103,29 @@ func TestServiceSynthesizeNormalizesAndCaches(t *testing.T) {
 	}
 }
 
+func TestServiceSynthesizeFormatValidation(t *testing.T) {
+	deps := testDeps()
+	deps.SynthesizeAudio = func(_ context.Context, in SynthesizeInput) (io.ReadCloser, string, error) {
+		return io.NopCloser(strings.NewReader("audio")), "audio/x", nil
+	}
+	svc := NewService(deps)
+
+	// Every advertised format is accepted (vocabulary owned by the
+	// audioformat substrate — flac included, no drift).
+	for _, f := range []string{"mp3", "wav", "opus", "flac"} {
+		_, err := svc.Synthesize(context.Background(), SynthesizeInput{Input: "hi", ResponseFormat: f})
+		if err != nil {
+			t.Fatalf("format %q should be accepted: %v", f, err)
+		}
+	}
+
+	// An unsupported format is a typed invalid-argument error.
+	_, err := svc.Synthesize(context.Background(), SynthesizeInput{Input: "hi", ResponseFormat: "aiff"})
+	if !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("expected ErrInvalidArgument for bad format, got %v", err)
+	}
+}
+
 func TestServiceListVoicesRequiresAvailableKokoro(t *testing.T) {
 	deps := testDeps()
 	deps.KokoroCapability = func(context.Context) (string, string) {

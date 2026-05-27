@@ -17,6 +17,7 @@ import (
 	"fmt"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/audioformat"
 	"audio-tools/internal/stt/strategy"
 )
 
@@ -133,11 +134,48 @@ type Selector struct {
 	// BatchExecutor is the unary chain dependency used to construct
 	// BufferedFallback strategies. Required.
 	BatchExecutor strategy.BatchExecutor
+
+	// Engine is the audio-format substrate, consulted by the capability
+	// gate to decide whether a live PCM decode is possible for the
+	// declared input format. May be nil (tests / no-decode-gate); a nil
+	// Engine is treated as "decode available" so the gate only downgrades
+	// when it can prove ffmpeg is missing.
+	Engine *audioformat.Engine
 }
 
-// NewSelector constructs a Selector with the given batch executor.
+// NewSelector constructs a Selector with the given batch executor and no
+// audio-format engine (the capability gate is permissive).
 func NewSelector(exec strategy.BatchExecutor) *Selector {
 	return &Selector{BatchExecutor: exec}
+}
+
+// NewSelectorWith constructs a Selector with a batch executor and the
+// audio-format engine used by the streaming capability gate.
+func NewSelectorWith(exec strategy.BatchExecutor, engine *audioformat.Engine) *Selector {
+	return &Selector{BatchExecutor: exec, Engine: engine}
+}
+
+// requiresPCMDecode reports whether the strategy consumes canonical PCM
+// frames (VADSegment and OverlapAgree run int16 RMS + byte slicing) and
+// therefore needs the inbound audio decoded to PCM before it runs.
+// BufferedFallback (whole-file → Whisper) and Passthrough (native provider
+// decodes) do not.
+func requiresPCMDecode(kind sttchain.StrategyKind) bool {
+	return kind == sttchain.StrategyVADSegment || kind == sttchain.StrategyOverlapAgree
+}
+
+// canDecodeStream reports whether a live PCM decoder can be built for the
+// declared input format: declared PCM takes the ffmpeg-free fast-path;
+// any other (or undeclared) format needs ffmpeg. A nil Engine is treated
+// as capable so the gate only downgrades on a proven-missing ffmpeg.
+func (s *Selector) canDecodeStream(inputFormat string) bool {
+	if audioformat.CodecFromString(inputFormat).IsCanonicalPCM() {
+		return true
+	}
+	if s.Engine == nil {
+		return true
+	}
+	return s.Engine.HasFfmpeg()
 }
 
 // Select chooses the (Strategy, Provider) pair for the session.
@@ -263,6 +301,19 @@ func (s *Selector) Select(
 			chosenStrategy = &strategy.BufferedFallback{Executor: s.BatchExecutor}
 			chosenKind = sttchain.StrategyBuffered
 		}
+	}
+
+	// Capability gate: a PCM-consuming strategy can only run if the
+	// Segmenter can produce live PCM for the declared input format. When it
+	// can't (non-PCM input + no ffmpeg), downgrade to BufferedFallback,
+	// which hands the whole reassembled file to Whisper's own decoder.
+	if requiresPCMDecode(chosenKind) && !s.canDecodeStream(start.InputFormat) {
+		return Selection{
+			Strategy: &strategy.BufferedFallback{Executor: s.BatchExecutor},
+			Provider: chosen.Provider,
+			Tier:     chosen.Tier,
+			Kind:     sttchain.StrategyBuffered,
+		}, nil
 	}
 
 	return Selection{

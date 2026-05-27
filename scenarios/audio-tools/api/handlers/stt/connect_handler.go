@@ -10,13 +10,14 @@ import (
 
 	"audio-tools/internal/ai/chains/tiered"
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/audioformat"
 	"audio-tools/internal/byok/envelope"
 	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/protomap"
+	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
 	sttpipeline "audio-tools/internal/stt/pipeline"
-	"audio-tools/internal/store"
 	"audio-tools/internal/usagereport"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -26,6 +27,7 @@ type Deps struct {
 	Chain        *sttchain.Chain
 	Selector     *sttpkg.Selector
 	Voice        *sttpipeline.Service
+	Engine       *audioformat.Engine
 	Logger       logx.Logger
 	Clock        clock.Clock
 	Usage        usagereport.Recorder

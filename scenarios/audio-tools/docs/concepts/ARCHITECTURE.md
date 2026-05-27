@@ -321,6 +321,35 @@ decoupling, capability table). The seams it introduces — `Segmenter`,
 `StrategySelector`, `StreamingStrategy` — are registered in
 [`../internal/SEAMS.md`](../internal/SEAMS.md#streaming-chain-seams-audio-tools-web-console-restoration-plan).
 
+### Audio-format substrate (`internal/audioformat`)
+
+`internal/audioformat` is the single owner of audio-format handling — the
+only package that knows ffmpeg argv or sniffs codec magic bytes. Everything
+that ingests or emits audio routes through it:
+
+- **STT streaming ingress:** the Segmenter normalizes inbound chunks to
+  canonical PCM (16-bit LE, mono, 16 kHz) via one long-lived ffmpeg process
+  per session (`StreamDecoder`); a declared `pcm_s16le` takes an
+  ffmpeg-free fast-path. This is the single injection point both transports
+  (WS + Connect bidi) inherit, so they cannot drift.
+- **STT batch ingress:** `PrepareForWhisper` wraps canonical PCM in a WAV
+  header (ffmpeg-free) and passes real containers straight through —
+  Whisper's own bundled ffmpeg decodes them, so the batch path needs no
+  local ffmpeg.
+- **TTS egress:** `OutputFormat` is the single source of truth for the TTS
+  format vocabulary + content types; the kokoro engine encodes to the
+  requested format itself (symmetric with Whisper decoding on ingress).
+
+Zone/import rule: `audioformat` may import stdlib and the `internal/audio`
+one-shot `Runner` seam only; it is imported by `internal/stt/*`,
+`internal/ai/sttchain`, and `internal/tts`. It holds no per-session state —
+every per-session decoder is created fresh (`NewStreamDecoder`) so
+concurrent sessions never share a process. The streaming-decode seams
+(`ProcessRunner`/`Process`/`StreamDecoder`) are registered in
+[`../internal/SEAMS.md`](../internal/SEAMS.md). The real multi-session
+ceiling is the Whisper resource's 5-concurrent cap, bounded by a semaphore
+in `pipeline.Service` (queue with backpressure, never error).
+
 ## Intentional Deviations
 
 Record deviations from the template or from Vrooli scenario standards

@@ -179,6 +179,7 @@ func (v *VADSegmenter) Run(
 
 		req := sttchain.Request{
 			Audio:                   seg,
+			Format:                  start.InputFormat,
 			Language:                start.Language,
 			InitialPrompt:           prompt,
 			SkipSpeakerVerification: start.SkipSpeakerVerification,

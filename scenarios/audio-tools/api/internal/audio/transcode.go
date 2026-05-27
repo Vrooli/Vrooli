@@ -39,6 +39,15 @@ func hasFfprobe() bool {
 	return ffprobeAvailable
 }
 
+// HasFfmpeg reports whether the ffmpeg binary is available on $PATH.
+// The result is cached. The audioformat substrate uses this to gate its
+// capability matrix and to choose the PCM fast-path over an ffmpeg decode.
+func HasFfmpeg() bool { return hasFfmpeg() }
+
+// HasFfprobe reports whether the ffprobe binary is available on $PATH.
+// The result is cached.
+func HasFfprobe() bool { return hasFfprobe() }
+
 // seam: Runner is the ffmpeg-process seam (SEAMS.md row "audio.Runner").
 // Production wires audio.DefaultRunner; tests wire mocks.FakeRunner.
 //

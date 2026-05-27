@@ -63,6 +63,12 @@ enum AudioFormat {
   AUDIO_FORMAT_WEBM = 5;
   AUDIO_FORMAT_OPUS = 6;
   AUDIO_FORMAT_AAC = 7;
+  // Raw 16-bit signed little-endian PCM with no container. This is the
+  // canonical internal STT representation (mono, 16 kHz); declaring it on
+  // a streaming session takes the ffmpeg-free fast-path. See the
+  // audioformat substrate (internal/audioformat) for the normalization
+  // contract.
+  AUDIO_FORMAT_PCM_S16LE = 8;
 }
 
 // ResponseFormat constrains TTS-synthesis output formats. The set is
