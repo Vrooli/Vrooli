@@ -36,3 +36,21 @@ func TestIsCanonicalPCM(t *testing.T) {
 	require.True(t, CodecPCMS16LE.IsCanonicalPCM())
 	require.False(t, CodecWebM.IsCanonicalPCM())
 }
+
+func TestAllInputCodecsVocabulary(t *testing.T) {
+	all := AllInputCodecs()
+	// Every member round-trips through proto and the wire string vocabulary,
+	// and none is CodecUnknown.
+	for _, c := range all {
+		require.NotEqual(t, CodecUnknown, c)
+		got, ok := FromProto(ToProto(c))
+		require.True(t, ok)
+		require.Equal(t, c, got)
+		require.Equal(t, c, CodecFromString(c.String()))
+	}
+	// PCM fast-path codec is always first (the always-accepted member).
+	require.Equal(t, CodecPCMS16LE, all[0])
+	// With ffmpeg, Engine.Accepts is exactly the full vocabulary.
+	e := New(WithFfmpegProbe(func() bool { return true }))
+	require.ElementsMatch(t, all, e.Accepts())
+}

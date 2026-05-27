@@ -20,6 +20,7 @@ import (
 	sttpipeline "audio-tools/internal/stt/pipeline"
 	"audio-tools/internal/usagereport"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
 
@@ -111,6 +112,29 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 		LatencyMs:        float64(res.Latency.Milliseconds()),
 	}
 	return resp, nil
+}
+
+// GetSupportedFormats reports the STT ingress capability matrix from the
+// audioformat substrate. It is informational and provider-agnostic: the
+// accepted-format vocabulary is the full set the API understands, and the
+// ffmpeg flag tells operators whether live non-PCM streams normalize
+// locally or degrade to buffered whole-file decode.
+func (h *connectHandler) GetSupportedFormats(_ context.Context, _ *connect.Request[sttv1.GetSupportedFormatsRequest]) (*connect.Response[sttv1.GetSupportedFormatsResponse], error) {
+	eng := h.deps.Engine
+	if eng == nil {
+		eng = audioformat.New()
+	}
+	codecs := audioformat.AllInputCodecs()
+	formats := make([]commonv1.AudioFormat, 0, len(codecs))
+	for _, c := range codecs {
+		formats = append(formats, audioformat.ToProto(c))
+	}
+	return connect.NewResponse(&sttv1.GetSupportedFormatsResponse{
+		AcceptedFormats:       formats,
+		FfmpegAvailable:       eng.HasFfmpeg(),
+		CanonicalSampleRateHz: audioformat.CanonicalSampleRate,
+		CanonicalChannels:     audioformat.CanonicalChannels,
+	}), nil
 }
 
 func mapChainError(err error) error {

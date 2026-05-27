@@ -38,6 +38,9 @@ const (
 	// STTServiceTranscribeStreamProcedure is the fully-qualified name of the STTService's
 	// TranscribeStream RPC.
 	STTServiceTranscribeStreamProcedure = "/vrooli.audio_tools.v1.stt.STTService/TranscribeStream"
+	// STTServiceGetSupportedFormatsProcedure is the fully-qualified name of the STTService's
+	// GetSupportedFormats RPC.
+	STTServiceGetSupportedFormatsProcedure = "/vrooli.audio_tools.v1.stt.STTService/GetSupportedFormats"
 )
 
 // STTServiceClient is a client for the vrooli.audio_tools.v1.stt.STTService service.
@@ -50,6 +53,11 @@ type STTServiceClient interface {
 	// the WebSocket transport for ecosystem-tooling reasons (recorded in
 	// SEAMS.md as TransportReason: websocket_transport).
 	TranscribeStream(context.Context) *connect.BidiStreamForClient[stt.TranscribeStreamRequest, stt.TranscribeStreamEvent]
+	// GetSupportedFormats reports the audio-format capability matrix for STT
+	// ingress: the input codecs the API accepts (the audioformat substrate's
+	// vocabulary) plus whether the local ffmpeg decode backend is present.
+	// It is purely informational — it backs `audio-tools stt formats`.
+	GetSupportedFormats(context.Context, *connect.Request[stt.GetSupportedFormatsRequest]) (*connect.Response[stt.GetSupportedFormatsResponse], error)
 }
 
 // NewSTTServiceClient constructs a client for the vrooli.audio_tools.v1.stt.STTService service. By
@@ -75,13 +83,20 @@ func NewSTTServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(sTTServiceMethods.ByName("TranscribeStream")),
 			connect.WithClientOptions(opts...),
 		),
+		getSupportedFormats: connect.NewClient[stt.GetSupportedFormatsRequest, stt.GetSupportedFormatsResponse](
+			httpClient,
+			baseURL+STTServiceGetSupportedFormatsProcedure,
+			connect.WithSchema(sTTServiceMethods.ByName("GetSupportedFormats")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // sTTServiceClient implements STTServiceClient.
 type sTTServiceClient struct {
-	transcribe       *connect.Client[stt.TranscribeRequest, stt.TranscribeResponse]
-	transcribeStream *connect.Client[stt.TranscribeStreamRequest, stt.TranscribeStreamEvent]
+	transcribe          *connect.Client[stt.TranscribeRequest, stt.TranscribeResponse]
+	transcribeStream    *connect.Client[stt.TranscribeStreamRequest, stt.TranscribeStreamEvent]
+	getSupportedFormats *connect.Client[stt.GetSupportedFormatsRequest, stt.GetSupportedFormatsResponse]
 }
 
 // Transcribe calls vrooli.audio_tools.v1.stt.STTService.Transcribe.
@@ -94,6 +109,11 @@ func (c *sTTServiceClient) TranscribeStream(ctx context.Context) *connect.BidiSt
 	return c.transcribeStream.CallBidiStream(ctx)
 }
 
+// GetSupportedFormats calls vrooli.audio_tools.v1.stt.STTService.GetSupportedFormats.
+func (c *sTTServiceClient) GetSupportedFormats(ctx context.Context, req *connect.Request[stt.GetSupportedFormatsRequest]) (*connect.Response[stt.GetSupportedFormatsResponse], error) {
+	return c.getSupportedFormats.CallUnary(ctx, req)
+}
+
 // STTServiceHandler is an implementation of the vrooli.audio_tools.v1.stt.STTService service.
 type STTServiceHandler interface {
 	Transcribe(context.Context, *connect.Request[stt.TranscribeRequest]) (*connect.Response[stt.TranscribeResponse], error)
@@ -104,6 +124,11 @@ type STTServiceHandler interface {
 	// the WebSocket transport for ecosystem-tooling reasons (recorded in
 	// SEAMS.md as TransportReason: websocket_transport).
 	TranscribeStream(context.Context, *connect.BidiStream[stt.TranscribeStreamRequest, stt.TranscribeStreamEvent]) error
+	// GetSupportedFormats reports the audio-format capability matrix for STT
+	// ingress: the input codecs the API accepts (the audioformat substrate's
+	// vocabulary) plus whether the local ffmpeg decode backend is present.
+	// It is purely informational — it backs `audio-tools stt formats`.
+	GetSupportedFormats(context.Context, *connect.Request[stt.GetSupportedFormatsRequest]) (*connect.Response[stt.GetSupportedFormatsResponse], error)
 }
 
 // NewSTTServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -125,12 +150,20 @@ func NewSTTServiceHandler(svc STTServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(sTTServiceMethods.ByName("TranscribeStream")),
 		connect.WithHandlerOptions(opts...),
 	)
+	sTTServiceGetSupportedFormatsHandler := connect.NewUnaryHandler(
+		STTServiceGetSupportedFormatsProcedure,
+		svc.GetSupportedFormats,
+		connect.WithSchema(sTTServiceMethods.ByName("GetSupportedFormats")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.audio_tools.v1.stt.STTService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case STTServiceTranscribeProcedure:
 			sTTServiceTranscribeHandler.ServeHTTP(w, r)
 		case STTServiceTranscribeStreamProcedure:
 			sTTServiceTranscribeStreamHandler.ServeHTTP(w, r)
+		case STTServiceGetSupportedFormatsProcedure:
+			sTTServiceGetSupportedFormatsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -146,4 +179,8 @@ func (UnimplementedSTTServiceHandler) Transcribe(context.Context, *connect.Reque
 
 func (UnimplementedSTTServiceHandler) TranscribeStream(context.Context, *connect.BidiStream[stt.TranscribeStreamRequest, stt.TranscribeStreamEvent]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.stt.STTService.TranscribeStream is not implemented"))
+}
+
+func (UnimplementedSTTServiceHandler) GetSupportedFormats(context.Context, *connect.Request[stt.GetSupportedFormatsRequest]) (*connect.Response[stt.GetSupportedFormatsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.stt.STTService.GetSupportedFormats is not implemented"))
 }

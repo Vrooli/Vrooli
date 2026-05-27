@@ -3,6 +3,7 @@ package tts
 import (
 	intsumm "audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
+	"audio-tools/internal/audioformat"
 	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
@@ -20,6 +21,7 @@ type Deps struct {
 	Chain          *ttschain.Chain
 	SummarizeChain *intsumm.Chain
 	TTSService     *inttts.Service
+	Engine         *audioformat.Engine
 	Logger         logx.Logger
 	Clock          clock.Clock
 	Usage          usagereport.Recorder

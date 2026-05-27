@@ -47,6 +47,12 @@ service STTService {
   // the WebSocket transport for ecosystem-tooling reasons (recorded in
   // SEAMS.md as TransportReason: websocket_transport).
   rpc TranscribeStream(stream TranscribeStreamRequest) returns (stream TranscribeStreamEvent);
+
+  // GetSupportedFormats reports the audio-format capability matrix for STT
+  // ingress: the input codecs the API accepts (the audioformat substrate's
+  // vocabulary) plus whether the local ffmpeg decode backend is present.
+  // It is purely informational — it backs `audio-tools stt formats`.
+  rpc GetSupportedFormats(GetSupportedFormatsRequest) returns (GetSupportedFormatsResponse);
 }
 
 // -----------------------------------------------------------------------------
@@ -150,6 +156,23 @@ message GetStreamConfigRequest {}
 
 message GetStreamConfigResponse {
   StreamConfig config = 1;
+}
+
+message GetSupportedFormatsRequest {}
+
+// GetSupportedFormatsResponse describes the STT ingress capability matrix.
+message GetSupportedFormatsResponse {
+  // Input codecs the API accepts as a `format`/`input_format` hint. Batch
+  // transcription always decodes these (Whisper has its own decoder); live
+  // streaming of non-PCM additionally requires ffmpeg_available=true.
+  repeated vrooli.audio_tools.v1.common.AudioFormat accepted_formats = 1;
+  // True when the local ffmpeg decode backend is present. When false, live
+  // streaming of a non-PCM codec degrades to buffered whole-file decode.
+  bool ffmpeg_available = 2;
+  // The fixed canonical internal representation Whisper + VAD consume. Not
+  // caller-tunable; reported so clients know the PCM fast-path target.
+  int32 canonical_sample_rate_hz = 3;
+  int32 canonical_channels = 4;
 }
 
 // UpdateStreamConfigRequest carries a FieldMask + a full StreamConfig

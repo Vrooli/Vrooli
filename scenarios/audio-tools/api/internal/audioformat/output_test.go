@@ -34,3 +34,23 @@ func TestOutputFormatFromProto(t *testing.T) {
 	_, ok = OutputFormatFromProto(commonv1.ResponseFormat_RESPONSE_FORMAT_UNSPECIFIED)
 	require.False(t, ok)
 }
+
+func TestOutputFormatProtoRoundTrip(t *testing.T) {
+	for _, f := range AllOutputFormats() {
+		got, ok := OutputFormatFromProto(OutputFormatToProto(f))
+		require.True(t, ok, "format %q must round-trip through proto", f)
+		require.Equal(t, f, got)
+	}
+	require.Equal(t,
+		commonv1.ResponseFormat_RESPONSE_FORMAT_UNSPECIFIED,
+		OutputFormatToProto(OutputFormat("aiff")))
+}
+
+func TestAllOutputFormatsIsTheFromStringVocabulary(t *testing.T) {
+	// AllOutputFormats is the single vocabulary source; every member must
+	// be accepted by OutputFormatFromString and vice-versa.
+	for _, f := range AllOutputFormats() {
+		_, ok := OutputFormatFromString(string(f))
+		require.True(t, ok, "AllOutputFormats member %q must be a valid format string", f)
+	}
+}

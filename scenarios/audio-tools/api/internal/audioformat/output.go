@@ -14,6 +14,16 @@ const (
 	OutputFLAC OutputFormat = "flac"
 )
 
+// AllOutputFormats returns every TTS output container this build
+// understands, in stable order. It is the response-format vocabulary the
+// TTS API accepts and produces: the local synthesis engine encodes to
+// these itself, so the set is independent of the substrate's own ffmpeg.
+// Engine.Emits reports the narrower ffmpeg-gated subset the substrate can
+// encode itself.
+func AllOutputFormats() []OutputFormat {
+	return []OutputFormat{OutputMP3, OutputWAV, OutputOpus, OutputFLAC}
+}
+
 // ContentType returns the HTTP content type for the encoded container.
 func (f OutputFormat) ContentType() string {
 	switch f {
@@ -38,6 +48,24 @@ func OutputFormatFromString(s string) (OutputFormat, bool) {
 		return OutputFormat(s), true
 	default:
 		return "", false
+	}
+}
+
+// OutputFormatToProto maps an OutputFormat back to its
+// common.ResponseFormat enum value. An unrecognized value maps to
+// RESPONSE_FORMAT_UNSPECIFIED.
+func OutputFormatToProto(f OutputFormat) commonv1.ResponseFormat {
+	switch f {
+	case OutputMP3:
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_MP3
+	case OutputWAV:
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_WAV
+	case OutputOpus:
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_OPUS
+	case OutputFLAC:
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_FLAC
+	default:
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_UNSPECIFIED
 	}
 }
 

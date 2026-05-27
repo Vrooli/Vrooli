@@ -24,8 +24,13 @@ import (
 
 type fakeSvc struct {
 	ttsconnect.UnimplementedTTSServiceHandler
-	synth  func(*ttsv1.SynthesizeRequest) (*ttsv1.SynthesizeResponse, error)
-	voices func() ([]*ttsv1.Voice, error)
+	synth   func(*ttsv1.SynthesizeRequest) (*ttsv1.SynthesizeResponse, error)
+	voices  func() ([]*ttsv1.Voice, error)
+	formats func() *ttsv1.GetSupportedFormatsResponse
+}
+
+func (f *fakeSvc) GetSupportedFormats(_ context.Context, _ *connect.Request[ttsv1.GetSupportedFormatsRequest]) (*connect.Response[ttsv1.GetSupportedFormatsResponse], error) {
+	return connect.NewResponse(f.formats()), nil
 }
 
 func (f *fakeSvc) Synthesize(_ context.Context, req *connect.Request[ttsv1.SynthesizeRequest]) (*connect.Response[ttsv1.SynthesizeResponse], error) {
@@ -50,6 +55,28 @@ func mountTTS(t *testing.T, svc ttsconnect.TTSServiceHandler) *cliapp.ScenarioAp
 	mux := http.NewServeMux()
 	mux.Handle(path, h)
 	return testutil.NewTestApp(t, mux)
+}
+
+// formats prints the producible output containers as human-readable lines.
+func TestFormats(t *testing.T) {
+	app := mountTTS(t, &fakeSvc{
+		formats: func() *ttsv1.GetSupportedFormatsResponse {
+			return &ttsv1.GetSupportedFormatsResponse{
+				EmittedFormats: []commonv1.ResponseFormat{
+					commonv1.ResponseFormat_RESPONSE_FORMAT_MP3,
+					commonv1.ResponseFormat_RESPONSE_FORMAT_FLAC,
+				},
+				FfmpegAvailable: true,
+			}
+		},
+	})
+	h := newHandlers(app)
+	ctx, buf := cliapptest.NewCapturedRunContext(app, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
+	require.NoError(t, h.formats(ctx))
+	out := buf.String()
+	require.Contains(t, out, "- mp3")
+	require.Contains(t, out, "- flac")
+	require.Contains(t, out, "ffmpeg encode backend = available")
 }
 
 // Happy path: synthesize writes the returned audio bytes to --out and

@@ -5,11 +5,10 @@ package audioformat
 // every container codec requires ffmpeg, so without it only PCM is
 // accepted. The list is sorted by Codec value for stable output.
 func (e *Engine) Accepts() []Codec {
-	out := []Codec{CodecPCMS16LE}
 	if e.hasFfmpeg() {
-		out = append(out, CodecWAV, CodecMP3, CodecFLAC, CodecOGG, CodecWebM, CodecOpus, CodecAAC)
+		return AllInputCodecs()
 	}
-	return out
+	return []Codec{CodecPCMS16LE}
 }
 
 // Emits returns the TTS output formats the engine can produce for egress.
@@ -17,7 +16,7 @@ func (e *Engine) Accepts() []Codec {
 // require ffmpeg.
 func (e *Engine) Emits() []OutputFormat {
 	if e.hasFfmpeg() {
-		return []OutputFormat{OutputMP3, OutputWAV, OutputOpus, OutputFLAC}
+		return AllOutputFormats()
 	}
 	return []OutputFormat{OutputWAV}
 }

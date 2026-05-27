@@ -45,6 +45,23 @@ func responseFormatFromFlag(s string) commonv1.ResponseFormat {
 	}
 }
 
+// responseFormatLabel renders a common.ResponseFormat as its lower-case
+// wire name for human output. Display inverse of responseFormatFromFlag.
+func responseFormatLabel(f commonv1.ResponseFormat) string {
+	switch f {
+	case commonv1.ResponseFormat_RESPONSE_FORMAT_MP3:
+		return "mp3"
+	case commonv1.ResponseFormat_RESPONSE_FORMAT_WAV:
+		return "wav"
+	case commonv1.ResponseFormat_RESPONSE_FORMAT_OPUS:
+		return "opus"
+	case commonv1.ResponseFormat_RESPONSE_FORMAT_FLAC:
+		return "flac"
+	default:
+		return "unspecified"
+	}
+}
+
 func providerTierLabel(t commonv1.ProviderTier) string {
 	switch t {
 	case commonv1.ProviderTier_PROVIDER_TIER_LOCAL:
@@ -184,6 +201,30 @@ func (h *handlers) synthesizeStream(ctx cliapp.RunContext) error {
 				totalBytes, contentTy, finalTier, finalID, finalModel, finalMs),
 		},
 	})
+}
+
+// formats prints the TTS egress capability matrix: the output containers
+// the API can produce for a --format. Human-friendly output per
+// feedback_cli_default_human_output.
+func (h *handlers) formats(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetSupportedFormats(context.Background(), connect.NewRequest(&ttsv1.GetSupportedFormatsRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("tts-formats", err, nil)
+	}
+	msg := resp.Msg
+	fmt.Fprintf(ctx.Stdout(), "TTS egress — producible output formats:\n")
+	for _, f := range msg.GetEmittedFormats() {
+		fmt.Fprintf(ctx.Stdout(), "  - %s\n", responseFormatLabel(f))
+	}
+	fmt.Fprintf(ctx.Stdout(), "ffmpeg encode backend = %s\n", availabilityLabel(msg.GetFfmpegAvailable()))
+	return nil
+}
+
+func availabilityLabel(ok bool) string {
+	if ok {
+		return "available"
+	}
+	return "unavailable"
 }
 
 func (h *handlers) voices(ctx cliapp.RunContext) error {

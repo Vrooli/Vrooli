@@ -51,6 +51,9 @@ const (
 	// TTSServiceRecordPlaybackEventProcedure is the fully-qualified name of the TTSService's
 	// RecordPlaybackEvent RPC.
 	TTSServiceRecordPlaybackEventProcedure = "/vrooli.audio_tools.v1.tts.TTSService/RecordPlaybackEvent"
+	// TTSServiceGetSupportedFormatsProcedure is the fully-qualified name of the TTSService's
+	// GetSupportedFormats RPC.
+	TTSServiceGetSupportedFormatsProcedure = "/vrooli.audio_tools.v1.tts.TTSService/GetSupportedFormats"
 	// TTSServiceNormalizeForSpeechProcedure is the fully-qualified name of the TTSService's
 	// NormalizeForSpeech RPC.
 	TTSServiceNormalizeForSpeechProcedure = "/vrooli.audio_tools.v1.tts.TTSService/NormalizeForSpeech"
@@ -75,6 +78,10 @@ type TTSServiceClient interface {
 	UpdateConfig(context.Context, *connect.Request[tts.UpdateConfigRequest]) (*connect.Response[tts.UpdateConfigResponse], error)
 	GetStatus(context.Context, *connect.Request[tts.GetStatusRequest]) (*connect.Response[tts.GetStatusResponse], error)
 	RecordPlaybackEvent(context.Context, *connect.Request[tts.RecordPlaybackEventRequest]) (*connect.Response[tts.RecordPlaybackEventResponse], error)
+	// GetSupportedFormats reports the TTS egress capability matrix: the
+	// response_format containers the API can produce. Purely informational —
+	// it backs `audio-tools tts formats`.
+	GetSupportedFormats(context.Context, *connect.Request[tts.GetSupportedFormatsRequest]) (*connect.Response[tts.GetSupportedFormatsResponse], error)
 	// Pure text-preparation helpers. Consumers normally batch these into a
 	// single per-utterance call. Kept on TTSService rather than a separate
 	// service because they are TTS-pipeline-specific.
@@ -141,6 +148,12 @@ func NewTTSServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(tTSServiceMethods.ByName("RecordPlaybackEvent")),
 			connect.WithClientOptions(opts...),
 		),
+		getSupportedFormats: connect.NewClient[tts.GetSupportedFormatsRequest, tts.GetSupportedFormatsResponse](
+			httpClient,
+			baseURL+TTSServiceGetSupportedFormatsProcedure,
+			connect.WithSchema(tTSServiceMethods.ByName("GetSupportedFormats")),
+			connect.WithClientOptions(opts...),
+		),
 		normalizeForSpeech: connect.NewClient[tts.NormalizeForSpeechRequest, tts.NormalizeForSpeechResponse](
 			httpClient,
 			baseURL+TTSServiceNormalizeForSpeechProcedure,
@@ -166,6 +179,7 @@ type tTSServiceClient struct {
 	updateConfig        *connect.Client[tts.UpdateConfigRequest, tts.UpdateConfigResponse]
 	getStatus           *connect.Client[tts.GetStatusRequest, tts.GetStatusResponse]
 	recordPlaybackEvent *connect.Client[tts.RecordPlaybackEventRequest, tts.RecordPlaybackEventResponse]
+	getSupportedFormats *connect.Client[tts.GetSupportedFormatsRequest, tts.GetSupportedFormatsResponse]
 	normalizeForSpeech  *connect.Client[tts.NormalizeForSpeechRequest, tts.NormalizeForSpeechResponse]
 	splitParagraphs     *connect.Client[tts.SplitParagraphsRequest, tts.SplitParagraphsResponse]
 }
@@ -210,6 +224,11 @@ func (c *tTSServiceClient) RecordPlaybackEvent(ctx context.Context, req *connect
 	return c.recordPlaybackEvent.CallUnary(ctx, req)
 }
 
+// GetSupportedFormats calls vrooli.audio_tools.v1.tts.TTSService.GetSupportedFormats.
+func (c *tTSServiceClient) GetSupportedFormats(ctx context.Context, req *connect.Request[tts.GetSupportedFormatsRequest]) (*connect.Response[tts.GetSupportedFormatsResponse], error) {
+	return c.getSupportedFormats.CallUnary(ctx, req)
+}
+
 // NormalizeForSpeech calls vrooli.audio_tools.v1.tts.TTSService.NormalizeForSpeech.
 func (c *tTSServiceClient) NormalizeForSpeech(ctx context.Context, req *connect.Request[tts.NormalizeForSpeechRequest]) (*connect.Response[tts.NormalizeForSpeechResponse], error) {
 	return c.normalizeForSpeech.CallUnary(ctx, req)
@@ -236,6 +255,10 @@ type TTSServiceHandler interface {
 	UpdateConfig(context.Context, *connect.Request[tts.UpdateConfigRequest]) (*connect.Response[tts.UpdateConfigResponse], error)
 	GetStatus(context.Context, *connect.Request[tts.GetStatusRequest]) (*connect.Response[tts.GetStatusResponse], error)
 	RecordPlaybackEvent(context.Context, *connect.Request[tts.RecordPlaybackEventRequest]) (*connect.Response[tts.RecordPlaybackEventResponse], error)
+	// GetSupportedFormats reports the TTS egress capability matrix: the
+	// response_format containers the API can produce. Purely informational —
+	// it backs `audio-tools tts formats`.
+	GetSupportedFormats(context.Context, *connect.Request[tts.GetSupportedFormatsRequest]) (*connect.Response[tts.GetSupportedFormatsResponse], error)
 	// Pure text-preparation helpers. Consumers normally batch these into a
 	// single per-utterance call. Kept on TTSService rather than a separate
 	// service because they are TTS-pipeline-specific.
@@ -298,6 +321,12 @@ func NewTTSServiceHandler(svc TTSServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(tTSServiceMethods.ByName("RecordPlaybackEvent")),
 		connect.WithHandlerOptions(opts...),
 	)
+	tTSServiceGetSupportedFormatsHandler := connect.NewUnaryHandler(
+		TTSServiceGetSupportedFormatsProcedure,
+		svc.GetSupportedFormats,
+		connect.WithSchema(tTSServiceMethods.ByName("GetSupportedFormats")),
+		connect.WithHandlerOptions(opts...),
+	)
 	tTSServiceNormalizeForSpeechHandler := connect.NewUnaryHandler(
 		TTSServiceNormalizeForSpeechProcedure,
 		svc.NormalizeForSpeech,
@@ -328,6 +357,8 @@ func NewTTSServiceHandler(svc TTSServiceHandler, opts ...connect.HandlerOption) 
 			tTSServiceGetStatusHandler.ServeHTTP(w, r)
 		case TTSServiceRecordPlaybackEventProcedure:
 			tTSServiceRecordPlaybackEventHandler.ServeHTTP(w, r)
+		case TTSServiceGetSupportedFormatsProcedure:
+			tTSServiceGetSupportedFormatsHandler.ServeHTTP(w, r)
 		case TTSServiceNormalizeForSpeechProcedure:
 			tTSServiceNormalizeForSpeechHandler.ServeHTTP(w, r)
 		case TTSServiceSplitParagraphsProcedure:
@@ -371,6 +402,10 @@ func (UnimplementedTTSServiceHandler) GetStatus(context.Context, *connect.Reques
 
 func (UnimplementedTTSServiceHandler) RecordPlaybackEvent(context.Context, *connect.Request[tts.RecordPlaybackEventRequest]) (*connect.Response[tts.RecordPlaybackEventResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.tts.TTSService.RecordPlaybackEvent is not implemented"))
+}
+
+func (UnimplementedTTSServiceHandler) GetSupportedFormats(context.Context, *connect.Request[tts.GetSupportedFormatsRequest]) (*connect.Response[tts.GetSupportedFormatsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.tts.TTSService.GetSupportedFormats is not implemented"))
 }
 
 func (UnimplementedTTSServiceHandler) NormalizeForSpeech(context.Context, *connect.Request[tts.NormalizeForSpeechRequest]) (*connect.Response[tts.NormalizeForSpeechResponse], error) {

@@ -46,6 +46,11 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				Description: "List canonical voices",
 				RunCtx:      h.voices,
 			},
+			{
+				Name:        "formats",
+				Description: "Show the TTS egress audio-format capability matrix (producible output containers).",
+				RunCtx:      h.formats,
+			},
 		},
 	}
 }

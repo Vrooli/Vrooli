@@ -52,6 +52,38 @@ func audioFormatFromFlag(s string) commonv1.AudioFormat {
 	}
 }
 
+// audioFormatLabel renders a common.AudioFormat as its lower-case wire
+// name for human output. It is the display inverse of audioFormatFromFlag.
+func audioFormatLabel(f commonv1.AudioFormat) string {
+	switch f {
+	case commonv1.AudioFormat_AUDIO_FORMAT_PCM_S16LE:
+		return "pcm_s16le"
+	case commonv1.AudioFormat_AUDIO_FORMAT_WAV:
+		return "wav"
+	case commonv1.AudioFormat_AUDIO_FORMAT_MP3:
+		return "mp3"
+	case commonv1.AudioFormat_AUDIO_FORMAT_FLAC:
+		return "flac"
+	case commonv1.AudioFormat_AUDIO_FORMAT_OGG:
+		return "ogg"
+	case commonv1.AudioFormat_AUDIO_FORMAT_WEBM:
+		return "webm"
+	case commonv1.AudioFormat_AUDIO_FORMAT_OPUS:
+		return "opus"
+	case commonv1.AudioFormat_AUDIO_FORMAT_AAC:
+		return "aac"
+	default:
+		return "unspecified"
+	}
+}
+
+func availabilityLabel(ok bool) string {
+	if ok {
+		return "available"
+	}
+	return "unavailable"
+}
+
 func providerTierLabel(t commonv1.ProviderTier) string {
 	switch t {
 	case commonv1.ProviderTier_PROVIDER_TIER_LOCAL:
@@ -224,6 +256,29 @@ func (h *handlers) transcribeStream(ctx cliapp.RunContext) error {
 		}
 	}
 	return lastErr
+}
+
+// formats prints the STT ingress capability matrix: the input codecs the
+// API accepts, whether the local ffmpeg decode backend is present, and the
+// fixed canonical PCM target. Human-friendly output per
+// feedback_cli_default_human_output.
+func (h *handlers) formats(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetSupportedFormats(context.Background(), connect.NewRequest(&sttv1.GetSupportedFormatsRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("stt-formats", err, nil)
+	}
+	msg := resp.Msg
+	fmt.Fprintf(ctx.Stdout(), "STT ingress — accepted input formats:\n")
+	for _, f := range msg.GetAcceptedFormats() {
+		fmt.Fprintf(ctx.Stdout(), "  - %s\n", audioFormatLabel(f))
+	}
+	fmt.Fprintf(ctx.Stdout(), "ffmpeg decode backend = %s\n", availabilityLabel(msg.GetFfmpegAvailable()))
+	fmt.Fprintf(ctx.Stdout(), "canonical PCM target  = %d Hz, %d channel(s), s16le\n",
+		msg.GetCanonicalSampleRateHz(), msg.GetCanonicalChannels())
+	if !msg.GetFfmpegAvailable() {
+		fmt.Fprintf(ctx.Stdout(), "note: ffmpeg absent — live non-PCM streams fall back to buffered whole-file decode.\n")
+	}
+	return nil
 }
 
 // streamConfigGet prints the resolved StreamConfig, including the five

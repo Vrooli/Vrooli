@@ -125,6 +125,22 @@ class GetStreamConfigResponse(_message.Message):
     config: StreamConfig
     def __init__(self, config: _Optional[_Union[StreamConfig, _Mapping]] = ...) -> None: ...
 
+class GetSupportedFormatsRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetSupportedFormatsResponse(_message.Message):
+    __slots__ = ("accepted_formats", "ffmpeg_available", "canonical_sample_rate_hz", "canonical_channels")
+    ACCEPTED_FORMATS_FIELD_NUMBER: _ClassVar[int]
+    FFMPEG_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    CANONICAL_SAMPLE_RATE_HZ_FIELD_NUMBER: _ClassVar[int]
+    CANONICAL_CHANNELS_FIELD_NUMBER: _ClassVar[int]
+    accepted_formats: _containers.RepeatedScalarFieldContainer[_common_pb2.AudioFormat]
+    ffmpeg_available: bool
+    canonical_sample_rate_hz: int
+    canonical_channels: int
+    def __init__(self, accepted_formats: _Optional[_Iterable[_Union[_common_pb2.AudioFormat, str]]] = ..., ffmpeg_available: _Optional[bool] = ..., canonical_sample_rate_hz: _Optional[int] = ..., canonical_channels: _Optional[int] = ...) -> None: ...
+
 class UpdateStreamConfigRequest(_message.Message):
     __slots__ = ("update_mask", "config")
     UPDATE_MASK_FIELD_NUMBER: _ClassVar[int]

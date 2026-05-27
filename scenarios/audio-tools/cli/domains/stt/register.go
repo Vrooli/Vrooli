@@ -37,6 +37,11 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				RunCtx: h.transcribeStream,
 			},
 			{
+				Name:        "formats",
+				Description: "Show the STT ingress audio-format capability matrix (accepted input codecs + ffmpeg/canonical-PCM status).",
+				RunCtx:      h.formats,
+			},
+			{
 				Name:        "stream-config",
 				Description: "Show the resolved streaming STT configuration (5 operator levers + legacy partial-window fields).",
 				RunCtx:      h.streamConfigGet,

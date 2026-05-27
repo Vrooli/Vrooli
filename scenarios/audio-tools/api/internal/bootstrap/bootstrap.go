@@ -201,6 +201,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 			Chain:          chs.TTS,
 			SummarizeChain: chs.Summarize,
 			TTSService:     ttsSvc,
+			Engine:         audioEngine,
 			Logger:         logger,
 			Clock:          clock.System{},
 			Usage:          usageRecorder,

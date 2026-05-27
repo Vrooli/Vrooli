@@ -10,11 +10,13 @@ import (
 
 	"audio-tools/internal/ai/chains/tiered"
 	"audio-tools/internal/ai/ttschain"
+	"audio-tools/internal/audioformat"
 	"audio-tools/internal/byok/envelope"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
 	"audio-tools/internal/text/normalizer"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 )
 
@@ -34,6 +36,26 @@ func NewConnectHandler(d Deps) *connectHandler {
 		panic("tts.NewConnectHandler requires Deps.Clock")
 	}
 	return &connectHandler{deps: d}
+}
+
+// GetSupportedFormats reports the TTS egress capability matrix from the
+// audioformat substrate. The emitted-format set is the full output
+// vocabulary (the synthesis engine encodes to these itself, so it does not
+// depend on the substrate's own ffmpeg); the ffmpeg flag is informational.
+func (h *connectHandler) GetSupportedFormats(_ context.Context, _ *connect.Request[ttsv1.GetSupportedFormatsRequest]) (*connect.Response[ttsv1.GetSupportedFormatsResponse], error) {
+	eng := h.deps.Engine
+	if eng == nil {
+		eng = audioformat.New()
+	}
+	outs := audioformat.AllOutputFormats()
+	formats := make([]commonv1.ResponseFormat, 0, len(outs))
+	for _, f := range outs {
+		formats = append(formats, audioformat.OutputFormatToProto(f))
+	}
+	return connect.NewResponse(&ttsv1.GetSupportedFormatsResponse{
+		EmittedFormats:  formats,
+		FfmpegAvailable: eng.HasFfmpeg(),
+	}), nil
 }
 
 // voiceOverridesFromProto translates the typed AdapterMapping list to

@@ -216,6 +216,18 @@ class RecordPlaybackEventResponse(_message.Message):
     status: str
     def __init__(self, status: _Optional[str] = ...) -> None: ...
 
+class GetSupportedFormatsRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetSupportedFormatsResponse(_message.Message):
+    __slots__ = ("emitted_formats", "ffmpeg_available")
+    EMITTED_FORMATS_FIELD_NUMBER: _ClassVar[int]
+    FFMPEG_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    emitted_formats: _containers.RepeatedScalarFieldContainer[_common_pb2.ResponseFormat]
+    ffmpeg_available: bool
+    def __init__(self, emitted_formats: _Optional[_Iterable[_Union[_common_pb2.ResponseFormat, str]]] = ..., ffmpeg_available: _Optional[bool] = ...) -> None: ...
+
 class NormalizeForSpeechRequest(_message.Message):
     __slots__ = ("text", "voice")
     TEXT_FIELD_NUMBER: _ClassVar[int]

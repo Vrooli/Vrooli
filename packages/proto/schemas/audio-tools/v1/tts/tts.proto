@@ -53,6 +53,11 @@ service TTSService {
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
   rpc RecordPlaybackEvent(RecordPlaybackEventRequest) returns (RecordPlaybackEventResponse);
 
+  // GetSupportedFormats reports the TTS egress capability matrix: the
+  // response_format containers the API can produce. Purely informational —
+  // it backs `audio-tools tts formats`.
+  rpc GetSupportedFormats(GetSupportedFormatsRequest) returns (GetSupportedFormatsResponse);
+
   // Pure text-preparation helpers. Consumers normally batch these into a
   // single per-utterance call. Kept on TTSService rather than a separate
   // service because they are TTS-pipeline-specific.
@@ -241,6 +246,19 @@ message RecordPlaybackEventRequest {
 
 message RecordPlaybackEventResponse {
   string status = 1;
+}
+
+message GetSupportedFormatsRequest {}
+
+// GetSupportedFormatsResponse describes the TTS egress capability matrix.
+message GetSupportedFormatsResponse {
+  // Output containers the API can produce for a `response_format`. The
+  // local synthesis engine encodes to these itself, so the set is fixed
+  // regardless of ffmpeg_available.
+  repeated vrooli.audio_tools.v1.common.ResponseFormat emitted_formats = 1;
+  // True when the local ffmpeg encode backend is present (informational;
+  // the synthesis engine does its own encoding).
+  bool ffmpeg_available = 2;
 }
 
 // -----------------------------------------------------------------------------

@@ -51,6 +51,16 @@ const (
 	CodecAAC
 )
 
+// AllInputCodecs returns every input codec this build understands, in
+// stable Codec order. It is the format vocabulary the STT API accepts:
+// batch transcription always decodes these (Whisper has its own decoder),
+// and live streaming decodes them when ffmpeg is present. Engine.Accepts
+// reports the narrower ffmpeg-gated subset the substrate can normalize
+// itself for the live path.
+func AllInputCodecs() []Codec {
+	return []Codec{CodecPCMS16LE, CodecWAV, CodecMP3, CodecFLAC, CodecOGG, CodecWebM, CodecOpus, CodecAAC}
+}
+
 // IsCanonicalPCM reports whether c is the raw-PCM fast-path codec (no
 // container, no decode required).
 func (c Codec) IsCanonicalPCM() bool { return c == CodecPCMS16LE }
