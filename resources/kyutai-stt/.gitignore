@@ -1,0 +1,10 @@
+/cli/cli
+/cli/cli.exe
+/cli/*.test
+/cli/coverage.out
+/cli/*.out
+/cli/*.prof
+/cli/*.manifest.json
+/cli/*.build.meta
+/docker/__pycache__/
+/docker/*.pyc

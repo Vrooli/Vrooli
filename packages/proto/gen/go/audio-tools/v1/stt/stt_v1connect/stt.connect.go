@@ -41,6 +41,8 @@ const (
 	// STTServiceGetSupportedFormatsProcedure is the fully-qualified name of the STTService's
 	// GetSupportedFormats RPC.
 	STTServiceGetSupportedFormatsProcedure = "/vrooli.audio_tools.v1.stt.STTService/GetSupportedFormats"
+	// STTServiceListEnginesProcedure is the fully-qualified name of the STTService's ListEngines RPC.
+	STTServiceListEnginesProcedure = "/vrooli.audio_tools.v1.stt.STTService/ListEngines"
 )
 
 // STTServiceClient is a client for the vrooli.audio_tools.v1.stt.STTService service.
@@ -58,6 +60,12 @@ type STTServiceClient interface {
 	// vocabulary) plus whether the local ffmpeg decode backend is present.
 	// It is purely informational — it backs `audio-tools stt formats`.
 	GetSupportedFormats(context.Context, *connect.Request[stt.GetSupportedFormatsRequest]) (*connect.Response[stt.GetSupportedFormatsResponse], error)
+	// ListEngines reports the selectable STT engines derived from the
+	// engine-capability manifest (internal/sttengine/manifest.json), with each
+	// engine's runtime availability. It backs the admin engine picker and
+	// `audio-tools stt engines`. The UI/CLI MUST read the engine list from here
+	// — never hardcode it — so adding an engine is a manifest-only change.
+	ListEngines(context.Context, *connect.Request[stt.ListEnginesRequest]) (*connect.Response[stt.ListEnginesResponse], error)
 }
 
 // NewSTTServiceClient constructs a client for the vrooli.audio_tools.v1.stt.STTService service. By
@@ -89,6 +97,12 @@ func NewSTTServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(sTTServiceMethods.ByName("GetSupportedFormats")),
 			connect.WithClientOptions(opts...),
 		),
+		listEngines: connect.NewClient[stt.ListEnginesRequest, stt.ListEnginesResponse](
+			httpClient,
+			baseURL+STTServiceListEnginesProcedure,
+			connect.WithSchema(sTTServiceMethods.ByName("ListEngines")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -97,6 +111,7 @@ type sTTServiceClient struct {
 	transcribe          *connect.Client[stt.TranscribeRequest, stt.TranscribeResponse]
 	transcribeStream    *connect.Client[stt.TranscribeStreamRequest, stt.TranscribeStreamEvent]
 	getSupportedFormats *connect.Client[stt.GetSupportedFormatsRequest, stt.GetSupportedFormatsResponse]
+	listEngines         *connect.Client[stt.ListEnginesRequest, stt.ListEnginesResponse]
 }
 
 // Transcribe calls vrooli.audio_tools.v1.stt.STTService.Transcribe.
@@ -114,6 +129,11 @@ func (c *sTTServiceClient) GetSupportedFormats(ctx context.Context, req *connect
 	return c.getSupportedFormats.CallUnary(ctx, req)
 }
 
+// ListEngines calls vrooli.audio_tools.v1.stt.STTService.ListEngines.
+func (c *sTTServiceClient) ListEngines(ctx context.Context, req *connect.Request[stt.ListEnginesRequest]) (*connect.Response[stt.ListEnginesResponse], error) {
+	return c.listEngines.CallUnary(ctx, req)
+}
+
 // STTServiceHandler is an implementation of the vrooli.audio_tools.v1.stt.STTService service.
 type STTServiceHandler interface {
 	Transcribe(context.Context, *connect.Request[stt.TranscribeRequest]) (*connect.Response[stt.TranscribeResponse], error)
@@ -129,6 +149,12 @@ type STTServiceHandler interface {
 	// vocabulary) plus whether the local ffmpeg decode backend is present.
 	// It is purely informational — it backs `audio-tools stt formats`.
 	GetSupportedFormats(context.Context, *connect.Request[stt.GetSupportedFormatsRequest]) (*connect.Response[stt.GetSupportedFormatsResponse], error)
+	// ListEngines reports the selectable STT engines derived from the
+	// engine-capability manifest (internal/sttengine/manifest.json), with each
+	// engine's runtime availability. It backs the admin engine picker and
+	// `audio-tools stt engines`. The UI/CLI MUST read the engine list from here
+	// — never hardcode it — so adding an engine is a manifest-only change.
+	ListEngines(context.Context, *connect.Request[stt.ListEnginesRequest]) (*connect.Response[stt.ListEnginesResponse], error)
 }
 
 // NewSTTServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -156,6 +182,12 @@ func NewSTTServiceHandler(svc STTServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(sTTServiceMethods.ByName("GetSupportedFormats")),
 		connect.WithHandlerOptions(opts...),
 	)
+	sTTServiceListEnginesHandler := connect.NewUnaryHandler(
+		STTServiceListEnginesProcedure,
+		svc.ListEngines,
+		connect.WithSchema(sTTServiceMethods.ByName("ListEngines")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.audio_tools.v1.stt.STTService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case STTServiceTranscribeProcedure:
@@ -164,6 +196,8 @@ func NewSTTServiceHandler(svc STTServiceHandler, opts ...connect.HandlerOption) 
 			sTTServiceTranscribeStreamHandler.ServeHTTP(w, r)
 		case STTServiceGetSupportedFormatsProcedure:
 			sTTServiceGetSupportedFormatsHandler.ServeHTTP(w, r)
+		case STTServiceListEnginesProcedure:
+			sTTServiceListEnginesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -183,4 +217,8 @@ func (UnimplementedSTTServiceHandler) TranscribeStream(context.Context, *connect
 
 func (UnimplementedSTTServiceHandler) GetSupportedFormats(context.Context, *connect.Request[stt.GetSupportedFormatsRequest]) (*connect.Response[stt.GetSupportedFormatsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.stt.STTService.GetSupportedFormats is not implemented"))
+}
+
+func (UnimplementedSTTServiceHandler) ListEngines(context.Context, *connect.Request[stt.ListEnginesRequest]) (*connect.Response[stt.ListEnginesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.stt.STTService.ListEngines is not implemented"))
 }

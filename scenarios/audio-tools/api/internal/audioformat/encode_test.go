@@ -55,3 +55,21 @@ func TestEncodeUnsupportedFormat(t *testing.T) {
 	_, _, err := e.Encode(context.Background(), []byte{0, 0}, OutputFormat("aiff"))
 	require.ErrorIs(t, err, ErrUnsupportedOutput)
 }
+
+// TestWAVFromCanonicalPCMWrapsContainerLikePrefix guards the speaker-gate
+// regression: a canonical PCM sample can begin with bytes that collide with
+// container magic (0xFFFF reads as an MPEG frame sync), so wrapping MUST be
+// unconditional — never gated on format sniffing. The output must be a valid
+// RIFF/WAVE the resource can decode, with the original PCM bytes intact.
+func TestWAVFromCanonicalPCMWrapsContainerLikePrefix(t *testing.T) {
+	pcm := []byte{0xFF, 0xFF, 0x00, 0x00, 0x01, 0x00, 0x02, 0x00}
+	out := WAVFromCanonicalPCM(pcm)
+
+	require.Equal(t, "RIFF", string(out[0:4]))
+	require.Equal(t, "WAVE", string(out[8:12]))
+	require.Equal(t, uint32(CanonicalSampleRate), binary.LittleEndian.Uint32(out[24:28]))
+	require.Equal(t, uint16(CanonicalChannels), binary.LittleEndian.Uint16(out[22:24]))
+	require.Len(t, out, 44+len(pcm))
+	require.Equal(t, pcm, out[44:])
+	require.Equal(t, uint32(len(pcm)), binary.LittleEndian.Uint32(out[40:44]))
+}

@@ -183,6 +183,7 @@ func (v *VADSegmenter) Run(
 			Language:                start.Language,
 			InitialPrompt:           prompt,
 			SkipSpeakerVerification: start.SkipSpeakerVerification,
+			VADFilter:               start.VADFilter,
 			BYOKProvider:            start.BYOKProvider,
 			BYOKKey:                 start.BYOKKey,
 			LPBSToken:               start.LPBSToken,
@@ -217,6 +218,10 @@ func (v *VADSegmenter) Run(
 				ProviderID:       res.ProviderID,
 				ModelID:          res.ModelID,
 				LatencyMs:        float64(latency.Milliseconds()),
+				// Egress-gate inputs (stripped before the wire): the
+				// segment's confidence signals and its canonical-PCM bytes.
+				Confidence: res.Confidence,
+				Audio:      seg,
 			}}
 		}
 		segStart = advanceWithPreRoll(end, preRollBytes)

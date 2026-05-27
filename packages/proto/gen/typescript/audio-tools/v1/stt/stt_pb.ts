@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file audio-tools/v1/stt/stt.proto.
  */
 export const file_audio_tools_v1_stt_stt: GenFile = /*@__PURE__*/
-  fileDesc("ChxhdWRpby10b29scy92MS9zdHQvc3R0LnByb3RvEhl2cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0Ir0BChFUcmFuc2NyaWJlUmVxdWVzdBIWCgVhdWRpbxgBIAEoDEIHukgEegIQARJDCgZmb3JtYXQYAiABKA4yKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29tbW9uLkF1ZGlvRm9ybWF0Qgi6SAWCAQIgABIQCghsYW5ndWFnZRgDIAEoCRIhChlza2lwX3NwZWFrZXJfdmVyaWZpY2F0aW9uGAQgASgIEhYKDmluaXRpYWxfcHJvbXB0GAUgASgJItUBChJUcmFuc2NyaWJlUmVzcG9uc2USDAoEdGV4dBgBIAEoCRIZChFkZXRlY3RlZF9sYW5ndWFnZRgCIAEoCRIYChBkdXJhdGlvbl9zZWNvbmRzGAMgASgBEkEKDXByb3ZpZGVyX3RpZXIYBCABKA4yKi52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29tbW9uLlByb3ZpZGVyVGllchITCgtwcm92aWRlcl9pZBgFIAEoCRIQCghtb2RlbF9pZBgGIAEoCRISCgpsYXRlbmN5X21zGAcgASgBIscDCgxTdHJlYW1Db25maWcSGQoRZmx1c2hfaW50ZXJ2YWxfbXMYASABKAUSFwoPbWluX2RlbHRhX2J5dGVzGAIgASgFEhUKDW92ZXJsYXBfYnl0ZXMYAyABKAUSFwoPcGVyc2lzdGVudF9tb2RlGAQgASgIEhkKEXdha2Vfd29yZF9lbmFibGVkGAUgASgIEhsKE3dha2Vfd29yZF90aHJlc2hvbGQYBiABKAESGgoSc2VnbWVudF9zaWxlbmNlX21zGAcgASgFEkAKDnN0cmVhbWluZ19tb2RlGAggASgOMigudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5TdHJlYW1pbmdNb2RlEkoKE3N0cmF0ZWd5X3ByZWZlcmVuY2UYCSABKA4yLS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlN0cmF0ZWd5UHJlZmVyZW5jZRIiCg52YWRfc2lsZW5jZV9tcxgKIAEoBUIKukgHGgUYuBcoABIlChFvdmVybGFwX3dpbmRvd19tcxgLIAEoBUIKukgHGgUYiCcoABImChNvdmVybGFwX2NvbW1pdF9ydW5zGAwgASgFQgm6SAYaBBgEKAAiGAoWR2V0U3RyZWFtQ29uZmlnUmVxdWVzdCJSChdHZXRTdHJlYW1Db25maWdSZXNwb25zZRI3CgZjb25maWcYASABKAsyJy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlN0cmVhbUNvbmZpZyIcChpHZXRTdXBwb3J0ZWRGb3JtYXRzUmVxdWVzdCK6AQobR2V0U3VwcG9ydGVkRm9ybWF0c1Jlc3BvbnNlEkMKEGFjY2VwdGVkX2Zvcm1hdHMYASADKA4yKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29tbW9uLkF1ZGlvRm9ybWF0EhgKEGZmbXBlZ19hdmFpbGFibGUYAiABKAgSIAoYY2Fub25pY2FsX3NhbXBsZV9yYXRlX2h6GAMgASgFEhoKEmNhbm9uaWNhbF9jaGFubmVscxgEIAEoBSKFAQoZVXBkYXRlU3RyZWFtQ29uZmlnUmVxdWVzdBIvCgt1cGRhdGVfbWFzaxgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5GaWVsZE1hc2sSNwoGY29uZmlnGAIgASgLMicudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5TdHJlYW1Db25maWciVQoaVXBkYXRlU3RyZWFtQ29uZmlnUmVzcG9uc2USNwoGY29uZmlnGAEgASgLMicudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5TdHJlYW1Db25maWcicgoOV2FrZVdvcmRTYW1wbGUSDQoFYXVkaW8YASABKAwSOQoGZm9ybWF0GAIgASgOMikudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvbW1vbi5BdWRpb0Zvcm1hdBIWCg5zYW1wbGVfcmF0ZV9oehgDIAEoBSKgAQoQV2FrZVdvcmRUZW1wbGF0ZRINCgVsYWJlbBgBIAEoCRIRCgl0aHJlc2hvbGQYAiABKAESOgoHc2FtcGxlcxgDIAMoCzIpLnZyb29saS5hdWRpb190b29scy52MS5zdHQuV2FrZVdvcmRTYW1wbGUSLgoKdXBkYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiYwoOV2FrZVdvcmRDb25maWcSEgoKY29uZmlndXJlZBgBIAEoCBI9Cgh0ZW1wbGF0ZRgCIAEoCzIrLnZyb29saS5hdWRpb190b29scy52MS5zdHQuV2FrZVdvcmRUZW1wbGF0ZSIaChhHZXRXYWtlV29yZENvbmZpZ1JlcXVlc3QiVgoZR2V0V2FrZVdvcmRDb25maWdSZXNwb25zZRI5CgZjb25maWcYASABKAsyKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0Lldha2VXb3JkQ29uZmlnIl4KHVVwZGF0ZVdha2VXb3JkVGVtcGxhdGVSZXF1ZXN0Ej0KCHRlbXBsYXRlGAEgASgLMisudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5XYWtlV29yZFRlbXBsYXRlIlsKHlVwZGF0ZVdha2VXb3JkVGVtcGxhdGVSZXNwb25zZRI5CgZjb25maWcYASABKAsyKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0Lldha2VXb3JkQ29uZmlnIh8KHURlbGV0ZVdha2VXb3JkVGVtcGxhdGVSZXF1ZXN0IlsKHkRlbGV0ZVdha2VXb3JkVGVtcGxhdGVSZXNwb25zZRI5CgZjb25maWcYASABKAsyKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0Lldha2VXb3JkQ29uZmlnIoUCCg1TcGVha2VyQ29uZmlnEg8KB2VuYWJsZWQYASABKAgSEwoLcHJvZmlsZV9pZHMYAiADKAkSEQoJdGhyZXNob2xkGAMgASgBEjQKBG1vZGUYBCABKA4yJi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlNwZWFrZXJNb2RlEkIKD3JlamVjdF9iZWhhdmlvchgFIAEoDjIpLnZyb29saS5hdWRpb190b29scy52MS5zdHQuUmVqZWN0QmVoYXZpb3ISJQodZmFsbGJhY2tfd2l0aG91dF92ZXJpZmljYXRpb24YBiABKAgSGgoSZXh0cmFjdGlvbl9lbmFibGVkGAcgASgIIhkKF0dldFNwZWFrZXJDb25maWdSZXF1ZXN0IlQKGEdldFNwZWFrZXJDb25maWdSZXNwb25zZRI4CgZjb25maWcYASABKAsyKC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlNwZWFrZXJDb25maWcihwEKGlVwZGF0ZVNwZWFrZXJDb25maWdSZXF1ZXN0Ei8KC3VwZGF0ZV9tYXNrGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFzaxI4CgZjb25maWcYAiABKAsyKC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlNwZWFrZXJDb25maWciVwobVXBkYXRlU3BlYWtlckNvbmZpZ1Jlc3BvbnNlEjgKBmNvbmZpZxgBIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlckNvbmZpZyKDAgoOU3BlYWtlclByb2ZpbGUSCgoCaWQYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEi4KCmNyZWF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCm1vZGVsX25hbWUYBSABKAkSFQoNZW1iZWRkaW5nX2RpbRgGIAEoBRITCgtzYW1wbGVfcmF0ZRgHIAEoBRIgChhlbnJvbGxtZW50X2F1ZGlvX3NlY29uZHMYCCABKAESDQoFbm90ZXMYCSABKAkiggEKE1NwZWFrZXJSZXNvdXJjZUluZm8SDwoHYmFja2VuZBgBIAEoCRINCgVtb2RlbBgCIAEoCRIOCgZkZXZpY2UYAyABKAkSEwoLc2FtcGxlX3JhdGUYBCABKAUSDwoHdmVyc2lvbhgFIAEoCRIVCg1lbWJlZGRpbmdfZGltGAYgASgFIoUDCg1TcGVha2VyU3RhdHVzEjgKBmNvbmZpZxgBIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlckNvbmZpZxISCgpjYXBhYmlsaXR5GAIgASgJEhgKEGNhcGFiaWxpdHlfbGFiZWwYAyABKAkSFgoOcmVzb3VyY2VfcmVhZHkYBCABKAgSGgoScHJvZmlsZV9jb25maWd1cmVkGAUgASgIEhYKDnByb2ZpbGVfZXhpc3RzGAYgASgIEhUKDXByb2ZpbGVfY291bnQYByABKAUSOwoIcHJvZmlsZXMYCCADKAsyKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlNwZWFrZXJQcm9maWxlEjwKBGluZm8YCSABKAsyLi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlNwZWFrZXJSZXNvdXJjZUluZm8SLgoKY2hlY2tlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiGQoXR2V0U3BlYWtlclN0YXR1c1JlcXVlc3QiVAoYR2V0U3BlYWtlclN0YXR1c1Jlc3BvbnNlEjgKBnN0YXR1cxgBIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlclN0YXR1cyIcChpMaXN0U3BlYWtlclByb2ZpbGVzUmVxdWVzdCJpChtMaXN0U3BlYWtlclByb2ZpbGVzUmVzcG9uc2USOwoIcHJvZmlsZXMYASADKAsyKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlNwZWFrZXJQcm9maWxlEg0KBWNvdW50GAIgASgFIs8BChFTcGVha2VyRW5yb2xsbWVudBISCgpwcm9maWxlX2lkGAEgASgJEhQKDGRpc3BsYXlfbmFtZRgCIAEoCRIVCg1lbWJlZGRpbmdfZGltGAMgASgFEhMKC3NhbXBsZV9yYXRlGAQgASgFEiAKGGVucm9sbG1lbnRfYXVkaW9fc2Vjb25kcxgFIAEoARISCgptb2RlbF9uYW1lGAYgASgJEi4KCmNyZWF0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIooCChtFbnJvbGxTcGVha2VyUHJvZmlsZVJlcXVlc3QSFgoFYXVkaW8YASABKAxCB7pIBHoCEAESQwoGZm9ybWF0GAIgASgOMikudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvbW1vbi5BdWRpb0Zvcm1hdEIIukgFggECIAASEgoKcHJvZmlsZV9pZBgDIAEoCRIdCgxkaXNwbGF5X25hbWUYBCABKAlCB7pIBHICEAESDQoFbm90ZXMYBSABKAkSGgoNYWRkX3RvX2FjdGl2ZRgGIAEoCEgAiAEBEhMKBmVuYWJsZRgHIAEoCEgBiAEBQhAKDl9hZGRfdG9fYWN0aXZlQgkKB19lbmFibGUimgEKHEVucm9sbFNwZWFrZXJQcm9maWxlUmVzcG9uc2USQAoKZW5yb2xsbWVudBgBIAEoCzIsLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlckVucm9sbG1lbnQSOAoGY29uZmlnGAIgASgLMigudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5TcGVha2VyQ29uZmlnIiMKIUNsZWFyU3BlYWtlclByb2ZpbGVCaW5kaW5nUmVxdWVzdCJeCiJDbGVhclNwZWFrZXJQcm9maWxlQmluZGluZ1Jlc3BvbnNlEjgKBmNvbmZpZxgBIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlckNvbmZpZyI6ChtVbmJpbmRTcGVha2VyUHJvZmlsZVJlcXVlc3QSGwoKcHJvZmlsZV9pZBgBIAEoCUIHukgEcgIQASJYChxVbmJpbmRTcGVha2VyUHJvZmlsZVJlc3BvbnNlEjgKBmNvbmZpZxgBIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlckNvbmZpZyI6ChtEZWxldGVTcGVha2VyUHJvZmlsZVJlcXVlc3QSGwoKcHJvZmlsZV9pZBgBIAEoCUIHukgEcgIQASJYChxEZWxldGVTcGVha2VyUHJvZmlsZVJlc3BvbnNlEjgKBmNvbmZpZxgBIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlckNvbmZpZyKpAQoXVHJhbnNjcmliZVN0cmVhbVJlcXVlc3QSNwoFc3RhcnQYASABKAsyJi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlN0cmVhbVN0YXJ0SAASFQoLYXVkaW9fY2h1bmsYAiABKAxIABIzCgNlbmQYAyABKAsyJC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlN0cmVhbUVuZEgAQgkKB3BheWxvYWQi8gEKC1N0cmVhbVN0YXJ0EjcKBmNvbmZpZxgBIAEoCzInLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3RyZWFtQ29uZmlnEhAKCGxhbmd1YWdlGAIgASgJEhYKDmluaXRpYWxfcHJvbXB0GAMgASgJEiEKGXNraXBfc3BlYWtlcl92ZXJpZmljYXRpb24YBCABKAgSPwoMaW5wdXRfZm9ybWF0GAUgASgOMikudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvbW1vbi5BdWRpb0Zvcm1hdBIcChRpbnB1dF9zYW1wbGVfcmF0ZV9oehgGIAEoBSILCglTdHJlYW1FbmQi2gMKFVRyYW5zY3JpYmVTdHJlYW1FdmVudBI7CgdzZWdtZW50GAEgASgLMigudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5TdHJlYW1TZWdtZW50SAASOwoHcGFydGlhbBgCIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3RyZWFtUGFydGlhbEgAEj4KCXdha2Vfd29yZBgDIAEoCzIpLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3RyZWFtV2FrZVdvcmRIABJOChFzcGVha2VyX3JlamVjdGlvbhgEIAEoCzIxLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3RyZWFtU3BlYWtlclJlamVjdGlvbkgAEjcKBWVycm9yGAUgASgLMiYudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5TdHJlYW1FcnJvckgAEjUKBGRvbmUYBiABKAsyJS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlN0cmVhbURvbmVIABI+Cgl2YWRfc3RhdGUYByABKAsyKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlN0cmVhbVZhZFN0YXRlSABCBwoFZXZlbnQiwwEKDVN0cmVhbVNlZ21lbnQSDAoEdGV4dBgBIAEoCRIQCghzdGFydF9tcxgCIAEoAxIOCgZlbmRfbXMYAyABKAMSGQoRZGV0ZWN0ZWRfbGFuZ3VhZ2UYBCABKAkSQQoNcHJvdmlkZXJfdGllchgFIAEoDjIqLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uUHJvdmlkZXJUaWVyEhAKCG1vZGVsX2lkGAYgASgJEhIKCmxhdGVuY3lfbXMYByABKAEiHQoNU3RyZWFtUGFydGlhbBIMCgR0ZXh0GAEgASgJIjIKDlN0cmVhbVdha2VXb3JkEg0KBXNjb3JlGAEgASgBEhEKCXNhbXBsZV9pZBgCIAEoCSI/ChZTdHJlYW1TcGVha2VyUmVqZWN0aW9uEg4KBnJlYXNvbhgBIAEoCRIVCg1mYWxsYmFja191c2VkGAIgASgIIiwKC1N0cmVhbUVycm9yEgwKBGNvZGUYASABKAkSDwoHbWVzc2FnZRgCIAEoCSJqCg5TdHJlYW1WYWRTdGF0ZRIOCgZ2b2ljZWQYASABKAgSGgoSc2lsZW5jZV9lbGFwc2VkX21zGAIgASgDEhoKEnNpbGVuY2VfdGltZW91dF9tcxgDIAEoAxIQCgh0aWNrX3NlcRgEIAEoBCK6AQoKU3RyZWFtRG9uZRISCgpmaW5hbF90ZXh0GAEgASgJEkEKDXByb3ZpZGVyX3RpZXIYAiABKA4yKi52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29tbW9uLlByb3ZpZGVyVGllchITCgtwcm92aWRlcl9pZBgDIAEoCRIQCghtb2RlbF9pZBgEIAEoCRISCgpsYXRlbmN5X21zGAUgASgBEhoKEmZlbGxfYmFja190b191bmFyeRgGIAEoCCp1CgtTcGVha2VyTW9kZRIcChhTUEVBS0VSX01PREVfVU5TUEVDSUZJRUQQABIUChBTUEVBS0VSX01PREVfT0ZGEAESFwoTU1BFQUtFUl9NT0RFX0ZJTFRFUhACEhkKFVNQRUFLRVJfTU9ERV9BRFZJU09SWRADKmsKDlJlamVjdEJlaGF2aW9yEh8KG1JFSkVDVF9CRUhBVklPUl9VTlNQRUNJRklFRBAAEhgKFFJFSkVDVF9CRUhBVklPUl9EUk9QEAESHgoaUkVKRUNUX0JFSEFWSU9SX1NIT1dfTVVURUQQAipgCg1TdHJlYW1pbmdNb2RlEh4KGlNUUkVBTUlOR19NT0RFX1VOU1BFQ0lGSUVEEAASFwoTU1RSRUFNSU5HX01PREVfQVVUTxABEhYKElNUUkVBTUlOR19NT0RFX09GRhACKroBChJTdHJhdGVneVByZWZlcmVuY2USIwofU1RSQVRFR1lfUFJFRkVSRU5DRV9VTlNQRUNJRklFRBAAEhwKGFNUUkFURUdZX1BSRUZFUkVOQ0VfQVVUTxABEhsKF1NUUkFURUdZX1BSRUZFUkVOQ0VfVkFEEAISHwobU1RSQVRFR1lfUFJFRkVSRU5DRV9PVkVSTEFQEAMSIwofU1RSQVRFR1lfUFJFRkVSRU5DRV9QQVNTVEhST1VHSBAEMvwCCgpTVFRTZXJ2aWNlEmkKClRyYW5zY3JpYmUSLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlRyYW5zY3JpYmVSZXF1ZXN0Gi0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5UcmFuc2NyaWJlUmVzcG9uc2USfAoQVHJhbnNjcmliZVN0cmVhbRIyLnZyb29saS5hdWRpb190b29scy52MS5zdHQuVHJhbnNjcmliZVN0cmVhbVJlcXVlc3QaMC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlRyYW5zY3JpYmVTdHJlYW1FdmVudCgBMAEShAEKE0dldFN1cHBvcnRlZEZvcm1hdHMSNS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LkdldFN1cHBvcnRlZEZvcm1hdHNSZXF1ZXN0GjYudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5HZXRTdXBwb3J0ZWRGb3JtYXRzUmVzcG9uc2VCSlpIZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hdWRpby10b29scy92MS9zdHQ7c3R0X3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp, file_audio_tools_v1_common_common]);
+  fileDesc("ChxhdWRpby10b29scy92MS9zdHQvc3R0LnByb3RvEhl2cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0Ir0BChFUcmFuc2NyaWJlUmVxdWVzdBIWCgVhdWRpbxgBIAEoDEIHukgEegIQARJDCgZmb3JtYXQYAiABKA4yKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29tbW9uLkF1ZGlvRm9ybWF0Qgi6SAWCAQIgABIQCghsYW5ndWFnZRgDIAEoCRIhChlza2lwX3NwZWFrZXJfdmVyaWZpY2F0aW9uGAQgASgIEhYKDmluaXRpYWxfcHJvbXB0GAUgASgJItUBChJUcmFuc2NyaWJlUmVzcG9uc2USDAoEdGV4dBgBIAEoCRIZChFkZXRlY3RlZF9sYW5ndWFnZRgCIAEoCRIYChBkdXJhdGlvbl9zZWNvbmRzGAMgASgBEkEKDXByb3ZpZGVyX3RpZXIYBCABKA4yKi52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29tbW9uLlByb3ZpZGVyVGllchITCgtwcm92aWRlcl9pZBgFIAEoCRIQCghtb2RlbF9pZBgGIAEoCRISCgpsYXRlbmN5X21zGAcgASgBIoYFCgxTdHJlYW1Db25maWcSGQoRZmx1c2hfaW50ZXJ2YWxfbXMYASABKAUSFwoPbWluX2RlbHRhX2J5dGVzGAIgASgFEhUKDW92ZXJsYXBfYnl0ZXMYAyABKAUSFwoPcGVyc2lzdGVudF9tb2RlGAQgASgIEhkKEXdha2Vfd29yZF9lbmFibGVkGAUgASgIEhsKE3dha2Vfd29yZF90aHJlc2hvbGQYBiABKAESGgoSc2VnbWVudF9zaWxlbmNlX21zGAcgASgFEkAKDnN0cmVhbWluZ19tb2RlGAggASgOMigudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5TdHJlYW1pbmdNb2RlEkoKE3N0cmF0ZWd5X3ByZWZlcmVuY2UYCSABKA4yLS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlN0cmF0ZWd5UHJlZmVyZW5jZRIiCg52YWRfc2lsZW5jZV9tcxgKIAEoBUIKukgHGgUYuBcoABIlChFvdmVybGFwX3dpbmRvd19tcxgLIAEoBUIKukgHGgUYiCcoABImChNvdmVybGFwX2NvbW1pdF9ydW5zGAwgASgFQgm6SAYaBBgEKAASJAocaGFsbHVjaW5hdGlvbl9maWx0ZXJfZW5hYmxlZBgNIAEoCBIaChJ2YWRfZmlsdGVyX2VuYWJsZWQYDiABKAgSNAoTbm9fc3BlZWNoX3RocmVzaG9sZBgPIAEoAUIXukgUEhIZAAAAAAAA8D8pAAAAAAAAAAASMgoRbG9ncHJvYl90aHJlc2hvbGQYECABKAFCF7pIFBISGQAAAAAAAAAAKQAAAAAAACTAEhEKCWVuZ2luZV9pZBgRIAEoCSIYChZHZXRTdHJlYW1Db25maWdSZXF1ZXN0IlIKF0dldFN0cmVhbUNvbmZpZ1Jlc3BvbnNlEjcKBmNvbmZpZxgBIAEoCzInLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3RyZWFtQ29uZmlnIhwKGkdldFN1cHBvcnRlZEZvcm1hdHNSZXF1ZXN0IroBChtHZXRTdXBwb3J0ZWRGb3JtYXRzUmVzcG9uc2USQwoQYWNjZXB0ZWRfZm9ybWF0cxgBIAMoDjIpLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uQXVkaW9Gb3JtYXQSGAoQZmZtcGVnX2F2YWlsYWJsZRgCIAEoCBIgChhjYW5vbmljYWxfc2FtcGxlX3JhdGVfaHoYAyABKAUSGgoSY2Fub25pY2FsX2NoYW5uZWxzGAQgASgFIhQKEkxpc3RFbmdpbmVzUmVxdWVzdCJ8CgpFbmdpbmVJbmZvEgoKAmlkGAEgASgJEhQKDGRpc3BsYXlfbmFtZRgCIAEoCRIMCgRraW5kGAMgASgJEhEKCWF2YWlsYWJsZRgEIAEoCBIYChBuYXRpdmVfc3RyZWFtaW5nGAUgASgIEhEKCWlzX2FjdGl2ZRgGIAEoCCJNChNMaXN0RW5naW5lc1Jlc3BvbnNlEjYKB2VuZ2luZXMYASADKAsyJS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LkVuZ2luZUluZm8iNgocR2V0RW5naW5lU3dpdGNoSW1wYWN0UmVxdWVzdBIWCg5mcm9tX2VuZ2luZV9pZBgBIAEoCSJUChhTY2VuYXJpb1Jlc291cmNlQ29uc3VtZXISEAoIc2NlbmFyaW8YASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEhAKCHJlcXVpcmVkGAMgASgIIr4BCh1HZXRFbmdpbmVTd2l0Y2hJbXBhY3RSZXNwb25zZRIQCghyZXNvdXJjZRgBIAEoCRJGCgljb25zdW1lcnMYAiADKAsyMy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlNjZW5hcmlvUmVzb3VyY2VDb25zdW1lchIUCgxzYWZlX3RvX3N0b3AYAyABKAgSFAoMc3RvcF9jb21tYW5kGAQgASgJEhcKD2NvbnN1bWVyc19rbm93bhgFIAEoCCKFAQoZVXBkYXRlU3RyZWFtQ29uZmlnUmVxdWVzdBIvCgt1cGRhdGVfbWFzaxgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5GaWVsZE1hc2sSNwoGY29uZmlnGAIgASgLMicudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5TdHJlYW1Db25maWciVQoaVXBkYXRlU3RyZWFtQ29uZmlnUmVzcG9uc2USNwoGY29uZmlnGAEgASgLMicudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5TdHJlYW1Db25maWcicgoOV2FrZVdvcmRTYW1wbGUSDQoFYXVkaW8YASABKAwSOQoGZm9ybWF0GAIgASgOMikudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvbW1vbi5BdWRpb0Zvcm1hdBIWCg5zYW1wbGVfcmF0ZV9oehgDIAEoBSKgAQoQV2FrZVdvcmRUZW1wbGF0ZRINCgVsYWJlbBgBIAEoCRIRCgl0aHJlc2hvbGQYAiABKAESOgoHc2FtcGxlcxgDIAMoCzIpLnZyb29saS5hdWRpb190b29scy52MS5zdHQuV2FrZVdvcmRTYW1wbGUSLgoKdXBkYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiYwoOV2FrZVdvcmRDb25maWcSEgoKY29uZmlndXJlZBgBIAEoCBI9Cgh0ZW1wbGF0ZRgCIAEoCzIrLnZyb29saS5hdWRpb190b29scy52MS5zdHQuV2FrZVdvcmRUZW1wbGF0ZSIaChhHZXRXYWtlV29yZENvbmZpZ1JlcXVlc3QiVgoZR2V0V2FrZVdvcmRDb25maWdSZXNwb25zZRI5CgZjb25maWcYASABKAsyKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0Lldha2VXb3JkQ29uZmlnIl4KHVVwZGF0ZVdha2VXb3JkVGVtcGxhdGVSZXF1ZXN0Ej0KCHRlbXBsYXRlGAEgASgLMisudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5XYWtlV29yZFRlbXBsYXRlIlsKHlVwZGF0ZVdha2VXb3JkVGVtcGxhdGVSZXNwb25zZRI5CgZjb25maWcYASABKAsyKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0Lldha2VXb3JkQ29uZmlnIh8KHURlbGV0ZVdha2VXb3JkVGVtcGxhdGVSZXF1ZXN0IlsKHkRlbGV0ZVdha2VXb3JkVGVtcGxhdGVSZXNwb25zZRI5CgZjb25maWcYASABKAsyKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0Lldha2VXb3JkQ29uZmlnIoUCCg1TcGVha2VyQ29uZmlnEg8KB2VuYWJsZWQYASABKAgSEwoLcHJvZmlsZV9pZHMYAiADKAkSEQoJdGhyZXNob2xkGAMgASgBEjQKBG1vZGUYBCABKA4yJi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlNwZWFrZXJNb2RlEkIKD3JlamVjdF9iZWhhdmlvchgFIAEoDjIpLnZyb29saS5hdWRpb190b29scy52MS5zdHQuUmVqZWN0QmVoYXZpb3ISJQodZmFsbGJhY2tfd2l0aG91dF92ZXJpZmljYXRpb24YBiABKAgSGgoSZXh0cmFjdGlvbl9lbmFibGVkGAcgASgIIhkKF0dldFNwZWFrZXJDb25maWdSZXF1ZXN0IlQKGEdldFNwZWFrZXJDb25maWdSZXNwb25zZRI4CgZjb25maWcYASABKAsyKC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlNwZWFrZXJDb25maWcihwEKGlVwZGF0ZVNwZWFrZXJDb25maWdSZXF1ZXN0Ei8KC3VwZGF0ZV9tYXNrGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFzaxI4CgZjb25maWcYAiABKAsyKC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlNwZWFrZXJDb25maWciVwobVXBkYXRlU3BlYWtlckNvbmZpZ1Jlc3BvbnNlEjgKBmNvbmZpZxgBIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlckNvbmZpZyKDAgoOU3BlYWtlclByb2ZpbGUSCgoCaWQYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEi4KCmNyZWF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCm1vZGVsX25hbWUYBSABKAkSFQoNZW1iZWRkaW5nX2RpbRgGIAEoBRITCgtzYW1wbGVfcmF0ZRgHIAEoBRIgChhlbnJvbGxtZW50X2F1ZGlvX3NlY29uZHMYCCABKAESDQoFbm90ZXMYCSABKAkiggEKE1NwZWFrZXJSZXNvdXJjZUluZm8SDwoHYmFja2VuZBgBIAEoCRINCgVtb2RlbBgCIAEoCRIOCgZkZXZpY2UYAyABKAkSEwoLc2FtcGxlX3JhdGUYBCABKAUSDwoHdmVyc2lvbhgFIAEoCRIVCg1lbWJlZGRpbmdfZGltGAYgASgFIoUDCg1TcGVha2VyU3RhdHVzEjgKBmNvbmZpZxgBIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlckNvbmZpZxISCgpjYXBhYmlsaXR5GAIgASgJEhgKEGNhcGFiaWxpdHlfbGFiZWwYAyABKAkSFgoOcmVzb3VyY2VfcmVhZHkYBCABKAgSGgoScHJvZmlsZV9jb25maWd1cmVkGAUgASgIEhYKDnByb2ZpbGVfZXhpc3RzGAYgASgIEhUKDXByb2ZpbGVfY291bnQYByABKAUSOwoIcHJvZmlsZXMYCCADKAsyKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlNwZWFrZXJQcm9maWxlEjwKBGluZm8YCSABKAsyLi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlNwZWFrZXJSZXNvdXJjZUluZm8SLgoKY2hlY2tlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiGQoXR2V0U3BlYWtlclN0YXR1c1JlcXVlc3QiVAoYR2V0U3BlYWtlclN0YXR1c1Jlc3BvbnNlEjgKBnN0YXR1cxgBIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlclN0YXR1cyIcChpMaXN0U3BlYWtlclByb2ZpbGVzUmVxdWVzdCJpChtMaXN0U3BlYWtlclByb2ZpbGVzUmVzcG9uc2USOwoIcHJvZmlsZXMYASADKAsyKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlNwZWFrZXJQcm9maWxlEg0KBWNvdW50GAIgASgFIs8BChFTcGVha2VyRW5yb2xsbWVudBISCgpwcm9maWxlX2lkGAEgASgJEhQKDGRpc3BsYXlfbmFtZRgCIAEoCRIVCg1lbWJlZGRpbmdfZGltGAMgASgFEhMKC3NhbXBsZV9yYXRlGAQgASgFEiAKGGVucm9sbG1lbnRfYXVkaW9fc2Vjb25kcxgFIAEoARISCgptb2RlbF9uYW1lGAYgASgJEi4KCmNyZWF0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIooCChtFbnJvbGxTcGVha2VyUHJvZmlsZVJlcXVlc3QSFgoFYXVkaW8YASABKAxCB7pIBHoCEAESQwoGZm9ybWF0GAIgASgOMikudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvbW1vbi5BdWRpb0Zvcm1hdEIIukgFggECIAASEgoKcHJvZmlsZV9pZBgDIAEoCRIdCgxkaXNwbGF5X25hbWUYBCABKAlCB7pIBHICEAESDQoFbm90ZXMYBSABKAkSGgoNYWRkX3RvX2FjdGl2ZRgGIAEoCEgAiAEBEhMKBmVuYWJsZRgHIAEoCEgBiAEBQhAKDl9hZGRfdG9fYWN0aXZlQgkKB19lbmFibGUimgEKHEVucm9sbFNwZWFrZXJQcm9maWxlUmVzcG9uc2USQAoKZW5yb2xsbWVudBgBIAEoCzIsLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlckVucm9sbG1lbnQSOAoGY29uZmlnGAIgASgLMigudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5TcGVha2VyQ29uZmlnIiMKIUNsZWFyU3BlYWtlclByb2ZpbGVCaW5kaW5nUmVxdWVzdCJeCiJDbGVhclNwZWFrZXJQcm9maWxlQmluZGluZ1Jlc3BvbnNlEjgKBmNvbmZpZxgBIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlckNvbmZpZyI6ChtVbmJpbmRTcGVha2VyUHJvZmlsZVJlcXVlc3QSGwoKcHJvZmlsZV9pZBgBIAEoCUIHukgEcgIQASJYChxVbmJpbmRTcGVha2VyUHJvZmlsZVJlc3BvbnNlEjgKBmNvbmZpZxgBIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlckNvbmZpZyI6ChtEZWxldGVTcGVha2VyUHJvZmlsZVJlcXVlc3QSGwoKcHJvZmlsZV9pZBgBIAEoCUIHukgEcgIQASJYChxEZWxldGVTcGVha2VyUHJvZmlsZVJlc3BvbnNlEjgKBmNvbmZpZxgBIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlckNvbmZpZyKpAQoXVHJhbnNjcmliZVN0cmVhbVJlcXVlc3QSNwoFc3RhcnQYASABKAsyJi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlN0cmVhbVN0YXJ0SAASFQoLYXVkaW9fY2h1bmsYAiABKAxIABIzCgNlbmQYAyABKAsyJC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlN0cmVhbUVuZEgAQgkKB3BheWxvYWQi8gEKC1N0cmVhbVN0YXJ0EjcKBmNvbmZpZxgBIAEoCzInLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3RyZWFtQ29uZmlnEhAKCGxhbmd1YWdlGAIgASgJEhYKDmluaXRpYWxfcHJvbXB0GAMgASgJEiEKGXNraXBfc3BlYWtlcl92ZXJpZmljYXRpb24YBCABKAgSPwoMaW5wdXRfZm9ybWF0GAUgASgOMikudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvbW1vbi5BdWRpb0Zvcm1hdBIcChRpbnB1dF9zYW1wbGVfcmF0ZV9oehgGIAEoBSILCglTdHJlYW1FbmQi2gMKFVRyYW5zY3JpYmVTdHJlYW1FdmVudBI7CgdzZWdtZW50GAEgASgLMigudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5TdHJlYW1TZWdtZW50SAASOwoHcGFydGlhbBgCIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3RyZWFtUGFydGlhbEgAEj4KCXdha2Vfd29yZBgDIAEoCzIpLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3RyZWFtV2FrZVdvcmRIABJOChFzcGVha2VyX3JlamVjdGlvbhgEIAEoCzIxLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3RyZWFtU3BlYWtlclJlamVjdGlvbkgAEjcKBWVycm9yGAUgASgLMiYudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5TdHJlYW1FcnJvckgAEjUKBGRvbmUYBiABKAsyJS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlN0cmVhbURvbmVIABI+Cgl2YWRfc3RhdGUYByABKAsyKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlN0cmVhbVZhZFN0YXRlSABCBwoFZXZlbnQiwwEKDVN0cmVhbVNlZ21lbnQSDAoEdGV4dBgBIAEoCRIQCghzdGFydF9tcxgCIAEoAxIOCgZlbmRfbXMYAyABKAMSGQoRZGV0ZWN0ZWRfbGFuZ3VhZ2UYBCABKAkSQQoNcHJvdmlkZXJfdGllchgFIAEoDjIqLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uUHJvdmlkZXJUaWVyEhAKCG1vZGVsX2lkGAYgASgJEhIKCmxhdGVuY3lfbXMYByABKAEiHQoNU3RyZWFtUGFydGlhbBIMCgR0ZXh0GAEgASgJIjIKDlN0cmVhbVdha2VXb3JkEg0KBXNjb3JlGAEgASgBEhEKCXNhbXBsZV9pZBgCIAEoCSI/ChZTdHJlYW1TcGVha2VyUmVqZWN0aW9uEg4KBnJlYXNvbhgBIAEoCRIVCg1mYWxsYmFja191c2VkGAIgASgIIiwKC1N0cmVhbUVycm9yEgwKBGNvZGUYASABKAkSDwoHbWVzc2FnZRgCIAEoCSJqCg5TdHJlYW1WYWRTdGF0ZRIOCgZ2b2ljZWQYASABKAgSGgoSc2lsZW5jZV9lbGFwc2VkX21zGAIgASgDEhoKEnNpbGVuY2VfdGltZW91dF9tcxgDIAEoAxIQCgh0aWNrX3NlcRgEIAEoBCK6AQoKU3RyZWFtRG9uZRISCgpmaW5hbF90ZXh0GAEgASgJEkEKDXByb3ZpZGVyX3RpZXIYAiABKA4yKi52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29tbW9uLlByb3ZpZGVyVGllchITCgtwcm92aWRlcl9pZBgDIAEoCRIQCghtb2RlbF9pZBgEIAEoCRISCgpsYXRlbmN5X21zGAUgASgBEhoKEmZlbGxfYmFja190b191bmFyeRgGIAEoCCp1CgtTcGVha2VyTW9kZRIcChhTUEVBS0VSX01PREVfVU5TUEVDSUZJRUQQABIUChBTUEVBS0VSX01PREVfT0ZGEAESFwoTU1BFQUtFUl9NT0RFX0ZJTFRFUhACEhkKFVNQRUFLRVJfTU9ERV9BRFZJU09SWRADKmsKDlJlamVjdEJlaGF2aW9yEh8KG1JFSkVDVF9CRUhBVklPUl9VTlNQRUNJRklFRBAAEhgKFFJFSkVDVF9CRUhBVklPUl9EUk9QEAESHgoaUkVKRUNUX0JFSEFWSU9SX1NIT1dfTVVURUQQAipgCg1TdHJlYW1pbmdNb2RlEh4KGlNUUkVBTUlOR19NT0RFX1VOU1BFQ0lGSUVEEAASFwoTU1RSRUFNSU5HX01PREVfQVVUTxABEhYKElNUUkVBTUlOR19NT0RFX09GRhACKroBChJTdHJhdGVneVByZWZlcmVuY2USIwofU1RSQVRFR1lfUFJFRkVSRU5DRV9VTlNQRUNJRklFRBAAEhwKGFNUUkFURUdZX1BSRUZFUkVOQ0VfQVVUTxABEhsKF1NUUkFURUdZX1BSRUZFUkVOQ0VfVkFEEAISHwobU1RSQVRFR1lfUFJFRkVSRU5DRV9PVkVSTEFQEAMSIwofU1RSQVRFR1lfUFJFRkVSRU5DRV9QQVNTVEhST1VHSBAEMuoDCgpTVFRTZXJ2aWNlEmkKClRyYW5zY3JpYmUSLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlRyYW5zY3JpYmVSZXF1ZXN0Gi0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5UcmFuc2NyaWJlUmVzcG9uc2USfAoQVHJhbnNjcmliZVN0cmVhbRIyLnZyb29saS5hdWRpb190b29scy52MS5zdHQuVHJhbnNjcmliZVN0cmVhbVJlcXVlc3QaMC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LlRyYW5zY3JpYmVTdHJlYW1FdmVudCgBMAEShAEKE0dldFN1cHBvcnRlZEZvcm1hdHMSNS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0LkdldFN1cHBvcnRlZEZvcm1hdHNSZXF1ZXN0GjYudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5HZXRTdXBwb3J0ZWRGb3JtYXRzUmVzcG9uc2USbAoLTGlzdEVuZ2luZXMSLS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3R0Lkxpc3RFbmdpbmVzUmVxdWVzdBouLnZyb29saS5hdWRpb190b29scy52MS5zdHQuTGlzdEVuZ2luZXNSZXNwb25zZUJKWkhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2F1ZGlvLXRvb2xzL3YxL3N0dDtzdHRfdjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp, file_audio_tools_v1_common_common]);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.TranscribeRequest
@@ -183,6 +183,56 @@ export type StreamConfig = Message<"vrooli.audio_tools.v1.stt.StreamConfig"> & {
    * @generated from field: int32 overlap_commit_runs = 12;
    */
   overlapCommitRuns: number;
+
+  /**
+   * Post-recognition egress-gate levers (see
+   * scenarios/audio-tools/docs/reference/configuration.md#egress-gate).
+   * The gate is the single seam every transcribed segment passes through
+   * before the wire; these toggle/tune its quality stages. Defaults are
+   * applied server-side when a stored config predates the field.
+   *
+   * hallucination_filter_enabled: drop segments matching Whisper's known
+   * silence-hallucination phrases ("thank you for watching", ...). Default true.
+   *
+   * @generated from field: bool hallucination_filter_enabled = 13;
+   */
+  hallucinationFilterEnabled: boolean;
+
+  /**
+   * vad_filter_enabled: enable faster-whisper's built-in voice-activity
+   * filter on each /asr request (strips silence before decode — the
+   * source-level hallucination fix). Default true.
+   *
+   * @generated from field: bool vad_filter_enabled = 14;
+   */
+  vadFilterEnabled: boolean;
+
+  /**
+   * no_speech_threshold: signal-domain drop when a segment's mean
+   * no_speech_prob exceeds this AND its avg_logprob is below
+   * logprob_threshold. Range (0,1]; 0 defaults to 0.6.
+   *
+   * @generated from field: double no_speech_threshold = 15;
+   */
+  noSpeechThreshold: number;
+
+  /**
+   * logprob_threshold: paired with no_speech_threshold (see above).
+   * Range [-10,0); 0 defaults to -1.0.
+   *
+   * @generated from field: double logprob_threshold = 16;
+   */
+  logprobThreshold: number;
+
+  /**
+   * engine_id selects the active STT engine (an sttengine manifest id, e.g.
+   * "whisper-local"). Empty resolves to the manifest's default engine. Only
+   * the Local tier honors it — BYOK/Vrooli tiers stream natively. Read the
+   * valid ids from ListEngines; do not hardcode.
+   *
+   * @generated from field: string engine_id = 17;
+   */
+  engineId: string;
 };
 
 /**
@@ -280,6 +330,203 @@ export const GetSupportedFormatsResponseSchema: GenMessage<GetSupportedFormatsRe
   messageDesc(file_audio_tools_v1_stt_stt, 6);
 
 /**
+ * @generated from message vrooli.audio_tools.v1.stt.ListEnginesRequest
+ */
+export type ListEnginesRequest = Message<"vrooli.audio_tools.v1.stt.ListEnginesRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.stt.ListEnginesRequest.
+ * Use `create(ListEnginesRequestSchema)` to create a new message.
+ */
+export const ListEnginesRequestSchema: GenMessage<ListEnginesRequest> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_stt_stt, 7);
+
+/**
+ * EngineInfo is one selectable STT engine, projected from the sttengine
+ * manifest with runtime availability resolved at call time.
+ *
+ * @generated from message vrooli.audio_tools.v1.stt.EngineInfo
+ */
+export type EngineInfo = Message<"vrooli.audio_tools.v1.stt.EngineInfo"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string display_name = 2;
+   */
+  displayName: string;
+
+  /**
+   * kind discriminator: "local_resource" | "byok_api" | "vrooli_hosted".
+   *
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+
+  /**
+   * available is true when the engine can serve right now (its backing
+   * resource is reachable). Unavailable engines are still listed so the UI can
+   * show them disabled with a reason.
+   *
+   * @generated from field: bool available = 4;
+   */
+  available: boolean;
+
+  /**
+   * native_streaming mirrors the manifest provides.nativeStreaming — the UI
+   * uses it to explain that switching to this engine changes the strategy.
+   *
+   * @generated from field: bool native_streaming = 5;
+   */
+  nativeStreaming: boolean;
+
+  /**
+   * is_active is true for the engine the persisted StreamConfig currently
+   * selects (or the manifest default when unset).
+   *
+   * @generated from field: bool is_active = 6;
+   */
+  isActive: boolean;
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.stt.EngineInfo.
+ * Use `create(EngineInfoSchema)` to create a new message.
+ */
+export const EngineInfoSchema: GenMessage<EngineInfo> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_stt_stt, 8);
+
+/**
+ * @generated from message vrooli.audio_tools.v1.stt.ListEnginesResponse
+ */
+export type ListEnginesResponse = Message<"vrooli.audio_tools.v1.stt.ListEnginesResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.audio_tools.v1.stt.EngineInfo engines = 1;
+   */
+  engines: EngineInfo[];
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.stt.ListEnginesResponse.
+ * Use `create(ListEnginesResponseSchema)` to create a new message.
+ */
+export const ListEnginesResponseSchema: GenMessage<ListEnginesResponse> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_stt_stt, 9);
+
+/**
+ * @generated from message vrooli.audio_tools.v1.stt.GetEngineSwitchImpactRequest
+ */
+export type GetEngineSwitchImpactRequest = Message<"vrooli.audio_tools.v1.stt.GetEngineSwitchImpactRequest"> & {
+  /**
+   * from_engine_id is the engine the operator is switching AWAY from (usually
+   * the currently-active engine). The impact describes what happens to that
+   * engine's backing resource once audio-tools no longer uses it.
+   *
+   * @generated from field: string from_engine_id = 1;
+   */
+  fromEngineId: string;
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.stt.GetEngineSwitchImpactRequest.
+ * Use `create(GetEngineSwitchImpactRequestSchema)` to create a new message.
+ */
+export const GetEngineSwitchImpactRequestSchema: GenMessage<GetEngineSwitchImpactRequest> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_stt_stt, 10);
+
+/**
+ * ScenarioResourceConsumer is one other scenario that declares the resource as
+ * a dependency.
+ *
+ * @generated from message vrooli.audio_tools.v1.stt.ScenarioResourceConsumer
+ */
+export type ScenarioResourceConsumer = Message<"vrooli.audio_tools.v1.stt.ScenarioResourceConsumer"> & {
+  /**
+   * scenario directory id
+   *
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * service.json display name (falls back to id)
+   *
+   * @generated from field: string display_name = 2;
+   */
+  displayName: string;
+
+  /**
+   * true when the scenario hard-requires the resource
+   *
+   * @generated from field: bool required = 3;
+   */
+  required: boolean;
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.stt.ScenarioResourceConsumer.
+ * Use `create(ScenarioResourceConsumerSchema)` to create a new message.
+ */
+export const ScenarioResourceConsumerSchema: GenMessage<ScenarioResourceConsumer> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_stt_stt, 11);
+
+/**
+ * @generated from message vrooli.audio_tools.v1.stt.GetEngineSwitchImpactResponse
+ */
+export type GetEngineSwitchImpactResponse = Message<"vrooli.audio_tools.v1.stt.GetEngineSwitchImpactResponse"> & {
+  /**
+   * resource is from_engine_id's backing resource. Empty for non-local engines
+   * (BYOK/Vrooli own no local resource) — safe_to_stop is then true.
+   *
+   * @generated from field: string resource = 1;
+   */
+  resource: string;
+
+  /**
+   * consumers are OTHER scenarios still declaring `resource`. Empty means no
+   * other scenario uses it.
+   *
+   * @generated from field: repeated vrooli.audio_tools.v1.stt.ScenarioResourceConsumer consumers = 2;
+   */
+  consumers: ScenarioResourceConsumer[];
+
+  /**
+   * safe_to_stop is true when no other scenario consumes the resource, so the
+   * operator can stop it to reclaim compute/VRAM without affecting anything.
+   *
+   * @generated from field: bool safe_to_stop = 3;
+   */
+  safeToStop: boolean;
+
+  /**
+   * stop_command is the exact command an operator runs to stop the resource.
+   * audio-tools NEVER stops it automatically. Empty when there is no resource.
+   *
+   * @generated from field: string stop_command = 4;
+   */
+  stopCommand: string;
+
+  /**
+   * consumers_known is false when the scenarios directory could not be located
+   * (the prompt then explains it can't enumerate other consumers). When false,
+   * safe_to_stop is conservatively false for local resources.
+   *
+   * @generated from field: bool consumers_known = 5;
+   */
+  consumersKnown: boolean;
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.stt.GetEngineSwitchImpactResponse.
+ * Use `create(GetEngineSwitchImpactResponseSchema)` to create a new message.
+ */
+export const GetEngineSwitchImpactResponseSchema: GenMessage<GetEngineSwitchImpactResponse> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_stt_stt, 12);
+
+/**
  * UpdateStreamConfigRequest carries a FieldMask + a full StreamConfig
  * payload. Server validates every path in `update_mask.paths` against
  * the StreamConfig schema; unknown paths -> CodeInvalidArgument. An
@@ -304,7 +551,7 @@ export type UpdateStreamConfigRequest = Message<"vrooli.audio_tools.v1.stt.Updat
  * Use `create(UpdateStreamConfigRequestSchema)` to create a new message.
  */
 export const UpdateStreamConfigRequestSchema: GenMessage<UpdateStreamConfigRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 7);
+  messageDesc(file_audio_tools_v1_stt_stt, 13);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.UpdateStreamConfigResponse
@@ -321,7 +568,7 @@ export type UpdateStreamConfigResponse = Message<"vrooli.audio_tools.v1.stt.Upda
  * Use `create(UpdateStreamConfigResponseSchema)` to create a new message.
  */
 export const UpdateStreamConfigResponseSchema: GenMessage<UpdateStreamConfigResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 8);
+  messageDesc(file_audio_tools_v1_stt_stt, 14);
 
 /**
  * WakeWordSample is one labelled audio clip used to fit the wakeword
@@ -351,7 +598,7 @@ export type WakeWordSample = Message<"vrooli.audio_tools.v1.stt.WakeWordSample">
  * Use `create(WakeWordSampleSchema)` to create a new message.
  */
 export const WakeWordSampleSchema: GenMessage<WakeWordSample> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 9);
+  messageDesc(file_audio_tools_v1_stt_stt, 15);
 
 /**
  * WakeWordTemplate is the typed payload that replaces the legacy opaque
@@ -387,7 +634,7 @@ export type WakeWordTemplate = Message<"vrooli.audio_tools.v1.stt.WakeWordTempla
  * Use `create(WakeWordTemplateSchema)` to create a new message.
  */
 export const WakeWordTemplateSchema: GenMessage<WakeWordTemplate> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 10);
+  messageDesc(file_audio_tools_v1_stt_stt, 16);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.WakeWordConfig
@@ -409,7 +656,7 @@ export type WakeWordConfig = Message<"vrooli.audio_tools.v1.stt.WakeWordConfig">
  * Use `create(WakeWordConfigSchema)` to create a new message.
  */
 export const WakeWordConfigSchema: GenMessage<WakeWordConfig> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 11);
+  messageDesc(file_audio_tools_v1_stt_stt, 17);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.GetWakeWordConfigRequest
@@ -422,7 +669,7 @@ export type GetWakeWordConfigRequest = Message<"vrooli.audio_tools.v1.stt.GetWak
  * Use `create(GetWakeWordConfigRequestSchema)` to create a new message.
  */
 export const GetWakeWordConfigRequestSchema: GenMessage<GetWakeWordConfigRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 12);
+  messageDesc(file_audio_tools_v1_stt_stt, 18);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.GetWakeWordConfigResponse
@@ -439,7 +686,7 @@ export type GetWakeWordConfigResponse = Message<"vrooli.audio_tools.v1.stt.GetWa
  * Use `create(GetWakeWordConfigResponseSchema)` to create a new message.
  */
 export const GetWakeWordConfigResponseSchema: GenMessage<GetWakeWordConfigResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 13);
+  messageDesc(file_audio_tools_v1_stt_stt, 19);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.UpdateWakeWordTemplateRequest
@@ -456,7 +703,7 @@ export type UpdateWakeWordTemplateRequest = Message<"vrooli.audio_tools.v1.stt.U
  * Use `create(UpdateWakeWordTemplateRequestSchema)` to create a new message.
  */
 export const UpdateWakeWordTemplateRequestSchema: GenMessage<UpdateWakeWordTemplateRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 14);
+  messageDesc(file_audio_tools_v1_stt_stt, 20);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.UpdateWakeWordTemplateResponse
@@ -473,7 +720,7 @@ export type UpdateWakeWordTemplateResponse = Message<"vrooli.audio_tools.v1.stt.
  * Use `create(UpdateWakeWordTemplateResponseSchema)` to create a new message.
  */
 export const UpdateWakeWordTemplateResponseSchema: GenMessage<UpdateWakeWordTemplateResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 15);
+  messageDesc(file_audio_tools_v1_stt_stt, 21);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.DeleteWakeWordTemplateRequest
@@ -486,7 +733,7 @@ export type DeleteWakeWordTemplateRequest = Message<"vrooli.audio_tools.v1.stt.D
  * Use `create(DeleteWakeWordTemplateRequestSchema)` to create a new message.
  */
 export const DeleteWakeWordTemplateRequestSchema: GenMessage<DeleteWakeWordTemplateRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 16);
+  messageDesc(file_audio_tools_v1_stt_stt, 22);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.DeleteWakeWordTemplateResponse
@@ -503,7 +750,7 @@ export type DeleteWakeWordTemplateResponse = Message<"vrooli.audio_tools.v1.stt.
  * Use `create(DeleteWakeWordTemplateResponseSchema)` to create a new message.
  */
 export const DeleteWakeWordTemplateResponseSchema: GenMessage<DeleteWakeWordTemplateResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 17);
+  messageDesc(file_audio_tools_v1_stt_stt, 23);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.SpeakerConfig
@@ -550,7 +797,7 @@ export type SpeakerConfig = Message<"vrooli.audio_tools.v1.stt.SpeakerConfig"> &
  * Use `create(SpeakerConfigSchema)` to create a new message.
  */
 export const SpeakerConfigSchema: GenMessage<SpeakerConfig> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 18);
+  messageDesc(file_audio_tools_v1_stt_stt, 24);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.GetSpeakerConfigRequest
@@ -563,7 +810,7 @@ export type GetSpeakerConfigRequest = Message<"vrooli.audio_tools.v1.stt.GetSpea
  * Use `create(GetSpeakerConfigRequestSchema)` to create a new message.
  */
 export const GetSpeakerConfigRequestSchema: GenMessage<GetSpeakerConfigRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 19);
+  messageDesc(file_audio_tools_v1_stt_stt, 25);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.GetSpeakerConfigResponse
@@ -580,7 +827,7 @@ export type GetSpeakerConfigResponse = Message<"vrooli.audio_tools.v1.stt.GetSpe
  * Use `create(GetSpeakerConfigResponseSchema)` to create a new message.
  */
 export const GetSpeakerConfigResponseSchema: GenMessage<GetSpeakerConfigResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 20);
+  messageDesc(file_audio_tools_v1_stt_stt, 26);
 
 /**
  * UpdateSpeakerConfigRequest follows the same FieldMask + payload shape
@@ -605,7 +852,7 @@ export type UpdateSpeakerConfigRequest = Message<"vrooli.audio_tools.v1.stt.Upda
  * Use `create(UpdateSpeakerConfigRequestSchema)` to create a new message.
  */
 export const UpdateSpeakerConfigRequestSchema: GenMessage<UpdateSpeakerConfigRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 21);
+  messageDesc(file_audio_tools_v1_stt_stt, 27);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.UpdateSpeakerConfigResponse
@@ -622,7 +869,7 @@ export type UpdateSpeakerConfigResponse = Message<"vrooli.audio_tools.v1.stt.Upd
  * Use `create(UpdateSpeakerConfigResponseSchema)` to create a new message.
  */
 export const UpdateSpeakerConfigResponseSchema: GenMessage<UpdateSpeakerConfigResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 22);
+  messageDesc(file_audio_tools_v1_stt_stt, 28);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.SpeakerProfile
@@ -679,7 +926,7 @@ export type SpeakerProfile = Message<"vrooli.audio_tools.v1.stt.SpeakerProfile">
  * Use `create(SpeakerProfileSchema)` to create a new message.
  */
 export const SpeakerProfileSchema: GenMessage<SpeakerProfile> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 23);
+  messageDesc(file_audio_tools_v1_stt_stt, 29);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.SpeakerResourceInfo
@@ -721,7 +968,7 @@ export type SpeakerResourceInfo = Message<"vrooli.audio_tools.v1.stt.SpeakerReso
  * Use `create(SpeakerResourceInfoSchema)` to create a new message.
  */
 export const SpeakerResourceInfoSchema: GenMessage<SpeakerResourceInfo> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 24);
+  messageDesc(file_audio_tools_v1_stt_stt, 30);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.SpeakerStatus
@@ -783,7 +1030,7 @@ export type SpeakerStatus = Message<"vrooli.audio_tools.v1.stt.SpeakerStatus"> &
  * Use `create(SpeakerStatusSchema)` to create a new message.
  */
 export const SpeakerStatusSchema: GenMessage<SpeakerStatus> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 25);
+  messageDesc(file_audio_tools_v1_stt_stt, 31);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.GetSpeakerStatusRequest
@@ -796,7 +1043,7 @@ export type GetSpeakerStatusRequest = Message<"vrooli.audio_tools.v1.stt.GetSpea
  * Use `create(GetSpeakerStatusRequestSchema)` to create a new message.
  */
 export const GetSpeakerStatusRequestSchema: GenMessage<GetSpeakerStatusRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 26);
+  messageDesc(file_audio_tools_v1_stt_stt, 32);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.GetSpeakerStatusResponse
@@ -813,7 +1060,7 @@ export type GetSpeakerStatusResponse = Message<"vrooli.audio_tools.v1.stt.GetSpe
  * Use `create(GetSpeakerStatusResponseSchema)` to create a new message.
  */
 export const GetSpeakerStatusResponseSchema: GenMessage<GetSpeakerStatusResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 27);
+  messageDesc(file_audio_tools_v1_stt_stt, 33);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.ListSpeakerProfilesRequest
@@ -826,7 +1073,7 @@ export type ListSpeakerProfilesRequest = Message<"vrooli.audio_tools.v1.stt.List
  * Use `create(ListSpeakerProfilesRequestSchema)` to create a new message.
  */
 export const ListSpeakerProfilesRequestSchema: GenMessage<ListSpeakerProfilesRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 28);
+  messageDesc(file_audio_tools_v1_stt_stt, 34);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.ListSpeakerProfilesResponse
@@ -848,7 +1095,7 @@ export type ListSpeakerProfilesResponse = Message<"vrooli.audio_tools.v1.stt.Lis
  * Use `create(ListSpeakerProfilesResponseSchema)` to create a new message.
  */
 export const ListSpeakerProfilesResponseSchema: GenMessage<ListSpeakerProfilesResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 29);
+  messageDesc(file_audio_tools_v1_stt_stt, 35);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.SpeakerEnrollment
@@ -895,7 +1142,7 @@ export type SpeakerEnrollment = Message<"vrooli.audio_tools.v1.stt.SpeakerEnroll
  * Use `create(SpeakerEnrollmentSchema)` to create a new message.
  */
 export const SpeakerEnrollmentSchema: GenMessage<SpeakerEnrollment> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 30);
+  messageDesc(file_audio_tools_v1_stt_stt, 36);
 
 /**
  * EnrollSpeakerProfileRequest enrolls a new speaker profile. The
@@ -946,7 +1193,7 @@ export type EnrollSpeakerProfileRequest = Message<"vrooli.audio_tools.v1.stt.Enr
  * Use `create(EnrollSpeakerProfileRequestSchema)` to create a new message.
  */
 export const EnrollSpeakerProfileRequestSchema: GenMessage<EnrollSpeakerProfileRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 31);
+  messageDesc(file_audio_tools_v1_stt_stt, 37);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse
@@ -968,7 +1215,7 @@ export type EnrollSpeakerProfileResponse = Message<"vrooli.audio_tools.v1.stt.En
  * Use `create(EnrollSpeakerProfileResponseSchema)` to create a new message.
  */
 export const EnrollSpeakerProfileResponseSchema: GenMessage<EnrollSpeakerProfileResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 32);
+  messageDesc(file_audio_tools_v1_stt_stt, 38);
 
 /**
  * ClearSpeakerProfileBinding clears ALL active profile bindings in the
@@ -986,7 +1233,7 @@ export type ClearSpeakerProfileBindingRequest = Message<"vrooli.audio_tools.v1.s
  * Use `create(ClearSpeakerProfileBindingRequestSchema)` to create a new message.
  */
 export const ClearSpeakerProfileBindingRequestSchema: GenMessage<ClearSpeakerProfileBindingRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 33);
+  messageDesc(file_audio_tools_v1_stt_stt, 39);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingResponse
@@ -1003,7 +1250,7 @@ export type ClearSpeakerProfileBindingResponse = Message<"vrooli.audio_tools.v1.
  * Use `create(ClearSpeakerProfileBindingResponseSchema)` to create a new message.
  */
 export const ClearSpeakerProfileBindingResponseSchema: GenMessage<ClearSpeakerProfileBindingResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 34);
+  messageDesc(file_audio_tools_v1_stt_stt, 40);
 
 /**
  * UnbindSpeakerProfileRequest removes a single profile_id from the
@@ -1025,7 +1272,7 @@ export type UnbindSpeakerProfileRequest = Message<"vrooli.audio_tools.v1.stt.Unb
  * Use `create(UnbindSpeakerProfileRequestSchema)` to create a new message.
  */
 export const UnbindSpeakerProfileRequestSchema: GenMessage<UnbindSpeakerProfileRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 35);
+  messageDesc(file_audio_tools_v1_stt_stt, 41);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.UnbindSpeakerProfileResponse
@@ -1042,7 +1289,7 @@ export type UnbindSpeakerProfileResponse = Message<"vrooli.audio_tools.v1.stt.Un
  * Use `create(UnbindSpeakerProfileResponseSchema)` to create a new message.
  */
 export const UnbindSpeakerProfileResponseSchema: GenMessage<UnbindSpeakerProfileResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 36);
+  messageDesc(file_audio_tools_v1_stt_stt, 42);
 
 /**
  * DeleteSpeakerProfileRequest permanently deletes a profile from the
@@ -1065,7 +1312,7 @@ export type DeleteSpeakerProfileRequest = Message<"vrooli.audio_tools.v1.stt.Del
  * Use `create(DeleteSpeakerProfileRequestSchema)` to create a new message.
  */
 export const DeleteSpeakerProfileRequestSchema: GenMessage<DeleteSpeakerProfileRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 37);
+  messageDesc(file_audio_tools_v1_stt_stt, 43);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.DeleteSpeakerProfileResponse
@@ -1082,7 +1329,7 @@ export type DeleteSpeakerProfileResponse = Message<"vrooli.audio_tools.v1.stt.De
  * Use `create(DeleteSpeakerProfileResponseSchema)` to create a new message.
  */
 export const DeleteSpeakerProfileResponseSchema: GenMessage<DeleteSpeakerProfileResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 38);
+  messageDesc(file_audio_tools_v1_stt_stt, 44);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.TranscribeStreamRequest
@@ -1117,7 +1364,7 @@ export type TranscribeStreamRequest = Message<"vrooli.audio_tools.v1.stt.Transcr
  * Use `create(TranscribeStreamRequestSchema)` to create a new message.
  */
 export const TranscribeStreamRequestSchema: GenMessage<TranscribeStreamRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 39);
+  messageDesc(file_audio_tools_v1_stt_stt, 45);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.StreamStart
@@ -1168,7 +1415,7 @@ export type StreamStart = Message<"vrooli.audio_tools.v1.stt.StreamStart"> & {
  * Use `create(StreamStartSchema)` to create a new message.
  */
 export const StreamStartSchema: GenMessage<StreamStart> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 40);
+  messageDesc(file_audio_tools_v1_stt_stt, 46);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.StreamEnd
@@ -1181,7 +1428,7 @@ export type StreamEnd = Message<"vrooli.audio_tools.v1.stt.StreamEnd"> & {
  * Use `create(StreamEndSchema)` to create a new message.
  */
 export const StreamEndSchema: GenMessage<StreamEnd> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 41);
+  messageDesc(file_audio_tools_v1_stt_stt, 47);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.TranscribeStreamEvent
@@ -1240,7 +1487,7 @@ export type TranscribeStreamEvent = Message<"vrooli.audio_tools.v1.stt.Transcrib
  * Use `create(TranscribeStreamEventSchema)` to create a new message.
  */
 export const TranscribeStreamEventSchema: GenMessage<TranscribeStreamEvent> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 42);
+  messageDesc(file_audio_tools_v1_stt_stt, 48);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.StreamSegment
@@ -1287,7 +1534,7 @@ export type StreamSegment = Message<"vrooli.audio_tools.v1.stt.StreamSegment"> &
  * Use `create(StreamSegmentSchema)` to create a new message.
  */
 export const StreamSegmentSchema: GenMessage<StreamSegment> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 43);
+  messageDesc(file_audio_tools_v1_stt_stt, 49);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.StreamPartial
@@ -1304,7 +1551,7 @@ export type StreamPartial = Message<"vrooli.audio_tools.v1.stt.StreamPartial"> &
  * Use `create(StreamPartialSchema)` to create a new message.
  */
 export const StreamPartialSchema: GenMessage<StreamPartial> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 44);
+  messageDesc(file_audio_tools_v1_stt_stt, 50);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.StreamWakeWord
@@ -1326,7 +1573,7 @@ export type StreamWakeWord = Message<"vrooli.audio_tools.v1.stt.StreamWakeWord">
  * Use `create(StreamWakeWordSchema)` to create a new message.
  */
 export const StreamWakeWordSchema: GenMessage<StreamWakeWord> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 45);
+  messageDesc(file_audio_tools_v1_stt_stt, 51);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.StreamSpeakerRejection
@@ -1348,7 +1595,7 @@ export type StreamSpeakerRejection = Message<"vrooli.audio_tools.v1.stt.StreamSp
  * Use `create(StreamSpeakerRejectionSchema)` to create a new message.
  */
 export const StreamSpeakerRejectionSchema: GenMessage<StreamSpeakerRejection> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 46);
+  messageDesc(file_audio_tools_v1_stt_stt, 52);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.StreamError
@@ -1370,7 +1617,7 @@ export type StreamError = Message<"vrooli.audio_tools.v1.stt.StreamError"> & {
  * Use `create(StreamErrorSchema)` to create a new message.
  */
 export const StreamErrorSchema: GenMessage<StreamError> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 47);
+  messageDesc(file_audio_tools_v1_stt_stt, 53);
 
 /**
  * StreamVadState is a periodic snapshot of the server-side VAD silence
@@ -1409,7 +1656,7 @@ export type StreamVadState = Message<"vrooli.audio_tools.v1.stt.StreamVadState">
  * Use `create(StreamVadStateSchema)` to create a new message.
  */
 export const StreamVadStateSchema: GenMessage<StreamVadState> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 48);
+  messageDesc(file_audio_tools_v1_stt_stt, 54);
 
 /**
  * @generated from message vrooli.audio_tools.v1.stt.StreamDone
@@ -1456,7 +1703,7 @@ export type StreamDone = Message<"vrooli.audio_tools.v1.stt.StreamDone"> & {
  * Use `create(StreamDoneSchema)` to create a new message.
  */
 export const StreamDoneSchema: GenMessage<StreamDone> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_stt_stt, 49);
+  messageDesc(file_audio_tools_v1_stt_stt, 55);
 
 /**
  * SpeakerMode is the speaker-verification gating mode applied to the
@@ -1636,6 +1883,20 @@ export const STTService: GenService<{
     methodKind: "unary";
     input: typeof GetSupportedFormatsRequestSchema;
     output: typeof GetSupportedFormatsResponseSchema;
+  },
+  /**
+   * ListEngines reports the selectable STT engines derived from the
+   * engine-capability manifest (internal/sttengine/manifest.json), with each
+   * engine's runtime availability. It backs the admin engine picker and
+   * `audio-tools stt engines`. The UI/CLI MUST read the engine list from here
+   * — never hardcode it — so adding an engine is a manifest-only change.
+   *
+   * @generated from rpc vrooli.audio_tools.v1.stt.STTService.ListEngines
+   */
+  listEngines: {
+    methodKind: "unary";
+    input: typeof ListEnginesRequestSchema;
+    output: typeof ListEnginesResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_audio_tools_v1_stt_stt, 0);

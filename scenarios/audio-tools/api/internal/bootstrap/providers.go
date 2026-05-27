@@ -31,8 +31,21 @@ func BuildChains(
 	byokRegistries byok.Registries,
 	logger logx.Logger,
 ) Chains {
+	// Local-tier engines share the Local tier but are distinct providers
+	// resolved per-session by StreamStart.EngineID. Whisper (batch) also
+	// serves the unary path; Kyutai (streaming) is selectable only on the
+	// streaming path. The engine ids MUST match internal/sttengine/manifest.json
+	// — bootstrap owns this mapping because sttchain cannot import sttengine
+	// (cycle via egress). An engine whose resource is down simply fails its
+	// IsAvailable probe and is dropped from candidates / hidden in the picker.
+	whisperLocal := sttchain.NewLocalProvider(voiceSvc)
+	kyutaiLocal := sttchain.NewKyutaiProvider(env.KyutaiURL)
 	stt := sttchain.NewChain(sttchain.Options{
-		Local:          sttchain.NewLocalProvider(voiceSvc),
+		Local: whisperLocal,
+		LocalEngines: map[string]sttchain.Provider{
+			"whisper-local": whisperLocal,
+			"kyutai":        kyutaiLocal,
+		},
 		BYOK:           sttchain.NewBYOKProvider(byokRegistries.STT),
 		EnableLocal:    env.EnableLocal,
 		EnableBYOK:     env.EnableBYOK,

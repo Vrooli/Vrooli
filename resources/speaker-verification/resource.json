@@ -1,0 +1,102 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "speaker-verification",
+  "display_name": "Speaker Verification",
+  "description": "Managed SpeechBrain ECAPA-TDNN speaker-embedding service with native compose-backed lifecycle for speaker enrollment, verification, and reserved target-speaker extraction workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-speaker-verification",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "install": [
+      {
+        "os": ["linux", "darwin"],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": ["windows"],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-speaker-verification"
+    },
+    "freshness": {
+      "inputs": ["cli/**", "cli/internal/**", "docs/**", "README.md", "resource.json"]
+    }
+  },
+  "template": "compose-service",
+  "driver": "compose-service",
+  "compose_file": "docker/docker-compose.yml",
+  "gpu": {
+    "probe": "nvidia",
+    "compose_overlay": "docker/docker-compose.gpu.yml",
+    "env_overrides": {
+      "SPEAKER_VERIFICATION_DEVICE": "cuda"
+    }
+  },
+  "portability_tier": "partial",
+  "category": "ai",
+  "platforms": {
+    "linux": "supported",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 8000,
+      "host": 11452
+    }
+  ],
+  "orchestration": {
+    "startup_order": 565,
+    "startup_timeout_seconds": 90,
+    "startup_time_estimate": "20-60s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "environment_exports": {
+    "static": {
+      "SPEAKER_VERIFICATION_HOST": "localhost"
+    },
+    "from_ports": {
+      "SPEAKER_VERIFICATION_PORT": "http"
+    },
+    "derived": {
+      "SPEAKER_VERIFICATION_URL": {
+        "template": "http://${SPEAKER_VERIFICATION_HOST}:${SPEAKER_VERIFICATION_PORT}"
+      },
+      "SPEAKER_VERIFICATION_BASE_URL": {
+        "template": "${SPEAKER_VERIFICATION_URL}"
+      }
+    }
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:11452/ready",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
+  },
+  "template_version": "2"
+}

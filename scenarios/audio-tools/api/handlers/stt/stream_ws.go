@@ -88,7 +88,7 @@ func StreamWSHandler(d Deps) http.Handler {
 
 		start := buildStreamStart(r)
 		cfg := resolveStreamPipelineConfigFromDeps(ctx, d)
-		seg := segmenter.New(segmenter.Deps{Chain: d.Chain, Selector: d.Selector, Engine: d.Engine})
+		seg := segmenter.New(segmenter.Deps{Chain: d.Chain, Selector: d.Selector, Engine: d.Engine, Registry: d.Registry, SpeakerIsolation: currentSpeakerIsolation(d)})
 
 		// Reader: WS frames → chunks channel. Binary frames are raw
 		// audio bytes; text frames (legacy VAD signals from the embed)

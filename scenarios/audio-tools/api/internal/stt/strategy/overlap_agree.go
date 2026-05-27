@@ -93,6 +93,7 @@ func (o *OverlapAgree) Run(
 			Language:                start.Language,
 			InitialPrompt:           committed,
 			SkipSpeakerVerification: start.SkipSpeakerVerification,
+			VADFilter:               start.VADFilter,
 			BYOKProvider:            start.BYOKProvider,
 			BYOKKey:                 start.BYOKKey,
 			LPBSToken:               start.LPBSToken,
@@ -146,6 +147,7 @@ func (o *OverlapAgree) Run(
 				ProviderID:       res.ProviderID,
 				ModelID:          res.ModelID,
 				LatencyMs:        float64(res.Latency.Milliseconds()),
+				Confidence:       res.Confidence,
 			}}
 			committed = newCommit
 		} else if res.Text != "" {
@@ -174,6 +176,7 @@ func (o *OverlapAgree) Run(
 								ProviderTier: res.Tier,
 								ProviderID:   res.ProviderID,
 								ModelID:      res.ModelID,
+								Confidence:   res.Confidence,
 							}}
 							committed = newCommit
 						}

@@ -1,0 +1,16 @@
+# Pinned Python dependencies for the speaker-verification server.
+# torch / torchaudio are installed from the CPU wheel index in the Dockerfile.
+torch==2.2.2
+torchaudio==2.2.2
+speechbrain==1.0.2
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+python-multipart==0.0.9
+numpy==1.26.4
+soundfile==0.12.1
+# huggingface_hub (pulled in by speechbrain) uses requests to fetch the model
+# snapshot on first load; pin it explicitly so the slim image includes it.
+requests==2.32.3
+# speechbrain 1.0.2 still calls hf_hub_download(use_auth_token=...), which was
+# removed in huggingface_hub 0.26. Pin to the last line that supports it.
+huggingface_hub==0.25.2

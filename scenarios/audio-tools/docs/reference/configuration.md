@@ -172,7 +172,8 @@ audio-tools`").
 ## Streaming STT control surface
 
 The streaming STT pipeline ([`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md))
-exposes five operator-tunable levers. They are read once per
+exposes the operator-tunable levers below (five strategy levers plus
+the egress-gate levers in the next subsection). They are read once per
 streaming session by `StrategySelector` and apply to both transports
 (browser WS, Connect bidi). The defaults match the pre-extraction
 web-console behavior — operators only adjust them to trade latency,
@@ -180,6 +181,7 @@ CPU, or quality.
 
 | Lever | Type | Default | Range | Audience | Trade-off |
 |---|---|---|---|---|---|
+| `stt.engine_id` | string (manifest id) | `whisper-local` | from `ListEngines` | operator | Active STT engine. `whisper-local` = faster-whisper (batch; VAD/overlap/buffered). `kyutai` = native-streaming (Passthrough only, ~0.5s delay, GPU). Only the Local tier honors it; BYOK/Vrooli stream natively. Read valid ids from `ListEngines`/`audio-tools stt engines` — never hardcode. Switching consults `GetEngineSwitchImpact` (shared-resource awareness). |
 | `stt.streaming_mode` | enum: `auto`, `off` | `auto` | — | operator | `off` forces a single batch `Transcribe` at `StreamEnd` — cheapest, no partials. `auto` selects the best (strategy, provider) pair for the negotiated tier. |
 | `stt.strategy_preference` | enum: `auto`, `vad`, `overlap` | `auto` | — | operator | `vad` = silence-bounded segments; lower CPU, segment-only events. `overlap` = sliding-window LocalAgreement; higher CPU on Local Whisper, live partials, lower end-of-utterance latency. Ignored for native-streaming providers (Deepgram, Azure, Google, future LPBS). `auto` picks per-provider defaults. |
 | `stt.vad_silence_ms` | integer | `700` | `200–3000` | operator | Silence window that closes a VAD segment. Lower = snappier but may chop natural pauses; higher = preserves long sentences, increases end-of-segment latency. Only meaningful when `VADSegmentStrategy` is active. |
@@ -199,6 +201,56 @@ Lever rules (per [control-surface-tunable-levers-design]):
 - Setting these levers does NOT pick a provider — provider tier
   precedence remains the fixed BYOK → Vrooli → Local order defined in
   the PRD.
+
+### Egress gate (post-recognition quality)
+
+Every transcribed segment passes through a single **post-recognition
+egress gate** (`internal/stt/egress/`) before reaching the wire — the
+symmetric counterpart to the audioformat ingress point. The
+`Segmenter` builds one gate per session from the levers below and runs
+ordered, capability-gated stages over each candidate segment; a stage
+may `Drop` (suppress entirely, excluded from the rebuilt final
+transcript), `Reject` (suppress text, emit a speaker-rejection event —
+the audio-domain speaker stage), or `Emit`. Strategies never call the
+gate directly.
+
+| Lever | Type | Default | Range | Audience | Trade-off |
+|---|---|---|---|---|---|
+| `stt.hallucination_filter_enabled` | bool | `true` | — | operator | Text-domain stage: drops segments whose text matches Whisper's known silence-hallucination phrases ("thank you for watching", "please subscribe", …). Off = raw text passes through (debugging). |
+| `stt.vad_filter_enabled` | bool | `true` | — | operator | Enables faster-whisper's built-in voice-activity filter on each `/asr` request (`vad_filter=true`). Strips silence **before** decode — the source-level hallucination fix. Off = Whisper decodes silence and may narrate it. |
+| `stt.no_speech_threshold` | double | `0.6` | `(0, 1]` | operator | Signal-domain stage: a segment drops when its mean `no_speech_prob` **exceeds** this **and** `avg_logprob` is below `logprob_threshold`. Higher = more permissive (fewer drops). |
+| `stt.logprob_threshold` | double | `-1.0` | `[-10, 0)` | operator | Paired with `no_speech_threshold`. A segment must clear **both** conditions to be dropped, so a confidently-decoded segment containing a pause is kept. Lower (more negative) = more permissive. |
+
+Stage applicability is capability-derived, not engine-name-branched:
+the signal-domain stage only fires for engines whose manifest declares
+`provides.confidenceSignals` (Whisper does; a native-streaming engine
+that reports none has the stage skipped gracefully). The engine
+manifest is the source of truth for which stages a given engine runs;
+these levers remain the operator tunables those stages read.
+
+### Speaker isolation ("only my voice") — audio-domain stage
+
+The audio-domain egress stage rejects voices that are not the enrolled
+speaker (e.g. background music, a second person). It is configured via a
+**separate** admin surface (`SpeakerConfig`, `Get/UpdateSpeakerConfig` +
+`audio-tools` speaker commands), not the `StreamConfig` levers above,
+because it carries enrolled-profile bindings. It applies only to segments
+that carry audio (the Whisper PCM path); Passthrough engines bypass it.
+Enrollment + verification are backed by the `speaker-verification`
+resource (SpeechBrain ECAPA-TDNN), which owns the embeddings.
+
+| Lever | Type | Default | Audience | Trade-off |
+|---|---|---|---|---|
+| `speaker.enabled` | bool | `false` | operator | Master switch. Off omits the audio-domain stage entirely (zero overhead). |
+| `speaker.mode` | enum: `off`, `filter`, `advisory` | `filter` (when enabled) | operator | `filter` rejects non-matching segments; `advisory` scores only (never blocks); `off` skips the stage. |
+| `speaker.threshold` | double | `0.35` | operator | Cosine-similarity match threshold. Higher = stricter (more false rejections); lower = more permissive (other voices leak through). |
+| `speaker.profile_ids` | string[] | `[]` | operator | Enrolled profiles to match against. At least one required when enabled. |
+| `speaker.reject_behavior` | enum: `drop`, `show-muted` | `drop` | operator | What the consumer does with a rejected segment. |
+| `speaker.fallback_without_verification` | bool | `false` | operator | When the resource is down or no profile is bound: `true` lets segments through (flagged unverified on the rejection event), `false` rejects. |
+
+The active isolation **method** (`verification` today, `targetExtraction`
+reserved) is selected by the engine manifest's `speakerIsolation.active`
+field — swapping it is a one-field manifest edit, not an operator lever.
 
 ### Audio format: per-session declaration, not a lever
 

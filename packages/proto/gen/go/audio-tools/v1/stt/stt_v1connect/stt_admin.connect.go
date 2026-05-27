@@ -39,6 +39,9 @@ const (
 	// STTAdminServiceUpdateStreamConfigProcedure is the fully-qualified name of the STTAdminService's
 	// UpdateStreamConfig RPC.
 	STTAdminServiceUpdateStreamConfigProcedure = "/vrooli.audio_tools.v1.stt.STTAdminService/UpdateStreamConfig"
+	// STTAdminServiceGetEngineSwitchImpactProcedure is the fully-qualified name of the
+	// STTAdminService's GetEngineSwitchImpact RPC.
+	STTAdminServiceGetEngineSwitchImpactProcedure = "/vrooli.audio_tools.v1.stt.STTAdminService/GetEngineSwitchImpact"
 	// STTAdminServiceGetWakeWordConfigProcedure is the fully-qualified name of the STTAdminService's
 	// GetWakeWordConfig RPC.
 	STTAdminServiceGetWakeWordConfigProcedure = "/vrooli.audio_tools.v1.stt.STTAdminService/GetWakeWordConfig"
@@ -78,6 +81,11 @@ const (
 type STTAdminServiceClient interface {
 	GetStreamConfig(context.Context, *connect.Request[stt.GetStreamConfigRequest]) (*connect.Response[stt.GetStreamConfigResponse], error)
 	UpdateStreamConfig(context.Context, *connect.Request[stt.UpdateStreamConfigRequest]) (*connect.Response[stt.UpdateStreamConfigResponse], error)
+	// GetEngineSwitchImpact reports the shared-resource impact of switching away
+	// from an engine: which other scenarios still depend on its backing resource
+	// and the exact (never auto-run) command to stop it. Backs the engine
+	// picker's informed-switch prompt and `audio-tools stt engine-impact`.
+	GetEngineSwitchImpact(context.Context, *connect.Request[stt.GetEngineSwitchImpactRequest]) (*connect.Response[stt.GetEngineSwitchImpactResponse], error)
 	GetWakeWordConfig(context.Context, *connect.Request[stt.GetWakeWordConfigRequest]) (*connect.Response[stt.GetWakeWordConfigResponse], error)
 	UpdateWakeWordTemplate(context.Context, *connect.Request[stt.UpdateWakeWordTemplateRequest]) (*connect.Response[stt.UpdateWakeWordTemplateResponse], error)
 	DeleteWakeWordTemplate(context.Context, *connect.Request[stt.DeleteWakeWordTemplateRequest]) (*connect.Response[stt.DeleteWakeWordTemplateResponse], error)
@@ -119,6 +127,12 @@ func NewSTTAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+STTAdminServiceUpdateStreamConfigProcedure,
 			connect.WithSchema(sTTAdminServiceMethods.ByName("UpdateStreamConfig")),
+			connect.WithClientOptions(opts...),
+		),
+		getEngineSwitchImpact: connect.NewClient[stt.GetEngineSwitchImpactRequest, stt.GetEngineSwitchImpactResponse](
+			httpClient,
+			baseURL+STTAdminServiceGetEngineSwitchImpactProcedure,
+			connect.WithSchema(sTTAdminServiceMethods.ByName("GetEngineSwitchImpact")),
 			connect.WithClientOptions(opts...),
 		),
 		getWakeWordConfig: connect.NewClient[stt.GetWakeWordConfigRequest, stt.GetWakeWordConfigResponse](
@@ -194,6 +208,7 @@ func NewSTTAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 type sTTAdminServiceClient struct {
 	getStreamConfig            *connect.Client[stt.GetStreamConfigRequest, stt.GetStreamConfigResponse]
 	updateStreamConfig         *connect.Client[stt.UpdateStreamConfigRequest, stt.UpdateStreamConfigResponse]
+	getEngineSwitchImpact      *connect.Client[stt.GetEngineSwitchImpactRequest, stt.GetEngineSwitchImpactResponse]
 	getWakeWordConfig          *connect.Client[stt.GetWakeWordConfigRequest, stt.GetWakeWordConfigResponse]
 	updateWakeWordTemplate     *connect.Client[stt.UpdateWakeWordTemplateRequest, stt.UpdateWakeWordTemplateResponse]
 	deleteWakeWordTemplate     *connect.Client[stt.DeleteWakeWordTemplateRequest, stt.DeleteWakeWordTemplateResponse]
@@ -215,6 +230,11 @@ func (c *sTTAdminServiceClient) GetStreamConfig(ctx context.Context, req *connec
 // UpdateStreamConfig calls vrooli.audio_tools.v1.stt.STTAdminService.UpdateStreamConfig.
 func (c *sTTAdminServiceClient) UpdateStreamConfig(ctx context.Context, req *connect.Request[stt.UpdateStreamConfigRequest]) (*connect.Response[stt.UpdateStreamConfigResponse], error) {
 	return c.updateStreamConfig.CallUnary(ctx, req)
+}
+
+// GetEngineSwitchImpact calls vrooli.audio_tools.v1.stt.STTAdminService.GetEngineSwitchImpact.
+func (c *sTTAdminServiceClient) GetEngineSwitchImpact(ctx context.Context, req *connect.Request[stt.GetEngineSwitchImpactRequest]) (*connect.Response[stt.GetEngineSwitchImpactResponse], error) {
+	return c.getEngineSwitchImpact.CallUnary(ctx, req)
 }
 
 // GetWakeWordConfig calls vrooli.audio_tools.v1.stt.STTAdminService.GetWakeWordConfig.
@@ -278,6 +298,11 @@ func (c *sTTAdminServiceClient) DeleteSpeakerProfile(ctx context.Context, req *c
 type STTAdminServiceHandler interface {
 	GetStreamConfig(context.Context, *connect.Request[stt.GetStreamConfigRequest]) (*connect.Response[stt.GetStreamConfigResponse], error)
 	UpdateStreamConfig(context.Context, *connect.Request[stt.UpdateStreamConfigRequest]) (*connect.Response[stt.UpdateStreamConfigResponse], error)
+	// GetEngineSwitchImpact reports the shared-resource impact of switching away
+	// from an engine: which other scenarios still depend on its backing resource
+	// and the exact (never auto-run) command to stop it. Backs the engine
+	// picker's informed-switch prompt and `audio-tools stt engine-impact`.
+	GetEngineSwitchImpact(context.Context, *connect.Request[stt.GetEngineSwitchImpactRequest]) (*connect.Response[stt.GetEngineSwitchImpactResponse], error)
 	GetWakeWordConfig(context.Context, *connect.Request[stt.GetWakeWordConfigRequest]) (*connect.Response[stt.GetWakeWordConfigResponse], error)
 	UpdateWakeWordTemplate(context.Context, *connect.Request[stt.UpdateWakeWordTemplateRequest]) (*connect.Response[stt.UpdateWakeWordTemplateResponse], error)
 	DeleteWakeWordTemplate(context.Context, *connect.Request[stt.DeleteWakeWordTemplateRequest]) (*connect.Response[stt.DeleteWakeWordTemplateResponse], error)
@@ -315,6 +340,12 @@ func NewSTTAdminServiceHandler(svc STTAdminServiceHandler, opts ...connect.Handl
 		STTAdminServiceUpdateStreamConfigProcedure,
 		svc.UpdateStreamConfig,
 		connect.WithSchema(sTTAdminServiceMethods.ByName("UpdateStreamConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sTTAdminServiceGetEngineSwitchImpactHandler := connect.NewUnaryHandler(
+		STTAdminServiceGetEngineSwitchImpactProcedure,
+		svc.GetEngineSwitchImpact,
+		connect.WithSchema(sTTAdminServiceMethods.ByName("GetEngineSwitchImpact")),
 		connect.WithHandlerOptions(opts...),
 	)
 	sTTAdminServiceGetWakeWordConfigHandler := connect.NewUnaryHandler(
@@ -389,6 +420,8 @@ func NewSTTAdminServiceHandler(svc STTAdminServiceHandler, opts ...connect.Handl
 			sTTAdminServiceGetStreamConfigHandler.ServeHTTP(w, r)
 		case STTAdminServiceUpdateStreamConfigProcedure:
 			sTTAdminServiceUpdateStreamConfigHandler.ServeHTTP(w, r)
+		case STTAdminServiceGetEngineSwitchImpactProcedure:
+			sTTAdminServiceGetEngineSwitchImpactHandler.ServeHTTP(w, r)
 		case STTAdminServiceGetWakeWordConfigProcedure:
 			sTTAdminServiceGetWakeWordConfigHandler.ServeHTTP(w, r)
 		case STTAdminServiceUpdateWakeWordTemplateProcedure:
@@ -426,6 +459,10 @@ func (UnimplementedSTTAdminServiceHandler) GetStreamConfig(context.Context, *con
 
 func (UnimplementedSTTAdminServiceHandler) UpdateStreamConfig(context.Context, *connect.Request[stt.UpdateStreamConfigRequest]) (*connect.Response[stt.UpdateStreamConfigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.stt.STTAdminService.UpdateStreamConfig is not implemented"))
+}
+
+func (UnimplementedSTTAdminServiceHandler) GetEngineSwitchImpact(context.Context, *connect.Request[stt.GetEngineSwitchImpactRequest]) (*connect.Response[stt.GetEngineSwitchImpactResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.stt.STTAdminService.GetEngineSwitchImpact is not implemented"))
 }
 
 func (UnimplementedSTTAdminServiceHandler) GetWakeWordConfig(context.Context, *connect.Request[stt.GetWakeWordConfigRequest]) (*connect.Response[stt.GetWakeWordConfigResponse], error) {

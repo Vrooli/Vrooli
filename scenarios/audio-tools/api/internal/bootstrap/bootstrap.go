@@ -33,6 +33,7 @@ import (
 	intsession "audio-tools/internal/session"
 	sttpkg "audio-tools/internal/stt"
 	sttpipeline "audio-tools/internal/stt/pipeline"
+	"audio-tools/internal/sttengine"
 	intsumm "audio-tools/internal/summarize"
 	inttts "audio-tools/internal/tts"
 	"audio-tools/internal/usagereport"
@@ -91,11 +92,19 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 	// Segmenter (live PCM decode), the selector capability gate, and TTS
 	// egress. It holds no per-session state.
 	audioEngine := audioformat.New()
+	// engineRegistry is the STT engine-capability manifest (single source of
+	// truth). The selector derives the Local tier's eligible strategies from
+	// it; the Segmenter derives the egress-gate stage set from it.
+	engineRegistry := sttengine.Default()
+	// Speaker-verification resource client (resources/speaker-verification).
+	// Wired here so streaming speaker isolation + enrollment reach the real
+	// ECAPA embedding service; nil base URL would make every verify fall back.
+	speakerClient := &sttpipeline.SpeakerClient{BaseURL: env.SpeakerURL, Doer: doer}
 	voiceSvc := sttpipeline.NewService(
 		sttpipeline.Config{},
 		"", nil, "",
 		sttpipeline.SpeakerConfig{}, "",
-		nil,
+		speakerClient,
 		capsRegistry,
 		skipVerifyCount,
 		env.WhisperURL+"/asr?output=json",
@@ -175,16 +184,18 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 			Coordinator:    chs.Coordinator,
 		}),
 		sttH.Module(sttH.Deps{
-			Chain:        chs.STT,
-			Selector:     sttpkg.NewSelectorWith(chs.STT, audioEngine),
-			Voice:        voiceSvc,
-			Engine:       audioEngine,
-			Logger:       logger,
-			Clock:        clock.System{},
-			Usage:        usageRecorder,
-			StreamConfig: stores.STTStream,
-			Wakeword:     stores.Wakeword,
-			Speaker:      stores.Speaker,
+			Chain:           chs.STT,
+			Selector:        sttpkg.NewSelectorWithRegistry(chs.STT, audioEngine, engineRegistry),
+			Registry:        engineRegistry,
+			Voice:           voiceSvc,
+			SpeakerResource: speakerClient,
+			Engine:          audioEngine,
+			Logger:          logger,
+			Clock:           clock.System{},
+			Usage:           usageRecorder,
+			StreamConfig:    stores.STTStream,
+			Wakeword:        stores.Wakeword,
+			Speaker:         stores.Speaker,
 		}),
 		summarizeH.Module(
 			chs.Summarize,

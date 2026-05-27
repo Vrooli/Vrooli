@@ -33,6 +33,9 @@ func (h *connectHandler) resolveStreamPipelineConfig(ctx context.Context) sttpkg
 	if d.StrategyPreference != "" {
 		cfg.StrategyPreference = sttpkg.StrategyPreference(d.StrategyPreference)
 	}
+	if d.EngineID != "" {
+		cfg.EngineID = d.EngineID
+	}
 	if d.VadSilenceMs != 0 {
 		cfg.VADSilenceMs = int(d.VadSilenceMs)
 	}
@@ -41,6 +44,16 @@ func (h *connectHandler) resolveStreamPipelineConfig(ctx context.Context) sttpkg
 	}
 	if d.OverlapCommitRuns != 0 {
 		cfg.OverlapCommitRuns = int(d.OverlapCommitRuns)
+	}
+	// Egress-gate levers. loadStreamCfg has already backfilled the *bool
+	// toggles and zero thresholds, so these reads are authoritative.
+	cfg.HallucinationFilterEnabled = boolOrTrue(d.HallucinationFilterEnabled)
+	cfg.VADFilterEnabled = boolOrTrue(d.VADFilterEnabled)
+	if d.NoSpeechThreshold != 0 {
+		cfg.NoSpeechThreshold = d.NoSpeechThreshold
+	}
+	if d.LogProbThreshold != 0 {
+		cfg.LogProbThreshold = d.LogProbThreshold
 	}
 	return cfg
 }
@@ -64,6 +77,15 @@ func validateStreamingLevers(d streamCfgDoc) error {
 	}
 	if d.OverlapCommitRuns != 0 && (d.OverlapCommitRuns < 2 || d.OverlapCommitRuns > 4) {
 		return fmt.Errorf("overlap_commit_runs must be in [2, 4], got %d", d.OverlapCommitRuns)
+	}
+	// Egress-gate thresholds: 0 means "use default" (backfilled), so only
+	// non-zero values are range-checked. no_speech_prob is a probability;
+	// avg_logprob is negative (log of a probability).
+	if d.NoSpeechThreshold != 0 && (d.NoSpeechThreshold < 0 || d.NoSpeechThreshold > 1) {
+		return fmt.Errorf("no_speech_threshold must be in (0, 1], got %f", d.NoSpeechThreshold)
+	}
+	if d.LogProbThreshold != 0 && (d.LogProbThreshold < -10 || d.LogProbThreshold > 0) {
+		return fmt.Errorf("logprob_threshold must be in [-10, 0), got %f", d.LogProbThreshold)
 	}
 	return nil
 }
@@ -118,6 +140,9 @@ func backfillStreamCfgDefaults(d streamCfgDoc) streamCfgDoc {
 	if d.StrategyPreference == "" {
 		d.StrategyPreference = def.StrategyPreference
 	}
+	if d.EngineID == "" {
+		d.EngineID = def.EngineID
+	}
 	if d.VadSilenceMs == 0 {
 		d.VadSilenceMs = def.VadSilenceMs
 	}
@@ -126,6 +151,20 @@ func backfillStreamCfgDefaults(d streamCfgDoc) streamCfgDoc {
 	}
 	if d.OverlapCommitRuns == 0 {
 		d.OverlapCommitRuns = def.OverlapCommitRuns
+	}
+	// Egress-gate levers. The *bool toggles backfill via presence (nil =
+	// absent → default true); the thresholds backfill zero → default.
+	if d.HallucinationFilterEnabled == nil {
+		d.HallucinationFilterEnabled = def.HallucinationFilterEnabled
+	}
+	if d.VADFilterEnabled == nil {
+		d.VADFilterEnabled = def.VADFilterEnabled
+	}
+	if d.NoSpeechThreshold == 0 {
+		d.NoSpeechThreshold = def.NoSpeechThreshold
+	}
+	if d.LogProbThreshold == 0 {
+		d.LogProbThreshold = def.LogProbThreshold
 	}
 	return d
 }
@@ -148,9 +187,15 @@ var streamConfigAllowedPaths = map[string]struct{}{
 	"segment_silence_ms":  {},
 	"streaming_mode":      {},
 	"strategy_preference": {},
+	"engine_id":           {},
 	"vad_silence_ms":      {},
 	"overlap_window_ms":   {},
 	"overlap_commit_runs": {},
+
+	"hallucination_filter_enabled": {},
+	"vad_filter_enabled":           {},
+	"no_speech_threshold":          {},
+	"logprob_threshold":            {},
 }
 
 func (h *connectHandler) UpdateStreamConfig(ctx context.Context, req *connect.Request[sttv1.UpdateStreamConfigRequest]) (*connect.Response[sttv1.UpdateStreamConfigResponse], error) {
@@ -193,6 +238,15 @@ func (h *connectHandler) UpdateStreamConfig(ctx context.Context, req *connect.Re
 	if protomap.MaskHas(mask, "strategy_preference") {
 		d.StrategyPreference = protomap.StrategyPreferenceFromProto(cfg.GetStrategyPreference())
 	}
+	if protomap.MaskHas(mask, "engine_id") {
+		engineID := cfg.GetEngineId()
+		if engineID != "" && h.deps.Registry != nil {
+			if _, ok := h.deps.Registry.Engine(engineID); !ok {
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown engine_id %q (see ListEngines)", engineID))
+			}
+		}
+		d.EngineID = engineID
+	}
 	if protomap.MaskHas(mask, "vad_silence_ms") {
 		d.VadSilenceMs = cfg.GetVadSilenceMs()
 	}
@@ -201,6 +255,18 @@ func (h *connectHandler) UpdateStreamConfig(ctx context.Context, req *connect.Re
 	}
 	if protomap.MaskHas(mask, "overlap_commit_runs") {
 		d.OverlapCommitRuns = cfg.GetOverlapCommitRuns()
+	}
+	if protomap.MaskHas(mask, "hallucination_filter_enabled") {
+		d.HallucinationFilterEnabled = boolPtr(cfg.GetHallucinationFilterEnabled())
+	}
+	if protomap.MaskHas(mask, "vad_filter_enabled") {
+		d.VADFilterEnabled = boolPtr(cfg.GetVadFilterEnabled())
+	}
+	if protomap.MaskHas(mask, "no_speech_threshold") {
+		d.NoSpeechThreshold = cfg.GetNoSpeechThreshold()
+	}
+	if protomap.MaskHas(mask, "logprob_threshold") {
+		d.LogProbThreshold = cfg.GetLogprobThreshold()
 	}
 	if err := validateStreamingLevers(d); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)

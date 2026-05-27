@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "audio-tools STT engine capability manifest",
+  "description": "Single source of truth for selectable STT engines and the speaker-isolation axis. The selector derives strategy eligibility from each engine's strategies[]; the egress gate derives stage applicability from provides.*. Adding an engine is a JSON edit (plus a resource folder + provider adapter for kind=local_resource). Invariants are enforced by registry.go + registry_test.go.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["engines", "speakerIsolation"],
+  "properties": {
+    "engines": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "displayName", "kind", "provides", "requires", "strategies"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "displayName": { "type": "string", "minLength": 1 },
+          "kind": {
+            "type": "string",
+            "enum": ["local_resource", "byok_api", "vrooli_hosted"]
+          },
+          "resource": {
+            "type": ["string", "null"],
+            "description": "Resource folder under resources/ and key in .vrooli/service.json dependencies.resources. Required (non-empty) when kind=local_resource; null otherwise."
+          },
+          "provides": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["nativeStreaming", "builtinVad", "confidenceSignals", "wordTimestamps"],
+            "properties": {
+              "nativeStreaming": { "type": "boolean" },
+              "builtinVad": { "type": "boolean" },
+              "confidenceSignals": {
+                "type": "array",
+                "items": { "type": "string", "enum": ["no_speech_prob", "avg_logprob"] }
+              },
+              "wordTimestamps": { "type": "boolean" }
+            }
+          },
+          "requires": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": { "pcm16kMono": { "type": "boolean" } }
+          },
+          "strategies": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": ["vad_segment", "overlap_agree", "passthrough", "buffered_fallback"]
+            }
+          }
+        }
+      }
+    },
+    "speakerIsolation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["active", "methods"],
+      "properties": {
+        "active": { "type": "string", "minLength": 1 },
+        "methods": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "backendResource": { "type": "string" },
+              "defaultThreshold": { "type": "number" },
+              "status": { "type": "string", "enum": ["active", "reserved"] }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file architecture-cartographer/v1/signals/signals.proto.
  */
 export const file_architecture_cartographer_v1_signals_signals: GenFile = /*@__PURE__*/
-  fileDesc("CjJhcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL3NpZ25hbHMvc2lnbmFscy5wcm90bxIrdnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscyJKCghFdmlkZW5jZRIMCgRraW5kGAEgASgJEg8KB3N1bW1hcnkYAiABKAkSDwoHbG9jYXRvchgDIAEoCRIOCgZ3ZWlnaHQYBCABKAEijwEKBVNjb3JlEg4KBnNpZ25hbBgBIAEoCRIOCgZkb21haW4YAiABKAkSDQoFdmFsdWUYAyABKAESDgoGcmVhc29uGAQgASgJEkcKCGV2aWRlbmNlGAUgAygLMjUudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5FdmlkZW5jZSLtAgoHVmVyZGljdBIQCghjaHVua19pZBgBIAEoCRISCgpjaHVua19wYXRoGAIgASgJEj8KBHRpZXIYAyABKA4yMS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLlRpZXISEgoKdG9wX2RvbWFpbhgEIAEoCRIRCgl0b3BfdmFsdWUYBSABKAESGAoQcnVubmVyX3VwX2RvbWFpbhgGIAEoCRIXCg9ydW5uZXJfdXBfdmFsdWUYByABKAESQgoGc2NvcmVzGAggAygLMjIudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5TY29yZRJPCg1kb21haW5fdmFsdWVzGAkgAygLMjgudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5Eb21haW5WYWx1ZRIMCgR0aWVkGAogASgIIiwKC0RvbWFpblZhbHVlEg4KBmRvbWFpbhgBIAEoCRINCgV2YWx1ZRgCIAEoASKLAQoQU2lnbmFsRGVzY3JpcHRvchIMCgRuYW1lGAEgASgJEhYKDmRlZmF1bHRfd2VpZ2h0GAIgASgBEhEKCXN0YWJpbGl0eRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRIQCghkaXNhYmxlZBgFIAEoCBIXCg9kaXNhYmxlZF9yZWFzb24YBiABKAkidwoRU2NvcmVDaHVua1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSPwoFY2h1bmsYAiABKAsyMC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5DaHVuaxIPCgdmaWxlX2lkGAMgASgJIlsKElNjb3JlQ2h1bmtSZXNwb25zZRJFCgd2ZXJkaWN0GAEgASgLMjQudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5WZXJkaWN0InsKFUV4cGxhaW5WZXJkaWN0UmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRI/CgVjaHVuaxgCIAEoCzIwLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLkNodW5rEg8KB2ZpbGVfaWQYAyABKAkiXwoWRXhwbGFpblZlcmRpY3RSZXNwb25zZRJFCgd2ZXJkaWN0GAEgASgLMjQudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5WZXJkaWN0IiYKEkxpc3RTaWduYWxzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSJlChNMaXN0U2lnbmFsc1Jlc3BvbnNlEk4KB3NpZ25hbHMYASADKAsyPS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLlNpZ25hbERlc2NyaXB0b3IqVgoEVGllchIUChBUSUVSX1VOU1BFQ0lGSUVEEAASEwoPVElFUl9BVVRPX1BMQUNFEAESEAoMVElFUl9TVUdHRVNUEAISEQoNVElFUl9DT05GTElDVBADMs8DCg5TaWduYWxzU2VydmljZRKNAQoKU2NvcmVDaHVuaxI+LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuU2NvcmVDaHVua1JlcXVlc3QaPy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLlNjb3JlQ2h1bmtSZXNwb25zZRKZAQoORXhwbGFpblZlcmRpY3QSQi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkV4cGxhaW5WZXJkaWN0UmVxdWVzdBpDLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuRXhwbGFpblZlcmRpY3RSZXNwb25zZRKQAQoLTGlzdFNpZ25hbHMSPy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkxpc3RTaWduYWxzUmVxdWVzdBpALnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuTGlzdFNpZ25hbHNSZXNwb25zZUJgWl5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FyY2hpdGVjdHVyZS1jYXJ0b2dyYXBoZXIvdjEvc2lnbmFscztzaWduYWxzX3YxYgZwcm90bzM", [file_architecture_cartographer_v1_graph_graph]);
+  fileDesc("CjJhcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL3NpZ25hbHMvc2lnbmFscy5wcm90bxIrdnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscyJKCghFdmlkZW5jZRIMCgRraW5kGAEgASgJEg8KB3N1bW1hcnkYAiABKAkSDwoHbG9jYXRvchgDIAEoCRIOCgZ3ZWlnaHQYBCABKAEijwEKBVNjb3JlEg4KBnNpZ25hbBgBIAEoCRIOCgZkb21haW4YAiABKAkSDQoFdmFsdWUYAyABKAESDgoGcmVhc29uGAQgASgJEkcKCGV2aWRlbmNlGAUgAygLMjUudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5FdmlkZW5jZSLtAgoHVmVyZGljdBIQCghjaHVua19pZBgBIAEoCRISCgpjaHVua19wYXRoGAIgASgJEj8KBHRpZXIYAyABKA4yMS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLlRpZXISEgoKdG9wX2RvbWFpbhgEIAEoCRIRCgl0b3BfdmFsdWUYBSABKAESGAoQcnVubmVyX3VwX2RvbWFpbhgGIAEoCRIXCg9ydW5uZXJfdXBfdmFsdWUYByABKAESQgoGc2NvcmVzGAggAygLMjIudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5TY29yZRJPCg1kb21haW5fdmFsdWVzGAkgAygLMjgudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5Eb21haW5WYWx1ZRIMCgR0aWVkGAogASgIIiwKC0RvbWFpblZhbHVlEg4KBmRvbWFpbhgBIAEoCRINCgV2YWx1ZRgCIAEoASKLAQoQU2lnbmFsRGVzY3JpcHRvchIMCgRuYW1lGAEgASgJEhYKDmRlZmF1bHRfd2VpZ2h0GAIgASgBEhEKCXN0YWJpbGl0eRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRIQCghkaXNhYmxlZBgFIAEoCBIXCg9kaXNhYmxlZF9yZWFzb24YBiABKAkifwoNQ291cGxpbmdTbWVsbBIMCgRraW5kGAEgASgJEk8KCHNldmVyaXR5GAIgASgOMj0udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5Db3VwbGluZ1NldmVyaXR5Eg8KB21lc3NhZ2UYAyABKAkinwIKDkRvbWFpbkNvdXBsaW5nEg4KBmRvbWFpbhgBIAEoCRIRCglhcmNoZXR5cGUYAiABKAkSEAoIZWZmZXJlbnQYAyABKAUSEAoIYWZmZXJlbnQYBCABKAUSEwoLaW5zdGFiaWxpdHkYBSABKAESDwoHZmFuX291dBgGIAEoARISCgpkZXBlbmRzX29uGAcgAygJEhMKC2RlcGVuZGVkX2J5GAggAygJEhUKDXN0YWJsZV9rZXJuZWwYCSABKAgSFAoMaGVhbHRoX3Njb3JlGAogASgBEkoKBnNtZWxscxgLIAMoCzI6LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuQ291cGxpbmdTbWVsbCIpChVCb3VuZGFyeUhlYWx0aFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkijwEKFkJvdW5kYXJ5SGVhbHRoUmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSFQoNdG90YWxfZG9tYWlucxgCIAEoBRJMCgdkb21haW5zGAMgAygLMjsudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5Eb21haW5Db3VwbGluZyJ3ChFTY29yZUNodW5rUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRI/CgVjaHVuaxgCIAEoCzIwLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLkNodW5rEg8KB2ZpbGVfaWQYAyABKAkiWwoSU2NvcmVDaHVua1Jlc3BvbnNlEkUKB3ZlcmRpY3QYASABKAsyNC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLlZlcmRpY3QiewoVRXhwbGFpblZlcmRpY3RSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEj8KBWNodW5rGAIgASgLMjAudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguQ2h1bmsSDwoHZmlsZV9pZBgDIAEoCSJfChZFeHBsYWluVmVyZGljdFJlc3BvbnNlEkUKB3ZlcmRpY3QYASABKAsyNC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLlZlcmRpY3QiJgoSTGlzdFNpZ25hbHNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJImUKE0xpc3RTaWduYWxzUmVzcG9uc2USTgoHc2lnbmFscxgBIAMoCzI9LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuU2lnbmFsRGVzY3JpcHRvcipWCgRUaWVyEhQKEFRJRVJfVU5TUEVDSUZJRUQQABITCg9USUVSX0FVVE9fUExBQ0UQARIQCgxUSUVSX1NVR0dFU1QQAhIRCg1USUVSX0NPTkZMSUNUEAMqbQoQQ291cGxpbmdTZXZlcml0eRIhCh1DT1VQTElOR19TRVZFUklUWV9VTlNQRUNJRklFRBAAEhoKFkNPVVBMSU5HX1NFVkVSSVRZX0lORk8QARIaChZDT1VQTElOR19TRVZFUklUWV9XQVJOEAIy6wQKDlNpZ25hbHNTZXJ2aWNlEo0BCgpTY29yZUNodW5rEj4udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5TY29yZUNodW5rUmVxdWVzdBo/LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuU2NvcmVDaHVua1Jlc3BvbnNlEpkBCg5FeHBsYWluVmVyZGljdBJCLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuRXhwbGFpblZlcmRpY3RSZXF1ZXN0GkMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5FeHBsYWluVmVyZGljdFJlc3BvbnNlEpABCgtMaXN0U2lnbmFscxI/LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuTGlzdFNpZ25hbHNSZXF1ZXN0GkAudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5MaXN0U2lnbmFsc1Jlc3BvbnNlEpkBCg5Cb3VuZGFyeUhlYWx0aBJCLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuQm91bmRhcnlIZWFsdGhSZXF1ZXN0GkMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5Cb3VuZGFyeUhlYWx0aFJlc3BvbnNlQmBaXmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYXJjaGl0ZWN0dXJlLWNhcnRvZ3JhcGhlci92MS9zaWduYWxzO3NpZ25hbHNfdjFiBnByb3RvMw", [file_architecture_cartographer_v1_graph_graph]);
 
 /**
  * Evidence is one piece of justification for a Score.
@@ -284,6 +284,162 @@ export const SignalDescriptorSchema: GenMessage<SignalDescriptor> = /*@__PURE__*
   messageDesc(file_architecture_cartographer_v1_signals_signals, 4);
 
 /**
+ * CouplingSmell is one advisory boundary-health finding for a domain.
+ *
+ * @generated from message vrooli.architecture_cartographer.v1.signals.CouplingSmell
+ */
+export type CouplingSmell = Message<"vrooli.architecture_cartographer.v1.signals.CouplingSmell"> & {
+  /**
+   * Stable smell kind (e.g., "god_domain", "unstable_dependency").
+   *
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: vrooli.architecture_cartographer.v1.signals.CouplingSeverity severity = 2;
+   */
+  severity: CouplingSeverity;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.signals.CouplingSmell.
+ * Use `create(CouplingSmellSchema)` to create a new message.
+ */
+export const CouplingSmellSchema: GenMessage<CouplingSmell> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 5);
+
+/**
+ * DomainCoupling is the coupling profile of one domain.
+ *
+ * @generated from message vrooli.architecture_cartographer.v1.signals.DomainCoupling
+ */
+export type DomainCoupling = Message<"vrooli.architecture_cartographer.v1.signals.DomainCoupling"> & {
+  /**
+   * @generated from field: string domain = 1;
+   */
+  domain: string;
+
+  /**
+   * @generated from field: string archetype = 2;
+   */
+  archetype: string;
+
+  /**
+   * Efferent coupling: distinct domains this domain depends on.
+   *
+   * @generated from field: int32 efferent = 3;
+   */
+  efferent: number;
+
+  /**
+   * Afferent coupling: distinct domains depending on this one.
+   *
+   * @generated from field: int32 afferent = 4;
+   */
+  afferent: number;
+
+  /**
+   * Instability I = Ce/(Ce+Ca), in [0,1].
+   *
+   * @generated from field: double instability = 5;
+   */
+  instability: number;
+
+  /**
+   * Fan-out fraction Ce/(domains-1), in [0,1].
+   *
+   * @generated from field: double fan_out = 6;
+   */
+  fanOut: number;
+
+  /**
+   * @generated from field: repeated string depends_on = 7;
+   */
+  dependsOn: string[];
+
+  /**
+   * @generated from field: repeated string depended_by = 8;
+   */
+  dependedBy: string[];
+
+  /**
+   * True when the domain is a derived shared substrate (high Ca, low Ce).
+   *
+   * @generated from field: bool stable_kernel = 9;
+   */
+  stableKernel: boolean;
+
+  /**
+   * Graded health score in [0,1]; 1 = healthy.
+   *
+   * @generated from field: double health_score = 10;
+   */
+  healthScore: number;
+
+  /**
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.signals.CouplingSmell smells = 11;
+   */
+  smells: CouplingSmell[];
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.signals.DomainCoupling.
+ * Use `create(DomainCouplingSchema)` to create a new message.
+ */
+export const DomainCouplingSchema: GenMessage<DomainCoupling> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 6);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.signals.BoundaryHealthRequest
+ */
+export type BoundaryHealthRequest = Message<"vrooli.architecture_cartographer.v1.signals.BoundaryHealthRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.signals.BoundaryHealthRequest.
+ * Use `create(BoundaryHealthRequestSchema)` to create a new message.
+ */
+export const BoundaryHealthRequestSchema: GenMessage<BoundaryHealthRequest> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 7);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.signals.BoundaryHealthResponse
+ */
+export type BoundaryHealthResponse = Message<"vrooli.architecture_cartographer.v1.signals.BoundaryHealthResponse"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: int32 total_domains = 2;
+   */
+  totalDomains: number;
+
+  /**
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.signals.DomainCoupling domains = 3;
+   */
+  domains: DomainCoupling[];
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.signals.BoundaryHealthResponse.
+ * Use `create(BoundaryHealthResponseSchema)` to create a new message.
+ */
+export const BoundaryHealthResponseSchema: GenMessage<BoundaryHealthResponse> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 8);
+
+/**
  * @generated from message vrooli.architecture_cartographer.v1.signals.ScoreChunkRequest
  */
 export type ScoreChunkRequest = Message<"vrooli.architecture_cartographer.v1.signals.ScoreChunkRequest"> & {
@@ -315,7 +471,7 @@ export type ScoreChunkRequest = Message<"vrooli.architecture_cartographer.v1.sig
  * Use `create(ScoreChunkRequestSchema)` to create a new message.
  */
 export const ScoreChunkRequestSchema: GenMessage<ScoreChunkRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 5);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 9);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.signals.ScoreChunkResponse
@@ -332,7 +488,7 @@ export type ScoreChunkResponse = Message<"vrooli.architecture_cartographer.v1.si
  * Use `create(ScoreChunkResponseSchema)` to create a new message.
  */
 export const ScoreChunkResponseSchema: GenMessage<ScoreChunkResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 6);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 10);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.signals.ExplainVerdictRequest
@@ -359,7 +515,7 @@ export type ExplainVerdictRequest = Message<"vrooli.architecture_cartographer.v1
  * Use `create(ExplainVerdictRequestSchema)` to create a new message.
  */
 export const ExplainVerdictRequestSchema: GenMessage<ExplainVerdictRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 7);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 11);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.signals.ExplainVerdictResponse
@@ -376,7 +532,7 @@ export type ExplainVerdictResponse = Message<"vrooli.architecture_cartographer.v
  * Use `create(ExplainVerdictResponseSchema)` to create a new message.
  */
 export const ExplainVerdictResponseSchema: GenMessage<ExplainVerdictResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 8);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 12);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.signals.ListSignalsRequest
@@ -396,7 +552,7 @@ export type ListSignalsRequest = Message<"vrooli.architecture_cartographer.v1.si
  * Use `create(ListSignalsRequestSchema)` to create a new message.
  */
 export const ListSignalsRequestSchema: GenMessage<ListSignalsRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 9);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 13);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.signals.ListSignalsResponse
@@ -413,7 +569,7 @@ export type ListSignalsResponse = Message<"vrooli.architecture_cartographer.v1.s
  * Use `create(ListSignalsResponseSchema)` to create a new message.
  */
 export const ListSignalsResponseSchema: GenMessage<ListSignalsResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 10);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 14);
 
 /**
  * Tier classifies an aggregated verdict by confidence band.
@@ -457,6 +613,34 @@ export const TierSchema: GenEnum<Tier> = /*@__PURE__*/
   enumDesc(file_architecture_cartographer_v1_signals_signals, 0);
 
 /**
+ * CouplingSeverity grades a boundary-health smell. Advisory only.
+ *
+ * @generated from enum vrooli.architecture_cartographer.v1.signals.CouplingSeverity
+ */
+export enum CouplingSeverity {
+  /**
+   * @generated from enum value: COUPLING_SEVERITY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: COUPLING_SEVERITY_INFO = 1;
+   */
+  INFO = 1,
+
+  /**
+   * @generated from enum value: COUPLING_SEVERITY_WARN = 2;
+   */
+  WARN = 2,
+}
+
+/**
+ * Describes the enum vrooli.architecture_cartographer.v1.signals.CouplingSeverity.
+ */
+export const CouplingSeveritySchema: GenEnum<CouplingSeverity> = /*@__PURE__*/
+  enumDesc(file_architecture_cartographer_v1_signals_signals, 1);
+
+/**
  * @generated from service vrooli.architecture_cartographer.v1.signals.SignalsService
  */
 export const SignalsService: GenService<{
@@ -494,6 +678,19 @@ export const SignalsService: GenService<{
     methodKind: "unary";
     input: typeof ListSignalsRequestSchema;
     output: typeof ListSignalsResponseSchema;
+  },
+  /**
+   * BoundaryHealth computes domain-level coupling/boundary-health metrics
+   * (efferent/afferent coupling, instability, fan-out, stable-kernel) over
+   * the latest graph snapshot + derived domain map, and returns a graded
+   * health score per domain with advisory smells. Never a hard gate.
+   *
+   * @generated from rpc vrooli.architecture_cartographer.v1.signals.SignalsService.BoundaryHealth
+   */
+  boundaryHealth: {
+    methodKind: "unary";
+    input: typeof BoundaryHealthRequestSchema;
+    output: typeof BoundaryHealthResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_architecture_cartographer_v1_signals_signals, 0);

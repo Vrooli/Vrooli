@@ -174,7 +174,7 @@ func (s *Service) SetWakeWordTemplate(tmpl *WakeWordTemplate) {
 	s.wakeWord = tmpl
 }
 
-func (s *Service) transcribe(ctx context.Context, audio []byte, format, language, initialPrompt string) (string, error) {
+func (s *Service) transcribe(ctx context.Context, audio []byte, format, language, initialPrompt string, vadFilter bool) (TranscriptionResult, error) {
 	// Bound concurrent Whisper calls to the resource cap; block (queue),
 	// never error, when full. ctx-aware so a cancelled session releases its
 	// place in line instead of deadlocking.
@@ -183,10 +183,10 @@ func (s *Service) transcribe(ctx context.Context, audio []byte, format, language
 		case s.whisperSem <- struct{}{}:
 			defer func() { <-s.whisperSem }()
 		case <-ctx.Done():
-			return "", ctx.Err()
+			return TranscriptionResult{}, ctx.Err()
 		}
 	}
-	return TranscribeBytes(ctx, s.whisperURL, s.httpClient, s.engine, audio, format, language, initialPrompt)
+	return TranscribeBytes(ctx, s.whisperURL, s.httpClient, s.engine, audio, format, language, initialPrompt, vadFilter)
 }
 
 // ----- Pipeline state API -----
@@ -228,8 +228,11 @@ func (s *Service) FormatSpeakerDecisionError(d SpeakerDecision) string {
 // vocabulary describing the bytes ("webm", "pcm_s16le", "wav", ...);
 // empty means "sniff". The audioformat substrate wraps canonical PCM in a
 // WAV header and passes real containers straight to Whisper's own decoder.
-func (s *Service) Transcribe(ctx context.Context, audio []byte, format, language, initialPrompt string) (string, error) {
-	return s.transcribe(ctx, audio, format, language, initialPrompt)
+// vadFilter enables faster-whisper's silence filter on the request. The
+// returned TranscriptionResult carries the text plus the per-segment
+// confidence signals the egress gate's signal-domain stage consumes.
+func (s *Service) Transcribe(ctx context.Context, audio []byte, format, language, initialPrompt string, vadFilter bool) (TranscriptionResult, error) {
+	return s.transcribe(ctx, audio, format, language, initialPrompt, vadFilter)
 }
 
 func (s *Service) IsWhisperHallucination(text string) bool {

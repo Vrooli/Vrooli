@@ -302,6 +302,20 @@ const literalSelectors = {
     root: "error-boundary-root",
     retryButton: "error-boundary-retry",
   },
+  streamConfig: {
+    enginePicker: "stream-config-engine-picker",
+    switchPrompt: "stream-config-switch-prompt",
+    confirmSwitch: "stream-config-confirm-switch",
+    cancelSwitch: "stream-config-cancel-switch",
+  },
+  wakeWord: {
+    label: "wake-word-label",
+    threshold: "wake-word-threshold",
+    record: "wake-word-record",
+    save: "wake-word-save",
+    delete: "wake-word-delete",
+    sampleCount: "wake-word-sample-count",
+  },
 } satisfies LiteralSelectorTree;
 
 // Per-locale toggle test IDs are emitted by `locale.toggle({ code })` below.
@@ -330,6 +344,25 @@ const dynamicSelectorDefinitions = {
       description: "Speaker profile model cell by profile id",
       testIdPattern: "speaker-profile-model-${id}",
       params: { id: { type: "string" } },
+    }),
+  },
+  streamConfig: {
+    engineRow: defineDynamicSelector({
+      description: "Selectable STT engine row by engine id",
+      testIdPattern: "engine-row-${id}",
+      params: { id: { type: "string" } },
+    }),
+    engineSelect: defineDynamicSelector({
+      description: "Select-engine button by engine id",
+      testIdPattern: "engine-select-${id}",
+      params: { id: { type: "string" } },
+    }),
+  },
+  wakeWord: {
+    sampleRow: defineDynamicSelector({
+      description: "Recorded wake-word sample row by index",
+      testIdPattern: "wake-word-sample-${index}",
+      params: { index: { type: "string" } },
     }),
   },
 } satisfies DynamicSelectorTree;

@@ -337,8 +337,18 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       segments: [...segmentsRef.current],
       partialTranscript: "",
     }));
-    // Deliver the segment text to the transcript callback
-    onTranscriptRef.current(finalText);
+    // Deliver the segment text to the transcript callback. Consecutive
+    // committed segments in a turn must be space-separated, otherwise the
+    // sinks (the terminal writes raw PTY input; the mobile toolbar appends)
+    // run them together ("...sentence.Now here..."). Segments always commit on
+    // a speech pause — whole words, never mid-word — so a plain leading space
+    // is correct. Skip it for the first segment of the turn and when the
+    // segment opens with closing punctuation. This is engine-agnostic (the
+    // same path serves Whisper VAD segments) and needs no STT contract change:
+    // segment ordering is the only context required, and it lives here.
+    const delivered =
+      segmentIndex > 0 && !/^[\s,.!?;:]/.test(finalText) ? ` ${finalText}` : finalText;
+    onTranscriptRef.current(delivered);
   }, []);
 
   /** Session counter for diagnostic logging — helps correlate log lines

@@ -55,6 +55,17 @@ func encodeArgs(target OutputFormat) []string {
 	return append(args, "pipe:1")
 }
 
+// WAVFromCanonicalPCM wraps raw canonical PCM (s16le/16k/mono) in a 44-byte
+// WAV header so consumers that decode via container sniffing (e.g. the
+// speaker-verification resource, which uses torchaudio/ffmpeg) can read it.
+//
+// This is UNCONDITIONAL by design: raw PCM has no header and cannot be
+// sniffed (see Detect's doc), and a PCM sample can legitimately begin with
+// bytes that collide with container magic (e.g. 0xFFFF reads as an MPEG frame
+// sync). Callers must therefore pass canonical PCM, never an already-
+// containerized blob — which holds for every egress speaker-stage caller.
+func WAVFromCanonicalPCM(pcm []byte) []byte { return encodeWAV(pcm) }
+
 // encodeWAV prepends a canonical 44-byte PCM WAV header to raw s16le bytes.
 func encodeWAV(pcm []byte) []byte {
 	const (

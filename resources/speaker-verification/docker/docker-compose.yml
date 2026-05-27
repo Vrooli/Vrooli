@@ -1,0 +1,55 @@
+services:
+  speaker-verification:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${SPEAKER_VERIFICATION_IMAGE:-vrooli/speaker-verification:latest}
+    container_name: ${SPEAKER_VERIFICATION_CONTAINER_NAME:-speaker-verification}
+    hostname: speaker-verification
+    restart: unless-stopped
+    ports:
+      - "${SPEAKER_VERIFICATION_BIND_ADDRESS:-127.0.0.1}:${SPEAKER_VERIFICATION_PORT:-11452}:8000"
+    volumes:
+      - speaker_verification_profiles:/data/profiles:rw
+      - speaker_verification_models:/data/model-cache:rw
+    environment:
+      - SPEAKER_VERIFICATION_DEVICE=${SPEAKER_VERIFICATION_DEVICE:-cpu}
+      - SPEAKER_VERIFICATION_MODEL=${SPEAKER_VERIFICATION_MODEL:-speechbrain/spkrec-ecapa-voxceleb}
+    networks:
+      - speaker-verification-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: ${SPEAKER_VERIFICATION_MEMORY_LIMIT:-4G}
+        reservations:
+          memory: ${SPEAKER_VERIFICATION_MEMORY_RESERVATION:-2G}
+
+volumes:
+  speaker_verification_profiles:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: "${SPEAKER_VERIFICATION_PROFILES_DIR:-${RESOURCE_DATA_DIR:-$HOME/.local/share/vrooli/resources/speaker-verification}/profiles}"
+  speaker_verification_models:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: "${SPEAKER_VERIFICATION_MODELS_DIR:-${RESOURCE_DATA_DIR:-$HOME/.local/share/vrooli/resources/speaker-verification}/model-cache}"
+
+networks:
+  speaker-verification-network:
+    name: ${SPEAKER_VERIFICATION_NETWORK_NAME:-speaker-verification-network}
+    driver: bridge

@@ -137,6 +137,44 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `hooks/voice/pcmCapture.ts`, `hooks/voice/audioUtils.ts`.
 
+### 2026-05-27 — Hallucination filter + confidence signals not wired (RESOLVED)
+
+**Symptom:** Whisper narrated silence as "thank you for watching" / "please subscribe". The phrase filter `IsWhisperHallucination` existed but had ZERO callers; `TranscribeBytes` parsed only `{text}` from `/asr?output=json` (discarding `no_speech_prob`/`avg_logprob`) and never sent `vad_filter=true`, so the robust acoustic signals were thrown away and silence was never stripped before decode.
+
+**Resolution (RESOLVED 2026-05-27):** Closed by the post-recognition **egress gate** (`internal/stt/egress/`) — the symmetric counterpart to the audioformat ingress point. The `Segmenter` builds one `egress.Gate` per session (stage set derived from the engine manifest via `sttengine.EgressStages`) and runs every `SegmentEvent` through it before the wire; strategies never call the gate. Three layers of defense: (1) `vad_filter=true` now reaches `/asr` (silence stripped at the source); (2) the signal-domain `ConfidenceStage` drops a segment when mean `no_speech_prob` > threshold AND mean `avg_logprob` < threshold (`TranscribeBytes` now parses `segments[]` into `pipeline.TranscriptionResult`, threaded via `sttchain.Result.Confidence` → `SegmentEvent.Confidence`); (3) the text-domain `HallucinationStage` wires `IsWhisperHallucination`. Dropped segments are excluded from the rebuilt `DoneEvent.FinalText`. Operator levers (`hallucination_filter_enabled`, `vad_filter_enabled`, `no_speech_threshold`, `logprob_threshold`) ship on proto `StreamConfig` + CLI; see `docs/reference/configuration.md#egress-gate`. Tested: `egress/gate_test.go`, `segmenter/egress_gate_test.go`, `pipeline/transcribe_ingress_test.go`.
+
+**Owner:** resolved.
+
+### 2026-05-27 — Speaker isolation ("only my voice") (RESOLVED)
+
+**Symptom (historical):** Background music / other voices were transcribed; `SpeakerClient`/`EvaluateSpeaker` had zero callers and no embedding backend existed.
+
+**Resolution (RESOLVED 2026-05-27):** Closed by Phase 4 of the pluggable-STT-engines plan. The audio-domain `egress.SpeakerStage` now runs the pluggable `egress.SpeakerIsolation` seam over each segment's canonical PCM; a non-enrolled voice under `filter` mode yields `Reject` → `StreamEventSpeakerRejection` (honoring `RejectBehavior` + `FallbackWithoutVerification`; `advisory` scores only; `off` omits the stage). The `verification` method (manifest `speakerIsolation.active`) wraps `pipeline.EvaluateSpeaker` against the new `resources/speaker-verification/` ECAPA service; the adapter lives in the handler layer to avoid the `egress→sttchain→pipeline` cycle. Enrollment is real: `EnrollSpeakerProfile` calls the resource `/v1/profiles` (the resource OWNS the 192-dim embedding; audio-tools stores only metadata + binding, `speaker_profiles.embedding` is now nullable), and delete purges the resource profile. Tested with fakes: `egress/speaker_stage_test.go`, `handlers/stt/speaker_isolation_test.go`, `sttengine/egress_stages_test.go`. **Live validation pending** — see the ML-resource entry below.
+
+**Owner:** resolved.
+
+### 2026-05-27 — Kyutai streaming engine (RESOLVED)
+
+**Resolution (RESOLVED 2026-05-27):** Closed by Phase 3. `kyutai` is a second manifest engine (`internal/sttengine/manifest.json`, `kind=local_resource`, native-streaming, `passthrough`-only, no confidence signals). `resources/kyutai-stt/` wraps the Kyutai 1B model behind a stable JSON-over-WS contract (`/v1/stream`); `internal/ai/sttchain/provider_kyutai.go` speaks it. Both Whisper and Kyutai are Local-tier engines; the chain resolves the right provider per session from `StreamStart.EngineID` via `localEngines` (`StreamCandidates`). `Segmenter.requiresPCM` (manifest `requires.pcm16kMono`) ensures Passthrough→Kyutai still gets canonical PCM. Engine picker UI + `GetEngineSwitchImpact` informed-prompt (cross-scenario `ScanResourceConsumers`) shipped; `OverlapAgree` stays Whisper-eligible. **Live validation pending** — see below.
+
+**Owner:** resolved.
+
+### 2026-05-27 — Live ML-resource validation pending operator hardware (deferred)
+
+**Symptom:** The two new ML resources (`resources/kyutai-stt/`, `resources/speaker-verification/`) are built, self-consistent, and contract-matched to their audio-tools clients, but have NOT been started end-to-end: that needs a GPU (Kyutai) + first-run multi-GB model downloads (Kyutai weights; SpeechBrain ECAPA, CPU-only).
+
+**Status:** Deferred to the operator. Everything audio-tools-side is validated with fakes (Go build/test/lint, CLI, UI tsc/eslint/vitest, scenario restart). To validate live: build + start each resource (`vrooli resource start kyutai-stt` / `vrooli resource start speaker-verification`), confirm `/health` + `/ready` flip ready after the model download, then drive a real mic session (Kyutai partials/segments; speaker `filter` mode rejecting a second voice / background music). Kyutai enforces a single concurrent streaming session per model instance (asyncio lock) — revisit with a model pool if concurrency is needed.
+
+**Owner:** unassigned (operator hardware).
+
+### 2026-05-27 — Target-speaker extraction reserved (deferred)
+
+**Symptom:** `SpeakerConfig.ExtractionEnabled` + `pipeline.ExtractTargetSpeaker` exist, but the `speaker-verification` resource returns HTTP 501 for `/v1/extract` and the manifest marks `speakerIsolation.methods.targetExtraction.status = "reserved"`.
+
+**Status:** Deferred by design — verification ships first. The manifest reserves the slot and `egress.EgressStages` skips a `reserved` active method, so switching the active isolation method to extraction is a one-field manifest edit once a target-speaker-extraction backend (e.g. a TSE model) is added to the resource.
+
+**Owner:** unassigned.
+
 ### 2026-05-27 — OverlapAgree sliding-window commit logic (deferred)
 
 **Symptom:** `OverlapAgree` (LocalAgreement) rarely commits text. It slides windows by `advanceBytes` (default WindowMs/2) but compares transcript prefixes across windows that cover *misaligned* audio spans, so the longest-agreed-prefix check rarely matches; the final tail flush emits only `buf[cursor:]`, dropping earlier committed text.

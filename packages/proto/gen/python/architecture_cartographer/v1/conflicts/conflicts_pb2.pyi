@@ -87,7 +87,7 @@ class Fix(_message.Message):
     def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[FixKind, str]] = ..., resolver: _Optional[str] = ..., summary: _Optional[str] = ..., payload: _Optional[bytes] = ..., confidence: _Optional[float] = ...) -> None: ...
 
 class Conflict(_message.Message):
-    __slots__ = ("id", "scenario", "detector", "type", "subtype", "severity", "locations", "domains", "evidence", "suggested_fixes", "status", "assigned_domain", "resolution_note", "snapshot_id", "verdict", "detected_at", "updated_at")
+    __slots__ = ("id", "scenario", "detector", "type", "subtype", "severity", "locations", "domains", "evidence", "suggested_fixes", "status", "assigned_domain", "resolution_note", "snapshot_id", "verdict", "detected_at", "updated_at", "suppressed", "suppression_reason")
     ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     DETECTOR_FIELD_NUMBER: _ClassVar[int]
@@ -105,6 +105,8 @@ class Conflict(_message.Message):
     VERDICT_FIELD_NUMBER: _ClassVar[int]
     DETECTED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    SUPPRESSED_FIELD_NUMBER: _ClassVar[int]
+    SUPPRESSION_REASON_FIELD_NUMBER: _ClassVar[int]
     id: str
     scenario: str
     detector: str
@@ -122,7 +124,9 @@ class Conflict(_message.Message):
     verdict: _signals_pb2.Verdict
     detected_at: _timestamp_pb2.Timestamp
     updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., detector: _Optional[str] = ..., type: _Optional[str] = ..., subtype: _Optional[str] = ..., severity: _Optional[_Union[Severity, str]] = ..., locations: _Optional[_Iterable[str]] = ..., domains: _Optional[_Iterable[str]] = ..., evidence: _Optional[_Iterable[_Union[ConflictEvidence, _Mapping]]] = ..., suggested_fixes: _Optional[_Iterable[_Union[Fix, _Mapping]]] = ..., status: _Optional[_Union[ResolutionStatus, str]] = ..., assigned_domain: _Optional[str] = ..., resolution_note: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., verdict: _Optional[_Union[_signals_pb2.Verdict, _Mapping]] = ..., detected_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    suppressed: bool
+    suppression_reason: str
+    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., detector: _Optional[str] = ..., type: _Optional[str] = ..., subtype: _Optional[str] = ..., severity: _Optional[_Union[Severity, str]] = ..., locations: _Optional[_Iterable[str]] = ..., domains: _Optional[_Iterable[str]] = ..., evidence: _Optional[_Iterable[_Union[ConflictEvidence, _Mapping]]] = ..., suggested_fixes: _Optional[_Iterable[_Union[Fix, _Mapping]]] = ..., status: _Optional[_Union[ResolutionStatus, str]] = ..., assigned_domain: _Optional[str] = ..., resolution_note: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., verdict: _Optional[_Union[_signals_pb2.Verdict, _Mapping]] = ..., detected_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., suppressed: _Optional[bool] = ..., suppression_reason: _Optional[str] = ...) -> None: ...
 
 class DetectorDescriptor(_message.Message):
     __slots__ = ("name", "description", "stability", "emits_types")

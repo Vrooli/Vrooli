@@ -12,6 +12,8 @@ import (
 	"connectrpc.com/connect"
 
 	"audio-tools/internal/protomap"
+	"audio-tools/internal/stt/egress"
+	sttpipeline "audio-tools/internal/stt/pipeline"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
@@ -21,6 +23,58 @@ var (
 	speakerCfgMu sync.Mutex
 	speakerCfg   = defaultSpeakerCfg()
 )
+
+// speakerVerification adapts pipeline.EvaluateSpeaker (cosine-similarity
+// verification against the speaker-verification resource) to the
+// egress.SpeakerIsolation seam. It lives in the handler layer — not pipeline —
+// because pipeline cannot import egress (egress imports sttchain, sttchain
+// imports pipeline; that would cycle). It captures the SpeakerConfig + client
+// taken at session start so a mid-session config change does not retune an
+// in-flight stream.
+type speakerVerification struct {
+	cfg    sttpipeline.SpeakerConfig
+	client *sttpipeline.SpeakerClient
+}
+
+func (s speakerVerification) Evaluate(ctx context.Context, audio []byte) egress.SpeakerVerdict {
+	d := sttpipeline.EvaluateSpeaker(ctx, s.cfg, s.client, audio)
+	v := egress.SpeakerVerdict{Allowed: d.Allowed}
+	if !d.Allowed {
+		v.Reason = sttpipeline.FormatSpeakerDecisionError(d)
+	}
+	// Allowed but verification never matched a profile => let through under
+	// FallbackWithoutVerification (resource down / no enrolled profile).
+	if d.Allowed && d.Enabled && !d.Applied {
+		v.FallbackUsed = true
+	}
+	return v
+}
+
+// currentSpeakerIsolation builds the per-session audio-domain isolation from
+// the live speaker-config cell + the resource client. Returns nil when speaker
+// isolation is disabled or off, so the Segmenter omits the audio-domain egress
+// stage entirely. Read once at session start — the stage never retunes mid-
+// session (mirrors how StreamConfig is snapshotted per session).
+func currentSpeakerIsolation(d Deps) egress.SpeakerIsolation {
+	speakerCfgMu.Lock()
+	doc := speakerCfg
+	speakerCfgMu.Unlock()
+	if !doc.Enabled || doc.Mode == "off" {
+		return nil
+	}
+	return speakerVerification{
+		cfg: sttpipeline.SpeakerConfig{
+			Enabled:                     doc.Enabled,
+			ProfileIDs:                  doc.ProfileIDs,
+			Threshold:                   doc.Threshold,
+			Mode:                        doc.Mode,
+			RejectBehavior:              doc.RejectBehavior,
+			FallbackWithoutVerification: doc.FallbackWithoutVerification,
+			ExtractionEnabled:           doc.ExtractionEnabled,
+		},
+		client: d.SpeakerResource,
+	}
+}
 
 func (h *connectHandler) GetSpeakerConfig(_ context.Context, _ *connect.Request[sttv1.GetSpeakerConfigRequest]) (*connect.Response[sttv1.GetSpeakerConfigResponse], error) {
 	speakerCfgMu.Lock()

@@ -1,0 +1,59 @@
+services:
+  kyutai-stt:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${KYUTAI_STT_IMAGE:-vrooli/kyutai-stt:latest}
+    container_name: ${KYUTAI_STT_CONTAINER_NAME:-kyutai-stt}
+    hostname: kyutai-stt
+    restart: unless-stopped
+    ports:
+      - "${KYUTAI_STT_BIND_ADDRESS:-127.0.0.1}:${KYUTAI_STT_PORT:-8094}:8000"
+    volumes:
+      - kyutai_stt_models:/models:rw
+    environment:
+      - KYUTAI_STT_HF_REPO=${KYUTAI_STT_HF_REPO:-kyutai/stt-1b-en_fr}
+      - KYUTAI_STT_DEVICE=${KYUTAI_STT_DEVICE:-cuda}
+      - KYUTAI_STT_LOG_LEVEL=${KYUTAI_STT_LOG_LEVEL:-INFO}
+      - HF_HOME=/models
+      - HF_TOKEN=${KYUTAI_STT_HF_TOKEN:-}
+      - NVIDIA_VISIBLE_DEVICES=all
+    networks:
+      - kyutai-stt-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # GPU support
+    deploy:
+      resources:
+        limits:
+          memory: ${KYUTAI_STT_MEMORY_LIMIT:-16G}
+        reservations:
+          memory: ${KYUTAI_STT_MEMORY_RESERVATION:-8G}
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # Required for GPU support
+    runtime: nvidia
+
+volumes:
+  kyutai_stt_models:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: "${KYUTAI_STT_MODELS_DIR:-${RESOURCE_DATA_DIR:-$HOME/.local/share/vrooli/resources/kyutai-stt}/models}"
+
+networks:
+  kyutai-stt-network:
+    name: ${KYUTAI_STT_NETWORK_NAME:-kyutai-stt-network}
+    driver: bridge

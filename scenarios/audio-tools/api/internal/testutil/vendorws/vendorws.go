@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -41,6 +42,14 @@ type Options struct {
 	// CloseAfterScript, if true, closes the connection cleanly after
 	// the last scripted frame has been sent. Defaults to true.
 	CloseAfterScript bool
+
+	// WaitForFrames, when > 0, makes the writer hold its Script until the
+	// reader has received this many inbound frames from the client. This
+	// removes the race in tests that assert the client sent a full sequence
+	// (start header + N audio frames + end marker) before the server replies
+	// and closes — without it the scripted reply + close can land before the
+	// client's pump finishes writing. 0 = emit the script immediately.
+	WaitForFrames int
 }
 
 // NewDeepgramServer returns a fake Deepgram streaming endpoint. The
@@ -55,6 +64,15 @@ func NewDeepgramServer(opts Options) *httptest.Server {
 // `transcription.delta` partial-text stream.
 func NewOpenAIRealtimeServer(opts Options) *httptest.Server {
 	return newServer(opts, "openai-realtime")
+}
+
+// NewKyutaiServer returns a fake kyutai-stt resource streaming endpoint. The
+// resource's stable contract emits JSON Text frames tagged with a "type"
+// ("partial" | "segment" | "done" | "error"). Test callers seed Options.Script
+// with those frames (via EncodeJSON) and use OnMessage to assert the start
+// header + binary PCM frames the KyutaiProvider sends.
+func NewKyutaiServer(opts Options) *httptest.Server {
+	return newServer(opts, "kyutai")
 }
 
 func newServer(opts Options, _ string) *httptest.Server {
@@ -73,9 +91,17 @@ func newServer(opts Options, _ string) *httptest.Server {
 
 		// Reader: forward inbound frames to the hook so callers can
 		// assert what the adapter sent (audio frames, control msgs).
+		// framesReady closes once WaitForFrames inbound frames have arrived.
 		readerDone := make(chan struct{})
+		framesReady := make(chan struct{})
+		var readyOnce sync.Once
+		signalReady := func() { readyOnce.Do(func() { close(framesReady) }) }
+		if opts.WaitForFrames <= 0 {
+			signalReady()
+		}
 		go func() {
 			defer close(readerDone)
+			count := 0
 			for {
 				mt, data, err := conn.ReadMessage()
 				if err != nil {
@@ -84,6 +110,10 @@ func newServer(opts Options, _ string) *httptest.Server {
 				if opts.OnMessage != nil {
 					opts.OnMessage(mt, data)
 				}
+				count++
+				if opts.WaitForFrames > 0 && count >= opts.WaitForFrames {
+					signalReady()
+				}
 				select {
 				case <-ctx.Done():
 					return
@@ -91,6 +121,14 @@ func newServer(opts Options, _ string) *httptest.Server {
 				}
 			}
 		}()
+
+		// Hold the script until the client has sent the frames the test
+		// expects (when WaitForFrames is set), so the reply + close cannot
+		// race ahead of the client's pump.
+		select {
+		case <-framesReady:
+		case <-ctx.Done():
+		}
 
 		// Writer: emit the scripted frames in order.
 		for _, f := range opts.Script {

@@ -86,6 +86,7 @@ run:
 		Language:                start.Language,
 		InitialPrompt:           start.InitialPrompt,
 		SkipSpeakerVerification: start.SkipSpeakerVerification,
+		VADFilter:               start.VADFilter,
 		BYOKProvider:            start.BYOKProvider,
 		BYOKKey:                 start.BYOKKey,
 		LPBSToken:               start.LPBSToken,
@@ -104,6 +105,8 @@ run:
 		ProviderID:       res.ProviderID,
 		ModelID:          res.ModelID,
 		LatencyMs:        float64(res.Latency.Milliseconds()),
+		Confidence:       res.Confidence,
+		Audio:            buf,
 	}}
 	events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{
 		FinalText:       res.Text,

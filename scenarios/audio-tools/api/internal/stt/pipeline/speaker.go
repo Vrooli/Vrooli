@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"audio-tools/internal/audioformat"
 )
 
 // SpeakerDecision holds the outcome of running speaker verification against
@@ -47,11 +49,16 @@ func EvaluateSpeaker(ctx context.Context, cfg SpeakerConfig, client *SpeakerClie
 		return decision
 	}
 
+	// The egress speaker stage holds raw canonical PCM; the resource decodes
+	// via container sniffing and cannot read headerless PCM. Wrap it in a WAV
+	// header so verification can actually run.
+	verifyAudio := audioformat.WAVFromCanonicalPCM(audio)
+
 	var bestScore float64
 	var bestProfileID string
 	var lastErr error
 	for _, profileID := range cfg.ProfileIDs {
-		result, err := client.Verify(ctx, audio, profileID, cfg.Threshold)
+		result, err := client.Verify(ctx, verifyAudio, profileID, cfg.Threshold)
 		if err != nil {
 			lastErr = err
 			continue

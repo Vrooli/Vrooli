@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file architecture-cartographer/v1/apply/apply.proto.
  */
 export const file_architecture_cartographer_v1_apply_apply: GenFile = /*@__PURE__*/
-  fileDesc("Ci5hcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL2FwcGx5L2FwcGx5LnByb3RvEil2cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hcHBseSKzAQoJT3BlcmF0aW9uEgoKAmlkGAEgASgJEkYKBGtpbmQYAiABKA4yOC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hcHBseS5PcGVyYXRpb25LaW5kEhEKCWZyb21fcGF0aBgDIAEoCRIPCgd0b19wYXRoGAQgASgJEg8KB3BheWxvYWQYBSABKAwSHQoVcmVzb2x2ZXNfY29uZmxpY3RfaWRzGAYgAygJIsQBCgRQbGFuEgoKAmlkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg4KBmRvbWFpbhgDIAEoCRJICgpvcGVyYXRpb25zGAQgAygLMjQudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXBwbHkuT3BlcmF0aW9uEhQKDGNvbmZsaWN0X2lkcxgFIAMoCRIuCgpwbGFubmVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKFAgoIQXBwbHlSdW4SCgoCaWQYASABKAkSDwoHcGxhbl9pZBgCIAEoCRIQCghzY2VuYXJpbxgDIAEoCRIOCgZkb21haW4YBCABKAkSRgoGc3RhdHVzGAUgASgOMjYudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXBwbHkuQXBwbHlTdGF0dXMSEQoJYnVpbGRfbG9nGAYgASgJEi4KCnN0YXJ0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKBAQoNQnVpbGRCYXNlbGluZRIQCghzY2VuYXJpbxgBIAEoCRINCgVncmVlbhgCIAEoCBIRCgl0b29sY2hhaW4YAyABKAkSCwoDbG9nGAQgASgJEi8KC2NhcHR1cmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJbChBQbGFuQXBwbHlSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBmRvbWFpbhgCIAEoCRIUCgxjb25mbGljdF9pZHMYAyADKAkSDwoHZHJ5X3J1bhgEIAEoCCJjChFQbGFuQXBwbHlSZXNwb25zZRI9CgRwbGFuGAEgASgLMi8udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXBwbHkuUGxhbhIPCgdkcnlfcnVuGAIgASgIIkkKD1J1bkFwcGx5UmVxdWVzdBIPCgdwbGFuX2lkGAEgASgJEiUKHWFja25vd2xlZGdlX3YwMV91bmltcGxlbWVudGVkGAIgASgIIlQKEFJ1bkFwcGx5UmVzcG9uc2USQAoDcnVuGAEgASgLMjMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXBwbHkuQXBwbHlSdW4iYgoXTGlzdEFwcGx5SGlzdG9yeVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDgoGZG9tYWluGAIgASgJEhEKCXBhZ2Vfc2l6ZRgDIAEoBRISCgpwYWdlX3Rva2VuGAQgASgJInYKGExpc3RBcHBseUhpc3RvcnlSZXNwb25zZRJBCgRydW5zGAEgAygLMjMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXBwbHkuQXBwbHlSdW4SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIisKF0dldEJ1aWxkQmFzZWxpbmVSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJImYKGEdldEJ1aWxkQmFzZWxpbmVSZXNwb25zZRJKCghiYXNlbGluZRgBIAEoCzI4LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmFwcGx5LkJ1aWxkQmFzZWxpbmUinAEKD1BsYW5XaXRoQ29udGV4dBI9CgRwbGFuGAEgASgLMi8udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXBwbHkuUGxhbhJKCgljb25mbGljdHMYAiADKAsyNy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5jb25mbGljdHMuQ29uZmxpY3QqsAEKDU9wZXJhdGlvbktpbmQSHgoaT1BFUkFUSU9OX0tJTkRfVU5TUEVDSUZJRUQQABIcChhPUEVSQVRJT05fS0lORF9NT1ZFX0ZJTEUQARIhCh1PUEVSQVRJT05fS0lORF9SRVdSSVRFX0lNUE9SVBACEh4KGk9QRVJBVElPTl9LSU5EX0RFTEVURV9GSUxFEAMSHgoaT1BFUkFUSU9OX0tJTkRfQ1JFQVRFX0ZJTEUQBCrQAQoLQXBwbHlTdGF0dXMSHAoYQVBQTFlfU1RBVFVTX1VOU1BFQ0lGSUVEEAASGAoUQVBQTFlfU1RBVFVTX1BMQU5ORUQQARIYChRBUFBMWV9TVEFUVVNfUlVOTklORxACEhwKGEFQUExZX1NUQVRVU19CVUlMRF9HUkVFThADEhoKFkFQUExZX1NUQVRVU19CVUlMRF9SRUQQBBIZChVBUFBMWV9TVEFUVVNfUkVWRVJURUQQBRIaChZBUFBMWV9TVEFUVVNfQ09NTUlUVEVEEAYy2QQKDEFwcGx5U2VydmljZRKGAQoJUGxhbkFwcGx5EjsudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXBwbHkuUGxhbkFwcGx5UmVxdWVzdBo8LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmFwcGx5LlBsYW5BcHBseVJlc3BvbnNlEoMBCghSdW5BcHBseRI6LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmFwcGx5LlJ1bkFwcGx5UmVxdWVzdBo7LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmFwcGx5LlJ1bkFwcGx5UmVzcG9uc2USmwEKEExpc3RBcHBseUhpc3RvcnkSQi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hcHBseS5MaXN0QXBwbHlIaXN0b3J5UmVxdWVzdBpDLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmFwcGx5Lkxpc3RBcHBseUhpc3RvcnlSZXNwb25zZRKbAQoQR2V0QnVpbGRCYXNlbGluZRJCLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmFwcGx5LkdldEJ1aWxkQmFzZWxpbmVSZXF1ZXN0GkMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXBwbHkuR2V0QnVpbGRCYXNlbGluZVJlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYXJjaGl0ZWN0dXJlLWNhcnRvZ3JhcGhlci92MS9hcHBseTthcHBseV92MWIGcHJvdG8z", [file_architecture_cartographer_v1_conflicts_conflicts, file_google_protobuf_timestamp]);
+  fileDesc("Ci5hcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL2FwcGx5L2FwcGx5LnByb3RvEil2cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hcHBseSKzAQoJT3BlcmF0aW9uEgoKAmlkGAEgASgJEkYKBGtpbmQYAiABKA4yOC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hcHBseS5PcGVyYXRpb25LaW5kEhEKCWZyb21fcGF0aBgDIAEoCRIPCgd0b19wYXRoGAQgASgJEg8KB3BheWxvYWQYBSABKAwSHQoVcmVzb2x2ZXNfY29uZmxpY3RfaWRzGAYgAygJIsQBCgRQbGFuEgoKAmlkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg4KBmRvbWFpbhgDIAEoCRJICgpvcGVyYXRpb25zGAQgAygLMjQudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXBwbHkuT3BlcmF0aW9uEhQKDGNvbmZsaWN0X2lkcxgFIAMoCRIuCgpwbGFubmVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKFAgoIQXBwbHlSdW4SCgoCaWQYASABKAkSDwoHcGxhbl9pZBgCIAEoCRIQCghzY2VuYXJpbxgDIAEoCRIOCgZkb21haW4YBCABKAkSRgoGc3RhdHVzGAUgASgOMjYudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXBwbHkuQXBwbHlTdGF0dXMSEQoJYnVpbGRfbG9nGAYgASgJEi4KCnN0YXJ0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKBAQoNQnVpbGRCYXNlbGluZRIQCghzY2VuYXJpbxgBIAEoCRINCgVncmVlbhgCIAEoCBIRCgl0b29sY2hhaW4YAyABKAkSCwoDbG9nGAQgASgJEi8KC2NhcHR1cmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ0ChdXcml0ZVN1cHByZXNzaW9uUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRmaWxlGAIgASgJEgoKAmlkGAMgASgJEg4KBnJlYXNvbhgEIAEoCRIPCgdleHBpcmVzGAUgASgJEgwKBGxpbmUYBiABKAUiRgoYV3JpdGVTdXBwcmVzc2lvblJlc3BvbnNlEgwKBGZpbGUYASABKAkSDAoEbGluZRgCIAEoBRIOCgZtYXJrZXIYAyABKAkiWwoQUGxhbkFwcGx5UmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZkb21haW4YAiABKAkSFAoMY29uZmxpY3RfaWRzGAMgAygJEg8KB2RyeV9ydW4YBCABKAgiYwoRUGxhbkFwcGx5UmVzcG9uc2USPQoEcGxhbhgBIAEoCzIvLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmFwcGx5LlBsYW4SDwoHZHJ5X3J1bhgCIAEoCCJJCg9SdW5BcHBseVJlcXVlc3QSDwoHcGxhbl9pZBgBIAEoCRIlCh1hY2tub3dsZWRnZV92MDFfdW5pbXBsZW1lbnRlZBgCIAEoCCJUChBSdW5BcHBseVJlc3BvbnNlEkAKA3J1bhgBIAEoCzIzLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmFwcGx5LkFwcGx5UnVuImIKF0xpc3RBcHBseUhpc3RvcnlSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBmRvbWFpbhgCIAEoCRIRCglwYWdlX3NpemUYAyABKAUSEgoKcGFnZV90b2tlbhgEIAEoCSJ2ChhMaXN0QXBwbHlIaXN0b3J5UmVzcG9uc2USQQoEcnVucxgBIAMoCzIzLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmFwcGx5LkFwcGx5UnVuEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSIrChdHZXRCdWlsZEJhc2VsaW5lUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSJmChhHZXRCdWlsZEJhc2VsaW5lUmVzcG9uc2USSgoIYmFzZWxpbmUYASABKAsyOC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hcHBseS5CdWlsZEJhc2VsaW5lIpwBCg9QbGFuV2l0aENvbnRleHQSPQoEcGxhbhgBIAEoCzIvLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmFwcGx5LlBsYW4SSgoJY29uZmxpY3RzGAIgAygLMjcudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuY29uZmxpY3RzLkNvbmZsaWN0KrABCg1PcGVyYXRpb25LaW5kEh4KGk9QRVJBVElPTl9LSU5EX1VOU1BFQ0lGSUVEEAASHAoYT1BFUkFUSU9OX0tJTkRfTU9WRV9GSUxFEAESIQodT1BFUkFUSU9OX0tJTkRfUkVXUklURV9JTVBPUlQQAhIeChpPUEVSQVRJT05fS0lORF9ERUxFVEVfRklMRRADEh4KGk9QRVJBVElPTl9LSU5EX0NSRUFURV9GSUxFEAQq0AEKC0FwcGx5U3RhdHVzEhwKGEFQUExZX1NUQVRVU19VTlNQRUNJRklFRBAAEhgKFEFQUExZX1NUQVRVU19QTEFOTkVEEAESGAoUQVBQTFlfU1RBVFVTX1JVTk5JTkcQAhIcChhBUFBMWV9TVEFUVVNfQlVJTERfR1JFRU4QAxIaChZBUFBMWV9TVEFUVVNfQlVJTERfUkVEEAQSGQoVQVBQTFlfU1RBVFVTX1JFVkVSVEVEEAUSGgoWQVBQTFlfU1RBVFVTX0NPTU1JVFRFRBAGMvcFCgxBcHBseVNlcnZpY2UShgEKCVBsYW5BcHBseRI7LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmFwcGx5LlBsYW5BcHBseVJlcXVlc3QaPC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hcHBseS5QbGFuQXBwbHlSZXNwb25zZRKDAQoIUnVuQXBwbHkSOi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hcHBseS5SdW5BcHBseVJlcXVlc3QaOy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hcHBseS5SdW5BcHBseVJlc3BvbnNlEpsBChBMaXN0QXBwbHlIaXN0b3J5EkIudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXBwbHkuTGlzdEFwcGx5SGlzdG9yeVJlcXVlc3QaQy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hcHBseS5MaXN0QXBwbHlIaXN0b3J5UmVzcG9uc2USmwEKEEdldEJ1aWxkQmFzZWxpbmUSQi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hcHBseS5HZXRCdWlsZEJhc2VsaW5lUmVxdWVzdBpDLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmFwcGx5LkdldEJ1aWxkQmFzZWxpbmVSZXNwb25zZRKbAQoQV3JpdGVTdXBwcmVzc2lvbhJCLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmFwcGx5LldyaXRlU3VwcHJlc3Npb25SZXF1ZXN0GkMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXBwbHkuV3JpdGVTdXBwcmVzc2lvblJlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYXJjaGl0ZWN0dXJlLWNhcnRvZ3JhcGhlci92MS9hcHBseTthcHBseV92MWIGcHJvdG8z", [file_architecture_cartographer_v1_conflicts_conflicts, file_google_protobuf_timestamp]);
 
 /**
  * Operation is one atomic step in a plan.
@@ -234,6 +234,93 @@ export const BuildBaselineSchema: GenMessage<BuildBaseline> = /*@__PURE__*/
   messageDesc(file_architecture_cartographer_v1_apply_apply, 3);
 
 /**
+ * @generated from message vrooli.architecture_cartographer.v1.apply.WriteSuppressionRequest
+ */
+export type WriteSuppressionRequest = Message<"vrooli.architecture_cartographer.v1.apply.WriteSuppressionRequest"> & {
+  /**
+   * Target scenario name.
+   *
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * Scenario-relative source file to mark.
+   *
+   * @generated from field: string file = 2;
+   */
+  file: string;
+
+  /**
+   * The detector/type/subtype the marker sanctions.
+   *
+   * @generated from field: string id = 3;
+   */
+  id: string;
+
+  /**
+   * Mandatory rationale.
+   *
+   * @generated from field: string reason = 4;
+   */
+  reason: string;
+
+  /**
+   * Optional expiry condition (e.g., "until:2026-12-31").
+   *
+   * @generated from field: string expires = 5;
+   */
+  expires: string;
+
+  /**
+   * Optional 1-based insertion line; 0 appends at end of file.
+   *
+   * @generated from field: int32 line = 6;
+   */
+  line: number;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.apply.WriteSuppressionRequest.
+ * Use `create(WriteSuppressionRequestSchema)` to create a new message.
+ */
+export const WriteSuppressionRequestSchema: GenMessage<WriteSuppressionRequest> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_apply_apply, 4);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.apply.WriteSuppressionResponse
+ */
+export type WriteSuppressionResponse = Message<"vrooli.architecture_cartographer.v1.apply.WriteSuppressionResponse"> & {
+  /**
+   * Scenario-relative file the marker landed in.
+   *
+   * @generated from field: string file = 1;
+   */
+  file: string;
+
+  /**
+   * Line the marker was inserted at (0 when appended).
+   *
+   * @generated from field: int32 line = 2;
+   */
+  line: number;
+
+  /**
+   * The rendered marker comment.
+   *
+   * @generated from field: string marker = 3;
+   */
+  marker: string;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.apply.WriteSuppressionResponse.
+ * Use `create(WriteSuppressionResponseSchema)` to create a new message.
+ */
+export const WriteSuppressionResponseSchema: GenMessage<WriteSuppressionResponse> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_apply_apply, 5);
+
+/**
  * @generated from message vrooli.architecture_cartographer.v1.apply.PlanApplyRequest
  */
 export type PlanApplyRequest = Message<"vrooli.architecture_cartographer.v1.apply.PlanApplyRequest"> & {
@@ -268,7 +355,7 @@ export type PlanApplyRequest = Message<"vrooli.architecture_cartographer.v1.appl
  * Use `create(PlanApplyRequestSchema)` to create a new message.
  */
 export const PlanApplyRequestSchema: GenMessage<PlanApplyRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_apply_apply, 4);
+  messageDesc(file_architecture_cartographer_v1_apply_apply, 6);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.apply.PlanApplyResponse
@@ -290,7 +377,7 @@ export type PlanApplyResponse = Message<"vrooli.architecture_cartographer.v1.app
  * Use `create(PlanApplyResponseSchema)` to create a new message.
  */
 export const PlanApplyResponseSchema: GenMessage<PlanApplyResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_apply_apply, 5);
+  messageDesc(file_architecture_cartographer_v1_apply_apply, 7);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.apply.RunApplyRequest
@@ -315,7 +402,7 @@ export type RunApplyRequest = Message<"vrooli.architecture_cartographer.v1.apply
  * Use `create(RunApplyRequestSchema)` to create a new message.
  */
 export const RunApplyRequestSchema: GenMessage<RunApplyRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_apply_apply, 6);
+  messageDesc(file_architecture_cartographer_v1_apply_apply, 8);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.apply.RunApplyResponse
@@ -332,7 +419,7 @@ export type RunApplyResponse = Message<"vrooli.architecture_cartographer.v1.appl
  * Use `create(RunApplyResponseSchema)` to create a new message.
  */
 export const RunApplyResponseSchema: GenMessage<RunApplyResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_apply_apply, 7);
+  messageDesc(file_architecture_cartographer_v1_apply_apply, 9);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.apply.ListApplyHistoryRequest
@@ -364,7 +451,7 @@ export type ListApplyHistoryRequest = Message<"vrooli.architecture_cartographer.
  * Use `create(ListApplyHistoryRequestSchema)` to create a new message.
  */
 export const ListApplyHistoryRequestSchema: GenMessage<ListApplyHistoryRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_apply_apply, 8);
+  messageDesc(file_architecture_cartographer_v1_apply_apply, 10);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.apply.ListApplyHistoryResponse
@@ -386,7 +473,7 @@ export type ListApplyHistoryResponse = Message<"vrooli.architecture_cartographer
  * Use `create(ListApplyHistoryResponseSchema)` to create a new message.
  */
 export const ListApplyHistoryResponseSchema: GenMessage<ListApplyHistoryResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_apply_apply, 9);
+  messageDesc(file_architecture_cartographer_v1_apply_apply, 11);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.apply.GetBuildBaselineRequest
@@ -403,7 +490,7 @@ export type GetBuildBaselineRequest = Message<"vrooli.architecture_cartographer.
  * Use `create(GetBuildBaselineRequestSchema)` to create a new message.
  */
 export const GetBuildBaselineRequestSchema: GenMessage<GetBuildBaselineRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_apply_apply, 10);
+  messageDesc(file_architecture_cartographer_v1_apply_apply, 12);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.apply.GetBuildBaselineResponse
@@ -420,7 +507,7 @@ export type GetBuildBaselineResponse = Message<"vrooli.architecture_cartographer
  * Use `create(GetBuildBaselineResponseSchema)` to create a new message.
  */
 export const GetBuildBaselineResponseSchema: GenMessage<GetBuildBaselineResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_apply_apply, 11);
+  messageDesc(file_architecture_cartographer_v1_apply_apply, 13);
 
 /**
  * PlanWithContext is a convenience envelope used by analytics+conflicts
@@ -446,7 +533,7 @@ export type PlanWithContext = Message<"vrooli.architecture_cartographer.v1.apply
  * Use `create(PlanWithContextSchema)` to create a new message.
  */
 export const PlanWithContextSchema: GenMessage<PlanWithContext> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_apply_apply, 12);
+  messageDesc(file_architecture_cartographer_v1_apply_apply, 14);
 
 /**
  * OperationKind enumerates the atomic units of apply work. The set is
@@ -592,6 +679,19 @@ export const ApplyService: GenService<{
     methodKind: "unary";
     input: typeof GetBuildBaselineRequestSchema;
     output: typeof GetBuildBaselineResponseSchema;
+  },
+  /**
+   * WriteSuppression writes a durable `// arch:allow` marker into a source
+   * file, sanctioning a finding as intentional. This is the safe,
+   * non-destructive write path (inserts a comment only); destructive
+   * execution (file moves / import rewrites) stays deferred to RunApply.
+   *
+   * @generated from rpc vrooli.architecture_cartographer.v1.apply.ApplyService.WriteSuppression
+   */
+  writeSuppression: {
+    methodKind: "unary";
+    input: typeof WriteSuppressionRequestSchema;
+    output: typeof WriteSuppressionResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_architecture_cartographer_v1_apply_apply, 0);

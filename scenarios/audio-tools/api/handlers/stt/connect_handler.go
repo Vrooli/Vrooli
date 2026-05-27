@@ -18,6 +18,7 @@ import (
 	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
 	sttpipeline "audio-tools/internal/stt/pipeline"
+	"audio-tools/internal/sttengine"
 	"audio-tools/internal/usagereport"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
@@ -25,16 +26,21 @@ import (
 )
 
 type Deps struct {
-	Chain        *sttchain.Chain
-	Selector     *sttpkg.Selector
-	Voice        *sttpipeline.Service
-	Engine       *audioformat.Engine
-	Logger       logx.Logger
-	Clock        clock.Clock
-	Usage        usagereport.Recorder
-	StreamConfig STTStreamConfigRepository
-	Wakeword     WakewordRepository
-	Speaker      SpeakerRepository
+	Chain    *sttchain.Chain
+	Selector *sttpkg.Selector
+	Registry *sttengine.Registry
+	Voice    *sttpipeline.Service
+	// SpeakerResource is the speaker-verification resource client used for
+	// enrollment + streaming verification. nil means the resource is not
+	// wired (enrollment fails FailedPrecondition; isolation falls back).
+	SpeakerResource *sttpipeline.SpeakerClient
+	Engine          *audioformat.Engine
+	Logger          logx.Logger
+	Clock           clock.Clock
+	Usage           usagereport.Recorder
+	StreamConfig    STTStreamConfigRepository
+	Wakeword        WakewordRepository
+	Speaker         SpeakerRepository
 }
 
 type connectHandler struct {

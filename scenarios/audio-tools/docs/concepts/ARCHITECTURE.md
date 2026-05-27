@@ -321,6 +321,72 @@ decoupling, capability table). The seams it introduces — `Segmenter`,
 `StrategySelector`, `StreamingStrategy` — are registered in
 [`../internal/SEAMS.md`](../internal/SEAMS.md#streaming-chain-seams-audio-tools-web-console-restoration-plan).
 
+### Engine-capability manifest (`internal/sttengine`)
+
+`internal/sttengine` is the single source of truth for which STT engines the
+scenario can run and what each one is capable of. One checked-in JSON manifest
+(`manifest.json`, validated against `schema.json` by a Go test) describes every
+engine with **positive capability declarations** (`provides.nativeStreaming /
+builtinVad / confidenceSignals / wordTimestamps`) plus the pluggable
+`speakerIsolation` axis. Two consumers *derive* behavior from it — there is no
+engine-id branch logic anywhere else:
+
+- the **selector** derives the Local tier's eligible strategy whitelist from the
+  active engine's `strategies[]` (`EligibleStrategies`); BYOK/Vrooli tiers keep
+  their `ProviderTraits`.
+- the **egress gate** derives its stage set from the engine's capabilities
+  (`EgressStages` — the signal-domain stage only fires when the engine declares
+  confidence signals; the audio-domain speaker stage fires when the manifest's
+  active isolation method is set and the session wired an isolation).
+- the **Segmenter** derives whether inbound chunks need PCM normalization for a
+  Passthrough engine from `RequiresPCM` (the engine's `requires.pcm16kMono`), so
+  a native-streaming engine like Kyutai still receives canonical PCM while a
+  Passthrough BYOK vendor that decodes for itself does not.
+
+Two engines ship today: **`whisper-local`** (faster-whisper, batch; VAD-segment /
+overlap-agree / buffered strategies; confidence signals) and **`kyutai`** (native
+streaming; Passthrough only; no confidence signals). Switching engines via the
+admin picker consults `GetEngineSwitchImpact`, which scans every scenario's
+`.vrooli/service.json` (`ScanResourceConsumers`, over an injected `fs.FS`) to
+report who else uses the outgoing engine's resource — audio-tools never
+auto-stops a shared resource, it surfaces the `vrooli resource stop <name>`
+command for the operator.
+
+Two layers, never conflated: the manifest holds **static capability facts**;
+the **active selection + tunables** live in the persisted `StreamConfig`
+(`engine_id`, egress toggles/thresholds) edited via the admin proto API. Adding
+an engine is a manifest entry (plus a `resources/<name>/` folder + provider
+adapter for `kind=local_resource`). The catalog is exposed to UI/CLI via
+`ListEngines` — never hardcoded. `sttengine` imports only `internal/stt/egress`
+(not `sttchain`, to avoid a cycle); strategy ids stay string-typed and the
+selector converts.
+
+### Post-recognition egress gate (`internal/stt/egress`)
+
+The symmetric counterpart to the audioformat **ingress** point: a single
+**egress** seam every transcribed segment passes through before the wire. The
+`Segmenter` builds one `egress.Gate` per session (stage set from
+`sttengine.EgressStages`) and runs each `SegmentEvent` through ordered,
+capability-gated `Stage`s — strategies never call the gate. Stages assign an
+outcome: `Emit`, `Drop` (suppressed + excluded from the rebuilt final
+transcript), or `Reject` (suppressed text + a `StreamEventSpeakerRejection`).
+Three signal domains run in order: **text** (`HallucinationStage` — Whisper
+phrase filter), **signal** (`ConfidenceStage` — `no_speech_prob`/`avg_logprob`,
+added only when the engine declares confidence signals), and **audio**
+(`SpeakerStage` — speaker identity). This is where Whisper's silence
+hallucinations are killed (alongside `vad_filter=true` at the source) and where
+non-enrolled voices (e.g. background music) are rejected when speaker isolation
+is enabled. The audio-domain stage is **engine-independent** (it operates on the
+segment's canonical-PCM bytes, not the transcript) and pluggable: the manifest's
+active `speakerIsolation.active` method selects the `egress.SpeakerIsolation`
+implementation (`verification` today wraps `pipeline.EvaluateSpeaker` against the
+`speaker-verification` resource; `targetExtraction` is reserved). It only applies
+to segments that carry audio (the Whisper VAD path), so Passthrough engines
+bypass it. The verification adapter lives in the handler layer (not `pipeline`)
+to avoid the `egress → sttchain → pipeline` import cycle. Seams: `egress.Stage`,
+`egress.SpeakerIsolation`, `sttengine.Registry` (see
+[`../internal/SEAMS.md`](../internal/SEAMS.md)).
+
 ### Audio-format substrate (`internal/audioformat`)
 
 `internal/audioformat` is the single owner of audio-format handling — the

@@ -69,8 +69,25 @@ func ResolveWhisperURLWith(env envx.Reader) string {
 	return base + "/asr?output=json"
 }
 
+// TranscriptionResult is the full output of a Whisper /asr call: the
+// transcribed text plus the optional per-segment confidence signals
+// faster-whisper reports (no_speech_prob / avg_logprob). HasConfidence is
+// false when the response carried no segment array (e.g. a non-Whisper
+// backend or an empty result), in which case the signal-domain egress
+// stage is skipped gracefully.
+//
+// NoSpeechProb / AvgLogProb are the arithmetic means across the returned
+// segments. They are the robust hallucination signals: silence-only audio
+// produces a high no_speech_prob and a low (very negative) avg_logprob.
+type TranscriptionResult struct {
+	Text          string
+	HasConfidence bool
+	NoSpeechProb  float64
+	AvgLogProb    float64
+}
+
 // TranscribeBytes sends audio bytes to the Whisper /asr endpoint and returns
-// the transcribed text.
+// the transcribed text plus per-segment confidence signals.
 //
 // The audioformat engine owns container handling: canonical PCM is wrapped
 // in a WAV header (ffmpeg-free) and real containers pass straight to
@@ -78,7 +95,10 @@ func ResolveWhisperURLWith(env envx.Reader) string {
 // describing the bytes; empty triggers a magic-byte sniff. The language
 // parameter is an ISO-639-1 code (e.g. "en"); when empty, Whisper
 // auto-detects. initialPrompt provides Whisper with context from previous
-// transcription segments.
+// transcription segments. When vadFilter is true the request enables
+// faster-whisper's built-in voice-activity filter, which strips silence
+// before decoding and removes the dominant source of "thank you for
+// watching"-style hallucinations at the source.
 func TranscribeBytes(
 	ctx context.Context,
 	whisperURL string,
@@ -88,7 +108,8 @@ func TranscribeBytes(
 	format string,
 	language string,
 	initialPrompt string,
-) (string, error) {
+	vadFilter bool,
+) (TranscriptionResult, error) {
 	if engine == nil {
 		engine = audioformat.New()
 	}
@@ -102,13 +123,13 @@ func TranscribeBytes(
 		}
 		sniffed, derr := audioformat.Detect(audioformat.CodecUnknown, head)
 		if derr != nil {
-			return "", derr
+			return TranscriptionResult{}, derr
 		}
 		codec = sniffed
 	}
 	transcoded, filename, err := engine.PrepareForWhisper(codec, audio)
 	if err != nil {
-		return "", err
+		return TranscriptionResult{}, err
 	}
 
 	targetURL := whisperURL
@@ -117,6 +138,13 @@ func TranscribeBytes(
 	}
 	if initialPrompt != "" {
 		targetURL += "&initial_prompt=" + url.QueryEscape(initialPrompt)
+	}
+	if vadFilter {
+		// faster-whisper's built-in VAD filter (the resource runs
+		// ASR_ENGINE=faster_whisper). Stripping silence before decode is the
+		// most effective hallucination fix — Whisper never sees the empty
+		// audio it would otherwise narrate as "thank you for watching".
+		targetURL += "&vad_filter=true"
 	}
 
 	pr, pw := io.Pipe()
@@ -138,30 +166,51 @@ func TranscribeBytes(
 
 	req, err := http.NewRequestWithContext(ctx, "POST", targetURL, pr)
 	if err != nil {
-		return "", err
+		return TranscriptionResult{}, err
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	if httpClient == nil {
-		return "", fmt.Errorf("voice transcription HTTP client is not configured")
+		return TranscriptionResult{}, fmt.Errorf("voice transcription HTTP client is not configured")
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return "", err
+		return TranscriptionResult{}, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("whisper returned status %d", resp.StatusCode)
+		return TranscriptionResult{}, fmt.Errorf("whisper returned status %d", resp.StatusCode)
 	}
 
+	// The /asr?output=json response carries the full text plus a segments
+	// array; each segment reports the per-segment confidence signals
+	// faster-whisper computes. We keep the text (unchanged behaviour) and
+	// fold the segment signals into a single TranscriptionResult so the
+	// signal-domain egress stage can gate on them.
 	var result struct {
-		Text string `json:"text"`
+		Text     string `json:"text"`
+		Segments []struct {
+			NoSpeechProb float64 `json:"no_speech_prob"`
+			AvgLogprob   float64 `json:"avg_logprob"`
+		} `json:"segments"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
+		return TranscriptionResult{}, err
 	}
-	return result.Text, nil
+
+	out := TranscriptionResult{Text: result.Text}
+	if n := len(result.Segments); n > 0 {
+		var sumNoSpeech, sumLogprob float64
+		for _, seg := range result.Segments {
+			sumNoSpeech += seg.NoSpeechProb
+			sumLogprob += seg.AvgLogprob
+		}
+		out.HasConfidence = true
+		out.NoSpeechProb = sumNoSpeech / float64(n)
+		out.AvgLogProb = sumLogprob / float64(n)
+	}
+	return out, nil
 }
 
 // whisperHallucinations contains phrases Whisper commonly produces when

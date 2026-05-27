@@ -219,7 +219,8 @@
   },
   "dependencies": {
     "resources": {
-      "whisper":              { "required": false, "notes": "Local STT tier" },
+      "whisper":              { "required": false, "notes": "Local STT tier (faster-whisper engine)" },
+      "kyutai-stt":           { "required": false, "notes": "Local streaming STT engine (Kyutai); selectable alongside whisper" },
       "kokoro":               { "required": false, "notes": "Local TTS tier" },
       "speaker-verification": { "required": false, "notes": "Speaker enrollment + verification gate for the streaming STT path" },
       "ollama":               { "required": false, "notes": "Local summarize tier" },

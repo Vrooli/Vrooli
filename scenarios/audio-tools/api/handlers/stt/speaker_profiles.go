@@ -44,18 +44,30 @@ func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("speaker store not configured"))
 	}
 	m := req.Msg
+	if len(m.GetAudio()) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("audio required"))
+	}
+	if h.deps.SpeakerResource == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("speaker-verification resource not configured"))
+	}
 	id := m.GetProfileId()
 	if id == "" {
 		id = uuid.NewString()
 	}
-	if len(m.GetAudio()) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("audio required"))
+	// Enroll against the speaker-verification resource: it computes and OWNS
+	// the real ECAPA embedding (keyed by profile id) used by streaming verify.
+	// audio-tools persists only the profile metadata + binding locally — the
+	// embedding never round-trips back, so the resource stays the single
+	// authority for identity comparison.
+	enroll, err := h.deps.SpeakerResource.Enroll(ctx, m.GetAudio(), id, m.GetDisplayName(), m.GetNotes())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("speaker-verification enroll: %w", err))
 	}
-	// Greenfield-minimum embedding: the raw audio length serves as a
-	// stand-in fingerprint until the speaker encoder lands.
+	if enroll.ProfileID != "" {
+		id = enroll.ProfileID
+	}
 	if err := h.deps.Speaker.Upsert(ctx, store.SpeakerProfile{
 		ID: id, Name: m.GetDisplayName(),
-		Embedding: m.GetAudio()[:minInt(len(m.GetAudio()), 128)],
 	}); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -70,10 +82,13 @@ func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.
 	speakerCfgMu.Unlock()
 	return connect.NewResponse(&sttv1.EnrollSpeakerProfileResponse{
 		Enrollment: &sttv1.SpeakerEnrollment{
-			ProfileId:    id,
-			DisplayName:  m.GetDisplayName(),
-			EmbeddingDim: int32(minInt(len(m.GetAudio()), 128)),
-			CreatedAt:    protomap.TimeToProto(h.deps.Clock.Now().UTC()),
+			ProfileId:              id,
+			DisplayName:            m.GetDisplayName(),
+			EmbeddingDim:           int32(enroll.EmbeddingDim),
+			SampleRate:             int32(enroll.SampleRate),
+			EnrollmentAudioSeconds: enroll.EnrollmentAudioSeconds,
+			ModelName:              enroll.ModelName,
+			CreatedAt:              protomap.TimeToProto(h.deps.Clock.Now().UTC()),
 		},
 		Config: cfg.toProto(),
 	}), nil
@@ -112,6 +127,12 @@ func (h *connectHandler) DeleteSpeakerProfile(ctx context.Context, req *connect.
 	}
 	if _, err := h.deps.Speaker.Delete(ctx, id); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	// Best-effort purge of the resource-side embedding so the verification
+	// service does not keep a profile the operator deleted. A resource error
+	// must not fail the local delete (the binding is already gone).
+	if h.deps.SpeakerResource != nil {
+		_ = h.deps.SpeakerResource.DeleteProfile(ctx, id)
 	}
 	speakerCfgMu.Lock()
 	out := speakerCfg.ProfileIDs[:0]

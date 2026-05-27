@@ -1,0 +1,102 @@
+# Operations
+
+`kyutai-stt` is organized as a `compose-service` resource that builds a local
+Docker image from `docker/Dockerfile` (a custom FastAPI + websockets server
+wrapping the Kyutai `moshi` streaming STT stack).
+
+## Architecture Boundary
+
+Keep responsibilities split cleanly:
+
+- `resource.json` owns declarative lifecycle, compose, port, export, and health
+  metadata.
+- `docker/` owns the server image: `Dockerfile`, pinned `requirements.txt`, and
+  `server.py` (the stable streaming contract implementation).
+- `cli/` owns the binary entrypoint, wiring, and delegated command
+  registration. Keep `cli/main.go` thin.
+- `cli/internal/` owns Kyutai STT-specific Go logic that cannot be expressed
+  through the manifest or shared control-plane packages.
+- `lib/` contains retained shell behavior (Docker lifecycle, status, API
+  helpers, install) used by the shared control plane.
+
+Do not turn `cli/main.go` into the implementation surface. Grow
+`cli/internal/{compose,topology,runtime,health,env}` first if specialization is
+needed.
+
+## Hardware & VRAM
+
+| Property | Value |
+|---|---|
+| GPU | NVIDIA CUDA required (RTX 40-series / Ada validated target) |
+| Default model | `kyutai/stt-1b-en_fr` |
+| Weights VRAM (bf16) | ~2–3 GB |
+| Resident VRAM (with streaming buffers + CUDA context) | ~3–4 GB |
+| Host GPU | RTX 4070 Ti SUPER, 16 GB (≈8 GB already used by other resources) |
+
+The 1B model was chosen specifically because ~3–4 GB resident fits comfortably
+in the remaining VRAM budget. The `kyutai/stt-2.6b-en` model (~6–8 GB, English
+only, ~2.5 s delay) can be selected by setting `KYUTAI_STT_HF_REPO` but watch
+the VRAM headroom against other resident resources.
+
+CPU execution is possible but **not** real-time and is unsupported for
+production streaming; the resource warns and continues if no GPU is present.
+
+## First-run model download
+
+On first start the container downloads model weights from Hugging Face into the
+bind-mounted HF cache (`${RESOURCE_DATA_DIR}/models`, container `/models`).
+This is multi-GB and can take several minutes. The startup timeout in
+`resource.json` (`startup_timeout_seconds: 180`) and the lib wait window
+(`KYUTAI_STT_STARTUP_MAX_WAIT=600`) account for this. Weights persist across
+container recreations because the cache is a host bind mount.
+
+The models are public; `KYUTAI_STT_HF_TOKEN` is optional and only needed to
+avoid anonymous download rate limits.
+
+## Ports & Environment Exports
+
+| Name | Value | Notes |
+|---|---|---|
+| Host port | `8094` | container `8000`; chosen to avoid the registry (whisper 8090, llamaindex 8091, vrooli-api 8092, blender 8093) |
+| `KYUTAI_STT_URL` | `http://localhost:8094` | HTTP base for `/health`, `/v1/info` |
+| `KYUTAI_STT_BASE_URL` | `http://localhost:8094` | alias |
+| `KYUTAI_STT_WS_URL` | `ws://localhost:8094/v1/stream` | streaming endpoint URL pattern for audio-tools |
+
+## Operator Checklist
+
+- Keep compose topology, ports, and health checks declared in `resource.json`
+  and `docker/docker-compose*.yml`.
+- Keep mutable state (HF cache) in canonical resource storage paths via the
+  compose bind mount; never repo-local.
+- Pin Python deps in `docker/requirements.txt` and the base image tag in
+  `docker/Dockerfile`. `torch` ships with the CUDA base image and is
+  intentionally absent from `requirements.txt`.
+- Prefer shared `vrooli resource ...` lifecycle behavior before adding
+  resource-local commands.
+
+## Common Operations
+
+```bash
+# Install / build / start (first run builds the image + downloads weights)
+vrooli resource install kyutai-stt
+
+# Status (text or JSON)
+resource-kyutai-stt status
+resource-kyutai-stt status --json
+
+# Logs
+resource-kyutai-stt logs
+
+# Restart / stop
+vrooli scenario restart kyutai-stt   # if consumed as a dependency
+resource-kyutai-stt manage stop
+```
+
+## Troubleshooting
+
+| Symptom | Likely cause | Action |
+|---|---|---|
+| `/health` 200 but `model_loaded:false` for minutes | first-run weight download | check `resource-kyutai-stt logs`; wait |
+| Container unhealthy, CUDA errors in logs | no nvidia runtime / driver mismatch | confirm `docker info | grep nvidia` and `nvidia-smi` |
+| `error: unsupported sample_rate` on stream | client sent non-16k `start` | send `sample_rate:16000`; resample client-side |
+| OOM on model load | VRAM budget exhausted by other resources | free VRAM or switch to 1B model / lower concurrency |

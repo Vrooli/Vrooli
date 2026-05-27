@@ -19,6 +19,7 @@ import (
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/audioformat"
 	"audio-tools/internal/stt/strategy"
+	"audio-tools/internal/sttengine"
 )
 
 // ErrIncompatibleStrategyProvider is returned by Select when the
@@ -69,14 +70,33 @@ const (
 type StreamConfig struct {
 	Mode               StreamingMode
 	StrategyPreference StrategyPreference
-	VADSilenceMs       int
-	OverlapWindowMs    int
-	OverlapCommitRuns  int
+	// EngineID is the active STT engine selection (sttengine manifest id,
+	// e.g. "whisper-local"). Empty resolves to the registry's default engine.
+	// Only the Local tier honors it; BYOK/Vrooli tiers stream natively.
+	EngineID          string
+	VADSilenceMs      int
+	OverlapWindowMs   int
+	OverlapCommitRuns int
 	// Boundary-accuracy levers for VADSegmenter. See pipeline.Config
 	// for documentation and acceptable ranges.
 	VADPreRollMs          int
 	VADTrailingPadMs      int
 	VADInitialPromptWords int
+
+	// Post-recognition egress-gate levers. The Segmenter builds the gate
+	// from these (Phase 2 derives the stage set from the engine manifest;
+	// these remain the operator tunables the manifest-derived stages read).
+	//
+	// HallucinationFilterEnabled toggles the text-domain phrase filter.
+	// VADFilterEnabled toggles faster-whisper's built-in silence filter on
+	// the /asr request (stamped onto StreamStart.VADFilter by the Segmenter).
+	// NoSpeechThreshold / LogProbThreshold drive the signal-domain stage:
+	// a segment drops when no_speech_prob > NoSpeechThreshold AND
+	// avg_logprob < LogProbThreshold.
+	HallucinationFilterEnabled bool
+	VADFilterEnabled           bool
+	NoSpeechThreshold          float64
+	LogProbThreshold           float64
 }
 
 // Defaults returns the operator defaults documented in
@@ -91,14 +111,20 @@ type StreamConfig struct {
 // the ring to fill to ~58% before the server cut.
 func Defaults() StreamConfig {
 	return StreamConfig{
-		Mode:                  ModeAuto,
-		StrategyPreference:    PreferenceAuto,
-		VADSilenceMs:          1200,
-		OverlapWindowMs:       2000,
-		OverlapCommitRuns:     2,
-		VADPreRollMs:          300,
-		VADTrailingPadMs:      200,
-		VADInitialPromptWords: 20,
+		Mode:                       ModeAuto,
+		StrategyPreference:         PreferenceAuto,
+		VADSilenceMs:               1200,
+		OverlapWindowMs:            2000,
+		OverlapCommitRuns:          2,
+		VADPreRollMs:               300,
+		VADTrailingPadMs:           200,
+		VADInitialPromptWords:      20,
+		HallucinationFilterEnabled: true,
+		VADFilterEnabled:           true,
+		// faster-whisper defaults: a segment is "no speech" when
+		// no_speech_prob > 0.6 and avg_logprob < -1.0.
+		NoSpeechThreshold: 0.6,
+		LogProbThreshold:  -1.0,
 	}
 }
 
@@ -141,6 +167,13 @@ type Selector struct {
 	// Engine is treated as "decode available" so the gate only downgrades
 	// when it can prove ffmpeg is missing.
 	Engine *audioformat.Engine
+
+	// Registry is the engine-capability manifest. When set, the Local tier's
+	// eligible strategy whitelist is derived from the active engine's manifest
+	// entry instead of the provider's hardcoded ProviderTraits.Strategies —
+	// the manifest is the single source of truth. nil falls back to provider
+	// traits (preserves pre-manifest behavior for tests).
+	Registry *sttengine.Registry
 }
 
 // NewSelector constructs a Selector with the given batch executor and no
@@ -153,6 +186,12 @@ func NewSelector(exec strategy.BatchExecutor) *Selector {
 // audio-format engine used by the streaming capability gate.
 func NewSelectorWith(exec strategy.BatchExecutor, engine *audioformat.Engine) *Selector {
 	return &Selector{BatchExecutor: exec, Engine: engine}
+}
+
+// NewSelectorWithRegistry constructs a Selector wired to the engine-capability
+// manifest, so the Local tier's eligible strategies are manifest-derived.
+func NewSelectorWithRegistry(exec strategy.BatchExecutor, engine *audioformat.Engine, reg *sttengine.Registry) *Selector {
+	return &Selector{BatchExecutor: exec, Engine: engine, Registry: reg}
 }
 
 // requiresPCMDecode reports whether the strategy consumes canonical PCM
@@ -226,6 +265,13 @@ func (s *Selector) Select(
 		pref = PreferenceAuto
 	}
 
+	// Eligible-strategy authority: for the Local tier with a wired manifest,
+	// the active engine's strategies[] is the whitelist (manifest is SSOT);
+	// every other case falls back to the provider's declared traits. This is
+	// the only place engine selection touches strategy eligibility — no engine
+	// id appears in branch logic anywhere else.
+	supports := s.eligibleStrategy(cfg, chosen, traits)
+
 	// Compatibility matrix (docs/domains/stt/streaming-pipeline.md):
 	//   - Stream=true, Strategies=[passthrough] → Passthrough only
 	//   - Stream=false, vad_segment in whitelist (or empty) → VADSegment
@@ -233,7 +279,7 @@ func (s *Selector) Select(
 	//     (operator must request it via preference=overlap)
 	//   - Anything else → BufferedFallback
 	pick := func(kind sttchain.StrategyKind) (strategy.Strategy, sttchain.StrategyKind, error) {
-		if !traits.Supports(kind) {
+		if !supports(kind) {
 			return nil, "", ErrIncompatibleStrategyProvider
 		}
 		switch kind {
@@ -291,10 +337,10 @@ func (s *Selector) Select(
 		chosenStrategy, chosenKind = st, k
 	default: // auto
 		switch {
-		case traits.Stream && traits.Supports(sttchain.StrategyPassthrough):
+		case traits.Stream && supports(sttchain.StrategyPassthrough):
 			st, k, _ := pick(sttchain.StrategyPassthrough)
 			chosenStrategy, chosenKind = st, k
-		case traits.Batch && traits.Supports(sttchain.StrategyVADSegment):
+		case traits.Batch && supports(sttchain.StrategyVADSegment):
 			st, k, _ := pick(sttchain.StrategyVADSegment)
 			chosenStrategy, chosenKind = st, k
 		default:
@@ -322,6 +368,28 @@ func (s *Selector) Select(
 		Tier:     chosen.Tier,
 		Kind:     chosenKind,
 	}, nil
+}
+
+// eligibleStrategy returns a predicate reporting whether a strategy is allowed
+// for this session. The Local tier with a wired manifest uses the active
+// engine's strategies[] whitelist; everything else (no registry, unknown
+// engine id, or a non-Local tier) falls back to the provider's declared
+// ProviderTraits — preserving the "empty whitelist means any" semantics.
+func (s *Selector) eligibleStrategy(cfg StreamConfig, chosen ProviderEligibility, traits sttchain.ProviderTraits) func(sttchain.StrategyKind) bool {
+	if s.Registry != nil && chosen.Tier == sttchain.TierLocal {
+		engineID := cfg.EngineID
+		if engineID == "" {
+			engineID = s.Registry.DefaultEngineID()
+		}
+		if strs := s.Registry.EligibleStrategies(engineID); len(strs) > 0 {
+			set := make(map[sttchain.StrategyKind]bool, len(strs))
+			for _, str := range strs {
+				set[sttchain.StrategyKind(str)] = true
+			}
+			return func(k sttchain.StrategyKind) bool { return set[k] }
+		}
+	}
+	return traits.Supports
 }
 
 func firstAvailable(providers []ProviderEligibility) (ProviderEligibility, bool) {

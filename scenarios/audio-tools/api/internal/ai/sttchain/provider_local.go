@@ -57,18 +57,22 @@ func (p *LocalProvider) Transcribe(ctx context.Context, req Request) (*Result, e
 		clk = clock.System{}
 	}
 	start := clk.Now()
-	text, err := p.svc.Transcribe(ctx, req.Audio, req.Format, req.Language, req.InitialPrompt)
+	tr, err := p.svc.Transcribe(ctx, req.Audio, req.Format, req.Language, req.InitialPrompt, req.VADFilter)
 	if err != nil {
 		return nil, err
 	}
-	return &Result{
-		Text:             text,
+	res := &Result{
+		Text:             tr.Text,
 		DetectedLanguage: req.Language,
 		Tier:             TierLocal,
 		ProviderID:       "whisper-local",
 		ModelID:          p.modelID(),
 		Latency:          clk.Now().Sub(start),
-	}, nil
+	}
+	if tr.HasConfidence {
+		res.Confidence = &Confidence{NoSpeechProb: tr.NoSpeechProb, AvgLogProb: tr.AvgLogProb}
+	}
+	return res, nil
 }
 
 // Model reports the loaded sidecar model. Returns whisperinfo.ModelUnknown

@@ -255,7 +255,7 @@ func TestEnrollSpeakerProfile_HappyPath(t *testing.T) {
 	resetSpeakerCfg()
 	t.Cleanup(resetSpeakerCfg)
 	sp := newSpeakerStoreT(t)
-	c := newSTTClient(t, Deps{Speaker: sp})
+	c := newSTTClient(t, Deps{Speaker: sp, SpeakerResource: fakeSpeakerResource(t)})
 	addToActive := true
 	enable := true
 	res, err := c.EnrollSpeakerProfile(context.Background(), connect.NewRequest(&sttv1.EnrollSpeakerProfileRequest{

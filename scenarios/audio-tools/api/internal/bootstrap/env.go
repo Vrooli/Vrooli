@@ -50,6 +50,8 @@ func Duration(key string, def time.Duration) time.Duration {
 // reads in main.go.
 type Env struct {
 	WhisperURL            string
+	KyutaiURL             string
+	SpeakerURL            string
 	KokoroURL             string
 	OllamaURL             string
 	LPBSBaseURL           string
@@ -72,6 +74,8 @@ type Env struct {
 func Load() Env {
 	return Env{
 		WhisperURL:            Or("AUDIO_WHISPER_URL", "http://localhost:8090"),
+		KyutaiURL:             Or("AUDIO_KYUTAI_URL", "http://localhost:8094"),
+		SpeakerURL:            Or("AUDIO_SPEAKER_URL", "http://localhost:11452"),
 		KokoroURL:             Or("AUDIO_KOKORO_URL", "http://localhost:8880"),
 		OllamaURL:             Or("AUDIO_OLLAMA_URL", "http://localhost:11434"),
 		LPBSBaseURL:           Or("AUDIO_LPBS_BASE_URL", ""),

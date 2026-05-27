@@ -48,7 +48,7 @@ func TestWhisperConcurrencyBound(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			// PCM input → WAV wrap, no ffmpeg needed.
-			_, err := svc.Transcribe(context.Background(), []byte{0x01, 0x00}, "pcm_s16le", "", "")
+			_, err := svc.Transcribe(context.Background(), []byte{0x01, 0x00}, "pcm_s16le", "", "", false)
 			errs <- err
 		}()
 	}

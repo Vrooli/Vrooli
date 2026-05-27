@@ -281,6 +281,79 @@ func (h *handlers) formats(ctx cliapp.RunContext) error {
 	return nil
 }
 
+// engines lists the selectable STT engines (manifest-derived) with each
+// engine's runtime availability and which one is active.
+func (h *handlers) engines(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListEngines(context.Background(), connect.NewRequest(&sttv1.ListEnginesRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("stt-engines", err, nil)
+	}
+	list := resp.Msg.GetEngines()
+	if len(list) == 0 {
+		fmt.Fprintf(ctx.Stdout(), "No STT engines declared in the manifest.\n")
+		return nil
+	}
+	fmt.Fprintf(ctx.Stdout(), "STT engines (manifest-derived):\n")
+	for _, e := range list {
+		marker := " "
+		if e.GetIsActive() {
+			marker = "*"
+		}
+		streaming := "batch"
+		if e.GetNativeStreaming() {
+			streaming = "native-streaming"
+		}
+		fmt.Fprintf(ctx.Stdout(), "  %s %-16s %-34s [%s, %s, %s]\n",
+			marker, e.GetId(), e.GetDisplayName(), e.GetKind(), streaming, availabilityLabel(e.GetAvailable()))
+	}
+	fmt.Fprintf(ctx.Stdout(), "(* = active; set with `audio-tools stt stream-config-set --engine <id>`)\n")
+	return nil
+}
+
+// engineImpact reports the shared-resource impact of switching away from an
+// engine: which other scenarios still depend on its backing resource and the
+// exact (never auto-run) command to stop it. audio-tools never stops a shared
+// resource itself — this surfaces the decision for the operator.
+func (h *handlers) engineImpact(ctx cliapp.RunContext) error {
+	engineID := ctx.Positional("engine")
+	if engineID == "" {
+		return fmt.Errorf("provide the engine id to assess (see `audio-tools stt engines`)")
+	}
+	resp, err := h.admin.GetEngineSwitchImpact(context.Background(), connect.NewRequest(&sttv1.GetEngineSwitchImpactRequest{
+		FromEngineId: engineID,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("engine-impact", err, nil)
+	}
+	msg := resp.Msg
+	if msg.GetResource() == "" {
+		fmt.Fprintf(ctx.Stdout(), "Engine %q has no local backing resource — switching away frees nothing to stop.\n", engineID)
+		return nil
+	}
+	fmt.Fprintf(ctx.Stdout(), "Switching away from %q would stop using resource %q.\n", engineID, msg.GetResource())
+	if !msg.GetConsumersKnown() {
+		fmt.Fprintf(ctx.Stdout(), "Could not enumerate other scenarios (scenarios directory not located); not safe to stop blindly.\n")
+		fmt.Fprintf(ctx.Stdout(), "To stop it manually after confirming nothing else needs it: %s\n", msg.GetStopCommand())
+		return nil
+	}
+	consumers := msg.GetConsumers()
+	if len(consumers) == 0 {
+		fmt.Fprintf(ctx.Stdout(), "No other scenario depends on %q — safe to stop to reclaim compute/VRAM:\n", msg.GetResource())
+		fmt.Fprintf(ctx.Stdout(), "  %s\n", msg.GetStopCommand())
+		return nil
+	}
+	fmt.Fprintf(ctx.Stdout(), "%d other scenario(s) still depend on %q — leaving it running is recommended:\n", len(consumers), msg.GetResource())
+	for _, c := range consumers {
+		req := ""
+		if c.GetRequired() {
+			req = " (required)"
+		}
+		fmt.Fprintf(ctx.Stdout(), "  - %s (%s)%s\n", c.GetDisplayName(), c.GetScenario(), req)
+	}
+	fmt.Fprintf(ctx.Stdout(), "If you still want to stop it: %s\n", msg.GetStopCommand())
+	return nil
+}
+
 // streamConfigGet prints the resolved StreamConfig, including the five
 // streaming-pipeline operator levers documented in
 // docs/reference/configuration.md. The display format is
@@ -295,11 +368,17 @@ func (h *handlers) streamConfigGet(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no stream config")
 	}
 	fmt.Fprintf(ctx.Stdout(), "Streaming STT pipeline:\n")
+	fmt.Fprintf(ctx.Stdout(), "  engine_id            = %s\n", stringOrDefault(cfg.GetEngineId(), "whisper-local"))
 	fmt.Fprintf(ctx.Stdout(), "  streaming_mode       = %s\n", streamingModeLabel(cfg.GetStreamingMode()))
 	fmt.Fprintf(ctx.Stdout(), "  strategy_preference  = %s\n", strategyPreferenceLabel(cfg.GetStrategyPreference()))
 	fmt.Fprintf(ctx.Stdout(), "  vad_silence_ms       = %d\n", intOrDefault(cfg.GetVadSilenceMs(), 700))
 	fmt.Fprintf(ctx.Stdout(), "  overlap_window_ms    = %d\n", intOrDefault(cfg.GetOverlapWindowMs(), 2000))
 	fmt.Fprintf(ctx.Stdout(), "  overlap_commit_runs  = %d\n", intOrDefault(cfg.GetOverlapCommitRuns(), 2))
+	fmt.Fprintf(ctx.Stdout(), "Egress gate (post-recognition quality):\n")
+	fmt.Fprintf(ctx.Stdout(), "  hallucination_filter = %t\n", cfg.GetHallucinationFilterEnabled())
+	fmt.Fprintf(ctx.Stdout(), "  vad_filter           = %t\n", cfg.GetVadFilterEnabled())
+	fmt.Fprintf(ctx.Stdout(), "  no_speech_threshold  = %.2f\n", floatOrDefault(cfg.GetNoSpeechThreshold(), 0.6))
+	fmt.Fprintf(ctx.Stdout(), "  logprob_threshold    = %.2f\n", floatOrDefault(cfg.GetLogprobThreshold(), -1.0))
 	fmt.Fprintf(ctx.Stdout(), "Legacy partial-window fields (still used by browser WS):\n")
 	fmt.Fprintf(ctx.Stdout(), "  flush_interval_ms    = %d\n", cfg.GetFlushIntervalMs())
 	fmt.Fprintf(ctx.Stdout(), "  min_delta_bytes      = %d\n", cfg.GetMinDeltaBytes())
@@ -332,6 +411,10 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 		cfg.StrategyPreference = p
 		mask.Paths = append(mask.Paths, "strategy_preference")
 	}
+	if v := ctx.Flag("engine"); v != "" {
+		cfg.EngineId = v
+		mask.Paths = append(mask.Paths, "engine_id")
+	}
 	if v := ctx.Flag("vad-silence-ms"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil {
@@ -356,8 +439,40 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 		cfg.OverlapCommitRuns = int32(n)
 		mask.Paths = append(mask.Paths, "overlap_commit_runs")
 	}
+	if v := ctx.Flag("hallucination-filter"); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("--hallucination-filter must be true|false: %q", v)
+		}
+		cfg.HallucinationFilterEnabled = b
+		mask.Paths = append(mask.Paths, "hallucination_filter_enabled")
+	}
+	if v := ctx.Flag("vad-filter"); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("--vad-filter must be true|false: %q", v)
+		}
+		cfg.VadFilterEnabled = b
+		mask.Paths = append(mask.Paths, "vad_filter_enabled")
+	}
+	if v := ctx.Flag("no-speech-threshold"); v != "" {
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return fmt.Errorf("--no-speech-threshold must be a number: %q", v)
+		}
+		cfg.NoSpeechThreshold = f
+		mask.Paths = append(mask.Paths, "no_speech_threshold")
+	}
+	if v := ctx.Flag("logprob-threshold"); v != "" {
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return fmt.Errorf("--logprob-threshold must be a number: %q", v)
+		}
+		cfg.LogprobThreshold = f
+		mask.Paths = append(mask.Paths, "logprob_threshold")
+	}
 	if len(mask.Paths) == 0 {
-		return fmt.Errorf("at least one of --streaming-mode, --strategy-preference, --vad-silence-ms, --overlap-window-ms, --overlap-commit-runs must be set")
+		return fmt.Errorf("at least one streaming/egress lever flag must be set (e.g. --streaming-mode, --strategy-preference, --vad-silence-ms, --overlap-window-ms, --overlap-commit-runs, --hallucination-filter, --vad-filter, --no-speech-threshold, --logprob-threshold)")
 	}
 	resp, err := h.admin.UpdateStreamConfig(context.Background(), connect.NewRequest(&sttv1.UpdateStreamConfigRequest{
 		UpdateMask: mask,
@@ -368,12 +483,31 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 	}
 	out := resp.Msg.GetConfig()
 	fmt.Fprintf(ctx.Stdout(), "Updated. Resolved streaming STT pipeline:\n")
+	fmt.Fprintf(ctx.Stdout(), "  engine_id            = %s\n", stringOrDefault(out.GetEngineId(), "whisper-local"))
 	fmt.Fprintf(ctx.Stdout(), "  streaming_mode       = %s\n", streamingModeLabel(out.GetStreamingMode()))
 	fmt.Fprintf(ctx.Stdout(), "  strategy_preference  = %s\n", strategyPreferenceLabel(out.GetStrategyPreference()))
 	fmt.Fprintf(ctx.Stdout(), "  vad_silence_ms       = %d\n", intOrDefault(out.GetVadSilenceMs(), 700))
 	fmt.Fprintf(ctx.Stdout(), "  overlap_window_ms    = %d\n", intOrDefault(out.GetOverlapWindowMs(), 2000))
 	fmt.Fprintf(ctx.Stdout(), "  overlap_commit_runs  = %d\n", intOrDefault(out.GetOverlapCommitRuns(), 2))
+	fmt.Fprintf(ctx.Stdout(), "  hallucination_filter = %t\n", out.GetHallucinationFilterEnabled())
+	fmt.Fprintf(ctx.Stdout(), "  vad_filter           = %t\n", out.GetVadFilterEnabled())
+	fmt.Fprintf(ctx.Stdout(), "  no_speech_threshold  = %.2f\n", floatOrDefault(out.GetNoSpeechThreshold(), 0.6))
+	fmt.Fprintf(ctx.Stdout(), "  logprob_threshold    = %.2f\n", floatOrDefault(out.GetLogprobThreshold(), -1.0))
 	return nil
+}
+
+func stringOrDefault(v, def string) string {
+	if v == "" {
+		return def
+	}
+	return v
+}
+
+func floatOrDefault(v, def float64) float64 {
+	if v == 0 {
+		return def
+	}
+	return v
 }
 
 func intOrDefault(v, def int32) int32 {

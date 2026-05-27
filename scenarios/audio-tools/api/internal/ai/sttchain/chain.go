@@ -21,6 +21,17 @@ type Chain struct {
 	local  *LocalProvider
 	byok   *BYOKProvider
 	vrooli *VrooliProvider
+
+	// localEngines maps an sttengine manifest engine id to the Local-tier
+	// provider that serves it on the STREAMING path. Whisper and Kyutai are
+	// both Local-tier engines; StreamCandidates resolves the right one from
+	// StreamStart.EngineID. The UNARY path (Execute) always uses `local`
+	// (Whisper) — only Whisper is batch-capable. Empty/unknown ids fall back
+	// to `local`. The map is supplied by bootstrap (which owns both the
+	// providers and the engine ids) so this package never imports sttengine
+	// — that would cycle via egress.
+	localEngines map[string]Provider
+	enableLocal  bool
 }
 
 // Options configures a chain.
@@ -28,6 +39,12 @@ type Options struct {
 	Local  *LocalProvider
 	BYOK   *BYOKProvider
 	Vrooli *VrooliProvider
+
+	// LocalEngines maps engine id -> Local-tier streaming provider (e.g.
+	// {"whisper-local": Local, "kyutai": kyutaiProvider}). Optional; when nil
+	// the streaming path uses Local for every engine id. The map values for
+	// batch-only engines may point at the same *LocalProvider as Local.
+	LocalEngines map[string]Provider
 
 	EnableLocal  bool
 	EnableBYOK   bool
@@ -46,7 +63,13 @@ type Options struct {
 }
 
 func NewChain(opts Options) *Chain {
-	c := &Chain{local: opts.Local, byok: opts.BYOK, vrooli: opts.Vrooli}
+	c := &Chain{
+		local:        opts.Local,
+		byok:         opts.BYOK,
+		vrooli:       opts.Vrooli,
+		localEngines: opts.LocalEngines,
+		enableLocal:  opts.EnableLocal,
+	}
 	c.Coordinator = tiered.NewChainFromSet(tiered.ProviderSet[Request, *Result]{
 		BYOK:       sttTier(c.byok),
 		Vrooli:     sttTier(c.vrooli),

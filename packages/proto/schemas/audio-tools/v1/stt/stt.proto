@@ -53,6 +53,13 @@ service STTService {
   // vocabulary) plus whether the local ffmpeg decode backend is present.
   // It is purely informational — it backs `audio-tools stt formats`.
   rpc GetSupportedFormats(GetSupportedFormatsRequest) returns (GetSupportedFormatsResponse);
+
+  // ListEngines reports the selectable STT engines derived from the
+  // engine-capability manifest (internal/sttengine/manifest.json), with each
+  // engine's runtime availability. It backs the admin engine picker and
+  // `audio-tools stt engines`. The UI/CLI MUST read the engine list from here
+  // — never hardcode it — so adding an engine is a manifest-only change.
+  rpc ListEngines(ListEnginesRequest) returns (ListEnginesResponse);
 }
 
 // -----------------------------------------------------------------------------
@@ -150,6 +157,33 @@ message StreamConfig {
   // overlap_commit_runs: consecutive agreeing runs to commit a prefix.
   // Range 2..4; 0 defaults to 2.
   int32 overlap_commit_runs = 12 [(buf.validate.field).int32 = { gte: 0, lte: 4 }];
+
+  // Post-recognition egress-gate levers (see
+  // scenarios/audio-tools/docs/reference/configuration.md#egress-gate).
+  // The gate is the single seam every transcribed segment passes through
+  // before the wire; these toggle/tune its quality stages. Defaults are
+  // applied server-side when a stored config predates the field.
+  //
+  // hallucination_filter_enabled: drop segments matching Whisper's known
+  // silence-hallucination phrases ("thank you for watching", ...). Default true.
+  bool hallucination_filter_enabled = 13;
+  // vad_filter_enabled: enable faster-whisper's built-in voice-activity
+  // filter on each /asr request (strips silence before decode — the
+  // source-level hallucination fix). Default true.
+  bool vad_filter_enabled = 14;
+  // no_speech_threshold: signal-domain drop when a segment's mean
+  // no_speech_prob exceeds this AND its avg_logprob is below
+  // logprob_threshold. Range (0,1]; 0 defaults to 0.6.
+  double no_speech_threshold = 15 [(buf.validate.field).double = { gte: 0, lte: 1 }];
+  // logprob_threshold: paired with no_speech_threshold (see above).
+  // Range [-10,0); 0 defaults to -1.0.
+  double logprob_threshold = 16 [(buf.validate.field).double = { gte: -10, lte: 0 }];
+
+  // engine_id selects the active STT engine (an sttengine manifest id, e.g.
+  // "whisper-local"). Empty resolves to the manifest's default engine. Only
+  // the Local tier honors it — BYOK/Vrooli tiers stream natively. Read the
+  // valid ids from ListEngines; do not hardcode.
+  string engine_id = 17;
 }
 
 message GetStreamConfigRequest {}
@@ -173,6 +207,77 @@ message GetSupportedFormatsResponse {
   // caller-tunable; reported so clients know the PCM fast-path target.
   int32 canonical_sample_rate_hz = 3;
   int32 canonical_channels = 4;
+}
+
+// -----------------------------------------------------------------------------
+// ListEngines — manifest-derived engine catalog for the admin picker.
+// -----------------------------------------------------------------------------
+
+message ListEnginesRequest {}
+
+// EngineInfo is one selectable STT engine, projected from the sttengine
+// manifest with runtime availability resolved at call time.
+message EngineInfo {
+  string id = 1;
+  string display_name = 2;
+  // kind discriminator: "local_resource" | "byok_api" | "vrooli_hosted".
+  string kind = 3;
+  // available is true when the engine can serve right now (its backing
+  // resource is reachable). Unavailable engines are still listed so the UI can
+  // show them disabled with a reason.
+  bool available = 4;
+  // native_streaming mirrors the manifest provides.nativeStreaming — the UI
+  // uses it to explain that switching to this engine changes the strategy.
+  bool native_streaming = 5;
+  // is_active is true for the engine the persisted StreamConfig currently
+  // selects (or the manifest default when unset).
+  bool is_active = 6;
+}
+
+message ListEnginesResponse {
+  repeated EngineInfo engines = 1;
+}
+
+// -----------------------------------------------------------------------------
+// GetEngineSwitchImpact — shared-resource awareness for the engine picker.
+// When the operator switches the active engine, audio-tools may stop using the
+// previous engine's backing resource. Because resources are SHARED across
+// scenarios, audio-tools NEVER auto-stops one; instead it reports which other
+// scenarios still depend on it so the operator can make an informed choice.
+// -----------------------------------------------------------------------------
+
+message GetEngineSwitchImpactRequest {
+  // from_engine_id is the engine the operator is switching AWAY from (usually
+  // the currently-active engine). The impact describes what happens to that
+  // engine's backing resource once audio-tools no longer uses it.
+  string from_engine_id = 1;
+}
+
+// ScenarioResourceConsumer is one other scenario that declares the resource as
+// a dependency.
+message ScenarioResourceConsumer {
+  string scenario = 1;       // scenario directory id
+  string display_name = 2;   // service.json display name (falls back to id)
+  bool required = 3;         // true when the scenario hard-requires the resource
+}
+
+message GetEngineSwitchImpactResponse {
+  // resource is from_engine_id's backing resource. Empty for non-local engines
+  // (BYOK/Vrooli own no local resource) — safe_to_stop is then true.
+  string resource = 1;
+  // consumers are OTHER scenarios still declaring `resource`. Empty means no
+  // other scenario uses it.
+  repeated ScenarioResourceConsumer consumers = 2;
+  // safe_to_stop is true when no other scenario consumes the resource, so the
+  // operator can stop it to reclaim compute/VRAM without affecting anything.
+  bool safe_to_stop = 3;
+  // stop_command is the exact command an operator runs to stop the resource.
+  // audio-tools NEVER stops it automatically. Empty when there is no resource.
+  string stop_command = 4;
+  // consumers_known is false when the scenarios directory could not be located
+  // (the prompt then explains it can't enumerate other consumers). When false,
+  // safe_to_stop is conservatively false for local resources.
+  bool consumers_known = 5;
 }
 
 // UpdateStreamConfigRequest carries a FieldMask + a full StreamConfig

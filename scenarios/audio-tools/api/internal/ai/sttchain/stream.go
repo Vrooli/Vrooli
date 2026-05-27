@@ -23,10 +23,42 @@ func (c *Chain) StreamCandidates(ctx context.Context, start StreamStart) []Provi
 	if c.vrooli != nil && c.Eligible(ctx, tiered.SlotVrooli, req) {
 		out = append(out, c.vrooli)
 	}
-	if c.local != nil && c.Eligible(ctx, tiered.SlotLocal, req) {
-		out = append(out, c.local)
+	// Local tier: resolve the engine-specific provider (Whisper vs Kyutai)
+	// from StreamStart.EngineID, then gate on its own availability. The
+	// embedded coordinator's SlotLocal eligibility only knows about Whisper,
+	// so the resolved provider's IsAvailable is the authority on the
+	// streaming path.
+	if local := c.resolveLocalEngine(start.EngineID); local != nil && c.enableLocal && local.IsAvailable(ctx) {
+		out = append(out, local)
 	}
 	return out
+}
+
+// LocalEngineAvailable reports whether the Local-tier engine with the given
+// manifest id can serve right now (its backing resource is reachable). It backs
+// the admin engine picker's per-engine availability without the handler having
+// to know which resource an engine maps to — the chain owns the providers.
+func (c *Chain) LocalEngineAvailable(ctx context.Context, engineID string) bool {
+	if !c.enableLocal {
+		return false
+	}
+	p := c.resolveLocalEngine(engineID)
+	return p != nil && p.IsAvailable(ctx)
+}
+
+// resolveLocalEngine returns the Local-tier provider that serves the given
+// engine id on the streaming path. Unknown/empty ids fall back to the default
+// Local provider (Whisper). Returns nil only when no Local provider exists.
+func (c *Chain) resolveLocalEngine(engineID string) Provider {
+	if engineID != "" {
+		if p, ok := c.localEngines[engineID]; ok && p != nil {
+			return p
+		}
+	}
+	if c.local == nil {
+		return nil
+	}
+	return c.local
 }
 
 // Stream runs a streaming transcription session through the chain.
@@ -55,8 +87,8 @@ func (c *Chain) Stream(ctx context.Context, start StreamStart, chunks <-chan Aud
 			return out, nil
 		}
 	}
-	if c.local != nil && c.Eligible(ctx, tiered.SlotLocal, req) && c.local.Traits().Stream {
-		out, err := c.local.TranscribeStreaming(ctx, start, chunks)
+	if local := c.resolveLocalEngine(start.EngineID); local != nil && c.enableLocal && local.IsAvailable(ctx) && local.Traits().Stream {
+		out, err := local.TranscribeStreaming(ctx, start, chunks)
 		if err == nil && out != nil {
 			return out, nil
 		}

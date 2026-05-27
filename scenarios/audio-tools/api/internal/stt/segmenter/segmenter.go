@@ -16,10 +16,14 @@ package segmenter
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/audioformat"
 	"audio-tools/internal/stt"
+	"audio-tools/internal/stt/egress"
+	voice "audio-tools/internal/stt/pipeline"
+	"audio-tools/internal/sttengine"
 )
 
 // Deps is the long-lived dependency bundle held by a Segmenter
@@ -32,6 +36,17 @@ type Deps struct {
 	// chunks through it to guarantee PCM-consuming strategies receive
 	// canonical PCM. May be nil — a default Engine is built lazily.
 	Engine *audioformat.Engine
+
+	// Registry is the engine-capability manifest. When set, the egress gate's
+	// stage set is derived from the active engine's manifest entry. nil falls
+	// back to a direct cfg-driven gate (preserves pre-manifest test behavior).
+	Registry *sttengine.Registry
+
+	// SpeakerIsolation is the per-session audio-domain identity check, built by
+	// the transport from the live SpeakerConfig + resource client (nil when
+	// speaker isolation is disabled/off). The egress gate's audio-domain stage
+	// uses it; it never changes mid-session.
+	SpeakerIsolation egress.SpeakerIsolation
 }
 
 // Segmenter is the per-session orchestrator. Construct via New, call
@@ -68,6 +83,17 @@ func (s *Segmenter) Run(
 		return err
 	}
 
+	// Resolve + stamp the active engine id onto the start so the chain can
+	// pick the right Local-tier provider (Whisper vs Kyutai). Both are
+	// Local-tier engines distinguished only by this id; resolving it here
+	// (the single per-session orchestration point) keeps engine selection out
+	// of the transports.
+	engineID := cfg.EngineID
+	if engineID == "" && s.deps.Registry != nil {
+		engineID = s.deps.Registry.DefaultEngineID()
+	}
+	start.EngineID = engineID
+
 	candidates := s.deps.Chain.StreamCandidates(ctx, start)
 	eligibility := make([]stt.ProviderEligibility, 0, len(candidates))
 	for _, p := range candidates {
@@ -97,7 +123,7 @@ func (s *Segmenter) Run(
 	// Passthrough see the raw bytes (the former hands the whole file to
 	// Whisper, the latter's native provider decodes for itself).
 	pcmChunks := chunks
-	if requiresPCMDecode(selection.Kind) {
+	if s.requiresPCM(selection.Kind, engineID) {
 		normalized, nstart, cleanup, nerr := s.normalizeChunks(ctx, start, chunks, events)
 		if nerr != nil {
 			return nerr // error + Done already emitted
@@ -107,13 +133,139 @@ func (s *Segmenter) Run(
 		start = nstart
 	}
 
-	return selection.Strategy.Run(ctx, start, pcmChunks, events)
+	// Stamp the session VAD-filter lever onto the start so every batch call
+	// the strategy makes enables faster-whisper's silence filter.
+	start.VADFilter = cfg.VADFilterEnabled
+
+	// Post-recognition egress gate: the single seam every SegmentEvent
+	// passes through before the wire. The strategy writes to an internal
+	// channel; the interceptor runs each segment through the gate and
+	// forwards the surviving events. Strategies never see the gate.
+	gate := s.buildGate(cfg)
+	inner := make(chan sttchain.StreamEvent)
+	forwardDone := make(chan struct{})
+	go runEgress(ctx, gate, inner, events, forwardDone)
+
+	err = selection.Strategy.Run(ctx, start, pcmChunks, inner)
+	close(inner)
+	<-forwardDone
+	return err
+}
+
+// buildGate constructs the per-session egress gate. When a manifest registry
+// is wired, the stage SET is derived from the active engine's capabilities
+// (sttengine.EgressStages) — the manifest-driven path. Without a registry it
+// falls back to a direct cfg-driven gate so registry-less tests keep working;
+// the stages and tunables are identical either way.
+func (s *Segmenter) buildGate(cfg stt.StreamConfig) *egress.Gate {
+	params := sttengine.EgressParams{
+		HallucinationFilterEnabled: cfg.HallucinationFilterEnabled,
+		NoSpeechThreshold:          cfg.NoSpeechThreshold,
+		LogProbThreshold:           cfg.LogProbThreshold,
+		IsHallucination:            voice.IsWhisperHallucination,
+		SpeakerIsolation:           s.deps.SpeakerIsolation,
+	}
+	if s.deps.Registry != nil {
+		engineID := cfg.EngineID
+		if engineID == "" {
+			engineID = s.deps.Registry.DefaultEngineID()
+		}
+		return egress.NewGate(s.deps.Registry.EgressStages(engineID, params)...)
+	}
+	// Registry-less fallback: hallucination stage (if enabled) + the
+	// signal-domain stage (no-ops without confidence signals) + the
+	// audio-domain speaker stage when an isolation is wired.
+	var stages []egress.Stage
+	if params.HallucinationFilterEnabled {
+		stages = append(stages, egress.HallucinationStage{IsHallucination: params.IsHallucination})
+	}
+	stages = append(stages, egress.ConfidenceStage{
+		NoSpeechThreshold: params.NoSpeechThreshold,
+		LogProbThreshold:  params.LogProbThreshold,
+	})
+	if params.SpeakerIsolation != nil {
+		stages = append(stages, egress.SpeakerStage{Isolation: params.SpeakerIsolation})
+	}
+	return egress.NewGate(stages...)
+}
+
+// runEgress reads events from the strategy's inner channel, runs each
+// SegmentEvent through the gate, and forwards survivors to out. Dropped
+// segments are suppressed; rejected segments become a speaker-rejection
+// event. When any segment was suppressed, the terminal Done's FinalText is
+// rebuilt from the surviving segment texts so the final transcript matches
+// what the consumer actually saw. It closes done when in is drained so the
+// Segmenter can sequence the events-channel close after the strategy returns.
+func runEgress(ctx context.Context, gate *egress.Gate, in <-chan sttchain.StreamEvent, out chan<- sttchain.StreamEvent, done chan<- struct{}) {
+	defer close(done)
+	var finalParts []string
+	gatedAny := false
+	for ev := range in {
+		switch ev.Kind {
+		case sttchain.StreamEventSegment:
+			seg := ev.Segment
+			if seg == nil {
+				out <- ev
+				continue
+			}
+			dec := gate.Apply(ctx, egress.SegmentDecision{
+				Text:       seg.Text,
+				Language:   seg.DetectedLanguage,
+				Confidence: seg.Confidence,
+				Audio:      seg.Audio,
+			})
+			switch dec.Outcome {
+			case egress.Drop:
+				gatedAny = true
+			case egress.Reject:
+				gatedAny = true
+				out <- sttchain.StreamEvent{
+					Kind: sttchain.StreamEventSpeakerRejection,
+					SpeakerRejection: &sttchain.SpeakerRejectionEvent{
+						Reason:       dec.Reason,
+						FallbackUsed: dec.FallbackUsed,
+					},
+				}
+			default: // Emit
+				// Strip gate-only fields so they never reach the wire.
+				seg.Text = dec.Text
+				seg.Confidence = nil
+				seg.Audio = nil
+				finalParts = append(finalParts, seg.Text)
+				out <- ev
+			}
+		case sttchain.StreamEventDone:
+			if gatedAny && ev.Done != nil {
+				ev.Done.FinalText = strings.Join(finalParts, " ")
+			}
+			out <- ev
+		default:
+			out <- ev
+		}
+	}
 }
 
 // requiresPCMDecode mirrors stt.Selector's gate: only VADSegment and
-// OverlapAgree consume canonical PCM frames.
+// OverlapAgree consume canonical PCM frames client-side.
 func requiresPCMDecode(kind sttchain.StrategyKind) bool {
 	return kind == sttchain.StrategyVADSegment || kind == sttchain.StrategyOverlapAgree
+}
+
+// requiresPCM decides whether inbound chunks must be normalized to canonical
+// PCM before the strategy runs. VADSegment/OverlapAgree always need it (they
+// slice PCM client-side). Passthrough needs it ONLY when the active engine
+// declares requires.pcm16kMono in the manifest (Kyutai does; a Passthrough
+// BYOK vendor that decodes for itself does not). BufferedFallback never needs
+// it (Whisper decodes the whole reassembled file). Manifest-driven — no engine
+// id branching here.
+func (s *Segmenter) requiresPCM(kind sttchain.StrategyKind, engineID string) bool {
+	if requiresPCMDecode(kind) {
+		return true
+	}
+	if kind == sttchain.StrategyPassthrough && s.deps.Registry != nil {
+		return s.deps.Registry.RequiresPCM(engineID)
+	}
+	return false
 }
 
 func emitTerminal(events chan<- sttchain.StreamEvent, err error) {

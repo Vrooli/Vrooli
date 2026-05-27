@@ -28,6 +28,12 @@ service STTAdminService {
   rpc GetStreamConfig(GetStreamConfigRequest) returns (GetStreamConfigResponse);
   rpc UpdateStreamConfig(UpdateStreamConfigRequest) returns (UpdateStreamConfigResponse);
 
+  // GetEngineSwitchImpact reports the shared-resource impact of switching away
+  // from an engine: which other scenarios still depend on its backing resource
+  // and the exact (never auto-run) command to stop it. Backs the engine
+  // picker's informed-switch prompt and `audio-tools stt engine-impact`.
+  rpc GetEngineSwitchImpact(GetEngineSwitchImpactRequest) returns (GetEngineSwitchImpactResponse);
+
   rpc GetWakeWordConfig(GetWakeWordConfigRequest) returns (GetWakeWordConfigResponse);
   rpc UpdateWakeWordTemplate(UpdateWakeWordTemplateRequest) returns (UpdateWakeWordTemplateResponse);
   rpc DeleteWakeWordTemplate(DeleteWakeWordTemplateRequest) returns (DeleteWakeWordTemplateResponse);

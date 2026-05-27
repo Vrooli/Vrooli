@@ -23,6 +23,16 @@ const (
 	TierLocal  ProviderTier = "local"
 )
 
+// Confidence carries the per-segment confidence signals a batch backend
+// reports (faster-whisper's no_speech_prob / avg_logprob). It is nil on
+// Result/SegmentEvent when the backend provides none (a non-Whisper tier,
+// or a manifest engine whose provides.confidenceSignals is empty), in which
+// case the signal-domain egress stage is skipped.
+type Confidence struct {
+	NoSpeechProb float64
+	AvgLogProb   float64
+}
+
 // Request is the per-call input to the chain.
 type Request struct {
 	Audio                   []byte
@@ -30,6 +40,10 @@ type Request struct {
 	Language                string
 	SkipSpeakerVerification bool
 	InitialPrompt           string
+	// VADFilter requests the backend's built-in voice-activity filter
+	// (faster-whisper vad_filter). The selector/segmenter derives it from
+	// the session StreamConfig; batch strategies copy it from StreamStart.
+	VADFilter bool
 
 	// Per-request creds carried via headers and injected by the handler interceptor.
 	BYOKProvider string
@@ -50,6 +64,9 @@ type Result struct {
 	ProviderID       string
 	ModelID          string
 	Latency          time.Duration
+	// Confidence carries the backend's per-segment confidence signals when
+	// available (Local/Whisper). nil for tiers that report none.
+	Confidence *Confidence
 }
 
 // StrategyKind identifies a streaming strategy. The StrategySelector
@@ -155,6 +172,17 @@ type StreamStart struct {
 	// InputSampleRate is a hint about the inbound bytes' sample rate; it
 	// never changes the fixed internal target (16 kHz). 0 = unknown.
 	InputSampleRate int32
+	// VADFilter requests the backend's built-in voice-activity filter for
+	// every batch call in the session. The Segmenter stamps it from the
+	// resolved StreamConfig before handing the start to a batch strategy.
+	VADFilter bool
+	// EngineID is the active STT engine selection (sttengine manifest id,
+	// e.g. "whisper-local" or "kyutai"). The Segmenter stamps it from the
+	// resolved StreamConfig before enumerating candidates so the chain can
+	// resolve which Local-tier provider serves the session — both Whisper
+	// and Kyutai are Local-tier engines, distinguished only by this id.
+	// Empty resolves to the chain's default local provider (Whisper).
+	EngineID string
 	// Per-request creds (same shape as Request) so streaming sessions
 	// can carry BYOK/LPBS credentials without piggy-backing on Request.
 	BYOKProvider string
@@ -224,6 +252,15 @@ type SegmentEvent struct {
 	ProviderID   string
 	ModelID      string
 	LatencyMs    float64
+
+	// Confidence and Audio are the post-recognition egress-gate inputs. The
+	// strategy stamps them when producing the segment; the Segmenter's gate
+	// reads them (signal-domain stage reads Confidence, audio-domain speaker
+	// stage reads Audio) and never forwards them on the wire — the transport
+	// mappers ignore both. Confidence is nil when the backend reports none;
+	// Audio is the canonical-PCM segment bytes, nil for non-PCM strategies.
+	Confidence *Confidence
+	Audio      []byte
 }
 
 type WakeWordEvent struct {

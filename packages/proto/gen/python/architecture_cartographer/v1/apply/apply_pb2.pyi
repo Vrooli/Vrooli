@@ -107,6 +107,32 @@ class BuildBaseline(_message.Message):
     captured_at: _timestamp_pb2.Timestamp
     def __init__(self, scenario: _Optional[str] = ..., green: _Optional[bool] = ..., toolchain: _Optional[str] = ..., log: _Optional[str] = ..., captured_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
+class WriteSuppressionRequest(_message.Message):
+    __slots__ = ("scenario", "file", "id", "reason", "expires", "line")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    FILE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_FIELD_NUMBER: _ClassVar[int]
+    LINE_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    file: str
+    id: str
+    reason: str
+    expires: str
+    line: int
+    def __init__(self, scenario: _Optional[str] = ..., file: _Optional[str] = ..., id: _Optional[str] = ..., reason: _Optional[str] = ..., expires: _Optional[str] = ..., line: _Optional[int] = ...) -> None: ...
+
+class WriteSuppressionResponse(_message.Message):
+    __slots__ = ("file", "line", "marker")
+    FILE_FIELD_NUMBER: _ClassVar[int]
+    LINE_FIELD_NUMBER: _ClassVar[int]
+    MARKER_FIELD_NUMBER: _ClassVar[int]
+    file: str
+    line: int
+    marker: str
+    def __init__(self, file: _Optional[str] = ..., line: _Optional[int] = ..., marker: _Optional[str] = ...) -> None: ...
+
 class PlanApplyRequest(_message.Message):
     __slots__ = ("scenario", "domain", "conflict_ids", "dry_run")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
