@@ -128,6 +128,9 @@ func (c *Catalog) Register(spec Spec) {
 	if spec.DefaultTimeout <= 0 {
 		spec.DefaultTimeout = DefaultTimeout
 	}
+	if spec.Doc == "" {
+		spec.Doc = docPathConvention(name)
+	}
 	if spec.Weight == 0 && len(c.specs) > 0 {
 		spec.Weight = len(c.specs) * 10
 	}
@@ -167,6 +170,7 @@ func (c *Catalog) Descriptors() []Descriptor {
 			Description:           spec.Description,
 			Source:                spec.Source,
 			DefaultTimeoutSeconds: timeout,
+			DocPath:               spec.Doc,
 		})
 	}
 	return descriptors

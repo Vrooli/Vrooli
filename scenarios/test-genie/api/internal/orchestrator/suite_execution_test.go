@@ -216,10 +216,16 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		if !result.Success {
 			t.Fatalf("expected success, got failure: %#v", result)
 		}
-		if len(result.Phases) != 13 {
-			t.Fatalf("expected thirteen phases, got %d", len(result.Phases))
+		// Derive expectations from the orchestrator's own catalog (the single
+		// source of truth) rather than a hard-coded count and name list, so that
+		// adding/removing/reordering a phase updates this assertion automatically.
+		expected := make([]string, 0)
+		for _, spec := range orchestrator.catalog.All() {
+			expected = append(expected, spec.Name.String())
 		}
-		expected := []string{"structure", "contracts", "ui-health", "standards", "dependencies", "lint", "docs", "performance", "smoke", "integration", "unit", "playbooks", "business"}
+		if len(result.Phases) != len(expected) {
+			t.Fatalf("expected %d phases, got %d", len(expected), len(result.Phases))
+		}
 		for _, phase := range result.Phases {
 			if phase.Status != "passed" {
 				t.Fatalf("phase %s expected passed, got %s", phase.Name, phase.Status)

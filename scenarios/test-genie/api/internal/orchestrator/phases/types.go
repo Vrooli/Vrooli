@@ -49,6 +49,7 @@ type Descriptor struct {
 	Description           string `json:"description,omitempty"`
 	Source                string `json:"source"`
 	DefaultTimeoutSeconds int    `json:"defaultTimeoutSeconds,omitempty"`
+	DocPath               string `json:"docPath,omitempty"`
 }
 
 // Observation represents a single test observation with optional rich formatting.
@@ -178,6 +179,10 @@ type Spec struct {
 	Weight         int
 	Description    string
 	Source         string
+	// Doc is the repo-relative documentation path for the phase. When empty at
+	// registration it is auto-derived by convention, keeping doc lookups in
+	// lockstep with the catalog instead of a separate hand-maintained map.
+	Doc string
 }
 
 // ExecutionResult captures per-phase outcome information.

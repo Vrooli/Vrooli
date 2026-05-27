@@ -17,7 +17,7 @@ import (
 
 // WorkflowArtifacts contains paths to all artifacts for a workflow execution.
 type WorkflowArtifacts struct {
-	// Dir is the workflow-specific directory under coverage/automation/
+	// Dir is the workflow-specific directory under coverage/runs/<runID>/automation/
 	Dir string `json:"dir"`
 	// Timeline is the path to the full timeline JSON
 	Timeline string `json:"timeline,omitempty"`

@@ -12,6 +12,8 @@ import (
 	"test-genie/cli/internal/repo"
 
 	execTypes "test-genie/cli/internal/execute"
+
+	catalogphases "test-genie/internal/orchestrator/phases"
 )
 
 // Separator line used for phase boundaries (matches legacy output).
@@ -700,26 +702,15 @@ func (p *Printer) printArtifacts(resp execTypes.Response) {
 	}
 }
 
-// phaseDocMapping maps phase names to relevant documentation files.
-var phaseDocMapping = map[string][]string{
-	"structure":    {"scenarios/test-genie/docs/phases/structure/README.md"},
-	"dependencies": {"scenarios/test-genie/docs/phases/dependencies/README.md"},
-	"lint":         {"scenarios/test-genie/docs/phases/lint/README.md"},
-	"docs":         {"scenarios/test-genie/docs/phases/docs/README.md"},
-	"smoke":        {"scenarios/test-genie/docs/phases/smoke/README.md"},
-	"unit":         {"scenarios/test-genie/docs/phases/unit/README.md"},
-	"integration":  {"scenarios/test-genie/docs/phases/integration/README.md"},
-	"playbooks":    {"scenarios/test-genie/docs/phases/playbooks/README.md"},
-	"business":     {"scenarios/test-genie/docs/phases/business/README.md"},
-	"performance":  {"scenarios/test-genie/docs/phases/performance/README.md"},
-}
-
+// phaseDocs resolves a phase's documentation paths from the canonical catalog
+// (repo-relative paths derived by convention), keeping the doc surface in
+// lockstep with the phase registry instead of a hand-maintained map.
 func phaseDocs(name string) []string {
-	rawDocs, ok := phaseDocMapping[NormalizeName(name)]
-	if !ok {
+	rawDocs := catalogphases.DocPaths(name)
+	if len(rawDocs) == 0 {
 		return nil
 	}
-	var resolved []string
+	resolved := make([]string, 0, len(rawDocs))
 	for _, doc := range rawDocs {
 		resolved = append(resolved, repo.AbsPath(doc))
 	}

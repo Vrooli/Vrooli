@@ -409,7 +409,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 			Success:       false,
 			Error:         err,
 			FailureClass:  FailureClassSystem,
-			Remediation:   "Ensure coverage/phase-results directory is writable.",
+			Remediation:   "Ensure the coverage/runs/<runID>/phase-results directory is writable.",
 			Observations:  observations,
 			Results:       results,
 			Summary:       summary,

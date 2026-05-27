@@ -80,7 +80,7 @@ func runSmokePhase(ctx context.Context, env workspace.Environment, logWriter io.
 		return RunReport{
 			Err:                   phaseResult.ToError(),
 			FailureClassification: FailureClassSystem,
-			Remediation:           "Investigate the UI smoke failure (see artifacts in coverage/ui-smoke/) and fix the underlying issue.",
+			Remediation:           "Investigate the UI smoke failure (see artifacts under coverage/runs/<runID>/ui-smoke/) and fix the underlying issue.",
 			Observations:          observations,
 		}
 	}

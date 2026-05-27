@@ -31,12 +31,11 @@ import (
 )
 
 var (
-	defaultPhaseTimeout     = phases.DefaultTimeout
-	defaultExecutionPresets = map[string][]string{
-		"quick":         {"structure", "standards", "docs", "unit"},
-		"smoke":         {"structure", "standards", "lint", "docs", "integration"},
-		"comprehensive": {"structure", "contracts", "standards", "dependencies", "lint", "docs", "performance", "smoke", "unit", "integration", "playbooks", "business"},
-	}
+	defaultPhaseTimeout = phases.DefaultTimeout
+	// defaultExecutionPresets is sourced from the canonical phases catalog so
+	// preset composition has a single source of truth; ValidatePresets guards
+	// it against drift at orchestrator construction.
+	defaultExecutionPresets  = phases.DefaultPresets()
 	defaultPhaseSortFallback = 1000
 )
 
@@ -263,11 +262,15 @@ func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 	if !info.IsDir() {
 		return nil, fmt.Errorf("scenarios root must be a directory: %s", absRoot)
 	}
+	catalog := phases.NewDefaultCatalog(defaultPhaseTimeout)
+	if err := phases.ValidatePresets(catalog); err != nil {
+		return nil, fmt.Errorf("invalid default presets: %w", err)
+	}
 	return &SuiteOrchestrator{
 		scenariosRoot: absRoot,
 		projectRoot:   filepath.Dir(absRoot),
 		phaseTimeout:  defaultPhaseTimeout,
-		catalog:       phases.NewDefaultCatalog(defaultPhaseTimeout),
+		catalog:       catalog,
 		requirements:  requirements.NewNodeSyncer(filepath.Dir(absRoot)),
 		phaseToggles:  newPhaseToggleStore(),
 		newRuntime:    targetruntime.New,

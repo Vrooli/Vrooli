@@ -12,7 +12,7 @@ import (
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
-// writePhasePointer persists a lightweight phase summary to coverage/phase-results/<phase>.json.
+// writePhasePointer persists a lightweight phase summary to coverage/runs/<runID>/phase-results/<phase>.json.
 // This keeps artifacts discoverable without moving existing outputs.
 func writePhasePointer(env workspace.Environment, phaseName string, report RunReport, extras map[string]any, logWriter io.Writer) {
 	status := deriveStatus(report.Observations, report.Err, report.FailureClassification)

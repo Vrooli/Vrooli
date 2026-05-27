@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	catalog "test-genie/internal/orchestrator/phases"
 )
 
 // Descriptor describes a test phase from the server catalog.
@@ -16,20 +18,12 @@ type Descriptor struct {
 	DefaultTimeoutSeconds int    `json:"defaultTimeoutSeconds"`
 }
 
-// AllowedPhases enumerates the standard phase set the planner understands.
-var AllowedPhases = []string{
-	"structure",
-	"standards",
-	"dependencies",
-	"lint",
-	"docs",
-	"smoke",
-	"unit",
-	"integration",
-	"playbooks",
-	"e2e", // alias for playbooks
-	"business",
-	"performance",
+// allowedPhaseNames returns the canonical phase set the planner understands,
+// derived from the test-genie catalog (the single source of truth). The "e2e"
+// alias is resolved via NormalizeAlias before membership checks, so it need not
+// appear in this set.
+func allowedPhaseNames() []string {
+	return catalog.ValidPhaseNames()
 }
 
 // NormalizeSelection validates and deduplicates a phase selection.
@@ -46,8 +40,9 @@ func NormalizeSelection(phases []string) ([]string, error) {
 		}
 	}
 
-	allowed := make(map[string]struct{}, len(AllowedPhases))
-	for _, phase := range AllowedPhases {
+	allowedNames := allowedPhaseNames()
+	allowed := make(map[string]struct{}, len(allowedNames))
+	for _, phase := range allowedNames {
 		allowed[phase] = struct{}{}
 	}
 
@@ -60,7 +55,7 @@ func NormalizeSelection(phases []string) ([]string, error) {
 		}
 		normalizedName = NormalizeAlias(normalizedName)
 		if _, exists := allowed[normalizedName]; !exists {
-			return nil, fmt.Errorf("unknown phase '%s' (allowed: %s)", phase, strings.Join(AllowedPhases, ","))
+			return nil, fmt.Errorf("unknown phase '%s' (allowed: %s)", phase, strings.Join(allowedNames, ","))
 		}
 		if _, dup := seen[normalizedName]; dup {
 			continue

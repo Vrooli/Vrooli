@@ -73,10 +73,9 @@ type SeedsConfig struct {
 
 // ArtifactsConfig holds artifact collection settings.
 type ArtifactsConfig struct {
-	Screenshots     bool   `json:"screenshots"`
-	DOMSnapshots    bool   `json:"dom_snapshots"`
-	OutputDir       string `json:"output_dir"`
-	RetainOnSuccess bool   `json:"retain_on_success"`
+	Screenshots     bool `json:"screenshots"`
+	DOMSnapshots    bool `json:"dom_snapshots"`
+	RetainOnSuccess bool `json:"retain_on_success"`
 }
 
 // DiagnosticsConfig toggles the rich diagnostic artifacts BAS captures per
@@ -134,7 +133,6 @@ func Default() *Config {
 		Artifacts: ArtifactsConfig{
 			Screenshots:     true,
 			DOMSnapshots:    true,
-			OutputDir:       "coverage/automation",
 			RetainOnSuccess: false,
 		},
 		Diagnostics: DiagnosticsConfig{
@@ -234,10 +232,9 @@ type rawSeedsConfig struct {
 }
 
 type rawArtifacts struct {
-	Screenshots     *bool  `json:"screenshots"`
-	DOMSnapshots    *bool  `json:"dom_snapshots"`
-	OutputDir       string `json:"output_dir"`
-	RetainOnSuccess *bool  `json:"retain_on_success"`
+	Screenshots     *bool `json:"screenshots"`
+	DOMSnapshots    *bool `json:"dom_snapshots"`
+	RetainOnSuccess *bool `json:"retain_on_success"`
 }
 
 // Load reads playbooks configuration from .vrooli/testing.json.
@@ -329,9 +326,6 @@ func Load(scenarioDir string) (*Config, error) {
 
 	// Artifacts config
 	if loaded.Artifacts != nil {
-		if loaded.Artifacts.OutputDir != "" {
-			cfg.Artifacts.OutputDir = loaded.Artifacts.OutputDir
-		}
 		if loaded.Artifacts.Screenshots != nil {
 			cfg.Artifacts.Screenshots = *loaded.Artifacts.Screenshots
 		}
