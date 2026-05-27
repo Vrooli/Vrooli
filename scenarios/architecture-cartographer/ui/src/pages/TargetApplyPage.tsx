@@ -7,7 +7,7 @@ import { useScenarioPath, encodeScenarioPath } from "../hooks/useScenarioPath";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { LoadingState } from "../components/LoadingState";
-import { manifestClient } from "../api/manifest";
+import { domainsClient } from "../api/domains";
 import { useQuery } from "@tanstack/react-query";
 
 export function TargetApplyPage() {
@@ -15,12 +15,14 @@ export function TargetApplyPage() {
   const scenario = useScenarioPath();
 
   const domains = useQuery({
-    queryKey: ["manifest", "domains", scenario ?? ""],
-    queryFn: () => manifestClient.listDomains({ scenario: scenario ?? "" }),
+    queryKey: ["domains", "get", scenario ?? ""],
+    queryFn: () => domainsClient.getDomainMap({ scenario: scenario ?? "" }),
     enabled: scenario !== null,
   });
 
   if (scenario === null) return <Navigate to="/" replace />;
+
+  const domainList = domains.data?.domainMap?.domains ?? [];
 
   return (
     <section
@@ -48,11 +50,11 @@ export function TargetApplyPage() {
             void domains.refetch();
           }}
         />
-      ) : domains.data.domains.length === 0 ? (
+      ) : domainList.length === 0 ? (
         <EmptyState title={t(strings.pages.targetApply.selectDomainPrompt)} />
       ) : (
         <ul className="flex flex-col gap-2">
-          {domains.data.domains.map((d) => (
+          {domainList.map((d) => (
             <li key={d.name}>
               <Link
                 to={`/targets/${encodeScenarioPath(scenario)}/apply/${encodeURIComponent(d.name)}`}
@@ -61,7 +63,7 @@ export function TargetApplyPage() {
               >
                 <span className="font-semibold">{d.name}</span>
                 <span className="ml-2 text-app-muted-foreground">
-                  {t(strings.pages.targetManifest.columns.paths)}: {d.paths.length}
+                  {t(strings.pages.targetDomains.columns.paths)}: {d.paths.length}
                 </span>
               </Link>
             </li>

@@ -147,6 +147,12 @@ message Conflict {
   vrooli.architecture_cartographer.v1.signals.Verdict verdict = 15;
   google.protobuf.Timestamp detected_at = 16;
   google.protobuf.Timestamp updated_at = 17;
+  // True when an active in-repo `// arch:allow` marker sanctions this
+  // finding. A suppressed conflict is reported (not dropped) so the
+  // operator sees what is being excused and why.
+  bool suppressed = 18;
+  // The marker's reason, when suppressed.
+  string suppression_reason = 19;
 }
 
 // DetectorDescriptor describes one registered detector.

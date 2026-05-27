@@ -6,8 +6,8 @@ import (
 
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/conflicts/detectors/mislocatedfile"
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
 )
 
 type stubVerdictProvider struct {
@@ -18,20 +18,20 @@ func (s stubVerdictProvider) VerdictFor(_ context.Context, _ string, _ graph.Chu
 	return s.v, nil
 }
 
-func TestDetect_EmitsWhenVerdictDisagreesWithManifest(t *testing.T) {
+func TestDetect_EmitsWhenVerdictDisagreesWithDomainMap(t *testing.T) {
 	snap := graph.GraphSnapshot{
 		Files: []graph.FileNode{
 			{ID: "file:a", Path: "internal/graph/service.go", PackageID: "pkg:graph"},
 		},
 	}
-	m := manifest.ManifestDefinition{
-		Domains: []manifest.DomainSpec{
+	m := domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{
 			{Name: "graph", Paths: []string{"internal/graph/**"}},
 			{Name: "conflicts", Paths: []string{"internal/conflicts/**"}},
 		},
 	}
 	in := conflicts.DetectInput{
-		Scenario: "demo", Snapshot: snap, Manifest: m,
+		Scenario: "demo", Snapshot: snap, DomainMap: m,
 		VerdictProvider: stubVerdictProvider{v: conflicts.Verdict{
 			Tier:      "auto_place",
 			TopDomain: "conflicts",
@@ -59,11 +59,11 @@ func TestDetect_NoConflictWhenVerdictMatchesManifest(t *testing.T) {
 			{ID: "file:a", Path: "internal/graph/service.go"},
 		},
 	}
-	m := manifest.ManifestDefinition{
-		Domains: []manifest.DomainSpec{{Name: "graph", Paths: []string{"internal/graph/**"}}},
+	m := domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{{Name: "graph", Paths: []string{"internal/graph/**"}}},
 	}
 	in := conflicts.DetectInput{
-		Scenario: "demo", Snapshot: snap, Manifest: m,
+		Scenario: "demo", Snapshot: snap, DomainMap: m,
 		VerdictProvider: stubVerdictProvider{v: conflicts.Verdict{Tier: "auto_place", TopDomain: "graph"}},
 	}
 	got, _ := mislocatedfile.New().Detect(context.Background(), in)
@@ -78,14 +78,14 @@ func TestDetect_SkipsNonAutoPlaceTiers(t *testing.T) {
 			{ID: "file:a", Path: "internal/graph/service.go"},
 		},
 	}
-	m := manifest.ManifestDefinition{
-		Domains: []manifest.DomainSpec{
+	m := domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{
 			{Name: "graph", Paths: []string{"internal/graph/**"}},
 			{Name: "conflicts", Paths: []string{"internal/conflicts/**"}},
 		},
 	}
 	in := conflicts.DetectInput{
-		Scenario: "demo", Snapshot: snap, Manifest: m,
+		Scenario: "demo", Snapshot: snap, DomainMap: m,
 		VerdictProvider: stubVerdictProvider{v: conflicts.Verdict{Tier: "suggest", TopDomain: "conflicts"}},
 	}
 	got, _ := mislocatedfile.New().Detect(context.Background(), in)

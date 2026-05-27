@@ -7,10 +7,10 @@ import (
 	conflictsh "architecture-cartographer/handlers/conflicts"
 	"architecture-cartographer/internal/conflicts"
 	conflictmocks "architecture-cartographer/internal/conflicts/mocks"
+	"architecture-cartographer/internal/domains"
+	domainmocks "architecture-cartographer/internal/domains/mocks"
 	"architecture-cartographer/internal/graph"
 	graphmocks "architecture-cartographer/internal/graph/mocks"
-	"architecture-cartographer/internal/manifest"
-	manifestmocks "architecture-cartographer/internal/manifest/mocks"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -18,24 +18,24 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts/conflicts_v1connect"
 )
 
-func newHandler(t *testing.T) (*conflictsh.Handler, *conflictmocks.FakeService, *graphmocks.FakeService, *manifestmocks.FakeService) {
+func newHandler(t *testing.T) (*conflictsh.Handler, *conflictmocks.FakeService, *graphmocks.FakeService, *domainmocks.FakeService) {
 	t.Helper()
 	cs := &conflictmocks.FakeService{}
 	gs := &graphmocks.FakeService{Snapshots: []graph.GraphSnapshot{{ID: "snap:demo:h1", Scenario: "demo"}}}
-	ms := &manifestmocks.FakeService{Manifest: manifest.ManifestDefinition{Scenario: "demo"}}
-	h := conflictsh.NewHandler(conflictsh.Deps{Conflicts: cs, Graph: gs, Manifest: ms})
-	return h, cs, gs, ms
+	ds := &domainmocks.FakeService{Map: domains.DerivedDomainMap{Scenario: "demo"}}
+	h := conflictsh.NewHandler(conflictsh.Deps{Conflicts: cs, Graph: gs, Domains: ds})
+	return h, cs, gs, ds
 }
 
-func TestHandler_DetectConflicts_FetchesSnapshotAndManifest(t *testing.T) {
-	h, cs, gs, ms := newHandler(t)
+func TestHandler_DetectConflicts_FetchesSnapshotAndDomainMap(t *testing.T) {
+	h, cs, gs, ds := newHandler(t)
 	cs.Conflicts = []conflicts.Conflict{{ID: "c-1", Type: "cycle", Severity: conflicts.SeverityError}}
 
 	resp, err := h.DetectConflicts(context.Background(), connect.NewRequest(&conflictsv1.DetectConflictsRequest{Scenario: "demo"}))
 	require.NoError(t, err)
 	require.Len(t, resp.Msg.GetConflicts(), 1)
 	require.Equal(t, int64(1), gs.ExtractCalls.Load(), "Graph.Extract should be called when no snapshot_id")
-	require.Equal(t, int64(1), ms.GetCalls.Load(), "Manifest.Get should be called")
+	require.Equal(t, int64(1), ds.GetCalls.Load(), "Domains.GetDomainMap should be called")
 	require.Equal(t, int64(1), cs.DetectCalls.Load())
 }
 

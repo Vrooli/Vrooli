@@ -332,7 +332,7 @@ const literalSelectors = {
     targetGraph: "page-target-graph",
     targetApply: "page-target-apply",
     targetApplyDomain: "page-target-apply-domain",
-    targetManifest: "page-target-manifest",
+    targetDomains: "page-target-domains",
     targetAnalytics: "page-target-analytics",
     history: "page-history",
     settings: "page-settings",
@@ -421,23 +421,32 @@ const literalSelectors = {
         empty: "feature-apply-history-empty",
       },
     },
-    manifest: {
+    domains: {
       view: {
-        root: "feature-manifest-view",
-        loading: "feature-manifest-view-loading",
-        error: "feature-manifest-view-error",
-        empty: "feature-manifest-view-empty",
-        validateButton: "feature-manifest-view-validate",
-        copyButton: "feature-manifest-view-copy",
+        root: "feature-domains-view",
+        loading: "feature-domains-view-loading",
+        error: "feature-domains-view-error",
+        empty: "feature-domains-view-empty",
+        extractButton: "feature-domains-view-extract",
       },
-      validation: {
-        root: "feature-manifest-validation",
-        validBanner: "feature-manifest-validation-valid",
-        invalidBanner: "feature-manifest-validation-invalid",
+      table: {
+        root: "feature-domains-table",
+        empty: "feature-domains-table-empty",
       },
-      inventory: {
-        root: "feature-manifest-inventory",
-        empty: "feature-manifest-inventory-empty",
+      sharedSubstrate: {
+        root: "feature-domains-shared-substrate",
+      },
+      convergence: {
+        root: "feature-domains-convergence",
+        loading: "feature-domains-convergence-loading",
+        error: "feature-domains-convergence-error",
+        converged: "feature-domains-convergence-converged",
+      },
+      boundaries: {
+        root: "feature-domains-boundaries",
+        loading: "feature-domains-boundaries-loading",
+        error: "feature-domains-boundaries-error",
+        empty: "feature-domains-boundaries-empty",
       },
     },
     analytics: {
@@ -590,7 +599,7 @@ const dynamicSelectorDefinitions = {
       params: {
         key: {
           type: "enum",
-          values: ["graph", "manifest", "conflicts", "apply", "analytics"] as const,
+          values: ["graph", "domains", "conflicts", "apply", "analytics"] as const,
         },
       },
     }),
@@ -736,17 +745,26 @@ const dynamicSelectorDefinitions = {
         }),
       },
     },
-    manifest: {
-      diagnostic: defineDynamicSelector({
-        description: "Manifest diagnostic row by diagnostic index",
-        testIdPattern: "feature-manifest-diagnostic-${index}",
-        params: { index: { type: "number" } },
-      }),
+    domains: {
       domainRow: defineDynamicSelector({
-        description: "Manifest domain inventory row by domain name",
-        testIdPattern: "feature-manifest-domain-${name}",
+        description: "Domains feature row by domain name",
+        testIdPattern: "feature-domains-row-${name}",
         params: { name: { type: "string" } },
       }),
+      convergence: {
+        finding: defineDynamicSelector({
+          description: "Domains convergence finding row by index",
+          testIdPattern: "feature-domains-convergence-finding-${index}",
+          params: { index: { type: "number" } },
+        }),
+      },
+      boundaries: {
+        row: defineDynamicSelector({
+          description: "Domains boundary-health row by domain name",
+          testIdPattern: "feature-domains-boundaries-row-${domain}",
+          params: { domain: { type: "string" } },
+        }),
+      },
     },
     analytics: {
       eventRow: defineDynamicSelector({

@@ -168,6 +168,7 @@ type FakeService struct {
 	RunCalls      atomic.Int64
 	HistoryCalls  atomic.Int64
 	BaselineCalls atomic.Int64
+	SuppressCalls atomic.Int64
 }
 
 func (f *FakeService) PlanApply(_ context.Context, _ apply.PlanInput) (apply.Plan, bool, error) {
@@ -200,6 +201,15 @@ func (f *FakeService) GetBuildBaseline(_ context.Context, _ string) (apply.Build
 		return apply.BuildBaseline{}, f.NextErr
 	}
 	return f.Baseline, nil
+}
+
+// Suppression is the canned result returned by WriteSuppression.
+func (f *FakeService) WriteSuppression(_ context.Context, in apply.SuppressionInput) (apply.SuppressionResult, error) {
+	f.SuppressCalls.Add(1)
+	if f.NextErr != nil {
+		return apply.SuppressionResult{}, f.NextErr
+	}
+	return apply.SuppressionResult{File: in.File, Line: in.Line, Marker: "// arch:allow " + in.ID}, nil
 }
 
 var _ apply.Service = (*FakeService)(nil)

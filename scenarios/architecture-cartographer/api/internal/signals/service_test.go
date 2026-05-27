@@ -1,11 +1,11 @@
 package signals_test
 
 import (
-	"architecture-cartographer/internal/manifest"
+	"architecture-cartographer/internal/domains"
 )
 
-// manifestEmpty returns an empty manifest used by aggregator tests
-// that don't care about manifest overlay.
-func manifestEmpty() manifest.ManifestDefinition {
-	return manifest.ManifestDefinition{Scenario: "demo"}
+// emptyDomainMap returns an empty derived domain map used by aggregator
+// tests that don't care about domain membership.
+func emptyDomainMap() domains.DerivedDomainMap {
+	return domains.DerivedDomainMap{Scenario: "demo"}
 }

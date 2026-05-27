@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
 	"architecture-cartographer/internal/signals"
 	"architecture-cartographer/internal/signals/testcoupling"
 )
@@ -24,8 +24,8 @@ func TestScore_TestFilesInDomainProduceScore(t *testing.T) {
 			{From: "file:test", ToPackageID: "pkg:src", TestOnly: true},
 		},
 	}
-	m := manifest.ManifestDefinition{
-		Domains: []manifest.DomainSpec{
+	m := domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{
 			{Name: "conflicts", Paths: []string{"internal/conflicts/**"}},
 		},
 	}
@@ -43,7 +43,7 @@ func TestScore_NoTestImportersReturnsEmpty(t *testing.T) {
 		Files:    []graph.FileNode{{ID: "file:src", PackageID: "pkg:src"}},
 		Packages: []graph.PackageNode{{ID: "pkg:src"}},
 	}
-	out := testcoupling.New().Score(context.Background(), signals.NewGraphContext("demo", snap, manifest.ManifestDefinition{}), graph.Chunk{FileID: "file:src"})
+	out := testcoupling.New().Score(context.Background(), signals.NewGraphContext("demo", snap, domains.DerivedDomainMap{}), graph.Chunk{FileID: "file:src"})
 	if len(out) != 0 {
 		t.Fatalf("want 0 scores, got %+v", out)
 	}

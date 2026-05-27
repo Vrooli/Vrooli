@@ -260,6 +260,46 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
+### DomainSourceExtractor (domain-derivation ladder rung)
+
+| | |
+|---|---|
+| **Seam** | One rung of the domain-extraction ladder |
+| **Interface** | `internal/domains/extractor.go::DomainSourceExtractor` (`Source() Source`, `Extract(ctx, scenarioDir) (Extraction, error)`) |
+| **Production wiring** | `main.go` constructs `domains.DefaultExtractors()` — `DomainsDocExtractor` + `FolderExtractor` + `CLIGroupExtractor`, in trust order — and passes them to `domains.NewService(...)`. A future `APIManifestExtractor` registers ahead of the DOMAINS.md rung when api-health ships. |
+| **Test fake** | `internal/domains/mocks::FakeExtractor` (programmable `Extraction`/`Err`, records `scenarioDir` calls). |
+| **Why it exists** | The derived domain map replaces the deleted per-scenario architecture manifest. Each rung reads a different on-disk source (DOMAINS.md, api/internal folders, cli groups); the seam lets ladder-resolution and convergence be tested with synthetic declarations and lets new rungs register without touching resolution logic. See `internal/domains/ladder_test.go` and `service_test.go`. |
+
+### ScenarioLocator (scenario-directory resolution)
+
+| | |
+|---|---|
+| **Seam** | Resolve a scenario name to its on-disk root directory |
+| **Interface** | `internal/domains/service.go::ScenarioLocator` (`Locate(scenario) (string, error)`) |
+| **Production wiring** | `main.go` constructs `domains.NewRepoScenarioLocator(repoRoot)`, resolving `<repoRoot>/scenarios/<name>`. The same locator backs the suppression Provider and the apply marker-writer (it satisfies `suppressions.Locator` structurally). |
+| **Test fake** | `internal/domains/mocks::FakeLocator` (fixed `Dir` / `Err`). |
+| **Why it exists** | Domain derivation is filesystem-driven; the locator decouples "which scenario" from "where on disk", so service tests point at fixture directories without depending on repo layout. |
+
+### SuppressionScanner (in-repo marker discovery)
+
+| | |
+|---|---|
+| **Seam** | Discover `// arch:allow` suppression markers in a scenario's source tree |
+| **Interface** | `internal/suppressions/scanner.go::Scanner` (`Scan(ctx, scenarioDir) ([]Marker, error)`); the higher-level `Provider` (`Active(ctx, scenario) ([]Marker, error)`) composes a `Locator` + `Scanner` + `Clock` and filters to valid, non-expired markers. |
+| **Production wiring** | `main.go` constructs `suppressions.NewProvider(scenarioLocator, suppressions.NewFileScanner(), clk)` and passes it to the conflicts handler, which feeds active markers into `DetectConflicts`. |
+| **Test fake** | `internal/suppressions/mocks::FakeScanner` / `FakeProvider` (canned markers). |
+| **Why it exists** | Conflicts must be reported as suppressed-with-reason when an in-repo marker sanctions them. The seam lets conflict-suppression matching be tested with synthetic markers and lets the scan strategy change (filesystem today) without touching the conflicts service. |
+
+### suppressions.Writer (safe marker write)
+
+| | |
+|---|---|
+| **Seam** | Insert a suppression marker comment into a source file |
+| **Interface** | `internal/suppressions/writer.go::Writer` (`WriteMarker(absPath, line, Marker) error`) |
+| **Production wiring** | `main.go` wires `apply.WithSuppressionWriter(suppressions.NewFileWriter(), scenarioLocator)` so `ApplyService.WriteSuppression` can write a marker. This is the only mutating apply path in v0.1 — comment-only, idempotent per `(file, id)`; destructive file-moving execution stays deferred. |
+| **Test fake** | `internal/suppressions/mocks::FakeWriter` (records `WriteCall`s instead of touching the filesystem). |
+| **Why it exists** | "Resolve a finding as intentional" must write a durable marker without the apply test touching real files, and without coupling apply to a concrete filesystem writer. |
+
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching

@@ -4,13 +4,13 @@ import (
 	"context"
 	"testing"
 
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
 	"architecture-cartographer/internal/signals"
 	"architecture-cartographer/internal/signals/symbolglossary"
 )
 
-func gctx(snap graph.GraphSnapshot, m manifest.ManifestDefinition) signals.GraphContext {
+func gctx(snap graph.GraphSnapshot, m domains.DerivedDomainMap) signals.GraphContext {
 	return signals.NewGraphContext("demo", snap, m)
 }
 
@@ -21,8 +21,8 @@ func TestScore_GlossaryHitProducesScore(t *testing.T) {
 			{ID: "sym:2", Name: "Resolver", FileID: "file:a", Exported: true},
 		},
 	}
-	m := manifest.ManifestDefinition{
-		Domains: []manifest.DomainSpec{
+	m := domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{
 			{Name: "conflicts", Glossary: []string{"Detector", "Resolver"}},
 			{Name: "graph", Glossary: []string{"Snapshot"}},
 		},
@@ -48,8 +48,8 @@ func TestScore_NoExportedSymbolsReturnsEmpty(t *testing.T) {
 			{Name: "internal", FileID: "file:a", Exported: false},
 		},
 	}
-	out := symbolglossary.New().Score(context.Background(), gctx(snap, manifest.ManifestDefinition{
-		Domains: []manifest.DomainSpec{{Name: "x", Glossary: []string{"internal"}}},
+	out := symbolglossary.New().Score(context.Background(), gctx(snap, domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{{Name: "x", Glossary: []string{"internal"}}},
 	}), graph.Chunk{FileID: "file:a"})
 	if len(out) != 0 {
 		t.Fatalf("expected no scores, got %+v", out)
@@ -62,8 +62,8 @@ func TestScore_Reproducible(t *testing.T) {
 			{Name: "Detector", FileID: "file:a", Exported: true},
 		},
 	}
-	m := manifest.ManifestDefinition{
-		Domains: []manifest.DomainSpec{{Name: "conflicts", Glossary: []string{"Detector"}}},
+	m := domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{{Name: "conflicts", Glossary: []string{"Detector"}}},
 	}
 	sig := symbolglossary.New()
 	a := sig.Score(context.Background(), gctx(snap, m), graph.Chunk{FileID: "file:a"})

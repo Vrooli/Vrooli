@@ -21,7 +21,7 @@ describe("WorkspaceSubNav", () => {
     );
 
     expect(screen.getByTestId(selectors.layout.subnav)).toBeInTheDocument();
-    for (const key of ["graph", "manifest", "conflicts", "apply", "analytics"] as const) {
+    for (const key of ["graph", "domains", "conflicts", "apply", "analytics"] as const) {
       expect(
         screen.getByTestId(selectors.layout.workspaceSubnavLink({ key })),
       ).toHaveAttribute("href", `/targets/demo/${key}`);

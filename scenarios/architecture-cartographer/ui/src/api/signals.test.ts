@@ -4,7 +4,7 @@ import { signalsClient } from "./signals";
 
 describe("api/signals.signalsClient", () => {
   it("exposes every SignalsService RPC as a callable method", () => {
-    const rpcs = ["scoreChunk", "explainVerdict", "listSignals"] as const;
+    const rpcs = ["scoreChunk", "explainVerdict", "listSignals", "boundaryHealth"] as const;
     for (const rpc of rpcs) {
       expect(typeof signalsClient[rpc]).toBe("function");
     }

@@ -21,11 +21,11 @@ vi.mock("../api/graph", () => ({
   },
 }));
 
-vi.mock("../api/manifest", () => ({
-  manifestClient: {
-    listDomains: vi.fn().mockResolvedValue({ domains: [] }),
-    getManifest: vi.fn().mockResolvedValue({ manifest: undefined }),
-    validateManifest: vi.fn().mockResolvedValue({ manifest: undefined, diagnostics: [], valid: true }),
+vi.mock("../api/domains", () => ({
+  domainsClient: {
+    getDomainMap: vi.fn().mockResolvedValue({ domainMap: undefined }),
+    extractDomains: vi.fn().mockResolvedValue({ domainMap: undefined }),
+    convergenceReport: vi.fn().mockResolvedValue({ scenario: "", authority: 0, findings: [] }),
   },
 }));
 
@@ -118,12 +118,12 @@ describe("AppRouter", () => {
     expect(await screen.findByTestId(selectors.pages.targetConflictDetail)).toBeInTheDocument();
   });
 
-  it("renders the manifest page at /targets/:encodedPath/manifest", async () => {
+  it("renders the domains page at /targets/:encodedPath/domains", async () => {
     renderWithProviders(
-      <TestAppRouter initialEntries={["/targets/demo/manifest"]} />,
+      <TestAppRouter initialEntries={["/targets/demo/domains"]} />,
       { withoutRouter: true },
     );
-    expect(await screen.findByTestId(selectors.pages.targetManifest)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.pages.targetDomains)).toBeInTheDocument();
   });
 
   it("renders the apply page at /targets/:encodedPath/apply", async () => {

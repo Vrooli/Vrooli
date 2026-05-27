@@ -6,9 +6,10 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
 	"architecture-cartographer/internal/signals"
+	"architecture-cartographer/internal/signals/boundaries"
 )
 
 // FakeSignal is a deterministic signal whose Score() returns canned
@@ -64,31 +65,42 @@ func (f *FakeSnapshotProvider) GetLatestSnapshot(_ context.Context, scenario str
 
 var _ signals.SnapshotProvider = (*FakeSnapshotProvider)(nil)
 
-// FakeManifestProvider satisfies signals.ManifestProvider.
-type FakeManifestProvider struct {
-	Manifest manifest.ManifestDefinition
-	Err      error
-	Calls    atomic.Int64
+// FakeDomainMapProvider satisfies signals.DomainMapProvider.
+type FakeDomainMapProvider struct {
+	DomainMap domains.DerivedDomainMap
+	Err       error
+	Calls     atomic.Int64
 }
 
-func (f *FakeManifestProvider) GetManifest(_ context.Context, _ string) (manifest.ManifestDefinition, error) {
+func (f *FakeDomainMapProvider) GetDomainMap(_ context.Context, _ string) (domains.DerivedDomainMap, error) {
 	f.Calls.Add(1)
 	if f.Err != nil {
-		return manifest.ManifestDefinition{}, f.Err
+		return domains.DerivedDomainMap{}, f.Err
 	}
-	return f.Manifest, nil
+	return f.DomainMap, nil
 }
 
-var _ signals.ManifestProvider = (*FakeManifestProvider)(nil)
+var _ signals.DomainMapProvider = (*FakeDomainMapProvider)(nil)
 
 // FakeService satisfies signals.Service for handler tests.
 type FakeService struct {
-	Verdict      signals.Verdict
-	Signals      []signals.SignalDescriptor
-	NextErr      error
-	ScoreCalls   atomic.Int64
-	ExplainCalls atomic.Int64
-	ListCalls    atomic.Int64
+	Verdict       signals.Verdict
+	Signals       []signals.SignalDescriptor
+	Boundary      boundaries.Report
+	NextErr       error
+	ScoreCalls    atomic.Int64
+	ExplainCalls  atomic.Int64
+	ListCalls     atomic.Int64
+	BoundaryCalls atomic.Int64
+}
+
+// BoundaryHealth returns the canned report.
+func (f *FakeService) BoundaryHealth(_ context.Context, _ string) (boundaries.Report, error) {
+	f.BoundaryCalls.Add(1)
+	if f.NextErr != nil {
+		return boundaries.Report{}, f.NextErr
+	}
+	return f.Boundary, nil
 }
 
 func (f *FakeService) ScoreChunk(_ context.Context, _ signals.ScoreInput) (signals.Verdict, error) {

@@ -42,6 +42,9 @@ const (
 	// SignalsServiceListSignalsProcedure is the fully-qualified name of the SignalsService's
 	// ListSignals RPC.
 	SignalsServiceListSignalsProcedure = "/vrooli.architecture_cartographer.v1.signals.SignalsService/ListSignals"
+	// SignalsServiceBoundaryHealthProcedure is the fully-qualified name of the SignalsService's
+	// BoundaryHealth RPC.
+	SignalsServiceBoundaryHealthProcedure = "/vrooli.architecture_cartographer.v1.signals.SignalsService/BoundaryHealth"
 )
 
 // SignalsServiceClient is a client for the
@@ -58,6 +61,11 @@ type SignalsServiceClient interface {
 	// ListSignals returns the registered signals + their default weights
 	// + current enable/disable state.
 	ListSignals(context.Context, *connect.Request[signals.ListSignalsRequest]) (*connect.Response[signals.ListSignalsResponse], error)
+	// BoundaryHealth computes domain-level coupling/boundary-health metrics
+	// (efferent/afferent coupling, instability, fan-out, stable-kernel) over
+	// the latest graph snapshot + derived domain map, and returns a graded
+	// health score per domain with advisory smells. Never a hard gate.
+	BoundaryHealth(context.Context, *connect.Request[signals.BoundaryHealthRequest]) (*connect.Response[signals.BoundaryHealthResponse], error)
 }
 
 // NewSignalsServiceClient constructs a client for the
@@ -90,6 +98,12 @@ func NewSignalsServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(signalsServiceMethods.ByName("ListSignals")),
 			connect.WithClientOptions(opts...),
 		),
+		boundaryHealth: connect.NewClient[signals.BoundaryHealthRequest, signals.BoundaryHealthResponse](
+			httpClient,
+			baseURL+SignalsServiceBoundaryHealthProcedure,
+			connect.WithSchema(signalsServiceMethods.ByName("BoundaryHealth")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -98,6 +112,7 @@ type signalsServiceClient struct {
 	scoreChunk     *connect.Client[signals.ScoreChunkRequest, signals.ScoreChunkResponse]
 	explainVerdict *connect.Client[signals.ExplainVerdictRequest, signals.ExplainVerdictResponse]
 	listSignals    *connect.Client[signals.ListSignalsRequest, signals.ListSignalsResponse]
+	boundaryHealth *connect.Client[signals.BoundaryHealthRequest, signals.BoundaryHealthResponse]
 }
 
 // ScoreChunk calls vrooli.architecture_cartographer.v1.signals.SignalsService.ScoreChunk.
@@ -115,6 +130,11 @@ func (c *signalsServiceClient) ListSignals(ctx context.Context, req *connect.Req
 	return c.listSignals.CallUnary(ctx, req)
 }
 
+// BoundaryHealth calls vrooli.architecture_cartographer.v1.signals.SignalsService.BoundaryHealth.
+func (c *signalsServiceClient) BoundaryHealth(ctx context.Context, req *connect.Request[signals.BoundaryHealthRequest]) (*connect.Response[signals.BoundaryHealthResponse], error) {
+	return c.boundaryHealth.CallUnary(ctx, req)
+}
+
 // SignalsServiceHandler is an implementation of the
 // vrooli.architecture_cartographer.v1.signals.SignalsService service.
 type SignalsServiceHandler interface {
@@ -129,6 +149,11 @@ type SignalsServiceHandler interface {
 	// ListSignals returns the registered signals + their default weights
 	// + current enable/disable state.
 	ListSignals(context.Context, *connect.Request[signals.ListSignalsRequest]) (*connect.Response[signals.ListSignalsResponse], error)
+	// BoundaryHealth computes domain-level coupling/boundary-health metrics
+	// (efferent/afferent coupling, instability, fan-out, stable-kernel) over
+	// the latest graph snapshot + derived domain map, and returns a graded
+	// health score per domain with advisory smells. Never a hard gate.
+	BoundaryHealth(context.Context, *connect.Request[signals.BoundaryHealthRequest]) (*connect.Response[signals.BoundaryHealthResponse], error)
 }
 
 // NewSignalsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -156,6 +181,12 @@ func NewSignalsServiceHandler(svc SignalsServiceHandler, opts ...connect.Handler
 		connect.WithSchema(signalsServiceMethods.ByName("ListSignals")),
 		connect.WithHandlerOptions(opts...),
 	)
+	signalsServiceBoundaryHealthHandler := connect.NewUnaryHandler(
+		SignalsServiceBoundaryHealthProcedure,
+		svc.BoundaryHealth,
+		connect.WithSchema(signalsServiceMethods.ByName("BoundaryHealth")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.architecture_cartographer.v1.signals.SignalsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SignalsServiceScoreChunkProcedure:
@@ -164,6 +195,8 @@ func NewSignalsServiceHandler(svc SignalsServiceHandler, opts ...connect.Handler
 			signalsServiceExplainVerdictHandler.ServeHTTP(w, r)
 		case SignalsServiceListSignalsProcedure:
 			signalsServiceListSignalsHandler.ServeHTTP(w, r)
+		case SignalsServiceBoundaryHealthProcedure:
+			signalsServiceBoundaryHealthHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -183,4 +216,8 @@ func (UnimplementedSignalsServiceHandler) ExplainVerdict(context.Context, *conne
 
 func (UnimplementedSignalsServiceHandler) ListSignals(context.Context, *connect.Request[signals.ListSignalsRequest]) (*connect.Response[signals.ListSignalsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.signals.SignalsService.ListSignals is not implemented"))
+}
+
+func (UnimplementedSignalsServiceHandler) BoundaryHealth(context.Context, *connect.Request[signals.BoundaryHealthRequest]) (*connect.Response[signals.BoundaryHealthResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.signals.SignalsService.BoundaryHealth is not implemented"))
 }

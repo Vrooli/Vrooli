@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
 	"architecture-cartographer/internal/signals"
 	"architecture-cartographer/internal/signals/importcluster"
 )
@@ -27,8 +27,8 @@ func TestScore_ClusterMembershipDrivesDomainShare(t *testing.T) {
 			// Disconnected node — different cluster.
 		},
 	}
-	m := manifest.ManifestDefinition{
-		Domains: []manifest.DomainSpec{
+	m := domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{
 			{Name: "conflicts", Paths: []string{"internal/conflicts/**"}},
 			{Name: "graph", Paths: []string{"internal/graph/**"}},
 		},
@@ -44,7 +44,7 @@ func TestScore_ClusterMembershipDrivesDomainShare(t *testing.T) {
 
 func TestScore_NoClusterReturnsEmpty(t *testing.T) {
 	out := importcluster.New().Score(context.Background(),
-		signals.NewGraphContext("demo", graph.GraphSnapshot{}, manifest.ManifestDefinition{}),
+		signals.NewGraphContext("demo", graph.GraphSnapshot{}, domains.DerivedDomainMap{}),
 		graph.Chunk{FileID: "file:none"},
 	)
 	if len(out) != 0 {

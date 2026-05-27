@@ -31,6 +31,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ApplyService.RunApply":         h.run,
 		"ApplyService.ListApplyHistory": h.history,
 		"ApplyService.GetBuildBaseline": h.baseline,
+		"ApplyService.WriteSuppression": h.suppress,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

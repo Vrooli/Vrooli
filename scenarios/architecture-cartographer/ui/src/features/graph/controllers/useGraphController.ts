@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { GraphSnapshot } from "@vrooli/proto-types/architecture-cartographer/v1/graph/graph_pb";
 
 import { graphClient } from "../../../api/graph";
-import { manifestClient } from "../../../api/manifest";
+import { domainsClient } from "../../../api/domains";
 import { conflictsClient } from "../../../api/conflicts";
 
 /**
@@ -66,7 +66,7 @@ export interface UseListDomainsArgs {
 export function useListDomains({ scenario, enabled = true }: UseListDomainsArgs) {
   return useQuery({
     queryKey: graphKeys.domains(scenario),
-    queryFn: () => manifestClient.listDomains({ scenario }),
+    queryFn: () => domainsClient.getDomainMap({ scenario }),
     enabled: enabled && scenario.length > 0,
   });
 }

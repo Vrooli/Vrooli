@@ -3,7 +3,7 @@
   "languages": ["go"],
   "files": [
     { "id": "f-graph-types",         "path": "api/internal/graph/types.go",                    "package_id": "p-graph",         "language": "go" },
-    { "id": "f-manifest-types",      "path": "api/internal/manifest/types.go",                 "package_id": "p-manifest",      "language": "go" },
+    { "id": "f-domains-types",       "path": "api/internal/domains/types.go",                  "package_id": "p-domains",       "language": "go" },
     { "id": "f-conflicts-types",     "path": "api/internal/conflicts/types.go",                "package_id": "p-conflicts",     "language": "go" },
     { "id": "f-signals-types",       "path": "api/internal/signals/types.go",                  "package_id": "p-signals",       "language": "go" },
     { "id": "f-apply-types",         "path": "api/internal/apply/types.go",                    "package_id": "p-apply",         "language": "go" },
@@ -11,7 +11,7 @@
   ],
   "packages": [
     { "id": "p-graph",     "import_path": "architecture-cartographer/internal/graph",     "directory": "api/internal/graph",     "language": "go", "internal": true },
-    { "id": "p-manifest",  "import_path": "architecture-cartographer/internal/manifest",  "directory": "api/internal/manifest",  "language": "go", "internal": true },
+    { "id": "p-domains",   "import_path": "architecture-cartographer/internal/domains",   "directory": "api/internal/domains",   "language": "go", "internal": true },
     { "id": "p-conflicts", "import_path": "architecture-cartographer/internal/conflicts", "directory": "api/internal/conflicts", "language": "go", "internal": true },
     { "id": "p-signals",   "import_path": "architecture-cartographer/internal/signals",   "directory": "api/internal/signals",   "language": "go", "internal": true },
     { "id": "p-apply",     "import_path": "architecture-cartographer/internal/apply",     "directory": "api/internal/apply",     "language": "go", "internal": true },
@@ -19,14 +19,12 @@
   ],
   "symbols": [],
   "imports": [
-    { "from": "p-manifest",  "to_package_id": "p-graph" },
     { "from": "p-conflicts", "to_package_id": "p-graph" },
-    { "from": "p-conflicts", "to_package_id": "p-manifest" },
+    { "from": "p-conflicts", "to_package_id": "p-domains" },
     { "from": "p-conflicts", "to_package_id": "p-analytics" },
     { "from": "p-signals",   "to_package_id": "p-graph" },
-    { "from": "p-signals",   "to_package_id": "p-manifest" },
+    { "from": "p-signals",   "to_package_id": "p-domains" },
     { "from": "p-apply",     "to_package_id": "p-conflicts" },
-    { "from": "p-apply",     "to_package_id": "p-manifest" },
     { "from": "p-apply",     "to_package_id": "p-graph" }
   ]
 }

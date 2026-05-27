@@ -44,7 +44,7 @@ func TestService_PlanApply_GeneratesDeterministicOperations(t *testing.T) {
 				ID:             "c-2",
 				Scenario:       "demo",
 				Status:         conflicts.ResolutionStatusResolved,
-				AssignedDomain: "manifest", // different domain — should be excluded
+				AssignedDomain: "domains", // different domain — should be excluded
 				SuggestedFixes: []conflicts.Fix{
 					{ID: "f-2", Kind: conflicts.FixKindMoveFile, Resolver: "mislocated_file"},
 				},

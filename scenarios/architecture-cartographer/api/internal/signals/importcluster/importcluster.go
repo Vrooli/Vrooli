@@ -195,7 +195,7 @@ func indexDomainPackages(gctx signals.GraphContext) map[string]string {
 		if p.Directory == "" {
 			continue
 		}
-		for _, d := range gctx.Manifest.Domains {
+		for _, d := range gctx.DomainMap.Domains {
 			for _, g := range d.Paths {
 				if matches(p.Directory, g) {
 					out[p.ID] = d.Name

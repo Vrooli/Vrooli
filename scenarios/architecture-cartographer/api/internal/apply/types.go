@@ -100,3 +100,11 @@ func (e ErrApplyUnimplemented) Error() string {
 	}
 	return fmt.Sprintf("apply run not implemented in v0.1; tracked by %s", e.NextPlan)
 }
+
+// ErrSuppressionUnconfigured is returned by WriteSuppression when the apply
+// service was constructed without a marker writer/locator.
+type ErrSuppressionUnconfigured struct{}
+
+func (ErrSuppressionUnconfigured) Error() string {
+	return "suppression-marker writing is not configured on this apply service"
+}

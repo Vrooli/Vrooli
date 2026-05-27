@@ -17,14 +17,14 @@ import { TargetApplyPage } from "../pages/TargetApplyPage";
 import { TargetConflictDetailPage } from "../pages/TargetConflictDetailPage";
 import { TargetConflictsPage } from "../pages/TargetConflictsPage";
 import { TargetGraphPage } from "../pages/TargetGraphPage";
-import { TargetManifestPage } from "../pages/TargetManifestPage";
+import { TargetDomainsPage } from "../pages/TargetDomainsPage";
 import { TargetWorkspacePage } from "../pages/TargetWorkspacePage";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
  * from the same config the production app uses.
  *
- * Per-target sub-routes for graph / manifest / apply / analytics land in
+ * Per-target sub-routes for graph / domains / apply / analytics land in
  * later phases — conflicts is the first to ship and demonstrates the
  * nested-route + workspace-subnav pattern.
  */
@@ -45,7 +45,7 @@ export const routes: RouteObject[] = [
         element: <TargetWorkspacePage />,
         children: [
           { path: "graph", element: <TargetGraphPage /> },
-          { path: "manifest", element: <TargetManifestPage /> },
+          { path: "domains", element: <TargetDomainsPage /> },
           { path: "conflicts", element: <TargetConflictsPage /> },
           { path: "conflicts/:conflictId", element: <TargetConflictDetailPage /> },
           { path: "apply", element: <TargetApplyPage /> },

@@ -45,7 +45,7 @@ Data falls into five categories:
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
 | Graph snapshots | graph | SQLite `graph_snapshots` table + JSON blob column | `api/internal/graph/schema.sql` | Indefinite by default; per-scenario reset via `arch-cart graph clear`. | Keyed by `(scenario, content_hash)`; many snapshots per scenario over time. |
-| Manifest cache | manifest | SQLite `manifest_cache` table | `api/internal/manifest/schema.sql` | Invalidated on manifest file mtime/hash change. | Cache only — manifest source of truth is the target scenario's manifest file. |
+| (domains) | domains | None — stateless | n/a | n/a | The derived domain map is computed on demand from the target scenario's on-disk sources; nothing is persisted. |
 | Conflict records | conflicts | SQLite `conflicts` table | `api/internal/conflicts/schema.sql` | Retained per scenario migration; cleared when migration is finalized. | Conflict envelope shape stable across versions. |
 | Resolution log | conflicts | SQLite `conflict_resolutions` table | `api/internal/conflicts/schema.sql` | Same lifecycle as conflict records. | Includes resolution method, agent note, --force note. |
 | Apply history | apply | SQLite `apply_runs` and `apply_operations` tables | `api/internal/apply/schema.sql` | Indefinite; growth bounded by migration cadence. | Each row records a `(scenario, domain, operations, baseline_status, post_status)`. |
@@ -58,7 +58,6 @@ Data falls into five categories:
 | Table / Object | Owner | Defined In | Used By |
 |---|---|---|---|
 | `graph_snapshots` | graph | `api/internal/graph/schema.sql` | graph extract/show, conflict detection |
-| `manifest_cache` | manifest | `api/internal/manifest/schema.sql` | manifest validate/show, conflict detection |
 | `conflicts` | conflicts | `api/internal/conflicts/schema.sql` | conflict list/show/assign/resolve, apply |
 | `conflict_resolutions` | conflicts | `api/internal/conflicts/schema.sql` | conflict resolve, analytics |
 | `apply_runs` | apply | `api/internal/apply/schema.sql` | apply, history |

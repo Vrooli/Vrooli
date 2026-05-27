@@ -6,7 +6,7 @@ weights are, how they combine, what their known failure modes are,
 and what the rules for adding or reprioritizing them are.
 
 The signal ladder is load-bearing for everything downstream:
-auto-placement of chunks during graph-vs-manifest comparison,
+auto-placement of chunks during graph-vs-derived-domain-map comparison,
 suggested-fix ranking on conflicts, and confidence reporting in the
 CLI workbench. The explainability of every cartographer decision
 flows from this contract.
@@ -71,10 +71,13 @@ The Aggregator combines all registered signals into a verdict per
 verdict_value = Σ(signal_weight × signal_score) / Σ(signal_weights)
 ```
 
-Weights are applied per the manifest (default weights below; per-scenario
-overrides allowed). The candidate domain with the highest
-`verdict_value` is selected. The verdict's confidence tier is
-determined by manifest thresholds:
+Weights use the day-one defaults below. Tier thresholds are
+cartographer-**global** tunable levers (`CARTOGRAPHER_AUTO_PLACE_MIN`,
+`CARTOGRAPHER_SUGGEST_MIN`, `CARTOGRAPHER_TIE_DELTA` — see
+[`../reference/configuration.md`](../reference/configuration.md)), NOT
+per-scenario declarations. The candidate domain with the highest
+`verdict_value` is selected; its confidence tier is determined by those
+thresholds:
 
 | Tier | Default Threshold | Action |
 |---|---|---|
@@ -166,10 +169,12 @@ weight chosen to reflect its independence and reliability.
 ### 5. `symbol-glossary`
 
 - **Measures**: whether the chunk's exported symbol names match the
-  candidate domain's manifest-declared glossary (case-insensitive,
-  token-based).
-- **Default weight**: `0.9` (high — the manifest explicitly declares
-  the glossary, so matches are intentional).
+  candidate domain's declared glossary (case-insensitive, token-based).
+  The glossary is the optional `Glossary` column of the derived domain
+  map's source (`docs/concepts/DOMAINS.md`), built via
+  `domains.BuildGlossary` — there is no per-scenario manifest.
+- **Default weight**: `0.9` (high — the glossary is explicitly declared
+  in DOMAINS.md, so matches are intentional).
 - **Score**: fraction of exported symbols matching the glossary. A
   file exporting `Token`, `Session`, `LoginRequest` matches `auth`'s
   glossary `{Token, Session, Login*, Logout*, Credential}` at
@@ -180,7 +185,7 @@ weight chosen to reflect its independence and reliability.
   yield uniformly low scores; overlap between domain glossaries (a
   `Notification` type owned by both `notifications` and `audit`
   domains) causes ambiguity.
-- **When to disable**: manifest does not declare glossaries.
+- **When to disable**: DOMAINS.md does not declare glossaries.
 
 ### 6. `git-co-edit`
 
@@ -206,7 +211,7 @@ weight chosen to reflect its independence and reliability.
 |---|---|---|
 | `path-token` | 1.5 | Most direct authorial signal; lowest false-positive rate. |
 | `import-cluster` | 1.0 | Strong structural signal but can be coarse. |
-| `symbol-glossary` | 0.9 | Manifest-declared intent; depends on glossary quality. |
+| `symbol-glossary` | 0.9 | DOMAINS.md-declared intent; depends on glossary quality. |
 | `importer-voting` | 0.8 | Direct usage signal; can be diluted by utility files. |
 | `test-coupling` | 0.7 | Very clean when present, often absent. |
 | `git-co-edit` | 0.6 | Historical, can be noisy; weakest standalone. |
@@ -227,8 +232,9 @@ when weights are durably changed.
 3. Register the signal in `api/internal/signals/registry.go`.
 4. Add an entry to this document with: what it measures, default
    weight, failure modes, when to disable.
-5. Add the signal's default weight to the manifest schema's
-   `signal_weights` defaults.
+5. Add the signal's default weight to the aggregator defaults in
+   `api/internal/signals` (weights live in code; per-instance tier
+   thresholds are global config, not per-scenario).
 6. If the signal depends on an external tool (like `git-co-edit`
    does on `git`), document the dependency in
    [`INTEGRATIONS.md`](INTEGRATIONS.md).
@@ -242,11 +248,14 @@ contract work.
 
 ## Reprioritizing The Existing Set
 
-Weights live in the manifest, not in code. To reprioritize:
+Default weights live in code (the aggregator); there is no per-scenario
+weight overlay. Tier thresholds are cartographer-global levers. To
+reprioritize:
 
-- **For one scenario**: edit that scenario's manifest
-  `signal_weights:` block. Effect is immediate.
-- **For the default ladder**: update the schema defaults and ship a
+- **Thresholds for an instance**: set `CARTOGRAPHER_AUTO_PLACE_MIN` /
+  `CARTOGRAPHER_SUGGEST_MIN` / `CARTOGRAPHER_TIE_DELTA` (see
+  [`../reference/configuration.md`](../reference/configuration.md)).
+- **For the default ladder**: update the aggregator defaults and ship a
   new cartographer release. Update this document with the new
   numbers and the rationale.
 
@@ -268,8 +277,11 @@ These would seem like signals but are intentionally excluded:
 - **Author name (git blame)** — privacy-sensitive and noisy.
 - **Last-modified date** — strongly correlates with recency, not
   ownership.
-- **Manual annotations in comments** — would create a parallel
-  declaration channel; the manifest is the only declaration.
+- **Manual annotations in comments** — signals never read free-form
+  intent comments; domain intent comes only from the derived domain map
+  (DOMAINS.md → folders → CLI groups). The one sanctioned comment channel
+  is the `// arch:allow` suppression marker, which excuses findings rather
+  than declaring placement.
 
 ## Cross-References
 

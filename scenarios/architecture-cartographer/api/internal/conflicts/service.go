@@ -5,8 +5,9 @@ import (
 	"errors"
 	"strings"
 
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
+	"architecture-cartographer/internal/suppressions"
 )
 
 // Service is the application-layer surface for conflict operations.
@@ -25,14 +26,17 @@ type Service interface {
 
 // DetectOrchestrationInput bundles every input DetectConflicts needs.
 // Callers (the Connect handler in production, tests in unit tests)
-// load the graph snapshot + manifest via their own seams; the
+// load the graph snapshot + derived domain map via their own seams; the
 // conflicts service does not reach into other domains.
 type DetectOrchestrationInput struct {
 	Scenario        string
 	Snapshot        graph.GraphSnapshot
-	Manifest        manifest.ManifestDefinition
+	DomainMap       domains.DerivedDomainMap
 	IdempotencyKey  string
 	VerdictProvider VerdictProvider
+	// Suppressions are the active in-repo `// arch:allow` markers for the
+	// scenario; matching conflicts are reported as suppressed-with-reason.
+	Suppressions []suppressions.Marker
 }
 
 // AnalyticsRecorder is the slim seam between conflict state
@@ -84,20 +88,24 @@ func (s *service) DetectConflicts(ctx context.Context, in DetectOrchestrationInp
 	conflicts, err := s.detectors.DetectAll(ctx, DetectInput{
 		Scenario:        scenario,
 		Snapshot:        in.Snapshot,
-		Manifest:        in.Manifest,
+		DomainMap:       in.DomainMap,
 		VerdictProvider: in.VerdictProvider,
 	})
 	if err != nil {
 		return nil, err
 	}
+	// Mark conflicts sanctioned by active in-repo markers before persisting,
+	// so the suppressed-with-reason state is durable and visible everywhere.
+	conflicts = applySuppressions(conflicts, in.Suppressions, in.DomainMap)
 	persisted, err := s.UpsertConflicts(ctx, scenario, conflicts)
 	if err != nil {
 		return nil, err
 	}
 	for _, c := range persisted {
 		s.record(ctx, scenario, "conflict_detected", c.ID, map[string]any{
-			"type":     c.Type,
-			"severity": c.Severity,
+			"type":       c.Type,
+			"severity":   c.Severity,
+			"suppressed": c.Suppressed,
 		})
 	}
 	return persisted, nil
@@ -120,6 +128,11 @@ func (s *service) ValidateConflicts(ctx context.Context, scenario string) ([]Con
 	for _, c := range page.Conflicts {
 		switch c.Status {
 		case ResolutionStatusResolved, ResolutionStatusForceResolved, ResolutionStatusCommitted:
+			continue
+		}
+		// A finding sanctioned by an active in-repo marker is intentional,
+		// not outstanding — it never blocks cartographer-clean closure.
+		if c.Suppressed {
 			continue
 		}
 		outstanding = append(outstanding, c)

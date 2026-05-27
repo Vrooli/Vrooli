@@ -24,15 +24,20 @@ its own home in [`SIGNAL_LADDER.md`](SIGNAL_LADDER.md).
 
 ## Domain Inventory
 
-| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths (planned) |
-|---|---|---|---|---|---|---|
-| health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/architecture-cartographer/v1/health/` |
-| graph | Build the ground-truth code graph for a target scenario by delegating to language code-graph scenarios. | Service / orchestration | Cached graph snapshots and content hashes. | API, CLI, UI | OT-P0-001 (MOD-P0-001) | `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `ui/src/features/graph/`, `packages/proto/schemas/architecture-cartographer/v1/graph/` |
-| manifest | Parse, validate, and overlay the API/UI/docs manifest that declares ideal architecture. | Validation / contract | Manifest definitions and signal-weight overlays. | API, CLI, UI | OT-P0-002 (MOD-P0-002) | `api/internal/manifest/`, `api/handlers/manifest/`, `cli/domains/manifest/`, `ui/src/features/manifest/`, `packages/proto/schemas/architecture-cartographer/v1/manifest/` |
-| conflicts | Detect drift between actual graph and manifest target; emit and track typed conflicts via a pluggable detector registry. | Service / classification | Conflict records, resolutions, suggested fixes. | API, CLI, UI | OT-P0-003, OT-P0-005 (MOD-P0-003, MOD-P0-005) | `api/internal/conflicts/`, `api/handlers/conflicts/`, `cli/domains/conflicts/`, `ui/src/features/conflicts/`, `packages/proto/schemas/architecture-cartographer/v1/conflicts/` |
-| signals | Score chunk-to-domain assignments via pluggable, deterministic signals; aggregate into explainable verdicts. | Service / scoring | Signal scores and verdict explanations. | API, CLI | OT-P0-004 (MOD-P0-004) | `api/internal/signals/`, `api/handlers/signals/`, `cli/domains/signals/`, `packages/proto/schemas/architecture-cartographer/v1/signals/` |
-| apply | Emit per-domain migration plans and execute file moves + import rewrites with build-green guardrail. | Service / mutation | Migration plans, apply history. | API, CLI, UI | OT-P0-007, OT-P0-008 (MOD-P0-007, MOD-P0-008) | `api/internal/apply/`, `api/handlers/apply/`, `cli/domains/apply/`, `ui/src/features/apply/`, `packages/proto/schemas/architecture-cartographer/v1/apply/` |
-| analytics | Persist conflict events, resolution outcomes, auto-placement verdicts, overrides, and build deltas; serve history + stats. | Reporting / query | Append-only event log. | API, CLI, UI | OT-P0-009 (MOD-P0-009) | `api/internal/analytics/`, `api/handlers/analytics/`, `cli/domains/analytics/`, `ui/src/features/analytics/`, `packages/proto/schemas/architecture-cartographer/v1/analytics/` |
+The table below is the machine contract parsed by the `domains` domain's
+`DomainsDocExtractor` — see [`../reference/domains-contract.md`](../reference/domains-contract.md).
+The parser is header-driven; it reads the `Domain`, `Primary Archetype`,
+`Source Paths`, and (optional) `Glossary` columns and ignores the rest.
+
+| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths | Glossary |
+|---|---|---|---|---|---|---|---|
+| health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/architecture-cartographer/v1/health/` | HealthHandler |
+| graph | Build the ground-truth code graph for a target scenario by delegating to language code-graph scenarios. | Service / orchestration | Cached graph snapshots and content hashes. | API, CLI, UI | OT-P0-001 (MOD-P0-001) | `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `ui/src/features/graph/`, `packages/proto/schemas/architecture-cartographer/v1/graph/` | GraphSnapshot, FileNode, PackageNode, SymbolNode, ImportEdge, CodeGraphAdapter, Chunk |
+| domains | Derive the intended domain map from on-disk sources (DOMAINS.md → api/internal folders → cli groups) via a trust ladder; report cross-surface convergence. Replaces the deleted architecture manifest. | Service / orchestration | No product data (stateless; derived on demand). | API, CLI, UI | OT-P0-002 (MOD-P0-002) | `api/internal/domains/`, `api/handlers/domains/`, `cli/domains/domains/`, `ui/src/features/domains/`, `packages/proto/schemas/architecture-cartographer/v1/domains/` | DerivedDomainMap, DerivedDomain, DomainSourceExtractor, Extraction, ScenarioLocator, DomainSource |
+| conflicts | Detect drift between actual graph and the derived domain map; emit and track typed conflicts via a pluggable detector registry. | Service / classification | Conflict records, resolutions, suggested fixes. | API, CLI, UI | OT-P0-003, OT-P0-005 (MOD-P0-003, MOD-P0-005) | `api/internal/conflicts/`, `api/handlers/conflicts/`, `cli/domains/conflicts/`, `ui/src/features/conflicts/`, `packages/proto/schemas/architecture-cartographer/v1/conflicts/` | Conflict, Fix, Detector, Resolver, ResolutionStatus, AnalyticsRecorder |
+| signals | Score chunk-to-domain assignments via pluggable, deterministic signals; aggregate into explainable verdicts. | Service / scoring | Signal scores and verdict explanations. | API, CLI | OT-P0-004 (MOD-P0-004) | `api/internal/signals/`, `api/handlers/signals/`, `cli/domains/signals/`, `packages/proto/schemas/architecture-cartographer/v1/signals/` | Signal, Score, Verdict, Tier, SignalDescriptor, Aggregator, GraphContext |
+| apply | Emit per-domain migration plans and execute file moves + import rewrites with build-green guardrail. | Service / mutation | Migration plans, apply history. | API, CLI, UI | OT-P0-007, OT-P0-008 (MOD-P0-007, MOD-P0-008) | `api/internal/apply/`, `api/handlers/apply/`, `cli/domains/apply/`, `ui/src/features/apply/`, `packages/proto/schemas/architecture-cartographer/v1/apply/` | Plan, Operation, OperationKind, ApplyRun, ApplyStatus, BuildBaseline, BuildGuard, Recipe |
+| analytics | Persist conflict events, resolution outcomes, auto-placement verdicts, overrides, and build deltas; serve history + stats. | Reporting / query | Append-only event log. | API, CLI, UI | OT-P0-009 (MOD-P0-009) | `api/internal/analytics/`, `api/handlers/analytics/`, `cli/domains/analytics/`, `ui/src/features/analytics/`, `packages/proto/schemas/architecture-cartographer/v1/analytics/` | Event, EventKind, Placement, Override, StatsSummary |
 
 ## Domain Details
 
@@ -73,31 +78,33 @@ its own home in [`SIGNAL_LADDER.md`](SIGNAL_LADDER.md).
 - Related docs: [`INTEGRATIONS.md`](INTEGRATIONS.md),
   [`SIGNAL_LADDER.md`](SIGNAL_LADDER.md).
 
-### manifest
+### domains
 
-- Purpose: parse and validate the manifest that declares ideal
-  architecture (domains, allowed_dependencies, shared substrate,
-  glossaries, signal weights, confidence thresholds, transitional
-  declarations).
-- Primary archetype: validation / contract.
-- Owns: manifest schema definition, schema validation, overlay
-  evaluation, signal-weight resolution, glossary lookup.
-- Does not own: the act of comparing manifest to actual graph (that is
-  the `conflicts` domain's responsibility).
-- API: `api/internal/manifest/`, `api/handlers/manifest/`.
-- CLI: `cli/domains/manifest/` — `arch-cart manifest validate`,
-  `arch-cart manifest show`.
-- UI: `ui/src/features/manifest/` — manifest editor + validation
-  report.
-- Storage: manifest files live in the target scenario; cartographer
-  caches parsed forms.
-- Tests: unit (schema validation, overlay evaluation, glossary), golden
-  manifests under `bas/fixtures/`.
-- Related docs: [`../reference/configuration.md`](../reference/configuration.md).
+- Purpose: derive a target scenario's intended domain map from sources
+  that already exist on disk — there is no per-scenario architecture
+  manifest. Derivation walks a trust ladder (DOMAINS.md → api/internal
+  folders → cli groups; a future API manifest sits above DOMAINS.md) and
+  reports which sources agree (cross-surface convergence).
+- Primary archetype: service / orchestration.
+- Owns: the `DomainSourceExtractor` ladder, ladder resolution to a
+  canonical `DerivedDomainMap` (with per-source provenance), the
+  glossary index, and the structured-DOMAINS.md machine contract.
+- Does not own: the act of comparing the derived map to the actual graph
+  (that is the `conflicts` domain's responsibility); coupling scoring
+  (that is the `signals` domain).
+- API: `api/internal/domains/`, `api/handlers/domains/`.
+- CLI: `cli/domains/domains/` — `arch-cart domains extract`,
+  `arch-cart domains show`.
+- UI: `ui/src/features/domains/` — derived map + per-source provenance.
+- Storage: none; the map is derived on demand and not persisted.
+- Tests: unit (each extractor with golden DOMAINS.md fixtures; ladder
+  resolution + provenance; glossary), dogfood (own DOMAINS.md parses and
+  is authoritative).
+- Related docs: [`../reference/domains-contract.md`](../reference/domains-contract.md).
 
 ### conflicts
 
-- Purpose: detect drift between actual graph and manifest target;
+- Purpose: detect drift between actual graph and the derived domain map;
   classify each finding into a typed `Conflict` envelope; surface
   ranked fix suggestions with evidence and caveats.
 - Primary archetype: service / classification.
@@ -117,11 +124,11 @@ its own home in [`SIGNAL_LADDER.md`](SIGNAL_LADDER.md).
 - Storage: conflict records in SQLite (id, type, severity, locations,
   description, suggested_fixes, evidence, resolved, resolution).
 - Plug-in seams: `Detector` interface (returns `[]Conflict` for a
-  graph+manifest snapshot); `Resolver` interface (executes a
+  graph + derived-domain-map snapshot); `Resolver` interface (executes a
   mechanical fix for a specific conflict type). Day-one detectors:
-  `cycle`, `mislocated_file`. Future detectors: `forbidden_edge`,
-  `orphan_file`, `missing_required`, `mixed_responsibility`,
-  `naming_violation`, `undeclared_transitional`.
+  `cycle`, `mislocated_file`. Future detectors: `convergence-drift`,
+  `coupling-smell`, `orphan_file`, `mixed_responsibility`,
+  `naming_violation`.
 - Tests: unit (envelope serialization, detector invocation, cycle
   classification, severity), integration (against fixture scenarios
   with known cycles, mislocations, orphans).
@@ -138,8 +145,9 @@ its own home in [`SIGNAL_LADDER.md`](SIGNAL_LADDER.md).
   graph snapshot), the Aggregator (weighted combination + confidence
   tiering), the explainability contract.
 - Does not own: which signals exist by default (those are registered
-  plug-ins documented in `SIGNAL_LADDER.md`); the manifest's weight
-  values (those live in the `manifest` domain).
+  plug-ins documented in `SIGNAL_LADDER.md`); the derived domain map
+  (that is the `domains` domain); signal weights/thresholds (those are
+  cartographer-global config, not a per-scenario declaration).
 - API: `api/internal/signals/`, `api/handlers/signals/`.
 - CLI: `cli/domains/signals/` — `arch-cart signals score <chunk>`,
   `arch-cart signals explain <chunk>`.
@@ -233,6 +241,8 @@ These are important but should not become product domains:
 - `api/internal/modules/` — thin registry for boot/codegen.
 - `api/internal/database/` — cross-cutting database infrastructure.
 - `api/internal/testutil/` — cross-domain test harnesses.
+- `api/internal/config/` — cartographer-global control-surface levers.
+- `api/internal/suppressions/` — in-repo `// arch:allow` marker scanning/writing substrate.
 - `ui/src/components/` — shared presentation primitives.
 - `ui/src/test-utils/` — cross-feature testing support.
 

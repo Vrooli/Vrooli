@@ -10,7 +10,7 @@ import { WorkspaceSubNav } from "../layout/WorkspaceSubNav";
 
 /**
  * TargetWorkspacePage — shell for everything that operates against a single
- * target scenario. Renders the per-target sub-nav (Graph/Manifest/Conflicts/
+ * target scenario. Renders the per-target sub-nav (Graph/Domains/Conflicts/
  * Apply/Analytics) and an `<Outlet />` for the selected section.
  *
  * Side-effect: opening a target records it in the recent-targets list so it

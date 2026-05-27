@@ -6,15 +6,15 @@ import (
 
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/conflicts/detectors/cycle"
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
 )
 
-func detectInput(snap graph.GraphSnapshot, m manifest.ManifestDefinition) conflicts.DetectInput {
+func detectInput(snap graph.GraphSnapshot, m domains.DerivedDomainMap) conflicts.DetectInput {
 	return conflicts.DetectInput{
-		Scenario: "demo",
-		Snapshot: snap,
-		Manifest: m,
+		Scenario:  "demo",
+		Snapshot:  snap,
+		DomainMap: m,
 	}
 }
 
@@ -28,7 +28,7 @@ func TestDetect_NoCycleReturnsNoConflict(t *testing.T) {
 			{From: "pkg:a", ToPackageID: "pkg:b"},
 		},
 	}
-	got, err := cycle.New().Detect(context.Background(), detectInput(snap, manifest.ManifestDefinition{}))
+	got, err := cycle.New().Detect(context.Background(), detectInput(snap, domains.DerivedDomainMap{}))
 	if err != nil {
 		t.Fatalf("Detect: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestDetect_TwoPackageCycleEmitsOneConflict(t *testing.T) {
 			{From: "pkg:b", ToPackageID: "pkg:a"},
 		},
 	}
-	got, err := cycle.New().Detect(context.Background(), detectInput(snap, manifest.ManifestDefinition{}))
+	got, err := cycle.New().Detect(context.Background(), detectInput(snap, domains.DerivedDomainMap{}))
 	if err != nil {
 		t.Fatalf("Detect: %v", err)
 	}
@@ -74,8 +74,8 @@ func TestDetect_CrossDomainSubtype(t *testing.T) {
 			{From: "pkg:b", ToPackageID: "pkg:a"},
 		},
 	}
-	m := manifest.ManifestDefinition{
-		Domains: []manifest.DomainSpec{
+	m := domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{
 			{Name: "graph", Paths: []string{"internal/graph/**"}},
 			{Name: "conflicts", Paths: []string{"internal/conflicts/**"}},
 		},
@@ -100,7 +100,7 @@ func TestDetect_ExternalEdgesIgnored(t *testing.T) {
 			{From: "pkg:ext", ToPackageID: "pkg:a"},
 		},
 	}
-	got, _ := cycle.New().Detect(context.Background(), detectInput(snap, manifest.ManifestDefinition{}))
+	got, _ := cycle.New().Detect(context.Background(), detectInput(snap, domains.DerivedDomainMap{}))
 	if len(got) != 0 {
 		t.Fatalf("external cycle should be ignored, got %+v", got)
 	}
@@ -122,8 +122,8 @@ func TestDetect_DeterministicOrder(t *testing.T) {
 			{From: "pkg:d", ToPackageID: "pkg:c"},
 		},
 	}
-	first, _ := cycle.New().Detect(context.Background(), detectInput(snap, manifest.ManifestDefinition{}))
-	second, _ := cycle.New().Detect(context.Background(), detectInput(snap, manifest.ManifestDefinition{}))
+	first, _ := cycle.New().Detect(context.Background(), detectInput(snap, domains.DerivedDomainMap{}))
+	second, _ := cycle.New().Detect(context.Background(), detectInput(snap, domains.DerivedDomainMap{}))
 	if len(first) != len(second) {
 		t.Fatalf("non-deterministic conflict count: %d vs %d", len(first), len(second))
 	}

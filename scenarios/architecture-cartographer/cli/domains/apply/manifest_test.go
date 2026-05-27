@@ -25,7 +25,7 @@ func TestRegisterWiresAllCommands(t *testing.T) {
 	if group.Name != GroupName {
 		t.Errorf("group name = %q, want %q", group.Name, GroupName)
 	}
-	want := map[string]bool{"plan": false, "run": false, "history": false, "baseline": false}
+	want := map[string]bool{"plan": false, "run": false, "history": false, "baseline": false, "suppress": false}
 	for _, c := range group.Subcommands {
 		if _, ok := want[c.Name]; !ok {
 			t.Errorf("unexpected command %q", c.Name)

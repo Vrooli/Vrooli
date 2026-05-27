@@ -42,7 +42,7 @@ describe("TargetWorkspacePage", () => {
   it("renders the workspace sub-nav with all five sections", () => {
     renderAt("/targets/demo");
     expect(screen.getByTestId(selectors.layout.subnav)).toBeInTheDocument();
-    for (const key of ["graph", "manifest", "conflicts", "apply", "analytics"] as const) {
+    for (const key of ["graph", "domains", "conflicts", "apply", "analytics"] as const) {
       expect(
         screen.getByTestId(selectors.layout.workspaceSubnavLink({ key })),
       ).toBeInTheDocument();
@@ -56,7 +56,7 @@ describe("TargetWorkspacePage", () => {
     const graph = screen.getByTestId(selectors.layout.workspaceSubnavLink({ key: "graph" }));
     expect(graph.tagName).toBe("A");
 
-    for (const key of ["manifest", "apply", "analytics"] as const) {
+    for (const key of ["domains", "apply", "analytics"] as const) {
       const item = screen.getByTestId(selectors.layout.workspaceSubnavLink({ key }));
       expect(item.tagName).toBe("A");
     }

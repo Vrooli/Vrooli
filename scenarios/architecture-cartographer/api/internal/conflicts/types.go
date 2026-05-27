@@ -84,8 +84,14 @@ type Conflict struct {
 	ResolutionNote string
 	SnapshotID     string
 	Verdict        *signals.Verdict
-	DetectedAt     time.Time
-	UpdatedAt      time.Time
+	// Suppressed is true when an active in-repo `// arch:allow` marker
+	// sanctions this finding. A suppressed conflict is reported (not
+	// dropped) so the operator sees what is being excused and why.
+	Suppressed bool
+	// SuppressionReason is the marker's reason, when Suppressed.
+	SuppressionReason string
+	DetectedAt        time.Time
+	UpdatedAt         time.Time
 }
 
 // DetectorDescriptor describes one registered detector.
@@ -127,7 +133,7 @@ func (e ErrInvalidTransition) Error() string {
 }
 
 // ErrInvalidAssignment signals that the assigned domain is not declared
-// in the manifest.
+// in the derived domain map.
 type ErrInvalidAssignment struct {
 	Domain string
 	Reason string

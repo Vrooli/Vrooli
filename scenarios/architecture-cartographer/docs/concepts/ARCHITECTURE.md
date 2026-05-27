@@ -192,15 +192,16 @@ is bound by exactly the rules it enforces on other scenarios.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Charter-defined | PRD published with 10 P0 targets; proto-first contract mandated; module registry pattern inherited from template. | All six product domains (`graph`, `manifest`, `conflicts`, `signals`, `apply`, `analytics`) are pre-implementation. |
+| API | Charter-defined | PRD published with 10 P0 targets; proto-first contract mandated; module registry pattern inherited from template. | Product domains (`graph`, `domains`, `conflicts`, `signals`, `apply`, `analytics`) implemented; the per-scenario architecture manifest was deleted in favor of zero-config derivation (the `domains` domain). |
 | UI | Charter-defined | UX direction set to dense operational workbench; design tokens inherited from vrooli-default. | Conflict workbench, graph view, history dashboards all to be built. |
 | CLI | Charter-defined | Human-friendly CLI contract specified (classified pattern + ranked fixes + evidence + caveats per conflict). | All `arch-cart` subcommands to be implemented. |
 | Docs | Active | Manifest v2 registers all docs; required headings present in every concept doc; signal ladder and conflict model documented before implementation. | Maturity values flip to `draft` → `active` as each domain ships. |
 | Contracts | Pre-implementation | Conflict envelope shape pinned in PRD and SIGNAL_LADDER doc; pluggable Detector / Resolver / Signal / Recipe interfaces defined as durable seams. | Proto schemas to be authored before any handler code. |
 
-The cartographer aims to dogfood itself: once the first apply lands,
-its own scenario must pass cartographer health checks against its own
-manifest. This is the closure that proves the tool works.
+The cartographer dogfoods itself: its own scenario must pass cartographer
+health checks against its own **derived** domain map (from
+`docs/concepts/DOMAINS.md` via the extraction ladder — there is no per-scenario
+manifest). This is the closure that proves the tool works.
 
 ## Intentional Deviations
 

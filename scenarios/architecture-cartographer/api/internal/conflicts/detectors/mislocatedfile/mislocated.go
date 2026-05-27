@@ -10,10 +10,8 @@ package mislocatedfile
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"architecture-cartographer/internal/conflicts"
-	"architecture-cartographer/internal/manifest"
 )
 
 // Detector is the production mislocated-file detector.
@@ -37,7 +35,7 @@ func (d Detector) Detect(ctx context.Context, in conflicts.DetectInput) ([]confl
 	}
 	var out []conflicts.Conflict
 	for _, chunk := range in.Snapshot.Chunks() {
-		current := domainForPath(chunk.Path, in.Manifest)
+		current := in.DomainMap.DomainFor(chunk.Path)
 		v, err := in.VerdictProvider.VerdictFor(ctx, in.Scenario, chunk)
 		if err != nil {
 			return nil, err
@@ -104,27 +102,4 @@ func filterEmpty(parts ...string) []string {
 		}
 	}
 	return out
-}
-
-func domainForPath(path string, m manifest.ManifestDefinition) string {
-	for _, d := range m.Domains {
-		for _, g := range d.Paths {
-			if matches(path, g) {
-				return d.Name
-			}
-		}
-	}
-	return ""
-}
-
-func matches(path, glob string) bool {
-	switch {
-	case glob == "**":
-		return true
-	case strings.HasSuffix(glob, "/**"):
-		prefix := glob[:len(glob)-3]
-		return path == prefix || strings.HasPrefix(path, prefix+"/")
-	default:
-		return path == glob
-	}
 }

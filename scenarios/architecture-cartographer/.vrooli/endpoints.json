@@ -120,6 +120,17 @@
       }
     },
     {
+      "id": "apply.write-suppression",
+      "path": "/vrooli.architecture_cartographer.v1.apply.ApplyService/WriteSuppression",
+      "method": "POST",
+      "summary": "Write an in-repo suppression marker",
+      "description": "Inserts a durable `// arch:allow` marker into a source file, sanctioning a finding as intentional. Safe, non-destructive (comment-only) write.",
+      "category": "apply",
+      "cli_mapping": {
+        "command": "arch-cart apply suppress"
+      }
+    },
+    {
       "id": "conflicts.detect",
       "path": "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/DetectConflicts",
       "method": "POST",
@@ -219,6 +230,39 @@
       }
     },
     {
+      "id": "domains.extract",
+      "path": "/vrooli.architecture_cartographer.v1.domains.DomainsService/ExtractDomains",
+      "method": "POST",
+      "summary": "Derive the domain map for a scenario",
+      "description": "Walks the domain-extraction ladder (DOMAINS.md → api/internal folders → cli groups) and returns the canonical derived domain map with per-source provenance.",
+      "category": "domains",
+      "cli_mapping": {
+        "command": "arch-cart domains extract"
+      }
+    },
+    {
+      "id": "domains.show",
+      "path": "/vrooli.architecture_cartographer.v1.domains.DomainsService/GetDomainMap",
+      "method": "POST",
+      "summary": "Show the derived domain map",
+      "description": "Returns the derived domain map for a scenario (re-derived per call; deterministic).",
+      "category": "domains",
+      "cli_mapping": {
+        "command": "arch-cart domains show"
+      }
+    },
+    {
+      "id": "domains.convergence",
+      "path": "/vrooli.architecture_cartographer.v1.domains.DomainsService/ConvergenceReport",
+      "method": "POST",
+      "summary": "Report cross-surface domain convergence",
+      "description": "Reports where a scenario's surfaces (DOMAINS.md, api folders, cli groups, ui features) disagree on the domain set. Advisory, never a hard gate.",
+      "category": "domains",
+      "cli_mapping": {
+        "command": "arch-cart domains convergence"
+      }
+    },
+    {
       "id": "graph.extract",
       "path": "/vrooli.architecture_cartographer.v1.graph.GraphService/ExtractGraph",
       "method": "POST",
@@ -262,39 +306,6 @@
       "category": "graph"
     },
     {
-      "id": "manifest.validate",
-      "path": "/vrooli.architecture_cartographer.v1.manifest.ManifestService/ValidateManifest",
-      "method": "POST",
-      "summary": "Validate a manifest source",
-      "description": "Parses YAML or JSON manifest bytes, runs structural validation, and persists the result.",
-      "category": "manifest",
-      "cli_mapping": {
-        "command": "arch-cart manifest validate"
-      }
-    },
-    {
-      "id": "manifest.get",
-      "path": "/vrooli.architecture_cartographer.v1.manifest.ManifestService/GetManifest",
-      "method": "POST",
-      "summary": "Get the persisted manifest",
-      "description": "Returns the most recently validated manifest for the scenario.",
-      "category": "manifest",
-      "cli_mapping": {
-        "command": "arch-cart manifest show"
-      }
-    },
-    {
-      "id": "manifest.list-domains",
-      "path": "/vrooli.architecture_cartographer.v1.manifest.ManifestService/ListDomains",
-      "method": "POST",
-      "summary": "List declared domains",
-      "description": "Returns the declared domain specs for the scenario without re-downloading the full manifest.",
-      "category": "manifest",
-      "cli_mapping": {
-        "command": "arch-cart manifest list-domains"
-      }
-    },
-    {
       "id": "signals.score",
       "path": "/vrooli.architecture_cartographer.v1.signals.SignalsService/ScoreChunk",
       "method": "POST",
@@ -325,6 +336,17 @@
       "category": "signals",
       "cli_mapping": {
         "command": "arch-cart signals list"
+      }
+    },
+    {
+      "id": "signals.boundaries",
+      "path": "/vrooli.architecture_cartographer.v1.signals.SignalsService/BoundaryHealth",
+      "method": "POST",
+      "summary": "Domain boundary-health scores",
+      "description": "Computes per-domain coupling metrics (efferent/afferent, instability, fan-out, stable-kernel) and a graded boundary-health score with advisory smells.",
+      "category": "signals",
+      "cli_mapping": {
+        "command": "arch-cart signals boundaries"
       }
     }
   ],
@@ -375,6 +397,11 @@
       "endpoint_id": "apply.get-build-baseline"
     },
     {
+      "name": "apply suppress",
+      "description": "Write an in-repo // arch:allow suppression marker",
+      "endpoint_id": "apply.write-suppression"
+    },
+    {
       "name": "conflicts detect",
       "description": "Detect + persist conflicts for a scenario",
       "endpoint_id": "conflicts.detect"
@@ -420,24 +447,24 @@
       "endpoint_id": "conflicts.list-resolvers"
     },
     {
+      "name": "domains extract",
+      "description": "Derive the domain map for a scenario from the extraction ladder",
+      "endpoint_id": "domains.extract"
+    },
+    {
+      "name": "domains show",
+      "description": "Show the derived domain map for a scenario",
+      "endpoint_id": "domains.show"
+    },
+    {
+      "name": "domains convergence",
+      "description": "Report cross-surface domain convergence for a scenario",
+      "endpoint_id": "domains.convergence"
+    },
+    {
       "name": "graph extract",
       "description": "Extract a fresh graph snapshot and persist it",
       "endpoint_id": "graph.extract"
-    },
-    {
-      "name": "manifest validate",
-      "description": "Validate (parse + structurally check + persist) a manifest source",
-      "endpoint_id": "manifest.validate"
-    },
-    {
-      "name": "manifest show",
-      "description": "Show the persisted manifest for a scenario",
-      "endpoint_id": "manifest.get"
-    },
-    {
-      "name": "manifest list-domains",
-      "description": "List declared domains for a scenario",
-      "endpoint_id": "manifest.list-domains"
     },
     {
       "name": "signals score",
@@ -453,6 +480,11 @@
       "name": "signals list",
       "description": "List registered Signal plug-ins",
       "endpoint_id": "signals.list"
+    },
+    {
+      "name": "signals boundaries",
+      "description": "Show per-domain coupling/boundary-health scores",
+      "endpoint_id": "signals.boundaries"
     }
   ]
 }

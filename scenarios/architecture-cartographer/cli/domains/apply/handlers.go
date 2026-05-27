@@ -28,6 +28,45 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
+// suppress writes a durable `// arch:allow` marker into a source file,
+// sanctioning a finding as intentional. This is the safe write path —
+// it inserts a comment only, never moves or rewrites code.
+func (h *handlers) suppress(ctx cliapp.RunContext) error {
+	scenario := ctx.Positional("scenario")
+	file := ctx.Positional("file")
+	id := ctx.Positional("id")
+	req := &applyv1.WriteSuppressionRequest{
+		Scenario: scenario,
+		File:     file,
+		Id:       id,
+		Reason:   strings.TrimSpace(ctx.Flag("reason")),
+		Expires:  strings.TrimSpace(ctx.Flag("expires")),
+	}
+	if l := strings.TrimSpace(ctx.Flag("line")); l != "" {
+		n, err := strconv.Atoi(l)
+		if err != nil {
+			return fmt.Errorf("--line must be an integer: %w", err)
+		}
+		req.Line = int32(n)
+	}
+	resp, err := h.client.WriteSuppression(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("write suppression for %q in %q", id, scenario), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no suppression response")
+	}
+	return ctx.RenderOperational(cliapp.OperationalReport{
+		Status: []string{
+			fmt.Sprintf("Wrote suppression marker into %s", resp.Msg.GetFile()),
+			resp.Msg.GetMarker(),
+		},
+		NextSteps: []string{
+			fmt.Sprintf("`conflicts detect %s` to confirm the finding now reports as suppressed.", scenario),
+		},
+	})
+}
+
 // plan derives the deterministic operation list that would execute for a
 // domain, given the current resolved-conflict state. v0.1 is read-only
 // (no toolchain, no mutation); it still honors --dry-run via the

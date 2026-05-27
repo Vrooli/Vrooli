@@ -137,6 +137,36 @@ service ApplyService {
   // GetBuildBaseline returns the toolchain green/red baseline. v0.1
   // returns an empty baseline; the field gates the v0.2 apply path.
   rpc GetBuildBaseline(GetBuildBaselineRequest) returns (GetBuildBaselineResponse);
+
+  // WriteSuppression writes a durable `// arch:allow` marker into a source
+  // file, sanctioning a finding as intentional. This is the safe,
+  // non-destructive write path (inserts a comment only); destructive
+  // execution (file moves / import rewrites) stays deferred to RunApply.
+  rpc WriteSuppression(WriteSuppressionRequest) returns (WriteSuppressionResponse);
+}
+
+message WriteSuppressionRequest {
+  // Target scenario name.
+  string scenario = 1;
+  // Scenario-relative source file to mark.
+  string file = 2;
+  // The detector/type/subtype the marker sanctions.
+  string id = 3;
+  // Mandatory rationale.
+  string reason = 4;
+  // Optional expiry condition (e.g., "until:2026-12-31").
+  string expires = 5;
+  // Optional 1-based insertion line; 0 appends at end of file.
+  int32 line = 6;
+}
+
+message WriteSuppressionResponse {
+  // Scenario-relative file the marker landed in.
+  string file = 1;
+  // Line the marker was inserted at (0 when appended).
+  int32 line = 2;
+  // The rendered marker comment.
+  string marker = 3;
 }
 
 message PlanApplyRequest {

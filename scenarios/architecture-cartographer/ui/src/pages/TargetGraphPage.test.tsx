@@ -9,9 +9,9 @@ vi.mock("../api/graph", () => ({
   },
 }));
 
-vi.mock("../api/manifest", () => ({
-  manifestClient: {
-    listDomains: vi.fn().mockResolvedValue({ domains: [] }),
+vi.mock("../api/domains", () => ({
+  domainsClient: {
+    getDomainMap: vi.fn().mockResolvedValue({ domainMap: { domains: [] } }),
   },
 }));
 

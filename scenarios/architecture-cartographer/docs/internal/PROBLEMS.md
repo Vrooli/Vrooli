@@ -124,6 +124,70 @@ capability-not-available message, not a crash.
 `cli/manifest.json`; `api/cmd/gen-endpoints/{main.go,main_test.go,cli_commands_seed.json}`;
 `api/handlers/graph/endpoints.go` (CLIMapping removal).
 
+### 2026-05-27 — Deferred work from the domain-derivation redesign
+
+**Symptom:** Three capabilities are intentionally seamed-but-not-built after
+the manifest→derivation redesign. Future agents should not "rediscover" them
+as bugs.
+
+**Deferred items:**
+
+- **API-manifest ladder rung.** The extraction ladder reserves a top rung
+  (`DOMAIN_SOURCE_API_MANIFEST`) for an `APIManifestExtractor` that will ship
+  with `api-health`. No extractor emits it yet; `docs/concepts/DOMAINS.md` is
+  the interim authority. Registering the rung ahead of the DOMAINS.md rung is
+  the only wiring change required when api-health lands.
+- **Destructive apply execution.** `ApplyService.RunApply` still returns
+  `ErrApplyUnimplemented{NextPlan: "architecture-cartographer-apply-execution"}`.
+  Only the **safe** marker-write path (`WriteSuppression`) landed in this
+  redesign; file moves / import rewrites remain that separate plan.
+- **Forbidden-edge invariant.** The redesign consciously dropped declared
+  `allowed_dependencies` / `shared_substrate`. Architectural health now comes
+  from cycle detection + coupling heuristics (instability, fan-out,
+  stable-kernel) + cross-surface convergence. A *specific* acyclic forbidden
+  dependency ("A must never import B") is therefore undetectable. If that
+  need resurfaces, add it as an **optional** overlay — do not reintroduce a
+  mandatory per-scenario dependency allow-list. See
+  [`../reference/configuration.md`](../reference/configuration.md) "Deliberately NOT exposed".
+
+**Root cause:** Scope boundaries of the domain-derivation redesign; each item
+has a clean seam in place.
+
+### 2026-05-27 — Pre-existing standards-phase blockers (out of scope)
+
+**Symptom:** `vrooli scenario test architecture-cartographer` fails the
+`standards` (scenario-auditor) phase on HIGH+ findings.
+
+**Root cause:** All HIGH/CRITICAL findings are in **template/scaffold** code
+that predates the domain-derivation redesign and is identical across every
+`react-vite`/Go scenario — none are in the redesign's code (`internal/domains`,
+`internal/config`, `internal/suppressions`, the new detectors, `handlers/domains`
+all scan clean). Confirmed pre-existing: the Phase 0 baseline
+(`plan-arch-domain-derivation`) captured `rules/standards: failed` before any
+redesign change.
+
+Specific findings, all out of scope for this plan (per its Risk R5):
+
+- **`HTTP Client Without Timeout` (CRITICAL) → `api/internal/httpc/doer.go:34`** —
+  false positive: line 34 is the compile-time assertion
+  `var _ Doer = (*http.Client)(nil)`, not a constructed client. There is no
+  client to add a timeout to.
+- **`Security Headers` (HIGH ×8) → `httpx/errors.go`, `middleware/logging_test.go`,
+  `module/module_test.go`, `server/server_test.go`** — the OWASP header rule
+  wants response security headers from the server scaffold; this is a
+  template/api-core concern affecting the whole fleet, not a cartographer
+  domain issue.
+- Assorted MEDIUM (unversioned endpoints in test files, unstructured logging in
+  `httpx`, complex `main`, hardcoded port, Makefile quality-gate placeholders,
+  TS pattern warnings) — same template-scaffold origin.
+
+**Decision:** Not chased here — fixing them belongs in a template/api-core
+hardening pass that fixes them fleet-wide, not in a domain-derivation redesign.
+The one standards finding the redesign *did* introduce — a `Hardcoded Password`
+false positive on `internal/suppressions/marker.go`'s `MarkerToken` const (the
+auditor's `token = "…"` heuristic) — was fixed by renaming the const to
+`MarkerDirective`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

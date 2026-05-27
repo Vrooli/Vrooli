@@ -1,7 +1,7 @@
 // Package conflicts is the Connect-RPC surface for the conflicts
 // domain. Orchestrates the Detector registry by fetching the graph
-// snapshot via graph.Service and the manifest via manifest.Service,
-// then delegating to conflicts.Service.
+// snapshot via graph.Service and the derived domain map via
+// domains.Service, then delegating to conflicts.Service.
 package conflicts
 
 import (
@@ -10,8 +10,9 @@ import (
 	"strings"
 
 	"architecture-cartographer/internal/conflicts"
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
+	"architecture-cartographer/internal/suppressions"
 
 	"connectrpc.com/connect"
 	conflictsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts"
@@ -21,9 +22,10 @@ import (
 
 // Deps wires the seams the conflicts handler needs.
 type Deps struct {
-	Conflicts conflicts.Service
-	Graph     graph.Service
-	Manifest  manifest.Service
+	Conflicts    conflicts.Service
+	Graph        graph.Service
+	Domains      domains.Service
+	Suppressions suppressions.Provider
 }
 
 // Handler implements conflicts_v1connect.ConflictsServiceHandler.
@@ -61,16 +63,26 @@ func (h *Handler) DetectConflicts(ctx context.Context, req *connect.Request[conf
 		}
 		snap = s
 	}
-	m, err := h.deps.Manifest.GetManifest(ctx, scenario)
+	dmap, err := h.deps.Domains.GetDomainMap(ctx, scenario)
 	if err != nil {
-		return nil, connect.NewError(manifest.ErrorToConnectCode(err), err)
+		return nil, connect.NewError(domains.ErrorToConnectCode(err), err)
+	}
+
+	// Active in-repo suppression markers (best-effort: a scan failure must
+	// not block detection — findings are simply reported unsuppressed).
+	var markers []suppressions.Marker
+	if h.deps.Suppressions != nil {
+		if ms, sErr := h.deps.Suppressions.Active(ctx, scenario); sErr == nil {
+			markers = ms
+		}
 	}
 
 	out, err := h.deps.Conflicts.DetectConflicts(ctx, conflicts.DetectOrchestrationInput{
 		Scenario:       scenario,
 		Snapshot:       snap,
-		Manifest:       m,
+		DomainMap:      dmap,
 		IdempotencyKey: req.Msg.GetIdempotencyKey(),
+		Suppressions:   markers,
 	})
 	if err != nil {
 		return nil, connect.NewError(conflicts.ErrorToConnectCode(err), err)
@@ -195,18 +207,20 @@ func dryRunHeaderFromHTTP(h interface{ Get(string) string }) bool {
 
 func conflictToProto(c conflicts.Conflict) *conflictsv1.Conflict {
 	out := &conflictsv1.Conflict{
-		Id:             c.ID,
-		Scenario:       c.Scenario,
-		Detector:       c.Detector,
-		Type:           c.Type,
-		Subtype:        c.Subtype,
-		Severity:       severityToProto(c.Severity),
-		Locations:      append([]string(nil), c.Locations...),
-		Domains:        append([]string(nil), c.Domains...),
-		Status:         statusToProto(c.Status),
-		AssignedDomain: c.AssignedDomain,
-		ResolutionNote: c.ResolutionNote,
-		SnapshotId:     c.SnapshotID,
+		Id:                c.ID,
+		Scenario:          c.Scenario,
+		Detector:          c.Detector,
+		Type:              c.Type,
+		Subtype:           c.Subtype,
+		Severity:          severityToProto(c.Severity),
+		Locations:         append([]string(nil), c.Locations...),
+		Domains:           append([]string(nil), c.Domains...),
+		Status:            statusToProto(c.Status),
+		AssignedDomain:    c.AssignedDomain,
+		ResolutionNote:    c.ResolutionNote,
+		SnapshotId:        c.SnapshotID,
+		Suppressed:        c.Suppressed,
+		SuppressionReason: c.SuppressionReason,
 	}
 	if !c.DetectedAt.IsZero() {
 		out.DetectedAt = timestamppb.New(c.DetectedAt)

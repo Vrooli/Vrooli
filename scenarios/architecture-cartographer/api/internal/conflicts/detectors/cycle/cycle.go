@@ -22,8 +22,8 @@ import (
 	"sort"
 
 	"architecture-cartographer/internal/conflicts"
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
 )
 
 // Detector is the production cycle detector.
@@ -53,7 +53,7 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 			// Trivial: self-loops are not cycles in v0.1's semantics.
 			continue
 		}
-		subtype := classify(scc, in.Snapshot, in.Manifest)
+		subtype := classify(scc, in.Snapshot, in.DomainMap)
 		evidence := makeEvidence(scc, in.Snapshot)
 		c := conflicts.Conflict{
 			Scenario:  in.Scenario,
@@ -62,7 +62,7 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 			Subtype:   subtype,
 			Severity:  conflicts.SeverityError,
 			Locations: locationsForPackages(scc, in.Snapshot),
-			Domains:   domainsForPackages(scc, in.Snapshot, in.Manifest),
+			Domains:   domainsForPackages(scc, in.Snapshot, in.DomainMap),
 			Evidence:  evidence,
 			SuggestedFixes: []conflicts.Fix{
 				{
@@ -191,9 +191,9 @@ func edgePackageID(from string, snap graph.GraphSnapshot) string {
 	return ""
 }
 
-func classify(scc []string, snap graph.GraphSnapshot, m manifest.ManifestDefinition) string {
-	domains := domainSet(scc, snap, m)
-	if len(domains) > 1 {
+func classify(scc []string, snap graph.GraphSnapshot, m domains.DerivedDomainMap) string {
+	doms := domainSet(scc, snap, m)
+	if len(doms) > 1 {
 		return "cross-domain"
 	}
 	if onlyTypeOnlyEdges(scc, snap) {
@@ -205,58 +205,20 @@ func classify(scc []string, snap graph.GraphSnapshot, m manifest.ManifestDefinit
 	return "within-domain"
 }
 
-func domainSet(scc []string, snap graph.GraphSnapshot, m manifest.ManifestDefinition) map[string]struct{} {
+func domainSet(scc []string, snap graph.GraphSnapshot, m domains.DerivedDomainMap) map[string]struct{} {
 	out := make(map[string]struct{})
 	for _, pid := range scc {
 		dir := packageDir(pid, snap)
-		dom := domainForPath(dir, m)
+		if dir == "" {
+			continue
+		}
+		dom := m.DomainFor(dir)
 		if dom == "" {
 			continue
 		}
 		out[dom] = struct{}{}
 	}
 	return out
-}
-
-func domainForPath(path string, m manifest.ManifestDefinition) string {
-	if path == "" {
-		return ""
-	}
-	for _, d := range m.Domains {
-		for _, glob := range d.Paths {
-			if pathMatchesGlob(path, glob) {
-				return d.Name
-			}
-		}
-	}
-	return ""
-}
-
-// pathMatchesGlob is the minimal glob matcher used by v0.1 manifests.
-// Supports prefix matching with trailing "/**" or "/*". Phase 4 swaps
-// in a richer matcher.
-func pathMatchesGlob(path, glob string) bool {
-	switch {
-	case glob == "**":
-		return true
-	case hasSuffix(glob, "/**"):
-		prefix := glob[:len(glob)-3]
-		return path == prefix || hasPrefix(path, prefix+"/")
-	case hasSuffix(glob, "/*"):
-		prefix := glob[:len(glob)-2]
-		return hasPrefix(path, prefix+"/") &&
-			!hasSuffix(path[len(prefix)+1:], "/")
-	default:
-		return path == glob
-	}
-}
-
-func hasSuffix(s, suffix string) bool {
-	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
-}
-
-func hasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
 
 func packageDir(pid string, snap graph.GraphSnapshot) string {
@@ -335,7 +297,7 @@ func locationsForPackages(scc []string, snap graph.GraphSnapshot) []string {
 	return out
 }
 
-func domainsForPackages(scc []string, snap graph.GraphSnapshot, m manifest.ManifestDefinition) []string {
+func domainsForPackages(scc []string, snap graph.GraphSnapshot, m domains.DerivedDomainMap) []string {
 	set := domainSet(scc, snap, m)
 	out := make([]string, 0, len(set))
 	for d := range set {

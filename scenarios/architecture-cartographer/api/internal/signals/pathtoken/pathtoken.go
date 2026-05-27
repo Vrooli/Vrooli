@@ -42,7 +42,7 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 	}
 
 	var out []signals.Score
-	for _, d := range gctx.Manifest.Domains {
+	for _, d := range gctx.DomainMap.Domains {
 		name := strings.ToLower(d.Name)
 		if _, ok := tokenSet[name]; !ok {
 			continue

@@ -1,8 +1,8 @@
 package signals
 
 import (
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
 )
 
 // GraphContext bundles the inputs every Signal needs plus the per-run
@@ -15,8 +15,11 @@ import (
 type GraphContext struct {
 	Scenario string
 	Snapshot graph.GraphSnapshot
-	Manifest manifest.ManifestDefinition
-	Caches   *Caches
+	// DomainMap is the derived domain map for the scenario (replaces the
+	// deleted per-scenario architecture manifest). Signals read declared
+	// domains, owned paths, and glossary vocabulary from it.
+	DomainMap domains.DerivedDomainMap
+	Caches    *Caches
 }
 
 // Caches is the shared cache surface. Empty in Phase 2; Phase 3 wires
@@ -28,11 +31,11 @@ type Caches struct {
 }
 
 // NewGraphContext constructs a fresh context with an empty Caches.
-func NewGraphContext(scenario string, snap graph.GraphSnapshot, m manifest.ManifestDefinition) GraphContext {
+func NewGraphContext(scenario string, snap graph.GraphSnapshot, m domains.DerivedDomainMap) GraphContext {
 	return GraphContext{
-		Scenario: scenario,
-		Snapshot: snap,
-		Manifest: m,
-		Caches:   &Caches{Community: map[string]int{}},
+		Scenario:  scenario,
+		Snapshot:  snap,
+		DomainMap: m,
+		Caches:    &Caches{Community: map[string]int{}},
 	}
 }

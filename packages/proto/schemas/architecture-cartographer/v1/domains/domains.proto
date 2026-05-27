@@ -1,0 +1,172 @@
+syntax = "proto3";
+
+package vrooli.architecture_cartographer.v1.domains;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains;domains_v1";
+
+// =============================================================================
+// DOMAINS DOMAIN
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain domains
+// @stability stable
+//
+// Wire contract for the DomainsService Connect-RPC service. The domains
+// domain *derives* a scenario's intended domain map from sources that
+// already exist — there is no per-scenario architecture manifest. The
+// derivation walks a trust ladder (highest available rung wins):
+//
+//   API manifest (future)  ->  docs/concepts/DOMAINS.md  ->
+//   api/internal/<domain>/ folders  ->  cli/manifest.json groups
+//
+// UI features (ui/src/features/<feature>/) are advisory coverage only and
+// never define the authoritative domain set.
+//
+// Cross-cutting envelopes defined here and imported by other domains:
+//   - DerivedDomain     (one resolved domain + provenance)
+//   - DerivedDomainMap  (the canonical resolved map for a scenario)
+// =============================================================================
+
+// DomainSource identifies which ladder rung contributed a declaration.
+// The numeric order does NOT imply trust order; trust order is a
+// control-surface lever (see docs/reference/configuration.md).
+enum DomainSource {
+  DOMAIN_SOURCE_UNSPECIFIED = 0;
+  // The future API manifest (top rung). Reserved for an APIManifestExtractor
+  // that ships with api-health; no extractor emits this yet.
+  DOMAIN_SOURCE_API_MANIFEST = 1;
+  // The structured Domain Inventory in docs/concepts/DOMAINS.md.
+  DOMAIN_SOURCE_DOMAINS_DOC = 2;
+  // De-facto domains implied by api/internal/<domain>/ package folders.
+  DOMAIN_SOURCE_API_FOLDERS = 3;
+  // Command groups declared in cli/manifest.json.
+  DOMAIN_SOURCE_CLI_GROUPS = 4;
+  // UI feature folders (ui/src/features/<feature>/) — advisory coverage only.
+  DOMAIN_SOURCE_UI_FEATURES = 5;
+}
+
+// DerivedDomain is one domain in the resolved map.
+message DerivedDomain {
+  // Domain name (e.g., "graph", "conflicts").
+  string name = 1;
+  // Repo-relative path globs/prefixes the domain owns, taken from the
+  // authority rung.
+  repeated string paths = 2;
+  // Optional canonical vocabulary (type/function names) for the
+  // symbol-glossary signal. Empty when the authority source declares none.
+  repeated string glossary = 3;
+  // Optional primary archetype (e.g., "service", "reporting",
+  // "composition-root"); drives archetype-aware heuristic exemptions.
+  string archetype = 4;
+  // Every source that declared a domain with this name (the authority rung
+  // plus any lower rungs that agree). Used by convergence reporting.
+  repeated DomainSource provenance = 5;
+}
+
+// DomainDeclaration is one ladder rung's raw view of the domain set,
+// retained so convergence reporting can show where surfaces disagree.
+message DomainDeclaration {
+  DomainSource source = 1;
+  // Domain names this source declared, sorted.
+  repeated string domain_names = 2;
+  // True when this source was the authority that defined the expected set.
+  bool authoritative = 3;
+}
+
+// DerivedDomainMap is the canonical resolved domain map for a scenario.
+message DerivedDomainMap {
+  // Target scenario name (matches the directory under scenarios/).
+  string scenario = 1;
+  // The resolved domains, sorted by name.
+  repeated DerivedDomain domains = 2;
+  // Repo-relative path globs treated as shared substrate (owned by no
+  // product domain — e.g., "api/internal/server/"). From the DOMAINS.md
+  // Non-Domains section when present.
+  repeated string shared_substrate = 3;
+  // Names explicitly marked as non-domains in the authority source.
+  repeated string non_domains = 4;
+  // The ladder rung that defined the expected domain set.
+  DomainSource authority = 5;
+  // Per-source raw declarations (provenance + convergence input).
+  repeated DomainDeclaration declarations = 6;
+  // Server time at the moment the map was derived.
+  google.protobuf.Timestamp derived_at = 7;
+}
+
+// =============================================================================
+// DOMAINS SERVICE
+// =============================================================================
+
+service DomainsService {
+  // ExtractDomains derives the domain map for a scenario fresh from its
+  // on-disk sources, with zero per-scenario configuration.
+  rpc ExtractDomains(ExtractDomainsRequest) returns (ExtractDomainsResponse);
+
+  // GetDomainMap returns the derived domain map for a scenario. The map is
+  // deterministic and cheap to derive, so this currently re-derives on each
+  // call; the separate RPC exists so a future cache can back it without a
+  // wire change.
+  rpc GetDomainMap(GetDomainMapRequest) returns (GetDomainMapResponse);
+
+  // ConvergenceReport derives the domain map and reports where the
+  // scenario's surfaces disagree on the domain set (a declared domain with
+  // no implementation, an undeclared folder, an advisory UI gap). Findings
+  // are graded signal, never a hard gate.
+  rpc ConvergenceReport(ConvergenceReportRequest) returns (ConvergenceReportResponse);
+}
+
+message ExtractDomainsRequest {
+  // Target scenario name.
+  string scenario = 1;
+}
+
+message ExtractDomainsResponse {
+  DerivedDomainMap domain_map = 1;
+}
+
+message GetDomainMapRequest {
+  string scenario = 1;
+}
+
+message GetDomainMapResponse {
+  DerivedDomainMap domain_map = 1;
+}
+
+// ConvergenceSeverity grades how much a convergence finding matters.
+enum ConvergenceSeverity {
+  CONVERGENCE_SEVERITY_UNSPECIFIED = 0;
+  // Coverage signal (e.g., an advisory UI gap).
+  CONVERGENCE_SEVERITY_INFO = 1;
+  // A real cross-surface disagreement worth fixing.
+  CONVERGENCE_SEVERITY_WARN = 2;
+}
+
+// ConvergenceFinding is one cross-surface disagreement about the domain set.
+message ConvergenceFinding {
+  // Stable finding kind (e.g., "missing_implementation", "undeclared_folder",
+  // "missing_cli_group", "ui_feature_no_domain").
+  string kind = 1;
+  // The domain the finding concerns.
+  string domain = 2;
+  ConvergenceSeverity severity = 3;
+  // Human-readable explanation.
+  string message = 4;
+  // The rungs involved in the disagreement.
+  repeated DomainSource sources = 5;
+}
+
+message ConvergenceReportRequest {
+  string scenario = 1;
+}
+
+message ConvergenceReportResponse {
+  // The scenario the report covers.
+  string scenario = 1;
+  // The authoritative rung the lower surfaces were compared against.
+  DomainSource authority = 2;
+  // Disagreements, sorted by (kind, domain). Empty == full convergence.
+  repeated ConvergenceFinding findings = 3;
+}

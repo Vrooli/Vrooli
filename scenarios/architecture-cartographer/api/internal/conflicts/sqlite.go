@@ -74,11 +74,13 @@ LIMIT ?`
 )
 
 type conflictPayload struct {
-	Locations      []string         `json:"locations,omitempty"`
-	Domains        []string         `json:"domains,omitempty"`
-	Evidence       []Evidence       `json:"evidence,omitempty"`
-	SuggestedFixes []Fix            `json:"suggested_fixes,omitempty"`
-	Verdict        *signals.Verdict `json:"verdict,omitempty"`
+	Locations         []string         `json:"locations,omitempty"`
+	Domains           []string         `json:"domains,omitempty"`
+	Evidence          []Evidence       `json:"evidence,omitempty"`
+	SuggestedFixes    []Fix            `json:"suggested_fixes,omitempty"`
+	Verdict           *signals.Verdict `json:"verdict,omitempty"`
+	Suppressed        bool             `json:"suppressed,omitempty"`
+	SuppressionReason string           `json:"suppression_reason,omitempty"`
 }
 
 func (r *sqliteRepository) UpsertConflict(ctx context.Context, c Conflict) (Conflict, error) {
@@ -91,11 +93,13 @@ func (r *sqliteRepository) UpsertConflict(ctx context.Context, c Conflict) (Conf
 	}
 	c.UpdatedAt = now
 	payload, err := json.Marshal(conflictPayload{
-		Locations:      c.Locations,
-		Domains:        c.Domains,
-		Evidence:       c.Evidence,
-		SuggestedFixes: c.SuggestedFixes,
-		Verdict:        c.Verdict,
+		Locations:         c.Locations,
+		Domains:           c.Domains,
+		Evidence:          c.Evidence,
+		SuggestedFixes:    c.SuggestedFixes,
+		Verdict:           c.Verdict,
+		Suppressed:        c.Suppressed,
+		SuppressionReason: c.SuppressionReason,
 	})
 	if err != nil {
 		return Conflict{}, fmt.Errorf("encode conflict %q payload: %w", c.ID, err)
@@ -214,6 +218,8 @@ func scanConflict(s rowScanner) (Conflict, error) {
 		c.Evidence = p.Evidence
 		c.SuggestedFixes = p.SuggestedFixes
 		c.Verdict = p.Verdict
+		c.Suppressed = p.Suppressed
+		c.SuppressionReason = p.SuppressionReason
 	}
 	return c, nil
 }

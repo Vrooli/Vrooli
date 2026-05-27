@@ -4,6 +4,84 @@
   "description": "Architecture Cartographer CLI surface. Schema-validated against cli-manifest/v1 and cross-validated against the per-domain Connect-RPC proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
     {
+      "name": "domains",
+      "description": "Derive a scenario's intended domain map from its on-disk sources (zero-config)",
+      "commands": [
+        {
+          "name": "extract",
+          "description": "Derive the domain map for a scenario from the extraction ladder",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DomainsService",
+            "method": "ExtractDomains"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show the derived domain map for a scenario",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DomainsService",
+            "method": "GetDomainMap"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "convergence",
+          "description": "Report where a scenario's surfaces disagree on the domain set (advisory)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DomainsService",
+            "method": "ConvergenceReport"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "graph",
       "description": "Extract architecture graphs by composing language code-graph adapters",
       "commands": [
@@ -41,137 +119,256 @@
     },
     {
       "name": "conflicts",
-      "description": "Detect, triage, and resolve architecture-drift conflicts — the agent-facing conflict workbench",
+      "description": "Detect, triage, and resolve architecture-drift conflicts \u2014 the agent-facing conflict workbench",
       "commands": [
         {
           "name": "detect",
           "description": "Run every registered Detector against a scenario's snapshot + manifest, persist, and list the conflicts",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Target scenario name" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
           ],
           "flags": [
-            { "name": "snapshot-id", "description": "Detect against a specific snapshot id (default: extract a fresh one)" },
-            { "name": "idempotency-key", "description": "Idempotency-Key passthrough for caller-controlled dedupe" }
+            {
+              "name": "snapshot-id",
+              "description": "Detect against a specific snapshot id (default: extract a fresh one)"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Idempotency-Key passthrough for caller-controlled dedupe"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ConflictsService", "method": "DetectConflicts" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConflictsService",
+            "method": "DetectConflicts"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "list",
           "description": "List persisted conflicts for a scenario, filterable by status and type",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Target scenario name" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
           ],
           "flags": [
-            { "name": "status", "description": "Comma-separated status filter (detected,assigned,split,resolved,validated,committed,force_resolved)" },
-            { "name": "type", "description": "Comma-separated conflict-type filter" },
-            { "name": "page-size", "description": "Maximum conflicts to return" },
-            { "name": "page-token", "description": "Pagination cursor from a prior response" }
+            {
+              "name": "status",
+              "description": "Comma-separated status filter (detected,assigned,split,resolved,validated,committed,force_resolved)"
+            },
+            {
+              "name": "type",
+              "description": "Comma-separated conflict-type filter"
+            },
+            {
+              "name": "page-size",
+              "description": "Maximum conflicts to return"
+            },
+            {
+              "name": "page-token",
+              "description": "Pagination cursor from a prior response"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ConflictsService", "method": "ListConflicts" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConflictsService",
+            "method": "ListConflicts"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "show",
           "description": "Show one persisted conflict with evidence and suggested fixes",
           "positionals": [
-            { "name": "id", "required": true, "description": "Conflict id" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Conflict id"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ConflictsService", "method": "GetConflict" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConflictsService",
+            "method": "GetConflict"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "assign",
           "description": "Assign a conflict to a target domain (transitions it to ASSIGNED)",
           "positionals": [
-            { "name": "id", "required": true, "description": "Conflict id" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Conflict id"
+            }
           ],
           "flags": [
-            { "name": "domain", "required": true, "description": "Domain to assign (must be declared in the manifest)" },
-            { "name": "note", "description": "Operator note" }
+            {
+              "name": "domain",
+              "required": true,
+              "description": "Domain to assign (must be declared in the manifest)"
+            },
+            {
+              "name": "note",
+              "description": "Operator note"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ConflictsService", "method": "AssignConflict" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConflictsService",
+            "method": "AssignConflict"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "resolve",
           "description": "Resolve a conflict; use --force to force-resolve (ignore) it",
           "positionals": [
-            { "name": "id", "required": true, "description": "Conflict id" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Conflict id"
+            }
           ],
           "flags": [
-            { "name": "note", "description": "Operator note (recommended)" },
-            { "name": "force", "bool": true, "description": "Force-resolve: transition to FORCE_RESOLVED, marking the conflict deliberately ignored" }
+            {
+              "name": "note",
+              "description": "Operator note (recommended)"
+            },
+            {
+              "name": "force",
+              "bool": true,
+              "description": "Force-resolve: transition to FORCE_RESOLVED, marking the conflict deliberately ignored"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ConflictsService", "method": "ResolveConflict" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConflictsService",
+            "method": "ResolveConflict"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "reopen",
           "description": "Reopen a resolved or force-resolved conflict (back to DETECTED)",
           "positionals": [
-            { "name": "id", "required": true, "description": "Conflict id" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Conflict id"
+            }
           ],
           "flags": [
-            { "name": "note", "description": "Operator note" }
+            {
+              "name": "note",
+              "description": "Operator note"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ConflictsService", "method": "ReopenConflict" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConflictsService",
+            "method": "ReopenConflict"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "validate",
           "description": "Re-run detection against the current resolution state and report cartographer-clean closure",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Target scenario name" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ConflictsService", "method": "ValidateConflicts" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConflictsService",
+            "method": "ValidateConflicts"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "detectors",
           "description": "List the registered Detector plug-ins",
-          "binding": { "kind": "connect-rpc", "service": "ConflictsService", "method": "ListDetectors" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConflictsService",
+            "method": "ListDetectors"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "resolvers",
           "description": "List the registered Resolver plug-ins",
-          "binding": { "kind": "connect-rpc", "service": "ConflictsService", "method": "ListResolvers" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
-        }
-      ]
-    },
-    {
-      "name": "manifest",
-      "description": "Parse, validate, and inspect the per-scenario architecture manifest",
-      "commands": [
-        {
-          "name": "validate",
-          "description": "Parse + structurally check a manifest source and report diagnostics",
-          "positionals": [
-            { "name": "scenario", "required": true, "description": "Target scenario name" },
-            { "name": "file", "description": "Path to a manifest file (YAML/JSON); omit to validate the scenario's default manifest" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "ManifestService", "method": "ValidateManifest" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
-        },
-        {
-          "name": "show",
-          "description": "Show the most recently parsed manifest for a scenario",
-          "positionals": [
-            { "name": "scenario", "required": true, "description": "Target scenario name" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "ManifestService", "method": "GetManifest" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
-        },
-        {
-          "name": "list-domains",
-          "description": "List the declared domains for a scenario",
-          "positionals": [
-            { "name": "scenario", "required": true, "description": "Target scenario name" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "ManifestService", "method": "ListDomains" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConflictsService",
+            "method": "ListResolvers"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -183,30 +380,102 @@
           "name": "score",
           "description": "Run every enabled Signal against a file's chunk and show the aggregated verdict",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Target scenario name" },
-            { "name": "file_id", "required": true, "description": "File id from the latest snapshot to score" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            },
+            {
+              "name": "file_id",
+              "required": true,
+              "description": "File id from the latest snapshot to score"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "SignalsService", "method": "ScoreChunk" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SignalsService",
+            "method": "ScoreChunk"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "explain",
           "description": "Explain a verdict with the full per-signal evidence breakdown",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Target scenario name" },
-            { "name": "file_id", "required": true, "description": "File id from the latest snapshot to explain" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            },
+            {
+              "name": "file_id",
+              "required": true,
+              "description": "File id from the latest snapshot to explain"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "SignalsService", "method": "ExplainVerdict" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SignalsService",
+            "method": "ExplainVerdict"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "list",
           "description": "List registered Signals with default weights and enable/disable state",
           "flags": [
-            { "name": "scenario", "description": "Reflect manifest-overlaid weights for this scenario" }
+            {
+              "name": "scenario",
+              "description": "Reflect manifest-overlaid weights for this scenario"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "SignalsService", "method": "ListSignals" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SignalsService",
+            "method": "ListSignals"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "boundaries",
+          "description": "Show per-domain coupling/boundary-health scores (advisory)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SignalsService",
+            "method": "BoundaryHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -218,56 +487,154 @@
           "name": "events",
           "description": "Page the append-only analytics event log for a scenario",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Target scenario name" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
           ],
           "flags": [
-            { "name": "kind", "description": "Comma-separated EventKind filter (e.g. conflict_detected,override_recorded)" },
-            { "name": "since", "description": "RFC3339 cutoff; only events at or after this time" },
-            { "name": "page-size", "description": "Maximum events to return" },
-            { "name": "page-token", "description": "Pagination cursor from a prior response" }
+            {
+              "name": "kind",
+              "description": "Comma-separated EventKind filter (e.g. conflict_detected,override_recorded)"
+            },
+            {
+              "name": "since",
+              "description": "RFC3339 cutoff; only events at or after this time"
+            },
+            {
+              "name": "page-size",
+              "description": "Maximum events to return"
+            },
+            {
+              "name": "page-token",
+              "description": "Pagination cursor from a prior response"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "AnalyticsService", "method": "ListEvents" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AnalyticsService",
+            "method": "ListEvents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "stats",
           "description": "Show the analytics roll-up (verdict-success rate suppressed below the N>=5 threshold)",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Target scenario name" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "AnalyticsService", "method": "GetStats" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AnalyticsService",
+            "method": "GetStats"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "placements",
           "description": "List placement-outcome rows for a scenario",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Target scenario name" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
           ],
           "flags": [
-            { "name": "outcome", "description": "Comma-separated outcome filter (auto_placed,suggested,overridden,rejected)" },
-            { "name": "page-size", "description": "Maximum placements to return" },
-            { "name": "page-token", "description": "Pagination cursor from a prior response" }
+            {
+              "name": "outcome",
+              "description": "Comma-separated outcome filter (auto_placed,suggested,overridden,rejected)"
+            },
+            {
+              "name": "page-size",
+              "description": "Maximum placements to return"
+            },
+            {
+              "name": "page-token",
+              "description": "Pagination cursor from a prior response"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "AnalyticsService", "method": "ListPlacements" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AnalyticsService",
+            "method": "ListPlacements"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "override-record",
           "description": "Record an operator override of a verdict",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Target scenario name" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
           ],
           "flags": [
-            { "name": "chunk-id", "required": true, "description": "Chunk the override applies to" },
-            { "name": "verdict-domain", "required": true, "description": "Domain the aggregator recommended" },
-            { "name": "chosen-domain", "required": true, "description": "Domain the operator chose instead" },
-            { "name": "note", "description": "Operator note" },
-            { "name": "verdict-event-id", "description": "Pointer to the original verdict_produced event" },
-            { "name": "idempotency-key", "description": "Idempotency-Key passthrough for caller-controlled dedupe" }
+            {
+              "name": "chunk-id",
+              "required": true,
+              "description": "Chunk the override applies to"
+            },
+            {
+              "name": "verdict-domain",
+              "required": true,
+              "description": "Domain the aggregator recommended"
+            },
+            {
+              "name": "chosen-domain",
+              "required": true,
+              "description": "Domain the operator chose instead"
+            },
+            {
+              "name": "note",
+              "description": "Operator note"
+            },
+            {
+              "name": "verdict-event-id",
+              "description": "Pointer to the original verdict_produced event"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Idempotency-Key passthrough for caller-controlled dedupe"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "AnalyticsService", "method": "RecordOverride" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AnalyticsService",
+            "method": "RecordOverride"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -279,49 +646,175 @@
           "name": "plan",
           "description": "Deterministically derive the operation list that would resolve a domain's conflicts (v0.1: read-only, no toolchain)",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Target scenario name" },
-            { "name": "domain", "required": true, "description": "Domain to plan apply for" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            },
+            {
+              "name": "domain",
+              "required": true,
+              "description": "Domain to plan apply for"
+            }
           ],
           "flags": [
-            { "name": "conflict-id", "description": "Comma-separated conflict ids to plan for (default: every conflict assigned to the domain)" }
+            {
+              "name": "conflict-id",
+              "description": "Comma-separated conflict ids to plan for (default: every conflict assigned to the domain)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ApplyService", "method": "PlanApply" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ApplyService",
+            "method": "PlanApply"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "run",
           "description": "Execute a planned apply. v0.1 always returns a capability-not-available message (execution lands in the apply-execution plan).",
           "positionals": [
-            { "name": "plan_id", "required": true, "description": "Plan id from `apply plan`" }
+            {
+              "name": "plan_id",
+              "required": true,
+              "description": "Plan id from `apply plan`"
+            }
           ],
           "flags": [
-            { "name": "acknowledge", "bool": true, "description": "Acknowledge that v0.1 RunApply is unimplemented (reserved for the v0.2 opt-in)" }
+            {
+              "name": "acknowledge",
+              "bool": true,
+              "description": "Acknowledge that v0.1 RunApply is unimplemented (reserved for the v0.2 opt-in)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ApplyService", "method": "RunApply" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ApplyService",
+            "method": "RunApply"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
         },
         {
           "name": "history",
           "description": "List apply runs for a scenario (empty in v0.1)",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Target scenario name" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
           ],
           "flags": [
-            { "name": "domain", "description": "Filter to one domain" },
-            { "name": "page-size", "description": "Maximum runs to return" },
-            { "name": "page-token", "description": "Pagination cursor from a prior response" }
+            {
+              "name": "domain",
+              "description": "Filter to one domain"
+            },
+            {
+              "name": "page-size",
+              "description": "Maximum runs to return"
+            },
+            {
+              "name": "page-token",
+              "description": "Pagination cursor from a prior response"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ApplyService", "method": "ListApplyHistory" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ApplyService",
+            "method": "ListApplyHistory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "baseline",
           "description": "Show the toolchain build baseline (empty in v0.1; BuildGuard is unwired)",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Target scenario name" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ApplyService", "method": "GetBuildBaseline" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ApplyService",
+            "method": "GetBuildBaseline"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "suppress",
+          "description": "Write an in-repo // arch:allow marker sanctioning a finding as intentional",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            },
+            {
+              "name": "file",
+              "required": true,
+              "description": "Scenario-relative source file to mark"
+            },
+            {
+              "name": "id",
+              "required": true,
+              "description": "Detector/type/subtype to allow (e.g., cycle, god_domain)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "required": true,
+              "description": "Why this finding is intentional (mandatory)"
+            },
+            {
+              "name": "expires",
+              "description": "Optional expiry, e.g. until:2026-12-31"
+            },
+            {
+              "name": "line",
+              "description": "Optional 1-based insertion line (default: end of file)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ApplyService",
+            "method": "WriteSuppression"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
         }
       ]
     }

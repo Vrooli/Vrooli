@@ -8,8 +8,8 @@ import (
 	"architecture-cartographer/cli/domains/analytics"
 	"architecture-cartographer/cli/domains/apply"
 	"architecture-cartographer/cli/domains/conflicts"
+	domainsdomain "architecture-cartographer/cli/domains/domains"
 	"architecture-cartographer/cli/domains/graph"
-	manifestdomain "architecture-cartographer/cli/domains/manifest"
 	"architecture-cartographer/cli/domains/signals"
 )
 
@@ -34,10 +34,16 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // This is the CLI side of the domain-module pattern; the API side uses
 // the same one-liner-per-domain shape via server.New(deps, modules...).
 //
-// As each product domain (manifest, signals, apply, analytics) ships its
+// As each product domain (domains, signals, apply, analytics) ships its
 // CLI surface, add a Register call here.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	out := make([]cliapp.SubcommandGroup, 0, 6)
+	out := make([]cliapp.SubcommandGroup, 0, 7)
+
+	domainsGroup, err := domainsdomain.Register(core, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("register domains: %w", err)
+	}
+	out = append(out, domainsGroup)
 
 	graphGroup, err := graph.Register(core, manifest)
 	if err != nil {
@@ -50,12 +56,6 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, fmt.Errorf("register conflicts: %w", err)
 	}
 	out = append(out, conflictsGroup)
-
-	manifestGroup, err := manifestdomain.Register(core, manifest)
-	if err != nil {
-		return nil, fmt.Errorf("register manifest: %w", err)
-	}
-	out = append(out, manifestGroup)
 
 	signalsGroup, err := signals.Register(core, manifest)
 	if err != nil {

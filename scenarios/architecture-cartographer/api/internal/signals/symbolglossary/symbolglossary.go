@@ -38,7 +38,7 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 	}
 
 	var out []signals.Score
-	for _, d := range gctx.Manifest.Domains {
+	for _, d := range gctx.DomainMap.Domains {
 		matched := 0
 		var hits []string
 		for _, term := range d.Glossary {

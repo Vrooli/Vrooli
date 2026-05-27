@@ -12,25 +12,30 @@ import (
 	"architecture-cartographer/internal/analytics"
 	"architecture-cartographer/internal/apply"
 	"architecture-cartographer/internal/clock"
+	"architecture-cartographer/internal/config"
 	"architecture-cartographer/internal/conflicts"
+	"architecture-cartographer/internal/conflicts/detectors/convergencedrift"
+	"architecture-cartographer/internal/conflicts/detectors/couplingsmell"
 	"architecture-cartographer/internal/conflicts/detectors/cycle"
 	"architecture-cartographer/internal/conflicts/detectors/mislocatedfile"
 	mislocatedresolver "architecture-cartographer/internal/conflicts/resolvers/mislocatedfile"
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/git"
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/graph/gocodegraph"
 	"architecture-cartographer/internal/graph/scenariopath"
 	"architecture-cartographer/internal/graph/tscodegraph"
-	"architecture-cartographer/internal/manifest"
 	"architecture-cartographer/internal/modules"
 	"architecture-cartographer/internal/server"
 	"architecture-cartographer/internal/signals"
+	"architecture-cartographer/internal/signals/boundaries"
 	"architecture-cartographer/internal/signals/gitcoedit"
 	"architecture-cartographer/internal/signals/importcluster"
 	"architecture-cartographer/internal/signals/importervoting"
 	"architecture-cartographer/internal/signals/pathtoken"
 	"architecture-cartographer/internal/signals/symbolglossary"
 	"architecture-cartographer/internal/signals/testcoupling"
+	"architecture-cartographer/internal/suppressions"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -45,9 +50,9 @@ import (
 	analyticsH "architecture-cartographer/handlers/analytics"
 	applyH "architecture-cartographer/handlers/apply"
 	conflictsH "architecture-cartographer/handlers/conflicts"
+	domainsH "architecture-cartographer/handlers/domains"
 	graphH "architecture-cartographer/handlers/graph"
 	healthH "architecture-cartographer/handlers/health"
-	manifestH "architecture-cartographer/handlers/manifest"
 	signalsH "architecture-cartographer/handlers/signals"
 )
 
@@ -140,6 +145,15 @@ func sqliteFileDSN(path string) (string, error) {
 	), nil
 }
 
+// stringSet builds a set from a slice for archetype-exemption lookups.
+func stringSet(items []string) map[string]bool {
+	out := make(map[string]bool, len(items))
+	for _, s := range items {
+		out[s] = true
+	}
+	return out
+}
+
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -197,8 +211,38 @@ func main() {
 		graph.NewSQLiteRepository(primary, clk), clk,
 		adapters...,
 	)
-	manifestSvc := manifest.NewService(manifest.NewSQLiteRepository(primary, clk))
 	analyticsSvc := analytics.NewService(analytics.NewSQLiteRepository(primary, clk))
+
+	// Cartographer-global control surface (tunable levers; no per-scenario
+	// config). Misconfigured levers degrade to defaults with a logged
+	// diagnostic rather than failing startup.
+	cfg, cfgDiags := config.Load(os.Getenv)
+	for _, d := range cfgDiags {
+		log.Printf("cartographer config: %s: %s", d.Key, d.Message)
+	}
+	boundaryCfg := boundaries.Config{
+		GodDomainFanOut:                 cfg.GodDomainFanOut,
+		InstabilityWarnBand:             cfg.InstabilityWarnBand,
+		StableKernelMaxEfferent:         boundaries.DefaultConfig().StableKernelMaxEfferent,
+		StableKernelMinAfferentFraction: boundaries.DefaultConfig().StableKernelMinAfferentFraction,
+		ExemptArchetypes:                stringSet(cfg.ArchetypeExemptions),
+	}
+
+	// The domains domain derives a target scenario's intended domain map
+	// from its on-disk sources (DOMAINS.md → api/internal folders → cli
+	// groups) with zero per-scenario configuration. It is stateless and
+	// resolves scenario directories relative to the repository root.
+	scenarioLocator := domains.NewRepoScenarioLocator(repoRoot)
+	domainsSvc := domains.NewService(
+		scenarioLocator,
+		clk,
+		domains.ExtractorsFor(cfg.LadderOrder, cfg.ExtraNonDomainFolders)...,
+	)
+
+	// Durable in-repo suppression markers (`// arch:allow …`) are scanned
+	// from the target scenario's source tree and used to mark sanctioned
+	// conflicts as suppressed-with-reason.
+	suppressionProvider := suppressions.NewProvider(scenarioLocator, suppressions.NewFileScanner(), clk)
 
 	signalsReg := signals.NewRegistry(
 		pathtoken.New(),
@@ -209,15 +253,17 @@ func main() {
 		gitcoedit.New(git.NewRealRunner()),
 	)
 	signalsSvc := signals.NewService(
-		signalsReg, signals.NewAggregator(signalsReg, nil),
+		signalsReg,
+		signals.NewAggregator(signalsReg, nil).WithThresholds(cfg.AutoPlaceMin, cfg.SuggestMin, cfg.TieDelta),
 		signals.NewGraphSnapshotProvider(graphSvc),
-		manifestSvc,
+		domainsSvc,
+		signals.WithBoundaryConfig(boundaryCfg),
 	)
 
 	conflictsRepo := conflicts.NewSQLiteRepository(primary, clk)
 	conflictsSvc := conflicts.NewServiceWithAnalytics(
 		conflictsRepo,
-		conflicts.NewRegistry(cycle.New(), mislocatedfile.New()),
+		conflicts.NewRegistry(cycle.New(), mislocatedfile.New(), convergencedrift.New(), couplingsmell.NewWithConfig(boundaryCfg)),
 		conflicts.NewResolverRegistry(mislocatedresolver.New()),
 		conflicts.NewAnalyticsAdapter(analyticsSvc),
 	)
@@ -226,6 +272,7 @@ func main() {
 		apply.NewSQLiteRepository(primary, clk),
 		conflictsSvc,
 		apply.NewRecipeRegistry(),
+		apply.WithSuppressionWriter(suppressions.NewFileWriter(), scenarioLocator),
 	)
 
 	srv := server.New(
@@ -233,9 +280,9 @@ func main() {
 		healthH.Module(db, "architecture-cartographer-api", "1.0.0"),
 		analyticsH.Module(analyticsSvc),
 		applyH.Module(applySvc),
-		conflictsH.Module(conflictsH.Deps{Conflicts: conflictsSvc, Graph: graphSvc, Manifest: manifestSvc}),
+		conflictsH.Module(conflictsH.Deps{Conflicts: conflictsSvc, Graph: graphSvc, Domains: domainsSvc, Suppressions: suppressionProvider}),
+		domainsH.Module(domainsSvc),
 		graphH.Module(graphSvc),
-		manifestH.Module(manifestSvc),
 		signalsH.Module(signalsSvc),
 	)
 

@@ -4,15 +4,15 @@ import (
 	"context"
 	"testing"
 
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
 	"architecture-cartographer/internal/signals"
 	"architecture-cartographer/internal/signals/pathtoken"
 )
 
 func gctx() signals.GraphContext {
-	return signals.NewGraphContext("demo", graph.GraphSnapshot{}, manifest.ManifestDefinition{
-		Domains: []manifest.DomainSpec{
+	return signals.NewGraphContext("demo", graph.GraphSnapshot{}, domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{
 			{Name: "conflicts", Paths: []string{"internal/conflicts/**"}},
 			{Name: "graph", Paths: []string{"internal/graph/**"}},
 		},

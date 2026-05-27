@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
 	"architecture-cartographer/internal/signals"
 	"architecture-cartographer/internal/signals/importervoting"
 )
@@ -25,8 +25,8 @@ func TestScore_MajorityVotesForDomain(t *testing.T) {
 			{From: "pkg:graph", ToPackageID: "pkg:x"},
 		},
 	}
-	m := manifest.ManifestDefinition{
-		Domains: []manifest.DomainSpec{
+	m := domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{
 			{Name: "conflicts", Paths: []string{"internal/conflicts/**"}},
 			{Name: "graph", Paths: []string{"internal/graph/**"}},
 		},
@@ -48,7 +48,7 @@ func TestScore_NoImportersReturnsEmpty(t *testing.T) {
 		Files:    []graph.FileNode{{ID: "file:x", PackageID: "pkg:x"}},
 		Packages: []graph.PackageNode{{ID: "pkg:x"}},
 	}
-	out := importervoting.New().Score(context.Background(), signals.NewGraphContext("demo", snap, manifest.ManifestDefinition{}), graph.Chunk{FileID: "file:x"})
+	out := importervoting.New().Score(context.Background(), signals.NewGraphContext("demo", snap, domains.DerivedDomainMap{}), graph.Chunk{FileID: "file:x"})
 	if len(out) != 0 {
 		t.Fatalf("want 0 scores, got %+v", out)
 	}

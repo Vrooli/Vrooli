@@ -92,6 +92,48 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	})
 }
 
+// boundaries renders per-domain coupling/boundary-health scores.
+func (h *handlers) boundaries(ctx cliapp.RunContext) error {
+	scenario := ctx.Positional("scenario")
+	resp, err := h.client.BoundaryHealth(context.Background(), connect.NewRequest(&signalsv1.BoundaryHealthRequest{Scenario: scenario}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("boundary health for %q", scenario), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no boundary-health report")
+	}
+	results := make([]string, 0, len(resp.Msg.GetDomains()))
+	for _, d := range resp.Msg.GetDomains() {
+		kernel := ""
+		if d.GetStableKernel() {
+			kernel = " [stable-kernel]"
+		}
+		line := fmt.Sprintf("%s — health=%.2f Ce=%d Ca=%d I=%.2f fan_out=%.2f%s",
+			d.GetDomain(), d.GetHealthScore(), d.GetEfferent(), d.GetAfferent(), d.GetInstability(), d.GetFanOut(), kernel)
+		for _, s := range d.GetSmells() {
+			line += fmt.Sprintf("\n      [%s] %s — %s", couplingSeverityName(s.GetSeverity()), s.GetKind(), s.GetMessage())
+		}
+		results = append(results, line)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Boundary health for %q (%d domains).", scenario, resp.Msg.GetTotalDomains())},
+		ResultsHeading: "Per-domain coupling",
+		Results:        results,
+		RetrievalHints: []string{"Health is graded [0,1]; smells are advisory. Stable kernels (shared substrate) are exempt from the god-domain smell."},
+	})
+}
+
+func couplingSeverityName(s signalsv1.CouplingSeverity) string {
+	switch s {
+	case signalsv1.CouplingSeverity_COUPLING_SEVERITY_WARN:
+		return "warn"
+	case signalsv1.CouplingSeverity_COUPLING_SEVERITY_INFO:
+		return "info"
+	default:
+		return "unspecified"
+	}
+}
+
 // renderVerdict is the shared rendering path for score + explain. When
 // withEvidence is true (explain), each per-signal score expands its
 // Evidence entries. --json consumers get the proto-typed response.

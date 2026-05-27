@@ -7,7 +7,7 @@ import { strings } from "../consts/strings";
  *
  * Shell-level nav is intentionally narrow: it points at the cross-target
  * surfaces (Overview, Targets, Settings). Per-target sections (Graph,
- * Manifest, Conflicts, Apply, Analytics) appear as a sub-nav inside the
+ * Domains, Conflicts, Apply, Analytics) appear as a sub-nav inside the
  * target workspace, not here.
  */
 export interface NavItem {

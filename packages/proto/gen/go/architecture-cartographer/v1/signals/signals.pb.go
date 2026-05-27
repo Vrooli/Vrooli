@@ -83,6 +83,56 @@ func (Tier) EnumDescriptor() ([]byte, []int) {
 	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{0}
 }
 
+// CouplingSeverity grades a boundary-health smell. Advisory only.
+type CouplingSeverity int32
+
+const (
+	CouplingSeverity_COUPLING_SEVERITY_UNSPECIFIED CouplingSeverity = 0
+	CouplingSeverity_COUPLING_SEVERITY_INFO        CouplingSeverity = 1
+	CouplingSeverity_COUPLING_SEVERITY_WARN        CouplingSeverity = 2
+)
+
+// Enum value maps for CouplingSeverity.
+var (
+	CouplingSeverity_name = map[int32]string{
+		0: "COUPLING_SEVERITY_UNSPECIFIED",
+		1: "COUPLING_SEVERITY_INFO",
+		2: "COUPLING_SEVERITY_WARN",
+	}
+	CouplingSeverity_value = map[string]int32{
+		"COUPLING_SEVERITY_UNSPECIFIED": 0,
+		"COUPLING_SEVERITY_INFO":        1,
+		"COUPLING_SEVERITY_WARN":        2,
+	}
+)
+
+func (x CouplingSeverity) Enum() *CouplingSeverity {
+	p := new(CouplingSeverity)
+	*p = x
+	return p
+}
+
+func (x CouplingSeverity) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CouplingSeverity) Descriptor() protoreflect.EnumDescriptor {
+	return file_architecture_cartographer_v1_signals_signals_proto_enumTypes[1].Descriptor()
+}
+
+func (CouplingSeverity) Type() protoreflect.EnumType {
+	return &file_architecture_cartographer_v1_signals_signals_proto_enumTypes[1]
+}
+
+func (x CouplingSeverity) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CouplingSeverity.Descriptor instead.
+func (CouplingSeverity) EnumDescriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{1}
+}
+
 // Evidence is one piece of justification for a Score.
 //
 // Evidence kinds (extensible; v0.1 supports the following):
@@ -523,6 +573,303 @@ func (x *SignalDescriptor) GetDisabledReason() string {
 	return ""
 }
 
+// CouplingSmell is one advisory boundary-health finding for a domain.
+type CouplingSmell struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable smell kind (e.g., "god_domain", "unstable_dependency").
+	Kind          string           `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Severity      CouplingSeverity `protobuf:"varint,2,opt,name=severity,proto3,enum=vrooli.architecture_cartographer.v1.signals.CouplingSeverity" json:"severity,omitempty"`
+	Message       string           `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CouplingSmell) Reset() {
+	*x = CouplingSmell{}
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CouplingSmell) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CouplingSmell) ProtoMessage() {}
+
+func (x *CouplingSmell) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CouplingSmell.ProtoReflect.Descriptor instead.
+func (*CouplingSmell) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CouplingSmell) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *CouplingSmell) GetSeverity() CouplingSeverity {
+	if x != nil {
+		return x.Severity
+	}
+	return CouplingSeverity_COUPLING_SEVERITY_UNSPECIFIED
+}
+
+func (x *CouplingSmell) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+// DomainCoupling is the coupling profile of one domain.
+type DomainCoupling struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Domain    string                 `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	Archetype string                 `protobuf:"bytes,2,opt,name=archetype,proto3" json:"archetype,omitempty"`
+	// Efferent coupling: distinct domains this domain depends on.
+	Efferent int32 `protobuf:"varint,3,opt,name=efferent,proto3" json:"efferent,omitempty"`
+	// Afferent coupling: distinct domains depending on this one.
+	Afferent int32 `protobuf:"varint,4,opt,name=afferent,proto3" json:"afferent,omitempty"`
+	// Instability I = Ce/(Ce+Ca), in [0,1].
+	Instability float64 `protobuf:"fixed64,5,opt,name=instability,proto3" json:"instability,omitempty"`
+	// Fan-out fraction Ce/(domains-1), in [0,1].
+	FanOut     float64  `protobuf:"fixed64,6,opt,name=fan_out,json=fanOut,proto3" json:"fan_out,omitempty"`
+	DependsOn  []string `protobuf:"bytes,7,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	DependedBy []string `protobuf:"bytes,8,rep,name=depended_by,json=dependedBy,proto3" json:"depended_by,omitempty"`
+	// True when the domain is a derived shared substrate (high Ca, low Ce).
+	StableKernel bool `protobuf:"varint,9,opt,name=stable_kernel,json=stableKernel,proto3" json:"stable_kernel,omitempty"`
+	// Graded health score in [0,1]; 1 = healthy.
+	HealthScore   float64          `protobuf:"fixed64,10,opt,name=health_score,json=healthScore,proto3" json:"health_score,omitempty"`
+	Smells        []*CouplingSmell `protobuf:"bytes,11,rep,name=smells,proto3" json:"smells,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DomainCoupling) Reset() {
+	*x = DomainCoupling{}
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DomainCoupling) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DomainCoupling) ProtoMessage() {}
+
+func (x *DomainCoupling) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DomainCoupling.ProtoReflect.Descriptor instead.
+func (*DomainCoupling) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *DomainCoupling) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *DomainCoupling) GetArchetype() string {
+	if x != nil {
+		return x.Archetype
+	}
+	return ""
+}
+
+func (x *DomainCoupling) GetEfferent() int32 {
+	if x != nil {
+		return x.Efferent
+	}
+	return 0
+}
+
+func (x *DomainCoupling) GetAfferent() int32 {
+	if x != nil {
+		return x.Afferent
+	}
+	return 0
+}
+
+func (x *DomainCoupling) GetInstability() float64 {
+	if x != nil {
+		return x.Instability
+	}
+	return 0
+}
+
+func (x *DomainCoupling) GetFanOut() float64 {
+	if x != nil {
+		return x.FanOut
+	}
+	return 0
+}
+
+func (x *DomainCoupling) GetDependsOn() []string {
+	if x != nil {
+		return x.DependsOn
+	}
+	return nil
+}
+
+func (x *DomainCoupling) GetDependedBy() []string {
+	if x != nil {
+		return x.DependedBy
+	}
+	return nil
+}
+
+func (x *DomainCoupling) GetStableKernel() bool {
+	if x != nil {
+		return x.StableKernel
+	}
+	return false
+}
+
+func (x *DomainCoupling) GetHealthScore() float64 {
+	if x != nil {
+		return x.HealthScore
+	}
+	return 0
+}
+
+func (x *DomainCoupling) GetSmells() []*CouplingSmell {
+	if x != nil {
+		return x.Smells
+	}
+	return nil
+}
+
+type BoundaryHealthRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BoundaryHealthRequest) Reset() {
+	*x = BoundaryHealthRequest{}
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BoundaryHealthRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BoundaryHealthRequest) ProtoMessage() {}
+
+func (x *BoundaryHealthRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BoundaryHealthRequest.ProtoReflect.Descriptor instead.
+func (*BoundaryHealthRequest) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *BoundaryHealthRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+type BoundaryHealthResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	TotalDomains  int32                  `protobuf:"varint,2,opt,name=total_domains,json=totalDomains,proto3" json:"total_domains,omitempty"`
+	Domains       []*DomainCoupling      `protobuf:"bytes,3,rep,name=domains,proto3" json:"domains,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BoundaryHealthResponse) Reset() {
+	*x = BoundaryHealthResponse{}
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BoundaryHealthResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BoundaryHealthResponse) ProtoMessage() {}
+
+func (x *BoundaryHealthResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BoundaryHealthResponse.ProtoReflect.Descriptor instead.
+func (*BoundaryHealthResponse) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *BoundaryHealthResponse) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *BoundaryHealthResponse) GetTotalDomains() int32 {
+	if x != nil {
+		return x.TotalDomains
+	}
+	return 0
+}
+
+func (x *BoundaryHealthResponse) GetDomains() []*DomainCoupling {
+	if x != nil {
+		return x.Domains
+	}
+	return nil
+}
+
 type ScoreChunkRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target scenario name (resolves manifest + graph snapshot).
@@ -538,7 +885,7 @@ type ScoreChunkRequest struct {
 
 func (x *ScoreChunkRequest) Reset() {
 	*x = ScoreChunkRequest{}
-	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[5]
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -550,7 +897,7 @@ func (x *ScoreChunkRequest) String() string {
 func (*ScoreChunkRequest) ProtoMessage() {}
 
 func (x *ScoreChunkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[5]
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -563,7 +910,7 @@ func (x *ScoreChunkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScoreChunkRequest.ProtoReflect.Descriptor instead.
 func (*ScoreChunkRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{5}
+	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ScoreChunkRequest) GetScenario() string {
@@ -596,7 +943,7 @@ type ScoreChunkResponse struct {
 
 func (x *ScoreChunkResponse) Reset() {
 	*x = ScoreChunkResponse{}
-	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[6]
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -608,7 +955,7 @@ func (x *ScoreChunkResponse) String() string {
 func (*ScoreChunkResponse) ProtoMessage() {}
 
 func (x *ScoreChunkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[6]
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -621,7 +968,7 @@ func (x *ScoreChunkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScoreChunkResponse.ProtoReflect.Descriptor instead.
 func (*ScoreChunkResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{6}
+	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ScoreChunkResponse) GetVerdict() *Verdict {
@@ -642,7 +989,7 @@ type ExplainVerdictRequest struct {
 
 func (x *ExplainVerdictRequest) Reset() {
 	*x = ExplainVerdictRequest{}
-	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[7]
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -654,7 +1001,7 @@ func (x *ExplainVerdictRequest) String() string {
 func (*ExplainVerdictRequest) ProtoMessage() {}
 
 func (x *ExplainVerdictRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[7]
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -667,7 +1014,7 @@ func (x *ExplainVerdictRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainVerdictRequest.ProtoReflect.Descriptor instead.
 func (*ExplainVerdictRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{7}
+	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ExplainVerdictRequest) GetScenario() string {
@@ -700,7 +1047,7 @@ type ExplainVerdictResponse struct {
 
 func (x *ExplainVerdictResponse) Reset() {
 	*x = ExplainVerdictResponse{}
-	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[8]
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -712,7 +1059,7 @@ func (x *ExplainVerdictResponse) String() string {
 func (*ExplainVerdictResponse) ProtoMessage() {}
 
 func (x *ExplainVerdictResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[8]
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -725,7 +1072,7 @@ func (x *ExplainVerdictResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainVerdictResponse.ProtoReflect.Descriptor instead.
 func (*ExplainVerdictResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{8}
+	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ExplainVerdictResponse) GetVerdict() *Verdict {
@@ -746,7 +1093,7 @@ type ListSignalsRequest struct {
 
 func (x *ListSignalsRequest) Reset() {
 	*x = ListSignalsRequest{}
-	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[9]
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -758,7 +1105,7 @@ func (x *ListSignalsRequest) String() string {
 func (*ListSignalsRequest) ProtoMessage() {}
 
 func (x *ListSignalsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[9]
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -771,7 +1118,7 @@ func (x *ListSignalsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSignalsRequest.ProtoReflect.Descriptor instead.
 func (*ListSignalsRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{9}
+	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListSignalsRequest) GetScenario() string {
@@ -790,7 +1137,7 @@ type ListSignalsResponse struct {
 
 func (x *ListSignalsResponse) Reset() {
 	*x = ListSignalsResponse{}
-	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[10]
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -802,7 +1149,7 @@ func (x *ListSignalsResponse) String() string {
 func (*ListSignalsResponse) ProtoMessage() {}
 
 func (x *ListSignalsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[10]
+	mi := &file_architecture_cartographer_v1_signals_signals_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -815,7 +1162,7 @@ func (x *ListSignalsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSignalsResponse.ProtoReflect.Descriptor instead.
 func (*ListSignalsResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{10}
+	return file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListSignalsResponse) GetSignals() []*SignalDescriptor {
@@ -864,7 +1211,32 @@ const file_architecture_cartographer_v1_signals_signals_proto_rawDesc = "" +
 	"\tstability\x18\x03 \x01(\tR\tstability\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1a\n" +
 	"\bdisabled\x18\x05 \x01(\bR\bdisabled\x12'\n" +
-	"\x0fdisabled_reason\x18\x06 \x01(\tR\x0edisabledReason\"\x90\x01\n" +
+	"\x0fdisabled_reason\x18\x06 \x01(\tR\x0edisabledReason\"\x98\x01\n" +
+	"\rCouplingSmell\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12Y\n" +
+	"\bseverity\x18\x02 \x01(\x0e2=.vrooli.architecture_cartographer.v1.signals.CouplingSeverityR\bseverity\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\x95\x03\n" +
+	"\x0eDomainCoupling\x12\x16\n" +
+	"\x06domain\x18\x01 \x01(\tR\x06domain\x12\x1c\n" +
+	"\tarchetype\x18\x02 \x01(\tR\tarchetype\x12\x1a\n" +
+	"\befferent\x18\x03 \x01(\x05R\befferent\x12\x1a\n" +
+	"\bafferent\x18\x04 \x01(\x05R\bafferent\x12 \n" +
+	"\vinstability\x18\x05 \x01(\x01R\vinstability\x12\x17\n" +
+	"\afan_out\x18\x06 \x01(\x01R\x06fanOut\x12\x1d\n" +
+	"\n" +
+	"depends_on\x18\a \x03(\tR\tdependsOn\x12\x1f\n" +
+	"\vdepended_by\x18\b \x03(\tR\n" +
+	"dependedBy\x12#\n" +
+	"\rstable_kernel\x18\t \x01(\bR\fstableKernel\x12!\n" +
+	"\fhealth_score\x18\n" +
+	" \x01(\x01R\vhealthScore\x12R\n" +
+	"\x06smells\x18\v \x03(\v2:.vrooli.architecture_cartographer.v1.signals.CouplingSmellR\x06smells\"3\n" +
+	"\x15BoundaryHealthRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\"\xb0\x01\n" +
+	"\x16BoundaryHealthResponse\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12#\n" +
+	"\rtotal_domains\x18\x02 \x01(\x05R\ftotalDomains\x12U\n" +
+	"\adomains\x18\x03 \x03(\v2;.vrooli.architecture_cartographer.v1.signals.DomainCouplingR\adomains\"\x90\x01\n" +
 	"\x11ScoreChunkRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12F\n" +
 	"\x05chunk\x18\x02 \x01(\v20.vrooli.architecture_cartographer.v1.graph.ChunkR\x05chunk\x12\x17\n" +
@@ -885,12 +1257,17 @@ const file_architecture_cartographer_v1_signals_signals_proto_rawDesc = "" +
 	"\x10TIER_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fTIER_AUTO_PLACE\x10\x01\x12\x10\n" +
 	"\fTIER_SUGGEST\x10\x02\x12\x11\n" +
-	"\rTIER_CONFLICT\x10\x032\xcf\x03\n" +
+	"\rTIER_CONFLICT\x10\x03*m\n" +
+	"\x10CouplingSeverity\x12!\n" +
+	"\x1dCOUPLING_SEVERITY_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16COUPLING_SEVERITY_INFO\x10\x01\x12\x1a\n" +
+	"\x16COUPLING_SEVERITY_WARN\x10\x022\xeb\x04\n" +
 	"\x0eSignalsService\x12\x8d\x01\n" +
 	"\n" +
 	"ScoreChunk\x12>.vrooli.architecture_cartographer.v1.signals.ScoreChunkRequest\x1a?.vrooli.architecture_cartographer.v1.signals.ScoreChunkResponse\x12\x99\x01\n" +
 	"\x0eExplainVerdict\x12B.vrooli.architecture_cartographer.v1.signals.ExplainVerdictRequest\x1aC.vrooli.architecture_cartographer.v1.signals.ExplainVerdictResponse\x12\x90\x01\n" +
-	"\vListSignals\x12?.vrooli.architecture_cartographer.v1.signals.ListSignalsRequest\x1a@.vrooli.architecture_cartographer.v1.signals.ListSignalsResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals;signals_v1b\x06proto3"
+	"\vListSignals\x12?.vrooli.architecture_cartographer.v1.signals.ListSignalsRequest\x1a@.vrooli.architecture_cartographer.v1.signals.ListSignalsResponse\x12\x99\x01\n" +
+	"\x0eBoundaryHealth\x12B.vrooli.architecture_cartographer.v1.signals.BoundaryHealthRequest\x1aC.vrooli.architecture_cartographer.v1.signals.BoundaryHealthResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals;signals_v1b\x06proto3"
 
 var (
 	file_architecture_cartographer_v1_signals_signals_proto_rawDescOnce sync.Once
@@ -904,44 +1281,54 @@ func file_architecture_cartographer_v1_signals_signals_proto_rawDescGZIP() []byt
 	return file_architecture_cartographer_v1_signals_signals_proto_rawDescData
 }
 
-var file_architecture_cartographer_v1_signals_signals_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_architecture_cartographer_v1_signals_signals_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_architecture_cartographer_v1_signals_signals_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_architecture_cartographer_v1_signals_signals_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_architecture_cartographer_v1_signals_signals_proto_goTypes = []any{
 	(Tier)(0),                      // 0: vrooli.architecture_cartographer.v1.signals.Tier
-	(*Evidence)(nil),               // 1: vrooli.architecture_cartographer.v1.signals.Evidence
-	(*Score)(nil),                  // 2: vrooli.architecture_cartographer.v1.signals.Score
-	(*Verdict)(nil),                // 3: vrooli.architecture_cartographer.v1.signals.Verdict
-	(*DomainValue)(nil),            // 4: vrooli.architecture_cartographer.v1.signals.DomainValue
-	(*SignalDescriptor)(nil),       // 5: vrooli.architecture_cartographer.v1.signals.SignalDescriptor
-	(*ScoreChunkRequest)(nil),      // 6: vrooli.architecture_cartographer.v1.signals.ScoreChunkRequest
-	(*ScoreChunkResponse)(nil),     // 7: vrooli.architecture_cartographer.v1.signals.ScoreChunkResponse
-	(*ExplainVerdictRequest)(nil),  // 8: vrooli.architecture_cartographer.v1.signals.ExplainVerdictRequest
-	(*ExplainVerdictResponse)(nil), // 9: vrooli.architecture_cartographer.v1.signals.ExplainVerdictResponse
-	(*ListSignalsRequest)(nil),     // 10: vrooli.architecture_cartographer.v1.signals.ListSignalsRequest
-	(*ListSignalsResponse)(nil),    // 11: vrooli.architecture_cartographer.v1.signals.ListSignalsResponse
-	(*graph.Chunk)(nil),            // 12: vrooli.architecture_cartographer.v1.graph.Chunk
+	(CouplingSeverity)(0),          // 1: vrooli.architecture_cartographer.v1.signals.CouplingSeverity
+	(*Evidence)(nil),               // 2: vrooli.architecture_cartographer.v1.signals.Evidence
+	(*Score)(nil),                  // 3: vrooli.architecture_cartographer.v1.signals.Score
+	(*Verdict)(nil),                // 4: vrooli.architecture_cartographer.v1.signals.Verdict
+	(*DomainValue)(nil),            // 5: vrooli.architecture_cartographer.v1.signals.DomainValue
+	(*SignalDescriptor)(nil),       // 6: vrooli.architecture_cartographer.v1.signals.SignalDescriptor
+	(*CouplingSmell)(nil),          // 7: vrooli.architecture_cartographer.v1.signals.CouplingSmell
+	(*DomainCoupling)(nil),         // 8: vrooli.architecture_cartographer.v1.signals.DomainCoupling
+	(*BoundaryHealthRequest)(nil),  // 9: vrooli.architecture_cartographer.v1.signals.BoundaryHealthRequest
+	(*BoundaryHealthResponse)(nil), // 10: vrooli.architecture_cartographer.v1.signals.BoundaryHealthResponse
+	(*ScoreChunkRequest)(nil),      // 11: vrooli.architecture_cartographer.v1.signals.ScoreChunkRequest
+	(*ScoreChunkResponse)(nil),     // 12: vrooli.architecture_cartographer.v1.signals.ScoreChunkResponse
+	(*ExplainVerdictRequest)(nil),  // 13: vrooli.architecture_cartographer.v1.signals.ExplainVerdictRequest
+	(*ExplainVerdictResponse)(nil), // 14: vrooli.architecture_cartographer.v1.signals.ExplainVerdictResponse
+	(*ListSignalsRequest)(nil),     // 15: vrooli.architecture_cartographer.v1.signals.ListSignalsRequest
+	(*ListSignalsResponse)(nil),    // 16: vrooli.architecture_cartographer.v1.signals.ListSignalsResponse
+	(*graph.Chunk)(nil),            // 17: vrooli.architecture_cartographer.v1.graph.Chunk
 }
 var file_architecture_cartographer_v1_signals_signals_proto_depIdxs = []int32{
-	1,  // 0: vrooli.architecture_cartographer.v1.signals.Score.evidence:type_name -> vrooli.architecture_cartographer.v1.signals.Evidence
+	2,  // 0: vrooli.architecture_cartographer.v1.signals.Score.evidence:type_name -> vrooli.architecture_cartographer.v1.signals.Evidence
 	0,  // 1: vrooli.architecture_cartographer.v1.signals.Verdict.tier:type_name -> vrooli.architecture_cartographer.v1.signals.Tier
-	2,  // 2: vrooli.architecture_cartographer.v1.signals.Verdict.scores:type_name -> vrooli.architecture_cartographer.v1.signals.Score
-	4,  // 3: vrooli.architecture_cartographer.v1.signals.Verdict.domain_values:type_name -> vrooli.architecture_cartographer.v1.signals.DomainValue
-	12, // 4: vrooli.architecture_cartographer.v1.signals.ScoreChunkRequest.chunk:type_name -> vrooli.architecture_cartographer.v1.graph.Chunk
-	3,  // 5: vrooli.architecture_cartographer.v1.signals.ScoreChunkResponse.verdict:type_name -> vrooli.architecture_cartographer.v1.signals.Verdict
-	12, // 6: vrooli.architecture_cartographer.v1.signals.ExplainVerdictRequest.chunk:type_name -> vrooli.architecture_cartographer.v1.graph.Chunk
-	3,  // 7: vrooli.architecture_cartographer.v1.signals.ExplainVerdictResponse.verdict:type_name -> vrooli.architecture_cartographer.v1.signals.Verdict
-	5,  // 8: vrooli.architecture_cartographer.v1.signals.ListSignalsResponse.signals:type_name -> vrooli.architecture_cartographer.v1.signals.SignalDescriptor
-	6,  // 9: vrooli.architecture_cartographer.v1.signals.SignalsService.ScoreChunk:input_type -> vrooli.architecture_cartographer.v1.signals.ScoreChunkRequest
-	8,  // 10: vrooli.architecture_cartographer.v1.signals.SignalsService.ExplainVerdict:input_type -> vrooli.architecture_cartographer.v1.signals.ExplainVerdictRequest
-	10, // 11: vrooli.architecture_cartographer.v1.signals.SignalsService.ListSignals:input_type -> vrooli.architecture_cartographer.v1.signals.ListSignalsRequest
-	7,  // 12: vrooli.architecture_cartographer.v1.signals.SignalsService.ScoreChunk:output_type -> vrooli.architecture_cartographer.v1.signals.ScoreChunkResponse
-	9,  // 13: vrooli.architecture_cartographer.v1.signals.SignalsService.ExplainVerdict:output_type -> vrooli.architecture_cartographer.v1.signals.ExplainVerdictResponse
-	11, // 14: vrooli.architecture_cartographer.v1.signals.SignalsService.ListSignals:output_type -> vrooli.architecture_cartographer.v1.signals.ListSignalsResponse
-	12, // [12:15] is the sub-list for method output_type
-	9,  // [9:12] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	3,  // 2: vrooli.architecture_cartographer.v1.signals.Verdict.scores:type_name -> vrooli.architecture_cartographer.v1.signals.Score
+	5,  // 3: vrooli.architecture_cartographer.v1.signals.Verdict.domain_values:type_name -> vrooli.architecture_cartographer.v1.signals.DomainValue
+	1,  // 4: vrooli.architecture_cartographer.v1.signals.CouplingSmell.severity:type_name -> vrooli.architecture_cartographer.v1.signals.CouplingSeverity
+	7,  // 5: vrooli.architecture_cartographer.v1.signals.DomainCoupling.smells:type_name -> vrooli.architecture_cartographer.v1.signals.CouplingSmell
+	8,  // 6: vrooli.architecture_cartographer.v1.signals.BoundaryHealthResponse.domains:type_name -> vrooli.architecture_cartographer.v1.signals.DomainCoupling
+	17, // 7: vrooli.architecture_cartographer.v1.signals.ScoreChunkRequest.chunk:type_name -> vrooli.architecture_cartographer.v1.graph.Chunk
+	4,  // 8: vrooli.architecture_cartographer.v1.signals.ScoreChunkResponse.verdict:type_name -> vrooli.architecture_cartographer.v1.signals.Verdict
+	17, // 9: vrooli.architecture_cartographer.v1.signals.ExplainVerdictRequest.chunk:type_name -> vrooli.architecture_cartographer.v1.graph.Chunk
+	4,  // 10: vrooli.architecture_cartographer.v1.signals.ExplainVerdictResponse.verdict:type_name -> vrooli.architecture_cartographer.v1.signals.Verdict
+	6,  // 11: vrooli.architecture_cartographer.v1.signals.ListSignalsResponse.signals:type_name -> vrooli.architecture_cartographer.v1.signals.SignalDescriptor
+	11, // 12: vrooli.architecture_cartographer.v1.signals.SignalsService.ScoreChunk:input_type -> vrooli.architecture_cartographer.v1.signals.ScoreChunkRequest
+	13, // 13: vrooli.architecture_cartographer.v1.signals.SignalsService.ExplainVerdict:input_type -> vrooli.architecture_cartographer.v1.signals.ExplainVerdictRequest
+	15, // 14: vrooli.architecture_cartographer.v1.signals.SignalsService.ListSignals:input_type -> vrooli.architecture_cartographer.v1.signals.ListSignalsRequest
+	9,  // 15: vrooli.architecture_cartographer.v1.signals.SignalsService.BoundaryHealth:input_type -> vrooli.architecture_cartographer.v1.signals.BoundaryHealthRequest
+	12, // 16: vrooli.architecture_cartographer.v1.signals.SignalsService.ScoreChunk:output_type -> vrooli.architecture_cartographer.v1.signals.ScoreChunkResponse
+	14, // 17: vrooli.architecture_cartographer.v1.signals.SignalsService.ExplainVerdict:output_type -> vrooli.architecture_cartographer.v1.signals.ExplainVerdictResponse
+	16, // 18: vrooli.architecture_cartographer.v1.signals.SignalsService.ListSignals:output_type -> vrooli.architecture_cartographer.v1.signals.ListSignalsResponse
+	10, // 19: vrooli.architecture_cartographer.v1.signals.SignalsService.BoundaryHealth:output_type -> vrooli.architecture_cartographer.v1.signals.BoundaryHealthResponse
+	16, // [16:20] is the sub-list for method output_type
+	12, // [12:16] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_architecture_cartographer_v1_signals_signals_proto_init() }
@@ -954,8 +1341,8 @@ func file_architecture_cartographer_v1_signals_signals_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_architecture_cartographer_v1_signals_signals_proto_rawDesc), len(file_architecture_cartographer_v1_signals_signals_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   11,
+			NumEnums:      2,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -119,7 +119,7 @@ func indexDomainPackages(gctx signals.GraphContext) map[string]string {
 		if p.Directory == "" {
 			continue
 		}
-		for _, d := range gctx.Manifest.Domains {
+		for _, d := range gctx.DomainMap.Domains {
 			if pathInDomain(p.Directory, d.Paths) {
 				out[p.ID] = d.Name
 				break

@@ -2,34 +2,34 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-vi.mock("../../api/manifest", () => ({
-  manifestClient: {
-    listDomains: vi.fn(),
+vi.mock("../../api/domains", () => ({
+  domainsClient: {
+    getDomainMap: vi.fn(),
   },
 }));
 
-import { manifestClient } from "../../api/manifest";
+import { domainsClient } from "../../api/domains";
 import { renderWithProviders } from "../../test-utils";
 import { expectNoA11yViolations } from "../../test-utils/a11y";
 import { selectors } from "../../consts/selectors";
 import { GraphFilterBar } from "./GraphFilterBar";
 
-type DomainsResult = Awaited<ReturnType<typeof manifestClient.listDomains>>;
+type DomainMapResult = Awaited<ReturnType<typeof domainsClient.getDomainMap>>;
 
 afterEach(() => {
   cleanup();
-  vi.mocked(manifestClient.listDomains).mockReset();
+  vi.mocked(domainsClient.getDomainMap).mockReset();
 });
 
 function setDomains(domains: string[]) {
-  vi.mocked(manifestClient.listDomains).mockResolvedValue({
-    domains: domains.map((name) => ({ name, paths: [] })),
-  } as unknown as DomainsResult);
+  vi.mocked(domainsClient.getDomainMap).mockResolvedValue({
+    domainMap: { domains: domains.map((name) => ({ name, paths: [] })) },
+  } as unknown as DomainMapResult);
 }
 
 describe("GraphFilterBar", () => {
   it("renders one chip per declared domain plus an All chip", async () => {
-    setDomains(["graph", "manifest", "conflicts"]);
+    setDomains(["graph", "apply", "conflicts"]);
     renderWithProviders(
       <GraphFilterBar scenario="demo" selected={new Set()} onChange={() => undefined} />,
     );
@@ -94,7 +94,7 @@ describe("GraphFilterBar", () => {
   });
 
   it("has no axe-core violations with domains loaded", async () => {
-    setDomains(["graph", "manifest"]);
+    setDomains(["graph", "apply"]);
     const { container } = renderWithProviders(
       <GraphFilterBar scenario="demo" selected={new Set()} onChange={() => undefined} />,
     );

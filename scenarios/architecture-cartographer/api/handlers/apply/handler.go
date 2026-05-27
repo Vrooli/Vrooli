@@ -90,6 +90,25 @@ func (h *Handler) GetBuildBaseline(ctx context.Context, req *connect.Request[app
 	return connect.NewResponse(&applyv1.GetBuildBaselineResponse{Baseline: baselineToProto(bl)}), nil
 }
 
+func (h *Handler) WriteSuppression(ctx context.Context, req *connect.Request[applyv1.WriteSuppressionRequest]) (*connect.Response[applyv1.WriteSuppressionResponse], error) {
+	res, err := h.svc.WriteSuppression(ctx, apply.SuppressionInput{
+		Scenario: strings.TrimSpace(req.Msg.GetScenario()),
+		File:     strings.TrimSpace(req.Msg.GetFile()),
+		ID:       strings.TrimSpace(req.Msg.GetId()),
+		Reason:   strings.TrimSpace(req.Msg.GetReason()),
+		Expires:  strings.TrimSpace(req.Msg.GetExpires()),
+		Line:     int(req.Msg.GetLine()),
+	})
+	if err != nil {
+		return nil, connect.NewError(apply.ErrorToConnectCode(err), err)
+	}
+	return connect.NewResponse(&applyv1.WriteSuppressionResponse{
+		File:   res.File,
+		Line:   int32(res.Line),
+		Marker: res.Marker,
+	}), nil
+}
+
 // -------------------------- proto<->domain --------------------------
 
 func planToProto(p apply.Plan) *applyv1.Plan {

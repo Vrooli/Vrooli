@@ -9,7 +9,7 @@ import { buildWorkspaceSubPath, WORKSPACE_SUBNAV } from "./workspaceSubNav";
 /**
  * Per-target workspace sub-nav. Renders a horizontal tab strip on desktop and
  * a horizontally-scrollable strip on mobile. Items that have not yet shipped
- * (Graph/Manifest/Apply/Analytics in Phase 4) render as disabled chips with
+ * (Graph/Domains/Apply/Analytics in Phase 4) render as disabled chips with
  * no router target — they flip to `available: true` in their phase.
  */
 export interface WorkspaceSubNavProps {

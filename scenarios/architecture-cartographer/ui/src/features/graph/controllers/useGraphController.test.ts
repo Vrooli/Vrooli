@@ -13,9 +13,9 @@ vi.mock("../../../api/graph", () => ({
   },
 }));
 
-vi.mock("../../../api/manifest", () => ({
-  manifestClient: {
-    listDomains: vi.fn().mockResolvedValue({ domains: [{ name: "graph", paths: [] }] }),
+vi.mock("../../../api/domains", () => ({
+  domainsClient: {
+    getDomainMap: vi.fn().mockResolvedValue({ domainMap: { domains: [{ name: "graph", paths: [] }] } }),
   },
 }));
 
@@ -26,7 +26,7 @@ vi.mock("../../../api/conflicts", () => ({
 }));
 
 import { graphClient } from "../../../api/graph";
-import { manifestClient } from "../../../api/manifest";
+import { domainsClient } from "../../../api/domains";
 import { conflictsClient } from "../../../api/conflicts";
 import {
   graphKeys,
@@ -92,18 +92,18 @@ describe("useGetGraphSnapshot", () => {
 });
 
 describe("useListDomains", () => {
-  it("calls listDomains with the scenario", async () => {
-    vi.mocked(manifestClient.listDomains).mockClear();
+  it("calls getDomainMap with the scenario", async () => {
+    vi.mocked(domainsClient.getDomainMap).mockClear();
     const { result } = renderHookWith(() => useListDomains({ scenario: "demo" }));
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(manifestClient.listDomains).toHaveBeenCalledWith({ scenario: "demo" });
+    expect(domainsClient.getDomainMap).toHaveBeenCalledWith({ scenario: "demo" });
   });
 });
 
 describe("useGraphWorkspace", () => {
   it("fans out to snapshot + domains + conflicts for the same scenario", async () => {
     vi.mocked(graphClient.listGraphSnapshots).mockClear();
-    vi.mocked(manifestClient.listDomains).mockClear();
+    vi.mocked(domainsClient.getDomainMap).mockClear();
     vi.mocked(conflictsClient.listConflicts).mockClear();
     const { result } = renderHookWith(() => useGraphWorkspace("demo"));
     await waitFor(() => {
@@ -112,7 +112,7 @@ describe("useGraphWorkspace", () => {
       expect(result.current.conflicts.isSuccess).toBe(true);
     });
     expect(graphClient.listGraphSnapshots).toHaveBeenCalled();
-    expect(manifestClient.listDomains).toHaveBeenCalled();
+    expect(domainsClient.getDomainMap).toHaveBeenCalled();
     expect(conflictsClient.listConflicts).toHaveBeenCalledWith({
       scenario: "demo",
       statuses: [],

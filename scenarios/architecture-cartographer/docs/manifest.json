@@ -1017,6 +1017,76 @@
           }
         },
         {
+          "path": "reference/domains-contract.md",
+          "docType": "domains-contract-reference",
+          "title": "DOMAINS.md Machine Contract",
+          "aliases": [
+            "domains-contract",
+            "domain-inventory-contract",
+            "domains-md"
+          ],
+          "description": "The strict, parseable shape of the Domain Inventory table that the domains domain derives from",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "domains-contract"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Purpose",
+              "The extraction ladder",
+              "Domain Inventory table",
+              "Non-Domains section",
+              "What the contract deliberately does NOT express",
+              "Cross-references"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "reference/suppression-markers.md",
+          "docType": "suppression-markers-reference",
+          "title": "Suppression Markers",
+          "aliases": [
+            "suppression-markers",
+            "arch-allow",
+            "suppressions"
+          ],
+          "description": "The in-repo `// arch:allow` suppression-marker grammar and how findings are suppressed-with-reason",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "suppression-markers"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Grammar",
+              "How a marker suppresses",
+              "Scope of the substrate",
+              "Cross-references"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
           "path": "reference/ui-manifest.md",
           "docType": "ui-manifest-reference",
           "title": "UI Manifest",

@@ -35,4 +35,13 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "signals",
 		CLIMapping:  &module.CLIMapping{Command: "arch-cart signals list"},
 	},
+	{
+		ID:          "signals.boundaries",
+		Path:        signals_v1connect.SignalsServiceBoundaryHealthProcedure,
+		Method:      "POST",
+		Summary:     "Domain boundary-health scores",
+		Description: "Computes per-domain coupling metrics (efferent/afferent, instability, fan-out, stable-kernel) and a graded boundary-health score with advisory smells.",
+		Category:    "signals",
+		CLIMapping:  &module.CLIMapping{Command: "arch-cart signals boundaries"},
+	},
 }

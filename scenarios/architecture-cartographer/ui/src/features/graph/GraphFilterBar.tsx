@@ -42,7 +42,7 @@ export function GraphFilterBar({ scenario, selected, onChange }: GraphFilterBarP
     );
   }
 
-  const list = domains.data.domains;
+  const list = domains.data.domainMap?.domains ?? [];
   if (list.length === 0) {
     return (
       <p

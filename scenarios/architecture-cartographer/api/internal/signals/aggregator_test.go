@@ -24,7 +24,7 @@ func TestAggregator_TierAutoPlaceAboveThreshold(t *testing.T) {
 		}},
 	}
 	agg := signals.NewAggregator(newReg(sig), nil)
-	v := agg.Aggregate(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, manifestEmpty()), graph.Chunk{ID: "c1"})
+	v := agg.Aggregate(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, emptyDomainMap()), graph.Chunk{ID: "c1"})
 	if v.Tier != signals.TierAutoPlace {
 		t.Fatalf("want auto_place, got %s (verdict=%+v)", v.Tier, v)
 	}
@@ -41,7 +41,7 @@ func TestAggregator_TierSuggest(t *testing.T) {
 		}},
 	}
 	agg := signals.NewAggregator(newReg(sig), nil)
-	v := agg.Aggregate(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, manifestEmpty()), graph.Chunk{ID: "c1"})
+	v := agg.Aggregate(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, emptyDomainMap()), graph.Chunk{ID: "c1"})
 	if v.Tier != signals.TierSuggest {
 		t.Fatalf("want suggest, got %s", v.Tier)
 	}
@@ -58,7 +58,7 @@ func TestAggregator_TierConflictBelowSuggest(t *testing.T) {
 		}},
 	}
 	agg := signals.NewAggregator(newReg(sig), nil)
-	v := agg.Aggregate(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, manifestEmpty()), graph.Chunk{ID: "c1"})
+	v := agg.Aggregate(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, emptyDomainMap()), graph.Chunk{ID: "c1"})
 	if v.Tier != signals.TierConflict {
 		t.Fatalf("want conflict, got %s", v.Tier)
 	}
@@ -75,7 +75,7 @@ func TestAggregator_TiedTopTwoConflicts(t *testing.T) {
 		},
 	}
 	agg := signals.NewAggregator(newReg(sig), nil)
-	v := agg.Aggregate(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, manifestEmpty()), graph.Chunk{ID: "c1"})
+	v := agg.Aggregate(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, emptyDomainMap()), graph.Chunk{ID: "c1"})
 	if !v.Tied {
 		t.Fatal("expected tied verdict")
 	}
@@ -95,7 +95,7 @@ func TestAggregator_DropsEmptyEvidence(t *testing.T) {
 		}},
 	}
 	agg := signals.NewAggregator(newReg(sig), nil)
-	v := agg.Aggregate(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, manifestEmpty()), graph.Chunk{ID: "c1"})
+	v := agg.Aggregate(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, emptyDomainMap()), graph.Chunk{ID: "c1"})
 	if len(v.Scores) != 0 {
 		t.Fatalf("evidence-less score should be dropped, got %+v", v.Scores)
 	}
@@ -120,7 +120,7 @@ func TestAggregator_SkipsUnavailableSignal(t *testing.T) {
 		Available: false,
 	}
 	agg := signals.NewAggregator(newReg(good, disabled), nil)
-	v := agg.Aggregate(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, manifestEmpty()), graph.Chunk{ID: "c1"})
+	v := agg.Aggregate(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, emptyDomainMap()), graph.Chunk{ID: "c1"})
 	if disabled.ScoreCalls.Load() != 0 {
 		t.Fatal("disabled signal should not be called")
 	}

@@ -422,11 +422,17 @@ type Conflict struct {
 	// Optional verdict that the detector consulted (e.g., for
 	// mislocated_file). Provided so analytics can pair the verdict to
 	// the conflict it produced without round-tripping the registry.
-	Verdict       *signals.Verdict       `protobuf:"bytes,15,opt,name=verdict,proto3" json:"verdict,omitempty"`
-	DetectedAt    *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=detected_at,json=detectedAt,proto3" json:"detected_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Verdict    *signals.Verdict       `protobuf:"bytes,15,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	DetectedAt *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=detected_at,json=detectedAt,proto3" json:"detected_at,omitempty"`
+	UpdatedAt  *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// True when an active in-repo `// arch:allow` marker sanctions this
+	// finding. A suppressed conflict is reported (not dropped) so the
+	// operator sees what is being excused and why.
+	Suppressed bool `protobuf:"varint,18,opt,name=suppressed,proto3" json:"suppressed,omitempty"`
+	// The marker's reason, when suppressed.
+	SuppressionReason string `protobuf:"bytes,19,opt,name=suppression_reason,json=suppressionReason,proto3" json:"suppression_reason,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Conflict) Reset() {
@@ -576,6 +582,20 @@ func (x *Conflict) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Conflict) GetSuppressed() bool {
+	if x != nil {
+		return x.Suppressed
+	}
+	return false
+}
+
+func (x *Conflict) GetSuppressionReason() string {
+	if x != nil {
+		return x.SuppressionReason
+	}
+	return ""
 }
 
 // DetectorDescriptor describes one registered detector.
@@ -1695,7 +1715,7 @@ const file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDesc = "" +
 	"\apayload\x18\x05 \x01(\fR\apayload\x12\x1e\n" +
 	"\n" +
 	"confidence\x18\x06 \x01(\x01R\n" +
-	"confidence\"\xdb\x06\n" +
+	"confidence\"\xaa\a\n" +
 	"\bConflict\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x1a\n" +
@@ -1717,7 +1737,11 @@ const file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDesc = "" +
 	"\vdetected_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"detectedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x89\x01\n" +
+	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1e\n" +
+	"\n" +
+	"suppressed\x18\x12 \x01(\bR\n" +
+	"suppressed\x12-\n" +
+	"\x12suppression_reason\x18\x13 \x01(\tR\x11suppressionReason\"\x89\x01\n" +
 	"\x12DetectorDescriptor\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1c\n" +

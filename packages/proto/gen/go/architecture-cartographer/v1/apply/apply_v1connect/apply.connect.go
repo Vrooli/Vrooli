@@ -43,6 +43,9 @@ const (
 	// ApplyServiceGetBuildBaselineProcedure is the fully-qualified name of the ApplyService's
 	// GetBuildBaseline RPC.
 	ApplyServiceGetBuildBaselineProcedure = "/vrooli.architecture_cartographer.v1.apply.ApplyService/GetBuildBaseline"
+	// ApplyServiceWriteSuppressionProcedure is the fully-qualified name of the ApplyService's
+	// WriteSuppression RPC.
+	ApplyServiceWriteSuppressionProcedure = "/vrooli.architecture_cartographer.v1.apply.ApplyService/WriteSuppression"
 )
 
 // ApplyServiceClient is a client for the vrooli.architecture_cartographer.v1.apply.ApplyService
@@ -61,6 +64,11 @@ type ApplyServiceClient interface {
 	// GetBuildBaseline returns the toolchain green/red baseline. v0.1
 	// returns an empty baseline; the field gates the v0.2 apply path.
 	GetBuildBaseline(context.Context, *connect.Request[apply.GetBuildBaselineRequest]) (*connect.Response[apply.GetBuildBaselineResponse], error)
+	// WriteSuppression writes a durable `// arch:allow` marker into a source
+	// file, sanctioning a finding as intentional. This is the safe,
+	// non-destructive write path (inserts a comment only); destructive
+	// execution (file moves / import rewrites) stays deferred to RunApply.
+	WriteSuppression(context.Context, *connect.Request[apply.WriteSuppressionRequest]) (*connect.Response[apply.WriteSuppressionResponse], error)
 }
 
 // NewApplyServiceClient constructs a client for the
@@ -99,6 +107,12 @@ func NewApplyServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(applyServiceMethods.ByName("GetBuildBaseline")),
 			connect.WithClientOptions(opts...),
 		),
+		writeSuppression: connect.NewClient[apply.WriteSuppressionRequest, apply.WriteSuppressionResponse](
+			httpClient,
+			baseURL+ApplyServiceWriteSuppressionProcedure,
+			connect.WithSchema(applyServiceMethods.ByName("WriteSuppression")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -108,6 +122,7 @@ type applyServiceClient struct {
 	runApply         *connect.Client[apply.RunApplyRequest, apply.RunApplyResponse]
 	listApplyHistory *connect.Client[apply.ListApplyHistoryRequest, apply.ListApplyHistoryResponse]
 	getBuildBaseline *connect.Client[apply.GetBuildBaselineRequest, apply.GetBuildBaselineResponse]
+	writeSuppression *connect.Client[apply.WriteSuppressionRequest, apply.WriteSuppressionResponse]
 }
 
 // PlanApply calls vrooli.architecture_cartographer.v1.apply.ApplyService.PlanApply.
@@ -130,6 +145,11 @@ func (c *applyServiceClient) GetBuildBaseline(ctx context.Context, req *connect.
 	return c.getBuildBaseline.CallUnary(ctx, req)
 }
 
+// WriteSuppression calls vrooli.architecture_cartographer.v1.apply.ApplyService.WriteSuppression.
+func (c *applyServiceClient) WriteSuppression(ctx context.Context, req *connect.Request[apply.WriteSuppressionRequest]) (*connect.Response[apply.WriteSuppressionResponse], error) {
+	return c.writeSuppression.CallUnary(ctx, req)
+}
+
 // ApplyServiceHandler is an implementation of the
 // vrooli.architecture_cartographer.v1.apply.ApplyService service.
 type ApplyServiceHandler interface {
@@ -146,6 +166,11 @@ type ApplyServiceHandler interface {
 	// GetBuildBaseline returns the toolchain green/red baseline. v0.1
 	// returns an empty baseline; the field gates the v0.2 apply path.
 	GetBuildBaseline(context.Context, *connect.Request[apply.GetBuildBaselineRequest]) (*connect.Response[apply.GetBuildBaselineResponse], error)
+	// WriteSuppression writes a durable `// arch:allow` marker into a source
+	// file, sanctioning a finding as intentional. This is the safe,
+	// non-destructive write path (inserts a comment only); destructive
+	// execution (file moves / import rewrites) stays deferred to RunApply.
+	WriteSuppression(context.Context, *connect.Request[apply.WriteSuppressionRequest]) (*connect.Response[apply.WriteSuppressionResponse], error)
 }
 
 // NewApplyServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -179,6 +204,12 @@ func NewApplyServiceHandler(svc ApplyServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(applyServiceMethods.ByName("GetBuildBaseline")),
 		connect.WithHandlerOptions(opts...),
 	)
+	applyServiceWriteSuppressionHandler := connect.NewUnaryHandler(
+		ApplyServiceWriteSuppressionProcedure,
+		svc.WriteSuppression,
+		connect.WithSchema(applyServiceMethods.ByName("WriteSuppression")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.architecture_cartographer.v1.apply.ApplyService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ApplyServicePlanApplyProcedure:
@@ -189,6 +220,8 @@ func NewApplyServiceHandler(svc ApplyServiceHandler, opts ...connect.HandlerOpti
 			applyServiceListApplyHistoryHandler.ServeHTTP(w, r)
 		case ApplyServiceGetBuildBaselineProcedure:
 			applyServiceGetBuildBaselineHandler.ServeHTTP(w, r)
+		case ApplyServiceWriteSuppressionProcedure:
+			applyServiceWriteSuppressionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -212,4 +245,8 @@ func (UnimplementedApplyServiceHandler) ListApplyHistory(context.Context, *conne
 
 func (UnimplementedApplyServiceHandler) GetBuildBaseline(context.Context, *connect.Request[apply.GetBuildBaselineRequest]) (*connect.Response[apply.GetBuildBaselineResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.apply.ApplyService.GetBuildBaseline is not implemented"))
+}
+
+func (UnimplementedApplyServiceHandler) WriteSuppression(context.Context, *connect.Request[apply.WriteSuppressionRequest]) (*connect.Response[apply.WriteSuppressionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.apply.ApplyService.WriteSuppression is not implemented"))
 }

@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
 	"connectrpc.com/connect"
 )
 
@@ -16,12 +15,11 @@ func ErrorToConnectCode(err error) connect.Code {
 	var (
 		inv             ErrInvalidScoreRequest
 		snapshotMissing graph.ErrSnapshotNotFound
-		manifestMissing manifest.ErrManifestNotFound
 	)
 	switch {
 	case errors.As(err, &inv):
 		return connect.CodeInvalidArgument
-	case errors.As(err, &snapshotMissing), errors.As(err, &manifestMissing):
+	case errors.As(err, &snapshotMissing):
 		return connect.CodeNotFound
 	default:
 		return connect.CodeInternal

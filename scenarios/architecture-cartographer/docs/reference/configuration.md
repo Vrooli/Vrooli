@@ -57,6 +57,45 @@ substitute your scenario's prefix for `<PREFIX>`:
 > when CLIs run inside web-console terminals it leaks across scenarios.
 > Use the scenario-prefixed form or the `--api-base` flag.
 
+### Architecture control surface (tunable levers)
+
+These are **cartographer-global** levers — they tune cartographer's own
+derivation and advisory heuristics. There is **no per-scenario
+configuration**: cartographer derives any target scenario's domain map and
+scores its boundaries with zero per-scenario setup. Every lever has a default
+that reproduces the day-one behavior; an out-of-range or unparseable value is
+clamped (or reverts to its default) with a logged diagnostic — a misconfigured
+lever never fails startup. Resolved by `internal/config.Load`.
+
+| Variable | Default | Range | Purpose |
+|---|---|---|---|
+| `CARTOGRAPHER_GOD_DOMAIN_FANOUT` | `0.6` | (0, 1] | Efferent fan-out fraction at/above which a non-exempt domain earns a `god_domain` coupling smell. |
+| `CARTOGRAPHER_INSTABILITY_WARN_BAND` | `0.7` | [0, 1] | Instability (I = Ce/(Ce+Ca)) at/above which a depended-upon domain earns an `unstable_dependency` smell. |
+| `CARTOGRAPHER_AUTO_PLACE_MIN` | `0.85` | [0, 1] | Aggregator tier threshold: verdicts at/above this value are `auto_place`. Must be ≥ suggest-min (raised if not). |
+| `CARTOGRAPHER_SUGGEST_MIN` | `0.55` | [0, 1] | Aggregator tier threshold: verdicts at/above this value (but below auto-place) are `suggest`. |
+| `CARTOGRAPHER_TIE_DELTA` | `0.10` | [0, 1] | Minimum gap between the top and runner-up domain before a verdict is treated as a tie (→ `conflict`). |
+| `CARTOGRAPHER_ARCHETYPE_EXEMPTIONS` | `composition-root,infrastructure` | CSV | Domain archetypes exempt from the `god_domain` smell (composition roots legitimately wire many domains). |
+| `CARTOGRAPHER_NON_DOMAIN_FOLDERS` | (empty) | CSV | Extra `api/internal/` folder names treated as infrastructure (extends the built-in set: server, module, modules, database, testutil, middleware, clock, git, httpc, httpx). |
+| `CARTOGRAPHER_LADDER_ORDER` | `domains_doc,api_folders,cli_groups` | CSV of source names | Domain-extraction trust order, highest first. Valid sources: `api_manifest` (reserved), `domains_doc`, `api_folders`, `cli_groups`. The UI rung is always advisory and appended regardless. |
+
+**Deliberately NOT exposed.** Cartographer intentionally has no lever for:
+
+- **Declared allowed-dependencies / forbidden edges.** Architectural health
+  is recovered from the import graph via cycle detection and the coupling
+  heuristics above, not from a hand-maintained dependency allow-list. A
+  specific acyclic forbidden dependency is therefore undetectable by design;
+  this trade-off buys zero-maintenance, zero-config operation. (It may return
+  later as an optional overlay.)
+- **Per-scenario thresholds or signal weights.** These levers are global to
+  the cartographer instance, never declared inside a target scenario.
+- **Stable-kernel detection bounds.** The shared-substrate (stable-kernel)
+  signature is derived, not tuned.
+
+Durable, sanctioned deviations from the heuristics live as in-repo
+`// arch:allow` markers next to the code they excuse — see
+[`domains-contract.md`](domains-contract.md) and the suppression-marker
+grammar — not as configuration here.
+
 ## Service manifest (`.vrooli/service.json`)
 
 Single source of truth for everything the lifecycle needs to know.

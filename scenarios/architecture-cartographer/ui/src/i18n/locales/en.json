@@ -16,7 +16,7 @@
     "subnav": {
       "label": "Workspace sections",
       "graph": "Graph",
-      "manifest": "Manifest",
+      "domains": "Domains",
       "conflicts": "Conflicts",
       "apply": "Apply",
       "analytics": "Analytics"
@@ -136,29 +136,49 @@
       "confirmButton": "Confirm",
       "cancelButton": "Cancel"
     },
-    "targetManifest": {
-      "title": "Manifest",
-      "description": "Validate and review the architecture manifest for this scenario.",
-      "loading": "Loading manifest…",
-      "errorTitle": "Couldn't load the manifest.",
-      "empty": "No manifest stored yet — validate one to populate this view.",
-      "validateButton": "Validate",
-      "validating": "Validating…",
-      "validHeading": "Manifest valid",
-      "invalidHeading": "Manifest has errors",
-      "diagnosticsHeading": "Diagnostics",
-      "noDiagnostics": "No diagnostics — manifest is clean.",
-      "domainsHeading": "Declared domains",
-      "noDomains": "No domains declared.",
+    "targetDomains": {
+      "title": "Domains",
+      "description": "Review the derived domain map for this scenario.",
+      "loading": "Loading domain map…",
+      "errorTitle": "Couldn't load the domain map.",
+      "empty": "No domain map available yet — extract one to populate this view.",
+      "extractButton": "Extract domains",
+      "extracting": "Extracting…",
+      "domainsHeading": "Derived domains",
+      "sharedSubstrateHeading": "Shared substrate",
+      "nonDomainsHeading": "Non-domains",
+      "declarationsHeading": "Source declarations",
+      "authorityLabel": "(authority)",
+      "noDomains": "No domains derived.",
+      "noSharedSubstrate": "No shared substrate declared.",
+      "noNonDomains": "No non-domains declared.",
       "columns": {
-        "severity": "Severity",
-        "code": "Code",
-        "path": "Path",
-        "location": "Location",
-        "message": "Message",
         "name": "Domain",
         "paths": "Paths",
-        "allowedDeps": "Allowed deps"
+        "archetype": "Archetype",
+        "provenance": "Provenance"
+      },
+      "convergence": {
+        "heading": "Convergence",
+        "loading": "Loading convergence report…",
+        "errorTitle": "Couldn't load the convergence report.",
+        "converged": "Surfaces converge — no disagreements.",
+        "severityWarn": "Warn",
+        "severityInfo": "Info"
+      },
+      "boundaries": {
+        "heading": "Boundary health",
+        "loading": "Loading boundary health…",
+        "errorTitle": "Couldn't load boundary health — run a graph extract first.",
+        "empty": "No domain coupling to report yet.",
+        "healthScore": "Health",
+        "efferent": "Ce",
+        "afferent": "Ca",
+        "instability": "Instability",
+        "fanOut": "Fan-out",
+        "stableKernel": "Stable kernel",
+        "severityWarn": "Warn",
+        "severityInfo": "Info"
       }
     },
     "targetAnalytics": {
@@ -311,13 +331,6 @@
       "rewrite_import": "Rewrite import",
       "delete_file": "Delete file",
       "create_file": "Create file"
-    }
-  },
-  "manifest": {
-    "severity": {
-      "info": "Info",
-      "warn": "Warn",
-      "error": "Error"
     }
   },
   "analytics": {

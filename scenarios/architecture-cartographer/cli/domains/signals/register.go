@@ -25,6 +25,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"SignalsService.ScoreChunk":     h.score,
 		"SignalsService.ExplainVerdict": h.explain,
 		"SignalsService.ListSignals":    h.list,
+		"SignalsService.BoundaryHealth": h.boundaries,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

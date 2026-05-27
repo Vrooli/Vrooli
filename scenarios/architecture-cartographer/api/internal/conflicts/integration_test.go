@@ -6,16 +6,16 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/conflicts/detectors/cycle"
 	"architecture-cartographer/internal/conflicts/detectors/mislocatedfile"
 	conflictmocks "architecture-cartographer/internal/conflicts/mocks"
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
 
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 )
 
 // fixturePath resolves a bas/fixtures/<name>/<file> path relative to
@@ -100,17 +100,17 @@ func rawGraphFromFixture(t *testing.T, path string) graph.RawGraph {
 	return out
 }
 
-// manifestFromFixture loads manifest.yaml via the manifest package's
-// Parse to mirror production flow.
-func manifestFromFixture(t *testing.T, path string) manifest.ManifestDefinition {
+// domainMapFromFixture derives the fixture scenario's domain map from its
+// on-disk sources (its docs/concepts/DOMAINS.md) via the production
+// extraction ladder — mirroring exactly what production runs.
+func domainMapFromFixture(t *testing.T, name string) domains.DerivedDomainMap {
 	t.Helper()
-	data, err := os.ReadFile(path)
-	require.NoError(t, err, "read %s", path)
-	m, _, _, err := manifest.Parse(data, manifest.ContentTypeYAML)
+	dir, err := filepath.Abs(filepath.Join("..", "..", "..", "bas", "fixtures", name))
 	require.NoError(t, err)
-	// Sanity round-trip through yaml to surface any unrecognised keys.
-	var sanity map[string]any
-	_ = yaml.Unmarshal(data, &sanity)
+	extractions, err := domains.RunLadder(context.Background(), dir, domains.DefaultExtractors())
+	require.NoError(t, err, "run ladder over fixture %s", name)
+	m, err := domains.Resolve(name, extractions, time.Time{})
+	require.NoError(t, err, "resolve domain map for fixture %s", name)
 	return m
 }
 
@@ -145,7 +145,7 @@ func expectedConflictsFromFixture(t *testing.T, path string) expectedConflicts {
 func TestIntegration_GoCyclesFixture(t *testing.T) {
 	const fixture = "go-cycles"
 	raw := rawGraphFromFixture(t, fixturePath(t, fixture, "expected-graph.json"))
-	m := manifestFromFixture(t, fixturePath(t, fixture, "manifest.yaml"))
+	dmap := domainMapFromFixture(t, fixture)
 	want := expectedConflictsFromFixture(t, fixturePath(t, fixture, "expected-conflicts.json"))
 
 	snap := graph.Normalize(want.Scenario, raw)
@@ -154,9 +154,9 @@ func TestIntegration_GoCyclesFixture(t *testing.T) {
 	svc := conflicts.NewService(&conflictmocks.FakeRepository{}, registry, conflicts.NewResolverRegistry())
 
 	got, err := svc.DetectConflicts(context.Background(), conflicts.DetectOrchestrationInput{
-		Scenario: want.Scenario,
-		Snapshot: snap,
-		Manifest: m,
+		Scenario:  want.Scenario,
+		Snapshot:  snap,
+		DomainMap: dmap,
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, got, "go-cycles fixture must produce at least one conflict")

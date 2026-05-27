@@ -10,6 +10,7 @@ import (
 
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/signals"
+	"architecture-cartographer/internal/signals/boundaries"
 
 	"connectrpc.com/connect"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph"
@@ -69,6 +70,59 @@ func (h *Handler) ListSignals(ctx context.Context, req *connect.Request[signalsv
 		})
 	}
 	return connect.NewResponse(out), nil
+}
+
+func (h *Handler) BoundaryHealth(ctx context.Context, req *connect.Request[signalsv1.BoundaryHealthRequest]) (*connect.Response[signalsv1.BoundaryHealthResponse], error) {
+	scenario := strings.TrimSpace(req.Msg.GetScenario())
+	if scenario == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
+	}
+	rep, err := h.svc.BoundaryHealth(ctx, scenario)
+	if err != nil {
+		return nil, connect.NewError(signals.ErrorToConnectCode(err), err)
+	}
+	out := &signalsv1.BoundaryHealthResponse{
+		Scenario:     rep.Scenario,
+		TotalDomains: int32(rep.TotalDomains),
+	}
+	for _, dc := range rep.Domains {
+		out.Domains = append(out.Domains, domainCouplingToProto(dc))
+	}
+	return connect.NewResponse(out), nil
+}
+
+func domainCouplingToProto(dc boundaries.DomainCoupling) *signalsv1.DomainCoupling {
+	out := &signalsv1.DomainCoupling{
+		Domain:       dc.Domain,
+		Archetype:    dc.Archetype,
+		Efferent:     int32(dc.Efferent),
+		Afferent:     int32(dc.Afferent),
+		Instability:  dc.Instability,
+		FanOut:       dc.FanOut,
+		DependsOn:    append([]string(nil), dc.DependsOn...),
+		DependedBy:   append([]string(nil), dc.DependedBy...),
+		StableKernel: dc.StableKernel,
+		HealthScore:  dc.HealthScore,
+	}
+	for _, s := range dc.Smells {
+		out.Smells = append(out.Smells, &signalsv1.CouplingSmell{
+			Kind:     s.Kind,
+			Severity: couplingSeverityToProto(s.Severity),
+			Message:  s.Message,
+		})
+	}
+	return out
+}
+
+func couplingSeverityToProto(s boundaries.Severity) signalsv1.CouplingSeverity {
+	switch s {
+	case boundaries.SeverityWarn:
+		return signalsv1.CouplingSeverity_COUPLING_SEVERITY_WARN
+	case boundaries.SeverityInfo:
+		return signalsv1.CouplingSeverity_COUPLING_SEVERITY_INFO
+	default:
+		return signalsv1.CouplingSeverity_COUPLING_SEVERITY_UNSPECIFIED
+	}
 }
 
 func scoreInputFromProto(scenario string, chunk *graphv1.Chunk, fileID string) (signals.ScoreInput, error) {

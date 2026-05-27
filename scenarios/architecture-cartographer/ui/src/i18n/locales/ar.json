@@ -16,7 +16,7 @@
     "subnav": {
       "label": "أقسام مساحة العمل",
       "graph": "الرسم البياني",
-      "manifest": "البيان",
+      "domains": "النطاقات",
       "conflicts": "التعارضات",
       "apply": "التطبيق",
       "analytics": "التحليلات"
@@ -136,29 +136,49 @@
       "confirmButton": "تأكيد",
       "cancelButton": "إلغاء"
     },
-    "targetManifest": {
-      "title": "البيان",
-      "description": "تحقق من بيان العمارة لهذا السيناريو واطّلع عليه.",
-      "loading": "جارٍ تحميل البيان…",
-      "errorTitle": "تعذّر تحميل البيان.",
-      "empty": "لا يوجد بيان محفوظ — تحقق منه لملء هذا العرض.",
-      "validateButton": "تحقّق",
-      "validating": "جارٍ التحقق…",
-      "validHeading": "البيان صالح",
-      "invalidHeading": "البيان يحتوي أخطاء",
-      "diagnosticsHeading": "التشخيصات",
-      "noDiagnostics": "لا توجد تشخيصات — البيان نظيف.",
-      "domainsHeading": "النطاقات المعلنة",
-      "noDomains": "لا توجد نطاقات معلنة.",
+    "targetDomains": {
+      "title": "النطاقات",
+      "description": "راجع خريطة النطاقات المستنتجة لهذا السيناريو.",
+      "loading": "جارٍ تحميل خريطة النطاقات…",
+      "errorTitle": "تعذّر تحميل خريطة النطاقات.",
+      "empty": "لا تتوفر خريطة نطاقات بعد — استخرج واحدة لملء هذا العرض.",
+      "extractButton": "استخراج النطاقات",
+      "extracting": "جارٍ الاستخراج…",
+      "domainsHeading": "النطاقات المستنتجة",
+      "sharedSubstrateHeading": "البنية التحتية المشتركة",
+      "nonDomainsHeading": "ما ليس نطاقات",
+      "declarationsHeading": "تصريحات المصادر",
+      "authorityLabel": "(مرجعية)",
+      "noDomains": "لا توجد نطاقات مستنتجة.",
+      "noSharedSubstrate": "لا توجد بنية تحتية مشتركة معلنة.",
+      "noNonDomains": "لا توجد عناصر غير نطاق معلنة.",
       "columns": {
-        "severity": "الخطورة",
-        "code": "الرمز",
-        "path": "المسار",
-        "location": "الموقع",
-        "message": "الرسالة",
         "name": "النطاق",
         "paths": "المسارات",
-        "allowedDeps": "التبعيات المسموحة"
+        "archetype": "النمط المعماري",
+        "provenance": "المصدر"
+      },
+      "convergence": {
+        "heading": "التقارب",
+        "loading": "جارٍ تحميل تقرير التقارب…",
+        "errorTitle": "تعذّر تحميل تقرير التقارب.",
+        "converged": "تتقارب الأسطح — لا توجد خلافات.",
+        "severityWarn": "تحذير",
+        "severityInfo": "معلومات"
+      },
+      "boundaries": {
+        "heading": "صحة الحدود",
+        "loading": "جارٍ تحميل صحة الحدود…",
+        "errorTitle": "تعذّر تحميل صحة الحدود — شغّل استخراج الرسم البياني أولاً.",
+        "empty": "لا يوجد اقتران نطاقات للإبلاغ عنه بعد.",
+        "healthScore": "الصحة",
+        "efferent": "Ce",
+        "afferent": "Ca",
+        "instability": "عدم الاستقرار",
+        "fanOut": "التوزّع",
+        "stableKernel": "نواة مستقرة",
+        "severityWarn": "تحذير",
+        "severityInfo": "معلومات"
       }
     },
     "targetAnalytics": {
@@ -311,13 +331,6 @@
       "rewrite_import": "إعادة كتابة الاستيراد",
       "delete_file": "حذف ملف",
       "create_file": "إنشاء ملف"
-    }
-  },
-  "manifest": {
-    "severity": {
-      "info": "معلومات",
-      "warn": "تحذير",
-      "error": "خطأ"
     }
   },
   "analytics": {

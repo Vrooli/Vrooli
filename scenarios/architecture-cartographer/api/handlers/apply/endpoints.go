@@ -44,4 +44,13 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "apply",
 		CLIMapping:  &module.CLIMapping{Command: "arch-cart apply baseline"},
 	},
+	{
+		ID:          "apply.write-suppression",
+		Path:        apply_v1connect.ApplyServiceWriteSuppressionProcedure,
+		Method:      "POST",
+		Summary:     "Write an in-repo suppression marker",
+		Description: "Inserts a durable `// arch:allow` marker into a source file, sanctioning a finding as intentional. Safe, non-destructive (comment-only) write.",
+		Category:    "apply",
+		CLIMapping:  &module.CLIMapping{Command: "arch-cart apply suppress"},
+	},
 }

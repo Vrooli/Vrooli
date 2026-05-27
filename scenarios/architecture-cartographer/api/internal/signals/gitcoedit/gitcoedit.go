@@ -188,7 +188,7 @@ func isHash(s string) bool {
 }
 
 func domainForFilePath(path string, gctx signals.GraphContext) string {
-	for _, d := range gctx.Manifest.Domains {
+	for _, d := range gctx.DomainMap.Domains {
 		for _, glob := range d.Paths {
 			if matches(path, glob) {
 				return d.Name

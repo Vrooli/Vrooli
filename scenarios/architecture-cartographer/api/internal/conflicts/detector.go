@@ -3,19 +3,19 @@ package conflicts
 import (
 	"context"
 
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
 )
 
 // Detector is one pluggable detector. Each registered detector receives
-// the snapshot + manifest + optional verdict provider (signals) and
-// returns zero or more Conflict envelopes.
+// the snapshot + derived domain map + optional verdict provider (signals)
+// and returns zero or more Conflict envelopes.
 type Detector interface {
 	Name() string
 	Description() string
 	EmitsTypes() []string
 
-	// Detect runs over the snapshot + manifest and emits conflicts. The
+	// Detect runs over the snapshot + domain map and emits conflicts. The
 	// implementation must not mutate inputs. Order of returned conflicts
 	// is implementation-defined; the registry handles overall ordering.
 	Detect(ctx context.Context, in DetectInput) ([]Conflict, error)
@@ -25,7 +25,10 @@ type Detector interface {
 type DetectInput struct {
 	Scenario string
 	Snapshot graph.GraphSnapshot
-	Manifest manifest.ManifestDefinition
+	// DomainMap is the derived domain map (replaces the architecture
+	// manifest). Detectors resolve a path's owning domain via
+	// DomainMap.DomainFor.
+	DomainMap domains.DerivedDomainMap
 	// VerdictProvider returns the aggregator's verdict for a chunk.
 	// Detectors that don't consult signals (e.g., cycle detector) may
 	// leave this nil; detectors that do (e.g., mislocated_file) call

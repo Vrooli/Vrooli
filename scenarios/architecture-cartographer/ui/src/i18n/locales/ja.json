@@ -16,7 +16,7 @@
     "subnav": {
       "label": "ワークスペースセクション",
       "graph": "グラフ",
-      "manifest": "マニフェスト",
+      "domains": "ドメイン",
       "conflicts": "コンフリクト",
       "apply": "適用",
       "analytics": "アナリティクス"
@@ -136,29 +136,49 @@
       "confirmButton": "確定",
       "cancelButton": "キャンセル"
     },
-    "targetManifest": {
-      "title": "マニフェスト",
-      "description": "このシナリオのアーキテクチャマニフェストを検証・確認します。",
-      "loading": "マニフェストを読み込み中…",
-      "errorTitle": "マニフェストを読み込めませんでした。",
-      "empty": "マニフェスト未保存 — 検証して取り込んでください。",
-      "validateButton": "検証",
-      "validating": "検証中…",
-      "validHeading": "マニフェスト有効",
-      "invalidHeading": "マニフェストにエラーあり",
-      "diagnosticsHeading": "診断",
-      "noDiagnostics": "診断なし — マニフェストはクリーンです。",
-      "domainsHeading": "宣言ドメイン",
-      "noDomains": "ドメイン未宣言。",
+    "targetDomains": {
+      "title": "ドメイン",
+      "description": "このシナリオの派生ドメインマップを確認します。",
+      "loading": "ドメインマップを読み込み中…",
+      "errorTitle": "ドメインマップを読み込めませんでした。",
+      "empty": "ドメインマップがありません — 抽出してください。",
+      "extractButton": "ドメイン抽出",
+      "extracting": "抽出中…",
+      "domainsHeading": "派生ドメイン",
+      "sharedSubstrateHeading": "共有サブストレート",
+      "nonDomainsHeading": "非ドメイン",
+      "declarationsHeading": "ソース宣言",
+      "authorityLabel": "(権威)",
+      "noDomains": "ドメイン未導出。",
+      "noSharedSubstrate": "共有サブストレート未宣言。",
+      "noNonDomains": "非ドメイン未宣言。",
       "columns": {
-        "severity": "重大度",
-        "code": "コード",
-        "path": "パス",
-        "location": "場所",
-        "message": "メッセージ",
         "name": "ドメイン",
         "paths": "パス",
-        "allowedDeps": "許可された依存"
+        "archetype": "アーキタイプ",
+        "provenance": "出処"
+      },
+      "convergence": {
+        "heading": "収束",
+        "loading": "収束レポートを読み込み中…",
+        "errorTitle": "収束レポートを読み込めませんでした。",
+        "converged": "サーフェスは収束しています — 不一致はありません。",
+        "severityWarn": "警告",
+        "severityInfo": "情報"
+      },
+      "boundaries": {
+        "heading": "境界の健全性",
+        "loading": "境界の健全性を読み込み中…",
+        "errorTitle": "境界の健全性を読み込めませんでした — まずグラフ抽出を実行してください。",
+        "empty": "まだ報告するドメイン結合がありません。",
+        "healthScore": "健全度",
+        "efferent": "Ce",
+        "afferent": "Ca",
+        "instability": "不安定度",
+        "fanOut": "ファンアウト",
+        "stableKernel": "安定カーネル",
+        "severityWarn": "警告",
+        "severityInfo": "情報"
       }
     },
     "targetAnalytics": {
@@ -311,13 +331,6 @@
       "rewrite_import": "インポート書き換え",
       "delete_file": "ファイル削除",
       "create_file": "ファイル作成"
-    }
-  },
-  "manifest": {
-    "severity": {
-      "info": "情報",
-      "warn": "警告",
-      "error": "エラー"
     }
   },
   "analytics": {

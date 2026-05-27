@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"architecture-cartographer/internal/domains"
 	gitmocks "architecture-cartographer/internal/git/mocks"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/manifest"
 	"architecture-cartographer/internal/signals"
 	"architecture-cartographer/internal/signals/gitcoedit"
 )
@@ -25,7 +25,7 @@ func TestSignal_DisabledWhenGitUnavailable(t *testing.T) {
 
 func TestScore_SilentWhenDisabled(t *testing.T) {
 	sig := gitcoedit.New(&gitmocks.FakeRunner{Available: false})
-	out := sig.Score(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, manifest.ManifestDefinition{}), graph.Chunk{Path: "a.go"})
+	out := sig.Score(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, domains.DerivedDomainMap{}), graph.Chunk{Path: "a.go"})
 	if len(out) != 0 {
 		t.Fatalf("disabled signal must score nothing, got %+v", out)
 	}
@@ -47,8 +47,8 @@ target/file.go
 `
 	runner := &gitmocks.FakeRunner{Available: true, LogOutput: log}
 	sig := gitcoedit.New(runner)
-	m := manifest.ManifestDefinition{
-		Domains: []manifest.DomainSpec{
+	m := domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{
 			{Name: "conflicts", Paths: []string{"internal/conflicts/**"}},
 		},
 	}
@@ -68,8 +68,8 @@ internal/conflicts/foo.go
 `
 	runner := &gitmocks.FakeRunner{Available: true, LogOutput: log}
 	sig := gitcoedit.New(runner)
-	m := manifest.ManifestDefinition{
-		Domains: []manifest.DomainSpec{
+	m := domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{
 			{Name: "conflicts", Paths: []string{"internal/conflicts/**"}},
 		},
 	}

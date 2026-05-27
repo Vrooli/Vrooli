@@ -516,6 +516,159 @@ func (x *BuildBaseline) GetCapturedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type WriteSuppressionRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Target scenario name.
+	Scenario string `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Scenario-relative source file to mark.
+	File string `protobuf:"bytes,2,opt,name=file,proto3" json:"file,omitempty"`
+	// The detector/type/subtype the marker sanctions.
+	Id string `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
+	// Mandatory rationale.
+	Reason string `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	// Optional expiry condition (e.g., "until:2026-12-31").
+	Expires string `protobuf:"bytes,5,opt,name=expires,proto3" json:"expires,omitempty"`
+	// Optional 1-based insertion line; 0 appends at end of file.
+	Line          int32 `protobuf:"varint,6,opt,name=line,proto3" json:"line,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WriteSuppressionRequest) Reset() {
+	*x = WriteSuppressionRequest{}
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WriteSuppressionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WriteSuppressionRequest) ProtoMessage() {}
+
+func (x *WriteSuppressionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WriteSuppressionRequest.ProtoReflect.Descriptor instead.
+func (*WriteSuppressionRequest) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *WriteSuppressionRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *WriteSuppressionRequest) GetFile() string {
+	if x != nil {
+		return x.File
+	}
+	return ""
+}
+
+func (x *WriteSuppressionRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *WriteSuppressionRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *WriteSuppressionRequest) GetExpires() string {
+	if x != nil {
+		return x.Expires
+	}
+	return ""
+}
+
+func (x *WriteSuppressionRequest) GetLine() int32 {
+	if x != nil {
+		return x.Line
+	}
+	return 0
+}
+
+type WriteSuppressionResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Scenario-relative file the marker landed in.
+	File string `protobuf:"bytes,1,opt,name=file,proto3" json:"file,omitempty"`
+	// Line the marker was inserted at (0 when appended).
+	Line int32 `protobuf:"varint,2,opt,name=line,proto3" json:"line,omitempty"`
+	// The rendered marker comment.
+	Marker        string `protobuf:"bytes,3,opt,name=marker,proto3" json:"marker,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WriteSuppressionResponse) Reset() {
+	*x = WriteSuppressionResponse{}
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WriteSuppressionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WriteSuppressionResponse) ProtoMessage() {}
+
+func (x *WriteSuppressionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WriteSuppressionResponse.ProtoReflect.Descriptor instead.
+func (*WriteSuppressionResponse) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *WriteSuppressionResponse) GetFile() string {
+	if x != nil {
+		return x.File
+	}
+	return ""
+}
+
+func (x *WriteSuppressionResponse) GetLine() int32 {
+	if x != nil {
+		return x.Line
+	}
+	return 0
+}
+
+func (x *WriteSuppressionResponse) GetMarker() string {
+	if x != nil {
+		return x.Marker
+	}
+	return ""
+}
+
 type PlanApplyRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -531,7 +684,7 @@ type PlanApplyRequest struct {
 
 func (x *PlanApplyRequest) Reset() {
 	*x = PlanApplyRequest{}
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[4]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -543,7 +696,7 @@ func (x *PlanApplyRequest) String() string {
 func (*PlanApplyRequest) ProtoMessage() {}
 
 func (x *PlanApplyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[4]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -556,7 +709,7 @@ func (x *PlanApplyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanApplyRequest.ProtoReflect.Descriptor instead.
 func (*PlanApplyRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{4}
+	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PlanApplyRequest) GetScenario() string {
@@ -597,7 +750,7 @@ type PlanApplyResponse struct {
 
 func (x *PlanApplyResponse) Reset() {
 	*x = PlanApplyResponse{}
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[5]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -609,7 +762,7 @@ func (x *PlanApplyResponse) String() string {
 func (*PlanApplyResponse) ProtoMessage() {}
 
 func (x *PlanApplyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[5]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -622,7 +775,7 @@ func (x *PlanApplyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanApplyResponse.ProtoReflect.Descriptor instead.
 func (*PlanApplyResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{5}
+	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PlanApplyResponse) GetPlan() *Plan {
@@ -651,7 +804,7 @@ type RunApplyRequest struct {
 
 func (x *RunApplyRequest) Reset() {
 	*x = RunApplyRequest{}
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[6]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -663,7 +816,7 @@ func (x *RunApplyRequest) String() string {
 func (*RunApplyRequest) ProtoMessage() {}
 
 func (x *RunApplyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[6]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -676,7 +829,7 @@ func (x *RunApplyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunApplyRequest.ProtoReflect.Descriptor instead.
 func (*RunApplyRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{6}
+	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RunApplyRequest) GetPlanId() string {
@@ -702,7 +855,7 @@ type RunApplyResponse struct {
 
 func (x *RunApplyResponse) Reset() {
 	*x = RunApplyResponse{}
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[7]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -714,7 +867,7 @@ func (x *RunApplyResponse) String() string {
 func (*RunApplyResponse) ProtoMessage() {}
 
 func (x *RunApplyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[7]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -727,7 +880,7 @@ func (x *RunApplyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunApplyResponse.ProtoReflect.Descriptor instead.
 func (*RunApplyResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{7}
+	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RunApplyResponse) GetRun() *ApplyRun {
@@ -749,7 +902,7 @@ type ListApplyHistoryRequest struct {
 
 func (x *ListApplyHistoryRequest) Reset() {
 	*x = ListApplyHistoryRequest{}
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[8]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -761,7 +914,7 @@ func (x *ListApplyHistoryRequest) String() string {
 func (*ListApplyHistoryRequest) ProtoMessage() {}
 
 func (x *ListApplyHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[8]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -774,7 +927,7 @@ func (x *ListApplyHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListApplyHistoryRequest.ProtoReflect.Descriptor instead.
 func (*ListApplyHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{8}
+	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListApplyHistoryRequest) GetScenario() string {
@@ -815,7 +968,7 @@ type ListApplyHistoryResponse struct {
 
 func (x *ListApplyHistoryResponse) Reset() {
 	*x = ListApplyHistoryResponse{}
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[9]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -827,7 +980,7 @@ func (x *ListApplyHistoryResponse) String() string {
 func (*ListApplyHistoryResponse) ProtoMessage() {}
 
 func (x *ListApplyHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[9]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -840,7 +993,7 @@ func (x *ListApplyHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListApplyHistoryResponse.ProtoReflect.Descriptor instead.
 func (*ListApplyHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{9}
+	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListApplyHistoryResponse) GetRuns() []*ApplyRun {
@@ -866,7 +1019,7 @@ type GetBuildBaselineRequest struct {
 
 func (x *GetBuildBaselineRequest) Reset() {
 	*x = GetBuildBaselineRequest{}
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[10]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -878,7 +1031,7 @@ func (x *GetBuildBaselineRequest) String() string {
 func (*GetBuildBaselineRequest) ProtoMessage() {}
 
 func (x *GetBuildBaselineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[10]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -891,7 +1044,7 @@ func (x *GetBuildBaselineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBuildBaselineRequest.ProtoReflect.Descriptor instead.
 func (*GetBuildBaselineRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{10}
+	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetBuildBaselineRequest) GetScenario() string {
@@ -910,7 +1063,7 @@ type GetBuildBaselineResponse struct {
 
 func (x *GetBuildBaselineResponse) Reset() {
 	*x = GetBuildBaselineResponse{}
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[11]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -922,7 +1075,7 @@ func (x *GetBuildBaselineResponse) String() string {
 func (*GetBuildBaselineResponse) ProtoMessage() {}
 
 func (x *GetBuildBaselineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[11]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -935,7 +1088,7 @@ func (x *GetBuildBaselineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBuildBaselineResponse.ProtoReflect.Descriptor instead.
 func (*GetBuildBaselineResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{11}
+	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetBuildBaselineResponse) GetBaseline() *BuildBaseline {
@@ -958,7 +1111,7 @@ type PlanWithContext struct {
 
 func (x *PlanWithContext) Reset() {
 	*x = PlanWithContext{}
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[12]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -970,7 +1123,7 @@ func (x *PlanWithContext) String() string {
 func (*PlanWithContext) ProtoMessage() {}
 
 func (x *PlanWithContext) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[12]
+	mi := &file_architecture_cartographer_v1_apply_apply_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -983,7 +1136,7 @@ func (x *PlanWithContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanWithContext.ProtoReflect.Descriptor instead.
 func (*PlanWithContext) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{12}
+	return file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *PlanWithContext) GetPlan() *Plan {
@@ -1039,7 +1192,18 @@ const file_architecture_cartographer_v1_apply_apply_proto_rawDesc = "" +
 	"\ttoolchain\x18\x03 \x01(\tR\ttoolchain\x12\x10\n" +
 	"\x03log\x18\x04 \x01(\tR\x03log\x12;\n" +
 	"\vcaptured_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"capturedAt\"\x82\x01\n" +
+	"capturedAt\"\x9f\x01\n" +
+	"\x17WriteSuppressionRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
+	"\x04file\x18\x02 \x01(\tR\x04file\x12\x0e\n" +
+	"\x02id\x18\x03 \x01(\tR\x02id\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\x12\x18\n" +
+	"\aexpires\x18\x05 \x01(\tR\aexpires\x12\x12\n" +
+	"\x04line\x18\x06 \x01(\x05R\x04line\"Z\n" +
+	"\x18WriteSuppressionResponse\x12\x12\n" +
+	"\x04file\x18\x01 \x01(\tR\x04file\x12\x12\n" +
+	"\x04line\x18\x02 \x01(\x05R\x04line\x12\x16\n" +
+	"\x06marker\x18\x03 \x01(\tR\x06marker\"\x82\x01\n" +
 	"\x10PlanApplyRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06domain\x18\x02 \x01(\tR\x06domain\x12!\n" +
@@ -1082,12 +1246,13 @@ const file_architecture_cartographer_v1_apply_apply_proto_rawDesc = "" +
 	"\x18APPLY_STATUS_BUILD_GREEN\x10\x03\x12\x1a\n" +
 	"\x16APPLY_STATUS_BUILD_RED\x10\x04\x12\x19\n" +
 	"\x15APPLY_STATUS_REVERTED\x10\x05\x12\x1a\n" +
-	"\x16APPLY_STATUS_COMMITTED\x10\x062\xd9\x04\n" +
+	"\x16APPLY_STATUS_COMMITTED\x10\x062\xf7\x05\n" +
 	"\fApplyService\x12\x86\x01\n" +
 	"\tPlanApply\x12;.vrooli.architecture_cartographer.v1.apply.PlanApplyRequest\x1a<.vrooli.architecture_cartographer.v1.apply.PlanApplyResponse\x12\x83\x01\n" +
 	"\bRunApply\x12:.vrooli.architecture_cartographer.v1.apply.RunApplyRequest\x1a;.vrooli.architecture_cartographer.v1.apply.RunApplyResponse\x12\x9b\x01\n" +
 	"\x10ListApplyHistory\x12B.vrooli.architecture_cartographer.v1.apply.ListApplyHistoryRequest\x1aC.vrooli.architecture_cartographer.v1.apply.ListApplyHistoryResponse\x12\x9b\x01\n" +
-	"\x10GetBuildBaseline\x12B.vrooli.architecture_cartographer.v1.apply.GetBuildBaselineRequest\x1aC.vrooli.architecture_cartographer.v1.apply.GetBuildBaselineResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/apply;apply_v1b\x06proto3"
+	"\x10GetBuildBaseline\x12B.vrooli.architecture_cartographer.v1.apply.GetBuildBaselineRequest\x1aC.vrooli.architecture_cartographer.v1.apply.GetBuildBaselineResponse\x12\x9b\x01\n" +
+	"\x10WriteSuppression\x12B.vrooli.architecture_cartographer.v1.apply.WriteSuppressionRequest\x1aC.vrooli.architecture_cartographer.v1.apply.WriteSuppressionResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/apply;apply_v1b\x06proto3"
 
 var (
 	file_architecture_cartographer_v1_apply_apply_proto_rawDescOnce sync.Once
@@ -1102,7 +1267,7 @@ func file_architecture_cartographer_v1_apply_apply_proto_rawDescGZIP() []byte {
 }
 
 var file_architecture_cartographer_v1_apply_apply_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_architecture_cartographer_v1_apply_apply_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_architecture_cartographer_v1_apply_apply_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_architecture_cartographer_v1_apply_apply_proto_goTypes = []any{
 	(OperationKind)(0),               // 0: vrooli.architecture_cartographer.v1.apply.OperationKind
 	(ApplyStatus)(0),                 // 1: vrooli.architecture_cartographer.v1.apply.ApplyStatus
@@ -1110,42 +1275,46 @@ var file_architecture_cartographer_v1_apply_apply_proto_goTypes = []any{
 	(*Plan)(nil),                     // 3: vrooli.architecture_cartographer.v1.apply.Plan
 	(*ApplyRun)(nil),                 // 4: vrooli.architecture_cartographer.v1.apply.ApplyRun
 	(*BuildBaseline)(nil),            // 5: vrooli.architecture_cartographer.v1.apply.BuildBaseline
-	(*PlanApplyRequest)(nil),         // 6: vrooli.architecture_cartographer.v1.apply.PlanApplyRequest
-	(*PlanApplyResponse)(nil),        // 7: vrooli.architecture_cartographer.v1.apply.PlanApplyResponse
-	(*RunApplyRequest)(nil),          // 8: vrooli.architecture_cartographer.v1.apply.RunApplyRequest
-	(*RunApplyResponse)(nil),         // 9: vrooli.architecture_cartographer.v1.apply.RunApplyResponse
-	(*ListApplyHistoryRequest)(nil),  // 10: vrooli.architecture_cartographer.v1.apply.ListApplyHistoryRequest
-	(*ListApplyHistoryResponse)(nil), // 11: vrooli.architecture_cartographer.v1.apply.ListApplyHistoryResponse
-	(*GetBuildBaselineRequest)(nil),  // 12: vrooli.architecture_cartographer.v1.apply.GetBuildBaselineRequest
-	(*GetBuildBaselineResponse)(nil), // 13: vrooli.architecture_cartographer.v1.apply.GetBuildBaselineResponse
-	(*PlanWithContext)(nil),          // 14: vrooli.architecture_cartographer.v1.apply.PlanWithContext
-	(*timestamppb.Timestamp)(nil),    // 15: google.protobuf.Timestamp
-	(*conflicts.Conflict)(nil),       // 16: vrooli.architecture_cartographer.v1.conflicts.Conflict
+	(*WriteSuppressionRequest)(nil),  // 6: vrooli.architecture_cartographer.v1.apply.WriteSuppressionRequest
+	(*WriteSuppressionResponse)(nil), // 7: vrooli.architecture_cartographer.v1.apply.WriteSuppressionResponse
+	(*PlanApplyRequest)(nil),         // 8: vrooli.architecture_cartographer.v1.apply.PlanApplyRequest
+	(*PlanApplyResponse)(nil),        // 9: vrooli.architecture_cartographer.v1.apply.PlanApplyResponse
+	(*RunApplyRequest)(nil),          // 10: vrooli.architecture_cartographer.v1.apply.RunApplyRequest
+	(*RunApplyResponse)(nil),         // 11: vrooli.architecture_cartographer.v1.apply.RunApplyResponse
+	(*ListApplyHistoryRequest)(nil),  // 12: vrooli.architecture_cartographer.v1.apply.ListApplyHistoryRequest
+	(*ListApplyHistoryResponse)(nil), // 13: vrooli.architecture_cartographer.v1.apply.ListApplyHistoryResponse
+	(*GetBuildBaselineRequest)(nil),  // 14: vrooli.architecture_cartographer.v1.apply.GetBuildBaselineRequest
+	(*GetBuildBaselineResponse)(nil), // 15: vrooli.architecture_cartographer.v1.apply.GetBuildBaselineResponse
+	(*PlanWithContext)(nil),          // 16: vrooli.architecture_cartographer.v1.apply.PlanWithContext
+	(*timestamppb.Timestamp)(nil),    // 17: google.protobuf.Timestamp
+	(*conflicts.Conflict)(nil),       // 18: vrooli.architecture_cartographer.v1.conflicts.Conflict
 }
 var file_architecture_cartographer_v1_apply_apply_proto_depIdxs = []int32{
 	0,  // 0: vrooli.architecture_cartographer.v1.apply.Operation.kind:type_name -> vrooli.architecture_cartographer.v1.apply.OperationKind
 	2,  // 1: vrooli.architecture_cartographer.v1.apply.Plan.operations:type_name -> vrooli.architecture_cartographer.v1.apply.Operation
-	15, // 2: vrooli.architecture_cartographer.v1.apply.Plan.planned_at:type_name -> google.protobuf.Timestamp
+	17, // 2: vrooli.architecture_cartographer.v1.apply.Plan.planned_at:type_name -> google.protobuf.Timestamp
 	1,  // 3: vrooli.architecture_cartographer.v1.apply.ApplyRun.status:type_name -> vrooli.architecture_cartographer.v1.apply.ApplyStatus
-	15, // 4: vrooli.architecture_cartographer.v1.apply.ApplyRun.started_at:type_name -> google.protobuf.Timestamp
-	15, // 5: vrooli.architecture_cartographer.v1.apply.ApplyRun.finished_at:type_name -> google.protobuf.Timestamp
-	15, // 6: vrooli.architecture_cartographer.v1.apply.BuildBaseline.captured_at:type_name -> google.protobuf.Timestamp
+	17, // 4: vrooli.architecture_cartographer.v1.apply.ApplyRun.started_at:type_name -> google.protobuf.Timestamp
+	17, // 5: vrooli.architecture_cartographer.v1.apply.ApplyRun.finished_at:type_name -> google.protobuf.Timestamp
+	17, // 6: vrooli.architecture_cartographer.v1.apply.BuildBaseline.captured_at:type_name -> google.protobuf.Timestamp
 	3,  // 7: vrooli.architecture_cartographer.v1.apply.PlanApplyResponse.plan:type_name -> vrooli.architecture_cartographer.v1.apply.Plan
 	4,  // 8: vrooli.architecture_cartographer.v1.apply.RunApplyResponse.run:type_name -> vrooli.architecture_cartographer.v1.apply.ApplyRun
 	4,  // 9: vrooli.architecture_cartographer.v1.apply.ListApplyHistoryResponse.runs:type_name -> vrooli.architecture_cartographer.v1.apply.ApplyRun
 	5,  // 10: vrooli.architecture_cartographer.v1.apply.GetBuildBaselineResponse.baseline:type_name -> vrooli.architecture_cartographer.v1.apply.BuildBaseline
 	3,  // 11: vrooli.architecture_cartographer.v1.apply.PlanWithContext.plan:type_name -> vrooli.architecture_cartographer.v1.apply.Plan
-	16, // 12: vrooli.architecture_cartographer.v1.apply.PlanWithContext.conflicts:type_name -> vrooli.architecture_cartographer.v1.conflicts.Conflict
-	6,  // 13: vrooli.architecture_cartographer.v1.apply.ApplyService.PlanApply:input_type -> vrooli.architecture_cartographer.v1.apply.PlanApplyRequest
-	8,  // 14: vrooli.architecture_cartographer.v1.apply.ApplyService.RunApply:input_type -> vrooli.architecture_cartographer.v1.apply.RunApplyRequest
-	10, // 15: vrooli.architecture_cartographer.v1.apply.ApplyService.ListApplyHistory:input_type -> vrooli.architecture_cartographer.v1.apply.ListApplyHistoryRequest
-	12, // 16: vrooli.architecture_cartographer.v1.apply.ApplyService.GetBuildBaseline:input_type -> vrooli.architecture_cartographer.v1.apply.GetBuildBaselineRequest
-	7,  // 17: vrooli.architecture_cartographer.v1.apply.ApplyService.PlanApply:output_type -> vrooli.architecture_cartographer.v1.apply.PlanApplyResponse
-	9,  // 18: vrooli.architecture_cartographer.v1.apply.ApplyService.RunApply:output_type -> vrooli.architecture_cartographer.v1.apply.RunApplyResponse
-	11, // 19: vrooli.architecture_cartographer.v1.apply.ApplyService.ListApplyHistory:output_type -> vrooli.architecture_cartographer.v1.apply.ListApplyHistoryResponse
-	13, // 20: vrooli.architecture_cartographer.v1.apply.ApplyService.GetBuildBaseline:output_type -> vrooli.architecture_cartographer.v1.apply.GetBuildBaselineResponse
-	17, // [17:21] is the sub-list for method output_type
-	13, // [13:17] is the sub-list for method input_type
+	18, // 12: vrooli.architecture_cartographer.v1.apply.PlanWithContext.conflicts:type_name -> vrooli.architecture_cartographer.v1.conflicts.Conflict
+	8,  // 13: vrooli.architecture_cartographer.v1.apply.ApplyService.PlanApply:input_type -> vrooli.architecture_cartographer.v1.apply.PlanApplyRequest
+	10, // 14: vrooli.architecture_cartographer.v1.apply.ApplyService.RunApply:input_type -> vrooli.architecture_cartographer.v1.apply.RunApplyRequest
+	12, // 15: vrooli.architecture_cartographer.v1.apply.ApplyService.ListApplyHistory:input_type -> vrooli.architecture_cartographer.v1.apply.ListApplyHistoryRequest
+	14, // 16: vrooli.architecture_cartographer.v1.apply.ApplyService.GetBuildBaseline:input_type -> vrooli.architecture_cartographer.v1.apply.GetBuildBaselineRequest
+	6,  // 17: vrooli.architecture_cartographer.v1.apply.ApplyService.WriteSuppression:input_type -> vrooli.architecture_cartographer.v1.apply.WriteSuppressionRequest
+	9,  // 18: vrooli.architecture_cartographer.v1.apply.ApplyService.PlanApply:output_type -> vrooli.architecture_cartographer.v1.apply.PlanApplyResponse
+	11, // 19: vrooli.architecture_cartographer.v1.apply.ApplyService.RunApply:output_type -> vrooli.architecture_cartographer.v1.apply.RunApplyResponse
+	13, // 20: vrooli.architecture_cartographer.v1.apply.ApplyService.ListApplyHistory:output_type -> vrooli.architecture_cartographer.v1.apply.ListApplyHistoryResponse
+	15, // 21: vrooli.architecture_cartographer.v1.apply.ApplyService.GetBuildBaseline:output_type -> vrooli.architecture_cartographer.v1.apply.GetBuildBaselineResponse
+	7,  // 22: vrooli.architecture_cartographer.v1.apply.ApplyService.WriteSuppression:output_type -> vrooli.architecture_cartographer.v1.apply.WriteSuppressionResponse
+	18, // [18:23] is the sub-list for method output_type
+	13, // [13:18] is the sub-list for method input_type
 	13, // [13:13] is the sub-list for extension type_name
 	13, // [13:13] is the sub-list for extension extendee
 	0,  // [0:13] is the sub-list for field type_name
@@ -1162,7 +1331,7 @@ func file_architecture_cartographer_v1_apply_apply_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_architecture_cartographer_v1_apply_apply_proto_rawDesc), len(file_architecture_cartographer_v1_apply_apply_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   13,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
