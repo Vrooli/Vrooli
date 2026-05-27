@@ -15,8 +15,9 @@
       "id": "concepts",
       "title": "Concepts",
       "documents": [
-        { "id": "architecture", "title": "Architecture", "path": "concepts/ARCHITECTURE.md" },
-        { "id": "glossary",     "title": "Glossary",     "path": "concepts/GLOSSARY.md" }
+        { "id": "architecture",   "title": "Architecture",   "path": "concepts/ARCHITECTURE.md" },
+        { "id": "glossary",       "title": "Glossary",       "path": "concepts/GLOSSARY.md" },
+        { "id": "baseline-model", "title": "Baseline Model", "path": "baseline-model.md" }
       ]
     },
     {

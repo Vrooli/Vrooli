@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package vrooli.git_control_tower.v1.workflowreplay;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/workflowreplay;workflowreplay_v1";
+
+// =============================================================================
+// WORKFLOW REPLAY DOMAIN — GCT's thin proxy over test-genie playbooks runs
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain workflowreplay
+// @stability unstable
+//
+// Plan B Decision 3: the UI never calls test-genie directly. WorkflowReplayService
+// fronts test-genie's RunsService, filtered to the playbooks phase and scoped to
+// the scenario under review, so the Workflows tab has a stable single-origin API
+// even as test-genie's surface evolves. The proxy stays thin — filtering only,
+// no transformation logic.
+//
+// Binary video bytes do NOT travel through this service; they stream over a GCT
+// REST proxy route (GET /api/v1/repo/workflow-runs/{runId}/video) that forwards
+// to test-genie's artifact route, so the browser <video> element can
+// range-request. GetRunDetail returns the rel_path handles that route consumes.
+// =============================================================================
+
+service WorkflowReplayService {
+  // ListRecentRuns returns the scenario's recent runs that include a playbooks
+  // phase, newest-first.
+  rpc ListRecentRuns(ListRecentRunsRequest) returns (ListRecentRunsResponse);
+  // GetRunDetail returns one run plus its recorded workflow videos.
+  rpc GetRunDetail(GetRunDetailRequest) returns (GetRunDetailResponse);
+}
+
+// RunSummary is a compact playbooks-run record for the Workflows tab list.
+message RunSummary {
+  string run_id = 1;
+  string status = 2;        // in_progress | passed | failed | aborted
+  string started_at = 3;    // RFC3339
+  string completed_at = 4;  // RFC3339, empty if in-progress
+  string git_sha = 5;
+  string git_branch = 6;
+  bool git_dirty = 7;
+  string playbooks_status = 8;          // passed | failed | skipped
+  double playbooks_duration_seconds = 9;
+}
+
+message ListRecentRunsRequest {
+  string scenario = 1;
+  int32 limit = 2; // 0 = service default
+}
+
+message ListRecentRunsResponse {
+  repeated RunSummary runs = 1;
+}
+
+// WorkflowVideo references one recorded video. rel_path is the run-relative
+// handle the GCT REST video route forwards to test-genie.
+message WorkflowVideo {
+  string workflow = 1;
+  string rel_path = 2;
+  int64 size_bytes = 3;
+}
+
+message GetRunDetailRequest {
+  string scenario = 1;
+  string run_id = 2;
+}
+
+message GetRunDetailResponse {
+  RunSummary run = 1;
+  repeated WorkflowVideo videos = 2;
+}

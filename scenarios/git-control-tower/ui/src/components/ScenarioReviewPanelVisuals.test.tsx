@@ -1,13 +1,35 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ScreenshotsTab } from "./ScenarioReviewPanelScreenshots";
 import { WorkflowsTab } from "./ScenarioReviewPanelWorkflows";
-import type {
-  CapturePreset,
-  ExecutionMode,
-  SnapshotSetMeta,
-  WorkflowCaptureResult,
-} from "../lib/api";
+import { renderWithQueryClient } from "../test-utils";
+import { listRecentRuns, getRunDetail } from "../lib/api-workflowreplay";
+import type { RunSummary, GetRunDetailResponse } from "../lib/api-workflowreplay";
+import type { CapturePreset, SnapshotSetMeta } from "../lib/api";
+
+// The Workflows tab reads runs through the WorkflowReplayService client; mock
+// the thin api wrappers so tests drive the component deterministically.
+vi.mock("../lib/api-workflowreplay", () => ({
+  listRecentRuns: vi.fn(),
+  getRunDetail: vi.fn(),
+  workflowVideoUrl: (scenario: string, runId: string, relPath: string) =>
+    `/api/v1/repo/workflow-runs/${runId}/video?scenario=${scenario}&path=${relPath}`,
+}));
+
+function run(overrides: Partial<RunSummary> = {}): RunSummary {
+  return {
+    runId: "run-123",
+    status: "passed",
+    startedAt: "2026-05-26T12:00:00Z",
+    completedAt: "2026-05-26T12:01:00Z",
+    gitSha: "abc12345def",
+    gitBranch: "agi",
+    gitDirty: false,
+    playbooksStatus: "passed",
+    playbooksDurationSeconds: 12,
+    ...overrides,
+  } as unknown as RunSummary;
+}
 
 const desktopPreset: CapturePreset = {
   name: "Desktop Light",
@@ -37,37 +59,6 @@ function snapshot(role: "baseline" | "capture", overrides: Partial<SnapshotSetMe
     status: "complete",
     presets: [desktopPreset, mobilePreset],
     pageDiscoveryMethod: "lighthouse",
-    ...overrides,
-  };
-}
-
-function workflowCapture(role: "baseline" | "capture", overrides: Partial<WorkflowCaptureResult> = {}): WorkflowCaptureResult {
-  return {
-    id: `${role}-workflow`,
-    scenarioSlug: "git-control-tower",
-    role,
-    createdAt: role === "baseline" ? "2026-05-01T12:00:00Z" : "2026-05-01T12:12:00Z",
-    status: "complete",
-    sizeBytes: 4096,
-    workflowResults: [
-      {
-        workflowName: role === "baseline" ? "Open dashboard" : "Review changed files",
-        executionMode: "observer",
-        executionId: `${role}-exec-1`,
-        status: role === "baseline" ? "passed" : "failed",
-        error: role === "capture" ? "Expected review panel to load" : undefined,
-        durationMs: role === "baseline" ? 1100 : 2300,
-        videoCount: role === "capture" ? 1 : 0,
-      },
-      {
-        workflowName: "Commit dry run",
-        executionMode: "mutating",
-        executionId: `${role}-exec-2`,
-        status: "skipped",
-        durationMs: 0,
-        videoCount: 0,
-      },
-    ],
     ...overrides,
   };
 }
@@ -151,89 +142,62 @@ describe("ScreenshotsTab", () => {
 });
 
 describe("WorkflowsTab", () => {
-  it("runs a baseline with the selected execution modes from the empty state", () => {
-    const onBaseline = vi.fn();
-    const onSelectedModesChange = vi.fn();
+  it("shows the empty state and routes 'Set baseline' to the Baselines tab", async () => {
+    vi.mocked(listRecentRuns).mockResolvedValue([]);
+    const onOpenBaselines = vi.fn();
 
-    render(
+    renderWithQueryClient(
       <WorkflowsTab
         scenarioSlug="git-control-tower"
-        basAvailable
-        isRunning={false}
-        onBaseline={onBaseline}
-        onCapture={vi.fn()}
-        onSelectedModesChange={onSelectedModesChange}
+        repoId={null}
+        testGenieAvailable
+        onOpenBaselines={onOpenBaselines}
       />,
     );
 
-    fireEvent.click(screen.getByLabelText("mutating"));
+    expect(await screen.findByText(/no playbooks runs yet/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /set baseline/i }));
-
-    expect(onSelectedModesChange).toHaveBeenCalledWith(["observer", "mutating"]);
-    expect(onBaseline).toHaveBeenCalledWith(["observer", "mutating"]);
+    expect(onOpenBaselines).toHaveBeenCalled();
   });
 
-  it("switches capture detail, expands workflow errors, and opens videos", () => {
-    const onViewRoleChange = vi.fn();
-
-    render(
+  it("reports when test-genie is unavailable", () => {
+    renderWithQueryClient(
       <WorkflowsTab
-        baseline={workflowCapture("baseline")}
-        capture={workflowCapture("capture", { status: "failed" })}
-        captureStaleness={{ isStale: true }}
         scenarioSlug="git-control-tower"
-        basAvailable
-        isRunning={false}
-        onBaseline={vi.fn()}
-        onCapture={vi.fn()}
-        onViewRoleChange={onViewRoleChange}
+        repoId={null}
+        testGenieAvailable={false}
+        onOpenBaselines={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/test-genie is not available/i)).toBeInTheDocument();
+    expect(listRecentRuns).not.toHaveBeenCalled();
+  });
+
+  it("lists playbooks runs and opens a recorded video on expand", async () => {
+    vi.mocked(listRecentRuns).mockResolvedValue([run({ runId: "run-abc" })]);
+    vi.mocked(getRunDetail).mockResolvedValue({
+      run: run({ runId: "run-abc" }),
+      videos: [{ workflow: "login-smoke", relPath: "automation/login-smoke/video/a.webm", sizeBytes: 10 }],
+    } as unknown as GetRunDetailResponse);
+
+    renderWithQueryClient(
+      <WorkflowsTab
+        scenarioSlug="git-control-tower"
+        repoId={null}
+        testGenieAvailable
+        onOpenBaselines={vi.fn()}
       />,
     );
 
-    expect(screen.getByText("Review changed files")).toBeInTheDocument();
-    expect(screen.getByText(/files have changed since this capture/i)).toBeInTheDocument();
+    // Run row renders once the list resolves.
+    fireEvent.click(await screen.findByText("run-abc"));
 
-    const captureSummary = screen.getByRole("button", { name: /capture.*1 failed.*1 skipped/i });
-    expect(captureSummary).toHaveTextContent("Stale");
-    expect(captureSummary).toHaveTextContent("Failed");
-
-    fireEvent.click(screen.getByText("Review changed files"));
-
-    expect(screen.getByText(/expected review panel to load/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /watch/i }));
+    // Expanding fetches detail and renders a Watch button per video.
+    fireEvent.click(await screen.findByRole("button", { name: /login-smoke/i }));
 
     expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
     const videoSrc = document.querySelector("video")?.getAttribute("src");
-    expect(videoSrc).toContain("/repo/workflow-captures/capture-workflow/video/");
-    expect(videoSrc).toContain("Review%20changed%20files");
-
-    fireEvent.click(screen.getByRole("button", { name: /baseline.*1 passed.*1 skipped/i }));
-
-    expect(onViewRoleChange).toHaveBeenCalledWith("baseline");
-    expect(screen.getByText("Open dashboard")).toBeInTheDocument();
-
-    const table = screen.getByRole("table");
-    expect(within(table).queryByText("Review changed files")).not.toBeInTheDocument();
-  });
-
-  it("does not start workflows when all execution modes are deselected", () => {
-    const onBaseline = vi.fn();
-
-    render(
-      <WorkflowsTab
-        scenarioSlug="git-control-tower"
-        basAvailable
-        isRunning={false}
-        onBaseline={onBaseline}
-        onCapture={vi.fn()}
-        initialSelectedModes={["observer"] satisfies ExecutionMode[]}
-      />,
-    );
-
-    fireEvent.click(screen.getByLabelText("observer"));
-
-    expect(screen.getByRole("button", { name: /set baseline/i })).toBeDisabled();
-    expect(onBaseline).not.toHaveBeenCalled();
+    expect(videoSrc).toContain("/repo/workflow-runs/run-abc/video");
+    expect(videoSrc).toContain("automation/login-smoke/video/a.webm");
   });
 });

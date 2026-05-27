@@ -6,6 +6,7 @@ import type { TestExecutionResult, TestPhaseResult, AgentContextItem } from "../
 import { AttachToAgentButton } from "./AgentTab";
 import { testFailureContextItems } from "../lib/agentContext";
 import { MutationErrorBanner, ServiceUnavailableBanner, formatDuration } from "./ScenarioReviewPanelShared";
+import { BaselineSurfaceSection } from "../features/baselines/BaselineSurfaceSection";
 
 export function TestsTab({
   scenarioSlug,
@@ -13,12 +14,14 @@ export function TestsTab({
   testGenieAvailable,
   agentManagerAvailable,
   onAttachToAgent,
+  onOpenBaselines,
 }: {
   scenarioSlug: string;
   repoId?: string | null;
   testGenieAvailable: boolean;
   agentManagerAvailable?: boolean;
   onAttachToAgent?: (item: AgentContextItem) => void;
+  onOpenBaselines?: () => void;
 }) {
   const testExecutions = useTestExecutions(scenarioSlug, testGenieAvailable, repoId);
   const triggerTest = useTriggerTestExecution(repoId);
@@ -36,6 +39,14 @@ export function TestsTab({
   return (
     <div className="space-y-4">
       <MutationErrorBanner error={triggerTest.error} onDismiss={() => triggerTest.reset()} />
+      {onOpenBaselines && (
+        <BaselineSurfaceSection
+          scenario={scenarioSlug}
+          surface="tests"
+          repoId={repoId}
+          onOpenBaselines={onOpenBaselines}
+        />
+      )}
       {/* Run Tests button */}
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-medium text-slate-400">Test Execution</h3>

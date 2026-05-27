@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { ClipboardCheck, Loader2, ChevronDown, Anchor, Camera } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "./ui/card";
-import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useWorkflowCaptures, useTriggerWorkflowCapture } from "../lib/hooks";
+import { useVisualCaptures, useTriggerVisualCapture, useCapabilities } from "../lib/hooks";
 import { getCapturePresets, setCapturePresets as saveCapturePresets } from "../lib/api";
-import type { CapturePreset, SnapshotSetMeta, RepoFileStats, AgentContextItem, ExecutionMode } from "../lib/api";
+import type { CapturePreset, SnapshotSetMeta, RepoFileStats, AgentContextItem } from "../lib/api";
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
 import { AgentTab } from "./AgentTab";
 import { AIProvenanceTab } from "./AIProvenanceTab";
@@ -16,8 +16,9 @@ import { WorkflowsTab } from "./ScenarioReviewPanelWorkflows";
 import { TestsTab } from "./ScenarioReviewPanelTests";
 import { CodeQualityTab } from "./ScenarioReviewPanelCodeQuality";
 import { RulesTab } from "./ScenarioReviewPanelRules";
+import { BaselinesTab } from "../features/baselines/BaselinesTab";
 
-type Tab = "overview" | "metrics" | "screenshots" | "workflows" | "tests" | "code-quality" | "rules" | "ai-provenance" | "agent";
+type Tab = "overview" | "baselines" | "metrics" | "screenshots" | "workflows" | "tests" | "code-quality" | "rules" | "ai-provenance" | "agent";
 
 interface ScenarioReviewPanelProps {
   scenarioSlug: string;
@@ -112,22 +113,9 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
   const handleBaseline = useCallback(() => triggerCapture.mutate({ scenarioSlug, mode: "baseline", presets: presetConfig }), [triggerCapture, scenarioSlug, presetConfig]);
   const handleCapture = useCallback(() => triggerCapture.mutate({ scenarioSlug, mode: "capture", presets: presetConfig }), [triggerCapture, scenarioSlug, presetConfig]);
 
-  const workflowCapturesQuery = useWorkflowCaptures(scenarioSlug, true, repoId);
-  const triggerWorkflow = useTriggerWorkflowCapture(repoId);
-  const workflowCaptures = workflowCapturesQuery.data?.captures ?? [];
-  const workflowBaseline = workflowCaptures.find(c => c.role === "baseline");
-  const workflowCapture = workflowCaptures.find(c => c.role === "capture");
-  const workflowStaleness = workflowCapturesQuery.data?.staleness;
-  const isRunningWorkflows = triggerWorkflow.isPending;
-  const handleWorkflowBaseline = useCallback((executionModes: ExecutionMode[]) => {
-    triggerWorkflow.mutate({ scenarioSlug, mode: "baseline", executionModes });
-  }, [triggerWorkflow, scenarioSlug]);
-  const handleWorkflowCapture = useCallback((executionModes: ExecutionMode[]) => {
-    triggerWorkflow.mutate({ scenarioSlug, mode: "capture", executionModes });
-  }, [triggerWorkflow, scenarioSlug]);
-
   const tabLabels: Record<Tab, string> = {
     overview: "Overview",
+    baselines: "Baselines",
     metrics: "Metrics",
     screenshots: "Screenshots",
     workflows: "Workflows",
@@ -203,6 +191,13 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           fileStats={scenarioFileStats}
           agentManagerAvailable={agentManagerAvailable}
           onAttachToAgent={addAgentContext}
+          onOpenBaselines={() => setActiveTab("baselines")}
+        />
+      ) : activeTab === "baselines" ? (
+        <BaselinesTab
+          scenarioSlug={scenarioSlug}
+          repoId={repoId}
+          onOpenTab={(tab) => setActiveTab(tab)}
         />
       ) : activeTab === "metrics" ? (
         scenarioFileStats ? <AggregateMetricsContent fileStats={scenarioFileStats} /> : null
@@ -239,20 +234,10 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
         )
       ) : activeTab === "workflows" ? (
         <WorkflowsTab
-          baseline={workflowBaseline}
-          capture={workflowCapture}
-          captureStaleness={workflowStaleness}
           scenarioSlug={scenarioSlug}
-          basAvailable={basAvailable}
-          isRunning={isRunningWorkflows}
-          onBaseline={handleWorkflowBaseline}
-          onCapture={handleWorkflowCapture}
-          mutationError={triggerWorkflow.error}
-          onDismissError={() => triggerWorkflow.reset()}
-          initialSelectedModes={scenarioState?.workflows.selectedModes}
-          initialViewRole={scenarioState?.workflows.viewRole}
-          onSelectedModesChange={(modes) => onScenarioStateChange?.({ workflows: { selectedModes: modes } })}
-          onViewRoleChange={(role) => onScenarioStateChange?.({ workflows: { viewRole: role } })}
+          repoId={repoId}
+          testGenieAvailable={testGenieAvailable}
+          onOpenBaselines={() => setActiveTab("baselines")}
         />
       ) : activeTab === "tests" ? (
         <TestsTab
@@ -261,6 +246,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           testGenieAvailable={testGenieAvailable}
           agentManagerAvailable={agentManagerAvailable}
           onAttachToAgent={addAgentContext}
+          onOpenBaselines={() => setActiveTab("baselines")}
         />
       ) : activeTab === "code-quality" ? (
         <CodeQualityTab
@@ -282,6 +268,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           onAttachToAgent={addAgentContext}
           initialJobId={scenarioState?.rules.jobId}
           onJobIdChange={(id) => onScenarioStateChange?.({ rules: { jobId: id } })}
+          onOpenBaselines={() => setActiveTab("baselines")}
         />
       ) : activeTab === "ai-provenance" ? (
         <AIProvenanceTab repoId={repoId} />

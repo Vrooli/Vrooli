@@ -42,8 +42,6 @@ export const queryKeys = {
     ["repo", "visual-captures", repoId ?? "default", "detail", id, slug] as const,
   captureStorage: (repoId?: string | null) =>
     ["repo", "visual-capture-storage", repoId ?? "default"] as const,
-  workflowCaptures: (slug: string, repoId?: string | null) =>
-    ["repo", "workflow-captures", repoId ?? "default", slug] as const,
   testExecutions: (scenarioName: string, repoId?: string | null) =>
     ["repo", "test-executions", repoId ?? "default", scenarioName] as const,
   testExecution: (id: string, repoId?: string | null) =>
@@ -78,6 +76,16 @@ export const queryKeys = {
     ["review", "summary", repoId ?? "default", scenarioName] as const,
   reviewJob: (jobId: string, repoId?: string | null) =>
     ["review", "job", repoId ?? "default", jobId] as const,
+  baselines: (scenario: string, scope: string, repoId?: string | null) =>
+    ["baselines", repoId ?? "default", scenario, scope] as const,
+  baseline: (scenario: string, name: string, branch: string, repoId?: string | null) =>
+    ["baselines", repoId ?? "default", scenario, "detail", name, branch] as const,
+  baselineDiff: (scenario: string, name: string, branch: string, surface: string, repoId?: string | null) =>
+    ["baselines", repoId ?? "default", scenario, "diff", name, branch, surface] as const,
+  workflowRuns: (scenario: string, repoId?: string | null) =>
+    ["workflow-runs", repoId ?? "default", scenario] as const,
+  workflowRunDetail: (scenario: string, runId: string, repoId?: string | null) =>
+    ["workflow-runs", repoId ?? "default", scenario, "detail", runId] as const,
 };
 
 const REPO_STORAGE_KEY = "gct.activeRepoId";

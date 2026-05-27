@@ -177,6 +177,52 @@ func (s *Service) GetPhaseArtifact(ctx context.Context, req *connect.Request[run
 	}), nil
 }
 
+// ListRunVideos enumerates the recorded workflow videos for a run. The binary
+// content is served by the REST artifact route; this returns the relative-path
+// handles that route consumes.
+func (s *Service) ListRunVideos(ctx context.Context, req *connect.Request[runspb.ListRunVideosRequest]) (*connect.Response[runspb.ListRunVideosResponse], error) {
+	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	if err != nil {
+		return nil, err
+	}
+	runID := strings.TrimSpace(req.Msg.GetRunId())
+	if runID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("run_id is required"))
+	}
+	videos, err := sharedartifacts.ListRunVideos(dir, runID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := make([]*runspb.RunVideo, 0, len(videos))
+	for _, v := range videos {
+		out = append(out, &runspb.RunVideo{
+			Workflow:  v.Workflow,
+			RelPath:   v.RelPath,
+			SizeBytes: v.SizeBytes,
+		})
+	}
+	return connect.NewResponse(&runspb.ListRunVideosResponse{Videos: out}), nil
+}
+
+// ResolveArtifact maps a (scenario, runID, run-relative path) to an absolute
+// filesystem path under the run's artifact root, rejecting traversal. Used by
+// the REST binary artifact route to stream videos without exposing
+// scenariosRoot. Returns os.ErrNotExist when the resolved file is missing.
+func (s *Service) ResolveArtifact(scenario, runID, relPath string) (string, error) {
+	dir, err := s.scenarioDir(scenario)
+	if err != nil {
+		return "", err
+	}
+	abs, err := sharedartifacts.ResolveRunArtifact(dir, strings.TrimSpace(runID), relPath)
+	if err != nil {
+		return "", err
+	}
+	if _, statErr := os.Stat(abs); statErr != nil {
+		return "", statErr
+	}
+	return abs, nil
+}
+
 func mapRunError(err error) error {
 	switch {
 	case errors.Is(err, sharedruns.ErrRunNotFound):

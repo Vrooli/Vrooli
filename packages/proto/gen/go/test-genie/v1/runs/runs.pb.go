@@ -1217,6 +1217,164 @@ func (x *GetPhaseArtifactResponse) GetContentType() string {
 	return ""
 }
 
+// RunVideo describes one recorded workflow video, addressable by a path
+// relative to the run's artifact root.
+type RunVideo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Workflow      string                 `protobuf:"bytes,1,opt,name=workflow,proto3" json:"workflow,omitempty"`
+	RelPath       string                 `protobuf:"bytes,2,opt,name=rel_path,json=relPath,proto3" json:"rel_path,omitempty"` // path relative to the run dir; handle for the binary route
+	SizeBytes     int64                  `protobuf:"varint,3,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunVideo) Reset() {
+	*x = RunVideo{}
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunVideo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunVideo) ProtoMessage() {}
+
+func (x *RunVideo) ProtoReflect() protoreflect.Message {
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunVideo.ProtoReflect.Descriptor instead.
+func (*RunVideo) Descriptor() ([]byte, []int) {
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *RunVideo) GetWorkflow() string {
+	if x != nil {
+		return x.Workflow
+	}
+	return ""
+}
+
+func (x *RunVideo) GetRelPath() string {
+	if x != nil {
+		return x.RelPath
+	}
+	return ""
+}
+
+func (x *RunVideo) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+type ListRunVideosRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRunVideosRequest) Reset() {
+	*x = ListRunVideosRequest{}
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRunVideosRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRunVideosRequest) ProtoMessage() {}
+
+func (x *ListRunVideosRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRunVideosRequest.ProtoReflect.Descriptor instead.
+func (*ListRunVideosRequest) Descriptor() ([]byte, []int) {
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ListRunVideosRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *ListRunVideosRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+type ListRunVideosResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Videos        []*RunVideo            `protobuf:"bytes,1,rep,name=videos,proto3" json:"videos,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRunVideosResponse) Reset() {
+	*x = ListRunVideosResponse{}
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRunVideosResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRunVideosResponse) ProtoMessage() {}
+
+func (x *ListRunVideosResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRunVideosResponse.ProtoReflect.Descriptor instead.
+func (*ListRunVideosResponse) Descriptor() ([]byte, []int) {
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ListRunVideosResponse) GetVideos() []*RunVideo {
+	if x != nil {
+		return x.Videos
+	}
+	return nil
+}
+
 var File_test_genie_v1_runs_runs_proto protoreflect.FileDescriptor
 
 const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
@@ -1306,7 +1464,17 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x05phase\x18\x03 \x01(\tR\x05phase\"W\n" +
 	"\x18GetPhaseArtifactResponse\x12\x18\n" +
 	"\acontent\x18\x01 \x01(\tR\acontent\x12!\n" +
-	"\fcontent_type\x18\x02 \x01(\tR\vcontentType2\xe8\x05\n" +
+	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\"`\n" +
+	"\bRunVideo\x12\x1a\n" +
+	"\bworkflow\x18\x01 \x01(\tR\bworkflow\x12\x19\n" +
+	"\brel_path\x18\x02 \x01(\tR\arelPath\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x03 \x01(\x03R\tsizeBytes\"I\n" +
+	"\x14ListRunVideosRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"T\n" +
+	"\x15ListRunVideosResponse\x12;\n" +
+	"\x06videos\x18\x01 \x03(\v2#.vrooli.test_genie.v1.runs.RunVideoR\x06videos2\xdc\x06\n" +
 	"\vRunsService\x12c\n" +
 	"\bListRuns\x12*.vrooli.test_genie.v1.runs.ListRunsRequest\x1a+.vrooli.test_genie.v1.runs.ListRunsResponse\x12]\n" +
 	"\x06GetRun\x12(.vrooli.test_genie.v1.runs.GetRunRequest\x1a).vrooli.test_genie.v1.runs.GetRunResponse\x12f\n" +
@@ -1314,7 +1482,8 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x06PinRun\x12(.vrooli.test_genie.v1.runs.PinRunRequest\x1a).vrooli.test_genie.v1.runs.PinRunResponse\x12c\n" +
 	"\bUnpinRun\x12*.vrooli.test_genie.v1.runs.UnpinRunRequest\x1a+.vrooli.test_genie.v1.runs.UnpinRunResponse\x12l\n" +
 	"\vCompareRuns\x12-.vrooli.test_genie.v1.runs.CompareRunsRequest\x1a..vrooli.test_genie.v1.runs.CompareRunsResponse\x12{\n" +
-	"\x10GetPhaseArtifact\x122.vrooli.test_genie.v1.runs.GetPhaseArtifactRequest\x1a3.vrooli.test_genie.v1.runs.GetPhaseArtifactResponseBKZIgithub.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs;runs_v1b\x06proto3"
+	"\x10GetPhaseArtifact\x122.vrooli.test_genie.v1.runs.GetPhaseArtifactRequest\x1a3.vrooli.test_genie.v1.runs.GetPhaseArtifactResponse\x12r\n" +
+	"\rListRunVideos\x12/.vrooli.test_genie.v1.runs.ListRunVideosRequest\x1a0.vrooli.test_genie.v1.runs.ListRunVideosResponseBKZIgithub.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs;runs_v1b\x06proto3"
 
 var (
 	file_test_genie_v1_runs_runs_proto_rawDescOnce sync.Once
@@ -1328,7 +1497,7 @@ func file_test_genie_v1_runs_runs_proto_rawDescGZIP() []byte {
 	return file_test_genie_v1_runs_runs_proto_rawDescData
 }
 
-var file_test_genie_v1_runs_runs_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_test_genie_v1_runs_runs_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_test_genie_v1_runs_runs_proto_goTypes = []any{
 	(*DiagnosticsInfo)(nil),          // 0: vrooli.test_genie.v1.runs.DiagnosticsInfo
 	(*PinInfo)(nil),                  // 1: vrooli.test_genie.v1.runs.PinInfo
@@ -1349,6 +1518,9 @@ var file_test_genie_v1_runs_runs_proto_goTypes = []any{
 	(*CompareRunsResponse)(nil),      // 16: vrooli.test_genie.v1.runs.CompareRunsResponse
 	(*GetPhaseArtifactRequest)(nil),  // 17: vrooli.test_genie.v1.runs.GetPhaseArtifactRequest
 	(*GetPhaseArtifactResponse)(nil), // 18: vrooli.test_genie.v1.runs.GetPhaseArtifactResponse
+	(*RunVideo)(nil),                 // 19: vrooli.test_genie.v1.runs.RunVideo
+	(*ListRunVideosRequest)(nil),     // 20: vrooli.test_genie.v1.runs.ListRunVideosRequest
+	(*ListRunVideosResponse)(nil),    // 21: vrooli.test_genie.v1.runs.ListRunVideosResponse
 }
 var file_test_genie_v1_runs_runs_proto_depIdxs = []int32{
 	2,  // 0: vrooli.test_genie.v1.runs.RunInfo.phases:type_name -> vrooli.test_genie.v1.runs.PhaseInfo
@@ -1359,25 +1531,28 @@ var file_test_genie_v1_runs_runs_proto_depIdxs = []int32{
 	3,  // 5: vrooli.test_genie.v1.runs.PinRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
 	3,  // 6: vrooli.test_genie.v1.runs.UnpinRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
 	15, // 7: vrooli.test_genie.v1.runs.CompareRunsResponse.phases:type_name -> vrooli.test_genie.v1.runs.PhaseDiff
-	4,  // 8: vrooli.test_genie.v1.runs.RunsService.ListRuns:input_type -> vrooli.test_genie.v1.runs.ListRunsRequest
-	6,  // 9: vrooli.test_genie.v1.runs.RunsService.GetRun:input_type -> vrooli.test_genie.v1.runs.GetRunRequest
-	8,  // 10: vrooli.test_genie.v1.runs.RunsService.DeleteRun:input_type -> vrooli.test_genie.v1.runs.DeleteRunRequest
-	10, // 11: vrooli.test_genie.v1.runs.RunsService.PinRun:input_type -> vrooli.test_genie.v1.runs.PinRunRequest
-	12, // 12: vrooli.test_genie.v1.runs.RunsService.UnpinRun:input_type -> vrooli.test_genie.v1.runs.UnpinRunRequest
-	14, // 13: vrooli.test_genie.v1.runs.RunsService.CompareRuns:input_type -> vrooli.test_genie.v1.runs.CompareRunsRequest
-	17, // 14: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:input_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactRequest
-	5,  // 15: vrooli.test_genie.v1.runs.RunsService.ListRuns:output_type -> vrooli.test_genie.v1.runs.ListRunsResponse
-	7,  // 16: vrooli.test_genie.v1.runs.RunsService.GetRun:output_type -> vrooli.test_genie.v1.runs.GetRunResponse
-	9,  // 17: vrooli.test_genie.v1.runs.RunsService.DeleteRun:output_type -> vrooli.test_genie.v1.runs.DeleteRunResponse
-	11, // 18: vrooli.test_genie.v1.runs.RunsService.PinRun:output_type -> vrooli.test_genie.v1.runs.PinRunResponse
-	13, // 19: vrooli.test_genie.v1.runs.RunsService.UnpinRun:output_type -> vrooli.test_genie.v1.runs.UnpinRunResponse
-	16, // 20: vrooli.test_genie.v1.runs.RunsService.CompareRuns:output_type -> vrooli.test_genie.v1.runs.CompareRunsResponse
-	18, // 21: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:output_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactResponse
-	15, // [15:22] is the sub-list for method output_type
-	8,  // [8:15] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	19, // 8: vrooli.test_genie.v1.runs.ListRunVideosResponse.videos:type_name -> vrooli.test_genie.v1.runs.RunVideo
+	4,  // 9: vrooli.test_genie.v1.runs.RunsService.ListRuns:input_type -> vrooli.test_genie.v1.runs.ListRunsRequest
+	6,  // 10: vrooli.test_genie.v1.runs.RunsService.GetRun:input_type -> vrooli.test_genie.v1.runs.GetRunRequest
+	8,  // 11: vrooli.test_genie.v1.runs.RunsService.DeleteRun:input_type -> vrooli.test_genie.v1.runs.DeleteRunRequest
+	10, // 12: vrooli.test_genie.v1.runs.RunsService.PinRun:input_type -> vrooli.test_genie.v1.runs.PinRunRequest
+	12, // 13: vrooli.test_genie.v1.runs.RunsService.UnpinRun:input_type -> vrooli.test_genie.v1.runs.UnpinRunRequest
+	14, // 14: vrooli.test_genie.v1.runs.RunsService.CompareRuns:input_type -> vrooli.test_genie.v1.runs.CompareRunsRequest
+	17, // 15: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:input_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactRequest
+	20, // 16: vrooli.test_genie.v1.runs.RunsService.ListRunVideos:input_type -> vrooli.test_genie.v1.runs.ListRunVideosRequest
+	5,  // 17: vrooli.test_genie.v1.runs.RunsService.ListRuns:output_type -> vrooli.test_genie.v1.runs.ListRunsResponse
+	7,  // 18: vrooli.test_genie.v1.runs.RunsService.GetRun:output_type -> vrooli.test_genie.v1.runs.GetRunResponse
+	9,  // 19: vrooli.test_genie.v1.runs.RunsService.DeleteRun:output_type -> vrooli.test_genie.v1.runs.DeleteRunResponse
+	11, // 20: vrooli.test_genie.v1.runs.RunsService.PinRun:output_type -> vrooli.test_genie.v1.runs.PinRunResponse
+	13, // 21: vrooli.test_genie.v1.runs.RunsService.UnpinRun:output_type -> vrooli.test_genie.v1.runs.UnpinRunResponse
+	16, // 22: vrooli.test_genie.v1.runs.RunsService.CompareRuns:output_type -> vrooli.test_genie.v1.runs.CompareRunsResponse
+	18, // 23: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:output_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactResponse
+	21, // 24: vrooli.test_genie.v1.runs.RunsService.ListRunVideos:output_type -> vrooli.test_genie.v1.runs.ListRunVideosResponse
+	17, // [17:25] is the sub-list for method output_type
+	9,  // [9:17] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_test_genie_v1_runs_runs_proto_init() }
@@ -1391,7 +1566,7 @@ func file_test_genie_v1_runs_runs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_test_genie_v1_runs_runs_proto_rawDesc), len(file_test_genie_v1_runs_runs_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

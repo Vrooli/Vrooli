@@ -207,3 +207,27 @@ class GetPhaseArtifactResponse(_message.Message):
     content: str
     content_type: str
     def __init__(self, content: _Optional[str] = ..., content_type: _Optional[str] = ...) -> None: ...
+
+class RunVideo(_message.Message):
+    __slots__ = ("workflow", "rel_path", "size_bytes")
+    WORKFLOW_FIELD_NUMBER: _ClassVar[int]
+    REL_PATH_FIELD_NUMBER: _ClassVar[int]
+    SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    workflow: str
+    rel_path: str
+    size_bytes: int
+    def __init__(self, workflow: _Optional[str] = ..., rel_path: _Optional[str] = ..., size_bytes: _Optional[int] = ...) -> None: ...
+
+class ListRunVideosRequest(_message.Message):
+    __slots__ = ("scenario", "run_id")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    run_id: str
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
+
+class ListRunVideosResponse(_message.Message):
+    __slots__ = ("videos",)
+    VIDEOS_FIELD_NUMBER: _ClassVar[int]
+    videos: _containers.RepeatedCompositeFieldContainer[RunVideo]
+    def __init__(self, videos: _Optional[_Iterable[_Union[RunVideo, _Mapping]]] = ...) -> None: ...

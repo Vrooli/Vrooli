@@ -154,7 +154,8 @@ func (i *interceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) co
 // covers the "agent runs curl directly" path.
 func callerFromHeader(h interface {
 	Get(string) string
-}, detection config.CallerDetection) cliutil.CallerKind {
+}, detection config.CallerDetection,
+) cliutil.CallerKind {
 	switch strings.ToLower(strings.TrimSpace(h.Get(HeaderCaller))) {
 	case "human":
 		return cliutil.CallerKindHuman

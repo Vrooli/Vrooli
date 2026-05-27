@@ -233,12 +233,15 @@ func (noopMutator) Remove(context.Context, string, string, bool) error { return 
 func (noopMutator) Lock(context.Context, worktree.LockInput) (worktree.Worktree, error) {
 	return worktree.Worktree{}, nil
 }
+
 func (noopMutator) Unlock(context.Context, string, string) (worktree.Worktree, error) {
 	return worktree.Worktree{}, nil
 }
+
 func (noopMutator) Move(context.Context, worktree.MoveInput) (worktree.Worktree, error) {
 	return worktree.Worktree{}, nil
 }
+
 func (noopMutator) Prune(context.Context, worktree.PruneInput) (worktree.PruneResult, error) {
 	return worktree.PruneResult{}, nil
 }

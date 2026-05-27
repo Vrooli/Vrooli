@@ -42,24 +42,25 @@ describe("deepMerge", () => {
   });
 
   test("array values replace rather than merge", () => {
-    const result = deepMerge(DEFAULT_STATE, {
-      workflows: { selectedModes: ["mutating", "destructive"] },
-    });
-    expect(result.workflows.selectedModes).toEqual(["mutating", "destructive"]);
-    // viewRole sibling preserved
-    expect(result.workflows.viewRole).toBe("capture");
+    // ScenarioReviewState has no array fields; exercise the generic deepMerge
+    // array-replacement branch with an ad-hoc object.
+    const base = { tags: ["a", "b"], nested: { x: 1 } };
+    const result = deepMerge(base, { tags: ["c"] });
+    expect(result.tags).toEqual(["c"]);
+    // sibling preserved
+    expect(result.nested.x).toBe(1);
   });
 
   test("multiple nested patches compose correctly", () => {
     let state = deepMerge(DEFAULT_STATE, { activeTab: "tests" as ReviewTab });
     state = deepMerge(state, { screenshots: { activePresetIndex: 2 } });
-    state = deepMerge(state, { workflows: { viewRole: "baseline" } });
+    state = deepMerge(state, { codeQuality: { view: "scenario" } });
 
     expect(state.activeTab).toBe("tests");
     expect(state.screenshots.activePresetIndex).toBe(2);
     expect(state.screenshots.selectedPage).toBe(0);
-    expect(state.workflows.viewRole).toBe("baseline");
-    expect(state.workflows.selectedModes).toEqual(["observer"]);
+    expect(state.codeQuality.view).toBe("scenario");
+    expect(state.rules.jobId).toBeNull();
   });
 
   test("empty patch returns a copy of base", () => {
@@ -99,7 +100,6 @@ describe("loadState", () => {
     // Missing fields filled from defaults
     expect(state.agentRunId).toBeNull();
     expect(state.screenshots).toEqual(DEFAULT_STATE.screenshots);
-    expect(state.workflows).toEqual(DEFAULT_STATE.workflows);
     expect(state.codeQuality).toEqual(DEFAULT_STATE.codeQuality);
     expect(state.rules).toEqual(DEFAULT_STATE.rules);
   });
@@ -130,7 +130,6 @@ describe("loadState", () => {
       activeTab: "workflows",
       agentRunId: "run-abc",
       screenshots: { activePresetIndex: 2, selectedPage: 5 },
-      workflows: { selectedModes: ["mutating"], viewRole: "baseline" },
       codeQuality: { view: "scenario" },
       rules: { jobId: "job-xyz" },
     };
@@ -149,7 +148,7 @@ describe("saveState", () => {
       ...DEFAULT_STATE,
       activeTab: "agent",
       agentRunId: "run-456",
-      workflows: { selectedModes: ["destructive"], viewRole: "baseline" },
+      codeQuality: { view: "scenario" },
     };
     saveState("roundtrip", state);
     expect(loadState("roundtrip")).toEqual(state);

@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { ReviewTab } from "./useUrlState";
-import type { ExecutionMode } from "../lib/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -12,10 +11,6 @@ export interface ScenarioReviewState {
   screenshots: {
     activePresetIndex: number;
     selectedPage: number;
-  };
-  workflows: {
-    selectedModes: ExecutionMode[];
-    viewRole: "baseline" | "capture";
   };
   codeQuality: {
     view: "changed" | "scenario";
@@ -38,7 +33,6 @@ export const DEFAULT_STATE: ScenarioReviewState = {
   activeTab: "overview",
   agentRunId: null,
   screenshots: { activePresetIndex: 0, selectedPage: 0 },
-  workflows: { selectedModes: ["observer"], viewRole: "capture" },
   codeQuality: { view: "changed" },
   rules: { jobId: null },
 };

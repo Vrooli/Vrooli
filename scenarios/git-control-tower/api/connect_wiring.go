@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"os/exec"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/connectx"
 
 	baselineH "git-control-tower/handlers/baseline"
 	repoH "git-control-tower/handlers/repo"
+	workflowreplayH "git-control-tower/handlers/workflowreplay"
 	worktreeH "git-control-tower/handlers/worktree"
 	"git-control-tower/internal/policygate"
 	repoD "git-control-tower/internal/repo"
@@ -68,9 +70,17 @@ func (s *Server) mountConnectHandlers() {
 		Repos:   baselineRepoResolver{repos: s.repos},
 	}, policyOpt)
 
+	// WorkflowReplay: thin proxy over test-genie playbooks runs for the
+	// Workflows tab (Decision 3 — the UI never calls test-genie directly).
+	// Reads are quick, so a short discovery-resolved client timeout suffices.
+	wrPath, wrHandler := workflowreplayH.NewHandler(workflowreplayH.Deps{
+		Runs: newWorkflowReplayRunsClient(30 * time.Second),
+	}, policyOpt)
+
 	connectx.RegisterServices(s.router,
 		connectx.ServiceMount{Path: wtPath, Handler: wtHandler},
 		connectx.ServiceMount{Path: repoPath, Handler: repoHandler},
 		connectx.ServiceMount{Path: baselinePath, Handler: baselineHandler},
+		connectx.ServiceMount{Path: wrPath, Handler: wrHandler},
 	)
 }

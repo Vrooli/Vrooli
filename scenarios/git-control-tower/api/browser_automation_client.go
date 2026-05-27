@@ -256,9 +256,9 @@ func (c *BrowserAutomationClient) doRaw(ctx context.Context, path string) ([]byt
 // Proto → legacy conversions.
 //
 // The legacy struct shapes (BASExecuteResponse, BASExecutionDetail,
-// BASScreenshotsResponse, BASRecordedVideosResponse) are preserved so callers
-// (visual_capture_service, workflow_capture_service) don't have to migrate
-// alongside this client.
+// BASScreenshotsResponse, BASRecordedVideosResponse) are preserved so the
+// visual-capture (screenshots) caller doesn't have to migrate alongside this
+// client.
 // -----------------------------------------------------------------------------
 
 func executeAdhocResponseToLegacy(msg *bas_execution.ExecuteAdhocResponse) *BASExecuteResponse {

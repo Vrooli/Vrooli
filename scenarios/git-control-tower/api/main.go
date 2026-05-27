@@ -205,6 +205,9 @@ func (s *Server) initServices() {
 	s.scenarioLocator = NewScenarioLocator(30 * time.Second)
 	s.envelopeCache = NewEnvelopeCache(60 * time.Second)
 	s.visualCaptureStorage = NewVisualCaptureStorage(s.storageResolver, OSFileIO{})
+	// One-shot, idempotent removal of the legacy workflow-captures data trees
+	// the deleted workflow-capture stack left behind (Plan B Decision 5).
+	cleanupOrphanedWorkflowCaptures(s.visualCaptureStorage)
 	s.periodicCapture = NewPeriodicCapture(PeriodicCaptureConfig{
 		Interval: 1 * time.Hour, MaxSnapshots: 10,
 	}, s.capabilities, s.basClient, s.visualCaptureStorage, s.repos, s.git)

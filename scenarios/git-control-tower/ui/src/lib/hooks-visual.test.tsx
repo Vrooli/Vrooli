@@ -7,7 +7,6 @@ import {
   useTriggerTestExecution,
   useTriggerTidinessScan,
   useTriggerVisualCapture,
-  useTriggerWorkflowCapture,
   useVisualCaptures,
 } from "./hooks-visual";
 import { queryKeys } from "./hooks-query-keys";
@@ -19,8 +18,6 @@ const mockTriggerVisualCapture = vi.fn();
 const mockFetchCaptureStorageStats = vi.fn();
 const mockDeleteVisualCapture = vi.fn();
 const mockClearAllCaptureStorage = vi.fn();
-const mockFetchWorkflowCaptures = vi.fn();
-const mockTriggerWorkflowCapture = vi.fn();
 const mockFetchTestExecutions = vi.fn();
 const mockFetchTestExecution = vi.fn();
 const mockTriggerTestExecution = vi.fn();
@@ -37,8 +34,6 @@ vi.mock("./api", () => ({
   fetchCaptureStorageStats: (...args: unknown[]) => mockFetchCaptureStorageStats(...args),
   deleteVisualCapture: (...args: unknown[]) => mockDeleteVisualCapture(...args),
   clearAllCaptureStorage: (...args: unknown[]) => mockClearAllCaptureStorage(...args),
-  fetchWorkflowCaptures: (...args: unknown[]) => mockFetchWorkflowCaptures(...args),
-  triggerWorkflowCapture: (...args: unknown[]) => mockTriggerWorkflowCapture(...args),
   fetchTestExecutions: (...args: unknown[]) => mockFetchTestExecutions(...args),
   fetchTestExecution: (...args: unknown[]) => mockFetchTestExecution(...args),
   triggerTestExecution: (...args: unknown[]) => mockTriggerTestExecution(...args),
@@ -63,14 +58,6 @@ describe("visual, test, and tidiness hooks", () => {
       snapshots: [],
     });
     mockDeleteVisualCapture.mockResolvedValue(undefined);
-    mockTriggerWorkflowCapture.mockResolvedValue({
-      id: "wf-1",
-      scenario_slug: "git-control-tower",
-      mode: "capture",
-      status: "completed",
-      created_at: "2026-05-01T00:00:00Z",
-      executions: [],
-    });
     mockFetchTestExecutions.mockResolvedValue({ executions: [] });
     mockTriggerTestExecution.mockResolvedValue({
       id: "test-1",
@@ -159,31 +146,6 @@ describe("visual, test, and tidiness hooks", () => {
       });
       expect(invalidateSpy).toHaveBeenCalledWith({
         queryKey: queryKeys.visualCaptures("git-control-tower", "repo-3"),
-      });
-    });
-  });
-
-  it("triggers workflow capture and invalidates workflow history", async () => {
-    const { result, queryClient } = renderHookWithQueryClient(() => useTriggerWorkflowCapture("repo-4"));
-    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
-
-    await act(async () => {
-      await result.current.mutateAsync({
-        scenarioSlug: "git-control-tower",
-        mode: "baseline",
-        executionModes: ["observer"],
-      });
-    });
-
-    await waitFor(() => {
-      expect(mockTriggerWorkflowCapture).toHaveBeenCalledWith(
-        "git-control-tower",
-        "baseline",
-        ["observer"],
-        "repo-4",
-      );
-      expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.workflowCaptures("git-control-tower", "repo-4"),
       });
     });
   });

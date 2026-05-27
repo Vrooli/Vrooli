@@ -6,6 +6,7 @@ import type { AgentContextItem } from "../lib/api";
 import { AttachToAgentButton } from "./AgentTab";
 import { ruleViolationContextItems, rulesSummaryContextItem } from "../lib/agentContext";
 import { MutationErrorBanner, ServiceUnavailableBanner } from "./ScenarioReviewPanelShared";
+import { BaselineSurfaceSection } from "../features/baselines/BaselineSurfaceSection";
 
 export function RulesTab({
   scenarioSlug,
@@ -15,6 +16,7 @@ export function RulesTab({
   onAttachToAgent,
   initialJobId,
   onJobIdChange,
+  onOpenBaselines,
 }: {
   scenarioSlug: string;
   repoId?: string | null;
@@ -23,6 +25,7 @@ export function RulesTab({
   onAttachToAgent?: (item: AgentContextItem) => void;
   initialJobId?: string | null;
   onJobIdChange?: (id: string | null) => void;
+  onOpenBaselines?: () => void;
 }) {
   const startCheck = useStartAuditorCheck(repoId);
   const [jobId, setJobIdInternal] = useState<string | null>(initialJobId ?? null);
@@ -80,6 +83,14 @@ export function RulesTab({
   return (
     <div className="space-y-4">
       <MutationErrorBanner error={startCheck.error} onDismiss={() => startCheck.reset()} />
+      {onOpenBaselines && (
+        <BaselineSurfaceSection
+          scenario={scenarioSlug}
+          surface="rules"
+          repoId={repoId}
+          onOpenBaselines={onOpenBaselines}
+        />
+      )}
 
       {/* Progress / summary bar */}
       <div className="flex items-center justify-between">

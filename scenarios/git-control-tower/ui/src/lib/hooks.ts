@@ -69,8 +69,6 @@ export {
   useCaptureStorageStats,
   useDeleteVisualCapture,
   useClearAllCaptureStorage,
-  useWorkflowCaptures,
-  useTriggerWorkflowCapture,
   useTestExecutions,
   useTestExecution,
   useTriggerTestExecution,

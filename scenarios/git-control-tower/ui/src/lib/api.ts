@@ -203,11 +203,6 @@ export type {
   SnapshotSetDetail,
   VisualCaptureListResponse,
   CaptureStorageStats,
-  ExecutionMode,
-  WorkflowExecutionResult,
-  WorkflowCaptureResult,
-  WorkflowCaptureListResponse,
-  WorkflowCaptureDetailResponse,
 } from "./api-visual";
 export {
   SIZE_PRESETS,
@@ -226,10 +221,6 @@ export {
   buildCaptureScreenshotUrl,
   fetchScreenshotPath,
   buildCaptureVideoUrl,
-  triggerWorkflowCapture,
-  fetchWorkflowCaptures,
-  fetchWorkflowCaptureDetail,
-  buildWorkflowVideoUrl,
 } from "./api-visual";
 
 // Test execution & tidiness

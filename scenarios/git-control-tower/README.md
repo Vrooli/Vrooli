@@ -9,6 +9,23 @@ This directory currently contains **scaffolding only** (PRD + requirements + lif
 - CLI wrapper for agent-friendly invocation
 - Web UI dashboard for interactive review (diff viewer, staging, health)
 
+## Baselines — the primary review primitive
+
+A **baseline** captures a scenario's review surfaces (workflows, tests,
+structure, visuals, rules) at a point in time so you can answer *"did my change
+cause this failure, or was it already failing?"* without touching the working
+tree — the regression-diagnosis replacement for `git stash`.
+
+- **UI**: the **Baselines tab** is the cross-surface management view (set,
+  compare, edit, delete). The Tests/Rules tabs show a "vs. baseline" diff, and
+  the Workflows tab is a focused view of test-genie playbooks runs (with video).
+- **CLI** (agent surface): `git-control-tower baseline {snapshot,diff,list,show,delete,create,edit}`.
+
+A baseline owns no artifacts — it is a manifest of pointers into surfaces that
+already store their own results (test-genie runs; GCT-local snapshots). See
+[`docs/baseline-model.md`](docs/baseline-model.md) for the architecture,
+branch-scoping, adapters, and concurrent-agent safety.
+
 ## Operational Targets
 See `scenarios/git-control-tower/PRD.md:1`.
 

@@ -296,6 +296,13 @@ func (s *Server) setupRoutes() {
 	if s.runsService != nil {
 		path, handler := runs_v1connect.NewRunsServiceHandler(s.runsService)
 		s.router.PathPrefix(path).Handler(handler)
+
+		// Binary artifact route: streams a run's recorded video (or other
+		// artifact) by run-relative path. Structured enumeration is Connect
+		// (RunsService.ListRunVideos); binary bytes stream over REST so the
+		// browser <video> element can range-request them. Consumed (proxied)
+		// by git-control-tower's WorkflowReplayService.
+		apiRouter.HandleFunc("/scenarios/{name}/runs/{runId}/artifact", s.handleGetRunArtifact).Methods("GET")
 	}
 
 	// Tool Discovery Protocol routes

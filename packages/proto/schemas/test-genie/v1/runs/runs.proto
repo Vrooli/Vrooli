@@ -42,6 +42,11 @@ service RunsService {
   rpc CompareRuns(CompareRunsRequest) returns (CompareRunsResponse);
   // GetPhaseArtifact returns the raw phase-results JSON for a run+phase.
   rpc GetPhaseArtifact(GetPhaseArtifactRequest) returns (GetPhaseArtifactResponse);
+  // ListRunVideos enumerates the recorded workflow videos for a run. The bytes
+  // themselves are served over a binary REST route (videos stream rather than
+  // round-trip through proto); the rel_path here is the handle that route
+  // takes. Consumed by git-control-tower's WorkflowReplayService.
+  rpc ListRunVideos(ListRunVideosRequest) returns (ListRunVideosResponse);
 }
 
 // DiagnosticsInfo is the serialized diagnostics profile a run executed with.
@@ -170,4 +175,21 @@ message GetPhaseArtifactRequest {
 message GetPhaseArtifactResponse {
   string content = 1;      // raw phase-results JSON
   string content_type = 2; // "application/json"
+}
+
+// RunVideo describes one recorded workflow video, addressable by a path
+// relative to the run's artifact root.
+message RunVideo {
+  string workflow = 1;
+  string rel_path = 2;    // path relative to the run dir; handle for the binary route
+  int64 size_bytes = 3;
+}
+
+message ListRunVideosRequest {
+  string scenario = 1;
+  string run_id = 2;
+}
+
+message ListRunVideosResponse {
+  repeated RunVideo videos = 1;
 }

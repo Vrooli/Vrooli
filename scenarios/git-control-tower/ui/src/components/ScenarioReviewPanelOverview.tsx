@@ -8,6 +8,7 @@ import { aggregateFileStats, formatNetLines } from "../lib/metrics";
 import { AttachToAgentButton } from "./AgentTab";
 import { testFailureContextItems, changeSummaryContextItem, scenarioQualityContextItem } from "../lib/agentContext";
 import { formatDuration, formatRelativeTime, formatStalenessMessage } from "./ScenarioReviewPanelShared";
+import { BaselineDriftCallout } from "../features/baselines/BaselineDriftCallout";
 
 export function OverviewTab({
   baseline,
@@ -24,6 +25,7 @@ export function OverviewTab({
   fileStats,
   agentManagerAvailable,
   onAttachToAgent,
+  onOpenBaselines,
 }: {
   baseline?: SnapshotSetMeta;
   capture?: SnapshotSetMeta;
@@ -39,6 +41,7 @@ export function OverviewTab({
   fileStats?: RepoFileStats;
   agentManagerAvailable?: boolean;
   onAttachToAgent?: (item: AgentContextItem) => void;
+  onOpenBaselines?: () => void;
 }) {
   const testExecutions = useTestExecutions(scenarioSlug, testGenieAvailable, repoId);
   const latestTest = testExecutions.data?.items?.[0] as TestExecutionResult | undefined;
@@ -108,6 +111,9 @@ export function OverviewTab({
 
   return (
     <div className="space-y-4">
+      {onOpenBaselines && (
+        <BaselineDriftCallout scenario={scenarioSlug} repoId={repoId} onOpenBaselines={onOpenBaselines} />
+      )}
       {/* Scenario Info Card */}
       <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
         <div className="flex items-center justify-between mb-2">

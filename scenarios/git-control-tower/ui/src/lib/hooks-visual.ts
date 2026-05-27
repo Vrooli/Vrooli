@@ -11,8 +11,6 @@ import {
   fetchCaptureStorageStats,
   deleteVisualCapture,
   clearAllCaptureStorage,
-  fetchWorkflowCaptures,
-  triggerWorkflowCapture,
   fetchTestExecutions,
   fetchTestExecution,
   triggerTestExecution,
@@ -28,9 +26,6 @@ import type {
   SnapshotSetMeta,
   SnapshotSetDetail,
   CaptureStorageStats,
-  WorkflowCaptureResult,
-  WorkflowCaptureListResponse,
-  ExecutionMode,
   TestExecutionRequest,
   TestExecutionResult,
   TestExecutionListResponse,
@@ -102,33 +97,6 @@ export function useClearAllCaptureStorage(repoId?: string | null) {
     mutationFn: () => clearAllCaptureStorage(repoId ?? undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.captureStorage(repoId) });
-    },
-  });
-}
-
-// ── Workflow Capture ───────────────────────────────────────────────────
-
-export function useWorkflowCaptures(slug: string, enabled = true, repoId?: string | null) {
-  return useQuery<WorkflowCaptureListResponse, Error>({
-    queryKey: queryKeys.workflowCaptures(slug, repoId),
-    queryFn: () => fetchWorkflowCaptures(slug, repoId ?? undefined),
-    enabled: enabled && Boolean(slug),
-    refetchInterval: 10_000,
-  });
-}
-
-export function useTriggerWorkflowCapture(repoId?: string | null) {
-  const queryClient = useQueryClient();
-  return useMutation<WorkflowCaptureResult, Error, { scenarioSlug: string; mode: "baseline" | "capture"; executionModes: ExecutionMode[] }>({
-    mutationFn: async ({ scenarioSlug, mode, executionModes }) => {
-      const result = await triggerWorkflowCapture(scenarioSlug, mode, executionModes, repoId ?? undefined);
-      if (result.status === "failed") {
-        throw new Error(result.error || "Workflow capture failed");
-      }
-      return result;
-    },
-    onSuccess: (_data, { scenarioSlug }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workflowCaptures(scenarioSlug, repoId) });
     },
   });
 }

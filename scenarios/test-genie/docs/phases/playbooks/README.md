@@ -245,6 +245,23 @@ Configure the playbooks phase in `.vrooli/testing.json`:
 
 Set `TEST_GENIE_PLAYBOOKS_RETAIN=1` before running the Playbooks phase to keep the temporary Postgres/Redis/SQLite resources alive after execution. The phase logs will print `psql`/`redis-cli` commands targeting retained services and will report retained SQLite database paths when SQLite isolation is provisioned. By default, isolation is torn down and the scenario is restarted against its normal resources after Playbooks completes.
 
+## Consumers: git-control-tower baselines
+
+Playbooks runs are append-only records in the run index (`coverage/runs.index.json`),
+each keyed by a stable runID. **git-control-tower does not capture its own
+workflow runs** — it *pins* test-genie playbooks runs as baseline surface
+pointers (`gct:baseline:<name>`), so retention GC can't reclaim a run a baseline
+references, and compares the baseline run against the current run for regression
+diagnosis. (This replaced GCT's former parallel workflow-capture stack.)
+
+To support that, `RunsService` exposes:
+
+- `ListRunVideos(scenario, run_id)` — enumerates a run's recorded workflow
+  videos (`automation/<workflow>/video/*.webm`) as run-relative paths.
+- `GET /api/v1/scenarios/{name}/runs/{runId}/artifact?path=<rel>` — streams an
+  artifact binary (traversal-guarded to the run dir). GCT proxies this so its UI
+  can play the videos single-origin.
+
 ## Related Documentation
 
 - [Directory Structure](directory-structure.md) - Canonical layout, fixtures, seeds, naming conventions
