@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ScreenshotsTab } from "./ScenarioReviewPanelScreenshots";
 import { WorkflowsTab } from "./ScenarioReviewPanelWorkflows";
@@ -15,6 +15,14 @@ vi.mock("../lib/api-workflowreplay", () => ({
   workflowVideoUrl: (scenario: string, runId: string, relPath: string) =>
     `/api/v1/repo/workflow-runs/${runId}/video?scenario=${scenario}&path=${relPath}`,
 }));
+
+// Baselines come from BaselinesService; the surface bar/selector list them. The
+// tests below exercise the loose-capture paths, so an empty baseline list is
+// the realistic default.
+vi.mock("../lib/api-baselines", async () => {
+  const actual = await vi.importActual<typeof import("../lib/api-baselines")>("../lib/api-baselines");
+  return { ...actual, listBaselines: vi.fn().mockResolvedValue([]) };
+});
 
 function run(overrides: Partial<RunSummary> = {}): RunSummary {
   return {
@@ -45,16 +53,16 @@ const mobilePreset: CapturePreset = {
   theme: "dark",
 };
 
-function snapshot(role: "baseline" | "capture", overrides: Partial<SnapshotSetMeta> = {}): SnapshotSetMeta {
+function capture(overrides: Partial<SnapshotSetMeta> = {}): SnapshotSetMeta {
   return {
-    id: `${role}-snap`,
+    id: "capture-snap",
     scenarioSlug: "git-control-tower",
-    role,
+    role: "capture",
     triggerType: "manual",
     pages: ["/", "/settings"],
     screenshotCount: 4,
     videoCount: 0,
-    createdAt: role === "baseline" ? "2026-05-01T12:00:00Z" : "2026-05-01T12:10:00Z",
+    createdAt: "2026-05-01T12:10:00Z",
     sizeBytes: 2048,
     status: "complete",
     presets: [desktopPreset, mobilePreset],
@@ -64,43 +72,63 @@ function snapshot(role: "baseline" | "capture", overrides: Partial<SnapshotSetMe
 }
 
 describe("ScreenshotsTab", () => {
-  it("shows the unavailable empty state without browser automation", () => {
-    render(
+  it("shows the service message (no baseline vocabulary) when browser automation is unavailable", () => {
+    renderWithQueryClient(
       <ScreenshotsTab
         scenarioSlug="git-control-tower"
         isMobile={false}
         basAvailable={false}
         isCapturing={false}
-        onBaseline={vi.fn()}
         onCapture={vi.fn()}
+        onOpenBaselines={vi.fn()}
         presetConfig={[desktopPreset]}
         onPresetConfigChange={vi.fn()}
       />,
     );
 
-    expect(screen.getByText("No captures yet")).toBeInTheDocument();
+    expect(screen.getByText("No visuals captured yet")).toBeInTheDocument();
     expect(screen.getByText(/start browser-automation-studio/i)).toBeInTheDocument();
+    // Decision 1: no "set/reset baseline" vocabulary for screenshot snapshots.
     expect(screen.queryByRole("button", { name: /set baseline/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reset baseline/i })).not.toBeInTheDocument();
   });
 
-  it("switches captured presets and pages while preserving caller state", () => {
-    const onBaseline = vi.fn();
+  it("offers two capture intents (loose vs baseline) when nothing is captured", () => {
+    const onCapture = vi.fn();
+    renderWithQueryClient(
+      <ScreenshotsTab
+        scenarioSlug="git-control-tower"
+        isMobile={false}
+        basAvailable
+        isCapturing={false}
+        onCapture={onCapture}
+        onOpenBaselines={vi.fn()}
+        presetConfig={[desktopPreset]}
+        onPresetConfigChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /capture screenshots/i }));
+    expect(onCapture).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: /capture baseline/i })).toBeInTheDocument();
+  });
+
+  it("renders the current capture and switches presets/pages while preserving caller state", () => {
     const onCapture = vi.fn();
     const onPresetIndexChange = vi.fn();
     const onSelectedPageChange = vi.fn();
     const onAttachToAgent = vi.fn();
 
-    render(
+    renderWithQueryClient(
       <ScreenshotsTab
-        baseline={snapshot("baseline")}
-        capture={snapshot("capture")}
+        capture={capture()}
         captureStaleness={{ isStale: true }}
         scenarioSlug="git-control-tower"
         isMobile={false}
         basAvailable
         isCapturing={false}
-        onBaseline={onBaseline}
         onCapture={onCapture}
+        onOpenBaselines={vi.fn()}
         presetConfig={[desktopPreset, mobilePreset]}
         onPresetConfigChange={vi.fn()}
         agentManagerAvailable
@@ -117,19 +145,19 @@ describe("ScreenshotsTab", () => {
     expect(onSelectedPageChange).toHaveBeenCalledWith(1);
     expect(screen.getByText(/files have changed since this capture/i)).toBeInTheDocument();
     expect(screen.getByText("Page:")).toHaveTextContent("Page: /settings");
+    // Decision 1: even with data present, no "set/reset baseline" snapshot vocabulary.
+    expect(screen.queryByRole("button", { name: /set baseline/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reset baseline/i })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /reset baseline/i }));
     fireEvent.click(screen.getByRole("button", { name: /^re-capture$/i }));
-
-    expect(onBaseline).toHaveBeenCalledOnce();
     expect(onCapture).toHaveBeenCalledOnce();
 
     const attachButtons = screen.getAllByText("+ Agent");
-    const baselineAttachButton = attachButtons[0];
-    if (!baselineAttachButton) {
+    const attachButton = attachButtons[0];
+    if (!attachButton) {
       throw new Error("Expected screenshot attach button to render");
     }
-    fireEvent.click(baselineAttachButton);
+    fireEvent.click(attachButton);
 
     expect(onAttachToAgent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -142,22 +170,21 @@ describe("ScreenshotsTab", () => {
 });
 
 describe("WorkflowsTab", () => {
-  it("shows the empty state and routes 'Set baseline' to the Baselines tab", async () => {
+  it("shows the two-action empty state (loose run + capture baseline)", async () => {
     vi.mocked(listRecentRuns).mockResolvedValue([]);
-    const onOpenBaselines = vi.fn();
 
     renderWithQueryClient(
       <WorkflowsTab
         scenarioSlug="git-control-tower"
         repoId={null}
         testGenieAvailable
-        onOpenBaselines={onOpenBaselines}
+        onOpenBaselines={vi.fn()}
       />,
     );
 
-    expect(await screen.findByText(/no playbooks runs yet/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /set baseline/i }));
-    expect(onOpenBaselines).toHaveBeenCalled();
+    expect(await screen.findByText("No workflows captured yet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /run playbooks/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /capture baseline/i })).toBeInTheDocument();
   });
 
   it("reports when test-genie is unavailable", () => {

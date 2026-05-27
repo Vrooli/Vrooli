@@ -27,7 +27,7 @@ func (a *visualsAdapter) Available(_ context.Context, _ Target) bool {
 }
 
 func (a *visualsAdapter) Capture(ctx context.Context, t Target, _ CaptureOptions) (SurfacePointer, error) {
-	snap, err := a.vis.Capture(ctx, t.RepoID, t.RepoDir, t.Scenario)
+	snap, err := a.vis.Capture(ctx, t.RepoID, t.RepoDir, t.Scenario, true /* pinned */)
 	if err != nil {
 		return SurfacePointer{}, fmt.Errorf("visuals capture: %w", err)
 	}
@@ -45,6 +45,14 @@ func (a *visualsAdapter) Capture(ctx context.Context, t Target, _ CaptureOptions
 	}, nil
 }
 
+// Release deletes the pinned snapshot when the owning baseline is deleted.
+func (a *visualsAdapter) Release(ctx context.Context, repoID int64, scenario string, ptr SurfacePointer) error {
+	if a.vis == nil || ptr.Ref == "" {
+		return nil
+	}
+	return a.vis.Delete(ctx, repoID, scenario, ptr.Ref)
+}
+
 func (a *visualsAdapter) Diff(ctx context.Context, t Target, ptr SurfacePointer) (SurfaceDiff, error) {
 	base, ok, err := a.vis.Get(ctx, t.RepoID, t.Scenario, ptr.Ref)
 	if err != nil {
@@ -53,7 +61,7 @@ func (a *visualsAdapter) Diff(ctx context.Context, t Target, ptr SurfacePointer)
 	if !ok {
 		return notComparable(SurfaceVisuals, "baseline visual snapshot missing"), nil
 	}
-	current, err := a.vis.Capture(ctx, t.RepoID, t.RepoDir, t.Scenario)
+	current, err := a.vis.Capture(ctx, t.RepoID, t.RepoDir, t.Scenario, false /* transient */)
 	if err != nil {
 		return notComparable(SurfaceVisuals, "current capture failed: "+err.Error()), nil
 	}

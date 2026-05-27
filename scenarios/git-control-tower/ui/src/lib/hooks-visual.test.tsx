@@ -90,7 +90,6 @@ describe("visual, test, and tidiness hooks", () => {
     await act(async () => {
       await result.current.mutateAsync({
         scenarioSlug: "git-control-tower",
-        mode: "capture",
         presets: [{ name: "Desktop Light", width: 1440, height: 900, theme: "light" }],
       });
     });
@@ -98,7 +97,6 @@ describe("visual, test, and tidiness hooks", () => {
     await waitFor(() => {
       expect(mockTriggerVisualCapture).toHaveBeenCalledWith(
         "git-control-tower",
-        "capture",
         "repo-2",
         [{ name: "Desktop Light", width: 1440, height: 900, theme: "light" }],
       );
@@ -123,7 +121,6 @@ describe("visual, test, and tidiness hooks", () => {
 
     await expect(result.current.mutateAsync({
       scenarioSlug: "git-control-tower",
-      mode: "capture",
       presets: [],
     })).rejects.toThrow("Browser unavailable");
   });

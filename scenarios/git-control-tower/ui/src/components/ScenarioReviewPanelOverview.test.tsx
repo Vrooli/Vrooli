@@ -94,7 +94,6 @@ function fileStats(): RepoFileStats {
 
 function renderOverview(overrides: Partial<Parameters<typeof OverviewTab>[0]> = {}) {
   const onAttachToAgent = vi.fn();
-  const onBaseline = vi.fn();
   const onCapture = vi.fn();
 
   renderWithQueryClient(
@@ -105,7 +104,6 @@ function renderOverview(overrides: Partial<Parameters<typeof OverviewTab>[0]> = 
       testGenieAvailable
       tidinessAvailable
       isCapturing={false}
-      onBaseline={onBaseline}
       onCapture={onCapture}
       agentManagerAvailable
       onAttachToAgent={onAttachToAgent}
@@ -113,7 +111,7 @@ function renderOverview(overrides: Partial<Parameters<typeof OverviewTab>[0]> = 
     />,
   );
 
-  return { onAttachToAgent, onBaseline, onCapture };
+  return { onAttachToAgent, onCapture };
 }
 
 beforeEach(() => {
@@ -165,12 +163,6 @@ describe("OverviewTab", () => {
     mocks.fetchExternalUrl.mockResolvedValue("https://git-control-tower.local/");
 
     renderOverview({
-      baseline: snapshot({
-        id: "baseline-1",
-        role: "baseline",
-        screenshotCount: 1,
-        createdAt: "2026-05-01T10:00:00Z",
-      }),
       capture: snapshot({
         pageDiscoveryMethod: "fallback",
       }),
@@ -273,13 +265,12 @@ describe("OverviewTab", () => {
     mocks.useTidinessStaleness.mockReturnValue({ data: undefined });
     mocks.useReviewSummary.mockReturnValue({ data: undefined });
 
-    const { onBaseline } = renderOverview({
+    renderOverview({
       basAvailable: false,
       testGenieAvailable: false,
       tidinessAvailable: false,
       agentManagerAvailable: false,
       capture: undefined,
-      baseline: undefined,
     });
 
     expect(screen.getByText("No data")).toBeInTheDocument();
@@ -287,7 +278,7 @@ describe("OverviewTab", () => {
     expect(screen.getByText(/start test-genie/i)).toBeInTheDocument();
     expect(screen.getByText(/start tidiness-manager/i)).toBeInTheDocument();
     expect(screen.queryByText("+ Agent")).not.toBeInTheDocument();
+    // Decision 1: no "set baseline" vocabulary for screenshot snapshots.
     expect(screen.queryByRole("button", { name: /set baseline/i })).not.toBeInTheDocument();
-    expect(onBaseline).not.toHaveBeenCalled();
   });
 });

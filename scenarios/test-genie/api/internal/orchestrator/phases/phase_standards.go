@@ -24,31 +24,18 @@ const (
 	defaultStandardsMinDisplay  = "medium"
 )
 
-// Re-export eligibility types as the package-local types this file (and its
-// tests) previously owned. This keeps the auditor wiring in a single place
-// (the eligibility package) while preserving the existing test surface.
-type (
-	auditorSummaryResponse        = eligibility.SummaryResponse
-	auditorScanArtifactRef        = eligibility.ScanArtifactRef
-	auditorRuleCount              = eligibility.RuleCount
-	auditorViolationExcerpt       = eligibility.ViolationExcerpt
-	auditorViolationSummary       = eligibility.ViolationSummary
-	auditorStandardsStartResponse = eligibility.StandardsStartResponse
-	auditorStandardsStatus        = eligibility.StandardsStatus
-)
+// auditorViolationSummary is the package-local alias for the eligibility
+// summary type returned by fetchAuditorStandardsSummary below.
+type auditorViolationSummary = eligibility.ViolationSummary
 
 // Re-bind the eligibility package's seam variables to package-level vars so
 // tests can override them without importing eligibility.
-var (
-	resolveScenarioAuditorBaseURL = eligibility.ResolveBaseURL
-)
+var resolveScenarioAuditorBaseURL = eligibility.ResolveBaseURL
 
 // Test-friendly aliases for the moved auditor helpers.
 var (
-	parseAuditorStandardsSummary      = eligibility.ParseSummary
-	startAuditorStandardsScan         = eligibility.StartScan
-	fetchAuditorStandardsStatus       = eligibility.FetchStatus
-	fetchAuditorStandardsSummaryByJob = eligibility.FetchSummaryByJob
+	parseAuditorStandardsSummary = eligibility.ParseSummary
+	startAuditorStandardsScan    = eligibility.StartScan
 )
 
 func fetchAuditorStandardsSummary(ctx context.Context, logWriter io.Writer, baseURL, scenarioName string, mapping workspace.Mapping, summaryLimit int) (*auditorViolationSummary, error) {

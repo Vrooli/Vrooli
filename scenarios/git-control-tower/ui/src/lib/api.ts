@@ -194,7 +194,6 @@ export type {
   CaptureTrigger,
   CaptureStatus,
   SnapshotRole,
-  CaptureMode,
   CaptureTheme,
   CapturePreset,
   SnapshotStalenessInfo,

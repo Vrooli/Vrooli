@@ -216,6 +216,7 @@ func New(config Config, deps Dependencies) (*Server, error) {
 }
 
 func (s *Server) setupRoutes() {
+	s.router.Use(s.securityHeadersMiddleware)
 	s.router.Use(s.loggingMiddleware)
 	// Health endpoint at root for infrastructure agents
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
@@ -365,6 +366,22 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		next.ServeHTTP(w, r)
 		s.logger.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
+	})
+}
+
+// securityHeadersMiddleware sets baseline OWASP security headers and the
+// permissive CORS policy used across the API on every response. Origin is a
+// wildcard without credentials, so no credentialed-wildcard exposure exists.
+func (s *Server) securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Vrooli-Actor, X-Update-Key")
+		next.ServeHTTP(w, r)
 	})
 }
 

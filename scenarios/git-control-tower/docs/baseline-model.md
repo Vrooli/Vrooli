@@ -119,7 +119,36 @@ flowchart TB
 - **CLI** (agent surface): `git-control-tower baseline {snapshot,diff,list,show,delete,create,edit}`.
   Always explicit — every command requires `--name`.
 - **UI** (human surface): the **Baselines tab** is the cross-surface management
-  view; Tests/Rules tabs read baseline diffs; the Workflows tab is a focused
-  view of playbooks runs. A per-device "default baseline" (localStorage) lets
-  the read-only tabs know which baseline to diff against; the CLI/API ignore
-  this convenience and always require an explicit name (Decision 4).
+  view. Every baseline-includable surface tab (Screenshots, Workflows, Tests,
+  Rules) behaves identically through one shared primitive set in
+  `ui/src/features/baselines/`:
+  - **`SurfaceCaptureEmptyState`** — when nothing is captured, two intents
+    (Plan C Decision 2): *capture loose* (run the tool, show the result, create
+    no manifest — for mid-change progress checks) and *capture baseline* (open
+    `SetBaselineModal` scoped to that surface via `preselectedSurfaces`).
+  - **`SurfaceBaselineBar` + `BaselineSelector`** — shown once data exists:
+    states what you're viewing, switches the default baseline inline, and runs
+    or exits an on-demand compare.
+  - **`SurfaceComparePanel` + `useCompareOnDemand`** — the single compare path
+    (Decision 3); tests/rules/workflows re-run the surface server-side, while
+    Screenshots compares instantaneously by reading the selected baseline's
+    `visuals` pointer (the "before" pane) against the current loose capture (the
+    "after").
+  A per-device "default baseline" (localStorage) drives which baseline the bar
+  compares against; the CLI/API ignore this convenience and always require an
+  explicit name (Decision 4).
+
+### One meaning of "baseline" (Plan C Decision 1)
+
+The UI uses "baseline" to mean a `BaselineManifest` and nothing else. There is
+no UI action that creates a `role=baseline` visual *snapshot* directly — the
+visual-capture path only ever produces loose captures. Baseline-pinned visual
+snapshots are produced solely by the baseline snapshot flow:
+
+- The visuals adapter captures with **baseline mode** (`role=baseline`), which
+  is **additive** — routine loose captures (capture mode, replacing the single
+  `role=capture` snapshot) never touch pinned snapshots, so many baselines'
+  screenshots coexist.
+- When a baseline is deleted, its exclusively-owned visual snapshot is released
+  via the adapter's optional `SurfaceReleaser` (test-genie surfaces unpin shared
+  runs instead).

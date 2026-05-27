@@ -100,7 +100,9 @@ func runRelease(client *Client, args []string) error {
 	if !yes {
 		fmt.Print("\nForce-release this claim? [y/N]: ")
 		var resp string
-		fmt.Scanln(&resp)
+		// A read error (EOF/empty input) leaves resp empty, which the check
+		// below treats as "N" — the safe default for a destructive prompt.
+		_, _ = fmt.Scanln(&resp)
 		if !strings.EqualFold(strings.TrimSpace(resp), "y") {
 			fmt.Println("Aborted.")
 			return nil

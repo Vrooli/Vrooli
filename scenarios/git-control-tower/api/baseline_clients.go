@@ -127,14 +127,22 @@ type baselineVisualClient struct {
 	fs      FileIO
 }
 
-func (v baselineVisualClient) Capture(ctx context.Context, repoID int64, repoDir, scenario string) (baseline.VisualSnapshot, error) {
+func (v baselineVisualClient) Capture(ctx context.Context, repoID int64, repoDir, scenario string, pinned bool) (baseline.VisualSnapshot, error) {
+	// Pinned captures use baseline mode (role=baseline, additive) so routine
+	// loose captures never delete them and multiple baselines coexist. Transient
+	// captures (the "current" side of a diff) use capture mode — they replace the
+	// single loose snapshot and don't accumulate.
+	mode := CaptureModeCapture
+	if pinned {
+		mode = CaptureModeBaseline
+	}
 	meta, err := CaptureScenario(ctx, VisualCaptureDeps{
 		BAS:     v.bas,
 		Storage: v.storage,
 		FS:      v.fs,
 		RepoDir: repoDir,
 		RepoID:  repoID,
-	}, VisualCaptureRequest{ScenarioSlug: scenario, Mode: "capture", TriggerType: "manual"})
+	}, VisualCaptureRequest{ScenarioSlug: scenario, Mode: mode, TriggerType: "manual"})
 	if err != nil {
 		return baseline.VisualSnapshot{}, err
 	}
@@ -143,6 +151,14 @@ func (v baselineVisualClient) Capture(ctx context.Context, repoID int64, repoDir
 		ScreenshotCount: meta.ScreenshotCount,
 		Pages:           meta.Pages,
 	}, nil
+}
+
+// Delete removes a pinned visual snapshot when its owning baseline is deleted.
+func (v baselineVisualClient) Delete(_ context.Context, repoID int64, scenario, snapshotID string) error {
+	if snapshotID == "" {
+		return nil
+	}
+	return v.storage.DeleteSnapshotSet(repoID, scenario, snapshotID)
 }
 
 func (v baselineVisualClient) Get(ctx context.Context, repoID int64, scenario, snapshotID string) (baseline.VisualSnapshot, bool, error) {

@@ -154,3 +154,24 @@ func TestServiceDeleteUnpinsRuns(t *testing.T) {
 		t.Fatalf("expected baseline gone, got %v", err)
 	}
 }
+
+// Deleting a baseline must release its exclusively-owned visuals snapshot so
+// pinned screenshots don't leak (Plan C Phase 4).
+func TestServiceDeleteReleasesVisualsSnapshot(t *testing.T) {
+	runs := &fakeRuns{}
+	vis := &fakeVisual{capture: []VisualSnapshot{{SnapshotID: "snap-77", ScreenshotCount: 2, Pages: []string{"/"}}}}
+	adapters := map[string]SurfaceAdapter{SurfaceVisuals: NewVisualsAdapter(vis)}
+	svc, _ := newTestService(t, adapters, runs, git.State{Branch: "agi", Sha: "abc"})
+
+	if _, err := svc.Create(context.Background(), CreateRequest{
+		RepoID: 1, Scenario: "foo", Name: "p", Include: []string{SurfaceVisuals}, Capture: true,
+	}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := svc.Delete(context.Background(), 1, "foo", "agi", "p"); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if len(vis.deleted) != 1 || vis.deleted[0] != "snap-77" {
+		t.Fatalf("expected pinned visuals snapshot snap-77 released, got %+v", vis.deleted)
+	}
+}

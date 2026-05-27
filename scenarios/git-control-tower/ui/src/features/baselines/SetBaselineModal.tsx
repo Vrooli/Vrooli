@@ -37,7 +37,7 @@ export function SetBaselineModal({
   const repoStatus = useRepoStatus(repoId);
   const create = useCreateBaseline(repoId);
 
-  const branch = repoStatus.data?.branch.head ?? "";
+  const branch = repoStatus.data?.branch?.head ?? "";
   const dirty = useMemo(() => dirtyStateFromStatus(repoStatus.data), [repoStatus.data]);
 
   const [name, setName] = useState("");

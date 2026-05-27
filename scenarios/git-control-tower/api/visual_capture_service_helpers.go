@@ -142,15 +142,18 @@ func buildNavigateParams(scenarioSlug string, page LighthousePage) map[string]in
 
 // prepareForCapture handles snapshot cleanup before saving a new capture.
 //
-// Baseline mode: clears ALL existing snapshots (fresh start).
-// Capture mode: replaces existing capture-role snapshots (preserves baseline).
+// Baseline mode: additive — keeps every existing snapshot. Baseline-role
+// snapshots are pinned by BaselineManifests (one per baseline), so multiple
+// must coexist and routine captures must never disturb them; they are released
+// only when their owning baseline is deleted (Service.Delete → SurfaceReleaser).
+// Capture mode: replaces the single loose capture-role snapshot, leaving every
+// baseline-pinned snapshot intact.
 func prepareForCapture(storage *VisualCaptureStorage, repoID int64, scenarioSlug, mode string) error {
 	switch mode {
-	case CaptureModeBaseline:
-		return storage.ClearScenarioSnapshots(repoID, scenarioSlug)
 	case CaptureModeCapture:
 		return storage.DeleteSnapshotsByRole(repoID, scenarioSlug, SnapshotRoleCapture)
 	default:
+		// Baseline (and any future additive) mode: keep all existing snapshots.
 		return nil
 	}
 }

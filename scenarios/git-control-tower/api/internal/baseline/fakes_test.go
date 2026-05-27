@@ -72,9 +72,10 @@ type fakeVisual struct {
 	idx     int
 	getSnap VisualSnapshot
 	getOK   bool
+	deleted []string
 }
 
-func (f *fakeVisual) Capture(_ context.Context, _ int64, _, _ string) (VisualSnapshot, error) {
+func (f *fakeVisual) Capture(_ context.Context, _ int64, _, _ string, _ bool) (VisualSnapshot, error) {
 	if f.idx >= len(f.capture) {
 		return VisualSnapshot{}, nil
 	}
@@ -85,6 +86,11 @@ func (f *fakeVisual) Capture(_ context.Context, _ int64, _, _ string) (VisualSna
 
 func (f *fakeVisual) Get(_ context.Context, _ int64, _, _ string) (VisualSnapshot, bool, error) {
 	return f.getSnap, f.getOK, nil
+}
+
+func (f *fakeVisual) Delete(_ context.Context, _ int64, _, snapshotID string) error {
+	f.deleted = append(f.deleted, snapshotID)
+	return nil
 }
 
 // fixedGit returns a CaptureGit func yielding a fixed state.

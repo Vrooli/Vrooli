@@ -5,11 +5,10 @@
 // an on-mount fetch. Once run, each surface renders through its focused diff
 // component.
 
-import { useState } from "react";
 import { ArrowLeft, GitCompare, Loader2 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { MutationErrorBanner } from "../../components/ScenarioReviewPanelShared";
-import { useBaselineDiff } from "../../lib/hooks-baselines";
+import { useCompareOnDemand } from "../../lib/hooks-baselines";
 import { verdictMeta } from "./model";
 import { VerdictBadge } from "./parts";
 import { BaselineDetailView } from "./BaselineDetailView";
@@ -60,8 +59,11 @@ export function BaselineCompareView({
   onOpenTests,
   onOpenScreenshots,
 }: BaselineCompareViewProps) {
-  const [started, setStarted] = useState(false);
-  const diffQuery = useBaselineDiff(scenario, baseline.name, baseline.branch, { enabled: started, repoId });
+  const compare = useCompareOnDemand(scenario, {
+    baselineName: baseline.name,
+    branch: baseline.branch,
+    repoId,
+  });
 
   return (
     <div className="space-y-4">
@@ -80,45 +82,45 @@ export function BaselineCompareView({
 
       <BaselineDetailView baseline={baseline} />
 
-      {!started ? (
+      {!compare.comparing ? (
         <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-4 text-center space-y-3">
           <p className="text-xs text-slate-400">
             Comparing re-runs each captured surface against your current working tree. This can take
             a few minutes.
           </p>
-          <Button size="sm" onClick={() => setStarted(true)} className="gap-1.5">
+          <Button size="sm" onClick={compare.start} className="gap-1.5">
             <GitCompare className="h-4 w-4" />
             Compare against working tree
           </Button>
         </div>
-      ) : diffQuery.isLoading || diffQuery.isFetching ? (
+      ) : compare.isRunning ? (
         <div className="flex items-center gap-2 text-xs text-slate-400 py-8 justify-center">
           <Loader2 className="h-4 w-4 animate-spin" />
           Running surfaces — this can take a few minutes.
         </div>
-      ) : diffQuery.error ? (
-        <MutationErrorBanner error={diffQuery.error} />
-      ) : diffQuery.data ? (
+      ) : compare.error ? (
+        <MutationErrorBanner error={compare.error} />
+      ) : compare.diff ? (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-slate-500">Overall</span>
-            <VerdictBadge verdict={diffQuery.data.verdict} />
-            {diffQuery.data.staleness?.likelyStale && (
+            <VerdictBadge verdict={compare.diff.verdict} />
+            {compare.diff.staleness?.likelyStale && (
               <span className="text-xs text-amber-400">
-                {diffQuery.data.staleness.commitsSince} commits / {diffQuery.data.staleness.filesChanged} files
+                {compare.diff.staleness.commitsSince} commits / {compare.diff.staleness.filesChanged} files
                 since baseline
               </span>
             )}
           </div>
-          {diffQuery.data.dirtyWarning && (
+          {compare.diff.dirtyWarning && (
             <div className="rounded-lg border border-amber-900/40 bg-amber-950/30 p-3 text-xs text-amber-300">
-              {diffQuery.data.dirtyWarning}
+              {compare.diff.dirtyWarning}
             </div>
           )}
-          {diffQuery.data.surfaces.length === 0 ? (
+          {compare.diff.surfaces.length === 0 ? (
             <p className="text-xs text-slate-500">This baseline pinned no comparable surfaces.</p>
           ) : (
-            diffQuery.data.surfaces.map((s) =>
+            compare.diff.surfaces.map((s) =>
               renderSurface(s, { onOpenWorkflows, onOpenTests, onOpenScreenshots }),
             )
           )}

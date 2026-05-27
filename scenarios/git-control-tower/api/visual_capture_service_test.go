@@ -503,13 +503,13 @@ func TestSettleExpression(t *testing.T) {
 	}
 }
 
-func TestPrepareForCapture_BaselineMode_ClearsAll(t *testing.T) {
+func TestPrepareForCapture_BaselineMode_IsAdditive(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	resolver := testStorageResolver(t, dir)
 	store := NewVisualCaptureStorage(resolver, OSFileIO{})
 
-	// Seed baseline + capture
+	// Seed an existing baseline-pinned snapshot and a loose capture.
 	for _, m := range []SnapshotSetMeta{
 		{ID: "b1", ScenarioSlug: "s", Role: SnapshotRoleBaseline, TriggerType: "manual", CreatedAt: time.Now().UTC().Add(-2 * time.Minute), Status: "complete"},
 		{ID: "c1", ScenarioSlug: "s", Role: SnapshotRoleCapture, TriggerType: "manual", CreatedAt: time.Now().UTC(), Status: "complete"},
@@ -519,13 +519,15 @@ func TestPrepareForCapture_BaselineMode_ClearsAll(t *testing.T) {
 		}
 	}
 
+	// Baseline mode is additive: a new baseline must not disturb existing
+	// snapshots (other baselines' pins or the loose capture).
 	if err := prepareForCapture(store, 1, "s", CaptureModeBaseline); err != nil {
 		t.Fatalf("prepareForCapture baseline: %v", err)
 	}
 
 	list, _ := store.ListSnapshotSets(1, "s")
-	if len(list) != 0 {
-		t.Errorf("expected all snapshots cleared for baseline mode, got %d", len(list))
+	if len(list) != 2 {
+		t.Errorf("expected baseline mode to preserve all snapshots, got %d", len(list))
 	}
 }
 

@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { ClipboardCheck, Loader2, ChevronDown, Anchor, Camera } from "lucide-react";
+import { ClipboardCheck, Loader2, ChevronDown, Camera } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "./ui/card";
 import { useVisualCaptures, useTriggerVisualCapture, useCapabilities } from "../lib/hooks";
 import { getCapturePresets, setCapturePresets as saveCapturePresets } from "../lib/api";
-import type { CapturePreset, SnapshotSetMeta, RepoFileStats, AgentContextItem } from "../lib/api";
+import type { CapturePreset, RepoFileStats, AgentContextItem } from "../lib/api";
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
 import { AgentTab } from "./AgentTab";
 import { AIProvenanceTab } from "./AIProvenanceTab";
@@ -95,9 +95,12 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
 
   const snapshots = capturesQuery.data?.snapshots ?? [];
   const completeSnapshots = snapshots.filter(s => s.status === "complete");
-  const effectiveRole = (s: SnapshotSetMeta) => s.role || "capture";
-  const baseline = completeSnapshots.find(s => effectiveRole(s) === "baseline");
-  const capture = completeSnapshots.find(s => effectiveRole(s) === "capture");
+  // The "current" view is the most recent loose capture (Plan C Decision 1).
+  // Baseline-pinned snapshots are surfaced only through a manifest's visuals
+  // pointer (Screenshots compare mode), never as a second visual-capture slot.
+  const currentCapture = [...completeSnapshots]
+    .filter(s => (s.role || "capture") === "capture")
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
   const captureStaleness = capturesQuery.data?.staleness;
 
   const [presetConfig, setPresetConfigState] = useState<CapturePreset[]>(() => getCapturePresets(scenarioSlug));
@@ -110,8 +113,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
   }, [scenarioSlug]);
 
   const isCapturing = triggerCapture.isPending;
-  const handleBaseline = useCallback(() => triggerCapture.mutate({ scenarioSlug, mode: "baseline", presets: presetConfig }), [triggerCapture, scenarioSlug, presetConfig]);
-  const handleCapture = useCallback(() => triggerCapture.mutate({ scenarioSlug, mode: "capture", presets: presetConfig }), [triggerCapture, scenarioSlug, presetConfig]);
+  const handleCapture = useCallback(() => triggerCapture.mutate({ scenarioSlug, presets: presetConfig }), [triggerCapture, scenarioSlug, presetConfig]);
 
   const tabLabels: Record<Tab, string> = {
     overview: "Overview",
@@ -177,8 +179,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
     <div className={`flex-1 ${activeTab === "agent" ? "flex flex-col overflow-hidden" : "overflow-y-auto px-4 py-4"}`}>
       {activeTab === "overview" ? (
         <OverviewTab
-          baseline={baseline}
-          capture={capture}
+          capture={currentCapture}
           captureStaleness={captureStaleness}
           scenarioSlug={scenarioSlug}
           repoId={repoId}
@@ -186,7 +187,6 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           testGenieAvailable={testGenieAvailable}
           tidinessAvailable={tidinessAvailable}
           isCapturing={isCapturing}
-          onBaseline={handleBaseline}
           onCapture={handleCapture}
           fileStats={scenarioFileStats}
           agentManagerAvailable={agentManagerAvailable}
@@ -211,14 +211,13 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           <MutationErrorBanner error={capturesQuery.error} />
         ) : (
           <ScreenshotsTab
-            baseline={baseline}
-            capture={capture}
+            capture={currentCapture}
             captureStaleness={captureStaleness}
             scenarioSlug={scenarioSlug}
+            repoId={repoId}
             isMobile={isMobile ?? false}
             basAvailable={basAvailable}
             isCapturing={isCapturing}
-            onBaseline={handleBaseline}
             onCapture={handleCapture}
             presetConfig={presetConfig}
             onPresetConfigChange={handlePresetConfigChange}
@@ -226,6 +225,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
             onDismissError={() => triggerCapture.reset()}
             agentManagerAvailable={agentManagerAvailable}
             onAttachToAgent={addAgentContext}
+            onOpenBaselines={() => setActiveTab("baselines")}
             initialPresetIndex={scenarioState?.screenshots.activePresetIndex}
             initialSelectedPage={scenarioState?.screenshots.selectedPage}
             onPresetIndexChange={(idx) => onScenarioStateChange?.({ screenshots: { activePresetIndex: idx } })}
@@ -334,43 +334,28 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
             {scenarioSlug}
             <ChevronDown className="h-3 w-3 text-slate-500 shrink-0" />
           </button>
-          {(capture || baseline) && (
+          {currentCapture && (
             <span className="text-[11px] text-slate-500 hidden sm:inline shrink-0">
-              {capture ? `Captured ${new Date(capture.createdAt).toLocaleString()}` : baseline ? `Baseline ${new Date(baseline.createdAt).toLocaleString()}` : ""}
+              {`Captured ${new Date(currentCapture.createdAt).toLocaleString()}`}
               {captureStaleness?.isStale && <span className="ml-1 text-amber-500">(stale)</span>}
             </span>
           )}
         </CardTitle>
         <div className="flex items-center gap-1 shrink-0">
           {basAvailable && activeTab !== "agent" && (
-            <>
-              <button
-                type="button"
-                className={`${isMobile ? "h-11 w-11 touch-target" : "h-7 px-2"} inline-flex items-center justify-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors`}
-                onClick={handleBaseline}
-                disabled={isCapturing}
-                title="Set baseline (reset Before)"
-              >
-                {isCapturing ? (
-                  <Loader2 className={`${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} animate-spin`} />
-                ) : (
-                  <Anchor className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
-                )}
-              </button>
-              <button
-                type="button"
-                className={`${isMobile ? "h-11 w-11 touch-target" : "h-7 px-2"} inline-flex items-center justify-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors`}
-                onClick={handleCapture}
-                disabled={isCapturing}
-                title="Capture current state (After)"
-              >
-                {isCapturing ? (
-                  <Loader2 className={`${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} animate-spin`} />
-                ) : (
-                  <Camera className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
-                )}
-              </button>
-            </>
+            <button
+              type="button"
+              className={`${isMobile ? "h-11 w-11 touch-target" : "h-7 px-2"} inline-flex items-center justify-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors`}
+              onClick={handleCapture}
+              disabled={isCapturing}
+              title="Capture current screenshots"
+            >
+              {isCapturing ? (
+                <Loader2 className={`${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} animate-spin`} />
+              ) : (
+                <Camera className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+              )}
+            </button>
           )}
         </div>
       </CardHeader>

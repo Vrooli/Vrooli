@@ -94,7 +94,7 @@ export interface DirtyState {
 }
 
 export function dirtyStateFromStatus(status?: RepoStatus): DirtyState {
-  if (!status) return { dirty: false, modified: 0 };
+  if (!status?.summary) return { dirty: false, modified: 0 };
   const { staged, unstaged, untracked, conflicts } = status.summary;
   const modified = staged + unstaged + untracked + conflicts;
   return { dirty: modified > 0, modified };

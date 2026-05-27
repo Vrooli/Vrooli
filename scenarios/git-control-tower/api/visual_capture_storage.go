@@ -297,18 +297,6 @@ func (s *VisualCaptureStorage) DeleteSnapshotsByRole(repoID int64, scenarioSlug,
 	return nil
 }
 
-// ClearScenarioSnapshots removes all snapshots for a specific scenario.
-func (s *VisualCaptureStorage) ClearScenarioSnapshots(repoID int64, scenarioSlug string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	dir, err := s.snapshotsDir(repoID, scenarioSlug)
-	if err != nil {
-		return err
-	}
-	return os.RemoveAll(dir)
-}
-
 // ClearAllSnapshots removes all snapshots for a repo.
 func (s *VisualCaptureStorage) ClearAllSnapshots(repoID int64) error {
 	s.mu.Lock()

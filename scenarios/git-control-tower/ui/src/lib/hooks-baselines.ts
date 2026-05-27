@@ -96,6 +96,63 @@ export function useEditBaseline(repoId?: string | null) {
   });
 }
 
+// ── On-demand compare (Plan C Decision 3) ─────────────────────────────────
+// The single compare-trigger used by every surface tab AND the full
+// BaselineCompareView. A diff re-executes the surface(s) server-side (minutes),
+// so comparison is an explicit start/exit action, never an on-mount fetch.
+//
+// Pass an explicit `baselineName`/`branch` for a specific baseline (compare
+// view), or omit them to compare against the per-scenario default baseline
+// (Decision 4). A `surface` narrows the diff to one surface; "" diffs all.
+
+export interface CompareOnDemand {
+  /** True once the user has started the comparison. */
+  comparing: boolean;
+  start: () => void;
+  exit: () => void;
+  /** Resolved baseline being compared against ("" when none selected). */
+  baselineName: string;
+  /** The diff result, once a comparison has run. */
+  diff: DiffBaselineResponse | undefined;
+  /** A diff is in flight. */
+  isRunning: boolean;
+  error: Error | null;
+}
+
+export function useCompareOnDemand(
+  scenario: string,
+  opts: {
+    surface?: string;
+    baselineName?: string;
+    branch?: string;
+    repoId?: string | null;
+  } = {},
+): CompareOnDemand {
+  const { surface = "", branch = "", repoId } = opts;
+  const { defaultBaselineName } = useDefaultBaseline(scenario);
+  const baselineName = opts.baselineName ?? defaultBaselineName ?? "";
+
+  const [comparing, setComparing] = useState(false);
+  const start = useCallback(() => setComparing(true), []);
+  const exit = useCallback(() => setComparing(false), []);
+
+  const diffQuery = useBaselineDiff(scenario, baselineName, branch, {
+    surface,
+    enabled: comparing && Boolean(baselineName),
+    repoId,
+  });
+
+  return {
+    comparing,
+    start,
+    exit,
+    baselineName,
+    diff: diffQuery.data,
+    isRunning: diffQuery.isLoading || diffQuery.isFetching,
+    error: diffQuery.error,
+  };
+}
+
 // ── Default baseline (Decision 4) ────────────────────────────────────────
 // UI-only convenience: one baseline per scenario is marked "default" so the
 // Tests/Rules/Overview tabs know which baseline to diff against. Stored in

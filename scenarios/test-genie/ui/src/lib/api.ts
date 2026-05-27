@@ -1139,3 +1139,40 @@ export async function stopRequirementsImprove(
   });
   return parseResponse<{ success: boolean; message: string }>(res);
 }
+
+// PlaybooksClaim mirrors the API's claimDTO (playbooks_claims_handlers.go):
+// the concurrency-guard state for a scenario's playbooks run.
+export interface PlaybooksClaim {
+  scenario_name: string;
+  run_id: string;
+  mode: string;
+  started_by: string;
+  acquired_at: string;
+  heartbeat_at: string;
+  expires_at: string;
+  alive: boolean;
+}
+
+// fetchPlaybooksClaim returns the active playbooks claim for a scenario, or
+// null when none is held. GET /playbooks/claims/{scenario} → { claim }.
+export async function fetchPlaybooksClaim(scenario: string): Promise<PlaybooksClaim | null> {
+  const url = buildTestGenieApiUrl(`/playbooks/claims/${encodeURIComponent(scenario)}`);
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  const payload = await parseResponse<{ claim: PlaybooksClaim | null }>(res);
+  return payload.claim ?? null;
+}
+
+// releasePlaybooksClaim force-breaks the active claim for a scenario and
+// returns the released claim. POST /playbooks/claims/{scenario}/release → { released }.
+export async function releasePlaybooksClaim(scenario: string): Promise<PlaybooksClaim> {
+  const url = buildTestGenieApiUrl(`/playbooks/claims/${encodeURIComponent(scenario)}/release`);
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+  const payload = await parseResponse<{ released: PlaybooksClaim }>(res);
+  return payload.released;
+}

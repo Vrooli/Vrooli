@@ -81,7 +81,7 @@ type SelectorTreeResult<
         Extract<L[K], LiteralSelectorTree>,
         K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree
       >;
-} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : {});
+} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : unknown);
 
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 

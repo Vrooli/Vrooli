@@ -5,8 +5,10 @@ import { useTestExecutions, useTriggerTestExecution } from "../lib/hooks";
 import type { TestExecutionResult, TestPhaseResult, AgentContextItem } from "../lib/api";
 import { AttachToAgentButton } from "./AgentTab";
 import { testFailureContextItems } from "../lib/agentContext";
-import { MutationErrorBanner, ServiceUnavailableBanner, formatDuration } from "./ScenarioReviewPanelShared";
-import { BaselineSurfaceSection } from "../features/baselines/BaselineSurfaceSection";
+import { MutationErrorBanner, ServiceUnavailableBanner, formatDuration, formatRelativeTime } from "./ScenarioReviewPanelShared";
+import { SurfaceComparePanel } from "../features/baselines/SurfaceComparePanel";
+import { SurfaceCaptureEmptyState } from "../features/baselines/SurfaceCaptureEmptyState";
+import { useSurfaceBaselineModal } from "../features/baselines/useSurfaceBaselineModal";
 
 export function TestsTab({
   scenarioSlug,
@@ -26,6 +28,7 @@ export function TestsTab({
   const testExecutions = useTestExecutions(scenarioSlug, testGenieAvailable, repoId);
   const triggerTest = useTriggerTestExecution(repoId);
   const [expandedPhase, setExpandedPhase] = useState<string | null>(null);
+  const { openCaptureBaseline, baselineModal } = useSurfaceBaselineModal(scenarioSlug, "tests", repoId);
 
   if (!testGenieAvailable) {
     return <ServiceUnavailableBanner name="Test Genie" message="Start the test-genie scenario to run automated tests" />;
@@ -35,58 +38,66 @@ export function TestsTab({
   const executions = testExecutions.data?.items ?? [];
   const latest = executions[0] as TestExecutionResult | undefined;
   const history = executions.slice(1, 6);
+  const runTests = () => triggerTest.mutate({ scenarioName: scenarioSlug });
+  const openBaselines = onOpenBaselines ?? (() => {});
 
   return (
     <div className="space-y-4">
       <MutationErrorBanner error={triggerTest.error} onDismiss={() => triggerTest.reset()} />
-      {onOpenBaselines && (
-        <BaselineSurfaceSection
-          scenario={scenarioSlug}
-          surface="tests"
-          repoId={repoId}
-          onOpenBaselines={onOpenBaselines}
-        />
-      )}
-      {/* Run Tests button */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-medium text-slate-400">Test Execution</h3>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => triggerTest.mutate({ scenarioName: scenarioSlug })}
-          disabled={isRunning}
-          className="h-7 text-xs gap-1"
-        >
-          {isRunning ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <Play className="h-3 w-3" />
-          )}
-          Run Tests
-        </Button>
-      </div>
+      {baselineModal}
 
-      {/* In-progress banner */}
-      {isRunning && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-blue-950/50 border border-blue-900/50 rounded-lg text-blue-300 text-xs">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          Running tests...
-        </div>
-      )}
-
-      {/* Loading state */}
       {testExecutions.isLoading ? (
         <div className="space-y-3">
           <div className="h-24 animate-pulse bg-slate-800 rounded" />
           <div className="h-16 animate-pulse bg-slate-800 rounded" />
         </div>
       ) : !latest ? (
-        <div className="flex flex-col items-center justify-center py-8 text-slate-500">
-          <p className="text-sm">No test results yet</p>
-          <p className="text-xs mt-1">Run tests to see results here</p>
-        </div>
+        <SurfaceCaptureEmptyState
+          surface="tests"
+          hasService={testGenieAvailable}
+          onCaptureLoose={runTests}
+          onCaptureBaseline={openCaptureBaseline}
+          captureLabel="Run tests"
+          isCapturing={isRunning}
+        />
       ) : (
         <>
+          <SurfaceComparePanel
+            scenario={scenarioSlug}
+            surface="tests"
+            repoId={repoId}
+            onOpenBaselines={openBaselines}
+            onCaptureBaseline={openCaptureBaseline}
+            viewingLabel={latest.completedAt ? `last run ${formatRelativeTime(latest.completedAt)}` : "latest run"}
+          />
+
+          {/* Run Tests button */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-medium text-slate-400">Test Execution</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={runTests}
+              disabled={isRunning}
+              className="h-7 text-xs gap-1"
+            >
+              {isRunning ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Play className="h-3 w-3" />
+              )}
+              Run Tests
+            </Button>
+          </div>
+
+          {/* In-progress banner */}
+          {isRunning && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-blue-950/50 border border-blue-900/50 rounded-lg text-blue-300 text-xs">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Running tests...
+            </div>
+          )}
+
           {/* Latest execution card */}
           <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4 space-y-3">
             <div className="flex items-center justify-between">

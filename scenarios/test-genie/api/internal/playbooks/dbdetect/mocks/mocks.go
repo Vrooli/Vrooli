@@ -86,7 +86,7 @@ func (e fakeDirEntry) Name() string      { return e.name }
 func (e fakeDirEntry) IsDir() bool       { return e.isDir }
 func (e fakeDirEntry) Type() fs.FileMode { return 0 }
 func (e fakeDirEntry) Info() (fs.FileInfo, error) {
-	return fakeFileInfo{name: e.name, isDir: e.isDir}, nil
+	return fakeFileInfo(e), nil
 }
 
 type fakeFileInfo struct {

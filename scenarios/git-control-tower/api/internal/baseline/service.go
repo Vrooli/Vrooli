@@ -242,16 +242,28 @@ func (s *Service) Diff(ctx context.Context, repoID int64, repoDir, scenario, bra
 	return res, nil
 }
 
-// Delete removes a baseline and releases the test-genie runs it pinned. Visual
-// snapshots live in VisualCaptureStorage under its own retention and are left
-// alone (Decision 1 — the baseline owns pointers, not the artifacts).
+// Delete removes a baseline and releases what it pinned: shared test-genie runs
+// are unpinned, and surface artifacts owned exclusively by this baseline (the
+// visuals snapshot) are deleted via the adapter's optional SurfaceReleaser.
 func (s *Service) Delete(ctx context.Context, repoID int64, scenario, branch, name string) error {
 	manifest, err := s.storage.Load(repoID, scenario, branch, name)
 	if err != nil {
 		return err
 	}
 	s.unpinSurfaces(ctx, manifest)
+	s.releaseSurfaces(ctx, repoID, scenario, manifest)
 	return s.storage.Delete(repoID, scenario, branch, name)
+}
+
+// releaseSurfaces deletes per-baseline-owned artifacts (e.g. the pinned visuals
+// snapshot) for adapters that implement SurfaceReleaser. Best-effort, like
+// unpinSurfaces: a failed release must not block deleting the manifest.
+func (s *Service) releaseSurfaces(ctx context.Context, repoID int64, scenario string, m BaselineManifest) {
+	for id, ptr := range m.Surfaces {
+		if releaser, ok := s.adapters[id].(SurfaceReleaser); ok {
+			_ = releaser.Release(ctx, repoID, scenario, ptr)
+		}
+	}
 }
 
 // EditRequest swaps the pointer for one surface to a different test-genie run.

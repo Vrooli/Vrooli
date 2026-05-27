@@ -536,11 +536,13 @@ func (o *SuiteOrchestrator) finalizeExecution(
 	// Enforce run retention in the background so a large/old history can't grow
 	// unbounded. Pinned runs (e.g. GCT baselines) are always preserved.
 	scenarioDir := prepared.env.ScenarioDir
-	go func() {
-		if _, err := sharedruns.GC(context.Background(), scenarioDir, sharedruns.DefaultRetentionPolicy()); err != nil {
+	// Detached from the request context (it must outlive the response) but
+	// still context-aware so retention can be cancelled in the future.
+	go func(ctx context.Context) {
+		if _, err := sharedruns.GC(ctx, scenarioDir, sharedruns.DefaultRetentionPolicy()); err != nil {
 			log.Printf("run retention GC failed: %v", err)
 		}
-	}()
+	}(context.Background())
 
 	o.syncRequirementsIfNeeded(ctx, prepared.env, prepared.config, req, prepared.plan, phaseResults)
 	return result

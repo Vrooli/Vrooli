@@ -1,12 +1,14 @@
 import { useState, useCallback } from "react";
-import { RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
+import { RefreshCw, Loader2, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "./ui/button";
 import { useStartAuditorCheck, useAuditorJobStatus } from "../lib/hooks";
 import type { AgentContextItem } from "../lib/api";
 import { AttachToAgentButton } from "./AgentTab";
 import { ruleViolationContextItems, rulesSummaryContextItem } from "../lib/agentContext";
 import { MutationErrorBanner, ServiceUnavailableBanner } from "./ScenarioReviewPanelShared";
-import { BaselineSurfaceSection } from "../features/baselines/BaselineSurfaceSection";
+import { SurfaceComparePanel } from "../features/baselines/SurfaceComparePanel";
+import { SurfaceCaptureEmptyState } from "../features/baselines/SurfaceCaptureEmptyState";
+import { useSurfaceBaselineModal } from "../features/baselines/useSurfaceBaselineModal";
 
 export function RulesTab({
   scenarioSlug,
@@ -35,6 +37,8 @@ export function RulesTab({
   }, [onJobIdChange]);
   const jobStatus = useAuditorJobStatus(jobId, repoId);
   const [expandedViolation, setExpandedViolation] = useState<string | null>(null);
+  const { openCaptureBaseline, baselineModal } = useSurfaceBaselineModal(scenarioSlug, "rules", repoId);
+  const openBaselines = onOpenBaselines ?? (() => {});
 
   if (!auditorAvailable) {
     return <ServiceUnavailableBanner name="Scenario Auditor" message="Start the scenario-auditor scenario to view standards compliance and rule violations" />;
@@ -57,25 +61,16 @@ export function RulesTab({
   // No job started yet
   if (!jobId && !startCheck.data) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <p className="text-sm font-medium text-slate-400">No standards check yet</p>
-        <p className="text-xs mt-2 text-slate-600 text-center max-w-sm">
-          Run a standards check to analyze rule compliance for this scenario
-        </p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRunCheck}
-          disabled={startCheck.isPending}
-          className="mt-4 gap-1.5"
-        >
-          {startCheck.isPending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Play className="h-3.5 w-3.5" />
-          )}
-          {startCheck.isPending ? "Starting..." : "Run Check"}
-        </Button>
+      <div className="space-y-4">
+        {baselineModal}
+        <SurfaceCaptureEmptyState
+          surface="rules"
+          hasService={auditorAvailable}
+          onCaptureLoose={handleRunCheck}
+          onCaptureBaseline={openCaptureBaseline}
+          captureLabel="Run check"
+          isCapturing={startCheck.isPending}
+        />
       </div>
     );
   }
@@ -83,14 +78,15 @@ export function RulesTab({
   return (
     <div className="space-y-4">
       <MutationErrorBanner error={startCheck.error} onDismiss={() => startCheck.reset()} />
-      {onOpenBaselines && (
-        <BaselineSurfaceSection
-          scenario={scenarioSlug}
-          surface="rules"
-          repoId={repoId}
-          onOpenBaselines={onOpenBaselines}
-        />
-      )}
+      {baselineModal}
+      <SurfaceComparePanel
+        scenario={scenarioSlug}
+        surface="rules"
+        repoId={repoId}
+        onOpenBaselines={openBaselines}
+        onCaptureBaseline={openCaptureBaseline}
+        viewingLabel={isCompleted ? `${violations.length} violation${violations.length !== 1 ? "s" : ""}` : "latest check"}
+      />
 
       {/* Progress / summary bar */}
       <div className="flex items-center justify-between">

@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { ClipboardCheck, Loader2, AlertTriangle, ChevronDown, X, Anchor, Camera, Settings } from "lucide-react";
+import { ClipboardCheck, Loader2, AlertTriangle, ChevronDown, X, Camera, Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import { buildCaptureScreenshotUrl, presetSuffix, presetLabel, presetKey } from "../lib/api";
 import type { CapturePreset, CaptureTheme, SnapshotSetMeta, SnapshotStalenessInfo, AgentContextItem } from "../lib/api";
@@ -8,16 +8,20 @@ import { screenshotContextItem } from "../lib/agentContext";
 import { Popover } from "./ui/popover";
 import { MediaLightbox, MutationErrorBanner, sanitizePagePath, type LightboxItem } from "./ScenarioReviewPanelShared";
 import { PresetConfigPanel, ScreenshotImage } from "./ScenarioReviewPanelPresets";
+import { useBaselines, useDefaultBaseline, type CompareOnDemand } from "../lib/hooks-baselines";
+import { useVisualCaptureDetail } from "../lib/hooks";
+import { SurfaceCaptureEmptyState } from "../features/baselines/SurfaceCaptureEmptyState";
+import { SurfaceBaselineBar } from "../features/baselines/SurfaceBaselineBar";
+import { useSurfaceBaselineModal } from "../features/baselines/useSurfaceBaselineModal";
 
 export function ScreenshotsTab({
-  baseline,
   capture,
   captureStaleness,
   scenarioSlug,
+  repoId,
   isMobile,
   basAvailable,
   isCapturing,
-  onBaseline,
   onCapture,
   presetConfig,
   onPresetConfigChange,
@@ -25,19 +29,19 @@ export function ScreenshotsTab({
   onDismissError,
   agentManagerAvailable,
   onAttachToAgent,
+  onOpenBaselines,
   initialPresetIndex,
   initialSelectedPage,
   onPresetIndexChange,
   onSelectedPageChange,
 }: {
-  baseline?: SnapshotSetMeta;
   capture?: SnapshotSetMeta;
   captureStaleness?: SnapshotStalenessInfo;
   scenarioSlug: string;
+  repoId?: string | null;
   isMobile: boolean;
   basAvailable: boolean;
   isCapturing: boolean;
-  onBaseline: () => void;
   onCapture: () => void;
   presetConfig: CapturePreset[];
   onPresetConfigChange: (presets: CapturePreset[]) => void;
@@ -45,6 +49,7 @@ export function ScreenshotsTab({
   onDismissError?: () => void;
   agentManagerAvailable?: boolean;
   onAttachToAgent?: (item: AgentContextItem) => void;
+  onOpenBaselines: () => void;
   initialPresetIndex?: number;
   initialSelectedPage?: number;
   onPresetIndexChange?: (index: number) => void;
@@ -54,14 +59,41 @@ export function ScreenshotsTab({
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
+  const [comparing, setComparing] = useState(false);
+
+  const { openCaptureBaseline, baselineModal } = useSurfaceBaselineModal(scenarioSlug, "visuals", repoId);
+
+  // Compare mode for visuals shows the selected baseline's PINNED screenshots
+  // beside the current loose capture (Plan C Phase 4). It is instantaneous —
+  // it resolves the "before" snapshot from the manifest's visuals pointer
+  // rather than re-running a server diff (unlike tests/rules/workflows), so it
+  // drives SurfaceBaselineBar via a local CompareOnDemand handle.
+  const baselinesQuery = useBaselines(scenarioSlug, { repoId });
+  const { defaultBaselineName } = useDefaultBaseline(scenarioSlug);
+  const selectedBaseline = baselinesQuery.data?.find((b) => b.name === defaultBaselineName);
+  const baselineSnapshotId = selectedBaseline?.surfaces?.visuals?.ref ?? "";
+  const showCompare = comparing && Boolean(baselineSnapshotId);
+  const beforeDetail = useVisualCaptureDetail(baselineSnapshotId, scenarioSlug, showCompare, repoId);
+  const before: SnapshotSetMeta | undefined = showCompare ? beforeDetail.data : undefined;
+
+  const compare: CompareOnDemand = {
+    comparing,
+    start: () => setComparing(true),
+    exit: () => setComparing(false),
+    baselineName: defaultBaselineName ?? "",
+    diff: undefined,
+    isRunning: false,
+    error: null,
+  };
 
   const setSelectedPage = useCallback((page: number) => {
     setSelectedPageInternal(page);
     onSelectedPageChange?.(page);
   }, [onSelectedPageChange]);
 
-  // Determine which presets were captured (from snapshot metadata)
-  const primarySnapshot = capture ?? baseline;
+  const after = capture;
+  // Presets/pages come from whichever snapshot is the anchor for the page grid.
+  const primarySnapshot = after ?? before;
   const capturedPresets = useMemo<CapturePreset[]>(
     () => primarySnapshot?.presets ?? [],
     [primarySnapshot],
@@ -85,22 +117,22 @@ export function ScreenshotsTab({
     if (idx >= 0) onPresetIndexChange?.(idx);
   }, [capturedPresets, presetConfig, onPresetIndexChange]);
 
-  // No snapshots at all
-  if (!baseline && !capture) {
+  // No current capture yet → two-action empty state (Decision 2).
+  if (!after) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+      <div className="space-y-4">
         <MutationErrorBanner error={mutationError ?? null} onDismiss={onDismissError} />
-        <ClipboardCheck className="h-8 w-8 mb-3 opacity-50" />
-        <p className="text-sm">No captures yet</p>
-        <p className="text-xs mt-1 mb-3 text-slate-600">Set a baseline to start comparing visual changes</p>
-        {basAvailable ? (
-          <Button variant="outline" size="sm" onClick={onBaseline} disabled={isCapturing} className="h-7 text-xs gap-1">
-            {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Anchor className="h-3 w-3" />}
-            Set Baseline
-          </Button>
-        ) : (
-          <p className="text-xs">Start browser-automation-studio to enable visual captures</p>
-        )}
+        {baselineModal}
+        <SurfaceCaptureEmptyState
+          surface="visuals"
+          hasService={basAvailable}
+          onCaptureLoose={onCapture}
+          onCaptureBaseline={openCaptureBaseline}
+          captureLabel="Capture screenshots"
+          isCapturing={isCapturing}
+          serviceMessage="Start browser-automation-studio to enable visual captures"
+          icon={<ClipboardCheck className="h-8 w-8 mb-3 opacity-50" />}
+        />
       </div>
     );
   }
@@ -112,33 +144,31 @@ export function ScreenshotsTab({
   const screenshotFilename = (pagePath: string) =>
     sanitizePagePath(pagePath) + presetSuffix(activePreset) + ".png";
 
-  // Build lightbox items for the active preset: baseline first, then capture
+  // Build lightbox items for the active preset: baseline (before) first, then current (after).
   const lightboxItems: LightboxItem[] = [];
-  const baselinePages = baseline?.pages ?? [];
-  if (baseline) {
-    for (const page of baselinePages) {
+  const beforePages = before?.pages ?? [];
+  if (before) {
+    for (const page of beforePages) {
       lightboxItems.push({
         label: `Baseline: ${page === "/" ? "/ (Home)" : page}`,
-        sublabel: `${new Date(baseline.createdAt).toLocaleString()} (${presetLabel(activePreset)})`,
+        sublabel: `${new Date(before.createdAt).toLocaleString()} (${presetLabel(activePreset)})`,
         type: "image",
-        url: buildCaptureScreenshotUrl(baseline.id, scenarioSlug, screenshotFilename(page)),
+        url: buildCaptureScreenshotUrl(before.id, scenarioSlug, screenshotFilename(page)),
       });
     }
   }
-  if (capture) {
-    const capturePages = capture.pages ?? [];
-    for (const page of capturePages) {
-      lightboxItems.push({
-        label: baseline ? `Capture: ${page === "/" ? "/ (Home)" : page}` : page === "/" ? "/ (Home)" : page,
-        sublabel: `${new Date(capture.createdAt).toLocaleString()} (${presetLabel(activePreset)})`,
-        type: "image",
-        url: buildCaptureScreenshotUrl(capture.id, scenarioSlug, screenshotFilename(page)),
-      });
-    }
+  const afterPages = after.pages ?? [];
+  for (const page of afterPages) {
+    lightboxItems.push({
+      label: before ? `Current: ${page === "/" ? "/ (Home)" : page}` : page === "/" ? "/ (Home)" : page,
+      sublabel: `${new Date(after.createdAt).toLocaleString()} (${presetLabel(activePreset)})`,
+      type: "image",
+      url: buildCaptureScreenshotUrl(after.id, scenarioSlug, screenshotFilename(page)),
+    });
   }
 
-  const baselineIndex = (pageIdx: number) => pageIdx;
-  const captureIndex = (pageIdx: number) => baselinePages.length + pageIdx;
+  const beforeIndex = (pageIdx: number) => pageIdx;
+  const afterIndex = (pageIdx: number) => beforePages.length + pageIdx;
 
   // Capture time estimate
   const numPages = primaryPages.length || 1;
@@ -148,15 +178,34 @@ export function ScreenshotsTab({
   return (
     <div className="space-y-4">
       <MutationErrorBanner error={mutationError ?? null} onDismiss={onDismissError} />
-      {/* Action buttons */}
+      {baselineModal}
+
+      <SurfaceBaselineBar
+        scenario={scenarioSlug}
+        repoId={repoId}
+        compare={compare}
+        onOpenBaselines={onOpenBaselines}
+        onCaptureBaseline={openCaptureBaseline}
+        viewingLabel={`captured ${new Date(after.createdAt).toLocaleString()}`}
+      />
+
+      {comparing && !baselineSnapshotId && (
+        <p className="rounded-lg border border-dashed border-slate-800 px-3 py-2 text-xs text-slate-500">
+          The selected baseline didn't capture screenshots. Pick another baseline or capture one.
+        </p>
+      )}
+      {showCompare && beforeDetail.isLoading && (
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Loading baseline screenshots…
+        </div>
+      )}
+
+      {/* Capture action */}
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={onBaseline} disabled={isCapturing} className="h-7 text-xs gap-1">
-          {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Anchor className="h-3 w-3" />}
-          {baseline ? "Reset Baseline" : "Set Baseline"}
-        </Button>
         <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="h-7 text-xs gap-1">
           {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
-          {capture ? "Re-capture" : "Capture"}
+          Re-capture
         </Button>
       </div>
 
@@ -251,7 +300,7 @@ export function ScreenshotsTab({
       )}
 
       {/* Staleness warning */}
-      {captureStaleness?.isStale && capture && (
+      {captureStaleness?.isStale && (
         <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-950/30 border border-amber-900/40">
           <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
           <p className="text-xs text-amber-300">
@@ -296,26 +345,19 @@ export function ScreenshotsTab({
         {currentPage === "/" && " (Home)"}
       </div>
 
-      {/* Status message when only baseline exists */}
-      {baseline && !capture && (
-        <div className="text-xs text-slate-500 bg-slate-900/50 rounded px-3 py-2">
-          Baseline set. Capture to compare changes against it.
-        </div>
-      )}
-
-      {/* Side-by-side or stacked screenshots */}
-      <div className={`gap-4 ${isMobile ? "space-y-4" : baseline && capture ? "grid grid-cols-2" : ""}`}>
-        {baseline && capture && (
+      {/* Side-by-side (compare) or single (current) */}
+      <div className={`gap-4 ${isMobile ? "space-y-4" : before ? "grid grid-cols-2" : ""}`}>
+        {before && (
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs font-medium text-slate-400">Baseline</span>
               <span className="text-[10px] text-slate-600">
-                {new Date(baseline.createdAt).toLocaleString()}
+                {new Date(before.createdAt).toLocaleString()}
               </span>
               {agentManagerAvailable && onAttachToAgent && (
                 <AttachToAgentButton onClick={() => {
                   const filename = screenshotFilename(currentPage);
-                  onAttachToAgent(screenshotContextItem(baseline, {
+                  onAttachToAgent(screenshotContextItem(before, {
                     filename,
                     pagePath: currentPage,
                     pageLabel: currentPage === "/" ? "/ (Home)" : currentPage,
@@ -328,35 +370,33 @@ export function ScreenshotsTab({
               )}
             </div>
             <ScreenshotImage
-              captureId={baseline.id}
+              captureId={before.id}
               scenarioSlug={scenarioSlug}
               pagePath={currentPage}
               preset={activePreset}
-              onClick={() => setLightboxIndex(baselineIndex(selectedPage))}
+              onClick={() => setLightboxIndex(beforeIndex(selectedPage))}
             />
           </div>
         )}
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-medium text-slate-400">
-              {capture ? (baseline ? "Capture" : "Current") : "Baseline"}
+              {before ? "Current" : "Screenshot"}
             </span>
-            {captureStaleness?.isStale && capture && (
+            {captureStaleness?.isStale && (
               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-900/50 text-amber-300">
                 Stale
               </span>
             )}
-            {baseline && capture && (
+            {before && (
               <span className="text-[10px] text-slate-600">
-                {new Date(capture.createdAt).toLocaleString()}
+                {new Date(after.createdAt).toLocaleString()}
               </span>
             )}
             {agentManagerAvailable && onAttachToAgent && (
               <AttachToAgentButton onClick={() => {
-                if (!primarySnapshot) return;
-                const snapshot = primarySnapshot;
                 const filename = screenshotFilename(currentPage);
-                onAttachToAgent(screenshotContextItem(snapshot, {
+                onAttachToAgent(screenshotContextItem(after, {
                   filename,
                   pagePath: currentPage,
                   pageLabel: currentPage === "/" ? "/ (Home)" : currentPage,
@@ -369,11 +409,11 @@ export function ScreenshotsTab({
             )}
           </div>
           <ScreenshotImage
-            captureId={primarySnapshot?.id ?? ""}
+            captureId={after.id}
             scenarioSlug={scenarioSlug}
             pagePath={currentPage}
             preset={activePreset}
-            onClick={() => setLightboxIndex(capture ? captureIndex(selectedPage) : baselineIndex(selectedPage))}
+            onClick={() => setLightboxIndex(before ? afterIndex(selectedPage) : beforeIndex(selectedPage))}
           />
         </div>
       </div>

@@ -133,8 +133,23 @@ type VisualSnapshot struct {
 
 // VisualClient wraps GCT's local visual snapshot capture/listing.
 type VisualClient interface {
-	Capture(ctx context.Context, repoID int64, repoDir, scenario string) (VisualSnapshot, error)
+	// Capture grabs the current screenshots. pinned=true marks the snapshot as
+	// owned by a baseline (additive, survives routine captures); pinned=false is
+	// a transient/loose capture (replaces the single loose snapshot) — used for
+	// the "current" side of a diff.
+	Capture(ctx context.Context, repoID int64, repoDir, scenario string, pinned bool) (VisualSnapshot, error)
 	Get(ctx context.Context, repoID int64, scenario, snapshotID string) (VisualSnapshot, bool, error)
+	// Delete removes a previously captured snapshot by ID. Called when the
+	// owning baseline is deleted so pinned snapshots don't leak.
+	Delete(ctx context.Context, repoID int64, scenario, snapshotID string) error
+}
+
+// SurfaceReleaser is optionally implemented by adapters whose captured artifact
+// is owned exclusively by one baseline and must be deleted when that baseline
+// is deleted (visuals). test-genie surfaces pin shared runs instead, released
+// separately, so they do not implement this.
+type SurfaceReleaser interface {
+	Release(ctx context.Context, repoID int64, scenario string, ptr SurfacePointer) error
 }
 
 // StalenessProbe computes commits and files changed since a sha. Read-only.

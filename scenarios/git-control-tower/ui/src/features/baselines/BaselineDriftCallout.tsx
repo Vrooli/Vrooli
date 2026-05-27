@@ -3,11 +3,10 @@
 // (that re-executes surfaces server-side and costs minutes); it surfaces the
 // active baseline and a one-click jump to the Baselines tab to compare there.
 
-import { Anchor } from "lucide-react";
-import { Button } from "../../components/ui/button";
 import { formatRelativeTime } from "../../components/ScenarioReviewPanelShared";
 import { useBaselines, useDefaultBaseline } from "../../lib/hooks-baselines";
 import { SurfaceStatusChips } from "./parts";
+import { BaselineSelector } from "./BaselineSelector";
 
 export function BaselineDriftCallout({
   scenario,
@@ -48,10 +47,7 @@ export function BaselineDriftCallout({
           </p>
         )}
       </div>
-      <Button variant="outline" size="sm" onClick={onOpenBaselines} className="h-7 px-3 gap-1.5 shrink-0">
-        <Anchor className="h-3.5 w-3.5" />
-        Baselines
-      </Button>
+      <BaselineSelector scenario={scenario} repoId={repoId} onOpenBaselines={onOpenBaselines} />
     </div>
   );
 }

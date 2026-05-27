@@ -2,8 +2,9 @@ package eligibility
 
 import (
 	"context"
-	"test-genie/internal/orchestrator/workspace"
 	"testing"
+
+	"test-genie/internal/orchestrator/workspace"
 )
 
 func TestAssertRulesObserved_AllPresent(t *testing.T) {

@@ -8,8 +8,11 @@ import { API_BASE, buildRepoHeaders, handleResponse, buildApiUrl } from "./api-i
 
 export type CaptureTrigger = "periodic" | "post-commit" | "manual";
 export type CaptureStatus = "complete" | "failed";
+// A snapshot is either a loose working-tree capture ("capture") or one pinned
+// by a BaselineManifest ("baseline"). The UI only ever *creates* loose captures
+// (Plan C Decision 1); baseline-pinned snapshots are produced by the baseline
+// snapshot flow and surfaced only through a manifest's visuals pointer.
 export type SnapshotRole = "baseline" | "capture";
-export type CaptureMode = "baseline" | "capture";
 
 export type CaptureTheme = "light" | "dark";
 
@@ -130,12 +133,15 @@ export interface CaptureStorageStats {
 
 // ── Visual Capture API Functions ───────────────────────────────────────
 
-export async function triggerVisualCapture(scenarioSlug: string, mode: CaptureMode = "capture", repoId?: string, presets?: CapturePreset[]): Promise<SnapshotSetMeta> {
+// triggerVisualCapture captures the current working-tree screenshots as a loose
+// snapshot (never a baseline). Baseline-pinned visuals are produced by the
+// baseline snapshot flow, not here (Plan C Decision 1).
+export async function triggerVisualCapture(scenarioSlug: string, repoId?: string, presets?: CapturePreset[]): Promise<SnapshotSetMeta> {
   const url = buildApiUrl("/repo/visual-capture", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
     headers: buildRepoHeaders(repoId),
-    body: JSON.stringify({ scenarioSlug, mode, presets })
+    body: JSON.stringify({ scenarioSlug, mode: "capture", presets })
   });
   return handleResponse<SnapshotSetMeta>(res);
 }

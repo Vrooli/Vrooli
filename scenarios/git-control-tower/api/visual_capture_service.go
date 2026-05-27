@@ -87,9 +87,11 @@ func capturePageScreenshot(ctx context.Context, deps VisualCaptureDeps, slug str
 
 // CaptureScenario orchestrates a full capture for one scenario.
 //
-// In baseline mode, all existing snapshots are cleared and the new capture
-// becomes the reference "Before" image. In capture mode (default), any
-// existing capture-role snapshot is replaced while the baseline is preserved.
+// Baseline mode is additive: the new snapshot is pinned (role=baseline) by a
+// BaselineManifest and left untouched by routine captures, so multiple
+// baselines coexist. Capture mode (default) keeps a single loose capture-role
+// snapshot — the "current" view — replacing the previous one and never
+// disturbing baseline-pinned snapshots.
 // captureAllPages runs the BAS workflow for every page+preset combination and
 // returns the collected screenshots, the list of successfully captured page paths,
 // and the last error message (if any).

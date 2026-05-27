@@ -17,19 +17,6 @@ import (
 	kov1 "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1"
 )
 
-type fakeConnectClient struct {
-	resp *kov1.DocHealthResponse
-	err  error
-}
-
-func (f fakeConnectClient) Do(_ *http.Request) (*http.Response, error) {
-	// Not used: tests stub the URL resolver to point at a fake HTTP
-	// server via httptest where possible. When tests need to inject a
-	// canned response without an HTTP round-trip, they replace the
-	// resolveDocHealthBaseURL+docHealthHTTPClient pair entirely below.
-	return nil, errors.New("not implemented")
-}
-
 func swapDocsSeams(t *testing.T, baseURL string, client connect.HTTPClient) func() {
 	t.Helper()
 	prevResolve := resolveDocHealthBaseURL

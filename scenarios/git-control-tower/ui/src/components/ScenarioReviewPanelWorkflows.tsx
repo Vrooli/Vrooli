@@ -4,11 +4,15 @@
 // WorkflowReplayService proxy; videos stream from the GCT REST video route.
 
 import { useState } from "react";
-import { Play, CheckCircle2, XCircle, Minus, AlertTriangle, ChevronDown, ChevronRight, Anchor, Loader2 } from "lucide-react";
+import { Play, CheckCircle2, XCircle, Minus, AlertTriangle, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { MediaLightbox, MutationErrorBanner, formatDuration, formatRelativeTime, type LightboxItem } from "./ScenarioReviewPanelShared";
 import { useRecentRuns, useRunDetail } from "../lib/hooks-workflowreplay";
+import { useTriggerTestExecution } from "../lib/hooks";
 import { workflowVideoUrl, type RunSummary } from "../lib/api-workflowreplay";
+import { SurfaceComparePanel } from "../features/baselines/SurfaceComparePanel";
+import { SurfaceCaptureEmptyState } from "../features/baselines/SurfaceCaptureEmptyState";
+import { useSurfaceBaselineModal } from "../features/baselines/useSurfaceBaselineModal";
 
 const STATUS_ICON: Record<string, typeof CheckCircle2> = {
   passed: CheckCircle2,
@@ -37,6 +41,14 @@ export function WorkflowsTab({
 }) {
   const runsQuery = useRecentRuns(scenarioSlug, { repoId, enabled: testGenieAvailable });
   const runs = runsQuery.data ?? [];
+  const triggerRun = useTriggerTestExecution(repoId);
+  const { openCaptureBaseline, baselineModal } = useSurfaceBaselineModal(scenarioSlug, "workflows", repoId);
+  const isRunning = triggerRun.isPending;
+  const runPlaybooks = () =>
+    triggerRun.mutate(
+      { scenarioName: scenarioSlug, phases: ["playbooks"] },
+      { onSuccess: () => void runsQuery.refetch() },
+    );
 
   if (!testGenieAvailable) {
     return (
@@ -50,16 +62,8 @@ export function WorkflowsTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-slate-500">
-          Workflow results from the latest test-genie playbooks runs. Baselines are managed in the
-          Baselines tab.
-        </p>
-        <Button variant="outline" size="sm" onClick={onOpenBaselines} className="h-7 px-3 gap-1.5 shrink-0">
-          <Anchor className="h-3.5 w-3.5" />
-          Set baseline
-        </Button>
-      </div>
+      {baselineModal}
+      <MutationErrorBanner error={triggerRun.error} onDismiss={() => triggerRun.reset()} />
 
       {runsQuery.isLoading ? (
         <div className="space-y-2">
@@ -69,19 +73,47 @@ export function WorkflowsTab({
       ) : runsQuery.error ? (
         <MutationErrorBanner error={runsQuery.error} />
       ) : runs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-10 text-slate-500">
-          <Play className="h-8 w-8 mb-3 opacity-50" />
-          <p className="text-sm">No playbooks runs yet</p>
-          <p className="text-xs mt-1 text-slate-600">
-            Run test-genie playbooks for this scenario, or set a baseline to capture one.
-          </p>
-        </div>
+        <SurfaceCaptureEmptyState
+          surface="workflows"
+          hasService={testGenieAvailable}
+          onCaptureLoose={runPlaybooks}
+          onCaptureBaseline={openCaptureBaseline}
+          captureLabel="Run playbooks"
+          isCapturing={isRunning}
+        />
       ) : (
-        <div className="space-y-2">
-          {runs.map((run) => (
-            <RunRow key={run.runId} run={run} scenario={scenarioSlug} repoId={repoId} />
-          ))}
-        </div>
+        <>
+          <SurfaceComparePanel
+            scenario={scenarioSlug}
+            surface="workflows"
+            repoId={repoId}
+            onOpenBaselines={onOpenBaselines}
+            onCaptureBaseline={openCaptureBaseline}
+            viewingLabel={`${runs.length} recent run${runs.length !== 1 ? "s" : ""}`}
+          />
+
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-slate-500">
+              Workflow results from the latest test-genie playbooks runs.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={runPlaybooks}
+              disabled={isRunning}
+              className="h-7 px-3 gap-1.5 shrink-0"
+            >
+              {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+              Run playbooks
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            {runs.map((run) => (
+              <RunRow key={run.runId} run={run} scenario={scenarioSlug} repoId={repoId} />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

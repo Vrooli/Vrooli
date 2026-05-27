@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { RefreshCw, Loader2, CheckCircle2, XCircle, AlertTriangle, Plus, Minus, Anchor, Camera, ExternalLink } from "lucide-react";
+import { RefreshCw, Loader2, CheckCircle2, XCircle, AlertTriangle, Plus, Minus, Camera, ExternalLink } from "lucide-react";
 import { Button } from "./ui/button";
 import { useTestExecutions, useTidinessScore, useTidinessStaleness, useScenarios, useReviewSummary, useTriggerReviewRun, useReviewJobStatus } from "../lib/hooks";
 import { fetchExternalUrl } from "../lib/api-internals";
@@ -11,7 +11,6 @@ import { formatDuration, formatRelativeTime, formatStalenessMessage } from "./Sc
 import { BaselineDriftCallout } from "../features/baselines/BaselineDriftCallout";
 
 export function OverviewTab({
-  baseline,
   capture,
   captureStaleness,
   scenarioSlug,
@@ -20,14 +19,12 @@ export function OverviewTab({
   testGenieAvailable,
   tidinessAvailable,
   isCapturing,
-  onBaseline,
   onCapture,
   fileStats,
   agentManagerAvailable,
   onAttachToAgent,
   onOpenBaselines,
 }: {
-  baseline?: SnapshotSetMeta;
   capture?: SnapshotSetMeta;
   captureStaleness?: SnapshotStalenessInfo;
   scenarioSlug: string;
@@ -36,7 +33,6 @@ export function OverviewTab({
   testGenieAvailable: boolean;
   tidinessAvailable: boolean;
   isCapturing: boolean;
-  onBaseline: () => void;
   onCapture: () => void;
   fileStats?: RepoFileStats;
   agentManagerAvailable?: boolean;
@@ -70,7 +66,7 @@ export function OverviewTab({
   }, [scenarioSlug]);
 
   // Used by both readiness fallback and visual status card
-  const latestSnapshot = capture ?? baseline;
+  const latestSnapshot = capture;
 
   // Use server-side readiness when available, fall back to client-side calculation.
   // Client-side fallback — the server-side calculation (review_readiness.go) is authoritative
@@ -79,7 +75,6 @@ export function OverviewTab({
     (tidinessStaleness.data ? !tidinessStaleness.data.stale_reason?.includes("no scans") : false);
 
   const readiness: Readiness = reviewSummary.data?.readiness ?? (() => {
-    const latestSnapshot = capture ?? baseline;
     const hasScreenshots = latestSnapshot && latestSnapshot.screenshotCount > 0;
     const hasTests = Boolean(latestTest);
     const testsPass = latestTest?.success ?? false;
@@ -236,28 +231,18 @@ export function OverviewTab({
           <p className="text-xs text-slate-500">Start browser-automation-studio to enable visual captures</p>
         ) : !latestSnapshot ? (
           <div className="space-y-2">
-            <p className="text-xs text-slate-500">No captures yet</p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={onBaseline} disabled={isCapturing} className="h-7 text-xs gap-1">
-                {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Anchor className="h-3 w-3" />}
-                Set Baseline
-              </Button>
-            </div>
+            <p className="text-xs text-slate-500">No screenshots captured yet</p>
+            <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="h-7 text-xs gap-1">
+              {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+              Capture screenshots
+            </Button>
           </div>
         ) : (
           <div className="space-y-2">
-            {baseline && (
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-400">Baseline</span>
-                <span className="text-slate-200">{new Date(baseline.createdAt).toLocaleString()}</span>
-              </div>
-            )}
-            {capture && (
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-400">Capture{captureStaleness?.isStale ? " (stale)" : ""}</span>
-                <span className="text-slate-200">{new Date(capture.createdAt).toLocaleString()}</span>
-              </div>
-            )}
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">Captured{captureStaleness?.isStale ? " (stale)" : ""}</span>
+              <span className="text-slate-200">{new Date(latestSnapshot.createdAt).toLocaleString()}</span>
+            </div>
             <div className="flex justify-between text-xs">
               <span className="text-slate-400">Screenshots</span>
               <span className="text-slate-200">{latestSnapshot.screenshotCount}</span>
@@ -270,12 +255,10 @@ export function OverviewTab({
                 </p>
               </div>
             )}
-            {!capture && baseline && (
-              <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="h-7 text-xs gap-1 mt-2">
-                {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
-                Capture Changes
-              </Button>
-            )}
+            <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="h-7 text-xs gap-1 mt-2">
+              {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+              Re-capture
+            </Button>
           </div>
         )}
       </div>

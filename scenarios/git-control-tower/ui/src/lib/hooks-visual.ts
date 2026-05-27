@@ -58,9 +58,9 @@ export function useVisualCaptureDetail(id: string, slug: string, enabled = true,
 
 export function useTriggerVisualCapture(repoId?: string | null) {
   const queryClient = useQueryClient();
-  return useMutation<SnapshotSetMeta, Error, { scenarioSlug: string; mode: "baseline" | "capture"; presets: CapturePreset[] }>({
-    mutationFn: async ({ scenarioSlug, mode, presets }) => {
-      const meta = await triggerVisualCapture(scenarioSlug, mode, repoId ?? undefined, presets);
+  return useMutation<SnapshotSetMeta, Error, { scenarioSlug: string; presets: CapturePreset[] }>({
+    mutationFn: async ({ scenarioSlug, presets }) => {
+      const meta = await triggerVisualCapture(scenarioSlug, repoId ?? undefined, presets);
       if (meta.status === "failed") {
         throw new Error(meta.error || "Capture failed — no screenshots were captured");
       }

@@ -18,11 +18,11 @@
     "handlers": {
       "go_module": {
         "enabled": true,
-        "strict": false
+        "strict": true
       },
       "node_package": {
         "enabled": true,
-        "strict": false
+        "strict": true
       }
     },
     "policy": {

@@ -63,8 +63,14 @@ func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, result, status)
 }
 
-// writeJSON writes a JSON response with the given status code.
+// writeJSON writes a JSON response with the given status code, including the
+// baseline OWASP security headers and the permissive CORS origin used API-wide.
 func (h *Handler) writeJSON(w http.ResponseWriter, data interface{}, status int) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("X-XSS-Protection", "1; mode=block")
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
