@@ -115,7 +115,7 @@
         "entries": {
           "type": "object",
           "minProperties": 1,
-          "additionalProperties": { "$ref": "#/definitions/homeEntry" },
+          "additionalProperties": { "$ref": "common.schema.json#/definitions/durableDataEntry" },
           "description": "Well-known entries directly under the runtime home, keyed by stable logical name."
         },
         "scoped": {
@@ -270,35 +270,6 @@
     "envVarName": {
       "type": "string",
       "pattern": "^[A-Z][A-Z0-9_]*$"
-    },
-    "homeEntry": {
-      "type": "object",
-      "required": ["path", "kind", "regenerable"],
-      "properties": {
-        "path": {
-          "$ref": "#/definitions/slashPath",
-          "description": "Home-relative path of this entry."
-        },
-        "kind": {
-          "type": "string",
-          "enum": ["dir", "file"],
-          "description": "Whether this entry is a directory or a file."
-        },
-        "regenerable": {
-          "type": "boolean",
-          "description": "True if the data here can be reconstructed by the platform (caches, logs, build output); false if it is durable operator state that must be preserved."
-        },
-        "format": {
-          "type": "string",
-          "enum": ["sqlite", "json"],
-          "description": "On-disk format hint for file entries."
-        },
-        "sensitive": {
-          "type": "boolean",
-          "description": "True if the entry holds secrets and must never be read into UIs or logs."
-        }
-      },
-      "additionalProperties": false
     },
     "profile": {
       "type": "object",

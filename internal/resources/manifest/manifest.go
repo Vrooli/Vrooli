@@ -39,6 +39,7 @@ type ResourceManifest struct {
 	Description           string                       `json:"description,omitempty"`
 	CLI                   *scenario.CLIConfig          `json:"cli"`
 	LegacyRepoDataAllowed bool                         `json:"legacy_repo_data_allowed,omitempty"`
+	DurableData           *ResourceDurableData         `json:"durable_data,omitempty"`
 	Template              string                       `json:"template,omitempty"`
 	Driver                string                       `json:"driver"`
 	ComposeFile           string                       `json:"compose_file,omitempty"`
@@ -88,6 +89,42 @@ type ResourceGPU struct {
 	ComposeOverlay string            `json:"compose_overlay,omitempty"`
 	EnvOverrides   map[string]string `json:"env_overrides,omitempty"`
 }
+
+// ResourceDurableData declares durable host-filesystem state a resource
+// accumulates that is worth backing up (e.g. an external-cli coding agent's
+// conversation history). Host-filesystem only: container/compose resources
+// store their durable data in Docker volumes that data-backup-manager captures
+// via live source-kind connectors and MUST NOT declare it here. The block is
+// consumed read-only by data-backup-manager discovery to surface one-click
+// backup target suggestions.
+type ResourceDurableData struct {
+	// Base is the host directory entries are relative to. Supports a leading
+	// $HOME, ~, or %USERPROFILE% token (resolved to the operator's home);
+	// defaults to $HOME when empty. Slash-normalized.
+	Base string `json:"base,omitempty"`
+	// HostOnly is reserved; always true today. A pointer so an explicit false is
+	// distinguishable and rejected.
+	HostOnly *bool `json:"host_only,omitempty"`
+	// Entries are durable locations under Base, keyed by stable logical name
+	// (the key becomes the suggested backup-target name).
+	Entries map[string]DurableDataEntry `json:"entries"`
+}
+
+// DurableDataEntry is one durable on-disk location. It mirrors the shared
+// `durableDataEntry` schema definition in .vrooli/schemas/common.schema.json;
+// data-backup-manager keeps its own local mirror for the same shape.
+type DurableDataEntry struct {
+	Path        string `json:"path"`
+	Kind        string `json:"kind"`
+	Regenerable bool   `json:"regenerable"`
+	Format      string `json:"format,omitempty"`
+	Sensitive   bool   `json:"sensitive,omitempty"`
+	Rationale   string `json:"rationale,omitempty"`
+}
+
+// durableDataBaseTokens are the host-home tokens a durable_data base may start
+// with; the resolver substitutes the operator's home for them.
+var durableDataBaseTokens = []string{"$HOME", "~", "%USERPROFILE%"}
 
 type ResourcePlatforms struct {
 	Linux   string `json:"linux,omitempty"`
@@ -296,6 +333,9 @@ func Validate(manifest ResourceManifest) error {
 	if err := validateRuntimeMemoryLimit(manifest.Runtime.MemoryLimit); err != nil {
 		return err
 	}
+	if err := validateDurableData(manifest.Driver, manifest.DurableData); err != nil {
+		return err
+	}
 	switch manifest.Driver {
 	case "docker-service":
 		if strings.TrimSpace(manifest.Runtime.Image) == "" {
@@ -313,6 +353,100 @@ func Validate(manifest ResourceManifest) error {
 		if strings.TrimSpace(manifest.Endpoint) == "" {
 			return fmt.Errorf("endpoint is required for cloud-api resources")
 		}
+	}
+	return nil
+}
+
+// validateDurableData enforces the durable_data block: only host-filesystem
+// drivers may declare it, the base (if any) uses a permitted home token, and
+// every entry is a relative slash path with a valid kind/format. It never reads
+// the host filesystem — it validates the declaration shape only.
+func validateDurableData(driver string, dd *ResourceDurableData) error {
+	if dd == nil {
+		return nil
+	}
+	switch strings.TrimSpace(driver) {
+	case "external-cli", "native-cli", "desktop-app", "manual":
+		// Host-filesystem-bearing drivers may declare durable host data.
+	default:
+		return fmt.Errorf("durable_data is only valid for host-filesystem drivers (external-cli, native-cli, desktop-app, manual), not %q", driver)
+	}
+	if dd.HostOnly != nil && !*dd.HostOnly {
+		return fmt.Errorf("durable_data.host_only must be true (host-filesystem state only)")
+	}
+	if base := strings.TrimSpace(dd.Base); base != "" {
+		if err := validateDurableDataBase(base); err != nil {
+			return err
+		}
+	}
+	if len(dd.Entries) == 0 {
+		return fmt.Errorf("durable_data.entries must not be empty")
+	}
+	seenPaths := map[string]struct{}{}
+	for key, entry := range dd.Entries {
+		if strings.TrimSpace(key) == "" {
+			return fmt.Errorf("durable_data.entries has an empty key")
+		}
+		field := "durable_data.entries." + key
+		if err := validateDurableDataEntry(field, entry); err != nil {
+			return err
+		}
+		clean := strings.TrimSpace(entry.Path)
+		if _, dup := seenPaths[clean]; dup {
+			return fmt.Errorf("%s duplicates path %q", field, clean)
+		}
+		seenPaths[clean] = struct{}{}
+	}
+	return nil
+}
+
+func validateDurableDataBase(base string) error {
+	if strings.Contains(base, "\\") {
+		return fmt.Errorf("durable_data.base must be slash-normalized (no backslashes): %q", base)
+	}
+	rest, matched := "", false
+	for _, tok := range durableDataBaseTokens {
+		if base == tok {
+			matched = true
+			break
+		}
+		if strings.HasPrefix(base, tok+"/") {
+			rest, matched = strings.TrimPrefix(base, tok+"/"), true
+			break
+		}
+	}
+	if !matched {
+		return fmt.Errorf("durable_data.base must start with $HOME, ~, or %%USERPROFILE%%: %q", base)
+	}
+	for _, part := range strings.Split(rest, "/") {
+		if part == ".." {
+			return fmt.Errorf("durable_data.base must not contain parent traversal: %q", base)
+		}
+	}
+	return nil
+}
+
+func validateDurableDataEntry(field string, e DurableDataEntry) error {
+	path := strings.TrimSpace(e.Path)
+	if path == "" {
+		return fmt.Errorf("%s.path must not be empty", field)
+	}
+	if strings.Contains(path, "\\") {
+		return fmt.Errorf("%s.path must be slash-normalized (no backslashes): %q", field, path)
+	}
+	if strings.HasPrefix(path, "/") {
+		return fmt.Errorf("%s.path must be relative to base (no leading slash): %q", field, path)
+	}
+	for _, part := range strings.Split(path, "/") {
+		if part == ".." {
+			return fmt.Errorf("%s.path must not contain parent traversal: %q", field, path)
+		}
+	}
+	if e.Kind != "dir" && e.Kind != "file" {
+		return fmt.Errorf("%s.kind must be \"dir\" or \"file\": %q", field, e.Kind)
+	}
+	if e.Format != "" && e.Format != "sqlite" && e.Format != "json" {
+		return fmt.Errorf("%s.format must be \"sqlite\" or \"json\": %q", field, e.Format)
 	}
 	return nil
 }

@@ -157,6 +157,42 @@
           "description": "Regex the value must match. Lightweight client-side check to catch typos; not a security control."
         }
       }
+    },
+    "durableDataEntry": {
+      "type": "object",
+      "description": "One durable on-disk location worth preserving. The single shared shape for both the operator runtime home (repo-contract.schema.json#/properties/runtime_home/properties/entries) and a resource's declared host state (resource.schema.json#/properties/durable_data/properties/entries). `regenerable` is the include/exclude switch: false = irreplaceable state that must be backed up; true = reconstructable (caches, logs, build output) and skipped.",
+      "required": ["path", "kind", "regenerable"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$",
+          "description": "Slash-normalized path of this entry, relative to its container's base (the runtime home, or a resource durable_data base). No leading slash, drive letter, or parent traversal."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["dir", "file"],
+          "description": "Whether this entry is a directory or a single file."
+        },
+        "regenerable": {
+          "type": "boolean",
+          "description": "True if the data here can be reconstructed (caches, logs, build output) and need not be backed up; false if it is durable state that must be preserved."
+        },
+        "format": {
+          "type": "string",
+          "enum": ["sqlite", "json"],
+          "description": "On-disk format hint for file entries (e.g. sqlite → capture a consistent database copy)."
+        },
+        "sensitive": {
+          "type": "boolean",
+          "description": "True if the entry holds secrets/credentials (e.g. OAuth tokens). Surfaced with a warning and never auto-accepted; contents are never read into UIs or logs."
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Human-facing reason this is worth preserving. Optional presentation copy."
+        }
+      }
     }
   }
 }

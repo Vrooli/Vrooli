@@ -22,7 +22,7 @@ DRIVE_CLASS_FIXED: DriveClass
 DRIVE_CLASS_NETWORK: DriveClass
 
 class TargetSuggestion(_message.Message):
-    __slots__ = ("id", "owner", "name", "source_kind", "locator", "rationale", "approx_bytes")
+    __slots__ = ("id", "owner", "name", "source_kind", "locator", "rationale", "approx_bytes", "sensitive", "warning")
     ID_FIELD_NUMBER: _ClassVar[int]
     OWNER_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -30,6 +30,8 @@ class TargetSuggestion(_message.Message):
     LOCATOR_FIELD_NUMBER: _ClassVar[int]
     RATIONALE_FIELD_NUMBER: _ClassVar[int]
     APPROX_BYTES_FIELD_NUMBER: _ClassVar[int]
+    SENSITIVE_FIELD_NUMBER: _ClassVar[int]
+    WARNING_FIELD_NUMBER: _ClassVar[int]
     id: str
     owner: str
     name: str
@@ -37,7 +39,9 @@ class TargetSuggestion(_message.Message):
     locator: str
     rationale: str
     approx_bytes: int
-    def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., name: _Optional[str] = ..., source_kind: _Optional[_Union[_sources_pb2.SourceKind, str]] = ..., locator: _Optional[str] = ..., rationale: _Optional[str] = ..., approx_bytes: _Optional[int] = ...) -> None: ...
+    sensitive: bool
+    warning: str
+    def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., name: _Optional[str] = ..., source_kind: _Optional[_Union[_sources_pb2.SourceKind, str]] = ..., locator: _Optional[str] = ..., rationale: _Optional[str] = ..., approx_bytes: _Optional[int] = ..., sensitive: _Optional[bool] = ..., warning: _Optional[str] = ...) -> None: ...
 
 class DestinationSuggestion(_message.Message):
     __slots__ = ("id", "label", "backend_kind", "location", "drive_class", "free_bytes", "total_bytes", "removable", "separate_root_ok", "rationale")

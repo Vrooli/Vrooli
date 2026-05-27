@@ -34,6 +34,18 @@ func (f *FakeTargetSourceScanner) Scan(context.Context) ([]discovery.TargetCandi
 
 var _ discovery.TargetSourceScanner = (*FakeTargetSourceScanner)(nil)
 
+// FakeResourceEnumerator returns a fixed slice of resource refs (or an error).
+type FakeResourceEnumerator struct {
+	Refs []discovery.ResourceRef
+	Err  error
+}
+
+func (f *FakeResourceEnumerator) Enumerate(context.Context) ([]discovery.ResourceRef, error) {
+	return f.Refs, f.Err
+}
+
+var _ discovery.ResourceEnumerator = (*FakeResourceEnumerator)(nil)
+
 // FakeTargetCatalog returns a fixed list of registered targets.
 type FakeTargetCatalog struct {
 	Targets []discovery.ExistingTarget

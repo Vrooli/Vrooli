@@ -33,6 +33,30 @@
       "type": "boolean",
       "description": "Temporary escape hatch for retained resources that still rely on repo-local data paths."
     },
+    "durable_data": {
+      "type": "object",
+      "description": "Durable host-filesystem state this resource accumulates that is worth backing up (e.g. an external-cli coding agent's conversation history). HOST-FILESYSTEM ONLY: container/compose resources store volume data captured separately by data-backup-manager's live connectors and MUST NOT declare it here. Consumed by data-backup-manager discovery to surface one-click backup target suggestions; entry contents are never read.",
+      "additionalProperties": false,
+      "required": ["entries"],
+      "properties": {
+        "base": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Host directory the entries are relative to. Supports a leading $HOME, ~, or %USERPROFILE% token (resolved to the operator's home directory). Defaults to $HOME when omitted. Slash-normalized."
+        },
+        "host_only": {
+          "type": "boolean",
+          "default": true,
+          "description": "Always true today: durable_data describes host-filesystem state only. Reserved for a future non-host declaration kind."
+        },
+        "entries": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "common.schema.json#/definitions/durableDataEntry" },
+          "description": "Durable entries under base, keyed by stable logical name (the key becomes the suggested target name)."
+        }
+      }
+    },
     "template": {
       "type": "string"
     },

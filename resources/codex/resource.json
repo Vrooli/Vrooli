@@ -132,6 +132,49 @@
       ]
     }
   },
+  "durable_data": {
+    "base": "$HOME/.codex",
+    "entries": {
+      "sessions": {
+        "path": "sessions",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Codex session transcripts — the primary conversation record for later analysis."
+      },
+      "history": {
+        "path": "history.jsonl",
+        "kind": "file",
+        "regenerable": false,
+        "rationale": "Codex prompt/command history across sessions."
+      },
+      "state": {
+        "path": "state_5.sqlite",
+        "kind": "file",
+        "format": "sqlite",
+        "regenerable": false,
+        "rationale": "Codex durable state database — captured as a consistent SQLite copy."
+      },
+      "config": {
+        "path": "config.toml",
+        "kind": "file",
+        "regenerable": false,
+        "rationale": "Codex configuration."
+      },
+      "memories": {
+        "path": "memories",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Codex long-term memories carried across sessions."
+      },
+      "auth": {
+        "path": "auth.json",
+        "kind": "file",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Codex auth tokens — includes live credentials; back up only deliberately."
+      }
+    }
+  },
   "capabilities": {
     "supports_logs": false
   },

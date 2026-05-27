@@ -119,6 +119,9 @@ export function SuggestionsPanel({ onboarding = false }: { onboarding?: boolean 
                         {s.owner}/{s.name}
                       </span>
                       <StatusChip tone="info" labelKey={SOURCE_KIND_STRINGS[kind]} />
+                      {s.sensitive && (
+                        <StatusChip tone="warning" labelKey={strings.discovery.sensitive} />
+                      )}
                       {s.approxBytes > 0n && (
                         <span className="text-xs text-app-muted-foreground">
                           {t(strings.discovery.approxSize, { size: formatBytes(s.approxBytes) })}
@@ -127,6 +130,9 @@ export function SuggestionsPanel({ onboarding = false }: { onboarding?: boolean 
                     </div>
                     <p className="truncate font-mono text-xs text-app-muted-foreground">{s.locator}</p>
                     <p className="text-xs text-app-muted-foreground">{s.rationale}</p>
+                    {s.sensitive && s.warning && (
+                      <p className="text-xs text-app-warning">{s.warning}</p>
+                    )}
                   </div>
                   <div className="flex shrink-0 gap-2">
                     <Button

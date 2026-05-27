@@ -164,8 +164,14 @@ func main() {
 	// (runtime root + registered destinations + registered target locators) —
 	// wider than the destinations service's own protectedRoot (D4).
 	discoverySvc := discoveryint.NewService(discoveryint.Deps{
-		Volumes:      sysmounts.New(),
-		Sources:      discoveryint.NewWellKnownScanner(),
+		Volumes: sysmounts.New(),
+		// Two source scanners behind one seam: Vrooli's own runtime home
+		// (~/.vrooli) plus each external-cli resource's declared durable host
+		// state (coding-agent conversation history, via `vrooli resource list`).
+		Sources: discoveryint.NewCompositeScanner(
+			discoveryint.NewWellKnownScanner(),
+			discoveryint.NewResourceDataScanner(discoveryint.NewResourceEnumerator()),
+		),
 		Targets:      discoveryTargetCatalog{svc: targetsSvc},
 		Destinations: discoveryDestCatalog{svc: destSvc},
 		Protected:    discoveryProtectedPaths{runtimeRoot: discoveryint.RuntimeRoot(), targets: targetsSvc, dests: destSvc},

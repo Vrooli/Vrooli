@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"context"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -96,7 +95,7 @@ func (w *WellKnownScanner) Scan(ctx context.Context) ([]TargetCandidate, error) 
 			if derr != nil || len(dirEntries) == 0 {
 				continue // unreadable or empty dir → not worth protecting.
 			}
-			approx = w.boundedDirSize(ctx, abs)
+			approx = boundedDirSize(ctx, abs, w.maxScanEntries)
 		}
 		meta := dbmRationale[e.Key]
 		name := meta.name
@@ -156,31 +155,6 @@ func durableEntries() ([]repocontract.HomeEntry, error) {
 // placeholderHome is a fixed home used only to extract relative structure from
 // the contract; the resulting AbsPath is discarded (RelPath is what's used).
 const placeholderHome = "/__dbm_runtime_home__"
-
-// boundedDirSize sums regular-file sizes under root, bailing out after
-// maxScanEntries files or on context cancellation. It reads only metadata, never
-// file contents, and never fails the scan (unreadable entries are skipped).
-func (w *WellKnownScanner) boundedDirSize(ctx context.Context, root string) int64 {
-	var total int64
-	count := 0
-	_ = filepath.WalkDir(root, func(_ string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if ctx.Err() != nil || count >= w.maxScanEntries {
-			return filepath.SkipAll
-		}
-		if d.IsDir() {
-			return nil
-		}
-		count++
-		if info, ierr := d.Info(); ierr == nil {
-			total += info.Size()
-		}
-		return nil
-	})
-	return total
-}
 
 // RuntimeRoot resolves the Vrooli runtime root (the operator's ~/.vrooli) via the
 // runtime_home authority, so the composition root can include it in the

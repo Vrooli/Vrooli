@@ -84,6 +84,22 @@ BadExample:
   <expected-violations>1</expected-violations>
   <expected-message>found in 3 files</expected-message>
 </test-case>
+
+<test-case id="api-base-test-setup-excluded" should-fail="false">
+  <description>A test-harness setup file that mocks resolveApiBase is test infrastructure and does not count toward the production usage limit</description>
+  <input>
+    [ui/src/lib/api-internals.ts]
+    import { resolveApiBase } from "@vrooli/api-base";
+    export const API_BASE = resolveApiBase({ appendSuffix: true });
+    [ui/src/lib/connect.ts]
+    import { resolveApiBase } from "@vrooli/api-base";
+    export const transport = createTransport({ baseUrl: resolveApiBase() });
+    [ui/src/test-setup.ts]
+    vi.mock("./lib/api-internals", () => ({
+      resolveApiBase: () => "https://example.test/api/v1",
+    }));
+  </input>
+</test-case>
 */
 
 package interop

@@ -122,6 +122,23 @@
       ]
     }
   },
+  "durable_data": {
+    "base": "$HOME",
+    "entries": {
+      "config": {
+        "path": ".config/opencode",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "OpenCode configuration (standalone XDG config home)."
+      },
+      "storage": {
+        "path": ".local/share/opencode/storage",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "OpenCode session/message storage (standalone XDG data home)."
+      }
+    }
+  },
   "capabilities": {
     "supports_logs": false,
     "supports_content_ops": true

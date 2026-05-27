@@ -91,8 +91,16 @@ func formatTargetSuggestion(s *discoveryv1.TargetSuggestion) string {
 	if s == nil {
 		return "(nil)"
 	}
-	return fmt.Sprintf("%s — %s/%s [kind=%s locator=%s size=%s] — %s",
+	line := fmt.Sprintf("%s — %s/%s [kind=%s locator=%s size=%s] — %s",
 		s.Id, s.Owner, s.Name, kindLabel(s.SourceKind), s.Locator, humanizeBytes(s.ApproxBytes), s.Rationale)
+	if s.Sensitive {
+		warning := s.Warning
+		if warning == "" {
+			warning = "includes credentials/tokens — review before backing up"
+		}
+		line += "  ⚠ SENSITIVE: " + warning
+	}
+	return line
 }
 
 func formatDestinationSuggestion(s *discoveryv1.DestinationSuggestion) string {

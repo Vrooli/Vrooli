@@ -129,6 +129,42 @@
       ]
     }
   },
+  "durable_data": {
+    "base": "$HOME/.claude",
+    "entries": {
+      "history": {
+        "path": "history.jsonl",
+        "kind": "file",
+        "regenerable": false,
+        "rationale": "Prompt history across all Claude Code sessions on this host."
+      },
+      "projects": {
+        "path": "projects",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Full per-project conversation transcripts — the primary record for later analysis."
+      },
+      "file-history": {
+        "path": "file-history",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Per-file edit history Claude Code keeps for restore/undo."
+      },
+      "plans": {
+        "path": "plans",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Authored Claude Code plans."
+      },
+      "credentials": {
+        "path": ".credentials.json",
+        "kind": "file",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Claude Code OAuth credentials — includes live tokens; back up only deliberately."
+      }
+    }
+  },
   "capabilities": {
     "supports_logs": false
   },

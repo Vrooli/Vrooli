@@ -102,7 +102,13 @@ type TargetSuggestion struct {
 	// Human-facing reason this is worth protecting.
 	Rationale string `protobuf:"bytes,6,opt,name=rationale,proto3" json:"rationale,omitempty"`
 	// Best-effort size estimate in bytes (never a deep recursive walk). 0 = unknown.
-	ApproxBytes   int64 `protobuf:"varint,7,opt,name=approx_bytes,json=approxBytes,proto3" json:"approx_bytes,omitempty"`
+	ApproxBytes int64 `protobuf:"varint,7,opt,name=approx_bytes,json=approxBytes,proto3" json:"approx_bytes,omitempty"`
+	// True when this suggestion includes secrets/credentials (e.g. a coding
+	// agent's OAuth tokens). Surfaced for visibility but never auto-accepted —
+	// the operator must register it deliberately.
+	Sensitive bool `protobuf:"varint,8,opt,name=sensitive,proto3" json:"sensitive,omitempty"`
+	// Operator-facing warning shown for sensitive suggestions; empty otherwise.
+	Warning       string `protobuf:"bytes,9,opt,name=warning,proto3" json:"warning,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -184,6 +190,20 @@ func (x *TargetSuggestion) GetApproxBytes() int64 {
 		return x.ApproxBytes
 	}
 	return 0
+}
+
+func (x *TargetSuggestion) GetSensitive() bool {
+	if x != nil {
+		return x.Sensitive
+	}
+	return false
+}
+
+func (x *TargetSuggestion) GetWarning() string {
+	if x != nil {
+		return x.Warning
+	}
+	return ""
 }
 
 // DestinationSuggestion is a mounted volume the operator could back up to.
@@ -570,7 +590,7 @@ var File_data_backup_manager_v1_discovery_discovery_proto protoreflect.FileDescr
 
 const file_data_backup_manager_v1_discovery_discovery_proto_rawDesc = "" +
 	"\n" +
-	"0data-backup-manager/v1/discovery/discovery.proto\x12'vrooli.data_backup_manager.v1.discovery\x1a\x1bbuf/validate/validate.proto\x1a6data-backup-manager/v1/destinations/destinations.proto\x1a,data-backup-manager/v1/sources/sources.proto\"\xfb\x01\n" +
+	"0data-backup-manager/v1/discovery/discovery.proto\x12'vrooli.data_backup_manager.v1.discovery\x1a\x1bbuf/validate/validate.proto\x1a6data-backup-manager/v1/destinations/destinations.proto\x1a,data-backup-manager/v1/sources/sources.proto\"\xb3\x02\n" +
 	"\x10TargetSuggestion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x12\n" +
@@ -579,7 +599,9 @@ const file_data_backup_manager_v1_discovery_discovery_proto_rawDesc = "" +
 	"sourceKind\x12\x18\n" +
 	"\alocator\x18\x05 \x01(\tR\alocator\x12\x1c\n" +
 	"\trationale\x18\x06 \x01(\tR\trationale\x12!\n" +
-	"\fapprox_bytes\x18\a \x01(\x03R\vapproxBytes\"\xb1\x03\n" +
+	"\fapprox_bytes\x18\a \x01(\x03R\vapproxBytes\x12\x1c\n" +
+	"\tsensitive\x18\b \x01(\bR\tsensitive\x12\x18\n" +
+	"\awarning\x18\t \x01(\tR\awarning\"\xb1\x03\n" +
 	"\x15DestinationSuggestion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12Z\n" +

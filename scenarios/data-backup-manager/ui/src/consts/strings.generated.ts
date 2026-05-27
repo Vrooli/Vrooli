@@ -156,6 +156,7 @@ export const strings = {
     enabling: "discovery.enabling",
     dismiss: "discovery.dismiss",
     unsafe: "discovery.unsafe",
+    sensitive: "discovery.sensitive",
     approxSize: "discovery.approxSize",
     freeOfTotal: "discovery.freeOfTotal",
   },

@@ -84,7 +84,19 @@ func targetToProto(s discovery.TargetSuggestion) *discoveryv1.TargetSuggestion {
 		Locator:     s.Locator,
 		Rationale:   s.Rationale,
 		ApproxBytes: s.ApproxBytes,
+		Sensitive:   s.Sensitive,
+		Warning:     sensitiveWarning(s.Sensitive),
 	}
+}
+
+// sensitiveWarning returns the operator-facing warning for a sensitive
+// suggestion (empty otherwise). Sensitive suggestions are surfaced but never
+// auto-accepted — registering one is a deliberate operator action.
+func sensitiveWarning(sensitive bool) string {
+	if !sensitive {
+		return ""
+	}
+	return "Includes credentials/tokens — review before backing up; restoring stale tokens can silently break auth."
 }
 
 // destinationToProto converts an internal destination suggestion to its wire

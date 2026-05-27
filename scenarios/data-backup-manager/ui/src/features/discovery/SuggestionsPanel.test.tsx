@@ -46,6 +46,18 @@ const targetSuggestion = {
   approxBytes: 4096n,
 };
 
+const sensitiveSuggestion = {
+  id: "ts-creds",
+  owner: "claude-code",
+  name: "credentials",
+  sourceKind: SourceKind.FILESYSTEM,
+  locator: "/home/u/.claude/.credentials.json",
+  rationale: "Claude Code OAuth credentials.",
+  approxBytes: 471n,
+  sensitive: true,
+  warning: "Includes credentials/tokens — review before backing up.",
+};
+
 const usbSuggestion = {
   id: "ds-usb",
   label: "Removable drive — USB",
@@ -140,6 +152,19 @@ describe("SuggestionsPanel", () => {
     expect(screen.getByText(strings.discovery.unsafe)).toBeInTheDocument();
     // The safe USB row's Enable stays clickable.
     expect(screen.getByTestId(selectors.discovery.enableButton({ id: "ds-usb" }))).not.toBeDisabled();
+  });
+
+  it("flags a sensitive target suggestion with a badge and warning", async () => {
+    vi.mocked(discoveryApi.listTargetSuggestions).mockResolvedValue([
+      targetSuggestion,
+      sensitiveSuggestion,
+    ] as never);
+    renderWithProviders(<SuggestionsPanel />);
+    await screen.findByTestId(selectors.discovery.suggestionRow({ id: "ts-creds" }));
+
+    // Exactly the sensitive row carries the badge + the server-provided warning.
+    expect(screen.getAllByText(strings.discovery.sensitive)).toHaveLength(1);
+    expect(screen.getByText(sensitiveSuggestion.warning)).toBeInTheDocument();
   });
 
   it("shows per-group empty copy when a group has no suggestions", async () => {

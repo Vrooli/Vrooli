@@ -148,6 +148,7 @@
     "enabling": "جارٍ التفعيل…",
     "dismiss": "تجاهل",
     "unsafe": "يتداخل مع البيانات المحمية — لا يمكن استخدامه",
+    "sensitive": "حسّاس",
     "approxSize": "≈{{size}}",
     "freeOfTotal": "{{free}} متاح من {{total}}"
   },

@@ -7,14 +7,28 @@ import (
 	"strings"
 )
 
-// isTestFile returns true for test files (*.test.ts, *.spec.tsx, etc.) that
+// isTestFile returns true for test files (*.test.ts, *.spec.tsx, etc.) and
+// test-harness setup files (test-setup.ts, *.setup.ts, setup-tests.ts) that
 // should be excluded from production-code scans.
 func isTestFile(name string) bool {
 	lower := strings.ToLower(name)
 	ext := filepath.Ext(lower)
 	base := strings.TrimSuffix(lower, ext)
-	return strings.HasSuffix(base, ".test") || strings.HasSuffix(base, ".spec") ||
-		strings.HasSuffix(base, "_test") || strings.HasSuffix(base, "_spec")
+	if strings.HasSuffix(base, ".test") || strings.HasSuffix(base, ".spec") ||
+		strings.HasSuffix(base, "_test") || strings.HasSuffix(base, "_spec") {
+		return true
+	}
+	// Test-harness setup files (Vitest/Jest/CRA conventions) are test
+	// infrastructure, not production code: vitest.setup.ts, jest.setup.ts,
+	// test-setup.ts, setup-tests.ts, setupTests.ts.
+	if strings.HasSuffix(base, ".setup") || strings.HasSuffix(base, "-setup") {
+		return true
+	}
+	switch base {
+	case "test-setup", "setup-tests", "setuptests", "test-utils", "testutils":
+		return true
+	}
+	return false
 }
 
 // skipDirectories are directories to skip during file scanning.

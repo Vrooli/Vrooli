@@ -54,6 +54,10 @@ type TargetCandidate struct {
 	Rationale string
 	// ApproxBytes is a bounded best-effort size estimate; 0 = unknown.
 	ApproxBytes int64
+	// Sensitive marks a candidate that holds secrets/credentials (e.g. OAuth
+	// tokens). Surfaced with a warning and never auto-accepted; the operator
+	// must register it deliberately.
+	Sensitive bool
 }
 
 // TargetSuggestion is a candidate that survived filtering, with its stable id.

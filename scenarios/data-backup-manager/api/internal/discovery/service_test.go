@@ -107,6 +107,56 @@ func TestListTargetSuggestionsOrdersPlatformThenLarger(t *testing.T) {
 	}
 }
 
+func TestListTargetSuggestionsFlowsResourceCandidatesThroughComposite(t *testing.T) {
+	// A composite of a well-known scanner (vrooli platform state) and a resource
+	// scanner (coding-agent durable data) — the production shape. The service
+	// must surface both, place "vrooli" first, and dedup an already-registered
+	// resource target.
+	wellKnown := &mocks.FakeTargetSourceScanner{Candidates: []discovery.TargetCandidate{
+		candidate("vrooli", "plans", "/home/u/.vrooli/plans", sources.KindFilesystem, 100),
+	}}
+	resourceScan := &mocks.FakeTargetSourceScanner{Candidates: []discovery.TargetCandidate{
+		{Owner: "claude-code", Name: "history", SourceKind: sources.KindFilesystem, Locator: "/home/u/.claude/history.jsonl", ApproxBytes: 9000},
+		{Owner: "codex", Name: "sessions", SourceKind: sources.KindFilesystem, Locator: "/home/u/.codex/sessions", ApproxBytes: 5000},
+		{Owner: "claude-code", Name: "credentials", SourceKind: sources.KindFilesystem, Locator: "/home/u/.claude/.credentials.json", ApproxBytes: 471, Sensitive: true},
+	}}
+	svc := newService(discovery.Deps{
+		Sources: discovery.NewCompositeScanner(wellKnown, resourceScan),
+		Targets: &mocks.FakeTargetCatalog{Targets: []discovery.ExistingTarget{
+			// codex/sessions is already registered → must be filtered out.
+			{Owner: "codex", Name: "sessions", Locator: "/home/u/.codex/sessions"},
+		}},
+	})
+
+	got, err := svc.ListTargetSuggestions(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// vrooli/plans first (platform owner), then resource candidates by size desc.
+	want := []string{"plans", "history", "credentials"}
+	if len(got) != len(want) {
+		t.Fatalf("expected %v, got %d: %+v", want, len(got), got)
+	}
+	for i, n := range want {
+		if got[i].Name != n {
+			t.Fatalf("order[%d] = %q, want %q (full: %+v)", i, got[i].Name, n, got)
+		}
+	}
+	if got[0].Owner != "vrooli" {
+		t.Errorf("platform owner must rank first, got %q", got[0].Owner)
+	}
+	// The sensitive resource candidate keeps its flag through the pipeline.
+	var creds discovery.TargetSuggestion
+	for _, s := range got {
+		if s.Name == "credentials" {
+			creds = s
+		}
+	}
+	if !creds.Sensitive {
+		t.Error("credentials suggestion must remain flagged sensitive end-to-end")
+	}
+}
+
 func vol(mount, fstype string, class sysmounts.DriveClass, removable, ro bool, free, total int64) discovery.Volume {
 	return discovery.Volume{
 		Mountpoint: mount, Filesystem: fstype, Class: class,

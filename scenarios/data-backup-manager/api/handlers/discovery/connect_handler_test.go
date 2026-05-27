@@ -73,6 +73,33 @@ func TestDiscoveryService_Contract(t *testing.T) {
 		}
 	})
 
+	t.Run("ListTargetSuggestions flags sensitive with a warning", func(t *testing.T) {
+		svc := &fakeService{targets: []discovery.TargetSuggestion{
+			{ID: "creds", TargetCandidate: discovery.TargetCandidate{
+				Owner: "claude-code", Name: "credentials", SourceKind: sources.KindFilesystem,
+				Locator: "/home/u/.claude/.credentials.json", Rationale: "creds", ApproxBytes: 471, Sensitive: true,
+			}},
+			{ID: "hist", TargetCandidate: discovery.TargetCandidate{
+				Owner: "claude-code", Name: "history", SourceKind: sources.KindFilesystem,
+				Locator: "/home/u/.claude/history.jsonl", Rationale: "history", ApproxBytes: 1024,
+			}},
+		}}
+		h := NewConnectHandler(Deps{Service: svc})
+
+		resp, err := h.ListTargetSuggestions(ctx, connect.NewRequest(&discoveryv1.ListTargetSuggestionsRequest{}))
+		if err != nil {
+			t.Fatalf("ListTargetSuggestions: %v", err)
+		}
+		creds := resp.Msg.Suggestions[0]
+		if !creds.Sensitive || creds.Warning == "" {
+			t.Fatalf("sensitive suggestion must carry sensitive=true + warning, got %+v", creds)
+		}
+		hist := resp.Msg.Suggestions[1]
+		if hist.Sensitive || hist.Warning != "" {
+			t.Fatalf("non-sensitive suggestion must not carry a warning, got %+v", hist)
+		}
+	})
+
 	t.Run("ListDestinationSuggestions maps class and backend", func(t *testing.T) {
 		svc := &fakeService{dests: []discovery.DestinationSuggestion{
 			{

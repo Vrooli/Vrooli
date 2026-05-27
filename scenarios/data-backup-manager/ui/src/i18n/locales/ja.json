@@ -143,6 +143,7 @@
     "enabling": "有効化中…",
     "dismiss": "却下",
     "unsafe": "保護対象と重複しているため使用できません",
+    "sensitive": "機密",
     "approxSize": "≈{{size}}",
     "freeOfTotal": "{{total}} 中 {{free}} 空き"
   },
