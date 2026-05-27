@@ -17,7 +17,7 @@ enrollment and verification workflows.
 - Input sample rate: **16000 Hz** mono
 - Verification: cosine similarity vs a caller-supplied threshold
 - Reported EER: 0.8% on VoxCeleb1-test (cleaned)
-- CPU-friendly (small model); GPU is an optional overlay
+- GPU-accelerated when an NVIDIA GPU is detected; falls back to CPU automatically
 
 ## Use Cases
 
@@ -34,8 +34,10 @@ This resource follows the `compose-service` structure.
 - `resource.json` is the declarative authority for lifecycle, compose
   orchestration, ports, exports, health, and freshness metadata.
 - `docker/` holds the custom image: `server.py` (FastAPI), pinned
-  `requirements.txt`, and `Dockerfile` (CPU torch base + speechbrain + fastapi +
-  uvicorn + python-multipart + ffmpeg).
+  `requirements.txt`, and `Dockerfile` (PyTorch CUDA base + speechbrain + fastapi +
+  uvicorn + python-multipart + ffmpeg). torch is provided by the CUDA base image
+  and kept out of `requirements.txt` so a PyPI wheel cannot clobber it with a
+  CPU-only build.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the home for Speaker Verification-specific Go logic when the
   manifest and shared control plane are not enough.

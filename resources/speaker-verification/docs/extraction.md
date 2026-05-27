@@ -41,9 +41,11 @@ audio (the "spike" the plan calls for) is **empirical tuning**:
   variant) best isolates the target on real, reverberant, far-field audio.
 - The right `SPEAKER_EXTRACTION_MATCH_THRESHOLD` (and whether to fall back to
   the original mixture below it).
-- CPU vs GPU latency. SepFormer is heavier than ECAPA; for interactive use the
-  GPU compose overlay (`docker-compose.gpu.yml`, `SPEAKER_VERIFICATION_DEVICE=cuda`)
-  is recommended. CPU works but adds seconds per window.
+- GPU vs CPU latency. SepFormer is heavier than ECAPA. The image is now built on
+  the PyTorch CUDA base, so the GPU is used automatically when present (the
+  manifest `gpu` probe applies `docker-compose.gpu.yml` +
+  `SPEAKER_VERIFICATION_DEVICE=cuda`). CPU still works as a fallback but adds
+  seconds per window.
 
 ## Known limitations (v1)
 

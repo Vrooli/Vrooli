@@ -14,7 +14,7 @@ wrapper around SpeechBrain's ECAPA-TDNN speaker-embedding model.
 | Input sample rate | **16000 Hz** (mono) |
 | Reported EER | 0.8% on VoxCeleb1-test (cleaned) |
 | Verification | Cosine similarity between the enrollment embedding and a test-clip embedding, compared against a caller-supplied threshold |
-| Device | CPU by default (small model, GPU optional via the `docker-compose.gpu.yml` overlay) |
+| Device | GPU (CUDA) when an NVIDIA GPU is detected; downgrades to CPU automatically otherwise. Reported by `/v1/info` (`device`, `torch_version`, `cuda_available`). |
 
 Embeddings are L2-normalized before storage; the verification `score` is the
 cosine similarity in `[-1, 1]` (in practice `[0, 1]` for normalized speech
@@ -67,10 +67,15 @@ one-time model load/download; the service is still considered ready (`200`).
 {
   "backend": "speechbrain",
   "model": "speechbrain/spkrec-ecapa-voxceleb",
-  "device": "cpu",
+  "device": "cuda",
+  "torch_version": "2.5.1+cu124",
+  "cuda_available": true,
   "sample_rate": 16000,
-  "version": "0.1.0",
-  "embedding_dim": 192
+  "version": "0.3.0",
+  "embedding_dim": 192,
+  "extraction_model": "speechbrain/sepformer-wsj02mix",
+  "extraction_sample_rate": 8000,
+  "extraction_match_threshold": 0.25
 }
 ```
 

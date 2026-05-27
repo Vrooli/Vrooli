@@ -29,12 +29,20 @@ paths, multipart field names (`profile_id`, `display_name`, `notes`,
 `threshold`, `verify`, and the `audio` file field), and response JSON keys MUST
 NOT drift. See [docs/API.md](API.md) and [docs/internal/SEAMS.md](internal/SEAMS.md).
 
-## CPU vs GPU
+## GPU vs CPU
 
-CPU is the default and recommended path — ECAPA-TDNN is a small model. The GPU
-overlay (`docker/docker-compose.gpu.yml`) is opt-in: the manifest `gpu` block
-probes for NVIDIA and, when present, flips `SPEAKER_VERIFICATION_DEVICE=cuda`.
-The server falls back to CPU automatically if CUDA is unavailable at runtime.
+GPU is the default when an NVIDIA GPU is present. The image is built on the
+PyTorch CUDA runtime base (torch ships with a CUDA build), and the manifest
+`gpu` block probes for NVIDIA: when it passes, the resource manager applies the
+GPU overlay (`docker/docker-compose.gpu.yml`, `runtime: nvidia` + device
+reservation) and sets `SPEAKER_VERIFICATION_DEVICE=cuda`. ECAPA verification is
+small, but SepFormer target-extraction is heavy enough that the GPU matters for
+interactive latency.
+
+The same image runs on CPU-only hosts: the server resolves the device at
+startup and downgrades `cuda`→`cpu` when no GPU is visible (logged at boot and
+reported by `/v1/info` as `device`, `torch_version`, `cuda_available`). Force a
+mode with `VROOLI_GPU=on|off|auto` (auto is the default and runs the probe).
 
 ## Operator Checklist
 

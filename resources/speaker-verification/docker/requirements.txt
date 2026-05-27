@@ -1,7 +1,7 @@
 # Pinned Python dependencies for the speaker-verification server.
-# torch / torchaudio are installed from the CPU wheel index in the Dockerfile.
-torch==2.2.2
-torchaudio==2.2.2
+# torch is provided by the CUDA base image and torchaudio is installed from the
+# matching CUDA wheel index in the Dockerfile. Do NOT add either here — a PyPI
+# wheel would clobber the image's CUDA build with a CPU-only one.
 speechbrain==1.0.2
 fastapi==0.111.0
 uvicorn[standard]==0.30.1

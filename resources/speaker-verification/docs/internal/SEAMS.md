@@ -17,10 +17,10 @@ renames should update the row.
 
 | | |
 |---|---|
-| **Seam** | `SPEAKER_VERIFICATION_DEVICE` environment variable read by `server.py` at startup. |
-| **Production wiring** | Default `cpu` (base compose). The manifest `gpu` block flips it to `cuda` via the GPU compose overlay when an NVIDIA stack is probed. |
-| **Test fake** | Set the env var directly; `server.py` downgrades `cuda` → `cpu` automatically when `torch.cuda.is_available()` is false, so CPU-only hosts are safe. |
-| **Why it exists** | Lets the same image run on CPU (default) or GPU without code changes, and keeps device selection out of the Python logic that the audio-tools contract depends on. |
+| **Seam** | `SPEAKER_VERIFICATION_DEVICE` environment variable read by `server.py` at startup (`auto`/`cuda`/`cpu`; default resolves to `cuda` when a GPU is visible). |
+| **Production wiring** | The image is built on the PyTorch CUDA runtime base (torch ships with a CUDA build). The manifest `gpu` block probes for NVIDIA and, when present, applies the GPU compose overlay (`runtime: nvidia` + device reservation) and sets `cuda`. `VROOLI_GPU=on/off/auto` overrides the probe. |
+| **Test fake** | Set the env var directly; `server.py` downgrades `cuda` → `cpu` automatically when `torch.cuda.is_available()` is false, so the same image runs on CPU-only hosts. The resolved device is logged at boot and reported by `/v1/info` (`device`, `torch_version`, `cuda_available`). |
+| **Why it exists** | Lets one image run on GPU (default when present) or CPU without code changes, and keeps device selection out of the Python logic that the audio-tools contract depends on. |
 
 ## Profile store
 

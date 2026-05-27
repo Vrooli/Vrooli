@@ -13,9 +13,12 @@ services:
       - speaker_verification_profiles:/data/profiles:rw
       - speaker_verification_models:/data/model-cache:rw
     environment:
-      # GPU overlay: the manifest gpu.env_overrides flips this to "cuda".
+      # GPU overlay: the manifest gpu.env_overrides also flips this to "cuda".
       - SPEAKER_VERIFICATION_DEVICE=${SPEAKER_VERIFICATION_DEVICE:-cuda}
       - SPEAKER_VERIFICATION_MODEL=${SPEAKER_VERIFICATION_MODEL:-speechbrain/spkrec-ecapa-voxceleb}
+      - SPEAKER_EXTRACTION_MODEL=${SPEAKER_EXTRACTION_MODEL:-speechbrain/sepformer-wsj02mix}
+      - SPEAKER_EXTRACTION_SAMPLE_RATE=${SPEAKER_EXTRACTION_SAMPLE_RATE:-8000}
+      - SPEAKER_EXTRACTION_MATCH_THRESHOLD=${SPEAKER_EXTRACTION_MATCH_THRESHOLD:-0.25}
       - NVIDIA_VISIBLE_DEVICES=all
     networks:
       - speaker-verification-network

@@ -33,7 +33,7 @@ from fastapi.responses import JSONResponse, Response
 # Configuration (all overridable via environment for compose / GPU overlays)
 # ---------------------------------------------------------------------------
 
-SERVER_VERSION = "0.2.0"
+SERVER_VERSION = "0.3.0"
 MODEL_NAME = os.environ.get(
     "SPEAKER_VERIFICATION_MODEL", "speechbrain/spkrec-ecapa-voxceleb"
 )
@@ -58,9 +58,33 @@ EXTRACTION_MATCH_THRESHOLD = float(
     os.environ.get("SPEAKER_EXTRACTION_MATCH_THRESHOLD", "0.25")
 )
 
-DEVICE = os.environ.get("SPEAKER_VERIFICATION_DEVICE", "cpu").strip().lower()
-if DEVICE == "cuda" and not torch.cuda.is_available():
+# Device resolution. "auto" (and the empty default) pick cuda when a GPU is
+# visible, else cpu. An explicit "cuda" still downgrades to cpu when no GPU is
+# present so the same CUDA image runs unchanged on CPU-only hosts. The chosen
+# device is logged once at import so operators can confirm GPU use in the logs.
+_DEVICE_REQUEST = os.environ.get("SPEAKER_VERIFICATION_DEVICE", "auto").strip().lower()
+_CUDA_AVAILABLE = torch.cuda.is_available()
+if _DEVICE_REQUEST in ("", "auto"):
+    DEVICE = "cuda" if _CUDA_AVAILABLE else "cpu"
+elif _DEVICE_REQUEST == "cuda" and not _CUDA_AVAILABLE:
     DEVICE = "cpu"
+else:
+    DEVICE = _DEVICE_REQUEST
+
+_gpu_name = torch.cuda.get_device_name(0) if DEVICE == "cuda" and _CUDA_AVAILABLE else None
+print(
+    f"[speaker-verification] torch={torch.__version__} "
+    f"device_request={_DEVICE_REQUEST or 'auto'} cuda_available={_CUDA_AVAILABLE} "
+    f"device={DEVICE}" + (f" gpu={_gpu_name}" if _gpu_name else ""),
+    flush=True,
+)
+if _DEVICE_REQUEST == "cuda" and not _CUDA_AVAILABLE:
+    print(
+        "[speaker-verification] WARNING: cuda requested but no GPU is visible to "
+        "the container; falling back to cpu. Ensure the GPU compose overlay "
+        "(runtime: nvidia + device reservation) is applied.",
+        flush=True,
+    )
 
 PROFILE_STORE_DIR = Path(
     os.environ.get("SPEAKER_VERIFICATION_PROFILE_DIR", "/data/profiles")
@@ -349,6 +373,8 @@ def info() -> Dict[str, Any]:
         "backend": "speechbrain",
         "model": MODEL_NAME,
         "device": DEVICE,
+        "torch_version": torch.__version__,
+        "cuda_available": _CUDA_AVAILABLE,
         "sample_rate": SAMPLE_RATE,
         "version": SERVER_VERSION,
         "embedding_dim": EMBEDDING_DIM,
