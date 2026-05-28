@@ -14,3 +14,9 @@ requests==2.32.3
 # speechbrain 1.0.2 still calls hf_hub_download(use_auth_token=...), which was
 # removed in huggingface_hub 0.26. Pin to the last line that supports it.
 huggingface_hub==0.25.2
+# Silero VAD: pre-trained JIT model for robust voice-activity detection on
+# phone-codec / low-SNR audio. The energy VAD remains in vad.py as the automatic
+# fallback when this load fails. The PyPI package ships the weights so no
+# torch.hub network round-trip is needed at first request.
+silero-vad==5.1.2
+

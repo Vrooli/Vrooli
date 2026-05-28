@@ -232,18 +232,20 @@ function VoiceMicButtonInner({
   // step 12 with the VAD_AUTO_STOP_VISUAL_GRACE_MS gate applied to the
   // server-derived elapsed too, so a 1-frame silence blip doesn't flash.
   const nowPerf = typeof performance !== "undefined" ? performance.now() : Date.now();
-  const fresh = !!serverVad
+  const freshServerVad = serverVad
     && serverVad.receivedAt > 0
-    && (nowPerf - serverVad.receivedAt) < SERVER_VAD_STALE_MS;
+    && (nowPerf - serverVad.receivedAt) < SERVER_VAD_STALE_MS
+    ? serverVad
+    : null;
   let autoStopProgress: number;
   let showAutoStopRing: boolean;
-  if (fresh && serverVad!.silenceTimeoutMs > 0) {
+  if (freshServerVad && freshServerVad.silenceTimeoutMs > 0) {
     const interpolated = Math.min(
-      serverVad!.silenceElapsedMs + (nowPerf - serverVad!.receivedAt),
-      serverVad!.silenceTimeoutMs,
+      freshServerVad.silenceElapsedMs + (nowPerf - freshServerVad.receivedAt),
+      freshServerVad.silenceTimeoutMs,
     );
-    autoStopProgress = Math.max(0, Math.min(1, interpolated / serverVad!.silenceTimeoutMs));
-    const autoStopVisible = !serverVad!.voiced
+    autoStopProgress = Math.max(0, Math.min(1, interpolated / freshServerVad.silenceTimeoutMs));
+    const autoStopVisible = !freshServerVad.voiced
       && interpolated >= VAD_AUTO_STOP_VISUAL_GRACE_MS;
     showAutoStopRing = isRecording && autoStopVisible;
   } else {

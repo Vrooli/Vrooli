@@ -67,6 +67,22 @@ type Result struct {
 	// Confidence carries the backend's per-segment confidence signals when
 	// available (Local/Whisper). nil for tiers that report none.
 	Confidence *Confidence
+	// Words carries the backend's per-word timing (start/end seconds
+	// relative to the request audio) when available. Empty for tiers that
+	// don't report words. OverlapAgree uses this to advance its committed
+	// audio cursor to a real word boundary so committed text is never
+	// re-emitted on the next transcription.
+	Words []TimedWord
+}
+
+// TimedWord is a per-word timestamp pair (seconds, relative to the request
+// audio's start). Mirrored from pipeline.TimedWord; lives here so chain
+// consumers don't import the pipeline package.
+type TimedWord struct {
+	Word  string
+	Start float64
+	End   float64
+	Prob  float64
 }
 
 // StrategyKind identifies a streaming strategy. The StrategySelector

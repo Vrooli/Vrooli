@@ -282,8 +282,12 @@ func (s *Selector) Select(
 	// Compatibility matrix (docs/domains/stt/streaming-pipeline.md):
 	//   - Stream=true, Strategies=[passthrough] → Passthrough only
 	//   - Stream=false, vad_segment in whitelist (or empty) → VADSegment
-	//   - Stream=false, overlap_agree in whitelist → OverlapAgree
-	//     (operator must request it via preference=overlap)
+	//     (auto default for batch-only providers)
+	//   - Stream=false, overlap_agree in whitelist → OverlapAgree only when
+	//     the operator selects PreferenceOverlap explicitly. The current
+	//     sliding-window implementation does not emit incremental segments
+	//     (each window covers different audio so transcripts share no
+	//     prefix), so auto must not pick it — see overlap_agree.go.
 	//   - Anything else → BufferedFallback
 	pick := func(kind sttchain.StrategyKind) (strategy.Strategy, sttchain.StrategyKind, error) {
 		if !supports(kind) {
@@ -343,9 +347,23 @@ func (s *Selector) Select(
 		}
 		chosenStrategy, chosenKind = st, k
 	default: // auto
+		// Auto-resolution order:
+		//   1. Native streaming (Passthrough) — best UX when the provider
+		//      supports it (Kyutai, Deepgram, future LPBS streaming).
+		//   2. OverlapAgree on batch-only providers (Local Whisper) —
+		//      incremental segments mid-utterance via LocalAgreement-N +
+		//      VAD-anchored growing-buffer. See docs/internal/PROBLEMS.md
+		//      "OverlapAgree commit gap" (RESOLVED) and
+		//      overlap_agree_behavior_test.go for the correctness gates.
+		//   3. VADSegment as the batch fallback when OverlapAgree is
+		//      excluded by the engine manifest whitelist.
+		//   4. BufferedFallback when nothing else fits.
 		switch {
 		case traits.Stream && supports(sttchain.StrategyPassthrough):
 			st, k, _ := pick(sttchain.StrategyPassthrough)
+			chosenStrategy, chosenKind = st, k
+		case traits.Batch && supports(sttchain.StrategyOverlapAgree):
+			st, k, _ := pick(sttchain.StrategyOverlapAgree)
 			chosenStrategy, chosenKind = st, k
 		case traits.Batch && supports(sttchain.StrategyVADSegment):
 			st, k, _ := pick(sttchain.StrategyVADSegment)

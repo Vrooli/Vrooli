@@ -79,11 +79,29 @@ func ResolveWhisperURLWith(env envx.Reader) string {
 // NoSpeechProb / AvgLogProb are the arithmetic means across the returned
 // segments. They are the robust hallucination signals: silence-only audio
 // produces a high no_speech_prob and a low (very negative) avg_logprob.
+//
+// Words carries flattened per-word timing (start/end in seconds, relative
+// to the input audio) when the request enabled word_timestamps and the
+// backend returned them. Empty for non-Whisper tiers or for engines that
+// don't report words. The OverlapAgree streaming strategy uses Words to
+// advance committedAudioBytes to the exact audio offset corresponding to
+// committed text, eliminating re-emission on subsequent transcriptions.
 type TranscriptionResult struct {
 	Text          string
 	HasConfidence bool
 	NoSpeechProb  float64
 	AvgLogProb    float64
+	Words         []TimedWord
+}
+
+// TimedWord is a single word with its audio-relative start/end seconds and
+// the model's word-level probability, as reported by faster-whisper when
+// word_timestamps=true.
+type TimedWord struct {
+	Word  string
+	Start float64
+	End   float64
+	Prob  float64
 }
 
 // TranscribeBytes sends audio bytes to the Whisper /asr endpoint and returns
@@ -146,6 +164,13 @@ func TranscribeBytes(
 		// audio it would otherwise narrate as "thank you for watching".
 		targetURL += "&vad_filter=true"
 	}
+	// word_timestamps=true asks faster-whisper to attach per-word
+	// start/end/probability to each returned segment. OverlapAgree uses
+	// these to advance committedAudioBytes to a real word boundary;
+	// VADSegment ignores them. Always-on: the response cost is negligible
+	// (one extra array of floats per segment) and the field is required by
+	// the streaming-commit algorithm.
+	targetURL += "&word_timestamps=true"
 
 	pr, pw := io.Pipe()
 	writer := multipart.NewWriter(pw)
@@ -193,6 +218,12 @@ func TranscribeBytes(
 		Segments []struct {
 			NoSpeechProb float64 `json:"no_speech_prob"`
 			AvgLogprob   float64 `json:"avg_logprob"`
+			Words        []struct {
+				Word        string  `json:"word"`
+				Start       float64 `json:"start"`
+				End         float64 `json:"end"`
+				Probability float64 `json:"probability"`
+			} `json:"words"`
 		} `json:"segments"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -205,6 +236,14 @@ func TranscribeBytes(
 		for _, seg := range result.Segments {
 			sumNoSpeech += seg.NoSpeechProb
 			sumLogprob += seg.AvgLogprob
+			for _, w := range seg.Words {
+				out.Words = append(out.Words, TimedWord{
+					Word:  w.Word,
+					Start: w.Start,
+					End:   w.End,
+					Prob:  w.Probability,
+				})
+			}
 		}
 		out.HasConfidence = true
 		out.NoSpeechProb = sumNoSpeech / float64(n)
@@ -264,6 +303,16 @@ func TruncateForLog(s string, maxLen int) string {
 
 func stripTrailingPunct(w string) string {
 	return strings.TrimRight(w, ".,;:!?\"')")
+}
+
+// NormalizeToken returns the case- and trailing-punctuation-normalized
+// form of a single whitespace-delimited token. Used by both the
+// DeduplicateOverlap defense and the OverlapAgree strategy's
+// longestAgreedPrefix gate so consecutive Whisper hypotheses that
+// differ only in capitalization or punctuation jitter ("Hello world"
+// vs "hello world.") still register as agreeing.
+func NormalizeToken(w string) string {
+	return strings.ToLower(stripTrailingPunct(w))
 }
 
 // DeduplicateOverlap merges newText into accumulated by detecting the longest

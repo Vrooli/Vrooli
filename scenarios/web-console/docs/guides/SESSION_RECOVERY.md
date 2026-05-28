@@ -5,7 +5,7 @@ Web-console persists every `backend=persistent` pane behind a tmux session. The 
 There are two recovery modes:
 
 - **Normal restart recovery (automatic).** API restarts but the host and tmux server stay alive. `Recover()` re-attaches to surviving `wc-<id>` tmux sessions, status stays `live`, the user sees no interruption.
-- **Crash recovery (one CLI call).** Host reboot, tmux scope kill, OOM, or manual `tmux -L wc kill-server`. The tmux session is gone but the DB row is preserved with `status='awaiting_recovery'`, agent identity (`agent_type`, `agent_session_id`, `cwd`, `last_rollout_path`), and `orphaned_at`. Run `web-console session recover <id>` to spawn a fresh persistent pane, copy the per-session `CODEX_HOME`, and paste the resume command.
+- **Crash recovery (one CLI call).** Host reboot, tmux scope kill, OOM, or manual `tmux -L wc kill-server`. The tmux session is gone but the DB row is preserved with `status='awaiting_recovery'`, agent identity (`agent_type`, `agent_session_id`, `cwd`, `last_rollout_path`), and `orphaned_at`. Run `web-console session recover <id>` to spawn a fresh persistent pane, copy the per-session `CODEX_HOME`, carry over the prior conversation history, and paste the resume command.
 
 This guide covers the supported (CLI-driven) flow. The legacy manual procedure lives in the appendix for the case where the API itself is broken.
 
@@ -47,10 +47,11 @@ What `recover` does, in order:
 1. Validates the row is `awaiting_recovery` and has enough agent identity to reattach (codex requires nothing more; claude requires a non-empty `agent_session_id`).
 2. Creates a fresh `backend=persistent` pane inheriting `shell`, `cols`, `rows`, and `policy` from the orphan.
 3. For codex panes, `rsync -a $CODEX_HOME($old_id)/ $CODEX_HOME($new_id)/` copies the rollout history into the new pane's path.
-4. Pastes the appropriate resume command into the new pane:
+4. Copies the orphan's conversation history (`conversation_sessions` cursor + all `conversation_events`) onto the new session id, preserving sequence numbers and per-event playback/consumption state so the **messages view is populated on reattach** instead of starting empty. Best-effort: a copy failure is logged but does not abort recovery.
+5. Pastes the appropriate resume command into the new pane:
    - `codex --yolo resume <agent_session_id>` (or `--last` if id is empty)
    - `claude --resume <agent_session_id> --dangerously-skip-permissions`
-5. Marks the orphan row `dismissed` with `recovered_into=<new_session_id>`.
+6. Marks the orphan row `dismissed` with `recovered_into=<new_session_id>`.
 
 Recovery is idempotent on `X-Idempotency-Key`. The on-disk `CODEX_HOME` of the orphan is preserved even after dismiss; only the DB row transitions to `dismissed`.
 
@@ -176,7 +177,9 @@ ws.send(json.dumps({"type": "stdin", "data": "codex --yolo resume <id>\n", "kind
 ws.close()
 ```
 
-### A.4 Copy conversation events (optional)
+### A.4 Copy conversation events (manual fallback only)
+
+> The CLI `web-console session recover` now copies conversation history automatically (step 4 above). This manual SQL is only needed in the broken-API fallback where you recreated the pane by hand in A.2.
 
 If the lost pane had assistant messages already captured by the server, copy them into the new pane's session id:
 

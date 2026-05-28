@@ -35,10 +35,6 @@
       "verification": {
         "backendResource": "speaker-verification",
         "defaultThreshold": 0.5
-      },
-      "targetExtraction": {
-        "backendResource": "speaker-verification",
-        "status": "active"
       }
     }
   }

@@ -34,12 +34,14 @@ type SpeakerProfileList struct {
 // SpeakerProfileClip is one labeled enrollment clip's metadata (the raw
 // embedding never crosses the wire).
 type SpeakerProfileClip struct {
-	ClipID        string  `json:"clip_id"`
-	Label         string  `json:"label"`
-	VoicedSeconds float64 `json:"voiced_seconds"`
-	AudioSeconds  float64 `json:"audio_seconds"`
-	CreatedAt     string  `json:"created_at"`
-	EmbeddingDim  int     `json:"embedding_dim"`
+	ClipID               string  `json:"clip_id"`
+	Label                string  `json:"label"`
+	VoicedSeconds        float64 `json:"voiced_seconds"`
+	AudioSeconds         float64 `json:"audio_seconds"`
+	SelfConsistencyScore float64 `json:"self_consistency_score"`
+	VadModel             string  `json:"vad_model"`
+	CreatedAt            string  `json:"created_at"`
+	EmbeddingDim         int     `json:"embedding_dim"`
 }
 
 // SpeakerProfileDetail is the GET /v1/profiles/{id} response: profile metadata
@@ -83,20 +85,37 @@ type SpeakerResourceReady struct {
 }
 
 // SpeakerEnrollmentResponse is the response to appending one enrollment clip.
+//
+// In v0.4 the resource adds enrollment-time self-consistency diagnostics: the
+// new clip's max-cosine against the strongest existing clip in the same
+// profile, plus a warning flag when that score is below the resource's
+// self-consistency threshold. The clip is stored regardless — the warning is
+// informational, exposed so callers can prompt the user to re-record in
+// matching conditions.
 type SpeakerEnrollmentResponse struct {
-	ProfileID          string  `json:"profile_id"`
-	ClipID             string  `json:"clip_id"`
-	Label              string  `json:"label"`
-	VoicedSeconds      float64 `json:"voiced_seconds"`
-	AudioSeconds       float64 `json:"audio_seconds"`
-	ClipCount          int     `json:"clip_count"`
-	TotalVoicedSeconds float64 `json:"total_voiced_seconds"`
-	EmbeddingDim       int     `json:"embedding_dim"`
-	SampleRate         int     `json:"sample_rate"`
-	ModelName          string  `json:"model_name"`
-	CreatedAt          string  `json:"created_at"`
+	ProfileID                    string  `json:"profile_id"`
+	ClipID                       string  `json:"clip_id"`
+	Label                        string  `json:"label"`
+	VoicedSeconds                float64 `json:"voiced_seconds"`
+	AudioSeconds                 float64 `json:"audio_seconds"`
+	ClipCount                    int     `json:"clip_count"`
+	TotalVoicedSeconds           float64 `json:"total_voiced_seconds"`
+	EmbeddingDim                 int     `json:"embedding_dim"`
+	SampleRate                   int     `json:"sample_rate"`
+	ModelName                    string  `json:"model_name"`
+	VadModel                     string  `json:"vad_model"`
+	SelfConsistencyScore         float64 `json:"self_consistency_score"`
+	SelfConsistencyThreshold     float64 `json:"self_consistency_threshold"`
+	SelfConsistencyWarning       bool    `json:"self_consistency_warning"`
+	SelfConsistencyBestClipID    string  `json:"self_consistency_best_clip_id"`
+	SelfConsistencyBestClipLabel string  `json:"self_consistency_best_clip_label"`
+	CreatedAt                    string  `json:"created_at"`
 }
 
+// SpeakerVerifyResult is the parsed response from the resource's /v1/verify
+// endpoint. v0.4 dropped centroid aggregation: scoring is now max-over-clips
+// only, so ScoreAgg reads "max" and best_clip_id / best_clip_score expose the
+// concrete winning clip so callers can surface "which enrollment matched".
 type SpeakerVerifyResult struct {
 	ProfileID     string  `json:"profile_id"`
 	Matched       bool    `json:"matched"`
@@ -109,7 +128,11 @@ type SpeakerVerifyResult struct {
 	Model         string  `json:"model"`
 	AudioSeconds  float64 `json:"audio_seconds"`
 	ScoreAgg      string  `json:"score_agg"`
+	VadModel      string  `json:"vad_model"`
+	NClips        int     `json:"n_clips"`
 	BestClipLabel string  `json:"best_clip_label"`
+	BestClipID    string  `json:"best_clip_id"`
+	BestClipScore float64 `json:"best_clip_score"`
 }
 
 // SpeakerExtractionResult holds the response from the /v1/extract endpoint.

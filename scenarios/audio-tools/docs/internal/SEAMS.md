@@ -679,6 +679,27 @@ Lives in `ui/src/audio-integration/hooks/voice/autoStopDecision.ts`.
 helper; do not introduce a parallel snapshot store. The 250 ms staleness
 threshold is exported once as `SERVER_VAD_STALE_MS` and consumed by both.
 
+#### Cross-scenario drift guard
+
+Three voice helper files are intentionally duplicated across
+`audio-tools/ui`, `web-console/ui`, and `swarm-manager/ui` per
+`feedback_duplicate_before_extract`:
+
+- `ui/src/audio-integration/hooks/voice/autoStopDecision.ts`
+- `ui/src/audio-integration/hooks/voice/autoStopDecision.test.ts`
+- `ui/src/audio-integration/hooks/useServerVadStateStore.ts`
+
+A vitest guard at
+`scenarios/audio-tools/ui/src/audio-integration/hooks/voice/voiceCopyDrift.test.ts`
+runs as part of `vrooli scenario test audio-tools`, reads each file from the
+other two scenarios, and asserts byte-equality against the audio-tools copy
+(audio-tools is the authoritative SSOT for voice substrate). If you change
+any file in the set, copy the new bytes to the other two scenarios; if you
+add a new shared file, append it to the `SYNCED_FILES` constant in the guard.
+`VoiceStreamProvider.ts` is NOT in the synced set — audio-tools is on
+PCM-capture while web-console/swarm-manager still use MediaRecorder, and
+that divergence is intentional until they catch up.
+
 ### `voice/pcmCapture.PcmCaptureFactory` (embed PCM capture seam)
 
 The browser-streaming provider captures microphone audio as raw PCM rather

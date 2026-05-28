@@ -1,8 +1,8 @@
-"""Unit tests for profile centroid + score aggregation.
+"""Unit tests for max-over-clips scoring + self-consistency.
 
-These exercise ``server._centroid`` and ``server._score_profile``, which use
-torch, so the whole module is skipped when torch is unavailable. It runs inside
-the resource image:
+These exercise ``server._best_match`` and ``server._self_consistency``, which
+use torch, so the whole module is skipped when torch is unavailable. It runs
+inside the resource image:
 
     python -m unittest test_profiles
 """
@@ -25,70 +25,55 @@ def _unit(*components: float):
 
 
 @unittest.skipUnless(_HAVE, "torch/server unavailable on host")
-class CentroidTest(unittest.TestCase):
-    def test_empty(self):
-        self.assertEqual(server._centroid([]), [])
+class BestMatchTest(unittest.TestCase):
+    def test_empty_profile_returns_negative(self):
+        score, label, clip_id = server._best_match(_unit(1.0, 0.0), [])
+        self.assertEqual(score, -1.0)
+        self.assertEqual(label, "")
+        self.assertEqual(clip_id, "")
 
-    def test_single_clip_is_normalized_direction(self):
-        clips = [{"embedding": _unit(3.0, 0.0, 0.0)}]
-        centroid = server._centroid(clips)
-        self.assertAlmostEqual(centroid[0], 1.0, places=5)
-        self.assertAlmostEqual(centroid[1], 0.0, places=5)
-
-    def test_mean_then_renormalize(self):
+    def test_max_over_clips_picks_best_label_and_id(self):
         clips = [
-            {"embedding": _unit(1.0, 0.0)},
-            {"embedding": _unit(0.0, 1.0)},
+            {"embedding": _unit(1.0, 0.0), "label": "normal", "clip_id": "n1"},
+            {"embedding": _unit(0.0, 1.0), "label": "whisper", "clip_id": "w1"},
         ]
-        centroid = server._centroid(clips)
-        # mean = (0.5, 0.5) -> normalized = (0.707, 0.707)
-        self.assertAlmostEqual(centroid[0], centroid[1], places=5)
-        self.assertAlmostEqual(centroid[0], 0.70710677, places=5)
+        # A test vector aligned with whisper: per-clip cosine = 1.0
+        score, label, clip_id = server._best_match(_unit(0.0, 1.0), clips)
+        self.assertAlmostEqual(score, 1.0, places=5)
+        self.assertEqual(label, "whisper")
+        self.assertEqual(clip_id, "w1")
+
+    def test_max_over_clips_picks_better_of_two(self):
+        clips = [
+            {"embedding": _unit(1.0, 0.0), "label": "normal", "clip_id": "n1"},
+            {"embedding": _unit(0.5, 0.5), "label": "mixed", "clip_id": "m1"},
+        ]
+        # Vector closer to "normal" than "mixed"
+        score, label, _id = server._best_match(_unit(0.9, 0.1), clips)
+        self.assertEqual(label, "normal")
+        self.assertGreater(score, 0.95)
 
 
 @unittest.skipUnless(_HAVE, "torch/server unavailable on host")
-class ScoreProfileTest(unittest.TestCase):
-    def _record(self):
-        clips = [
-            {"embedding": _unit(1.0, 0.0), "label": "normal"},
-            {"embedding": _unit(0.0, 1.0), "label": "whisper"},
-        ]
-        return {"centroid": server._centroid(clips), "clips": clips}
+class SelfConsistencyTest(unittest.TestCase):
+    def test_no_existing_clips_returns_negative(self):
+        score, label, clip_id = server._self_consistency(_unit(1.0, 0.0), [])
+        self.assertEqual(score, -1.0)
+        self.assertEqual(label, "")
+        self.assertEqual(clip_id, "")
 
-    def test_hybrid_prefers_best_clip_over_centroid(self):
-        orig = server.SCORE_AGG
-        server.SCORE_AGG = "hybrid"
-        try:
-            rec = self._record()
-            # A test vector aligned with the "whisper" clip: per-clip cosine = 1.0
-            # beats the centroid cosine (~0.707), so hybrid returns the clip hit.
-            score, label = server._score_profile(_unit(0.0, 1.0), rec)
-            self.assertAlmostEqual(score, 1.0, places=5)
-            self.assertEqual(label, "whisper")
-        finally:
-            server.SCORE_AGG = orig
+    def test_consistent_clip_scores_high(self):
+        existing = [{"embedding": _unit(1.0, 0.0), "label": "normal", "clip_id": "n1"}]
+        # New clip extremely similar to existing
+        score, label, _id = server._self_consistency(_unit(0.99, 0.05), existing)
+        self.assertGreater(score, 0.95)
+        self.assertEqual(label, "normal")
 
-    def test_centroid_only_mode(self):
-        orig = server.SCORE_AGG
-        server.SCORE_AGG = "centroid"
-        try:
-            rec = self._record()
-            score, label = server._score_profile(_unit(0.0, 1.0), rec)
-            self.assertAlmostEqual(score, 0.70710677, places=5)
-            self.assertEqual(label, "")
-        finally:
-            server.SCORE_AGG = orig
-
-    def test_max_mode_returns_label(self):
-        orig = server.SCORE_AGG
-        server.SCORE_AGG = "max"
-        try:
-            rec = self._record()
-            score, label = server._score_profile(_unit(1.0, 0.0), rec)
-            self.assertAlmostEqual(score, 1.0, places=5)
-            self.assertEqual(label, "normal")
-        finally:
-            server.SCORE_AGG = orig
+    def test_divergent_clip_scores_low(self):
+        existing = [{"embedding": _unit(1.0, 0.0), "label": "normal", "clip_id": "n1"}]
+        # Orthogonal new clip
+        score, _label, _id = server._self_consistency(_unit(0.0, 1.0), existing)
+        self.assertLess(score, 0.1)
 
 
 @unittest.skipUnless(_HAVE, "torch/server unavailable on host")

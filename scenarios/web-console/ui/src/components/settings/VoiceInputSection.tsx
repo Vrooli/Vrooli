@@ -38,6 +38,8 @@ import { fetchCapabilities, type CapabilityState } from "../../api/capabilities"
 import { probeWhisperHealth } from "../../hooks/useVoiceInput";
 import { VoiceStreamProvider, WhisperProvider, WebSpeechProvider } from "../../audio-integration";
 import type { TranscriptionProvider } from "../../audio-integration";
+import { getSharedAudioContext } from "../../audio-integration/hooks/voice/sharedAudioContext";
+import { createAudioFilterChain } from "../../audio-integration/hooks/voice/audioUtils";
 import { VOICE_COMMANDS } from "../../hooks/voice/commands";
 import {
   createWakeWordEngine,
@@ -83,6 +85,11 @@ export default function VoiceInputSection() {
   const [speakerError, setSpeakerError] = useState<string | null>(null);
   const [enrollmentState, setEnrollmentState] = useState<"idle" | "recording" | "uploading" | "success" | "error">("idle");
   const [enrollmentSeconds, setEnrollmentSeconds] = useState(0);
+  // Live mic level (0..1) shown as a meter while enrolling, so the user can
+  // see their voice is being captured. Driven by the same AnalyserNode the
+  // streaming mic uses (createAudioFilterChain) — its absence was why
+  // enrollment "showed no volume".
+  const [enrollmentLevel, setEnrollmentLevel] = useState(0);
   const [enrollmentMessage, setEnrollmentMessage] = useState<string | null>(null);
   const [profileDisplayName, setProfileDisplayName] = useState("My Voice");
   const [reEnrollTargetId, setReEnrollTargetId] = useState<string | null>(null);
@@ -121,6 +128,14 @@ export default function VoiceInputSection() {
   const enrollmentStreamRef = useRef<MediaStream | null>(null);
   const enrollmentTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const enrollmentStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Web Audio graph used purely for the live level meter + Chrome's render
+  // keepalive (see createAudioFilterChain). Recording itself still uses the
+  // RAW mic stream so enrollment embeddings match the streaming verification
+  // path's audio characteristics. Disconnected in teardownEnrollmentAudio.
+  const enrollmentSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const enrollmentNodesRef = useRef<AudioNode[]>([]);
+  const enrollmentAnalyserRef = useRef<AnalyserNode | null>(null);
+  const enrollmentLevelTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const hasWebSpeech = typeof window !== "undefined" &&
     Boolean("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
@@ -363,6 +378,11 @@ export default function VoiceInputSection() {
       }
       if (enrollmentTickerRef.current) clearInterval(enrollmentTickerRef.current);
       if (enrollmentStopTimerRef.current) clearTimeout(enrollmentStopTimerRef.current);
+      if (enrollmentLevelTimerRef.current) clearInterval(enrollmentLevelTimerRef.current);
+      try { enrollmentSourceRef.current?.disconnect(); } catch { /* noop */ }
+      for (const node of enrollmentNodesRef.current) {
+        try { node.disconnect(); } catch { /* noop */ }
+      }
       enrollmentStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
@@ -490,6 +510,26 @@ export default function VoiceInputSection() {
     }
   }, [loadSpeakerStatus]);
 
+  // Tear down the level-meter Web Audio graph and timers. Safe to call
+  // multiple times. Does NOT stop the recorder/tracks — those are handled in
+  // the recorder's onstop so the final webm cluster is flushed first.
+  const teardownEnrollmentAudio = useCallback(() => {
+    if (enrollmentLevelTimerRef.current) {
+      clearInterval(enrollmentLevelTimerRef.current);
+      enrollmentLevelTimerRef.current = null;
+    }
+    try {
+      enrollmentSourceRef.current?.disconnect();
+    } catch { /* already disconnected */ }
+    for (const node of enrollmentNodesRef.current) {
+      try { node.disconnect(); } catch { /* already disconnected */ }
+    }
+    enrollmentSourceRef.current = null;
+    enrollmentNodesRef.current = [];
+    enrollmentAnalyserRef.current = null;
+    setEnrollmentLevel(0);
+  }, []);
+
   const stopEnrollmentRecording = useCallback(() => {
     if (enrollmentTickerRef.current) {
       clearInterval(enrollmentTickerRef.current);
@@ -508,10 +548,51 @@ export default function VoiceInputSection() {
     setEnrollmentMessage(null);
     setEnrollmentState("recording");
     setEnrollmentSeconds(0);
+    setEnrollmentLevel(0);
     enrollmentChunksRef.current = [];
+
+    // Resume the shared AudioContext synchronously inside this click gesture —
+    // exactly what the streaming mic does in startRecording. Mobile browsers
+    // suspend the context between gestures; without this the level meter (and,
+    // on some setups, capture) sees only silence. Done before any await so the
+    // gesture context is still active.
+    try {
+      const ctx = getSharedAudioContext();
+      if (ctx.state !== "running") ctx.resume().catch(() => {});
+    } catch { /* AudioContext unavailable */ }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       enrollmentStreamRef.current = stream;
+
+      // Build the same analyser/filter graph the streaming mic uses. We do NOT
+      // record its filteredStream — recording the RAW stream keeps enrollment
+      // and verification embeddings on matching audio characteristics — but the
+      // graph drives the live level meter and keeps Chrome's Web Audio renderer
+      // alive (silent-gain keepalive in createAudioFilterChain).
+      try {
+        const ctx = getSharedAudioContext();
+        if (ctx.state !== "running") await ctx.resume();
+        const source = ctx.createMediaStreamSource(stream);
+        const { analyser, nodes } = createAudioFilterChain(ctx, source);
+        enrollmentSourceRef.current = source;
+        enrollmentNodesRef.current = nodes;
+        enrollmentAnalyserRef.current = analyser;
+        const timeDomain = new Uint8Array(analyser.frequencyBinCount);
+        enrollmentLevelTimerRef.current = setInterval(() => {
+          const a = enrollmentAnalyserRef.current;
+          if (!a) return;
+          a.getByteTimeDomainData(timeDomain);
+          let sum = 0;
+          for (let i = 0; i < timeDomain.length; i++) {
+            const v = ((timeDomain[i] ?? 128) - 128) / 128;
+            sum += v * v;
+          }
+          const rms = Math.sqrt(sum / timeDomain.length);
+          setEnrollmentLevel(Math.min(1, rms * 4));
+        }, 100);
+      } catch { /* level meter is best-effort; recording proceeds without it */ }
+
       const recorder = new MediaRecorder(stream, {
         mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
           ? "audio/webm;codecs=opus"
@@ -525,10 +606,12 @@ export default function VoiceInputSection() {
         if (event.data.size > 0) enrollmentChunksRef.current.push(event.data);
       };
       recorder.onerror = () => {
+        teardownEnrollmentAudio();
         setEnrollmentState("error");
         setEnrollmentMessage(t(strings.settings.voiceInputSection.enrollmentRecordingFailed));
       };
       recorder.onstop = () => {
+        teardownEnrollmentAudio();
         const blob = new Blob(enrollmentChunksRef.current, { type: "audio/webm" });
         enrollmentStreamRef.current?.getTracks().forEach((track) => track.stop());
         enrollmentStreamRef.current = null;
@@ -568,7 +651,7 @@ export default function VoiceInputSection() {
       setEnrollmentState("error");
       setEnrollmentMessage(toErrorInfo(error).message);
     }
-  }, [loadSpeakerStatus, profileDisplayName, reEnrollTargetId, stopEnrollmentRecording, t]);
+  }, [loadSpeakerStatus, profileDisplayName, reEnrollTargetId, stopEnrollmentRecording, teardownEnrollmentAudio, t]);
 
   const clearSpeakerBinding = useCallback(async () => {
     setSpeakerError(null);
@@ -1263,16 +1346,31 @@ export default function VoiceInputSection() {
                 placeholder={t(strings.settings.voiceInputSection.profileNamePlaceholder)}
               />
               {enrollmentState === "recording" ? (
-                <Button
-                  data-testid="speaker-enrollment-stop"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-3 text-xs"
-                  onClick={stopEnrollmentRecording}
-                >
-                  <Square className="me-1 h-3.5 w-3.5" />
-                  {t(strings.settings.voiceInputSection.stopSeconds, { seconds: enrollmentSeconds })}
-                </Button>
+                <>
+                  <Button
+                    data-testid="speaker-enrollment-stop"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-xs"
+                    onClick={stopEnrollmentRecording}
+                  >
+                    <Square className="me-1 h-3.5 w-3.5" />
+                    {t(strings.settings.voiceInputSection.stopSeconds, { seconds: enrollmentSeconds })}
+                  </Button>
+                  {/* Live mic level: confirms the user's voice is being captured. */}
+                  <div
+                    data-testid="speaker-enrollment-level"
+                    className="h-2 w-24 overflow-hidden rounded-full bg-wc-surface-base"
+                    role="meter"
+                    aria-label={t(strings.settings.voiceInputSection.addVoiceProfile)}
+                    aria-valuenow={Math.round(enrollmentLevel * 100)}
+                  >
+                    <div
+                      className="h-full rounded-full bg-wc-accent transition-[width] duration-100"
+                      style={{ width: `${Math.min(enrollmentLevel * 100, 100)}%` }}
+                    />
+                  </div>
+                </>
               ) : (
                 <Button
                   data-testid="speaker-enrollment-start"

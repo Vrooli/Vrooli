@@ -11,11 +11,20 @@ audio. Both enrollment and verification embed only the VOICED span of the clip
 (see vad.py) through one shared helper, so the two stay symmetric and silence /
 room noise does not dilute the voiceprint.
 
-A profile is one IDENTITY holding N labeled enrollment clips (each an embedding)
-plus a stored L2-normalized centroid. Enrolling appends a clip; verification
-scores the test clip against the centroid and each clip and takes the best
-(hybrid aggregation), so multiple conditions (devices, normal/whisper) strengthen
-one identity instead of inflating impostor scores.
+A profile is one IDENTITY holding N labeled enrollment clips, each storing its
+own embedding. Scoring is max-over-clips (no centroid): the score of a test
+embedding against a profile is the largest cosine similarity between the test
+embedding and any single clip's embedding. We dropped centroid aggregation in
+v0.4 because spectrally-divergent enrollment clips (whisper + normal + phone +
+laptop) pull the mean toward neutral and depress genuine scores; the max is
+mathematically dominated by — and therefore strictly better than — the hybrid
+``max(centroid, best_clip)`` mode that preceded it.
+
+At enrollment we also compute a self-consistency score: the cosine similarity
+between the new clip and the strongest existing clip in the same profile. A low
+self-score warns (does NOT block) — it tells the user the clip is recorded in
+substantially different conditions than the others and may not help recognition.
+The clip is still stored so the user controls their own data.
 """
 
 from __future__ import annotations
@@ -61,6 +70,15 @@ MIN_VERIFY_VOICED_SECONDS = float(
     os.environ.get("SPEAKER_MIN_VERIFY_VOICED_SECONDS", "1.0")
 )
 
+# Self-consistency warning threshold at enrollment time. When a newly enrolled
+# clip's max cosine against any existing clip in the profile is below this, the
+# response carries a `self_consistency_warning` flag and the score so the
+# operator can decide whether to re-record. The clip is stored regardless.
+SELF_CONSISTENCY_THRESHOLD = float(
+    os.environ.get("SPEAKER_SELF_CONSISTENCY_THRESHOLD", "0.5")
+)
+
+
 def _env_bool(name: str, default: bool = False) -> bool:
     raw = os.environ.get(name)
     if raw is None:
@@ -75,12 +93,6 @@ def _env_bool(name: str, default: bool = False) -> bool:
 # transcription denoise toggle — speaker identity never depends on it.
 EMBED_DENOISE = _env_bool("SPEAKER_EMBED_DENOISE", False)
 
-# Verify aggregation across a profile's centroid + per-clip embeddings.
-# hybrid = max(cosine(centroid), max_i cosine(clip_i)) -- multi-condition
-# coverage without the impostor inflation of separate profiles. Env-switchable
-# to "centroid" (only) or "max" (per-clip only) if the false-accept rate rises.
-SCORE_AGG = os.environ.get("SPEAKER_SCORE_AGG", "hybrid").strip().lower()
-
 # The one canonical default verify threshold. Every layer (manifest, Go config,
 # CLI/handlers, this form default) resolves to the same value; calibrate against
 # real voices after VAD trim lands and record the chosen number in
@@ -89,10 +101,10 @@ DEFAULT_VERIFY_THRESHOLD = os.environ.get("SPEAKER_DEFAULT_THRESHOLD", "0.5")
 
 # Target-speaker extraction = source separation (split the mixture into N voices)
 # + ECAPA target-selection (pick the separated source whose embedding best
-# matches the enrolled profile centroid). The published SepFormer separation
-# checkpoints (wsj02mix / libri2mix, 2 speakers) run at 8 kHz; the 16 kHz
-# checkpoints are enhancement (single-source denoise), not separation. So the
-# default is the 8 kHz 2-speaker model and audio is resampled 16k<->8k around it.
+# matches any of the enrolled clips by max cosine). The published SepFormer
+# separation checkpoints (wsj02mix / libri2mix, 2 speakers) run at 8 kHz; the
+# 16 kHz checkpoints are enhancement (single-source denoise), not separation. So
+# the default is the 8 kHz 2-speaker model and audio is resampled 16k<->8k.
 EXTRACTION_MODEL = os.environ.get(
     "SPEAKER_EXTRACTION_MODEL", "speechbrain/sepformer-wsj02mix"
 )
@@ -332,60 +344,50 @@ def _cosine(a: List[float], b: List[float]) -> float:
     return float(torch.nn.functional.cosine_similarity(ta, tb, dim=0).item())
 
 
-def _centroid(clips: List[Dict[str, Any]]) -> List[float]:
-    """L2-normalized mean of the clip embeddings (the profile's voiceprint)."""
-    embeddings = [c["embedding"] for c in clips if c.get("embedding")]
-    if not embeddings:
-        return []
-    mean = torch.tensor(embeddings, dtype=torch.float32).mean(dim=0)
-    return torch.nn.functional.normalize(mean, dim=0).tolist()
-
-
 def _total_voiced_seconds(clips: List[Dict[str, Any]]) -> float:
     return float(sum(float(c.get("voiced_seconds", 0.0)) for c in clips))
 
 
-def _score_profile(
-    test_embedding: List[float], record: Dict[str, Any]
-) -> Tuple[float, str]:
-    """Aggregate the test embedding against the profile per SCORE_AGG.
+def _best_match(
+    test_embedding: List[float], clips: List[Dict[str, Any]]
+) -> Tuple[float, str, str]:
+    """Max-over-clips cosine. Returns (best_score, best_clip_label, best_clip_id).
 
-    Returns (score, best_clip_label). best_clip_label is empty when the centroid
-    is the winning match.
+    When the profile has no clips with embeddings, returns (-1.0, "", "").
     """
-    centroid = record.get("centroid") or []
-    clips = record.get("clips") or []
-    centroid_score = _cosine(centroid, test_embedding) if centroid else -1.0
-
-    best_clip_score = -1.0
+    best_score = -1.0
     best_label = ""
+    best_id = ""
     for clip in clips:
         emb = clip.get("embedding")
         if not emb:
             continue
         score = _cosine(emb, test_embedding)
-        if score > best_clip_score:
-            best_clip_score = score
+        if score > best_score:
+            best_score = score
             best_label = clip.get("label", "")
+            best_id = clip.get("clip_id", "")
+    return best_score, best_label, best_id
 
-    if SCORE_AGG == "centroid":
-        return centroid_score, ""
-    if SCORE_AGG == "max":
-        return best_clip_score, best_label
-    # hybrid (default): best of centroid vs any single clip.
-    if centroid_score >= best_clip_score:
-        return centroid_score, ""
-    return best_clip_score, best_label
+
+def _self_consistency(
+    new_embedding: List[float], existing_clips: List[Dict[str, Any]]
+) -> Tuple[float, str, str]:
+    """Max cosine between the new clip embedding and any existing clip in the
+    same profile. Returns (-1.0, "", "") if there are no existing clips (the
+    first clip in a profile has no self-consistency to check).
+    """
+    return _best_match(new_embedding, existing_clips)
 
 
 def _extract_target(
-    waveform: "torch.Tensor", profile_centroid: List[float]
+    waveform: "torch.Tensor", clips: List[Dict[str, Any]]
 ) -> Tuple[bytes, float]:
     """Isolate the enrolled speaker from a 16 kHz mono mixture.
 
     Separates the mixture into candidate sources, embeds each with ECAPA, and
-    returns (pcm16, score) for the source whose embedding is the closest cosine
-    match to the enrolled profile centroid. The returned PCM is 16 kHz mono
+    returns (pcm16, score) for the source whose embedding has the highest
+    max-cosine to any clip in the profile. The returned PCM is 16 kHz mono
     s16le, matching the input contract so it can re-enter the STT pipeline.
     """
     separator = _load_separator()
@@ -412,7 +414,8 @@ def _extract_target(
             src = src / peak
         if EXTRACTION_SAMPLE_RATE != SAMPLE_RATE:
             src = torchaudio.functional.resample(src, EXTRACTION_SAMPLE_RATE, SAMPLE_RATE)
-        score = _cosine(profile_centroid, _embed_waveform(src))
+        emb = _embed_waveform(src)
+        score, _, _ = _best_match(emb, clips)
         if score > best_score:
             best_score = score
             best_pcm = _waveform_to_pcm16(src)
@@ -427,10 +430,16 @@ def _extract_target(
 # ---------------------------------------------------------------------------
 # Profile store (one JSON file per profile, keyed by profile_id)
 #
-# Record shape (v2 — multi-clip identity):
+# Record shape (v3 — max-over-clips, no centroid):
 #   { id, display_name, notes, model_name, embedding_dim, sample_rate,
-#     centroid:[192], clips:[ {clip_id, label, embedding:[192],
-#     voiced_seconds, audio_seconds, created_at} ], created_at, updated_at }
+#     clips:[ {clip_id, label, embedding:[192], voiced_seconds, audio_seconds,
+#             self_consistency_score, vad_model, created_at} ],
+#     created_at, updated_at }
+#
+# Centroid was removed in v0.4: it's mathematically dominated by max-over-clips
+# and spectrally-divergent enrollment conditions dilute it badly. Profile files
+# written by older servers may still carry a "centroid" field; the loader
+# ignores it (forward-only — no migration code).
 # ---------------------------------------------------------------------------
 
 
@@ -439,6 +448,8 @@ def _profile_path(profile_id: str) -> Path:
 
 
 def _save_profile(record: Dict[str, Any]) -> None:
+    # Strip any legacy centroid so we don't keep paying for a stale aggregate.
+    record.pop("centroid", None)
     path = _profile_path(record["id"])
     tmp = path.with_suffix(".json.tmp")
     with open(tmp, "w", encoding="utf-8") as handle:
@@ -472,6 +483,8 @@ def _clip_public(clip: Dict[str, Any]) -> Dict[str, Any]:
         "label": clip.get("label", ""),
         "voiced_seconds": clip.get("voiced_seconds", 0.0),
         "audio_seconds": clip.get("audio_seconds", 0.0),
+        "self_consistency_score": clip.get("self_consistency_score", -1.0),
+        "vad_model": clip.get("vad_model", ""),
         "created_at": clip.get("created_at", ""),
         "embedding_dim": len(clip.get("embedding") or []) or EMBEDDING_DIM,
     }
@@ -525,10 +538,12 @@ def info() -> Dict[str, Any]:
         "version": SERVER_VERSION,
         "embedding_dim": EMBEDDING_DIM,
         "vad": VAD.name,
-        "score_agg": SCORE_AGG,
+        "vad_model": VAD.name,
+        "score_agg": "max",
         "embed_denoise": EMBED_DENOISE,
         "min_enroll_voiced_seconds": MIN_ENROLL_VOICED_SECONDS,
         "min_verify_voiced_seconds": MIN_VERIFY_VOICED_SECONDS,
+        "self_consistency_threshold": SELF_CONSISTENCY_THRESHOLD,
         "default_threshold": float(DEFAULT_VERIFY_THRESHOLD),
         "extraction_model": EXTRACTION_MODEL,
         "extraction_sample_rate": EXTRACTION_SAMPLE_RATE,
@@ -579,8 +594,11 @@ async def enroll(
     """Append one labeled enrollment clip to a profile (creating it if new).
 
     The clip is embedded over its voiced span only; clips with less than
-    MIN_ENROLL_VOICED_SECONDS of voiced audio are rejected (422). Appending
-    recomputes the profile centroid.
+    MIN_ENROLL_VOICED_SECONDS of voiced audio are rejected (422). If the
+    profile already has clips, the new clip's max-cosine against the existing
+    ones is reported as ``self_consistency_score``; when below
+    ``SPEAKER_SELF_CONSISTENCY_THRESHOLD`` (default 0.5), ``self_consistency_warning``
+    is true. The clip is stored either way — the warning is informational.
     """
     raw = await audio.read()
     if not raw:
@@ -601,21 +619,15 @@ async def enroll(
                 "voiced_seconds": voiced_seconds,
                 "audio_seconds": audio_seconds,
                 "min_voiced_seconds": MIN_ENROLL_VOICED_SECONDS,
+                "vad_model": VAD.name,
             },
         )
 
     pid = profile_id.strip() or uuid.uuid4().hex
     now = _now_iso()
-    clip = {
-        "clip_id": uuid.uuid4().hex,
-        "label": label.strip(),
-        "embedding": embedding,
-        "voiced_seconds": voiced_seconds,
-        "audio_seconds": audio_seconds,
-        "created_at": now,
-    }
 
     existing = _load_profile(pid)
+    existing_clips: List[Dict[str, Any]] = []
     if existing is not None:
         if existing.get("model_name", MODEL_NAME) != MODEL_NAME:
             return JSONResponse(
@@ -626,6 +638,25 @@ async def enroll(
                     "server_model": MODEL_NAME,
                 },
             )
+        existing_clips = existing.get("clips") or []
+
+    self_score, self_label, self_clip_id = _self_consistency(embedding, existing_clips)
+    self_warning = bool(
+        existing_clips and self_score >= 0.0 and self_score < SELF_CONSISTENCY_THRESHOLD
+    )
+
+    clip = {
+        "clip_id": uuid.uuid4().hex,
+        "label": label.strip(),
+        "embedding": embedding,
+        "voiced_seconds": voiced_seconds,
+        "audio_seconds": audio_seconds,
+        "self_consistency_score": self_score,
+        "vad_model": VAD.name,
+        "created_at": now,
+    }
+
+    if existing is not None:
         record = existing
         if display_name:
             record["display_name"] = display_name
@@ -645,7 +676,6 @@ async def enroll(
             "created_at": now,
             "updated_at": now,
         }
-    record["centroid"] = _centroid(record["clips"])
     _save_profile(record)
 
     clips = record["clips"]
@@ -662,6 +692,12 @@ async def enroll(
             "embedding_dim": EMBEDDING_DIM,
             "sample_rate": SAMPLE_RATE,
             "model_name": MODEL_NAME,
+            "vad_model": VAD.name,
+            "self_consistency_score": self_score,
+            "self_consistency_threshold": SELF_CONSISTENCY_THRESHOLD,
+            "self_consistency_warning": self_warning,
+            "self_consistency_best_clip_label": self_label,
+            "self_consistency_best_clip_id": self_clip_id,
             "created_at": record["created_at"],
         },
     )
@@ -694,6 +730,9 @@ async def verify(
             status_code=400, content={"error": f"failed to embed audio: {exc}"}
         )
 
+    clips = record.get("clips") or []
+    n_clips = sum(1 for c in clips if c.get("embedding"))
+
     # Too little voiced audio to judge: report insufficiency rather than
     # fabricating a score the caller would treat as a real (low) match.
     if embedding is None or voiced_seconds < MIN_VERIFY_VOICED_SECONDS:
@@ -712,13 +751,30 @@ async def verify(
                 "duration_ms": duration_ms,
                 "backend": "speechbrain",
                 "model": MODEL_NAME,
-                "score_agg": SCORE_AGG,
+                "score_agg": "max",
+                "vad_model": VAD.name,
+                "n_clips": n_clips,
                 "best_clip_label": "",
+                "best_clip_id": "",
+                "best_clip_score": 0.0,
             },
         )
 
-    score, best_clip_label = _score_profile(embedding, record)
+    score, best_label, best_id = _best_match(embedding, clips)
+    if score < 0.0:
+        # Profile has no clips with embeddings — surface as not-matched but
+        # sufficient, so the caller sees a real diagnostic, not a fabricated 0.
+        score = 0.0
     duration_ms = (time.perf_counter() - start) * 1000.0
+
+    print(
+        "[speaker-verification] verify "
+        f"profile={profile_id.strip()} score={score:.4f} threshold={thr:.4f} "
+        f"voiced_seconds={voiced_seconds:.3f} audio_seconds={audio_seconds:.3f} "
+        f"vad={VAD.name} n_clips={n_clips} best_clip_id={best_id} "
+        f"best_clip_label={best_label!r}",
+        flush=True,
+    )
 
     return JSONResponse(
         status_code=200,
@@ -733,8 +789,12 @@ async def verify(
             "duration_ms": duration_ms,
             "backend": "speechbrain",
             "model": MODEL_NAME,
-            "score_agg": SCORE_AGG,
-            "best_clip_label": best_clip_label,
+            "score_agg": "max",
+            "vad_model": VAD.name,
+            "n_clips": n_clips,
+            "best_clip_label": best_label,
+            "best_clip_id": best_id,
+            "best_clip_score": score,
         },
     )
 
@@ -754,8 +814,8 @@ async def extract(
     if record is None:
         return JSONResponse(status_code=404, content={"error": "profile not found"})
 
-    centroid = record.get("centroid") or []
-    if not centroid:
+    clips = record.get("clips") or []
+    if not any(c.get("embedding") for c in clips):
         return JSONResponse(
             status_code=409, content={"error": "profile has no enrollment clips"}
         )
@@ -767,7 +827,7 @@ async def extract(
     start = time.perf_counter()
     try:
         waveform, audio_seconds = _decode_to_waveform(raw)
-        cleaned_pcm, score = _extract_target(waveform, centroid)
+        cleaned_pcm, score = _extract_target(waveform, clips)
     except Exception as exc:  # noqa: BLE001 -- surface decode/model failures
         return JSONResponse(
             status_code=400, content={"error": f"extraction failed: {exc}"}
@@ -816,7 +876,6 @@ def delete_clip(profile_id: str, clip_id: str) -> JSONResponse:
         )
 
     record["clips"] = remaining
-    record["centroid"] = _centroid(remaining)
     record["updated_at"] = _now_iso()
     _save_profile(record)
     return JSONResponse(

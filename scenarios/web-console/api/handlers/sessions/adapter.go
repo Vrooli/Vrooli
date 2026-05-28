@@ -25,10 +25,14 @@ type SessionManager interface {
 	Delete(id string) error
 }
 
-// ConversationsStore is the minimal seam for clearing conversation state on
-// session deletion. The production *ConversationStore satisfies it.
+// ConversationsStore is the minimal seam for moving/clearing conversation
+// state during the session lifecycle. The production *ConversationStore
+// satisfies it. CopySession carries a recovered session's prior message
+// history onto its fresh replacement id so the messages view is not empty
+// after reattach.
 type ConversationsStore interface {
 	DeleteSession(id string)
+	CopySession(oldID, newID string) error
 }
 
 // CodexCheckpoints is the minimal seam for clearing codex-checkpoint state
@@ -248,6 +252,18 @@ func (a *Adapter) Recover(_ context.Context, in RecoverInput) (RecoverResult, er
 		CWD:            old.CWD,
 	})
 
+	// Carry the prior conversation history onto the new session id so the
+	// messages view is populated after reattach. Best-effort: a copy failure
+	// must not abort recovery — the agent resume is the critical path.
+	messagesCopied := false
+	if a.Conversations != nil {
+		if err := a.Conversations.CopySession(oldID, newSess.ID); err != nil {
+			a.logger().Printf("recover[%s -> %s]: copy conversation history: %v", oldID, newSess.ID, err)
+		} else {
+			messagesCopied = true
+		}
+	}
+
 	cmd := intsessions.BuildResumeCommand(old)
 	if err := newSess.SendInput(session.InputText(cmd).AsPaste().WithSource("recover")); err != nil {
 		a.logger().Printf("recover[%s -> %s]: SendInput: %v", oldID, newSess.ID, err)
@@ -258,12 +274,15 @@ func (a *Adapter) Recover(_ context.Context, in RecoverInput) (RecoverResult, er
 		a.logger().Printf("recover[%s -> %s]: MarkDismissed: %v", oldID, newSess.ID, err)
 	}
 
+	a.logger().Printf("recover[%s -> %s]: agent=%s codexHome=%t messages=%t", oldID, newSess.ID, old.AgentType, codexHomeCopied, messagesCopied)
+
 	res := RecoverResult{
 		OldSessionID:    oldID,
 		NewSessionID:    newSess.ID,
 		AgentType:       string(old.AgentType),
 		CommandSent:     cmd,
 		CodexHomeCopied: codexHomeCopied,
+		MessagesCopied:  messagesCopied,
 	}
 
 	if in.IdempotencyKey != "" {

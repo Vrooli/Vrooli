@@ -215,8 +215,8 @@ selector error rather than silently falling back.
 
 | Strategy ↓ / Provider → | LocalWhisper | OpenAIWhisperAPI | Deepgram | Azure/Google | VrooliLPBS |
 |---|---|---|---|---|---|
-| VADSegment | ✅ preferred for low-CPU | ✅ only choice (API has no streaming) | ⛔ forbidden — Deepgram has native streaming, use Passthrough | ⛔ forbidden | ✅ until LPBS streaming lands |
-| OverlapAgree | ✅ quality upgrade | ⛔ forbidden — would burn money on each overlapping API call | ⛔ forbidden | ⛔ forbidden | ⛔ forbidden |
+| VADSegment | ✅ explicit `preference=vad` (silence-bounded segments; one Segment per utterance) | ✅ only choice (API has no streaming) | ⛔ forbidden — Deepgram has native streaming, use Passthrough | ⛔ forbidden | ✅ until LPBS streaming lands |
+| OverlapAgree | ✅ **default for Local Whisper** (growing-buffer LocalAgreement-N + VAD-anchored triggering; incremental Segment events mid-utterance; word-aligned cursor advance). See PROBLEMS.md "OverlapAgree commit gap" (RESOLVED 2026-05-28) for the rewrite history. | ⛔ forbidden — would burn money on each overlapping API call | ⛔ forbidden | ⛔ forbidden | ⛔ forbidden |
 | Passthrough | ⛔ forbidden — provider can't stream | ⛔ forbidden — provider can't stream | ✅ only choice | ✅ only choice | ✅ when LPBS streaming flag flipped |
 
 The "forbidden" cells are not theoretical; the selector returns a

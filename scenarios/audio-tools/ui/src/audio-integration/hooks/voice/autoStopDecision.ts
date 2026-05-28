@@ -6,7 +6,7 @@
 //
 // Precedence (strict):
 //   1. If a server tick has EVER arrived this session (receivedAt > 0), the
-//      server is the sole authority — client VAD never fires stop:
+//      server is normally the authority — but only while its signal is fresh:
 //        a. The server latched silence_timed_out (silenceTimedOut, sticky in
 //           the store) → stop with source "server", REGARDLESS of freshness.
 //           The server emits the threshold tick exactly once (the frame it
@@ -15,10 +15,17 @@
 //        b. Fresh tick (within SERVER_VAD_STALE_MS) that has reached its
 //           configured silenceTimeoutMs → stop with source "server". (Backstop
 //           for transports that drop the flag; same outcome.)
-//        c. Otherwise → continue. A briefly stale tick (> staleTickMs) does
-//           NOT hand authority back to the client; if it did, the client's
-//           RMS VAD — which is more aggressive than the server's PCM-frame
-//           detector — would fire false-positive stops mid-utterance.
+//        c. Fresh tick below timeout, OR stale tick without the latch but the
+//           client has NOT reported stop → continue. The server is still in
+//           charge; we're just waiting on the next tick or the latch.
+//        d. STALE tick (>staleTickMs) AND latch is false AND clientVad="stop"
+//           → stop with source "client-fallback". Belt-and-suspenders for the
+//           dead zone: if the server's threshold tick was lost in transit (or
+//           never fired because of a server-side bug), the client RMS VAD's
+//           independent stop verdict breaks the wedge. The clientVad="stop"
+//           gate prevents the old "stale tick lets aggressive client VAD fire
+//           false positives mid-utterance" regression — both signals must
+//           agree before we hand authority back to the client.
 //   2. No server tick has ever arrived (server VAD not running for this
 //      session — passthrough strategy, transport error, etc.):
 //        a. Client VAD reported "stop" → stop with source "client-fallback".
@@ -57,9 +64,9 @@ export type AutoStopVerdict =
 export function decideAutoStop(input: AutoStopInputs): AutoStopVerdict {
   const { serverVad, clientVadResult, nowPerf, staleTickMs } = input;
 
-  // Once the server has ever spoken this session, it owns the stop decision.
-  // Briefly stale ticks do NOT re-enable client fallback — that's the source
-  // of the mid-utterance false positives we're trying to eliminate.
+  // Once the server has ever spoken this session, it owns the stop decision
+  // while fresh. A stale tick + matching client-stop verdict is the only
+  // escape hatch (see header §1d).
   if (serverVad.receivedAt > 0) {
     // Latched timeout: the server told us the silence threshold was reached.
     // This is sticky in the store, so it survives the freshness window — the
@@ -75,6 +82,15 @@ export function decideAutoStop(input: AutoStopInputs): AutoStopVerdict {
       serverVad.silenceElapsedMs >= serverVad.silenceTimeoutMs
     ) {
       return { kind: "stop", source: "server" };
+    }
+    // Belt-and-suspenders: if the server's threshold tick was lost (network
+    // hiccup, server-side gating bug, etc.) and the tick has gone stale
+    // without the latch firing, and the client RMS VAD has independently
+    // decided "stop", honour it. Both signals must agree — this prevents the
+    // client's more aggressive VAD from firing false positives mid-utterance
+    // while a fresh server tick is keeping the session alive.
+    if (!tickIsFresh && clientVadResult === "stop") {
+      return { kind: "stop", source: "client-fallback" };
     }
     return { kind: "continue" };
   }

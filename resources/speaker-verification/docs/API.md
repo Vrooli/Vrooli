@@ -13,16 +13,33 @@ wrapper around SpeechBrain's ECAPA-TDNN speaker-embedding model.
 | Embedding dimension | **192** |
 | Input sample rate | **16000 Hz** (mono) |
 | Reported EER | 0.8% on VoxCeleb1-test (cleaned) |
-| Verification | Hybrid cosine similarity (best of the profile centroid and each enrollment clip) vs. a caller-supplied threshold |
+| Verification | **Max** cosine similarity across all enrollment clips in the profile, vs. a caller-supplied threshold |
 | Device | GPU (CUDA) when an NVIDIA GPU is detected; downgrades to CPU automatically otherwise. Reported by `/v1/info` (`device`, `torch_version`, `cuda_available`). |
 
 A profile is **one identity holding N labeled enrollment clips**; enroll appends
-a clip and recomputes an L2-normalized **centroid**. Both enroll and verify embed
-only the **voiced** span of the clip (energy VAD trim, `SPEAKER_VAD`) and enforce
-a minimum voiced duration (`SPEAKER_MIN_ENROLL_VOICED_SECONDS` /
-`SPEAKER_MIN_VERIFY_VOICED_SECONDS`). Embeddings are L2-normalized; the verify
-`score` is the hybrid aggregation (`SPEAKER_SCORE_AGG`, default `hybrid`) in
-`[-1, 1]` (in practice `[0, 1]`). A clip is `matched` when `score >= threshold`.
+a clip with its own embedding. Both enroll and verify embed only the **voiced**
+span of the clip (Silero VAD by default, automatic fallback to energy VAD when
+the model load fails — see `SPEAKER_VAD`) and enforce a minimum voiced duration
+(`SPEAKER_MIN_ENROLL_VOICED_SECONDS` / `SPEAKER_MIN_VERIFY_VOICED_SECONDS`).
+Embeddings are L2-normalized; the verify `score` is the **max** cosine across
+the profile's clips, in `[-1, 1]` (in practice `[0, 1]`). A clip is `matched`
+when `score >= threshold`.
+
+**v0.4 dropped centroid aggregation.** Spectrally divergent enrollment clips
+(whisper + normal, phone + laptop) pulled the centroid toward neutral and
+depressed genuine scores. The max-over-clips score is mathematically dominated
+by — and therefore strictly better than — the prior hybrid `max(centroid, best_clip)`
+mode that it replaces. Profile JSON files written by older servers may still
+carry a `centroid` field; it is silently dropped on next save.
+
+At enrollment, each new clip is also scored against the strongest existing clip
+in the same profile. A low **self-consistency** score (default threshold `0.5`,
+overridable via `SPEAKER_SELF_CONSISTENCY_THRESHOLD`) sets
+`self_consistency_warning: true` in the response so the caller can prompt the
+user to re-record in matching conditions. The clip is stored either way — the
+warning is informational. The first clip in a fresh profile has no
+self-consistency to check; its score is reported as `-1.0` and the warning is
+`false`.
 
 ## Base URL
 
@@ -77,11 +94,13 @@ one-time model load/download; the service is still considered ready (`200`).
   "sample_rate": 16000,
   "version": "0.4.0",
   "embedding_dim": 192,
-  "vad": "energy",
-  "score_agg": "hybrid",
+  "vad": "silero",
+  "vad_model": "silero",
+  "score_agg": "max",
   "embed_denoise": false,
   "min_enroll_voiced_seconds": 3.0,
   "min_verify_voiced_seconds": 1.0,
+  "self_consistency_threshold": 0.5,
   "default_threshold": 0.5,
   "extraction_model": "speechbrain/sepformer-wsj02mix",
   "extraction_sample_rate": 8000,
@@ -130,7 +149,11 @@ Computes the embedding, persists the profile to the profile-store volume, and
 returns:
 
 The enroll form also accepts a `label` field (the clip's condition, e.g.
-`laptop-normal`). Each call APPENDS one clip and recomputes the centroid:
+`laptop-normal`). Each call APPENDS one clip. The response carries a
+`self_consistency_score` (max cosine vs. existing clips, `-1.0` for the first
+clip in a profile), the configured `self_consistency_threshold`, a
+`self_consistency_warning` flag (true when the new clip diverges from the rest
+of the profile), and the label/id of the best-matching existing clip:
 
 ```json
 {
@@ -139,11 +162,17 @@ The enroll form also accepts a `label` field (the clip's condition, e.g.
   "label": "laptop-normal",
   "voiced_seconds": 4.0,
   "audio_seconds": 4.2,
-  "clip_count": 1,
-  "total_voiced_seconds": 4.0,
+  "clip_count": 2,
+  "total_voiced_seconds": 8.0,
   "embedding_dim": 192,
   "sample_rate": 16000,
   "model_name": "speechbrain/spkrec-ecapa-voxceleb",
+  "vad_model": "silero",
+  "self_consistency_score": 0.78,
+  "self_consistency_threshold": 0.5,
+  "self_consistency_warning": false,
+  "self_consistency_best_clip_id": "a1b2c3...",
+  "self_consistency_best_clip_label": "laptop-whisper",
   "created_at": "2026-05-27T12:00:00+00:00"
 }
 ```
@@ -156,8 +185,9 @@ clip whose `model_name` mismatches the profile's is rejected with `409`.
 ### Profile detail / clips
 
 **GET** `/v1/profiles/{profile_id}` returns the profile metadata plus a `clips`
-array (`clip_id`, `label`, `voiced_seconds`, `audio_seconds`, `created_at`,
-`embedding_dim`). **GET** `/v1/profiles/{profile_id}/clips` returns just
+array (`clip_id`, `label`, `voiced_seconds`, `audio_seconds`,
+`self_consistency_score`, `vad_model`, `created_at`, `embedding_dim`).
+**GET** `/v1/profiles/{profile_id}/clips` returns just
 `{profile_id, clips, count}`.
 
 ### Verify
@@ -182,10 +212,20 @@ array (`clip_id`, `label`, `voiced_seconds`, `audio_seconds`, `created_at`,
   "duration_ms": 134.2,
   "backend": "speechbrain",
   "model": "speechbrain/spkrec-ecapa-voxceleb",
-  "score_agg": "hybrid",
-  "best_clip_label": "laptop-normal"
+  "score_agg": "max",
+  "vad_model": "silero",
+  "n_clips": 4,
+  "best_clip_label": "laptop-normal",
+  "best_clip_id": "b763d90799e4465d8b40147176fa3b82",
+  "best_clip_score": 0.71
 }
 ```
+
+`score` and `best_clip_score` are identical — both are the max cosine across
+the profile's clips. `best_clip_id` / `best_clip_label` identify which
+enrollment clip won. `n_clips` is the number of clips actually compared
+against; `vad_model` is the detector that produced the voiced span (`silero`
+when the model is loaded, `energy` when it fell back).
 
 When the clip carries too little voiced audio, the response is still `200` but
 `sufficient` is `false`, `score` is `0.0`, and `matched` is `false` — do not
@@ -230,7 +270,7 @@ the `SPEAKER_EXTRACTION_MODEL`, `SPEAKER_EXTRACTION_SAMPLE_RATE`, and
 
 **DELETE** `/v1/profiles/{profile_id}/clips/{clip_id}`
 
-Removes one clip and recomputes the centroid. Deleting the last clip deletes the
+Removes one clip from the profile. Deleting the last clip deletes the
 (now-empty) profile. Returns
 `200 {profile_id, clip_id, deleted_profile, clip_count, total_voiced_seconds}`,
 or `404` when the profile or clip is unknown.

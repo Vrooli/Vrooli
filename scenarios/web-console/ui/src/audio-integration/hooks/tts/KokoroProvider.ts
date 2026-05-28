@@ -173,7 +173,7 @@ export class KokoroProvider implements TTSProvider {
 
     // Kick synthesis up to CONCURRENCY at a time; build an array of promises
     // indexed by paragraph order so playback consumes them in sequence.
-    const synths: Array<Promise<{ blob: Blob; metrics: TTSSynthesisMetrics }>> = new Array(texts.length);
+    const synths = new Array<Promise<{ blob: Blob; metrics: TTSSynthesisMetrics }>>(texts.length);
     let nextToKick = 0;
     let inFlight = 0;
     const kick = (): void => {

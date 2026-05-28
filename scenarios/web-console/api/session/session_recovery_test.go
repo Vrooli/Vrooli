@@ -199,16 +199,59 @@ func TestRecover_UsesConfiguredTmuxSocketIsolation(t *testing.T) {
 	setupRealTmuxHooks(t, sm)
 	report := sm.Recover(sessionstore.NewInMemory(), backend.New())
 
-	if report.OrphanedTmux != 1 {
-		t.Fatalf("expected only the isolated test socket session to be treated as orphaned, got %d", report.OrphanedTmux)
+	// The configured-socket session has no metadata row. Recovery must ADOPT it
+	// (reattach + persist), never kill it — killing a live session whose
+	// metadata was merely lost is the 2026-05-27 data-loss bug.
+	if report.Adopted != 1 {
+		t.Fatalf("expected the configured-socket session to be adopted, got adopted=%d orphanedTmux=%d", report.Adopted, report.OrphanedTmux)
+	}
+	if report.OrphanedTmux != 0 {
+		t.Fatalf("adopted sessions must not be counted as orphaned/killed, got %d", report.OrphanedTmux)
 	}
 
+	// Socket isolation: recovery must not touch sessions on other sockets.
 	if err := tmuxCmdForSocket(liveSocket, "has-session", "-t", liveSessionName).Run(); err != nil {
 		t.Fatalf("recovery touched a different tmux socket and killed a live-simulated session: %v", err)
 	}
 
-	if err := tmuxCmdForSocket(testSocket, "has-session", "-t", testSessionName).Run(); err == nil {
-		t.Fatal("expected isolated test-socket session to be cleaned up as an orphan")
+	// The adopted session on the configured socket must SURVIVE recovery.
+	if err := tmuxCmdForSocket(testSocket, "has-session", "-t", testSessionName).Run(); err != nil {
+		t.Fatalf("adopted configured-socket session should survive recovery, but it is gone: %v", err)
+	}
+	t.Cleanup(func() { _ = tmuxCmdForSocket(testSocket, "kill-session", "-t", testSessionName).Run() })
+}
+
+func TestRecover_AdoptsOrphanedTmuxWithoutMetadata(t *testing.T) {
+	// REGRESSION (2026-05-27): a storage-path migration left recovery reading an
+	// empty DB; it then killed every live wc-<id> tmux session as an "orphan with
+	// no metadata", destroying 13 running Claude panes. Recovery must instead
+	// ADOPT such sessions — persist a fresh metadata row and reattach — never
+	// kill, because the missing metadata means the row was lost, not the session.
+	useIsolatedSessionState(t)
+
+	store := sessionstore.NewInMemory()
+	killed := map[string]bool{}
+
+	sm := NewManagerWithFactory(nil)
+	sm.tmuxDiscoverFunc = func() ([]string, error) { return []string{"ghost-session"}, nil }
+	sm.tmuxAttachFunc = func(string) (pty.PTY, error) { return ptyfake.NewFakePTYWithOutput(), nil }
+	sm.killTmuxSessionFunc = func(name string) { killed[name] = true }
+
+	report := sm.Recover(store, backend.New())
+
+	if report.Adopted != 1 {
+		t.Fatalf("Adopted = %d, want 1", report.Adopted)
+	}
+	if report.OrphanedTmux != 0 {
+		t.Errorf("OrphanedTmux = %d, want 0 (adoption must not kill)", report.OrphanedTmux)
+	}
+	if len(killed) != 0 {
+		t.Errorf("recovery killed tmux sessions %v; adoption must never kill", killed)
+	}
+	// A metadata row must now exist so the session is first-class and persists
+	// across future restarts (persistent metadata is never deleted on exit).
+	if _, err := store.Get("ghost-session"); err != nil {
+		t.Errorf("adopted session has no persisted metadata row: %v", err)
 	}
 }
 

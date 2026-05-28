@@ -29,8 +29,10 @@ func defaultSpeakerCfg() speakerCfgDoc {
 	return speakerCfgDoc{
 		Enabled: false, ProfileIDs: []string{}, Threshold: 0.5,
 		Mode: "off", RejectBehavior: "drop",
-		MinDecisionSeconds: sttpipeline.DefaultMinDecisionSeconds,
-		ScoreSmoothing:     sttpipeline.DefaultScoreSmoothing,
+		FallbackWithoutVerification: false,
+		ExtractionEnabled:           false,
+		MinDecisionSeconds:          sttpipeline.DefaultMinDecisionSeconds,
+		ScoreSmoothing:              sttpipeline.DefaultScoreSmoothing,
 	}
 }
 

@@ -20,6 +20,7 @@ type ConversationRepository interface {
 	UpdateCursor(sessionID string, patch conversationCursorPatch) (ConversationCursor, error)
 	RecordPlaybackStage(sessionID, eventID, stage string) error
 	DeleteSession(sessionID string) error
+	CopySession(oldID, newID string) error
 }
 
 type SQLConversationRepository struct {
@@ -359,6 +360,73 @@ func (r *SQLConversationRepository) DeleteSession(sessionID string) error {
 	return tx.Commit()
 }
 
+// CopySession duplicates the conversation history (cursor + all events) from
+// oldID onto newID. Sequence numbers and per-event playback/consumption state
+// are preserved verbatim so a recovered pane shows the prior conversation as
+// already-seen history (not as fresh, unread messages that would be re-spoken).
+// Event ids are regenerated because the id column is a global primary key.
+// The destination's last_sequence high-water mark is carried over so freshly
+// appended events continue numbering after the copied tail. No-op when the
+// source has no history.
+func (r *SQLConversationRepository) CopySession(oldID, newID string) error {
+	if oldID == "" || newID == "" || oldID == newID {
+		return nil
+	}
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	var lastSeq, lastSeen, lastListened int64
+	switch err := tx.QueryRow(`
+		SELECT last_sequence, last_seen_sequence, last_listened_sequence
+		FROM conversation_sessions
+		WHERE session_id = ?`,
+		oldID,
+	).Scan(&lastSeq, &lastSeen, &lastListened); {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	case err != nil:
+		return fmt.Errorf("load source session: %w", err)
+	}
+
+	now := formatTime(time.Now())
+	if _, err := tx.Exec(`
+		INSERT INTO conversation_sessions (
+			session_id, last_sequence, last_seen_sequence, last_listened_sequence, created_at, updated_at
+		)
+		VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT(session_id) DO UPDATE SET
+			last_sequence = MAX(conversation_sessions.last_sequence, excluded.last_sequence),
+			last_seen_sequence = MAX(conversation_sessions.last_seen_sequence, excluded.last_seen_sequence),
+			last_listened_sequence = MAX(conversation_sessions.last_listened_sequence, excluded.last_listened_sequence),
+			updated_at = excluded.updated_at`,
+		newID, lastSeq, lastSeen, lastListened, now, now,
+	); err != nil {
+		return fmt.Errorf("ensure destination session: %w", err)
+	}
+
+	if _, err := tx.Exec(`
+		INSERT INTO conversation_events (
+			id, session_id, source, role, text, speech_paragraphs,
+			original_speech_paragraphs, summarized, created_at, sequence,
+			delivery_state, tts_state, consumption_state
+		)
+		SELECT lower(hex(randomblob(16))), ?, source, role, text, speech_paragraphs,
+		       original_speech_paragraphs, summarized, created_at, sequence,
+		       delivery_state, tts_state, consumption_state
+		FROM conversation_events
+		WHERE session_id = ?
+		ORDER BY sequence`,
+		newID, oldID,
+	); err != nil {
+		return fmt.Errorf("copy events: %w", err)
+	}
+
+	return tx.Commit()
+}
+
 type InMemoryConversationRepository struct {
 	mu       sync.Mutex
 	sessions map[string]*conversationSession
@@ -524,6 +592,36 @@ func (r *InMemoryConversationRepository) DeleteSession(sessionID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.sessions, sessionID)
+	return nil
+}
+
+func (r *InMemoryConversationRepository) CopySession(oldID, newID string) error {
+	if oldID == "" || newID == "" || oldID == newID {
+		return nil
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	src, ok := r.sessions[oldID]
+	if !ok {
+		return nil
+	}
+	dst := r.ensureSessionLocked(newID)
+	for i := range src.events {
+		ev := src.events[i]
+		ev.ID = newConversationEventID()
+		ev.SessionID = newID
+		dst.events = append(dst.events, ev)
+	}
+	if src.nextSequence > dst.nextSequence {
+		dst.nextSequence = src.nextSequence
+	}
+	if src.cursor.LastSeenSequence > dst.cursor.LastSeenSequence {
+		dst.cursor.LastSeenSequence = src.cursor.LastSeenSequence
+	}
+	if src.cursor.LastListenedSequence > dst.cursor.LastListenedSequence {
+		dst.cursor.LastListenedSequence = src.cursor.LastListenedSequence
+	}
 	return nil
 }
 

@@ -49,19 +49,41 @@ describe("decideAutoStop", () => {
     expect(verdict.kind).toBe("stop");
   });
 
-  it("stale tick does NOT re-enable client fallback once any tick has arrived", () => {
-    // Regression: previously a >250ms gap let the client RMS VAD fire, which
-    // produced mid-utterance false-positive stops. Now: any prior tick means
-    // server owns the decision; a stale tick simply continues until either a
-    // fresh tick arrives or the user clicks stop.
+  it("stale tick + clientVad=stop + no latch → client-fallback (belt-and-suspenders)", () => {
+    // The server's threshold-crossing tick is supposed to set
+    // silenceTimedOut, but if it was lost in transit (network hiccup, server
+    // bug) the latch never fires and the wedge appears: tick goes stale, no
+    // latch, session hangs. The client RMS VAD's independent "stop" verdict
+    // breaks the dead zone. Both signals must agree (clientVadResult ===
+    // "stop") — that prevents the client's aggressive VAD from firing
+    // mid-utterance while a FRESH server tick is keeping the session alive.
     const verdict = decideAutoStop({
       serverVad: snapshot({
         receivedAt: NOW - 1000,
         silenceElapsedMs: 3000,
         silenceTimeoutMs: 1500,
         tickSeq: 7,
+        silenceTimedOut: false,
       }),
       clientVadResult: "stop",
+      nowPerf: NOW,
+      staleTickMs: STALE_MS,
+    });
+    expect(verdict).toEqual({ kind: "stop", source: "client-fallback" });
+  });
+
+  it("stale tick + clientVad=null → continue (do not fire without client agreement)", () => {
+    // Without a client "stop" verdict, a stale tick alone must NOT trigger
+    // a stop — that would re-introduce the original wedge in reverse.
+    const verdict = decideAutoStop({
+      serverVad: snapshot({
+        receivedAt: NOW - 1000,
+        silenceElapsedMs: 3000,
+        silenceTimeoutMs: 1500,
+        tickSeq: 7,
+        silenceTimedOut: false,
+      }),
+      clientVadResult: null,
       nowPerf: NOW,
       staleTickMs: STALE_MS,
     });
@@ -155,9 +177,9 @@ describe("decideAutoStop", () => {
     expect(verdict).toEqual({ kind: "stop", source: "server" });
   });
 
-  it("does NOT stop on a stale below-timeout tick when silenceTimedOut is false", () => {
-    // Below-timeout staleness must continue (not stop, not hand back to client)
-    // — only the latch or a fresh at-timeout tick may stop.
+  it("stale below-timeout tick + clientVad=null continues (no client agreement)", () => {
+    // Without a client "stop" verdict, a stale tick alone must NOT stop — only
+    // the latch or a fresh at-timeout tick may stop in the server-led path.
     const verdict = decideAutoStop({
       serverVad: snapshot({
         receivedAt: NOW - 5000,
@@ -166,7 +188,7 @@ describe("decideAutoStop", () => {
         tickSeq: 4,
         silenceTimedOut: false,
       }),
-      clientVadResult: "stop",
+      clientVadResult: null,
       nowPerf: NOW,
       staleTickMs: STALE_MS,
     });

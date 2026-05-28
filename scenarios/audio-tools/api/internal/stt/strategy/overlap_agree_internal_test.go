@@ -73,7 +73,41 @@ func TestLongestAgreedPrefix(t *testing.T) {
 			if len(runs) > tc.commitRuns {
 				runs = runs[len(runs)-tc.commitRuns:]
 			}
-			require.Equal(t, tc.want, longestAgreedPrefix(runs, tc.commitRuns))
+			require.Equal(t, tc.want, longestAgreedPrefix(runs, tc.commitRuns, 0))
 		})
 	}
+}
+
+// TestLongestAgreedPrefix_MaxTokensCap proves the maxTokens cap bounds
+// the agreement walk regardless of how long the agreeing prefix could
+// be. This is the Phase-B knob that keeps variance accumulation
+// bounded on long uncommitted buffers.
+func TestLongestAgreedPrefix_MaxTokensCap(t *testing.T) {
+	runs := []string{
+		"the quick brown fox jumps high",
+		"the quick brown fox flies low",
+	}
+	// Unbounded: agreement naturally stops at token 5 ("jumps" vs "flies").
+	require.Equal(t, "the quick brown fox", longestAgreedPrefix(runs, 2, 0))
+	// Cap at 4: walk stops at the cap before reaching the natural divergence.
+	require.Equal(t, "the quick brown fox", longestAgreedPrefix(runs, 2, 4))
+	// Cap at 2: only the first two tokens considered.
+	require.Equal(t, "the quick", longestAgreedPrefix(runs, 2, 2))
+}
+
+// TestLongestAgreedPrefix_CaseAndPunctuationNormalization is the
+// regression test for "Whisper jitters capitalization/punctuation".
+// Without normalization, "Hello world" vs "hello world." would yield
+// zero agreement at position 0 and the algorithm would never commit
+// on real audio.
+func TestLongestAgreedPrefix_CaseAndPunctuationNormalization(t *testing.T) {
+	runs := []string{
+		"Hello, World how are you",
+		"hello world.  How are you?",
+	}
+	got := longestAgreedPrefix(runs, 2, 0)
+	// Returned tokens use the FIRST run's verbatim form (so committed
+	// text preserves Whisper's chosen casing/punct), and the walk
+	// proceeds case- and trailing-punct-insensitively.
+	require.Equal(t, "Hello, World how are you", got)
 }

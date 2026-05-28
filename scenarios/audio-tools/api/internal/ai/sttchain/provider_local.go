@@ -72,6 +72,12 @@ func (p *LocalProvider) Transcribe(ctx context.Context, req Request) (*Result, e
 	if tr.HasConfidence {
 		res.Confidence = &Confidence{NoSpeechProb: tr.NoSpeechProb, AvgLogProb: tr.AvgLogProb}
 	}
+	if len(tr.Words) > 0 {
+		res.Words = make([]TimedWord, len(tr.Words))
+		for i, w := range tr.Words {
+			res.Words[i] = TimedWord{Word: w.Word, Start: w.Start, End: w.End, Prob: w.Prob}
+		}
+	}
 	return res, nil
 }
 

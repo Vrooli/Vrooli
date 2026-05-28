@@ -258,9 +258,33 @@ func (v *VADSegmenter) Run(
 			}
 
 			currentFrameIdx := nextFrame / frameBytes
-			if hasVoiced {
-				voicedNow := !isSilent
-				silenceElapsedMs := int64(silentFrames) * int64(v.FrameMs)
+			voicedNow := !isSilent
+			silenceElapsedMs := int64(silentFrames) * int64(v.FrameMs)
+			timedOut := silentFrames >= silenceFramesNeeded
+
+			// Threshold-crossing tick MUST fire regardless of `hasVoiced`.
+			// `hasVoiced` resets to false after each segment cut (see
+			// flushSegment), so on the second-and-subsequent silences in a
+			// turn the throttle gate below would never see hasVoiced=true and
+			// the timedOut tick would be lost — the client's auto-stop latch
+			// (SilenceTimedOut) would never trigger and one-shot recording
+			// would hang with the ring visually full. The cut-the-segment
+			// branch below stays gated on hasVoiced (no audio = nothing to
+			// flush), but the tick itself is engine-of-record for the client
+			// and must always emit at threshold.
+			// Note on counter reset: when hasVoiced=true we want the
+			// segment-cut branch below to run on this frame, which needs
+			// `silentFrames >= silenceFramesNeeded` to still hold — so we do
+			// NOT reset silentFrames in that case (the cut branch resets it).
+			// When hasVoiced=false there's no cut to do, but we still want to
+			// avoid spamming a timedOut tick every subsequent frame, so we
+			// reset silentFrames here.
+			if timedOut {
+				emitVad(voicedNow, silenceElapsedMs, currentFrameIdx, true)
+				if !hasVoiced {
+					silentFrames = 0
+				}
+			} else if hasVoiced {
 				shouldEmit := false
 				if !anyTickEmitted {
 					shouldEmit = true
@@ -276,17 +300,8 @@ func (v *VADSegmenter) Run(
 						shouldEmit = true
 					}
 				}
-				// Always emit the threshold-crossing tick, bypassing the
-				// throttle. The segment cut below resets silentFrames on this
-				// same frame, so a throttled-away tick here means the client
-				// never observes silenceElapsedMs >= silenceTimeoutMs and hangs
-				// with the auto-stop ring visually full (no stop fires).
-				timedOut := silentFrames >= silenceFramesNeeded
-				if timedOut {
-					shouldEmit = true
-				}
 				if shouldEmit {
-					emitVad(voicedNow, silenceElapsedMs, currentFrameIdx, timedOut)
+					emitVad(voicedNow, silenceElapsedMs, currentFrameIdx, false)
 				}
 			}
 

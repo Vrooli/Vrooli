@@ -49,6 +49,61 @@ func chunksFrom(audio []byte) <-chan sttchain.AudioChunk {
 	return ch
 }
 
+// chunksOfWindows sends n windows of windowMs PCM (silent zeros) followed
+// by tailBytes of trailing audio, then closes. The OverlapAgree
+// growing-buffer trigger fires once per chunk that crosses the advance
+// threshold, so this is the canonical shape for behaviour tests that
+// expect one Whisper call per scripted text.
+func chunksOfWindows(n, windowMs, tailBytes int) <-chan sttchain.AudioChunk {
+	const sampleRate, sampleBytes = 16000, 2
+	wb := sampleRate * windowMs / 1000 * sampleBytes
+	ch := make(chan sttchain.AudioChunk, n+1)
+	for i := 0; i < n; i++ {
+		ch <- sttchain.AudioChunk{Audio: make([]byte, wb)}
+	}
+	if tailBytes > 0 {
+		ch <- sttchain.AudioChunk{Audio: make([]byte, tailBytes)}
+	}
+	close(ch)
+	return ch
+}
+
+// voicedFrame returns a frameMs PCM frame at sampleRate that the
+// frameRMS analyzer will classify as voiced (RMS well above the
+// default 250 silence threshold). Filled with constant amplitude
+// 1000.
+func voicedFrame(sampleRate, frameMs int) []byte {
+	bs := sampleRate * frameMs / 1000 * 2
+	out := make([]byte, bs)
+	for i := 0; i < bs; i += 2 {
+		// little-endian int16 = 1000
+		out[i] = 0xE8
+		out[i+1] = 0x03
+	}
+	return out
+}
+
+// silentFrame returns frameMs PCM of zeros — RMS=0, classified silent.
+func silentFrame(sampleRate, frameMs int) []byte {
+	return make([]byte, sampleRate*frameMs/1000*2)
+}
+
+// voicedThenSilent returns one chunk consisting of `voicedMs` of
+// voiced audio followed by `silenceMs` of silence. The RMS analyzer
+// will see the voiced frames, then the silence frames, and trigger a
+// VAD boundary when silenceMs ≥ the configured silence threshold.
+func voicedThenSilent(sampleRate, voicedMs, silenceMs int) []byte {
+	const frameMs = 20
+	var out []byte
+	for ms := 0; ms < voicedMs; ms += frameMs {
+		out = append(out, voicedFrame(sampleRate, frameMs)...)
+	}
+	for ms := 0; ms < silenceMs; ms += frameMs {
+		out = append(out, silentFrame(sampleRate, frameMs)...)
+	}
+	return out
+}
+
 // ----- BufferedFallback -----
 
 func TestBufferedFallback_HappyPathEmitsSegmentThenDone(t *testing.T) {

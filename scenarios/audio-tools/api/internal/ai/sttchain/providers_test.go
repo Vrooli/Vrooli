@@ -3,15 +3,68 @@ package sttchain_test
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"audio-tools/internal/ai/sttchain"
 	sttmocks "audio-tools/internal/ai/sttchain/mocks"
+	"audio-tools/internal/audioformat"
+	"audio-tools/internal/capabilities"
+	"audio-tools/internal/stt/pipeline"
 	"audio-tools/internal/stt/whisperinfo"
 	whisperinfomocks "audio-tools/internal/stt/whisperinfo/mocks"
 )
+
+type stubChecker struct{ s capabilities.Status }
+
+func (f stubChecker) Check(context.Context) (capabilities.Status, string) { return f.s, "" }
+
+// TestLocalProvider_PlumbsWords asserts the LocalProvider forwards
+// faster-whisper's per-word timing from the /asr response into
+// sttchain.Result.Words. This is the contract OverlapAgree depends on for
+// word-aligned committedAudioBytes advance.
+func TestLocalProvider_PlumbsWords(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"text":"alpha bravo","segments":[
+			{"no_speech_prob":0.1,"avg_logprob":-0.3,"words":[
+				{"word":"alpha","start":0.0,"end":0.4,"probability":0.9},
+				{"word":"bravo","start":0.4,"end":0.9,"probability":0.85}
+			]}]}`))
+	}))
+	defer srv.Close()
+
+	engine := audioformat.New(audioformat.WithFfmpegProbe(func() bool { return false }))
+	caps := capabilities.NewRegistry(
+		[]capabilities.Def{{ID: "whisper-stt", DependencyKind: capabilities.DependencyResource, DependencySlug: "whisper"}},
+		map[string]capabilities.Checker{"whisper-stt": stubChecker{capabilities.StatusAvailable}},
+		time.Minute,
+	)
+	svc := pipeline.NewService(
+		pipeline.Config{}, "", nil, "",
+		pipeline.SpeakerConfig{}, "", nil,
+		caps, &atomic.Int64{},
+		srv.URL+"/asr?output=json", srv.Client(), engine,
+	)
+	infoFake := &whisperinfomocks.FakeClient{Info: whisperinfo.Info{ModelID: "whisper-medium"}}
+	p := sttchain.NewLocalProviderWith(svc, nil, infoFake)
+
+	res, err := p.Transcribe(context.Background(), sttchain.Request{
+		Audio:  []byte{0x01, 0x00, 0x02, 0x00},
+		Format: "pcm_s16le",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "alpha bravo", res.Text)
+	require.Len(t, res.Words, 2)
+	require.Equal(t, "alpha", res.Words[0].Word)
+	require.InDelta(t, 0.4, res.Words[0].End, 1e-9)
+	require.Equal(t, "bravo", res.Words[1].Word)
+	require.InDelta(t, 0.9, res.Words[1].End, 1e-9)
+}
 
 func TestLocalProvider_NilSvc(t *testing.T) {
 	infoFake := &whisperinfomocks.FakeClient{Info: whisperinfo.Info{ModelID: "whisper-medium"}}

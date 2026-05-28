@@ -5,7 +5,7 @@
 // safety checks) that TypeScript's strict-type checking views as
 // unnecessary based on declared types but which catch real-world drift.
 // Same rationale as useTextToSpeechCore — see that file's note.
-/* eslint-disable @typescript-eslint/no-unnecessary-condition, @typescript-eslint/no-floating-promises, @typescript-eslint/require-await, @typescript-eslint/use-unknown-in-catch-callback-variable, react-hooks/exhaustive-deps */
+/* eslint-disable react-hooks/exhaustive-deps */
 //
 // Voice Input Core — Generic, Scenario-Agnostic Orchestrator
 // ===========================================================
@@ -35,7 +35,7 @@ import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoise
 import { getSharedAudioContext, ensureAudioContextOnGesture } from "../index";
 import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive, installVisibilityHandler } from "../index";
 import { VoiceStreamProvider } from "../index";
-import { setServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./useServerVadStateStore";
+import { setServerVadState, resetServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./useServerVadStateStore";
 import { decideAutoStop } from "./voice/autoStopDecision";
 import { WhisperProvider } from "../index";
 import { WebSpeechProvider } from "../index";
@@ -337,8 +337,18 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       segments: [...segmentsRef.current],
       partialTranscript: "",
     }));
-    // Deliver the segment text to the transcript callback
-    onTranscriptRef.current(finalText);
+    // Deliver the segment text to the transcript callback. Consecutive
+    // committed segments in a turn must be space-separated, otherwise the
+    // sinks (the terminal writes raw PTY input; the mobile toolbar appends)
+    // run them together ("...sentence.Now here..."). Segments always commit on
+    // a speech pause — whole words, never mid-word — so a plain leading space
+    // is correct. Skip it for the first segment of the turn and when the
+    // segment opens with closing punctuation. This is engine-agnostic (the
+    // same path serves Whisper VAD segments) and needs no STT contract change:
+    // segment ordering is the only context required, and it lives here.
+    const delivered =
+      segmentIndex > 0 && !/^[\s,.!?;:]/.test(finalText) ? ` ${finalText}` : finalText;
+    onTranscriptRef.current(delivered);
   }, []);
 
   /** Session counter for diagnostic logging — helps correlate log lines
@@ -736,6 +746,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     startingRef.current = true;
     stopRequestedRef.current = false;
     sessionCountRef.current++;
+    // Clear any server-VAD snapshot from a prior session BEFORE the first
+    // tick of this one. The sticky silenceTimedOut latch (and the prior
+    // session's receivedAt) would otherwise leak across sessions and stop
+    // the new recording instantly. See useServerVadStateStore.resetServerVadState.
+    resetServerVadState();
 
     // Show "preparing" state immediately for visual feedback
     const prepareStart = Date.now();

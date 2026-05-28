@@ -183,7 +183,7 @@ CPU, or quality.
 |---|---|---|---|---|---|
 | `stt.engine_id` | string (manifest id) | `whisper-local` | from `ListEngines` | operator | Active STT engine. `whisper-local` = faster-whisper (batch; VAD/overlap/buffered). `kyutai` = native-streaming (Passthrough only, ~0.5s delay, GPU). Only the Local tier honors it; BYOK/Vrooli stream natively. Read valid ids from `ListEngines`/`audio-tools stt engines` — never hardcode. Switching consults `GetEngineSwitchImpact` (shared-resource awareness). |
 | `stt.streaming_mode` | enum: `auto`, `off` | `auto` | — | operator | `off` forces a single batch `Transcribe` at `StreamEnd` — cheapest, no partials. `auto` selects the best (strategy, provider) pair for the negotiated tier. |
-| `stt.strategy_preference` | enum: `auto`, `vad`, `overlap` | `auto` | — | operator | `vad` = silence-bounded segments; lower CPU, segment-only events. `overlap` = sliding-window LocalAgreement; higher CPU on Local Whisper, live partials, lower end-of-utterance latency. Ignored for native-streaming providers (Deepgram, Azure, Google, future LPBS). `auto` picks per-provider defaults. |
+| `stt.strategy_preference` | enum: `auto`, `vad`, `overlap` | `auto` | — | operator | `vad` = silence-bounded segments; one Segment per utterance, lower CPU. `overlap` = growing-buffer LocalAgreement-N with VAD-anchored triggering, word-aligned cursor advance, and bounded agreement window; incremental Segments mid-utterance. Ignored for native-streaming providers (Deepgram, Azure, Google, future LPBS). `auto` picks per-provider defaults: **Local Whisper → `overlap`** (mid-utterance incremental commits), native-stream providers → `passthrough`. Pick `vad` explicitly if you prefer the conservative one-segment-per-utterance behaviour. See PROBLEMS.md "OverlapAgree commit gap" (RESOLVED 2026-05-28) for the algorithm history. |
 | `stt.vad_silence_ms` | integer | `700` | `200–3000` | operator | Silence window that closes a VAD segment. Lower = snappier but may chop natural pauses; higher = preserves long sentences, increases end-of-segment latency. Only meaningful when `VADSegmentStrategy` is active. |
 | `stt.overlap_window_ms` | integer | `2000` | `1000–5000` | operator | Sliding window size for `OverlapAgreeStrategy`. Bigger = better agreement, more CPU per partial. Only meaningful for Local Whisper + `overlap`. |
 | `stt.overlap_commit_runs` | integer | `2` | `2–4` | operator | How many consecutive sliding-window runs must agree on a prefix before it commits from `Partial` → `Segment`. Higher = more stable text, longer commit latency. |
@@ -239,8 +239,11 @@ that carry audio (the Whisper PCM path); Passthrough engines bypass it.
 Enrollment + verification are backed by the `speaker-verification`
 resource (SpeechBrain ECAPA-TDNN), which owns the embeddings. A profile is one
 identity holding **N labeled enrollment clips** (different devices / speaking
-styles); the resource trims each clip to its voiced span before embedding and
-verifies against the profile centroid + each clip (hybrid). The egress decision
+styles); the resource trims each clip to its voiced span before embedding (Silero
+VAD by default, automatic fallback to energy VAD when the model load fails) and
+verifies via **max-cosine across all clips in the profile** (the v0.4 scoring
+model — centroid aggregation was dropped because spectrally divergent enrollment
+clips pulled the mean toward neutral and depressed genuine scores). The egress decision
 is **session-stateful**: it accumulates per-segment scores (EMA) and never
 rejects until `min_decision_seconds` of voiced audio has accrued (warm-up), so a
 short first utterance is not falsely dropped.
@@ -266,11 +269,28 @@ a confident band above the cutoff and the impostor clearly below, and adjust
 `speaker.threshold`. Record the chosen number here when set.
 
 Resource-side embedding knobs (env vars on the `speaker-verification` resource,
-not per-session levers): `SPEAKER_VAD` (`energy`|`none`, default `energy`),
-`SPEAKER_MIN_ENROLL_VOICED_SECONDS` (`3.0`), `SPEAKER_MIN_VERIFY_VOICED_SECONDS`
-(`1.0`), `SPEAKER_SCORE_AGG` (`hybrid`|`centroid`|`max`), and `SPEAKER_EMBED_DENOISE`
-(default off — spectral denoise before embedding; off because it can distort
-timbre and hurt ECAPA, and VAD trim already removes the dominant silence diluter).
+not per-session levers): `SPEAKER_VAD` (`silero`|`energy`|`none`, default
+`silero` — falls back to `energy` automatically when the Silero weights are not
+loadable), `SPEAKER_MIN_ENROLL_VOICED_SECONDS` (`3.0`),
+`SPEAKER_MIN_VERIFY_VOICED_SECONDS` (`1.0`), `SPEAKER_SELF_CONSISTENCY_THRESHOLD`
+(`0.5`, see below), and `SPEAKER_EMBED_DENOISE` (default off — spectral denoise
+before embedding; off because it can distort timbre and hurt ECAPA, and VAD trim
+already removes the dominant silence diluter). `SPEAKER_SCORE_AGG` is no longer
+read — scoring is unconditionally max-over-clips.
+
+**Self-consistency at enrollment.** Every enrolled clip is scored against the
+strongest existing clip in the profile (max cosine). When that score is below
+`SPEAKER_SELF_CONSISTENCY_THRESHOLD`, the enroll response sets
+`self_consistency_warning: true` and the resource surfaces
+`self_consistency_score` and the matched existing clip. The new clip is **stored
+either way** — the warning is informational. The intent: tell the operator a
+clip recorded in substantially different conditions (a different mic, heavy
+background noise, a different room) may not help recognition; re-record in
+conditions that resemble verification time. The first clip in a fresh profile
+has no self-consistency to check; its score is reported as `-1.0` and the
+warning is `false`. The verify response surfaces `best_clip_id`,
+`best_clip_label`, `best_clip_score`, `n_clips`, and `vad_model` so an operator
+can see *which* enrollment matched and under *which* VAD.
 
 The active egress isolation **method** (`verification`) is selected by the
 engine manifest's `speakerIsolation.active` field — swapping it is a one-field

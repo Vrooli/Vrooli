@@ -19,7 +19,21 @@ vi.mock("../../api/client", () => ({
   API_BASE: "http://test",
 }));
 
-const updateMock = vi.fn();
+interface UpdateStreamConfigArg {
+  updateMask: { paths: string[] };
+  config: {
+    vadSilenceMs?: number;
+    strategyPreference?: StrategyPreference;
+    streamingMode?: StreamingMode;
+  };
+}
+
+function requireDefined<T>(value: T | undefined, message: string): T {
+  if (value === undefined) throw new Error(message);
+  return value;
+}
+
+const updateMock = vi.fn<(req: UpdateStreamConfigArg) => Promise<{ config: Record<string, unknown> }>>();
 const getMock = vi.fn();
 
 vi.mock("@connectrpc/connect", async (importOriginal) => {
@@ -139,7 +153,7 @@ describe("updateVoiceStreamConfig", () => {
       overlapCommitRuns: 2,
     });
     expect(updateMock).toHaveBeenCalledTimes(1);
-    const callArg = updateMock.mock.calls[0]![0];
+    const callArg = requireDefined(updateMock.mock.calls[0], "updateStreamConfig was not called")[0];
     const paths: string[] = callArg.updateMask.paths;
     expect(paths).toContain("vad_silence_ms");
     expect(paths).toContain("strategy_preference");
@@ -155,7 +169,7 @@ describe("updateVoiceStreamConfig", () => {
     updateMock.mockResolvedValueOnce({ config: {} });
     const { updateVoiceStreamConfig } = await import("./voice");
     await updateVoiceStreamConfig({ vadSilenceMs: 900 });
-    const callArg = updateMock.mock.calls[0]![0];
+    const callArg = requireDefined(updateMock.mock.calls[0], "updateStreamConfig was not called")[0];
     const paths: string[] = callArg.updateMask.paths;
     expect(paths).toEqual(["vad_silence_ms"]);
   });

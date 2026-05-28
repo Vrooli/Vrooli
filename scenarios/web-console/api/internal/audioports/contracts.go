@@ -445,13 +445,22 @@ func speakerProfileFromProto(p *sttv1.SpeakerProfile) SpeakerProfile {
 	if p == nil {
 		return SpeakerProfile{}
 	}
+	// audio-tools shifted the duration field from per-clip enrollment_audio_seconds
+	// to per-profile total_voiced_seconds (the centroid is built from N labeled
+	// clips; total voiced is the meaningful aggregate). Map the new field into
+	// web-console's existing slot so the UI continues to render a real number;
+	// fall back to the legacy field for older API versions that still set it.
+	durationSeconds := p.TotalVoicedSeconds
+	if durationSeconds == 0 {
+		durationSeconds = p.EnrollmentAudioSeconds
+	}
 	out := SpeakerProfile{
 		ID:                     p.Id,
 		DisplayName:            p.DisplayName,
 		ModelName:              p.ModelName,
 		EmbeddingDim:           p.EmbeddingDim,
 		SampleRate:             p.SampleRate,
-		EnrollmentAudioSeconds: p.EnrollmentAudioSeconds,
+		EnrollmentAudioSeconds: durationSeconds,
 		Notes:                  p.Notes,
 	}
 	if p.CreatedAt != nil {
@@ -500,12 +509,18 @@ func speakerEnrollmentFromProto(p *sttv1.SpeakerEnrollment) SpeakerEnrollment {
 	if p == nil {
 		return SpeakerEnrollment{}
 	}
+	// Same shift as speakerProfileFromProto: prefer voiced_seconds (per-clip
+	// after VAD trim) for the enroll response, falling back to the legacy field.
+	durationSeconds := p.VoicedSeconds
+	if durationSeconds == 0 {
+		durationSeconds = p.EnrollmentAudioSeconds
+	}
 	out := SpeakerEnrollment{
 		ProfileID:              p.ProfileId,
 		DisplayName:            p.DisplayName,
 		EmbeddingDim:           p.EmbeddingDim,
 		SampleRate:             p.SampleRate,
-		EnrollmentAudioSeconds: p.EnrollmentAudioSeconds,
+		EnrollmentAudioSeconds: durationSeconds,
 		ModelName:              p.ModelName,
 	}
 	if p.CreatedAt != nil {

@@ -4,9 +4,8 @@
 // It includes defensive runtime guards (browser feature detection, race-
 // safety checks) that TypeScript's strict-type checking views as
 // unnecessary based on declared types but which catch real-world drift
-// (older browsers, polyfills, undefined-on-prototype). Disabling the
-// listed rules file-wide preserves that defensive surface verbatim.
-/* eslint-disable @typescript-eslint/no-unnecessary-condition, @typescript-eslint/no-floating-promises */
+// (older browsers, polyfills, undefined-on-prototype). These guards are
+// intentional even where the current type-aware rules don't flag them.
 //
 // Text-To-Speech Core — Generic, Scenario-Agnostic Hook
 // ======================================================

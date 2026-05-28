@@ -6,7 +6,9 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -236,6 +238,15 @@ func NewServer(db *sql.DB) *Server {
 		log.Fatalf("Schema initialization failed: %v", err)
 	}
 
+	// Relocate any pre-runtime-home State-class artifacts (hook-token,
+	// voice/TTS/wakeword configs) before anything reads them. Without this,
+	// loadOrCreateHookToken silently mints a fresh canonical token whenever the
+	// legacy XDG copy is still the only one on disk, breaking the X-Hook-Token
+	// contract with claude-code hooks and zeroing the conversation_events
+	// stream until .claude/settings.json is hand-edited. See
+	// legacy_db_migration_test.go for the regression.
+	migrateLegacyStateFiles()
+
 	// Load the small Claude-hook routing preference triple (auto/backend/
 	// startMuted). Voice/speed/summarize knobs live in audio-tools — fetched
 	// lazily by the UI via the audio-integration module, not loaded here.
@@ -273,8 +284,8 @@ func NewServer(db *sql.DB) *Server {
 
 	// Recover surviving tmux sessions from previous run
 	report := sessions.Recover(sessionStore, backendRegistry)
-	log.Printf("recovery: recovered=%d awaiting_recovery=%d orphaned_tmux=%d (awaiting_recovery rows preserved for explicit recovery via /api/v1/sessions/recoverable)",
-		report.Recovered, report.AwaitingRecovery, report.OrphanedTmux)
+	log.Printf("recovery: recovered=%d adopted=%d awaiting_recovery=%d orphaned_tmux=%d (awaiting_recovery rows preserved for explicit recovery via /api/v1/sessions/recoverable; orphaned_tmux are live sessions we could not adopt and left running)",
+		report.Recovered, report.Adopted, report.AwaitingRecovery, report.OrphanedTmux)
 
 	srv := &Server{
 		db:              db,
@@ -593,11 +604,182 @@ func resolveSQLiteDSN() string {
 		log.Fatalf("resolve db path: %v", err)
 	}
 
+	migrateLegacyDB(dbPath)
+
 	log.Printf("SQLite database: %s", dbPath)
 	return fmt.Sprintf(
 		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
 		dbPath,
 	)
+}
+
+// migrateLegacyDB relocates a pre-runtime-home web-console database to the
+// canonical path. Before the ~/.vrooli storage migration the DB lived under the
+// XDG data dir (~/.local/share/vrooli/web-console/web-console.db). When the
+// resolver started pointing at ~/.vrooli the DB was NOT moved, so a rebuilt
+// binary opened a brand-new empty DB and recovery treated every live session as
+// an orphan (the 2026-05-27 data-loss incident). This one-time, idempotent copy
+// closes that gap: when the canonical DB is absent but a legacy copy exists,
+// bring it (and any WAL sidecars) across before the DB is opened.
+func migrateLegacyDB(dbPath string) {
+	if _, err := os.Stat(dbPath); err == nil {
+		return // canonical DB already present; nothing to migrate
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return // unexpected stat error: leave handling to the DB opener
+	}
+
+	for _, legacy := range legacyDBCandidates() {
+		if legacy == dbPath {
+			continue
+		}
+		if _, err := os.Stat(legacy); err != nil {
+			continue
+		}
+		// Copy the DB plus any WAL sidecars so uncommitted data is preserved;
+		// SQLite replays the WAL on first open.
+		if err := copyFileIfExists(legacy, dbPath); err != nil {
+			log.Printf("legacy-db migration: copy %s: %v", legacy, err)
+			continue
+		}
+		for _, suffix := range []string{"-wal", "-shm"} {
+			if err := copyFileIfExists(legacy+suffix, dbPath+suffix); err != nil {
+				log.Printf("legacy-db migration: copy %s: %v", legacy+suffix, err)
+			}
+		}
+		log.Printf("legacy-db migration: relocated %s -> %s", legacy, dbPath)
+		return
+	}
+}
+
+// legacyDBCandidates lists pre-migration database locations, most-specific first.
+func legacyDBCandidates() []string {
+	var out []string
+	if xdg := os.Getenv("XDG_DATA_HOME"); xdg != "" {
+		out = append(out, filepath.Join(xdg, "vrooli", "web-console", "web-console.db"))
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		out = append(out, filepath.Join(home, ".local", "share", "vrooli", "web-console", "web-console.db"))
+	}
+	return out
+}
+
+// legacyStateFiles is the manifest of State-class artifacts the ~/.vrooli
+// storage migration must bring across. hook-token.txt is the load-bearing one
+// — a fresh canonical token breaks the X-Hook-Token contract with claude-code
+// hooks and silently zeros the conversation_events stream. The remaining
+// configs default cleanly when absent, so their loss is invisible to the
+// failure mode but observable as the user "losing" their voice/TTS preferences;
+// migrating them at the same time is the cheap, complete fix.
+var legacyStateFiles = []string{
+	"hook-token.txt",
+	"tts-config.json",
+	"tts-hook-config.json",
+	"tts-summarize-config.json",
+	"voice-config.json",
+	"speaker-verification-config.json",
+	"wakeword-template.json",
+}
+
+// migrateLegacyStateFiles relocates the State-class web-console artifacts the
+// 2026-05-27 ~/.vrooli storage migration left behind. It must run BEFORE any
+// State-class file is read — most importantly loadOrCreateHookToken, which
+// otherwise mints a fresh token on first miss and locks claude-code hooks out.
+// Idempotent per file: only migrates when the canonical destination is absent.
+func migrateLegacyStateFiles() {
+	for _, name := range legacyStateFiles {
+		canonical := mustResolveScenarioStoragePath(storage.ClassState, name)
+		migrateLegacyStateFile(canonical, name)
+	}
+}
+
+// migrateLegacyStateFile is the per-file primitive behind migrateLegacyStateFiles.
+// Split out so tests can exercise a single artifact under a temp HOME without
+// depending on the full scenario-storage resolver.
+func migrateLegacyStateFile(canonicalPath, name string) {
+	if _, err := os.Stat(canonicalPath); err == nil {
+		return
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return
+	}
+	for _, legacy := range legacyStateCandidates(name) {
+		if legacy == canonicalPath {
+			continue
+		}
+		info, err := os.Stat(legacy)
+		if err != nil {
+			continue
+		}
+		if err := copyFileWithMode(legacy, canonicalPath, info.Mode().Perm()); err != nil {
+			log.Printf("legacy-state migration: copy %s: %v", legacy, err)
+			continue
+		}
+		log.Printf("legacy-state migration: relocated %s -> %s", legacy, canonicalPath)
+		return
+	}
+}
+
+// legacyStateCandidates lists pre-migration State-class locations, most-specific
+// first. Unlike legacyDBCandidates, these live under XDG_STATE_HOME
+// (~/.local/state), so a separate resolver is required.
+func legacyStateCandidates(name string) []string {
+	var out []string
+	if xdg := os.Getenv("XDG_STATE_HOME"); xdg != "" {
+		out = append(out, filepath.Join(xdg, "vrooli", "web-console", name))
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		out = append(out, filepath.Join(home, ".local", "state", "vrooli", "web-console", name))
+	}
+	return out
+}
+
+// copyFileWithMode copies src to dst with an explicit mode, creating dst's
+// parent directory. Distinct from copyFileIfExists because hook-token.txt is
+// sensitive and must land 0o600, not the default 0o644.
+func copyFileWithMode(src, dst string, mode os.FileMode) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close() //nolint:errcheck
+
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		_ = out.Close()
+		return err
+	}
+	return out.Close()
+}
+
+// copyFileIfExists copies src to dst, creating dst's parent dir. A missing src
+// is a no-op (returns nil) so optional WAL sidecars can be attempted blindly.
+func copyFileIfExists(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	defer in.Close() //nolint:errcheck
+
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		_ = out.Close()
+		return err
+	}
+	return out.Close()
 }
 
 func resolveHookTokenPath() string {

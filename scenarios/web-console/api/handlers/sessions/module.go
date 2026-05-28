@@ -80,6 +80,7 @@ type RecoverResult struct {
 	AgentType       string
 	CommandSent     string
 	CodexHomeCopied bool
+	MessagesCopied  bool
 }
 
 // RecoverableSession mirrors the legacy RecoverableSessionResponse.

@@ -177,15 +177,38 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Owner:** unassigned.
 
-### 2026-05-27 — OverlapAgree sliding-window commit logic (deferred)
+### 2026-05-27 — OverlapAgree commit gap (RESOLVED 2026-05-28)
 
-**Symptom:** `OverlapAgree` (LocalAgreement) rarely commits text. It slides windows by `advanceBytes` (default WindowMs/2) but compares transcript prefixes across windows that cover *misaligned* audio spans, so the longest-agreed-prefix check rarely matches; the final tail flush emits only `buf[cursor:]`, dropping earlier committed text.
+**Original symptom:** `OverlapAgree` (LocalAgreement) rarely commits text. The sliding-window implementation advanced the cursor by `advanceBytes` (default WindowMs/2) but compared transcript prefixes across windows that covered *misaligned* audio spans, so the longest-agreed-prefix check rarely matched; the final tail flush emitted only `buf[cursor:]`, dropping earlier committed text.
 
-**Root cause:** Algorithmic — the window advance and the prefix-agreement comparison are not aligned to the same audio offset. Independent of audio format.
+**Resolution (2026-05-28):** Three-phase rewrite. The algorithm is now a growing-buffer LocalAgreement-N with VAD-anchored triggering, word-aligned cursor advance, and bounded agreement window.
 
-**Status:** Deferred / out of scope of the audio-format substrate work. That work only guarantees `OverlapAgree` now *receives clean canonical PCM* (previously it ran on compressed WebM bytes). The commit-logic rewrite is a distinct workstream; `VADSegment` remains the enabled default.
+  - **Phase A — correctness:**
+    1. `longestAgreedPrefix` normalizes case + trailing punctuation (`pipeline.NormalizeToken`); previously Whisper's capitalization/punct jitter blocked agreement at position 0.
+    2. `lastAdvanced` state + `appendAfterAdvance` merge function: after word-aligned cursor advance, the next hypothesis is over genuinely new audio (no overlap with committed expected); `mergeAgreed`'s divergence detector was rejecting that expected state and blocking all post-first-commit emissions.
+    3. Tail flush is now unconditional via `appendAfterAdvance`: unsettled audio at channel close always reaches the user, never silently dropped.
+  - **Phase B — bounded agreement:** `MaxAgreedTokens` (default 30) caps the per-iteration agreement walk so variance accumulation stays bounded on long uncommitted buffers.
+  - **Phase C — VAD-anchored triggering:** `Trigger=vad` (default) replaces the stopwatch-based `nextTriggerAt` with frame RMS analysis (reusing the same logic as `VADSegmenter`). Settle attempts fire on silence boundaries — Whisper sees clean audio edges, agreement happens reliably. `MaxWindowMs` safety net unchanged. `Trigger=stopwatch` preserved for legacy/test use.
 
-**Owner:** unassigned.
+**Test coverage:**
+  - `api/internal/stt/strategy/overlap_agree_behavior_test.go` —
+    `TestOverlapAgree_NormalizesCaseAndPunctuationForAgreement`,
+    `TestOverlapAgree_PostAdvanceCommitsContinue`,
+    `TestOverlapAgree_TailFlushEmitsEvenOnDivergence`,
+    `TestOverlapAgree_BoundedAgreementWindowSurvivesLongJitter`,
+    `TestOverlapAgree_VAD_TriggersOnSilenceBoundary`,
+    `TestOverlapAgree_VAD_NoTriggerWithoutSilence`,
+    `TestOverlapAgree_VAD_MaxWindowForcedFallback`,
+    `TestOverlapAgree_VAD_TailFlushOnChannelClose`.
+  - `api/internal/stt/strategy/overlap_agree_internal_test.go` —
+    `TestLongestAgreedPrefix_MaxTokensCap`,
+    `TestLongestAgreedPrefix_CaseAndPunctuationNormalization`.
+
+**Default flip:** selector `auto` now resolves to `OverlapAgree` for batch-only Local Whisper. `vad` remains available as an explicit preference for operators who want one-segment-per-utterance behaviour.
+
+**Refs:** `api/internal/stt/strategy/overlap_agree.go`, `api/internal/stt/selector.go` auto branch.
+
+**Owner:** resolved.
 
 ### 2026-05-27 — Whisper 5-concurrent ceiling (known capacity limit)
 

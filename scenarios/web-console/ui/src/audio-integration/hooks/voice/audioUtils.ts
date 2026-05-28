@@ -198,15 +198,15 @@ export function createPassiveCapturePipeline(
 
   // ScriptProcessorNode (deprecated but universally supported) for PCM capture.
   // Buffer size 4096 at 48kHz = ~85ms per callback — low overhead.
-  // eslint-disable-next-line @typescript-eslint/no-deprecated -- AudioWorklet not yet wired; ScriptProcessor kept for broad browser support
+  // Deprecated API: AudioWorklet not yet wired; ScriptProcessor kept for broad browser support.
   const processor = ctx.createScriptProcessor(4096, 1, 1);
-  // eslint-disable-next-line @typescript-eslint/no-deprecated -- ScriptProcessor onaudioprocess API; replaced when AudioWorklet lands
+  // Deprecated ScriptProcessor onaudioprocess API; replaced when AudioWorklet lands.
   processor.onaudioprocess = (e: AudioProcessingEvent) => {
-    // eslint-disable-next-line @typescript-eslint/no-deprecated -- AudioProcessingEvent.inputBuffer; matches deprecated ScriptProcessor above
+    // AudioProcessingEvent.inputBuffer; matches deprecated ScriptProcessor above.
     const input = e.inputBuffer.getChannelData(0);
     ringBuffer.write(input);
-    // Pass-through to keep the node alive (output must be connected)
-    // eslint-disable-next-line @typescript-eslint/no-deprecated -- AudioProcessingEvent.outputBuffer; matches deprecated ScriptProcessor above
+    // Pass-through to keep the node alive (output must be connected).
+    // AudioProcessingEvent.outputBuffer; matches deprecated ScriptProcessor above.
     const output = e.outputBuffer.getChannelData(0);
     output.set(input);
   };

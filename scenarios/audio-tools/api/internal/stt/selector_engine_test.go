@@ -55,11 +55,14 @@ func TestSelectorManifestDrivenEligibility(t *testing.T) {
 		wantErr  error
 	}{
 		{
-			name:     "whisper auto -> vad_segment",
+			// Auto resolves to overlap_agree when the manifest allows it.
+			// The growing-buffer LocalAgreement-N + VAD-anchored trigger
+			// gives incremental commits mid-utterance.
+			name:     "whisper auto -> overlap_agree (resolved 2026-05-28)",
 			manifest: whisperOnlyManifest, engineID: "whisper-local",
 			traits:   sttchain.ProviderTraits{Batch: true}, // empty Strategies: manifest is authority
 			pref:     stt.PreferenceAuto,
-			wantKind: sttchain.StrategyVADSegment,
+			wantKind: sttchain.StrategyOverlapAgree,
 		},
 		{
 			name:     "whisper overlap stays eligible",
@@ -96,7 +99,7 @@ func TestSelectorManifestDrivenEligibility(t *testing.T) {
 			manifest: whisperOnlyManifest, engineID: "",
 			traits:   sttchain.ProviderTraits{Batch: true},
 			pref:     stt.PreferenceAuto,
-			wantKind: sttchain.StrategyVADSegment,
+			wantKind: sttchain.StrategyOverlapAgree,
 		},
 	}
 

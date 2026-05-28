@@ -186,3 +186,43 @@ func TestVADSegmenter_SetsSilenceTimedOutAtTimeout(t *testing.T) {
 	require.True(t, timedOutSeen,
 		"auto-stop latch contract: exactly one threshold-crossing tick must carry SilenceTimedOut=true")
 }
+
+// TestVADSegmenter_TimedOutTickAfterMultipleSegmentCuts asserts that the
+// threshold-crossing tick fires after a segment cut has already reset the
+// hasVoiced flag, when silence continues past the threshold a SECOND time.
+// Regression: the prior implementation gated ALL VAD-state emits behind
+// `if hasVoiced`. After flushSegment reset hasVoiced=false, subsequent silence
+// accumulation produced zero ticks — so the client never observed the
+// SilenceTimedOut latch in continued-silence cases and the one-shot mic hung
+// with the progress ring visually full but no stop firing. The fix hoists the
+// timedOut emit out of the hasVoiced gate. Scripts: tone, long silence so
+// threshold is crossed once (cut fires + latched tick), then more silence so
+// the threshold is crossed AGAIN with hasVoiced=false — at least two ticks
+// with SilenceTimedOut=true must be observed.
+func TestVADSegmenter_TimedOutTickAfterMultipleSegmentCuts(t *testing.T) {
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	prov.TranscribeFn = func(context.Context, sttchain.Request) (*sttchain.Result, error) {
+		return &sttchain.Result{Text: "seg", Tier: sttchain.TierLocal, ProviderID: "fake", ModelID: "fake"}, nil
+	}
+	// Short SilenceMs so we can cross the threshold twice in a reasonable
+	// fixture: 100 ms tone + 1400 ms silence (cut + first timedOut tick) +
+	// 1400 ms more silence (no new voicing → second timedOut tick must still
+	// fire even though hasVoiced was reset by the cut).
+	strat := &strategy.VADSegmenter{Provider: prov, SilenceMs: 600}
+	audio := append(testaudio.SineSamples(440, 100), testaudio.SilenceSamples(1400)...)
+	audio = append(audio, testaudio.SilenceSamples(1400)...)
+	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(audio))
+
+	ticks := vadStateEvents(got)
+	require.NotEmpty(t, ticks, "expected vad-state ticks")
+	timedOutCount := 0
+	for _, ev := range ticks {
+		if ev.SilenceTimedOut {
+			timedOutCount++
+		}
+	}
+	require.GreaterOrEqual(t, timedOutCount, 2,
+		"continued-silence contract: expected at least 2 SilenceTimedOut=true ticks "+
+			"(one at the cut, one in subsequent silence after hasVoiced was reset), got %d",
+		timedOutCount)
+}

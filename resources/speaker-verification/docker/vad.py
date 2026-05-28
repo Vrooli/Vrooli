@@ -7,11 +7,12 @@ scores toward a common low value. Both enrollment and verification embed only th
 voiced audio through one shared path so the two stay symmetric.
 
 The detector is selected via the ``SPEAKER_VAD`` environment variable
-(``energy`` | ``none``). The energy detector is dependency-free: it operates on
-the already-present torch waveform tensor and a little pure-Python math. A
-``silero`` branch can be added later behind this same ``trim`` interface with no
-re-architecting; it is intentionally NOT implemented here because it would add a
-model dependency.
+(``silero`` | ``energy`` | ``none``). ``silero`` is the default and uses the
+Silero VAD model (via the ``silero-vad`` PyPI package or torch.hub). It is
+robust to phone-codec / low-SNR audio in a way pure energy VAD is not.
+``energy`` is a dependency-free fallback that operates on RMS frame energies;
+it is automatically used when the Silero load fails (no network, no cached
+weights, no torch.hub). ``none`` is a no-op passthrough useful for diagnostics.
 
 The energy/threshold/mask math is pure Python (operates on lists of frame RMS
 values) so it is unit-testable without torch; only ``EnergyVAD.trim`` touches the
@@ -122,7 +123,12 @@ class VoiceActivityDetector(Protocol):
 
 
 class EnergyVAD:
-    """Dependency-free energy-based voice-activity trimmer."""
+    """Dependency-free energy-based voice-activity trimmer.
+
+    Kept as the automatic fallback when the Silero model load fails. Energy-only
+    VAD is fragile on low-SNR / phone-codec audio, so prefer Silero where the
+    model weights are reachable.
+    """
 
     name = "energy"
 
@@ -182,6 +188,98 @@ class EnergyVAD:
         return voiced, voiced_seconds
 
 
+class SileroVAD:
+    """Silero VAD wrapper.
+
+    Loads the Silero VAD model from the ``silero-vad`` PyPI package (preferred,
+    no network at runtime once installed) or via ``torch.hub`` (one-time
+    download). Returns the concatenated voiced span as a mono waveform. Robust
+    to phone codec / low-SNR audio in a way that pure energy VAD is not.
+
+    If the model load fails, construction raises ``RuntimeError`` and the
+    factory falls back to ``EnergyVAD``. Silero is documented to operate on
+    8 kHz or 16 kHz; we always feed 16 kHz mono because that is the ECAPA
+    contract everywhere else in this server.
+    """
+
+    name = "silero"
+
+    def __init__(
+        self,
+        device: Optional[str] = None,
+        threshold: float = 0.5,
+        min_speech_ms: float = 250.0,
+        min_silence_ms: float = 200.0,
+        speech_pad_ms: float = 50.0,
+    ) -> None:
+        if torch is None:  # pragma: no cover -- torch is present in the image
+            raise RuntimeError("torch unavailable; cannot load Silero VAD")
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.threshold = float(threshold)
+        self.min_speech_ms = float(min_speech_ms)
+        self.min_silence_ms = float(min_silence_ms)
+        self.speech_pad_ms = float(speech_pad_ms)
+        self._model = None
+        self._get_speech_timestamps = None
+        self._collect_chunks = None
+        self._load()
+
+    def _load(self) -> None:
+        # Try the dedicated package first (no network at runtime), then torch.hub.
+        try:
+            from silero_vad import (  # type: ignore[import-not-found]
+                get_speech_timestamps,
+                collect_chunks,
+                load_silero_vad,
+            )
+
+            self._model = load_silero_vad()
+            self._get_speech_timestamps = get_speech_timestamps
+            self._collect_chunks = collect_chunks
+        except Exception:
+            try:
+                model, utils = torch.hub.load(  # type: ignore[arg-type]
+                    repo_or_dir="snakers4/silero-vad",
+                    model="silero_vad",
+                    force_reload=False,
+                    trust_repo=True,
+                    onnx=False,
+                )
+                self._model = model
+                self._get_speech_timestamps = utils[0]
+                self._collect_chunks = utils[4]
+            except Exception as exc:  # noqa: BLE001 -- surface load failure
+                raise RuntimeError(f"failed to load Silero VAD: {exc}") from exc
+        try:
+            self._model.to(self.device)
+        except Exception:  # noqa: BLE001 -- some jit modules ignore .to
+            pass
+
+    def trim(self, waveform: "torch.Tensor", sr: int) -> Tuple["torch.Tensor", float]:
+        mono = waveform.mean(dim=0) if waveform.dim() == 2 else waveform.reshape(-1)
+        empty = mono.new_zeros((1, 0))
+        if int(mono.numel()) == 0:
+            return empty, 0.0
+
+        timestamps = self._get_speech_timestamps(  # type: ignore[misc]
+            mono,
+            self._model,
+            sampling_rate=sr,
+            threshold=self.threshold,
+            min_speech_duration_ms=int(self.min_speech_ms),
+            min_silence_duration_ms=int(self.min_silence_ms),
+            speech_pad_ms=int(self.speech_pad_ms),
+        )
+        if not timestamps:
+            return empty, 0.0
+
+        voiced = self._collect_chunks(timestamps, mono)  # type: ignore[misc]
+        if voiced.numel() == 0:
+            return empty, 0.0
+        voiced_seconds = float(voiced.numel()) / float(sr)
+        return voiced.reshape(1, -1), voiced_seconds
+
+
 class NoOpVAD:
     """Passthrough detector: embeds the whole clip (no trimming)."""
 
@@ -193,17 +291,31 @@ class NoOpVAD:
 
 
 def build_vad(name: Optional[str] = None) -> "VoiceActivityDetector":
-    """Construct the configured detector. ``name`` defaults to ``$SPEAKER_VAD``."""
-    selected = (name or os.environ.get("SPEAKER_VAD", "energy")).strip().lower()
-    if selected in ("", "energy"):
+    """Construct the configured detector.
+
+    ``name`` defaults to ``$SPEAKER_VAD`` (default: ``silero``). When silero is
+    requested but its model fails to load (no network, no cached weights, no
+    torch.hub), this falls back to ``EnergyVAD`` with a printed warning so the
+    resource stays serviceable. The returned object's ``name`` attribute then
+    reads ``energy`` so callers (and the ``/v1/info`` ``vad`` / ``vad_model``
+    fields) reflect the real detector in use.
+    """
+    selected = (name or os.environ.get("SPEAKER_VAD", "silero")).strip().lower()
+    if selected == "energy":
         return EnergyVAD()
     if selected == "none":
         return NoOpVAD()
-    if selected == "silero":
-        raise ValueError(
-            "SPEAKER_VAD=silero is reserved but not implemented in this build "
-            "(it would add a model dependency); use 'energy' or 'none'"
-        )
+    if selected in ("", "silero"):
+        try:
+            return SileroVAD()
+        except Exception as exc:  # noqa: BLE001 -- never fatal at construction
+            print(
+                f"[speaker-verification] WARNING: Silero VAD load failed ({exc}); "
+                "falling back to energy VAD. Audio quality may degrade on phone "
+                "codec / low-SNR clips. Set SPEAKER_VAD=energy to silence this.",
+                flush=True,
+            )
+            return EnergyVAD()
     raise ValueError(
-        f"unknown SPEAKER_VAD={selected!r} (supported: energy, none)"
+        f"unknown SPEAKER_VAD={selected!r} (supported: silero, energy, none)"
     )

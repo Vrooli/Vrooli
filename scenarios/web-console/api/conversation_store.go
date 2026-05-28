@@ -388,3 +388,10 @@ func (s *ConversationStore) RecordPlaybackStage(sessionID, eventID, stage string
 func (s *ConversationStore) DeleteSession(sessionID string) {
 	_ = s.repository.DeleteSession(sessionID)
 }
+
+// CopySession duplicates the conversation history from oldID onto newID so a
+// recovered session pane shows the prior conversation. See
+// ConversationRepository.CopySession for the preservation semantics.
+func (s *ConversationStore) CopySession(oldID, newID string) error {
+	return s.repository.CopySession(oldID, newID)
+}
