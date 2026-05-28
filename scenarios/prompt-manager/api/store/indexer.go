@@ -7,9 +7,12 @@ import (
 	"time"
 )
 
-// FileIndexStore implements IndexStore using the file system
+// FileIndexStore implements IndexStore using the file system. Indexes are
+// derived cache artifacts (RuntimeCache class), reconstructable in full from
+// the authored entity stores via RegenerateAll, so they live under the
+// scenario's api-core/storage ClassCache root.
 type FileIndexStore struct {
-	storeDir      string
+	cacheRoot     string
 	skillStore    SkillStore
 	agentStore    AgentStore
 	teamStore     TeamStore
@@ -17,10 +20,11 @@ type FileIndexStore struct {
 	relationStore RelationStore
 }
 
-// NewFileIndexStore creates a new file-based index store
-func NewFileIndexStore(storeDir string, skillStore SkillStore, agentStore AgentStore, teamStore TeamStore, topicStore TopicStore, relationStore RelationStore) *FileIndexStore {
+// NewFileIndexStore creates a new file-based index store. cacheRoot is the
+// runtime cache class root for this scenario (see paths.Roots).
+func NewFileIndexStore(cacheRoot string, skillStore SkillStore, agentStore AgentStore, teamStore TeamStore, topicStore TopicStore, relationStore RelationStore) *FileIndexStore {
 	return &FileIndexStore{
-		storeDir:      storeDir,
+		cacheRoot:     cacheRoot,
 		skillStore:    skillStore,
 		agentStore:    agentStore,
 		teamStore:     teamStore,
@@ -29,9 +33,9 @@ func NewFileIndexStore(storeDir string, skillStore SkillStore, agentStore AgentS
 	}
 }
 
-// indexesDir returns the path to the indexes directory
+// indexesDir returns the path to the indexes directory under the cache root.
 func (s *FileIndexStore) indexesDir() string {
-	return filepath.Join(s.storeDir, "indexes")
+	return filepath.Join(s.cacheRoot, "indexes")
 }
 
 // RegenerateAll regenerates all indexes from entity files

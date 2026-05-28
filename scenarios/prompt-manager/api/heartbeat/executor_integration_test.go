@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"prompt-manager/internal/paths"
 	"prompt-manager/store"
 	"strings"
 	"sync"
@@ -12,16 +13,38 @@ import (
 	"time"
 )
 
+// awaitableOnComplete returns (handler, wait). Assigning handler to
+// executor.OnComplete and deferring wait() makes the test block until the
+// async heartbeat lifecycle finishes — important because the lifecycle's
+// final SetHeartbeatConfig write lands in RuntimeData under t.TempDir(),
+// and racing that write against t.TempDir() cleanup causes
+// "directory not empty" flakes.
+func awaitableOnComplete(_ *testing.T) (func(string, string), func()) {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	once := sync.Once{}
+	done := func() { once.Do(wg.Done) }
+	wait := func() {
+		c := make(chan struct{})
+		go func() { wg.Wait(); close(c) }()
+		select {
+		case <-c:
+		case <-time.After(2 * time.Second):
+		}
+	}
+	return func(string, string) { done() }, wait
+}
+
 // setupExecutorTestEnv creates a store with a team, agent, membership, and
 // heartbeat config, returning everything needed to construct an Executor.
 func setupExecutorTestEnv(t *testing.T) (
 	*store.FileTeamStore,
 	*store.FileAgentStore,
-	string, // storeDir
+	string, // roots.Config
 ) {
 	t.Helper()
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -52,7 +75,7 @@ func setupExecutorTestEnv(t *testing.T) (
 		t.Fatalf("set heartbeat config: %v", err)
 	}
 
-	return teamStore, agentStore, storeDir
+	return teamStore, agentStore, roots.Config
 }
 
 func TestExecute_FullLifecycle(t *testing.T) {
@@ -147,8 +170,8 @@ func TestExecute_FullLifecycle(t *testing.T) {
 }
 
 func TestExecute_TeamDisabled(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 
@@ -336,7 +359,9 @@ func TestTriggerManual_UsesConfigProfileKey(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
 	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-	executor.OnComplete = func(_, _ string) {}
+	onComplete, waitComplete := awaitableOnComplete(t)
+	executor.OnComplete = onComplete
+	defer waitComplete()
 
 	_, err := executor.TriggerManual(ctx, "team-1", "agent-1")
 	if err != nil {
@@ -360,7 +385,9 @@ func TestTriggerManual_DefaultProfile(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
 	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-	executor.OnComplete = func(_, _ string) {}
+	onComplete, waitComplete := awaitableOnComplete(t)
+	executor.OnComplete = onComplete
+	defer waitComplete()
 
 	_, err := executor.TriggerManual(context.Background(), "team-1", "agent-1")
 	if err != nil {
@@ -373,8 +400,8 @@ func TestTriggerManual_DefaultProfile(t *testing.T) {
 }
 
 func TestTriggerManual_MissingConfig(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 
@@ -401,8 +428,8 @@ func setupExecutorTestEnvWithRuntimeMode(t *testing.T, runtimeMode string) (
 	string,
 ) {
 	t.Helper()
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -439,7 +466,7 @@ func setupExecutorTestEnvWithRuntimeMode(t *testing.T, runtimeMode string) (
 		t.Fatalf("set heartbeat config: %v", err)
 	}
 
-	return teamStore, agentStore, storeDir
+	return teamStore, agentStore, roots.Config
 }
 
 func TestExecute_SingleProcessTeam_UsesClaudeCodeProfile(t *testing.T) {
@@ -451,7 +478,9 @@ func TestExecute_SingleProcessTeam_UsesClaudeCodeProfile(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
 	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-	executor.OnComplete = func(_, _ string) {}
+	onComplete, waitComplete := awaitableOnComplete(t)
+	executor.OnComplete = onComplete
+	defer waitComplete()
 
 	// Empty profileKey should resolve to CC for single-process
 	_, err := executor.Execute(context.Background(), "team-1", "agent-1", "")
@@ -483,7 +512,9 @@ func TestExecute_MultiProcessTeam_UsesCodexProfile(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
 	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-	executor.OnComplete = func(_, _ string) {}
+	onComplete, waitComplete := awaitableOnComplete(t)
+	executor.OnComplete = onComplete
+	defer waitComplete()
 
 	// Empty profileKey should resolve to Codex for multi-process
 	_, err := executor.Execute(context.Background(), "team-1", "agent-1", "")
@@ -527,7 +558,9 @@ func TestTriggerManual_SingleProcessTeam_DefaultsToClaudeCode(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
 	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-	executor.OnComplete = func(_, _ string) {}
+	onComplete, waitComplete := awaitableOnComplete(t)
+	executor.OnComplete = onComplete
+	defer waitComplete()
 
 	_, err := executor.TriggerManual(context.Background(), "team-1", "agent-1")
 	if err != nil {
@@ -775,7 +808,9 @@ func TestExecute_CreateRunIncludesDefaults(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
 	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-	executor.OnComplete = func(_, _ string) {}
+	onComplete, waitComplete := awaitableOnComplete(t)
+	executor.OnComplete = onComplete
+	defer waitComplete()
 
 	profileKey := "prompt-manager-heartbeat"
 	_, err := executor.Execute(context.Background(), "team-1", "agent-1", profileKey)

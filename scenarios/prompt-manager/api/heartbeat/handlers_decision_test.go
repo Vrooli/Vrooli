@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"prompt-manager/internal/paths"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"strings"
@@ -17,8 +18,8 @@ import (
 
 func setupDecisionTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore) {
 	t.Helper()
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -551,8 +552,8 @@ func TestAddDecision_AlwaysSetsStatusPending(t *testing.T) {
 // setupApprovalTestHandlers sets up handlers with a team in approval mode and a member agent.
 func setupApprovalTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore) {
 	t.Helper()
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()

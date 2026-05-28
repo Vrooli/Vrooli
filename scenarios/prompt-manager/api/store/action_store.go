@@ -224,16 +224,16 @@ func isValidActionInputName(name string) bool {
 
 // FileActionStore implements ActionStore using the file system.
 type FileActionStore struct {
-	storeDir string
+	configDir string
 }
 
 // NewFileActionStore creates a new file-based Action store.
-func NewFileActionStore(storeDir string) *FileActionStore {
-	return &FileActionStore{storeDir: storeDir}
+func NewFileActionStore(configDir string) *FileActionStore {
+	return &FileActionStore{configDir: configDir}
 }
 
 func (s *FileActionStore) actionsDir() string {
-	return filepath.Join(s.storeDir, "actions")
+	return filepath.Join(s.configDir, "actions")
 }
 
 func (s *FileActionStore) packsDir() string {

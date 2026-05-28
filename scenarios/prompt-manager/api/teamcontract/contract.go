@@ -569,7 +569,12 @@ func validateDocuments(contract *OperatingContract, input ValidationInput) error
 				return fmt.Errorf("operatingContract.documents.sharedState.%s ownerMemberId %q is not a contract member", doc.ID, doc.OwnerMemberID)
 			}
 		}
-		if err := validatePathRefs([]PathRef{doc.Path}, doc.Required, doc.OptionalReason, input, "", "sharedState."+doc.ID); err != nil {
+		// SharedState files (decisions.jsonl, knowledge.jsonl, tasks.json, etc.)
+		// are runtime data: created on first write under RuntimeData class, not
+		// pre-populated in the repo. Validate structure only; doc.Required
+		// stays meaningful for prompt rendering ("kind is in scope for this
+		// team"), but does not imply on-disk existence at contract-load time.
+		if err := validatePathRefStructure([]PathRef{doc.Path}, input, "", "sharedState."+doc.ID); err != nil {
 			return err
 		}
 	}
@@ -591,6 +596,22 @@ func planOfRecordHubInPaths(doc PlanOfRecordDocument, input ValidationInput) boo
 		}
 	}
 	return false
+}
+
+// validatePathRefStructure validates that each PathRef is well-formed
+// (resolvable by NormalizePath) without requiring the file to exist on disk.
+// Used for RuntimeData-class documents (sharedState, member runtime files),
+// which are created on first write rather than pre-populated in the repo.
+func validatePathRefStructure(paths []PathRef, input ValidationInput, activeMemberID, field string) error {
+	if len(paths) == 0 {
+		return fmt.Errorf("operatingContract.documents.%s requires at least one path", field)
+	}
+	for _, ref := range paths {
+		if _, err := NormalizePath(ref, input, activeMemberID); err != nil {
+			return fmt.Errorf("operatingContract.documents.%s: %w", field, err)
+		}
+	}
+	return nil
 }
 
 func validatePathRefs(paths []PathRef, required bool, optionalReason string, input ValidationInput, activeMemberID, field string) error {
@@ -661,11 +682,11 @@ func validateExists(repoRelative string, input ValidationInput) error {
 	return nil
 }
 
-func deriveRepoRoot(storeDir string) string {
-	if storeDir == "" {
+func deriveRepoRoot(configDir string) string {
+	if configDir == "" {
 		return ""
 	}
-	abs, err := filepath.Abs(storeDir)
+	abs, err := filepath.Abs(configDir)
 	if err != nil {
 		return ""
 	}

@@ -84,7 +84,15 @@ import (
 // Per-team work is deterministic and side-effect-free: results depend
 // only on (members, opts, on-disk file contents). No clock, no randomness.
 func ruleActualWriterUndeclared(members []MemberTopics, opts ValidationOptions) []Finding {
-	if strings.TrimSpace(opts.StoreDir) == "" {
+	runtimeDir := strings.TrimSpace(opts.RuntimeDataDir)
+	if runtimeDir == "" {
+		// Tests that pre-runtime-class-split passed only StoreDir treated
+		// it as both config and runtime; preserve that single-tree fallback
+		// so test fixtures that put knowledge.jsonl alongside team.json
+		// continue to validate.
+		runtimeDir = strings.TrimSpace(opts.StoreDir)
+	}
+	if runtimeDir == "" {
 		return nil
 	}
 	if len(opts.TeamContracts) == 0 {
@@ -111,7 +119,7 @@ func ruleActualWriterUndeclared(members []MemberTopics, opts ValidationOptions) 
 		if entry == nil {
 			continue
 		}
-		findings = append(findings, scanTeamForUndeclaredWriters(teamID, entry, memberIndex[teamID], opts.StoreDir)...)
+		findings = append(findings, scanTeamForUndeclaredWriters(teamID, entry, memberIndex[teamID], runtimeDir)...)
 	}
 	return findings
 }
@@ -120,13 +128,13 @@ func ruleActualWriterUndeclared(members []MemberTopics, opts ValidationOptions) 
 // out to keep ruleActualWriterUndeclared readable and to give the test
 // suite a per-team entry point that doesn't require a TeamContractRegistry
 // fixture.
-func scanTeamForUndeclaredWriters(teamID string, contract *LoadedTeamContract, teamMembers map[string]MemberTopics, storeDir string) []Finding {
+func scanTeamForUndeclaredWriters(teamID string, contract *LoadedTeamContract, teamMembers map[string]MemberTopics, configDir string) []Finding {
 	cutoff := strings.TrimSpace(contract.AttributionValidFrom)
 	if cutoff == "" {
 		return nil
 	}
 
-	knowledgePath := filepath.Join(storeDir, "teams", teamID, "shared", "knowledge.jsonl")
+	knowledgePath := filepath.Join(configDir, "teams", teamID, "shared", "knowledge.jsonl")
 	entries, err := loadKnowledgeJSONL(knowledgePath)
 	if err != nil {
 		// Fresh teams have no knowledge.jsonl; that is not drift.

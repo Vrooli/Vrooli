@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"prompt-manager/internal/paths"
 	"prompt-manager/store"
 	"testing"
 	"time"
@@ -12,8 +13,8 @@ import (
 )
 
 func TestTriggerHeartbeatRequiresConfig(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -47,8 +48,8 @@ func TestTriggerHeartbeatRequiresConfig(t *testing.T) {
 }
 
 func TestTriggerHeartbeatRequiresMembership(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -75,8 +76,8 @@ func TestTriggerHeartbeatRequiresMembership(t *testing.T) {
 }
 
 func TestTriggerHeartbeat_MemberAlreadyQueued(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -124,8 +125,8 @@ func TestTriggerHeartbeat_MemberAlreadyQueued(t *testing.T) {
 // TestTriggerHeartbeat_FullPathWithTeamExecStore exercises the full production code
 // path: handler → teamExecStore → executor → mock HTTP client.
 func TestTriggerHeartbeat_FullPathWithTeamExecStore(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -201,8 +202,8 @@ func TestTriggerHeartbeat_FullPathWithTeamExecStore(t *testing.T) {
 // TestTriggerHeartbeat_DirectExecutionFallback exercises the fallback path when
 // no teamExecStore is configured.
 func TestTriggerHeartbeat_DirectExecutionFallback(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -267,8 +268,8 @@ func TestTriggerHeartbeat_DirectExecutionFallback(t *testing.T) {
 }
 
 func TestTriggerHeartbeatBlockedWhenTeamDisabled(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()

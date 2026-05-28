@@ -27,12 +27,12 @@ type inboxFlowInputs struct {
 	taxonomies map[string]*memberflow.Taxonomy
 }
 
-// LoadInboxFlowInputs reads the member's topics.json from storeDir and the
+// LoadInboxFlowInputs reads the member's topics.json from configDir and the
 // taxonomy registry from repoRoot, returning everything RenderInboxFlow
 // needs. Returns ok=false (without error) when the member has no intake;
 // callers should skip the section in that case.
-func LoadInboxFlowInputs(storeDir, repoRoot, teamID, agentID string) (*inboxFlowInputs, bool, error) {
-	mt, err := memberflow.LoadMember(storeDir, teamID, agentID)
+func LoadInboxFlowInputs(configDir, repoRoot, teamID, agentID string) (*inboxFlowInputs, bool, error) {
+	mt, err := memberflow.LoadMember(configDir, teamID, agentID)
 	if err != nil {
 		return nil, false, fmt.Errorf("load topics.json: %w", err)
 	}

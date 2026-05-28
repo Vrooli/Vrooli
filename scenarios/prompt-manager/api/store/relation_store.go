@@ -9,17 +9,17 @@ import (
 
 // FileRelationStore implements RelationStore using the file system
 type FileRelationStore struct {
-	storeDir string
+	configDir string
 }
 
 // NewFileRelationStore creates a new file-based relation store
-func NewFileRelationStore(storeDir string) *FileRelationStore {
-	return &FileRelationStore{storeDir: storeDir}
+func NewFileRelationStore(configDir string) *FileRelationStore {
+	return &FileRelationStore{configDir: configDir}
 }
 
 // relationsDir returns the path to the relations directory
 func (s *FileRelationStore) relationsDir() string {
-	return filepath.Join(s.storeDir, "relations")
+	return filepath.Join(s.configDir, "relations")
 }
 
 // teamMemberDir returns the path to team-member relations

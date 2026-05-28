@@ -23,23 +23,25 @@ type graphBuilder interface {
 //   - Invalidate() clears the in-memory cache and deletes the disk file.
 //   - Regenerate() forces a synchronous rebuild and updates the cache.
 type GraphIndexStore struct {
-	storeDir string
-	builder  graphBuilder
-	mu       sync.RWMutex
-	cached   *GraphIndex // in-memory cache; nil means cold
+	cacheRoot string
+	builder   graphBuilder
+	mu        sync.RWMutex
+	cached    *GraphIndex // in-memory cache; nil means cold
 }
 
-// NewIndexStore creates a new graph index store.
-func NewIndexStore(storeDir string, builder graphBuilder) *GraphIndexStore {
+// NewIndexStore creates a new graph index store. cacheRoot is the scenario's
+// runtime cache class root (see paths.Roots); the graph index is fully
+// reconstructable from authored sources via Regenerate.
+func NewIndexStore(cacheRoot string, builder graphBuilder) *GraphIndexStore {
 	return &GraphIndexStore{
-		storeDir: storeDir,
-		builder:  builder,
+		cacheRoot: cacheRoot,
+		builder:   builder,
 	}
 }
 
-// indexPath returns the path to the graph index file.
+// indexPath returns the path to the graph index file under the cache root.
 func (s *GraphIndexStore) indexPath() string {
-	return filepath.Join(s.storeDir, "indexes", "graph.index.json")
+	return filepath.Join(s.cacheRoot, "indexes", "graph.index.json")
 }
 
 // Get returns the graph index, using the in-memory cache when available.

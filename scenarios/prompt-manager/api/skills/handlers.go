@@ -35,17 +35,17 @@ type Handlers struct {
 	experimentStore  store.ExperimentStore // Optional: for variant-aware read
 	variantStore     store.VariantStore    // Optional: for variant-aware read
 	packSkillStore   store.SkillStore      // Optional: for variant-aware read (pack-based)
-	storeDir         string                // Absolute path to store directory for computing file paths
+	configDir         string                // Absolute path to store directory for computing file paths
 }
 
 // NewHandlers creates a new skills handler.
 // Accepts any implementation of SkillStore and MetricsService interfaces.
-// storeDir should be an absolute path to the store directory for computing file paths.
-func NewHandlers(store SkillStore, metrics MetricsService, storeDir string) *Handlers {
+// configDir should be an absolute path to the store directory for computing file paths.
+func NewHandlers(store SkillStore, metrics MetricsService, configDir string) *Handlers {
 	return &Handlers{
 		store:    store,
 		metrics:  metrics,
-		storeDir: storeDir,
+		configDir: configDir,
 	}
 }
 
@@ -711,8 +711,8 @@ func (h *Handlers) toResponse(p Metadata) Response {
 
 	// Compute absolute paths to skill directory and content file
 	// Storage structure: store/skills/packs/{pack}/{skillId}/SKILL.md
-	if h.storeDir != "" && folder != "" {
-		skillDir := filepath.Join(h.storeDir, "skills", "packs", folder, p.ID)
+	if h.configDir != "" && folder != "" {
+		skillDir := filepath.Join(h.configDir, "skills", "packs", folder, p.ID)
 		response.SkillDir = skillDir
 		response.ContentPath = filepath.Join(skillDir, "SKILL.md")
 	}

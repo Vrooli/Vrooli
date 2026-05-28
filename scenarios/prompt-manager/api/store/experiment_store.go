@@ -10,21 +10,23 @@ import (
 )
 
 // FileExperimentStore implements ExperimentStore using the file system.
-// Experiments are stored at:
+// Experiments are runtime-class data (mutated by execution, not authored)
+// and live under the RuntimeData root:
 //
-//	store/experiments/{experiment-id}/experiment.json + outcomes.jsonl
+//	<RuntimeData>/experiments/{experiment-id}/experiment.json + outcomes.jsonl
 type FileExperimentStore struct {
-	storeDir string
+	runtimeDataDir string
 }
 
-// NewFileExperimentStore creates a new file-based experiment store.
-func NewFileExperimentStore(storeDir string) *FileExperimentStore {
-	return &FileExperimentStore{storeDir: storeDir}
+// NewFileExperimentStore creates a new file-based experiment store rooted at
+// the given RuntimeData class directory.
+func NewFileExperimentStore(runtimeDataDir string) *FileExperimentStore {
+	return &FileExperimentStore{runtimeDataDir: runtimeDataDir}
 }
 
 // experimentsDir returns the path to the experiments directory.
 func (s *FileExperimentStore) experimentsDir() string {
-	return filepath.Join(s.storeDir, "experiments")
+	return filepath.Join(s.runtimeDataDir, "experiments")
 }
 
 // experimentDir returns the directory for a specific experiment.

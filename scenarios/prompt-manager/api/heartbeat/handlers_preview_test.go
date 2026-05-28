@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"prompt-manager/internal/paths"
 	"prompt-manager/store"
 	"strings"
 	"testing"
@@ -13,8 +14,8 @@ import (
 
 func TestPreviewPromptHandler(t *testing.T) {
 	ctx := context.Background()
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	relationStore := fileStore.Relations()

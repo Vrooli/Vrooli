@@ -1,7 +1,0 @@
-{
-  "teamId": "scenario-qa",
-  "queuePolicy": "bounded-parallel",
-  "maxConcurrentRuns": 4,
-  "running": [],
-  "queue": null
-}

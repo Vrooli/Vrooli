@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"prompt-manager/internal/paths"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"testing"
@@ -14,8 +15,8 @@ import (
 
 func setupTeamTriggerTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore, *store.FileAgentStore, store.RelationStore) {
 	t.Helper()
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -199,8 +200,8 @@ func TestTriggerTeam_MultiProcessNoConfigs(t *testing.T) {
 }
 
 func TestTriggerTeam_ExecutorNotConfigured(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -223,8 +224,8 @@ func TestTriggerTeam_ExecutorNotConfigured(t *testing.T) {
 }
 
 func TestTriggerTeam_MemberAlreadyQueued(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()

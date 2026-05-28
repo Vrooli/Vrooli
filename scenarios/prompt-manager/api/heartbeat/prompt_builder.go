@@ -318,7 +318,7 @@ type memberStoragePolicy struct {
 	PendingOwnedDecisionCap   *int
 }
 
-func buildActiveTaskBriefSection(team *store.Team, agentID string, includeHeartbeat bool, heartbeatInstructions string, storeDir string) string {
+func buildActiveTaskBriefSection(team *store.Team, agentID string, includeHeartbeat bool, heartbeatInstructions string, configDir string) string {
 	teamID := ""
 	teamName := ""
 	lane := ""
@@ -333,7 +333,7 @@ func buildActiveTaskBriefSection(team *store.Team, agentID string, includeHeartb
 			if member, ok := team.OperatingContract.Members[agentID]; ok {
 				lane = strings.TrimSpace(member.Lane)
 			}
-			policy = buildMemberStoragePolicy(team, agentID, storeDir)
+			policy = buildMemberStoragePolicy(team, agentID, configDir)
 		}
 	}
 	if lane == "" {
@@ -628,7 +628,7 @@ func firstHeartbeatTaskHeading(markdown string) string {
 	return ""
 }
 
-func buildMemberStoragePolicy(team *store.Team, agentID string, storeDir string) memberStoragePolicy {
+func buildMemberStoragePolicy(team *store.Team, agentID string, configDir string) memberStoragePolicy {
 	if team == nil || team.OperatingContract == nil {
 		return memberStoragePolicy{}
 	}
@@ -638,12 +638,12 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, storeDir string)
 	}
 	policy := memberStoragePolicy{
 		RequiresHandoff:         teamconfig.RequiresHandoff(team.Contract()) && !writeRefsContainKind(member.ForbiddenWrites, "handoff"),
-		RequiredReadPrefixes:    loadRequiredReadPrefixes(storeDir, team.ID, agentID),
+		RequiredReadPrefixes:    loadRequiredReadPrefixes(configDir, team.ID, agentID),
 		DecisionCapPerHeartbeat: member.NewDecisionCapPerHeartbeat,
 		PendingOwnedDecisionCap: member.PendingOwnedDecisionCap,
 	}
 	for _, ref := range member.AllowedWrites {
-		label := describeWriteRef(ref, team, agentID, storeDir)
+		label := describeWriteRef(ref, team, agentID, configDir)
 		if label != "" {
 			policy.AllowedWriteLabels = append(policy.AllowedWriteLabels, label)
 		}
@@ -660,7 +660,7 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, storeDir string)
 			}
 			continue
 		}
-		normalized := normalizedWritePath(ref, team, agentID, storeDir)
+		normalized := normalizedWritePath(ref, team, agentID, configDir)
 		switch {
 		case strings.HasSuffix(normalized, "/decisions.jsonl"):
 			policy.CanWriteDecision = true
@@ -673,7 +673,7 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, storeDir string)
 		}
 	}
 	for _, ref := range member.ForbiddenWrites {
-		label := describeWriteRef(ref, team, agentID, storeDir)
+		label := describeWriteRef(ref, team, agentID, configDir)
 		if label != "" {
 			policy.ForbiddenWriteLabels = append(policy.ForbiddenWriteLabels, label)
 		}
@@ -704,7 +704,7 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, storeDir string)
 // loadRequiredReadPrefixes returns the topic prefixes the member must keep
 // in working memory every heartbeat. The list comes from the member's
 // topics.json `required_read[]` declaration — the single declaration source
-// of truth for read relationships. When storeDir is empty (e.g., the
+// of truth for read relationships. When configDir is empty (e.g., the
 // task-reminder section, which only needs decision/handoff hints) or
 // topics.json is absent (a positive empty declaration), the function
 // returns nil and the rendering falls back to "Knowledge topics: none
@@ -715,11 +715,11 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, storeDir string)
 // emit a heartbeat just because a topics.json read failed. The validator
 // (api/memberflow/validation.go) catches malformed topics.json on every
 // `prompt-manager team validate` run so drift surfaces there, not here.
-func loadRequiredReadPrefixes(storeDir, teamID, agentID string) []string {
-	if strings.TrimSpace(storeDir) == "" {
+func loadRequiredReadPrefixes(configDir, teamID, agentID string) []string {
+	if strings.TrimSpace(configDir) == "" {
 		return nil
 	}
-	mt, err := memberflow.LoadMember(storeDir, teamID, agentID)
+	mt, err := memberflow.LoadMember(configDir, teamID, agentID)
 	if err != nil || len(mt.Topics.RequiredRead) == 0 {
 		return nil
 	}
@@ -753,7 +753,7 @@ func sortedUniqueStrings(values []string) []string {
 	return out
 }
 
-func describeWriteRef(ref teamcontract.WriteRef, team *store.Team, agentID string, storeDir string) string {
+func describeWriteRef(ref teamcontract.WriteRef, team *store.Team, agentID string, configDir string) string {
 	if ref.Kind != "" {
 		switch ref.Kind {
 		case "decision":
@@ -770,8 +770,8 @@ func describeWriteRef(ref teamcontract.WriteRef, team *store.Team, agentID strin
 			return ref.Kind
 		}
 	}
-	if path := normalizedWritePath(ref, team, agentID, storeDir); path != "" {
-		if label := describeKnownWritePath(path, team, agentID, storeDir); label != "" {
+	if path := normalizedWritePath(ref, team, agentID, configDir); path != "" {
+		if label := describeKnownWritePath(path, team, agentID, configDir); label != "" {
 			return label
 		}
 		return "`" + path + "`"
@@ -779,7 +779,7 @@ func describeWriteRef(ref teamcontract.WriteRef, team *store.Team, agentID strin
 	return ""
 }
 
-func describeKnownWritePath(path string, team *store.Team, agentID string, storeDir string) string {
+func describeKnownWritePath(path string, team *store.Team, agentID string, configDir string) string {
 	switch {
 	case strings.HasSuffix(path, "/decisions.jsonl"):
 		return "decision proposals"
@@ -795,7 +795,7 @@ func describeKnownWritePath(path string, team *store.Team, agentID string, store
 		normalized, err := teamcontract.NormalizePath(doc.Path, teamcontract.ValidationInput{
 			TeamID:       team.ID,
 			DecisionMode: team.DecisionMode,
-			StoreDir:     storeDir,
+			StoreDir:     configDir,
 		}, agentID)
 		if err != nil || normalized != path {
 			continue
@@ -809,7 +809,7 @@ func describeKnownWritePath(path string, team *store.Team, agentID string, store
 	return ""
 }
 
-func normalizedWritePath(ref teamcontract.WriteRef, team *store.Team, agentID string, storeDir string) string {
+func normalizedWritePath(ref teamcontract.WriteRef, team *store.Team, agentID string, configDir string) string {
 	if team == nil {
 		return ""
 	}
@@ -821,7 +821,7 @@ func normalizedWritePath(ref teamcontract.WriteRef, team *store.Team, agentID st
 	}, teamcontract.ValidationInput{
 		TeamID:       team.ID,
 		DecisionMode: team.DecisionMode,
-		StoreDir:     storeDir,
+		StoreDir:     configDir,
 	}, agentID)
 	if err != nil {
 		return ""
@@ -1286,9 +1286,9 @@ func (b *PromptBuilder) buildInboxFlowSection(teamID, agentID string) string {
 	if b.teamStore == nil {
 		return ""
 	}
-	storeDir := b.teamStore.StoreDir()
-	repoRoot := deriveRepoRoot(storeDir)
-	in, ok, err := LoadInboxFlowInputs(storeDir, repoRoot, teamID, agentID)
+	configDir := b.teamStore.StoreDir()
+	repoRoot := deriveRepoRoot(configDir)
+	in, ok, err := LoadInboxFlowInputs(configDir, repoRoot, teamID, agentID)
 	if err != nil || !ok {
 		return ""
 	}
@@ -1297,18 +1297,18 @@ func (b *PromptBuilder) buildInboxFlowSection(teamID, agentID string) string {
 
 // deriveRepoRoot resolves the repository root for taxonomy lookup. Prefers
 // VROOLI_ROOT (set by the lifecycle), then walks up from an absolute
-// storeDir (.../scenarios/prompt-manager/store -> repo root). Returns
+// configDir (.../scenarios/prompt-manager/store -> repo root). Returns
 // empty when neither path produces a usable directory; in that case
 // taxonomy resolution is skipped and the Inbox Flow section renders
 // without dispatch tables (operators see _NOT FOUND_ markers).
-func deriveRepoRoot(storeDir string) string {
+func deriveRepoRoot(configDir string) string {
 	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
 		return root
 	}
-	if strings.TrimSpace(storeDir) == "" {
+	if strings.TrimSpace(configDir) == "" {
 		return ""
 	}
-	abs, err := filepath.Abs(storeDir)
+	abs, err := filepath.Abs(configDir)
 	if err != nil {
 		return ""
 	}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"prompt-manager/internal/paths"
 	"prompt-manager/store"
 	"strings"
 	"testing"
@@ -19,8 +20,8 @@ import (
 // handler set + team store for follow-up assertions.
 func setupKnowledgeAddTest(t *testing.T) (*Handlers, *store.FileTeamStore) {
 	t.Helper()
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()

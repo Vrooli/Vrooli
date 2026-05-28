@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"prompt-manager/internal/testutil/httpx"
+	"prompt-manager/internal/paths"
 	"prompt-manager/store"
 	"testing"
 )
 
 func TestRetryRun_RetriesHeartbeatRunByTag(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -58,8 +59,8 @@ func TestRetryRun_RetriesHeartbeatRunByTag(t *testing.T) {
 }
 
 func TestRetryRun_RejectsNonHeartbeatRun(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()

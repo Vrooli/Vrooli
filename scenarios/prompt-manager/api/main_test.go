@@ -33,13 +33,7 @@ func TestDiscoverScenarioNames(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// storeDir mimics scenarios/alpha/store
-	storeDir := filepath.Join(scenariosDir, "alpha", "store")
-	if err := os.MkdirAll(storeDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	names := discoverScenarioNames(storeDir)
+	names := discoverScenarioNames(scenariosDir)
 
 	expected := map[string]bool{"alpha": true, "beta": true, "gamma": true}
 	if len(names) != len(expected) {
@@ -53,7 +47,7 @@ func TestDiscoverScenarioNames(t *testing.T) {
 }
 
 func TestDiscoverScenarioNames_NonexistentDir(t *testing.T) {
-	names := discoverScenarioNames("/nonexistent/path/store")
+	names := discoverScenarioNames("/nonexistent/path/scenarios")
 	if len(names) != 0 {
 		t.Fatalf("expected 0 names for nonexistent dir, got %d", len(names))
 	}

@@ -48,7 +48,7 @@ func newRepoStore(t *testing.T) (string, string) {
 
 func TestGetMember_NotPresent(t *testing.T) {
 	store := newStore(t)
-	r := newRouter(NewHandlers(store))
+	r := newRouter(NewHandlers(store, store))
 	req := httptest.NewRequest("GET", "/teams/marketing-crew/members/researcher/topics", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -69,7 +69,7 @@ func TestGetMember_NotPresent(t *testing.T) {
 
 func TestPutMember_RoundTrip(t *testing.T) {
 	store := newStore(t)
-	h := NewHandlers(store)
+	h := NewHandlers(store, store)
 	r := newRouter(h)
 
 	body := bytes.NewBufferString(`{
@@ -105,7 +105,7 @@ func TestPutMember_RoundTrip(t *testing.T) {
 
 func TestPutMember_RejectsMalformed(t *testing.T) {
 	store := newStore(t)
-	r := newRouter(NewHandlers(store))
+	r := newRouter(NewHandlers(store, store))
 	body := bytes.NewBufferString(`{ not json `)
 	req := httptest.NewRequest("PUT", "/teams/t/members/m/topics", body)
 	w := httptest.NewRecorder()
@@ -117,7 +117,7 @@ func TestPutMember_RejectsMalformed(t *testing.T) {
 
 func TestPutMember_RejectsSchemaViolation(t *testing.T) {
 	store := newStore(t)
-	r := newRouter(NewHandlers(store))
+	r := newRouter(NewHandlers(store, store))
 	body := bytes.NewBufferString(`{"intake":[{"prefix":"*","taxonomy":"x"}]}`)
 	req := httptest.NewRequest("PUT", "/teams/t/members/m/topics", body)
 	w := httptest.NewRecorder()
@@ -129,7 +129,7 @@ func TestPutMember_RejectsSchemaViolation(t *testing.T) {
 
 func TestGetTeam_AggregatesMembers(t *testing.T) {
 	store := newStore(t)
-	h := NewHandlers(store)
+	h := NewHandlers(store, store)
 
 	if err := WriteMember(store, "marketing-crew", "researcher", Topics{
 		Intake: []IntakeEntry{{Prefix: "research-inbox/*", Taxonomy: "marketing-research"}},
@@ -175,7 +175,7 @@ func TestGetGraph_BuildsExpectedNodes(t *testing.T) {
 		t.Fatalf("WriteMember: %v", err)
 	}
 
-	r := newRouter(NewHandlers(store))
+	r := newRouter(NewHandlers(store, store))
 	req := httptest.NewRequest("GET", "/topics/graph", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -215,7 +215,7 @@ func TestGetGraph_BuildsExpectedNodes(t *testing.T) {
 
 func TestGetGraph_EmptyStore(t *testing.T) {
 	store := newStore(t)
-	r := newRouter(NewHandlers(store))
+	r := newRouter(NewHandlers(store, store))
 	req := httptest.NewRequest("GET", "/topics/graph", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -233,7 +233,7 @@ func TestGetGraph_EmptyStore(t *testing.T) {
 
 func TestGetDrainStatus(t *testing.T) {
 	store := newStore(t)
-	r := newRouter(NewHandlers(store))
+	r := newRouter(NewHandlers(store, store))
 	req := httptest.NewRequest("GET", "/topics/drain-status", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -246,7 +246,7 @@ func TestOperatingModelHandlersValidateAndDiffAgainstRuntime(t *testing.T) {
 	repoRoot, storeDir := newRepoStore(t)
 	writeOperatingGraphHandlerFixture(t, repoRoot, storeDir)
 
-	r := newRouter(NewHandlers(storeDir))
+	r := newRouter(NewHandlers(storeDir, storeDir))
 
 	listReq := httptest.NewRequest("GET", "/operating-models?team=team-a&id=g", nil)
 	listW := httptest.NewRecorder()
@@ -315,7 +315,7 @@ func TestOperatingModelHandlersReturnEmptyArraysForCleanResults(t *testing.T) {
 	repoRoot, storeDir := newRepoStore(t)
 	writeCleanOperatingGraphHandlerFixture(t, repoRoot, storeDir)
 
-	r := newRouter(NewHandlers(storeDir))
+	r := newRouter(NewHandlers(storeDir, storeDir))
 
 	validateReq := httptest.NewRequest("GET", "/operating-models/validate?team=team-a&id=g", nil)
 	validateW := httptest.NewRecorder()
@@ -352,7 +352,7 @@ func TestOperatingModelHandlersValidatePromptSectionsFromProvider(t *testing.T) 
 	repoRoot, storeDir := newRepoStore(t)
 	writeCleanOperatingGraphHandlerFixture(t, repoRoot, storeDir)
 
-	h := NewHandlers(storeDir)
+	h := NewHandlers(storeDir, storeDir)
 	h.SetPromptSectionProvider(staticOperatingPromptSections{
 		sections: map[MemberRef][]OperatingGraphPromptSection{},
 	})

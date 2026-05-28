@@ -27,7 +27,7 @@ func setupPruneTestStore(t *testing.T) (*FileTeamStore, string) {
 	if err := os.WriteFile(filepath.Join(teamDir, "team.json"), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return NewFileTeamStore(storeDir, nil), sharedDir
+	return NewFileTeamStore(storeDir, storeDir, nil), sharedDir
 }
 
 func setupPruneTestStoreWithRetention(t *testing.T, retention *RetentionConfig) (*FileTeamStore, string) {
@@ -49,7 +49,7 @@ func setupPruneTestStoreWithRetention(t *testing.T, retention *RetentionConfig) 
 	if err := os.WriteFile(filepath.Join(teamDir, "team.json"), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return NewFileTeamStore(storeDir, nil), sharedDir
+	return NewFileTeamStore(storeDir, storeDir, nil), sharedDir
 }
 
 func writeTasks(t *testing.T, sharedDir string, tasks []TeamTask) {

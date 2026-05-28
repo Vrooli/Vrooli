@@ -11,16 +11,16 @@ import (
 
 // Store loads agent file templates from the prompt-manager store directory.
 type Store struct {
-	storeDir string
+	configDir string
 }
 
 // NewStore creates a new templates store backed by the file system.
-func NewStore(storeDir string) *Store {
-	return &Store{storeDir: storeDir}
+func NewStore(configDir string) *Store {
+	return &Store{configDir: configDir}
 }
 
 func (s *Store) agentFilesDir() string {
-	return filepath.Join(s.storeDir, "templates", "agent-files")
+	return filepath.Join(s.configDir, "templates", "agent-files")
 }
 
 // ListAgentFileTemplates returns all agent file templates with content.

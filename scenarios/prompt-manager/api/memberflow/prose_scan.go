@@ -271,23 +271,23 @@ func discoverProseTargets(root string) ([]proseTarget, error) {
 	root = filepath.Clean(root)
 	var out []proseTarget
 
-	storeDir := filepath.Join(root, "scenarios", "prompt-manager", "store")
-	if st, err := os.Stat(storeDir); err == nil && st.IsDir() {
-		teamTargets, err := discoverTeamAndMemberTargets(storeDir)
+	configDir := filepath.Join(root, "scenarios", "prompt-manager", "store")
+	if st, err := os.Stat(configDir); err == nil && st.IsDir() {
+		teamTargets, err := discoverTeamAndMemberTargets(configDir)
 		if err != nil {
-			return nil, fmt.Errorf("prose-scan: walk teams under %s: %w", storeDir, err)
+			return nil, fmt.Errorf("prose-scan: walk teams under %s: %w", configDir, err)
 		}
 		out = append(out, teamTargets...)
 
-		agentTargets, err := discoverAgentTargets(storeDir)
+		agentTargets, err := discoverAgentTargets(configDir)
 		if err != nil {
-			return nil, fmt.Errorf("prose-scan: walk agents under %s: %w", storeDir, err)
+			return nil, fmt.Errorf("prose-scan: walk agents under %s: %w", configDir, err)
 		}
 		out = append(out, agentTargets...)
 
-		skillTargets, err := discoverSkillTargets(storeDir)
+		skillTargets, err := discoverSkillTargets(configDir)
 		if err != nil {
-			return nil, fmt.Errorf("prose-scan: walk skills under %s: %w", storeDir, err)
+			return nil, fmt.Errorf("prose-scan: walk skills under %s: %w", configDir, err)
 		}
 		out = append(out, skillTargets...)
 	}
@@ -304,11 +304,11 @@ func discoverProseTargets(root string) ([]proseTarget, error) {
 	return out, nil
 }
 
-// discoverTeamAndMemberTargets walks <storeDir>/teams/<team>/ and emits
+// discoverTeamAndMemberTargets walks <configDir>/teams/<team>/ and emits
 // targets for per-member RESPONSIBILITIES.md / HEARTBEAT.md plus per-team
 // shared/*.md and team-root *.md files.
-func discoverTeamAndMemberTargets(storeDir string) ([]proseTarget, error) {
-	teamsDir := filepath.Join(storeDir, "teams")
+func discoverTeamAndMemberTargets(configDir string) ([]proseTarget, error) {
+	teamsDir := filepath.Join(configDir, "teams")
 	teams, err := os.ReadDir(teamsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -389,10 +389,10 @@ func discoverTeamAndMemberTargets(storeDir string) ([]proseTarget, error) {
 	return out, nil
 }
 
-// discoverAgentTargets walks <storeDir>/agents/<agent-id>/ and emits a
+// discoverAgentTargets walks <configDir>/agents/<agent-id>/ and emits a
 // target for each of SOUL.md, AGENTS.md, TOOLS.md that exists.
-func discoverAgentTargets(storeDir string) ([]proseTarget, error) {
-	agentsDir := filepath.Join(storeDir, "agents")
+func discoverAgentTargets(configDir string) ([]proseTarget, error) {
+	agentsDir := filepath.Join(configDir, "agents")
 	agents, err := os.ReadDir(agentsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -423,10 +423,10 @@ func discoverAgentTargets(storeDir string) ([]proseTarget, error) {
 	return out, nil
 }
 
-// discoverSkillTargets walks <storeDir>/skills/packs/<pack>/<skill>/ and
+// discoverSkillTargets walks <configDir>/skills/packs/<pack>/<skill>/ and
 // emits a target for each SKILL.md.
-func discoverSkillTargets(storeDir string) ([]proseTarget, error) {
-	packsDir := filepath.Join(storeDir, "skills", "packs")
+func discoverSkillTargets(configDir string) ([]proseTarget, error) {
+	packsDir := filepath.Join(configDir, "skills", "packs")
 	packs, err := os.ReadDir(packsDir)
 	if err != nil {
 		if os.IsNotExist(err) {

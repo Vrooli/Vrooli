@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"prompt-manager/internal/paths"
 	"prompt-manager/store"
 	"testing"
 
@@ -15,19 +16,19 @@ import (
 
 func setupTeamLogsTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore, *store.FileAgentStore, store.RelationStore, string) {
 	t.Helper()
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
 	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
-	return handlers, teamStore, agentStore, relationStore, storeDir
+	return handlers, teamStore, agentStore, relationStore, roots.RuntimeData
 }
 
-func createLogFiles(t *testing.T, storeDir, teamID, agentID string, filenames []string) {
+func createLogFiles(t *testing.T, runtimeDataRoot, teamID, agentID string, filenames []string) {
 	t.Helper()
-	logsDir := filepath.Join(storeDir, "teams", teamID, "members", agentID, "logs")
+	logsDir := filepath.Join(runtimeDataRoot, "teams", teamID, "members", agentID, "logs")
 	if err := os.MkdirAll(logsDir, 0o755); err != nil {
 		t.Fatalf("create logs dir: %v", err)
 	}
@@ -53,7 +54,7 @@ func TestListTeamLogs_TeamNotFound(t *testing.T) {
 }
 
 func TestListTeamLogs_Aggregation(t *testing.T) {
-	handlers, teamStore, agentStore, relationStore, storeDir := setupTeamLogsTestHandlers(t)
+	handlers, teamStore, agentStore, relationStore, runtimeDataRoot := setupTeamLogsTestHandlers(t)
 	ctx := context.Background()
 
 	// Create team
@@ -83,11 +84,11 @@ func TestListTeamLogs_Aggregation(t *testing.T) {
 	}
 
 	// Create log files
-	createLogFiles(t, storeDir, "team-1", "agent-1", []string{
+	createLogFiles(t, runtimeDataRoot, "team-1", "agent-1", []string{
 		"2025-01-01T10-00-00Z.log",
 		"2025-01-01T12-00-00Z.log",
 	})
-	createLogFiles(t, storeDir, "team-1", "agent-2", []string{
+	createLogFiles(t, runtimeDataRoot, "team-1", "agent-2", []string{
 		"2025-01-01T11-00-00Z.log",
 	})
 
@@ -133,7 +134,7 @@ func TestListTeamLogs_Aggregation(t *testing.T) {
 }
 
 func TestListTeamLogs_AgentFilter(t *testing.T) {
-	handlers, teamStore, agentStore, relationStore, storeDir := setupTeamLogsTestHandlers(t)
+	handlers, teamStore, agentStore, relationStore, runtimeDataRoot := setupTeamLogsTestHandlers(t)
 	ctx := context.Background()
 
 	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Test Team")); err != nil {
@@ -159,11 +160,11 @@ func TestListTeamLogs_AgentFilter(t *testing.T) {
 		}
 	}
 
-	createLogFiles(t, storeDir, "team-1", "agent-1", []string{
+	createLogFiles(t, runtimeDataRoot, "team-1", "agent-1", []string{
 		"2025-01-01T10-00-00Z.log",
 		"2025-01-01T12-00-00Z.log",
 	})
-	createLogFiles(t, storeDir, "team-1", "agent-2", []string{
+	createLogFiles(t, runtimeDataRoot, "team-1", "agent-2", []string{
 		"2025-01-01T11-00-00Z.log",
 	})
 
@@ -194,7 +195,7 @@ func TestListTeamLogs_AgentFilter(t *testing.T) {
 }
 
 func TestListTeamLogs_Pagination(t *testing.T) {
-	handlers, teamStore, agentStore, relationStore, storeDir := setupTeamLogsTestHandlers(t)
+	handlers, teamStore, agentStore, relationStore, runtimeDataRoot := setupTeamLogsTestHandlers(t)
 	ctx := context.Background()
 
 	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Test Team")); err != nil {
@@ -212,7 +213,7 @@ func TestListTeamLogs_Pagination(t *testing.T) {
 		t.Fatalf("add member: %v", err)
 	}
 
-	createLogFiles(t, storeDir, "team-1", "agent-1", []string{
+	createLogFiles(t, runtimeDataRoot, "team-1", "agent-1", []string{
 		"2025-01-01T01-00-00Z.log",
 		"2025-01-01T02-00-00Z.log",
 		"2025-01-01T03-00-00Z.log",

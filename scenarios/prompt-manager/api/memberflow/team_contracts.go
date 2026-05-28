@@ -102,7 +102,7 @@ type teamFilePolicy struct {
 	FlagExternalWritesPerWeek int `json:"flagExternalWritesPerWeek,omitempty"`
 }
 
-// LoadAllTeamContracts walks <storeDir>/teams/*/team.json and returns a
+// LoadAllTeamContracts walks <configDir>/teams/*/team.json and returns a
 // registry of every parseable team contract, indexed by team id. The
 // `id` field on the file (not the directory name) is authoritative.
 //
@@ -113,12 +113,12 @@ type teamFilePolicy struct {
 // Errors only when teams/ exists but a specific team.json fails to parse
 // or omits a required field — partial registries are not returned, so the
 // caller gets either every team or an explicit failure.
-func LoadAllTeamContracts(storeDir string) (TeamContractRegistry, error) {
+func LoadAllTeamContracts(configDir string) (TeamContractRegistry, error) {
 	out := make(TeamContractRegistry)
-	if strings.TrimSpace(storeDir) == "" {
+	if strings.TrimSpace(configDir) == "" {
 		return out, nil
 	}
-	teamsDir := filepath.Join(storeDir, "teams")
+	teamsDir := filepath.Join(configDir, "teams")
 	entries, err := os.ReadDir(teamsDir)
 	if err != nil {
 		if os.IsNotExist(err) {

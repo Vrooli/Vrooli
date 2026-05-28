@@ -20,11 +20,32 @@ type migrateOpts struct {
 	// StoreRoot is the prompt-manager store directory; the migration walks
 	// <StoreRoot>/teams/<id>/team.json and <StoreRoot>/teams/<id>/shared/knowledge.jsonl.
 	StoreRoot string
+	// BackupRoot is the centralized .backup directory (paths.Roots.BackupFor
+	// produces locations under <RuntimeData>/backups/). Empty means write
+	// backups as siblings of the original — only used by tests that don't
+	// model the runtime root.
+	BackupRoot string
 	// CutoffDate is the YYYY-MM-DD value written into each team.json's
 	// attributionValidFrom field.
 	CutoffDate string
 	// DryRun reports proposed changes without touching the filesystem.
 	DryRun bool
+}
+
+// resolveBackupPath returns the backup destination for a path being
+// rewritten in place. Honors the centralized .backup contract (CD-3):
+// when opts.BackupRoot is set, backups land under it mirroring the rel
+// path beneath StoreRoot; otherwise (test fixtures) they fall back to a
+// sibling.
+func (opts migrateOpts) resolveBackupPath(path string) (string, error) {
+	if strings.TrimSpace(opts.BackupRoot) == "" {
+		return path + ".backup", nil
+	}
+	rel, err := filepath.Rel(opts.StoreRoot, path)
+	if err != nil {
+		return "", fmt.Errorf("rel backup path: %w", err)
+	}
+	return filepath.Join(opts.BackupRoot, rel+".backup"), nil
 }
 
 // migrationStats summarizes the work performed (or proposed in dry-run).
@@ -69,7 +90,11 @@ func migrateStore(opts migrateOpts) (migrationStats, error) {
 		}
 		stats.TeamsScanned++
 
-		migrated, wroteBackup, err := migrateTeamJSON(teamPath, opts.CutoffDate, opts.DryRun)
+		teamBackup, err := opts.resolveBackupPath(teamPath)
+		if err != nil {
+			return stats, fmt.Errorf("team.json backup path %s: %w", teamID, err)
+		}
+		migrated, wroteBackup, err := migrateTeamJSON(teamPath, teamBackup, opts.CutoffDate, opts.DryRun)
 		if err != nil {
 			return stats, fmt.Errorf("team.json %s: %w", teamID, err)
 		}
@@ -89,7 +114,11 @@ func migrateStore(opts migrateOpts) (migrationStats, error) {
 			}
 			return stats, fmt.Errorf("stat %s: %w", jsonlPath, err)
 		}
-		scanned, migratedCount, skipped, wroteJSONLBackup, err := migrateKnowledgeJSONL(jsonlPath, opts.DryRun)
+		jsonlBackup, err := opts.resolveBackupPath(jsonlPath)
+		if err != nil {
+			return stats, fmt.Errorf("knowledge.jsonl backup path %s: %w", teamID, err)
+		}
+		scanned, migratedCount, skipped, wroteJSONLBackup, err := migrateKnowledgeJSONL(jsonlPath, jsonlBackup, opts.DryRun)
 		if err != nil {
 			return stats, fmt.Errorf("knowledge.jsonl %s: %w", teamID, err)
 		}
@@ -109,7 +138,7 @@ func migrateStore(opts migrateOpts) (migrationStats, error) {
 // (migrated=false, wroteBackup=false). Uses raw text insertion to keep the
 // diff minimal and to avoid round-tripping the entire team.json through Go
 // structs (which would reorder fields significantly).
-func migrateTeamJSON(path, cutoffDate string, dryRun bool) (migrated, wroteBackup bool, err error) {
+func migrateTeamJSON(path, backupPath, cutoffDate string, dryRun bool) (migrated, wroteBackup bool, err error) {
 	src, err := os.ReadFile(path)
 	if err != nil {
 		return false, false, fmt.Errorf("read: %w", err)
@@ -126,7 +155,7 @@ func migrateTeamJSON(path, cutoffDate string, dryRun bool) (migrated, wroteBacku
 		return true, false, nil
 	}
 
-	wroteBackup, err = writeWithBackup(path, out)
+	wroteBackup, err = writeWithBackup(path, backupPath, out)
 	if err != nil {
 		return false, false, fmt.Errorf("write: %w", err)
 	}
@@ -189,7 +218,7 @@ func insertTeamAttributionValidFrom(src []byte, cutoffDate string) (out []byte, 
 // passed through verbatim. Atomic file-level swap: writes <path>.tmp,
 // renames <path> → <path>.backup (only on first migration), then renames
 // <path>.tmp → <path>.
-func migrateKnowledgeJSONL(path string, dryRun bool) (scanned, migrated, skipped int, wroteBackup bool, err error) {
+func migrateKnowledgeJSONL(path, backupPath string, dryRun bool) (scanned, migrated, skipped int, wroteBackup bool, err error) {
 	src, err := os.ReadFile(path)
 	if err != nil {
 		return 0, 0, 0, false, fmt.Errorf("read: %w", err)
@@ -244,7 +273,7 @@ func migrateKnowledgeJSONL(path string, dryRun bool) (scanned, migrated, skipped
 		return scanned, migrated, skipped, false, nil
 	}
 
-	wroteBackup, err = writeWithBackup(path, outBuf.Bytes())
+	wroteBackup, err = writeWithBackup(path, backupPath, outBuf.Bytes())
 	if err != nil {
 		return scanned, migrated, skipped, false, fmt.Errorf("write: %w", err)
 	}
@@ -321,9 +350,8 @@ func migrateKnowledgeLine(line []byte) (out []byte, changed bool, err error) {
 //  2. If `<path>.backup` does not exist yet: hard-link the original to
 //     `<path>.backup` (or copy on file systems where Link is unavailable).
 //  3. Rename `<path>.tmp` to `<path>` (atomic on POSIX).
-func writeWithBackup(path string, content []byte) (wroteBackup bool, err error) {
+func writeWithBackup(path, backupPath string, content []byte) (wroteBackup bool, err error) {
 	tmpPath := path + ".tmp"
-	backupPath := path + ".backup"
 
 	// Always clean up the temp file on error — there's no scenario where a
 	// stale .tmp is useful to keep around.
@@ -339,6 +367,9 @@ func writeWithBackup(path string, content []byte) (wroteBackup bool, err error) 
 
 	// Backup is one-shot: only created on first migration of this file.
 	if _, statErr := os.Stat(backupPath); errors.Is(statErr, os.ErrNotExist) {
+		if err := os.MkdirAll(filepath.Dir(backupPath), 0o755); err != nil {
+			return false, fmt.Errorf("create backup dir: %w", err)
+		}
 		if err := copyRegularFile(path, backupPath); err != nil {
 			return false, fmt.Errorf("write backup: %w", err)
 		}

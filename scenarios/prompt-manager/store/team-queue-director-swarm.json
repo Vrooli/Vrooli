@@ -1,7 +1,0 @@
-{
-  "teamId": "director-swarm",
-  "queuePolicy": "bounded-parallel",
-  "maxConcurrentRuns": 2,
-  "running": [],
-  "queue": null
-}

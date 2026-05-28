@@ -13,28 +13,60 @@ import (
 	"time"
 )
 
-// FileTeamStore implements TeamStore using the file system
+// FileTeamStore implements TeamStore using the file system.
+//
+// Team data is split across two storage class roots:
+//
+//   - configRoot (Config class) holds authored, git-tracked content:
+//     teams/<id>/{team,roles,org}.json, members/<a>/{RESPONSIBILITIES.md,
+//     HEARTBEAT.md, topics.json}, and shared/TEAM.md.
+//   - runtimeDataRoot (RuntimeData class) holds runtime execution state:
+//     members/<a>/{heartbeat.json, last-handoff.md, inbox.json, logs/} and
+//     shared/{tasks.json, decisions.jsonl, handoff-history.jsonl,
+//     heartbeat-attempts.jsonl, knowledge.jsonl}.
+//
+// Path shapes under each root mirror the original single-tree layout (CD-2);
+// only the prefix differs. The operator-facing shared/ tree is virtually
+// merged by ListSharedFiles and single-file ops route by filename class.
 type FileTeamStore struct {
-	storeDir      string
-	relationStore RelationStore
+	configRoot      string
+	runtimeDataRoot string
+	relationStore   RelationStore
 }
 
-// NewFileTeamStore creates a new file-based team store
-func NewFileTeamStore(storeDir string, relationStore RelationStore) *FileTeamStore {
+// NewFileTeamStore creates a new file-based team store rooted at the given
+// Config and RuntimeData class directories. Production callers pass
+// roots.Config and roots.RuntimeData; tests that don't care about the split
+// can pass the same tempdir for both.
+func NewFileTeamStore(configRoot, runtimeDataRoot string, relationStore RelationStore) *FileTeamStore {
 	return &FileTeamStore{
-		storeDir:      storeDir,
-		relationStore: relationStore,
+		configRoot:      configRoot,
+		runtimeDataRoot: runtimeDataRoot,
+		relationStore:   relationStore,
 	}
 }
 
-// teamsDir returns the path to the teams directory
-func (s *FileTeamStore) teamsDir() string {
-	return filepath.Join(s.storeDir, "teams")
+// configTeamsDir returns the Config-class teams directory.
+func (s *FileTeamStore) configTeamsDir() string {
+	return filepath.Join(s.configRoot, "teams")
 }
 
-// StoreDir returns the root prompt-manager store directory used by this file store.
+// runtimeTeamsDir returns the RuntimeData-class teams directory.
+func (s *FileTeamStore) runtimeTeamsDir() string {
+	return filepath.Join(s.runtimeDataRoot, "teams")
+}
+
+// teamsDir is kept as an alias for configTeamsDir — used by methods that
+// only touch config-class files (team.json, roles.json, org.json).
+func (s *FileTeamStore) teamsDir() string {
+	return s.configTeamsDir()
+}
+
+// StoreDir returns the Config-class root. Callers (prompt_builder, topic
+// contract loader, agent file loader) consume this to resolve authored
+// content; runtime state never flows through this accessor.
 func (s *FileTeamStore) StoreDir() string {
-	return s.storeDir
+	return s.configRoot
 }
 
 // TeamFileEntry represents a file or directory within a team's shared folder.
@@ -185,14 +217,23 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 	return SaveJSON(teamPath, team)
 }
 
-// Delete removes a team
+// Delete removes a team from both Config and RuntimeData roots.
 func (s *FileTeamStore) Delete(ctx context.Context, id string) error {
 	if _, err := s.Get(ctx, id); err != nil {
 		return err
 	}
 
-	teamDir := filepath.Join(s.teamsDir(), id)
-	return DeleteDirectory(teamDir)
+	configTeamDir := filepath.Join(s.configTeamsDir(), id)
+	if err := DeleteDirectory(configTeamDir); err != nil {
+		return err
+	}
+	runtimeTeamDir := filepath.Join(s.runtimeTeamsDir(), id)
+	if _, err := os.Stat(runtimeTeamDir); err == nil {
+		if err := DeleteDirectory(runtimeTeamDir); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // GetRoles returns role definitions for a team
@@ -252,7 +293,7 @@ func (s *FileTeamStore) GetInbox(ctx context.Context, teamID, agentID string) (*
 		return nil, err
 	}
 
-	inboxPath := filepath.Join(s.memberDir(teamID, agentID), "inbox.json")
+	inboxPath := filepath.Join(s.runtimeMemberDir(teamID, agentID), "inbox.json")
 	if !FileExists(inboxPath) {
 		return &TeamInbox{
 			BaseEntity: BaseEntity{
@@ -282,7 +323,7 @@ func (s *FileTeamStore) SetInbox(ctx context.Context, teamID, agentID string, in
 		inbox.Messages = []TeamMessage{}
 	}
 
-	inboxPath := filepath.Join(s.memberDir(teamID, agentID), "inbox.json")
+	inboxPath := filepath.Join(s.runtimeMemberDir(teamID, agentID), "inbox.json")
 	return SaveJSON(inboxPath, inbox)
 }
 
@@ -321,47 +362,55 @@ func (s *FileTeamStore) validateOperatingContract(ctx context.Context, team *Tea
 		TeamID:       team.ID,
 		DecisionMode: team.DecisionMode,
 		MemberIDs:    memberIDs,
-		StoreDir:     s.storeDir,
+		StoreDir:     s.configRoot,
 	})
 }
 
-// memberDir returns the path to a member's directory within a team
-func (s *FileTeamStore) memberDir(teamID, agentID string) string {
-	return filepath.Join(s.teamsDir(), teamID, "members", agentID)
+// configMemberDir returns the Config-class member directory (holds
+// RESPONSIBILITIES.md, HEARTBEAT.md, topics.json).
+func (s *FileTeamStore) configMemberDir(teamID, agentID string) string {
+	return filepath.Join(s.configTeamsDir(), teamID, "members", agentID)
 }
 
-// DeleteMemberData removes all stored files for a team member (heartbeat config, inbox, logs, docs).
+// runtimeMemberDir returns the RuntimeData-class member directory (holds
+// heartbeat.json, last-handoff.md, inbox.json, logs/).
+func (s *FileTeamStore) runtimeMemberDir(teamID, agentID string) string {
+	return filepath.Join(s.runtimeTeamsDir(), teamID, "members", agentID)
+}
+
+// DeleteMemberData removes all stored files for a team member (heartbeat
+// config, inbox, logs, docs) from both Config and RuntimeData roots.
 func (s *FileTeamStore) DeleteMemberData(ctx context.Context, teamID, agentID string) error {
 	if _, err := s.Get(ctx, teamID); err != nil {
 		return err
 	}
 
-	memberDir := s.memberDir(teamID, agentID)
-	if _, err := os.Stat(memberDir); err != nil {
-		if os.IsNotExist(err) {
-			return nil
+	for _, dir := range []string{s.configMemberDir(teamID, agentID), s.runtimeMemberDir(teamID, agentID)} {
+		if _, err := os.Stat(dir); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("stat member directory: %w", err)
 		}
-		return fmt.Errorf("stat member directory: %w", err)
+		if err := DeleteDirectory(dir); err != nil {
+			return err
+		}
 	}
-
-	return DeleteDirectory(memberDir)
+	return nil
 }
 
-// EnsureMemberDir creates the member directory structure if it doesn't exist
+// EnsureMemberDir creates the RuntimeData member directory structure
+// (logs/ subdir) so subsequent runtime writes succeed. The Config member
+// directory is owned by the authored repo layout and is not created here.
 func (s *FileTeamStore) EnsureMemberDir(ctx context.Context, teamID, agentID string) error {
-	// Verify team exists
 	if _, err := s.Get(ctx, teamID); err != nil {
 		return err
 	}
 
-	memberDir := s.memberDir(teamID, agentID)
-	logsDir := filepath.Join(memberDir, "logs")
-
-	// Create directories
+	logsDir := filepath.Join(s.runtimeMemberDir(teamID, agentID), "logs")
 	if err := os.MkdirAll(logsDir, 0o755); err != nil {
 		return fmt.Errorf("creating member directories: %w", err)
 	}
-
 	return nil
 }
 
@@ -372,7 +421,7 @@ func (s *FileTeamStore) GetResponsibilities(ctx context.Context, teamID, agentID
 		return "", err
 	}
 
-	respPath := filepath.Join(s.memberDir(teamID, agentID), "RESPONSIBILITIES.md")
+	respPath := filepath.Join(s.configMemberDir(teamID, agentID), "RESPONSIBILITIES.md")
 	if !FileExists(respPath) {
 		return "", nil
 	}
@@ -387,7 +436,7 @@ func (s *FileTeamStore) SetResponsibilities(ctx context.Context, teamID, agentID
 		return err
 	}
 
-	respPath := filepath.Join(s.memberDir(teamID, agentID), "RESPONSIBILITIES.md")
+	respPath := filepath.Join(s.configMemberDir(teamID, agentID), "RESPONSIBILITIES.md")
 	return WriteContent(respPath, content)
 }
 
@@ -398,7 +447,7 @@ func (s *FileTeamStore) GetHeartbeatInstructions(ctx context.Context, teamID, ag
 		return "", err
 	}
 
-	hbPath := filepath.Join(s.memberDir(teamID, agentID), "HEARTBEAT.md")
+	hbPath := filepath.Join(s.configMemberDir(teamID, agentID), "HEARTBEAT.md")
 	if !FileExists(hbPath) {
 		return "", nil
 	}
@@ -413,7 +462,7 @@ func (s *FileTeamStore) SetHeartbeatInstructions(ctx context.Context, teamID, ag
 		return err
 	}
 
-	hbPath := filepath.Join(s.memberDir(teamID, agentID), "HEARTBEAT.md")
+	hbPath := filepath.Join(s.configMemberDir(teamID, agentID), "HEARTBEAT.md")
 	return WriteContent(hbPath, content)
 }
 
@@ -424,7 +473,7 @@ func (s *FileTeamStore) GetHeartbeatConfig(ctx context.Context, teamID, agentID 
 		return nil, err
 	}
 
-	configPath := filepath.Join(s.memberDir(teamID, agentID), "heartbeat.json")
+	configPath := filepath.Join(s.runtimeMemberDir(teamID, agentID), "heartbeat.json")
 	if !FileExists(configPath) {
 		return nil, nil
 	}
@@ -451,13 +500,13 @@ func (s *FileTeamStore) SetHeartbeatConfig(ctx context.Context, teamID, agentID 
 		config.UpdateTimestamp()
 	}
 
-	configPath := filepath.Join(s.memberDir(teamID, agentID), "heartbeat.json")
+	configPath := filepath.Join(s.runtimeMemberDir(teamID, agentID), "heartbeat.json")
 	return SaveJSON(configPath, config)
 }
 
 // DeleteHeartbeatConfig removes the heartbeat.json config for a team member
 func (s *FileTeamStore) DeleteHeartbeatConfig(ctx context.Context, teamID, agentID string) error {
-	configPath := filepath.Join(s.memberDir(teamID, agentID), "heartbeat.json")
+	configPath := filepath.Join(s.runtimeMemberDir(teamID, agentID), "heartbeat.json")
 	return DeleteFile(configPath)
 }
 
@@ -468,14 +517,24 @@ func (s *FileTeamStore) ListHeartbeatConfigs(ctx context.Context, teamID string)
 		return nil, err
 	}
 
-	membersDir := filepath.Join(s.teamsDir(), teamID, "members")
-	agentDirs, err := ListDirectories(membersDir)
-	if err != nil {
-		return nil, nil // No members directory yet
+	// Members exist in either root: Config holds the authored
+	// member subtree (RESPONSIBILITIES.md, topics.json, …) and
+	// RuntimeData holds the heartbeat.json itself. Union both so a
+	// purely-runtime member (test fixtures) and a fully-authored
+	// member (production) both show up.
+	seen := map[string]struct{}{}
+	for _, root := range []string{
+		filepath.Join(s.configTeamsDir(), teamID, "members"),
+		filepath.Join(s.runtimeTeamsDir(), teamID, "members"),
+	} {
+		dirs, _ := ListDirectories(root)
+		for _, d := range dirs {
+			seen[d] = struct{}{}
+		}
 	}
 
 	var configs []HeartbeatConfig
-	for _, agentID := range agentDirs {
+	for agentID := range seen {
 		config, err := s.GetHeartbeatConfig(ctx, teamID, agentID)
 		if err == nil && config != nil {
 			configs = append(configs, *config)
@@ -487,7 +546,7 @@ func (s *FileTeamStore) ListHeartbeatConfigs(ctx context.Context, teamID string)
 
 // AppendHeartbeatAttempt appends a durable heartbeat dispatch attempt record.
 func (s *FileTeamStore) AppendHeartbeatAttempt(_ context.Context, teamID string, entry *HeartbeatAttempt) error {
-	sharedDir := filepath.Join(s.teamsDir(), teamID, "shared")
+	sharedDir := filepath.Join(s.runtimeTeamsDir(), teamID, "shared")
 	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
 		return fmt.Errorf("creating shared directory: %w", err)
 	}
@@ -510,7 +569,7 @@ func (s *FileTeamStore) ListHeartbeatAttempts(_ context.Context, teamID, agentID
 
 	var entries []HeartbeatAttempt
 	for _, id := range teamIDs {
-		path := filepath.Join(s.teamsDir(), id, "shared", "heartbeat-attempts.jsonl")
+		path := filepath.Join(s.runtimeTeamsDir(), id, "shared", "heartbeat-attempts.jsonl")
 		if !FileExists(path) {
 		} else {
 			data, err := os.ReadFile(path)
@@ -611,12 +670,12 @@ func (s *FileTeamStore) ListHeartbeatAttempts(_ context.Context, teamID, agentID
 
 // GetMemberLogPath returns the path for a heartbeat execution log
 func (s *FileTeamStore) GetMemberLogPath(teamID, agentID, timestamp string) string {
-	return filepath.Join(s.memberDir(teamID, agentID), "logs", timestamp+".log")
+	return filepath.Join(s.runtimeMemberDir(teamID, agentID), "logs", timestamp+".log")
 }
 
 // ListMemberLogs lists all log files for a team member
 func (s *FileTeamStore) ListMemberLogs(ctx context.Context, teamID, agentID string) ([]string, error) {
-	logsDir := filepath.Join(s.memberDir(teamID, agentID), "logs")
+	logsDir := filepath.Join(s.runtimeMemberDir(teamID, agentID), "logs")
 	files, err := ListFiles(logsDir, "*.log")
 	if err != nil {
 		return nil, nil // No logs yet
@@ -631,56 +690,65 @@ func (s *FileTeamStore) ListMemberLogs(ctx context.Context, teamID, agentID stri
 	return logs, nil
 }
 
-// ListSharedFiles returns all files and directories under a team's shared folder.
+// ListSharedFiles returns all files and directories under a team's shared
+// folder by walking both class roots and merging on relative path. Runtime
+// entries override config on the (rare) collision; the merge is alphabetical
+// by relative path.
 func (s *FileTeamStore) ListSharedFiles(ctx context.Context, teamID string) ([]TeamFileEntry, error) {
 	team, err := s.Get(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 
-	sharedDir := s.sharedDir(team)
-	if _, err := os.Stat(sharedDir); err != nil {
-		if os.IsNotExist(err) {
-			return []TeamFileEntry{}, nil
+	byPath := map[string]TeamFileEntry{}
+	walkRoot := func(root string) error {
+		if _, err := os.Stat(root); err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return fmt.Errorf("stat shared directory: %w", err)
 		}
-		return nil, fmt.Errorf("stat shared directory: %w", err)
-	}
-
-	var entries []TeamFileEntry
-	err = filepath.WalkDir(sharedDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if path == sharedDir {
-			return nil
-		}
-		if isHiddenFile(d.Name()) {
-			if d.IsDir() {
-				return filepath.SkipDir
+		return filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if path == root {
+				return nil
+			}
+			if isHiddenFile(d.Name()) {
+				if d.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			info, err := d.Info()
+			size := int64(0)
+			if err == nil {
+				size = info.Size()
+			}
+			byPath[filepath.ToSlash(rel)] = TeamFileEntry{
+				Path:  filepath.ToSlash(rel),
+				IsDir: d.IsDir(),
+				Size:  size,
 			}
 			return nil
-		}
-
-		rel, err := filepath.Rel(sharedDir, path)
-		if err != nil {
-			return err
-		}
-
-		info, err := d.Info()
-		size := int64(0)
-		if err == nil {
-			size = info.Size()
-		}
-
-		entries = append(entries, TeamFileEntry{
-			Path:  filepath.ToSlash(rel),
-			IsDir: d.IsDir(),
-			Size:  size,
 		})
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("listing shared files: %w", err)
+	}
+
+	if err := walkRoot(s.configSharedDir(team)); err != nil {
+		return nil, err
+	}
+	if err := walkRoot(s.runtimeSharedDir(team)); err != nil {
+		return nil, err
+	}
+
+	entries := make([]TeamFileEntry, 0, len(byPath))
+	for _, e := range byPath {
+		entries = append(entries, e)
 	}
 
 	sort.Slice(entries, func(i, j int) bool {
@@ -795,7 +863,9 @@ func (s *FileTeamStore) DeleteSharedFile(ctx context.Context, teamID, relPath st
 	return DeleteFile(fullPath)
 }
 
-func (s *FileTeamStore) sharedDir(team *Team) string {
+// sharedSubpath returns the (cleaned, traversal-safe) relative subpath that
+// the team's shared/ folder uses under each class root.
+func (s *FileTeamStore) sharedSubpath(team *Team) string {
 	sharedPath := "shared"
 	if team.Shared != nil && strings.TrimSpace(team.Shared.Path) != "" {
 		sharedPath = team.Shared.Path
@@ -805,10 +875,42 @@ func (s *FileTeamStore) sharedDir(team *Team) string {
 	if clean == "." || filepath.IsAbs(clean) || strings.HasPrefix(clean, "..") {
 		clean = "shared"
 	}
-
-	return filepath.Join(s.teamsDir(), team.ID, clean)
+	return clean
 }
 
+// configSharedDir returns the Config-class shared directory (holds TEAM.md
+// and any other operator-authored docs).
+func (s *FileTeamStore) configSharedDir(team *Team) string {
+	return filepath.Join(s.configTeamsDir(), team.ID, s.sharedSubpath(team))
+}
+
+// runtimeSharedDir returns the RuntimeData-class shared directory (holds
+// tasks.json and the *.jsonl append-logs).
+func (s *FileTeamStore) runtimeSharedDir(team *Team) string {
+	return filepath.Join(s.runtimeTeamsDir(), team.ID, s.sharedSubpath(team))
+}
+
+// runtimeSharedBasenames is the set of file basenames that live under the
+// RuntimeData shared/ root. Operator file ops use it to route a request to
+// the correct class root.
+var runtimeSharedBasenames = map[string]struct{}{
+	"tasks.json":                {},
+	"decisions.jsonl":           {},
+	"handoff-history.jsonl":     {},
+	"heartbeat-attempts.jsonl":  {},
+	"knowledge.jsonl":           {},
+}
+
+// isRuntimeSharedRel reports whether the given (cleaned) relative path under
+// shared/ targets a RuntimeData-class file. Currently driven by basename
+// only — runtime files live at the top of shared/.
+func isRuntimeSharedRel(cleanRel string) bool {
+	_, ok := runtimeSharedBasenames[filepath.Base(cleanRel)]
+	return ok
+}
+
+// resolveSharedPath validates relPath, picks the right class root for the
+// file's basename, and returns (fullPath, cleanRel, error).
 func (s *FileTeamStore) resolveSharedPath(team *Team, relPath string) (string, string, error) {
 	if strings.TrimSpace(relPath) == "" {
 		return "", "", fmt.Errorf("path is required")
@@ -819,7 +921,12 @@ func (s *FileTeamStore) resolveSharedPath(team *Team, relPath string) (string, s
 		return "", "", fmt.Errorf("invalid path: %s", relPath)
 	}
 
-	sharedDir := s.sharedDir(team)
+	var sharedDir string
+	if isRuntimeSharedRel(clean) {
+		sharedDir = s.runtimeSharedDir(team)
+	} else {
+		sharedDir = s.configSharedDir(team)
+	}
 	fullPath := filepath.Join(sharedDir, clean)
 
 	rel, err := filepath.Rel(sharedDir, fullPath)
@@ -834,7 +941,7 @@ func (s *FileTeamStore) resolveSharedPath(team *Team, relPath string) (string, s
 
 // GetLastHandoff reads the last handoff markdown for a team member.
 func (s *FileTeamStore) GetLastHandoff(_ context.Context, teamID, agentID string) (string, error) {
-	path := filepath.Join(s.memberDir(teamID, agentID), "last-handoff.md")
+	path := filepath.Join(s.runtimeMemberDir(teamID, agentID), "last-handoff.md")
 	if !FileExists(path) {
 		return "", nil
 	}
@@ -846,13 +953,13 @@ func (s *FileTeamStore) SetLastHandoff(ctx context.Context, teamID, agentID, con
 	if err := s.EnsureMemberDir(ctx, teamID, agentID); err != nil {
 		return err
 	}
-	path := filepath.Join(s.memberDir(teamID, agentID), "last-handoff.md")
+	path := filepath.Join(s.runtimeMemberDir(teamID, agentID), "last-handoff.md")
 	return WriteContent(path, content)
 }
 
 // AppendHandoffHistory appends a handoff entry to the team's handoff history.
 func (s *FileTeamStore) AppendHandoffHistory(_ context.Context, teamID string, entry *HandoffEntry) error {
-	sharedDir := filepath.Join(s.teamsDir(), teamID, "shared")
+	sharedDir := filepath.Join(s.runtimeTeamsDir(), teamID, "shared")
 	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
 		return fmt.Errorf("creating shared directory: %w", err)
 	}
@@ -876,7 +983,7 @@ func (s *FileTeamStore) AppendHandoffHistory(_ context.Context, teamID string, e
 
 // GetHandoffHistory reads handoff history entries, optionally filtered by agent and limited.
 func (s *FileTeamStore) GetHandoffHistory(_ context.Context, teamID, agentID string, last int) ([]HandoffEntry, error) {
-	path := filepath.Join(s.teamsDir(), teamID, "shared", "handoff-history.jsonl")
+	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "handoff-history.jsonl")
 	if !FileExists(path) {
 		return nil, nil
 	}
@@ -918,7 +1025,7 @@ func (s *FileTeamStore) GetHandoffHistory(_ context.Context, teamID, agentID str
 // ClearHandoffHistory removes handoff history entries. If agentID is empty, all
 // entries are removed. Otherwise only entries for the given agent are removed.
 func (s *FileTeamStore) ClearHandoffHistory(_ context.Context, teamID, agentID string) error {
-	path := filepath.Join(s.teamsDir(), teamID, "shared", "handoff-history.jsonl")
+	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "handoff-history.jsonl")
 	if !FileExists(path) {
 		return nil
 	}
@@ -968,7 +1075,7 @@ func (s *FileTeamStore) ClearHandoffHistory(_ context.Context, teamID, agentID s
 
 // ClearLastHandoff removes the last handoff file for a team member.
 func (s *FileTeamStore) ClearLastHandoff(_ context.Context, teamID, agentID string) error {
-	path := filepath.Join(s.memberDir(teamID, agentID), "last-handoff.md")
+	path := filepath.Join(s.runtimeMemberDir(teamID, agentID), "last-handoff.md")
 	if !FileExists(path) {
 		return nil
 	}
@@ -979,7 +1086,7 @@ func (s *FileTeamStore) ClearLastHandoff(_ context.Context, teamID, agentID stri
 
 // GetTaskBoard reads the full task board for a team.
 func (s *FileTeamStore) GetTaskBoard(_ context.Context, teamID string) (*TeamTaskBoard, error) {
-	path := filepath.Join(s.teamsDir(), teamID, "shared", "tasks.json")
+	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "tasks.json")
 	if !FileExists(path) {
 		return &TeamTaskBoard{Tasks: []TeamTask{}}, nil
 	}
@@ -988,7 +1095,7 @@ func (s *FileTeamStore) GetTaskBoard(_ context.Context, teamID string) (*TeamTas
 
 // SaveTaskBoard writes the full task board for a team.
 func (s *FileTeamStore) SaveTaskBoard(_ context.Context, teamID string, board *TeamTaskBoard) error {
-	sharedDir := filepath.Join(s.teamsDir(), teamID, "shared")
+	sharedDir := filepath.Join(s.runtimeTeamsDir(), teamID, "shared")
 	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
 		return fmt.Errorf("creating shared directory: %w", err)
 	}
@@ -1060,7 +1167,7 @@ func (s *FileTeamStore) DeleteTask(ctx context.Context, teamID, taskID string) e
 
 // AppendDecision appends a decision entry to the team's decision log.
 func (s *FileTeamStore) AppendDecision(_ context.Context, teamID string, entry *DecisionEntry) error {
-	sharedDir := filepath.Join(s.teamsDir(), teamID, "shared")
+	sharedDir := filepath.Join(s.runtimeTeamsDir(), teamID, "shared")
 	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
 		return fmt.Errorf("creating shared directory: %w", err)
 	}
@@ -1127,7 +1234,7 @@ func (s *FileTeamStore) GetDecisions(_ context.Context, teamID, contextTag, stat
 
 // readAllDecisions reads all decision entries from the JSONL file.
 func (s *FileTeamStore) readAllDecisions(teamID string) ([]DecisionEntry, string, error) {
-	path := filepath.Join(s.teamsDir(), teamID, "shared", "decisions.jsonl")
+	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "decisions.jsonl")
 	if !FileExists(path) {
 		return nil, path, nil
 	}
@@ -1209,7 +1316,7 @@ func (s *FileTeamStore) DeleteDecision(_ context.Context, teamID, decisionID str
 
 // AppendKnowledge appends a knowledge entry to the team's knowledge log.
 func (s *FileTeamStore) AppendKnowledge(_ context.Context, teamID string, entry *KnowledgeEntry) error {
-	sharedDir := filepath.Join(s.teamsDir(), teamID, "shared")
+	sharedDir := filepath.Join(s.runtimeTeamsDir(), teamID, "shared")
 	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
 		return fmt.Errorf("creating shared directory: %w", err)
 	}
@@ -1265,7 +1372,7 @@ func (s *FileTeamStore) GetKnowledge(_ context.Context, teamID, topicFilter, top
 
 // readAllKnowledge reads all knowledge entries from the JSONL file.
 func (s *FileTeamStore) readAllKnowledge(teamID string) ([]KnowledgeEntry, string, error) {
-	path := filepath.Join(s.teamsDir(), teamID, "shared", "knowledge.jsonl")
+	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "knowledge.jsonl")
 	if !FileExists(path) {
 		return nil, path, nil
 	}

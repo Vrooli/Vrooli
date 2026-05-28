@@ -25,17 +25,17 @@ func isValidSkillID(id string) bool {
 
 // FileSkillStore implements SkillStore using the file system
 type FileSkillStore struct {
-	storeDir string
+	configDir string
 }
 
 // NewFileSkillStore creates a new file-based skill store
-func NewFileSkillStore(storeDir string) *FileSkillStore {
-	return &FileSkillStore{storeDir: storeDir}
+func NewFileSkillStore(configDir string) *FileSkillStore {
+	return &FileSkillStore{configDir: configDir}
 }
 
 // skillsDir returns the path to the skills directory
 func (s *FileSkillStore) skillsDir() string {
-	return filepath.Join(s.storeDir, "skills")
+	return filepath.Join(s.configDir, "skills")
 }
 
 // packsDir returns the path to the packs directory

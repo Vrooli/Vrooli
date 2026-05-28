@@ -34,17 +34,17 @@ type Handlers struct {
 	teamStore        store.TeamStore
 	graphInvalidator GraphInvalidator
 	aiIndexer        AIAgentIndexer
-	storeDir         string
+	configDir         string
 }
 
 // NewHandlers creates a new agents handler.
-func NewHandlers(agentStore store.AgentStore, indexStore store.IndexStore, storeDir string, relationStore store.RelationStore, teamStore store.TeamStore) *Handlers {
+func NewHandlers(agentStore store.AgentStore, indexStore store.IndexStore, configDir string, relationStore store.RelationStore, teamStore store.TeamStore) *Handlers {
 	return &Handlers{
 		agentStore:    agentStore,
 		indexStore:    indexStore,
 		relationStore: relationStore,
 		teamStore:     teamStore,
-		storeDir:      storeDir,
+		configDir:      configDir,
 	}
 }
 
@@ -737,8 +737,8 @@ func (h *Handlers) toResponse(ctx context.Context, a *store.Agent) Response {
 		UpdatedAt:         a.UpdatedAt,
 	}
 
-	if h.storeDir != "" {
-		resp.AgentDir = filepath.Join(h.storeDir, "agents", a.ID)
+	if h.configDir != "" {
+		resp.AgentDir = filepath.Join(h.configDir, "agents", a.ID)
 	}
 
 	if a.Appearance != nil {

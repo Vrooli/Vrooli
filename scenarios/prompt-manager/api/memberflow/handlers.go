@@ -16,7 +16,8 @@ import (
 
 // Handlers provides HTTP handlers for member-flow operations.
 type Handlers struct {
-	storeDir              string
+	configDir              string
+	runtimeDataDir        string
 	knowledgeQuery        KnowledgeQuery
 	agingOpts             InboxAgingOptions
 	promptSectionProvider OperatingGraphPromptSectionProvider
@@ -26,13 +27,16 @@ type OperatingGraphPromptSectionProvider interface {
 	SectionsForMember(ctx context.Context, team, member string) ([]OperatingGraphPromptSection, error)
 }
 
-// NewHandlers constructs handlers rooted at the given store directory.
-// storeDir should be the absolute path to scenarios/prompt-manager/store/.
+// NewHandlers constructs handlers rooted at the given Config and RuntimeData
+// roots. configDir is the Config-class authored store
+// (scenarios/prompt-manager/store/); runtimeDataDir is the RuntimeData root
+// (~/.vrooli/data/vrooli/prompt-manager) used by validation rules that read
+// runtime state (e.g. teams/<id>/shared/knowledge.jsonl).
 //
 // Use SetKnowledgeQuery to enable stalled_drain / piling_inbox warnings;
 // without it the API returns the pure-Go validation result.
-func NewHandlers(storeDir string) *Handlers {
-	return &Handlers{storeDir: storeDir}
+func NewHandlers(configDir, runtimeDataDir string) *Handlers {
+	return &Handlers{configDir: configDir, runtimeDataDir: runtimeDataDir}
 }
 
 // SetKnowledgeQuery installs a backend used to compute inbox-aging warnings.
@@ -49,7 +53,7 @@ func (h *Handlers) SetPromptSectionProvider(provider OperatingGraphPromptSection
 func (h *Handlers) operatingModelService() OperatingModelService {
 	return OperatingModelService{
 		RepoRoot:       h.repoRoot(),
-		StoreDir:       h.storeDir,
+		StoreDir:       h.configDir,
 		PromptSections: h.promptSectionProvider,
 	}
 }
@@ -77,7 +81,7 @@ func (h *Handlers) GetMember(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "team and member are required")
 		return
 	}
-	mt, err := LoadMember(h.storeDir, team, member)
+	mt, err := LoadMember(h.configDir, team, member)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -109,7 +113,7 @@ func (h *Handlers) PutMember(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := WriteMember(h.storeDir, team, member, t); err != nil {
+	if err := WriteMember(h.configDir, team, member, t); err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -128,7 +132,7 @@ func (h *Handlers) GetTeam(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "team is required")
 		return
 	}
-	all, err := LoadTeam(h.storeDir, team)
+	all, err := LoadTeam(h.configDir, team)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -188,7 +192,7 @@ type GraphWithValidationResponse struct {
 func (h *Handlers) GetGraph(w http.ResponseWriter, r *http.Request) {
 	team := r.URL.Query().Get("team")
 
-	all, err := LoadAll(h.storeDir)
+	all, err := LoadAll(h.configDir)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -197,14 +201,15 @@ func (h *Handlers) GetGraph(w http.ResponseWriter, r *http.Request) {
 	// Validation runs against the *full* set so cross-team references
 	// resolve correctly, then findings are filtered down to the requested
 	// team for the response.
-	skillIDs, _ := LoadSkillIDs(h.storeDir)
+	skillIDs, _ := LoadSkillIDs(h.configDir)
 	repoRoot := h.repoRoot()
 	taxonomies, _ := LoadAllTaxonomies(repoRoot)
 	val := Validate(all, ValidationOptions{
-		RepoRoot:   repoRoot,
-		StoreDir:   h.storeDir,
-		SkillIDs:   skillIDs,
-		Taxonomies: taxonomies,
+		RepoRoot:       repoRoot,
+		StoreDir:       h.configDir,
+		RuntimeDataDir: h.runtimeDataDir,
+		SkillIDs:       skillIDs,
+		Taxonomies:     taxonomies,
 	})
 
 	// Layer inbox-aging warnings if a knowledge query is wired in.
@@ -249,11 +254,11 @@ func (h *Handlers) GetGraph(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// repoRoot resolves the repository root from storeDir
+// repoRoot resolves the repository root from configDir
 // (.../scenarios/prompt-manager/store -> repo root).
 func (h *Handlers) repoRoot() string {
 	// store -> prompt-manager -> scenarios -> repo
-	return filepath.Clean(filepath.Join(h.storeDir, "..", "..", ".."))
+	return filepath.Clean(filepath.Join(h.configDir, "..", "..", ".."))
 }
 
 // buildGraph turns a flat slice of member declarations into a GraphResponse.
@@ -429,7 +434,7 @@ func (h *Handlers) GetDrainStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	all, err := LoadAll(h.storeDir)
+	all, err := LoadAll(h.configDir)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return

@@ -12,8 +12,8 @@ type topicContractInputs struct {
 	catalog    []memberflow.TopicCatalogEntry
 }
 
-func LoadTopicContractInputs(storeDir, teamID, agentID string) (*topicContractInputs, error) {
-	mt, err := memberflow.LoadMember(storeDir, teamID, agentID)
+func LoadTopicContractInputs(configDir, teamID, agentID string) (*topicContractInputs, error) {
+	mt, err := memberflow.LoadMember(configDir, teamID, agentID)
 	if err != nil {
 		return nil, fmt.Errorf("load topics.json: %w", err)
 	}
@@ -22,7 +22,7 @@ func LoadTopicContractInputs(storeDir, teamID, agentID string) (*topicContractIn
 		agentID:    agentID,
 		memberFlow: mt,
 	}
-	if contracts, err := memberflow.LoadAllTeamContracts(storeDir); err == nil {
+	if contracts, err := memberflow.LoadAllTeamContracts(configDir); err == nil {
 		in.catalog = contracts.TopicCatalog(teamID)
 	}
 	return in, nil

@@ -49,19 +49,19 @@ type HealthConfigProvider interface {
 
 // HealthConfigStore persists graph health config under the scenario store.
 type HealthConfigStore struct {
-	storeDir string
+	configDir string
 	mu       sync.RWMutex
 }
 
 const healthConfigRelativePath = "config/graph-health.json"
 
 // NewHealthConfigStore creates a file-backed health config store.
-func NewHealthConfigStore(storeDir string) *HealthConfigStore {
-	return &HealthConfigStore{storeDir: storeDir}
+func NewHealthConfigStore(configDir string) *HealthConfigStore {
+	return &HealthConfigStore{configDir: configDir}
 }
 
 func (s *HealthConfigStore) path() string {
-	return filepath.Join(s.storeDir, healthConfigRelativePath)
+	return filepath.Join(s.configDir, healthConfigRelativePath)
 }
 
 // Get loads config from disk or returns defaults if missing.

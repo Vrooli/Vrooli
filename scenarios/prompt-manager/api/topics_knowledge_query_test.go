@@ -18,7 +18,7 @@ func TestTeamKnowledgeQuery_StripsWildcardAndDelegates(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	fs := store.NewFileTeamStore(storeDir, store.NewFileRelationStore(storeDir))
+	fs := store.NewFileTeamStore(storeDir, storeDir, store.NewFileRelationStore(storeDir))
 	now := time.Now().UTC()
 	entries := []store.KnowledgeEntry{
 		{ID: "1", At: now.Add(-10 * 24 * time.Hour).Format(time.RFC3339), Topic: "research-inbox/audience/foo"},

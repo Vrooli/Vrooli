@@ -32,14 +32,14 @@ type MemberTopics struct {
 // declarations. Members without a topics.json get a populated MemberTopics
 // entry with Exists=false and Topics=={}.
 //
-// storeDir is the absolute path to scenarios/prompt-manager/store/. It is
+// configDir is the absolute path to scenarios/prompt-manager/store/. It is
 // expected to contain a teams/ subdirectory.
 //
 // If a topics.json is malformed (invalid JSON or fails Validate), the error is
 // returned and any partial results are discarded — the caller gets either
 // every member or an explicit failure.
-func LoadAll(storeDir string) ([]MemberTopics, error) {
-	teamsDir := filepath.Join(storeDir, "teams")
+func LoadAll(configDir string) ([]MemberTopics, error) {
+	teamsDir := filepath.Join(configDir, "teams")
 	teamEntries, err := os.ReadDir(teamsDir)
 	if err != nil {
 		return nil, fmt.Errorf("memberflow: read teams dir %q: %w", teamsDir, err)
@@ -87,8 +87,8 @@ func LoadAll(storeDir string) ([]MemberTopics, error) {
 // LoadTeam returns declarations for every member of a single team. A
 // non-existent team returns an empty slice with no error so that callers can
 // distinguish "team has no members" from infrastructure failures.
-func LoadTeam(storeDir, team string) ([]MemberTopics, error) {
-	all, err := LoadAll(storeDir)
+func LoadTeam(configDir, team string) ([]MemberTopics, error) {
+	all, err := LoadAll(configDir)
 	if err != nil {
 		return nil, err
 	}
@@ -104,8 +104,8 @@ func LoadTeam(storeDir, team string) ([]MemberTopics, error) {
 // LoadMember returns the declaration for one specific team member. Returns a
 // MemberTopics with Exists=false (and IsEmpty()==true) when the file does not
 // exist — that is a valid "no flow" declaration, not an error.
-func LoadMember(storeDir, team, member string) (MemberTopics, error) {
-	path := filepath.Join(storeDir, "teams", team, "members", member, "topics.json")
+func LoadMember(configDir, team, member string) (MemberTopics, error) {
+	path := filepath.Join(configDir, "teams", team, "members", member, "topics.json")
 	return loadOne(team, member, path)
 }
 
@@ -117,11 +117,11 @@ func LoadMember(storeDir, team, member string) (MemberTopics, error) {
 // or `&` (e.g. `decision-application/<decision-id>`) round-trip as-is rather
 // than as `<`/`>`/`&` Unicode escapes — topics.json is read by
 // humans in PR review, not embedded in HTML.
-func WriteMember(storeDir, team, member string, t Topics) error {
+func WriteMember(configDir, team, member string, t Topics) error {
 	if err := t.Validate(); err != nil {
 		return fmt.Errorf("memberflow: invalid topics for %s/%s: %w", team, member, err)
 	}
-	dir := filepath.Join(storeDir, "teams", team, "members", member)
+	dir := filepath.Join(configDir, "teams", team, "members", member)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("memberflow: ensure member dir %q: %w", dir, err)
 	}

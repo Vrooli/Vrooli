@@ -12,18 +12,18 @@ const maxAncestorDepth = 20
 
 // FileTopicStore implements TopicStore using the file system.
 type FileTopicStore struct {
-	storeDir string
+	configDir string
 }
 
 // NewFileTopicStore creates a new file-based topic store.
-func NewFileTopicStore(storeDir string) *FileTopicStore {
+func NewFileTopicStore(configDir string) *FileTopicStore {
 	return &FileTopicStore{
-		storeDir: storeDir,
+		configDir: configDir,
 	}
 }
 
 func (s *FileTopicStore) topicsDir() string {
-	return filepath.Join(s.storeDir, "topics")
+	return filepath.Join(s.configDir, "topics")
 }
 
 // List returns all topics.

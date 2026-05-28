@@ -22,7 +22,7 @@ func setupStateTestStore(t *testing.T) *FileTeamStore {
 	if err := SaveJSON(filepath.Join(storeDir, "teams", "team-1", "team.json"), team); err != nil {
 		t.Fatal(err)
 	}
-	return NewFileTeamStore(storeDir, nil)
+	return NewFileTeamStore(storeDir, storeDir, nil)
 }
 
 func TestGetSetLastHandoff(t *testing.T) {

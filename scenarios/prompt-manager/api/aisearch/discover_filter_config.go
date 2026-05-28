@@ -24,19 +24,19 @@ type DiscoverFilterConfigProvider interface {
 
 // DiscoverFilterConfigStore persists discover filter config under the scenario store.
 type DiscoverFilterConfigStore struct {
-	storeDir string
+	configDir string
 	mu       sync.RWMutex
 }
 
 const discoverFilterConfigRelativePath = "config/discover-filters.json"
 
 // NewDiscoverFilterConfigStore creates a file-backed discover filter config store.
-func NewDiscoverFilterConfigStore(storeDir string) *DiscoverFilterConfigStore {
-	return &DiscoverFilterConfigStore{storeDir: storeDir}
+func NewDiscoverFilterConfigStore(configDir string) *DiscoverFilterConfigStore {
+	return &DiscoverFilterConfigStore{configDir: configDir}
 }
 
 func (s *DiscoverFilterConfigStore) path() string {
-	return filepath.Join(s.storeDir, discoverFilterConfigRelativePath)
+	return filepath.Join(s.configDir, discoverFilterConfigRelativePath)
 }
 
 // Get loads config from disk or returns defaults if missing.

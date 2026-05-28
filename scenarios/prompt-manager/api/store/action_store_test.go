@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"prompt-manager/internal/paths"
 	"strings"
 	"testing"
 	"time"
@@ -335,17 +336,17 @@ func TestActionStore_RunHistoryIsBounded(t *testing.T) {
 }
 
 func TestNewFileStoreInitializesActionDirectories(t *testing.T) {
-	storeDir := t.TempDir()
-	fs := NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fs := NewFileStore(roots)
 
 	if fs.Actions() == nil {
 		t.Fatal("Actions store should be wired")
 	}
 	for _, path := range []string{
-		filepath.Join(storeDir, "actions", "packs", "core"),
-		filepath.Join(storeDir, "actions", "packs", "local"),
-		filepath.Join(storeDir, "actions", "packs", "drafts"),
-		filepath.Join(storeDir, "actions", "_pack-order.json"),
+		filepath.Join(roots.Config, "actions", "packs", "core"),
+		filepath.Join(roots.Config, "actions", "packs", "local"),
+		filepath.Join(roots.Config, "actions", "packs", "drafts"),
+		filepath.Join(roots.Config, "actions", "_pack-order.json"),
 	} {
 		if !FileExists(path) {
 			t.Fatalf("expected initialized action path: %s", path)

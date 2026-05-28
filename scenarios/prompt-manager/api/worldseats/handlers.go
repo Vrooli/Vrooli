@@ -40,8 +40,8 @@ const (
 
 const configFile = "world-seats.json"
 
-func configPath(storeDir string) string {
-	return filepath.Join(storeDir, configFile)
+func configPath(configDir string) string {
+	return filepath.Join(configDir, configFile)
 }
 
 func validate(cfg Config) error {
@@ -64,9 +64,9 @@ func validate(cfg Config) error {
 }
 
 // HandleGet returns an http.HandlerFunc that reads world-seats.json.
-func HandleGet(storeDir string) http.HandlerFunc {
+func HandleGet(configDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		path := configPath(storeDir)
+		path := configPath(configDir)
 
 		var cfg Config
 		if store.FileExists(path) {
@@ -86,7 +86,7 @@ func HandleGet(storeDir string) http.HandlerFunc {
 }
 
 // HandlePut returns an http.HandlerFunc that validates and writes world-seats.json.
-func HandlePut(storeDir string) http.HandlerFunc {
+func HandlePut(configDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var cfg Config
 		if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
@@ -99,7 +99,7 @@ func HandlePut(storeDir string) http.HandlerFunc {
 			return
 		}
 
-		path := configPath(storeDir)
+		path := configPath(configDir)
 		if err := store.SaveJSON(path, &cfg); err != nil {
 			http.Error(w, "saving world-seats config: "+err.Error(), http.StatusInternalServerError)
 			return

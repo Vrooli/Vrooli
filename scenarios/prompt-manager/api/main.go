@@ -17,6 +17,7 @@ import (
 	"prompt-manager/aisearch"
 	"prompt-manager/graph"
 	"prompt-manager/heartbeat"
+	"prompt-manager/internal/paths"
 	"prompt-manager/memberflow"
 	"prompt-manager/metrics"
 	"prompt-manager/ogmeta"
@@ -42,14 +43,14 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
-	repocontract "github.com/vrooli/repo-contract-go"
 )
 
-// discoverScenarioNames returns the names of all scenario directories.
-// storeDir is expected to be an absolute path like ".../scenarios/prompt-manager/store";
-// we walk up to the "scenarios/" parent and list its subdirectories.
-func discoverScenarioNames(storeDir string) []string {
-	scenariosDir := filepath.Join(storeDir, "..", "..")
+// discoverScenarioNames returns the names of every scenario directory
+// under the repo's scenarios/ folder. The scenarios path comes from the
+// repo contract (paths.Roots.ScenariosDir), not from climbing a storage
+// path — the latter conflated source-code location with where mutable
+// data lives, which is precisely the smell this scenario was built to fix.
+func discoverScenarioNames(scenariosDir string) []string {
 	entries, err := os.ReadDir(scenariosDir)
 	if err != nil {
 		log.Printf("Warning: could not read scenarios dir %s: %v", scenariosDir, err)
@@ -113,20 +114,24 @@ func main() {
 		log.Println("OLLAMA_ENABLED not set to true - skill testing will be disabled")
 	}
 
-	// Storage configuration
-	// The new storage uses store/ directory with per-entity files
-	storeDir := filepath.Join("..", "store")
+	// Storage configuration.
+	//
+	// Config root: the authored, git-tracked store/ tree. Defaults to
+	// ../store relative to the binary's working directory; overridable via
+	// STORE_DIR for development workflows.
+	//
+	// Runtime data + cache roots: resolved by paths.Resolve via
+	// api-core/storage (ProfileAuto). The three roots live on the Roots
+	// struct and are threaded through the FileStore constructor and any
+	// handler that needs a class-aware path.
+	configDir := filepath.Join("..", "store")
 	if envDir := os.Getenv("STORE_DIR"); envDir != "" {
-		storeDir = envDir
+		configDir = envDir
 	}
-
-	// Resolve to absolute path for consistent file path reporting
-	absStoreDir, err := filepath.Abs(storeDir)
+	roots, err := paths.Resolve(configDir)
 	if err != nil {
-		log.Printf("Warning: Could not resolve absolute path for store dir: %v", err)
-		absStoreDir = storeDir
+		log.Fatalf("Storage path resolution failed: %v", err)
 	}
-
 	// Connect to database
 	db, err := database.Connect(context.Background(), database.Config{
 		Driver: "postgres",
@@ -141,7 +146,7 @@ func main() {
 	}
 
 	// Initialize the new file-based store
-	fileStore := store.NewFileStore(storeDir)
+	fileStore := store.NewFileStore(roots)
 
 	// Initialize domain components (seams for testing)
 	// Use the store adapter to bridge new storage to existing handlers
@@ -153,15 +158,15 @@ func main() {
 
 	// Initialize handlers with interface adapters
 	metricsAdapter := skills.NewMetricsAdapter(metricsRepo)
-	skillHandlers := skills.NewHandlers(skillStoreAdapter, metricsAdapter, absStoreDir)
+	skillHandlers := skills.NewHandlers(skillStoreAdapter, metricsAdapter, roots.Config)
 	tagsHandlers := tags.NewHandlers(tagsRepo)
 	testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, skillStoreAdapter)
-	templateHandlers := templates.NewHandlers(templates.NewStore(absStoreDir))
-	actionService := actions.NewService(fileStore.Actions(), actions.NewManifestCommandResolver(absStoreDir))
+	templateHandlers := templates.NewHandlers(templates.NewStore(roots.Config))
+	actionService := actions.NewService(fileStore.Actions(), actions.NewManifestCommandResolver(roots.Config))
 	actionHandlers := actions.NewHandlers(actionService)
 
 	// Agent handlers (new storage-backed, replaces member handlers)
-	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Indexes(), absStoreDir, fileStore.Relations(), fileStore.Teams())
+	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Indexes(), roots.Config, fileStore.Relations(), fileStore.Teams())
 
 	// OG metadata handlers
 	ogmetaHandlers := ogmeta.NewHandlers()
@@ -240,12 +245,12 @@ func main() {
 	aiSearchService.SetActionSearch(actionVectorStore, fileStore.Actions())
 
 	// Budget config store
-	budgetConfigStore := aisearch.NewBudgetConfigStore(absStoreDir)
+	budgetConfigStore := aisearch.NewBudgetConfigStore(roots.Config)
 	aiSearchService.SetBudgetConfig(budgetConfigStore)
 	aiSearchHandlers.SetBudgetConfigStore(budgetConfigStore)
 
 	// Discover filter config store
-	discoverFilterConfigStore := aisearch.NewDiscoverFilterConfigStore(absStoreDir)
+	discoverFilterConfigStore := aisearch.NewDiscoverFilterConfigStore(roots.Config)
 	aiSearchService.SetDiscoverFilterConfig(discoverFilterConfigStore)
 	aiSearchHandlers.SetDiscoverFilterConfigStore(discoverFilterConfigStore)
 
@@ -254,7 +259,7 @@ func main() {
 	actionHandlers.SetAIIndexer(aiSearchService)
 
 	// Graph detection
-	scenarioNames := discoverScenarioNames(absStoreDir)
+	scenarioNames := discoverScenarioNames(roots.ScenariosDir)
 	cliDetector := graph.NewCLIDetector(scenarioNames)
 	graphScanner := graph.NewScanner(
 		fileStore.Agents().(*store.FileAgentStore),
@@ -272,10 +277,10 @@ func main() {
 		graph.DefaultScoreFns(),
 		fileStore.Actions(),
 	)
-	graphHealthConfigStore := graph.NewHealthConfigStore(absStoreDir)
+	graphHealthConfigStore := graph.NewHealthConfigStore(roots.Config)
 	graphBuilder.SetHealthConfigProvider(graphHealthConfigStore)
 	graphBuilder.SetScenarioHealthProvider(graph.NewScenarioCompletenessCLIProvider(15 * time.Second))
-	graphIndex := graph.NewIndexStore(absStoreDir, graphBuilder)
+	graphIndex := graph.NewIndexStore(roots.RuntimeCache, graphBuilder)
 	// Always regenerate on startup so the index reflects the current detection code.
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -508,7 +513,7 @@ func main() {
 	// Member-flow (per-member topics.json) routes — declares each member's
 	// intake/output topic prefixes and feeds the team graph view.
 	// DOC: docs/agent-system/TOPICS_SCHEMA.md
-	memberFlowHandlers := memberflow.NewHandlers(absStoreDir)
+	memberFlowHandlers := memberflow.NewHandlers(roots.Config, roots.RuntimeData)
 	memberFlowHandlers.SetKnowledgeQuery(
 		newTeamKnowledgeQuery(fileStore.Teams().(*store.FileTeamStore)),
 		memberflow.InboxAgingOptions{},
@@ -541,17 +546,14 @@ func main() {
 	v1.HandleFunc("/topics/{id}", topicHandlers.Delete).Methods("DELETE")
 	v1.HandleFunc("/topics/{id}/skills", topicHandlers.AccumulatedSkills).Methods("GET")
 
-	// Heartbeat system
-	// Get Vrooli root for working directory
-	vrooliRoot, err := resolveRepoRoot(absStoreDir)
-	if err != nil {
-		log.Printf("Warning: failed to resolve repo root from repo contract: %v", err)
-		vrooliRoot = ""
-	}
+	// Heartbeat system: repo root flows from the repo contract via
+	// paths.Roots (resolved at startup). Empty when paths.Resolve already
+	// failed, but main.go would have log.Fatal'd long before here.
+	vrooliRoot := roots.RepoRoot
 
 	// Initialize heartbeat components
 	agentManagerClient := heartbeat.NewAgentManagerClient(30 * time.Second)
-	runRegistry := heartbeat.NewRunRegistry(absStoreDir)
+	runRegistry := heartbeat.NewRunRegistry(roots.RuntimeData)
 	heartbeatExecutor := heartbeat.NewExecutor(
 		fileStore.Teams().(*store.FileTeamStore),
 		fileStore.Agents().(*store.FileAgentStore),
@@ -564,7 +566,7 @@ func main() {
 	teamExecStore := heartbeat.NewTeamExecutionStore(
 		fileStore.Teams().(*store.FileTeamStore),
 		heartbeatExecutor,
-		absStoreDir,
+		roots.RuntimeData,
 		agentManagerClient,
 	)
 	heartbeatExecutor.OnComplete = teamExecStore.OnComplete
@@ -676,18 +678,20 @@ func main() {
 	v1.HandleFunc("/teams/{id}/prune", heartbeatHandlers.PruneSharedState).Methods("POST")
 
 	// World scale routes
-	v1.HandleFunc("/world-scale", worldscale.HandleGet(absStoreDir)).Methods("GET")
-	v1.HandleFunc("/world-scale", worldscale.HandlePut(absStoreDir)).Methods("PUT")
+	v1.HandleFunc("/world-scale", worldscale.HandleGet(roots.Config)).Methods("GET")
+	v1.HandleFunc("/world-scale", worldscale.HandlePut(roots.Config)).Methods("PUT")
 
 	// World seats routes
-	v1.HandleFunc("/world-seats", worldseats.HandleGet(absStoreDir)).Methods("GET")
-	v1.HandleFunc("/world-seats", worldseats.HandlePut(absStoreDir)).Methods("PUT")
+	v1.HandleFunc("/world-seats", worldseats.HandleGet(roots.Config)).Methods("GET")
+	v1.HandleFunc("/world-seats", worldseats.HandlePut(roots.Config)).Methods("PUT")
 
 	// OG metadata routes (for link previews)
 	v1.HandleFunc("/og-metadata", ogmetaHandlers.Get).Methods("GET")
 
 	log.Printf("Prompt Manager API v2.0 starting")
-	log.Printf("Store directory: %s", storeDir)
+	log.Printf("Config root: %s", roots.Config)
+	log.Printf("Runtime data root: %s", roots.RuntimeData)
+	log.Printf("Runtime cache root: %s", roots.RuntimeCache)
 	if ollamaEnabled {
 		log.Printf("Ollama gateway: %s", ollamaGatewayBin)
 	}
@@ -704,16 +708,6 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
-}
-
-func resolveRepoRoot(storeDir string) (string, error) {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
-		return repocontract.FindRepoRootFromPath(root)
-	}
-	if root, err := repocontract.ResolveRepoRoot(); err == nil {
-		return root, nil
-	}
-	return repocontract.FindRepoRootFromPath(storeDir)
 }
 
 // buildTopicMatchFn creates a TopicMatchFunc that uses the AI search service

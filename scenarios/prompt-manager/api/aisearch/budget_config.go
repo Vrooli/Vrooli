@@ -23,19 +23,19 @@ type BudgetConfigProvider interface {
 
 // BudgetConfigStore persists budget config under the scenario store.
 type BudgetConfigStore struct {
-	storeDir string
+	configDir string
 	mu       sync.RWMutex
 }
 
 const budgetConfigRelativePath = "config/budgets.json"
 
 // NewBudgetConfigStore creates a file-backed budget config store.
-func NewBudgetConfigStore(storeDir string) *BudgetConfigStore {
-	return &BudgetConfigStore{storeDir: storeDir}
+func NewBudgetConfigStore(configDir string) *BudgetConfigStore {
+	return &BudgetConfigStore{configDir: configDir}
 }
 
 func (s *BudgetConfigStore) path() string {
-	return filepath.Join(s.storeDir, budgetConfigRelativePath)
+	return filepath.Join(s.configDir, budgetConfigRelativePath)
 }
 
 // Get loads config from disk or returns defaults if missing.

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"prompt-manager/internal/paths"
 	"prompt-manager/store"
 	"testing"
 
@@ -12,8 +13,8 @@ import (
 )
 
 func TestGetMemberContext_Success(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -64,8 +65,8 @@ func TestGetMemberContext_Success(t *testing.T) {
 }
 
 func TestGetMemberContext_TeamNotFound(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -85,8 +86,8 @@ func TestGetMemberContext_TeamNotFound(t *testing.T) {
 }
 
 func TestGetMemberContext_MemberNotFound(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -116,8 +117,8 @@ func TestGetMemberContext_MemberNotFound(t *testing.T) {
 }
 
 func TestGetTeamExecutionStatus_Success(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -129,7 +130,7 @@ func TestGetTeamExecutionStatus_Success(t *testing.T) {
 	}
 
 	exec := &captureExecutor{}
-	teamExecStore := NewTeamExecutionStore(teamStore, exec, storeDir, nil)
+	teamExecStore := NewTeamExecutionStore(teamStore, exec, roots.Config, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, nil, nil, nil, teamExecStore)
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/execution-status", nil)
@@ -155,8 +156,8 @@ func TestGetTeamExecutionStatus_Success(t *testing.T) {
 }
 
 func TestGetTeamExecutionStatus_TeamNotFound(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()

@@ -31,18 +31,18 @@ type OperatingGraphPromptSection struct {
 	SourceKind OperatingGraphPromptSectionSourceKind `json:"source_kind,omitempty"`
 }
 
-func BuildOperatingGraphRuntime(repoRoot, storeDir string) (OperatingGraphRuntime, error) {
-	members, err := LoadAll(storeDir)
+func BuildOperatingGraphRuntime(repoRoot, configDir string) (OperatingGraphRuntime, error) {
+	members, err := LoadAll(configDir)
 	if err != nil {
 		return OperatingGraphRuntime{}, err
 	}
-	contracts, err := LoadAllTeamContracts(storeDir)
+	contracts, err := LoadAllTeamContracts(configDir)
 	if err != nil {
 		return OperatingGraphRuntime{}, err
 	}
 	return OperatingGraphRuntime{
 		RepoRoot:       repoRoot,
-		StoreDir:       storeDir,
+		StoreDir:       configDir,
 		Members:        members,
 		Contracts:      contracts,
 		PromptSections: derivedTopicContractPromptSections(members, contracts),

@@ -46,12 +46,20 @@ type ValidationOptions struct {
 	// fallback location for taxonomies when Taxonomies is nil.
 	RepoRoot string
 
-	// StoreDir is the absolute path to the prompt-manager store
-	// (scenarios/prompt-manager/store/). Used as the fallback location
-	// for team contracts when TeamContracts is nil; ignored when set
-	// explicitly. When both StoreDir and TeamContracts are empty, the
+	// StoreDir is the absolute path to the prompt-manager Config-class
+	// store (scenarios/prompt-manager/store/). Used as the fallback
+	// location for team contracts when TeamContracts is nil; ignored when
+	// set explicitly. When both StoreDir and TeamContracts are empty, the
 	// dangling_evidence_decision rule is skipped.
 	StoreDir string
+
+	// RuntimeDataDir is the absolute path to the prompt-manager
+	// RuntimeData root (api-core/storage ClassData). Holds
+	// teams/<id>/shared/knowledge.jsonl etc. and is the source for
+	// runtime-attribution rules (actual_writer_undeclared). When empty,
+	// runtime-state rules silently skip; live callers thread this from
+	// paths.Roots.RuntimeData.
+	RuntimeDataDir string
 
 	// SkillIDs is the set of skill ids known to the skill registry.
 	// Empty disables skill-existence cross-checks.
@@ -595,14 +603,14 @@ func ruleDanglingEvidenceDecision(members []MemberTopics, opts ValidationOptions
 // LoadSkillIDs reads the local skill registry and returns the set of known
 // skill IDs. The registry layout matches the prompt-manager store:
 //
-//	<storeDir>/skills/packs/*/<skill-id>/skill.json
+//	<configDir>/skills/packs/*/<skill-id>/skill.json
 //
 // Returns an empty map without error when the registry is missing — callers
 // that need cross-checks should treat that as "skip the check," not as a
 // failure.
-func LoadSkillIDs(storeDir string) (map[string]bool, error) {
+func LoadSkillIDs(configDir string) (map[string]bool, error) {
 	out := make(map[string]bool)
-	packsDir := filepath.Join(storeDir, "skills", "packs")
+	packsDir := filepath.Join(configDir, "skills", "packs")
 	packs, err := os.ReadDir(packsDir)
 	if err != nil {
 		if os.IsNotExist(err) {

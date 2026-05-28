@@ -32,6 +32,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"prompt-manager/internal/paths"
 	"strings"
 	"time"
 )
@@ -61,8 +62,21 @@ func main() {
 		log.Fatalf("--cutoff-date must be YYYY-MM-DD; got %q", cutoff)
 	}
 
+	// Backups go to the centralized RuntimeData/backups/ root per CD-3.
+	// paths.Resolve fails open: if the storage resolver can't be
+	// constructed (e.g. minimal environment), we fall back to a sibling
+	// .backup so the migration tool still works in isolation.
+	var backupRoot string
+	roots, err := paths.Resolve(resolvedRoot)
+	if err == nil {
+		backupRoot = filepath.Join(roots.RuntimeData, "backups")
+	} else {
+		log.Printf("warning: paths.Resolve failed (%v); writing .backup files as siblings", err)
+	}
+
 	stats, err := migrateStore(migrateOpts{
 		StoreRoot:  resolvedRoot,
+		BackupRoot: backupRoot,
 		CutoffDate: cutoff,
 		DryRun:     *dryRun,
 	})

@@ -11,7 +11,7 @@ import (
 
 // FileAgentStore implements AgentStore using the file system
 type FileAgentStore struct {
-	storeDir string
+	configDir string
 }
 
 var defaultAgentMarkdownOrder = []string{"SOUL.md", "AGENTS.md", "TOOLS.md"}
@@ -36,15 +36,15 @@ var defaultAgentMarkdownFiles = []struct {
 }
 
 // NewFileAgentStore creates a new file-based agent store
-func NewFileAgentStore(storeDir string) *FileAgentStore {
+func NewFileAgentStore(configDir string) *FileAgentStore {
 	return &FileAgentStore{
-		storeDir: storeDir,
+		configDir: configDir,
 	}
 }
 
 // agentsDir returns the path to the agents directory
 func (s *FileAgentStore) agentsDir() string {
-	return filepath.Join(s.storeDir, "agents")
+	return filepath.Join(s.configDir, "agents")
 }
 
 // List returns all agents

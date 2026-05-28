@@ -5,11 +5,21 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+
+	"prompt-manager/internal/paths"
 )
 
-// FileStore is the combined implementation of all store interfaces
+// FileStore is the combined implementation of all store interfaces.
+//
+// FileStore is the seam between the three storage classes (Config,
+// RuntimeData, RuntimeCache) and the per-entity stores it composes. Each
+// per-entity store receives the class root it actually writes to: the index
+// store gets RuntimeCache; everything else (skills, actions, variants,
+// experiments, agents, teams, topics, relations) currently gets Config, with
+// individual stores being retargeted to RuntimeData in later phases of the
+// runtime/config storage split (see docs/concepts/STORAGE_CLASSES.md).
 type FileStore struct {
-	storeDir    string
+	roots       paths.Roots
 	skills      *FileSkillStore
 	actions     *FileActionStore
 	variants    *FileVariantStore
@@ -21,28 +31,28 @@ type FileStore struct {
 	indexes     *FileIndexStore
 }
 
-// NewFileStore creates a new file-based store
-func NewFileStore(storeDir string) *FileStore {
-	// Ensure store directories exist
-	ensureStoreDirectories(storeDir)
+// NewFileStore creates a new file-based store rooted at the given Roots.
+func NewFileStore(roots paths.Roots) *FileStore {
+	// Ensure on-disk layout exists for every class FileStore writes to.
+	ensureStoreDirectories(roots)
 
 	// Create relation store first (needed by others)
-	relationStore := NewFileRelationStore(storeDir)
+	relationStore := NewFileRelationStore(roots.Config)
 
 	// Create entity stores
-	skillStore := NewFileSkillStore(storeDir)
-	actionStore := NewFileActionStore(storeDir)
+	skillStore := NewFileSkillStore(roots.Config)
+	actionStore := NewFileActionStore(roots.Config)
 	variantStore := NewFileVariantStore(skillStore)
-	experimentStore := NewFileExperimentStore(storeDir)
-	teamStore := NewFileTeamStore(storeDir, relationStore)
-	agentStore := NewFileAgentStore(storeDir)
-	topicStore := NewFileTopicStore(storeDir)
+	experimentStore := NewFileExperimentStore(roots.RuntimeData)
+	teamStore := NewFileTeamStore(roots.Config, roots.RuntimeData, relationStore)
+	agentStore := NewFileAgentStore(roots.Config)
+	topicStore := NewFileTopicStore(roots.Config)
 
-	// Create index store (needs all entity stores)
-	indexStore := NewFileIndexStore(storeDir, skillStore, agentStore, teamStore, topicStore, relationStore)
+	// Index store writes derived caches under the RuntimeCache class root.
+	indexStore := NewFileIndexStore(roots.RuntimeCache, skillStore, agentStore, teamStore, topicStore, relationStore)
 
 	return &FileStore{
-		storeDir:    storeDir,
+		roots:       roots,
 		skills:      skillStore,
 		actions:     actionStore,
 		variants:    variantStore,
@@ -53,6 +63,14 @@ func NewFileStore(storeDir string) *FileStore {
 		relations:   relationStore,
 		indexes:     indexStore,
 	}
+}
+
+// Roots returns the storage roots this FileStore was constructed against.
+// Used by callers that need to compose paths against a class root (e.g.
+// handlers that take a file-relative path from the operator and resolve it
+// against Config or RuntimeData).
+func (s *FileStore) Roots() paths.Roots {
+	return s.roots
 }
 
 // Actions returns the Action store
@@ -120,32 +138,40 @@ func (s *FileStore) RegenerateIndexes(ctx context.Context) error {
 	return s.indexes.RegenerateAll(ctx)
 }
 
-// ensureStoreDirectories creates the required directory structure
-func ensureStoreDirectories(storeDir string) {
-	dirs := []string{
-		filepath.Join(storeDir, "skills", "packs", "core"),
-		filepath.Join(storeDir, "skills", "packs", "local"),
-		filepath.Join(storeDir, "skills", "packs", "drafts"),
-		filepath.Join(storeDir, "actions", "packs", "core"),
-		filepath.Join(storeDir, "actions", "packs", "local"),
-		filepath.Join(storeDir, "actions", "packs", "drafts"),
-		filepath.Join(storeDir, "experiments"),
-		filepath.Join(storeDir, "templates", "agent-files"),
-		filepath.Join(storeDir, "agents"),
-		filepath.Join(storeDir, "teams"),
-		filepath.Join(storeDir, "topics"),
-		filepath.Join(storeDir, "relations", "team-member"),
-		filepath.Join(storeDir, "indexes"),
+// ensureStoreDirectories creates the required directory structure under each
+// storage class root the FileStore writes to. Config subtree mirrors the
+// authored repo layout; RuntimeCache holds the indexes directory.
+func ensureStoreDirectories(roots paths.Roots) {
+	configDirs := []string{
+		filepath.Join(roots.Config, "skills", "packs", "core"),
+		filepath.Join(roots.Config, "skills", "packs", "local"),
+		filepath.Join(roots.Config, "skills", "packs", "drafts"),
+		filepath.Join(roots.Config, "actions", "packs", "core"),
+		filepath.Join(roots.Config, "actions", "packs", "local"),
+		filepath.Join(roots.Config, "actions", "packs", "drafts"),
+		filepath.Join(roots.Config, "templates", "agent-files"),
+		filepath.Join(roots.Config, "agents"),
+		filepath.Join(roots.Config, "teams"),
+		filepath.Join(roots.Config, "topics"),
+		filepath.Join(roots.Config, "relations", "team-member"),
+	}
+	runtimeDataDirs := []string{
+		filepath.Join(roots.RuntimeData, "experiments"),
+	}
+	cacheDirs := []string{
+		filepath.Join(roots.RuntimeCache, "indexes"),
 	}
 
-	for _, dir := range dirs {
+	allDirs := append(configDirs, runtimeDataDirs...)
+	allDirs = append(allDirs, cacheDirs...)
+	for _, dir := range allDirs {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			log.Printf("Warning: failed to create directory %s: %v", dir, err)
 		}
 	}
 
-	// Ensure pack order file exists
-	packOrderPath := filepath.Join(storeDir, "skills", "_pack-order.json")
+	// Ensure pack order files exist under the config root.
+	packOrderPath := filepath.Join(roots.Config, "skills", "_pack-order.json")
 	if !FileExists(packOrderPath) {
 		defaultOrder := &PackOrder{
 			ActivePacks:   []string{"local", "core"},
@@ -156,7 +182,7 @@ func ensureStoreDirectories(storeDir string) {
 		}
 	}
 
-	actionPackOrderPath := filepath.Join(storeDir, "actions", "_pack-order.json")
+	actionPackOrderPath := filepath.Join(roots.Config, "actions", "_pack-order.json")
 	if !FileExists(actionPackOrderPath) {
 		defaultOrder := &PackOrder{
 			ActivePacks:   []string{"local", "core"},

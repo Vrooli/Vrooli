@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"prompt-manager/internal/paths"
 	"prompt-manager/store"
 	"testing"
 
@@ -26,8 +27,8 @@ func (s *stubHeartbeatScheduler) Unschedule(teamID, agentID string) {
 
 func TestRemoveMemberCleansDataAndUnschedules(t *testing.T) {
 	ctx := context.Background()
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -84,7 +85,7 @@ func TestRemoveMemberCleansDataAndUnschedules(t *testing.T) {
 		t.Fatalf("expected unschedule for team-1/agent-1, got %v", scheduler.unscheduled)
 	}
 
-	memberDir := filepath.Join(storeDir, "teams", "team-1", "members", "agent-1")
+	memberDir := filepath.Join(roots.Config, "teams", "team-1", "members", "agent-1")
 	if _, err := os.Stat(memberDir); !os.IsNotExist(err) {
 		t.Fatalf("expected member directory to be removed, got %v", err)
 	}
@@ -92,8 +93,8 @@ func TestRemoveMemberCleansDataAndUnschedules(t *testing.T) {
 
 func TestDeleteTeamUnschedulesHeartbeats(t *testing.T) {
 	ctx := context.Background()
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()

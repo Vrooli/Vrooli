@@ -19,8 +19,8 @@ type ManifestCommandResolver struct {
 	cliManifests *cliManifestCache
 }
 
-func NewManifestCommandResolver(storeDir string) *ManifestCommandResolver {
-	repoRoot := inferRepoRoot(storeDir)
+func NewManifestCommandResolver(configDir string) *ManifestCommandResolver {
+	repoRoot := inferRepoRoot(configDir)
 	return &ManifestCommandResolver{
 		repoRoot:     repoRoot,
 		cliManifests: newCLIManifestCache(repoRoot),
@@ -486,16 +486,16 @@ func readManifestCommand(path string) string {
 	return raw.CLI.Command
 }
 
-func inferRepoRoot(storeDir string) string {
-	if storeDir == "" {
+func inferRepoRoot(configDir string) string {
+	if configDir == "" {
 		if wd, err := os.Getwd(); err == nil {
 			return filepath.Clean(filepath.Join(wd, "..", "..", ".."))
 		}
 		return "."
 	}
-	abs, err := filepath.Abs(storeDir)
+	abs, err := filepath.Abs(configDir)
 	if err != nil {
-		abs = storeDir
+		abs = configDir
 	}
 	// scenarios/prompt-manager/store -> repo root
 	return filepath.Clean(filepath.Join(abs, "..", "..", ".."))

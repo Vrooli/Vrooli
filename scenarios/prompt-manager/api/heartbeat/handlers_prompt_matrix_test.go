@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"prompt-manager/internal/paths"
 	"prompt-manager/store"
 	"testing"
 
@@ -13,8 +14,8 @@ import (
 
 func TestPreviewPromptMatrixHandler(t *testing.T) {
 	ctx := context.Background()
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	relationStore := fileStore.Relations()
@@ -96,8 +97,8 @@ func hasPromptSectionKind(sections []PromptSection, kind string) bool {
 }
 
 func TestPreviewPromptMatrixNotFound(t *testing.T) {
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	relationStore := fileStore.Relations()
@@ -118,8 +119,8 @@ func TestPreviewPromptMatrixNotFound(t *testing.T) {
 
 func TestPreviewPromptMatrixEmptyTeam(t *testing.T) {
 	ctx := context.Background()
-	storeDir := t.TempDir()
-	fileStore := store.NewFileStore(storeDir)
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	relationStore := fileStore.Relations()
