@@ -113,6 +113,9 @@ func (o *OverlapAgree) Run(
 		return err
 	}
 	o.applyDefaults()
+	log.Printf("[stt-overlap] session start: trigger=%s window_ms=%d advance_ms=%d commit_runs=%d max_window_ms=%d silence_ms=%d silence_rms=%.0f frame_ms=%d max_agreed_tokens=%d sample_rate=%d",
+		o.Trigger, o.WindowMs, o.AdvanceMs, o.CommitRuns, o.MaxWindowMs, o.SilenceMs, o.SilenceRMS, o.FrameMs, o.MaxAgreedTokens, o.SampleRate)
+	defer log.Printf("[stt-overlap] session end")
 
 	const sampleBytes = 2
 	advanceBytes := o.SampleRate * o.AdvanceMs / 1000 * sampleBytes
@@ -212,6 +215,12 @@ func (o *OverlapAgree) Run(
 	nextFrame := 0
 	silentFrames := 0
 	hasVoiced := false
+	// Diagnostic state — log the first voiced detection so it's
+	// obvious when (or whether) the VAD is seeing audio at all, and
+	// track silent-run high-water-marks so we can log "buffer N
+	// frames of silence, never reached threshold M".
+	loggedFirstVoiced := false
+	maxSilentRunSeen := 0
 
 	// scanVADBoundary scans frames starting at nextFrame, advancing
 	// the cursor and silentFrames counter. Returns the byte offset of
@@ -225,13 +234,24 @@ func (o *OverlapAgree) Run(
 			isSilent := rms < o.SilenceRMS
 			if isSilent {
 				silentFrames++
+				if silentFrames > maxSilentRunSeen {
+					maxSilentRunSeen = silentFrames
+				}
 			} else {
+				if !loggedFirstVoiced {
+					loggedFirstVoiced = true
+					log.Printf("[stt-overlap] first voiced frame: rms=%.0f threshold=%.0f frame_idx=%d",
+						rms, o.SilenceRMS, nextFrame/frameBytes)
+				}
 				silentFrames = 0
 				hasVoiced = true
 			}
 			nextFrame += frameBytes
 			if hasVoiced && silentFrames >= silenceFramesNeeded {
 				boundary := nextFrame
+				log.Printf("[stt-overlap] silence boundary: silence_ms=%d threshold_ms=%d boundary_byte=%d uncommitted_ms=%d",
+					silentFrames*o.FrameMs, o.SilenceMs, boundary,
+					(boundary-committedAudioBytes)*1000/(o.SampleRate*sampleBytes))
 				silentFrames = 0
 				hasVoiced = false
 				return boundary
@@ -317,6 +337,9 @@ func (o *OverlapAgree) Run(
 		}
 		audio := make([]byte, n)
 		copy(audio, pcm[committedAudioBytes:rightEdge])
+		iterAudioMs := n * 1000 / (o.SampleRate * sampleBytes)
+		log.Printf("[stt-overlap] settle attempt: audio_ms=%d cursor_byte=%d right_edge=%d recent=%d/%d last_advanced=%t",
+			iterAudioMs, committedAudioBytes, rightEdge, len(recent), o.CommitRuns, lastAdvanced)
 		res, err := transcribe(audio)
 		nextTriggerAt = len(pcm) + advanceBytes
 		if err != nil {
@@ -324,6 +347,7 @@ func (o *OverlapAgree) Run(
 			// The growing buffer means the next iteration covers a
 			// superset of the same audio, so a single failure is
 			// self-healing.
+			log.Printf("[stt-overlap] settle error: %v", err)
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
 			return
 		}
@@ -340,6 +364,9 @@ func (o *OverlapAgree) Run(
 			texts[i] = h.text
 		}
 		agreed := longestAgreedPrefix(texts, o.CommitRuns, o.MaxAgreedTokens)
+		log.Printf("[stt-overlap] hypothesis: text=%q words=%d agreed=%q recent_now=%d",
+			voice.TruncateForLog(res.Text, 80), len(res.Words),
+			voice.TruncateForLog(agreed, 80), len(recent))
 
 		// Two-mode merge based on lastAdvanced:
 		//
@@ -361,10 +388,14 @@ func (o *OverlapAgree) Run(
 			newCommit, tail, ok = mergeAgreed(committed, agreed)
 		}
 		if agreed != "" && !ok {
+			log.Printf("[stt-overlap] divergence-reject: committed=%q agreed=%q (in-stream wander — no commit)",
+				voice.TruncateForLog(committed, 60), voice.TruncateForLog(agreed, 60))
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventPartial, Partial: &sttchain.PartialEvent{Text: res.Text}}
 			return
 		}
 		if len(newCommit) > len(committed) {
+			log.Printf("[stt-overlap] commit: tail=%q committed_now=%q",
+				voice.TruncateForLog(tail, 80), voice.TruncateForLog(newCommit, 100))
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
 				Text:             tail,
 				DetectedLanguage: res.DetectedLanguage,
@@ -499,7 +530,11 @@ func (o *OverlapAgree) applyDefaults() {
 		o.Trigger = TriggerVAD
 	}
 	if o.SilenceMs == 0 {
-		o.SilenceMs = 1200
+		// OverlapAgree settles at SHORTER pauses than VADSegment by
+		// design — the whole point of the strategy is to emit Segments
+		// mid-utterance, not wait for end-of-turn. 500ms catches natural
+		// inter-phrase pauses without firing inside words.
+		o.SilenceMs = 500
 	}
 	if o.SilenceRMS == 0 {
 		o.SilenceRMS = 250
