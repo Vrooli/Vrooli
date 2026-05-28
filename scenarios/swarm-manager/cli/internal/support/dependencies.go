@@ -116,6 +116,12 @@ type Dependencies struct {
 	CapturesGet           CommandFunc
 	CapturesDelete        CommandFunc
 	CapturesClassify      CommandFunc
+	RecordsList           CommandFunc
+	RecordsGet            CommandFunc
+	RecordsCreate         CommandFunc
+	RecordsEdit           CommandFunc
+	RecordsSearch         CommandFunc
+	RecordsSupersede      CommandFunc
 	AgentManagerStatus    CommandFunc
 	AgentManagerRunGet    CommandFunc
 	AgentManagerRunStop   CommandFunc

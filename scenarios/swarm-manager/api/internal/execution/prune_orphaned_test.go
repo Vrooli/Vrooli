@@ -22,7 +22,7 @@ func TestPruneOrphanedPending_DropsRecordsForMissingBacklogItems(t *testing.T) {
 	})
 
 	service := NewService(ServiceConfig{
-		RootDir:      root,
+		DataRoot:      root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
@@ -81,7 +81,7 @@ func TestQueueBacklog_PrunesOrphansBeforeDepthCheck(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "real-item")
 
 	service := NewService(ServiceConfig{
-		RootDir:            root,
+		DataRoot:            root,
 		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{MaxQueueDepth: 3}},
 		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},

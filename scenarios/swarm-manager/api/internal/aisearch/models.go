@@ -16,6 +16,7 @@ type EntityType string
 const (
 	EntityBacklog    EntityType = "backlog"
 	EntityInitiative EntityType = "initiative"
+	EntityRecord     EntityType = "record"
 	EntityBoth       EntityType = "both"
 )
 
@@ -23,7 +24,7 @@ const (
 // API surface.
 func (e EntityType) Valid() bool {
 	switch e {
-	case EntityBacklog, EntityInitiative, EntityBoth:
+	case EntityBacklog, EntityInitiative, EntityRecord, EntityBoth:
 		return true
 	default:
 		return false
@@ -214,6 +215,27 @@ type BacklogPayload struct {
 	Archived        bool     `json:"archived"`
 	TargetScenarios []string `json:"target_scenarios"`
 	PayloadHash     string   `json:"payload_hash,omitempty"`
+}
+
+// RecordPayload is the typed shape of what aisearch stores in a record
+// vector's payload. Keys here must match the map keys used in
+// records.go:buildRecordPayload.
+//
+// entity_type is fixed to "record" so future code that pools records and
+// backlog in shared filters (e.g. ai-search --kind fix) can discriminate.
+type RecordPayload struct {
+	EntityType   string   `json:"entity_type"`
+	RecordID     string   `json:"record_id"`
+	Kind         string   `json:"kind"`
+	Scenario     string   `json:"scenario"`
+	BacklogRef   string   `json:"backlog_ref,omitempty"`
+	Supersedes   string   `json:"supersedes,omitempty"`
+	SupersededBy string   `json:"superseded_by,omitempty"`
+	Outcome      string   `json:"outcome,omitempty"`
+	Commit       string   `json:"commit,omitempty"`
+	FilesChanged []string `json:"files_changed,omitempty"`
+	Stub         bool     `json:"stub"`
+	PayloadHash  string   `json:"payload_hash,omitempty"`
 }
 
 // InitiativePayload is the typed shape of what aisearch stores in an

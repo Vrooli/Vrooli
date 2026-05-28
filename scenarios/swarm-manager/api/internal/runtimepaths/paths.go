@@ -28,3 +28,7 @@ func StatePath(rel string) (string, error) {
 func DataPath(rel string) (string, error) {
 	return pathFor(storage.ClassData, rel)
 }
+
+func CachePath(rel string) (string, error) {
+	return pathFor(storage.ClassCache, rel)
+}

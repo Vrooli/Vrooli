@@ -25,10 +25,19 @@ type Service struct {
 	embedder         Embedder
 	backlogStore     VectorStore
 	initiativeStore  VectorStore
+	recordStore      VectorStore
 	backlogReader    BacklogReader
 	initiativeReader InitiativeReader
 	textSearcher     TextSearcher
 	threshold        float64
+}
+
+// SetRecordStore wires a VectorStore for the records collection. Optional;
+// when nil, IndexRecord/DeleteRecord return a configured-off error and the
+// service degrades silently for that surface. Wired post-construction so the
+// NewService signature stays stable.
+func (s *Service) SetRecordStore(store VectorStore) {
+	s.recordStore = store
 }
 
 // NewService creates a new AI search service. Any of backlogStore,
@@ -62,9 +71,11 @@ func (s *Service) SetTextSearcher(t TextSearcher) {
 }
 
 // Search performs a semantic search over the requested entity (backlog,
-// initiative, or both). On embedder/vector-store failure it falls back to
-// text search when a TextSearcher is configured, or to an empty response
-// marked FallbackUnavailable otherwise.
+// initiative, record, or both). EntityBoth fans out to every wired store
+// — records are included when a recordStore is configured. On embedder /
+// vector-store failure it falls back to text search when a TextSearcher
+// is configured, or to an empty response marked FallbackUnavailable
+// otherwise.
 func (s *Service) Search(ctx context.Context, req AISearchRequest) (*AISearchResponse, error) {
 	start := time.Now()
 	query := strings.TrimSpace(req.Query)
@@ -120,6 +131,16 @@ func (s *Service) Search(ctx context.Context, req AISearchRequest) (*AISearchRes
 	if entity == EntityInitiative || entity == EntityBoth {
 		if s.initiativeStore != nil {
 			r, err := s.searchStore(ctx, s.initiativeStore, EntityInitiative, vector, limit, threshold)
+			if err != nil {
+				searchErr = err
+			} else {
+				results = append(results, r...)
+			}
+		}
+	}
+	if entity == EntityRecord || entity == EntityBoth {
+		if s.recordStore != nil {
+			r, err := s.searchStore(ctx, s.recordStore, EntityRecord, vector, limit, threshold)
 			if err != nil {
 				searchErr = err
 			} else {
@@ -235,13 +256,15 @@ func applyFilters(results []AISearchResult, f SearchFilters) []AISearchResult {
 			if archived && !f.IncludeArchived {
 				continue
 			}
-			if len(statusSet) > 0 {
+			// Records don't have a status; skip the status check for them.
+			if len(statusSet) > 0 && r.Entity != EntityRecord {
 				status, _ := r.Payload["status"].(string)
 				if !statusSet[status] {
 					continue
 				}
 			}
-			if len(kindSet) > 0 && r.Entity == EntityBacklog {
+			// Kind applies to both backlog items and records (same enum).
+			if len(kindSet) > 0 && (r.Entity == EntityBacklog || r.Entity == EntityRecord) {
 				kind, _ := r.Payload["kind"].(string)
 				if !kindSet[kind] {
 					continue
@@ -253,9 +276,20 @@ func applyFilters(results []AISearchResult, f SearchFilters) []AISearchResult {
 					continue
 				}
 			}
-			if target != "" && r.Entity == EntityBacklog {
-				if !payloadTargetsScenario(r.Payload, target) {
-					continue
+			if target != "" {
+				switch r.Entity {
+				case EntityBacklog:
+					if !payloadTargetsScenario(r.Payload, target) {
+						continue
+					}
+				case EntityRecord:
+					// Records carry a single "scenario" field instead of a
+					// target_scenarios array; the same --target-scenario CLI
+					// flag should narrow records by it.
+					rs, _ := r.Payload["scenario"].(string)
+					if rs != target {
+						continue
+					}
 				}
 			}
 		}

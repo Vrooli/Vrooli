@@ -144,8 +144,14 @@ type runTracker struct {
 }
 
 // ServiceConfig configures execution service dependencies.
+//
+// DataRoot is the runtime-home data directory where backlog item folders
+// live (`~/.vrooli/data/vrooli/swarm-manager/<kind>/<name>/...`). RepoRoot
+// is the scenario source path, used only as a repo anchor for resolving
+// the sibling scenarios/ directory in preflight.
 type ServiceConfig struct {
-	RootDir                  string
+	DataRoot                 string
+	RepoRoot                 string
 	StorePath                string
 	CircuitBreakerPath       string
 	SelfScenarioName         string
@@ -167,7 +173,8 @@ type ServiceConfig struct {
 
 // Service owns execution lifecycle logic.
 type Service struct {
-	rootDir                  string
+	dataRoot                 string
+	repoRoot                 string
 	selfScenarioName         string
 	finalizationCfg          FinalizationConfig
 	maxConsecutiveErrors     int
@@ -210,9 +217,17 @@ func (s *Service) SetActivityLaneReader(r ActivityLaneReader) {
 
 // NewService creates a new execution service.
 func NewService(cfg ServiceConfig) *Service {
-	rootDir := strings.TrimSpace(cfg.RootDir)
-	if rootDir == "" {
-		rootDir = pathutil.ResolveScenarioRoot("swarm-manager")
+	dataRoot := strings.TrimSpace(cfg.DataRoot)
+	if dataRoot == "" {
+		if p, err := runtimepaths.DataPath(""); err == nil {
+			dataRoot = p
+		} else {
+			dataRoot = pathutil.ResolveScenarioRoot("swarm-manager")
+		}
+	}
+	repoRoot := strings.TrimSpace(cfg.RepoRoot)
+	if repoRoot == "" {
+		repoRoot = pathutil.ResolveScenarioRoot("swarm-manager")
 	}
 
 	pc := cfg.PromptClient
@@ -234,7 +249,7 @@ func NewService(cfg ServiceConfig) *Service {
 	}
 	selfName := strings.TrimSpace(cfg.SelfScenarioName)
 	if selfName == "" {
-		selfName = filepath.Base(rootDir)
+		selfName = filepath.Base(repoRoot)
 	}
 	circuitBreakerPath := strings.TrimSpace(cfg.CircuitBreakerPath)
 	if circuitBreakerPath == "" {
@@ -255,7 +270,8 @@ func NewService(cfg ServiceConfig) *Service {
 	}
 
 	service := &Service{
-		rootDir:                  rootDir,
+		dataRoot:                 dataRoot,
+		repoRoot:                 repoRoot,
 		selfScenarioName:         selfName,
 		finalizationCfg:          fc,
 		maxConsecutiveErrors:     maxConsecErrors,

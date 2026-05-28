@@ -197,6 +197,18 @@ type aggregateState struct {
 	sessionArtifactsByType        map[string]int
 	sessionCreatedBacklogItems    int
 	sessionCreatedInitiatives     int
+
+	// Record tracking. Counters fold EventRecordCreated and
+	// EventRecordSuperseded. There is no stub-fill event, so "filled stub"
+	// state is not derivable from the event log; stubs counts created-as-stub
+	// only.
+	recordTotal            int
+	recordCreatedAt        []time.Time
+	recordsByKind          map[string]int
+	recordsByScenario      map[string]int
+	recordsWithBacklogRef  int
+	recordsStubs           int
+	recordsSupersedeCount  int
 }
 
 func newAggregateState() *aggregateState {
@@ -241,6 +253,8 @@ func newAggregateState() *aggregateState {
 		sessionProposalAppliedByKind:  make(map[string]int),
 		sessionArtifactsCreatedByKind: make(map[string]int),
 		sessionArtifactsByType:        make(map[string]int),
+		recordsByKind:                 make(map[string]int),
+		recordsByScenario:             make(map[string]int),
 	}
 }
 
@@ -737,6 +751,29 @@ func (s *aggregateState) processEvent(e *eventlog.Event) {
 
 	case eventlog.EventReviewRequestCreated:
 		s.reviewRequestsCreated++
+
+	// --- Records ---
+	case eventlog.EventRecordCreated:
+		s.recordTotal++
+		s.recordCreatedAt = append(s.recordCreatedAt, e.Timestamp)
+		var p eventlog.RecordCreatedPayload
+		if unmarshalMeta(e.Metadata, &p) {
+			if p.Kind != "" {
+				s.recordsByKind[p.Kind]++
+			}
+			if p.Scenario != "" {
+				s.recordsByScenario[p.Scenario]++
+			}
+			if p.BacklogRef != "" {
+				s.recordsWithBacklogRef++
+			}
+			if p.Stub {
+				s.recordsStubs++
+			}
+		}
+
+	case eventlog.EventRecordSuperseded:
+		s.recordsSupersedeCount++
 	}
 }
 

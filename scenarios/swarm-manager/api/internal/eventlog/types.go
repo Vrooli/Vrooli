@@ -20,6 +20,7 @@ const (
 	EntityQueue        EntityType = "queue"
 	EntityCapture      EntityType = "capture"
 	EntityAgentSession EntityType = "agent_session"
+	EntityRecord       EntityType = "record"
 )
 
 // EventType identifies what happened to an entity.
@@ -98,6 +99,15 @@ const (
 	EventExecutionViewed  EventType = "execution.viewed"
 	EventInitiativeViewed EventType = "initiative.viewed"
 	EventCaptureViewed    EventType = "capture.viewed"
+)
+
+// Record events. Records are narrative artifacts of completed work; the
+// event-log bridge is intentionally thin (created + superseded) so the stats
+// engine can fold throughput and regression-rate without re-walking the
+// records store.
+const (
+	EventRecordCreated    EventType = "record.created"
+	EventRecordSuperseded EventType = "record.superseded"
 )
 
 // System events for one-time migrations.
@@ -433,6 +443,24 @@ type ProposalAppliedPayload struct {
 	// surface "this item was merged into Target" without re-deriving from
 	// archive timestamps.
 	Sources []string `json:"sources,omitempty"`
+}
+
+// RecordCreatedPayload records a records.Create or records.CreateStub call.
+// Stub is true when the record was auto-created on backlog completion with
+// empty narrative fields; stats consumers use this to compute stub-fill rate.
+type RecordCreatedPayload struct {
+	Kind       string `json:"kind"`
+	Scenario   string `json:"scenario"`
+	BacklogRef string `json:"backlog_ref,omitempty"`
+	Stub       bool   `json:"stub"`
+}
+
+// RecordSupersededPayload records that a record was superseded by a successor.
+// SupersededID is the predecessor; Event.EntityID is the successor record id
+// so per-record history surfaces the link from both directions.
+type RecordSupersededPayload struct {
+	SupersededID string `json:"superseded_id"`
+	Reason       string `json:"reason,omitempty"`
 }
 
 // MigrationAppliedPayload records that a one-time migration has completed.

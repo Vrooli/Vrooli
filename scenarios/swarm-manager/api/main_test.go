@@ -13,19 +13,17 @@ import (
 
 // newTestServer creates a Server backed by an isolated temp directory so that
 // tests never read from or write to the production scenario root.
+//
+// VROOLI_STORAGE_ROOT is the canonical substrate for routing data/cache/state
+// under the test's tempdir (see runtimepaths.paths_test.go). The legacy
+// XDG_* envs are not used by the storage substrate.
 func newTestServer(t *testing.T) *Server {
 	t.Helper()
 	root := t.TempDir()
-	for _, dir := range []string{"ideas", "research", "fix", "execute", "chore"} {
-		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
 	// Disable auto-workshop flags so item creation doesn't fire background
 	// agent spawns under the test. The production settings handler reads
-	// from `<scenarioRoot>/config/settings.json` (see main.go:238), so the
-	// file must land there — writing to `.vrooli/settings.json` (an older
-	// location) is silently ignored.
+	// from `<scenarioRoot>/config/settings.json` (see main.go), so the
+	// file must land there.
 	configDir := filepath.Join(root, "config")
 	if err := os.MkdirAll(configDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -40,18 +38,20 @@ func newTestServer(t *testing.T) *Server {
 		t.Fatal(err)
 	}
 	t.Setenv("SCENARIO_ROOT", root)
-	// Isolate XDG state/data/cache roots so agent-activity and other
-	// runtimepaths consumers write into this test's tempdir instead of
-	// the user's real XDG dirs. Without this, stale state from prior
-	// tests (e.g., old agent-activity "initialize" records) leaks into
-	// new servers and breaks any test that asserts a clean slate.
-	xdg := filepath.Join(root, "xdg")
-	t.Setenv("XDG_STATE_HOME", filepath.Join(xdg, "state"))
-	t.Setenv("XDG_DATA_HOME", filepath.Join(xdg, "data"))
-	t.Setenv("XDG_CACHE_HOME", filepath.Join(xdg, "cache"))
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(xdg, "config"))
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "storage"))
 	t.Setenv("AGENT_MANAGER_ENABLED", "false")
 	return newServerWithRoot(root, &promptmanager.MockClient{Result: "test prompt"})
+}
+
+// testDataRoot returns the test's data-class root for swarm-manager. The
+// VROOLI_STORAGE_ROOT env (set by newTestServer) must be in scope.
+func testDataRoot(t *testing.T) string {
+	t.Helper()
+	root := os.Getenv("VROOLI_STORAGE_ROOT")
+	if root == "" {
+		t.Fatal("VROOLI_STORAGE_ROOT not set; call newTestServer before testDataRoot")
+	}
+	return filepath.Join(root, "data", "vrooli", "swarm-manager")
 }
 
 func TestNewServerHealthRoutes(t *testing.T) {

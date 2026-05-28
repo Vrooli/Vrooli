@@ -413,7 +413,7 @@ func renderReconcileOperational(st AISearchReconcileStatus) error {
 func (a *App) cmdAISearchSearch(entityOverride string) support.CommandFunc {
 	return func(args []string) error {
 		fs := flag.NewFlagSet("search-ai", flag.ContinueOnError)
-		entity := fs.String("entity", "", "backlog | initiative | both (default both)")
+		entity := fs.String("entity", "", "backlog | initiative | record | both (default both)")
 		limit := fs.Int("limit", 20, "Max results (1-100)")
 		threshold := fs.Float64("threshold", 0, "Min cosine similarity (0-1); 0 uses server default")
 		kindCSV := fs.String("kind", "", "Comma-separated backlog kinds to include")

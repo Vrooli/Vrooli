@@ -116,7 +116,7 @@ func TestResearch_CancelsPendingAdvance(t *testing.T) {
 	}
 	enableAutoAdvanceWithDelay(t, rootDir, 30)
 
-	h := NewHandlerWithClients(rootDir, agent, &promptmanager.MockClient{Result: "test prompt"})
+	h := NewHandlerWithClients(rootDir, rootDir, agent, &promptmanager.MockClient{Result: "test prompt"})
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "double-spawn", Title: "Double Spawn", Status: StatusBacklog,
@@ -170,7 +170,7 @@ func TestResearch_RejectsWhenAgentActive(t *testing.T) {
 	}
 	disableAutoWorkshopSettings(t, rootDir)
 
-	h := NewHandlerWithClients(rootDir, agent, &promptmanager.MockClient{Result: "test prompt"})
+	h := NewHandlerWithClients(rootDir, rootDir, agent, &promptmanager.MockClient{Result: "test prompt"})
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "busy-item", Title: "Busy Item", Status: StatusBacklog,
@@ -200,7 +200,7 @@ func TestResearch_NoPendingCancelForNonWorkshopModes(t *testing.T) {
 	}
 	enableAutoAdvanceWithDelay(t, rootDir, 30)
 
-	h := NewHandlerWithClients(rootDir, agent, &promptmanager.MockClient{Result: "test prompt"})
+	h := NewHandlerWithClients(rootDir, rootDir, agent, &promptmanager.MockClient{Result: "test prompt"})
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "init-item", Title: "Init Item", Status: StatusBacklog,
@@ -247,7 +247,7 @@ func TestResearch_FinalizeCancelsPendingAdvance(t *testing.T) {
 	}
 	enableAutoAdvanceWithDelay(t, rootDir, 30)
 
-	h := NewHandlerWithClients(rootDir, agent, &promptmanager.MockClient{Result: "test prompt"})
+	h := NewHandlerWithClients(rootDir, rootDir, agent, &promptmanager.MockClient{Result: "test prompt"})
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "final-item", Title: "Final Item", Status: StatusBacklog,

@@ -61,7 +61,7 @@ type classificationItem struct {
 }
 
 func (h *Handler) capturesDir() string {
-	return filepath.Join(h.rootDir, "captures")
+	return filepath.Join(h.cacheRoot, "captures")
 }
 
 func (h *Handler) captureDir(id string) string {

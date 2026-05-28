@@ -49,6 +49,18 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 | **Agent Activity** | Durable record for one tracked AgentManager interaction (`spawn` or `continue`) across backlog, scenario, capture, and session flows | `pending` -> `starting`/`running`/`needs_review` -> `complete`/`failed`/`cancelled` | [CODE: ui/src/types/domain.ts#AgentActivity] |
 | **Agent Session** | Durable typed conversation for meta-orchestration, Swarm operations, and operating-mode authoring, with proposals, artifacts, and verified attribution | `starting` -> `running` -> `waiting_for_user`/`proposal_ready` -> `complete`/`failed`/`canceled` | [DOC: docs/internal/AGENT-SESSIONS.md] |
 | **Scenario** | Runtime scenario in the Vrooli ecosystem | `running`, `stopped`, `error`, `unknown` | [CODE: ui/src/types/domain.ts#Scenario] |
+| **Capture** | Raw operator/agent observation (text + optional images) classified into a candidate kind | `pending` -> `classified` -> consumed (converted to backlog or discarded) | [CODE: api/internal/captures/types.go] |
+| **Record** | Immutable narrative artifact of completed work (`trigger`, `approach`, `ruled_out`, `commit`, `files_changed`, `outcome`); mirrors `BacklogKind`; supports `supersedes` chains for amendments | Stub (auto-created on backlog completion) -> filled (one-shot via `records edit`) -> immutable (further changes require supersedes) | [CODE: api/internal/records/types.go] |
+| **Event** | Append-only audit entry for entity state deltas (backlog status, record created/superseded, etc.); folded by stats engine | N/A (immutable) | [CODE: api/internal/eventlog/types.go] |
+
+### Four-Entity Model
+
+Swarm-manager's domain forms a four-entity pipeline that closes the recursive-learning loop:
+
+1. **Captures** — raw operator/agent input; the front door for observations and ideas before they have shape.
+2. **Backlog** — current-state work tracking; what is being done now, and its workshop/queue/execution lifecycle.
+3. **Records** — narrative artifacts of completed work; what was learned, including hypotheses ruled out, files touched, commit, and outcome. Records are the **write side of the recursive-learning loop**: future agents query them via `ai-search query --kind fix` and `records search`. Stub records are auto-created on backlog terminal transitions (`review-decide --accept|--fail`) and filled by the executing agent; records can also be created for work that never touched the backlog.
+4. **Events** — audit log of state deltas (backlog status changes, record creations and supersedes, etc.) consumed by the stats engine to surface throughput, regression rate, and visibility split.
 
 ### Initiatives
 

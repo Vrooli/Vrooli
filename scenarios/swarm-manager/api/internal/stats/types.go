@@ -20,6 +20,29 @@ type StatsResponse struct {
 	Review      ReviewStats     `json:"review"`
 	Mode        ModeStats       `json:"mode"`
 	Session     SessionStats    `json:"session"`
+	Records     RecordStats     `json:"records"`
+}
+
+// RecordStats tracks records (narrative artifacts of completed work)
+// throughput, kind/scenario distribution, the stub-fill discipline, and a
+// regression-rate signal computed from supersede chains. Folded from
+// EventRecordCreated and EventRecordSuperseded.
+type RecordStats struct {
+	TotalRecords       int            `json:"total_records"`
+	CreatedLast7Days   int            `json:"created_last_7_days"`
+	CreatedLast30Days  int            `json:"created_last_30_days"`
+	ByKind             map[string]int `json:"by_kind"`
+	ByScenario         map[string]int `json:"by_scenario"`
+	WithBacklogRef     int            `json:"with_backlog_ref"`
+	WithoutBacklogRef  int            `json:"without_backlog_ref"`
+	// Stubs counts EventRecordCreated events with stub=true. There is no
+	// stub-fill event today, so "current stub count" is not derivable from the
+	// event log alone — Stubs is therefore a created-as-stub flow counter, not
+	// an outstanding gauge. Combined with TotalRecords it surfaces how often
+	// the soft-prompt hook fires.
+	Stubs          int     `json:"stubs"`
+	SupersedeCount int     `json:"supersede_count"`
+	RegressionRate float64 `json:"regression_rate"`
 }
 
 // HistoryWindow reports the span of event history the engine has observed. The

@@ -84,4 +84,7 @@ func (s *Server) wireEventLoggers() {
 	if s.reviewSvc != nil {
 		s.reviewSvc.SetEventLogger(s.emitter)
 	}
+	if s.recordsService != nil {
+		s.recordsService.SetEventLogger(s.emitter)
+	}
 }

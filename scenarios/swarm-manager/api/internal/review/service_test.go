@@ -35,7 +35,7 @@ func (s *capturingSpawner) GetRunState(_ context.Context, _ string) (agentmanage
 
 func newTestService(spawner *capturingSpawner, promptResult string) *Service {
 	svc := &Service{
-		rootDir:       "/tmp/test-backlog",
+		dataRoot:      "/tmp/test-backlog",
 		agentService:  spawner,
 		inspector:     spawner,
 		promptClient:  &promptmanager.MockClient{Result: promptResult},

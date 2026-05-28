@@ -28,7 +28,7 @@ func setupValidateGlobsHandler(t *testing.T) (*Handler, string) {
 		testutil.MakeDir(t, filepath.Join(rootDir, dir))
 	}
 	disableAutoWorkshopSettings(t, rootDir)
-	return NewHandler(rootDir), projectRoot
+	return NewHandler(rootDir, rootDir), projectRoot
 }
 
 func writeRepoContractFixture(t *testing.T, root string) {

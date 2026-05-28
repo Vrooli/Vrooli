@@ -39,7 +39,7 @@ func (h *Handler) ValidateGlobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectRoot, err := resolveRepoRoot(h.rootDir)
+	projectRoot, err := resolveRepoRoot(h.repoRoot)
 	if err != nil {
 		apierr.MapError(w, "[backlog] validate-globs", apierr.Internal("failed to resolve repo root"))
 		return
@@ -77,12 +77,18 @@ func (h *Handler) ValidateGlobs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func resolveRepoRoot(rootDir string) (string, error) {
-	if projectRoot, err := repocontract.FindRepoRootFromPath(rootDir); err == nil {
+func resolveRepoRoot(repoRoot string) (string, error) {
+	if repoRoot == "" {
+		if projectRoot, err := repocontract.FindRepoRootFromEnvOrCWD(); err == nil {
+			return projectRoot, nil
+		}
+		return "", os.ErrNotExist
+	}
+	if projectRoot, err := repocontract.FindRepoRootFromPath(repoRoot); err == nil {
 		return projectRoot, nil
 	}
 
-	current := rootDir
+	current := repoRoot
 	for {
 		if _, err := os.Stat(filepath.Join(current, ".vrooli", "repo-contract.json")); err == nil {
 			return current, nil

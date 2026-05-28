@@ -36,19 +36,29 @@ const (
 )
 
 // ReviewDecideRequest is the JSON body for the review-decide endpoint.
+//
+// NoRecord, when true, suppresses the records terminal-status hook (used for
+// system-level reverts or fixups where a narrative artifact would be noise).
+// Default false: agents and humans should write a record by default; only
+// opt out when the work genuinely shouldn't be remembered.
 type ReviewDecideRequest struct {
 	Decision  ReviewDecision `json:"decision"`
 	Rationale string         `json:"rationale,omitempty"`
 	DecidedBy string         `json:"decided_by,omitempty"`
+	NoRecord  bool           `json:"no_record,omitempty"`
 }
 
 // ReviewDecideResponse echoes the decision back plus the resulting status.
+// RecordStubID, when non-empty, identifies the stub record auto-created by
+// the records terminal-status hook — clients surface it so agents can
+// `records edit <id>` to fill the narrative.
 type ReviewDecideResponse struct {
-	Item      *BacklogItem `json:"item"`
-	Decision  string       `json:"decision"`
-	Status    string       `json:"status"`
-	Rationale string       `json:"rationale,omitempty"`
-	DecidedAt string       `json:"decided_at"`
+	Item         *BacklogItem `json:"item"`
+	Decision     string       `json:"decision"`
+	Status       string       `json:"status"`
+	Rationale    string       `json:"rationale,omitempty"`
+	DecidedAt    string       `json:"decided_at"`
+	RecordStubID string       `json:"record_stub_id,omitempty"`
 }
 
 // reviewDecisionRecord is the on-disk record of a terminal decision. Stored
@@ -133,7 +143,7 @@ func (h *Handler) ReviewDecide(w http.ResponseWriter, r *http.Request) {
 	// Persist the decision record. Failure to write the audit record is
 	// logged but doesn't roll back the status change — the status is the
 	// source of truth, the record is supplementary context.
-	if writeErr := writeDecisionRecord(h.rootDir, kind, name, reviewDecisionRecord{
+	if writeErr := writeDecisionRecord(h.dataRoot, kind, name, reviewDecisionRecord{
 		Decision:    string(req.Decision),
 		Status:      string(targetStatus),
 		Rationale:   req.Rationale,
@@ -149,6 +159,23 @@ func (h *Handler) ReviewDecide(w http.ResponseWriter, r *http.Request) {
 		h.eventLogger.EmitBacklogStatusChanged(string(kind)+"/"+name, string(priorStatus), string(targetStatus))
 	}
 
+	// Records soft-prompt: auto-create a stub linked back to this item so the
+	// agent or human can fill it via `records edit`. Runs BEFORE
+	// itemTerminalHandler so the response payload can include the stub id even
+	// if a downstream handler is slow. NoRecord opts out (system reverts /
+	// fixups). Errors are swallowed — stub creation must never block or fail
+	// the terminal transition.
+	var recordStubID string
+	if !req.NoRecord && h.recordStubCreator != nil {
+		id, err := h.recordStubCreator.CreateBacklogStub(r.Context(), string(kind), name, targetStatus, req.DecidedBy)
+		if err != nil {
+			slog.Warn("review-decide: record stub creation failed (terminal status persisted)",
+				"kind", kind, "name", name, "err", err)
+		} else {
+			recordStubID = id
+		}
+	}
+
 	// Notify downstream consumers (e.g., initiative review) that this item
 	// reached a terminal status. Runs synchronously; the handler is expected
 	// to self-dispatch expensive work. Errors are not surfaced — the
@@ -158,11 +185,12 @@ func (h *Handler) ReviewDecide(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := ReviewDecideResponse{
-		Item:      &item,
-		Decision:  string(req.Decision),
-		Status:    string(targetStatus),
-		Rationale: req.Rationale,
-		DecidedAt: decidedAt,
+		Item:         &item,
+		Decision:     string(req.Decision),
+		Status:       string(targetStatus),
+		Rationale:    req.Rationale,
+		DecidedAt:    decidedAt,
+		RecordStubID: recordStubID,
 	}
 	if err := httputil.JSON(w, resp); err != nil {
 		apierr.MapError(w, "[backlog] review-decide", apierr.Internal("failed to encode response"))

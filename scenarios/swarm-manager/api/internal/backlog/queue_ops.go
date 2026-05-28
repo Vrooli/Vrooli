@@ -92,7 +92,8 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		executionService = h.executionQueuer
 	} else {
 		executionService = execution.NewService(execution.ServiceConfig{
-			RootDir:            h.rootDir,
+			DataRoot:           h.dataRoot,
+			RepoRoot:           h.repoRoot,
 			PolicyProvider:     h.policyProvider,
 			GovernanceProvider: h.governanceProvider,
 			AgentService:       h.agentService,
@@ -281,7 +282,8 @@ func (h *Handler) ProcessPreflight(w http.ResponseWriter, r *http.Request) {
 	}
 
 	executionService := execution.NewService(execution.ServiceConfig{
-		RootDir:            h.rootDir,
+		DataRoot:           h.dataRoot,
+		RepoRoot:           h.repoRoot,
 		PolicyProvider:     h.policyProvider,
 		GovernanceProvider: h.governanceProvider,
 		AgentService:       h.agentService,

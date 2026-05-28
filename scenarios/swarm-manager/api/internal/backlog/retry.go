@@ -140,7 +140,7 @@ func (h *Handler) reopenForRetry(_ context.Context, item *BacklogItem, newRecord
 		return err
 	}
 
-	if writeErr := writeRetryReopenRecord(h.rootDir, item.Kind, item.Name, retryReopenRecord{
+	if writeErr := writeRetryReopenRecord(h.dataRoot, item.Kind, item.Name, retryReopenRecord{
 		Decision:       "reopen",
 		Status:         string(StatusInProgress),
 		PriorStatus:    string(priorStatus),

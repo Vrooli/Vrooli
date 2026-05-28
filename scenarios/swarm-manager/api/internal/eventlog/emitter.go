@@ -203,6 +203,31 @@ func (e *Emitter) EmitDequeued(backlogKind, backlogName, reason string) {
 	})
 }
 
+// --- Record events ---
+
+// EmitRecordCreated records that a new records.Record was persisted. Actor is
+// "user" by default; pass actorType="agent" or similar for non-human authors.
+// The stats engine consumes both this and EmitRecordSuperseded to compute
+// records-per-window and regression-rate.
+func (e *Emitter) EmitRecordCreated(recordID, kind, scenario, backlogRef string, stub bool) {
+	e.emit(EntityRecord, recordID, EventRecordCreated, RecordCreatedPayload{
+		Kind:       kind,
+		Scenario:   scenario,
+		BacklogRef: backlogRef,
+		Stub:       stub,
+	})
+}
+
+// EmitRecordSuperseded records that a record was superseded by another. The
+// successor record's id goes in Event.EntityID; the predecessor goes in the
+// payload, giving stats consumers a directional link without joining tables.
+func (e *Emitter) EmitRecordSuperseded(successorID, supersededID, reason string) {
+	e.emit(EntityRecord, successorID, EventRecordSuperseded, RecordSupersededPayload{
+		SupersededID: supersededID,
+		Reason:       reason,
+	})
+}
+
 // --- System/migration events ---
 
 // EmitMigrationApplied records that a one-time migration has finished. Callers

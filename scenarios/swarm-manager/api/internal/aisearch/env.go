@@ -21,6 +21,7 @@ const (
 	EnvAISearchThreshold      = "AI_SEARCH_THRESHOLD"
 	EnvAISearchBacklogColl    = "AI_SEARCH_BACKLOG_COLLECTION"
 	EnvAISearchInitiativeColl = "AI_SEARCH_INITIATIVE_COLLECTION"
+	EnvAISearchRecordColl     = "AI_SEARCH_RECORD_COLLECTION"
 
 	// EnvAISearchSyncInterval overrides the SyncLoop tick interval (e.g.
 	// "30m", "24h"). Default DefaultSyncInterval. Invalid values fall back to
@@ -41,6 +42,7 @@ const (
 	DefaultThreshold            = 0.5
 	DefaultBacklogCollection    = "swarm-manager-backlog"
 	DefaultInitiativeCollection = "swarm-manager-initiatives"
+	DefaultRecordCollection     = "swarm-manager-records"
 
 	// DefaultSyncInterval is the SyncLoop tick interval when unset. 5m matches
 	// the original Service.StartPeriodicSync interval — the convergent
@@ -139,6 +141,7 @@ type Config struct {
 	Threshold            float64
 	BacklogCollection    string
 	InitiativeCollection string
+	RecordCollection     string
 }
 
 // LoadConfigFromEnv reads the full aisearch configuration from the process
@@ -155,6 +158,7 @@ func LoadConfigFromEnv() Config {
 		Threshold:            DefaultThreshold,
 		BacklogCollection:    DefaultBacklogCollection,
 		InitiativeCollection: DefaultInitiativeCollection,
+		RecordCollection:     DefaultRecordCollection,
 	}
 	if v := strings.TrimSpace(os.Getenv(EnvAISearchModel)); v != "" {
 		cfg.EmbeddingModel = v
@@ -164,6 +168,9 @@ func LoadConfigFromEnv() Config {
 	}
 	if v := strings.TrimSpace(os.Getenv(EnvAISearchInitiativeColl)); v != "" {
 		cfg.InitiativeCollection = v
+	}
+	if v := strings.TrimSpace(os.Getenv(EnvAISearchRecordColl)); v != "" {
+		cfg.RecordCollection = v
 	}
 	if v := strings.TrimSpace(os.Getenv(EnvAISearchThreshold)); v != "" {
 		if parsed, err := strconv.ParseFloat(v, 64); err == nil && parsed > 0 {

@@ -25,18 +25,19 @@ type AIIndexer interface {
 }
 
 // Store manages initiative persistence on the local filesystem.
-// Each initiative is stored as a folder at {baseDir}/initiatives/{name}/
+// Each initiative is stored as a folder at {dataRoot}/initiatives/{name}/
 // containing an initiative.json metadata file and any additional context files.
 type Store struct {
 	dir       string // absolute path to the initiatives directory
 	aiIndexer AIIndexer
 }
 
-// NewStore creates a Store. baseDir is the scenario root; initiatives are
-// stored under {baseDir}/initiatives/.
-func NewStore(baseDir string) *Store {
+// NewStore creates a Store. dataRoot is the runtime-home data directory
+// (e.g. `~/.vrooli/data/vrooli/swarm-manager`); initiatives are stored under
+// {dataRoot}/initiatives/.
+func NewStore(dataRoot string) *Store {
 	return &Store{
-		dir: filepath.Join(baseDir, "initiatives"),
+		dir: filepath.Join(dataRoot, "initiatives"),
 	}
 }
 

@@ -363,6 +363,14 @@ Consumed by `backlog-sort.ts` (sidebar/command post sorting) and `feed.ts` (unif
 - **Partial update contract**: Initiative updates accept only the fields that are changing (`title`, `description`, `status`, `priority`, `depends_on`, `items`, `acceptance_criteria`, `note`). Public create/update requests reject `mode`; every mode mutation flows through the operating-mode switch boundary.
 - **Rollup status**: Derived from member item statuses (pending if all backlog, active if any in_progress, completed if all done, blocked if any has unmet deps)
 - **Operating-mode metadata**: CRUD owns persistence of `mode` and public mutation of `acceptance_criteria`, but not public mode mutation, phase orchestration, prompt rendering, artifact parsing, or runner behavior. Blank historical mode normalizes to `item-level`.
+- **Store data root**: `initiatives.NewStore(dataRoot)` takes the runtime-home data root (`runtimepaths.DataPath("")`); folders live at `<dataRoot>/initiatives/<name>/`. Initiatives have no repo-anchor needs — single-root domain.
+
+### Captures Store Boundary
+
+`api/internal/captures/handler.go` persists capture folders.
+
+- **Cache-class invariant**: Captures live under `<cacheRoot>/captures/<id>/` where `cacheRoot = runtimepaths.CachePath("")`. This is the cache class, not data — guarded by `runtimepaths/paths_test.go:T-R2` so disposable captures aren't backed up by data-backup-manager.
+- **Constructor**: `captures.NewHandler(cacheRoot, agentService, promptClient)`.
 
 **Testing at the seam**: Mock `BacklogLoader` to test rollup computation without touching the filesystem.
 
@@ -621,8 +629,52 @@ The overview endpoint composes these interfaces to produce a summary containing 
 - **FileStore struct**: Filesystem-backed implementation; encapsulates base directory, spec.json serialization, directory creation
 - **Sentinel errors**: `ErrNotFound`, `ErrAlreadyExists`, `ErrInvalidKind` in `errors.go` enable `errors.Is` in handlers
 - Handlers hold `Store` (interface), enabling mock injection for fault testing (e.g., `failingSaveStore` in batch rollback tests)
+- **Two-root model**: `backlog.Handler` carries `dataRoot` (runtime-home data dir, where item folders live — `~/.vrooli/data/vrooli/swarm-manager/<kind>/...`) and `repoRoot` (scenario source path, used only as a repo anchor by `validate_globs.go:resolveRepoRoot`). `NewHandler("", "")` defaults dataRoot to `runtimepaths.DataPath("")` and repoRoot to `pathutil.ResolveScenarioRoot("swarm-manager")`. The `FileStore` is rooted at dataRoot.
 
 **Testing at the seam**: Tests exercise CRUD operations against a temp directory. Mock stores can be injected for fault injection (SaveItem failures, simulated disk errors).
+
+### Records Store Boundary
+
+`api/internal/records/store.go` defines the `Store` interface and `FileStore` concrete implementation for record persistence.
+
+- **Store interface**: `Create`, `Get`, `List`, `SetSupersededBy`, `UpdateNarrative` — filesystem CRUD with stub→fill semantics.
+- **FileStore struct**: Persists JSON under `<dataRoot>/records/<scenario>/<kind>/<ulid>.json` (dataRoot is `runtimepaths.DataPath("")` — `~/.vrooli/data/vrooli/swarm-manager`); atomic writes via tmp+rename; walk-based `findPath` resolves an id without requiring scenario+kind from callers; default-hides stubs in `List` unless `IncludeStubs=true`.
+- **Sentinel errors**: `ErrNotFound`, `ErrStubLocked`, `ErrSupersedeCycle`, `ErrAlreadySuperseded`.
+- Compile-time assertions: `var _ Store = (*FileStore)(nil)` and `var _ Store = (*fakeStore)(nil)` in `store_test.go`.
+
+**Testing at the seam**: `FileStore` exercised against `t.TempDir()`; `fakeStore` injected for handler/service tests that don't need real filesystem.
+
+### Records Indexer Boundary
+
+`api/internal/records/service.go` declares `Indexer` (interface) and a `SetIndexer(Indexer)` post-construction setter on `Service`. Production wiring: `aisearch.RecordIndexerAdapter` (in `api/internal/aisearch/records.go`) wraps `aisearch.Service.IndexRecord` and `DeleteRecord`. Default (when Ollama/Qdrant aren't configured): nil — service no-ops.
+
+- Composed embedding text: `trigger + approach + ruled_out` joined.
+- Point ID: UUIDv5 from `"swarm-manager:record/{ulid}"` namespace — see `aisearch/records_test.go` `TestRecordPointID_NamespaceCollisionPrevention`.
+- Stubs are skipped (Indexer returns nil) — they're noise until filled.
+
+**Testing at the seam**: `fakeIndexer` records calls; real wiring covered by `aisearch/records_test.go`.
+
+### Records Event-Logger Boundary
+
+`records.Service.SetEventLogger(EventLogger)` post-construction setter. Production wiring: `*eventlog.Emitter` (satisfies the interface via `EmitRecordCreated`, `EmitRecordSuperseded`). Default: nil — service no-ops.
+
+- Events: `record.created` (`RecordCreatedPayload{Kind, Scenario, BacklogRef, Stub}`), `record.superseded` (`RecordSupersededPayload{SupersededID, Reason}`).
+- Stats engine folds both — see `stats/engine.go` `aggregateState.processEvent`.
+
+### Records Searcher Boundary
+
+`records.Searcher` interface (declared in `records/handler.go`) + `Handler.SetSearcher` post-construction setter. Production wiring: `aisearch.RecordSearcherAdapter` (in `api/internal/aisearch/records_search.go`) bridges to `aisearch.Service.SearchRecords`. Default: nil — handler returns 503 on `POST /records/search`.
+
+**Testing at the seam**: `aisearch/records_search_test.go` covers entity routing, filter behavior, rehydration via the records store, and orphan-skip.
+
+### Backlog Terminal Hook Boundary
+
+`api/internal/backlog/review_decide.go` `Handler.SetRecordStubCreator(RecordStubCreator)` registers a seam called on terminal status transitions (`completed`/`failed`). Production wiring: `recordStubAdapter` (in `main.go`) calls `records.Service.CreateStub` with `backlog_ref = kind/name`, mirrored kind, and outcome derived from status (`completed → shipped`, `failed → abandoned`).
+
+- Opt-out: `ReviewDecideRequest.NoRecord = true` skips stub creation.
+- Surface: `ReviewDecideResponse.RecordStubID` returns the stub id when created.
+- Safety: stub-creation errors are surfaced but do not block the terminal status transition.
+- Co-existence: `AddItemTerminalHandler` (panic-safe chain) supports multiple observers (e.g., initiative-review) without conflicting with the stub-creator path.
 
 ### Execution Queuer Boundary
 

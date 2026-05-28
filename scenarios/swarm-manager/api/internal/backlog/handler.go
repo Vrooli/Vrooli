@@ -28,6 +28,7 @@ import (
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
 
@@ -58,9 +59,27 @@ type AgentActivityChecker interface {
 // be cheap or self-gate expensive work to a goroutine.
 type ItemTerminalHandler func(ctx context.Context, kind, name string, status BacklogStatus)
 
+// RecordStubCreator is the records soft-prompt seam: when a backlog item
+// reaches a terminal status (and the client did not pass --no-record), the
+// review-decide endpoint asks the implementation to create a thin record
+// stub linking back to the item. Returned id is surfaced to the client so
+// the agent can fill it via `records edit`. Errors are logged and dropped;
+// stub creation must never block or fail the terminal transition.
+//
+// seam: backlog.RecordStubCreator
+type RecordStubCreator interface {
+	CreateBacklogStub(ctx context.Context, kind, name string, status BacklogStatus, decidedBy string) (recordID string, err error)
+}
+
 // Handler provides HTTP handlers for backlog operations.
+//
+// dataRoot is where on-disk item folders live (runtime home,
+// `~/.vrooli/data/vrooli/swarm-manager/<kind>/...`). repoRoot is the
+// scenario source path used purely as a repo anchor (e.g. by
+// validate_globs.go to resolve `.vrooli/repo-contract.json`).
 type Handler struct {
-	rootDir             string
+	dataRoot            string
+	repoRoot            string
 	store               Store
 	agentService        AgentSpawner
 	activityChecker     AgentActivityChecker
@@ -74,6 +93,7 @@ type Handler struct {
 	eventLogger         EventLogger
 	workshopTicker      *WorkshopTicker
 	itemTerminalHandler ItemTerminalHandler
+	recordStubCreator   RecordStubCreator
 }
 
 // EventLogger records state-change events for analytics.
@@ -97,14 +117,15 @@ type EventLogger interface {
 }
 
 // NewHandler creates a new backlog handler.
-// If rootDir is empty, it defaults to the scenario root directory.
-func NewHandler(rootDir string) *Handler {
-	if rootDir == "" {
-		rootDir = pathutil.ResolveScenarioRoot("swarm-manager")
-	}
+// Empty dataRoot defaults to runtimepaths.DataPath("");
+// empty repoRoot defaults to pathutil.ResolveScenarioRoot("swarm-manager").
+func NewHandler(dataRoot, repoRoot string) *Handler {
+	dataRoot = resolveDataRootOrDefault(dataRoot)
+	repoRoot = resolveRepoRootOrDefault(repoRoot)
 	return &Handler{
-		rootDir:      rootDir,
-		store:        NewFileStore(rootDir),
+		dataRoot:     dataRoot,
+		repoRoot:     repoRoot,
+		store:        NewFileStore(dataRoot),
 		agentService: nil,
 		promptClient: promptmanager.NewHTTPClient(),
 	}
@@ -113,13 +134,13 @@ func NewHandler(rootDir string) *Handler {
 // NewHandlerWithClients creates a new backlog handler with custom dependencies.
 // If agentService implements AgentActivityChecker (e.g., *agentactivity.Service),
 // it is also used for active-agent guards.
-func NewHandlerWithClients(rootDir string, agentService AgentSpawner, promptClient promptmanager.Client) *Handler {
-	if rootDir == "" {
-		rootDir = pathutil.ResolveScenarioRoot("swarm-manager")
-	}
+func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentSpawner, promptClient promptmanager.Client) *Handler {
+	dataRoot = resolveDataRootOrDefault(dataRoot)
+	repoRoot = resolveRepoRootOrDefault(repoRoot)
 	h := &Handler{
-		rootDir:      rootDir,
-		store:        NewFileStore(rootDir),
+		dataRoot:     dataRoot,
+		repoRoot:     repoRoot,
+		store:        NewFileStore(dataRoot),
 		agentService: agentService,
 		promptClient: promptClient,
 	}
@@ -130,6 +151,27 @@ func NewHandlerWithClients(rootDir string, agentService AgentSpawner, promptClie
 		h.promptClient = promptmanager.NewHTTPClient()
 	}
 	return h
+}
+
+// resolveDataRootOrDefault returns dataRoot if non-empty; otherwise resolves
+// the runtime-home data path. Falls back to scenarioRoot on resolver error.
+func resolveDataRootOrDefault(dataRoot string) string {
+	if dataRoot != "" {
+		return dataRoot
+	}
+	if p, err := runtimepaths.DataPath(""); err == nil {
+		return p
+	}
+	return pathutil.ResolveScenarioRoot("swarm-manager")
+}
+
+// resolveRepoRootOrDefault returns repoRoot if non-empty; otherwise resolves
+// the swarm-manager scenario source path.
+func resolveRepoRootOrDefault(repoRoot string) string {
+	if repoRoot != "" {
+		return repoRoot
+	}
+	return pathutil.ResolveScenarioRoot("swarm-manager")
 }
 
 // Store returns the underlying backlog store for cross-package use (e.g.,
@@ -169,8 +211,43 @@ func (h *Handler) SetAgentSessionArtifactRecorder(r sessionArtifactRecorder) {
 // endpoint flips an item to a terminal status. Passing nil clears the
 // handler. The callback runs inside the request goroutine, so long-running
 // work should self-dispatch.
+//
+// Prefer AddItemTerminalHandler when multiple subsystems need to observe
+// terminal transitions (initiative review + records + future telemetry).
+// SetItemTerminalHandler replaces all prior handlers, so chaining via Set
+// silently overwrites earlier registrations.
 func (h *Handler) SetItemTerminalHandler(f ItemTerminalHandler) {
 	h.itemTerminalHandler = f
+}
+
+// SetRecordStubCreator wires the records soft-prompt seam. main.go installs
+// this after both backlog and records services are constructed. Nil resets to
+// no-op (review-decide will not create stubs).
+func (h *Handler) SetRecordStubCreator(c RecordStubCreator) {
+	h.recordStubCreator = c
+}
+
+// AddItemTerminalHandler appends a callback to the terminal-status chain. All
+// registered handlers run in registration order; a panic in one does NOT
+// prevent the next from running (each call is wrapped). Returns nil if f is
+// nil (so callers can pass conditional handlers without guarding).
+func (h *Handler) AddItemTerminalHandler(f ItemTerminalHandler) {
+	if f == nil {
+		return
+	}
+	prev := h.itemTerminalHandler
+	h.itemTerminalHandler = func(ctx context.Context, kind, name string, status BacklogStatus) {
+		if prev != nil {
+			func() {
+				defer func() { _ = recover() }()
+				prev(ctx, kind, name, status)
+			}()
+		}
+		func() {
+			defer func() { _ = recover() }()
+			f(ctx, kind, name, status)
+		}()
+	}
 }
 
 // SetAIIndexer wires an optional AI search indexer that receives fire-and-forget

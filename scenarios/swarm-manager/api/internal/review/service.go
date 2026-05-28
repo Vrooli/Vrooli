@@ -71,7 +71,7 @@ type RoundTerminalHandler func(ctx context.Context, kind, name string, round Rou
 
 // ServiceConfig configures the review service dependencies.
 type ServiceConfig struct {
-	RootDir              string
+	DataRoot             string
 	AgentService         AgentSpawner
 	PromptClient         promptmanager.Client
 	ItemDirFn            func(kind, name string) string
@@ -93,7 +93,7 @@ type activeRound struct {
 
 // Service provides review evidence management for completed executions.
 type Service struct {
-	rootDir              string
+	dataRoot             string
 	agentService         AgentSpawner
 	inspector            RunInspector
 	promptClient         promptmanager.Client
@@ -114,7 +114,7 @@ func NewService(cfg ServiceConfig) *Service {
 		pc = promptmanager.NewHTTPClient()
 	}
 	svc := &Service{
-		rootDir:              cfg.RootDir,
+		dataRoot:             cfg.DataRoot,
 		agentService:         cfg.AgentService,
 		promptClient:         pc,
 		itemDirFn:            cfg.ItemDirFn,
@@ -546,7 +546,7 @@ func (s *Service) resolveItemDir(kind, name string) string {
 	if kind == "fix" || kind == "research" {
 		kindDir = kind
 	}
-	return s.rootDir + "/" + kindDir + "/" + name
+	return s.dataRoot + "/" + kindDir + "/" + name
 }
 
 // buildReviewAttachments creates structured context attachments for the review
@@ -832,7 +832,7 @@ func (s *Service) RecoverActiveRounds() {
 	defer s.mu.Unlock()
 
 	for _, kindDir := range []string{"ideas", "research", "fix", "execute", "chore"} {
-		baseDir := s.rootDir + "/" + kindDir
+		baseDir := s.dataRoot + "/" + kindDir
 		entries, err := os.ReadDir(baseDir)
 		if err != nil {
 			continue

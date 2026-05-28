@@ -33,7 +33,7 @@ func followUpTestService(t *testing.T, root string, records []Record, agent Agen
 		t.Fatalf("seed records: %v", err)
 	}
 	svc := NewService(ServiceConfig{
-		RootDir:      root,
+		DataRoot:      root,
 		StorePath:    storePath,
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},

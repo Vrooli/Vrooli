@@ -144,8 +144,8 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 		eq = h.executionQueuer
 	} else {
 		eq = execution.NewService(execution.ServiceConfig{
-			RootDir:            h.dataDir,
-			ScenariosDir:       h.scenariosDir(),
+			DataRoot:           h.dataRoot,
+			RepoRoot:           h.repoRoot,
 			PolicyProvider:     h.policyProvider,
 			GovernanceProvider: h.governanceProvider,
 			AgentService:       h.agentService,

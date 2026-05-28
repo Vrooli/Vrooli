@@ -98,17 +98,17 @@ func restoreBacklogStatus(record Record) string {
 func (s *Service) kindDir(kind string) string {
 	switch strings.ToLower(strings.TrimSpace(kind)) {
 	case "idea":
-		return filepath.Join(s.rootDir, "ideas")
+		return filepath.Join(s.dataRoot, "ideas")
 	case "research":
-		return filepath.Join(s.rootDir, "research")
+		return filepath.Join(s.dataRoot, "research")
 	case "fix":
-		return filepath.Join(s.rootDir, "fix")
+		return filepath.Join(s.dataRoot, "fix")
 	case "execute":
-		return filepath.Join(s.rootDir, "execute")
+		return filepath.Join(s.dataRoot, "execute")
 	case "chore":
-		return filepath.Join(s.rootDir, "chore")
+		return filepath.Join(s.dataRoot, "chore")
 	default:
-		return filepath.Join(s.rootDir, "ideas")
+		return filepath.Join(s.dataRoot, "ideas")
 	}
 }
 
@@ -117,7 +117,7 @@ func (s *Service) itemDir(kind, name string) string {
 }
 
 func (s *Service) scenariosRootDir() string {
-	return filepath.Dir(s.rootDir)
+	return filepath.Dir(s.repoRoot)
 }
 
 // isQueueableStatus checks whether the item's status allows queuing.

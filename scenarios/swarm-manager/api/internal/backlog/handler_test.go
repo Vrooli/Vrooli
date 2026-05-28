@@ -91,7 +91,7 @@ func setupTestHandler(t *testing.T) (*Handler, string) {
 		testutil.MakeDir(t, filepath.Join(rootDir, dir))
 	}
 	disableAutoWorkshopSettings(t, rootDir)
-	h := NewHandler(rootDir)
+	h := NewHandler(rootDir, rootDir)
 	scopeExecutionQueuerForTest(t, h, rootDir, nil)
 	return h, rootDir
 }
@@ -103,7 +103,7 @@ func setupTestHandlerWithAgent(t *testing.T, agent agentmanager.Service) (*Handl
 		testutil.MakeDir(t, filepath.Join(rootDir, dir))
 	}
 	disableAutoWorkshopSettings(t, rootDir)
-	h := NewHandlerWithClients(rootDir, agent, &promptmanager.MockClient{Result: "test prompt"})
+	h := NewHandlerWithClients(rootDir, rootDir, agent, &promptmanager.MockClient{Result: "test prompt"})
 	scopeExecutionQueuerForTest(t, h, rootDir, agent)
 	return h, rootDir
 }
@@ -117,7 +117,8 @@ func scopeExecutionQueuerForTest(t *testing.T, h *Handler, rootDir string, agent
 	t.Helper()
 	storePath := filepath.Join(rootDir, ".vrooli", "execution-runs.json")
 	cfg := execution.ServiceConfig{
-		RootDir:      rootDir,
+		DataRoot:     rootDir,
+		RepoRoot:     rootDir,
 		StorePath:    storePath,
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},

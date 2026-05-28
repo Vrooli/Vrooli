@@ -25,6 +25,54 @@ func (s *aggregateState) buildResponse() StatsResponse {
 		Review:      s.buildReview(),
 		Mode:        s.buildMode(),
 		Session:     s.buildSession(),
+		Records:     s.buildRecords(now),
+	}
+}
+
+// buildRecords folds the per-record counters into the API response shape.
+// Counters initialize to zero, so this is safe to call on scenarios that
+// pre-date the record events — empty maps and zero numerators stay JSON-friendly.
+func (s *aggregateState) buildRecords(now time.Time) RecordStats {
+	last7 := 0
+	last30 := 0
+	cutoff7 := now.Add(-7 * 24 * time.Hour)
+	cutoff30 := now.Add(-30 * 24 * time.Hour)
+	for _, t := range s.recordCreatedAt {
+		if t.After(cutoff7) {
+			last7++
+		}
+		if t.After(cutoff30) {
+			last30++
+		}
+	}
+	without := s.recordTotal - s.recordsWithBacklogRef
+	if without < 0 {
+		without = 0
+	}
+	var regression float64
+	if s.recordTotal > 0 {
+		regression = float64(s.recordsSupersedeCount) / float64(s.recordTotal)
+	}
+	// Copy the maps so consumers can't mutate the engine's running state.
+	byKind := make(map[string]int, len(s.recordsByKind))
+	for k, v := range s.recordsByKind {
+		byKind[k] = v
+	}
+	byScenario := make(map[string]int, len(s.recordsByScenario))
+	for k, v := range s.recordsByScenario {
+		byScenario[k] = v
+	}
+	return RecordStats{
+		TotalRecords:      s.recordTotal,
+		CreatedLast7Days:  last7,
+		CreatedLast30Days: last30,
+		ByKind:            byKind,
+		ByScenario:        byScenario,
+		WithBacklogRef:    s.recordsWithBacklogRef,
+		WithoutBacklogRef: without,
+		Stubs:             s.recordsStubs,
+		SupersedeCount:    s.recordsSupersedeCount,
+		RegressionRate:    regression,
 	}
 }
 

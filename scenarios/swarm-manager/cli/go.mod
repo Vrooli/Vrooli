@@ -1,8 +1,6 @@
 module swarm-manager/cli
 
-go 1.24.0
-
-toolchain go1.24.12
+go 1.25.0
 
 require (
 	github.com/vrooli/api-core v0.0.0

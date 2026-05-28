@@ -92,7 +92,7 @@ func newServiceForStatsEventTests(t *testing.T) (*Service, *capturingEventLogger
 	root := t.TempDir()
 	storePath := filepath.Join(root, "execution-runs.json")
 	svc := NewService(ServiceConfig{
-		RootDir:   root,
+		DataRoot:   root,
 		StorePath: storePath,
 	})
 	logger := &capturingEventLogger{}

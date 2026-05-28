@@ -54,7 +54,7 @@ func TestListSnapshotDoesNotProcessActiveExecutions(t *testing.T) {
 	root := t.TempDir()
 	agent := &snapshotAgentService{}
 	svc := NewService(ServiceConfig{
-		RootDir:      root,
+		DataRoot:      root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		AgentService: agent,
 	})
@@ -98,7 +98,7 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		RootDir:      root,
+		DataRoot:      root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
@@ -177,7 +177,7 @@ func TestQueueAndStartManualExecution_ResearchUsesConclusionDeliverable(t *testi
 
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		RootDir:      root,
+		DataRoot:      root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
@@ -220,7 +220,7 @@ func TestQueueBacklog_UsesPolicyDefaultsWhenModeMissing(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "policy-idea")
 
 	service := NewService(ServiceConfig{
-		RootDir:   root,
+		DataRoot:   root,
 		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
 		PolicyProvider: &stubPolicyProvider{policy: Policy{
 			DefaultMode: ModeManual,
@@ -257,7 +257,7 @@ func TestQueueBacklog_AllowsArchivedIdeas(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "archived-idea")
 
 	service := NewService(ServiceConfig{
-		RootDir:   root,
+		DataRoot:   root,
 		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
 	})
 
@@ -289,7 +289,7 @@ func TestQueueBacklog_YOLORollsBackWhenSpawnFails(t *testing.T) {
 
 	agent := &stubAgentService{spawnErr: errors.New("spawn failed")}
 	service := NewService(ServiceConfig{
-		RootDir:      root,
+		DataRoot:      root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
@@ -330,7 +330,7 @@ func TestCancel_RestoresArchivedIdeaStatus(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "archived-cancel")
 
 	service := NewService(ServiceConfig{
-		RootDir:   root,
+		DataRoot:   root,
 		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
 	})
 
@@ -375,7 +375,7 @@ func TestCancel_RestoresArchivedStatusAfterForcedQueue(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "archived-cancel-forced")
 
 	service := NewService(ServiceConfig{
-		RootDir:   root,
+		DataRoot:   root,
 		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
 	})
 
@@ -416,7 +416,7 @@ func TestCancel_ReturnsErrorWhenRestoreFails(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "cancel-restore-error")
 
 	service := NewService(ServiceConfig{
-		RootDir:   root,
+		DataRoot:   root,
 		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
 	})
 
@@ -581,7 +581,7 @@ func TestCancel_StartingExecution(t *testing.T) {
 	stopper := &stubStopper{}
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		RootDir:      root,
+		DataRoot:      root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
@@ -631,7 +631,7 @@ func TestCancel_NeedsReviewExecution(t *testing.T) {
 	stopper := &stubStopper{}
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		RootDir:      root,
+		DataRoot:      root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
@@ -731,7 +731,7 @@ func TestRefreshRunning_FailedRunSetsBacklogInReview(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		RootDir:   root,
+		DataRoot:   root,
 		StorePath: storePath,
 	})
 	service.inspector = inspector
@@ -795,7 +795,7 @@ func TestRefreshRunning_CanceledRunRestoresBacklogStatus(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		RootDir:   root,
+		DataRoot:   root,
 		StorePath: storePath,
 	})
 	service.inspector = inspector
@@ -1011,7 +1011,8 @@ func TestTriggerReview_CompletedExecution(t *testing.T) {
 	}
 
 	svc := &Service{
-		rootDir:        dir,
+		dataRoot:       dir,
+		repoRoot:       dir,
 		store:          store,
 		reviewClient:   &stubReviewClient{triggerJobID: "job-new"},
 		policyProvider: &defaultPolicyProvider{},
@@ -1055,7 +1056,8 @@ func TestTriggerReview_WrongStatus(t *testing.T) {
 			}
 
 			svc := &Service{
-				rootDir:        dir,
+				dataRoot:       dir,
+				repoRoot:       dir,
 				store:          store,
 				reviewClient:   &stubReviewClient{triggerJobID: "job-x"},
 				policyProvider: &defaultPolicyProvider{},

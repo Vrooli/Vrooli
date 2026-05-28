@@ -8,6 +8,18 @@ This document tracks known issues, technical debt, and stability concerns for th
 
 No known open issues at this time.
 
+## Deferred — REST→proto migration of swarm-manager API (2026-05-28)
+
+Per the project-wide `feedback_proto_connect_always.md` rule, every scenario API domain should use proto + Connect-RPC. Swarm-manager today is REST for almost all domains (`/backlog`, `/initiatives`, `/captures`, `/records` shipped 2026-05-28, etc.); the only Connect-RPC surface is `discovery.DiscoveryService.GetAudioToolsEndpoint`.
+
+The **records** domain (added 2026-05-28) was shipped as REST deliberately to match the existing surface — bundling a scenario-wide proto migration into the records plan would have ballooned scope and coupled two unrelated migrations. The records REST surface was designed to be mechanically proto-able later:
+
+- No multipart bodies, no streaming, no third-party shape constraints — all four `RESTReason*` exemption constants are inapplicable.
+- Endpoints: `POST /records`, `GET /records`, `GET /records/{id}`, `PATCH /records/{id}/narrative`, `POST /records/{id}/supersede`, `POST /records/search` — each maps 1:1 to a Connect RPC.
+- Request/response shapes are flat structs; the JSON tags already match the planned proto field names.
+
+**Next step:** A dedicated swarm-manager-wide proto migration plan should sweep the remaining REST domains together (backlog + initiatives + captures + records + execution + queue + settings + stats + overview) rather than converting one at a time. Until then, this is a tracked, intentional drift — do not silently expand individual feature plans to absorb it.
+
 ## Deferred — operating-mode panel
 
 The operating-mode panel rework (2026-05-02) explicitly deferred a few API-side improvements that would have polished UX further. They are tracked here so the next iteration sees them:
@@ -24,6 +36,16 @@ A second polish pass landed five UI-side phases (clickable mode chip + Info-tab 
 2. **Hover-popover tooltip primitive.** The phase-card `profileKey` chip uses an expanded `title=""` plus a native `<details>` info disclosure for the longer copy. A richer popover primitive (Radix-style) would benefit other surfaces too, but adding it for one chip wasn't worth the dependency surface in this pass.
 
 ## Recently Resolved
+
+### Runtime-home data migration completed (2026-05-28)
+
+The 2026-05-27 commit `0b225a5556` ("swarm-manager data to ~/.vrooli") moved domain data from the repo source path to `~/.vrooli/data/vrooli/swarm-manager/...` but left the API still constructing its stores against `scenarioRoot` — so the UI saw an empty world even though 1300+ items were intact on disk. Today's plan (`finish-swarm-manager-runtime-home-data-migration-data-path-vs-repo-anchor-split`) closed the loop:
+
+- `runtimepaths.CachePath` defined (was referenced by `paths_test.go` only).
+- `backlog.Handler`, `initiatives.Store`, `captures.Handler`, `records.FileStore`, `execution.Service`, `review.Service` all carry an explicit `dataRoot` field instead of overloading one `rootDir` for both data-folder lookups and repo-anchor walks. `backlog.Handler` and `execution.Service` additionally carry a `repoRoot` for the two legitimate repo-anchor uses (`validate_globs.go:resolveRepoRoot` and `execution/backlog_bridge.go:scenariosRootDir`).
+- `main.go` resolves `dataRoot = runtimepaths.DataPath("")` and `cacheRoot = runtimepaths.CachePath("")` at startup and threads both into the four `register*Routes` callsites. Captures get `cacheRoot` (preserves the cache-class invariant in `runtimepaths/paths_test.go:T-R2`); the other three get `dataRoot`.
+- `testDataRoot(t)` helper defined; `newTestServer` swapped XDG_* envs for the canonical `VROOLI_STORAGE_ROOT` substrate.
+- `fresh_checkout_storage_test.go` and the four `e2e_initiative_feedback_*_test.go` files now compile and pass.
 
 ### Operating Mode Panel Polish (2026-05-02)
 

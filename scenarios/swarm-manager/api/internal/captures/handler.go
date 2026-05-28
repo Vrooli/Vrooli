@@ -44,8 +44,12 @@ type EventLogger interface {
 }
 
 // Handler provides HTTP handlers for capture operations.
+//
+// cacheRoot is the runtime-home cache directory (captures are disposable
+// per the cache-class invariant: paths_test.go T-R2). Captures live at
+// `<cacheRoot>/captures/<id>/`.
 type Handler struct {
-	rootDir         string
+	cacheRoot       string
 	agentService    AgentSpawner
 	promptClient    promptmanager.Client
 	backlogCreator  BacklogItemCreator
@@ -54,9 +58,9 @@ type Handler struct {
 }
 
 // NewHandler creates a new captures handler.
-func NewHandler(rootDir string, agentService AgentSpawner, promptClient promptmanager.Client) *Handler {
+func NewHandler(cacheRoot string, agentService AgentSpawner, promptClient promptmanager.Client) *Handler {
 	h := &Handler{
-		rootDir:      rootDir,
+		cacheRoot:    cacheRoot,
 		agentService: agentService,
 		promptClient: promptClient,
 	}

@@ -28,7 +28,7 @@ func TestCreate_ReturnsBadGatewayForAgentManagerRequestFailure(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "request-fail-idea")
 
 	service := NewService(ServiceConfig{
-		RootDir:   root,
+		DataRoot:   root,
 		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
 		AgentService: &mocks.AgentSpawner{
 			Enabled:  true,
@@ -55,7 +55,7 @@ func TestList_UsesSnapshotWithoutRefreshingRunState(t *testing.T) {
 	root := t.TempDir()
 	agent := &snapshotAgentService{}
 	service := NewService(ServiceConfig{
-		RootDir:      root,
+		DataRoot:      root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		AgentService: agent,
 	})

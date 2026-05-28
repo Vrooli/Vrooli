@@ -10,7 +10,7 @@ import (
 
 func TestRegisterRoutes_List(t *testing.T) {
 	rootDir := t.TempDir()
-	handler := NewHandler(rootDir)
+	handler := NewHandler(rootDir, rootDir)
 	r := mux.NewRouter()
 	handler.RegisterRoutes(r)
 

@@ -45,6 +45,7 @@ import (
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/prompts"
 	"swarm-manager/internal/queue"
+	"swarm-manager/internal/records"
 	"swarm-manager/internal/review"
 	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/scenarios"
@@ -69,6 +70,9 @@ type Server struct {
 	settingsStore       *settings.Store
 	backlogHandler      *backlog.Handler
 	capturesHandler     *captures.Handler
+	recordsService      *records.Service
+	recordsHandler      *records.Handler
+	recordsStore        records.Store
 	scenariosHandler    *scenarios.Handler
 	initStore           *initiatives.Store
 	initiativeService   *initiatives.Service
@@ -87,6 +91,8 @@ type Server struct {
 	graphProjection     *graph.ProjectionService
 	queueHandler        *queue.Handler
 	scenarioRoot        string
+	dataRoot            string
+	cacheRoot           string
 	promptClient        promptmanager.Client
 	eventDB             *sql.DB
 	emitter             *eventlog.Emitter
@@ -135,6 +141,21 @@ func NewServerWithRoot(scenarioRoot string) *Server {
 }
 
 func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *Server {
+	dataRoot, err := runtimepaths.DataPath("")
+	if err != nil {
+		log.Fatalf("resolve runtime data root: %v", err)
+	}
+	cacheRoot, err := runtimepaths.CachePath("")
+	if err != nil {
+		log.Fatalf("resolve runtime cache root: %v", err)
+	}
+	if err := os.MkdirAll(dataRoot, 0o755); err != nil {
+		log.Fatalf("create runtime data root %q: %v", dataRoot, err)
+	}
+	if err := os.MkdirAll(cacheRoot, 0o755); err != nil {
+		log.Fatalf("create runtime cache root %q: %v", cacheRoot, err)
+	}
+
 	agentEnabled := strings.ToLower(strings.TrimSpace(os.Getenv("AGENT_MANAGER_ENABLED"))) != "false"
 	if err := operatingmode.ValidateRegistry(); err != nil {
 		log.Fatalf("invalid operating-mode registry: %v", err)
@@ -160,6 +181,8 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 		aiSearchStopChan:    make(chan struct{}),
 		feedbackSweeperStop: make(chan struct{}),
 		scenarioRoot:        scenarioRoot,
+		dataRoot:            dataRoot,
+		cacheRoot:           cacheRoot,
 		promptClient:        promptClient,
 		audioToolsResolver:  resolveAudioToolsResolver(),
 	}
@@ -221,12 +244,13 @@ func (s *Server) setupRoutes() {
 	s.router.Use(identity.SessionMiddleware(s.agentSessionSvc))
 
 	// --- Core domain ---
-	backlogHandler := s.registerBacklogRoutes(scenarioRoot)
-	initService := s.registerInitiativeRoutes(scenarioRoot, backlogHandler)
-	s.registerCapturesRoutes(scenarioRoot, backlogHandler)
+	backlogHandler := s.registerBacklogRoutes(s.dataRoot, scenarioRoot)
+	initService := s.registerInitiativeRoutes(s.dataRoot, backlogHandler)
+	s.registerCapturesRoutes(s.cacheRoot, backlogHandler)
+	s.registerRecordsRoutes(s.dataRoot)
 
 	// --- Execution & review ---
-	execSvc := s.registerExecutionRoutes(scenarioRoot)
+	execSvc := s.registerExecutionRoutes(s.dataRoot, scenarioRoot)
 	s.registerReviewRoutes(scenarioRoot, execSvc)
 	s.registerQueueRoutes(scenarioRoot)
 
@@ -266,11 +290,13 @@ func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler, initSer
 	embedder := aisearch.NewEmbedder(cfg.EmbeddingModel)
 	backlogVS := aisearch.NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.BacklogCollection, cfg.VectorDimensions)
 	initVS := aisearch.NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.InitiativeCollection, cfg.VectorDimensions)
+	recordVS := aisearch.NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.RecordCollection, cfg.VectorDimensions)
 
 	backlogReader := aisearch.NewBacklogStoreAdapter(backlogHandler.Store())
 	initReader := aisearch.NewInitiativeStoreAdapter(s.initStore)
 
 	svc := aisearch.NewService(embedder, backlogVS, initVS, backlogReader, initReader, cfg.Threshold)
+	svc.SetRecordStore(recordVS)
 
 	// The Reconciler is the single owner of the "make qdrant match disk"
 	// decision. The Service handles search + status; the Reconciler handles
@@ -287,6 +313,12 @@ func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler, initSer
 	if cfg.OllamaURL != "" && cfg.QdrantURL != "" {
 		backlogHandler.SetAIIndexer(svc)
 		initService.SetAIIndexer(svc)
+		if s.recordsService != nil {
+			s.recordsService.SetIndexer(aisearch.NewRecordIndexerAdapter(svc))
+		}
+		if s.recordsHandler != nil && s.recordsStore != nil {
+			s.recordsHandler.SetSearcher(aisearch.NewRecordSearcherAdapter(svc, s.recordsStore))
+		}
 	}
 
 	handler := aisearch.NewHandler(svc, reconciler)
@@ -335,8 +367,8 @@ func (s *Server) registerHealthRoutes() {
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 }
 
-func (s *Server) registerBacklogRoutes(scenarioRoot string) *backlog.Handler {
-	backlogHandler := backlog.NewHandlerWithClients(scenarioRoot, s.requireTrackedAgentService(), nil)
+func (s *Server) registerBacklogRoutes(dataRoot, scenarioRoot string) *backlog.Handler {
+	backlogHandler := backlog.NewHandlerWithClients(dataRoot, scenarioRoot, s.requireTrackedAgentService(), nil)
 	backlogHandler.SetPolicyProvider(settings.NewPolicyAdapter(s.settingsStore))
 	backlogHandler.SetGovernanceProvider(settings.NewGovernanceAdapter(s.settingsStore))
 	backlogHandler.SetAgentSessionArtifactRecorder(s.agentSessionSvc)
@@ -347,8 +379,8 @@ func (s *Server) registerBacklogRoutes(scenarioRoot string) *backlog.Handler {
 	return backlogHandler
 }
 
-func (s *Server) registerInitiativeRoutes(scenarioRoot string, backlogHandler *backlog.Handler) *initiatives.Service {
-	initStore := initiatives.NewStore(scenarioRoot)
+func (s *Server) registerInitiativeRoutes(dataRoot string, backlogHandler *backlog.Handler) *initiatives.Service {
+	initStore := initiatives.NewStore(dataRoot)
 	s.initStore = initStore
 	initService := initiatives.NewService(initStore, backlogHandler.Store())
 	initHandler := initiatives.NewHandler(initService)
@@ -369,11 +401,27 @@ func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler, initSer
 	return overviewSvc
 }
 
-func (s *Server) registerCapturesRoutes(scenarioRoot string, backlogHandler *backlog.Handler) {
-	capturesHandler := captures.NewHandler(scenarioRoot, s.requireTrackedAgentService(), nil)
+func (s *Server) registerCapturesRoutes(cacheRoot string, backlogHandler *backlog.Handler) {
+	capturesHandler := captures.NewHandler(cacheRoot, s.requireTrackedAgentService(), nil)
 	capturesHandler.SetBacklogCreator(captures.NewBacklogItemCreatorAdapter(backlogHandler.Store()))
 	capturesHandler.RegisterRoutes(s.router)
 	s.capturesHandler = capturesHandler
+}
+
+func (s *Server) registerRecordsRoutes(dataRoot string) {
+	store := records.NewFileStore(dataRoot)
+	svc := records.NewService(store, nil, nil)
+	handler := records.NewHandler(svc, nil)
+	handler.RegisterRoutes(s.router)
+	s.recordsService = svc
+	s.recordsHandler = handler
+	s.recordsStore = store
+	// Soft-prompt hook: auto-create stub records on backlog terminal transitions.
+	// Backlog must already be registered (it is — registerBacklogRoutes runs
+	// before registerRecordsRoutes); guard defensively anyway.
+	if s.backlogHandler != nil {
+		s.backlogHandler.SetRecordStubCreator(newRecordStubAdapter(svc))
+	}
 }
 
 func (s *Server) registerScenarioRoutes(scenariosDir string) {

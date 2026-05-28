@@ -206,6 +206,7 @@ describe("VoiceMicButton", () => {
           silenceTimeoutMs: 1500,
           receivedAt: performance.now(),
           tickSeq: 3,
+          silenceTimedOut: false,
         }}
       />,
     );
@@ -241,6 +242,7 @@ describe("VoiceMicButton", () => {
           silenceTimeoutMs: 1200,
           receivedAt: staleAt,
           tickSeq: 7,
+          silenceTimedOut: false,
         }}
       />,
     );
@@ -273,6 +275,7 @@ describe("VoiceMicButton", () => {
           silenceTimeoutMs: 0,
           receivedAt: performance.now(),
           tickSeq: 1,
+          silenceTimedOut: false,
         }}
       />,
     );

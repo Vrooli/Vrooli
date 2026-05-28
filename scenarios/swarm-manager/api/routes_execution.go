@@ -12,7 +12,7 @@ import (
 	"swarm-manager/internal/settings"
 )
 
-func (s *Server) registerExecutionRoutes(scenarioRoot string) *execution.Service {
+func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *execution.Service {
 	// Create archiver from scenarios handler for post-spec-sync archive
 	var archiver execution.Archiver
 	if s.scenariosHandler != nil {
@@ -26,7 +26,8 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) *execution.Service
 
 	// Execution control endpoints
 	cfg := execution.ServiceConfig{
-		RootDir:                  scenarioRoot,
+		DataRoot:                 dataRoot,
+		RepoRoot:                 scenarioRoot,
 		StorePath:                storePath,
 		SelfScenarioName:         "swarm-manager",
 		PolicyProvider:           settings.NewPolicyAdapter(s.settingsStore),
@@ -60,9 +61,9 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) *execution.Service
 }
 
 func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Service) {
-	backlogStore := backlog.NewFileStore(scenarioRoot)
+	backlogStore := backlog.NewFileStore(s.dataRoot)
 	cfg := review.ServiceConfig{
-		RootDir:      scenarioRoot,
+		DataRoot:     s.dataRoot,
 		AgentService: s.requireTrackedAgentService(),
 		ItemDirFn:    func(kind, name string) string { return backlogStore.ItemDir(backlog.BacklogKind(kind), name) },
 		LoadItemTitle: func(kind, name string) (string, error) {
