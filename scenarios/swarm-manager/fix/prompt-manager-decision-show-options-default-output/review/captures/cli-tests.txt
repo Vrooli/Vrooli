@@ -1,8 +1,0 @@
-=== RUN   TestFormatDecisionShow_OptionsWithRecommended
---- PASS: TestFormatDecisionShow_OptionsWithRecommended (0.00s)
-=== RUN   TestFormatDecisionShow_NoOptionsOmitsSection
---- PASS: TestFormatDecisionShow_NoOptionsOmitsSection (0.00s)
-=== RUN   TestFormatDecisionShow_SelectedMarker
---- PASS: TestFormatDecisionShow_SelectedMarker (0.00s)
-PASS
-ok  	prompt-manager/cli/teams	0.004s

@@ -1,2 +1,0 @@
-ok  	scenario-to-desktop-api/pipeline	5.677s
-ok  	scenario-to-desktop-api/deploy	0.016s

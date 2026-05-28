@@ -1,3 +1,0 @@
-=== ./cli/prompt-manager bogus-cmd (expecting non-zero) ===
-Error: Unknown command: bogus-unknown-command
-exit_code=1

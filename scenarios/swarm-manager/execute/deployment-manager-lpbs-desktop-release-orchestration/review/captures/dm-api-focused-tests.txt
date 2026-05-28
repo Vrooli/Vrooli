@@ -1,3 +1,0 @@
-ok  	deployment-manager/deployments	0.007s
-ok  	deployment-manager/releases	0.006s
-ok  	deployment-manager/profiles	0.004s

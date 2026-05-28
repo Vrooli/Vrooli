@@ -1,9 +1,0 @@
-{
-  "round": 1,
-  "generated_at": "2026-04-26T15:58:33Z",
-  "execution_id": "709f6207752d31f2",
-  "status": "failed",
-  "failure_reason": "review run completed without agent_assessment",
-  "evidence": [],
-  "run_id": "a244ab04-d2b7-4c89-92e5-c129ed720485"
-}
