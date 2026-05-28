@@ -168,5 +168,12 @@
   "capabilities": {
     "supports_logs": false
   },
+  "upstream_cli": {
+    "version_command": ["claude", "--version"],
+    "version_pinned": "2.1.153",
+    "docs_source": "https://code.claude.com/docs/en/permissions",
+    "docs_pinned_at": "2026-05-28",
+    "schema_version": 1
+  },
   "template_version": "2"
 }

@@ -48,6 +48,31 @@ resource-opencode status
 - Keep environment exports and binary contract metadata declarative in `resource.json`.
 - Only add logic to `cli/internal/env` or `cli/internal/auth` when OpenCode-specific shaping or validation is genuinely needed.
 
+## Permissions
+
+Manage the bash patterns OpenCode is allowed (or denied) to run via the `permissions` subgroup. The adapter owns `permission.bash` entries in `~/.config/opencode/opencode.json`; hand-written entries and unrelated config keys round-trip untouched.
+
+```bash
+# Block git stash for OpenCode (motivating example)
+resource-opencode permissions deny 'git stash *'
+
+# View managed patterns
+resource-opencode permissions list
+resource-opencode permissions show --raw
+
+# Detect drift since the last Vrooli write
+resource-opencode permissions drift-check
+
+# Check installed OpenCode version against the pinned upstream
+resource-opencode permissions doctor
+```
+
+Mutating verbs (`deny`, `allow`, `ask`, `remove`, `reset`) refuse agent callers (detected via `cliutil.DetectCallerKind` — `VROOLI_CALLER=agent`, `CLAUDECODE=1`, opencode PID-match, etc.) unless `--i-was-explicitly-authorized` is passed. Read verbs (`list`, `show`, `drift-check`, `doctor`) are always allowed.
+
+OpenCode evaluates `permission.bash` as last-match-wins. The adapter writes alphabetically-sorted keys, so `*` (a likely default wildcard) sorts before letters and specific patterns end up later in iteration order, winning the match. If you need different ordering, hand-edit and `drift-check` will surface it.
+
+Upstream docs: <https://opencode.ai/docs/permissions/>.
+
 ## Notes
 
 - This resource wraps an external CLI. It should stay thin by default.

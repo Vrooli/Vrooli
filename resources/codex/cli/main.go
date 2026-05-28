@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"resource-codex/cli/internal/permissionscli"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -10,6 +11,10 @@ import (
 const (
 	appName    = "codex"
 	appVersion = "0.1.0"
+	// upstreamPinnedVersion mirrors resource.json upstream_cli.version_pinned.
+	// `permissions doctor` warns when the installed codex CLI version
+	// diverges from this string.
+	upstreamPinnedVersion = "0.131.0"
 )
 
 var (
@@ -45,6 +50,11 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
-	app.SetCommands(app.StandardLifecycleCommands())
+	app.SetCommandsWithSubgroups(
+		app.StandardLifecycleCommands(),
+		[]cliapp.SubcommandGroup{
+			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
+		},
+	)
 	return app, nil
 }

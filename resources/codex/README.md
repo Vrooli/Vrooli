@@ -49,6 +49,34 @@ vrooli resource install codex
 resource-codex status
 ```
 
+## Permissions
+
+Manage Codex bash-command patterns via the `permissions` subgroup. The adapter owns a Vrooli-namespaced `[vrooli.permissions]` section in `~/.codex/config.toml` (user scope) or `~/.codex/requirements.toml` (admin scope). All other Codex-native settings (`[profiles.*]`, `sandbox_mode`, `approval_policy`, …) round-trip untouched.
+
+```bash
+# Block git stash at user scope (motivating example)
+resource-codex permissions deny 'git stash *'
+
+# Same, admin-enforced
+resource-codex permissions deny --scope admin 'git stash *'
+
+# View managed patterns
+resource-codex permissions list
+resource-codex permissions show --raw
+
+# Detect drift since the last Vrooli write
+resource-codex permissions drift-check
+
+# Check version and surface the enforcement caveat
+resource-codex permissions doctor
+```
+
+Mutating verbs (`deny`, `allow`, `ask`, `remove`, `reset`) refuse agent callers (detected via `cliutil.DetectCallerKind`) unless `--i-was-explicitly-authorized` is passed. Read verbs are always allowed.
+
+**Enforcement caveat.** Unlike Claude Code (`permissions.deny` + `PreToolUse` hook) or OpenCode (`permission.bash` map), Codex does **not** today honour per-command-pattern deny/ask/allow rules natively — its policy surface is `sandbox_mode` and `approval_policy`. The `[vrooli.permissions]` section records Vrooli's intent across all coding-agent resources uniformly; for hard live enforcement use Codex's sandbox/approval primitives.
+
+Upstream docs: <https://developers.openai.com/codex/permissions>.
+
 ## Notes
 
 - `codex` is an external CLI resource, not a local daemon owned by this resource.

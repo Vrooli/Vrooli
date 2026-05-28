@@ -143,5 +143,12 @@
     "supports_logs": false,
     "supports_content_ops": true
   },
+  "upstream_cli": {
+    "version_command": ["opencode", "--version"],
+    "version_pinned": "1.15.7",
+    "docs_source": "https://opencode.ai/docs/permissions/",
+    "docs_pinned_at": "2026-05-28",
+    "schema_version": 1
+  },
   "template_version": "2"
 }

@@ -32,6 +32,7 @@ const (
 	CommandSharedDrift  CommandID = "check-shared-drift"
 	CommandLifecycle    CommandID = "lifecycle"
 	CommandAuth         CommandID = "auth"
+	CommandAgentPolicy  CommandID = "agent-policy"
 )
 
 func CommandSpecs() []commandtree.Spec[CommandID] {
@@ -58,6 +59,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandHygiene), Group: "Maintenance Commands", Summary: "Run repository hygiene checks", Handler: CommandHygiene, Suggestable: true},
 		{Name: string(CommandSharedDrift), Group: "Maintenance Commands", Summary: "Check dependent scenarios for stale shared-package state", Handler: CommandSharedDrift, Suggestable: true},
 		{Name: string(CommandAuth), Group: "Maintenance Commands", Summary: "Report sign-in state for host tools (buf, future: claude/codex/gh/...)", Handler: CommandAuth, Suggestable: true},
+		{Name: string(CommandAgentPolicy), Group: "Maintenance Commands", Summary: "Manage permissions across every installed coding-agent resource", Handler: CommandAgentPolicy, Suggestable: true},
 		{Name: string(CommandLifecycle), Group: "Maintenance Commands", Summary: "Internal lifecycle command plumbing", Handler: CommandLifecycle, Hidden: true, Suggestable: false, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 	}
 }

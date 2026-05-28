@@ -178,5 +178,12 @@
   "capabilities": {
     "supports_logs": false
   },
+  "upstream_cli": {
+    "version_command": ["codex", "--version"],
+    "version_pinned": "0.131.0",
+    "docs_source": "https://developers.openai.com/codex/permissions",
+    "docs_pinned_at": "2026-05-28",
+    "schema_version": 1
+  },
   "template_version": "2"
 }

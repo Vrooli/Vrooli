@@ -19,11 +19,11 @@ import (
 	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/bootstrap"
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/cli/agentpolicyhandlers"
 	"github.com/vrooli/vrooli/internal/cli/authhandlers"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/contracthandlers"
 	"github.com/vrooli/vrooli/internal/cli/hygienehandlers"
-	"github.com/vrooli/vrooli/internal/cli/shareddrifthandlers"
 	"github.com/vrooli/vrooli/internal/cli/metrics"
 	"github.com/vrooli/vrooli/internal/cli/packagehandlers"
 	"github.com/vrooli/vrooli/internal/cli/planshandlers"
@@ -32,6 +32,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/cli/scenariohandlers"
+	"github.com/vrooli/vrooli/internal/cli/shareddrifthandlers"
 	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -952,6 +953,10 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 		topcli.CommandAuth: authhandlers.RootHandler(authhandlers.HandlerDeps[*CommandContext]{
 			Stdout:       commandStdout,
 			OutputFormat: projectOutputFormat,
+		}),
+		topcli.CommandAgentPolicy: agentpolicyhandlers.RootHandler(agentpolicyhandlers.HandlerDeps[*CommandContext]{
+			Stdout: commandStdout,
+			Stderr: func(ctx *CommandContext) io.Writer { return ctx.Stderr },
 		}),
 		topcli.CommandLifecycle: projectcli.LifecycleHandler(commandStdout, func(ctx *CommandContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
 	}

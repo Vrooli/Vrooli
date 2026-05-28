@@ -49,6 +49,28 @@ vrooli resource install claude-code
 resource-claude-code status
 ```
 
+## Permissions
+
+`resource-claude-code permissions ...` is the canonical way to manage the bash-pattern permission rules in `~/.claude/settings.json`. The verbs are agent-gated: a detected agent caller must pass `--i-was-explicitly-authorized` to mutate the file. Read verbs (`list`, `show`, `drift-check`, `doctor`) are always allowed.
+
+```bash
+# Block git stash for Claude Code (the canonical example).
+resource-claude-code permissions deny 'Bash(git stash*)'
+
+# Inspect current state.
+resource-claude-code permissions list
+
+# Detect hand-edits to settings.json since the last Vrooli write.
+resource-claude-code permissions drift-check
+
+# Verify the installed claude binary matches the version this resource was built against.
+resource-claude-code permissions doctor
+```
+
+Every `Bash(...)` deny rule is paired with a `PreToolUse` hook entry (script materialized in `~/.claude/.vrooli-hooks/`) as a defensive backstop for the upstream `permissions.deny` enforcement bug ([anthropics/claude-code#18846](https://github.com/anthropics/claude-code/issues/18846), [#29026](https://github.com/anthropics/claude-code/issues/29026)).
+
+Pinned upstream docs: <https://code.claude.com/docs/en/permissions> (see `resource.json` → `upstream_cli`).
+
 ## Notes
 
 - `claude-code` is an external CLI resource, not a local daemon owned by this resource.
