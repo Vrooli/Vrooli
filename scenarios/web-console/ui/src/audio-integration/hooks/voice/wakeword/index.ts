@@ -15,6 +15,7 @@ export {
 } from "./types";
 
 export { extractMfcc } from "./mfcc";
+export { bytesToFeatures, MFCC_SAMPLE_RATE } from "./extractFromBytes";
 export { dtwDistance, distanceToScore } from "./dtw";
 export { MfccDtwEngine, createWakeWordEngine, applyCms } from "./engine";
 export { PassiveListener } from "./passiveListener";

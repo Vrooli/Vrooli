@@ -547,6 +547,7 @@ export const strings = {
       recordingEmpty: "settings.voiceInputSection.recordingEmpty",
       featureExtractionFailed: "settings.voiceInputSection.featureExtractionFailed",
       minSamplesNeeded: "settings.voiceInputSection.minSamplesNeeded",
+      wakeWordReRecordNeeded: "settings.voiceInputSection.wakeWordReRecordNeeded",
       saveWakeWord: "settings.voiceInputSection.saveWakeWord",
       testCrossMatch: "settings.voiceInputSection.testCrossMatch",
       deleteWakeWord: "settings.voiceInputSection.deleteWakeWord",

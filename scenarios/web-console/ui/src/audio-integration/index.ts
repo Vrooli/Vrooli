@@ -79,6 +79,10 @@ export {
 export type {
   VoiceStreamConfig,
   WakeWordConfig,
+  WakeWordSampleData,
+  WakeWordTemplateData,
+  WakeWordSampleInput,
+  WakeWordTemplateInput,
   SpeakerVerificationConfig,
   SpeakerVerificationProfile,
   SpeakerVerificationInfo,

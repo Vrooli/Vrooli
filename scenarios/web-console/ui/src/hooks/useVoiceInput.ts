@@ -107,6 +107,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   const vadSilenceTimeoutMs = useWorkspaceStore((s) => s.vadSilenceTimeoutMs);
   const persistentMode = useWorkspaceStore((s) => s.persistentMode);
   const wakeWordEnabled = useWorkspaceStore((s) => s.wakeWordEnabled);
+  const wakeWordThreshold = useWorkspaceStore((s) => s.wakeWordThreshold);
   const segmentSilenceMs = useWorkspaceStore((s) => s.segmentSilenceMs);
   const lowLatencyVoice = useWorkspaceStore((s) => s.lowLatencyVoice);
 
@@ -126,6 +127,12 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         const store = useWorkspaceStore.getState();
         if (cfg.persistentMode !== store.persistentMode) store.setPersistentMode(cfg.persistentMode);
         if (cfg.wakeWordEnabled !== store.wakeWordEnabled) store.setWakeWordEnabled(cfg.wakeWordEnabled);
+        // The server's wake_word_threshold is the durable source of truth for
+        // match sensitivity; hydrate the store from it (guard against an unset
+        // server value of 0, which would otherwise wipe the user's setting).
+        if (cfg.wakeWordThreshold > 0 && cfg.wakeWordThreshold !== store.wakeWordThreshold) {
+          store.setWakeWordThreshold(cfg.wakeWordThreshold);
+        }
         // Prefer vad_silence_ms (the authoritative server VAD knob) over
         // the legacy segment_silence_ms field. Fall back when zero.
         const serverSilenceMs = cfg.vadSilenceMs > 0 ? cfg.vadSilenceMs : cfg.segmentSilenceMs;
@@ -149,6 +156,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     vadSilenceTimeoutMs,
     persistentMode,
     wakeWordEnabled,
+    wakeWordThreshold,
     segmentSilenceMs,
     lowLatencyVoice,
     capabilityCheck,
@@ -160,6 +168,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     vadSilenceTimeoutMs,
     persistentMode,
     wakeWordEnabled,
+    wakeWordThreshold,
     segmentSilenceMs,
     lowLatencyVoice,
     capabilityCheck,

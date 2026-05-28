@@ -42,12 +42,12 @@ import { getSharedAudioContext } from "../../audio-integration/hooks/voice/share
 import { createAudioFilterChain } from "../../audio-integration/hooks/voice/audioUtils";
 import { VOICE_COMMANDS } from "../../hooks/voice/commands";
 import {
+  bytesToFeatures,
   createWakeWordEngine,
   MIN_ENROLLMENT_SAMPLES,
   MAX_ENROLLMENT_SAMPLES,
   useWakeWordTest,
   type AudioFeatures,
-  type WakeWordTemplate,
 } from "../../audio-integration";
 import { formatShortcutFromEvent } from "../../lib/shortcutParser";
 import { Button } from "../ui/button";
@@ -164,9 +164,24 @@ export default function VoiceInputSection() {
       setWakeWordConfig(config);
       if (config.template) {
         setWwLabel(config.template.label);
-        wwSamplesRef.current = [...config.template.samples];
-        // No audio blobs available for previously saved samples
-        wwAudioBlobsRef.current = config.template.samples.map(() => null);
+        const persisted = config.template.samples;
+        // The template persists RAW audio. Rehydrate playable blobs from the
+        // returned bytes, and re-derive MFCC features from that same audio via
+        // the shared helper (features are never persisted). One failed clip
+        // becomes a null slot rather than failing the whole load.
+        // Copy into a fresh (non-shared) ArrayBuffer so the bytes are a valid
+        // BlobPart regardless of the proto reader's backing buffer.
+        const blobs = persisted.map((s) => {
+          const copy = new Uint8Array(s.audio.length);
+          copy.set(s.audio);
+          return new Blob([copy], { type: s.mime });
+        });
+        const features = await Promise.all(
+          persisted.map((s) => bytesToFeatures(s.audio, wwEngineRef.current).catch(() => null)),
+        );
+        if (signal?.cancelled) return;
+        wwSamplesRef.current = features;
+        wwAudioBlobsRef.current = blobs;
       }
     } catch (error) {
       if (!signal?.cancelled) setWakeWordError(toErrorInfo(error).message);
@@ -208,14 +223,11 @@ export default function VoiceInputSection() {
         wwStreamRef.current = null;
         const blob = new Blob(wwChunksRef.current, { type: "audio/webm" });
         if (blob.size === 0) { setWwRecordingIdx(null); setWakeWordError(t(strings.settings.voiceInputSection.recordingEmpty)); return; }
-        // Decode audio and extract MFCC features
+        // Decode audio and extract MFCC features via the shared helper — the
+        // same decode path used on load, so re-derived features match exactly.
         try {
-          const arrayBuf = await blob.arrayBuffer();
-          const audioCtx = new AudioContext({ sampleRate: 16000 });
-          const decoded = await audioCtx.decodeAudioData(arrayBuf);
-          const pcm = decoded.getChannelData(0);
-          await audioCtx.close();
-          const features = wwEngineRef.current.extractFeatures(pcm, 16000);
+          const bytes = new Uint8Array(await blob.arrayBuffer());
+          const features = await bytesToFeatures(bytes, wwEngineRef.current);
           const next = [...wwSamplesRef.current];
           while (next.length <= slotIdx) next.push(null);
           next[slotIdx] = features;
@@ -327,6 +339,12 @@ export default function VoiceInputSection() {
         // legacy segment_silence_ms only if it's unset on the server.
         setStorePersistentMode(config.persistentMode);
         setStoreWakeWordEnabled(config.wakeWordEnabled ?? false);
+        // wake_word_threshold is the durable source of truth for match
+        // sensitivity (shared by the test, the slider, and the passive
+        // listener). Hydrate the store unless the server value is unset (0).
+        if (config.wakeWordThreshold > 0) {
+          useWorkspaceStore.getState().setWakeWordThreshold(config.wakeWordThreshold);
+        }
         const silenceMs = config.vadSilenceMs > 0 ? config.vadSilenceMs : (config.segmentSilenceMs || 1500);
         setStoreSegmentSilenceMs(silenceMs);
         setStoreVadSilenceTimeoutMs(silenceMs);
@@ -416,21 +434,32 @@ export default function VoiceInputSection() {
   }, [setStorePersistentMode, setStoreWakeWordEnabled, setStoreSegmentSilenceMs, setStoreVadSilenceTimeoutMs]);
 
   const saveWakeWord = useCallback(async () => {
-    const samples = wwSamplesRef.current.filter((s): s is AudioFeatures => s !== null);
-    if (samples.length < MIN_ENROLLMENT_SAMPLES) {
-      setWakeWordError(t(strings.settings.voiceInputSection.minSamplesNeeded, { min: MIN_ENROLLMENT_SAMPLES }));
+    // We persist RAW audio, not MFCC features — collect the recorded blob for
+    // every slot that has both a blob and successfully-extracted features.
+    const blobs: Blob[] = [];
+    for (let i = 0; i < wwAudioBlobsRef.current.length; i++) {
+      const blob = wwAudioBlobsRef.current[i];
+      if (blob && wwSamplesRef.current[i]) blobs.push(blob);
+    }
+    const featureCount = wwSamplesRef.current.filter((s): s is AudioFeatures => s !== null).length;
+    if (blobs.length < MIN_ENROLLMENT_SAMPLES) {
+      // Distinguish "not enough samples" from "samples present but their audio
+      // is missing" (only possible for a slot that never captured a blob).
+      setWakeWordError(
+        featureCount >= MIN_ENROLLMENT_SAMPLES
+          ? t(strings.settings.voiceInputSection.wakeWordReRecordNeeded)
+          : t(strings.settings.voiceInputSection.minSamplesNeeded, { min: MIN_ENROLLMENT_SAMPLES }),
+      );
       return;
     }
     setWakeWordError(null);
     const threshold = useWorkspaceStore.getState().wakeWordThreshold;
-    const template: WakeWordTemplate = {
-      samples,
-      label: wwLabel.trim() || "Hey Vrooli",
-      threshold,
-      updatedAt: new Date().toISOString(),
-    };
     try {
-      const updated = await updateWakeWordConfig(template);
+      const updated = await updateWakeWordConfig({
+        label: wwLabel.trim() || "Hey Vrooli",
+        threshold,
+        samples: blobs.map((audio) => ({ audio, sampleRateHz: 16000 })),
+      });
       setWakeWordConfig(updated);
       handleVsConfigChange({ wakeWordEnabled: true });
       setWwTestResult(t(strings.settings.voiceInputSection.wakeWordSaved));
