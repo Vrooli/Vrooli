@@ -13,6 +13,9 @@ Conditional reading (load only when the plan touches the matching surface — `p
 
 Skip these reads entirely for plans that don't touch the corresponding surface (e.g., pure docs, UI-only, research conclusions). Reading skills that don't apply wastes context.
 
+When the plan touches a scenario, also skim:
+- `git-control-tower baseline help` — flag shape for the regression anchor captured in Step A.5.
+
 Optional reading:
 - `docs/agent-system/SKILL_AUTHORING.md`
 - `prompt-manager skill read skill-validation`
@@ -57,6 +60,7 @@ Required:
 Optional but recommended:
 - Live command evidence showing failures or friction
 - Adjacent skills/tools that should be treated as source-of-truth
+- Blast radius: which scenario(s), if any. Drives the regression-anchor strategy in Step A.5.
 
 ---
 
@@ -100,6 +104,21 @@ prompt-manager discover "<concept-1>" "<concept-2>" "<concept-3>" --complexity m
 
 If the discovery output surfaces any of the conditional reads above (`cli-steer`, `api-steer`, `utils-unification`, `seam-discovery-and-enforcement`), or your plan obviously touches their surface, load them now. Otherwise skip them. Then gather implementation evidence (commands, files, observed failures) before writing.
 
+#### Step A.5: Anchor the regression surface
+
+Capture a "before" anchor *before any code changes* so future agents (or you, post-implementation) can answer "did this plan introduce that failure?" without ambiguity. Pick exactly one strategy based on the plan's blast radius and record the choice in mandatory section 6a:
+
+| Plan touches… | Strategy | Command |
+|---|---|---|
+| **One scenario** | `git-control-tower baseline` snapshot | `git-control-tower baseline snapshot --scenario <name> --name <plan-slug> --reason "<plan title>"` |
+| **Multiple scenarios** | One baseline per touched scenario | Loop the command above per scenario; record every `(scenario, plan-slug)` pair |
+| **Outside any scenario** (root tooling, `internal/`, `packages/proto`, docs-only, `.vrooli/`) | **Skip baseline; record a sha + file allowlist** | `git rev-parse HEAD` — copy the sha into section 6a along with the file paths the plan is allowed to touch |
+
+Notes:
+- Baseline captures 5 surfaces (workflows, tests, structure, visuals, rules). Use `--fast` or `--include <surfaces>` to scope; full captures can be slow.
+- Do **not** pass an arbitrary `--scenario` for outside-scenario plans — only the `visuals` surface would capture and the report misleads.
+- Diff exit codes: `0` safe, `1` regression, `2` not-comparable. Section 10's regression check should treat `1`/`2` as actionable.
+
 #### Step B: Create the scratch plan through the CLI
 
 Default behavior:
@@ -120,13 +139,14 @@ Every plan must include:
 4. Scope (in/out)
 5. Current Technical Context (key files/components)
 6. Target End State
+6a. Regression Anchor — strategy chosen in Step A.5; for the scenario / multi-scenario cases, list each `(scenario, plan-slug)` pair and the matching `baseline diff` command; for the outside-scenario case, list the `HEAD` sha + the file-path allowlist and the matching `git diff --stat <sha> -- <paths>` command. This section is mandatory and cannot be empty.
 7. Implementation Strategy (phased)
 8. Contract Decisions (API/CLI/data model behavior)
 9. Testing Plan
-10. Rollout/Validation Checklist
+10. Rollout/Validation Checklist — must contain a "Regression check" line matching section 6a's strategy: `git-control-tower baseline diff --scenario <s> --name <plan-slug>` (per pair; exit 0 required, exit 1/2 must be triaged), or `git diff --stat <sha> -- <paths>` showing only declared files.
 11. Risks + Mitigations
 12. Non-goals / Prohibited Patterns
-13. Definition of Done
+13. Definition of Done — must include "Regression check from section 10 passes" alongside the other pass criteria.
 
 If user requests strict constraints (for example greenfield):
 - Add a dedicated hard-rule section near the top.
@@ -149,6 +169,8 @@ Quality checks:
 - Do not mix implementation and plan-authoring in the same step unless explicitly asked.
 - Do not include legacy/migration/compatibility guidance when user requested greenfield-only.
 - Do not pad the plan's Required Reading with skills that don't match the plan's surface — load the conditional steers only when they apply.
+- Do not use `git stash` for "is this failure mine?" diagnosis. Concurrent agents share the working tree and stash is process-global; use the regression anchor from section 6a instead. `git-control-tower baseline` is branch-scoped and `flock`-guarded for exactly this reason.
+- Do not fake a baseline for outside-scenario plans by passing an arbitrary `--scenario`. Only the `visuals` surface would capture and the resulting report misleads — use the sha + file-allowlist strategy from Step A.5 instead.
 
 ---
 
