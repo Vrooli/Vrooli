@@ -237,16 +237,40 @@ speaker (e.g. background music, a second person). It is configured via a
 because it carries enrolled-profile bindings. It applies only to segments
 that carry audio (the Whisper PCM path); Passthrough engines bypass it.
 Enrollment + verification are backed by the `speaker-verification`
-resource (SpeechBrain ECAPA-TDNN), which owns the embeddings.
+resource (SpeechBrain ECAPA-TDNN), which owns the embeddings. A profile is one
+identity holding **N labeled enrollment clips** (different devices / speaking
+styles); the resource trims each clip to its voiced span before embedding and
+verifies against the profile centroid + each clip (hybrid). The egress decision
+is **session-stateful**: it accumulates per-segment scores (EMA) and never
+rejects until `min_decision_seconds` of voiced audio has accrued (warm-up), so a
+short first utterance is not falsely dropped.
 
 | Lever | Type | Default | Audience | Trade-off |
 |---|---|---|---|---|
 | `speaker.enabled` | bool | `false` | operator | Master switch. Off omits the audio-domain stage entirely (zero overhead). |
 | `speaker.mode` | enum: `off`, `filter`, `advisory` | `filter` (when enabled) | operator | `filter` rejects non-matching segments; `advisory` scores only (never blocks); `off` skips the stage. |
-| `speaker.threshold` | double | `0.35` | operator | Cosine-similarity match threshold. Higher = stricter (more false rejections); lower = more permissive (other voices leak through). |
+| `speaker.threshold` | double | `0.5` | operator | Match threshold on the smoothed session score. Higher = stricter (more false rejections); lower = more permissive (other voices leak through). **Calibrate against real voices — see below.** |
 | `speaker.profile_ids` | string[] | `[]` | operator | Enrolled profiles to match against. At least one required when enabled. |
 | `speaker.reject_behavior` | enum: `drop`, `show-muted` | `drop` | operator | What the consumer does with a rejected segment. |
 | `speaker.fallback_without_verification` | bool | `false` | operator | When the resource is down or no profile is bound: `true` lets segments through (flagged unverified on the rejection event), `false` rejects. |
+| `speaker.min_decision_seconds` | double | `3.0` | operator | Warm-up window: voiced seconds that must accrue before the session verifier may reject. `0` uses the default. |
+| `speaker.score_smoothing` | double | `0.4` | operator | EMA alpha `(0,1]` on per-segment scores so the session decision stops swinging mid-utterance. `0` uses the default. |
+
+**Canonical default threshold = 0.5** across all layers (engine manifest,
+`DefaultSpeakerConfig`, the persisted-config default, and the resource
+`/v1/verify` form). This is a *starting* value: the right cutoff depends on the
+ECAPA embedding distribution for your enrolled voices and room. **Calibrate it
+live** — enroll 3–5 real clips (normal + whisper + a second device), then drive a
+real-mic session and a second person; confirm the genuine session score lands in
+a confident band above the cutoff and the impostor clearly below, and adjust
+`speaker.threshold`. Record the chosen number here when set.
+
+Resource-side embedding knobs (env vars on the `speaker-verification` resource,
+not per-session levers): `SPEAKER_VAD` (`energy`|`none`, default `energy`),
+`SPEAKER_MIN_ENROLL_VOICED_SECONDS` (`3.0`), `SPEAKER_MIN_VERIFY_VOICED_SECONDS`
+(`1.0`), `SPEAKER_SCORE_AGG` (`hybrid`|`centroid`|`max`), and `SPEAKER_EMBED_DENOISE`
+(default off — spectral denoise before embedding; off because it can distort
+timbre and hurt ECAPA, and VAD trim already removes the dominant silence diluter).
 
 The active egress isolation **method** (`verification`) is selected by the
 engine manifest's `speakerIsolation.active` field — swapping it is a one-field

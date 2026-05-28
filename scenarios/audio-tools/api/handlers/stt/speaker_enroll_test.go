@@ -50,8 +50,10 @@ func newCapturingEnrollResource(t *testing.T, seconds float64) (*capturingEnroll
 			res.gotAudio = buf
 			res.mu.Unlock()
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"profile_id": r.FormValue("profile_id"), "display_name": r.FormValue("display_name"),
-				"embedding_dim": 192, "sample_rate": 16000, "enrollment_audio_seconds": seconds,
+				"profile_id": r.FormValue("profile_id"), "clip_id": "clip-1", "label": r.FormValue("label"),
+				"voiced_seconds": seconds, "audio_seconds": seconds,
+				"clip_count": 1, "total_voiced_seconds": seconds,
+				"embedding_dim": 192, "sample_rate": 16000,
 				"model_name": "speechbrain/spkrec-ecapa-voxceleb", "created_at": "2026-05-27T00:00:00Z",
 			})
 			return
@@ -109,7 +111,9 @@ func TestEnrollSpeakerProfile_PersistsAndSurfacesMetadata(t *testing.T) {
 		DisplayName: "Laptop",
 	}))
 	require.NoError(t, err)
-	require.InDelta(t, 2.5, enrollResp.Msg.GetEnrollment().GetEnrollmentAudioSeconds(), 1e-9)
+	require.InDelta(t, 2.5, enrollResp.Msg.GetEnrollment().GetVoicedSeconds(), 1e-9)
+	require.Equal(t, int32(1), enrollResp.Msg.GetEnrollment().GetClipCount())
+	require.InDelta(t, 2.5, enrollResp.Msg.GetEnrollment().GetTotalVoicedSeconds(), 1e-9)
 
 	// The resource received WAV-wrapped canonical PCM, not the raw WebM bytes —
 	// matching the verify path's preprocessing.
@@ -123,7 +127,8 @@ func TestEnrollSpeakerProfile_PersistsAndSurfacesMetadata(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, list.Msg.GetProfiles(), 1)
 	p := list.Msg.GetProfiles()[0]
-	require.InDelta(t, 2.5, p.GetEnrollmentAudioSeconds(), 1e-9)
+	require.Equal(t, int32(1), p.GetClipCount())
+	require.InDelta(t, 2.5, p.GetTotalVoicedSeconds(), 1e-9)
 	require.Equal(t, int32(16000), p.GetSampleRate())
 	require.Equal(t, int32(192), p.GetEmbeddingDim())
 	require.Equal(t, "speechbrain/spkrec-ecapa-voxceleb", p.GetModelName())
@@ -132,7 +137,8 @@ func TestEnrollSpeakerProfile_PersistsAndSurfacesMetadata(t *testing.T) {
 	status, err := c.GetSpeakerStatus(context.Background(), connect.NewRequest(&sttv1.GetSpeakerStatusRequest{}))
 	require.NoError(t, err)
 	require.Len(t, status.Msg.GetStatus().GetProfiles(), 1)
-	require.InDelta(t, 2.5, status.Msg.GetStatus().GetProfiles()[0].GetEnrollmentAudioSeconds(), 1e-9)
+	require.Equal(t, int32(1), status.Msg.GetStatus().GetProfiles()[0].GetClipCount())
+	require.InDelta(t, 2.5, status.Msg.GetStatus().GetProfiles()[0].GetTotalVoicedSeconds(), 1e-9)
 }
 
 // TestEnrollSpeakerProfile_UnknownFormatEnrollsRaw proves the degraded path:

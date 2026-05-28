@@ -345,6 +345,11 @@ const dynamicSelectorDefinitions = {
       testIdPattern: "speaker-profile-model-${id}",
       params: { id: { type: "string" } },
     }),
+    clipRow: defineDynamicSelector({
+      description: "Enrollment clip row by clip id",
+      testIdPattern: "speaker-clip-row-${id}",
+      params: { id: { type: "string" } },
+    }),
   },
   streamConfig: {
     engineRow: defineDynamicSelector({

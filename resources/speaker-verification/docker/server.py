@@ -1,14 +1,21 @@
 """SpeechBrain ECAPA-TDNN speaker-verification HTTP server.
 
-Exposes enrollment + verification + (reserved) target-speaker extraction over a
+Exposes multi-clip enrollment + verification + target-speaker extraction over a
 small FastAPI surface. The contract here is consumed byte-for-byte by the
 audio-tools Go client (scenarios/audio-tools/api/internal/stt/pipeline/
 speaker_client.go) -- endpoint paths, multipart field names, and response JSON
 keys MUST NOT drift.
 
 Embeddings are 192-dimensional ECAPA-TDNN vectors computed from 16 kHz mono
-audio. Verification is the cosine similarity between an enrolled embedding and a
-test-clip embedding compared against a caller-supplied threshold.
+audio. Both enrollment and verification embed only the VOICED span of the clip
+(see vad.py) through one shared helper, so the two stay symmetric and silence /
+room noise does not dilute the voiceprint.
+
+A profile is one IDENTITY holding N labeled enrollment clips (each an embedding)
+plus a stored L2-normalized centroid. Enrolling appends a clip; verification
+scores the test clip against the centroid and each clip and takes the best
+(hybrid aggregation), so multiple conditions (devices, normal/whisper) strengthen
+one identity instead of inflating impostor scores.
 """
 
 from __future__ import annotations
@@ -29,25 +36,63 @@ import torchaudio
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import JSONResponse, Response
 
+from vad import build_vad
+
 # ---------------------------------------------------------------------------
 # Configuration (all overridable via environment for compose / GPU overlays)
 # ---------------------------------------------------------------------------
 
-SERVER_VERSION = "0.3.0"
+SERVER_VERSION = "0.4.0"
 MODEL_NAME = os.environ.get(
     "SPEAKER_VERIFICATION_MODEL", "speechbrain/spkrec-ecapa-voxceleb"
 )
 EMBEDDING_DIM = 192
 SAMPLE_RATE = 16000
 
+# Voice-activity trimming + minimum-voiced-duration guards. ECAPA needs a few
+# seconds of voiced speech for a stable enrollment embedding; a sub-second
+# window is not reliable. Enrollment rejects below MIN_ENROLL; verification
+# returns sufficient:false (not a fabricated score) below MIN_VERIFY.
+VAD = build_vad()
+MIN_ENROLL_VOICED_SECONDS = float(
+    os.environ.get("SPEAKER_MIN_ENROLL_VOICED_SECONDS", "3.0")
+)
+MIN_VERIFY_VOICED_SECONDS = float(
+    os.environ.get("SPEAKER_MIN_VERIFY_VOICED_SECONDS", "1.0")
+)
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
+# Optional spectral denoise of the audio BEFORE embedding. Default OFF: the
+# resource-side VAD trim is the primary noise mitigation (silence is the
+# dominant diluter), and spectral denoise (ffmpeg afftdn) can distort timbre and
+# hurt ECAPA. This is an embedding-path knob independent of the audio-tools
+# transcription denoise toggle — speaker identity never depends on it.
+EMBED_DENOISE = _env_bool("SPEAKER_EMBED_DENOISE", False)
+
+# Verify aggregation across a profile's centroid + per-clip embeddings.
+# hybrid = max(cosine(centroid), max_i cosine(clip_i)) -- multi-condition
+# coverage without the impostor inflation of separate profiles. Env-switchable
+# to "centroid" (only) or "max" (per-clip only) if the false-accept rate rises.
+SCORE_AGG = os.environ.get("SPEAKER_SCORE_AGG", "hybrid").strip().lower()
+
+# The one canonical default verify threshold. Every layer (manifest, Go config,
+# CLI/handlers, this form default) resolves to the same value; calibrate against
+# real voices after VAD trim lands and record the chosen number in
+# scenarios/audio-tools/docs/reference/configuration.md.
+DEFAULT_VERIFY_THRESHOLD = os.environ.get("SPEAKER_DEFAULT_THRESHOLD", "0.5")
+
 # Target-speaker extraction = source separation (split the mixture into N voices)
 # + ECAPA target-selection (pick the separated source whose embedding best
-# matches the enrolled profile). The published SepFormer separation checkpoints
-# (wsj02mix / libri2mix, 2 speakers) run at 8 kHz; the 16 kHz checkpoints are
-# enhancement (single-source denoise), not separation. So the default is the
-# 8 kHz 2-speaker model and audio is resampled 16k↔8k around it. Which variant +
-# match threshold perform best on real two-speaker audio is an empirical spike
-# (GPU) — see docs/extraction.md — hence model, rate, and threshold are tunable.
+# matches the enrolled profile centroid). The published SepFormer separation
+# checkpoints (wsj02mix / libri2mix, 2 speakers) run at 8 kHz; the 16 kHz
+# checkpoints are enhancement (single-source denoise), not separation. So the
+# default is the 8 kHz 2-speaker model and audio is resampled 16k<->8k around it.
 EXTRACTION_MODEL = os.environ.get(
     "SPEAKER_EXTRACTION_MODEL", "speechbrain/sepformer-wsj02mix"
 )
@@ -75,7 +120,7 @@ _gpu_name = torch.cuda.get_device_name(0) if DEVICE == "cuda" and _CUDA_AVAILABL
 print(
     f"[speaker-verification] torch={torch.__version__} "
     f"device_request={_DEVICE_REQUEST or 'auto'} cuda_available={_CUDA_AVAILABLE} "
-    f"device={DEVICE}" + (f" gpu={_gpu_name}" if _gpu_name else ""),
+    f"device={DEVICE} vad={VAD.name}" + (f" gpu={_gpu_name}" if _gpu_name else ""),
     flush=True,
 )
 if _DEVICE_REQUEST == "cuda" and not _CUDA_AVAILABLE:
@@ -236,13 +281,49 @@ def _decode_to_waveform(raw: bytes) -> Tuple[torch.Tensor, float]:
     return waveform, audio_seconds
 
 
-def _embed(raw: bytes) -> Tuple[List[float], float]:
-    """Compute an L2-normalized 192-dim embedding from audio bytes.
+def _denoise_waveform(waveform: "torch.Tensor") -> "torch.Tensor":
+    """Best-effort ffmpeg afftdn denoise of a 16 kHz mono waveform via a temp-WAV
+    round-trip. Returns the input unchanged on any failure."""
+    src = TEMP_DIR / f"dn-{uuid.uuid4().hex}.wav"
+    dst = TEMP_DIR / f"dn-{uuid.uuid4().hex}.out.wav"
+    try:
+        torchaudio.save(str(src), waveform, SAMPLE_RATE)
+        subprocess.run(
+            [
+                "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                "-i", str(src), "-af", "afftdn",
+                "-ar", str(SAMPLE_RATE), "-ac", "1", str(dst),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        out, _ = torchaudio.load(str(dst))
+        return out
+    except Exception:  # noqa: BLE001 -- denoise is best-effort, never fatal
+        return waveform
+    finally:
+        for path in (src, dst):
+            try:
+                path.unlink()
+            except OSError:
+                pass
 
-    Returns (embedding, audio_seconds).
+
+def _voiced_embedding(raw: bytes) -> Tuple[Optional[List[float]], float, float]:
+    """Decode -> (optional denoise) -> VAD-trim to the voiced span -> embed.
+
+    The single embedding path for both enrollment and verification, so they stay
+    symmetric. Returns (embedding, audio_seconds, voiced_seconds). When the clip
+    has no voiced audio the embedding is None and voiced_seconds is 0.0; callers
+    treat that as "insufficient voiced audio".
     """
     waveform, audio_seconds = _decode_to_waveform(raw)
-    return _embed_waveform(waveform), audio_seconds
+    if EMBED_DENOISE:
+        waveform = _denoise_waveform(waveform)
+    voiced, voiced_seconds = VAD.trim(waveform, SAMPLE_RATE)
+    if voiced_seconds <= 0.0 or int(voiced.size(-1)) == 0:
+        return None, audio_seconds, 0.0
+    return _embed_waveform(voiced), audio_seconds, voiced_seconds
 
 
 def _cosine(a: List[float], b: List[float]) -> float:
@@ -251,15 +332,61 @@ def _cosine(a: List[float], b: List[float]) -> float:
     return float(torch.nn.functional.cosine_similarity(ta, tb, dim=0).item())
 
 
+def _centroid(clips: List[Dict[str, Any]]) -> List[float]:
+    """L2-normalized mean of the clip embeddings (the profile's voiceprint)."""
+    embeddings = [c["embedding"] for c in clips if c.get("embedding")]
+    if not embeddings:
+        return []
+    mean = torch.tensor(embeddings, dtype=torch.float32).mean(dim=0)
+    return torch.nn.functional.normalize(mean, dim=0).tolist()
+
+
+def _total_voiced_seconds(clips: List[Dict[str, Any]]) -> float:
+    return float(sum(float(c.get("voiced_seconds", 0.0)) for c in clips))
+
+
+def _score_profile(
+    test_embedding: List[float], record: Dict[str, Any]
+) -> Tuple[float, str]:
+    """Aggregate the test embedding against the profile per SCORE_AGG.
+
+    Returns (score, best_clip_label). best_clip_label is empty when the centroid
+    is the winning match.
+    """
+    centroid = record.get("centroid") or []
+    clips = record.get("clips") or []
+    centroid_score = _cosine(centroid, test_embedding) if centroid else -1.0
+
+    best_clip_score = -1.0
+    best_label = ""
+    for clip in clips:
+        emb = clip.get("embedding")
+        if not emb:
+            continue
+        score = _cosine(emb, test_embedding)
+        if score > best_clip_score:
+            best_clip_score = score
+            best_label = clip.get("label", "")
+
+    if SCORE_AGG == "centroid":
+        return centroid_score, ""
+    if SCORE_AGG == "max":
+        return best_clip_score, best_label
+    # hybrid (default): best of centroid vs any single clip.
+    if centroid_score >= best_clip_score:
+        return centroid_score, ""
+    return best_clip_score, best_label
+
+
 def _extract_target(
-    waveform: "torch.Tensor", profile_embedding: List[float]
+    waveform: "torch.Tensor", profile_centroid: List[float]
 ) -> Tuple[bytes, float]:
     """Isolate the enrolled speaker from a 16 kHz mono mixture.
 
     Separates the mixture into candidate sources, embeds each with ECAPA, and
     returns (pcm16, score) for the source whose embedding is the closest cosine
-    match to the enrolled profile. The returned PCM is 16 kHz mono s16le,
-    matching the input contract so it can re-enter the STT pipeline directly.
+    match to the enrolled profile centroid. The returned PCM is 16 kHz mono
+    s16le, matching the input contract so it can re-enter the STT pipeline.
     """
     separator = _load_separator()
 
@@ -285,7 +412,7 @@ def _extract_target(
             src = src / peak
         if EXTRACTION_SAMPLE_RATE != SAMPLE_RATE:
             src = torchaudio.functional.resample(src, EXTRACTION_SAMPLE_RATE, SAMPLE_RATE)
-        score = _cosine(profile_embedding, _embed_waveform(src))
+        score = _cosine(profile_centroid, _embed_waveform(src))
         if score > best_score:
             best_score = score
             best_pcm = _waveform_to_pcm16(src)
@@ -299,6 +426,11 @@ def _extract_target(
 
 # ---------------------------------------------------------------------------
 # Profile store (one JSON file per profile, keyed by profile_id)
+#
+# Record shape (v2 — multi-clip identity):
+#   { id, display_name, notes, model_name, embedding_dim, sample_rate,
+#     centroid:[192], clips:[ {clip_id, label, embedding:[192],
+#     voiced_seconds, audio_seconds, created_at} ], created_at, updated_at }
 # ---------------------------------------------------------------------------
 
 
@@ -333,8 +465,21 @@ def _list_profiles() -> List[Dict[str, Any]]:
     return records
 
 
+def _clip_public(clip: Dict[str, Any]) -> Dict[str, Any]:
+    """Clip metadata surfaced to clients (never the raw embedding)."""
+    return {
+        "clip_id": clip.get("clip_id", ""),
+        "label": clip.get("label", ""),
+        "voiced_seconds": clip.get("voiced_seconds", 0.0),
+        "audio_seconds": clip.get("audio_seconds", 0.0),
+        "created_at": clip.get("created_at", ""),
+        "embedding_dim": len(clip.get("embedding") or []) or EMBEDDING_DIM,
+    }
+
+
 def _public_profile(record: Dict[str, Any]) -> Dict[str, Any]:
-    """Strip the raw embedding; surface only metadata expected by the client."""
+    """Strip raw embeddings; surface only metadata expected by the client."""
+    clips = record.get("clips") or []
     return {
         "id": record.get("id", ""),
         "display_name": record.get("display_name", ""),
@@ -343,7 +488,8 @@ def _public_profile(record: Dict[str, Any]) -> Dict[str, Any]:
         "model_name": record.get("model_name", MODEL_NAME),
         "embedding_dim": record.get("embedding_dim", EMBEDDING_DIM),
         "sample_rate": record.get("sample_rate", SAMPLE_RATE),
-        "enrollment_audio_seconds": record.get("enrollment_audio_seconds", 0.0),
+        "clip_count": len(clips),
+        "total_voiced_seconds": _total_voiced_seconds(clips),
         "notes": record.get("notes", ""),
     }
 
@@ -378,6 +524,12 @@ def info() -> Dict[str, Any]:
         "sample_rate": SAMPLE_RATE,
         "version": SERVER_VERSION,
         "embedding_dim": EMBEDDING_DIM,
+        "vad": VAD.name,
+        "score_agg": SCORE_AGG,
+        "embed_denoise": EMBED_DENOISE,
+        "min_enroll_voiced_seconds": MIN_ENROLL_VOICED_SECONDS,
+        "min_verify_voiced_seconds": MIN_VERIFY_VOICED_SECONDS,
+        "default_threshold": float(DEFAULT_VERIFY_THRESHOLD),
         "extraction_model": EXTRACTION_MODEL,
         "extraction_sample_rate": EXTRACTION_SAMPLE_RATE,
         "extraction_match_threshold": EXTRACTION_MATCH_THRESHOLD,
@@ -390,54 +542,125 @@ def list_profiles() -> Dict[str, Any]:
     return {"profiles": records, "count": len(records)}
 
 
+@app.get("/v1/profiles/{profile_id}")
+def get_profile(profile_id: str) -> JSONResponse:
+    record = _load_profile(profile_id.strip())
+    if record is None:
+        return JSONResponse(status_code=404, content={"error": "profile not found"})
+    public = _public_profile(record)
+    public["clips"] = [_clip_public(c) for c in record.get("clips", [])]
+    return JSONResponse(status_code=200, content=public)
+
+
+@app.get("/v1/profiles/{profile_id}/clips")
+def list_clips(profile_id: str) -> JSONResponse:
+    record = _load_profile(profile_id.strip())
+    if record is None:
+        return JSONResponse(status_code=404, content={"error": "profile not found"})
+    clips = [_clip_public(c) for c in record.get("clips", [])]
+    return JSONResponse(
+        status_code=200,
+        content={
+            "profile_id": record.get("id", profile_id.strip()),
+            "clips": clips,
+            "count": len(clips),
+        },
+    )
+
+
 @app.post("/v1/profiles")
 async def enroll(
     profile_id: str = Form(""),
     display_name: str = Form(""),
     notes: str = Form(""),
+    label: str = Form(""),
     audio: UploadFile = File(...),
 ) -> JSONResponse:
+    """Append one labeled enrollment clip to a profile (creating it if new).
+
+    The clip is embedded over its voiced span only; clips with less than
+    MIN_ENROLL_VOICED_SECONDS of voiced audio are rejected (422). Appending
+    recomputes the profile centroid.
+    """
     raw = await audio.read()
     if not raw:
-        return JSONResponse(
-            status_code=400, content={"error": "empty audio upload"}
-        )
+        return JSONResponse(status_code=400, content={"error": "empty audio upload"})
 
     try:
-        embedding, audio_seconds = _embed(raw)
+        embedding, audio_seconds, voiced_seconds = _voiced_embedding(raw)
     except Exception as exc:  # noqa: BLE001 -- surface decode/model failures
         return JSONResponse(
             status_code=400, content={"error": f"failed to embed audio: {exc}"}
         )
 
+    if embedding is None or voiced_seconds < MIN_ENROLL_VOICED_SECONDS:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": "insufficient voiced audio",
+                "voiced_seconds": voiced_seconds,
+                "audio_seconds": audio_seconds,
+                "min_voiced_seconds": MIN_ENROLL_VOICED_SECONDS,
+            },
+        )
+
     pid = profile_id.strip() or uuid.uuid4().hex
-    created_at = _now_iso()
-    record = {
-        "id": pid,
-        "display_name": display_name,
-        "notes": notes,
+    now = _now_iso()
+    clip = {
+        "clip_id": uuid.uuid4().hex,
+        "label": label.strip(),
         "embedding": embedding,
-        "embedding_dim": EMBEDDING_DIM,
-        "sample_rate": SAMPLE_RATE,
-        "model_name": MODEL_NAME,
-        "enrollment_audio_seconds": audio_seconds,
-        "created_at": created_at,
-        "updated_at": created_at,
+        "voiced_seconds": voiced_seconds,
+        "audio_seconds": audio_seconds,
+        "created_at": now,
     }
-    # Preserve original created_at when re-enrolling an existing profile id.
+
     existing = _load_profile(pid)
     if existing is not None:
-        record["created_at"] = existing.get("created_at", created_at)
+        if existing.get("model_name", MODEL_NAME) != MODEL_NAME:
+            return JSONResponse(
+                status_code=409,
+                content={
+                    "error": "profile model mismatch",
+                    "profile_model": existing.get("model_name", ""),
+                    "server_model": MODEL_NAME,
+                },
+            )
+        record = existing
+        if display_name:
+            record["display_name"] = display_name
+        if notes:
+            record["notes"] = notes
+        record["clips"].append(clip)
+        record["updated_at"] = now
+    else:
+        record = {
+            "id": pid,
+            "display_name": display_name,
+            "notes": notes,
+            "model_name": MODEL_NAME,
+            "embedding_dim": EMBEDDING_DIM,
+            "sample_rate": SAMPLE_RATE,
+            "clips": [clip],
+            "created_at": now,
+            "updated_at": now,
+        }
+    record["centroid"] = _centroid(record["clips"])
     _save_profile(record)
 
+    clips = record["clips"]
     return JSONResponse(
         status_code=200,
         content={
             "profile_id": pid,
-            "display_name": display_name,
+            "clip_id": clip["clip_id"],
+            "label": clip["label"],
+            "voiced_seconds": voiced_seconds,
+            "audio_seconds": audio_seconds,
+            "clip_count": len(clips),
+            "total_voiced_seconds": _total_voiced_seconds(clips),
             "embedding_dim": EMBEDDING_DIM,
             "sample_rate": SAMPLE_RATE,
-            "enrollment_audio_seconds": audio_seconds,
             "model_name": MODEL_NAME,
             "created_at": record["created_at"],
         },
@@ -447,36 +670,54 @@ async def enroll(
 @app.post("/v1/verify")
 async def verify(
     profile_id: str = Form(...),
-    threshold: str = Form("0.25"),
+    threshold: str = Form(DEFAULT_VERIFY_THRESHOLD),
     audio: UploadFile = File(...),
 ) -> JSONResponse:
     record = _load_profile(profile_id.strip())
     if record is None:
-        return JSONResponse(
-            status_code=404, content={"error": "profile not found"}
-        )
+        return JSONResponse(status_code=404, content={"error": "profile not found"})
 
     try:
         thr = float(threshold)
     except (TypeError, ValueError):
-        return JSONResponse(
-            status_code=400, content={"error": "invalid threshold"}
-        )
+        return JSONResponse(status_code=400, content={"error": "invalid threshold"})
 
     raw = await audio.read()
     if not raw:
-        return JSONResponse(
-            status_code=400, content={"error": "empty audio upload"}
-        )
+        return JSONResponse(status_code=400, content={"error": "empty audio upload"})
 
     start = time.perf_counter()
     try:
-        embedding, audio_seconds = _embed(raw)
+        embedding, audio_seconds, voiced_seconds = _voiced_embedding(raw)
     except Exception as exc:  # noqa: BLE001
         return JSONResponse(
             status_code=400, content={"error": f"failed to embed audio: {exc}"}
         )
-    score = _cosine(record["embedding"], embedding)
+
+    # Too little voiced audio to judge: report insufficiency rather than
+    # fabricating a score the caller would treat as a real (low) match.
+    if embedding is None or voiced_seconds < MIN_VERIFY_VOICED_SECONDS:
+        duration_ms = (time.perf_counter() - start) * 1000.0
+        return JSONResponse(
+            status_code=200,
+            content={
+                "profile_id": profile_id.strip(),
+                "matched": False,
+                "score": 0.0,
+                "threshold": thr,
+                "sufficient": False,
+                "voiced_seconds": voiced_seconds,
+                "audio_seconds": audio_seconds,
+                "min_voiced_seconds": MIN_VERIFY_VOICED_SECONDS,
+                "duration_ms": duration_ms,
+                "backend": "speechbrain",
+                "model": MODEL_NAME,
+                "score_agg": SCORE_AGG,
+                "best_clip_label": "",
+            },
+        )
+
+    score, best_clip_label = _score_profile(embedding, record)
     duration_ms = (time.perf_counter() - start) * 1000.0
 
     return JSONResponse(
@@ -486,10 +727,14 @@ async def verify(
             "matched": bool(score >= thr),
             "score": score,
             "threshold": thr,
+            "sufficient": True,
+            "voiced_seconds": voiced_seconds,
+            "audio_seconds": audio_seconds,
             "duration_ms": duration_ms,
             "backend": "speechbrain",
             "model": MODEL_NAME,
-            "audio_seconds": audio_seconds,
+            "score_agg": SCORE_AGG,
+            "best_clip_label": best_clip_label,
         },
     )
 
@@ -509,6 +754,12 @@ async def extract(
     if record is None:
         return JSONResponse(status_code=404, content={"error": "profile not found"})
 
+    centroid = record.get("centroid") or []
+    if not centroid:
+        return JSONResponse(
+            status_code=409, content={"error": "profile has no enrollment clips"}
+        )
+
     raw = await audio.read()
     if not raw:
         return JSONResponse(status_code=400, content={"error": "empty audio upload"})
@@ -516,7 +767,7 @@ async def extract(
     start = time.perf_counter()
     try:
         waveform, audio_seconds = _decode_to_waveform(raw)
-        cleaned_pcm, score = _extract_target(waveform, record["embedding"])
+        cleaned_pcm, score = _extract_target(waveform, centroid)
     except Exception as exc:  # noqa: BLE001 -- surface decode/model failures
         return JSONResponse(
             status_code=400, content={"error": f"extraction failed: {exc}"}
@@ -531,6 +782,51 @@ async def extract(
             "X-Speaker-Matched": "true" if score >= EXTRACTION_MATCH_THRESHOLD else "false",
             "X-Duration-Ms": f"{duration_ms:.3f}",
             "X-Audio-Seconds": f"{audio_seconds:.3f}",
+        },
+    )
+
+
+@app.delete("/v1/profiles/{profile_id}/clips/{clip_id}")
+def delete_clip(profile_id: str, clip_id: str) -> JSONResponse:
+    record = _load_profile(profile_id.strip())
+    if record is None:
+        return JSONResponse(status_code=404, content={"error": "profile not found"})
+
+    clips = record.get("clips") or []
+    remaining = [c for c in clips if c.get("clip_id") != clip_id]
+    if len(remaining) == len(clips):
+        return JSONResponse(status_code=404, content={"error": "clip not found"})
+
+    if not remaining:
+        # Deleting the last clip removes the (now-empty) identity.
+        try:
+            _profile_path(profile_id.strip()).unlink()
+        except OSError as exc:
+            return JSONResponse(
+                status_code=500, content={"error": f"failed to delete profile: {exc}"}
+            )
+        return JSONResponse(
+            status_code=200,
+            content={
+                "profile_id": profile_id.strip(),
+                "clip_id": clip_id,
+                "deleted_profile": True,
+                "clip_count": 0,
+            },
+        )
+
+    record["clips"] = remaining
+    record["centroid"] = _centroid(remaining)
+    record["updated_at"] = _now_iso()
+    _save_profile(record)
+    return JSONResponse(
+        status_code=200,
+        content={
+            "profile_id": profile_id.strip(),
+            "clip_id": clip_id,
+            "deleted_profile": False,
+            "clip_count": len(remaining),
+            "total_voiced_seconds": _total_voiced_seconds(remaining),
         },
     )
 

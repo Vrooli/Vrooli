@@ -14,20 +14,56 @@ import (
 )
 
 type SpeakerProfile struct {
-	ID                     string  `json:"id"`
-	DisplayName            string  `json:"display_name"`
-	CreatedAt              string  `json:"created_at"`
-	UpdatedAt              string  `json:"updated_at"`
-	ModelName              string  `json:"model_name"`
-	EmbeddingDim           int     `json:"embedding_dim"`
-	SampleRate             int     `json:"sample_rate"`
-	EnrollmentAudioSeconds float64 `json:"enrollment_audio_seconds"`
-	Notes                  string  `json:"notes"`
+	ID                 string  `json:"id"`
+	DisplayName        string  `json:"display_name"`
+	CreatedAt          string  `json:"created_at"`
+	UpdatedAt          string  `json:"updated_at"`
+	ModelName          string  `json:"model_name"`
+	EmbeddingDim       int     `json:"embedding_dim"`
+	SampleRate         int     `json:"sample_rate"`
+	ClipCount          int     `json:"clip_count"`
+	TotalVoicedSeconds float64 `json:"total_voiced_seconds"`
+	Notes              string  `json:"notes"`
 }
 
 type SpeakerProfileList struct {
 	Profiles []SpeakerProfile `json:"profiles"`
 	Count    int              `json:"count"`
+}
+
+// SpeakerProfileClip is one labeled enrollment clip's metadata (the raw
+// embedding never crosses the wire).
+type SpeakerProfileClip struct {
+	ClipID        string  `json:"clip_id"`
+	Label         string  `json:"label"`
+	VoicedSeconds float64 `json:"voiced_seconds"`
+	AudioSeconds  float64 `json:"audio_seconds"`
+	CreatedAt     string  `json:"created_at"`
+	EmbeddingDim  int     `json:"embedding_dim"`
+}
+
+// SpeakerProfileDetail is the GET /v1/profiles/{id} response: profile metadata
+// plus its clip list.
+type SpeakerProfileDetail struct {
+	SpeakerProfile
+	Clips []SpeakerProfileClip `json:"clips"`
+}
+
+type SpeakerProfileClipList struct {
+	ProfileID string               `json:"profile_id"`
+	Clips     []SpeakerProfileClip `json:"clips"`
+	Count     int                  `json:"count"`
+}
+
+// SpeakerClipDeleteResult is the DELETE .../clips/{clip_id} response. When the
+// deleted clip was the profile's last, DeletedProfile is true and the profile
+// is gone.
+type SpeakerClipDeleteResult struct {
+	ProfileID          string  `json:"profile_id"`
+	ClipID             string  `json:"clip_id"`
+	DeletedProfile     bool    `json:"deleted_profile"`
+	ClipCount          int     `json:"clip_count"`
+	TotalVoicedSeconds float64 `json:"total_voiced_seconds"`
 }
 
 type SpeakerResourceInfo struct {
@@ -46,25 +82,34 @@ type SpeakerResourceReady struct {
 	TempDirOK      bool   `json:"temp_dir_ok"`
 }
 
+// SpeakerEnrollmentResponse is the response to appending one enrollment clip.
 type SpeakerEnrollmentResponse struct {
-	ProfileID              string  `json:"profile_id"`
-	DisplayName            string  `json:"display_name"`
-	EmbeddingDim           int     `json:"embedding_dim"`
-	SampleRate             int     `json:"sample_rate"`
-	EnrollmentAudioSeconds float64 `json:"enrollment_audio_seconds"`
-	ModelName              string  `json:"model_name"`
-	CreatedAt              string  `json:"created_at"`
+	ProfileID          string  `json:"profile_id"`
+	ClipID             string  `json:"clip_id"`
+	Label              string  `json:"label"`
+	VoicedSeconds      float64 `json:"voiced_seconds"`
+	AudioSeconds       float64 `json:"audio_seconds"`
+	ClipCount          int     `json:"clip_count"`
+	TotalVoicedSeconds float64 `json:"total_voiced_seconds"`
+	EmbeddingDim       int     `json:"embedding_dim"`
+	SampleRate         int     `json:"sample_rate"`
+	ModelName          string  `json:"model_name"`
+	CreatedAt          string  `json:"created_at"`
 }
 
 type SpeakerVerifyResult struct {
-	ProfileID    string  `json:"profile_id"`
-	Matched      bool    `json:"matched"`
-	Score        float64 `json:"score"`
-	Threshold    float64 `json:"threshold"`
-	DurationMs   float64 `json:"duration_ms"`
-	Backend      string  `json:"backend"`
-	Model        string  `json:"model"`
-	AudioSeconds float64 `json:"audio_seconds"`
+	ProfileID     string  `json:"profile_id"`
+	Matched       bool    `json:"matched"`
+	Score         float64 `json:"score"`
+	Threshold     float64 `json:"threshold"`
+	Sufficient    bool    `json:"sufficient"`
+	VoicedSeconds float64 `json:"voiced_seconds"`
+	DurationMs    float64 `json:"duration_ms"`
+	Backend       string  `json:"backend"`
+	Model         string  `json:"model"`
+	AudioSeconds  float64 `json:"audio_seconds"`
+	ScoreAgg      string  `json:"score_agg"`
+	BestClipLabel string  `json:"best_clip_label"`
 }
 
 // SpeakerExtractionResult holds the response from the /v1/extract endpoint.
@@ -177,14 +222,15 @@ func (c *SpeakerClient) ListProfiles(ctx context.Context) (SpeakerProfileList, e
 	return out, err
 }
 
-// Enroll uploads enrollment audio to the resource, which decodes it (by
-// content sniffing — filename is cosmetic) and computes the owning embedding.
-// Callers normalize to canonical-PCM WAV before calling so the enrollment
-// embedding matches the verification embedding; filename reflects that.
+// Enroll appends one labeled enrollment clip to a profile (creating it if new),
+// uploading audio the resource decodes by content sniffing (filename is
+// cosmetic) and embeds over its voiced span. Callers normalize to canonical-PCM
+// WAV before calling so the enrollment embedding matches the verification
+// embedding; filename reflects that.
 func (c *SpeakerClient) Enroll(
 	ctx context.Context,
 	audio []byte,
-	profileID, displayName, notes, filename string,
+	profileID, displayName, notes, label, filename string,
 ) (SpeakerEnrollmentResponse, error) {
 	var out SpeakerEnrollmentResponse
 	err := c.postMultipart(
@@ -194,12 +240,39 @@ func (c *SpeakerClient) Enroll(
 			"profile_id":   profileID,
 			"display_name": displayName,
 			"notes":        notes,
+			"label":        label,
 		},
 		"audio",
 		filename,
 		audio,
 		&out,
 	)
+	return out, err
+}
+
+// GetProfile returns one profile's metadata + clip list.
+func (c *SpeakerClient) GetProfile(ctx context.Context, profileID string) (SpeakerProfileDetail, error) {
+	var out SpeakerProfileDetail
+	err := c.getJSON(ctx, "/v1/profiles/"+profileID, &out)
+	return out, err
+}
+
+// ListClips returns the enrollment clips of a profile.
+func (c *SpeakerClient) ListClips(ctx context.Context, profileID string) (SpeakerProfileClipList, error) {
+	var out SpeakerProfileClipList
+	err := c.getJSON(ctx, "/v1/profiles/"+profileID+"/clips", &out)
+	return out, err
+}
+
+// DeleteClip removes one clip from a profile and recomputes its centroid;
+// deleting the last clip deletes the profile (DeletedProfile=true).
+func (c *SpeakerClient) DeleteClip(ctx context.Context, profileID, clipID string) (SpeakerClipDeleteResult, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.endpoint("/v1/profiles/"+profileID+"/clips/"+clipID), nil)
+	if err != nil {
+		return SpeakerClipDeleteResult{}, fmt.Errorf("create request: %w", err)
+	}
+	var out SpeakerClipDeleteResult
+	err = c.doJSON(req, &out)
 	return out, err
 }
 

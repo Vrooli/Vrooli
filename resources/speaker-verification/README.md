@@ -74,13 +74,21 @@ Exported environment variable for consumers:
 ## API
 
 See [docs/API.md](docs/API.md) for the full endpoint contract (`/ready`,
-`/v1/info`, `/v1/profiles`, `/v1/verify`, `/v1/extract` [reserved], and
-`DELETE /v1/profiles/{id}`) and [docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md)
-for worked examples.
+`/v1/info`, `/v1/profiles` (enroll/list/detail/clips), `/v1/verify`,
+`/v1/extract`, `DELETE /v1/profiles/{id}` and `DELETE /v1/profiles/{id}/clips/{clip_id}`)
+and [docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md) for worked examples.
 
-> Target-speaker **extraction** (`/v1/extract`) is a **reserved** capability and
-> currently returns HTTP `501`. ECAPA-TDNN provides embeddings, not source
-> separation; a dedicated separation model would be required to implement it.
+> A profile is **one identity holding N labeled enrollment clips** (different
+> devices / speaking styles). Enroll *appends* a clip and recomputes the L2
+> centroid; verify scores the test clip against the centroid and each clip and
+> returns the best (hybrid aggregation). Both enroll and verify embed only the
+> **voiced** span (energy VAD trim) and enforce a minimum voiced duration —
+> verify returns `sufficient:false` rather than a fabricated score below it.
+
+> Target-speaker **extraction** (`/v1/extract`) is **implemented**: it isolates
+> the enrolled speaker from a mixture via SepFormer source separation + ECAPA
+> target-selection against the profile centroid, returning cleaned 16 kHz mono
+> s16le PCM. See [docs/extraction.md](docs/extraction.md).
 
 ## Notes
 

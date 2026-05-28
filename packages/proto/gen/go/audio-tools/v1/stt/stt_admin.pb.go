@@ -24,7 +24,7 @@ var File_audio_tools_v1_stt_stt_admin_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_stt_stt_admin_proto_rawDesc = "" +
 	"\n" +
-	"\"audio-tools/v1/stt/stt_admin.proto\x12\x19vrooli.audio_tools.v1.stt\x1a\x1caudio-tools/v1/stt/stt.proto2\xfe\x0e\n" +
+	"\"audio-tools/v1/stt/stt_admin.proto\x12\x19vrooli.audio_tools.v1.stt\x1a\x1caudio-tools/v1/stt/stt.proto2\xa7\x11\n" +
 	"\x0fSTTAdminService\x12x\n" +
 	"\x0fGetStreamConfig\x121.vrooli.audio_tools.v1.stt.GetStreamConfigRequest\x1a2.vrooli.audio_tools.v1.stt.GetStreamConfigResponse\x12\x81\x01\n" +
 	"\x12UpdateStreamConfig\x124.vrooli.audio_tools.v1.stt.UpdateStreamConfigRequest\x1a5.vrooli.audio_tools.v1.stt.UpdateStreamConfigResponse\x12\x8a\x01\n" +
@@ -39,7 +39,9 @@ const file_audio_tools_v1_stt_stt_admin_proto_rawDesc = "" +
 	"\x14EnrollSpeakerProfile\x126.vrooli.audio_tools.v1.stt.EnrollSpeakerProfileRequest\x1a7.vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse\x12\x99\x01\n" +
 	"\x1aClearSpeakerProfileBinding\x12<.vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingRequest\x1a=.vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingResponse\x12\x87\x01\n" +
 	"\x14UnbindSpeakerProfile\x126.vrooli.audio_tools.v1.stt.UnbindSpeakerProfileRequest\x1a7.vrooli.audio_tools.v1.stt.UnbindSpeakerProfileResponse\x12\x87\x01\n" +
-	"\x14DeleteSpeakerProfile\x126.vrooli.audio_tools.v1.stt.DeleteSpeakerProfileRequest\x1a7.vrooli.audio_tools.v1.stt.DeleteSpeakerProfileResponseBJZHgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt;stt_v1b\x06proto3"
+	"\x14DeleteSpeakerProfile\x126.vrooli.audio_tools.v1.stt.DeleteSpeakerProfileRequest\x1a7.vrooli.audio_tools.v1.stt.DeleteSpeakerProfileResponse\x12\x90\x01\n" +
+	"\x17ListSpeakerProfileClips\x129.vrooli.audio_tools.v1.stt.ListSpeakerProfileClipsRequest\x1a:.vrooli.audio_tools.v1.stt.ListSpeakerProfileClipsResponse\x12\x93\x01\n" +
+	"\x18DeleteSpeakerProfileClip\x12:.vrooli.audio_tools.v1.stt.DeleteSpeakerProfileClipRequest\x1a;.vrooli.audio_tools.v1.stt.DeleteSpeakerProfileClipResponseBJZHgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt;stt_v1b\x06proto3"
 
 var file_audio_tools_v1_stt_stt_admin_proto_goTypes = []any{
 	(*GetStreamConfigRequest)(nil),             // 0: vrooli.audio_tools.v1.stt.GetStreamConfigRequest
@@ -56,20 +58,24 @@ var file_audio_tools_v1_stt_stt_admin_proto_goTypes = []any{
 	(*ClearSpeakerProfileBindingRequest)(nil),  // 11: vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingRequest
 	(*UnbindSpeakerProfileRequest)(nil),        // 12: vrooli.audio_tools.v1.stt.UnbindSpeakerProfileRequest
 	(*DeleteSpeakerProfileRequest)(nil),        // 13: vrooli.audio_tools.v1.stt.DeleteSpeakerProfileRequest
-	(*GetStreamConfigResponse)(nil),            // 14: vrooli.audio_tools.v1.stt.GetStreamConfigResponse
-	(*UpdateStreamConfigResponse)(nil),         // 15: vrooli.audio_tools.v1.stt.UpdateStreamConfigResponse
-	(*GetEngineSwitchImpactResponse)(nil),      // 16: vrooli.audio_tools.v1.stt.GetEngineSwitchImpactResponse
-	(*GetWakeWordConfigResponse)(nil),          // 17: vrooli.audio_tools.v1.stt.GetWakeWordConfigResponse
-	(*UpdateWakeWordTemplateResponse)(nil),     // 18: vrooli.audio_tools.v1.stt.UpdateWakeWordTemplateResponse
-	(*DeleteWakeWordTemplateResponse)(nil),     // 19: vrooli.audio_tools.v1.stt.DeleteWakeWordTemplateResponse
-	(*GetSpeakerConfigResponse)(nil),           // 20: vrooli.audio_tools.v1.stt.GetSpeakerConfigResponse
-	(*UpdateSpeakerConfigResponse)(nil),        // 21: vrooli.audio_tools.v1.stt.UpdateSpeakerConfigResponse
-	(*GetSpeakerStatusResponse)(nil),           // 22: vrooli.audio_tools.v1.stt.GetSpeakerStatusResponse
-	(*ListSpeakerProfilesResponse)(nil),        // 23: vrooli.audio_tools.v1.stt.ListSpeakerProfilesResponse
-	(*EnrollSpeakerProfileResponse)(nil),       // 24: vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse
-	(*ClearSpeakerProfileBindingResponse)(nil), // 25: vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingResponse
-	(*UnbindSpeakerProfileResponse)(nil),       // 26: vrooli.audio_tools.v1.stt.UnbindSpeakerProfileResponse
-	(*DeleteSpeakerProfileResponse)(nil),       // 27: vrooli.audio_tools.v1.stt.DeleteSpeakerProfileResponse
+	(*ListSpeakerProfileClipsRequest)(nil),     // 14: vrooli.audio_tools.v1.stt.ListSpeakerProfileClipsRequest
+	(*DeleteSpeakerProfileClipRequest)(nil),    // 15: vrooli.audio_tools.v1.stt.DeleteSpeakerProfileClipRequest
+	(*GetStreamConfigResponse)(nil),            // 16: vrooli.audio_tools.v1.stt.GetStreamConfigResponse
+	(*UpdateStreamConfigResponse)(nil),         // 17: vrooli.audio_tools.v1.stt.UpdateStreamConfigResponse
+	(*GetEngineSwitchImpactResponse)(nil),      // 18: vrooli.audio_tools.v1.stt.GetEngineSwitchImpactResponse
+	(*GetWakeWordConfigResponse)(nil),          // 19: vrooli.audio_tools.v1.stt.GetWakeWordConfigResponse
+	(*UpdateWakeWordTemplateResponse)(nil),     // 20: vrooli.audio_tools.v1.stt.UpdateWakeWordTemplateResponse
+	(*DeleteWakeWordTemplateResponse)(nil),     // 21: vrooli.audio_tools.v1.stt.DeleteWakeWordTemplateResponse
+	(*GetSpeakerConfigResponse)(nil),           // 22: vrooli.audio_tools.v1.stt.GetSpeakerConfigResponse
+	(*UpdateSpeakerConfigResponse)(nil),        // 23: vrooli.audio_tools.v1.stt.UpdateSpeakerConfigResponse
+	(*GetSpeakerStatusResponse)(nil),           // 24: vrooli.audio_tools.v1.stt.GetSpeakerStatusResponse
+	(*ListSpeakerProfilesResponse)(nil),        // 25: vrooli.audio_tools.v1.stt.ListSpeakerProfilesResponse
+	(*EnrollSpeakerProfileResponse)(nil),       // 26: vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse
+	(*ClearSpeakerProfileBindingResponse)(nil), // 27: vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingResponse
+	(*UnbindSpeakerProfileResponse)(nil),       // 28: vrooli.audio_tools.v1.stt.UnbindSpeakerProfileResponse
+	(*DeleteSpeakerProfileResponse)(nil),       // 29: vrooli.audio_tools.v1.stt.DeleteSpeakerProfileResponse
+	(*ListSpeakerProfileClipsResponse)(nil),    // 30: vrooli.audio_tools.v1.stt.ListSpeakerProfileClipsResponse
+	(*DeleteSpeakerProfileClipResponse)(nil),   // 31: vrooli.audio_tools.v1.stt.DeleteSpeakerProfileClipResponse
 }
 var file_audio_tools_v1_stt_stt_admin_proto_depIdxs = []int32{
 	0,  // 0: vrooli.audio_tools.v1.stt.STTAdminService.GetStreamConfig:input_type -> vrooli.audio_tools.v1.stt.GetStreamConfigRequest
@@ -86,22 +92,26 @@ var file_audio_tools_v1_stt_stt_admin_proto_depIdxs = []int32{
 	11, // 11: vrooli.audio_tools.v1.stt.STTAdminService.ClearSpeakerProfileBinding:input_type -> vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingRequest
 	12, // 12: vrooli.audio_tools.v1.stt.STTAdminService.UnbindSpeakerProfile:input_type -> vrooli.audio_tools.v1.stt.UnbindSpeakerProfileRequest
 	13, // 13: vrooli.audio_tools.v1.stt.STTAdminService.DeleteSpeakerProfile:input_type -> vrooli.audio_tools.v1.stt.DeleteSpeakerProfileRequest
-	14, // 14: vrooli.audio_tools.v1.stt.STTAdminService.GetStreamConfig:output_type -> vrooli.audio_tools.v1.stt.GetStreamConfigResponse
-	15, // 15: vrooli.audio_tools.v1.stt.STTAdminService.UpdateStreamConfig:output_type -> vrooli.audio_tools.v1.stt.UpdateStreamConfigResponse
-	16, // 16: vrooli.audio_tools.v1.stt.STTAdminService.GetEngineSwitchImpact:output_type -> vrooli.audio_tools.v1.stt.GetEngineSwitchImpactResponse
-	17, // 17: vrooli.audio_tools.v1.stt.STTAdminService.GetWakeWordConfig:output_type -> vrooli.audio_tools.v1.stt.GetWakeWordConfigResponse
-	18, // 18: vrooli.audio_tools.v1.stt.STTAdminService.UpdateWakeWordTemplate:output_type -> vrooli.audio_tools.v1.stt.UpdateWakeWordTemplateResponse
-	19, // 19: vrooli.audio_tools.v1.stt.STTAdminService.DeleteWakeWordTemplate:output_type -> vrooli.audio_tools.v1.stt.DeleteWakeWordTemplateResponse
-	20, // 20: vrooli.audio_tools.v1.stt.STTAdminService.GetSpeakerConfig:output_type -> vrooli.audio_tools.v1.stt.GetSpeakerConfigResponse
-	21, // 21: vrooli.audio_tools.v1.stt.STTAdminService.UpdateSpeakerConfig:output_type -> vrooli.audio_tools.v1.stt.UpdateSpeakerConfigResponse
-	22, // 22: vrooli.audio_tools.v1.stt.STTAdminService.GetSpeakerStatus:output_type -> vrooli.audio_tools.v1.stt.GetSpeakerStatusResponse
-	23, // 23: vrooli.audio_tools.v1.stt.STTAdminService.ListSpeakerProfiles:output_type -> vrooli.audio_tools.v1.stt.ListSpeakerProfilesResponse
-	24, // 24: vrooli.audio_tools.v1.stt.STTAdminService.EnrollSpeakerProfile:output_type -> vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse
-	25, // 25: vrooli.audio_tools.v1.stt.STTAdminService.ClearSpeakerProfileBinding:output_type -> vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingResponse
-	26, // 26: vrooli.audio_tools.v1.stt.STTAdminService.UnbindSpeakerProfile:output_type -> vrooli.audio_tools.v1.stt.UnbindSpeakerProfileResponse
-	27, // 27: vrooli.audio_tools.v1.stt.STTAdminService.DeleteSpeakerProfile:output_type -> vrooli.audio_tools.v1.stt.DeleteSpeakerProfileResponse
-	14, // [14:28] is the sub-list for method output_type
-	0,  // [0:14] is the sub-list for method input_type
+	14, // 14: vrooli.audio_tools.v1.stt.STTAdminService.ListSpeakerProfileClips:input_type -> vrooli.audio_tools.v1.stt.ListSpeakerProfileClipsRequest
+	15, // 15: vrooli.audio_tools.v1.stt.STTAdminService.DeleteSpeakerProfileClip:input_type -> vrooli.audio_tools.v1.stt.DeleteSpeakerProfileClipRequest
+	16, // 16: vrooli.audio_tools.v1.stt.STTAdminService.GetStreamConfig:output_type -> vrooli.audio_tools.v1.stt.GetStreamConfigResponse
+	17, // 17: vrooli.audio_tools.v1.stt.STTAdminService.UpdateStreamConfig:output_type -> vrooli.audio_tools.v1.stt.UpdateStreamConfigResponse
+	18, // 18: vrooli.audio_tools.v1.stt.STTAdminService.GetEngineSwitchImpact:output_type -> vrooli.audio_tools.v1.stt.GetEngineSwitchImpactResponse
+	19, // 19: vrooli.audio_tools.v1.stt.STTAdminService.GetWakeWordConfig:output_type -> vrooli.audio_tools.v1.stt.GetWakeWordConfigResponse
+	20, // 20: vrooli.audio_tools.v1.stt.STTAdminService.UpdateWakeWordTemplate:output_type -> vrooli.audio_tools.v1.stt.UpdateWakeWordTemplateResponse
+	21, // 21: vrooli.audio_tools.v1.stt.STTAdminService.DeleteWakeWordTemplate:output_type -> vrooli.audio_tools.v1.stt.DeleteWakeWordTemplateResponse
+	22, // 22: vrooli.audio_tools.v1.stt.STTAdminService.GetSpeakerConfig:output_type -> vrooli.audio_tools.v1.stt.GetSpeakerConfigResponse
+	23, // 23: vrooli.audio_tools.v1.stt.STTAdminService.UpdateSpeakerConfig:output_type -> vrooli.audio_tools.v1.stt.UpdateSpeakerConfigResponse
+	24, // 24: vrooli.audio_tools.v1.stt.STTAdminService.GetSpeakerStatus:output_type -> vrooli.audio_tools.v1.stt.GetSpeakerStatusResponse
+	25, // 25: vrooli.audio_tools.v1.stt.STTAdminService.ListSpeakerProfiles:output_type -> vrooli.audio_tools.v1.stt.ListSpeakerProfilesResponse
+	26, // 26: vrooli.audio_tools.v1.stt.STTAdminService.EnrollSpeakerProfile:output_type -> vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse
+	27, // 27: vrooli.audio_tools.v1.stt.STTAdminService.ClearSpeakerProfileBinding:output_type -> vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingResponse
+	28, // 28: vrooli.audio_tools.v1.stt.STTAdminService.UnbindSpeakerProfile:output_type -> vrooli.audio_tools.v1.stt.UnbindSpeakerProfileResponse
+	29, // 29: vrooli.audio_tools.v1.stt.STTAdminService.DeleteSpeakerProfile:output_type -> vrooli.audio_tools.v1.stt.DeleteSpeakerProfileResponse
+	30, // 30: vrooli.audio_tools.v1.stt.STTAdminService.ListSpeakerProfileClips:output_type -> vrooli.audio_tools.v1.stt.ListSpeakerProfileClipsResponse
+	31, // 31: vrooli.audio_tools.v1.stt.STTAdminService.DeleteSpeakerProfileClip:output_type -> vrooli.audio_tools.v1.stt.DeleteSpeakerProfileClipResponse
+	16, // [16:32] is the sub-list for method output_type
+	0,  // [0:16] is the sub-list for method input_type
 	0,  // [0:0] is the sub-list for extension type_name
 	0,  // [0:0] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name

@@ -6,6 +6,7 @@ import { create } from "@bufbuild/protobuf";
 import { createClient as createConnectClient } from "@connectrpc/connect";
 import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";
 
+import { AudioFormat } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
 import { STTAdminService } from "@vrooli/proto-types/audio-tools/v1/stt/stt_admin_pb";
 import {
   RejectBehavior,
@@ -75,6 +76,8 @@ export interface SpeakerConfig {
   rejectBehavior: RejectBehaviorLabel;
   fallbackWithoutVerification: boolean;
   extractionEnabled: boolean;
+  minDecisionSeconds: number;
+  scoreSmoothing: number;
 }
 
 export interface SpeakerProfile {
@@ -83,7 +86,24 @@ export interface SpeakerProfile {
   createdAt: string;
   modelName: string;
   sampleRate: number;
-  enrollmentAudioSeconds: number;
+  clipCount: number;
+  totalVoicedSeconds: number;
+}
+
+export interface SpeakerProfileClip {
+  clipId: string;
+  label: string;
+  voicedSeconds: number;
+  createdAt: string;
+}
+
+export interface SpeakerEnrollmentResult {
+  profileId: string;
+  clipId: string;
+  label: string;
+  voicedSeconds: number;
+  clipCount: number;
+  totalVoicedSeconds: number;
 }
 
 export interface SpeakerStatus {
@@ -105,6 +125,8 @@ function decodeConfig(c: {
   rejectBehavior?: RejectBehavior;
   fallbackWithoutVerification?: boolean;
   extractionEnabled?: boolean;
+  minDecisionSeconds?: number;
+  scoreSmoothing?: number;
 } | undefined): SpeakerConfig {
   return {
     enabled: c?.enabled ?? false,
@@ -114,7 +136,15 @@ function decodeConfig(c: {
     rejectBehavior: rejectBehaviorToLabel(c?.rejectBehavior),
     fallbackWithoutVerification: c?.fallbackWithoutVerification ?? false,
     extractionEnabled: c?.extractionEnabled ?? false,
+    minDecisionSeconds: c?.minDecisionSeconds ?? 0,
+    scoreSmoothing: c?.scoreSmoothing ?? 0,
   };
+}
+
+function tsToISO(ts?: { seconds?: bigint | number; nanos?: number }): string {
+  if (!ts) return "";
+  const seconds = typeof ts.seconds === "bigint" ? Number(ts.seconds) : (ts.seconds ?? 0);
+  return new Date(seconds * 1000 + Math.floor((ts.nanos ?? 0) / 1_000_000)).toISOString();
 }
 
 function decodeProfile(p: {
@@ -122,22 +152,32 @@ function decodeProfile(p: {
   displayName: string;
   modelName: string;
   sampleRate: number;
-  enrollmentAudioSeconds: number;
+  clipCount: number;
+  totalVoicedSeconds: number;
   createdAt?: { seconds?: bigint | number; nanos?: number };
 }): SpeakerProfile {
-  const ts = p.createdAt;
-  let createdAt = "";
-  if (ts) {
-    const seconds = typeof ts.seconds === "bigint" ? Number(ts.seconds) : (ts.seconds ?? 0);
-    createdAt = new Date(seconds * 1000 + Math.floor((ts.nanos ?? 0) / 1_000_000)).toISOString();
-  }
   return {
     id: p.id,
     displayName: p.displayName,
-    createdAt,
+    createdAt: tsToISO(p.createdAt),
     modelName: p.modelName,
     sampleRate: p.sampleRate,
-    enrollmentAudioSeconds: p.enrollmentAudioSeconds,
+    clipCount: p.clipCount,
+    totalVoicedSeconds: p.totalVoicedSeconds,
+  };
+}
+
+function decodeClip(c: {
+  clipId: string;
+  label: string;
+  voicedSeconds: number;
+  createdAt?: { seconds?: bigint | number; nanos?: number };
+}): SpeakerProfileClip {
+  return {
+    clipId: c.clipId,
+    label: c.label,
+    voicedSeconds: c.voicedSeconds,
+    createdAt: tsToISO(c.createdAt),
   };
 }
 
@@ -167,6 +207,8 @@ export async function updateSpeakerConfig(patch: Partial<SpeakerConfig>): Promis
   if (patch.rejectBehavior !== undefined) { cfg.rejectBehavior = rejectBehaviorFromLabel(patch.rejectBehavior); paths.push("reject_behavior"); }
   if (patch.fallbackWithoutVerification !== undefined) { cfg.fallbackWithoutVerification = patch.fallbackWithoutVerification; paths.push("fallback_without_verification"); }
   if (patch.extractionEnabled !== undefined) { cfg.extractionEnabled = patch.extractionEnabled; paths.push("extraction_enabled"); }
+  if (patch.minDecisionSeconds !== undefined) { cfg.minDecisionSeconds = patch.minDecisionSeconds; paths.push("min_decision_seconds"); }
+  if (patch.scoreSmoothing !== undefined) { cfg.scoreSmoothing = patch.scoreSmoothing; paths.push("score_smoothing"); }
   const resp = await client.updateSpeakerConfig({
     updateMask: create(FieldMaskSchema, { paths }),
     config: cfg,
@@ -182,4 +224,51 @@ export async function unbindSpeakerProfile(profileId: string): Promise<SpeakerCo
 export async function deleteSpeakerProfile(profileId: string): Promise<SpeakerConfig> {
   const resp = await client.deleteSpeakerProfile({ profileId });
   return decodeConfig(resp.config);
+}
+
+export interface EnrollSpeakerArgs {
+  audio: Uint8Array;
+  format: AudioFormat;
+  profileId?: string;
+  displayName?: string;
+  label?: string;
+  addToActive?: boolean;
+  enable?: boolean;
+}
+
+// enrollSpeakerProfile appends ONE labeled clip to a profile (creating it when
+// new). Call it once per recorded clip to build a multi-condition identity.
+export async function enrollSpeakerProfile(args: EnrollSpeakerArgs): Promise<SpeakerEnrollmentResult> {
+  const req: Record<string, unknown> = {
+    audio: args.audio,
+    format: args.format,
+    profileId: args.profileId ?? "",
+    displayName: args.displayName ?? "",
+    label: args.label ?? "",
+  };
+  if (args.addToActive !== undefined) req.addToActive = args.addToActive;
+  if (args.enable !== undefined) req.enable = args.enable;
+  const resp = await client.enrollSpeakerProfile(req);
+  const en = resp.enrollment;
+  return {
+    profileId: en?.profileId ?? "",
+    clipId: en?.clipId ?? "",
+    label: en?.label ?? "",
+    voicedSeconds: en?.voicedSeconds ?? 0,
+    clipCount: en?.clipCount ?? 0,
+    totalVoicedSeconds: en?.totalVoicedSeconds ?? 0,
+  };
+}
+
+export async function listSpeakerProfileClips(profileId: string): Promise<SpeakerProfileClip[]> {
+  const resp = await client.listSpeakerProfileClips({ profileId });
+  return resp.clips.map(decodeClip);
+}
+
+export async function deleteSpeakerProfileClip(
+  profileId: string,
+  clipId: string,
+): Promise<{ deletedProfile: boolean; clipCount: number }> {
+  const resp = await client.deleteSpeakerProfileClip({ profileId, clipId });
+  return { deletedProfile: resp.deletedProfile, clipCount: resp.clipCount };
 }

@@ -75,6 +75,12 @@ const (
 	// STTAdminServiceDeleteSpeakerProfileProcedure is the fully-qualified name of the STTAdminService's
 	// DeleteSpeakerProfile RPC.
 	STTAdminServiceDeleteSpeakerProfileProcedure = "/vrooli.audio_tools.v1.stt.STTAdminService/DeleteSpeakerProfile"
+	// STTAdminServiceListSpeakerProfileClipsProcedure is the fully-qualified name of the
+	// STTAdminService's ListSpeakerProfileClips RPC.
+	STTAdminServiceListSpeakerProfileClipsProcedure = "/vrooli.audio_tools.v1.stt.STTAdminService/ListSpeakerProfileClips"
+	// STTAdminServiceDeleteSpeakerProfileClipProcedure is the fully-qualified name of the
+	// STTAdminService's DeleteSpeakerProfileClip RPC.
+	STTAdminServiceDeleteSpeakerProfileClipProcedure = "/vrooli.audio_tools.v1.stt.STTAdminService/DeleteSpeakerProfileClip"
 )
 
 // STTAdminServiceClient is a client for the vrooli.audio_tools.v1.stt.STTAdminService service.
@@ -104,6 +110,11 @@ type STTAdminServiceClient interface {
 	// DeleteSpeakerProfile permanently removes the profile from the
 	// speaker store and unbinds it. Requires a configured speaker store.
 	DeleteSpeakerProfile(context.Context, *connect.Request[stt.DeleteSpeakerProfileRequest]) (*connect.Response[stt.DeleteSpeakerProfileResponse], error)
+	// ListSpeakerProfileClips lists the enrollment clips of one profile.
+	ListSpeakerProfileClips(context.Context, *connect.Request[stt.ListSpeakerProfileClipsRequest]) (*connect.Response[stt.ListSpeakerProfileClipsResponse], error)
+	// DeleteSpeakerProfileClip removes one clip and recomputes the centroid
+	// (deleting the profile when it was the last clip).
+	DeleteSpeakerProfileClip(context.Context, *connect.Request[stt.DeleteSpeakerProfileClipRequest]) (*connect.Response[stt.DeleteSpeakerProfileClipResponse], error)
 }
 
 // NewSTTAdminServiceClient constructs a client for the vrooli.audio_tools.v1.stt.STTAdminService
@@ -201,6 +212,18 @@ func NewSTTAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(sTTAdminServiceMethods.ByName("DeleteSpeakerProfile")),
 			connect.WithClientOptions(opts...),
 		),
+		listSpeakerProfileClips: connect.NewClient[stt.ListSpeakerProfileClipsRequest, stt.ListSpeakerProfileClipsResponse](
+			httpClient,
+			baseURL+STTAdminServiceListSpeakerProfileClipsProcedure,
+			connect.WithSchema(sTTAdminServiceMethods.ByName("ListSpeakerProfileClips")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteSpeakerProfileClip: connect.NewClient[stt.DeleteSpeakerProfileClipRequest, stt.DeleteSpeakerProfileClipResponse](
+			httpClient,
+			baseURL+STTAdminServiceDeleteSpeakerProfileClipProcedure,
+			connect.WithSchema(sTTAdminServiceMethods.ByName("DeleteSpeakerProfileClip")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -220,6 +243,8 @@ type sTTAdminServiceClient struct {
 	clearSpeakerProfileBinding *connect.Client[stt.ClearSpeakerProfileBindingRequest, stt.ClearSpeakerProfileBindingResponse]
 	unbindSpeakerProfile       *connect.Client[stt.UnbindSpeakerProfileRequest, stt.UnbindSpeakerProfileResponse]
 	deleteSpeakerProfile       *connect.Client[stt.DeleteSpeakerProfileRequest, stt.DeleteSpeakerProfileResponse]
+	listSpeakerProfileClips    *connect.Client[stt.ListSpeakerProfileClipsRequest, stt.ListSpeakerProfileClipsResponse]
+	deleteSpeakerProfileClip   *connect.Client[stt.DeleteSpeakerProfileClipRequest, stt.DeleteSpeakerProfileClipResponse]
 }
 
 // GetStreamConfig calls vrooli.audio_tools.v1.stt.STTAdminService.GetStreamConfig.
@@ -293,6 +318,17 @@ func (c *sTTAdminServiceClient) DeleteSpeakerProfile(ctx context.Context, req *c
 	return c.deleteSpeakerProfile.CallUnary(ctx, req)
 }
 
+// ListSpeakerProfileClips calls vrooli.audio_tools.v1.stt.STTAdminService.ListSpeakerProfileClips.
+func (c *sTTAdminServiceClient) ListSpeakerProfileClips(ctx context.Context, req *connect.Request[stt.ListSpeakerProfileClipsRequest]) (*connect.Response[stt.ListSpeakerProfileClipsResponse], error) {
+	return c.listSpeakerProfileClips.CallUnary(ctx, req)
+}
+
+// DeleteSpeakerProfileClip calls
+// vrooli.audio_tools.v1.stt.STTAdminService.DeleteSpeakerProfileClip.
+func (c *sTTAdminServiceClient) DeleteSpeakerProfileClip(ctx context.Context, req *connect.Request[stt.DeleteSpeakerProfileClipRequest]) (*connect.Response[stt.DeleteSpeakerProfileClipResponse], error) {
+	return c.deleteSpeakerProfileClip.CallUnary(ctx, req)
+}
+
 // STTAdminServiceHandler is an implementation of the vrooli.audio_tools.v1.stt.STTAdminService
 // service.
 type STTAdminServiceHandler interface {
@@ -321,6 +357,11 @@ type STTAdminServiceHandler interface {
 	// DeleteSpeakerProfile permanently removes the profile from the
 	// speaker store and unbinds it. Requires a configured speaker store.
 	DeleteSpeakerProfile(context.Context, *connect.Request[stt.DeleteSpeakerProfileRequest]) (*connect.Response[stt.DeleteSpeakerProfileResponse], error)
+	// ListSpeakerProfileClips lists the enrollment clips of one profile.
+	ListSpeakerProfileClips(context.Context, *connect.Request[stt.ListSpeakerProfileClipsRequest]) (*connect.Response[stt.ListSpeakerProfileClipsResponse], error)
+	// DeleteSpeakerProfileClip removes one clip and recomputes the centroid
+	// (deleting the profile when it was the last clip).
+	DeleteSpeakerProfileClip(context.Context, *connect.Request[stt.DeleteSpeakerProfileClipRequest]) (*connect.Response[stt.DeleteSpeakerProfileClipResponse], error)
 }
 
 // NewSTTAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -414,6 +455,18 @@ func NewSTTAdminServiceHandler(svc STTAdminServiceHandler, opts ...connect.Handl
 		connect.WithSchema(sTTAdminServiceMethods.ByName("DeleteSpeakerProfile")),
 		connect.WithHandlerOptions(opts...),
 	)
+	sTTAdminServiceListSpeakerProfileClipsHandler := connect.NewUnaryHandler(
+		STTAdminServiceListSpeakerProfileClipsProcedure,
+		svc.ListSpeakerProfileClips,
+		connect.WithSchema(sTTAdminServiceMethods.ByName("ListSpeakerProfileClips")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sTTAdminServiceDeleteSpeakerProfileClipHandler := connect.NewUnaryHandler(
+		STTAdminServiceDeleteSpeakerProfileClipProcedure,
+		svc.DeleteSpeakerProfileClip,
+		connect.WithSchema(sTTAdminServiceMethods.ByName("DeleteSpeakerProfileClip")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.audio_tools.v1.stt.STTAdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case STTAdminServiceGetStreamConfigProcedure:
@@ -444,6 +497,10 @@ func NewSTTAdminServiceHandler(svc STTAdminServiceHandler, opts ...connect.Handl
 			sTTAdminServiceUnbindSpeakerProfileHandler.ServeHTTP(w, r)
 		case STTAdminServiceDeleteSpeakerProfileProcedure:
 			sTTAdminServiceDeleteSpeakerProfileHandler.ServeHTTP(w, r)
+		case STTAdminServiceListSpeakerProfileClipsProcedure:
+			sTTAdminServiceListSpeakerProfileClipsHandler.ServeHTTP(w, r)
+		case STTAdminServiceDeleteSpeakerProfileClipProcedure:
+			sTTAdminServiceDeleteSpeakerProfileClipHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -507,4 +564,12 @@ func (UnimplementedSTTAdminServiceHandler) UnbindSpeakerProfile(context.Context,
 
 func (UnimplementedSTTAdminServiceHandler) DeleteSpeakerProfile(context.Context, *connect.Request[stt.DeleteSpeakerProfileRequest]) (*connect.Response[stt.DeleteSpeakerProfileResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.stt.STTAdminService.DeleteSpeakerProfile is not implemented"))
+}
+
+func (UnimplementedSTTAdminServiceHandler) ListSpeakerProfileClips(context.Context, *connect.Request[stt.ListSpeakerProfileClipsRequest]) (*connect.Response[stt.ListSpeakerProfileClipsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.stt.STTAdminService.ListSpeakerProfileClips is not implemented"))
+}
+
+func (UnimplementedSTTAdminServiceHandler) DeleteSpeakerProfileClip(context.Context, *connect.Request[stt.DeleteSpeakerProfileClipRequest]) (*connect.Response[stt.DeleteSpeakerProfileClipResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.stt.STTAdminService.DeleteSpeakerProfileClip is not implemented"))
 }

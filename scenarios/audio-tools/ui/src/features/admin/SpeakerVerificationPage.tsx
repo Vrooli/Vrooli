@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Panel } from "../../components/ui/panel";
 import { Button } from "../../components/ui/button";
@@ -18,6 +19,8 @@ import {
   type SpeakerModeLabel,
   type RejectBehaviorLabel,
 } from "../../services/speakerAdmin";
+import { SpeakerEnrollmentPanel } from "./SpeakerEnrollmentPanel";
+import { SpeakerProfileClips } from "./SpeakerProfileClips";
 
 const capabilityTone = (capability: string): "success" | "warning" | "danger" | "neutral" => {
   switch (capability) {
@@ -36,6 +39,7 @@ export function SpeakerVerificationPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const status = useQuery({ queryKey: ["speaker", "status"], queryFn: getSpeakerStatus });
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const saveMut = useMutation({
     mutationFn: updateSpeakerConfig,
@@ -175,6 +179,8 @@ export function SpeakerVerificationPage() {
         </form>
       </Panel>
 
+      <SpeakerEnrollmentPanel />
+
       <Panel title={t(strings.speakerAdmin.profilesTitle)}>
         {st.profiles.length === 0 ? (
           <p className="px-4 py-3 text-sm text-app-muted-foreground">{t(strings.speakerAdmin.profilesEmpty)}</p>
@@ -185,7 +191,8 @@ export function SpeakerVerificationPage() {
                 <TH>{t(strings.speakerAdmin.colId)}</TH>
                 <TH>{t(strings.speakerAdmin.colName)}</TH>
                 <TH>{t(strings.speakerAdmin.colModel)}</TH>
-                <TH>{t(strings.speakerAdmin.colSampleRate)}</TH>
+                <TH>{t(strings.speakerAdmin.colClips)}</TH>
+                <TH>{t(strings.speakerAdmin.colVoiced)}</TH>
                 <TH aria-label={t(strings.speakerAdmin.colActions)} />
               </TR>
             </THead>
@@ -195,8 +202,17 @@ export function SpeakerVerificationPage() {
                   <TD className="font-mono text-xs">{p.id}</TD>
                   <TD data-testid={selectors.speakerAdmin.profileName({ id: p.id })}>{p.displayName}</TD>
                   <TD data-testid={selectors.speakerAdmin.profileModel({ id: p.id })}>{p.modelName}</TD>
-                  <TD>{p.sampleRate}</TD>
+                  <TD>{p.clipCount}</TD>
+                  <TD>{p.totalVoicedSeconds.toFixed(1)}</TD>
                   <TD className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setExpanded(expanded === p.id ? null : p.id)}
+                    >
+                      {t(strings.speakerAdmin.viewClipsButton)}
+                    </Button>
                     <Button
                       type="button"
                       variant="ghost"
@@ -221,6 +237,7 @@ export function SpeakerVerificationPage() {
             </TBody>
           </Table>
         )}
+        {expanded && <SpeakerProfileClips profileId={expanded} />}
       </Panel>
     </div>
   );

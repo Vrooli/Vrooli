@@ -21,6 +21,14 @@ services:
       - SPEAKER_EXTRACTION_MODEL=${SPEAKER_EXTRACTION_MODEL:-speechbrain/sepformer-wsj02mix}
       - SPEAKER_EXTRACTION_SAMPLE_RATE=${SPEAKER_EXTRACTION_SAMPLE_RATE:-8000}
       - SPEAKER_EXTRACTION_MATCH_THRESHOLD=${SPEAKER_EXTRACTION_MATCH_THRESHOLD:-0.25}
+      # Embedding-quality knobs (see docs/API.md). VAD trim + min-voiced guards
+      # are the primary speaker-separation levers; embed denoise is off by default.
+      - SPEAKER_VAD=${SPEAKER_VAD:-energy}
+      - SPEAKER_SCORE_AGG=${SPEAKER_SCORE_AGG:-hybrid}
+      - SPEAKER_MIN_ENROLL_VOICED_SECONDS=${SPEAKER_MIN_ENROLL_VOICED_SECONDS:-3.0}
+      - SPEAKER_MIN_VERIFY_VOICED_SECONDS=${SPEAKER_MIN_VERIFY_VOICED_SECONDS:-1.0}
+      - SPEAKER_DEFAULT_THRESHOLD=${SPEAKER_DEFAULT_THRESHOLD:-0.5}
+      - SPEAKER_EMBED_DENOISE=${SPEAKER_EMBED_DENOISE:-false}
     networks:
       - speaker-verification-network
     healthcheck:

@@ -359,6 +359,13 @@ message SpeakerConfig {
   RejectBehavior reject_behavior = 5;
   bool fallback_without_verification = 6;
   bool extraction_enabled = 7;
+  // min_decision_seconds is the warm-up window: the session-level verifier does
+  // not reject any segment until this much voiced audio has accrued, so a short
+  // first utterance is never falsely rejected. 0 uses the server default.
+  double min_decision_seconds = 8;
+  // score_smoothing is the EMA alpha (0,1] applied to per-segment scores so the
+  // session decision stops swinging mid-utterance. 0 uses the server default.
+  double score_smoothing = 9;
 }
 
 message GetSpeakerConfigRequest {}
@@ -388,6 +395,21 @@ message SpeakerProfile {
   int32 sample_rate = 7;
   double enrollment_audio_seconds = 8;
   string notes = 9;
+  // A profile is one identity holding N enrollment clips (different devices /
+  // speaking styles), each strengthening the stored centroid.
+  int32 clip_count = 10;
+  double total_voiced_seconds = 11;
+}
+
+// SpeakerProfileClip is one labeled enrollment clip within a profile. The raw
+// embedding is never surfaced; only its metadata.
+message SpeakerProfileClip {
+  string clip_id = 1;
+  string label = 2;
+  double voiced_seconds = 3;
+  double audio_seconds = 4;
+  google.protobuf.Timestamp created_at = 5;
+  int32 embedding_dim = 6;
 }
 
 message SpeakerResourceInfo {
@@ -433,6 +455,12 @@ message SpeakerEnrollment {
   double enrollment_audio_seconds = 5;
   string model_name = 6;
   google.protobuf.Timestamp created_at = 7;
+  // The clip this enrollment call appended, plus the resulting profile totals.
+  string clip_id = 8;
+  string label = 9;
+  double voiced_seconds = 10;
+  int32 clip_count = 11;
+  double total_voiced_seconds = 12;
 }
 
 // EnrollSpeakerProfileRequest enrolls a new speaker profile. The
@@ -448,6 +476,9 @@ message EnrollSpeakerProfileRequest {
   string notes = 5;
   optional bool add_to_active = 6;
   optional bool enable = 7;
+  // label tags this enrollment clip with its condition (e.g. "laptop-normal",
+  // "phone-whisper") so the profile can hold a labeled variety of clips.
+  string label = 8;
 }
 
 message EnrollSpeakerProfileResponse {
@@ -488,6 +519,33 @@ message DeleteSpeakerProfileRequest {
 
 message DeleteSpeakerProfileResponse {
   SpeakerConfig config = 1;
+}
+
+// ListSpeakerProfileClipsRequest lists the enrollment clips of one profile.
+message ListSpeakerProfileClipsRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ListSpeakerProfileClipsResponse {
+  string profile_id = 1;
+  repeated SpeakerProfileClip clips = 2;
+  int32 count = 3;
+}
+
+// DeleteSpeakerProfileClipRequest removes one clip from a profile and
+// recomputes its centroid. Deleting the last clip deletes the (now-empty)
+// profile (deleted_profile=true in the response).
+message DeleteSpeakerProfileClipRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  string clip_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteSpeakerProfileClipResponse {
+  string profile_id = 1;
+  string clip_id = 2;
+  bool deleted_profile = 3;
+  int32 clip_count = 4;
+  double total_voiced_seconds = 5;
 }
 
 // -----------------------------------------------------------------------------

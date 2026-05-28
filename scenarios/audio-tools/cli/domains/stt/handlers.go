@@ -623,7 +623,7 @@ func (h *handlers) speakerStatus(ctx cliapp.RunContext) error {
 				break
 			}
 		}
-		fmt.Fprintf(ctx.Stdout(), "    - %s (%s, %.1fs)%s\n", p.GetId(), p.GetDisplayName(), p.GetEnrollmentAudioSeconds(), active)
+		fmt.Fprintf(ctx.Stdout(), "    - %s (%s, %d clip(s), %.1fs voiced)%s\n", p.GetId(), p.GetDisplayName(), p.GetClipCount(), p.GetTotalVoicedSeconds(), active)
 	}
 	if cfg.GetEnabled() && cfg.GetMode() != sttv1.SpeakerMode_SPEAKER_MODE_OFF {
 		fmt.Fprintf(ctx.Stdout(), "  note: speaker isolation only protects the Whisper VAD path (per-segment\n")
@@ -687,6 +687,22 @@ func (h *handlers) speakerConfig(ctx cliapp.RunContext) error {
 		cfg.ExtractionEnabled = b
 		mask.Paths = append(mask.Paths, "extraction_enabled")
 	}
+	if v := ctx.Flag("min-decision-seconds"); v != "" {
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return fmt.Errorf("--min-decision-seconds must be a number: %q", v)
+		}
+		cfg.MinDecisionSeconds = f
+		mask.Paths = append(mask.Paths, "min_decision_seconds")
+	}
+	if v := ctx.Flag("score-smoothing"); v != "" {
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return fmt.Errorf("--score-smoothing must be a number: %q", v)
+		}
+		cfg.ScoreSmoothing = f
+		mask.Paths = append(mask.Paths, "score_smoothing")
+	}
 	profilesFlag := ctx.Flag("profiles")
 	bindFlag := ctx.Flag("bind-profile")
 	if profilesFlag != "" && bindFlag != "" {
@@ -716,7 +732,7 @@ func (h *handlers) speakerConfig(ctx cliapp.RunContext) error {
 		mask.Paths = append(mask.Paths, "profile_ids")
 	}
 	if len(mask.Paths) == 0 {
-		return fmt.Errorf("at least one flag must be set (--mode, --threshold, --enabled, --profiles, --bind-profile, --reject-behavior, --fallback, --extraction-enabled)")
+		return fmt.Errorf("at least one flag must be set (--mode, --threshold, --enabled, --profiles, --bind-profile, --reject-behavior, --fallback, --extraction-enabled, --min-decision-seconds, --score-smoothing)")
 	}
 	resp, err := h.admin.UpdateSpeakerConfig(context.Background(), connect.NewRequest(&sttv1.UpdateSpeakerConfigRequest{
 		UpdateMask: mask,
@@ -734,44 +750,121 @@ func (h *handlers) speakerConfig(ctx cliapp.RunContext) error {
 	fmt.Fprintf(ctx.Stdout(), "  active_profiles = %v\n", out.GetProfileIds())
 	fmt.Fprintf(ctx.Stdout(), "  fallback        = %t\n", out.GetFallbackWithoutVerification())
 	fmt.Fprintf(ctx.Stdout(), "  extraction      = %t\n", out.GetExtractionEnabled())
+	fmt.Fprintf(ctx.Stdout(), "  min_decision_s  = %.1f\n", out.GetMinDecisionSeconds())
+	fmt.Fprintf(ctx.Stdout(), "  score_smoothing = %.2f\n", out.GetScoreSmoothing())
 	return nil
 }
 
-// speakerEnroll enrolls a voice profile from an audio file. Pass --activate to
-// bind it as an active profile and enable verification in one step.
+// speakerEnroll appends one or more enrollment clips to a voice profile. --file
+// accepts a comma-separated list to enroll several clips (e.g. different devices
+// or speaking styles) in one call — each becomes its own append against the same
+// profile, strengthening the identity. Pass --activate to bind+enable in one
+// step. A profile is one identity; each clip is one condition (--label).
 func (h *handlers) speakerEnroll(ctx cliapp.RunContext) error {
-	path := ctx.Flag("file")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("read %s: %w", path, err)
+	paths := splitCSV(ctx.Flag("file"))
+	if len(paths) == 0 {
+		return fmt.Errorf("--file is required (comma-separated for multiple clips)")
 	}
-	req := &sttv1.EnrollSpeakerProfileRequest{
-		Audio:       data,
-		Format:      audioFormatFromFlag(ctx.Flag("format")),
-		ProfileId:   ctx.Flag("profile"),
-		DisplayName: ctx.Flag("label"),
-		Notes:       ctx.Flag("notes"),
-	}
+
+	var activate *bool
 	if v := ctx.Flag("activate"); v != "" {
 		b, err := strconv.ParseBool(v)
 		if err != nil {
 			return fmt.Errorf("--activate must be true|false: %q", v)
 		}
-		req.AddToActive = boolPtr(b)
-		req.Enable = boolPtr(b)
+		activate = boolPtr(b)
 	}
-	resp, err := h.admin.EnrollSpeakerProfile(context.Background(), connect.NewRequest(req))
+
+	format := audioFormatFromFlag(ctx.Flag("format"))
+	label := ctx.Flag("label")
+	name := ctx.Flag("name")
+	notes := ctx.Flag("notes")
+	profileID := ctx.Flag("profile")
+
+	fmt.Fprintf(ctx.Stdout(), "Enrolling %d clip(s):\n", len(paths))
+	var lastResp *sttv1.EnrollSpeakerProfileResponse
+	for i, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", path, err)
+		}
+		req := &sttv1.EnrollSpeakerProfileRequest{
+			Audio:       data,
+			Format:      format,
+			ProfileId:   profileID,
+			DisplayName: name,
+			Notes:       notes,
+			Label:       label,
+		}
+		// Activate once, on the first clip; later clips just append.
+		if i == 0 && activate != nil {
+			req.AddToActive = activate
+			req.Enable = activate
+		}
+		resp, err := h.admin.EnrollSpeakerProfile(context.Background(), connect.NewRequest(req))
+		if err != nil {
+			return cliapp.WrapAPIError("enroll-speaker-profile", err, nil)
+		}
+		en := resp.Msg.GetEnrollment()
+		// Subsequent clips land in the same profile (server may have generated id).
+		profileID = en.GetProfileId()
+		lastResp = resp.Msg
+		fmt.Fprintf(ctx.Stdout(), "  [%d] %s -> clip %s (label=%q, %.1fs voiced) — %d clip(s) total\n",
+			i+1, path, en.GetClipId(), en.GetLabel(), en.GetVoicedSeconds(), en.GetClipCount())
+	}
+
+	if lastResp != nil {
+		en := lastResp.GetEnrollment()
+		fmt.Fprintf(ctx.Stdout(), "Profile %s: %d clip(s), %.1fs total voiced; model %s (dim %d)\n",
+			en.GetProfileId(), en.GetClipCount(), en.GetTotalVoicedSeconds(), en.GetModelName(), en.GetEmbeddingDim())
+		if cfg := lastResp.GetConfig(); cfg != nil {
+			fmt.Fprintf(ctx.Stdout(), "  active_now = %v (enabled=%t)\n", cfg.GetProfileIds(), cfg.GetEnabled())
+		}
+	}
+	return nil
+}
+
+// speakerClips lists the enrollment clips of a profile.
+func (h *handlers) speakerClips(ctx cliapp.RunContext) error {
+	profile := ctx.Flag("profile")
+	if profile == "" {
+		return fmt.Errorf("--profile is required")
+	}
+	resp, err := h.admin.ListSpeakerProfileClips(context.Background(), connect.NewRequest(&sttv1.ListSpeakerProfileClipsRequest{
+		ProfileId: profile,
+	}))
 	if err != nil {
-		return cliapp.WrapAPIError("enroll-speaker-profile", err, nil)
+		return cliapp.WrapAPIError("list-speaker-profile-clips", err, nil)
 	}
-	en := resp.Msg.GetEnrollment()
-	fmt.Fprintf(ctx.Stdout(), "Enrolled speaker profile:\n")
-	fmt.Fprintf(ctx.Stdout(), "  profile_id   = %s\n", en.GetProfileId())
-	fmt.Fprintf(ctx.Stdout(), "  display_name = %s\n", en.GetDisplayName())
-	fmt.Fprintf(ctx.Stdout(), "  audio_secs   = %.1f\n", en.GetEnrollmentAudioSeconds())
-	fmt.Fprintf(ctx.Stdout(), "  model        = %s (dim %d)\n", en.GetModelName(), en.GetEmbeddingDim())
-	if cfg := resp.Msg.GetConfig(); cfg != nil {
-		fmt.Fprintf(ctx.Stdout(), "  active_now   = %v (enabled=%t)\n", cfg.GetProfileIds(), cfg.GetEnabled())
+	clips := resp.Msg.GetClips()
+	fmt.Fprintf(ctx.Stdout(), "Profile %s: %d clip(s)\n", resp.Msg.GetProfileId(), resp.Msg.GetCount())
+	for _, c := range clips {
+		fmt.Fprintf(ctx.Stdout(), "  - %s (label=%q, %.1fs voiced)\n", c.GetClipId(), c.GetLabel(), c.GetVoicedSeconds())
 	}
+	return nil
+}
+
+// speakerDeleteClip removes one clip from a profile and recomputes its centroid.
+// Deleting the last clip deletes the profile.
+func (h *handlers) speakerDeleteClip(ctx cliapp.RunContext) error {
+	profile := ctx.Flag("profile")
+	clip := ctx.Flag("clip")
+	if profile == "" || clip == "" {
+		return fmt.Errorf("--profile and --clip are required")
+	}
+	resp, err := h.admin.DeleteSpeakerProfileClip(context.Background(), connect.NewRequest(&sttv1.DeleteSpeakerProfileClipRequest{
+		ProfileId: profile,
+		ClipId:    clip,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("delete-speaker-profile-clip", err, nil)
+	}
+	m := resp.Msg
+	if m.GetDeletedProfile() {
+		fmt.Fprintf(ctx.Stdout(), "Deleted clip %s — that was the last clip, so profile %s was removed.\n", m.GetClipId(), m.GetProfileId())
+		return nil
+	}
+	fmt.Fprintf(ctx.Stdout(), "Deleted clip %s from profile %s — %d clip(s) remain (%.1fs total voiced).\n",
+		m.GetClipId(), m.GetProfileId(), m.GetClipCount(), m.GetTotalVoicedSeconds())
 	return nil
 }

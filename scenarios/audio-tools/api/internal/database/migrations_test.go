@@ -34,12 +34,14 @@ func TestApplyMigrations_AddsColumnsToLegacyTable(t *testing.T) {
 	require.NoError(t, localdb.ApplyMigrations(ctx, d))
 
 	// The new columns now exist and the legacy row reads back with defaults.
-	row := d.QueryRowContext(ctx, `SELECT enrollment_audio_seconds, sample_rate, embedding_dim, model_name FROM speaker_profiles WHERE id='legacy'`)
-	var secs float64
+	row := d.QueryRowContext(ctx, `SELECT clip_count, total_voiced_seconds, sample_rate, embedding_dim, model_name FROM speaker_profiles WHERE id='legacy'`)
+	var clips int
+	var voiced float64
 	var sr, dim int
 	var model string
-	require.NoError(t, row.Scan(&secs, &sr, &dim, &model))
-	require.Zero(t, secs)
+	require.NoError(t, row.Scan(&clips, &voiced, &sr, &dim, &model))
+	require.Zero(t, clips)
+	require.Zero(t, voiced)
 	require.Zero(t, sr)
 	require.Zero(t, dim)
 	require.Empty(t, model)

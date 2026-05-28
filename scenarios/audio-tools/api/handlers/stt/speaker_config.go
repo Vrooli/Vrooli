@@ -90,22 +90,66 @@ func appendUnique(list []string, v string) []string {
 // because pipeline cannot import egress (egress imports sttchain, sttchain
 // imports pipeline; that would cycle). It captures the SpeakerConfig + client
 // taken at session start so a mid-session config change does not retune an
-// in-flight stream.
+// in-flight stream, and holds a per-session SessionSpeakerState so the decision
+// accumulates across segments (warm-up + EMA) rather than swinging per segment.
+//
+// It is stateful (pointer receiver) and is constructed once per session by
+// currentSpeakerIsolation. The egress pipeline drives Evaluate from a single
+// goroutine (see internal/stt/segmenter runEgress), so the state needs no lock.
 type speakerVerification struct {
 	cfg    sttpipeline.SpeakerConfig
 	client *sttpipeline.SpeakerClient
+	state  *sttpipeline.SessionSpeakerState
+
+	// logger, when non-nil, emits a one-line diagnostic per segment so
+	// operators can see whether the gate is actually receiving evidence
+	// (Applied/Sufficient) and what session score it's accumulating. Set by
+	// currentSpeakerIsolation; tests leave it nil.
+	logger logx.Logger
 }
 
-func (s speakerVerification) Evaluate(ctx context.Context, audio []byte) egress.SpeakerVerdict {
+// newSpeakerVerification builds the per-session stateful isolation adapter.
+func newSpeakerVerification(cfg sttpipeline.SpeakerConfig, client *sttpipeline.SpeakerClient) *speakerVerification {
+	return &speakerVerification{
+		cfg:    cfg,
+		client: client,
+		state:  sttpipeline.NewSessionSpeakerState(cfg),
+	}
+}
+
+func (s *speakerVerification) Evaluate(ctx context.Context, audio []byte) egress.SpeakerVerdict {
 	d := sttpipeline.EvaluateSpeaker(ctx, s.cfg, s.client, audio)
-	v := egress.SpeakerVerdict{Allowed: d.Allowed, Score: d.Score, Threshold: d.Threshold}
-	if !d.Allowed {
-		v.Reason = sttpipeline.FormatSpeakerDecisionError(d)
+	allowed, smoothed, reason := s.state.Observe(d)
+
+	score := smoothed
+	if !s.state.HasEvidence() {
+		// No applied segment yet (warm-up / undetermined): surface this
+		// segment's own score for display rather than a still-zero EMA.
+		score = d.Score
+	}
+	v := egress.SpeakerVerdict{Allowed: allowed, Score: score, Threshold: s.cfg.Threshold}
+	if !allowed {
+		if reason == "" {
+			reason = sttpipeline.FormatSpeakerDecisionError(d)
+		}
+		v.Reason = reason
 	}
 	// Allowed but verification never matched a profile => let through under
 	// FallbackWithoutVerification (resource down / no enrolled profile).
-	if d.Allowed && d.Enabled && !d.Applied {
+	if allowed && d.Enabled && !d.Applied {
 		v.FallbackUsed = true
+	}
+
+	if s.logger != nil {
+		// One line per segment evaluation. Reads at a glance whether the gate
+		// has evidence to work with: a sticky "applied=false sufficient=false"
+		// means the resource is judging every segment as too-short-voiced and
+		// the gate is functionally inert; "applied=true" with a smoothed score
+		// reveals what cutoff would actually fire.
+		s.logger.Printf(
+			"speaker-verify: allowed=%t applied=%t sufficient=%t voiced=%.2fs raw=%.3f smoothed=%.3f thr=%.2f mode=%s reason=%q",
+			allowed, d.Applied, d.Sufficient, d.VoicedSeconds, d.Score, score, s.cfg.Threshold, s.cfg.Mode, v.Reason,
+		)
 	}
 	return v
 }
@@ -122,18 +166,20 @@ func currentSpeakerIsolation(d Deps) egress.SpeakerIsolation {
 	if !doc.Enabled || doc.Mode == "off" {
 		return nil
 	}
-	return speakerVerification{
-		cfg: sttpipeline.SpeakerConfig{
-			Enabled:                     doc.Enabled,
-			ProfileIDs:                  doc.ProfileIDs,
-			Threshold:                   doc.Threshold,
-			Mode:                        doc.Mode,
-			RejectBehavior:              doc.RejectBehavior,
-			FallbackWithoutVerification: doc.FallbackWithoutVerification,
-			ExtractionEnabled:           doc.ExtractionEnabled,
-		},
-		client: d.SpeakerResource,
+	cfg := sttpipeline.SpeakerConfig{
+		Enabled:                     doc.Enabled,
+		ProfileIDs:                  doc.ProfileIDs,
+		Threshold:                   doc.Threshold,
+		Mode:                        doc.Mode,
+		RejectBehavior:              doc.RejectBehavior,
+		FallbackWithoutVerification: doc.FallbackWithoutVerification,
+		ExtractionEnabled:           doc.ExtractionEnabled,
+		MinDecisionSeconds:          doc.MinDecisionSeconds,
+		ScoreSmoothing:              doc.ScoreSmoothing,
 	}
+	v := newSpeakerVerification(cfg, d.SpeakerResource)
+	v.logger = d.Logger
+	return v
 }
 
 // speakerExtraction adapts the speaker-verification resource's /v1/extract
@@ -221,6 +267,8 @@ var speakerConfigAllowedPaths = map[string]struct{}{
 	"reject_behavior":               {},
 	"fallback_without_verification": {},
 	"extraction_enabled":            {},
+	"min_decision_seconds":          {},
+	"score_smoothing":               {},
 }
 
 func (h *connectHandler) UpdateSpeakerConfig(ctx context.Context, req *connect.Request[sttv1.UpdateSpeakerConfigRequest]) (*connect.Response[sttv1.UpdateSpeakerConfigResponse], error) {
@@ -256,6 +304,12 @@ func (h *connectHandler) UpdateSpeakerConfig(ctx context.Context, req *connect.R
 	}
 	if protomap.MaskHas(mask, "extraction_enabled") {
 		d.ExtractionEnabled = cfg.GetExtractionEnabled()
+	}
+	if protomap.MaskHas(mask, "min_decision_seconds") {
+		d.MinDecisionSeconds = cfg.GetMinDecisionSeconds()
+	}
+	if protomap.MaskHas(mask, "score_smoothing") {
+		d.ScoreSmoothing = cfg.GetScoreSmoothing()
 	}
 	// Persist BEFORE committing to the cell so an I/O failure leaves the
 	// in-memory state and the stored row consistent (no half-applied config).

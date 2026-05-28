@@ -20,10 +20,12 @@ func fakeVerifyClient(t *testing.T, score float64) *SpeakerClient {
 		threshold, _ := strconv.ParseFloat(r.FormValue("threshold"), 64)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"profile_id": r.FormValue("profile_id"),
-			"matched":    score >= threshold,
-			"score":      score,
-			"threshold":  threshold,
+			"profile_id":     r.FormValue("profile_id"),
+			"matched":        score >= threshold,
+			"score":          score,
+			"threshold":      threshold,
+			"sufficient":     true,
+			"voiced_seconds": 2.0,
 		})
 	}))
 	t.Cleanup(srv.Close)
@@ -64,6 +66,46 @@ func TestEvaluateSpeakerAdvisoryAllowsNonMatch(t *testing.T) {
 	}
 	if got.Matched {
 		t.Fatalf("non-matching score must not report Matched: %+v", got)
+	}
+}
+
+// fakeInsufficientClient stands up a /v1/verify that reports the segment had
+// too little voiced audio to judge (sufficient:false, score:0).
+func fakeInsufficientClient(t *testing.T) *SpeakerClient {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseMultipartForm(1 << 20)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"profile_id":     r.FormValue("profile_id"),
+			"matched":        false,
+			"score":          0.0,
+			"sufficient":     false,
+			"voiced_seconds": 0.3,
+		})
+	}))
+	t.Cleanup(srv.Close)
+	return &SpeakerClient{BaseURL: srv.URL, Doer: http.DefaultClient}
+}
+
+// TestEvaluateSpeakerInsufficientPassesThrough proves an insufficient-audio
+// segment is undetermined evidence: it is never rejected (even in filter mode)
+// and is flagged Applied=false / Sufficient=false so the session verifier
+// ignores it during warm-up.
+func TestEvaluateSpeakerInsufficientPassesThrough(t *testing.T) {
+	cfg := SpeakerConfig{Enabled: true, Mode: "filter", Threshold: 0.5, ProfileIDs: []string{"p1"}}
+	got := EvaluateSpeaker(context.Background(), cfg, fakeInsufficientClient(t), []byte("pcm"))
+	if !got.Allowed {
+		t.Fatalf("insufficient audio must never be rejected: %+v", got)
+	}
+	if got.Applied {
+		t.Fatalf("insufficient audio is not an applied verification: %+v", got)
+	}
+	if got.Sufficient {
+		t.Fatalf("expected Sufficient=false: %+v", got)
+	}
+	if got.VoicedSeconds != 0.3 {
+		t.Fatalf("expected VoicedSeconds propagated: %+v", got)
 	}
 }
 

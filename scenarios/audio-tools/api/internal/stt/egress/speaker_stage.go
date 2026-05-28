@@ -38,6 +38,12 @@ type SpeakerVerdict struct {
 // "egress.SpeakerIsolation"). Production wires the verification adapter
 // (internal/stt/pipeline) built from the live SpeakerConfig + the
 // speaker-verification resource client; tests substitute a fake.
+//
+// Concurrency: the production adapter is STATEFUL per session (it accumulates a
+// SessionSpeakerState across segments). That is safe without locking because
+// the egress gate runs on a single goroutine per session (segmenter.runEgress
+// consumes its input channel sequentially), so Evaluate is never called
+// concurrently for the same session. One adapter is built per session.
 type SpeakerIsolation interface {
 	Evaluate(ctx context.Context, audio []byte) SpeakerVerdict
 }

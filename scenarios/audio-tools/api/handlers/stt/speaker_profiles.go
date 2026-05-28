@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -15,6 +16,7 @@ import (
 	"audio-tools/internal/audioformat"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
+	sttpipeline "audio-tools/internal/stt/pipeline"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -45,14 +47,15 @@ func speakerProfileToProto(p store.SpeakerProfile) *sttv1.SpeakerProfile {
 		embeddingDim = int32(len(p.Embedding))
 	}
 	return &sttv1.SpeakerProfile{
-		Id:                     p.ID,
-		DisplayName:            p.Name,
-		CreatedAt:              protomap.TimeToProto(p.CreatedAt),
-		UpdatedAt:              protomap.TimeToProto(p.CreatedAt),
-		ModelName:              p.ModelName,
-		EmbeddingDim:           embeddingDim,
-		SampleRate:             int32(p.SampleRate),
-		EnrollmentAudioSeconds: p.EnrollmentAudioSeconds,
+		Id:                 p.ID,
+		DisplayName:        p.Name,
+		CreatedAt:          protomap.TimeToProto(p.CreatedAt),
+		UpdatedAt:          protomap.TimeToProto(p.CreatedAt),
+		ModelName:          p.ModelName,
+		EmbeddingDim:       embeddingDim,
+		SampleRate:         int32(p.SampleRate),
+		ClipCount:          int32(p.ClipCount),
+		TotalVoicedSeconds: p.TotalVoicedSeconds,
 	}
 }
 
@@ -83,7 +86,7 @@ func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.
 	// audio-tools persists the profile metadata + binding locally — the
 	// embedding never round-trips back, so the resource stays the single
 	// authority for identity comparison.
-	enroll, err := h.deps.SpeakerResource.Enroll(ctx, enrollAudio, id, m.GetDisplayName(), m.GetNotes(), enrollFilename)
+	enroll, err := h.deps.SpeakerResource.Enroll(ctx, enrollAudio, id, m.GetDisplayName(), m.GetNotes(), m.GetLabel(), enrollFilename)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("speaker-verification enroll: %w", err))
 	}
@@ -91,12 +94,13 @@ func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.
 		id = enroll.ProfileID
 	}
 	if err := h.deps.Speaker.Upsert(ctx, store.SpeakerProfile{
-		ID:                     id,
-		Name:                   m.GetDisplayName(),
-		EnrollmentAudioSeconds: enroll.EnrollmentAudioSeconds,
-		SampleRate:             enroll.SampleRate,
-		EmbeddingDim:           enroll.EmbeddingDim,
-		ModelName:              enroll.ModelName,
+		ID:                 id,
+		Name:               m.GetDisplayName(),
+		ClipCount:          enroll.ClipCount,
+		TotalVoicedSeconds: enroll.TotalVoicedSeconds,
+		SampleRate:         enroll.SampleRate,
+		EmbeddingDim:       enroll.EmbeddingDim,
+		ModelName:          enroll.ModelName,
 	}); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -131,13 +135,17 @@ func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.
 	speakerCfgMu.Unlock()
 	return connect.NewResponse(&sttv1.EnrollSpeakerProfileResponse{
 		Enrollment: &sttv1.SpeakerEnrollment{
-			ProfileId:              id,
-			DisplayName:            m.GetDisplayName(),
-			EmbeddingDim:           int32(enroll.EmbeddingDim),
-			SampleRate:             int32(enroll.SampleRate),
-			EnrollmentAudioSeconds: enroll.EnrollmentAudioSeconds,
-			ModelName:              enroll.ModelName,
-			CreatedAt:              protomap.TimeToProto(h.deps.Clock.Now().UTC()),
+			ProfileId:          id,
+			DisplayName:        m.GetDisplayName(),
+			EmbeddingDim:       int32(enroll.EmbeddingDim),
+			SampleRate:         int32(enroll.SampleRate),
+			ModelName:          enroll.ModelName,
+			CreatedAt:          protomap.TimeToProto(h.deps.Clock.Now().UTC()),
+			ClipId:             enroll.ClipID,
+			Label:              enroll.Label,
+			VoicedSeconds:      enroll.VoicedSeconds,
+			ClipCount:          int32(enroll.ClipCount),
+			TotalVoicedSeconds: enroll.TotalVoicedSeconds,
 		},
 		Config: cfg.toProto(),
 	}), nil
@@ -222,4 +230,93 @@ func (h *connectHandler) DeleteSpeakerProfile(ctx context.Context, req *connect.
 	cfg := speakerCfg
 	speakerCfgMu.Unlock()
 	return connect.NewResponse(&sttv1.DeleteSpeakerProfileResponse{Config: cfg.toProto()}), nil
+}
+
+// speakerClipToProto maps a resource clip-metadata record to the wire shape.
+func speakerClipToProto(c sttpipeline.SpeakerProfileClip) *sttv1.SpeakerProfileClip {
+	var created time.Time
+	if c.CreatedAt != "" {
+		created, _ = time.Parse(time.RFC3339, c.CreatedAt)
+	}
+	return &sttv1.SpeakerProfileClip{
+		ClipId:        c.ClipID,
+		Label:         c.Label,
+		VoicedSeconds: c.VoicedSeconds,
+		AudioSeconds:  c.AudioSeconds,
+		CreatedAt:     protomap.TimeToProto(created),
+		EmbeddingDim:  int32(c.EmbeddingDim),
+	}
+}
+
+func (h *connectHandler) ListSpeakerProfileClips(ctx context.Context, req *connect.Request[sttv1.ListSpeakerProfileClipsRequest]) (*connect.Response[sttv1.ListSpeakerProfileClipsResponse], error) {
+	if h.deps.SpeakerResource == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("speaker-verification resource not configured"))
+	}
+	id := req.Msg.GetProfileId()
+	list, err := h.deps.SpeakerResource.ListClips(ctx, id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("list speaker clips: %w", err))
+	}
+	clips := make([]*sttv1.SpeakerProfileClip, 0, len(list.Clips))
+	for _, c := range list.Clips {
+		clips = append(clips, speakerClipToProto(c))
+	}
+	return connect.NewResponse(&sttv1.ListSpeakerProfileClipsResponse{
+		ProfileId: id,
+		Clips:     clips,
+		Count:     int32(len(clips)),
+	}), nil
+}
+
+func (h *connectHandler) DeleteSpeakerProfileClip(ctx context.Context, req *connect.Request[sttv1.DeleteSpeakerProfileClipRequest]) (*connect.Response[sttv1.DeleteSpeakerProfileClipResponse], error) {
+	if h.deps.SpeakerResource == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("speaker-verification resource not configured"))
+	}
+	id := req.Msg.GetProfileId()
+	clipID := req.Msg.GetClipId()
+	res, err := h.deps.SpeakerResource.DeleteClip(ctx, id, clipID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("delete speaker clip: %w", err))
+	}
+
+	if res.DeletedProfile {
+		// The profile lost its last clip and no longer exists on the resource;
+		// purge the local cache row and unbind it so config stays consistent.
+		if h.deps.Speaker != nil {
+			if _, derr := h.deps.Speaker.Delete(ctx, id); derr != nil {
+				return nil, connect.NewError(connect.CodeInternal, derr)
+			}
+		}
+		speakerCfgMu.Lock()
+		d := speakerCfg
+		out := d.ProfileIDs[:0]
+		for _, p := range d.ProfileIDs {
+			if p != id {
+				out = append(out, p)
+			}
+		}
+		d.ProfileIDs = out
+		if err := h.persistSpeakerCfgLocked(ctx, d); err != nil {
+			speakerCfgMu.Unlock()
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		speakerCfgMu.Unlock()
+	} else if h.deps.Speaker != nil {
+		// Refresh the cached clip totals for the surviving profile.
+		if p, ok, gerr := h.deps.Speaker.Get(ctx, id); gerr == nil && ok {
+			p.ClipCount = res.ClipCount
+			p.TotalVoicedSeconds = res.TotalVoicedSeconds
+			if uerr := h.deps.Speaker.Upsert(ctx, p); uerr != nil {
+				return nil, connect.NewError(connect.CodeInternal, uerr)
+			}
+		}
+	}
+
+	return connect.NewResponse(&sttv1.DeleteSpeakerProfileClipResponse{
+		ProfileId:          res.ProfileID,
+		ClipId:             res.ClipID,
+		DeletedProfile:     res.DeletedProfile,
+		ClipCount:          int32(res.ClipCount),
+		TotalVoicedSeconds: res.TotalVoicedSeconds,
+	}), nil
 }

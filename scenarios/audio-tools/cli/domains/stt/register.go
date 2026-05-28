@@ -92,31 +92,55 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				Args: cliapp.ArgSchema{
 					Flags: []cliapp.Flag{
 						{Name: "mode", Description: "off|filter|advisory — verification mode (off disables gating)"},
-						{Name: "threshold", Description: "Cosine-similarity accept threshold; 0..1 (default 0.7; same-speaker ~0.9, different ~0.1)"},
+						{Name: "threshold", Description: "Cosine-similarity accept threshold; 0..1 (default 0.5; same-speaker high, different low)"},
 						{Name: "enabled", Description: "true|false — master enable for speaker verification"},
 						{Name: "profiles", Description: "Comma-separated profile ids to set as the active binding (replaces the list)"},
 						{Name: "bind-profile", Description: "Append a single profile id to the active binding (reads current list first)"},
 						{Name: "reject-behavior", Description: "drop|show-muted — what to do with a rejected segment (default drop)"},
 						{Name: "fallback", Description: "true|false — let audio through when no profile/resource is available"},
 						{Name: "extraction-enabled", Description: "true|false — isolate the enrolled speaker's voice BEFORE recognition (ingress target extraction; needs an enrolled profile + the extraction-capable resource; default false)"},
+						{Name: "min-decision-seconds", Description: "Warm-up window: voiced seconds that must accrue before the session verifier may reject (0 = server default)"},
+						{Name: "score-smoothing", Description: "EMA alpha 0..1 applied to per-segment scores so the session decision stops swinging (0 = server default)"},
 					},
 				},
 				RunCtx: h.speakerConfig,
 			},
 			{
 				Name:        "speaker-enroll",
-				Description: "Enroll a voice profile from an audio file. Use --activate to bind+enable in one step.",
+				Description: "Append one or more enrollment clips to a voice profile. --file is comma-separated for multi-clip enroll; --activate binds+enables in one step.",
 				Args: cliapp.ArgSchema{
 					Flags: []cliapp.Flag{
-						{Name: "file", Required: true, Description: "Audio file path (wav recommended)"},
-						{Name: "profile", Description: "Profile id (empty = server-generated)"},
-						{Name: "label", Description: "Human display name for the profile"},
+						{Name: "file", Required: true, Description: "Audio file path(s); comma-separated to enroll several clips in one call (each appended)"},
+						{Name: "profile", Description: "Profile id (empty = server-generated; reused across the batch)"},
+						{Name: "name", Description: "Human display name for the profile"},
+						{Name: "label", Description: "Condition label for the clip(s), e.g. laptop-normal or phone-whisper"},
 						{Name: "notes", Description: "Optional notes stored with the profile"},
 						{Name: "format", Description: "Audio format hint (default wav)"},
 						{Name: "activate", Description: "true|false — bind as active profile and enable verification (default off)"},
 					},
 				},
 				RunCtx: h.speakerEnroll,
+			},
+			{
+				Name:        "speaker-clips",
+				Description: "List the enrollment clips of a speaker profile.",
+				Args: cliapp.ArgSchema{
+					Flags: []cliapp.Flag{
+						{Name: "profile", Required: true, Description: "Profile id"},
+					},
+				},
+				RunCtx: h.speakerClips,
+			},
+			{
+				Name:        "speaker-delete-clip",
+				Description: "Delete one enrollment clip from a profile (recomputes the centroid; deleting the last clip deletes the profile).",
+				Args: cliapp.ArgSchema{
+					Flags: []cliapp.Flag{
+						{Name: "profile", Required: true, Description: "Profile id"},
+						{Name: "clip", Required: true, Description: "Clip id to delete"},
+					},
+				},
+				RunCtx: h.speakerDeleteClip,
 			},
 		},
 	}

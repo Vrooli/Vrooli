@@ -26,7 +26,8 @@ var _ migrationExecer = (*sql.DB)(nil)
 // other error is fatal. This is a flat forward-only list, not a versioned
 // migration framework — add a line when a column is introduced.
 var forwardOnlyAlters = []string{
-	`ALTER TABLE speaker_profiles ADD COLUMN enrollment_audio_seconds REAL NOT NULL DEFAULT 0`,
+	`ALTER TABLE speaker_profiles ADD COLUMN clip_count INTEGER NOT NULL DEFAULT 0`,
+	`ALTER TABLE speaker_profiles ADD COLUMN total_voiced_seconds REAL NOT NULL DEFAULT 0`,
 	`ALTER TABLE speaker_profiles ADD COLUMN sample_rate INTEGER NOT NULL DEFAULT 0`,
 	`ALTER TABLE speaker_profiles ADD COLUMN embedding_dim INTEGER NOT NULL DEFAULT 0`,
 	`ALTER TABLE speaker_profiles ADD COLUMN model_name TEXT NOT NULL DEFAULT ''`,

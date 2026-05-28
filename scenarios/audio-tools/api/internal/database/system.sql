@@ -66,18 +66,20 @@ CREATE TABLE IF NOT EXISTS wakeword_templates (
 );
 
 -- speaker_profiles holds profile metadata + the active-binding link only.
--- The speaker-verification RESOURCE owns the real ECAPA embedding (keyed by
+-- The speaker-verification RESOURCE owns the real ECAPA embeddings (keyed by
 -- profile id) and performs verification, so `embedding` is nullable here: the
--- embedding bytes never round-trip back to audio-tools. The enrollment_*/
--- sample_rate/embedding_dim/model_name columns cache the descriptive metadata
--- the resource reports at enroll time so list/status can render it offline.
+-- embedding bytes never round-trip back to audio-tools. A profile is one
+-- identity holding N enrollment clips; clip_count/total_voiced_seconds/
+-- sample_rate/embedding_dim/model_name cache the descriptive metadata the
+-- resource reports at enroll time so list/status can render it offline.
 CREATE TABLE IF NOT EXISTS speaker_profiles (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   embedding BLOB,
   bound_user_identity TEXT,
   created_at TEXT NOT NULL,
-  enrollment_audio_seconds REAL NOT NULL DEFAULT 0,
+  clip_count INTEGER NOT NULL DEFAULT 0,
+  total_voiced_seconds REAL NOT NULL DEFAULT 0,
   sample_rate INTEGER NOT NULL DEFAULT 0,
   embedding_dim INTEGER NOT NULL DEFAULT 0,
   model_name TEXT NOT NULL DEFAULT ''

@@ -31,13 +31,17 @@ vi.mock("../../services/speakerAdmin", () => ({
         createdAt: "2026-05-17T00:00:00.000Z",
         modelName: "ecapa-tdnn",
         sampleRate: 16000,
-        enrollmentAudioSeconds: 7.5,
+        clipCount: 2,
+        totalVoicedSeconds: 7.5,
       },
     ],
   }),
   updateSpeakerConfig: vi.fn().mockResolvedValue({ ...savedConfig }),
   unbindSpeakerProfile: vi.fn(),
   deleteSpeakerProfile: vi.fn(),
+  enrollSpeakerProfile: vi.fn(),
+  listSpeakerProfileClips: vi.fn().mockResolvedValue([]),
+  deleteSpeakerProfileClip: vi.fn(),
 }));
 
 import { SpeakerVerificationPage } from "./SpeakerVerificationPage";

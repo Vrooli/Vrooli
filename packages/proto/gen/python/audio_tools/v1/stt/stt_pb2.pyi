@@ -286,7 +286,7 @@ class DeleteWakeWordTemplateResponse(_message.Message):
     def __init__(self, config: _Optional[_Union[WakeWordConfig, _Mapping]] = ...) -> None: ...
 
 class SpeakerConfig(_message.Message):
-    __slots__ = ("enabled", "profile_ids", "threshold", "mode", "reject_behavior", "fallback_without_verification", "extraction_enabled")
+    __slots__ = ("enabled", "profile_ids", "threshold", "mode", "reject_behavior", "fallback_without_verification", "extraction_enabled", "min_decision_seconds", "score_smoothing")
     ENABLED_FIELD_NUMBER: _ClassVar[int]
     PROFILE_IDS_FIELD_NUMBER: _ClassVar[int]
     THRESHOLD_FIELD_NUMBER: _ClassVar[int]
@@ -294,6 +294,8 @@ class SpeakerConfig(_message.Message):
     REJECT_BEHAVIOR_FIELD_NUMBER: _ClassVar[int]
     FALLBACK_WITHOUT_VERIFICATION_FIELD_NUMBER: _ClassVar[int]
     EXTRACTION_ENABLED_FIELD_NUMBER: _ClassVar[int]
+    MIN_DECISION_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    SCORE_SMOOTHING_FIELD_NUMBER: _ClassVar[int]
     enabled: bool
     profile_ids: _containers.RepeatedScalarFieldContainer[str]
     threshold: float
@@ -301,7 +303,9 @@ class SpeakerConfig(_message.Message):
     reject_behavior: RejectBehavior
     fallback_without_verification: bool
     extraction_enabled: bool
-    def __init__(self, enabled: _Optional[bool] = ..., profile_ids: _Optional[_Iterable[str]] = ..., threshold: _Optional[float] = ..., mode: _Optional[_Union[SpeakerMode, str]] = ..., reject_behavior: _Optional[_Union[RejectBehavior, str]] = ..., fallback_without_verification: _Optional[bool] = ..., extraction_enabled: _Optional[bool] = ...) -> None: ...
+    min_decision_seconds: float
+    score_smoothing: float
+    def __init__(self, enabled: _Optional[bool] = ..., profile_ids: _Optional[_Iterable[str]] = ..., threshold: _Optional[float] = ..., mode: _Optional[_Union[SpeakerMode, str]] = ..., reject_behavior: _Optional[_Union[RejectBehavior, str]] = ..., fallback_without_verification: _Optional[bool] = ..., extraction_enabled: _Optional[bool] = ..., min_decision_seconds: _Optional[float] = ..., score_smoothing: _Optional[float] = ...) -> None: ...
 
 class GetSpeakerConfigRequest(_message.Message):
     __slots__ = ()
@@ -328,7 +332,7 @@ class UpdateSpeakerConfigResponse(_message.Message):
     def __init__(self, config: _Optional[_Union[SpeakerConfig, _Mapping]] = ...) -> None: ...
 
 class SpeakerProfile(_message.Message):
-    __slots__ = ("id", "display_name", "created_at", "updated_at", "model_name", "embedding_dim", "sample_rate", "enrollment_audio_seconds", "notes")
+    __slots__ = ("id", "display_name", "created_at", "updated_at", "model_name", "embedding_dim", "sample_rate", "enrollment_audio_seconds", "notes", "clip_count", "total_voiced_seconds")
     ID_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -338,6 +342,8 @@ class SpeakerProfile(_message.Message):
     SAMPLE_RATE_FIELD_NUMBER: _ClassVar[int]
     ENROLLMENT_AUDIO_SECONDS_FIELD_NUMBER: _ClassVar[int]
     NOTES_FIELD_NUMBER: _ClassVar[int]
+    CLIP_COUNT_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_VOICED_SECONDS_FIELD_NUMBER: _ClassVar[int]
     id: str
     display_name: str
     created_at: _timestamp_pb2.Timestamp
@@ -347,7 +353,25 @@ class SpeakerProfile(_message.Message):
     sample_rate: int
     enrollment_audio_seconds: float
     notes: str
-    def __init__(self, id: _Optional[str] = ..., display_name: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., model_name: _Optional[str] = ..., embedding_dim: _Optional[int] = ..., sample_rate: _Optional[int] = ..., enrollment_audio_seconds: _Optional[float] = ..., notes: _Optional[str] = ...) -> None: ...
+    clip_count: int
+    total_voiced_seconds: float
+    def __init__(self, id: _Optional[str] = ..., display_name: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., model_name: _Optional[str] = ..., embedding_dim: _Optional[int] = ..., sample_rate: _Optional[int] = ..., enrollment_audio_seconds: _Optional[float] = ..., notes: _Optional[str] = ..., clip_count: _Optional[int] = ..., total_voiced_seconds: _Optional[float] = ...) -> None: ...
+
+class SpeakerProfileClip(_message.Message):
+    __slots__ = ("clip_id", "label", "voiced_seconds", "audio_seconds", "created_at", "embedding_dim")
+    CLIP_ID_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    VOICED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    AUDIO_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    EMBEDDING_DIM_FIELD_NUMBER: _ClassVar[int]
+    clip_id: str
+    label: str
+    voiced_seconds: float
+    audio_seconds: float
+    created_at: _timestamp_pb2.Timestamp
+    embedding_dim: int
+    def __init__(self, clip_id: _Optional[str] = ..., label: _Optional[str] = ..., voiced_seconds: _Optional[float] = ..., audio_seconds: _Optional[float] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., embedding_dim: _Optional[int] = ...) -> None: ...
 
 class SpeakerResourceInfo(_message.Message):
     __slots__ = ("backend", "model", "device", "sample_rate", "version", "embedding_dim")
@@ -412,7 +436,7 @@ class ListSpeakerProfilesResponse(_message.Message):
     def __init__(self, profiles: _Optional[_Iterable[_Union[SpeakerProfile, _Mapping]]] = ..., count: _Optional[int] = ...) -> None: ...
 
 class SpeakerEnrollment(_message.Message):
-    __slots__ = ("profile_id", "display_name", "embedding_dim", "sample_rate", "enrollment_audio_seconds", "model_name", "created_at")
+    __slots__ = ("profile_id", "display_name", "embedding_dim", "sample_rate", "enrollment_audio_seconds", "model_name", "created_at", "clip_id", "label", "voiced_seconds", "clip_count", "total_voiced_seconds")
     PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     EMBEDDING_DIM_FIELD_NUMBER: _ClassVar[int]
@@ -420,6 +444,11 @@ class SpeakerEnrollment(_message.Message):
     ENROLLMENT_AUDIO_SECONDS_FIELD_NUMBER: _ClassVar[int]
     MODEL_NAME_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CLIP_ID_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    VOICED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    CLIP_COUNT_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_VOICED_SECONDS_FIELD_NUMBER: _ClassVar[int]
     profile_id: str
     display_name: str
     embedding_dim: int
@@ -427,10 +456,15 @@ class SpeakerEnrollment(_message.Message):
     enrollment_audio_seconds: float
     model_name: str
     created_at: _timestamp_pb2.Timestamp
-    def __init__(self, profile_id: _Optional[str] = ..., display_name: _Optional[str] = ..., embedding_dim: _Optional[int] = ..., sample_rate: _Optional[int] = ..., enrollment_audio_seconds: _Optional[float] = ..., model_name: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    clip_id: str
+    label: str
+    voiced_seconds: float
+    clip_count: int
+    total_voiced_seconds: float
+    def __init__(self, profile_id: _Optional[str] = ..., display_name: _Optional[str] = ..., embedding_dim: _Optional[int] = ..., sample_rate: _Optional[int] = ..., enrollment_audio_seconds: _Optional[float] = ..., model_name: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., clip_id: _Optional[str] = ..., label: _Optional[str] = ..., voiced_seconds: _Optional[float] = ..., clip_count: _Optional[int] = ..., total_voiced_seconds: _Optional[float] = ...) -> None: ...
 
 class EnrollSpeakerProfileRequest(_message.Message):
-    __slots__ = ("audio", "format", "profile_id", "display_name", "notes", "add_to_active", "enable")
+    __slots__ = ("audio", "format", "profile_id", "display_name", "notes", "add_to_active", "enable", "label")
     AUDIO_FIELD_NUMBER: _ClassVar[int]
     FORMAT_FIELD_NUMBER: _ClassVar[int]
     PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -438,6 +472,7 @@ class EnrollSpeakerProfileRequest(_message.Message):
     NOTES_FIELD_NUMBER: _ClassVar[int]
     ADD_TO_ACTIVE_FIELD_NUMBER: _ClassVar[int]
     ENABLE_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
     audio: bytes
     format: _common_pb2.AudioFormat
     profile_id: str
@@ -445,7 +480,8 @@ class EnrollSpeakerProfileRequest(_message.Message):
     notes: str
     add_to_active: bool
     enable: bool
-    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., profile_id: _Optional[str] = ..., display_name: _Optional[str] = ..., notes: _Optional[str] = ..., add_to_active: _Optional[bool] = ..., enable: _Optional[bool] = ...) -> None: ...
+    label: str
+    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., profile_id: _Optional[str] = ..., display_name: _Optional[str] = ..., notes: _Optional[str] = ..., add_to_active: _Optional[bool] = ..., enable: _Optional[bool] = ..., label: _Optional[str] = ...) -> None: ...
 
 class EnrollSpeakerProfileResponse(_message.Message):
     __slots__ = ("enrollment", "config")
@@ -488,6 +524,44 @@ class DeleteSpeakerProfileResponse(_message.Message):
     CONFIG_FIELD_NUMBER: _ClassVar[int]
     config: SpeakerConfig
     def __init__(self, config: _Optional[_Union[SpeakerConfig, _Mapping]] = ...) -> None: ...
+
+class ListSpeakerProfileClipsRequest(_message.Message):
+    __slots__ = ("profile_id",)
+    PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    profile_id: str
+    def __init__(self, profile_id: _Optional[str] = ...) -> None: ...
+
+class ListSpeakerProfileClipsResponse(_message.Message):
+    __slots__ = ("profile_id", "clips", "count")
+    PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    CLIPS_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    profile_id: str
+    clips: _containers.RepeatedCompositeFieldContainer[SpeakerProfileClip]
+    count: int
+    def __init__(self, profile_id: _Optional[str] = ..., clips: _Optional[_Iterable[_Union[SpeakerProfileClip, _Mapping]]] = ..., count: _Optional[int] = ...) -> None: ...
+
+class DeleteSpeakerProfileClipRequest(_message.Message):
+    __slots__ = ("profile_id", "clip_id")
+    PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    CLIP_ID_FIELD_NUMBER: _ClassVar[int]
+    profile_id: str
+    clip_id: str
+    def __init__(self, profile_id: _Optional[str] = ..., clip_id: _Optional[str] = ...) -> None: ...
+
+class DeleteSpeakerProfileClipResponse(_message.Message):
+    __slots__ = ("profile_id", "clip_id", "deleted_profile", "clip_count", "total_voiced_seconds")
+    PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    CLIP_ID_FIELD_NUMBER: _ClassVar[int]
+    DELETED_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    CLIP_COUNT_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_VOICED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    profile_id: str
+    clip_id: str
+    deleted_profile: bool
+    clip_count: int
+    total_voiced_seconds: float
+    def __init__(self, profile_id: _Optional[str] = ..., clip_id: _Optional[str] = ..., deleted_profile: _Optional[bool] = ..., clip_count: _Optional[int] = ..., total_voiced_seconds: _Optional[float] = ...) -> None: ...
 
 class TranscribeStreamRequest(_message.Message):
     __slots__ = ("start", "audio_chunk", "end")

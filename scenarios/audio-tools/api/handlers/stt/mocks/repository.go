@@ -70,6 +70,7 @@ type FakeSpeaker struct {
 	Items     map[string]store.SpeakerProfile
 	UpsertErr error
 	DeleteErr error
+	GetErr    error
 	ListErr   error
 }
 
@@ -91,6 +92,14 @@ func (f *FakeSpeaker) Delete(_ context.Context, id string) (bool, error) {
 	_, ok := f.Items[id]
 	delete(f.Items, id)
 	return ok, nil
+}
+
+func (f *FakeSpeaker) Get(_ context.Context, id string) (store.SpeakerProfile, bool, error) {
+	if f.GetErr != nil {
+		return store.SpeakerProfile{}, false, f.GetErr
+	}
+	p, ok := f.Items[id]
+	return p, ok, nil
 }
 
 func (f *FakeSpeaker) List(context.Context) ([]store.SpeakerProfile, error) {

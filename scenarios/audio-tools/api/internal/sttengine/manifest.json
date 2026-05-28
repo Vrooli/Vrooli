@@ -34,11 +34,11 @@
     "methods": {
       "verification": {
         "backendResource": "speaker-verification",
-        "defaultThreshold": 0.35
+        "defaultThreshold": 0.5
       },
       "targetExtraction": {
         "backendResource": "speaker-verification",
-        "status": "reserved"
+        "status": "active"
       }
     }
   }

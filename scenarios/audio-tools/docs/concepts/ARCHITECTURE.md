@@ -380,7 +380,14 @@ is enabled. The audio-domain stage is **engine-independent** (it operates on the
 segment's canonical-PCM bytes, not the transcript) and pluggable: the manifest's
 active `speakerIsolation.active` method selects the `egress.SpeakerIsolation`
 implementation (`verification` today wraps `pipeline.EvaluateSpeaker` against the
-`speaker-verification` resource). It only applies to segments that carry audio
+`speaker-verification` resource). A **profile is one identity holding N labeled
+enrollment clips**; the resource trims each clip to its voiced span before
+embedding (energy VAD) and verifies against the profile centroid + each clip
+(hybrid score). The egress decision is **session-stateful** — a per-session
+`pipeline.SessionSpeakerState` accumulates per-segment scores (EMA) and withholds
+any rejection during a warm-up window (until `min_decision_seconds` of voiced
+audio accrue), so the verdict stops swinging mid-utterance and a short first
+utterance is never falsely dropped. It only applies to segments that carry audio
 (the Whisper VAD path), so Passthrough engines bypass it. The verification
 adapter lives in the handler layer (not `pipeline`) to avoid the
 `egress → sttchain → pipeline` import cycle. Seams: `egress.Stage`,

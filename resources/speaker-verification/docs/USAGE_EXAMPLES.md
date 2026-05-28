@@ -10,30 +10,37 @@ curl http://localhost:11452/ready
 curl http://localhost:11452/v1/info
 ```
 
-## Enroll a speaker profile
+## Enroll a speaker profile (append a labeled clip)
+
+Each call appends ONE clip to the profile (creating it on the first call) and
+recomputes the L2 centroid. Enroll several clips under different conditions to
+strengthen the identity. The clip is embedded over its voiced span only; a clip
+with too little voiced audio is rejected with HTTP `422`.
 
 ```bash
+# first clip (normal speech on the laptop mic)
 curl -X POST "http://localhost:11452/v1/profiles" \
   -F "profile_id=alice" \
   -F "display_name=Alice" \
-  -F "notes=primary operator" \
-  -F "audio=@alice_enrollment.wav"
-```
+  -F "label=laptop-normal" \
+  -F "audio=@alice_laptop.wav"
 
-Leave `profile_id` empty to let the server mint one:
-
-```bash
+# append a second condition (whisper on the phone) — same profile_id
 curl -X POST "http://localhost:11452/v1/profiles" \
-  -F "profile_id=" \
-  -F "display_name=Guest" \
-  -F "notes=" \
-  -F "audio=@guest.webm"
+  -F "profile_id=alice" \
+  -F "label=phone-whisper" \
+  -F "audio=@alice_phone.wav"
 ```
 
-## List enrolled profiles
+Leave `profile_id` empty to let the server mint one (the response carries the id
+to reuse for subsequent clips).
+
+## List profiles / clips
 
 ```bash
-curl http://localhost:11452/v1/profiles | jq .
+curl http://localhost:11452/v1/profiles | jq .            # all profiles
+curl http://localhost:11452/v1/profiles/alice | jq .       # one profile + clips
+curl http://localhost:11452/v1/profiles/alice/clips | jq . # clips only
 ```
 
 ## Verify a clip against a profile
@@ -41,22 +48,33 @@ curl http://localhost:11452/v1/profiles | jq .
 ```bash
 curl -X POST "http://localhost:11452/v1/verify" \
   -F "profile_id=alice" \
-  -F "threshold=0.25" \
+  -F "threshold=0.5" \
   -F "audio=@unknown_clip.wav" | jq .
 ```
 
-A `matched: true` result means the clip's cosine similarity to Alice's
-enrollment embedding met or exceeded the threshold.
+A `matched: true` result means the score (hybrid: best of centroid + per-clip
+cosine) met or exceeded the threshold. `sufficient: false` means the clip had
+too little voiced audio to judge — `score` is 0 and `matched` is false; record a
+longer clip rather than trusting the result.
 
-## Target-speaker extraction (reserved)
+## Delete a single clip
+
+```bash
+# deleting the last clip deletes the (now-empty) profile
+curl -X DELETE "http://localhost:11452/v1/profiles/alice/clips/<clip_id>" | jq .
+```
+
+## Target-speaker extraction
+
+Isolates the enrolled speaker's voice from a mixture (SepFormer separation +
+ECAPA target-selection against the profile centroid), returning cleaned 16 kHz
+mono s16le PCM in the body with `X-Speaker-Score` / `X-Speaker-Matched` headers.
 
 ```bash
 curl -i -X POST "http://localhost:11452/v1/extract" \
   -F "profile_id=alice" \
-  -F "verify=false" \
-  -F "audio=@mixture.wav"
-# -> HTTP/1.1 501 Not Implemented
-# {"error":"target speaker extraction not implemented"}
+  -F "verify=true" \
+  -F "audio=@mixture.wav" --output cleaned.pcm
 ```
 
 ## Delete a profile

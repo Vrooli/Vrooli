@@ -21,6 +21,13 @@ type SpeakerDecision struct {
 	Threshold    float64
 	Mode         string
 	ErrorMessage string
+
+	// Sufficient is false when the resource judged the segment to carry too
+	// little voiced audio to verify. VoicedSeconds is the voiced duration the
+	// resource measured (after VAD trim). An insufficient segment is never a
+	// rejection — it is undetermined evidence the session verifier ignores.
+	Sufficient    bool
+	VoicedSeconds float64
 }
 
 // EvaluateSpeaker runs the configured profiles against the supplied audio
@@ -28,10 +35,11 @@ type SpeakerDecision struct {
 // FallbackWithoutVerification semantics in that case.
 func EvaluateSpeaker(ctx context.Context, cfg SpeakerConfig, client *SpeakerClient, audio []byte) SpeakerDecision {
 	decision := SpeakerDecision{
-		Enabled:   cfg.Enabled && cfg.Mode != "off",
-		Allowed:   true,
-		Threshold: cfg.Threshold,
-		Mode:      cfg.Mode,
+		Enabled:    cfg.Enabled && cfg.Mode != "off",
+		Allowed:    true,
+		Threshold:  cfg.Threshold,
+		Mode:       cfg.Mode,
+		Sufficient: true,
 	}
 	if !decision.Enabled {
 		return decision
@@ -61,6 +69,18 @@ func EvaluateSpeaker(ctx context.Context, cfg SpeakerConfig, client *SpeakerClie
 			lastErr = err
 			continue
 		}
+		// Sufficiency is a property of the segment audio (identical voiced span
+		// across profiles), so the first result settles it: too little voiced
+		// audio to judge → undetermined, never a rejection. The session verifier
+		// treats this as warm-up passthrough.
+		if !result.Sufficient {
+			decision.Sufficient = false
+			decision.VoicedSeconds = result.VoicedSeconds
+			decision.Applied = false
+			decision.Allowed = true
+			return decision
+		}
+		decision.VoicedSeconds = result.VoicedSeconds
 		if result.Score > bestScore {
 			bestScore = result.Score
 			bestProfileID = result.ProfileID

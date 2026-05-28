@@ -487,6 +487,48 @@ co-located `mocks/repository.go` fakes.
 Per plan `audio-tools-test-quality-coverage-and-seam-hardening.md`
 §Phase 5.
 
+### Kyutai/Passthrough segments are not speaker-gated
+
+**Symptom:** Speaker verification only protects the Whisper VAD path. The
+Kyutai streaming engine (and any Passthrough strategy) emits segments with no
+`seg.Audio`, so the egress `SpeakerStage` returns them unchanged — a non-enrolled
+voice transcribed via Kyutai is NOT rejected.
+
+**Why unsolved:** Identity gating needs the segment PCM, which the streaming
+passthrough path never carries. A real fix means either teeing the session PCM
+to a side-channel verifier or having the engine surface per-segment audio.
+
+**Workaround:** Use the Whisper engine when speaker isolation must be enforced;
+the admin status surface and CLI `speaker-status` both print this caveat.
+
+**Owner:** unassigned. **Refs:** plan
+`speaker-verification-quality-overhaul-tiers-1-2` §Non-goals.
+
+### Speaker threshold needs live calibration
+
+**Symptom:** The canonical default `speaker.threshold` is `0.5` across all
+layers, but the right cutoff depends on the ECAPA embedding distribution for the
+actual enrolled voices + room. The plan ships VAD trim + multi-clip centroid +
+session smoothing (which recover most of the lost separation) but the final
+number is environment-specific.
+
+**Resolution path:** After Phase 1 (VAD trim) is live, enroll 3–5 real clips and
+run a genuine-vs-impostor mic test; set `speaker.threshold` to sit between the
+two bands and record it in `docs/reference/configuration.md`. This cannot be
+unit-tested (needs real voices + the model).
+
+**Owner:** unassigned (operator calibration step).
+
+### Resource integration harness has a broken source path
+
+**Symptom:** `resources/speaker-verification/test/integration-test.sh` fails at
+startup — `scripts/resources/common.sh` sources a missing
+`scripts/lib/service/repository.sh`. This is pre-existing shared-harness drift,
+not specific to this resource; the speaker contract itself is exercised by the
+in-image `python -m unittest` suites and live curl checks.
+
+**Owner:** unassigned (shared resource-test harness).
+
 ## Cross-references
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)

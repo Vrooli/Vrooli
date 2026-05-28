@@ -29,16 +29,17 @@ func fakeSpeakerResourceWithScore(t *testing.T, score float64) *sttpipeline.Spea
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/profiles":
 			_ = r.ParseMultipartForm(1 << 20)
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"profile_id": r.FormValue("profile_id"), "display_name": r.FormValue("display_name"),
-				"embedding_dim": 192, "sample_rate": 16000, "enrollment_audio_seconds": 1.5,
+				"profile_id": r.FormValue("profile_id"), "clip_id": "clip-1", "label": r.FormValue("label"),
+				"voiced_seconds": 1.5, "audio_seconds": 1.5, "clip_count": 1, "total_voiced_seconds": 1.5,
+				"embedding_dim": 192, "sample_rate": 16000,
 				"model_name": "speechbrain/spkrec-ecapa-voxceleb", "created_at": "2026-05-27T00:00:00Z",
 			})
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/verify":
 			_ = r.ParseMultipartForm(1 << 20)
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"profile_id": r.FormValue("profile_id"), "matched": score >= 0.35, "score": score,
-				"threshold": 0.35, "duration_ms": 12.0, "backend": "speechbrain",
-				"model": "ecapa", "audio_seconds": 1.0,
+				"threshold": 0.35, "sufficient": true, "voiced_seconds": 2.0,
+				"duration_ms": 12.0, "backend": "speechbrain", "model": "ecapa", "audio_seconds": 1.0,
 			})
 		case r.Method == http.MethodDelete:
 			w.WriteHeader(http.StatusOK)
@@ -50,14 +51,21 @@ func fakeSpeakerResourceWithScore(t *testing.T, score float64) *sttpipeline.Spea
 	return &sttpipeline.SpeakerClient{BaseURL: srv.URL, Doer: http.DefaultClient}
 }
 
+// pastWarmupCfg builds a filter-mode config whose warm-up window (1.0s) is
+// crossed by a single fixture segment (voiced_seconds 2.0), so one Evaluate is
+// past warm-up and the score governs the verdict.
+func pastWarmupCfg(profiles ...string) sttpipeline.SpeakerConfig {
+	return sttpipeline.SpeakerConfig{
+		Enabled: true, Mode: "filter", Threshold: 0.35, ProfileIDs: profiles,
+		MinDecisionSeconds: 1.0,
+	}
+}
+
 // TestSpeakerVerificationIsolation_AllowsMatch proves the handler-layer
 // verification adapter maps a matching ECAPA score to an allowed verdict and a
 // non-match (filter mode) to a rejection — the audio-domain egress contract.
 func TestSpeakerVerificationIsolation_AllowsMatch(t *testing.T) {
-	iso := speakerVerification{
-		cfg:    sttpipeline.SpeakerConfig{Enabled: true, Mode: "filter", Threshold: 0.35, ProfileIDs: []string{"sp-1"}},
-		client: fakeSpeakerResourceWithScore(t, 0.9),
-	}
+	iso := newSpeakerVerification(pastWarmupCfg("sp-1"), fakeSpeakerResourceWithScore(t, 0.9))
 	v := iso.Evaluate(context.Background(), []byte("pcm"))
 	require.True(t, v.Allowed)
 	require.False(t, v.FallbackUsed)
@@ -69,10 +77,7 @@ func TestSpeakerVerificationIsolation_AllowsMatch(t *testing.T) {
 }
 
 func TestSpeakerVerificationIsolation_RejectsNonMatch(t *testing.T) {
-	iso := speakerVerification{
-		cfg:    sttpipeline.SpeakerConfig{Enabled: true, Mode: "filter", Threshold: 0.35, ProfileIDs: []string{"sp-1"}},
-		client: fakeSpeakerResourceWithScore(t, 0.1), // below threshold
-	}
+	iso := newSpeakerVerification(pastWarmupCfg("sp-1"), fakeSpeakerResourceWithScore(t, 0.1)) // below threshold
 	dec := egress.SpeakerStage{Isolation: iso}.Apply(context.Background(), egress.SegmentDecision{Text: "nickelback lyrics", Audio: []byte("pcm")})
 	require.Equal(t, egress.Reject, dec.Outcome)
 	require.NotEmpty(t, dec.Reason)
@@ -82,14 +87,26 @@ func TestSpeakerVerificationIsolation_RejectsNonMatch(t *testing.T) {
 	require.InDelta(t, 0.35, dec.Threshold, 1e-6)
 }
 
+// TestSpeakerVerificationIsolation_WarmupNeverRejects proves a below-threshold
+// segment inside the warm-up window (not enough voiced audio accrued yet) is
+// allowed through rather than rejected.
+func TestSpeakerVerificationIsolation_WarmupNeverRejects(t *testing.T) {
+	cfg := sttpipeline.SpeakerConfig{
+		Enabled: true, Mode: "filter", Threshold: 0.35, ProfileIDs: []string{"sp-1"},
+		MinDecisionSeconds: 10.0, // fixture's 2.0s/segment stays in warm-up
+	}
+	iso := newSpeakerVerification(cfg, fakeSpeakerResourceWithScore(t, 0.1))
+	dec := egress.SpeakerStage{Isolation: iso}.Apply(context.Background(), egress.SegmentDecision{Text: "hi", Audio: []byte("pcm"), Outcome: egress.Emit})
+	require.Equal(t, egress.Emit, dec.Outcome, "warm-up window must not reject")
+}
+
 // TestSpeakerVerificationIsolation_FallbackWhenNoProfile proves fallback
 // semantics: with no enrolled profile and FallbackWithoutVerification, the
 // segment is allowed but flagged as not-actually-verified.
 func TestSpeakerVerificationIsolation_FallbackWhenNoProfile(t *testing.T) {
-	iso := speakerVerification{
-		cfg:    sttpipeline.SpeakerConfig{Enabled: true, Mode: "filter", Threshold: 0.35, FallbackWithoutVerification: true},
-		client: fakeSpeakerResourceWithScore(t, 0.9),
-	}
+	cfg := pastWarmupCfg()
+	cfg.FallbackWithoutVerification = true
+	iso := newSpeakerVerification(cfg, fakeSpeakerResourceWithScore(t, 0.9))
 	v := iso.Evaluate(context.Background(), []byte("pcm"))
 	require.True(t, v.Allowed)
 	require.True(t, v.FallbackUsed, "no profile bound -> allowed via fallback, flagged unverified")

@@ -7,6 +7,14 @@ import (
 	"path/filepath"
 )
 
+// Session-decision defaults applied when the config leaves them zero. The
+// warm-up window holds off any rejection until this much voiced audio has
+// accrued; the smoothing alpha is the EMA weight on each new segment score.
+const (
+	DefaultMinDecisionSeconds = 3.0
+	DefaultScoreSmoothing     = 0.4
+)
+
 type SpeakerConfig struct {
 	Enabled                     bool     `json:"enabled"`
 	ProfileIDs                  []string `json:"profileIds"`
@@ -15,15 +23,20 @@ type SpeakerConfig struct {
 	RejectBehavior              string   `json:"rejectBehavior"`
 	FallbackWithoutVerification bool     `json:"fallbackWithoutVerification"`
 	ExtractionEnabled           bool     `json:"extractionEnabled"`
+	// Session-decision tuning. Zero means "use the default" (see NewSessionSpeakerState).
+	MinDecisionSeconds float64 `json:"minDecisionSeconds"`
+	ScoreSmoothing     float64 `json:"scoreSmoothing"`
 }
 
 func DefaultSpeakerConfig() SpeakerConfig {
 	return SpeakerConfig{
 		Enabled:                     false,
-		Threshold:                   0.35,
+		Threshold:                   0.5,
 		Mode:                        "filter",
 		RejectBehavior:              "drop",
 		FallbackWithoutVerification: false,
+		MinDecisionSeconds:          DefaultMinDecisionSeconds,
+		ScoreSmoothing:              DefaultScoreSmoothing,
 	}
 }
 
@@ -55,6 +68,8 @@ type SpeakerConfigPatch struct {
 	RejectBehavior              *string   `json:"rejectBehavior,omitempty"`
 	FallbackWithoutVerification *bool     `json:"fallbackWithoutVerification,omitempty"`
 	ExtractionEnabled           *bool     `json:"extractionEnabled,omitempty"`
+	MinDecisionSeconds          *float64  `json:"minDecisionSeconds,omitempty"`
+	ScoreSmoothing              *float64  `json:"scoreSmoothing,omitempty"`
 }
 
 func (p SpeakerConfigPatch) Apply(base SpeakerConfig) SpeakerConfig {
@@ -79,6 +94,12 @@ func (p SpeakerConfigPatch) Apply(base SpeakerConfig) SpeakerConfig {
 	if p.ExtractionEnabled != nil {
 		base.ExtractionEnabled = *p.ExtractionEnabled
 	}
+	if p.MinDecisionSeconds != nil {
+		base.MinDecisionSeconds = *p.MinDecisionSeconds
+	}
+	if p.ScoreSmoothing != nil {
+		base.ScoreSmoothing = *p.ScoreSmoothing
+	}
 	return base
 }
 
@@ -101,7 +122,13 @@ func LoadSpeakerConfig(path string) (SpeakerConfig, error) {
 		cfg.RejectBehavior = "drop"
 	}
 	if cfg.Threshold == 0 {
-		cfg.Threshold = 0.35
+		cfg.Threshold = 0.5
+	}
+	if cfg.MinDecisionSeconds == 0 {
+		cfg.MinDecisionSeconds = DefaultMinDecisionSeconds
+	}
+	if cfg.ScoreSmoothing == 0 {
+		cfg.ScoreSmoothing = DefaultScoreSmoothing
 	}
 	if err := cfg.Validate(); err != nil {
 		return DefaultSpeakerConfig(), fmt.Errorf("speaker verification config validation: %w", err)

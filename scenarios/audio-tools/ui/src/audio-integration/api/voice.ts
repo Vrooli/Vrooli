@@ -69,7 +69,8 @@ export interface SpeakerVerificationProfile {
   model_name: string;
   embedding_dim: number;
   sample_rate: number;
-  enrollment_audio_seconds: number;
+  clip_count: number;
+  total_voiced_seconds: number;
   notes: string;
 }
 
@@ -97,10 +98,13 @@ export interface SpeakerVerificationStatusResponse {
 
 export interface SpeakerVerificationEnrollmentResponse {
   profile_id: string;
-  display_name: string;
+  clip_id: string;
+  label: string;
+  voiced_seconds: number;
+  clip_count: number;
+  total_voiced_seconds: number;
   embedding_dim: number;
   sample_rate: number;
-  enrollment_audio_seconds: number;
   model_name: string;
   created_at: string;
 }
@@ -180,7 +184,8 @@ function decodeSpeakerProfile(p: SpeakerProfile): SpeakerVerificationProfile {
     model_name: p.modelName,
     embedding_dim: p.embeddingDim,
     sample_rate: p.sampleRate,
-    enrollment_audio_seconds: p.enrollmentAudioSeconds,
+    clip_count: p.clipCount,
+    total_voiced_seconds: p.totalVoicedSeconds,
     notes: p.notes,
   };
 }
@@ -349,6 +354,7 @@ export function createVoiceApi(client: AudioToolsClient) {
       profileId?: string;
       displayName?: string;
       notes?: string;
+      label?: string;
       addToActive?: boolean;
       enable?: boolean;
     }): Promise<SpeakerVerificationEnrollResult> {
@@ -358,6 +364,7 @@ export function createVoiceApi(client: AudioToolsClient) {
         profileId: args.profileId ?? "",
         displayName: args.displayName ?? "",
         notes: args.notes ?? "",
+        label: args.label ?? "",
       };
       if (args.addToActive !== undefined) req.addToActive = args.addToActive;
       if (args.enable !== undefined) req.enable = args.enable;
@@ -368,10 +375,13 @@ export function createVoiceApi(client: AudioToolsClient) {
       return {
         enrollment: {
           profile_id: en?.profileId ?? "",
-          display_name: en?.displayName ?? "",
+          clip_id: en?.clipId ?? "",
+          label: en?.label ?? "",
+          voiced_seconds: en?.voicedSeconds ?? 0,
+          clip_count: en?.clipCount ?? 0,
+          total_voiced_seconds: en?.totalVoicedSeconds ?? 0,
           embedding_dim: en?.embeddingDim ?? 0,
           sample_rate: en?.sampleRate ?? 0,
-          enrollment_audio_seconds: en?.enrollmentAudioSeconds ?? 0,
           model_name: en?.modelName ?? "",
           created_at: timestampToISO(en?.createdAt),
         },

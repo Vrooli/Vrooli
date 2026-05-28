@@ -20,8 +20,9 @@ spec:
       - cosine-similarity-scoring
     specialized:
       - ecapa-tdnn-embeddings
-      - voiceprint-storage
-      - target-speaker-extraction-reserved
+      - multi-clip-centroid-profiles
+      - voice-activity-trimmed-embedding
+      - target-speaker-extraction
 
   # API interfaces available
   interfaces:
@@ -60,7 +61,7 @@ spec:
       method: [POST]
       inputTypes: [multipart/form-data]
       outputTypes: [application/json]
-      description: "Reserved: target-speaker extraction (returns HTTP 501)"
+      description: "Target-speaker extraction: isolate the enrolled speaker from a mixture (SepFormer + ECAPA), returns cleaned PCM"
     - name: delete-profile
       endpoint: "/v1/profiles/{profile_id}"
       method: [DELETE]
@@ -128,8 +129,8 @@ spec:
       enabled: true
       description: "Persisted voiceprint store keyed by profile_id (JSON per profile)"
     target_speaker_extraction:
-      enabled: false
-      description: "Reserved capability; /v1/extract returns HTTP 501 until a separation model is wired"
+      enabled: true
+      description: "Isolate the enrolled speaker's voice from a mixture (SepFormer separation + ECAPA target-selection against the profile centroid)"
 
   # Testing and validation
   testing:
@@ -140,7 +141,7 @@ spec:
       - profile_listing
       - enrollment
       - verification
-      - extraction_reserved
+      - extraction
     integration_tests:
       - speaker_verification_enroll_verify
 

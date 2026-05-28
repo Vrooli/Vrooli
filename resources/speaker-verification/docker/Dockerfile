@@ -41,7 +41,11 @@ RUN pip install --no-cache-dir --upgrade pip==24.0 \
         torchaudio==2.5.1 \
     && pip install --no-cache-dir -r requirements.txt
 
+COPY vad.py /app/vad.py
 COPY server.py /app/server.py
+# Unit tests ride along so `python -m unittest` runs inside the image.
+COPY test_vad.py /app/test_vad.py
+COPY test_profiles.py /app/test_profiles.py
 
 # Persisted across container restarts via compose volumes. Device defaults to
 # cuda; the server downgrades to cpu at startup when no GPU is visible.

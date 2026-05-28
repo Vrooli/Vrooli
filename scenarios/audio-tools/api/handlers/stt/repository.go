@@ -33,6 +33,7 @@ type WakewordRepository interface {
 type SpeakerRepository interface {
 	Upsert(ctx context.Context, p store.SpeakerProfile) error
 	Delete(ctx context.Context, id string) (bool, error)
+	Get(ctx context.Context, id string) (store.SpeakerProfile, bool, error)
 	List(ctx context.Context) ([]store.SpeakerProfile, error)
 }
 

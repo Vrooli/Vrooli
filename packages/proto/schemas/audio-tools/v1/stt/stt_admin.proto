@@ -53,4 +53,9 @@ service STTAdminService {
   // DeleteSpeakerProfile permanently removes the profile from the
   // speaker store and unbinds it. Requires a configured speaker store.
   rpc DeleteSpeakerProfile(DeleteSpeakerProfileRequest) returns (DeleteSpeakerProfileResponse);
+  // ListSpeakerProfileClips lists the enrollment clips of one profile.
+  rpc ListSpeakerProfileClips(ListSpeakerProfileClipsRequest) returns (ListSpeakerProfileClipsResponse);
+  // DeleteSpeakerProfileClip removes one clip and recomputes the centroid
+  // (deleting the profile when it was the last clip).
+  rpc DeleteSpeakerProfileClip(DeleteSpeakerProfileClipRequest) returns (DeleteSpeakerProfileClipResponse);
 }

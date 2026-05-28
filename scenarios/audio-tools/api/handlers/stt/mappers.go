@@ -5,6 +5,7 @@ package stt
 
 import (
 	"audio-tools/internal/protomap"
+	sttpipeline "audio-tools/internal/stt/pipeline"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
@@ -18,12 +19,18 @@ type speakerCfgDoc struct {
 	RejectBehavior              string   `json:"reject_behavior"`
 	FallbackWithoutVerification bool     `json:"fallback_without_verification"`
 	ExtractionEnabled           bool     `json:"extraction_enabled"`
+	// Session-decision tuning (warm-up window + EMA smoothing). Zero means the
+	// session verifier applies its built-in default.
+	MinDecisionSeconds float64 `json:"min_decision_seconds"`
+	ScoreSmoothing     float64 `json:"score_smoothing"`
 }
 
 func defaultSpeakerCfg() speakerCfgDoc {
 	return speakerCfgDoc{
-		Enabled: false, ProfileIDs: []string{}, Threshold: 0.7,
+		Enabled: false, ProfileIDs: []string{}, Threshold: 0.5,
 		Mode: "off", RejectBehavior: "drop",
+		MinDecisionSeconds: sttpipeline.DefaultMinDecisionSeconds,
+		ScoreSmoothing:     sttpipeline.DefaultScoreSmoothing,
 	}
 }
 
@@ -36,6 +43,8 @@ func (d speakerCfgDoc) toProto() *sttv1.SpeakerConfig {
 		RejectBehavior:              protomap.RejectBehaviorToProto(d.RejectBehavior),
 		FallbackWithoutVerification: d.FallbackWithoutVerification,
 		ExtractionEnabled:           d.ExtractionEnabled,
+		MinDecisionSeconds:          d.MinDecisionSeconds,
+		ScoreSmoothing:              d.ScoreSmoothing,
 	}
 }
 
