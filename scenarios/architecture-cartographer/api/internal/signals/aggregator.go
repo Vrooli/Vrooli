@@ -8,9 +8,8 @@ import (
 )
 
 // Aggregator combines per-signal Scores into a Verdict, honoring
-// manifest-overlaid weights and the tier thresholds. Phase 3 fills in
-// the production day-one signals; Phase 2 ships the aggregation core
-// + tier dispatch so it can be tested with mocks.FakeSignal.
+// configured weights and the tier thresholds (defaults below, overridable
+// via the global control surface).
 type Aggregator struct {
 	registry         *Registry
 	weights          map[string]float64
@@ -46,7 +45,7 @@ func NewAggregator(reg *Registry, weightOverrides map[string]float64) *Aggregato
 }
 
 // WithThresholds returns a copy of the aggregator with custom
-// thresholds (per-scenario manifest overlay).
+// thresholds (from the global control surface).
 func (a *Aggregator) WithThresholds(autoPlace, suggest, tieDelta float64) *Aggregator {
 	cp := *a
 	cp.autoPlaceMinimum = autoPlace

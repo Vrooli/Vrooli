@@ -10,10 +10,10 @@
 //   - "junk-drawer"   — at least one package in the SCC is imported by
 //     many otherwise-unrelated packages (smell of a
 //     "utils" or "common" drawer).
-//   - "cross-domain"  — packages in the SCC belong to >1 declared
-//     domains in the manifest.
+//   - "cross-domain"  — packages in the SCC belong to >1 domain in
+//     the derived domain map.
 //   - "within-domain" — packages in the SCC all belong to the same
-//     declared domain; usually a small refactor.
+//     derived domain; usually a small refactor.
 package cycle
 
 import (

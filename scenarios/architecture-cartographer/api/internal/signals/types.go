@@ -2,8 +2,8 @@
 // deterministic signal registry, per-signal scoring, and the aggregator.
 //
 // Signal invariants (enforced in code, asserted in tests):
-//  1. Pure — given the same (chunk, graph, manifest), produces the same Score.
-//  2. No mutation — never mutates the graph or manifest.
+//  1. Pure — given the same (chunk, graph, domain map), produces the same Score.
+//  2. No mutation — never mutates the graph or domain map.
 //  3. Self-explaining — every Score carries Evidence; aggregator refuses
 //     empty Evidence and treats the signal as broken.
 //  4. Bounded — Score.Value in [0, 1].

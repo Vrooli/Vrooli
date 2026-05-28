@@ -112,7 +112,7 @@ func packageFor(id string, snap graph.GraphSnapshot) string {
 }
 
 // indexDomainPackages maps package_id -> domain_name based on the
-// manifest's path globs over each package's directory.
+// derived map's path globs over each package's directory.
 func indexDomainPackages(gctx signals.GraphContext) map[string]string {
 	out := make(map[string]string, len(gctx.Snapshot.Packages))
 	for _, p := range gctx.Snapshot.Packages {

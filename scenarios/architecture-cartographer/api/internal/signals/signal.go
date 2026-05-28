@@ -14,8 +14,8 @@ type Signal interface {
 	// Name is the stable identifier (e.g., "path-token").
 	Name() string
 
-	// DefaultWeight is the day-one weight applied before any manifest
-	// overlay (see SIGNAL_LADDER.md::Default Weights Summary).
+	// DefaultWeight is the day-one weight applied before any configured
+	// weight overlay (see SIGNAL_LADDER.md::Default Weights Summary).
 	DefaultWeight() float64
 
 	// Score the chunk against every plausible domain. Implementations

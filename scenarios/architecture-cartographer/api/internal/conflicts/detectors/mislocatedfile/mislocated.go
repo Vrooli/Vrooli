@@ -1,7 +1,7 @@
 // Package mislocatedfile is the mislocated-file detector. For each
 // file in the snapshot, it asks the aggregator (via DetectInput.VerdictProvider)
 // for the verdict, and emits a conflict when the verdict's auto_place
-// domain differs from the manifest-declared domain for the file's path.
+// domain differs from the domain the derived map assigns to the file's path.
 //
 // The verdict's evidence travels into the conflict's evidence so the
 // operator + analytics see the exact basis the aggregator used.
@@ -22,7 +22,7 @@ func New() *Detector { return &Detector{} }
 
 func (Detector) Name() string { return "mislocated_file" }
 func (Detector) Description() string {
-	return "Flags files whose verdict-recommended domain differs from the manifest declaration."
+	return "Flags files whose verdict-recommended domain differs from the domain the derived map assigns to them."
 }
 
 func (Detector) EmitsTypes() []string {
@@ -63,8 +63,8 @@ func (d Detector) Detect(ctx context.Context, in conflicts.DetectInput) ([]confl
 					Locator: chunk.Path,
 				},
 				{
-					Kind:    "manifest_declared_domain",
-					Summary: fmt.Sprintf("manifest places file in %q", current),
+					Kind:    "derived_domain_location",
+					Summary: fmt.Sprintf("derived map places file in %q", current),
 					Locator: chunk.Path,
 				},
 			},

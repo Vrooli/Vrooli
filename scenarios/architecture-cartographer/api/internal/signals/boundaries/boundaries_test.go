@@ -130,6 +130,59 @@ func TestAnalyze_CompositionRootExemptFromGodDomain(t *testing.T) {
 	}
 }
 
+// unstableHubGraph builds a snapshot where `hub` is depended upon by two
+// domains yet itself depends on five others — high afferent coupling AND
+// high instability (I = 5/(5+2) ≈ 0.714), the unstable_dependency profile.
+//
+//	u1 -> hub, u2 -> hub   (hub is depended upon: Ca=2)
+//	hub -> l1..l5          (hub is itself unstable: Ce=5)
+func unstableHubGraph() (graph.GraphSnapshot, domains.DerivedDomainMap) {
+	pkg := func(id, dir string) graph.PackageNode {
+		return graph.PackageNode{ID: id, Directory: dir, Internal: true}
+	}
+	names := []string{"hub", "l1", "l2", "l3", "l4", "l5", "u1", "u2"}
+	var pkgs []graph.PackageNode
+	var doms []domains.DerivedDomain
+	for _, n := range names {
+		pkgs = append(pkgs, pkg("p-"+n, "api/internal/"+n))
+		doms = append(doms, domains.DerivedDomain{Name: n, Paths: []string{"api/internal/" + n + "/"}})
+	}
+	snap := graph.GraphSnapshot{
+		Packages: pkgs,
+		Imports: []graph.ImportEdge{
+			{From: "p-hub", ToPackageID: "p-l1"},
+			{From: "p-hub", ToPackageID: "p-l2"},
+			{From: "p-hub", ToPackageID: "p-l3"},
+			{From: "p-hub", ToPackageID: "p-l4"},
+			{From: "p-hub", ToPackageID: "p-l5"},
+			{From: "p-u1", ToPackageID: "p-hub"},
+			{From: "p-u2", ToPackageID: "p-hub"},
+		},
+	}
+	return snap, domains.DerivedDomainMap{Scenario: "demo", Domains: doms}
+}
+
+func TestAnalyze_UnstableDependencySmell(t *testing.T) {
+	snap, m := unstableHubGraph()
+	rep := boundaries.Analyze("demo", snap, m, boundaries.DefaultConfig())
+	hub := find(rep, "hub")
+	if hub.Efferent != 5 || hub.Afferent != 2 {
+		t.Fatalf("hub: Ce=%d Ca=%d, want 5/2", hub.Efferent, hub.Afferent)
+	}
+	// I = 5/(5+2) ≈ 0.714, above the default 0.7 warn band.
+	if hub.Instability < 0.7 {
+		t.Fatalf("hub instability = %v, want >= 0.7", hub.Instability)
+	}
+	if !hasSmell(hub, boundaries.SmellUnstableDependency) {
+		t.Fatalf("hub should have unstable_dependency smell; smells=%+v", hub.Smells)
+	}
+	// A purely stable hub (only depended upon, depends on nothing) must NOT
+	// earn the smell, however many depend on it.
+	if k := find(rep, "l1"); hasSmell(k, boundaries.SmellUnstableDependency) {
+		t.Fatalf("leaf l1 (Ca=1, Ce=0) must not be flagged unstable; smells=%+v", k.Smells)
+	}
+}
+
 func TestAnalyze_TestOnlyEdgesExcluded(t *testing.T) {
 	snap, m := fourDomainGraph()
 	// Add a test-only edge kernel -> a; it must NOT add efferent coupling.

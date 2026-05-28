@@ -71,7 +71,7 @@ func TestAggregator_TiedTopTwoConflicts(t *testing.T) {
 		Available: true,
 		Returns: []signals.Score{
 			{Signal: "fake-1", Domain: "graph", Value: 0.90, Evidence: []signals.Evidence{{Kind: "demo", Summary: "x"}}},
-			{Signal: "fake-1", Domain: "manifest", Value: 0.85, Evidence: []signals.Evidence{{Kind: "demo", Summary: "x"}}},
+			{Signal: "fake-1", Domain: "conflicts", Value: 0.85, Evidence: []signals.Evidence{{Kind: "demo", Summary: "x"}}},
 		},
 	}
 	agg := signals.NewAggregator(newReg(sig), nil)

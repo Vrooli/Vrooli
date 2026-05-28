@@ -8,6 +8,7 @@ import (
 	"architecture-cartographer/internal/conflicts/detectors/couplingsmell"
 	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
+	"architecture-cartographer/internal/signals/boundaries"
 )
 
 func godDomainInput() conflicts.DetectInput {
@@ -55,6 +56,48 @@ func TestDetect_EmitsGodDomainConflict(t *testing.T) {
 	}
 	if len(found.Domains) != 1 || found.Domains[0] != "a" {
 		t.Fatalf("expected domain a, got %v", found.Domains)
+	}
+}
+
+func TestDetect_UnstableDependencyMapsToInfoSeverity(t *testing.T) {
+	// hub: Ce=5, Ca=2 → I≈0.714 ≥ warn band → unstable_dependency (info).
+	pkg := func(id, dir string) graph.PackageNode {
+		return graph.PackageNode{ID: id, Directory: dir, Internal: true}
+	}
+	names := []string{"hub", "l1", "l2", "l3", "l4", "l5", "u1", "u2"}
+	var pkgs []graph.PackageNode
+	var doms []domains.DerivedDomain
+	for _, n := range names {
+		pkgs = append(pkgs, pkg("p-"+n, "api/internal/"+n))
+		doms = append(doms, domains.DerivedDomain{Name: n, Paths: []string{"api/internal/" + n + "/"}})
+	}
+	snap := graph.GraphSnapshot{Packages: pkgs, Imports: []graph.ImportEdge{
+		{From: "p-hub", ToPackageID: "p-l1"},
+		{From: "p-hub", ToPackageID: "p-l2"},
+		{From: "p-hub", ToPackageID: "p-l3"},
+		{From: "p-hub", ToPackageID: "p-l4"},
+		{From: "p-hub", ToPackageID: "p-l5"},
+		{From: "p-u1", ToPackageID: "p-hub"},
+		{From: "p-u2", ToPackageID: "p-hub"},
+	}}
+	in := conflicts.DetectInput{Scenario: "demo", Snapshot: snap, DomainMap: domains.DerivedDomainMap{Scenario: "demo", Domains: doms}}
+
+	// NewWithConfig with explicit defaults exercises the control-surface ctor.
+	got, err := couplingsmell.NewWithConfig(boundaries.DefaultConfig()).Detect(context.Background(), in)
+	if err != nil {
+		t.Fatalf("Detect: %v", err)
+	}
+	var found *conflicts.Conflict
+	for i := range got {
+		if got[i].Domains[0] == "hub" && got[i].Subtype == "unstable_dependency" {
+			found = &got[i]
+		}
+	}
+	if found == nil {
+		t.Fatalf("expected unstable_dependency coupling_smell for hub, got %+v", got)
+	}
+	if found.Severity != conflicts.SeverityInfo {
+		t.Fatalf("unstable_dependency must map to info severity, got %q", found.Severity)
 	}
 }
 

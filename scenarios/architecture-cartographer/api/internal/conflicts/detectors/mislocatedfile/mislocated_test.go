@@ -53,7 +53,7 @@ func TestDetect_EmitsWhenVerdictDisagreesWithDomainMap(t *testing.T) {
 	}
 }
 
-func TestDetect_NoConflictWhenVerdictMatchesManifest(t *testing.T) {
+func TestDetect_NoConflictWhenVerdictMatchesDomainMap(t *testing.T) {
 	snap := graph.GraphSnapshot{
 		Files: []graph.FileNode{
 			{ID: "file:a", Path: "internal/graph/service.go"},

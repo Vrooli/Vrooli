@@ -75,8 +75,8 @@ func (s *service) record(ctx context.Context, scenario, kind, conflictID string,
 }
 
 // DetectConflicts runs every registered detector against the
-// (snapshot, manifest) pair, persists the resulting conflicts, and
-// emits a conflict_detected analytics event for each new row.
+// (snapshot, derived domain map) pair, persists the resulting
+// conflicts, and emits a conflict_detected analytics event for each new row.
 func (s *service) DetectConflicts(ctx context.Context, in DetectOrchestrationInput) ([]Conflict, error) {
 	scenario := strings.TrimSpace(in.Scenario)
 	if scenario == "" {

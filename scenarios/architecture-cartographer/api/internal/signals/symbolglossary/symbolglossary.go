@@ -1,5 +1,5 @@
 // Package symbolglossary is the symbol-glossary signal. Scores domains
-// whose manifest-declared glossary terms appear among the chunk's
+// whose derived-map glossary terms appear among the chunk's
 // file-level exported symbols.
 //
 // Default weight 0.9 per SIGNAL_LADDER.md.
