@@ -30,7 +30,7 @@ func NewHandler(svc signals.Service) *Handler { return &Handler{svc: svc} }
 var _ signals_v1connect.SignalsServiceHandler = (*Handler)(nil)
 
 func (h *Handler) ScoreChunk(ctx context.Context, req *connect.Request[signalsv1.ScoreChunkRequest]) (*connect.Response[signalsv1.ScoreChunkResponse], error) {
-	in, err := scoreInputFromProto(req.Msg.GetScenario(), req.Msg.GetChunk(), req.Msg.GetFileId())
+	in, err := scoreInputFromProto(req.Msg.GetScenario(), req.Msg.GetChunk(), req.Msg.GetFileId(), req.Msg.GetRepoPath())
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (h *Handler) ScoreChunk(ctx context.Context, req *connect.Request[signalsv1
 }
 
 func (h *Handler) ExplainVerdict(ctx context.Context, req *connect.Request[signalsv1.ExplainVerdictRequest]) (*connect.Response[signalsv1.ExplainVerdictResponse], error) {
-	in, err := scoreInputFromProto(req.Msg.GetScenario(), req.Msg.GetChunk(), req.Msg.GetFileId())
+	in, err := scoreInputFromProto(req.Msg.GetScenario(), req.Msg.GetChunk(), req.Msg.GetFileId(), req.Msg.GetRepoPath())
 	if err != nil {
 		return nil, err
 	}
@@ -125,15 +125,15 @@ func couplingSeverityToProto(s boundaries.Severity) signalsv1.CouplingSeverity {
 	}
 }
 
-func scoreInputFromProto(scenario string, chunk *graphv1.Chunk, fileID string) (signals.ScoreInput, error) {
+func scoreInputFromProto(scenario string, chunk *graphv1.Chunk, fileID, repoPath string) (signals.ScoreInput, error) {
 	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
 		return signals.ScoreInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
-	if chunk == nil && strings.TrimSpace(fileID) == "" {
-		return signals.ScoreInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("chunk or file_id is required"))
+	if chunk == nil && strings.TrimSpace(fileID) == "" && strings.TrimSpace(repoPath) == "" {
+		return signals.ScoreInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("chunk, file_id, or repo_path is required"))
 	}
-	in := signals.ScoreInput{Scenario: scenario, FileID: fileID}
+	in := signals.ScoreInput{Scenario: scenario, FileID: fileID, RepoPath: repoPath}
 	if chunk != nil {
 		in.Chunk = graph.Chunk{
 			ID:            chunk.GetId(),
@@ -180,6 +180,21 @@ func verdictToProto(v signals.Verdict) *signalsv1.Verdict {
 			Domain: d.Domain,
 			Value:  d.Value,
 		})
+	}
+	for _, a := range v.Abstentions {
+		pa := &signalsv1.Abstention{
+			Signal: a.Signal,
+			Reason: a.Reason,
+		}
+		for _, e := range a.Evidence {
+			pa.Evidence = append(pa.Evidence, &signalsv1.Evidence{
+				Kind:    e.Kind,
+				Summary: e.Summary,
+				Locator: e.Locator,
+				Weight:  e.Weight,
+			})
+		}
+		out.Abstentions = append(out.Abstentions, pa)
 	}
 	return out
 }

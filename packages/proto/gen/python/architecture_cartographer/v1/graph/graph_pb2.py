@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n.architecture-cartographer/v1/graph/graph.proto\x12)vrooli.architecture_cartographer.v1.graph\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcd\x01\n\x08\x46ileNode\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path\x12\x1d\n\npackage_id\x18\x03 \x01(\tR\tpackageId\x12O\n\x08language\x18\x04 \x01(\x0e\x32\x33.vrooli.architecture_cartographer.v1.graph.LanguageR\x08language\x12\x14\n\x05lines\x18\x05 \x01(\x05R\x05lines\x12\x17\n\x07is_test\x18\x06 \x01(\x08R\x06isTest\"\xc9\x01\n\x0bPackageNode\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n\x0bimport_path\x18\x02 \x01(\tR\nimportPath\x12\x1c\n\tdirectory\x18\x03 \x01(\tR\tdirectory\x12O\n\x08language\x18\x04 \x01(\x0e\x32\x33.vrooli.architecture_cartographer.v1.graph.LanguageR\x08language\x12\x1a\n\x08internal\x18\x05 \x01(\x08R\x08internal\"\x98\x01\n\nSymbolNode\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n\npackage_id\x18\x03 \x01(\tR\tpackageId\x12\x17\n\x07\x66ile_id\x18\x04 \x01(\tR\x06\x66ileId\x12\x12\n\x04kind\x18\x05 \x01(\tR\x04kind\x12\x1a\n\x08\x65xported\x18\x06 \x01(\x08R\x08\x65xported\"\x80\x01\n\nImportEdge\x12\x12\n\x04\x66rom\x18\x01 \x01(\tR\x04\x66rom\x12\"\n\rto_package_id\x18\x02 \x01(\tR\x0btoPackageId\x12\x1d\n\nsymbol_ids\x18\x03 \x03(\tR\tsymbolIds\x12\x1b\n\ttest_only\x18\x04 \x01(\x08R\x08testOnly\"k\n\x05\x43hunk\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n\x07\x66ile_id\x18\x02 \x01(\tR\x06\x66ileId\x12\x12\n\x04path\x18\x03 \x01(\tR\x04path\x12%\n\x0e\x63urrent_domain\x18\x04 \x01(\tR\rcurrentDomain\"\xd6\x04\n\rGraphSnapshot\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12!\n\x0c\x63ontent_hash\x18\x03 \x01(\tR\x0b\x63ontentHash\x12Q\n\tlanguages\x18\x04 \x03(\x0e\x32\x33.vrooli.architecture_cartographer.v1.graph.LanguageR\tlanguages\x12=\n\x0c\x65xtracted_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0b\x65xtractedAt\x12#\n\rextraction_ms\x18\x06 \x01(\x03R\x0c\x65xtractionMs\x12I\n\x05\x66iles\x18\x07 \x03(\x0b\x32\x33.vrooli.architecture_cartographer.v1.graph.FileNodeR\x05\x66iles\x12R\n\x08packages\x18\x08 \x03(\x0b\x32\x36.vrooli.architecture_cartographer.v1.graph.PackageNodeR\x08packages\x12O\n\x07symbols\x18\t \x03(\x0b\x32\x35.vrooli.architecture_cartographer.v1.graph.SymbolNodeR\x07symbols\x12O\n\x07imports\x18\n \x03(\x0b\x32\x35.vrooli.architecture_cartographer.v1.graph.ImportEdgeR\x07imports\"\xad\x01\n\x13\x45xtractGraphRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12Q\n\tlanguages\x18\x02 \x03(\x0e\x32\x33.vrooli.architecture_cartographer.v1.graph.LanguageR\tlanguages\x12\'\n\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\"\x8b\x01\n\x14\x45xtractGraphResponse\x12T\n\x08snapshot\x18\x01 \x01(\x0b\x32\x38.vrooli.architecture_cartographer.v1.graph.GraphSnapshotR\x08snapshot\x12\x1d\n\nfrom_cache\x18\x02 \x01(\x08R\tfromCache\")\n\x17GetGraphSnapshotRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"p\n\x18GetGraphSnapshotResponse\x12T\n\x08snapshot\x18\x01 \x01(\x0b\x32\x38.vrooli.architecture_cartographer.v1.graph.GraphSnapshotR\x08snapshot\"s\n\x19ListGraphSnapshotsRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x1b\n\tpage_size\x18\x02 \x01(\x05R\x08pageSize\x12\x1d\n\npage_token\x18\x03 \x01(\tR\tpageToken\"\x9c\x01\n\x1aListGraphSnapshotsResponse\x12V\n\tsnapshots\x18\x01 \x03(\x0b\x32\x38.vrooli.architecture_cartographer.v1.graph.GraphSnapshotR\tsnapshots\x12&\n\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"Q\n\x1a\x43learGraphSnapshotsRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x17\n\x07\x64ry_run\x18\x02 \x01(\x08R\x06\x64ryRun\"P\n\x1b\x43learGraphSnapshotsResponse\x12\x18\n\x07\x64\x65leted\x18\x01 \x01(\x05R\x07\x64\x65leted\x12\x17\n\x07\x64ry_run\x18\x02 \x01(\x08R\x06\x64ryRun\"$\n\x12\x45xportGraphRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"R\n\x13\x45xportGraphResponse\x12\x18\n\x07payload\x18\x01 \x01(\x0cR\x07payload\x12!\n\x0c\x63ontent_type\x18\x02 \x01(\tR\x0b\x63ontentType*N\n\x08Language\x12\x18\n\x14LANGUAGE_UNSPECIFIED\x10\x00\x12\x0f\n\x0bLANGUAGE_GO\x10\x01\x12\x17\n\x13LANGUAGE_TYPESCRIPT\x10\x02\x32\x98\x06\n\x0cGraphService\x12\x8f\x01\n\x0c\x45xtractGraph\x12>.vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest\x1a?.vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse\x12\x9b\x01\n\x10GetGraphSnapshot\x12\x42.vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotRequest\x1a\x43.vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse\x12\xa1\x01\n\x12ListGraphSnapshots\x12\x44.vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsRequest\x1a\x45.vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse\x12\xa4\x01\n\x13\x43learGraphSnapshots\x12\x45.vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsRequest\x1a\x46.vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsResponse\x12\x8c\x01\n\x0b\x45xportGraph\x12=.vrooli.architecture_cartographer.v1.graph.ExportGraphRequest\x1a>.vrooli.architecture_cartographer.v1.graph.ExportGraphResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph;graph_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n.architecture-cartographer/v1/graph/graph.proto\x12)vrooli.architecture_cartographer.v1.graph\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcd\x01\n\x08\x46ileNode\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path\x12\x1d\n\npackage_id\x18\x03 \x01(\tR\tpackageId\x12O\n\x08language\x18\x04 \x01(\x0e\x32\x33.vrooli.architecture_cartographer.v1.graph.LanguageR\x08language\x12\x14\n\x05lines\x18\x05 \x01(\x05R\x05lines\x12\x17\n\x07is_test\x18\x06 \x01(\x08R\x06isTest\"\xac\x01\n\x0bPackageNode\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n\x0bimport_path\x18\x02 \x01(\tR\nimportPath\x12\x1b\n\trepo_path\x18\x03 \x01(\tR\x08repoPath\x12O\n\x08language\x18\x04 \x01(\x0e\x32\x33.vrooli.architecture_cartographer.v1.graph.LanguageR\x08language\"\x98\x01\n\nSymbolNode\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n\npackage_id\x18\x03 \x01(\tR\tpackageId\x12\x17\n\x07\x66ile_id\x18\x04 \x01(\tR\x06\x66ileId\x12\x12\n\x04kind\x18\x05 \x01(\tR\x04kind\x12\x1a\n\x08\x65xported\x18\x06 \x01(\x08R\x08\x65xported\"\x80\x01\n\nImportEdge\x12\x12\n\x04\x66rom\x18\x01 \x01(\tR\x04\x66rom\x12\"\n\rto_package_id\x18\x02 \x01(\tR\x0btoPackageId\x12\x1d\n\nsymbol_ids\x18\x03 \x03(\tR\tsymbolIds\x12\x1b\n\ttest_only\x18\x04 \x01(\x08R\x08testOnly\"k\n\x05\x43hunk\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n\x07\x66ile_id\x18\x02 \x01(\tR\x06\x66ileId\x12\x12\n\x04path\x18\x03 \x01(\tR\x04path\x12%\n\x0e\x63urrent_domain\x18\x04 \x01(\tR\rcurrentDomain\"\xd6\x04\n\rGraphSnapshot\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12!\n\x0c\x63ontent_hash\x18\x03 \x01(\tR\x0b\x63ontentHash\x12Q\n\tlanguages\x18\x04 \x03(\x0e\x32\x33.vrooli.architecture_cartographer.v1.graph.LanguageR\tlanguages\x12=\n\x0c\x65xtracted_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0b\x65xtractedAt\x12#\n\rextraction_ms\x18\x06 \x01(\x03R\x0c\x65xtractionMs\x12I\n\x05\x66iles\x18\x07 \x03(\x0b\x32\x33.vrooli.architecture_cartographer.v1.graph.FileNodeR\x05\x66iles\x12R\n\x08packages\x18\x08 \x03(\x0b\x32\x36.vrooli.architecture_cartographer.v1.graph.PackageNodeR\x08packages\x12O\n\x07symbols\x18\t \x03(\x0b\x32\x35.vrooli.architecture_cartographer.v1.graph.SymbolNodeR\x07symbols\x12O\n\x07imports\x18\n \x03(\x0b\x32\x35.vrooli.architecture_cartographer.v1.graph.ImportEdgeR\x07imports\"\xad\x01\n\x13\x45xtractGraphRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12Q\n\tlanguages\x18\x02 \x03(\x0e\x32\x33.vrooli.architecture_cartographer.v1.graph.LanguageR\tlanguages\x12\'\n\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\"\x8b\x01\n\x14\x45xtractGraphResponse\x12T\n\x08snapshot\x18\x01 \x01(\x0b\x32\x38.vrooli.architecture_cartographer.v1.graph.GraphSnapshotR\x08snapshot\x12\x1d\n\nfrom_cache\x18\x02 \x01(\x08R\tfromCache\")\n\x17GetGraphSnapshotRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"p\n\x18GetGraphSnapshotResponse\x12T\n\x08snapshot\x18\x01 \x01(\x0b\x32\x38.vrooli.architecture_cartographer.v1.graph.GraphSnapshotR\x08snapshot\"s\n\x19ListGraphSnapshotsRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x1b\n\tpage_size\x18\x02 \x01(\x05R\x08pageSize\x12\x1d\n\npage_token\x18\x03 \x01(\tR\tpageToken\"\x9c\x01\n\x1aListGraphSnapshotsResponse\x12V\n\tsnapshots\x18\x01 \x03(\x0b\x32\x38.vrooli.architecture_cartographer.v1.graph.GraphSnapshotR\tsnapshots\x12&\n\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"Q\n\x1a\x43learGraphSnapshotsRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x17\n\x07\x64ry_run\x18\x02 \x01(\x08R\x06\x64ryRun\"P\n\x1b\x43learGraphSnapshotsResponse\x12\x18\n\x07\x64\x65leted\x18\x01 \x01(\x05R\x07\x64\x65leted\x12\x17\n\x07\x64ry_run\x18\x02 \x01(\x08R\x06\x64ryRun\"$\n\x12\x45xportGraphRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"R\n\x13\x45xportGraphResponse\x12\x18\n\x07payload\x18\x01 \x01(\x0cR\x07payload\x12!\n\x0c\x63ontent_type\x18\x02 \x01(\tR\x0b\x63ontentType*N\n\x08Language\x12\x18\n\x14LANGUAGE_UNSPECIFIED\x10\x00\x12\x0f\n\x0bLANGUAGE_GO\x10\x01\x12\x17\n\x13LANGUAGE_TYPESCRIPT\x10\x02\x32\x98\x06\n\x0cGraphService\x12\x8f\x01\n\x0c\x45xtractGraph\x12>.vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest\x1a?.vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse\x12\x9b\x01\n\x10GetGraphSnapshot\x12\x42.vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotRequest\x1a\x43.vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse\x12\xa1\x01\n\x12ListGraphSnapshots\x12\x44.vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsRequest\x1a\x45.vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse\x12\xa4\x01\n\x13\x43learGraphSnapshots\x12\x45.vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsRequest\x1a\x46.vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsResponse\x12\x8c\x01\n\x0b\x45xportGraph\x12=.vrooli.architecture_cartographer.v1.graph.ExportGraphRequest\x1a>.vrooli.architecture_cartographer.v1.graph.ExportGraphResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph;graph_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,40 +33,40 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'architecture_cartographer.v
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph;graph_v1'
-  _globals['_LANGUAGE']._serialized_start=2572
-  _globals['_LANGUAGE']._serialized_end=2650
+  _globals['_LANGUAGE']._serialized_start=2543
+  _globals['_LANGUAGE']._serialized_end=2621
   _globals['_FILENODE']._serialized_start=127
   _globals['_FILENODE']._serialized_end=332
   _globals['_PACKAGENODE']._serialized_start=335
-  _globals['_PACKAGENODE']._serialized_end=536
-  _globals['_SYMBOLNODE']._serialized_start=539
-  _globals['_SYMBOLNODE']._serialized_end=691
-  _globals['_IMPORTEDGE']._serialized_start=694
-  _globals['_IMPORTEDGE']._serialized_end=822
-  _globals['_CHUNK']._serialized_start=824
-  _globals['_CHUNK']._serialized_end=931
-  _globals['_GRAPHSNAPSHOT']._serialized_start=934
-  _globals['_GRAPHSNAPSHOT']._serialized_end=1532
-  _globals['_EXTRACTGRAPHREQUEST']._serialized_start=1535
-  _globals['_EXTRACTGRAPHREQUEST']._serialized_end=1708
-  _globals['_EXTRACTGRAPHRESPONSE']._serialized_start=1711
-  _globals['_EXTRACTGRAPHRESPONSE']._serialized_end=1850
-  _globals['_GETGRAPHSNAPSHOTREQUEST']._serialized_start=1852
-  _globals['_GETGRAPHSNAPSHOTREQUEST']._serialized_end=1893
-  _globals['_GETGRAPHSNAPSHOTRESPONSE']._serialized_start=1895
-  _globals['_GETGRAPHSNAPSHOTRESPONSE']._serialized_end=2007
-  _globals['_LISTGRAPHSNAPSHOTSREQUEST']._serialized_start=2009
-  _globals['_LISTGRAPHSNAPSHOTSREQUEST']._serialized_end=2124
-  _globals['_LISTGRAPHSNAPSHOTSRESPONSE']._serialized_start=2127
-  _globals['_LISTGRAPHSNAPSHOTSRESPONSE']._serialized_end=2283
-  _globals['_CLEARGRAPHSNAPSHOTSREQUEST']._serialized_start=2285
-  _globals['_CLEARGRAPHSNAPSHOTSREQUEST']._serialized_end=2366
-  _globals['_CLEARGRAPHSNAPSHOTSRESPONSE']._serialized_start=2368
-  _globals['_CLEARGRAPHSNAPSHOTSRESPONSE']._serialized_end=2448
-  _globals['_EXPORTGRAPHREQUEST']._serialized_start=2450
-  _globals['_EXPORTGRAPHREQUEST']._serialized_end=2486
-  _globals['_EXPORTGRAPHRESPONSE']._serialized_start=2488
-  _globals['_EXPORTGRAPHRESPONSE']._serialized_end=2570
-  _globals['_GRAPHSERVICE']._serialized_start=2653
-  _globals['_GRAPHSERVICE']._serialized_end=3445
+  _globals['_PACKAGENODE']._serialized_end=507
+  _globals['_SYMBOLNODE']._serialized_start=510
+  _globals['_SYMBOLNODE']._serialized_end=662
+  _globals['_IMPORTEDGE']._serialized_start=665
+  _globals['_IMPORTEDGE']._serialized_end=793
+  _globals['_CHUNK']._serialized_start=795
+  _globals['_CHUNK']._serialized_end=902
+  _globals['_GRAPHSNAPSHOT']._serialized_start=905
+  _globals['_GRAPHSNAPSHOT']._serialized_end=1503
+  _globals['_EXTRACTGRAPHREQUEST']._serialized_start=1506
+  _globals['_EXTRACTGRAPHREQUEST']._serialized_end=1679
+  _globals['_EXTRACTGRAPHRESPONSE']._serialized_start=1682
+  _globals['_EXTRACTGRAPHRESPONSE']._serialized_end=1821
+  _globals['_GETGRAPHSNAPSHOTREQUEST']._serialized_start=1823
+  _globals['_GETGRAPHSNAPSHOTREQUEST']._serialized_end=1864
+  _globals['_GETGRAPHSNAPSHOTRESPONSE']._serialized_start=1866
+  _globals['_GETGRAPHSNAPSHOTRESPONSE']._serialized_end=1978
+  _globals['_LISTGRAPHSNAPSHOTSREQUEST']._serialized_start=1980
+  _globals['_LISTGRAPHSNAPSHOTSREQUEST']._serialized_end=2095
+  _globals['_LISTGRAPHSNAPSHOTSRESPONSE']._serialized_start=2098
+  _globals['_LISTGRAPHSNAPSHOTSRESPONSE']._serialized_end=2254
+  _globals['_CLEARGRAPHSNAPSHOTSREQUEST']._serialized_start=2256
+  _globals['_CLEARGRAPHSNAPSHOTSREQUEST']._serialized_end=2337
+  _globals['_CLEARGRAPHSNAPSHOTSRESPONSE']._serialized_start=2339
+  _globals['_CLEARGRAPHSNAPSHOTSRESPONSE']._serialized_end=2419
+  _globals['_EXPORTGRAPHREQUEST']._serialized_start=2421
+  _globals['_EXPORTGRAPHREQUEST']._serialized_end=2457
+  _globals['_EXPORTGRAPHRESPONSE']._serialized_start=2459
+  _globals['_EXPORTGRAPHRESPONSE']._serialized_end=2541
+  _globals['_GRAPHSERVICE']._serialized_start=2624
+  _globals['_GRAPHSERVICE']._serialized_end=3416
 # @@protoc_insertion_point(module_scope)

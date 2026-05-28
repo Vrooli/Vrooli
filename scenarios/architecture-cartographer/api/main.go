@@ -11,6 +11,7 @@ import (
 
 	"architecture-cartographer/internal/analytics"
 	"architecture-cartographer/internal/apply"
+	"architecture-cartographer/internal/audit"
 	"architecture-cartographer/internal/clock"
 	"architecture-cartographer/internal/config"
 	"architecture-cartographer/internal/conflicts"
@@ -49,6 +50,7 @@ import (
 
 	analyticsH "architecture-cartographer/handlers/analytics"
 	applyH "architecture-cartographer/handlers/apply"
+	auditH "architecture-cartographer/handlers/audit"
 	conflictsH "architecture-cartographer/handlers/conflicts"
 	domainsH "architecture-cartographer/handlers/domains"
 	graphH "architecture-cartographer/handlers/graph"
@@ -268,6 +270,15 @@ func main() {
 		conflicts.NewAnalyticsAdapter(analyticsSvc),
 	)
 
+	auditSvc := audit.NewService(
+		graphSvc,
+		domainsSvc,
+		conflictsSvc,
+		conflictsH.NewSignalsVerdictAdapter(signalsSvc),
+		suppressionProvider,
+		clk,
+	)
+
 	applySvc := apply.NewService(
 		apply.NewSQLiteRepository(primary, clk),
 		conflictsSvc,
@@ -280,7 +291,8 @@ func main() {
 		healthH.Module(db, "architecture-cartographer-api", "1.0.0"),
 		analyticsH.Module(analyticsSvc),
 		applyH.Module(applySvc),
-		conflictsH.Module(conflictsH.Deps{Conflicts: conflictsSvc, Graph: graphSvc, Domains: domainsSvc, Suppressions: suppressionProvider}),
+		auditH.Module(auditSvc),
+		conflictsH.Module(conflictsH.Deps{Conflicts: conflictsSvc, Graph: graphSvc, Domains: domainsSvc, Signals: signalsSvc, Suppressions: suppressionProvider}),
 		domainsH.Module(domainsSvc),
 		graphH.Module(graphSvc),
 		signalsH.Module(signalsSvc),

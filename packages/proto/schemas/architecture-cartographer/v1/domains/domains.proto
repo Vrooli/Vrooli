@@ -94,6 +94,19 @@ message DerivedDomainMap {
   repeated DomainDeclaration declarations = 6;
   // Server time at the moment the map was derived.
   google.protobuf.Timestamp derived_at = 7;
+  // How trustworthy the resolved authority is. HIGH = the authority is a
+  // curated, deliberately-written source (DOMAINS.md, api manifest).
+  // LOW = the authority fell back to a derived source (api folders, cli
+  // groups); the "ground truth" is itself inferred.
+  AuthorityConfidence authority_confidence = 8;
+}
+
+// AuthorityConfidence grades how trustworthy the resolved authority is.
+// See DerivedDomainMap.authority_confidence for the semantics.
+enum AuthorityConfidence {
+  AUTHORITY_CONFIDENCE_UNSPECIFIED = 0;
+  AUTHORITY_CONFIDENCE_HIGH = 1;
+  AUTHORITY_CONFIDENCE_LOW = 2;
 }
 
 // =============================================================================
@@ -147,15 +160,21 @@ enum ConvergenceSeverity {
 // ConvergenceFinding is one cross-surface disagreement about the domain set.
 message ConvergenceFinding {
   // Stable finding kind (e.g., "missing_implementation", "undeclared_folder",
-  // "missing_cli_group", "ui_feature_no_domain").
+  // "missing_cli_group", "ui_feature_no_domain", "authority_fallback").
   string kind = 1;
-  // The domain the finding concerns.
+  // The domain the finding concerns. Empty when this finding rolls up
+  // multiple domains (see rolled_up_domains) or when the finding is not
+  // domain-scoped (e.g., authority_fallback).
   string domain = 2;
   ConvergenceSeverity severity = 3;
   // Human-readable explanation.
   string message = 4;
   // The rungs involved in the disagreement.
   repeated DomainSource sources = 5;
+  // When this finding represents two or more identical-kind info-severity
+  // findings merged into one row, the affected domain names appear here
+  // (sorted). Empty when the finding is a single-domain finding.
+  repeated string rolled_up_domains = 6;
 }
 
 message ConvergenceReportRequest {
@@ -167,6 +186,10 @@ message ConvergenceReportResponse {
   string scenario = 1;
   // The authoritative rung the lower surfaces were compared against.
   DomainSource authority = 2;
-  // Disagreements, sorted by (kind, domain). Empty == full convergence.
+  // Disagreements, sorted by (kind, domain). Empty == full convergence
+  // (modulo any authority_fallback finding when the authority is inferred).
   repeated ConvergenceFinding findings = 3;
+  // Trust level of the authority rung. LOW means the report is
+  // comparing two inferred sets — interpret "no disagreements" carefully.
+  AuthorityConfidence authority_confidence = 4;
 }

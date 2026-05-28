@@ -38,9 +38,14 @@ type DetectInput struct {
 
 // VerdictProvider is the seam between detectors and the signals
 // aggregator. Production wires a thin adapter over signals.Service;
-// tests pass a fake.
+// tests pass a fake. The interface is intentionally batch-only:
+// the snapshot + domain map + GraphContext are expensive to build,
+// and a per-chunk caller (the previous shape) made DetectConflicts
+// O(F²×D×S). Detectors call VerdictsFor once with every chunk they
+// need scored; the slice of returned verdicts is aligned with the
+// input slice.
 type VerdictProvider interface {
-	VerdictFor(ctx context.Context, scenario string, chunk graph.Chunk) (Verdict, error)
+	VerdictsFor(ctx context.Context, scenario string, chunks []graph.Chunk) ([]Verdict, error)
 }
 
 // Verdict is the local view of signals.Verdict so detector code does

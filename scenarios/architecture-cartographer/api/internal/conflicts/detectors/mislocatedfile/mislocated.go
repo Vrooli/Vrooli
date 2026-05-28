@@ -1,7 +1,8 @@
 // Package mislocatedfile is the mislocated-file detector. For each
-// file in the snapshot, it asks the aggregator (via DetectInput.VerdictProvider)
-// for the verdict, and emits a conflict when the verdict's auto_place
-// domain differs from the domain the derived map assigns to the file's path.
+// file in the snapshot, it asks the aggregator (via
+// DetectInput.VerdictProvider) for the verdict, and emits a conflict
+// when the verdict's auto_place domain differs from the domain the
+// derived map assigns to the file's path.
 //
 // The verdict's evidence travels into the conflict's evidence so the
 // operator + analytics see the exact basis the aggregator used.
@@ -33,20 +34,28 @@ func (d Detector) Detect(ctx context.Context, in conflicts.DetectInput) ([]confl
 	if in.VerdictProvider == nil {
 		return nil, nil
 	}
+	chunks := in.Snapshot.Chunks()
+	if len(chunks) == 0 {
+		return nil, nil
+	}
+	// One batched verdict call: snapshot + domain map + GraphContext
+	// are built once and the aggregator runs concurrently across chunks.
+	// This replaces the previous per-chunk loop that made detect
+	// O(F²×D×S) on large scenarios.
+	verdicts, err := in.VerdictProvider.VerdictsFor(ctx, in.Scenario, chunks)
+	if err != nil {
+		return nil, err
+	}
 	var out []conflicts.Conflict
-	for _, chunk := range in.Snapshot.Chunks() {
+	for i, chunk := range chunks {
+		v := verdicts[i]
 		current := in.DomainMap.DomainFor(chunk.Path)
-		v, err := in.VerdictProvider.VerdictFor(ctx, in.Scenario, chunk)
-		if err != nil {
-			return nil, err
-		}
 		if v.Tier != "auto_place" || v.TopDomain == "" {
 			continue
 		}
 		if v.TopDomain == current {
 			continue
 		}
-		// Build payload describing the move.
 		payload := []byte(fmt.Sprintf(`{"from_domain":%q,"to_domain":%q,"path":%q}`, current, v.TopDomain, chunk.Path))
 		conflict := conflicts.Conflict{
 			Scenario:  in.Scenario,

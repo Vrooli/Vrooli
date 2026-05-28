@@ -28,9 +28,19 @@ const (
 	// FindingUIFeatureNoDomain: a ui/src/features/ folder maps to no
 	// declared domain (advisory coverage).
 	FindingUIFeatureNoDomain = "ui_feature_no_domain"
+	// FindingAuthorityFallback: the trust ladder fell back to a derived
+	// source (api folders, cli groups) because DOMAINS.md was missing or
+	// empty. Convergence findings against this authority are tautological;
+	// the real signal is that the scenario has no curated DOMAINS.md.
+	FindingAuthorityFallback = "authority_fallback"
 )
 
 // ConvergenceFinding is one cross-surface disagreement about the domain set.
+//
+// When the same info-severity Kind fires for several domains, Convergence
+// rolls them up into a single finding: Domain stays empty and
+// RolledUpDomains carries every affected name (sorted). Warn-severity
+// findings are never rolled up — each is independently actionable.
 type ConvergenceFinding struct {
 	Kind     string
 	Domain   string
@@ -38,6 +48,9 @@ type ConvergenceFinding struct {
 	Message  string
 	// Sources are the rungs involved in the finding.
 	Sources []Source
+	// RolledUpDomains is non-empty when this finding represents two or
+	// more identical-Kind info-severity findings merged into one row.
+	RolledUpDomains []string
 }
 
 // Convergence compares the authority rung against the lower rungs (and the
@@ -77,6 +90,19 @@ func Convergence(m DerivedDomainMap) []ConvergenceFinding {
 	}
 
 	var out []ConvergenceFinding
+
+	// Authority-fallback signal: when the ladder couldn't promote a
+	// curated DOMAINS.md / api manifest, every downstream "convergence"
+	// finding is comparing one inferred set against another. Surface the
+	// fallback itself so users see the real story instead of "no drift."
+	if m.AuthorityConfidence == ConfidenceLow {
+		out = append(out, ConvergenceFinding{
+			Kind:     FindingAuthorityFallback,
+			Severity: ConvergenceInfo,
+			Message:  "no curated DOMAINS.md (or api manifest); authority fell back to " + string(authoritySource) + " — domain map is inferred, not declared",
+			Sources:  []Source{authoritySource},
+		})
+	}
 
 	// Authority domain present, but missing on an implementing surface.
 	for name := range authoritySet {
@@ -137,11 +163,67 @@ func Convergence(m DerivedDomainMap) []ConvergenceFinding {
 		}
 	}
 
+	out = rollupInfoFindings(out)
+
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Kind != out[j].Kind {
 			return out[i].Kind < out[j].Kind
 		}
 		return out[i].Domain < out[j].Domain
 	})
+	return out
+}
+
+// rollupInfoFindings merges info-severity findings of the same Kind into
+// one row with RolledUpDomains listing every affected name. Findings
+// without a Domain (the authority_fallback signal) are left untouched
+// because there is no domain to roll up. Warn-severity findings are
+// never merged.
+func rollupInfoFindings(in []ConvergenceFinding) []ConvergenceFinding {
+	byKind := map[string][]int{}
+	for i, f := range in {
+		if f.Severity != ConvergenceInfo || f.Domain == "" {
+			continue
+		}
+		byKind[f.Kind] = append(byKind[f.Kind], i)
+	}
+
+	drop := map[int]bool{}
+	var merged []ConvergenceFinding
+	for kind, idxs := range byKind {
+		if len(idxs) < 2 {
+			continue
+		}
+		domains := make([]string, 0, len(idxs))
+		for _, i := range idxs {
+			domains = append(domains, in[i].Domain)
+			drop[i] = true
+		}
+		sort.Strings(domains)
+		// Use the first source list (they're identical across same-kind
+		// findings emitted by the same surface comparison) and a message
+		// derived from the original — the rendering layer cites the
+		// rolled-up domain list explicitly.
+		first := in[idxs[0]]
+		merged = append(merged, ConvergenceFinding{
+			Kind:            kind,
+			Severity:        ConvergenceInfo,
+			Message:         first.Message,
+			Sources:         append([]Source(nil), first.Sources...),
+			RolledUpDomains: domains,
+		})
+	}
+
+	if len(drop) == 0 {
+		return in
+	}
+	out := make([]ConvergenceFinding, 0, len(in)-len(drop)+len(merged))
+	for i, f := range in {
+		if drop[i] {
+			continue
+		}
+		out = append(out, f)
+	}
+	out = append(out, merged...)
 	return out
 }

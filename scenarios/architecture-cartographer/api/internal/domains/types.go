@@ -70,15 +70,33 @@ type DomainDeclaration struct {
 	Authoritative bool
 }
 
+// AuthorityConfidence reports how trustworthy the resolved authority is.
+//
+//   - ConfidenceHigh: authority came from a deliberately-curated source
+//     (the structured DOMAINS.md). Convergence findings against it are
+//     real drift signals.
+//   - ConfidenceLow: authority fell back to a derived source (api
+//     folders, cli groups). The "ground truth" is itself inferred, so
+//     convergence against it is tautological — a missing DOMAINS.md is
+//     the bigger story.
+type AuthorityConfidence string
+
+const (
+	ConfidenceUnspecified AuthorityConfidence = ""
+	ConfidenceHigh        AuthorityConfidence = "high"
+	ConfidenceLow         AuthorityConfidence = "low"
+)
+
 // DerivedDomainMap is the canonical resolved domain map for a scenario.
 type DerivedDomainMap struct {
-	Scenario        string
-	Domains         []DerivedDomain
-	SharedSubstrate []string
-	NonDomains      []string
-	Authority       Source
-	Declarations    []DomainDeclaration
-	DerivedAt       time.Time
+	Scenario            string
+	Domains             []DerivedDomain
+	SharedSubstrate     []string
+	NonDomains          []string
+	Authority           Source
+	AuthorityConfidence AuthorityConfidence
+	Declarations        []DomainDeclaration
+	DerivedAt           time.Time
 }
 
 // DomainFor returns the name of the domain whose paths cover the given

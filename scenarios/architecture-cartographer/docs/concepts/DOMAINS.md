@@ -38,6 +38,7 @@ The parser is header-driven; it reads the `Domain`, `Primary Archetype`,
 | signals | Score chunk-to-domain assignments via pluggable, deterministic signals; aggregate into explainable verdicts. | Service / scoring | Signal scores and verdict explanations. | API, CLI | OT-P0-004 (MOD-P0-004) | `api/internal/signals/`, `api/handlers/signals/`, `cli/domains/signals/`, `packages/proto/schemas/architecture-cartographer/v1/signals/` | Signal, Score, Verdict, Tier, SignalDescriptor, Aggregator, GraphContext |
 | apply | Emit per-domain migration plans and execute file moves + import rewrites with build-green guardrail. | Service / mutation | Migration plans, apply history. | API, CLI, UI | OT-P0-007, OT-P0-008 (MOD-P0-007, MOD-P0-008) | `api/internal/apply/`, `api/handlers/apply/`, `cli/domains/apply/`, `ui/src/features/apply/`, `packages/proto/schemas/architecture-cartographer/v1/apply/` | Plan, Operation, OperationKind, ApplyRun, ApplyStatus, BuildBaseline, BuildGuard, Recipe |
 | analytics | Persist conflict events, resolution outcomes, auto-placement verdicts, overrides, and build deltas; serve history + stats. | Reporting / query | Append-only event log. | API, CLI, UI | OT-P0-009 (MOD-P0-009) | `api/internal/analytics/`, `api/handlers/analytics/`, `cli/domains/analytics/`, `ui/src/features/analytics/`, `packages/proto/schemas/architecture-cartographer/v1/analytics/` | Event, EventKind, Placement, Override, StatsSummary |
+| audit | CI-shaped orchestrator: one call runs graph extract (if needed) → domains derivation → conflicts detection, applies severity / type filters, and returns a deterministic exit-code summary. | Service / orchestration | No product data (pure orchestrator over the graph/domains/conflicts domains). | API, CLI | L5 readiness | `api/internal/audit/`, `api/handlers/audit/`, `cli/domains/audit/`, `packages/proto/schemas/architecture-cartographer/v1/audit/` | Outcome, Report, RunInput, ConflictSummary, DerivedDomainSummary, GraphSummary |
 
 ## Domain Details
 
@@ -210,6 +211,33 @@ The parser is header-driven; it reads the `Domain`, `Primary Archetype`,
   capture across all domains), performance (history query bounded by
   scenario size).
 - Related docs: [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md).
+
+### audit
+
+- Purpose: a CI-shaped surface that gates merges on architectural drift.
+  One call orchestrates graph extract (if no snapshot is cached),
+  domains derivation, and the conflicts detector chain; applies
+  severity / type filters; returns a deterministic, machine-readable
+  summary mapped to process exit codes (0 clean / 1 findings ≥ threshold
+  / 2 tool error / 3 usage error).
+- Primary archetype: service / orchestration.
+- Owns: the orchestration sequencing, the severity threshold (`fail_on`),
+  the type filters (`include_types` / `exclude_types`), and the
+  `AuditOutcome` mapping.
+- Does not own: drift detection (lives in `conflicts`), graph extraction
+  (lives in `graph`), domain derivation (lives in `domains`). Audit is
+  a thin orchestrator, not a detector.
+- API: `api/internal/audit/`, `api/handlers/audit/` — `AuditService.Run`.
+- CLI: `cli/domains/audit/` — `arch-cart audit run <scenario>` with
+  `--fail-on={info|warn|error|blocker}`, `--include-types`,
+  `--exclude-types`, `--json`.
+- UI: deferred to a follow-up. The plan's greenfield rule forbids a
+  placeholder page; either ship a working report or leave the route
+  absent. This audit cut omits the route deliberately.
+- Storage: none (stateless orchestrator).
+- Tests: unit (filter / threshold / outcome math; intMap; severityRank),
+  integration (against the three target scenarios with wall-clock
+  budgets per the L5 plan).
 
 ## Shared Concepts
 

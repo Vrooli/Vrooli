@@ -7,6 +7,7 @@ import (
 
 	"architecture-cartographer/cli/domains/analytics"
 	"architecture-cartographer/cli/domains/apply"
+	"architecture-cartographer/cli/domains/audit"
 	"architecture-cartographer/cli/domains/conflicts"
 	domainsdomain "architecture-cartographer/cli/domains/domains"
 	"architecture-cartographer/cli/domains/graph"
@@ -74,6 +75,12 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, fmt.Errorf("register apply: %w", err)
 	}
 	out = append(out, applyGroup)
+
+	auditGroup, err := audit.Register(core, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("register audit: %w", err)
+	}
+	out = append(out, auditGroup)
 
 	return out, nil
 }

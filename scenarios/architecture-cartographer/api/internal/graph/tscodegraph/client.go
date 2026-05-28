@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -120,7 +121,27 @@ func (c *Client) Extract(ctx context.Context, scenario string) (graph.RawGraph, 
 	if err != nil {
 		return graph.RawGraph{}, classifyConnectError(err)
 	}
-	return protoToRawGraph(resp.Msg), nil
+	raw := protoToRawGraph(resp.Msg)
+	// Rebase file paths to scenario-relative (see the matching block in
+	// gocodegraph/client.go for the full rationale — the producer rebases
+	// against the project dir it was given, cartographer needs scenario
+	// dir so RepoPath and DOMAINS.md share one namespace).
+	if subdir := scenarioSubdir(scenario, projectPath); subdir != "" {
+		for i := range raw.Files {
+			raw.Files[i].Path = subdir + "/" + raw.Files[i].Path
+		}
+	}
+	graph.AssignPackageRepoPaths(raw.Packages, raw.Files)
+	return raw, nil
+}
+
+func scenarioSubdir(scenario, projectPath string) string {
+	marker := "/scenarios/" + scenario + "/"
+	idx := strings.LastIndex(projectPath, marker)
+	if idx < 0 {
+		return ""
+	}
+	return strings.TrimSuffix(projectPath[idx+len(marker):], "/")
 }
 
 // classifyResolveError maps an api-core discovery failure onto the typed
@@ -212,7 +233,6 @@ func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 			out.Packages = append(out.Packages, graph.PackageNode{
 				ID:         n.GetId(),
 				ImportPath: n.GetName(),
-				Directory:  n.GetPath(),
 				Language:   graph.LanguageTypeScript,
 			})
 		default:

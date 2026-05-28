@@ -41,23 +41,42 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 	}
 	out := make([]conflicts.Conflict, 0, len(findings))
 	for _, f := range findings {
+		domains := domainsForFinding(f)
+		locator := strings.Join(domains, ",")
+		if locator == "" {
+			locator = "—"
+		}
 		out = append(out, conflicts.Conflict{
 			Scenario:  in.Scenario,
 			Detector:  d.Name(),
 			Type:      "convergence_drift",
 			Subtype:   f.Kind,
 			Severity:  severityFor(f.Severity),
-			Locations: []string{f.Domain},
-			Domains:   []string{f.Domain},
+			Locations: domains,
+			Domains:   domains,
 			Evidence: []conflicts.Evidence{{
 				Kind:    f.Kind,
 				Summary: f.Message,
-				Locator: fmt.Sprintf("%s [%s]", f.Domain, joinSources(f.Sources)),
+				Locator: fmt.Sprintf("%s [%s]", locator, joinSources(f.Sources)),
 			}},
 			Status: conflicts.ResolutionStatusDetected,
 		})
 	}
 	return out, nil
+}
+
+// domainsForFinding returns the affected domain names for a finding,
+// expanding RolledUpDomains when present. A finding without any domain
+// (e.g., authority_fallback) returns nil — callers tolerate empty
+// Locations / Domains.
+func domainsForFinding(f domains.ConvergenceFinding) []string {
+	if len(f.RolledUpDomains) > 0 {
+		return append([]string(nil), f.RolledUpDomains...)
+	}
+	if f.Domain == "" {
+		return nil
+	}
+	return []string{f.Domain}
 }
 
 func severityFor(s domains.ConvergenceSeverity) conflicts.Severity {

@@ -3,7 +3,9 @@ package signals
 import (
 	"context"
 	"errors"
+	"runtime"
 	"strings"
+	"sync"
 
 	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
@@ -14,17 +16,40 @@ import (
 type Service interface {
 	ScoreChunk(ctx context.Context, in ScoreInput) (Verdict, error)
 	ExplainVerdict(ctx context.Context, in ScoreInput) (Verdict, error)
+	// ScoreBatch scores every input chunk in one pass: snapshot,
+	// domain map, and GraphContext are fetched/built once and the
+	// aggregator runs concurrently across the input slice. Returns
+	// one Verdict per input Chunk, aligned by index, so a detector
+	// can correlate results positionally.
+	ScoreBatch(ctx context.Context, in ScoreBatchInput) ([]Verdict, error)
 	ListSignals(ctx context.Context, scenario string) ([]SignalDescriptor, error)
 	// BoundaryHealth computes domain-level coupling/boundary-health over the
 	// latest snapshot + derived domain map.
 	BoundaryHealth(ctx context.Context, scenario string) (boundaries.Report, error)
 }
 
+// ScoreBatchInput is the explicit input DTO for ScoreBatch. Chunks must
+// be already-resolved graph.Chunk values (e.g., obtained from
+// snap.Chunks()); the batch path does not do FileID/RepoPath lookup.
+type ScoreBatchInput struct {
+	Scenario string
+	Chunks   []graph.Chunk
+}
+
+// MaxBatchWorkers caps the worker-pool concurrency used by ScoreBatch.
+// Picked to match the GraphContext-shared-state shape: deterministic,
+// modest, and large enough to saturate the per-chunk aggregator cost on
+// typical dev hardware. Not configurable in v1 (per plan §8).
+const MaxBatchWorkers = 8
+
 // ScoreInput is the explicit input DTO for ScoreChunk / ExplainVerdict.
+// Resolution precedence: Chunk → FileID → RepoPath. The service resolves
+// FileID or RepoPath against the latest snapshot to build a Chunk.
 type ScoreInput struct {
 	Scenario string
 	Chunk    graph.Chunk
 	FileID   string
+	RepoPath string
 }
 
 // SnapshotProvider is the seam the service consults to resolve a
@@ -79,8 +104,8 @@ func (s *service) score(ctx context.Context, in ScoreInput) (Verdict, error) {
 	if strings.TrimSpace(in.Scenario) == "" {
 		return Verdict{}, ErrInvalidScoreRequest{Field: "scenario", Reason: "required"}
 	}
-	if in.Chunk.ID == "" && strings.TrimSpace(in.FileID) == "" {
-		return Verdict{}, ErrInvalidScoreRequest{Field: "chunk", Reason: "chunk or file_id required"}
+	if in.Chunk.ID == "" && strings.TrimSpace(in.FileID) == "" && strings.TrimSpace(in.RepoPath) == "" {
+		return Verdict{}, ErrInvalidScoreRequest{Field: "chunk", Reason: "chunk, file_id, or repo_path required"}
 	}
 
 	snap, err := s.snapshots.GetLatestSnapshot(ctx, in.Scenario)
@@ -103,14 +128,24 @@ func (s *service) score(ctx context.Context, in ScoreInput) (Verdict, error) {
 	}
 	chunk := in.Chunk
 	if chunk.ID == "" {
+		repoPath := strings.TrimSpace(in.RepoPath)
+		fileID := strings.TrimSpace(in.FileID)
 		for _, c := range snap.Chunks() {
-			if c.FileID == in.FileID {
+			if fileID != "" && c.FileID == fileID {
+				chunk = c
+				break
+			}
+			if repoPath != "" && c.Path == repoPath {
 				chunk = c
 				break
 			}
 		}
 		if chunk.ID == "" {
-			return Verdict{}, ErrInvalidScoreRequest{Field: "file_id", Reason: "not found in latest snapshot"}
+			field, reason := "file_id", "not found in latest snapshot"
+			if fileID == "" && repoPath != "" {
+				field, reason = "repo_path", "no file with that path in latest snapshot"
+			}
+			return Verdict{}, ErrInvalidScoreRequest{Field: field, Reason: reason}
 		}
 	}
 	gctx := NewGraphContext(in.Scenario, snap, dmap)
@@ -120,6 +155,68 @@ func (s *service) score(ctx context.Context, in ScoreInput) (Verdict, error) {
 
 func (s *service) ListSignals(ctx context.Context, _ string) ([]SignalDescriptor, error) {
 	return s.registry.Describe(ctx), nil
+}
+
+func (s *service) ScoreBatch(ctx context.Context, in ScoreBatchInput) ([]Verdict, error) {
+	if strings.TrimSpace(in.Scenario) == "" {
+		return nil, ErrInvalidScoreRequest{Field: "scenario", Reason: "required"}
+	}
+	if len(in.Chunks) == 0 {
+		return nil, nil
+	}
+	snap, err := s.snapshots.GetLatestSnapshot(ctx, in.Scenario)
+	if err != nil {
+		return nil, err
+	}
+	dmap, err := s.domainMaps.GetDomainMap(ctx, in.Scenario)
+	if err != nil {
+		// Same tolerance as ScoreChunk: a scenario with no derivable
+		// domain map still scores via signals that don't consult the
+		// map (import-cluster, symbol-glossary partial).
+		var (
+			noAuthority domains.ErrNoAuthority
+			notFound    domains.ErrScenarioNotFound
+		)
+		if !errors.As(err, &noAuthority) && !errors.As(err, &notFound) {
+			return nil, err
+		}
+	}
+	gctx := NewGraphContext(in.Scenario, snap, dmap)
+
+	out := make([]Verdict, len(in.Chunks))
+	workers := runtime.NumCPU()
+	if workers > MaxBatchWorkers {
+		workers = MaxBatchWorkers
+	}
+	if workers > len(in.Chunks) {
+		workers = len(in.Chunks)
+	}
+	if workers < 1 {
+		workers = 1
+	}
+	idxCh := make(chan int)
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range idxCh {
+				out[i] = s.aggregator.Aggregate(ctx, gctx, in.Chunks[i])
+			}
+		}()
+	}
+	for i := range in.Chunks {
+		select {
+		case <-ctx.Done():
+			close(idxCh)
+			wg.Wait()
+			return nil, ctx.Err()
+		case idxCh <- i:
+		}
+	}
+	close(idxCh)
+	wg.Wait()
+	return out, nil
 }
 
 func (s *service) BoundaryHealth(ctx context.Context, scenario string) (boundaries.Report, error) {

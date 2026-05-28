@@ -14,13 +14,12 @@ import {
 
 import { buildGraphLayout } from "./graphAdapter";
 
-const makePackage = (id: string, directory: string) =>
+const makePackage = (id: string, repoPath: string) =>
   create(PackageNodeSchema, {
     id,
     importPath: id,
-    directory,
+    repoPath,
     language: Language.GO,
-    internal: true,
   });
 
 const makeFile = (id: string, path: string, packageId: string) =>
@@ -79,7 +78,7 @@ describe("buildGraphLayout", () => {
     expect(c?.layer).toBe(1);
   });
 
-  it("derives the domain from the package directory's first segment", () => {
+  it("derives the domain from the package repo path's first segment", () => {
     const layout = buildGraphLayout(makeSnapshot(), []);
     expect(layout.domains).toEqual(["conflicts", "graph"]);
     const a = layout.nodes.find((n) => n.id === "file:graph/a.go");

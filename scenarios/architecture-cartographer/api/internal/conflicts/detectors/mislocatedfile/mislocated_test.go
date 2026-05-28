@@ -14,8 +14,12 @@ type stubVerdictProvider struct {
 	v conflicts.Verdict
 }
 
-func (s stubVerdictProvider) VerdictFor(_ context.Context, _ string, _ graph.Chunk) (conflicts.Verdict, error) {
-	return s.v, nil
+func (s stubVerdictProvider) VerdictsFor(_ context.Context, _ string, chunks []graph.Chunk) ([]conflicts.Verdict, error) {
+	out := make([]conflicts.Verdict, len(chunks))
+	for i := range chunks {
+		out[i] = s.v
+	}
+	return out, nil
 }
 
 func TestDetect_EmitsWhenVerdictDisagreesWithDomainMap(t *testing.T) {

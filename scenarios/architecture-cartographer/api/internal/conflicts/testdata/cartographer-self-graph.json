@@ -10,12 +10,12 @@
     { "id": "f-analytics-types",     "path": "api/internal/analytics/types.go",                "package_id": "p-analytics",     "language": "go" }
   ],
   "packages": [
-    { "id": "p-graph",     "import_path": "architecture-cartographer/internal/graph",     "directory": "api/internal/graph",     "language": "go", "internal": true },
-    { "id": "p-domains",   "import_path": "architecture-cartographer/internal/domains",   "directory": "api/internal/domains",   "language": "go", "internal": true },
-    { "id": "p-conflicts", "import_path": "architecture-cartographer/internal/conflicts", "directory": "api/internal/conflicts", "language": "go", "internal": true },
-    { "id": "p-signals",   "import_path": "architecture-cartographer/internal/signals",   "directory": "api/internal/signals",   "language": "go", "internal": true },
-    { "id": "p-apply",     "import_path": "architecture-cartographer/internal/apply",     "directory": "api/internal/apply",     "language": "go", "internal": true },
-    { "id": "p-analytics", "import_path": "architecture-cartographer/internal/analytics", "directory": "api/internal/analytics", "language": "go", "internal": true }
+    { "id": "p-graph",     "import_path": "architecture-cartographer/internal/graph",     "repo_path": "api/internal/graph",     "language": "go" },
+    { "id": "p-domains",   "import_path": "architecture-cartographer/internal/domains",   "repo_path": "api/internal/domains",   "language": "go" },
+    { "id": "p-conflicts", "import_path": "architecture-cartographer/internal/conflicts", "repo_path": "api/internal/conflicts", "language": "go" },
+    { "id": "p-signals",   "import_path": "architecture-cartographer/internal/signals",   "repo_path": "api/internal/signals",   "language": "go" },
+    { "id": "p-apply",     "import_path": "architecture-cartographer/internal/apply",     "repo_path": "api/internal/apply",     "language": "go" },
+    { "id": "p-analytics", "import_path": "architecture-cartographer/internal/analytics", "repo_path": "api/internal/analytics", "language": "go" }
   ],
   "symbols": [],
   "imports": [

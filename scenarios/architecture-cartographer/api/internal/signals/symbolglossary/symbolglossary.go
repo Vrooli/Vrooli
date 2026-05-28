@@ -14,23 +14,25 @@ import (
 	"architecture-cartographer/internal/signals"
 )
 
+const name = "symbol-glossary"
+
 // Signal is the production symbol-glossary signal.
 type Signal struct{}
 
 // New returns the production signal.
 func New() *Signal { return &Signal{} }
 
-func (Signal) Name() string                               { return "symbol-glossary" }
+func (Signal) Name() string                               { return name }
 func (Signal) DefaultWeight() float64                     { return 0.9 }
 func (Signal) IsAvailable(context.Context) (bool, string) { return true, "" }
 
-func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Chunk) []signals.Score {
+func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Chunk) signals.ScoreResult {
 	if chunk.FileID == "" {
-		return nil
+		return signals.Abstain(name, "chunk has no file id", chunk.Path)
 	}
 	symbols := symbolsForFile(chunk.FileID, gctx.Snapshot)
 	if len(symbols) == 0 {
-		return nil
+		return signals.Abstain(name, "file has no exported symbols in snapshot", chunk.Path)
 	}
 	lowered := make(map[string]struct{}, len(symbols))
 	for _, s := range symbols {
@@ -55,7 +57,7 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 			value = 1
 		}
 		out = append(out, signals.Score{
-			Signal: "symbol-glossary",
+			Signal: name,
 			Domain: d.Name,
 			Value:  value,
 			Reason: fmt.Sprintf("%d glossary term(s) matched in file symbols", matched),
@@ -67,7 +69,10 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 			}},
 		})
 	}
-	return out
+	if len(out) == 0 {
+		return signals.Abstain(name, "no glossary terms matched any domain", chunk.Path)
+	}
+	return signals.ScoreResult{Scores: out}
 }
 
 func symbolsForFile(fileID string, snap graph.GraphSnapshot) []string {

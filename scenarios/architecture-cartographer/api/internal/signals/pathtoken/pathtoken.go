@@ -16,25 +16,27 @@ import (
 	"architecture-cartographer/internal/signals"
 )
 
+const name = "path-token"
+
 // Signal is the production path-token signal.
 type Signal struct{}
 
 // New returns the production signal.
 func New() *Signal { return &Signal{} }
 
-func (Signal) Name() string           { return "path-token" }
+func (Signal) Name() string           { return name }
 func (Signal) DefaultWeight() float64 { return 1.5 }
 func (Signal) IsAvailable(context.Context) (bool, string) {
 	return true, ""
 }
 
 // Score returns one Score per domain whose name token appears in the
-// chunk's path. Value is the fraction of path tokens that matched, in
-// [0, 1].
-func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Chunk) []signals.Score {
+// chunk's path, or an explicit Abstention when the path has no
+// tokenizable segments / no domain name token is present.
+func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Chunk) signals.ScoreResult {
 	tokens := pathTokens(chunk.Path)
 	if len(tokens) == 0 {
-		return nil
+		return signals.Abstain(name, "path has no tokenizable segments", chunk.Path)
 	}
 	tokenSet := make(map[string]struct{}, len(tokens))
 	for _, t := range tokens {
@@ -43,8 +45,8 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 
 	var out []signals.Score
 	for _, d := range gctx.DomainMap.Domains {
-		name := strings.ToLower(d.Name)
-		if _, ok := tokenSet[name]; !ok {
+		nameTok := strings.ToLower(d.Name)
+		if _, ok := tokenSet[nameTok]; !ok {
 			continue
 		}
 		// Match strength: presence of the domain name token, plus any
@@ -55,7 +57,7 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 			for _, seg := range strings.Split(glob, "/") {
 				seg = strings.TrimSuffix(seg, "**")
 				seg = strings.TrimSuffix(seg, "*")
-				if seg == "" || seg == name {
+				if seg == "" || seg == nameTok {
 					continue
 				}
 				if _, ok := tokenSet[strings.ToLower(seg)]; ok {
@@ -68,7 +70,7 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 			value = 1
 		}
 		out = append(out, signals.Score{
-			Signal: "path-token",
+			Signal: name,
 			Domain: d.Name,
 			Value:  value,
 			Reason: fmt.Sprintf("path contains domain token %q", d.Name),
@@ -80,7 +82,10 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 			}},
 		})
 	}
-	return out
+	if len(out) == 0 {
+		return signals.Abstain(name, "no domain name token present in path", chunk.Path)
+	}
+	return signals.ScoreResult{Scores: out}
 }
 
 // pathTokens splits the path into lowercased segment + identifier tokens.

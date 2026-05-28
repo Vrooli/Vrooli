@@ -62,25 +62,44 @@ func (h *handlers) convergence(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no convergence report")
 	}
+	authorityLine := fmt.Sprintf("Authority source: %s", sourceName(resp.Msg.GetAuthority()))
+	confidenceLine := fmt.Sprintf("Authority confidence: %s", confidenceName(resp.Msg.GetAuthorityConfidence()))
 	findings := resp.Msg.GetFindings()
 	if len(findings) == 0 {
 		return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-			Summary:        []string{fmt.Sprintf("Surfaces converge for %q — no disagreements.", scenario), fmt.Sprintf("Authority source: %s", sourceName(resp.Msg.GetAuthority()))},
+			Summary:        []string{fmt.Sprintf("Surfaces converge for %q — no disagreements.", scenario), authorityLine, confidenceLine},
 			ResultsHeading: "Findings",
 			Results:        nil,
 		})
 	}
 	results := make([]string, 0, len(findings))
 	for _, f := range findings {
+		label := f.GetDomain()
+		if rolled := f.GetRolledUpDomains(); len(rolled) > 0 {
+			label = fmt.Sprintf("domains=%s", strings.Join(rolled, ","))
+		} else if label == "" {
+			label = "—"
+		}
 		results = append(results, fmt.Sprintf("[%s] %s — %s (%s)",
-			convergenceSeverityName(f.GetSeverity()), f.GetDomain(), f.GetMessage(), f.GetKind()))
+			convergenceSeverityName(f.GetSeverity()), label, f.GetMessage(), f.GetKind()))
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("%d convergence finding(s) for %q.", len(findings), scenario), fmt.Sprintf("Authority source: %s", sourceName(resp.Msg.GetAuthority()))},
+		Summary:        []string{fmt.Sprintf("%d convergence finding(s) for %q.", len(findings), scenario), authorityLine, confidenceLine},
 		ResultsHeading: "Findings",
 		Results:        results,
 		RetrievalHints: []string{"Findings are advisory; warn = real disagreement, info = coverage signal. Reconcile DOMAINS.md, api folders, and cli groups."},
 	})
+}
+
+func confidenceName(c domainsv1.AuthorityConfidence) string {
+	switch c {
+	case domainsv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_HIGH:
+		return "high"
+	case domainsv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_LOW:
+		return "low (fallback — no curated DOMAINS.md or api manifest)"
+	default:
+		return "unspecified"
+	}
 }
 
 func convergenceSeverityName(s domainsv1.ConvergenceSeverity) string {
@@ -107,6 +126,7 @@ func renderMap(ctx cliapp.RunContext, m *domainsv1.DerivedDomainMap) error {
 	summary := []string{
 		fmt.Sprintf("Derived %d domain(s) for %q.", len(m.GetDomains()), m.GetScenario()),
 		fmt.Sprintf("Authority source: %s", sourceName(m.GetAuthority())),
+		fmt.Sprintf("Authority confidence: %s", confidenceName(m.GetAuthorityConfidence())),
 	}
 	if shared := m.GetSharedSubstrate(); len(shared) > 0 {
 		summary = append(summary, fmt.Sprintf("Shared substrate: %s", strings.Join(shared, ", ")))

@@ -36,12 +36,20 @@ type FileNode struct {
 }
 
 // PackageNode is one logical package or module.
+//
+// RepoPath is the repo-relative filesystem directory containing the
+// package (slash-separated, no leading slash, e.g. "api/internal/graph").
+// It is derived from the package's file nodes and is the single key used
+// to map a package back to a domain via domains.DerivedDomainMap.
+//
+// ImportPath is the language-native module path (e.g.
+// "architecture-cartographer/internal/graph"); it is not used for
+// domain mapping.
 type PackageNode struct {
 	ID         string
 	ImportPath string
-	Directory  string
+	RepoPath   string
 	Language   Language
-	Internal   bool
 }
 
 // SymbolNode is one exported identifier.

@@ -21,28 +21,30 @@ import (
 	"architecture-cartographer/internal/signals"
 )
 
+const name = "import-cluster"
+
 // Signal is the production import-cluster signal.
 type Signal struct{}
 
 // New returns the production signal.
 func New() *Signal { return &Signal{} }
 
-func (Signal) Name() string                               { return "import-cluster" }
+func (Signal) Name() string                               { return name }
 func (Signal) DefaultWeight() float64                     { return 1.0 }
 func (Signal) IsAvailable(context.Context) (bool, string) { return true, "" }
 
-func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Chunk) []signals.Score {
+func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Chunk) signals.ScoreResult {
 	if chunk.FileID == "" {
-		return nil
+		return signals.Abstain(name, "chunk has no file id", chunk.Path)
 	}
 	pkgID := packageForFile(chunk.FileID, gctx.Snapshot)
 	if pkgID == "" {
-		return nil
+		return signals.Abstain(name, "file has no package in snapshot", chunk.Path)
 	}
 	clusters := computeClusters(gctx)
 	clusterID, ok := clusters[pkgID]
 	if !ok {
-		return nil
+		return signals.Abstain(name, "package is not in any import cluster", chunk.Path)
 	}
 
 	// Find every package in the same cluster and tally their domains.
@@ -61,7 +63,7 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 		total++
 	}
 	if total == 0 {
-		return nil
+		return signals.Abstain(name, "no packages in this cluster are mapped to a derived domain", chunk.Path)
 	}
 
 	// Stable iteration order for evidence determinism.
@@ -76,7 +78,7 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 		count := tally[dom]
 		value := float64(count) / float64(total)
 		out = append(out, signals.Score{
-			Signal: "import-cluster",
+			Signal: name,
 			Domain: dom,
 			Value:  value,
 			Reason: fmt.Sprintf("%d/%d cluster packages belong to %q", count, total, dom),
@@ -88,7 +90,7 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 			}},
 		})
 	}
-	return out
+	return signals.ScoreResult{Scores: out}
 }
 
 func packageForFile(fileID string, snap graph.GraphSnapshot) string {
@@ -102,20 +104,20 @@ func packageForFile(fileID string, snap graph.GraphSnapshot) string {
 
 // computeClusters returns a per-internal-package cluster id derived
 // from undirected connected components over the import edges.
-// Cached on GraphContext.Caches.Community so subsequent calls in the
-// same scoring batch share the work.
+// Cached on GraphContext.Caches so subsequent calls in the same
+// scoring batch share the work; access is goroutine-safe.
 func computeClusters(gctx signals.GraphContext) map[string]int {
-	if gctx.Caches != nil && len(gctx.Caches.Community) > 0 {
-		return gctx.Caches.Community
-	}
-	internal := make(map[string]struct{})
-	for _, p := range gctx.Snapshot.Packages {
-		if p.Internal {
-			internal[p.ID] = struct{}{}
+	if gctx.Caches != nil {
+		if cached := gctx.Caches.CommunitySnapshot(); cached != nil {
+			return cached
 		}
 	}
-	adj := make(map[string]map[string]struct{}, len(internal))
-	for k := range internal {
+	inScenario := make(map[string]struct{})
+	for _, p := range gctx.Snapshot.Packages {
+		inScenario[p.ID] = struct{}{}
+	}
+	adj := make(map[string]map[string]struct{}, len(inScenario))
+	for k := range inScenario {
 		adj[k] = make(map[string]struct{})
 	}
 	for _, e := range gctx.Snapshot.Imports {
@@ -123,20 +125,20 @@ func computeClusters(gctx signals.GraphContext) map[string]int {
 		if from == "" {
 			continue
 		}
-		if _, ok := internal[from]; !ok {
+		if _, ok := inScenario[from]; !ok {
 			continue
 		}
-		if _, ok := internal[e.ToPackageID]; !ok {
+		if _, ok := inScenario[e.ToPackageID]; !ok {
 			continue
 		}
 		adj[from][e.ToPackageID] = struct{}{}
 		adj[e.ToPackageID][from] = struct{}{}
 	}
 
-	cluster := make(map[string]int, len(internal))
-	visited := make(map[string]bool, len(internal))
-	order := make([]string, 0, len(internal))
-	for id := range internal {
+	cluster := make(map[string]int, len(inScenario))
+	visited := make(map[string]bool, len(inScenario))
+	order := make([]string, 0, len(inScenario))
+	for id := range inScenario {
 		order = append(order, id)
 	}
 	sort.Strings(order)
@@ -168,9 +170,7 @@ func computeClusters(gctx signals.GraphContext) map[string]int {
 		}
 	}
 	if gctx.Caches != nil {
-		for k, v := range cluster {
-			gctx.Caches.Community[k] = v
-		}
+		gctx.Caches.SetCommunity(cluster)
 	}
 	return cluster
 }
@@ -192,12 +192,12 @@ func resolvePkg(id string, snap graph.GraphSnapshot) string {
 func indexDomainPackages(gctx signals.GraphContext) map[string]string {
 	out := make(map[string]string, len(gctx.Snapshot.Packages))
 	for _, p := range gctx.Snapshot.Packages {
-		if p.Directory == "" {
+		if p.RepoPath == "" {
 			continue
 		}
 		for _, d := range gctx.DomainMap.Domains {
 			for _, g := range d.Paths {
-				if matches(p.Directory, g) {
+				if matches(p.RepoPath, g) {
 					out[p.ID] = d.Name
 					break
 				}

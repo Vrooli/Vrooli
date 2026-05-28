@@ -17,8 +17,8 @@ func TestScore_TestFilesInDomainProduceScore(t *testing.T) {
 			{ID: "file:test", PackageID: "pkg:conflicts_test", IsTest: true},
 		},
 		Packages: []graph.PackageNode{
-			{ID: "pkg:src", Directory: "shared/x"},
-			{ID: "pkg:conflicts_test", Directory: "internal/conflicts"},
+			{ID: "pkg:src", RepoPath: "shared/x"},
+			{ID: "pkg:conflicts_test", RepoPath: "internal/conflicts"},
 		},
 		Imports: []graph.ImportEdge{
 			{From: "file:test", ToPackageID: "pkg:src", TestOnly: true},
@@ -30,21 +30,24 @@ func TestScore_TestFilesInDomainProduceScore(t *testing.T) {
 		},
 	}
 	out := testcoupling.New().Score(context.Background(), signals.NewGraphContext("demo", snap, m), graph.Chunk{FileID: "file:src"})
-	if len(out) != 1 {
+	if len(out.Scores) != 1 {
 		t.Fatalf("want 1 score, got %+v", out)
 	}
-	if out[0].Domain != "conflicts" {
-		t.Fatalf("unexpected domain: %s", out[0].Domain)
+	if out.Scores[0].Domain != "conflicts" {
+		t.Fatalf("unexpected domain: %s", out.Scores[0].Domain)
 	}
 }
 
-func TestScore_NoTestImportersReturnsEmpty(t *testing.T) {
+func TestScore_NoTestImportersAbstains(t *testing.T) {
 	snap := graph.GraphSnapshot{
 		Files:    []graph.FileNode{{ID: "file:src", PackageID: "pkg:src"}},
 		Packages: []graph.PackageNode{{ID: "pkg:src"}},
 	}
 	out := testcoupling.New().Score(context.Background(), signals.NewGraphContext("demo", snap, domains.DerivedDomainMap{}), graph.Chunk{FileID: "file:src"})
-	if len(out) != 0 {
-		t.Fatalf("want 0 scores, got %+v", out)
+	if len(out.Scores) != 0 {
+		t.Fatalf("want 0 scores, got %+v", out.Scores)
+	}
+	if out.Abstention == nil {
+		t.Fatal("expected abstention when no test importers")
 	}
 }

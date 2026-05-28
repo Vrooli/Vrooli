@@ -3,6 +3,7 @@ package signals
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -27,16 +28,20 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 // score runs every enabled signal against a file's chunk and renders the
-// aggregated verdict plus per-signal scores.
+// aggregated verdict plus per-signal scores. The <file> positional is
+// either a snapshot file id (starts with "file:") or a repo-relative
+// path; the CLI routes to the matching API field and the service
+// resolves either form to a chunk.
 func (h *handlers) score(ctx cliapp.RunContext) error {
 	scenario := ctx.Positional("scenario")
-	fileID := ctx.Positional("file_id")
+	fileID, repoPath := splitFileArg(ctx.Positional("file"))
 	resp, err := h.client.ScoreChunk(context.Background(), connect.NewRequest(&signalsv1.ScoreChunkRequest{
 		Scenario: scenario,
 		FileId:   fileID,
+		RepoPath: repoPath,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("score %q in %q", fileID, scenario), err, nil)
+		return cliapp.WrapAPIError(fmt.Sprintf("score %q in %q", ctx.Positional("file"), scenario), err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.GetVerdict() == nil {
 		return fmt.Errorf("server returned no verdict")
@@ -48,13 +53,14 @@ func (h *handlers) score(ctx cliapp.RunContext) error {
 // per-signal evidence breakdown (the explainability contract).
 func (h *handlers) explain(ctx cliapp.RunContext) error {
 	scenario := ctx.Positional("scenario")
-	fileID := ctx.Positional("file_id")
+	fileID, repoPath := splitFileArg(ctx.Positional("file"))
 	resp, err := h.client.ExplainVerdict(context.Background(), connect.NewRequest(&signalsv1.ExplainVerdictRequest{
 		Scenario: scenario,
 		FileId:   fileID,
+		RepoPath: repoPath,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("explain %q in %q", fileID, scenario), err, nil)
+		return cliapp.WrapAPIError(fmt.Sprintf("explain %q in %q", ctx.Positional("file"), scenario), err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.GetVerdict() == nil {
 		return fmt.Errorf("server returned no verdict")
@@ -142,12 +148,17 @@ func renderVerdict(ctx cliapp.RunContext, payload proto.Message, v *signalsv1.Ve
 	if v.GetTied() {
 		tieNote = " (TIED)"
 	}
-	summary := []string{
-		fmt.Sprintf("%s → tier=%s top=%s (%.3f) runner-up=%s (%.3f)%s",
-			v.GetChunkPath(), tierName(v.GetTier()),
-			v.GetTopDomain(), v.GetTopValue(),
-			v.GetRunnerUpDomain(), v.GetRunnerUpValue(), tieNote),
+	// Hide blank runner-up: only render the runner-up clause when a real
+	// runner-up domain is present (avoids `runner-up= (0.000)` cosmetic
+	// noise when only one domain has any signal weight).
+	summaryLine := fmt.Sprintf("%s → tier=%s top=%s (%.3f)",
+		v.GetChunkPath(), tierName(v.GetTier()),
+		v.GetTopDomain(), v.GetTopValue())
+	if v.GetRunnerUpDomain() != "" {
+		summaryLine += fmt.Sprintf(" runner-up=%s (%.3f)", v.GetRunnerUpDomain(), v.GetRunnerUpValue())
 	}
+	summaryLine += tieNote
+	summary := []string{summaryLine}
 
 	var results []string
 	for _, dv := range v.GetDomainValues() {
@@ -167,6 +178,22 @@ func renderVerdict(ctx cliapp.RunContext, payload proto.Message, v *signalsv1.Ve
 			}
 		}
 	}
+	if abst := v.GetAbstentions(); len(abst) > 0 {
+		results = append(results, "Abstentions:")
+		for _, a := range abst {
+			results = append(results, fmt.Sprintf("  signal %s — %s", a.GetSignal(), a.GetReason()))
+			if withEvidence {
+				for _, e := range a.GetEvidence() {
+					loc := ""
+					if e.GetLocator() != "" {
+						loc = " @ " + e.GetLocator()
+					}
+					results = append(results, fmt.Sprintf("      evidence[%s]: %s%s",
+						e.GetKind(), e.GetSummary(), loc))
+				}
+			}
+		}
+	}
 
 	heading := "Aggregated domain values + per-signal scores"
 	if withEvidence {
@@ -177,9 +204,20 @@ func renderVerdict(ctx cliapp.RunContext, payload proto.Message, v *signalsv1.Ve
 		ResultsHeading: heading,
 		Results:        results,
 		RetrievalHints: []string{
-			"`signals explain <scenario> <file_id>` for the full per-signal evidence breakdown.",
+			"`signals explain <scenario> <file>` for the full per-signal evidence breakdown (<file> = snapshot file id or repo-relative path).",
 		},
 	})
+}
+
+// splitFileArg routes the <file> positional to one of the two API
+// fields. Snapshot file ids are emitted by the graph extractor as
+// "file:<path>", so a leading "file:" prefix is the unambiguous
+// discriminator. Anything else is treated as a repo-relative path.
+func splitFileArg(arg string) (fileID, repoPath string) {
+	if strings.HasPrefix(arg, "file:") {
+		return arg, ""
+	}
+	return "", arg
 }
 
 func tierName(t signalsv1.Tier) string {

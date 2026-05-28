@@ -14,27 +14,29 @@ import (
 	"architecture-cartographer/internal/signals"
 )
 
+const name = "importer-voting"
+
 // Signal is the production importer-voting signal.
 type Signal struct{}
 
 // New returns the production signal.
 func New() *Signal { return &Signal{} }
 
-func (Signal) Name() string                               { return "importer-voting" }
+func (Signal) Name() string                               { return name }
 func (Signal) DefaultWeight() float64                     { return 0.8 }
 func (Signal) IsAvailable(context.Context) (bool, string) { return true, "" }
 
-func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Chunk) []signals.Score {
+func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Chunk) signals.ScoreResult {
 	if chunk.FileID == "" {
-		return nil
+		return signals.Abstain(name, "chunk has no file id", chunk.Path)
 	}
 	pkgID := packageForFile(chunk.FileID, gctx.Snapshot)
 	if pkgID == "" {
-		return nil
+		return signals.Abstain(name, "file has no package in snapshot", chunk.Path)
 	}
 	importers := importersOf(pkgID, gctx.Snapshot)
 	if len(importers) == 0 {
-		return nil
+		return signals.Abstain(name, "no importers for this file in current snapshot", chunk.Path)
 	}
 
 	domainPackages := indexDomainPackages(gctx)
@@ -47,14 +49,14 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 		votes[dom]++
 	}
 	if len(votes) == 0 {
-		return nil
+		return signals.Abstain(name, "importers are not mapped to any derived domain", chunk.Path)
 	}
 
 	var out []signals.Score
 	for dom, count := range votes {
 		value := float64(count) / float64(len(importers))
 		out = append(out, signals.Score{
-			Signal: "importer-voting",
+			Signal: name,
 			Domain: dom,
 			Value:  value,
 			Reason: fmt.Sprintf("%d of %d importers belong to %q", count, len(importers), dom),
@@ -66,7 +68,7 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 			}},
 		})
 	}
-	return out
+	return signals.ScoreResult{Scores: out}
 }
 
 func packageForFile(fileID string, snap graph.GraphSnapshot) string {
@@ -116,11 +118,11 @@ func packageFor(id string, snap graph.GraphSnapshot) string {
 func indexDomainPackages(gctx signals.GraphContext) map[string]string {
 	out := make(map[string]string, len(gctx.Snapshot.Packages))
 	for _, p := range gctx.Snapshot.Packages {
-		if p.Directory == "" {
+		if p.RepoPath == "" {
 			continue
 		}
 		for _, d := range gctx.DomainMap.Domains {
-			if pathInDomain(p.Directory, d.Paths) {
+			if pathInDomain(p.RepoPath, d.Paths) {
 				out[p.ID] = d.Name
 				break
 			}

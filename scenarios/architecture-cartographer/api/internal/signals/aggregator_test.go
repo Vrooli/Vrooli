@@ -84,14 +84,15 @@ func TestAggregator_TiedTopTwoConflicts(t *testing.T) {
 	}
 }
 
-func TestAggregator_DropsEmptyEvidence(t *testing.T) {
+func TestAggregator_DropsEmptyEvidenceAndSynthesizesBrokenContractAbstention(t *testing.T) {
 	sig := &mocks.FakeSignal{
 		NameValue: "fake-1",
 		Weight:    1.0,
 		Available: true,
 		Returns: []signals.Score{{
 			Signal: "fake-1", Domain: "graph", Value: 0.99,
-			// No evidence — should be dropped.
+			// No evidence — should be dropped; aggregator records a
+			// broken-contract abstention so the failure surfaces.
 		}},
 	}
 	agg := signals.NewAggregator(newReg(sig), nil)
@@ -99,8 +100,47 @@ func TestAggregator_DropsEmptyEvidence(t *testing.T) {
 	if len(v.Scores) != 0 {
 		t.Fatalf("evidence-less score should be dropped, got %+v", v.Scores)
 	}
+	if len(v.Abstentions) != 1 || v.Abstentions[0].Signal != "fake-1" {
+		t.Fatalf("expected broken-contract abstention for fake-1, got %+v", v.Abstentions)
+	}
 	if v.Tier != signals.TierConflict {
 		t.Fatalf("expected conflict when no scores survive, got %s", v.Tier)
+	}
+}
+
+func TestAggregator_AbstainingSignalIncludedInDenominator(t *testing.T) {
+	// Scored signal weight=2.0 emits domain=graph value=1.0.
+	// Abstaining signal weight=1.0 emits no score.
+	// Verdict denominator should include both weights, so graph value = 2/3 ≈ 0.667 (suggest).
+	scored := &mocks.FakeSignal{
+		NameValue: "fake-scored",
+		Weight:    2.0,
+		Available: true,
+		Returns: []signals.Score{{
+			Signal: "fake-scored", Domain: "graph", Value: 1.0,
+			Evidence: []signals.Evidence{{Kind: "demo", Summary: "x"}},
+		}},
+	}
+	abstaining := &mocks.FakeSignal{
+		NameValue: "fake-abstain",
+		Weight:    1.0,
+		Available: true,
+		Abstain: &signals.Abstention{
+			Signal:   "fake-abstain",
+			Reason:   "no data",
+			Evidence: []signals.Evidence{{Kind: "abstain", Summary: "no data"}},
+		},
+	}
+	agg := signals.NewAggregator(newReg(scored, abstaining), nil)
+	v := agg.Aggregate(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, emptyDomainMap()), graph.Chunk{ID: "c1"})
+	if got := v.TopValue; got < 0.66 || got > 0.67 {
+		t.Fatalf("abstaining signal must contribute to denominator: top=%v want ~0.667", got)
+	}
+	if len(v.Abstentions) != 1 || v.Abstentions[0].Signal != "fake-abstain" {
+		t.Fatalf("expected one abstention for fake-abstain, got %+v", v.Abstentions)
+	}
+	if v.Tier != signals.TierSuggest {
+		t.Fatalf("expected suggest tier at ~0.667, got %s", v.Tier)
 	}
 }
 

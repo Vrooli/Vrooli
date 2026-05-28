@@ -12,6 +12,7 @@ import (
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
+	"architecture-cartographer/internal/signals"
 	"architecture-cartographer/internal/suppressions"
 
 	"connectrpc.com/connect"
@@ -25,6 +26,7 @@ type Deps struct {
 	Conflicts    conflicts.Service
 	Graph        graph.Service
 	Domains      domains.Service
+	Signals      signals.Service
 	Suppressions suppressions.Provider
 }
 
@@ -77,12 +79,17 @@ func (h *Handler) DetectConflicts(ctx context.Context, req *connect.Request[conf
 		}
 	}
 
+	var verdictProvider conflicts.VerdictProvider
+	if h.deps.Signals != nil {
+		verdictProvider = NewSignalsVerdictAdapter(h.deps.Signals)
+	}
 	out, err := h.deps.Conflicts.DetectConflicts(ctx, conflicts.DetectOrchestrationInput{
-		Scenario:       scenario,
-		Snapshot:       snap,
-		DomainMap:      dmap,
-		IdempotencyKey: req.Msg.GetIdempotencyKey(),
-		Suppressions:   markers,
+		Scenario:        scenario,
+		Snapshot:        snap,
+		DomainMap:       dmap,
+		IdempotencyKey:  req.Msg.GetIdempotencyKey(),
+		Suppressions:    markers,
+		VerdictProvider: verdictProvider,
 	})
 	if err != nil {
 		return nil, connect.NewError(conflicts.ErrorToConnectCode(err), err)

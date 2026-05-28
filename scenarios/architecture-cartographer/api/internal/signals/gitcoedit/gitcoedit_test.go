@@ -23,11 +23,16 @@ func TestSignal_DisabledWhenGitUnavailable(t *testing.T) {
 	}
 }
 
-func TestScore_SilentWhenDisabled(t *testing.T) {
+func TestScore_AbstainsWhenDisabled(t *testing.T) {
+	// Even when the aggregator would skip the signal, calling Score directly
+	// must satisfy the self-explaining contract.
 	sig := gitcoedit.New(&gitmocks.FakeRunner{Available: false})
 	out := sig.Score(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, domains.DerivedDomainMap{}), graph.Chunk{Path: "a.go"})
-	if len(out) != 0 {
-		t.Fatalf("disabled signal must score nothing, got %+v", out)
+	if len(out.Scores) != 0 {
+		t.Fatalf("disabled signal must not produce scores, got %+v", out.Scores)
+	}
+	if out.Abstention == nil {
+		t.Fatal("disabled signal must abstain explicitly")
 	}
 }
 
@@ -53,15 +58,15 @@ target/file.go
 		},
 	}
 	out := sig.Score(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, m), graph.Chunk{Path: "target/file.go"})
-	if len(out) != 1 {
+	if len(out.Scores) != 1 {
 		t.Fatalf("want 1 score, got %+v", out)
 	}
-	if out[0].Domain != "conflicts" || out[0].Value <= 0 {
-		t.Fatalf("unexpected: %+v", out[0])
+	if out.Scores[0].Domain != "conflicts" || out.Scores[0].Value <= 0 {
+		t.Fatalf("unexpected: %+v", out.Scores[0])
 	}
 }
 
-func TestScore_BelowMinCommitsReturnsEmpty(t *testing.T) {
+func TestScore_BelowMinCommitsAbstains(t *testing.T) {
 	log := `abc1234abc1234abc1234abc1234abc1234ab12
 target/file.go
 internal/conflicts/foo.go
@@ -74,7 +79,10 @@ internal/conflicts/foo.go
 		},
 	}
 	out := sig.Score(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, m), graph.Chunk{Path: "target/file.go"})
-	if len(out) != 0 {
-		t.Fatalf("expected empty (below MinCoEditCommits), got %+v", out)
+	if len(out.Scores) != 0 {
+		t.Fatalf("expected no scores (below MinCoEditCommits), got %+v", out.Scores)
+	}
+	if out.Abstention == nil {
+		t.Fatal("expected abstention when below min commits")
 	}
 }

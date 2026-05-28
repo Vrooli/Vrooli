@@ -27,8 +27,11 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture
 // Signal invariants (enforced in code, asserted in tests):
 //   1. Pure — given the same (chunk, graph, manifest), produces the same Score.
 //   2. No mutation — never mutates the graph or manifest.
-//   3. Self-explaining — every Score carries Evidence; aggregator refuses
-//      empty Evidence and treats the signal as broken.
+//   3. Self-explaining — every Score has Reason + ≥1 Evidence; every
+//      Abstention has Reason + ≥1 Evidence. Nothing is returned without
+//      explanation. Abstaining signals still contribute their weight to
+//      the verdict denominator so abstentions cannot inflate the surviving
+//      signals' apparent contribution.
 //   4. Bounded — Score.value is in [0, 1].
 //   5. Cheap — signals are called per-chunk; caches (community detection,
 //      glossary lookups) live on GraphContext, not on the signal.
@@ -88,6 +91,20 @@ message Score {
   repeated Evidence evidence = 5;
 }
 
+// Abstention is an explicit "I have no data for this chunk" emission
+// from a signal. Reason describes why; Evidence carries at least one
+// concrete pointer. Aggregator includes abstaining signals' weights
+// in the verdict denominator so abstentions cannot inflate the
+// surviving signals' apparent contribution.
+message Abstention {
+  // Signal name (e.g., "importer-voting").
+  string signal = 1;
+  // Free-form short reason (e.g., "no importers for this file in current snapshot").
+  string reason = 2;
+  // At least one Evidence entry is required by signal invariants.
+  repeated Evidence evidence = 3;
+}
+
 // Verdict is the aggregator's output for one chunk.
 message Verdict {
   // The chunk being scored.
@@ -111,6 +128,11 @@ message Verdict {
   repeated DomainValue domain_values = 9;
   // True when the aggregator detected a tie (top-two within 0.10).
   bool tied = 10;
+  // Per-signal abstentions: signals that ran but had no data. Their
+  // weights are included in the verdict denominator so abstentions do
+  // not inflate the surviving signals' contributions. Order is
+  // alphabetical by Abstention.signal for determinism.
+  repeated Abstention abstentions = 11;
 }
 
 // DomainValue is one row of the aggregator's per-domain summary.
@@ -211,11 +233,14 @@ message BoundaryHealthResponse {
 message ScoreChunkRequest {
   // Target scenario name (resolves manifest + graph snapshot).
   string scenario = 1;
-  // Either the chunk to score directly, or its file id (the service
-  // looks up the chunk in the latest snapshot).
+  // Either the chunk to score directly, or a file id / repo-relative
+  // path resolved against the latest snapshot.
   vrooli.architecture_cartographer.v1.graph.Chunk chunk = 2;
   // When chunk is unset, use this file id from the latest snapshot.
   string file_id = 3;
+  // When chunk and file_id are unset, look up the file by its
+  // repo-relative path (e.g. "api/internal/graph/service.go").
+  string repo_path = 4;
 }
 
 message ScoreChunkResponse {
@@ -226,6 +251,8 @@ message ExplainVerdictRequest {
   string scenario = 1;
   vrooli.architecture_cartographer.v1.graph.Chunk chunk = 2;
   string file_id = 3;
+  // Repo-relative file path; alternative to file_id.
+  string repo_path = 4;
 }
 
 message ExplainVerdictResponse {

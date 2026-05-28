@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -143,7 +144,33 @@ func (c *Client) Extract(ctx context.Context, scenario string) (graph.RawGraph, 
 	if err != nil {
 		return graph.RawGraph{}, classifyConnectError(err)
 	}
-	return protoToRawGraph(resp.Msg), nil
+	raw := protoToRawGraph(resp.Msg)
+	// go-code-graph rebases file paths relative to the project directory
+	// it was pointed at (api/), but cartographer's domain map is
+	// scenario-rooted (api/internal/graph/, not internal/graph/). Restore
+	// the scenario-relative subdir prefix so RepoPath derivation and
+	// DOMAINS.md matching share one namespace.
+	if subdir := scenarioSubdir(scenario, projectPath); subdir != "" {
+		for i := range raw.Files {
+			raw.Files[i].Path = subdir + "/" + raw.Files[i].Path
+		}
+	}
+	graph.AssignPackageRepoPaths(raw.Packages, raw.Files)
+	return raw, nil
+}
+
+// scenarioSubdir returns the slash-separated path of the project
+// directory relative to scenarios/<scenario>. Returns "" when the
+// project path doesn't sit under the canonical scenarios/<name>/ layout
+// (which is fine: a non-standard layout simply yields no rebase and the
+// caller treats RepoPath as empty for those packages).
+func scenarioSubdir(scenario, projectPath string) string {
+	marker := "/scenarios/" + scenario + "/"
+	idx := strings.LastIndex(projectPath, marker)
+	if idx < 0 {
+		return ""
+	}
+	return strings.TrimSuffix(projectPath[idx+len(marker):], "/")
 }
 
 // classifyResolveError maps an api-core discovery failure onto the typed
@@ -217,9 +244,13 @@ func classifyConnectError(err error) error {
 // entry 2026-05-23):
 //   - FileNode.Lines / FileNode.IsTest are not yet emitted by go-code-graph;
 //     left as Go zero values here.
-//   - PackageNode.Internal is not yet emitted; left false.
 //   - ImportEdge.TestOnly / ImportEdge.SymbolIDs are not yet emitted;
 //     left as zero values.
+//
+// PackageNode.RepoPath is derived from the package's file nodes (the
+// common directory of every file's repo-relative path) because
+// go-code-graph only emits the import path on PACKAGE nodes. A package
+// with no files has RepoPath="" and will not map to any domain.
 func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 	out := graph.RawGraph{Languages: []graph.Language{graph.LanguageGo}}
 	if resp == nil {
@@ -258,9 +289,7 @@ func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 				out.Packages = append(out.Packages, graph.PackageNode{
 					ID:         n.GetId(),
 					ImportPath: importPath,
-					Directory:  n.GetPath(),
 					Language:   graph.LanguageGo,
-					Internal:   attrs["internal"] == "true",
 				})
 			} else {
 				out.Symbols = append(out.Symbols, graph.SymbolNode{
@@ -276,7 +305,6 @@ func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 			out.Packages = append(out.Packages, graph.PackageNode{
 				ID:         n.GetId(),
 				ImportPath: n.GetName(),
-				Directory:  n.GetPath(),
 				Language:   graph.LanguageGo,
 			})
 		}

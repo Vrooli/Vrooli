@@ -13,7 +13,7 @@ import (
 
 func godDomainInput() conflicts.DetectInput {
 	pkg := func(id, dir string) graph.PackageNode {
-		return graph.PackageNode{ID: id, Directory: dir, Internal: true}
+		return graph.PackageNode{ID: id, RepoPath: dir}
 	}
 	snap := graph.GraphSnapshot{
 		Packages: []graph.PackageNode{
@@ -62,7 +62,7 @@ func TestDetect_EmitsGodDomainConflict(t *testing.T) {
 func TestDetect_UnstableDependencyMapsToInfoSeverity(t *testing.T) {
 	// hub: Ce=5, Ca=2 → I≈0.714 ≥ warn band → unstable_dependency (info).
 	pkg := func(id, dir string) graph.PackageNode {
-		return graph.PackageNode{ID: id, Directory: dir, Internal: true}
+		return graph.PackageNode{ID: id, RepoPath: dir}
 	}
 	names := []string{"hub", "l1", "l2", "l3", "l4", "l5", "u1", "u2"}
 	var pkgs []graph.PackageNode
@@ -103,7 +103,7 @@ func TestDetect_UnstableDependencyMapsToInfoSeverity(t *testing.T) {
 
 func TestDetect_HealthyNoConflicts(t *testing.T) {
 	pkg := func(id, dir string) graph.PackageNode {
-		return graph.PackageNode{ID: id, Directory: dir, Internal: true}
+		return graph.PackageNode{ID: id, RepoPath: dir}
 	}
 	snap := graph.GraphSnapshot{
 		Packages: []graph.PackageNode{pkg("p-a", "api/internal/a"), pkg("p-b", "api/internal/b")},

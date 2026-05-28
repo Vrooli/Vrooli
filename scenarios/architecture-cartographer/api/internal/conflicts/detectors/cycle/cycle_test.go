@@ -21,8 +21,8 @@ func detectInput(snap graph.GraphSnapshot, m domains.DerivedDomainMap) conflicts
 func TestDetect_NoCycleReturnsNoConflict(t *testing.T) {
 	snap := graph.GraphSnapshot{
 		Packages: []graph.PackageNode{
-			{ID: "pkg:a", Internal: true, Directory: "a"},
-			{ID: "pkg:b", Internal: true, Directory: "b"},
+			{ID: "pkg:a", RepoPath: "a"},
+			{ID: "pkg:b", RepoPath: "b"},
 		},
 		Imports: []graph.ImportEdge{
 			{From: "pkg:a", ToPackageID: "pkg:b"},
@@ -40,8 +40,8 @@ func TestDetect_NoCycleReturnsNoConflict(t *testing.T) {
 func TestDetect_TwoPackageCycleEmitsOneConflict(t *testing.T) {
 	snap := graph.GraphSnapshot{
 		Packages: []graph.PackageNode{
-			{ID: "pkg:a", Internal: true, Directory: "internal/a"},
-			{ID: "pkg:b", Internal: true, Directory: "internal/b"},
+			{ID: "pkg:a", RepoPath: "internal/a"},
+			{ID: "pkg:b", RepoPath: "internal/b"},
 		},
 		Imports: []graph.ImportEdge{
 			{From: "pkg:a", ToPackageID: "pkg:b"},
@@ -66,8 +66,8 @@ func TestDetect_TwoPackageCycleEmitsOneConflict(t *testing.T) {
 func TestDetect_CrossDomainSubtype(t *testing.T) {
 	snap := graph.GraphSnapshot{
 		Packages: []graph.PackageNode{
-			{ID: "pkg:a", Internal: true, Directory: "internal/graph"},
-			{ID: "pkg:b", Internal: true, Directory: "internal/conflicts"},
+			{ID: "pkg:a", RepoPath: "internal/graph"},
+			{ID: "pkg:b", RepoPath: "internal/conflicts"},
 		},
 		Imports: []graph.ImportEdge{
 			{From: "pkg:a", ToPackageID: "pkg:b"},
@@ -90,10 +90,12 @@ func TestDetect_CrossDomainSubtype(t *testing.T) {
 }
 
 func TestDetect_ExternalEdgesIgnored(t *testing.T) {
+	// Only "pkg:a" is part of the scenario's snapshot. Edges that
+	// reference "pkg:ext" (a sibling scenario / stdlib / third-party) are
+	// filtered because pkg:ext is not in the snapshot's package set.
 	snap := graph.GraphSnapshot{
 		Packages: []graph.PackageNode{
-			{ID: "pkg:a", Internal: true},
-			{ID: "pkg:ext", Internal: false},
+			{ID: "pkg:a", RepoPath: "a"},
 		},
 		Imports: []graph.ImportEdge{
 			{From: "pkg:a", ToPackageID: "pkg:ext"},
@@ -110,10 +112,10 @@ func TestDetect_DeterministicOrder(t *testing.T) {
 	// Two independent cycles; result ordering should be stable.
 	snap := graph.GraphSnapshot{
 		Packages: []graph.PackageNode{
-			{ID: "pkg:a", Internal: true, Directory: "a"},
-			{ID: "pkg:b", Internal: true, Directory: "b"},
-			{ID: "pkg:c", Internal: true, Directory: "c"},
-			{ID: "pkg:d", Internal: true, Directory: "d"},
+			{ID: "pkg:a", RepoPath: "a"},
+			{ID: "pkg:b", RepoPath: "b"},
+			{ID: "pkg:c", RepoPath: "c"},
+			{ID: "pkg:d", RepoPath: "d"},
 		},
 		Imports: []graph.ImportEdge{
 			{From: "pkg:a", ToPackageID: "pkg:b"},

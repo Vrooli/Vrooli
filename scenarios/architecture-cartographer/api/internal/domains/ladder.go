@@ -54,6 +54,11 @@ func Resolve(scenario string, extractions []Extraction, derivedAt time.Time) (De
 	}
 	authority := extractions[authorityIdx]
 	m.Authority = authority.Source
+	if authority.Source == SourceDomainsDoc || authority.Source == SourceAPIManifest {
+		m.AuthorityConfidence = ConfidenceHigh
+	} else {
+		m.AuthorityConfidence = ConfidenceLow
+	}
 
 	// Index every source's domain names for provenance lookup.
 	declaredBy := map[string][]Source{}

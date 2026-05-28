@@ -36,18 +36,16 @@ class FileNode(_message.Message):
     def __init__(self, id: _Optional[str] = ..., path: _Optional[str] = ..., package_id: _Optional[str] = ..., language: _Optional[_Union[Language, str]] = ..., lines: _Optional[int] = ..., is_test: _Optional[bool] = ...) -> None: ...
 
 class PackageNode(_message.Message):
-    __slots__ = ("id", "import_path", "directory", "language", "internal")
+    __slots__ = ("id", "import_path", "repo_path", "language")
     ID_FIELD_NUMBER: _ClassVar[int]
     IMPORT_PATH_FIELD_NUMBER: _ClassVar[int]
-    DIRECTORY_FIELD_NUMBER: _ClassVar[int]
+    REPO_PATH_FIELD_NUMBER: _ClassVar[int]
     LANGUAGE_FIELD_NUMBER: _ClassVar[int]
-    INTERNAL_FIELD_NUMBER: _ClassVar[int]
     id: str
     import_path: str
-    directory: str
+    repo_path: str
     language: Language
-    internal: bool
-    def __init__(self, id: _Optional[str] = ..., import_path: _Optional[str] = ..., directory: _Optional[str] = ..., language: _Optional[_Union[Language, str]] = ..., internal: _Optional[bool] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., import_path: _Optional[str] = ..., repo_path: _Optional[str] = ..., language: _Optional[_Union[Language, str]] = ...) -> None: ...
 
 class SymbolNode(_message.Message):
     __slots__ = ("id", "name", "package_id", "file_id", "kind", "exported")

@@ -4,14 +4,13 @@
 // Signal invariants (enforced in code, asserted in tests):
 //  1. Pure — given the same (chunk, graph, domain map), produces the same Score.
 //  2. No mutation — never mutates the graph or domain map.
-//  3. Self-explaining — every Score carries Evidence; aggregator refuses
-//     empty Evidence and treats the signal as broken.
+//  3. Self-explaining — every Score carries Reason + ≥1 Evidence; every
+//     Abstention carries Reason + ≥1 Evidence. Nothing is returned without
+//     explanation: a signal that has no data for a chunk MUST emit an
+//     explicit Abstention (it never returns an empty ScoreResult).
 //  4. Bounded — Score.Value in [0, 1].
 //  5. Cheap — caches (community detection, glossary lookups) live on
 //     GraphContext, not on the signal.
-//
-// Phase 2 ships the types + registry stubs; Phase 3 fills in the
-// detectors / aggregator and the six day-one signals.
 package signals
 
 import (
@@ -28,7 +27,7 @@ const (
 	TierConflict    Tier = "conflict"
 )
 
-// Evidence is one piece of justification for a Score.
+// Evidence is one piece of justification for a Score or an Abstention.
 type Evidence struct {
 	Kind    string
 	Summary string
@@ -36,14 +35,44 @@ type Evidence struct {
 	Weight  float64
 }
 
-// Score is one signal's output for one chunk. Aggregator refuses Scores
-// with empty Evidence (signal is treated as broken).
+// Score is one signal's output for one (chunk, domain) pair. The
+// aggregator validates that Evidence is non-empty; signals that
+// produce a Score with empty Evidence violate the self-explaining
+// invariant and are treated as broken (their weight is preserved in
+// the denominator and the verdict carries a synthetic abstention).
 type Score struct {
 	Signal   string
 	Domain   string
 	Value    float64
 	Reason   string
 	Evidence []Evidence
+}
+
+// Abstention is an explicit "I have no data for this chunk" emission
+// from a signal. Reason describes why; Evidence carries at least one
+// concrete pointer (e.g., {Kind:"abstain", Summary:"no importers",
+// Locator:chunk.Path}). The aggregator includes abstaining signals'
+// weights in the verdict denominator so abstentions cannot inflate
+// the surviving signals' apparent contribution.
+type Abstention struct {
+	Signal   string
+	Reason   string
+	Evidence []Evidence
+}
+
+// ScoreResult is the per-signal return shape. Exactly one of Scores or
+// Abstention is populated by a well-behaved signal:
+//   - Scores non-empty (each entry with ≥1 Evidence): signal contributed
+//     positive evidence for the listed domains.
+//   - Abstention non-nil: signal had nothing to say; the verdict still
+//     accounts for its weight in the denominator.
+//
+// A ScoreResult that is empty in both fields violates the self-
+// explaining invariant; the aggregator records this as a synthetic
+// broken-signal abstention so it surfaces in the verdict.
+type ScoreResult struct {
+	Scores     []Score
+	Abstention *Abstention
 }
 
 // DomainValue is one row of the aggregator's per-domain summary.
@@ -62,6 +91,7 @@ type Verdict struct {
 	RunnerUpDomain string
 	RunnerUpValue  float64
 	Scores         []Score
+	Abstentions    []Abstention
 	DomainValues   []DomainValue
 	Tied           bool
 }

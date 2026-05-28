@@ -89,6 +89,57 @@ func (DomainSource) EnumDescriptor() ([]byte, []int) {
 	return file_architecture_cartographer_v1_domains_domains_proto_rawDescGZIP(), []int{0}
 }
 
+// AuthorityConfidence grades how trustworthy the resolved authority is.
+// See DerivedDomainMap.authority_confidence for the semantics.
+type AuthorityConfidence int32
+
+const (
+	AuthorityConfidence_AUTHORITY_CONFIDENCE_UNSPECIFIED AuthorityConfidence = 0
+	AuthorityConfidence_AUTHORITY_CONFIDENCE_HIGH        AuthorityConfidence = 1
+	AuthorityConfidence_AUTHORITY_CONFIDENCE_LOW         AuthorityConfidence = 2
+)
+
+// Enum value maps for AuthorityConfidence.
+var (
+	AuthorityConfidence_name = map[int32]string{
+		0: "AUTHORITY_CONFIDENCE_UNSPECIFIED",
+		1: "AUTHORITY_CONFIDENCE_HIGH",
+		2: "AUTHORITY_CONFIDENCE_LOW",
+	}
+	AuthorityConfidence_value = map[string]int32{
+		"AUTHORITY_CONFIDENCE_UNSPECIFIED": 0,
+		"AUTHORITY_CONFIDENCE_HIGH":        1,
+		"AUTHORITY_CONFIDENCE_LOW":         2,
+	}
+)
+
+func (x AuthorityConfidence) Enum() *AuthorityConfidence {
+	p := new(AuthorityConfidence)
+	*p = x
+	return p
+}
+
+func (x AuthorityConfidence) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AuthorityConfidence) Descriptor() protoreflect.EnumDescriptor {
+	return file_architecture_cartographer_v1_domains_domains_proto_enumTypes[1].Descriptor()
+}
+
+func (AuthorityConfidence) Type() protoreflect.EnumType {
+	return &file_architecture_cartographer_v1_domains_domains_proto_enumTypes[1]
+}
+
+func (x AuthorityConfidence) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AuthorityConfidence.Descriptor instead.
+func (AuthorityConfidence) EnumDescriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_domains_domains_proto_rawDescGZIP(), []int{1}
+}
+
 // ConvergenceSeverity grades how much a convergence finding matters.
 type ConvergenceSeverity int32
 
@@ -125,11 +176,11 @@ func (x ConvergenceSeverity) String() string {
 }
 
 func (ConvergenceSeverity) Descriptor() protoreflect.EnumDescriptor {
-	return file_architecture_cartographer_v1_domains_domains_proto_enumTypes[1].Descriptor()
+	return file_architecture_cartographer_v1_domains_domains_proto_enumTypes[2].Descriptor()
 }
 
 func (ConvergenceSeverity) Type() protoreflect.EnumType {
-	return &file_architecture_cartographer_v1_domains_domains_proto_enumTypes[1]
+	return &file_architecture_cartographer_v1_domains_domains_proto_enumTypes[2]
 }
 
 func (x ConvergenceSeverity) Number() protoreflect.EnumNumber {
@@ -138,7 +189,7 @@ func (x ConvergenceSeverity) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ConvergenceSeverity.Descriptor instead.
 func (ConvergenceSeverity) EnumDescriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_domains_domains_proto_rawDescGZIP(), []int{1}
+	return file_architecture_cartographer_v1_domains_domains_proto_rawDescGZIP(), []int{2}
 }
 
 // DerivedDomain is one domain in the resolved map.
@@ -309,9 +360,14 @@ type DerivedDomainMap struct {
 	// Per-source raw declarations (provenance + convergence input).
 	Declarations []*DomainDeclaration `protobuf:"bytes,6,rep,name=declarations,proto3" json:"declarations,omitempty"`
 	// Server time at the moment the map was derived.
-	DerivedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=derived_at,json=derivedAt,proto3" json:"derived_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	DerivedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=derived_at,json=derivedAt,proto3" json:"derived_at,omitempty"`
+	// How trustworthy the resolved authority is. HIGH = the authority is a
+	// curated, deliberately-written source (DOMAINS.md, api manifest).
+	// LOW = the authority fell back to a derived source (api folders, cli
+	// groups); the "ground truth" is itself inferred.
+	AuthorityConfidence AuthorityConfidence `protobuf:"varint,8,opt,name=authority_confidence,json=authorityConfidence,proto3,enum=vrooli.architecture_cartographer.v1.domains.AuthorityConfidence" json:"authority_confidence,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *DerivedDomainMap) Reset() {
@@ -391,6 +447,13 @@ func (x *DerivedDomainMap) GetDerivedAt() *timestamppb.Timestamp {
 		return x.DerivedAt
 	}
 	return nil
+}
+
+func (x *DerivedDomainMap) GetAuthorityConfidence() AuthorityConfidence {
+	if x != nil {
+		return x.AuthorityConfidence
+	}
+	return AuthorityConfidence_AUTHORITY_CONFIDENCE_UNSPECIFIED
 }
 
 type ExtractDomainsRequest struct {
@@ -574,17 +637,23 @@ func (x *GetDomainMapResponse) GetDomainMap() *DerivedDomainMap {
 type ConvergenceFinding struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable finding kind (e.g., "missing_implementation", "undeclared_folder",
-	// "missing_cli_group", "ui_feature_no_domain").
+	// "missing_cli_group", "ui_feature_no_domain", "authority_fallback").
 	Kind string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
-	// The domain the finding concerns.
+	// The domain the finding concerns. Empty when this finding rolls up
+	// multiple domains (see rolled_up_domains) or when the finding is not
+	// domain-scoped (e.g., authority_fallback).
 	Domain   string              `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
 	Severity ConvergenceSeverity `protobuf:"varint,3,opt,name=severity,proto3,enum=vrooli.architecture_cartographer.v1.domains.ConvergenceSeverity" json:"severity,omitempty"`
 	// Human-readable explanation.
 	Message string `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
 	// The rungs involved in the disagreement.
-	Sources       []DomainSource `protobuf:"varint,5,rep,packed,name=sources,proto3,enum=vrooli.architecture_cartographer.v1.domains.DomainSource" json:"sources,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Sources []DomainSource `protobuf:"varint,5,rep,packed,name=sources,proto3,enum=vrooli.architecture_cartographer.v1.domains.DomainSource" json:"sources,omitempty"`
+	// When this finding represents two or more identical-kind info-severity
+	// findings merged into one row, the affected domain names appear here
+	// (sorted). Empty when the finding is a single-domain finding.
+	RolledUpDomains []string `protobuf:"bytes,6,rep,name=rolled_up_domains,json=rolledUpDomains,proto3" json:"rolled_up_domains,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ConvergenceFinding) Reset() {
@@ -652,6 +721,13 @@ func (x *ConvergenceFinding) GetSources() []DomainSource {
 	return nil
 }
 
+func (x *ConvergenceFinding) GetRolledUpDomains() []string {
+	if x != nil {
+		return x.RolledUpDomains
+	}
+	return nil
+}
+
 type ConvergenceReportRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -702,10 +778,14 @@ type ConvergenceReportResponse struct {
 	Scenario string `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
 	// The authoritative rung the lower surfaces were compared against.
 	Authority DomainSource `protobuf:"varint,2,opt,name=authority,proto3,enum=vrooli.architecture_cartographer.v1.domains.DomainSource" json:"authority,omitempty"`
-	// Disagreements, sorted by (kind, domain). Empty == full convergence.
-	Findings      []*ConvergenceFinding `protobuf:"bytes,3,rep,name=findings,proto3" json:"findings,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Disagreements, sorted by (kind, domain). Empty == full convergence
+	// (modulo any authority_fallback finding when the authority is inferred).
+	Findings []*ConvergenceFinding `protobuf:"bytes,3,rep,name=findings,proto3" json:"findings,omitempty"`
+	// Trust level of the authority rung. LOW means the report is
+	// comparing two inferred sets — interpret "no disagreements" carefully.
+	AuthorityConfidence AuthorityConfidence `protobuf:"varint,4,opt,name=authority_confidence,json=authorityConfidence,proto3,enum=vrooli.architecture_cartographer.v1.domains.AuthorityConfidence" json:"authority_confidence,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ConvergenceReportResponse) Reset() {
@@ -759,6 +839,13 @@ func (x *ConvergenceReportResponse) GetFindings() []*ConvergenceFinding {
 	return nil
 }
 
+func (x *ConvergenceReportResponse) GetAuthorityConfidence() AuthorityConfidence {
+	if x != nil {
+		return x.AuthorityConfidence
+	}
+	return AuthorityConfidence_AUTHORITY_CONFIDENCE_UNSPECIFIED
+}
+
 var File_architecture_cartographer_v1_domains_domains_proto protoreflect.FileDescriptor
 
 const file_architecture_cartographer_v1_domains_domains_proto_rawDesc = "" +
@@ -775,7 +862,7 @@ const file_architecture_cartographer_v1_domains_domains_proto_rawDesc = "" +
 	"\x11DomainDeclaration\x12Q\n" +
 	"\x06source\x18\x01 \x01(\x0e29.vrooli.architecture_cartographer.v1.domains.DomainSourceR\x06source\x12!\n" +
 	"\fdomain_names\x18\x02 \x03(\tR\vdomainNames\x12$\n" +
-	"\rauthoritative\x18\x03 \x01(\bR\rauthoritative\"\xc8\x03\n" +
+	"\rauthoritative\x18\x03 \x01(\bR\rauthoritative\"\xbd\x04\n" +
 	"\x10DerivedDomainMap\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12T\n" +
 	"\adomains\x18\x02 \x03(\v2:.vrooli.architecture_cartographer.v1.domains.DerivedDomainR\adomains\x12)\n" +
@@ -785,7 +872,8 @@ const file_architecture_cartographer_v1_domains_domains_proto_rawDesc = "" +
 	"\tauthority\x18\x05 \x01(\x0e29.vrooli.architecture_cartographer.v1.domains.DomainSourceR\tauthority\x12b\n" +
 	"\fdeclarations\x18\x06 \x03(\v2>.vrooli.architecture_cartographer.v1.domains.DomainDeclarationR\fdeclarations\x129\n" +
 	"\n" +
-	"derived_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tderivedAt\"3\n" +
+	"derived_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tderivedAt\x12s\n" +
+	"\x14authority_confidence\x18\b \x01(\x0e2@.vrooli.architecture_cartographer.v1.domains.AuthorityConfidenceR\x13authorityConfidence\"3\n" +
 	"\x15ExtractDomainsRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\"v\n" +
 	"\x16ExtractDomainsResponse\x12\\\n" +
@@ -795,26 +883,32 @@ const file_architecture_cartographer_v1_domains_domains_proto_rawDesc = "" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\"t\n" +
 	"\x14GetDomainMapResponse\x12\\\n" +
 	"\n" +
-	"domain_map\x18\x01 \x01(\v2=.vrooli.architecture_cartographer.v1.domains.DerivedDomainMapR\tdomainMap\"\x8d\x02\n" +
+	"domain_map\x18\x01 \x01(\v2=.vrooli.architecture_cartographer.v1.domains.DerivedDomainMapR\tdomainMap\"\xb9\x02\n" +
 	"\x12ConvergenceFinding\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x16\n" +
 	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\\\n" +
 	"\bseverity\x18\x03 \x01(\x0e2@.vrooli.architecture_cartographer.v1.domains.ConvergenceSeverityR\bseverity\x12\x18\n" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12S\n" +
-	"\asources\x18\x05 \x03(\x0e29.vrooli.architecture_cartographer.v1.domains.DomainSourceR\asources\"6\n" +
+	"\asources\x18\x05 \x03(\x0e29.vrooli.architecture_cartographer.v1.domains.DomainSourceR\asources\x12*\n" +
+	"\x11rolled_up_domains\x18\x06 \x03(\tR\x0frolledUpDomains\"6\n" +
 	"\x18ConvergenceReportRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\"\xed\x01\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\"\xe2\x02\n" +
 	"\x19ConvergenceReportResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12W\n" +
 	"\tauthority\x18\x02 \x01(\x0e29.vrooli.architecture_cartographer.v1.domains.DomainSourceR\tauthority\x12[\n" +
-	"\bfindings\x18\x03 \x03(\v2?.vrooli.architecture_cartographer.v1.domains.ConvergenceFindingR\bfindings*\xc8\x01\n" +
+	"\bfindings\x18\x03 \x03(\v2?.vrooli.architecture_cartographer.v1.domains.ConvergenceFindingR\bfindings\x12s\n" +
+	"\x14authority_confidence\x18\x04 \x01(\x0e2@.vrooli.architecture_cartographer.v1.domains.AuthorityConfidenceR\x13authorityConfidence*\xc8\x01\n" +
 	"\fDomainSource\x12\x1d\n" +
 	"\x19DOMAIN_SOURCE_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aDOMAIN_SOURCE_API_MANIFEST\x10\x01\x12\x1d\n" +
 	"\x19DOMAIN_SOURCE_DOMAINS_DOC\x10\x02\x12\x1d\n" +
 	"\x19DOMAIN_SOURCE_API_FOLDERS\x10\x03\x12\x1c\n" +
 	"\x18DOMAIN_SOURCE_CLI_GROUPS\x10\x04\x12\x1d\n" +
-	"\x19DOMAIN_SOURCE_UI_FEATURES\x10\x05*y\n" +
+	"\x19DOMAIN_SOURCE_UI_FEATURES\x10\x05*x\n" +
+	"\x13AuthorityConfidence\x12$\n" +
+	" AUTHORITY_CONFIDENCE_UNSPECIFIED\x10\x00\x12\x1d\n" +
+	"\x19AUTHORITY_CONFIDENCE_HIGH\x10\x01\x12\x1c\n" +
+	"\x18AUTHORITY_CONFIDENCE_LOW\x10\x02*y\n" +
 	"\x13ConvergenceSeverity\x12$\n" +
 	" CONVERGENCE_SEVERITY_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19CONVERGENCE_SEVERITY_INFO\x10\x01\x12\x1d\n" +
@@ -836,47 +930,50 @@ func file_architecture_cartographer_v1_domains_domains_proto_rawDescGZIP() []byt
 	return file_architecture_cartographer_v1_domains_domains_proto_rawDescData
 }
 
-var file_architecture_cartographer_v1_domains_domains_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_architecture_cartographer_v1_domains_domains_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_architecture_cartographer_v1_domains_domains_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_architecture_cartographer_v1_domains_domains_proto_goTypes = []any{
 	(DomainSource)(0),                 // 0: vrooli.architecture_cartographer.v1.domains.DomainSource
-	(ConvergenceSeverity)(0),          // 1: vrooli.architecture_cartographer.v1.domains.ConvergenceSeverity
-	(*DerivedDomain)(nil),             // 2: vrooli.architecture_cartographer.v1.domains.DerivedDomain
-	(*DomainDeclaration)(nil),         // 3: vrooli.architecture_cartographer.v1.domains.DomainDeclaration
-	(*DerivedDomainMap)(nil),          // 4: vrooli.architecture_cartographer.v1.domains.DerivedDomainMap
-	(*ExtractDomainsRequest)(nil),     // 5: vrooli.architecture_cartographer.v1.domains.ExtractDomainsRequest
-	(*ExtractDomainsResponse)(nil),    // 6: vrooli.architecture_cartographer.v1.domains.ExtractDomainsResponse
-	(*GetDomainMapRequest)(nil),       // 7: vrooli.architecture_cartographer.v1.domains.GetDomainMapRequest
-	(*GetDomainMapResponse)(nil),      // 8: vrooli.architecture_cartographer.v1.domains.GetDomainMapResponse
-	(*ConvergenceFinding)(nil),        // 9: vrooli.architecture_cartographer.v1.domains.ConvergenceFinding
-	(*ConvergenceReportRequest)(nil),  // 10: vrooli.architecture_cartographer.v1.domains.ConvergenceReportRequest
-	(*ConvergenceReportResponse)(nil), // 11: vrooli.architecture_cartographer.v1.domains.ConvergenceReportResponse
-	(*timestamppb.Timestamp)(nil),     // 12: google.protobuf.Timestamp
+	(AuthorityConfidence)(0),          // 1: vrooli.architecture_cartographer.v1.domains.AuthorityConfidence
+	(ConvergenceSeverity)(0),          // 2: vrooli.architecture_cartographer.v1.domains.ConvergenceSeverity
+	(*DerivedDomain)(nil),             // 3: vrooli.architecture_cartographer.v1.domains.DerivedDomain
+	(*DomainDeclaration)(nil),         // 4: vrooli.architecture_cartographer.v1.domains.DomainDeclaration
+	(*DerivedDomainMap)(nil),          // 5: vrooli.architecture_cartographer.v1.domains.DerivedDomainMap
+	(*ExtractDomainsRequest)(nil),     // 6: vrooli.architecture_cartographer.v1.domains.ExtractDomainsRequest
+	(*ExtractDomainsResponse)(nil),    // 7: vrooli.architecture_cartographer.v1.domains.ExtractDomainsResponse
+	(*GetDomainMapRequest)(nil),       // 8: vrooli.architecture_cartographer.v1.domains.GetDomainMapRequest
+	(*GetDomainMapResponse)(nil),      // 9: vrooli.architecture_cartographer.v1.domains.GetDomainMapResponse
+	(*ConvergenceFinding)(nil),        // 10: vrooli.architecture_cartographer.v1.domains.ConvergenceFinding
+	(*ConvergenceReportRequest)(nil),  // 11: vrooli.architecture_cartographer.v1.domains.ConvergenceReportRequest
+	(*ConvergenceReportResponse)(nil), // 12: vrooli.architecture_cartographer.v1.domains.ConvergenceReportResponse
+	(*timestamppb.Timestamp)(nil),     // 13: google.protobuf.Timestamp
 }
 var file_architecture_cartographer_v1_domains_domains_proto_depIdxs = []int32{
 	0,  // 0: vrooli.architecture_cartographer.v1.domains.DerivedDomain.provenance:type_name -> vrooli.architecture_cartographer.v1.domains.DomainSource
 	0,  // 1: vrooli.architecture_cartographer.v1.domains.DomainDeclaration.source:type_name -> vrooli.architecture_cartographer.v1.domains.DomainSource
-	2,  // 2: vrooli.architecture_cartographer.v1.domains.DerivedDomainMap.domains:type_name -> vrooli.architecture_cartographer.v1.domains.DerivedDomain
+	3,  // 2: vrooli.architecture_cartographer.v1.domains.DerivedDomainMap.domains:type_name -> vrooli.architecture_cartographer.v1.domains.DerivedDomain
 	0,  // 3: vrooli.architecture_cartographer.v1.domains.DerivedDomainMap.authority:type_name -> vrooli.architecture_cartographer.v1.domains.DomainSource
-	3,  // 4: vrooli.architecture_cartographer.v1.domains.DerivedDomainMap.declarations:type_name -> vrooli.architecture_cartographer.v1.domains.DomainDeclaration
-	12, // 5: vrooli.architecture_cartographer.v1.domains.DerivedDomainMap.derived_at:type_name -> google.protobuf.Timestamp
-	4,  // 6: vrooli.architecture_cartographer.v1.domains.ExtractDomainsResponse.domain_map:type_name -> vrooli.architecture_cartographer.v1.domains.DerivedDomainMap
-	4,  // 7: vrooli.architecture_cartographer.v1.domains.GetDomainMapResponse.domain_map:type_name -> vrooli.architecture_cartographer.v1.domains.DerivedDomainMap
-	1,  // 8: vrooli.architecture_cartographer.v1.domains.ConvergenceFinding.severity:type_name -> vrooli.architecture_cartographer.v1.domains.ConvergenceSeverity
-	0,  // 9: vrooli.architecture_cartographer.v1.domains.ConvergenceFinding.sources:type_name -> vrooli.architecture_cartographer.v1.domains.DomainSource
-	0,  // 10: vrooli.architecture_cartographer.v1.domains.ConvergenceReportResponse.authority:type_name -> vrooli.architecture_cartographer.v1.domains.DomainSource
-	9,  // 11: vrooli.architecture_cartographer.v1.domains.ConvergenceReportResponse.findings:type_name -> vrooli.architecture_cartographer.v1.domains.ConvergenceFinding
-	5,  // 12: vrooli.architecture_cartographer.v1.domains.DomainsService.ExtractDomains:input_type -> vrooli.architecture_cartographer.v1.domains.ExtractDomainsRequest
-	7,  // 13: vrooli.architecture_cartographer.v1.domains.DomainsService.GetDomainMap:input_type -> vrooli.architecture_cartographer.v1.domains.GetDomainMapRequest
-	10, // 14: vrooli.architecture_cartographer.v1.domains.DomainsService.ConvergenceReport:input_type -> vrooli.architecture_cartographer.v1.domains.ConvergenceReportRequest
-	6,  // 15: vrooli.architecture_cartographer.v1.domains.DomainsService.ExtractDomains:output_type -> vrooli.architecture_cartographer.v1.domains.ExtractDomainsResponse
-	8,  // 16: vrooli.architecture_cartographer.v1.domains.DomainsService.GetDomainMap:output_type -> vrooli.architecture_cartographer.v1.domains.GetDomainMapResponse
-	11, // 17: vrooli.architecture_cartographer.v1.domains.DomainsService.ConvergenceReport:output_type -> vrooli.architecture_cartographer.v1.domains.ConvergenceReportResponse
-	15, // [15:18] is the sub-list for method output_type
-	12, // [12:15] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	4,  // 4: vrooli.architecture_cartographer.v1.domains.DerivedDomainMap.declarations:type_name -> vrooli.architecture_cartographer.v1.domains.DomainDeclaration
+	13, // 5: vrooli.architecture_cartographer.v1.domains.DerivedDomainMap.derived_at:type_name -> google.protobuf.Timestamp
+	1,  // 6: vrooli.architecture_cartographer.v1.domains.DerivedDomainMap.authority_confidence:type_name -> vrooli.architecture_cartographer.v1.domains.AuthorityConfidence
+	5,  // 7: vrooli.architecture_cartographer.v1.domains.ExtractDomainsResponse.domain_map:type_name -> vrooli.architecture_cartographer.v1.domains.DerivedDomainMap
+	5,  // 8: vrooli.architecture_cartographer.v1.domains.GetDomainMapResponse.domain_map:type_name -> vrooli.architecture_cartographer.v1.domains.DerivedDomainMap
+	2,  // 9: vrooli.architecture_cartographer.v1.domains.ConvergenceFinding.severity:type_name -> vrooli.architecture_cartographer.v1.domains.ConvergenceSeverity
+	0,  // 10: vrooli.architecture_cartographer.v1.domains.ConvergenceFinding.sources:type_name -> vrooli.architecture_cartographer.v1.domains.DomainSource
+	0,  // 11: vrooli.architecture_cartographer.v1.domains.ConvergenceReportResponse.authority:type_name -> vrooli.architecture_cartographer.v1.domains.DomainSource
+	10, // 12: vrooli.architecture_cartographer.v1.domains.ConvergenceReportResponse.findings:type_name -> vrooli.architecture_cartographer.v1.domains.ConvergenceFinding
+	1,  // 13: vrooli.architecture_cartographer.v1.domains.ConvergenceReportResponse.authority_confidence:type_name -> vrooli.architecture_cartographer.v1.domains.AuthorityConfidence
+	6,  // 14: vrooli.architecture_cartographer.v1.domains.DomainsService.ExtractDomains:input_type -> vrooli.architecture_cartographer.v1.domains.ExtractDomainsRequest
+	8,  // 15: vrooli.architecture_cartographer.v1.domains.DomainsService.GetDomainMap:input_type -> vrooli.architecture_cartographer.v1.domains.GetDomainMapRequest
+	11, // 16: vrooli.architecture_cartographer.v1.domains.DomainsService.ConvergenceReport:input_type -> vrooli.architecture_cartographer.v1.domains.ConvergenceReportRequest
+	7,  // 17: vrooli.architecture_cartographer.v1.domains.DomainsService.ExtractDomains:output_type -> vrooli.architecture_cartographer.v1.domains.ExtractDomainsResponse
+	9,  // 18: vrooli.architecture_cartographer.v1.domains.DomainsService.GetDomainMap:output_type -> vrooli.architecture_cartographer.v1.domains.GetDomainMapResponse
+	12, // 19: vrooli.architecture_cartographer.v1.domains.DomainsService.ConvergenceReport:output_type -> vrooli.architecture_cartographer.v1.domains.ConvergenceReportResponse
+	17, // [17:20] is the sub-list for method output_type
+	14, // [14:17] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_architecture_cartographer_v1_domains_domains_proto_init() }
@@ -889,7 +986,7 @@ func file_architecture_cartographer_v1_domains_domains_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_architecture_cartographer_v1_domains_domains_proto_rawDesc), len(file_architecture_cartographer_v1_domains_domains_proto_rawDesc)),
-			NumEnums:      2,
+			NumEnums:      3,
 			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,

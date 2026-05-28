@@ -170,14 +170,13 @@ type PackageNode struct {
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Canonical import path (e.g., "github.com/x/y/z" or "@vrooli/foo").
 	ImportPath string `protobuf:"bytes,2,opt,name=import_path,json=importPath,proto3" json:"import_path,omitempty"`
-	// Repo-relative directory containing the package (best-effort; empty
-	// when the package is external / outside the target scenario).
-	Directory string `protobuf:"bytes,3,opt,name=directory,proto3" json:"directory,omitempty"`
+	// Repo-relative filesystem directory containing the package
+	// (slash-separated, no leading slash, e.g. "api/internal/graph").
+	// Empty when the package is external / outside the target scenario.
+	// This is the single key used to map a package to a domain.
+	RepoPath string `protobuf:"bytes,3,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
 	// Source language.
-	Language Language `protobuf:"varint,4,opt,name=language,proto3,enum=vrooli.architecture_cartographer.v1.graph.Language" json:"language,omitempty"`
-	// True when the package belongs to the target scenario (false for
-	// standard library, third-party deps, or other scenarios).
-	Internal      bool `protobuf:"varint,5,opt,name=internal,proto3" json:"internal,omitempty"`
+	Language      Language `protobuf:"varint,4,opt,name=language,proto3,enum=vrooli.architecture_cartographer.v1.graph.Language" json:"language,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -226,9 +225,9 @@ func (x *PackageNode) GetImportPath() string {
 	return ""
 }
 
-func (x *PackageNode) GetDirectory() string {
+func (x *PackageNode) GetRepoPath() string {
 	if x != nil {
-		return x.Directory
+		return x.RepoPath
 	}
 	return ""
 }
@@ -238,13 +237,6 @@ func (x *PackageNode) GetLanguage() Language {
 		return x.Language
 	}
 	return Language_LANGUAGE_UNSPECIFIED
-}
-
-func (x *PackageNode) GetInternal() bool {
-	if x != nil {
-		return x.Internal
-	}
-	return false
 }
 
 // SymbolNode is one exported identifier (function, type, constant, etc.).
@@ -1156,14 +1148,13 @@ const file_architecture_cartographer_v1_graph_graph_proto_rawDesc = "" +
 	"package_id\x18\x03 \x01(\tR\tpackageId\x12O\n" +
 	"\blanguage\x18\x04 \x01(\x0e23.vrooli.architecture_cartographer.v1.graph.LanguageR\blanguage\x12\x14\n" +
 	"\x05lines\x18\x05 \x01(\x05R\x05lines\x12\x17\n" +
-	"\ais_test\x18\x06 \x01(\bR\x06isTest\"\xc9\x01\n" +
+	"\ais_test\x18\x06 \x01(\bR\x06isTest\"\xac\x01\n" +
 	"\vPackageNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vimport_path\x18\x02 \x01(\tR\n" +
-	"importPath\x12\x1c\n" +
-	"\tdirectory\x18\x03 \x01(\tR\tdirectory\x12O\n" +
-	"\blanguage\x18\x04 \x01(\x0e23.vrooli.architecture_cartographer.v1.graph.LanguageR\blanguage\x12\x1a\n" +
-	"\binternal\x18\x05 \x01(\bR\binternal\"\x98\x01\n" +
+	"importPath\x12\x1b\n" +
+	"\trepo_path\x18\x03 \x01(\tR\brepoPath\x12O\n" +
+	"\blanguage\x18\x04 \x01(\x0e23.vrooli.architecture_cartographer.v1.graph.LanguageR\blanguage\"\x98\x01\n" +
 	"\n" +
 	"SymbolNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +

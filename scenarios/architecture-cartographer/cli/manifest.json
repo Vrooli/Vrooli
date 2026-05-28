@@ -118,6 +118,54 @@
       ]
     },
     {
+      "name": "audit",
+      "description": "Run a CI-shaped drift audit — orchestrates graph extract (if needed), domains derivation, and conflicts detection, then maps the outcome to a process exit code",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Audit a scenario for architectural drift and exit 0 (clean) / 1 (findings ≥ threshold) / 2 (tool error) / 3 (usage error)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "fail-on",
+              "description": "Minimum severity that flips outcome to FINDINGS: info | warn (default) | error | blocker"
+            },
+            {
+              "name": "include-types",
+              "description": "Comma-separated whitelist of conflict types to include"
+            },
+            {
+              "name": "exclude-types",
+              "description": "Comma-separated blacklist of conflict types to exclude"
+            },
+            {
+              "name": "json",
+              "description": "Emit the full AuditRunResponse as JSON for CI consumption"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditService",
+            "method": "Run"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "conflicts",
       "description": "Detect, triage, and resolve architecture-drift conflicts \u2014 the agent-facing conflict workbench",
       "commands": [
@@ -386,9 +434,9 @@
               "description": "Target scenario name"
             },
             {
-              "name": "file_id",
+              "name": "file",
               "required": true,
-              "description": "File id from the latest snapshot to score"
+              "description": "File to score: either a snapshot file id (e.g. \"file:api/...\") or a repo-relative path (e.g. \"api/internal/graph/service.go\")"
             }
           ],
           "binding": {
@@ -414,9 +462,9 @@
               "description": "Target scenario name"
             },
             {
-              "name": "file_id",
+              "name": "file",
               "required": true,
-              "description": "File id from the latest snapshot to explain"
+              "description": "File to explain: either a snapshot file id or a repo-relative path"
             }
           ],
           "binding": {

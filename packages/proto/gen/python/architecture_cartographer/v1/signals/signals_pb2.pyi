@@ -54,8 +54,18 @@ class Score(_message.Message):
     evidence: _containers.RepeatedCompositeFieldContainer[Evidence]
     def __init__(self, signal: _Optional[str] = ..., domain: _Optional[str] = ..., value: _Optional[float] = ..., reason: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ...) -> None: ...
 
+class Abstention(_message.Message):
+    __slots__ = ("signal", "reason", "evidence")
+    SIGNAL_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    signal: str
+    reason: str
+    evidence: _containers.RepeatedCompositeFieldContainer[Evidence]
+    def __init__(self, signal: _Optional[str] = ..., reason: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ...) -> None: ...
+
 class Verdict(_message.Message):
-    __slots__ = ("chunk_id", "chunk_path", "tier", "top_domain", "top_value", "runner_up_domain", "runner_up_value", "scores", "domain_values", "tied")
+    __slots__ = ("chunk_id", "chunk_path", "tier", "top_domain", "top_value", "runner_up_domain", "runner_up_value", "scores", "domain_values", "tied", "abstentions")
     CHUNK_ID_FIELD_NUMBER: _ClassVar[int]
     CHUNK_PATH_FIELD_NUMBER: _ClassVar[int]
     TIER_FIELD_NUMBER: _ClassVar[int]
@@ -66,6 +76,7 @@ class Verdict(_message.Message):
     SCORES_FIELD_NUMBER: _ClassVar[int]
     DOMAIN_VALUES_FIELD_NUMBER: _ClassVar[int]
     TIED_FIELD_NUMBER: _ClassVar[int]
+    ABSTENTIONS_FIELD_NUMBER: _ClassVar[int]
     chunk_id: str
     chunk_path: str
     tier: Tier
@@ -76,7 +87,8 @@ class Verdict(_message.Message):
     scores: _containers.RepeatedCompositeFieldContainer[Score]
     domain_values: _containers.RepeatedCompositeFieldContainer[DomainValue]
     tied: bool
-    def __init__(self, chunk_id: _Optional[str] = ..., chunk_path: _Optional[str] = ..., tier: _Optional[_Union[Tier, str]] = ..., top_domain: _Optional[str] = ..., top_value: _Optional[float] = ..., runner_up_domain: _Optional[str] = ..., runner_up_value: _Optional[float] = ..., scores: _Optional[_Iterable[_Union[Score, _Mapping]]] = ..., domain_values: _Optional[_Iterable[_Union[DomainValue, _Mapping]]] = ..., tied: _Optional[bool] = ...) -> None: ...
+    abstentions: _containers.RepeatedCompositeFieldContainer[Abstention]
+    def __init__(self, chunk_id: _Optional[str] = ..., chunk_path: _Optional[str] = ..., tier: _Optional[_Union[Tier, str]] = ..., top_domain: _Optional[str] = ..., top_value: _Optional[float] = ..., runner_up_domain: _Optional[str] = ..., runner_up_value: _Optional[float] = ..., scores: _Optional[_Iterable[_Union[Score, _Mapping]]] = ..., domain_values: _Optional[_Iterable[_Union[DomainValue, _Mapping]]] = ..., tied: _Optional[bool] = ..., abstentions: _Optional[_Iterable[_Union[Abstention, _Mapping]]] = ...) -> None: ...
 
 class DomainValue(_message.Message):
     __slots__ = ("domain", "value")
@@ -155,14 +167,16 @@ class BoundaryHealthResponse(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., total_domains: _Optional[int] = ..., domains: _Optional[_Iterable[_Union[DomainCoupling, _Mapping]]] = ...) -> None: ...
 
 class ScoreChunkRequest(_message.Message):
-    __slots__ = ("scenario", "chunk", "file_id")
+    __slots__ = ("scenario", "chunk", "file_id", "repo_path")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     CHUNK_FIELD_NUMBER: _ClassVar[int]
     FILE_ID_FIELD_NUMBER: _ClassVar[int]
+    REPO_PATH_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     chunk: _graph_pb2.Chunk
     file_id: str
-    def __init__(self, scenario: _Optional[str] = ..., chunk: _Optional[_Union[_graph_pb2.Chunk, _Mapping]] = ..., file_id: _Optional[str] = ...) -> None: ...
+    repo_path: str
+    def __init__(self, scenario: _Optional[str] = ..., chunk: _Optional[_Union[_graph_pb2.Chunk, _Mapping]] = ..., file_id: _Optional[str] = ..., repo_path: _Optional[str] = ...) -> None: ...
 
 class ScoreChunkResponse(_message.Message):
     __slots__ = ("verdict",)
@@ -171,14 +185,16 @@ class ScoreChunkResponse(_message.Message):
     def __init__(self, verdict: _Optional[_Union[Verdict, _Mapping]] = ...) -> None: ...
 
 class ExplainVerdictRequest(_message.Message):
-    __slots__ = ("scenario", "chunk", "file_id")
+    __slots__ = ("scenario", "chunk", "file_id", "repo_path")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     CHUNK_FIELD_NUMBER: _ClassVar[int]
     FILE_ID_FIELD_NUMBER: _ClassVar[int]
+    REPO_PATH_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     chunk: _graph_pb2.Chunk
     file_id: str
-    def __init__(self, scenario: _Optional[str] = ..., chunk: _Optional[_Union[_graph_pb2.Chunk, _Mapping]] = ..., file_id: _Optional[str] = ...) -> None: ...
+    repo_path: str
+    def __init__(self, scenario: _Optional[str] = ..., chunk: _Optional[_Union[_graph_pb2.Chunk, _Mapping]] = ..., file_id: _Optional[str] = ..., repo_path: _Optional[str] = ...) -> None: ...
 
 class ExplainVerdictResponse(_message.Message):
     __slots__ = ("verdict",)

@@ -48,9 +48,8 @@ func rawGraphFromFixture(t *testing.T, path string) graph.RawGraph {
 		Packages []struct {
 			ID         string `json:"id"`
 			ImportPath string `json:"import_path"`
-			Directory  string `json:"directory"`
+			RepoPath   string `json:"repo_path"`
 			Language   string `json:"language"`
-			Internal   bool   `json:"internal"`
 		} `json:"packages"`
 		Symbols []struct {
 			ID        string `json:"id"`
@@ -81,8 +80,8 @@ func rawGraphFromFixture(t *testing.T, path string) graph.RawGraph {
 	}
 	for _, p := range raw.Packages {
 		out.Packages = append(out.Packages, graph.PackageNode{
-			ID: p.ID, ImportPath: p.ImportPath, Directory: p.Directory,
-			Language: graph.Language(p.Language), Internal: p.Internal,
+			ID: p.ID, ImportPath: p.ImportPath, RepoPath: p.RepoPath,
+			Language: graph.Language(p.Language),
 		})
 	}
 	for _, s := range raw.Symbols {

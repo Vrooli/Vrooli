@@ -89,23 +89,22 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 // tarjan returns the non-trivial strongly-connected components of the
 // package-level import graph. Each component is a slice of package ids.
 func tarjan(snap graph.GraphSnapshot) [][]string {
-	// Build adjacency over internal packages only.
-	internalIDs := make(map[string]struct{}, len(snap.Packages))
+	// Build adjacency over the snapshot's own package set; anything
+	// outside it (stdlib, third-party, sibling scenarios) is dropped.
+	inScenario := make(map[string]struct{}, len(snap.Packages))
 	for _, p := range snap.Packages {
-		if p.Internal {
-			internalIDs[p.ID] = struct{}{}
-		}
+		inScenario[p.ID] = struct{}{}
 	}
-	adj := make(map[string][]string, len(internalIDs))
+	adj := make(map[string][]string, len(inScenario))
 	for _, e := range snap.Imports {
 		from := edgePackageID(e.From, snap)
 		if from == "" {
 			continue
 		}
-		if _, ok := internalIDs[from]; !ok {
+		if _, ok := inScenario[from]; !ok {
 			continue
 		}
-		if _, ok := internalIDs[e.ToPackageID]; !ok {
+		if _, ok := inScenario[e.ToPackageID]; !ok {
 			continue
 		}
 		adj[from] = append(adj[from], e.ToPackageID)
@@ -115,8 +114,8 @@ func tarjan(snap graph.GraphSnapshot) [][]string {
 		sort.Strings(adj[k])
 	}
 
-	ids := make([]string, 0, len(internalIDs))
-	for id := range internalIDs {
+	ids := make([]string, 0, len(inScenario))
+	for id := range inScenario {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
@@ -224,7 +223,7 @@ func domainSet(scc []string, snap graph.GraphSnapshot, m domains.DerivedDomainMa
 func packageDir(pid string, snap graph.GraphSnapshot) string {
 	for _, p := range snap.Packages {
 		if p.ID == pid {
-			return p.Directory
+			return p.RepoPath
 		}
 	}
 	return ""

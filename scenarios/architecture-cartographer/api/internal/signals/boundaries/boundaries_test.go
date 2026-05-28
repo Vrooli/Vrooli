@@ -15,7 +15,7 @@ import (
 //	b -> kernel, c -> kernel      (kernel is widely depended upon)
 func fourDomainGraph() (graph.GraphSnapshot, domains.DerivedDomainMap) {
 	pkg := func(id, dir string) graph.PackageNode {
-		return graph.PackageNode{ID: id, Directory: dir, Internal: true}
+		return graph.PackageNode{ID: id, RepoPath: dir}
 	}
 	snap := graph.GraphSnapshot{
 		Packages: []graph.PackageNode{
@@ -138,7 +138,7 @@ func TestAnalyze_CompositionRootExemptFromGodDomain(t *testing.T) {
 //	hub -> l1..l5          (hub is itself unstable: Ce=5)
 func unstableHubGraph() (graph.GraphSnapshot, domains.DerivedDomainMap) {
 	pkg := func(id, dir string) graph.PackageNode {
-		return graph.PackageNode{ID: id, Directory: dir, Internal: true}
+		return graph.PackageNode{ID: id, RepoPath: dir}
 	}
 	names := []string{"hub", "l1", "l2", "l3", "l4", "l5", "u1", "u2"}
 	var pkgs []graph.PackageNode

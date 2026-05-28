@@ -50,7 +50,7 @@ func TestService_ExtractGraph_SkipsUnreachableAdapter(t *testing.T) {
 	}
 	up := newAdapter(graph.LanguageGo, graph.RawGraph{
 		Languages: []graph.Language{graph.LanguageGo},
-		Packages:  []graph.PackageNode{{ID: "pkg:demo", ImportPath: "demo", Language: graph.LanguageGo, Internal: true}},
+		Packages:  []graph.PackageNode{{ID: "pkg:demo", ImportPath: "demo", Language: graph.LanguageGo}},
 	})
 	svc := graph.NewService(repo, newClock(), down, up)
 
@@ -94,7 +94,7 @@ func TestService_ExtractGraph_PersistsAndCaches(t *testing.T) {
 			{ID: "file:a.go", Path: "a.go", PackageID: "pkg:demo", Language: graph.LanguageGo},
 		},
 		Packages: []graph.PackageNode{
-			{ID: "pkg:demo", ImportPath: "demo", Language: graph.LanguageGo, Internal: true},
+			{ID: "pkg:demo", ImportPath: "demo", Language: graph.LanguageGo},
 		},
 	}
 	svc := graph.NewService(repo, newClock(), newAdapter(graph.LanguageGo, raw))

@@ -17,6 +17,8 @@ import (
 	"architecture-cartographer/internal/signals"
 )
 
+const name = "git-co-edit"
+
 // DefaultLookback is the default `--since` window passed to `git log`.
 const DefaultLookback = "90.days.ago"
 
@@ -41,7 +43,7 @@ func (s *Signal) WithLookback(lb string) *Signal {
 	return &cp
 }
 
-func (Signal) Name() string           { return "git-co-edit" }
+func (Signal) Name() string           { return name }
 func (Signal) DefaultWeight() float64 { return 0.6 }
 
 func (s *Signal) IsAvailable(ctx context.Context) (bool, string) {
@@ -54,21 +56,26 @@ func (s *Signal) IsAvailable(ctx context.Context) (bool, string) {
 	return true, ""
 }
 
-func (s *Signal) Score(ctx context.Context, gctx signals.GraphContext, chunk graph.Chunk) []signals.Score {
+func (s *Signal) Score(ctx context.Context, gctx signals.GraphContext, chunk graph.Chunk) signals.ScoreResult {
 	if chunk.Path == "" {
-		return nil
+		return signals.Abstain(name, "chunk has no path", "")
 	}
-	if ok, _ := s.IsAvailable(ctx); !ok {
-		return nil
+	if ok, reason := s.IsAvailable(ctx); !ok {
+		// Defensive: aggregator already skips unavailable signals, but
+		// if someone calls Score directly we still satisfy the contract.
+		return signals.Abstain(name, "git unavailable: "+reason, chunk.Path)
 	}
 	// `git log --since=<lookback> --name-only --pretty=format:%H -- <path>`
 	logOut, err := s.runner.Log(ctx, "--since="+s.lookback, "--name-only", "--pretty=format:%H", "--", chunk.Path)
-	if err != nil || strings.TrimSpace(logOut) == "" {
-		return nil
+	if err != nil {
+		return signals.Abstain(name, "git log failed: "+err.Error(), chunk.Path)
+	}
+	if strings.TrimSpace(logOut) == "" {
+		return signals.Abstain(name, "no git history for this file in the lookback window", chunk.Path)
 	}
 	commits := parseCommits(logOut)
 	if len(commits) < MinCoEditCommits {
-		return nil
+		return signals.Abstain(name, fmt.Sprintf("fewer than %d co-edit commits in lookback window", MinCoEditCommits), chunk.Path)
 	}
 	// Count co-edit frequency by other file.
 	coEdit := make(map[string]int)
@@ -83,7 +90,7 @@ func (s *Signal) Score(ctx context.Context, gctx signals.GraphContext, chunk gra
 		}
 	}
 	if len(coEdit) == 0 {
-		return nil
+		return signals.Abstain(name, "no co-edited files in the lookback window", chunk.Path)
 	}
 
 	// Map each co-edited file to a domain.
@@ -96,7 +103,7 @@ func (s *Signal) Score(ctx context.Context, gctx signals.GraphContext, chunk gra
 		domainScore[dom] += count
 	}
 	if len(domainScore) == 0 {
-		return nil
+		return signals.Abstain(name, "co-edited files are not mapped to any derived domain", chunk.Path)
 	}
 
 	// Normalize to [0, 1] using totalCommits * top-co-edit as the divisor.
@@ -111,7 +118,7 @@ func (s *Signal) Score(ctx context.Context, gctx signals.GraphContext, chunk gra
 		divisor = maxCount
 	}
 	if divisor == 0 {
-		return nil
+		return signals.Abstain(name, "zero divisor for co-edit normalization", chunk.Path)
 	}
 
 	var out []signals.Score
@@ -121,7 +128,7 @@ func (s *Signal) Score(ctx context.Context, gctx signals.GraphContext, chunk gra
 			value = 1
 		}
 		out = append(out, signals.Score{
-			Signal: "git-co-edit",
+			Signal: name,
 			Domain: dom,
 			Value:  value,
 			Reason: fmt.Sprintf("co-edited with files in %q across %d commit(s)", dom, totalCommits),
@@ -133,7 +140,7 @@ func (s *Signal) Score(ctx context.Context, gctx signals.GraphContext, chunk gra
 			}},
 		})
 	}
-	return out
+	return signals.ScoreResult{Scores: out}
 }
 
 type commit struct {

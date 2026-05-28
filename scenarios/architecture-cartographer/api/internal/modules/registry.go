@@ -24,6 +24,7 @@ import (
 
 	analyticsH "architecture-cartographer/handlers/analytics"
 	applyH "architecture-cartographer/handlers/apply"
+	auditH "architecture-cartographer/handlers/audit"
 	conflictsH "architecture-cartographer/handlers/conflicts"
 	domainsH "architecture-cartographer/handlers/domains"
 	graphH "architecture-cartographer/handlers/graph"
@@ -34,6 +35,7 @@ import (
 
 	analyticsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/analytics"
 	applyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/apply"
+	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit"
 	conflictsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts"
 	domainsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph"
@@ -47,6 +49,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, analyticsH.Endpoints...)
 	out = append(out, applyH.Endpoints...)
+	out = append(out, auditH.Endpoints...)
 	out = append(out, conflictsH.Endpoints...)
 	out = append(out, domainsH.Endpoints...)
 	out = append(out, graphH.Endpoints...)
@@ -67,6 +70,7 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "analytics", File: analyticsv1.File_architecture_cartographer_v1_analytics_analytics_proto},
 		{Module: "apply", File: applyv1.File_architecture_cartographer_v1_apply_apply_proto},
+		{Module: "audit", File: auditv1.File_architecture_cartographer_v1_audit_audit_proto},
 		{Module: "conflicts", File: conflictsv1.File_architecture_cartographer_v1_conflicts_conflicts_proto},
 		{Module: "domains", File: domainsv1.File_architecture_cartographer_v1_domains_domains_proto},
 		{Module: "graph", File: graphv1.File_architecture_cartographer_v1_graph_graph_proto},
@@ -87,6 +91,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(analyticsH.Schema),
 		apidb.SchemaProviderFunc(applyH.Schema),
+		apidb.SchemaProviderFunc(auditH.Schema),
 		apidb.SchemaProviderFunc(conflictsH.Schema),
 		apidb.SchemaProviderFunc(domainsH.Schema),
 		apidb.SchemaProviderFunc(graphH.Schema),

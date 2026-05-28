@@ -70,8 +70,9 @@ func (h *Handler) ConvergenceReport(ctx context.Context, req *connect.Request[do
 		return nil, connect.NewError(domains.ErrorToConnectCode(err), err)
 	}
 	out := &domainsv1.ConvergenceReportResponse{
-		Scenario:  m.Scenario,
-		Authority: sourceToProto(m.Authority),
+		Scenario:            m.Scenario,
+		Authority:           sourceToProto(m.Authority),
+		AuthorityConfidence: confidenceToProto(m.AuthorityConfidence),
 	}
 	for _, f := range domains.Convergence(m) {
 		out.Findings = append(out.Findings, convergenceToProto(f))
@@ -81,10 +82,11 @@ func (h *Handler) ConvergenceReport(ctx context.Context, req *connect.Request[do
 
 func convergenceToProto(f domains.ConvergenceFinding) *domainsv1.ConvergenceFinding {
 	out := &domainsv1.ConvergenceFinding{
-		Kind:     f.Kind,
-		Domain:   f.Domain,
-		Severity: convergenceSeverityToProto(f.Severity),
-		Message:  f.Message,
+		Kind:            f.Kind,
+		Domain:          f.Domain,
+		Severity:        convergenceSeverityToProto(f.Severity),
+		Message:         f.Message,
+		RolledUpDomains: append([]string(nil), f.RolledUpDomains...),
 	}
 	for _, s := range f.Sources {
 		out.Sources = append(out.Sources, sourceToProto(s))
@@ -105,10 +107,11 @@ func convergenceSeverityToProto(s domains.ConvergenceSeverity) domainsv1.Converg
 
 func mapToProto(m domains.DerivedDomainMap) *domainsv1.DerivedDomainMap {
 	out := &domainsv1.DerivedDomainMap{
-		Scenario:        m.Scenario,
-		SharedSubstrate: append([]string(nil), m.SharedSubstrate...),
-		NonDomains:      append([]string(nil), m.NonDomains...),
-		Authority:       sourceToProto(m.Authority),
+		Scenario:            m.Scenario,
+		SharedSubstrate:     append([]string(nil), m.SharedSubstrate...),
+		NonDomains:          append([]string(nil), m.NonDomains...),
+		Authority:           sourceToProto(m.Authority),
+		AuthorityConfidence: confidenceToProto(m.AuthorityConfidence),
 	}
 	if !m.DerivedAt.IsZero() {
 		out.DerivedAt = timestamppb.New(m.DerivedAt)
@@ -137,6 +140,17 @@ func domainToProto(d domains.DerivedDomain) *domainsv1.DerivedDomain {
 		out.Provenance = append(out.Provenance, sourceToProto(s))
 	}
 	return out
+}
+
+func confidenceToProto(c domains.AuthorityConfidence) domainsv1.AuthorityConfidence {
+	switch c {
+	case domains.ConfidenceHigh:
+		return domainsv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_HIGH
+	case domains.ConfidenceLow:
+		return domainsv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_LOW
+	default:
+		return domainsv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_UNSPECIFIED
+	}
 }
 
 func sourceToProto(s domains.Source) domainsv1.DomainSource {

@@ -165,9 +165,8 @@ func snapshotToProto(s graph.GraphSnapshot) *graphv1.GraphSnapshot {
 		out.Packages = append(out.Packages, &graphv1.PackageNode{
 			Id:         p.ID,
 			ImportPath: p.ImportPath,
-			Directory:  p.Directory,
+			RepoPath:   p.RepoPath,
 			Language:   languageToProto(p.Language),
-			Internal:   p.Internal,
 		})
 	}
 	for _, sym := range s.Symbols {

@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package vrooli.architecture_cartographer.v1.audit;
+
+import "architecture-cartographer/v1/conflicts/conflicts.proto";
+import "google/protobuf/duration.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit;audit_v1";
+
+// =============================================================================
+// AUDIT DOMAIN
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain audit
+// @stability beta
+//
+// The audit domain is the CI-shaped surface over the cartographer. One
+// RPC call orchestrates graph.Extract (if no snapshot), domains.Derive,
+// and conflicts.Detect for a scenario, applies severity / type filters,
+// and returns a deterministic summary plus the underlying finding set.
+//
+// The CLI consumer maps AuditOutcome to a process exit code:
+//   CLEAN       → 0
+//   FINDINGS    → 1 (only when ≥ fail_on threshold reached)
+//   TOOL_ERROR  → 2
+// (Usage error → 3 — local to the CLI, not surfaced over the wire.)
+// =============================================================================
+
+// AuditOutcome is the verdict shape returned to a CI caller.
+enum AuditOutcome {
+  AUDIT_OUTCOME_UNSPECIFIED = 0;
+  AUDIT_OUTCOME_CLEAN = 1;
+  AUDIT_OUTCOME_FINDINGS = 2;
+  AUDIT_OUTCOME_TOOL_ERROR = 3;
+}
+
+// ConflictSummary is a compact, machine-friendly projection of a
+// detected conflict. Carries enough to render a CI annotation; the
+// full Conflict envelope can be re-fetched via ConflictsService.
+message ConflictSummary {
+  string id = 1;
+  string detector = 2;
+  string type = 3;
+  string subtype = 4;
+  vrooli.architecture_cartographer.v1.conflicts.Severity severity = 5;
+  repeated string locations = 6;
+  repeated string domains = 7;
+  string headline = 8; // one-line summary suitable for a CI annotation
+}
+
+// DerivedDomainSummary is a compact projection of the derived domain
+// map used to compute the audit (authority + confidence + count).
+message DerivedDomainSummary {
+  string authority = 1;
+  string confidence = 2;
+  int32 domain_count = 3;
+}
+
+// GraphSummary is a compact projection of the graph snapshot used to
+// compute the audit (snapshot id + extraction wall-clock + counts).
+message GraphSummary {
+  string snapshot_id = 1;
+  int32 file_count = 2;
+  int32 package_count = 3;
+  int32 import_edge_count = 4;
+}
+
+// AuditService runs an end-to-end drift audit against a scenario and
+// returns a deterministic, machine-readable summary.
+service AuditService {
+  rpc Run(AuditRunRequest) returns (AuditRunResponse);
+}
+
+message AuditRunRequest {
+  // Target scenario (e.g., "swarm-manager"). Required.
+  string scenario = 1;
+  // Minimum severity that counts as "FINDINGS" (anything strictly less
+  // than this floor is reported but does not flip the outcome). Defaults
+  // to SEVERITY_WARN when SEVERITY_UNSPECIFIED.
+  vrooli.architecture_cartographer.v1.conflicts.Severity fail_on = 2;
+  // Optional whitelist of conflict types to include. Empty = all types.
+  repeated string include_types = 3;
+  // Optional blacklist of conflict types to exclude. Applied after
+  // include_types.
+  repeated string exclude_types = 4;
+}
+
+message AuditRunResponse {
+  string scenario = 1;
+  AuditOutcome outcome = 2;
+  // Free-form error message when outcome=TOOL_ERROR.
+  string error = 3;
+  // Counts AFTER filters are applied.
+  int32 total_findings = 4;
+  // Severity-name → count (e.g., "warn" → 7). Stable strings, lower-case.
+  map<string, int32> by_severity = 5;
+  // Conflict-type → count.
+  map<string, int32> by_type = 6;
+  repeated ConflictSummary findings = 7;
+  DerivedDomainSummary domains = 8;
+  GraphSummary graph = 9;
+  // Total wall-clock duration for the orchestrated run.
+  google.protobuf.Duration duration = 10;
+}

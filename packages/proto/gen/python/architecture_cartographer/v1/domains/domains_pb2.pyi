@@ -19,6 +19,12 @@ class DomainSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DOMAIN_SOURCE_CLI_GROUPS: _ClassVar[DomainSource]
     DOMAIN_SOURCE_UI_FEATURES: _ClassVar[DomainSource]
 
+class AuthorityConfidence(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    AUTHORITY_CONFIDENCE_UNSPECIFIED: _ClassVar[AuthorityConfidence]
+    AUTHORITY_CONFIDENCE_HIGH: _ClassVar[AuthorityConfidence]
+    AUTHORITY_CONFIDENCE_LOW: _ClassVar[AuthorityConfidence]
+
 class ConvergenceSeverity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     CONVERGENCE_SEVERITY_UNSPECIFIED: _ClassVar[ConvergenceSeverity]
@@ -30,6 +36,9 @@ DOMAIN_SOURCE_DOMAINS_DOC: DomainSource
 DOMAIN_SOURCE_API_FOLDERS: DomainSource
 DOMAIN_SOURCE_CLI_GROUPS: DomainSource
 DOMAIN_SOURCE_UI_FEATURES: DomainSource
+AUTHORITY_CONFIDENCE_UNSPECIFIED: AuthorityConfidence
+AUTHORITY_CONFIDENCE_HIGH: AuthorityConfidence
+AUTHORITY_CONFIDENCE_LOW: AuthorityConfidence
 CONVERGENCE_SEVERITY_UNSPECIFIED: ConvergenceSeverity
 CONVERGENCE_SEVERITY_INFO: ConvergenceSeverity
 CONVERGENCE_SEVERITY_WARN: ConvergenceSeverity
@@ -59,7 +68,7 @@ class DomainDeclaration(_message.Message):
     def __init__(self, source: _Optional[_Union[DomainSource, str]] = ..., domain_names: _Optional[_Iterable[str]] = ..., authoritative: _Optional[bool] = ...) -> None: ...
 
 class DerivedDomainMap(_message.Message):
-    __slots__ = ("scenario", "domains", "shared_substrate", "non_domains", "authority", "declarations", "derived_at")
+    __slots__ = ("scenario", "domains", "shared_substrate", "non_domains", "authority", "declarations", "derived_at", "authority_confidence")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     DOMAINS_FIELD_NUMBER: _ClassVar[int]
     SHARED_SUBSTRATE_FIELD_NUMBER: _ClassVar[int]
@@ -67,6 +76,7 @@ class DerivedDomainMap(_message.Message):
     AUTHORITY_FIELD_NUMBER: _ClassVar[int]
     DECLARATIONS_FIELD_NUMBER: _ClassVar[int]
     DERIVED_AT_FIELD_NUMBER: _ClassVar[int]
+    AUTHORITY_CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     domains: _containers.RepeatedCompositeFieldContainer[DerivedDomain]
     shared_substrate: _containers.RepeatedScalarFieldContainer[str]
@@ -74,7 +84,8 @@ class DerivedDomainMap(_message.Message):
     authority: DomainSource
     declarations: _containers.RepeatedCompositeFieldContainer[DomainDeclaration]
     derived_at: _timestamp_pb2.Timestamp
-    def __init__(self, scenario: _Optional[str] = ..., domains: _Optional[_Iterable[_Union[DerivedDomain, _Mapping]]] = ..., shared_substrate: _Optional[_Iterable[str]] = ..., non_domains: _Optional[_Iterable[str]] = ..., authority: _Optional[_Union[DomainSource, str]] = ..., declarations: _Optional[_Iterable[_Union[DomainDeclaration, _Mapping]]] = ..., derived_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    authority_confidence: AuthorityConfidence
+    def __init__(self, scenario: _Optional[str] = ..., domains: _Optional[_Iterable[_Union[DerivedDomain, _Mapping]]] = ..., shared_substrate: _Optional[_Iterable[str]] = ..., non_domains: _Optional[_Iterable[str]] = ..., authority: _Optional[_Union[DomainSource, str]] = ..., declarations: _Optional[_Iterable[_Union[DomainDeclaration, _Mapping]]] = ..., derived_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., authority_confidence: _Optional[_Union[AuthorityConfidence, str]] = ...) -> None: ...
 
 class ExtractDomainsRequest(_message.Message):
     __slots__ = ("scenario",)
@@ -101,18 +112,20 @@ class GetDomainMapResponse(_message.Message):
     def __init__(self, domain_map: _Optional[_Union[DerivedDomainMap, _Mapping]] = ...) -> None: ...
 
 class ConvergenceFinding(_message.Message):
-    __slots__ = ("kind", "domain", "severity", "message", "sources")
+    __slots__ = ("kind", "domain", "severity", "message", "sources", "rolled_up_domains")
     KIND_FIELD_NUMBER: _ClassVar[int]
     DOMAIN_FIELD_NUMBER: _ClassVar[int]
     SEVERITY_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     SOURCES_FIELD_NUMBER: _ClassVar[int]
+    ROLLED_UP_DOMAINS_FIELD_NUMBER: _ClassVar[int]
     kind: str
     domain: str
     severity: ConvergenceSeverity
     message: str
     sources: _containers.RepeatedScalarFieldContainer[DomainSource]
-    def __init__(self, kind: _Optional[str] = ..., domain: _Optional[str] = ..., severity: _Optional[_Union[ConvergenceSeverity, str]] = ..., message: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[DomainSource, str]]] = ...) -> None: ...
+    rolled_up_domains: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, kind: _Optional[str] = ..., domain: _Optional[str] = ..., severity: _Optional[_Union[ConvergenceSeverity, str]] = ..., message: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[DomainSource, str]]] = ..., rolled_up_domains: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ConvergenceReportRequest(_message.Message):
     __slots__ = ("scenario",)
@@ -121,11 +134,13 @@ class ConvergenceReportRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ...) -> None: ...
 
 class ConvergenceReportResponse(_message.Message):
-    __slots__ = ("scenario", "authority", "findings")
+    __slots__ = ("scenario", "authority", "findings", "authority_confidence")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     AUTHORITY_FIELD_NUMBER: _ClassVar[int]
     FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    AUTHORITY_CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     authority: DomainSource
     findings: _containers.RepeatedCompositeFieldContainer[ConvergenceFinding]
-    def __init__(self, scenario: _Optional[str] = ..., authority: _Optional[_Union[DomainSource, str]] = ..., findings: _Optional[_Iterable[_Union[ConvergenceFinding, _Mapping]]] = ...) -> None: ...
+    authority_confidence: AuthorityConfidence
+    def __init__(self, scenario: _Optional[str] = ..., authority: _Optional[_Union[DomainSource, str]] = ..., findings: _Optional[_Iterable[_Union[ConvergenceFinding, _Mapping]]] = ..., authority_confidence: _Optional[_Union[AuthorityConfidence, str]] = ...) -> None: ...

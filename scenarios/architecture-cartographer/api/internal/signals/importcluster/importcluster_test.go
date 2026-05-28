@@ -16,10 +16,10 @@ func TestScore_ClusterMembershipDrivesDomainShare(t *testing.T) {
 			{ID: "file:x", PackageID: "pkg:x"},
 		},
 		Packages: []graph.PackageNode{
-			{ID: "pkg:x", Internal: true, Directory: "shared/x"},
-			{ID: "pkg:c1", Internal: true, Directory: "internal/conflicts/a"},
-			{ID: "pkg:c2", Internal: true, Directory: "internal/conflicts/b"},
-			{ID: "pkg:g1", Internal: true, Directory: "internal/graph/a"},
+			{ID: "pkg:x", RepoPath: "shared/x"},
+			{ID: "pkg:c1", RepoPath: "internal/conflicts/a"},
+			{ID: "pkg:c2", RepoPath: "internal/conflicts/b"},
+			{ID: "pkg:g1", RepoPath: "internal/graph/a"},
 		},
 		Imports: []graph.ImportEdge{
 			{From: "pkg:c1", ToPackageID: "pkg:x"},
@@ -34,20 +34,23 @@ func TestScore_ClusterMembershipDrivesDomainShare(t *testing.T) {
 		},
 	}
 	out := importcluster.New().Score(context.Background(), signals.NewGraphContext("demo", snap, m), graph.Chunk{FileID: "file:x"})
-	if len(out) != 1 {
+	if len(out.Scores) != 1 {
 		t.Fatalf("want 1 score (conflicts cluster), got %+v", out)
 	}
-	if out[0].Domain != "conflicts" {
-		t.Fatalf("unexpected: %s", out[0].Domain)
+	if out.Scores[0].Domain != "conflicts" {
+		t.Fatalf("unexpected: %s", out.Scores[0].Domain)
 	}
 }
 
-func TestScore_NoClusterReturnsEmpty(t *testing.T) {
+func TestScore_NoClusterAbstains(t *testing.T) {
 	out := importcluster.New().Score(context.Background(),
 		signals.NewGraphContext("demo", graph.GraphSnapshot{}, domains.DerivedDomainMap{}),
 		graph.Chunk{FileID: "file:none"},
 	)
-	if len(out) != 0 {
-		t.Fatalf("expected empty, got %+v", out)
+	if len(out.Scores) != 0 {
+		t.Fatalf("expected no scores, got %+v", out.Scores)
+	}
+	if out.Abstention == nil {
+		t.Fatal("expected abstention when file has no cluster")
 	}
 }

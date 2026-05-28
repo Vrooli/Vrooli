@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file architecture-cartographer/v1/domains/domains.proto.
  */
 export const file_architecture_cartographer_v1_domains_domains: GenFile = /*@__PURE__*/
-  fileDesc("CjJhcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL2RvbWFpbnMvZG9tYWlucy5wcm90bxIrdnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucyKgAQoNRGVyaXZlZERvbWFpbhIMCgRuYW1lGAEgASgJEg0KBXBhdGhzGAIgAygJEhAKCGdsb3NzYXJ5GAMgAygJEhEKCWFyY2hldHlwZRgEIAEoCRJNCgpwcm92ZW5hbmNlGAUgAygOMjkudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5Eb21haW5Tb3VyY2UiiwEKEURvbWFpbkRlY2xhcmF0aW9uEkkKBnNvdXJjZRgBIAEoDjI5LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuRG9tYWluU291cmNlEhQKDGRvbWFpbl9uYW1lcxgCIAMoCRIVCg1hdXRob3JpdGF0aXZlGAMgASgIIvQCChBEZXJpdmVkRG9tYWluTWFwEhAKCHNjZW5hcmlvGAEgASgJEksKB2RvbWFpbnMYAiADKAsyOi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRlcml2ZWREb21haW4SGAoQc2hhcmVkX3N1YnN0cmF0ZRgDIAMoCRITCgtub25fZG9tYWlucxgEIAMoCRJMCglhdXRob3JpdHkYBSABKA4yOS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRvbWFpblNvdXJjZRJUCgxkZWNsYXJhdGlvbnMYBiADKAsyPi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRvbWFpbkRlY2xhcmF0aW9uEi4KCmRlcml2ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIikKFUV4dHJhY3REb21haW5zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSJrChZFeHRyYWN0RG9tYWluc1Jlc3BvbnNlElEKCmRvbWFpbl9tYXAYASABKAsyPS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRlcml2ZWREb21haW5NYXAiJwoTR2V0RG9tYWluTWFwUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSJpChRHZXREb21haW5NYXBSZXNwb25zZRJRCgpkb21haW5fbWFwGAEgASgLMj0udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5EZXJpdmVkRG9tYWluTWFwIuMBChJDb252ZXJnZW5jZUZpbmRpbmcSDAoEa2luZBgBIAEoCRIOCgZkb21haW4YAiABKAkSUgoIc2V2ZXJpdHkYAyABKA4yQC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkNvbnZlcmdlbmNlU2V2ZXJpdHkSDwoHbWVzc2FnZRgEIAEoCRJKCgdzb3VyY2VzGAUgAygOMjkudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5Eb21haW5Tb3VyY2UiLAoYQ29udmVyZ2VuY2VSZXBvcnRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJIs4BChlDb252ZXJnZW5jZVJlcG9ydFJlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEkwKCWF1dGhvcml0eRgCIAEoDjI5LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuRG9tYWluU291cmNlElEKCGZpbmRpbmdzGAMgAygLMj8udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5Db252ZXJnZW5jZUZpbmRpbmcqyAEKDERvbWFpblNvdXJjZRIdChlET01BSU5fU09VUkNFX1VOU1BFQ0lGSUVEEAASHgoaRE9NQUlOX1NPVVJDRV9BUElfTUFOSUZFU1QQARIdChlET01BSU5fU09VUkNFX0RPTUFJTlNfRE9DEAISHQoZRE9NQUlOX1NPVVJDRV9BUElfRk9MREVSUxADEhwKGERPTUFJTl9TT1VSQ0VfQ0xJX0dST1VQUxAEEh0KGURPTUFJTl9TT1VSQ0VfVUlfRkVBVFVSRVMQBSp5ChNDb252ZXJnZW5jZVNldmVyaXR5EiQKIENPTlZFUkdFTkNFX1NFVkVSSVRZX1VOU1BFQ0lGSUVEEAASHQoZQ09OVkVSR0VOQ0VfU0VWRVJJVFlfSU5GTxABEh0KGUNPTlZFUkdFTkNFX1NFVkVSSVRZX1dBUk4QAjLnAwoORG9tYWluc1NlcnZpY2USmQEKDkV4dHJhY3REb21haW5zEkIudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5FeHRyYWN0RG9tYWluc1JlcXVlc3QaQy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkV4dHJhY3REb21haW5zUmVzcG9uc2USkwEKDEdldERvbWFpbk1hcBJALnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuR2V0RG9tYWluTWFwUmVxdWVzdBpBLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuR2V0RG9tYWluTWFwUmVzcG9uc2USogEKEUNvbnZlcmdlbmNlUmVwb3J0EkUudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5Db252ZXJnZW5jZVJlcG9ydFJlcXVlc3QaRi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkNvbnZlcmdlbmNlUmVwb3J0UmVzcG9uc2VCYFpeZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL2RvbWFpbnM7ZG9tYWluc192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("CjJhcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL2RvbWFpbnMvZG9tYWlucy5wcm90bxIrdnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucyKgAQoNRGVyaXZlZERvbWFpbhIMCgRuYW1lGAEgASgJEg0KBXBhdGhzGAIgAygJEhAKCGdsb3NzYXJ5GAMgAygJEhEKCWFyY2hldHlwZRgEIAEoCRJNCgpwcm92ZW5hbmNlGAUgAygOMjkudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5Eb21haW5Tb3VyY2UiiwEKEURvbWFpbkRlY2xhcmF0aW9uEkkKBnNvdXJjZRgBIAEoDjI5LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuRG9tYWluU291cmNlEhQKDGRvbWFpbl9uYW1lcxgCIAMoCRIVCg1hdXRob3JpdGF0aXZlGAMgASgIItQDChBEZXJpdmVkRG9tYWluTWFwEhAKCHNjZW5hcmlvGAEgASgJEksKB2RvbWFpbnMYAiADKAsyOi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRlcml2ZWREb21haW4SGAoQc2hhcmVkX3N1YnN0cmF0ZRgDIAMoCRITCgtub25fZG9tYWlucxgEIAMoCRJMCglhdXRob3JpdHkYBSABKA4yOS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRvbWFpblNvdXJjZRJUCgxkZWNsYXJhdGlvbnMYBiADKAsyPi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRvbWFpbkRlY2xhcmF0aW9uEi4KCmRlcml2ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEl4KFGF1dGhvcml0eV9jb25maWRlbmNlGAggASgOMkAudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5BdXRob3JpdHlDb25maWRlbmNlIikKFUV4dHJhY3REb21haW5zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSJrChZFeHRyYWN0RG9tYWluc1Jlc3BvbnNlElEKCmRvbWFpbl9tYXAYASABKAsyPS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRlcml2ZWREb21haW5NYXAiJwoTR2V0RG9tYWluTWFwUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSJpChRHZXREb21haW5NYXBSZXNwb25zZRJRCgpkb21haW5fbWFwGAEgASgLMj0udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5EZXJpdmVkRG9tYWluTWFwIv4BChJDb252ZXJnZW5jZUZpbmRpbmcSDAoEa2luZBgBIAEoCRIOCgZkb21haW4YAiABKAkSUgoIc2V2ZXJpdHkYAyABKA4yQC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkNvbnZlcmdlbmNlU2V2ZXJpdHkSDwoHbWVzc2FnZRgEIAEoCRJKCgdzb3VyY2VzGAUgAygOMjkudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5Eb21haW5Tb3VyY2USGQoRcm9sbGVkX3VwX2RvbWFpbnMYBiADKAkiLAoYQ29udmVyZ2VuY2VSZXBvcnRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJIq4CChlDb252ZXJnZW5jZVJlcG9ydFJlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEkwKCWF1dGhvcml0eRgCIAEoDjI5LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuRG9tYWluU291cmNlElEKCGZpbmRpbmdzGAMgAygLMj8udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5Db252ZXJnZW5jZUZpbmRpbmcSXgoUYXV0aG9yaXR5X2NvbmZpZGVuY2UYBCABKA4yQC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkF1dGhvcml0eUNvbmZpZGVuY2UqyAEKDERvbWFpblNvdXJjZRIdChlET01BSU5fU09VUkNFX1VOU1BFQ0lGSUVEEAASHgoaRE9NQUlOX1NPVVJDRV9BUElfTUFOSUZFU1QQARIdChlET01BSU5fU09VUkNFX0RPTUFJTlNfRE9DEAISHQoZRE9NQUlOX1NPVVJDRV9BUElfRk9MREVSUxADEhwKGERPTUFJTl9TT1VSQ0VfQ0xJX0dST1VQUxAEEh0KGURPTUFJTl9TT1VSQ0VfVUlfRkVBVFVSRVMQBSp4ChNBdXRob3JpdHlDb25maWRlbmNlEiQKIEFVVEhPUklUWV9DT05GSURFTkNFX1VOU1BFQ0lGSUVEEAASHQoZQVVUSE9SSVRZX0NPTkZJREVOQ0VfSElHSBABEhwKGEFVVEhPUklUWV9DT05GSURFTkNFX0xPVxACKnkKE0NvbnZlcmdlbmNlU2V2ZXJpdHkSJAogQ09OVkVSR0VOQ0VfU0VWRVJJVFlfVU5TUEVDSUZJRUQQABIdChlDT05WRVJHRU5DRV9TRVZFUklUWV9JTkZPEAESHQoZQ09OVkVSR0VOQ0VfU0VWRVJJVFlfV0FSThACMucDCg5Eb21haW5zU2VydmljZRKZAQoORXh0cmFjdERvbWFpbnMSQi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkV4dHJhY3REb21haW5zUmVxdWVzdBpDLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuRXh0cmFjdERvbWFpbnNSZXNwb25zZRKTAQoMR2V0RG9tYWluTWFwEkAudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5HZXREb21haW5NYXBSZXF1ZXN0GkEudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5HZXREb21haW5NYXBSZXNwb25zZRKiAQoRQ29udmVyZ2VuY2VSZXBvcnQSRS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkNvbnZlcmdlbmNlUmVwb3J0UmVxdWVzdBpGLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuQ29udmVyZ2VuY2VSZXBvcnRSZXNwb25zZUJgWl5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FyY2hpdGVjdHVyZS1jYXJ0b2dyYXBoZXIvdjEvZG9tYWlucztkb21haW5zX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * DerivedDomain is one domain in the resolved map.
@@ -157,6 +157,16 @@ export type DerivedDomainMap = Message<"vrooli.architecture_cartographer.v1.doma
    * @generated from field: google.protobuf.Timestamp derived_at = 7;
    */
   derivedAt?: Timestamp | undefined;
+
+  /**
+   * How trustworthy the resolved authority is. HIGH = the authority is a
+   * curated, deliberately-written source (DOMAINS.md, api manifest).
+   * LOW = the authority fell back to a derived source (api folders, cli
+   * groups); the "ground truth" is itself inferred.
+   *
+   * @generated from field: vrooli.architecture_cartographer.v1.domains.AuthorityConfidence authority_confidence = 8;
+   */
+  authorityConfidence: AuthorityConfidence;
 };
 
 /**
@@ -244,14 +254,16 @@ export const GetDomainMapResponseSchema: GenMessage<GetDomainMapResponse> = /*@_
 export type ConvergenceFinding = Message<"vrooli.architecture_cartographer.v1.domains.ConvergenceFinding"> & {
   /**
    * Stable finding kind (e.g., "missing_implementation", "undeclared_folder",
-   * "missing_cli_group", "ui_feature_no_domain").
+   * "missing_cli_group", "ui_feature_no_domain", "authority_fallback").
    *
    * @generated from field: string kind = 1;
    */
   kind: string;
 
   /**
-   * The domain the finding concerns.
+   * The domain the finding concerns. Empty when this finding rolls up
+   * multiple domains (see rolled_up_domains) or when the finding is not
+   * domain-scoped (e.g., authority_fallback).
    *
    * @generated from field: string domain = 2;
    */
@@ -275,6 +287,15 @@ export type ConvergenceFinding = Message<"vrooli.architecture_cartographer.v1.do
    * @generated from field: repeated vrooli.architecture_cartographer.v1.domains.DomainSource sources = 5;
    */
   sources: DomainSource[];
+
+  /**
+   * When this finding represents two or more identical-kind info-severity
+   * findings merged into one row, the affected domain names appear here
+   * (sorted). Empty when the finding is a single-domain finding.
+   *
+   * @generated from field: repeated string rolled_up_domains = 6;
+   */
+  rolledUpDomains: string[];
 };
 
 /**
@@ -320,11 +341,20 @@ export type ConvergenceReportResponse = Message<"vrooli.architecture_cartographe
   authority: DomainSource;
 
   /**
-   * Disagreements, sorted by (kind, domain). Empty == full convergence.
+   * Disagreements, sorted by (kind, domain). Empty == full convergence
+   * (modulo any authority_fallback finding when the authority is inferred).
    *
    * @generated from field: repeated vrooli.architecture_cartographer.v1.domains.ConvergenceFinding findings = 3;
    */
   findings: ConvergenceFinding[];
+
+  /**
+   * Trust level of the authority rung. LOW means the report is
+   * comparing two inferred sets — interpret "no disagreements" carefully.
+   *
+   * @generated from field: vrooli.architecture_cartographer.v1.domains.AuthorityConfidence authority_confidence = 4;
+   */
+  authorityConfidence: AuthorityConfidence;
 };
 
 /**
@@ -391,6 +421,35 @@ export const DomainSourceSchema: GenEnum<DomainSource> = /*@__PURE__*/
   enumDesc(file_architecture_cartographer_v1_domains_domains, 0);
 
 /**
+ * AuthorityConfidence grades how trustworthy the resolved authority is.
+ * See DerivedDomainMap.authority_confidence for the semantics.
+ *
+ * @generated from enum vrooli.architecture_cartographer.v1.domains.AuthorityConfidence
+ */
+export enum AuthorityConfidence {
+  /**
+   * @generated from enum value: AUTHORITY_CONFIDENCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: AUTHORITY_CONFIDENCE_HIGH = 1;
+   */
+  HIGH = 1,
+
+  /**
+   * @generated from enum value: AUTHORITY_CONFIDENCE_LOW = 2;
+   */
+  LOW = 2,
+}
+
+/**
+ * Describes the enum vrooli.architecture_cartographer.v1.domains.AuthorityConfidence.
+ */
+export const AuthorityConfidenceSchema: GenEnum<AuthorityConfidence> = /*@__PURE__*/
+  enumDesc(file_architecture_cartographer_v1_domains_domains, 1);
+
+/**
  * ConvergenceSeverity grades how much a convergence finding matters.
  *
  * @generated from enum vrooli.architecture_cartographer.v1.domains.ConvergenceSeverity
@@ -420,7 +479,7 @@ export enum ConvergenceSeverity {
  * Describes the enum vrooli.architecture_cartographer.v1.domains.ConvergenceSeverity.
  */
 export const ConvergenceSeveritySchema: GenEnum<ConvergenceSeverity> = /*@__PURE__*/
-  enumDesc(file_architecture_cartographer_v1_domains_domains, 1);
+  enumDesc(file_architecture_cartographer_v1_domains_domains, 2);
 
 /**
  * @generated from service vrooli.architecture_cartographer.v1.domains.DomainsService

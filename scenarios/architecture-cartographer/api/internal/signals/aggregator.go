@@ -7,9 +7,17 @@ import (
 	"architecture-cartographer/internal/graph"
 )
 
-// Aggregator combines per-signal Scores into a Verdict, honoring
-// configured weights and the tier thresholds (defaults below, overridable
-// via the global control surface).
+// Aggregator combines per-signal ScoreResults into a Verdict, honoring
+// configured weights and the tier thresholds (defaults below,
+// overridable via the global control surface).
+//
+// Weight bookkeeping:
+//   - Every available signal that is invoked contributes its weight to
+//     the verdict denominator (weightSum), whether it returned Scores
+//     or an Abstention. This prevents abstentions from inflating
+//     the surviving signals' apparent contribution.
+//   - Unavailable signals (IsAvailable=false) are silently skipped and
+//     do NOT contribute weight; they aren't running.
 type Aggregator struct {
 	registry         *Registry
 	weights          map[string]float64
@@ -57,14 +65,15 @@ func (a *Aggregator) WithThresholds(autoPlace, suggest, tieDelta float64) *Aggre
 // Aggregate runs every registered + available signal against the chunk
 // and returns the verdict.
 func (a *Aggregator) Aggregate(ctx context.Context, gctx GraphContext, chunk graph.Chunk) Verdict {
-	scores := a.collect(ctx, gctx, chunk)
-	domainTotals, weightSum := a.sumByDomain(scores)
+	scores, abstentions, weightSum := a.collect(ctx, gctx, chunk)
+	domainTotals := sumByDomain(scores, a.weights)
 	domainValues := normalizeDomainValues(domainTotals, weightSum)
 
 	v := Verdict{
 		ChunkID:      chunk.ID,
 		ChunkPath:    chunk.Path,
 		Scores:       scores,
+		Abstentions:  abstentions,
 		DomainValues: domainValues,
 	}
 
@@ -96,48 +105,107 @@ func (a *Aggregator) Aggregate(ctx context.Context, gctx GraphContext, chunk gra
 	return v
 }
 
-func (a *Aggregator) collect(ctx context.Context, gctx GraphContext, chunk graph.Chunk) []Score {
-	var out []Score
+// collect runs every available signal, validates the self-explaining
+// invariant, and returns the (scores, abstentions, weightSum) triple.
+// Any invoked-and-available signal contributes its weight to weightSum
+// regardless of whether it scored or abstained.
+func (a *Aggregator) collect(ctx context.Context, gctx GraphContext, chunk graph.Chunk) ([]Score, []Abstention, float64) {
+	var scores []Score
+	var abstentions []Abstention
+	weightSum := 0.0
 	for _, s := range a.registry.All() {
 		if ok, _ := s.IsAvailable(ctx); !ok {
 			continue
 		}
-		scores := s.Score(ctx, gctx, chunk)
-		for _, sc := range scores {
-			if len(sc.Evidence) == 0 {
-				// Broken signal: drop the score.
-				continue
-			}
-			out = append(out, sc)
+		name := s.Name()
+		weight := a.weights[name]
+		result := s.Score(ctx, gctx, chunk)
+		// Self-explaining invariant: a signal must emit either non-empty
+		// Scores (each with ≥1 Evidence) or a non-nil Abstention with
+		// ≥1 Evidence. Anything else is a contract violation; we
+		// synthesize a diagnostic abstention so the breakage surfaces in
+		// the verdict instead of being silently dropped.
+		validScores := validScores(result.Scores, name)
+		validAbstention := validAbstention(result.Abstention, name)
+
+		switch {
+		case len(validScores) > 0:
+			scores = append(scores, validScores...)
+			weightSum += weight
+		case validAbstention != nil:
+			abstentions = append(abstentions, *validAbstention)
+			weightSum += weight
+		default:
+			abstentions = append(abstentions, Abstention{
+				Signal: name,
+				Reason: "signal returned empty ScoreResult (broken self-explaining contract)",
+				Evidence: []Evidence{{
+					Kind:    "broken_contract",
+					Summary: "signal " + name + " returned no Scores and no Abstention",
+					Locator: chunk.Path,
+				}},
+			})
+			weightSum += weight
 		}
 	}
-	sort.SliceStable(out, func(i, j int) bool {
-		if out[i].Signal != out[j].Signal {
-			return out[i].Signal < out[j].Signal
+	sort.SliceStable(scores, func(i, j int) bool {
+		if scores[i].Signal != scores[j].Signal {
+			return scores[i].Signal < scores[j].Signal
 		}
-		return out[i].Domain < out[j].Domain
+		return scores[i].Domain < scores[j].Domain
 	})
+	sort.SliceStable(abstentions, func(i, j int) bool {
+		return abstentions[i].Signal < abstentions[j].Signal
+	})
+	return scores, abstentions, weightSum
+}
+
+// validScores filters out Scores that lack Evidence (contract
+// violation) so they don't contribute to the numerator but the
+// signal's weight still counts in the denominator.
+func validScores(in []Score, signal string) []Score {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]Score, 0, len(in))
+	for _, s := range in {
+		if len(s.Evidence) == 0 {
+			continue
+		}
+		if s.Signal == "" {
+			s.Signal = signal
+		}
+		out = append(out, s)
+	}
 	return out
 }
 
-func (a *Aggregator) sumByDomain(scores []Score) (map[string]float64, float64) {
+// validAbstention enforces the Reason + ≥1 Evidence contract on an
+// emitted Abstention. Returns nil if the abstention is missing either.
+func validAbstention(in *Abstention, signal string) *Abstention {
+	if in == nil {
+		return nil
+	}
+	if in.Reason == "" || len(in.Evidence) == 0 {
+		return nil
+	}
+	cp := *in
+	if cp.Signal == "" {
+		cp.Signal = signal
+	}
+	return &cp
+}
+
+func sumByDomain(scores []Score, weights map[string]float64) map[string]float64 {
 	totals := make(map[string]float64)
-	weightSum := 0.0
-	weightsUsed := make(map[string]struct{})
 	for _, s := range scores {
-		w := a.weights[s.Signal]
+		w := weights[s.Signal]
 		if w == 0 {
 			continue
 		}
 		totals[s.Domain] += w * s.Value
-		// Each signal contributes its weight once to the denominator,
-		// regardless of how many candidate domains it scored.
-		if _, seen := weightsUsed[s.Signal]; !seen {
-			weightSum += w
-			weightsUsed[s.Signal] = struct{}{}
-		}
 	}
-	return totals, weightSum
+	return totals
 }
 
 func normalizeDomainValues(totals map[string]float64, weightSum float64) []DomainValue {

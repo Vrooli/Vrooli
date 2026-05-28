@@ -15,10 +15,15 @@ import (
 // FakeSignal is a deterministic signal whose Score() returns canned
 // values. Used by aggregator tests to drive tier dispatch + tie
 // handling without standing up real day-one signals.
+//
+// Set Returns to emit scores; set Abstain to emit an abstention.
+// If both are zero, FakeSignal returns an empty ScoreResult so tests
+// can exercise the aggregator's broken-contract synthesis path.
 type FakeSignal struct {
 	NameValue      string
 	Weight         float64
 	Returns        []signals.Score
+	Abstain        *signals.Abstention
 	Available      bool
 	UnavailableMsg string
 
@@ -27,10 +32,17 @@ type FakeSignal struct {
 
 func (f *FakeSignal) Name() string           { return f.NameValue }
 func (f *FakeSignal) DefaultWeight() float64 { return f.Weight }
-func (f *FakeSignal) Score(_ context.Context, _ signals.GraphContext, _ graph.Chunk) []signals.Score {
+func (f *FakeSignal) Score(_ context.Context, _ signals.GraphContext, _ graph.Chunk) signals.ScoreResult {
 	f.ScoreCalls.Add(1)
-	out := make([]signals.Score, len(f.Returns))
-	copy(out, f.Returns)
+	out := signals.ScoreResult{}
+	if len(f.Returns) > 0 {
+		out.Scores = make([]signals.Score, len(f.Returns))
+		copy(out.Scores, f.Returns)
+	}
+	if f.Abstain != nil {
+		cp := *f.Abstain
+		out.Abstention = &cp
+	}
 	return out
 }
 
@@ -85,13 +97,32 @@ var _ signals.DomainMapProvider = (*FakeDomainMapProvider)(nil)
 // FakeService satisfies signals.Service for handler tests.
 type FakeService struct {
 	Verdict       signals.Verdict
+	BatchVerdicts []signals.Verdict
 	Signals       []signals.SignalDescriptor
 	Boundary      boundaries.Report
 	NextErr       error
 	ScoreCalls    atomic.Int64
+	BatchCalls    atomic.Int64
 	ExplainCalls  atomic.Int64
 	ListCalls     atomic.Int64
 	BoundaryCalls atomic.Int64
+}
+
+// ScoreBatch returns the canned batch verdict slice (or, when nil, a
+// slice filled with the single Verdict value).
+func (f *FakeService) ScoreBatch(_ context.Context, in signals.ScoreBatchInput) ([]signals.Verdict, error) {
+	f.BatchCalls.Add(1)
+	if f.NextErr != nil {
+		return nil, f.NextErr
+	}
+	if f.BatchVerdicts != nil {
+		return f.BatchVerdicts, nil
+	}
+	out := make([]signals.Verdict, len(in.Chunks))
+	for i := range in.Chunks {
+		out[i] = f.Verdict
+	}
+	return out, nil
 }
 
 // BoundaryHealth returns the canned report.

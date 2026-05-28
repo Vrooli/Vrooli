@@ -79,19 +79,19 @@ export function buildGraphLayout(
     fileById.set(file.id, file);
   }
 
-  // Map file path → domain via the package directory. Cartographer's proto
+  // Map file path → domain via the package repo path. Cartographer's proto
   // doesn't (yet) attach a domain to the file directly, so we derive it
-  // from the package's top directory segment when available.
+  // from the package's top repo-path segment when available.
   const packageById = new Map<string, GraphSnapshot["packages"][number]>();
   for (const pkg of snapshot.packages) {
     packageById.set(pkg.id, pkg);
   }
   const domainForFile = (file: GraphSnapshot["files"][number]): string => {
     const pkg = packageById.get(file.packageId);
-    if (pkg === undefined || pkg.directory.length === 0) return "";
+    if (pkg === undefined || pkg.repoPath.length === 0) return "";
     // First path segment is the conventional domain root in cartographer's
     // own layout (e.g., "api/internal/<domain>/…").
-    const segments = pkg.directory.split("/").filter((s) => s.length > 0);
+    const segments = pkg.repoPath.split("/").filter((s) => s.length > 0);
     return segments.length > 0 ? (segments[0] ?? "") : "";
   };
 

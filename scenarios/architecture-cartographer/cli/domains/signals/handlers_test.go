@@ -74,12 +74,12 @@ func TestScore_RendersVerdictWithoutEvidence(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, scoreSchema(), cliapptest.TestRunContextOptions{
-		Positionals: map[string]string{"scenario": "demo", "file_id": "f-1"},
+		Positionals: map[string]string{"scenario": "demo", "file": "file:f-1"},
 	})
 
 	require.NoError(t, h.score(ctx))
 	require.Len(t, svc.scoreReqs, 1)
-	require.Equal(t, "f-1", svc.scoreReqs[0].GetFileId())
+	require.Equal(t, "file:f-1", svc.scoreReqs[0].GetFileId())
 	body := out.String()
 	require.Contains(t, body, "tier=auto_place")
 	require.Contains(t, body, "top=graph")
@@ -92,7 +92,7 @@ func TestExplain_RendersEvidence(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, scoreSchema(), cliapptest.TestRunContextOptions{
-		Positionals: map[string]string{"scenario": "demo", "file_id": "f-1"},
+		Positionals: map[string]string{"scenario": "demo", "file": "file:f-1"},
 	})
 
 	require.NoError(t, h.explain(ctx))
@@ -121,7 +121,7 @@ func scoreSchema() cliapp.ArgSchema {
 	return cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{
 			{Name: "scenario", Required: true},
-			{Name: "file_id", Required: true},
+			{Name: "file", Required: true},
 		},
 	}
 }

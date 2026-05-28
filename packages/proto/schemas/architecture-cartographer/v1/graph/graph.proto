@@ -62,14 +62,13 @@ message PackageNode {
   string id = 1;
   // Canonical import path (e.g., "github.com/x/y/z" or "@vrooli/foo").
   string import_path = 2;
-  // Repo-relative directory containing the package (best-effort; empty
-  // when the package is external / outside the target scenario).
-  string directory = 3;
+  // Repo-relative filesystem directory containing the package
+  // (slash-separated, no leading slash, e.g. "api/internal/graph").
+  // Empty when the package is external / outside the target scenario.
+  // This is the single key used to map a package to a domain.
+  string repo_path = 3;
   // Source language.
   Language language = 4;
-  // True when the package belongs to the target scenario (false for
-  // standard library, third-party deps, or other scenarios).
-  bool internal = 5;
 }
 
 // SymbolNode is one exported identifier (function, type, constant, etc.).

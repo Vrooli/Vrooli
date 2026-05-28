@@ -18,6 +18,8 @@
     { "name": "apply baseline",            "description": "Show the toolchain build baseline (empty in v0.1)",                 "endpoint_id": "apply.get-build-baseline" },
     { "name": "apply suppress",            "description": "Write an in-repo // arch:allow suppression marker",                  "endpoint_id": "apply.write-suppression" },
 
+    { "name": "audit run",                 "description": "Run a CI-shaped drift audit (graph extract → domains → conflicts)",  "endpoint_id": "audit.run" },
+
     { "name": "conflicts detect",          "description": "Detect + persist conflicts for a scenario",                         "endpoint_id": "conflicts.detect" },
     { "name": "conflicts list",            "description": "List persisted conflicts for a scenario",                           "endpoint_id": "conflicts.list" },
     { "name": "conflicts show",            "description": "Show one persisted conflict",                                       "endpoint_id": "conflicts.get" },

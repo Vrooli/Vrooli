@@ -52,9 +52,15 @@ Five invariants are non-negotiable:
 2. **No graph mutation** — signals receive an immutable graph
    snapshot and cannot modify it. This makes scoring parallelizable
    and reproducible.
-3. **Self-explaining** — every `Score` must carry a non-empty
-   `Reason` and at least one `Evidence` entry. A signal that cannot
-   explain itself cannot be used in the ladder.
+3. **Self-explaining** — nothing is returned without explanation.
+   Every `Score` carries a non-empty `Reason` and ≥1 `Evidence`.
+   A signal that has no data for a chunk emits an explicit
+   `Abstention` (also with `Reason` + ≥1 `Evidence`) — never an
+   empty `ScoreResult`. The aggregator includes abstaining signals'
+   weights in the verdict denominator so abstentions cannot inflate
+   the surviving signals' apparent contribution; a "silent skip"
+   would amount to letting one signal hide while another speaks
+   louder.
 4. **Bounded** — `Score.Value` is always in `[0.0, 1.0]`. No
    negative scores; no scores above 1.0. Aggregation logic depends
    on this.

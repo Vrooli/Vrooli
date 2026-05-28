@@ -110,11 +110,15 @@ func DefaultConfig() Config {
 // package to its owning domain (via the derived map), lifts production
 // import edges to domain→domain dependencies, and scores each domain.
 func Analyze(scenario string, snap graph.GraphSnapshot, m domains.DerivedDomainMap, cfg Config) Report {
+	// Every package the snapshot extracted is by definition first-party
+	// for this scenario; stdlib/third-party never appears here. The
+	// snapshot's own package set IS the "internal" set — there is no
+	// separate Internal flag to gate on.
 	pkgDir := make(map[string]string, len(snap.Packages))
-	internal := make(map[string]bool, len(snap.Packages))
+	inScenario := make(map[string]bool, len(snap.Packages))
 	for _, p := range snap.Packages {
-		pkgDir[p.ID] = p.Directory
-		internal[p.ID] = p.Internal
+		pkgDir[p.ID] = p.RepoPath
+		inScenario[p.ID] = true
 	}
 	fileToPkg := make(map[string]string, len(snap.Files))
 	for _, f := range snap.Files {
@@ -155,7 +159,7 @@ func Analyze(scenario string, snap graph.GraphSnapshot, m domains.DerivedDomainM
 		if p, ok := fileToPkg[e.From]; ok {
 			fromPkg = p
 		}
-		if !internal[fromPkg] || !internal[e.ToPackageID] {
+		if !inScenario[fromPkg] || !inScenario[e.ToPackageID] {
 			continue
 		}
 		fromDom := domainOf(fromPkg)
