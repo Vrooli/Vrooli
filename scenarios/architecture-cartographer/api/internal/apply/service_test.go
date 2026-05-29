@@ -32,19 +32,17 @@ func TestService_PlanApply_GeneratesDeterministicOperations(t *testing.T) {
 	lister := &mocks.FakeConflictLister{
 		Conflicts: []conflicts.Conflict{
 			{
-				ID:             "c-1",
-				Scenario:       "demo",
-				Status:         conflicts.ResolutionStatusResolved,
-				AssignedDomain: "graph",
+				ID:       "c-1",
+				Scenario: "demo",
+				Domains:  []string{"graph"},
 				SuggestedFixes: []conflicts.Fix{
 					{ID: "f-1", Kind: conflicts.FixKindMoveFile, Resolver: "mislocated_file"},
 				},
 			},
 			{
-				ID:             "c-2",
-				Scenario:       "demo",
-				Status:         conflicts.ResolutionStatusResolved,
-				AssignedDomain: "domains", // different domain — should be excluded
+				ID:       "c-2",
+				Scenario: "demo",
+				Domains:  []string{"domains"}, // different domain — should be excluded
 				SuggestedFixes: []conflicts.Fix{
 					{ID: "f-2", Kind: conflicts.FixKindMoveFile, Resolver: "mislocated_file"},
 				},

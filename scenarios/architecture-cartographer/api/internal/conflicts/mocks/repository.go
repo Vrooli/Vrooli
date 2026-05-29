@@ -20,12 +20,10 @@ type FakeRepository struct {
 
 	UpsertErr error
 	GetErr    error
-	UpdateErr error
 	ListErr   error
 
 	UpsertCalls atomic.Int64
 	GetCalls    atomic.Int64
-	UpdateCalls atomic.Int64
 	ListCalls   atomic.Int64
 }
 
@@ -69,31 +67,6 @@ func (f *FakeRepository) GetConflict(_ context.Context, id string) (conflicts.Co
 	return conflicts.Conflict{}, conflicts.ErrConflictNotFound{ID: id}
 }
 
-func (f *FakeRepository) UpdateStatus(_ context.Context, id string, status conflicts.ResolutionStatus, note, assigned string) (conflicts.Conflict, error) {
-	f.UpdateCalls.Add(1)
-	if f.UpdateErr != nil {
-		return conflicts.Conflict{}, f.UpdateErr
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	for i, c := range f.Conflicts {
-		if c.ID != id {
-			continue
-		}
-		c.Status = status
-		if note != "" {
-			c.ResolutionNote = note
-		}
-		if assigned != "" {
-			c.AssignedDomain = assigned
-		}
-		c.UpdatedAt = time.Now().UTC()
-		f.Conflicts[i] = c
-		return c, nil
-	}
-	return conflicts.Conflict{}, conflicts.ErrConflictNotFound{ID: id}
-}
-
 func (f *FakeRepository) ListConflicts(_ context.Context, filter conflicts.ListConflictsFilter) (conflicts.ConflictPage, error) {
 	f.ListCalls.Add(1)
 	if f.ListErr != nil {
@@ -105,18 +78,6 @@ func (f *FakeRepository) ListConflicts(_ context.Context, filter conflicts.ListC
 	for _, c := range f.Conflicts {
 		if filter.Scenario != "" && c.Scenario != filter.Scenario {
 			continue
-		}
-		if len(filter.Statuses) > 0 {
-			matched := false
-			for _, s := range filter.Statuses {
-				if s == c.Status {
-					matched = true
-					break
-				}
-			}
-			if !matched {
-				continue
-			}
 		}
 		if len(filter.Types) > 0 {
 			matched := false

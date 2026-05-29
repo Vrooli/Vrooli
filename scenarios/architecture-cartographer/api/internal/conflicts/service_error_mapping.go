@@ -12,18 +12,15 @@ func ErrorToConnectCode(err error) connect.Code {
 		return 0
 	}
 	var (
-		notFound      ErrConflictNotFound
-		invAssignment ErrInvalidAssignment
-		invTransition ErrInvalidTransition
-		deferred      ErrResolverDeferred
+		notFound ErrConflictNotFound
+		invInput ErrInvalidInput
+		deferred ErrResolverDeferred
 	)
 	switch {
 	case errors.As(err, &notFound):
 		return connect.CodeNotFound
-	case errors.As(err, &invAssignment):
+	case errors.As(err, &invInput):
 		return connect.CodeInvalidArgument
-	case errors.As(err, &invTransition):
-		return connect.CodeFailedPrecondition
 	case errors.As(err, &deferred):
 		// Deferred is not surfaced as a Connect error; handlers render
 		// the deferral as part of the response body. The zero Code is

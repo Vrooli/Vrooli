@@ -36,6 +36,9 @@ const (
 	// MigrationServiceCreateMigrationProcedure is the fully-qualified name of the MigrationService's
 	// CreateMigration RPC.
 	MigrationServiceCreateMigrationProcedure = "/vrooli.architecture_cartographer.v1.migration.MigrationService/CreateMigration"
+	// MigrationServiceListMigrationsProcedure is the fully-qualified name of the MigrationService's
+	// ListMigrations RPC.
+	MigrationServiceListMigrationsProcedure = "/vrooli.architecture_cartographer.v1.migration.MigrationService/ListMigrations"
 	// MigrationServiceGetMigrationStatusProcedure is the fully-qualified name of the MigrationService's
 	// GetMigrationStatus RPC.
 	MigrationServiceGetMigrationStatusProcedure = "/vrooli.architecture_cartographer.v1.migration.MigrationService/GetMigrationStatus"
@@ -62,6 +65,13 @@ type MigrationServiceClient interface {
 	// CreateMigration opens a migration for a scenario and ingests the
 	// initial findings (all start DETECTED).
 	CreateMigration(context.Context, *connect.Request[migration.CreateMigrationRequest]) (*connect.Response[migration.CreateMigrationResponse], error)
+	// ListMigrations returns the migrations for a scenario (newest first),
+	// or every migration when scenario is empty. Lightweight: the Migration
+	// headers only, not the full per-finding projection — callers fetch
+	// GetMigrationStatus for the one they select. This is the discovery seam
+	// the UI needs to surface a scenario's migrations without already knowing
+	// their ids.
+	ListMigrations(context.Context, *connect.Request[migration.ListMigrationsRequest]) (*connect.Response[migration.ListMigrationsResponse], error)
 	// GetMigrationStatus returns the migration plus every tracked finding
 	// and rollups.
 	GetMigrationStatus(context.Context, *connect.Request[migration.GetMigrationStatusRequest]) (*connect.Response[migration.GetMigrationStatusResponse], error)
@@ -97,6 +107,12 @@ func NewMigrationServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+MigrationServiceCreateMigrationProcedure,
 			connect.WithSchema(migrationServiceMethods.ByName("CreateMigration")),
+			connect.WithClientOptions(opts...),
+		),
+		listMigrations: connect.NewClient[migration.ListMigrationsRequest, migration.ListMigrationsResponse](
+			httpClient,
+			baseURL+MigrationServiceListMigrationsProcedure,
+			connect.WithSchema(migrationServiceMethods.ByName("ListMigrations")),
 			connect.WithClientOptions(opts...),
 		),
 		getMigrationStatus: connect.NewClient[migration.GetMigrationStatusRequest, migration.GetMigrationStatusResponse](
@@ -141,6 +157,7 @@ func NewMigrationServiceClient(httpClient connect.HTTPClient, baseURL string, op
 // migrationServiceClient implements MigrationServiceClient.
 type migrationServiceClient struct {
 	createMigration    *connect.Client[migration.CreateMigrationRequest, migration.CreateMigrationResponse]
+	listMigrations     *connect.Client[migration.ListMigrationsRequest, migration.ListMigrationsResponse]
 	getMigrationStatus *connect.Client[migration.GetMigrationStatusRequest, migration.GetMigrationStatusResponse]
 	nextMigrationStep  *connect.Client[migration.NextMigrationStepRequest, migration.NextMigrationStepResponse]
 	resolveFinding     *connect.Client[migration.ResolveFindingRequest, migration.ResolveFindingResponse]
@@ -153,6 +170,12 @@ type migrationServiceClient struct {
 // vrooli.architecture_cartographer.v1.migration.MigrationService.CreateMigration.
 func (c *migrationServiceClient) CreateMigration(ctx context.Context, req *connect.Request[migration.CreateMigrationRequest]) (*connect.Response[migration.CreateMigrationResponse], error) {
 	return c.createMigration.CallUnary(ctx, req)
+}
+
+// ListMigrations calls
+// vrooli.architecture_cartographer.v1.migration.MigrationService.ListMigrations.
+func (c *migrationServiceClient) ListMigrations(ctx context.Context, req *connect.Request[migration.ListMigrationsRequest]) (*connect.Response[migration.ListMigrationsResponse], error) {
+	return c.listMigrations.CallUnary(ctx, req)
 }
 
 // GetMigrationStatus calls
@@ -196,6 +219,13 @@ type MigrationServiceHandler interface {
 	// CreateMigration opens a migration for a scenario and ingests the
 	// initial findings (all start DETECTED).
 	CreateMigration(context.Context, *connect.Request[migration.CreateMigrationRequest]) (*connect.Response[migration.CreateMigrationResponse], error)
+	// ListMigrations returns the migrations for a scenario (newest first),
+	// or every migration when scenario is empty. Lightweight: the Migration
+	// headers only, not the full per-finding projection — callers fetch
+	// GetMigrationStatus for the one they select. This is the discovery seam
+	// the UI needs to surface a scenario's migrations without already knowing
+	// their ids.
+	ListMigrations(context.Context, *connect.Request[migration.ListMigrationsRequest]) (*connect.Response[migration.ListMigrationsResponse], error)
 	// GetMigrationStatus returns the migration plus every tracked finding
 	// and rollups.
 	GetMigrationStatus(context.Context, *connect.Request[migration.GetMigrationStatusRequest]) (*connect.Response[migration.GetMigrationStatusResponse], error)
@@ -226,6 +256,12 @@ func NewMigrationServiceHandler(svc MigrationServiceHandler, opts ...connect.Han
 		MigrationServiceCreateMigrationProcedure,
 		svc.CreateMigration,
 		connect.WithSchema(migrationServiceMethods.ByName("CreateMigration")),
+		connect.WithHandlerOptions(opts...),
+	)
+	migrationServiceListMigrationsHandler := connect.NewUnaryHandler(
+		MigrationServiceListMigrationsProcedure,
+		svc.ListMigrations,
+		connect.WithSchema(migrationServiceMethods.ByName("ListMigrations")),
 		connect.WithHandlerOptions(opts...),
 	)
 	migrationServiceGetMigrationStatusHandler := connect.NewUnaryHandler(
@@ -268,6 +304,8 @@ func NewMigrationServiceHandler(svc MigrationServiceHandler, opts ...connect.Han
 		switch r.URL.Path {
 		case MigrationServiceCreateMigrationProcedure:
 			migrationServiceCreateMigrationHandler.ServeHTTP(w, r)
+		case MigrationServiceListMigrationsProcedure:
+			migrationServiceListMigrationsHandler.ServeHTTP(w, r)
 		case MigrationServiceGetMigrationStatusProcedure:
 			migrationServiceGetMigrationStatusHandler.ServeHTTP(w, r)
 		case MigrationServiceNextMigrationStepProcedure:
@@ -291,6 +329,10 @@ type UnimplementedMigrationServiceHandler struct{}
 
 func (UnimplementedMigrationServiceHandler) CreateMigration(context.Context, *connect.Request[migration.CreateMigrationRequest]) (*connect.Response[migration.CreateMigrationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.migration.MigrationService.CreateMigration is not implemented"))
+}
+
+func (UnimplementedMigrationServiceHandler) ListMigrations(context.Context, *connect.Request[migration.ListMigrationsRequest]) (*connect.Response[migration.ListMigrationsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.migration.MigrationService.ListMigrations is not implemented"))
 }
 
 func (UnimplementedMigrationServiceHandler) GetMigrationStatus(context.Context, *connect.Request[migration.GetMigrationStatusRequest]) (*connect.Response[migration.GetMigrationStatusResponse], error) {

@@ -114,18 +114,6 @@ func (f *FakeConflictLister) ListConflicts(_ context.Context, filter conflicts.L
 		if filter.Scenario != "" && c.Scenario != filter.Scenario {
 			continue
 		}
-		if len(filter.Statuses) > 0 {
-			matched := false
-			for _, s := range filter.Statuses {
-				if s == c.Status {
-					matched = true
-					break
-				}
-			}
-			if !matched {
-				continue
-			}
-		}
 		out = append(out, c)
 	}
 	return conflicts.ConflictPage{Conflicts: out}, nil

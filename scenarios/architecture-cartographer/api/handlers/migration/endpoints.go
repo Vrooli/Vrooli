@@ -18,6 +18,15 @@ var Endpoints = []module.EndpointDescriptor{
 		CLIMapping:  &module.CLIMapping{Command: "arch-cart migration create"},
 	},
 	{
+		ID:          "migration.list",
+		Path:        migration_v1connect.MigrationServiceListMigrationsProcedure,
+		Method:      "POST",
+		Summary:     "List a scenario's migrations",
+		Description: "Returns the migration headers for a scenario (newest first), or every migration when scenario is empty.",
+		Category:    "migration",
+		CLIMapping:  &module.CLIMapping{Command: "arch-cart migration list"},
+	},
+	{
 		ID:          "migration.status",
 		Path:        migration_v1connect.MigrationServiceGetMigrationStatusProcedure,
 		Method:      "POST",

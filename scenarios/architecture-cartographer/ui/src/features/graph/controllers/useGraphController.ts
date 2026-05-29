@@ -86,7 +86,6 @@ export function useGraphWorkspace(scenario: string, snapshotId?: string) {
     queryFn: () =>
       conflictsClient.listConflicts({
         scenario,
-        statuses: [],
         types: [],
         pageSize: 200,
         pageToken: "",

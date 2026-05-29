@@ -49,6 +49,18 @@ func (h *Handler) CreateMigration(ctx context.Context, req *connect.Request[migr
 	return connect.NewResponse(&migrationv1.CreateMigrationResponse{Status: statusProjectionToProto(st)}), nil
 }
 
+func (h *Handler) ListMigrations(ctx context.Context, req *connect.Request[migrationv1.ListMigrationsRequest]) (*connect.Response[migrationv1.ListMigrationsResponse], error) {
+	ms, err := h.svc.List(ctx, req.Msg.GetScenario())
+	if err != nil {
+		return nil, connect.NewError(errorToConnectCode(err), err)
+	}
+	out := make([]*migrationv1.Migration, 0, len(ms))
+	for _, m := range ms {
+		out = append(out, migrationToProto(m))
+	}
+	return connect.NewResponse(&migrationv1.ListMigrationsResponse{Migrations: out}), nil
+}
+
 func (h *Handler) GetMigrationStatus(ctx context.Context, req *connect.Request[migrationv1.GetMigrationStatusRequest]) (*connect.Response[migrationv1.GetMigrationStatusResponse], error) {
 	st, err := h.svc.Status(ctx, req.Msg.GetMigrationId())
 	if err != nil {

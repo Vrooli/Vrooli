@@ -115,7 +115,6 @@ describe("useGraphWorkspace", () => {
     expect(domainsClient.getDomainMap).toHaveBeenCalled();
     expect(conflictsClient.listConflicts).toHaveBeenCalledWith({
       scenario: "demo",
-      statuses: [],
       types: [],
       pageSize: 200,
       pageToken: "",

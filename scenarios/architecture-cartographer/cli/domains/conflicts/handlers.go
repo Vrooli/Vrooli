@@ -18,6 +18,10 @@ import (
 
 // handlers bundles the closure over *cliapp.ScenarioApp so each
 // RunCtx-func has typed access to the Connect client without re-resolving it.
+//
+// The conflicts domain is DETECTION-ONLY: detect / list / show / explain /
+// validate read the current photograph. Walking findings through a
+// lifecycle lives in the `migration` command group (MigrationService).
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client conflictsconnect.ConflictsServiceClient
@@ -48,7 +52,7 @@ func (h *handlers) detect(ctx cliapp.RunContext) error {
 	}
 	return renderConflictList(ctx, resp.Msg, resp.Msg.GetConflicts(),
 		fmt.Sprintf("Detected %d conflict(s) for %q.", len(resp.Msg.GetConflicts()), scenario),
-		fmt.Sprintf("`conflicts list %s` shows the persisted set with lifecycle status.", scenario))
+		fmt.Sprintf("`migration create %s --from-audit <report.json>` to start tracking them toward zero.", scenario))
 }
 
 // list paginates the persisted conflicts for a scenario.
@@ -65,13 +69,6 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 			return fmt.Errorf("--page-size must be an integer: %w", err)
 		}
 		req.PageSize = int32(n)
-	}
-	for _, s := range cliutil.ParseCSV(ctx.Flag("status")) {
-		status, ok := parseStatus(s)
-		if !ok {
-			return fmt.Errorf("unknown --status %q (want one of: %s)", s, strings.Join(statusNames(), ", "))
-		}
-		req.Statuses = append(req.Statuses, status)
 	}
 	resp, err := h.client.ListConflicts(context.Background(), connect.NewRequest(req))
 	if err != nil {
@@ -102,184 +99,18 @@ func (h *handlers) show(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no conflict")
 	}
 	c := resp.Msg.GetConflict()
-
-	lines := []string{
-		fmt.Sprintf("what     : %s (%s)", c.GetType(), c.GetSubtype()),
-		fmt.Sprintf("severity : %s", severityName(c.GetSeverity())),
-		fmt.Sprintf("status   : %s", statusName(c.GetStatus())),
-		fmt.Sprintf("stable_id: %s", c.GetStableId()),
-	}
-	if iid := c.GetInstanceId(); iid != "" {
-		lines = append(lines, fmt.Sprintf("instance : %s (this run)", iid))
-	}
-	if locs := c.GetLocations(); len(locs) > 0 {
-		lines = append(lines, "where    : "+strings.Join(locs, ", "))
-	}
-	if doms := c.GetDomains(); len(doms) > 0 {
-		lines = append(lines, "domains  : "+strings.Join(doms, ", "))
-	}
-	if c.GetSuppressed() {
-		lines = append(lines, fmt.Sprintf("suppress : sanctioned (%s)", c.GetSuppressionReason()))
-	}
-	lines = append(lines, "")
-	lines = append(lines, "why:")
-	for _, e := range c.GetEvidence() {
-		lines = append(lines, fmt.Sprintf("  - [%s] %s", e.GetKind(), e.GetSummary()))
-	}
-	if fixes := c.GetSuggestedFixes(); len(fixes) > 0 {
-		lines = append(lines, "")
-		lines = append(lines, "next:")
-		for _, f := range fixes {
-			lines = append(lines, fmt.Sprintf("  - %s via %s — %s (confidence %.2f)",
-				fixKindName(f.GetKind()), f.GetResolver(), f.GetSummary(), f.GetConfidence()))
-		}
-	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Conflict %s (%s).", c.GetId(), statusName(c.GetStatus()))},
+		Summary:        []string{fmt.Sprintf("Conflict %s.", c.GetId())},
 		ResultsHeading: "Detail",
-		Results:        lines,
+		Results:        conflictDetailLines(c),
 		RetrievalHints: []string{
-			fmt.Sprintf("`conflicts assign %s --domain <domain>` to record the owning domain.", c.GetId()),
-			fmt.Sprintf("`conflicts resolve %s` to mark it resolved (add --force to ignore).", c.GetId()),
+			fmt.Sprintf("`migration create %s --from-audit <report.json>` to track this and its siblings toward zero.", c.GetScenario()),
 		},
 	})
 }
 
-// (The `conflicts explain` subcommand reuses ConflictsService.GetConflict;
-// LoadFromManifest routes both `show` and `explain` to h.show via the
-// shared binding key.)
-
-// explain renders one conflict by stable_id with the operator-focused
-// "what / where / why / next" framing. It calls the same GetConflict
-// RPC as show but lays the response out so the reader does not need to
-// jump between sections to understand a finding.
-func (h *handlers) explain(ctx cliapp.RunContext) error {
-	id := ctx.Positional("stable-id")
-	resp, err := h.client.GetConflict(context.Background(), connect.NewRequest(&conflictsv1.GetConflictRequest{Id: id}))
-	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("explain conflict %q", id), err, nil)
-	}
-	if resp == nil || resp.Msg == nil || resp.Msg.GetConflict() == nil {
-		return fmt.Errorf("server returned no conflict for stable_id=%q", id)
-	}
-	c := resp.Msg.GetConflict()
-
-	lines := []string{
-		fmt.Sprintf("what     : %s (%s)", c.GetType(), c.GetSubtype()),
-		fmt.Sprintf("severity : %s", severityName(c.GetSeverity())),
-		fmt.Sprintf("status   : %s", statusName(c.GetStatus())),
-		fmt.Sprintf("stable_id: %s", c.GetStableId()),
-	}
-	if iid := c.GetInstanceId(); iid != "" {
-		lines = append(lines, fmt.Sprintf("instance : %s (this run)", iid))
-	}
-	if locs := c.GetLocations(); len(locs) > 0 {
-		lines = append(lines, "where    : "+strings.Join(locs, ", "))
-	}
-	if doms := c.GetDomains(); len(doms) > 0 {
-		lines = append(lines, "domains  : "+strings.Join(doms, ", "))
-	}
-	if c.GetSuppressed() {
-		lines = append(lines, fmt.Sprintf("suppress : sanctioned (%s)", c.GetSuppressionReason()))
-	}
-	lines = append(lines, "")
-	lines = append(lines, "why:")
-	for _, e := range c.GetEvidence() {
-		lines = append(lines, fmt.Sprintf("  - [%s] %s", e.GetKind(), e.GetSummary()))
-	}
-	if fixes := c.GetSuggestedFixes(); len(fixes) > 0 {
-		lines = append(lines, "")
-		lines = append(lines, "next:")
-		for _, f := range fixes {
-			lines = append(lines, fmt.Sprintf("  - %s via %s — %s",
-				fixKindName(f.GetKind()), f.GetResolver(), f.GetSummary()))
-		}
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Explanation for %s.", c.GetStableId())},
-		ResultsHeading: "Conflict",
-		Results:        lines,
-		RetrievalHints: []string{
-			fmt.Sprintf("`conflicts assign %s --domain <domain>` to record the owning domain.", c.GetStableId()),
-			fmt.Sprintf("`conflicts resolve %s` to mark it resolved (add --force to ignore).", c.GetStableId()),
-		},
-	})
-}
-
-// assign moves a conflict to ASSIGNED with the operator's chosen domain.
-func (h *handlers) assign(ctx cliapp.RunContext) error {
-	id := ctx.Positional("id")
-	resp, err := h.client.AssignConflict(context.Background(), connect.NewRequest(&conflictsv1.AssignConflictRequest{
-		Id:     id,
-		Domain: ctx.Flag("domain"),
-		Note:   ctx.Flag("note"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("assign conflict %q", id), err, nil)
-	}
-	if resp == nil || resp.Msg == nil || resp.Msg.GetConflict() == nil {
-		return fmt.Errorf("server returned no conflict")
-	}
-	c := resp.Msg.GetConflict()
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{mutationResult(resp.Msg.GetDryRun(),
-			fmt.Sprintf("Assigned conflict %s to %q.", c.GetId(), c.GetAssignedDomain()))},
-		Changes:     []string{conflictLine(c)},
-		NextCommand: []string{fmt.Sprintf("`conflicts resolve %s` once the move is planned.", c.GetId())},
-	})
-}
-
-// resolve moves a conflict to RESOLVED (or FORCE_RESOLVED with --force).
-func (h *handlers) resolve(ctx cliapp.RunContext) error {
-	id := ctx.Positional("id")
-	resp, err := h.client.ResolveConflict(context.Background(), connect.NewRequest(&conflictsv1.ResolveConflictRequest{
-		Id:    id,
-		Note:  ctx.Flag("note"),
-		Force: ctx.BoolFlag("force"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("resolve conflict %q", id), err, nil)
-	}
-	if resp == nil || resp.Msg == nil || resp.Msg.GetConflict() == nil {
-		return fmt.Errorf("server returned no conflict")
-	}
-	c := resp.Msg.GetConflict()
-	changes := []string{conflictLine(c)}
-	if resp.Msg.GetApplyDeferred() {
-		changes = append(changes, "Note: the chosen fix requires file movement, which `apply` defers in v0.1 (execution is unimplemented).")
-	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{mutationResult(resp.Msg.GetDryRun(),
-			fmt.Sprintf("Resolved conflict %s (%s).", c.GetId(), statusName(c.GetStatus())))},
-		Changes:     changes,
-		NextCommand: []string{fmt.Sprintf("`conflicts validate %s` to confirm closure.", c.GetScenario())},
-	})
-}
-
-// reopen moves a resolved/force-resolved conflict back to DETECTED.
-func (h *handlers) reopen(ctx cliapp.RunContext) error {
-	id := ctx.Positional("id")
-	resp, err := h.client.ReopenConflict(context.Background(), connect.NewRequest(&conflictsv1.ReopenConflictRequest{
-		Id:   id,
-		Note: ctx.Flag("note"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("reopen conflict %q", id), err, nil)
-	}
-	if resp == nil || resp.Msg == nil || resp.Msg.GetConflict() == nil {
-		return fmt.Errorf("server returned no conflict")
-	}
-	c := resp.Msg.GetConflict()
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{mutationResult(resp.Msg.GetDryRun(),
-			fmt.Sprintf("Reopened conflict %s (%s).", c.GetId(), statusName(c.GetStatus())))},
-		Changes:     []string{conflictLine(c)},
-		NextCommand: []string{fmt.Sprintf("`conflicts show %s` to review it again.", c.GetId())},
-	})
-}
-
-// validate re-runs detection against the current resolution state and
-// reports the residual conflict set with a clean/dirty gate.
+// validate re-lists the current detected conflicts and reports a
+// clean/dirty gate (clean ↔ zero error-severity, suppressed excluded).
 func (h *handlers) validate(ctx cliapp.RunContext) error {
 	scenario := ctx.Positional("scenario")
 	resp, err := h.client.ValidateConflicts(context.Background(), connect.NewRequest(&conflictsv1.ValidateConflictsRequest{Scenario: scenario}))
@@ -309,7 +140,7 @@ func (h *handlers) validate(ctx cliapp.RunContext) error {
 		Status: []string{status},
 		Triage: triage,
 		NextSteps: []string{
-			fmt.Sprintf("`conflicts list %s --status detected` to work the open set.", scenario),
+			fmt.Sprintf("`migration create %s --from-audit <report.json>` to track the open set toward zero.", scenario),
 		},
 	})
 }
@@ -366,6 +197,40 @@ func (h *handlers) resolvers(ctx cliapp.RunContext) error {
 
 // -------------------------- render helpers --------------------------
 
+// conflictDetailLines renders the operator-focused "what / where / why /
+// next" layout shared by show and explain.
+func conflictDetailLines(c *conflictsv1.Conflict) []string {
+	lines := []string{
+		fmt.Sprintf("what     : %s (%s)", c.GetType(), c.GetSubtype()),
+		fmt.Sprintf("severity : %s", severityName(c.GetSeverity())),
+		fmt.Sprintf("stable_id: %s", c.GetStableId()),
+	}
+	if iid := c.GetInstanceId(); iid != "" {
+		lines = append(lines, fmt.Sprintf("instance : %s (this run)", iid))
+	}
+	if locs := c.GetLocations(); len(locs) > 0 {
+		lines = append(lines, "where    : "+strings.Join(locs, ", "))
+	}
+	if doms := c.GetDomains(); len(doms) > 0 {
+		lines = append(lines, "domains  : "+strings.Join(doms, ", "))
+	}
+	if c.GetSuppressed() {
+		lines = append(lines, fmt.Sprintf("suppress : sanctioned (%s)", c.GetSuppressionReason()))
+	}
+	lines = append(lines, "", "why:")
+	for _, e := range c.GetEvidence() {
+		lines = append(lines, fmt.Sprintf("  - [%s] %s", e.GetKind(), e.GetSummary()))
+	}
+	if fixes := c.GetSuggestedFixes(); len(fixes) > 0 {
+		lines = append(lines, "", "next:")
+		for _, f := range fixes {
+			lines = append(lines, fmt.Sprintf("  - %s via %s — %s (confidence %.2f)",
+				fixKindName(f.GetKind()), f.GetResolver(), f.GetSummary(), f.GetConfidence()))
+		}
+	}
+	return lines
+}
+
 // renderConflictList is the shared list-rendering path for detect + list:
 // human consumers see one line per conflict; --json consumers see the
 // proto-typed wire shape (the full response message).
@@ -384,9 +249,6 @@ func renderConflictList(ctx cliapp.RunContext, payload proto.Message, conflicts 
 
 func conflictLine(c *conflictsv1.Conflict) string {
 	domains := strings.Join(c.GetDomains(), ",")
-	if c.GetAssignedDomain() != "" {
-		domains = c.GetAssignedDomain()
-	}
 	loc := ""
 	if len(c.GetLocations()) > 0 {
 		loc = c.GetLocations()[0]
@@ -394,15 +256,8 @@ func conflictLine(c *conflictsv1.Conflict) string {
 			loc = fmt.Sprintf("%s (+%d more)", loc, len(c.GetLocations())-1)
 		}
 	}
-	return fmt.Sprintf("%s [%s/%s] %s domain=%s loc=%s status=%s",
-		c.GetId(), c.GetType(), severityName(c.GetSeverity()), c.GetSubtype(), domains, loc, statusName(c.GetStatus()))
-}
-
-func mutationResult(dryRun bool, msg string) string {
-	if dryRun {
-		return msg + " (dry-run: no changes persisted)"
-	}
-	return msg
+	return fmt.Sprintf("%s [%s/%s] %s domain=%s loc=%s",
+		c.GetId(), c.GetType(), severityName(c.GetSeverity()), c.GetSubtype(), domains, loc)
 }
 
 func severityName(s conflictsv1.Severity) string {
@@ -415,27 +270,6 @@ func severityName(s conflictsv1.Severity) string {
 		return "error"
 	case conflictsv1.Severity_SEVERITY_BLOCKER:
 		return "blocker"
-	default:
-		return "unspecified"
-	}
-}
-
-func statusName(s conflictsv1.ResolutionStatus) string {
-	switch s {
-	case conflictsv1.ResolutionStatus_RESOLUTION_STATUS_DETECTED:
-		return "detected"
-	case conflictsv1.ResolutionStatus_RESOLUTION_STATUS_ASSIGNED:
-		return "assigned"
-	case conflictsv1.ResolutionStatus_RESOLUTION_STATUS_SPLIT:
-		return "split"
-	case conflictsv1.ResolutionStatus_RESOLUTION_STATUS_RESOLVED:
-		return "resolved"
-	case conflictsv1.ResolutionStatus_RESOLUTION_STATUS_VALIDATED:
-		return "validated"
-	case conflictsv1.ResolutionStatus_RESOLUTION_STATUS_COMMITTED:
-		return "committed"
-	case conflictsv1.ResolutionStatus_RESOLUTION_STATUS_FORCE_RESOLVED:
-		return "force_resolved"
 	default:
 		return "unspecified"
 	}
@@ -456,25 +290,4 @@ func fixKindName(k conflictsv1.FixKind) string {
 	default:
 		return "unspecified"
 	}
-}
-
-// statusFilters maps the CLI's bare status tokens onto the proto enum,
-// so `conflicts list <scenario> --status detected,assigned` works.
-var statusFilters = map[string]conflictsv1.ResolutionStatus{
-	"detected":       conflictsv1.ResolutionStatus_RESOLUTION_STATUS_DETECTED,
-	"assigned":       conflictsv1.ResolutionStatus_RESOLUTION_STATUS_ASSIGNED,
-	"split":          conflictsv1.ResolutionStatus_RESOLUTION_STATUS_SPLIT,
-	"resolved":       conflictsv1.ResolutionStatus_RESOLUTION_STATUS_RESOLVED,
-	"validated":      conflictsv1.ResolutionStatus_RESOLUTION_STATUS_VALIDATED,
-	"committed":      conflictsv1.ResolutionStatus_RESOLUTION_STATUS_COMMITTED,
-	"force_resolved": conflictsv1.ResolutionStatus_RESOLUTION_STATUS_FORCE_RESOLVED,
-}
-
-func parseStatus(token string) (conflictsv1.ResolutionStatus, bool) {
-	s, ok := statusFilters[strings.ToLower(strings.TrimSpace(token))]
-	return s, ok
-}
-
-func statusNames() []string {
-	return []string{"detected", "assigned", "split", "resolved", "validated", "committed", "force_resolved"}
 }

@@ -18,6 +18,8 @@ import { TargetConflictDetailPage } from "../pages/TargetConflictDetailPage";
 import { TargetConflictsPage } from "../pages/TargetConflictsPage";
 import { TargetGraphPage } from "../pages/TargetGraphPage";
 import { TargetDomainsPage } from "../pages/TargetDomainsPage";
+import { TargetMigrationDetailPage } from "../pages/TargetMigrationDetailPage";
+import { TargetMigrationPage } from "../pages/TargetMigrationPage";
 import { TargetWorkspacePage } from "../pages/TargetWorkspacePage";
 
 /**
@@ -48,6 +50,8 @@ export const routes: RouteObject[] = [
           { path: "domains", element: <TargetDomainsPage /> },
           { path: "conflicts", element: <TargetConflictsPage /> },
           { path: "conflicts/:conflictId", element: <TargetConflictDetailPage /> },
+          { path: "migration", element: <TargetMigrationPage /> },
+          { path: "migration/:migrationId", element: <TargetMigrationDetailPage /> },
           { path: "apply", element: <TargetApplyPage /> },
           { path: "apply/:domainKey", element: <TargetApplyDomainPage /> },
           { path: "analytics", element: <TargetAnalyticsPage /> },

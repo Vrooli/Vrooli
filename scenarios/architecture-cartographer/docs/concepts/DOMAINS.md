@@ -34,7 +34,7 @@ The parser is header-driven; it reads the `Domain`, `Primary Archetype`,
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/architecture-cartographer/v1/health/` | HealthHandler |
 | graph | Build the ground-truth code graph for a target scenario by delegating to language code-graph scenarios. | Service / orchestration | Cached graph snapshots and content hashes. | API, CLI, UI | OT-P0-001 (MOD-P0-001) | `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `ui/src/features/graph/`, `packages/proto/schemas/architecture-cartographer/v1/graph/` | GraphSnapshot, FileNode, PackageNode, SymbolNode, ImportEdge, CodeGraphAdapter, Chunk |
 | domains | Derive the intended domain map from on-disk sources (DOMAINS.md → api/internal folders → cli groups) via a trust ladder; report cross-surface convergence. Replaces the deleted architecture manifest. | Service / orchestration | No product data (stateless; derived on demand). | API, CLI, UI | OT-P0-002 (MOD-P0-002) | `api/internal/domains/`, `api/handlers/domains/`, `cli/domains/domains/`, `ui/src/features/domains/`, `packages/proto/schemas/architecture-cartographer/v1/domains/` | DerivedDomainMap, DerivedDomain, DomainSourceExtractor, Extraction, ScenarioLocator, DomainSource |
-| conflicts | Detect drift between actual graph and the derived domain map; emit and track typed conflicts via a pluggable detector registry. | Service / classification | Conflict records, resolutions, suggested fixes. | API, CLI, UI | OT-P0-003, OT-P0-005 (MOD-P0-003, MOD-P0-005) | `api/internal/conflicts/`, `api/handlers/conflicts/`, `cli/domains/conflicts/`, `ui/src/features/conflicts/`, `packages/proto/schemas/architecture-cartographer/v1/conflicts/` | Conflict, Fix, Detector, Resolver, ResolutionStatus, AnalyticsRecorder |
+| conflicts | Detection-only: detect drift between actual graph and the derived domain map and emit typed conflicts via a pluggable detector registry. No lifecycle (that is the migration domain). | Service / classification | Conflict records (the photograph), suggested fixes. | API, CLI, UI | OT-P0-003, OT-P0-005 (MOD-P0-003, MOD-P0-005) | `api/internal/conflicts/`, `api/handlers/conflicts/`, `cli/domains/conflicts/`, `ui/src/features/conflicts/`, `packages/proto/schemas/architecture-cartographer/v1/conflicts/` | Conflict, Fix, Detector, Resolver, AnalyticsRecorder |
 | signals | Score chunk-to-domain assignments via pluggable, deterministic signals; aggregate into explainable verdicts. | Service / scoring | Signal scores and verdict explanations. | API, CLI | OT-P0-004 (MOD-P0-004) | `api/internal/signals/`, `api/handlers/signals/`, `cli/domains/signals/`, `packages/proto/schemas/architecture-cartographer/v1/signals/` | Signal, Score, Verdict, Tier, SignalDescriptor, Aggregator, GraphContext |
 | apply | Emit per-domain migration plans and execute file moves + import rewrites with build-green guardrail. | Service / mutation | Migration plans, apply history. | API, CLI, UI | OT-P0-007, OT-P0-008 (MOD-P0-007, MOD-P0-008) | `api/internal/apply/`, `api/handlers/apply/`, `cli/domains/apply/`, `ui/src/features/apply/`, `packages/proto/schemas/architecture-cartographer/v1/apply/` | Plan, Operation, OperationKind, ApplyRun, ApplyStatus, BuildBaseline, BuildGuard, Recipe |
 | analytics | Persist conflict events, resolution outcomes, auto-placement verdicts, overrides, and build deltas; serve history + stats. | Reporting / query | Append-only event log. | API, CLI, UI | OT-P0-009 (MOD-P0-009) | `api/internal/analytics/`, `api/handlers/analytics/`, `cli/domains/analytics/`, `ui/src/features/analytics/`, `packages/proto/schemas/architecture-cartographer/v1/analytics/` | Event, EventKind, Placement, Override, StatsSummary |
@@ -106,25 +106,29 @@ The parser is header-driven; it reads the `Domain`, `Primary Archetype`,
 
 ### conflicts
 
-- Purpose: detect drift between actual graph and the derived domain map;
-  classify each finding into a typed `Conflict` envelope; surface
-  ranked fix suggestions with evidence and caveats.
+- Purpose: **detection-only.** Detect drift between actual graph and the
+  derived domain map; classify each finding into a typed `Conflict`
+  envelope; surface ranked fix suggestions with evidence and caveats. It
+  is a stateless photograph of what is wrong now — it owns no lifecycle.
 - Primary archetype: service / classification.
 - Owns: the pluggable Detector registry, the Conflict envelope shape,
   conflict severity classification, cycle SCC detection and
   pattern classification (type-only, junk-drawer, cross-domain,
   within-domain), suggested-fix ranking.
 - Does not own: signal scoring (that is the `signals` domain),
-  mechanical fix execution (that is the `apply` domain).
+  mechanical fix execution (that is the `apply` domain), and — since the
+  detection/tracking split — the per-finding **lifecycle** (assign /
+  resolve / validate / regress), which lives in the `migration` domain.
 - API: `api/internal/conflicts/`, `api/handlers/conflicts/`.
 - CLI: `cli/domains/conflicts/` — `arch-cart conflicts detect`,
   `arch-cart conflicts list`, `arch-cart conflicts show <id>`,
-  `arch-cart conflicts assign`, `arch-cart conflicts resolve`,
-  `arch-cart conflicts reopen`, `arch-cart conflicts validate`,
-  `arch-cart conflicts detectors`, `arch-cart conflicts resolvers`.
-- UI: `ui/src/features/conflicts/` — conflict workbench.
+  `arch-cart conflicts validate`, `arch-cart conflicts detectors`,
+  `arch-cart conflicts resolvers`. (Walking a finding through a lifecycle
+  toward zero is `arch-cart migration …`.)
+- UI: `ui/src/features/conflicts/` — read-only detection workbench
+  (list + detail). Lifecycle actions live in `ui/src/features/migration/`.
 - Storage: conflict records in SQLite (id, type, severity, locations,
-  description, suggested_fixes, evidence, resolved, resolution).
+  snapshot_id, payload) — no lifecycle columns.
 - Plug-in seams: `Detector` interface (returns `[]Conflict` for a
   graph + derived-domain-map snapshot); `Resolver` interface (executes a
   mechanical fix for a specific conflict type). Day-one detectors:

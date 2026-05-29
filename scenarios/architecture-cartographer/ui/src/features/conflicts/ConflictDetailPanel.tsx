@@ -1,22 +1,13 @@
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { Button } from "../../components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "../../components/ui/card";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
 import { SeverityBadge } from "../../components/SeverityBadge";
-import { useConflictActions } from "./hooks/useConflictActions";
-import {
-  useAssignConflict,
-  useGetConflict,
-  useReopenConflict,
-  useResolveConflict,
-  useValidateConflicts,
-} from "./controllers/useConflictsController";
+import { useGetConflict } from "./controllers/useConflictsController";
 import { severityToLevel } from "./severity";
-import type { ConflictEvent } from "./flow/transition";
 import {
   FixKind,
   type Fix,
@@ -29,16 +20,6 @@ const SEVERITY_LABEL_KEY = {
   high: strings.shared.severity.high,
   critical: strings.shared.severity.critical,
 } as const;
-
-const ACTION_LABEL_KEY = {
-  assign: strings.conflicts.actions.assign,
-  split: strings.conflicts.actions.split,
-  resolve: strings.conflicts.actions.resolve,
-  force_resolve: strings.conflicts.actions.force_resolve,
-  validate: strings.conflicts.actions.validate,
-  commit: strings.conflicts.actions.commit,
-  reopen: strings.conflicts.actions.reopen,
-} as const satisfies Record<ConflictEvent, string>;
 
 const FIX_KIND_LABEL_KEY = {
   [FixKind.UNSPECIFIED]: strings.conflicts.fixKind.unspecified,
@@ -58,19 +39,15 @@ export interface ConflictDetailPanelProps {
   conflictId: string;
 }
 
-export function ConflictDetailPanel({ scenario, conflictId }: ConflictDetailPanelProps) {
+/**
+ * Read-only conflict detail. The conflicts domain is detection-only — this
+ * panel shows what's wrong now (evidence + suggested fixes). Walking a finding
+ * through a lifecycle (resolve / validate) lives in the migration feature.
+ */
+export function ConflictDetailPanel({ conflictId }: ConflictDetailPanelProps) {
   const { t } = useTranslation();
   const detail = useGetConflict({ id: conflictId });
   const conflict = detail.data?.conflict;
-  const { legalEvents } = useConflictActions(conflict);
-
-  const assign = useAssignConflict(scenario);
-  const resolve = useResolveConflict(scenario);
-  const reopen = useReopenConflict(scenario);
-  const validate = useValidateConflicts(scenario);
-
-  const pending =
-    assign.isPending || resolve.isPending || reopen.isPending || validate.isPending;
 
   if (detail.isPending) {
     return (
@@ -103,41 +80,6 @@ export function ConflictDetailPanel({ scenario, conflictId }: ConflictDetailPane
 
   const severity = severityToLevel(conflict.severity);
 
-  const runAction = (event: ConflictEvent) => {
-    switch (event) {
-      case "assign": {
-        const domain = window.prompt(t(strings.conflicts.actions.assignDomainPrompt)) ?? "";
-        if (domain.trim().length === 0) return;
-        assign.mutate({ id: conflict.id, domain: domain.trim() });
-        return;
-      }
-      case "resolve":
-        resolve.mutate({ id: conflict.id, force: false });
-        return;
-      case "force_resolve": {
-        const note = window.prompt(t(strings.conflicts.actions.notePlaceholder)) ?? "";
-        if (note.trim().length === 0) {
-          window.alert(t(strings.conflicts.actions.forceNoteRequired));
-          return;
-        }
-        resolve.mutate({ id: conflict.id, note: note.trim(), force: true });
-        return;
-      }
-      case "reopen":
-        reopen.mutate({ id: conflict.id });
-        return;
-      case "validate":
-        validate.mutate();
-        return;
-      case "split":
-      case "commit":
-        // v0.1: split & commit are routed through dedicated flows (apply for
-        // commit, deferred for split). Buttons render to communicate state
-        // but the action is a no-op until those phases land.
-        return;
-    }
-  };
-
   return (
     <article
       data-testid={selectors.features.conflicts.detail.root}
@@ -156,39 +98,7 @@ export function ConflictDetailPanel({ scenario, conflictId }: ConflictDetailPane
           {t(strings.pages.conflicts.snapshotLabel)}{" "}
           <span className="font-mono">{conflict.snapshotId || "—"}</span>
         </p>
-        <p
-          data-testid={selectors.features.conflicts.detail.assignedDomain}
-          className="text-sm text-app-muted-foreground"
-        >
-          {t(strings.pages.conflicts.assignedDomainLabel)}{" "}
-          <span className="font-mono">
-            {conflict.assignedDomain || t(strings.pages.conflicts.noAssignedDomain)}
-          </span>
-        </p>
       </header>
-
-      <div
-        data-testid={selectors.features.conflicts.detail.actions}
-        className="flex flex-wrap gap-2"
-        role="group"
-        aria-label={t(strings.pages.conflicts.title)}
-      >
-        {legalEvents.map((event) => (
-          <Button
-            key={event}
-            type="button"
-            variant={event === "force_resolve" ? "outline" : "default"}
-            size="sm"
-            disabled={pending}
-            data-testid={selectors.features.conflicts.detail.actionButton({ event })}
-            onClick={() => runAction(event)}
-          >
-            {pending
-              ? t(strings.conflicts.actions.pending)
-              : t(ACTION_LABEL_KEY[event])}
-          </Button>
-        ))}
-      </div>
 
       <Card>
         <CardHeader>

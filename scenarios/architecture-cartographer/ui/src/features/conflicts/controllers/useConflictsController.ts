@@ -5,6 +5,10 @@ import { conflictsClient } from "../../../api/conflicts";
 /**
  * Stable React Query cache keys for the conflicts feature. One key-builder
  * per surface so cache-key drift can't sneak in via inline string assembly.
+ *
+ * The conflicts domain is detection-only: detect, list, get, validate. The
+ * per-finding lifecycle (assign / resolve / reopen) moved to the migration
+ * feature.
  */
 export const conflictsKeys = {
   all: () => ["conflicts"] as const,
@@ -24,7 +28,6 @@ export function useListConflicts({ scenario, enabled = true }: UseListConflictsA
     queryFn: () =>
       conflictsClient.listConflicts({
         scenario,
-        statuses: [],
         types: [],
         pageSize: 50,
         pageToken: "",
@@ -63,64 +66,7 @@ export function useDetectConflicts(scenario: string) {
   });
 }
 
-export interface AssignConflictArgs {
-  id: string;
-  domain: string;
-  note?: string;
-}
-
-export function useAssignConflict(scenario: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, domain, note }: AssignConflictArgs) =>
-      conflictsClient.assignConflict({ id, domain, note: note ?? "", dryRun: false }),
-    onSuccess: (_data, vars) => {
-      void queryClient.invalidateQueries({ queryKey: conflictsKeys.list(scenario) });
-      void queryClient.invalidateQueries({ queryKey: conflictsKeys.detail(vars.id) });
-    },
-  });
-}
-
-export interface ResolveConflictArgs {
-  id: string;
-  note?: string;
-  force?: boolean;
-}
-
-export function useResolveConflict(scenario: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, note, force }: ResolveConflictArgs) =>
-      conflictsClient.resolveConflict({
-        id,
-        note: note ?? "",
-        force: force ?? false,
-        dryRun: false,
-      }),
-    onSuccess: (_data, vars) => {
-      void queryClient.invalidateQueries({ queryKey: conflictsKeys.list(scenario) });
-      void queryClient.invalidateQueries({ queryKey: conflictsKeys.detail(vars.id) });
-    },
-  });
-}
-
-export interface ReopenConflictArgs {
-  id: string;
-  note?: string;
-}
-
-export function useReopenConflict(scenario: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, note }: ReopenConflictArgs) =>
-      conflictsClient.reopenConflict({ id, note: note ?? "", dryRun: false }),
-    onSuccess: (_data, vars) => {
-      void queryClient.invalidateQueries({ queryKey: conflictsKeys.list(scenario) });
-      void queryClient.invalidateQueries({ queryKey: conflictsKeys.detail(vars.id) });
-    },
-  });
-}
-
+/** Re-list the current detected conflicts and report the clean/dirty gate. */
 export function useValidateConflicts(scenario: string) {
   const queryClient = useQueryClient();
   return useMutation({

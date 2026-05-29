@@ -38,36 +38,22 @@ const conflictTimeFormat = time.RFC3339Nano
 const (
 	upsertConflictSQL = `
 INSERT INTO conflicts
-  (id, instance_id, scenario, detector, type, subtype, severity, status, assigned_domain,
-   resolution_note, snapshot_id, payload, detected_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (id, instance_id, scenario, detector, type, subtype, severity, snapshot_id, payload, detected_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
   instance_id = excluded.instance_id,
   subtype = excluded.subtype,
   severity = excluded.severity,
-  status = excluded.status,
-  assigned_domain = excluded.assigned_domain,
-  resolution_note = excluded.resolution_note,
   snapshot_id = excluded.snapshot_id,
   payload = excluded.payload,
   updated_at = excluded.updated_at`
 
 	selectConflictByIDSQL = `
-SELECT id, instance_id, scenario, detector, type, subtype, severity, status, assigned_domain,
-       resolution_note, snapshot_id, payload, detected_at, updated_at
+SELECT id, instance_id, scenario, detector, type, subtype, severity, snapshot_id, payload, detected_at, updated_at
 FROM conflicts WHERE id = ?`
 
-	updateConflictStatusSQL = `
-UPDATE conflicts
-SET status = ?,
-    resolution_note = CASE WHEN ? = '' THEN resolution_note ELSE ? END,
-    assigned_domain = CASE WHEN ? = '' THEN assigned_domain ELSE ? END,
-    updated_at = ?
-WHERE id = ?`
-
 	listConflictsSQL = `
-SELECT id, instance_id, scenario, detector, type, subtype, severity, status, assigned_domain,
-       resolution_note, snapshot_id, payload, detected_at, updated_at
+SELECT id, instance_id, scenario, detector, type, subtype, severity, snapshot_id, payload, detected_at, updated_at
 FROM conflicts
 WHERE scenario = ?
 ORDER BY detected_at DESC, id DESC
@@ -117,8 +103,8 @@ func (r *sqliteRepository) UpsertConflict(ctx context.Context, c Conflict) (Conf
 		return Conflict{}, fmt.Errorf("encode conflict %q payload: %w", c.ID, err)
 	}
 	_, err = r.db.ExecContext(ctx, upsertConflictSQL,
-		c.ID, c.InstanceID, c.Scenario, c.Detector, c.Type, c.Subtype, string(c.Severity), string(c.Status),
-		c.AssignedDomain, c.ResolutionNote, c.SnapshotID, payload,
+		c.ID, c.InstanceID, c.Scenario, c.Detector, c.Type, c.Subtype, string(c.Severity),
+		c.SnapshotID, payload,
 		c.DetectedAt.Format(conflictTimeFormat), c.UpdatedAt.Format(conflictTimeFormat),
 	)
 	if err != nil {
@@ -139,24 +125,6 @@ func (r *sqliteRepository) GetConflict(ctx context.Context, id string) (Conflict
 	return c, nil
 }
 
-func (r *sqliteRepository) UpdateStatus(ctx context.Context, id string, status ResolutionStatus, note, assigned string) (Conflict, error) {
-	now := r.clock.Now().UTC().Format(conflictTimeFormat)
-	res, err := r.db.ExecContext(ctx, updateConflictStatusSQL,
-		string(status), note, note, assigned, assigned, now, id,
-	)
-	if err != nil {
-		return Conflict{}, fmt.Errorf("update conflict %q status: %w", id, err)
-	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return Conflict{}, fmt.Errorf("rows affected: %w", err)
-	}
-	if n == 0 {
-		return Conflict{}, ErrConflictNotFound{ID: id}
-	}
-	return r.GetConflict(ctx, id)
-}
-
 func (r *sqliteRepository) ListConflicts(ctx context.Context, f ListConflictsFilter) (ConflictPage, error) {
 	limit := f.PageSize
 	if limit <= 0 {
@@ -173,9 +141,6 @@ func (r *sqliteRepository) ListConflicts(ctx context.Context, f ListConflictsFil
 		c, err := scanConflict(rows)
 		if err != nil {
 			return ConflictPage{}, err
-		}
-		if !matchesStatuses(c.Status, f.Statuses) {
-			continue
 		}
 		if !matchesTypes(c.Type, f.Types) {
 			continue
@@ -196,14 +161,13 @@ func scanConflict(s rowScanner) (Conflict, error) {
 	var (
 		c          Conflict
 		severity   string
-		status     string
 		payload    []byte
 		detectedAt string
 		updatedAt  string
 	)
 	if err := s.Scan(
-		&c.ID, &c.InstanceID, &c.Scenario, &c.Detector, &c.Type, &c.Subtype, &severity, &status,
-		&c.AssignedDomain, &c.ResolutionNote, &c.SnapshotID, &payload,
+		&c.ID, &c.InstanceID, &c.Scenario, &c.Detector, &c.Type, &c.Subtype, &severity,
+		&c.SnapshotID, &payload,
 		&detectedAt, &updatedAt,
 	); err != nil {
 		return Conflict{}, err
@@ -211,7 +175,6 @@ func scanConflict(s rowScanner) (Conflict, error) {
 	// The stored primary key IS the stable_id since v0.2.
 	c.StableID = c.ID
 	c.Severity = Severity(severity)
-	c.Status = ResolutionStatus(status)
 	det, err := time.Parse(conflictTimeFormat, detectedAt)
 	if err != nil {
 		return Conflict{}, fmt.Errorf("parse detected_at: %w", err)
@@ -236,18 +199,6 @@ func scanConflict(s rowScanner) (Conflict, error) {
 		c.SuppressionReason = p.SuppressionReason
 	}
 	return c, nil
-}
-
-func matchesStatuses(s ResolutionStatus, allowed []ResolutionStatus) bool {
-	if len(allowed) == 0 {
-		return true
-	}
-	for _, a := range allowed {
-		if a == s {
-			return true
-		}
-	}
-	return false
 }
 
 func matchesTypes(t string, allowed []string) bool {

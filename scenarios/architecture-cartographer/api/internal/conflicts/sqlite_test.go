@@ -34,7 +34,6 @@ func TestSQLiteRepository_UpsertAndGet(t *testing.T) {
 		Detector:  "cycle",
 		Type:      "cycle",
 		Severity:  conflicts.SeverityError,
-		Status:    conflicts.ResolutionStatusDetected,
 		Locations: []string{"a.go", "b.go"},
 	}
 	saved, err := repo.UpsertConflict(context.Background(), c)
@@ -50,45 +49,20 @@ func TestSQLiteRepository_UpsertAndGet(t *testing.T) {
 	}
 }
 
-func TestSQLiteRepository_UpdateStatus(t *testing.T) {
+func TestSQLiteRepository_ListFiltersByType(t *testing.T) {
 	d := newSchemaDB(t)
 	repo := conflicts.NewSQLiteRepository(d, clock.System{})
 
-	saved, err := repo.UpsertConflict(context.Background(), conflicts.Conflict{
-		Scenario: "demo",
-		Detector: "cycle",
-		Type:     "cycle",
-		Status:   conflicts.ResolutionStatusDetected,
-	})
-	if err != nil {
-		t.Fatalf("seed: %v", err)
-	}
-	updated, err := repo.UpdateStatus(context.Background(), saved.ID, conflicts.ResolutionStatusAssigned, "ok", "graph")
-	if err != nil {
-		t.Fatalf("UpdateStatus: %v", err)
-	}
-	if updated.Status != conflicts.ResolutionStatusAssigned || updated.AssignedDomain != "graph" {
-		t.Fatalf("unexpected: %+v", updated)
-	}
-}
-
-func TestSQLiteRepository_ListFiltersByStatus(t *testing.T) {
-	d := newSchemaDB(t)
-	repo := conflicts.NewSQLiteRepository(d, clock.System{})
-
-	for _, status := range []conflicts.ResolutionStatus{
-		conflicts.ResolutionStatusDetected,
-		conflicts.ResolutionStatusResolved,
-	} {
+	for _, typ := range []string{"cycle", "mislocated_file"} {
 		if _, err := repo.UpsertConflict(context.Background(), conflicts.Conflict{
-			Scenario: "demo", Detector: "cycle", Type: "cycle", Status: status,
+			Scenario: "demo", Detector: typ, Type: typ,
 		}); err != nil {
 			t.Fatalf("seed: %v", err)
 		}
 	}
 	page, err := repo.ListConflicts(context.Background(), conflicts.ListConflictsFilter{
 		Scenario: "demo",
-		Statuses: []conflicts.ResolutionStatus{conflicts.ResolutionStatusResolved},
+		Types:    []string{"mislocated_file"},
 	})
 	if err != nil {
 		t.Fatalf("List: %v", err)
@@ -96,7 +70,7 @@ func TestSQLiteRepository_ListFiltersByStatus(t *testing.T) {
 	if len(page.Conflicts) != 1 {
 		t.Fatalf("want 1 conflict, got %d", len(page.Conflicts))
 	}
-	if page.Conflicts[0].Status != conflicts.ResolutionStatusResolved {
-		t.Fatalf("status filter failed: %+v", page.Conflicts[0])
+	if page.Conflicts[0].Type != "mislocated_file" {
+		t.Fatalf("type filter failed: %+v", page.Conflicts[0])
 	}
 }

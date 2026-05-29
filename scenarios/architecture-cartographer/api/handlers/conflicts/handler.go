@@ -107,9 +107,6 @@ func (h *Handler) ListConflicts(ctx context.Context, req *connect.Request[confli
 		Types:    append([]string(nil), req.Msg.GetTypes()...),
 		PageSize: int(req.Msg.GetPageSize()),
 	}
-	for _, s := range req.Msg.GetStatuses() {
-		filter.Statuses = append(filter.Statuses, protoToStatus(s))
-	}
 	page, err := h.deps.Conflicts.ListConflicts(ctx, filter)
 	if err != nil {
 		return nil, connect.NewError(conflicts.ErrorToConnectCode(err), err)
@@ -131,30 +128,6 @@ func (h *Handler) GetConflict(ctx context.Context, req *connect.Request[conflict
 		return nil, connect.NewError(conflicts.ErrorToConnectCode(err), err)
 	}
 	return connect.NewResponse(&conflictsv1.GetConflictResponse{Conflict: conflictToProto(c)}), nil
-}
-
-func (h *Handler) AssignConflict(ctx context.Context, req *connect.Request[conflictsv1.AssignConflictRequest]) (*connect.Response[conflictsv1.AssignConflictResponse], error) {
-	c, dry, err := h.deps.Conflicts.AssignConflict(ctx, req.Msg.GetId(), req.Msg.GetDomain(), req.Msg.GetNote(), req.Msg.GetDryRun() || dryRunHeaderFromHTTP(req.Header()))
-	if err != nil {
-		return nil, connect.NewError(conflicts.ErrorToConnectCode(err), err)
-	}
-	return connect.NewResponse(&conflictsv1.AssignConflictResponse{Conflict: conflictToProto(c), DryRun: dry}), nil
-}
-
-func (h *Handler) ResolveConflict(ctx context.Context, req *connect.Request[conflictsv1.ResolveConflictRequest]) (*connect.Response[conflictsv1.ResolveConflictResponse], error) {
-	c, dry, applyDeferred, err := h.deps.Conflicts.ResolveConflict(ctx, req.Msg.GetId(), req.Msg.GetNote(), req.Msg.GetForce(), req.Msg.GetDryRun() || dryRunHeaderFromHTTP(req.Header()))
-	if err != nil {
-		return nil, connect.NewError(conflicts.ErrorToConnectCode(err), err)
-	}
-	return connect.NewResponse(&conflictsv1.ResolveConflictResponse{Conflict: conflictToProto(c), DryRun: dry, ApplyDeferred: applyDeferred}), nil
-}
-
-func (h *Handler) ReopenConflict(ctx context.Context, req *connect.Request[conflictsv1.ReopenConflictRequest]) (*connect.Response[conflictsv1.ReopenConflictResponse], error) {
-	c, dry, err := h.deps.Conflicts.ReopenConflict(ctx, req.Msg.GetId(), req.Msg.GetNote(), req.Msg.GetDryRun() || dryRunHeaderFromHTTP(req.Header()))
-	if err != nil {
-		return nil, connect.NewError(conflicts.ErrorToConnectCode(err), err)
-	}
-	return connect.NewResponse(&conflictsv1.ReopenConflictResponse{Conflict: conflictToProto(c), DryRun: dry}), nil
 }
 
 func (h *Handler) ValidateConflicts(ctx context.Context, req *connect.Request[conflictsv1.ValidateConflictsRequest]) (*connect.Response[conflictsv1.ValidateConflictsResponse], error) {
@@ -207,11 +180,6 @@ func (h *Handler) ListResolvers(ctx context.Context, _ *connect.Request[conflict
 
 // -------------------------- proto<->domain --------------------------
 
-// dryRunHeaderFromHTTP inspects the request header for X-Dry-Run: true.
-func dryRunHeaderFromHTTP(h interface{ Get(string) string }) bool {
-	return h.Get("X-Dry-Run") == "true"
-}
-
 func conflictToProto(c conflicts.Conflict) *conflictsv1.Conflict {
 	out := &conflictsv1.Conflict{
 		Id:                c.ID,
@@ -224,9 +192,6 @@ func conflictToProto(c conflicts.Conflict) *conflictsv1.Conflict {
 		Severity:          severityToProto(c.Severity),
 		Locations:         append([]string(nil), c.Locations...),
 		Domains:           append([]string(nil), c.Domains...),
-		Status:            statusToProto(c.Status),
-		AssignedDomain:    c.AssignedDomain,
-		ResolutionNote:    c.ResolutionNote,
 		SnapshotId:        c.SnapshotID,
 		Suppressed:        c.Suppressed,
 		SuppressionReason: c.SuppressionReason,
@@ -270,48 +235,6 @@ func severityToProto(s conflicts.Severity) conflictsv1.Severity {
 		return conflictsv1.Severity_SEVERITY_BLOCKER
 	default:
 		return conflictsv1.Severity_SEVERITY_UNSPECIFIED
-	}
-}
-
-func statusToProto(s conflicts.ResolutionStatus) conflictsv1.ResolutionStatus {
-	switch s {
-	case conflicts.ResolutionStatusDetected:
-		return conflictsv1.ResolutionStatus_RESOLUTION_STATUS_DETECTED
-	case conflicts.ResolutionStatusAssigned:
-		return conflictsv1.ResolutionStatus_RESOLUTION_STATUS_ASSIGNED
-	case conflicts.ResolutionStatusSplit:
-		return conflictsv1.ResolutionStatus_RESOLUTION_STATUS_SPLIT
-	case conflicts.ResolutionStatusResolved:
-		return conflictsv1.ResolutionStatus_RESOLUTION_STATUS_RESOLVED
-	case conflicts.ResolutionStatusValidated:
-		return conflictsv1.ResolutionStatus_RESOLUTION_STATUS_VALIDATED
-	case conflicts.ResolutionStatusCommitted:
-		return conflictsv1.ResolutionStatus_RESOLUTION_STATUS_COMMITTED
-	case conflicts.ResolutionStatusForceResolved:
-		return conflictsv1.ResolutionStatus_RESOLUTION_STATUS_FORCE_RESOLVED
-	default:
-		return conflictsv1.ResolutionStatus_RESOLUTION_STATUS_UNSPECIFIED
-	}
-}
-
-func protoToStatus(s conflictsv1.ResolutionStatus) conflicts.ResolutionStatus {
-	switch s {
-	case conflictsv1.ResolutionStatus_RESOLUTION_STATUS_DETECTED:
-		return conflicts.ResolutionStatusDetected
-	case conflictsv1.ResolutionStatus_RESOLUTION_STATUS_ASSIGNED:
-		return conflicts.ResolutionStatusAssigned
-	case conflictsv1.ResolutionStatus_RESOLUTION_STATUS_SPLIT:
-		return conflicts.ResolutionStatusSplit
-	case conflictsv1.ResolutionStatus_RESOLUTION_STATUS_RESOLVED:
-		return conflicts.ResolutionStatusResolved
-	case conflictsv1.ResolutionStatus_RESOLUTION_STATUS_VALIDATED:
-		return conflicts.ResolutionStatusValidated
-	case conflictsv1.ResolutionStatus_RESOLUTION_STATUS_COMMITTED:
-		return conflicts.ResolutionStatusCommitted
-	case conflictsv1.ResolutionStatus_RESOLUTION_STATUS_FORCE_RESOLVED:
-		return conflicts.ResolutionStatusForceResolved
-	default:
-		return conflicts.ResolutionStatusDetected
 	}
 }
 

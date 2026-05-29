@@ -329,6 +329,8 @@ const literalSelectors = {
     targetWorkspace: "page-target-workspace",
     targetConflicts: "page-target-conflicts",
     targetConflictDetail: "page-target-conflict-detail",
+    targetMigration: "page-target-migration",
+    targetMigrationDetail: "page-target-migration-detail",
     targetGraph: "page-target-graph",
     targetApply: "page-target-apply",
     targetApplyDomain: "page-target-apply-domain",
@@ -386,6 +388,43 @@ const literalSelectors = {
       workbench: {
         root: "feature-conflicts-workbench",
         emptyDetail: "feature-conflicts-workbench-empty-detail",
+      },
+    },
+    migration: {
+      list: {
+        root: "feature-migration-list",
+        loading: "feature-migration-list-loading",
+        error: "feature-migration-list-error",
+        empty: "feature-migration-list-empty",
+        newButton: "feature-migration-list-new",
+      },
+      create: {
+        root: "feature-migration-create",
+        nameInput: "feature-migration-create-name",
+        reportInput: "feature-migration-create-report",
+        parsedCount: "feature-migration-create-parsed-count",
+        parseError: "feature-migration-create-parse-error",
+        submit: "feature-migration-create-submit",
+        cancel: "feature-migration-create-cancel",
+      },
+      detail: {
+        root: "feature-migration-detail",
+        loading: "feature-migration-detail-loading",
+        error: "feature-migration-detail-error",
+        notFound: "feature-migration-detail-not-found",
+        rollup: "feature-migration-detail-rollup",
+        worklist: "feature-migration-detail-worklist",
+        worklistEmpty: "feature-migration-detail-worklist-empty",
+        reaudit: "feature-migration-detail-reaudit",
+        reauditInput: "feature-migration-detail-reaudit-input",
+        reauditSubmit: "feature-migration-detail-reaudit-submit",
+        reauditResult: "feature-migration-detail-reaudit-result",
+        closeButton: "feature-migration-detail-close",
+        backLink: "feature-migration-detail-back",
+      },
+      workbench: {
+        root: "feature-migration-workbench",
+        emptyDetail: "feature-migration-workbench-empty-detail",
       },
     },
     apply: {
@@ -599,7 +638,7 @@ const dynamicSelectorDefinitions = {
       params: {
         key: {
           type: "enum",
-          values: ["graph", "domains", "conflicts", "apply", "analytics"] as const,
+          values: ["graph", "domains", "conflicts", "migration", "apply", "analytics"] as const,
         },
       },
     }),
@@ -721,6 +760,35 @@ const dynamicSelectorDefinitions = {
           description: "Conflict detail suggested-fix item by id",
           testIdPattern: "feature-conflicts-detail-fix-${id}",
           params: { id: { type: "string" } },
+        }),
+      },
+    },
+    migration: {
+      list: {
+        row: defineDynamicSelector({
+          description: "Migration list row by migration id",
+          testIdPattern: "feature-migration-list-row-${id}",
+          params: { id: { type: "string" } },
+        }),
+        openButton: defineDynamicSelector({
+          description: "Migration list open detail link by migration id",
+          testIdPattern: "feature-migration-list-open-${id}",
+          params: { id: { type: "string" } },
+        }),
+      },
+      detail: {
+        findingCard: defineDynamicSelector({
+          description: "Migration worklist finding card by stable id",
+          testIdPattern: "feature-migration-finding-${stableId}",
+          params: { stableId: { type: "string" } },
+        }),
+        actionButton: defineDynamicSelector({
+          description: "Migration finding action button by stable id and action",
+          testIdPattern: "feature-migration-finding-${stableId}-${action}",
+          params: {
+            stableId: { type: "string" },
+            action: { type: "enum", values: ["resolve", "apply"] as const },
+          },
         }),
       },
     },

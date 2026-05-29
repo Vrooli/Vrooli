@@ -40,6 +40,16 @@ VALUES (?, ?, ?, ?, ?, ?)`
 SELECT id, scenario, name, status, created_at, updated_at
 FROM migrations WHERE id = ?`
 
+	listMigrationsSQL = `
+SELECT id, scenario, name, status, created_at, updated_at
+FROM migrations
+ORDER BY created_at DESC, id DESC`
+
+	listMigrationsByScenarioSQL = `
+SELECT id, scenario, name, status, created_at, updated_at
+FROM migrations WHERE scenario = ?
+ORDER BY created_at DESC, id DESC`
+
 	updateMigrationStatusSQL = `
 UPDATE migrations SET status = ?, updated_at = ? WHERE id = ?`
 
@@ -106,6 +116,38 @@ func (r *sqliteRepository) GetMigration(ctx context.Context, id string) (Migrati
 	m.CreatedAt, _ = time.Parse(migrationTimeFormat, createdAt)
 	m.UpdatedAt, _ = time.Parse(migrationTimeFormat, updatedAt)
 	return m, nil
+}
+
+func (r *sqliteRepository) ListMigrations(ctx context.Context, scenario string) ([]Migration, error) {
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	if scenario == "" {
+		rows, err = r.db.QueryContext(ctx, listMigrationsSQL)
+	} else {
+		rows, err = r.db.QueryContext(ctx, listMigrationsByScenarioSQL, scenario)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Migration
+	for rows.Next() {
+		var (
+			m                    Migration
+			status               string
+			createdAt, updatedAt string
+		)
+		if err := rows.Scan(&m.ID, &m.Scenario, &m.Name, &status, &createdAt, &updatedAt); err != nil {
+			return nil, err
+		}
+		m.Status = MigrationStatus(status)
+		m.CreatedAt, _ = time.Parse(migrationTimeFormat, createdAt)
+		m.UpdatedAt, _ = time.Parse(migrationTimeFormat, updatedAt)
+		out = append(out, m)
+	}
+	return out, rows.Err()
 }
 
 func (r *sqliteRepository) UpdateMigrationStatus(ctx context.Context, id string, status MigrationStatus) error {

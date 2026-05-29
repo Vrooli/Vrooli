@@ -41,9 +41,8 @@ func TestStableID_IgnoresVolatileFields(t *testing.T) {
 	base := conflicts.Conflict{Scenario: "demo", Detector: "cycle", Type: "cycle", Locations: []string{"a"}}
 	noisy := base
 	noisy.Severity = conflicts.SeverityBlocker
-	noisy.ResolutionNote = "note"
 	noisy.SuggestedFixes = []conflicts.Fix{{ID: "x"}}
 	if conflicts.StableID(base) != conflicts.StableID(noisy) {
-		t.Fatal("stable_id should ignore severity/notes/fixes")
+		t.Fatal("stable_id should ignore severity/fixes")
 	}
 }

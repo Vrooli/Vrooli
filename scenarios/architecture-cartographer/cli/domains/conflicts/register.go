@@ -1,7 +1,9 @@
 // Package conflicts is the CLI's conflicts-domain command surface — the
-// agent-facing conflict workbench. It mirrors the API's Connect-RPC
-// ConflictsService: drift detection, the per-conflict lifecycle state
-// machine, and the Detector / Resolver registries.
+// agent-facing detection workbench. It mirrors the API's Connect-RPC
+// ConflictsService, which is detection-only: drift detection, listing /
+// explaining the current photograph, the cartographer-clean validate gate,
+// and the Detector / Resolver registries. Walking findings through a
+// lifecycle lives in the `migration` command group.
 //
 // Like every domain package, it follows the graph-domain shape: a
 // Register(core, manifest) returning a cliapp.SubcommandGroup built from
@@ -29,9 +31,6 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ConflictsService.DetectConflicts":   h.detect,
 		"ConflictsService.ListConflicts":     h.list,
 		"ConflictsService.GetConflict":       h.show,
-		"ConflictsService.AssignConflict":    h.assign,
-		"ConflictsService.ResolveConflict":   h.resolve,
-		"ConflictsService.ReopenConflict":    h.reopen,
 		"ConflictsService.ValidateConflicts": h.validate,
 		"ConflictsService.ListDetectors":     h.detectors,
 		"ConflictsService.ListResolvers":     h.resolvers,

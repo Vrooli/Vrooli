@@ -8,6 +8,9 @@ import "context"
 type Repository interface {
 	CreateMigration(ctx context.Context, m Migration) error
 	GetMigration(ctx context.Context, id string) (Migration, error)
+	// ListMigrations returns migration headers newest-first. An empty
+	// scenario returns every migration.
+	ListMigrations(ctx context.Context, scenario string) ([]Migration, error)
 	UpdateMigrationStatus(ctx context.Context, id string, status MigrationStatus) error
 
 	// UpsertFinding inserts or updates a tracked finding keyed by

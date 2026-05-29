@@ -11,7 +11,7 @@ import { encodeScenarioPath } from "../hooks/useScenarioPath";
  * carry `available: false` so the sub-nav renders them as disabled chips
  * with no router target. They flip to `available: true` in their phase.
  */
-export type WorkspaceSubNavKey = "graph" | "domains" | "conflicts" | "apply" | "analytics";
+export type WorkspaceSubNavKey = "graph" | "domains" | "conflicts" | "migration" | "apply" | "analytics";
 
 export interface WorkspaceSubNavItem {
   readonly key: WorkspaceSubNavKey;
@@ -29,6 +29,7 @@ export const WORKSPACE_SUBNAV: readonly WorkspaceSubNavItem[] = [
   { key: "graph", labelKey: strings.layout.subnav.graph, available: true, subPath: "graph" },
   { key: "domains", labelKey: strings.layout.subnav.domains, available: true, subPath: "domains" },
   { key: "conflicts", labelKey: strings.layout.subnav.conflicts, available: true, subPath: "conflicts" },
+  { key: "migration", labelKey: strings.layout.subnav.migration, available: true, subPath: "migration" },
   { key: "apply", labelKey: strings.layout.subnav.apply, available: true, subPath: "apply" },
   { key: "analytics", labelKey: strings.layout.subnav.analytics, available: true, subPath: "analytics" },
 ];

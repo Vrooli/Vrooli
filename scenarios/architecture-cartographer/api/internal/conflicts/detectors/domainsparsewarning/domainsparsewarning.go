@@ -56,7 +56,6 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 				Summary: w.Summary,
 				Locator: loc,
 			}},
-			Status: conflicts.ResolutionStatusDetected,
 		})
 	}
 	return out, nil

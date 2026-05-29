@@ -70,45 +70,15 @@ func TestService_DetectConflicts_RejectsMissingScenario(t *testing.T) {
 	}
 }
 
-func TestService_AssignAndResolve_EmitAnalytics(t *testing.T) {
-	repo := &mocks.FakeRepository{}
-	rec := &fakeRecorder{}
-	svc := conflicts.NewServiceWithAnalytics(repo, conflicts.NewRegistry(), conflicts.NewResolverRegistry(), rec)
-
-	seeded, err := svc.UpsertConflicts(context.Background(), "demo", []conflicts.Conflict{{Type: "cycle"}})
-	if err != nil {
-		t.Fatalf("Upsert: %v", err)
-	}
-	id := seeded[0].ID
-
-	if _, _, err := svc.AssignConflict(context.Background(), id, "graph", "ok", false); err != nil {
-		t.Fatalf("Assign: %v", err)
-	}
-	if _, _, _, err := svc.ResolveConflict(context.Background(), id, "fixed", false, false); err != nil {
-		t.Fatalf("Resolve: %v", err)
-	}
-	if _, _, err := svc.ReopenConflict(context.Background(), id, "needs rework", false); err != nil {
-		t.Fatalf("Reopen: %v", err)
-	}
-
-	kinds := rec.kinds()
-	want := []string{"conflict_assigned", "conflict_resolved", "conflict_reopened"}
-	for i, w := range want {
-		if i >= len(kinds) || kinds[i] != w {
-			t.Fatalf("kinds[%d]=%q want %q (all=%v)", i, kinds[i], w, kinds)
-		}
-	}
-}
-
-func TestService_ValidateConflicts_ReturnsOutstandingOnly(t *testing.T) {
+func TestService_ValidateConflicts_ListsOutstandingExcludingSuppressed(t *testing.T) {
 	repo := &mocks.FakeRepository{}
 	svc := conflicts.NewService(repo, conflicts.NewRegistry(), conflicts.NewResolverRegistry())
 
-	// Seed three conflicts: one resolved, one force-resolved, one open.
+	// Detection-only: every non-suppressed conflict is outstanding. A
+	// suppressed finding is intentional and never counts.
 	for _, c := range []conflicts.Conflict{
-		{ID: "a", Scenario: "demo", Severity: conflicts.SeverityError, Status: conflicts.ResolutionStatusResolved},
-		{ID: "b", Scenario: "demo", Severity: conflicts.SeverityError, Status: conflicts.ResolutionStatusForceResolved},
-		{ID: "c", Scenario: "demo", Severity: conflicts.SeverityError, Status: conflicts.ResolutionStatusDetected},
+		{ID: "a", Scenario: "demo", Severity: conflicts.SeverityError, Suppressed: true, SuppressionReason: "intentional"},
+		{ID: "b", Scenario: "demo", Severity: conflicts.SeverityError},
 	} {
 		if _, err := repo.UpsertConflict(context.Background(), c); err != nil {
 			t.Fatalf("seed %s: %v", c.ID, err)
@@ -119,8 +89,8 @@ func TestService_ValidateConflicts_ReturnsOutstandingOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Validate: %v", err)
 	}
-	if len(out) != 1 || out[0].ID != "c" {
-		t.Fatalf("expected one outstanding (id=c), got %+v", out)
+	if len(out) != 1 || out[0].ID != "b" {
+		t.Fatalf("expected one outstanding (id=b, suppressed excluded), got %+v", out)
 	}
 	if clean {
 		t.Fatalf("expected clean=false when an error-severity conflict outstanding")

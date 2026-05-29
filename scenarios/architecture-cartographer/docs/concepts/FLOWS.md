@@ -23,7 +23,7 @@ workflow model.
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
 | Migration lifecycle | apply, conflicts | `arch-cart migrate start <scenario>` | Per-domain plans applied, build-green at each step, migration finalized. | Multi-stage with baseline capture, conflict resolution gate, per-domain commits, finalize transition. | Level 4 declarative contract planned for v1; Level 5 (Quint model) planned for v2. |
-| Conflict resolution | conflicts | A drift finding is detected during graph-vs-manifest comparison. | Conflict transitions detected → optionally assigned/split → resolved → validated → ready for apply. | Stateful per-conflict lifecycle; resolution is reversible until apply. | Level 4 declarative contract planned for v1. |
+| Migration finding lifecycle | migration | A finding is ingested into a migration from a test-genie audit. | TrackedFinding transitions detected → resolved/applied → (re-audit) validated, or regresses back to detected. | Stateful per-finding lifecycle; the `conflicts` domain is detection-only and owns no lifecycle. | Level 4 declarative contract planned for v1. |
 | Auto-placement verdict | signals | Chunk needs domain assignment during graph-vs-manifest comparison. | Verdict produced (`auto_place`, `suggest`, `conflict`) with Reason + Evidence. | Pure scoring; no statefulness within a single verdict but logged for analytics. | Level 3 (matrix + replay traces against fixture chunks) for v1. |
 | Per-domain apply | apply | `arch-cart apply <domain>` | File moves + import rewrites land in one atomic commit if build-green; otherwise reverted. | Stateful: baseline → plan → execute → verify → commit-or-revert. | Level 4 declarative contract; build-green guard is invariant. |
 | Attachment upload (template placeholder) | notes | User/CLI uploads a file for a note. | Blob is stored and metadata is persisted. | Stateful upload request with validation and failure paths. | Level 5 workflow tests (template reference). Removed when notes domain is deleted. |
@@ -47,25 +47,24 @@ workflow model.
 - Tests (planned): unit (baseline diff math, predicate evaluation); integration (full lifecycle against fixture scenarios with deliberate cycles + mislocations); regression (force-note logging).
 - Requirements: OT-P0-007, OT-P0-008, OT-P1-003.
 
-### Conflict resolution
+### Conflict resolution (now the migration finding lifecycle)
 
-- Owner domain: `conflicts`.
-- Trigger: any detector returns a non-empty `[]Conflict` during graph comparison.
-- Inputs: graph snapshot, manifest, detector registry.
-- States (per conflict):
-  - `detected` — surfaced by a detector; no resolution attempted yet.
-  - `assigned` — agent has assigned the conflict to a target domain (optional, applies to placement-type conflicts).
-  - `split` — agent has elected to split a file along chunk boundaries (applies to mixed-responsibility conflicts).
-  - `resolved` — agent has applied a fix (mechanical or manual); not yet re-validated.
-  - `validated` — `arch-cart conflicts validate` re-checked the graph and confirms the conflict is gone.
-  - `committed` — included in a per-domain apply that landed atomically.
-  - `force_resolved` — closed with `--force --note` against a still-failing validate; logged in analytics.
-- Illegal transitions:
-  - `detected` → `committed` (must pass through `validated`).
-  - `validated` → `detected` (use `arch-cart conflicts reopen` if needed; produces a new id).
-  - `committed` → anything (terminal).
-- Failure modes: agent assigns to a domain that does not exist in the manifest; agent splits along chunks that re-introduce a different conflict; `arch-cart conflicts validate` times out on a very large graph.
-- Tests (planned): unit (state machine completeness); integration (workbench loop against fixture conflicts); CLI smoke (`list → show → assign → resolve → validate`).
+> **Moved.** The per-conflict lifecycle was lifted out of the `conflicts`
+> domain when it became detection-only. Detection is a stateless photograph;
+> the stateful lifecycle now lives in the `migration` domain as the
+> `TrackedFinding` state machine (ingest a finding → resolve / apply →
+> re-audit reconciles to validated, or regresses a reappeared fix). See the
+> "Migration finding lifecycle" flow below and
+> `ui/src/features/migration/flow/flow.json`.
+
+- Owner domain: `migration` (lifecycle); `conflicts` (detection only).
+- Detection trigger: any detector returns a non-empty `[]Conflict` during
+  graph comparison. `arch-cart conflicts detect|list|show|validate` read
+  this photograph; they no longer mutate any state.
+- Lifecycle states (per tracked finding, owned by migration):
+  `detected` → (`resolve` / `apply`) → `resolved` → (re-audit absent)
+  `validated`; a re-audit that re-surfaces a terminal finding flags it
+  `regressed` and returns it to `detected`.
 - Requirements: OT-P0-003, OT-P0-005, OT-P0-006.
 
 ### Auto-placement verdict
@@ -131,7 +130,7 @@ workflow model.
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| conflicts / conflict lifecycle | detected, assigned, split, resolved, validated, committed, force_resolved | detected→committed (must pass validated), validated→detected (use reopen instead), committed→anything | Planned `*.flow.json` contract + state-machine unit tests; conflict envelope's `resolved` and `resolution` fields encode terminal states. |
+| migration / finding lifecycle | detected, assigned, split, resolved, validated, committed, force_resolved | resolve/apply: open→resolved; re-audit absent→validated; re-audit reappears→detected (regressed); committed/force_resolved terminal | `ui/src/features/migration/flow/flow.json` + `flow.test.ts` (UI authority); API authority is `api/internal/migration/service.go` (Resolve / Reaudit). The `conflicts` domain is detection-only and has no lifecycle. |
 | apply / per-domain apply | baseline_captured, plan_generated, dry_run_ok, applied, committed, refused_build_break, force_committed | applied→baseline_captured (must commit or refuse), committed→anything | Build-green guard is a hard invariant; refused state cannot exit without `--force --note`. |
 | migrate / migration lifecycle | starting, extracting, comparing, awaiting_resolution, per_domain_applying, finalized, abandoned | finalized→anything, abandoned→finalized (must `migrate resume` first) | Planned `*.flow.json` contract; finalize transition runs transitional-declaration expiry check. |
 | notes / attachment upload API (placeholder) | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | Template reference; removed with notes domain. |

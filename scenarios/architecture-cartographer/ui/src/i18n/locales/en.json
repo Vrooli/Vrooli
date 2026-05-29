@@ -18,6 +18,7 @@
       "graph": "Graph",
       "domains": "Domains",
       "conflicts": "Conflicts",
+      "migration": "Migration",
       "apply": "Apply",
       "analytics": "Analytics"
     }
@@ -31,6 +32,60 @@
     }
   },
   "pages": {
+    "migration": {
+      "title": "Migrations",
+      "description": "Track a refactor: ingest a test-genie audit, work the prioritized findings, reconcile re-audits by stable id.",
+      "loading": "Loading migrations…",
+      "errorTitle": "Couldn't load migrations.",
+      "listEmptyTitle": "No migrations yet",
+      "listEmptyDescription": "Start one from a test-genie --json audit report.",
+      "selectPrompt": "Select a migration to see its findings.",
+      "newButton": "New migration",
+      "unnamed": "(unnamed)",
+      "columns": {
+        "id": "ID",
+        "name": "Name",
+        "status": "Status",
+        "created": "Created"
+      },
+      "create": {
+        "heading": "Start a migration",
+        "nameLabel": "Name (optional)",
+        "namePlaceholder": "e.g. screaming-architecture pass",
+        "reportLabel": "test-genie --json report",
+        "reportPlaceholder": "Paste the output of: vrooli scenario test <scenario> --json",
+        "hint": "Run the audit for {{scenario}} and paste its --json output. Every phase's findings are ingested as Detected.",
+        "parsedCount": "{{count}} finding(s) parsed.",
+        "submit": "Create migration",
+        "submitting": "Creating…",
+        "cancel": "Cancel",
+        "parseErrorTitle": "Couldn't read that report."
+      },
+      "detail": {
+        "notFound": "Migration not found.",
+        "scenarioLabel": "Scenario:",
+        "rollup": {
+          "total": "Total",
+          "open": "Open",
+          "resolved": "Resolved",
+          "validated": "Validated",
+          "regressions": "Regressions"
+        },
+        "worklistHeading": "Worklist",
+        "worklistEmpty": "No open findings. Re-audit to confirm, then close the migration.",
+        "regressedBadge": "Regressed",
+        "locationsLabel": "Locations",
+        "suggestionLabel": "Suggestion:",
+        "reauditHeading": "Re-audit",
+        "reauditHint": "Paste a fresh --json report for {{scenario}} to reconcile progress.",
+        "reauditSubmit": "Reconcile re-audit",
+        "reauditting": "Reconciling…",
+        "reauditResult": "{{validated}} validated · {{open}} still open · {{regressions}} regression(s).",
+        "closeButton": "Close migration",
+        "closing": "Closing…",
+        "closedNote": "This migration is closed."
+      }
+    },
     "overview": {
       "title": "Overview",
       "description": "Recent targets, active snapshots, and system health.",
@@ -76,16 +131,13 @@
         "id": "ID",
         "type": "Type",
         "severity": "Severity",
-        "domains": "Domains",
-        "status": "Status"
+        "domains": "Domains"
       },
       "evidenceHeading": "Evidence",
       "noEvidence": "No evidence recorded.",
       "fixesHeading": "Suggested fixes",
       "noFixes": "No automated fixes available.",
       "locationsHeading": "Locations",
-      "assignedDomainLabel": "Assigned domain:",
-      "noAssignedDomain": "(none)",
       "snapshotLabel": "Snapshot:",
       "confidenceLabel": "confidence: {{value}}"
     },
@@ -268,7 +320,7 @@
       }
     }
   },
-  "conflicts": {
+  "migration": {
     "status": {
       "detected": "Detected",
       "assigned": "Assigned",
@@ -278,19 +330,18 @@
       "committed": "Committed",
       "force_resolved": "Force-resolved"
     },
-    "actions": {
-      "assign": "Assign",
-      "split": "Split",
-      "resolve": "Resolve",
-      "force_resolve": "Force resolve",
-      "validate": "Validate",
-      "commit": "Commit",
-      "reopen": "Reopen",
-      "pending": "Working…",
-      "assignDomainPrompt": "Enter the domain to assign:",
-      "notePlaceholder": "Why is this resolution acceptable?",
-      "forceNoteRequired": "Force-resolution requires a note."
+    "lifecycle": {
+      "open": "Open",
+      "closed": "Closed"
     },
+    "actions": {
+      "resolve": "Resolve",
+      "apply": "Apply",
+      "resolveNotePrompt": "Resolution note (what changed?):",
+      "pending": "Working…"
+    }
+  },
+  "conflicts": {
     "fixKind": {
       "unspecified": "Unspecified",
       "move_file": "Move file",

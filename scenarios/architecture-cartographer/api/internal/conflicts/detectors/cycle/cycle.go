@@ -72,7 +72,6 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 					Summary:  fmt.Sprintf("break %s cycle across %d packages", subtype, len(scc)),
 				},
 			},
-			Status: conflicts.ResolutionStatusDetected,
 		}
 		out = append(out, c)
 	}

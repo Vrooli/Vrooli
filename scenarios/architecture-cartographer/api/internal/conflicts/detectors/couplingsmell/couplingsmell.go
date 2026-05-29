@@ -60,7 +60,6 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 						Locator: dc.Domain,
 					},
 				},
-				Status: conflicts.ResolutionStatusDetected,
 			})
 		}
 	}

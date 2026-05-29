@@ -37,6 +37,9 @@ type Service interface {
 	Create(ctx context.Context, scenario, name string, findings []*architecturev1.ArchitectureFinding) (Status, error)
 	// Status returns the migration plus every tracked finding and rollups.
 	Status(ctx context.Context, id string) (Status, error)
+	// List returns the migration headers for a scenario (newest first); an
+	// empty scenario returns every migration.
+	List(ctx context.Context, scenario string) ([]Migration, error)
 	// Next returns the prioritized, dependency-aware worklist of open
 	// findings (regressions first, then cycles, then severity).
 	Next(ctx context.Context, id string) ([]Finding, error)
@@ -115,6 +118,10 @@ func (s *service) Status(ctx context.Context, id string) (Status, error) {
 		return Status{}, err
 	}
 	return buildStatus(m, findings), nil
+}
+
+func (s *service) List(ctx context.Context, scenario string) ([]Migration, error) {
+	return s.repo.ListMigrations(ctx, strings.TrimSpace(scenario))
 }
 
 func (s *service) Next(ctx context.Context, id string) ([]Finding, error) {

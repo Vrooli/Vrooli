@@ -16,7 +16,6 @@ import {
   useValidateConflicts,
 } from "./controllers/useConflictsController";
 import { severityToLevel } from "./severity";
-import { statusToState, type ConflictState } from "./flow/transition";
 import type { Conflict } from "@vrooli/proto-types/architecture-cartographer/v1/conflicts/conflicts_pb";
 
 const SEVERITY_LABEL_KEY = {
@@ -26,16 +25,6 @@ const SEVERITY_LABEL_KEY = {
   high: strings.shared.severity.high,
   critical: strings.shared.severity.critical,
 } as const;
-
-const STATUS_LABEL_KEY = {
-  detected: strings.conflicts.status.detected,
-  assigned: strings.conflicts.status.assigned,
-  split: strings.conflicts.status.split,
-  resolved: strings.conflicts.status.resolved,
-  validated: strings.conflicts.status.validated,
-  committed: strings.conflicts.status.committed,
-  force_resolved: strings.conflicts.status.force_resolved,
-} as const satisfies Record<ConflictState, string>;
 
 export interface ConflictListPanelProps {
   scenario: string;
@@ -87,14 +76,6 @@ export function ConflictListPanel({ scenario, selectedId }: ConflictListPanelPro
           {row.domains.length === 0 ? "—" : row.domains.join(", ")}
         </span>
       ),
-    },
-    {
-      key: "status",
-      header: t(strings.pages.conflicts.columns.status),
-      cell: (row) => {
-        const state = statusToState(row.status);
-        return <span className="text-sm">{t(STATUS_LABEL_KEY[state])}</span>;
-      },
     },
   ];
 

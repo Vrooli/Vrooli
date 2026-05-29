@@ -77,21 +77,6 @@
       "endpoint_id": "conflicts.get"
     },
     {
-      "name": "conflicts assign",
-      "description": "Assign a conflict to a target domain",
-      "endpoint_id": "conflicts.assign"
-    },
-    {
-      "name": "conflicts resolve",
-      "description": "Resolve a conflict (force-resolve with --force)",
-      "endpoint_id": "conflicts.resolve"
-    },
-    {
-      "name": "conflicts reopen",
-      "description": "Re-open a resolved or force-resolved conflict",
-      "endpoint_id": "conflicts.reopen"
-    },
-    {
       "name": "conflicts validate",
       "description": "Validate cartographer-clean closure (zero outstanding conflicts)",
       "endpoint_id": "conflicts.validate"
@@ -150,6 +135,11 @@
       "name": "migration create",
       "description": "Open a migration and ingest findings from a test-genie audit",
       "endpoint_id": "migration.create"
+    },
+    {
+      "name": "migration list",
+      "description": "List a scenario's migrations (newest first)",
+      "endpoint_id": "migration.list"
     },
     {
       "name": "migration status",

@@ -71,6 +71,21 @@ vi.mock("../api/conflicts", () => ({
   },
 }));
 
+// Stub the migration Connect client — the migration page calls
+// ListMigrations on mount and the workbench would otherwise need a backend.
+vi.mock("../api/migration", () => ({
+  migrationClient: {
+    listMigrations: vi.fn().mockResolvedValue({ migrations: [] }),
+    getMigrationStatus: vi.fn().mockResolvedValue({ status: undefined }),
+    nextMigrationStep: vi.fn().mockResolvedValue({ findings: [] }),
+    createMigration: vi.fn(),
+    resolveFinding: vi.fn(),
+    applyFinding: vi.fn(),
+    reauditMigration: vi.fn(),
+    closeMigration: vi.fn(),
+  },
+}));
+
 describe("AppRouter", () => {
   afterEach(() => {
     cleanup();
@@ -116,6 +131,22 @@ describe("AppRouter", () => {
       { withoutRouter: true },
     );
     expect(await screen.findByTestId(selectors.pages.targetConflictDetail)).toBeInTheDocument();
+  });
+
+  it("renders the migration page at /targets/:encodedPath/migration", async () => {
+    renderWithProviders(
+      <TestAppRouter initialEntries={["/targets/demo/migration"]} />,
+      { withoutRouter: true },
+    );
+    expect(await screen.findByTestId(selectors.pages.targetMigration)).toBeInTheDocument();
+  });
+
+  it("renders the migration detail at /targets/:encodedPath/migration/:migrationId", async () => {
+    renderWithProviders(
+      <TestAppRouter initialEntries={["/targets/demo/migration/m-1"]} />,
+      { withoutRouter: true },
+    );
+    expect(await screen.findByTestId(selectors.pages.targetMigrationDetail)).toBeInTheDocument();
   });
 
   it("renders the domains page at /targets/:encodedPath/domains", async () => {

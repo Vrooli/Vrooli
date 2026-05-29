@@ -1,6 +1,9 @@
-// Package conflicts is the domain-scoped home for drift detection, the
-// pluggable Detector/Resolver registries, conflict persistence, and the
-// per-conflict lifecycle state machine.
+// Package conflicts is the DETECTION-ONLY home for drift detection, the
+// pluggable Detector/Resolver registries, and conflict persistence. It is
+// a stateless photograph of what is wrong now; it owns no lifecycle. The
+// stateful per-finding lifecycle (assign/resolve/validate/regress) lives in
+// the migration domain, which ingests these findings and tracks them over
+// time.
 //
 // Conflict envelope shape is locked in v0.1: adding a new Detector does
 // not add fields to Conflict; only optional fields on Fix may be added.
@@ -22,19 +25,6 @@ const (
 	SeverityWarn        Severity = "warn"
 	SeverityError       Severity = "error"
 	SeverityBlocker     Severity = "blocker"
-)
-
-// ResolutionStatus is the lifecycle state.
-type ResolutionStatus string
-
-const (
-	ResolutionStatusDetected      ResolutionStatus = "detected"
-	ResolutionStatusAssigned      ResolutionStatus = "assigned"
-	ResolutionStatusSplit         ResolutionStatus = "split"
-	ResolutionStatusResolved      ResolutionStatus = "resolved"
-	ResolutionStatusValidated     ResolutionStatus = "validated"
-	ResolutionStatusCommitted     ResolutionStatus = "committed"
-	ResolutionStatusForceResolved ResolutionStatus = "force_resolved"
 )
 
 // FixKind enumerates the operator-facing fix categories.
@@ -90,9 +80,6 @@ type Conflict struct {
 	Domains        []string
 	Evidence       []Evidence
 	SuggestedFixes []Fix
-	Status         ResolutionStatus
-	AssignedDomain string
-	ResolutionNote string
 	SnapshotID     string
 	Verdict        *signals.Verdict
 	// Suppressed is true when an active in-repo `// arch:allow` marker
@@ -132,24 +119,12 @@ func (e ErrConflictNotFound) Error() string {
 	return fmt.Sprintf("conflict %q not found", e.ID)
 }
 
-// ErrInvalidTransition signals that the operator-requested status
-// change is not allowed from the current status.
-type ErrInvalidTransition struct {
-	From ResolutionStatus
-	To   ResolutionStatus
-}
-
-func (e ErrInvalidTransition) Error() string {
-	return fmt.Sprintf("invalid conflict transition %s -> %s", e.From, e.To)
-}
-
-// ErrInvalidAssignment signals that the assigned domain is not declared
-// in the derived domain map.
-type ErrInvalidAssignment struct {
-	Domain string
+// ErrInvalidInput signals a malformed request to a detection operation
+// (e.g., a missing scenario). Mapped to CodeInvalidArgument.
+type ErrInvalidInput struct {
 	Reason string
 }
 
-func (e ErrInvalidAssignment) Error() string {
-	return fmt.Sprintf("invalid assignment to domain %q: %s", e.Domain, e.Reason)
+func (e ErrInvalidInput) Error() string {
+	return fmt.Sprintf("invalid input: %s", e.Reason)
 }

@@ -42,15 +42,6 @@ const (
 	// ConflictsServiceGetConflictProcedure is the fully-qualified name of the ConflictsService's
 	// GetConflict RPC.
 	ConflictsServiceGetConflictProcedure = "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/GetConflict"
-	// ConflictsServiceAssignConflictProcedure is the fully-qualified name of the ConflictsService's
-	// AssignConflict RPC.
-	ConflictsServiceAssignConflictProcedure = "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/AssignConflict"
-	// ConflictsServiceResolveConflictProcedure is the fully-qualified name of the ConflictsService's
-	// ResolveConflict RPC.
-	ConflictsServiceResolveConflictProcedure = "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/ResolveConflict"
-	// ConflictsServiceReopenConflictProcedure is the fully-qualified name of the ConflictsService's
-	// ReopenConflict RPC.
-	ConflictsServiceReopenConflictProcedure = "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/ReopenConflict"
 	// ConflictsServiceValidateConflictsProcedure is the fully-qualified name of the ConflictsService's
 	// ValidateConflicts RPC.
 	ConflictsServiceValidateConflictsProcedure = "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/ValidateConflicts"
@@ -73,19 +64,11 @@ type ConflictsServiceClient interface {
 	ListConflicts(context.Context, *connect.Request[conflicts.ListConflictsRequest]) (*connect.Response[conflicts.ListConflictsResponse], error)
 	// GetConflict returns one conflict by id.
 	GetConflict(context.Context, *connect.Request[conflicts.GetConflictRequest]) (*connect.Response[conflicts.GetConflictResponse], error)
-	// AssignConflict moves the conflict to ASSIGNED and records the
-	// operator's choice of domain. Honors X-Dry-Run.
-	AssignConflict(context.Context, *connect.Request[conflicts.AssignConflictRequest]) (*connect.Response[conflicts.AssignConflictResponse], error)
-	// ResolveConflict moves the conflict to RESOLVED (or FORCE_RESOLVED
-	// when force=true). v0.1 records intent only; the actual mutation
-	// happens in `apply` (which is unimplemented in v0.1). Honors X-Dry-Run.
-	ResolveConflict(context.Context, *connect.Request[conflicts.ResolveConflictRequest]) (*connect.Response[conflicts.ResolveConflictResponse], error)
-	// ReopenConflict moves a resolved conflict back to DETECTED. Honors
-	// X-Dry-Run.
-	ReopenConflict(context.Context, *connect.Request[conflicts.ReopenConflictRequest]) (*connect.Response[conflicts.ReopenConflictResponse], error)
-	// ValidateConflicts re-runs detection + diff against the current
-	// resolution state and returns the residual conflict set. Used by
-	// `arch-cart validate <scenario>` and by the dogfood gate.
+	// ValidateConflicts re-lists the current detected conflicts and reports
+	// whether the scenario is clean (zero outstanding of severity >= ERROR,
+	// suppressed findings excluded). Used by `arch-cart validate <scenario>`
+	// and by the dogfood gate. Walking findings through a lifecycle toward
+	// zero is the migration domain's job, not this one's.
 	ValidateConflicts(context.Context, *connect.Request[conflicts.ValidateConflictsRequest]) (*connect.Response[conflicts.ValidateConflictsResponse], error)
 	// ListDetectors returns the registered detector set.
 	ListDetectors(context.Context, *connect.Request[conflicts.ListDetectorsRequest]) (*connect.Response[conflicts.ListDetectorsResponse], error)
@@ -123,24 +106,6 @@ func NewConflictsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(conflictsServiceMethods.ByName("GetConflict")),
 			connect.WithClientOptions(opts...),
 		),
-		assignConflict: connect.NewClient[conflicts.AssignConflictRequest, conflicts.AssignConflictResponse](
-			httpClient,
-			baseURL+ConflictsServiceAssignConflictProcedure,
-			connect.WithSchema(conflictsServiceMethods.ByName("AssignConflict")),
-			connect.WithClientOptions(opts...),
-		),
-		resolveConflict: connect.NewClient[conflicts.ResolveConflictRequest, conflicts.ResolveConflictResponse](
-			httpClient,
-			baseURL+ConflictsServiceResolveConflictProcedure,
-			connect.WithSchema(conflictsServiceMethods.ByName("ResolveConflict")),
-			connect.WithClientOptions(opts...),
-		),
-		reopenConflict: connect.NewClient[conflicts.ReopenConflictRequest, conflicts.ReopenConflictResponse](
-			httpClient,
-			baseURL+ConflictsServiceReopenConflictProcedure,
-			connect.WithSchema(conflictsServiceMethods.ByName("ReopenConflict")),
-			connect.WithClientOptions(opts...),
-		),
 		validateConflicts: connect.NewClient[conflicts.ValidateConflictsRequest, conflicts.ValidateConflictsResponse](
 			httpClient,
 			baseURL+ConflictsServiceValidateConflictsProcedure,
@@ -167,9 +132,6 @@ type conflictsServiceClient struct {
 	detectConflicts   *connect.Client[conflicts.DetectConflictsRequest, conflicts.DetectConflictsResponse]
 	listConflicts     *connect.Client[conflicts.ListConflictsRequest, conflicts.ListConflictsResponse]
 	getConflict       *connect.Client[conflicts.GetConflictRequest, conflicts.GetConflictResponse]
-	assignConflict    *connect.Client[conflicts.AssignConflictRequest, conflicts.AssignConflictResponse]
-	resolveConflict   *connect.Client[conflicts.ResolveConflictRequest, conflicts.ResolveConflictResponse]
-	reopenConflict    *connect.Client[conflicts.ReopenConflictRequest, conflicts.ReopenConflictResponse]
 	validateConflicts *connect.Client[conflicts.ValidateConflictsRequest, conflicts.ValidateConflictsResponse]
 	listDetectors     *connect.Client[conflicts.ListDetectorsRequest, conflicts.ListDetectorsResponse]
 	listResolvers     *connect.Client[conflicts.ListResolversRequest, conflicts.ListResolversResponse]
@@ -189,24 +151,6 @@ func (c *conflictsServiceClient) ListConflicts(ctx context.Context, req *connect
 // GetConflict calls vrooli.architecture_cartographer.v1.conflicts.ConflictsService.GetConflict.
 func (c *conflictsServiceClient) GetConflict(ctx context.Context, req *connect.Request[conflicts.GetConflictRequest]) (*connect.Response[conflicts.GetConflictResponse], error) {
 	return c.getConflict.CallUnary(ctx, req)
-}
-
-// AssignConflict calls
-// vrooli.architecture_cartographer.v1.conflicts.ConflictsService.AssignConflict.
-func (c *conflictsServiceClient) AssignConflict(ctx context.Context, req *connect.Request[conflicts.AssignConflictRequest]) (*connect.Response[conflicts.AssignConflictResponse], error) {
-	return c.assignConflict.CallUnary(ctx, req)
-}
-
-// ResolveConflict calls
-// vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ResolveConflict.
-func (c *conflictsServiceClient) ResolveConflict(ctx context.Context, req *connect.Request[conflicts.ResolveConflictRequest]) (*connect.Response[conflicts.ResolveConflictResponse], error) {
-	return c.resolveConflict.CallUnary(ctx, req)
-}
-
-// ReopenConflict calls
-// vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ReopenConflict.
-func (c *conflictsServiceClient) ReopenConflict(ctx context.Context, req *connect.Request[conflicts.ReopenConflictRequest]) (*connect.Response[conflicts.ReopenConflictResponse], error) {
-	return c.reopenConflict.CallUnary(ctx, req)
 }
 
 // ValidateConflicts calls
@@ -236,19 +180,11 @@ type ConflictsServiceHandler interface {
 	ListConflicts(context.Context, *connect.Request[conflicts.ListConflictsRequest]) (*connect.Response[conflicts.ListConflictsResponse], error)
 	// GetConflict returns one conflict by id.
 	GetConflict(context.Context, *connect.Request[conflicts.GetConflictRequest]) (*connect.Response[conflicts.GetConflictResponse], error)
-	// AssignConflict moves the conflict to ASSIGNED and records the
-	// operator's choice of domain. Honors X-Dry-Run.
-	AssignConflict(context.Context, *connect.Request[conflicts.AssignConflictRequest]) (*connect.Response[conflicts.AssignConflictResponse], error)
-	// ResolveConflict moves the conflict to RESOLVED (or FORCE_RESOLVED
-	// when force=true). v0.1 records intent only; the actual mutation
-	// happens in `apply` (which is unimplemented in v0.1). Honors X-Dry-Run.
-	ResolveConflict(context.Context, *connect.Request[conflicts.ResolveConflictRequest]) (*connect.Response[conflicts.ResolveConflictResponse], error)
-	// ReopenConflict moves a resolved conflict back to DETECTED. Honors
-	// X-Dry-Run.
-	ReopenConflict(context.Context, *connect.Request[conflicts.ReopenConflictRequest]) (*connect.Response[conflicts.ReopenConflictResponse], error)
-	// ValidateConflicts re-runs detection + diff against the current
-	// resolution state and returns the residual conflict set. Used by
-	// `arch-cart validate <scenario>` and by the dogfood gate.
+	// ValidateConflicts re-lists the current detected conflicts and reports
+	// whether the scenario is clean (zero outstanding of severity >= ERROR,
+	// suppressed findings excluded). Used by `arch-cart validate <scenario>`
+	// and by the dogfood gate. Walking findings through a lifecycle toward
+	// zero is the migration domain's job, not this one's.
 	ValidateConflicts(context.Context, *connect.Request[conflicts.ValidateConflictsRequest]) (*connect.Response[conflicts.ValidateConflictsResponse], error)
 	// ListDetectors returns the registered detector set.
 	ListDetectors(context.Context, *connect.Request[conflicts.ListDetectorsRequest]) (*connect.Response[conflicts.ListDetectorsResponse], error)
@@ -281,24 +217,6 @@ func NewConflictsServiceHandler(svc ConflictsServiceHandler, opts ...connect.Han
 		connect.WithSchema(conflictsServiceMethods.ByName("GetConflict")),
 		connect.WithHandlerOptions(opts...),
 	)
-	conflictsServiceAssignConflictHandler := connect.NewUnaryHandler(
-		ConflictsServiceAssignConflictProcedure,
-		svc.AssignConflict,
-		connect.WithSchema(conflictsServiceMethods.ByName("AssignConflict")),
-		connect.WithHandlerOptions(opts...),
-	)
-	conflictsServiceResolveConflictHandler := connect.NewUnaryHandler(
-		ConflictsServiceResolveConflictProcedure,
-		svc.ResolveConflict,
-		connect.WithSchema(conflictsServiceMethods.ByName("ResolveConflict")),
-		connect.WithHandlerOptions(opts...),
-	)
-	conflictsServiceReopenConflictHandler := connect.NewUnaryHandler(
-		ConflictsServiceReopenConflictProcedure,
-		svc.ReopenConflict,
-		connect.WithSchema(conflictsServiceMethods.ByName("ReopenConflict")),
-		connect.WithHandlerOptions(opts...),
-	)
 	conflictsServiceValidateConflictsHandler := connect.NewUnaryHandler(
 		ConflictsServiceValidateConflictsProcedure,
 		svc.ValidateConflicts,
@@ -325,12 +243,6 @@ func NewConflictsServiceHandler(svc ConflictsServiceHandler, opts ...connect.Han
 			conflictsServiceListConflictsHandler.ServeHTTP(w, r)
 		case ConflictsServiceGetConflictProcedure:
 			conflictsServiceGetConflictHandler.ServeHTTP(w, r)
-		case ConflictsServiceAssignConflictProcedure:
-			conflictsServiceAssignConflictHandler.ServeHTTP(w, r)
-		case ConflictsServiceResolveConflictProcedure:
-			conflictsServiceResolveConflictHandler.ServeHTTP(w, r)
-		case ConflictsServiceReopenConflictProcedure:
-			conflictsServiceReopenConflictHandler.ServeHTTP(w, r)
 		case ConflictsServiceValidateConflictsProcedure:
 			conflictsServiceValidateConflictsHandler.ServeHTTP(w, r)
 		case ConflictsServiceListDetectorsProcedure:
@@ -356,18 +268,6 @@ func (UnimplementedConflictsServiceHandler) ListConflicts(context.Context, *conn
 
 func (UnimplementedConflictsServiceHandler) GetConflict(context.Context, *connect.Request[conflicts.GetConflictRequest]) (*connect.Response[conflicts.GetConflictResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.conflicts.ConflictsService.GetConflict is not implemented"))
-}
-
-func (UnimplementedConflictsServiceHandler) AssignConflict(context.Context, *connect.Request[conflicts.AssignConflictRequest]) (*connect.Response[conflicts.AssignConflictResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.conflicts.ConflictsService.AssignConflict is not implemented"))
-}
-
-func (UnimplementedConflictsServiceHandler) ResolveConflict(context.Context, *connect.Request[conflicts.ResolveConflictRequest]) (*connect.Response[conflicts.ResolveConflictResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ResolveConflict is not implemented"))
-}
-
-func (UnimplementedConflictsServiceHandler) ReopenConflict(context.Context, *connect.Request[conflicts.ReopenConflictRequest]) (*connect.Response[conflicts.ReopenConflictResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ReopenConflict is not implemented"))
 }
 
 func (UnimplementedConflictsServiceHandler) ValidateConflicts(context.Context, *connect.Request[conflicts.ValidateConflictsRequest]) (*connect.Response[conflicts.ValidateConflictsResponse], error) {

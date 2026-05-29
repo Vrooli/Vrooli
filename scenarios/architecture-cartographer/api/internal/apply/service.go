@@ -54,10 +54,26 @@ type PlanInput struct {
 	DryRun      bool
 }
 
-// ConflictLister is the seam apply uses to fetch resolved conflicts.
+// ConflictLister is the seam apply uses to fetch detected conflicts.
 // Production wires conflicts.Service; tests pass a fake.
 type ConflictLister interface {
 	ListConflicts(ctx context.Context, f conflicts.ListConflictsFilter) (conflicts.ConflictPage, error)
+}
+
+// conflictTouchesDomain reports whether a plan for the given domain should
+// include this conflict. A conflict that touches no domains is included for
+// any domain (preserving the prior unassigned-conflict leniency); otherwise
+// the requested domain must be among the domains the conflict touches.
+func conflictTouchesDomain(c conflicts.Conflict, domain string) bool {
+	if len(c.Domains) == 0 {
+		return true
+	}
+	for _, d := range c.Domains {
+		if d == domain {
+			return true
+		}
+	}
+	return false
 }
 
 type service struct {
@@ -98,12 +114,12 @@ func (s *service) PlanApply(ctx context.Context, in PlanInput) (Plan, bool, erro
 		return Plan{}, in.DryRun, ErrInvalidPlanRequest{Field: "domain", Reason: "required"}
 	}
 
+	// Conflicts are now detection-only (no lifecycle to filter on): plan from
+	// the current detected set. The operator scopes a plan by passing
+	// explicit ConflictIDs and the owning Domain; the lifecycle of walking a
+	// migration toward zero lives in the migration domain.
 	page, err := s.conflicts.ListConflicts(ctx, conflicts.ListConflictsFilter{
 		Scenario: in.Scenario,
-		Statuses: []conflicts.ResolutionStatus{
-			conflicts.ResolutionStatusResolved,
-			conflicts.ResolutionStatusValidated,
-		},
 	})
 	if err != nil {
 		return Plan{}, in.DryRun, err
@@ -124,7 +140,10 @@ func (s *service) PlanApply(ctx context.Context, in PlanInput) (Plan, bool, erro
 				continue
 			}
 		}
-		if c.AssignedDomain != "" && c.AssignedDomain != in.Domain {
+		// Scope to the requested domain by the domains the conflict touches.
+		// A conflict with no domains attached is included for any domain
+		// (the prior AssignedDomain=="" leniency).
+		if !conflictTouchesDomain(c, in.Domain) {
 			continue
 		}
 		ops := OperationsFromConflict(c)

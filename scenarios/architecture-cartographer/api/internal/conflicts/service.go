@@ -44,9 +44,6 @@ type Service interface {
 	UpsertConflicts(ctx context.Context, scenario string, conflicts []Conflict) ([]Conflict, error)
 	ValidateConflicts(ctx context.Context, scenario string) ([]Conflict, bool, error)
 	GetConflict(ctx context.Context, id string) (Conflict, error)
-	AssignConflict(ctx context.Context, id, domain, note string, dryRun bool) (Conflict, bool, error)
-	ResolveConflict(ctx context.Context, id, note string, force, dryRun bool) (Conflict, bool, bool, error)
-	ReopenConflict(ctx context.Context, id, note string, dryRun bool) (Conflict, bool, error)
 	ListConflicts(ctx context.Context, f ListConflictsFilter) (ConflictPage, error)
 	ListDetectors(ctx context.Context) []DetectorDescriptor
 	ListResolvers(ctx context.Context) []ResolverDescriptor
@@ -108,7 +105,7 @@ func (s *service) record(ctx context.Context, scenario, kind, conflictID string,
 func (s *service) DetectConflicts(ctx context.Context, in DetectOrchestrationInput) ([]Conflict, error) {
 	scenario := strings.TrimSpace(in.Scenario)
 	if scenario == "" {
-		return nil, ErrInvalidAssignment{Domain: "", Reason: "scenario is required"}
+		return nil, ErrInvalidInput{Reason: "scenario is required"}
 	}
 	if s.detectors == nil {
 		return nil, errors.New("no detector registry registered")
@@ -143,13 +140,15 @@ func (s *service) DetectConflicts(ctx context.Context, in DetectOrchestrationInp
 	return persisted, nil
 }
 
-// ValidateConflicts returns the still-outstanding conflicts (anything
-// not in a terminal Resolved/ForceResolved/Committed status) and a
-// clean flag (true ↔ zero outstanding of severity≥error).
+// ValidateConflicts returns the currently-detected conflicts and a clean
+// flag (true ↔ zero outstanding of severity≥error, suppressed excluded).
+// Detection-only: there is no lifecycle to net out, so every persisted,
+// non-suppressed conflict is "outstanding." Walking findings toward zero
+// over time is the migration domain's job.
 func (s *service) ValidateConflicts(ctx context.Context, scenario string) ([]Conflict, bool, error) {
 	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
-		return nil, false, ErrInvalidAssignment{Domain: "", Reason: "scenario is required"}
+		return nil, false, ErrInvalidInput{Reason: "scenario is required"}
 	}
 	page, err := s.repo.ListConflicts(ctx, ListConflictsFilter{Scenario: scenario, PageSize: 10000})
 	if err != nil {
@@ -158,10 +157,6 @@ func (s *service) ValidateConflicts(ctx context.Context, scenario string) ([]Con
 	var outstanding []Conflict
 	clean := true
 	for _, c := range page.Conflicts {
-		switch c.Status {
-		case ResolutionStatusResolved, ResolutionStatusForceResolved, ResolutionStatusCommitted:
-			continue
-		}
 		// A finding sanctioned by an active in-repo marker is intentional,
 		// not outstanding — it never blocks cartographer-clean closure.
 		if c.Suppressed {
@@ -179,9 +174,6 @@ func (s *service) UpsertConflicts(ctx context.Context, scenario string, conflict
 	out := make([]Conflict, 0, len(conflicts))
 	for _, c := range conflicts {
 		c.Scenario = scenario
-		if c.Status == "" {
-			c.Status = ResolutionStatusDetected
-		}
 		persisted, err := s.repo.UpsertConflict(ctx, c)
 		if err != nil {
 			return nil, err
@@ -193,119 +185,6 @@ func (s *service) UpsertConflicts(ctx context.Context, scenario string, conflict
 
 func (s *service) GetConflict(ctx context.Context, id string) (Conflict, error) {
 	return s.repo.GetConflict(ctx, id)
-}
-
-func (s *service) AssignConflict(ctx context.Context, id, domain, note string, dryRun bool) (Conflict, bool, error) {
-	if strings.TrimSpace(domain) == "" {
-		return Conflict{}, dryRun, ErrInvalidAssignment{Domain: domain, Reason: "required"}
-	}
-	current, err := s.repo.GetConflict(ctx, id)
-	if err != nil {
-		return Conflict{}, dryRun, err
-	}
-	if !canTransition(current.Status, ResolutionStatusAssigned) {
-		return current, dryRun, ErrInvalidTransition{From: current.Status, To: ResolutionStatusAssigned}
-	}
-	if dryRun {
-		current.Status = ResolutionStatusAssigned
-		current.AssignedDomain = domain
-		current.ResolutionNote = note
-		return current, true, nil
-	}
-	updated, err := s.repo.UpdateStatus(ctx, id, ResolutionStatusAssigned, note, domain)
-	if err == nil {
-		s.record(ctx, updated.Scenario, "conflict_assigned", updated.ID, map[string]any{
-			"domain": domain,
-			"note":   note,
-		})
-	}
-	return updated, false, err
-}
-
-func (s *service) ResolveConflict(ctx context.Context, id, note string, force, dryRun bool) (Conflict, bool, bool, error) {
-	current, err := s.repo.GetConflict(ctx, id)
-	if err != nil {
-		return Conflict{}, dryRun, false, err
-	}
-	targetStatus := ResolutionStatusResolved
-	if force {
-		targetStatus = ResolutionStatusForceResolved
-	}
-	if !canTransition(current.Status, targetStatus) {
-		return current, dryRun, false, ErrInvalidTransition{From: current.Status, To: targetStatus}
-	}
-	// Determine whether the resolution is apply-deferred. Inspect the
-	// suggested fixes' resolvers; v0.1 marks every fix that requires
-	// apply as deferred so the CLI can communicate the gap.
-	applyDeferred := false
-	for _, fix := range current.SuggestedFixes {
-		if fix.Resolver == "" {
-			continue
-		}
-		resolver := s.resolvers.Lookup(fix.Resolver)
-		if resolver == nil {
-			continue
-		}
-		if resolver.RequiresApply() {
-			applyDeferred = true
-			break
-		}
-	}
-	if dryRun {
-		current.Status = targetStatus
-		current.ResolutionNote = note
-		return current, true, applyDeferred, nil
-	}
-	updated, err := s.repo.UpdateStatus(ctx, id, targetStatus, note, "")
-	if err != nil {
-		return Conflict{}, false, applyDeferred, err
-	}
-	// If a non-deferred resolver exists, invoke it. v0.1 typically
-	// returns ErrResolverDeferred for all fixes.
-	for _, fix := range updated.SuggestedFixes {
-		resolver := s.resolvers.Lookup(fix.Resolver)
-		if resolver == nil || resolver.RequiresApply() {
-			continue
-		}
-		if rerr := resolver.Resolve(ctx, updated, fix); rerr != nil {
-			var deferred ErrResolverDeferred
-			if errors.As(rerr, &deferred) {
-				applyDeferred = true
-				continue
-			}
-			return updated, false, applyDeferred, rerr
-		}
-	}
-	kind := "conflict_resolved"
-	if force {
-		kind = "conflict_force_resolved"
-	}
-	s.record(ctx, updated.Scenario, kind, updated.ID, map[string]any{
-		"force":          force,
-		"apply_deferred": applyDeferred,
-		"note":           note,
-	})
-	return updated, false, applyDeferred, nil
-}
-
-func (s *service) ReopenConflict(ctx context.Context, id, note string, dryRun bool) (Conflict, bool, error) {
-	current, err := s.repo.GetConflict(ctx, id)
-	if err != nil {
-		return Conflict{}, dryRun, err
-	}
-	if !canTransition(current.Status, ResolutionStatusDetected) {
-		return current, dryRun, ErrInvalidTransition{From: current.Status, To: ResolutionStatusDetected}
-	}
-	if dryRun {
-		current.Status = ResolutionStatusDetected
-		current.ResolutionNote = note
-		return current, true, nil
-	}
-	updated, err := s.repo.UpdateStatus(ctx, id, ResolutionStatusDetected, note, "")
-	if err == nil {
-		s.record(ctx, updated.Scenario, "conflict_reopened", updated.ID, map[string]any{"note": note})
-	}
-	return updated, false, err
 }
 
 func (s *service) ListConflicts(ctx context.Context, f ListConflictsFilter) (ConflictPage, error) {
@@ -324,50 +203,4 @@ func (s *service) ListResolvers(_ context.Context) []ResolverDescriptor {
 		return nil
 	}
 	return s.resolvers.Describe()
-}
-
-// canTransition encodes the lifecycle state machine documented in
-// docs/concepts/FLOWS.md. Phase 6 backs this with a flow contract via
-// flow-verifier; Phase 2 carries the table inline so the service is
-// exercisable in tests.
-func canTransition(from, to ResolutionStatus) bool {
-	allowed := map[ResolutionStatus]map[ResolutionStatus]struct{}{
-		ResolutionStatusDetected: {
-			ResolutionStatusAssigned:      {},
-			ResolutionStatusSplit:         {},
-			ResolutionStatusResolved:      {},
-			ResolutionStatusForceResolved: {},
-		},
-		ResolutionStatusAssigned: {
-			ResolutionStatusResolved:      {},
-			ResolutionStatusSplit:         {},
-			ResolutionStatusForceResolved: {},
-			ResolutionStatusDetected:      {},
-		},
-		ResolutionStatusSplit: {
-			ResolutionStatusResolved:      {},
-			ResolutionStatusForceResolved: {},
-		},
-		ResolutionStatusResolved: {
-			ResolutionStatusValidated: {},
-			ResolutionStatusDetected:  {}, // reopen
-		},
-		ResolutionStatusValidated: {
-			ResolutionStatusCommitted: {},
-			ResolutionStatusDetected:  {}, // reopen
-		},
-		ResolutionStatusCommitted: {},
-		ResolutionStatusForceResolved: {
-			ResolutionStatusDetected: {}, // reopen
-		},
-	}
-	if from == "" {
-		from = ResolutionStatusDetected
-	}
-	t, ok := allowed[from]
-	if !ok {
-		return false
-	}
-	_, ok = t[to]
-	return ok
 }

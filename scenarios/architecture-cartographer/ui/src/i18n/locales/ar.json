@@ -18,6 +18,7 @@
       "graph": "الرسم البياني",
       "domains": "النطاقات",
       "conflicts": "التعارضات",
+      "migration": "الترحيل",
       "apply": "التطبيق",
       "analytics": "التحليلات"
     }
@@ -31,6 +32,60 @@
     }
   },
   "pages": {
+    "migration": {
+      "title": "عمليات الترحيل",
+      "description": "تتبّع عملية إعادة هيكلة: استوعب تدقيق test-genie، وعالج النتائج حسب الأولوية، ووفّق عمليات إعادة التدقيق عبر المعرّف الثابت.",
+      "loading": "جارٍ تحميل عمليات الترحيل…",
+      "errorTitle": "تعذّر تحميل عمليات الترحيل.",
+      "listEmptyTitle": "لا توجد عمليات ترحيل بعد",
+      "listEmptyDescription": "ابدأ واحدة من تقرير تدقيق test-genie بصيغة --json.",
+      "selectPrompt": "اختر عملية ترحيل لعرض نتائجها.",
+      "newButton": "ترحيل جديد",
+      "unnamed": "(بدون اسم)",
+      "columns": {
+        "id": "المعرّف",
+        "name": "الاسم",
+        "status": "الحالة",
+        "created": "تاريخ الإنشاء"
+      },
+      "create": {
+        "heading": "بدء عملية ترحيل",
+        "nameLabel": "الاسم (اختياري)",
+        "namePlaceholder": "مثال: مسار screaming-architecture",
+        "reportLabel": "تقرير test-genie بصيغة --json",
+        "reportPlaceholder": "الصق مخرجات: vrooli scenario test <scenario> --json",
+        "hint": "شغّل التدقيق لـ {{scenario}} والصق مخرجات --json. تُستوعب نتائج كل مرحلة بحالة «مكتشف».",
+        "parsedCount": "تم تحليل {{count}} نتيجة.",
+        "submit": "إنشاء الترحيل",
+        "submitting": "جارٍ الإنشاء…",
+        "cancel": "إلغاء",
+        "parseErrorTitle": "تعذّرت قراءة هذا التقرير."
+      },
+      "detail": {
+        "notFound": "لم يتم العثور على الترحيل.",
+        "scenarioLabel": "السيناريو:",
+        "rollup": {
+          "total": "الإجمالي",
+          "open": "مفتوح",
+          "resolved": "محلول",
+          "validated": "مُتحقَّق",
+          "regressions": "ارتدادات"
+        },
+        "worklistHeading": "قائمة العمل",
+        "worklistEmpty": "لا توجد نتائج مفتوحة. أعد التدقيق للتأكيد ثم أغلق الترحيل.",
+        "regressedBadge": "مُرتدّ",
+        "locationsLabel": "المواقع",
+        "suggestionLabel": "اقتراح:",
+        "reauditHeading": "إعادة التدقيق",
+        "reauditHint": "الصق تقرير --json جديداً لـ {{scenario}} لتوفيق التقدم.",
+        "reauditSubmit": "توفيق إعادة التدقيق",
+        "reauditting": "جارٍ التوفيق…",
+        "reauditResult": "{{validated}} مُتحقَّق · {{open}} مفتوح · {{regressions}} ارتداد.",
+        "closeButton": "إغلاق الترحيل",
+        "closing": "جارٍ الإغلاق…",
+        "closedNote": "هذا الترحيل مغلق."
+      }
+    },
     "overview": {
       "title": "نظرة عامة",
       "description": "الأهداف الحديثة والتقاطات النشطة وصحة النظام.",
@@ -76,16 +131,13 @@
         "id": "المعرّف",
         "type": "النوع",
         "severity": "الخطورة",
-        "domains": "المجالات",
-        "status": "الحالة"
+        "domains": "المجالات"
       },
       "evidenceHeading": "الأدلة",
       "noEvidence": "لا توجد أدلة مسجلة.",
       "fixesHeading": "الإصلاحات المقترحة",
       "noFixes": "لا توجد إصلاحات تلقائية.",
       "locationsHeading": "المواقع",
-      "assignedDomainLabel": "المجال المُسنَد:",
-      "noAssignedDomain": "(لا يوجد)",
       "snapshotLabel": "اللقطة:",
       "confidenceLabel": "الثقة: {{value}}"
     },
@@ -268,29 +320,28 @@
       }
     }
   },
-  "conflicts": {
+  "migration": {
     "status": {
       "detected": "مكتشف",
       "assigned": "مُسنَد",
-      "split": "مُقسَّم",
+      "split": "مقسّم",
       "resolved": "محلول",
       "validated": "مُتحقَّق",
-      "committed": "مُلتزَم",
-      "force_resolved": "حل قسري"
+      "committed": "مُثبَّت",
+      "force_resolved": "محلول إجبارياً"
+    },
+    "lifecycle": {
+      "open": "مفتوح",
+      "closed": "مغلق"
     },
     "actions": {
-      "assign": "إسناد",
-      "split": "تقسيم",
-      "resolve": "حل",
-      "force_resolve": "حل قسري",
-      "validate": "تحقّق",
-      "commit": "التزام",
-      "reopen": "إعادة فتح",
-      "pending": "جارٍ العمل…",
-      "assignDomainPrompt": "أدخل المجال لإسناده:",
-      "notePlaceholder": "لماذا يُعد هذا الحل مقبولاً؟",
-      "forceNoteRequired": "يتطلب الحل القسري ملاحظة."
-    },
+      "resolve": "حلّ",
+      "apply": "تطبيق",
+      "resolveNotePrompt": "ملاحظة الحل (ما الذي تغيّر؟):",
+      "pending": "جارٍ العمل…"
+    }
+  },
+  "conflicts": {
     "fixKind": {
       "unspecified": "غير محدّد",
       "move_file": "نقل الملف",

@@ -168,7 +168,7 @@
       "path": "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/ListConflicts",
       "method": "POST",
       "summary": "List persisted conflicts",
-      "description": "Cursor-paginated list of stored conflicts, filterable by scenario, status, and type.",
+      "description": "Cursor-paginated list of stored conflicts, filterable by scenario and type.",
       "category": "conflicts",
       "cli_mapping": {
         "command": "arch-cart conflicts list"
@@ -183,39 +183,6 @@
       "category": "conflicts",
       "cli_mapping": {
         "command": "arch-cart conflicts show"
-      }
-    },
-    {
-      "id": "conflicts.assign",
-      "path": "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/AssignConflict",
-      "method": "POST",
-      "summary": "Assign a conflict to a domain",
-      "description": "Transitions the conflict to ASSIGNED with the supplied target domain. Honors X-Dry-Run.",
-      "category": "conflicts",
-      "cli_mapping": {
-        "command": "arch-cart conflicts assign"
-      }
-    },
-    {
-      "id": "conflicts.resolve",
-      "path": "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/ResolveConflict",
-      "method": "POST",
-      "summary": "Resolve a conflict",
-      "description": "Transitions the conflict to RESOLVED (or FORCE_RESOLVED with force=true). Honors X-Dry-Run. ApplyDeferred=true when the chosen fix requires file movement, which is unimplemented in v0.1.",
-      "category": "conflicts",
-      "cli_mapping": {
-        "command": "arch-cart conflicts resolve"
-      }
-    },
-    {
-      "id": "conflicts.reopen",
-      "path": "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/ReopenConflict",
-      "method": "POST",
-      "summary": "Reopen a conflict",
-      "description": "Transitions a resolved/force-resolved/validated conflict back to DETECTED. Honors X-Dry-Run.",
-      "category": "conflicts",
-      "cli_mapping": {
-        "command": "arch-cart conflicts reopen"
       }
     },
     {
@@ -336,6 +303,17 @@
       "category": "migration",
       "cli_mapping": {
         "command": "arch-cart migration create"
+      }
+    },
+    {
+      "id": "migration.list",
+      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/ListMigrations",
+      "method": "POST",
+      "summary": "List a scenario's migrations",
+      "description": "Returns the migration headers for a scenario (newest first), or every migration when scenario is empty.",
+      "category": "migration",
+      "cli_mapping": {
+        "command": "arch-cart migration list"
       }
     },
     {
@@ -526,21 +504,6 @@
       "endpoint_id": "conflicts.get"
     },
     {
-      "name": "conflicts assign",
-      "description": "Assign a conflict to a target domain",
-      "endpoint_id": "conflicts.assign"
-    },
-    {
-      "name": "conflicts resolve",
-      "description": "Resolve a conflict (force-resolve with --force)",
-      "endpoint_id": "conflicts.resolve"
-    },
-    {
-      "name": "conflicts reopen",
-      "description": "Re-open a resolved or force-resolved conflict",
-      "endpoint_id": "conflicts.reopen"
-    },
-    {
       "name": "conflicts validate",
       "description": "Validate cartographer-clean closure (zero outstanding conflicts)",
       "endpoint_id": "conflicts.validate"
@@ -599,6 +562,11 @@
       "name": "migration create",
       "description": "Open a migration and ingest findings from a test-genie audit",
       "endpoint_id": "migration.create"
+    },
+    {
+      "name": "migration list",
+      "description": "List a scenario's migrations (newest first)",
+      "endpoint_id": "migration.list"
     },
     {
       "name": "migration status",

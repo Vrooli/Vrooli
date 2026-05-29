@@ -31,8 +31,7 @@ func TestRegisterWiresAllCommands(t *testing.T) {
 		t.Errorf("group name = %q, want %q", group.Name, GroupName)
 	}
 	want := map[string]bool{
-		"detect": false, "list": false, "show": false, "assign": false,
-		"resolve": false, "reopen": false, "validate": false,
+		"detect": false, "list": false, "show": false, "validate": false,
 		"detectors": false, "resolvers": false,
 	}
 	for _, c := range group.Subcommands {

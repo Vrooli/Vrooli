@@ -101,6 +101,13 @@ service MigrationService {
   // CreateMigration opens a migration for a scenario and ingests the
   // initial findings (all start DETECTED).
   rpc CreateMigration(CreateMigrationRequest) returns (CreateMigrationResponse);
+  // ListMigrations returns the migrations for a scenario (newest first),
+  // or every migration when scenario is empty. Lightweight: the Migration
+  // headers only, not the full per-finding projection — callers fetch
+  // GetMigrationStatus for the one they select. This is the discovery seam
+  // the UI needs to surface a scenario's migrations without already knowing
+  // their ids.
+  rpc ListMigrations(ListMigrationsRequest) returns (ListMigrationsResponse);
   // GetMigrationStatus returns the migration plus every tracked finding
   // and rollups.
   rpc GetMigrationStatus(GetMigrationStatusRequest) returns (GetMigrationStatusResponse);
@@ -127,6 +134,14 @@ message CreateMigrationRequest {
 }
 message CreateMigrationResponse {
   MigrationStatus status = 1;
+}
+
+message ListMigrationsRequest {
+  // scenario filters to one scenario; empty returns every migration.
+  string scenario = 1;
+}
+message ListMigrationsResponse {
+  repeated Migration migrations = 1;
 }
 
 message GetMigrationStatusRequest {

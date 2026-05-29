@@ -139,6 +139,18 @@ class CreateMigrationResponse(_message.Message):
     status: MigrationStatus
     def __init__(self, status: _Optional[_Union[MigrationStatus, _Mapping]] = ...) -> None: ...
 
+class ListMigrationsRequest(_message.Message):
+    __slots__ = ("scenario",)
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    def __init__(self, scenario: _Optional[str] = ...) -> None: ...
+
+class ListMigrationsResponse(_message.Message):
+    __slots__ = ("migrations",)
+    MIGRATIONS_FIELD_NUMBER: _ClassVar[int]
+    migrations: _containers.RepeatedCompositeFieldContainer[Migration]
+    def __init__(self, migrations: _Optional[_Iterable[_Union[Migration, _Mapping]]] = ...) -> None: ...
+
 class GetMigrationStatusRequest(_message.Message):
     __slots__ = ("migration_id",)
     MIGRATION_ID_FIELD_NUMBER: _ClassVar[int]

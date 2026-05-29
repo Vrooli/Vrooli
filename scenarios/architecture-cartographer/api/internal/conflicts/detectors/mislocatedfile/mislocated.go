@@ -85,7 +85,6 @@ func (d Detector) Detect(ctx context.Context, in conflicts.DetectInput) ([]confl
 				Payload:    payload,
 				Confidence: v.TopValue,
 			}},
-			Status: conflicts.ResolutionStatusDetected,
 		}
 		out = append(out, conflict)
 	}

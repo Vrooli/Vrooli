@@ -18,6 +18,7 @@
       "graph": "グラフ",
       "domains": "ドメイン",
       "conflicts": "コンフリクト",
+      "migration": "移行",
       "apply": "適用",
       "analytics": "アナリティクス"
     }
@@ -31,6 +32,60 @@
     }
   },
   "pages": {
+    "migration": {
+      "title": "移行",
+      "description": "リファクタリングを追跡します：test-genie 監査を取り込み、優先順位付けされた検出項目に対応し、安定 ID で再監査を照合します。",
+      "loading": "移行を読み込み中…",
+      "errorTitle": "移行を読み込めませんでした。",
+      "listEmptyTitle": "移行はまだありません",
+      "listEmptyDescription": "test-genie の --json 監査レポートから開始します。",
+      "selectPrompt": "検出項目を表示する移行を選択してください。",
+      "newButton": "新しい移行",
+      "unnamed": "(無名)",
+      "columns": {
+        "id": "ID",
+        "name": "名前",
+        "status": "状態",
+        "created": "作成日時"
+      },
+      "create": {
+        "heading": "移行を開始",
+        "nameLabel": "名前（任意）",
+        "namePlaceholder": "例：screaming-architecture パス",
+        "reportLabel": "test-genie --json レポート",
+        "reportPlaceholder": "次の出力を貼り付け：vrooli scenario test <scenario> --json",
+        "hint": "{{scenario}} の監査を実行し、--json 出力を貼り付けてください。各フェーズの検出項目が検出済みとして取り込まれます。",
+        "parsedCount": "{{count}} 件の検出項目を解析しました。",
+        "submit": "移行を作成",
+        "submitting": "作成中…",
+        "cancel": "キャンセル",
+        "parseErrorTitle": "そのレポートを読み取れませんでした。"
+      },
+      "detail": {
+        "notFound": "移行が見つかりません。",
+        "scenarioLabel": "シナリオ：",
+        "rollup": {
+          "total": "合計",
+          "open": "未対応",
+          "resolved": "解決済み",
+          "validated": "検証済み",
+          "regressions": "退行"
+        },
+        "worklistHeading": "作業リスト",
+        "worklistEmpty": "未対応の検出項目はありません。再監査で確認し、移行を完了してください。",
+        "regressedBadge": "退行",
+        "locationsLabel": "場所",
+        "suggestionLabel": "提案：",
+        "reauditHeading": "再監査",
+        "reauditHint": "{{scenario}} の新しい --json レポートを貼り付けて進捗を照合します。",
+        "reauditSubmit": "再監査を照合",
+        "reauditting": "照合中…",
+        "reauditResult": "検証済み {{validated}} 件 · 未対応 {{open}} 件 · 退行 {{regressions}} 件。",
+        "closeButton": "移行を完了",
+        "closing": "完了処理中…",
+        "closedNote": "この移行は完了しています。"
+      }
+    },
     "overview": {
       "title": "概要",
       "description": "最近のターゲット、アクティブなスナップショット、システムのヘルス。",
@@ -76,16 +131,13 @@
         "id": "ID",
         "type": "種類",
         "severity": "深刻度",
-        "domains": "ドメイン",
-        "status": "ステータス"
+        "domains": "ドメイン"
       },
       "evidenceHeading": "エビデンス",
       "noEvidence": "エビデンスは記録されていません。",
       "fixesHeading": "推奨される修正",
       "noFixes": "自動修正はありません。",
       "locationsHeading": "場所",
-      "assignedDomainLabel": "割り当てドメイン:",
-      "noAssignedDomain": "(なし)",
       "snapshotLabel": "スナップショット:",
       "confidenceLabel": "信頼度: {{value}}"
     },
@@ -268,29 +320,28 @@
       }
     }
   },
-  "conflicts": {
+  "migration": {
     "status": {
-      "detected": "検出",
+      "detected": "検出済み",
       "assigned": "割り当て済み",
-      "split": "分割済み",
+      "split": "分割",
       "resolved": "解決済み",
       "validated": "検証済み",
       "committed": "コミット済み",
       "force_resolved": "強制解決"
     },
-    "actions": {
-      "assign": "割り当て",
-      "split": "分割",
-      "resolve": "解決",
-      "force_resolve": "強制解決",
-      "validate": "検証",
-      "commit": "コミット",
-      "reopen": "再オープン",
-      "pending": "処理中…",
-      "assignDomainPrompt": "割り当てるドメインを入力してください:",
-      "notePlaceholder": "この解決が許容できる理由は?",
-      "forceNoteRequired": "強制解決にはメモが必要です。"
+    "lifecycle": {
+      "open": "進行中",
+      "closed": "完了"
     },
+    "actions": {
+      "resolve": "解決",
+      "apply": "適用",
+      "resolveNotePrompt": "解決メモ（何を変更しましたか？）:",
+      "pending": "処理中…"
+    }
+  },
+  "conflicts": {
     "fixKind": {
       "unspecified": "未指定",
       "move_file": "ファイル移動",

@@ -8,9 +8,6 @@ vi.mock("../../../api/conflicts", () => ({
     listConflicts: vi.fn().mockResolvedValue({ conflicts: [], nextPageToken: "" }),
     getConflict: vi.fn().mockResolvedValue({ conflict: undefined }),
     detectConflicts: vi.fn().mockResolvedValue({ conflicts: [] }),
-    assignConflict: vi.fn().mockResolvedValue({ conflict: undefined, dryRun: false }),
-    resolveConflict: vi.fn().mockResolvedValue({ conflict: undefined, dryRun: false, applyDeferred: false }),
-    reopenConflict: vi.fn().mockResolvedValue({ conflict: undefined, dryRun: false }),
     validateConflicts: vi.fn().mockResolvedValue({ conflicts: [], clean: true }),
   },
 }));
@@ -18,12 +15,9 @@ vi.mock("../../../api/conflicts", () => ({
 import { conflictsClient } from "../../../api/conflicts";
 import {
   conflictsKeys,
-  useAssignConflict,
   useDetectConflicts,
   useGetConflict,
   useListConflicts,
-  useReopenConflict,
-  useResolveConflict,
   useValidateConflicts,
 } from "./useConflictsController";
 
@@ -61,7 +55,6 @@ describe("useListConflicts", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(conflictsClient.listConflicts).toHaveBeenCalledWith({
       scenario: "demo",
-      statuses: [],
       types: [],
       pageSize: 50,
       pageToken: "",
@@ -103,46 +96,6 @@ describe("useDetectConflicts", () => {
       idempotencyKey: "",
     });
     expect(spy).toHaveBeenCalledWith({ queryKey: conflictsKeys.list("demo") });
-  });
-});
-
-describe("useAssignConflict / useResolveConflict / useReopenConflict", () => {
-  it("assignConflict forwards id+domain+note", async () => {
-    vi.mocked(conflictsClient.assignConflict).mockClear();
-    const { result } = renderHookWith(() => useAssignConflict("demo"));
-    result.current.mutate({ id: "c-1", domain: "graph", note: "rationale" });
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(conflictsClient.assignConflict).toHaveBeenCalledWith({
-      id: "c-1",
-      domain: "graph",
-      note: "rationale",
-      dryRun: false,
-    });
-  });
-
-  it("resolveConflict surfaces force flag", async () => {
-    vi.mocked(conflictsClient.resolveConflict).mockClear();
-    const { result } = renderHookWith(() => useResolveConflict("demo"));
-    result.current.mutate({ id: "c-1", note: "ack", force: true });
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(conflictsClient.resolveConflict).toHaveBeenCalledWith({
-      id: "c-1",
-      note: "ack",
-      force: true,
-      dryRun: false,
-    });
-  });
-
-  it("reopenConflict defaults note to empty string", async () => {
-    vi.mocked(conflictsClient.reopenConflict).mockClear();
-    const { result } = renderHookWith(() => useReopenConflict("demo"));
-    result.current.mutate({ id: "c-1" });
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(conflictsClient.reopenConflict).toHaveBeenCalledWith({
-      id: "c-1",
-      note: "",
-      dryRun: false,
-    });
   });
 });
 

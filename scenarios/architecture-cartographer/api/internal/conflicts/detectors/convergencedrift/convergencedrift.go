@@ -59,7 +59,6 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 				Summary: f.Message,
 				Locator: fmt.Sprintf("%s [%s]", locator, joinSources(f.Sources)),
 			}},
-			Status: conflicts.ResolutionStatusDetected,
 		})
 	}
 	return out, nil

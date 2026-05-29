@@ -591,6 +591,95 @@ func (x *CreateMigrationResponse) GetStatus() *MigrationStatus {
 	return nil
 }
 
+type ListMigrationsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// scenario filters to one scenario; empty returns every migration.
+	Scenario      string `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMigrationsRequest) Reset() {
+	*x = ListMigrationsRequest{}
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMigrationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMigrationsRequest) ProtoMessage() {}
+
+func (x *ListMigrationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMigrationsRequest.ProtoReflect.Descriptor instead.
+func (*ListMigrationsRequest) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListMigrationsRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+type ListMigrationsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Migrations    []*Migration           `protobuf:"bytes,1,rep,name=migrations,proto3" json:"migrations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMigrationsResponse) Reset() {
+	*x = ListMigrationsResponse{}
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMigrationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMigrationsResponse) ProtoMessage() {}
+
+func (x *ListMigrationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMigrationsResponse.ProtoReflect.Descriptor instead.
+func (*ListMigrationsResponse) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListMigrationsResponse) GetMigrations() []*Migration {
+	if x != nil {
+		return x.Migrations
+	}
+	return nil
+}
+
 type GetMigrationStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	MigrationId   string                 `protobuf:"bytes,1,opt,name=migration_id,json=migrationId,proto3" json:"migration_id,omitempty"`
@@ -600,7 +689,7 @@ type GetMigrationStatusRequest struct {
 
 func (x *GetMigrationStatusRequest) Reset() {
 	*x = GetMigrationStatusRequest{}
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[5]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -612,7 +701,7 @@ func (x *GetMigrationStatusRequest) String() string {
 func (*GetMigrationStatusRequest) ProtoMessage() {}
 
 func (x *GetMigrationStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[5]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -625,7 +714,7 @@ func (x *GetMigrationStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMigrationStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetMigrationStatusRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{5}
+	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetMigrationStatusRequest) GetMigrationId() string {
@@ -644,7 +733,7 @@ type GetMigrationStatusResponse struct {
 
 func (x *GetMigrationStatusResponse) Reset() {
 	*x = GetMigrationStatusResponse{}
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[6]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -656,7 +745,7 @@ func (x *GetMigrationStatusResponse) String() string {
 func (*GetMigrationStatusResponse) ProtoMessage() {}
 
 func (x *GetMigrationStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[6]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -669,7 +758,7 @@ func (x *GetMigrationStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMigrationStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetMigrationStatusResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{6}
+	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetMigrationStatusResponse) GetStatus() *MigrationStatus {
@@ -688,7 +777,7 @@ type NextMigrationStepRequest struct {
 
 func (x *NextMigrationStepRequest) Reset() {
 	*x = NextMigrationStepRequest{}
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[7]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -700,7 +789,7 @@ func (x *NextMigrationStepRequest) String() string {
 func (*NextMigrationStepRequest) ProtoMessage() {}
 
 func (x *NextMigrationStepRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[7]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -713,7 +802,7 @@ func (x *NextMigrationStepRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NextMigrationStepRequest.ProtoReflect.Descriptor instead.
 func (*NextMigrationStepRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{7}
+	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *NextMigrationStepRequest) GetMigrationId() string {
@@ -732,7 +821,7 @@ type NextMigrationStepResponse struct {
 
 func (x *NextMigrationStepResponse) Reset() {
 	*x = NextMigrationStepResponse{}
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[8]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -744,7 +833,7 @@ func (x *NextMigrationStepResponse) String() string {
 func (*NextMigrationStepResponse) ProtoMessage() {}
 
 func (x *NextMigrationStepResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[8]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -757,7 +846,7 @@ func (x *NextMigrationStepResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NextMigrationStepResponse.ProtoReflect.Descriptor instead.
 func (*NextMigrationStepResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{8}
+	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *NextMigrationStepResponse) GetFindings() []*TrackedFinding {
@@ -778,7 +867,7 @@ type ResolveFindingRequest struct {
 
 func (x *ResolveFindingRequest) Reset() {
 	*x = ResolveFindingRequest{}
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[9]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -790,7 +879,7 @@ func (x *ResolveFindingRequest) String() string {
 func (*ResolveFindingRequest) ProtoMessage() {}
 
 func (x *ResolveFindingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[9]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -803,7 +892,7 @@ func (x *ResolveFindingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveFindingRequest.ProtoReflect.Descriptor instead.
 func (*ResolveFindingRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{9}
+	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ResolveFindingRequest) GetMigrationId() string {
@@ -836,7 +925,7 @@ type ResolveFindingResponse struct {
 
 func (x *ResolveFindingResponse) Reset() {
 	*x = ResolveFindingResponse{}
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[10]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -848,7 +937,7 @@ func (x *ResolveFindingResponse) String() string {
 func (*ResolveFindingResponse) ProtoMessage() {}
 
 func (x *ResolveFindingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[10]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -861,7 +950,7 @@ func (x *ResolveFindingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveFindingResponse.ProtoReflect.Descriptor instead.
 func (*ResolveFindingResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{10}
+	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ResolveFindingResponse) GetFinding() *TrackedFinding {
@@ -881,7 +970,7 @@ type ApplyFindingRequest struct {
 
 func (x *ApplyFindingRequest) Reset() {
 	*x = ApplyFindingRequest{}
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[11]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -893,7 +982,7 @@ func (x *ApplyFindingRequest) String() string {
 func (*ApplyFindingRequest) ProtoMessage() {}
 
 func (x *ApplyFindingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[11]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -906,7 +995,7 @@ func (x *ApplyFindingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyFindingRequest.ProtoReflect.Descriptor instead.
 func (*ApplyFindingRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{11}
+	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ApplyFindingRequest) GetMigrationId() string {
@@ -932,7 +1021,7 @@ type ApplyFindingResponse struct {
 
 func (x *ApplyFindingResponse) Reset() {
 	*x = ApplyFindingResponse{}
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[12]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -944,7 +1033,7 @@ func (x *ApplyFindingResponse) String() string {
 func (*ApplyFindingResponse) ProtoMessage() {}
 
 func (x *ApplyFindingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[12]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -957,7 +1046,7 @@ func (x *ApplyFindingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyFindingResponse.ProtoReflect.Descriptor instead.
 func (*ApplyFindingResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{12}
+	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ApplyFindingResponse) GetFinding() *TrackedFinding {
@@ -977,7 +1066,7 @@ type ReauditMigrationRequest struct {
 
 func (x *ReauditMigrationRequest) Reset() {
 	*x = ReauditMigrationRequest{}
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[13]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -989,7 +1078,7 @@ func (x *ReauditMigrationRequest) String() string {
 func (*ReauditMigrationRequest) ProtoMessage() {}
 
 func (x *ReauditMigrationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[13]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1002,7 +1091,7 @@ func (x *ReauditMigrationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReauditMigrationRequest.ProtoReflect.Descriptor instead.
 func (*ReauditMigrationRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{13}
+	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ReauditMigrationRequest) GetMigrationId() string {
@@ -1031,7 +1120,7 @@ type ReauditMigrationResponse struct {
 
 func (x *ReauditMigrationResponse) Reset() {
 	*x = ReauditMigrationResponse{}
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[14]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1043,7 +1132,7 @@ func (x *ReauditMigrationResponse) String() string {
 func (*ReauditMigrationResponse) ProtoMessage() {}
 
 func (x *ReauditMigrationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[14]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1056,7 +1145,7 @@ func (x *ReauditMigrationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReauditMigrationResponse.ProtoReflect.Descriptor instead.
 func (*ReauditMigrationResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{14}
+	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ReauditMigrationResponse) GetValidated() []*TrackedFinding {
@@ -1096,7 +1185,7 @@ type CloseMigrationRequest struct {
 
 func (x *CloseMigrationRequest) Reset() {
 	*x = CloseMigrationRequest{}
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[15]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1108,7 +1197,7 @@ func (x *CloseMigrationRequest) String() string {
 func (*CloseMigrationRequest) ProtoMessage() {}
 
 func (x *CloseMigrationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[15]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1121,7 +1210,7 @@ func (x *CloseMigrationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseMigrationRequest.ProtoReflect.Descriptor instead.
 func (*CloseMigrationRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{15}
+	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CloseMigrationRequest) GetMigrationId() string {
@@ -1140,7 +1229,7 @@ type CloseMigrationResponse struct {
 
 func (x *CloseMigrationResponse) Reset() {
 	*x = CloseMigrationResponse{}
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[16]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1152,7 +1241,7 @@ func (x *CloseMigrationResponse) String() string {
 func (*CloseMigrationResponse) ProtoMessage() {}
 
 func (x *CloseMigrationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[16]
+	mi := &file_architecture_cartographer_v1_migration_migration_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1165,7 +1254,7 @@ func (x *CloseMigrationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseMigrationResponse.ProtoReflect.Descriptor instead.
 func (*CloseMigrationResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{16}
+	return file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CloseMigrationResponse) GetStatus() *MigrationStatus {
@@ -1230,7 +1319,13 @@ const file_architecture_cartographer_v1_migration_migration_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12G\n" +
 	"\bfindings\x18\x03 \x03(\v2+.vrooli.architecture.v1.ArchitectureFindingR\bfindings\"q\n" +
 	"\x17CreateMigrationResponse\x12V\n" +
-	"\x06status\x18\x01 \x01(\v2>.vrooli.architecture_cartographer.v1.migration.MigrationStatusR\x06status\">\n" +
+	"\x06status\x18\x01 \x01(\v2>.vrooli.architecture_cartographer.v1.migration.MigrationStatusR\x06status\"3\n" +
+	"\x15ListMigrationsRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\"r\n" +
+	"\x16ListMigrationsResponse\x12X\n" +
+	"\n" +
+	"migrations\x18\x01 \x03(\v28.vrooli.architecture_cartographer.v1.migration.MigrationR\n" +
+	"migrations\">\n" +
 	"\x19GetMigrationStatusRequest\x12!\n" +
 	"\fmigration_id\x18\x01 \x01(\tR\vmigrationId\"t\n" +
 	"\x1aGetMigrationStatusResponse\x12V\n" +
@@ -1275,9 +1370,11 @@ const file_architecture_cartographer_v1_migration_migration_proto_rawDesc = "" +
 	"\x12MigrationLifecycle\x12#\n" +
 	"\x1fMIGRATION_LIFECYCLE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18MIGRATION_LIFECYCLE_OPEN\x10\x01\x12\x1e\n" +
-	"\x1aMIGRATION_LIFECYCLE_CLOSED\x10\x022\x8a\t\n" +
+	"\x1aMIGRATION_LIFECYCLE_CLOSED\x10\x022\xaa\n" +
+	"\n" +
 	"\x10MigrationService\x12\xa0\x01\n" +
-	"\x0fCreateMigration\x12E.vrooli.architecture_cartographer.v1.migration.CreateMigrationRequest\x1aF.vrooli.architecture_cartographer.v1.migration.CreateMigrationResponse\x12\xa9\x01\n" +
+	"\x0fCreateMigration\x12E.vrooli.architecture_cartographer.v1.migration.CreateMigrationRequest\x1aF.vrooli.architecture_cartographer.v1.migration.CreateMigrationResponse\x12\x9d\x01\n" +
+	"\x0eListMigrations\x12D.vrooli.architecture_cartographer.v1.migration.ListMigrationsRequest\x1aE.vrooli.architecture_cartographer.v1.migration.ListMigrationsResponse\x12\xa9\x01\n" +
 	"\x12GetMigrationStatus\x12H.vrooli.architecture_cartographer.v1.migration.GetMigrationStatusRequest\x1aI.vrooli.architecture_cartographer.v1.migration.GetMigrationStatusResponse\x12\xa6\x01\n" +
 	"\x11NextMigrationStep\x12G.vrooli.architecture_cartographer.v1.migration.NextMigrationStepRequest\x1aH.vrooli.architecture_cartographer.v1.migration.NextMigrationStepResponse\x12\x9d\x01\n" +
 	"\x0eResolveFinding\x12D.vrooli.architecture_cartographer.v1.migration.ResolveFindingRequest\x1aE.vrooli.architecture_cartographer.v1.migration.ResolveFindingResponse\x12\x97\x01\n" +
@@ -1298,7 +1395,7 @@ func file_architecture_cartographer_v1_migration_migration_proto_rawDescGZIP() [
 }
 
 var file_architecture_cartographer_v1_migration_migration_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_architecture_cartographer_v1_migration_migration_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_architecture_cartographer_v1_migration_migration_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_architecture_cartographer_v1_migration_migration_proto_goTypes = []any{
 	(TrackedFindingStatus)(0),          // 0: vrooli.architecture_cartographer.v1.migration.TrackedFindingStatus
 	(MigrationLifecycle)(0),            // 1: vrooli.architecture_cartographer.v1.migration.MigrationLifecycle
@@ -1307,65 +1404,70 @@ var file_architecture_cartographer_v1_migration_migration_proto_goTypes = []any{
 	(*MigrationStatus)(nil),            // 4: vrooli.architecture_cartographer.v1.migration.MigrationStatus
 	(*CreateMigrationRequest)(nil),     // 5: vrooli.architecture_cartographer.v1.migration.CreateMigrationRequest
 	(*CreateMigrationResponse)(nil),    // 6: vrooli.architecture_cartographer.v1.migration.CreateMigrationResponse
-	(*GetMigrationStatusRequest)(nil),  // 7: vrooli.architecture_cartographer.v1.migration.GetMigrationStatusRequest
-	(*GetMigrationStatusResponse)(nil), // 8: vrooli.architecture_cartographer.v1.migration.GetMigrationStatusResponse
-	(*NextMigrationStepRequest)(nil),   // 9: vrooli.architecture_cartographer.v1.migration.NextMigrationStepRequest
-	(*NextMigrationStepResponse)(nil),  // 10: vrooli.architecture_cartographer.v1.migration.NextMigrationStepResponse
-	(*ResolveFindingRequest)(nil),      // 11: vrooli.architecture_cartographer.v1.migration.ResolveFindingRequest
-	(*ResolveFindingResponse)(nil),     // 12: vrooli.architecture_cartographer.v1.migration.ResolveFindingResponse
-	(*ApplyFindingRequest)(nil),        // 13: vrooli.architecture_cartographer.v1.migration.ApplyFindingRequest
-	(*ApplyFindingResponse)(nil),       // 14: vrooli.architecture_cartographer.v1.migration.ApplyFindingResponse
-	(*ReauditMigrationRequest)(nil),    // 15: vrooli.architecture_cartographer.v1.migration.ReauditMigrationRequest
-	(*ReauditMigrationResponse)(nil),   // 16: vrooli.architecture_cartographer.v1.migration.ReauditMigrationResponse
-	(*CloseMigrationRequest)(nil),      // 17: vrooli.architecture_cartographer.v1.migration.CloseMigrationRequest
-	(*CloseMigrationResponse)(nil),     // 18: vrooli.architecture_cartographer.v1.migration.CloseMigrationResponse
-	nil,                                // 19: vrooli.architecture_cartographer.v1.migration.MigrationStatus.BySeverityEntry
-	nil,                                // 20: vrooli.architecture_cartographer.v1.migration.MigrationStatus.ByStatusEntry
-	(*timestamppb.Timestamp)(nil),      // 21: google.protobuf.Timestamp
-	(*v1.ArchitectureFinding)(nil),     // 22: vrooli.architecture.v1.ArchitectureFinding
+	(*ListMigrationsRequest)(nil),      // 7: vrooli.architecture_cartographer.v1.migration.ListMigrationsRequest
+	(*ListMigrationsResponse)(nil),     // 8: vrooli.architecture_cartographer.v1.migration.ListMigrationsResponse
+	(*GetMigrationStatusRequest)(nil),  // 9: vrooli.architecture_cartographer.v1.migration.GetMigrationStatusRequest
+	(*GetMigrationStatusResponse)(nil), // 10: vrooli.architecture_cartographer.v1.migration.GetMigrationStatusResponse
+	(*NextMigrationStepRequest)(nil),   // 11: vrooli.architecture_cartographer.v1.migration.NextMigrationStepRequest
+	(*NextMigrationStepResponse)(nil),  // 12: vrooli.architecture_cartographer.v1.migration.NextMigrationStepResponse
+	(*ResolveFindingRequest)(nil),      // 13: vrooli.architecture_cartographer.v1.migration.ResolveFindingRequest
+	(*ResolveFindingResponse)(nil),     // 14: vrooli.architecture_cartographer.v1.migration.ResolveFindingResponse
+	(*ApplyFindingRequest)(nil),        // 15: vrooli.architecture_cartographer.v1.migration.ApplyFindingRequest
+	(*ApplyFindingResponse)(nil),       // 16: vrooli.architecture_cartographer.v1.migration.ApplyFindingResponse
+	(*ReauditMigrationRequest)(nil),    // 17: vrooli.architecture_cartographer.v1.migration.ReauditMigrationRequest
+	(*ReauditMigrationResponse)(nil),   // 18: vrooli.architecture_cartographer.v1.migration.ReauditMigrationResponse
+	(*CloseMigrationRequest)(nil),      // 19: vrooli.architecture_cartographer.v1.migration.CloseMigrationRequest
+	(*CloseMigrationResponse)(nil),     // 20: vrooli.architecture_cartographer.v1.migration.CloseMigrationResponse
+	nil,                                // 21: vrooli.architecture_cartographer.v1.migration.MigrationStatus.BySeverityEntry
+	nil,                                // 22: vrooli.architecture_cartographer.v1.migration.MigrationStatus.ByStatusEntry
+	(*timestamppb.Timestamp)(nil),      // 23: google.protobuf.Timestamp
+	(*v1.ArchitectureFinding)(nil),     // 24: vrooli.architecture.v1.ArchitectureFinding
 }
 var file_architecture_cartographer_v1_migration_migration_proto_depIdxs = []int32{
 	0,  // 0: vrooli.architecture_cartographer.v1.migration.TrackedFinding.status:type_name -> vrooli.architecture_cartographer.v1.migration.TrackedFindingStatus
-	21, // 1: vrooli.architecture_cartographer.v1.migration.TrackedFinding.first_seen_at:type_name -> google.protobuf.Timestamp
-	21, // 2: vrooli.architecture_cartographer.v1.migration.TrackedFinding.updated_at:type_name -> google.protobuf.Timestamp
+	23, // 1: vrooli.architecture_cartographer.v1.migration.TrackedFinding.first_seen_at:type_name -> google.protobuf.Timestamp
+	23, // 2: vrooli.architecture_cartographer.v1.migration.TrackedFinding.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 3: vrooli.architecture_cartographer.v1.migration.Migration.status:type_name -> vrooli.architecture_cartographer.v1.migration.MigrationLifecycle
-	21, // 4: vrooli.architecture_cartographer.v1.migration.Migration.created_at:type_name -> google.protobuf.Timestamp
-	21, // 5: vrooli.architecture_cartographer.v1.migration.Migration.updated_at:type_name -> google.protobuf.Timestamp
+	23, // 4: vrooli.architecture_cartographer.v1.migration.Migration.created_at:type_name -> google.protobuf.Timestamp
+	23, // 5: vrooli.architecture_cartographer.v1.migration.Migration.updated_at:type_name -> google.protobuf.Timestamp
 	3,  // 6: vrooli.architecture_cartographer.v1.migration.MigrationStatus.migration:type_name -> vrooli.architecture_cartographer.v1.migration.Migration
 	2,  // 7: vrooli.architecture_cartographer.v1.migration.MigrationStatus.findings:type_name -> vrooli.architecture_cartographer.v1.migration.TrackedFinding
-	19, // 8: vrooli.architecture_cartographer.v1.migration.MigrationStatus.by_severity:type_name -> vrooli.architecture_cartographer.v1.migration.MigrationStatus.BySeverityEntry
-	20, // 9: vrooli.architecture_cartographer.v1.migration.MigrationStatus.by_status:type_name -> vrooli.architecture_cartographer.v1.migration.MigrationStatus.ByStatusEntry
-	22, // 10: vrooli.architecture_cartographer.v1.migration.CreateMigrationRequest.findings:type_name -> vrooli.architecture.v1.ArchitectureFinding
+	21, // 8: vrooli.architecture_cartographer.v1.migration.MigrationStatus.by_severity:type_name -> vrooli.architecture_cartographer.v1.migration.MigrationStatus.BySeverityEntry
+	22, // 9: vrooli.architecture_cartographer.v1.migration.MigrationStatus.by_status:type_name -> vrooli.architecture_cartographer.v1.migration.MigrationStatus.ByStatusEntry
+	24, // 10: vrooli.architecture_cartographer.v1.migration.CreateMigrationRequest.findings:type_name -> vrooli.architecture.v1.ArchitectureFinding
 	4,  // 11: vrooli.architecture_cartographer.v1.migration.CreateMigrationResponse.status:type_name -> vrooli.architecture_cartographer.v1.migration.MigrationStatus
-	4,  // 12: vrooli.architecture_cartographer.v1.migration.GetMigrationStatusResponse.status:type_name -> vrooli.architecture_cartographer.v1.migration.MigrationStatus
-	2,  // 13: vrooli.architecture_cartographer.v1.migration.NextMigrationStepResponse.findings:type_name -> vrooli.architecture_cartographer.v1.migration.TrackedFinding
-	2,  // 14: vrooli.architecture_cartographer.v1.migration.ResolveFindingResponse.finding:type_name -> vrooli.architecture_cartographer.v1.migration.TrackedFinding
-	2,  // 15: vrooli.architecture_cartographer.v1.migration.ApplyFindingResponse.finding:type_name -> vrooli.architecture_cartographer.v1.migration.TrackedFinding
-	22, // 16: vrooli.architecture_cartographer.v1.migration.ReauditMigrationRequest.findings:type_name -> vrooli.architecture.v1.ArchitectureFinding
-	2,  // 17: vrooli.architecture_cartographer.v1.migration.ReauditMigrationResponse.validated:type_name -> vrooli.architecture_cartographer.v1.migration.TrackedFinding
-	2,  // 18: vrooli.architecture_cartographer.v1.migration.ReauditMigrationResponse.still_open:type_name -> vrooli.architecture_cartographer.v1.migration.TrackedFinding
-	2,  // 19: vrooli.architecture_cartographer.v1.migration.ReauditMigrationResponse.regressions:type_name -> vrooli.architecture_cartographer.v1.migration.TrackedFinding
-	4,  // 20: vrooli.architecture_cartographer.v1.migration.ReauditMigrationResponse.status:type_name -> vrooli.architecture_cartographer.v1.migration.MigrationStatus
-	4,  // 21: vrooli.architecture_cartographer.v1.migration.CloseMigrationResponse.status:type_name -> vrooli.architecture_cartographer.v1.migration.MigrationStatus
-	5,  // 22: vrooli.architecture_cartographer.v1.migration.MigrationService.CreateMigration:input_type -> vrooli.architecture_cartographer.v1.migration.CreateMigrationRequest
-	7,  // 23: vrooli.architecture_cartographer.v1.migration.MigrationService.GetMigrationStatus:input_type -> vrooli.architecture_cartographer.v1.migration.GetMigrationStatusRequest
-	9,  // 24: vrooli.architecture_cartographer.v1.migration.MigrationService.NextMigrationStep:input_type -> vrooli.architecture_cartographer.v1.migration.NextMigrationStepRequest
-	11, // 25: vrooli.architecture_cartographer.v1.migration.MigrationService.ResolveFinding:input_type -> vrooli.architecture_cartographer.v1.migration.ResolveFindingRequest
-	13, // 26: vrooli.architecture_cartographer.v1.migration.MigrationService.ApplyFinding:input_type -> vrooli.architecture_cartographer.v1.migration.ApplyFindingRequest
-	15, // 27: vrooli.architecture_cartographer.v1.migration.MigrationService.ReauditMigration:input_type -> vrooli.architecture_cartographer.v1.migration.ReauditMigrationRequest
-	17, // 28: vrooli.architecture_cartographer.v1.migration.MigrationService.CloseMigration:input_type -> vrooli.architecture_cartographer.v1.migration.CloseMigrationRequest
-	6,  // 29: vrooli.architecture_cartographer.v1.migration.MigrationService.CreateMigration:output_type -> vrooli.architecture_cartographer.v1.migration.CreateMigrationResponse
-	8,  // 30: vrooli.architecture_cartographer.v1.migration.MigrationService.GetMigrationStatus:output_type -> vrooli.architecture_cartographer.v1.migration.GetMigrationStatusResponse
-	10, // 31: vrooli.architecture_cartographer.v1.migration.MigrationService.NextMigrationStep:output_type -> vrooli.architecture_cartographer.v1.migration.NextMigrationStepResponse
-	12, // 32: vrooli.architecture_cartographer.v1.migration.MigrationService.ResolveFinding:output_type -> vrooli.architecture_cartographer.v1.migration.ResolveFindingResponse
-	14, // 33: vrooli.architecture_cartographer.v1.migration.MigrationService.ApplyFinding:output_type -> vrooli.architecture_cartographer.v1.migration.ApplyFindingResponse
-	16, // 34: vrooli.architecture_cartographer.v1.migration.MigrationService.ReauditMigration:output_type -> vrooli.architecture_cartographer.v1.migration.ReauditMigrationResponse
-	18, // 35: vrooli.architecture_cartographer.v1.migration.MigrationService.CloseMigration:output_type -> vrooli.architecture_cartographer.v1.migration.CloseMigrationResponse
-	29, // [29:36] is the sub-list for method output_type
-	22, // [22:29] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	3,  // 12: vrooli.architecture_cartographer.v1.migration.ListMigrationsResponse.migrations:type_name -> vrooli.architecture_cartographer.v1.migration.Migration
+	4,  // 13: vrooli.architecture_cartographer.v1.migration.GetMigrationStatusResponse.status:type_name -> vrooli.architecture_cartographer.v1.migration.MigrationStatus
+	2,  // 14: vrooli.architecture_cartographer.v1.migration.NextMigrationStepResponse.findings:type_name -> vrooli.architecture_cartographer.v1.migration.TrackedFinding
+	2,  // 15: vrooli.architecture_cartographer.v1.migration.ResolveFindingResponse.finding:type_name -> vrooli.architecture_cartographer.v1.migration.TrackedFinding
+	2,  // 16: vrooli.architecture_cartographer.v1.migration.ApplyFindingResponse.finding:type_name -> vrooli.architecture_cartographer.v1.migration.TrackedFinding
+	24, // 17: vrooli.architecture_cartographer.v1.migration.ReauditMigrationRequest.findings:type_name -> vrooli.architecture.v1.ArchitectureFinding
+	2,  // 18: vrooli.architecture_cartographer.v1.migration.ReauditMigrationResponse.validated:type_name -> vrooli.architecture_cartographer.v1.migration.TrackedFinding
+	2,  // 19: vrooli.architecture_cartographer.v1.migration.ReauditMigrationResponse.still_open:type_name -> vrooli.architecture_cartographer.v1.migration.TrackedFinding
+	2,  // 20: vrooli.architecture_cartographer.v1.migration.ReauditMigrationResponse.regressions:type_name -> vrooli.architecture_cartographer.v1.migration.TrackedFinding
+	4,  // 21: vrooli.architecture_cartographer.v1.migration.ReauditMigrationResponse.status:type_name -> vrooli.architecture_cartographer.v1.migration.MigrationStatus
+	4,  // 22: vrooli.architecture_cartographer.v1.migration.CloseMigrationResponse.status:type_name -> vrooli.architecture_cartographer.v1.migration.MigrationStatus
+	5,  // 23: vrooli.architecture_cartographer.v1.migration.MigrationService.CreateMigration:input_type -> vrooli.architecture_cartographer.v1.migration.CreateMigrationRequest
+	7,  // 24: vrooli.architecture_cartographer.v1.migration.MigrationService.ListMigrations:input_type -> vrooli.architecture_cartographer.v1.migration.ListMigrationsRequest
+	9,  // 25: vrooli.architecture_cartographer.v1.migration.MigrationService.GetMigrationStatus:input_type -> vrooli.architecture_cartographer.v1.migration.GetMigrationStatusRequest
+	11, // 26: vrooli.architecture_cartographer.v1.migration.MigrationService.NextMigrationStep:input_type -> vrooli.architecture_cartographer.v1.migration.NextMigrationStepRequest
+	13, // 27: vrooli.architecture_cartographer.v1.migration.MigrationService.ResolveFinding:input_type -> vrooli.architecture_cartographer.v1.migration.ResolveFindingRequest
+	15, // 28: vrooli.architecture_cartographer.v1.migration.MigrationService.ApplyFinding:input_type -> vrooli.architecture_cartographer.v1.migration.ApplyFindingRequest
+	17, // 29: vrooli.architecture_cartographer.v1.migration.MigrationService.ReauditMigration:input_type -> vrooli.architecture_cartographer.v1.migration.ReauditMigrationRequest
+	19, // 30: vrooli.architecture_cartographer.v1.migration.MigrationService.CloseMigration:input_type -> vrooli.architecture_cartographer.v1.migration.CloseMigrationRequest
+	6,  // 31: vrooli.architecture_cartographer.v1.migration.MigrationService.CreateMigration:output_type -> vrooli.architecture_cartographer.v1.migration.CreateMigrationResponse
+	8,  // 32: vrooli.architecture_cartographer.v1.migration.MigrationService.ListMigrations:output_type -> vrooli.architecture_cartographer.v1.migration.ListMigrationsResponse
+	10, // 33: vrooli.architecture_cartographer.v1.migration.MigrationService.GetMigrationStatus:output_type -> vrooli.architecture_cartographer.v1.migration.GetMigrationStatusResponse
+	12, // 34: vrooli.architecture_cartographer.v1.migration.MigrationService.NextMigrationStep:output_type -> vrooli.architecture_cartographer.v1.migration.NextMigrationStepResponse
+	14, // 35: vrooli.architecture_cartographer.v1.migration.MigrationService.ResolveFinding:output_type -> vrooli.architecture_cartographer.v1.migration.ResolveFindingResponse
+	16, // 36: vrooli.architecture_cartographer.v1.migration.MigrationService.ApplyFinding:output_type -> vrooli.architecture_cartographer.v1.migration.ApplyFindingResponse
+	18, // 37: vrooli.architecture_cartographer.v1.migration.MigrationService.ReauditMigration:output_type -> vrooli.architecture_cartographer.v1.migration.ReauditMigrationResponse
+	20, // 38: vrooli.architecture_cartographer.v1.migration.MigrationService.CloseMigration:output_type -> vrooli.architecture_cartographer.v1.migration.CloseMigrationResponse
+	31, // [31:39] is the sub-list for method output_type
+	23, // [23:31] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_architecture_cartographer_v1_migration_migration_proto_init() }
@@ -1379,7 +1481,7 @@ func file_architecture_cartographer_v1_migration_migration_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_architecture_cartographer_v1_migration_migration_proto_rawDesc), len(file_architecture_cartographer_v1_migration_migration_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   19,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

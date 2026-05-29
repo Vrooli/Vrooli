@@ -2,7 +2,6 @@ package conflicts_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"architecture-cartographer/internal/conflicts"
@@ -16,7 +15,7 @@ func newSvc(detectors ...conflicts.Detector) (*mocks.FakeRepository, conflicts.S
 	return repo, conflicts.NewService(repo, reg, resolvers)
 }
 
-func TestService_UpsertConflicts_AssignsScenarioAndStatus(t *testing.T) {
+func TestService_UpsertConflicts_AssignsScenario(t *testing.T) {
 	_, svc := newSvc()
 	got, err := svc.UpsertConflicts(context.Background(), "demo", []conflicts.Conflict{{Type: "cycle"}})
 	if err != nil {
@@ -25,77 +24,57 @@ func TestService_UpsertConflicts_AssignsScenarioAndStatus(t *testing.T) {
 	if got[0].Scenario != "demo" {
 		t.Fatalf("want scenario demo, got %q", got[0].Scenario)
 	}
-	if got[0].Status != conflicts.ResolutionStatusDetected {
-		t.Fatalf("want status detected, got %q", got[0].Status)
-	}
 }
 
-func TestService_AssignConflict_TransitionsAndUpdates(t *testing.T) {
-	repo, svc := newSvc()
-	seeded, _ := svc.UpsertConflicts(context.Background(), "demo", []conflicts.Conflict{{Type: "cycle"}})
-	id := seeded[0].ID
-	got, dry, err := svc.AssignConflict(context.Background(), id, "graph", "ok", false)
-	if err != nil {
-		t.Fatalf("Assign: %v", err)
-	}
-	if dry {
-		t.Fatal("dry-run should be false")
-	}
-	if got.AssignedDomain != "graph" || got.Status != conflicts.ResolutionStatusAssigned {
-		t.Fatalf("unexpected: %+v", got)
-	}
-	if repo.UpdateCalls.Load() != 1 {
-		t.Fatalf("UpdateStatus should be called once, got %d", repo.UpdateCalls.Load())
-	}
-}
-
-func TestService_AssignConflict_DryRunDoesNotPersist(t *testing.T) {
-	repo, svc := newSvc()
-	seeded, _ := svc.UpsertConflicts(context.Background(), "demo", []conflicts.Conflict{{Type: "cycle"}})
-	got, dry, err := svc.AssignConflict(context.Background(), seeded[0].ID, "graph", "ok", true)
-	if err != nil {
-		t.Fatalf("Assign: %v", err)
-	}
-	if !dry || got.Status != conflicts.ResolutionStatusAssigned {
-		t.Fatalf("unexpected: %+v dry=%v", got, dry)
-	}
-	if repo.UpdateCalls.Load() != 0 {
-		t.Fatal("dry-run should not touch repo")
-	}
-}
-
-func TestService_AssignConflict_RejectsEmptyDomain(t *testing.T) {
+func TestService_ValidateConflicts_CleanWhenNoErrorSeverity(t *testing.T) {
 	_, svc := newSvc()
-	seeded, _ := svc.UpsertConflicts(context.Background(), "demo", []conflicts.Conflict{{Type: "cycle"}})
-	_, _, err := svc.AssignConflict(context.Background(), seeded[0].ID, "", "ok", false)
-	var typed conflicts.ErrInvalidAssignment
-	if !errors.As(err, &typed) {
-		t.Fatalf("want ErrInvalidAssignment, got %v", err)
-	}
-}
-
-func TestService_ResolveConflict_RejectsCommittedTransition(t *testing.T) {
-	repo, svc := newSvc()
-	c := conflicts.Conflict{ID: "c-1", Scenario: "demo", Type: "cycle", Status: conflicts.ResolutionStatusCommitted}
-	if _, err := repo.UpsertConflict(context.Background(), c); err != nil {
+	_, err := svc.UpsertConflicts(context.Background(), "demo", []conflicts.Conflict{
+		{Type: "coupling_smell", Severity: conflicts.SeverityWarn},
+	})
+	if err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	_, _, _, err := svc.ResolveConflict(context.Background(), "c-1", "", false, false)
-	var typed conflicts.ErrInvalidTransition
-	if !errors.As(err, &typed) {
-		t.Fatalf("want ErrInvalidTransition, got %v", err)
+	outstanding, clean, err := svc.ValidateConflicts(context.Background(), "demo")
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if !clean {
+		t.Fatalf("want clean (no error-severity), got dirty with %d outstanding", len(outstanding))
+	}
+	if len(outstanding) != 1 {
+		t.Fatalf("warn-severity conflict is still outstanding (detection-only), got %d", len(outstanding))
 	}
 }
 
-func TestService_ResolveConflict_ForceMovesToForceResolved(t *testing.T) {
+func TestService_ValidateConflicts_DirtyWhenErrorSeverity(t *testing.T) {
 	_, svc := newSvc()
-	seeded, _ := svc.UpsertConflicts(context.Background(), "demo", []conflicts.Conflict{{Type: "cycle"}})
-	got, _, _, err := svc.ResolveConflict(context.Background(), seeded[0].ID, "skipping", true, false)
-	if err != nil {
-		t.Fatalf("Resolve: %v", err)
+	if _, err := svc.UpsertConflicts(context.Background(), "demo", []conflicts.Conflict{
+		{Type: "cycle", Severity: conflicts.SeverityError},
+	}); err != nil {
+		t.Fatalf("seed: %v", err)
 	}
-	if got.Status != conflicts.ResolutionStatusForceResolved {
-		t.Fatalf("want force_resolved, got %q", got.Status)
+	_, clean, err := svc.ValidateConflicts(context.Background(), "demo")
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if clean {
+		t.Fatal("want dirty (an error-severity conflict is outstanding)")
+	}
+}
+
+func TestService_ValidateConflicts_ExcludesSuppressed(t *testing.T) {
+	_, svc := newSvc()
+	if _, err := svc.UpsertConflicts(context.Background(), "demo", []conflicts.Conflict{
+		{Type: "cycle", Severity: conflicts.SeverityError, Suppressed: true, SuppressionReason: "intentional"},
+	}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	outstanding, clean, err := svc.ValidateConflicts(context.Background(), "demo")
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if !clean || len(outstanding) != 0 {
+		t.Fatalf("a suppressed finding must not count as outstanding: clean=%v outstanding=%d", clean, len(outstanding))
 	}
 }
 

@@ -19,17 +19,6 @@ class Severity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SEVERITY_ERROR: _ClassVar[Severity]
     SEVERITY_BLOCKER: _ClassVar[Severity]
 
-class ResolutionStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    RESOLUTION_STATUS_UNSPECIFIED: _ClassVar[ResolutionStatus]
-    RESOLUTION_STATUS_DETECTED: _ClassVar[ResolutionStatus]
-    RESOLUTION_STATUS_ASSIGNED: _ClassVar[ResolutionStatus]
-    RESOLUTION_STATUS_SPLIT: _ClassVar[ResolutionStatus]
-    RESOLUTION_STATUS_RESOLVED: _ClassVar[ResolutionStatus]
-    RESOLUTION_STATUS_VALIDATED: _ClassVar[ResolutionStatus]
-    RESOLUTION_STATUS_COMMITTED: _ClassVar[ResolutionStatus]
-    RESOLUTION_STATUS_FORCE_RESOLVED: _ClassVar[ResolutionStatus]
-
 class FixKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     FIX_KIND_UNSPECIFIED: _ClassVar[FixKind]
@@ -43,14 +32,6 @@ SEVERITY_INFO: Severity
 SEVERITY_WARN: Severity
 SEVERITY_ERROR: Severity
 SEVERITY_BLOCKER: Severity
-RESOLUTION_STATUS_UNSPECIFIED: ResolutionStatus
-RESOLUTION_STATUS_DETECTED: ResolutionStatus
-RESOLUTION_STATUS_ASSIGNED: ResolutionStatus
-RESOLUTION_STATUS_SPLIT: ResolutionStatus
-RESOLUTION_STATUS_RESOLVED: ResolutionStatus
-RESOLUTION_STATUS_VALIDATED: ResolutionStatus
-RESOLUTION_STATUS_COMMITTED: ResolutionStatus
-RESOLUTION_STATUS_FORCE_RESOLVED: ResolutionStatus
 FIX_KIND_UNSPECIFIED: FixKind
 FIX_KIND_MOVE_FILE: FixKind
 FIX_KIND_REASSIGN_DOMAIN: FixKind
@@ -87,7 +68,7 @@ class Fix(_message.Message):
     def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[FixKind, str]] = ..., resolver: _Optional[str] = ..., summary: _Optional[str] = ..., payload: _Optional[bytes] = ..., confidence: _Optional[float] = ...) -> None: ...
 
 class Conflict(_message.Message):
-    __slots__ = ("id", "scenario", "detector", "type", "subtype", "severity", "locations", "domains", "evidence", "suggested_fixes", "status", "assigned_domain", "resolution_note", "snapshot_id", "verdict", "detected_at", "updated_at", "suppressed", "suppression_reason", "stable_id", "instance_id")
+    __slots__ = ("id", "scenario", "detector", "type", "subtype", "severity", "locations", "domains", "evidence", "suggested_fixes", "snapshot_id", "verdict", "detected_at", "updated_at", "suppressed", "suppression_reason", "stable_id", "instance_id")
     ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     DETECTOR_FIELD_NUMBER: _ClassVar[int]
@@ -98,9 +79,6 @@ class Conflict(_message.Message):
     DOMAINS_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     SUGGESTED_FIXES_FIELD_NUMBER: _ClassVar[int]
-    STATUS_FIELD_NUMBER: _ClassVar[int]
-    ASSIGNED_DOMAIN_FIELD_NUMBER: _ClassVar[int]
-    RESOLUTION_NOTE_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
     VERDICT_FIELD_NUMBER: _ClassVar[int]
     DETECTED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -119,9 +97,6 @@ class Conflict(_message.Message):
     domains: _containers.RepeatedScalarFieldContainer[str]
     evidence: _containers.RepeatedCompositeFieldContainer[ConflictEvidence]
     suggested_fixes: _containers.RepeatedCompositeFieldContainer[Fix]
-    status: ResolutionStatus
-    assigned_domain: str
-    resolution_note: str
     snapshot_id: str
     verdict: _signals_pb2.Verdict
     detected_at: _timestamp_pb2.Timestamp
@@ -130,7 +105,7 @@ class Conflict(_message.Message):
     suppression_reason: str
     stable_id: str
     instance_id: str
-    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., detector: _Optional[str] = ..., type: _Optional[str] = ..., subtype: _Optional[str] = ..., severity: _Optional[_Union[Severity, str]] = ..., locations: _Optional[_Iterable[str]] = ..., domains: _Optional[_Iterable[str]] = ..., evidence: _Optional[_Iterable[_Union[ConflictEvidence, _Mapping]]] = ..., suggested_fixes: _Optional[_Iterable[_Union[Fix, _Mapping]]] = ..., status: _Optional[_Union[ResolutionStatus, str]] = ..., assigned_domain: _Optional[str] = ..., resolution_note: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., verdict: _Optional[_Union[_signals_pb2.Verdict, _Mapping]] = ..., detected_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., suppressed: _Optional[bool] = ..., suppression_reason: _Optional[str] = ..., stable_id: _Optional[str] = ..., instance_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., detector: _Optional[str] = ..., type: _Optional[str] = ..., subtype: _Optional[str] = ..., severity: _Optional[_Union[Severity, str]] = ..., locations: _Optional[_Iterable[str]] = ..., domains: _Optional[_Iterable[str]] = ..., evidence: _Optional[_Iterable[_Union[ConflictEvidence, _Mapping]]] = ..., suggested_fixes: _Optional[_Iterable[_Union[Fix, _Mapping]]] = ..., snapshot_id: _Optional[str] = ..., verdict: _Optional[_Union[_signals_pb2.Verdict, _Mapping]] = ..., detected_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., suppressed: _Optional[bool] = ..., suppression_reason: _Optional[str] = ..., stable_id: _Optional[str] = ..., instance_id: _Optional[str] = ...) -> None: ...
 
 class DetectorDescriptor(_message.Message):
     __slots__ = ("name", "description", "stability", "emits_types")
@@ -175,18 +150,16 @@ class DetectConflictsResponse(_message.Message):
     def __init__(self, conflicts: _Optional[_Iterable[_Union[Conflict, _Mapping]]] = ...) -> None: ...
 
 class ListConflictsRequest(_message.Message):
-    __slots__ = ("scenario", "statuses", "types", "page_size", "page_token")
+    __slots__ = ("scenario", "types", "page_size", "page_token")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
-    STATUSES_FIELD_NUMBER: _ClassVar[int]
     TYPES_FIELD_NUMBER: _ClassVar[int]
     PAGE_SIZE_FIELD_NUMBER: _ClassVar[int]
     PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
     scenario: str
-    statuses: _containers.RepeatedScalarFieldContainer[ResolutionStatus]
     types: _containers.RepeatedScalarFieldContainer[str]
     page_size: int
     page_token: str
-    def __init__(self, scenario: _Optional[str] = ..., statuses: _Optional[_Iterable[_Union[ResolutionStatus, str]]] = ..., types: _Optional[_Iterable[str]] = ..., page_size: _Optional[int] = ..., page_token: _Optional[str] = ...) -> None: ...
+    def __init__(self, scenario: _Optional[str] = ..., types: _Optional[_Iterable[str]] = ..., page_size: _Optional[int] = ..., page_token: _Optional[str] = ...) -> None: ...
 
 class ListConflictsResponse(_message.Message):
     __slots__ = ("conflicts", "next_page_token")
@@ -207,66 +180,6 @@ class GetConflictResponse(_message.Message):
     CONFLICT_FIELD_NUMBER: _ClassVar[int]
     conflict: Conflict
     def __init__(self, conflict: _Optional[_Union[Conflict, _Mapping]] = ...) -> None: ...
-
-class AssignConflictRequest(_message.Message):
-    __slots__ = ("id", "domain", "note", "dry_run")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    DOMAIN_FIELD_NUMBER: _ClassVar[int]
-    NOTE_FIELD_NUMBER: _ClassVar[int]
-    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    domain: str
-    note: str
-    dry_run: bool
-    def __init__(self, id: _Optional[str] = ..., domain: _Optional[str] = ..., note: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
-
-class AssignConflictResponse(_message.Message):
-    __slots__ = ("conflict", "dry_run")
-    CONFLICT_FIELD_NUMBER: _ClassVar[int]
-    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
-    conflict: Conflict
-    dry_run: bool
-    def __init__(self, conflict: _Optional[_Union[Conflict, _Mapping]] = ..., dry_run: _Optional[bool] = ...) -> None: ...
-
-class ResolveConflictRequest(_message.Message):
-    __slots__ = ("id", "note", "force", "dry_run")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    NOTE_FIELD_NUMBER: _ClassVar[int]
-    FORCE_FIELD_NUMBER: _ClassVar[int]
-    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    note: str
-    force: bool
-    dry_run: bool
-    def __init__(self, id: _Optional[str] = ..., note: _Optional[str] = ..., force: _Optional[bool] = ..., dry_run: _Optional[bool] = ...) -> None: ...
-
-class ResolveConflictResponse(_message.Message):
-    __slots__ = ("conflict", "dry_run", "apply_deferred")
-    CONFLICT_FIELD_NUMBER: _ClassVar[int]
-    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
-    APPLY_DEFERRED_FIELD_NUMBER: _ClassVar[int]
-    conflict: Conflict
-    dry_run: bool
-    apply_deferred: bool
-    def __init__(self, conflict: _Optional[_Union[Conflict, _Mapping]] = ..., dry_run: _Optional[bool] = ..., apply_deferred: _Optional[bool] = ...) -> None: ...
-
-class ReopenConflictRequest(_message.Message):
-    __slots__ = ("id", "note", "dry_run")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    NOTE_FIELD_NUMBER: _ClassVar[int]
-    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    note: str
-    dry_run: bool
-    def __init__(self, id: _Optional[str] = ..., note: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
-
-class ReopenConflictResponse(_message.Message):
-    __slots__ = ("conflict", "dry_run")
-    CONFLICT_FIELD_NUMBER: _ClassVar[int]
-    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
-    conflict: Conflict
-    dry_run: bool
-    def __init__(self, conflict: _Optional[_Union[Conflict, _Mapping]] = ..., dry_run: _Optional[bool] = ...) -> None: ...
 
 class ValidateConflictsRequest(_message.Message):
     __slots__ = ("scenario",)

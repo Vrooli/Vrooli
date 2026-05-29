@@ -64,29 +64,10 @@ func TestHandler_ListConflicts_PassesFilter(t *testing.T) {
 	cs.Conflicts = []conflicts.Conflict{{ID: "c-1", Type: "cycle"}}
 	resp, err := h.ListConflicts(context.Background(), connect.NewRequest(&conflictsv1.ListConflictsRequest{
 		Scenario: "demo",
-		Statuses: []conflictsv1.ResolutionStatus{conflictsv1.ResolutionStatus_RESOLUTION_STATUS_DETECTED},
+		Types:    []string{"cycle"},
 	}))
 	require.NoError(t, err)
 	require.Len(t, resp.Msg.GetConflicts(), 1)
-}
-
-func TestHandler_AssignConflict_DryRunHonored(t *testing.T) {
-	h, cs, _, _ := newHandler(t)
-	resp, err := h.AssignConflict(context.Background(), connect.NewRequest(&conflictsv1.AssignConflictRequest{
-		Id: "c-1", Domain: "graph", DryRun: true,
-	}))
-	require.NoError(t, err)
-	require.True(t, resp.Msg.GetDryRun())
-	require.Equal(t, int64(1), cs.AssignCalls.Load())
-}
-
-func TestHandler_ResolveConflict_ForceRoundTrips(t *testing.T) {
-	h, _, _, _ := newHandler(t)
-	resp, err := h.ResolveConflict(context.Background(), connect.NewRequest(&conflictsv1.ResolveConflictRequest{
-		Id: "c-1", Force: true,
-	}))
-	require.NoError(t, err)
-	require.Equal(t, conflictsv1.ResolutionStatus_RESOLUTION_STATUS_FORCE_RESOLVED, resp.Msg.GetConflict().GetStatus())
 }
 
 func TestHandler_ValidateConflicts_RejectsMissingScenario(t *testing.T) {

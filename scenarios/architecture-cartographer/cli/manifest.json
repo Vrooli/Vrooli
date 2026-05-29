@@ -253,7 +253,7 @@
         },
         {
           "name": "list",
-          "description": "List persisted conflicts for a scenario, filterable by status and type",
+          "description": "List persisted conflicts for a scenario, filterable by type",
           "positionals": [
             {
               "name": "scenario",
@@ -262,10 +262,6 @@
             }
           ],
           "flags": [
-            {
-              "name": "status",
-              "description": "Comma-separated status filter (detected,assigned,split,resolved,validated,committed,force_resolved)"
-            },
             {
               "name": "type",
               "description": "Comma-separated conflict-type filter"
@@ -309,103 +305,6 @@
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "assign",
-          "description": "Assign a conflict to a target domain (transitions it to ASSIGNED)",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Conflict id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "domain",
-              "required": true,
-              "description": "Domain to assign (must be declared in the manifest)"
-            },
-            {
-              "name": "note",
-              "description": "Operator note"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ConflictsService",
-            "method": "AssignConflict"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "resolve",
-          "description": "Resolve a conflict; use --force to force-resolve (ignore) it",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Conflict id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "note",
-              "description": "Operator note (recommended)"
-            },
-            {
-              "name": "force",
-              "bool": true,
-              "description": "Force-resolve: transition to FORCE_RESOLVED, marking the conflict deliberately ignored"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ConflictsService",
-            "method": "ResolveConflict"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "reopen",
-          "description": "Reopen a resolved or force-resolved conflict (back to DETECTED)",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Conflict id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "note",
-              "description": "Operator note"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ConflictsService",
-            "method": "ReopenConflict"
-          },
-          "governance": {
-            "effect": "write",
             "run_eligible": true,
             "permissions": [
               "network:internal"
@@ -946,6 +845,28 @@
           },
           "governance": {
             "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List a scenario's migrations (newest first), or every migration when --scenario is omitted",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Filter to one scenario (omit for all)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MigrationService",
+            "method": "ListMigrations"
+          },
+          "governance": {
+            "effect": "read",
             "run_eligible": true,
             "permissions": [
               "network:internal"

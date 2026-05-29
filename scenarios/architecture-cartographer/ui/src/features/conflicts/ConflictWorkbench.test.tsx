@@ -7,9 +7,6 @@ vi.mock("../../api/conflicts", () => ({
     getConflict: vi.fn(),
     detectConflicts: vi.fn(),
     validateConflicts: vi.fn(),
-    assignConflict: vi.fn(),
-    resolveConflict: vi.fn(),
-    reopenConflict: vi.fn(),
   },
 }));
 
@@ -17,7 +14,7 @@ import { conflictsClient } from "../../api/conflicts";
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { ConflictWorkbench } from "./ConflictWorkbench";
-import { makeConflict } from "./flow/fixtures";
+import { makeConflict } from "./fixtures";
 
 afterEach(() => {
   cleanup();

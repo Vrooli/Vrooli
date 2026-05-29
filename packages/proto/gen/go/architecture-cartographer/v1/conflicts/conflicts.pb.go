@@ -80,80 +80,6 @@ func (Severity) EnumDescriptor() ([]byte, []int) {
 	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{0}
 }
 
-// ResolutionStatus is the lifecycle state of a conflict.
-//
-// Transitions (enforced by the flow contract in
-// internal/conflicts/flow/flow.json):
-//
-//	detected ── assign ──> assigned ── resolve ──> resolved ── validate ──> validated
-//	     │           │            │                     │                       │
-//	     │           └── split ──>┴── resolve (force) ──┴── commit ───────────> committed
-//	     │                                                                       │
-//	     └─── force_resolve ─────────────────────────────────────────────────> force_resolved
-type ResolutionStatus int32
-
-const (
-	ResolutionStatus_RESOLUTION_STATUS_UNSPECIFIED    ResolutionStatus = 0
-	ResolutionStatus_RESOLUTION_STATUS_DETECTED       ResolutionStatus = 1
-	ResolutionStatus_RESOLUTION_STATUS_ASSIGNED       ResolutionStatus = 2
-	ResolutionStatus_RESOLUTION_STATUS_SPLIT          ResolutionStatus = 3
-	ResolutionStatus_RESOLUTION_STATUS_RESOLVED       ResolutionStatus = 4
-	ResolutionStatus_RESOLUTION_STATUS_VALIDATED      ResolutionStatus = 5
-	ResolutionStatus_RESOLUTION_STATUS_COMMITTED      ResolutionStatus = 6
-	ResolutionStatus_RESOLUTION_STATUS_FORCE_RESOLVED ResolutionStatus = 7
-)
-
-// Enum value maps for ResolutionStatus.
-var (
-	ResolutionStatus_name = map[int32]string{
-		0: "RESOLUTION_STATUS_UNSPECIFIED",
-		1: "RESOLUTION_STATUS_DETECTED",
-		2: "RESOLUTION_STATUS_ASSIGNED",
-		3: "RESOLUTION_STATUS_SPLIT",
-		4: "RESOLUTION_STATUS_RESOLVED",
-		5: "RESOLUTION_STATUS_VALIDATED",
-		6: "RESOLUTION_STATUS_COMMITTED",
-		7: "RESOLUTION_STATUS_FORCE_RESOLVED",
-	}
-	ResolutionStatus_value = map[string]int32{
-		"RESOLUTION_STATUS_UNSPECIFIED":    0,
-		"RESOLUTION_STATUS_DETECTED":       1,
-		"RESOLUTION_STATUS_ASSIGNED":       2,
-		"RESOLUTION_STATUS_SPLIT":          3,
-		"RESOLUTION_STATUS_RESOLVED":       4,
-		"RESOLUTION_STATUS_VALIDATED":      5,
-		"RESOLUTION_STATUS_COMMITTED":      6,
-		"RESOLUTION_STATUS_FORCE_RESOLVED": 7,
-	}
-)
-
-func (x ResolutionStatus) Enum() *ResolutionStatus {
-	p := new(ResolutionStatus)
-	*p = x
-	return p
-}
-
-func (x ResolutionStatus) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (ResolutionStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_enumTypes[1].Descriptor()
-}
-
-func (ResolutionStatus) Type() protoreflect.EnumType {
-	return &file_architecture_cartographer_v1_conflicts_conflicts_proto_enumTypes[1]
-}
-
-func (x ResolutionStatus) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use ResolutionStatus.Descriptor instead.
-func (ResolutionStatus) EnumDescriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{1}
-}
-
 // FixKind enumerates the operator-facing categories of suggested fixes.
 // New kinds are added through a manifest schema bump (manifest_version).
 type FixKind int32
@@ -198,11 +124,11 @@ func (x FixKind) String() string {
 }
 
 func (FixKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_enumTypes[2].Descriptor()
+	return file_architecture_cartographer_v1_conflicts_conflicts_proto_enumTypes[1].Descriptor()
 }
 
 func (FixKind) Type() protoreflect.EnumType {
-	return &file_architecture_cartographer_v1_conflicts_conflicts_proto_enumTypes[2]
+	return &file_architecture_cartographer_v1_conflicts_conflicts_proto_enumTypes[1]
 }
 
 func (x FixKind) Number() protoreflect.EnumNumber {
@@ -211,7 +137,7 @@ func (x FixKind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FixKind.Descriptor instead.
 func (FixKind) EnumDescriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{2}
+	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{1}
 }
 
 // ConflictEvidence is one detector-supplied piece of justification.
@@ -410,13 +336,7 @@ type Conflict struct {
 	// Detector-supplied evidence.
 	Evidence []*ConflictEvidence `protobuf:"bytes,9,rep,name=evidence,proto3" json:"evidence,omitempty"`
 	// Suggested resolutions, ranked best-first by the detector.
-	SuggestedFixes []*Fix           `protobuf:"bytes,10,rep,name=suggested_fixes,json=suggestedFixes,proto3" json:"suggested_fixes,omitempty"`
-	Status         ResolutionStatus `protobuf:"varint,11,opt,name=status,proto3,enum=vrooli.architecture_cartographer.v1.conflicts.ResolutionStatus" json:"status,omitempty"`
-	// Operator-assigned domain (when status is ASSIGNED or beyond). Empty
-	// when no operator assignment has been made.
-	AssignedDomain string `protobuf:"bytes,12,opt,name=assigned_domain,json=assignedDomain,proto3" json:"assigned_domain,omitempty"`
-	// Operator note attached on resolve / force_resolve.
-	ResolutionNote string `protobuf:"bytes,13,opt,name=resolution_note,json=resolutionNote,proto3" json:"resolution_note,omitempty"`
+	SuggestedFixes []*Fix `protobuf:"bytes,10,rep,name=suggested_fixes,json=suggestedFixes,proto3" json:"suggested_fixes,omitempty"`
 	// Snapshot id the conflict was detected against.
 	SnapshotId string `protobuf:"bytes,14,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
 	// Optional verdict that the detector consulted (e.g., for
@@ -542,27 +462,6 @@ func (x *Conflict) GetSuggestedFixes() []*Fix {
 		return x.SuggestedFixes
 	}
 	return nil
-}
-
-func (x *Conflict) GetStatus() ResolutionStatus {
-	if x != nil {
-		return x.Status
-	}
-	return ResolutionStatus_RESOLUTION_STATUS_UNSPECIFIED
-}
-
-func (x *Conflict) GetAssignedDomain() string {
-	if x != nil {
-		return x.AssignedDomain
-	}
-	return ""
-}
-
-func (x *Conflict) GetResolutionNote() string {
-	if x != nil {
-		return x.ResolutionNote
-	}
-	return ""
 }
 
 func (x *Conflict) GetSnapshotId() string {
@@ -879,8 +778,6 @@ func (x *DetectConflictsResponse) GetConflicts() []*Conflict {
 type ListConflictsRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	// Optional filter: only return conflicts in these statuses.
-	Statuses []ResolutionStatus `protobuf:"varint,2,rep,packed,name=statuses,proto3,enum=vrooli.architecture_cartographer.v1.conflicts.ResolutionStatus" json:"statuses,omitempty"`
 	// Optional filter: only return conflicts of these types.
 	Types         []string `protobuf:"bytes,3,rep,name=types,proto3" json:"types,omitempty"`
 	PageSize      int32    `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
@@ -924,13 +821,6 @@ func (x *ListConflictsRequest) GetScenario() string {
 		return x.Scenario
 	}
 	return ""
-}
-
-func (x *ListConflictsRequest) GetStatuses() []ResolutionStatus {
-	if x != nil {
-		return x.Statuses
-	}
-	return nil
 }
 
 func (x *ListConflictsRequest) GetTypes() []string {
@@ -1094,374 +984,6 @@ func (x *GetConflictResponse) GetConflict() *Conflict {
 	return nil
 }
 
-type AssignConflictRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Domain to assign (must be declared in the manifest).
-	Domain string `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
-	// Operator note (optional).
-	Note          string `protobuf:"bytes,3,opt,name=note,proto3" json:"note,omitempty"`
-	DryRun        bool   `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AssignConflictRequest) Reset() {
-	*x = AssignConflictRequest{}
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AssignConflictRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AssignConflictRequest) ProtoMessage() {}
-
-func (x *AssignConflictRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AssignConflictRequest.ProtoReflect.Descriptor instead.
-func (*AssignConflictRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *AssignConflictRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *AssignConflictRequest) GetDomain() string {
-	if x != nil {
-		return x.Domain
-	}
-	return ""
-}
-
-func (x *AssignConflictRequest) GetNote() string {
-	if x != nil {
-		return x.Note
-	}
-	return ""
-}
-
-func (x *AssignConflictRequest) GetDryRun() bool {
-	if x != nil {
-		return x.DryRun
-	}
-	return false
-}
-
-type AssignConflictResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Conflict      *Conflict              `protobuf:"bytes,1,opt,name=conflict,proto3" json:"conflict,omitempty"`
-	DryRun        bool                   `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AssignConflictResponse) Reset() {
-	*x = AssignConflictResponse{}
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AssignConflictResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AssignConflictResponse) ProtoMessage() {}
-
-func (x *AssignConflictResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AssignConflictResponse.ProtoReflect.Descriptor instead.
-func (*AssignConflictResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *AssignConflictResponse) GetConflict() *Conflict {
-	if x != nil {
-		return x.Conflict
-	}
-	return nil
-}
-
-func (x *AssignConflictResponse) GetDryRun() bool {
-	if x != nil {
-		return x.DryRun
-	}
-	return false
-}
-
-type ResolveConflictRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Operator note (optional, recommended).
-	Note string `protobuf:"bytes,2,opt,name=note,proto3" json:"note,omitempty"`
-	// When true, transitions to FORCE_RESOLVED, marking that the
-	// operator chose to ignore the conflict.
-	Force         bool `protobuf:"varint,3,opt,name=force,proto3" json:"force,omitempty"`
-	DryRun        bool `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResolveConflictRequest) Reset() {
-	*x = ResolveConflictRequest{}
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResolveConflictRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResolveConflictRequest) ProtoMessage() {}
-
-func (x *ResolveConflictRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResolveConflictRequest.ProtoReflect.Descriptor instead.
-func (*ResolveConflictRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *ResolveConflictRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *ResolveConflictRequest) GetNote() string {
-	if x != nil {
-		return x.Note
-	}
-	return ""
-}
-
-func (x *ResolveConflictRequest) GetForce() bool {
-	if x != nil {
-		return x.Force
-	}
-	return false
-}
-
-func (x *ResolveConflictRequest) GetDryRun() bool {
-	if x != nil {
-		return x.DryRun
-	}
-	return false
-}
-
-type ResolveConflictResponse struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Conflict *Conflict              `protobuf:"bytes,1,opt,name=conflict,proto3" json:"conflict,omitempty"`
-	DryRun   bool                   `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
-	// True when the resolver flagged this resolution as deferred to
-	// `apply`. v0.1 sets this to true for every fix that requires file
-	// movement, because apply is unimplemented.
-	ApplyDeferred bool `protobuf:"varint,3,opt,name=apply_deferred,json=applyDeferred,proto3" json:"apply_deferred,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResolveConflictResponse) Reset() {
-	*x = ResolveConflictResponse{}
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[14]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResolveConflictResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResolveConflictResponse) ProtoMessage() {}
-
-func (x *ResolveConflictResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[14]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResolveConflictResponse.ProtoReflect.Descriptor instead.
-func (*ResolveConflictResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *ResolveConflictResponse) GetConflict() *Conflict {
-	if x != nil {
-		return x.Conflict
-	}
-	return nil
-}
-
-func (x *ResolveConflictResponse) GetDryRun() bool {
-	if x != nil {
-		return x.DryRun
-	}
-	return false
-}
-
-func (x *ResolveConflictResponse) GetApplyDeferred() bool {
-	if x != nil {
-		return x.ApplyDeferred
-	}
-	return false
-}
-
-type ReopenConflictRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Note          string                 `protobuf:"bytes,2,opt,name=note,proto3" json:"note,omitempty"`
-	DryRun        bool                   `protobuf:"varint,3,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ReopenConflictRequest) Reset() {
-	*x = ReopenConflictRequest{}
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[15]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ReopenConflictRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReopenConflictRequest) ProtoMessage() {}
-
-func (x *ReopenConflictRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[15]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReopenConflictRequest.ProtoReflect.Descriptor instead.
-func (*ReopenConflictRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{15}
-}
-
-func (x *ReopenConflictRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *ReopenConflictRequest) GetNote() string {
-	if x != nil {
-		return x.Note
-	}
-	return ""
-}
-
-func (x *ReopenConflictRequest) GetDryRun() bool {
-	if x != nil {
-		return x.DryRun
-	}
-	return false
-}
-
-type ReopenConflictResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Conflict      *Conflict              `protobuf:"bytes,1,opt,name=conflict,proto3" json:"conflict,omitempty"`
-	DryRun        bool                   `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ReopenConflictResponse) Reset() {
-	*x = ReopenConflictResponse{}
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[16]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ReopenConflictResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReopenConflictResponse) ProtoMessage() {}
-
-func (x *ReopenConflictResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[16]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReopenConflictResponse.ProtoReflect.Descriptor instead.
-func (*ReopenConflictResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *ReopenConflictResponse) GetConflict() *Conflict {
-	if x != nil {
-		return x.Conflict
-	}
-	return nil
-}
-
-func (x *ReopenConflictResponse) GetDryRun() bool {
-	if x != nil {
-		return x.DryRun
-	}
-	return false
-}
-
 type ValidateConflictsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -1471,7 +993,7 @@ type ValidateConflictsRequest struct {
 
 func (x *ValidateConflictsRequest) Reset() {
 	*x = ValidateConflictsRequest{}
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[17]
+	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1483,7 +1005,7 @@ func (x *ValidateConflictsRequest) String() string {
 func (*ValidateConflictsRequest) ProtoMessage() {}
 
 func (x *ValidateConflictsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[17]
+	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1496,7 +1018,7 @@ func (x *ValidateConflictsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateConflictsRequest.ProtoReflect.Descriptor instead.
 func (*ValidateConflictsRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{17}
+	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ValidateConflictsRequest) GetScenario() string {
@@ -1518,7 +1040,7 @@ type ValidateConflictsResponse struct {
 
 func (x *ValidateConflictsResponse) Reset() {
 	*x = ValidateConflictsResponse{}
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[18]
+	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1530,7 +1052,7 @@ func (x *ValidateConflictsResponse) String() string {
 func (*ValidateConflictsResponse) ProtoMessage() {}
 
 func (x *ValidateConflictsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[18]
+	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1543,7 +1065,7 @@ func (x *ValidateConflictsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateConflictsResponse.ProtoReflect.Descriptor instead.
 func (*ValidateConflictsResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{18}
+	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ValidateConflictsResponse) GetConflicts() []*Conflict {
@@ -1568,7 +1090,7 @@ type ListDetectorsRequest struct {
 
 func (x *ListDetectorsRequest) Reset() {
 	*x = ListDetectorsRequest{}
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[19]
+	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1580,7 +1102,7 @@ func (x *ListDetectorsRequest) String() string {
 func (*ListDetectorsRequest) ProtoMessage() {}
 
 func (x *ListDetectorsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[19]
+	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1593,7 +1115,7 @@ func (x *ListDetectorsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDetectorsRequest.ProtoReflect.Descriptor instead.
 func (*ListDetectorsRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{19}
+	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{13}
 }
 
 type ListDetectorsResponse struct {
@@ -1605,7 +1127,7 @@ type ListDetectorsResponse struct {
 
 func (x *ListDetectorsResponse) Reset() {
 	*x = ListDetectorsResponse{}
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[20]
+	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1617,7 +1139,7 @@ func (x *ListDetectorsResponse) String() string {
 func (*ListDetectorsResponse) ProtoMessage() {}
 
 func (x *ListDetectorsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[20]
+	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1630,7 +1152,7 @@ func (x *ListDetectorsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDetectorsResponse.ProtoReflect.Descriptor instead.
 func (*ListDetectorsResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{20}
+	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListDetectorsResponse) GetDetectors() []*DetectorDescriptor {
@@ -1648,7 +1170,7 @@ type ListResolversRequest struct {
 
 func (x *ListResolversRequest) Reset() {
 	*x = ListResolversRequest{}
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[21]
+	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1660,7 +1182,7 @@ func (x *ListResolversRequest) String() string {
 func (*ListResolversRequest) ProtoMessage() {}
 
 func (x *ListResolversRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[21]
+	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1673,7 +1195,7 @@ func (x *ListResolversRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListResolversRequest.ProtoReflect.Descriptor instead.
 func (*ListResolversRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{21}
+	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{15}
 }
 
 type ListResolversResponse struct {
@@ -1685,7 +1207,7 @@ type ListResolversResponse struct {
 
 func (x *ListResolversResponse) Reset() {
 	*x = ListResolversResponse{}
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[22]
+	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1697,7 +1219,7 @@ func (x *ListResolversResponse) String() string {
 func (*ListResolversResponse) ProtoMessage() {}
 
 func (x *ListResolversResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[22]
+	mi := &file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1710,7 +1232,7 @@ func (x *ListResolversResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListResolversResponse.ProtoReflect.Descriptor instead.
 func (*ListResolversResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{22}
+	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListResolversResponse) GetResolvers() []*ResolverDescriptor {
@@ -1738,7 +1260,7 @@ const file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDesc = "" +
 	"\apayload\x18\x05 \x01(\fR\apayload\x12\x1e\n" +
 	"\n" +
 	"confidence\x18\x06 \x01(\x01R\n" +
-	"confidence\"\xe8\a\n" +
+	"confidence\"\xf9\x06\n" +
 	"\bConflict\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x1a\n" +
@@ -1750,10 +1272,7 @@ const file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDesc = "" +
 	"\adomains\x18\b \x03(\tR\adomains\x12[\n" +
 	"\bevidence\x18\t \x03(\v2?.vrooli.architecture_cartographer.v1.conflicts.ConflictEvidenceR\bevidence\x12[\n" +
 	"\x0fsuggested_fixes\x18\n" +
-	" \x03(\v22.vrooli.architecture_cartographer.v1.conflicts.FixR\x0esuggestedFixes\x12W\n" +
-	"\x06status\x18\v \x01(\x0e2?.vrooli.architecture_cartographer.v1.conflicts.ResolutionStatusR\x06status\x12'\n" +
-	"\x0fassigned_domain\x18\f \x01(\tR\x0eassignedDomain\x12'\n" +
-	"\x0fresolution_note\x18\r \x01(\tR\x0eresolutionNote\x12\x1f\n" +
+	" \x03(\v22.vrooli.architecture_cartographer.v1.conflicts.FixR\x0esuggestedFixes\x12\x1f\n" +
 	"\vsnapshot_id\x18\x0e \x01(\tR\n" +
 	"snapshotId\x12N\n" +
 	"\averdict\x18\x0f \x01(\v24.vrooli.architecture_cartographer.v1.signals.VerdictR\averdict\x12;\n" +
@@ -1767,7 +1286,7 @@ const file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDesc = "" +
 	"\x12suppression_reason\x18\x13 \x01(\tR\x11suppressionReason\x12\x1b\n" +
 	"\tstable_id\x18\x14 \x01(\tR\bstableId\x12\x1f\n" +
 	"\vinstance_id\x18\x15 \x01(\tR\n" +
-	"instanceId\"\x89\x01\n" +
+	"instanceIdJ\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\r\x10\x0eR\x06statusR\x0fassigned_domainR\x0fresolution_note\"\x89\x01\n" +
 	"\x12DetectorDescriptor\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1c\n" +
@@ -1786,45 +1305,20 @@ const file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDesc = "" +
 	"snapshotId\x12'\n" +
 	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\"p\n" +
 	"\x17DetectConflictsResponse\x12U\n" +
-	"\tconflicts\x18\x01 \x03(\v27.vrooli.architecture_cartographer.v1.conflicts.ConflictR\tconflicts\"\xe1\x01\n" +
+	"\tconflicts\x18\x01 \x03(\v27.vrooli.architecture_cartographer.v1.conflicts.ConflictR\tconflicts\"\x94\x01\n" +
 	"\x14ListConflictsRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12[\n" +
-	"\bstatuses\x18\x02 \x03(\x0e2?.vrooli.architecture_cartographer.v1.conflicts.ResolutionStatusR\bstatuses\x12\x14\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x14\n" +
 	"\x05types\x18\x03 \x03(\tR\x05types\x12\x1b\n" +
 	"\tpage_size\x18\x04 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x05 \x01(\tR\tpageToken\"\x96\x01\n" +
+	"page_token\x18\x05 \x01(\tR\tpageTokenJ\x04\b\x02\x10\x03R\bstatuses\"\x96\x01\n" +
 	"\x15ListConflictsResponse\x12U\n" +
 	"\tconflicts\x18\x01 \x03(\v27.vrooli.architecture_cartographer.v1.conflicts.ConflictR\tconflicts\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"$\n" +
 	"\x12GetConflictRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"j\n" +
 	"\x13GetConflictResponse\x12S\n" +
-	"\bconflict\x18\x01 \x01(\v27.vrooli.architecture_cartographer.v1.conflicts.ConflictR\bconflict\"l\n" +
-	"\x15AssignConflictRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
-	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x12\n" +
-	"\x04note\x18\x03 \x01(\tR\x04note\x12\x17\n" +
-	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\x86\x01\n" +
-	"\x16AssignConflictResponse\x12S\n" +
-	"\bconflict\x18\x01 \x01(\v27.vrooli.architecture_cartographer.v1.conflicts.ConflictR\bconflict\x12\x17\n" +
-	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"k\n" +
-	"\x16ResolveConflictRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04note\x18\x02 \x01(\tR\x04note\x12\x14\n" +
-	"\x05force\x18\x03 \x01(\bR\x05force\x12\x17\n" +
-	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xae\x01\n" +
-	"\x17ResolveConflictResponse\x12S\n" +
-	"\bconflict\x18\x01 \x01(\v27.vrooli.architecture_cartographer.v1.conflicts.ConflictR\bconflict\x12\x17\n" +
-	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12%\n" +
-	"\x0eapply_deferred\x18\x03 \x01(\bR\rapplyDeferred\"T\n" +
-	"\x15ReopenConflictRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04note\x18\x02 \x01(\tR\x04note\x12\x17\n" +
-	"\adry_run\x18\x03 \x01(\bR\x06dryRun\"\x86\x01\n" +
-	"\x16ReopenConflictResponse\x12S\n" +
-	"\bconflict\x18\x01 \x01(\v27.vrooli.architecture_cartographer.v1.conflicts.ConflictR\bconflict\x12\x17\n" +
-	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"6\n" +
+	"\bconflict\x18\x01 \x01(\v27.vrooli.architecture_cartographer.v1.conflicts.ConflictR\bconflict\"6\n" +
 	"\x18ValidateConflictsRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\"\x88\x01\n" +
 	"\x19ValidateConflictsResponse\x12U\n" +
@@ -1841,30 +1335,18 @@ const file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDesc = "" +
 	"\rSEVERITY_INFO\x10\x01\x12\x11\n" +
 	"\rSEVERITY_WARN\x10\x02\x12\x12\n" +
 	"\x0eSEVERITY_ERROR\x10\x03\x12\x14\n" +
-	"\x10SEVERITY_BLOCKER\x10\x04*\x9a\x02\n" +
-	"\x10ResolutionStatus\x12!\n" +
-	"\x1dRESOLUTION_STATUS_UNSPECIFIED\x10\x00\x12\x1e\n" +
-	"\x1aRESOLUTION_STATUS_DETECTED\x10\x01\x12\x1e\n" +
-	"\x1aRESOLUTION_STATUS_ASSIGNED\x10\x02\x12\x1b\n" +
-	"\x17RESOLUTION_STATUS_SPLIT\x10\x03\x12\x1e\n" +
-	"\x1aRESOLUTION_STATUS_RESOLVED\x10\x04\x12\x1f\n" +
-	"\x1bRESOLUTION_STATUS_VALIDATED\x10\x05\x12\x1f\n" +
-	"\x1bRESOLUTION_STATUS_COMMITTED\x10\x06\x12$\n" +
-	" RESOLUTION_STATUS_FORCE_RESOLVED\x10\a*\xaf\x01\n" +
+	"\x10SEVERITY_BLOCKER\x10\x04*\xaf\x01\n" +
 	"\aFixKind\x12\x18\n" +
 	"\x14FIX_KIND_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12FIX_KIND_MOVE_FILE\x10\x01\x12\x1c\n" +
 	"\x18FIX_KIND_REASSIGN_DOMAIN\x10\x02\x12\x18\n" +
 	"\x14FIX_KIND_BREAK_CYCLE\x10\x03\x12\x1b\n" +
 	"\x17FIX_KIND_ADD_DEPENDENCY\x10\x04\x12\x1d\n" +
-	"\x19FIX_KIND_ADD_TRANSITIONAL\x10\x052\xaf\v\n" +
+	"\x19FIX_KIND_ADD_TRANSITIONAL\x10\x052\xcc\a\n" +
 	"\x10ConflictsService\x12\xa0\x01\n" +
 	"\x0fDetectConflicts\x12E.vrooli.architecture_cartographer.v1.conflicts.DetectConflictsRequest\x1aF.vrooli.architecture_cartographer.v1.conflicts.DetectConflictsResponse\x12\x9a\x01\n" +
 	"\rListConflicts\x12C.vrooli.architecture_cartographer.v1.conflicts.ListConflictsRequest\x1aD.vrooli.architecture_cartographer.v1.conflicts.ListConflictsResponse\x12\x94\x01\n" +
-	"\vGetConflict\x12A.vrooli.architecture_cartographer.v1.conflicts.GetConflictRequest\x1aB.vrooli.architecture_cartographer.v1.conflicts.GetConflictResponse\x12\x9d\x01\n" +
-	"\x0eAssignConflict\x12D.vrooli.architecture_cartographer.v1.conflicts.AssignConflictRequest\x1aE.vrooli.architecture_cartographer.v1.conflicts.AssignConflictResponse\x12\xa0\x01\n" +
-	"\x0fResolveConflict\x12E.vrooli.architecture_cartographer.v1.conflicts.ResolveConflictRequest\x1aF.vrooli.architecture_cartographer.v1.conflicts.ResolveConflictResponse\x12\x9d\x01\n" +
-	"\x0eReopenConflict\x12D.vrooli.architecture_cartographer.v1.conflicts.ReopenConflictRequest\x1aE.vrooli.architecture_cartographer.v1.conflicts.ReopenConflictResponse\x12\xa6\x01\n" +
+	"\vGetConflict\x12A.vrooli.architecture_cartographer.v1.conflicts.GetConflictRequest\x1aB.vrooli.architecture_cartographer.v1.conflicts.GetConflictResponse\x12\xa6\x01\n" +
 	"\x11ValidateConflicts\x12G.vrooli.architecture_cartographer.v1.conflicts.ValidateConflictsRequest\x1aH.vrooli.architecture_cartographer.v1.conflicts.ValidateConflictsResponse\x12\x9a\x01\n" +
 	"\rListDetectors\x12C.vrooli.architecture_cartographer.v1.conflicts.ListDetectorsRequest\x1aD.vrooli.architecture_cartographer.v1.conflicts.ListDetectorsResponse\x12\x9a\x01\n" +
 	"\rListResolvers\x12C.vrooli.architecture_cartographer.v1.conflicts.ListResolversRequest\x1aD.vrooli.architecture_cartographer.v1.conflicts.ListResolversResponseBdZbgithub.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts;conflicts_v1b\x06proto3"
@@ -1881,81 +1363,63 @@ func file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescGZIP() [
 	return file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDescData
 }
 
-var file_architecture_cartographer_v1_conflicts_conflicts_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_architecture_cartographer_v1_conflicts_conflicts_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_architecture_cartographer_v1_conflicts_conflicts_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_architecture_cartographer_v1_conflicts_conflicts_proto_goTypes = []any{
 	(Severity)(0),                     // 0: vrooli.architecture_cartographer.v1.conflicts.Severity
-	(ResolutionStatus)(0),             // 1: vrooli.architecture_cartographer.v1.conflicts.ResolutionStatus
-	(FixKind)(0),                      // 2: vrooli.architecture_cartographer.v1.conflicts.FixKind
-	(*ConflictEvidence)(nil),          // 3: vrooli.architecture_cartographer.v1.conflicts.ConflictEvidence
-	(*Fix)(nil),                       // 4: vrooli.architecture_cartographer.v1.conflicts.Fix
-	(*Conflict)(nil),                  // 5: vrooli.architecture_cartographer.v1.conflicts.Conflict
-	(*DetectorDescriptor)(nil),        // 6: vrooli.architecture_cartographer.v1.conflicts.DetectorDescriptor
-	(*ResolverDescriptor)(nil),        // 7: vrooli.architecture_cartographer.v1.conflicts.ResolverDescriptor
-	(*DetectConflictsRequest)(nil),    // 8: vrooli.architecture_cartographer.v1.conflicts.DetectConflictsRequest
-	(*DetectConflictsResponse)(nil),   // 9: vrooli.architecture_cartographer.v1.conflicts.DetectConflictsResponse
-	(*ListConflictsRequest)(nil),      // 10: vrooli.architecture_cartographer.v1.conflicts.ListConflictsRequest
-	(*ListConflictsResponse)(nil),     // 11: vrooli.architecture_cartographer.v1.conflicts.ListConflictsResponse
-	(*GetConflictRequest)(nil),        // 12: vrooli.architecture_cartographer.v1.conflicts.GetConflictRequest
-	(*GetConflictResponse)(nil),       // 13: vrooli.architecture_cartographer.v1.conflicts.GetConflictResponse
-	(*AssignConflictRequest)(nil),     // 14: vrooli.architecture_cartographer.v1.conflicts.AssignConflictRequest
-	(*AssignConflictResponse)(nil),    // 15: vrooli.architecture_cartographer.v1.conflicts.AssignConflictResponse
-	(*ResolveConflictRequest)(nil),    // 16: vrooli.architecture_cartographer.v1.conflicts.ResolveConflictRequest
-	(*ResolveConflictResponse)(nil),   // 17: vrooli.architecture_cartographer.v1.conflicts.ResolveConflictResponse
-	(*ReopenConflictRequest)(nil),     // 18: vrooli.architecture_cartographer.v1.conflicts.ReopenConflictRequest
-	(*ReopenConflictResponse)(nil),    // 19: vrooli.architecture_cartographer.v1.conflicts.ReopenConflictResponse
-	(*ValidateConflictsRequest)(nil),  // 20: vrooli.architecture_cartographer.v1.conflicts.ValidateConflictsRequest
-	(*ValidateConflictsResponse)(nil), // 21: vrooli.architecture_cartographer.v1.conflicts.ValidateConflictsResponse
-	(*ListDetectorsRequest)(nil),      // 22: vrooli.architecture_cartographer.v1.conflicts.ListDetectorsRequest
-	(*ListDetectorsResponse)(nil),     // 23: vrooli.architecture_cartographer.v1.conflicts.ListDetectorsResponse
-	(*ListResolversRequest)(nil),      // 24: vrooli.architecture_cartographer.v1.conflicts.ListResolversRequest
-	(*ListResolversResponse)(nil),     // 25: vrooli.architecture_cartographer.v1.conflicts.ListResolversResponse
-	(*signals.Verdict)(nil),           // 26: vrooli.architecture_cartographer.v1.signals.Verdict
-	(*timestamppb.Timestamp)(nil),     // 27: google.protobuf.Timestamp
+	(FixKind)(0),                      // 1: vrooli.architecture_cartographer.v1.conflicts.FixKind
+	(*ConflictEvidence)(nil),          // 2: vrooli.architecture_cartographer.v1.conflicts.ConflictEvidence
+	(*Fix)(nil),                       // 3: vrooli.architecture_cartographer.v1.conflicts.Fix
+	(*Conflict)(nil),                  // 4: vrooli.architecture_cartographer.v1.conflicts.Conflict
+	(*DetectorDescriptor)(nil),        // 5: vrooli.architecture_cartographer.v1.conflicts.DetectorDescriptor
+	(*ResolverDescriptor)(nil),        // 6: vrooli.architecture_cartographer.v1.conflicts.ResolverDescriptor
+	(*DetectConflictsRequest)(nil),    // 7: vrooli.architecture_cartographer.v1.conflicts.DetectConflictsRequest
+	(*DetectConflictsResponse)(nil),   // 8: vrooli.architecture_cartographer.v1.conflicts.DetectConflictsResponse
+	(*ListConflictsRequest)(nil),      // 9: vrooli.architecture_cartographer.v1.conflicts.ListConflictsRequest
+	(*ListConflictsResponse)(nil),     // 10: vrooli.architecture_cartographer.v1.conflicts.ListConflictsResponse
+	(*GetConflictRequest)(nil),        // 11: vrooli.architecture_cartographer.v1.conflicts.GetConflictRequest
+	(*GetConflictResponse)(nil),       // 12: vrooli.architecture_cartographer.v1.conflicts.GetConflictResponse
+	(*ValidateConflictsRequest)(nil),  // 13: vrooli.architecture_cartographer.v1.conflicts.ValidateConflictsRequest
+	(*ValidateConflictsResponse)(nil), // 14: vrooli.architecture_cartographer.v1.conflicts.ValidateConflictsResponse
+	(*ListDetectorsRequest)(nil),      // 15: vrooli.architecture_cartographer.v1.conflicts.ListDetectorsRequest
+	(*ListDetectorsResponse)(nil),     // 16: vrooli.architecture_cartographer.v1.conflicts.ListDetectorsResponse
+	(*ListResolversRequest)(nil),      // 17: vrooli.architecture_cartographer.v1.conflicts.ListResolversRequest
+	(*ListResolversResponse)(nil),     // 18: vrooli.architecture_cartographer.v1.conflicts.ListResolversResponse
+	(*signals.Verdict)(nil),           // 19: vrooli.architecture_cartographer.v1.signals.Verdict
+	(*timestamppb.Timestamp)(nil),     // 20: google.protobuf.Timestamp
 }
 var file_architecture_cartographer_v1_conflicts_conflicts_proto_depIdxs = []int32{
-	2,  // 0: vrooli.architecture_cartographer.v1.conflicts.Fix.kind:type_name -> vrooli.architecture_cartographer.v1.conflicts.FixKind
+	1,  // 0: vrooli.architecture_cartographer.v1.conflicts.Fix.kind:type_name -> vrooli.architecture_cartographer.v1.conflicts.FixKind
 	0,  // 1: vrooli.architecture_cartographer.v1.conflicts.Conflict.severity:type_name -> vrooli.architecture_cartographer.v1.conflicts.Severity
-	3,  // 2: vrooli.architecture_cartographer.v1.conflicts.Conflict.evidence:type_name -> vrooli.architecture_cartographer.v1.conflicts.ConflictEvidence
-	4,  // 3: vrooli.architecture_cartographer.v1.conflicts.Conflict.suggested_fixes:type_name -> vrooli.architecture_cartographer.v1.conflicts.Fix
-	1,  // 4: vrooli.architecture_cartographer.v1.conflicts.Conflict.status:type_name -> vrooli.architecture_cartographer.v1.conflicts.ResolutionStatus
-	26, // 5: vrooli.architecture_cartographer.v1.conflicts.Conflict.verdict:type_name -> vrooli.architecture_cartographer.v1.signals.Verdict
-	27, // 6: vrooli.architecture_cartographer.v1.conflicts.Conflict.detected_at:type_name -> google.protobuf.Timestamp
-	27, // 7: vrooli.architecture_cartographer.v1.conflicts.Conflict.updated_at:type_name -> google.protobuf.Timestamp
-	2,  // 8: vrooli.architecture_cartographer.v1.conflicts.ResolverDescriptor.handles_kinds:type_name -> vrooli.architecture_cartographer.v1.conflicts.FixKind
-	5,  // 9: vrooli.architecture_cartographer.v1.conflicts.DetectConflictsResponse.conflicts:type_name -> vrooli.architecture_cartographer.v1.conflicts.Conflict
-	1,  // 10: vrooli.architecture_cartographer.v1.conflicts.ListConflictsRequest.statuses:type_name -> vrooli.architecture_cartographer.v1.conflicts.ResolutionStatus
-	5,  // 11: vrooli.architecture_cartographer.v1.conflicts.ListConflictsResponse.conflicts:type_name -> vrooli.architecture_cartographer.v1.conflicts.Conflict
-	5,  // 12: vrooli.architecture_cartographer.v1.conflicts.GetConflictResponse.conflict:type_name -> vrooli.architecture_cartographer.v1.conflicts.Conflict
-	5,  // 13: vrooli.architecture_cartographer.v1.conflicts.AssignConflictResponse.conflict:type_name -> vrooli.architecture_cartographer.v1.conflicts.Conflict
-	5,  // 14: vrooli.architecture_cartographer.v1.conflicts.ResolveConflictResponse.conflict:type_name -> vrooli.architecture_cartographer.v1.conflicts.Conflict
-	5,  // 15: vrooli.architecture_cartographer.v1.conflicts.ReopenConflictResponse.conflict:type_name -> vrooli.architecture_cartographer.v1.conflicts.Conflict
-	5,  // 16: vrooli.architecture_cartographer.v1.conflicts.ValidateConflictsResponse.conflicts:type_name -> vrooli.architecture_cartographer.v1.conflicts.Conflict
-	6,  // 17: vrooli.architecture_cartographer.v1.conflicts.ListDetectorsResponse.detectors:type_name -> vrooli.architecture_cartographer.v1.conflicts.DetectorDescriptor
-	7,  // 18: vrooli.architecture_cartographer.v1.conflicts.ListResolversResponse.resolvers:type_name -> vrooli.architecture_cartographer.v1.conflicts.ResolverDescriptor
-	8,  // 19: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.DetectConflicts:input_type -> vrooli.architecture_cartographer.v1.conflicts.DetectConflictsRequest
-	10, // 20: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ListConflicts:input_type -> vrooli.architecture_cartographer.v1.conflicts.ListConflictsRequest
-	12, // 21: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.GetConflict:input_type -> vrooli.architecture_cartographer.v1.conflicts.GetConflictRequest
-	14, // 22: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.AssignConflict:input_type -> vrooli.architecture_cartographer.v1.conflicts.AssignConflictRequest
-	16, // 23: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ResolveConflict:input_type -> vrooli.architecture_cartographer.v1.conflicts.ResolveConflictRequest
-	18, // 24: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ReopenConflict:input_type -> vrooli.architecture_cartographer.v1.conflicts.ReopenConflictRequest
-	20, // 25: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ValidateConflicts:input_type -> vrooli.architecture_cartographer.v1.conflicts.ValidateConflictsRequest
-	22, // 26: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ListDetectors:input_type -> vrooli.architecture_cartographer.v1.conflicts.ListDetectorsRequest
-	24, // 27: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ListResolvers:input_type -> vrooli.architecture_cartographer.v1.conflicts.ListResolversRequest
-	9,  // 28: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.DetectConflicts:output_type -> vrooli.architecture_cartographer.v1.conflicts.DetectConflictsResponse
-	11, // 29: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ListConflicts:output_type -> vrooli.architecture_cartographer.v1.conflicts.ListConflictsResponse
-	13, // 30: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.GetConflict:output_type -> vrooli.architecture_cartographer.v1.conflicts.GetConflictResponse
-	15, // 31: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.AssignConflict:output_type -> vrooli.architecture_cartographer.v1.conflicts.AssignConflictResponse
-	17, // 32: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ResolveConflict:output_type -> vrooli.architecture_cartographer.v1.conflicts.ResolveConflictResponse
-	19, // 33: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ReopenConflict:output_type -> vrooli.architecture_cartographer.v1.conflicts.ReopenConflictResponse
-	21, // 34: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ValidateConflicts:output_type -> vrooli.architecture_cartographer.v1.conflicts.ValidateConflictsResponse
-	23, // 35: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ListDetectors:output_type -> vrooli.architecture_cartographer.v1.conflicts.ListDetectorsResponse
-	25, // 36: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ListResolvers:output_type -> vrooli.architecture_cartographer.v1.conflicts.ListResolversResponse
-	28, // [28:37] is the sub-list for method output_type
-	19, // [19:28] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	2,  // 2: vrooli.architecture_cartographer.v1.conflicts.Conflict.evidence:type_name -> vrooli.architecture_cartographer.v1.conflicts.ConflictEvidence
+	3,  // 3: vrooli.architecture_cartographer.v1.conflicts.Conflict.suggested_fixes:type_name -> vrooli.architecture_cartographer.v1.conflicts.Fix
+	19, // 4: vrooli.architecture_cartographer.v1.conflicts.Conflict.verdict:type_name -> vrooli.architecture_cartographer.v1.signals.Verdict
+	20, // 5: vrooli.architecture_cartographer.v1.conflicts.Conflict.detected_at:type_name -> google.protobuf.Timestamp
+	20, // 6: vrooli.architecture_cartographer.v1.conflicts.Conflict.updated_at:type_name -> google.protobuf.Timestamp
+	1,  // 7: vrooli.architecture_cartographer.v1.conflicts.ResolverDescriptor.handles_kinds:type_name -> vrooli.architecture_cartographer.v1.conflicts.FixKind
+	4,  // 8: vrooli.architecture_cartographer.v1.conflicts.DetectConflictsResponse.conflicts:type_name -> vrooli.architecture_cartographer.v1.conflicts.Conflict
+	4,  // 9: vrooli.architecture_cartographer.v1.conflicts.ListConflictsResponse.conflicts:type_name -> vrooli.architecture_cartographer.v1.conflicts.Conflict
+	4,  // 10: vrooli.architecture_cartographer.v1.conflicts.GetConflictResponse.conflict:type_name -> vrooli.architecture_cartographer.v1.conflicts.Conflict
+	4,  // 11: vrooli.architecture_cartographer.v1.conflicts.ValidateConflictsResponse.conflicts:type_name -> vrooli.architecture_cartographer.v1.conflicts.Conflict
+	5,  // 12: vrooli.architecture_cartographer.v1.conflicts.ListDetectorsResponse.detectors:type_name -> vrooli.architecture_cartographer.v1.conflicts.DetectorDescriptor
+	6,  // 13: vrooli.architecture_cartographer.v1.conflicts.ListResolversResponse.resolvers:type_name -> vrooli.architecture_cartographer.v1.conflicts.ResolverDescriptor
+	7,  // 14: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.DetectConflicts:input_type -> vrooli.architecture_cartographer.v1.conflicts.DetectConflictsRequest
+	9,  // 15: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ListConflicts:input_type -> vrooli.architecture_cartographer.v1.conflicts.ListConflictsRequest
+	11, // 16: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.GetConflict:input_type -> vrooli.architecture_cartographer.v1.conflicts.GetConflictRequest
+	13, // 17: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ValidateConflicts:input_type -> vrooli.architecture_cartographer.v1.conflicts.ValidateConflictsRequest
+	15, // 18: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ListDetectors:input_type -> vrooli.architecture_cartographer.v1.conflicts.ListDetectorsRequest
+	17, // 19: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ListResolvers:input_type -> vrooli.architecture_cartographer.v1.conflicts.ListResolversRequest
+	8,  // 20: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.DetectConflicts:output_type -> vrooli.architecture_cartographer.v1.conflicts.DetectConflictsResponse
+	10, // 21: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ListConflicts:output_type -> vrooli.architecture_cartographer.v1.conflicts.ListConflictsResponse
+	12, // 22: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.GetConflict:output_type -> vrooli.architecture_cartographer.v1.conflicts.GetConflictResponse
+	14, // 23: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ValidateConflicts:output_type -> vrooli.architecture_cartographer.v1.conflicts.ValidateConflictsResponse
+	16, // 24: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ListDetectors:output_type -> vrooli.architecture_cartographer.v1.conflicts.ListDetectorsResponse
+	18, // 25: vrooli.architecture_cartographer.v1.conflicts.ConflictsService.ListResolvers:output_type -> vrooli.architecture_cartographer.v1.conflicts.ListResolversResponse
+	20, // [20:26] is the sub-list for method output_type
+	14, // [14:20] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_architecture_cartographer_v1_conflicts_conflicts_proto_init() }
@@ -1968,8 +1432,8 @@ func file_architecture_cartographer_v1_conflicts_conflicts_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDesc), len(file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   23,
+			NumEnums:      2,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

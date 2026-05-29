@@ -233,6 +233,44 @@ func TestCloseMarksMigrationClosed(t *testing.T) {
 	}
 }
 
+func TestListMigrationsFiltersByScenarioNewestFirst(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+	a1, _ := svc.Create(ctx, "alpha", "first", nil)
+	a2, _ := svc.Create(ctx, "alpha", "second", nil)
+	if _, err := svc.Create(ctx, "beta", "other", nil); err != nil {
+		t.Fatalf("create beta: %v", err)
+	}
+
+	alpha, err := svc.List(ctx, "alpha")
+	if err != nil {
+		t.Fatalf("list alpha: %v", err)
+	}
+	if len(alpha) != 2 {
+		t.Fatalf("expected 2 alpha migrations, got %d", len(alpha))
+	}
+	// Newest-first: created_at DESC, id DESC. Both share a created_at in the
+	// fast test path, so the id-DESC tiebreaker decides; assert the set, not
+	// a brittle ordering, plus that both alpha ids are present and no beta.
+	ids := map[string]bool{alpha[0].ID: true, alpha[1].ID: true}
+	if !ids[a1.Migration.ID] || !ids[a2.Migration.ID] {
+		t.Errorf("alpha list missing a created migration: got %v", ids)
+	}
+	for _, m := range alpha {
+		if m.Scenario != "alpha" {
+			t.Errorf("scenario filter leaked %q into alpha list", m.Scenario)
+		}
+	}
+
+	all, err := svc.List(ctx, "")
+	if err != nil {
+		t.Fatalf("list all: %v", err)
+	}
+	if len(all) != 3 {
+		t.Errorf("expected 3 migrations across all scenarios, got %d", len(all))
+	}
+}
+
 func TestNotFoundErrors(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()

@@ -25,6 +25,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
 		"MigrationService.CreateMigration":    h.create,
+		"MigrationService.ListMigrations":     h.list,
 		"MigrationService.GetMigrationStatus": h.status,
 		"MigrationService.NextMigrationStep":  h.next,
 		"MigrationService.ResolveFinding":     h.resolve,

@@ -16,10 +16,14 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture
 // @stability stable
 //
 // Wire contract for the ConflictsService Connect-RPC service. The
-// conflicts domain owns drift detection, the pluggable Detector / Resolver
-// registries, and the per-conflict lifecycle state machine. Conflict
-// envelope shape is locked in v0.1: new detectors do not add fields to
-// Conflict; new optional fields on Fix are allowed.
+// conflicts domain is DETECTION-ONLY: it owns drift detection, the
+// pluggable Detector / Resolver registries, and conflict persistence so
+// the latest photograph can be listed. It does NOT own a lifecycle — the
+// stateful per-finding lifecycle (assign/resolve/validate/regress) lives
+// in the migration domain (MigrationService), which ingests findings and
+// tracks them over time. Conflict envelope shape is locked in v0.1: new
+// detectors do not add fields to Conflict; new optional fields on Fix are
+// allowed.
 //
 // Cross-cutting envelopes defined here and imported by other domains:
 //   - Conflict          (canonical envelope; consumed by analytics + apply)
@@ -28,7 +32,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture
 //                        from signals.Evidence so detector evidence can
 //                        evolve independently)
 //   - Severity          (manifest-driven severity tag)
-//   - ResolutionStatus  (lifecycle state)
 // =============================================================================
 
 // Severity classifies how blocking a conflict is. Mirrors the manifest's
@@ -41,26 +44,10 @@ enum Severity {
   SEVERITY_BLOCKER = 4;
 }
 
-// ResolutionStatus is the lifecycle state of a conflict.
-//
-// Transitions (enforced by the flow contract in
-// internal/conflicts/flow/flow.json):
-//
-//   detected ── assign ──> assigned ── resolve ──> resolved ── validate ──> validated
-//        │           │            │                     │                       │
-//        │           └── split ──>┴── resolve (force) ──┴── commit ───────────> committed
-//        │                                                                       │
-//        └─── force_resolve ─────────────────────────────────────────────────> force_resolved
-enum ResolutionStatus {
-  RESOLUTION_STATUS_UNSPECIFIED = 0;
-  RESOLUTION_STATUS_DETECTED = 1;
-  RESOLUTION_STATUS_ASSIGNED = 2;
-  RESOLUTION_STATUS_SPLIT = 3;
-  RESOLUTION_STATUS_RESOLVED = 4;
-  RESOLUTION_STATUS_VALIDATED = 5;
-  RESOLUTION_STATUS_COMMITTED = 6;
-  RESOLUTION_STATUS_FORCE_RESOLVED = 7;
-}
+// NOTE: the per-conflict lifecycle (ResolutionStatus) was removed when the
+// conflicts domain became detection-only. The lifecycle now lives in the
+// migration domain as TrackedFindingStatus (MigrationService). Detection is
+// a stateless photograph; tracking has the memory.
 
 // FixKind enumerates the operator-facing categories of suggested fixes.
 // New kinds are added through a manifest schema bump (manifest_version).
@@ -133,12 +120,11 @@ message Conflict {
   repeated ConflictEvidence evidence = 9;
   // Suggested resolutions, ranked best-first by the detector.
   repeated Fix suggested_fixes = 10;
-  ResolutionStatus status = 11;
-  // Operator-assigned domain (when status is ASSIGNED or beyond). Empty
-  // when no operator assignment has been made.
-  string assigned_domain = 12;
-  // Operator note attached on resolve / force_resolve.
-  string resolution_note = 13;
+  // 11-13 were status / assigned_domain / resolution_note — removed when
+  // conflicts became detection-only. The lifecycle moved to the migration
+  // domain (TrackedFinding). Reserved so the field numbers are never reused.
+  reserved 11, 12, 13;
+  reserved "status", "assigned_domain", "resolution_note";
   // Snapshot id the conflict was detected against.
   string snapshot_id = 14;
   // Optional verdict that the detector consulted (e.g., for
@@ -201,22 +187,11 @@ service ConflictsService {
   // GetConflict returns one conflict by id.
   rpc GetConflict(GetConflictRequest) returns (GetConflictResponse);
 
-  // AssignConflict moves the conflict to ASSIGNED and records the
-  // operator's choice of domain. Honors X-Dry-Run.
-  rpc AssignConflict(AssignConflictRequest) returns (AssignConflictResponse);
-
-  // ResolveConflict moves the conflict to RESOLVED (or FORCE_RESOLVED
-  // when force=true). v0.1 records intent only; the actual mutation
-  // happens in `apply` (which is unimplemented in v0.1). Honors X-Dry-Run.
-  rpc ResolveConflict(ResolveConflictRequest) returns (ResolveConflictResponse);
-
-  // ReopenConflict moves a resolved conflict back to DETECTED. Honors
-  // X-Dry-Run.
-  rpc ReopenConflict(ReopenConflictRequest) returns (ReopenConflictResponse);
-
-  // ValidateConflicts re-runs detection + diff against the current
-  // resolution state and returns the residual conflict set. Used by
-  // `arch-cart validate <scenario>` and by the dogfood gate.
+  // ValidateConflicts re-lists the current detected conflicts and reports
+  // whether the scenario is clean (zero outstanding of severity >= ERROR,
+  // suppressed findings excluded). Used by `arch-cart validate <scenario>`
+  // and by the dogfood gate. Walking findings through a lifecycle toward
+  // zero is the migration domain's job, not this one's.
   rpc ValidateConflicts(ValidateConflictsRequest) returns (ValidateConflictsResponse);
 
   // ListDetectors returns the registered detector set.
@@ -239,8 +214,10 @@ message DetectConflictsResponse {
 
 message ListConflictsRequest {
   string scenario = 1;
-  // Optional filter: only return conflicts in these statuses.
-  repeated ResolutionStatus statuses = 2;
+  // 2 was `repeated ResolutionStatus statuses` — removed with the
+  // lifecycle. Reserved so the field number is never reused.
+  reserved 2;
+  reserved "statuses";
   // Optional filter: only return conflicts of these types.
   repeated string types = 3;
   int32 page_size = 4;
@@ -258,50 +235,6 @@ message GetConflictRequest {
 
 message GetConflictResponse {
   Conflict conflict = 1;
-}
-
-message AssignConflictRequest {
-  string id = 1;
-  // Domain to assign (must be declared in the manifest).
-  string domain = 2;
-  // Operator note (optional).
-  string note = 3;
-  bool dry_run = 4;
-}
-
-message AssignConflictResponse {
-  Conflict conflict = 1;
-  bool dry_run = 2;
-}
-
-message ResolveConflictRequest {
-  string id = 1;
-  // Operator note (optional, recommended).
-  string note = 2;
-  // When true, transitions to FORCE_RESOLVED, marking that the
-  // operator chose to ignore the conflict.
-  bool force = 3;
-  bool dry_run = 4;
-}
-
-message ResolveConflictResponse {
-  Conflict conflict = 1;
-  bool dry_run = 2;
-  // True when the resolver flagged this resolution as deferred to
-  // `apply`. v0.1 sets this to true for every fix that requires file
-  // movement, because apply is unimplemented.
-  bool apply_deferred = 3;
-}
-
-message ReopenConflictRequest {
-  string id = 1;
-  string note = 2;
-  bool dry_run = 3;
-}
-
-message ReopenConflictResponse {
-  Conflict conflict = 1;
-  bool dry_run = 2;
 }
 
 message ValidateConflictsRequest {

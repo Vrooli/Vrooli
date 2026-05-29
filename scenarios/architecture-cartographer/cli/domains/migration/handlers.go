@@ -95,6 +95,35 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 		hint)
 }
 
+func (h *handlers) list(ctx cliapp.RunContext) error {
+	scenario := ctx.Flag("scenario")
+	resp, err := h.client.ListMigrations(context.Background(), connect.NewRequest(&migrationv1.ListMigrationsRequest{Scenario: scenario}))
+	if err != nil {
+		return cliapp.WrapAPIError("list migrations", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no migrations response")
+	}
+	migrations := resp.Msg.GetMigrations()
+	results := make([]string, 0, len(migrations))
+	for _, m := range migrations {
+		name := m.GetName()
+		if name == "" {
+			name = "(unnamed)"
+		}
+		results = append(results, fmt.Sprintf("%s  %s  [%s]  %s", m.GetId(), m.GetScenario(), lifecycleName(m.GetStatus()), name))
+	}
+	summary := fmt.Sprintf("%d migration(s).", len(migrations))
+	if len(migrations) == 0 {
+		summary = "No migrations. `migration create <scenario> --from-audit <report.json>` to start one."
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{summary},
+		ResultsHeading: "Migrations",
+		Results:        results,
+	})
+}
+
 func (h *handlers) status(ctx cliapp.RunContext) error {
 	id := ctx.Positional("migration-id")
 	resp, err := h.client.GetMigrationStatus(context.Background(), connect.NewRequest(&migrationv1.GetMigrationStatusRequest{MigrationId: id}))

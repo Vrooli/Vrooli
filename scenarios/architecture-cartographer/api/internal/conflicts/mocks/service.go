@@ -21,9 +21,6 @@ type FakeService struct {
 	DetectCalls   atomic.Int64
 	ValidateCalls atomic.Int64
 	GetCalls      atomic.Int64
-	AssignCalls   atomic.Int64
-	ResolveCalls  atomic.Int64
-	ReopenCalls   atomic.Int64
 	ListCalls     atomic.Int64
 	ListDetCalls  atomic.Int64
 	ListResCalls  atomic.Int64
@@ -56,9 +53,7 @@ func (f *FakeService) ValidateConflicts(_ context.Context, _ string) ([]conflict
 	out := make([]conflicts.Conflict, 0, len(f.Conflicts))
 	clean := true
 	for _, c := range f.Conflicts {
-		if c.Status == conflicts.ResolutionStatusResolved ||
-			c.Status == conflicts.ResolutionStatusForceResolved ||
-			c.Status == conflicts.ResolutionStatusCommitted {
+		if c.Suppressed {
 			continue
 		}
 		out = append(out, c)
@@ -98,34 +93,6 @@ func (f *FakeService) GetConflict(_ context.Context, id string) (conflicts.Confl
 		}
 	}
 	return conflicts.Conflict{}, conflicts.ErrConflictNotFound{ID: id}
-}
-
-func (f *FakeService) AssignConflict(_ context.Context, id, domain, note string, dryRun bool) (conflicts.Conflict, bool, error) {
-	f.AssignCalls.Add(1)
-	if f.NextErr != nil {
-		return conflicts.Conflict{}, dryRun, f.NextErr
-	}
-	return conflicts.Conflict{ID: id, AssignedDomain: domain, ResolutionNote: note}, dryRun, nil
-}
-
-func (f *FakeService) ResolveConflict(_ context.Context, id, note string, force, dryRun bool) (conflicts.Conflict, bool, bool, error) {
-	f.ResolveCalls.Add(1)
-	if f.NextErr != nil {
-		return conflicts.Conflict{}, dryRun, false, f.NextErr
-	}
-	target := conflicts.ResolutionStatusResolved
-	if force {
-		target = conflicts.ResolutionStatusForceResolved
-	}
-	return conflicts.Conflict{ID: id, Status: target, ResolutionNote: note}, dryRun, false, nil
-}
-
-func (f *FakeService) ReopenConflict(_ context.Context, id, note string, dryRun bool) (conflicts.Conflict, bool, error) {
-	f.ReopenCalls.Add(1)
-	if f.NextErr != nil {
-		return conflicts.Conflict{}, dryRun, f.NextErr
-	}
-	return conflicts.Conflict{ID: id, Status: conflicts.ResolutionStatusDetected, ResolutionNote: note}, dryRun, nil
 }
 
 func (f *FakeService) ListConflicts(_ context.Context, _ conflicts.ListConflictsFilter) (conflicts.ConflictPage, error) {

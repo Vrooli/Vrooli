@@ -22,7 +22,8 @@ import (
 // fakeService implements ConflictsServiceHandler so the CLI tests exercise
 // the real Connect-RPC client transport against an httptest server. Only
 // the methods a given test drives are overridden; the rest inherit
-// Unimplemented from the embedded base.
+// Unimplemented from the embedded base. The conflicts service is
+// detection-only — there are no lifecycle RPCs to fake.
 type fakeService struct {
 	conflictsconnect.UnimplementedConflictsServiceHandler
 
@@ -32,9 +33,6 @@ type fakeService struct {
 	listResp     *conflictsv1.ListConflictsResponse
 	listReqs     []*conflictsv1.ListConflictsRequest
 	getResp      *conflictsv1.GetConflictResponse
-	assignResp   *conflictsv1.AssignConflictResponse
-	assignReqs   []*conflictsv1.AssignConflictRequest
-	resolveResp  *conflictsv1.ResolveConflictResponse
 	validateResp *conflictsv1.ValidateConflictsResponse
 	detectorResp *conflictsv1.ListDetectorsResponse
 	resolverResp *conflictsv1.ListResolversResponse
@@ -57,17 +55,6 @@ func (s *fakeService) ListConflicts(_ context.Context, req *connect.Request[conf
 
 func (s *fakeService) GetConflict(_ context.Context, _ *connect.Request[conflictsv1.GetConflictRequest]) (*connect.Response[conflictsv1.GetConflictResponse], error) {
 	return connect.NewResponse(s.getResp), nil
-}
-
-func (s *fakeService) AssignConflict(_ context.Context, req *connect.Request[conflictsv1.AssignConflictRequest]) (*connect.Response[conflictsv1.AssignConflictResponse], error) {
-	s.mu.Lock()
-	s.assignReqs = append(s.assignReqs, req.Msg)
-	s.mu.Unlock()
-	return connect.NewResponse(s.assignResp), nil
-}
-
-func (s *fakeService) ResolveConflict(_ context.Context, _ *connect.Request[conflictsv1.ResolveConflictRequest]) (*connect.Response[conflictsv1.ResolveConflictResponse], error) {
-	return connect.NewResponse(s.resolveResp), nil
 }
 
 func (s *fakeService) ValidateConflicts(_ context.Context, _ *connect.Request[conflictsv1.ValidateConflictsRequest]) (*connect.Response[conflictsv1.ValidateConflictsResponse], error) {
@@ -97,7 +84,6 @@ func sampleConflict() *conflictsv1.Conflict {
 		Type:      "cycle",
 		Severity:  conflictsv1.Severity_SEVERITY_ERROR,
 		Locations: []string{"api/internal/a", "api/internal/b"},
-		Status:    conflictsv1.ResolutionStatus_RESOLUTION_STATUS_DETECTED,
 	}
 }
 
@@ -121,75 +107,19 @@ func TestDetect_RendersConflictList(t *testing.T) {
 	require.Contains(t, body, "error")
 }
 
-func TestList_ParsesStatusFilter(t *testing.T) {
+func TestList_PassesTypeAndPageSize(t *testing.T) {
 	svc := &fakeService{listResp: &conflictsv1.ListConflictsResponse{}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, listSchema(), cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"scenario": "demo"},
-		Flags:       map[string]string{"status": "detected,assigned", "page-size": "5"},
+		Flags:       map[string]string{"type": "cycle,mislocated_file", "page-size": "5"},
 	})
 
 	require.NoError(t, h.list(ctx))
 	require.Len(t, svc.listReqs, 1)
-	require.Equal(t, []conflictsv1.ResolutionStatus{
-		conflictsv1.ResolutionStatus_RESOLUTION_STATUS_DETECTED,
-		conflictsv1.ResolutionStatus_RESOLUTION_STATUS_ASSIGNED,
-	}, svc.listReqs[0].GetStatuses())
+	require.Equal(t, []string{"cycle", "mislocated_file"}, svc.listReqs[0].GetTypes())
 	require.Equal(t, int32(5), svc.listReqs[0].GetPageSize())
-}
-
-func TestList_RejectsUnknownStatus(t *testing.T) {
-	svc := &fakeService{listResp: &conflictsv1.ListConflictsResponse{}}
-	core := clitest.NewTestApp(t, connectAPI(t, svc))
-	h := newHandlers(core)
-	ctx, _ := cliapptest.NewCapturedRunContext(core, listSchema(), cliapptest.TestRunContextOptions{
-		Positionals: map[string]string{"scenario": "demo"},
-		Flags:       map[string]string{"status": "bogus"},
-	})
-
-	err := h.list(ctx)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "unknown --status")
-}
-
-func TestAssign_DryRunRendersNotPersisted(t *testing.T) {
-	svc := &fakeService{assignResp: &conflictsv1.AssignConflictResponse{
-		Conflict: &conflictsv1.Conflict{Id: "c-1", AssignedDomain: "graph", Status: conflictsv1.ResolutionStatus_RESOLUTION_STATUS_ASSIGNED},
-		DryRun:   true,
-	}}
-	core := clitest.NewTestApp(t, connectAPI(t, svc))
-	h := newHandlers(core)
-	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
-		Flags:       []cliapp.Flag{{Name: "domain", Required: true}, {Name: "note"}},
-	}, cliapptest.TestRunContextOptions{
-		Positionals: map[string]string{"id": "c-1"},
-		Flags:       map[string]string{"domain": "graph"},
-	})
-
-	require.NoError(t, h.assign(ctx))
-	require.Len(t, svc.assignReqs, 1)
-	require.Equal(t, "graph", svc.assignReqs[0].GetDomain())
-	require.Contains(t, out.String(), "dry-run: no changes persisted")
-}
-
-func TestResolve_SurfacesApplyDeferred(t *testing.T) {
-	svc := &fakeService{resolveResp: &conflictsv1.ResolveConflictResponse{
-		Conflict:      &conflictsv1.Conflict{Id: "c-1", Scenario: "demo", Status: conflictsv1.ResolutionStatus_RESOLUTION_STATUS_RESOLVED},
-		ApplyDeferred: true,
-	}}
-	core := clitest.NewTestApp(t, connectAPI(t, svc))
-	h := newHandlers(core)
-	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
-		Flags:       []cliapp.Flag{{Name: "note"}, {Name: "force", Bool: true}},
-	}, cliapptest.TestRunContextOptions{
-		Positionals: map[string]string{"id": "c-1"},
-	})
-
-	require.NoError(t, h.resolve(ctx))
-	require.Contains(t, out.String(), "apply` defers")
 }
 
 func TestValidate_RendersCleanGate(t *testing.T) {
@@ -241,7 +171,7 @@ func listSchema() cliapp.ArgSchema {
 	return cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "scenario", Required: true}},
 		Flags: []cliapp.Flag{
-			{Name: "status"}, {Name: "type"}, {Name: "page-size"}, {Name: "page-token"},
+			{Name: "type"}, {Name: "page-size"}, {Name: "page-token"},
 		},
 	}
 }
