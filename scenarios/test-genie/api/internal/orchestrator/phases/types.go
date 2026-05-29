@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"test-genie/internal/orchestrator/workspace"
+
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
 // Name identifies a single orchestrator phase.
@@ -18,6 +20,7 @@ const (
 	Contracts    Name = "contracts"
 	UIHealth     Name = "ui-health"
 	Standards    Name = "standards"
+	Architecture Name = "architecture"
 	Dependencies Name = "dependencies"
 	Lint         Name = "lint"
 	Docs         Name = "docs"
@@ -157,6 +160,12 @@ type RunReport struct {
 	Observations          []Observation
 	FailureClassification string
 	Remediation           string
+	// Findings carries the phase's native findings normalized into the
+	// shared ArchitectureFinding contract. Observations remain the human
+	// view; Findings is the machine seam the cartographer migration
+	// tracker ingests and reconciles by stable ID. Pointers (not values)
+	// because proto messages embed a no-copy MessageState.
+	Findings []*architecturev1.ArchitectureFinding
 }
 
 // Runner is the function signature every Go-native phase must satisfy.
@@ -195,6 +204,12 @@ type ExecutionResult struct {
 	Classification  string        `json:"classification,omitempty"`
 	Remediation     string        `json:"remediation,omitempty"`
 	Observations    []Observation `json:"observations,omitempty"`
+	// Findings is the normalized, machine-ingestable finding set for this
+	// phase (see RunReport.Findings). Serialized in the suite `--json`
+	// report so `architecture-cartographer migration create --from-audit`
+	// can ingest it. Enum fields marshal as their proto integer values —
+	// a stable seam since both sides share this contract.
+	Findings []*architecturev1.ArchitectureFinding `json:"findings,omitempty"`
 }
 
 // NormalizeName standardizes arbitrary input into a canonical Name.

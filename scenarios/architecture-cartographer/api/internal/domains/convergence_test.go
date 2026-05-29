@@ -56,6 +56,21 @@ func TestConvergence_MissingImplementationAndCLI(t *testing.T) {
 	}
 }
 
+func TestConvergence_HealthDomainNoCLIIsNotFP(t *testing.T) {
+	// Regression for L5-readiness Phase 7: a scenario that declares a
+	// "health" domain inherits the cli-core built-in group; missing it
+	// from the per-scenario manifest must NOT produce missing_cli_group.
+	m := buildMapWith(t,
+		[]string{"graph", "health"},
+		[]string{"graph", "health"},
+		[]string{"graph"}, // no "health" in cli manifest, on purpose
+		nil)
+	byKind := findingsByKind(Convergence(m))
+	if got := byKind[FindingMissingCLIGroup]; len(got) != 0 {
+		t.Fatalf("cli-core builtin domain must not raise missing_cli_group: %v", got)
+	}
+}
+
 func TestConvergence_UndeclaredFolder(t *testing.T) {
 	// "rogue" folder exists but the doc never declared it.
 	m := buildMapWith(t, []string{"graph"}, []string{"graph", "rogue"}, []string{"graph"}, nil)

@@ -145,8 +145,9 @@
               "description": "Comma-separated blacklist of conflict types to exclude"
             },
             {
-              "name": "json",
-              "description": "Emit the full AuditRunResponse as JSON for CI consumption"
+              "name": "allow-low-authority",
+              "bool": true,
+              "description": "Treat low authority confidence (no curated DOMAINS.md) as clean; default fails the audit"
             }
           ],
           "binding": {
@@ -162,12 +163,60 @@
               "filesystem:read"
             ]
           }
+        },
+        {
+          "name": "run-all",
+          "description": "Sweep every discoverable scenario and aggregate the audit reports",
+          "flags": [
+            {
+              "name": "fail-on",
+              "description": "Per-scenario severity threshold (info | warn | error | blocker)"
+            },
+            {
+              "name": "include-types",
+              "description": "Comma-separated whitelist of conflict types"
+            },
+            {
+              "name": "exclude-types",
+              "description": "Comma-separated blacklist of conflict types"
+            },
+            {
+              "name": "include-scenarios",
+              "description": "Comma-separated whitelist of scenario names"
+            },
+            {
+              "name": "exclude-scenarios",
+              "description": "Comma-separated blacklist of scenario names"
+            },
+            {
+              "name": "concurrency",
+              "description": "Worker pool size (default 4)"
+            },
+            {
+              "name": "allow-low-authority",
+              "bool": true,
+              "description": "Treat low authority confidence as clean per scenario"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditService",
+            "method": "RunAll"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
         }
       ]
     },
     {
       "name": "conflicts",
-      "description": "Detect, triage, and resolve architecture-drift conflicts \u2014 the agent-facing conflict workbench",
+      "description": "Detect, triage, and resolve architecture-drift conflicts — the agent-facing conflict workbench",
       "commands": [
         {
           "name": "detect",
@@ -861,6 +910,205 @@
             "permissions": [
               "network:internal",
               "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "migration",
+      "description": "Track a screaming-architecture refactor — ingest an audit, work the prioritized findings, reconcile re-audits by stable id",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Open a migration for a scenario and ingest findings from a test-genie audit report",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "name",
+              "description": "Human label for the migration"
+            },
+            {
+              "name": "from-audit",
+              "description": "Path to a test-genie --json SuiteExecutionResult (or - for stdin) whose findings are ingested"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MigrationService",
+            "method": "CreateMigration"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Show a migration's findings and progress rollups",
+          "positionals": [
+            {
+              "name": "migration-id",
+              "required": true,
+              "description": "Migration id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MigrationService",
+            "method": "GetMigrationStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "next",
+          "description": "Show the prioritized worklist of open findings (regressions first, then cycles, then severity)",
+          "positionals": [
+            {
+              "name": "migration-id",
+              "required": true,
+              "description": "Migration id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MigrationService",
+            "method": "NextMigrationStep"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "resolve",
+          "description": "Mark a finding resolved with an operator note (the agent fixed it by hand)",
+          "positionals": [
+            {
+              "name": "migration-id",
+              "required": true,
+              "description": "Migration id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "finding",
+              "description": "Finding stable id (afid:...)"
+            },
+            {
+              "name": "note",
+              "description": "Operator note (recommended)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MigrationService",
+            "method": "ResolveFinding"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Record a finding fix as a status-only transition (auto-execution stays deferred to the apply-execution plan)",
+          "positionals": [
+            {
+              "name": "migration-id",
+              "required": true,
+              "description": "Migration id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "finding",
+              "description": "Finding stable id (afid:...)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MigrationService",
+            "method": "ApplyFinding"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reaudit",
+          "description": "Reconcile a fresh audit against the tracked findings: absent→validated, present→stay, (re)appeared→regression",
+          "positionals": [
+            {
+              "name": "migration-id",
+              "required": true,
+              "description": "Migration id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "from-audit",
+              "description": "Path to a fresh test-genie --json SuiteExecutionResult (or - for stdin)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MigrationService",
+            "method": "ReauditMigration"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "close",
+          "description": "Close a migration",
+          "positionals": [
+            {
+              "name": "migration-id",
+              "required": true,
+              "description": "Migration id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MigrationService",
+            "method": "CloseMigration"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
             ]
           }
         }

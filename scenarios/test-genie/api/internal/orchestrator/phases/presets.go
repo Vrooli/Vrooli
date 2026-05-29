@@ -9,9 +9,10 @@ type Preset string
 
 // Canonical preset names.
 const (
-	PresetQuick         Preset = "quick"
-	PresetSmoke         Preset = "smoke"
-	PresetComprehensive Preset = "comprehensive"
+	PresetQuick             Preset = "quick"
+	PresetSmoke             Preset = "smoke"
+	PresetComprehensive     Preset = "comprehensive"
+	PresetArchitectureAudit Preset = "architecture-audit"
 )
 
 // String returns the preset's wire name.
@@ -26,6 +27,14 @@ var defaultPresets = map[Preset][]Name{
 	PresetComprehensive: {
 		Structure, Contracts, Standards, Dependencies, Lint, Docs,
 		Performance, Smoke, Unit, Integration, Playbooks, Business,
+	},
+	// architecture-audit is the per-surface conformance battery plus the
+	// structural cohesion axis — the single command the screaming-
+	// architecture skill points at. Excludes runtime phases (unit, smoke,
+	// integration, performance). The architecture phase is advisory; the
+	// migration nudge fires from its findings.
+	PresetArchitectureAudit: {
+		Structure, Contracts, UIHealth, Docs, Standards, Architecture,
 	},
 }
 

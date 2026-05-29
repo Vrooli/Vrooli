@@ -26,15 +26,43 @@ func NewHandler(svc audit.Service) *Handler { return &Handler{svc: svc} }
 
 var _ audit_v1connect.AuditServiceHandler = (*Handler)(nil)
 
+func (h *Handler) RunAll(ctx context.Context, req *connect.Request[auditv1.AuditRunAllRequest]) (*connect.Response[auditv1.AuditRunAllResponse], error) {
+	sweep, err := h.svc.RunAll(ctx, audit.RunAllInput{
+		FailOn:            severityFromProto(req.Msg.GetFailOn()),
+		IncludeTypes:      req.Msg.GetIncludeTypes(),
+		ExcludeTypes:      req.Msg.GetExcludeTypes(),
+		IncludeScenarios:  req.Msg.GetIncludeScenarios(),
+		ExcludeScenarios:  req.Msg.GetExcludeScenarios(),
+		AllowLowAuthority: req.Msg.GetAllowLowAuthority(),
+		Concurrency:       int(req.Msg.GetConcurrency()),
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := &auditv1.AuditRunAllResponse{
+		TotalScenarios:  int32(sweep.TotalScenarios),
+		TotalFindings:   int32(sweep.TotalFindings),
+		TotalSuppressed: int32(sweep.TotalSuppressed),
+		BySeverity:      intMap(sweep.BySeverity),
+		ByOutcome:       intMap(sweep.ByOutcome),
+		Duration:        durationpb.New(sweep.Duration),
+	}
+	for _, r := range sweep.Reports {
+		out.Reports = append(out.Reports, reportToProto(r))
+	}
+	return connect.NewResponse(out), nil
+}
+
 func (h *Handler) Run(ctx context.Context, req *connect.Request[auditv1.AuditRunRequest]) (*connect.Response[auditv1.AuditRunResponse], error) {
 	if req.Msg.GetScenario() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
 	rep, err := h.svc.Run(ctx, audit.RunInput{
-		Scenario:     req.Msg.GetScenario(),
-		FailOn:       severityFromProto(req.Msg.GetFailOn()),
-		IncludeTypes: req.Msg.GetIncludeTypes(),
-		ExcludeTypes: req.Msg.GetExcludeTypes(),
+		Scenario:          req.Msg.GetScenario(),
+		FailOn:            severityFromProto(req.Msg.GetFailOn()),
+		IncludeTypes:      req.Msg.GetIncludeTypes(),
+		ExcludeTypes:      req.Msg.GetExcludeTypes(),
+		AllowLowAuthority: req.Msg.GetAllowLowAuthority(),
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -87,13 +115,18 @@ func outcomeToProto(o audit.Outcome) auditv1.AuditOutcome {
 
 func reportToProto(r audit.Report) *auditv1.AuditRunResponse {
 	out := &auditv1.AuditRunResponse{
-		Scenario:      r.Scenario,
-		Outcome:       outcomeToProto(r.Outcome),
-		Error:         r.Error,
-		TotalFindings: int32(r.TotalFindings),
-		BySeverity:    intMap(r.BySeverity),
-		ByType:        intMap(r.ByType),
-		Duration:      durationpb.New(r.Duration),
+		Scenario:            r.Scenario,
+		Outcome:             outcomeToProto(r.Outcome),
+		OutcomeReason:       r.OutcomeReason,
+		Error:               r.Error,
+		TotalFindings:       int32(r.TotalFindings),
+		BySeverity:          intMap(r.BySeverity),
+		ByType:              intMap(r.ByType),
+		ByDomain:            intMap(r.ByDomain),
+		SuppressedFindings:  int32(r.SuppressedFindings),
+		SnapshotFreshness:   freshnessToProto(r.SnapshotFreshness),
+		AuthorityConfidence: authorityConfidenceToProto(r.Domains.Confidence),
+		Duration:            durationpb.New(r.Duration),
 		Domains: &auditv1.DerivedDomainSummary{
 			Authority:   r.Domains.Authority,
 			Confidence:  r.Domains.Confidence,
@@ -108,17 +141,45 @@ func reportToProto(r audit.Report) *auditv1.AuditRunResponse {
 	}
 	for _, c := range r.Findings {
 		out.Findings = append(out.Findings, &auditv1.ConflictSummary{
-			Id:        c.ID,
-			Detector:  c.Detector,
-			Type:      c.Type,
-			Subtype:   c.Subtype,
-			Severity:  severityToProto(c.Severity),
-			Locations: append([]string(nil), c.Locations...),
-			Domains:   append([]string(nil), c.Domains...),
-			Headline:  headlineFor(c),
+			Id:         c.ID,
+			StableId:   c.StableID,
+			InstanceId: c.InstanceID,
+			Detector:   c.Detector,
+			Type:       c.Type,
+			Subtype:    c.Subtype,
+			Severity:   severityToProto(c.Severity),
+			Locations:  append([]string(nil), c.Locations...),
+			Domains:    append([]string(nil), c.Domains...),
+			Headline:   headlineFor(c),
 		})
 	}
 	return out
+}
+
+func freshnessToProto(f audit.SnapshotFreshness) auditv1.SnapshotFreshness {
+	switch f {
+	case audit.SnapshotFreshnessCached:
+		return auditv1.SnapshotFreshness_SNAPSHOT_FRESHNESS_CACHED
+	case audit.SnapshotFreshnessReExtracted:
+		return auditv1.SnapshotFreshness_SNAPSHOT_FRESHNESS_RE_EXTRACTED
+	case audit.SnapshotFreshnessFresh:
+		return auditv1.SnapshotFreshness_SNAPSHOT_FRESHNESS_FRESH
+	default:
+		return auditv1.SnapshotFreshness_SNAPSHOT_FRESHNESS_UNSPECIFIED
+	}
+}
+
+func authorityConfidenceToProto(s string) auditv1.AuthorityConfidence {
+	switch s {
+	case "low":
+		return auditv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_LOW
+	case "medium":
+		return auditv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_MEDIUM
+	case "high":
+		return auditv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_HIGH
+	default:
+		return auditv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_UNSPECIFIED
+	}
 }
 
 func intMap(in map[string]int) map[string]int32 {

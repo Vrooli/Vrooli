@@ -156,6 +156,10 @@ type SuiteExecutionResult struct {
 	PhaseSummary        PhaseSummary           `json:"phaseSummary"`
 	Warnings            []string               `json:"warnings,omitempty"`
 	WarningSummary      WarningSummary         `json:"warningSummary"`
+	// MigrationNudge is present only when the architecture-audit battery's
+	// finding load exceeded the single-pass threshold, steering the agent
+	// to open a tracked migration. Nil otherwise.
+	MigrationNudge *MigrationNudge `json:"migrationNudge,omitempty"`
 }
 
 type PhaseExecutionResult = phases.ExecutionResult
@@ -511,6 +515,12 @@ func (o *SuiteOrchestrator) finalizeExecution(
 	result.Phases = phaseResults
 	result.PhaseSummary = SummarizePhases(phaseResults)
 	result.WarningSummary = BuildWarningSummary(prepared.env.RunID, phaseResults)
+
+	if nudge := computeMigrationNudge(result.ScenarioName, phaseResults); nudge != nil {
+		result.MigrationNudge = nudge
+		log.Printf("migration nudge fired for %s: %d findings (%d blocker/error) — %s",
+			result.ScenarioName, nudge.Total, nudge.Severe, nudge.Command)
+	}
 
 	if emit != nil {
 		emit(ExecutionEvent{
@@ -969,6 +979,7 @@ func (o *SuiteOrchestrator) completePhaseRun(
 		Classification:  classification,
 		Remediation:     remediation,
 		Observations:    report.Observations,
+		Findings:        report.Findings,
 	}
 	if len(preObservations) > 0 {
 		result.Observations = append(preObservations, result.Observations...)

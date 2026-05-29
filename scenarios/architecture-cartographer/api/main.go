@@ -18,6 +18,7 @@ import (
 	"architecture-cartographer/internal/conflicts/detectors/convergencedrift"
 	"architecture-cartographer/internal/conflicts/detectors/couplingsmell"
 	"architecture-cartographer/internal/conflicts/detectors/cycle"
+	"architecture-cartographer/internal/conflicts/detectors/domainsparsewarning"
 	"architecture-cartographer/internal/conflicts/detectors/mislocatedfile"
 	mislocatedresolver "architecture-cartographer/internal/conflicts/resolvers/mislocatedfile"
 	"architecture-cartographer/internal/domains"
@@ -26,6 +27,7 @@ import (
 	"architecture-cartographer/internal/graph/gocodegraph"
 	"architecture-cartographer/internal/graph/scenariopath"
 	"architecture-cartographer/internal/graph/tscodegraph"
+	"architecture-cartographer/internal/migration"
 	"architecture-cartographer/internal/modules"
 	"architecture-cartographer/internal/server"
 	"architecture-cartographer/internal/signals"
@@ -55,6 +57,7 @@ import (
 	domainsH "architecture-cartographer/handlers/domains"
 	graphH "architecture-cartographer/handlers/graph"
 	healthH "architecture-cartographer/handlers/health"
+	migrationH "architecture-cartographer/handlers/migration"
 	signalsH "architecture-cartographer/handlers/signals"
 )
 
@@ -265,7 +268,7 @@ func main() {
 	conflictsRepo := conflicts.NewSQLiteRepository(primary, clk)
 	conflictsSvc := conflicts.NewServiceWithAnalytics(
 		conflictsRepo,
-		conflicts.NewRegistry(cycle.New(), mislocatedfile.New(), convergencedrift.New(), couplingsmell.NewWithConfig(boundaryCfg)),
+		conflicts.NewRegistry(cycle.New(), mislocatedfile.New(), convergencedrift.New(), couplingsmell.NewWithConfig(boundaryCfg), domainsparsewarning.New()),
 		conflicts.NewResolverRegistry(mislocatedresolver.New()),
 		conflicts.NewAnalyticsAdapter(analyticsSvc),
 	)
@@ -276,6 +279,7 @@ func main() {
 		conflictsSvc,
 		conflictsH.NewSignalsVerdictAdapter(signalsSvc),
 		suppressionProvider,
+		audit.NewDirScenarioLister(repoRoot),
 		clk,
 	)
 
@@ -286,6 +290,12 @@ func main() {
 		apply.WithSuppressionWriter(suppressions.NewFileWriter(), scenarioLocator),
 	)
 
+	// migration: the stateful tracker. Analytics wiring is deferred until
+	// the analytics EventKind enum is generalized to the finding_*/
+	// migration_* kinds (the migration domain exposes a nil-safe recorder
+	// seam in the meantime).
+	migrationSvc := migration.NewService(migration.NewSQLiteRepository(primary, clk))
+
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: log.Default()},
 		healthH.Module(db, "architecture-cartographer-api", "1.0.0"),
@@ -295,6 +305,7 @@ func main() {
 		conflictsH.Module(conflictsH.Deps{Conflicts: conflictsSvc, Graph: graphSvc, Domains: domainsSvc, Signals: signalsSvc, Suppressions: suppressionProvider}),
 		domainsH.Module(domainsSvc),
 		graphH.Module(graphSvc),
+		migrationH.Module(migrationSvc),
 		signalsH.Module(signalsSvc),
 	)
 

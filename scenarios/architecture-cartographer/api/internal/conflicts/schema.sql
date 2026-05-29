@@ -4,9 +4,15 @@
 -- lives in a single JSON blob so adding optional fields to Fix does
 -- not require a migration; the canonical envelope (id, detector, type,
 -- status, etc.) lives in columns for indexable queries.
+--
+-- v0.2: `id` is the deterministic content-hash stable_id produced by
+-- conflicts.StableID. `instance_id` is the per-run UUID preserved for
+-- log correlation. Two runs that detect the same underlying drift
+-- collapse onto the same row via ON CONFLICT(id) DO UPDATE.
 
 CREATE TABLE IF NOT EXISTS conflicts (
   id               TEXT PRIMARY KEY,
+  instance_id      TEXT NOT NULL DEFAULT '',
   scenario         TEXT NOT NULL,
   detector         TEXT NOT NULL,
   type             TEXT NOT NULL,
@@ -26,3 +32,6 @@ CREATE INDEX IF NOT EXISTS idx_conflicts_scenario_status
 
 CREATE INDEX IF NOT EXISTS idx_conflicts_type
   ON conflicts(scenario, type, detected_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_conflicts_instance
+  ON conflicts(instance_id);

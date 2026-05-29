@@ -97,6 +97,10 @@ type DerivedDomainMap struct {
 	AuthorityConfidence AuthorityConfidence
 	Declarations        []DomainDeclaration
 	DerivedAt           time.Time
+	// Warnings forwards non-fatal extraction issues (e.g. silently
+	// skipped DOMAINS.md rows) so the conflicts pipeline can surface
+	// them. Aggregated across every rung in source order.
+	Warnings []ExtractionWarning
 }
 
 // DomainFor returns the name of the domain whose paths cover the given
@@ -154,6 +158,22 @@ type Extraction struct {
 	// express them (currently the DomainsDoc extractor).
 	SharedSubstrate []string
 	NonDomains      []string
+	// Warnings are non-fatal extraction issues — rows that were skipped
+	// for structural reasons (wrong column count, missing required cell)
+	// the operator should know about. The ladder aggregates these; the
+	// conflicts pipeline surfaces them as `domains_doc_parse_warning`
+	// findings so silent drops can no longer hide.
+	Warnings []ExtractionWarning
+}
+
+// ExtractionWarning describes one skipped/abnormal row from a structured
+// source (today: DOMAINS.md). Kept narrow on purpose — the conflicts
+// pipeline owns the human-facing rendering.
+type ExtractionWarning struct {
+	Kind    string // e.g., "domains_doc.row_shape"
+	Path    string // source-relative path, e.g., "docs/concepts/DOMAINS.md"
+	Line    int    // 1-based line number when known, 0 when not applicable
+	Summary string // one-line operator-facing description
 }
 
 // ErrScenarioNotFound is the typed sentinel returned when a scenario's

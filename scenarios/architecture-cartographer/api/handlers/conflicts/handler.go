@@ -215,6 +215,8 @@ func dryRunHeaderFromHTTP(h interface{ Get(string) string }) bool {
 func conflictToProto(c conflicts.Conflict) *conflictsv1.Conflict {
 	out := &conflictsv1.Conflict{
 		Id:                c.ID,
+		StableId:          c.StableID,
+		InstanceId:        c.InstanceID,
 		Scenario:          c.Scenario,
 		Detector:          c.Detector,
 		Type:              c.Type,

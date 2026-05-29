@@ -17,6 +17,7 @@ import (
 	"test-genie/internal/shared"
 
 	"github.com/vrooli/api-core/discovery"
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	kov1 "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1"
 	kov1connect "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1/knowledgeobservatoryv1connect"
 )
@@ -96,6 +97,7 @@ func runDocsPhase(ctx context.Context, env workspace.Environment, logWriter io.W
 		}
 	}
 	var summary DocsSummary
+	var archFindings []*architecturev1.ArchitectureFinding
 
 	report := RunPhase(ctx, logWriter, "docs",
 		func() (*docsRunResult, error) {
@@ -121,6 +123,7 @@ func runDocsPhase(ctx context.Context, env workspace.Environment, logWriter io.W
 				}, nil
 			}
 			result := translateDocHealth(resp.Msg)
+			archFindings = docsArchFindings(env.ScenarioName, resp.Msg)
 			return result, nil
 		},
 		func(r *docsRunResult) PhaseResult[shared.Observation] {
@@ -143,9 +146,100 @@ func runDocsPhase(ctx context.Context, env workspace.Environment, logWriter io.W
 		},
 	)
 
+	report.Findings = archFindings
 	writePhasePointer(env, "docs", report, map[string]any{"summary": summary}, logWriter)
 	logPhaseStep(logWriter, "Docs summary: %s (abs_hits=%d, abs_blocked=%d)", summary.String(), summary.AbsolutePathHits, summary.AbsoluteFailures)
 	return report
+}
+
+// docSeverityToken maps a knowledge-observatory severity into the string
+// vocabulary normalizeSeverity understands.
+func docSeverityToken(s kov1.DocHealthSeverity) string {
+	switch s {
+	case kov1.DocHealthSeverity_DOC_HEALTH_SEVERITY_FAILURE:
+		return "error"
+	case kov1.DocHealthSeverity_DOC_HEALTH_SEVERITY_WARNING:
+		return "warning"
+	default:
+		return "info"
+	}
+}
+
+// docLocation renders a doc finding's path (+line) into a single location.
+func docLocation(path string, line int32) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	if line > 0 {
+		return fmt.Sprintf("%s:%d", path, line)
+	}
+	return path
+}
+
+// docsArchFindings maps the DocHealth response into the shared
+// ArchitectureFinding contract (source=DOCS). Findings across all families
+// (contract/content/reference/manifest) plus structural misplaced/missing
+// docs all normalize here; the code is "<family>/<code>" for findings,
+// "misplaced_doc"/"missing_doc" for the structural arrays.
+func docsArchFindings(scenario string, resp *kov1.DocHealthResponse) []*architecturev1.ArchitectureFinding {
+	if resp == nil {
+		return nil
+	}
+	var out []*architecturev1.ArchitectureFinding
+
+	add := func(family string, findings []*kov1.DocHealthFinding) {
+		for _, f := range findings {
+			if f == nil {
+				continue
+			}
+			code := strings.TrimSpace(f.GetCode())
+			if code == "" {
+				code = family
+			} else {
+				code = family + "/" + code
+			}
+			out = append(out, newFinding(
+				scenario,
+				architecturev1.FindingSource_FINDING_SOURCE_DOCS,
+				code, docSeverityToken(f.GetSeverity()), f.GetMessage(), "",
+				nonEmptyLocations(docLocation(f.GetPath(), f.GetLine())), nil,
+			))
+		}
+	}
+
+	for _, m := range resp.GetMisplacedDocs() {
+		if m == nil {
+			continue
+		}
+		out = append(out, newFinding(
+			scenario,
+			architecturev1.FindingSource_FINDING_SOURCE_DOCS,
+			"misplaced_doc", docSeverityToken(m.GetSeverity()),
+			fmt.Sprintf("misplaced: %s → %s", m.GetActualPath(), m.GetExpectedPath()),
+			fmt.Sprintf("move to %s", m.GetExpectedPath()),
+			nonEmptyLocations(m.GetActualPath()), nil,
+		))
+	}
+	for _, m := range resp.GetMissingDocs() {
+		if m == nil {
+			continue
+		}
+		out = append(out, newFinding(
+			scenario,
+			architecturev1.FindingSource_FINDING_SOURCE_DOCS,
+			"missing_doc", docSeverityToken(m.GetSeverity()),
+			fmt.Sprintf("missing doc: %s (%s)", m.GetDocType(), m.GetPath()), "",
+			nonEmptyLocations(m.GetPath()), nil,
+		))
+	}
+
+	add("contract", resp.GetContractFindings())
+	add("content", resp.GetContentFindings())
+	add("reference", resp.GetReferenceFindings())
+	add("manifest", resp.GetManifestFindings())
+
+	return out
 }
 
 // translateDocHealth converts the proto response into the test-genie

@@ -203,6 +203,41 @@ health checks against its own **derived** domain map (from
 `docs/concepts/DOMAINS.md` via the extraction ladder — there is no per-scenario
 manifest). This is the closure that proves the tool works.
 
+## Audit Contract (L5-Readiness)
+
+The `audit` domain is the CI-shaped surface over the cartographer. The
+contract below is pinned by the proto schema; humans and CI tools
+depend on it.
+
+- **Stable identity.** Every finding carries a deterministic
+  `stable_id` (prefix `csid:`) derived from
+  `(scenario, detector, type, subtype, sorted locations, sorted domains)`.
+  Two runs that detect the same underlying drift collapse onto the
+  same row. The per-run `instance_id` is preserved on the wire for log
+  correlation.
+- **Snapshot freshness.** The audit always invokes `ExtractGraph`,
+  which is hash-aware: the response's `snapshot_freshness` reports
+  `cached` (hash matched a persisted snapshot), `re-extracted` (prior
+  snapshot existed with a different hash), or `fresh` (no prior).
+  Stale-snapshot reuse is impossible.
+- **Authority confidence is an outcome axis.** A scenario with
+  `authority_confidence=low` (no curated DOMAINS.md or API manifest)
+  flips the outcome to `FINDINGS` with `outcome_reason` set; callers
+  opt back to `CLEAN` with `--allow-low-authority`.
+- **Suppression is reported, never silent.** Findings sanctioned by
+  active `// arch:allow` markers stay in `findings` and contribute to
+  `suppressed_findings`; they do not flip the outcome.
+- **Rollups.** `by_severity`, `by_type`, and `by_domain` are populated
+  on every response; the human renderer surfaces all three.
+- **Sweep.** `AuditService.RunAll` walks every directory under
+  `<repo>/scenarios/` and aggregates per-scenario reports plus
+  totals. CLI: `architecture-cartographer audit run-all`.
+
+`DomainsDocExtractor` now reports non-fatal parse warnings (e.g. rows
+with the wrong column count) via the
+[`domains_doc_parse_warning`](../../api/internal/conflicts/detectors/domainsparsewarning/)
+detector. Silently-skipped rows are no longer a mystery.
+
 ## Intentional Deviations
 
 Record deviations from the template or from Vrooli scenario standards

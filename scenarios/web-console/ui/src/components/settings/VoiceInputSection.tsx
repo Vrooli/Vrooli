@@ -844,299 +844,6 @@ export default function VoiceInputSection() {
               {vsConfig.persistentMode && (
                 <>
                   <SettingsRow
-                    label={t(strings.settings.voiceInputSection.wakeWordLabel)}
-                    hint={t(strings.settings.voiceInputSection.wakeWordHint)}
-                    control={(
-                      <SettingsToggle
-                        testId="wake-word-toggle"
-                        checked={vsConfig.wakeWordEnabled}
-                        onClick={() => {
-                          if (!vsConfig.wakeWordEnabled && !wakeWordConfig?.configured) {
-                            setWakeWordError(t(strings.settings.voiceInputSection.wakeWordRequireSaveFirst));
-                            return;
-                          }
-                          handleVsConfigChange({ wakeWordEnabled: !vsConfig.wakeWordEnabled });
-                        }}
-                      />
-                    )}
-                  />
-
-                  <div className="rounded-xl border border-wc-default bg-wc-surface-base/60 p-3 space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-wc-text-secondary">
-                      <Mic className="h-4 w-4" />
-                      {t(strings.settings.voiceInputSection.wakeWordRecordingTitle)}
-                    </div>
-                    <p className="text-[11px] text-wc-text-muted">
-                      {t(strings.settings.voiceInputSection.wakeWordRecordingHelp, { min: MIN_ENROLLMENT_SAMPLES, max: MAX_ENROLLMENT_SAMPLES })}
-                    </p>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-wc-text-muted shrink-0">{t(strings.settings.voiceInputSection.labelColon)}</span>
-                      <input
-                        data-testid="wake-word-label"
-                        type="text"
-                        value={wwLabel}
-                        onChange={(e) => setWwLabel(e.target.value)}
-                        className="w-36 rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
-                        placeholder={t(strings.settings.voiceInputSection.wakeWordLabelPlaceholder)}
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      {Array.from({ length: MAX_ENROLLMENT_SAMPLES }, (_, i) => {
-                        const sample = wwSamplesRef.current[i] ?? null;
-                        const hasSample = sample != null;
-                        const hasBlob = wwAudioBlobsRef.current[i] != null;
-                        const isRecording = wwRecordingIdx === i;
-                        const isPlaying = wwPlayingIdx === i;
-                        return (
-                          <div key={i} className="flex items-center gap-2 h-8">
-                            <span className="w-16 text-[11px] text-wc-text-muted">
-                              {t(strings.settings.voiceInputSection.sample, { n: i + 1 })}
-                              {i < MIN_ENROLLMENT_SAMPLES ? "" : t(strings.settings.voiceInputSection.sampleOptionalSuffix)}
-                            </span>
-                            {hasSample && sample ? (
-                              <>
-                                <CheckCircle className="h-3.5 w-3.5 text-green-400 shrink-0" />
-                                <span className="text-[10px] text-green-400">
-                                  {t(strings.settings.voiceInputSection.secondsShort, { value: sample.durationSec.toFixed(1) })}
-                                </span>
-                                {hasBlob && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6"
-                                    title={t(strings.settings.voiceInputSection.playSample)}
-                                    onClick={() => isPlaying ? undefined : playWwSample(i)}
-                                    disabled={isPlaying}
-                                  >
-                                    <Play className="h-3 w-3 text-wc-text-faint" />
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  title={t(strings.settings.voiceInputSection.reRecord)}
-                                  onClick={() => { removeWwSample(i); void startWwRecording(i); }}
-                                  disabled={wwRecordingIdx !== null}
-                                >
-                                  <RotateCcw className="h-3 w-3 text-wc-text-faint" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  title={t(strings.settings.voiceInputSection.remove)}
-                                  onClick={() => removeWwSample(i)}
-                                >
-                                  <Trash2 className="h-3 w-3 text-wc-text-faint" />
-                                </Button>
-                              </>
-                            ) : isRecording ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-6 px-2 text-[10px]"
-                                onClick={stopWwRecording}
-                              >
-                                <Square className="me-1 h-3 w-3" />
-                                {t(strings.settings.voiceInputSection.stopSeconds, { seconds: wwRecordingSeconds })}
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-6 px-2 text-[10px]"
-                                onClick={() => void startWwRecording(i)}
-                                disabled={wwRecordingIdx !== null}
-                              >
-                                <Mic className="me-1 h-3 w-3" />
-                                {t(strings.settings.voiceInputSection.record)}
-                              </Button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <SettingsRow
-                      label={t(strings.settings.voiceInputSection.sensitivityLabel)}
-                      hint={t(strings.settings.voiceInputSection.sensitivityHint)}
-                      control={(
-                        <div className="flex items-center gap-2">
-                          <input
-                            data-testid="wake-word-threshold-slider"
-                            type="range"
-                            min={0.1}
-                            max={0.95}
-                            step={0.05}
-                            value={useWorkspaceStore.getState().wakeWordThreshold}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              useWorkspaceStore.getState().setWakeWordThreshold(val);
-                              handleVsConfigChange({ wakeWordThreshold: val });
-                            }}
-                            className="w-24 accent-wc-accent"
-                          />
-                          <span className="w-10 text-end text-xs text-wc-text-muted">
-                            {useWorkspaceStore.getState().wakeWordThreshold.toFixed(2)}
-                          </span>
-                        </div>
-                      )}
-                    />
-
-                    {wakeWordError && (
-                      <div className="flex items-center gap-2 text-xs text-wc-error-detail">
-                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                        {wakeWordError}
-                      </div>
-                    )}
-                    {wwTestResult && (
-                      <div className="text-xs text-wc-text-muted">{wwTestResult}</div>
-                    )}
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        data-testid="wake-word-save"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 px-3 text-xs"
-                        onClick={() => void saveWakeWord()}
-                        disabled={wwSamplesRef.current.filter((s) => s != null).length < MIN_ENROLLMENT_SAMPLES || wwRecordingIdx !== null}
-                      >
-                        {t(strings.settings.voiceInputSection.saveWakeWord)}
-                      </Button>
-                      <Button
-                        data-testid="wake-word-test"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-3 text-xs text-wc-text-faint"
-                        onClick={() => void testWakeWord()}
-                        disabled={wwSamplesRef.current.filter((s) => s != null).length < 2}
-                      >
-                        {t(strings.settings.voiceInputSection.testCrossMatch)}
-                      </Button>
-                      {wakeWordConfig?.configured && (
-                        <Button
-                          data-testid="wake-word-delete"
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-3 text-xs text-wc-text-faint"
-                          onClick={() => void deleteWakeWord()}
-                        >
-                          {t(strings.settings.voiceInputSection.deleteWakeWord)}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Live wake word test */}
-                  <div className="rounded-xl border border-wc-default bg-wc-surface-base/60 p-3 space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-wc-text-secondary">
-                      <Play className="h-4 w-4" />
-                      {t(strings.settings.voiceInputSection.liveTestTitle)}
-                    </div>
-                    <p className="text-[11px] text-wc-text-muted">
-                      {t(strings.settings.voiceInputSection.liveTestHelp)}
-                    </p>
-
-                    {wwTestSamples.length === 0 ? (
-                      <p className="text-[11px] text-wc-text-faint italic">{t(strings.settings.voiceInputSection.liveTestEmpty)}</p>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-3">
-                          <Button
-                            data-testid="wake-word-live-test"
-                            variant="outline"
-                            size="sm"
-                            className={`h-10 px-4 text-xs select-none ${wakeWordTest.state.status === "recording" ? "border-wc-accent text-wc-accent animate-pulse" : ""}`}
-                            disabled={wwRecordingIdx !== null || wakeWordTest.state.status === "comparing"}
-                            onMouseDown={() => wakeWordTest.startRecording()}
-                            onMouseUp={() => wakeWordTest.stopRecording()}
-                            onMouseLeave={() => { if (wakeWordTest.state.status === "recording") wakeWordTest.stopRecording(); }}
-                            onTouchStart={(e) => { e.preventDefault(); wakeWordTest.startRecording(); }}
-                            onTouchEnd={(e) => { e.preventDefault(); wakeWordTest.stopRecording(); }}
-                          >
-                            <Mic className="me-1.5 h-3.5 w-3.5" />
-                            {wakeWordTest.state.status === "idle" || wakeWordTest.state.status === "result"
-                              ? t(strings.settings.voiceInputSection.holdToTest)
-                              : wakeWordTest.state.status === "recording"
-                                ? t(strings.settings.voiceInputSection.recordingSecondsLabel, { seconds: wakeWordTest.state.recordingSeconds })
-                                : t(strings.settings.voiceInputSection.comparing)}
-                          </Button>
-                          {wakeWordTest.state.history.length > 0 && (
-                            <button
-                              data-testid="wake-word-clear-history"
-                              className="text-[10px] text-wc-text-faint hover:text-wc-text-muted underline"
-                              onClick={() => wakeWordTest.clearHistory()}
-                            >
-                              {t(strings.settings.voiceInputSection.clearHistory)}
-                            </button>
-                          )}
-                        </div>
-
-                        {wakeWordTest.state.error && (
-                          <div className="flex items-center gap-2 text-xs text-wc-error-detail">
-                            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                            {wakeWordTest.state.error}
-                          </div>
-                        )}
-
-                        {wakeWordTest.state.currentResult && (
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className={wakeWordTest.state.currentResult.isMatch ? "text-green-500 font-medium" : "text-red-500 font-medium"}>
-                                {wakeWordTest.state.currentResult.isMatch ? t(strings.settings.voiceInputSection.liveTestMatch) : t(strings.settings.voiceInputSection.liveTestReject)}
-                              </span>
-                              <span className="text-wc-text-muted">
-                                {t(strings.settings.voiceInputSection.liveTestScore, { score: wakeWordTest.state.currentResult.score.toFixed(3) })}
-                              </span>
-                            </div>
-                            <div className="relative h-3 w-full rounded-full bg-wc-surface-overlay overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${wakeWordTest.state.currentResult.isMatch ? "bg-green-500/70" : "bg-red-500/70"}`}
-                                style={{ width: `${Math.min(wakeWordTest.state.currentResult.score * 100, 100)}%` }}
-                              />
-                              <div
-                                className="absolute top-0 h-full w-0.5 bg-wc-text-secondary"
-                                style={{ left: `${useWorkspaceStore.getState().wakeWordThreshold * 100}%` }}
-                                title={t(strings.settings.voiceInputSection.thresholdTooltip, { threshold: useWorkspaceStore.getState().wakeWordThreshold.toFixed(2) })}
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {wakeWordTest.state.history.length > 1 && (
-                          <div className="space-y-1">
-                            <div className="text-[10px] text-wc-text-faint font-medium">{t(strings.settings.voiceInputSection.recentAttempts)}</div>
-                            <div className="max-h-32 overflow-y-auto space-y-1">
-                              {wakeWordTest.state.history.map((attempt, i) => (
-                                <div key={attempt.timestamp} className={`flex items-center gap-2 text-[10px] ${i === 0 ? "opacity-100" : "opacity-70"}`}>
-                                  <span className={`w-9 font-medium ${attempt.isMatch ? "text-green-500" : "text-red-500"}`}>
-                                    {attempt.isMatch ? t(strings.settings.voiceInputSection.attemptPass) : t(strings.settings.voiceInputSection.attemptFail)}
-                                  </span>
-                                  <div className="relative h-1.5 flex-1 rounded-full bg-wc-surface-overlay overflow-hidden">
-                                    <div
-                                      className={`h-full rounded-full ${attempt.isMatch ? "bg-green-500/60" : "bg-red-500/60"}`}
-                                      style={{ width: `${Math.min(attempt.score * 100, 100)}%` }}
-                                    />
-                                    <div
-                                      className="absolute top-0 h-full w-px bg-wc-text-faint"
-                                      style={{ left: `${useWorkspaceStore.getState().wakeWordThreshold * 100}%` }}
-                                    />
-                                  </div>
-                                  <span className="w-10 text-end text-wc-text-faint">{attempt.score.toFixed(2)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-
-                  <SettingsRow
                     label={t(strings.settings.voiceInputSection.segmentSilenceLabel)}
                     hint={t(strings.settings.voiceInputSection.segmentSilenceHint)}
                     control={(
@@ -1188,6 +895,312 @@ export default function VoiceInputSection() {
               {t(strings.settings.voiceInputSection.voiceConfigUnavailable)}
             </div>
           )}
+        </SettingsCard>
+      )}
+
+      {/* Wake word — independent of persistent mode. Works as a secondary
+          trigger in any mode (one-shot or persistent); the mic button still
+          behaves normally. */}
+      {voiceEnabled && vsConfig && (
+        <SettingsCard className="space-y-4">
+          <SettingsSectionIntro
+            eyebrow={t(strings.settings.voiceInputSection.wakeWordEyebrow)}
+            title={t(strings.settings.voiceInputSection.wakeWordTitle)}
+            description={t(strings.settings.voiceInputSection.wakeWordSectionDescription)}
+          />
+
+          <SettingsRow
+            label={t(strings.settings.voiceInputSection.wakeWordLabel)}
+            hint={t(strings.settings.voiceInputSection.wakeWordHint)}
+            control={(
+              <SettingsToggle
+                testId="wake-word-toggle"
+                checked={vsConfig.wakeWordEnabled}
+                onClick={() => {
+                  if (!vsConfig.wakeWordEnabled && !wakeWordConfig?.configured) {
+                    setWakeWordError(t(strings.settings.voiceInputSection.wakeWordRequireSaveFirst));
+                    return;
+                  }
+                  handleVsConfigChange({ wakeWordEnabled: !vsConfig.wakeWordEnabled });
+                }}
+              />
+            )}
+          />
+
+          <div className="rounded-xl border border-wc-default bg-wc-surface-base/60 p-3 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-wc-text-secondary">
+              <Mic className="h-4 w-4" />
+              {t(strings.settings.voiceInputSection.wakeWordRecordingTitle)}
+            </div>
+            <p className="text-[11px] text-wc-text-muted">
+              {t(strings.settings.voiceInputSection.wakeWordRecordingHelp, { min: MIN_ENROLLMENT_SAMPLES, max: MAX_ENROLLMENT_SAMPLES })}
+            </p>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-wc-text-muted shrink-0">{t(strings.settings.voiceInputSection.labelColon)}</span>
+              <input
+                data-testid="wake-word-label"
+                type="text"
+                value={wwLabel}
+                onChange={(e) => setWwLabel(e.target.value)}
+                className="w-36 rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
+                placeholder={t(strings.settings.voiceInputSection.wakeWordLabelPlaceholder)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              {Array.from({ length: MAX_ENROLLMENT_SAMPLES }, (_, i) => {
+                const sample = wwSamplesRef.current[i] ?? null;
+                const hasSample = sample != null;
+                const hasBlob = wwAudioBlobsRef.current[i] != null;
+                const isRecording = wwRecordingIdx === i;
+                const isPlaying = wwPlayingIdx === i;
+                return (
+                  <div key={i} className="flex items-center gap-2 h-8">
+                    <span className="w-16 text-[11px] text-wc-text-muted">
+                      {t(strings.settings.voiceInputSection.sample, { n: i + 1 })}
+                      {i < MIN_ENROLLMENT_SAMPLES ? "" : t(strings.settings.voiceInputSection.sampleOptionalSuffix)}
+                    </span>
+                    {hasSample && sample ? (
+                      <>
+                        <CheckCircle className="h-3.5 w-3.5 text-green-400 shrink-0" />
+                        <span className="text-[10px] text-green-400">
+                          {t(strings.settings.voiceInputSection.secondsShort, { value: sample.durationSec.toFixed(1) })}
+                        </span>
+                        {hasBlob && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            title={t(strings.settings.voiceInputSection.playSample)}
+                            onClick={() => isPlaying ? undefined : playWwSample(i)}
+                            disabled={isPlaying}
+                          >
+                            <Play className="h-3 w-3 text-wc-text-faint" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          title={t(strings.settings.voiceInputSection.reRecord)}
+                          onClick={() => { removeWwSample(i); void startWwRecording(i); }}
+                          disabled={wwRecordingIdx !== null}
+                        >
+                          <RotateCcw className="h-3 w-3 text-wc-text-faint" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          title={t(strings.settings.voiceInputSection.remove)}
+                          onClick={() => removeWwSample(i)}
+                        >
+                          <Trash2 className="h-3 w-3 text-wc-text-faint" />
+                        </Button>
+                      </>
+                    ) : isRecording ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 px-2 text-[10px]"
+                        onClick={stopWwRecording}
+                      >
+                        <Square className="me-1 h-3 w-3" />
+                        {t(strings.settings.voiceInputSection.stopSeconds, { seconds: wwRecordingSeconds })}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 px-2 text-[10px]"
+                        onClick={() => void startWwRecording(i)}
+                        disabled={wwRecordingIdx !== null}
+                      >
+                        <Mic className="me-1 h-3 w-3" />
+                        {t(strings.settings.voiceInputSection.record)}
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <SettingsRow
+              label={t(strings.settings.voiceInputSection.sensitivityLabel)}
+              hint={t(strings.settings.voiceInputSection.sensitivityHint)}
+              control={(
+                <div className="flex items-center gap-2">
+                  <input
+                    data-testid="wake-word-threshold-slider"
+                    type="range"
+                    min={0.1}
+                    max={0.95}
+                    step={0.05}
+                    value={useWorkspaceStore.getState().wakeWordThreshold}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      useWorkspaceStore.getState().setWakeWordThreshold(val);
+                      handleVsConfigChange({ wakeWordThreshold: val });
+                    }}
+                    className="w-24 accent-wc-accent"
+                  />
+                  <span className="w-10 text-end text-xs text-wc-text-muted">
+                    {useWorkspaceStore.getState().wakeWordThreshold.toFixed(2)}
+                  </span>
+                </div>
+              )}
+            />
+
+            {wakeWordError && (
+              <div className="flex items-center gap-2 text-xs text-wc-error-detail">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                {wakeWordError}
+              </div>
+            )}
+            {wwTestResult && (
+              <div className="text-xs text-wc-text-muted">{wwTestResult}</div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                data-testid="wake-word-save"
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 text-xs"
+                onClick={() => void saveWakeWord()}
+                disabled={wwSamplesRef.current.filter((s) => s != null).length < MIN_ENROLLMENT_SAMPLES || wwRecordingIdx !== null}
+              >
+                {t(strings.settings.voiceInputSection.saveWakeWord)}
+              </Button>
+              <Button
+                data-testid="wake-word-test"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-3 text-xs text-wc-text-faint"
+                onClick={() => void testWakeWord()}
+                disabled={wwSamplesRef.current.filter((s) => s != null).length < 2}
+              >
+                {t(strings.settings.voiceInputSection.testCrossMatch)}
+              </Button>
+              {wakeWordConfig?.configured && (
+                <Button
+                  data-testid="wake-word-delete"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-3 text-xs text-wc-text-faint"
+                  onClick={() => void deleteWakeWord()}
+                >
+                  {t(strings.settings.voiceInputSection.deleteWakeWord)}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Live wake word test */}
+          <div className="rounded-xl border border-wc-default bg-wc-surface-base/60 p-3 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-wc-text-secondary">
+              <Play className="h-4 w-4" />
+              {t(strings.settings.voiceInputSection.liveTestTitle)}
+            </div>
+            <p className="text-[11px] text-wc-text-muted">
+              {t(strings.settings.voiceInputSection.liveTestHelp)}
+            </p>
+
+            {wwTestSamples.length === 0 ? (
+              <p className="text-[11px] text-wc-text-faint italic">{t(strings.settings.voiceInputSection.liveTestEmpty)}</p>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <Button
+                    data-testid="wake-word-live-test"
+                    variant="outline"
+                    size="sm"
+                    className={`h-10 px-4 text-xs select-none ${wakeWordTest.state.status === "recording" ? "border-wc-accent text-wc-accent animate-pulse" : ""}`}
+                    disabled={wwRecordingIdx !== null || wakeWordTest.state.status === "comparing"}
+                    onMouseDown={() => wakeWordTest.startRecording()}
+                    onMouseUp={() => wakeWordTest.stopRecording()}
+                    onMouseLeave={() => { if (wakeWordTest.state.status === "recording") wakeWordTest.stopRecording(); }}
+                    onTouchStart={(e) => { e.preventDefault(); wakeWordTest.startRecording(); }}
+                    onTouchEnd={(e) => { e.preventDefault(); wakeWordTest.stopRecording(); }}
+                  >
+                    <Mic className="me-1.5 h-3.5 w-3.5" />
+                    {wakeWordTest.state.status === "idle" || wakeWordTest.state.status === "result"
+                      ? t(strings.settings.voiceInputSection.holdToTest)
+                      : wakeWordTest.state.status === "recording"
+                        ? t(strings.settings.voiceInputSection.recordingSecondsLabel, { seconds: wakeWordTest.state.recordingSeconds })
+                        : t(strings.settings.voiceInputSection.comparing)}
+                  </Button>
+                  {wakeWordTest.state.history.length > 0 && (
+                    <button
+                      data-testid="wake-word-clear-history"
+                      className="text-[10px] text-wc-text-faint hover:text-wc-text-muted underline"
+                      onClick={() => wakeWordTest.clearHistory()}
+                    >
+                      {t(strings.settings.voiceInputSection.clearHistory)}
+                    </button>
+                  )}
+                </div>
+
+                {wakeWordTest.state.error && (
+                  <div className="flex items-center gap-2 text-xs text-wc-error-detail">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    {wakeWordTest.state.error}
+                  </div>
+                )}
+
+                {wakeWordTest.state.currentResult && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className={wakeWordTest.state.currentResult.isMatch ? "text-green-500 font-medium" : "text-red-500 font-medium"}>
+                        {wakeWordTest.state.currentResult.isMatch ? t(strings.settings.voiceInputSection.liveTestMatch) : t(strings.settings.voiceInputSection.liveTestReject)}
+                      </span>
+                      <span className="text-wc-text-muted">
+                        {t(strings.settings.voiceInputSection.liveTestScore, { score: wakeWordTest.state.currentResult.score.toFixed(3) })}
+                      </span>
+                    </div>
+                    <div className="relative h-3 w-full rounded-full bg-wc-surface-overlay overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${wakeWordTest.state.currentResult.isMatch ? "bg-green-500/70" : "bg-red-500/70"}`}
+                        style={{ width: `${Math.min(wakeWordTest.state.currentResult.score * 100, 100)}%` }}
+                      />
+                      <div
+                        className="absolute top-0 h-full w-0.5 bg-wc-text-secondary"
+                        style={{ left: `${useWorkspaceStore.getState().wakeWordThreshold * 100}%` }}
+                        title={t(strings.settings.voiceInputSection.thresholdTooltip, { threshold: useWorkspaceStore.getState().wakeWordThreshold.toFixed(2) })}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {wakeWordTest.state.history.length > 1 && (
+                  <div className="space-y-1">
+                    <div className="text-[10px] text-wc-text-faint font-medium">{t(strings.settings.voiceInputSection.recentAttempts)}</div>
+                    <div className="max-h-32 overflow-y-auto space-y-1">
+                      {wakeWordTest.state.history.map((attempt, i) => (
+                        <div key={attempt.timestamp} className={`flex items-center gap-2 text-[10px] ${i === 0 ? "opacity-100" : "opacity-70"}`}>
+                          <span className={`w-9 font-medium ${attempt.isMatch ? "text-green-500" : "text-red-500"}`}>
+                            {attempt.isMatch ? t(strings.settings.voiceInputSection.attemptPass) : t(strings.settings.voiceInputSection.attemptFail)}
+                          </span>
+                          <div className="relative h-1.5 flex-1 rounded-full bg-wc-surface-overlay overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${attempt.isMatch ? "bg-green-500/60" : "bg-red-500/60"}`}
+                              style={{ width: `${Math.min(attempt.score * 100, 100)}%` }}
+                            />
+                            <div
+                              className="absolute top-0 h-full w-px bg-wc-text-faint"
+                              style={{ left: `${useWorkspaceStore.getState().wakeWordThreshold * 100}%` }}
+                            />
+                          </div>
+                          <span className="w-10 text-end text-wc-text-faint">{attempt.score.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </SettingsCard>
       )}
 

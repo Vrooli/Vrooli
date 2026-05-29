@@ -32,20 +32,66 @@ type RunInput struct {
 	FailOn       conflicts.Severity
 	IncludeTypes []string
 	ExcludeTypes []string
+	// When true, a LOW authority-confidence does NOT flip outcome to
+	// FINDINGS. Default false enforces "no curated DOMAINS.md → fail".
+	AllowLowAuthority bool
 }
+
+// SnapshotFreshness reports whether the audit reused a cached snapshot
+// or extracted a fresh one. Content-hash driven, not time-based.
+type SnapshotFreshness string
+
+const (
+	SnapshotFreshnessUnspecified SnapshotFreshness = ""
+	SnapshotFreshnessCached      SnapshotFreshness = "cached"
+	SnapshotFreshnessReExtracted SnapshotFreshness = "re-extracted"
+	SnapshotFreshnessFresh       SnapshotFreshness = "fresh"
+)
 
 // Report is the orchestrated audit response.
 type Report struct {
 	Scenario      string
 	Outcome       Outcome
+	OutcomeReason string
 	Error         string
 	TotalFindings int
 	BySeverity    map[string]int
 	ByType        map[string]int
+	ByDomain      map[string]int
 	Findings      []conflicts.Conflict
 	Domains       DomainSummary
 	Graph         GraphSummary
 	Duration      time.Duration
+	// SuppressedFindings is the count of findings whose `// arch:allow`
+	// marker matched. Suppressed conflicts are reported (kept in
+	// Findings) and counted here.
+	SuppressedFindings int
+	// SnapshotFreshness reports the snapshot reuse decision. See the
+	// SnapshotFreshness* constants.
+	SnapshotFreshness SnapshotFreshness
+}
+
+// RunAllInput is the explicit input DTO for Service.RunAll.
+type RunAllInput struct {
+	FailOn            conflicts.Severity
+	IncludeTypes      []string
+	ExcludeTypes      []string
+	IncludeScenarios  []string
+	ExcludeScenarios  []string
+	AllowLowAuthority bool
+	// Concurrency caps the worker pool; 0 → default 4.
+	Concurrency int
+}
+
+// SweepReport is the aggregated output of Service.RunAll.
+type SweepReport struct {
+	Reports         []Report
+	TotalScenarios  int
+	TotalFindings   int
+	TotalSuppressed int
+	BySeverity      map[string]int
+	ByOutcome       map[string]int
+	Duration        time.Duration
 }
 
 // DomainSummary is a compact projection of the derived domain map used

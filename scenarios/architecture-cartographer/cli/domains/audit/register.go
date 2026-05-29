@@ -19,7 +19,8 @@ const GroupName = "audit"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"AuditService.Run": h.run,
+		"AuditService.Run":    h.run,
+		"AuditService.RunAll": h.runAll,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

@@ -6,39 +6,180 @@
       "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
       "endpoint_id": "health"
     },
-
-    { "name": "analytics events",          "description": "Page the append-only analytics event log",                          "endpoint_id": "analytics.list-events" },
-    { "name": "analytics stats",           "description": "Show analytics stats roll-up (N<5 suppressed)",                     "endpoint_id": "analytics.get-stats" },
-    { "name": "analytics placements",      "description": "List placement outcomes for a scenario",                            "endpoint_id": "analytics.list-placements" },
-    { "name": "analytics override-record", "description": "Record an operator override of a verdict",                          "endpoint_id": "analytics.record-override" },
-
-    { "name": "apply plan",                "description": "Deterministically plan a per-domain apply (v0.1: read-only)",       "endpoint_id": "apply.plan" },
-    { "name": "apply run",                 "description": "Run a planned apply (v0.1: returns unimplemented)",                 "endpoint_id": "apply.run" },
-    { "name": "apply history",             "description": "List apply runs (empty in v0.1)",                                   "endpoint_id": "apply.list-history" },
-    { "name": "apply baseline",            "description": "Show the toolchain build baseline (empty in v0.1)",                 "endpoint_id": "apply.get-build-baseline" },
-    { "name": "apply suppress",            "description": "Write an in-repo // arch:allow suppression marker",                  "endpoint_id": "apply.write-suppression" },
-
-    { "name": "audit run",                 "description": "Run a CI-shaped drift audit (graph extract → domains → conflicts)",  "endpoint_id": "audit.run" },
-
-    { "name": "conflicts detect",          "description": "Detect + persist conflicts for a scenario",                         "endpoint_id": "conflicts.detect" },
-    { "name": "conflicts list",            "description": "List persisted conflicts for a scenario",                           "endpoint_id": "conflicts.list" },
-    { "name": "conflicts show",            "description": "Show one persisted conflict",                                       "endpoint_id": "conflicts.get" },
-    { "name": "conflicts assign",          "description": "Assign a conflict to a target domain",                              "endpoint_id": "conflicts.assign" },
-    { "name": "conflicts resolve",         "description": "Resolve a conflict (force-resolve with --force)",                   "endpoint_id": "conflicts.resolve" },
-    { "name": "conflicts reopen",          "description": "Re-open a resolved or force-resolved conflict",                     "endpoint_id": "conflicts.reopen" },
-    { "name": "conflicts validate",        "description": "Validate cartographer-clean closure (zero outstanding conflicts)",  "endpoint_id": "conflicts.validate" },
-    { "name": "conflicts detectors",       "description": "List registered Detector plug-ins",                                 "endpoint_id": "conflicts.list-detectors" },
-    { "name": "conflicts resolvers",       "description": "List registered Resolver plug-ins",                                 "endpoint_id": "conflicts.list-resolvers" },
-
-    { "name": "domains extract",           "description": "Derive the domain map for a scenario from the extraction ladder",   "endpoint_id": "domains.extract" },
-    { "name": "domains show",              "description": "Show the derived domain map for a scenario",                         "endpoint_id": "domains.show" },
-    { "name": "domains convergence",       "description": "Report cross-surface domain convergence for a scenario",             "endpoint_id": "domains.convergence" },
-
-    { "name": "graph extract",             "description": "Extract a fresh graph snapshot and persist it",                     "endpoint_id": "graph.extract" },
-
-    { "name": "signals score",             "description": "Score a chunk through every registered Signal",                     "endpoint_id": "signals.score" },
-    { "name": "signals explain",           "description": "Explain a verdict with full per-signal evidence",                   "endpoint_id": "signals.explain" },
-    { "name": "signals list",              "description": "List registered Signal plug-ins",                                   "endpoint_id": "signals.list" },
-    { "name": "signals boundaries",        "description": "Show per-domain coupling/boundary-health scores",                   "endpoint_id": "signals.boundaries" }
+    {
+      "name": "analytics events",
+      "description": "Page the append-only analytics event log",
+      "endpoint_id": "analytics.list-events"
+    },
+    {
+      "name": "analytics stats",
+      "description": "Show analytics stats roll-up (N<5 suppressed)",
+      "endpoint_id": "analytics.get-stats"
+    },
+    {
+      "name": "analytics placements",
+      "description": "List placement outcomes for a scenario",
+      "endpoint_id": "analytics.list-placements"
+    },
+    {
+      "name": "analytics override-record",
+      "description": "Record an operator override of a verdict",
+      "endpoint_id": "analytics.record-override"
+    },
+    {
+      "name": "apply plan",
+      "description": "Deterministically plan a per-domain apply (v0.1: read-only)",
+      "endpoint_id": "apply.plan"
+    },
+    {
+      "name": "apply run",
+      "description": "Run a planned apply (v0.1: returns unimplemented)",
+      "endpoint_id": "apply.run"
+    },
+    {
+      "name": "apply history",
+      "description": "List apply runs (empty in v0.1)",
+      "endpoint_id": "apply.list-history"
+    },
+    {
+      "name": "apply baseline",
+      "description": "Show the toolchain build baseline (empty in v0.1)",
+      "endpoint_id": "apply.get-build-baseline"
+    },
+    {
+      "name": "apply suppress",
+      "description": "Write an in-repo // arch:allow suppression marker",
+      "endpoint_id": "apply.write-suppression"
+    },
+    {
+      "name": "audit run",
+      "description": "Run a CI-shaped drift audit (graph extract → domains → conflicts)",
+      "endpoint_id": "audit.run"
+    },
+    {
+      "name": "audit run-all",
+      "description": "Sweep every discoverable scenario and aggregate audit reports",
+      "endpoint_id": "audit.run-all"
+    },
+    {
+      "name": "conflicts detect",
+      "description": "Detect + persist conflicts for a scenario",
+      "endpoint_id": "conflicts.detect"
+    },
+    {
+      "name": "conflicts list",
+      "description": "List persisted conflicts for a scenario",
+      "endpoint_id": "conflicts.list"
+    },
+    {
+      "name": "conflicts show",
+      "description": "Show one persisted conflict",
+      "endpoint_id": "conflicts.get"
+    },
+    {
+      "name": "conflicts assign",
+      "description": "Assign a conflict to a target domain",
+      "endpoint_id": "conflicts.assign"
+    },
+    {
+      "name": "conflicts resolve",
+      "description": "Resolve a conflict (force-resolve with --force)",
+      "endpoint_id": "conflicts.resolve"
+    },
+    {
+      "name": "conflicts reopen",
+      "description": "Re-open a resolved or force-resolved conflict",
+      "endpoint_id": "conflicts.reopen"
+    },
+    {
+      "name": "conflicts validate",
+      "description": "Validate cartographer-clean closure (zero outstanding conflicts)",
+      "endpoint_id": "conflicts.validate"
+    },
+    {
+      "name": "conflicts detectors",
+      "description": "List registered Detector plug-ins",
+      "endpoint_id": "conflicts.list-detectors"
+    },
+    {
+      "name": "conflicts resolvers",
+      "description": "List registered Resolver plug-ins",
+      "endpoint_id": "conflicts.list-resolvers"
+    },
+    {
+      "name": "domains extract",
+      "description": "Derive the domain map for a scenario from the extraction ladder",
+      "endpoint_id": "domains.extract"
+    },
+    {
+      "name": "domains show",
+      "description": "Show the derived domain map for a scenario",
+      "endpoint_id": "domains.show"
+    },
+    {
+      "name": "domains convergence",
+      "description": "Report cross-surface domain convergence for a scenario",
+      "endpoint_id": "domains.convergence"
+    },
+    {
+      "name": "graph extract",
+      "description": "Extract a fresh graph snapshot and persist it",
+      "endpoint_id": "graph.extract"
+    },
+    {
+      "name": "signals score",
+      "description": "Score a chunk through every registered Signal",
+      "endpoint_id": "signals.score"
+    },
+    {
+      "name": "signals explain",
+      "description": "Explain a verdict with full per-signal evidence",
+      "endpoint_id": "signals.explain"
+    },
+    {
+      "name": "signals list",
+      "description": "List registered Signal plug-ins",
+      "endpoint_id": "signals.list"
+    },
+    {
+      "name": "signals boundaries",
+      "description": "Show per-domain coupling/boundary-health scores",
+      "endpoint_id": "signals.boundaries"
+    },
+    {
+      "name": "migration create",
+      "description": "Open a migration and ingest findings from a test-genie audit",
+      "endpoint_id": "migration.create"
+    },
+    {
+      "name": "migration status",
+      "description": "Show a migration's findings and progress rollups",
+      "endpoint_id": "migration.status"
+    },
+    {
+      "name": "migration next",
+      "description": "Show the prioritized worklist of open findings",
+      "endpoint_id": "migration.next"
+    },
+    {
+      "name": "migration resolve",
+      "description": "Mark a finding resolved with an operator note",
+      "endpoint_id": "migration.resolve"
+    },
+    {
+      "name": "migration apply",
+      "description": "Record a finding fix as a status-only transition",
+      "endpoint_id": "migration.apply"
+    },
+    {
+      "name": "migration reaudit",
+      "description": "Reconcile a fresh audit against the tracked findings",
+      "endpoint_id": "migration.reaudit"
+    },
+    {
+      "name": "migration close",
+      "description": "Close a migration",
+      "endpoint_id": "migration.close"
+    }
   ]
 }

@@ -63,6 +63,13 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Description:    "Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config).",
 	})
 	register(Spec{
+		Name:           Architecture,
+		Runner:         runArchitecturePhase,
+		Optional:       true,
+		DefaultTimeout: 120 * time.Second,
+		Description:    "Audits structural cohesion (cycles, coupling, convergence, mislocation) via architecture-cartographer. Advisory — never gates; drives the migration nudge.",
+	})
+	register(Spec{
 		Name:        Dependencies,
 		Runner:      runDependenciesPhase,
 		Description: "Confirms required commands, runtimes, and declared resources are available.",

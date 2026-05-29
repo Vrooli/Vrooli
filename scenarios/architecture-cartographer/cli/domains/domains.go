@@ -11,6 +11,7 @@ import (
 	"architecture-cartographer/cli/domains/conflicts"
 	domainsdomain "architecture-cartographer/cli/domains/domains"
 	"architecture-cartographer/cli/domains/graph"
+	"architecture-cartographer/cli/domains/migration"
 	"architecture-cartographer/cli/domains/signals"
 )
 
@@ -38,7 +39,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // As each product domain (domains, signals, apply, analytics) ships its
 // CLI surface, add a Register call here.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	out := make([]cliapp.SubcommandGroup, 0, 7)
+	out := make([]cliapp.SubcommandGroup, 0, 8)
 
 	domainsGroup, err := domainsdomain.Register(core, manifest)
 	if err != nil {
@@ -81,6 +82,12 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, fmt.Errorf("register audit: %w", err)
 	}
 	out = append(out, auditGroup)
+
+	migrationGroup, err := migration.Register(core, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("register migration: %w", err)
+	}
+	out = append(out, migrationGroup)
 
 	return out, nil
 }

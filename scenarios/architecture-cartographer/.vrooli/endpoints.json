@@ -131,6 +131,28 @@
       }
     },
     {
+      "id": "audit.run",
+      "path": "/vrooli.architecture_cartographer.v1.audit.AuditService/Run",
+      "method": "POST",
+      "summary": "Run a CI-shaped drift audit",
+      "description": "Orchestrates graph extract (if needed), domains derivation, and conflicts detection; applies severity / type filters; returns a deterministic summary and exit code mapping.",
+      "category": "audit",
+      "cli_mapping": {
+        "command": "architecture-cartographer audit run"
+      }
+    },
+    {
+      "id": "audit.run-all",
+      "path": "/vrooli.architecture_cartographer.v1.audit.AuditService/RunAll",
+      "method": "POST",
+      "summary": "Sweep every discoverable scenario",
+      "description": "Walks scenarios/*/.vrooli/service.json, runs Audit on each, and returns per-scenario reports plus a totals rollup. Honors include_scenarios / exclude_scenarios filters.",
+      "category": "audit",
+      "cli_mapping": {
+        "command": "architecture-cartographer audit run-all"
+      }
+    },
+    {
       "id": "conflicts.detect",
       "path": "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/DetectConflicts",
       "method": "POST",
@@ -306,6 +328,83 @@
       "category": "graph"
     },
     {
+      "id": "migration.create",
+      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/CreateMigration",
+      "method": "POST",
+      "summary": "Open a migration and ingest findings",
+      "description": "Opens a tracked migration for a scenario and ingests the initial ArchitectureFinding set (all start detected).",
+      "category": "migration",
+      "cli_mapping": {
+        "command": "arch-cart migration create"
+      }
+    },
+    {
+      "id": "migration.status",
+      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/GetMigrationStatus",
+      "method": "POST",
+      "summary": "Get migration status",
+      "description": "Returns the migration plus every tracked finding and rollup counts.",
+      "category": "migration",
+      "cli_mapping": {
+        "command": "arch-cart migration status"
+      }
+    },
+    {
+      "id": "migration.next",
+      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/NextMigrationStep",
+      "method": "POST",
+      "summary": "Get the next worklist chunk",
+      "description": "Returns the prioritized, dependency-aware worklist of open findings (regressions first, then cycles, then severity).",
+      "category": "migration",
+      "cli_mapping": {
+        "command": "arch-cart migration next"
+      }
+    },
+    {
+      "id": "migration.resolve",
+      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/ResolveFinding",
+      "method": "POST",
+      "summary": "Mark a finding resolved",
+      "description": "Records that the agent fixed a finding by hand, with an operator note.",
+      "category": "migration",
+      "cli_mapping": {
+        "command": "arch-cart migration resolve"
+      }
+    },
+    {
+      "id": "migration.apply",
+      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/ApplyFinding",
+      "method": "POST",
+      "summary": "Apply a finding fix (status-only)",
+      "description": "Records a hand-fix as a status-only transition. Auto-execution of file-op fixes stays deferred to the apply-execution plan.",
+      "category": "migration",
+      "cli_mapping": {
+        "command": "arch-cart migration apply"
+      }
+    },
+    {
+      "id": "migration.reaudit",
+      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/ReauditMigration",
+      "method": "POST",
+      "summary": "Reconcile a re-audit",
+      "description": "Reconciles a fresh findings set against the tracked set by stable id: absent→validated, present→stay, (re)appeared→regression.",
+      "category": "migration",
+      "cli_mapping": {
+        "command": "arch-cart migration reaudit"
+      }
+    },
+    {
+      "id": "migration.close",
+      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/CloseMigration",
+      "method": "POST",
+      "summary": "Close a migration",
+      "description": "Marks the migration closed.",
+      "category": "migration",
+      "cli_mapping": {
+        "command": "arch-cart migration close"
+      }
+    },
+    {
       "id": "signals.score",
       "path": "/vrooli.architecture_cartographer.v1.signals.SignalsService/ScoreChunk",
       "method": "POST",
@@ -402,6 +501,16 @@
       "endpoint_id": "apply.write-suppression"
     },
     {
+      "name": "audit run",
+      "description": "Run a CI-shaped drift audit (graph extract → domains → conflicts)",
+      "endpoint_id": "audit.run"
+    },
+    {
+      "name": "audit run-all",
+      "description": "Sweep every discoverable scenario and aggregate audit reports",
+      "endpoint_id": "audit.run-all"
+    },
+    {
       "name": "conflicts detect",
       "description": "Detect + persist conflicts for a scenario",
       "endpoint_id": "conflicts.detect"
@@ -485,6 +594,41 @@
       "name": "signals boundaries",
       "description": "Show per-domain coupling/boundary-health scores",
       "endpoint_id": "signals.boundaries"
+    },
+    {
+      "name": "migration create",
+      "description": "Open a migration and ingest findings from a test-genie audit",
+      "endpoint_id": "migration.create"
+    },
+    {
+      "name": "migration status",
+      "description": "Show a migration's findings and progress rollups",
+      "endpoint_id": "migration.status"
+    },
+    {
+      "name": "migration next",
+      "description": "Show the prioritized worklist of open findings",
+      "endpoint_id": "migration.next"
+    },
+    {
+      "name": "migration resolve",
+      "description": "Mark a finding resolved with an operator note",
+      "endpoint_id": "migration.resolve"
+    },
+    {
+      "name": "migration apply",
+      "description": "Record a finding fix as a status-only transition",
+      "endpoint_id": "migration.apply"
+    },
+    {
+      "name": "migration reaudit",
+      "description": "Reconcile a fresh audit against the tracked findings",
+      "endpoint_id": "migration.reaudit"
+    },
+    {
+      "name": "migration close",
+      "description": "Close a migration",
+      "endpoint_id": "migration.close"
     }
   ]
 }

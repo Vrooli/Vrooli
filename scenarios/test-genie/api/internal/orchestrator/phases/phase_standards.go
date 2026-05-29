@@ -16,6 +16,7 @@ import (
 	"test-genie/internal/shared"
 
 	"github.com/vrooli/api-core/discovery"
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
 const (
@@ -97,6 +98,7 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 	}
 	summary, err := fetchAuditorStandardsSummary(ctx, cleanLog, baseURL, env.ScenarioName, mapping, summaryLimit)
 	observations := buildStandardsObservations(summary, failOn, minDisplay)
+	archFindings := standardsArchFindings(env.ScenarioName, summary)
 
 	if err != nil {
 		classification, remediation := classifyAuditorError(err)
@@ -142,6 +144,7 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 			FailureClassification: classification,
 			Remediation:           remediation,
 			Observations:          observations,
+			Findings:              archFindings,
 		}
 	}
 
@@ -151,9 +154,44 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 			"highest_severity": summary.HighestSeverity,
 		},
 	}
-	report := RunReport{Observations: observations}
+	report := RunReport{Observations: observations, Findings: archFindings}
 	writePhasePointer(env, "standards", report, extras, cleanLog)
 	return report
+}
+
+// standardsArchFindings maps the auditor summary's top violations into the
+// shared ArchitectureFinding contract (source=STANDARDS). code = rule id,
+// location = file[:line].
+//
+// NOTE: the auditor SUMMARY only carries the top-N violations
+// (TEST_GENIE_STANDARDS_LIMIT, default 20), not the full set. Findings
+// emitted here are therefore capped at that N — they are a representative
+// worklist, not an exhaustive standards inventory. The aggregate counts
+// (summary.Total / BySeverity) remain in the Observations for the full
+// picture. A future phase may fetch the full violation list if the
+// migration tracker needs every standards finding.
+func standardsArchFindings(scenario string, summary *auditorViolationSummary) []*architecturev1.ArchitectureFinding {
+	if summary == nil {
+		return nil
+	}
+	out := make([]*architecturev1.ArchitectureFinding, 0, len(summary.TopViolations))
+	for _, v := range summary.TopViolations {
+		loc := strings.TrimSpace(v.FilePath)
+		if loc != "" && v.LineNumber > 0 {
+			loc = fmt.Sprintf("%s:%d", loc, v.LineNumber)
+		}
+		title := strings.TrimSpace(v.Title)
+		if title == "" {
+			title = v.RuleID
+		}
+		out = append(out, newFinding(
+			scenario,
+			architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
+			v.RuleID, v.Severity, title, "",
+			nonEmptyLocations(loc), nil,
+		))
+	}
+	return out
 }
 
 func buildStandardsObservations(summary *auditorViolationSummary, failOn, minDisplay string) []Observation {

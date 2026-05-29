@@ -29,6 +29,7 @@ import (
 	domainsH "architecture-cartographer/handlers/domains"
 	graphH "architecture-cartographer/handlers/graph"
 	healthH "architecture-cartographer/handlers/health"
+	migrationH "architecture-cartographer/handlers/migration"
 	signalsH "architecture-cartographer/handlers/signals"
 
 	localdb "architecture-cartographer/internal/database"
@@ -39,6 +40,7 @@ import (
 	conflictsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts"
 	domainsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph"
+	migrationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/migration"
 	signalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals"
 )
 
@@ -53,6 +55,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, conflictsH.Endpoints...)
 	out = append(out, domainsH.Endpoints...)
 	out = append(out, graphH.Endpoints...)
+	out = append(out, migrationH.Endpoints...)
 	out = append(out, signalsH.Endpoints...)
 	return out
 }
@@ -74,6 +77,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "conflicts", File: conflictsv1.File_architecture_cartographer_v1_conflicts_conflicts_proto},
 		{Module: "domains", File: domainsv1.File_architecture_cartographer_v1_domains_domains_proto},
 		{Module: "graph", File: graphv1.File_architecture_cartographer_v1_graph_graph_proto},
+		{Module: "migration", File: migrationv1.File_architecture_cartographer_v1_migration_migration_proto},
 		{Module: "signals", File: signalsv1.File_architecture_cartographer_v1_signals_signals_proto},
 	}
 }
@@ -95,6 +99,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(conflictsH.Schema),
 		apidb.SchemaProviderFunc(domainsH.Schema),
 		apidb.SchemaProviderFunc(graphH.Schema),
+		apidb.SchemaProviderFunc(migrationH.Schema),
 		apidb.SchemaProviderFunc(signalsH.Schema),
 	}
 }

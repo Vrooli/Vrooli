@@ -16,6 +16,7 @@ import (
 // Service is the application-layer surface for the audit domain.
 type Service interface {
 	Run(ctx context.Context, in RunInput) (Report, error)
+	RunAll(ctx context.Context, in RunAllInput) (SweepReport, error)
 }
 
 // SuppressionLoader resolves the set of in-repo `// arch:allow` markers
@@ -30,14 +31,16 @@ type service struct {
 	conflicts    conflicts.Service
 	verdicts     conflicts.VerdictProvider
 	suppressions SuppressionLoader
+	scenarios    ScenarioLister
 	clock        clock.Clock
 }
 
 // NewService constructs the audit orchestrator. verdicts may be nil
 // (the mislocated_file detector skips when no provider is wired —
-// see conflicts.DetectInput.VerdictProvider).
-func NewService(g graph.Service, d domains.Service, c conflicts.Service, verdicts conflicts.VerdictProvider, sup SuppressionLoader, clk clock.Clock) Service {
-	return &service{graph: g, domains: d, conflicts: c, verdicts: verdicts, suppressions: sup, clock: clk}
+// see conflicts.DetectInput.VerdictProvider). scenarios may be nil
+// when the caller never invokes RunAll.
+func NewService(g graph.Service, d domains.Service, c conflicts.Service, verdicts conflicts.VerdictProvider, sup SuppressionLoader, scenarios ScenarioLister, clk clock.Clock) Service {
+	return &service{graph: g, domains: d, conflicts: c, verdicts: verdicts, suppressions: sup, scenarios: scenarios, clock: clk}
 }
 
 func (s *service) Run(ctx context.Context, in RunInput) (Report, error) {
@@ -52,11 +55,12 @@ func (s *service) Run(ctx context.Context, in RunInput) (Report, error) {
 	start := s.clock.Now()
 	rep := Report{Scenario: scenario}
 
-	snap, err := s.latestSnapshot(ctx, scenario)
+	snap, freshness, err := s.freshSnapshot(ctx, scenario)
 	if err != nil {
 		return s.toolError(rep, "graph extract failed: "+err.Error(), start), nil
 	}
 	rep.Graph = graphSummary(snap)
+	rep.SnapshotFreshness = freshness
 
 	dmap, dErr := s.domains.GetDomainMap(ctx, scenario)
 	if dErr != nil {
@@ -95,26 +99,55 @@ func (s *service) Run(ctx context.Context, in RunInput) (Report, error) {
 	rep.TotalFindings = len(filtered)
 	rep.BySeverity = countBySeverity(filtered)
 	rep.ByType = countByType(filtered)
-	rep.Outcome = decideOutcome(filtered, failOn)
+	rep.ByDomain = countByDomain(filtered)
+	rep.SuppressedFindings = countSuppressed(filtered)
+	rep.Outcome, rep.OutcomeReason = decideOutcomeWithAuthority(filtered, failOn, rep.Domains.Confidence, in.AllowLowAuthority)
 	rep.Duration = s.clock.Now().Sub(start)
 	return rep, nil
 }
 
-// latestSnapshot returns the most recent snapshot for the scenario,
-// triggering an extract if none exists yet.
-func (s *service) latestSnapshot(ctx context.Context, scenario string) (graph.GraphSnapshot, error) {
-	page, err := s.graph.ListSnapshots(ctx, graph.ListSnapshotsFilter{Scenario: scenario, PageSize: 1})
+// decideOutcomeWithAuthority extends decideOutcome with the authority-
+// confidence axis. Low confidence (no DOMAINS.md or only advisory rungs
+// supplied an authority) is a first-class failure axis: detectors run
+// without a curated set, so absence-of-findings is meaningless. The
+// caller opts back in to the lax behavior with AllowLowAuthority.
+func decideOutcomeWithAuthority(in []conflicts.Conflict, failOn conflicts.Severity, confidence string, allowLow bool) (Outcome, string) {
+	if o := decideOutcome(in, failOn); o == OutcomeFindings {
+		return o, ""
+	}
+	if confidence == "low" && !allowLow {
+		return OutcomeFindings, "authority_confidence=low — pass --allow-low-authority to silence"
+	}
+	return OutcomeClean, ""
+}
+
+// freshSnapshot guarantees the audit operates on a snapshot whose
+// content-hash matches the current source tree. It always invokes
+// ExtractGraph (which is hash-aware: the graph service computes the
+// current source-tree hash and reuses a persisted snapshot whose
+// content_hash matches). The cacheHit signal returned by ExtractGraph
+// distinguishes a reused snapshot from a freshly normalized one.
+//
+// freshness values:
+//   - CACHED:      ExtractGraph found a snapshot whose hash matches.
+//   - RE_EXTRACTED: there was a prior persisted snapshot whose hash
+//     differed from the current source tree.
+//   - FRESH:        no prior persisted snapshot existed.
+func (s *service) freshSnapshot(ctx context.Context, scenario string) (graph.GraphSnapshot, SnapshotFreshness, error) {
+	page, lsErr := s.graph.ListSnapshots(ctx, graph.ListSnapshotsFilter{Scenario: scenario, PageSize: 1})
+	priorExists := lsErr == nil && len(page.Snapshots) > 0
+	snap, cacheHit, err := s.graph.ExtractGraph(ctx, graph.ExtractGraphInput{Scenario: scenario})
 	if err != nil {
-		return graph.GraphSnapshot{}, err
+		return graph.GraphSnapshot{}, SnapshotFreshnessUnspecified, err
 	}
-	if len(page.Snapshots) > 0 {
-		return page.Snapshots[0], nil
+	switch {
+	case cacheHit:
+		return snap, SnapshotFreshnessCached, nil
+	case priorExists:
+		return snap, SnapshotFreshnessReExtracted, nil
+	default:
+		return snap, SnapshotFreshnessFresh, nil
 	}
-	snap, _, err := s.graph.ExtractGraph(ctx, graph.ExtractGraphInput{Scenario: scenario})
-	if err != nil {
-		return graph.GraphSnapshot{}, err
-	}
-	return snap, nil
 }
 
 func (s *service) toolError(rep Report, msg string, start time.Time) Report {
@@ -168,6 +201,36 @@ func countBySeverity(in []conflicts.Conflict) map[string]int {
 		out[string(c.Severity)]++
 	}
 	return out
+}
+
+// countByDomain buckets findings by every domain they're tagged with —
+// a finding tagged with two domains contributes to both buckets.
+// Findings with no Domains contribute to a "—" bucket so the operator
+// still sees how many domain-less findings exist.
+func countByDomain(in []conflicts.Conflict) map[string]int {
+	out := make(map[string]int)
+	for _, c := range in {
+		if len(c.Domains) == 0 {
+			out["—"]++
+			continue
+		}
+		for _, d := range c.Domains {
+			out[d]++
+		}
+	}
+	return out
+}
+
+// countSuppressed counts findings sanctioned by an active in-repo
+// `// arch:allow` marker — reported but not counted toward outcome.
+func countSuppressed(in []conflicts.Conflict) int {
+	n := 0
+	for _, c := range in {
+		if c.Suppressed {
+			n++
+		}
+	}
+	return n
 }
 
 func countByType(in []conflicts.Conflict) map[string]int {

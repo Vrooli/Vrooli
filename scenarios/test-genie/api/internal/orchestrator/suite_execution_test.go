@@ -647,8 +647,12 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 				t.Fatalf("expected integration phase to be disabled via testing config")
 			}
 		}
-		if len(result.Phases) != 12 {
-			t.Fatalf("expected twelve phases after disabling integration, got %d", len(result.Phases))
+		// All catalog phases run except the one disabled via testing config
+		// (integration). Derive the expected count from the catalog so adding
+		// a phase doesn't require a hand-edit here.
+		expectedPhases := len(phasespkg.DefaultCatalog().All()) - 1
+		if len(result.Phases) != expectedPhases {
+			t.Fatalf("expected %d phases after disabling integration, got %d", expectedPhases, len(result.Phases))
 		}
 	})
 }

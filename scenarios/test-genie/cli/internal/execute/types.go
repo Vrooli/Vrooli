@@ -66,20 +66,33 @@ type PlanPreview struct {
 
 // Response represents the execution response.
 type Response struct {
-	Success        bool           `json:"success"`
-	ExecutionID    string         `json:"executionId"`
-	SuiteRequest   string         `json:"suiteRequestId"`
-	PresetUsed     string         `json:"presetUsed"`
-	StartedAt      string         `json:"startedAt"`
-	CompletedAt    string         `json:"completedAt"`
-	PhaseSummary   PhaseSummary   `json:"phaseSummary"`
-	Phases         []Phase        `json:"phases"`
-	Warnings       []string       `json:"warnings"`
-	WarningSummary WarningSummary `json:"warningSummary"`
-	Error          string         `json:"error"`
-	ErrorMessages  []string       `json:"errors"`
-	Links          map[string]any `json:"links"`
-	Metadata       map[string]any `json:"metadata"`
+	Success        bool            `json:"success"`
+	ExecutionID    string          `json:"executionId"`
+	SuiteRequest   string          `json:"suiteRequestId"`
+	PresetUsed     string          `json:"presetUsed"`
+	StartedAt      string          `json:"startedAt"`
+	CompletedAt    string          `json:"completedAt"`
+	PhaseSummary   PhaseSummary    `json:"phaseSummary"`
+	Phases         []Phase         `json:"phases"`
+	Warnings       []string        `json:"warnings"`
+	WarningSummary WarningSummary  `json:"warningSummary"`
+	Error          string          `json:"error"`
+	ErrorMessages  []string        `json:"errors"`
+	Links          map[string]any  `json:"links"`
+	Metadata       map[string]any  `json:"metadata"`
+	MigrationNudge *MigrationNudge `json:"migrationNudge,omitempty"`
+}
+
+// MigrationNudge mirrors the API's migration-nudge steer. Present only when
+// the architecture-audit battery's finding load exceeded the single-pass
+// threshold, recommending a tracked migration over ad-hoc fixing.
+type MigrationNudge struct {
+	Triggered  bool           `json:"triggered"`
+	Total      int            `json:"total"`
+	Severe     int            `json:"severe"`
+	BySeverity map[string]int `json:"bySeverity"`
+	Reason     string         `json:"reason"`
+	Command    string         `json:"command"`
 }
 
 // WarningDetail captures a non-fatal warning emitted by a phase.

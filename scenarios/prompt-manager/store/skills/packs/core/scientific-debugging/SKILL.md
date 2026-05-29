@@ -390,6 +390,29 @@ You **should** also:
 - Update relevant documentation if the bug revealed a gap
 - Consider if the methodology itself could be improved
 
+---
+
+### **7. Write a record (recursive-learning loop)**
+
+After the fix ships, write a swarm-manager record so future agents can find your investigation:
+
+```bash
+swarm-manager records create --kind fix --scenario <name> \
+  --trigger "<one-line symptom>" \
+  --approach "<root cause + what was built>" \
+  --ruled-out "<hypothesis A>" --ruled-out "<hypothesis B>" \
+  --commit <sha> --files <path> [--files <path>] \
+  --outcome shipped [--backlog-ref kind/name]
+```
+
+**Required when** the fix was non-trivial: required >15 min of investigation, OR touched >2 files, OR involved a hypothesis that was ruled out (you generated ≥2 hypotheses per §1 — that's the trigger).
+
+**Optional** for one-line trivial fixes (typo, obvious off-by-one).
+
+If you closed a swarm-manager backlog item via `backlog review-decide --accept`, a stub record was auto-created. Fill it with `swarm-manager records edit --id <stub-id> ...` instead of creating a new one.
+
+Records are the write-side of the prior-fix lookup you ran in Phase 0. Skipping this step means the next agent debugging the same class of bug starts from zero.
+
 **Quality bar:** Another engineer should be able to understand:
 - What the bug was
 - Why it happened

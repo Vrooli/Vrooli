@@ -68,8 +68,19 @@ type Fix struct {
 }
 
 // Conflict is the canonical envelope a Detector emits.
+//
+// ID, StableID, InstanceID:
+//   - StableID (v0.2+) is the deterministic content-hash primary key
+//     produced by StableID(). It is stable across runs for the same
+//     underlying drift.
+//   - InstanceID is the per-run UUID preserved from v0.1 so external
+//     systems can dedupe on the prior key during the transition.
+//   - ID is the user-facing alias and equals StableID after the
+//     DetectConflicts pipeline runs.
 type Conflict struct {
 	ID             string
+	StableID       string
+	InstanceID     string
 	Scenario       string
 	Detector       string
 	Type           string

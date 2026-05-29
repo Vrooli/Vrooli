@@ -88,7 +88,10 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	return renderConflictList(ctx, resp.Msg, resp.Msg.GetConflicts(), summary, hint)
 }
 
-// show returns one conflict by id with full evidence + suggested fixes.
+// show returns one conflict by id (the stable_id) with the operator-
+// focused "what / where / why / next" layout. The positional argument
+// accepts either the v0.2 csid: stable_id or the legacy UUID; both
+// resolve via GetConflict.
 func (h *handlers) show(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
 	resp, err := h.client.GetConflict(context.Background(), connect.NewRequest(&conflictsv1.GetConflictRequest{Id: id}))
@@ -99,21 +102,106 @@ func (h *handlers) show(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no conflict")
 	}
 	c := resp.Msg.GetConflict()
-	results := []string{conflictLine(c)}
-	for _, e := range c.GetEvidence() {
-		results = append(results, fmt.Sprintf("  evidence[%s]: %s", e.GetKind(), e.GetSummary()))
+
+	lines := []string{
+		fmt.Sprintf("what     : %s (%s)", c.GetType(), c.GetSubtype()),
+		fmt.Sprintf("severity : %s", severityName(c.GetSeverity())),
+		fmt.Sprintf("status   : %s", statusName(c.GetStatus())),
+		fmt.Sprintf("stable_id: %s", c.GetStableId()),
 	}
-	for _, f := range c.GetSuggestedFixes() {
-		results = append(results, fmt.Sprintf("  fix[%s] via %s: %s (confidence %.2f)",
-			fixKindName(f.GetKind()), f.GetResolver(), f.GetSummary(), f.GetConfidence()))
+	if iid := c.GetInstanceId(); iid != "" {
+		lines = append(lines, fmt.Sprintf("instance : %s (this run)", iid))
+	}
+	if locs := c.GetLocations(); len(locs) > 0 {
+		lines = append(lines, "where    : "+strings.Join(locs, ", "))
+	}
+	if doms := c.GetDomains(); len(doms) > 0 {
+		lines = append(lines, "domains  : "+strings.Join(doms, ", "))
+	}
+	if c.GetSuppressed() {
+		lines = append(lines, fmt.Sprintf("suppress : sanctioned (%s)", c.GetSuppressionReason()))
+	}
+	lines = append(lines, "")
+	lines = append(lines, "why:")
+	for _, e := range c.GetEvidence() {
+		lines = append(lines, fmt.Sprintf("  - [%s] %s", e.GetKind(), e.GetSummary()))
+	}
+	if fixes := c.GetSuggestedFixes(); len(fixes) > 0 {
+		lines = append(lines, "")
+		lines = append(lines, "next:")
+		for _, f := range fixes {
+			lines = append(lines, fmt.Sprintf("  - %s via %s — %s (confidence %.2f)",
+				fixKindName(f.GetKind()), f.GetResolver(), f.GetSummary(), f.GetConfidence()))
+		}
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("Conflict %s (%s).", c.GetId(), statusName(c.GetStatus()))},
 		ResultsHeading: "Detail",
-		Results:        results,
+		Results:        lines,
 		RetrievalHints: []string{
 			fmt.Sprintf("`conflicts assign %s --domain <domain>` to record the owning domain.", c.GetId()),
 			fmt.Sprintf("`conflicts resolve %s` to mark it resolved (add --force to ignore).", c.GetId()),
+		},
+	})
+}
+
+// (The `conflicts explain` subcommand reuses ConflictsService.GetConflict;
+// LoadFromManifest routes both `show` and `explain` to h.show via the
+// shared binding key.)
+
+// explain renders one conflict by stable_id with the operator-focused
+// "what / where / why / next" framing. It calls the same GetConflict
+// RPC as show but lays the response out so the reader does not need to
+// jump between sections to understand a finding.
+func (h *handlers) explain(ctx cliapp.RunContext) error {
+	id := ctx.Positional("stable-id")
+	resp, err := h.client.GetConflict(context.Background(), connect.NewRequest(&conflictsv1.GetConflictRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("explain conflict %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.GetConflict() == nil {
+		return fmt.Errorf("server returned no conflict for stable_id=%q", id)
+	}
+	c := resp.Msg.GetConflict()
+
+	lines := []string{
+		fmt.Sprintf("what     : %s (%s)", c.GetType(), c.GetSubtype()),
+		fmt.Sprintf("severity : %s", severityName(c.GetSeverity())),
+		fmt.Sprintf("status   : %s", statusName(c.GetStatus())),
+		fmt.Sprintf("stable_id: %s", c.GetStableId()),
+	}
+	if iid := c.GetInstanceId(); iid != "" {
+		lines = append(lines, fmt.Sprintf("instance : %s (this run)", iid))
+	}
+	if locs := c.GetLocations(); len(locs) > 0 {
+		lines = append(lines, "where    : "+strings.Join(locs, ", "))
+	}
+	if doms := c.GetDomains(); len(doms) > 0 {
+		lines = append(lines, "domains  : "+strings.Join(doms, ", "))
+	}
+	if c.GetSuppressed() {
+		lines = append(lines, fmt.Sprintf("suppress : sanctioned (%s)", c.GetSuppressionReason()))
+	}
+	lines = append(lines, "")
+	lines = append(lines, "why:")
+	for _, e := range c.GetEvidence() {
+		lines = append(lines, fmt.Sprintf("  - [%s] %s", e.GetKind(), e.GetSummary()))
+	}
+	if fixes := c.GetSuggestedFixes(); len(fixes) > 0 {
+		lines = append(lines, "")
+		lines = append(lines, "next:")
+		for _, f := range fixes {
+			lines = append(lines, fmt.Sprintf("  - %s via %s — %s",
+				fixKindName(f.GetKind()), f.GetResolver(), f.GetSummary()))
+		}
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Explanation for %s.", c.GetStableId())},
+		ResultsHeading: "Conflict",
+		Results:        lines,
+		RetrievalHints: []string{
+			fmt.Sprintf("`conflicts assign %s --domain <domain>` to record the owning domain.", c.GetStableId()),
+			fmt.Sprintf("`conflicts resolve %s` to mark it resolved (add --force to ignore).", c.GetStableId()),
 		},
 	})
 }

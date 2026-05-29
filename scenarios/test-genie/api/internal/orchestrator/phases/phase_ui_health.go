@@ -12,6 +12,8 @@ import (
 
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
+
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
 // UIHealthSummary mirrors the ui-health validation summary so the phase
@@ -86,6 +88,7 @@ func runUIHealthPhase(ctx context.Context, env workspace.Environment, logWriter 
 
 	var summary UIHealthSummary
 	summary.Scenario = env.ScenarioName
+	var archFindings []*architecturev1.ArchitectureFinding
 
 	report := RunPhase(ctx, logWriter, "ui-health",
 		func() (*uiHealthRunResult, error) {
@@ -112,6 +115,7 @@ func runUIHealthPhase(ctx context.Context, env workspace.Environment, logWriter 
 					},
 				}, nil
 			}
+			archFindings = uiHealthArchFindings(env.ScenarioName, rep)
 			return translateUIHealthReport(rep, exitCode), nil
 		},
 		func(r *uiHealthRunResult) PhaseResult[shared.Observation] {
@@ -134,9 +138,28 @@ func runUIHealthPhase(ctx context.Context, env workspace.Environment, logWriter 
 		},
 	)
 
+	report.Findings = archFindings
 	writePhasePointer(env, "ui-health", report, map[string]any{"summary": summary}, logWriter)
 	logPhaseStep(logWriter, "UI-health summary: %s", summary.String())
 	return report
+}
+
+// uiHealthArchFindings maps ui-health findings into the shared
+// ArchitectureFinding contract (source=UI).
+func uiHealthArchFindings(scenario string, rep *uiHealthReport) []*architecturev1.ArchitectureFinding {
+	if rep == nil {
+		return nil
+	}
+	out := make([]*architecturev1.ArchitectureFinding, 0, len(rep.Findings))
+	for _, f := range rep.Findings {
+		out = append(out, newFinding(
+			scenario,
+			architecturev1.FindingSource_FINDING_SOURCE_UI,
+			f.Code, f.Severity, f.Message, f.Suggestion,
+			nonEmptyLocations(f.Location), nil,
+		))
+	}
+	return out
 }
 
 type uiHealthRunResult struct {

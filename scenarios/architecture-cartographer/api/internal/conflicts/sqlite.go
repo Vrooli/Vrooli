@@ -38,10 +38,11 @@ const conflictTimeFormat = time.RFC3339Nano
 const (
 	upsertConflictSQL = `
 INSERT INTO conflicts
-  (id, scenario, detector, type, subtype, severity, status, assigned_domain,
+  (id, instance_id, scenario, detector, type, subtype, severity, status, assigned_domain,
    resolution_note, snapshot_id, payload, detected_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
+  instance_id = excluded.instance_id,
   subtype = excluded.subtype,
   severity = excluded.severity,
   status = excluded.status,
@@ -52,7 +53,7 @@ ON CONFLICT(id) DO UPDATE SET
   updated_at = excluded.updated_at`
 
 	selectConflictByIDSQL = `
-SELECT id, scenario, detector, type, subtype, severity, status, assigned_domain,
+SELECT id, instance_id, scenario, detector, type, subtype, severity, status, assigned_domain,
        resolution_note, snapshot_id, payload, detected_at, updated_at
 FROM conflicts WHERE id = ?`
 
@@ -65,7 +66,7 @@ SET status = ?,
 WHERE id = ?`
 
 	listConflictsSQL = `
-SELECT id, scenario, detector, type, subtype, severity, status, assigned_domain,
+SELECT id, instance_id, scenario, detector, type, subtype, severity, status, assigned_domain,
        resolution_note, snapshot_id, payload, detected_at, updated_at
 FROM conflicts
 WHERE scenario = ?
@@ -84,8 +85,19 @@ type conflictPayload struct {
 }
 
 func (r *sqliteRepository) UpsertConflict(ctx context.Context, c Conflict) (Conflict, error) {
+	// v0.2 identity contract: ID is the deterministic stable_id; the
+	// per-run UUID lives in InstanceID. Detectors don't have to set
+	// either — the service layer (DetectConflicts) does — but callers
+	// who upsert directly (tests, ad-hoc tooling) get the same defaults
+	// here so we never persist a row with an empty primary key.
+	if c.StableID == "" {
+		c.StableID = StableID(c)
+	}
 	if c.ID == "" {
-		c.ID = uuid.NewString()
+		c.ID = c.StableID
+	}
+	if c.InstanceID == "" {
+		c.InstanceID = uuid.NewString()
 	}
 	now := r.clock.Now().UTC()
 	if c.DetectedAt.IsZero() {
@@ -105,7 +117,7 @@ func (r *sqliteRepository) UpsertConflict(ctx context.Context, c Conflict) (Conf
 		return Conflict{}, fmt.Errorf("encode conflict %q payload: %w", c.ID, err)
 	}
 	_, err = r.db.ExecContext(ctx, upsertConflictSQL,
-		c.ID, c.Scenario, c.Detector, c.Type, c.Subtype, string(c.Severity), string(c.Status),
+		c.ID, c.InstanceID, c.Scenario, c.Detector, c.Type, c.Subtype, string(c.Severity), string(c.Status),
 		c.AssignedDomain, c.ResolutionNote, c.SnapshotID, payload,
 		c.DetectedAt.Format(conflictTimeFormat), c.UpdatedAt.Format(conflictTimeFormat),
 	)
@@ -190,12 +202,14 @@ func scanConflict(s rowScanner) (Conflict, error) {
 		updatedAt  string
 	)
 	if err := s.Scan(
-		&c.ID, &c.Scenario, &c.Detector, &c.Type, &c.Subtype, &severity, &status,
+		&c.ID, &c.InstanceID, &c.Scenario, &c.Detector, &c.Type, &c.Subtype, &severity, &status,
 		&c.AssignedDomain, &c.ResolutionNote, &c.SnapshotID, &payload,
 		&detectedAt, &updatedAt,
 	); err != nil {
 		return Conflict{}, err
 	}
+	// The stored primary key IS the stable_id since v0.2.
+	c.StableID = c.ID
 	c.Severity = Severity(severity)
 	c.Status = ResolutionStatus(status)
 	det, err := time.Parse(conflictTimeFormat, detectedAt)

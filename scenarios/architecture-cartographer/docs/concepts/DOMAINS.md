@@ -39,6 +39,7 @@ The parser is header-driven; it reads the `Domain`, `Primary Archetype`,
 | apply | Emit per-domain migration plans and execute file moves + import rewrites with build-green guardrail. | Service / mutation | Migration plans, apply history. | API, CLI, UI | OT-P0-007, OT-P0-008 (MOD-P0-007, MOD-P0-008) | `api/internal/apply/`, `api/handlers/apply/`, `cli/domains/apply/`, `ui/src/features/apply/`, `packages/proto/schemas/architecture-cartographer/v1/apply/` | Plan, Operation, OperationKind, ApplyRun, ApplyStatus, BuildBaseline, BuildGuard, Recipe |
 | analytics | Persist conflict events, resolution outcomes, auto-placement verdicts, overrides, and build deltas; serve history + stats. | Reporting / query | Append-only event log. | API, CLI, UI | OT-P0-009 (MOD-P0-009) | `api/internal/analytics/`, `api/handlers/analytics/`, `cli/domains/analytics/`, `ui/src/features/analytics/`, `packages/proto/schemas/architecture-cartographer/v1/analytics/` | Event, EventKind, Placement, Override, StatsSummary |
 | audit | CI-shaped orchestrator: one call runs graph extract (if needed) → domains derivation → conflicts detection, applies severity / type filters, and returns a deterministic exit-code summary. | Service / orchestration | No product data (pure orchestrator over the graph/domains/conflicts domains). | API, CLI | L5 readiness | `api/internal/audit/`, `api/handlers/audit/`, `cli/domains/audit/`, `packages/proto/schemas/architecture-cartographer/v1/audit/` | Outcome, Report, RunInput, ConflictSummary, DerivedDomainSummary, GraphSummary |
+| migration | Stateful tracker for a scenario's architecture refactor: ingest a normalized findings audit (the shared ArchitectureFinding contract), drive each finding through a lifecycle, hand the agent a prioritized worklist, and reconcile re-audits by stable id (validated / still-open / regressed). The project-plan half of the two-layer model; ingest-only, never runs detection. | Service / orchestration | Migrations and tracked findings (lifecycle state, resolution notes). | API, CLI | Architecture-audit + migration-tracker unification. | `api/internal/migration/`, `api/handlers/migration/`, `cli/domains/migration/`, `packages/proto/schemas/architecture-cartographer/v1/migration/` | Migration, Finding, FindingStatus, MigrationStatus, ReauditResult, Repository, AnalyticsRecorder |
 
 ## Domain Details
 
@@ -238,6 +239,42 @@ The parser is header-driven; it reads the `Domain`, `Primary Archetype`,
 - Tests: unit (filter / threshold / outcome math; intMap; severityRank),
   integration (against the three target scenarios with wall-clock
   budgets per the L5 plan).
+
+### migration
+
+- Purpose: the stateful tracker that handholds an agent through a large
+  screaming-architecture refactor — the workflow that failed on
+  swarm-manager because the surface area outgrew what an agent could
+  track by hand. It ingests a normalized findings audit (the shared
+  `ArchitectureFinding` contract emitted by test-genie), tracks each
+  finding through the conflict lifecycle, hands the agent a prioritized
+  worklist, and on each re-audit reconciles by stable id: findings that
+  vanished become `validated`, findings that persist stay open, and
+  findings that (re)appear are flagged as regressions.
+- Primary archetype: service / orchestration (longitudinal — it is the
+  process half of the two-layer model, not a point-in-time validator).
+- Owns: migrations, tracked findings, lifecycle state, and resolution
+  notes (the `migrations` + `migration_findings` tables).
+- Does not own: detection. The tracker NEVER runs detectors and never
+  calls test-genie or the health CLIs — findings arrive only by ingest
+  (push), so there is no detection↔tracking cycle. Reconciliation keys on
+  the `afid` stable id computed by the shared
+  `packages/proto/architecture/findingid` helper, so a finding matches
+  across the test-genie→cartographer boundary.
+- API: `api/internal/migration/`, `api/handlers/migration/` —
+  `MigrationService` (CreateMigration, GetMigrationStatus,
+  NextMigrationStep, ResolveFinding, ApplyFinding, ReauditMigration,
+  CloseMigration).
+- CLI: `cli/domains/migration/` — `arch-cart migration
+  {create,status,next,resolve,apply,reaudit,close}`. `create`/`reaudit`
+  take `--from-audit <file|->`, a test-genie `--json` SuiteExecutionResult.
+- UI: deferred to a follow-up (greenfield rule forbids a placeholder
+  page; the migration UI is a separate cut).
+- Storage: SQLite (`migrations`, `migration_findings`); reconciliation
+  primary key is `(migration_id, stable_id)`.
+- Tests: unit (ingest / reconcile / regression-detection / worklist
+  ordering / cosmetic-stable reconciliation), plus a live create → next →
+  resolve → reaudit → close loop.
 
 ## Shared Concepts
 

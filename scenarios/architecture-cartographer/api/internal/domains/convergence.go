@@ -119,6 +119,14 @@ func Convergence(m DerivedDomainMap) []ConvergenceFinding {
 		}
 		if len(cli) > 0 {
 			if _, ok := cli[name]; !ok {
+				if isCLICoreBuiltinDomain(name) {
+					// Scoped FP: cli-core ships built-in groups for these
+					// domains (status, version, help). A scenario that
+					// declares them as domains intentionally inherits the
+					// cli-core implementation — flagging it as missing was
+					// the L5-readiness investigation's known FP.
+					continue
+				}
 				out = append(out, ConvergenceFinding{
 					Kind:     FindingMissingCLIGroup,
 					Domain:   name,
@@ -172,6 +180,23 @@ func Convergence(m DerivedDomainMap) []ConvergenceFinding {
 		return out[i].Domain < out[j].Domain
 	})
 	return out
+}
+
+// cliCoreBuiltinDomains is the set of domain names that cli-core ships
+// command groups for out-of-the-box. A scenario that declares such a
+// domain but has no per-scenario manifest entry intentionally inherits
+// the cli-core implementation — that's not drift. Keep this list narrow;
+// adding a name silences a real warn-equivalent signal.
+var cliCoreBuiltinDomains = map[string]struct{}{
+	"health":  {},
+	"status":  {},
+	"version": {},
+	"help":    {},
+}
+
+func isCLICoreBuiltinDomain(name string) bool {
+	_, ok := cliCoreBuiltinDomains[name]
+	return ok
 }
 
 // rollupInfoFindings merges info-severity findings of the same Kind into

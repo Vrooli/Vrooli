@@ -92,6 +92,14 @@ func Resolve(scenario string, extractions []Extraction, derivedAt time.Time) (De
 		}
 	}
 
+	// Forward extractor warnings (e.g. DOMAINS.md row drops) so the
+	// audit pipeline can surface them as parse-warning conflicts.
+	for _, ex := range extractions {
+		if len(ex.Warnings) > 0 {
+			m.Warnings = append(m.Warnings, ex.Warnings...)
+		}
+	}
+
 	// Per-source declarations, in trust order.
 	for i, ex := range extractions {
 		names := make([]string, 0, len(ex.Domains))

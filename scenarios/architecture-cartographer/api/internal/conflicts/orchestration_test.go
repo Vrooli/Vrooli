@@ -40,9 +40,11 @@ func (f *fakeRecorder) kinds() []string {
 
 func TestService_DetectConflicts_EmitsAnalyticsPerConflict(t *testing.T) {
 	repo := &mocks.FakeRepository{}
+	// Locations differ so DetectConflicts' stable_id dedupe pass treats
+	// them as two distinct drifts (identical drifts collapse to one row).
 	det := &mocks.FakeDetector{NameValue: "cycle", Conflicts: []conflicts.Conflict{
-		{Type: "cycle", Severity: conflicts.SeverityError},
-		{Type: "cycle", Severity: conflicts.SeverityError},
+		{Type: "cycle", Severity: conflicts.SeverityError, Locations: []string{"a"}},
+		{Type: "cycle", Severity: conflicts.SeverityError, Locations: []string{"b"}},
 	}}
 	rec := &fakeRecorder{}
 	svc := conflicts.NewServiceWithAnalytics(repo, conflicts.NewRegistry(det), conflicts.NewResolverRegistry(), rec)

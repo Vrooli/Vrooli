@@ -70,26 +70,35 @@ func (e *DomainsDocExtractor) Extract(_ context.Context, scenarioDir string) (Ex
 func (e *DomainsDocExtractor) parse(content string) (Extraction, error) {
 	out := Extraction{Source: SourceDomainsDoc}
 
-	domains, err := parseDomainInventory(content)
+	domains, warns, err := parseDomainInventory(content)
 	if err != nil {
 		return Extraction{}, err
 	}
 	out.Domains = domains
+	out.Warnings = warns
 	out.SharedSubstrate, out.NonDomains = parseNonDomains(content)
 	return out, nil
 }
 
 // parseDomainInventory finds the "## Domain Inventory" section and parses
 // its markdown table by header name.
-func parseDomainInventory(content string) ([]ExtractedDomain, error) {
+//
+// Returns the parsed domains plus a list of non-fatal warnings (rows
+// skipped for structural reasons). The caller propagates warnings up to
+// the audit pipeline so the operator sees what was silently dropped
+// rather than guessing why a domain count looks off.
+func parseDomainInventory(content string) ([]ExtractedDomain, []ExtractionWarning, error) {
 	section, ok := sectionBody(content, "Domain Inventory")
 	if !ok {
-		return nil, fmt.Errorf("%s: missing '## Domain Inventory' section", DomainsDocPath)
+		return nil, nil, fmt.Errorf("%s: missing '## Domain Inventory' section", DomainsDocPath)
 	}
 
 	var headerCells []string
 	headerSeen := false
+	expectedCols := 0
 	var domains []ExtractedDomain
+	var warns []ExtractionWarning
+	lineNo := 0
 	var (
 		idxDomain    = -1
 		idxArchetype = -1
@@ -100,6 +109,7 @@ func parseDomainInventory(content string) ([]ExtractedDomain, error) {
 	sc := bufio.NewScanner(strings.NewReader(section))
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for sc.Scan() {
+		lineNo++
 		line := strings.TrimSpace(sc.Text())
 		if !strings.HasPrefix(line, "|") {
 			if headerSeen {
@@ -113,6 +123,7 @@ func parseDomainInventory(content string) ([]ExtractedDomain, error) {
 		}
 		if !headerSeen {
 			headerCells = cells
+			expectedCols = len(headerCells)
 			idxDomain = headerIndex(headerCells, func(h string) bool { return h == "domain" })
 			idxArchetype = headerIndex(headerCells, func(h string) bool {
 				return strings.Contains(h, "archetype")
@@ -122,14 +133,29 @@ func parseDomainInventory(content string) ([]ExtractedDomain, error) {
 			})
 			idxGlossary = headerIndex(headerCells, func(h string) bool { return h == "glossary" })
 			if idxDomain < 0 || idxPaths < 0 {
-				return nil, fmt.Errorf("%s: Domain Inventory table must have 'Domain' and 'Source Paths' columns", DomainsDocPath)
+				return nil, nil, fmt.Errorf("%s: Domain Inventory table must have 'Domain' and 'Source Paths' columns", DomainsDocPath)
 			}
 			headerSeen = true
 			continue
 		}
 
+		if expectedCols > 0 && len(cells) != expectedCols {
+			warns = append(warns, ExtractionWarning{
+				Kind:    "domains_doc.row_shape",
+				Path:    DomainsDocPath,
+				Line:    lineNo,
+				Summary: fmt.Sprintf("row has %d columns, header has %d — skipped", len(cells), expectedCols),
+			})
+			continue
+		}
 		name := strings.TrimSpace(cell(cells, idxDomain))
 		if name == "" {
+			warns = append(warns, ExtractionWarning{
+				Kind:    "domains_doc.empty_name",
+				Path:    DomainsDocPath,
+				Line:    lineNo,
+				Summary: "row has empty Domain cell — skipped",
+			})
 			continue
 		}
 		d := ExtractedDomain{
@@ -139,19 +165,25 @@ func parseDomainInventory(content string) ([]ExtractedDomain, error) {
 			Glossary:  parseTermList(cell(cells, idxGlossary)),
 		}
 		if len(d.Paths) == 0 {
-			return nil, fmt.Errorf("%s: domain %q declares no source paths", DomainsDocPath, name)
+			warns = append(warns, ExtractionWarning{
+				Kind:    "domains_doc.no_paths",
+				Path:    DomainsDocPath,
+				Line:    lineNo,
+				Summary: fmt.Sprintf("domain %q declares no source paths — skipped", name),
+			})
+			continue
 		}
 		domains = append(domains, d)
 	}
 	if err := sc.Err(); err != nil {
-		return nil, fmt.Errorf("%s: scan Domain Inventory: %w", DomainsDocPath, err)
+		return nil, nil, fmt.Errorf("%s: scan Domain Inventory: %w", DomainsDocPath, err)
 	}
 	if !headerSeen {
-		return nil, fmt.Errorf("%s: Domain Inventory section has no table", DomainsDocPath)
+		return nil, nil, fmt.Errorf("%s: Domain Inventory section has no table", DomainsDocPath)
 	}
 
 	sort.Slice(domains, func(i, j int) bool { return domains[i].Name < domains[j].Name })
-	return domains, nil
+	return domains, warns, nil
 }
 
 // parseNonDomains finds the "## Non-Domains" section and extracts the

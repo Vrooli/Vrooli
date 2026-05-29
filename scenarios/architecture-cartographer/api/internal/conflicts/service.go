@@ -8,7 +8,35 @@ import (
 	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/suppressions"
+
+	"github.com/google/uuid"
 )
+
+// assignStableIDs canonicalizes the identity contract on the detector
+// outputs before they reach the repository: ID == StableID (deterministic
+// content hash) so ON CONFLICT(id) dedupes across runs; InstanceID is a
+// fresh UUID per run for log correlation. Multiple detector emissions
+// that hash to the same stable_id within one run collapse to the first,
+// preserving evidence order.
+func assignStableIDs(in []Conflict) []Conflict {
+	seen := make(map[string]struct{}, len(in))
+	out := make([]Conflict, 0, len(in))
+	for _, c := range in {
+		if c.StableID == "" {
+			c.StableID = StableID(c)
+		}
+		c.ID = c.StableID
+		if c.InstanceID == "" {
+			c.InstanceID = uuid.NewString()
+		}
+		if _, dup := seen[c.StableID]; dup {
+			continue
+		}
+		seen[c.StableID] = struct{}{}
+		out = append(out, c)
+	}
+	return out
+}
 
 // Service is the application-layer surface for conflict operations.
 type Service interface {
@@ -97,6 +125,10 @@ func (s *service) DetectConflicts(ctx context.Context, in DetectOrchestrationInp
 	// Mark conflicts sanctioned by active in-repo markers before persisting,
 	// so the suppressed-with-reason state is durable and visible everywhere.
 	conflicts = applySuppressions(conflicts, in.Suppressions, in.DomainMap)
+	// Assign deterministic stable_id (and a per-run instance_id) so two
+	// runs that detect the same underlying drift collapse onto the same
+	// row, and so external callers can dedupe across runs.
+	conflicts = assignStableIDs(conflicts)
 	persisted, err := s.UpsertConflicts(ctx, scenario, conflicts)
 	if err != nil {
 		return nil, err

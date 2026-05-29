@@ -20,6 +20,59 @@ Optional context:
 
 ---
 
+### 0. Programmatic Validation — run this first
+
+Before the manual audit workflow below, take a **photograph** of the scenario's
+architecture with one command. This is the L5 ("programmatic drift checks") rung
+of the maturity model — let the substrate find the drift so your manual pass
+focuses on judgment, not discovery:
+
+```bash
+test-genie execute {{TARGET}} --preset architecture-audit --json > audit.json
+```
+
+The `architecture-audit` preset runs the per-surface conformance battery
+(`structure`, `contracts`, `ui-health`, `docs`, `standards`) **plus** the
+`architecture` phase, which delegates to architecture-cartographer for structural
+cohesion (import cycles, coupling, convergence drift, mislocated files). Every
+finding is normalized into one `ArchitectureFinding` shape with a stable id.
+
+**When the audit nudges: open a tracked migration.** When the finding load
+exceeds what one pass can responsibly fix, the audit output appends a migration
+recommendation. Do not whack-a-mole a large refactor by hand — that is exactly
+the failure mode (the surface area outgrows what you can track). Hand it to the
+tracker, which sequences the work and reconciles each re-audit by stable id:
+
+```bash
+# Ingest the photograph
+architecture-cartographer migration create {{TARGET}} --from-audit audit.json
+
+# Get the prioritized worklist (regressions first, then cycles, then severity —
+# cycles block dependent moves, so they lead)
+architecture-cartographer migration next <migration-id>
+
+# Fix a finding, then mark it off (the agent fixes by hand; the tracker records it)
+architecture-cartographer migration resolve <migration-id> --finding <afid> --note "what you did"
+
+# Re-audit and reconcile: gone → validated, persists → open, (re)appeared → REGRESSION
+test-genie execute {{TARGET}} --preset architecture-audit --json > audit-2.json
+architecture-cartographer migration reaudit <migration-id> --from-audit audit-2.json
+
+# Repeat next→fix→reaudit until clean, then close
+architecture-cartographer migration status <migration-id>
+architecture-cartographer migration close <migration-id>
+```
+
+A re-audit that flags a **regression** means your fix introduced a new problem
+(or a "resolved" finding came back) — handle those first. The doctrine behind
+this loop — the four validation responsibilities and the test-genie↔cartographer
+seam — is in `docs/reference/architecture-validation-responsibilities.md`.
+
+The manual workflow below is how you reason about and execute each finding's fix;
+the audit + tracker are how you discover the work and never lose track of it.
+
+---
+
 ### 1. Scope Boundaries
 
 **In scope:**

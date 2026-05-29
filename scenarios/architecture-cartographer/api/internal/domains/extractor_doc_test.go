@@ -114,10 +114,18 @@ func TestDomainsDocExtractor_Errors(t *testing.T) {
 		}
 	})
 	t.Run("domain with no paths", func(t *testing.T) {
+		// Per L5-readiness Phase 3: a row with no source paths is now a
+		// non-fatal warning (skipped + reported), not a hard error.
 		doc := "## Domain Inventory\n\n| Domain | Source Paths |\n|---|---|\n| graph |  |\n"
-		_, err := e.parse(doc)
-		if err == nil || !strings.Contains(err.Error(), "no source paths") {
-			t.Fatalf("want no-paths error, got %v", err)
+		ex, err := e.parse(doc)
+		if err != nil {
+			t.Fatalf("want nil err with warning, got %v", err)
+		}
+		if len(ex.Domains) != 0 {
+			t.Fatalf("want empty domains, got %d", len(ex.Domains))
+		}
+		if len(ex.Warnings) != 1 || ex.Warnings[0].Kind != "domains_doc.no_paths" {
+			t.Fatalf("want one no_paths warning, got %+v", ex.Warnings)
 		}
 	})
 }

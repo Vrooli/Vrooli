@@ -12,6 +12,8 @@ import (
 
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
+
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
 // ContractsSummary mirrors the cli-health validation summary so the phase
@@ -92,6 +94,7 @@ func runContractsPhase(ctx context.Context, env workspace.Environment, logWriter
 
 	var summary ContractsSummary
 	summary.Scenario = env.ScenarioName
+	var archFindings []*architecturev1.ArchitectureFinding
 
 	report := RunPhase(ctx, logWriter, "contracts",
 		func() (*contractsRunResult, error) {
@@ -118,6 +121,7 @@ func runContractsPhase(ctx context.Context, env workspace.Environment, logWriter
 					},
 				}, nil
 			}
+			archFindings = contractsArchFindings(env.ScenarioName, rep)
 			return translateContractsReport(rep, exitCode), nil
 		},
 		func(r *contractsRunResult) PhaseResult[shared.Observation] {
@@ -140,9 +144,30 @@ func runContractsPhase(ctx context.Context, env workspace.Environment, logWriter
 		},
 	)
 
+	report.Findings = archFindings
 	writePhasePointer(env, "contracts", report, map[string]any{"summary": summary}, logWriter)
 	logPhaseStep(logWriter, "Contracts summary: %s", summary.String())
 	return report
+}
+
+// contractsArchFindings maps cli-health findings into the shared
+// ArchitectureFinding contract (source=CLI). Each finding's single
+// Location becomes the locations slice; cli-health findings carry no
+// domains.
+func contractsArchFindings(scenario string, rep *cliHealthReport) []*architecturev1.ArchitectureFinding {
+	if rep == nil {
+		return nil
+	}
+	out := make([]*architecturev1.ArchitectureFinding, 0, len(rep.Findings))
+	for _, f := range rep.Findings {
+		out = append(out, newFinding(
+			scenario,
+			architecturev1.FindingSource_FINDING_SOURCE_CLI,
+			f.Code, f.Severity, f.Message, f.Suggestion,
+			nonEmptyLocations(f.Location), nil,
+		))
+	}
+	return out
 }
 
 type contractsRunResult struct {

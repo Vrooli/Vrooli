@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -57,13 +58,15 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	}
 	includeTypes := splitCSV(ctx.Flag("include-types"))
 	excludeTypes := splitCSV(ctx.Flag("exclude-types"))
-	asJSON := ctx.Flag("json") != ""
+	asJSON := ctx.JSON()
+	allowLow := ctx.BoolFlag("allow-low-authority")
 
 	resp, err := h.client.Run(context.Background(), connect.NewRequest(&auditv1.AuditRunRequest{
-		Scenario:     scenario,
-		FailOn:       failOn,
-		IncludeTypes: includeTypes,
-		ExcludeTypes: excludeTypes,
+		Scenario:          scenario,
+		FailOn:            failOn,
+		IncludeTypes:      includeTypes,
+		ExcludeTypes:      excludeTypes,
+		AllowLowAuthority: allowLow,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("audit %q", scenario), err, nil)
@@ -82,6 +85,142 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 
 	os.Exit(exitCodeFor(msg.GetOutcome()))
 	return nil // unreachable
+}
+
+// runAll executes a multi-scenario sweep. Exit codes:
+//
+//	0 — every scenario clean.
+//	1 — at least one scenario reported findings.
+//	2 — at least one scenario reported tool_error (and none reported findings).
+//	3 — invalid flag value (handled before the RPC call).
+func (h *handlers) runAll(ctx cliapp.RunContext) error {
+	failOnStr := strings.ToLower(strings.TrimSpace(ctx.Flag("fail-on")))
+	failOn, ok := parseFailOn(failOnStr)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "audit run-all: invalid --fail-on=%q (want info|warn|error|blocker)\n", failOnStr)
+		os.Exit(ExitUsageError)
+	}
+	concurrency := 0
+	if v := strings.TrimSpace(ctx.Flag("concurrency")); v != "" {
+		if _, err := fmt.Sscanf(v, "%d", &concurrency); err != nil || concurrency < 0 {
+			fmt.Fprintf(os.Stderr, "audit run-all: invalid --concurrency=%q\n", v)
+			os.Exit(ExitUsageError)
+		}
+	}
+	asJSON := ctx.JSON()
+	allowLow := ctx.BoolFlag("allow-low-authority")
+
+	resp, err := h.client.RunAll(context.Background(), connect.NewRequest(&auditv1.AuditRunAllRequest{
+		FailOn:            failOn,
+		IncludeTypes:      splitCSV(ctx.Flag("include-types")),
+		ExcludeTypes:      splitCSV(ctx.Flag("exclude-types")),
+		IncludeScenarios:  splitCSV(ctx.Flag("include-scenarios")),
+		ExcludeScenarios:  splitCSV(ctx.Flag("exclude-scenarios")),
+		AllowLowAuthority: allowLow,
+		Concurrency:       int32(concurrency),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("audit run-all", err, nil)
+	}
+	msg := resp.Msg
+
+	if asJSON {
+		out, mErr := json.MarshalIndent(sweepJSON(msg), "", "  ")
+		if mErr != nil {
+			return fmt.Errorf("marshal sweep: %w", mErr)
+		}
+		fmt.Println(string(out))
+	} else {
+		renderSweepHuman(msg)
+	}
+
+	os.Exit(sweepExitCode(msg))
+	return nil
+}
+
+func sweepExitCode(msg *auditv1.AuditRunAllResponse) int {
+	hasFindings := false
+	hasTool := false
+	for _, r := range msg.GetReports() {
+		switch r.GetOutcome() {
+		case auditv1.AuditOutcome_AUDIT_OUTCOME_FINDINGS:
+			hasFindings = true
+		case auditv1.AuditOutcome_AUDIT_OUTCOME_TOOL_ERROR:
+			hasTool = true
+		}
+	}
+	if hasFindings {
+		return ExitFindings
+	}
+	if hasTool {
+		return ExitToolError
+	}
+	return ExitClean
+}
+
+func renderSweepHuman(msg *auditv1.AuditRunAllResponse) {
+	fmt.Printf("Sweep — scenarios=%d findings=%d suppressed=%d duration=%s\n",
+		msg.GetTotalScenarios(), msg.GetTotalFindings(), msg.GetTotalSuppressed(),
+		msg.GetDuration().AsDuration())
+	if bo := msg.GetByOutcome(); len(bo) > 0 {
+		fmt.Print("  by outcome:")
+		for _, k := range []string{"clean", "findings", "tool_error"} {
+			if c := bo[k]; c > 0 {
+				fmt.Printf(" %s=%d", k, c)
+			}
+		}
+		fmt.Println()
+	}
+	if bs := msg.GetBySeverity(); len(bs) > 0 {
+		fmt.Print("  by severity:")
+		for _, sev := range []string{"blocker", "error", "warn", "info"} {
+			if c := bs[sev]; c > 0 {
+				fmt.Printf(" %s=%d", sev, c)
+			}
+		}
+		fmt.Println()
+	}
+	for _, r := range msg.GetReports() {
+		marker := ""
+		switch r.GetOutcome() {
+		case auditv1.AuditOutcome_AUDIT_OUTCOME_FINDINGS:
+			marker = "✗"
+		case auditv1.AuditOutcome_AUDIT_OUTCOME_TOOL_ERROR:
+			marker = "!"
+		default:
+			marker = "✓"
+		}
+		fmt.Printf("  %s %s outcome=%s findings=%d\n",
+			marker, r.GetScenario(), outcomeName(r.GetOutcome()), r.GetTotalFindings())
+		if r.GetError() != "" {
+			fmt.Printf("      error: %s\n", r.GetError())
+		}
+	}
+}
+
+type sweepJSONT struct {
+	TotalScenarios  int32            `json:"total_scenarios"`
+	TotalFindings   int32            `json:"total_findings"`
+	TotalSuppressed int32            `json:"total_suppressed,omitempty"`
+	BySeverity      map[string]int32 `json:"by_severity,omitempty"`
+	ByOutcome       map[string]int32 `json:"by_outcome,omitempty"`
+	DurationMS      int64            `json:"duration_ms"`
+	Reports         []jsonReportT    `json:"reports,omitempty"`
+}
+
+func sweepJSON(msg *auditv1.AuditRunAllResponse) sweepJSONT {
+	out := sweepJSONT{
+		TotalScenarios:  msg.GetTotalScenarios(),
+		TotalFindings:   msg.GetTotalFindings(),
+		TotalSuppressed: msg.GetTotalSuppressed(),
+		BySeverity:      msg.GetBySeverity(),
+		ByOutcome:       msg.GetByOutcome(),
+		DurationMS:      msg.GetDuration().AsDuration().Milliseconds(),
+	}
+	for _, r := range msg.GetReports() {
+		out.Reports = append(out.Reports, jsonReport(r))
+	}
+	return out
 }
 
 func exitCodeFor(o auditv1.AuditOutcome) int {
@@ -130,16 +269,23 @@ func splitCSV(in string) []string {
 func renderHuman(msg *auditv1.AuditRunResponse) {
 	fmt.Printf("Audit %s — outcome=%s findings=%d duration=%s\n",
 		msg.GetScenario(), outcomeName(msg.GetOutcome()), msg.GetTotalFindings(), msg.GetDuration().AsDuration())
+	if reason := msg.GetOutcomeReason(); reason != "" {
+		fmt.Printf("  reason: %s\n", reason)
+	}
 	if msg.GetError() != "" {
 		fmt.Printf("  error: %s\n", msg.GetError())
 		return
 	}
 	g := msg.GetGraph()
 	d := msg.GetDomains()
-	fmt.Printf("  graph: snapshot=%s files=%d packages=%d imports=%d\n",
-		g.GetSnapshotId(), g.GetFileCount(), g.GetPackageCount(), g.GetImportEdgeCount())
+	fmt.Printf("  graph: snapshot=%s files=%d packages=%d imports=%d freshness=%s\n",
+		g.GetSnapshotId(), g.GetFileCount(), g.GetPackageCount(), g.GetImportEdgeCount(),
+		freshnessName(msg.GetSnapshotFreshness()))
 	fmt.Printf("  domains: authority=%s confidence=%s count=%d\n",
 		d.GetAuthority(), d.GetConfidence(), d.GetDomainCount())
+	if s := msg.GetSuppressedFindings(); s > 0 {
+		fmt.Printf("  suppressed: %d (sanctioned by // arch:allow)\n", s)
+	}
 	if len(msg.GetBySeverity()) > 0 {
 		fmt.Print("  by severity:")
 		for _, sev := range []string{"blocker", "error", "warn", "info"} {
@@ -149,8 +295,37 @@ func renderHuman(msg *auditv1.AuditRunResponse) {
 		}
 		fmt.Println()
 	}
+	if bd := msg.GetByDomain(); len(bd) > 0 {
+		fmt.Print("  by domain:")
+		keys := make([]string, 0, len(bd))
+		for k := range bd {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Printf(" %s=%d", k, bd[k])
+		}
+		fmt.Println()
+	}
 	for _, f := range msg.GetFindings() {
-		fmt.Printf("  [%s] %s — %s\n", severityName(f.GetSeverity()), f.GetType(), f.GetHeadline())
+		sid := f.GetStableId()
+		if sid == "" {
+			sid = f.GetId()
+		}
+		fmt.Printf("  [%s] %s %s — %s\n", severityName(f.GetSeverity()), sid, f.GetType(), f.GetHeadline())
+	}
+}
+
+func freshnessName(f auditv1.SnapshotFreshness) string {
+	switch f {
+	case auditv1.SnapshotFreshness_SNAPSHOT_FRESHNESS_CACHED:
+		return "cached"
+	case auditv1.SnapshotFreshness_SNAPSHOT_FRESHNESS_RE_EXTRACTED:
+		return "re-extracted"
+	case auditv1.SnapshotFreshness_SNAPSHOT_FRESHNESS_FRESH:
+		return "fresh"
+	default:
+		return "unspecified"
 	}
 }
 
@@ -186,38 +361,48 @@ func severityName(s conflictsv1.Severity) string {
 // for --json consumers (CI pipelines, scripts). Avoids leaking proto
 // camelCase field names by hand-mapping the user-visible shape.
 type jsonReportT struct {
-	Scenario      string           `json:"scenario"`
-	Outcome       string           `json:"outcome"`
-	Error         string           `json:"error,omitempty"`
-	TotalFindings int32            `json:"total_findings"`
-	BySeverity    map[string]int32 `json:"by_severity,omitempty"`
-	ByType        map[string]int32 `json:"by_type,omitempty"`
-	Findings      []jsonFinding    `json:"findings,omitempty"`
-	Domains       map[string]any   `json:"domains"`
-	Graph         map[string]any   `json:"graph"`
-	DurationMS    int64            `json:"duration_ms"`
+	Scenario           string           `json:"scenario"`
+	Outcome            string           `json:"outcome"`
+	OutcomeReason      string           `json:"outcome_reason,omitempty"`
+	Error              string           `json:"error,omitempty"`
+	TotalFindings      int32            `json:"total_findings"`
+	SuppressedFindings int32            `json:"suppressed_findings,omitempty"`
+	SnapshotFreshness  string           `json:"snapshot_freshness,omitempty"`
+	BySeverity         map[string]int32 `json:"by_severity,omitempty"`
+	ByType             map[string]int32 `json:"by_type,omitempty"`
+	ByDomain           map[string]int32 `json:"by_domain,omitempty"`
+	Findings           []jsonFinding    `json:"findings,omitempty"`
+	Domains            map[string]any   `json:"domains"`
+	Graph              map[string]any   `json:"graph"`
+	DurationMS         int64            `json:"duration_ms"`
 }
 
 type jsonFinding struct {
-	ID        string   `json:"id"`
-	Detector  string   `json:"detector"`
-	Type      string   `json:"type"`
-	Subtype   string   `json:"subtype,omitempty"`
-	Severity  string   `json:"severity"`
-	Locations []string `json:"locations,omitempty"`
-	Domains   []string `json:"domains,omitempty"`
-	Headline  string   `json:"headline"`
+	ID         string   `json:"id"`
+	StableID   string   `json:"stable_id,omitempty"`
+	InstanceID string   `json:"instance_id,omitempty"`
+	Detector   string   `json:"detector"`
+	Type       string   `json:"type"`
+	Subtype    string   `json:"subtype,omitempty"`
+	Severity   string   `json:"severity"`
+	Locations  []string `json:"locations,omitempty"`
+	Domains    []string `json:"domains,omitempty"`
+	Headline   string   `json:"headline"`
 }
 
 func jsonReport(msg *auditv1.AuditRunResponse) jsonReportT {
 	out := jsonReportT{
-		Scenario:      msg.GetScenario(),
-		Outcome:       outcomeName(msg.GetOutcome()),
-		Error:         msg.GetError(),
-		TotalFindings: msg.GetTotalFindings(),
-		BySeverity:    msg.GetBySeverity(),
-		ByType:        msg.GetByType(),
-		DurationMS:    msg.GetDuration().AsDuration().Milliseconds(),
+		Scenario:           msg.GetScenario(),
+		Outcome:            outcomeName(msg.GetOutcome()),
+		OutcomeReason:      msg.GetOutcomeReason(),
+		Error:              msg.GetError(),
+		TotalFindings:      msg.GetTotalFindings(),
+		SuppressedFindings: msg.GetSuppressedFindings(),
+		SnapshotFreshness:  freshnessName(msg.GetSnapshotFreshness()),
+		BySeverity:         msg.GetBySeverity(),
+		ByType:             msg.GetByType(),
+		ByDomain:           msg.GetByDomain(),
+		DurationMS:         msg.GetDuration().AsDuration().Milliseconds(),
 		Domains: map[string]any{
 			"authority":    msg.GetDomains().GetAuthority(),
 			"confidence":   msg.GetDomains().GetConfidence(),
@@ -232,14 +417,16 @@ func jsonReport(msg *auditv1.AuditRunResponse) jsonReportT {
 	}
 	for _, f := range msg.GetFindings() {
 		out.Findings = append(out.Findings, jsonFinding{
-			ID:        f.GetId(),
-			Detector:  f.GetDetector(),
-			Type:      f.GetType(),
-			Subtype:   f.GetSubtype(),
-			Severity:  severityName(f.GetSeverity()),
-			Locations: f.GetLocations(),
-			Domains:   f.GetDomains(),
-			Headline:  f.GetHeadline(),
+			ID:         f.GetId(),
+			StableID:   f.GetStableId(),
+			InstanceID: f.GetInstanceId(),
+			Detector:   f.GetDetector(),
+			Type:       f.GetType(),
+			Subtype:    f.GetSubtype(),
+			Severity:   severityName(f.GetSeverity()),
+			Locations:  f.GetLocations(),
+			Domains:    f.GetDomains(),
+			Headline:   f.GetHeadline(),
 		})
 	}
 	return out

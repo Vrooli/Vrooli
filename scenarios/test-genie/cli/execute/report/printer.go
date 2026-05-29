@@ -86,6 +86,7 @@ func (p *Printer) Print(resp execTypes.Response) {
 	p.printDebugGuides(resp.Phases)
 	p.printArtifacts(resp)
 	p.printDocs(resp.Phases)
+	p.printMigrationNudge(resp)
 }
 
 // PrintPreExecution prints the header and test plan BEFORE the API call starts.
@@ -137,6 +138,42 @@ func (p *Printer) PrintResults(resp execTypes.Response) {
 	p.printDebugGuides(resp.Phases)
 	p.printArtifacts(resp)
 	p.printDocs(resp.Phases)
+	p.printMigrationNudge(resp)
+}
+
+// printMigrationNudge renders the architecture migration steer when the
+// finding load exceeded the single-pass threshold. No-op otherwise.
+func (p *Printer) printMigrationNudge(resp execTypes.Response) {
+	n := resp.MigrationNudge
+	if n == nil {
+		return
+	}
+	fmt.Fprintln(p.w)
+	fmt.Fprintln(p.w, p.color.Bold("⚠️  Migration recommended"))
+	fmt.Fprintf(p.w, "   %s\n", n.Reason)
+	if len(n.BySeverity) > 0 {
+		order := []string{"blocker", "error", "warn", "info", "unspecified"}
+		var parts []string
+		seen := map[string]struct{}{}
+		for _, name := range order {
+			if c, ok := n.BySeverity[name]; ok && c > 0 {
+				parts = append(parts, fmt.Sprintf("%s=%d", name, c))
+				seen[name] = struct{}{}
+			}
+		}
+		var extra []string
+		for name, c := range n.BySeverity {
+			if _, ok := seen[name]; ok || c <= 0 {
+				continue
+			}
+			extra = append(extra, fmt.Sprintf("%s=%d", name, c))
+		}
+		sort.Strings(extra)
+		parts = append(parts, extra...)
+		fmt.Fprintf(p.w, "   findings: %s\n", strings.Join(parts, " "))
+	}
+	fmt.Fprintln(p.w, "   Save this run's --json output, then:")
+	fmt.Fprintf(p.w, "   %s\n", p.color.Cyan(n.Command))
 }
 
 func (p *Printer) printPreHeader(phaseNames []string) {
