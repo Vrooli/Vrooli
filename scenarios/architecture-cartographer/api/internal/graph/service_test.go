@@ -176,3 +176,58 @@ func TestSnapshotClone_DoesNotAlias(t *testing.T) {
 		t.Fatal("Clone aliased the underlying slice")
 	}
 }
+
+// TestService_ExtractGraph_SkipTSRecordsSkippedAdapter asserts the
+// --skip-ts seam: when ExtractGraphInput.SkipTS is true, the TS adapter
+// is dropped before extraction and its name appears in
+// snapshot.SkippedAdapters so the audit layer can mark partial.
+func TestService_ExtractGraph_SkipTSRecordsSkippedAdapter(t *testing.T) {
+	repo := &mocks.FakeRepository{}
+	ts := &mocks.FakeCodeGraphAdapter{
+		NameValue:      "typescript",
+		LanguagesValue: []graph.Language{graph.LanguageTypeScript},
+		// Should NOT be called when SkipTS=true; an error here would
+		// indicate the skip didn't happen.
+		ExtractErr: graph.IntegrationError{Kind: "invalid_argument", Scenario: "typescript-code-graph"},
+	}
+	goSide := newAdapter(graph.LanguageGo, graph.RawGraph{
+		Languages: []graph.Language{graph.LanguageGo},
+		Packages:  []graph.PackageNode{{ID: "pkg:demo", ImportPath: "demo", Language: graph.LanguageGo}},
+	})
+	svc := graph.NewService(repo, newClock(), ts, goSide)
+
+	snap, _, err := svc.ExtractGraph(context.Background(), graph.ExtractGraphInput{Scenario: "demo", SkipTS: true})
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if len(snap.SkippedAdapters) != 1 || snap.SkippedAdapters[0] != "typescript" {
+		t.Fatalf("want SkippedAdapters=[typescript], got %v", snap.SkippedAdapters)
+	}
+}
+
+// TestService_ExtractGraph_UnimplementedDegradesGracefully proves an
+// adapter returning IntegrationError{Kind:"unimplemented"} (the tscg
+// workspace_unsupported signal) is dropped silently and recorded in
+// SkippedAdapters — the audit then maps to outcome=partial instead of
+// tool_error.
+func TestService_ExtractGraph_UnimplementedDegradesGracefully(t *testing.T) {
+	repo := &mocks.FakeRepository{}
+	ts := &mocks.FakeCodeGraphAdapter{
+		NameValue:      "typescript",
+		LanguagesValue: []graph.Language{graph.LanguageTypeScript},
+		ExtractErr:     graph.IntegrationError{Kind: "unimplemented", Scenario: "typescript-code-graph"},
+	}
+	goSide := newAdapter(graph.LanguageGo, graph.RawGraph{
+		Languages: []graph.Language{graph.LanguageGo},
+		Packages:  []graph.PackageNode{{ID: "pkg:demo", ImportPath: "demo", Language: graph.LanguageGo}},
+	})
+	svc := graph.NewService(repo, newClock(), ts, goSide)
+
+	snap, _, err := svc.ExtractGraph(context.Background(), graph.ExtractGraphInput{Scenario: "demo"})
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if len(snap.SkippedAdapters) != 1 || snap.SkippedAdapters[0] != "typescript" {
+		t.Fatalf("want SkippedAdapters=[typescript], got %v", snap.SkippedAdapters)
+	}
+}

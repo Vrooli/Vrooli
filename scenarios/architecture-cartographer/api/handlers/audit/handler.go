@@ -28,13 +28,14 @@ var _ audit_v1connect.AuditServiceHandler = (*Handler)(nil)
 
 func (h *Handler) RunAll(ctx context.Context, req *connect.Request[auditv1.AuditRunAllRequest]) (*connect.Response[auditv1.AuditRunAllResponse], error) {
 	sweep, err := h.svc.RunAll(ctx, audit.RunAllInput{
-		FailOn:            severityFromProto(req.Msg.GetFailOn()),
-		IncludeTypes:      req.Msg.GetIncludeTypes(),
-		ExcludeTypes:      req.Msg.GetExcludeTypes(),
-		IncludeScenarios:  req.Msg.GetIncludeScenarios(),
-		ExcludeScenarios:  req.Msg.GetExcludeScenarios(),
-		AllowLowAuthority: req.Msg.GetAllowLowAuthority(),
-		Concurrency:       int(req.Msg.GetConcurrency()),
+		FailOn:                     severityFromProto(req.Msg.GetFailOn()),
+		IncludeTypes:               req.Msg.GetIncludeTypes(),
+		ExcludeTypes:               req.Msg.GetExcludeTypes(),
+		IncludeScenarios:           req.Msg.GetIncludeScenarios(),
+		ExcludeScenarios:           req.Msg.GetExcludeScenarios(),
+		AllowLowAuthority:          req.Msg.GetAllowLowAuthority(),
+		AllowLowAuthorityScenarios: req.Msg.GetAllowLowAuthorityScenarios(),
+		Concurrency:                int(req.Msg.GetConcurrency()),
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -63,6 +64,7 @@ func (h *Handler) Run(ctx context.Context, req *connect.Request[auditv1.AuditRun
 		IncludeTypes:      req.Msg.GetIncludeTypes(),
 		ExcludeTypes:      req.Msg.GetExcludeTypes(),
 		AllowLowAuthority: req.Msg.GetAllowLowAuthority(),
+		SkipTS:            req.Msg.GetSkipTs(),
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -108,6 +110,8 @@ func outcomeToProto(o audit.Outcome) auditv1.AuditOutcome {
 		return auditv1.AuditOutcome_AUDIT_OUTCOME_FINDINGS
 	case audit.OutcomeToolError:
 		return auditv1.AuditOutcome_AUDIT_OUTCOME_TOOL_ERROR
+	case audit.OutcomePartial:
+		return auditv1.AuditOutcome_AUDIT_OUTCOME_PARTIAL
 	default:
 		return auditv1.AuditOutcome_AUDIT_OUTCOME_UNSPECIFIED
 	}
@@ -177,6 +181,8 @@ func authorityConfidenceToProto(s string) auditv1.AuthorityConfidence {
 		return auditv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_MEDIUM
 	case "high":
 		return auditv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_HIGH
+	case "missing":
+		return auditv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_MISSING
 	default:
 		return auditv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_UNSPECIFIED
 	}

@@ -32,8 +32,9 @@ func (Detector) EmitsTypes() []string { return []string{"convergence_drift"} }
 
 // Detect maps each domains.ConvergenceFinding to a Conflict. Advisory
 // (info) findings become info-severity conflicts; real disagreements
-// (warn) become warn-severity. No suggested fixes are emitted — the
-// resolution is editorial (reconcile the declaring surfaces).
+// (warn) become warn-severity. Each finding carries a templated
+// SuggestedFix naming the literal edit required to reconcile the
+// surfaces (no LLM, no resolver execution — deterministic strings).
 func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflicts.Conflict, error) {
 	findings := domains.Convergence(in.DomainMap)
 	if len(findings) == 0 {
@@ -41,8 +42,8 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 	}
 	out := make([]conflicts.Conflict, 0, len(findings))
 	for _, f := range findings {
-		domains := domainsForFinding(f)
-		locator := strings.Join(domains, ",")
+		affected := domainsForFinding(f)
+		locator := strings.Join(affected, ",")
 		if locator == "" {
 			locator = "—"
 		}
@@ -52,16 +53,80 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 			Type:      "convergence_drift",
 			Subtype:   f.Kind,
 			Severity:  severityFor(f.Severity),
-			Locations: domains,
-			Domains:   domains,
+			Locations: affected,
+			Domains:   affected,
 			Evidence: []conflicts.Evidence{{
 				Kind:    f.Kind,
 				Summary: f.Message,
 				Locator: fmt.Sprintf("%s [%s]", locator, joinSources(f.Sources)),
 			}},
+			SuggestedFixes: suggestedFixesFor(f, affected),
 		})
 	}
 	return out, nil
+}
+
+// suggestedFixesFor returns 1–2 templated fix options for a convergence
+// finding. Templates are deterministic (no LLM); Confidence is fixed at
+// 0.5 until usage validates it. Resolver is left empty — these are
+// editor-facing suggestions, not auto-apply.
+func suggestedFixesFor(f domains.ConvergenceFinding, affected []string) []conflicts.Fix {
+	name := strings.Join(affected, ",")
+	if name == "" {
+		name = "<domain>"
+	}
+	switch f.Kind {
+	case domains.FindingUndeclaredFolder:
+		return []conflicts.Fix{{
+			Kind:       conflicts.FixKindReassignDomain,
+			Summary:    "Add a row to docs/concepts/DOMAINS.md for " + name + " (columns: name | purpose | archetype | owns_data | surfaces | requirements | source_paths | glossary) — or remove api/internal/" + name + "/ if it is not a domain.",
+			Confidence: 0.5,
+		}}
+	case domains.FindingMissingImplementation:
+		return []conflicts.Fix{
+			{
+				Kind:       conflicts.FixKindReassignDomain,
+				Summary:    "Create api/internal/" + name + "/ implementing the domain declared in docs/concepts/DOMAINS.md.",
+				Confidence: 0.5,
+			},
+			{
+				Kind:       conflicts.FixKindReassignDomain,
+				Summary:    "Or remove the " + name + " row from docs/concepts/DOMAINS.md if it is no longer planned.",
+				Confidence: 0.5,
+			},
+		}
+	case domains.FindingMissingCLIGroup:
+		return []conflicts.Fix{
+			{
+				Kind:       conflicts.FixKindReassignDomain,
+				Summary:    "Add a CLI group at cli/domains/" + name + "/ and register it in cli/manifest.json.",
+				Confidence: 0.5,
+			},
+			{
+				Kind:       conflicts.FixKindReassignDomain,
+				Summary:    "Or document " + name + " as API-only in the DOMAINS.md Surfaces column.",
+				Confidence: 0.5,
+			},
+		}
+	case domains.FindingUIFeatureNoDomain:
+		return []conflicts.Fix{{
+			Kind:       conflicts.FixKindReassignDomain,
+			Summary:    "Add ui/src/features/" + name + "/ to the closest domain's Source Paths in docs/concepts/DOMAINS.md, or declare a new domain row for " + name + ".",
+			Confidence: 0.5,
+		}}
+	case domains.FindingAuthorityFallback:
+		return []conflicts.Fix{{
+			Kind:       conflicts.FixKindReassignDomain,
+			Summary:    "Write docs/concepts/DOMAINS.md (template at docs/concepts/DOMAINS.template.md) to promote the inferred authority to a curated one.",
+			Confidence: 0.5,
+		}}
+	default:
+		return []conflicts.Fix{{
+			Kind:       conflicts.FixKindReassignDomain,
+			Summary:    "Reconcile the disagreeing surfaces for " + name + " in docs/concepts/DOMAINS.md.",
+			Confidence: 0.5,
+		}}
+	}
 }
 
 // domainsForFinding returns the affected domain names for a finding,

@@ -85,6 +85,12 @@ const (
 	ConfidenceUnspecified AuthorityConfidence = ""
 	ConfidenceHigh        AuthorityConfidence = "high"
 	ConfidenceLow         AuthorityConfidence = "low"
+	// ConfidenceMissing signals that NO ladder rung declared any domain
+	// for the scenario (ErrNoAuthority was raised and caught). The audit
+	// gate treats this the same as ConfidenceLow but renders a different
+	// remediation message ("write DOMAINS.md" rather than "promote to
+	// DOMAINS.md").
+	ConfidenceMissing AuthorityConfidence = "missing"
 )
 
 // DerivedDomainMap is the canonical resolved domain map for a scenario.

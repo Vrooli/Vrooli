@@ -45,6 +45,8 @@ func (s *service) RunAll(ctx context.Context, in RunAllInput) (SweepReport, erro
 		conc = len(keep)
 	}
 
+	allowLowPer := newSet(in.AllowLowAuthorityScenarios)
+
 	start := s.clock.Now()
 	reports := make([]Report, len(keep))
 	sem := make(chan struct{}, conc)
@@ -55,12 +57,16 @@ func (s *service) RunAll(ctx context.Context, in RunAllInput) (SweepReport, erro
 		go func(idx int, scenario string) {
 			defer wg.Done()
 			defer func() { <-sem }()
+			allowLow := in.AllowLowAuthority
+			if !allowLow {
+				_, allowLow = allowLowPer[scenario]
+			}
 			rep, runErr := s.Run(ctx, RunInput{
 				Scenario:          scenario,
 				FailOn:            in.FailOn,
 				IncludeTypes:      in.IncludeTypes,
 				ExcludeTypes:      in.ExcludeTypes,
-				AllowLowAuthority: in.AllowLowAuthority,
+				AllowLowAuthority: allowLow,
 			})
 			if runErr != nil {
 				// Per-scenario invalid input shouldn't sink the sweep;

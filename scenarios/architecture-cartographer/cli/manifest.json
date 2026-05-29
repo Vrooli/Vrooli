@@ -147,7 +147,12 @@
             {
               "name": "allow-low-authority",
               "bool": true,
-              "description": "Treat low authority confidence (no curated DOMAINS.md) as clean; default fails the audit"
+              "description": "Treat low/missing authority confidence (no curated DOMAINS.md) as clean; default fails the audit"
+            },
+            {
+              "name": "skip-ts",
+              "bool": true,
+              "description": "Skip the TypeScript analysis layer; outcome becomes PARTIAL when TS was the only thing skipped (Go findings still drive outcome)"
             }
           ],
           "binding": {
@@ -195,7 +200,11 @@
             {
               "name": "allow-low-authority",
               "bool": true,
-              "description": "Treat low authority confidence as clean per scenario"
+              "description": "Treat low authority confidence as clean for every scenario in the sweep"
+            },
+            {
+              "name": "allow-low-authority-scenarios",
+              "description": "Comma-separated scenarios for which low/missing authority is treated as clean (per-scenario opt-out; ORed with --allow-low-authority)"
             }
           ],
           "binding": {

@@ -33,6 +33,7 @@ type fakeService struct {
 	listResp     *conflictsv1.ListConflictsResponse
 	listReqs     []*conflictsv1.ListConflictsRequest
 	getResp      *conflictsv1.GetConflictResponse
+	getReqs      []*conflictsv1.GetConflictRequest
 	validateResp *conflictsv1.ValidateConflictsResponse
 	detectorResp *conflictsv1.ListDetectorsResponse
 	resolverResp *conflictsv1.ListResolversResponse
@@ -53,7 +54,10 @@ func (s *fakeService) ListConflicts(_ context.Context, req *connect.Request[conf
 	return connect.NewResponse(s.listResp), nil
 }
 
-func (s *fakeService) GetConflict(_ context.Context, _ *connect.Request[conflictsv1.GetConflictRequest]) (*connect.Response[conflictsv1.GetConflictResponse], error) {
+func (s *fakeService) GetConflict(_ context.Context, req *connect.Request[conflictsv1.GetConflictRequest]) (*connect.Response[conflictsv1.GetConflictResponse], error) {
+	s.mu.Lock()
+	s.getReqs = append(s.getReqs, req.Msg)
+	s.mu.Unlock()
 	return connect.NewResponse(s.getResp), nil
 }
 
@@ -165,6 +169,58 @@ func TestDetect_SurfacesConnectErrors(t *testing.T) {
 	err := h.detect(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid_argument")
+}
+
+// TestShow_NormalizesShortStableID asserts the CLI prefixes a bare
+// 16-hex short form with "csid:" before calling the API. Agents
+// reflexively copy the hex digits without the prefix; this closes
+// the "stable-ID UX trap" (Plan Problem 4).
+func TestShow_NormalizesShortStableID(t *testing.T) {
+	cases := []struct {
+		name string
+		arg  string
+		want string
+	}{
+		{"short hex", "16ee6eb253627c0e", "csid:16ee6eb253627c0e"},
+		{"already prefixed", "csid:16ee6eb253627c0e", "csid:16ee6eb253627c0e"},
+		{"upper-case hex", "16EE6EB253627C0E", "csid:16EE6EB253627C0E"},
+		{"non-hex passes through", "abc-123-uuid", "abc-123-uuid"},
+		{"wrong length passes through", "1234abcd", "1234abcd"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := &fakeService{getResp: &conflictsv1.GetConflictResponse{Conflict: sampleConflict()}}
+			core := clitest.NewTestApp(t, connectAPI(t, svc))
+			h := newHandlers(core)
+			ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+				Positionals: []cliapp.Positional{{Name: "id", Required: true}},
+			}, cliapptest.TestRunContextOptions{
+				Positionals: map[string]string{"id": tc.arg},
+			})
+
+			require.NoError(t, h.show(ctx))
+			require.Len(t, svc.getReqs, 1)
+			require.Equal(t, tc.want, svc.getReqs[0].GetId())
+		})
+	}
+}
+
+// TestNormalizeConflictID_Unit gives the function a direct unit test
+// so failure points are localized when the integration assertion fires.
+func TestNormalizeConflictID_Unit(t *testing.T) {
+	cases := map[string]string{
+		"16ee6eb253627c0e":      "csid:16ee6eb253627c0e",
+		"csid:16ee6eb253627c0e": "csid:16ee6eb253627c0e",
+		"  16ee6eb253627c0e  ":  "csid:16ee6eb253627c0e",
+		"not-hex-at-all":        "not-hex-at-all",
+		"abcd":                  "abcd",
+		"":                      "",
+	}
+	for in, want := range cases {
+		if got := normalizeConflictID(in); got != want {
+			t.Errorf("normalizeConflictID(%q)=%q want %q", in, got, want)
+		}
+	}
 }
 
 func listSchema() cliapp.ArgSchema {

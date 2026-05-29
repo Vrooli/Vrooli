@@ -61,12 +61,14 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	asJSON := ctx.JSON()
 	allowLow := ctx.BoolFlag("allow-low-authority")
 
+	skipTS := ctx.BoolFlag("skip-ts")
 	resp, err := h.client.Run(context.Background(), connect.NewRequest(&auditv1.AuditRunRequest{
 		Scenario:          scenario,
 		FailOn:            failOn,
 		IncludeTypes:      includeTypes,
 		ExcludeTypes:      excludeTypes,
 		AllowLowAuthority: allowLow,
+		SkipTs:            skipTS,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("audit %q", scenario), err, nil)
@@ -111,13 +113,14 @@ func (h *handlers) runAll(ctx cliapp.RunContext) error {
 	allowLow := ctx.BoolFlag("allow-low-authority")
 
 	resp, err := h.client.RunAll(context.Background(), connect.NewRequest(&auditv1.AuditRunAllRequest{
-		FailOn:            failOn,
-		IncludeTypes:      splitCSV(ctx.Flag("include-types")),
-		ExcludeTypes:      splitCSV(ctx.Flag("exclude-types")),
-		IncludeScenarios:  splitCSV(ctx.Flag("include-scenarios")),
-		ExcludeScenarios:  splitCSV(ctx.Flag("exclude-scenarios")),
-		AllowLowAuthority: allowLow,
-		Concurrency:       int32(concurrency),
+		FailOn:                     failOn,
+		IncludeTypes:               splitCSV(ctx.Flag("include-types")),
+		ExcludeTypes:               splitCSV(ctx.Flag("exclude-types")),
+		IncludeScenarios:           splitCSV(ctx.Flag("include-scenarios")),
+		ExcludeScenarios:           splitCSV(ctx.Flag("exclude-scenarios")),
+		AllowLowAuthority:          allowLow,
+		AllowLowAuthorityScenarios: splitCSV(ctx.Flag("allow-low-authority-scenarios")),
+		Concurrency:                int32(concurrency),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("audit run-all", err, nil)
@@ -187,6 +190,8 @@ func renderSweepHuman(msg *auditv1.AuditRunAllResponse) {
 			marker = "✗"
 		case auditv1.AuditOutcome_AUDIT_OUTCOME_TOOL_ERROR:
 			marker = "!"
+		case auditv1.AuditOutcome_AUDIT_OUTCOME_PARTIAL:
+			marker = "~"
 		default:
 			marker = "✓"
 		}
@@ -225,7 +230,10 @@ func sweepJSON(msg *auditv1.AuditRunAllResponse) sweepJSONT {
 
 func exitCodeFor(o auditv1.AuditOutcome) int {
 	switch o {
-	case auditv1.AuditOutcome_AUDIT_OUTCOME_CLEAN:
+	case auditv1.AuditOutcome_AUDIT_OUTCOME_CLEAN,
+		auditv1.AuditOutcome_AUDIT_OUTCOME_PARTIAL:
+		// PARTIAL exits 0 with a warning banner — at least one analysis
+		// layer was skipped but the remaining layers were clean.
 		return ExitClean
 	case auditv1.AuditOutcome_AUDIT_OUTCOME_FINDINGS:
 		return ExitFindings
@@ -337,6 +345,8 @@ func outcomeName(o auditv1.AuditOutcome) string {
 		return "findings"
 	case auditv1.AuditOutcome_AUDIT_OUTCOME_TOOL_ERROR:
 		return "tool_error"
+	case auditv1.AuditOutcome_AUDIT_OUTCOME_PARTIAL:
+		return "partial"
 	default:
 		return "unspecified"
 	}

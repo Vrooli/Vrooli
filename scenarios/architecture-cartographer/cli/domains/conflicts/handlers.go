@@ -87,10 +87,11 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 
 // show returns one conflict by id (the stable_id) with the operator-
 // focused "what / where / why / next" layout. The positional argument
-// accepts either the v0.2 csid: stable_id or the legacy UUID; both
-// resolve via GetConflict.
+// accepts either the v0.2 csid: stable_id, a bare 16-hex short form
+// (CLI normalizes to csid:<hex>), or the legacy UUID; the API only
+// accepts the canonical csid: form, so normalization happens here.
 func (h *handlers) show(ctx cliapp.RunContext) error {
-	id := ctx.Positional("id")
+	id := normalizeConflictID(ctx.Positional("id"))
 	resp, err := h.client.GetConflict(context.Background(), connect.NewRequest(&conflictsv1.GetConflictRequest{Id: id}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("get conflict %q", id), err, nil)
@@ -273,6 +274,36 @@ func severityName(s conflictsv1.Severity) string {
 	default:
 		return "unspecified"
 	}
+}
+
+// normalizeConflictID accepts the user's positional ID argument and
+// returns the canonical form the API expects. A bare 16-hex string
+// (the short form printed elsewhere as csid:<hex>) is prefixed with
+// "csid:". Anything else (UUIDs, already-prefixed IDs, malformed
+// input) passes through unchanged — the API surfaces the not_found
+// error if it doesn't match a row.
+func normalizeConflictID(id string) string {
+	id = strings.TrimSpace(id)
+	if strings.HasPrefix(id, "csid:") {
+		return id
+	}
+	if len(id) == 16 && isHex(id) {
+		return "csid:" + id
+	}
+	return id
+}
+
+func isHex(s string) bool {
+	for _, r := range s {
+		switch {
+		case r >= '0' && r <= '9':
+		case r >= 'a' && r <= 'f':
+		case r >= 'A' && r <= 'F':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func fixKindName(k conflictsv1.FixKind) string {

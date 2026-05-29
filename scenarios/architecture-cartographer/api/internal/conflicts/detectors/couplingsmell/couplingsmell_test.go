@@ -101,6 +101,27 @@ func TestDetect_UnstableDependencyMapsToInfoSeverity(t *testing.T) {
 	}
 }
 
+// TestDetect_EveryConflictHasSuggestedFix asserts every coupling_smell
+// finding carries at least one templated fix naming the offending edges.
+func TestDetect_EveryConflictHasSuggestedFix(t *testing.T) {
+	got, err := couplingsmell.New().Detect(context.Background(), godDomainInput())
+	if err != nil {
+		t.Fatalf("Detect: %v", err)
+	}
+	if len(got) == 0 {
+		t.Fatalf("expected at least one coupling_smell to assert on")
+	}
+	for _, c := range got {
+		if len(c.SuggestedFixes) < 1 {
+			t.Errorf("subtype %q: missing SuggestedFixes", c.Subtype)
+			continue
+		}
+		if c.SuggestedFixes[0].Summary == "" {
+			t.Errorf("subtype %q: first fix has empty Summary", c.Subtype)
+		}
+	}
+}
+
 func TestDetect_HealthyNoConflicts(t *testing.T) {
 	pkg := func(id, dir string) graph.PackageNode {
 		return graph.PackageNode{ID: id, RepoPath: dir}

@@ -52,4 +52,9 @@ func TestDetect_EmitsOneConflictPerWarning(t *testing.T) {
 	if out[0].Locations[0] != "docs/concepts/DOMAINS.md:42" {
 		t.Fatalf("want path:line locator, got %s", out[0].Locations[0])
 	}
+	for _, c := range out {
+		if len(c.SuggestedFixes) < 1 || c.SuggestedFixes[0].Summary == "" {
+			t.Errorf("subtype %q: missing SuggestedFixes", c.Subtype)
+		}
+	}
 }

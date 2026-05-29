@@ -56,6 +56,11 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 				Summary: w.Summary,
 				Locator: loc,
 			}},
+			SuggestedFixes: []conflicts.Fix{{
+				Kind:       conflicts.FixKindReassignDomain,
+				Summary:    "Fix the malformed row at " + loc + " (" + w.Summary + ") — see docs/concepts/DOMAINS.template.md for the expected column shape.",
+				Confidence: 0.5,
+			}},
 		})
 	}
 	return out, nil

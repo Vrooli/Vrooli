@@ -64,6 +64,29 @@ func TestDetect_EmitsMissingImplementation(t *testing.T) {
 	}
 }
 
+// TestDetect_EveryConflictHasSuggestedFix asserts no convergence_drift
+// finding ships without at least one templated fix. Without this, the
+// workbench is a finder, not a fixer.
+func TestDetect_EveryConflictHasSuggestedFix(t *testing.T) {
+	in := conflicts.DetectInput{Scenario: "demo", DomainMap: mapWith(t, []string{"graph", "conflicts"}, []string{"graph", "audit"})}
+	got, err := convergencedrift.New().Detect(context.Background(), in)
+	if err != nil {
+		t.Fatalf("Detect: %v", err)
+	}
+	if len(got) == 0 {
+		t.Fatalf("expected drift conflicts to assert on, got none")
+	}
+	for _, c := range got {
+		if len(c.SuggestedFixes) < 1 {
+			t.Errorf("subtype %q: missing SuggestedFixes", c.Subtype)
+			continue
+		}
+		if c.SuggestedFixes[0].Summary == "" {
+			t.Errorf("subtype %q: first fix has empty Summary", c.Subtype)
+		}
+	}
+}
+
 func TestDetect_NameAndTypes(t *testing.T) {
 	d := convergencedrift.New()
 	if d.Name() != "convergence_drift" {

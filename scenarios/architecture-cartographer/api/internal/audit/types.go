@@ -24,6 +24,12 @@ const (
 	OutcomeClean       Outcome = "clean"
 	OutcomeFindings    Outcome = "findings"
 	OutcomeToolError   Outcome = "tool_error"
+	// OutcomePartial signals at least one analysis layer was skipped
+	// (today: TS via --skip-ts or the workspace_unsupported error from
+	// typescript-code-graph). The remaining layers ran cleanly. CLI maps
+	// to exit 0 with a warning banner — better than tool_error when a
+	// useful Go-side report still exists.
+	OutcomePartial Outcome = "partial"
 )
 
 // RunInput is the explicit input DTO for Service.Run.
@@ -32,9 +38,14 @@ type RunInput struct {
 	FailOn       conflicts.Severity
 	IncludeTypes []string
 	ExcludeTypes []string
-	// When true, a LOW authority-confidence does NOT flip outcome to
-	// FINDINGS. Default false enforces "no curated DOMAINS.md → fail".
+	// When true, a LOW or MISSING authority-confidence does NOT flip
+	// outcome to FINDINGS. Default false enforces "no curated DOMAINS.md
+	// → fail".
 	AllowLowAuthority bool
+	// When true, skip the TS analysis layer entirely; remaining layers
+	// still run. If TS was the only thing skipped (and no findings
+	// flip the outcome), result is OutcomePartial.
+	SkipTS bool
 }
 
 // SnapshotFreshness reports whether the audit reused a cached snapshot
@@ -79,6 +90,13 @@ type RunAllInput struct {
 	IncludeScenarios  []string
 	ExcludeScenarios  []string
 	AllowLowAuthority bool
+	// AllowLowAuthorityScenarios is the per-scenario opt-out list. The
+	// effective per-scenario AllowLowAuthority is
+	// `AllowLowAuthority || contains(AllowLowAuthorityScenarios, name)` —
+	// so the global bool stays a portfolio-wide override while the list
+	// silences only the named scenarios. Lets a mixed portfolio strict-
+	// gate the curated half without losing real findings on the rest.
+	AllowLowAuthorityScenarios []string
 	// Concurrency caps the worker pool; 0 → default 4.
 	Concurrency int
 }

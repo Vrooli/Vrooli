@@ -55,7 +55,7 @@ func (s *service) Run(ctx context.Context, in RunInput) (Report, error) {
 	start := s.clock.Now()
 	rep := Report{Scenario: scenario}
 
-	snap, freshness, err := s.freshSnapshot(ctx, scenario)
+	snap, freshness, err := s.freshSnapshot(ctx, scenario, in.SkipTS)
 	if err != nil {
 		return s.toolError(rep, "graph extract failed: "+err.Error(), start), nil
 	}
@@ -63,20 +63,32 @@ func (s *service) Run(ctx context.Context, in RunInput) (Report, error) {
 	rep.SnapshotFreshness = freshness
 
 	dmap, dErr := s.domains.GetDomainMap(ctx, scenario)
+	missingAuthority := false
 	if dErr != nil {
 		// A scenario without an authoritative map is not a tool error;
 		// detectors that don't consult the map still produce findings.
-		// We surface the authority_fallback info conflict via the
-		// detector chain rather than failing here.
+		// We surface authority status through Domains.Confidence so the
+		// audit gate can render a remediation-led message.
 		var (
 			noAuthority domains.ErrNoAuthority
 			notFound    domains.ErrScenarioNotFound
 		)
-		if !errors.As(dErr, &noAuthority) && !errors.As(dErr, &notFound) {
+		switch {
+		case errors.As(dErr, &noAuthority):
+			missingAuthority = true
+		case errors.As(dErr, &notFound):
+			// keep dmap zero; detectors still run on the graph
+		default:
 			return s.toolError(rep, "domain derivation failed: "+dErr.Error(), start), nil
 		}
 	}
 	rep.Domains = derivedSummary(dmap)
+	if missingAuthority {
+		// ErrNoAuthority produces a zero-valued DerivedDomainMap; mark
+		// the summary explicitly so decideOutcomeWithAuthority can gate
+		// on it without re-running the ladder.
+		rep.Domains.Confidence = string(domains.ConfidenceMissing)
+	}
 
 	var markers []suppressions.Marker
 	if s.suppressions != nil {
@@ -101,24 +113,57 @@ func (s *service) Run(ctx context.Context, in RunInput) (Report, error) {
 	rep.ByType = countByType(filtered)
 	rep.ByDomain = countByDomain(filtered)
 	rep.SuppressedFindings = countSuppressed(filtered)
-	rep.Outcome, rep.OutcomeReason = decideOutcomeWithAuthority(filtered, failOn, rep.Domains.Confidence, in.AllowLowAuthority)
+	rep.Outcome, rep.OutcomeReason = decideOutcomeWithAuthority(scenario, filtered, failOn, rep.Domains.Confidence, in.AllowLowAuthority)
+	if rep.Outcome == OutcomeClean && len(snap.SkippedAdapters) > 0 {
+		// Graph extract degraded silently (--skip-ts or workspace_unsupported
+		// from an adapter). Mark partial so the operator sees the gap rather
+		// than mistaking a half-analysis for a clean run.
+		rep.Outcome = OutcomePartial
+		rep.OutcomeReason = "skipped adapters: " + strings.Join(snap.SkippedAdapters, ", ")
+	}
 	rep.Duration = s.clock.Now().Sub(start)
 	return rep, nil
 }
 
 // decideOutcomeWithAuthority extends decideOutcome with the authority-
-// confidence axis. Low confidence (no DOMAINS.md or only advisory rungs
-// supplied an authority) is a first-class failure axis: detectors run
-// without a curated set, so absence-of-findings is meaningless. The
-// caller opts back in to the lax behavior with AllowLowAuthority.
-func decideOutcomeWithAuthority(in []conflicts.Conflict, failOn conflicts.Severity, confidence string, allowLow bool) (Outcome, string) {
+// confidence axis. Missing or low confidence (no DOMAINS.md or only
+// advisory rungs supplied an authority) is a first-class failure axis:
+// detectors run without a curated set, so absence-of-findings is
+// meaningless. The caller opts back in to the lax behavior with
+// AllowLowAuthority — but the remediation message names the fix
+// (writing DOMAINS.md) before the bypass.
+func decideOutcomeWithAuthority(scenario string, in []conflicts.Conflict, failOn conflicts.Severity, confidence string, allowLow bool) (Outcome, string) {
 	if o := decideOutcome(in, failOn); o == OutcomeFindings {
 		return o, ""
 	}
-	if confidence == "low" && !allowLow {
-		return OutcomeFindings, "authority_confidence=low — pass --allow-low-authority to silence"
+	if allowLow {
+		return OutcomeClean, ""
+	}
+	switch confidence {
+	case string(domains.ConfidenceMissing):
+		return OutcomeFindings, missingAuthorityMessage(scenario)
+	case string(domains.ConfidenceLow):
+		return OutcomeFindings, lowAuthorityMessage(scenario)
 	}
 	return OutcomeClean, ""
+}
+
+// missingAuthorityMessage is rendered when no ladder rung declared any
+// domain. Leads with the fix; names the bypass last on purpose so agents
+// reach for the fix first.
+func missingAuthorityMessage(scenario string) string {
+	return "no domain authority for scenario " + scenario +
+		" — write scenarios/" + scenario + "/docs/concepts/DOMAINS.md " +
+		"(see docs/concepts/DOMAINS.template.md), or pass " +
+		"--allow-low-authority for advisory mode"
+}
+
+// lowAuthorityMessage is rendered when the ladder fell through to a
+// derived rung (folder/cli) instead of a curated DOMAINS.md.
+func lowAuthorityMessage(scenario string) string {
+	return "scenario " + scenario + " has only derived domain authority " +
+		"(no docs/concepts/DOMAINS.md) — promote the inferred domains to " +
+		"a curated DOMAINS.md, or pass --allow-low-authority for advisory mode"
 }
 
 // freshSnapshot guarantees the audit operates on a snapshot whose
@@ -133,10 +178,10 @@ func decideOutcomeWithAuthority(in []conflicts.Conflict, failOn conflicts.Severi
 //   - RE_EXTRACTED: there was a prior persisted snapshot whose hash
 //     differed from the current source tree.
 //   - FRESH:        no prior persisted snapshot existed.
-func (s *service) freshSnapshot(ctx context.Context, scenario string) (graph.GraphSnapshot, SnapshotFreshness, error) {
+func (s *service) freshSnapshot(ctx context.Context, scenario string, skipTS bool) (graph.GraphSnapshot, SnapshotFreshness, error) {
 	page, lsErr := s.graph.ListSnapshots(ctx, graph.ListSnapshotsFilter{Scenario: scenario, PageSize: 1})
 	priorExists := lsErr == nil && len(page.Snapshots) > 0
-	snap, cacheHit, err := s.graph.ExtractGraph(ctx, graph.ExtractGraphInput{Scenario: scenario})
+	snap, cacheHit, err := s.graph.ExtractGraph(ctx, graph.ExtractGraphInput{Scenario: scenario, SkipTS: skipTS})
 	if err != nil {
 		return graph.GraphSnapshot{}, SnapshotFreshnessUnspecified, err
 	}

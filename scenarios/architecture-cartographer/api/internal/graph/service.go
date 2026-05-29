@@ -22,6 +22,10 @@ type ExtractGraphInput struct {
 	Scenario       string
 	Languages      []Language
 	IdempotencyKey string
+	// When true, the TS adapter (Name()=="typescript") is skipped before
+	// extraction; its name lands in GraphSnapshot.SkippedAdapters so the
+	// audit layer can mark the run as partial.
+	SkipTS bool
 }
 
 type service struct {
@@ -53,18 +57,26 @@ func (s *service) ExtractGraph(ctx context.Context, in ExtractGraphInput) (Graph
 
 	start := s.clock.Now()
 	var combined RawGraph
+	var skipped []string
 	for _, adapter := range s.adapters {
 		if !adapterSupports(adapter, in.Languages) {
+			continue
+		}
+		if in.SkipTS && adapter.Name() == "typescript" {
+			skipped = append(skipped, adapter.Name())
 			continue
 		}
 		raw, err := adapter.Extract(ctx, scenario)
 		if err != nil {
 			// Graceful degradation: when a backing producer scenario is
-			// not running, skip that language rather than failing the
-			// whole cross-language extract. Any other error (invalid
-			// input, timeout, internal) still aborts.
+			// not running OR returns unimplemented (e.g., tscg hitting
+			// a pnpm workspace it does not yet support), skip that
+			// language rather than failing the whole cross-language
+			// extract. Any other error (invalid input, timeout,
+			// internal) still aborts.
 			var ie IntegrationError
-			if errors.As(err, &ie) && ie.Kind == "scenario_unreachable" {
+			if errors.As(err, &ie) && (ie.Kind == "scenario_unreachable" || ie.Kind == "unimplemented") {
+				skipped = append(skipped, adapter.Name())
 				continue
 			}
 			return GraphSnapshot{}, false, err
@@ -80,6 +92,7 @@ func (s *service) ExtractGraph(ctx context.Context, in ExtractGraphInput) (Graph
 
 	snap := Normalize(scenario, combined)
 	snap.ExtractedAt = s.clock.Now().UTC()
+	snap.SkippedAdapters = skipped
 
 	// Cache hit?
 	if existing, err := s.repo.FindByHash(ctx, snap.Scenario, snap.ContentHash); err == nil {

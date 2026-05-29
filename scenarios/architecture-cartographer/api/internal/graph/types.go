@@ -92,6 +92,15 @@ type GraphSnapshot struct {
 	Packages     []PackageNode
 	Symbols      []SymbolNode
 	Imports      []ImportEdge
+	// SkippedAdapters records adapter names the service dropped during
+	// this extract — either because the producer scenario returned an
+	// `unimplemented` error (e.g., typescript-code-graph hitting a pnpm
+	// workspace) or because the caller passed an opt-out flag (today:
+	// --skip-ts). Excluded from ContentHash on purpose so cached
+	// snapshots remain reusable across SkipTS toggles; the audit layer
+	// consults this to mark `outcome=partial` when an adapter was
+	// skipped but other layers ran clean.
+	SkippedAdapters []string
 }
 
 // Chunks derives the canonical Chunk list from the snapshot's file

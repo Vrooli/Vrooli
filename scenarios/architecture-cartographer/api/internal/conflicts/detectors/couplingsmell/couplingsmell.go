@@ -10,6 +10,7 @@ package couplingsmell
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/signals/boundaries"
@@ -60,10 +61,57 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 						Locator: dc.Domain,
 					},
 				},
+				SuggestedFixes: suggestedFixesFor(smell, dc),
 			})
 		}
 	}
 	return out, nil
+}
+
+// suggestedFixesFor renders 1–2 deterministic fix options per smell kind.
+// Templates name the literal dependency edges or invariants involved so an
+// operator can act without re-running the analysis.
+func suggestedFixesFor(smell boundaries.Smell, dc boundaries.DomainCoupling) []conflicts.Fix {
+	switch smell.Kind {
+	case boundaries.SmellGodDomain:
+		deps := joinUpTo(dc.DependsOn, 5)
+		return []conflicts.Fix{
+			{
+				Kind:       conflicts.FixKindBreakCycle,
+				Summary:    "Split " + dc.Domain + " into smaller domains, or push composition into a thinner composition-root archetype (currently depends on: " + deps + ").",
+				Confidence: 0.5,
+			},
+			{
+				Kind:       conflicts.FixKindAddDependency,
+				Summary:    "If " + dc.Domain + " legitimately wires many domains together, mark its archetype as exempt in the coupling config.",
+				Confidence: 0.5,
+			},
+		}
+	case boundaries.SmellUnstableDependency:
+		deps := joinUpTo(dc.DependsOn, 5)
+		dependedBy := joinUpTo(dc.DependedBy, 5)
+		return []conflicts.Fix{{
+			Kind:       conflicts.FixKindAddDependency,
+			Summary:    "Reduce " + dc.Domain + "'s efferent coupling by injecting dependencies via interfaces (depends on: " + deps + "; depended on by: " + dependedBy + ").",
+			Confidence: 0.5,
+		}}
+	default:
+		return []conflicts.Fix{{
+			Kind:       conflicts.FixKindAddDependency,
+			Summary:    "Review " + dc.Domain + " boundaries: " + smell.Message,
+			Confidence: 0.5,
+		}}
+	}
+}
+
+func joinUpTo(items []string, n int) string {
+	if len(items) == 0 {
+		return "—"
+	}
+	if len(items) <= n {
+		return strings.Join(items, ", ")
+	}
+	return strings.Join(items[:n], ", ") + fmt.Sprintf(" (+%d more)", len(items)-n)
 }
 
 func severityFor(s boundaries.Severity) conflicts.Severity {
