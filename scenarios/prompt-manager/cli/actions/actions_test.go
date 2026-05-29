@@ -130,7 +130,10 @@ func TestCmdCreatePostsActionFileWithPack(t *testing.T) {
 		},
 	}}
 
-	if err := cmdCreate(ctx, []string{"--file", file, "--pack=core"}); err != nil {
+	// --apply writes; without it the command previews. The preview call (POST
+	// /actions/preview) reuses the same fake response, then the apply call
+	// (POST /actions) posts the file's contract.
+	if err := cmdCreate(ctx, []string{"--file", file, "--pack=core", "--apply"}); err != nil {
 		t.Fatalf("cmdCreate: %v", err)
 	}
 	if ctx.method != "POST" || ctx.path != "/actions" {
@@ -142,6 +145,43 @@ func TestCmdCreatePostsActionFileWithPack(t *testing.T) {
 	}
 	if action.ID != "team.decisions.list" || action.Pack != "core" {
 		t.Fatalf("unexpected action payload: %+v", action)
+	}
+}
+
+func TestCmdCreatePreviewsByDefault(t *testing.T) {
+	ctx := &fakeContext{response: ActionPreview{
+		Rendered:   &Action{ID: "scenario.status.show", Name: "Show Status", Status: "active"},
+		Validation: ValidationResponse{ActionID: "scenario.status.show", Valid: true, Runnable: true},
+	}}
+	if err := cmdCreate(ctx, []string{"--name", "Show Status", "--command", "vrooli scenario status {{scenario}}"}); err != nil {
+		t.Fatalf("cmdCreate: %v", err)
+	}
+	// Default (no --apply) must hit the preview endpoint and write nothing.
+	if ctx.method != "POST" || ctx.path != "/actions/preview" {
+		t.Fatalf("expected preview request, got %s %s", ctx.method, ctx.path)
+	}
+	draft, ok := ctx.payload.(DraftActionInput)
+	if !ok {
+		t.Fatalf("payload type = %T, want DraftActionInput", ctx.payload)
+	}
+	wantArgv := []string{"vrooli", "scenario", "status", "{{scenario}}"}
+	if len(draft.Argv) != len(wantArgv) {
+		t.Fatalf("argv = %#v, want %#v", draft.Argv, wantArgv)
+	}
+	for i := range wantArgv {
+		if draft.Argv[i] != wantArgv[i] {
+			t.Fatalf("argv[%d] = %q, want %q", i, draft.Argv[i], wantArgv[i])
+		}
+	}
+}
+
+func TestCmdCreateRejectsBothCommandAndFile(t *testing.T) {
+	ctx := &fakeContext{}
+	if err := cmdCreate(ctx, []string{"--command", "vrooli scenario status {{s}}", "--file", "x.json"}); err == nil {
+		t.Fatal("expected error when both --command and --file are provided")
+	}
+	if ctx.method != "" {
+		t.Fatalf("expected no API call, got %s %s", ctx.method, ctx.path)
 	}
 }
 

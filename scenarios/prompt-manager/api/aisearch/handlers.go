@@ -343,7 +343,8 @@ func (h *Handlers) Discover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.service.DiscoverTyped(r.Context(), req.Queries, complexity, limit, discoverType)
+	ctx := WithCaller(r.Context(), callerFromRequest(r))
+	resp, err := h.service.DiscoverTyped(ctx, req.Queries, complexity, limit, discoverType)
 	if err != nil {
 		log.Printf("[aisearch] Discover error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -352,6 +353,33 @@ func (h *Handlers) Discover(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// DiscoveryGaps handles GET /api/v1/discovery-gaps - clustered unmet-capability
+// queries from the discovery-miss telemetry window.
+func (h *Handlers) DiscoveryGaps(w http.ResponseWriter, r *http.Request) {
+	window, err := parseSinceWindow(r.URL.Query().Get("since"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	typeFilter := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("type")))
+	if typeFilter != "" && normalizeDiscoverType(typeFilter) == "" {
+		http.Error(w, "type must be one of: skill, action, all", http.StatusBadRequest)
+		return
+	}
+	clusters, err := h.service.DiscoveryGaps(window, typeFilter)
+	if err != nil {
+		log.Printf("[aisearch] DiscoveryGaps error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"clusters": clusters,
+		"total":    len(clusters),
+		"since":    window.String(),
+	})
 }
 
 // GetBudgetConfig handles GET /api/v1/config/budgets.

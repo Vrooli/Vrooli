@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"prompt-manager/store"
 	"strings"
+
+	"prompt-manager/store"
 
 	"github.com/gorilla/mux"
 )
@@ -110,6 +111,22 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	h.invalidateGraph()
 	h.triggerIndexAsync(created.ID)
 	writeAPIJSON(w, http.StatusCreated, MutationResponse{Action: created, Validation: validation})
+}
+
+// Preview renders the contract that Create would write — inferred fields,
+// validation, and similar existing actions — without persisting anything.
+func (h *Handlers) Preview(w http.ResponseWriter, r *http.Request) {
+	var draft DraftActionInput
+	if err := json.NewDecoder(r.Body).Decode(&draft); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	preview, err := h.service.PreviewCreate(r.Context(), draft)
+	if err != nil {
+		writeActionError(w, err)
+		return
+	}
+	writeAPIJSON(w, http.StatusOK, preview)
 }
 
 func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {

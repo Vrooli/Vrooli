@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
-	"prompt-manager/cli/internal/appctx"
 	"strings"
+
+	"prompt-manager/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -73,8 +75,89 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 					return cmdDiscover(ctx, args)
 				},
 			},
+			{
+				Name:        "discovery-gaps",
+				Aliases:     []string{"gaps"},
+				NeedsAPI:    true,
+				Description: "Show clustered unmet-capability queries (discovery misses) within a window",
+				Run: func(args []string) error {
+					return cmdDiscoveryGaps(ctx, args)
+				},
+			},
 		},
 	}
+}
+
+// DiscoveryGapCluster is one clustered group of missed queries.
+type DiscoveryGapCluster struct {
+	Query    string   `json:"query"`
+	Count    int      `json:"count"`
+	LastSeen string   `json:"lastSeen"`
+	Types    []string `json:"types,omitempty"`
+	Examples []string `json:"examples,omitempty"`
+}
+
+// DiscoveryGapsResponse wraps the clustered discovery-gap results.
+type DiscoveryGapsResponse struct {
+	Clusters []DiscoveryGapCluster `json:"clusters"`
+	Total    int                   `json:"total"`
+	Since    string                `json:"since"`
+}
+
+func cmdDiscoveryGaps(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("discovery-gaps", flag.ContinueOnError)
+	since := fs.String("since", "7d", "Window to report (e.g. 7d, 24h, 30m)")
+	resultType := fs.String("type", "", "Filter by missed type (skill|action|all)")
+	limit := fs.Int("limit", 20, "Maximum number of clusters to show")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if *resultType != "" && !validDiscoverType(*resultType) {
+		return fmt.Errorf("--type must be one of: skill, action, all")
+	}
+
+	query := url.Values{}
+	query.Set("since", *since)
+	if *resultType != "" {
+		query.Set("type", *resultType)
+	}
+
+	var resp DiscoveryGapsResponse
+	if err := ctx.GetWithQuery("/discovery-gaps", query, &resp); err != nil {
+		return fmt.Errorf("discovery-gaps failed: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if resp.Total == 0 {
+		fmt.Printf("No discovery gaps in the last %s — discovery is finding what agents look for.\n", *since)
+		return nil
+	}
+
+	shown := resp.Clusters
+	if *limit > 0 && len(shown) > *limit {
+		shown = shown[:*limit]
+	}
+	fmt.Printf("Top unmet-capability queries (last %s, %d cluster(s)):\n\n", *since, resp.Total)
+	fmt.Printf("  %-5s  %-7s  %s\n", "Count", "Types", "Query")
+	fmt.Printf("  %-5s  %-7s  %s\n", "-----", "-------", "-----------------------------------------")
+	for _, cluster := range shown {
+		types := strings.Join(cluster.Types, ",")
+		if types == "" {
+			types = "-"
+		}
+		fmt.Printf("  %-5d  %-7s  %s\n", cluster.Count, types, cluster.Query)
+	}
+	fmt.Println()
+	fmt.Println("These are queries that returned nothing useful. Each is a candidate for:")
+	fmt.Println("  - a new action over an existing CLI command, or")
+	fmt.Println("  - a capability-gap / cli-backlog when no command covers it yet.")
+	return nil
 }
 
 func cmdDiscover(ctx appctx.Context, args []string) error {

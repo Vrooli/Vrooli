@@ -11,9 +11,10 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"prompt-manager/cli/internal/appctx"
 	"sort"
 	"strings"
+
+	"prompt-manager/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -152,6 +153,53 @@ type CommandResolution struct {
 	Message              string      `json:"message,omitempty"`
 }
 
+// DraftActionInput is the create-preview request payload (mirrors the API).
+type DraftActionInput struct {
+	Name        string          `json:"name,omitempty"`
+	Description string          `json:"description,omitempty"`
+	ID          string          `json:"id,omitempty"`
+	Pack        string          `json:"pack,omitempty"`
+	Argv        []string        `json:"argv,omitempty"`
+	Inputs      []InputOverride `json:"inputs,omitempty"`
+	Contract    *Action         `json:"contract,omitempty"`
+}
+
+type InputOverride struct {
+	Name        string `json:"name"`
+	Type        string `json:"type,omitempty"`
+	Required    *bool  `json:"required,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+type InferenceNote struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
+type SimilarMatch struct {
+	ID     string  `json:"id"`
+	Name   string  `json:"name"`
+	Score  float64 `json:"score"`
+	Reason string  `json:"reason"`
+}
+
+type ActionPreview struct {
+	Rendered   *Action            `json:"rendered"`
+	Validation ValidationResponse `json:"validation"`
+	Inferred   []InferenceNote    `json:"inferred"`
+	Warnings   []string           `json:"warnings"`
+	Similar    []SimilarMatch     `json:"similar"`
+}
+
+type stringSliceFlag []string
+
+func (s *stringSliceFlag) String() string { return strings.Join(*s, ",") }
+
+func (s *stringSliceFlag) Set(value string) error {
+	*s = append(*s, value)
+	return nil
+}
+
 func Commands(ctx appctx.Context) cliapp.CommandGroup {
 	return cliapp.CommandGroup{
 		Title: "Actions",
@@ -205,7 +253,7 @@ func usageText() string {
 Subcommands:
   list, ls             List Actions
   show, get <id>       Show an Action contract
-  create, add          Create an Action from an action.json file
+  create, add          Create an Action from a --command (previews; --apply to write) or --file
   update, edit <id>    Update an Action from an action.json file
   delete, rm <id>      Archive or hard-delete an Action
   validate, check <id> Validate an Action contract without running it
@@ -280,26 +328,95 @@ func cmdShow(ctx appctx.Context, args []string) error {
 
 func cmdCreate(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("action create", flag.ContinueOnError)
-	file := fs.String("file", "", "Path to action.json")
+	name := fs.String("name", "", "Action display name")
+	description := fs.String("description", "", "Action description")
+	command := fs.String("command", "", "The Vrooli CLI command to wrap, e.g. 'vrooli scenario status {{scenario}}'")
+	id := fs.String("id", "", "Action ID (derived from the command when omitted)")
+	file := fs.String("file", "", "Path to a fully authored action.json (alternative to --command)")
 	pack := fs.String("pack", "", "Target pack (core|local|drafts); defaults to API policy")
+	apply := fs.Bool("apply", false, "Register the action (default is a no-write preview)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
+	var inputOverrides stringSliceFlag
+	fs.Var(&inputOverrides, "input", "Refine an inferred input as name:type[:optional] (repeatable)")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() != 0 || *file == "" {
-		return fmt.Errorf("usage: action create --file=action.json [--pack=core|local|drafts] [--json]")
+	if fs.NArg() != 0 {
+		return fmt.Errorf("%s", createUsage())
+	}
+	if (*command == "") == (*file == "") {
+		return fmt.Errorf("provide exactly one of --command or --file\n\n%s", createUsage())
 	}
 
-	action, err := readActionFile(*file)
-	if err != nil {
-		return err
+	draft := DraftActionInput{
+		Name:        *name,
+		Description: *description,
+		ID:          *id,
+		Pack:        *pack,
 	}
-	if *pack != "" {
-		action.Pack = *pack
+	var fileAction Action
+	if *file != "" {
+		parsed, err := readActionFile(*file)
+		if err != nil {
+			return err
+		}
+		fileAction = parsed
+		if *pack != "" {
+			fileAction.Pack = *pack
+		}
+		contract := fileAction
+		draft.Contract = &contract
+	} else {
+		argv, err := tokenizeCommand(*command)
+		if err != nil {
+			return err
+		}
+		draft.Argv = argv
+	}
+	for _, raw := range inputOverrides {
+		override, err := parseInputOverride(raw)
+		if err != nil {
+			return err
+		}
+		draft.Inputs = append(draft.Inputs, override)
+	}
+
+	var preview ActionPreview
+	if err := ctx.Post("/actions/preview", draft, &preview); err != nil {
+		return fmt.Errorf("failed to preview action: %w", err)
+	}
+
+	if !*apply {
+		if *jsonOut {
+			return writeJSON(preview)
+		}
+		printPreview(preview)
+		return nil
+	}
+
+	if !preview.Validation.Valid {
+		if !*jsonOut {
+			printPreview(preview)
+		}
+		return fmt.Errorf("cannot apply: action contract is invalid (fix the failed checks above)")
+	}
+
+	var body any
+	if *file != "" {
+		body = fileAction
+	} else {
+		if preview.Rendered == nil {
+			return fmt.Errorf("preview did not include a rendered contract")
+		}
+		rendered := *preview.Rendered
+		if *pack != "" {
+			rendered.Pack = *pack
+		}
+		body = rendered
 	}
 
 	var result MutationResponse
-	if err := ctx.Post("/actions", action, &result); err != nil {
+	if err := ctx.Post("/actions", body, &result); err != nil {
 		return fmt.Errorf("failed to create action: %w", err)
 	}
 	if *jsonOut {
@@ -310,7 +427,131 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 	}
 	fmt.Printf("Created action: %s [%s]\n", result.Action.Name, result.Action.ID)
 	printMutationValidation(result.Validation)
+	fmt.Println()
+	fmt.Println("Next steps:")
+	fmt.Printf("  - Inspect it:  prompt-manager action show %s\n", result.Action.ID)
+	fmt.Printf("  - Dry-run it:  prompt-manager action run %s --dry-run\n", result.Action.ID)
 	return nil
+}
+
+func createUsage() string {
+	return `Usage:
+  action create --name "…" --command '<cmd with {{placeholders}}>' [--id …] [--input name:type[:optional]] [--pack …] [--apply] [--json]
+  action create --file=action.json [--pack …] [--apply] [--json]
+
+Previews by default (writes nothing). Add --apply to register the action.`
+}
+
+// tokenizeCommand splits a command string into argv tokens, honoring single and
+// double quotes so flag values with spaces survive. Action commands are
+// argv-shaped (no shell syntax), so this is a deliberately small splitter.
+func tokenizeCommand(command string) ([]string, error) {
+	var (
+		argv    []string
+		current strings.Builder
+		quote   rune
+		started bool
+	)
+	for _, r := range command {
+		switch {
+		case quote != 0:
+			if r == quote {
+				quote = 0
+			} else {
+				current.WriteRune(r)
+			}
+		case r == '\'' || r == '"':
+			quote = r
+			started = true
+		case r == ' ' || r == '\t':
+			if started {
+				argv = append(argv, current.String())
+				current.Reset()
+				started = false
+			}
+		default:
+			current.WriteRune(r)
+			started = true
+		}
+	}
+	if quote != 0 {
+		return nil, fmt.Errorf("unbalanced quote in --command")
+	}
+	if started {
+		argv = append(argv, current.String())
+	}
+	if len(argv) == 0 {
+		return nil, fmt.Errorf("--command is empty")
+	}
+	return argv, nil
+}
+
+// parseInputOverride parses "name", "name:type", or "name:type:optional".
+func parseInputOverride(raw string) (InputOverride, error) {
+	parts := strings.Split(raw, ":")
+	name := strings.TrimSpace(parts[0])
+	if name == "" {
+		return InputOverride{}, fmt.Errorf("invalid --input %q: name is required", raw)
+	}
+	override := InputOverride{Name: name}
+	if len(parts) >= 2 && strings.TrimSpace(parts[1]) != "" {
+		override.Type = strings.TrimSpace(parts[1])
+	}
+	if len(parts) >= 3 {
+		required := true
+		switch strings.ToLower(strings.TrimSpace(parts[2])) {
+		case "optional", "opt", "false", "no":
+			required = false
+		case "required", "req", "true", "yes", "":
+			required = true
+		default:
+			return InputOverride{}, fmt.Errorf("invalid --input %q: third field must be 'required' or 'optional'", raw)
+		}
+		override.Required = &required
+	}
+	return override, nil
+}
+
+func printPreview(preview ActionPreview) {
+	fmt.Println("Action create preview (no changes written)")
+	fmt.Println()
+	if preview.Rendered != nil {
+		printAction(*preview.Rendered)
+		fmt.Println()
+	}
+	if len(preview.Inferred) > 0 {
+		fmt.Println("Inferred:")
+		for _, note := range preview.Inferred {
+			fmt.Printf("  - %s: %s\n", note.Field, note.Message)
+		}
+		fmt.Println()
+	}
+	printValidation(preview.Validation)
+	if len(preview.Similar) > 0 {
+		fmt.Println()
+		fmt.Println("Similar existing actions:")
+		for _, match := range preview.Similar {
+			fmt.Printf("  - %s (%s) [%s, score %.2f]\n", match.Name, match.ID, match.Reason, match.Score)
+		}
+	}
+	if len(preview.Warnings) > 0 {
+		fmt.Println()
+		fmt.Println("Warnings:")
+		for _, warning := range preview.Warnings {
+			fmt.Printf("  - %s\n", warning)
+		}
+	}
+	fmt.Println()
+	fmt.Println("Next steps:")
+	if preview.Validation.Valid {
+		fmt.Println("  - Looks good? Re-run the same command with --apply to register it.")
+	} else {
+		fmt.Println("  - Fix the failed checks above, then re-run.")
+	}
+	if len(preview.Similar) > 0 {
+		fmt.Println("  - Or extend an existing action instead: prompt-manager action update <id> ...")
+	}
+	fmt.Println("  - Refine an inferred input: add --input name:type[:optional]")
 }
 
 func cmdUpdate(ctx appctx.Context, args []string) error {

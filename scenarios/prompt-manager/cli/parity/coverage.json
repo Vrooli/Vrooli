@@ -21,7 +21,8 @@
   "GET /skills/{id}/experiments": {"status": "covered", "cli": "experiment list --skill=<id>"},
 
   "GET /actions": {"status": "covered", "cli": "action list"},
-  "POST /actions": {"status": "covered", "cli": "action create --file=action.json"},
+  "POST /actions/preview": {"status": "covered", "cli": "action create (preview by default)"},
+  "POST /actions": {"status": "covered", "cli": "action create --apply (or --file=action.json)"},
   "GET /actions/{id}": {"status": "covered", "cli": "action show <id>"},
   "PUT /actions/{id}": {"status": "covered", "cli": "action update <id> --file=action.json"},
   "DELETE /actions/{id}": {"status": "covered", "cli": "action delete <id>"},
@@ -74,6 +75,7 @@
   "POST /search/ai/reconcile/cancel": {"status": "covered", "cli": "search-reconcile-cancel"},
 
   "POST /discover": {"status": "covered", "cli": "discover"},
+  "GET /discovery-gaps": {"status": "covered", "cli": "discovery-gaps"},
 
   "GET /config/budgets": {"status": "audit-pending", "reason": "No dedicated budgets get/put subcommand visible — likely surfaced via discover or admin tooling"},
   "PUT /config/budgets": {"status": "audit-pending", "reason": "See above"},

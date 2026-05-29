@@ -21,11 +21,18 @@ func TestFormatNumberAddsThousandsSeparators(t *testing.T) {
 
 func TestCommandsRegistersDiscoverCommand(t *testing.T) {
 	group := Commands(nil)
-	if group.Title != "Discovery" || len(group.Commands) != 1 {
+	if group.Title != "Discovery" || len(group.Commands) != 2 {
 		t.Fatalf("unexpected command group: %+v", group)
 	}
-	if group.Commands[0].Name != "discover" || !group.Commands[0].NeedsAPI {
-		t.Fatalf("unexpected command metadata: %+v", group.Commands[0])
+	byName := map[string]bool{}
+	for _, command := range group.Commands {
+		if !command.NeedsAPI {
+			t.Fatalf("command %q should need the API: %+v", command.Name, command)
+		}
+		byName[command.Name] = true
+	}
+	if !byName["discover"] || !byName["discovery-gaps"] {
+		t.Fatalf("expected discover and discovery-gaps commands, got %+v", group.Commands)
 	}
 }
 

@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
+
 	"prompt-manager/search"
 	"prompt-manager/skills"
 	"prompt-manager/store"
-	"strings"
 )
 
 // Service provides AI-powered search with graceful fallback to text search.
@@ -40,6 +41,9 @@ type Service struct {
 
 	// Discover filter configuration
 	filterConfig DiscoverFilterConfigProvider
+
+	// Discovery-miss telemetry sink/source (optional; nil = disabled)
+	missStore DiscoveryMissStore
 }
 
 // AgentStoreReader provides read access to agents for AI search.
@@ -608,6 +612,9 @@ func (s *Service) DiscoverTyped(ctx context.Context, queries []string, complexit
 			}
 		}
 	}
+
+	// Step 6: Discovery-miss telemetry (best-effort; never fails the response).
+	s.recordDiscoveryMiss(ctx, resp, discoverType, complexity)
 
 	return resp, nil
 }

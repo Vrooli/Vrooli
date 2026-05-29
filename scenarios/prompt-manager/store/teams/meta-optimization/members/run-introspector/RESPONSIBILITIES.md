@@ -20,6 +20,10 @@ When a run repeats a deterministic manual operation, search for an existing exec
 
 Known seed Actions: action:scenario.status.show for scenario lifecycle status and action:team.decisions.list for team decision lookup.
 
+## Discovery-Gap Signal
+
+Per-run friction is one input; aggregate demand is another. Each heartbeat, run `prompt-manager discovery-gaps --since 7d` to see the queries agents searched for via `prompt-manager discover` but found nothing useful (zero or only sub-threshold matches). Counts are window-relative. A recurring cluster is a strong unmet-capability signal: route it to a **new-action-candidate** (skill-optimizer) when a controlled CLI already covers it, or a **capability-gap** / **cli-backlog** (director-swarm) when no command exists. This closes the loop between what agents needed and what the system can do.
+
 ## Boundaries
 - Do not edit skills, agents, or teams. Lessons are observations and handoffs.
 - Do not review scenario code quality; that belongs to scenario-qa.

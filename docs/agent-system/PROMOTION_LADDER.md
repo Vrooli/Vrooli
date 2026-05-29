@@ -26,8 +26,8 @@ flowchart LR
 
     P0 -->|patterns stabilize<br/>across many runs| P1
     P1 -->|most logic now<br/>in CLI / scenario| P2
-    P2 -->|action-candidate<br/>decision accepted| P3
-    P3 -->|original prose<br/>obsolete| P4
+    P2 -->|one command owns it;<br/>create Action — free,<br/>no decision| P3
+    P3 -->|action-candidate<br/>decision accepted;<br/>prose retires| P4
 
     P1 -.LLM still needed<br/>for inputs / synthesis.-> P1
     P2 -.partial automation<br/>steady state.-> P2
@@ -45,8 +45,8 @@ Every CLI-operational guidance follows the same path:
 
 1. **Interim prose guardrail.** Add minimal skill guidance when tools do not yet provide deterministic output contracts.
 2. **Promote to CLI/tool contract.** Implement pass/fail signals, next-step guidance, and structured failure hints in the tool itself.
-3. **Expose as an Action when execution is one command.** If one Vrooli-controlled CLI command owns the deterministic operation, create or update an Action so agents can discover and validate it without reading prose.
-4. **Retire superseded prose.** Remove or collapse skill instructions now covered by tool output contracts or Action references.
+3. **Expose as an Action when execution is one command.** If one Vrooli-controlled CLI command owns the deterministic operation, create or update an Action so agents can discover and validate it without reading prose. **This step is free — no decision required** (creating/running an Action is structurally low-risk; see "Action-creation authorization" in `DECISIONS.md`).
+4. **Retire superseded prose.** Remove or collapse skill instructions now covered by tool output contracts or Action references. **This is the only gated step:** retiring the prose removes LLM oversight permanently, so it requires an accepted `action-candidate` decision (see "Action graduation gate" in `DECISIONS.md`).
 
 The ladder is one-way. Step 1 is the cheapest, most volatile rung; step 4 is permanent. Reverse moves (un-retiring prose because a CLI regressed, demoting an Action to a skill) happen, but only via decision; they are not the default direction.
 

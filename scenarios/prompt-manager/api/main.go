@@ -12,6 +12,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	"prompt-manager/actions"
 	"prompt-manager/agents"
 	"prompt-manager/aisearch"
@@ -31,9 +35,6 @@ import (
 	"prompt-manager/topics"
 	"prompt-manager/worldscale"
 	"prompt-manager/worldseats"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -244,6 +245,10 @@ func main() {
 	aiSearchService.SetTopicSearch(topicVectorStore, fileStore.FileTopics())
 	aiSearchService.SetActionSearch(actionVectorStore, fileStore.Actions())
 
+	// Wire the semantic-similarity seam used by `action create` previews to
+	// surface near-duplicate actions (structural + semantic dedup guard).
+	actionService.SetSemanticSearcher(actionSemanticAdapter{svc: aiSearchService})
+
 	// Budget config store
 	budgetConfigStore := aisearch.NewBudgetConfigStore(roots.Config)
 	aiSearchService.SetBudgetConfig(budgetConfigStore)
@@ -253,6 +258,12 @@ func main() {
 	discoverFilterConfigStore := aisearch.NewDiscoverFilterConfigStore(roots.Config)
 	aiSearchService.SetDiscoverFilterConfig(discoverFilterConfigStore)
 	aiSearchHandlers.SetDiscoverFilterConfigStore(discoverFilterConfigStore)
+
+	// Discovery-miss telemetry store. Lives under the runtime-data root (not
+	// the git-tracked store tree) so misses are durable runtime signal, not
+	// source. Resolved via the storage path layer — no hard-coded ~/.vrooli.
+	discoveryMissStore := store.NewDiscoveryMissStore(roots.RuntimeData)
+	aiSearchService.SetDiscoveryMissStore(discoveryMissStore)
 
 	// Set AI indexer on agent and team handlers for CRUD hook integration
 	agentHandlers.SetAIIndexer(aiSearchService)
@@ -373,6 +384,7 @@ func main() {
 
 	// Action routes
 	v1.HandleFunc("/actions", actionHandlers.List).Methods("GET")
+	v1.HandleFunc("/actions/preview", actionHandlers.Preview).Methods("POST")
 	v1.HandleFunc("/actions", actionHandlers.Create).Methods("POST")
 	v1.HandleFunc("/actions/{id}/validate", actionHandlers.Validate).Methods("POST")
 	v1.HandleFunc("/actions/{id}/run", actionHandlers.Run).Methods("POST")
@@ -440,6 +452,7 @@ func main() {
 
 	// Discovery route (unified topic + skill search)
 	v1.HandleFunc("/discover", aiSearchHandlers.Discover).Methods("POST")
+	v1.HandleFunc("/discovery-gaps", aiSearchHandlers.DiscoveryGaps).Methods("GET")
 
 	// Budget config routes
 	v1.HandleFunc("/config/budgets", aiSearchHandlers.GetBudgetConfig).Methods("GET")
@@ -806,4 +819,23 @@ func resolveQdrantURL() string {
 		return "http://localhost:" + port
 	}
 	return ""
+}
+
+// actionSemanticAdapter adapts the aisearch service to the actions package's
+// SemanticActionSearcher seam, so create previews can surface semantically
+// similar existing actions without the actions package depending on aisearch.
+type actionSemanticAdapter struct {
+	svc *aisearch.Service
+}
+
+func (a actionSemanticAdapter) SearchSimilarActions(ctx context.Context, query string, limit int) ([]actions.SemanticActionHit, error) {
+	resp, err := a.svc.SearchActions(ctx, query, limit)
+	if err != nil || resp == nil {
+		return nil, err
+	}
+	hits := make([]actions.SemanticActionHit, 0, len(resp.Results))
+	for _, result := range resp.Results {
+		hits = append(hits, actions.SemanticActionHit{ID: result.ID, Name: result.Name, Score: result.Score})
+	}
+	return hits, nil
 }

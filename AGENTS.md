@@ -10,7 +10,16 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 1. **Testing**: 
    - Use `vrooli scenario test <name>` (or test-genie) to run scenario tests.
 2. **Files**: Always prefer editing existing files over creating new ones
-4. **Dependencies**: Never install packages without explicit permission
+3. **Bug reporting & work logging**:
+   - If you spot a defect outside your current scope, file via `report-bug` (routes to scenario-qa).
+   - If you complete work worth preserving (non-trivial fix, feature, refactor, investigation), write a record via `swarm-manager records create`. Records are the recursive-learning loop's write side; without them, future agents lose your work.
+4. **Discover → Use → Capture** (continuous reflex, not an end-of-task checklist):
+   - **Discover first.** Before hand-rolling deterministic or operational work, run `prompt-manager discover "<what you need>" --type all` to find an existing skill or action. (A miss is logged automatically — no action needed from you.)
+   - **Capture as you go.** When you accomplish something reusable:
+     - One Vrooli CLI command cleanly does it and no action exists → `prompt-manager action create --name "…" --command '<argv with {{placeholders}}>'` (previews by default; add `--apply` to register). Creating an action is free — no decision required.
+     - It took several commands, only partly worked, or you improvised → `swarm-manager captures create --text "<intent / what you did / the friction>"`. Don't stitch multiple actions together; the capture becomes an enhancement or capability-gap the system triages into a single clean command later.
+     - Something is broken → `report-bug` (see above).
+5. **Dependencies**: Never install packages without explicit permission
 6. **Managing Scenarios**:
    - **ALWAYS use**: Scenario Makefiles for comprehensive management: `make start`, `make test`, `make logs`, `make stop`
    - **Alternative**: `vrooli scenario start <name>` for direct CLI management
@@ -126,6 +135,8 @@ What is the user doing?
 ```
 
 Skills are lazy-loaded — only pay context cost when relevant. The full instructions live in prompt-manager, not here.
+
+> **Discover before you hand-roll.** Beyond skills, prompt-manager also indexes executable **actions** (typed wrappers over a single Vrooli CLI command). Before writing deterministic or operational steps yourself, run `prompt-manager discover "<what you need>" --type all` — it returns both skills (judgment) and actions (execution). See Critical Rule §4 (Discover → Use → Capture) for the full reflex.
 
 > **Two skill systems — don't confuse them.** The `prompt-manager` skills above are *internal* — instructions for an agent working on Vrooli right now. The top-level [`skills/`](skills/) folder is *publication source* for external Claude Skills (the open SKILL.md standard) that teach agents in *other* runtimes — Claude Code, Codex CLI, Cursor, etc. — how to use specific Vrooli capabilities standalone. Different audience, different content shape. Internal sessions should keep using `prompt-manager skill ...`; do not load the publication-source folder as if it were a runtime skills directory. See [`skills/README.md`](skills/README.md) for the full distinction.
 

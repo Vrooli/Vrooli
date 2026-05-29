@@ -176,9 +176,20 @@ The CLI exposes `prompt-manager action run` as a thin API client for trusted wor
 
 The first shipped seed Actions are action:scenario.status.show, which wraps `vrooli scenario status {{scenario}}`, and action:team.decisions.list, which wraps `prompt-manager team decision-list {{team}} --json`. Both are read-oriented Actions with API/CLI validation and dry-run coverage.
 
+## Creating an Action is free
+
+Creating a new Action over an existing Vrooli-controlled CLI command — and running it — needs **no decision and no operator approval**. An Action wraps exactly one argv-shaped command, runs without a shell, declares its permissions up front, and is validated before it can run, so creation is structurally low-risk. When you discover that one CLI command cleanly does something reusable, register it:
+
+```bash
+prompt-manager action create --name "…" --command '<argv with {{placeholders}}>'   # previews
+prompt-manager action create --name "…" --command '…' --apply                       # registers
+```
+
+The only governed transition is **retiring prose** in favor of an Action (the graduation step below) — that removes LLM oversight from a workflow that previously had it, and it is the one step that requires an `action-candidate` decision. See `path:docs/agent-system/DECISIONS.md` ("Action-creation authorization" and "Action graduation gate") and `path:docs/agent-system/PROMOTION_LADDER.md`.
+
 ## Graduation from Skills
 
-A skill section can graduate to an Action when:
+Graduation — *retiring* a prose skill (or section) because an Action now covers it — is gated (see above). A skill section can graduate to an Action when:
 
 1. The section maps to one Vrooli-controlled CLI command.
 2. The command has stable inputs and outputs.

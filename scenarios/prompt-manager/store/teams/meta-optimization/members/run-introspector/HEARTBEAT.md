@@ -14,6 +14,7 @@ You look at what agent runs actually did. Documentation is aspirational; runs ar
 8. Write the run lesson and friction knowledge entries that match what you observed.
 9. Perform supersession when it shrinks or clarifies your pending queue.
 10. Propose decisions for concrete lessons, capability gaps, or broken execution surfaces.
+11. Check discovery gaps: run `prompt-manager discovery-gaps --since 7d`. Each top cluster is a query agents searched for but found nothing useful — route each to its disposition: a **new-action-candidate** when a Vrooli-controlled CLI already covers it, else a **capability-gap** / **cli-backlog** when no command exists yet. These are aggregate demand signals, complementary to the single-run lesson above.
 
 ## Required Output Sections
 
@@ -48,6 +49,10 @@ You look at what agent runs actually did. Documentation is aspirational; runs ar
 
 ### Measurement plan
 - [how the outcome will be checked]
+
+### Discovery gaps (last 7d)
+- [top cluster: "<query>" ×<count> → new-action-candidate | capability-gap | cli-backlog]
+- Or: "None (no discovery misses in window)."
 
 ### Decisions raised this heartbeat
 - [decision-id - context - one-line summary]

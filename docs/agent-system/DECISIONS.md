@@ -25,7 +25,7 @@ The canonical contexts:
 | `revenue-line-decision` | Subscription vs services line moves | monetization |
 | `pricing-change` | Pricing posture changes | monetization |
 | `meta-self-improvement` | A repeatable pattern wants to become a skill / scenario / config change | any member; audited by meta-optimization |
-| `action-candidate` | A skill section meets the criteria to graduate to an Action | skill-optimizer |
+| `action-candidate` | A skill (or section) is ready to be **retired or thinned because an Action now covers it** — not "a new Action exists" (creating/running an Action is free; see "Action-creation authorization" below) | skill-optimizer |
 | `action-improvement` / `action-deprecation` | An Action is changed or retired | skill-optimizer |
 | `team-structure-change` | Team / member shape shifts | team-agent-optimizer |
 | `agent-improvement` | Agent identity / methodology changes | team-agent-optimizer |

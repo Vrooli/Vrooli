@@ -53,6 +53,8 @@ The prompt-manager uses interface-based design to create clear testing seams. Ea
 | `TeamRelReader` | `aisearch` | Team member relations for team embeddings |
 | `TopicStoreReader` | `aisearch` | Read-only topic access for discover pipeline |
 | `BudgetConfigProvider` | `aisearch` | Budget tier config for discover budgeting |
+| `SemanticActionSearcher` | `actions` | Semantic similarity for `action create` dedup previews (adapts aisearch; faked in tests) |
+| `DiscoveryMissStore` | `aisearch` | Discovery-miss telemetry sink/source (impl: `store.DiscoveryMissStore`; faked in tests) |
 
 ### Search Service Seams
 

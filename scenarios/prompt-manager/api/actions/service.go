@@ -7,11 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
-	"prompt-manager/store"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
+
+	"prompt-manager/store"
 )
 
 const (
@@ -48,14 +49,22 @@ type CommandRunResult struct {
 }
 
 type Service struct {
-	store          ActionStore
-	resolver       ControlledCommandResolver
-	runner         CommandRunner
-	runSlots       chan struct{}
-	defaultTimeout time.Duration
-	maxTimeout     time.Duration
-	outputLimit    int
-	auditLimit     int
+	store            ActionStore
+	resolver         ControlledCommandResolver
+	runner           CommandRunner
+	semanticSearcher SemanticActionSearcher
+	runSlots         chan struct{}
+	defaultTimeout   time.Duration
+	maxTimeout       time.Duration
+	outputLimit      int
+	auditLimit       int
+}
+
+// SetSemanticSearcher wires the optional semantic-similarity seam used by
+// create previews to surface near-duplicate actions. It is optional: when nil,
+// previews fall back to structural (same-command) similarity only.
+func (s *Service) SetSemanticSearcher(searcher SemanticActionSearcher) {
+	s.semanticSearcher = searcher
 }
 
 func NewService(store ActionStore, resolver ControlledCommandResolver) *Service {
@@ -101,7 +110,11 @@ func (s *Service) Get(ctx context.Context, id string) (*store.Action, error) {
 
 func (s *Service) Create(ctx context.Context, pack string, action *store.Action) (*store.Action, ValidationResponse, error) {
 	if pack == "" {
-		pack = "drafts"
+		// Default to the active "local" pack so created actions are immediately
+		// discoverable. The "drafts" pack is inactive (List only reads active
+		// packs), so defaulting there would hide every learned action and
+		// defeat the discover→use→capture flywheel.
+		pack = "local"
 	}
 	validation := s.Validate(ctx, action)
 	if !validation.Valid {

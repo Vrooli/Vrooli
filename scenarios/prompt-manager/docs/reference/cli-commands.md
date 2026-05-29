@@ -28,6 +28,7 @@ go build -o prompt-manager .
 | `prompt-manager test` | Test skills with Ollama |
 | `prompt-manager search` | Search skills |
 | `prompt-manager discover` | Discover relevant skills and opt-in Action matches |
+| `prompt-manager discovery-gaps` | Clustered unmet-capability queries (discovery misses) |
 | `prompt-manager action` | Manage typed executable Action contracts |
 | `prompt-manager graph` | Relationship graph analysis |
 | `prompt-manager metadata` | Fetch URL metadata |
@@ -966,6 +967,16 @@ prompt-manager discover "debugging methodology" --type skill
 
 `--type all` returns both skills and Actions with a type discriminator. Agents should prefer exact Action matches for deterministic execution and use skills when the work requires judgment.
 
+### prompt-manager discovery-gaps
+
+[CODE: cli/discover/discover.go]
+
+Show clustered unmet-capability queries — the searches that `prompt-manager discover` answered with nothing useful (zero results or only sub-threshold matches). These misses are captured server-side automatically; this command reads a time window and clusters near-duplicate queries so the meta-optimization team can route each to a new action, capability-gap, or cli-backlog. Counts are window-relative.
+
+```bash
+prompt-manager discovery-gaps [--since 7d] [--type skill|action|all] [--limit=N] [--json]
+```
+
 ---
 
 ## Actions
@@ -990,13 +1001,24 @@ prompt-manager action show <id> [--json]
 
 ### prompt-manager action create
 
-Create an Action contract from an `action.json` file. The contract is validated by the API before it is persisted.
+Create an Action from a single Vrooli CLI command. **Previews by default** (writes nothing): the command resolves the owner, infers inputs from `{{placeholders}}`, infers permissions from the owner's `cli/manifest.json`, validates the contract, and surfaces any similar existing actions. Add `--apply` to register it (default status `active`). Alternatively, pass a fully authored `--file=action.json`. Creating an action is free — no decision required (only *retiring prose* in favor of an action is gated; see [DOC: docs/concepts/ACTIONS.md]).
 
 ```bash
-prompt-manager action create --file=path/to/action.json [--pack=core|local|drafts] [--json]
+# Preview (no write): infer + validate + show similar actions
+prompt-manager action create --name "Show Scenario Status" --command 'vrooli scenario status {{scenario}}'
+
+# Register it
+prompt-manager action create --name "Show Scenario Status" --command 'vrooli scenario status {{scenario}}' --apply
+
+# Refine an inferred input, set an explicit id, or target a pack
+prompt-manager action create --name "Capture Page" --command 'browser-automation-studio capture {{url}} --out {{out}}' \
+  --input out:path --id bas.capture --pack core --apply
+
+# Or create from a fully authored contract (also previews unless --apply)
+prompt-manager action create --file=path/to/action.json [--pack=core|local|drafts] --apply
 ```
 
-If `--pack` is omitted, the API defaults to the conservative draft pack.
+`--command` and `--file` are mutually exclusive; exactly one is required. `--input name:type[:optional]` refines an inferred input (repeatable). A near-duplicate (same executable + subcommand, or high semantic similarity) is surfaced in the preview so you can `action update` an existing action instead of creating a near-duplicate. If `--pack` is omitted, the action lands in the active `local` pack so it is immediately discoverable.
 
 ### prompt-manager action update
 
