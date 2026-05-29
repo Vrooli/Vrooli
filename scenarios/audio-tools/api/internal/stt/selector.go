@@ -350,23 +350,25 @@ func (s *Selector) Select(
 		// Auto-resolution order:
 		//   1. Native streaming (Passthrough) — best UX when the provider
 		//      supports it (Kyutai, Deepgram, future LPBS streaming).
-		//   2. OverlapAgree on batch-only providers (Local Whisper) —
-		//      incremental segments mid-utterance via LocalAgreement-N +
-		//      VAD-anchored growing-buffer. See docs/internal/PROBLEMS.md
-		//      "OverlapAgree commit gap" (RESOLVED) and
-		//      overlap_agree_behavior_test.go for the correctness gates.
-		//   3. VADSegment as the batch fallback when OverlapAgree is
-		//      excluded by the engine manifest whitelist.
+		//   2. VADSegment on batch-only providers (Local Whisper) — VAD-bounded
+		//      segments transcribed at each silence boundary. This is the
+		//      default batch strategy: it is the most seamless of the batch
+		//      options today.
+		//   3. OverlapAgree as the batch alternative — incremental segments
+		//      mid-utterance via LocalAgreement-N + VAD-anchored growing-buffer.
+		//      Still selectable via the explicit `overlap` preference; it is no
+		//      longer the auto default while its low-latency UX is being honed.
+		//      See overlap_agree_behavior_test.go for the correctness gates.
 		//   4. BufferedFallback when nothing else fits.
 		switch {
 		case traits.Stream && supports(sttchain.StrategyPassthrough):
 			st, k, _ := pick(sttchain.StrategyPassthrough)
 			chosenStrategy, chosenKind = st, k
-		case traits.Batch && supports(sttchain.StrategyOverlapAgree):
-			st, k, _ := pick(sttchain.StrategyOverlapAgree)
-			chosenStrategy, chosenKind = st, k
 		case traits.Batch && supports(sttchain.StrategyVADSegment):
 			st, k, _ := pick(sttchain.StrategyVADSegment)
+			chosenStrategy, chosenKind = st, k
+		case traits.Batch && supports(sttchain.StrategyOverlapAgree):
+			st, k, _ := pick(sttchain.StrategyOverlapAgree)
 			chosenStrategy, chosenKind = st, k
 		default:
 			chosenStrategy = &strategy.BufferedFallback{Executor: s.BatchExecutor}

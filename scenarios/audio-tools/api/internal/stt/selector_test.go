@@ -25,15 +25,15 @@ func TestSelectorMatrix(t *testing.T) {
 		wantErr  error
 	}{
 		{
-			// Auto picks OverlapAgree when the provider's whitelist allows it.
-			// The growing-buffer LocalAgreement-N + VAD-anchored trigger gives
-			// incremental segments mid-utterance; the prior failure mode is
-			// documented as RESOLVED in PROBLEMS.md.
-			name:     "auto local batch with overlap eligible -> overlap_agree (resolved 2026-05-28)",
+			// Auto prefers VADSegment on batch providers even when OverlapAgree
+			// is whitelisted. VADSegment is the seamless default; OverlapAgree
+			// remains reachable only via the explicit `overlap` preference while
+			// its low-latency UX is being honed (2026-05-29).
+			name:     "auto local batch with overlap eligible -> vad_segment (default 2026-05-29)",
 			traits:   sttchain.ProviderTraits{Batch: true, Strategies: []sttchain.StrategyKind{sttchain.StrategyVADSegment, sttchain.StrategyOverlapAgree}},
 			pref:     stt.PreferenceAuto,
 			mode:     stt.ModeAuto,
-			wantKind: sttchain.StrategyOverlapAgree,
+			wantKind: sttchain.StrategyVADSegment,
 		},
 		{
 			name:     "auto local batch without overlap -> vad_segment",
