@@ -18,7 +18,13 @@ CREATE TABLE IF NOT EXISTS validation_records (
   agent_manager_run_id              TEXT NOT NULL DEFAULT '',
   manifest_template_version_at_run  TEXT NOT NULL DEFAULT '',
   manifest_skill_version_at_run     TEXT NOT NULL DEFAULT '',
-  error_message                     TEXT NOT NULL DEFAULT ''
+  error_message                     TEXT NOT NULL DEFAULT '',
+  -- Tool-run (TupleKindTool) surfaces: the expectation detail and the
+  -- captured tool output. Empty for skill runs. Existing databases get
+  -- these via the additive migration in EnsureColumns (sqlite has no
+  -- ADD COLUMN IF NOT EXISTS, so the migration is introspection-guarded).
+  tool_detail                       TEXT NOT NULL DEFAULT '',
+  tool_raw_output                   TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_validation_records_golden     ON validation_records(golden_slug);

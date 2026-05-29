@@ -1,36 +1,64 @@
-// Package dev_tools wraps the local development-tool CLIs
-// (scenario-auditor, test-genie, scenario-completeness-scoring) behind
-// the validation_run.ToolRunner seam.
+// Package dev_tools runs the local development-tool CLIs (test-genie,
+// scenario-completeness-scoring) against a golden scenario behind the
+// validation_run.ToolRunner seam.
 //
-// The runner is intentionally narrow: it shells out to a tool binary
-// resolved from PATH, captures exit + stderr, and produces a
-// vrun.ToolResult. Per-tool expectation parsing (e.g., reading a
-// structured JSON output) is followup work documented in PROBLEMS.md.
+// Unlike the original exit-code-only stub, the runner builds the correct
+// per-tool argv, captures stdout/stderr separately, and applies a
+// per-tool expectation (test-genie: every phase passes;
+// completeness-scoring: score >= floor). It distinguishes "the tool
+// could not run" (run failure) from "the tool ran and the expectation
+// did not hold" (tool/template regression) so the evaluator can map the
+// two-layer signal to the right verdict.
 package dev_tools
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
-	"time"
+	"path/filepath"
+	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	"development-toolchain-validator/internal/clock"
 	vrun "development-toolchain-validator/internal/validation_run"
 )
 
+// CommandResult captures one tool process execution.
+type CommandResult struct {
+	Stdout []byte
+	Stderr []byte
+	// ExitCode is the process exit code (meaningful only when Launched).
+	ExitCode int
+	// Launched is true when the process actually started and exited
+	// (even non-zero); false when it could not be started at all or was
+	// killed by a context deadline before completing.
+	Launched bool
+}
+
 // Options configures the dev-tool runner.
 type Options struct {
 	Clock clock.Clock
 
-	// CommandRunner is the seam used to exec the tool binary. nil
-	// defaults to a real exec.CommandContext.
-	CommandRunner func(ctx context.Context, name string, args ...string) ([]byte, error)
+	// CommandRunner is the seam used to exec a tool command. nil defaults
+	// to a real exec.CommandContext capturing stdout/stderr separately.
+	CommandRunner func(ctx context.Context, name string, args ...string) (CommandResult, error)
+
+	// ExpectationsDir overrides the directory holding <tool>.json
+	// expectation files. Empty resolves to the committed repo directory.
+	ExpectationsDir string
+
+	// Registry overrides the tool registry. nil uses defaultRegistry.
+	Registry map[string]toolSpec
 }
 
-// Runner implements vrun.ToolRunner by shelling out to one of the
-// dev-tool CLIs.
+// Runner implements vrun.ToolRunner by shelling out to a registered
+// dev-tool CLI and applying its expectation.
 type Runner struct {
-	opts Options
+	opts     Options
+	registry map[string]toolSpec
 }
 
 // New constructs a Runner with the given options.
@@ -41,57 +69,182 @@ func New(opts Options) *Runner {
 	if opts.CommandRunner == nil {
 		opts.CommandRunner = defaultCommandRunner
 	}
-	return &Runner{opts: opts}
+	registry := opts.Registry
+	if registry == nil {
+		registry = defaultRegistry()
+	}
+	return &Runner{opts: opts, registry: registry}
 }
 
 var _ vrun.ToolRunner = (*Runner)(nil)
 
-// Invoke runs the named tool against the given golden path. The tool
-// is expected to exit zero on pass; non-zero exit (or executable
-// failure) yields a ToolResult{Succeeded: false} with the captured
-// stderr as ErrorReason.
-func (r *Runner) Invoke(ctx context.Context, toolName, goldenPath string) (vrun.ToolResult, error) {
-	if !isKnownTool(toolName) {
-		return vrun.ToolResult{Name: toolName, Succeeded: false, ErrorReason: "unknown tool"}, nil
-	}
+// Invoke runs the named tool against the golden and returns a ToolResult
+// carrying the two-layer signal (Ran / ExpectationMet) plus the captured
+// output. It returns a non-nil error only when the tool is unknown — an
+// unrecoverable misconfiguration. All other failure modes are encoded in
+// the ToolResult (Ran=false for "couldn't run", ExpectationMet=false for
+// "ran but failed"), so the evaluator is the single place verdicts are
+// decided.
+func (r *Runner) Invoke(ctx context.Context, toolName, goldenSlug, goldenPath string) (vrun.ToolResult, error) {
 	start := r.opts.Clock.Now().UTC()
-	_, err := r.opts.CommandRunner(ctx, toolName, goldenPath)
-	end := r.opts.Clock.Now().UTC()
+
+	spec, ok := r.registry[toolName]
+	if !ok {
+		return vrun.ToolResult{
+			Name:        toolName,
+			Ran:         false,
+			StartedAt:   start,
+			EndedAt:     r.opts.Clock.Now().UTC(),
+			ErrorReason: "unknown tool",
+		}, fmt.Errorf("unknown tool %q", toolName)
+	}
+
+	exp, err := resolveExpectation(r.opts.ExpectationsDir, toolName)
 	if err != nil {
 		return vrun.ToolResult{
 			Name:        toolName,
-			Succeeded:   false,
+			Ran:         false,
 			StartedAt:   start,
-			EndedAt:     end,
-			ErrorReason: fmt.Sprintf("%s exited with error: %v", toolName, err),
+			EndedAt:     r.opts.Clock.Now().UTC(),
+			ErrorReason: "load expectation: " + err.Error(),
 		}, nil
 	}
-	return vrun.ToolResult{
-		Name:      toolName,
-		Succeeded: true,
-		StartedAt: start,
-		EndedAt:   end,
-	}, nil
+
+	absPath, err := resolveAbsGoldenPath(goldenPath)
+	if err != nil {
+		return vrun.ToolResult{
+			Name:        toolName,
+			Ran:         false,
+			StartedAt:   start,
+			EndedAt:     r.opts.Clock.Now().UTC(),
+			ErrorReason: "resolve golden path: " + err.Error(),
+		}, nil
+	}
+
+	cmds := spec.commands(goldenSlug, absPath, exp)
+	var rawAll bytes.Buffer
+	var finalRes CommandResult
+	for i, args := range cmds {
+		res, runErr := r.opts.CommandRunner(ctx, toolName, args...)
+		appendRawOutput(&rawAll, toolName, args, res)
+		isFinal := i == len(cmds)-1
+
+		if runErr != nil || !res.Launched {
+			reason := fmt.Sprintf("%s could not run (%s)", toolName, strings.Join(args, " "))
+			if runErr != nil {
+				reason += ": " + runErr.Error()
+			}
+			return vrun.ToolResult{
+				Name:        toolName,
+				Ran:         false,
+				StartedAt:   start,
+				EndedAt:     r.opts.Clock.Now().UTC(),
+				RawOutput:   rawAll.Bytes(),
+				ErrorReason: reason,
+			}, nil
+		}
+		// A preparatory (non-final) command that exits non-zero means we
+		// could not complete the measurement → run failure. The final
+		// command's non-zero exit is allowed: it is the expectation signal.
+		if !isFinal && res.ExitCode != 0 {
+			return vrun.ToolResult{
+				Name:        toolName,
+				Ran:         false,
+				StartedAt:   start,
+				EndedAt:     r.opts.Clock.Now().UTC(),
+				RawOutput:   rawAll.Bytes(),
+				ErrorReason: fmt.Sprintf("%s preparatory step (%s) exited %d", toolName, strings.Join(args, " "), res.ExitCode),
+			}, nil
+		}
+		if isFinal {
+			finalRes = res
+		}
+	}
+
+	met, detail := spec.evaluate(finalRes, exp)
+	result := vrun.ToolResult{
+		Name:           toolName,
+		Ran:            true,
+		ExpectationMet: met,
+		Detail:         detail,
+		RawOutput:      rawAll.Bytes(),
+		StartedAt:      start,
+		EndedAt:        r.opts.Clock.Now().UTC(),
+	}
+	if !met {
+		result.ErrorReason = detail
+	}
+	return result, nil
 }
 
-func defaultCommandRunner(ctx context.Context, name string, args ...string) ([]byte, error) {
+// defaultCommandRunner executes one tool command, capturing stdout and
+// stderr separately so a tool's --json report (stdout) is parseable even
+// when it also logs to stderr. A non-zero exit is reported via
+// CommandResult.ExitCode with Launched=true (the process ran); only a
+// genuine launch failure or a context-deadline kill sets Launched=false.
+func defaultCommandRunner(ctx context.Context, name string, args ...string) (CommandResult, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
-	return cmd.CombinedOutput()
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	runErr := cmd.Run()
+	res := CommandResult{Stdout: stdout.Bytes(), Stderr: stderr.Bytes(), Launched: true}
+
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		// Context cancellation/timeout killed the process mid-run: treat as
+		// "could not complete" rather than a clean exit.
+		res.Launched = false
+		return res, ctxErr
+	}
+	if runErr != nil {
+		var exitErr *exec.ExitError
+		if errors.As(runErr, &exitErr) {
+			res.ExitCode = exitErr.ExitCode()
+			return res, nil
+		}
+		// Failed to start at all (binary missing, etc.).
+		res.Launched = false
+		return res, runErr
+	}
+	return res, nil
 }
 
-// knownTools is the closed set of tool names this adapter recognizes.
-// Keeps a misconfigured caller from arbitrarily executing PATH lookups.
-var knownTools = map[string]struct{}{
-	"scenario-auditor":              {},
-	"test-genie":                    {},
-	"scenario-completeness-scoring": {},
+// appendRawOutput accumulates a command's captured output into buf with a
+// header, so a persisted multi-command run is legible during triage.
+func appendRawOutput(buf *bytes.Buffer, tool string, args []string, res CommandResult) {
+	fmt.Fprintf(buf, "$ %s %s\n", tool, strings.Join(args, " "))
+	if len(res.Stdout) > 0 {
+		buf.Write(res.Stdout)
+		if res.Stdout[len(res.Stdout)-1] != '\n' {
+			buf.WriteByte('\n')
+		}
+	}
+	if len(res.Stderr) > 0 {
+		buf.WriteString("--- stderr ---\n")
+		buf.Write(res.Stderr)
+		if res.Stderr[len(res.Stderr)-1] != '\n' {
+			buf.WriteByte('\n')
+		}
+	}
 }
 
-func isKnownTool(name string) bool {
-	_, ok := knownTools[name]
-	return ok
+// resolveAbsGoldenPath turns a (possibly repo-relative) golden path into
+// an absolute host path the tools can read. Goldens are registered with
+// repo-relative paths for portability; the repo root is resolved from
+// VROOLI_SOURCE_ROOT/VROOLI_ROOT (set by the lifecycle) with a cwd
+// fallback. Mirrors agent_manager.resolveGoldenRoot.
+func resolveAbsGoldenPath(goldenPath string) (string, error) {
+	p := strings.TrimSpace(goldenPath)
+	if p == "" {
+		return "", fmt.Errorf("golden path is empty")
+	}
+	if filepath.IsAbs(p) {
+		return filepath.Clean(p), nil
+	}
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		return "", fmt.Errorf("resolve repo root for golden path %q: %w", p, err)
+	}
+	return filepath.Join(root, filepath.FromSlash(p)), nil
 }
-
-// Compile-time hint that time.Duration is in scope; the package is
-// kept thin enough that this import would otherwise be elided.
-var _ time.Duration

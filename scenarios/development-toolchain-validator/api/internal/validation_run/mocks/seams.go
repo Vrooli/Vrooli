@@ -55,12 +55,21 @@ type FakeToolRunner struct {
 	Result vrun.ToolResult
 	Err    error
 	Calls  int
+
+	// LastTool / LastSlug / LastPath capture the most recent invocation
+	// arguments so tests can assert correct targeting.
+	LastTool string
+	LastSlug string
+	LastPath string
 }
 
 var _ vrun.ToolRunner = (*FakeToolRunner)(nil)
 
-func (f *FakeToolRunner) Invoke(context.Context, string, string) (vrun.ToolResult, error) {
+func (f *FakeToolRunner) Invoke(_ context.Context, toolName, goldenSlug, goldenPath string) (vrun.ToolResult, error) {
 	f.Calls++
+	f.LastTool = toolName
+	f.LastSlug = goldenSlug
+	f.LastPath = goldenPath
 	if f.Err != nil {
 		return vrun.ToolResult{}, f.Err
 	}

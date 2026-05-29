@@ -19,6 +19,12 @@ type WorkerConfig struct {
 	// AgentManagerTimeout caps each WaitForTerminal call. Default 30m.
 	AgentManagerTimeout time.Duration
 
+	// ToolTimeout caps a single tool invocation (TupleKindTool). A
+	// test-genie comprehensive run against a golden is heavy (build +
+	// runtime phases), so this is generous. Default 30m. A timeout
+	// classifies the run as run_failure (the tool could not complete).
+	ToolTimeout time.Duration
+
 	// PollInterval controls how often the worker re-checks for queued
 	// runs when no notification has fired. Default 5s.
 	PollInterval time.Duration
@@ -55,6 +61,9 @@ func NewWorker(deps WorkerDeps, cfg WorkerConfig) *Worker {
 	}
 	if cfg.AgentManagerTimeout <= 0 {
 		cfg.AgentManagerTimeout = 30 * time.Minute
+	}
+	if cfg.ToolTimeout <= 0 {
+		cfg.ToolTimeout = 30 * time.Minute
 	}
 	if cfg.PollInterval <= 0 {
 		cfg.PollInterval = 5 * time.Second
@@ -188,26 +197,37 @@ func (w *Worker) processSkillRun(ctx context.Context, r Run, goldenPath string, 
 		return
 	}
 	verdict := Evaluate(EvaluatorInput{Manifest: man, Summary: summary})
-	w.persistTerminal(ctx, r, verdict.Verdict, verdict.ErrorMessage, summary, man, verdict.Violations)
+	w.persistTerminal(ctx, r, verdict.Verdict, verdict.ErrorMessage, summary, man, verdict.Violations, nil)
 }
 
 func (w *Worker) processToolRun(ctx context.Context, r Run, goldenPath string, startedAt time.Time) {
-	res, err := w.deps.Tools.Invoke(ctx, r.SubjectID, goldenPath)
+	toolCtx, cancel := context.WithTimeout(ctx, w.config.ToolTimeout)
+	defer cancel()
+	res, err := w.deps.Tools.Invoke(toolCtx, r.SubjectID, r.GoldenSlug, goldenPath)
 	if err != nil {
-		w.terminate(ctx, r, vr.VerdictToolFailure, "tool invoke: "+err.Error(),
-			RunSummary{StartedAt: startedAt, EndedAt: w.deps.Clock.Now().UTC()})
+		// A seam-level error means the tool could not be run at all
+		// (unknown tool, unreadable expectation config): a run failure,
+		// not a tool/template regression.
+		w.terminateTool(ctx, r, vr.VerdictRunFailure, "tool invoke: "+err.Error(),
+			RunSummary{StartedAt: startedAt, EndedAt: w.deps.Clock.Now().UTC()}, &res)
 		return
 	}
-	verdict := Evaluate(EvaluatorInput{ToolResult: &res, Summary: RunSummary{StartedAt: res.StartedAt, EndedAt: res.EndedAt}})
-	w.persistTerminal(ctx, r, verdict.Verdict, verdict.ErrorMessage,
-		RunSummary{StartedAt: res.StartedAt, EndedAt: res.EndedAt}, manifest.Manifest{}, nil)
+	summary := RunSummary{StartedAt: res.StartedAt, EndedAt: res.EndedAt}
+	verdict := Evaluate(EvaluatorInput{ToolResult: &res, Summary: summary})
+	w.terminateTool(ctx, r, verdict.Verdict, verdict.ErrorMessage, summary, &res)
 }
 
 func (w *Worker) terminate(ctx context.Context, r Run, verdict vr.Verdict, msg string, summary RunSummary) {
-	w.persistTerminal(ctx, r, verdict, msg, summary, manifest.Manifest{}, nil)
+	w.persistTerminal(ctx, r, verdict, msg, summary, manifest.Manifest{}, nil, nil)
 }
 
-func (w *Worker) persistTerminal(ctx context.Context, r Run, verdict vr.Verdict, msg string, summary RunSummary, man manifest.Manifest, _ []manifest.Violation) {
+// terminateTool persists a terminal tool run, carrying the tool's
+// expectation detail and captured output into the record.
+func (w *Worker) terminateTool(ctx context.Context, r Run, verdict vr.Verdict, msg string, summary RunSummary, tool *ToolResult) {
+	w.persistTerminal(ctx, r, verdict, msg, summary, manifest.Manifest{}, nil, tool)
+}
+
+func (w *Worker) persistTerminal(ctx context.Context, r Run, verdict vr.Verdict, msg string, summary RunSummary, man manifest.Manifest, _ []manifest.Violation, tool *ToolResult) {
 	endedAt := summary.EndedAt
 	if endedAt.IsZero() {
 		endedAt = w.deps.Clock.Now().UTC()
@@ -221,6 +241,11 @@ func (w *Worker) persistTerminal(ctx context.Context, r Run, verdict vr.Verdict,
 	}
 	if err := w.deps.Repo.UpdateStatus(ctx, r); err != nil {
 		w.deps.Logger.Printf("validation_run.worker: update terminal %q: %v", r.ID, err)
+	}
+	var toolDetail, toolRawOutput string
+	if tool != nil {
+		toolDetail = tool.Detail
+		toolRawOutput = string(tool.RawOutput)
 	}
 	_, err := w.deps.Records.Append(ctx, vr.AppendInput{
 		TupleKind:                    r.TupleKind,
@@ -237,6 +262,8 @@ func (w *Worker) persistTerminal(ctx context.Context, r Run, verdict vr.Verdict,
 		ManifestTemplateVersionAtRun: man.TemplateVersionPinned,
 		ManifestSkillVersionAtRun:    man.SkillVersionPinned,
 		ErrorMessage:                 msg,
+		ToolDetail:                   toolDetail,
+		ToolRawOutput:                toolRawOutput,
 	})
 	if err != nil {
 		w.deps.Logger.Printf("validation_run.worker: append record %q: %v", r.ID, err)

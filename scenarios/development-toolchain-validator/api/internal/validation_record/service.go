@@ -73,6 +73,8 @@ func (s *service) Append(ctx context.Context, in AppendInput) (Record, error) {
 		ManifestTemplateVersionAtRun: in.ManifestTemplateVersionAtRun,
 		ManifestSkillVersionAtRun:    in.ManifestSkillVersionAtRun,
 		ErrorMessage:                 in.ErrorMessage,
+		ToolDetail:                   in.ToolDetail,
+		ToolRawOutput:                in.ToolRawOutput,
 	}
 	if err := s.repo.Append(ctx, r); err != nil {
 		return Record{}, err

@@ -8,20 +8,38 @@ import (
 	vrun "development-toolchain-validator/internal/validation_run"
 )
 
-func TestEvaluate_ToolSuccessIsPass(t *testing.T) {
-	got := vrun.Evaluate(vrun.EvaluatorInput{ToolResult: &vrun.ToolResult{Succeeded: true}})
+func TestEvaluate_ToolRanAndExpectationMetIsPass(t *testing.T) {
+	got := vrun.Evaluate(vrun.EvaluatorInput{ToolResult: &vrun.ToolResult{Ran: true, ExpectationMet: true}})
 	if got.Verdict != vr.VerdictPass {
 		t.Errorf("verdict = %v, want pass", got.Verdict)
 	}
 }
 
-func TestEvaluate_ToolFailureMapsToToolFailure(t *testing.T) {
-	got := vrun.Evaluate(vrun.EvaluatorInput{ToolResult: &vrun.ToolResult{Succeeded: false, ErrorReason: "nope"}})
+func TestEvaluate_ToolRanButExpectationMissedIsToolFailure(t *testing.T) {
+	// The tool ran but its success expectation did not hold → the tool or
+	// the template/golden regressed.
+	got := vrun.Evaluate(vrun.EvaluatorInput{ToolResult: &vrun.ToolResult{
+		Ran: true, ExpectationMet: false, ErrorReason: "2 phase(s) failed",
+	}})
 	if got.Verdict != vr.VerdictToolFailure {
 		t.Errorf("verdict = %v, want tool_failure", got.Verdict)
 	}
-	if got.ErrorMessage != "nope" {
-		t.Errorf("error = %q, want %q", got.ErrorMessage, "nope")
+	if got.ErrorMessage != "2 phase(s) failed" {
+		t.Errorf("error = %q, want %q", got.ErrorMessage, "2 phase(s) failed")
+	}
+}
+
+func TestEvaluate_ToolCouldNotRunIsRunFailure(t *testing.T) {
+	// The tool never executed (missing binary, failed prep step) → this is
+	// a run failure, NOT a tool/template regression.
+	got := vrun.Evaluate(vrun.EvaluatorInput{ToolResult: &vrun.ToolResult{
+		Ran: false, ErrorReason: "binary missing",
+	}})
+	if got.Verdict != vr.VerdictRunFailure {
+		t.Errorf("verdict = %v, want run_failure", got.Verdict)
+	}
+	if got.ErrorMessage != "binary missing" {
+		t.Errorf("error = %q, want %q", got.ErrorMessage, "binary missing")
 	}
 }
 

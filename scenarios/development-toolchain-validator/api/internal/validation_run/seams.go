@@ -41,12 +41,15 @@ type AgentManagerClient interface {
 }
 
 // ToolRunner is the outbound seam for invoking development-tool CLIs
-// (scenario-auditor, test-genie, scenario-completeness-scoring) against
-// a golden. Each invocation is one "tool validation" run.
+// (test-genie, scenario-completeness-scoring) against a golden. Each
+// invocation is one "tool validation" run. Both the golden slug (how the
+// tool targets the scenario) and the absolute golden path (what
+// test-genie reads via --scenario-path) are supplied because different
+// tools need different targeting.
 //
 // seam: ToolRunner
 type ToolRunner interface {
-	Invoke(ctx context.Context, toolName, goldenPath string) (ToolResult, error)
+	Invoke(ctx context.Context, toolName, goldenSlug, goldenPath string) (ToolResult, error)
 }
 
 // WorkspaceSandboxClient is the optional outbound seam for fetching

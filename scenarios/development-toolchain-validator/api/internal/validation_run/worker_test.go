@@ -156,14 +156,14 @@ func TestWorker_ToolRun_HappyPath(t *testing.T) {
 	deps, repo, _ := newWorkerDeps(t)
 	now := deps.Clock.Now()
 	deps.Tools = &vrunmocks.FakeToolRunner{Result: vrun.ToolResult{
-		Succeeded: true, StartedAt: now, EndedAt: now.Add(time.Second),
+		Ran: true, ExpectationMet: true, StartedAt: now, EndedAt: now.Add(time.Second),
 	}}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	require.NoError(t, repo.Create(ctx, vrun.Run{
-		ID: "r-tool", TupleKind: vr.TupleKindTool, SubjectID: "scenario-auditor", GoldenSlug: "ref",
+		ID: "r-tool", TupleKind: vr.TupleKindTool, SubjectID: "test-genie", GoldenSlug: "ref",
 		Status: vrun.StatusQueued, CreatedAt: now,
 	}))
 
@@ -180,15 +180,17 @@ func TestWorker_ToolRun_HappyPath(t *testing.T) {
 	require.Equal(t, vr.VerdictPass, got.TerminalVerdict)
 }
 
-func TestWorker_ToolRun_Failure(t *testing.T) {
+// A seam-level invoke error means the tool could not be run at all → this
+// is a RUN failure, not a tool/template regression.
+func TestWorker_ToolRun_InvokeErrorIsRunFailure(t *testing.T) {
 	deps, repo, _ := newWorkerDeps(t)
-	deps.Tools = &vrunmocks.FakeToolRunner{Err: errors.New("binary exited 1")}
+	deps.Tools = &vrunmocks.FakeToolRunner{Err: errors.New("binary not found")}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	require.NoError(t, repo.Create(ctx, vrun.Run{
-		ID: "r-toolfail", TupleKind: vr.TupleKindTool, SubjectID: "scenario-auditor", GoldenSlug: "ref",
+		ID: "r-toolfail", TupleKind: vr.TupleKindTool, SubjectID: "test-genie", GoldenSlug: "ref",
 		Status: vrun.StatusQueued, CreatedAt: deps.Clock.Now(),
 	}))
 
@@ -201,6 +203,38 @@ func TestWorker_ToolRun_Failure(t *testing.T) {
 		return err == nil && got.Status == vrun.StatusTerminal
 	}, 3*time.Second)
 	got, err := repo.Get(context.Background(), "r-toolfail")
+	require.NoError(t, err)
+	require.Equal(t, vr.VerdictRunFailure, got.TerminalVerdict)
+}
+
+// The tool ran but its success expectation did not hold → TOOL failure.
+func TestWorker_ToolRun_ExpectationMissedIsToolFailure(t *testing.T) {
+	deps, repo, _ := newWorkerDeps(t)
+	now := deps.Clock.Now()
+	deps.Tools = &vrunmocks.FakeToolRunner{Result: vrun.ToolResult{
+		Ran: true, ExpectationMet: false, Detail: "2 phase(s) failed: smoke, unit",
+		ErrorReason: "2 phase(s) failed: smoke, unit",
+		RawOutput:   []byte(`{"success":false}`),
+		StartedAt:   now, EndedAt: now.Add(time.Second),
+	}}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	require.NoError(t, repo.Create(ctx, vrun.Run{
+		ID: "r-toolexp", TupleKind: vr.TupleKindTool, SubjectID: "test-genie", GoldenSlug: "ref",
+		Status: vrun.StatusQueued, CreatedAt: now,
+	}))
+
+	w := vrun.NewWorker(deps, vrun.WorkerConfig{PollInterval: 50 * time.Millisecond})
+	go w.Run(ctx)
+	w.Notify()
+
+	waitFor(t, func() bool {
+		got, err := repo.Get(context.Background(), "r-toolexp")
+		return err == nil && got.Status == vrun.StatusTerminal
+	}, 3*time.Second)
+	got, err := repo.Get(context.Background(), "r-toolexp")
 	require.NoError(t, err)
 	require.Equal(t, vr.VerdictToolFailure, got.TerminalVerdict)
 }

@@ -119,25 +119,25 @@ client that uses `discovery.ResolveScenarioURLDefault(ctx,
 
 **Refs:** `path:scenarios/development-toolchain-validator/api/integrations/prompt_manager/skill_catalog_rest.go`
 
-### 2026-05-18 — tool expectations parsing is structural-only
+### 2026-05-18 — tool expectations parsing is structural-only — RESOLVED 2026-05-29
 
-**Symptom:** `integrations/dev_tools.Runner.Invoke` shells out to the
-named tool binary and treats exit code as the only signal. There is
-no per-tool expectation file driving structured pass/fail (e.g.,
-`scenario-auditor`'s JSON output is not parsed).
+**Symptom (was):** `integrations/dev_tools.Runner.Invoke` shelled out to the
+named tool binary and treated exit code as the only signal. There was
+no per-tool expectation file driving structured pass/fail.
 
-**Root cause:** Per-tool expectation parsing was carved out of P0 to
-keep the surface stable. The plan §7 Phase 4 mentions a future
-`data/tool-expectations/<tool>.json` parser; nothing reads it today.
-
-**Real fix:** Add `integrations/dev_tools/expectations.go` reading
-`data/tool-expectations/*.json` and parsing structured tool output
-into a richer `vrun.ToolResult` (e.g., counts, named violations).
-Compose into the evaluator alongside the structural pass/fail.
-
-**Owner:** unassigned.
-
-**Refs:** `path:scenarios/development-toolchain-validator/api/integrations/dev_tools/runner.go`
+**Resolution:** The runner was rewritten into a generic, typed tool
+registry (`integrations/dev_tools/registry.go`) seeded with `test-genie`
+(expectation: every catalog phase passes, via `execute --preset
+comprehensive --json`) and `scenario-completeness-scoring` (expectation:
+`score >= floor`, default 96). Per-tool expectations load from
+`data/tool-expectations/<tool>.json` (`integrations/dev_tools/expectations.go`).
+The runner captures stdout/stderr separately and produces a richer
+`vrun.ToolResult{Ran, ExpectationMet, Detail, RawOutput}`; the evaluator
+maps the two-layer signal to verdicts (couldn't-run → `run_failure`,
+ran-but-expectation-missed → `tool_failure`, ran+met → `pass`). Raw
+output + detail are persisted on the validation record and surfaced via
+the report read path. `scenario-auditor` was removed from the registry
+(it is covered inside test-genie's standards/architecture phases).
 
 ## Architecture Drift
 

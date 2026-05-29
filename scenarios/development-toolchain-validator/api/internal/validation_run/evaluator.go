@@ -32,13 +32,26 @@ type EvaluatorVerdict struct {
 // run-failure / tool-failure detection. Pure policy — no I/O.
 func Evaluate(in EvaluatorInput) EvaluatorVerdict {
 	if in.ToolResult != nil {
-		if !in.ToolResult.Succeeded {
+		tr := in.ToolResult
+		switch {
+		case !tr.Ran:
+			// The tool could not be executed at all (missing binary,
+			// unknown tool, failed preparatory step, timeout before any
+			// run) — this is a run failure, not a tool/template defect.
+			return EvaluatorVerdict{
+				Verdict:      vr.VerdictRunFailure,
+				ErrorMessage: tr.ErrorReason,
+			}
+		case !tr.ExpectationMet:
+			// The tool ran but its success expectation did not hold:
+			// either the tool regressed or the template/golden drifted.
 			return EvaluatorVerdict{
 				Verdict:      vr.VerdictToolFailure,
-				ErrorMessage: in.ToolResult.ErrorReason,
+				ErrorMessage: tr.ErrorReason,
 			}
+		default:
+			return EvaluatorVerdict{Verdict: vr.VerdictPass}
 		}
-		return EvaluatorVerdict{Verdict: vr.VerdictPass}
 	}
 	if in.RunFailureReason != "" {
 		return EvaluatorVerdict{

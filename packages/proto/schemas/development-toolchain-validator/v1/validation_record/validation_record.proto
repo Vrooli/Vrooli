@@ -88,6 +88,13 @@ message ValidationRecord {
 
   // For RUN_FAILURE / TOOL_FAILURE verdicts: human-readable cause.
   string error_message = 16;
+
+  // Tool-run (tuple_kind=TOOL) surfaces. tool_detail is the concise
+  // expectation result (e.g. "all 14 phase(s) passed", "score 92 < floor
+  // 96"); tool_raw_output is the captured stdout+stderr of the tool
+  // invocation, persisted for triage. Empty for skill runs.
+  string tool_detail     = 17;
+  string tool_raw_output = 18;
 }
 
 message ListRecordsRequest {

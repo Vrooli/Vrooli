@@ -118,6 +118,13 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	// Additive column migrations for tables that gained columns after their
+	// initial schema shipped (sqlite has no ADD COLUMN IF NOT EXISTS, so
+	// these are introspection-guarded and idempotent).
+	if err := vr.EnsureColumns(context.Background(), db); err != nil {
+		log.Fatalf("validation_record migration failed: %v", err)
+	}
+
 	skillCatalogSource := promptmanager.NewSkillCatalogRESTAdapter(promptmanager.Options{})
 
 	// agent-manager profile reconciliation. DTV declares its sandboxed

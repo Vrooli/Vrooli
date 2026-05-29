@@ -55,6 +55,66 @@ func TestAppend_RoundTrips(t *testing.T) {
 	require.WithinDuration(t, now, got.EndedAt, time.Millisecond)
 }
 
+func TestAppend_ToolFieldsRoundTrip(t *testing.T) {
+	repo := newRepo(t)
+	ctx := context.Background()
+	now := time.Date(2026, 5, 29, 12, 0, 0, 0, time.UTC)
+	r := sampleRecord("rt", "reference-react-vite", "test-genie", now, vr.TupleKindTool, vr.VerdictToolFailure)
+	r.ToolDetail = "2 phase(s) failed: smoke, unit"
+	r.ToolRawOutput = `{"success":false,"phases":[{"name":"smoke","status":"failed"}]}`
+	require.NoError(t, repo.Append(ctx, r))
+
+	got, err := repo.Get(ctx, "rt")
+	require.NoError(t, err)
+	require.Equal(t, vr.TupleKindTool, got.TupleKind)
+	require.Equal(t, vr.VerdictToolFailure, got.Verdict)
+	require.Equal(t, "2 phase(s) failed: smoke, unit", got.ToolDetail)
+	require.Equal(t, r.ToolRawOutput, got.ToolRawOutput)
+}
+
+// TestEnsureColumns_AdditiveAndIdempotent proves the migration adds the
+// tool columns to a legacy table (created without them) without losing
+// data, and is a no-op when re-applied.
+func TestEnsureColumns_AdditiveAndIdempotent(t *testing.T) {
+	d := db.NewSQLite(t)
+	ctx := context.Background()
+
+	// Legacy table: the original schema before tool_detail/tool_raw_output.
+	legacy := `CREATE TABLE validation_records (
+	  id TEXT PRIMARY KEY, tuple_kind INTEGER NOT NULL, subject_id TEXT NOT NULL,
+	  golden_slug TEXT NOT NULL, started_at TEXT NOT NULL, ended_at TEXT NOT NULL,
+	  duration_ms INTEGER NOT NULL, tokens_used INTEGER NOT NULL, cost_usd_micro INTEGER NOT NULL,
+	  verdict INTEGER NOT NULL, diff_hash TEXT NOT NULL DEFAULT '', diff_path_count INTEGER NOT NULL DEFAULT 0,
+	  agent_manager_run_id TEXT NOT NULL DEFAULT '', manifest_template_version_at_run TEXT NOT NULL DEFAULT '',
+	  manifest_skill_version_at_run TEXT NOT NULL DEFAULT '', error_message TEXT NOT NULL DEFAULT '')`
+	_, err := d.ExecContext(ctx, legacy)
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `INSERT INTO validation_records
+	  (id, tuple_kind, subject_id, golden_slug, started_at, ended_at, duration_ms, tokens_used, cost_usd_micro, verdict)
+	  VALUES ('legacy', 1, 's', 'g', '2026-05-29T00:00:00Z', '2026-05-29T00:00:01Z', 1000, 0, 0, 1)`)
+	require.NoError(t, err)
+
+	// First migration adds the columns; existing row survives.
+	require.NoError(t, vr.EnsureColumns(ctx, d))
+	// Re-applying is a no-op (no "duplicate column" error).
+	require.NoError(t, vr.EnsureColumns(ctx, d))
+
+	repo := vr.NewSQLiteRepository(d)
+	got, err := repo.Get(ctx, "legacy")
+	require.NoError(t, err)
+	require.Equal(t, "", got.ToolDetail)
+	require.Equal(t, "", got.ToolRawOutput)
+
+	// New rows can write the new columns.
+	now := time.Date(2026, 5, 29, 12, 0, 0, 0, time.UTC)
+	r := sampleRecord("new", "g", "test-genie", now, vr.TupleKindTool, vr.VerdictPass)
+	r.ToolDetail = "all 14 phase(s) passed"
+	require.NoError(t, repo.Append(ctx, r))
+	got, err = repo.Get(ctx, "new")
+	require.NoError(t, err)
+	require.Equal(t, "all 14 phase(s) passed", got.ToolDetail)
+}
+
 func TestGet_NotFoundReturnsSentinel(t *testing.T) {
 	repo := newRepo(t)
 	_, err := repo.Get(context.Background(), "missing")

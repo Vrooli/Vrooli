@@ -54,6 +54,15 @@ type Record struct {
 	ManifestSkillVersionAtRun    string
 
 	ErrorMessage string
+
+	// ToolDetail is the tool runner's human-readable expectation result
+	// (e.g. "all 14 phases passed" or "score 92 < floor 96"). Empty for
+	// skill runs. Owned by tool (TupleKindTool) runs only.
+	ToolDetail string
+	// ToolRawOutput is the captured stdout+stderr of the tool invocation,
+	// persisted so an operator can triage a tool/template regression
+	// without re-running. Empty for skill runs. Stored verbatim (TEXT).
+	ToolRawOutput string
 }
 
 // AppendInput is the explicit DTO Service.Append accepts. ID and
@@ -74,6 +83,11 @@ type AppendInput struct {
 	ManifestTemplateVersionAtRun string
 	ManifestSkillVersionAtRun    string
 	ErrorMessage                 string
+
+	// ToolDetail / ToolRawOutput carry the tool runner's expectation result
+	// and captured output for TupleKindTool runs. Empty for skill runs.
+	ToolDetail    string
+	ToolRawOutput string
 }
 
 // ListFilter narrows ListRecords queries. Zero values mean "any".

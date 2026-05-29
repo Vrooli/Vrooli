@@ -25,6 +25,8 @@ func domainToProto(r vr.Record) *vrv1.ValidationRecord {
 		ManifestTemplateVersionAtRun: r.ManifestTemplateVersionAtRun,
 		ManifestSkillVersionAtRun:    r.ManifestSkillVersionAtRun,
 		ErrorMessage:                 r.ErrorMessage,
+		ToolDetail:                   r.ToolDetail,
+		ToolRawOutput:                r.ToolRawOutput,
 	}
 }
 

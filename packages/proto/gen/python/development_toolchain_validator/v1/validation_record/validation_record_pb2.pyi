@@ -33,7 +33,7 @@ VERDICT_RUN_FAILURE: Verdict
 VERDICT_TOOL_FAILURE: Verdict
 
 class ValidationRecord(_message.Message):
-    __slots__ = ("id", "tuple_kind", "subject_id", "golden_slug", "started_at", "ended_at", "duration_ms", "tokens_used", "cost_usd_micro", "verdict", "diff_hash", "diff_path_count", "agent_manager_run_id", "manifest_template_version_at_run", "manifest_skill_version_at_run", "error_message")
+    __slots__ = ("id", "tuple_kind", "subject_id", "golden_slug", "started_at", "ended_at", "duration_ms", "tokens_used", "cost_usd_micro", "verdict", "diff_hash", "diff_path_count", "agent_manager_run_id", "manifest_template_version_at_run", "manifest_skill_version_at_run", "error_message", "tool_detail", "tool_raw_output")
     ID_FIELD_NUMBER: _ClassVar[int]
     TUPLE_KIND_FIELD_NUMBER: _ClassVar[int]
     SUBJECT_ID_FIELD_NUMBER: _ClassVar[int]
@@ -50,6 +50,8 @@ class ValidationRecord(_message.Message):
     MANIFEST_TEMPLATE_VERSION_AT_RUN_FIELD_NUMBER: _ClassVar[int]
     MANIFEST_SKILL_VERSION_AT_RUN_FIELD_NUMBER: _ClassVar[int]
     ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    TOOL_DETAIL_FIELD_NUMBER: _ClassVar[int]
+    TOOL_RAW_OUTPUT_FIELD_NUMBER: _ClassVar[int]
     id: str
     tuple_kind: TupleKind
     subject_id: str
@@ -66,7 +68,9 @@ class ValidationRecord(_message.Message):
     manifest_template_version_at_run: str
     manifest_skill_version_at_run: str
     error_message: str
-    def __init__(self, id: _Optional[str] = ..., tuple_kind: _Optional[_Union[TupleKind, str]] = ..., subject_id: _Optional[str] = ..., golden_slug: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., duration_ms: _Optional[int] = ..., tokens_used: _Optional[int] = ..., cost_usd_micro: _Optional[int] = ..., verdict: _Optional[_Union[Verdict, str]] = ..., diff_hash: _Optional[str] = ..., diff_path_count: _Optional[int] = ..., agent_manager_run_id: _Optional[str] = ..., manifest_template_version_at_run: _Optional[str] = ..., manifest_skill_version_at_run: _Optional[str] = ..., error_message: _Optional[str] = ...) -> None: ...
+    tool_detail: str
+    tool_raw_output: str
+    def __init__(self, id: _Optional[str] = ..., tuple_kind: _Optional[_Union[TupleKind, str]] = ..., subject_id: _Optional[str] = ..., golden_slug: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., duration_ms: _Optional[int] = ..., tokens_used: _Optional[int] = ..., cost_usd_micro: _Optional[int] = ..., verdict: _Optional[_Union[Verdict, str]] = ..., diff_hash: _Optional[str] = ..., diff_path_count: _Optional[int] = ..., agent_manager_run_id: _Optional[str] = ..., manifest_template_version_at_run: _Optional[str] = ..., manifest_skill_version_at_run: _Optional[str] = ..., error_message: _Optional[str] = ..., tool_detail: _Optional[str] = ..., tool_raw_output: _Optional[str] = ...) -> None: ...
 
 class ListRecordsRequest(_message.Message):
     __slots__ = ("golden_slug", "subject_id", "tuple_kind", "page_size", "page_token")

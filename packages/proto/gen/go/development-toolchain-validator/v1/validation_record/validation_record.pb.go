@@ -160,7 +160,13 @@ type ValidationRecord struct {
 	ManifestTemplateVersionAtRun string `protobuf:"bytes,14,opt,name=manifest_template_version_at_run,json=manifestTemplateVersionAtRun,proto3" json:"manifest_template_version_at_run,omitempty"`
 	ManifestSkillVersionAtRun    string `protobuf:"bytes,15,opt,name=manifest_skill_version_at_run,json=manifestSkillVersionAtRun,proto3" json:"manifest_skill_version_at_run,omitempty"`
 	// For RUN_FAILURE / TOOL_FAILURE verdicts: human-readable cause.
-	ErrorMessage  string `protobuf:"bytes,16,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	ErrorMessage string `protobuf:"bytes,16,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	// Tool-run (tuple_kind=TOOL) surfaces. tool_detail is the concise
+	// expectation result (e.g. "all 14 phase(s) passed", "score 92 < floor
+	// 96"); tool_raw_output is the captured stdout+stderr of the tool
+	// invocation, persisted for triage. Empty for skill runs.
+	ToolDetail    string `protobuf:"bytes,17,opt,name=tool_detail,json=toolDetail,proto3" json:"tool_detail,omitempty"`
+	ToolRawOutput string `protobuf:"bytes,18,opt,name=tool_raw_output,json=toolRawOutput,proto3" json:"tool_raw_output,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -303,6 +309,20 @@ func (x *ValidationRecord) GetManifestSkillVersionAtRun() string {
 func (x *ValidationRecord) GetErrorMessage() string {
 	if x != nil {
 		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *ValidationRecord) GetToolDetail() string {
+	if x != nil {
+		return x.ToolDetail
+	}
+	return ""
+}
+
+func (x *ValidationRecord) GetToolRawOutput() string {
+	if x != nil {
+		return x.ToolRawOutput
 	}
 	return ""
 }
@@ -529,7 +549,7 @@ var File_development_toolchain_validator_v1_validation_record_validation_record_
 
 const file_development_toolchain_validator_v1_validation_record_validation_record_proto_rawDesc = "" +
 	"\n" +
-	"Ldevelopment-toolchain-validator/v1/validation_record/validation_record.proto\x12;vrooli.development_toolchain_validator.v1.validation_record\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa8\x06\n" +
+	"Ldevelopment-toolchain-validator/v1/validation_record/validation_record.proto\x12;vrooli.development_toolchain_validator.v1.validation_record\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf1\x06\n" +
 	"\x10ValidationRecord\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12e\n" +
 	"\n" +
@@ -553,7 +573,10 @@ const file_development_toolchain_validator_v1_validation_record_validation_recor
 	"\x14agent_manager_run_id\x18\r \x01(\tR\x11agentManagerRunId\x12F\n" +
 	" manifest_template_version_at_run\x18\x0e \x01(\tR\x1cmanifestTemplateVersionAtRun\x12@\n" +
 	"\x1dmanifest_skill_version_at_run\x18\x0f \x01(\tR\x19manifestSkillVersionAtRun\x12#\n" +
-	"\rerror_message\x18\x10 \x01(\tR\ferrorMessage\"\xf7\x01\n" +
+	"\rerror_message\x18\x10 \x01(\tR\ferrorMessage\x12\x1f\n" +
+	"\vtool_detail\x18\x11 \x01(\tR\n" +
+	"toolDetail\x12&\n" +
+	"\x0ftool_raw_output\x18\x12 \x01(\tR\rtoolRawOutput\"\xf7\x01\n" +
 	"\x12ListRecordsRequest\x12\x1f\n" +
 	"\vgolden_slug\x18\x01 \x01(\tR\n" +
 	"goldenSlug\x12\x1d\n" +

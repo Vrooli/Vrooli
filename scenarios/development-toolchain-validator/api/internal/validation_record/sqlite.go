@@ -21,9 +21,10 @@ INSERT INTO validation_records (
   diff_hash, diff_path_count,
   agent_manager_run_id,
   manifest_template_version_at_run, manifest_skill_version_at_run,
-  error_message
+  error_message,
+  tool_detail, tool_raw_output
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 const selectRecordByIDSQL = `
@@ -34,7 +35,8 @@ SELECT id, tuple_kind, subject_id, golden_slug,
        diff_hash, diff_path_count,
        agent_manager_run_id,
        manifest_template_version_at_run, manifest_skill_version_at_run,
-       error_message
+       error_message,
+       tool_detail, tool_raw_output
 FROM validation_records
 WHERE id = ?
 `
@@ -73,6 +75,7 @@ func (s *sqliteRepository) Append(ctx context.Context, r Record) error {
 		r.AgentManagerRunID,
 		r.ManifestTemplateVersionAtRun, r.ManifestSkillVersionAtRun,
 		r.ErrorMessage,
+		r.ToolDetail, r.ToolRawOutput,
 	)
 	if err != nil {
 		return fmt.Errorf("append validation_record %q: %w", r.ID, err)
@@ -131,7 +134,8 @@ SELECT id, tuple_kind, subject_id, golden_slug,
        diff_hash, diff_path_count,
        agent_manager_run_id,
        manifest_template_version_at_run, manifest_skill_version_at_run,
-       error_message
+       error_message,
+       tool_detail, tool_raw_output
 FROM validation_records
 `
 	if len(clauses) > 0 {
@@ -188,6 +192,7 @@ func scanRecord(s rowScanner) (Record, error) {
 		&r.AgentManagerRunID,
 		&r.ManifestTemplateVersionAtRun, &r.ManifestSkillVersionAtRun,
 		&r.ErrorMessage,
+		&r.ToolDetail, &r.ToolRawOutput,
 	); err != nil {
 		return Record{}, err
 	}

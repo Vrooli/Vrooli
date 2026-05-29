@@ -69,12 +69,36 @@ type RunSummary struct {
 	DiffPaths []manifest.DiffFile
 }
 
-// ToolResult is the data the tool runner returns.
+// ToolResult is the data the tool runner returns. It carries the
+// two-layer signal the evaluator needs: did the tool actually run (Ran),
+// and — if it ran — was its success expectation met (ExpectationMet).
+// The collapse of these into a single boolean is what made the old
+// runner unable to distinguish "couldn't run the tool" (run failure)
+// from "tool ran and found problems" (tool/template regression).
 type ToolResult struct {
-	Name        string
-	Succeeded   bool
-	StartedAt   time.Time
-	EndedAt     time.Time
+	Name string
+
+	// Ran is true when the tool process actually executed — even if it
+	// exited non-zero. It is false only when the tool could not be
+	// launched at all (binary missing, unknown tool, a required
+	// preparatory command failed, timeout before any execution).
+	Ran bool
+	// ExpectationMet is meaningful only when Ran: true means the tool's
+	// per-tool success expectation (all phases pass / score >= floor) held.
+	ExpectationMet bool
+
+	// Detail is a human-readable summary of the expectation result
+	// (e.g. "all 14 phases passed", "2 phase(s) failed: smoke, unit",
+	// "score 92.0 < floor 96").
+	Detail string
+	// RawOutput is the captured stdout+stderr of the tool invocation,
+	// persisted for triage.
+	RawOutput []byte
+
+	StartedAt time.Time
+	EndedAt   time.Time
+	// ErrorReason explains why the tool could not run, or why its
+	// expectation was not met. Empty on a clean pass.
 	ErrorReason string
 }
 
