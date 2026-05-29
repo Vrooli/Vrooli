@@ -76,19 +76,138 @@ func (AuditOutcome) EnumDescriptor() ([]byte, []int) {
 	return file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP(), []int{0}
 }
 
+// AuthorityConfidence mirrors the domains-derivation authority confidence
+// signal as a first-class outcome axis. The audit consults this to decide
+// whether a "no curated DOMAINS.md" scenario should fail by default.
+type AuthorityConfidence int32
+
+const (
+	AuthorityConfidence_AUTHORITY_CONFIDENCE_UNSPECIFIED AuthorityConfidence = 0
+	AuthorityConfidence_AUTHORITY_CONFIDENCE_LOW         AuthorityConfidence = 1
+	AuthorityConfidence_AUTHORITY_CONFIDENCE_MEDIUM      AuthorityConfidence = 2
+	AuthorityConfidence_AUTHORITY_CONFIDENCE_HIGH        AuthorityConfidence = 3
+)
+
+// Enum value maps for AuthorityConfidence.
+var (
+	AuthorityConfidence_name = map[int32]string{
+		0: "AUTHORITY_CONFIDENCE_UNSPECIFIED",
+		1: "AUTHORITY_CONFIDENCE_LOW",
+		2: "AUTHORITY_CONFIDENCE_MEDIUM",
+		3: "AUTHORITY_CONFIDENCE_HIGH",
+	}
+	AuthorityConfidence_value = map[string]int32{
+		"AUTHORITY_CONFIDENCE_UNSPECIFIED": 0,
+		"AUTHORITY_CONFIDENCE_LOW":         1,
+		"AUTHORITY_CONFIDENCE_MEDIUM":      2,
+		"AUTHORITY_CONFIDENCE_HIGH":        3,
+	}
+)
+
+func (x AuthorityConfidence) Enum() *AuthorityConfidence {
+	p := new(AuthorityConfidence)
+	*p = x
+	return p
+}
+
+func (x AuthorityConfidence) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AuthorityConfidence) Descriptor() protoreflect.EnumDescriptor {
+	return file_architecture_cartographer_v1_audit_audit_proto_enumTypes[1].Descriptor()
+}
+
+func (AuthorityConfidence) Type() protoreflect.EnumType {
+	return &file_architecture_cartographer_v1_audit_audit_proto_enumTypes[1]
+}
+
+func (x AuthorityConfidence) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AuthorityConfidence.Descriptor instead.
+func (AuthorityConfidence) EnumDescriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP(), []int{1}
+}
+
+// SnapshotFreshness reports whether the audit reused a cached snapshot
+// or extracted a fresh one. Content-hash driven, not time-based.
+type SnapshotFreshness int32
+
+const (
+	SnapshotFreshness_SNAPSHOT_FRESHNESS_UNSPECIFIED  SnapshotFreshness = 0
+	SnapshotFreshness_SNAPSHOT_FRESHNESS_CACHED       SnapshotFreshness = 1 // hash matched persisted snapshot
+	SnapshotFreshness_SNAPSHOT_FRESHNESS_RE_EXTRACTED SnapshotFreshness = 2 // hash diverged or no snapshot
+	SnapshotFreshness_SNAPSHOT_FRESHNESS_FRESH        SnapshotFreshness = 3 // initial extraction (no prior)
+)
+
+// Enum value maps for SnapshotFreshness.
+var (
+	SnapshotFreshness_name = map[int32]string{
+		0: "SNAPSHOT_FRESHNESS_UNSPECIFIED",
+		1: "SNAPSHOT_FRESHNESS_CACHED",
+		2: "SNAPSHOT_FRESHNESS_RE_EXTRACTED",
+		3: "SNAPSHOT_FRESHNESS_FRESH",
+	}
+	SnapshotFreshness_value = map[string]int32{
+		"SNAPSHOT_FRESHNESS_UNSPECIFIED":  0,
+		"SNAPSHOT_FRESHNESS_CACHED":       1,
+		"SNAPSHOT_FRESHNESS_RE_EXTRACTED": 2,
+		"SNAPSHOT_FRESHNESS_FRESH":        3,
+	}
+)
+
+func (x SnapshotFreshness) Enum() *SnapshotFreshness {
+	p := new(SnapshotFreshness)
+	*p = x
+	return p
+}
+
+func (x SnapshotFreshness) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SnapshotFreshness) Descriptor() protoreflect.EnumDescriptor {
+	return file_architecture_cartographer_v1_audit_audit_proto_enumTypes[2].Descriptor()
+}
+
+func (SnapshotFreshness) Type() protoreflect.EnumType {
+	return &file_architecture_cartographer_v1_audit_audit_proto_enumTypes[2]
+}
+
+func (x SnapshotFreshness) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SnapshotFreshness.Descriptor instead.
+func (SnapshotFreshness) EnumDescriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP(), []int{2}
+}
+
 // ConflictSummary is a compact, machine-friendly projection of a
 // detected conflict. Carries enough to render a CI annotation; the
 // full Conflict envelope can be re-fetched via ConflictsService.
 type ConflictSummary struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Detector      string                 `protobuf:"bytes,2,opt,name=detector,proto3" json:"detector,omitempty"`
-	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
-	Subtype       string                 `protobuf:"bytes,4,opt,name=subtype,proto3" json:"subtype,omitempty"`
-	Severity      conflicts.Severity     `protobuf:"varint,5,opt,name=severity,proto3,enum=vrooli.architecture_cartographer.v1.conflicts.Severity" json:"severity,omitempty"`
-	Locations     []string               `protobuf:"bytes,6,rep,name=locations,proto3" json:"locations,omitempty"`
-	Domains       []string               `protobuf:"bytes,7,rep,name=domains,proto3" json:"domains,omitempty"`
-	Headline      string                 `protobuf:"bytes,8,opt,name=headline,proto3" json:"headline,omitempty"` // one-line summary suitable for a CI annotation
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// id is the deterministic content-hash stable_id since v0.2 — equal
+	// to stable_id below, kept on the wire so older clients keep working.
+	Id        string             `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Detector  string             `protobuf:"bytes,2,opt,name=detector,proto3" json:"detector,omitempty"`
+	Type      string             `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Subtype   string             `protobuf:"bytes,4,opt,name=subtype,proto3" json:"subtype,omitempty"`
+	Severity  conflicts.Severity `protobuf:"varint,5,opt,name=severity,proto3,enum=vrooli.architecture_cartographer.v1.conflicts.Severity" json:"severity,omitempty"`
+	Locations []string           `protobuf:"bytes,6,rep,name=locations,proto3" json:"locations,omitempty"`
+	Domains   []string           `protobuf:"bytes,7,rep,name=domains,proto3" json:"domains,omitempty"`
+	Headline  string             `protobuf:"bytes,8,opt,name=headline,proto3" json:"headline,omitempty"` // one-line summary suitable for a CI annotation
+	// stable_id is the deterministic content-hash key (same as id).
+	// Reported explicitly so CI tools can dedupe without relying on the
+	// alias contract.
+	StableId string `protobuf:"bytes,9,opt,name=stable_id,json=stableId,proto3" json:"stable_id,omitempty"`
+	// instance_id is the per-run UUID; useful for log correlation. Two
+	// identical drifts across runs share stable_id but differ in
+	// instance_id.
+	InstanceId    string `protobuf:"bytes,10,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -175,6 +294,20 @@ func (x *ConflictSummary) GetDomains() []string {
 func (x *ConflictSummary) GetHeadline() string {
 	if x != nil {
 		return x.Headline
+	}
+	return ""
+}
+
+func (x *ConflictSummary) GetStableId() string {
+	if x != nil {
+		return x.StableId
+	}
+	return ""
+}
+
+func (x *ConflictSummary) GetInstanceId() string {
+	if x != nil {
+		return x.InstanceId
 	}
 	return ""
 }
@@ -323,9 +456,13 @@ type AuditRunRequest struct {
 	IncludeTypes []string `protobuf:"bytes,3,rep,name=include_types,json=includeTypes,proto3" json:"include_types,omitempty"`
 	// Optional blacklist of conflict types to exclude. Applied after
 	// include_types.
-	ExcludeTypes  []string `protobuf:"bytes,4,rep,name=exclude_types,json=excludeTypes,proto3" json:"exclude_types,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ExcludeTypes []string `protobuf:"bytes,4,rep,name=exclude_types,json=excludeTypes,proto3" json:"exclude_types,omitempty"`
+	// When true, allow scenarios whose domain authority confidence is LOW
+	// to still produce an outcome=CLEAN result. Default false flips
+	// outcome to FINDINGS on low-authority scenarios.
+	AllowLowAuthority bool `protobuf:"varint,5,opt,name=allow_low_authority,json=allowLowAuthority,proto3" json:"allow_low_authority,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *AuditRunRequest) Reset() {
@@ -386,6 +523,13 @@ func (x *AuditRunRequest) GetExcludeTypes() []string {
 	return nil
 }
 
+func (x *AuditRunRequest) GetAllowLowAuthority() bool {
+	if x != nil {
+		return x.AllowLowAuthority
+	}
+	return false
+}
+
 type AuditRunResponse struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -402,7 +546,21 @@ type AuditRunResponse struct {
 	Domains  *DerivedDomainSummary `protobuf:"bytes,8,opt,name=domains,proto3" json:"domains,omitempty"`
 	Graph    *GraphSummary         `protobuf:"bytes,9,opt,name=graph,proto3" json:"graph,omitempty"`
 	// Total wall-clock duration for the orchestrated run.
-	Duration      *durationpb.Duration `protobuf:"bytes,10,opt,name=duration,proto3" json:"duration,omitempty"`
+	Duration *durationpb.Duration `protobuf:"bytes,10,opt,name=duration,proto3" json:"duration,omitempty"`
+	// Count of conflicts marked suppressed by in-repo `// arch:allow`
+	// markers. Suppressed findings are reported (not dropped) and counted
+	// here so the operator always sees what is being excused.
+	SuppressedFindings int32 `protobuf:"varint,11,opt,name=suppressed_findings,json=suppressedFindings,proto3" json:"suppressed_findings,omitempty"`
+	// Conflict-domain → count. Empty when no findings are domain-tagged.
+	ByDomain map[string]int32 `protobuf:"bytes,12,rep,name=by_domain,json=byDomain,proto3" json:"by_domain,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	// Whether the graph snapshot used was reused from cache or
+	// freshly extracted (content-hash driven).
+	SnapshotFreshness SnapshotFreshness `protobuf:"varint,13,opt,name=snapshot_freshness,json=snapshotFreshness,proto3,enum=vrooli.architecture_cartographer.v1.audit.SnapshotFreshness" json:"snapshot_freshness,omitempty"`
+	// Enum mirror of DerivedDomainSummary.confidence for typed consumers.
+	AuthorityConfidence AuthorityConfidence `protobuf:"varint,14,opt,name=authority_confidence,json=authorityConfidence,proto3,enum=vrooli.architecture_cartographer.v1.audit.AuthorityConfidence" json:"authority_confidence,omitempty"`
+	// Reason the outcome was decided as it was; populated for
+	// FINDINGS to explain why (e.g., "low-authority", "severity>=warn").
+	OutcomeReason string `protobuf:"bytes,15,opt,name=outcome_reason,json=outcomeReason,proto3" json:"outcome_reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -507,11 +665,239 @@ func (x *AuditRunResponse) GetDuration() *durationpb.Duration {
 	return nil
 }
 
+func (x *AuditRunResponse) GetSuppressedFindings() int32 {
+	if x != nil {
+		return x.SuppressedFindings
+	}
+	return 0
+}
+
+func (x *AuditRunResponse) GetByDomain() map[string]int32 {
+	if x != nil {
+		return x.ByDomain
+	}
+	return nil
+}
+
+func (x *AuditRunResponse) GetSnapshotFreshness() SnapshotFreshness {
+	if x != nil {
+		return x.SnapshotFreshness
+	}
+	return SnapshotFreshness_SNAPSHOT_FRESHNESS_UNSPECIFIED
+}
+
+func (x *AuditRunResponse) GetAuthorityConfidence() AuthorityConfidence {
+	if x != nil {
+		return x.AuthorityConfidence
+	}
+	return AuthorityConfidence_AUTHORITY_CONFIDENCE_UNSPECIFIED
+}
+
+func (x *AuditRunResponse) GetOutcomeReason() string {
+	if x != nil {
+		return x.OutcomeReason
+	}
+	return ""
+}
+
+type AuditRunAllRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Same severity threshold as Run; applied per-scenario.
+	FailOn       conflicts.Severity `protobuf:"varint,1,opt,name=fail_on,json=failOn,proto3,enum=vrooli.architecture_cartographer.v1.conflicts.Severity" json:"fail_on,omitempty"`
+	IncludeTypes []string           `protobuf:"bytes,2,rep,name=include_types,json=includeTypes,proto3" json:"include_types,omitempty"`
+	ExcludeTypes []string           `protobuf:"bytes,3,rep,name=exclude_types,json=excludeTypes,proto3" json:"exclude_types,omitempty"`
+	// Optional whitelist of scenario names to include. Empty = all
+	// discoverable scenarios.
+	IncludeScenarios []string `protobuf:"bytes,4,rep,name=include_scenarios,json=includeScenarios,proto3" json:"include_scenarios,omitempty"`
+	// Optional blacklist of scenario names to exclude. Applied after
+	// include_scenarios.
+	ExcludeScenarios  []string `protobuf:"bytes,5,rep,name=exclude_scenarios,json=excludeScenarios,proto3" json:"exclude_scenarios,omitempty"`
+	AllowLowAuthority bool     `protobuf:"varint,6,opt,name=allow_low_authority,json=allowLowAuthority,proto3" json:"allow_low_authority,omitempty"`
+	// Bounded worker concurrency. Zero defaults to 4.
+	Concurrency   int32 `protobuf:"varint,7,opt,name=concurrency,proto3" json:"concurrency,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuditRunAllRequest) Reset() {
+	*x = AuditRunAllRequest{}
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuditRunAllRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuditRunAllRequest) ProtoMessage() {}
+
+func (x *AuditRunAllRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuditRunAllRequest.ProtoReflect.Descriptor instead.
+func (*AuditRunAllRequest) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *AuditRunAllRequest) GetFailOn() conflicts.Severity {
+	if x != nil {
+		return x.FailOn
+	}
+	return conflicts.Severity(0)
+}
+
+func (x *AuditRunAllRequest) GetIncludeTypes() []string {
+	if x != nil {
+		return x.IncludeTypes
+	}
+	return nil
+}
+
+func (x *AuditRunAllRequest) GetExcludeTypes() []string {
+	if x != nil {
+		return x.ExcludeTypes
+	}
+	return nil
+}
+
+func (x *AuditRunAllRequest) GetIncludeScenarios() []string {
+	if x != nil {
+		return x.IncludeScenarios
+	}
+	return nil
+}
+
+func (x *AuditRunAllRequest) GetExcludeScenarios() []string {
+	if x != nil {
+		return x.ExcludeScenarios
+	}
+	return nil
+}
+
+func (x *AuditRunAllRequest) GetAllowLowAuthority() bool {
+	if x != nil {
+		return x.AllowLowAuthority
+	}
+	return false
+}
+
+func (x *AuditRunAllRequest) GetConcurrency() int32 {
+	if x != nil {
+		return x.Concurrency
+	}
+	return 0
+}
+
+type AuditRunAllResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Per-scenario reports, in deterministic scenario-name order.
+	Reports []*AuditRunResponse `protobuf:"bytes,1,rep,name=reports,proto3" json:"reports,omitempty"`
+	// Aggregate counts across all reports.
+	TotalScenarios  int32            `protobuf:"varint,2,opt,name=total_scenarios,json=totalScenarios,proto3" json:"total_scenarios,omitempty"`
+	TotalFindings   int32            `protobuf:"varint,3,opt,name=total_findings,json=totalFindings,proto3" json:"total_findings,omitempty"`
+	TotalSuppressed int32            `protobuf:"varint,4,opt,name=total_suppressed,json=totalSuppressed,proto3" json:"total_suppressed,omitempty"`
+	BySeverity      map[string]int32 `protobuf:"bytes,5,rep,name=by_severity,json=bySeverity,proto3" json:"by_severity,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	ByOutcome       map[string]int32 `protobuf:"bytes,6,rep,name=by_outcome,json=byOutcome,proto3" json:"by_outcome,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	// Total wall-clock duration of the sweep.
+	Duration      *durationpb.Duration `protobuf:"bytes,7,opt,name=duration,proto3" json:"duration,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuditRunAllResponse) Reset() {
+	*x = AuditRunAllResponse{}
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuditRunAllResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuditRunAllResponse) ProtoMessage() {}
+
+func (x *AuditRunAllResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuditRunAllResponse.ProtoReflect.Descriptor instead.
+func (*AuditRunAllResponse) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *AuditRunAllResponse) GetReports() []*AuditRunResponse {
+	if x != nil {
+		return x.Reports
+	}
+	return nil
+}
+
+func (x *AuditRunAllResponse) GetTotalScenarios() int32 {
+	if x != nil {
+		return x.TotalScenarios
+	}
+	return 0
+}
+
+func (x *AuditRunAllResponse) GetTotalFindings() int32 {
+	if x != nil {
+		return x.TotalFindings
+	}
+	return 0
+}
+
+func (x *AuditRunAllResponse) GetTotalSuppressed() int32 {
+	if x != nil {
+		return x.TotalSuppressed
+	}
+	return 0
+}
+
+func (x *AuditRunAllResponse) GetBySeverity() map[string]int32 {
+	if x != nil {
+		return x.BySeverity
+	}
+	return nil
+}
+
+func (x *AuditRunAllResponse) GetByOutcome() map[string]int32 {
+	if x != nil {
+		return x.ByOutcome
+	}
+	return nil
+}
+
+func (x *AuditRunAllResponse) GetDuration() *durationpb.Duration {
+	if x != nil {
+		return x.Duration
+	}
+	return nil
+}
+
 var File_architecture_cartographer_v1_audit_audit_proto protoreflect.FileDescriptor
 
 const file_architecture_cartographer_v1_audit_audit_proto_rawDesc = "" +
 	"\n" +
-	".architecture-cartographer/v1/audit/audit.proto\x12)vrooli.architecture_cartographer.v1.audit\x1a6architecture-cartographer/v1/conflicts/conflicts.proto\x1a\x1egoogle/protobuf/duration.proto\"\x94\x02\n" +
+	".architecture-cartographer/v1/audit/audit.proto\x12)vrooli.architecture_cartographer.v1.audit\x1a6architecture-cartographer/v1/conflicts/conflicts.proto\x1a\x1egoogle/protobuf/duration.proto\"\xd2\x02\n" +
 	"\x0fConflictSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bdetector\x18\x02 \x01(\tR\bdetector\x12\x12\n" +
@@ -520,7 +906,11 @@ const file_architecture_cartographer_v1_audit_audit_proto_rawDesc = "" +
 	"\bseverity\x18\x05 \x01(\x0e27.vrooli.architecture_cartographer.v1.conflicts.SeverityR\bseverity\x12\x1c\n" +
 	"\tlocations\x18\x06 \x03(\tR\tlocations\x12\x18\n" +
 	"\adomains\x18\a \x03(\tR\adomains\x12\x1a\n" +
-	"\bheadline\x18\b \x01(\tR\bheadline\"w\n" +
+	"\bheadline\x18\b \x01(\tR\bheadline\x12\x1b\n" +
+	"\tstable_id\x18\t \x01(\tR\bstableId\x12\x1f\n" +
+	"\vinstance_id\x18\n" +
+	" \x01(\tR\n" +
+	"instanceId\"w\n" +
 	"\x14DerivedDomainSummary\x12\x1c\n" +
 	"\tauthority\x18\x01 \x01(\tR\tauthority\x12\x1e\n" +
 	"\n" +
@@ -533,12 +923,14 @@ const file_architecture_cartographer_v1_audit_audit_proto_rawDesc = "" +
 	"\n" +
 	"file_count\x18\x02 \x01(\x05R\tfileCount\x12#\n" +
 	"\rpackage_count\x18\x03 \x01(\x05R\fpackageCount\x12*\n" +
-	"\x11import_edge_count\x18\x04 \x01(\x05R\x0fimportEdgeCount\"\xc9\x01\n" +
+	"\x11import_edge_count\x18\x04 \x01(\x05R\x0fimportEdgeCount\"\xf9\x01\n" +
 	"\x0fAuditRunRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12P\n" +
 	"\afail_on\x18\x02 \x01(\x0e27.vrooli.architecture_cartographer.v1.conflicts.SeverityR\x06failOn\x12#\n" +
 	"\rinclude_types\x18\x03 \x03(\tR\fincludeTypes\x12#\n" +
-	"\rexclude_types\x18\x04 \x03(\tR\fexcludeTypes\"\xc1\x06\n" +
+	"\rexclude_types\x18\x04 \x03(\tR\fexcludeTypes\x12.\n" +
+	"\x13allow_low_authority\x18\x05 \x01(\bR\x11allowLowAuthority\"\x9e\n" +
+	"\n" +
 	"\x10AuditRunResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12Q\n" +
 	"\aoutcome\x18\x02 \x01(\x0e27.vrooli.architecture_cartographer.v1.audit.AuditOutcomeR\aoutcome\x12\x14\n" +
@@ -551,20 +943,63 @@ const file_architecture_cartographer_v1_audit_audit_proto_rawDesc = "" +
 	"\adomains\x18\b \x01(\v2?.vrooli.architecture_cartographer.v1.audit.DerivedDomainSummaryR\adomains\x12M\n" +
 	"\x05graph\x18\t \x01(\v27.vrooli.architecture_cartographer.v1.audit.GraphSummaryR\x05graph\x125\n" +
 	"\bduration\x18\n" +
-	" \x01(\v2\x19.google.protobuf.DurationR\bduration\x1a=\n" +
+	" \x01(\v2\x19.google.protobuf.DurationR\bduration\x12/\n" +
+	"\x13suppressed_findings\x18\v \x01(\x05R\x12suppressedFindings\x12f\n" +
+	"\tby_domain\x18\f \x03(\v2I.vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByDomainEntryR\bbyDomain\x12k\n" +
+	"\x12snapshot_freshness\x18\r \x01(\x0e2<.vrooli.architecture_cartographer.v1.audit.SnapshotFreshnessR\x11snapshotFreshness\x12q\n" +
+	"\x14authority_confidence\x18\x0e \x01(\x0e2>.vrooli.architecture_cartographer.v1.audit.AuthorityConfidenceR\x13authorityConfidence\x12%\n" +
+	"\x0eoutcome_reason\x18\x0f \x01(\tR\routcomeReason\x1a=\n" +
 	"\x0fBySeverityEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1a9\n" +
 	"\vByTypeEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1a;\n" +
+	"\rByDomainEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\xdc\x02\n" +
+	"\x12AuditRunAllRequest\x12P\n" +
+	"\afail_on\x18\x01 \x01(\x0e27.vrooli.architecture_cartographer.v1.conflicts.SeverityR\x06failOn\x12#\n" +
+	"\rinclude_types\x18\x02 \x03(\tR\fincludeTypes\x12#\n" +
+	"\rexclude_types\x18\x03 \x03(\tR\fexcludeTypes\x12+\n" +
+	"\x11include_scenarios\x18\x04 \x03(\tR\x10includeScenarios\x12+\n" +
+	"\x11exclude_scenarios\x18\x05 \x03(\tR\x10excludeScenarios\x12.\n" +
+	"\x13allow_low_authority\x18\x06 \x01(\bR\x11allowLowAuthority\x12 \n" +
+	"\vconcurrency\x18\a \x01(\x05R\vconcurrency\"\xfa\x04\n" +
+	"\x13AuditRunAllResponse\x12U\n" +
+	"\areports\x18\x01 \x03(\v2;.vrooli.architecture_cartographer.v1.audit.AuditRunResponseR\areports\x12'\n" +
+	"\x0ftotal_scenarios\x18\x02 \x01(\x05R\x0etotalScenarios\x12%\n" +
+	"\x0etotal_findings\x18\x03 \x01(\x05R\rtotalFindings\x12)\n" +
+	"\x10total_suppressed\x18\x04 \x01(\x05R\x0ftotalSuppressed\x12o\n" +
+	"\vby_severity\x18\x05 \x03(\v2N.vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.BySeverityEntryR\n" +
+	"bySeverity\x12l\n" +
+	"\n" +
+	"by_outcome\x18\x06 \x03(\v2M.vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.ByOutcomeEntryR\tbyOutcome\x125\n" +
+	"\bduration\x18\a \x01(\v2\x19.google.protobuf.DurationR\bduration\x1a=\n" +
+	"\x0fBySeverityEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1a<\n" +
+	"\x0eByOutcomeEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01*\x80\x01\n" +
 	"\fAuditOutcome\x12\x1d\n" +
 	"\x19AUDIT_OUTCOME_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13AUDIT_OUTCOME_CLEAN\x10\x01\x12\x1a\n" +
 	"\x16AUDIT_OUTCOME_FINDINGS\x10\x02\x12\x1c\n" +
-	"\x18AUDIT_OUTCOME_TOOL_ERROR\x10\x032\x8e\x01\n" +
+	"\x18AUDIT_OUTCOME_TOOL_ERROR\x10\x03*\x99\x01\n" +
+	"\x13AuthorityConfidence\x12$\n" +
+	" AUTHORITY_CONFIDENCE_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18AUTHORITY_CONFIDENCE_LOW\x10\x01\x12\x1f\n" +
+	"\x1bAUTHORITY_CONFIDENCE_MEDIUM\x10\x02\x12\x1d\n" +
+	"\x19AUTHORITY_CONFIDENCE_HIGH\x10\x03*\x99\x01\n" +
+	"\x11SnapshotFreshness\x12\"\n" +
+	"\x1eSNAPSHOT_FRESHNESS_UNSPECIFIED\x10\x00\x12\x1d\n" +
+	"\x19SNAPSHOT_FRESHNESS_CACHED\x10\x01\x12#\n" +
+	"\x1fSNAPSHOT_FRESHNESS_RE_EXTRACTED\x10\x02\x12\x1c\n" +
+	"\x18SNAPSHOT_FRESHNESS_FRESH\x10\x032\x98\x02\n" +
 	"\fAuditService\x12~\n" +
-	"\x03Run\x12:.vrooli.architecture_cartographer.v1.audit.AuditRunRequest\x1a;.vrooli.architecture_cartographer.v1.audit.AuditRunResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit;audit_v1b\x06proto3"
+	"\x03Run\x12:.vrooli.architecture_cartographer.v1.audit.AuditRunRequest\x1a;.vrooli.architecture_cartographer.v1.audit.AuditRunResponse\x12\x87\x01\n" +
+	"\x06RunAll\x12=.vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest\x1a>.vrooli.architecture_cartographer.v1.audit.AuditRunAllResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit;audit_v1b\x06proto3"
 
 var (
 	file_architecture_cartographer_v1_audit_audit_proto_rawDescOnce sync.Once
@@ -578,37 +1013,54 @@ func file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP() []byte {
 	return file_architecture_cartographer_v1_audit_audit_proto_rawDescData
 }
 
-var file_architecture_cartographer_v1_audit_audit_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_architecture_cartographer_v1_audit_audit_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_architecture_cartographer_v1_audit_audit_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_architecture_cartographer_v1_audit_audit_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_architecture_cartographer_v1_audit_audit_proto_goTypes = []any{
 	(AuditOutcome)(0),            // 0: vrooli.architecture_cartographer.v1.audit.AuditOutcome
-	(*ConflictSummary)(nil),      // 1: vrooli.architecture_cartographer.v1.audit.ConflictSummary
-	(*DerivedDomainSummary)(nil), // 2: vrooli.architecture_cartographer.v1.audit.DerivedDomainSummary
-	(*GraphSummary)(nil),         // 3: vrooli.architecture_cartographer.v1.audit.GraphSummary
-	(*AuditRunRequest)(nil),      // 4: vrooli.architecture_cartographer.v1.audit.AuditRunRequest
-	(*AuditRunResponse)(nil),     // 5: vrooli.architecture_cartographer.v1.audit.AuditRunResponse
-	nil,                          // 6: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.BySeverityEntry
-	nil,                          // 7: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByTypeEntry
-	(conflicts.Severity)(0),      // 8: vrooli.architecture_cartographer.v1.conflicts.Severity
-	(*durationpb.Duration)(nil),  // 9: google.protobuf.Duration
+	(AuthorityConfidence)(0),     // 1: vrooli.architecture_cartographer.v1.audit.AuthorityConfidence
+	(SnapshotFreshness)(0),       // 2: vrooli.architecture_cartographer.v1.audit.SnapshotFreshness
+	(*ConflictSummary)(nil),      // 3: vrooli.architecture_cartographer.v1.audit.ConflictSummary
+	(*DerivedDomainSummary)(nil), // 4: vrooli.architecture_cartographer.v1.audit.DerivedDomainSummary
+	(*GraphSummary)(nil),         // 5: vrooli.architecture_cartographer.v1.audit.GraphSummary
+	(*AuditRunRequest)(nil),      // 6: vrooli.architecture_cartographer.v1.audit.AuditRunRequest
+	(*AuditRunResponse)(nil),     // 7: vrooli.architecture_cartographer.v1.audit.AuditRunResponse
+	(*AuditRunAllRequest)(nil),   // 8: vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest
+	(*AuditRunAllResponse)(nil),  // 9: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse
+	nil,                          // 10: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.BySeverityEntry
+	nil,                          // 11: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByTypeEntry
+	nil,                          // 12: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByDomainEntry
+	nil,                          // 13: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.BySeverityEntry
+	nil,                          // 14: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.ByOutcomeEntry
+	(conflicts.Severity)(0),      // 15: vrooli.architecture_cartographer.v1.conflicts.Severity
+	(*durationpb.Duration)(nil),  // 16: google.protobuf.Duration
 }
 var file_architecture_cartographer_v1_audit_audit_proto_depIdxs = []int32{
-	8,  // 0: vrooli.architecture_cartographer.v1.audit.ConflictSummary.severity:type_name -> vrooli.architecture_cartographer.v1.conflicts.Severity
-	8,  // 1: vrooli.architecture_cartographer.v1.audit.AuditRunRequest.fail_on:type_name -> vrooli.architecture_cartographer.v1.conflicts.Severity
+	15, // 0: vrooli.architecture_cartographer.v1.audit.ConflictSummary.severity:type_name -> vrooli.architecture_cartographer.v1.conflicts.Severity
+	15, // 1: vrooli.architecture_cartographer.v1.audit.AuditRunRequest.fail_on:type_name -> vrooli.architecture_cartographer.v1.conflicts.Severity
 	0,  // 2: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.outcome:type_name -> vrooli.architecture_cartographer.v1.audit.AuditOutcome
-	6,  // 3: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.by_severity:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse.BySeverityEntry
-	7,  // 4: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.by_type:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByTypeEntry
-	1,  // 5: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.findings:type_name -> vrooli.architecture_cartographer.v1.audit.ConflictSummary
-	2,  // 6: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.domains:type_name -> vrooli.architecture_cartographer.v1.audit.DerivedDomainSummary
-	3,  // 7: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.graph:type_name -> vrooli.architecture_cartographer.v1.audit.GraphSummary
-	9,  // 8: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.duration:type_name -> google.protobuf.Duration
-	4,  // 9: vrooli.architecture_cartographer.v1.audit.AuditService.Run:input_type -> vrooli.architecture_cartographer.v1.audit.AuditRunRequest
-	5,  // 10: vrooli.architecture_cartographer.v1.audit.AuditService.Run:output_type -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse
-	10, // [10:11] is the sub-list for method output_type
-	9,  // [9:10] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	10, // 3: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.by_severity:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse.BySeverityEntry
+	11, // 4: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.by_type:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByTypeEntry
+	3,  // 5: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.findings:type_name -> vrooli.architecture_cartographer.v1.audit.ConflictSummary
+	4,  // 6: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.domains:type_name -> vrooli.architecture_cartographer.v1.audit.DerivedDomainSummary
+	5,  // 7: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.graph:type_name -> vrooli.architecture_cartographer.v1.audit.GraphSummary
+	16, // 8: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.duration:type_name -> google.protobuf.Duration
+	12, // 9: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.by_domain:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByDomainEntry
+	2,  // 10: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.snapshot_freshness:type_name -> vrooli.architecture_cartographer.v1.audit.SnapshotFreshness
+	1,  // 11: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.authority_confidence:type_name -> vrooli.architecture_cartographer.v1.audit.AuthorityConfidence
+	15, // 12: vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest.fail_on:type_name -> vrooli.architecture_cartographer.v1.conflicts.Severity
+	7,  // 13: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.reports:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse
+	13, // 14: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.by_severity:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.BySeverityEntry
+	14, // 15: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.by_outcome:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.ByOutcomeEntry
+	16, // 16: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.duration:type_name -> google.protobuf.Duration
+	6,  // 17: vrooli.architecture_cartographer.v1.audit.AuditService.Run:input_type -> vrooli.architecture_cartographer.v1.audit.AuditRunRequest
+	8,  // 18: vrooli.architecture_cartographer.v1.audit.AuditService.RunAll:input_type -> vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest
+	7,  // 19: vrooli.architecture_cartographer.v1.audit.AuditService.Run:output_type -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse
+	9,  // 20: vrooli.architecture_cartographer.v1.audit.AuditService.RunAll:output_type -> vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse
+	19, // [19:21] is the sub-list for method output_type
+	17, // [17:19] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_architecture_cartographer_v1_audit_audit_proto_init() }
@@ -621,8 +1073,8 @@ func file_architecture_cartographer_v1_audit_audit_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_architecture_cartographer_v1_audit_audit_proto_rawDesc), len(file_architecture_cartographer_v1_audit_audit_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   7,
+			NumEnums:      3,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

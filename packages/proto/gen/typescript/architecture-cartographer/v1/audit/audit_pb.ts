@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file architecture-cartographer/v1/audit/audit.proto.
  */
 export const file_architecture_cartographer_v1_audit_audit: GenFile = /*@__PURE__*/
-  fileDesc("Ci5hcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL2F1ZGl0L2F1ZGl0LnByb3RvEil2cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hdWRpdCLPAQoPQ29uZmxpY3RTdW1tYXJ5EgoKAmlkGAEgASgJEhAKCGRldGVjdG9yGAIgASgJEgwKBHR5cGUYAyABKAkSDwoHc3VidHlwZRgEIAEoCRJJCghzZXZlcml0eRgFIAEoDjI3LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5TZXZlcml0eRIRCglsb2NhdGlvbnMYBiADKAkSDwoHZG9tYWlucxgHIAMoCRIQCghoZWFkbGluZRgIIAEoCSJTChREZXJpdmVkRG9tYWluU3VtbWFyeRIRCglhdXRob3JpdHkYASABKAkSEgoKY29uZmlkZW5jZRgCIAEoCRIUCgxkb21haW5fY291bnQYAyABKAUiaQoMR3JhcGhTdW1tYXJ5EhMKC3NuYXBzaG90X2lkGAEgASgJEhIKCmZpbGVfY291bnQYAiABKAUSFQoNcGFja2FnZV9jb3VudBgDIAEoBRIZChFpbXBvcnRfZWRnZV9jb3VudBgEIAEoBSKbAQoPQXVkaXRSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEkgKB2ZhaWxfb24YAiABKA4yNy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5jb25mbGljdHMuU2V2ZXJpdHkSFQoNaW5jbHVkZV90eXBlcxgDIAMoCRIVCg1leGNsdWRlX3R5cGVzGAQgAygJIsgFChBBdWRpdFJ1blJlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEkgKB291dGNvbWUYAiABKA4yNy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hdWRpdC5BdWRpdE91dGNvbWUSDQoFZXJyb3IYAyABKAkSFgoOdG90YWxfZmluZGluZ3MYBCABKAUSYAoLYnlfc2V2ZXJpdHkYBSADKAsySy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hdWRpdC5BdWRpdFJ1blJlc3BvbnNlLkJ5U2V2ZXJpdHlFbnRyeRJYCgdieV90eXBlGAYgAygLMkcudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXVkaXQuQXVkaXRSdW5SZXNwb25zZS5CeVR5cGVFbnRyeRJMCghmaW5kaW5ncxgHIAMoCzI6LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmF1ZGl0LkNvbmZsaWN0U3VtbWFyeRJQCgdkb21haW5zGAggASgLMj8udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXVkaXQuRGVyaXZlZERvbWFpblN1bW1hcnkSRgoFZ3JhcGgYCSABKAsyNy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hdWRpdC5HcmFwaFN1bW1hcnkSKwoIZHVyYXRpb24YCiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24aMQoPQnlTZXZlcml0eUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEaLQoLQnlUeXBlRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgFOgI4ASqAAQoMQXVkaXRPdXRjb21lEh0KGUFVRElUX09VVENPTUVfVU5TUEVDSUZJRUQQABIXChNBVURJVF9PVVRDT01FX0NMRUFOEAESGgoWQVVESVRfT1VUQ09NRV9GSU5ESU5HUxACEhwKGEFVRElUX09VVENPTUVfVE9PTF9FUlJPUhADMo4BCgxBdWRpdFNlcnZpY2USfgoDUnVuEjoudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXVkaXQuQXVkaXRSdW5SZXF1ZXN0GjsudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXVkaXQuQXVkaXRSdW5SZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FyY2hpdGVjdHVyZS1jYXJ0b2dyYXBoZXIvdjEvYXVkaXQ7YXVkaXRfdjFiBnByb3RvMw", [file_architecture_cartographer_v1_conflicts_conflicts, file_google_protobuf_duration]);
+  fileDesc("Ci5hcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL2F1ZGl0L2F1ZGl0LnByb3RvEil2cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hdWRpdCL3AQoPQ29uZmxpY3RTdW1tYXJ5EgoKAmlkGAEgASgJEhAKCGRldGVjdG9yGAIgASgJEgwKBHR5cGUYAyABKAkSDwoHc3VidHlwZRgEIAEoCRJJCghzZXZlcml0eRgFIAEoDjI3LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5TZXZlcml0eRIRCglsb2NhdGlvbnMYBiADKAkSDwoHZG9tYWlucxgHIAMoCRIQCghoZWFkbGluZRgIIAEoCRIRCglzdGFibGVfaWQYCSABKAkSEwoLaW5zdGFuY2VfaWQYCiABKAkiUwoURGVyaXZlZERvbWFpblN1bW1hcnkSEQoJYXV0aG9yaXR5GAEgASgJEhIKCmNvbmZpZGVuY2UYAiABKAkSFAoMZG9tYWluX2NvdW50GAMgASgFImkKDEdyYXBoU3VtbWFyeRITCgtzbmFwc2hvdF9pZBgBIAEoCRISCgpmaWxlX2NvdW50GAIgASgFEhUKDXBhY2thZ2VfY291bnQYAyABKAUSGQoRaW1wb3J0X2VkZ2VfY291bnQYBCABKAUiuAEKD0F1ZGl0UnVuUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRJICgdmYWlsX29uGAIgASgOMjcudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuY29uZmxpY3RzLlNldmVyaXR5EhUKDWluY2x1ZGVfdHlwZXMYAyADKAkSFQoNZXhjbHVkZV90eXBlcxgEIAMoCRIbChNhbGxvd19sb3dfYXV0aG9yaXR5GAUgASgIIsQIChBBdWRpdFJ1blJlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEkgKB291dGNvbWUYAiABKA4yNy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hdWRpdC5BdWRpdE91dGNvbWUSDQoFZXJyb3IYAyABKAkSFgoOdG90YWxfZmluZGluZ3MYBCABKAUSYAoLYnlfc2V2ZXJpdHkYBSADKAsySy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hdWRpdC5BdWRpdFJ1blJlc3BvbnNlLkJ5U2V2ZXJpdHlFbnRyeRJYCgdieV90eXBlGAYgAygLMkcudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXVkaXQuQXVkaXRSdW5SZXNwb25zZS5CeVR5cGVFbnRyeRJMCghmaW5kaW5ncxgHIAMoCzI6LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmF1ZGl0LkNvbmZsaWN0U3VtbWFyeRJQCgdkb21haW5zGAggASgLMj8udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXVkaXQuRGVyaXZlZERvbWFpblN1bW1hcnkSRgoFZ3JhcGgYCSABKAsyNy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hdWRpdC5HcmFwaFN1bW1hcnkSKwoIZHVyYXRpb24YCiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SGwoTc3VwcHJlc3NlZF9maW5kaW5ncxgLIAEoBRJcCglieV9kb21haW4YDCADKAsySS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hdWRpdC5BdWRpdFJ1blJlc3BvbnNlLkJ5RG9tYWluRW50cnkSWAoSc25hcHNob3RfZnJlc2huZXNzGA0gASgOMjwudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXVkaXQuU25hcHNob3RGcmVzaG5lc3MSXAoUYXV0aG9yaXR5X2NvbmZpZGVuY2UYDiABKA4yPi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hdWRpdC5BdXRob3JpdHlDb25maWRlbmNlEhYKDm91dGNvbWVfcmVhc29uGA8gASgJGjEKD0J5U2V2ZXJpdHlFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBGi0KC0J5VHlwZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEaLwoNQnlEb21haW5FbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBIvQBChJBdWRpdFJ1bkFsbFJlcXVlc3QSSAoHZmFpbF9vbhgBIAEoDjI3LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5TZXZlcml0eRIVCg1pbmNsdWRlX3R5cGVzGAIgAygJEhUKDWV4Y2x1ZGVfdHlwZXMYAyADKAkSGQoRaW5jbHVkZV9zY2VuYXJpb3MYBCADKAkSGQoRZXhjbHVkZV9zY2VuYXJpb3MYBSADKAkSGwoTYWxsb3dfbG93X2F1dGhvcml0eRgGIAEoCBITCgtjb25jdXJyZW5jeRgHIAEoBSKIBAoTQXVkaXRSdW5BbGxSZXNwb25zZRJMCgdyZXBvcnRzGAEgAygLMjsudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuYXVkaXQuQXVkaXRSdW5SZXNwb25zZRIXCg90b3RhbF9zY2VuYXJpb3MYAiABKAUSFgoOdG90YWxfZmluZGluZ3MYAyABKAUSGAoQdG90YWxfc3VwcHJlc3NlZBgEIAEoBRJjCgtieV9zZXZlcml0eRgFIAMoCzJOLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmF1ZGl0LkF1ZGl0UnVuQWxsUmVzcG9uc2UuQnlTZXZlcml0eUVudHJ5EmEKCmJ5X291dGNvbWUYBiADKAsyTS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5hdWRpdC5BdWRpdFJ1bkFsbFJlc3BvbnNlLkJ5T3V0Y29tZUVudHJ5EisKCGR1cmF0aW9uGAcgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uGjEKD0J5U2V2ZXJpdHlFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBGjAKDkJ5T3V0Y29tZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEqgAEKDEF1ZGl0T3V0Y29tZRIdChlBVURJVF9PVVRDT01FX1VOU1BFQ0lGSUVEEAASFwoTQVVESVRfT1VUQ09NRV9DTEVBThABEhoKFkFVRElUX09VVENPTUVfRklORElOR1MQAhIcChhBVURJVF9PVVRDT01FX1RPT0xfRVJST1IQAyqZAQoTQXV0aG9yaXR5Q29uZmlkZW5jZRIkCiBBVVRIT1JJVFlfQ09ORklERU5DRV9VTlNQRUNJRklFRBAAEhwKGEFVVEhPUklUWV9DT05GSURFTkNFX0xPVxABEh8KG0FVVEhPUklUWV9DT05GSURFTkNFX01FRElVTRACEh0KGUFVVEhPUklUWV9DT05GSURFTkNFX0hJR0gQAyqZAQoRU25hcHNob3RGcmVzaG5lc3MSIgoeU05BUFNIT1RfRlJFU0hORVNTX1VOU1BFQ0lGSUVEEAASHQoZU05BUFNIT1RfRlJFU0hORVNTX0NBQ0hFRBABEiMKH1NOQVBTSE9UX0ZSRVNITkVTU19SRV9FWFRSQUNURUQQAhIcChhTTkFQU0hPVF9GUkVTSE5FU1NfRlJFU0gQAzKYAgoMQXVkaXRTZXJ2aWNlEn4KA1J1bhI6LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmF1ZGl0LkF1ZGl0UnVuUmVxdWVzdBo7LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmF1ZGl0LkF1ZGl0UnVuUmVzcG9uc2UShwEKBlJ1bkFsbBI9LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmF1ZGl0LkF1ZGl0UnVuQWxsUmVxdWVzdBo+LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmF1ZGl0LkF1ZGl0UnVuQWxsUmVzcG9uc2VCXFpaZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL2F1ZGl0O2F1ZGl0X3YxYgZwcm90bzM", [file_architecture_cartographer_v1_conflicts_conflicts, file_google_protobuf_duration]);
 
 /**
  * ConflictSummary is a compact, machine-friendly projection of a
@@ -25,6 +25,9 @@ export const file_architecture_cartographer_v1_audit_audit: GenFile = /*@__PURE_
  */
 export type ConflictSummary = Message<"vrooli.architecture_cartographer.v1.audit.ConflictSummary"> & {
   /**
+   * id is the deterministic content-hash stable_id since v0.2 — equal
+   * to stable_id below, kept on the wire so older clients keep working.
+   *
    * @generated from field: string id = 1;
    */
   id: string;
@@ -65,6 +68,24 @@ export type ConflictSummary = Message<"vrooli.architecture_cartographer.v1.audit
    * @generated from field: string headline = 8;
    */
   headline: string;
+
+  /**
+   * stable_id is the deterministic content-hash key (same as id).
+   * Reported explicitly so CI tools can dedupe without relying on the
+   * alias contract.
+   *
+   * @generated from field: string stable_id = 9;
+   */
+  stableId: string;
+
+  /**
+   * instance_id is the per-run UUID; useful for log correlation. Two
+   * identical drifts across runs share stable_id but differ in
+   * instance_id.
+   *
+   * @generated from field: string instance_id = 10;
+   */
+  instanceId: string;
 };
 
 /**
@@ -173,6 +194,15 @@ export type AuditRunRequest = Message<"vrooli.architecture_cartographer.v1.audit
    * @generated from field: repeated string exclude_types = 4;
    */
   excludeTypes: string[];
+
+  /**
+   * When true, allow scenarios whose domain authority confidence is LOW
+   * to still produce an outcome=CLEAN result. Default false flips
+   * outcome to FINDINGS on low-authority scenarios.
+   *
+   * @generated from field: bool allow_low_authority = 5;
+   */
+  allowLowAuthority: boolean;
 };
 
 /**
@@ -245,6 +275,45 @@ export type AuditRunResponse = Message<"vrooli.architecture_cartographer.v1.audi
    * @generated from field: google.protobuf.Duration duration = 10;
    */
   duration?: Duration | undefined;
+
+  /**
+   * Count of conflicts marked suppressed by in-repo `// arch:allow`
+   * markers. Suppressed findings are reported (not dropped) and counted
+   * here so the operator always sees what is being excused.
+   *
+   * @generated from field: int32 suppressed_findings = 11;
+   */
+  suppressedFindings: number;
+
+  /**
+   * Conflict-domain → count. Empty when no findings are domain-tagged.
+   *
+   * @generated from field: map<string, int32> by_domain = 12;
+   */
+  byDomain: { [key: string]: number };
+
+  /**
+   * Whether the graph snapshot used was reused from cache or
+   * freshly extracted (content-hash driven).
+   *
+   * @generated from field: vrooli.architecture_cartographer.v1.audit.SnapshotFreshness snapshot_freshness = 13;
+   */
+  snapshotFreshness: SnapshotFreshness;
+
+  /**
+   * Enum mirror of DerivedDomainSummary.confidence for typed consumers.
+   *
+   * @generated from field: vrooli.architecture_cartographer.v1.audit.AuthorityConfidence authority_confidence = 14;
+   */
+  authorityConfidence: AuthorityConfidence;
+
+  /**
+   * Reason the outcome was decided as it was; populated for
+   * FINDINGS to explain why (e.g., "low-authority", "severity>=warn").
+   *
+   * @generated from field: string outcome_reason = 15;
+   */
+  outcomeReason: string;
 };
 
 /**
@@ -253,6 +322,116 @@ export type AuditRunResponse = Message<"vrooli.architecture_cartographer.v1.audi
  */
 export const AuditRunResponseSchema: GenMessage<AuditRunResponse> = /*@__PURE__*/
   messageDesc(file_architecture_cartographer_v1_audit_audit, 4);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest
+ */
+export type AuditRunAllRequest = Message<"vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest"> & {
+  /**
+   * Same severity threshold as Run; applied per-scenario.
+   *
+   * @generated from field: vrooli.architecture_cartographer.v1.conflicts.Severity fail_on = 1;
+   */
+  failOn: Severity;
+
+  /**
+   * @generated from field: repeated string include_types = 2;
+   */
+  includeTypes: string[];
+
+  /**
+   * @generated from field: repeated string exclude_types = 3;
+   */
+  excludeTypes: string[];
+
+  /**
+   * Optional whitelist of scenario names to include. Empty = all
+   * discoverable scenarios.
+   *
+   * @generated from field: repeated string include_scenarios = 4;
+   */
+  includeScenarios: string[];
+
+  /**
+   * Optional blacklist of scenario names to exclude. Applied after
+   * include_scenarios.
+   *
+   * @generated from field: repeated string exclude_scenarios = 5;
+   */
+  excludeScenarios: string[];
+
+  /**
+   * @generated from field: bool allow_low_authority = 6;
+   */
+  allowLowAuthority: boolean;
+
+  /**
+   * Bounded worker concurrency. Zero defaults to 4.
+   *
+   * @generated from field: int32 concurrency = 7;
+   */
+  concurrency: number;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest.
+ * Use `create(AuditRunAllRequestSchema)` to create a new message.
+ */
+export const AuditRunAllRequestSchema: GenMessage<AuditRunAllRequest> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_audit_audit, 5);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse
+ */
+export type AuditRunAllResponse = Message<"vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse"> & {
+  /**
+   * Per-scenario reports, in deterministic scenario-name order.
+   *
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.audit.AuditRunResponse reports = 1;
+   */
+  reports: AuditRunResponse[];
+
+  /**
+   * Aggregate counts across all reports.
+   *
+   * @generated from field: int32 total_scenarios = 2;
+   */
+  totalScenarios: number;
+
+  /**
+   * @generated from field: int32 total_findings = 3;
+   */
+  totalFindings: number;
+
+  /**
+   * @generated from field: int32 total_suppressed = 4;
+   */
+  totalSuppressed: number;
+
+  /**
+   * @generated from field: map<string, int32> by_severity = 5;
+   */
+  bySeverity: { [key: string]: number };
+
+  /**
+   * @generated from field: map<string, int32> by_outcome = 6;
+   */
+  byOutcome: { [key: string]: number };
+
+  /**
+   * Total wall-clock duration of the sweep.
+   *
+   * @generated from field: google.protobuf.Duration duration = 7;
+   */
+  duration?: Duration | undefined;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.
+ * Use `create(AuditRunAllResponseSchema)` to create a new message.
+ */
+export const AuditRunAllResponseSchema: GenMessage<AuditRunAllResponse> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_audit_audit, 6);
 
 /**
  * AuditOutcome is the verdict shape returned to a CI caller.
@@ -288,6 +467,81 @@ export const AuditOutcomeSchema: GenEnum<AuditOutcome> = /*@__PURE__*/
   enumDesc(file_architecture_cartographer_v1_audit_audit, 0);
 
 /**
+ * AuthorityConfidence mirrors the domains-derivation authority confidence
+ * signal as a first-class outcome axis. The audit consults this to decide
+ * whether a "no curated DOMAINS.md" scenario should fail by default.
+ *
+ * @generated from enum vrooli.architecture_cartographer.v1.audit.AuthorityConfidence
+ */
+export enum AuthorityConfidence {
+  /**
+   * @generated from enum value: AUTHORITY_CONFIDENCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: AUTHORITY_CONFIDENCE_LOW = 1;
+   */
+  LOW = 1,
+
+  /**
+   * @generated from enum value: AUTHORITY_CONFIDENCE_MEDIUM = 2;
+   */
+  MEDIUM = 2,
+
+  /**
+   * @generated from enum value: AUTHORITY_CONFIDENCE_HIGH = 3;
+   */
+  HIGH = 3,
+}
+
+/**
+ * Describes the enum vrooli.architecture_cartographer.v1.audit.AuthorityConfidence.
+ */
+export const AuthorityConfidenceSchema: GenEnum<AuthorityConfidence> = /*@__PURE__*/
+  enumDesc(file_architecture_cartographer_v1_audit_audit, 1);
+
+/**
+ * SnapshotFreshness reports whether the audit reused a cached snapshot
+ * or extracted a fresh one. Content-hash driven, not time-based.
+ *
+ * @generated from enum vrooli.architecture_cartographer.v1.audit.SnapshotFreshness
+ */
+export enum SnapshotFreshness {
+  /**
+   * @generated from enum value: SNAPSHOT_FRESHNESS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * hash matched persisted snapshot
+   *
+   * @generated from enum value: SNAPSHOT_FRESHNESS_CACHED = 1;
+   */
+  CACHED = 1,
+
+  /**
+   * hash diverged or no snapshot
+   *
+   * @generated from enum value: SNAPSHOT_FRESHNESS_RE_EXTRACTED = 2;
+   */
+  RE_EXTRACTED = 2,
+
+  /**
+   * initial extraction (no prior)
+   *
+   * @generated from enum value: SNAPSHOT_FRESHNESS_FRESH = 3;
+   */
+  FRESH = 3,
+}
+
+/**
+ * Describes the enum vrooli.architecture_cartographer.v1.audit.SnapshotFreshness.
+ */
+export const SnapshotFreshnessSchema: GenEnum<SnapshotFreshness> = /*@__PURE__*/
+  enumDesc(file_architecture_cartographer_v1_audit_audit, 2);
+
+/**
  * AuditService runs an end-to-end drift audit against a scenario and
  * returns a deterministic, machine-readable summary.
  *
@@ -301,6 +555,18 @@ export const AuditService: GenService<{
     methodKind: "unary";
     input: typeof AuditRunRequestSchema;
     output: typeof AuditRunResponseSchema;
+  },
+  /**
+   * RunAll sweeps every scenario discoverable under scenarios/<name>/.vrooli/service.json
+   * and returns a per-scenario report plus a totals rollup. Honors
+   * include_scenarios / exclude_scenarios filters; bounded worker pool.
+   *
+   * @generated from rpc vrooli.architecture_cartographer.v1.audit.AuditService.RunAll
+   */
+  runAll: {
+    methodKind: "unary";
+    input: typeof AuditRunAllRequestSchema;
+    output: typeof AuditRunAllResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_architecture_cartographer_v1_audit_audit, 0);

@@ -1,0 +1,149 @@
+syntax = "proto3";
+
+package vrooli.architecture.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1;architecturev1";
+
+// =============================================================================
+// ARCHITECTURE FINDINGS (shared, source-agnostic)
+// =============================================================================
+//
+// @layer 0  (neutral shared contract)
+// @domain architecture
+// @imports none (external only: none)
+// @stability beta
+//
+// ArchitectureFinding is the ONE normalized finding envelope that flows
+// across Vrooli's two-layer architecture-validation model:
+//
+//   test-genie (the camera)  --ArchitectureFinding-->  architecture-cartographer
+//   stateless audit aggregator                          stateful migration tracker
+//
+// test-genie's per-surface phases (CLI/UI/docs/standards/structure) and its
+// architecture phase each normalize their NATIVE finding shapes into this
+// type and surface them in the suite report. The cartographer's migration
+// domain INGESTS these findings, tracks each through a lifecycle, and on
+// re-audit reconciles purely by `stable_id`.
+//
+// This package is deliberately neutral (not under architecture-cartographer/)
+// so BOTH scenarios can import the generated type without creating a
+// circular scenario→scenario proto dependency. Detection has no memory;
+// tracking does all of it; this message is the seam.
+//
+// STABLE-ID CONTRACT (mirrors the cartographer's `csid:` design):
+//   stable_id = "afid:" + first 8 bytes hex of
+//     sha256(scenario \x1f source \x1f code \x1f sorted(locations))
+//   Severity, message, suggestion, and domains are EXCLUDED from the hash
+//   so the same defect collapses to one ID across runs (cosmetic changes
+//   never manufacture a false regression). The reference Go implementation
+//   lives in gen-adjacent helper code; this comment is the wire-level
+//   authority for what goes into the hash.
+// =============================================================================
+
+// FindingSource identifies which validation surface produced a finding.
+// It is part of the stable-ID hash, so the same defect reported by two
+// different surfaces is two distinct findings (intentional — they are
+// fixed in different places).
+enum FindingSource {
+  FINDING_SOURCE_UNSPECIFIED = 0;
+  // STRUCTURE: in-process structural/manifest findings (test-genie
+  // `structure` phase).
+  FINDING_SOURCE_STRUCTURE = 1;
+  // CLI: cli-health manifest/binding conformance.
+  FINDING_SOURCE_CLI = 2;
+  // UI: ui-health manifest/slot conformance.
+  FINDING_SOURCE_UI = 3;
+  // DOCS: knowledge-observatory docs-manifest conformance.
+  FINDING_SOURCE_DOCS = 4;
+  // STANDARDS: scenario-auditor standards battery.
+  FINDING_SOURCE_STANDARDS = 5;
+  // ARCHITECTURE: architecture-cartographer structural cohesion
+  // (cycles, coupling, convergence, mislocation).
+  FINDING_SOURCE_ARCHITECTURE = 6;
+  // TIDINESS: tidiness-manager file/function quality (reserved — not
+  // wired in the unification plan, but a valid future ingest source).
+  FINDING_SOURCE_TIDINESS = 7;
+}
+
+// FindingSeverity is the normalized severity ladder. Every producer maps
+// its native severity into this enum via the shared normalization table
+// (see test-genie phases). BLOCKER is reserved for findings that hard-stop
+// a healthy architecture (e.g. import cycles).
+enum FindingSeverity {
+  FINDING_SEVERITY_UNSPECIFIED = 0;
+  FINDING_SEVERITY_INFO = 1;
+  FINDING_SEVERITY_WARNING = 2;
+  FINDING_SEVERITY_ERROR = 3;
+  FINDING_SEVERITY_BLOCKER = 4;
+}
+
+// Evidence is one producer-supplied piece of justification for a finding.
+// Intentionally generic (a string `kind`, not an enum) so any surface can
+// attach its own evidence vocabulary without a contract bump.
+message Evidence {
+  // Stable kind identifier (e.g., "scc_member", "import_edge",
+  // "missing_manifest_entry", "slot_violation").
+  string kind = 1;
+  // Human-readable summary shown in CLI/UI.
+  string summary = 2;
+  // Optional locator (file path, edge string, scc id, manifest key).
+  string locator = 3;
+  // Optional structured payload (canonical-form JSON) for producers that
+  // need to round-trip more than a string.
+  bytes payload = 4;
+}
+
+// SuggestedFix is one advisory resolution attached to a finding. `kind` is
+// a free string (NOT the cartographer's old file-op enum) so surface
+// findings can suggest non-file fixes (e.g. "add_manifest_entry",
+// "manual", "external"). The migration tracker uses `kind` to decide
+// whether `apply` can auto-execute or only record a status transition.
+message SuggestedFix {
+  // Stable identifier within the finding.
+  string id = 1;
+  // Free-form fix category (e.g., "move_file", "rewrite_import",
+  // "add_manifest_entry", "manual", "external").
+  string kind = 2;
+  // Resolver name expected to execute this fix, when applicable.
+  string resolver = 3;
+  // Human-readable summary shown in CLI/UI.
+  string summary = 4;
+  // Optional structured payload (canonical-form JSON) the resolver
+  // consumes to perform the fix.
+  bytes payload = 5;
+  // Confidence score in [0, 1] attached to this fix.
+  double confidence = 6;
+}
+
+// ArchitectureFinding is the canonical normalized finding. Producers emit
+// it; the migration tracker ingests and reconciles it. Adding optional
+// fields is allowed; the stable-ID hash inputs (scenario, source, code,
+// locations) are frozen.
+message ArchitectureFinding {
+  // Target scenario name.
+  string scenario = 1;
+  // Producing surface.
+  FindingSource source = 2;
+  // Producer-stable finding code (e.g., a cartographer "type[/subtype]",
+  // a cli-health code, an auditor rule id). Part of the stable-ID hash.
+  string code = 3;
+  // Normalized severity.
+  FindingSeverity severity = 4;
+  // Repo-relative locations the finding touches. Normalized (forward
+  // slashes, sorted) before hashing. Part of the stable-ID hash.
+  repeated string locations = 5;
+  // Domains the finding touches. Display-only — EXCLUDED from the hash
+  // (surface findings often have none).
+  repeated string domains = 6;
+  // Human-readable description.
+  string message = 7;
+  // Optional remediation hint.
+  string suggestion = 8;
+  // Deterministic content-hash key: "afid:" + 8 hex bytes of
+  // sha256(scenario \x1f source \x1f code \x1f sorted(locations)).
+  string stable_id = 9;
+  // Producer-supplied evidence.
+  repeated Evidence evidence = 10;
+  // Suggested resolutions, ranked best-first.
+  repeated SuggestedFix suggested_fixes = 11;
+}

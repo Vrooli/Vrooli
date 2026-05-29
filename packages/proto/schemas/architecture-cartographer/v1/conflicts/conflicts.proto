@@ -153,6 +153,15 @@ message Conflict {
   bool suppressed = 18;
   // The marker's reason, when suppressed.
   string suppression_reason = 19;
+  // Deterministic content-hash key derived from
+  // (scenario, detector, type, subtype, sorted domains, sorted locations,
+  // sorted evidence). Format: "cf_" + 16 hex chars. This is the canonical
+  // primary key from v0.2 onward; `id` is kept as an alias.
+  string stable_id = 20;
+  // Per-run UUID preserved from the v0.1 surface so external systems can
+  // continue to dedupe on the prior key during the transition. Will be
+  // dropped in a future minor version.
+  string instance_id = 21;
 }
 
 // DetectorDescriptor describes one registered detector.

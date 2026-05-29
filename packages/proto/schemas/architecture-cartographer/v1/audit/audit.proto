@@ -35,10 +35,31 @@ enum AuditOutcome {
   AUDIT_OUTCOME_TOOL_ERROR = 3;
 }
 
+// AuthorityConfidence mirrors the domains-derivation authority confidence
+// signal as a first-class outcome axis. The audit consults this to decide
+// whether a "no curated DOMAINS.md" scenario should fail by default.
+enum AuthorityConfidence {
+  AUTHORITY_CONFIDENCE_UNSPECIFIED = 0;
+  AUTHORITY_CONFIDENCE_LOW = 1;
+  AUTHORITY_CONFIDENCE_MEDIUM = 2;
+  AUTHORITY_CONFIDENCE_HIGH = 3;
+}
+
+// SnapshotFreshness reports whether the audit reused a cached snapshot
+// or extracted a fresh one. Content-hash driven, not time-based.
+enum SnapshotFreshness {
+  SNAPSHOT_FRESHNESS_UNSPECIFIED = 0;
+  SNAPSHOT_FRESHNESS_CACHED = 1;       // hash matched persisted snapshot
+  SNAPSHOT_FRESHNESS_RE_EXTRACTED = 2; // hash diverged or no snapshot
+  SNAPSHOT_FRESHNESS_FRESH = 3;        // initial extraction (no prior)
+}
+
 // ConflictSummary is a compact, machine-friendly projection of a
 // detected conflict. Carries enough to render a CI annotation; the
 // full Conflict envelope can be re-fetched via ConflictsService.
 message ConflictSummary {
+  // id is the deterministic content-hash stable_id since v0.2 — equal
+  // to stable_id below, kept on the wire so older clients keep working.
   string id = 1;
   string detector = 2;
   string type = 3;
@@ -47,6 +68,14 @@ message ConflictSummary {
   repeated string locations = 6;
   repeated string domains = 7;
   string headline = 8; // one-line summary suitable for a CI annotation
+  // stable_id is the deterministic content-hash key (same as id).
+  // Reported explicitly so CI tools can dedupe without relying on the
+  // alias contract.
+  string stable_id = 9;
+  // instance_id is the per-run UUID; useful for log correlation. Two
+  // identical drifts across runs share stable_id but differ in
+  // instance_id.
+  string instance_id = 10;
 }
 
 // DerivedDomainSummary is a compact projection of the derived domain
@@ -70,6 +99,10 @@ message GraphSummary {
 // returns a deterministic, machine-readable summary.
 service AuditService {
   rpc Run(AuditRunRequest) returns (AuditRunResponse);
+  // RunAll sweeps every scenario discoverable under scenarios/<name>/.vrooli/service.json
+  // and returns a per-scenario report plus a totals rollup. Honors
+  // include_scenarios / exclude_scenarios filters; bounded worker pool.
+  rpc RunAll(AuditRunAllRequest) returns (AuditRunAllResponse);
 }
 
 message AuditRunRequest {
@@ -84,6 +117,10 @@ message AuditRunRequest {
   // Optional blacklist of conflict types to exclude. Applied after
   // include_types.
   repeated string exclude_types = 4;
+  // When true, allow scenarios whose domain authority confidence is LOW
+  // to still produce an outcome=CLEAN result. Default false flips
+  // outcome to FINDINGS on low-authority scenarios.
+  bool allow_low_authority = 5;
 }
 
 message AuditRunResponse {
@@ -102,4 +139,51 @@ message AuditRunResponse {
   GraphSummary graph = 9;
   // Total wall-clock duration for the orchestrated run.
   google.protobuf.Duration duration = 10;
+  // Count of conflicts marked suppressed by in-repo `// arch:allow`
+  // markers. Suppressed findings are reported (not dropped) and counted
+  // here so the operator always sees what is being excused.
+  int32 suppressed_findings = 11;
+  // Conflict-domain → count. Empty when no findings are domain-tagged.
+  map<string, int32> by_domain = 12;
+  // Whether the graph snapshot used was reused from cache or
+  // freshly extracted (content-hash driven).
+  SnapshotFreshness snapshot_freshness = 13;
+  // Enum mirror of DerivedDomainSummary.confidence for typed consumers.
+  AuthorityConfidence authority_confidence = 14;
+  // Reason the outcome was decided as it was; populated for
+  // FINDINGS to explain why (e.g., "low-authority", "severity>=warn").
+  string outcome_reason = 15;
+}
+
+// =============================================================================
+// AUDIT-ALL (sweep)
+// =============================================================================
+
+message AuditRunAllRequest {
+  // Same severity threshold as Run; applied per-scenario.
+  vrooli.architecture_cartographer.v1.conflicts.Severity fail_on = 1;
+  repeated string include_types = 2;
+  repeated string exclude_types = 3;
+  // Optional whitelist of scenario names to include. Empty = all
+  // discoverable scenarios.
+  repeated string include_scenarios = 4;
+  // Optional blacklist of scenario names to exclude. Applied after
+  // include_scenarios.
+  repeated string exclude_scenarios = 5;
+  bool allow_low_authority = 6;
+  // Bounded worker concurrency. Zero defaults to 4.
+  int32 concurrency = 7;
+}
+
+message AuditRunAllResponse {
+  // Per-scenario reports, in deterministic scenario-name order.
+  repeated AuditRunResponse reports = 1;
+  // Aggregate counts across all reports.
+  int32 total_scenarios = 2;
+  int32 total_findings = 3;
+  int32 total_suppressed = 4;
+  map<string, int32> by_severity = 5;
+  map<string, int32> by_outcome = 6;
+  // Total wall-clock duration of the sweep.
+  google.protobuf.Duration duration = 7;
 }

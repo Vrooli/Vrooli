@@ -35,12 +35,18 @@ const (
 const (
 	// AuditServiceRunProcedure is the fully-qualified name of the AuditService's Run RPC.
 	AuditServiceRunProcedure = "/vrooli.architecture_cartographer.v1.audit.AuditService/Run"
+	// AuditServiceRunAllProcedure is the fully-qualified name of the AuditService's RunAll RPC.
+	AuditServiceRunAllProcedure = "/vrooli.architecture_cartographer.v1.audit.AuditService/RunAll"
 )
 
 // AuditServiceClient is a client for the vrooli.architecture_cartographer.v1.audit.AuditService
 // service.
 type AuditServiceClient interface {
 	Run(context.Context, *connect.Request[audit.AuditRunRequest]) (*connect.Response[audit.AuditRunResponse], error)
+	// RunAll sweeps every scenario discoverable under scenarios/<name>/.vrooli/service.json
+	// and returns a per-scenario report plus a totals rollup. Honors
+	// include_scenarios / exclude_scenarios filters; bounded worker pool.
+	RunAll(context.Context, *connect.Request[audit.AuditRunAllRequest]) (*connect.Response[audit.AuditRunAllResponse], error)
 }
 
 // NewAuditServiceClient constructs a client for the
@@ -61,12 +67,19 @@ func NewAuditServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(auditServiceMethods.ByName("Run")),
 			connect.WithClientOptions(opts...),
 		),
+		runAll: connect.NewClient[audit.AuditRunAllRequest, audit.AuditRunAllResponse](
+			httpClient,
+			baseURL+AuditServiceRunAllProcedure,
+			connect.WithSchema(auditServiceMethods.ByName("RunAll")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // auditServiceClient implements AuditServiceClient.
 type auditServiceClient struct {
-	run *connect.Client[audit.AuditRunRequest, audit.AuditRunResponse]
+	run    *connect.Client[audit.AuditRunRequest, audit.AuditRunResponse]
+	runAll *connect.Client[audit.AuditRunAllRequest, audit.AuditRunAllResponse]
 }
 
 // Run calls vrooli.architecture_cartographer.v1.audit.AuditService.Run.
@@ -74,10 +87,19 @@ func (c *auditServiceClient) Run(ctx context.Context, req *connect.Request[audit
 	return c.run.CallUnary(ctx, req)
 }
 
+// RunAll calls vrooli.architecture_cartographer.v1.audit.AuditService.RunAll.
+func (c *auditServiceClient) RunAll(ctx context.Context, req *connect.Request[audit.AuditRunAllRequest]) (*connect.Response[audit.AuditRunAllResponse], error) {
+	return c.runAll.CallUnary(ctx, req)
+}
+
 // AuditServiceHandler is an implementation of the
 // vrooli.architecture_cartographer.v1.audit.AuditService service.
 type AuditServiceHandler interface {
 	Run(context.Context, *connect.Request[audit.AuditRunRequest]) (*connect.Response[audit.AuditRunResponse], error)
+	// RunAll sweeps every scenario discoverable under scenarios/<name>/.vrooli/service.json
+	// and returns a per-scenario report plus a totals rollup. Honors
+	// include_scenarios / exclude_scenarios filters; bounded worker pool.
+	RunAll(context.Context, *connect.Request[audit.AuditRunAllRequest]) (*connect.Response[audit.AuditRunAllResponse], error)
 }
 
 // NewAuditServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -93,10 +115,18 @@ func NewAuditServiceHandler(svc AuditServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(auditServiceMethods.ByName("Run")),
 		connect.WithHandlerOptions(opts...),
 	)
+	auditServiceRunAllHandler := connect.NewUnaryHandler(
+		AuditServiceRunAllProcedure,
+		svc.RunAll,
+		connect.WithSchema(auditServiceMethods.ByName("RunAll")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.architecture_cartographer.v1.audit.AuditService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AuditServiceRunProcedure:
 			auditServiceRunHandler.ServeHTTP(w, r)
+		case AuditServiceRunAllProcedure:
+			auditServiceRunAllHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -108,4 +138,8 @@ type UnimplementedAuditServiceHandler struct{}
 
 func (UnimplementedAuditServiceHandler) Run(context.Context, *connect.Request[audit.AuditRunRequest]) (*connect.Response[audit.AuditRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.audit.AuditService.Run is not implemented"))
+}
+
+func (UnimplementedAuditServiceHandler) RunAll(context.Context, *connect.Request[audit.AuditRunAllRequest]) (*connect.Response[audit.AuditRunAllResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.audit.AuditService.RunAll is not implemented"))
 }

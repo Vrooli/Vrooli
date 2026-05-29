@@ -26,7 +26,7 @@ from architecture_cartographer.v1.conflicts import conflicts_pb2 as architecture
 from google.protobuf import duration_pb2 as google_dot_protobuf_dot_duration__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n.architecture-cartographer/v1/audit/audit.proto\x12)vrooli.architecture_cartographer.v1.audit\x1a\x36\x61rchitecture-cartographer/v1/conflicts/conflicts.proto\x1a\x1egoogle/protobuf/duration.proto\"\x94\x02\n\x0f\x43onflictSummary\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n\x08\x64\x65tector\x18\x02 \x01(\tR\x08\x64\x65tector\x12\x12\n\x04type\x18\x03 \x01(\tR\x04type\x12\x18\n\x07subtype\x18\x04 \x01(\tR\x07subtype\x12S\n\x08severity\x18\x05 \x01(\x0e\x32\x37.vrooli.architecture_cartographer.v1.conflicts.SeverityR\x08severity\x12\x1c\n\tlocations\x18\x06 \x03(\tR\tlocations\x12\x18\n\x07\x64omains\x18\x07 \x03(\tR\x07\x64omains\x12\x1a\n\x08headline\x18\x08 \x01(\tR\x08headline\"w\n\x14\x44\x65rivedDomainSummary\x12\x1c\n\tauthority\x18\x01 \x01(\tR\tauthority\x12\x1e\n\nconfidence\x18\x02 \x01(\tR\nconfidence\x12!\n\x0c\x64omain_count\x18\x03 \x01(\x05R\x0b\x64omainCount\"\x9f\x01\n\x0cGraphSummary\x12\x1f\n\x0bsnapshot_id\x18\x01 \x01(\tR\nsnapshotId\x12\x1d\n\nfile_count\x18\x02 \x01(\x05R\tfileCount\x12#\n\rpackage_count\x18\x03 \x01(\x05R\x0cpackageCount\x12*\n\x11import_edge_count\x18\x04 \x01(\x05R\x0fimportEdgeCount\"\xc9\x01\n\x0f\x41uditRunRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12P\n\x07\x66\x61il_on\x18\x02 \x01(\x0e\x32\x37.vrooli.architecture_cartographer.v1.conflicts.SeverityR\x06\x66\x61ilOn\x12#\n\rinclude_types\x18\x03 \x03(\tR\x0cincludeTypes\x12#\n\rexclude_types\x18\x04 \x03(\tR\x0c\x65xcludeTypes\"\xc1\x06\n\x10\x41uditRunResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12Q\n\x07outcome\x18\x02 \x01(\x0e\x32\x37.vrooli.architecture_cartographer.v1.audit.AuditOutcomeR\x07outcome\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror\x12%\n\x0etotal_findings\x18\x04 \x01(\x05R\rtotalFindings\x12l\n\x0b\x62y_severity\x18\x05 \x03(\x0b\x32K.vrooli.architecture_cartographer.v1.audit.AuditRunResponse.BySeverityEntryR\nbySeverity\x12`\n\x07\x62y_type\x18\x06 \x03(\x0b\x32G.vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByTypeEntryR\x06\x62yType\x12V\n\x08\x66indings\x18\x07 \x03(\x0b\x32:.vrooli.architecture_cartographer.v1.audit.ConflictSummaryR\x08\x66indings\x12Y\n\x07\x64omains\x18\x08 \x01(\x0b\x32?.vrooli.architecture_cartographer.v1.audit.DerivedDomainSummaryR\x07\x64omains\x12M\n\x05graph\x18\t \x01(\x0b\x32\x37.vrooli.architecture_cartographer.v1.audit.GraphSummaryR\x05graph\x12\x35\n\x08\x64uration\x18\n \x01(\x0b\x32\x19.google.protobuf.DurationR\x08\x64uration\x1a=\n\x0f\x42ySeverityEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\x05R\x05value:\x02\x38\x01\x1a\x39\n\x0b\x42yTypeEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\x05R\x05value:\x02\x38\x01*\x80\x01\n\x0c\x41uditOutcome\x12\x1d\n\x19\x41UDIT_OUTCOME_UNSPECIFIED\x10\x00\x12\x17\n\x13\x41UDIT_OUTCOME_CLEAN\x10\x01\x12\x1a\n\x16\x41UDIT_OUTCOME_FINDINGS\x10\x02\x12\x1c\n\x18\x41UDIT_OUTCOME_TOOL_ERROR\x10\x03\x32\x8e\x01\n\x0c\x41uditService\x12~\n\x03Run\x12:.vrooli.architecture_cartographer.v1.audit.AuditRunRequest\x1a;.vrooli.architecture_cartographer.v1.audit.AuditRunResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit;audit_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n.architecture-cartographer/v1/audit/audit.proto\x12)vrooli.architecture_cartographer.v1.audit\x1a\x36\x61rchitecture-cartographer/v1/conflicts/conflicts.proto\x1a\x1egoogle/protobuf/duration.proto\"\xd2\x02\n\x0f\x43onflictSummary\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n\x08\x64\x65tector\x18\x02 \x01(\tR\x08\x64\x65tector\x12\x12\n\x04type\x18\x03 \x01(\tR\x04type\x12\x18\n\x07subtype\x18\x04 \x01(\tR\x07subtype\x12S\n\x08severity\x18\x05 \x01(\x0e\x32\x37.vrooli.architecture_cartographer.v1.conflicts.SeverityR\x08severity\x12\x1c\n\tlocations\x18\x06 \x03(\tR\tlocations\x12\x18\n\x07\x64omains\x18\x07 \x03(\tR\x07\x64omains\x12\x1a\n\x08headline\x18\x08 \x01(\tR\x08headline\x12\x1b\n\tstable_id\x18\t \x01(\tR\x08stableId\x12\x1f\n\x0binstance_id\x18\n \x01(\tR\ninstanceId\"w\n\x14\x44\x65rivedDomainSummary\x12\x1c\n\tauthority\x18\x01 \x01(\tR\tauthority\x12\x1e\n\nconfidence\x18\x02 \x01(\tR\nconfidence\x12!\n\x0c\x64omain_count\x18\x03 \x01(\x05R\x0b\x64omainCount\"\x9f\x01\n\x0cGraphSummary\x12\x1f\n\x0bsnapshot_id\x18\x01 \x01(\tR\nsnapshotId\x12\x1d\n\nfile_count\x18\x02 \x01(\x05R\tfileCount\x12#\n\rpackage_count\x18\x03 \x01(\x05R\x0cpackageCount\x12*\n\x11import_edge_count\x18\x04 \x01(\x05R\x0fimportEdgeCount\"\xf9\x01\n\x0f\x41uditRunRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12P\n\x07\x66\x61il_on\x18\x02 \x01(\x0e\x32\x37.vrooli.architecture_cartographer.v1.conflicts.SeverityR\x06\x66\x61ilOn\x12#\n\rinclude_types\x18\x03 \x03(\tR\x0cincludeTypes\x12#\n\rexclude_types\x18\x04 \x03(\tR\x0c\x65xcludeTypes\x12.\n\x13\x61llow_low_authority\x18\x05 \x01(\x08R\x11\x61llowLowAuthority\"\x9e\n\n\x10\x41uditRunResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12Q\n\x07outcome\x18\x02 \x01(\x0e\x32\x37.vrooli.architecture_cartographer.v1.audit.AuditOutcomeR\x07outcome\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror\x12%\n\x0etotal_findings\x18\x04 \x01(\x05R\rtotalFindings\x12l\n\x0b\x62y_severity\x18\x05 \x03(\x0b\x32K.vrooli.architecture_cartographer.v1.audit.AuditRunResponse.BySeverityEntryR\nbySeverity\x12`\n\x07\x62y_type\x18\x06 \x03(\x0b\x32G.vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByTypeEntryR\x06\x62yType\x12V\n\x08\x66indings\x18\x07 \x03(\x0b\x32:.vrooli.architecture_cartographer.v1.audit.ConflictSummaryR\x08\x66indings\x12Y\n\x07\x64omains\x18\x08 \x01(\x0b\x32?.vrooli.architecture_cartographer.v1.audit.DerivedDomainSummaryR\x07\x64omains\x12M\n\x05graph\x18\t \x01(\x0b\x32\x37.vrooli.architecture_cartographer.v1.audit.GraphSummaryR\x05graph\x12\x35\n\x08\x64uration\x18\n \x01(\x0b\x32\x19.google.protobuf.DurationR\x08\x64uration\x12/\n\x13suppressed_findings\x18\x0b \x01(\x05R\x12suppressedFindings\x12\x66\n\tby_domain\x18\x0c \x03(\x0b\x32I.vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByDomainEntryR\x08\x62yDomain\x12k\n\x12snapshot_freshness\x18\r \x01(\x0e\x32<.vrooli.architecture_cartographer.v1.audit.SnapshotFreshnessR\x11snapshotFreshness\x12q\n\x14\x61uthority_confidence\x18\x0e \x01(\x0e\x32>.vrooli.architecture_cartographer.v1.audit.AuthorityConfidenceR\x13\x61uthorityConfidence\x12%\n\x0eoutcome_reason\x18\x0f \x01(\tR\routcomeReason\x1a=\n\x0f\x42ySeverityEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\x05R\x05value:\x02\x38\x01\x1a\x39\n\x0b\x42yTypeEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\x05R\x05value:\x02\x38\x01\x1a;\n\rByDomainEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\x05R\x05value:\x02\x38\x01\"\xdc\x02\n\x12\x41uditRunAllRequest\x12P\n\x07\x66\x61il_on\x18\x01 \x01(\x0e\x32\x37.vrooli.architecture_cartographer.v1.conflicts.SeverityR\x06\x66\x61ilOn\x12#\n\rinclude_types\x18\x02 \x03(\tR\x0cincludeTypes\x12#\n\rexclude_types\x18\x03 \x03(\tR\x0c\x65xcludeTypes\x12+\n\x11include_scenarios\x18\x04 \x03(\tR\x10includeScenarios\x12+\n\x11\x65xclude_scenarios\x18\x05 \x03(\tR\x10\x65xcludeScenarios\x12.\n\x13\x61llow_low_authority\x18\x06 \x01(\x08R\x11\x61llowLowAuthority\x12 \n\x0b\x63oncurrency\x18\x07 \x01(\x05R\x0b\x63oncurrency\"\xfa\x04\n\x13\x41uditRunAllResponse\x12U\n\x07reports\x18\x01 \x03(\x0b\x32;.vrooli.architecture_cartographer.v1.audit.AuditRunResponseR\x07reports\x12\'\n\x0ftotal_scenarios\x18\x02 \x01(\x05R\x0etotalScenarios\x12%\n\x0etotal_findings\x18\x03 \x01(\x05R\rtotalFindings\x12)\n\x10total_suppressed\x18\x04 \x01(\x05R\x0ftotalSuppressed\x12o\n\x0b\x62y_severity\x18\x05 \x03(\x0b\x32N.vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.BySeverityEntryR\nbySeverity\x12l\n\nby_outcome\x18\x06 \x03(\x0b\x32M.vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.ByOutcomeEntryR\tbyOutcome\x12\x35\n\x08\x64uration\x18\x07 \x01(\x0b\x32\x19.google.protobuf.DurationR\x08\x64uration\x1a=\n\x0f\x42ySeverityEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\x05R\x05value:\x02\x38\x01\x1a<\n\x0e\x42yOutcomeEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\x05R\x05value:\x02\x38\x01*\x80\x01\n\x0c\x41uditOutcome\x12\x1d\n\x19\x41UDIT_OUTCOME_UNSPECIFIED\x10\x00\x12\x17\n\x13\x41UDIT_OUTCOME_CLEAN\x10\x01\x12\x1a\n\x16\x41UDIT_OUTCOME_FINDINGS\x10\x02\x12\x1c\n\x18\x41UDIT_OUTCOME_TOOL_ERROR\x10\x03*\x99\x01\n\x13\x41uthorityConfidence\x12$\n AUTHORITY_CONFIDENCE_UNSPECIFIED\x10\x00\x12\x1c\n\x18\x41UTHORITY_CONFIDENCE_LOW\x10\x01\x12\x1f\n\x1b\x41UTHORITY_CONFIDENCE_MEDIUM\x10\x02\x12\x1d\n\x19\x41UTHORITY_CONFIDENCE_HIGH\x10\x03*\x99\x01\n\x11SnapshotFreshness\x12\"\n\x1eSNAPSHOT_FRESHNESS_UNSPECIFIED\x10\x00\x12\x1d\n\x19SNAPSHOT_FRESHNESS_CACHED\x10\x01\x12#\n\x1fSNAPSHOT_FRESHNESS_RE_EXTRACTED\x10\x02\x12\x1c\n\x18SNAPSHOT_FRESHNESS_FRESH\x10\x03\x32\x98\x02\n\x0c\x41uditService\x12~\n\x03Run\x12:.vrooli.architecture_cartographer.v1.audit.AuditRunRequest\x1a;.vrooli.architecture_cartographer.v1.audit.AuditRunResponse\x12\x87\x01\n\x06RunAll\x12=.vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest\x1a>.vrooli.architecture_cartographer.v1.audit.AuditRunAllResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit;audit_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -38,22 +38,42 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_AUDITRUNRESPONSE_BYSEVERITYENTRY']._serialized_options = b'8\001'
   _globals['_AUDITRUNRESPONSE_BYTYPEENTRY']._loaded_options = None
   _globals['_AUDITRUNRESPONSE_BYTYPEENTRY']._serialized_options = b'8\001'
-  _globals['_AUDITOUTCOME']._serialized_start=1784
-  _globals['_AUDITOUTCOME']._serialized_end=1912
+  _globals['_AUDITRUNRESPONSE_BYDOMAINENTRY']._loaded_options = None
+  _globals['_AUDITRUNRESPONSE_BYDOMAINENTRY']._serialized_options = b'8\001'
+  _globals['_AUDITRUNALLRESPONSE_BYSEVERITYENTRY']._loaded_options = None
+  _globals['_AUDITRUNALLRESPONSE_BYSEVERITYENTRY']._serialized_options = b'8\001'
+  _globals['_AUDITRUNALLRESPONSE_BYOUTCOMEENTRY']._loaded_options = None
+  _globals['_AUDITRUNALLRESPONSE_BYOUTCOMEENTRY']._serialized_options = b'8\001'
+  _globals['_AUDITOUTCOME']._serialized_start=3359
+  _globals['_AUDITOUTCOME']._serialized_end=3487
+  _globals['_AUTHORITYCONFIDENCE']._serialized_start=3490
+  _globals['_AUTHORITYCONFIDENCE']._serialized_end=3643
+  _globals['_SNAPSHOTFRESHNESS']._serialized_start=3646
+  _globals['_SNAPSHOTFRESHNESS']._serialized_end=3799
   _globals['_CONFLICTSUMMARY']._serialized_start=182
-  _globals['_CONFLICTSUMMARY']._serialized_end=458
-  _globals['_DERIVEDDOMAINSUMMARY']._serialized_start=460
-  _globals['_DERIVEDDOMAINSUMMARY']._serialized_end=579
-  _globals['_GRAPHSUMMARY']._serialized_start=582
-  _globals['_GRAPHSUMMARY']._serialized_end=741
-  _globals['_AUDITRUNREQUEST']._serialized_start=744
-  _globals['_AUDITRUNREQUEST']._serialized_end=945
-  _globals['_AUDITRUNRESPONSE']._serialized_start=948
-  _globals['_AUDITRUNRESPONSE']._serialized_end=1781
-  _globals['_AUDITRUNRESPONSE_BYSEVERITYENTRY']._serialized_start=1661
-  _globals['_AUDITRUNRESPONSE_BYSEVERITYENTRY']._serialized_end=1722
-  _globals['_AUDITRUNRESPONSE_BYTYPEENTRY']._serialized_start=1724
-  _globals['_AUDITRUNRESPONSE_BYTYPEENTRY']._serialized_end=1781
-  _globals['_AUDITSERVICE']._serialized_start=1915
-  _globals['_AUDITSERVICE']._serialized_end=2057
+  _globals['_CONFLICTSUMMARY']._serialized_end=520
+  _globals['_DERIVEDDOMAINSUMMARY']._serialized_start=522
+  _globals['_DERIVEDDOMAINSUMMARY']._serialized_end=641
+  _globals['_GRAPHSUMMARY']._serialized_start=644
+  _globals['_GRAPHSUMMARY']._serialized_end=803
+  _globals['_AUDITRUNREQUEST']._serialized_start=806
+  _globals['_AUDITRUNREQUEST']._serialized_end=1055
+  _globals['_AUDITRUNRESPONSE']._serialized_start=1058
+  _globals['_AUDITRUNRESPONSE']._serialized_end=2368
+  _globals['_AUDITRUNRESPONSE_BYSEVERITYENTRY']._serialized_start=2187
+  _globals['_AUDITRUNRESPONSE_BYSEVERITYENTRY']._serialized_end=2248
+  _globals['_AUDITRUNRESPONSE_BYTYPEENTRY']._serialized_start=2250
+  _globals['_AUDITRUNRESPONSE_BYTYPEENTRY']._serialized_end=2307
+  _globals['_AUDITRUNRESPONSE_BYDOMAINENTRY']._serialized_start=2309
+  _globals['_AUDITRUNRESPONSE_BYDOMAINENTRY']._serialized_end=2368
+  _globals['_AUDITRUNALLREQUEST']._serialized_start=2371
+  _globals['_AUDITRUNALLREQUEST']._serialized_end=2719
+  _globals['_AUDITRUNALLRESPONSE']._serialized_start=2722
+  _globals['_AUDITRUNALLRESPONSE']._serialized_end=3356
+  _globals['_AUDITRUNALLRESPONSE_BYSEVERITYENTRY']._serialized_start=2187
+  _globals['_AUDITRUNALLRESPONSE_BYSEVERITYENTRY']._serialized_end=2248
+  _globals['_AUDITRUNALLRESPONSE_BYOUTCOMEENTRY']._serialized_start=3296
+  _globals['_AUDITRUNALLRESPONSE_BYOUTCOMEENTRY']._serialized_end=3356
+  _globals['_AUDITSERVICE']._serialized_start=3802
+  _globals['_AUDITSERVICE']._serialized_end=4082
 # @@protoc_insertion_point(module_scope)

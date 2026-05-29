@@ -431,8 +431,17 @@ type Conflict struct {
 	Suppressed bool `protobuf:"varint,18,opt,name=suppressed,proto3" json:"suppressed,omitempty"`
 	// The marker's reason, when suppressed.
 	SuppressionReason string `protobuf:"bytes,19,opt,name=suppression_reason,json=suppressionReason,proto3" json:"suppression_reason,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Deterministic content-hash key derived from
+	// (scenario, detector, type, subtype, sorted domains, sorted locations,
+	// sorted evidence). Format: "cf_" + 16 hex chars. This is the canonical
+	// primary key from v0.2 onward; `id` is kept as an alias.
+	StableId string `protobuf:"bytes,20,opt,name=stable_id,json=stableId,proto3" json:"stable_id,omitempty"`
+	// Per-run UUID preserved from the v0.1 surface so external systems can
+	// continue to dedupe on the prior key during the transition. Will be
+	// dropped in a future minor version.
+	InstanceId    string `protobuf:"bytes,21,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Conflict) Reset() {
@@ -594,6 +603,20 @@ func (x *Conflict) GetSuppressed() bool {
 func (x *Conflict) GetSuppressionReason() string {
 	if x != nil {
 		return x.SuppressionReason
+	}
+	return ""
+}
+
+func (x *Conflict) GetStableId() string {
+	if x != nil {
+		return x.StableId
+	}
+	return ""
+}
+
+func (x *Conflict) GetInstanceId() string {
+	if x != nil {
+		return x.InstanceId
 	}
 	return ""
 }
@@ -1715,7 +1738,7 @@ const file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDesc = "" +
 	"\apayload\x18\x05 \x01(\fR\apayload\x12\x1e\n" +
 	"\n" +
 	"confidence\x18\x06 \x01(\x01R\n" +
-	"confidence\"\xaa\a\n" +
+	"confidence\"\xe8\a\n" +
 	"\bConflict\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x1a\n" +
@@ -1741,7 +1764,10 @@ const file_architecture_cartographer_v1_conflicts_conflicts_proto_rawDesc = "" +
 	"\n" +
 	"suppressed\x18\x12 \x01(\bR\n" +
 	"suppressed\x12-\n" +
-	"\x12suppression_reason\x18\x13 \x01(\tR\x11suppressionReason\"\x89\x01\n" +
+	"\x12suppression_reason\x18\x13 \x01(\tR\x11suppressionReason\x12\x1b\n" +
+	"\tstable_id\x18\x14 \x01(\tR\bstableId\x12\x1f\n" +
+	"\vinstance_id\x18\x15 \x01(\tR\n" +
+	"instanceId\"\x89\x01\n" +
 	"\x12DetectorDescriptor\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1c\n" +
