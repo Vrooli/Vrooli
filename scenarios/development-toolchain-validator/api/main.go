@@ -153,6 +153,7 @@ func main() {
 		Sandbox:   workspacesandbox.New(workspacesandbox.Options{}),
 		Goldens:   vrun.GoldenSourceFromRepo{Repo: golden.NewSQLiteRepository(db, clock.System{})},
 		Manifests: vrun.ManifestSourceFromRepo{Repo: manifest.NewSQLiteRepository(db, clock.System{})},
+		Skills:    promptmanager.NewSkillContentRESTAdapter(promptmanager.Options{}),
 		Clock:     clock.System{},
 		Logger:    log.Default(),
 	}, vrun.WorkerConfig{})

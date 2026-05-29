@@ -82,6 +82,48 @@
     "backToIndex": "マニフェスト一覧に戻る",
     "pinningLabel": "ピン留め: template={{template}}, skill={{skill}}"
   },
+  "runs": {
+    "title": "検証実行",
+    "subtitle": "（スキル｜ツール、ゴールデン）の検証を開始し、判定に達するまで監視します。",
+    "empty": "実行中のものはありません。",
+    "emptyDescription": "下から検証を開始するか、ゴールデンからタプルを開いて検証します。",
+    "activeTitle": "実行中",
+    "startTitle": "実行を開始",
+    "kindLabel": "タプル種別",
+    "kindSkill": "スキル",
+    "kindTool": "ツール",
+    "subjectLabel": "対象ID（スキルIDまたはツール名）",
+    "goldenLabel": "ゴールデンスラッグ",
+    "forceLabel": "新規実行を強制",
+    "startSubmit": "実行開始",
+    "starting": "開始中…",
+    "rowLabel": "{{golden}} 上の {{subject}}",
+    "createdLabel": "作成",
+    "startedLabel": "開始",
+    "endedLabel": "終了",
+    "agentRunLabel": "エージェントマネージャー実行",
+    "errorLabel": "エラー",
+    "backToIndex": "実行一覧へ戻る",
+    "detailHeading": "実行 {{id}}",
+    "runValidation": "検証を実行",
+    "notFound": "実行が見つかりません。",
+    "statusLabel": "ステータス",
+    "verdictLabel": "判定",
+    "status": {
+      "queued": "キュー待ち",
+      "running": "実行中",
+      "evaluating": "評価中",
+      "terminal": "完了",
+      "unknown": "不明"
+    },
+    "verdict": {
+      "pass": "合格",
+      "unexpected": "予期しない変更",
+      "runFailure": "実行失敗",
+      "toolFailure": "ツール失敗",
+      "pending": "保留中"
+    }
+  },
   "nav": {
     "menuToggle": "ナビゲーションを開く",
     "convergenceLabel": "収束",
@@ -94,6 +136,7 @@
     "goldensLabel": "ゴールデン",
     "skillsLabel": "スキル",
     "manifestsLabel": "マニフェスト",
+    "runsLabel": "実行",
     "settingsLabel": "設定"
   },
   "settings": {

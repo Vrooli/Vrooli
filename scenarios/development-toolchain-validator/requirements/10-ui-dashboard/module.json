@@ -11,8 +11,23 @@
       "title": "Verdict grid view",
       "description": "Per-golden page with two grids: (skill × verdict) and (tool × verdict). Cells show verdict icon + color + label. Stale tuples show a stale badge. Click a cell to open the detail panel.",
       "category": "ui",
-      "status": "planned",
-      "validation": []
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "ui/src/surfaces/goldens/__tests__/GoldensIndex.test.tsx",
+          "status": "passing",
+          "notes": "Goldens index renders per-golden verdict-summary chips from report.getGoldenSummary."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "ui/src/surfaces/runs/__tests__/RunsIndex.test.tsx",
+          "status": "passing",
+          "notes": "Runs surface lists active runs with status and a start-run form."
+        }
+      ]
     },
     {
       "id": "REQ-P0-019",
@@ -20,8 +35,23 @@
       "title": "Drill-down details panel",
       "description": "On cell click: show last validation record (verdict, timestamps, duration, tokens, cost, agent-manager run id with link if applicable), the active manifest, and the recorded diff (or tool output for tooling baselines).",
       "category": "ui",
-      "status": "planned",
-      "validation": []
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "ui/src/surfaces/runs/__tests__/RunDetail.test.tsx",
+          "status": "passing",
+          "notes": "Run drill-down renders status, terminal verdict, provenance (agent-manager run id), and error states."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/navigation/affordances.test.tsx",
+          "status": "passing",
+          "notes": "Tuple-detail history/diff/manifest tabs and the run-validation affordance are reachable per the flow contract."
+        }
+      ]
     }
   ]
 }

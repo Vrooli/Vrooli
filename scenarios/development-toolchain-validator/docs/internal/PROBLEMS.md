@@ -49,35 +49,6 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-05-18 — agent-manager diff hash is not propagated
-
-**Symptom:** `ValidationRecord.diff_hash` is populated with the
-agent-manager run id rather than a content hash of the diff. Downstream
-consumers cannot use it to detect "same diff across runs".
-
-**Root cause:** agent-manager's `RunDiff` message exposes `run_id`,
-`content` (unified diff text), and per-file metadata, but no
-content-addressable hash field. DTV's adapter currently fills the
-`DiffHash` slot with `run_id` so the column is never empty, but the
-value is not a hash. The list of changed paths *is* extracted
-correctly into `RunSummary.DiffPaths`, so manifest path-rule evaluation
-works as designed.
-
-**Workaround:** Treat `diff_hash` as opaque for now. Use `diff_path_count`
-and the manifest verdict as the comparison surface.
-
-**Real fix (small):** Either (a) compute `sha256(diff.Content)` in the
-adapter and store the hex digest, or (b) add a `content_hash` field to
-agent-manager's `RunDiff` and have agent-manager populate it on the
-server side. Option (b) is preferred so every consumer gets the same
-hash without re-derivation.
-
-**Owner:** unassigned.
-
-**Refs:**
-- `path:scenarios/development-toolchain-validator/api/integrations/agent_manager/client.go` (`buildSummary`)
-- `path:packages/proto/schemas/agent-manager/v1/domain/run.proto` (`RunDiff`)
-
 ### 2026-05-18 — agent-manager reconcile failure does not block boot
 
 **Symptom:** If agent-manager is unreachable at DTV startup, the API

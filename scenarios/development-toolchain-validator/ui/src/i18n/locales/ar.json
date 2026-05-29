@@ -82,6 +82,48 @@
     "backToIndex": "العودة إلى البيانات",
     "pinningLabel": "مثبّت: template={{template}}, skill={{skill}}"
   },
+  "runs": {
+    "title": "عمليات التحقق",
+    "subtitle": "ابدأ عملية تحقق (مهارة | أداة، سيناريو ذهبي) وراقبها حتى تصل إلى حكم.",
+    "empty": "لا توجد عمليات نشطة.",
+    "emptyDescription": "ابدأ عملية تحقق من الأسفل، أو افتح صفًا من سيناريو ذهبي للتحقق منه.",
+    "activeTitle": "العمليات النشطة",
+    "startTitle": "بدء عملية",
+    "kindLabel": "نوع الصف",
+    "kindSkill": "مهارة",
+    "kindTool": "أداة",
+    "subjectLabel": "معرّف الهدف (معرّف المهارة أو اسم الأداة)",
+    "goldenLabel": "معرّف السيناريو الذهبي",
+    "forceLabel": "فرض عملية جديدة",
+    "startSubmit": "بدء العملية",
+    "starting": "جارٍ البدء…",
+    "rowLabel": "{{subject}} على {{golden}}",
+    "createdLabel": "أُنشئت",
+    "startedLabel": "بدأت",
+    "endedLabel": "انتهت",
+    "agentRunLabel": "عملية مدير الوكلاء",
+    "errorLabel": "خطأ",
+    "backToIndex": "العودة إلى العمليات",
+    "detailHeading": "العملية {{id}}",
+    "runValidation": "تشغيل التحقق",
+    "notFound": "العملية غير موجودة.",
+    "statusLabel": "الحالة",
+    "verdictLabel": "الحكم",
+    "status": {
+      "queued": "في الطابور",
+      "running": "قيد التشغيل",
+      "evaluating": "قيد التقييم",
+      "terminal": "منتهية",
+      "unknown": "غير معروف"
+    },
+    "verdict": {
+      "pass": "نجاح",
+      "unexpected": "تغيير غير متوقع",
+      "runFailure": "فشل التشغيل",
+      "toolFailure": "فشل الأداة",
+      "pending": "قيد الانتظار"
+    }
+  },
   "nav": {
     "menuToggle": "فتح التنقل",
     "convergenceLabel": "التقارب",
@@ -94,6 +136,7 @@
     "goldensLabel": "السيناريوهات",
     "skillsLabel": "المهارات",
     "manifestsLabel": "البيانات",
+    "runsLabel": "العمليات",
     "settingsLabel": "الإعدادات"
   },
   "settings": {

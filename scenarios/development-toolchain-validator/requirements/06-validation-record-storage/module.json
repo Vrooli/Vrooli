@@ -11,8 +11,23 @@
       "title": "ValidationRecord schema + writer",
       "description": "SQLite schema: id, tuple_kind (skill|tool), subject_id (skill_id or tool_id), golden_id, agent_manager_run_id (nullable, for skill runs), started_at, ended_at, duration_ms, tokens_used (nullable, for skill runs), cost_estimate (nullable), verdict, diff_hash (nullable), manifest_template_version_at_run, manifest_skill_version_at_run, raw_output_ref. Insert-only.",
       "category": "storage",
-      "status": "planned",
-      "validation": []
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/validation_record/sqlite_test.go::TestAppend_RoundTrips",
+          "status": "passing",
+          "notes": "Append-only record round-trips (verdict, metrics, version pins, diff_hash)."
+        },
+        {
+          "type": "e2e",
+          "phase": "integration",
+          "ref": "development-toolchain-validator record list/get",
+          "status": "passing",
+          "notes": "Live runs persisted records with real agent-manager run ids, tokens, cost, and verdict 2026-05-29."
+        }
+      ]
     },
     {
       "id": "REQ-P0-012",
@@ -20,8 +35,23 @@
       "title": "Query API",
       "description": "Repository queries: latest record per (subject, golden) tuple; full chronological history per tuple; aggregate counts per verdict per skill/tool per golden.",
       "category": "storage",
-      "status": "planned",
-      "validation": []
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/validation_record/sqlite_test.go::TestList_FilterAndOrder",
+          "status": "passing",
+          "notes": "Filtered + ordered history query."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/validation_record/sqlite_test.go::TestList_Paginates",
+          "status": "passing",
+          "notes": "Paginated history query."
+        }
+      ]
     }
   ]
 }

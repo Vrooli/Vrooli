@@ -33,6 +33,7 @@ type WorkerDeps struct {
 	Sandbox   WorkspaceSandboxClient // optional; nil tolerated
 	Goldens   GoldenSource
 	Manifests ManifestSource
+	Skills    SkillContentSource // optional; nil tolerated
 	Clock     clock.Clock
 	Logger    *log.Logger
 }
@@ -140,8 +141,23 @@ func (w *Worker) processRun(ctx context.Context, r Run) {
 }
 
 func (w *Worker) processSkillRun(ctx context.Context, r Run, goldenPath string, startedAt time.Time) {
+	// Resolve the skill's instruction text so the sandboxed agent has the
+	// actual skill to execute. A missing source or fetch error is not
+	// fatal — the adapter falls back to a generic description — but we log
+	// it because a skill run without its prompt cannot meaningfully
+	// validate the skill.
+	var skillPrompt string
+	if w.deps.Skills != nil {
+		content, err := w.deps.Skills.SkillContent(ctx, r.SubjectID)
+		if err != nil {
+			w.deps.Logger.Printf("validation_run.worker: fetch skill content for %q: %v", r.SubjectID, err)
+		} else {
+			skillPrompt = content
+		}
+	}
 	runID, err := w.deps.AgentMgr.StartSandboxedRun(ctx, SandboxedRunSpec{
 		SkillID: r.SubjectID, GoldenSlug: r.GoldenSlug, GoldenPath: goldenPath,
+		SkillPrompt: skillPrompt,
 	})
 	if err != nil {
 		var unavailable ErrDependencyUnavailable

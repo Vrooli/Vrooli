@@ -11,8 +11,16 @@
       "title": "Tool invocation runner",
       "description": "Subprocess runner that shells out to the tool's CLI with appropriate flags (--json where available), captures stdout/stderr/exit, enforces a per-tool timeout, and persists the raw output for the evaluator and for operator debugging.",
       "category": "integration",
-      "status": "planned",
-      "validation": []
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/validation_run/worker_test.go::TestWorker_ToolRun_HappyPath",
+          "status": "passing",
+          "notes": "Worker invokes the ToolRunner seam, captures the result, and persists a tool-run record."
+        }
+      ]
     },
     {
       "id": "REQ-P0-010",
@@ -20,8 +28,23 @@
       "title": "Per-tool expectation evaluator",
       "description": "Pluggable evaluators (one per tool) that parse the captured output and produce a verdict. Initial implementations: scenario-auditor (zero violations except documented orientation-noise allowlist), test-genie (comprehensive preset all phases pass), scenario-completeness-scoring (score >= configured floor, default 96).",
       "category": "core",
-      "status": "planned",
-      "validation": []
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/validation_run/evaluator_test.go::TestEvaluate_ToolSuccessIsPass",
+          "status": "passing",
+          "notes": "Successful tool result maps to pass."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/validation_run/evaluator_test.go::TestEvaluate_ToolFailureMapsToToolFailure",
+          "status": "passing",
+          "notes": "Failed tool result maps to the tool-failure verdict."
+        }
+      ]
     }
   ]
 }

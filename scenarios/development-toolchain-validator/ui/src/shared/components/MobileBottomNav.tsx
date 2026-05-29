@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Target, Wrench, FileCog, Settings as SettingsIcon } from "lucide-react";
+import { Target, Wrench, FileCog, PlayCircle, Settings as SettingsIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -40,6 +40,13 @@ export function MobileBottomNav(): ReactNode {
       label: t(strings.nav.manifestsLabel),
       testId: selectors.nav.mobileBottomItemManifests,
       icon: FileCog,
+    },
+    {
+      to: ROUTES.runsIndex,
+      patternPrefix: ROUTE_PATTERNS.runsIndex,
+      label: t(strings.nav.runsLabel),
+      testId: selectors.nav.mobileBottomItemRuns,
+      icon: PlayCircle,
     },
     {
       to: ROUTES.settings,

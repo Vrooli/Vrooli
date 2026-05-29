@@ -4,7 +4,7 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-`notes` is a worked example from the template, retained during the first vertical slice as a reference pattern. `golden` is the first real DTV domain (OT-P0-001). Remaining DTV domains are listed in the *Planned Domains* table and will be implemented in subsequent slices.
+`notes` is a worked example from the template, retained as a reference pattern. All P0 DTV domains (OT-P0-001 through OT-P0-008) are implemented and listed in the Domain Inventory below; the core validate-skill-against-golden loop was proven live end-to-end 2026-05-29 (see [`../internal/PROGRESS.md`](../internal/PROGRESS.md)).
 
 ## Purpose Of This Document
 
@@ -26,6 +26,12 @@ belong in [`DATA.md`](DATA.md).
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/development-toolchain-validator/v1/health/` |
 | notes | Worked CRUD reference with attachment upload exception. | CRUD / entity | Notes and attachment metadata. | API, CLI, UI | Template starter only. | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/development-toolchain-validator/v1/notes/` |
 | golden | Register, list, update, delete, and regenerate template-pristine golden scenarios. | CRUD / entity | `goldens` table (slug, template, version pin, path, timestamps). | API, CLI, UI | OT-P0-001 (Golden Registry & Regeneration). | `api/internal/golden/`, `api/handlers/golden/`, `cli/domains/golden/`, `ui/src/features/golden/`, `packages/proto/schemas/development-toolchain-validator/v1/golden/` |
+| skill_catalog | Mirror prompt-manager's steer-skill catalog (id, version, content hash); expose drift. | Integration / sync | `skill_catalog` table. | API, CLI, UI | OT-P0-002 (Skill Catalog Sync). | `api/internal/skill_catalog/`, `api/integrations/prompt_manager/`, `cli/domains/skill_catalog/` |
+| manifest | Per-(skill, golden) expected-diff manifest with allowed paths, convergence, and template+skill version pins. | CRUD / entity | `manifests` table + clear-stale overrides. | API, CLI, UI | OT-P0-003 (Expected-Diff Manifest). | `api/internal/manifest/`, `cli/domains/manifest/`, `ui/src/surfaces/manifests/` |
+| validation_run | Execute a (skill\|tool, golden) run under sandboxed agent-manager; capture diff + summary; evaluate against the manifest; produce a verdict. | Orchestration / workflow | In-flight run state (terminal records persisted by validation_record). | API, CLI, UI | OT-P0-004, OT-P0-005. | `api/internal/validation_run/`, `api/integrations/agent_manager/`, `api/integrations/dev_tools/`, `ui/src/surfaces/runs/` |
+| validation_record | Append-only history of terminal verdicts with metrics, version pins, and diff hash. | Storage / ledger | `validation_records` table. | API, CLI, UI | OT-P0-006 (Validation Record Storage). | `api/internal/validation_record/`, `cli/domains/record/` |
+| staleness | Derive manifest staleness from template/skill version drift; clear-stale override. | Reporting / derivation | Derived (reads manifests + catalog + overrides). | API, CLI, UI | OT-P0-007 (Staleness Tracking). | `api/internal/staleness/`, `cli/domains/staleness/` |
+| report | Read-only roll-ups: golden summary, tuple history, coverage grid. | Reporting / query | Derived (composes the domains above). | API, CLI, UI | OT-P0-008 (Validation Report API). | `api/internal/report/`, `api/handlers/report/`, `cli/domains/report/` |
 
 ## Domain Details
 
@@ -76,17 +82,11 @@ belong in [`DATA.md`](DATA.md).
 
 ## Planned Domains
 
-These are explicit DTV domains derived from the PRD; each will land in its own vertical slice. Until the slice lands, the domain is documented here only.
+All P0 domains derived from the PRD have landed and are listed in the Domain Inventory above (verified live 2026-05-29 — see [`../internal/PROGRESS.md`](../internal/PROGRESS.md)). Tooling-baseline validation (OT-P0-005) is implemented inside the `validation_run` domain (the tool runner is a sibling seam to the agent-manager runner), not as a separate domain.
 
 | Domain | PRD Ref | Purpose |
 |---|---|---|
-| skill_catalog | OT-P0-002 | Sync skill list + versions + content hashes from prompt-manager. |
-| manifest | OT-P0-003 | Per-(skill, golden) expected-diff manifest with template + skill version pinning. |
-| validation_run | OT-P0-004 | Execute (skill, golden) under sandboxed agent-manager; capture diff + run summary; produce verdict. |
-| tooling_baseline | OT-P0-005 | Run non-agent tools against goldens to verify the tools, not the scenario. |
-| validation_record | OT-P0-006 | Persistent storage of verdicts, diffs, run summaries with provenance. |
-| staleness | OT-P0-007 | Detect and flag manifests whose template- or skill-version pins are stale. |
-| report | OT-P0-008 | Query API for the all-scenarios dashboard. |
+| None pending. | — | All P0 domains are implemented; future P1/P2 capabilities (template-version-watcher, skill-maturity-score, convergence-tracking, trend-detection, coverage-map, bulk-revalidation, etc.) live in `requirements/11-21` and will be added here when their slices land. |
 
 ## Deferred Domains
 

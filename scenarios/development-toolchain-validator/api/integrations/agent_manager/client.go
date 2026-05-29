@@ -17,11 +17,14 @@ package agent_manager
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -31,6 +34,7 @@ import (
 	"development-toolchain-validator/internal/httpc"
 
 	"github.com/vrooli/api-core/discovery"
+	repocontract "github.com/vrooli/repo-contract-go"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -126,11 +130,23 @@ func (c *Client) Initialize(ctx context.Context) (*apipb.ReconcileScenarioProfil
 // reuse tasks across runs because each (skill, golden) validation is
 // conceptually a fresh execution against a pristine golden.
 func (c *Client) StartSandboxedRun(ctx context.Context, spec vrun.SandboxedRunSpec) (string, error) {
+	// The sandbox overlays ProjectRoot as the writable lower layer and
+	// joins a relative ScopePath onto it. agent-manager resolves a
+	// relative ProjectRoot against ITS OWN cwd (not DTV's), so passing the
+	// repo-relative golden path previously produced an empty, doubled
+	// lowerdir and the golden was never seeded into the workspace. We
+	// resolve the golden to an absolute host path and point ProjectRoot at
+	// the golden tree itself with ScopePath "." so the overlay lower layer
+	// IS the golden and the agent's edits become the observed diff.
+	goldenRoot, err := resolveGoldenRoot(spec.GoldenPath)
+	if err != nil {
+		return "", err
+	}
 	task := &domainpb.Task{
 		Title:       fmt.Sprintf("Validate skill %q against golden %q", spec.SkillID, spec.GoldenSlug),
-		Description: fmt.Sprintf("Sandboxed execution of skill %s on golden %s for DTV manifest evaluation.", spec.SkillID, spec.GoldenSlug),
-		ScopePath:   spec.GoldenPath,
-		ProjectRoot: spec.GoldenPath,
+		Description: buildSkillPrompt(spec),
+		ScopePath:   ".",
+		ProjectRoot: goldenRoot,
 		CreatedBy:   ScenarioName,
 	}
 	createTaskReq := &apipb.CreateTaskRequest{Task: task}
@@ -224,7 +240,12 @@ func (c *Client) buildSummary(ctx context.Context, run *domainpb.Run) (vrun.RunS
 	// after some files were mutated; ask for it but tolerate absence.
 	diff, err := c.getRunDiff(ctx, run.Id)
 	if err == nil && diff != nil {
-		summary.DiffHash = diff.RunId // hash field not exposed; runId is stable
+		// DiffHash is a content hash so that identical diffs across
+		// distinct runs collapse to the same value — that equality is
+		// what lets DTV recognise a stable, converged skill behaviour.
+		// A no-mutation run hashes the empty string (a stable constant),
+		// which reads as "ran, produced no changes".
+		summary.DiffHash = sha256Hex(diff.Content)
 		summary.DiffPaths = make([]manifest.DiffFile, 0, len(diff.Files))
 		for _, file := range diff.Files {
 			summary.DiffPaths = append(summary.DiffPaths, manifest.DiffFile{
@@ -336,6 +357,65 @@ func isRetriable(err error) bool {
 		strings.Contains(msg, "EOF") ||
 		strings.Contains(msg, "i/o timeout") ||
 		strings.Contains(msg, "upstream 5")
+}
+
+// buildSkillPrompt assembles the agent's prompt for a skill run. The
+// sandbox working directory is the pristine golden scenario; the agent's
+// job is to apply the steer skill to it exactly as it would during normal
+// agent-driven development, so the resulting filesystem diff is the
+// artifact DTV evaluates against the skill's expected-diff manifest.
+//
+// When the skill content could not be fetched, we fall back to a generic
+// description that at least names the skill — the run will still execute
+// but the operator should treat its diff with suspicion (the worker logs
+// the fetch failure).
+func buildSkillPrompt(spec vrun.SandboxedRunSpec) string {
+	if strings.TrimSpace(spec.SkillPrompt) == "" {
+		return fmt.Sprintf("Sandboxed execution of skill %s on golden %s for DTV manifest evaluation.", spec.SkillID, spec.GoldenSlug)
+	}
+	var b strings.Builder
+	b.WriteString("You are validating a Vrooli steer skill against a pristine golden scenario.\n\n")
+	b.WriteString("Your working directory is the golden scenario ")
+	b.WriteString(fmt.Sprintf("%q (generated from its template, unmodified). ", spec.GoldenSlug))
+	b.WriteString("Apply the skill below to THIS scenario exactly as you would during normal ")
+	b.WriteString("agent-driven development: make only the file changes the skill actually implies, ")
+	b.WriteString("and make no other changes. If the skill's intent is already satisfied by the ")
+	b.WriteString("current scenario, make no changes at all — an empty diff is a valid, expected outcome. ")
+	b.WriteString("Do not run builds, tests, or formatters unless the skill explicitly requires it; ")
+	b.WriteString("the only artifact that matters is the filesystem diff your edits produce.\n\n")
+	b.WriteString(fmt.Sprintf("=== BEGIN SKILL: %s ===\n", spec.SkillID))
+	b.WriteString(spec.SkillPrompt)
+	b.WriteString(fmt.Sprintf("\n=== END SKILL: %s ===\n", spec.SkillID))
+	return b.String()
+}
+
+// resolveGoldenRoot turns a (possibly repo-relative) golden path into an
+// absolute host path. Goldens are registered with repo-relative paths
+// (e.g. "scenarios/reference-react-vite") for portability, but the
+// sandbox needs an absolute path it can overlay. The repo root is
+// resolved from VROOLI_SOURCE_ROOT/VROOLI_ROOT (set by the lifecycle)
+// with a cwd/executable fallback.
+func resolveGoldenRoot(goldenPath string) (string, error) {
+	p := strings.TrimSpace(goldenPath)
+	if p == "" {
+		return "", fmt.Errorf("golden path is empty")
+	}
+	if filepath.IsAbs(p) {
+		return filepath.Clean(p), nil
+	}
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		return "", fmt.Errorf("resolve repo root for golden path %q: %w", p, err)
+	}
+	return filepath.Join(root, filepath.FromSlash(p)), nil
+}
+
+// sha256Hex returns the lowercase hex SHA-256 digest of s. Used to
+// hash a run's unified diff content so identical diffs across runs are
+// recognisably equal. The empty string hashes to a stable constant.
+func sha256Hex(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:])
 }
 
 func truncate(s string) string {

@@ -11,8 +11,30 @@
       "title": "agent-manager run orchestration",
       "description": "Connect-RPC client to agent-manager: spawn run with skill content + golden path + sandbox mode; poll for completion; fetch run summary (duration, tokens_used, cost_estimate, started_at, ended_at) and sandbox diff. Handle run-failure cases (timeout, error, crash) explicitly.",
       "category": "integration",
-      "status": "planned",
-      "validation": []
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/validation_run/worker_test.go::TestWorker_SkillRun_HappyPath",
+          "status": "passing",
+          "notes": "Worker spawns the run, awaits terminal, fetches summary + diff, persists a record."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/integrations/agent_manager/client_test.go::TestBuildSummaryHashesDiffContent",
+          "status": "passing",
+          "notes": "Adapter fetches the run diff and stores a sha256 content hash + changed paths."
+        },
+        {
+          "type": "e2e",
+          "phase": "integration",
+          "ref": "development-toolchain-validator validation start --skill progress --golden reference-react-vite --wait",
+          "status": "passing",
+          "notes": "Live loop proven 2026-05-29: golden seeded, skill content delivered, agent ran sandboxed; run_failure (no manifest), pass (manifest pinned), and stale (skill_drift) all observed with persisted records."
+        }
+      ]
     },
     {
       "id": "REQ-P0-008",
@@ -20,8 +42,23 @@
       "title": "Diff-vs-manifest evaluator",
       "description": "Pure-function evaluator: given a diff (file path list + content patches) and a manifest, return verdict ∈ {pass, unexpected-mutation, run-failure} plus a per-file breakdown of allowed vs unexpected paths. No side effects; testable in isolation.",
       "category": "core",
-      "status": "planned",
-      "validation": []
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/validation_run/evaluator_test.go::TestEvaluate_DelegatesToManifest",
+          "status": "passing",
+          "notes": "Pure evaluator composes manifest classification with run/tool failure short-circuits."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/validation_run/worker_test.go::TestWorker_SkillRun_UnexpectedMutation",
+          "status": "passing",
+          "notes": "Disallowed diff path yields the unexpected-mutation verdict end-to-end through the worker."
+        }
+      ]
     }
   ]
 }

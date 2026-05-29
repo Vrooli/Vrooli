@@ -11,8 +11,23 @@
       "title": "Golden registry domain module",
       "description": "SQLite-backed domain module under api/internal/golden/{model,sqlite,schema}.go,sql storing slug, template_id, template_version_pinned, path, created_at, last_regenerated_at.",
       "category": "storage",
-      "status": "planned",
-      "validation": []
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/golden/sqlite_test.go::TestSQLiteRepository_CreateAndGetRoundTrip",
+          "status": "passing",
+          "notes": "Golden registry row round-trips through SQLite (slug, template, pinned version, path)."
+        },
+        {
+          "type": "e2e",
+          "phase": "integration",
+          "ref": "development-toolchain-validator goldens register/list",
+          "status": "passing",
+          "notes": "reference-react-vite golden registered and listed live 2026-05-29."
+        }
+      ]
     },
     {
       "id": "REQ-P0-002",
@@ -20,8 +35,23 @@
       "title": "Regenerate operation",
       "description": "Service method that invokes the template generator (vrooli scenario create or equivalent) into the registered path, captures the new template version from templates/scenarios/<template>/template.json::version, and updates template_version_pinned + last_regenerated_at. Surfaces a result the operator must review and commit manually.",
       "category": "core",
-      "status": "planned",
-      "validation": []
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/golden/sqlite_test.go::TestSQLiteRepository_UpdateChangesFieldsAndPersistsLastRegeneratedAt",
+          "status": "passing",
+          "notes": "Regenerate updates pinned version and persists last_regenerated_at."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/golden/service_test.go::TestService_RegisterHappyPath",
+          "status": "passing",
+          "notes": "Registry service happy-path covering register/update."
+        }
+      ]
     }
   ]
 }

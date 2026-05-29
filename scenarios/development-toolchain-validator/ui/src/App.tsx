@@ -10,6 +10,8 @@ import { SkillsIndex } from "./surfaces/skills/SkillsIndex";
 import { SkillDetail } from "./surfaces/skills/SkillDetail";
 import { ManifestsIndex } from "./surfaces/manifests/ManifestsIndex";
 import { ManifestEditor } from "./surfaces/manifests/ManifestEditor";
+import { RunsIndex } from "./surfaces/runs/RunsIndex";
+import { RunDetail } from "./surfaces/runs/RunDetail";
 import { Settings } from "./surfaces/settings/Settings";
 
 /**
@@ -42,6 +44,8 @@ export function AppRoutes(): ReactNode {
         <Route path={ROUTE_PATTERNS.skillDetail} element={<SkillDetail />} />
         <Route path={ROUTE_PATTERNS.manifestsIndex} element={<ManifestsIndex />} />
         <Route path={ROUTE_PATTERNS.manifestEditor} element={<ManifestEditor />} />
+        <Route path={ROUTE_PATTERNS.runsIndex} element={<RunsIndex />} />
+        <Route path={ROUTE_PATTERNS.runDetail} element={<RunDetail />} />
         <Route path={ROUTE_PATTERNS.settings} element={<Settings />} />
         <Route path="*" element={<Navigate to={ROUTE_PATTERNS.goldensIndex} replace />} />
       </Route>

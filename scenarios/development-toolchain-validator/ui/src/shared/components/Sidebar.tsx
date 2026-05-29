@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Target, Wrench, FileCog, Settings as SettingsIcon, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Target, Wrench, FileCog, PlayCircle, Settings as SettingsIcon, ChevronsLeft, ChevronsRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -23,6 +23,7 @@ const NAV_LABEL_KEYS = [
   strings.nav.goldensLabel,
   strings.nav.skillsLabel,
   strings.nav.manifestsLabel,
+  strings.nav.runsLabel,
   strings.nav.settingsLabel,
 ] as const;
 
@@ -59,9 +60,16 @@ export function Sidebar(): ReactNode {
       icon: FileCog,
     },
     {
+      to: ROUTES.runsIndex,
+      patternPrefix: ROUTE_PATTERNS.runsIndex,
+      label: t(NAV_LABEL_KEYS[3]),
+      testId: selectors.nav.sidebarItemRuns,
+      icon: PlayCircle,
+    },
+    {
       to: ROUTES.settings,
       patternPrefix: ROUTE_PATTERNS.settings,
-      label: t(NAV_LABEL_KEYS[3]),
+      label: t(NAV_LABEL_KEYS[4]),
       testId: selectors.nav.sidebarItemSettings,
       icon: SettingsIcon,
     },

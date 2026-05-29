@@ -65,6 +65,20 @@
       "parents": ["manifests_index"]
     },
     {
+      "id": "runs_index",
+      "path": "/runs",
+      "page": "ui/src/surfaces/runs/RunsIndex.tsx",
+      "deep_link": "recoverable",
+      "parents": []
+    },
+    {
+      "id": "run_detail",
+      "path": "/runs/:id",
+      "page": "ui/src/surfaces/runs/RunDetail.tsx",
+      "deep_link": "recoverable",
+      "parents": ["runs_index"]
+    },
+    {
       "id": "settings",
       "path": "/settings",
       "page": "ui/src/surfaces/settings/Settings.tsx",
@@ -125,6 +139,16 @@
           "reachable_via": ["mouse", "keyboard"] },
         { "in": "mobile_bottom_nav", "label": "Manifests", "icon": "file-cog",
           "test_id": "nav-mobile-manifests", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "nav_runs",
+      "to": "runs_index",
+      "presentations": [
+        { "in": "sidebar", "label": "Runs", "test_id": "nav-sidebar-runs",
+          "reachable_via": ["mouse", "keyboard"] },
+        { "in": "mobile_bottom_nav", "label": "Runs", "icon": "play-circle",
+          "test_id": "nav-mobile-runs", "reachable_via": ["mouse", "keyboard"] }
       ]
     },
     {
@@ -200,6 +224,30 @@
         { "in": "manifest_editor", "label": "Back to manifests", "test_id": "manifests-editor-back",
           "reachable_via": ["mouse", "keyboard"] }
       ]
+    },
+    {
+      "id": "run_row_open",
+      "to": "run_detail",
+      "presentations": [
+        { "in": "runs_index", "label": "Open run", "test_id": "runs-row",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "run_detail_back",
+      "to": "runs_index",
+      "presentations": [
+        { "in": "run_detail", "label": "Back to runs", "test_id": "runs-detail-back",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "tuple_run_validation",
+      "to": "run_detail",
+      "presentations": [
+        { "in": "tuple_detail", "label": "Run validation", "test_id": "runs-run-validation",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
     }
   ],
 
@@ -207,7 +255,8 @@
     { "from": "golden_detail", "rule": "history_back", "fallback": "goldens_index" },
     { "from": "tuple_detail", "rule": "history_back", "fallback": "golden_detail" },
     { "from": "skill_detail", "rule": "history_back", "fallback": "skills_index" },
-    { "from": "manifest_editor", "rule": "history_back", "fallback": "manifests_index" }
+    { "from": "manifest_editor", "rule": "history_back", "fallback": "manifests_index" },
+    { "from": "run_detail", "rule": "history_back", "fallback": "runs_index" }
   ],
 
   "shortcuts": [
@@ -227,6 +276,12 @@
       "binding": "g m",
       "action": "navigate",
       "to": "manifests_index",
+      "scope": "global"
+    },
+    {
+      "binding": "g r",
+      "action": "navigate",
+      "to": "runs_index",
       "scope": "global"
     },
     {

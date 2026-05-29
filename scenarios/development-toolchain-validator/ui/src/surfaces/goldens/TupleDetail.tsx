@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, PlayCircle } from "lucide-react";
 
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -10,6 +10,7 @@ import { useTranslation } from "../../i18n";
 import { formatDate } from "../../i18n/format";
 import { reportClient } from "../../api/report";
 import { manifestClient } from "../../api/manifest";
+import { validationRunClient } from "../../api/validationRun";
 import {
   TupleKind,
   Verdict,
@@ -54,6 +55,21 @@ export function TupleDetail() {
   const tupleKind = segmentToTupleKind(params.tupleKind ?? "skill");
   const navigate = useNavigate();
   const [tab, setTab] = useState<"diff" | "manifest" | "history">("diff");
+
+  const startRunMutation = useMutation({
+    mutationFn: () =>
+      validationRunClient.start({
+        tupleKind,
+        subjectId,
+        goldenSlug: slug,
+        force: true,
+      }),
+    onSuccess: (resp) => {
+      if (resp.run?.id) {
+        void navigate(ROUTES.runDetail(resp.run.id));
+      }
+    },
+  });
 
   const historyQuery = useQuery({
     queryKey: ["tupleHistory", slug, tupleKind, subjectId] as const,
@@ -120,17 +136,38 @@ export function TupleDetail() {
           </span>
         }
         actions={
-          <Button
-            data-testid={selectors.goldens.tupleDetailBack}
-            size="sm"
-            variant="ghost"
-            onClick={() => void navigate(ROUTES.goldenDetail(slug))}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {t(strings.goldens.tupleBack, { slug })}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              data-testid={selectors.runs.runValidation}
+              size="sm"
+              onClick={() => startRunMutation.mutate()}
+              disabled={startRunMutation.isPending}
+            >
+              <PlayCircle className="h-4 w-4" />
+              {startRunMutation.isPending
+                ? t(strings.runs.starting)
+                : t(strings.runs.runValidation)}
+            </Button>
+            <Button
+              data-testid={selectors.goldens.tupleDetailBack}
+              size="sm"
+              variant="ghost"
+              onClick={() => void navigate(ROUTES.goldenDetail(slug))}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {t(strings.goldens.tupleBack, { slug })}
+            </Button>
+          </div>
         }
       />
+      {startRunMutation.error ? (
+        <p
+          data-testid={selectors.runs.startError}
+          className="text-sm text-status-failure"
+        >
+          {errorMessage(startRunMutation.error, t)}
+        </p>
+      ) : null}
 
       {latest ? (
         <Card surface="raised" data-testid={selectors.goldens.tupleDetailRunSummary}>

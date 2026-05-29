@@ -82,6 +82,48 @@
     "backToIndex": "Back to manifests",
     "pinningLabel": "Pinned: template={{template}}, skill={{skill}}"
   },
+  "runs": {
+    "title": "Validation runs",
+    "subtitle": "Start a (skill | tool, golden) validation run and watch it reach a verdict.",
+    "empty": "No active runs.",
+    "emptyDescription": "Start a validation run below, or open a tuple from a golden to validate it.",
+    "activeTitle": "Active runs",
+    "startTitle": "Start a run",
+    "kindLabel": "Tuple kind",
+    "kindSkill": "Skill",
+    "kindTool": "Tool",
+    "subjectLabel": "Subject id (skill id or tool name)",
+    "goldenLabel": "Golden slug",
+    "forceLabel": "Force a fresh run",
+    "startSubmit": "Start run",
+    "starting": "Starting…",
+    "rowLabel": "{{subject}} on {{golden}}",
+    "createdLabel": "Created",
+    "startedLabel": "Started",
+    "endedLabel": "Ended",
+    "agentRunLabel": "Agent-manager run",
+    "errorLabel": "Error",
+    "backToIndex": "Back to runs",
+    "detailHeading": "Run {{id}}",
+    "runValidation": "Run validation",
+    "notFound": "Run not found.",
+    "statusLabel": "Status",
+    "verdictLabel": "Verdict",
+    "status": {
+      "queued": "Queued",
+      "running": "Running",
+      "evaluating": "Evaluating",
+      "terminal": "Terminal",
+      "unknown": "Unknown"
+    },
+    "verdict": {
+      "pass": "Pass",
+      "unexpected": "Unexpected mutation",
+      "runFailure": "Run failure",
+      "toolFailure": "Tool failure",
+      "pending": "Pending"
+    }
+  },
   "nav": {
     "menuToggle": "Open navigation",
     "convergenceLabel": "Convergence",
@@ -94,6 +136,7 @@
     "goldensLabel": "Goldens",
     "skillsLabel": "Skills",
     "manifestsLabel": "Manifests",
+    "runsLabel": "Runs",
     "settingsLabel": "Settings"
   },
   "settings": {

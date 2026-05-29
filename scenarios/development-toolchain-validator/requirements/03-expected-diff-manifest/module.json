@@ -11,8 +11,23 @@
       "title": "Manifest schema",
       "description": "SQLite schema with: skill_id, golden_id (FK), allowed_paths (JSON array of globs), content_rules (JSON), wildcard_allowed (bool), convergence_target (enum: none|empty_diff), pinned_template_version, pinned_skill_version, updated_at. Unique constraint on (skill_id, golden_id).",
       "category": "storage",
-      "status": "planned",
-      "validation": []
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/manifest/sqlite_test.go::TestUpsert_InsertsAndRoundTrips",
+          "status": "passing",
+          "notes": "Manifest row (allowed_paths, convergence, version pins) round-trips through SQLite."
+        },
+        {
+          "type": "e2e",
+          "phase": "integration",
+          "ref": "development-toolchain-validator manifest upsert/get",
+          "status": "passing",
+          "notes": "progress/reference-react-vite manifest pinned and fetched live 2026-05-29."
+        }
+      ]
     },
     {
       "id": "REQ-P0-006",
@@ -20,8 +35,23 @@
       "title": "Manifest CRUD service",
       "description": "Domain service for create/update/delete/get/list manifests. Bumps pinned versions on update. Enforces uniqueness and validates path globs.",
       "category": "core",
-      "status": "planned",
-      "validation": []
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/manifest/service_test.go::TestUpsert_HappyPath",
+          "status": "passing",
+          "notes": "CRUD service upsert with uniqueness + glob validation."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/manifest/evaluator_test.go::TestEvaluate_TableDriven",
+          "status": "passing",
+          "notes": "Manifest path-glob evaluation table (allowed vs unexpected)."
+        }
+      ]
     }
   ]
 }

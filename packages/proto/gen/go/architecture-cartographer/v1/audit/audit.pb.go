@@ -31,6 +31,10 @@ const (
 	AuditOutcome_AUDIT_OUTCOME_CLEAN       AuditOutcome = 1
 	AuditOutcome_AUDIT_OUTCOME_FINDINGS    AuditOutcome = 2
 	AuditOutcome_AUDIT_OUTCOME_TOOL_ERROR  AuditOutcome = 3
+	// PARTIAL: at least one analysis layer was skipped (today: TS via
+	// --skip-ts or a workspace_unsupported error from typescript-code-
+	// graph). Remaining layers ran cleanly. CLI exit 0 with a warning.
+	AuditOutcome_AUDIT_OUTCOME_PARTIAL AuditOutcome = 4
 )
 
 // Enum value maps for AuditOutcome.
@@ -40,12 +44,14 @@ var (
 		1: "AUDIT_OUTCOME_CLEAN",
 		2: "AUDIT_OUTCOME_FINDINGS",
 		3: "AUDIT_OUTCOME_TOOL_ERROR",
+		4: "AUDIT_OUTCOME_PARTIAL",
 	}
 	AuditOutcome_value = map[string]int32{
 		"AUDIT_OUTCOME_UNSPECIFIED": 0,
 		"AUDIT_OUTCOME_CLEAN":       1,
 		"AUDIT_OUTCOME_FINDINGS":    2,
 		"AUDIT_OUTCOME_TOOL_ERROR":  3,
+		"AUDIT_OUTCOME_PARTIAL":     4,
 	}
 )
 
@@ -86,6 +92,10 @@ const (
 	AuthorityConfidence_AUTHORITY_CONFIDENCE_LOW         AuthorityConfidence = 1
 	AuthorityConfidence_AUTHORITY_CONFIDENCE_MEDIUM      AuthorityConfidence = 2
 	AuthorityConfidence_AUTHORITY_CONFIDENCE_HIGH        AuthorityConfidence = 3
+	// MISSING signals that NO ladder rung declared any domain
+	// (ErrNoAuthority was raised). Distinct from LOW (where a derived
+	// rung supplied authority but no curated DOMAINS.md exists).
+	AuthorityConfidence_AUTHORITY_CONFIDENCE_MISSING AuthorityConfidence = 4
 )
 
 // Enum value maps for AuthorityConfidence.
@@ -95,12 +105,14 @@ var (
 		1: "AUTHORITY_CONFIDENCE_LOW",
 		2: "AUTHORITY_CONFIDENCE_MEDIUM",
 		3: "AUTHORITY_CONFIDENCE_HIGH",
+		4: "AUTHORITY_CONFIDENCE_MISSING",
 	}
 	AuthorityConfidence_value = map[string]int32{
 		"AUTHORITY_CONFIDENCE_UNSPECIFIED": 0,
 		"AUTHORITY_CONFIDENCE_LOW":         1,
 		"AUTHORITY_CONFIDENCE_MEDIUM":      2,
 		"AUTHORITY_CONFIDENCE_HIGH":        3,
+		"AUTHORITY_CONFIDENCE_MISSING":     4,
 	}
 )
 
@@ -461,8 +473,14 @@ type AuditRunRequest struct {
 	// to still produce an outcome=CLEAN result. Default false flips
 	// outcome to FINDINGS on low-authority scenarios.
 	AllowLowAuthority bool `protobuf:"varint,5,opt,name=allow_low_authority,json=allowLowAuthority,proto3" json:"allow_low_authority,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// When true, skip the TypeScript analysis layer entirely. The audit
+	// returns AUDIT_OUTCOME_PARTIAL when the TS layer was the only thing
+	// skipped (Go-side findings still drive the outcome). Lets scenarios
+	// whose UI runs in an unsupported pnpm workspace still produce a
+	// useful Go-side report.
+	SkipTs        bool `protobuf:"varint,6,opt,name=skip_ts,json=skipTs,proto3" json:"skip_ts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AuditRunRequest) Reset() {
@@ -526,6 +544,13 @@ func (x *AuditRunRequest) GetExcludeTypes() []string {
 func (x *AuditRunRequest) GetAllowLowAuthority() bool {
 	if x != nil {
 		return x.AllowLowAuthority
+	}
+	return false
+}
+
+func (x *AuditRunRequest) GetSkipTs() bool {
+	if x != nil {
+		return x.SkipTs
 	}
 	return false
 }
@@ -714,9 +739,15 @@ type AuditRunAllRequest struct {
 	ExcludeScenarios  []string `protobuf:"bytes,5,rep,name=exclude_scenarios,json=excludeScenarios,proto3" json:"exclude_scenarios,omitempty"`
 	AllowLowAuthority bool     `protobuf:"varint,6,opt,name=allow_low_authority,json=allowLowAuthority,proto3" json:"allow_low_authority,omitempty"`
 	// Bounded worker concurrency. Zero defaults to 4.
-	Concurrency   int32 `protobuf:"varint,7,opt,name=concurrency,proto3" json:"concurrency,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Concurrency int32 `protobuf:"varint,7,opt,name=concurrency,proto3" json:"concurrency,omitempty"`
+	// Per-scenario opt-out from the strict authority gate. Effective
+	// per-scenario AllowLowAuthority is the OR of `allow_low_authority`
+	// and `contains(allow_low_authority_scenarios, name)`. Lets a mixed
+	// portfolio strict-gate the curated half while silencing only the
+	// listed scenarios.
+	AllowLowAuthorityScenarios []string `protobuf:"bytes,8,rep,name=allow_low_authority_scenarios,json=allowLowAuthorityScenarios,proto3" json:"allow_low_authority_scenarios,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *AuditRunAllRequest) Reset() {
@@ -796,6 +827,13 @@ func (x *AuditRunAllRequest) GetConcurrency() int32 {
 		return x.Concurrency
 	}
 	return 0
+}
+
+func (x *AuditRunAllRequest) GetAllowLowAuthorityScenarios() []string {
+	if x != nil {
+		return x.AllowLowAuthorityScenarios
+	}
+	return nil
 }
 
 type AuditRunAllResponse struct {
@@ -923,13 +961,14 @@ const file_architecture_cartographer_v1_audit_audit_proto_rawDesc = "" +
 	"\n" +
 	"file_count\x18\x02 \x01(\x05R\tfileCount\x12#\n" +
 	"\rpackage_count\x18\x03 \x01(\x05R\fpackageCount\x12*\n" +
-	"\x11import_edge_count\x18\x04 \x01(\x05R\x0fimportEdgeCount\"\xf9\x01\n" +
+	"\x11import_edge_count\x18\x04 \x01(\x05R\x0fimportEdgeCount\"\x92\x02\n" +
 	"\x0fAuditRunRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12P\n" +
 	"\afail_on\x18\x02 \x01(\x0e27.vrooli.architecture_cartographer.v1.conflicts.SeverityR\x06failOn\x12#\n" +
 	"\rinclude_types\x18\x03 \x03(\tR\fincludeTypes\x12#\n" +
 	"\rexclude_types\x18\x04 \x03(\tR\fexcludeTypes\x12.\n" +
-	"\x13allow_low_authority\x18\x05 \x01(\bR\x11allowLowAuthority\"\x9e\n" +
+	"\x13allow_low_authority\x18\x05 \x01(\bR\x11allowLowAuthority\x12\x17\n" +
+	"\askip_ts\x18\x06 \x01(\bR\x06skipTs\"\x9e\n" +
 	"\n" +
 	"\x10AuditRunResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12Q\n" +
@@ -957,7 +996,7 @@ const file_architecture_cartographer_v1_audit_audit_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1a;\n" +
 	"\rByDomainEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\xdc\x02\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\x9f\x03\n" +
 	"\x12AuditRunAllRequest\x12P\n" +
 	"\afail_on\x18\x01 \x01(\x0e27.vrooli.architecture_cartographer.v1.conflicts.SeverityR\x06failOn\x12#\n" +
 	"\rinclude_types\x18\x02 \x03(\tR\fincludeTypes\x12#\n" +
@@ -965,7 +1004,8 @@ const file_architecture_cartographer_v1_audit_audit_proto_rawDesc = "" +
 	"\x11include_scenarios\x18\x04 \x03(\tR\x10includeScenarios\x12+\n" +
 	"\x11exclude_scenarios\x18\x05 \x03(\tR\x10excludeScenarios\x12.\n" +
 	"\x13allow_low_authority\x18\x06 \x01(\bR\x11allowLowAuthority\x12 \n" +
-	"\vconcurrency\x18\a \x01(\x05R\vconcurrency\"\xfa\x04\n" +
+	"\vconcurrency\x18\a \x01(\x05R\vconcurrency\x12A\n" +
+	"\x1dallow_low_authority_scenarios\x18\b \x03(\tR\x1aallowLowAuthorityScenarios\"\xfa\x04\n" +
 	"\x13AuditRunAllResponse\x12U\n" +
 	"\areports\x18\x01 \x03(\v2;.vrooli.architecture_cartographer.v1.audit.AuditRunResponseR\areports\x12'\n" +
 	"\x0ftotal_scenarios\x18\x02 \x01(\x05R\x0etotalScenarios\x12%\n" +
@@ -981,17 +1021,19 @@ const file_architecture_cartographer_v1_audit_audit_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1a<\n" +
 	"\x0eByOutcomeEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01*\x80\x01\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01*\x9b\x01\n" +
 	"\fAuditOutcome\x12\x1d\n" +
 	"\x19AUDIT_OUTCOME_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13AUDIT_OUTCOME_CLEAN\x10\x01\x12\x1a\n" +
 	"\x16AUDIT_OUTCOME_FINDINGS\x10\x02\x12\x1c\n" +
-	"\x18AUDIT_OUTCOME_TOOL_ERROR\x10\x03*\x99\x01\n" +
+	"\x18AUDIT_OUTCOME_TOOL_ERROR\x10\x03\x12\x19\n" +
+	"\x15AUDIT_OUTCOME_PARTIAL\x10\x04*\xbb\x01\n" +
 	"\x13AuthorityConfidence\x12$\n" +
 	" AUTHORITY_CONFIDENCE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18AUTHORITY_CONFIDENCE_LOW\x10\x01\x12\x1f\n" +
 	"\x1bAUTHORITY_CONFIDENCE_MEDIUM\x10\x02\x12\x1d\n" +
-	"\x19AUTHORITY_CONFIDENCE_HIGH\x10\x03*\x99\x01\n" +
+	"\x19AUTHORITY_CONFIDENCE_HIGH\x10\x03\x12 \n" +
+	"\x1cAUTHORITY_CONFIDENCE_MISSING\x10\x04*\x99\x01\n" +
 	"\x11SnapshotFreshness\x12\"\n" +
 	"\x1eSNAPSHOT_FRESHNESS_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19SNAPSHOT_FRESHNESS_CACHED\x10\x01\x12#\n" +

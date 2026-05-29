@@ -12,6 +12,22 @@ type SandboxedRunSpec struct {
 	SkillID    string
 	GoldenSlug string
 	GoldenPath string
+	// SkillPrompt is the steer skill's full instruction text, fetched
+	// from prompt-manager. It becomes the agent's prompt so the sandboxed
+	// run actually executes the skill against the golden. Empty when the
+	// content could not be resolved; the adapter falls back to a generic
+	// description in that case.
+	SkillPrompt string
+}
+
+// SkillContentSource resolves a steer skill's full instruction text by
+// id. The worker uses it to build the agent prompt for a skill run so
+// the sandboxed agent has the actual skill to execute, not just its name.
+// Production wires the prompt-manager REST adapter; tests use fakes.
+//
+// seam: SkillContentSource
+type SkillContentSource interface {
+	SkillContent(ctx context.Context, skillID string) (string, error)
 }
 
 // AgentManagerClient is the outbound seam for invoking agent-manager

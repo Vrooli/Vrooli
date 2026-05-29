@@ -17,6 +17,7 @@ class AuditOutcome(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     AUDIT_OUTCOME_CLEAN: _ClassVar[AuditOutcome]
     AUDIT_OUTCOME_FINDINGS: _ClassVar[AuditOutcome]
     AUDIT_OUTCOME_TOOL_ERROR: _ClassVar[AuditOutcome]
+    AUDIT_OUTCOME_PARTIAL: _ClassVar[AuditOutcome]
 
 class AuthorityConfidence(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -24,6 +25,7 @@ class AuthorityConfidence(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     AUTHORITY_CONFIDENCE_LOW: _ClassVar[AuthorityConfidence]
     AUTHORITY_CONFIDENCE_MEDIUM: _ClassVar[AuthorityConfidence]
     AUTHORITY_CONFIDENCE_HIGH: _ClassVar[AuthorityConfidence]
+    AUTHORITY_CONFIDENCE_MISSING: _ClassVar[AuthorityConfidence]
 
 class SnapshotFreshness(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -35,10 +37,12 @@ AUDIT_OUTCOME_UNSPECIFIED: AuditOutcome
 AUDIT_OUTCOME_CLEAN: AuditOutcome
 AUDIT_OUTCOME_FINDINGS: AuditOutcome
 AUDIT_OUTCOME_TOOL_ERROR: AuditOutcome
+AUDIT_OUTCOME_PARTIAL: AuditOutcome
 AUTHORITY_CONFIDENCE_UNSPECIFIED: AuthorityConfidence
 AUTHORITY_CONFIDENCE_LOW: AuthorityConfidence
 AUTHORITY_CONFIDENCE_MEDIUM: AuthorityConfidence
 AUTHORITY_CONFIDENCE_HIGH: AuthorityConfidence
+AUTHORITY_CONFIDENCE_MISSING: AuthorityConfidence
 SNAPSHOT_FRESHNESS_UNSPECIFIED: SnapshotFreshness
 SNAPSHOT_FRESHNESS_CACHED: SnapshotFreshness
 SNAPSHOT_FRESHNESS_RE_EXTRACTED: SnapshotFreshness
@@ -91,18 +95,20 @@ class GraphSummary(_message.Message):
     def __init__(self, snapshot_id: _Optional[str] = ..., file_count: _Optional[int] = ..., package_count: _Optional[int] = ..., import_edge_count: _Optional[int] = ...) -> None: ...
 
 class AuditRunRequest(_message.Message):
-    __slots__ = ("scenario", "fail_on", "include_types", "exclude_types", "allow_low_authority")
+    __slots__ = ("scenario", "fail_on", "include_types", "exclude_types", "allow_low_authority", "skip_ts")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     FAIL_ON_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_TYPES_FIELD_NUMBER: _ClassVar[int]
     EXCLUDE_TYPES_FIELD_NUMBER: _ClassVar[int]
     ALLOW_LOW_AUTHORITY_FIELD_NUMBER: _ClassVar[int]
+    SKIP_TS_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     fail_on: _conflicts_pb2.Severity
     include_types: _containers.RepeatedScalarFieldContainer[str]
     exclude_types: _containers.RepeatedScalarFieldContainer[str]
     allow_low_authority: bool
-    def __init__(self, scenario: _Optional[str] = ..., fail_on: _Optional[_Union[_conflicts_pb2.Severity, str]] = ..., include_types: _Optional[_Iterable[str]] = ..., exclude_types: _Optional[_Iterable[str]] = ..., allow_low_authority: _Optional[bool] = ...) -> None: ...
+    skip_ts: bool
+    def __init__(self, scenario: _Optional[str] = ..., fail_on: _Optional[_Union[_conflicts_pb2.Severity, str]] = ..., include_types: _Optional[_Iterable[str]] = ..., exclude_types: _Optional[_Iterable[str]] = ..., allow_low_authority: _Optional[bool] = ..., skip_ts: _Optional[bool] = ...) -> None: ...
 
 class AuditRunResponse(_message.Message):
     __slots__ = ("scenario", "outcome", "error", "total_findings", "by_severity", "by_type", "findings", "domains", "graph", "duration", "suppressed_findings", "by_domain", "snapshot_freshness", "authority_confidence", "outcome_reason")
@@ -160,7 +166,7 @@ class AuditRunResponse(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., outcome: _Optional[_Union[AuditOutcome, str]] = ..., error: _Optional[str] = ..., total_findings: _Optional[int] = ..., by_severity: _Optional[_Mapping[str, int]] = ..., by_type: _Optional[_Mapping[str, int]] = ..., findings: _Optional[_Iterable[_Union[ConflictSummary, _Mapping]]] = ..., domains: _Optional[_Union[DerivedDomainSummary, _Mapping]] = ..., graph: _Optional[_Union[GraphSummary, _Mapping]] = ..., duration: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., suppressed_findings: _Optional[int] = ..., by_domain: _Optional[_Mapping[str, int]] = ..., snapshot_freshness: _Optional[_Union[SnapshotFreshness, str]] = ..., authority_confidence: _Optional[_Union[AuthorityConfidence, str]] = ..., outcome_reason: _Optional[str] = ...) -> None: ...
 
 class AuditRunAllRequest(_message.Message):
-    __slots__ = ("fail_on", "include_types", "exclude_types", "include_scenarios", "exclude_scenarios", "allow_low_authority", "concurrency")
+    __slots__ = ("fail_on", "include_types", "exclude_types", "include_scenarios", "exclude_scenarios", "allow_low_authority", "concurrency", "allow_low_authority_scenarios")
     FAIL_ON_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_TYPES_FIELD_NUMBER: _ClassVar[int]
     EXCLUDE_TYPES_FIELD_NUMBER: _ClassVar[int]
@@ -168,6 +174,7 @@ class AuditRunAllRequest(_message.Message):
     EXCLUDE_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
     ALLOW_LOW_AUTHORITY_FIELD_NUMBER: _ClassVar[int]
     CONCURRENCY_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_LOW_AUTHORITY_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
     fail_on: _conflicts_pb2.Severity
     include_types: _containers.RepeatedScalarFieldContainer[str]
     exclude_types: _containers.RepeatedScalarFieldContainer[str]
@@ -175,7 +182,8 @@ class AuditRunAllRequest(_message.Message):
     exclude_scenarios: _containers.RepeatedScalarFieldContainer[str]
     allow_low_authority: bool
     concurrency: int
-    def __init__(self, fail_on: _Optional[_Union[_conflicts_pb2.Severity, str]] = ..., include_types: _Optional[_Iterable[str]] = ..., exclude_types: _Optional[_Iterable[str]] = ..., include_scenarios: _Optional[_Iterable[str]] = ..., exclude_scenarios: _Optional[_Iterable[str]] = ..., allow_low_authority: _Optional[bool] = ..., concurrency: _Optional[int] = ...) -> None: ...
+    allow_low_authority_scenarios: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, fail_on: _Optional[_Union[_conflicts_pb2.Severity, str]] = ..., include_types: _Optional[_Iterable[str]] = ..., exclude_types: _Optional[_Iterable[str]] = ..., include_scenarios: _Optional[_Iterable[str]] = ..., exclude_scenarios: _Optional[_Iterable[str]] = ..., allow_low_authority: _Optional[bool] = ..., concurrency: _Optional[int] = ..., allow_low_authority_scenarios: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class AuditRunAllResponse(_message.Message):
     __slots__ = ("reports", "total_scenarios", "total_findings", "total_suppressed", "by_severity", "by_outcome", "duration")

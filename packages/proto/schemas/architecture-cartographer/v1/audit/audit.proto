@@ -33,6 +33,10 @@ enum AuditOutcome {
   AUDIT_OUTCOME_CLEAN = 1;
   AUDIT_OUTCOME_FINDINGS = 2;
   AUDIT_OUTCOME_TOOL_ERROR = 3;
+  // PARTIAL: at least one analysis layer was skipped (today: TS via
+  // --skip-ts or a workspace_unsupported error from typescript-code-
+  // graph). Remaining layers ran cleanly. CLI exit 0 with a warning.
+  AUDIT_OUTCOME_PARTIAL = 4;
 }
 
 // AuthorityConfidence mirrors the domains-derivation authority confidence
@@ -43,6 +47,10 @@ enum AuthorityConfidence {
   AUTHORITY_CONFIDENCE_LOW = 1;
   AUTHORITY_CONFIDENCE_MEDIUM = 2;
   AUTHORITY_CONFIDENCE_HIGH = 3;
+  // MISSING signals that NO ladder rung declared any domain
+  // (ErrNoAuthority was raised). Distinct from LOW (where a derived
+  // rung supplied authority but no curated DOMAINS.md exists).
+  AUTHORITY_CONFIDENCE_MISSING = 4;
 }
 
 // SnapshotFreshness reports whether the audit reused a cached snapshot
@@ -121,6 +129,12 @@ message AuditRunRequest {
   // to still produce an outcome=CLEAN result. Default false flips
   // outcome to FINDINGS on low-authority scenarios.
   bool allow_low_authority = 5;
+  // When true, skip the TypeScript analysis layer entirely. The audit
+  // returns AUDIT_OUTCOME_PARTIAL when the TS layer was the only thing
+  // skipped (Go-side findings still drive the outcome). Lets scenarios
+  // whose UI runs in an unsupported pnpm workspace still produce a
+  // useful Go-side report.
+  bool skip_ts = 6;
 }
 
 message AuditRunResponse {
@@ -173,6 +187,12 @@ message AuditRunAllRequest {
   bool allow_low_authority = 6;
   // Bounded worker concurrency. Zero defaults to 4.
   int32 concurrency = 7;
+  // Per-scenario opt-out from the strict authority gate. Effective
+  // per-scenario AllowLowAuthority is the OR of `allow_low_authority`
+  // and `contains(allow_low_authority_scenarios, name)`. Lets a mixed
+  // portfolio strict-gate the curated half while silencing only the
+  // listed scenarios.
+  repeated string allow_low_authority_scenarios = 8;
 }
 
 message AuditRunAllResponse {

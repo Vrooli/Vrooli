@@ -11,8 +11,30 @@
       "title": "Stale derivation",
       "description": "Pure function: given manifest pinned versions + current template/skill versions + an operator-clear-stale flag, return stale ∈ {fresh, stale-template, stale-skill, cleared}. Used by API to compute UI badges and by CLI to require --force / --yes.",
       "category": "core",
-      "status": "planned",
-      "validation": []
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/staleness/service_test.go::TestListStale_SkillDrift",
+          "status": "passing",
+          "notes": "Skill-version drift stales only the affected skill's manifest."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/staleness/service_test.go::TestListStale_TemplateDrift",
+          "status": "passing",
+          "notes": "Template-version drift stales manifests for that golden."
+        },
+        {
+          "type": "e2e",
+          "phase": "integration",
+          "ref": "development-toolchain-validator staleness list",
+          "status": "passing",
+          "notes": "Live skill_drift flagged (2020-01-01 pin vs current) then cleared by re-pin 2026-05-29."
+        }
+      ]
     },
     {
       "id": "REQ-P0-014",
@@ -20,8 +42,23 @@
       "title": "Clear-stale operation",
       "description": "Operator can set 'cleared' state on a stale manifest, asserting they have reviewed the drift and accept current pinning. Cleared state resets to active stale on the next pinned-version mismatch.",
       "category": "core",
-      "status": "planned",
-      "validation": []
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/manifest/service_test.go::TestClearStale_RecordsTimestamp",
+          "status": "passing",
+          "notes": "Clear-stale records the operator override timestamp."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/staleness/service_test.go::TestListStale_ManualOverrideSuppresses",
+          "status": "passing",
+          "notes": "Cleared override suppresses the stale flag until the next version mismatch."
+        }
+      ]
     }
   ]
 }
