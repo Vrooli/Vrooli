@@ -38,6 +38,7 @@ export type MicReadinessState = "idle" | "acquiring" | "warm" | "released";
 
 let _stream: MediaStream | null = null;
 let _state: MicReadinessState = "idle";
+let _generation = 0;
 
 /**
  * Acquire a mic stream, reusing the existing one if still alive.
@@ -48,16 +49,27 @@ export async function acquireStream(): Promise<MediaStream> {
     return _stream;
   }
 
+  const generation = _generation;
   _state = "acquiring";
   console.info("[voice] Low-latency: pre-warming getUserMedia");
   const start = Date.now();
 
+  let stream: MediaStream;
   try {
-    _stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch {
-    _state = "released";
+    if (generation === _generation) {
+      _state = "released";
+    }
     throw new Error("Microphone access denied");
   }
+
+  if (generation !== _generation) {
+    stream.getTracks().forEach((t) => t.stop());
+    throw new Error("Microphone pre-warm cancelled");
+  }
+
+  _stream = stream;
 
   // Listen for unexpected track termination (browser/OS revoked access)
   for (const track of _stream.getTracks()) {
@@ -78,6 +90,7 @@ export async function acquireStream(): Promise<MediaStream> {
  * This stops the OS microphone indicator and frees audio hardware.
  */
 export function releaseStream(): void {
+  _generation++;
   if (_stream) {
     _stream.getTracks().forEach((t) => t.stop());
     _stream = null;
@@ -157,6 +170,7 @@ export function installVisibilityHandler(opts: {
  * Reset all module state. For test cleanup only — not called in production.
  */
 export function _resetMicReadiness(): void {
+  _generation++;
   if (_stream) {
     _stream.getTracks().forEach((t) => t.stop());
   }

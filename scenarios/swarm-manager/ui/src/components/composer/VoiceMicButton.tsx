@@ -216,18 +216,19 @@ function VoiceMicButtonInner({
   // client VAD's autoStopProgress when stale (>250 ms) or absent. Formula
   // matches plan §7 step 12.
   const nowPerf = typeof performance !== "undefined" ? performance.now() : Date.now();
-  const fresh = !!serverVad
-    && serverVad.receivedAt > 0
-    && (nowPerf - serverVad.receivedAt) < SERVER_VAD_STALE_MS;
+  const freshServerVad =
+    serverVad && serverVad.receivedAt > 0 && (nowPerf - serverVad.receivedAt) < SERVER_VAD_STALE_MS
+      ? serverVad
+      : undefined;
   let autoStopProgress: number;
   let showAutoStopRing: boolean;
-  if (fresh && serverVad!.silenceTimeoutMs > 0) {
+  if (freshServerVad && freshServerVad.silenceTimeoutMs > 0) {
     const interpolated = Math.min(
-      serverVad!.silenceElapsedMs + (nowPerf - serverVad!.receivedAt),
-      serverVad!.silenceTimeoutMs,
+      freshServerVad.silenceElapsedMs + (nowPerf - freshServerVad.receivedAt),
+      freshServerVad.silenceTimeoutMs,
     );
-    autoStopProgress = Math.max(0, Math.min(1, interpolated / serverVad!.silenceTimeoutMs));
-    const autoStopVisible = !serverVad!.voiced
+    autoStopProgress = Math.max(0, Math.min(1, interpolated / freshServerVad.silenceTimeoutMs));
+    const autoStopVisible = !freshServerVad.voiced
       && interpolated >= VAD_AUTO_STOP_VISUAL_GRACE_MS;
     showAutoStopRing = isRecording && autoStopVisible;
   } else {
@@ -329,7 +330,7 @@ function VoiceMicButtonInner({
         <span className="sr-only">{title}</span>
       </button>
       {showErrorTooltip && buttonEl && (
-        <ErrorTooltip anchor={buttonEl} text={error as string} onDismiss={() => setDismissedError(error)} />
+        <ErrorTooltip anchor={buttonEl} text={error} onDismiss={() => setDismissedError(error)} />
       )}
       {isMicActive && partialTranscript && buttonEl && (
         <div className="pointer-events-none absolute bottom-full left-1/2 mb-1 max-w-[200px] -translate-x-1/2 overflow-hidden text-ellipsis whitespace-nowrap rounded border border-slate-700 bg-slate-800 px-2 py-1 text-[10px] text-slate-300 shadow-lg">

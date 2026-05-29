@@ -279,6 +279,10 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           )
         ).filter((f): f is AudioFeatures => f !== null);
         if (samples.length === 0) return;
+        // Derive score calibration from the enrollment set (how consistent the
+        // user's own takes are with each other). Like the MFCC features, this is
+        // re-derived on every load and never persisted — see EngineCalibration.
+        const calibration = engine.calibrate(samples);
         // Match sensitivity is driven by the LIVE wakeWordThreshold (the slider
         // the user adjusts and the settings test uses), NOT the value baked into
         // the template at save time. Persisted template.threshold is kept on the
@@ -290,6 +294,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           label: cfg.template.label,
           threshold: wakeWordThresholdRef.current,
           updatedAt: cfg.template.updatedAt,
+          calibration,
         };
         setState((s) => s.wakeWordConfigured ? s : { ...s, wakeWordConfigured: true });
       })

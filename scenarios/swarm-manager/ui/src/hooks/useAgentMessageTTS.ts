@@ -5,7 +5,7 @@
 // Voice/speed settings come from audio-tools' shared config; auto-speak
 // is a swarm-manager-local pref in useAudioPrefs.
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTextToSpeechCore, useAudioToolsUnavailableReason } from "../audio-integration";
 
 interface UseAgentMessageTTSResult {
@@ -21,6 +21,10 @@ export function useAgentMessageTTS(): UseAgentMessageTTSResult {
   const unavailableReason = useAudioToolsUnavailableReason();
   const unavailable = Boolean(unavailableReason);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  // "Loading" is the synth→play gap: speak() was called but the core hasn't
+  // flipped isSpeaking yet. The core no longer exposes a dedicated isLoading
+  // flag, so we track it locally and clear it once playback actually starts.
+  const [loadingMessageId, setLoadingMessageId] = useState<string | null>(null);
 
   const tts = useTextToSpeechCore(
     {
@@ -41,6 +45,7 @@ export function useAgentMessageTTS(): UseAgentMessageTTSResult {
     (messageId: string, text: string) => {
       if (unavailable || !text.trim()) return;
       setSpeakingMessageId(messageId);
+      setLoadingMessageId(messageId);
       tts.speak(text);
     },
     [tts, unavailable],
@@ -49,20 +54,38 @@ export function useAgentMessageTTS(): UseAgentMessageTTSResult {
   const stop = useCallback(() => {
     tts.stop();
     setSpeakingMessageId(null);
+    setLoadingMessageId(null);
   }, [tts]);
 
-  // Clear the speaking id when the core finishes (isSpeaking flips false).
-  if (!tts.isSpeaking && speakingMessageId !== null) {
-    // Defer to next tick to avoid set-during-render warning.
-    queueMicrotask(() => setSpeakingMessageId((curr) => (tts.isSpeaking ? curr : null)));
-  }
+  // Drive the message-id bookkeeping off the core's isSpeaking transitions.
+  // Tracking the previous value lets us tell the synth→play gap (never spoke
+  // yet) apart from a natural end (was speaking, now stopped).
+  const wasSpeakingRef = useRef(false);
+  useEffect(() => {
+    if (tts.isSpeaking) {
+      wasSpeakingRef.current = true;
+      setLoadingMessageId(null);
+    } else if (wasSpeakingRef.current) {
+      wasSpeakingRef.current = false;
+      setSpeakingMessageId(null);
+    }
+  }, [tts.isSpeaking]);
+
+  // If synthesis fails before playback ever starts, clear the loading/speaking
+  // ids so the bubble doesn't hang on a spinner.
+  useEffect(() => {
+    if (tts.error && !tts.isSpeaking) {
+      setLoadingMessageId(null);
+      setSpeakingMessageId(null);
+    }
+  }, [tts.error, tts.isSpeaking]);
 
   return {
     speak,
     stop,
     isSpeaking: tts.isSpeaking,
     speakingMessageId,
-    loadingMessageId: tts.isLoading ? speakingMessageId : null,
+    loadingMessageId,
     unavailable,
   };
 }

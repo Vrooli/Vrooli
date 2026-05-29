@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { clampFontSize } from "../lib/fontSizeUtils";
 import { DEFAULT_THEME_ID, TERMINAL_FONT_SIZE } from "../consts/config";
+import { DEFAULT_WAKE_WORD_THRESHOLD } from "../audio-integration/hooks/voice/wakeword/types";
 import type { ModifierState } from "../consts/toolbar-keys";
 
 export interface PaneMetadata {
@@ -166,7 +167,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       voiceLanguage: "en-US",
       persistentMode: false,
       wakeWordEnabled: false,
-      wakeWordThreshold: 0.65,
+      wakeWordThreshold: DEFAULT_WAKE_WORD_THRESHOLD,
       segmentSilenceMs: 1500,
       ttsVoice: "",
       ttsRate: 1.0,
@@ -381,7 +382,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           // v12: Replace commandPrefix with wake word settings
           delete (state as Record<string, unknown>).commandPrefix;
           state.wakeWordEnabled ??= false;
-          state.wakeWordThreshold ??= 0.65;
+          state.wakeWordThreshold ??= DEFAULT_WAKE_WORD_THRESHOLD;
           state.segmentSilenceMs ??= 1500;
         }
         if (version < 11) {

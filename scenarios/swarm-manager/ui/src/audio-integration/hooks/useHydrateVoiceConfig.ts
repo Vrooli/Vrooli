@@ -23,6 +23,7 @@ export function useHydrateVoiceConfig(): void {
           segmentSilenceMs: cfg.segmentSilenceMs,
           persistentMode: cfg.persistentMode,
           wakeWordEnabled: cfg.wakeWordEnabled,
+          wakeWordThreshold: cfg.wakeWordThreshold,
         });
       })
       .catch(() => {

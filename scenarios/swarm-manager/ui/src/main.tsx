@@ -130,6 +130,7 @@ if (!rootElement) {
 // Hydrate audio-tools' stream config into useVoiceConfigStore on mount.
 // Must live inside AudioToolsProvider so the hook can read the
 // unavailableReason context. The component renders no DOM itself.
+// eslint-disable-next-line react-refresh/only-export-components -- entry-point helper, not an HMR boundary
 function VoiceConfigHydrator({ children }: { children: React.ReactNode }) {
   useHydrateVoiceConfig();
   return <>{children}</>;

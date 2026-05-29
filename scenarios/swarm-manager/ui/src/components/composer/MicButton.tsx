@@ -25,6 +25,7 @@ export function MicButton({ onTranscript, disabled, testId }: MicButtonProps) {
   const segmentSilenceMs = useVoiceConfigStore((s) => s.segmentSilenceMs);
   const persistentMode = useVoiceConfigStore((s) => s.persistentMode);
   const wakeWordEnabled = useVoiceConfigStore((s) => s.wakeWordEnabled);
+  const wakeWordThreshold = useVoiceConfigStore((s) => s.wakeWordThreshold);
   const serverVad = useServerVadStateStore((s) => s);
 
   const voice = useVoiceCore({
@@ -33,6 +34,7 @@ export function MicButton({ onTranscript, disabled, testId }: MicButtonProps) {
     vadSilenceTimeoutMs,
     persistentMode,
     wakeWordEnabled,
+    wakeWordThreshold,
     segmentSilenceMs,
     lowLatencyVoice: false,
     onTranscript: (text) => {

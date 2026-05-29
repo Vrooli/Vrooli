@@ -9,7 +9,7 @@
 
 import { AudioRingBuffer, createPassiveCapturePipeline, downsample } from "../audioUtils";
 import { createPassiveVadRefs, vadTick, type VadRefs } from "../vad";
-import type { WakeWordEngine, WakeWordTemplate } from "./types";
+import { WAKE_WORD_AUDIO_CONSTRAINTS, type WakeWordEngine, type WakeWordTemplate } from "./types";
 
 /** Minimum speech duration (ms) before MFCC extraction. Filters clicks/coughs. */
 const MIN_SPEECH_DURATION_MS = 400;
@@ -73,9 +73,10 @@ export class PassiveListener {
     this.running = true;
 
     try {
-      // Acquire mic
+      // Acquire mic — identical constraints to enrollment + the settings test
+      // so the acoustic channel matches at detection time.
       this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
+        audio: WAKE_WORD_AUDIO_CONSTRAINTS,
       });
 
       // Reuse or create AudioContext
@@ -233,6 +234,7 @@ export class PassiveListener {
       candidate,
       this.template.samples,
       this.template.threshold,
+      this.template.calibration,
     );
 
     if (result.isMatch) {

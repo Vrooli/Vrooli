@@ -53,6 +53,31 @@ export function audioFormatFromString(s: string | undefined): AudioFormat {
   }
 }
 
+/**
+ * Map a proto AudioFormat back to a MIME type, for rehydrating a playable Blob
+ * from persisted audio bytes (e.g. wake-word samples on load). `decodeAudioData`
+ * sniffs the codec itself, so this is only needed for `Blob`/`<audio>` playback.
+ */
+export function audioFormatToMime(f: AudioFormat | undefined): string {
+  switch (f) {
+    case AudioFormat.WAV:
+      return "audio/wav";
+    case AudioFormat.MP3:
+      return "audio/mpeg";
+    case AudioFormat.FLAC:
+      return "audio/flac";
+    case AudioFormat.OGG:
+      return "audio/ogg";
+    case AudioFormat.OPUS:
+      return "audio/ogg; codecs=opus";
+    case AudioFormat.AAC:
+      return "audio/aac";
+    case AudioFormat.WEBM:
+    default:
+      return "audio/webm";
+  }
+}
+
 export function responseFormatFromString(s: string | undefined): ResponseFormat {
   switch (s) {
     case "mp3":

@@ -1,19 +1,19 @@
-// audio-integration — canonical copy-paste reference for adopters of
-// audio-tools.
+// audio-integration — swarm-manager's audio surface.
 //
-// This folder exists verbatim in audio-tools/ui (canonical) and is copied
-// byte-for-byte into each consumer scenario (e.g. web-console). There is
-// no cross-scenario import path; each scenario owns its own copy. See
-// README.md.
+// Calls are made via the same-origin Connect transport to swarm-manager's
+// own AudioAdminService and AudioRuntimeService. The browser never sees
+// audio-tools' host; swarm-manager's API owns the inter-scenario hop.
 
 export { MicReadinessIndicator } from "./MicReadinessIndicator";
 export type { MicReadinessIndicatorProps } from "./MicReadinessIndicator";
 export { useVoiceConfigStore } from "./hooks/useVoiceConfigStore";
 export type { VoiceConfigState } from "./hooks/useVoiceConfigStore";
 export { useHydrateVoiceConfig } from "./hooks/useHydrateVoiceConfig";
+
 export {
   useServerVadStateStore,
   setServerVadState,
+  resetServerVadState,
   _resetServerVadStateForTesting,
   SERVER_VAD_STALE_MS,
 } from "./hooks/useServerVadStateStore";
@@ -59,7 +59,7 @@ export { KokoroProvider } from "./hooks/tts/KokoroProvider";
 export { BrowserTTSProvider } from "./hooks/tts/BrowserTTSProvider";
 
 // =============================================================================
-// API surfaces (audio-only operations bound to audio-tools).
+// API surfaces (audio operations against swarm-manager's own API).
 // =============================================================================
 
 export {
@@ -97,6 +97,10 @@ export {
 export type {
   VoiceStreamConfig,
   WakeWordConfig,
+  WakeWordSampleData,
+  WakeWordTemplateData,
+  WakeWordSampleInput,
+  WakeWordTemplateInput,
   SpeakerVerificationConfig,
   SpeakerVerificationProfile,
   SpeakerVerificationInfo,

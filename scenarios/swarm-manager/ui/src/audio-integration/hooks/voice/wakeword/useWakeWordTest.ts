@@ -3,7 +3,8 @@
 // Uses the same MediaRecorder → decode → MFCC → DTW pipeline as enrollment.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AudioFeatures, WakeWordEngine } from "./types";
+import { WAKE_WORD_AUDIO_CONSTRAINTS } from "./types";
+import type { AudioFeatures, EngineCalibration, WakeWordEngine } from "./types";
 
 /** Single test attempt result. */
 export interface TestAttempt {
@@ -62,8 +63,14 @@ export function useWakeWordTest(opts: UseWakeWordTestOpts): UseWakeWordTestRetur
   const engineRef = useRef(engine);
   const samplesRef = useRef(samples);
   const thresholdRef = useRef(threshold);
+  // Calibration derived from the enrollment set, recomputed when samples change,
+  // so the test button shows the same calibrated score the passive listener uses.
+  const calibrationRef = useRef<EngineCalibration | null>(engine.calibrate(samples));
   useEffect(() => { engineRef.current = engine; }, [engine]);
-  useEffect(() => { samplesRef.current = samples; }, [samples]);
+  useEffect(() => {
+    samplesRef.current = samples;
+    calibrationRef.current = engine.calibrate(samples);
+  }, [engine, samples]);
   useEffect(() => { thresholdRef.current = threshold; }, [threshold]);
 
   const cleanup = useCallback(() => {
@@ -98,7 +105,12 @@ export function useWakeWordTest(opts: UseWakeWordTestOpts): UseWakeWordTestRetur
       await audioCtx.close();
 
       const candidate = engineRef.current.extractFeatures(pcm, MFCC_SAMPLE_RATE);
-      const result = engineRef.current.compareBest(candidate, samplesRef.current, thresholdRef.current);
+      const result = engineRef.current.compareBest(
+        candidate,
+        samplesRef.current,
+        thresholdRef.current,
+        calibrationRef.current,
+      );
 
       const attempt: TestAttempt = {
         score: result.score,
@@ -132,7 +144,7 @@ export function useWakeWordTest(opts: UseWakeWordTestOpts): UseWakeWordTestRetur
     chunksRef.current = [];
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: WAKE_WORD_AUDIO_CONSTRAINTS });
       streamRef.current = stream;
 
       const recorder = new MediaRecorder(stream, {

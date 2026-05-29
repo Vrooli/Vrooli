@@ -1,8 +1,8 @@
 // Voice (STT) API client for audio-integration.
 //
-// Calls web-console's own AudioAdminService + AudioRuntimeService via
+// Calls swarm-manager's own AudioAdminService + AudioRuntimeService via
 // the same-origin Connect transport. The UI never talks to audio-tools
-// directly — web-console's API owns the inter-scenario hop.
+// directly — swarm-manager's API owns the inter-scenario hop.
 
 import { create } from "@bufbuild/protobuf";
 import { createClient as createConnectClient } from "@connectrpc/connect";
@@ -11,14 +11,14 @@ import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";
 import { resolveApiBase } from "@vrooli/api-base";
 
 // Same-origin Connect-Web transport. Swarm-manager's AudioAdminService +
-// AudioRuntimeService live at /vrooli.swarm_manager.v1.audio_*. The UI
-// never resolves audio-tools on its own; the server owns the inter-
-// scenario hop server-to-server via internal/audioports.
+// AudioRuntimeService live at /vrooli.swarm_manager.v1.audio_*. The UI never
+// resolves audio-tools on its own; the server owns the inter-scenario hop
+// server-to-server via internal/audioports.
 export const API_BASE = resolveApiBase();
 export const transport = createConnectTransport({ baseUrl: API_BASE });
-import type { WakeWordTemplate } from "../hooks/voice/wakeword/types";
 import {
   audioFormatFromString,
+  audioFormatToMime,
   rejectBehaviorFromString,
   rejectBehaviorLabel,
   speakerCapabilityLabel,
@@ -33,14 +33,17 @@ import {
   type StrategyPreferenceLabel,
 } from "./protomap";
 
-import { AudioAdminService } from "@vrooli/proto-types/swarm-manager/v1/audio_admin/audio_admin_pb";
+import {
+  AudioAdminService,
+  WakeWordSampleSchema,
+  WakeWordTemplateSchema,
+} from "@vrooli/proto-types/swarm-manager/v1/audio_admin/audio_admin_pb";
 import { AudioRuntimeService } from "@vrooli/proto-types/swarm-manager/v1/audio_runtime/audio_runtime_pb";
 import type {
   SpeakerConfig,
   SpeakerProfile,
   StreamConfig as StreamConfigMsg,
   WakeWordConfig as WakeWordConfigMsg,
-  WakeWordTemplate as WakeWordTemplateMsg,
 } from "@vrooli/proto-types/swarm-manager/v1/audio_admin/audio_admin_pb";
 
 // Mirrors audio-tools' StreamConfig (proto) end-to-end. The five advanced
@@ -63,9 +66,42 @@ export interface VoiceStreamConfig {
   overlapCommitRuns: number;
 }
 
+// A persisted wake-word sample as it lives on the wire: RAW audio bytes plus
+// enough metadata to rehydrate a playable Blob and re-derive MFCC features on
+// load. Features themselves are never persisted (see extractFromBytes.ts).
+export interface WakeWordSampleData {
+  /** Raw recorded audio bytes (webm/opus/…). */
+  audio: Uint8Array;
+  /** MIME type for Blob rehydration + `<audio>` playback. */
+  mime: string;
+  /** Sample rate the audio represents. */
+  sampleRateHz: number;
+}
+
+export interface WakeWordTemplateData {
+  label: string;
+  threshold: number;
+  samples: WakeWordSampleData[];
+  /** ISO timestamp, server/display metadata only (never client-authored). */
+  updatedAt: string;
+}
+
 export interface WakeWordConfig {
   configured: boolean;
-  template: WakeWordTemplate | null;
+  template: WakeWordTemplateData | null;
+}
+
+// Input to updateWakeWordConfig: the raw recorded blobs to persist. The client
+// sends audio, not features — the server stores the proto verbatim.
+export interface WakeWordSampleInput {
+  audio: Blob;
+  sampleRateHz: number;
+}
+
+export interface WakeWordTemplateInput {
+  label: string;
+  threshold: number;
+  samples: WakeWordSampleInput[];
 }
 
 export interface SpeakerVerificationConfig {
@@ -164,16 +200,16 @@ function decodeStreamConfig(c: StreamConfigMsg | undefined): VoiceStreamConfig {
 function decodeWakeWord(cfg: WakeWordConfigMsg | undefined): WakeWordConfig {
   const configured = cfg?.configured ?? false;
   const tmpl = cfg?.template;
-  let template: WakeWordTemplate | null = null;
+  let template: WakeWordTemplateData | null = null;
   if (configured && tmpl) {
     template = {
       label: tmpl.label,
       threshold: tmpl.threshold,
       samples: tmpl.samples.map((s) => ({
         audio: s.audio,
-        format: s.format,
+        mime: audioFormatToMime(s.format),
         sampleRateHz: s.sampleRateHz,
-      })) as unknown as WakeWordTemplate["samples"],
+      })),
       updatedAt: timestampToISO(tmpl.updatedAt),
     };
   }
@@ -292,10 +328,25 @@ export async function getWakeWordConfig(): Promise<WakeWordConfig> {
   return decodeWakeWord(resp.config);
 }
 
-export async function updateWakeWordConfig(template: WakeWordTemplate): Promise<WakeWordConfig> {
-  const resp = await audioAdminClient.updateWakeWordTemplate({
-    template: template as unknown as WakeWordTemplateMsg,
+export async function updateWakeWordConfig(input: WakeWordTemplateInput): Promise<WakeWordConfig> {
+  const samples = await Promise.all(
+    input.samples.map(async (s) =>
+      create(WakeWordSampleSchema, {
+        audio: await blobToBytes(s.audio),
+        format: audioFormatFromString(blobFormat(s.audio)),
+        sampleRateHz: s.sampleRateHz,
+      }),
+    ),
+  );
+  // updated_at is intentionally omitted — it is server/display metadata, never
+  // client-authored. Assigning an ISO string here was the original crash:
+  // protobuf-es encodes the Timestamp field via new Date(NaN).toISOString().
+  const template = create(WakeWordTemplateSchema, {
+    label: input.label,
+    threshold: input.threshold,
+    samples,
   });
+  const resp = await audioAdminClient.updateWakeWordTemplate({ template });
   return decodeWakeWord(resp.config);
 }
 

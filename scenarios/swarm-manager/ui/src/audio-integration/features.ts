@@ -41,8 +41,10 @@ const FEATURE_SLUGS: Record<AudioToolsFeature, string> = {
 
 (function assertCoverage() {
   for (const key of Object.keys(AudioToolsFeature)) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-conversion
     const numeric = Number(AudioToolsFeature[key as keyof typeof AudioToolsFeature]);
     if (!Number.isFinite(numeric)) continue;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
     if (numeric === AudioToolsFeature.UNSPECIFIED) continue;
     if (!FEATURE_SLUGS[numeric as AudioToolsFeature]) {
       throw new Error(

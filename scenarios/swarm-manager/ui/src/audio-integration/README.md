@@ -1,11 +1,26 @@
 # audio-integration
 
-Canonical copy-paste reference for scenarios that consume audio-tools (STT,
-TTS, summarization) from a React UI.
+swarm-manager's audio surface — voice (STT), TTS, wake-word, and speaker
+verification against swarm-manager's own `AudioAdminService` /
+`AudioRuntimeService` (same-origin Connect transport; the server owns the
+inter-scenario hop to audio-tools).
 
-This folder is the **source of truth**. It also exists verbatim under
-`scenarios/web-console/ui/src/audio-integration/`. Other adopters copy it
-byte-for-byte into `<their-scenario>/ui/src/audio-integration/`.
+> **Not a verbatim copy.** The "canonical copy-paste" claim is stale (as of
+> 2026-05-29). The three audio-integration copies have diverged and are no
+> longer byte-for-byte compatible:
+> - **swarm-manager (this folder)** tracks **web-console's** voice logic
+>   (wake-word MFCC re-derivation + live-threshold SSOT, `resetServerVadState`
+>   auto-stop fix, segment space-joining, passive-arm guard). Scenario-specific
+>   bits: proto namespace (`swarm-manager/v1`), inline transport, and the
+>   `client.tsx` context bootstrap.
+> - **web-console** is the reference for voice quality but uses MediaRecorder
+>   streaming and dropped `client.tsx` for its own proto-backed surface.
+> - **audio-tools** (the old "canonical") diverged to a raw-PCM streaming
+>   pipeline (`pcm.ts`/`pcmCapture.ts`, the audio-format substrate) and still
+>   lacks the web-console voice-quality fixes.
+>
+> Before copying any file across scenarios, diff first. A reconciliation of
+> the three copies is tracked as a swarm-manager capture (2026-05-29).
 
 ## Adoption
 

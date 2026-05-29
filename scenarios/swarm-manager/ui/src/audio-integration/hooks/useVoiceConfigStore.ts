@@ -16,6 +16,7 @@ import {
   VAD_FALLBACK_SEGMENT_SILENCE_MS,
   VAD_FALLBACK_SILENCE_TIMEOUT_MS,
 } from "./voice";
+import { DEFAULT_WAKE_WORD_THRESHOLD } from "./voice/wakeword/types";
 
 export interface VoiceConfigState {
   hydrated: boolean;
@@ -23,6 +24,7 @@ export interface VoiceConfigState {
   segmentSilenceMs: number;
   persistentMode: boolean;
   wakeWordEnabled: boolean;
+  wakeWordThreshold: number;
 }
 
 interface ServerStreamConfigSlice {
@@ -30,6 +32,7 @@ interface ServerStreamConfigSlice {
   segmentSilenceMs: number;
   persistentMode: boolean;
   wakeWordEnabled: boolean;
+  wakeWordThreshold: number;
 }
 
 let state: VoiceConfigState = {
@@ -38,6 +41,7 @@ let state: VoiceConfigState = {
   segmentSilenceMs: VAD_FALLBACK_SEGMENT_SILENCE_MS,
   persistentMode: false,
   wakeWordEnabled: false,
+  wakeWordThreshold: DEFAULT_WAKE_WORD_THRESHOLD,
 };
 
 const subscribers = new Set<() => void>();
@@ -70,6 +74,7 @@ export function setVoiceConfigFromServer(cfg: ServerStreamConfigSlice): void {
     segmentSilenceMs: silenceMs > 0 ? silenceMs : VAD_FALLBACK_SEGMENT_SILENCE_MS,
     persistentMode: cfg.persistentMode,
     wakeWordEnabled: cfg.wakeWordEnabled,
+    wakeWordThreshold: cfg.wakeWordThreshold > 0 ? cfg.wakeWordThreshold : DEFAULT_WAKE_WORD_THRESHOLD,
   };
   emit();
 }
@@ -82,6 +87,7 @@ export function _resetVoiceConfigForTesting(): void {
     segmentSilenceMs: VAD_FALLBACK_SEGMENT_SILENCE_MS,
     persistentMode: false,
     wakeWordEnabled: false,
+    wakeWordThreshold: DEFAULT_WAKE_WORD_THRESHOLD,
   };
   emit();
 }

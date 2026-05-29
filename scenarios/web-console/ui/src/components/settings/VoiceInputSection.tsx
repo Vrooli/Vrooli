@@ -44,9 +44,11 @@ import { VOICE_COMMANDS } from "../../hooks/voice/commands";
 import {
   bytesToFeatures,
   createWakeWordEngine,
+  DEFAULT_WAKE_WORD_THRESHOLD,
   MIN_ENROLLMENT_SAMPLES,
   MAX_ENROLLMENT_SAMPLES,
   useWakeWordTest,
+  WAKE_WORD_AUDIO_CONSTRAINTS,
   type AudioFeatures,
 } from "../../audio-integration";
 import { formatShortcutFromEvent } from "../../lib/shortcutParser";
@@ -210,7 +212,9 @@ export default function VoiceInputSection() {
     setWwRecordingSeconds(0);
     wwChunksRef.current = [];
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Wake-word enrollment capture: pin the same constraints the settings test
+      // and the passive listener use, so the channel matches at detection time.
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: WAKE_WORD_AUDIO_CONSTRAINTS });
       wwStreamRef.current = stream;
       const recorder = new MediaRecorder(stream, {
         mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm",
@@ -511,7 +515,7 @@ export default function VoiceInputSection() {
         overlapBytes: 2048,
         persistentMode: false,
         wakeWordEnabled: false,
-        wakeWordThreshold: 0.65,
+        wakeWordThreshold: DEFAULT_WAKE_WORD_THRESHOLD,
         segmentSilenceMs: 1500,
       });
       setVsConfig(updated);

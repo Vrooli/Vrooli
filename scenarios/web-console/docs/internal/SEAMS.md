@@ -389,17 +389,21 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 **Benefits**: Command detection is a pure function with no UI or provider dependencies. All matching logic (fuzzy matching, number extraction) can be tested with simple string inputs. Wake word detection handles activation separately (see Wake Word Engine seam below).
 
 ### Wake Word Engine Seam (UI)
-**Files**: `ui/src/hooks/voice/wakeword/types.ts`, `ui/src/hooks/voice/wakeword/engine.ts`, `ui/src/hooks/voice/wakeword/passiveListener.ts`
+**Files**: `ui/src/audio-integration/hooks/voice/wakeword/types.ts`, `ui/src/audio-integration/hooks/voice/wakeword/engine.ts`, `ui/src/audio-integration/hooks/voice/wakeword/dtw.ts`, `ui/src/audio-integration/hooks/voice/wakeword/trim.ts`, `ui/src/audio-integration/hooks/voice/wakeword/passiveListener.ts`
 **Purpose**: Isolate audio feature extraction and comparison behind a strategy interface so the MFCC+DTW implementation can be swapped for a neural embedding model later.
 
 | Component | Production | Test |
 |-----------|-----------|------|
-| `WakeWordEngine` interface | Strategy abstraction for feature extraction + comparison | Allows mock engines in integration tests |
-| `MfccDtwEngine` | Extracts 13-coefficient MFCCs, compares via DTW with Sakoe-Chiba band | Direct unit tests with synthetic audio signals |
+| `WakeWordEngine` interface | Strategy abstraction: `extractFeatures` / `compare` / `compareBest(…, calibration?)` / `calibrate` | Allows mock engines in integration tests |
+| `MfccDtwEngine` | Extracts 13-coeff MFCCs, normalizes (CMVN), drops c0 (energy) from the distance, compares via symmetric-step DTW, scores relative to enrollment calibration | `engine.test.ts` — CMVN, c0/loudness invariance, trim, calibrate, synthetic separation |
 | `createWakeWordEngine()` | Factory — single point of change for swapping implementations | Tests call factory to verify wiring |
-| `PassiveListener` | VAD + ring buffer + MFCC/DTW loop running in RAF tick | Unit-testable via mocked engine and VAD refs |
+| `PassiveListener` | VAD + ring buffer + MFCC/DTW loop running in RAF tick; passes `template.calibration` into `compareBest` | Unit-testable via mocked engine and VAD refs |
 | `extractMfcc()` | Pure-JS MFCC extraction (FFT, mel filterbank, DCT) | Tested with known-frequency sine waves |
-| `dtwDistance()` | DTW with Sakoe-Chiba band constraint | Tested with identical, shifted, and unrelated sequences |
+| `trimSilence()` | Endpoint silence trim applied first inside `extractFeatures` (uniform across all consumers) | `engine.test.ts` — padded clip self-matches unpadded |
+| `dtwDistance()` | Symmetric-step DTW (diagonal ×2, `/(n+m)` normalization), Sakoe-Chiba band, c0 excluded via `startCoeff` | `dtw.test.ts` — identity, time-warp invariance, c0 exclusion, corner reachability |
+| `calibrate()` / `calibratedScore()` | Derives (μ,σ) of intra-enrollment-set DTW distances; maps a live distance to a 0–1 score relative to the user's own consistency | `dtw.test.ts` / `engine.test.ts` — anchors at μ and μ+kσ, monotonicity |
+
+**Scoring contract**: A match score answers "how consistent is this utterance with the user's enrollment set," not "1/(1+raw distance)." `EngineCalibration` (μ,σ) and the MFCC features are BOTH derived on load from the persisted RAW audio — **never serialized** (no proto field). `WakeWordEngine.compareBest` takes an optional `calibration`; absent it falls back to an uncalibrated logistic so the engine is usable pre-calibration. Any future engine (e.g. `embedding-v1`) must implement `calibrate` too. The shared `WAKE_WORD_AUDIO_CONSTRAINTS` pins identical `getUserMedia` settings across enrollment / settings-test / passive paths so the acoustic channel matches at detection time.
 
 **Benefits**: All wake word detection runs client-side (no audio leaves the browser during passive mode). The `WakeWordEngine` interface is the replacement seam — swapping to neural embeddings requires only a new class implementing the same interface and updating `createWakeWordEngine()`.
 

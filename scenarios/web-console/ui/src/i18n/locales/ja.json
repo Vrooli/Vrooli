@@ -531,7 +531,7 @@
       "stopSeconds": "停止 ({{seconds}}秒)",
       "record": "録音",
       "sensitivityLabel": "感度",
-      "sensitivityHint": "値が低いほど寛容、高いほどより一致が必要です。",
+      "sensitivityHint": "一致スコアは、ウェイクフレーズをどれだけ一貫して発音できているかを表します。録音時と同じように発音するとスコアが高くなります。値が低いほど緩い一致を許容し、高いほどより近い一致が必要です。",
       "recordingFailed": "録音に失敗しました。",
       "recordingEmpty": "録音が空でした。",
       "featureExtractionFailed": "特徴抽出に失敗しました: {{error}}",

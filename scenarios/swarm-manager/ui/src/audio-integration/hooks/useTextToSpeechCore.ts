@@ -4,9 +4,8 @@
 // It includes defensive runtime guards (browser feature detection, race-
 // safety checks) that TypeScript's strict-type checking views as
 // unnecessary based on declared types but which catch real-world drift
-// (older browsers, polyfills, undefined-on-prototype). Disabling the
-// listed rules file-wide preserves that defensive surface verbatim.
-/* eslint-disable @typescript-eslint/no-unnecessary-condition, @typescript-eslint/no-floating-promises */
+// (older browsers, polyfills, undefined-on-prototype). These guards are
+// intentional even where the current type-aware rules don't flag them.
 //
 // Text-To-Speech Core — Generic, Scenario-Agnostic Hook
 // ======================================================
@@ -42,7 +41,6 @@ const NO_CAPABILITIES: TTSPlaybackCapabilities = {
 
 export interface TTSCoreState {
   supported: boolean;
-  isLoading: boolean;
   isSpeaking: boolean;
   isPaused: boolean;
   currentTime: number;
@@ -136,7 +134,6 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
   const initialMuted = opts.startMuted;
   const [state, setState] = useState<TTSCoreState>({
     supported: isBrowserSupported(),
-    isLoading: false,
     isSpeaking: false,
     isPaused: false,
     currentTime: 0,
@@ -218,12 +215,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
     const provider = providerRef.current;
     if (!provider?.onProgress) return;
     provider.onProgress((time, duration) => {
-      setState((s) => ({
-        ...s,
-        currentTime: time,
-        duration,
-        isLoading: time > 0 || Number.isFinite(duration) ? false : s.isLoading,
-      }));
+      setState((s) => ({ ...s, currentTime: time, duration }));
     });
     return () => {
       provider.onProgress?.(null);
@@ -247,7 +239,6 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
   const updateSuccess = useCallback((backend: TTSBackend) => {
     setState((s) => ({
       ...s,
-      isLoading: false,
       isSpeaking: false,
       isPaused: false,
       error: null,
@@ -327,7 +318,6 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
         const browserBackend = await runBrowserSpeak(paragraphs ? paragraphs.join("\n\n") : text, true);
         setState((s) => ({
           ...s,
-          isLoading: false,
           backendReason: "Kokoro failed at runtime; Browser handled playback for this request",
         }));
         return browserBackend;
@@ -527,12 +517,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
       const controller = new AbortController();
       speakChainRef.current = controller;
 
-      setState((s) => ({
-        ...s,
-        isLoading: backendRef.current === "kokoro",
-        isSpeaking: true,
-        isPaused: false,
-      }));
+      setState((s) => ({ ...s, isSpeaking: true, isPaused: false }));
       emitEvent("attempt", backendRef.current);
 
       executeSpeak(text).then(
@@ -545,7 +530,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
           if (isAbortLikeError(err)) {
             // Don't clear isSpeaking if a new chain has superseded us.
             if (speakChainRef.current === controller) {
-              setState((s) => ({ ...s, isLoading: false, isSpeaking: false, isPaused: false }));
+              setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
             }
             return;
           }
@@ -554,7 +539,6 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
             emitEvent("autoplay_blocked", backendRef.current, message);
             setState((s) => ({
               ...s,
-              isLoading: false,
               isSpeaking: false,
               isPaused: false,
               needsUnlock: true,
@@ -564,7 +548,6 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
           emitEvent("error", backendRef.current, message);
           setState((s) => ({
             ...s,
-            isLoading: false,
             isSpeaking: false,
             isPaused: false,
             error: message,
@@ -590,12 +573,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
 
       if (!providerRef.current || paragraphs.length === 0) return;
 
-      setState((s) => ({
-        ...s,
-        isLoading: backendRef.current === "kokoro",
-        isSpeaking: true,
-        isPaused: false,
-      }));
+      setState((s) => ({ ...s, isSpeaking: true, isPaused: false }));
       emitEvent("attempt", backendRef.current);
 
       try {
@@ -641,7 +619,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
               return "kokoro";
             }
             if (speakChainRef.current === controller) {
-              setState((s) => ({ ...s, isLoading: false, isSpeaking: false, isPaused: false }));
+              setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
             }
             return;
           }
@@ -651,7 +629,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
         const usedBackend = await executeSpeak(paragraphs.join("\n\n"), paragraphs);
         if (controller.signal.aborted) {
           if (speakChainRef.current === controller) {
-            setState((s) => ({ ...s, isLoading: false, isSpeaking: false, isPaused: false }));
+            setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
           }
           return;
         }
@@ -661,7 +639,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
       } catch (err: unknown) {
         if (controller.signal.aborted || isAbortLikeError(err)) {
           if (speakChainRef.current === controller) {
-            setState((s) => ({ ...s, isLoading: false, isSpeaking: false, isPaused: false }));
+            setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
           }
           return;
         }
@@ -671,7 +649,6 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
           emitEvent("autoplay_blocked", backendRef.current, message);
           setState((s) => ({
             ...s,
-            isLoading: false,
             isSpeaking: false,
             isPaused: false,
             needsUnlock: true,
@@ -679,7 +656,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
           return;
         }
         emitEvent("error", backendRef.current, message);
-        setState((s) => ({ ...s, isLoading: false, isSpeaking: false, isPaused: false, error: message }));
+        setState((s) => ({ ...s, isSpeaking: false, isPaused: false, error: message }));
         throw err;
       } finally {
         if (!controller.signal.aborted) {
@@ -695,7 +672,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
     providerRef.current?.stop();
     fallbackProviderRef.current?.stop();
     activeProviderRef.current = null;
-    setState((s) => ({ ...s, isLoading: false, isSpeaking: false, isPaused: false }));
+    setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
   }, []);
 
   const pause = useCallback(() => {
@@ -752,13 +729,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
     }
     // testSpeak is always triggered by a direct user action, so reset error
     // upfront — the user wants unambiguous feedback from this click.
-    setState((s) => ({
-      ...s,
-      isLoading: backendRef.current === "kokoro",
-      isSpeaking: true,
-      isPaused: false,
-      error: null,
-    }));
+    setState((s) => ({ ...s, isSpeaking: true, isPaused: false, error: null }));
     emitEvent("attempt", backendRef.current);
     try {
       const usedBackend = await executeSpeak(TEST_TTS_SAMPLE);
@@ -766,17 +737,17 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
       updateSuccess(usedBackend);
     } catch (err) {
       if (isAbortLikeError(err)) {
-        setState((s) => ({ ...s, isLoading: false, isSpeaking: false, isPaused: false }));
+        setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
         return;
       }
       const message = err instanceof Error ? err.message : "Speech failed";
       if (isAutoplayBlocked(err)) {
         emitEvent("autoplay_blocked", backendRef.current, message);
-        setState((s) => ({ ...s, isLoading: false, isSpeaking: false, isPaused: false, needsUnlock: true }));
+        setState((s) => ({ ...s, isSpeaking: false, isPaused: false, needsUnlock: true }));
         return;
       }
       emitEvent("error", backendRef.current, message);
-      setState((s) => ({ ...s, isLoading: false, isSpeaking: false, isPaused: false, error: message }));
+      setState((s) => ({ ...s, isSpeaking: false, isPaused: false, error: message }));
       throw err;
     }
   }, [emitEvent, executeSpeak, updateSuccess]);

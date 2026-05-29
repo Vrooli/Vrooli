@@ -1,8 +1,8 @@
 // TTS API client for audio-integration.
 //
-// Calls web-console's own AudioAdminService + AudioRuntimeService via
+// Calls swarm-manager's own AudioAdminService + AudioRuntimeService via
 // the same-origin Connect transport. The UI never talks to audio-tools
-// directly; web-console's API owns the inter-scenario hop.
+// directly; swarm-manager's API owns the inter-scenario hop.
 
 import { create } from "@bufbuild/protobuf";
 import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";

@@ -533,7 +533,7 @@
       "stopSeconds": "Stop ({{seconds}}s)",
       "record": "Record",
       "sensitivityLabel": "Sensitivity",
-      "sensitivityHint": "Lower values are more permissive; higher values require a closer match.",
+      "sensitivityHint": "The match score reflects how consistently you repeat your wake phrase — say it the way you did when enrolling and it scores higher. Lower values accept looser matches; higher values require a closer match.",
       "recordingFailed": "Recording failed.",
       "recordingEmpty": "Recording was empty.",
       "featureExtractionFailed": "Feature extraction failed: {{error}}",

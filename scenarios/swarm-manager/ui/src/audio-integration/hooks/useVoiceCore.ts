@@ -5,7 +5,7 @@
 // safety checks) that TypeScript's strict-type checking views as
 // unnecessary based on declared types but which catch real-world drift.
 // Same rationale as useTextToSpeechCore — see that file's note.
-/* eslint-disable @typescript-eslint/no-unnecessary-condition, @typescript-eslint/no-floating-promises, @typescript-eslint/require-await, @typescript-eslint/use-unknown-in-catch-callback-variable, react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/require-await, react-hooks/exhaustive-deps */
 //
 // Voice Input Core — Generic, Scenario-Agnostic Orchestrator
 // ===========================================================
@@ -32,15 +32,16 @@ import { createAudioFilterChain } from "../index";
 import { playRecordingStartCue, playRecordingStopCue } from "../index";
 import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshotsEqual } from "../index";
 import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS } from "../index";
-import { getSharedAudioContext, ensureAudioContextOnGesture, installAudioContextKeepalive, teardownAudioContextKeepalive } from "../index";
+import { getSharedAudioContext, ensureAudioContextOnGesture } from "../index";
 import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive, installVisibilityHandler } from "../index";
 import { VoiceStreamProvider } from "../index";
-import { setServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./useServerVadStateStore";
+import { setServerVadState, resetServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./useServerVadStateStore";
 import { decideAutoStop } from "./voice/autoStopDecision";
+import { decidePassiveArm } from "./voice/passiveArmDecision";
 import { WhisperProvider } from "../index";
 import { WebSpeechProvider } from "../index";
-import { createWakeWordEngine, PassiveListener } from "../index";
-import type { WakeWordEngine, WakeWordTemplate } from "../index";
+import { bytesToFeatures, createWakeWordEngine, PassiveListener } from "../index";
+import type { AudioFeatures, WakeWordEngine, WakeWordTemplate } from "../index";
 import {
   CAP_CHECK_FAIL_THRESHOLD,
   WHISPER_FAILED_SENTINEL,
@@ -104,6 +105,10 @@ export interface UseVoiceCoreOptions {
   vadSilenceTimeoutMs: number;
   persistentMode: boolean;
   wakeWordEnabled: boolean;
+  /** Live wake-word match sensitivity (DTW threshold). Single source of truth
+   *  for both the settings test and the passive listener — see the threshold
+   *  sync effect below. */
+  wakeWordThreshold: number;
   segmentSilenceMs: number;
   lowLatencyVoice: boolean;
   // What today comes from web-console's capabilities API:
@@ -129,6 +134,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     vadSilenceTimeoutMs,
     persistentMode,
     wakeWordEnabled,
+    wakeWordThreshold,
     segmentSilenceMs,
     lowLatencyVoice,
     onTranscript,
@@ -170,6 +176,8 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   persistentModeRef.current = persistentMode;
   const wakeWordEnabledRef = useRef(wakeWordEnabled);
   wakeWordEnabledRef.current = wakeWordEnabled;
+  const wakeWordThresholdRef = useRef(wakeWordThreshold);
+  wakeWordThresholdRef.current = wakeWordThreshold;
   const segmentSilenceMsRef = useRef(segmentSilenceMs);
   segmentSilenceMsRef.current = segmentSilenceMs;
   const lowLatencyVoiceRef = useRef(lowLatencyVoice);
@@ -179,6 +187,10 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   const wakeWordEngineRef = useRef<WakeWordEngine | null>(null);
   const wakeWordTemplateRef = useRef<WakeWordTemplate | null>(null);
   const passiveListenerRef = useRef<PassiveListener | null>(null);
+  /** Latches true after a passive-listener start fails (e.g. mic permission
+   *  denied) so the auto-arm effect does not retry-storm getUserMedia every
+   *  idle render. Cleared when the wake-word toggle (or voiceEnabled) flips. */
+  const passiveStartBlockedRef = useRef(false);
 
   // Segment tracking for persistent mode
   const segmentsRef = useRef<VoiceSegment[]>([]);
@@ -252,16 +264,39 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     // the store).
     getVoiceStreamConfig().catch(() => { /* host owns the store, ignore */ });
 
-    // Load wake word template and initialize engine
+    // Load wake word template and initialize engine. The template persists RAW
+    // audio; the passive listener matches on MFCC features, so re-derive them
+    // here via the shared helper (features are never persisted — an engine
+    // upgrade re-extracts from the stored audio with no re-enrollment).
     getWakeWordConfig()
-      .then((cfg) => {
-        if (cfg.configured && cfg.template) {
-          wakeWordTemplateRef.current = cfg.template;
-          if (!wakeWordEngineRef.current) {
-            wakeWordEngineRef.current = createWakeWordEngine();
-          }
-          setState((s) => s.wakeWordConfigured ? s : { ...s, wakeWordConfigured: true });
-        }
+      .then(async (cfg) => {
+        if (!cfg.configured || !cfg.template) return;
+        const engine = wakeWordEngineRef.current ?? createWakeWordEngine();
+        wakeWordEngineRef.current = engine;
+        const samples = (
+          await Promise.all(
+            cfg.template.samples.map((s) => bytesToFeatures(s.audio, engine).catch(() => null)),
+          )
+        ).filter((f): f is AudioFeatures => f !== null);
+        if (samples.length === 0) return;
+        // Derive score calibration from the enrollment set (how consistent the
+        // user's own takes are with each other). Like the MFCC features, this is
+        // re-derived on every load and never persisted — see EngineCalibration.
+        const calibration = engine.calibrate(samples);
+        // Match sensitivity is driven by the LIVE wakeWordThreshold (the slider
+        // the user adjusts and the settings test uses), NOT the value baked into
+        // the template at save time. Persisted template.threshold is kept on the
+        // wire but is no longer authoritative — this is the single source of
+        // truth that keeps the test and the passive listener in agreement. The
+        // threshold-sync effect below keeps a running listener current.
+        wakeWordTemplateRef.current = {
+          samples,
+          label: cfg.template.label,
+          threshold: wakeWordThresholdRef.current,
+          updatedAt: cfg.template.updatedAt,
+          calibration,
+        };
+        setState((s) => s.wakeWordConfigured ? s : { ...s, wakeWordConfigured: true });
       })
       .catch(() => { /* No wake word configured */ });
   }, [voiceEnabled]);
@@ -337,8 +372,18 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       segments: [...segmentsRef.current],
       partialTranscript: "",
     }));
-    // Deliver the segment text to the transcript callback
-    onTranscriptRef.current(finalText);
+    // Deliver the segment text to the transcript callback. Consecutive
+    // committed segments in a turn must be space-separated, otherwise the
+    // sinks (the terminal writes raw PTY input; the mobile toolbar appends)
+    // run them together ("...sentence.Now here..."). Segments always commit on
+    // a speech pause — whole words, never mid-word — so a plain leading space
+    // is correct. Skip it for the first segment of the turn and when the
+    // segment opens with closing punctuation. This is engine-agnostic (the
+    // same path serves Whisper VAD segments) and needs no STT contract change:
+    // segment ordering is the only context required, and it lives here.
+    const delivered =
+      segmentIndex > 0 && !/^[\s,.!?;:]/.test(finalText) ? ` ${finalText}` : finalText;
+    onTranscriptRef.current(delivered);
   }, []);
 
   /** Session counter for diagnostic logging — helps correlate log lines
@@ -347,12 +392,6 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
 
   const startLevelMonitor = useCallback(async (stream: MediaStream) => {
     try {
-      // Tear down the between-sessions keepalive oscillator — the live mic
-      // stream we're about to wire up keeps Chrome's renderer alive on its
-      // own, so the keepalive is redundant during recording. Removing it also
-      // releases the iOS AVAudioSession during the gap before the mic stream
-      // takes over.
-      teardownAudioContextKeepalive();
       // Use the shared AudioContext singleton. It was pre-created on the first
       // user gesture by ensureAudioContextOnGesture(), so it should already be
       // in "running" state. We still check for "suspended" as a safety net.
@@ -549,10 +588,6 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     setState((s) => (s.audioLevel === 0 && voiceActivitySnapshotsEqual(s.voiceActivity, IDLE_VOICE_ACTIVITY)
       ? s
       : { ...s, audioLevel: 0, voiceActivity: IDLE_VOICE_ACTIVITY }));
-    // Install the keepalive oscillator now that the mic stream is gone, so
-    // Chrome's renderer doesn't idle before the next recording starts (which
-    // would leave AnalyserNodes returning rms=0 and trip premature VAD stops).
-    installAudioContextKeepalive();
   }, []);
 
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -746,6 +781,19 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     startingRef.current = true;
     stopRequestedRef.current = false;
     sessionCountRef.current++;
+    // Tear down background wake-word listening (if armed) so the recorder owns
+    // the mic cleanly. Wake-word detection also funnels through here and has
+    // already disposed its listener, so this is a no-op in that path. The
+    // auto-arm effect re-arms passive listening once this turn returns to idle.
+    if (passiveListenerRef.current) {
+      passiveListenerRef.current.dispose();
+      passiveListenerRef.current = null;
+    }
+    // Clear any server-VAD snapshot from a prior session BEFORE the first
+    // tick of this one. The sticky silenceTimedOut latch (and the prior
+    // session's receivedAt) would otherwise leak across sessions and stop
+    // the new recording instantly. See useServerVadStateStore.resetServerVadState.
+    resetServerVadState();
 
     // Show "preparing" state immediately for visual feedback
     const prepareStart = Date.now();
@@ -1331,6 +1379,13 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   stopRecordingRef.current = stopRecording;
 
   // ── Passive wake word listening ──
+  //
+  // Passive listening runs entirely in the BACKGROUND: it does NOT change
+  // voiceState (which stays "idle"), so the mic button keeps its normal
+  // appearance and stays pressable. The wake word is a *secondary* trigger —
+  // the user can still tap-to-talk / use persistent mode exactly as if wake
+  // word were off. A press routes through startRecording, which tears the
+  // passive listener down so the recorder owns the mic.
 
   /** Enter passive listening mode (VAD + MFCC/DTW, no backend streaming). */
   const enterPassiveMode = useCallback(async () => {
@@ -1343,45 +1398,111 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       passiveListenerRef.current = null;
     }
 
+    // Pick up the latest sensitivity before arming (the user may have moved the
+    // slider since the template loaded). The sync effect keeps it current after.
+    wakeWordTemplateRef.current.threshold = wakeWordThresholdRef.current;
+
+    // Reuse the app-lifetime shared AudioContext. It is resumed on the first
+    // user gesture (ensureAudioContextOnGesture); a context the listener
+    // created itself would start suspended on a fresh page load and the
+    // analyser would read silence, so passive VAD would never fire.
+    const sharedCtx = audioCtxRef.current ?? getSharedAudioContext();
+    audioCtxRef.current = sharedCtx;
+
     const listener = new PassiveListener({
       engine: wakeWordEngineRef.current,
       template: wakeWordTemplateRef.current,
-      audioContext: audioCtxRef.current ?? undefined,
+      audioContext: sharedCtx,
       onWakeWordDetected: (_stream: MediaStream) => {
         console.info("[voice] Wake word detected — activating mic");
-        // Transition from passive to active recording.
-        // The PassiveListener has stopped its loop but kept the stream alive.
-        setState((s) => ({ ...s, voiceState: "preparing" }));
+        // The wake word fires the SAME path as a manual button press. The
+        // provider re-acquires its own mic stream in startRecording, so dispose
+        // the listener fully here — otherwise its mic stream stays live (mic
+        // indicator stuck on, and a second stream contends for the device).
+        // dispose() leaves the shared AudioContext open (ownAudioCtx === false).
+        listener.dispose();
         passiveListenerRef.current = null;
-
-        // Save the AudioContext from the listener for reuse
-        if (listener.getAudioContext()) {
-          audioCtxRef.current = listener.getAudioContext();
-        }
-
-        // Start recording using the existing mic stream
         startRecording({ vadEnabled: true });
       },
       onError: (error: string) => {
         console.error("[voice] Passive listener error:", error);
-        setState((s) => ({ ...s, voiceState: "idle", error }));
+        // Latch so the auto-arm effect stops retrying until the toggle flips.
+        // Background listening must not surface as a user-facing error or flip
+        // voiceState — it stays invisible; only log.
+        passiveStartBlockedRef.current = true;
         passiveListenerRef.current = null;
+        void error;
       },
     });
 
     passiveListenerRef.current = listener;
-    setState((s) => ({ ...s, voiceState: "passive", error: null }));
     await listener.start();
   }, [startRecording]);
 
-  /** Exit passive listening mode and return to idle. */
+  /** Stop background passive listening (does not touch voiceState). */
   const exitPassiveMode = useCallback(() => {
     if (passiveListenerRef.current) {
       passiveListenerRef.current.dispose();
       passiveListenerRef.current = null;
     }
-    setState((s) => s.voiceState === "passive" ? { ...s, voiceState: "idle" } : s);
   }, []);
+
+  // Release the background passive listener (and its mic stream) on unmount.
+  // The main unmount cleanup only disposes the streaming provider; without
+  // this, navigating away while passively listening would leak an open mic.
+  useEffect(() => () => {
+    if (passiveListenerRef.current) {
+      passiveListenerRef.current.dispose();
+      passiveListenerRef.current = null;
+    }
+  }, []);
+
+  // ── Keep a running passive listener's threshold in sync ──
+  //
+  // The PassiveListener reads template.threshold live on every capture, and it
+  // holds the SAME object as wakeWordTemplateRef.current. Mutating it here lets
+  // the user retune sensitivity with the slider and have the background
+  // listener pick it up immediately — no re-arm, no reload. This is what makes
+  // the slider the single source of truth for both the settings test and the
+  // live detector (they used to diverge: the test used the live store value
+  // while the listener used a value frozen into the template at save time).
+  useEffect(() => {
+    if (wakeWordTemplateRef.current) {
+      wakeWordTemplateRef.current.threshold = wakeWordThreshold;
+    }
+  }, [wakeWordThreshold]);
+
+  // ── Auto-arm passive wake-word listening ──
+  //
+  // Nothing else in the app starts passive mode, so without this effect the
+  // "always-on" wake word never actually listens — the toggle flips a config
+  // bit but the mic is never opened. Here we reconcile the desired state:
+  // when wake word is enabled and a template is loaded, listen passively in
+  // the background whenever voice is idle (voiceState stays "idle" — the
+  // button is unaffected). On detection enterPassiveMode routes to
+  // startRecording; when that turn ends voiceState returns to "idle" and this
+  // effect re-arms — the always-on cycle (idle+listening → wake → record →
+  // idle+listening). Disabling the toggle (or a start failure) tears it down.
+  useEffect(() => {
+    // Clear the failure latch whenever the feature is off so a later
+    // re-enable gets a fresh start attempt.
+    if (!voiceEnabled || !wakeWordEnabled) {
+      passiveStartBlockedRef.current = false;
+    }
+    const action = decidePassiveArm({
+      voiceEnabled,
+      wakeWordEnabled,
+      wakeWordConfigured: state.wakeWordConfigured,
+      voiceState: state.voiceState,
+      listenerActive: !!passiveListenerRef.current,
+      startBlocked: passiveStartBlockedRef.current,
+    });
+    if (action === "enter") {
+      void enterPassiveMode();
+    } else if (action === "exit") {
+      exitPassiveMode();
+    }
+  }, [voiceEnabled, wakeWordEnabled, state.wakeWordConfigured, state.voiceState, enterPassiveMode, exitPassiveMode]);
 
   return {
     ...state,

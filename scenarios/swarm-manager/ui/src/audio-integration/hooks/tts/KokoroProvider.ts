@@ -19,8 +19,8 @@ export type KokoroSynthesizeWithMetricsFn = (
 export interface KokoroProviderOptions {
   /**
    * Override the synthesize implementation. Tests pass their own mock
-   * here. Defaults to the live audio-tools Connect client resolved via
-   * the active AudioToolsProvider.
+   * here. Defaults to the web-console AudioRuntimeService same-origin
+   * Connect client.
    *
    * When provided without `synthesizeWithMetrics`, calls are wrapped to
    * skip telemetry (no requestId is tracked).
@@ -173,7 +173,7 @@ export class KokoroProvider implements TTSProvider {
 
     // Kick synthesis up to CONCURRENCY at a time; build an array of promises
     // indexed by paragraph order so playback consumes them in sequence.
-    const synths: Array<Promise<{ blob: Blob; metrics: TTSSynthesisMetrics }>> = new Array(texts.length);
+    const synths = new Array<Promise<{ blob: Blob; metrics: TTSSynthesisMetrics }>>(texts.length);
     let nextToKick = 0;
     let inFlight = 0;
     const kick = (): void => {
