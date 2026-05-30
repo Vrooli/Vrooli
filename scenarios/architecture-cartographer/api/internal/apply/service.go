@@ -117,7 +117,7 @@ func (s *service) PlanApply(ctx context.Context, in PlanInput) (Plan, bool, erro
 	// Conflicts are now detection-only (no lifecycle to filter on): plan from
 	// the current detected set. The operator scopes a plan by passing
 	// explicit ConflictIDs and the owning Domain; the lifecycle of walking a
-	// migration toward zero lives in the migration domain.
+	// campaign toward zero lives in the campaign domain.
 	page, err := s.conflicts.ListConflicts(ctx, conflicts.ListConflictsFilter{
 		Scenario: in.Scenario,
 	})

@@ -1,7 +1,7 @@
 /**
  * Substitute `{{name}}` placeholders in a catalog string with concrete
  * values for assertion. Centralised so an eventual ICU-MessageFormat
- * migration is a one-file change instead of touching every plural test.
+ * upgrade is a one-file change instead of touching every plural test.
  *
  * Use only in tests that explicitly verify the i18n pipeline end-to-end
  * — cimode-default tests assert on the raw key path via `strings.x.y`

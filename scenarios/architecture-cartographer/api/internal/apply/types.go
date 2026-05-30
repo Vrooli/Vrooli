@@ -1,4 +1,4 @@
-// Package apply is the domain-scoped home for migration plan generation
+// Package apply is the domain-scoped home for fix-plan generation
 // and (in a later plan) execution.
 //
 // v0.1 ships the type surface, planner (deterministic — derives the

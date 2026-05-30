@@ -18,7 +18,7 @@
       "graph": "Graph",
       "domains": "Domains",
       "conflicts": "Conflicts",
-      "migration": "Migration",
+      "campaign": "Campaign",
       "apply": "Apply",
       "analytics": "Analytics"
     }
@@ -32,15 +32,15 @@
     }
   },
   "pages": {
-    "migration": {
-      "title": "Migrations",
-      "description": "Track a refactor: ingest a test-genie audit, work the prioritized findings, reconcile re-audits by stable id.",
-      "loading": "Loading migrations…",
-      "errorTitle": "Couldn't load migrations.",
-      "listEmptyTitle": "No migrations yet",
+    "campaign": {
+      "title": "Campaigns",
+      "description": "Track an improvement campaign: ingest a test-genie audit, work the prioritized items, reconcile re-audits by stable id.",
+      "loading": "Loading campaigns…",
+      "errorTitle": "Couldn't load campaigns.",
+      "listEmptyTitle": "No campaigns yet",
       "listEmptyDescription": "Start one from a test-genie --json audit report.",
-      "selectPrompt": "Select a migration to see its findings.",
-      "newButton": "New migration",
+      "selectPrompt": "Select a campaign to see its items.",
+      "newButton": "New campaign",
       "unnamed": "(unnamed)",
       "columns": {
         "id": "ID",
@@ -49,20 +49,20 @@
         "created": "Created"
       },
       "create": {
-        "heading": "Start a migration",
+        "heading": "Start a campaign",
         "nameLabel": "Name (optional)",
         "namePlaceholder": "e.g. screaming-architecture pass",
         "reportLabel": "test-genie --json report",
         "reportPlaceholder": "Paste the output of: vrooli scenario test <scenario> --json",
         "hint": "Run the audit for {{scenario}} and paste its --json output. Every phase's findings are ingested as Detected.",
         "parsedCount": "{{count}} finding(s) parsed.",
-        "submit": "Create migration",
+        "submit": "Create campaign",
         "submitting": "Creating…",
         "cancel": "Cancel",
         "parseErrorTitle": "Couldn't read that report."
       },
       "detail": {
-        "notFound": "Migration not found.",
+        "notFound": "Campaign not found.",
         "scenarioLabel": "Scenario:",
         "rollup": {
           "total": "Total",
@@ -72,7 +72,7 @@
           "regressions": "Regressions"
         },
         "worklistHeading": "Worklist",
-        "worklistEmpty": "No open findings. Re-audit to confirm, then close the migration.",
+        "worklistEmpty": "No open items. Re-audit to confirm, then close the campaign.",
         "regressedBadge": "Regressed",
         "locationsLabel": "Locations",
         "suggestionLabel": "Suggestion:",
@@ -81,9 +81,9 @@
         "reauditSubmit": "Reconcile re-audit",
         "reauditting": "Reconciling…",
         "reauditResult": "{{validated}} validated · {{open}} still open · {{regressions}} regression(s).",
-        "closeButton": "Close migration",
+        "closeButton": "Close campaign",
         "closing": "Closing…",
-        "closedNote": "This migration is closed."
+        "closedNote": "This campaign is closed."
       }
     },
     "overview": {
@@ -320,7 +320,7 @@
       }
     }
   },
-  "migration": {
+  "campaign": {
     "status": {
       "detected": "Detected",
       "assigned": "Assigned",
@@ -339,6 +339,11 @@
       "apply": "Apply",
       "resolveNotePrompt": "Resolution note (what changed?):",
       "pending": "Working…"
+    },
+    "profile": {
+      "balanced": "Balanced",
+      "fast": "Fast",
+      "longTerm": "Long-term"
     }
   },
   "conflicts": {

@@ -67,7 +67,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Runner:         runArchitecturePhase,
 		Optional:       true,
 		DefaultTimeout: 120 * time.Second,
-		Description:    "Audits structural cohesion (cycles, coupling, convergence, mislocation) via architecture-cartographer. Advisory — never gates; drives the migration nudge.",
+		Description:    "Audits structural cohesion (cycles, coupling, convergence, mislocation) via architecture-cartographer. Advisory — never gates; drives the campaign nudge.",
 	})
 	register(Spec{
 		Name:        Dependencies,

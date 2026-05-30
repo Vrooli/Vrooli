@@ -77,6 +77,25 @@ enum FindingSeverity {
   FINDING_SEVERITY_BLOCKER = 4;
 }
 
+// EffortHint is a coarse, normalized estimate of how much work a finding
+// takes to resolve. It is advisory ranking input only and is EXCLUDED from
+// the stable-ID hash — effort can be re-estimated without re-keying the
+// finding. Producers either pass a validator-supplied estimate or apply a
+// documented per-source default heuristic (see test-genie phases).
+enum EffortHint {
+  EFFORT_HINT_UNSPECIFIED = 0;
+  // TRIVIAL: a few minutes (e.g., a broken doc link, a missing manifest key).
+  EFFORT_HINT_TRIVIAL = 1;
+  // SMALL: a focused single-file change (e.g., one standards rule violation,
+  // one contract/UI binding gap).
+  EFFORT_HINT_SMALL = 2;
+  // MEDIUM: a multi-file change within one domain.
+  EFFORT_HINT_MEDIUM = 3;
+  // LARGE: a structural change spanning domains (e.g., breaking an import
+  // cycle, relocating a mislocated package).
+  EFFORT_HINT_LARGE = 4;
+}
+
 // Evidence is one producer-supplied piece of justification for a finding.
 // Intentionally generic (a string `kind`, not an enum) so any surface can
 // attach its own evidence vocabulary without a contract bump.
@@ -146,4 +165,7 @@ message ArchitectureFinding {
   repeated Evidence evidence = 10;
   // Suggested resolutions, ranked best-first.
   repeated SuggestedFix suggested_fixes = 11;
+  // Coarse effort estimate used for profile-aware ranking. Advisory only —
+  // EXCLUDED from the stable-ID hash.
+  EffortHint effort = 12;
 }

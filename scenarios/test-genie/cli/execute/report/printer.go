@@ -86,7 +86,7 @@ func (p *Printer) Print(resp execTypes.Response) {
 	p.printDebugGuides(resp.Phases)
 	p.printArtifacts(resp)
 	p.printDocs(resp.Phases)
-	p.printMigrationNudge(resp)
+	p.printCampaignNudge(resp)
 }
 
 // PrintPreExecution prints the header and test plan BEFORE the API call starts.
@@ -138,18 +138,18 @@ func (p *Printer) PrintResults(resp execTypes.Response) {
 	p.printDebugGuides(resp.Phases)
 	p.printArtifacts(resp)
 	p.printDocs(resp.Phases)
-	p.printMigrationNudge(resp)
+	p.printCampaignNudge(resp)
 }
 
-// printMigrationNudge renders the architecture migration steer when the
-// finding load exceeded the single-pass threshold. No-op otherwise.
-func (p *Printer) printMigrationNudge(resp execTypes.Response) {
-	n := resp.MigrationNudge
+// printCampaignNudge renders the improvement-campaign steer when the finding
+// load exceeded the single-pass threshold. No-op otherwise.
+func (p *Printer) printCampaignNudge(resp execTypes.Response) {
+	n := resp.CampaignNudge
 	if n == nil {
 		return
 	}
 	fmt.Fprintln(p.w)
-	fmt.Fprintln(p.w, p.color.Bold("⚠️  Migration recommended"))
+	fmt.Fprintln(p.w, p.color.Bold("⚠️  Improvement campaign recommended"))
 	fmt.Fprintf(p.w, "   %s\n", n.Reason)
 	if len(n.BySeverity) > 0 {
 		order := []string{"blocker", "error", "warn", "info", "unspecified"}

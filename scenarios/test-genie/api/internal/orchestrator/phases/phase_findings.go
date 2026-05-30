@@ -53,15 +53,62 @@ func nonEmptyLocations(locs ...string) []string {
 	return out
 }
 
+// defaultEffortForSource is the documented per-source effort heuristic.
+// Effort is advisory ranking input (the campaign tracker's FAST/LONG_TERM
+// profiles consume it) and is EXCLUDED from the stable-ID hash, so a coarse
+// per-source default is a safe starting point — every phase maps to exactly
+// one source, so this is equivalently a per-phase default. When a validator
+// begins emitting a real per-finding estimate, route it through
+// newFindingWithEffort instead of this table.
+//
+//	DOCS         → TRIVIAL  (broken link / missing manifest entry)
+//	CLI / UI     → SMALL    (one contract/slot binding gap)
+//	STANDARDS    → SMALL    (one rule violation, usually one file)
+//	TIDINESS     → SMALL    (file/function quality nit)
+//	STRUCTURE    → LARGE    (package mislocation — a structural move)
+//	ARCHITECTURE → LARGE    (import cycle / coupling — structural)
+//	(anything else) → UNSPECIFIED
+func defaultEffortForSource(source architecturev1.FindingSource) architecturev1.EffortHint {
+	switch source {
+	case architecturev1.FindingSource_FINDING_SOURCE_DOCS:
+		return architecturev1.EffortHint_EFFORT_HINT_TRIVIAL
+	case architecturev1.FindingSource_FINDING_SOURCE_CLI,
+		architecturev1.FindingSource_FINDING_SOURCE_UI,
+		architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
+		architecturev1.FindingSource_FINDING_SOURCE_TIDINESS:
+		return architecturev1.EffortHint_EFFORT_HINT_SMALL
+	case architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
+		architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE:
+		return architecturev1.EffortHint_EFFORT_HINT_LARGE
+	default:
+		return architecturev1.EffortHint_EFFORT_HINT_UNSPECIFIED
+	}
+}
+
 // newFinding builds a normalized ArchitectureFinding for one surface and
 // stamps its deterministic `afid:` stable ID. Producers (the delegating
 // phases) call this so every finding carries a consistent source,
-// severity, and stable ID without re-implementing the contract.
+// severity, effort, and stable ID without re-implementing the contract.
+// Effort defaults to the per-source heuristic (defaultEffortForSource).
 func newFinding(
 	scenario string,
 	source architecturev1.FindingSource,
 	code, severity, message, suggestion string,
 	locations, domains []string,
+) *architecturev1.ArchitectureFinding {
+	return newFindingWithEffort(scenario, source, code, severity, message, suggestion,
+		locations, domains, defaultEffortForSource(source))
+}
+
+// newFindingWithEffort is newFinding with an explicit effort estimate, for
+// producers whose validator supplies one rather than relying on the
+// per-source default.
+func newFindingWithEffort(
+	scenario string,
+	source architecturev1.FindingSource,
+	code, severity, message, suggestion string,
+	locations, domains []string,
+	effort architecturev1.EffortHint,
 ) *architecturev1.ArchitectureFinding {
 	f := &architecturev1.ArchitectureFinding{
 		Scenario:   scenario,
@@ -72,6 +119,7 @@ func newFinding(
 		Domains:    domains,
 		Message:    strings.TrimSpace(message),
 		Suggestion: strings.TrimSpace(suggestion),
+		Effort:     effort,
 	}
 	findingid.Stamp(f)
 	return f

@@ -4,7 +4,7 @@
  * `makeConflict()` builds a proto-shaped Conflict with sane defaults; callers
  * override the fields they care about. The conflicts domain is detection-only,
  * so the envelope carries no lifecycle fields (status / assigned domain live
- * in the migration domain's TrackedFinding).
+ * in the campaign domain's CampaignItem).
  */
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import {

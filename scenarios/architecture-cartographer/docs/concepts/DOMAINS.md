@@ -34,12 +34,12 @@ The parser is header-driven; it reads the `Domain`, `Primary Archetype`,
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/architecture-cartographer/v1/health/` | HealthHandler |
 | graph | Build the ground-truth code graph for a target scenario by delegating to language code-graph scenarios. | Service / orchestration | Cached graph snapshots and content hashes. | API, CLI, UI | OT-P0-001 (MOD-P0-001) | `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `ui/src/features/graph/`, `packages/proto/schemas/architecture-cartographer/v1/graph/` | GraphSnapshot, FileNode, PackageNode, SymbolNode, ImportEdge, CodeGraphAdapter, Chunk |
 | domains | Derive the intended domain map from on-disk sources (DOMAINS.md → api/internal folders → cli groups) via a trust ladder; report cross-surface convergence. Replaces the deleted architecture manifest. | Service / orchestration | No product data (stateless; derived on demand). | API, CLI, UI | OT-P0-002 (MOD-P0-002) | `api/internal/domains/`, `api/handlers/domains/`, `cli/domains/domains/`, `ui/src/features/domains/`, `packages/proto/schemas/architecture-cartographer/v1/domains/` | DerivedDomainMap, DerivedDomain, DomainSourceExtractor, Extraction, ScenarioLocator, DomainSource |
-| conflicts | Detection-only: detect drift between actual graph and the derived domain map and emit typed conflicts via a pluggable detector registry. No lifecycle (that is the migration domain). | Service / classification | Conflict records (the photograph), suggested fixes. | API, CLI, UI | OT-P0-003, OT-P0-005 (MOD-P0-003, MOD-P0-005) | `api/internal/conflicts/`, `api/handlers/conflicts/`, `cli/domains/conflicts/`, `ui/src/features/conflicts/`, `packages/proto/schemas/architecture-cartographer/v1/conflicts/` | Conflict, Fix, Detector, Resolver, AnalyticsRecorder |
+| conflicts | Detection-only: detect drift between actual graph and the derived domain map and emit typed conflicts via a pluggable detector registry. No lifecycle (that is the campaign domain). | Service / classification | Conflict records (the photograph), suggested fixes. | API, CLI, UI | OT-P0-003, OT-P0-005 (MOD-P0-003, MOD-P0-005) | `api/internal/conflicts/`, `api/handlers/conflicts/`, `cli/domains/conflicts/`, `ui/src/features/conflicts/`, `packages/proto/schemas/architecture-cartographer/v1/conflicts/` | Conflict, Fix, Detector, Resolver, AnalyticsRecorder |
 | signals | Score chunk-to-domain assignments via pluggable, deterministic signals; aggregate into explainable verdicts. | Service / scoring | Signal scores and verdict explanations. | API, CLI | OT-P0-004 (MOD-P0-004) | `api/internal/signals/`, `api/handlers/signals/`, `cli/domains/signals/`, `packages/proto/schemas/architecture-cartographer/v1/signals/` | Signal, Score, Verdict, Tier, SignalDescriptor, Aggregator, GraphContext |
 | apply | Emit per-domain migration plans and execute file moves + import rewrites with build-green guardrail. | Service / mutation | Migration plans, apply history. | API, CLI, UI | OT-P0-007, OT-P0-008 (MOD-P0-007, MOD-P0-008) | `api/internal/apply/`, `api/handlers/apply/`, `cli/domains/apply/`, `ui/src/features/apply/`, `packages/proto/schemas/architecture-cartographer/v1/apply/` | Plan, Operation, OperationKind, ApplyRun, ApplyStatus, BuildBaseline, BuildGuard, Recipe |
 | analytics | Persist conflict events, resolution outcomes, auto-placement verdicts, overrides, and build deltas; serve history + stats. | Reporting / query | Append-only event log. | API, CLI, UI | OT-P0-009 (MOD-P0-009) | `api/internal/analytics/`, `api/handlers/analytics/`, `cli/domains/analytics/`, `ui/src/features/analytics/`, `packages/proto/schemas/architecture-cartographer/v1/analytics/` | Event, EventKind, Placement, Override, StatsSummary |
 | audit | CI-shaped orchestrator: one call runs graph extract (if needed) → domains derivation → conflicts detection, applies severity / type filters, and returns a deterministic exit-code summary. | Service / orchestration | No product data (pure orchestrator over the graph/domains/conflicts domains). | API, CLI | L5 readiness | `api/internal/audit/`, `api/handlers/audit/`, `cli/domains/audit/`, `packages/proto/schemas/architecture-cartographer/v1/audit/` | Outcome, Report, RunInput, ConflictSummary, DerivedDomainSummary, GraphSummary |
-| migration | Stateful tracker for a scenario's architecture refactor: ingest a normalized findings audit (the shared ArchitectureFinding contract), drive each finding through a lifecycle, hand the agent a prioritized worklist, and reconcile re-audits by stable id (validated / still-open / regressed). The project-plan half of the two-layer model; ingest-only, never runs detection. | Service / orchestration | Migrations and tracked findings (lifecycle state, resolution notes). | API, CLI | Architecture-audit + migration-tracker unification. | `api/internal/migration/`, `api/handlers/migration/`, `cli/domains/migration/`, `packages/proto/schemas/architecture-cartographer/v1/migration/` | Migration, Finding, FindingStatus, MigrationStatus, ReauditResult, Repository, AnalyticsRecorder |
+| campaign | Stateful tracker for a scenario-improvement effort: ingest a normalized findings audit from any surface (the shared ArchitectureFinding contract), drive each finding through a lifecycle, hand the agent a profile-ranked worklist (fast / balanced / long-term), and reconcile re-audits by stable id (validated / still-open / regressed). The project-plan half of the two-layer model; ingest-only, never runs detection. | Service / orchestration | Campaigns and tracked items (lifecycle state, resolution notes, effort). | API, CLI | Architecture-audit + campaign-tracker unification. | `api/internal/campaign/`, `api/handlers/campaign/`, `cli/domains/campaign/`, `packages/proto/schemas/architecture-cartographer/v1/campaign/` | Campaign, Finding, FindingStatus, CampaignLifecycle, ReauditResult, Repository, AnalyticsRecorder |
 
 ## Domain Details
 
@@ -118,15 +118,15 @@ The parser is header-driven; it reads the `Domain`, `Primary Archetype`,
 - Does not own: signal scoring (that is the `signals` domain),
   mechanical fix execution (that is the `apply` domain), and — since the
   detection/tracking split — the per-finding **lifecycle** (assign /
-  resolve / validate / regress), which lives in the `migration` domain.
+  resolve / validate / regress), which lives in the `campaign` domain.
 - API: `api/internal/conflicts/`, `api/handlers/conflicts/`.
 - CLI: `cli/domains/conflicts/` — `arch-cart conflicts detect`,
   `arch-cart conflicts list`, `arch-cart conflicts show <id>`,
   `arch-cart conflicts validate`, `arch-cart conflicts detectors`,
   `arch-cart conflicts resolvers`. (Walking a finding through a lifecycle
-  toward zero is `arch-cart migration …`.)
+  toward zero is `arch-cart campaign …`.)
 - UI: `ui/src/features/conflicts/` — read-only detection workbench
-  (list + detail). Lifecycle actions live in `ui/src/features/migration/`.
+  (list + detail). Lifecycle actions live in `ui/src/features/campaign/`.
 - Storage: conflict records in SQLite (id, type, severity, locations,
   snapshot_id, payload) — no lifecycle columns.
 - Plug-in seams: `Detector` interface (returns `[]Conflict` for a
@@ -244,41 +244,46 @@ The parser is header-driven; it reads the `Domain`, `Primary Archetype`,
   integration (against the three target scenarios with wall-clock
   budgets per the L5 plan).
 
-### migration
+### campaign
 
 - Purpose: the stateful tracker that handholds an agent through a large
-  screaming-architecture refactor — the workflow that failed on
+  scenario-improvement effort — the workflow that failed on
   swarm-manager because the surface area outgrew what an agent could
-  track by hand. It ingests a normalized findings audit (the shared
-  `ArchitectureFinding` contract emitted by test-genie), tracks each
-  finding through the conflict lifecycle, hands the agent a prioritized
-  worklist, and on each re-audit reconciles by stable id: findings that
-  vanished become `validated`, findings that persist stay open, and
-  findings that (re)appear are flagged as regressions.
+  track by hand. It ingests a normalized findings audit from any surface
+  (the shared `ArchitectureFinding` contract emitted by test-genie),
+  tracks each finding through the conflict lifecycle, hands the agent a
+  profile-ranked worklist, and on each re-audit reconciles by stable id:
+  findings that vanished become `validated`, findings that persist stay
+  open, and findings that (re)appear are flagged as regressions.
 - Primary archetype: service / orchestration (longitudinal — it is the
   process half of the two-layer model, not a point-in-time validator).
-- Owns: migrations, tracked findings, lifecycle state, and resolution
-  notes (the `migrations` + `migration_findings` tables).
+- Owns: campaigns, tracked items, lifecycle state, effort hints, and
+  resolution notes (the `campaigns` + `campaign_items` tables). Ordering
+  is a profile-strategy seam (`internal/campaign/ranking.go`): FAST
+  ("make it work now" — gating sources first, cheapest path to green),
+  BALANCED (legacy: regressions → cycles → severity), LONG_TERM
+  ("best solution" — structural root-causes before symptoms).
 - Does not own: detection. The tracker NEVER runs detectors and never
   calls test-genie or the health CLIs — findings arrive only by ingest
   (push), so there is no detection↔tracking cycle. Reconciliation keys on
   the `afid` stable id computed by the shared
   `packages/proto/architecture/findingid` helper, so a finding matches
   across the test-genie→cartographer boundary.
-- API: `api/internal/migration/`, `api/handlers/migration/` —
-  `MigrationService` (CreateMigration, GetMigrationStatus,
-  NextMigrationStep, ResolveFinding, ApplyFinding, ReauditMigration,
-  CloseMigration).
-- CLI: `cli/domains/migration/` — `arch-cart migration
-  {create,status,next,resolve,apply,reaudit,close}`. `create`/`reaudit`
-  take `--from-audit <file|->`, a test-genie `--json` SuiteExecutionResult.
+- API: `api/internal/campaign/`, `api/handlers/campaign/` —
+  `CampaignService` (CreateCampaign, GetCampaignStatus,
+  NextCampaignStep, ResolveItem, ApplyItem, ReauditCampaign,
+  CloseCampaign).
+- CLI: `cli/domains/campaign/` — `arch-cart campaign
+  {create,status,next,resolve,apply,reaudit,close}`. `next` takes
+  `--profile fast|balanced|long-term`; `create`/`reaudit` take
+  `--from-audit <file|->`, a test-genie `--json` SuiteExecutionResult.
 - UI: deferred to a follow-up (greenfield rule forbids a placeholder
-  page; the migration UI is a separate cut).
-- Storage: SQLite (`migrations`, `migration_findings`); reconciliation
-  primary key is `(migration_id, stable_id)`.
-- Tests: unit (ingest / reconcile / regression-detection / worklist
-  ordering / cosmetic-stable reconciliation), plus a live create → next →
-  resolve → reaudit → close loop.
+  page; the campaign UI is a separate cut).
+- Storage: SQLite (`campaigns`, `campaign_items`); reconciliation
+  primary key is `(campaign_id, stable_id)`.
+- Tests: unit (ingest / reconcile / regression-detection / profile
+  worklist ordering / cosmetic-stable reconciliation), plus a live
+  create → next → resolve → reaudit → close loop.
 
 ## Shared Concepts
 

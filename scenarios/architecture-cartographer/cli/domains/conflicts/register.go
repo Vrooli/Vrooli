@@ -3,7 +3,7 @@
 // ConflictsService, which is detection-only: drift detection, listing /
 // explaining the current photograph, the cartographer-clean validate gate,
 // and the Detector / Resolver registries. Walking findings through a
-// lifecycle lives in the `migration` command group.
+// lifecycle lives in the `campaign` command group.
 //
 // Like every domain package, it follows the graph-domain shape: a
 // Register(core, manifest) returning a cliapp.SubcommandGroup built from

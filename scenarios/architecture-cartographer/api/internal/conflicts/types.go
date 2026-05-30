@@ -2,7 +2,7 @@
 // pluggable Detector/Resolver registries, and conflict persistence. It is
 // a stateless photograph of what is wrong now; it owns no lifecycle. The
 // stateful per-finding lifecycle (assign/resolve/validate/regress) lives in
-// the migration domain, which ingests these findings and tracks them over
+// the campaign domain, which ingests these findings and tracks them over
 // time.
 //
 // Conflict envelope shape is locked in v0.1: adding a new Detector does

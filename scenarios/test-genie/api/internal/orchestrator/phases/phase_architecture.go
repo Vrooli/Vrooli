@@ -74,7 +74,7 @@ var (
 			Scenario: scenario,
 			// Advisory phase: surface every finding regardless of severity
 			// and do not let low domain authority alone flip the outcome —
-			// the migration nudge (not a gate) does the steering.
+			// the campaign nudge (not a gate) does the steering.
 			AllowLowAuthority: true,
 		}))
 		if err != nil {
@@ -93,37 +93,33 @@ var (
 // preserves the cartographer's graded semantics. Only a transport error or
 // the cartographer's own TOOL_ERROR outcome fails the phase. Blocker-level
 // findings (import cycles) still surface prominently and drive the Phase-3
-// migration nudge.
+// campaign nudge.
 func runArchitecturePhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
 	if os.Getenv("TEST_GENIE_SKIP_ARCHITECTURE") == "1" {
-		summary := ArchitectureSummary{Scenario: env.ScenarioName, Skipped: true}
-		report := RunReport{
-			Observations: []Observation{
-				NewSkipObservation("architecture phase disabled via TEST_GENIE_SKIP_ARCHITECTURE"),
-			},
-		}
-		writePhasePointer(env, "architecture", report, map[string]any{"summary": summary}, logWriter)
-		return report
+		return architectureSkipReport(env, "architecture phase disabled via TEST_GENIE_SKIP_ARCHITECTURE", logWriter)
+	}
+
+	// The architecture axis is advisory and MUST NEVER gate the suite. An
+	// unreachable or unresponsive cartographer is missing optional infra, not a
+	// scenario defect, so degrade to an advisory skip rather than failing the
+	// phase. Without this, every preset that includes architecture (e.g.
+	// comprehensive) would hard-fail whenever architecture-cartographer is not
+	// running — including the development-toolchain-validator tool baseline.
+	resp, auditErr := runArchitectureAudit(ctx, env.ScenarioName)
+	if auditErr != nil {
+		reason := fmt.Sprintf(
+			"architecture audit skipped — architecture-cartographer unreachable: %v (start it via 'vrooli scenario start architecture-cartographer')",
+			auditErr,
+		)
+		return architectureSkipReport(env, reason, logWriter)
 	}
 
 	var summary ArchitectureSummary
 	summary.Scenario = env.ScenarioName
-	var archFindings []*architecturev1.ArchitectureFinding
+	archFindings := architectureArchFindings(env.ScenarioName, resp)
 
 	report := RunPhase(ctx, logWriter, "architecture",
 		func() (*architectureRunResult, error) {
-			resp, err := runArchitectureAudit(ctx, env.ScenarioName)
-			if err != nil {
-				return &architectureRunResult{
-					RunResult: shared.RunResult[ArchitectureSummary]{
-						Success:      false,
-						Error:        fmt.Errorf("architecture-cartographer AuditService.Run failed: %w", err),
-						FailureClass: shared.FailureClassMissingDependency,
-						Remediation:  "Ensure architecture-cartographer is running ('vrooli scenario start architecture-cartographer') and reachable.",
-					},
-				}, nil
-			}
-			archFindings = architectureArchFindings(env.ScenarioName, resp)
 			return translateArchitectureResponse(resp), nil
 		},
 		func(r *architectureRunResult) PhaseResult[shared.Observation] {
@@ -147,6 +143,20 @@ func runArchitecturePhase(ctx context.Context, env workspace.Environment, logWri
 	)
 
 	report.Findings = archFindings
+	writePhasePointer(env, "architecture", report, map[string]any{"summary": summary}, logWriter)
+	logPhaseStep(logWriter, "Architecture summary: %s", summary.String())
+	return report
+}
+
+// architectureSkipReport produces the advisory-skip RunReport used when the
+// architecture phase is disabled or the cartographer is unreachable. The report
+// carries no Err, so the orchestrator records the phase as passed (skipped) and
+// the suite is never gated on this advisory axis.
+func architectureSkipReport(env workspace.Environment, reason string, logWriter io.Writer) RunReport {
+	summary := ArchitectureSummary{Scenario: env.ScenarioName, Skipped: true}
+	report := RunReport{
+		Observations: []Observation{NewSkipObservation(reason)},
+	}
 	writePhasePointer(env, "architecture", report, map[string]any{"summary": summary}, logWriter)
 	logPhaseStep(logWriter, "Architecture summary: %s", summary.String())
 	return report
@@ -207,7 +217,7 @@ func translateArchitectureResponse(resp *audit_v1.AuditRunResponse) *architectur
 		out.Remediation = "Run `architecture-cartographer audit run " + resp.GetScenario() + "` and inspect the failure."
 	default:
 		// CLEAN or FINDINGS — advisory phase always passes; findings steer
-		// via Observations + the migration nudge.
+		// via Observations + the campaign nudge.
 		out.Success = true
 		if out.Summary.Total == 0 {
 			out.Observations = append(out.Observations, shared.NewSuccessObservation("No architectural findings detected"))
@@ -264,7 +274,7 @@ func architectureSeverityToken(s conflicts_v1.Severity) string {
 // architectureArchFindings maps the audit response's ConflictSummaries into
 // the shared ArchitectureFinding contract (source=ARCHITECTURE). The
 // stable ID is recomputed via findingid from the SAME inputs the
-// cartographer migration tracker will use on ingest, so re-audits
+// cartographer campaign tracker will use on ingest, so re-audits
 // reconcile cleanly.
 func architectureArchFindings(scenario string, resp *audit_v1.AuditRunResponse) []*architecturev1.ArchitectureFinding {
 	if resp == nil {

@@ -21,7 +21,7 @@ import (
 //
 // The conflicts domain is DETECTION-ONLY: detect / list / show / explain /
 // validate read the current photograph. Walking findings through a
-// lifecycle lives in the `migration` command group (MigrationService).
+// lifecycle lives in the `campaign` command group (CampaignService).
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client conflictsconnect.ConflictsServiceClient
@@ -52,7 +52,7 @@ func (h *handlers) detect(ctx cliapp.RunContext) error {
 	}
 	return renderConflictList(ctx, resp.Msg, resp.Msg.GetConflicts(),
 		fmt.Sprintf("Detected %d conflict(s) for %q.", len(resp.Msg.GetConflicts()), scenario),
-		fmt.Sprintf("`migration create %s --from-audit <report.json>` to start tracking them toward zero.", scenario))
+		fmt.Sprintf("`campaign create %s --from-audit <report.json>` to start tracking them toward zero.", scenario))
 }
 
 // list paginates the persisted conflicts for a scenario.
@@ -105,7 +105,7 @@ func (h *handlers) show(ctx cliapp.RunContext) error {
 		ResultsHeading: "Detail",
 		Results:        conflictDetailLines(c),
 		RetrievalHints: []string{
-			fmt.Sprintf("`migration create %s --from-audit <report.json>` to track this and its siblings toward zero.", c.GetScenario()),
+			fmt.Sprintf("`campaign create %s --from-audit <report.json>` to track this and its siblings toward zero.", c.GetScenario()),
 		},
 	})
 }
@@ -141,7 +141,7 @@ func (h *handlers) validate(ctx cliapp.RunContext) error {
 		Status: []string{status},
 		Triage: triage,
 		NextSteps: []string{
-			fmt.Sprintf("`migration create %s --from-audit <report.json>` to track the open set toward zero.", scenario),
+			fmt.Sprintf("`campaign create %s --from-audit <report.json>` to track the open set toward zero.", scenario),
 		},
 	})
 }

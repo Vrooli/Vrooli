@@ -7,7 +7,7 @@ import { conflictsClient } from "../../../api/conflicts";
  * per surface so cache-key drift can't sneak in via inline string assembly.
  *
  * The conflicts domain is detection-only: detect, list, get, validate. The
- * per-finding lifecycle (assign / resolve / reopen) moved to the migration
+ * per-finding lifecycle (assign / resolve / reopen) moved to the campaign
  * feature.
  */
 export const conflictsKeys = {

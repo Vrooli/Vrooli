@@ -42,7 +42,7 @@ export interface ConflictDetailPanelProps {
 /**
  * Read-only conflict detail. The conflicts domain is detection-only — this
  * panel shows what's wrong now (evidence + suggested fixes). Walking a finding
- * through a lifecycle (resolve / validate) lives in the migration feature.
+ * through a lifecycle (resolve / validate) lives in the campaign feature.
  */
 export function ConflictDetailPanel({ conflictId }: ConflictDetailPanelProps) {
   const { t } = useTranslation();

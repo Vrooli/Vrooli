@@ -162,7 +162,7 @@ type RunReport struct {
 	Remediation           string
 	// Findings carries the phase's native findings normalized into the
 	// shared ArchitectureFinding contract. Observations remain the human
-	// view; Findings is the machine seam the cartographer migration
+	// view; Findings is the machine seam the cartographer campaign
 	// tracker ingests and reconciles by stable ID. Pointers (not values)
 	// because proto messages embed a no-copy MessageState.
 	Findings []*architecturev1.ArchitectureFinding
@@ -206,7 +206,7 @@ type ExecutionResult struct {
 	Observations    []Observation `json:"observations,omitempty"`
 	// Findings is the normalized, machine-ingestable finding set for this
 	// phase (see RunReport.Findings). Serialized in the suite `--json`
-	// report so `architecture-cartographer migration create --from-audit`
+	// report so `architecture-cartographer campaign create --from-audit`
 	// can ingest it. Enum fields marshal as their proto integer values —
 	// a stable seam since both sides share this contract.
 	Findings []*architecturev1.ArchitectureFinding `json:"findings,omitempty"`

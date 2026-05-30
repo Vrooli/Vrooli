@@ -144,7 +144,7 @@ func (s *service) DetectConflicts(ctx context.Context, in DetectOrchestrationInp
 // flag (true ↔ zero outstanding of severity≥error, suppressed excluded).
 // Detection-only: there is no lifecycle to net out, so every persisted,
 // non-suppressed conflict is "outstanding." Walking findings toward zero
-// over time is the migration domain's job.
+// over time is the campaign domain's job.
 func (s *service) ValidateConflicts(ctx context.Context, scenario string) ([]Conflict, bool, error) {
 	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {

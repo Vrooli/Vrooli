@@ -34,10 +34,10 @@ convergence are signals, not pass/fail invariants. The phase only fails on:
 - the cartographer's own `TOOL_ERROR` outcome (the audit could not run).
 
 Blocker-severity findings (import cycles) still surface prominently in the
-report and, together with the overall finding count, drive the **migration
+report and, together with the overall finding count, drive the **campaign
 nudge**: when findings exceed the single-pass threshold, the suite output steers
-you to open a tracked migration in architecture-cartographer rather than fixing
-ad-hoc.
+you to open a tracked improvement campaign in architecture-cartographer rather
+than fixing ad-hoc.
 
 ## Preset
 

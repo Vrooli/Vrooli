@@ -169,7 +169,7 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 // worklist, not an exhaustive standards inventory. The aggregate counts
 // (summary.Total / BySeverity) remain in the Observations for the full
 // picture. A future phase may fetch the full violation list if the
-// migration tracker needs every standards finding.
+// campaign tracker needs every standards finding.
 func standardsArchFindings(scenario string, summary *auditorViolationSummary) []*architecturev1.ArchitectureFinding {
 	if summary == nil {
 		return nil

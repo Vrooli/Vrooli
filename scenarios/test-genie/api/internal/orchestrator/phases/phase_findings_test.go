@@ -181,7 +181,7 @@ func TestStructureArchFindings(t *testing.T) {
 
 // TestExecutionResultJSONCarriesFindings asserts the suite `--json` shape
 // gains a `findings` array while leaving `observations` intact. This is the
-// machine seam `migration create --from-audit` reads.
+// machine seam `campaign create --from-audit` reads.
 func TestExecutionResultJSONCarriesFindings(t *testing.T) {
 	res := ExecutionResult{
 		Name:   "contracts",
@@ -216,5 +216,39 @@ func TestExecutionResultJSONCarriesFindings(t *testing.T) {
 	}
 	if len(back.Findings) != 1 || back.Findings[0].StableId != res.Findings[0].StableId {
 		t.Errorf("round-trip lost findings: %+v", back.Findings)
+	}
+}
+
+// TestNewFindingPopulatesPerSourceEffort pins the documented per-source
+// effort heuristic. Effort is advisory ranking input (the campaign tracker's
+// FAST/LONG_TERM profiles) and must be populated by every emitter; each
+// phase maps to one source, so the per-source default is the per-phase
+// default.
+func TestNewFindingPopulatesPerSourceEffort(t *testing.T) {
+	cases := []struct {
+		source architecturev1.FindingSource
+		want   architecturev1.EffortHint
+	}{
+		{architecturev1.FindingSource_FINDING_SOURCE_DOCS, architecturev1.EffortHint_EFFORT_HINT_TRIVIAL},
+		{architecturev1.FindingSource_FINDING_SOURCE_CLI, architecturev1.EffortHint_EFFORT_HINT_SMALL},
+		{architecturev1.FindingSource_FINDING_SOURCE_UI, architecturev1.EffortHint_EFFORT_HINT_SMALL},
+		{architecturev1.FindingSource_FINDING_SOURCE_STANDARDS, architecturev1.EffortHint_EFFORT_HINT_SMALL},
+		{architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE, architecturev1.EffortHint_EFFORT_HINT_LARGE},
+		{architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE, architecturev1.EffortHint_EFFORT_HINT_LARGE},
+	}
+	for _, tc := range cases {
+		f := newFinding("demo", tc.source, "code", "error", "m", "", []string{"a"}, nil)
+		if f.GetEffort() != tc.want {
+			t.Errorf("source %v effort = %v, want %v", tc.source, f.GetEffort(), tc.want)
+		}
+	}
+
+	// Effort is EXCLUDED from the stable-id hash: two findings differing only
+	// in effort must collapse to the same afid.
+	base := newFinding("demo", architecturev1.FindingSource_FINDING_SOURCE_CLI, "code", "error", "m", "", []string{"a"}, nil)
+	override := newFindingWithEffort("demo", architecturev1.FindingSource_FINDING_SOURCE_CLI, "code", "error", "m", "", []string{"a"}, nil,
+		architecturev1.EffortHint_EFFORT_HINT_LARGE)
+	if base.GetStableId() != override.GetStableId() {
+		t.Errorf("effort must not change the stable id: %q vs %q", base.GetStableId(), override.GetStableId())
 	}
 }

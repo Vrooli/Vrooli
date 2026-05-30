@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file architecture/v1/findings.proto.
  */
 export const file_architecture_v1_findings: GenFile = /*@__PURE__*/
-  fileDesc("Ch5hcmNoaXRlY3R1cmUvdjEvZmluZGluZ3MucHJvdG8SFnZyb29saS5hcmNoaXRlY3R1cmUudjEiSwoIRXZpZGVuY2USDAoEa2luZBgBIAEoCRIPCgdzdW1tYXJ5GAIgASgJEg8KB2xvY2F0b3IYAyABKAkSDwoHcGF5bG9hZBgEIAEoDCJwCgxTdWdnZXN0ZWRGaXgSCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRIQCghyZXNvbHZlchgDIAEoCRIPCgdzdW1tYXJ5GAQgASgJEg8KB3BheWxvYWQYBSABKAwSEgoKY29uZmlkZW5jZRgGIAEoASL2AgoTQXJjaGl0ZWN0dXJlRmluZGluZxIQCghzY2VuYXJpbxgBIAEoCRI1CgZzb3VyY2UYAiABKA4yJS52cm9vbGkuYXJjaGl0ZWN0dXJlLnYxLkZpbmRpbmdTb3VyY2USDAoEY29kZRgDIAEoCRI5CghzZXZlcml0eRgEIAEoDjInLnZyb29saS5hcmNoaXRlY3R1cmUudjEuRmluZGluZ1NldmVyaXR5EhEKCWxvY2F0aW9ucxgFIAMoCRIPCgdkb21haW5zGAYgAygJEg8KB21lc3NhZ2UYByABKAkSEgoKc3VnZ2VzdGlvbhgIIAEoCRIRCglzdGFibGVfaWQYCSABKAkSMgoIZXZpZGVuY2UYCiADKAsyIC52cm9vbGkuYXJjaGl0ZWN0dXJlLnYxLkV2aWRlbmNlEj0KD3N1Z2dlc3RlZF9maXhlcxgLIAMoCzIkLnZyb29saS5hcmNoaXRlY3R1cmUudjEuU3VnZ2VzdGVkRml4KvEBCg1GaW5kaW5nU291cmNlEh4KGkZJTkRJTkdfU09VUkNFX1VOU1BFQ0lGSUVEEAASHAoYRklORElOR19TT1VSQ0VfU1RSVUNUVVJFEAESFgoSRklORElOR19TT1VSQ0VfQ0xJEAISFQoRRklORElOR19TT1VSQ0VfVUkQAxIXChNGSU5ESU5HX1NPVVJDRV9ET0NTEAQSHAoYRklORElOR19TT1VSQ0VfU1RBTkRBUkRTEAUSHwobRklORElOR19TT1VSQ0VfQVJDSElURUNUVVJFEAYSGwoXRklORElOR19TT1VSQ0VfVElESU5FU1MQByqmAQoPRmluZGluZ1NldmVyaXR5EiAKHEZJTkRJTkdfU0VWRVJJVFlfVU5TUEVDSUZJRUQQABIZChVGSU5ESU5HX1NFVkVSSVRZX0lORk8QARIcChhGSU5ESU5HX1NFVkVSSVRZX1dBUk5JTkcQAhIaChZGSU5ESU5HX1NFVkVSSVRZX0VSUk9SEAMSHAoYRklORElOR19TRVZFUklUWV9CTE9DS0VSEARCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hcmNoaXRlY3R1cmUvdjE7YXJjaGl0ZWN0dXJldjFiBnByb3RvMw");
+  fileDesc("Ch5hcmNoaXRlY3R1cmUvdjEvZmluZGluZ3MucHJvdG8SFnZyb29saS5hcmNoaXRlY3R1cmUudjEiSwoIRXZpZGVuY2USDAoEa2luZBgBIAEoCRIPCgdzdW1tYXJ5GAIgASgJEg8KB2xvY2F0b3IYAyABKAkSDwoHcGF5bG9hZBgEIAEoDCJwCgxTdWdnZXN0ZWRGaXgSCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRIQCghyZXNvbHZlchgDIAEoCRIPCgdzdW1tYXJ5GAQgASgJEg8KB3BheWxvYWQYBSABKAwSEgoKY29uZmlkZW5jZRgGIAEoASKqAwoTQXJjaGl0ZWN0dXJlRmluZGluZxIQCghzY2VuYXJpbxgBIAEoCRI1CgZzb3VyY2UYAiABKA4yJS52cm9vbGkuYXJjaGl0ZWN0dXJlLnYxLkZpbmRpbmdTb3VyY2USDAoEY29kZRgDIAEoCRI5CghzZXZlcml0eRgEIAEoDjInLnZyb29saS5hcmNoaXRlY3R1cmUudjEuRmluZGluZ1NldmVyaXR5EhEKCWxvY2F0aW9ucxgFIAMoCRIPCgdkb21haW5zGAYgAygJEg8KB21lc3NhZ2UYByABKAkSEgoKc3VnZ2VzdGlvbhgIIAEoCRIRCglzdGFibGVfaWQYCSABKAkSMgoIZXZpZGVuY2UYCiADKAsyIC52cm9vbGkuYXJjaGl0ZWN0dXJlLnYxLkV2aWRlbmNlEj0KD3N1Z2dlc3RlZF9maXhlcxgLIAMoCzIkLnZyb29saS5hcmNoaXRlY3R1cmUudjEuU3VnZ2VzdGVkRml4EjIKBmVmZm9ydBgMIAEoDjIiLnZyb29saS5hcmNoaXRlY3R1cmUudjEuRWZmb3J0SGludCrxAQoNRmluZGluZ1NvdXJjZRIeChpGSU5ESU5HX1NPVVJDRV9VTlNQRUNJRklFRBAAEhwKGEZJTkRJTkdfU09VUkNFX1NUUlVDVFVSRRABEhYKEkZJTkRJTkdfU09VUkNFX0NMSRACEhUKEUZJTkRJTkdfU09VUkNFX1VJEAMSFwoTRklORElOR19TT1VSQ0VfRE9DUxAEEhwKGEZJTkRJTkdfU09VUkNFX1NUQU5EQVJEUxAFEh8KG0ZJTkRJTkdfU09VUkNFX0FSQ0hJVEVDVFVSRRAGEhsKF0ZJTkRJTkdfU09VUkNFX1RJRElORVNTEAcqpgEKD0ZpbmRpbmdTZXZlcml0eRIgChxGSU5ESU5HX1NFVkVSSVRZX1VOU1BFQ0lGSUVEEAASGQoVRklORElOR19TRVZFUklUWV9JTkZPEAESHAoYRklORElOR19TRVZFUklUWV9XQVJOSU5HEAISGgoWRklORElOR19TRVZFUklUWV9FUlJPUhADEhwKGEZJTkRJTkdfU0VWRVJJVFlfQkxPQ0tFUhAEKogBCgpFZmZvcnRIaW50EhsKF0VGRk9SVF9ISU5UX1VOU1BFQ0lGSUVEEAASFwoTRUZGT1JUX0hJTlRfVFJJVklBTBABEhUKEUVGRk9SVF9ISU5UX1NNQUxMEAISFgoSRUZGT1JUX0hJTlRfTUVESVVNEAMSFQoRRUZGT1JUX0hJTlRfTEFSR0UQBEJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FyY2hpdGVjdHVyZS92MTthcmNoaXRlY3R1cmV2MWIGcHJvdG8z");
 
 /**
  * Evidence is one producer-supplied piece of justification for a finding.
@@ -209,6 +209,14 @@ export type ArchitectureFinding = Message<"vrooli.architecture.v1.ArchitectureFi
    * @generated from field: repeated vrooli.architecture.v1.SuggestedFix suggested_fixes = 11;
    */
   suggestedFixes: SuggestedFix[];
+
+  /**
+   * Coarse effort estimate used for profile-aware ranking. Advisory only —
+   * EXCLUDED from the stable-ID hash.
+   *
+   * @generated from field: vrooli.architecture.v1.EffortHint effort = 12;
+   */
+  effort: EffortHint;
 };
 
 /**
@@ -331,4 +339,56 @@ export enum FindingSeverity {
  */
 export const FindingSeveritySchema: GenEnum<FindingSeverity> = /*@__PURE__*/
   enumDesc(file_architecture_v1_findings, 1);
+
+/**
+ * EffortHint is a coarse, normalized estimate of how much work a finding
+ * takes to resolve. It is advisory ranking input only and is EXCLUDED from
+ * the stable-ID hash — effort can be re-estimated without re-keying the
+ * finding. Producers either pass a validator-supplied estimate or apply a
+ * documented per-source default heuristic (see test-genie phases).
+ *
+ * @generated from enum vrooli.architecture.v1.EffortHint
+ */
+export enum EffortHint {
+  /**
+   * @generated from enum value: EFFORT_HINT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * TRIVIAL: a few minutes (e.g., a broken doc link, a missing manifest key).
+   *
+   * @generated from enum value: EFFORT_HINT_TRIVIAL = 1;
+   */
+  TRIVIAL = 1,
+
+  /**
+   * SMALL: a focused single-file change (e.g., one standards rule violation,
+   * one contract/UI binding gap).
+   *
+   * @generated from enum value: EFFORT_HINT_SMALL = 2;
+   */
+  SMALL = 2,
+
+  /**
+   * MEDIUM: a multi-file change within one domain.
+   *
+   * @generated from enum value: EFFORT_HINT_MEDIUM = 3;
+   */
+  MEDIUM = 3,
+
+  /**
+   * LARGE: a structural change spanning domains (e.g., breaking an import
+   * cycle, relocating a mislocated package).
+   *
+   * @generated from enum value: EFFORT_HINT_LARGE = 4;
+   */
+  LARGE = 4,
+}
+
+/**
+ * Describes the enum vrooli.architecture.v1.EffortHint.
+ */
+export const EffortHintSchema: GenEnum<EffortHint> = /*@__PURE__*/
+  enumDesc(file_architecture_v1_findings, 2);
 

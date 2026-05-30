@@ -824,12 +824,12 @@
       ]
     },
     {
-      "name": "migration",
-      "description": "Track a screaming-architecture refactor — ingest an audit, work the prioritized findings, reconcile re-audits by stable id",
+      "name": "campaign",
+      "description": "Track a scenario-improvement effort — ingest a test-genie audit, work the profile-ranked worklist, reconcile re-audits by stable id",
       "commands": [
         {
           "name": "create",
-          "description": "Open a migration for a scenario and ingest findings from a test-genie audit report",
+          "description": "Open a campaign for a scenario and ingest findings from a test-genie audit report",
           "positionals": [
             {
               "name": "scenario",
@@ -840,7 +840,7 @@
           "flags": [
             {
               "name": "name",
-              "description": "Human label for the migration"
+              "description": "Human label for the campaign"
             },
             {
               "name": "from-audit",
@@ -849,8 +849,8 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "MigrationService",
-            "method": "CreateMigration"
+            "service": "CampaignService",
+            "method": "CreateCampaign"
           },
           "governance": {
             "effect": "write",
@@ -862,7 +862,7 @@
         },
         {
           "name": "list",
-          "description": "List a scenario's migrations (newest first), or every migration when --scenario is omitted",
+          "description": "List a scenario's campaigns (newest first), or every campaign when --scenario is omitted",
           "flags": [
             {
               "name": "scenario",
@@ -871,8 +871,8 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "MigrationService",
-            "method": "ListMigrations"
+            "service": "CampaignService",
+            "method": "ListCampaigns"
           },
           "governance": {
             "effect": "read",
@@ -884,18 +884,18 @@
         },
         {
           "name": "status",
-          "description": "Show a migration's findings and progress rollups",
+          "description": "Show a campaign's items and progress rollups",
           "positionals": [
             {
-              "name": "migration-id",
+              "name": "campaign-id",
               "required": true,
-              "description": "Migration id"
+              "description": "Campaign id"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "MigrationService",
-            "method": "GetMigrationStatus"
+            "service": "CampaignService",
+            "method": "GetCampaignStatus"
           },
           "governance": {
             "effect": "read",
@@ -907,18 +907,24 @@
         },
         {
           "name": "next",
-          "description": "Show the prioritized worklist of open findings (regressions first, then cycles, then severity)",
+          "description": "Show the profile-ranked worklist of open items (fast = cheapest path to green; balanced = legacy regressions→cycles→severity; long-term = structural root-causes first)",
           "positionals": [
             {
-              "name": "migration-id",
+              "name": "campaign-id",
               "required": true,
-              "description": "Migration id"
+              "description": "Campaign id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "profile",
+              "description": "Ranking profile: fast | balanced (default) | long-term"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "MigrationService",
-            "method": "NextMigrationStep"
+            "service": "CampaignService",
+            "method": "NextCampaignStep"
           },
           "governance": {
             "effect": "read",
@@ -930,12 +936,12 @@
         },
         {
           "name": "resolve",
-          "description": "Mark a finding resolved with an operator note (the agent fixed it by hand)",
+          "description": "Mark an item resolved with an operator note (the agent fixed it by hand)",
           "positionals": [
             {
-              "name": "migration-id",
+              "name": "campaign-id",
               "required": true,
-              "description": "Migration id"
+              "description": "Campaign id"
             }
           ],
           "flags": [
@@ -950,8 +956,8 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "MigrationService",
-            "method": "ResolveFinding"
+            "service": "CampaignService",
+            "method": "ResolveItem"
           },
           "governance": {
             "effect": "write",
@@ -963,12 +969,12 @@
         },
         {
           "name": "apply",
-          "description": "Record a finding fix as a status-only transition (auto-execution stays deferred to the apply-execution plan)",
+          "description": "Record an item fix as a status-only transition (auto-execution stays deferred to the apply-execution plan)",
           "positionals": [
             {
-              "name": "migration-id",
+              "name": "campaign-id",
               "required": true,
-              "description": "Migration id"
+              "description": "Campaign id"
             }
           ],
           "flags": [
@@ -979,8 +985,8 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "MigrationService",
-            "method": "ApplyFinding"
+            "service": "CampaignService",
+            "method": "ApplyItem"
           },
           "governance": {
             "effect": "write",
@@ -992,12 +998,12 @@
         },
         {
           "name": "reaudit",
-          "description": "Reconcile a fresh audit against the tracked findings: absent→validated, present→stay, (re)appeared→regression",
+          "description": "Reconcile a fresh audit against the tracked items: absent→validated, present→stay, (re)appeared→regression",
           "positionals": [
             {
-              "name": "migration-id",
+              "name": "campaign-id",
               "required": true,
-              "description": "Migration id"
+              "description": "Campaign id"
             }
           ],
           "flags": [
@@ -1008,8 +1014,8 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "MigrationService",
-            "method": "ReauditMigration"
+            "service": "CampaignService",
+            "method": "ReauditCampaign"
           },
           "governance": {
             "effect": "write",
@@ -1021,18 +1027,18 @@
         },
         {
           "name": "close",
-          "description": "Close a migration",
+          "description": "Close a campaign",
           "positionals": [
             {
-              "name": "migration-id",
+              "name": "campaign-id",
               "required": true,
-              "description": "Migration id"
+              "description": "Campaign id"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "MigrationService",
-            "method": "CloseMigration"
+            "service": "CampaignService",
+            "method": "CloseCampaign"
           },
           "governance": {
             "effect": "write",

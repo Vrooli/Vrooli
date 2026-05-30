@@ -121,7 +121,11 @@ func TestRunArchitecturePhase_PopulatesFindings(t *testing.T) {
 	}
 }
 
-func TestRunArchitecturePhase_UnreachableIsMissingDependency(t *testing.T) {
+// An unreachable cartographer must NOT gate the suite: the architecture axis is
+// advisory, so it degrades to an advisory skip (no error, skip observation) so
+// presets that include it (comprehensive) never hard-fail when the optional
+// architecture-cartographer infrastructure is absent.
+func TestRunArchitecturePhase_UnreachableDegradesToAdvisorySkip(t *testing.T) {
 	restore := swapArchitectureSeam(t, func(_ context.Context, _ string) (*audit_v1.AuditRunResponse, error) {
 		return nil, errors.New("connection refused")
 	})
@@ -131,10 +135,20 @@ func TestRunArchitecturePhase_UnreachableIsMissingDependency(t *testing.T) {
 	env := workspaceEnv(t, dir)
 	var buf bytes.Buffer
 	report := runArchitecturePhase(context.Background(), env, io.MultiWriter(&buf, io.Discard))
-	if report.Err == nil {
-		t.Fatalf("expected error when cartographer unreachable")
+	if report.Err != nil {
+		t.Fatalf("unreachable cartographer must NOT fail the advisory phase, got: %v", report.Err)
 	}
-	if report.FailureClassification != FailureClassMissingDependency {
-		t.Errorf("classification = %q, want %q", report.FailureClassification, FailureClassMissingDependency)
+	if report.FailureClassification != "" {
+		t.Errorf("classification = %q, want empty (advisory skip)", report.FailureClassification)
+	}
+	foundSkip := false
+	for _, obs := range report.Observations {
+		if obs.Prefix == "SKIP" {
+			foundSkip = true
+			break
+		}
+	}
+	if !foundSkip {
+		t.Errorf("expected an advisory skip observation, got %+v", report.Observations)
 	}
 }

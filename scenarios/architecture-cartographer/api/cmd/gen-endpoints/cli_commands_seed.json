@@ -132,44 +132,44 @@
       "endpoint_id": "signals.boundaries"
     },
     {
-      "name": "migration create",
-      "description": "Open a migration and ingest findings from a test-genie audit",
-      "endpoint_id": "migration.create"
+      "name": "campaign create",
+      "description": "Open a campaign and ingest findings from a test-genie audit",
+      "endpoint_id": "campaign.create"
     },
     {
-      "name": "migration list",
-      "description": "List a scenario's migrations (newest first)",
-      "endpoint_id": "migration.list"
+      "name": "campaign list",
+      "description": "List a scenario's campaigns (newest first)",
+      "endpoint_id": "campaign.list"
     },
     {
-      "name": "migration status",
-      "description": "Show a migration's findings and progress rollups",
-      "endpoint_id": "migration.status"
+      "name": "campaign status",
+      "description": "Show a campaign's items and progress rollups",
+      "endpoint_id": "campaign.status"
     },
     {
-      "name": "migration next",
-      "description": "Show the prioritized worklist of open findings",
-      "endpoint_id": "migration.next"
+      "name": "campaign next",
+      "description": "Show the profile-ranked worklist of open items",
+      "endpoint_id": "campaign.next"
     },
     {
-      "name": "migration resolve",
-      "description": "Mark a finding resolved with an operator note",
-      "endpoint_id": "migration.resolve"
+      "name": "campaign resolve",
+      "description": "Mark an item resolved with an operator note",
+      "endpoint_id": "campaign.resolve"
     },
     {
-      "name": "migration apply",
-      "description": "Record a finding fix as a status-only transition",
-      "endpoint_id": "migration.apply"
+      "name": "campaign apply",
+      "description": "Record an item fix as a status-only transition",
+      "endpoint_id": "campaign.apply"
     },
     {
-      "name": "migration reaudit",
-      "description": "Reconcile a fresh audit against the tracked findings",
-      "endpoint_id": "migration.reaudit"
+      "name": "campaign reaudit",
+      "description": "Reconcile a fresh audit against the tracked items",
+      "endpoint_id": "campaign.reaudit"
     },
     {
-      "name": "migration close",
-      "description": "Close a migration",
-      "endpoint_id": "migration.close"
+      "name": "campaign close",
+      "description": "Close a campaign",
+      "endpoint_id": "campaign.close"
     }
   ]
 }

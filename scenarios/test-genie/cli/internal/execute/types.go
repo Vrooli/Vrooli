@@ -80,13 +80,13 @@ type Response struct {
 	ErrorMessages  []string        `json:"errors"`
 	Links          map[string]any  `json:"links"`
 	Metadata       map[string]any  `json:"metadata"`
-	MigrationNudge *MigrationNudge `json:"migrationNudge,omitempty"`
+	CampaignNudge *CampaignNudge `json:"campaignNudge,omitempty"`
 }
 
-// MigrationNudge mirrors the API's migration-nudge steer. Present only when
-// the architecture-audit battery's finding load exceeded the single-pass
-// threshold, recommending a tracked migration over ad-hoc fixing.
-type MigrationNudge struct {
+// CampaignNudge mirrors the API's campaign-nudge steer. Present only when an
+// audit's finding load exceeded the single-pass threshold, recommending a
+// tracked improvement campaign over ad-hoc fixing.
+type CampaignNudge struct {
 	Triggered  bool           `json:"triggered"`
 	Total      int            `json:"total"`
 	Severe     int            `json:"severe"`

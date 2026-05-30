@@ -71,18 +71,18 @@ vi.mock("../api/conflicts", () => ({
   },
 }));
 
-// Stub the migration Connect client — the migration page calls
-// ListMigrations on mount and the workbench would otherwise need a backend.
-vi.mock("../api/migration", () => ({
-  migrationClient: {
-    listMigrations: vi.fn().mockResolvedValue({ migrations: [] }),
-    getMigrationStatus: vi.fn().mockResolvedValue({ status: undefined }),
-    nextMigrationStep: vi.fn().mockResolvedValue({ findings: [] }),
-    createMigration: vi.fn(),
-    resolveFinding: vi.fn(),
-    applyFinding: vi.fn(),
-    reauditMigration: vi.fn(),
-    closeMigration: vi.fn(),
+// Stub the campaign Connect client — the campaign page calls
+// ListCampaigns on mount and the workbench would otherwise need a backend.
+vi.mock("../api/campaign", () => ({
+  campaignClient: {
+    listCampaigns: vi.fn().mockResolvedValue({ campaigns: [] }),
+    getCampaignStatus: vi.fn().mockResolvedValue({ status: undefined }),
+    nextCampaignStep: vi.fn().mockResolvedValue({ items: [] }),
+    createCampaign: vi.fn(),
+    resolveItem: vi.fn(),
+    applyItem: vi.fn(),
+    reauditCampaign: vi.fn(),
+    closeCampaign: vi.fn(),
   },
 }));
 
@@ -133,20 +133,20 @@ describe("AppRouter", () => {
     expect(await screen.findByTestId(selectors.pages.targetConflictDetail)).toBeInTheDocument();
   });
 
-  it("renders the migration page at /targets/:encodedPath/migration", async () => {
+  it("renders the campaign page at /targets/:encodedPath/campaign", async () => {
     renderWithProviders(
-      <TestAppRouter initialEntries={["/targets/demo/migration"]} />,
+      <TestAppRouter initialEntries={["/targets/demo/campaign"]} />,
       { withoutRouter: true },
     );
-    expect(await screen.findByTestId(selectors.pages.targetMigration)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.pages.targetCampaign)).toBeInTheDocument();
   });
 
-  it("renders the migration detail at /targets/:encodedPath/migration/:migrationId", async () => {
+  it("renders the campaign detail at /targets/:encodedPath/campaign/:campaignId", async () => {
     renderWithProviders(
-      <TestAppRouter initialEntries={["/targets/demo/migration/m-1"]} />,
+      <TestAppRouter initialEntries={["/targets/demo/campaign/m-1"]} />,
       { withoutRouter: true },
     );
-    expect(await screen.findByTestId(selectors.pages.targetMigrationDetail)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.pages.targetCampaignDetail)).toBeInTheDocument();
   });
 
   it("renders the domains page at /targets/:encodedPath/domains", async () => {

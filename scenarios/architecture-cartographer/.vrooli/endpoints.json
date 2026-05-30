@@ -153,6 +153,94 @@
       }
     },
     {
+      "id": "campaign.create",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/CreateCampaign",
+      "method": "POST",
+      "summary": "Open a campaign and ingest findings",
+      "description": "Opens a tracked scenario-improvement campaign and ingests the initial ArchitectureFinding set (all start detected).",
+      "category": "campaign",
+      "cli_mapping": {
+        "command": "arch-cart campaign create"
+      }
+    },
+    {
+      "id": "campaign.list",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/ListCampaigns",
+      "method": "POST",
+      "summary": "List a scenario's campaigns",
+      "description": "Returns the campaign headers for a scenario (newest first), or every campaign when scenario is empty.",
+      "category": "campaign",
+      "cli_mapping": {
+        "command": "arch-cart campaign list"
+      }
+    },
+    {
+      "id": "campaign.status",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/GetCampaignStatus",
+      "method": "POST",
+      "summary": "Get campaign status",
+      "description": "Returns the campaign plus every tracked item and rollup counts.",
+      "category": "campaign",
+      "cli_mapping": {
+        "command": "arch-cart campaign status"
+      }
+    },
+    {
+      "id": "campaign.next",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/NextCampaignStep",
+      "method": "POST",
+      "summary": "Get the next worklist chunk",
+      "description": "Returns the profile-ranked worklist of open items (fast / balanced / long-term).",
+      "category": "campaign",
+      "cli_mapping": {
+        "command": "arch-cart campaign next"
+      }
+    },
+    {
+      "id": "campaign.resolve",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/ResolveItem",
+      "method": "POST",
+      "summary": "Mark an item resolved",
+      "description": "Records that the agent fixed an item by hand, with an operator note.",
+      "category": "campaign",
+      "cli_mapping": {
+        "command": "arch-cart campaign resolve"
+      }
+    },
+    {
+      "id": "campaign.apply",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/ApplyItem",
+      "method": "POST",
+      "summary": "Apply an item fix (status-only)",
+      "description": "Records a hand-fix as a status-only transition. Auto-execution of file-op fixes stays deferred to the apply-execution plan.",
+      "category": "campaign",
+      "cli_mapping": {
+        "command": "arch-cart campaign apply"
+      }
+    },
+    {
+      "id": "campaign.reaudit",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/ReauditCampaign",
+      "method": "POST",
+      "summary": "Reconcile a re-audit",
+      "description": "Reconciles a fresh findings set against the tracked set by stable id: absent→validated, present→stay, (re)appeared→regression.",
+      "category": "campaign",
+      "cli_mapping": {
+        "command": "arch-cart campaign reaudit"
+      }
+    },
+    {
+      "id": "campaign.close",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/CloseCampaign",
+      "method": "POST",
+      "summary": "Close a campaign",
+      "description": "Marks the campaign closed.",
+      "category": "campaign",
+      "cli_mapping": {
+        "command": "arch-cart campaign close"
+      }
+    },
+    {
       "id": "conflicts.detect",
       "path": "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/DetectConflicts",
       "method": "POST",
@@ -293,94 +381,6 @@
       "summary": "Export snapshot bytes",
       "description": "Returns the persisted snapshot serialized as canonical-form JSON bytes for offline analysis or fixture authoring.",
       "category": "graph"
-    },
-    {
-      "id": "migration.create",
-      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/CreateMigration",
-      "method": "POST",
-      "summary": "Open a migration and ingest findings",
-      "description": "Opens a tracked migration for a scenario and ingests the initial ArchitectureFinding set (all start detected).",
-      "category": "migration",
-      "cli_mapping": {
-        "command": "arch-cart migration create"
-      }
-    },
-    {
-      "id": "migration.list",
-      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/ListMigrations",
-      "method": "POST",
-      "summary": "List a scenario's migrations",
-      "description": "Returns the migration headers for a scenario (newest first), or every migration when scenario is empty.",
-      "category": "migration",
-      "cli_mapping": {
-        "command": "arch-cart migration list"
-      }
-    },
-    {
-      "id": "migration.status",
-      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/GetMigrationStatus",
-      "method": "POST",
-      "summary": "Get migration status",
-      "description": "Returns the migration plus every tracked finding and rollup counts.",
-      "category": "migration",
-      "cli_mapping": {
-        "command": "arch-cart migration status"
-      }
-    },
-    {
-      "id": "migration.next",
-      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/NextMigrationStep",
-      "method": "POST",
-      "summary": "Get the next worklist chunk",
-      "description": "Returns the prioritized, dependency-aware worklist of open findings (regressions first, then cycles, then severity).",
-      "category": "migration",
-      "cli_mapping": {
-        "command": "arch-cart migration next"
-      }
-    },
-    {
-      "id": "migration.resolve",
-      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/ResolveFinding",
-      "method": "POST",
-      "summary": "Mark a finding resolved",
-      "description": "Records that the agent fixed a finding by hand, with an operator note.",
-      "category": "migration",
-      "cli_mapping": {
-        "command": "arch-cart migration resolve"
-      }
-    },
-    {
-      "id": "migration.apply",
-      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/ApplyFinding",
-      "method": "POST",
-      "summary": "Apply a finding fix (status-only)",
-      "description": "Records a hand-fix as a status-only transition. Auto-execution of file-op fixes stays deferred to the apply-execution plan.",
-      "category": "migration",
-      "cli_mapping": {
-        "command": "arch-cart migration apply"
-      }
-    },
-    {
-      "id": "migration.reaudit",
-      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/ReauditMigration",
-      "method": "POST",
-      "summary": "Reconcile a re-audit",
-      "description": "Reconciles a fresh findings set against the tracked set by stable id: absent→validated, present→stay, (re)appeared→regression.",
-      "category": "migration",
-      "cli_mapping": {
-        "command": "arch-cart migration reaudit"
-      }
-    },
-    {
-      "id": "migration.close",
-      "path": "/vrooli.architecture_cartographer.v1.migration.MigrationService/CloseMigration",
-      "method": "POST",
-      "summary": "Close a migration",
-      "description": "Marks the migration closed.",
-      "category": "migration",
-      "cli_mapping": {
-        "command": "arch-cart migration close"
-      }
     },
     {
       "id": "signals.score",
@@ -559,44 +559,44 @@
       "endpoint_id": "signals.boundaries"
     },
     {
-      "name": "migration create",
-      "description": "Open a migration and ingest findings from a test-genie audit",
-      "endpoint_id": "migration.create"
+      "name": "campaign create",
+      "description": "Open a campaign and ingest findings from a test-genie audit",
+      "endpoint_id": "campaign.create"
     },
     {
-      "name": "migration list",
-      "description": "List a scenario's migrations (newest first)",
-      "endpoint_id": "migration.list"
+      "name": "campaign list",
+      "description": "List a scenario's campaigns (newest first)",
+      "endpoint_id": "campaign.list"
     },
     {
-      "name": "migration status",
-      "description": "Show a migration's findings and progress rollups",
-      "endpoint_id": "migration.status"
+      "name": "campaign status",
+      "description": "Show a campaign's items and progress rollups",
+      "endpoint_id": "campaign.status"
     },
     {
-      "name": "migration next",
-      "description": "Show the prioritized worklist of open findings",
-      "endpoint_id": "migration.next"
+      "name": "campaign next",
+      "description": "Show the profile-ranked worklist of open items",
+      "endpoint_id": "campaign.next"
     },
     {
-      "name": "migration resolve",
-      "description": "Mark a finding resolved with an operator note",
-      "endpoint_id": "migration.resolve"
+      "name": "campaign resolve",
+      "description": "Mark an item resolved with an operator note",
+      "endpoint_id": "campaign.resolve"
     },
     {
-      "name": "migration apply",
-      "description": "Record a finding fix as a status-only transition",
-      "endpoint_id": "migration.apply"
+      "name": "campaign apply",
+      "description": "Record an item fix as a status-only transition",
+      "endpoint_id": "campaign.apply"
     },
     {
-      "name": "migration reaudit",
-      "description": "Reconcile a fresh audit against the tracked findings",
-      "endpoint_id": "migration.reaudit"
+      "name": "campaign reaudit",
+      "description": "Reconcile a fresh audit against the tracked items",
+      "endpoint_id": "campaign.reaudit"
     },
     {
-      "name": "migration close",
-      "description": "Close a migration",
-      "endpoint_id": "migration.close"
+      "name": "campaign close",
+      "description": "Close a campaign",
+      "endpoint_id": "campaign.close"
     }
   ]
 }

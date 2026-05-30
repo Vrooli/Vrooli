@@ -18,7 +18,7 @@
       "graph": "الرسم البياني",
       "domains": "النطاقات",
       "conflicts": "التعارضات",
-      "migration": "الترحيل",
+      "campaign": "الحملة",
       "apply": "التطبيق",
       "analytics": "التحليلات"
     }
@@ -32,15 +32,15 @@
     }
   },
   "pages": {
-    "migration": {
-      "title": "عمليات الترحيل",
-      "description": "تتبّع عملية إعادة هيكلة: استوعب تدقيق test-genie، وعالج النتائج حسب الأولوية، ووفّق عمليات إعادة التدقيق عبر المعرّف الثابت.",
-      "loading": "جارٍ تحميل عمليات الترحيل…",
-      "errorTitle": "تعذّر تحميل عمليات الترحيل.",
-      "listEmptyTitle": "لا توجد عمليات ترحيل بعد",
+    "campaign": {
+      "title": "الحملات",
+      "description": "تتبّع حملة تحسين: استوعب تدقيق test-genie، وعالج العناصر حسب الأولوية، ووفّق عمليات إعادة التدقيق عبر المعرّف الثابت.",
+      "loading": "جارٍ تحميل الحملات…",
+      "errorTitle": "تعذّر تحميل الحملات.",
+      "listEmptyTitle": "لا توجد حملات بعد",
       "listEmptyDescription": "ابدأ واحدة من تقرير تدقيق test-genie بصيغة --json.",
-      "selectPrompt": "اختر عملية ترحيل لعرض نتائجها.",
-      "newButton": "ترحيل جديد",
+      "selectPrompt": "اختر حملة لعرض عناصرها.",
+      "newButton": "حملة جديدة",
       "unnamed": "(بدون اسم)",
       "columns": {
         "id": "المعرّف",
@@ -49,20 +49,20 @@
         "created": "تاريخ الإنشاء"
       },
       "create": {
-        "heading": "بدء عملية ترحيل",
+        "heading": "بدء حملة",
         "nameLabel": "الاسم (اختياري)",
         "namePlaceholder": "مثال: مسار screaming-architecture",
         "reportLabel": "تقرير test-genie بصيغة --json",
         "reportPlaceholder": "الصق مخرجات: vrooli scenario test <scenario> --json",
         "hint": "شغّل التدقيق لـ {{scenario}} والصق مخرجات --json. تُستوعب نتائج كل مرحلة بحالة «مكتشف».",
         "parsedCount": "تم تحليل {{count}} نتيجة.",
-        "submit": "إنشاء الترحيل",
+        "submit": "إنشاء الحملة",
         "submitting": "جارٍ الإنشاء…",
         "cancel": "إلغاء",
         "parseErrorTitle": "تعذّرت قراءة هذا التقرير."
       },
       "detail": {
-        "notFound": "لم يتم العثور على الترحيل.",
+        "notFound": "لم يتم العثور على الحملة.",
         "scenarioLabel": "السيناريو:",
         "rollup": {
           "total": "الإجمالي",
@@ -72,7 +72,7 @@
           "regressions": "ارتدادات"
         },
         "worklistHeading": "قائمة العمل",
-        "worklistEmpty": "لا توجد نتائج مفتوحة. أعد التدقيق للتأكيد ثم أغلق الترحيل.",
+        "worklistEmpty": "لا توجد عناصر مفتوحة. أعد التدقيق للتأكيد ثم أغلق الحملة.",
         "regressedBadge": "مُرتدّ",
         "locationsLabel": "المواقع",
         "suggestionLabel": "اقتراح:",
@@ -81,9 +81,9 @@
         "reauditSubmit": "توفيق إعادة التدقيق",
         "reauditting": "جارٍ التوفيق…",
         "reauditResult": "{{validated}} مُتحقَّق · {{open}} مفتوح · {{regressions}} ارتداد.",
-        "closeButton": "إغلاق الترحيل",
+        "closeButton": "إغلاق الحملة",
         "closing": "جارٍ الإغلاق…",
-        "closedNote": "هذا الترحيل مغلق."
+        "closedNote": "هذه الحملة مغلقة."
       }
     },
     "overview": {
@@ -320,7 +320,7 @@
       }
     }
   },
-  "migration": {
+  "campaign": {
     "status": {
       "detected": "مكتشف",
       "assigned": "مُسنَد",
@@ -339,6 +339,11 @@
       "apply": "تطبيق",
       "resolveNotePrompt": "ملاحظة الحل (ما الذي تغيّر؟):",
       "pending": "جارٍ العمل…"
+    },
+    "profile": {
+      "balanced": "متوازن",
+      "fast": "سريع",
+      "longTerm": "طويل الأمد"
     }
   },
   "conflicts": {
