@@ -885,8 +885,11 @@ type QueueBacklogItemResponse struct {
 	UnansweredQuestions int32 `protobuf:"varint,10,opt,name=unanswered_questions,json=unansweredQuestions,proto3" json:"unanswered_questions,omitempty"`
 	// Number of suggestions still pending user decision.
 	PendingSuggestions int32 `protobuf:"varint,11,opt,name=pending_suggestions,json=pendingSuggestions,proto3" json:"pending_suggestions,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Non-blocking advisories surfaced to the caller (e.g. the
+	// fix-before-feature gate in "suggest" mode). The queue still proceeds.
+	Advisories    []string `protobuf:"bytes,12,rep,name=advisories,proto3" json:"advisories,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *QueueBacklogItemResponse) Reset() {
@@ -994,6 +997,13 @@ func (x *QueueBacklogItemResponse) GetPendingSuggestions() int32 {
 		return x.PendingSuggestions
 	}
 	return 0
+}
+
+func (x *QueueBacklogItemResponse) GetAdvisories() []string {
+	if x != nil {
+		return x.Advisories
+	}
+	return nil
 }
 
 // BacklogResearchRequest captures optional fields for spawning a research agent.
@@ -2682,7 +2692,7 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\v_started_byB\n" +
 	"\n" +
 	"\b_confirmB\b\n" +
-	"\x06_forceJ\x04\b\x03\x10\x04\"\xae\x03\n" +
+	"\x06_forceJ\x04\b\x03\x10\x04\"\xce\x03\n" +
 	"\x18QueueBacklogItemResponse\x121\n" +
 	"\x04item\x18\x01 \x01(\v2\x1d.swarm_manager.v1.BacklogItemR\x04item\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x15\n" +
@@ -2695,7 +2705,10 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x10blocking_reasons\x18\t \x03(\v2 .swarm_manager.v1.BlockingReasonR\x0fblockingReasons\x121\n" +
 	"\x14unanswered_questions\x18\n" +
 	" \x01(\x05R\x13unansweredQuestions\x12/\n" +
-	"\x13pending_suggestions\x18\v \x01(\x05R\x12pendingSuggestions\"\xc4\x03\n" +
+	"\x13pending_suggestions\x18\v \x01(\x05R\x12pendingSuggestions\x12\x1e\n" +
+	"\n" +
+	"advisories\x18\f \x03(\tR\n" +
+	"advisories\"\xc4\x03\n" +
 	"\x16BacklogResearchRequest\x12\x1b\n" +
 	"\x06prompt\x18\x01 \x01(\tH\x00R\x06prompt\x88\x01\x01\x12&\n" +
 	"\fproject_root\x18\x03 \x01(\tH\x01R\vprojectRoot\x88\x01\x01\x12Y\n" +

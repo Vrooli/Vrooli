@@ -110,8 +110,11 @@ type UpdateSettingsRequest struct {
 	CircuitBreakerCooldownMinutes *int32           `protobuf:"varint,28,opt,name=circuit_breaker_cooldown_minutes,json=circuitBreakerCooldownMinutes,proto3,oneof" json:"circuit_breaker_cooldown_minutes,omitempty"`
 	ExecutionCostCapPerRun        *float64         `protobuf:"fixed64,29,opt,name=execution_cost_cap_per_run,json=executionCostCapPerRun,proto3,oneof" json:"execution_cost_cap_per_run,omitempty"`
 	CostPerTurnEstimate           *float64         `protobuf:"fixed64,30,opt,name=cost_per_turn_estimate,json=costPerTurnEstimate,proto3,oneof" json:"cost_per_turn_estimate,omitempty"`
-	unknownFields                 protoimpl.UnknownFields
-	sizeCache                     protoimpl.SizeCache
+	// Fix-before-feature gate controls (see domain Settings).
+	FixBeforeFeature          *string `protobuf:"bytes,35,opt,name=fix_before_feature,json=fixBeforeFeature,proto3,oneof" json:"fix_before_feature,omitempty"`
+	FixBeforeFeatureDiscovery *bool   `protobuf:"varint,36,opt,name=fix_before_feature_discovery,json=fixBeforeFeatureDiscovery,proto3,oneof" json:"fix_before_feature_discovery,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *UpdateSettingsRequest) Reset() {
@@ -326,13 +329,27 @@ func (x *UpdateSettingsRequest) GetCostPerTurnEstimate() float64 {
 	return 0
 }
 
+func (x *UpdateSettingsRequest) GetFixBeforeFeature() string {
+	if x != nil && x.FixBeforeFeature != nil {
+		return *x.FixBeforeFeature
+	}
+	return ""
+}
+
+func (x *UpdateSettingsRequest) GetFixBeforeFeatureDiscovery() bool {
+	if x != nil && x.FixBeforeFeatureDiscovery != nil {
+		return *x.FixBeforeFeatureDiscovery
+	}
+	return false
+}
+
 var File_swarm_manager_v1_api_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\n" +
 	"#swarm-manager/v1/api/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/settings.proto\"J\n" +
 	"\x10SettingsResponse\x126\n" +
-	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\xf9\x12\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\xc8\x14\n" +
 	"\x15UpdateSettingsRequest\x127\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x04darkR\x05lightR\x06systemH\x00R\x05theme\x88\x01\x01\x12=\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x15\xbaH\x12r\x10R\x00R\x06manualR\x04yoloH\x01R\vdefaultMode\x88\x01\x01\x12\"\n" +
@@ -362,7 +379,9 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\x19circuit_breaker_threshold\x18\x1b \x01(\x05H\x14R\x17circuitBreakerThreshold\x88\x01\x01\x12L\n" +
 	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05H\x15R\x1dcircuitBreakerCooldownMinutes\x88\x01\x01\x12?\n" +
 	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01H\x16R\x16executionCostCapPerRun\x88\x01\x01\x128\n" +
-	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01H\x17R\x13costPerTurnEstimate\x88\x01\x01\x1aH\n" +
+	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01H\x17R\x13costPerTurnEstimate\x88\x01\x01\x12O\n" +
+	"\x12fix_before_feature\x18# \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x03offR\asuggestR\x05blockH\x18R\x10fixBeforeFeature\x88\x01\x01\x12D\n" +
+	"\x1cfix_before_feature_discovery\x18$ \x01(\bH\x19R\x19fixBeforeFeatureDiscovery\x88\x01\x01\x1aH\n" +
 	"\x1aLaneConcurrencyLimitsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01B\b\n" +
@@ -389,7 +408,9 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\x1a_circuit_breaker_thresholdB#\n" +
 	"!_circuit_breaker_cooldown_minutesB\x1d\n" +
 	"\x1b_execution_cost_cap_per_runB\x19\n" +
-	"\x17_cost_per_turn_estimateJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10J\x04\b\x19\x10\x1aR\x17agent_requires_approvalR\x1bconfirm_destructive_actionsR\x19max_concurrent_executionsBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\x17_cost_per_turn_estimateB\x15\n" +
+	"\x13_fix_before_featureB\x1f\n" +
+	"\x1d_fix_before_feature_discoveryJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10J\x04\b\x19\x10\x1aR\x17agent_requires_approvalR\x1bconfirm_destructive_actionsR\x19max_concurrent_executionsBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_settings_proto_rawDescOnce sync.Once

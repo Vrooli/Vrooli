@@ -1,340 +1,85 @@
 # Ecosystem Manager
 
-**Unified system for generating and improving resources and scenarios**
+**The autonomous generation-and-improvement control plane for the Vrooli
+ecosystem.**
 
-The Ecosystem Manager is the unified platform for generating and improving both resources and scenarios across the Vrooli ecosystem, featuring a Trello-like interface for comprehensive visibility and management.
+Ecosystem Manager creates new scenarios and resources and drives existing
+ones toward an objective by running steer-skill agent loops — the
+"auto-steer" control loop — through `agent-manager`, with a Trello-style
+board for visibility and control.
 
-## 🎯 **Key Benefits**
+> **Read [`docs/concepts/CONTROL-MODEL.md`](docs/concepts/CONTROL-MODEL.md)
+> first.** It is the canonical mental model for how this scenario decides
+> to improve a target: a closed-loop controller (diagnose → select →
+> execute → measure → learn), with profiles as objective functions. The
+> rest of the code and docs serve that model.
 
-**Ecosystem Manager provides**:
-- **Unified visibility** - See all ecosystem work in one dashboard
-- **Intelligent prioritization** - Cross-type impact analysis
-- **Simplified operations** - One service instead of 4
-- **Enhanced features** - Smart suggestions and dependency chains
+## What You Get
 
-## 🏗️ **Architecture Overview**
+- **One control plane for four operations** — scenario/resource ×
+  generator/improver — instead of four separate tools.
+- **Auto-steer improvement loops** — apply steer skills across iterations
+  with metric-gated stop conditions and quality gates, executed via
+  `agent-manager`. (Today an open-loop schedule; being reframed as a
+  closed-loop controller — see the control model.)
+- **A Kanban board UI** — pending / in-progress / completed / failed /
+  blocked, with steering configuration and execution history.
+- **Persistent run history and metrics** — Postgres-backed analytics on
+  throughput, success rate, and PRD-completion improvement.
+- **A REST API and a thin CLI** — drive tasks, queue, steering, and logs
+  programmatically.
 
-### **Unified Operations**
-- **resource-generator**: Create new resources with v2.0 compliance
-- **resource-improver**: Improve existing resources for reliability
-- **scenario-generator**: Create new scenarios with comprehensive PRDs
-- **scenario-improver**: Improve existing scenarios for PRD completion
+Local surfaces (lifecycle-managed; ports are allocated by the lifecycle,
+with `30500` as the dashboard/proxy URL):
 
-### **Smart Prompt Selection**
-```yaml
-# Unified configuration with operation-specific sections
-operations:
-  resource-generator:
-    sections: [core, methodologies, generator-specific, resource-specific]
-  resource-improver:  
-    sections: [core, methodologies, improver-specific, resource-specific]
-  scenario-generator:
-    sections: [core, methodologies, generator-specific, scenario-specific]
-  scenario-improver:
-    sections: [core, methodologies, improver-specific, scenario-specific]
-```
+- Dashboard: `http://localhost:30500`
+- Health: `GET /health`
 
-### **Unified Queue Schema**
-```yaml
-id: "resource-generator-matrix-20250907"
-title: "Generate Matrix Synapse resource"
-type: "resource"          # resource | scenario
-operation: "generator"    # generator | improver  
-category: "communication" # Smart categorization
-priority: "high"
-effort_estimate: "4h"
-requirements: {}          # Operation-specific config
-status: "pending"         # pending | in-progress | completed | failed
-```
+## Documentation Map
 
-## 🚀 **Getting Started**
+Full documentation lives under [`docs/`](docs/) and is registered in
+[`docs/manifest.json`](docs/manifest.json) (scenario-docs v2 contract).
 
-### **Setup**
-```bash
-# Run setup (builds API, installs dependencies)
-vrooli scenario ecosystem-manager setup
+| Start here | Document |
+|---|---|
+| **The improvement-loop model (read first)** | [`docs/concepts/CONTROL-MODEL.md`](docs/concepts/CONTROL-MODEL.md) |
+| Orientation for picking up work | [`docs/START-HERE.md`](docs/START-HERE.md) |
+| Run it locally | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
+| System shape and surfaces | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
+| Capabilities and ownership | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
+| Vocabulary | [`docs/concepts/GLOSSARY.md`](docs/concepts/GLOSSARY.md) |
+| Control-loop state machine | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md) |
+| Data and storage | [`docs/concepts/DATA.md`](docs/concepts/DATA.md) |
+| Dependencies | [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
+| API / CLI / config reference | [`docs/reference/`](docs/reference/) |
+| Run, deploy, observe | [`docs/operations/`](docs/operations/) |
+| Seams, testing, errors, decisions, problems | [`docs/internal/`](docs/internal/) |
+| Known issues and the controller roadmap | [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md) |
 
-# Start the unified service
-vrooli scenario ecosystem-manager develop
+## Customize Safely
 
-# Install CLI (optional)
-cd /home/matthalloran8/Vrooli/scenarios/ecosystem-manager/cli && ./install.sh
-```
-
-### **Access Points**
-- **Dashboard**: http://localhost:30500  
-- **API**: http://localhost:30500/api
-- **Health**: http://localhost:30500/health
-- **CORS**: set `CORS_ALLOWED_ORIGINS` (comma-separated) to restrict origins; defaults to `*` for local dev.
-
-## 📊 **Trello-like Interface**
-
-### **Kanban Columns**
-- **Pending** ⏳ - Tasks waiting to start
-- **Active** 🔄 - Currently being worked on  
-- **Completed** 👁️ - Implementation finished and awaiting verification
-- **Finished** ✅ - Fully delivered and closed out
-- **Failed** ❌ - Attempts that ended unsuccessfully
-- **Blocked** 🚫 - Work items stuck on external issues
-
-### **Smart Filters**
-- **Type**: Resource vs Scenario
-- **Operation**: Generator vs Improver
-- **Category**: AI/ML, Communication, Data, Security, etc.
-- **Priority**: Critical, High, Medium, Low
-- **Search**: Title, ID, category text search
-
-### **Task Cards**
-```
-🔧➕ Matrix Synapse                    ← Type + Operation icons
-Resource Generator                      ← Operation description  
-#communication #federated-chat          ← Smart tags
-────────────────────
-Est: 4h | Priority: High              ← Effort + Priority
-▓▓▓░░░░░░░ 30%                        ← Progress bar
-Currently: Research                     ← Current phase
-```
-
-## 🔌 **API Endpoints**
-
-### **Task Management**
-```bash
-# List tasks with filters
-GET /api/tasks?status=pending&type=resource&category=ai-ml
-
-# Create new task  
-POST /api/tasks
-{
-  "title": "Generate Matrix Synapse resource",
-  "type": "resource",
-  "operation": "generator", 
-  "category": "communication",
-  "priority": "high"
-}
-
-# Get task details
-GET /api/tasks/{id}
-
-# Update task status
-PUT /api/tasks/{id}/status
-{
-  "status": "in-progress",
-  "current_phase": "implementation"
-}
-
-# Get task's prompt configuration
-GET /api/tasks/{id}/prompt
-```
-
-### **Queue Control**
-```bash
-POST /api/queue/start            # Resume processing (still gated by Settings active toggle)
-POST /api/queue/stop             # Pause processing
-POST /api/queue/processes/terminate
-POST /api/queue/reset-rate-limit
-GET  /api/queue/status
-```
-
-### **Settings & Logs**
-```bash
-GET  /api/settings               # Current settings
-PUT  /api/settings               # Update settings
-POST /api/settings/reset         # Reset defaults
-GET  /api/settings/recycler/models
-GET  /api/logs                   # Structured historical logs for UI
-```
-
-### **Auto Steer**
-```bash
-# Profiles
-POST /api/auto-steer/profiles
-GET  /api/auto-steer/profiles
-GET  /api/auto-steer/profiles/{id}
-PUT  /api/auto-steer/profiles/{id}
-DELETE /api/auto-steer/profiles/{id}
-
-# Execution
-POST /api/auto-steer/execution/start
-POST /api/auto-steer/execution/evaluate
-POST /api/auto-steer/execution/reset
-POST /api/auto-steer/execution/advance
-POST /api/auto-steer/execution/seek
-GET  /api/auto-steer/execution/{taskId}
-
-# Analytics / metrics / history
-GET  /api/auto-steer/metrics/{taskId}
-GET  /api/auto-steer/history
-GET  /api/auto-steer/history/{executionId}
-POST /api/auto-steer/history/{executionId}/feedback
-GET  /api/auto-steer/analytics/{profileId}
-```
-
-**Profile registry**: Auto Steer profiles live on disk under `scenarios/ecosystem-manager/profiles/` and are indexed by `metadata.json`. Postgres stores only execution state and history.
-
-### **Configuration**
-```bash
-# List available operation types
-GET /api/operations
-```
-
-## 📁 Task Queue Storage Contract (API)
-- Tasks are persisted as YAML under `scenarios/ecosystem-manager/queue/<status>/`; the directory name is the single source of truth for status (valid values follow `pkg/tasks.QueueStatuses`).
-- Status transitions are atomic file moves between status folders; handlers do not mutate files in place for transitions.
-- On API startup the storage layer re-syncs status from folder names, normalizes `targets`/`target`, and removes duplicate task IDs to keep the queue consistent for other scenarios.
-- Writers should set core fields (`id`, `title`, `type`, `operation`, `status`, `targets`/`target`) and let the API fill derived fields; avoid inventing new status folders.
-- External edits are supported, but prefer moving files between canonical directories to change state rather than editing the status field inside the YAML.
-
-## 🖥️ **CLI Interface**
-
-### **Natural Commands**
-```bash
-# Create tasks
-ecosystem-manager add resource matrix-synapse --category communication
-ecosystem-manager improve scenario system-monitor --priority high
-
-# Monitor progress  
-ecosystem-manager list --status pending --type resource
-ecosystem-manager show <task-id>
-ecosystem-manager queue
-
-# Update tasks
-ecosystem-manager status <task-id> --progress 75 --phase testing
-```
-
-### **Smart Shortcuts**
-```bash
-# Generators (create new)
-ecosystem-manager add resource vault --category security
-ecosystem-manager add scenario chat-bot --category ai-tools
-
-# Improvers (enhance existing)  
-ecosystem-manager improve resource ollama --priority high
-ecosystem-manager improve scenario invoice-generator
-```
-
-## 🔄 **Testing & Validation**
-
-### **Running Tests**
-```bash
-# Run comprehensive test suite
-vrooli scenario ecosystem-manager test
-
-# Stop the service when done
-vrooli scenario ecosystem-manager stop
-
-# Create test tasks of each type
-ecosystem-manager add resource test-resource --category ai-ml  
-ecosystem-manager improve resource ollama
-ecosystem-manager add scenario test-scenario --category productivity
-ecosystem-manager improve scenario system-monitor
-
-# Monitor operations
-ecosystem-manager queue
-ecosystem-manager list --status in-progress
-tail -f logs/api.log
-```
-
-## 📈 **Enhanced Features**
-
-### **Cross-Type Intelligence**
-- **Impact Analysis**: "Matrix resource would enable 3 communication scenarios"
-- **Smart Suggestions**: "Upgrading Ollama affects 5 AI scenarios"
-- **Dependency Chains**: "Create Vault → Secure scenarios → Generate security toolkit"
-
-### **Better Resource Management**
-- **Unified Port Allocation**: No conflicts between different operations
-- **Shared Memory**: All operations benefit from collective Qdrant knowledge
-- **Coordinated Selection**: Prevent multiple operations on same target
-
-### **Advanced Monitoring**
-- **Cross-scenario metrics**: Success rates by operation type
-- **Resource utilization**: Which resources are most/least used
-- **Completion trends**: Time to completion by category
-- **Queue analytics**: Bottlenecks and optimization opportunities
-
-## 🔧 **Development**
-
-### **Adding New Operation Types**
-```yaml
-# In prompts/sections.yaml
-operations:
-  new-operation-type:
-    name: "new-operation"
-    type: "generator"  # or "improver"
-    target: "resources"  # or "scenarios"
-    additional_sections:
-      - "specific/new-operation-sections"
-    variables:
-      focus: "specific focus area"
-```
-
-### **Extending Categories**
-```javascript
-// In ui/app.js
-categoryOptions: {
-  resource: [
-    { value: 'new-category', label: 'New Category' }
-  ]
-}
-```
-
-### **Custom Validation**
-```go
-// In api/main.go - add custom validation logic
-func validateTaskRequest(task TaskItem) error {
-    // Custom validation logic
-}
-```
-
-## 📦 **Dependencies**
-
-### **Required Scenarios**
-
-Ecosystem Manager requires the following scenarios to be running:
-
-| Scenario | Purpose |
-|----------|---------|
-| **agent-manager** | Centralized agent orchestration for task execution |
-| **scenario-completeness-scoring** | PRD completion scoring for scenario improvement |
-
-### **Agent Manager Integration**
-
-Ecosystem Manager delegates all agent execution to the **agent-manager** service, which provides:
-
-- **Multi-runner support**: Switch between Claude Code, OpenAI Codex, or OpenCode via settings
-- **Profile-based configuration**: Separate profiles for tasks and insights with different settings
-- **Simplified cleanup**: Single API call to stop runs instead of complex process management
-- **Event streaming**: Real-time task progress via event API
-
-**Configuration**: Agent settings (runner type, max turns, timeouts, allowed tools) are configured in the Settings modal under the "Agent" tab. Changes are automatically propagated to agent-manager profiles.
-
-### **Database Requirements**
-
-PostgreSQL database `vrooli_ecosystem_manager` is automatically created during setup. The schema includes:
-- Task execution history for analytics
-- Auto-steer profiles and execution state
-- Performance metrics aggregation
-
-To manually initialize the schema:
-```bash
-docker exec -i vrooli-postgres-main psql -U vrooli -d vrooli_ecosystem_manager < initialization/postgres/schema.sql
-```
-
-## 🎉 **Success Metrics**
-
-### **Consolidation Benefits**
-- ✅ **Reduced Complexity**: 1 codebase instead of 4
-- ✅ **Better Visibility**: Single dashboard for all ecosystem work  
-- ✅ **Enhanced Features**: Cross-type analysis and smart prioritization
-- ✅ **Easier Maintenance**: Single deployment, monitoring, testing
-- ✅ **Improved UX**: Natural workflow matching user mental models
-
-### **Operational Improvements**
-- **Time to value**: Faster task creation and monitoring
-- **Resource efficiency**: No duplicate infrastructure
-- **Knowledge sharing**: Unified memory and learning
-- **Error reduction**: Consistent patterns and validation
+- **Change the improvement loop?** Update
+  [`docs/concepts/CONTROL-MODEL.md`](docs/concepts/CONTROL-MODEL.md)
+  first — it is the design authority — then the auto-steer code under
+  `api/pkg/autosteer/`.
+- **Change a profile?** Edit `profiles/<id>/profile.json` (filesystem,
+  version-controlled). Profiles are configuration, not code.
+- **Add an endpoint or capability?** Follow the extension rules in
+  [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) and
+  update the matching reference docs.
+- **Run and manage it** only through the lifecycle —
+  `vrooli scenario {start,stop,restart,status} ecosystem-manager` or the
+  scenario `Makefile` (`make start|stop|logs|test`). Never execute the
+  API binary directly.
+- **Note the transport deviation:** this scenario serves REST/JSON, not
+  proto/Connect-RPC. New work should respect that reality and the
+  migration note in [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md);
+  see [`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md).
 
 ---
 
-**Ecosystem Manager transforms 4 overlapping tools into 1 powerful ecosystem management platform.** 🚀
+Ecosystem Manager is the engine that produces and hardens the rest of the
+Vrooli portfolio. Making it a genuinely intelligent controller raises the
+leverage of everything it touches — which is why the
+[control model](docs/concepts/CONTROL-MODEL.md) is the most important
+document in this scenario.

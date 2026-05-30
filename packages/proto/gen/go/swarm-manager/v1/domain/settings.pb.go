@@ -183,8 +183,15 @@ type Settings struct {
 	CircuitBreakerCooldownMinutes int32            `protobuf:"varint,28,opt,name=circuit_breaker_cooldown_minutes,json=circuitBreakerCooldownMinutes,proto3" json:"circuit_breaker_cooldown_minutes,omitempty"`
 	ExecutionCostCapPerRun        float64          `protobuf:"fixed64,29,opt,name=execution_cost_cap_per_run,json=executionCostCapPerRun,proto3" json:"execution_cost_cap_per_run,omitempty"`
 	CostPerTurnEstimate           float64          `protobuf:"fixed64,30,opt,name=cost_per_turn_estimate,json=costPerTurnEstimate,proto3" json:"cost_per_turn_estimate,omitempty"`
-	unknownFields                 protoimpl.UnknownFields
-	sizeCache                     protoimpl.SizeCache
+	// Fix-before-feature gate. "off" | "suggest" (default) | "block": when a
+	// feature item (kind=execute) is queued onto a scenario with open fix/chore
+	// items, advise or block accordingly.
+	FixBeforeFeature string `protobuf:"bytes,35,opt,name=fix_before_feature,json=fixBeforeFeature,proto3" json:"fix_before_feature,omitempty"`
+	// When true, queuing a feature item onto a scenario with no known open fix
+	// work triggers an async on-demand readiness review that auto-files fixes.
+	FixBeforeFeatureDiscovery bool `protobuf:"varint,36,opt,name=fix_before_feature_discovery,json=fixBeforeFeatureDiscovery,proto3" json:"fix_before_feature_discovery,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *Settings) Reset() {
@@ -406,6 +413,20 @@ func (x *Settings) GetCostPerTurnEstimate() float64 {
 	return 0
 }
 
+func (x *Settings) GetFixBeforeFeature() string {
+	if x != nil {
+		return x.FixBeforeFeature
+	}
+	return ""
+}
+
+func (x *Settings) GetFixBeforeFeatureDiscovery() bool {
+	if x != nil {
+		return x.FixBeforeFeatureDiscovery
+	}
+	return false
+}
+
 var File_swarm_manager_v1_domain_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
@@ -416,7 +437,7 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\n" +
 	"initiative\x18\x02 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\n" +
 	"initiative\x12>\n" +
-	"\acapture\x18\x03 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\acapture\"\xad\x0f\n" +
+	"\acapture\x18\x03 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\acapture\"\xb8\x10\n" +
 	"\bSettings\x120\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x126\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\vdefaultMode\x12\x1d\n" +
@@ -451,7 +472,9 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xa0\v(\x05R\x1dcircuitBreakerCooldownMinutes\x12J\n" +
 	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01B\x0e\xbaH\v\x12\t)\x00\x00\x00\x00\x00\x00\x00\x00R\x16executionCostCapPerRun\x12L\n" +
-	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13costPerTurnEstimate\x1aH\n" +
+	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13costPerTurnEstimate\x12H\n" +
+	"\x12fix_before_feature\x18# \x01(\tB\x1a\xbaH\x17r\x15R\x03offR\asuggestR\x05blockR\x10fixBeforeFeature\x12?\n" +
+	"\x1cfix_before_feature_discovery\x18$ \x01(\bR\x19fixBeforeFeatureDiscovery\x1aH\n" +
 	"\x1aLaneConcurrencyLimitsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10J\x04\b\x19\x10\x1aR\x17agent_requires_approvalR\x1bconfirm_destructive_actionsR\x19max_concurrent_executions*\x9b\x01\n" +

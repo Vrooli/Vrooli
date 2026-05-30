@@ -50,6 +50,7 @@ The `qa-contrarian` member challenges audit outcomes; for `screaming-architectur
 
 ## Cross-references
 
+- [`architecture-validation-responsibilities`](../../../reference/architecture-validation-responsibilities.md) — the doctrine behind this lens's L5 ("programmatic drift checks") rung: the four validation responsibilities, the test-genie↔cartographer seam, and the audit→campaign loop (`test-genie execute <scenario> --preset architecture-audit` → `architecture-cartographer campaign …`).
 - [`README.md`](README.md) — registry overview, lifecycle rules, doc + paired skill discipline.
 - [`boundary-of-responsibility-enforcement.md`](boundary-of-responsibility-enforcement.md) — companion lens; this lens governs *names and grouping*, that one governs *who owns what*.
 - [`cognitive-load-reduction.md`](cognitive-load-reduction.md) — companion lens; clarity at the *local readability* layer pairs with clarity at the *macro structure* layer.

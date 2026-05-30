@@ -26,15 +26,16 @@ Scenario QA does not directly patch target scenario code. It may create evidence
 
 ## Operating Loops
 
-Scenario QA has five loops:
+Scenario QA has four loops:
 
-1. **Readiness loop** — inspect existing scenarios with programmatic checks, record `qa-run/*`, and raise backlog decisions for material failures.
-2. **Audit loop** — apply judgment-based audit techniques, record `quality-audit/*`, and raise backlog decisions when the finding warrants execution.
-3. **Bug loop** — drain universal `bug-inbox/*`, investigate root cause, write `bug-investigation-report/*`, and route cross-cutting fixes through decisions.
-4. **Challenge loop** — review QA outputs and decisions, write `challenge-report/*` and `challenge-resolution-record/*` only when concrete failure modes are present.
-5. **Learning loop** — turn repeated investigation/audit lessons into technique updates, capability gaps, or meta-optimization improvements.
+1. **Audit loop** — apply judgment-based audit techniques, record `quality-audit/*`, and raise backlog decisions when the finding warrants execution.
+2. **Bug loop** — drain universal `bug-inbox/*`, investigate root cause, write `bug-investigation-report/*`, and route cross-cutting fixes through decisions.
+3. **Challenge loop** — review QA outputs and decisions, write `challenge-report/*` and `challenge-resolution-record/*` only when concrete failure modes are present.
+4. **Learning loop** — turn repeated investigation/audit lessons into technique updates, capability gaps, or meta-optimization improvements.
 
-The loops may run independently. A bug can be investigated without a readiness review; an audit can raise no decision; the contrarian can stay quiet when outputs are clean.
+The loops may run independently. An audit can raise no decision; the contrarian can stay quiet when outputs are clean.
+
+> **Pre-emptive readiness is no longer a QA loop.** A former *readiness loop* swept idle scenarios with programmatic checks and filed fix items before feature work. That ordering moved into swarm-manager as a deterministic gate (`fix_before_feature`) plus optional on-demand discovery (`fix_before_feature_discovery`); regressions on scheduled scenarios are caught by execution finalization's before/after baseline diff.
 
 ## Operating Graph
 
@@ -60,8 +61,6 @@ flowchart LR
   end
 
   %% Members
-  %% @node PQR member:programmatic-qa-runner
-  PQR[Programmatic QA Runner]
   %% @node QA member:quality-auditor
   QA[Quality Auditor]
   %% @node BI member:bug-investigator
@@ -70,12 +69,6 @@ flowchart LR
   QC[QA Contrarian]
 
   %% Topics
-  %% @node REVIEWED topic:reviewed-scenario/<scenario-id>
-  REVIEWED[(reviewed-scenario/<scenario-id>)]
-  %% @node DEP topic:dependency-wiring
-  DEP[(dependency-wiring)]
-  %% @node QARUN topic:qa-run/<scenario-id>
-  QARUN[(qa-run/<scenario-id>)]
   %% @node QUAUD topic:quality-audit/<scenario-id>/<skill-id>
   QUAUD[(quality-audit/<scenario-id>/<skill-id>)]
   %% @node BUGIN topic:bug-inbox/<signal-type>/<slug>
@@ -88,8 +81,6 @@ flowchart LR
   RES[(challenge-resolution-record/<slug>)]
 
   %% Decisions
-  %% @node PRE decision:preemptive-qa-backlog
-  PRE{preemptive-qa-backlog}
   %% @node QBACK decision:quality-audit-backlog
   QBACK{quality-audit-backlog}
   %% @node BUGDEC decision:bug-resolution-proposal
@@ -107,18 +98,6 @@ flowchart LR
     %% @node META team:meta-optimization
     META[[Meta Optimization]]
   end
-
-  %% Programmatic readiness
-  OP --> PQR
-  REVIEWED --> PQR
-  DEP --> PQR
-  CHAL --> PQR
-  RES --> PQR
-  PRE --> PQR
-  PQR --> REVIEWED
-  PQR --> DEP
-  PQR --> QARUN
-  PQR --> PRE
 
   %% Structural audit
   OP --> QA
@@ -145,7 +124,6 @@ flowchart LR
   %% Contrarian review
   CHAL --> QC
   RES --> QC
-  PRE --> QC
   QBACK --> QC
   BUGDEC --> QC
   CAP --> QC
@@ -153,7 +131,6 @@ flowchart LR
   QC --> RES
 
   %% Downstream effects
-  PRE --> BACKLOG
   QBACK --> BACKLOG
   BUGDEC --> BACKLOG
   BACKLOG --> SWARM
@@ -165,14 +142,11 @@ flowchart LR
 
 | Topic family | Status | Owner / primary writer | Primary readers | Purpose |
 |---|---|---|---|---|
-| `topic:reviewed-scenario/<scenario-id>` | live | programmatic-qa-runner | programmatic-qa-runner | Append-only record that a scenario has been reviewed by programmatic QA, used to avoid duplicate readiness churn. |
-| `topic:dependency-wiring` | live | programmatic-qa-runner | programmatic-qa-runner | Append-only observations about cross-scenario or resource wiring issues discovered during readiness review. |
-| `topic:qa-run/<scenario-id>` | live | programmatic-qa-runner |  | Programmatic readiness-review result for a scenario, including evidence for downstream backlog work. |
 | `topic:quality-audit/<scenario-id>/<skill-id>` | live | quality-auditor | quality-auditor | Judgment-based structural audit finding produced with a registered audit technique. |
 | `topic:bug-inbox/<signal-type>/<slug>` | live | report-bug | bug-investigator | Universal-source bug intake written by any team through the report-bug skill and drained by bug-investigator. |
 | `topic:bug-investigation-report/<slug>` | live | bug-investigator | bug-investigator | Closed bug-investigation audit log with root cause, evidence, action taken, and remaining gaps. |
-| `topic:challenge-report/<slug>` | live | qa-contrarian | programmatic-qa-runner, quality-auditor, bug-investigator, qa-contrarian | Append-only contrarian challenge evidence for scenario-qa findings, investigations, and backlog decisions. |
-| `topic:challenge-resolution-record/<slug>` | live | qa-contrarian | programmatic-qa-runner, quality-auditor, bug-investigator, qa-contrarian | Latest-state record for a scenario-qa challenge: open, author-responded, resolved, escalated, overridden, or stale. |
+| `topic:challenge-report/<slug>` | live | qa-contrarian | quality-auditor, bug-investigator, qa-contrarian | Append-only contrarian challenge evidence for scenario-qa findings, investigations, and backlog decisions. |
+| `topic:challenge-resolution-record/<slug>` | live | qa-contrarian | quality-auditor, bug-investigator, qa-contrarian | Latest-state record for a scenario-qa challenge: open, author-responded, resolved, escalated, overridden, or stale. |
 
 ## Decisions
 
@@ -180,7 +154,6 @@ Decision contexts gate downstream work or missing-capability escalation. This se
 
 | Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
 |---|---|---|---|---|
-| `preemptive-qa-backlog` | programmatic-qa-runner | GCT-driven QA findings converted into Swarm Manager fix/chore/execute backlog items. | `qa-run/*`, reviewed-scenario history, dependency-wiring evidence, and challenge records when present. | Downstream swarm-manager backlog or initiative work is created. |
 | `quality-audit-backlog` | quality-auditor | Judgment-based structural audit findings converted into Swarm Manager execute backlog items. | `quality-audit/*` evidence from a registered audit technique and challenge records when present. | Downstream swarm-manager backlog or execution work is created. |
 | `bug-resolution-proposal` | bug-investigator | Cross-cutting fixes that require operator approval. | `bug-inbox/*`, investigation report, root-cause evidence, and challenge records when present. | Fix/chore/backlog work is created or operator-approved policy changes are applied. |
 | `capability-gap` | bug-investigator | Missing source access, tooling, scenario capability, investigation support, or QA infrastructure that blocks quality work. | Investigation or QA work is blocked by a missing reusable capability rather than by weak evidence. | Gap routes to meta-optimization, director-swarm, or downstream implementation work. |
@@ -189,7 +162,7 @@ Decision contexts gate downstream work or missing-capability escalation. This se
 
 | Producer / trigger | Entry surface | Drainer | Routing rule |
 |---|---|---|---|
-| Operator | direct member context for readiness or audit work | programmatic-qa-runner, quality-auditor | Existing scenarios can be reviewed or audited on operator request; planned scenarios without directories are out of scope. |
+| Operator | direct member context for audit work | quality-auditor | Existing scenarios can be audited on operator request; planned scenarios without directories are out of scope. |
 | Any team via `report-bug` | `topic:bug-inbox/<signal-type>/<slug>` | bug-investigator | Bug-investigator validates signal type, investigates root cause, records a report, and routes action. |
 | Challenge evidence | `topic:challenge-report/<slug>` and `topic:challenge-resolution-record/<slug>` | decision owners and qa-contrarian | Decision owners read challenge evidence before proposing or defending backlog decisions. |
 | Repeated investigation or audit technique gaps | `capability-gap` or meta-optimization decision | bug-investigator, quality-auditor, qa-contrarian | Missing methods, stale registries, or repeated ambiguity route to meta-optimization rather than becoming ad hoc prose. |
@@ -198,10 +171,9 @@ Decision contexts gate downstream work or missing-capability escalation. This se
 
 | Output | Surface | Consumer | Purpose |
 |---|---|---|---|
-| Programmatic readiness evidence | `qa-run/*`, `reviewed-scenario/*`, `dependency-wiring/*` | programmatic-qa-runner, swarm-manager via decisions | Evidence base for preemptive QA backlog. |
 | Structural audit evidence | `quality-audit/*` | quality-auditor, swarm-manager via decisions | Evidence base for quality-audit backlog. |
 | Bug investigation report | `bug-investigation-report/*` | bug-investigator, qa-contrarian, downstream fix owners | Durable root-cause record for a drained bug. |
-| Backlog decisions | `preemptive-qa-backlog`, `quality-audit-backlog`, `bug-resolution-proposal` | swarm-manager and operator | Route findings into executable work without direct edits by scenario-qa. |
+| Backlog decisions | `quality-audit-backlog`, `bug-resolution-proposal` | swarm-manager and operator | Route findings into executable work without direct edits by scenario-qa. |
 | Capability gaps | `capability-gap` decisions | meta-optimization, director-swarm, or implementation teams | Route missing quality infrastructure or investigation capability. |
 | Challenge evidence | `challenge-report/*`, `challenge-resolution-record/*` | QA decision owners and operator | Prevent weak QA findings from becoming unchallenged work. |
 
@@ -211,16 +183,14 @@ Scenario QA improves itself through four exits:
 
 1. **Bug reporting** — any team reports broken behavior through `report-bug`; bug-investigator drains and closes each entry with a report.
 2. **Contrarian review** — qa-contrarian writes `challenge-report/*` and `challenge-resolution-record/*` only when a registered failure mode applies.
-3. **Technique promotion** — repeated investigation or audit lessons become `preemptive-qa-backlog`, `quality-audit-backlog`, `bug-resolution-proposal`, or meta-optimization decisions.
+3. **Technique promotion** — repeated investigation or audit lessons become `quality-audit-backlog`, `bug-resolution-proposal`, or meta-optimization decisions.
 4. **Capability gaps** — missing source access, scenario affordances, tooling, or QA infrastructure become `capability-gap` decisions instead of hidden blockers.
 
 System-level friction that is not broken behavior should use meta-optimization's `report-friction` flow. Scenario QA should not absorb general process friction into bug reports.
 
 ## Roles
 
-### Programmatic QA Runner
-
-Owns programmatic readiness review. It reads prior reviewed-scenario and dependency-wiring state, writes readiness evidence, and raises `preemptive-qa-backlog` when a finding should become downstream work.
+> Pre-emptive readiness review is no longer a QA member role. The ordering ("fix before feature") is enforced programmatically by swarm-manager's `fix_before_feature` gate, and latent issues are surfaced by its optional `fix_before_feature_discovery` on-demand readiness run — both consuming GCT directly, not a QA member's knowledge topics.
 
 ### Quality Auditor
 
@@ -236,9 +206,9 @@ Owns challenge discipline. It reads QA outputs and decisions, writes challenge r
 
 ## Current Implementation Gaps
 
-1. `qa-run/*` and `quality-audit/*` should remain terminal evidence outputs in the graph. Their downstream execution path is through decisions, not direct topic consumption.
+1. `quality-audit/*` should remain a terminal evidence output in the graph. Its downstream execution path is through decisions, not direct topic consumption.
 2. `capability-gap` is now declared in the scenario-qa team contract so the operating graph can model missing QA capability explicitly. Other teams using `capability-gap` should follow the same explicit-contract pattern.
-3. The `readiness-checks` registry is still a stub. Programmatic readiness dimensions should graduate into paired docs and skills as GCT dimensions stabilize.
+3. The `readiness-checks` registry is still a stub. Readiness-dimension techniques should graduate into paired docs and skills as GCT dimensions stabilize; pre-emptive ordering itself is handled by swarm-manager's fix-before-feature gate, not a QA member.
 4. Future operator-fed `qa-inbox/*` and `audit-inbox/*` topics remain out of the contract until a producer exists.
 5. `bug-resolution-proposal` and `quality-backlog-proposal` accepted effects should eventually resolve against concrete downstream backlog implementation contracts, not only prose surfaces.
 

@@ -223,13 +223,12 @@ Per team: the topics that team currently produces and drains, with first-princip
 
 ### scenario-qa
 
-**Mission:** ensure scenario quality through structural quality audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes.
+**Mission:** ensure scenario quality through structural quality audits, root-cause bug investigation, and contrarian challenge of QA outcomes. (Pre-emptive readiness ordering moved to swarm-manager's fix-before-feature gate.)
 
 **Plan of record:** [`path:docs/scenario-qa/`](../scenario-qa/) — README, three paired-doc-and-skill registries (`investigation-techniques/`, `audit-techniques/`, `readiness-checks/`), `BUG_REPORT_TAXONOMY.md`. Owner-curated like every other team PoR.
 
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
-| `programmatic-qa-runner` | _(none — proactive)_ | `qa-run/*`, `reviewed-scenario/*`, `dependency-wiring` | — |
 | `quality-auditor` | _(none — proactive)_ | `quality-audit/*` | — |
 | `bug-investigator` | `bug-inbox/*` (taxonomy: `bug-report`, source: `*` — universal-source) | `bug-investigation-report/*` | producers: every team via the `report-bug` writer skill |
 | `qa-contrarian` | _(none — proactive)_ | `challenge-report/*`, `challenge-resolution-record/*` | — |

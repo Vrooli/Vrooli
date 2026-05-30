@@ -155,7 +155,7 @@ class QueueBacklogItemRequest(_message.Message):
     def __init__(self, operation: _Optional[str] = ..., mode: _Optional[str] = ..., started_by: _Optional[str] = ..., confirm: _Optional[bool] = ..., force: _Optional[bool] = ...) -> None: ...
 
 class QueueBacklogItemResponse(_message.Message):
-    __slots__ = ("item", "task_id", "run_id", "base_url", "created", "dry_run", "queued", "message", "blocking_reasons", "unanswered_questions", "pending_suggestions")
+    __slots__ = ("item", "task_id", "run_id", "base_url", "created", "dry_run", "queued", "message", "blocking_reasons", "unanswered_questions", "pending_suggestions", "advisories")
     ITEM_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -167,6 +167,7 @@ class QueueBacklogItemResponse(_message.Message):
     BLOCKING_REASONS_FIELD_NUMBER: _ClassVar[int]
     UNANSWERED_QUESTIONS_FIELD_NUMBER: _ClassVar[int]
     PENDING_SUGGESTIONS_FIELD_NUMBER: _ClassVar[int]
+    ADVISORIES_FIELD_NUMBER: _ClassVar[int]
     item: _backlog_pb2.BacklogItem
     task_id: str
     run_id: str
@@ -178,7 +179,8 @@ class QueueBacklogItemResponse(_message.Message):
     blocking_reasons: _containers.RepeatedCompositeFieldContainer[BlockingReason]
     unanswered_questions: int
     pending_suggestions: int
-    def __init__(self, item: _Optional[_Union[_backlog_pb2.BacklogItem, _Mapping]] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., base_url: _Optional[str] = ..., created: _Optional[str] = ..., dry_run: _Optional[bool] = ..., queued: _Optional[bool] = ..., message: _Optional[str] = ..., blocking_reasons: _Optional[_Iterable[_Union[BlockingReason, _Mapping]]] = ..., unanswered_questions: _Optional[int] = ..., pending_suggestions: _Optional[int] = ...) -> None: ...
+    advisories: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, item: _Optional[_Union[_backlog_pb2.BacklogItem, _Mapping]] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., base_url: _Optional[str] = ..., created: _Optional[str] = ..., dry_run: _Optional[bool] = ..., queued: _Optional[bool] = ..., message: _Optional[str] = ..., blocking_reasons: _Optional[_Iterable[_Union[BlockingReason, _Mapping]]] = ..., unanswered_questions: _Optional[int] = ..., pending_suggestions: _Optional[int] = ..., advisories: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class BacklogResearchRequest(_message.Message):
     __slots__ = ("prompt", "project_root", "mode", "context_paths", "context_target_ids", "context_requirement_ids", "confirm", "force")

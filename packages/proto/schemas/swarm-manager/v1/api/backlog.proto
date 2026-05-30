@@ -246,6 +246,9 @@ message QueueBacklogItemResponse {
   int32 unanswered_questions = 10;
   // Number of suggestions still pending user decision.
   int32 pending_suggestions = 11;
+  // Non-blocking advisories surfaced to the caller (e.g. the
+  // fix-before-feature gate in "suggest" mode). The queue still proceeds.
+  repeated string advisories = 12;
 }
 
 // BacklogResearchRequest captures optional fields for spawning a research agent.

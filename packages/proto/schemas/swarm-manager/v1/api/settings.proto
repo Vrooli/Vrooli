@@ -84,6 +84,10 @@ message UpdateSettingsRequest {
   optional double execution_cost_cap_per_run = 29;
   optional double cost_per_turn_estimate = 30;
 
+  // Fix-before-feature gate controls (see domain Settings).
+  optional string fix_before_feature = 35 [(buf.validate.field).string = { in: ["", "off", "suggest", "block"] }];
+  optional bool fix_before_feature_discovery = 36;
+
   reserved 25;
   reserved "max_concurrent_executions";
 }

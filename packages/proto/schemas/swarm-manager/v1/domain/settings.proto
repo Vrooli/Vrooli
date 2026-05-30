@@ -99,6 +99,14 @@ message Settings {
   double execution_cost_cap_per_run = 29 [(buf.validate.field).double.gte = 0];
   double cost_per_turn_estimate = 30 [(buf.validate.field).double = { gte: 0, lte: 5 }];
 
+  // Fix-before-feature gate. "off" | "suggest" (default) | "block": when a
+  // feature item (kind=execute) is queued onto a scenario with open fix/chore
+  // items, advise or block accordingly.
+  string fix_before_feature = 35 [(buf.validate.field).string = { in: ["off", "suggest", "block"] }];
+  // When true, queuing a feature item onto a scenario with no known open fix
+  // work triggers an async on-demand readiness review that auto-files fixes.
+  bool fix_before_feature_discovery = 36;
+
   reserved 25;
   reserved "max_concurrent_executions";
 }

@@ -1,6 +1,8 @@
 # Scenario QA Readiness Checks — Plan of Record
 
-This folder is the **strategic canon** for the readiness-dimension checks the `programmatic-qa-runner` member applies during preemptive QA reviews. One paired doc + skill per check, once entries exist.
+This folder is the **strategic canon** for readiness-dimension checks. One paired doc + skill per check, once entries exist.
+
+> **Pre-emptive readiness ordering lives in swarm-manager now.** A former QA member ran these reviews on idle scenarios and filed fix items ahead of feature work. That ordering is now a deterministic swarm-manager gate (`fix_before_feature`) plus optional on-demand discovery (`fix_before_feature_discovery`). This registry remains the home for *individual readiness-check techniques* should they graduate into Vrooli skills; it no longer belongs to a specific QA member.
 
 These docs would answer: *what is this readiness check, when does it apply, when does it backfire, what's the failure mode the qa-contrarian watches for?*
 
@@ -36,12 +38,11 @@ The canon coherence test at `scenarios/prompt-manager/test/agent_system_canon_te
 
 Each check has a status:
 
-- **v0** — Strategic canon documented, not yet active. PoR doc exists; paired skill missing or incomplete; programmatic-qa-runner must not include it.
-- **v1** — Active. Four activation requirements:
+- **v0** — Strategic canon documented, not yet active. PoR doc exists; paired skill missing or incomplete; consumers must not include it.
+- **v1** — Active. Three activation requirements:
   1. Skill is authored at `path:scenarios/prompt-manager/store/skills/packs/core/<slug>/`.
   2. Skill cites this check's PoR doc as required reading.
   3. PoR doc Status line bumped to `v1`.
-  4. `programmatic-qa-runner/RESPONSIBILITIES.md` Available Skills table references the check.
 
 ## Files in this folder
 
@@ -49,7 +50,7 @@ None yet — populated as GCT dimensions stabilize.
 
 ## Adding a check
 
-When the substrate calls for a concrete entry, follow the same flow as the sibling registries: file a `meta-self-improvement` decision proposing the addition, including (1) why now, (2) draft PoR doc, (3) draft paired skill with `tags: ["readiness-check"]`, (4) activation update to `programmatic-qa-runner/RESPONSIBILITIES.md`. Operator approval activates.
+When the substrate calls for a concrete entry, follow the same flow as the sibling registries: file a `meta-self-improvement` decision proposing the addition, including (1) why now, (2) draft PoR doc, (3) draft paired skill with `tags: ["readiness-check"]`. Operator approval activates.
 
 ## Cross-references
 

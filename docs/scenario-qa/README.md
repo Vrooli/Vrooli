@@ -22,20 +22,20 @@ Use this README first, then choose the file or sub-hub that matches the work:
 
 ## Team shape
 
-scenario-qa runs four members:
+scenario-qa runs three members:
 
 | Member | Role | Primary signal |
 |---|---|---|
-| `programmatic-qa-runner` | GCT-driven readiness reviews; creates fix/chore/execute backlog items | `qa-run/<scenario-id>` knowledge entries |
 | `quality-auditor` | Judgment-based structural audits using a rotation of seven audit lenses | `topic[example]:quality-audit/<scenario-id>/<skill-id>` knowledge entries |
 | `bug-investigator` | Drains `bug-inbox/*` (universal-source), applies investigation techniques, writes audit log | `bug-investigation-report/<slug>` knowledge entries |
-| `qa-contrarian` | Challenges QA outcomes (audits, investigations, readiness backlog) — surfaces gaps in reasoning | `challenge-report/*` knowledge entries |
+| `qa-contrarian` | Challenges QA outcomes (audits, investigations) — surfaces gaps in reasoning | `challenge-report/*` knowledge entries |
+
+> **Pre-emptive readiness moved into swarm-manager.** A former QA member swept idle scenarios and filed fix items before feature work. That ordering is now a deterministic swarm-manager gate (`fix_before_feature` setting) with optional on-demand readiness discovery (`fix_before_feature_discovery`); regressions on scheduled scenarios are caught just-in-time by execution finalization's before/after baseline diff. See the swarm-manager execution docs.
 
 Decision contexts owned by the team:
 
 | Context | Owner | Purpose |
 |---|---|---|
-| `preemptive-qa-backlog` | programmatic-qa-runner | GCT-driven QA findings → Swarm Manager fix/chore/execute backlog items |
 | `quality-audit-backlog` | quality-auditor | Judgment-based structural audit findings → Swarm Manager execute backlog items |
 | `bug-resolution-proposal` | bug-investigator | Cross-cutting fixes that require operator approval (e.g., rename a CLI verb because three bugs trace to its ambiguous name) |
 
@@ -48,7 +48,7 @@ Decision contexts owned by the team:
 | [`taxonomies/bug-report/taxonomy.json`](taxonomies/bug-report/taxonomy.json) | Machine-readable taxonomy sidecar (loaded by the heartbeat builder; cited by `bug-investigator/topics.json`). |
 | [`methods/investigation/`](methods/investigation/) | Strategic canon for techniques the bug-investigator applies. One paired doc + skill per technique (mirrors `path:docs/marketing/methods/post-techniques/`). |
 | [`methods/audit/`](methods/audit/) | Strategic canon for `quality-auditor`'s seven audit lenses. Same paired doc + skill discipline. |
-| [`methods/readiness/`](methods/readiness/) | Strategic canon for `programmatic-qa-runner`'s individual readiness dimensions. Stub — populated as GCT dimensions stabilize. |
+| [`methods/readiness/`](methods/readiness/) | Strategic canon for readiness-dimension checks. Stub — populated as GCT dimensions stabilize. Pre-emptive readiness ordering is now enforced by swarm-manager's fix-before-feature gate, not a QA member. |
 
 ## Cross-team flow
 
@@ -100,7 +100,7 @@ Flagged here so future operator-curated decisions can promote them when the subs
 
 - **Quality principles.** A `PRINCIPLES.md` codifying the team's quality philosophy (behavior-oriented evidence, root-cause-over-symptom, contrarian-by-default). Workshop-pending; a few iterations of contrarian challenge-notes will surface the right principles.
 - **Scenario-classification heuristics.** A `SCENARIO_CLASSES.md` declaring how scenarios are bucketed for QA priority (revenue-critical, capability-uplift, internal-tool, archived). Drives queue policy for both readiness reviews and quality audits.
-- **`topic[future]:qa-inbox/*` and `topic[future]:audit-inbox/*` operator-fed inboxes.** Today there is no producer for these prefixes; adding them would create `orphan_input`. If `vision-walk-prep` or another future producer adds them as output, the `programmatic-qa-runner` and `quality-auditor` members gain an intake to drain.
+- **`topic[future]:qa-inbox/*` and `topic[future]:audit-inbox/*` operator-fed inboxes.** Today there is no producer for these prefixes; adding them would create `orphan_input`. If `vision-walk-prep` or another future producer adds them as output, the `quality-auditor` member gains an intake to drain.
 - **Full readiness-checks registry.** Stub README only today; entries graduate once GCT readiness dimensions stabilize.
 - **Future investigation techniques.** `scientific-debugging` is the only registered technique at landing time. Candidates surfaced by the bug-investigator's audit log: bisect-debugging, minimal-reproduction, differential-trace, comparative-environments, 5-whys, fishbone analysis. Each enters via `meta-self-improvement` decision.
 - **Future audit techniques.** Beyond the seven existing skills: performance-audit, security-audit, deprecation-audit, accessibility-audit, observability-audit. Same graduation flow.
