@@ -1,0 +1,220 @@
+syntax = "proto3";
+
+package vrooli.architecture_cartographer.v1.campaign;
+
+import "architecture/v1/findings.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/campaign;campaign_v1";
+
+// =============================================================================
+// CAMPAIGN DOMAIN — the stateful improvement tracker
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain campaign
+// @stability beta
+//
+// Wire contract for the CampaignService Connect-RPC service. The campaign
+// domain is the PROJECT-PLAN half of the two-layer scenario-improvement
+// model: it ingests the shared ArchitectureFinding photograph produced by
+// test-genie (the camera) from ANY validation surface, tracks every finding
+// through a lifecycle, hands the agent a profile-ranked worklist, and on each
+// re-audit reconciles by stable id (afid). Detection has no memory; this
+// domain has all of it.
+//
+// "Campaign" is a findings-worklist concept — a tracked improvement effort
+// across one scenario — and is unrelated to database schema migrations.
+//
+// It imports the NEUTRAL shared findings contract (vrooli.architecture.v1)
+// so test-genie and the cartographer agree on one finding shape without a
+// scenario→scenario proto dependency.
+// =============================================================================
+
+// CampaignItemStatus mirrors the conflict lifecycle; the campaign domain
+// is the canonical owner of this state machine.
+enum CampaignItemStatus {
+  CAMPAIGN_ITEM_STATUS_UNSPECIFIED = 0;
+  CAMPAIGN_ITEM_STATUS_DETECTED = 1;
+  CAMPAIGN_ITEM_STATUS_ASSIGNED = 2;
+  CAMPAIGN_ITEM_STATUS_SPLIT = 3;
+  CAMPAIGN_ITEM_STATUS_RESOLVED = 4;
+  CAMPAIGN_ITEM_STATUS_VALIDATED = 5;
+  CAMPAIGN_ITEM_STATUS_COMMITTED = 6;
+  CAMPAIGN_ITEM_STATUS_FORCE_RESOLVED = 7;
+}
+
+// CampaignLifecycle is the lifecycle of a whole campaign.
+enum CampaignLifecycle {
+  CAMPAIGN_LIFECYCLE_UNSPECIFIED = 0;
+  CAMPAIGN_LIFECYCLE_OPEN = 1;
+  CAMPAIGN_LIFECYCLE_CLOSED = 2;
+}
+
+// RankProfile selects how NextCampaignStep orders the open worklist. Profile
+// is ordering only (tracker-owned); the stop-condition "target" is owned by
+// the driving skill, not this contract.
+enum RankProfile {
+  // UNSPECIFIED is treated as BALANCED by the service (zero-value default).
+  RANK_PROFILE_UNSPECIFIED = 0;
+  // BALANCED (default): regressions first, then structural root-causes
+  // (cycles/mislocation), then severity. Preserves the historical ordering.
+  RANK_PROFILE_BALANCED = 1;
+  // FAST ("make it work now"): gating sources first (advisory architecture
+  // findings sink), then severity, then lower effort, then fewer locations —
+  // the cheapest path to a green suite.
+  RANK_PROFILE_FAST = 2;
+  // LONG_TERM ("best solution"): regressions, then structural root-causes
+  // first (root-cause before symptom), then severity; higher effort is NOT
+  // deprioritized.
+  RANK_PROFILE_LONG_TERM = 3;
+}
+
+// CampaignItem is one finding under a campaign, with the lifecycle state the
+// tracker layers on top of the ingested ArchitectureFinding fields.
+message CampaignItem {
+  string stable_id = 1;
+  string scenario = 2;
+  string source = 3; // cli, ui, docs, standards, architecture, structure, tidiness
+  string code = 4;
+  string severity = 5; // blocker, error, warn, info
+  repeated string locations = 6;
+  repeated string domains = 7;
+  string message = 8;
+  string suggestion = 9;
+  CampaignItemStatus status = 10;
+  string resolution_note = 11;
+  // True when this finding (re)appeared after the campaign began — a
+  // previously-terminal finding that came back, or a brand-new finding a
+  // re-audit surfaced (introduced by the in-progress work).
+  bool regressed = 12;
+  google.protobuf.Timestamp first_seen_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+  // Coarse effort estimate carried from the ingested finding; advisory
+  // ranking input for the FAST/LONG_TERM profiles.
+  string effort = 15; // unspecified, trivial, small, medium, large
+}
+
+// Campaign is a tracked improvement effort for one scenario.
+message Campaign {
+  string id = 1;
+  string scenario = 2;
+  string name = 3;
+  CampaignLifecycle status = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+// CampaignStatus is the full projection: the campaign plus every tracked
+// item and rollup counts.
+message CampaignStatus {
+  Campaign campaign = 1;
+  repeated CampaignItem items = 2;
+  int32 total = 3;
+  int32 open = 4;
+  int32 resolved = 5;
+  int32 validated = 6;
+  int32 regressions = 7;
+  map<string, int32> by_severity = 8;
+  map<string, int32> by_status = 9;
+}
+
+// =============================================================================
+// CAMPAIGN SERVICE
+// =============================================================================
+
+service CampaignService {
+  // CreateCampaign opens a campaign for a scenario and ingests the initial
+  // findings (all start DETECTED).
+  rpc CreateCampaign(CreateCampaignRequest) returns (CreateCampaignResponse);
+  // ListCampaigns returns the campaigns for a scenario (newest first), or
+  // every campaign when scenario is empty. Lightweight: the Campaign headers
+  // only, not the full per-item projection — callers fetch GetCampaignStatus
+  // for the one they select. This is the discovery seam the UI needs to
+  // surface a scenario's campaigns without already knowing their ids.
+  rpc ListCampaigns(ListCampaignsRequest) returns (ListCampaignsResponse);
+  // GetCampaignStatus returns the campaign plus every tracked item and
+  // rollups.
+  rpc GetCampaignStatus(GetCampaignStatusRequest) returns (GetCampaignStatusResponse);
+  // NextCampaignStep returns the profile-ranked worklist of open items.
+  rpc NextCampaignStep(NextCampaignStepRequest) returns (NextCampaignStepResponse);
+  // ResolveItem marks one item resolved with an operator note.
+  rpc ResolveItem(ResolveItemRequest) returns (ResolveItemResponse);
+  // ApplyItem records that an item was fixed by hand (status-only
+  // transition; no file write). Auto-execution of file-op fixes stays
+  // deferred to the apply-execution plan.
+  rpc ApplyItem(ApplyItemRequest) returns (ApplyItemResponse);
+  // ReauditCampaign reconciles a fresh findings set against the tracked set
+  // by stable id: absent→validated, present→stay, (re)appeared→regression.
+  rpc ReauditCampaign(ReauditCampaignRequest) returns (ReauditCampaignResponse);
+  // CloseCampaign marks the campaign closed.
+  rpc CloseCampaign(CloseCampaignRequest) returns (CloseCampaignResponse);
+}
+
+message CreateCampaignRequest {
+  string scenario = 1;
+  string name = 2;
+  repeated vrooli.architecture.v1.ArchitectureFinding findings = 3;
+}
+message CreateCampaignResponse {
+  CampaignStatus status = 1;
+}
+
+message ListCampaignsRequest {
+  // scenario filters to one scenario; empty returns every campaign.
+  string scenario = 1;
+}
+message ListCampaignsResponse {
+  repeated Campaign campaigns = 1;
+}
+
+message GetCampaignStatusRequest {
+  string campaign_id = 1;
+}
+message GetCampaignStatusResponse {
+  CampaignStatus status = 1;
+}
+
+message NextCampaignStepRequest {
+  string campaign_id = 1;
+  // Ordering profile; BALANCED (zero value) preserves historical behavior.
+  RankProfile profile = 2;
+}
+message NextCampaignStepResponse {
+  repeated CampaignItem items = 1;
+}
+
+message ResolveItemRequest {
+  string campaign_id = 1;
+  string stable_id = 2;
+  string note = 3;
+}
+message ResolveItemResponse {
+  CampaignItem item = 1;
+}
+
+message ApplyItemRequest {
+  string campaign_id = 1;
+  string stable_id = 2;
+}
+message ApplyItemResponse {
+  CampaignItem item = 1;
+}
+
+message ReauditCampaignRequest {
+  string campaign_id = 1;
+  repeated vrooli.architecture.v1.ArchitectureFinding findings = 2;
+}
+message ReauditCampaignResponse {
+  repeated CampaignItem validated = 1;
+  repeated CampaignItem still_open = 2;
+  repeated CampaignItem regressions = 3;
+  CampaignStatus status = 4;
+}
+
+message CloseCampaignRequest {
+  string campaign_id = 1;
+}
+message CloseCampaignResponse {
+  CampaignStatus status = 1;
+}

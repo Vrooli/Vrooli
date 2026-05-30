@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -18,7 +19,7 @@ import (
 )
 
 func TestServer_handleCreateSuiteRequest_InvalidPayload(t *testing.T) {
-	db := testsqlite.Open(t)
+	db := testsqlite.OpenRouted(t)
 
 	srv := &Server{
 		config:        Config{Port: "0", ServiceName: "Test Genie API"},
@@ -39,7 +40,7 @@ func TestServer_handleCreateSuiteRequest_InvalidPayload(t *testing.T) {
 }
 
 func TestServer_handleListSuiteRequests(t *testing.T) {
-	db := testsqlite.Open(t)
+	db := testsqlite.OpenRouted(t)
 
 	srv := &Server{
 		config:        Config{Port: "0", ServiceName: "Test Genie API"},
@@ -50,7 +51,7 @@ func TestServer_handleListSuiteRequests(t *testing.T) {
 	}
 
 	now := time.Now().UTC()
-	if _, err := db.Exec(`
+	if _, err := db.ExecContext(context.Background(), `
 INSERT INTO suite_requests (
 	id, scenario_name, requested_types, coverage_target, priority, status, notes, created_at, updated_at
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)

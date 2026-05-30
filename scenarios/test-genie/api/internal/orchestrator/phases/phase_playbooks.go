@@ -18,6 +18,7 @@ import (
 	"test-genie/internal/playbooks/config"
 	"test-genie/internal/playbooks/isolation"
 	"test-genie/internal/playbooksclaims"
+	"test-genie/internal/selfidentity"
 	"test-genie/internal/shared"
 
 	"github.com/google/uuid"
@@ -226,11 +227,12 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 		return runLoadedPlaybooksPhase(ctx, env, logWriter, playbooksCfg, registry, nil, nil)
 	}
 
-	if env.ScenarioName == "test-genie" {
+	if selfidentity.Is(env.ScenarioName) {
 		return RunReport{
-			Err:                   fmt.Errorf("playbooks for %s require isolation/restart, which would terminate the active test-genie API process", env.ScenarioName),
-			FailureClassification: FailureClassMisconfiguration,
-			Remediation:           "Set bas/registry.json metadata.execution_mode to \"observer\" for self-tests, or execute playbooks against a different target scenario.",
+			Observations: []Observation{
+				NewSkipObservation(fmt.Sprintf("playbooks skipped: restart-based isolation for %s would terminate the active self-test API process; the routed test-DB path is required for a playbooks self-test", env.ScenarioName)),
+			},
+			Remediation: "Migrate test-genie to the routed test-DB path (see docs/agent-system/routed-test-db.md), or execute playbooks against a different target scenario.",
 		}
 	}
 

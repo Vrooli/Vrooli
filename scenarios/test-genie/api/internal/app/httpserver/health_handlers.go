@@ -17,7 +17,9 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	status := "healthy"
 	dbConnected := true
 
-	if err := s.db.PingContext(r.Context()); err != nil {
+	// Health pings the primary pool directly — liveness is about the underlying
+	// connection, independent of any per-request test-pool routing.
+	if err := s.db.Primary().PingContext(r.Context()); err != nil {
 		status = "unhealthy"
 		dbConnected = false
 	}

@@ -37,6 +37,7 @@ type SSEPhaseEndEvent struct {
 // SSECompleteEvent is the final event with full results
 type SSECompleteEvent struct {
 	Success       bool         `json:"success"`
+	Verdict       string       `json:"verdict"`
 	ExecutionID   string       `json:"executionId"`
 	PresetUsed    string       `json:"presetUsed"`
 	StartedAt     string       `json:"startedAt"`
@@ -157,8 +158,13 @@ func (c *Client) processSSEStream(r io.Reader, printer *report.Printer, phaseNam
 					completedPhases = append(completedPhases, phase)
 
 					// Print phase completion
-					statusIcon := color.Green("✅")
-					if event.Status != "passed" {
+					var statusIcon string
+					switch event.Status {
+					case "passed":
+						statusIcon = color.Green("✅")
+					case "skipped":
+						statusIcon = color.Yellow("⏭️")
+					default:
 						statusIcon = color.Red("❌")
 					}
 					fmt.Fprintf(os.Stdout, "%s Phase %s %s • %.1fs\n",
@@ -195,6 +201,7 @@ func (c *Client) processSSEStream(r io.Reader, printer *report.Printer, phaseNam
 				if err := json.Unmarshal([]byte(data), &event); err == nil {
 					result = Response{
 						Success:      event.Success,
+						Verdict:      event.Verdict,
 						ExecutionID:  event.ExecutionID,
 						PresetUsed:   event.PresetUsed,
 						StartedAt:    event.StartedAt,
@@ -233,12 +240,16 @@ func (c *Client) processSSEStream(r io.Reader, printer *report.Printer, phaseNam
 		result.Phases = completedPhases
 		passed := 0
 		failed := 0
+		skipped := 0
 		var totalDuration float64
 		for _, p := range completedPhases {
 			totalDuration += p.DurationSeconds
-			if p.Status == "passed" {
+			switch p.Status {
+			case "passed":
 				passed++
-			} else {
+			case "skipped":
+				skipped++
+			default:
 				failed++
 			}
 		}
@@ -246,9 +257,21 @@ func (c *Client) processSSEStream(r io.Reader, printer *report.Printer, phaseNam
 			Total:           len(completedPhases),
 			Passed:          passed,
 			Failed:          failed,
+			Skipped:         skipped,
 			DurationSeconds: int(totalDuration),
 		}
 		result.Success = failed == 0
+		// Derive a verdict for the no-complete-event fallback: a non-optional
+		// skip would be PARTIAL, but without the catalog here we can only see
+		// status — treat any skip as PARTIAL, else PASS. The API's complete
+		// event carries the authoritative verdict when present.
+		if failed > 0 {
+			result.Verdict = "FAIL"
+		} else if skipped > 0 {
+			result.Verdict = "PARTIAL"
+		} else {
+			result.Verdict = "PASS"
+		}
 	}
 
 	return result, nil

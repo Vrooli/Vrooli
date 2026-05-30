@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"test-genie/internal/orchestrator/runnability"
 )
 
 // scenarioRoot resolves scenarios/test-genie from this test file's location so
@@ -35,6 +37,53 @@ func TestPresetsResolveAgainstCatalog(t *testing.T) {
 			if _, ok := valid[p]; !ok {
 				t.Errorf("preset %q references unknown phase %q", preset, p)
 			}
+		}
+	}
+}
+
+// TestCapabilityManifestCoversEveryPhase is the anti-drift guard for the
+// runnability capability manifest. Every catalog phase must carry a manifest
+// whose Phase/Optional mirror the spec, and the surface declarations are pinned
+// to the behavior the old hand-maintained runtimeNeeds switch encoded — so a
+// future capability edit that silently changes which phases need UI/API breaks
+// the build instead of changing runtime behavior unnoticed.
+func TestCapabilityManifestCoversEveryPhase(t *testing.T) {
+	// Pinned expectations transcribed from the pre-refactor runtimeNeeds switch
+	// (smoke/playbooks/performance → UI, integration → API) plus the playbooks
+	// DB-isolation/lifecycle-mutation contract.
+	type want struct {
+		ui, api, mutates, deferred bool
+		dbiso                      runnability.DBIsolation
+	}
+	expected := map[Name]want{
+		Smoke:       {ui: true},
+		Performance: {ui: true},
+		Integration: {api: true},
+		Playbooks:   {ui: true, mutates: true, deferred: true, dbiso: runnability.DBIsolationRoutedOrRestart},
+	}
+
+	catalog := DefaultCatalog()
+	for _, spec := range catalog.All() {
+		caps := spec.Capabilities
+		if caps.Phase != spec.Name.String() {
+			t.Errorf("phase %q: Capabilities.Phase = %q, want lockstep with spec name", spec.Name, caps.Phase)
+		}
+		if caps.Optional != spec.Optional {
+			t.Errorf("phase %q: Capabilities.Optional = %v, want %v (spec)", spec.Name, caps.Optional, spec.Optional)
+		}
+		w := expected[spec.Name] // zero value = static phase with no surface
+		if caps.NeedsUI != w.ui || caps.NeedsAPI != w.api {
+			t.Errorf("phase %q surfaces: NeedsUI=%v NeedsAPI=%v, want UI=%v API=%v",
+				spec.Name, caps.NeedsUI, caps.NeedsAPI, w.ui, w.api)
+		}
+		if caps.MutatesLifecycle != w.mutates {
+			t.Errorf("phase %q: MutatesLifecycle=%v, want %v", spec.Name, caps.MutatesLifecycle, w.mutates)
+		}
+		if caps.LifecycleDecisionDeferred != w.deferred {
+			t.Errorf("phase %q: LifecycleDecisionDeferred=%v, want %v", spec.Name, caps.LifecycleDecisionDeferred, w.deferred)
+		}
+		if caps.DBIsolation != w.dbiso {
+			t.Errorf("phase %q: DBIsolation=%v, want %v", spec.Name, caps.DBIsolation, w.dbiso)
 		}
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"test-genie/internal/dbexec"
 	"test-genie/internal/storage/sqlitedb"
 	"test-genie/internal/storage/sqliteutil"
 
@@ -37,7 +38,7 @@ type ImportResult struct {
 
 type importer struct {
 	open          dbOpener
-	applySchema   func(*sql.DB, bool) error
+	applySchema   func(dbexec.Executor, bool) error
 	resolveTarget func(string) (sqlitedb.Config, error)
 }
 

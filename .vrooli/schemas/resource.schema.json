@@ -405,6 +405,40 @@
     },
     "template_version": {
       "type": "string"
+    },
+    "upstream_cli": {
+      "type": "object",
+      "description": "External CLI (e.g. claude, codex, opencode) this resource wraps. Records the pinned version and docs source so config adapters can detect upstream schema drift via `permissions doctor` / equivalent surfaces.",
+      "additionalProperties": false,
+      "required": ["version_command", "version_pinned", "docs_source", "docs_pinned_at", "schema_version"],
+      "properties": {
+        "version_command": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "argv used to report the upstream CLI's version (e.g. [\"claude\", \"--version\"])."
+        },
+        "version_pinned": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Upstream CLI version the adapter was authored against. doctor warns when the installed version diverges."
+        },
+        "docs_source": {
+          "type": "string",
+          "format": "uri",
+          "description": "Canonical upstream docs URL the adapter's config schema was derived from."
+        },
+        "docs_pinned_at": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Date the docs URL was last reviewed (ISO 8601 date)."
+        },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Bumps when the adapter's on-disk state schema changes incompatibly."
+        }
+      }
     }
   },
   "definitions": {

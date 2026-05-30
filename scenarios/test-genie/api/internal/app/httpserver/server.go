@@ -2,7 +2,6 @@ package httpserver
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +11,10 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
 
 	"test-genie/agentmanager"
 	appelig "test-genie/internal/app/eligibility"
@@ -50,7 +53,7 @@ type Logger interface {
 
 // Dependencies encapsulates the services the HTTP layer needs to operate.
 type Dependencies struct {
-	DB                         *sql.DB
+	DB                         *database.RoutedDB
 	SuiteQueue                 suiteRequestQueue
 	Executions                 execution.ExecutionHistory
 	ExecutionSvc               suiteExecutor
@@ -128,7 +131,7 @@ type requirementsSyncer interface {
 // Server wires the HTTP router, configuration, and service dependencies behind intentional seams.
 type Server struct {
 	config                     Config
-	db                         *sql.DB
+	db                         *database.RoutedDB
 	router                     *mux.Router
 	suiteRequests              suiteRequestQueue
 	executionHistory           execution.ExecutionHistory
@@ -323,9 +326,22 @@ func (s *Server) Start() error {
 		"port":    s.config.Port,
 	})
 
+	// Mount the dev-only RoutingService alongside the API so test-genie (or, on
+	// a self-test, this very process) can install a runtime test-DB pool on the
+	// live *database.RoutedDB without a restart. devrouting.Register is a no-op
+	// in production mode; TestModeMiddleware self-disables there too. gorilla's
+	// Router does not satisfy the ServeMux-shaped Mux, so a parent ServeMux owns
+	// the routing route and delegates everything else to the API router.
+	rootMux := http.NewServeMux()
+	if s.db != nil {
+		devrouting.Register(rootMux, s.db)
+	}
+	rootMux.Handle("/", s.router)
+	rootHandler := apihttp.TestModeMiddleware(rootMux)
+
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf(":%s", s.config.Port),
-		Handler: handlers.RecoveryHandler()(s.router),
+		Handler: handlers.RecoveryHandler()(rootHandler),
 		// Extended timeouts to support long-running SSE streams for test execution
 		// Test suites can run for up to 15 minutes
 		ReadTimeout:  30 * time.Second,

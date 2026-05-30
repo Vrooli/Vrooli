@@ -13,6 +13,7 @@ import (
 
 	phasespkg "test-genie/internal/orchestrator/phases"
 	reqsync "test-genie/internal/orchestrator/requirements"
+	"test-genie/internal/orchestrator/runnability"
 	"test-genie/internal/orchestrator/targetruntime"
 	workspacepkg "test-genie/internal/orchestrator/workspace"
 )
@@ -471,7 +472,8 @@ func TestPrepareTargetRuntimeIgnoresGenericPortEnvironment(t *testing.T) {
 	}
 
 	env := workspacepkg.Environment{ScenarioName: "demo", ScenarioDir: filepath.Join(t.TempDir(), "demo")}
-	_, _, _, err := orch.prepareTargetRuntime(context.Background(), env, []phasespkg.Definition{{Name: phasespkg.Smoke}}, SuiteExecutionRequest{}, io.Discard)
+	smokeDef := phasespkg.Definition{Name: phasespkg.Smoke, Capabilities: runnability.PhaseCapabilities{Phase: phasespkg.Smoke.String(), NeedsUI: true}}
+	_, _, _, _, err := orch.prepareTargetRuntime(context.Background(), env, []phasespkg.Definition{smokeDef}, SuiteExecutionRequest{}, io.Discard)
 	if err == nil {
 		t.Fatal("expected runtime start failure")
 	}

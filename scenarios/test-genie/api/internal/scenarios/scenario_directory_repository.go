@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"test-genie/internal/dbexec"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/queue"
 	"test-genie/internal/storage/sqliteutil"
@@ -65,12 +66,12 @@ type executionSummary struct {
 // ScenarioDirectoryRepository loads scenario summaries from Test Genie's
 // embedded SQLite database.
 type ScenarioDirectoryRepository struct {
-	db                *sql.DB
+	db                dbexec.Executor
 	clock             func() time.Time
 	queueActiveWindow time.Duration
 }
 
-func NewScenarioDirectoryRepository(db *sql.DB) *ScenarioDirectoryRepository {
+func NewScenarioDirectoryRepository(db dbexec.Executor) *ScenarioDirectoryRepository {
 	return &ScenarioDirectoryRepository{
 		db:                db,
 		clock:             time.Now,

@@ -511,7 +511,12 @@ func TestRunPlaybooksPhaseRegistryNotFound(t *testing.T) {
 	}
 }
 
-func TestRunPlaybooksPhaseSelfTargetRequiresObserverMode(t *testing.T) {
+// TestRunPlaybooksPhaseSelfTargetSkipsRestart asserts the self-host guard:
+// restart-based playbooks isolation against test-genie's own scenario would
+// SIGTERM the live self-test process, so the phase skips (no error, no
+// isolation) rather than failing. A routed self-test is the supported path
+// (see docs/agent-system/routed-test-db.md).
+func TestRunPlaybooksPhaseSelfTargetSkipsRestart(t *testing.T) {
 	fakeIso := &fakeIsolation{
 		result: &isolation.Result{RunID: "test-run", Env: map[string]string{}, Cleanup: func(context.Context) error { return nil }},
 	}
@@ -528,17 +533,20 @@ func TestRunPlaybooksPhaseSelfTargetRequiresObserverMode(t *testing.T) {
 
 	report := runPlaybooksPhase(context.Background(), h.env, io.Discard)
 
-	if report.Err == nil {
-		t.Fatal("expected self-targeted non-observer playbooks to fail")
-	}
-	if report.FailureClassification != FailureClassMisconfiguration {
-		t.Fatalf("expected misconfiguration, got %s", report.FailureClassification)
-	}
-	if !strings.Contains(report.Err.Error(), "terminate the active test-genie API process") {
-		t.Fatalf("expected self-targeting error message, got %v", report.Err)
+	if report.Err != nil {
+		t.Fatalf("expected self-targeted restart playbooks to skip, got error: %v", report.Err)
 	}
 	if fakeIso.called {
-		t.Fatalf("expected self-target guard to fail before isolation")
+		t.Fatalf("expected self-target guard to skip before isolation")
+	}
+	foundSkip := false
+	for _, obs := range report.Observations {
+		if obs.Prefix == "SKIP" && strings.Contains(obs.Text, "self-test") {
+			foundSkip = true
+		}
+	}
+	if !foundSkip {
+		t.Fatalf("expected a SKIP observation explaining the self-test guard, got %#v", report.Observations)
 	}
 }
 

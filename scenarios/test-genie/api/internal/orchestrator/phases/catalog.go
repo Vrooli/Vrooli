@@ -3,6 +3,8 @@ package phases
 import (
 	"sort"
 	"time"
+
+	"test-genie/internal/orchestrator/runnability"
 )
 
 // Catalog exposes the orchestrator's built-in phase registry so the API can
@@ -88,16 +90,18 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Description:    "Validates Markdown, mermaid diagrams, links, and portability guards across scenario docs.",
 	})
 	register(Spec{
-		Name:        Performance,
-		Runner:      runPerformancePhase,
-		Optional:    true,
-		Description: "Benchmarks Go API and UI builds, runs Lighthouse audits via Google Lighthouse CLI to validate performance, accessibility, and SEO.",
+		Name:         Performance,
+		Runner:       runPerformancePhase,
+		Optional:     true,
+		Description:  "Benchmarks Go API and UI builds, runs Lighthouse audits via Google Lighthouse CLI to validate performance, accessibility, and SEO.",
+		Capabilities: runnability.PhaseCapabilities{NeedsUI: true},
 	})
 	register(Spec{
-		Name:        Smoke,
-		Runner:      runSmokePhase,
-		Optional:    true,
-		Description: "Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors.",
+		Name:         Smoke,
+		Runner:       runSmokePhase,
+		Optional:     true,
+		Description:  "Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors.",
+		Capabilities: runnability.PhaseCapabilities{NeedsUI: true},
 	})
 	register(Spec{
 		Name:        Unit,
@@ -105,14 +109,21 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Description: "Executes Go unit tests and shell syntax validation for local entrypoints.",
 	})
 	register(Spec{
-		Name:        Integration,
-		Runner:      runIntegrationPhase,
-		Description: "Exercises the CLI/Bats suite plus scenario-local orchestrator listings.",
+		Name:         Integration,
+		Runner:       runIntegrationPhase,
+		Description:  "Exercises the CLI/Bats suite plus scenario-local orchestrator listings.",
+		Capabilities: runnability.PhaseCapabilities{NeedsAPI: true},
 	})
 	register(Spec{
 		Name:        Playbooks,
 		Runner:      runPlaybooksPhase,
 		Description: "Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows.",
+		Capabilities: runnability.PhaseCapabilities{
+			NeedsUI:                   true,
+			MutatesLifecycle:          true,
+			DBIsolation:               runnability.DBIsolationRoutedOrRestart,
+			LifecycleDecisionDeferred: true,
+		},
 	})
 	register(Spec{
 		Name:        Business,
@@ -138,6 +149,12 @@ func (c *Catalog) Register(spec Spec) {
 	if spec.Doc == "" {
 		spec.Doc = docPathConvention(name)
 	}
+	// Keep the capability manifest in lockstep with the catalog identity: the
+	// phase name and Optional flag are owned by the Spec, so mirror them into
+	// the embedded manifest rather than asking every register() call to repeat
+	// them. This guarantees Capabilities.Phase/Optional can never drift.
+	spec.Capabilities.Phase = name.String()
+	spec.Capabilities.Optional = spec.Optional
 	if spec.Weight == 0 && len(c.specs) > 0 {
 		spec.Weight = len(c.specs) * 10
 	}

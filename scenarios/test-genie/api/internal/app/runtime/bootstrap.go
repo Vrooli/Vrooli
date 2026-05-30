@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -31,7 +30,7 @@ import (
 
 // Bootstrapped holds the concrete dependencies needed by the HTTP server.
 type Bootstrapped struct {
-	DB                         *sql.DB
+	DB                         *database.RoutedDB
 	SuiteRequests              *queue.SuiteRequestService
 	ExecutionRepo              *execution.SuiteExecutionRepository
 	ExecutionHistory           execution.ExecutionHistory
@@ -74,7 +73,11 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("config is required")
 	}
-	db, err := database.Connect(context.Background(), database.Config{
+	// database.Open returns a *RoutedDB: at startup (no test mode) every query
+	// goes to the primary pool, but the handle can route per-request to a test
+	// pool installed via RoutingService — the in-place routed e2e path test-genie
+	// uses to test scenarios (and itself) without a restart.
+	db, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
 		DSN:          cfg.DatabaseDSN,
 		MaxOpenConns: 1,

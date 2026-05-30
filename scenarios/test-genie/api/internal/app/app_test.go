@@ -1,9 +1,10 @@
 package app
 
 import (
-	"database/sql"
 	"errors"
 	"testing"
+
+	"github.com/vrooli/api-core/database"
 
 	"test-genie/agentmanager"
 	"test-genie/internal/app/httpserver"
@@ -53,7 +54,7 @@ func TestNewServerWiresRuntimeDependenciesIntoHTTPTransport(t *testing.T) {
 		Enabled:     true,
 	})
 	bootstrapped := &runtime.Bootstrapped{
-		DB:           &sql.DB{},
+		DB:           &database.RoutedDB{},
 		AgentService: agentSvc,
 	}
 

@@ -2,7 +2,7 @@ package httpserver
 
 import (
 	"bytes"
-	"database/sql"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,9 +17,10 @@ import (
 	"test-genie/internal/testsqlite"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
-func newTestServer(t *testing.T, db *sql.DB) *Server {
+func newTestServer(t *testing.T, db *database.RoutedDB) *Server {
 	t.Helper()
 	srv := &Server{
 		config: Config{
@@ -37,7 +38,7 @@ func newTestServer(t *testing.T, db *sql.DB) *Server {
 
 func TestSuiteRequestLifecycleIntegration(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-SUITE-P0] API queues + fetches suite requests", func(t *testing.T) {
-		db := testsqlite.Open(t)
+		db := testsqlite.OpenRouted(t)
 		server := newTestServer(t, db)
 		expectedTypes := []string{"unit", "integration"}
 
@@ -77,7 +78,7 @@ func TestSuiteRequestLifecycleIntegration(t *testing.T) {
 		}
 
 		now := time.Now().UTC()
-		if _, err := db.Exec(`
+		if _, err := db.ExecContext(context.Background(), `
 INSERT INTO suite_requests (
 	id, scenario_name, requested_types, coverage_target, priority, status, notes, created_at, updated_at
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)

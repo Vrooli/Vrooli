@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"test-genie/internal/orchestrator/runnability"
 	"test-genie/internal/orchestrator/workspace"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
@@ -177,6 +178,10 @@ type Definition struct {
 	Runner   Runner
 	Timeout  time.Duration
 	Optional bool
+	// Capabilities is the phase's runnability contract (surfaces, lifecycle
+	// mutation, DB isolation, resources). Sourced from the catalog Spec; the
+	// runnability gate reads it to decide RUN/RUN_DEGRADED/SKIP.
+	Capabilities runnability.PhaseCapabilities
 }
 
 // Spec captures metadata for a catalog entry.
@@ -192,18 +197,28 @@ type Spec struct {
 	// registration it is auto-derived by convention, keeping doc lookups in
 	// lockstep with the catalog instead of a separate hand-maintained map.
 	Doc string
+	// Capabilities is the phase's runnability contract. Register normalizes the
+	// embedded Phase/Optional fields so every catalog entry carries a complete
+	// manifest; the anti-drift guard asserts surface-bearing phases declare one.
+	Capabilities runnability.PhaseCapabilities
 }
 
 // ExecutionResult captures per-phase outcome information.
 type ExecutionResult struct {
-	Name            string        `json:"name"`
-	Status          string        `json:"status"`
-	DurationSeconds int           `json:"durationSeconds"`
-	LogPath         string        `json:"logPath"`
-	Error           string        `json:"error,omitempty"`
-	Classification  string        `json:"classification,omitempty"`
-	Remediation     string        `json:"remediation,omitempty"`
-	Observations    []Observation `json:"observations,omitempty"`
+	Name            string `json:"name"`
+	Status          string `json:"status"`
+	DurationSeconds int    `json:"durationSeconds"`
+	LogPath         string `json:"logPath"`
+	Error           string `json:"error,omitempty"`
+	Classification  string `json:"classification,omitempty"`
+	Remediation     string `json:"remediation,omitempty"`
+	// RunnabilityVerdict records the runnability gate's decision for this phase
+	// ("run", "run_degraded", or "skip") and RunnabilityReason its rationale.
+	// For a skipped phase these explain why it could not run in this
+	// environment; for a degraded run they note the less-preferred path taken.
+	RunnabilityVerdict string        `json:"runnabilityVerdict,omitempty"`
+	RunnabilityReason  string        `json:"runnabilityReason,omitempty"`
+	Observations       []Observation `json:"observations,omitempty"`
 	// Findings is the normalized, machine-ingestable finding set for this
 	// phase (see RunReport.Findings). Serialized in the suite `--json`
 	// report so `architecture-cartographer campaign create --from-audit`

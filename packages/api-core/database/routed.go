@@ -75,12 +75,12 @@ func SystemClock() Clock { return systemClock{} }
 // substitute the entire seam by passing a different *RoutedDB constructed
 // against in-memory drivers.
 type RoutedDB struct {
-	mu        sync.RWMutex
-	primary   *sql.DB
-	test      *sql.DB
-	lease     leaseState
-	cfg       Config
-	clock     Clock
+	mu      sync.RWMutex
+	primary *sql.DB
+	test    *sql.DB
+	lease   leaseState
+	cfg     Config
+	clock   Clock
 	// stats are per-lease atomic counters reset on each install.
 	stats leaseStats
 	// expiryWarned is reset on install/clear; ensures the slog.Warn that
@@ -159,6 +159,16 @@ func OpenWithClock(ctx context.Context, cfg Config, clock Clock) (*RoutedDB, err
 		clock = systemClock{}
 	}
 	return &RoutedDB{primary: primary, cfg: cfg, clock: clock}, nil
+}
+
+// NewFromPrimary wraps an already-open *sql.DB as a RoutedDB whose primary pool
+// is that handle. Intended for tests — including sqlmock-backed handles — that
+// need a *RoutedDB but manage the underlying connection themselves; production
+// code should use Open so connection retry/backoff is applied. The returned
+// RoutedDB has no test pool until InstallTestPool is called, so it behaves
+// exactly like the wrapped handle until then.
+func NewFromPrimary(primary *sql.DB) *RoutedDB {
+	return &RoutedDB{primary: primary, cfg: Config{}, clock: systemClock{}}
 }
 
 // MustOpen is like Open but panics on error. Useful for main().

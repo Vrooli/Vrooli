@@ -17,8 +17,10 @@ import (
 
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/orchestrator/requirements"
+	"test-genie/internal/orchestrator/runnability"
 	"test-genie/internal/orchestrator/targetruntime"
 	"test-genie/internal/playbooksclaims"
+	"test-genie/internal/selfidentity"
 	"test-genie/internal/shared"
 
 	"github.com/google/uuid"
@@ -66,6 +68,26 @@ const (
 )
 
 const MaxExecutionHistory = 50
+
+// Phase status vocabulary. "skipped" is recognized by isSkippedStatus
+// (requirements_decision.go) so a runnability skip flows into requirements sync
+// as a non-executed phase rather than a failure.
+const (
+	phaseStatusPassed  = "passed"
+	phaseStatusFailed  = "failed"
+	phaseStatusSkipped = "skipped"
+)
+
+// Suite verdict vocabulary (tri-state). Replaces the old binary success flag:
+//   - PASS: every selected phase ran and passed (optional-phase skips are fine).
+//   - PARTIAL: nothing failed, but a non-optional phase could not run (a
+//     runnability SKIP) — exit 0, loudly labeled, machine-readable.
+//   - FAIL: at least one phase failed — non-zero exit.
+const (
+	SuiteVerdictPass    = "PASS"
+	SuiteVerdictPartial = "PARTIAL"
+	SuiteVerdictFail    = "FAIL"
+)
 
 // Default Browserless URL and environment variable name.
 const (
@@ -139,13 +161,18 @@ type SuiteExecutionRequest struct {
 
 // SuiteExecutionResult captures the outcome of a run.
 type SuiteExecutionResult struct {
-	ExecutionID         uuid.UUID              `json:"executionId,omitempty"`
-	SuiteRequestID      *uuid.UUID             `json:"suiteRequestId,omitempty"`
-	RunID               string                 `json:"runId,omitempty"`
-	ScenarioName        string                 `json:"scenarioName"`
-	StartedAt           time.Time              `json:"startedAt"`
-	CompletedAt         time.Time              `json:"completedAt"`
-	Success             bool                   `json:"success"`
+	ExecutionID    uuid.UUID  `json:"executionId,omitempty"`
+	SuiteRequestID *uuid.UUID `json:"suiteRequestId,omitempty"`
+	RunID          string     `json:"runId,omitempty"`
+	ScenarioName   string     `json:"scenarioName"`
+	StartedAt      time.Time  `json:"startedAt"`
+	CompletedAt    time.Time  `json:"completedAt"`
+	Success        bool       `json:"success"`
+	// Verdict is the tri-state outcome (PASS/PARTIAL/FAIL). Success is kept for
+	// backward compatibility and is true for both PASS and PARTIAL (only FAIL is
+	// a non-zero exit), so a self-test that skips an unrunnable phase is honestly
+	// reported without failing CI.
+	Verdict             string                 `json:"verdict,omitempty"`
 	PresetUsed          string                 `json:"preset,omitempty"`
 	RequestedPreset     string                 `json:"requestedPreset,omitempty"`
 	RequestedPhases     []string               `json:"requestedPhases,omitempty"`
@@ -190,6 +217,7 @@ type PhaseSummary struct {
 	Total            int `json:"total"`
 	Passed           int `json:"passed"`
 	Failed           int `json:"failed"`
+	Skipped          int `json:"skipped"`
 	DurationSeconds  int `json:"durationSeconds"`
 	ObservationCount int `json:"observationCount"`
 }
@@ -287,7 +315,7 @@ func (o *SuiteOrchestrator) Execute(ctx context.Context, req SuiteExecutionReque
 	if err != nil {
 		return nil, err
 	}
-	env, runtimeLease, runtimeManager, err := o.prepareTargetRuntime(ctx, prepared.env, prepared.plan.Selected, req, nil)
+	env, runCtx, runtimeLease, runtimeManager, err := o.prepareTargetRuntime(ctx, prepared.env, prepared.plan.Selected, req, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -303,6 +331,7 @@ func (o *SuiteOrchestrator) Execute(ctx context.Context, req SuiteExecutionReque
 	phaseResults, anyFailure := o.runSelectedPhases(
 		ctx,
 		env,
+		runCtx,
 		prepared.runLogDir,
 		prepared.plan.Selected,
 		req.FailFast,
@@ -319,7 +348,7 @@ func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExec
 	if err != nil {
 		return nil, err
 	}
-	env, runtimeLease, runtimeManager, err := o.prepareTargetRuntime(ctx, prepared.env, prepared.plan.Selected, req, nil)
+	env, runCtx, runtimeLease, runtimeManager, err := o.prepareTargetRuntime(ctx, prepared.env, prepared.plan.Selected, req, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -335,6 +364,7 @@ func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExec
 	phaseResults, anyFailure := o.runSelectedPhasesWithEvents(
 		ctx,
 		env,
+		runCtx,
 		prepared.runLogDir,
 		prepared.plan.Selected,
 		req.FailFast,
@@ -351,7 +381,7 @@ func (o *SuiteOrchestrator) prepareTargetRuntime(
 	defs []phases.Definition,
 	req SuiteExecutionRequest,
 	logWriter io.Writer,
-) (workspacepkg.Environment, targetruntime.Lease, *targetruntime.Manager, error) {
+) (workspacepkg.Environment, runnability.RunContext, targetruntime.Lease, *targetruntime.Manager, error) {
 	needs := runtimeNeeds(defs)
 	newRuntime := o.newRuntime
 	if newRuntime == nil {
@@ -368,13 +398,48 @@ func (o *SuiteOrchestrator) prepareTargetRuntime(
 		env.APIURL = req.APIURL
 		needs.API = false
 	}
+
+	env, lease, err := o.bringUpTargetSurfaces(ctx, env, manager, needs, logWriter)
+	if err != nil {
+		return env, runnability.RunContext{}, targetruntime.Lease{}, manager, err
+	}
+
+	// The run context is computed from the surfaces that ended up live (whether
+	// reused from a self-target or started for another target). The per-phase
+	// runnability gate reads it to decide RUN / RUN_DEGRADED / SKIP.
+	rc := resolveRunContext(env, targetruntime.URLs{}, false, "", nil)
+	return env, rc, lease, manager, nil
+}
+
+// bringUpTargetSurfaces resolves the target's UI/API URLs into env, honoring the
+// self-host guard: a self-target is never started/restarted (that would SIGTERM
+// the suite process) — only its already-live surfaces are reused. A different
+// target is started on demand via EnsureRunning.
+func (o *SuiteOrchestrator) bringUpTargetSurfaces(
+	ctx context.Context,
+	env workspacepkg.Environment,
+	manager *targetruntime.Manager,
+	needs targetruntime.Needs,
+	logWriter io.Writer,
+) (workspacepkg.Environment, targetruntime.Lease, error) {
+	if selfidentity.Is(strings.TrimSpace(env.ScenarioName)) {
+		live := manager.LiveSurfaces(ctx)
+		if env.UIURL == "" {
+			env.UIURL = live.UI
+		}
+		if env.APIURL == "" {
+			env.APIURL = live.API
+		}
+		return env, targetruntime.Lease{}, nil
+	}
+
 	if !needs.UI && !needs.API {
-		return env, targetruntime.Lease{}, manager, nil
+		return env, targetruntime.Lease{}, nil
 	}
 
 	lease, err := manager.EnsureRunning(ctx, needs, logWriter)
 	if err != nil {
-		return env, targetruntime.Lease{}, manager, err
+		return env, targetruntime.Lease{}, err
 	}
 	if env.UIURL == "" {
 		env.UIURL = lease.URLs.UI
@@ -382,18 +447,21 @@ func (o *SuiteOrchestrator) prepareTargetRuntime(
 	if env.APIURL == "" {
 		env.APIURL = lease.URLs.API
 	}
-	return env, lease, manager, nil
+	return env, lease, nil
 }
 
+// runtimeNeeds derives the union of required target surfaces directly from the
+// per-phase capability manifest in the catalog SSOT. There is no hand-
+// maintained phase→surface switch: a phase declares NeedsUI/NeedsAPI once, in
+// the catalog, and both the runtime-needs computation and the runnability gate
+// read the same field.
 func runtimeNeeds(defs []phases.Definition) targetruntime.Needs {
 	var needs targetruntime.Needs
 	for _, def := range defs {
-		switch def.Name {
-		case phases.Smoke, phases.Playbooks:
+		if def.Capabilities.NeedsUI {
 			needs.UI = true
-		case phases.Performance:
-			needs.UI = true
-		case phases.Integration:
+		}
+		if def.Capabilities.NeedsAPI {
 			needs.API = true
 		}
 	}
@@ -403,6 +471,7 @@ func runtimeNeeds(defs []phases.Definition) targetruntime.Needs {
 func (o *SuiteOrchestrator) runSelectedPhases(
 	ctx context.Context,
 	env workspacepkg.Environment,
+	runCtx runnability.RunContext,
 	runLogDir string,
 	defs []phases.Definition,
 	failFast bool,
@@ -414,12 +483,18 @@ func (o *SuiteOrchestrator) runSelectedPhases(
 	results := make([]PhaseExecutionResult, 0, len(defs))
 	anyFailure := false
 	for _, phase := range defs {
-		phaseResult := o.runPhase(ctx, env, runLogDir, phase, warnings[phase.Name.Key()])
-		if phaseResult.Status != "passed" {
+		verdict := resolvePhaseVerdict(phase, runCtx)
+		if verdict.IsSkip() {
+			results = append(results, o.newSkippedPhaseResult(phase, runLogDir, verdict))
+			continue
+		}
+		phaseResult := o.runPhase(ctx, env, runLogDir, phase, mergeRunnabilityObservations(verdict, warnings[phase.Name.Key()]))
+		annotatePhaseRunnability(&phaseResult, verdict)
+		if phaseResult.Status == phaseStatusFailed {
 			anyFailure = true
 		}
 		results = append(results, phaseResult)
-		if failFast && phaseResult.Status == "failed" {
+		if failFast && phaseResult.Status == phaseStatusFailed {
 			break
 		}
 	}
@@ -511,7 +586,12 @@ func (o *SuiteOrchestrator) finalizeExecution(
 	result := prepared.result
 	result.RunID = prepared.runID
 	result.CompletedAt = time.Now().UTC()
-	result.Success = !anyFailure
+	// Tri-state verdict supersedes the binary flag. Success stays true for both
+	// PASS and PARTIAL — only FAIL is a non-zero exit — so a self-test that
+	// honestly skips an unrunnable phase does not fail CI.
+	result.Verdict = computeSuiteVerdict(phaseResults, prepared.plan.Selected)
+	result.Success = result.Verdict != SuiteVerdictFail
+	_ = anyFailure // verdict derives failure from phase statuses (skips ≠ failures)
 	result.Phases = phaseResults
 	result.PhaseSummary = SummarizePhases(phaseResults)
 	result.WarningSummary = BuildWarningSummary(prepared.env.RunID, phaseResults)
@@ -623,6 +703,7 @@ func phaseArtifactPath(runID, phaseName string) string {
 func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 	ctx context.Context,
 	env workspacepkg.Environment,
+	runCtx runnability.RunContext,
 	runLogDir string,
 	defs []phases.Definition,
 	failFast bool,
@@ -648,7 +729,14 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 			})
 		}
 
-		phaseResult := o.runPhaseWithEvents(ctx, env, runLogDir, phase, emit, warnings[phase.Name.Key()])
+		verdict := resolvePhaseVerdict(phase, runCtx)
+		var phaseResult PhaseExecutionResult
+		if verdict.IsSkip() {
+			phaseResult = o.newSkippedPhaseResult(phase, runLogDir, verdict)
+		} else {
+			phaseResult = o.runPhaseWithEvents(ctx, env, runLogDir, phase, emit, mergeRunnabilityObservations(verdict, warnings[phase.Name.Key()]))
+			annotatePhaseRunnability(&phaseResult, verdict)
+		}
 
 		// Emit phase end event
 		if emit != nil {
@@ -662,11 +750,11 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 			})
 		}
 
-		if phaseResult.Status != "passed" {
+		if phaseResult.Status == phaseStatusFailed {
 			anyFailure = true
 		}
 		results = append(results, phaseResult)
-		if failFast && phaseResult.Status == "failed" {
+		if failFast && phaseResult.Status == phaseStatusFailed {
 			break
 		}
 	}
@@ -726,10 +814,11 @@ func (o *SuiteOrchestrator) discoverPhaseDefinitions(env workspacepkg.Environmen
 	if o.catalog != nil {
 		for _, spec := range o.catalog.All() {
 			definitions[spec.Name.Key()] = phases.Definition{
-				Name:     spec.Name,
-				Runner:   spec.Runner,
-				Timeout:  spec.DefaultTimeout,
-				Optional: spec.Optional,
+				Name:         spec.Name,
+				Runner:       spec.Runner,
+				Timeout:      spec.DefaultTimeout,
+				Optional:     spec.Optional,
+				Capabilities: spec.Capabilities,
 			}
 		}
 	}
@@ -942,13 +1031,13 @@ func (o *SuiteOrchestrator) completePhaseRun(
 		duration = 0
 	}
 
-	status := "passed"
+	status := phaseStatusPassed
 	errMsg := ""
 	classification := report.FailureClassification
 	remediation := report.Remediation
 
 	if runErr != nil {
-		status = "failed"
+		status = phaseStatusFailed
 		errMsg = runErr.Error()
 		if errors.Is(runErr, context.DeadlineExceeded) || errors.Is(run.phaseCtx.Err(), context.DeadlineExceeded) {
 			errMsg = fmt.Sprintf("phase timed out after %s", run.timeout)
@@ -1126,10 +1215,12 @@ func SummarizePhases(phases []PhaseExecutionResult) PhaseSummary {
 		}
 		summary.ObservationCount += len(phase.Observations)
 		switch strings.ToLower(phase.Status) {
-		case "passed":
+		case phaseStatusPassed:
 			summary.Passed++
-		case "failed":
+		case phaseStatusFailed:
 			summary.Failed++
+		case phaseStatusSkipped:
+			summary.Skipped++
 		}
 	}
 	return summary

@@ -24,6 +24,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 	apihealth "github.com/vrooli/api-core/health"
 )
 
@@ -503,7 +504,7 @@ func TestServer_handleHealthReportsOperations(t *testing.T) {
 
 	server := &Server{
 		config:           Config{Port: "0", ServiceName: "Test Genie API"},
-		db:               db,
+		db:               database.NewFromPrimary(db),
 		suiteRequests:    q,
 		executionHistory: history,
 		logger:           log.New(io.Discard, "", 0),
@@ -580,7 +581,7 @@ func TestServer_handleHealthDatabaseFailure(t *testing.T) {
 
 	server := &Server{
 		config:           Config{Port: "0"},
-		db:               db,
+		db:               database.NewFromPrimary(db),
 		suiteRequests:    q,
 		executionHistory: history,
 		logger:           log.New(io.Discard, "", 0),

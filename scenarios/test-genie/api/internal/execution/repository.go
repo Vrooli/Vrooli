@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"test-genie/internal/dbexec"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/storage/sqliteutil"
 
@@ -17,10 +18,10 @@ import (
 // SuiteExecutionRepository persists execution records in Test Genie's embedded
 // SQLite database.
 type SuiteExecutionRepository struct {
-	db *sql.DB
+	db dbexec.Executor
 }
 
-func NewSuiteExecutionRepository(db *sql.DB) *SuiteExecutionRepository {
+func NewSuiteExecutionRepository(db dbexec.Executor) *SuiteExecutionRepository {
 	return &SuiteExecutionRepository{db: db}
 }
 

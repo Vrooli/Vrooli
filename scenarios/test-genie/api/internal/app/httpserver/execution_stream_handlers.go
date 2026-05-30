@@ -161,6 +161,7 @@ func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request
 		Event: SSEEventComplete,
 		Data: map[string]interface{}{
 			"success":       result.Success,
+			"verdict":       result.Verdict,
 			"executionId":   result.ExecutionID,
 			"presetUsed":    result.PresetUsed,
 			"startedAt":     result.StartedAt,

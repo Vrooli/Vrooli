@@ -1,7 +1,16 @@
 # test-genie seam registry
 
 Seams declared in `scenarios/test-genie/api/internal/`. Drift is gated by
-`// seam:` tags; if you add a new tag, add a row here.
+`// seam:` tags; if you add a new tag, add a row here. The reconciliation is
+enforced automatically by `internal/seamregistry/seam_registry_test.go`, which
+walks every `// seam:` tag in the codebase and fails the build if its name is
+not documented below.
+
+## Runnability gate
+
+| Seam | Declaration | Production impl | Test double | Why |
+|---|---|---|---|---|
+| `Resolver` | `orchestrator/runnability/runnability.go` (`Resolver` interface) | `runnability.StandardResolver` (`orchestrator/runnability/resolver.go`) | `mocks.FakeResolver` (`orchestrator/runnability/mocks/resolver.go`) | The single per-phase RUN/RUN_DEGRADED/SKIP decision: `PhaseCapabilities × RunContext → Verdict`. Absorbs the old `runtimeNeeds` switch, the `EnsureRunning` self-clobber, the playbooks routed-vs-fallback `PathDecision`, and the requirements skip vocabulary. Pure; exhaustively unit-tested. |
 
 ## Playbooks phase
 
@@ -31,6 +40,27 @@ Seams declared in `scenarios/test-genie/api/internal/`. Drift is gated by
 | Diagnostics → BAS plumbing | `internal/playbooks/config/config.go` (`DiagnosticsConfig`) → `internal/playbooks/execution/client.go` | `--diagnostics-preset {none,light,full}` sets `ExecuteWorkflowOptions` (`RequiresVideo/Har/Trace`) + `ArtifactCollectionConfig` toggles. | `config_test.go` (preset parsing/defaults). | Per-run diagnostics depth is immutable once a run completes (Decision 4); baselines just pin runs of differing depth. |
 | RunsService RPC | `internal/app/runs/service.go` | Thin Connect-RPC wrapper over `internal/shared/runs.Index`; `scenariosRoot` resolves a slug → run index path. | `service_test.go` against `t.TempDir()`. | The HTTP surface the test-genie CLI and GCT baseline adapters consume. |
 | Run artifact enumeration/serving | `internal/shared/artifacts/run_artifacts.go` (`ListRunVideos`, `ResolveRunArtifact`); `RunsService.ListRunVideos` (Connect) + REST `GET /scenarios/{name}/runs/{runId}/artifact?path=` (`httpserver/run_artifact_handler.go`) | `ListRunVideos` walks `automation/<wf>/video/*.webm`; `ResolveRunArtifact` traversal-guards a run-relative path to `RunDir`. Structured listing is Connect; binary bytes stream over REST (range via `http.ServeFile`). | `run_artifacts_test.go` (traversal + enumeration) against `t.TempDir()`. | Lets GCT's WorkflowReplayService list + proxy playbooks-run videos without reaching into test-genie's filesystem. |
+
+## Database handle
+
+| Seam | Declaration | Production impl | Test double | Why |
+|---|---|---|---|---|
+| `Executor` | `internal/dbexec/dbexec.go` | `*database.RoutedDB` (wired in `app/runtime/bootstrap.go`) | `*sql.DB` fixture from `internal/testsqlite` | The narrow DB-execution seam every repository and the schema applier capture instead of a raw `*sql.DB`. Lets production route per-request to an installed test pool (the routed test-DB path) while tests keep plain `*sql.DB`; keeps test-genie clear of the `routed_database_handle_capture` rule and thus routed-eligible. |
+
+## DB detection (playbooks)
+
+| Seam | Declaration | Production impl | Test double | Why |
+|---|---|---|---|---|
+| `Manifest` | `internal/playbooks/dbdetect/manifest.go` | reads the scenario's `.vrooli/service.json` | tests inject a canned manifest | Boundary between dbdetect and the on-disk service.json so driver detection is testable without fixtures on disk. |
+| `Filesystem` | `internal/playbooks/dbdetect/fs.go` | read-only file inspection of the scenario tree | tests inject an in-memory FS | Boundary between dbdetect's file scanning and the real filesystem. |
+| `Collector` | `internal/playbooks/dbdetect/types.go` | concrete scanning of scenario inputs | tests inject canned collected inputs | Boundary between raw scanning and the driver-ranking decision. |
+
+## Playbooks claims
+
+| Seam | Declaration | Production impl | Test double | Why |
+|---|---|---|---|---|
+| `Repository` | `internal/playbooksclaims/repository.go` | `NewSqliteRepository` | tests use an in-memory/`t.TempDir()` repo | Persists the per-scenario playbooks claim that guards against concurrent runs. |
+| `Clock` | `internal/playbooksclaims/service.go` | wall clock | tests inject a fixed clock | Drives claim TTL/heartbeat expiry deterministically in tests. |
 
 ## Related docs
 

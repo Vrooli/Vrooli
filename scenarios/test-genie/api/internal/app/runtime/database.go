@@ -1,12 +1,13 @@
 package runtime
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	goruntime "runtime"
 
+	"test-genie/internal/dbexec"
 	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/storage/sqlfiles"
 
@@ -17,8 +18,9 @@ const initializationDialectDir = "sqlite"
 
 // ApplySchema initializes the embedded SQLite schema for Test Genie.
 // Seed data is optional so one-time migration utilities can provision a clean
-// target without adding preview records.
-func ApplySchema(db *sql.DB, includeSeed bool) error {
+// target without adding preview records. The handle is the narrow
+// dbexec.Executor seam (production *database.RoutedDB or a test *sql.DB).
+func ApplySchema(db dbexec.Executor, includeSeed bool) error {
 	schemaPath, err := resolveInitializationFile("schema.sql")
 	if err != nil {
 		return fmt.Errorf("initialization schema lookup failed: %w", err)
@@ -40,14 +42,14 @@ func ApplySchema(db *sql.DB, includeSeed bool) error {
 	return nil
 }
 
-func ensureDatabaseSchema(db *sql.DB) error {
+func ensureDatabaseSchema(db dbexec.Executor) error {
 	return ApplySchema(db, true)
 }
 
 // applyDomainSchemas runs the declarative DDL owned by per-domain packages.
 // Each schema must be idempotent (CREATE TABLE IF NOT EXISTS) so this is
 // safe to call on every boot.
-func applyDomainSchemas(db *sql.DB) error {
+func applyDomainSchemas(db dbexec.Executor) error {
 	domains := []struct {
 		name string
 		ddl  string
@@ -55,7 +57,7 @@ func applyDomainSchemas(db *sql.DB) error {
 		{"playbooksclaims", playbooksclaims.Schema()},
 	}
 	for _, d := range domains {
-		if _, err := db.Exec(d.ddl); err != nil {
+		if _, err := db.ExecContext(context.Background(), d.ddl); err != nil {
 			return fmt.Errorf("domain schema %q: %w", d.name, err)
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"time"
 
+	"test-genie/internal/dbexec"
 	"test-genie/internal/storage/sqliteutil"
 
 	"github.com/google/uuid"
@@ -13,12 +14,12 @@ import (
 // SQLiteSuiteRequestRepository persists suite requests in Test Genie's embedded
 // SQLite database.
 type SQLiteSuiteRequestRepository struct {
-	db           *sql.DB
+	db           dbexec.Executor
 	clock        func() time.Time
 	activeWindow time.Duration
 }
 
-func NewSQLiteSuiteRequestRepository(db *sql.DB) *SQLiteSuiteRequestRepository {
+func NewSQLiteSuiteRequestRepository(db dbexec.Executor) *SQLiteSuiteRequestRepository {
 	return &SQLiteSuiteRequestRepository{
 		db:           db,
 		clock:        time.Now,

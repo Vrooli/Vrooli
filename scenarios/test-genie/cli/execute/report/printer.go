@@ -511,11 +511,32 @@ func (p *Printer) printPhaseResults(phasesData []execTypes.Phase) {
 }
 
 func (p *Printer) printSummary(resp execTypes.Response) {
+	verdict := strings.ToUpper(strings.TrimSpace(resp.Verdict))
+	if verdict == "PARTIAL" {
+		p.printPartialSummary(resp)
+		return
+	}
 	if resp.Success {
 		// Success celebration message (matches legacy output)
-		fmt.Fprintln(p.w, p.color.BoldGreen("🎉 All tests passed successfully!"))
+		fmt.Fprintln(p.w, p.color.BoldGreen("🎉 All required tests passed!"))
 		fmt.Fprintf(p.w, "%s %s testing infrastructure is working correctly\n",
 			p.color.Green("✅"), p.scenario)
+		if resp.PhaseSummary.Skipped > 0 {
+			// Optional phases that the runnability gate could not run in this
+			// environment. They do not gate the PASS but are surfaced honestly.
+			fmt.Fprintf(p.w, "%s %d optional phase(s) skipped (not runnable here):\n",
+				p.color.Yellow("⏭️"), resp.PhaseSummary.Skipped)
+			for _, phase := range resp.Phases {
+				if !strings.EqualFold(phase.Status, "skipped") {
+					continue
+				}
+				reason := strings.TrimSpace(phase.RunnabilityReason)
+				if reason == "" {
+					reason = "not runnable in this environment"
+				}
+				fmt.Fprintf(p.w, "   %s — %s\n", strings.ToUpper(phase.Name), reason)
+			}
+		}
 		fmt.Fprintln(p.w)
 	} else {
 		// Failure summary
@@ -526,16 +547,52 @@ func (p *Printer) printSummary(resp execTypes.Response) {
 
 		fmt.Fprintln(p.w)
 		fmt.Fprintln(p.w, p.color.Bold("Summary:"))
-		fmt.Fprintf(p.w, "  • Results: %s • %s • %d total\n",
+		results := fmt.Sprintf("  • Results: %s • %s",
 			p.color.Green(fmt.Sprintf("%d passed", passed)),
-			p.color.Red(fmt.Sprintf("%d failed", failed)),
-			total)
+			p.color.Red(fmt.Sprintf("%d failed", failed)))
+		if resp.PhaseSummary.Skipped > 0 {
+			results += " • " + p.color.Yellow(fmt.Sprintf("%d skipped", resp.PhaseSummary.Skipped))
+		}
+		fmt.Fprintf(p.w, "%s • %d total\n", results, total)
 		fmt.Fprintf(p.w, "  • Duration: %s\n", duration)
 		if resp.PhaseSummary.ObservationCount > 0 {
 			fmt.Fprintf(p.w, "  • Observations recorded: %d\n", resp.PhaseSummary.ObservationCount)
 		}
 		fmt.Fprintf(p.w, "  • Status: %s failures detected (see analysis below)\n", p.color.Yellow("⚠"))
 	}
+}
+
+// printPartialSummary renders the PARTIAL verdict: nothing failed, but one or
+// more phases could not run in this environment and were skipped with a reason.
+// Exit code stays 0 (Success=true); the label is loud so a strict gate can
+// still choose to reject a partial run from the machine-readable verdict.
+func (p *Printer) printPartialSummary(resp execTypes.Response) {
+	total := resp.PhaseSummary.Total
+	passed := resp.PhaseSummary.Passed
+	skipped := resp.PhaseSummary.Skipped
+	duration := FormatRunDuration(resp.PhaseSummary.DurationSeconds, resp.StartedAt, resp.CompletedAt)
+
+	fmt.Fprintln(p.w)
+	fmt.Fprintln(p.w, p.color.Bold(p.color.Yellow("◐ PARTIAL — ran what this environment allows; some phases were skipped")))
+	fmt.Fprintf(p.w, "  • Results: %s • %s • %d total\n",
+		p.color.Green(fmt.Sprintf("%d passed", passed)),
+		p.color.Yellow(fmt.Sprintf("%d skipped", skipped)),
+		total)
+	fmt.Fprintf(p.w, "  • Duration: %s\n", duration)
+	for _, phase := range resp.Phases {
+		if !strings.EqualFold(phase.Status, "skipped") {
+			continue
+		}
+		reason := strings.TrimSpace(phase.RunnabilityReason)
+		if reason == "" {
+			reason = "not runnable in this environment"
+		}
+		fmt.Fprintf(p.w, "  %s %s — %s\n", p.color.Yellow("⏭️"), strings.ToUpper(phase.Name), reason)
+		if rem := strings.TrimSpace(phase.Remediation); rem != "" {
+			fmt.Fprintf(p.w, "       %s %s\n", p.color.Cyan("fix:"), rem)
+		}
+	}
+	fmt.Fprintln(p.w)
 }
 
 func (p *Printer) printFailureDigest(phasesData []execTypes.Phase) {

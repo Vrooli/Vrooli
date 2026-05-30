@@ -122,6 +122,16 @@ func (m *Manager) EnsureRunning(ctx context.Context, needs Needs, logWriter io.W
 	return Lease{URLs: urls, Started: true}, nil
 }
 
+// LiveSurfaces reports the URLs of the target's currently-live surfaces. An
+// empty field means that surface is not live. Unlike EnsureRunning, it never
+// starts anything — it is a pure read of the lifecycle process records. The
+// self-host guard uses it to reuse a live surface instead of clobbering the
+// running process with `scenario start --clean-stale`.
+func (m *Manager) LiveSurfaces(ctx context.Context) URLs {
+	urls, _ := m.resolveURLs(ctx, Needs{})
+	return urls
+}
+
 // Cleanup stops the target scenario only when Test Genie started it.
 func (m *Manager) Cleanup(ctx context.Context, lease Lease, logWriter io.Writer) error {
 	if !lease.Started {

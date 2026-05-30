@@ -6,17 +6,19 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"test-genie/internal/dbexec"
 )
 
 // SqliteRepository is the SQLite-backed Repository implementation.
 type SqliteRepository struct {
-	db *sql.DB
+	db dbexec.Executor
 }
 
 var _ Repository = (*SqliteRepository)(nil)
 
 // NewSqliteRepository constructs a repository against the given handle.
-func NewSqliteRepository(db *sql.DB) *SqliteRepository {
+func NewSqliteRepository(db dbexec.Executor) *SqliteRepository {
 	return &SqliteRepository{db: db}
 }
 
