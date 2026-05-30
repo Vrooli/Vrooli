@@ -51,7 +51,7 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	}
 	preflight := s.processPreflightForItem(item, true)
 	if !preflight.Ready && (!req.Force || hasNonForceableExecutionReasons(preflight.BlockingReasons)) {
-		return Record{}, apierr.BadRequest("process preflight failed: %s", strings.Join(preflight.BlockingReasons, "; "))
+		return Record{}, apierr.BadRequest("process preflight failed: %s", strings.Join(allBlockingReasons(preflight), "; "))
 	}
 
 	// Load governance settings for enforcement checks.

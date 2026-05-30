@@ -203,6 +203,12 @@ func (s *Service) updateScenarioReviewState(executionID, scenarioName string, re
 	})
 }
 
+func (s *Service) updateScenarioBaselineDiff(executionID, scenarioName string, diff *BaselineDiffResult) error {
+	return s.updateScenarioFinalization(executionID, scenarioName, func(scenario *ScenarioFinalization) {
+		scenario.BaselineDiff = diff
+	})
+}
+
 func (s *Service) updateScenarioFinalization(executionID, scenarioName string, mutate func(*ScenarioFinalization)) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

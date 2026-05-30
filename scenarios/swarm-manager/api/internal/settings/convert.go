@@ -96,6 +96,8 @@ func settingsToProto(s Settings) *domainpb.Settings {
 		CircuitBreakerCooldownMinutes: int32(s.CircuitBreakerCooldownMinutes),
 		ExecutionCostCapPerRun:        s.ExecutionCostCapPerRun,
 		CostPerTurnEstimate:           s.CostPerTurnEstimate,
+		FixBeforeFeature:              s.FixBeforeFeature,
+		FixBeforeFeatureDiscovery:     s.FixBeforeFeatureDiscovery,
 	}
 }
 
@@ -212,6 +214,14 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := *req.CostPerTurnEstimate
 		patch.CostPerTurnEstimate = &v
 	}
+	if req.FixBeforeFeature != nil {
+		v := *req.FixBeforeFeature
+		patch.FixBeforeFeature = &v
+	}
+	if req.FixBeforeFeatureDiscovery != nil {
+		v := *req.FixBeforeFeatureDiscovery
+		patch.FixBeforeFeatureDiscovery = &v
+	}
 	return patch
 }
 
@@ -244,5 +254,7 @@ func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
 		req.CircuitBreakerThreshold == nil &&
 		req.CircuitBreakerCooldownMinutes == nil &&
 		req.ExecutionCostCapPerRun == nil &&
-		req.CostPerTurnEstimate == nil
+		req.CostPerTurnEstimate == nil &&
+		req.FixBeforeFeature == nil &&
+		req.FixBeforeFeatureDiscovery == nil
 }

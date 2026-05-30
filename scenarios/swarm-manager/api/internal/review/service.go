@@ -58,6 +58,10 @@ type ExecutionContext struct {
 	AffectedScenarios      []string
 	ChangedPathsByScenario map[string][]string
 	GCTResultsJSON         string
+	// BaselineDiffJSON is the per-scenario before/after baseline diff (new vs
+	// pre-existing failures) serialized as JSON, empty when no baseline was
+	// captured. Lets the review agent prioritize regressions this item caused.
+	BaselineDiffJSON string
 }
 
 // RoundTerminalHandler is invoked when a review round transitions to a
@@ -137,7 +141,7 @@ func (s *Service) SetEventLogger(e EventLogger) {
 
 // StartReviewForExecution is called by the execution service during finalization
 // to spawn a review agent. It satisfies execution.ReviewServiceIntegration.
-func (s *Service) StartReviewForExecution(ctx context.Context, executionID, backlogKind, backlogName, itemTitle, itemDir string, affectedScenarios []string, changedPathsByScenario map[string][]string, gctResultsJSON string) error {
+func (s *Service) StartReviewForExecution(ctx context.Context, executionID, backlogKind, backlogName, itemTitle, itemDir string, affectedScenarios []string, changedPathsByScenario map[string][]string, gctResultsJSON, baselineDiffJSON string) error {
 	return s.startReview(ctx, startReviewParams{
 		ExecutionID:            executionID,
 		BacklogKind:            backlogKind,
@@ -147,6 +151,7 @@ func (s *Service) StartReviewForExecution(ctx context.Context, executionID, back
 		AffectedScenarios:      affectedScenarios,
 		ChangedPathsByScenario: changedPathsByScenario,
 		GCTResultsJSON:         gctResultsJSON,
+		BaselineDiffJSON:       baselineDiffJSON,
 	})
 }
 
@@ -160,6 +165,7 @@ type startReviewParams struct {
 	AffectedScenarios      []string
 	ChangedPathsByScenario map[string][]string
 	GCTResultsJSON         string // Pre-serialized GCT review results per scenario
+	BaselineDiffJSON       string // Pre-serialized before/after baseline diff per scenario
 }
 
 // startReview creates a review round and spawns the review agent.
@@ -191,7 +197,7 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 	}
 
 	// Build context attachments for data the agent needs to review.
-	attachments := buildReviewAttachments(deliverableContent, changedPaths, affectedScenarios, params.GCTResultsJSON, "")
+	attachments := buildReviewAttachments(deliverableContent, changedPaths, affectedScenarios, params.GCTResultsJSON, params.BaselineDiffJSON, "")
 
 	// Create the round file in gathering state.
 	round := Round{
@@ -384,6 +390,7 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 			var changedPaths []string
 			var affectedScenarios []string
 			var gctResultsJSON string
+			var baselineDiffJSON string
 			if round.ExecutionID != "" && s.loadExecutionContext != nil {
 				if execCtx, ctxErr := s.loadExecutionContext(spawnCtx, round.ExecutionID); ctxErr != nil {
 					slog.Warn("load execution review context for evidence request", "execution_id", round.ExecutionID, "error", ctxErr)
@@ -391,6 +398,7 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 					changedPaths = flattenChangedPaths(execCtx.ChangedPathsByScenario)
 					affectedScenarios = pathutil.UniqueSortedStrings(append([]string(nil), execCtx.AffectedScenarios...))
 					gctResultsJSON = execCtx.GCTResultsJSON
+					baselineDiffJSON = execCtx.BaselineDiffJSON
 					itemTitle = s.resolveItemTitle(execCtx.BacklogKind, execCtx.BacklogName, execCtx.ItemTitle)
 				}
 			}
@@ -421,7 +429,7 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 				return
 			}
 
-			reqAttachments := buildReviewAttachments(deliverableContent, changedPaths, affectedScenarios, gctResultsJSON, message)
+			reqAttachments := buildReviewAttachments(deliverableContent, changedPaths, affectedScenarios, gctResultsJSON, baselineDiffJSON, message)
 
 			titlePreview := message
 			if len(titlePreview) > 50 {
@@ -552,13 +560,14 @@ func (s *Service) resolveItemDir(kind, name string) string {
 // buildReviewAttachments creates structured context attachments for the review
 // agent so that BuildSplitPrompt can separate instructions (system prompt)
 // from data (user message).
-func buildReviewAttachments(deliverableContent string, changedPaths, affectedScenarios []string, gctResultsJSON, userRequest string) []*domainpb.ContextAttachment {
+func buildReviewAttachments(deliverableContent string, changedPaths, affectedScenarios []string, gctResultsJSON, baselineDiffJSON, userRequest string) []*domainpb.ContextAttachment {
 	var atts []*domainpb.ContextAttachment
 	redactor := pathredact.NewForArtifactPath(".")
 	deliverableContent = redactor.RedactString(deliverableContent)
 	changedPaths = redactStrings(redactor, changedPaths)
 	affectedScenarios = redactStrings(redactor, affectedScenarios)
 	gctResultsJSON = redactor.RedactString(gctResultsJSON)
+	baselineDiffJSON = redactor.RedactString(baselineDiffJSON)
 	userRequest = redactor.RedactString(userRequest)
 
 	atts = appendNoteAttachment(atts, "plan-content", "Deliverable Content", "Backlog deliverable (plan or conclusion)", deliverableContent, "markdown", "high")
@@ -581,6 +590,10 @@ func buildReviewAttachments(deliverableContent string, changedPaths, affectedSce
 
 	if gctResultsJSON != "" {
 		atts = appendNoteAttachment(atts, "gct-review-results", "GCT Review Results", "Automated review metrics per scenario", gctResultsJSON, "json", "high")
+	}
+
+	if baselineDiffJSON != "" {
+		atts = appendNoteAttachment(atts, "baseline-diff-results", "Baseline Diff (New vs Pre-existing)", "Before/after baseline diff per scenario: regressions this item caused vs pre-existing failures", baselineDiffJSON, "json", "high")
 	}
 
 	if userRequest != "" {
@@ -714,6 +727,7 @@ func (s *Service) buildStartReviewParamsFromExecution(ctx context.Context, execu
 		AffectedScenarios:      append([]string(nil), execCtx.AffectedScenarios...),
 		ChangedPathsByScenario: cloneChangedPaths(execCtx.ChangedPathsByScenario),
 		GCTResultsJSON:         execCtx.GCTResultsJSON,
+		BaselineDiffJSON:       execCtx.BaselineDiffJSON,
 	}, nil
 }
 

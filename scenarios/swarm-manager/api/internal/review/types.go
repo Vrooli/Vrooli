@@ -31,16 +31,21 @@ const (
 
 // Round captures one pass of evidence gathering by the review agent.
 type Round struct {
-	RoundNum        int             `json:"round"`
-	GeneratedAt     string          `json:"generated_at"`
-	ExecutionID     string          `json:"execution_id"`
-	Status          RoundStatus     `json:"status"`
-	FailureReason   string          `json:"failure_reason,omitempty"`
-	AgentAssessment string          `json:"agent_assessment,omitempty"`
-	Classification  string          `json:"classification,omitempty"`
-	Notes           []string        `json:"notes,omitempty"`
-	Evidence        []EvidenceItem  `json:"evidence"`
-	RequestThreads  []RequestThread `json:"request_threads,omitempty"`
+	RoundNum        int         `json:"round"`
+	GeneratedAt     string      `json:"generated_at"`
+	ExecutionID     string      `json:"execution_id"`
+	Status          RoundStatus `json:"status"`
+	FailureReason   string      `json:"failure_reason,omitempty"`
+	AgentAssessment string      `json:"agent_assessment,omitempty"`
+	Classification  string      `json:"classification,omitempty"`
+	// RegressionIntroduced is set true by the review agent when
+	// baseline-diff-results showed a regression this item caused that the
+	// agent could not disprove. Distinct from pre-existing failures, which
+	// must never set this flag.
+	RegressionIntroduced bool            `json:"regression_introduced,omitempty"`
+	Notes                []string        `json:"notes,omitempty"`
+	Evidence             []EvidenceItem  `json:"evidence"`
+	RequestThreads       []RequestThread `json:"request_threads,omitempty"`
 	// ImprovementSuggestions recommends durable automations to replace one-off evidence.
 	ImprovementSuggestions []ImprovementSuggestion `json:"improvement_suggestions,omitempty"`
 	// RunID is the agent-manager run ID for the review agent session.

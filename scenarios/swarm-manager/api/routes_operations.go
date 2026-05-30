@@ -51,6 +51,17 @@ func (s *Server) registerOperationsRoutes() {
 	handler.SetBriefingBuilder(briefingBuilder)
 	handler.RegisterRoutes(s.router)
 	contextResolver := sessioncontext.NewResolver(s.scenarioRoot, filepath.Dir(s.scenarioRoot), s.agentSessionStore, briefingBuilder)
+	// Wire the cached, ranked initiative snapshot into the session context so
+	// the swarm_operations startup brief carries deterministic rankings. The
+	// snapshot reuses the overview service; when it is absent (test wiring),
+	// the brief degrades to the activity briefing alone.
+	if s.overviewSvc != nil {
+		snapshotBuilder, snapErr := operations.NewSnapshotBuilder(operations.SnapshotBuilderConfig{Overview: s.overviewSvc})
+		if snapErr != nil {
+			log.Fatalf("operations: failed to build SnapshotBuilder: %v", snapErr)
+		}
+		contextResolver.SetSnapshotBuilder(snapshotBuilder)
+	}
 	sessioncontext.NewHandler(contextResolver).RegisterRoutes(s.router)
 	if s.agentSessionSvc != nil {
 		s.agentSessionSvc.SetContextResolver(contextResolver)

@@ -794,6 +794,13 @@ func (a *App) cmdBacklogQueue(args []string) error {
 			}
 		}
 
+		if len(response.Advisories) > 0 {
+			printSection("Advisories")
+			for _, advisory := range response.Advisories {
+				fmt.Printf("  - %s\n", advisory)
+			}
+		}
+
 		nextCommands := []string{
 			cliCommand("backlog", "queue", "--kind", kind, "--name", name, "--execute", "--operation", opts.operation),
 			cliCommand("execution", "list", "--backlog-kind", kind, "--backlog-name", name),
@@ -810,6 +817,12 @@ func (a *App) cmdBacklogQueue(args []string) error {
 
 	printSection("Result")
 	fmt.Printf("  Queued backlog item: %s/%s\n", response.Item.Kind, response.Item.Name)
+	if len(response.Advisories) > 0 {
+		printSection("Advisories")
+		for _, advisory := range response.Advisories {
+			fmt.Printf("  - %s\n", advisory)
+		}
+	}
 	printSection("What Changed")
 	fmt.Printf("  Status: %s\n", response.Item.Status)
 	fmt.Printf("  Task ID: %s\n", response.TaskID)

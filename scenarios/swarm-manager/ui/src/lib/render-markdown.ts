@@ -16,10 +16,43 @@ function escapeHtml(text: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function applyInlineMarkdown(content: string): string {
+/**
+ * A typed entity reference the renderer turns into a navigable link. `token`
+ * is the exact inline-code text the agent emitted (e.g. `initiative:ship`);
+ * `href` is the server-resolved detail path. Only references the server
+ * confirmed exist are passed in, so an unresolved `type:name` span renders as
+ * plain code, never a dead link.
+ */
+export interface InlineReferenceLink {
+  token: string;
+  href: string;
+}
+
+/** Build the escaped-token → href lookup the inline-code pass consults. Keys
+ * are escaped the same way the content is, so they match the post-escape code
+ * span text. Only relative ("/"-prefixed) hrefs are kept. */
+function referenceLookup(references?: InlineReferenceLink[]): Map<string, string> | undefined {
+  if (!references || references.length === 0) return undefined;
+  const map = new Map<string, string>();
+  for (const ref of references) {
+    if (ref.href.startsWith("/")) {
+      map.set(escapeHtml(ref.token), ref.href);
+    }
+  }
+  return map.size > 0 ? map : undefined;
+}
+
+function applyInlineMarkdown(content: string, references?: Map<string, string>): string {
   return content
-    // Inline code
-    .replace(/`([^`]+)`/g, '<code class="bg-slate-900 px-1.5 py-0.5 rounded text-cyan-300 text-sm">$1</code>')
+    // Inline code — typed references that resolved become navigable links;
+    // everything else stays a code span.
+    .replace(/`([^`]+)`/g, (_match, code: string) => {
+      const href = references?.get(code);
+      if (href) {
+        return `<a href="${escapeHtml(href)}" data-entity-ref="true" class="rounded bg-slate-900 px-1.5 py-0.5 text-sm text-cyan-300 underline decoration-cyan-500/40 underline-offset-2 hover:text-cyan-200 hover:decoration-cyan-300">${code}</a>`;
+      }
+      return `<code class="bg-slate-900 px-1.5 py-0.5 rounded text-cyan-300 text-sm">${code}</code>`;
+    })
     // Bold
     .replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-slate-200">$1</strong>')
     // Italic
@@ -35,11 +68,12 @@ export function renderInlineMarkdown(content: string): string {
   return applyInlineMarkdown(escapeHtml(content));
 }
 
-export function renderMarkdown(content: string): string {
+export function renderMarkdown(content: string, references?: InlineReferenceLink[]): string {
   const seen = new Map<string, number>();
+  const refMap = referenceLookup(references);
 
   // Escape HTML first to prevent XSS, then apply markdown transformations.
-  return applyInlineMarkdown(escapeHtml(content))
+  return applyInlineMarkdown(escapeHtml(content), refMap)
     // Code blocks (multiline) — must come before header replacement to avoid matching inside fences
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-slate-900 rounded p-3 overflow-x-auto my-3"><code class="text-sm text-slate-300">$2</code></pre>')
     // Headers — emit id attributes for TOC scroll targets

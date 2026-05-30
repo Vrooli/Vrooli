@@ -13,6 +13,50 @@ func TestNormalizeSettingsDefaultsTheme(t *testing.T) {
 	}
 }
 
+func TestNormalizeFixBeforeFeature(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{"", FixBeforeFeatureSuggest},
+		{"off", FixBeforeFeatureOff},
+		{"suggest", FixBeforeFeatureSuggest},
+		{"block", FixBeforeFeatureBlock},
+		{"bogus", FixBeforeFeatureSuggest},
+	}
+	for _, tt := range tests {
+		got := normalizeSettings(Settings{FixBeforeFeature: tt.in}).FixBeforeFeature
+		if got != tt.want {
+			t.Errorf("normalize fix_before_feature %q = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestDefaultSettingsFixBeforeFeature(t *testing.T) {
+	d := DefaultSettings()
+	if d.FixBeforeFeature != FixBeforeFeatureSuggest {
+		t.Errorf("default fix_before_feature = %q, want suggest", d.FixBeforeFeature)
+	}
+	if d.FixBeforeFeatureDiscovery {
+		t.Errorf("default fix_before_feature_discovery = true, want false")
+	}
+}
+
+func TestApplyPatchFixBeforeFeature(t *testing.T) {
+	block := FixBeforeFeatureBlock
+	enabled := true
+	patched := applyPatch(DefaultSettings(), SettingsPatch{
+		FixBeforeFeature:          &block,
+		FixBeforeFeatureDiscovery: &enabled,
+	})
+	if patched.FixBeforeFeature != FixBeforeFeatureBlock {
+		t.Errorf("patched fix_before_feature = %q, want block", patched.FixBeforeFeature)
+	}
+	if !patched.FixBeforeFeatureDiscovery {
+		t.Errorf("patched fix_before_feature_discovery = false, want true")
+	}
+}
+
 func TestDeleteConfirmLevelProtoDefaulting(t *testing.T) {
 	tests := []struct {
 		name  string

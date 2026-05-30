@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Activity,
   Gauge,
@@ -60,6 +61,7 @@ export function SessionConversation({
   variant = "desktop",
   desktopPresentation = "card",
 }: SessionConversationProps) {
+  const navigate = useNavigate();
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
   const [contextPickerInitialType, setContextPickerInitialType] = useState<AgentSessionContextType | null>(null);
   const [imagePickerRequestKey, setImagePickerRequestKey] = useState(0);
@@ -120,6 +122,7 @@ export function SessionConversation({
           accent="cyan"
           className={cn("p-3", variant === "mobile" && "px-3 pb-40")}
           testId="agent-session-messages"
+          onReferenceNavigate={(href) => navigate(href)}
           getMessageMeta={(message) => (
             <>
               <span>{message.role}</span>

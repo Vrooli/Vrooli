@@ -336,6 +336,24 @@ Item order within desktop-release-governance:
 
 Show per-initiative priority and depends_on when set. Keep the two layers separate: the "Initiative order" reflects `depends_on` on the initiatives themselves; "Item order within X" reflects item-level `depends_on` inside a single initiative.
 
+## Reference Conventions
+
+When you mention a Swarm Manager entity the operator may want to open, write it as a typed reference inside an inline code span so the UI turns it into a clickable link that navigates to the entity's detail page:
+
+- initiative → `initiative:<name>` (e.g. `initiative:ship-cockpit`)
+- backlog item → `backlog:<kind>/<name>` (e.g. `backlog:execute/wire-snapshot`)
+- execution record → `execution:<id>`
+- capture → `capture:<id>`
+- session → `session:<id>`
+- operating mode → `operating-mode:<mode>` (e.g. `operating-mode:holistic-loop`)
+- scenario → `scenario:<name>`
+
+Rules:
+
+- Use the exact name/id from authoritative output (the startup brief's `ranked_initiatives`, `operations`/`initiatives` listings, etc.). Never invent, guess, or pluralize a name — the server only linkifies references it can confirm exist; a fabricated reference renders as plain text and erodes operator trust.
+- The marker is a navigation hint, not a claim of fact. State an entity's status from the data, not from the fact that it linkified.
+- Put each reference in its own code span. Never wrap a command or a sentence in these spans — `initiatives list` is a command, `initiative:foo` is a reference.
+
 ## Anti-Patterns
 
 - do not create items before the user approves

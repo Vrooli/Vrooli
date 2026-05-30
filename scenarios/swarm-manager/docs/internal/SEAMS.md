@@ -292,6 +292,32 @@ type EcosystemManagerClient interface {
 
 **Status**: Agent-manager service seam implemented; handlers depend on the service interface while HTTP/proto details stay in the integration layer.
 
+### Baseline Client Boundary
+
+```go
+// internal/execution/baseline_client.go — DOC: SEAMS.md#baseline-client
+type BaselineClient interface {
+    EnsureSnapshot(ctx context.Context, scenario, name string) (cached bool, err error)
+    Diff(ctx context.Context, scenario, name string) (BaselineDiffResult, error)
+    Delete(ctx context.Context, scenario, name string) error
+    Ping(ctx context.Context) error
+}
+```
+
+Wraps git-control-tower's `BaselinesService` (Connect-RPC) so execution can take a
+before/after baseline of each affected scenario and feed the review agent the
+new-vs-pre-existing failure split. The concrete `ConnectBaselineClient` re-resolves
+the git-control-tower URL per call via discovery; a **nil** client disables the
+before/after feature entirely (graceful degradation to the absolute-threshold
+review). Capture is best-effort and detached (snapshots re-run test-genie surfaces,
+minutes), planned synchronously in `startLocked` (working-tree-state hash → content-
+addressed baseline name) and ensured in a background goroutine; the finalization
+`baseline_diff` phase diffs each baseline and records a `BaselineDiffResult` on the
+scenario. Tuning lives in `FinalizationConfig` (`BaselineDiffEnabled`,
+`BaselineRetainAfterFinalization`, `BaselineDiffTimeout`).
+
+**Status**: Implemented; additive to the existing Review Client absolute-threshold path.
+
 ### Filesystem Seam
 
 ```
@@ -607,6 +633,61 @@ re-implementing the `state → Normalize → Apply` pipeline.
 The overview endpoint composes these interfaces to produce a summary containing backlog counts by status/kind, initiative rollups, dependency graph edges, and summary statistics.
 
 **Testing at the seam**: Mock both lister interfaces to test aggregation logic in isolation.
+
+### Operations Snapshot Boundary
+
+`api/internal/operations/snapshot.go` produces the cached, ranked initiative
+view fed into the `swarm_operations` session startup brief.
+
+- **OverviewReader interface**: the snapshot's only data dependency (the same
+  interface the briefing builder uses) — supplies initiatives, member-item
+  dependency state, and portfolio counts.
+- **SnapshotBuilder**: wraps overview data with a TTL cache
+  (`DefaultSnapshotTTL`, 120s) guarded by an `sync.RWMutex`. `GetSnapshot`
+  serves cached results within TTL and rebuilds past it; `Invalidate` drops the
+  cache for event-based invalidation layered over the TTL floor.
+- **Ranking contract** (`rankInitiatives`): prioritized (`priority>0`) before
+  unprioritized; ascending priority (P1 highest, matching the backlog
+  query/export convention); then readiness (ready→in_progress→blocked→complete);
+  then downstream-unblocks descending; then name. Readiness considers both
+  initiative-level `DependsOn` and member backlog-item dependencies
+  (`overview.DependencyGraph.Blocked`).
+
+**Wired via**: `routes_operations.go` builds the SnapshotBuilder from the
+overview service and injects it with `Resolver.SetSnapshotBuilder`. When the
+overview service is absent (test wiring), the brief degrades to the activity
+briefing alone.
+
+**Testing at the seam**: feed a fake `OverviewReader` and a mutable clock to
+assert ranking order, readiness classification, downstream-unblocks counts, and
+cache hit/expiry behavior.
+
+### Entity Reference Resolution Boundary
+
+`api/internal/sessioncontext/bulk.go` resolves typed entity-reference
+candidates (`type:name`) to ground-truth navigability verdicts.
+
+- **Resolver.ResolveBulk**: resolves a batch of `ReferenceCandidate`s in-process
+  by reusing the single-ref `resolve()` path, so existence is authoritative —
+  the resolver finding the backing record is the only thing that sets
+  `Exists=true`; the model's claim never does. Makes no network call.
+- **markerContextType**: maps the skill-emitted marker vocabulary
+  (`initiative`, `backlog`, `execution`, `capture`, `session`,
+  `operating-mode`, `scenario`) to the internal `ContextType`. Operating-mode
+  refs are validated against the registry (`operatingmode.ValidateMode`) since
+  `resolve()` does not read a file for them.
+- **detailPathFromNodeID**: mirrors the UI's `detailPathFromNodeId`
+  (`ui/src/app/routes/route-paths.ts`) so server-resolved references navigate to
+  the same routes the Artifacts tab uses. This is the shared node-id→path rule.
+
+This seam has two consumers: the in-process message-append enrichment path
+(assistant messages get references resolved and attached to `Message.Context`
+at append) and — once the Connect migration lands — the
+`EntityReferenceService.ResolveEntityReferences` handler.
+
+**Testing at the seam**: build a temp scenario root with real entity files and
+assert a mix of real/fake/multi-type candidates yields correct
+`Exists`/`DetailPath`, plus a direct table test of `detailPathFromNodeID`.
 
 ### Prompt Catalog Boundary
 

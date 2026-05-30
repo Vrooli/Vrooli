@@ -30,6 +30,7 @@ prompt-manager skill read swarm-manager-backlog-tools
 | `changed-paths` | List of changed file paths (one per line) |
 | `affected-scenarios` | List of affected scenario names (one per line) |
 | `gct-review-results` | (If available) JSON object keyed by scenario name with GCT review results (classification, dimensions, raw_dimensions) |
+| `baseline-diff-results` | (If available) JSON keyed by scenario name with the before/after baseline diff. Tells you exactly which failures this item **introduced** versus which **pre-existed** it — so you stop guessing. See Step 2.6. |
 | `user-request` | (Request More mode only) Specific evidence request from "Request More" |
 
 ## Evidence Strategy
@@ -79,6 +80,28 @@ Use GCT results to focus your evidence gathering:
 | Tests | pass but failures[] has entries for other phases | Check if failures are in changed code paths |
 
 **Key principle:** GCT gives scenario-level metrics. "85/100 code quality" doesn't mean the changed files are clean. Cross-reference GCT's topIssues/topViolations file paths against the `changed-paths` context attachment to assess relevance.
+
+### Step 2.6: Evaluate Baseline Delta
+
+If the `baseline-diff-results` context attachment is provided (non-empty), it is your **single most important signal** — it replaces the old `git log`/`git diff` guesswork about what pre-existed this item. Each key is a scenario name; each value contains:
+
+- `verdict`: overall comparison — `clean`, `regression`, `new-failure`, `preexisting`, or `not-comparable`.
+- `comparable`: `false` means no pre-execution baseline existed for this scenario (it was touched outside the item's declared `acceptance_allow`). When `false`, you cannot separate new from pre-existing failures here — fall back to GCT/absolute reasoning and **say so explicitly** in your assessment.
+- `regressions`: failures that passed in the baseline but fail now — **caused by THIS item**. These are your top priority.
+- `new_failures`: failures absent from the baseline and failing now — not attributable to this item's edits (e.g. a newly added-but-failing test, or environmental). Investigate only if they touch the item's stated goal.
+- `preexisting`: failures present in BOTH the baseline and now — **pre-existing debt. Do NOT hold this item responsible** for them, and do NOT file them as regressions, unless the plan's stated goal was to fix them (then a still-failing `preexisting` entry is evidence the goal was NOT met).
+- `cleared`: failures in the baseline that pass now — **fixed by this item**. Cite these as positive evidence when the plan claimed to fix them.
+
+Decision rules:
+
+| Baseline signal | Action |
+|-----------------|--------|
+| `regressions` non-empty | Priority investigation — gather targeted evidence proving/disproving each regression in changed code paths. Set `regression_introduced: true`. |
+| `verdict` = `regression` | Lean toward `needs_work` unless the regression is clearly spurious (prove it). |
+| `preexisting` non-empty, plan did NOT target it | Note it once, then ignore it for classification. Never let pre-existing failures push you to `needs_work`. |
+| `preexisting` non-empty, plan DID target it | The fix did not land — strong `needs_work` signal. |
+| `cleared` non-empty matching plan goal | Positive evidence the work succeeded. |
+| `comparable` = `false` | State that regression attribution was unavailable for this scenario; reason from GCT/absolute results instead. |
 
 ### Step 3: Determine Evidence Type Per Scenario
 
@@ -161,6 +184,7 @@ Write the review round to the backlog item's `review/round-{{ ROUND_NUMBER }}.js
   "status": "complete",
   "agent_assessment": "Dashboard widget layout matches spec. New endpoint validates correctly. No regressions detected on other tested routes.",
   "classification": "ready_with_notes",
+  "regression_introduced": false,
   "notes": [
     "Profile page save button alignment shifted slightly — matches spec requirement to widen form",
     "No existing test workflow for /settings route — created ad-hoc capture"
@@ -245,6 +269,8 @@ After gathering all evidence, classify the overall review:
 | `ready_with_notes` | Evidence supports completion but with observations worth noting |
 | `needs_work` | Evidence shows incomplete or incorrect implementation |
 | `not_assessable` | Could not gather sufficient evidence to judge (explain why) |
+
+Also set the top-level `regression_introduced` boolean: `true` when `baseline-diff-results` shows any `regressions` (failures this item caused that the baseline did not have) that you could not disprove, otherwise `false`. When `regression_introduced` is `true`, the classification should normally be `needs_work`. Omit the field (or set `false`) when no baseline diff was available — never infer a regression from pre-existing failures alone.
 
 ## Request More Mode
 

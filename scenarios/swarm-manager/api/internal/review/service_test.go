@@ -277,7 +277,7 @@ func TestStartReview_ResearchUsesConclusionDeliverable(t *testing.T) {
 }
 
 func TestBuildReviewAttachments_UserRequest(t *testing.T) {
-	atts := buildReviewAttachments("plan text", []string{"a.go"}, []string{"scen"}, "", "show me the logs")
+	atts := buildReviewAttachments("plan text", []string{"a.go"}, []string{"scen"}, "", "", "show me the logs")
 
 	var found bool
 	for _, att := range atts {
@@ -297,7 +297,7 @@ func TestBuildReviewAttachments_UserRequest(t *testing.T) {
 }
 
 func TestBuildReviewAttachments_NoUserRequest(t *testing.T) {
-	atts := buildReviewAttachments("plan", nil, nil, "", "")
+	atts := buildReviewAttachments("plan", nil, nil, "", "", "")
 	for _, att := range atts {
 		if att.Key == "user-request" {
 			t.Error("user-request should be absent when empty")
@@ -308,7 +308,7 @@ func TestBuildReviewAttachments_NoUserRequest(t *testing.T) {
 func TestBuildReviewAttachments_NonSandboxDiffSummary(t *testing.T) {
 	// When there are 0 changed paths (non-sandbox execution), the diff-summary
 	// should explain that changes may exist but weren't tracked.
-	atts := buildReviewAttachments("plan", nil, nil, "", "")
+	atts := buildReviewAttachments("plan", nil, nil, "", "", "")
 
 	for _, att := range atts {
 		if att.Key == "diff-summary" {
@@ -329,7 +329,7 @@ func TestBuildReviewAttachments_NonSandboxDiffSummary(t *testing.T) {
 
 func TestBuildReviewAttachments_SandboxDiffSummary(t *testing.T) {
 	// When there ARE changed paths, the diff-summary should NOT include the non-sandbox note.
-	atts := buildReviewAttachments("plan", []string{"a.go", "b.go"}, []string{"scen"}, "", "")
+	atts := buildReviewAttachments("plan", []string{"a.go", "b.go"}, []string{"scen"}, "", "", "")
 
 	for _, att := range atts {
 		if att.Key == "diff-summary" {
@@ -346,14 +346,14 @@ func TestBuildReviewAttachments_SandboxDiffSummary(t *testing.T) {
 }
 
 func TestBuildReviewAttachments_Priorities(t *testing.T) {
-	atts := buildReviewAttachments("plan", []string{"a.go"}, []string{"scen"}, `{"s":"ready"}`, "")
+	atts := buildReviewAttachments("plan", []string{"a.go"}, []string{"scen"}, `{"s":"ready"}`, `{"scen":{"verdict":"regression"}}`, "")
 
 	priorities := make(map[string]string)
 	for _, att := range atts {
 		priorities[att.Key] = att.Priority
 	}
 
-	highKeys := []string{"plan-content", "diff-summary", "changed-paths", "gct-review-results"}
+	highKeys := []string{"plan-content", "diff-summary", "changed-paths", "gct-review-results", "baseline-diff-results"}
 	for _, key := range highKeys {
 		if priorities[key] != "high" {
 			t.Errorf("attachment %q priority = %q, want %q", key, priorities[key], "high")
@@ -361,6 +361,31 @@ func TestBuildReviewAttachments_Priorities(t *testing.T) {
 	}
 	if priorities["affected-scenarios"] != "medium" {
 		t.Errorf("affected-scenarios priority = %q, want %q", priorities["affected-scenarios"], "medium")
+	}
+}
+
+func TestBuildReviewAttachments_BaselineDiffPresentIffData(t *testing.T) {
+	// Present when baseline diff JSON is supplied.
+	withDiff := buildReviewAttachments("plan", []string{"a.go"}, []string{"scen"}, "", `{"scen":{"verdict":"regression"}}`, "")
+	var found bool
+	for _, att := range withDiff {
+		if att.Key == "baseline-diff-results" {
+			found = true
+			if att.Format != "json" {
+				t.Errorf("baseline-diff-results format = %q, want json", att.Format)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected baseline-diff-results attachment when diff data is present")
+	}
+
+	// Absent when baseline diff JSON is empty.
+	withoutDiff := buildReviewAttachments("plan", []string{"a.go"}, []string{"scen"}, "", "", "")
+	for _, att := range withoutDiff {
+		if att.Key == "baseline-diff-results" {
+			t.Error("baseline-diff-results should be absent when no diff data")
+		}
 	}
 }
 

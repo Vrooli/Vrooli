@@ -1,7 +1,40 @@
+import type { MouseEvent } from "react";
+import { useMemo } from "react";
 import { Loader2, Volume2, VolumeX } from "lucide-react";
-import { renderMarkdown } from "../../lib/render-markdown";
+import { detailPathFromNodeId } from "../../app/routes/route-paths";
+import { renderMarkdown, type InlineReferenceLink } from "../../lib/render-markdown";
 import { cn } from "../../lib/utils";
 import type { ChatAccent, ChatMessageRenderSlot, ChatMessageView } from "./chat-types";
+
+// REFERENCE_MARKERS maps the stored context-item type to the marker the agent
+// emits in `type:name` spans, so a resolved Context entry can be matched back
+// to the exact inline-code token in the message text. Mirrors the server's
+// markerContextType (api/internal/sessioncontext/bulk.go).
+const REFERENCE_MARKERS: Record<string, string> = {
+  initiative: "initiative",
+  backlog_item: "backlog",
+  execution: "execution",
+  capture: "capture",
+  session: "session",
+  operating_mode: "operating-mode",
+  scenario: "scenario",
+};
+
+/** Build the navigable-reference list from a message's resolved context. Each
+ * entry pairs the `type:name` token with its detail path; only entries whose
+ * node id resolves to a route are included. */
+function referencesFromContext(context: ChatMessageView["context"]): InlineReferenceLink[] {
+  if (!context || context.length === 0) return [];
+  const out: InlineReferenceLink[] = [];
+  for (const item of context) {
+    const marker = REFERENCE_MARKERS[item.type];
+    if (!marker || !item.ref) continue;
+    const nodeId = item.nodeId;
+    const href = nodeId?.startsWith("/") ? nodeId : nodeId ? detailPathFromNodeId(nodeId) : null;
+    if (href) out.push({ token: `${marker}:${item.ref}`, href });
+  }
+  return out;
+}
 
 const assistantAccentClasses: Record<ChatAccent, string> = {
   cyan: "border-cyan-500/20 bg-cyan-500/5",
@@ -23,6 +56,10 @@ interface ChatMessageBubbleProps {
   getMessageMeta?: ChatMessageRenderSlot;
   renderAttachmentPreview?: ChatMessageRenderSlot;
   speak?: ChatMessageSpeakController;
+  /** Called when a linkified entity reference is clicked. When provided, the
+   * click is intercepted for client-side routing; when absent, the anchor's
+   * href performs a normal navigation. */
+  onReferenceNavigate?: (href: string) => void;
 }
 
 export function ChatMessageBubble({
@@ -31,12 +68,24 @@ export function ChatMessageBubble({
   getMessageMeta,
   renderAttachmentPreview,
   speak,
+  onReferenceNavigate,
 }: ChatMessageBubbleProps) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
   const isAssistant = !isUser && !isSystem;
   const isSpeaking = speak?.speakingMessageId === message.id;
   const isLoadingAudio = speak?.loadingMessageId === message.id;
+
+  const references = useMemo(() => referencesFromContext(message.context), [message.context]);
+
+  const handleContentClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (!onReferenceNavigate) return;
+    const anchor = (event.target as HTMLElement).closest?.("a[data-entity-ref]");
+    const href = anchor?.getAttribute("href");
+    if (!href) return;
+    event.preventDefault();
+    onReferenceNavigate(href);
+  };
 
   return (
     <article className={cn("flex", isUser ? "justify-end" : "justify-start")} data-role={message.role}>
@@ -53,7 +102,11 @@ export function ChatMessageBubble({
             {getMessageMeta(message)}
           </div>
         )}
-        <div className="prose-sm-slate break-words" dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }} />
+        <div
+          className="prose-sm-slate break-words"
+          onClick={handleContentClick}
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content, references) }}
+        />
         {renderAttachmentPreview?.(message)}
         {isAssistant && speak && !speak.unavailable && message.content.trim() && (
           <button

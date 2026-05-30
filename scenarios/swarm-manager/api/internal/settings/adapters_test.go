@@ -34,6 +34,8 @@ func testStore(t *testing.T) *Store {
 	s.ReviewMaxWarnings = 10
 	s.ReviewRequireScreenshots = true
 	s.ReviewRequireTests = true
+	s.FixBeforeFeature = FixBeforeFeatureBlock
+	s.FixBeforeFeatureDiscovery = true
 	if err := store.Save(s); err != nil {
 		t.Fatalf("save test settings: %v", err)
 	}
@@ -124,6 +126,12 @@ func TestGovernanceAdapter(t *testing.T) {
 	}
 	if gov.AgentMaxTurns != 42 {
 		t.Errorf("AgentMaxTurns = %d, want 42", gov.AgentMaxTurns)
+	}
+	if gov.FixBeforeFeature != execution.FixBeforeFeatureBlock {
+		t.Errorf("FixBeforeFeature = %q, want block", gov.FixBeforeFeature)
+	}
+	if !gov.FixBeforeFeatureDiscovery {
+		t.Errorf("FixBeforeFeatureDiscovery = false, want true")
 	}
 }
 

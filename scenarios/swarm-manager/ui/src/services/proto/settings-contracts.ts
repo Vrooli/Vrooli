@@ -5,6 +5,7 @@ import type {
   Settings as SettingsDomain,
   DeleteConfirmLevel as DomainDeleteConfirmLevel,
   ExecutionMode,
+  FixBeforeFeatureMode,
   ThemePreference,
 } from "../../types";
 import { EXECUTION_MODES } from "../../types";
@@ -99,5 +100,11 @@ export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
     circuitBreakerCooldownMinutes: protoSettings.circuitBreakerCooldownMinutes ?? 60,
     executionCostCapPerRun: protoSettings.executionCostCapPerRun ?? 0,
     costPerTurnEstimate: protoSettings.costPerTurnEstimate ?? 0.10,
+    fixBeforeFeature: normalizeFixBeforeFeature(protoSettings.fixBeforeFeature),
+    fixBeforeFeatureDiscovery: protoSettings.fixBeforeFeatureDiscovery ?? false,
   };
+}
+
+function normalizeFixBeforeFeature(value: string | undefined): FixBeforeFeatureMode {
+  return value === "off" || value === "block" ? value : "suggest";
 }

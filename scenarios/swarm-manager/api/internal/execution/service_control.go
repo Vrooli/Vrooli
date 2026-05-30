@@ -86,6 +86,12 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		CapturedAt:     nowRFC3339(),
 	}
 
+	// Pre-execution baseline capture: pin a GCT baseline of each declared
+	// scenario's current state so finalization can separate regressions this
+	// item causes from pre-existing failures. Cheap synchronous planning here;
+	// the slow snapshot runs detached. Best-effort — never blocks the spawn.
+	record.PreExecBaselines = s.capturePreExecBaselinesLocked(ctx, item)
+
 	activityCtx := agentactivity.WithSpec(ctx, backlogActivitySpec(
 		item,
 		record.ExecutionID,

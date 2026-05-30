@@ -23,6 +23,7 @@ const (
 	FinalizationPhaseScopeDetection    = "scope_detection"
 	FinalizationPhaseRestarting        = "restarting"
 	FinalizationPhaseHealthCheck       = "health_check"
+	FinalizationPhaseBaselineDiff      = "baseline_diff"
 	FinalizationPhaseReviewing         = "reviewing"
 	FinalizationPhaseEvidenceGathering = "evidence_gathering"
 	FinalizationPhaseCompleted         = "completed"
@@ -48,6 +49,8 @@ const (
 	finalizationWarningHealthChecksMissing       = "health_checks_missing"
 	finalizationWarningReviewSkipped             = "review_skipped"
 	finalizationWarningFinalizationInfra         = "finalization_infrastructure"
+	finalizationWarningBaselineScopeExpanded     = "baseline_scope_expanded_no_baseline"
+	finalizationWarningBaselineDiffFailed        = "baseline_diff_failed"
 	finalizationWarningReviewAgentFailed         = "review_agent_failed"
 	finalizationWarningEvidenceSkippedDisabled   = "evidence_skipped_disabled"
 	finalizationWarningEvidenceSkippedPolicyErr  = "evidence_skipped_policy_error"
@@ -116,6 +119,11 @@ type ScenarioFinalization struct {
 	Restart      RestartResult      `json:"restart,omitempty"`
 	Health       HealthCheckResult  `json:"health,omitempty"`
 	Review       ScenarioReviewStep `json:"review,omitempty"`
+	// BaselineDiff holds the before/after GCT baseline comparison for this
+	// scenario when a pre-execution baseline was captured. Nil when the
+	// feature is off or the scenario was touched outside acceptance_allow
+	// (no pre-exec baseline to compare against — recorded not_comparable).
+	BaselineDiff *BaselineDiffResult `json:"baseline_diff,omitempty"`
 }
 
 // RestartResult captures restart attempts for one scenario.

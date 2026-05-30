@@ -19,7 +19,6 @@
   ],
   "decisions_consumed": [
     "bug-resolution-proposal",
-    "preemptive-qa-backlog",
     "quality-audit-backlog",
     "capability-gap"
   ]

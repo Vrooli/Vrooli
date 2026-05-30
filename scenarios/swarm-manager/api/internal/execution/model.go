@@ -97,6 +97,12 @@ type Record struct {
 	ParentExecutionID string          `json:"parent_execution_id,omitempty"`
 	FixupAttempt      int             `json:"fixup_attempt,omitempty"`
 	Finalization      *Finalization   `json:"finalization,omitempty"`
+	// PreExecBaselines maps an affected scenario name to the GCT baseline
+	// captured for it just before execution started. Finalization diffs each
+	// of these against the post-execution working tree to separate regressions
+	// this item caused from pre-existing failures. Keyed only by scenarios
+	// declared in acceptance_allow (the sole pre-execution scope signal).
+	PreExecBaselines map[string]string `json:"pre_exec_baselines,omitempty"`
 	// ManuallyAccepted is set when the user overrode a failed/canceled/
 	// needs_fixup execution by manually marking the backlog item completed.
 	// Stats treat manually-accepted runs as successful so the Agent tab
@@ -155,6 +161,14 @@ type ProcessPreflight struct {
 	SuggestedSteerProfileID  string                    `json:"suggested_steer_profile_id,omitempty"`
 	BlockingReasons          []string                  `json:"blocking_reasons,omitempty"`
 	BlockingQuestions        []ProcessBlockingQuestion `json:"blocking_questions,omitempty"`
+	// ForceableBlockingReasons block the queue but can be overridden with
+	// force=true (e.g. the fix-before-feature gate in "block" mode). Kept
+	// separate from BlockingReasons (which are structural / non-forceable) so
+	// callers can render forceability correctly.
+	ForceableBlockingReasons []string `json:"forceable_blocking_reasons,omitempty"`
+	// Advisories are non-blocking messages surfaced to the caller (e.g. the
+	// fix-before-feature gate in "suggest" mode). They never affect Ready.
+	Advisories []string `json:"advisories,omitempty"`
 }
 
 // ProcessBlockingQuestion represents an unanswered critical question.
@@ -197,6 +211,13 @@ type GovernanceSettings struct {
 	ExecutionCostCapPerRun        float64        `json:"execution_cost_cap_per_run"`
 	CostPerTurnEstimate           float64        `json:"cost_per_turn_estimate"`
 	AgentMaxTurns                 int            `json:"agent_max_turns"`
+
+	// FixBeforeFeature controls the fix-before-feature gate: "off", "suggest"
+	// (default), or "block". FixBeforeFeatureDiscovery enables async on-demand
+	// readiness discovery when a feature item targets a scenario with no known
+	// open remediation work. See fix_before_feature.go.
+	FixBeforeFeature          string `json:"fix_before_feature"`
+	FixBeforeFeatureDiscovery bool   `json:"fix_before_feature_discovery"`
 }
 
 // DefaultGovernanceSettings returns safe defaults for governance settings.
@@ -214,6 +235,8 @@ func DefaultGovernanceSettings() GovernanceSettings {
 		ExecutionCostCapPerRun:        0,
 		CostPerTurnEstimate:           0.10,
 		AgentMaxTurns:                 600,
+		FixBeforeFeature:              FixBeforeFeatureSuggest,
+		FixBeforeFeatureDiscovery:     false,
 	}
 }
 

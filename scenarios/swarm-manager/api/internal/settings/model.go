@@ -20,6 +20,13 @@ const (
 	DeleteConfirmStrong DeleteConfirmLevel = "strong"
 )
 
+// Fix-before-feature gate modes.
+const (
+	FixBeforeFeatureOff     = "off"
+	FixBeforeFeatureSuggest = "suggest"
+	FixBeforeFeatureBlock   = "block"
+)
+
 // DeleteConfirmationSettings holds per-entity-type confirmation levels.
 type DeleteConfirmationSettings struct {
 	Backlog    DeleteConfirmLevel `json:"backlog"`
@@ -80,6 +87,17 @@ type Settings struct {
 	CircuitBreakerCooldownMinutes int            `json:"circuit_breaker_cooldown_minutes"`
 	ExecutionCostCapPerRun        float64        `json:"execution_cost_cap_per_run"`
 	CostPerTurnEstimate           float64        `json:"cost_per_turn_estimate"`
+
+	// Fix-before-feature gate. When a feature item (kind=execute) is queued
+	// onto a scenario that already has open fix/chore items, the gate reacts
+	// per this mode: "off" (silent), "suggest" (advisory in the queue
+	// response), or "block" (forceable BlockingReason). Default "suggest".
+	FixBeforeFeature string `json:"fix_before_feature"`
+	// FixBeforeFeatureDiscovery, when true, lets the gate trigger an async
+	// on-demand readiness review for a scenario that has *no* known open fix
+	// items (and no recent readiness signal), auto-filing fix items it finds.
+	// Default false.
+	FixBeforeFeatureDiscovery bool `json:"fix_before_feature_discovery"`
 }
 
 // SettingsPatch allows partial updates.
@@ -121,6 +139,9 @@ type SettingsPatch struct {
 	CircuitBreakerCooldownMinutes *int           `json:"circuit_breaker_cooldown_minutes,omitempty"`
 	ExecutionCostCapPerRun        *float64       `json:"execution_cost_cap_per_run,omitempty"`
 	CostPerTurnEstimate           *float64       `json:"cost_per_turn_estimate,omitempty"`
+
+	FixBeforeFeature          *string `json:"fix_before_feature,omitempty"`
+	FixBeforeFeatureDiscovery *bool   `json:"fix_before_feature_discovery,omitempty"`
 }
 
 // Store persists settings on disk.
@@ -193,6 +214,9 @@ func DefaultSettings() Settings {
 		CircuitBreakerCooldownMinutes: 60,
 		ExecutionCostCapPerRun:        0,
 		CostPerTurnEstimate:           0.10,
+
+		FixBeforeFeature:          FixBeforeFeatureSuggest,
+		FixBeforeFeatureDiscovery: false,
 	}
 }
 
@@ -353,6 +377,14 @@ func normalizeSettings(settings Settings) Settings {
 	}
 	settings.CostPerTurnEstimate = clampFloat(settings.CostPerTurnEstimate, 0, 5)
 
+	// Fix-before-feature gate.
+	switch settings.FixBeforeFeature {
+	case FixBeforeFeatureOff, FixBeforeFeatureSuggest, FixBeforeFeatureBlock:
+		// ok
+	default:
+		settings.FixBeforeFeature = FixBeforeFeatureSuggest
+	}
+
 	return settings
 }
 
@@ -468,6 +500,12 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	}
 	if patch.CostPerTurnEstimate != nil {
 		current.CostPerTurnEstimate = *patch.CostPerTurnEstimate
+	}
+	if patch.FixBeforeFeature != nil {
+		current.FixBeforeFeature = strings.TrimSpace(*patch.FixBeforeFeature)
+	}
+	if patch.FixBeforeFeatureDiscovery != nil {
+		current.FixBeforeFeatureDiscovery = *patch.FixBeforeFeatureDiscovery
 	}
 	return current
 }

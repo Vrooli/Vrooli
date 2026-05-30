@@ -78,6 +78,14 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 		}
 	}
 
+	// Before/after baseline diff: compare each affected scenario against the
+	// baseline captured before execution so the review agent can separate
+	// regressions this item caused from pre-existing failures. Additive to the
+	// absolute review below — best-effort, never fails finalization.
+	if err := s.runBaselineDiffs(ctx, executionID, scope, record.PreExecBaselines); err != nil {
+		return err
+	}
+
 	if err := s.markFinalizationPhase(executionID, FinalizationPhaseReviewing); err != nil {
 		return err
 	}
@@ -106,6 +114,11 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 			reason, "", s.evidenceSkipMessage(reason), false,
 		))
 	}
+
+	// Pre-exec baselines have served their purpose (the diff results are
+	// persisted on the record and handed to the review agent); reclaim them
+	// unless configured to retain. Best-effort — never blocks finalization.
+	s.cleanupPreExecBaselines(ctx, record.PreExecBaselines)
 
 	return s.finishFinalization(executionID)
 }
@@ -370,9 +383,13 @@ func (s *Service) triggerReviewAgent(ctx context.Context, executionID string, sc
 		Summary        string            `json:"summary"`
 	}
 	resultsByScenario := make(map[string]*scenarioGCTResult)
+	baselineByScenario := make(map[string]BaselineDiffResult)
 	for _, name := range scope.affectedScenarios {
 		sf, err := s.loadScenarioFinalization(executionID, name)
-		if err == nil && sf.Review.Result != nil {
+		if err != nil {
+			continue
+		}
+		if sf.Review.Result != nil {
 			r := sf.Review.Result
 			resultsByScenario[name] = &scenarioGCTResult{
 				Classification: r.Classification,
@@ -380,6 +397,9 @@ func (s *Service) triggerReviewAgent(ctx context.Context, executionID string, sc
 				RawDimensions:  r.RawDimensions,
 				Summary:        r.Summary,
 			}
+		}
+		if sf.BaselineDiff != nil {
+			baselineByScenario[name] = *sf.BaselineDiff
 		}
 	}
 
@@ -389,11 +409,12 @@ func (s *Service) triggerReviewAgent(ctx context.Context, executionID string, sc
 			gctJSON = string(b)
 		}
 	}
+	baselineJSON := MarshalBaselineDiffResults(baselineByScenario)
 
 	return s.reviewService.StartReviewForExecution(ctx,
 		executionID, item.Kind, item.Name, item.Title,
 		s.itemDir(item.Kind, item.Name),
 		scope.affectedScenarios, scope.changedPathsByScenario,
-		gctJSON,
+		gctJSON, baselineJSON,
 	)
 }

@@ -62,6 +62,8 @@ export const DEFAULT_SETTINGS: Settings = {
   circuitBreakerCooldownMinutes: 60,
   executionCostCapPerRun: 0,
   costPerTurnEstimate: 0.10,
+  fixBeforeFeature: "suggest",
+  fixBeforeFeatureDiscovery: false,
 };
 
 type SettingsPatch = Partial<Settings>;
@@ -118,6 +120,8 @@ function normalizeSettings(input?: SettingsPatch): Settings {
     circuitBreakerCooldownMinutes: input.circuitBreakerCooldownMinutes ?? DEFAULT_SETTINGS.circuitBreakerCooldownMinutes,
     executionCostCapPerRun: input.executionCostCapPerRun ?? DEFAULT_SETTINGS.executionCostCapPerRun,
     costPerTurnEstimate: input.costPerTurnEstimate ?? DEFAULT_SETTINGS.costPerTurnEstimate,
+    fixBeforeFeature: input.fixBeforeFeature ?? DEFAULT_SETTINGS.fixBeforeFeature,
+    fixBeforeFeatureDiscovery: input.fixBeforeFeatureDiscovery ?? DEFAULT_SETTINGS.fixBeforeFeatureDiscovery,
   };
 }
 

@@ -4,16 +4,17 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"prompt-manager/memberflow"
-	"prompt-manager/internal/paths"
-	"prompt-manager/store"
-	"prompt-manager/teamconfig"
-	"prompt-manager/teamcontract"
 	"runtime"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"prompt-manager/internal/paths"
+	"prompt-manager/memberflow"
+	"prompt-manager/store"
+	"prompt-manager/teamconfig"
+	"prompt-manager/teamcontract"
 )
 
 func TestPromptBuilderAgentOnly(t *testing.T) {
@@ -1102,6 +1103,49 @@ func expectedRequiredMemoryBlock(t *testing.T, configRoot, teamID, agentID strin
 	}
 	b.WriteString("\n")
 	return b.String()
+}
+
+// TestActiveTaskBriefNoSwarmManagerLeak guards prompt-manager's engine purity:
+// the generic prompt-assembly engine must never emit a swarm-manager-specific
+// instruction string. Domain dispatch policy belongs in team/skill *data*
+// (member lane text), never hard-coded here. See store/models.go: "Prompt-manager
+// never parses Data — it belongs to the source system (e.g. swarm-manager)."
+func TestActiveTaskBriefNoSwarmManagerLeak(t *testing.T) {
+	ctx := context.Background()
+	roots := paths.RootsForTest(t)
+	fileStore := store.NewFileStore(roots)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+
+	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive}); err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	team := newIndependentTestTeam("team-1", "Team One")
+	// Set a previously-recognized taskParameter to prove the engine no longer
+	// reacts to it with hard-coded swarm-manager text.
+	member := team.OperatingContract.Members["agent-1"]
+	member.TaskParameters = map[string]any{"skipScenariosWithScheduledWork": true}
+	team.OperatingContract.Members["agent-1"] = member
+	if err := teamStore.Create(ctx, team); err != nil {
+		t.Fatalf("create team: %v", err)
+	}
+	if err := teamStore.SetHeartbeatInstructions(ctx, "team-1", "agent-1", "# Heartbeat: Test\n\nDo work."); err != nil {
+		t.Fatalf("set heartbeat: %v", err)
+	}
+
+	builder := NewPromptBuilder(teamStore, agentStore)
+
+	sections, err := builder.BuildStructured(ctx, PromptBuildRequest{AgentID: "agent-1", TeamID: "team-1"})
+	if err != nil {
+		t.Fatalf("BuildStructured: %v", err)
+	}
+	brief := promptSectionContent(sections, promptSectionKindActiveTaskBrief)
+	// Construct the forbidden marker from parts so this guard does not itself
+	// contain the contiguous literal (which would trip the re-leak grep).
+	forbidden := "swarm-manager " + "backlog list"
+	if strings.Contains(brief, forbidden) || strings.Contains(brief, "SKIP any scenario") {
+		t.Fatalf("engine leak: brief must not hard-code swarm-manager instruction strings:\n%s", brief)
+	}
 }
 
 func TestActiveTaskBriefUsesHumanReadableWriteSurface(t *testing.T) {

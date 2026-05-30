@@ -129,6 +129,14 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 			Forceable: false,
 		})
 	}
+	// Forceable preflight reasons (e.g. the fix-before-feature gate in "block"
+	// mode) block the queue but can be overridden with force=true.
+	for _, reason := range preflight.ForceableBlockingReasons {
+		blockingReasons = append(blockingReasons, BlockingReason{
+			Message:   reason,
+			Forceable: true,
+		})
+	}
 	if pendingDecisions > 0 {
 		blockingReasons = append(blockingReasons, BlockingReason{
 			Message:   fmt.Sprintf("%d workshop decision(s) still pending", pendingDecisions),
@@ -185,6 +193,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 			BlockingReasons:     protoReasons,
 			UnansweredQuestions: 0,
 			PendingSuggestions:  int32(pendingDecisions),
+			Advisories:          preflight.Advisories,
 		}
 	}
 
@@ -258,6 +267,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		BlockingReasons:     nil,
 		UnansweredQuestions: 0,
 		PendingSuggestions:  int32(pendingDecisions),
+		Advisories:          preflight.Advisories,
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, resp); err != nil {
 		apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to encode response"))

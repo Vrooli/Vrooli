@@ -43,6 +43,8 @@ func (a *App) cmdSettingsGet(args []string) error {
 				Initiative string `json:"initiative"`
 				Capture    string `json:"capture"`
 			} `json:"delete_confirmation"`
+			FixBeforeFeature          string `json:"fix_before_feature"`
+			FixBeforeFeatureDiscovery bool   `json:"fix_before_feature_discovery"`
 		} `json:"settings"`
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
@@ -58,6 +60,8 @@ func (a *App) cmdSettingsGet(args []string) error {
 	fmt.Printf("  Default delay seconds: %d\n", s.DefaultDelaySeconds)
 	fmt.Printf("  Auto fixup: %t\n", s.AutoFixup)
 	fmt.Printf("  Max fixup attempts: %d\n", s.MaxFixupAttempts)
+	fmt.Printf("  Fix before feature: %s\n", s.FixBeforeFeature)
+	fmt.Printf("  Fix before feature discovery: %t\n", s.FixBeforeFeatureDiscovery)
 
 	printSection("Workshop")
 	fmt.Printf("  Auto-initialize workshop: %t\n", s.AutoInitializeWorkshop)

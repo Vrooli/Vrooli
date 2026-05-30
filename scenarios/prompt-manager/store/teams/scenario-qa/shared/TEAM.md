@@ -12,13 +12,12 @@ Does not directly edit target scenarios. Does not own monetization, marketing, i
 Strategic canon lives at [`docs/scenario-qa/README.md`](../../../../../../docs/scenario-qa/README.md), with three paired-doc-and-skill registries:
 - [`path:docs/scenario-qa/methods/investigation/`](../../../../../../docs/scenario-qa/methods/investigation/README.md) — bug-investigator's methods (1 entry: `scientific-debugging`).
 - [`path:docs/scenario-qa/methods/audit/`](../../../../../../docs/scenario-qa/methods/audit/README.md) — quality-auditor's seven lenses.
-- [`path:docs/scenario-qa/methods/readiness/`](../../../../../../docs/scenario-qa/methods/readiness/README.md) — programmatic-qa-runner's individual checks (stub; populated as GCT dimensions stabilize).
+- [`path:docs/scenario-qa/methods/readiness/`](../../../../../../docs/scenario-qa/methods/readiness/README.md) — readiness checks (stub; populated as GCT dimensions stabilize). Pre-emptive readiness for scheduled feature work is now handled programmatically by swarm-manager's fix-before-feature gate, not a QA member.
 
 Bug taxonomy: [`docs/scenario-qa/taxonomies/bug-report/README.md`](../../../../../../docs/scenario-qa/taxonomies/bug-report/README.md) (paired with `taxonomy.json`).
 
 ## Roster
 The canonical list lives in `team.json` (`operatingContract.members`). Roles, in summary:
-- `programmatic-qa-runner` — runs GCT readiness reviews; produces `qa-run/*` knowledge and `preemptive-qa-backlog` decisions.
 - `quality-auditor` — applies the seven-lens audit rotation; produces `quality-audit/*` knowledge and `quality-audit-backlog` decisions.
 - `bug-investigator` — drains `bug-inbox/*` (universal-source); applies investigation techniques; produces `bug-investigation-report/*` audit log and `bug-resolution-proposal` decisions.
 - `qa-contrarian` — reads peer outputs; produces `challenge-report/*` citing specific failure modes from the technique registries.
@@ -27,16 +26,12 @@ The canonical list lives in `team.json` (`operatingContract.members`). Roles, in
 
 | Topic prefix | Owner | Producer | Retention |
 |---|---|---|---|
-| `qa-run/<scenario-id>` | programmatic-qa-runner | self | append-only |
-| `reviewed-scenario/<scenario-id>` | programmatic-qa-runner | self | append-only |
-| `dependency-wiring` | programmatic-qa-runner | self | append-only |
 | `quality-audit/<scenario-id>/<skill-id>` | quality-auditor | self | append-only |
 | `bug-inbox/<signal-type>/<slug>` | bug-investigator | **any team via `report-bug` skill** (universal-source intake) | drained-on-close |
 | `bug-investigation-report/<slug>` | bug-investigator | self | append-only |
 | `challenge-report/<slug>` | qa-contrarian | self | append-only |
 
 ## Decision contexts
-- `preemptive-qa-backlog` — owner: programmatic-qa-runner. GCT-driven QA findings → Swarm Manager fix/chore/execute backlog items.
 - `quality-audit-backlog` — owner: quality-auditor. Judgment-based structural audit findings → Swarm Manager execute backlog items.
 - `bug-resolution-proposal` — owner: bug-investigator. Cross-cutting fixes that require operator approval (rename a CLI verb, refactor a confusing skill section, canonicalize a drifted data-shape, etc.).
 

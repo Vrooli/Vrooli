@@ -20,10 +20,27 @@ type Resolver struct {
 	scenariosDir string
 	sessionStore agentsessions.Store
 	briefings    operationsBriefingBuilder
+	snapshots    operationsSnapshotProvider
 }
 
 type operationsBriefingBuilder interface {
 	Build(ctx context.Context, filters operations.Filters) (*operations.OperationsBriefing, error)
+}
+
+// operationsSnapshotProvider supplies the cached, ranked initiative snapshot
+// that augments the swarm_operations startup brief. Optional: when nil, the
+// brief omits the ranked-initiatives section and falls back to the activity
+// briefing alone.
+type operationsSnapshotProvider interface {
+	GetSnapshot(ctx context.Context) (*operations.OperationsSnapshot, error)
+}
+
+// SetSnapshotBuilder wires the operations snapshot provider after
+// construction. Kept separate from NewResolver so the snapshot builder (which
+// depends on the overview service) can be injected without widening the
+// constructor's variadic briefings parameter.
+func (r *Resolver) SetSnapshotBuilder(p operationsSnapshotProvider) {
+	r.snapshots = p
 }
 
 func NewResolver(scenarioRoot, scenariosDir string, sessionStore agentsessions.Store, briefings ...operationsBriefingBuilder) *Resolver {

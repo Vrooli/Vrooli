@@ -74,7 +74,13 @@ func (s *Service) processPreflightForItem(item backlogItem, checkQueueable bool)
 		preflight.BlockingReasons = append(preflight.BlockingReasons, "no workshop rounds completed — run workshop or initialize first")
 	}
 
-	preflight.Ready = len(preflight.BlockingReasons) == 0
+	// Fix-before-feature gate applies only at queue time (checkQueueable),
+	// never on start/retry/followup of an already-running item.
+	if checkQueueable {
+		s.applyFixBeforeFeatureGate(item, &preflight)
+	}
+
+	preflight.Ready = len(preflight.BlockingReasons) == 0 && len(preflight.ForceableBlockingReasons) == 0
 	return preflight
 }
 
@@ -88,6 +94,19 @@ func resolveTargetScenario(item backlogItem) (string, bool) {
 		return source, true
 	}
 	return strings.TrimSpace(item.Name), item.ArchivedAt != nil
+}
+
+// allBlockingReasons returns every reason that makes a preflight not-ready —
+// both structural (non-forceable) and forceable — for display in error
+// messages. The Ready flag already accounts for both slices.
+func allBlockingReasons(preflight ProcessPreflight) []string {
+	if len(preflight.ForceableBlockingReasons) == 0 {
+		return preflight.BlockingReasons
+	}
+	combined := make([]string, 0, len(preflight.BlockingReasons)+len(preflight.ForceableBlockingReasons))
+	combined = append(combined, preflight.BlockingReasons...)
+	combined = append(combined, preflight.ForceableBlockingReasons...)
+	return combined
 }
 
 func hasNonForceableExecutionReasons(reasons []string) bool {

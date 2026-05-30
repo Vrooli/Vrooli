@@ -8,7 +8,7 @@ Follow `docs/agent-system/CONTRARIAN_REVIEW.md` for lifecycle state: a concrete 
 Reading list each heartbeat:
 - Recent `bug-investigation-report/*` entries from `literal:scenario-qa/bug-investigator` — challenge per `methods/investigation/<technique>.md` failure modes.
 - Recent `quality-audit/*` entries from `literal:scenario-qa/quality-auditor` — challenge per `methods/audit/<lens>.md` failure modes.
-- Recent backlog items raised by `literal:scenario-qa/programmatic-qa-runner` and `literal:scenario-qa/quality-auditor` — challenge for evidence completeness, false-positive risk, churn-without-value.
+- Recent backlog items raised by `literal:scenario-qa/quality-auditor` — challenge for evidence completeness, false-positive risk, churn-without-value.
 - Pending decisions on peer teams that involve scenario-qa outputs (operator review of QA backlog items, etc.).
 
 ## Task Loop

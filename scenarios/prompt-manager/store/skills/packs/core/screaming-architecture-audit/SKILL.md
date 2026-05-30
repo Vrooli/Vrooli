@@ -37,30 +37,34 @@ The `architecture-audit` preset runs the per-surface conformance battery
 cohesion (import cycles, coupling, convergence drift, mislocated files). Every
 finding is normalized into one `ArchitectureFinding` shape with a stable id.
 
-**When the audit nudges: open a tracked migration.** When the finding load
-exceeds what one pass can responsibly fix, the audit output appends a migration
+**When the audit nudges: open a tracked campaign.** When the finding load
+exceeds what one pass can responsibly fix, the audit output appends a campaign
 recommendation. Do not whack-a-mole a large refactor by hand — that is exactly
 the failure mode (the surface area outgrows what you can track). Hand it to the
-tracker, which sequences the work and reconciles each re-audit by stable id:
+tracker, which sequences the work and reconciles each re-audit by stable id.
+For the full driving loop (including the `--profile` ordering knob), load the
+`scenario-improvement-campaign` skill; the short form is:
 
 ```bash
 # Ingest the photograph
-architecture-cartographer migration create {{TARGET}} --from-audit audit.json
+architecture-cartographer campaign create {{TARGET}} --from-audit audit.json
 
-# Get the prioritized worklist (regressions first, then cycles, then severity —
-# cycles block dependent moves, so they lead)
-architecture-cartographer migration next <migration-id>
+# Get the ranked worklist. --profile picks the ordering:
+#   balanced (default) = regressions → cycles → severity (legacy)
+#   fast               = cheapest path to a green suite (gating sources first)
+#   long-term          = structural root-causes before symptoms
+architecture-cartographer campaign next <campaign-id> --profile balanced
 
-# Fix a finding, then mark it off (the agent fixes by hand; the tracker records it)
-architecture-cartographer migration resolve <migration-id> --finding <afid> --note "what you did"
+# Fix an item, then mark it off (the agent fixes by hand; the tracker records it)
+architecture-cartographer campaign resolve <campaign-id> --finding <afid> --note "what you did"
 
 # Re-audit and reconcile: gone → validated, persists → open, (re)appeared → REGRESSION
 test-genie execute {{TARGET}} --preset architecture-audit --json > audit-2.json
-architecture-cartographer migration reaudit <migration-id> --from-audit audit-2.json
+architecture-cartographer campaign reaudit <campaign-id> --from-audit audit-2.json
 
 # Repeat next→fix→reaudit until clean, then close
-architecture-cartographer migration status <migration-id>
-architecture-cartographer migration close <migration-id>
+architecture-cartographer campaign status <campaign-id>
+architecture-cartographer campaign close <campaign-id>
 ```
 
 A re-audit that flags a **regression** means your fix introduced a new problem

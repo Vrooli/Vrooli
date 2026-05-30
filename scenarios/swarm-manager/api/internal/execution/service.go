@@ -168,6 +168,7 @@ type ServiceConfig struct {
 	ExperimentClient         promptmanager.ExperimentClient
 	Archiver                 Archiver
 	ReviewClient             ReviewClient
+	BaselineClient           BaselineClient
 	Finalization             FinalizationConfig
 }
 
@@ -189,6 +190,7 @@ type Service struct {
 	experimentClient         promptmanager.ExperimentClient
 	archiver                 Archiver
 	reviewClient             ReviewClient
+	baselineClient           BaselineClient
 	inspector                RunInspector
 	differ                   RunDiffer
 	stopper                  RunStopper
@@ -200,6 +202,7 @@ type Service struct {
 	eventLogger              EventLogger
 	circuitBreaker           *CircuitBreaker
 	activityLaneReader       ActivityLaneReader
+	remediationFiler         RemediationFiler
 	processingFinalizations  map[string]struct{}
 	runTrackers              map[string]*runTracker
 	mu                       sync.Mutex
@@ -286,6 +289,7 @@ func NewService(cfg ServiceConfig) *Service {
 		experimentClient:         cfg.ExperimentClient,
 		archiver:                 cfg.Archiver,
 		reviewClient:             cfg.ReviewClient,
+		baselineClient:           cfg.BaselineClient,
 		scenarioLifecycle:        cfg.ScenarioLifecycle,
 		scenarioHealth:           cfg.ScenarioHealthChecker,
 		circuitBreaker:           NewCircuitBreaker(circuitBreakerPath),

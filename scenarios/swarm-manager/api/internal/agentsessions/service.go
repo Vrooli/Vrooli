@@ -71,6 +71,15 @@ type StartupBriefResolver interface {
 	ResolveSessionStartupBrief(ctx context.Context, kind Kind, limits ContextLimits) (ContextItem, error)
 }
 
+// MessageReferenceEnricher resolves typed entity references (`type:name` code
+// spans) found in assistant message content into ContextItems whose NodeID the
+// UI linkifies. Implemented by the session-context resolver; consumed at
+// assistant-message append. Existence is the resolver's verdict — a reference
+// to a record that does not exist is dropped, never attached.
+type MessageReferenceEnricher interface {
+	EnrichMessageReferences(ctx context.Context, content string) []ContextItem
+}
+
 type Service struct {
 	store               Store
 	spawner             SessionSpawner
@@ -505,12 +514,20 @@ func (s *Service) Refresh(ctx context.Context, sessionID string) (Session, error
 		}
 	}
 	if shouldAppendAssistantSummary(session, state.Summary) {
-		if err := s.store.AppendMessage(session.ID, Message{
+		assistantMessage := Message{
 			ID:        "msg_" + idgen.Generate(),
 			Role:      MessageRoleAssistant,
 			Content:   strings.TrimSpace(state.Summary),
 			CreatedAt: now,
-		}); err != nil {
+		}
+		// Resolve typed entity references in the assistant output so the chat
+		// UI can linkify them. Attaching survivors to Context is best-effort:
+		// the resolver only returns references it confirmed exist, and an
+		// absent enricher leaves Context empty.
+		if enricher, ok := s.contextResolver.(MessageReferenceEnricher); ok {
+			assistantMessage.Context = enricher.EnrichMessageReferences(ctx, assistantMessage.Content)
+		}
+		if err := s.store.AppendMessage(session.ID, assistantMessage); err != nil {
 			return Session{}, err
 		}
 	}

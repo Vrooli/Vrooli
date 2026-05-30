@@ -1,0 +1,22 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "scenario-improvement-campaign",
+  "name": "Scenario Improvement Campaign",
+  "description": "Drive a scenario toward a goal (fast / balanced / long-term) by tracking test-genie findings as a profile-ranked campaign in architecture-cartographer",
+  "modes": [
+    "tools",
+    "audits"
+  ],
+  "tags": [
+    "skill",
+    "audit-technique"
+  ],
+  "icon": "list-checks",
+  "status": "active",
+  "entry": "SKILL.md",
+  "targetToolId": "run-agent",
+  "revision": 1,
+  "createdAt": "2026-05-29T00:00:00Z",
+  "updatedAt": "2026-05-29T00:00:00Z"
+}

@@ -36,6 +36,11 @@ const (
 	// review round. Skips workshop (the agent already picked the item)
 	// and records the originating round as the actor for attribution.
 	SourceProposal Source = "proposal"
+
+	// SourceFixDiscovery — the execution fix-before-feature gate's on-demand
+	// readiness discovery (Tier 2). Skips auto-workshop; the item is a
+	// pre-formed remediation stub later refined by the normal workshop flow.
+	SourceFixDiscovery Source = "fix_discovery"
 )
 
 // CreationContext is the per-call attribution + policy parameter passed

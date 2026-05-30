@@ -160,6 +160,8 @@ type ProcessPreflight struct {
 	SuggestedSteerProfileID  string                    `json:"suggested_steer_profile_id,omitempty"`
 	BlockingReasons          []string                  `json:"blocking_reasons,omitempty"`
 	BlockingQuestions        []ProcessBlockingQuestion `json:"blocking_questions,omitempty"`
+	ForceableBlockingReasons []string                  `json:"forceable_blocking_reasons,omitempty"`
+	Advisories               []string                  `json:"advisories,omitempty"`
 }
 
 type ProcessBlockingQuestion struct {
@@ -186,6 +188,7 @@ type QueueBacklogResponse struct {
 	BlockingReasons     []BlockingReason `json:"blocking_reasons,omitempty"`
 	UnansweredQuestions int              `json:"unanswered_questions,omitempty"`
 	PendingSuggestions  int              `json:"pending_suggestions,omitempty"`
+	Advisories          []string         `json:"advisories,omitempty"`
 }
 
 type ResearchResponse struct {

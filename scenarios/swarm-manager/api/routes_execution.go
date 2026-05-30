@@ -38,6 +38,7 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 		ScenarioHealthChecker:    scenarios.NewCLIHealthChecker(20 * time.Second),
 		Archiver:                 archiver,
 		ReviewClient:             execution.NewHTTPReviewClient(nil),
+		BaselineClient:           execution.NewConnectBaselineClient(nil),
 	}
 	s.executionSvc = execution.NewService(cfg)
 	// Wire the agentactivity service in as the lane reader so
@@ -46,6 +47,21 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 	// three only live in the activity store).
 	if s.agentActivitySvc != nil {
 		s.executionSvc.SetActivityLaneReader(s.agentActivitySvc)
+	}
+	// Wire the fix-before-feature discovery filer (Tier 2). It files fix items
+	// via the canonical backlog creation path. backlogHandler is registered
+	// before this route group, so its store is available here.
+	if s.backlogHandler != nil {
+		filerCfg := backlog.ServiceConfig{
+			Store:    s.backlogHandler.Store(),
+			Assigner: s.initiativeService,
+		}
+		if s.emitter != nil {
+			filerCfg.Events = s.emitter
+		}
+		if filerSvc, filerErr := backlog.NewService(filerCfg); filerErr == nil {
+			s.executionSvc.SetRemediationFiler(backlog.NewFixDiscoveryFiler(filerSvc))
+		}
 	}
 	s.executionHandler = execution.NewHandlerFromService(s.executionSvc)
 	s.executionHandler.RegisterRoutes(s.router)
@@ -114,9 +130,13 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 
 			ctxOut.AffectedScenarios = append([]string(nil), record.Finalization.AffectedScenarios...)
 			resultsByScenario := make(map[string]any)
+			baselineByScenario := make(map[string]execution.BaselineDiffResult)
 			for _, scenario := range record.Finalization.Scenarios {
 				if len(scenario.ChangedPaths) > 0 {
 					ctxOut.ChangedPathsByScenario[scenario.ScenarioName] = append([]string(nil), scenario.ChangedPaths...)
+				}
+				if scenario.BaselineDiff != nil {
+					baselineByScenario[scenario.ScenarioName] = *scenario.BaselineDiff
 				}
 				if scenario.Review.Result == nil {
 					continue
@@ -129,6 +149,7 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 				}
 			}
 			ctxOut.GCTResultsJSON = review.MarshalScenarioGCTResults(resultsByScenario)
+			ctxOut.BaselineDiffJSON = execution.MarshalBaselineDiffResults(baselineByScenario)
 
 			return ctxOut, nil
 		}

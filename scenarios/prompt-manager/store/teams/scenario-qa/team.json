@@ -31,25 +31,10 @@
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 3,
+  "revision": 5,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-05-03T00:00:00Z",
+  "updatedAt": "2026-05-30T00:00:00Z",
   "topicCatalog": [
-    {
-      "prefix": "reviewed-scenario/<scenario-id>",
-      "status": "live",
-      "purpose": "Append-only record that a scenario has been reviewed by programmatic QA, used to avoid duplicate readiness churn."
-    },
-    {
-      "prefix": "dependency-wiring",
-      "status": "live",
-      "purpose": "Append-only observations about cross-scenario or resource wiring issues discovered during readiness review."
-    },
-    {
-      "prefix": "qa-run/<scenario-id>",
-      "status": "live",
-      "purpose": "Programmatic readiness-review result for a scenario, including evidence for downstream backlog work."
-    },
     {
       "prefix": "quality-audit/<scenario-id>/<skill-id>",
       "status": "live",
@@ -175,12 +160,6 @@
       ]
     },
     "decisionContexts": {
-      "preemptive-qa-backlog": {
-        "ownerMemberIds": [
-          "programmatic-qa-runner"
-        ],
-        "description": "GCT-driven QA findings converted into Swarm Manager fix/chore/execute backlog items."
-      },
       "quality-audit-backlog": {
         "ownerMemberIds": [
           "quality-auditor"
@@ -201,21 +180,6 @@
       }
     },
     "knowledgeTopics": {
-      "reviewed-scenario/<scenario-id>": {
-        "ownerMemberId": "programmatic-qa-runner",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
-      "dependency-wiring": {
-        "ownerMemberId": "programmatic-qa-runner",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
-      "qa-run/<scenario-id>": {
-        "ownerMemberId": "programmatic-qa-runner",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
       "quality-audit/<scenario-id>/<skill-id>": {
         "ownerMemberId": "quality-auditor",
         "supersedesPrevious": false,
@@ -247,49 +211,6 @@
       }
     },
     "members": {
-      "programmatic-qa-runner": {
-        "lane": "Run GCT-driven readiness reviews and create evidence-rich Swarm Manager backlog items for failing scenarios.",
-        "ownedDecisionContexts": [
-          "preemptive-qa-backlog"
-        ],
-        "pendingOwnedDecisionCap": 6,
-        "allowedWrites": [
-          {
-            "kind": "knowledge"
-          },
-          {
-            "kind": "task"
-          },
-          {
-            "kind": "handoff"
-          }
-        ],
-        "forbiddenWrites": [
-          {
-            "kind": "decision"
-          },
-          {
-            "base": "repo-root",
-            "path": "scenarios/"
-          }
-        ],
-        "safetyCriticalRules": [
-          "Do not modify target scenario code directly.",
-          "Do not create backlog items for planned scenarios whose directory does not exist."
-        ],
-        "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
-          "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
-          "stillWriteHandoff": true
-        },
-        "newDecisionCapPerHeartbeat": 3,
-        "taskParameters": {
-          "reviewQueueLimit": 3,
-          "cooldownRespected": true,
-          "descriptionMustBeSelfContained": true
-        }
-      },
       "quality-auditor": {
         "lane": "Perform structural quality audits using the audit-technique rotation and create execute backlog items with draft plans when findings are material.",
         "ownedDecisionContexts": [
@@ -413,7 +334,7 @@
           "Every challenge-note must cite a specific failure mode from a registered technique's PoR doc 'What the qa-contrarian watches for' section. Free-form challenges are forbidden.",
           "Quiet heartbeats are valid; manufactured challenge is forbidden.",
           "Cap at 3 challenge-notes per heartbeat.",
-          "Only write to challenge-report/* and challenge-resolution-record/*; do not write to peer-member knowledge prefixes (bug-inbox/, bug-investigation-report/, quality-audit/, qa-run/). The constraint is enforced by the topics.json output declaration and RESPONSIBILITIES.md, not by forbiddenWrites at the kind level."
+          "Only write to challenge-report/* and challenge-resolution-record/*; do not write to peer-member knowledge prefixes (bug-inbox/, bug-investigation-report/, quality-audit/). The constraint is enforced by the topics.json output declaration and RESPONSIBILITIES.md, not by forbiddenWrites at the kind level."
         ],
         "readOnlyModeBehavior": {
           "skipNewDecisions": true,
@@ -426,8 +347,7 @@
           "challengeNotesPerHeartbeatCap": 3,
           "peerOutputsToReview": [
             "bug-investigation-report/*",
-            "quality-audit/*",
-            "qa-run/*"
+            "quality-audit/*"
           ]
         }
       }

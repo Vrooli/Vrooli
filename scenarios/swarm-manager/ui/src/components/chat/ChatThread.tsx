@@ -21,6 +21,9 @@ interface ChatThreadProps {
   renderAttachmentPreview?: ChatMessageRenderSlot;
   className?: string;
   testId?: string;
+  /** Forwarded to each bubble; intercepts clicks on linkified entity
+   * references for client-side routing. */
+  onReferenceNavigate?: (href: string) => void;
 }
 
 export function ChatThread({
@@ -32,6 +35,7 @@ export function ChatThread({
   renderAttachmentPreview,
   className,
   testId,
+  onReferenceNavigate,
 }: ChatThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const tts = useAgentMessageTTS();
@@ -73,6 +77,7 @@ export function ChatThread({
             getMessageMeta={getMessageMeta}
             renderAttachmentPreview={renderAttachmentPreview}
             speak={tts}
+            onReferenceNavigate={onReferenceNavigate}
           />
         ))
       ) : (

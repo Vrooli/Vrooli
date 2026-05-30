@@ -31,7 +31,7 @@ export type DeleteConfirmationSettings = {
  */
 export type Settings = Omit<
   ProtoMessage<ProtoSettings>,
-  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "autoAdvanceDelaySeconds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings" | "laneConcurrencyLimits" | "maxQueueDepth" | "circuitBreakerThreshold" | "circuitBreakerCooldownMinutes" | "executionCostCapPerRun" | "costPerTurnEstimate" | "deleteConfirmation"
+  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "autoAdvanceDelaySeconds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings" | "laneConcurrencyLimits" | "maxQueueDepth" | "circuitBreakerThreshold" | "circuitBreakerCooldownMinutes" | "executionCostCapPerRun" | "costPerTurnEstimate" | "deleteConfirmation" | "fixBeforeFeature"
 > & {
   /** UI theme preference */
   theme: ThemePreference;
@@ -73,7 +73,20 @@ export type Settings = Omit<
   circuitBreakerCooldownMinutes: number;
   executionCostCapPerRun: number;
   costPerTurnEstimate: number;
+  /**
+   * Fix-before-feature gate. "off" | "suggest" (default) | "block": when a
+   * feature item is queued onto a scenario with open fix/chore work, advise
+   * or block. fixBeforeFeatureDiscovery enables async on-demand readiness
+   * discovery for scenarios with no known open fix work.
+   */
+  fixBeforeFeature: FixBeforeFeatureMode;
+  fixBeforeFeatureDiscovery: boolean;
 };
+
+/**
+ * Fix-before-feature gate modes.
+ */
+export type FixBeforeFeatureMode = "off" | "suggest" | "block";
 
 /**
  * Research agent spawn response

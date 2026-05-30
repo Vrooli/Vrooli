@@ -1,13 +1,14 @@
 {
   "theme": "dark",
   "default_mode": "manual",
-  "default_delay_seconds": 300,
   "auto_fixup": false,
   "max_fixup_attempts": 2,
+  "review_agent_enabled": true,
   "max_auto_rounds": 3,
   "auto_initialize_workshop": false,
   "auto_advance_workshop": true,
   "auto_cascade_workshop": false,
+  "auto_advance_delay_seconds": 10,
   "agent_max_turns": 600,
   "agent_timeout_seconds": 3600,
   "search_debounce_ms": 300,
@@ -16,5 +17,24 @@
     "backlog": "simple",
     "initiative": "strong",
     "capture": "none"
-  }
+  },
+  "review_code_quality_min_score": 60,
+  "review_test_min_pass_rate": 1,
+  "review_max_blocking_violations": 0,
+  "review_max_warnings": -1,
+  "review_require_screenshots": true,
+  "review_require_tests": true,
+  "lane_concurrency_limits": {
+    "execute": 3,
+    "investigate": 6,
+    "reconcile": 2,
+    "review": 8
+  },
+  "max_queue_depth": 50,
+  "circuit_breaker_threshold": 3,
+  "circuit_breaker_cooldown_minutes": 60,
+  "execution_cost_cap_per_run": 0,
+  "cost_per_turn_estimate": 0.1,
+  "fix_before_feature": "suggest",
+  "fix_before_feature_discovery": false
 }

@@ -75,6 +75,8 @@ func (a *governanceAdapter) LoadGovernance() (execution.GovernanceSettings, erro
 		ExecutionCostCapPerRun:        s.ExecutionCostCapPerRun,
 		CostPerTurnEstimate:           s.CostPerTurnEstimate,
 		AgentMaxTurns:                 s.AgentMaxTurns,
+		FixBeforeFeature:              s.FixBeforeFeature,
+		FixBeforeFeatureDiscovery:     s.FixBeforeFeatureDiscovery,
 	}, nil
 }
 

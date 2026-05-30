@@ -28,10 +28,29 @@ type startupBriefMetadata struct {
 	StaleAfter             string                  `json:"stale_after"`
 	FreshnessSeconds       int                     `json:"freshness_seconds"`
 	SourceCounts           map[string]int          `json:"source_counts,omitempty"`
+	RankedInitiatives      []rankedInitiativeBrief `json:"ranked_initiatives,omitempty"`
 	RecommendedNextActions []briefAction           `json:"recommended_next_actions,omitempty"`
 	DrillDownCommands      []briefDrillDownCommand `json:"drill_down_commands,omitempty"`
 	Warnings               []string                `json:"warnings,omitempty"`
 }
+
+// rankedInitiativeBrief is the compact per-initiative ranking row embedded in
+// the operations startup brief metadata. Ref carries the typed reference
+// (`initiative:<name>`) the agent should echo verbatim so the UI can linkify
+// it; the remaining fields are the signals the snapshot ranked on.
+type rankedInitiativeBrief struct {
+	Ref                string `json:"ref"`
+	Name               string `json:"name"`
+	Title              string `json:"title"`
+	Priority           int    `json:"priority"`
+	Readiness          string `json:"readiness"`
+	DownstreamUnblocks int    `json:"downstream_unblocks"`
+}
+
+// maxStartupBriefRankedInitiatives bounds how many ranked initiatives land in
+// the brief so a large portfolio doesn't blow the session context budget. The
+// agent drills the long tail via `swarm-manager initiatives list`.
+const maxStartupBriefRankedInitiatives = 8
 
 type briefAction struct {
 	ID      string `json:"id"`
@@ -100,14 +119,79 @@ func (r *Resolver) operationsStartupBrief(ctx context.Context, limits agentsessi
 	for _, command := range briefing.DrillDownCommands {
 		metadata.DrillDownCommands = append(metadata.DrillDownCommands, briefDrillDownCommand(command))
 	}
+
+	summary := formatOperationsBriefingSummary(briefing)
+	// Augment the activity briefing with the ranked initiative snapshot so
+	// the agent receives deterministic rankings instead of re-deriving them
+	// per turn. The ranked section is prepended: it is the headline value of
+	// this brief, and the summary is truncated to a rune budget — leading with
+	// rankings keeps them from being clipped when the activity detail is long.
+	// The full structured ranking always rides in metadata regardless of
+	// truncation. The snapshot is optional: when unavailable the brief degrades
+	// to the activity briefing alone with a recorded warning.
+	if r.snapshots != nil {
+		if snap, snapErr := r.snapshots.GetSnapshot(ctx); snapErr != nil {
+			metadata.Warnings = append(metadata.Warnings, "ranked initiatives unavailable: "+snapErr.Error())
+		} else {
+			ranked := rankedInitiativeBriefs(snap)
+			metadata.RankedInitiatives = ranked
+			metadata.SourceCounts["ranked_initiatives"] = len(snap.Initiatives)
+			summary = formatRankedInitiatives(snap, ranked) + summary
+		}
+	}
+
 	return startupContextItem(
 		agentsessions.KindSwarmOperations,
 		"Swarm operations startup brief",
-		formatOperationsBriefingSummary(briefing),
+		summary,
 		"/operations",
 		metadata,
 		limits,
 	)
+}
+
+// rankedInitiativeBriefs projects the bounded head of the snapshot's ranked
+// initiatives into the compact brief rows, stamping each with its typed
+// `initiative:<name>` reference for downstream linkification.
+func rankedInitiativeBriefs(snap *operations.OperationsSnapshot) []rankedInitiativeBrief {
+	limit := maxStartupBriefRankedInitiatives
+	if len(snap.Initiatives) < limit {
+		limit = len(snap.Initiatives)
+	}
+	out := make([]rankedInitiativeBrief, 0, limit)
+	for _, ri := range snap.Initiatives[:limit] {
+		out = append(out, rankedInitiativeBrief{
+			Ref:                "initiative:" + ri.Name,
+			Name:               ri.Name,
+			Title:              ri.Title,
+			Priority:           ri.Priority,
+			Readiness:          ri.Readiness,
+			DownstreamUnblocks: ri.DownstreamUnblocks,
+		})
+	}
+	return out
+}
+
+// formatRankedInitiatives renders the ranked head as a human-readable section
+// appended to the operations brief summary. Each line leads with the typed
+// `initiative:<name>` reference so an agent quoting it produces a span the UI
+// linkifies.
+func formatRankedInitiatives(snap *operations.OperationsSnapshot, rows []rankedInitiativeBrief) string {
+	if len(rows) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "Ranked initiatives (%d ready, %d blocked of %d total):\n",
+		snap.Summary.ReadyInitiatives, snap.Summary.BlockedInitiatives, snap.Summary.TotalInitiatives)
+	for _, row := range rows {
+		priority := "unprioritized"
+		if row.Priority > 0 {
+			priority = fmt.Sprintf("P%d", row.Priority)
+		}
+		fmt.Fprintf(&b, "- `initiative:%s` [%s %s]: %s (unblocks %d)\n",
+			row.Name, priority, row.Readiness, firstNonEmpty(row.Title, row.Name), row.DownstreamUnblocks)
+	}
+	return b.String()
 }
 
 func (r *Resolver) portfolioStartupBrief(limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
