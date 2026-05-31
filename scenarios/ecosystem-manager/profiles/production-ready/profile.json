@@ -34,5 +34,11 @@
     "diminishing_returns_floor": 0.01,
     "reaudit_cadence": 5
   },
+  "dtv": {
+    "gate_enabled": true,
+    "prior_weight": 1.0,
+    "trust_floor": 0.6,
+    "refresh_iters": 5
+  },
   "audit_preset": "comprehensive"
 }

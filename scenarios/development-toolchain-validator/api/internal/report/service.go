@@ -46,6 +46,7 @@ type Service interface {
 	GetGoldenSummary(ctx context.Context, goldenSlug string) (GoldenSummary, error)
 	GetTupleHistory(ctx context.Context, kind vr.TupleKind, subjectID, goldenSlug string, pageSize int, pageToken string) (TupleHistory, error)
 	GetCoverage(ctx context.Context, goldenSlug string) (Coverage, error)
+	GetSkillFitness(ctx context.Context, skillID string) (SkillFitness, error)
 }
 
 type service struct {
@@ -170,6 +171,124 @@ func (s *service) GetCoverage(ctx context.Context, goldenSlug string) (Coverage,
 	}
 	sort.Slice(cov.Rows, func(i, j int) bool { return cov.Rows[i].SubjectID < cov.Rows[j].SubjectID })
 	return cov, nil
+}
+
+// GetSkillFitness folds every validation record for one skill, across all
+// goldens, into a single trust/cost/convergence view. DTV owns the records, so
+// this cross-golden aggregation lives here rather than being re-implemented by
+// each consumer (ecosystem-manager's selection controller is the first).
+func (s *service) GetSkillFitness(ctx context.Context, skillID string) (SkillFitness, error) {
+	skillID = strings.TrimSpace(skillID)
+	if skillID == "" {
+		return SkillFitness{}, ErrInvalidReport{Field: "skill_id", Reason: "required"}
+	}
+	all, err := s.allRecords(ctx, vr.ListFilter{SubjectID: skillID, TupleKind: vr.TupleKindSkill})
+	if err != nil {
+		return SkillFitness{}, err
+	}
+	staleByTuple, err := s.staleSet(ctx)
+	if err != nil {
+		return SkillFitness{}, err
+	}
+	return aggregateSkillFitness(skillID, all, staleByTuple), nil
+}
+
+// aggregateSkillFitness is the pure fold over a skill's records (unit-testable
+// without the service). staleByTuple is keyed [subject_id, golden_slug].
+func aggregateSkillFitness(skillID string, records []vr.Record, staleByTuple map[[2]string]bool) SkillFitness {
+	fit := SkillFitness{
+		SkillID:  skillID,
+		ByGolden: map[string]GoldenSkillSnapshot{},
+	}
+	if len(records) == 0 {
+		fit.Verdict = SkillFitnessVerdictUnknown
+		return fit
+	}
+
+	diffHashes := map[string]struct{}{}
+	var latestOverall vr.Record
+	latestPerGolden := map[string]vr.Record{}
+
+	for _, r := range records {
+		fit.TotalRuns++
+		switch r.Verdict {
+		case vr.VerdictPass:
+			fit.PassCount++
+		case vr.VerdictUnexpectedMutation:
+			fit.UnexpectedMutationCount++
+		case vr.VerdictRunFailure:
+			fit.RunFailureCount++
+		case vr.VerdictToolFailure:
+			fit.ToolFailureCount++
+		}
+		fit.TotalTokens += r.TokensUsed
+		fit.TotalCostUSDMicro += r.CostUSDMicro
+		fit.TotalDurationMS += r.DurationMS
+		diffHashes[r.DiffHash] = struct{}{}
+
+		if latestOverall.ID == "" || r.EndedAt.After(latestOverall.EndedAt) {
+			latestOverall = r
+		}
+		if prev, ok := latestPerGolden[r.GoldenSlug]; !ok || r.EndedAt.After(prev.EndedAt) {
+			latestPerGolden[r.GoldenSlug] = r
+		}
+	}
+
+	runsByGolden := map[string]int{}
+	for _, r := range records {
+		runsByGolden[r.GoldenSlug]++
+	}
+
+	runs := float64(fit.TotalRuns)
+	fit.PassRate = float64(fit.PassCount) / runs
+	fit.AvgTokens = float64(fit.TotalTokens) / runs
+	fit.AvgCostUSDMicro = float64(fit.TotalCostUSDMicro) / runs
+	fit.AvgDurationMS = float64(fit.TotalDurationMS) / runs
+	fit.UniqueDiffHashes = len(diffHashes)
+	if fit.UniqueDiffHashes > 0 {
+		fit.ConvergenceRatio = 1.0 / float64(fit.UniqueDiffHashes)
+	}
+	fit.LatestVerdict = latestOverall.Verdict
+
+	anyRunFailure, anyMutation, allPass := false, false, true
+	for golden, r := range latestPerGolden {
+		stale := staleByTuple[[2]string{skillID, golden}]
+		fit.ByGolden[golden] = GoldenSkillSnapshot{
+			GoldenSlug:    golden,
+			LatestVerdict: r.Verdict,
+			Stale:         stale,
+			RunCount:      runsByGolden[golden],
+		}
+		if stale {
+			fit.AnyStale = true
+		}
+		switch r.Verdict {
+		case vr.VerdictRunFailure:
+			anyRunFailure = true
+			allPass = false
+		case vr.VerdictUnexpectedMutation:
+			anyMutation = true
+			allPass = false
+		case vr.VerdictPass:
+			// keeps allPass true
+		default:
+			allPass = false
+		}
+	}
+
+	switch {
+	case anyRunFailure:
+		fit.Verdict = SkillFitnessVerdictRed
+	case anyMutation:
+		fit.Verdict = SkillFitnessVerdictYellow
+	case allPass:
+		fit.Verdict = SkillFitnessVerdictGreen
+	default:
+		// Records exist but the latest set is neither cleanly passing nor an
+		// explicit mutation/failure (e.g. unspecified) — runnable-but-incoherent.
+		fit.Verdict = SkillFitnessVerdictYellow
+	}
+	return fit
 }
 
 // allRecords pages through records.List until next_page_token is empty.

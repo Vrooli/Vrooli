@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -99,6 +100,14 @@ type TraceEntry struct {
 	Regressed             bool           `json:"regressed"`
 	VetoApplied           bool           `json:"veto_applied"`
 	HaltReason            string         `json:"halt_reason"`
+
+	// DTV transparency (P2): the chosen skill's fitness verdict, the cold-start
+	// trust/cost prior DTV seeded, any Layer-1 exclusions, and degradation flags.
+	DTVVerdict      string            `json:"dtv_verdict"`
+	DTVPrior        float64           `json:"dtv_prior"`
+	DTVExcluded     map[string]string `json:"dtv_excluded"`
+	DTVGateOverride bool              `json:"dtv_gate_override"`
+	DTVDegraded     bool              `json:"dtv_degraded"`
 }
 
 // Commands returns the steer command group.
@@ -395,6 +404,9 @@ func cmdTrace(ctx appctx.Context, args []string) error {
 		if e.HaltReason != "" {
 			line += fmt.Sprintf(" — HALT: %s", e.HaltReason)
 		}
+		if dtv := dtvTraceClause(e); dtv != "" {
+			line += dtv
+		}
 		results = append(results, line)
 		if e.Rationale != "" {
 			results = append(results, "    "+e.Rationale)
@@ -416,6 +428,33 @@ func buildQuery(skill, dim string) string {
 		parts = append(parts, "dimension="+url.QueryEscape(dim))
 	}
 	return strings.Join(parts, "&")
+}
+
+// dtvTraceClause renders the DTV provenance of a trace entry (empty when DTV was
+// inactive — verdict unset and no exclusions).
+func dtvTraceClause(e TraceEntry) string {
+	if e.DTVVerdict == "" && len(e.DTVExcluded) == 0 && !e.DTVDegraded {
+		return ""
+	}
+	clause := ""
+	if e.DTVVerdict != "" {
+		clause += fmt.Sprintf(" | DTV %s (prior %.2f)", e.DTVVerdict, e.DTVPrior)
+	}
+	if len(e.DTVExcluded) > 0 {
+		excluded := make([]string, 0, len(e.DTVExcluded))
+		for skill, reason := range e.DTVExcluded {
+			excluded = append(excluded, fmt.Sprintf("%s(%s)", skill, reason))
+		}
+		sort.Strings(excluded)
+		clause += fmt.Sprintf(", gated %s", strings.Join(excluded, ","))
+	}
+	if e.DTVGateOverride {
+		clause += " [all-red override]"
+	}
+	if e.DTVDegraded {
+		clause += " [DTV degraded → P1]"
+	}
+	return clause
 }
 
 func sumCounts(m map[string]int) int {

@@ -17,6 +17,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ReportService.GetGoldenSummary": h.goldenSummary,
 		"ReportService.GetTupleHistory":  h.tupleHistory,
 		"ReportService.GetCoverage":      h.coverage,
+		"ReportService.GetSkillFitness":  h.skillFitness,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

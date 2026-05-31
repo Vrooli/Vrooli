@@ -154,6 +154,15 @@
           ],
           "binding": { "kind": "connect-rpc", "service": "ReportService", "method": "GetCoverage" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "skill-fitness",
+          "description": "Cross-golden trust/cost/convergence aggregate for one skill",
+          "positionals": [
+            { "name": "skill_id", "required": true, "description": "Skill id (prompt-manager skill identifier)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ReportService", "method": "GetSkillFitness" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     },

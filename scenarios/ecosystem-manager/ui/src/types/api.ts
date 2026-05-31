@@ -262,6 +262,16 @@ export interface DecisionTraceEntry {
   veto_applied?: boolean;
   /** Terminal halt reason, set on the final iteration. */
   halt_reason?: string;
+  /** DTV transparency (P2). The chosen skill's fitness verdict. */
+  dtv_verdict?: string;
+  /** The cold-start trust/cost prior DTV seeded for the chosen skill. */
+  dtv_prior?: number;
+  /** Skills the Layer-1 gate denied for the chosen dimension → reason. */
+  dtv_excluded?: Record<string, string>;
+  /** The gate would have emptied the dimension; fell back to allow-all. */
+  dtv_gate_override?: boolean;
+  /** DTV was unreachable; this selection used fail-open (P1) behavior. */
+  dtv_degraded?: boolean;
 }
 
 export interface DecisionTraceResponse {

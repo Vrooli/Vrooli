@@ -24,6 +24,20 @@ export function formatRealizedDelta(entry: DecisionTraceEntry): string {
   return '0.0 (no change)';
 }
 
+/** dtvVerdictClass maps a DTV fitness verdict to its badge styling. */
+export function dtvVerdictClass(verdict: string): string {
+  switch (verdict) {
+    case 'green':
+      return 'bg-emerald-500/15 text-emerald-600';
+    case 'yellow':
+      return 'bg-amber-500/15 text-amber-600';
+    case 'red':
+      return 'bg-destructive/15 text-destructive';
+    default:
+      return 'bg-muted text-muted-foreground';
+  }
+}
+
 /** topDimensions returns the heaviest open dimensions for an iteration. */
 export function topDimensions(entry: DecisionTraceEntry, limit = 3): Array<[string, number]> {
   const scores = entry.dimension_scores ?? {};
@@ -135,6 +149,40 @@ export function DecisionTraceList({ entries }: DecisionTraceListProps) {
                 {entry.halt_reason && (
                   <li className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] text-amber-600" data-testid="flag-halt">
                     halt: {entry.halt_reason}
+                  </li>
+                )}
+              </ul>
+            )}
+
+            {(entry.dtv_verdict || (entry.dtv_excluded && Object.keys(entry.dtv_excluded).length > 0) || entry.dtv_degraded) && (
+              <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="DTV fitness">
+                {entry.dtv_verdict && (
+                  <li
+                    className={`rounded px-1.5 py-0.5 text-[11px] ${dtvVerdictClass(entry.dtv_verdict)}`}
+                    data-testid="dtv-verdict"
+                  >
+                    DTV: {entry.dtv_verdict}
+                    {(entry.dtv_prior ?? 0) > 0 && ` · prior ${entry.dtv_prior?.toFixed(2)}`}
+                  </li>
+                )}
+                {entry.dtv_excluded &&
+                  Object.entries(entry.dtv_excluded).map(([skill, reason]) => (
+                    <li
+                      key={skill}
+                      className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                      data-testid="dtv-excluded"
+                    >
+                      gated {skill} ({reason})
+                    </li>
+                  ))}
+                {entry.dtv_gate_override && (
+                  <li className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] text-amber-600" data-testid="dtv-override">
+                    all-red override
+                  </li>
+                )}
+                {entry.dtv_degraded && (
+                  <li className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground" data-testid="dtv-degraded">
+                    DTV degraded → P1
                   </li>
                 )}
               </ul>

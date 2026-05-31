@@ -134,3 +134,90 @@ func TestGetGoldenSummary_RejectsEmpty(t *testing.T) {
 	var invalid report.ErrInvalidReport
 	require.ErrorAs(t, err, &invalid)
 }
+
+func TestGetSkillFitness_NoData_Unknown(t *testing.T) {
+	svc := newSvc(t, nil, nil, nil, nil)
+	got, err := svc.GetSkillFitness(context.Background(), "plan-skill")
+	require.NoError(t, err)
+	require.Equal(t, report.SkillFitnessVerdictUnknown, got.Verdict)
+	require.Zero(t, got.TotalRuns)
+	require.Empty(t, got.ByGolden)
+}
+
+func TestGetSkillFitness_AllPass_Green(t *testing.T) {
+	start := time.Date(2026, 5, 18, 10, 0, 0, 0, time.UTC)
+	svc := newSvc(t, nil, nil, nil, []vr.AppendInput{
+		{TupleKind: vr.TupleKindSkill, SubjectID: "s", GoldenSlug: "a", Verdict: vr.VerdictPass, StartedAt: start, EndedAt: start.Add(50 * time.Millisecond), DiffHash: "h1", TokensUsed: 100, CostUSDMicro: 200},
+		{TupleKind: vr.TupleKindSkill, SubjectID: "s", GoldenSlug: "b", Verdict: vr.VerdictPass, StartedAt: start, EndedAt: start.Add(150 * time.Millisecond), DiffHash: "h1", TokensUsed: 300, CostUSDMicro: 400},
+	})
+	got, err := svc.GetSkillFitness(context.Background(), "s")
+	require.NoError(t, err)
+	require.Equal(t, report.SkillFitnessVerdictGreen, got.Verdict)
+	require.Equal(t, int64(2), got.TotalRuns)
+	require.InDelta(t, 1.0, got.PassRate, 1e-9)
+	require.InDelta(t, 200.0, got.AvgTokens, 1e-9)
+	require.InDelta(t, 300.0, got.AvgCostUSDMicro, 1e-9)
+	require.InDelta(t, 100.0, got.AvgDurationMS, 1e-9)
+	require.Equal(t, 1, got.UniqueDiffHashes, "identical diff hash across runs => converged")
+	require.InDelta(t, 1.0, got.ConvergenceRatio, 1e-9)
+	require.Len(t, got.ByGolden, 2)
+}
+
+func TestGetSkillFitness_LatestRunFailure_Red(t *testing.T) {
+	t1 := time.Date(2026, 5, 18, 10, 0, 0, 0, time.UTC)
+	t2 := time.Date(2026, 5, 18, 11, 0, 0, 0, time.UTC)
+	svc := newSvc(t, nil, nil, nil, []vr.AppendInput{
+		{TupleKind: vr.TupleKindSkill, SubjectID: "s", GoldenSlug: "a", Verdict: vr.VerdictPass, StartedAt: t1, EndedAt: t1},
+		{TupleKind: vr.TupleKindSkill, SubjectID: "s", GoldenSlug: "a", Verdict: vr.VerdictRunFailure, StartedAt: t2, EndedAt: t2},
+	})
+	got, err := svc.GetSkillFitness(context.Background(), "s")
+	require.NoError(t, err)
+	require.Equal(t, report.SkillFitnessVerdictRed, got.Verdict, "latest run-failure dominates")
+	require.Equal(t, vr.VerdictRunFailure, got.LatestVerdict)
+}
+
+func TestGetSkillFitness_LatestMutation_Yellow(t *testing.T) {
+	t1 := time.Date(2026, 5, 18, 10, 0, 0, 0, time.UTC)
+	t2 := time.Date(2026, 5, 18, 11, 0, 0, 0, time.UTC)
+	svc := newSvc(t, nil, nil, nil, []vr.AppendInput{
+		{TupleKind: vr.TupleKindSkill, SubjectID: "s", GoldenSlug: "a", Verdict: vr.VerdictPass, StartedAt: t1, EndedAt: t1, DiffHash: "h1"},
+		{TupleKind: vr.TupleKindSkill, SubjectID: "s", GoldenSlug: "a", Verdict: vr.VerdictUnexpectedMutation, StartedAt: t2, EndedAt: t2, DiffHash: "h2"},
+	})
+	got, err := svc.GetSkillFitness(context.Background(), "s")
+	require.NoError(t, err)
+	require.Equal(t, report.SkillFitnessVerdictYellow, got.Verdict)
+	require.Equal(t, 2, got.UniqueDiffHashes)
+	require.InDelta(t, 0.5, got.ConvergenceRatio, 1e-9, "two distinct diffs => 0.5")
+}
+
+func TestGetSkillFitness_MixedGoldens_RunFailureWins(t *testing.T) {
+	now := time.Now()
+	svc := newSvc(t, nil, nil, nil, []vr.AppendInput{
+		{TupleKind: vr.TupleKindSkill, SubjectID: "s", GoldenSlug: "a", Verdict: vr.VerdictPass, StartedAt: now, EndedAt: now},
+		{TupleKind: vr.TupleKindSkill, SubjectID: "s", GoldenSlug: "b", Verdict: vr.VerdictRunFailure, StartedAt: now, EndedAt: now},
+	})
+	got, err := svc.GetSkillFitness(context.Background(), "s")
+	require.NoError(t, err)
+	require.Equal(t, report.SkillFitnessVerdictRed, got.Verdict, "a run failure on any golden gates the skill")
+}
+
+func TestGetSkillFitness_SurfacesStale(t *testing.T) {
+	now := time.Now()
+	svc := newSvc(t, nil, nil,
+		[]staleness.Entry{{SkillID: "s", GoldenSlug: "a", Kind: staleness.StaleKindTemplateDrift}},
+		[]vr.AppendInput{
+			{TupleKind: vr.TupleKindSkill, SubjectID: "s", GoldenSlug: "a", Verdict: vr.VerdictPass, StartedAt: now, EndedAt: now},
+		})
+	got, err := svc.GetSkillFitness(context.Background(), "s")
+	require.NoError(t, err)
+	require.True(t, got.AnyStale)
+	require.True(t, got.ByGolden["a"].Stale)
+}
+
+func TestGetSkillFitness_RejectsEmpty(t *testing.T) {
+	svc := newSvc(t, nil, nil, nil, nil)
+	_, err := svc.GetSkillFitness(context.Background(), "")
+	require.Error(t, err)
+	var invalid report.ErrInvalidReport
+	require.ErrorAs(t, err, &invalid)
+}

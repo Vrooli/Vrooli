@@ -3,6 +3,7 @@ module github.com/ecosystem-manager/api
 go 1.25.0
 
 require (
+	connectrpc.com/connect v1.19.2
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3

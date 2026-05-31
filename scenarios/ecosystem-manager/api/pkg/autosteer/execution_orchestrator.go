@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/dimensions"
+	"github.com/ecosystem-manager/api/pkg/dtv"
 	"github.com/ecosystem-manager/api/pkg/effectiveness"
 	"github.com/ecosystem-manager/api/pkg/findings"
 	"github.com/ecosystem-manager/api/pkg/skillmap"
@@ -35,7 +36,7 @@ func NewExecutionOrchestratorDefault(profileRepo ProfileRepository, db *sql.DB, 
 	promptEnhancer := NewPromptEnhancer()
 	catalog := NewPromptLoaderCatalog(promptEnhancer.GetPromptLoader())
 
-	return NewExecutionOrchestrator(
+	o := NewExecutionOrchestrator(
 		NewExecutionStateManager(db),
 		profileRepo,
 		&findings.TestGenieRunner{ProjectRoot: projectRoot},
@@ -45,6 +46,10 @@ func NewExecutionOrchestratorDefault(profileRepo ProfileRepository, db *sql.DB, 
 		NewTraceStore(db),
 		effectiveness.NewPostgresStore(db),
 	)
+	// Wire the P2 DTV read seam. The client fails open (a DTV outage yields
+	// UNKNOWN fitness ⇒ allow-all + uniform prior), so this never risks the loop.
+	o.SetFitnessProvider(dtv.NewClient(0))
+	return o
 }
 
 // ExecutionOrchestrator is the closed-loop controller. Each entry runs the
@@ -67,6 +72,23 @@ type ExecutionOrchestrator struct {
 	// this seam rather than as a MEASURE return value).
 	costMu      sync.Mutex
 	pendingCost map[string]RunCost
+
+	// fitnessProvider is the P2 DTV read seam. Nil ⇒ DTV disabled (pure P1:
+	// uniform prior, allow-all). Production wires dtv.Client; everything below it
+	// fails open, so a DTV outage degrades to P1 rather than blocking the loop.
+	fitnessProvider dtv.SkillFitnessProvider
+	// snapMu guards the per-task fitness snapshots and the degraded-log set.
+	snapMu         sync.Mutex
+	fitnessSnaps   map[string]*taskFitness
+	degradedLogged map[string]bool
+}
+
+// taskFitness is a task's cached DTV fitness snapshot plus the iteration it was
+// refreshed at (for TTL) and whether that capture was degraded (fail-open).
+type taskFitness struct {
+	snap            FitnessSnapshot
+	refreshedAtIter int
+	degraded        bool
 }
 
 // NewExecutionOrchestrator creates a controller from its collaborators. All
@@ -93,7 +115,16 @@ func NewExecutionOrchestrator(
 		effectiveness:    effectivenessStore,
 		terminator:       NewTerminator(),
 		pendingCost:      make(map[string]RunCost),
+		fitnessSnaps:     make(map[string]*taskFitness),
+		degradedLogged:   make(map[string]bool),
 	}
+}
+
+// SetFitnessProvider wires (or clears) the P2 DTV fitness seam. nil disables DTV
+// (the controller runs pure P1). Returns the orchestrator for chaining.
+func (o *ExecutionOrchestrator) SetFitnessProvider(p dtv.SkillFitnessProvider) *ExecutionOrchestrator {
+	o.fitnessProvider = p
+	return o
 }
 
 // RecordRunCost stashes the token cost of the agent run that just completed for a
@@ -122,24 +153,90 @@ func (o *ExecutionOrchestrator) resolver() *skillmap.Resolver {
 	return skillmap.NewResolver(o.catalog)
 }
 
-// newSelector builds the SELECT-stage selector for an upcoming iteration. With
-// an effectiveness ledger wired it is the v1 reduction-per-token bandit
-// (deterministic exploration seeded by task+iteration, Layer-1 eligibility gate,
-// and the hysteresis cooldown); otherwise pure greedy.
-func (o *ExecutionOrchestrator) newSelector(state *ProfileExecutionState, profile *AutoSteerProfile, iteration int) *Selector {
+// dtvSelectionInfo carries the DTV context a single SELECT used, so the trace can
+// surface the chosen skill's verdict, the prior provenance, and exclusions.
+type dtvSelectionInfo struct {
+	active   bool
+	degraded bool
+	snapshot FitnessSnapshot
+	prior    PriorProvider
+}
+
+// runSelect performs one SELECT for an upcoming iteration and returns both the
+// decision and the DTV context behind it. With an effectiveness ledger wired it
+// is the v1 reduction-per-token bandit (deterministic exploration seeded by
+// task+iteration, the Layer-1 DTV eligibility gate, the DTV trust/cost prior, and
+// the hysteresis cooldown); otherwise pure greedy. DTV is consulted only via the
+// per-task snapshot — never synchronously in the candidate-ranking hot path.
+func (o *ExecutionOrchestrator) runSelect(state *ProfileExecutionState, profile *AutoSteerProfile, iteration int) (Selection, dtvSelectionInfo) {
 	if o.effectiveness == nil {
-		return NewSelector(o.resolver())
+		return NewSelector(o.resolver()).SelectNextSkill(state.Findings, profile), dtvSelectionInfo{}
 	}
-	return NewSelectorWithConfig(SelectorConfig{
+	prior, filter, info := o.dtvSeams(state, profile)
+	sel := NewSelectorWithConfig(SelectorConfig{
 		Resolver:      o.resolver(),
 		Effectiveness: o.effectiveness,
-		Prior:         coldStartPrior,
+		Prior:         prior,
 		ShrinkageK:    effectiveness.DefaultShrinkageK,
 		Epsilon:       explorationEpsilon(iteration),
 		Seed:          explorationSeed(state.TaskID, iteration),
-		Filter:        AllowAllFilter{}, // P1: no Layer-1 gating; P2 wires DTV here.
+		Filter:        filter,
 		Cooldown:      cooldownSkills(state, profile.Budget.skillCooldown(), iteration),
-	})
+	}).SelectNextSkill(state.Findings, profile)
+	return sel, info
+}
+
+// dtvSeams returns the prior provider and eligibility filter for a selection. No
+// fitness provider (or DTV unreachable, handled inside fitnessSnapshot) ⇒ exact
+// P1 behavior: uniform prior + allow-all.
+func (o *ExecutionOrchestrator) dtvSeams(state *ProfileExecutionState, profile *AutoSteerProfile) (PriorProvider, EligibilityFilter, dtvSelectionInfo) {
+	if o.fitnessProvider == nil {
+		return UniformPrior{Value: coldStartPrior}, AllowAllFilter{}, dtvSelectionInfo{}
+	}
+	snap, degraded := o.fitnessSnapshot(state, profile)
+	prior := NewDTVPriorProvider(snap, profile.dtvPriorConfig())
+	var filter EligibilityFilter = AllowAllFilter{}
+	if profile.dtvGateEnabled() {
+		filter = NewDTVEligibilityFilter(snap)
+	}
+	return prior, filter, dtvSelectionInfo{active: true, degraded: degraded, snapshot: snap, prior: prior}
+}
+
+// fitnessSnapshot returns the task's DTV fitness snapshot, fetching it on first
+// use and refreshing it every dtv.refresh_iters iterations (TTL). All DTV I/O is
+// here, off the candidate-ranking hot path. A degraded fetch (any provider
+// error) is logged once per task and still returns a usable fail-open snapshot.
+func (o *ExecutionOrchestrator) fitnessSnapshot(state *ProfileExecutionState, profile *AutoSteerProfile) (FitnessSnapshot, bool) {
+	o.snapMu.Lock()
+	defer o.snapMu.Unlock()
+
+	tf := o.fitnessSnaps[state.TaskID]
+	ttl := profile.dtvRefreshIters()
+	if tf == nil || state.Iteration-tf.refreshedAtIter >= ttl {
+		snap, degraded := o.fetchFitness(context.Background(), profile)
+		tf = &taskFitness{snap: snap, refreshedAtIter: state.Iteration, degraded: degraded}
+		o.fitnessSnaps[state.TaskID] = tf
+		if degraded && !o.degradedLogged[state.TaskID] {
+			o.degradedLogged[state.TaskID] = true
+			log.Printf("Auto Steer: DTV fitness unavailable for task %s — degrading to P1 selection (uniform prior, allow-all) until DTV recovers", state.TaskID)
+		}
+	}
+	return tf.snap, tf.degraded
+}
+
+// fetchFitness pulls fitness for every allowed skill. Each read fails open: a
+// per-skill error yields an UNKNOWN fitness and flips the degraded flag.
+func (o *ExecutionOrchestrator) fetchFitness(ctx context.Context, profile *AutoSteerProfile) (FitnessSnapshot, bool) {
+	fits := make(map[string]dtv.Fitness, len(profile.AllowedSkills))
+	degraded := false
+	for _, skill := range profile.AllowedSkills {
+		f, err := o.fitnessProvider.Fitness(ctx, skill)
+		if err != nil {
+			degraded = true
+		}
+		fits[skill] = f
+	}
+	return NewFitnessSnapshot(fits), degraded
 }
 
 // cooldownSkills returns skills deprioritized for the upcoming iteration because
@@ -261,7 +358,7 @@ func (o *ExecutionOrchestrator) fullAudit(ctx context.Context, scenarioName stri
 // selectInto runs SELECT for the current findings and records the opening trace
 // entry for the next iteration (ScoreAfter is filled after the skill runs).
 func (o *ExecutionOrchestrator) selectInto(state *ProfileExecutionState, profile *AutoSteerProfile, scenarioName string) {
-	sel := o.newSelector(state, profile, state.Iteration+1).SelectNextSkill(state.Findings, profile)
+	sel, dtvInfo := o.runSelect(state, profile, state.Iteration+1)
 	state.Iteration++
 	state.CurrentSkill = sel.SkillID
 	state.CurrentRationale = sel.Rationale
@@ -276,9 +373,34 @@ func (o *ExecutionOrchestrator) selectInto(state *ProfileExecutionState, profile
 		Fingerprint:       state.Findings.Fingerprint,
 		ScoreBefore:       state.Findings.TotalScore,
 	}
+	annotateDTVTrace(&entry, sel, dtvInfo)
 	state.Trace = append(state.Trace, entry)
 	if err := o.traceStore.Append(state.TaskID, state.ProfileID, scenarioName, entry); err != nil {
 		log.Printf("Auto Steer: failed to persist decision trace (non-fatal): %v", err)
+	}
+}
+
+// annotateDTVTrace records the DTV provenance of a selection on its trace entry:
+// the chosen skill's fitness verdict, the seeded prior, any Layer-1 exclusions
+// (skill → reason), the all-red gate-override flag, and whether the snapshot was
+// captured in degraded (fail-open) mode. No-op when DTV is inactive (pure P1).
+func annotateDTVTrace(entry *DecisionTraceEntry, sel Selection, info dtvSelectionInfo) {
+	if !info.active {
+		return
+	}
+	entry.DTVDegraded = info.degraded
+	entry.DTVGateOverride = sel.GateOverride
+	if sel.SkillID != "" {
+		entry.DTVVerdict = info.snapshot.Get(sel.SkillID).Verdict.String()
+		if info.prior != nil {
+			entry.DTVPrior = info.prior.Prior(sel.SkillID, sel.Dimension)
+		}
+	}
+	if len(sel.ExcludedSkills) > 0 {
+		entry.DTVExcluded = make(map[string]string, len(sel.ExcludedSkills))
+		for _, id := range sel.ExcludedSkills {
+			entry.DTVExcluded[id] = "dtv:" + info.snapshot.Get(id).Verdict.String()
+		}
 	}
 }
 
@@ -512,8 +634,13 @@ func (o *ExecutionOrchestrator) GetCurrentSet(taskID string) ([]string, error) {
 	return []string{state.CurrentSkill}, nil
 }
 
-// DeleteExecutionState removes any active execution state for a task.
+// DeleteExecutionState removes any active execution state for a task, including
+// its cached DTV fitness snapshot.
 func (o *ExecutionOrchestrator) DeleteExecutionState(taskID string) error {
+	o.snapMu.Lock()
+	delete(o.fitnessSnaps, taskID)
+	delete(o.degradedLogged, taskID)
+	o.snapMu.Unlock()
 	return o.stateManager.Delete(taskID)
 }
 

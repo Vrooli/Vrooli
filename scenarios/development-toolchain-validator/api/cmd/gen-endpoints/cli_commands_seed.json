@@ -115,6 +115,11 @@
       "name": "report coverage",
       "description": "Per-skill coverage grid for one golden",
       "endpoint_id": "report_coverage"
+    },
+    {
+      "name": "report skill-fitness",
+      "description": "Cross-golden trust/cost/convergence aggregate for one skill",
+      "endpoint_id": "report_skill_fitness"
     }
   ]
 }

@@ -631,6 +631,50 @@
       }
     },
     {
+      "id": "report_skill_fitness",
+      "path": "/vrooli.development_toolchain_validator.v1.report.ReportService/GetSkillFitness",
+      "method": "POST",
+      "summary": "Cross-golden trust/cost/convergence aggregate for one skill",
+      "description": "Folds every validation record for a skill across all goldens into run counts by verdict, pass rate, token/cost/duration totals, convergence ratio, latest verdict, staleness, and a derived fitness verdict (UNKNOWN/GREEN/YELLOW/RED). Consumed by ecosystem-manager's selection controller.",
+      "category": "report",
+      "request": {
+        "type": "object",
+        "properties": {
+          "skill_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "fitness": "SkillFitness"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing skill_id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Composition failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Skill fitness",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.report.ReportService/GetSkillFitness -H 'Content-Type: application/json' -d '{\"skill_id\":\"plan-skill-discovery\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator report skill-fitness",
+        "args": [
+          "<skill_id>"
+        ]
+      }
+    },
+    {
       "id": "skill_catalog_sync",
       "path": "/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/Sync",
       "method": "POST",
@@ -1129,6 +1173,11 @@
       "name": "report coverage",
       "description": "Per-skill coverage grid for one golden",
       "endpoint_id": "report_coverage"
+    },
+    {
+      "name": "report skill-fitness",
+      "description": "Cross-golden trust/cost/convergence aggregate for one skill",
+      "endpoint_id": "report_skill_fitness"
     }
   ]
 }

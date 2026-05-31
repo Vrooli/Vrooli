@@ -24,6 +24,8 @@ type fakeService struct {
 	HistoryErr  error
 	CoverageOut reportdom.Coverage
 	CoverageErr error
+	FitnessOut  reportdom.SkillFitness
+	FitnessErr  error
 }
 
 func (f *fakeService) GetGoldenSummary(context.Context, string) (reportdom.GoldenSummary, error) {
@@ -36,6 +38,10 @@ func (f *fakeService) GetTupleHistory(context.Context, vr.TupleKind, string, str
 
 func (f *fakeService) GetCoverage(context.Context, string) (reportdom.Coverage, error) {
 	return f.CoverageOut, f.CoverageErr
+}
+
+func (f *fakeService) GetSkillFitness(context.Context, string) (reportdom.SkillFitness, error) {
+	return f.FitnessOut, f.FitnessErr
 }
 
 var _ reportdom.Service = (*fakeService)(nil)
@@ -81,4 +87,35 @@ func TestCoverage_Passthrough(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, resp.Msg.Coverage.Rows, 1)
 	require.True(t, resp.Msg.Coverage.Rows[0].HasManifest)
+}
+
+func TestSkillFitness_Passthrough(t *testing.T) {
+	client := newClient(t, &fakeService{FitnessOut: reportdom.SkillFitness{
+		SkillID:       "plan-skill",
+		TotalRuns:     3,
+		PassCount:     2,
+		PassRate:      0.6667,
+		AvgTokens:     1200,
+		LatestVerdict: vr.VerdictPass,
+		Verdict:       reportdom.SkillFitnessVerdictYellow,
+		ByGolden: map[string]reportdom.GoldenSkillSnapshot{
+			"ref": {GoldenSlug: "ref", LatestVerdict: vr.VerdictUnexpectedMutation, RunCount: 3, Stale: true},
+		},
+	}})
+	resp, err := client.GetSkillFitness(context.Background(), connect.NewRequest(&reportv1.GetSkillFitnessRequest{SkillId: "plan-skill"}))
+	require.NoError(t, err)
+	f := resp.Msg.Fitness
+	require.Equal(t, "plan-skill", f.SkillId)
+	require.Equal(t, int64(3), f.TotalRuns)
+	require.Equal(t, reportv1.SkillFitnessVerdict_SKILL_FITNESS_VERDICT_YELLOW, f.Verdict)
+	require.Len(t, f.ByGolden, 1)
+	require.True(t, f.ByGolden["ref"].Stale)
+	require.Equal(t, int32(3), f.ByGolden["ref"].RunCount)
+}
+
+func TestSkillFitness_RejectsEmpty(t *testing.T) {
+	client := newClient(t, &fakeService{FitnessErr: reportdom.ErrInvalidReport{Field: "skill_id", Reason: "required"}})
+	_, err := client.GetSkillFitness(context.Background(), connect.NewRequest(&reportv1.GetSkillFitnessRequest{}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }

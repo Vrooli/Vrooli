@@ -33,6 +33,32 @@ describe('DecisionTraceList rendering', () => {
     expect(html).toContain('halt: thrashing_cycle');
     expect(html).toContain('by effectiveness');
   });
+
+  it('renders DTV fitness provenance: verdict, prior, exclusions, override', () => {
+    const entries: DecisionTraceEntry[] = [
+      {
+        iteration: 1,
+        chosen_skill: 'lint-fix',
+        heaviest_dimension: 'standards',
+        dtv_verdict: 'green',
+        dtv_prior: 0.92,
+        dtv_excluded: { refactor: 'dtv:red' },
+        dtv_gate_override: false,
+      },
+    ];
+    const html = renderToStaticMarkup(<DecisionTraceList entries={entries} />);
+    expect(html).toContain('DTV: green');
+    expect(html).toContain('prior 0.92');
+    expect(html).toContain('gated refactor (dtv:red)');
+  });
+
+  it('flags a degraded (fail-open) DTV selection', () => {
+    const entries: DecisionTraceEntry[] = [
+      { iteration: 1, chosen_skill: 'ux', heaviest_dimension: 'ui', dtv_verdict: 'unknown', dtv_degraded: true },
+    ];
+    const html = renderToStaticMarkup(<DecisionTraceList entries={entries} />);
+    expect(html).toContain('DTV degraded → P1');
+  });
 });
 
 describe('EffectivenessTable rendering', () => {

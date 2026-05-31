@@ -179,6 +179,15 @@ Additional seams added for DTV P0:
   `StalenessSource`** — consumer-owned narrow interfaces in
   `internal/report/service.go`. The report service composes reads
   across the four sources and owns no storage of its own.
+- **`report.GetSkillFitness`** — cross-golden trust/cost/convergence
+  aggregate for one skill (`ReportService.GetSkillFitness` RPC + CLI
+  `report skill-fitness <skill_id>`). The pure fold
+  `aggregateSkillFitness(skillID, records, staleByTuple)` in
+  `internal/report/service.go` is unit-testable without the service.
+  Consumed by ecosystem-manager's selection controller as its DTV
+  gate-and-prior source; DTV owns the records, so the aggregation lives
+  here (one server-side fold) rather than being re-implemented per
+  consumer.
 
 ### Connect router (proto-typed transport)
 

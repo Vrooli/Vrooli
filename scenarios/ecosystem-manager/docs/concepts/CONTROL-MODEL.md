@@ -286,18 +286,23 @@ practical.
 | Effectiveness table + learning | Yes | **Implemented** (v1) — `pkg/effectiveness` ledger + credit assignment after every iteration |
 | Token-cost capture | Yes | **Implemented** (v1) — `RunCost` from agent-manager run summary → reduction-per-token selection |
 | Termination | Global, gradient | **Implemented** (v0) — objective-met / diminishing-returns / budget |
-| Thrashing Layer 1 (DTV) | Yes | **Not wired** (P2) — `EligibilityFilter` seam in place (allow-all default) |
+| Thrashing Layer 1 (DTV) | Yes | **Implemented** (P2) — `DTVEligibilityFilter` denies DTV-red skills before ranking; all-red safety valve; gated by profile `dtv.gate_enabled` |
 | Thrashing Layer 2 (runtime) | Yes | **Implemented** (v1) — fingerprint cycle-halt, net-progress window, hysteresis cooldown, regression veto |
 | Thrashing Layer 3 (budget cap) | Yes | **Implemented** (max-iterations) |
-| DTV priors / eligibility gate | Yes | **Not wired** (P2) — injected `prior` + `EligibilityFilter` seams ready |
-| Decision-trace transparency | Yes | **Implemented** (v1) — trace carries token cost, per-dimension flow, regression/veto/halt; read API + CLI + UI |
+| DTV priors / eligibility gate | Yes | **Implemented** (P2) — `PriorProvider` seam wires `DTVPriorProvider` (trust/cost/convergence prior from DTV's `GetSkillFitness`); fail-open to uniform when DTV has no data. See `pkg/dtv` + `pkg/autosteer/dtv_selection.go` |
+| Decision-trace transparency | Yes | **Implemented** (v1+P2) — trace carries token cost, per-dimension flow, regression/veto/halt, and DTV verdict / prior provenance / exclusion reasons; read API + CLI + UI |
 
 **v1 selection details:** within the heaviest open dimension, eligible skills are
 ranked by `expectedEfficacyPerToken = (n/(n+k))·observed + (k/(n+k))·prior`
-(Bayesian shrinkage, `k = 3`, uniform prior `0` in P1 so `n = 0` reproduces v0
-greedy order). Exploration is **epsilon-greedy with `ε = 0.15/(1+iteration)`**,
+(Bayesian shrinkage, `k = 3`). The prior is supplied by a `PriorProvider`: P1
+wires `UniformPrior{0}` so `n = 0` reproduces v0 greedy order; P2 wires
+`DTVPriorProvider`, which seeds `prior = weight·base·trust·convergenceConfidence`
+(trust = DTV pass-rate) for skills DTV has observed and falls back to `0` for
+UNKNOWN / thin-evidence skills — so the bandit blend still washes any prior out
+with live evidence. Exploration is **epsilon-greedy with `ε = 0.15/(1+iteration)`**,
 deterministic per `(task, iteration)` via an FNV-seeded RNG (reproducible for
-tests and replay). See `pkg/effectiveness` and `pkg/autosteer/selector.go`.
+tests and replay). See `pkg/effectiveness`, `pkg/dtv`, and
+`pkg/autosteer/{selector,dtv_selection}.go`.
 
 The implementation roadmap for closing this gap is tracked in
 [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) and

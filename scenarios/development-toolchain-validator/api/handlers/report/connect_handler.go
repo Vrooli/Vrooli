@@ -67,3 +67,15 @@ func (h *connectHandler) GetCoverage(ctx context.Context, req *connect.Request[r
 	}
 	return connect.NewResponse(&reportv1.GetCoverageResponse{Coverage: coverageToProto(cov)}), nil
 }
+
+func (h *connectHandler) GetSkillFitness(ctx context.Context, req *connect.Request[reportv1.GetSkillFitnessRequest]) (*connect.Response[reportv1.GetSkillFitnessResponse], error) {
+	fit, err := h.deps.Service.GetSkillFitness(ctx, req.Msg.SkillId)
+	if err != nil {
+		connectErr := report.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("report.GetSkillFitness(%q): %v", req.Msg.SkillId, err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&reportv1.GetSkillFitnessResponse{Fitness: skillFitnessToProto(fit)}), nil
+}

@@ -28,7 +28,7 @@ func banditSelector(res SkillResolver, store effectiveness.Store, epsilon float6
 	return NewSelectorWithConfig(SelectorConfig{
 		Resolver:      res,
 		Effectiveness: store,
-		Prior:         0,
+		Prior:         UniformPrior{},
 		ShrinkageK:    effectiveness.DefaultShrinkageK,
 		Epsilon:       epsilon,
 		Seed:          seed,

@@ -41,6 +41,25 @@ type AllowAllFilter struct{}
 // Allow implements EligibilityFilter.
 func (AllowAllFilter) Allow(string, dimensions.Dimension) bool { return true }
 
+// PriorProvider supplies the cold-start expected-efficacy-per-token prior for an
+// unobserved (skill, dimension). P1 wires UniformPrior (a single neutral value
+// for every skill); P2 wires the DTV trust/cost prior. The bandit blends this
+// prior toward observed evidence (see effectiveness.ExpectedEfficacyPerToken),
+// so accumulating live runs washes it out regardless of source.
+//
+// seam: PriorProvider is the cold-start prior source; production (P1) wires
+// UniformPrior, P2 swaps a DTV-backed implementation.
+type PriorProvider interface {
+	Prior(skillID string, dim dimensions.Dimension) float64
+}
+
+// UniformPrior returns the same prior for every skill — the P1 default. Value 0
+// reproduces v0 greedy ordering at cold start (all skills tie).
+type UniformPrior struct{ Value float64 }
+
+// Prior implements PriorProvider.
+func (u UniformPrior) Prior(string, dimensions.Dimension) float64 { return u.Value }
+
 // Selection is the controller's SELECT-stage decision.
 type Selection struct {
 	// SkillID is the chosen skill, or "" when no eligible skill exists for any
@@ -52,6 +71,14 @@ type Selection struct {
 	WeightedScore float64
 	// Rationale is a human-readable explanation for the decision trace.
 	Rationale string
+	// ExcludedSkills lists skills the Layer-1 eligibility gate denied for the
+	// chosen dimension (their ids). Empty under allow-all (P1). The reason is
+	// attached by the caller, which owns the gate's data source.
+	ExcludedSkills []string
+	// GateOverride is true when the eligibility gate would have emptied the
+	// chosen dimension and the selector fell back to the unfiltered set rather
+	// than stall (the all-red safety valve). Surfaced in the trace.
+	GateOverride bool
 }
 
 // Selector implements the controller's SELECT stage. The outer loop ranks open
@@ -63,7 +90,7 @@ type Selection struct {
 type Selector struct {
 	resolver SkillResolver
 	eff      effectiveness.Store
-	prior    float64
+	prior    PriorProvider
 	k        float64
 	// epsilon is the (already iteration-decayed) exploration probability; seed
 	// makes the explore decision deterministic for a fixed (task, iteration).
@@ -79,16 +106,16 @@ type Selector struct {
 // NewSelector creates a pure-greedy Selector (no effectiveness weighting, no
 // exploration) over a skill resolver. Used where no ledger is available.
 func NewSelector(resolver SkillResolver) *Selector {
-	return &Selector{resolver: resolver, k: effectiveness.DefaultShrinkageK}
+	return &Selector{resolver: resolver, prior: UniformPrior{}, k: effectiveness.DefaultShrinkageK}
 }
 
 // SelectorConfig wires the v1 effectiveness-weighted selector.
 type SelectorConfig struct {
 	Resolver      SkillResolver
 	Effectiveness effectiveness.Store
-	// Prior is the cold-start efficacy assumed for an unobserved skill (uniform
-	// across skills in P1; the injection point for P2's DTV trust/cost priors).
-	Prior float64
+	// Prior supplies the cold-start efficacy for an unobserved skill. nil wires
+	// UniformPrior{0} (P1 greedy cold start); P2 wires the DTV trust/cost prior.
+	Prior PriorProvider
 	// ShrinkageK is the shrinkage constant; <=0 uses the package default.
 	ShrinkageK float64
 	// Epsilon is the exploration probability for this selection (already decayed
@@ -112,10 +139,14 @@ func NewSelectorWithConfig(cfg SelectorConfig) *Selector {
 	if filter == nil {
 		filter = AllowAllFilter{}
 	}
+	prior := cfg.Prior
+	if prior == nil {
+		prior = UniformPrior{}
+	}
 	return &Selector{
 		resolver: cfg.Resolver,
 		eff:      cfg.Effectiveness,
-		prior:    cfg.Prior,
+		prior:    prior,
 		k:        k,
 		epsilon:  cfg.Epsilon,
 		seed:     cfg.Seed,
@@ -182,24 +213,42 @@ func (s *Selector) SelectNextSkill(state findings.FindingsState, profile *AutoSt
 
 	skipped := make([]string, 0)
 	for _, wd := range ranked {
-		eligible := s.applyFilter(wd.dim, s.resolver.EligibleSkills(wd.dim, allow))
-		if len(eligible) == 0 {
+		raw := s.resolver.EligibleSkills(wd.dim, allow)
+		if len(raw) == 0 {
 			skipped = append(skipped, string(wd.dim))
 			continue
+		}
+		eligible, excluded := s.applyFilter(wd.dim, raw)
+		gateOverride := false
+		if len(eligible) == 0 {
+			// The Layer-1 gate vetoed every skill for this dimension. Rather than
+			// skip the dimension (which could stall the loop when every dimension
+			// is fully gated), fall back to the unfiltered set and flag it — the
+			// all-red safety valve, mirroring the cooldown fallback in preferred().
+			eligible = raw
+			gateOverride = true
 		}
 		chosen, pick := s.chooseSkill(wd.dim, eligible)
 		rationale := fmt.Sprintf(
 			"dimension %q is the heaviest open cluster with an eligible skill (weighted score %.2f, %d findings, weight %.2f); %s",
 			wd.dim, wd.score, wd.count, wd.weight, pick.describe(chosen),
 		)
+		switch {
+		case gateOverride:
+			rationale += fmt.Sprintf(" (Layer-1 gate vetoed all candidate(s) %v — proceeding anyway to avoid stalling)", excluded)
+		case len(excluded) > 0:
+			rationale += fmt.Sprintf(" (Layer-1 gate excluded %v)", excluded)
+		}
 		if len(skipped) > 0 {
 			rationale += fmt.Sprintf(" (skipped %v — no eligible skill in allow-set)", skipped)
 		}
 		return Selection{
-			SkillID:       chosen,
-			Dimension:     wd.dim,
-			WeightedScore: wd.score,
-			Rationale:     rationale,
+			SkillID:        chosen,
+			Dimension:      wd.dim,
+			WeightedScore:  wd.score,
+			Rationale:      rationale,
+			ExcludedSkills: excluded,
+			GateOverride:   gateOverride,
 		}
 	}
 
@@ -212,6 +261,7 @@ func (s *Selector) SelectNextSkill(state findings.FindingsState, profile *AutoSt
 type candidate struct {
 	id        string
 	efficacy  float64
+	prior     float64
 	samples   int64
 	avgTokens int64
 }
@@ -222,19 +272,22 @@ type skillPick struct {
 	candidates []candidate
 }
 
-// applyFilter drops skills the Layer-1 gate vetoes (P1: none). A nil filter
-// permits everything.
-func (s *Selector) applyFilter(dim dimensions.Dimension, eligible []string) []string {
+// applyFilter splits eligible skills into those the Layer-1 gate permits and
+// those it vetoes (P1: none vetoed). A nil filter permits everything. The
+// excluded list (empty under allow-all) feeds the decision trace.
+func (s *Selector) applyFilter(dim dimensions.Dimension, eligible []string) (allowed, excluded []string) {
 	if s.filter == nil {
-		return eligible
+		return eligible, nil
 	}
-	out := make([]string, 0, len(eligible))
+	allowed = make([]string, 0, len(eligible))
 	for _, id := range eligible {
 		if s.filter.Allow(id, dim) {
-			out = append(out, id)
+			allowed = append(allowed, id)
+		} else {
+			excluded = append(excluded, id)
 		}
 	}
-	return out
+	return allowed, excluded
 }
 
 // preferred applies the hysteresis cooldown: it drops skills cooling down after
@@ -270,9 +323,11 @@ func (s *Selector) chooseSkill(dim dimensions.Dimension, eligible []string) (str
 	cands := make([]candidate, len(eligible))
 	for i, id := range eligible {
 		st := stats[id] // zero value = cold start (n=0 → prior)
+		prior := s.prior.Prior(id, dim)
 		cands[i] = candidate{
 			id:        id,
-			efficacy:  st.ExpectedEfficacyPerToken(s.prior, s.k),
+			efficacy:  st.ExpectedEfficacyPerToken(prior, s.k),
+			prior:     prior,
 			samples:   st.TotalRuns,
 			avgTokens: avgTokens(st),
 		}
@@ -334,10 +389,10 @@ func (p skillPick) candidateSummary() string {
 	parts := make([]string, 0, len(p.candidates))
 	for _, c := range p.candidates {
 		if c.samples == 0 {
-			parts = append(parts, fmt.Sprintf("%s=%.2f/khtok(n=0,prior)", c.id, c.efficacy))
+			parts = append(parts, fmt.Sprintf("%s=%.2f/khtok(n=0,prior=%.2f)", c.id, c.efficacy, c.prior))
 			continue
 		}
-		parts = append(parts, fmt.Sprintf("%s=%.2f/khtok(n=%d,~%dtok/run)", c.id, c.efficacy, c.samples, c.avgTokens))
+		parts = append(parts, fmt.Sprintf("%s=%.2f/khtok(n=%d,~%dtok/run,prior=%.2f)", c.id, c.efficacy, c.samples, c.avgTokens, c.prior))
 	}
 	return "[" + strings.Join(parts, " ") + "]"
 }

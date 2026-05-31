@@ -246,6 +246,24 @@ func (b Budget) skillCooldown() int {
 	return b.SkillCooldown
 }
 
+// DTVObjective is the optional development-toolchain-validator block of a
+// profile's objective function (P2). It tunes how DTV fitness gates and seeds
+// selection. Absent (nil) means "DTV defaults": gate on red, seed priors — which
+// still degrades to exact P1 behavior whenever DTV has no data (fail-open).
+type DTVObjective struct {
+	// GateEnabled toggles the Layer-1 eligibility gate (deny DTV-red skills).
+	// nil ⇒ true (gate on). Set false to keep priors but never hard-gate.
+	GateEnabled *bool `json:"gate_enabled,omitempty"`
+	// PriorWeight scales the DTV trust/cost prior. 0/omitted ⇒ default weight;
+	// the bandit blend washes the prior out with live evidence regardless.
+	PriorWeight float64 `json:"prior_weight,omitempty"`
+	// TrustFloor is a pass-rate floor (0–1): below it the prior is 0 (a
+	// low-trust skill gets no cold-start head start). 0 ⇒ no floor.
+	TrustFloor float64 `json:"trust_floor,omitempty"`
+	// RefreshIters is the snapshot TTL in controller iterations. <=0 ⇒ default.
+	RefreshIters int `json:"refresh_iters,omitempty"`
+}
+
 // AutoSteerProfile is the controller's objective function for an improvement
 // run. (The type name is retained across the API/CLI/UI surfaces; its shape is
 // the greenfield objective model.)
@@ -256,12 +274,47 @@ type AutoSteerProfile struct {
 	Objective     Objective `json:"objective"`
 	AllowedSkills []string  `json:"allowed_skills"`
 	Budget        Budget    `json:"budget"`
+	// DTV is the optional development-toolchain-validator objective-block (P2).
+	DTV *DTVObjective `json:"dtv,omitempty"`
 	// AuditPreset is the test-genie preset used for full audits (the initial
 	// diagnose and the termination gate). Defaults to "comprehensive".
 	AuditPreset string    `json:"audit_preset,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	Tags        []string  `json:"tags"`
+}
+
+// defaultDTVRefreshIters is the snapshot TTL (in controller iterations) when a
+// profile leaves dtv.refresh_iters unset: cheap enough to track skill changes,
+// infrequent enough to keep DTV off the hot SELECT path.
+const defaultDTVRefreshIters = 5
+
+// dtvGateEnabled reports whether the Layer-1 eligibility gate is on (default
+// true when the dtv block or its flag is absent).
+func (p *AutoSteerProfile) dtvGateEnabled() bool {
+	if p == nil || p.DTV == nil || p.DTV.GateEnabled == nil {
+		return true
+	}
+	return *p.DTV.GateEnabled
+}
+
+// dtvRefreshIters returns the effective snapshot TTL in iterations.
+func (p *AutoSteerProfile) dtvRefreshIters() int {
+	if p == nil || p.DTV == nil || p.DTV.RefreshIters <= 0 {
+		return defaultDTVRefreshIters
+	}
+	return p.DTV.RefreshIters
+}
+
+// dtvPriorConfig maps the profile's dtv block onto the prior-mapping config
+// (zero fields fall back to package defaults via withDefaults).
+func (p *AutoSteerProfile) dtvPriorConfig() DTVPriorConfig {
+	cfg := DTVPriorConfig{}
+	if p != nil && p.DTV != nil {
+		cfg.Weight = p.DTV.PriorWeight
+		cfg.TrustFloor = p.DTV.TrustFloor
+	}
+	return cfg
 }
 
 // MetricsSnapshot captures gap-metric measurements at a point in time. In the
@@ -361,6 +414,23 @@ type DecisionTraceEntry struct {
 	// HaltReason is set on the final iteration when the controller stopped,
 	// capturing why (objective_met, thrashing_cycle, no_net_progress, …).
 	HaltReason string `json:"halt_reason,omitempty"`
+
+	// DTV transparency (P2). Populated only when the DTV seam is active.
+	// DTVVerdict is the chosen skill's DTV fitness verdict
+	// (unknown/green/yellow/red).
+	DTVVerdict string `json:"dtv_verdict,omitempty"`
+	// DTVPrior is the cold-start trust/cost prior DTV seeded for the chosen skill
+	// (0 when DTV had no usable data — i.e. P1 uniform).
+	DTVPrior float64 `json:"dtv_prior,omitempty"`
+	// DTVExcluded maps each skill the Layer-1 gate denied for the chosen
+	// dimension to its reason (e.g. "dtv:red").
+	DTVExcluded map[string]string `json:"dtv_excluded,omitempty"`
+	// DTVGateOverride is true when the gate would have emptied the chosen
+	// dimension and the selector fell back to allow-all to avoid stalling.
+	DTVGateOverride bool `json:"dtv_gate_override,omitempty"`
+	// DTVDegraded is true when this selection's fitness snapshot was captured
+	// while DTV was unreachable (fail-open ⇒ P1 behavior).
+	DTVDegraded bool `json:"dtv_degraded,omitempty"`
 }
 
 // ProfileExecutionState tracks the live state of an active controller run.

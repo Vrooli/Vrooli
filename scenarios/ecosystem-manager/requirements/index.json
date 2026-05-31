@@ -182,13 +182,17 @@
       "title": "DTV-primed trust/cost selection priors",
       "description": "Replace the uniform cold-start prior with development-toolchain-validator-derived trust/cost priors via the injected prior seam in the selector.",
       "prd_ref": "Auto-Steer Controller (v1)",
-      "status": "planned",
+      "status": "implemented",
       "tags": [
         "auto-steer",
         "p2",
         "dtv"
       ],
-      "validation": []
+      "validation": [
+        "api/pkg/autosteer/dtv_selection_test.go::TestDTVPriorProvider_MappingTable",
+        "api/pkg/autosteer/dtv_selection_test.go::TestSelector_DTVPriorReordersColdStart",
+        "api/pkg/autosteer/dtv_selection_test.go::TestSelector_AbsentFitnessReproducesP1"
+      ]
     },
     {
       "id": "EM-P2-002",
@@ -196,13 +200,17 @@
       "title": "DTV Layer-1 eligibility gate",
       "description": "Wire a development-toolchain-validator-backed EligibilityFilter so skills that cannot run in the target toolchain are hard-gated out of selection (Layer-1 thrashing prevention).",
       "prd_ref": "Auto-Steer Controller (v1)",
-      "status": "planned",
+      "status": "implemented",
       "tags": [
         "auto-steer",
         "p2",
         "dtv"
       ],
-      "validation": []
+      "validation": [
+        "api/pkg/autosteer/dtv_selection_test.go::TestDTVEligibilityFilter_DeniesOnlyRed",
+        "api/pkg/autosteer/dtv_selection_test.go::TestSelector_GatesRedSkillBeforeRanking",
+        "api/pkg/autosteer/dtv_selection_test.go::TestSelector_AllRedDoesNotStall"
+      ]
     }
   ]
 }

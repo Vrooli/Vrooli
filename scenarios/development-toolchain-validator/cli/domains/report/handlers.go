@@ -3,6 +3,7 @@ package report
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -121,6 +122,64 @@ func (h *handlers) coverage(ctx cliapp.RunContext) error {
 		ResultsHeading: "Coverage",
 		Results:        results,
 	})
+}
+
+func (h *handlers) skillFitness(ctx cliapp.RunContext) error {
+	skillID := ctx.Positional("skill_id")
+	resp, err := h.client.GetSkillFitness(context.Background(), connect.NewRequest(&reportv1.GetSkillFitnessRequest{SkillId: skillID}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("skill fitness %q", skillID), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Fitness == nil {
+		return fmt.Errorf("server returned no fitness")
+	}
+	f := resp.Msg.Fitness
+	lines := []string{
+		fmt.Sprintf("Verdict:       %s", fitnessVerdictLabel(f.Verdict)),
+		fmt.Sprintf("Latest:        %s", verdictLabel(f.LatestVerdict)),
+		fmt.Sprintf("Runs:          %d (pass %d, mutation %d, run-failure %d, tool-failure %d)",
+			f.TotalRuns, f.PassCount, f.UnexpectedMutationCount, f.RunFailureCount, f.ToolFailureCount),
+		fmt.Sprintf("Pass rate:     %.2f", f.PassRate),
+		fmt.Sprintf("Avg tokens:    %.0f (total %d)", f.AvgTokens, f.TotalTokens),
+		fmt.Sprintf("Avg cost:      %.0f µ$ (total %d)", f.AvgCostUsdMicro, f.TotalCostUsdMicro),
+		fmt.Sprintf("Avg duration:  %.0fms (total %dms)", f.AvgDurationMs, f.TotalDurationMs),
+		fmt.Sprintf("Convergence:   %.2f (%d unique diff(s))", f.ConvergenceRatio, f.UniqueDiffHashes),
+		fmt.Sprintf("Any stale:     %v", f.AnyStale),
+	}
+	for _, slug := range sortedGoldenSlugs(f.ByGolden) {
+		snap := f.ByGolden[slug]
+		lines = append(lines, fmt.Sprintf("  %s — verdict=%s runs=%d stale=%v",
+			slug, verdictLabel(snap.LatestVerdict), snap.RunCount, snap.Stale))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Fitness for skill %q.", skillID)},
+		ResultsHeading: "Fitness",
+		Results:        lines,
+	})
+}
+
+func sortedGoldenSlugs(m map[string]*reportv1.GoldenSkillSnapshot) []string {
+	out := make([]string, 0, len(m))
+	for slug := range m {
+		out = append(out, slug)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func fitnessVerdictLabel(v reportv1.SkillFitnessVerdict) string {
+	switch v {
+	case reportv1.SkillFitnessVerdict_SKILL_FITNESS_VERDICT_UNKNOWN:
+		return "unknown"
+	case reportv1.SkillFitnessVerdict_SKILL_FITNESS_VERDICT_GREEN:
+		return "green"
+	case reportv1.SkillFitnessVerdict_SKILL_FITNESS_VERDICT_YELLOW:
+		return "yellow"
+	case reportv1.SkillFitnessVerdict_SKILL_FITNESS_VERDICT_RED:
+		return "red"
+	default:
+		return "unspecified"
+	}
 }
 
 func formatTupleVerdict(v *reportv1.TupleVerdict) string {

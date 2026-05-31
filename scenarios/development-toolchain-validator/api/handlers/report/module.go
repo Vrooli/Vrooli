@@ -141,4 +141,28 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator report coverage", Args: []string{"<slug>"}},
 	},
+	{
+		ID:          "report_skill_fitness",
+		Path:        reportconnect.ReportServiceGetSkillFitnessProcedure,
+		Method:      "POST",
+		Summary:     "Cross-golden trust/cost/convergence aggregate for one skill",
+		Description: "Folds every validation record for a skill across all goldens into run counts by verdict, pass rate, token/cost/duration totals, convergence ratio, latest verdict, staleness, and a derived fitness verdict (UNKNOWN/GREEN/YELLOW/RED). Consumed by ecosystem-manager's selection controller.",
+		Category:    "report",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"skill_id": "string (required)"},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"fitness": "SkillFitness"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing skill_id"},
+			{Status: 500, Code: "internal", Description: "Composition failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Skill fitness", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.report.ReportService/GetSkillFitness -H 'Content-Type: application/json' -d '{\"skill_id\":\"plan-skill-discovery\"}'"},
+		},
+		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator report skill-fitness", Args: []string{"<skill_id>"}},
+	},
 }

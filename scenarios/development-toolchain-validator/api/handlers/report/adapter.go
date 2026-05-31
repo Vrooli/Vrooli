@@ -125,3 +125,51 @@ func verdictDomainToProto(v vr.Verdict) vrv1.Verdict {
 		return vrv1.Verdict_VERDICT_UNSPECIFIED
 	}
 }
+
+func skillFitnessToProto(f report.SkillFitness) *reportv1.SkillFitness {
+	out := &reportv1.SkillFitness{
+		SkillId:                 f.SkillID,
+		PassCount:               f.PassCount,
+		UnexpectedMutationCount: f.UnexpectedMutationCount,
+		RunFailureCount:         f.RunFailureCount,
+		ToolFailureCount:        f.ToolFailureCount,
+		TotalRuns:               f.TotalRuns,
+		PassRate:                f.PassRate,
+		TotalTokens:             f.TotalTokens,
+		AvgTokens:               f.AvgTokens,
+		TotalCostUsdMicro:       f.TotalCostUSDMicro,
+		AvgCostUsdMicro:         f.AvgCostUSDMicro,
+		TotalDurationMs:         f.TotalDurationMS,
+		AvgDurationMs:           f.AvgDurationMS,
+		UniqueDiffHashes:        int32(f.UniqueDiffHashes),
+		ConvergenceRatio:        f.ConvergenceRatio,
+		LatestVerdict:           verdictDomainToProto(f.LatestVerdict),
+		AnyStale:                f.AnyStale,
+		Verdict:                 skillFitnessVerdictToProto(f.Verdict),
+		ByGolden:                make(map[string]*reportv1.GoldenSkillSnapshot, len(f.ByGolden)),
+	}
+	for slug, snap := range f.ByGolden {
+		out.ByGolden[slug] = &reportv1.GoldenSkillSnapshot{
+			GoldenSlug:    snap.GoldenSlug,
+			LatestVerdict: verdictDomainToProto(snap.LatestVerdict),
+			Stale:         snap.Stale,
+			RunCount:      int32(snap.RunCount),
+		}
+	}
+	return out
+}
+
+func skillFitnessVerdictToProto(v report.SkillFitnessVerdict) reportv1.SkillFitnessVerdict {
+	switch v {
+	case report.SkillFitnessVerdictUnknown:
+		return reportv1.SkillFitnessVerdict_SKILL_FITNESS_VERDICT_UNKNOWN
+	case report.SkillFitnessVerdictGreen:
+		return reportv1.SkillFitnessVerdict_SKILL_FITNESS_VERDICT_GREEN
+	case report.SkillFitnessVerdictYellow:
+		return reportv1.SkillFitnessVerdict_SKILL_FITNESS_VERDICT_YELLOW
+	case report.SkillFitnessVerdictRed:
+		return reportv1.SkillFitnessVerdict_SKILL_FITNESS_VERDICT_RED
+	default:
+		return reportv1.SkillFitnessVerdict_SKILL_FITNESS_VERDICT_UNSPECIFIED
+	}
+}
