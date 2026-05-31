@@ -34,30 +34,64 @@ import { AutoAdvanceCountdown } from "./auto-advance-countdown";
 import { SnoozePopover } from "../command-post/SnoozePopover";
 import { snoozeKeyForBacklog } from "../../lib/snooze-utils";
 import { displayLimitsConfig } from "../../config";
+import { PickModeRow } from "../session/context/selectable-card";
+import type { CardSelection } from "../session/context/selectable";
+
+// All-off ItemActions used when the card renders without a sidebar action
+// context (i.e. the SessionContextPicker pick-mode path, which suppresses
+// every action row). Keeps the sidebar prop contract non-breaking while
+// letting the picker render a BacklogCard with only `item` + `selection`.
+const NO_ITEM_ACTIONS: ItemActions = {
+  locked: false,
+  terminal: false,
+  blocked: false,
+  blockingDepKeys: [],
+  primaryCta: null,
+  canRun: false,
+  runDisabled: false,
+  canWorkshop: false,
+  workshopDisabled: false,
+  canFinalize: false,
+  finalizeDisabled: false,
+  canFollowUp: false,
+  canRetry: false,
+  canArchive: false,
+  showDecisionStepper: false,
+  agentRunning: false,
+  notQueueableReason: null,
+  disabledReason: null,
+};
 
 export interface BacklogCardProps {
   item: BacklogItem;
   readinessData?: ReadinessIndicatorData;
-  itemActions: ItemActions;
+  /**
+   * Picker pick-mode selection contract. When `selection.selectionMode` is
+   * true the card renders a compact display-only summary (no action rows,
+   * no stepper) wrapped in PickModeRow. All the sidebar action props below
+   * are ignored in that mode, so they are optional for picker callers.
+   */
+  selection?: CardSelection;
+  itemActions?: ItemActions;
   // Attention / stepper
-  attentionReasons: AttentionReason[];
+  attentionReasons?: AttentionReason[];
   pendingQuestions?: PendingQuestion[];
-  isStepperCompleted: boolean;
+  isStepperCompleted?: boolean;
   transitionResult?: StepperCompletionResult;
-  onStepperCompleted: (result: StepperCompletionResult) => void;
+  onStepperCompleted?: (result: StepperCompletionResult) => void;
   // Batch mode
-  batchMode: boolean;
-  isSelected: boolean;
-  onToggleSelection: () => void;
+  batchMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelection?: () => void;
   // Actions
-  onRun: () => void;
-  onArchive: () => void;
-  onFollowUp: () => void;
-  onFinalize: () => void;
-  onWorkshop: () => void;
-  archivePending: boolean;
-  finalizePending: boolean;
-  workshopPending: boolean;
+  onRun?: () => void;
+  onArchive?: () => void;
+  onFollowUp?: () => void;
+  onFinalize?: () => void;
+  onWorkshop?: () => void;
+  archivePending?: boolean;
+  finalizePending?: boolean;
+  workshopPending?: boolean;
   workshopLabel?: string;
   /** Human-readable label shown when an agent is running (e.g. "Running workshop…"). */
   runningLabel?: string;
@@ -74,23 +108,24 @@ export interface BacklogCardProps {
 function BacklogCardImpl({
   item,
   readinessData,
-  itemActions,
-  attentionReasons,
+  selection,
+  itemActions = NO_ITEM_ACTIONS,
+  attentionReasons = [],
   pendingQuestions,
-  isStepperCompleted,
+  isStepperCompleted = false,
   transitionResult,
-  onStepperCompleted,
-  batchMode,
-  isSelected,
-  onToggleSelection,
-  onRun,
-  onArchive,
-  onFollowUp,
-  onFinalize,
-  onWorkshop,
-  archivePending,
-  finalizePending,
-  workshopPending,
+  onStepperCompleted = () => {},
+  batchMode = false,
+  isSelected = false,
+  onToggleSelection = () => {},
+  onRun = () => {},
+  onArchive = () => {},
+  onFollowUp = () => {},
+  onFinalize = () => {},
+  onWorkshop = () => {},
+  archivePending = false,
+  finalizePending = false,
+  workshopPending = false,
   workshopLabel = "Workshop",
   runningLabel = "Agent running…",
   onStatusChange,
@@ -98,6 +133,40 @@ function BacklogCardImpl({
   showSnooze,
   onSnooze,
 }: BacklogCardProps) {
+  // Picker pick-mode: a compact, display-only summary. No action rows, no
+  // stepper, no status popover — just the identifying header + title/desc.
+  if (selection?.selectionMode) {
+    const PickKindIcon = BACKLOG_KIND_ICONS[item.kind];
+    return (
+      <PickModeRow selection={selection}>
+        {item.archivedAt != null && (
+          <div className="mb-2 flex items-center gap-1.5 rounded border border-amber-500/20 bg-amber-500/5 px-2 py-1 text-[11px] text-amber-400/80">
+            <Archive className="h-3 w-3 shrink-0" />
+            Archived
+          </div>
+        )}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            {PickKindIcon && <PickKindIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
+            <span
+              className={`inline-block h-2 w-2 shrink-0 rounded-full ${BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500"}`}
+            />
+            <span className="truncate text-[11px] uppercase tracking-wider text-slate-400">
+              {formatBacklogStatus(item.status)}
+            </span>
+          </div>
+          <span className="shrink-0 rounded-full bg-slate-700 px-2 py-0.5 text-[10px] text-slate-300">
+            P{item.priority}
+          </span>
+        </div>
+        <p className="mt-1.5 line-clamp-2 text-[13px] font-medium leading-snug text-slate-100">{item.title}</p>
+        {item.description && (
+          <p className="mt-1 line-clamp-2 text-[11px] text-slate-400">{item.description}</p>
+        )}
+      </PickModeRow>
+    );
+  }
+
   const hasActiveStepper = itemActions.showDecisionStepper && (pendingQuestions?.length ?? 0) > 0 && !isStepperCompleted;
   const showBatchCheckbox = batchMode;
   const deliverableLabel = item.kind === "research" ? "conclusion" : "plan";

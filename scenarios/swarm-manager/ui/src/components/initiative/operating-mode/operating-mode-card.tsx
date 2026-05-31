@@ -2,6 +2,8 @@ import { cn } from "../../../lib/utils";
 import { Card } from "../../ui/card";
 import type { OperatingModeCatalogEntry } from "../../../types/operating-mode";
 import { humanizeRunStrategy, humanizeScopeKind } from "./utils";
+import { PickModeRow } from "../../session/context/selectable-card";
+import type { CardSelection } from "../../session/context/selectable";
 
 export interface OperatingModeCardProps {
   mode: OperatingModeCatalogEntry;
@@ -10,6 +12,8 @@ export interface OperatingModeCardProps {
   compact?: boolean;
   className?: string;
   "data-testid"?: string;
+  /** Picker pick-mode contract. When set, renders inside PickModeRow. */
+  selection?: CardSelection;
 }
 
 export function OperatingModeCard({
@@ -19,6 +23,7 @@ export function OperatingModeCard({
   compact,
   className,
   "data-testid": testId,
+  selection,
 }: OperatingModeCardProps) {
   const interactive = Boolean(onClick);
   // Cards in the picker live in an evenly-sized grid, so they keep a uniform
@@ -49,6 +54,10 @@ export function OperatingModeCard({
       </p>
     </>
   );
+
+  if (selection?.selectionMode) {
+    return <PickModeRow selection={selection}>{body}</PickModeRow>;
+  }
 
   const cardClassName = cn(
     "block w-full text-left",

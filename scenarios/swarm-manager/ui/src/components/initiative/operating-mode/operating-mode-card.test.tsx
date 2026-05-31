@@ -110,4 +110,36 @@ describe("OperatingModeCard", () => {
       screen.queryByTestId("initiative-mode-picker-guidance-callouts"),
     ).toBeNull();
   });
+
+  describe("pick mode (SessionContextPicker)", () => {
+    it("renders the context row and toggles on click", async () => {
+      const onToggleSelect = vi.fn();
+      render(
+        <OperatingModeCard
+          mode={makeMode()}
+          selection={{ selectionMode: true, selected: true, onToggleSelect }}
+        />,
+      );
+      const row = screen.getByTestId("session-context-row");
+      expect(row).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByText("Item Level")).toBeInTheDocument();
+      await userEvent.click(row);
+      expect(onToggleSelect).toHaveBeenCalledTimes(1);
+    });
+
+    it("disabled pick row does not toggle and exposes the reason", async () => {
+      const onToggleSelect = vi.fn();
+      render(
+        <OperatingModeCard
+          mode={makeMode()}
+          selection={{ selectionMode: true, selected: false, disabled: true, disabledReason: "Cap reached", onToggleSelect }}
+        />,
+      );
+      const row = screen.getByTestId("session-context-row");
+      expect(row).toBeDisabled();
+      expect(row).toHaveAttribute("title", "Cap reached");
+      await userEvent.click(row);
+      expect(onToggleSelect).not.toHaveBeenCalled();
+    });
+  });
 });

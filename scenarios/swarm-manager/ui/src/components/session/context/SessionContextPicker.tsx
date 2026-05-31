@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { BottomSheet } from "../../ui/bottom-sheet";
 import { Button } from "../../ui/button";
@@ -19,6 +19,14 @@ import {
 } from "../../../stores";
 import type { AgentSessionContextType, AgentSessionKind } from "../../../types";
 import { ContextChipTray } from "../../composer/ContextChipTray";
+import { BacklogCard } from "../../backlog/backlog-card";
+import { InitiativeSummaryCard } from "../../initiative/initiative-summary-card";
+import { ExecutionSummaryCard } from "../../execution/execution-summary-card";
+import { ScenarioSummaryCard } from "../../scenario/scenario-summary-card";
+import { OperatingModeCard } from "../../initiative/operating-mode/operating-mode-card";
+import { SessionSummaryCard } from "../session-summary-card";
+import { PickModeRow } from "./selectable-card";
+import type { CardSelection } from "./selectable";
 import { allowedContextTypesForKind, CONTEXT_TYPE_CAPS, CONTEXT_TYPE_LABELS, totalContextCapForKind } from "./session-context-config";
 import {
   activityOption,
@@ -118,14 +126,6 @@ function SessionContextPickerContent({
   }), [activities, backlogItems, captures, currentSessionId, executions, initiatives, modesQuery.data?.modes, scenarios, sessionKind, sessions]);
 
   const selectedKeys = useMemo(() => new Set(draft.map((item) => contextKey(item.type, item.ref))), [draft]);
-  const filteredOptions = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    const options = optionsByType[activeType] ?? [];
-    if (!needle) return options.slice(0, 80);
-    return options
-      .filter((option) => `${option.title} ${option.subtitle ?? ""} ${option.ref}`.toLowerCase().includes(needle))
-      .slice(0, 80);
-  }, [activeType, optionsByType, query]);
 
   const totalCap = totalContextCapForKind(sessionKind);
   const activeTypeCount = draft.filter((item) => item.type === activeType).length;
@@ -152,7 +152,102 @@ function SessionContextPickerContent({
     setDraft((items) => items.filter((item) => !(item.type === type && item.ref === ref)));
   };
 
-  const activeTypeItems = filteredOptions;
+  // Cap state for the active tab. All not-yet-selected items in the active
+  // list share this disabled state (selection policy lives here, not in cards).
+  const capReached = draft.length >= totalCap || activeTypeCount >= activeTypeCap;
+
+  const selectionFor = (option: SessionContextOption): CardSelection => {
+    const selected = selectedKeys.has(contextKey(option.type, option.ref));
+    const disabled = !selected && capReached;
+    return {
+      selectionMode: true,
+      selected,
+      disabled,
+      disabledReason: disabled ? capMessage : undefined,
+      onToggleSelect: () => toggle(option),
+    };
+  };
+
+  const matchesNeedle = (option: SessionContextOption): boolean => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return true;
+    return `${option.title} ${option.subtitle ?? ""} ${option.ref}`.toLowerCase().includes(needle);
+  };
+
+  // Singleton / cardless / deferred (capture, agent_activity) types keep the
+  // flat title+subtitle row via the shared PickModeRow.
+  const fallbackRow = (option: SessionContextOption) => (
+    <PickModeRow key={contextKey(option.type, option.ref)} selection={selectionFor(option)}>
+      <span className="block truncate text-sm font-medium leading-5">{option.title}</span>
+      <span className="block truncate text-xs leading-5 text-slate-400">{option.subtitle || option.ref}</span>
+    </PickModeRow>
+  );
+
+  const renderPickNodes = () => {
+    switch (activeType) {
+      case "backlog_item":
+        return backlogItems
+          .map((entity) => ({ entity, option: backlogOption(entity) }))
+          .filter(({ option }) => matchesNeedle(option))
+          .slice(0, 80)
+          .map(({ entity, option }) => (
+            <BacklogCard key={contextKey(option.type, option.ref)} item={entity} selection={selectionFor(option)} />
+          ));
+      case "initiative":
+        return initiatives
+          .map((entity) => ({ entity, option: initiativeOption(entity) }))
+          .filter(({ option }) => matchesNeedle(option))
+          .slice(0, 80)
+          .map(({ entity, option }) => (
+            <InitiativeSummaryCard key={contextKey(option.type, option.ref)} item={entity} selection={selectionFor(option)} />
+          ));
+      case "execution":
+        return executions
+          .map((entity) => ({ entity, option: executionOption(entity) }))
+          .filter(({ option }) => matchesNeedle(option))
+          .slice(0, 80)
+          .map(({ entity, option }) => (
+            <ExecutionSummaryCard key={contextKey(option.type, option.ref)} item={entity} selection={selectionFor(option)} />
+          ));
+      case "session":
+        return sessions
+          .filter((session) => session.id !== currentSessionId)
+          .map((entity) => ({ entity, option: sessionOption(entity) }))
+          .filter(({ option }) => matchesNeedle(option))
+          .slice(0, 80)
+          .map(({ entity, option }) => (
+            <SessionSummaryCard key={contextKey(option.type, option.ref)} session={entity} selection={selectionFor(option)} />
+          ));
+      case "scenario":
+        return scenarios
+          .map((entity) => ({ entity, option: scenarioOption(entity) }))
+          .filter(({ option }) => matchesNeedle(option))
+          .slice(0, 80)
+          .map(({ entity, option }) => (
+            <ScenarioSummaryCard key={contextKey(option.type, option.ref)} scenario={entity} selection={selectionFor(option)} />
+          ));
+      case "operating_mode":
+        return (modesQuery.data?.modes ?? [])
+          .map((entity) => ({ entity, option: operatingModeOption(entity) }))
+          .filter(({ option }) => option.ref && matchesNeedle(option))
+          .slice(0, 80)
+          .map(({ entity, option }) => (
+            <OperatingModeCard key={contextKey(option.type, option.ref)} mode={entity} selection={selectionFor(option)} />
+          ));
+      case "capture":
+        return captures.map(captureOption).filter(matchesNeedle).slice(0, 80).map(fallbackRow);
+      case "agent_activity":
+        return activities.map(activityOption).filter(matchesNeedle).slice(0, 80).map(fallbackRow);
+      case "operations_briefing":
+        return [operationsBriefingOption()].filter(matchesNeedle).map(fallbackRow);
+      case "startup_brief":
+        return [startupBriefOption(sessionKind)].filter(matchesNeedle).map(fallbackRow);
+      default:
+        return [];
+    }
+  };
+
+  const pickNodes = renderPickNodes();
 
   return (
     <BottomSheet
@@ -219,39 +314,8 @@ function SessionContextPickerContent({
         />
 
         <div className="max-h-[52vh] overflow-y-auto px-3 py-3 sm:max-h-[48vh]" data-testid={selectors.agentSessions.contextEntityList}>
-          {activeTypeItems.length > 0 ? (
-            <div className="space-y-1.5">
-              {activeTypeItems.map((option) => {
-                const checked = selectedKeys.has(contextKey(option.type, option.ref));
-                return (
-                  <button
-                    key={contextKey(option.type, option.ref)}
-                    type="button"
-                    onClick={() => toggle(option)}
-                    className={cn(
-                      "flex w-full items-start gap-3 rounded-md border px-3 py-2.5 text-left transition-colors",
-                      checked
-                        ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-50"
-                        : "border-slate-800 bg-slate-950/45 text-slate-200 hover:border-slate-700 hover:bg-slate-800/55",
-                    )}
-                    data-testid={selectors.agentSessions.contextRow}
-                  >
-                    <span
-                      className={cn(
-                        "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors",
-                        checked ? "border-cyan-300 bg-cyan-300 text-slate-950" : "border-slate-600 bg-slate-900",
-                      )}
-                    >
-                      {checked && <Check className="h-3.5 w-3.5" />}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium leading-5">{option.title}</span>
-                      <span className="block truncate text-xs leading-5 text-slate-400">{option.subtitle || option.ref}</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+          {pickNodes.length > 0 ? (
+            <div className="space-y-1.5">{pickNodes}</div>
           ) : (
             <div className="rounded-md border border-dashed border-slate-700 bg-slate-950/40 px-3 py-10 text-center text-sm text-slate-500">
               No matching context.

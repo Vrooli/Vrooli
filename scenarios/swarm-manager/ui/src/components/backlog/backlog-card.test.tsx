@@ -127,4 +127,43 @@ describe("BacklogCard", () => {
 
     expect(screen.getByText("Finalizing conclusion...")).toBeInTheDocument();
   });
+
+  describe("pick mode (SessionContextPicker)", () => {
+    it("renders the context row with title and suppresses all action rows", () => {
+      render(
+        <BacklogCard
+          item={makeItem({ title: "Pickable Item" })}
+          selection={{ selectionMode: true, selected: false, onToggleSelect: vi.fn() }}
+        />,
+      );
+      expect(screen.getByText("Pickable Item")).toBeInTheDocument();
+      expect(screen.queryByTestId("backlog-card-actions")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("status-chip-trigger")).not.toBeInTheDocument();
+      expect(screen.getByTestId("session-context-row")).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("toggles on click and respects the disabled cap state", async () => {
+      const onToggleSelect = vi.fn();
+      const { rerender } = render(
+        <BacklogCard
+          item={makeItem()}
+          selection={{ selectionMode: true, selected: false, onToggleSelect }}
+        />,
+      );
+      await userEvent.click(screen.getByTestId("session-context-row"));
+      expect(onToggleSelect).toHaveBeenCalledTimes(1);
+
+      rerender(
+        <BacklogCard
+          item={makeItem()}
+          selection={{ selectionMode: true, selected: false, disabled: true, disabledReason: "Cap reached", onToggleSelect }}
+        />,
+      );
+      const row = screen.getByTestId("session-context-row");
+      expect(row).toBeDisabled();
+      expect(row).toHaveAttribute("title", "Cap reached");
+      await userEvent.click(row);
+      expect(onToggleSelect).toHaveBeenCalledTimes(1);
+    });
+  });
 });
