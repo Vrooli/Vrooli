@@ -29,6 +29,7 @@ type SkillResponse struct {
 	Modes               []string `json:"modes"`
 	Tags                []string `json:"tags"`
 	Icon                string   `json:"icon,omitempty"`
+	ProgrammaticHome    *string  `json:"programmaticHome,omitempty"`
 	Draft               bool     `json:"draft"`
 	Folder              string   `json:"folder"`
 	CreatedAt           string   `json:"createdAt"`
@@ -52,13 +53,15 @@ type CreateSkillRequest struct {
 
 // UpdateSkillRequest matches the API request for updating skills
 type UpdateSkillRequest struct {
-	Name        *string  `json:"name,omitempty"`
-	Description *string  `json:"description,omitempty"`
-	Content     *string  `json:"content,omitempty"`
-	Modes       []string `json:"modes,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-	Icon        *string  `json:"icon,omitempty"`
-	Draft       *bool    `json:"draft,omitempty"`
+	Name                  *string  `json:"name,omitempty"`
+	Description           *string  `json:"description,omitempty"`
+	Content               *string  `json:"content,omitempty"`
+	Modes                 []string `json:"modes,omitempty"`
+	Tags                  []string `json:"tags,omitempty"`
+	Icon                  *string  `json:"icon,omitempty"`
+	ProgrammaticHome      *string  `json:"programmaticHome,omitempty"`
+	ClearProgrammaticHome bool     `json:"clearProgrammaticHome,omitempty"`
+	Draft                 *bool    `json:"draft,omitempty"`
 }
 
 // SyncResponse matches the API response for sync
@@ -222,6 +225,8 @@ func cmdList(ctx appctx.Context, args []string) error {
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	folder := fs.String("folder", "", "Filter by folder (core|local|drafts)")
 	tag := fs.String("tag", "", "Filter by tag")
+	mode := fs.String("mode", "", "Filter by mode (e.g. steer, search)")
+	withoutProgrammaticHome := fs.Bool("without-programmatic-home", false, "Keep only skills whose detection has NOT graduated to a programmatic engine (programmaticHome unset). Combine with --mode steer for the quality-auditor frontier rotation.")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -232,6 +237,12 @@ func cmdList(ctx appctx.Context, args []string) error {
 	}
 	if *tag != "" {
 		query.Set("tag", *tag)
+	}
+	if *mode != "" {
+		query.Set("modes", *mode)
+	}
+	if *withoutProgrammaticHome {
+		query.Set("withoutProgrammaticHome", "true")
 	}
 
 	var skills []SkillResponse
@@ -306,6 +317,9 @@ func cmdShow(ctx appctx.Context, args []string) error {
 	}
 	if len(skill.Tags) > 0 {
 		fmt.Printf("Tags: %s\n", strings.Join(skill.Tags, ", "))
+	}
+	if skill.ProgrammaticHome != nil && *skill.ProgrammaticHome != "" {
+		fmt.Printf("Programmatic Home: %s\n", *skill.ProgrammaticHome)
 	}
 	fmt.Printf("\nContent:\n%s\n", skill.Content)
 	return nil
@@ -481,13 +495,15 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	tags := fs.String("tags", "", "Comma-separated tags (replaces existing)")
 	draft := fs.Bool("draft", false, "Mark as draft")
 	undraft := fs.Bool("undraft", false, "Unmark as draft")
+	programmaticHome := fs.String("programmatic-home", "", "Record-of-fact pointer (format 'engine:identifier', e.g. 'test-genie:architecture') marking that this skill's detection has graduated to a programmatic engine")
+	clearProgrammaticHome := fs.Bool("clear-programmatic-home", false, "Clear the programmatic-home pointer (detection is agentic again / never graduated)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: skill update <id> [--name=...] [--description=...] [--content=...] [--tags=...] [--draft|--undraft]")
+		return fmt.Errorf("usage: skill update <id> [--name=...] [--description=...] [--content=...] [--tags=...] [--draft|--undraft] [--programmatic-home=engine:id|--clear-programmatic-home]")
 	}
 	skillID := fs.Arg(0)
 
@@ -515,6 +531,11 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	if *undraft {
 		d := false
 		req.Draft = &d
+	}
+	if *clearProgrammaticHome {
+		req.ClearProgrammaticHome = true
+	} else if *programmaticHome != "" {
+		req.ProgrammaticHome = programmaticHome
 	}
 
 	var skill SkillResponse

@@ -406,6 +406,12 @@
         ],
         "description": "Archive or retire an unused skill."
       },
+      "skill-graduation": {
+        "ownerMemberIds": [
+          "skill-optimizer"
+        ],
+        "description": "Record that a steer skill's detection has graduated into a programmatic engine: propose setting the skill's programmaticHome pointer (format 'engine:identifier', e.g. 'test-genie:architecture') via `prompt-manager skill update --programmatic-home`. This is a record-of-fact — propose ONLY when the programmatic home actually exists and runs. The write executes when the decision is applied (the optimizer has no skill-write tool). Graduation auto-prunes the lens from the scenario-qa quality-auditor's derived rotation."
+      },
       "action-candidate": {
         "ownerMemberIds": [
           "skill-optimizer"
@@ -626,6 +632,7 @@
           "skill-conversion-candidate",
           "skill-improvement",
           "skill-deprecation",
+          "skill-graduation",
           "action-candidate",
           "action-improvement",
           "action-deprecation"

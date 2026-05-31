@@ -40,6 +40,7 @@ export const SkillSchema = z.object({
   icon: z.string().nullable().optional(),
   targetToolId: z.string().nullable().optional(),
   defaultScope: z.string().nullable().optional(), // Default scope skill to include with this skill
+  programmaticHome: z.string().nullable().optional(), // Record-of-fact pointer ("engine:identifier") set when detection has graduated to a programmatic engine
   draft: z.boolean().nullable().optional().transform((val) => val ?? false),
   folder: FolderTypeSchema,
   skillDir: z.string().nullable().optional(),    // Absolute path to skill directory
@@ -70,6 +71,7 @@ export const CreateSkillRequestSchema = z.object({
   tags: z.array(z.string()).optional(),
   icon: z.string().optional(),
   targetToolId: z.string().nullable().optional(),
+  programmaticHome: z.string().nullable().optional(),
   draft: z.boolean().optional(),
   folder: FolderTypeSchema,
 })
@@ -90,6 +92,8 @@ export const UpdateSkillRequestSchema = z.object({
   icon: z.string().optional(),
   targetToolId: z.string().nullable().optional(),
   defaultScope: z.string().optional(), // Default scope skill ID
+  programmaticHome: z.string().nullable().optional(),
+  clearProgrammaticHome: z.boolean().optional(),
   draft: z.boolean().optional(),
   folder: FolderTypeSchema.optional(),
 })

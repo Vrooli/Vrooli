@@ -11,6 +11,11 @@ type FilterOptions struct {
 	Tag    string   // Filter by tag (empty = no filter)
 	Folder string   // Filter by folder (empty = no filter)
 	Modes  []string // Filter by modes (empty = no filter)
+	// WithoutProgrammaticHome, when true, keeps only skills whose
+	// ProgrammaticHome is nil/empty — i.e. detection has NOT yet graduated to a
+	// programmatic engine. This is the quality-auditor's "frontier" query:
+	// combined with Modes:["steer"] it yields the live steer-skill rotation.
+	WithoutProgrammaticHome bool
 }
 
 // Filter applies all filter criteria to a list of skills.
@@ -30,7 +35,23 @@ func Filter(skills []Metadata, opts FilterOptions) []Metadata {
 		result = filterByModes(result, opts.Modes)
 	}
 
+	if opts.WithoutProgrammaticHome {
+		result = filterWithoutProgrammaticHome(result)
+	}
+
 	return result
+}
+
+// filterWithoutProgrammaticHome keeps only skills whose ProgrammaticHome is
+// unset (nil or empty string) — the not-yet-graduated frontier set.
+func filterWithoutProgrammaticHome(skills []Metadata) []Metadata {
+	var filtered []Metadata
+	for _, p := range skills {
+		if p.ProgrammaticHome == nil || strings.TrimSpace(*p.ProgrammaticHome) == "" {
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered
 }
 
 // filterByTag filters skills to only those containing the specified tag.

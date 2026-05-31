@@ -14,9 +14,16 @@ type Metadata struct {
 	Icon         string   `json:"icon,omitempty"`
 	TargetToolID *string  `json:"targetToolId"`
 	DefaultScope string   `json:"defaultScope,omitempty"` // Default scope skill to include with this skill
-	Draft        bool     `json:"draft"`
-	CreatedAt    string   `json:"createdAt"`
-	UpdatedAt    string   `json:"updatedAt"`
+	// TargetDimensions are the controller improvement dimensions this skill
+	// closes (ecosystem-manager's selection vocabulary). Empty for non-steer skills.
+	TargetDimensions []string `json:"targetDimensions,omitempty"`
+	// ProgrammaticHome records (as a fact) the programmatic engine that has
+	// taken over this skill's detection, format "engine:identifier". Nil while
+	// detection is still agentic. See store.Skill.ProgrammaticHome.
+	ProgrammaticHome *string `json:"programmaticHome,omitempty"`
+	Draft            bool    `json:"draft"`
+	CreatedAt        string  `json:"createdAt"`
+	UpdatedAt        string  `json:"updatedAt"`
 }
 
 // MetadataFile represents the structure of metadata.json files in each folder.
@@ -36,6 +43,8 @@ type Response struct {
 	Icon                string     `json:"icon,omitempty"`
 	TargetToolID        *string    `json:"targetToolId,omitempty"`
 	DefaultScope        string     `json:"defaultScope,omitempty"` // Default scope skill to include with this skill
+	TargetDimensions    []string   `json:"targetDimensions,omitempty"`
+	ProgrammaticHome    *string    `json:"programmaticHome,omitempty"`
 	Draft               bool       `json:"draft"`
 	Folder              string     `json:"folder"`
 	SkillDir            string     `json:"skillDir,omitempty"`    // Absolute path to skill directory
@@ -57,32 +66,40 @@ type SyncResponse struct {
 
 // CreateRequest is the request body for creating a skill.
 type CreateRequest struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	Description  string   `json:"description"`
-	Content      string   `json:"content"`
-	Modes        []string `json:"modes"`
-	Tags         []string `json:"tags"`
-	Icon         string   `json:"icon,omitempty"`
-	TargetToolID *string  `json:"targetToolId,omitempty"`
-	DefaultScope string   `json:"defaultScope,omitempty"` // Default scope skill to include
-	Draft        bool     `json:"draft"`
-	Folder       string   `json:"folder"` // one of: "local", "drafts", "core"
+	ID               string   `json:"id"`
+	Name             string   `json:"name"`
+	Description      string   `json:"description"`
+	Content          string   `json:"content"`
+	Modes            []string `json:"modes"`
+	Tags             []string `json:"tags"`
+	Icon             string   `json:"icon,omitempty"`
+	TargetToolID     *string  `json:"targetToolId,omitempty"`
+	DefaultScope     string   `json:"defaultScope,omitempty"` // Default scope skill to include
+	TargetDimensions []string `json:"targetDimensions,omitempty"`
+	ProgrammaticHome *string  `json:"programmaticHome,omitempty"`
+	Draft            bool     `json:"draft"`
+	Folder           string   `json:"folder"` // one of: "local", "drafts", "core"
 }
 
 // UpdateRequest is the request body for updating a skill.
 type UpdateRequest struct {
-	File         *string  `json:"file,omitempty"`
-	Name         *string  `json:"name,omitempty"`
-	Description  *string  `json:"description,omitempty"`
-	Content      *string  `json:"content,omitempty"`
-	Modes        []string `json:"modes,omitempty"`
-	Tags         []string `json:"tags,omitempty"`
-	Icon         *string  `json:"icon,omitempty"`
-	TargetToolID *string  `json:"targetToolId,omitempty"`
-	DefaultScope *string  `json:"defaultScope,omitempty"` // Default scope skill to include
-	Draft        *bool    `json:"draft,omitempty"`
-	Folder       *string  `json:"folder,omitempty"` // Move skill to different folder
+	File             *string  `json:"file,omitempty"`
+	Name             *string  `json:"name,omitempty"`
+	Description      *string  `json:"description,omitempty"`
+	Content          *string  `json:"content,omitempty"`
+	Modes            []string `json:"modes,omitempty"`
+	Tags             []string `json:"tags,omitempty"`
+	Icon             *string  `json:"icon,omitempty"`
+	TargetToolID     *string  `json:"targetToolId,omitempty"`
+	DefaultScope     *string  `json:"defaultScope,omitempty"` // Default scope skill to include
+	TargetDimensions []string `json:"targetDimensions,omitempty"`
+	ProgrammaticHome *string  `json:"programmaticHome,omitempty"`
+	// ClearProgrammaticHome explicitly resets ProgrammaticHome to nil. Needed
+	// because a nil ProgrammaticHome pointer is ambiguous between "not provided"
+	// and "clear it"; this flag disambiguates.
+	ClearProgrammaticHome bool    `json:"clearProgrammaticHome,omitempty"`
+	Draft                 *bool   `json:"draft,omitempty"`
+	Folder                *string `json:"folder,omitempty"` // Move skill to different folder
 }
 
 // Folders defines the valid folder names for skill storage.

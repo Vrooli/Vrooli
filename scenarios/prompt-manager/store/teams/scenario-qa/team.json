@@ -185,6 +185,12 @@
         "supersedesPrevious": false,
         "retention": "append-only"
       },
+      "audit-lens-adoption/<skill-id>": {
+        "ownerMemberId": "quality-auditor",
+        "supersedesPrevious": true,
+        "retention": "snapshot",
+        "comment": "One-time gated adoption assessment for a steer audit-technique lens newly surfaced by the derived rotation query (ADOPTED vs NEEDS-REVIEW). Latest verdict per lens; prevents re-assessing the same lens every heartbeat. Adoption is from the existing catalog only — the auditor never invents a skill."
+      },
       "bug-inbox/<signal-type>/<slug>": {
         "ownerMemberId": "bug-investigator",
         "supersedesPrevious": false,
@@ -250,15 +256,9 @@
         "newDecisionCapPerHeartbeat": 1,
         "taskParameters": {
           "recencyWindowDays": 7,
-          "skillRotation": [
-            "screaming-architecture-audit",
-            "boundary-of-responsibility-enforcement",
-            "seam-discovery-and-enforcement",
-            "invariant-discovery-and-enforcement",
-            "cognitive-load-reduction",
-            "decision-boundary-extraction",
-            "code-cleanup"
-          ]
+          "rotationSource": "derived",
+          "rotationQuery": "prompt-manager skill list --mode steer --tag audit-technique --without-programmatic-home --json",
+          "rotationQueryComment": "The rotation is no longer a static list. It is the live set of steer-mode audit-technique skills whose detection has NOT yet graduated to a programmatic engine (programmaticHome unset). Skills auto-prune from the rotation the moment the skill-optimizer records their programmaticHome (e.g. screaming-architecture-audit graduated to test-genie:architecture). New steer audit-technique skills auto-appear and pass through the HEARTBEAT's one-time gated adoption assessment before being audited with."
         }
       },
       "bug-investigator": {

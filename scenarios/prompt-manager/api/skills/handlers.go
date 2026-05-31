@@ -12,10 +12,11 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
-	"prompt-manager/store"
 	"sort"
 	"strings"
 	"time"
+
+	"prompt-manager/store"
 
 	"github.com/gorilla/mux"
 )
@@ -35,7 +36,7 @@ type Handlers struct {
 	experimentStore  store.ExperimentStore // Optional: for variant-aware read
 	variantStore     store.VariantStore    // Optional: for variant-aware read
 	packSkillStore   store.SkillStore      // Optional: for variant-aware read (pack-based)
-	configDir         string                // Absolute path to store directory for computing file paths
+	configDir        string                // Absolute path to store directory for computing file paths
 }
 
 // NewHandlers creates a new skills handler.
@@ -43,8 +44,8 @@ type Handlers struct {
 // configDir should be an absolute path to the store directory for computing file paths.
 func NewHandlers(store SkillStore, metrics MetricsService, configDir string) *Handlers {
 	return &Handlers{
-		store:    store,
-		metrics:  metrics,
+		store:     store,
+		metrics:   metrics,
 		configDir: configDir,
 	}
 }
@@ -107,6 +108,7 @@ func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
 	tag := r.URL.Query().Get("tag")
 	folder := r.URL.Query().Get("folder")
 	modes := r.URL.Query()["modes"]
+	withoutProgrammaticHome := r.URL.Query().Get("withoutProgrammaticHome") == "true"
 
 	skills, err := h.store.GetAll()
 	if err != nil {
@@ -116,9 +118,10 @@ func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
 
 	// Apply domain filters
 	skills = Filter(skills, FilterOptions{
-		Tag:    tag,
-		Folder: folder,
-		Modes:  modes,
+		Tag:                     tag,
+		Folder:                  folder,
+		Modes:                   modes,
+		WithoutProgrammaticHome: withoutProgrammaticHome,
 	})
 
 	// Convert to response format with metrics
@@ -253,18 +256,20 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Create metadata entry
 	metadata := Metadata{
-		ID:           req.ID,
-		File:         filename,
-		Name:         req.Name,
-		Description:  req.Description,
-		Modes:        req.Modes,
-		Tags:         req.Tags,
-		Icon:         req.Icon,
-		TargetToolID: req.TargetToolID,
-		DefaultScope: req.DefaultScope,
-		Draft:        req.Draft,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		ID:               req.ID,
+		File:             filename,
+		Name:             req.Name,
+		Description:      req.Description,
+		Modes:            req.Modes,
+		Tags:             req.Tags,
+		Icon:             req.Icon,
+		TargetToolID:     req.TargetToolID,
+		DefaultScope:     req.DefaultScope,
+		TargetDimensions: req.TargetDimensions,
+		ProgrammaticHome: req.ProgrammaticHome,
+		Draft:            req.Draft,
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}
 
 	// Load existing skills for the folder
@@ -415,6 +420,14 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.DefaultScope != nil {
 		skill.DefaultScope = *req.DefaultScope
+	}
+	if req.TargetDimensions != nil {
+		skill.TargetDimensions = req.TargetDimensions
+	}
+	if req.ClearProgrammaticHome {
+		skill.ProgrammaticHome = nil
+	} else if req.ProgrammaticHome != nil {
+		skill.ProgrammaticHome = req.ProgrammaticHome
 	}
 
 	skill.UpdatedAt = time.Now().Format(time.RFC3339)
@@ -685,17 +698,19 @@ func (h *Handlers) SetRating(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) toResponse(p Metadata) Response {
 	response := Response{
-		ID:           p.ID,
-		Name:         p.Name,
-		Description:  p.Description,
-		Modes:        p.Modes,
-		Tags:         p.Tags,
-		Icon:         p.Icon,
-		TargetToolID: p.TargetToolID,
-		DefaultScope: p.DefaultScope,
-		Draft:        p.Draft,
-		CreatedAt:    p.CreatedAt,
-		UpdatedAt:    p.UpdatedAt,
+		ID:               p.ID,
+		Name:             p.Name,
+		Description:      p.Description,
+		Modes:            p.Modes,
+		Tags:             p.Tags,
+		Icon:             p.Icon,
+		TargetToolID:     p.TargetToolID,
+		DefaultScope:     p.DefaultScope,
+		TargetDimensions: p.TargetDimensions,
+		ProgrammaticHome: p.ProgrammaticHome,
+		Draft:            p.Draft,
+		CreatedAt:        p.CreatedAt,
+		UpdatedAt:        p.UpdatedAt,
 	}
 
 	// Extract folder and filename from file path (format: "folder/filename.md")

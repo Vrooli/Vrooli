@@ -283,6 +283,7 @@ export const literalSelectors = {
     themeLight: "theme-light",
     themeSystem: "theme-system",
     executionDefaults: "execution-defaults",
+    fixBeforeFeature: "fix-before-feature-settings",
     workshopSettings: "workshop-settings",
     agentSettings: "agent-settings",
     uiPreferences: "ui-preferences",

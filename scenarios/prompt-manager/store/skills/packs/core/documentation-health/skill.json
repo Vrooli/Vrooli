@@ -15,6 +15,9 @@
   "icon": "filetext",
   "status": "active",
   "entry": "SKILL.md",
+  "targetDimensions": [
+    "docs"
+  ],
   "defaultScope": "architecture-scope",
   "revision": 47,
   "createdAt": "2026-01-24T00:00:00Z",

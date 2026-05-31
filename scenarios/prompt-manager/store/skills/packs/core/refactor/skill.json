@@ -14,6 +14,12 @@
   "icon": "refreshcw",
   "status": "active",
   "entry": "SKILL.md",
+  "targetDimensions": [
+    "structure",
+    "standards",
+    "cycles",
+    "tidiness"
+  ],
   "revision": 44,
   "createdAt": "2025-01-15T00:00:00Z",
   "updatedAt": "2026-02-04T13:13:54Z"

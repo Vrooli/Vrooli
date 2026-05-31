@@ -2,25 +2,36 @@ package store
 
 import (
 	"encoding/json"
+	"time"
+
 	"prompt-manager/teamconfig"
 	"prompt-manager/teamcontract"
-	"time"
 )
 
 // Skill represents a skill entity from skill.json
 type Skill struct {
 	BaseEntity
-	ID           string         `json:"id"`
-	Name         string         `json:"name"`
-	Description  string         `json:"description,omitempty"`
-	Modes        []string       `json:"modes,omitempty"`
-	Tags         []string       `json:"tags,omitempty"`
-	Icon         string         `json:"icon,omitempty"`
-	Status       string         `json:"status"`
-	Entry        string         `json:"entry"`
-	TargetToolID *string        `json:"targetToolId,omitempty"`
-	DefaultScope string         `json:"defaultScope,omitempty"` // Default scope skill to include
-	Requires     *SkillRequires `json:"requires,omitempty"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description,omitempty"`
+	Modes        []string `json:"modes,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
+	Icon         string   `json:"icon,omitempty"`
+	Status       string   `json:"status"`
+	Entry        string   `json:"entry"`
+	TargetToolID *string  `json:"targetToolId,omitempty"`
+	DefaultScope string   `json:"defaultScope,omitempty"` // Default scope skill to include
+	// TargetDimensions are the controller improvement dimensions this skill
+	// closes (ecosystem-manager's selection vocabulary). Empty for non-steer
+	// skills; ecosystem-manager validates entries against its dimension SSOT.
+	TargetDimensions []string       `json:"targetDimensions,omitempty"`
+	Requires         *SkillRequires `json:"requires,omitempty"`
+	// ProgrammaticHome is a record-of-fact pointer (format "engine:identifier",
+	// e.g. "test-genie:architecture") set when this skill's detection has
+	// graduated into a programmatic engine. Nil while detection is still agentic.
+	// Meaningful for steer skills; the quality-auditor derives its audit rotation
+	// from steer skills where this is nil. NOT part of the generic health score.
+	ProgrammaticHome *string `json:"programmaticHome,omitempty"`
 	Timestamps
 
 	// Runtime fields (not persisted in skill.json)

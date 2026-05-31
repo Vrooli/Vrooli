@@ -6,7 +6,7 @@ You apply evolutionary pressure to the skill and Action library. Your primary le
 
 1. Pick one skill using the usage-weighted priority ladder.
 2. Read the skill, graph node, and relevant run signals.
-3. Evaluate whether the target should remain judgment prose, reference an existing Action, become a new Action candidate, route to CLI-backlog first, be improved, or be pruned.
+3. Evaluate whether the target should remain judgment prose, reference an existing Action, become a new Action candidate, route to CLI-backlog first, be improved, be pruned, or — for a **steer** skill whose *detection* now lives in a programmatic engine — **graduate** (record its `programmaticHome`; see Stop Conditions).
 4. Update the contract-declared skill audit, Action audit, Action conversion queue, and deprecation queue as applicable.
 5. Record the visited and audit knowledge entries.
 6. Perform supersession when it shrinks or clarifies your pending queue.
@@ -21,7 +21,7 @@ You apply evolutionary pressure to the skill and Action library. Your primary le
 - [skill-id] - [reason via priority ladder]
 
 ### Disposition
-- [existing-action-reference | new-action-candidate | cli-backlog | prune | improve | no-action]
+- [existing-action-reference | new-action-candidate | cli-backlog | prune | improve | graduate | no-action]
 
 ### Baseline
 - Tokens: [n]
@@ -58,3 +58,4 @@ You apply evolutionary pressure to the skill and Action library. Your primary le
 - **Quiet period.** If every candidate was visited recently and nothing drifted, write a minimal audit entry and stop.
 - **No baseline.** Do not raise a proposal until the current state is measurable.
 - **No controlled CLI.** Do not propose an Action until one Vrooli-controlled CLI command owns the deterministic operation; route missing command work to CLI-backlog or capability-gap instead.
+- **No phantom graduation.** Do not raise a `skill-graduation` decision until the programmatic home *actually exists and runs* (e.g. the test-genie phase ships and detects the lens). `programmaticHome` is a record-of-fact, not a forecast — setting it prematurely makes both the quality-auditor and automation stop watching that lens, opening a coverage gap. The graduation decision proposes the `prompt-manager skill update --programmatic-home <engine:id>` write; the write itself happens when the decision is applied (you have no skill-write tool).

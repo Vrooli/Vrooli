@@ -10,8 +10,9 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"prompt-manager/store"
 	"strings"
+
+	"prompt-manager/store"
 )
 
 // StoreAdapter adapts store.SkillStore (pack-based) to skills.SkillStore (folder-based).
@@ -148,7 +149,7 @@ func (a *StoreAdapter) SaveMetadata(folder string, skills []Metadata) error {
 // meaningful field. Used to avoid spurious Update() calls that would
 // increment revision and append to history.jsonl.
 //
-// Fields compared: Name, Description, Modes, Tags, Icon, Draft, TargetToolID, DefaultScope
+// Fields compared: Name, Description, Modes, Tags, Icon, Draft, TargetToolID, DefaultScope, ProgrammaticHome
 // Fields NOT compared: ID (identity), File (derived), CreatedAt/UpdatedAt (timestamps)
 func metadataChanged(old, new Metadata) bool {
 	if old.Name != new.Name {
@@ -173,6 +174,9 @@ func metadataChanged(old, new Metadata) bool {
 		return true
 	}
 	if !stringPtrEqual(old.TargetToolID, new.TargetToolID) {
+		return true
+	}
+	if !stringPtrEqual(old.ProgrammaticHome, new.ProgrammaticHome) {
 		return true
 	}
 	return false
@@ -371,18 +375,20 @@ func (a *StoreAdapter) toMetadata(s store.Skill) Metadata {
 	}
 
 	return Metadata{
-		ID:           s.ID,
-		File:         file,
-		Name:         s.Name,
-		Description:  s.Description,
-		Modes:        s.Modes,
-		Tags:         s.Tags,
-		Icon:         s.Icon,
-		TargetToolID: s.TargetToolID,
-		DefaultScope: s.DefaultScope,
-		Draft:        draft,
-		CreatedAt:    s.CreatedAt,
-		UpdatedAt:    s.UpdatedAt,
+		ID:               s.ID,
+		File:             file,
+		Name:             s.Name,
+		Description:      s.Description,
+		Modes:            s.Modes,
+		Tags:             s.Tags,
+		Icon:             s.Icon,
+		TargetToolID:     s.TargetToolID,
+		DefaultScope:     s.DefaultScope,
+		TargetDimensions: s.TargetDimensions,
+		ProgrammaticHome: s.ProgrammaticHome,
+		Draft:            draft,
+		CreatedAt:        s.CreatedAt,
+		UpdatedAt:        s.UpdatedAt,
 	}
 }
 
@@ -398,16 +404,18 @@ func (a *StoreAdapter) fromMetadata(m Metadata, pack string) store.Skill {
 			Kind:          store.KindSkill,
 			SchemaVersion: store.CurrentSchemaVersion,
 		},
-		ID:           m.ID,
-		Name:         m.Name,
-		Description:  m.Description,
-		Modes:        m.Modes,
-		Tags:         m.Tags,
-		Icon:         m.Icon,
-		Status:       status,
-		Entry:        "SKILL.md",
-		TargetToolID: m.TargetToolID,
-		DefaultScope: m.DefaultScope,
+		ID:               m.ID,
+		Name:             m.Name,
+		Description:      m.Description,
+		Modes:            m.Modes,
+		Tags:             m.Tags,
+		Icon:             m.Icon,
+		Status:           status,
+		Entry:            "SKILL.md",
+		TargetToolID:     m.TargetToolID,
+		DefaultScope:     m.DefaultScope,
+		TargetDimensions: m.TargetDimensions,
+		ProgrammaticHome: m.ProgrammaticHome,
 		Timestamps: store.Timestamps{
 			CreatedAt: m.CreatedAt,
 			UpdatedAt: m.UpdatedAt,

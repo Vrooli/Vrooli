@@ -167,6 +167,13 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
         ...(patch.reviewRequireScreenshots !== undefined ? { reviewRequireScreenshots: patch.reviewRequireScreenshots } : {}),
         ...(patch.reviewRequireTests !== undefined ? { reviewRequireTests: patch.reviewRequireTests } : {}),
         ...(patch.laneConcurrencyLimits !== undefined ? { laneConcurrencyLimits: patch.laneConcurrencyLimits } : {}),
+        ...(patch.maxQueueDepth !== undefined ? { maxQueueDepth: patch.maxQueueDepth } : {}),
+        ...(patch.circuitBreakerThreshold !== undefined ? { circuitBreakerThreshold: patch.circuitBreakerThreshold } : {}),
+        ...(patch.circuitBreakerCooldownMinutes !== undefined ? { circuitBreakerCooldownMinutes: patch.circuitBreakerCooldownMinutes } : {}),
+        ...(patch.executionCostCapPerRun !== undefined ? { executionCostCapPerRun: patch.executionCostCapPerRun } : {}),
+        ...(patch.costPerTurnEstimate !== undefined ? { costPerTurnEstimate: patch.costPerTurnEstimate } : {}),
+        ...(patch.fixBeforeFeature !== undefined ? { fixBeforeFeature: patch.fixBeforeFeature } : {}),
+        ...(patch.fixBeforeFeatureDiscovery !== undefined ? { fixBeforeFeatureDiscovery: patch.fixBeforeFeatureDiscovery } : {}),
       });
       const data = await apiClient.put<unknown>(
         API_ENDPOINTS.settings,

@@ -16,6 +16,11 @@
   "icon": "users",
   "status": "active",
   "entry": "SKILL.md",
+  "targetDimensions": [
+    "accessibility",
+    "visual",
+    "ui"
+  ],
   "defaultScope": "refactor-scope",
   "revision": 50,
   "createdAt": "2025-01-15T00:00:00Z",

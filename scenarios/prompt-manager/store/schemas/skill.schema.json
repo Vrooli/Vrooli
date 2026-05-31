@@ -75,6 +75,10 @@
       "type": ["string", "null"],
       "description": "Optional tool/skill dependency"
     },
+    "programmaticHome": {
+      "type": ["string", "null"],
+      "description": "Record-of-fact pointer (format 'engine:identifier', e.g. 'test-genie:architecture') set when this skill's detection has graduated into a programmatic engine. Null while the skill's detection is still agentic. Meaningful for steer skills; the quality-auditor derives its audit rotation from steer skills where this is null."
+    },
     "requires": {
       "type": "object",
       "description": "Declared requirements for capability gating",

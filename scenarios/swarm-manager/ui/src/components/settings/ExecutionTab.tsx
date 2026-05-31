@@ -186,6 +186,58 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
         </div>
       </Card>
 
+      {/* Fix-Before-Feature Gate */}
+      <Card data-testid={selectors.settings.fixBeforeFeature}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-medium text-slate-200">Fix-Before-Feature Gate</h3>
+            <p className="mt-1 text-sm text-slate-400">
+              When a feature item is queued onto a scenario that already has open
+              fix/chore work, advise or block until that work is cleared.
+            </p>
+          </div>
+          <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
+            fixBeforeFeature: DEFAULT_SETTINGS.fixBeforeFeature,
+            fixBeforeFeatureDiscovery: DEFAULT_SETTINGS.fixBeforeFeatureDiscovery,
+          })}>Reset</button>
+        </div>
+        <div className="mt-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300">Gate Mode</label>
+            <p className="mt-1 text-xs text-slate-400">
+              <em>off</em> ignores open fix work; <em>suggest</em> attaches a
+              non-blocking advisory; <em>block</em> adds a forceable blocking
+              reason that can be overridden with an explicit force.
+            </p>
+            <ToggleButtons
+              value={form.fixBeforeFeature}
+              options={[
+                { value: "off" as const, label: "off" },
+                { value: "suggest" as const, label: "suggest" },
+                { value: "block" as const, label: "block" },
+              ]}
+              onChange={(v) => patch({ fixBeforeFeature: v })}
+            />
+          </div>
+          <div className="border-t border-white/5 pt-4">
+            <label className="block text-sm font-medium text-slate-300">On-Demand Readiness Discovery</label>
+            <p className="mt-1 text-xs text-slate-400">
+              When enabled, scenarios with no known open fix work get an async
+              review at queue time; red/yellow findings are filed as fix items
+              for next time. Off by default to avoid extra review runs.
+            </p>
+            <ToggleButtons
+              value={form.fixBeforeFeatureDiscovery}
+              options={[
+                { value: false as const, label: "Disabled" },
+                { value: true as const, label: "Enabled" },
+              ]}
+              onChange={(v) => patch({ fixBeforeFeatureDiscovery: v })}
+            />
+          </div>
+        </div>
+      </Card>
+
       {/* Agent Behavior */}
       <Card data-testid={selectors.settings.agentSettings}>
         <div className="flex items-center justify-between">

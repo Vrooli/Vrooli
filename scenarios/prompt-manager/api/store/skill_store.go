@@ -228,6 +228,14 @@ func (s *FileSkillStore) Update(ctx context.Context, id string, updates *Skill, 
 	}
 	// DefaultScope is always applied (empty string clears it)
 	skill.DefaultScope = updates.DefaultScope
+	// TargetDimensions and ProgrammaticHome are always applied (nil/empty clears
+	// them). The store_adapter round-trips the full current Metadata on every
+	// update, so partial edits still carry these forward; applying them
+	// unconditionally is what lets an explicit clear actually persist. A
+	// nil-guard here would silently drop both set-to-nil and the EM dimension
+	// edits, which is the bug this replaces.
+	skill.TargetDimensions = updates.TargetDimensions
+	skill.ProgrammaticHome = updates.ProgrammaticHome
 
 	skill.UpdateTimestamp()
 

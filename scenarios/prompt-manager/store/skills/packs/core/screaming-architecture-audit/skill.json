@@ -16,8 +16,13 @@
   "icon": "building2",
   "status": "active",
   "entry": "SKILL.md",
+  "targetDimensions": [
+    "structure",
+    "cycles"
+  ],
   "targetToolId": "run-agent",
-  "revision": 45,
+  "programmaticHome": "test-genie:architecture",
+  "revision": 46,
   "createdAt": "2025-01-15T00:00:00Z",
-  "updatedAt": "2026-05-28T00:00:00Z"
+  "updatedAt": "2026-05-31T00:00:00Z"
 }

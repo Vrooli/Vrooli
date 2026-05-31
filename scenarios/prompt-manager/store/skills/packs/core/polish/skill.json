@@ -14,6 +14,11 @@
   "icon": "sparkles",
   "status": "active",
   "entry": "SKILL.md",
+  "targetDimensions": [
+    "visual",
+    "tidiness",
+    "standards"
+  ],
   "revision": 46,
   "createdAt": "2025-01-15T00:00:00Z",
   "updatedAt": "2026-02-05T01:01:57Z"
