@@ -109,6 +109,7 @@ For a first read, use this order:
 | `DEPRECATION_POLICY.md` | canon | Staleness windows, mandatory roadmap check, archive path, who-files-what |
 | `REFERENCE_SCENARIOS.md` | canon | Gold-star reference scenario registry (template→reference pair, generation date, audit cadence), nomination + demotion rules, rot triage including template-rot |
 | `REFERENCE_PATTERN_FITNESS.md` | canon | Audit lens for artifacts that exist to be copied (templates, references, canonical examples). Composes with scenario-qa's single-instance audit lenses; owned by `toolchain-validator` on `meta-optimization` |
+| `TEMPLATE_CONVERGENCE_LOOP.md` | canon | The end-to-end portfolio-improvement workflow: improve the template → validate with frozen metrics → distill the delta into a skill → mechanize detection + application. Index doc naming each stage's canon; `REFERENCE_PATTERN_FITNESS.md` is its Stage 1 lens |
 | `SHARED_PACKAGE_TESTING.md` | canon | `<pkg>test` sibling-package convention for shared Go package fakes, harnesses, and consumer-facing test helpers |
 
 ## Active taxonomies

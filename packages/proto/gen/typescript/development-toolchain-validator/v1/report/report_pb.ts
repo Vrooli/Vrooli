@@ -2,8 +2,8 @@
 // @generated from file development-toolchain-validator/v1/report/report.proto (package vrooli.development_toolchain_validator.v1.report, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { TupleKind, ValidationRecord, Verdict } from "../validation_record/validation_record_pb";
 import { file_development_toolchain_validator_v1_validation_record_validation_record } from "../validation_record/validation_record_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file development-toolchain-validator/v1/report/report.proto.
  */
 export const file_development_toolchain_validator_v1_report_report: GenFile = /*@__PURE__*/
-  fileDesc("CjZkZXZlbG9wbWVudC10b29sY2hhaW4tdmFsaWRhdG9yL3YxL3JlcG9ydC9yZXBvcnQucHJvdG8SMHZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnJlcG9ydCKFAgoMVHVwbGVWZXJkaWN0EloKCnR1cGxlX2tpbmQYASABKA4yRi52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS52YWxpZGF0aW9uX3JlY29yZC5UdXBsZUtpbmQSEgoKc3ViamVjdF9pZBgCIAEoCRJcCg5sYXRlc3RfdmVyZGljdBgDIAEoDjJELnZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnZhbGlkYXRpb25fcmVjb3JkLlZlcmRpY3QSGAoQbGF0ZXN0X3JlY29yZF9pZBgEIAEoCRINCgVzdGFsZRgFIAEoCCLoAQoNR29sZGVuU3VtbWFyeRITCgtnb2xkZW5fc2x1ZxgBIAEoCRJWCg5za2lsbF92ZXJkaWN0cxgCIAMoCzI+LnZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnJlcG9ydC5UdXBsZVZlcmRpY3QSVQoNdG9vbF92ZXJkaWN0cxgDIAMoCzI+LnZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnJlcG9ydC5UdXBsZVZlcmRpY3QSEwoLc3RhbGVfY291bnQYBCABKAUiLgoXR2V0R29sZGVuU3VtbWFyeVJlcXVlc3QSEwoLZ29sZGVuX3NsdWcYASABKAkibAoYR2V0R29sZGVuU3VtbWFyeVJlc3BvbnNlElAKB3N1bW1hcnkYASABKAsyPy52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS5yZXBvcnQuR29sZGVuU3VtbWFyeSKMAgoMVHVwbGVIaXN0b3J5EloKCnR1cGxlX2tpbmQYASABKA4yRi52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS52YWxpZGF0aW9uX3JlY29yZC5UdXBsZUtpbmQSEgoKc3ViamVjdF9pZBgCIAEoCRITCgtnb2xkZW5fc2x1ZxgDIAEoCRJeCgdyZWNvcmRzGAQgAygLMk0udnJvb2xpLmRldmVsb3BtZW50X3Rvb2xjaGFpbl92YWxpZGF0b3IudjEudmFsaWRhdGlvbl9yZWNvcmQuVmFsaWRhdGlvblJlY29yZBIXCg9uZXh0X3BhZ2VfdG9rZW4YBSABKAkixAEKFkdldFR1cGxlSGlzdG9yeVJlcXVlc3QSWgoKdHVwbGVfa2luZBgBIAEoDjJGLnZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnZhbGlkYXRpb25fcmVjb3JkLlR1cGxlS2luZBISCgpzdWJqZWN0X2lkGAIgASgJEhMKC2dvbGRlbl9zbHVnGAMgASgJEhEKCXBhZ2Vfc2l6ZRgEIAEoBRISCgpwYWdlX3Rva2VuGAUgASgJImoKF0dldFR1cGxlSGlzdG9yeVJlc3BvbnNlEk8KB2hpc3RvcnkYASABKAsyPi52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS5yZXBvcnQuVHVwbGVIaXN0b3J5IvkBCgtDb3ZlcmFnZVJvdxJaCgp0dXBsZV9raW5kGAEgASgOMkYudnJvb2xpLmRldmVsb3BtZW50X3Rvb2xjaGFpbl92YWxpZGF0b3IudjEudmFsaWRhdGlvbl9yZWNvcmQuVHVwbGVLaW5kEhIKCnN1YmplY3RfaWQYAiABKAkSVQoHdmVyZGljdBgDIAEoDjJELnZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnZhbGlkYXRpb25fcmVjb3JkLlZlcmRpY3QSDQoFc3RhbGUYBCABKAgSFAoMaGFzX21hbmlmZXN0GAUgASgIImwKCENvdmVyYWdlEhMKC2dvbGRlbl9zbHVnGAEgASgJEksKBHJvd3MYAiADKAsyPS52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS5yZXBvcnQuQ292ZXJhZ2VSb3ciKQoSR2V0Q292ZXJhZ2VSZXF1ZXN0EhMKC2dvbGRlbl9zbHVnGAEgASgJImMKE0dldENvdmVyYWdlUmVzcG9uc2USTAoIY292ZXJhZ2UYASABKAsyOi52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS5yZXBvcnQuQ292ZXJhZ2UygQQKDVJlcG9ydFNlcnZpY2USqQEKEEdldEdvbGRlblN1bW1hcnkSSS52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS5yZXBvcnQuR2V0R29sZGVuU3VtbWFyeVJlcXVlc3QaSi52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS5yZXBvcnQuR2V0R29sZGVuU3VtbWFyeVJlc3BvbnNlEqYBCg9HZXRUdXBsZUhpc3RvcnkSSC52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS5yZXBvcnQuR2V0VHVwbGVIaXN0b3J5UmVxdWVzdBpJLnZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnJlcG9ydC5HZXRUdXBsZUhpc3RvcnlSZXNwb25zZRKaAQoLR2V0Q292ZXJhZ2USRC52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS5yZXBvcnQuR2V0Q292ZXJhZ2VSZXF1ZXN0GkUudnJvb2xpLmRldmVsb3BtZW50X3Rvb2xjaGFpbl92YWxpZGF0b3IudjEucmVwb3J0LkdldENvdmVyYWdlUmVzcG9uc2VCZFpiZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kZXZlbG9wbWVudC10b29sY2hhaW4tdmFsaWRhdG9yL3YxL3JlcG9ydDtyZXBvcnRfdjFiBnByb3RvMw", [file_development_toolchain_validator_v1_validation_record_validation_record]);
+  fileDesc("CjZkZXZlbG9wbWVudC10b29sY2hhaW4tdmFsaWRhdG9yL3YxL3JlcG9ydC9yZXBvcnQucHJvdG8SMHZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnJlcG9ydCKFAgoMVHVwbGVWZXJkaWN0EloKCnR1cGxlX2tpbmQYASABKA4yRi52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS52YWxpZGF0aW9uX3JlY29yZC5UdXBsZUtpbmQSEgoKc3ViamVjdF9pZBgCIAEoCRJcCg5sYXRlc3RfdmVyZGljdBgDIAEoDjJELnZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnZhbGlkYXRpb25fcmVjb3JkLlZlcmRpY3QSGAoQbGF0ZXN0X3JlY29yZF9pZBgEIAEoCRINCgVzdGFsZRgFIAEoCCLoAQoNR29sZGVuU3VtbWFyeRITCgtnb2xkZW5fc2x1ZxgBIAEoCRJWCg5za2lsbF92ZXJkaWN0cxgCIAMoCzI+LnZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnJlcG9ydC5UdXBsZVZlcmRpY3QSVQoNdG9vbF92ZXJkaWN0cxgDIAMoCzI+LnZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnJlcG9ydC5UdXBsZVZlcmRpY3QSEwoLc3RhbGVfY291bnQYBCABKAUiLgoXR2V0R29sZGVuU3VtbWFyeVJlcXVlc3QSEwoLZ29sZGVuX3NsdWcYASABKAkibAoYR2V0R29sZGVuU3VtbWFyeVJlc3BvbnNlElAKB3N1bW1hcnkYASABKAsyPy52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS5yZXBvcnQuR29sZGVuU3VtbWFyeSKMAgoMVHVwbGVIaXN0b3J5EloKCnR1cGxlX2tpbmQYASABKA4yRi52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS52YWxpZGF0aW9uX3JlY29yZC5UdXBsZUtpbmQSEgoKc3ViamVjdF9pZBgCIAEoCRITCgtnb2xkZW5fc2x1ZxgDIAEoCRJeCgdyZWNvcmRzGAQgAygLMk0udnJvb2xpLmRldmVsb3BtZW50X3Rvb2xjaGFpbl92YWxpZGF0b3IudjEudmFsaWRhdGlvbl9yZWNvcmQuVmFsaWRhdGlvblJlY29yZBIXCg9uZXh0X3BhZ2VfdG9rZW4YBSABKAkixAEKFkdldFR1cGxlSGlzdG9yeVJlcXVlc3QSWgoKdHVwbGVfa2luZBgBIAEoDjJGLnZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnZhbGlkYXRpb25fcmVjb3JkLlR1cGxlS2luZBISCgpzdWJqZWN0X2lkGAIgASgJEhMKC2dvbGRlbl9zbHVnGAMgASgJEhEKCXBhZ2Vfc2l6ZRgEIAEoBRISCgpwYWdlX3Rva2VuGAUgASgJImoKF0dldFR1cGxlSGlzdG9yeVJlc3BvbnNlEk8KB2hpc3RvcnkYASABKAsyPi52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS5yZXBvcnQuVHVwbGVIaXN0b3J5IvkBCgtDb3ZlcmFnZVJvdxJaCgp0dXBsZV9raW5kGAEgASgOMkYudnJvb2xpLmRldmVsb3BtZW50X3Rvb2xjaGFpbl92YWxpZGF0b3IudjEudmFsaWRhdGlvbl9yZWNvcmQuVHVwbGVLaW5kEhIKCnN1YmplY3RfaWQYAiABKAkSVQoHdmVyZGljdBgDIAEoDjJELnZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnZhbGlkYXRpb25fcmVjb3JkLlZlcmRpY3QSDQoFc3RhbGUYBCABKAgSFAoMaGFzX21hbmlmZXN0GAUgASgIImwKCENvdmVyYWdlEhMKC2dvbGRlbl9zbHVnGAEgASgJEksKBHJvd3MYAiADKAsyPS52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS5yZXBvcnQuQ292ZXJhZ2VSb3ciKQoSR2V0Q292ZXJhZ2VSZXF1ZXN0EhMKC2dvbGRlbl9zbHVnGAEgASgJImMKE0dldENvdmVyYWdlUmVzcG9uc2USTAoIY292ZXJhZ2UYASABKAsyOi52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS5yZXBvcnQuQ292ZXJhZ2UiqgEKE0dvbGRlblNraWxsU25hcHNob3QSEwoLZ29sZGVuX3NsdWcYASABKAkSXAoObGF0ZXN0X3ZlcmRpY3QYAiABKA4yRC52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS52YWxpZGF0aW9uX3JlY29yZC5WZXJkaWN0Eg0KBXN0YWxlGAMgASgIEhEKCXJ1bl9jb3VudBgEIAEoBSKmBgoMU2tpbGxGaXRuZXNzEhAKCHNraWxsX2lkGAEgASgJEhIKCnBhc3NfY291bnQYAiABKAMSIQoZdW5leHBlY3RlZF9tdXRhdGlvbl9jb3VudBgDIAEoAxIZChFydW5fZmFpbHVyZV9jb3VudBgEIAEoAxIaChJ0b29sX2ZhaWx1cmVfY291bnQYBSABKAMSEgoKdG90YWxfcnVucxgGIAEoAxIRCglwYXNzX3JhdGUYByABKAESFAoMdG90YWxfdG9rZW5zGAggASgDEhIKCmF2Z190b2tlbnMYCSABKAESHAoUdG90YWxfY29zdF91c2RfbWljcm8YCiABKAMSGgoSYXZnX2Nvc3RfdXNkX21pY3JvGAsgASgBEhkKEXRvdGFsX2R1cmF0aW9uX21zGAwgASgDEhcKD2F2Z19kdXJhdGlvbl9tcxgNIAEoARIaChJ1bmlxdWVfZGlmZl9oYXNoZXMYDiABKAUSGQoRY29udmVyZ2VuY2VfcmF0aW8YDyABKAESXAoObGF0ZXN0X3ZlcmRpY3QYECABKA4yRC52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS52YWxpZGF0aW9uX3JlY29yZC5WZXJkaWN0EhEKCWFueV9zdGFsZRgRIAEoCBJWCgd2ZXJkaWN0GBIgASgOMkUudnJvb2xpLmRldmVsb3BtZW50X3Rvb2xjaGFpbl92YWxpZGF0b3IudjEucmVwb3J0LlNraWxsRml0bmVzc1ZlcmRpY3QSXwoJYnlfZ29sZGVuGBMgAygLMkwudnJvb2xpLmRldmVsb3BtZW50X3Rvb2xjaGFpbl92YWxpZGF0b3IudjEucmVwb3J0LlNraWxsRml0bmVzcy5CeUdvbGRlbkVudHJ5GnYKDUJ5R29sZGVuRW50cnkSCwoDa2V5GAEgASgJElQKBXZhbHVlGAIgASgLMkUudnJvb2xpLmRldmVsb3BtZW50X3Rvb2xjaGFpbl92YWxpZGF0b3IudjEucmVwb3J0LkdvbGRlblNraWxsU25hcHNob3Q6AjgBIioKFkdldFNraWxsRml0bmVzc1JlcXVlc3QSEAoIc2tpbGxfaWQYASABKAkiagoXR2V0U2tpbGxGaXRuZXNzUmVzcG9uc2USTwoHZml0bmVzcxgBIAEoCzI+LnZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnJlcG9ydC5Ta2lsbEZpdG5lc3MqwQEKE1NraWxsRml0bmVzc1ZlcmRpY3QSJQohU0tJTExfRklUTkVTU19WRVJESUNUX1VOU1BFQ0lGSUVEEAASIQodU0tJTExfRklUTkVTU19WRVJESUNUX1VOS05PV04QARIfChtTS0lMTF9GSVRORVNTX1ZFUkRJQ1RfR1JFRU4QAhIgChxTS0lMTF9GSVRORVNTX1ZFUkRJQ1RfWUVMTE9XEAMSHQoZU0tJTExfRklUTkVTU19WRVJESUNUX1JFRBAEMqoFCg1SZXBvcnRTZXJ2aWNlEqkBChBHZXRHb2xkZW5TdW1tYXJ5EkkudnJvb2xpLmRldmVsb3BtZW50X3Rvb2xjaGFpbl92YWxpZGF0b3IudjEucmVwb3J0LkdldEdvbGRlblN1bW1hcnlSZXF1ZXN0GkoudnJvb2xpLmRldmVsb3BtZW50X3Rvb2xjaGFpbl92YWxpZGF0b3IudjEucmVwb3J0LkdldEdvbGRlblN1bW1hcnlSZXNwb25zZRKmAQoPR2V0VHVwbGVIaXN0b3J5EkgudnJvb2xpLmRldmVsb3BtZW50X3Rvb2xjaGFpbl92YWxpZGF0b3IudjEucmVwb3J0LkdldFR1cGxlSGlzdG9yeVJlcXVlc3QaSS52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS5yZXBvcnQuR2V0VHVwbGVIaXN0b3J5UmVzcG9uc2USmgEKC0dldENvdmVyYWdlEkQudnJvb2xpLmRldmVsb3BtZW50X3Rvb2xjaGFpbl92YWxpZGF0b3IudjEucmVwb3J0LkdldENvdmVyYWdlUmVxdWVzdBpFLnZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnJlcG9ydC5HZXRDb3ZlcmFnZVJlc3BvbnNlEqYBCg9HZXRTa2lsbEZpdG5lc3MSSC52cm9vbGkuZGV2ZWxvcG1lbnRfdG9vbGNoYWluX3ZhbGlkYXRvci52MS5yZXBvcnQuR2V0U2tpbGxGaXRuZXNzUmVxdWVzdBpJLnZyb29saS5kZXZlbG9wbWVudF90b29sY2hhaW5fdmFsaWRhdG9yLnYxLnJlcG9ydC5HZXRTa2lsbEZpdG5lc3NSZXNwb25zZUJkWmJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2RldmVsb3BtZW50LXRvb2xjaGFpbi12YWxpZGF0b3IvdjEvcmVwb3J0O3JlcG9ydF92MWIGcHJvdG8z", [file_development_toolchain_validator_v1_validation_record_validation_record]);
 
 /**
  * TupleVerdict pairs a subject with its latest verdict against a
@@ -305,6 +305,257 @@ export const GetCoverageResponseSchema: GenMessage<GetCoverageResponse> = /*@__P
   messageDesc(file_development_toolchain_validator_v1_report_report, 10);
 
 /**
+ * GoldenSkillSnapshot is the per-golden slice of a skill's fitness: its latest
+ * verdict against that golden, whether that validation is stale, and how many
+ * records back it.
+ *
+ * @generated from message vrooli.development_toolchain_validator.v1.report.GoldenSkillSnapshot
+ */
+export type GoldenSkillSnapshot = Message<"vrooli.development_toolchain_validator.v1.report.GoldenSkillSnapshot"> & {
+  /**
+   * @generated from field: string golden_slug = 1;
+   */
+  goldenSlug: string;
+
+  /**
+   * @generated from field: vrooli.development_toolchain_validator.v1.validation_record.Verdict latest_verdict = 2;
+   */
+  latestVerdict: Verdict;
+
+  /**
+   * @generated from field: bool stale = 3;
+   */
+  stale: boolean;
+
+  /**
+   * @generated from field: int32 run_count = 4;
+   */
+  runCount: number;
+};
+
+/**
+ * Describes the message vrooli.development_toolchain_validator.v1.report.GoldenSkillSnapshot.
+ * Use `create(GoldenSkillSnapshotSchema)` to create a new message.
+ */
+export const GoldenSkillSnapshotSchema: GenMessage<GoldenSkillSnapshot> = /*@__PURE__*/
+  messageDesc(file_development_toolchain_validator_v1_report_report, 11);
+
+/**
+ * SkillFitness is the cross-golden aggregate for one skill. Raw counts are
+ * always returned so consumers can re-policy without a DTV change.
+ *
+ * @generated from message vrooli.development_toolchain_validator.v1.report.SkillFitness
+ */
+export type SkillFitness = Message<"vrooli.development_toolchain_validator.v1.report.SkillFitness"> & {
+  /**
+   * @generated from field: string skill_id = 1;
+   */
+  skillId: string;
+
+  /**
+   * Verdict counts across every record (all goldens).
+   *
+   * @generated from field: int64 pass_count = 2;
+   */
+  passCount: bigint;
+
+  /**
+   * @generated from field: int64 unexpected_mutation_count = 3;
+   */
+  unexpectedMutationCount: bigint;
+
+  /**
+   * @generated from field: int64 run_failure_count = 4;
+   */
+  runFailureCount: bigint;
+
+  /**
+   * @generated from field: int64 tool_failure_count = 5;
+   */
+  toolFailureCount: bigint;
+
+  /**
+   * @generated from field: int64 total_runs = 6;
+   */
+  totalRuns: bigint;
+
+  /**
+   * pass_rate is pass_count / total_runs (0 when no runs).
+   *
+   * @generated from field: double pass_rate = 7;
+   */
+  passRate: number;
+
+  /**
+   * Cost aggregates across every record.
+   *
+   * @generated from field: int64 total_tokens = 8;
+   */
+  totalTokens: bigint;
+
+  /**
+   * @generated from field: double avg_tokens = 9;
+   */
+  avgTokens: number;
+
+  /**
+   * @generated from field: int64 total_cost_usd_micro = 10;
+   */
+  totalCostUsdMicro: bigint;
+
+  /**
+   * @generated from field: double avg_cost_usd_micro = 11;
+   */
+  avgCostUsdMicro: number;
+
+  /**
+   * @generated from field: int64 total_duration_ms = 12;
+   */
+  totalDurationMs: bigint;
+
+  /**
+   * @generated from field: double avg_duration_ms = 13;
+   */
+  avgDurationMs: number;
+
+  /**
+   * unique_diff_hashes is the count of distinct diff hashes across all records;
+   * 1 means the skill produced an identical diff every run (converged).
+   *
+   * @generated from field: int32 unique_diff_hashes = 14;
+   */
+  uniqueDiffHashes: number;
+
+  /**
+   * convergence_ratio is 1/unique_diff_hashes (0 when no runs): 1.0 = fully
+   * convergent, lower = the skill keeps producing different diffs.
+   *
+   * @generated from field: double convergence_ratio = 15;
+   */
+  convergenceRatio: number;
+
+  /**
+   * latest_verdict is the most-recent verdict across all goldens (by ended_at).
+   *
+   * @generated from field: vrooli.development_toolchain_validator.v1.validation_record.Verdict latest_verdict = 16;
+   */
+  latestVerdict: Verdict;
+
+  /**
+   * any_stale is true when any golden's latest validation is stale.
+   *
+   * @generated from field: bool any_stale = 17;
+   */
+  anyStale: boolean;
+
+  /**
+   * @generated from field: vrooli.development_toolchain_validator.v1.report.SkillFitnessVerdict verdict = 18;
+   */
+  verdict: SkillFitnessVerdict;
+
+  /**
+   * by_golden maps golden_slug → that golden's slice of this skill's fitness.
+   *
+   * @generated from field: map<string, vrooli.development_toolchain_validator.v1.report.GoldenSkillSnapshot> by_golden = 19;
+   */
+  byGolden: { [key: string]: GoldenSkillSnapshot };
+};
+
+/**
+ * Describes the message vrooli.development_toolchain_validator.v1.report.SkillFitness.
+ * Use `create(SkillFitnessSchema)` to create a new message.
+ */
+export const SkillFitnessSchema: GenMessage<SkillFitness> = /*@__PURE__*/
+  messageDesc(file_development_toolchain_validator_v1_report_report, 12);
+
+/**
+ * @generated from message vrooli.development_toolchain_validator.v1.report.GetSkillFitnessRequest
+ */
+export type GetSkillFitnessRequest = Message<"vrooli.development_toolchain_validator.v1.report.GetSkillFitnessRequest"> & {
+  /**
+   * @generated from field: string skill_id = 1;
+   */
+  skillId: string;
+};
+
+/**
+ * Describes the message vrooli.development_toolchain_validator.v1.report.GetSkillFitnessRequest.
+ * Use `create(GetSkillFitnessRequestSchema)` to create a new message.
+ */
+export const GetSkillFitnessRequestSchema: GenMessage<GetSkillFitnessRequest> = /*@__PURE__*/
+  messageDesc(file_development_toolchain_validator_v1_report_report, 13);
+
+/**
+ * @generated from message vrooli.development_toolchain_validator.v1.report.GetSkillFitnessResponse
+ */
+export type GetSkillFitnessResponse = Message<"vrooli.development_toolchain_validator.v1.report.GetSkillFitnessResponse"> & {
+  /**
+   * @generated from field: vrooli.development_toolchain_validator.v1.report.SkillFitness fitness = 1;
+   */
+  fitness?: SkillFitness | undefined;
+};
+
+/**
+ * Describes the message vrooli.development_toolchain_validator.v1.report.GetSkillFitnessResponse.
+ * Use `create(GetSkillFitnessResponseSchema)` to create a new message.
+ */
+export const GetSkillFitnessResponseSchema: GenMessage<GetSkillFitnessResponse> = /*@__PURE__*/
+  messageDesc(file_development_toolchain_validator_v1_report_report, 14);
+
+/**
+ * SkillFitnessVerdict is DTV's derived fitness classification for a skill,
+ * folded across every golden it has been validated against. It answers "is this
+ * skill currently fit to run unattended?" — NOT "how good is it at fixing a
+ * broken target" (that is efficacy, which DTV cannot observe on pristine
+ * goldens).
+ *
+ * @generated from enum vrooli.development_toolchain_validator.v1.report.SkillFitnessVerdict
+ */
+export enum SkillFitnessVerdict {
+  /**
+   * @generated from enum value: SKILL_FITNESS_VERDICT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * UNKNOWN: no validation records exist for this skill. Consumers fail open
+   * (never gate on missing data).
+   *
+   * @generated from enum value: SKILL_FITNESS_VERDICT_UNKNOWN = 1;
+   */
+  UNKNOWN = 1,
+
+  /**
+   * GREEN: the latest record on every validated golden is PASS.
+   *
+   * @generated from enum value: SKILL_FITNESS_VERDICT_GREEN = 2;
+   */
+  GREEN = 2,
+
+  /**
+   * YELLOW: a latest record is UNEXPECTED_MUTATION (incoherent but runnable);
+   * no latest record is a run failure.
+   *
+   * @generated from enum value: SKILL_FITNESS_VERDICT_YELLOW = 3;
+   */
+  YELLOW = 3,
+
+  /**
+   * RED: a latest record is RUN_FAILURE (intrinsic non-convergence / crash —
+   * Flavor-1 thrashing). The skill is not fit for the autonomous fleet.
+   *
+   * @generated from enum value: SKILL_FITNESS_VERDICT_RED = 4;
+   */
+  RED = 4,
+}
+
+/**
+ * Describes the enum vrooli.development_toolchain_validator.v1.report.SkillFitnessVerdict.
+ */
+export const SkillFitnessVerdictSchema: GenEnum<SkillFitnessVerdict> = /*@__PURE__*/
+  enumDesc(file_development_toolchain_validator_v1_report_report, 0);
+
+/**
  * @generated from service vrooli.development_toolchain_validator.v1.report.ReportService
  */
 export const ReportService: GenService<{
@@ -331,6 +582,19 @@ export const ReportService: GenService<{
     methodKind: "unary";
     input: typeof GetCoverageRequestSchema;
     output: typeof GetCoverageResponseSchema;
+  },
+  /**
+   * GetSkillFitness aggregates every validation record for one skill across all
+   * goldens into a single trust/cost/convergence fitness view. Consumed by
+   * ecosystem-manager's selection controller (DTV-as-gate-and-prior). DTV owns
+   * the records, so the cross-golden fold lives here rather than client-side.
+   *
+   * @generated from rpc vrooli.development_toolchain_validator.v1.report.ReportService.GetSkillFitness
+   */
+  getSkillFitness: {
+    methodKind: "unary";
+    input: typeof GetSkillFitnessRequestSchema;
+    output: typeof GetSkillFitnessResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_development_toolchain_validator_v1_report_report, 0);

@@ -108,6 +108,7 @@ Audit-shaped skills (the steer audit cohort) carry their own maturity ladders pe
 
 ## Cross-references
 
+- [`TEMPLATE_CONVERGENCE_LOOP.md`](TEMPLATE_CONVERGENCE_LOOP.md) — the end-to-end workflow this lens is Stage 1 of (improve the ideal → validate → distill a convergence skill → mechanize detection + application). Read it to see where the findings this lens produces flow next.
 - [`SKILL_AUTHORING.md`](SKILL_AUTHORING.md) §"Destination over direction" — the canon section that defines the maturity-ladder contract this lens depends on.
 - [`REFERENCE_SCENARIOS.md`](REFERENCE_SCENARIOS.md) — registry of templates and the references generated from them. Confirms applicability before running this lens.
 - [`README.md`](README.md) — agent-system canon-doc index.

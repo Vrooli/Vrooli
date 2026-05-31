@@ -306,6 +306,30 @@ To publish a skill:
 3. Run `prompt-manager skill sync` to pick up changes.
 4. Verify via `prompt-manager skill show <id>`.
 
+### `targetDimensions` (steer skills)
+
+A **steer skill** — one Ecosystem Manager's closed-loop controller may select to
+improve a target — additionally declares `targetDimensions` in `skill.json`: the
+improvement dimensions it closes. This is the declared half of the controller's
+skill → dimension capability map; the controller buckets open `test-genie`
+findings by dimension and selects the steer skill whose declared dimensions
+cover the heaviest open cluster.
+
+```json
+{
+  "id": "ux",
+  "name": "UX Improvement",
+  "modes": ["steer", "ux"],
+  "targetDimensions": ["accessibility", "visual", "ui"]
+}
+```
+
+The dimension vocabulary is owned by Ecosystem Manager (its single source of
+truth is `scenarios/ecosystem-manager/api/pkg/dimensions/dimensions.json`,
+described in `scenarios/ecosystem-manager/docs/concepts/DIMENSIONS.md`). Every
+value must be a member of that vocabulary; EM excludes and warns on
+undeclared/out-of-vocabulary dimensions. Non-steer skills omit the field.
+
 ---
 
 ## Avoid skill sprawl

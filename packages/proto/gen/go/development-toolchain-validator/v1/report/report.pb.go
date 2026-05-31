@@ -22,6 +22,73 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// SkillFitnessVerdict is DTV's derived fitness classification for a skill,
+// folded across every golden it has been validated against. It answers "is this
+// skill currently fit to run unattended?" — NOT "how good is it at fixing a
+// broken target" (that is efficacy, which DTV cannot observe on pristine
+// goldens).
+type SkillFitnessVerdict int32
+
+const (
+	SkillFitnessVerdict_SKILL_FITNESS_VERDICT_UNSPECIFIED SkillFitnessVerdict = 0
+	// UNKNOWN: no validation records exist for this skill. Consumers fail open
+	// (never gate on missing data).
+	SkillFitnessVerdict_SKILL_FITNESS_VERDICT_UNKNOWN SkillFitnessVerdict = 1
+	// GREEN: the latest record on every validated golden is PASS.
+	SkillFitnessVerdict_SKILL_FITNESS_VERDICT_GREEN SkillFitnessVerdict = 2
+	// YELLOW: a latest record is UNEXPECTED_MUTATION (incoherent but runnable);
+	// no latest record is a run failure.
+	SkillFitnessVerdict_SKILL_FITNESS_VERDICT_YELLOW SkillFitnessVerdict = 3
+	// RED: a latest record is RUN_FAILURE (intrinsic non-convergence / crash —
+	// Flavor-1 thrashing). The skill is not fit for the autonomous fleet.
+	SkillFitnessVerdict_SKILL_FITNESS_VERDICT_RED SkillFitnessVerdict = 4
+)
+
+// Enum value maps for SkillFitnessVerdict.
+var (
+	SkillFitnessVerdict_name = map[int32]string{
+		0: "SKILL_FITNESS_VERDICT_UNSPECIFIED",
+		1: "SKILL_FITNESS_VERDICT_UNKNOWN",
+		2: "SKILL_FITNESS_VERDICT_GREEN",
+		3: "SKILL_FITNESS_VERDICT_YELLOW",
+		4: "SKILL_FITNESS_VERDICT_RED",
+	}
+	SkillFitnessVerdict_value = map[string]int32{
+		"SKILL_FITNESS_VERDICT_UNSPECIFIED": 0,
+		"SKILL_FITNESS_VERDICT_UNKNOWN":     1,
+		"SKILL_FITNESS_VERDICT_GREEN":       2,
+		"SKILL_FITNESS_VERDICT_YELLOW":      3,
+		"SKILL_FITNESS_VERDICT_RED":         4,
+	}
+)
+
+func (x SkillFitnessVerdict) Enum() *SkillFitnessVerdict {
+	p := new(SkillFitnessVerdict)
+	*p = x
+	return p
+}
+
+func (x SkillFitnessVerdict) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SkillFitnessVerdict) Descriptor() protoreflect.EnumDescriptor {
+	return file_development_toolchain_validator_v1_report_report_proto_enumTypes[0].Descriptor()
+}
+
+func (SkillFitnessVerdict) Type() protoreflect.EnumType {
+	return &file_development_toolchain_validator_v1_report_report_proto_enumTypes[0]
+}
+
+func (x SkillFitnessVerdict) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SkillFitnessVerdict.Descriptor instead.
+func (SkillFitnessVerdict) EnumDescriptor() ([]byte, []int) {
+	return file_development_toolchain_validator_v1_report_report_proto_rawDescGZIP(), []int{0}
+}
+
 // TupleVerdict pairs a subject with its latest verdict against a
 // golden. Used by GoldenSummary / Coverage rows.
 type TupleVerdict struct {
@@ -668,6 +735,365 @@ func (x *GetCoverageResponse) GetCoverage() *Coverage {
 	return nil
 }
 
+// GoldenSkillSnapshot is the per-golden slice of a skill's fitness: its latest
+// verdict against that golden, whether that validation is stale, and how many
+// records back it.
+type GoldenSkillSnapshot struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	GoldenSlug    string                    `protobuf:"bytes,1,opt,name=golden_slug,json=goldenSlug,proto3" json:"golden_slug,omitempty"`
+	LatestVerdict validation_record.Verdict `protobuf:"varint,2,opt,name=latest_verdict,json=latestVerdict,proto3,enum=vrooli.development_toolchain_validator.v1.validation_record.Verdict" json:"latest_verdict,omitempty"`
+	Stale         bool                      `protobuf:"varint,3,opt,name=stale,proto3" json:"stale,omitempty"`
+	RunCount      int32                     `protobuf:"varint,4,opt,name=run_count,json=runCount,proto3" json:"run_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GoldenSkillSnapshot) Reset() {
+	*x = GoldenSkillSnapshot{}
+	mi := &file_development_toolchain_validator_v1_report_report_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GoldenSkillSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GoldenSkillSnapshot) ProtoMessage() {}
+
+func (x *GoldenSkillSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_development_toolchain_validator_v1_report_report_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GoldenSkillSnapshot.ProtoReflect.Descriptor instead.
+func (*GoldenSkillSnapshot) Descriptor() ([]byte, []int) {
+	return file_development_toolchain_validator_v1_report_report_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GoldenSkillSnapshot) GetGoldenSlug() string {
+	if x != nil {
+		return x.GoldenSlug
+	}
+	return ""
+}
+
+func (x *GoldenSkillSnapshot) GetLatestVerdict() validation_record.Verdict {
+	if x != nil {
+		return x.LatestVerdict
+	}
+	return validation_record.Verdict(0)
+}
+
+func (x *GoldenSkillSnapshot) GetStale() bool {
+	if x != nil {
+		return x.Stale
+	}
+	return false
+}
+
+func (x *GoldenSkillSnapshot) GetRunCount() int32 {
+	if x != nil {
+		return x.RunCount
+	}
+	return 0
+}
+
+// SkillFitness is the cross-golden aggregate for one skill. Raw counts are
+// always returned so consumers can re-policy without a DTV change.
+type SkillFitness struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	SkillId string                 `protobuf:"bytes,1,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
+	// Verdict counts across every record (all goldens).
+	PassCount               int64 `protobuf:"varint,2,opt,name=pass_count,json=passCount,proto3" json:"pass_count,omitempty"`
+	UnexpectedMutationCount int64 `protobuf:"varint,3,opt,name=unexpected_mutation_count,json=unexpectedMutationCount,proto3" json:"unexpected_mutation_count,omitempty"`
+	RunFailureCount         int64 `protobuf:"varint,4,opt,name=run_failure_count,json=runFailureCount,proto3" json:"run_failure_count,omitempty"`
+	ToolFailureCount        int64 `protobuf:"varint,5,opt,name=tool_failure_count,json=toolFailureCount,proto3" json:"tool_failure_count,omitempty"`
+	TotalRuns               int64 `protobuf:"varint,6,opt,name=total_runs,json=totalRuns,proto3" json:"total_runs,omitempty"`
+	// pass_rate is pass_count / total_runs (0 when no runs).
+	PassRate float64 `protobuf:"fixed64,7,opt,name=pass_rate,json=passRate,proto3" json:"pass_rate,omitempty"`
+	// Cost aggregates across every record.
+	TotalTokens       int64   `protobuf:"varint,8,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
+	AvgTokens         float64 `protobuf:"fixed64,9,opt,name=avg_tokens,json=avgTokens,proto3" json:"avg_tokens,omitempty"`
+	TotalCostUsdMicro int64   `protobuf:"varint,10,opt,name=total_cost_usd_micro,json=totalCostUsdMicro,proto3" json:"total_cost_usd_micro,omitempty"`
+	AvgCostUsdMicro   float64 `protobuf:"fixed64,11,opt,name=avg_cost_usd_micro,json=avgCostUsdMicro,proto3" json:"avg_cost_usd_micro,omitempty"`
+	TotalDurationMs   int64   `protobuf:"varint,12,opt,name=total_duration_ms,json=totalDurationMs,proto3" json:"total_duration_ms,omitempty"`
+	AvgDurationMs     float64 `protobuf:"fixed64,13,opt,name=avg_duration_ms,json=avgDurationMs,proto3" json:"avg_duration_ms,omitempty"`
+	// unique_diff_hashes is the count of distinct diff hashes across all records;
+	// 1 means the skill produced an identical diff every run (converged).
+	UniqueDiffHashes int32 `protobuf:"varint,14,opt,name=unique_diff_hashes,json=uniqueDiffHashes,proto3" json:"unique_diff_hashes,omitempty"`
+	// convergence_ratio is 1/unique_diff_hashes (0 when no runs): 1.0 = fully
+	// convergent, lower = the skill keeps producing different diffs.
+	ConvergenceRatio float64 `protobuf:"fixed64,15,opt,name=convergence_ratio,json=convergenceRatio,proto3" json:"convergence_ratio,omitempty"`
+	// latest_verdict is the most-recent verdict across all goldens (by ended_at).
+	LatestVerdict validation_record.Verdict `protobuf:"varint,16,opt,name=latest_verdict,json=latestVerdict,proto3,enum=vrooli.development_toolchain_validator.v1.validation_record.Verdict" json:"latest_verdict,omitempty"`
+	// any_stale is true when any golden's latest validation is stale.
+	AnyStale bool                `protobuf:"varint,17,opt,name=any_stale,json=anyStale,proto3" json:"any_stale,omitempty"`
+	Verdict  SkillFitnessVerdict `protobuf:"varint,18,opt,name=verdict,proto3,enum=vrooli.development_toolchain_validator.v1.report.SkillFitnessVerdict" json:"verdict,omitempty"`
+	// by_golden maps golden_slug → that golden's slice of this skill's fitness.
+	ByGolden      map[string]*GoldenSkillSnapshot `protobuf:"bytes,19,rep,name=by_golden,json=byGolden,proto3" json:"by_golden,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SkillFitness) Reset() {
+	*x = SkillFitness{}
+	mi := &file_development_toolchain_validator_v1_report_report_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SkillFitness) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SkillFitness) ProtoMessage() {}
+
+func (x *SkillFitness) ProtoReflect() protoreflect.Message {
+	mi := &file_development_toolchain_validator_v1_report_report_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SkillFitness.ProtoReflect.Descriptor instead.
+func (*SkillFitness) Descriptor() ([]byte, []int) {
+	return file_development_toolchain_validator_v1_report_report_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *SkillFitness) GetSkillId() string {
+	if x != nil {
+		return x.SkillId
+	}
+	return ""
+}
+
+func (x *SkillFitness) GetPassCount() int64 {
+	if x != nil {
+		return x.PassCount
+	}
+	return 0
+}
+
+func (x *SkillFitness) GetUnexpectedMutationCount() int64 {
+	if x != nil {
+		return x.UnexpectedMutationCount
+	}
+	return 0
+}
+
+func (x *SkillFitness) GetRunFailureCount() int64 {
+	if x != nil {
+		return x.RunFailureCount
+	}
+	return 0
+}
+
+func (x *SkillFitness) GetToolFailureCount() int64 {
+	if x != nil {
+		return x.ToolFailureCount
+	}
+	return 0
+}
+
+func (x *SkillFitness) GetTotalRuns() int64 {
+	if x != nil {
+		return x.TotalRuns
+	}
+	return 0
+}
+
+func (x *SkillFitness) GetPassRate() float64 {
+	if x != nil {
+		return x.PassRate
+	}
+	return 0
+}
+
+func (x *SkillFitness) GetTotalTokens() int64 {
+	if x != nil {
+		return x.TotalTokens
+	}
+	return 0
+}
+
+func (x *SkillFitness) GetAvgTokens() float64 {
+	if x != nil {
+		return x.AvgTokens
+	}
+	return 0
+}
+
+func (x *SkillFitness) GetTotalCostUsdMicro() int64 {
+	if x != nil {
+		return x.TotalCostUsdMicro
+	}
+	return 0
+}
+
+func (x *SkillFitness) GetAvgCostUsdMicro() float64 {
+	if x != nil {
+		return x.AvgCostUsdMicro
+	}
+	return 0
+}
+
+func (x *SkillFitness) GetTotalDurationMs() int64 {
+	if x != nil {
+		return x.TotalDurationMs
+	}
+	return 0
+}
+
+func (x *SkillFitness) GetAvgDurationMs() float64 {
+	if x != nil {
+		return x.AvgDurationMs
+	}
+	return 0
+}
+
+func (x *SkillFitness) GetUniqueDiffHashes() int32 {
+	if x != nil {
+		return x.UniqueDiffHashes
+	}
+	return 0
+}
+
+func (x *SkillFitness) GetConvergenceRatio() float64 {
+	if x != nil {
+		return x.ConvergenceRatio
+	}
+	return 0
+}
+
+func (x *SkillFitness) GetLatestVerdict() validation_record.Verdict {
+	if x != nil {
+		return x.LatestVerdict
+	}
+	return validation_record.Verdict(0)
+}
+
+func (x *SkillFitness) GetAnyStale() bool {
+	if x != nil {
+		return x.AnyStale
+	}
+	return false
+}
+
+func (x *SkillFitness) GetVerdict() SkillFitnessVerdict {
+	if x != nil {
+		return x.Verdict
+	}
+	return SkillFitnessVerdict_SKILL_FITNESS_VERDICT_UNSPECIFIED
+}
+
+func (x *SkillFitness) GetByGolden() map[string]*GoldenSkillSnapshot {
+	if x != nil {
+		return x.ByGolden
+	}
+	return nil
+}
+
+type GetSkillFitnessRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SkillId       string                 `protobuf:"bytes,1,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSkillFitnessRequest) Reset() {
+	*x = GetSkillFitnessRequest{}
+	mi := &file_development_toolchain_validator_v1_report_report_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSkillFitnessRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSkillFitnessRequest) ProtoMessage() {}
+
+func (x *GetSkillFitnessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_development_toolchain_validator_v1_report_report_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSkillFitnessRequest.ProtoReflect.Descriptor instead.
+func (*GetSkillFitnessRequest) Descriptor() ([]byte, []int) {
+	return file_development_toolchain_validator_v1_report_report_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GetSkillFitnessRequest) GetSkillId() string {
+	if x != nil {
+		return x.SkillId
+	}
+	return ""
+}
+
+type GetSkillFitnessResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Fitness       *SkillFitness          `protobuf:"bytes,1,opt,name=fitness,proto3" json:"fitness,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSkillFitnessResponse) Reset() {
+	*x = GetSkillFitnessResponse{}
+	mi := &file_development_toolchain_validator_v1_report_report_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSkillFitnessResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSkillFitnessResponse) ProtoMessage() {}
+
+func (x *GetSkillFitnessResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_development_toolchain_validator_v1_report_report_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSkillFitnessResponse.ProtoReflect.Descriptor instead.
+func (*GetSkillFitnessResponse) Descriptor() ([]byte, []int) {
+	return file_development_toolchain_validator_v1_report_report_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetSkillFitnessResponse) GetFitness() *SkillFitness {
+	if x != nil {
+		return x.Fitness
+	}
+	return nil
+}
+
 var File_development_toolchain_validator_v1_report_report_proto protoreflect.FileDescriptor
 
 const file_development_toolchain_validator_v1_report_report_proto_rawDesc = "" +
@@ -730,11 +1156,55 @@ const file_development_toolchain_validator_v1_report_report_proto_rawDesc = "" +
 	"\vgolden_slug\x18\x01 \x01(\tR\n" +
 	"goldenSlug\"m\n" +
 	"\x13GetCoverageResponse\x12V\n" +
-	"\bcoverage\x18\x01 \x01(\v2:.vrooli.development_toolchain_validator.v1.report.CoverageR\bcoverage2\x81\x04\n" +
+	"\bcoverage\x18\x01 \x01(\v2:.vrooli.development_toolchain_validator.v1.report.CoverageR\bcoverage\"\xd6\x01\n" +
+	"\x13GoldenSkillSnapshot\x12\x1f\n" +
+	"\vgolden_slug\x18\x01 \x01(\tR\n" +
+	"goldenSlug\x12k\n" +
+	"\x0elatest_verdict\x18\x02 \x01(\x0e2D.vrooli.development_toolchain_validator.v1.validation_record.VerdictR\rlatestVerdict\x12\x14\n" +
+	"\x05stale\x18\x03 \x01(\bR\x05stale\x12\x1b\n" +
+	"\trun_count\x18\x04 \x01(\x05R\brunCount\"\xc4\b\n" +
+	"\fSkillFitness\x12\x19\n" +
+	"\bskill_id\x18\x01 \x01(\tR\askillId\x12\x1d\n" +
+	"\n" +
+	"pass_count\x18\x02 \x01(\x03R\tpassCount\x12:\n" +
+	"\x19unexpected_mutation_count\x18\x03 \x01(\x03R\x17unexpectedMutationCount\x12*\n" +
+	"\x11run_failure_count\x18\x04 \x01(\x03R\x0frunFailureCount\x12,\n" +
+	"\x12tool_failure_count\x18\x05 \x01(\x03R\x10toolFailureCount\x12\x1d\n" +
+	"\n" +
+	"total_runs\x18\x06 \x01(\x03R\ttotalRuns\x12\x1b\n" +
+	"\tpass_rate\x18\a \x01(\x01R\bpassRate\x12!\n" +
+	"\ftotal_tokens\x18\b \x01(\x03R\vtotalTokens\x12\x1d\n" +
+	"\n" +
+	"avg_tokens\x18\t \x01(\x01R\tavgTokens\x12/\n" +
+	"\x14total_cost_usd_micro\x18\n" +
+	" \x01(\x03R\x11totalCostUsdMicro\x12+\n" +
+	"\x12avg_cost_usd_micro\x18\v \x01(\x01R\x0favgCostUsdMicro\x12*\n" +
+	"\x11total_duration_ms\x18\f \x01(\x03R\x0ftotalDurationMs\x12&\n" +
+	"\x0favg_duration_ms\x18\r \x01(\x01R\ravgDurationMs\x12,\n" +
+	"\x12unique_diff_hashes\x18\x0e \x01(\x05R\x10uniqueDiffHashes\x12+\n" +
+	"\x11convergence_ratio\x18\x0f \x01(\x01R\x10convergenceRatio\x12k\n" +
+	"\x0elatest_verdict\x18\x10 \x01(\x0e2D.vrooli.development_toolchain_validator.v1.validation_record.VerdictR\rlatestVerdict\x12\x1b\n" +
+	"\tany_stale\x18\x11 \x01(\bR\banyStale\x12_\n" +
+	"\averdict\x18\x12 \x01(\x0e2E.vrooli.development_toolchain_validator.v1.report.SkillFitnessVerdictR\averdict\x12i\n" +
+	"\tby_golden\x18\x13 \x03(\v2L.vrooli.development_toolchain_validator.v1.report.SkillFitness.ByGoldenEntryR\bbyGolden\x1a\x82\x01\n" +
+	"\rByGoldenEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12[\n" +
+	"\x05value\x18\x02 \x01(\v2E.vrooli.development_toolchain_validator.v1.report.GoldenSkillSnapshotR\x05value:\x028\x01\"3\n" +
+	"\x16GetSkillFitnessRequest\x12\x19\n" +
+	"\bskill_id\x18\x01 \x01(\tR\askillId\"s\n" +
+	"\x17GetSkillFitnessResponse\x12X\n" +
+	"\afitness\x18\x01 \x01(\v2>.vrooli.development_toolchain_validator.v1.report.SkillFitnessR\afitness*\xc1\x01\n" +
+	"\x13SkillFitnessVerdict\x12%\n" +
+	"!SKILL_FITNESS_VERDICT_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dSKILL_FITNESS_VERDICT_UNKNOWN\x10\x01\x12\x1f\n" +
+	"\x1bSKILL_FITNESS_VERDICT_GREEN\x10\x02\x12 \n" +
+	"\x1cSKILL_FITNESS_VERDICT_YELLOW\x10\x03\x12\x1d\n" +
+	"\x19SKILL_FITNESS_VERDICT_RED\x10\x042\xaa\x05\n" +
 	"\rReportService\x12\xa9\x01\n" +
 	"\x10GetGoldenSummary\x12I.vrooli.development_toolchain_validator.v1.report.GetGoldenSummaryRequest\x1aJ.vrooli.development_toolchain_validator.v1.report.GetGoldenSummaryResponse\x12\xa6\x01\n" +
 	"\x0fGetTupleHistory\x12H.vrooli.development_toolchain_validator.v1.report.GetTupleHistoryRequest\x1aI.vrooli.development_toolchain_validator.v1.report.GetTupleHistoryResponse\x12\x9a\x01\n" +
-	"\vGetCoverage\x12D.vrooli.development_toolchain_validator.v1.report.GetCoverageRequest\x1aE.vrooli.development_toolchain_validator.v1.report.GetCoverageResponseBdZbgithub.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/report;report_v1b\x06proto3"
+	"\vGetCoverage\x12D.vrooli.development_toolchain_validator.v1.report.GetCoverageRequest\x1aE.vrooli.development_toolchain_validator.v1.report.GetCoverageResponse\x12\xa6\x01\n" +
+	"\x0fGetSkillFitness\x12H.vrooli.development_toolchain_validator.v1.report.GetSkillFitnessRequest\x1aI.vrooli.development_toolchain_validator.v1.report.GetSkillFitnessResponseBdZbgithub.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/report;report_v1b\x06proto3"
 
 var (
 	file_development_toolchain_validator_v1_report_report_proto_rawDescOnce sync.Once
@@ -748,48 +1218,63 @@ func file_development_toolchain_validator_v1_report_report_proto_rawDescGZIP() [
 	return file_development_toolchain_validator_v1_report_report_proto_rawDescData
 }
 
-var file_development_toolchain_validator_v1_report_report_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_development_toolchain_validator_v1_report_report_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_development_toolchain_validator_v1_report_report_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_development_toolchain_validator_v1_report_report_proto_goTypes = []any{
-	(*TupleVerdict)(nil),                       // 0: vrooli.development_toolchain_validator.v1.report.TupleVerdict
-	(*GoldenSummary)(nil),                      // 1: vrooli.development_toolchain_validator.v1.report.GoldenSummary
-	(*GetGoldenSummaryRequest)(nil),            // 2: vrooli.development_toolchain_validator.v1.report.GetGoldenSummaryRequest
-	(*GetGoldenSummaryResponse)(nil),           // 3: vrooli.development_toolchain_validator.v1.report.GetGoldenSummaryResponse
-	(*TupleHistory)(nil),                       // 4: vrooli.development_toolchain_validator.v1.report.TupleHistory
-	(*GetTupleHistoryRequest)(nil),             // 5: vrooli.development_toolchain_validator.v1.report.GetTupleHistoryRequest
-	(*GetTupleHistoryResponse)(nil),            // 6: vrooli.development_toolchain_validator.v1.report.GetTupleHistoryResponse
-	(*CoverageRow)(nil),                        // 7: vrooli.development_toolchain_validator.v1.report.CoverageRow
-	(*Coverage)(nil),                           // 8: vrooli.development_toolchain_validator.v1.report.Coverage
-	(*GetCoverageRequest)(nil),                 // 9: vrooli.development_toolchain_validator.v1.report.GetCoverageRequest
-	(*GetCoverageResponse)(nil),                // 10: vrooli.development_toolchain_validator.v1.report.GetCoverageResponse
-	(validation_record.TupleKind)(0),           // 11: vrooli.development_toolchain_validator.v1.validation_record.TupleKind
-	(validation_record.Verdict)(0),             // 12: vrooli.development_toolchain_validator.v1.validation_record.Verdict
-	(*validation_record.ValidationRecord)(nil), // 13: vrooli.development_toolchain_validator.v1.validation_record.ValidationRecord
+	(SkillFitnessVerdict)(0),                   // 0: vrooli.development_toolchain_validator.v1.report.SkillFitnessVerdict
+	(*TupleVerdict)(nil),                       // 1: vrooli.development_toolchain_validator.v1.report.TupleVerdict
+	(*GoldenSummary)(nil),                      // 2: vrooli.development_toolchain_validator.v1.report.GoldenSummary
+	(*GetGoldenSummaryRequest)(nil),            // 3: vrooli.development_toolchain_validator.v1.report.GetGoldenSummaryRequest
+	(*GetGoldenSummaryResponse)(nil),           // 4: vrooli.development_toolchain_validator.v1.report.GetGoldenSummaryResponse
+	(*TupleHistory)(nil),                       // 5: vrooli.development_toolchain_validator.v1.report.TupleHistory
+	(*GetTupleHistoryRequest)(nil),             // 6: vrooli.development_toolchain_validator.v1.report.GetTupleHistoryRequest
+	(*GetTupleHistoryResponse)(nil),            // 7: vrooli.development_toolchain_validator.v1.report.GetTupleHistoryResponse
+	(*CoverageRow)(nil),                        // 8: vrooli.development_toolchain_validator.v1.report.CoverageRow
+	(*Coverage)(nil),                           // 9: vrooli.development_toolchain_validator.v1.report.Coverage
+	(*GetCoverageRequest)(nil),                 // 10: vrooli.development_toolchain_validator.v1.report.GetCoverageRequest
+	(*GetCoverageResponse)(nil),                // 11: vrooli.development_toolchain_validator.v1.report.GetCoverageResponse
+	(*GoldenSkillSnapshot)(nil),                // 12: vrooli.development_toolchain_validator.v1.report.GoldenSkillSnapshot
+	(*SkillFitness)(nil),                       // 13: vrooli.development_toolchain_validator.v1.report.SkillFitness
+	(*GetSkillFitnessRequest)(nil),             // 14: vrooli.development_toolchain_validator.v1.report.GetSkillFitnessRequest
+	(*GetSkillFitnessResponse)(nil),            // 15: vrooli.development_toolchain_validator.v1.report.GetSkillFitnessResponse
+	nil,                                        // 16: vrooli.development_toolchain_validator.v1.report.SkillFitness.ByGoldenEntry
+	(validation_record.TupleKind)(0),           // 17: vrooli.development_toolchain_validator.v1.validation_record.TupleKind
+	(validation_record.Verdict)(0),             // 18: vrooli.development_toolchain_validator.v1.validation_record.Verdict
+	(*validation_record.ValidationRecord)(nil), // 19: vrooli.development_toolchain_validator.v1.validation_record.ValidationRecord
 }
 var file_development_toolchain_validator_v1_report_report_proto_depIdxs = []int32{
-	11, // 0: vrooli.development_toolchain_validator.v1.report.TupleVerdict.tuple_kind:type_name -> vrooli.development_toolchain_validator.v1.validation_record.TupleKind
-	12, // 1: vrooli.development_toolchain_validator.v1.report.TupleVerdict.latest_verdict:type_name -> vrooli.development_toolchain_validator.v1.validation_record.Verdict
-	0,  // 2: vrooli.development_toolchain_validator.v1.report.GoldenSummary.skill_verdicts:type_name -> vrooli.development_toolchain_validator.v1.report.TupleVerdict
-	0,  // 3: vrooli.development_toolchain_validator.v1.report.GoldenSummary.tool_verdicts:type_name -> vrooli.development_toolchain_validator.v1.report.TupleVerdict
-	1,  // 4: vrooli.development_toolchain_validator.v1.report.GetGoldenSummaryResponse.summary:type_name -> vrooli.development_toolchain_validator.v1.report.GoldenSummary
-	11, // 5: vrooli.development_toolchain_validator.v1.report.TupleHistory.tuple_kind:type_name -> vrooli.development_toolchain_validator.v1.validation_record.TupleKind
-	13, // 6: vrooli.development_toolchain_validator.v1.report.TupleHistory.records:type_name -> vrooli.development_toolchain_validator.v1.validation_record.ValidationRecord
-	11, // 7: vrooli.development_toolchain_validator.v1.report.GetTupleHistoryRequest.tuple_kind:type_name -> vrooli.development_toolchain_validator.v1.validation_record.TupleKind
-	4,  // 8: vrooli.development_toolchain_validator.v1.report.GetTupleHistoryResponse.history:type_name -> vrooli.development_toolchain_validator.v1.report.TupleHistory
-	11, // 9: vrooli.development_toolchain_validator.v1.report.CoverageRow.tuple_kind:type_name -> vrooli.development_toolchain_validator.v1.validation_record.TupleKind
-	12, // 10: vrooli.development_toolchain_validator.v1.report.CoverageRow.verdict:type_name -> vrooli.development_toolchain_validator.v1.validation_record.Verdict
-	7,  // 11: vrooli.development_toolchain_validator.v1.report.Coverage.rows:type_name -> vrooli.development_toolchain_validator.v1.report.CoverageRow
-	8,  // 12: vrooli.development_toolchain_validator.v1.report.GetCoverageResponse.coverage:type_name -> vrooli.development_toolchain_validator.v1.report.Coverage
-	2,  // 13: vrooli.development_toolchain_validator.v1.report.ReportService.GetGoldenSummary:input_type -> vrooli.development_toolchain_validator.v1.report.GetGoldenSummaryRequest
-	5,  // 14: vrooli.development_toolchain_validator.v1.report.ReportService.GetTupleHistory:input_type -> vrooli.development_toolchain_validator.v1.report.GetTupleHistoryRequest
-	9,  // 15: vrooli.development_toolchain_validator.v1.report.ReportService.GetCoverage:input_type -> vrooli.development_toolchain_validator.v1.report.GetCoverageRequest
-	3,  // 16: vrooli.development_toolchain_validator.v1.report.ReportService.GetGoldenSummary:output_type -> vrooli.development_toolchain_validator.v1.report.GetGoldenSummaryResponse
-	6,  // 17: vrooli.development_toolchain_validator.v1.report.ReportService.GetTupleHistory:output_type -> vrooli.development_toolchain_validator.v1.report.GetTupleHistoryResponse
-	10, // 18: vrooli.development_toolchain_validator.v1.report.ReportService.GetCoverage:output_type -> vrooli.development_toolchain_validator.v1.report.GetCoverageResponse
-	16, // [16:19] is the sub-list for method output_type
-	13, // [13:16] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	17, // 0: vrooli.development_toolchain_validator.v1.report.TupleVerdict.tuple_kind:type_name -> vrooli.development_toolchain_validator.v1.validation_record.TupleKind
+	18, // 1: vrooli.development_toolchain_validator.v1.report.TupleVerdict.latest_verdict:type_name -> vrooli.development_toolchain_validator.v1.validation_record.Verdict
+	1,  // 2: vrooli.development_toolchain_validator.v1.report.GoldenSummary.skill_verdicts:type_name -> vrooli.development_toolchain_validator.v1.report.TupleVerdict
+	1,  // 3: vrooli.development_toolchain_validator.v1.report.GoldenSummary.tool_verdicts:type_name -> vrooli.development_toolchain_validator.v1.report.TupleVerdict
+	2,  // 4: vrooli.development_toolchain_validator.v1.report.GetGoldenSummaryResponse.summary:type_name -> vrooli.development_toolchain_validator.v1.report.GoldenSummary
+	17, // 5: vrooli.development_toolchain_validator.v1.report.TupleHistory.tuple_kind:type_name -> vrooli.development_toolchain_validator.v1.validation_record.TupleKind
+	19, // 6: vrooli.development_toolchain_validator.v1.report.TupleHistory.records:type_name -> vrooli.development_toolchain_validator.v1.validation_record.ValidationRecord
+	17, // 7: vrooli.development_toolchain_validator.v1.report.GetTupleHistoryRequest.tuple_kind:type_name -> vrooli.development_toolchain_validator.v1.validation_record.TupleKind
+	5,  // 8: vrooli.development_toolchain_validator.v1.report.GetTupleHistoryResponse.history:type_name -> vrooli.development_toolchain_validator.v1.report.TupleHistory
+	17, // 9: vrooli.development_toolchain_validator.v1.report.CoverageRow.tuple_kind:type_name -> vrooli.development_toolchain_validator.v1.validation_record.TupleKind
+	18, // 10: vrooli.development_toolchain_validator.v1.report.CoverageRow.verdict:type_name -> vrooli.development_toolchain_validator.v1.validation_record.Verdict
+	8,  // 11: vrooli.development_toolchain_validator.v1.report.Coverage.rows:type_name -> vrooli.development_toolchain_validator.v1.report.CoverageRow
+	9,  // 12: vrooli.development_toolchain_validator.v1.report.GetCoverageResponse.coverage:type_name -> vrooli.development_toolchain_validator.v1.report.Coverage
+	18, // 13: vrooli.development_toolchain_validator.v1.report.GoldenSkillSnapshot.latest_verdict:type_name -> vrooli.development_toolchain_validator.v1.validation_record.Verdict
+	18, // 14: vrooli.development_toolchain_validator.v1.report.SkillFitness.latest_verdict:type_name -> vrooli.development_toolchain_validator.v1.validation_record.Verdict
+	0,  // 15: vrooli.development_toolchain_validator.v1.report.SkillFitness.verdict:type_name -> vrooli.development_toolchain_validator.v1.report.SkillFitnessVerdict
+	16, // 16: vrooli.development_toolchain_validator.v1.report.SkillFitness.by_golden:type_name -> vrooli.development_toolchain_validator.v1.report.SkillFitness.ByGoldenEntry
+	13, // 17: vrooli.development_toolchain_validator.v1.report.GetSkillFitnessResponse.fitness:type_name -> vrooli.development_toolchain_validator.v1.report.SkillFitness
+	12, // 18: vrooli.development_toolchain_validator.v1.report.SkillFitness.ByGoldenEntry.value:type_name -> vrooli.development_toolchain_validator.v1.report.GoldenSkillSnapshot
+	3,  // 19: vrooli.development_toolchain_validator.v1.report.ReportService.GetGoldenSummary:input_type -> vrooli.development_toolchain_validator.v1.report.GetGoldenSummaryRequest
+	6,  // 20: vrooli.development_toolchain_validator.v1.report.ReportService.GetTupleHistory:input_type -> vrooli.development_toolchain_validator.v1.report.GetTupleHistoryRequest
+	10, // 21: vrooli.development_toolchain_validator.v1.report.ReportService.GetCoverage:input_type -> vrooli.development_toolchain_validator.v1.report.GetCoverageRequest
+	14, // 22: vrooli.development_toolchain_validator.v1.report.ReportService.GetSkillFitness:input_type -> vrooli.development_toolchain_validator.v1.report.GetSkillFitnessRequest
+	4,  // 23: vrooli.development_toolchain_validator.v1.report.ReportService.GetGoldenSummary:output_type -> vrooli.development_toolchain_validator.v1.report.GetGoldenSummaryResponse
+	7,  // 24: vrooli.development_toolchain_validator.v1.report.ReportService.GetTupleHistory:output_type -> vrooli.development_toolchain_validator.v1.report.GetTupleHistoryResponse
+	11, // 25: vrooli.development_toolchain_validator.v1.report.ReportService.GetCoverage:output_type -> vrooli.development_toolchain_validator.v1.report.GetCoverageResponse
+	15, // 26: vrooli.development_toolchain_validator.v1.report.ReportService.GetSkillFitness:output_type -> vrooli.development_toolchain_validator.v1.report.GetSkillFitnessResponse
+	23, // [23:27] is the sub-list for method output_type
+	19, // [19:23] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_development_toolchain_validator_v1_report_report_proto_init() }
@@ -802,13 +1287,14 @@ func file_development_toolchain_validator_v1_report_report_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_development_toolchain_validator_v1_report_report_proto_rawDesc), len(file_development_toolchain_validator_v1_report_report_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   11,
+			NumEnums:      1,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_development_toolchain_validator_v1_report_report_proto_goTypes,
 		DependencyIndexes: file_development_toolchain_validator_v1_report_report_proto_depIdxs,
+		EnumInfos:         file_development_toolchain_validator_v1_report_report_proto_enumTypes,
 		MessageInfos:      file_development_toolchain_validator_v1_report_report_proto_msgTypes,
 	}.Build()
 	File_development_toolchain_validator_v1_report_report_proto = out.File

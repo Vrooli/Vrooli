@@ -42,6 +42,9 @@ const (
 	// ReportServiceGetCoverageProcedure is the fully-qualified name of the ReportService's GetCoverage
 	// RPC.
 	ReportServiceGetCoverageProcedure = "/vrooli.development_toolchain_validator.v1.report.ReportService/GetCoverage"
+	// ReportServiceGetSkillFitnessProcedure is the fully-qualified name of the ReportService's
+	// GetSkillFitness RPC.
+	ReportServiceGetSkillFitnessProcedure = "/vrooli.development_toolchain_validator.v1.report.ReportService/GetSkillFitness"
 )
 
 // ReportServiceClient is a client for the
@@ -50,6 +53,11 @@ type ReportServiceClient interface {
 	GetGoldenSummary(context.Context, *connect.Request[report.GetGoldenSummaryRequest]) (*connect.Response[report.GetGoldenSummaryResponse], error)
 	GetTupleHistory(context.Context, *connect.Request[report.GetTupleHistoryRequest]) (*connect.Response[report.GetTupleHistoryResponse], error)
 	GetCoverage(context.Context, *connect.Request[report.GetCoverageRequest]) (*connect.Response[report.GetCoverageResponse], error)
+	// GetSkillFitness aggregates every validation record for one skill across all
+	// goldens into a single trust/cost/convergence fitness view. Consumed by
+	// ecosystem-manager's selection controller (DTV-as-gate-and-prior). DTV owns
+	// the records, so the cross-golden fold lives here rather than client-side.
+	GetSkillFitness(context.Context, *connect.Request[report.GetSkillFitnessRequest]) (*connect.Response[report.GetSkillFitnessResponse], error)
 }
 
 // NewReportServiceClient constructs a client for the
@@ -82,6 +90,12 @@ func NewReportServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(reportServiceMethods.ByName("GetCoverage")),
 			connect.WithClientOptions(opts...),
 		),
+		getSkillFitness: connect.NewClient[report.GetSkillFitnessRequest, report.GetSkillFitnessResponse](
+			httpClient,
+			baseURL+ReportServiceGetSkillFitnessProcedure,
+			connect.WithSchema(reportServiceMethods.ByName("GetSkillFitness")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -90,6 +104,7 @@ type reportServiceClient struct {
 	getGoldenSummary *connect.Client[report.GetGoldenSummaryRequest, report.GetGoldenSummaryResponse]
 	getTupleHistory  *connect.Client[report.GetTupleHistoryRequest, report.GetTupleHistoryResponse]
 	getCoverage      *connect.Client[report.GetCoverageRequest, report.GetCoverageResponse]
+	getSkillFitness  *connect.Client[report.GetSkillFitnessRequest, report.GetSkillFitnessResponse]
 }
 
 // GetGoldenSummary calls
@@ -109,12 +124,23 @@ func (c *reportServiceClient) GetCoverage(ctx context.Context, req *connect.Requ
 	return c.getCoverage.CallUnary(ctx, req)
 }
 
+// GetSkillFitness calls
+// vrooli.development_toolchain_validator.v1.report.ReportService.GetSkillFitness.
+func (c *reportServiceClient) GetSkillFitness(ctx context.Context, req *connect.Request[report.GetSkillFitnessRequest]) (*connect.Response[report.GetSkillFitnessResponse], error) {
+	return c.getSkillFitness.CallUnary(ctx, req)
+}
+
 // ReportServiceHandler is an implementation of the
 // vrooli.development_toolchain_validator.v1.report.ReportService service.
 type ReportServiceHandler interface {
 	GetGoldenSummary(context.Context, *connect.Request[report.GetGoldenSummaryRequest]) (*connect.Response[report.GetGoldenSummaryResponse], error)
 	GetTupleHistory(context.Context, *connect.Request[report.GetTupleHistoryRequest]) (*connect.Response[report.GetTupleHistoryResponse], error)
 	GetCoverage(context.Context, *connect.Request[report.GetCoverageRequest]) (*connect.Response[report.GetCoverageResponse], error)
+	// GetSkillFitness aggregates every validation record for one skill across all
+	// goldens into a single trust/cost/convergence fitness view. Consumed by
+	// ecosystem-manager's selection controller (DTV-as-gate-and-prior). DTV owns
+	// the records, so the cross-golden fold lives here rather than client-side.
+	GetSkillFitness(context.Context, *connect.Request[report.GetSkillFitnessRequest]) (*connect.Response[report.GetSkillFitnessResponse], error)
 }
 
 // NewReportServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -142,6 +168,12 @@ func NewReportServiceHandler(svc ReportServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(reportServiceMethods.ByName("GetCoverage")),
 		connect.WithHandlerOptions(opts...),
 	)
+	reportServiceGetSkillFitnessHandler := connect.NewUnaryHandler(
+		ReportServiceGetSkillFitnessProcedure,
+		svc.GetSkillFitness,
+		connect.WithSchema(reportServiceMethods.ByName("GetSkillFitness")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.development_toolchain_validator.v1.report.ReportService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ReportServiceGetGoldenSummaryProcedure:
@@ -150,6 +182,8 @@ func NewReportServiceHandler(svc ReportServiceHandler, opts ...connect.HandlerOp
 			reportServiceGetTupleHistoryHandler.ServeHTTP(w, r)
 		case ReportServiceGetCoverageProcedure:
 			reportServiceGetCoverageHandler.ServeHTTP(w, r)
+		case ReportServiceGetSkillFitnessProcedure:
+			reportServiceGetSkillFitnessHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -169,4 +203,8 @@ func (UnimplementedReportServiceHandler) GetTupleHistory(context.Context, *conne
 
 func (UnimplementedReportServiceHandler) GetCoverage(context.Context, *connect.Request[report.GetCoverageRequest]) (*connect.Response[report.GetCoverageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.development_toolchain_validator.v1.report.ReportService.GetCoverage is not implemented"))
+}
+
+func (UnimplementedReportServiceHandler) GetSkillFitness(context.Context, *connect.Request[report.GetSkillFitnessRequest]) (*connect.Response[report.GetSkillFitnessResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.development_toolchain_validator.v1.report.ReportService.GetSkillFitness is not implemented"))
 }
