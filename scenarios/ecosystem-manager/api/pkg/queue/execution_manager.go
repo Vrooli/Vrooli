@@ -243,6 +243,25 @@ func (em *ExecutionManager) applySteeringToPrompt(prompt string, task *tasks.Tas
 	return prompt
 }
 
+// recordAutoSteerRunCost forwards the just-completed agent run's token cost to
+// the Auto Steer controller (consumed at the next iteration's credit
+// assignment). No-op for non-Auto-Steer tasks or when the cost is unknown.
+func (em *ExecutionManager) recordAutoSteerRunCost(task *tasks.TaskItem, result *tasks.ClaudeCodeResponse) {
+	if task == nil || result == nil || task.AutoSteerProfileID == "" {
+		return
+	}
+	if em.autoSteerIntegration == nil {
+		return
+	}
+	orchestrator := em.autoSteerIntegration.ExecutionOrchestrator()
+	if orchestrator == nil {
+		return
+	}
+	orchestrator.RecordRunCost(task.ID, autosteer.RunCost{
+		TotalTokens: int64(result.TokensUsed),
+	})
+}
+
 // handleSteeringContinuation determines whether a task should continue after execution.
 func (em *ExecutionManager) handleSteeringContinuation(task *tasks.TaskItem, autoSteerInitFailed bool) {
 	// Only apply steering continuation to scenario improver tasks
@@ -578,6 +597,16 @@ func (em *ExecutionManager) handleAgentManagerEvent(taskID, agentTag string, evt
 	}
 }
 
+// tokensFromRun extracts the agent run's total token cost from its summary.
+// A missing summary yields 0 — an explicit "unknown", which the Auto Steer
+// controller does not treat as a free run (see pkg/autosteer.RunCost).
+func tokensFromRun(run *domainpb.Run) int {
+	if run == nil || run.Summary == nil {
+		return 0
+	}
+	return int(run.Summary.TokensUsed)
+}
+
 // mapAgentManagerResult converts agent-manager Run result to ClaudeCodeResponse.
 func (em *ExecutionManager) mapAgentManagerResult(run *domainpb.Run, task tasks.TaskItem, agentTag, output string, history *ExecutionHistory) *tasks.ClaudeCodeResponse {
 	currentSettings := settings.GetSettings()
@@ -593,6 +622,9 @@ func (em *ExecutionManager) mapAgentManagerResult(run *domainpb.Run, task tasks.
 			response.FinalMessage = run.Summary.Description
 		}
 	}
+	// Token cost feeds the Auto Steer controller's reduction-per-token bandit
+	// (see pkg/autosteer.RunCost). agent-manager reports only a combined total.
+	response.TokensUsed = tokensFromRun(run)
 
 	if run.ErrorMsg != "" {
 		response.Error = run.ErrorMsg
@@ -722,6 +754,10 @@ func (em *ExecutionManager) handleSuccessfulExecution(result *tasks.ClaudeCodeRe
 	task.CompletedAt = completedAt
 	task.CompletionCount++
 	task.LastCompletedAt = task.CompletedAt
+
+	// Hand the agent run's token cost to the Auto Steer controller before the
+	// continuation decision so credit assignment can weight by reduction-per-token.
+	em.recordAutoSteerRunCost(task, result)
 
 	// Handle steering continuation logic
 	em.handleSteeringContinuation(task, autoSteerInitFailed)

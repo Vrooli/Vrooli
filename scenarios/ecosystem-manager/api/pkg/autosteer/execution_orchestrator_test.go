@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ecosystem-manager/api/pkg/effectiveness"
 	"github.com/ecosystem-manager/api/pkg/findings"
 	"github.com/ecosystem-manager/api/pkg/skillmap"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
@@ -66,6 +67,7 @@ func loopOrchestrator(runner findings.AuditRunner) (*ExecutionOrchestrator, *Moc
 	orch := NewExecutionOrchestrator(
 		stateRepo, profileRepo, runner, catalog,
 		NewMockPromptEnhancerAPI(), NewMockMetricsProvider(), NewTraceStore(nil),
+		effectiveness.NewMemoryStore(),
 	)
 	return orch, stateRepo, profileRepo
 }
@@ -123,9 +125,21 @@ func TestController_MiniLoop_ShrinksAndTerminates(t *testing.T) {
 	}
 }
 
+// growingRunner returns an ever-larger distinct findings set on each call, so
+// the open set always changes (no fingerprint cycle) and net findings flow is
+// always negative (no net-progress stall) — isolating the budget cap as the
+// halting reason. The objective is never met (findings grow).
+type growingRunner struct{ call int }
+
+func (r *growingRunner) Audit(_ context.Context, _ findings.AuditRequest) (*findings.Audit, error) {
+	r.call++
+	return standardsAudit(r.call + 1), nil // call 1 → {a,b}, call 2 → {a,b,c}, …
+}
+
 func TestController_BudgetCapHalts(t *testing.T) {
-	// Findings never shrink (stuck at score 4) → only the budget cap stops it.
-	runner := &shrinkingRunner{audits: []*findings.Audit{standardsAudit(1)}}
+	// A target that keeps growing: not a cycle, not a net-progress stall, never
+	// meets the objective → only the budget cap stops it.
+	runner := &growingRunner{}
 	orch, stateRepo, profileRepo := loopOrchestrator(runner)
 	// Tighten the budget for a fast cap, disable diminishing-returns so the cap
 	// is the halting reason.

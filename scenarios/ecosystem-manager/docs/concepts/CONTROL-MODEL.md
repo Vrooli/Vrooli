@@ -282,14 +282,22 @@ practical.
 | Measure (metrics collectors) | Yes | **Implemented** (gap metrics; re-audit is primary) |
 | State = findings vector | Yes | **Implemented** (v0) — `pkg/findings` bucketed by dimension |
 | Skill → dimension map (declared) | Yes | **Implemented** (v0) — declared on skills, `pkg/skillmap` resolver |
-| Selection (diagnose → pick) | Yes | **Implemented** (v0) — greedy heaviest-dimension `Selector` |
-| Effectiveness table + learning | Yes | **Not yet** (v1) |
+| Selection (diagnose → pick) | Yes | **Implemented** (v1) — effectiveness-weighted bandit within the heaviest dimension; greedy when cold (`Selector`) |
+| Effectiveness table + learning | Yes | **Implemented** (v1) — `pkg/effectiveness` ledger + credit assignment after every iteration |
+| Token-cost capture | Yes | **Implemented** (v1) — `RunCost` from agent-manager run summary → reduction-per-token selection |
 | Termination | Global, gradient | **Implemented** (v0) — objective-met / diminishing-returns / budget |
-| Thrashing Layer 1 (DTV) | Yes | **Not wired** (v2) |
-| Thrashing Layer 2 (runtime) | Yes | **Not yet** (v1) — fingerprint computed now, no cycle-halting |
+| Thrashing Layer 1 (DTV) | Yes | **Not wired** (P2) — `EligibilityFilter` seam in place (allow-all default) |
+| Thrashing Layer 2 (runtime) | Yes | **Implemented** (v1) — fingerprint cycle-halt, net-progress window, hysteresis cooldown, regression veto |
 | Thrashing Layer 3 (budget cap) | Yes | **Implemented** (max-iterations) |
-| DTV priors / eligibility gate | Yes | **Not wired** (v2) |
-| Decision-trace transparency | Yes | **Implemented** (v0) — persisted trace + read API + UI panel |
+| DTV priors / eligibility gate | Yes | **Not wired** (P2) — injected `prior` + `EligibilityFilter` seams ready |
+| Decision-trace transparency | Yes | **Implemented** (v1) — trace carries token cost, per-dimension flow, regression/veto/halt; read API + CLI + UI |
+
+**v1 selection details:** within the heaviest open dimension, eligible skills are
+ranked by `expectedEfficacyPerToken = (n/(n+k))·observed + (k/(n+k))·prior`
+(Bayesian shrinkage, `k = 3`, uniform prior `0` in P1 so `n = 0` reproduces v0
+greedy order). Exploration is **epsilon-greedy with `ε = 0.15/(1+iteration)`**,
+deterministic per `(task, iteration)` via an FNV-seeded RNG (reproducible for
+tests and replay). See `pkg/effectiveness` and `pkg/autosteer/selector.go`.
 
 The implementation roadmap for closing this gap is tracked in
 [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) and

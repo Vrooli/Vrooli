@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+
+	"github.com/ecosystem-manager/api/pkg/effectiveness"
 )
 
 // EnsureTablesExist creates (or cuts over) the controller's tables. It is
@@ -26,6 +28,9 @@ func EnsureTablesExist(db *sql.DB) error {
 	}
 	if err := ensureDecisionTraceTable(db); err != nil {
 		return err
+	}
+	if err := effectiveness.CreateSchema(db); err != nil {
+		return fmt.Errorf("failed to ensure skill_dimension_effectiveness table: %w", err)
 	}
 	if err := ensureProfileExecutionStateTrigger(db); err != nil {
 		return fmt.Errorf("failed to ensure profile_execution_state trigger exists: %w", err)
@@ -149,10 +154,24 @@ func ensureDecisionTraceTable(db *sql.DB) error {
 		score_before DOUBLE PRECISION NOT NULL DEFAULT 0,
 		score_after DOUBLE PRECISION NOT NULL DEFAULT 0,
 		realized_delta DOUBLE PRECISION NOT NULL DEFAULT 0,
+		tokens_used BIGINT NOT NULL DEFAULT 0,
+		closed_by_dimension JSONB,
+		introduced_by_dimension JSONB,
+		regressed BOOLEAN NOT NULL DEFAULT FALSE,
+		veto_applied BOOLEAN NOT NULL DEFAULT FALSE,
+		halt_reason TEXT NOT NULL DEFAULT '',
 		created_at TIMESTAMP DEFAULT NOW()
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_decision_trace_task ON decision_trace(task_id, iteration);
+
+	-- Self-healing column adds for tables created by an earlier controller build.
+	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS tokens_used BIGINT NOT NULL DEFAULT 0;
+	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS closed_by_dimension JSONB;
+	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS introduced_by_dimension JSONB;
+	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS regressed BOOLEAN NOT NULL DEFAULT FALSE;
+	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS veto_applied BOOLEAN NOT NULL DEFAULT FALSE;
+	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS halt_reason TEXT NOT NULL DEFAULT '';
 	`
 	if _, err := db.Exec(query); err != nil {
 		return fmt.Errorf("failed to ensure decision_trace table: %w", err)

@@ -285,6 +285,36 @@ Transform ecosystem management from four disconnected tools into one intelligent
 - [ ] Advanced workflow orchestration
 - [ ] Performance monitoring dashboard
 
+## Auto-Steer Controller (v1)
+
+The auto-steer controller is the scenario's improvement control loop: it drives a
+target scenario toward an objective profile by repeatedly diagnosing open
+findings, selecting the skill most likely to close the heaviest dimension,
+executing it via agent-manager, re-measuring, and terminating on objective-met,
+diminishing returns, runtime thrashing, or the budget cap. The conceptual
+specification is [`docs/concepts/CONTROL-MODEL.md`](docs/concepts/CONTROL-MODEL.md);
+the operational targets below are tracked in
+[`requirements/index.json`](requirements/index.json).
+
+The v1 ("effectiveness-weighted") operational targets:
+
+- **Token-cost capture** — every agent run's token cost flows from agent-manager
+  into the controller's reduction-per-token selection.
+- **Effectiveness ledger** — a per-`(skill, dimension)` table learns findings
+  closed/introduced per token at runtime.
+- **Credit assignment** — each iteration's per-dimension findings delta is
+  attributed to the skill that ran.
+- **Effectiveness-weighted selection** — within the heaviest dimension, skills
+  are ranked by expected reduction-per-token (shrinkage prior + epsilon-greedy
+  exploration), degrading to greedy when cold.
+- **Layer-2 thrashing defense** — fingerprint cycle-halt, net-progress window,
+  hysteresis cooldown, and regression veto stop emergent oscillation at runtime.
+- **Transparency** — the decision trace, an effectiveness API/CLI/UI surface,
+  and per-iteration token/flow/halt annotations make the loop a glass box.
+
+P2 (future): development-toolchain-validator trust/cost priors and a Layer-1
+eligibility gate (seams are in place; not yet wired).
+
 ## Risk Assessment
 
 ### High Risk

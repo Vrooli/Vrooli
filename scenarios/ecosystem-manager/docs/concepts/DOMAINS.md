@@ -76,13 +76,17 @@ in [`DATA.md`](DATA.md).
   (`pkg/skillmap`), dimension vocabulary (`pkg/dimensions`), decision-trace
   store (`decision_trace.go`), state manager (Postgres), profile repository
   (filesystem), gap-metrics collectors (`metrics*.go`).
-- Status: v0 closed-loop controller is implemented (findings state,
-  declared skill→dimension map, greedy selection, gradient termination,
-  decision trace). The effectiveness table / bandit / DTV priors are v1/v2
-  — see [`CONTROL-MODEL.md`](CONTROL-MODEL.md).
+- Status: **v1 effectiveness-weighted controller shipped** — findings
+  state, declared skill→dimension map, reduction-per-token bandit selection
+  (`pkg/effectiveness` ledger + credit assignment), Layer-2 runtime
+  thrashing defense (fingerprint cycle, net-progress window, hysteresis,
+  regression veto), gradient termination, decision trace. DTV priors /
+  eligibility gate remain P2 (seams in place) — see
+  [`CONTROL-MODEL.md`](CONTROL-MODEL.md).
 - Surfaces: the `/api/auto-steer/*` route group (incl.
-  `GET /execution/{taskId}/trace`); CLI `steer` group; UI steering panels +
-  decision-trace panel.
+  `GET /execution/{taskId}/trace` and `GET /effectiveness`); CLI `steer`
+  group (incl. `effectiveness`, `trace`); UI steering panels +
+  decision-trace panel + effectiveness table.
 - Tests: unit tests for selector, terminator, controller loop, findings,
   skillmap, dimensions, profile validation/repository, and handlers — see
   [`../internal/TESTING.md`](../internal/TESTING.md).
@@ -146,8 +150,11 @@ in [`DATA.md`](DATA.md).
 
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| Effectiveness store | Needs the controller's learning loop (v1). | When the closed-loop controller lands; see [`CONTROL-MODEL.md`](CONTROL-MODEL.md). |
-| DTV trust gate | Needs development-toolchain-validator wiring (v2). | When skill eligibility/priors are consumed. |
+| DTV trust gate | Needs development-toolchain-validator wiring (P2). | When skill eligibility/priors are consumed via the `EligibilityFilter` / injected `prior` seams. |
+
+The effectiveness store shipped as part of auto-steer v1 (`pkg/effectiveness`,
+`skill_dimension_effectiveness`); it is folded into the auto-steer domain rather
+than a standalone domain.
 
 ## Non-Domains
 

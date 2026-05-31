@@ -5,8 +5,10 @@ package autosteer
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/ecosystem-manager/api/pkg/dimensions"
+	"github.com/ecosystem-manager/api/pkg/effectiveness"
 	"github.com/gorilla/mux"
 )
 
@@ -31,6 +33,8 @@ type ExecutionEngineAPI interface {
 	GetExecutionState(taskID string) (*ProfileExecutionState, error)
 	GetCurrentSet(taskID string) ([]string, error)
 	GetDecisionTrace(taskID string) ([]DecisionTraceEntry, error)
+	Effectiveness(skillID string, dim dimensions.Dimension) ([]effectiveness.Stat, error)
+	EffectivenessPrior() (prior, k float64)
 }
 
 // HistoryServiceAPI defines history operations used by HTTP handlers.
@@ -306,6 +310,66 @@ func (h *AutoSteerHandlers) GetDecisionTrace(w http.ResponseWriter, r *http.Requ
 		"task_id": taskID,
 		"trace":   trace,
 		"count":   len(trace),
+	})
+}
+
+// effectivenessRow is the API projection of one ledger row, with the derived
+// efficacy the selector would use computed alongside the authoritative raw
+// counts.
+type effectivenessRow struct {
+	SkillID                 string    `json:"skill_id"`
+	Dimension               string    `json:"dimension"`
+	ClosedCount             int64     `json:"closed_count"`
+	IntroducedCount         int64     `json:"introduced_count"`
+	NetClosed               int64     `json:"net_closed"`
+	TotalRuns               int64     `json:"total_runs"`
+	TotalTokens             int64     `json:"total_tokens"`
+	AvgTokensPerRun         int64     `json:"avg_tokens_per_run"`
+	ObservedEfficacyPerKtok float64   `json:"observed_efficacy_per_ktok"`
+	ExpectedEfficacyPerKtok float64   `json:"expected_efficacy_per_ktok"`
+	LastRunAt               time.Time `json:"last_run_at"`
+}
+
+// GetEffectiveness handles GET /api/auto-steer/effectiveness?skill=&dimension=.
+// It dumps the per-(skill, dimension) effectiveness ledger — the operator's
+// "which skills actually work" view — with the derived efficacy estimate.
+func (h *AutoSteerHandlers) GetEffectiveness(w http.ResponseWriter, r *http.Request) {
+	skill := r.URL.Query().Get("skill")
+	dim := dimensions.Dimension(r.URL.Query().Get("dimension"))
+
+	stats, err := h.executionEngine.Effectiveness(skill, dim)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to load effectiveness ledger: "+err.Error())
+		return
+	}
+	prior, k := h.executionEngine.EffectivenessPrior()
+
+	rows := make([]effectivenessRow, 0, len(stats))
+	for _, s := range stats {
+		avg := int64(0)
+		if s.TotalRuns > 0 {
+			avg = s.TotalTokens / s.TotalRuns
+		}
+		rows = append(rows, effectivenessRow{
+			SkillID:                 s.SkillID,
+			Dimension:               string(s.Dimension),
+			ClosedCount:             s.ClosedCount,
+			IntroducedCount:         s.IntroducedCount,
+			NetClosed:               s.NetClosed(),
+			TotalRuns:               s.TotalRuns,
+			TotalTokens:             s.TotalTokens,
+			AvgTokensPerRun:         avg,
+			ObservedEfficacyPerKtok: s.ObservedEfficacyPerToken(),
+			ExpectedEfficacyPerKtok: s.ExpectedEfficacyPerToken(prior, k),
+			LastRunAt:               s.LastRunAt,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"effectiveness": rows,
+		"count":         len(rows),
+		"prior":         prior,
+		"shrinkage_k":   k,
 	})
 }
 

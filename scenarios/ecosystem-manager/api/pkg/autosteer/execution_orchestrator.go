@@ -4,16 +4,28 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"hash/fnv"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/dimensions"
+	"github.com/ecosystem-manager/api/pkg/effectiveness"
 	"github.com/ecosystem-manager/api/pkg/findings"
 	"github.com/ecosystem-manager/api/pkg/skillmap"
 )
 
 // defaultAuditPreset is used when a profile does not pin one.
 const defaultAuditPreset = "comprehensive"
+
+// Exploration policy for the v1 bandit. epsilon decays as base/(1+iteration):
+// early iterations explore a little to gather efficacy evidence; later ones
+// exploit. The prior is uniform/neutral in P1 (so a fresh target reproduces v0
+// greedy ordering); P2 swaps in DTV trust/cost priors here.
+const (
+	explorationBaseEpsilon = 0.15
+	coldStartPrior         = 0.0
+)
 
 // NewExecutionOrchestratorDefault wires a production ExecutionOrchestrator:
 // test-genie as the audit runner, prompt-manager's catalog as the skill→dimension
@@ -31,6 +43,7 @@ func NewExecutionOrchestratorDefault(profileRepo ProfileRepository, db *sql.DB, 
 		promptEnhancer,
 		NewMetricsCollector(projectRoot),
 		NewTraceStore(db),
+		effectiveness.NewPostgresStore(db),
 	)
 }
 
@@ -45,7 +58,15 @@ type ExecutionOrchestrator struct {
 	promptEnhancer   PromptEnhancerAPI
 	metricsCollector MetricsProvider
 	traceStore       *TraceStore
+	effectiveness    effectiveness.Store
 	terminator       *Terminator
+
+	// pendingCost holds the token cost of the most recent agent run per task,
+	// recorded by the queue via RecordRunCost and consumed once at the next
+	// EvaluateIteration (the run executes out-of-band, so its cost arrives via
+	// this seam rather than as a MEASURE return value).
+	costMu      sync.Mutex
+	pendingCost map[string]RunCost
 }
 
 // NewExecutionOrchestrator creates a controller from its collaborators. All
@@ -59,6 +80,7 @@ func NewExecutionOrchestrator(
 	promptEnhancer PromptEnhancerAPI,
 	metricsCollector MetricsProvider,
 	traceStore *TraceStore,
+	effectivenessStore effectiveness.Store,
 ) *ExecutionOrchestrator {
 	return &ExecutionOrchestrator{
 		stateManager:     stateManager,
@@ -68,12 +90,109 @@ func NewExecutionOrchestrator(
 		promptEnhancer:   promptEnhancer,
 		metricsCollector: metricsCollector,
 		traceStore:       traceStore,
+		effectiveness:    effectivenessStore,
 		terminator:       NewTerminator(),
+		pendingCost:      make(map[string]RunCost),
 	}
+}
+
+// RecordRunCost stashes the token cost of the agent run that just completed for a
+// task. The next EvaluateIteration consumes it for credit assignment. Recording a
+// zero/unknown cost is a no-op (the run's cost stays unknown rather than being
+// recorded as free).
+func (o *ExecutionOrchestrator) RecordRunCost(taskID string, cost RunCost) {
+	if o == nil || taskID == "" || !cost.Known() {
+		return
+	}
+	o.costMu.Lock()
+	defer o.costMu.Unlock()
+	o.pendingCost[taskID] = cost
+}
+
+// takeRunCost pops the recorded run cost for a task (zero/unknown if none).
+func (o *ExecutionOrchestrator) takeRunCost(taskID string) RunCost {
+	o.costMu.Lock()
+	defer o.costMu.Unlock()
+	cost := o.pendingCost[taskID]
+	delete(o.pendingCost, taskID)
+	return cost
 }
 
 func (o *ExecutionOrchestrator) resolver() *skillmap.Resolver {
 	return skillmap.NewResolver(o.catalog)
+}
+
+// newSelector builds the SELECT-stage selector for an upcoming iteration. With
+// an effectiveness ledger wired it is the v1 reduction-per-token bandit
+// (deterministic exploration seeded by task+iteration, Layer-1 eligibility gate,
+// and the hysteresis cooldown); otherwise pure greedy.
+func (o *ExecutionOrchestrator) newSelector(state *ProfileExecutionState, profile *AutoSteerProfile, iteration int) *Selector {
+	if o.effectiveness == nil {
+		return NewSelector(o.resolver())
+	}
+	return NewSelectorWithConfig(SelectorConfig{
+		Resolver:      o.resolver(),
+		Effectiveness: o.effectiveness,
+		Prior:         coldStartPrior,
+		ShrinkageK:    effectiveness.DefaultShrinkageK,
+		Epsilon:       explorationEpsilon(iteration),
+		Seed:          explorationSeed(state.TaskID, iteration),
+		Filter:        AllowAllFilter{}, // P1: no Layer-1 gating; P2 wires DTV here.
+		Cooldown:      cooldownSkills(state, profile.Budget.skillCooldown(), iteration),
+	})
+}
+
+// cooldownSkills returns skills deprioritized for the upcoming iteration because
+// their most recent run regressed their own target dimension within the last C
+// iterations (hysteresis). Returns nil when nothing is cooling.
+func cooldownSkills(state *ProfileExecutionState, c, upcoming int) map[string]bool {
+	if c <= 0 || len(state.Trace) == 0 {
+		return nil
+	}
+	lastRun := make(map[string]DecisionTraceEntry)
+	for _, e := range state.Trace {
+		if e.ChosenSkill == "" {
+			continue
+		}
+		if prev, ok := lastRun[e.ChosenSkill]; !ok || e.Iteration > prev.Iteration {
+			lastRun[e.ChosenSkill] = e
+		}
+	}
+	cooling := make(map[string]bool)
+	for skill, e := range lastRun {
+		if regressedTarget(e) && upcoming-e.Iteration <= c {
+			cooling[skill] = true
+		}
+	}
+	if len(cooling) == 0 {
+		return nil
+	}
+	return cooling
+}
+
+// regressedTarget reports whether an iteration regressed (or failed to net-close)
+// its own target dimension: it introduced at least one finding there and did not
+// close more than it introduced.
+func regressedTarget(e DecisionTraceEntry) bool {
+	intro := e.IntroducedByDimension[e.HeaviestDimension]
+	closed := e.ClosedByDimension[e.HeaviestDimension]
+	return intro > 0 && intro >= closed
+}
+
+// explorationEpsilon decays the exploration probability by iteration.
+func explorationEpsilon(iteration int) float64 {
+	if iteration < 0 {
+		iteration = 0
+	}
+	return explorationBaseEpsilon / (1.0 + float64(iteration))
+}
+
+// explorationSeed derives a deterministic exploration seed from the task and
+// iteration, so a selection is reproducible (required for tests and replay).
+func explorationSeed(taskID string, iteration int) uint64 {
+	h := fnv.New64a()
+	_, _ = fmt.Fprintf(h, "%s:%d", taskID, iteration)
+	return h.Sum64()
 }
 
 func (o *ExecutionOrchestrator) auditPreset(profile *AutoSteerProfile) string {
@@ -142,7 +261,7 @@ func (o *ExecutionOrchestrator) fullAudit(ctx context.Context, scenarioName stri
 // selectInto runs SELECT for the current findings and records the opening trace
 // entry for the next iteration (ScoreAfter is filled after the skill runs).
 func (o *ExecutionOrchestrator) selectInto(state *ProfileExecutionState, profile *AutoSteerProfile, scenarioName string) {
-	sel := NewSelector(o.resolver()).SelectNextSkill(state.Findings, profile)
+	sel := o.newSelector(state, profile, state.Iteration+1).SelectNextSkill(state.Findings, profile)
 	state.Iteration++
 	state.CurrentSkill = sel.SkillID
 	state.CurrentRationale = sel.Rationale
@@ -180,8 +299,10 @@ func (o *ExecutionOrchestrator) EvaluateIteration(taskID, scenarioName string) (
 		return nil, fmt.Errorf("failed to get profile: %w", err)
 	}
 
-	// MEASURE — re-audit and merge into the findings vector.
-	prevScore := lastScore(state.ScoreHistory, state.Findings.TotalScore)
+	// MEASURE — re-audit, diff against the prior open set, and merge.
+	cost := o.takeRunCost(taskID)
+	prevFindings := state.Findings
+	prevScore := lastScore(state.ScoreHistory, prevFindings.TotalScore)
 	newFS, err := o.reaudit(context.Background(), scenarioName, profile, state)
 	if err != nil {
 		return nil, fmt.Errorf("re-audit failed: %w", err)
@@ -189,14 +310,18 @@ func (o *ExecutionOrchestrator) EvaluateIteration(taskID, scenarioName string) (
 	scoreAfter := newFS.TotalScore
 	realizedDelta := prevScore - scoreAfter // positive = improvement
 
-	o.recordRealized(state, scoreAfter, realizedDelta)
+	// LEARN — attribute the per-dimension findings flow to the skill that ran.
+	diff := findings.DiffStates(prevFindings, newFS)
+	o.recordRealized(state, scoreAfter, realizedDelta, cost, diff, profile.Budget.RegressionVeto)
+	o.assignCredit(state, diff, cost)
 	state.Findings = newFS
 	state.ScoreHistory = append(state.ScoreHistory, scoreAfter)
 	state.Metrics = o.collectMetrics(scenarioName, state.Iteration)
 
-	// TERMINATE — global, gradient-based.
+	// TERMINATE — global, gradient-based + Layer-2 thrashing defenses.
 	if stop, reason := o.terminator.ShouldStop(state, profile); stop {
 		log.Printf("Auto Steer: task %s stopping — %s", taskID, reason)
+		o.recordHalt(state, reason)
 		if err := o.stateManager.FinalizeExecution(state, scenarioName); err != nil {
 			return nil, fmt.Errorf("failed to finalize execution: %w", err)
 		}
@@ -207,6 +332,7 @@ func (o *ExecutionOrchestrator) EvaluateIteration(taskID, scenarioName string) (
 	o.selectInto(state, profile, scenarioName)
 	if state.CurrentSkill == "" {
 		log.Printf("Auto Steer: task %s stopping — %s", taskID, StopNothingActionable)
+		o.recordHalt(state, StopNothingActionable)
 		if err := o.stateManager.FinalizeExecution(state, scenarioName); err != nil {
 			return nil, fmt.Errorf("failed to finalize execution: %w", err)
 		}
@@ -273,20 +399,103 @@ func mergeFindings(prior, fresh []findings.Finding, reauditedDims map[dimensions
 }
 
 // recordRealized fills the realized outcome on the most recent trace entry (the
-// iteration whose skill just ran) in both the live state and the durable store.
-func (o *ExecutionOrchestrator) recordRealized(state *ProfileExecutionState, scoreAfter, realizedDelta float64) {
-	if n := len(state.Trace); n > 0 {
-		state.Trace[n-1].ScoreAfter = scoreAfter
-		state.Trace[n-1].RealizedDelta = realizedDelta
+// iteration whose skill just ran) — score, realized delta, token cost, and the
+// per-dimension findings flow — in both the live state and the durable store.
+func (o *ExecutionOrchestrator) recordRealized(state *ProfileExecutionState, scoreAfter, realizedDelta float64, cost RunCost, diff findings.Diff, regressionVeto bool) {
+	n := len(state.Trace)
+	if n == 0 {
+		return
 	}
-	if err := o.traceStore.SetRealized(state.TaskID, state.Iteration, scoreAfter, realizedDelta); err != nil {
+	e := &state.Trace[n-1]
+	e.ScoreAfter = scoreAfter
+	e.RealizedDelta = realizedDelta
+	e.TokensUsed = cost.TotalTokens
+	e.ClosedByDimension = dimCountsToStringMap(diff.ClosedByDimension)
+	e.IntroducedByDimension = dimCountsToStringMap(diff.IntroducedByDimension)
+	e.Regressed = realizedDelta < 0 // net weighted score went up
+	if regressionVeto && e.Regressed {
+		e.VetoApplied = true
+		log.Printf("Auto Steer: REGRESSION VETO task %s iteration %d — net weighted score rose by %.2f; flagged and cooled (no auto-rollback in P1)",
+			state.TaskID, e.Iteration, -realizedDelta)
+	}
+	if err := o.traceStore.SetRealized(state.TaskID, *e); err != nil {
 		log.Printf("Auto Steer: failed to persist realized delta (non-fatal): %v", err)
 	}
+}
+
+// recordHalt stamps the terminal halt reason on the final trace entry so the
+// decision trace shows why the controller stopped.
+func (o *ExecutionOrchestrator) recordHalt(state *ProfileExecutionState, reason string) {
+	n := len(state.Trace)
+	if n == 0 {
+		return
+	}
+	e := &state.Trace[n-1]
+	e.HaltReason = reason
+	if err := o.traceStore.SetHalt(state.TaskID, e.Iteration, reason); err != nil {
+		log.Printf("Auto Steer: failed to persist halt reason (non-fatal): %v", err)
+	}
+}
+
+// assignCredit attributes the iteration's findings flow to the skill that ran,
+// updating the effectiveness ledger. The run's target dimension is the heaviest
+// dimension chosen at SELECT (recorded on the current trace entry); collateral
+// closed/introduced in other dimensions are recorded too, so a skill that fixes
+// one dimension while breaking another earns the debt.
+func (o *ExecutionOrchestrator) assignCredit(state *ProfileExecutionState, diff findings.Diff, cost RunCost) {
+	if o.effectiveness == nil || state.CurrentSkill == "" {
+		return
+	}
+	n := len(state.Trace)
+	if n == 0 {
+		return
+	}
+	ev := effectiveness.CreditEvent{
+		SkillID:               state.CurrentSkill,
+		TargetDimension:       dimensions.Dimension(state.Trace[n-1].HeaviestDimension),
+		ClosedByDimension:     diff.ClosedByDimension,
+		IntroducedByDimension: diff.IntroducedByDimension,
+		Tokens:                cost.TotalTokens,
+	}
+	if err := o.effectiveness.Record(ev); err != nil {
+		log.Printf("Auto Steer: failed to record effectiveness credit (non-fatal): %v", err)
+	}
+}
+
+// dimCountsToStringMap converts a per-dimension count map into the string-keyed
+// shape stored in the decision trace JSON (nil when empty).
+func dimCountsToStringMap(m map[dimensions.Dimension]int) map[string]int {
+	if len(m) == 0 {
+		return nil
+	}
+	out := make(map[string]int, len(m))
+	for d, n := range m {
+		out[string(d)] = n
+	}
+	return out
 }
 
 // GetExecutionState retrieves the current controller state for a task.
 func (o *ExecutionOrchestrator) GetExecutionState(taskID string) (*ProfileExecutionState, error) {
 	return o.stateManager.Get(taskID)
+}
+
+// Effectiveness returns the effectiveness-ledger rows, optionally filtered by
+// skill and/or dimension (empty = no filter). It is the read side of the
+// operator's "which skills actually work" view. Returns nil when no ledger is
+// wired.
+func (o *ExecutionOrchestrator) Effectiveness(skillID string, dim dimensions.Dimension) ([]effectiveness.Stat, error) {
+	if o.effectiveness == nil {
+		return nil, nil
+	}
+	return o.effectiveness.List(skillID, dim)
+}
+
+// EffectivenessPrior exposes the cold-start prior and shrinkage constant the
+// production selector uses, so read surfaces can render the same expected
+// efficacy the bandit would compute.
+func (o *ExecutionOrchestrator) EffectivenessPrior() (prior, k float64) {
+	return coldStartPrior, effectiveness.DefaultShrinkageK
 }
 
 // GetCurrentSet returns the currently selected steering skill for a task (the

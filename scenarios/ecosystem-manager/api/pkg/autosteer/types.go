@@ -183,6 +183,67 @@ type Budget struct {
 	// iteration (only the chosen skill's dimensions); N>0 = run the full preset
 	// every N iterations and a targeted audit otherwise.
 	ReauditCadence int `json:"reaudit_cadence,omitempty"`
+
+	// Layer-2 runtime thrashing-defense knobs (all default to conservative
+	// non-zero values when left at 0; see CONTROL-MODEL.md "Termination").
+	//
+	// CycleWindow (K) is how many prior iterations the fingerprint cycle detector
+	// scans for a recurrence of the current open-findings set.
+	CycleWindow int `json:"cycle_window,omitempty"`
+	// NetProgressWindow (W) is the trailing iteration count over which net
+	// findings flow (closed − introduced) must clear NetProgressFloor.
+	NetProgressWindow int `json:"net_progress_window,omitempty"`
+	// NetProgressFloor is the minimum |net findings flow| over the window below
+	// which the loop is judged to be churning without net gain.
+	NetProgressFloor float64 `json:"net_progress_floor,omitempty"`
+	// SkillCooldown (C) is how many iterations a skill that regressed its own
+	// target dimension is deprioritized before it is eligible again.
+	SkillCooldown int `json:"skill_cooldown,omitempty"`
+	// RegressionVeto, when true, prominently flags (and applies cooldown to) any
+	// iteration whose net weighted score went up. P1 records the veto decision;
+	// speculative per-iteration rollback is out of scope.
+	RegressionVeto bool `json:"regression_veto,omitempty"`
+}
+
+// Layer-2 defaults: conservative so the cycle detector needs an exact repeat and
+// the net-progress window is wide. Applied when a profile leaves a knob at 0.
+const (
+	defaultCycleWindow       = 4
+	defaultNetProgressWindow = 3
+	defaultNetProgressFloor  = 0.0
+	defaultSkillCooldown     = 2
+)
+
+// cycleWindow returns the effective K.
+func (b Budget) cycleWindow() int {
+	if b.CycleWindow <= 0 {
+		return defaultCycleWindow
+	}
+	return b.CycleWindow
+}
+
+// netProgressWindow returns the effective W.
+func (b Budget) netProgressWindow() int {
+	if b.NetProgressWindow <= 0 {
+		return defaultNetProgressWindow
+	}
+	return b.NetProgressWindow
+}
+
+// netProgressFloor returns the effective net-progress floor.
+func (b Budget) netProgressFloor() float64 {
+	if b.NetProgressFloor < 0 {
+		return defaultNetProgressFloor
+	}
+	return b.NetProgressFloor
+}
+
+// skillCooldown returns the effective C.
+func (b Budget) skillCooldown() int {
+	if b.SkillCooldown <= 0 {
+		return defaultSkillCooldown
+	}
+	return b.SkillCooldown
 }
 
 // AutoSteerProfile is the controller's objective function for an improvement
@@ -287,6 +348,19 @@ type DecisionTraceEntry struct {
 	ScoreBefore       float64            `json:"score_before"`
 	ScoreAfter        float64            `json:"score_after"`
 	RealizedDelta     float64            `json:"realized_delta"`
+	// TokensUsed is the agent run's token cost for this iteration (0 = unknown).
+	TokensUsed int64 `json:"tokens_used"`
+	// ClosedByDimension / IntroducedByDimension are the per-dimension findings
+	// flow this iteration produced (filled after MEASURE, by stable finding ID).
+	ClosedByDimension     map[string]int `json:"closed_by_dimension,omitempty"`
+	IntroducedByDimension map[string]int `json:"introduced_by_dimension,omitempty"`
+	// Regressed is true when this iteration's net weighted score went up.
+	Regressed bool `json:"regressed,omitempty"`
+	// VetoApplied is true when the profile's regression veto fired this iteration.
+	VetoApplied bool `json:"veto_applied,omitempty"`
+	// HaltReason is set on the final iteration when the controller stopped,
+	// capturing why (objective_met, thrashing_cycle, no_net_progress, …).
+	HaltReason string `json:"halt_reason,omitempty"`
 }
 
 // ProfileExecutionState tracks the live state of an active controller run.

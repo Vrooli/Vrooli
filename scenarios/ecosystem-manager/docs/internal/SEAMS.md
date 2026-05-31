@@ -120,6 +120,36 @@ non-deterministic loop behavior into table-driven unit tests.
 | **Test fake** | Tests inject short/zero timeouts and pre-set timestamps via the mock agent service and synthetic state rather than racing real clocks. |
 | **Why it exists** | Timeout-driven branches (run took too long → stop) must be reachable without `time.Sleep`. Keeping time at the edge means the loop's decision logic never reads the wall clock directly. |
 
+### EffectivenessStore (the controller's learning ledger) — v1
+
+| | |
+|---|---|
+| **Seam** | Per-`(skill, dimension)` effectiveness ledger the bandit reads (selection) and credit assignment writes (after each iteration) |
+| **Interface** | [CODE: api/pkg/effectiveness/effectiveness.go]::`Store` (`Get`, `Bulk`, `Record`, `List`) |
+| **Production wiring** | `PostgresStore` ([CODE: api/pkg/effectiveness/postgres_store.go], table `skill_dimension_effectiveness`, created via `effectiveness.CreateSchema` from `autosteer.EnsureTablesExist`); injected into the orchestrator in `NewExecutionOrchestratorDefault`. Asserted with `var _ Store = (*PostgresStore)(nil)`. |
+| **Test fake** | `MemoryStore` ([CODE: api/pkg/effectiveness/memory_store.go]) — concurrency-safe in-memory ledger with an injectable clock; used by selector/credit tests. |
+| **Why it exists** | Keeps the bandit math out of `autosteer` so it is unit-testable in isolation, and lets selection/credit tests seed a deterministic efficacy history without Postgres. The derived efficacy (shrinkage prior) is computed on read, never stored, so the policy can evolve without a migration. |
+
+### RunCost source (token cost into the controller) — v1
+
+| | |
+|---|---|
+| **Seam** | The agent run's token cost flowing into credit assignment (reduction-per-token) |
+| **Interface** | [CODE: api/pkg/autosteer/run_cost.go]::`RunCost`; recorded via `ExecutionOrchestrator.RecordRunCost(taskID, RunCost)` and consumed once at the next `EvaluateIteration`. |
+| **Production wiring** | The queue extracts `tokensFromRun(*domainpb.Run)` from agent-manager's `RunSummary.TokensUsed` ([CODE: api/pkg/queue/execution_manager.go]) and calls `RecordRunCost` after a successful run. A zero total is an explicit "unknown" (not treated as free). |
+| **Test fake** | Tests call `RecordRunCost` directly (or pass a `RunCost` to credit-assignment tests); `tokensFromRun` is unit-tested against a fake `domainpb.Run`. |
+| **Why it exists** | The run executes out-of-band, so its cost arrives via this stash rather than a MEASURE return value. Isolating it lets credit/selection tests control token cost deterministically. |
+
+### EligibilityFilter (Layer-1 hard gate) — P2 seam, P1 default
+
+| | |
+|---|---|
+| **Seam** | Pre-selection skill gate (Layer-1 thrashing prevention / DTV) |
+| **Interface** | [CODE: api/pkg/autosteer/selector.go]::`EligibilityFilter` (`Allow(skillID, dim) bool`) |
+| **Production wiring** | `AllowAllFilter` (permissive) wired in `newSelector`. P2 swaps a development-toolchain-validator-backed filter without touching selection logic. The cold-start `prior` is likewise injected (uniform in P1) for DTV trust/cost priors. |
+| **Test fake** | Tests inject a custom filter or rely on the allow-all default. |
+| **Why it exists** | Reserves the DTV integration point now so P1 ships a clean seam and P2 wires Layer-1 without re-opening the selector. |
+
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching

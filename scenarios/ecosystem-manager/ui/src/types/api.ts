@@ -251,12 +251,45 @@ export interface DecisionTraceEntry {
   score_before?: number;
   score_after?: number;
   realized_delta?: number;
+  /** Agent run token cost for this iteration (0 = unknown). */
+  tokens_used?: number;
+  /** Per-dimension findings flow this iteration produced. */
+  closed_by_dimension?: Record<string, number>;
+  introduced_by_dimension?: Record<string, number>;
+  /** Net weighted score went up this iteration. */
+  regressed?: boolean;
+  /** The profile's regression veto fired this iteration. */
+  veto_applied?: boolean;
+  /** Terminal halt reason, set on the final iteration. */
+  halt_reason?: string;
 }
 
 export interface DecisionTraceResponse {
   task_id: string;
   trace: DecisionTraceEntry[];
   count: number;
+}
+
+/** One row of the per-(skill, dimension) effectiveness ledger. */
+export interface EffectivenessRow {
+  skill_id: string;
+  dimension: string;
+  closed_count: number;
+  introduced_count: number;
+  net_closed: number;
+  total_runs: number;
+  total_tokens: number;
+  avg_tokens_per_run: number;
+  observed_efficacy_per_ktok: number;
+  expected_efficacy_per_ktok: number;
+  last_run_at?: string;
+}
+
+export interface EffectivenessResponse {
+  effectiveness: EffectivenessRow[];
+  count: number;
+  prior: number;
+  shrinkage_k: number;
 }
 
 /** A built-in objective profile shipped with the system; same shape as a saved profile. */

@@ -42,7 +42,7 @@ import {
   extractSteeringFields,
 } from '@/components/steer/SteeringConfigPicker';
 import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfileEditorModal';
-import { DecisionTracePanel } from '@/components/steer/DecisionTracePanel';
+import { DecisionTracePanel, EffectivenessPanel } from '@/components/steer/DecisionTracePanel';
 import { InsightsTab } from '@/components/insights/InsightsTab';
 import { QueuePanel } from '@/components/steer/panels/QueuePanel';
 import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
@@ -995,8 +995,9 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                       </div>
                     )}
                     {task && (
-                      <div className="mt-3 border-t border-border/40 pt-3">
+                      <div className="mt-3 border-t border-border/40 pt-3 space-y-3">
                         <DecisionTracePanel taskId={task.id} />
+                        <EffectivenessPanel />
                       </div>
                     )}
                   </div>

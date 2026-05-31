@@ -94,22 +94,25 @@ keys on.
 which finding dimensions each steer skill targets. The linchpin of
 diagnosis-driven selection.
 
-**Effectiveness table (target)** — Per-`(skill, dimension)` memory
-tracking *efficacy* (findings closed per token, learned at runtime) and
-*trust/cost/stability* (primed by DTV). Powers both selection and
-thrashing damping.
+**Effectiveness table** — Per-`(skill, dimension)` memory tracking
+*efficacy* (findings closed per token, learned at runtime). Powers both
+selection and thrashing damping. Implemented (v1) in `pkg/effectiveness`
+(`skill_dimension_effectiveness` table). *Trust/cost/stability priors from
+DTV remain a P2 target.*
 
-**Credit assignment (target)** — After each run, diffing the findings set
-into closed/introduced/untouched and attributing the delta to the skill
-that ran, to update the effectiveness table.
+**Credit assignment** — After each run, diffing the findings set into
+closed/introduced (by stable finding ID, bucketed by dimension) and
+attributing the delta to the skill that ran, to update the effectiveness
+table. Implemented (v1) — `findings.DiffStates` + `effectiveness.Record`.
 
 **Thrashing** — Wasted oscillation. *Flavor 1* is intrinsic single-skill
 non-convergence (caught by DTV). *Flavor 2* is inter-skill oscillation on
 a live target (caught by runtime detection). See the three-layer defense
 in [`CONTROL-MODEL.md`](CONTROL-MODEL.md).
 
-**Findings fingerprint (target)** — A hash of the open-findings set used
-to detect state cycles (thrashing) in one repeat.
+**Findings fingerprint** — A SHA256 hash of the open-findings ID set used
+to detect state cycles (thrashing) in one repeat. Implemented (v1) —
+computed in `pkg/findings` and compared by the terminator's cycle detector.
 
 ## Integration Terms
 

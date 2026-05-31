@@ -2,6 +2,7 @@ package autosteer
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
@@ -20,6 +21,8 @@ const (
 	StopBudgetExhausted    = "budget_exhausted"
 	StopReasonContinue     = "continue"
 	StopNothingActionable  = "nothing_actionable"
+	StopThrashingCycle     = "thrashing_cycle"
+	StopNoNetProgress      = "no_net_progress"
 )
 
 // severityRank maps a configured max-open-severity string to a comparable rank.
@@ -106,7 +109,9 @@ func meanImprovement(history []float64) (float64, bool) {
 }
 
 // ShouldStop evaluates global termination. Order: objective-met (best outcome),
-// then budget backstop, then diminishing returns.
+// then the Layer-2 thrashing defenses (fingerprint cycle, then net-progress
+// stall — caught on first recurrence rather than at the backstop), then the
+// budget backstop, then diminishing returns.
 func (t *Terminator) ShouldStop(state *ProfileExecutionState, profile *AutoSteerProfile) (bool, string) {
 	if state == nil || profile == nil {
 		return false, StopReasonContinue
@@ -114,6 +119,21 @@ func (t *Terminator) ShouldStop(state *ProfileExecutionState, profile *AutoSteer
 
 	if met, reason := objectiveMet(state, profile); met {
 		return true, reason
+	}
+
+	if at := cycleRecurrence(state, profile.Budget.cycleWindow()); at > 0 {
+		return true, fmt.Sprintf(
+			"%s: current open-findings set recurred (last seen iteration %d) within a %d-iteration window",
+			StopThrashingCycle, at, profile.Budget.cycleWindow(),
+		)
+	}
+
+	if flow, ok := netFindingsFlow(state, profile.Budget.netProgressWindow()); ok &&
+		math.Abs(float64(flow)) <= profile.Budget.netProgressFloor() {
+		return true, fmt.Sprintf(
+			"%s: net findings flow %+d over last %d iterations within floor %.0f",
+			StopNoNetProgress, flow, profile.Budget.netProgressWindow(), profile.Budget.netProgressFloor(),
+		)
 	}
 
 	if profile.Budget.MaxIterations > 0 && state.Iteration >= profile.Budget.MaxIterations {
@@ -130,4 +150,46 @@ func (t *Terminator) ShouldStop(state *ProfileExecutionState, profile *AutoSteer
 	}
 
 	return false, StopReasonContinue
+}
+
+// cycleRecurrence reports the iteration at which the current open-findings
+// fingerprint was previously seen within the trailing window of k iterations, or
+// 0 if there is no recurrence. An empty fingerprint (no open findings) never
+// counts as a cycle — that path is handled by objective-met.
+func cycleRecurrence(state *ProfileExecutionState, k int) int {
+	fp := state.Findings.Fingerprint
+	if fp == "" || k <= 0 {
+		return 0
+	}
+	n := len(state.Trace)
+	start := n - k
+	if start < 0 {
+		start = 0
+	}
+	for i := start; i < n; i++ {
+		if state.Trace[i].Fingerprint == fp {
+			return state.Trace[i].Iteration
+		}
+	}
+	return 0
+}
+
+// netFindingsFlow sums (closed − introduced) across all dimensions over the
+// trailing w completed iterations. The bool is false until w iterations exist.
+func netFindingsFlow(state *ProfileExecutionState, w int) (int, bool) {
+	n := len(state.Trace)
+	if w <= 0 || n < w {
+		return 0, false
+	}
+	flow := 0
+	for i := n - w; i < n; i++ {
+		e := state.Trace[i]
+		for _, c := range e.ClosedByDimension {
+			flow += c
+		}
+		for _, c := range e.IntroducedByDimension {
+			flow -= c
+		}
+	}
+	return flow, true
 }
