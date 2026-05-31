@@ -36,7 +36,7 @@ import { OperatingModePanel } from "../components/initiative/operating-mode-pane
 import { FileServiceProvider } from "../contexts/FileServiceContext";
 import { createInitiativeFileServiceAdapter } from "../services/initiative-file-service-adapter";
 import { useUrlState } from "../hooks/use-url-state";
-import { useRuntimeConfig } from "../hooks/useRuntimeConfig";
+import { useDeleteConfirm } from "../hooks/useDeleteConfirm";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { dependencyAwareSort, computeDepthMap } from "../lib/dependency-sort";
 import { computeDependencyRelations } from "../lib/backlog-queue-utils";
@@ -304,8 +304,7 @@ export function InitiativeDetailsPage() {
   });
 
   const closeDetail = useAppBack();
-  const { getDeleteConfirmLevel } = useRuntimeConfig();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const { requestDelete, dialogProps: deleteDialogProps } = useDeleteConfirm("initiative");
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -319,12 +318,16 @@ export function InitiativeDetailsPage() {
   });
 
   const handleDeleteClick = useCallback(() => {
-    if (getDeleteConfirmLevel("initiative") === "none") {
-      deleteMutation.mutate();
-    } else {
-      setShowDeleteDialog(true);
-    }
-  }, [getDeleteConfirmLevel, deleteMutation]);
+    if (!initiative) return;
+    requestDelete({
+      entityName: initiative.name,
+      description: `Are you sure you want to delete "${initiative.title || initiative.name}"? This will remove the initiative and its metadata permanently.`,
+      confirmLabel: "Delete Initiative",
+      onConfirm: async () => {
+        await deleteMutation.mutateAsync();
+      },
+    });
+  }, [initiative, requestDelete, deleteMutation]);
 
   const isArchived = initiative?.archivedAt != null;
   const isArchiveActionPending = archiveMutation.isPending || unarchiveMutation.isPending;
@@ -1014,21 +1017,7 @@ export function InitiativeDetailsPage() {
       />
 
       {/* Delete confirmation dialog */}
-      {(() => {
-        const deleteLevel = getDeleteConfirmLevel("initiative");
-        return deleteLevel !== "none" ? (
-          <ConfirmDialog
-            isOpen={showDeleteDialog}
-            onClose={() => setShowDeleteDialog(false)}
-            onConfirm={() => { setShowDeleteDialog(false); deleteMutation.mutate(); }}
-            title="Delete Initiative"
-            description={`Are you sure you want to delete "${initiative.title || initiative.name}"? This will remove the initiative and its metadata permanently.`}
-            confirmationText={deleteLevel === "strong" ? initiative.name : undefined}
-            confirmLabel="Delete Initiative"
-            isLoading={deleteMutation.isPending}
-          />
-        ) : null;
-      })()}
+      <ConfirmDialog {...deleteDialogProps} />
     </DetailPageLayout>
   );
 }

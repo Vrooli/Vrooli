@@ -64,26 +64,44 @@ func deleteConfirmLevelFromProto(level domainpb.DeleteConfirmLevel) DeleteConfir
 	}
 }
 
+func deleteConfirmationLevelsToProto(levels map[string]DeleteConfirmLevel) map[string]domainpb.DeleteConfirmLevel {
+	if levels == nil {
+		return nil
+	}
+	out := make(map[string]domainpb.DeleteConfirmLevel, len(levels))
+	for k, v := range levels {
+		out[k] = deleteConfirmLevelToProto(v)
+	}
+	return out
+}
+
+func deleteConfirmationLevelsFromProto(levels map[string]domainpb.DeleteConfirmLevel) map[string]DeleteConfirmLevel {
+	if levels == nil {
+		return nil
+	}
+	out := make(map[string]DeleteConfirmLevel, len(levels))
+	for k, v := range levels {
+		out[k] = deleteConfirmLevelFromProto(v)
+	}
+	return out
+}
+
 func settingsToProto(s Settings) *domainpb.Settings {
 	return &domainpb.Settings{
-		Theme:                  s.Theme,
-		DefaultMode:            s.DefaultMode,
-		AutoFixup:              s.AutoFixup,
-		MaxFixupAttempts:       int32(s.MaxFixupAttempts),
-		ReviewAgentEnabled:     s.ReviewAgentEnabled,
-		MaxAutoRounds:          int32(s.MaxAutoRounds),
-		AutoInitializeWorkshop: s.AutoInitializeWorkshop,
-		AutoAdvanceWorkshop:    s.AutoAdvanceWorkshop,
-		AutoCascadeWorkshop:    s.AutoCascadeWorkshop,
-		AgentMaxTurns:          int32(s.AgentMaxTurns),
-		AgentTimeoutSeconds:    int32(s.AgentTimeoutSeconds),
-		SearchDebounceMs:       int32(s.SearchDebounceMs),
-		ToastDurationMs:        int32(s.ToastDurationMs),
-		DeleteConfirmation: &domainpb.DeleteConfirmationSettings{
-			Backlog:    deleteConfirmLevelToProto(s.DeleteConfirmation.Backlog),
-			Initiative: deleteConfirmLevelToProto(s.DeleteConfirmation.Initiative),
-			Capture:    deleteConfirmLevelToProto(s.DeleteConfirmation.Capture),
-		},
+		Theme:                         s.Theme,
+		DefaultMode:                   s.DefaultMode,
+		AutoFixup:                     s.AutoFixup,
+		MaxFixupAttempts:              int32(s.MaxFixupAttempts),
+		ReviewAgentEnabled:            s.ReviewAgentEnabled,
+		MaxAutoRounds:                 int32(s.MaxAutoRounds),
+		AutoInitializeWorkshop:        s.AutoInitializeWorkshop,
+		AutoAdvanceWorkshop:           s.AutoAdvanceWorkshop,
+		AutoCascadeWorkshop:           s.AutoCascadeWorkshop,
+		AgentMaxTurns:                 int32(s.AgentMaxTurns),
+		AgentTimeoutSeconds:           int32(s.AgentTimeoutSeconds),
+		SearchDebounceMs:              int32(s.SearchDebounceMs),
+		ToastDurationMs:               int32(s.ToastDurationMs),
+		DeleteConfirmationLevels:      deleteConfirmationLevelsToProto(s.DeleteConfirmationLevels),
 		ReviewCodeQualityMinScore:     s.ReviewCodeQualityMinScore,
 		ReviewTestMinPassRate:         s.ReviewTestMinPassRate,
 		ReviewMaxBlockingViolations:   int32(s.ReviewMaxBlockingViolations),
@@ -157,15 +175,8 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := int(*req.ToastDurationMs)
 		patch.ToastDurationMs = &v
 	}
-	if req.DeleteConfirmation != nil {
-		dc := &DeleteConfirmationSettingsPatch{}
-		b := deleteConfirmLevelFromProto(req.DeleteConfirmation.Backlog)
-		dc.Backlog = &b
-		i := deleteConfirmLevelFromProto(req.DeleteConfirmation.Initiative)
-		dc.Initiative = &i
-		c := deleteConfirmLevelFromProto(req.DeleteConfirmation.Capture)
-		dc.Capture = &c
-		patch.DeleteConfirmation = dc
+	if req.DeleteConfirmationLevels != nil {
+		patch.DeleteConfirmationLevels = deleteConfirmationLevelsFromProto(req.DeleteConfirmationLevels)
 	}
 	if req.ReviewCodeQualityMinScore != nil {
 		v := *req.ReviewCodeQualityMinScore
@@ -242,7 +253,7 @@ func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
 		req.AgentTimeoutSeconds == nil &&
 		req.SearchDebounceMs == nil &&
 		req.ToastDurationMs == nil &&
-		req.DeleteConfirmation == nil &&
+		req.DeleteConfirmationLevels == nil &&
 		req.ReviewCodeQualityMinScore == nil &&
 		req.ReviewTestMinPassRate == nil &&
 		req.ReviewMaxBlockingViolations == nil &&

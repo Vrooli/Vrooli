@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Check, Copy } from "lucide-react";
 import { Button } from "./button";
 import { Dialog } from "./dialog";
 
@@ -42,6 +42,7 @@ interface ConfirmDialogProps {
     dialog?: string;
     confirmButton?: string;
     cancelButton?: string;
+    copyButton?: string;
   };
   /** Optional side panel rendered inside the same dialog container */
   sidePanel?: ReactNode;
@@ -61,12 +62,14 @@ export function ConfirmDialog({
   sidePanel,
 }: ConfirmDialogProps) {
   const [inputValue, setInputValue] = useState("");
+  const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Reset input when dialog opens
   useEffect(() => {
     if (isOpen) {
       setInputValue("");
+      setCopied(false);
       // Focus input if confirmation text is required
       if (confirmationText) {
         setTimeout(() => inputRef.current?.focus(), 100);
@@ -74,9 +77,28 @@ export function ConfirmDialog({
     }
   }, [isOpen, confirmationText]);
 
+  // Clear the "copied" affordance after a short delay.
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
   if (!isOpen) return null;
 
   const canConfirm = !confirmationText || inputValue === confirmationText;
+
+  const handleCopy = async () => {
+    if (!confirmationText) return;
+    try {
+      await navigator.clipboard.writeText(confirmationText);
+    } catch {
+      // Clipboard may be unavailable (insecure context / denied permission).
+      // Fall back to pre-filling the input so the user can still confirm.
+      setInputValue(confirmationText);
+    }
+    setCopied(true);
+  };
 
   return (
     <Dialog
@@ -132,9 +154,23 @@ export function ConfirmDialog({
             {/* Confirmation input */}
             {confirmationText && (
               <div className="mb-4">
-                <p className="mb-2 text-sm text-slate-400">
-                  Type <code className="rounded bg-slate-800 px-1 py-0.5 text-red-400">{confirmationText}</code> to confirm:
-                </p>
+                <div className="mb-2 flex items-center gap-2 text-sm text-slate-400">
+                  <span>
+                    Type <code className="rounded bg-slate-800 px-1 py-0.5 text-red-400">{confirmationText}</code> to confirm:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    disabled={isLoading}
+                    className="inline-flex items-center gap-1 rounded border border-slate-700 px-1.5 py-0.5 text-xs text-slate-300 hover:border-slate-500 hover:text-slate-100 disabled:opacity-50"
+                    data-testid={testIds?.copyButton}
+                    aria-label={copied ? "Copied" : "Copy confirmation text"}
+                    title="Copy to clipboard"
+                  >
+                    {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                    {copied ? "Copied" : "Copy"}
+                  </button>
+                </div>
                 <input
                   ref={inputRef}
                   type="text"

@@ -12,8 +12,9 @@ import { settingsService } from "../services";
 import { DEFAULT_SETTINGS } from "../services/settings-service";
 import type { Settings } from "../types";
 import type { DeleteConfirmLevel } from "../types/settings";
+import { defaultLevelFor, type DeletableEntityType } from "../lib/deletable-entities";
 
-export type DeletableEntityType = "backlog" | "initiative" | "capture";
+export type { DeletableEntityType };
 
 export interface RuntimeConfig {
   searchDebounceMs: number;
@@ -33,6 +34,7 @@ export function useRuntimeConfig(): RuntimeConfig {
   return {
     searchDebounceMs: settings?.searchDebounceMs ?? uiBehaviorConfig.searchDebounceMs,
     toastDurationMs: settings?.toastDurationMs ?? uiBehaviorConfig.toastDurationMs,
-    getDeleteConfirmLevel: (entityType: DeletableEntityType) => dc[entityType],
+    getDeleteConfirmLevel: (entityType: DeletableEntityType) =>
+      dc[entityType] ?? defaultLevelFor(entityType),
   };
 }

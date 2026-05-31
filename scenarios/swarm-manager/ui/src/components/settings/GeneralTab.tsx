@@ -6,6 +6,7 @@ import { Card } from "../ui/card";
 import { Input } from "../ui/input";
 import { selectors } from "../../consts/selectors";
 import { DEFAULT_SETTINGS } from "../../services/settings-service";
+import { DELETABLE_ENTITIES } from "../../lib/deletable-entities";
 import type { Settings } from "../../types";
 import { ToggleButtons } from "./ToggleButtons";
 
@@ -104,22 +105,18 @@ export function GeneralTab({ form, patch, onThemeChange }: GeneralTabProps) {
           })}>Reset</button>
         </div>
         <div className="mt-4 space-y-4">
-          {([
-            { key: "backlog" as const, label: "Backlog Items", description: "Ideas, fixes, research, execute, and chore items" },
-            { key: "initiative" as const, label: "Initiatives", description: "Initiative groupings and their metadata" },
-            { key: "capture" as const, label: "Captures", description: "Captured notes and observations" },
-          ] as const).map(({ key, label, description }) => (
-            <div key={key} className="border-t border-white/5 pt-4 first:border-t-0 first:pt-0">
+          {DELETABLE_ENTITIES.map(({ type, label, description }) => (
+            <div key={type} className="border-t border-white/5 pt-4 first:border-t-0 first:pt-0">
               <label className="block text-sm font-medium text-slate-300">{label}</label>
               <p className="mt-1 text-xs text-slate-400">{description}</p>
               <ToggleButtons
-                value={form.deleteConfirmation[key]}
+                value={form.deleteConfirmation[type]}
                 options={[
                   { value: "none" as const, label: "None" },
                   { value: "simple" as const, label: "Simple" },
                   { value: "strong" as const, label: "Strong" },
                 ]}
-                onChange={(v) => patch({ deleteConfirmation: { ...form.deleteConfirmation, [key]: v } })}
+                onChange={(v) => patch({ deleteConfirmation: { ...form.deleteConfirmation, [type]: v } })}
               />
             </div>
           ))}

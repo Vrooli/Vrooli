@@ -5,7 +5,11 @@
 import { UpdateSettingsRequestSchema } from "@vrooli/proto-types/swarm-manager/v1/api/settings_pb";
 import { DeleteConfirmLevel } from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
 import type { IApiClient } from "../lib/api-client";
-import type { DeleteConfirmLevel as DomainDeleteConfirmLevel } from "../types/settings";
+import type {
+  DeleteConfirmLevel as DomainDeleteConfirmLevel,
+  DeleteConfirmationSettings,
+} from "../types/settings";
+import { defaultDeleteConfirmationLevels } from "../lib/deletable-entities";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type { Settings } from "../types";
@@ -44,7 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
   agentTimeoutSeconds: 900,
   searchDebounceMs: 300,
   toastDurationMs: 5000,
-  deleteConfirmation: { backlog: "simple", initiative: "strong", capture: "none" },
+  deleteConfirmation: defaultDeleteConfirmationLevels(),
   reviewCodeQualityMinScore: 60,
   reviewTestMinPassRate: 1.0,
   reviewMaxBlockingViolations: 0,
@@ -86,6 +90,23 @@ function normalizeLaneLimits(input?: Record<string, number>): Record<string, num
   return out;
 }
 
+/**
+ * Fill every known deletable entity key from registry defaults, overridden by
+ * any provided value. Unknown keys (e.g. from a newer API) are preserved so an
+ * older UI does not silently drop them on the next save.
+ */
+function normalizeDeleteConfirmation(
+  input?: Partial<Record<string, DomainDeleteConfirmLevel>>,
+): DeleteConfirmationSettings {
+  const out = defaultDeleteConfirmationLevels() as Record<string, DomainDeleteConfirmLevel>;
+  if (input) {
+    for (const [key, value] of Object.entries(input)) {
+      if (value) out[key] = value;
+    }
+  }
+  return out as DeleteConfirmationSettings;
+}
+
 function normalizeSettings(input?: SettingsPatch): Settings {
   if (!input) return DEFAULT_SETTINGS;
   return {
@@ -103,11 +124,7 @@ function normalizeSettings(input?: SettingsPatch): Settings {
     agentTimeoutSeconds: input.agentTimeoutSeconds ?? DEFAULT_SETTINGS.agentTimeoutSeconds,
     searchDebounceMs: input.searchDebounceMs ?? DEFAULT_SETTINGS.searchDebounceMs,
     toastDurationMs: input.toastDurationMs ?? DEFAULT_SETTINGS.toastDurationMs,
-    deleteConfirmation: {
-      backlog: input.deleteConfirmation?.backlog ?? DEFAULT_SETTINGS.deleteConfirmation.backlog,
-      initiative: input.deleteConfirmation?.initiative ?? DEFAULT_SETTINGS.deleteConfirmation.initiative,
-      capture: input.deleteConfirmation?.capture ?? DEFAULT_SETTINGS.deleteConfirmation.capture,
-    },
+    deleteConfirmation: normalizeDeleteConfirmation(input.deleteConfirmation),
     reviewCodeQualityMinScore: input.reviewCodeQualityMinScore ?? DEFAULT_SETTINGS.reviewCodeQualityMinScore,
     reviewTestMinPassRate: input.reviewTestMinPassRate ?? DEFAULT_SETTINGS.reviewTestMinPassRate,
     reviewMaxBlockingViolations: input.reviewMaxBlockingViolations ?? DEFAULT_SETTINGS.reviewMaxBlockingViolations,
@@ -154,11 +171,12 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
         ...(patch.searchDebounceMs !== undefined ? { searchDebounceMs: patch.searchDebounceMs } : {}),
         ...(patch.toastDurationMs !== undefined ? { toastDurationMs: patch.toastDurationMs } : {}),
         ...(patch.deleteConfirmation !== undefined ? {
-          deleteConfirmation: {
-            backlog: domainToProtoDeleteConfirmLevel(patch.deleteConfirmation.backlog),
-            initiative: domainToProtoDeleteConfirmLevel(patch.deleteConfirmation.initiative),
-            capture: domainToProtoDeleteConfirmLevel(patch.deleteConfirmation.capture),
-          },
+          deleteConfirmationLevels: Object.fromEntries(
+            Object.entries(patch.deleteConfirmation).map(([key, level]) => [
+              key,
+              domainToProtoDeleteConfirmLevel(level),
+            ]),
+          ),
         } : {}),
         ...(patch.reviewCodeQualityMinScore !== undefined ? { reviewCodeQualityMinScore: patch.reviewCodeQualityMinScore } : {}),
         ...(patch.reviewTestMinPassRate !== undefined ? { reviewTestMinPassRate: patch.reviewTestMinPassRate } : {}),

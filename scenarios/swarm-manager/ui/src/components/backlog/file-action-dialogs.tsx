@@ -15,6 +15,8 @@ import type { BacklogFile } from "../../types";
 
 export interface FileActionDialogsProps {
   activeAction: { action: FileActionType; target: BacklogFile } | null;
+  /** When true (strong level), require typing the file name to confirm delete. */
+  deleteRequiresName?: boolean;
   fileActionInput: string;
   fileActionError: string | null;
   fileActionPending: boolean;
@@ -25,6 +27,7 @@ export interface FileActionDialogsProps {
 
 export function FileActionDialogs({
   activeAction,
+  deleteRequiresName = false,
   fileActionInput,
   fileActionError,
   fileActionPending,
@@ -102,8 +105,14 @@ export function FileActionDialogs({
         onConfirm={onConfirm}
         title={`Delete ${activeAction?.target.type ?? "file"}`}
         description={`Delete "${activeAction?.target.path ?? ""}" from this ${fileService.entityLabel}? This cannot be undone.`}
+        confirmationText={
+          deleteRequiresName && activeAction
+            ? (activeAction.target.path.split("/").pop() || activeAction.target.path)
+            : undefined
+        }
         confirmLabel="Delete"
         isLoading={fileActionPending}
+        testIds={{ copyButton: "file-delete-copy" }}
       />
     </>
   );

@@ -15,6 +15,7 @@ import type { AgentSession } from "../../../../types";
 import type { SessionFilters, SortConfig } from "./types";
 import { SidebarEmptyState } from "./SidebarEmptyState";
 import { ConfirmDialog } from "../../../../components/ui/confirm-dialog";
+import { useDeleteConfirm } from "../../../../hooks/useDeleteConfirm";
 import { runBulkAction, summarizeBulkOutcomes, type BulkOutcome } from "./bulk-actions";
 
 interface SessionsTabProps {
@@ -213,7 +214,10 @@ function SessionBulkActions({ selectedSessions }: { selectedSessions: AgentSessi
   const deleteSession = useAgentSessionStore((s) => s.deleteSession);
   const fetchSessions = useAgentSessionStore((s) => s.fetchSessions);
   const [action, setAction] = useState<"refresh" | "cancel" | "delete">("refresh");
-  const [confirm, setConfirm] = useState<"cancel" | "delete" | null>(null);
+  // `confirm` now only gates the non-delete (cancel) action; delete routes
+  // through the shared useDeleteConfirm hook so it honors the session level.
+  const [confirm, setConfirm] = useState<"cancel" | null>(null);
+  const { requestDelete, dialogProps: deleteDialogProps } = useDeleteConfirm("session");
   const [running, setRunning] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [outcomes, setOutcomes] = useState<BulkOutcome[]>([]);
@@ -261,8 +265,19 @@ function SessionBulkActions({ selectedSessions }: { selectedSessions: AgentSessi
           type="button"
           disabled={selectedSessions.length === 0 || eligible.length === 0 || running}
           onClick={() => {
-            if (action === "cancel" || action === "delete") setConfirm(action);
-            else void execute();
+            if (action === "delete") {
+              requestDelete({
+                entityName: eligible.length === 1 ? (eligible[0]?.title ?? "session") : `${eligible.length} sessions`,
+                count: eligible.length,
+                description: `This permanently deletes ${eligible.length} session${eligible.length === 1 ? "" : "s"}. This action cannot be undone.`,
+                confirmLabel: "Delete selected",
+                onConfirm: execute,
+              });
+            } else if (action === "cancel") {
+              setConfirm("cancel");
+            } else {
+              void execute();
+            }
           }}
           className="inline-flex h-8 items-center gap-1.5 rounded border border-cyan-500/40 bg-cyan-500/10 px-2 text-xs font-medium text-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -273,14 +288,15 @@ function SessionBulkActions({ selectedSessions }: { selectedSessions: AgentSessi
       <div className="mt-1.5 text-[11px] text-slate-500">{eligible.length} eligible{summary ? ` - ${summary}` : ""}</div>
       {failed.length > 0 && <div className="mt-1 text-[11px] text-red-300">{failed.map((outcome) => <div key={outcome.id}>{outcome.label}: {outcome.message}</div>)}</div>}
       <ConfirmDialog
-        isOpen={confirm !== null}
+        isOpen={confirm === "cancel"}
         onClose={() => setConfirm(null)}
         onConfirm={() => void execute()}
-        title={confirm === "delete" ? "Delete selected sessions" : "Cancel selected sessions"}
-        description={`${confirm === "delete" ? "Delete" : "Cancel"} ${eligible.length} selected session${eligible.length === 1 ? "" : "s"}?`}
-        confirmLabel={confirm === "delete" ? "Delete selected" : "Cancel selected"}
+        title="Cancel selected sessions"
+        description={`Cancel ${eligible.length} selected session${eligible.length === 1 ? "" : "s"}?`}
+        confirmLabel="Cancel selected"
         isLoading={running}
       />
+      <ConfirmDialog {...deleteDialogProps} />
     </div>
   );
 }

@@ -4,11 +4,13 @@ import { SettingsResponseSchema } from "@vrooli/proto-types/swarm-manager/v1/api
 import type {
   Settings as SettingsDomain,
   DeleteConfirmLevel as DomainDeleteConfirmLevel,
+  DeleteConfirmationSettings,
   ExecutionMode,
   FixBeforeFeatureMode,
   ThemePreference,
 } from "../../types";
 import { EXECUTION_MODES } from "../../types";
+import { defaultDeleteConfirmationLevels } from "../../lib/deletable-entities";
 import { createProtoSchema } from "./shared";
 
 const executionModeSet = new Set<string>(EXECUTION_MODES);
@@ -61,6 +63,21 @@ function mapDeleteConfirmLevel(proto: DeleteConfirmLevel): DomainDeleteConfirmLe
   }
 }
 
+// Map the proto delete-confirmation map (entity-type → proto enum) to the
+// domain record, filling every known registry key from defaults and
+// preserving any unknown keys a newer API may send.
+function mapDeleteConfirmationLevels(
+  input?: Record<string, DeleteConfirmLevel>,
+): DeleteConfirmationSettings {
+  const out = defaultDeleteConfirmationLevels() as Record<string, DomainDeleteConfirmLevel>;
+  if (input) {
+    for (const [key, value] of Object.entries(input)) {
+      out[key] = mapDeleteConfirmLevel(value);
+    }
+  }
+  return out as DeleteConfirmationSettings;
+}
+
 export const settingsResponseSchema = createProtoSchema(
   SettingsResponseSchema,
   "settings"
@@ -83,11 +100,7 @@ export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
     agentTimeoutSeconds: protoSettings.agentTimeoutSeconds ?? 900,
     searchDebounceMs: protoSettings.searchDebounceMs ?? 300,
     toastDurationMs: protoSettings.toastDurationMs ?? 5000,
-    deleteConfirmation: {
-      backlog: mapDeleteConfirmLevel(protoSettings.deleteConfirmation?.backlog ?? DeleteConfirmLevel.SIMPLE),
-      initiative: mapDeleteConfirmLevel(protoSettings.deleteConfirmation?.initiative ?? DeleteConfirmLevel.SIMPLE),
-      capture: mapDeleteConfirmLevel(protoSettings.deleteConfirmation?.capture ?? DeleteConfirmLevel.SIMPLE),
-    },
+    deleteConfirmation: mapDeleteConfirmationLevels(protoSettings.deleteConfirmationLevels),
     reviewCodeQualityMinScore: protoSettings.reviewCodeQualityMinScore ?? 60,
     reviewTestMinPassRate: protoSettings.reviewTestMinPassRate ?? 1.0,
     reviewMaxBlockingViolations: protoSettings.reviewMaxBlockingViolations ?? 0,

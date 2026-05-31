@@ -4,6 +4,7 @@
 
 import type { Settings as ProtoSettings } from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
 import type { BacklogResearchResponse as ProtoBacklogResearchResponse } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
+import type { DeletableEntityType } from "../lib/deletable-entities";
 import type { ExecutionMode } from "./execution";
 import type { ProtoMessage } from "./shared";
 
@@ -18,20 +19,17 @@ export type ThemePreference = "dark" | "light" | "system";
 export type DeleteConfirmLevel = "none" | "simple" | "strong";
 
 /**
- * Per-entity-type delete confirmation settings.
+ * Per-entity-type delete confirmation settings. Keyed by the registry's
+ * DeletableEntityType so adding an entity type does not change this shape.
  */
-export type DeleteConfirmationSettings = {
-  backlog: DeleteConfirmLevel;
-  initiative: DeleteConfirmLevel;
-  capture: DeleteConfirmLevel;
-};
+export type DeleteConfirmationSettings = Record<DeletableEntityType, DeleteConfirmLevel>;
 
 /**
  * User preferences and configuration (unified settings including execution defaults).
  */
 export type Settings = Omit<
   ProtoMessage<ProtoSettings>,
-  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "autoAdvanceDelaySeconds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings" | "laneConcurrencyLimits" | "maxQueueDepth" | "circuitBreakerThreshold" | "circuitBreakerCooldownMinutes" | "executionCostCapPerRun" | "costPerTurnEstimate" | "deleteConfirmation" | "fixBeforeFeature"
+  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "autoAdvanceDelaySeconds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings" | "laneConcurrencyLimits" | "maxQueueDepth" | "circuitBreakerThreshold" | "circuitBreakerCooldownMinutes" | "executionCostCapPerRun" | "costPerTurnEstimate" | "deleteConfirmationLevels" | "fixBeforeFeature"
 > & {
   /** UI theme preference */
   theme: ThemePreference;

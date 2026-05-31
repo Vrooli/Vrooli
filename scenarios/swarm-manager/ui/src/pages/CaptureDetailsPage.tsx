@@ -19,7 +19,7 @@ import { PageLoadingState } from "../components/ui/loading-states";
 import { captureService } from "../services/capture-service";
 import { NoteEditor } from "../components/ui/note-editor";
 import { useCaptureStore } from "../stores/capture-store";
-import { useRuntimeConfig } from "../hooks/useRuntimeConfig";
+import { useDeleteConfirm } from "../hooks/useDeleteConfirm";
 import { formatRelativeTime } from "../lib";
 import type { Capture } from "../types";
 import type { BacklogFormValues } from "../types";
@@ -54,8 +54,7 @@ export function CaptureDetailsPage() {
   const upsertBacklogItem = useBacklogStore((s) => s.upsertItem);
 
   // Delete confirmation state
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const { getDeleteConfirmLevel } = useRuntimeConfig();
+  const { requestDelete, dialogProps: deleteDialogProps } = useDeleteConfirm("capture");
 
   // Edit dialog state
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -79,26 +78,25 @@ export function CaptureDetailsPage() {
     }
   }, [captureId, updateCapture]);
 
-  const performDelete = useCallback(async () => {
-    if (!captureId) return;
-    setIsDeleting(true);
-    setShowDeleteDialog(false);
-    try {
-      await captureService.remove(captureId);
-      removeCapture(captureId);
-      closeDetail();
-    } catch {
-      setIsDeleting(false);
-    }
-  }, [captureId, removeCapture, closeDetail]);
-
   const handleDeleteClick = useCallback(() => {
-    if (getDeleteConfirmLevel("capture") === "none") {
-      performDelete();
-    } else {
-      setShowDeleteDialog(true);
-    }
-  }, [getDeleteConfirmLevel, performDelete]);
+    if (!captureId) return;
+    requestDelete({
+      entityName: captureId,
+      description: "Are you sure you want to delete this capture? This action cannot be undone.",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setIsDeleting(true);
+        try {
+          await captureService.remove(captureId);
+          removeCapture(captureId);
+          closeDetail();
+        } catch (err) {
+          setIsDeleting(false);
+          throw err; // keep the confirm dialog open so the user can retry
+        }
+      },
+    });
+  }, [captureId, requestDelete, removeCapture, closeDetail]);
 
   const handleEditItem = useCallback((prefill: BacklogFormValues) => {
     setEditPrefill(prefill);
@@ -349,21 +347,7 @@ export function CaptureDetailsPage() {
       )}
 
       {/* Delete confirmation dialog */}
-      {(() => {
-        const deleteLevel = getDeleteConfirmLevel("capture");
-        return deleteLevel !== "none" ? (
-          <ConfirmDialog
-            isOpen={showDeleteDialog}
-            onClose={() => setShowDeleteDialog(false)}
-            onConfirm={performDelete}
-            title="Delete Capture"
-            description="Are you sure you want to delete this capture? This action cannot be undone."
-            confirmationText={deleteLevel === "strong" ? capture.id : undefined}
-            confirmLabel="Delete"
-            isLoading={isDeleting}
-          />
-        ) : null;
-      })()}
+      <ConfirmDialog {...deleteDialogProps} />
 
       {/* Edit before adding dialog */}
       <BacklogFormDialog

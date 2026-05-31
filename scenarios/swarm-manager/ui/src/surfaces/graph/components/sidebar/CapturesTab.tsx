@@ -20,6 +20,7 @@ import type { CaptureFilters, SortConfig } from "./types";
 import { captureDetailPath } from "../../../../app/routes/route-paths";
 import { SidebarEmptyState } from "./SidebarEmptyState";
 import { ConfirmDialog } from "../../../../components/ui/confirm-dialog";
+import { useDeleteConfirm } from "../../../../hooks/useDeleteConfirm";
 import { runBulkAction, summarizeBulkOutcomes, type BulkOutcome } from "./bulk-actions";
 
 interface CapturesTabProps {
@@ -198,7 +199,7 @@ function CaptureBulkActions({ selectedCaptures }: { selectedCaptures: Capture[] 
   const removeCapture = useCaptureStore((s) => s.removeCapture);
   const updateCapture = useCaptureStore((s) => s.updateCapture);
   const [action, setAction] = useState<"classify" | "delete">("classify");
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const { requestDelete, dialogProps: deleteDialogProps } = useDeleteConfirm("capture");
   const [running, setRunning] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [outcomes, setOutcomes] = useState<BulkOutcome[]>([]);
@@ -230,7 +231,6 @@ function CaptureBulkActions({ selectedCaptures }: { selectedCaptures: Capture[] 
       await fetchCaptures({ force: true });
     } finally {
       setRunning(false);
-      setConfirmDelete(false);
     }
   };
 
@@ -247,8 +247,17 @@ function CaptureBulkActions({ selectedCaptures }: { selectedCaptures: Capture[] 
           type="button"
           disabled={selectedCaptures.length === 0 || eligible.length === 0 || running}
           onClick={() => {
-            if (action === "delete") setConfirmDelete(true);
-            else void execute();
+            if (action === "delete") {
+              requestDelete({
+                entityName: eligible.length === 1 ? (eligible[0]?.text.slice(0, 48) || eligible[0]?.id || "capture") : `${eligible.length} captures`,
+                count: eligible.length,
+                description: `This permanently deletes ${eligible.length} capture${eligible.length === 1 ? "" : "s"}. This action cannot be undone.`,
+                confirmLabel: "Delete selected",
+                onConfirm: execute,
+              });
+            } else {
+              void execute();
+            }
           }}
           className="inline-flex h-8 items-center gap-1.5 rounded border border-cyan-500/40 bg-cyan-500/10 px-2 text-xs font-medium text-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -258,15 +267,7 @@ function CaptureBulkActions({ selectedCaptures }: { selectedCaptures: Capture[] 
       </div>
       <div className="mt-1.5 text-[11px] text-slate-500">{eligible.length} eligible{summary ? ` - ${summary}` : ""}</div>
       {failed.length > 0 && <div className="mt-1 text-[11px] text-red-300">{failed.map((outcome) => <div key={outcome.id}>{outcome.label}: {outcome.message}</div>)}</div>}
-      <ConfirmDialog
-        isOpen={confirmDelete}
-        onClose={() => setConfirmDelete(false)}
-        onConfirm={() => void execute()}
-        title="Delete selected captures"
-        description={`Delete ${eligible.length} selected capture${eligible.length === 1 ? "" : "s"}? This cannot be undone.`}
-        confirmLabel="Delete selected"
-        isLoading={running}
-      />
+      <ConfirmDialog {...deleteDialogProps} />
     </div>
   );
 }

@@ -184,6 +184,7 @@ export const literalSelectors = {
     deleteDialog: "backlog-delete-dialog",
     deleteConfirmButton: "backlog-delete-confirm",
     deleteCancelButton: "backlog-delete-cancel",
+    deleteCopyButton: "backlog-delete-copy",
     fileTree: "backlog-details-file-tree",
     filePreview: "backlog-details-file-preview",
     fileUpload: "backlog-details-file-upload",
@@ -269,6 +270,7 @@ export const literalSelectors = {
     deleteDialog: "scenario-delete-dialog",
     deleteConfirmButton: "scenario-delete-confirm",
     deleteCancelButton: "scenario-delete-cancel",
+    deleteCopyButton: "scenario-delete-copy",
     archiveCheckbox: "scenario-delete-archive",
     // Experience architecture additions (Phase 29)
     breadcrumb: "scenario-details-breadcrumb",

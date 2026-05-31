@@ -18,6 +18,7 @@ import { collectMatchingFiles, getBaseName, getParentPath, joinPath, normalizeDe
 import { selectors } from "../../consts/selectors";
 import type { BacklogFile } from "../../types";
 import { FileActionDialogs } from "./file-action-dialogs";
+import { useRuntimeConfig } from "../../hooks/useRuntimeConfig";
 import { useFileActionMenuRenderer } from "./file-action-menu";
 import { FileSearchResults, FileSearchResultsList } from "./file-search-results";
 
@@ -75,6 +76,7 @@ export function BacklogFileBrowser({
   onFileAction,
   onHeaderSlotChange,
 }: BacklogFileBrowserProps) {
+  const { getDeleteConfirmLevel } = useRuntimeConfig();
   const [fileSearch, setFileSearch] = useState("");
   const [recentFiles, setRecentFiles] = useState<BacklogFile[]>([]);
   const [showUpload, setShowUpload] = useState(false);
@@ -112,6 +114,11 @@ export function BacklogFileBrowser({
   }, [selectedFile?.path]);
 
   const openFileActionDialog = useCallback((action: FileActionType, target: BacklogFile) => {
+    // Level "none" deletes immediately without a confirmation dialog.
+    if (action === "delete" && getDeleteConfirmLevel("backlogFile") === "none") {
+      onFileAction(action, target);
+      return;
+    }
     setActiveFileAction({ action, target });
     setFileActionError(null);
     if (action === "rename") {
@@ -128,7 +135,7 @@ export function BacklogFileBrowser({
       return;
     }
     setFileActionInput("");
-  }, []);
+  }, [getDeleteConfirmLevel, onFileAction]);
 
   const handleFileContextMenu = useCallback((file: TreeFile, event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -290,6 +297,7 @@ export function BacklogFileBrowser({
 
       <FileActionDialogs
         activeAction={activeFileAction}
+        deleteRequiresName={getDeleteConfirmLevel("backlogFile") === "strong"}
         fileActionInput={fileActionInput}
         fileActionError={fileActionError}
         fileActionPending={fileActionPending}

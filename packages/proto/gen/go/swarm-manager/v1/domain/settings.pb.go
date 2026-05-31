@@ -81,6 +81,11 @@ func (DeleteConfirmLevel) EnumDescriptor() ([]byte, []int) {
 }
 
 // Per-entity-type delete confirmation settings.
+//
+// DEPRECATED: replaced by the open-ended Settings.delete_confirmation_levels
+// map keyed by entity-type string. Retained only so older persisted JSON and
+// any in-flight clients keep parsing; new code must use the map. No field of
+// this message is read by the current API.
 type DeleteConfirmationSettings struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Backlog       DeleteConfirmLevel     `protobuf:"varint,1,opt,name=backlog,proto3,enum=swarm_manager.v1.DeleteConfirmLevel" json:"backlog,omitempty"`
@@ -164,8 +169,12 @@ type Settings struct {
 	// UI preference settings.
 	SearchDebounceMs int32 `protobuf:"varint,13,opt,name=search_debounce_ms,json=searchDebounceMs,proto3" json:"search_debounce_ms,omitempty"`
 	ToastDurationMs  int32 `protobuf:"varint,14,opt,name=toast_duration_ms,json=toastDurationMs,proto3" json:"toast_duration_ms,omitempty"`
-	// Per-entity-type delete confirmation levels.
-	DeleteConfirmation *DeleteConfirmationSettings `protobuf:"bytes,33,opt,name=delete_confirmation,json=deleteConfirmation,proto3" json:"delete_confirmation,omitempty"`
+	// Per-entity-type delete confirmation levels, keyed by entity-type string
+	// (the UI's DeletableEntityType: "session", "scenario", "backlog",
+	// "initiative", "capture", "backlogFile", ...). Missing keys default to the
+	// entity's registry default. Unknown keys are preserved on save for
+	// forward-compatibility with newer UIs.
+	DeleteConfirmationLevels map[string]DeleteConfirmLevel `protobuf:"bytes,37,rep,name=delete_confirmation_levels,json=deleteConfirmationLevels,proto3" json:"delete_confirmation_levels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=swarm_manager.v1.DeleteConfirmLevel"`
 	// Review thresholds.
 	ReviewCodeQualityMinScore   float64 `protobuf:"fixed64,19,opt,name=review_code_quality_min_score,json=reviewCodeQualityMinScore,proto3" json:"review_code_quality_min_score,omitempty"`
 	ReviewTestMinPassRate       float64 `protobuf:"fixed64,20,opt,name=review_test_min_pass_rate,json=reviewTestMinPassRate,proto3" json:"review_test_min_pass_rate,omitempty"`
@@ -322,9 +331,9 @@ func (x *Settings) GetToastDurationMs() int32 {
 	return 0
 }
 
-func (x *Settings) GetDeleteConfirmation() *DeleteConfirmationSettings {
+func (x *Settings) GetDeleteConfirmationLevels() map[string]DeleteConfirmLevel {
 	if x != nil {
-		return x.DeleteConfirmation
+		return x.DeleteConfirmationLevels
 	}
 	return nil
 }
@@ -437,7 +446,7 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\n" +
 	"initiative\x18\x02 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\n" +
 	"initiative\x12>\n" +
-	"\acapture\x18\x03 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\acapture\"\xb8\x10\n" +
+	"\acapture\x18\x03 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\acapture\"\xdf\x11\n" +
 	"\bSettings\x120\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x126\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\vdefaultMode\x12\x1d\n" +
@@ -457,8 +466,8 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\x90\x1c(<R\x13agentTimeoutSeconds\x128\n" +
 	"\x12search_debounce_ms\x18\r \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xd0\x0f(dR\x10searchDebounceMs\x128\n" +
-	"\x11toast_duration_ms\x18\x0e \x01(\x05B\f\xbaH\t\x1a\a\x18\xb0\xea\x01(\xe8\aR\x0ftoastDurationMs\x12]\n" +
-	"\x13delete_confirmation\x18! \x01(\v2,.swarm_manager.v1.DeleteConfirmationSettingsR\x12deleteConfirmation\x12Y\n" +
+	"\x11toast_duration_ms\x18\x0e \x01(\x05B\f\xbaH\t\x1a\a\x18\xb0\xea\x01(\xe8\aR\x0ftoastDurationMs\x12v\n" +
+	"\x1adelete_confirmation_levels\x18% \x03(\v28.swarm_manager.v1.Settings.DeleteConfirmationLevelsEntryR\x18deleteConfirmationLevels\x12Y\n" +
 	"\x1dreview_code_quality_min_score\x18\x13 \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00Y@)\x00\x00\x00\x00\x00\x00\x00\x00R\x19reviewCodeQualityMinScore\x12Q\n" +
 	"\x19review_test_min_pass_rate\x18\x14 \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\xf0?)\x00\x00\x00\x00\x00\x00\x00\x00R\x15reviewTestMinPassRate\x12L\n" +
 	"\x1ereview_max_blocking_violations\x18\x15 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x1breviewMaxBlockingViolations\x12@\n" +
@@ -474,10 +483,13 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01B\x0e\xbaH\v\x12\t)\x00\x00\x00\x00\x00\x00\x00\x00R\x16executionCostCapPerRun\x12L\n" +
 	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13costPerTurnEstimate\x12H\n" +
 	"\x12fix_before_feature\x18# \x01(\tB\x1a\xbaH\x17r\x15R\x03offR\asuggestR\x05blockR\x10fixBeforeFeature\x12?\n" +
-	"\x1cfix_before_feature_discovery\x18$ \x01(\bR\x19fixBeforeFeatureDiscovery\x1aH\n" +
+	"\x1cfix_before_feature_discovery\x18$ \x01(\bR\x19fixBeforeFeatureDiscovery\x1aq\n" +
+	"\x1dDeleteConfirmationLevelsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12:\n" +
+	"\x05value\x18\x02 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\x05value:\x028\x01\x1aH\n" +
 	"\x1aLaneConcurrencyLimitsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10J\x04\b\x19\x10\x1aR\x17agent_requires_approvalR\x1bconfirm_destructive_actionsR\x19max_concurrent_executions*\x9b\x01\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10J\x04\b!\x10\"J\x04\b\x19\x10\x1aR\x17agent_requires_approvalR\x1bconfirm_destructive_actionsR\x13delete_confirmationR\x19max_concurrent_executions*\x9b\x01\n" +
 	"\x12DeleteConfirmLevel\x12$\n" +
 	" DELETE_CONFIRM_LEVEL_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bDELETE_CONFIRM_LEVEL_SIMPLE\x10\x01\x12\x1d\n" +
@@ -497,24 +509,26 @@ func file_swarm_manager_v1_domain_settings_proto_rawDescGZIP() []byte {
 }
 
 var file_swarm_manager_v1_domain_settings_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_swarm_manager_v1_domain_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_swarm_manager_v1_domain_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_swarm_manager_v1_domain_settings_proto_goTypes = []any{
 	(DeleteConfirmLevel)(0),            // 0: swarm_manager.v1.DeleteConfirmLevel
 	(*DeleteConfirmationSettings)(nil), // 1: swarm_manager.v1.DeleteConfirmationSettings
 	(*Settings)(nil),                   // 2: swarm_manager.v1.Settings
-	nil,                                // 3: swarm_manager.v1.Settings.LaneConcurrencyLimitsEntry
+	nil,                                // 3: swarm_manager.v1.Settings.DeleteConfirmationLevelsEntry
+	nil,                                // 4: swarm_manager.v1.Settings.LaneConcurrencyLimitsEntry
 }
 var file_swarm_manager_v1_domain_settings_proto_depIdxs = []int32{
 	0, // 0: swarm_manager.v1.DeleteConfirmationSettings.backlog:type_name -> swarm_manager.v1.DeleteConfirmLevel
 	0, // 1: swarm_manager.v1.DeleteConfirmationSettings.initiative:type_name -> swarm_manager.v1.DeleteConfirmLevel
 	0, // 2: swarm_manager.v1.DeleteConfirmationSettings.capture:type_name -> swarm_manager.v1.DeleteConfirmLevel
-	1, // 3: swarm_manager.v1.Settings.delete_confirmation:type_name -> swarm_manager.v1.DeleteConfirmationSettings
-	3, // 4: swarm_manager.v1.Settings.lane_concurrency_limits:type_name -> swarm_manager.v1.Settings.LaneConcurrencyLimitsEntry
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	3, // 3: swarm_manager.v1.Settings.delete_confirmation_levels:type_name -> swarm_manager.v1.Settings.DeleteConfirmationLevelsEntry
+	4, // 4: swarm_manager.v1.Settings.lane_concurrency_limits:type_name -> swarm_manager.v1.Settings.LaneConcurrencyLimitsEntry
+	0, // 5: swarm_manager.v1.Settings.DeleteConfirmationLevelsEntry.value:type_name -> swarm_manager.v1.DeleteConfirmLevel
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_settings_proto_init() }
@@ -528,7 +542,7 @@ func file_swarm_manager_v1_domain_settings_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_settings_proto_rawDesc), len(file_swarm_manager_v1_domain_settings_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

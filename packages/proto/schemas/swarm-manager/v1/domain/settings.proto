@@ -38,6 +38,11 @@ enum DeleteConfirmLevel {
 }
 
 // Per-entity-type delete confirmation settings.
+//
+// DEPRECATED: replaced by the open-ended Settings.delete_confirmation_levels
+// map keyed by entity-type string. Retained only so older persisted JSON and
+// any in-flight clients keep parsing; new code must use the map. No field of
+// this message is read by the current API.
 message DeleteConfirmationSettings {
   DeleteConfirmLevel backlog = 1;
   DeleteConfirmLevel initiative = 2;
@@ -77,8 +82,17 @@ message Settings {
   int32 toast_duration_ms = 14 [(buf.validate.field).int32 = { gte: 1000, lte: 30000 }];
   reserved 15;
   reserved "confirm_destructive_actions";
-  // Per-entity-type delete confirmation levels.
-  DeleteConfirmationSettings delete_confirmation = 33;
+  // Field 33 held the fixed-shape DeleteConfirmationSettings message
+  // (backlog/initiative/capture). Replaced by the open-ended map below so any
+  // deletable entity type can carry its own level. Reserved to prevent reuse.
+  reserved 33;
+  reserved "delete_confirmation";
+  // Per-entity-type delete confirmation levels, keyed by entity-type string
+  // (the UI's DeletableEntityType: "session", "scenario", "backlog",
+  // "initiative", "capture", "backlogFile", ...). Missing keys default to the
+  // entity's registry default. Unknown keys are preserved on save for
+  // forward-compatibility with newer UIs.
+  map<string, DeleteConfirmLevel> delete_confirmation_levels = 37;
 
   // Review thresholds.
   double review_code_quality_min_score = 19 [(buf.validate.field).double = { gte: 0, lte: 100 }];

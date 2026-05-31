@@ -4,9 +4,21 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"sort"
 
 	"github.com/vrooli/cli-core/cliutil"
 )
+
+// sortedStringMapKeys returns the keys of a string-valued map in stable
+// alphabetical order for deterministic CLI output.
+func sortedStringMapKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
 
 func (a *App) cmdSettingsGet(args []string) error {
 	fs := flag.NewFlagSet("settings get", flag.ContinueOnError)
@@ -25,26 +37,22 @@ func (a *App) cmdSettingsGet(args []string) error {
 
 	var response struct {
 		Settings struct {
-			Theme                  string `json:"theme"`
-			DefaultMode            string `json:"default_mode"`
-			DefaultDelaySeconds    int64  `json:"default_delay_seconds"`
-			AutoFixup              bool   `json:"auto_fixup"`
-			MaxFixupAttempts       int    `json:"max_fixup_attempts"`
-			AutoInitializeWorkshop bool   `json:"auto_initialize_workshop"`
-			AutoAdvanceWorkshop    bool   `json:"auto_advance_workshop"`
-			AutoCascadeWorkshop    bool   `json:"auto_cascade_workshop"`
-			MaxAutoRounds          int    `json:"max_auto_rounds"`
-			AgentMaxTurns          int    `json:"agent_max_turns"`
-			AgentTimeoutSeconds    int    `json:"agent_timeout_seconds"`
-			SearchDebounceMs       int    `json:"search_debounce_ms"`
-			ToastDurationMs        int    `json:"toast_duration_ms"`
-			DeleteConfirmation     struct {
-				Backlog    string `json:"backlog"`
-				Initiative string `json:"initiative"`
-				Capture    string `json:"capture"`
-			} `json:"delete_confirmation"`
-			FixBeforeFeature          string `json:"fix_before_feature"`
-			FixBeforeFeatureDiscovery bool   `json:"fix_before_feature_discovery"`
+			Theme                     string            `json:"theme"`
+			DefaultMode               string            `json:"default_mode"`
+			DefaultDelaySeconds       int64             `json:"default_delay_seconds"`
+			AutoFixup                 bool              `json:"auto_fixup"`
+			MaxFixupAttempts          int               `json:"max_fixup_attempts"`
+			AutoInitializeWorkshop    bool              `json:"auto_initialize_workshop"`
+			AutoAdvanceWorkshop       bool              `json:"auto_advance_workshop"`
+			AutoCascadeWorkshop       bool              `json:"auto_cascade_workshop"`
+			MaxAutoRounds             int               `json:"max_auto_rounds"`
+			AgentMaxTurns             int               `json:"agent_max_turns"`
+			AgentTimeoutSeconds       int               `json:"agent_timeout_seconds"`
+			SearchDebounceMs          int               `json:"search_debounce_ms"`
+			ToastDurationMs           int               `json:"toast_duration_ms"`
+			DeleteConfirmationLevels  map[string]string `json:"delete_confirmation_levels"`
+			FixBeforeFeature          string            `json:"fix_before_feature"`
+			FixBeforeFeatureDiscovery bool              `json:"fix_before_feature_discovery"`
 		} `json:"settings"`
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
@@ -77,9 +85,9 @@ func (a *App) cmdSettingsGet(args []string) error {
 	fmt.Printf("  Search debounce ms: %d\n", s.SearchDebounceMs)
 	fmt.Printf("  Toast duration ms: %d\n", s.ToastDurationMs)
 	fmt.Printf("  Delete confirmation:\n")
-	fmt.Printf("    Backlog:    %s\n", s.DeleteConfirmation.Backlog)
-	fmt.Printf("    Initiative: %s\n", s.DeleteConfirmation.Initiative)
-	fmt.Printf("    Capture:    %s\n", s.DeleteConfirmation.Capture)
+	for _, entity := range sortedStringMapKeys(s.DeleteConfirmationLevels) {
+		fmt.Printf("    %-12s %s\n", entity+":", s.DeleteConfirmationLevels[entity])
+	}
 
 	printCommandListSection("Next Steps", []string{
 		cliCommand("settings", "update", "--data", `'{"default_mode":"yolo"}'`),

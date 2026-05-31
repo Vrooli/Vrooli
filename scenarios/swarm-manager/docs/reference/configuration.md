@@ -74,9 +74,14 @@ These settings control auto-execution triggers for the workshop refinement syste
 | `toastDurationMs` | 5000 | 2000-10000 | Toast visibility duration |
 | `useSkeletonLoading` | true | boolean | Skeletons vs loading spinners |
 | `enableKeyboardShortcuts` | true | boolean | Enables tab shortcut keys |
-| `deleteConfirmation.backlog` | "simple" | "none"/"simple"/"strong" | Backlog item delete confirmation level |
-| `deleteConfirmation.initiative` | "strong" | "none"/"simple"/"strong" | Initiative delete confirmation level |
-| `deleteConfirmation.capture` | "none" | "none"/"simple"/"strong" | Capture delete confirmation level |
+| `delete_confirmation_levels.session` | "simple" | "none"/"simple"/"strong" | Session delete confirmation level |
+| `delete_confirmation_levels.scenario` | "strong" | "none"/"simple"/"strong" | Scenario delete confirmation level |
+| `delete_confirmation_levels.backlog` | "simple" | "none"/"simple"/"strong" | Backlog item delete confirmation level |
+| `delete_confirmation_levels.initiative` | "strong" | "none"/"simple"/"strong" | Initiative delete confirmation level |
+| `delete_confirmation_levels.capture` | "none" | "none"/"simple"/"strong" | Capture delete confirmation level |
+| `delete_confirmation_levels.backlogFile` | "simple" | "none"/"simple"/"strong" | Backlog file delete confirmation level |
+
+Delete confirmation is keyed by entity type (an open map, not fixed fields). `none` deletes immediately, `simple` shows an OK/Cancel dialog, and `strong` requires typing the entity's name (with a copy button) to confirm. Levels are configurable per entity type under **Settings → General → Delete Confirmation** and persist in `config/settings.json`. The set of deletable entity types is defined by the UI registry (`ui/src/lib/deletable-entities.ts`), mirrored in the API (`api/internal/settings/model.go`).
 
 ### API Configuration
 

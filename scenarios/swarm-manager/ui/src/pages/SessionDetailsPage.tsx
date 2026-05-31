@@ -16,7 +16,8 @@ import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { SessionArtifactList } from "../components/session/SessionArtifactList";
 import { SessionConversation } from "../components/session/SessionConversation";
-import { SessionDeleteDialog } from "../components/session/SessionDeleteDialog";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
+import { useDeleteConfirm } from "../hooks/useDeleteConfirm";
 import { SessionEventTimeline } from "../components/session/SessionEventTimeline";
 import { SessionInspector } from "../components/session/SessionInspector";
 import { SessionMetadata } from "../components/session/SessionMetadata";
@@ -89,7 +90,8 @@ export function SessionDetailsPage() {
   const [localError, setLocalError] = useState<string | null>(null);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const { requestDelete: requestDeleteSession, dialogProps: deleteDialogProps } =
+    useDeleteConfirm("session");
   const [mobileSection, setMobileSection] = useState<SessionSectionValue>("conversation");
   const sessionDraftKey = sessionId ? `swarm-session-draft:${sessionId}` : "swarm-session-draft:unknown";
   const sessionAttachments = useComposerImageAttachments(sessionId ? `swarm-session-attachments:${sessionId}` : "swarm-session-attachments:unknown");
@@ -198,17 +200,31 @@ export function SessionDetailsPage() {
     }
   }, [cancelSession, session]);
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback(() => {
     if (!session) return;
-    setLocalError(null);
-    try {
-      await deleteSession(session.id);
-      setDeleteDialogOpen(false);
-      closeDetail();
-    } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Unable to delete session.");
-    }
-  }, [closeDetail, deleteSession, session]);
+    requestDeleteSession({
+      entityName: session.title.trim() || session.id,
+      description:
+        "This removes the conversation, session details, proposal drafts, and session artifact links. Created backlog items, initiatives, captures, files, and agent activity records stay in Swarm Manager.",
+      confirmLabel: "Delete Session",
+      testIds: {
+        dialog: "session-delete-dialog",
+        confirmButton: "session-delete-confirm",
+        cancelButton: "session-delete-cancel",
+        copyButton: "session-delete-copy",
+      },
+      onConfirm: async () => {
+        setLocalError(null);
+        try {
+          await deleteSession(session.id);
+          closeDetail();
+        } catch (err) {
+          setLocalError(err instanceof Error ? err.message : "Unable to delete session.");
+          throw err; // keep the confirm dialog open so the user can retry
+        }
+      },
+    });
+  }, [closeDetail, deleteSession, requestDeleteSession, session]);
 
   const handleApply = useCallback(
     async (proposalId: string) => {
@@ -316,7 +332,7 @@ export function SessionDetailsPage() {
     {
       label: "Delete session",
       icon: <Trash2 />,
-      onSelect: () => setDeleteDialogOpen(true),
+      onSelect: handleDelete,
       disabled: deleteDisabled,
       destructive: true,
       testId: "session-delete-action",
@@ -491,13 +507,7 @@ export function SessionDetailsPage() {
           {mobileActions}
         </BottomSheet>
       )}
-      <SessionDeleteDialog
-        session={session}
-        isOpen={deleteDialogOpen}
-        isDeleting={isMutating}
-        onClose={() => setDeleteDialogOpen(false)}
-        onConfirm={() => void handleDelete()}
-      />
+      <ConfirmDialog {...deleteDialogProps} />
     </DetailPageLayout>
   );
 }

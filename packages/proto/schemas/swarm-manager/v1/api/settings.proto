@@ -60,8 +60,15 @@ message UpdateSettingsRequest {
   optional int32 toast_duration_ms = 14;
   reserved 15;
   reserved "confirm_destructive_actions";
-  // Per-entity-type delete confirmation levels.
-  DeleteConfirmationSettings delete_confirmation = 33;
+  // Field 33 held the fixed-shape DeleteConfirmationSettings message.
+  // Replaced by the open-ended map below. Reserved to prevent reuse.
+  reserved 33;
+  reserved "delete_confirmation";
+  // Per-entity-type delete confirmation levels, keyed by entity-type string.
+  // Absent map = leave delete confirmation untouched; a present map fully
+  // replaces the known-entity level set (unknown keys are preserved by the
+  // API for forward-compat).
+  map<string, DeleteConfirmLevel> delete_confirmation_levels = 37;
 
   // Review thresholds.
   optional double review_code_quality_min_score = 19;

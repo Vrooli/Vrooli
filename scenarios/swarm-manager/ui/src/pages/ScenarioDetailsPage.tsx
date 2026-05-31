@@ -37,6 +37,7 @@ import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { SCENARIO_LENSES } from "../components/detail/lens-options";
 import { useScenarioDetailData } from "../hooks/useScenarioDetailData";
+import { useRuntimeConfig } from "../hooks/useRuntimeConfig";
 import { useArchivePreferences } from "../hooks/useArchivePreferences";
 import { routeTargetToNodeId } from "../app/routes/route-paths";
 import { useAppBack } from "../app/routes/useAppBack";
@@ -69,6 +70,8 @@ export function ScenarioDetailsPage() {
 
   // Delete dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const { getDeleteConfirmLevel } = useRuntimeConfig();
+  const scenarioDeleteLevel = getDeleteConfirmLevel("scenario");
   const [archiveOnDelete, setArchiveOnDelete] = useState(true);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [showFileSelectionDialog, setShowFileSelectionDialog] = useState(false);
@@ -95,6 +98,12 @@ export function ScenarioDetailsPage() {
 
   // --- Delete handlers ---
   const handleDeleteClick = () => {
+    // Level "none" skips the confirmation dialog entirely, deleting with the
+    // current archive preferences (no interactive spec-sync flow).
+    if (scenarioDeleteLevel === "none") {
+      deleteMutationInternal.mutate({ archiveOnDelete, effectiveArchiveMode, customPaths, archivePreset });
+      return;
+    }
     setShowDeleteDialog(true);
     setFileTreeLoaded(false);
     resetSpecSync();
@@ -294,6 +303,7 @@ export function ScenarioDetailsPage() {
 
       <ScenarioDeleteDialog
         isOpen={showDeleteDialog}
+        requireNameConfirmation={scenarioDeleteLevel === "strong"}
         scenarioDisplayName={scenario?.displayName || name || ""}
         scenarioName={scenario?.name}
         isDeleteLoading={deleteMutationInternal.isPending}

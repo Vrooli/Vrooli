@@ -108,6 +108,66 @@ func TestDeleteConfirmLevelToProtoUsesExplicitSimple(t *testing.T) {
 	}
 }
 
+func TestNormalizeDeleteConfirmationLevels_FillsAndPreserves(t *testing.T) {
+	// Provide one valid known override, one invalid known value, omit the
+	// rest, and include an unknown forward-compat key.
+	raw := map[string]DeleteConfirmLevel{
+		"session":     DeleteConfirmStrong, // valid override
+		"capture":     DeleteConfirmLevel("bogus"),
+		"futureThing": DeleteConfirmNone, // unknown key, valid value
+		"futureBad":   DeleteConfirmLevel("x"),
+	}
+	out := normalizeDeleteConfirmationLevels(raw)
+
+	// Every known registry key must be present.
+	for key, def := range deletableEntityDefaults {
+		got, ok := out[key]
+		if !ok {
+			t.Fatalf("missing known key %q", key)
+		}
+		switch key {
+		case "session":
+			if got != DeleteConfirmStrong {
+				t.Errorf("session = %q, want strong (override honored)", got)
+			}
+		case "capture":
+			if got != def {
+				t.Errorf("capture = %q, want default %q (invalid coerced)", got, def)
+			}
+		default:
+			if got != def {
+				t.Errorf("%s = %q, want default %q", key, got, def)
+			}
+		}
+	}
+	// Unknown key with a valid value is preserved.
+	if out["futureThing"] != DeleteConfirmNone {
+		t.Errorf("futureThing = %q, want none (preserved)", out["futureThing"])
+	}
+	// Unknown key with an invalid value is coerced to simple, not dropped.
+	if out["futureBad"] != DeleteConfirmSimple {
+		t.Errorf("futureBad = %q, want simple (coerced, preserved)", out["futureBad"])
+	}
+}
+
+func TestApplyPatchDeleteConfirmationLevels_Merges(t *testing.T) {
+	current := DefaultSettings()
+	current.DeleteConfirmationLevels["futureThing"] = DeleteConfirmStrong
+
+	level := DeleteConfirmNone
+	patched := applyPatch(current, SettingsPatch{
+		DeleteConfirmationLevels: map[string]DeleteConfirmLevel{"session": level},
+	})
+
+	if patched.DeleteConfirmationLevels["session"] != DeleteConfirmNone {
+		t.Errorf("session = %q, want none (patched)", patched.DeleteConfirmationLevels["session"])
+	}
+	// Unknown existing key not in the patch survives the merge.
+	if patched.DeleteConfirmationLevels["futureThing"] != DeleteConfirmStrong {
+		t.Errorf("futureThing = %q, want strong (preserved across patch)", patched.DeleteConfirmationLevels["futureThing"])
+	}
+}
+
 func TestNormalizeIntFields(t *testing.T) {
 	type intCase struct {
 		name  string

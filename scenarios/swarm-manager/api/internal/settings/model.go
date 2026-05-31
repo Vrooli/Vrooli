@@ -27,18 +27,27 @@ const (
 	FixBeforeFeatureBlock   = "block"
 )
 
-// DeleteConfirmationSettings holds per-entity-type confirmation levels.
-type DeleteConfirmationSettings struct {
-	Backlog    DeleteConfirmLevel `json:"backlog"`
-	Initiative DeleteConfirmLevel `json:"initiative"`
-	Capture    DeleteConfirmLevel `json:"capture"`
+// deletableEntityDefaults mirrors the UI registry in
+// ui/src/lib/deletable-entities.ts. Keys are the entity-type strings shared
+// with the UI as the delete-confirmation map keys. Keep the two in sync when
+// adding a deletable entity type.
+var deletableEntityDefaults = map[string]DeleteConfirmLevel{
+	"session":     DeleteConfirmSimple,
+	"scenario":    DeleteConfirmStrong,
+	"backlog":     DeleteConfirmSimple,
+	"initiative":  DeleteConfirmStrong,
+	"capture":     DeleteConfirmNone,
+	"backlogFile": DeleteConfirmSimple,
 }
 
-// DeleteConfirmationSettingsPatch allows partial updates to delete confirmation.
-type DeleteConfirmationSettingsPatch struct {
-	Backlog    *DeleteConfirmLevel `json:"backlog,omitempty"`
-	Initiative *DeleteConfirmLevel `json:"initiative,omitempty"`
-	Capture    *DeleteConfirmLevel `json:"capture,omitempty"`
+// defaultDeleteConfirmationLevels returns a fresh copy of the registry
+// defaults so callers never mutate the shared map.
+func defaultDeleteConfirmationLevels() map[string]DeleteConfirmLevel {
+	out := make(map[string]DeleteConfirmLevel, len(deletableEntityDefaults))
+	for k, v := range deletableEntityDefaults {
+		out[k] = v
+	}
+	return out
 }
 
 // Settings represents persisted configuration for the scenario.
@@ -63,9 +72,14 @@ type Settings struct {
 	AgentTimeoutSeconds int `json:"agent_timeout_seconds"`
 
 	// UI preferences.
-	SearchDebounceMs   int                        `json:"search_debounce_ms"`
-	ToastDurationMs    int                        `json:"toast_duration_ms"`
-	DeleteConfirmation DeleteConfirmationSettings `json:"delete_confirmation"`
+	SearchDebounceMs int `json:"search_debounce_ms"`
+	ToastDurationMs  int `json:"toast_duration_ms"`
+	// DeleteConfirmationLevels maps a deletable entity-type string (mirroring
+	// the UI registry: "session", "scenario", "backlog", "initiative",
+	// "capture", "backlogFile", ...) to its confirmation level. Missing known
+	// keys are filled from registry defaults on normalize; unknown keys are
+	// preserved for forward-compat with newer UIs.
+	DeleteConfirmationLevels map[string]DeleteConfirmLevel `json:"delete_confirmation_levels"`
 
 	// Review thresholds.
 	ReviewCodeQualityMinScore   float64 `json:"review_code_quality_min_score"`
@@ -118,9 +132,12 @@ type SettingsPatch struct {
 	AgentMaxTurns       *int `json:"agent_max_turns,omitempty"`
 	AgentTimeoutSeconds *int `json:"agent_timeout_seconds,omitempty"`
 
-	SearchDebounceMs   *int                             `json:"search_debounce_ms,omitempty"`
-	ToastDurationMs    *int                             `json:"toast_duration_ms,omitempty"`
-	DeleteConfirmation *DeleteConfirmationSettingsPatch `json:"delete_confirmation,omitempty"`
+	SearchDebounceMs *int `json:"search_debounce_ms,omitempty"`
+	ToastDurationMs  *int `json:"toast_duration_ms,omitempty"`
+	// DeleteConfirmationLevels, when non-nil, merges the given entity→level
+	// pairs over the current map (provided keys overwrite; omitted keys and
+	// unknown existing keys are left intact). Pass nil to leave untouched.
+	DeleteConfirmationLevels map[string]DeleteConfirmLevel `json:"delete_confirmation_levels,omitempty"`
 
 	ReviewCodeQualityMinScore   *float64 `json:"review_code_quality_min_score,omitempty"`
 	ReviewTestMinPassRate       *float64 `json:"review_test_min_pass_rate,omitempty"`
@@ -181,15 +198,11 @@ func DefaultSettings() Settings {
 		AutoCascadeWorkshop:     true,
 		AutoAdvanceDelaySeconds: 10,
 		// Keep in sync with agentmanager.DefaultAgentMaxTurns (600).
-		AgentMaxTurns:       600,
-		AgentTimeoutSeconds: 3600,
-		SearchDebounceMs:    300,
-		ToastDurationMs:     5000,
-		DeleteConfirmation: DeleteConfirmationSettings{
-			Backlog:    DeleteConfirmSimple,
-			Initiative: DeleteConfirmStrong,
-			Capture:    DeleteConfirmNone,
-		},
+		AgentMaxTurns:            600,
+		AgentTimeoutSeconds:      3600,
+		SearchDebounceMs:         300,
+		ToastDurationMs:          5000,
+		DeleteConfirmationLevels: defaultDeleteConfirmationLevels(),
 
 		ReviewCodeQualityMinScore:   60,
 		ReviewTestMinPassRate:       1.0,
@@ -326,6 +339,29 @@ func normalizeDeleteConfirmLevel(level, fallback DeleteConfirmLevel) DeleteConfi
 	}
 }
 
+// normalizeDeleteConfirmationLevels canonicalizes the per-entity level map:
+// every known registry key is present (missing ones filled from defaults),
+// and any unknown key is preserved (forward-compat with newer UIs) but its
+// value is coerced to a valid level. Known keys with invalid values fall back
+// to the registry default; unknown keys with invalid values fall back to
+// simple confirmation (the safe default).
+func normalizeDeleteConfirmationLevels(raw map[string]DeleteConfirmLevel) map[string]DeleteConfirmLevel {
+	out := make(map[string]DeleteConfirmLevel, len(deletableEntityDefaults))
+	// Fill known keys from defaults, overridden by any valid provided value.
+	for key, def := range deletableEntityDefaults {
+		out[key] = normalizeDeleteConfirmLevel(raw[key], def)
+	}
+	// Preserve unknown keys so an older API does not clobber a newer UI's
+	// entity types; coerce their values to a valid level.
+	for key, val := range raw {
+		if _, known := deletableEntityDefaults[key]; known {
+			continue
+		}
+		out[key] = normalizeDeleteConfirmLevel(val, DeleteConfirmSimple)
+	}
+	return out
+}
+
 func normalizeSettings(settings Settings) Settings {
 	if strings.TrimSpace(settings.Theme) == "" {
 		settings.Theme = "dark"
@@ -352,10 +388,7 @@ func normalizeSettings(settings Settings) Settings {
 	// UI preferences.
 	settings.SearchDebounceMs = clampInt(settings.SearchDebounceMs, 100, 2000)
 	settings.ToastDurationMs = clampInt(settings.ToastDurationMs, 1000, 30000)
-	defaults := DefaultSettings()
-	settings.DeleteConfirmation.Backlog = normalizeDeleteConfirmLevel(settings.DeleteConfirmation.Backlog, defaults.DeleteConfirmation.Backlog)
-	settings.DeleteConfirmation.Initiative = normalizeDeleteConfirmLevel(settings.DeleteConfirmation.Initiative, defaults.DeleteConfirmation.Initiative)
-	settings.DeleteConfirmation.Capture = normalizeDeleteConfirmLevel(settings.DeleteConfirmation.Capture, defaults.DeleteConfirmation.Capture)
+	settings.DeleteConfirmationLevels = normalizeDeleteConfirmationLevels(settings.DeleteConfirmationLevels)
 
 	// Review thresholds.
 	settings.ReviewCodeQualityMinScore = clampFloat(settings.ReviewCodeQualityMinScore, 0, 100)
@@ -447,15 +480,14 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.ToastDurationMs != nil {
 		current.ToastDurationMs = *patch.ToastDurationMs
 	}
-	if patch.DeleteConfirmation != nil {
-		if patch.DeleteConfirmation.Backlog != nil {
-			current.DeleteConfirmation.Backlog = *patch.DeleteConfirmation.Backlog
+	if patch.DeleteConfirmationLevels != nil {
+		if current.DeleteConfirmationLevels == nil {
+			current.DeleteConfirmationLevels = make(map[string]DeleteConfirmLevel, len(patch.DeleteConfirmationLevels))
 		}
-		if patch.DeleteConfirmation.Initiative != nil {
-			current.DeleteConfirmation.Initiative = *patch.DeleteConfirmation.Initiative
-		}
-		if patch.DeleteConfirmation.Capture != nil {
-			current.DeleteConfirmation.Capture = *patch.DeleteConfirmation.Capture
+		// Merge provided keys over current; omitted and unknown existing keys
+		// are left intact. normalize fills/validates afterwards.
+		for k, v := range patch.DeleteConfirmationLevels {
+			current.DeleteConfirmationLevels[k] = v
 		}
 	}
 	if patch.ReviewCodeQualityMinScore != nil {

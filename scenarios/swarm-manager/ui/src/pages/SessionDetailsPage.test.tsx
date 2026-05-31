@@ -367,7 +367,9 @@ describe("SessionDetailsPage", () => {
     expect(screen.getByTestId("session-delete-action")).toHaveTextContent("Delete session");
   });
 
-  it("requires strong confirmation before deleting and navigates away on success", async () => {
+  it("confirms before deleting and navigates away on success", async () => {
+    // Sessions default to the `simple` confirmation level (the over-confirm fix),
+    // so the dialog has no type-the-name gate; confirm is enabled immediately.
     const deleteSession = vi.fn().mockResolvedValue(undefined);
     storeMock.useAgentSessionStore.setState({ deleteSession });
     renderPage();
@@ -377,10 +379,8 @@ describe("SessionDetailsPage", () => {
 
     expect(screen.getByTestId("session-delete-dialog")).toBeInTheDocument();
     expect(screen.getByText(/Created backlog items, initiatives, captures, files, and agent activity records stay/)).toBeInTheDocument();
-    expect(screen.getByTestId("session-delete-confirm")).toBeDisabled();
-
-    await userEvent.type(screen.getByPlaceholderText("Plan quality work"), "Plan quality work");
     expect(screen.getByTestId("session-delete-confirm")).toBeEnabled();
+
     await userEvent.click(screen.getByTestId("session-delete-confirm"));
 
     await waitFor(() => expect(deleteSession).toHaveBeenCalledWith("sess_meta"));
@@ -394,7 +394,6 @@ describe("SessionDetailsPage", () => {
 
     await userEvent.click(screen.getByTestId("session-desktop-header-actions"));
     await userEvent.click(screen.getByTestId("session-delete-action"));
-    await userEvent.type(screen.getByPlaceholderText("Plan quality work"), "Plan quality work");
     await userEvent.click(screen.getByTestId("session-delete-confirm"));
 
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("delete failed"));

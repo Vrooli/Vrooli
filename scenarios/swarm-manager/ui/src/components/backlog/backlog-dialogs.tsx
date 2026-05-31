@@ -107,6 +107,7 @@ export function BacklogDialogs({
             dialog: selectors.backlogDetails.deleteDialog,
             confirmButton: selectors.backlogDetails.deleteConfirmButton,
             cancelButton: selectors.backlogDetails.deleteCancelButton,
+            copyButton: selectors.backlogDetails.deleteCopyButton,
           }}
         />
       )}
