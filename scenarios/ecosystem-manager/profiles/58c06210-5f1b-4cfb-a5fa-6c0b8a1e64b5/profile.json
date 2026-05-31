@@ -1,54 +1,28 @@
 {
   "id": "58c06210-5f1b-4cfb-a5fa-6c0b8a1e64b5",
-  "name": "UX refactoring - major",
-  "description": "Use when the UX becomes hard to work with, and needs significant refactoring",
-  "phases": [
-    {
-      "id": "phase-1769528342943-0",
-      "skill_ids": ["react-stability"],
-      "skill_name": "React Stability",
-      "modes": [
-        "React"
-      ],
-      "stop_conditions": null,
-      "max_iterations": 5
+  "objective": {
+    "dimension_weights": {
+      "ui": 1.4,
+      "structure": 1.2,
+      "accessibility": 1.1,
+      "visual": 1.1,
+      "tidiness": 0.9
     },
-    {
-      "id": "phase-1769543424868-1",
-      "skill_ids": ["react-coherence"],
-      "skill_name": "React Coherence",
-      "modes": [
-        "React"
-      ],
-      "stop_conditions": null,
-      "max_iterations": 10
-    },
-    {
-      "id": "phase-1769543458065-2",
-      "skill_ids": ["code-cleanup"],
-      "skill_name": "Code Cleanup",
-      "modes": [
-        "Cleanup"
-      ],
-      "stop_conditions": null,
-      "max_iterations": 2
-    },
-    {
-      "id": "phase-1769543533546-3",
-      "skill_ids": ["utils-unification"],
-      "skill_name": "Utils Unification",
-      "modes": [
-        "Architecture",
-        "Refactor"
-      ],
-      "stop_conditions": null,
-      "max_iterations": 5
+    "targets": {
+      "max_open_severity": "warning",
+      "operational_targets_pct": 0
     }
+  },
+  "allowed_skills": [
+    "ux",
+    "refactor",
+    "screaming-architecture-audit",
+    "polish"
   ],
-  "quality_gates": null,
-  "created_at": "2026-01-27T15:40:03.913566954Z",
-  "updated_at": "2026-01-27T19:52:39.451511764Z",
-  "tags": [
-    "UX"
-  ]
+  "budget": {
+    "max_iterations": 40,
+    "diminishing_returns_floor": 0.02,
+    "reaudit_cadence": 4
+  },
+  "audit_preset": "comprehensive"
 }

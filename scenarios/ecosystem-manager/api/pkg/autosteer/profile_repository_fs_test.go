@@ -20,23 +20,13 @@ func TestFileProfileRepository_CRUD(t *testing.T) {
 	profile := &AutoSteerProfile{
 		Name:        "Test Profile",
 		Description: "Test profile description",
-		Phases: []SteerPhase{
-			{
-				ID:            "phase-1",
-				SkillIDs:      []string{"progress"},
-				SkillName:     "Progress",
-				MaxIterations: 3,
-				StopConditions: []StopCondition{
-					{
-						Type:            ConditionTypeSimple,
-						Metric:          "loops",
-						CompareOperator: OpGreaterThanEquals,
-						Value:           3,
-					},
-				},
-			},
+		Objective: Objective{
+			DimensionWeights: map[string]float64{"standards": 1.0},
+			Targets:          ObjectiveTargets{MaxOpenSeverity: "warning"},
 		},
-		Tags: []string{"test", "example"},
+		AllowedSkills: []string{"progress"},
+		Budget:        Budget{MaxIterations: 3, DiminishingReturnsFloor: 0.02},
+		Tags:          []string{"test", "example"},
 	}
 
 	if err := repo.CreateProfile(profile); err != nil {
@@ -91,23 +81,13 @@ func TestFileProfileRepository_ListAndTemplates(t *testing.T) {
 		ID:          "template-1",
 		Name:        "Template One",
 		Description: "Template profile",
-		Phases: []SteerPhase{
-			{
-				ID:            "phase-template",
-				SkillIDs:      []string{"progress"},
-				SkillName:     "Progress",
-				MaxIterations: 1,
-				StopConditions: []StopCondition{
-					{
-						Type:            ConditionTypeSimple,
-						Metric:          "loops",
-						CompareOperator: OpGreaterThanEquals,
-						Value:           1,
-					},
-				},
-			},
+		Objective: Objective{
+			DimensionWeights: map[string]float64{"standards": 1.0},
+			Targets:          ObjectiveTargets{MaxOpenSeverity: "warning"},
 		},
-		Tags: []string{"template"},
+		AllowedSkills: []string{"progress"},
+		Budget:        Budget{MaxIterations: 1, DiminishingReturnsFloor: 0.02},
+		Tags:          []string{"template"},
 	}
 	writeProfileFile(t, root, "templates/template-one/profile.json", template)
 
@@ -115,23 +95,13 @@ func TestFileProfileRepository_ListAndTemplates(t *testing.T) {
 		ID:          "profile-1",
 		Name:        "Profile One",
 		Description: "Regular profile",
-		Phases: []SteerPhase{
-			{
-				ID:            "phase-profile",
-				SkillIDs:      []string{"ux"},
-				SkillName:     "UX",
-				MaxIterations: 2,
-				StopConditions: []StopCondition{
-					{
-						Type:            ConditionTypeSimple,
-						Metric:          "loops",
-						CompareOperator: OpGreaterThanEquals,
-						Value:           2,
-					},
-				},
-			},
+		Objective: Objective{
+			DimensionWeights: map[string]float64{"ui": 1.0},
+			Targets:          ObjectiveTargets{MaxOpenSeverity: "warning"},
 		},
-		Tags: []string{"profile", "ux"},
+		AllowedSkills: []string{"ux"},
+		Budget:        Budget{MaxIterations: 2, DiminishingReturnsFloor: 0.02},
+		Tags:          []string{"profile", "ux"},
 	}
 	writeProfileFile(t, root, "profiles/profile-one/profile.json", profile)
 
@@ -190,22 +160,12 @@ func TestFileProfileRepository_ValidateMetadataMismatch(t *testing.T) {
 		ID:          "profile-1",
 		Name:        "Profile One",
 		Description: "Profile description",
-		Phases: []SteerPhase{
-			{
-				ID:            "phase-1",
-				SkillIDs:      []string{"progress"},
-				SkillName:     "Progress",
-				MaxIterations: 1,
-				StopConditions: []StopCondition{
-					{
-						Type:            ConditionTypeSimple,
-						Metric:          "loops",
-						CompareOperator: OpGreaterThanEquals,
-						Value:           1,
-					},
-				},
-			},
+		Objective: Objective{
+			DimensionWeights: map[string]float64{"standards": 1.0},
+			Targets:          ObjectiveTargets{MaxOpenSeverity: "warning"},
 		},
+		AllowedSkills: []string{"progress"},
+		Budget:        Budget{MaxIterations: 1, DiminishingReturnsFloor: 0.02},
 	}
 	writeProfileFile(t, root, "profiles/profile-one/profile.json", profile)
 

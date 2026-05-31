@@ -18,15 +18,26 @@ type ProfileListResponse struct {
 	Count    int       `json:"count"`
 }
 
-// Profile represents an auto-steer profile.
+// Profile represents an objective-function auto-steer profile.
 type Profile struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	TaskTypes   []string `json:"task_types,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-	Enabled     bool     `json:"enabled"`
-	Phases      []any    `json:"phases,omitempty"`
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Description   string   `json:"description,omitempty"`
+	Tags          []string `json:"tags,omitempty"`
+	AllowedSkills []string `json:"allowed_skills,omitempty"`
+	AuditPreset   string   `json:"audit_preset,omitempty"`
+	Objective     struct {
+		DimensionWeights map[string]float64 `json:"dimension_weights,omitempty"`
+		Targets          struct {
+			MaxOpenSeverity       string  `json:"max_open_severity,omitempty"`
+			OperationalTargetsPct float64 `json:"operational_targets_pct,omitempty"`
+		} `json:"targets"`
+	} `json:"objective"`
+	Budget struct {
+		MaxIterations           int     `json:"max_iterations"`
+		DiminishingReturnsFloor float64 `json:"diminishing_returns_floor"`
+		ReauditCadence          int     `json:"reaudit_cadence"`
+	} `json:"budget"`
 }
 
 // TemplateListResponse represents a list of auto-steer templates.
@@ -126,15 +137,12 @@ func cmdProfiles(ctx appctx.Context, args []string) error {
 
 	results := make([]string, 0, len(resp.Profiles))
 	for _, p := range resp.Profiles {
-		enabled := "enabled"
-		if !p.Enabled {
-			enabled = "disabled"
-		}
 		desc := ""
 		if p.Description != "" {
 			desc = fmt.Sprintf(" - %s", p.Description)
 		}
-		results = append(results, fmt.Sprintf("%s (%s)%s [%s]", p.Name, enabled, desc, p.ID))
+		results = append(results, fmt.Sprintf("%s (%d skills, max %d iters)%s [%s]",
+			p.Name, len(p.AllowedSkills), p.Budget.MaxIterations, desc, p.ID))
 	}
 	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("Auto-steer profiles available: %d", resp.Count)},
@@ -209,19 +217,27 @@ func cmdShow(ctx appctx.Context, args []string) error {
 	if profile.Description != "" {
 		summary = append(summary, fmt.Sprintf("Description: %s", profile.Description))
 	}
-	enabled := "yes"
-	if !profile.Enabled {
-		enabled = "no"
+	results := []string{}
+	if len(profile.AllowedSkills) > 0 {
+		results = append(results, fmt.Sprintf("Allowed skills: %v", profile.AllowedSkills))
 	}
-	results := []string{fmt.Sprintf("Enabled: %s", enabled)}
-	if len(profile.TaskTypes) > 0 {
-		results = append(results, fmt.Sprintf("Task types: %v", profile.TaskTypes))
+	if len(profile.Objective.DimensionWeights) > 0 {
+		results = append(results, fmt.Sprintf("Dimension weights: %v", profile.Objective.DimensionWeights))
+	}
+	if sev := profile.Objective.Targets.MaxOpenSeverity; sev != "" {
+		results = append(results, fmt.Sprintf("Target — max open severity: %s", sev))
+	}
+	if pct := profile.Objective.Targets.OperationalTargetsPct; pct > 0 {
+		results = append(results, fmt.Sprintf("Target — operational targets ≥ %.0f%%", pct))
+	}
+	results = append(results,
+		fmt.Sprintf("Budget — max iterations: %d, diminishing-returns floor: %.3f, re-audit cadence: %d",
+			profile.Budget.MaxIterations, profile.Budget.DiminishingReturnsFloor, profile.Budget.ReauditCadence))
+	if profile.AuditPreset != "" {
+		results = append(results, fmt.Sprintf("Audit preset: %s", profile.AuditPreset))
 	}
 	if len(profile.Tags) > 0 {
 		results = append(results, fmt.Sprintf("Tags: %v", profile.Tags))
-	}
-	if len(profile.Phases) > 0 {
-		results = append(results, fmt.Sprintf("Configured phases: %d", len(profile.Phases)))
 	}
 	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
 		Summary:        summary,

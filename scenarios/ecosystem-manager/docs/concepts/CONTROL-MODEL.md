@@ -279,17 +279,17 @@ practical.
 | Capability | Target (this doc) | Today |
 |---|---|---|
 | Execute via agent-manager | Yes | **Implemented** |
-| Measure (metrics collectors) | Yes | **Implemented** (scalar metrics) |
-| State = findings vector | Yes | **Not yet** — scalar metrics only |
-| Skill → dimension map (declared) | Yes | **Not yet** — implicit in profile order |
-| Selection (diagnose → pick) | Yes | **Not yet** — fixed per-phase order |
-| Effectiveness table + learning | Yes | **Not yet** |
-| Termination | Global, gradient | **Per-phase exit gates** + max-iterations |
-| Thrashing Layer 1 (DTV) | Yes | **Not wired** |
-| Thrashing Layer 2 (runtime) | Yes | **Not yet** |
+| Measure (metrics collectors) | Yes | **Implemented** (gap metrics; re-audit is primary) |
+| State = findings vector | Yes | **Implemented** (v0) — `pkg/findings` bucketed by dimension |
+| Skill → dimension map (declared) | Yes | **Implemented** (v0) — declared on skills, `pkg/skillmap` resolver |
+| Selection (diagnose → pick) | Yes | **Implemented** (v0) — greedy heaviest-dimension `Selector` |
+| Effectiveness table + learning | Yes | **Not yet** (v1) |
+| Termination | Global, gradient | **Implemented** (v0) — objective-met / diminishing-returns / budget |
+| Thrashing Layer 1 (DTV) | Yes | **Not wired** (v2) |
+| Thrashing Layer 2 (runtime) | Yes | **Not yet** (v1) — fingerprint computed now, no cycle-halting |
 | Thrashing Layer 3 (budget cap) | Yes | **Implemented** (max-iterations) |
-| DTV priors / eligibility gate | Yes | **Not wired** |
-| Decision-trace transparency | Yes | **Partial** (prompt enhancement shows phase/metrics) |
+| DTV priors / eligibility gate | Yes | **Not wired** (v2) |
+| Decision-trace transparency | Yes | **Implemented** (v0) — persisted trace + read API + UI panel |
 
 The implementation roadmap for closing this gap is tracked in
 [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) and

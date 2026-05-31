@@ -120,7 +120,6 @@ type promptPreviewRequest struct {
 	Targets            []string        `json:"targets,omitempty"`
 	SteerSet           []string        `json:"steer_set,omitempty"`
 	AutoSteerProfileID string          `json:"auto_steer_profile_id,omitempty"`
-	AutoSteerPhaseIdx  *int            `json:"auto_steer_phase_index,omitempty"`
 }
 
 func (r promptPreviewRequest) buildTask(defaultID string) tasks.TaskItem {
@@ -249,83 +248,30 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 
 	autoSteerEligible := tempTask.AutoSteerProfileID != "" && tempTask.Type == "scenario" && tempTask.Operation == "improver"
 
-	if autoSteerEligible && req.AutoSteerPhaseIdx != nil {
-		response["auto_steer_profile_id"] = tempTask.AutoSteerProfileID
-		response["auto_steer_phase_index"] = *req.AutoSteerPhaseIdx
-
-		if h.autoSteerProfiles == nil {
+	if autoSteerEligible && h.autoSteerProfiles != nil {
+		profile, err := h.autoSteerProfiles.GetProfile(tempTask.AutoSteerProfileID)
+		if err != nil {
 			response["auto_steer_applied"] = false
-			response["auto_steer_error"] = "Auto Steer profile service unavailable"
+			response["auto_steer_error"] = fmt.Sprintf("Failed to load profile: %v", err)
 		} else {
-			profile, err := h.autoSteerProfiles.GetProfile(tempTask.AutoSteerProfileID)
-			if err != nil {
-				response["auto_steer_applied"] = false
-				response["auto_steer_error"] = fmt.Sprintf("Failed to load profile: %v", err)
-			} else if *req.AutoSteerPhaseIdx < 0 || *req.AutoSteerPhaseIdx >= len(profile.Phases) {
-				response["auto_steer_applied"] = false
-				response["auto_steer_error"] = "Invalid phase index for profile"
-			} else {
-				phaseIdx := *req.AutoSteerPhaseIdx
-				state := autosteer.ProfileExecutionState{
-					TaskID:                tempTask.ID,
-					ProfileID:             profile.ID,
-					CurrentPhaseIndex:     phaseIdx,
-					CurrentPhaseIteration: 0,
-					AutoSteerIteration:    0,
-					PhaseHistory:          []autosteer.PhaseExecution{},
-					Metrics:               previewMetricsSnapshot(),
-					PhaseStartMetrics:     previewMetricsSnapshot(),
-					StartedAt:             time.Now(),
-					LastUpdated:           time.Now(),
-				}
-
-				enhancer := autosteer.NewPromptEnhancer()
-				evaluator := autosteer.NewConditionEvaluator()
-				autoSteerSection := enhancer.GenerateAutoSteerSection(&state, profile, evaluator)
-				prompt = autosteer.InjectSteeringSection(prompt, autoSteerSection)
-				if strings.TrimSpace(autoSteerSection) != "" {
-					response["auto_steer_applied"] = true
-					response["auto_steer_set"] = profile.Phases[phaseIdx].SkillIDs
-					response["auto_steer_phase_label"] = fmt.Sprintf("Phase %d", phaseIdx+1)
-				} else {
-					response["auto_steer_applied"] = false
-					response["auto_steer_error"] = "Auto Steer section was empty (prompt-manager may be unavailable)"
-				}
-			}
-		}
-	} else if autoSteerEligible && h.processor != nil && h.processor.AutoSteerIntegration() != nil {
-		autoSteer := h.processor.AutoSteerIntegration()
-		scenarioName := queue.GetScenarioNameFromTask(&tempTask)
-		if strings.TrimSpace(scenarioName) == "" {
-			scenarioName = "preview-scenario"
-		}
-
-		if err := autoSteer.InitializeAutoSteer(&tempTask, scenarioName); err != nil {
-			systemlog.Warnf("Prompt preview: failed to initialize Auto Steer for temp task %s: %v", tempTask.ID, err)
-			response["auto_steer_applied"] = false
-			response["auto_steer_error"] = err.Error()
-		} else {
-			if enhancedPrompt, err := autoSteer.EnhancePrompt(&tempTask, prompt); err != nil {
-				systemlog.Warnf("Prompt preview: failed to enhance prompt with Auto Steer for temp task %s: %v", tempTask.ID, err)
-				response["auto_steer_applied"] = false
-				response["auto_steer_error"] = err.Error()
-			} else if enhancedPrompt != "" {
-				prompt = enhancedPrompt
-				response["auto_steer_applied"] = true
-			}
-
-			if orchestrator := autoSteer.ExecutionOrchestrator(); orchestrator != nil {
-				if err := orchestrator.DeleteExecutionState(tempTask.ID); err != nil {
-					systemlog.Warnf("Prompt preview: failed to clean up Auto Steer state for temp task %s: %v", tempTask.ID, err)
-				}
-			}
+			// The controller selects a skill from a LIVE test-genie audit at run
+			// time, which is far too costly to run on a prompt preview. The
+			// preview is therefore a static rendering of the objective and the
+			// allowed-skill set the controller will choose from.
+			section := autosteer.PreviewControllerSection(profile)
+			prompt = autosteer.InjectSteeringSection(prompt, section)
+			response["auto_steer_profile_id"] = profile.ID
+			response["auto_steer_objective"] = profile.Objective
+			response["auto_steer_allowed_skills"] = profile.AllowedSkills
+			response["auto_steer_preview"] = true
+			response["auto_steer_applied"] = strings.TrimSpace(section) != ""
 		}
 	} else if tempTask.AutoSteerProfileID != "" {
 		response["auto_steer_applied"] = false
 		if tempTask.Type != "scenario" || tempTask.Operation != "improver" {
 			response["auto_steer_error"] = "Auto Steer currently supports scenario improver tasks only"
 		} else {
-			response["auto_steer_error"] = "Auto Steer integration unavailable"
+			response["auto_steer_error"] = "Auto Steer profile service unavailable"
 		}
 	}
 

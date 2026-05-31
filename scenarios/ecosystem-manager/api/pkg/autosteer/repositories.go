@@ -12,22 +12,19 @@ type ProfileRepository interface {
 // Compile-time interface assertion
 var _ ProfileRepository = (*FileProfileRepository)(nil)
 
-// ExecutionStateRepository abstracts persistence and state manipulation for ProfileExecutionState.
-// This interface includes both persistence operations and state helper methods to enable
-// proper dependency injection and testability of components that manage execution state.
+// ExecutionStateRepository abstracts persistence and lifecycle for the
+// controller's ProfileExecutionState.
 type ExecutionStateRepository interface {
 	// Persistence operations
 	Get(taskID string) (*ProfileExecutionState, error)
 	Save(state *ProfileExecutionState) error
 	Delete(taskID string) error
 
-	// State initialization and manipulation
-	InitializeState(taskID, profileID string, initialMetrics MetricsSnapshot) *ProfileExecutionState
-	IncrementIteration(state *ProfileExecutionState, newMetrics MetricsSnapshot)
-	AdvanceToNextPhase(state *ProfileExecutionState)
+	// InitializeState creates a fresh controller state for a task.
+	InitializeState(taskID, profileID string) *ProfileExecutionState
 
-	// Phase lifecycle
-	RecordPhaseCompletion(state *ProfileExecutionState, phase SteerPhase, stopReason string) error
+	// FinalizeExecution archives the completed run to history and removes the
+	// active state.
 	FinalizeExecution(state *ProfileExecutionState, scenarioName string) error
 }
 
@@ -46,19 +43,7 @@ type ExecutionHistoryRepository interface {
 // Compile-time interface assertion
 var _ ExecutionHistoryRepository = (*HistoryService)(nil)
 
-// MetricsProvider abstracts metrics collection for testability.
+// MetricsProvider abstracts gap-metric collection for testability.
 type MetricsProvider interface {
 	CollectMetrics(scenarioName string, phaseLoops, totalLoops int) (*MetricsSnapshot, error)
-}
-
-// ProfileExecution represents a completed profile execution for history tracking.
-type ProfileExecution struct {
-	ProfileID       string
-	TaskID          string
-	ScenarioName    string
-	StartMetrics    MetricsSnapshot
-	EndMetrics      MetricsSnapshot
-	PhaseBreakdown  []PhasePerformance
-	TotalIterations int
-	TotalDurationMs int64
 }

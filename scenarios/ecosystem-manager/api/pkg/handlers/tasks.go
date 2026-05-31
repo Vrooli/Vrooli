@@ -238,7 +238,8 @@ func (h *TaskHandlers) buildAutoSteerRuntime(tasks []tasks.TaskItem) map[string]
 		}
 
 		var idxPtr *int
-		idx := state.CurrentPhaseIndex
+		// The controller has no phases; surface the global iteration count.
+		idx := state.Iteration
 		idxPtr = &idx
 
 		skillSet, _ := orchestrator.GetCurrentSet(task.ID)

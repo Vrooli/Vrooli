@@ -5,11 +5,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 )
 
-// ExecutionStateManager handles persistence of profile execution state.
-// It owns all SQL operations for the profile_execution_state and profile_executions tables.
+// ExecutionStateManager handles persistence of the controller's execution
+// state. It owns all SQL for profile_execution_state and profile_executions.
 // Implements ExecutionStateRepository (assertion in repositories.go).
 type ExecutionStateManager struct {
 	db *sql.DB
@@ -26,89 +27,53 @@ func NewExecutionStateManager(db *sql.DB) *ExecutionStateManager {
 // Returns nil, nil if no execution state exists for the task.
 func (m *ExecutionStateManager) Get(taskID string) (*ProfileExecutionState, error) {
 	query := `
-		SELECT task_id, profile_id, current_phase_index, current_phase_iteration,
-		       auto_steer_iteration, phase_started_at, phase_history, metrics, phase_start_metrics, started_at, last_updated
+		SELECT task_id, profile_id, iteration, current_skill, current_rationale,
+		       findings, score_history, trace, metrics, started_at, last_updated
 		FROM profile_execution_state
 		WHERE task_id = $1
 	`
 
 	var state ProfileExecutionState
-	var phaseHistoryJSON, metricsJSON, phaseStartMetricsJSON []byte
-	var phaseStartedAt sql.NullTime
+	var findingsJSON, scoreHistoryJSON, traceJSON, metricsJSON []byte
 
 	err := m.db.QueryRow(query, taskID).Scan(
 		&state.TaskID,
 		&state.ProfileID,
-		&state.CurrentPhaseIndex,
-		&state.CurrentPhaseIteration,
-		&state.AutoSteerIteration,
-		&phaseStartedAt,
-		&phaseHistoryJSON,
+		&state.Iteration,
+		&state.CurrentSkill,
+		&state.CurrentRationale,
+		&findingsJSON,
+		&scoreHistoryJSON,
+		&traceJSON,
 		&metricsJSON,
-		&phaseStartMetricsJSON,
 		&state.StartedAt,
 		&state.LastUpdated,
 	)
-
 	if err == sql.ErrNoRows {
-		return nil, nil // No execution state for this task
+		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to query execution state: %w", err)
 	}
 
-	phaseHistoryMissing := isNullJSON(phaseHistoryJSON)
-	if !phaseHistoryMissing {
-		if err := json.Unmarshal(phaseHistoryJSON, &state.PhaseHistory); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal phase history: %w", err)
+	if !isNullJSON(findingsJSON) {
+		if err := json.Unmarshal(findingsJSON, &state.Findings); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal findings: %w", err)
 		}
-	} else {
-		state.PhaseHistory = []PhaseExecution{}
 	}
-
-	metricsMissing := isNullJSON(metricsJSON)
-	if !metricsMissing {
+	if !isNullJSON(scoreHistoryJSON) {
+		if err := json.Unmarshal(scoreHistoryJSON, &state.ScoreHistory); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal score history: %w", err)
+		}
+	}
+	if !isNullJSON(traceJSON) {
+		if err := json.Unmarshal(traceJSON, &state.Trace); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal trace: %w", err)
+		}
+	}
+	if !isNullJSON(metricsJSON) {
 		if err := json.Unmarshal(metricsJSON, &state.Metrics); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal metrics: %w", err)
-		}
-	}
-
-	phaseStartMissing := isNullJSON(phaseStartMetricsJSON)
-	if !phaseStartMissing {
-		if err := json.Unmarshal(phaseStartMetricsJSON, &state.PhaseStartMetrics); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal phase start metrics: %w", err)
-		}
-	}
-
-	if metricsMissing && !phaseStartMissing {
-		state.Metrics = state.PhaseStartMetrics
-	}
-
-	if phaseStartedAt.Valid {
-		state.PhaseStartedAt = phaseStartedAt.Time
-	} else {
-		state.PhaseStartedAt = state.StartedAt
-	}
-
-	if state.Metrics.Timestamp.IsZero() {
-		if !state.LastUpdated.IsZero() {
-			state.Metrics.Timestamp = state.LastUpdated
-		} else {
-			state.Metrics.Timestamp = state.StartedAt
-		}
-	}
-
-	if phaseStartMissing {
-		state.PhaseStartMetrics = state.Metrics
-	}
-
-	if state.PhaseStartMetrics.Timestamp.IsZero() {
-		if !state.PhaseStartedAt.IsZero() {
-			state.PhaseStartMetrics.Timestamp = state.PhaseStartedAt
-		} else if !state.StartedAt.IsZero() {
-			state.PhaseStartMetrics.Timestamp = state.StartedAt
-		} else {
-			state.PhaseStartMetrics.Timestamp = state.LastUpdated
 		}
 	}
 
@@ -117,48 +82,52 @@ func (m *ExecutionStateManager) Get(taskID string) (*ProfileExecutionState, erro
 
 // Save persists the execution state to the database (upsert).
 func (m *ExecutionStateManager) Save(state *ProfileExecutionState) error {
-	phaseHistoryJSON, err := json.Marshal(state.PhaseHistory)
+	findingsJSON, err := json.Marshal(state.Findings)
 	if err != nil {
-		return fmt.Errorf("failed to marshal phase history: %w", err)
+		return fmt.Errorf("failed to marshal findings: %w", err)
 	}
-
+	scoreHistoryJSON, err := json.Marshal(state.ScoreHistory)
+	if err != nil {
+		return fmt.Errorf("failed to marshal score history: %w", err)
+	}
+	traceJSON, err := json.Marshal(state.Trace)
+	if err != nil {
+		return fmt.Errorf("failed to marshal trace: %w", err)
+	}
 	metricsJSON, err := json.Marshal(state.Metrics)
 	if err != nil {
 		return fmt.Errorf("failed to marshal metrics: %w", err)
 	}
 
-	phaseStartMetricsJSON, err := json.Marshal(state.PhaseStartMetrics)
-	if err != nil {
-		return fmt.Errorf("failed to marshal phase start metrics: %w", err)
-	}
+	state.LastUpdated = time.Now()
 
 	query := `
 		INSERT INTO profile_execution_state (
-			task_id, profile_id, current_phase_index, current_phase_iteration, auto_steer_iteration, phase_started_at,
-			phase_history, metrics, phase_start_metrics, started_at, last_updated
+			task_id, profile_id, iteration, current_skill, current_rationale,
+			findings, score_history, trace, metrics, started_at, last_updated
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		ON CONFLICT (task_id) DO UPDATE SET
 			profile_id = EXCLUDED.profile_id,
-			current_phase_index = EXCLUDED.current_phase_index,
-			current_phase_iteration = EXCLUDED.current_phase_iteration,
-			auto_steer_iteration = EXCLUDED.auto_steer_iteration,
-			phase_started_at = EXCLUDED.phase_started_at,
-			phase_history = EXCLUDED.phase_history,
+			iteration = EXCLUDED.iteration,
+			current_skill = EXCLUDED.current_skill,
+			current_rationale = EXCLUDED.current_rationale,
+			findings = EXCLUDED.findings,
+			score_history = EXCLUDED.score_history,
+			trace = EXCLUDED.trace,
 			metrics = EXCLUDED.metrics,
-			phase_start_metrics = EXCLUDED.phase_start_metrics,
 			last_updated = EXCLUDED.last_updated
 	`
 
 	_, err = m.db.Exec(query,
 		state.TaskID,
 		state.ProfileID,
-		state.CurrentPhaseIndex,
-		state.CurrentPhaseIteration,
-		state.AutoSteerIteration,
-		state.PhaseStartedAt,
-		phaseHistoryJSON,
+		state.Iteration,
+		state.CurrentSkill,
+		state.CurrentRationale,
+		findingsJSON,
+		scoreHistoryJSON,
+		traceJSON,
 		metricsJSON,
-		phaseStartMetricsJSON,
 		state.StartedAt,
 		state.LastUpdated,
 	)
@@ -178,84 +147,37 @@ func (m *ExecutionStateManager) Delete(taskID string) error {
 	return nil
 }
 
-// RecordPhaseCompletion appends a completed phase to the execution history.
-func (m *ExecutionStateManager) RecordPhaseCompletion(state *ProfileExecutionState, phase SteerPhase, stopReason string) error {
+// InitializeState creates a new controller state for a task.
+func (m *ExecutionStateManager) InitializeState(taskID, profileID string) *ProfileExecutionState {
 	now := time.Now()
-
-	phaseExecution := PhaseExecution{
-		PhaseID:      phase.ID,
-		SkillIDs:     append([]string(nil), phase.SkillIDs...),
-		SkillName:    phase.SkillName,
-		WithScope:    phase.WithScope,
-		Scope:        phase.Scope,
-		Iterations:   state.CurrentPhaseIteration,
-		StartMetrics: state.PhaseStartMetrics,
-		EndMetrics:   state.Metrics,
-		Commits:      []string{}, // Git commits collection deferred
-		StartedAt:    state.PhaseStartedAt,
-		CompletedAt:  &now,
-		StopReason:   stopReason,
+	return &ProfileExecutionState{
+		TaskID:       taskID,
+		ProfileID:    profileID,
+		Iteration:    0,
+		ScoreHistory: []float64{},
+		Trace:        []DecisionTraceEntry{},
+		StartedAt:    now,
+		LastUpdated:  now,
 	}
-
-	state.PhaseHistory = append(state.PhaseHistory, phaseExecution)
-
-	return m.Save(state)
 }
 
-// FinalizeExecution archives the completed execution to history and removes active state.
+// FinalizeExecution archives the completed execution to history and removes
+// active state. The skill-performance breakdown is derived from the decision
+// trace (realized weighted-score reduction attributed to each skill).
 func (m *ExecutionStateManager) FinalizeExecution(state *ProfileExecutionState, scenarioName string) error {
-	// Get start metrics (from beginning of first phase)
-	var startMetrics MetricsSnapshot
-	if len(state.PhaseHistory) > 0 {
-		startMetrics = state.PhaseHistory[0].StartMetrics
-	} else {
-		startMetrics = state.Metrics
+	breakdown := skillBreakdownFromTrace(state.Trace)
+
+	metricsJSON, err := json.Marshal(state.Metrics)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metrics: %w", err)
+	}
+	breakdownJSON, err := json.Marshal(breakdown)
+	if err != nil {
+		return fmt.Errorf("failed to marshal skill breakdown: %w", err)
 	}
 
-	// Calculate total duration and iterations
 	totalDuration := time.Since(state.StartedAt).Milliseconds()
-	totalIterations := state.AutoSteerIteration
-	if totalIterations == 0 {
-		for _, phase := range state.PhaseHistory {
-			totalIterations += phase.Iterations
-		}
-	}
 
-	// Create phase breakdown
-	phaseBreakdown := make([]PhasePerformance, len(state.PhaseHistory))
-	for i, phase := range state.PhaseHistory {
-		var duration int64
-		if phase.CompletedAt != nil {
-			duration = phase.CompletedAt.Sub(phase.StartedAt).Milliseconds()
-		}
-
-		phaseBreakdown[i] = PhasePerformance{
-			SkillIDs:      append([]string(nil), phase.SkillIDs...),
-			SkillName:     phase.SkillName,
-			Iterations:    phase.Iterations,
-			MetricDeltas:  calculateMetricDeltas(phase.StartMetrics, phase.EndMetrics),
-			Duration:      duration,
-			Effectiveness: calculateEffectiveness(phase),
-		}
-	}
-
-	// Marshal JSON fields
-	startMetricsJSON, err := json.Marshal(startMetrics)
-	if err != nil {
-		return fmt.Errorf("failed to marshal start metrics: %w", err)
-	}
-
-	endMetricsJSON, err := json.Marshal(state.Metrics)
-	if err != nil {
-		return fmt.Errorf("failed to marshal end metrics: %w", err)
-	}
-
-	phaseBreakdownJSON, err := json.Marshal(phaseBreakdown)
-	if err != nil {
-		return fmt.Errorf("failed to marshal phase breakdown: %w", err)
-	}
-
-	// Insert into profile_executions table
 	query := `
 		INSERT INTO profile_executions (
 			profile_id, task_id, scenario_name, start_metrics, end_metrics,
@@ -263,58 +185,50 @@ func (m *ExecutionStateManager) FinalizeExecution(state *ProfileExecutionState, 
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 
-	_, err = m.db.Exec(query,
+	// Gap metrics are not the primary state; start and end carry the latest
+	// snapshot for analytics continuity.
+	if _, err := m.db.Exec(query,
 		state.ProfileID,
 		state.TaskID,
 		scenarioName,
-		startMetricsJSON,
-		endMetricsJSON,
-		phaseBreakdownJSON,
-		totalIterations,
+		metricsJSON,
+		metricsJSON,
+		breakdownJSON,
+		state.Iteration,
 		totalDuration,
 		time.Now(),
-	)
-	if err != nil {
+	); err != nil {
 		return fmt.Errorf("failed to insert profile execution: %w", err)
 	}
 
-	// Delete execution state (it's now in history)
 	return m.Delete(state.TaskID)
 }
 
-// InitializeState creates a new execution state for a task.
-func (m *ExecutionStateManager) InitializeState(taskID, profileID string, initialMetrics MetricsSnapshot) *ProfileExecutionState {
-	now := time.Now()
-	return &ProfileExecutionState{
-		TaskID:                taskID,
-		ProfileID:             profileID,
-		CurrentPhaseIndex:     0,
-		CurrentPhaseIteration: 0,
-		AutoSteerIteration:    0,
-		PhaseStartedAt:        now,
-		PhaseHistory:          []PhaseExecution{},
-		Metrics:               initialMetrics,
-		PhaseStartMetrics:     initialMetrics,
-		StartedAt:             now,
-		LastUpdated:           now,
+// skillBreakdownFromTrace aggregates the decision trace into per-skill
+// performance records (iterations run and total realized weighted-score
+// reduction).
+func skillBreakdownFromTrace(trace []DecisionTraceEntry) []SkillPerformance {
+	bySkill := map[string]*SkillPerformance{}
+	order := make([]string, 0)
+	for _, e := range trace {
+		if e.ChosenSkill == "" {
+			continue
+		}
+		sp, ok := bySkill[e.ChosenSkill]
+		if !ok {
+			sp = &SkillPerformance{SkillName: e.ChosenSkill}
+			bySkill[e.ChosenSkill] = sp
+			order = append(order, e.ChosenSkill)
+		}
+		sp.Iterations++
+		sp.WeightedDelta += e.RealizedDelta
 	}
-}
-
-// AdvanceToNextPhase updates the state to move to the next phase.
-func (m *ExecutionStateManager) AdvanceToNextPhase(state *ProfileExecutionState) {
-	state.CurrentPhaseIndex++
-	state.CurrentPhaseIteration = 0
-	state.PhaseStartMetrics = state.Metrics
-	state.PhaseStartedAt = time.Now()
-	state.LastUpdated = time.Now()
-}
-
-// IncrementIteration increments the iteration counters and updates metrics.
-func (m *ExecutionStateManager) IncrementIteration(state *ProfileExecutionState, newMetrics MetricsSnapshot) {
-	state.AutoSteerIteration++
-	state.CurrentPhaseIteration++
-	state.Metrics = newMetrics
-	state.LastUpdated = time.Now()
+	sort.Strings(order)
+	out := make([]SkillPerformance, 0, len(order))
+	for _, name := range order {
+		out = append(out, *bySkill[name])
+	}
+	return out
 }
 
 func isNullJSON(data []byte) bool {

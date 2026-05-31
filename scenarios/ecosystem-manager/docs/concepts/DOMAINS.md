@@ -26,7 +26,7 @@ in [`DATA.md`](DATA.md).
 |---|---|---|---|---|
 | tasks | The unit of work: type (scenario/resource) × operation (generator/improver), target, priority, status. | `task_executions`; queue YAML | API, CLI, UI | `api/pkg/tasks/`, `cli/` task group, `ui/src/components/kanban/` |
 | queue | Schedule, execute, rate-limit, and track task runs via agent-manager. | queue `<status>/` dirs; execution registry | API, CLI, UI | `api/pkg/queue/` |
-| auto-steer | The improvement **control loop**: profiles, phase execution, stop conditions, metrics, history, analytics. | `profile_execution_state`, `profile_executions`; `profiles/*.json` | API, CLI, UI | `api/pkg/autosteer/`, `profiles/`, `ui/src/components/steer/` |
+| auto-steer | The closed-loop **controller**: objective profiles, diagnose (findings)→select→measure→terminate, decision trace, history, analytics. | `profile_execution_state`, `profile_executions`, `decision_trace`; `profiles/*.json` | API, CLI, UI | `api/pkg/autosteer/`, `api/pkg/{findings,skillmap,dimensions}/`, `profiles/`, `ui/src/components/steer/` |
 | steering | Selects the steering mode (profile / queue / manual / none) for a task. | `steering_queue_state` | API, UI | `api/pkg/steering/` |
 | settings | Processor configuration (concurrency, auto-requeue, runner models). | settings state | API, UI | `api/pkg/settings/` |
 | discovery | Catalog of improvable scenarios/resources and their PRD completion. | none (reads repo + `PRD.md`) | API, UI | `api/pkg/discovery/` |
@@ -54,32 +54,38 @@ in [`DATA.md`](DATA.md).
   history, and decides requeue-vs-stop for steered tasks.
 - Owns: processor lifecycle, the execution registry, timeout watchdog.
 - Key control-loop seam: `queue/autosteer_integration.go`
-  (`ShouldContinueTask`) is where a steered task is re-evaluated and
-  either requeued in the current phase, advanced, or stopped.
+  (`ShouldContinueTask`) is where a steered task is re-evaluated by the
+  controller (re-audit → select next skill, or finalize) and either
+  requeued or stopped.
 - Surfaces: `GET /api/queue/status`, `POST /api/queue/{trigger,start,stop,reset-rate-limit}`,
   `POST /api/queue/processes/terminate`, `POST /api/maintenance/state`.
 
 ### auto-steer
 
-- Purpose: drive a target toward an objective by applying steer skills
-  across iterations and deciding when to advance/stop. This is the
-  domain the [control model](CONTROL-MODEL.md) describes.
-- Owns: profiles (`profiles/*.json` + `metadata.json`), execution state
-  (`profile_execution_state`), execution history (`profile_executions`),
-  the metrics collectors, condition evaluation, phase coordination.
-- Internal structure: orchestrator (`execution_orchestrator.go`),
-  iteration evaluator, phase coordinator (`phase_coordinator.go`),
-  condition evaluator (`evaluator.go`), metrics collectors (`metrics*.go`),
-  state manager (Postgres), profile repository (filesystem),
-  history/analytics services.
-- Today vs target: today a profile is a fixed ordered phase list with
-  metric exit gates (an open-loop schedule); the target is a closed-loop
-  controller with diagnosis-driven selection and a learned effectiveness
-  table — see [`CONTROL-MODEL.md`](CONTROL-MODEL.md).
-- Surfaces: the `/api/auto-steer/*` route group; CLI `steer` group; UI
-  steering panels.
-- Tests: extensive unit tests (orchestrator, phase coordinator,
-  evaluator, metrics) — see [`../internal/TESTING.md`](../internal/TESTING.md).
+- Purpose: drive a target toward an objective by diagnosing its open
+  findings, selecting the skill that best closes the heaviest dimension,
+  re-auditing, and terminating on a global gradient. This is the domain
+  the [control model](CONTROL-MODEL.md) describes.
+- Owns: objective profiles (`profiles/*.json` + `metadata.json`),
+  execution state (`profile_execution_state`), decision trace
+  (`decision_trace`), execution history (`profile_executions`), the gap
+  metrics collectors, and history/analytics services.
+- Internal structure: controller orchestrator (`execution_orchestrator.go`),
+  greedy `Selector` (`selector.go`), gradient `Terminator` (`terminator.go`),
+  findings ingestion (`pkg/findings`), skill→dimension resolver
+  (`pkg/skillmap`), dimension vocabulary (`pkg/dimensions`), decision-trace
+  store (`decision_trace.go`), state manager (Postgres), profile repository
+  (filesystem), gap-metrics collectors (`metrics*.go`).
+- Status: v0 closed-loop controller is implemented (findings state,
+  declared skill→dimension map, greedy selection, gradient termination,
+  decision trace). The effectiveness table / bandit / DTV priors are v1/v2
+  — see [`CONTROL-MODEL.md`](CONTROL-MODEL.md).
+- Surfaces: the `/api/auto-steer/*` route group (incl.
+  `GET /execution/{taskId}/trace`); CLI `steer` group; UI steering panels +
+  decision-trace panel.
+- Tests: unit tests for selector, terminator, controller loop, findings,
+  skillmap, dimensions, profile validation/repository, and handlers — see
+  [`../internal/TESTING.md`](../internal/TESTING.md).
 
 ### steering
 
@@ -130,9 +136,10 @@ in [`DATA.md`](DATA.md).
 | Concept | Meaning | Owner |
 |---|---|---|
 | Task | The unit of generation/improvement work. | tasks domain |
-| Profile | An auto-steer objective + phase configuration. Target model: an objective function. | auto-steer; [`CONTROL-MODEL.md`](CONTROL-MODEL.md) |
-| Phase | One steering step within a profile (a skill set + stop conditions). | auto-steer |
-| Metric / Finding | A measured gap (today: scalar metric; target: a `test-genie` finding). | auto-steer; [`CONTROL-MODEL.md`](CONTROL-MODEL.md) |
+| Profile | An auto-steer objective function: dimension weights, target thresholds, allowed-skill set, budget. | auto-steer; [`CONTROL-MODEL.md`](CONTROL-MODEL.md) |
+| Dimension | A canonical improvement axis both findings and skills map to. | auto-steer; `pkg/dimensions` |
+| Finding | An open `test-genie` problem resolved to a dimension + severity; the controller's primary state. | auto-steer; `pkg/findings` |
+| Gap metric | A scalar measurement (e.g. operational-targets %) used for the objective's operational target. | auto-steer |
 | Seam | Test-substitutable boundary wired once in production. | [`../internal/SEAMS.md`](../internal/SEAMS.md) |
 
 ## Deferred Domains

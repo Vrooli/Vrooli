@@ -4,7 +4,10 @@ import (
 	"testing"
 
 	"github.com/ecosystem-manager/api/pkg/autosteer"
+	"github.com/ecosystem-manager/api/pkg/findings"
+	"github.com/ecosystem-manager/api/pkg/skillmap"
 	"github.com/ecosystem-manager/api/pkg/tasks"
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
 func TestShouldContinueTaskRespectsManualDisable(t *testing.T) {
@@ -24,21 +27,61 @@ func TestShouldContinueTaskRespectsManualDisable(t *testing.T) {
 	}
 }
 
-// newTestOrchestrator creates an ExecutionOrchestrator backed by in-memory mocks.
+// objectiveProfile builds a valid objective-function profile for these tests.
+func objectiveProfile(id, name string, allowed ...string) *autosteer.AutoSteerProfile {
+	return &autosteer.AutoSteerProfile{
+		ID:   id,
+		Name: name,
+		Objective: autosteer.Objective{
+			DimensionWeights: map[string]float64{"standards": 1.0},
+			Targets:          autosteer.ObjectiveTargets{MaxOpenSeverity: "warning"},
+		},
+		AllowedSkills: allowed,
+		Budget:        autosteer.Budget{MaxIterations: 10, DiminishingReturnsFloor: 0.02},
+		AuditPreset:   "comprehensive",
+	}
+}
+
+// newTestOrchestrator wires an ExecutionOrchestrator with in-memory fakes: a
+// canned test-genie audit (one open standards finding) and a catalog declaring
+// each steer skill against the standards dimension.
 func newTestOrchestrator(profileRepo *autosteer.MockProfileRepository) (*autosteer.ExecutionOrchestrator, *autosteer.MockExecutionStateRepository) {
 	stateRepo := autosteer.NewMockExecutionStateRepository()
 	metricsProvider := autosteer.NewMockMetricsProvider()
-	phaseCoord := autosteer.NewMockPhaseCoordinatorAPI()
-	iterEval := autosteer.NewMockIterationEvaluatorAPI()
 	promptEnhancer := autosteer.NewMockPromptEnhancerAPI()
+
+	audit := &findings.Audit{
+		ScenarioName: "test-scenario",
+		Phases: []findings.AuditPhase{
+			{
+				Name:   "standards",
+				Status: "fail",
+				Findings: []findings.AuditFinding{
+					{
+						Source:   int32(architecturev1.FindingSource_FINDING_SOURCE_STANDARDS),
+						Severity: int32(architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR),
+						Code:     "STD001",
+						StableID: "std-1",
+					},
+				},
+			},
+		},
+	}
+	runner := &findings.FakeRunner{Audits: map[string]*findings.Audit{"test-scenario": audit}}
+	catalog := &skillmap.FakeCatalog{Declarations: []skillmap.SkillDeclaration{
+		{ID: "progress", Dimensions: []string{"standards"}},
+		{ID: "test", Dimensions: []string{"standards"}},
+		{ID: "screaming-architecture-audit", Dimensions: []string{"standards"}},
+	}}
 
 	orchestrator := autosteer.NewExecutionOrchestrator(
 		stateRepo,
-		phaseCoord,
-		iterEval,
 		profileRepo,
-		metricsProvider,
+		runner,
+		catalog,
 		promptEnhancer,
+		metricsProvider,
+		autosteer.NewTraceStore(nil),
 	)
 	return orchestrator, stateRepo
 }
@@ -46,33 +89,12 @@ func newTestOrchestrator(profileRepo *autosteer.MockProfileRepository) (*autoste
 // TestInitializeAutoSteerResetsOnProfileChange verifies that when a task's
 // auto_steer_profile_id changes between executions, the stale execution state
 // is deleted and re-initialized with the new profile.
-//
-// Regression test for: phase advancement not triggering because execution state
-// retained the old profile's phase/iteration data after the user switched profiles.
 func TestInitializeAutoSteerResetsOnProfileChange(t *testing.T) {
 	profileRepo := autosteer.NewMockProfileRepository()
-
-	profileOld := &autosteer.AutoSteerProfile{
-		ID:   "profile-old",
-		Name: "Old Profile",
-		Phases: []autosteer.SteerPhase{
-			{ID: "p1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 10},
-			{ID: "p2", SkillIDs: []string{"test"}, SkillName: "Test", MaxIterations: 5},
-		},
-	}
-	profileNew := &autosteer.AutoSteerProfile{
-		ID:   "profile-new",
-		Name: "New Profile",
-		Phases: []autosteer.SteerPhase{
-			{ID: "n1", SkillIDs: []string{"screaming-architecture-audit"}, SkillName: "Screaming Architecture", MaxIterations: 1},
-			{ID: "n2", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 3},
-		},
-	}
-
-	if err := profileRepo.CreateProfile(profileOld); err != nil {
+	if err := profileRepo.CreateProfile(objectiveProfile("profile-old", "Old Profile", "progress", "test")); err != nil {
 		t.Fatalf("failed to create old profile: %v", err)
 	}
-	if err := profileRepo.CreateProfile(profileNew); err != nil {
+	if err := profileRepo.CreateProfile(objectiveProfile("profile-new", "New Profile", "screaming-architecture-audit", "progress")); err != nil {
 		t.Fatalf("failed to create new profile: %v", err)
 	}
 
@@ -82,61 +104,34 @@ func TestInitializeAutoSteerResetsOnProfileChange(t *testing.T) {
 	taskID := "task-profile-change"
 	scenarioName := "test-scenario"
 
-	// Step 1: Initialize with the old profile.
-	taskV1 := &tasks.TaskItem{
-		ID:                 taskID,
-		Type:               "scenario",
-		Operation:          "improver",
-		AutoSteerProfileID: "profile-old",
-	}
-
+	taskV1 := &tasks.TaskItem{ID: taskID, Type: "scenario", Operation: "improver", AutoSteerProfileID: "profile-old"}
 	if err := integration.InitializeAutoSteer(taskV1, scenarioName); err != nil {
 		t.Fatalf("first InitializeAutoSteer failed: %v", err)
 	}
 
-	// Verify state was created with the old profile.
 	state, err := stateRepo.Get(taskID)
-	if err != nil {
-		t.Fatalf("failed to get state after init: %v", err)
-	}
-	if state == nil {
-		t.Fatal("expected execution state to exist after first init")
+	if err != nil || state == nil {
+		t.Fatalf("expected execution state after first init, err=%v", err)
 	}
 	if state.ProfileID != "profile-old" {
-		t.Fatalf("expected ProfileID=%q, got %q", "profile-old", state.ProfileID)
+		t.Fatalf("expected ProfileID=profile-old, got %q", state.ProfileID)
 	}
 
-	// Step 2: Simulate user changing the profile on the task.
-	taskV2 := &tasks.TaskItem{
-		ID:                 taskID,
-		Type:               "scenario",
-		Operation:          "improver",
-		AutoSteerProfileID: "profile-new",
-	}
-
+	taskV2 := &tasks.TaskItem{ID: taskID, Type: "scenario", Operation: "improver", AutoSteerProfileID: "profile-new"}
 	if err := integration.InitializeAutoSteer(taskV2, scenarioName); err != nil {
 		t.Fatalf("second InitializeAutoSteer failed: %v", err)
 	}
 
-	// Verify execution state was reset to the new profile.
 	state, err = stateRepo.Get(taskID)
-	if err != nil {
-		t.Fatalf("failed to get state after profile change: %v", err)
-	}
-	if state == nil {
-		t.Fatal("expected execution state to exist after profile change re-init")
+	if err != nil || state == nil {
+		t.Fatalf("expected execution state after profile change, err=%v", err)
 	}
 	if state.ProfileID != "profile-new" {
-		t.Fatalf("expected ProfileID=%q after profile change, got %q", "profile-new", state.ProfileID)
+		t.Fatalf("expected ProfileID=profile-new after change, got %q", state.ProfileID)
 	}
-	if state.CurrentPhaseIndex != 0 {
-		t.Fatalf("expected CurrentPhaseIndex=0 after reset, got %d", state.CurrentPhaseIndex)
-	}
-	if state.CurrentPhaseIteration != 0 {
-		t.Fatalf("expected CurrentPhaseIteration=0 after reset, got %d", state.CurrentPhaseIteration)
-	}
-	if state.AutoSteerIteration != 0 {
-		t.Fatalf("expected AutoSteerIteration=0 after reset, got %d", state.AutoSteerIteration)
+	// A fresh run starts at iteration 1 (the first selected skill).
+	if state.Iteration != 1 {
+		t.Fatalf("expected Iteration=1 after reset, got %d", state.Iteration)
 	}
 }
 
@@ -144,16 +139,7 @@ func TestInitializeAutoSteerResetsOnProfileChange(t *testing.T) {
 // re-initializing with the same profile does NOT reset execution state.
 func TestInitializeAutoSteerPreservesStateWhenProfileUnchanged(t *testing.T) {
 	profileRepo := autosteer.NewMockProfileRepository()
-
-	profile := &autosteer.AutoSteerProfile{
-		ID:   "profile-same",
-		Name: "Same Profile",
-		Phases: []autosteer.SteerPhase{
-			{ID: "p1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 10},
-		},
-	}
-
-	if err := profileRepo.CreateProfile(profile); err != nil {
+	if err := profileRepo.CreateProfile(objectiveProfile("profile-same", "Same Profile", "progress")); err != nil {
 		t.Fatalf("failed to create profile: %v", err)
 	}
 
@@ -162,23 +148,15 @@ func TestInitializeAutoSteerPreservesStateWhenProfileUnchanged(t *testing.T) {
 
 	taskID := "task-same-profile"
 	scenarioName := "test-scenario"
+	task := &tasks.TaskItem{ID: taskID, Type: "scenario", Operation: "improver", AutoSteerProfileID: "profile-same"}
 
-	task := &tasks.TaskItem{
-		ID:                 taskID,
-		Type:               "scenario",
-		Operation:          "improver",
-		AutoSteerProfileID: "profile-same",
-	}
-
-	// First initialization.
 	if err := integration.InitializeAutoSteer(task, scenarioName); err != nil {
 		t.Fatalf("first InitializeAutoSteer failed: %v", err)
 	}
 
-	// Manually advance the state to simulate progress.
+	// Advance the iteration to simulate progress.
 	state, _ := stateRepo.Get(taskID)
-	state.CurrentPhaseIteration = 5
-	state.AutoSteerIteration = 5
+	state.Iteration = 5
 	if err := stateRepo.Save(state); err != nil {
 		t.Fatalf("failed to save advanced state: %v", err)
 	}
@@ -189,10 +167,7 @@ func TestInitializeAutoSteerPreservesStateWhenProfileUnchanged(t *testing.T) {
 	}
 
 	state, _ = stateRepo.Get(taskID)
-	if state.CurrentPhaseIteration != 5 {
-		t.Fatalf("expected CurrentPhaseIteration=5 (preserved), got %d", state.CurrentPhaseIteration)
-	}
-	if state.AutoSteerIteration != 5 {
-		t.Fatalf("expected AutoSteerIteration=5 (preserved), got %d", state.AutoSteerIteration)
+	if state.Iteration != 5 {
+		t.Fatalf("expected Iteration=5 (preserved), got %d", state.Iteration)
 	}
 }

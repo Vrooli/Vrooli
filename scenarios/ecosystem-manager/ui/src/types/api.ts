@@ -193,77 +193,120 @@ export interface RecyclerSettings {
 
 // ==================== Auto Steer Types ====================
 
+/**
+ * An Auto Steer profile is the controller's *objective function*, not a script.
+ * It declares which improvement dimensions matter (weights), what "done" looks
+ * like (targets), which skills the controller may select (allowed_skills), and
+ * the loop budget. The controller derives the path; the profile no longer
+ * sequences phases. See docs/concepts/CONTROL-MODEL.md.
+ */
 export interface AutoSteerProfile {
   id: string;
   name: string;
   description?: string;
   tags?: string[];
-  phases: AutoSteerPhase[];
+  objective: AutoSteerObjective;
+  allowed_skills: string[];
+  budget: AutoSteerBudget;
+  audit_preset?: string;
   created_at?: string;
   updated_at?: string;
 }
 
-export interface AutoSteerPhase {
-  id?: string;
-  skill_ids: string[];
-  skill_name?: string;
-  modes: string[];
-  with_scope?: boolean;
-  scope?: string;
+export interface AutoSteerObjective {
+  /** Per-dimension importance. Higher weight = the controller prioritizes closing that dimension. */
+  dimension_weights: Record<string, number>;
+  targets: AutoSteerTargets;
+}
+
+export interface AutoSteerTargets {
+  /** Highest severity allowed to remain open at termination (e.g. "low"). Empty = no severity gate. */
+  max_open_severity?: string;
+  /** Required operational-target completion percentage (0-100). */
+  operational_targets_pct?: number;
+}
+
+export interface AutoSteerBudget {
+  /** Layer-3 backstop: hard iteration cap. */
   max_iterations: number;
-  description?: string;
-  stop_conditions?: StopCondition[];
+  /** Stop when marginal weighted-score improvement falls below this floor. */
+  diminishing_returns_floor: number;
+  /** Run a full comprehensive re-audit every N iterations (targeted re-audit otherwise). */
+  reaudit_cadence?: number;
 }
 
-export interface StopCondition {
-  type: 'simple' | 'compound';
-  // Simple condition fields
-  metric?: string;
-  compare_operator?: string;
-  value?: number;
-  // Compound condition fields
-  operator?: 'AND' | 'OR';
-  conditions?: StopCondition[];
+/**
+ * One iteration of the closed-loop controller's reasoning (DIAGNOSE → SELECT →
+ * MEASURE). Surfaced by GET /api/auto-steer/execution/:taskId/trace so the
+ * controller is a glass box. See docs/concepts/CONTROL-MODEL.md.
+ */
+export interface DecisionTraceEntry {
+  iteration: number;
+  timestamp?: string;
+  dimension_scores?: Record<string, number>;
+  heaviest_dimension?: string;
+  chosen_skill?: string;
+  rationale?: string;
+  fingerprint?: string;
+  score_before?: number;
+  score_after?: number;
+  realized_delta?: number;
 }
 
-export interface ConditionNode {
-  type: 'and' | 'or' | 'condition';
-  field?: string;
-  operator?: string;
-  value?: string | number | boolean;
-  children?: ConditionNode[];
+export interface DecisionTraceResponse {
+  task_id: string;
+  trace: DecisionTraceEntry[];
+  count: number;
 }
 
-export interface AutoSteerTemplate {
+/** A built-in objective profile shipped with the system; same shape as a saved profile. */
+export type AutoSteerTemplate = AutoSteerProfile;
+
+/** One canonical improvement dimension (served from the dimensions SSOT). */
+export interface DimensionInfo {
   id: string;
-  name: string;
-  description?: string;
-  tags?: string[];
-  phases?: AutoSteerPhase[];
+  description: string;
 }
 
-export interface PhaseExecution {
-  phase_id?: string;
-  skill_ids?: string[];
-  skill_name?: string;
-  modes?: string[];
-  with_scope?: boolean;
-  scope?: string;
-  iterations: number;
-  stop_reason?: string;
-  started_at?: string;
-  completed_at?: string | null;
+/** A single open finding produced by a test-genie audit, mapped to a dimension. */
+export interface Finding {
+  id: string;
+  dimension: string;
+  /** architecture.v1.FindingSeverity enum value. */
+  severity: number;
+  location?: string;
+  code?: string;
+  message?: string;
+  phase?: string;
+}
+
+/**
+ * The controller's diagnosis at a point in time: open findings bucketed by
+ * dimension with weighted scores and a set fingerprint. This is the controller's
+ * primary state (the gap it is closing), not a phase cursor.
+ */
+export interface FindingsState {
+  findings: Finding[];
+  dimensionScore: Record<string, number>;
+  dimensionCount: Record<string, number>;
+  totalScore: number;
+  fingerprint: string;
 }
 
 export interface AutoSteerExecutionState {
   task_id: string;
   profile_id: string;
-  current_phase_index: number;
-  current_phase_iteration: number;
-  auto_steer_iteration: number;
-  phase_history?: PhaseExecution[];
+  /** Completed controller iterations. */
+  iteration: number;
+  /** Skill the controller selected for the current/next run. */
+  current_skill?: string;
+  /** Why that skill was chosen (heaviest open dimension, etc.). */
+  current_rationale?: string;
+  findings?: FindingsState;
+  /** Total weighted score after each iteration (the convergence curve). */
+  score_history?: number[];
+  trace?: DecisionTraceEntry[];
   metrics?: MetricsSnapshot;
-  phase_start_metrics?: MetricsSnapshot;
   started_at?: string;
   last_updated?: string;
 }
@@ -314,14 +357,15 @@ export interface MetricsSnapshot {
   };
 }
 
-export interface PhasePerformance {
-  skill_ids: string[];
-  skill_name?: string;
-  modes?: string[];
+/**
+ * One skill's contribution within a completed controller run, derived from the
+ * decision trace. Replaces the old per-phase breakdown.
+ */
+export interface SkillPerformance {
+  skill_name: string;
   iterations: number;
-  metric_deltas?: Record<string, number>;
-  duration: number;
-  effectiveness: number;
+  /** Total realized weighted-score reduction attributed to this skill. */
+  weighted_delta: number;
 }
 
 export interface UserFeedback {
@@ -337,7 +381,7 @@ export interface ProfilePerformance {
   execution_id: string;
   start_metrics: MetricsSnapshot;
   end_metrics: MetricsSnapshot;
-  phase_breakdown: PhasePerformance[];
+  phase_breakdown: SkillPerformance[];
   total_iterations: number;
   total_duration: number;
   user_feedback?: UserFeedback;

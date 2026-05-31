@@ -25,6 +25,50 @@ func setupHandlersProfileRepo(t *testing.T) (*FileProfileRepository, func()) {
 	return repo, func() {}
 }
 
+// objProfile builds a valid objective-function profile for handler tests.
+func objProfile(name string, tags ...string) AutoSteerProfile {
+	return AutoSteerProfile{
+		Name: name,
+		Objective: Objective{
+			DimensionWeights: map[string]float64{"standards": 1.0},
+			Targets:          ObjectiveTargets{MaxOpenSeverity: "warning"},
+		},
+		AllowedSkills: []string{"progress"},
+		Budget:        Budget{MaxIterations: 10, DiminishingReturnsFloor: 0.02},
+		AuditPreset:   "comprehensive",
+		Tags:          tags,
+	}
+}
+
+func TestHandlers_GetDimensions(t *testing.T) {
+	handlers := NewAutoSteerHandlers(nil, nil, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/auto-steer/dimensions", nil)
+	w := httptest.NewRecorder()
+
+	handlers.GetDimensions(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	var resp struct {
+		Dimensions []dimensionInfo `json:"dimensions"`
+		Count      int             `json:"count"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if resp.Count == 0 || len(resp.Dimensions) != resp.Count {
+		t.Fatalf("Expected non-empty dimensions with matching count, got count=%d len=%d", resp.Count, len(resp.Dimensions))
+	}
+	for _, d := range resp.Dimensions {
+		if d.ID == "" {
+			t.Error("Expected every dimension to carry an id")
+		}
+	}
+}
+
 func TestHandlers_CreateProfile(t *testing.T) {
 	profileRepo, cleanup := setupHandlersProfileRepo(t)
 	defer cleanup()
@@ -32,27 +76,8 @@ func TestHandlers_CreateProfile(t *testing.T) {
 	handlers := NewAutoSteerHandlers(profileRepo, nil, nil)
 
 	t.Run("create valid profile", func(t *testing.T) {
-		profile := AutoSteerProfile{
-			Name:        "Test Profile",
-			Description: "A test profile",
-			Phases: []SteerPhase{
-				{
-					ID:            "phase-1",
-					SkillIDs:      []string{"progress"},
-					SkillName:     "Progress",
-					MaxIterations: 10,
-					StopConditions: []StopCondition{
-						{
-							Type:            ConditionTypeSimple,
-							Metric:          "loops",
-							CompareOperator: OpGreaterThan,
-							Value:           5,
-						},
-					},
-				},
-			},
-			Tags: []string{"test"},
-		}
+		profile := objProfile("Test Profile", "test")
+		profile.Description = "A test profile"
 
 		body, _ := json.Marshal(profile)
 		req := httptest.NewRequest(http.MethodPost, "/api/auto-steer/profiles", bytes.NewBuffer(body))
@@ -89,25 +114,8 @@ func TestHandlers_CreateProfile(t *testing.T) {
 	})
 
 	t.Run("create invalid profile - missing name", func(t *testing.T) {
-		profile := AutoSteerProfile{
-			Description: "No name",
-			Phases: []SteerPhase{
-				{
-					ID:            "phase-1",
-					SkillIDs:      []string{"progress"},
-					SkillName:     "Progress",
-					MaxIterations: 10,
-					StopConditions: []StopCondition{
-						{
-							Type:            ConditionTypeSimple,
-							Metric:          "loops",
-							CompareOperator: OpGreaterThan,
-							Value:           5,
-						},
-					},
-				},
-			},
-		}
+		profile := objProfile("")
+		profile.Description = "No name"
 
 		body, _ := json.Marshal(profile)
 		req := httptest.NewRequest(http.MethodPost, "/api/auto-steer/profiles", bytes.NewBuffer(body))
@@ -127,53 +135,13 @@ func TestHandlers_ListProfiles(t *testing.T) {
 
 	handlers := NewAutoSteerHandlers(profileRepo, nil, nil)
 
-	// Create test profiles
-	profile1 := &AutoSteerProfile{
-		Name: "Profile 1",
-		Phases: []SteerPhase{
-			{
-				ID:            "phase-1",
-				SkillIDs:      []string{"progress"},
-				SkillName:     "Progress",
-				MaxIterations: 10,
-				StopConditions: []StopCondition{
-					{
-						Type:            ConditionTypeSimple,
-						Metric:          "loops",
-						CompareOperator: OpGreaterThan,
-						Value:           5,
-					},
-				},
-			},
-		},
-		Tags: []string{"tag1"},
-	}
+	profile1 := objProfile("Profile 1", "tag1")
+	profile2 := objProfile("Profile 2", "tag2")
 
-	profile2 := &AutoSteerProfile{
-		Name: "Profile 2",
-		Phases: []SteerPhase{
-			{
-				ID:            "phase-1",
-				SkillIDs:      []string{"ux"},
-				SkillName:     "UX",
-				MaxIterations: 5,
-				StopConditions: []StopCondition{
-					{
-						Type:            ConditionTypeSimple,
-						Metric:          "accessibility_score",
-						CompareOperator: OpGreaterThan,
-						Value:           90,
-					},
-				},
-			},
-		},
-		Tags: []string{"tag2"},
-	}
-
-	if err := profileRepo.CreateProfile(profile1); err != nil {
+	if err := profileRepo.CreateProfile(&profile1); err != nil {
 		t.Fatalf("failed to create profile1: %v", err)
 	}
-	if err := profileRepo.CreateProfile(profile2); err != nil {
+	if err := profileRepo.CreateProfile(&profile2); err != nil {
 		t.Fatalf("failed to create profile2: %v", err)
 	}
 
@@ -233,27 +201,8 @@ func TestHandlers_GetProfile(t *testing.T) {
 
 	handlers := NewAutoSteerHandlers(profileRepo, nil, nil)
 
-	// Create test profile
-	profile := &AutoSteerProfile{
-		Name: "Test Profile",
-		Phases: []SteerPhase{
-			{
-				ID:            "phase-1",
-				SkillIDs:      []string{"progress"},
-				SkillName:     "Progress",
-				MaxIterations: 10,
-				StopConditions: []StopCondition{
-					{
-						Type:            ConditionTypeSimple,
-						Metric:          "loops",
-						CompareOperator: OpGreaterThan,
-						Value:           5,
-					},
-				},
-			},
-		},
-	}
-	if err := profileRepo.CreateProfile(profile); err != nil {
+	profile := objProfile("Test Profile")
+	if err := profileRepo.CreateProfile(&profile); err != nil {
 		t.Fatalf("failed to create profile: %v", err)
 	}
 
@@ -298,51 +247,15 @@ func TestHandlers_UpdateProfile(t *testing.T) {
 
 	handlers := NewAutoSteerHandlers(profileRepo, nil, nil)
 
-	// Create test profile
-	profile := &AutoSteerProfile{
-		Name: "Original Name",
-		Phases: []SteerPhase{
-			{
-				ID:            "phase-1",
-				SkillIDs:      []string{"progress"},
-				SkillName:     "Progress",
-				MaxIterations: 10,
-				StopConditions: []StopCondition{
-					{
-						Type:            ConditionTypeSimple,
-						Metric:          "loops",
-						CompareOperator: OpGreaterThan,
-						Value:           5,
-					},
-				},
-			},
-		},
-	}
-	if err := profileRepo.CreateProfile(profile); err != nil {
+	profile := objProfile("Original Name")
+	if err := profileRepo.CreateProfile(&profile); err != nil {
 		t.Fatalf("failed to create profile: %v", err)
 	}
 
 	t.Run("update profile successfully", func(t *testing.T) {
-		updates := AutoSteerProfile{
-			Name:        "Updated Name",
-			Description: "Updated description",
-			Phases: []SteerPhase{
-				{
-					ID:            "phase-1",
-					SkillIDs:      []string{"ux"},
-					SkillName:     "UX",
-					MaxIterations: 15,
-					StopConditions: []StopCondition{
-						{
-							Type:            ConditionTypeSimple,
-							Metric:          "accessibility_score",
-							CompareOperator: OpGreaterThan,
-							Value:           90,
-						},
-					},
-				},
-			},
-		}
+		updates := objProfile("Updated Name")
+		updates.Description = "Updated description"
+		updates.AllowedSkills = []string{"ux"}
 
 		body, _ := json.Marshal(updates)
 		req := httptest.NewRequest(http.MethodPut, "/api/auto-steer/profiles/"+profile.ID, bytes.NewBuffer(body))
@@ -372,27 +285,8 @@ func TestHandlers_DeleteProfile(t *testing.T) {
 
 	handlers := NewAutoSteerHandlers(profileRepo, nil, nil)
 
-	// Create test profile
-	profile := &AutoSteerProfile{
-		Name: "Test Profile",
-		Phases: []SteerPhase{
-			{
-				ID:            "phase-1",
-				SkillIDs:      []string{"progress"},
-				SkillName:     "Progress",
-				MaxIterations: 10,
-				StopConditions: []StopCondition{
-					{
-						Type:            ConditionTypeSimple,
-						Metric:          "loops",
-						CompareOperator: OpGreaterThan,
-						Value:           5,
-					},
-				},
-			},
-		},
-	}
-	if err := profileRepo.CreateProfile(profile); err != nil {
+	profile := objProfile("Test Profile")
+	if err := profileRepo.CreateProfile(&profile); err != nil {
 		t.Fatalf("failed to create profile: %v", err)
 	}
 
@@ -411,28 +305,11 @@ func TestHandlers_DeleteProfile(t *testing.T) {
 
 func TestHandlers_GetTemplates(t *testing.T) {
 	root := t.TempDir()
-	template := &AutoSteerProfile{
-		ID:          "template-1",
-		Name:        "Template One",
-		Description: "Template profile",
-		Phases: []SteerPhase{
-			{
-				ID:            "phase-template",
-				SkillIDs:      []string{"progress"},
-				SkillName:     "Progress",
-				MaxIterations: 1,
-				StopConditions: []StopCondition{
-					{
-						Type:            ConditionTypeSimple,
-						Metric:          "loops",
-						CompareOperator: OpGreaterThanEquals,
-						Value:           1,
-					},
-				},
-			},
-		},
-	}
-	writeProfileFile(t, root, "templates/template-one/profile.json", template)
+	template := objProfile("Template One")
+	template.ID = "template-1"
+	template.Description = "Template profile"
+	template.Tags = nil
+	writeProfileFile(t, root, "templates/template-one/profile.json", &template)
 	writeMetadata(t, root, ProfileMetadataIndex{
 		Profiles: []ProfileMetadata{
 			{
@@ -486,7 +363,6 @@ func TestHandlers_SubmitFeedback(t *testing.T) {
 	historyService := NewHistoryService(db)
 	handlers := NewAutoSteerHandlers(nil, nil, historyService)
 
-	// Create test execution
 	taskID := createTestExecution(t, db, uuid.New().String(), "test-scenario", false)
 
 	t.Run("submit valid feedback", func(t *testing.T) {
@@ -542,7 +418,6 @@ func TestHandlers_GetHistory(t *testing.T) {
 	historyService := NewHistoryService(db)
 	handlers := NewAutoSteerHandlers(nil, nil, historyService)
 
-	// Create test executions
 	profileID := uuid.New().String()
 	createTestExecution(t, db, profileID, "scenario-a", true)
 	createTestExecution(t, db, profileID, "scenario-b", false)

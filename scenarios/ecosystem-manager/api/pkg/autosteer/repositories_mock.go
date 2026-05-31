@@ -45,9 +45,7 @@ func (r *MockProfileRepository) GetProfile(id string) (*AutoSteerProfile, error)
 		return nil, fmt.Errorf("profile not found: %s", id)
 	}
 
-	// Return a copy to prevent mutation
-	copy := *profile
-	return &copy, nil
+	return cloneProfile(profile), nil
 }
 
 // CreateProfile inserts a new profile.
@@ -67,9 +65,7 @@ func (r *MockProfileRepository) CreateProfile(profile *AutoSteerProfile) error {
 	profile.CreatedAt = now
 	profile.UpdatedAt = now
 
-	// Store a copy
-	copy := *profile
-	r.profiles[profile.ID] = &copy
+	r.profiles[profile.ID] = cloneProfile(profile)
 
 	return nil
 }
@@ -90,8 +86,7 @@ func (r *MockProfileRepository) UpdateProfile(id string, profile *AutoSteerProfi
 	profile.ID = id
 	profile.UpdatedAt = time.Now()
 
-	copy := *profile
-	r.profiles[id] = &copy
+	r.profiles[id] = cloneProfile(profile)
 
 	return nil
 }
@@ -127,8 +122,7 @@ func (r *MockProfileRepository) ListProfiles(tags []string) ([]*AutoSteerProfile
 		if len(tags) > 0 && !hasAnyTag(profile.Tags, tags) {
 			continue
 		}
-		copy := *profile
-		result = append(result, &copy)
+		result = append(result, cloneProfile(profile))
 	}
 
 	return result, nil
@@ -146,17 +140,19 @@ func (r *MockProfileRepository) Reset() {
 	r.ListProfilesError = nil
 }
 
-// MockExecutionStateRepository is an in-memory implementation of ExecutionStateRepository for testing.
+// MockExecutionStateRepository is an in-memory ExecutionStateRepository for testing.
 type MockExecutionStateRepository struct {
 	mu     sync.RWMutex
 	states map[string]*ProfileExecutionState
 
 	// Error injection
-	GetError                   error
-	SaveError                  error
-	DeleteError                error
-	RecordPhaseCompletionError error
-	FinalizeExecutionError     error
+	GetError               error
+	SaveError              error
+	DeleteError            error
+	FinalizeExecutionError error
+
+	// Call tracking
+	FinalizedTasks []string
 }
 
 // Compile-time interface assertion
@@ -183,8 +179,8 @@ func (r *MockExecutionStateRepository) Get(taskID string) (*ProfileExecutionStat
 		return nil, nil
 	}
 
-	copy := *state
-	return &copy, nil
+	clone := *state
+	return &clone, nil
 }
 
 // Save persists the execution state.
@@ -196,8 +192,8 @@ func (r *MockExecutionStateRepository) Save(state *ProfileExecutionState) error 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	copy := *state
-	r.states[state.TaskID] = &copy
+	clone := *state
+	r.states[state.TaskID] = &clone
 
 	return nil
 }
@@ -215,74 +211,27 @@ func (r *MockExecutionStateRepository) Delete(taskID string) error {
 	return nil
 }
 
-// InitializeState creates a new execution state for a task.
-func (r *MockExecutionStateRepository) InitializeState(taskID, profileID string, initialMetrics MetricsSnapshot) *ProfileExecutionState {
+// InitializeState creates a new controller state for a task.
+func (r *MockExecutionStateRepository) InitializeState(taskID, profileID string) *ProfileExecutionState {
 	now := time.Now()
 	return &ProfileExecutionState{
-		TaskID:                taskID,
-		ProfileID:             profileID,
-		CurrentPhaseIndex:     0,
-		CurrentPhaseIteration: 0,
-		AutoSteerIteration:    0,
-		PhaseStartedAt:        now,
-		PhaseHistory:          []PhaseExecution{},
-		Metrics:               initialMetrics,
-		PhaseStartMetrics:     initialMetrics,
-		StartedAt:             now,
-		LastUpdated:           now,
+		TaskID:       taskID,
+		ProfileID:    profileID,
+		ScoreHistory: []float64{},
+		Trace:        []DecisionTraceEntry{},
+		StartedAt:    now,
+		LastUpdated:  now,
 	}
 }
 
-// IncrementIteration increments the iteration counters and updates metrics.
-func (r *MockExecutionStateRepository) IncrementIteration(state *ProfileExecutionState, newMetrics MetricsSnapshot) {
-	state.AutoSteerIteration++
-	state.CurrentPhaseIteration++
-	state.Metrics = newMetrics
-	state.LastUpdated = time.Now()
-}
-
-// AdvanceToNextPhase updates the state to move to the next phase.
-func (r *MockExecutionStateRepository) AdvanceToNextPhase(state *ProfileExecutionState) {
-	state.CurrentPhaseIndex++
-	state.CurrentPhaseIteration = 0
-	state.PhaseStartMetrics = state.Metrics
-	state.PhaseStartedAt = time.Now()
-	state.LastUpdated = time.Now()
-}
-
-// RecordPhaseCompletion appends a completed phase to the execution history.
-func (r *MockExecutionStateRepository) RecordPhaseCompletion(state *ProfileExecutionState, phase SteerPhase, stopReason string) error {
-	if r.RecordPhaseCompletionError != nil {
-		return r.RecordPhaseCompletionError
-	}
-
-	now := time.Now()
-	phaseExecution := PhaseExecution{
-		PhaseID:      phase.ID,
-		SkillIDs:     append([]string(nil), phase.SkillIDs...),
-		SkillName:    phase.SkillName,
-		WithScope:    phase.WithScope,
-		Scope:        phase.Scope,
-		Iterations:   state.CurrentPhaseIteration,
-		StartMetrics: state.PhaseStartMetrics,
-		EndMetrics:   state.Metrics,
-		Commits:      []string{},
-		StartedAt:    state.PhaseStartedAt,
-		CompletedAt:  &now,
-		StopReason:   stopReason,
-	}
-
-	state.PhaseHistory = append(state.PhaseHistory, phaseExecution)
-	return r.Save(state)
-}
-
-// FinalizeExecution archives the completed execution and removes active state.
+// FinalizeExecution removes the active state (real impl archives to history).
 func (r *MockExecutionStateRepository) FinalizeExecution(state *ProfileExecutionState, scenarioName string) error {
 	if r.FinalizeExecutionError != nil {
 		return r.FinalizeExecutionError
 	}
-
-	// In mock, just delete the active state (real impl would archive to history)
+	r.mu.Lock()
+	r.FinalizedTasks = append(r.FinalizedTasks, state.TaskID)
+	r.mu.Unlock()
 	return r.Delete(state.TaskID)
 }
 
@@ -294,8 +243,8 @@ func (r *MockExecutionStateRepository) Reset() {
 	r.GetError = nil
 	r.SaveError = nil
 	r.DeleteError = nil
-	r.RecordPhaseCompletionError = nil
 	r.FinalizeExecutionError = nil
+	r.FinalizedTasks = nil
 }
 
 // MockMetricsProvider is a mock implementation of MetricsProvider for testing.
@@ -343,7 +292,6 @@ func (m *MockMetricsProvider) CollectMetrics(scenarioName string, phaseLoops, to
 		return nil, m.Error
 	}
 
-	// Return a copy with updated loop counts
 	metrics := *m.Metrics
 	metrics.PhaseLoops = phaseLoops
 	metrics.TotalLoops = totalLoops
@@ -362,98 +310,17 @@ func (m *MockMetricsProvider) Reset() {
 	m.LastTotalLoops = 0
 }
 
-// MockIterationEvaluatorAPI is a mock implementation of IterationEvaluatorAPI for testing.
-type MockIterationEvaluatorAPI struct {
-	mu sync.Mutex
-
-	// Configurable return values
-	EvaluateResult                         *IterationEvaluation
-	EvaluateError                          error
-	EvaluateWithoutMetricsCollectionResult *IterationEvaluation
-	EvaluateWithoutMetricsCollectionError  error
-
-	// Call tracking
-	EvaluateCallCount                         int
-	EvaluateWithoutMetricsCollectionCallCount int
-	LastTaskID                                string
-	LastScenarioName                          string
-}
-
-// Compile-time interface assertion
-var _ IterationEvaluatorAPI = (*MockIterationEvaluatorAPI)(nil)
-
-// NewMockIterationEvaluatorAPI creates a new mock iteration evaluator.
-func NewMockIterationEvaluatorAPI() *MockIterationEvaluatorAPI {
-	return &MockIterationEvaluatorAPI{
-		EvaluateResult: &IterationEvaluation{
-			ShouldStop: false,
-			Reason:     "",
-		},
-		EvaluateWithoutMetricsCollectionResult: &IterationEvaluation{
-			ShouldStop: false,
-			Reason:     "",
-		},
-	}
-}
-
-// Evaluate evaluates the current iteration for a task.
-func (m *MockIterationEvaluatorAPI) Evaluate(taskID string, scenarioName string) (*IterationEvaluation, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.EvaluateCallCount++
-	m.LastTaskID = taskID
-	m.LastScenarioName = scenarioName
-
-	if m.EvaluateError != nil {
-		return nil, m.EvaluateError
-	}
-
-	return m.EvaluateResult, nil
-}
-
-// EvaluateWithoutMetricsCollection evaluates using existing metrics in the state.
-func (m *MockIterationEvaluatorAPI) EvaluateWithoutMetricsCollection(taskID string) (*IterationEvaluation, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.EvaluateWithoutMetricsCollectionCallCount++
-	m.LastTaskID = taskID
-
-	if m.EvaluateWithoutMetricsCollectionError != nil {
-		return nil, m.EvaluateWithoutMetricsCollectionError
-	}
-
-	return m.EvaluateWithoutMetricsCollectionResult, nil
-}
-
-// Reset clears call tracking and error state.
-func (m *MockIterationEvaluatorAPI) Reset() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.EvaluateCallCount = 0
-	m.EvaluateWithoutMetricsCollectionCallCount = 0
-	m.EvaluateError = nil
-	m.EvaluateWithoutMetricsCollectionError = nil
-	m.LastTaskID = ""
-	m.LastScenarioName = ""
-}
-
 // MockPromptEnhancerAPI is a mock implementation of PromptEnhancerAPI for testing.
 type MockPromptEnhancerAPI struct {
 	mu sync.Mutex
 
 	// Configurable return values
 	SkillSetSectionResult   string
-	AutoSteerSectionResult  string
-	PhaseTransitionResult   string
-	CompletionMessageResult string
+	ControllerSectionResult string
 
 	// Call tracking
 	GenerateSkillSetSectionCallCount   int
-	GenerateAutoSteerSectionCallCount  int
-	GeneratePhaseTransitionCallCount   int
-	GenerateCompletionMessageCallCount int
+	GenerateControllerSectionCallCount int
 	LastSkillSet                       []string
 }
 
@@ -464,9 +331,7 @@ var _ PromptEnhancerAPI = (*MockPromptEnhancerAPI)(nil)
 func NewMockPromptEnhancerAPI() *MockPromptEnhancerAPI {
 	return &MockPromptEnhancerAPI{
 		SkillSetSectionResult:   "## Mock Skill Set Section\nFocus on testing.",
-		AutoSteerSectionResult:  "## Auto Steer\nMock steering instructions.",
-		PhaseTransitionResult:   "## Phase Transition\nMock transition message.",
-		CompletionMessageResult: "## Complete\nMock completion message.",
+		ControllerSectionResult: "## Auto Steer\nMock controller instructions.",
 	}
 }
 
@@ -481,34 +346,14 @@ func (m *MockPromptEnhancerAPI) GenerateSkillSetSection(skillIDs []string, withS
 	return m.SkillSetSectionResult
 }
 
-// GenerateAutoSteerSection generates the full Auto Steer section for agent prompts.
-func (m *MockPromptEnhancerAPI) GenerateAutoSteerSection(state *ProfileExecutionState, profile *AutoSteerProfile, evaluator ConditionEvaluatorAPI) string {
+// GenerateControllerSection generates the controller section for agent prompts.
+func (m *MockPromptEnhancerAPI) GenerateControllerSection(state *ProfileExecutionState, profile *AutoSteerProfile) string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.GenerateAutoSteerSectionCallCount++
+	m.GenerateControllerSectionCallCount++
 
-	return m.AutoSteerSectionResult
-}
-
-// GeneratePhaseTransitionMessage generates a message for phase transitions.
-func (m *MockPromptEnhancerAPI) GeneratePhaseTransitionMessage(oldPhase, newPhase SteerPhase, phaseNumber, totalPhases int) string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.GeneratePhaseTransitionCallCount++
-
-	return m.PhaseTransitionResult
-}
-
-// GenerateCompletionMessage generates a message when all phases are complete.
-func (m *MockPromptEnhancerAPI) GenerateCompletionMessage(profile *AutoSteerProfile, state *ProfileExecutionState) string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.GenerateCompletionMessageCallCount++
-
-	return m.CompletionMessageResult
+	return m.ControllerSectionResult
 }
 
 // Reset clears call tracking.
@@ -516,107 +361,6 @@ func (m *MockPromptEnhancerAPI) Reset() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.GenerateSkillSetSectionCallCount = 0
-	m.GenerateAutoSteerSectionCallCount = 0
-	m.GeneratePhaseTransitionCallCount = 0
-	m.GenerateCompletionMessageCallCount = 0
+	m.GenerateControllerSectionCallCount = 0
 	m.LastSkillSet = nil
 }
-
-// MockPhaseCoordinatorAPI is a mock implementation of PhaseCoordinatorAPI for testing.
-type MockPhaseCoordinatorAPI struct {
-	mu sync.Mutex
-
-	// Configurable return values
-	ShouldAdvancePhaseResult       PhaseAdvanceDecision
-	EvaluateQualityGatesResult     []QualityGateEvaluation
-	ShouldHaltOnQualityGatesResult struct {
-		Halt       bool
-		FailedGate string
-		Message    string
-	}
-	DetermineStopReasonResult string
-	EvaluatorResult           ConditionEvaluatorAPI
-
-	// Call tracking
-	ShouldAdvancePhaseCallCount       int
-	EvaluateQualityGatesCallCount     int
-	ShouldHaltOnQualityGatesCallCount int
-	DetermineStopReasonCallCount      int
-	EvaluatorCallCount                int
-}
-
-// Compile-time interface assertion
-var _ PhaseCoordinatorAPI = (*MockPhaseCoordinatorAPI)(nil)
-
-// NewMockPhaseCoordinatorAPI creates a new mock phase coordinator.
-func NewMockPhaseCoordinatorAPI() *MockPhaseCoordinatorAPI {
-	return &MockPhaseCoordinatorAPI{
-		ShouldAdvancePhaseResult: PhaseAdvanceDecision{
-			ShouldStop: false,
-			Reason:     "continue",
-		},
-		EvaluateQualityGatesResult: []QualityGateEvaluation{},
-		DetermineStopReasonResult:  "max_iterations",
-		EvaluatorResult:            NewConditionEvaluator(),
-	}
-}
-
-// ShouldAdvancePhase evaluates whether the current phase should stop.
-func (m *MockPhaseCoordinatorAPI) ShouldAdvancePhase(phase SteerPhase, metrics MetricsSnapshot, currentIteration int) PhaseAdvanceDecision {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.ShouldAdvancePhaseCallCount++
-	return m.ShouldAdvancePhaseResult
-}
-
-// EvaluateQualityGates evaluates all quality gates against current metrics.
-func (m *MockPhaseCoordinatorAPI) EvaluateQualityGates(gates []QualityGate, metrics MetricsSnapshot) []QualityGateEvaluation {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.EvaluateQualityGatesCallCount++
-	return m.EvaluateQualityGatesResult
-}
-
-// ShouldHaltOnQualityGates checks if any quality gate failures should halt progression.
-func (m *MockPhaseCoordinatorAPI) ShouldHaltOnQualityGates(evaluations []QualityGateEvaluation) (halt bool, failedGate string, message string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.ShouldHaltOnQualityGatesCallCount++
-	return m.ShouldHaltOnQualityGatesResult.Halt,
-		m.ShouldHaltOnQualityGatesResult.FailedGate,
-		m.ShouldHaltOnQualityGatesResult.Message
-}
-
-// DetermineStopReason determines the stop reason for phase completion.
-func (m *MockPhaseCoordinatorAPI) DetermineStopReason(currentIteration, maxIterations int) string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.DetermineStopReasonCallCount++
-	return m.DetermineStopReasonResult
-}
-
-// Evaluator returns the condition evaluator for prompt generation.
-func (m *MockPhaseCoordinatorAPI) Evaluator() ConditionEvaluatorAPI {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.EvaluatorCallCount++
-	return m.EvaluatorResult
-}
-
-// Reset clears call tracking.
-func (m *MockPhaseCoordinatorAPI) Reset() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.ShouldAdvancePhaseCallCount = 0
-	m.EvaluateQualityGatesCallCount = 0
-	m.ShouldHaltOnQualityGatesCallCount = 0
-	m.DetermineStopReasonCallCount = 0
-	m.EvaluatorCallCount = 0
-}
-
-// Helper functions

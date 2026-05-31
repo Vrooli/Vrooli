@@ -105,14 +105,6 @@ func (m *mockPromptEnhancer) GenerateSkillSetSection(skillIDs []string, withScop
 	return m.skillSetSection
 }
 
-func (m *mockPromptEnhancer) GenerateAutoSteerSection(state *autosteer.ProfileExecutionState, profile *autosteer.AutoSteerProfile, evaluator autosteer.ConditionEvaluatorAPI) string {
+func (m *mockPromptEnhancer) GenerateControllerSection(state *autosteer.ProfileExecutionState, profile *autosteer.AutoSteerProfile) string {
 	return m.autoSteerSection
-}
-
-func (m *mockPromptEnhancer) GeneratePhaseTransitionMessage(oldPhase, newPhase autosteer.SteerPhase, phaseNumber, totalPhases int) string {
-	return ""
-}
-
-func (m *mockPromptEnhancer) GenerateCompletionMessage(profile *autosteer.AutoSteerProfile, state *autosteer.ProfileExecutionState) string {
-	return ""
 }

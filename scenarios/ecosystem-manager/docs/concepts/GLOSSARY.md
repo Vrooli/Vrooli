@@ -33,31 +33,43 @@ across iterations and deciding when to advance or stop. The domain the
 
 ## Control-Loop Terms
 
-**Closed-loop controller (target)** — The intended shape of auto-steer:
-diagnose state → select the best skill → execute → measure → learn,
+**Closed-loop controller** — The shape of auto-steer (v0 implemented):
+diagnose state → select the best skill → execute → measure → terminate,
 repeating until an objective is met. Contrast with *open-loop schedule*.
+[CODE: api/pkg/autosteer/execution_orchestrator.go]
 
-**Open-loop schedule (current)** — Today's auto-steer: run a profile's
-fixed phase order with metric thresholds as exit gates. Intelligence is
-in termination only, not selection.
+**Open-loop schedule (retired)** — The legacy auto-steer: run a profile's
+fixed phase order with metric thresholds as exit gates. Replaced by the
+closed-loop controller (the phase-list schema is deleted).
 
-**Profile** — A named auto-steer configuration. **(current)** an ordered
-list of phases with stop conditions and quality gates, stored at
-`profiles/<id>/profile.json`. **(target)** an *objective function* — a
-weighted gap vector, target thresholds, and a budget — from which the
-controller derives the path. [CODE: profiles/balanced/profile.json]
+**Profile** — A named auto-steer *objective function*: per-dimension
+weights, target thresholds (`max_open_severity`, `operational_targets_pct`),
+an allowed-skill set, and a budget — from which the controller derives the
+path. Stored at `profiles/<id>/profile.json`.
+[CODE: api/pkg/autosteer/types.go]
 
-**Objective function (target)** — The reframed meaning of a profile:
-"what does done mean, and what do I care about most," not a script.
+**Objective function** — The meaning of a profile: "what does done mean,
+and what do I care about most," not a script.
 
-**Phase (current)** — One steering step in a profile: a skill set
-(`skill_ids`), `max_iterations`, and `stop_conditions`.
+**Dimension** — A canonical improvement axis (`standards`, `tests`,
+`structure`, …) that both test-genie findings and skill declarations map
+to. The vocabulary SSOT. [CODE: api/pkg/dimensions/]
 
-**Stop condition** — A simple or compound (AND/OR) predicate over metrics
-that, when true, ends a phase. [CODE: api/pkg/autosteer/evaluator.go]
+**Findings vector** — The controller's primary state: open test-genie
+findings bucketed by dimension and weighted by severity.
+[CODE: api/pkg/findings/]
 
-**Quality gate** — A condition whose failure can `halt` advancement
-regardless of progress. [CODE: api/pkg/autosteer/phase_coordinator.go]
+**Selection** — The controller's greedy SELECT stage: pick the skill that
+best closes the heaviest profile-weighted open dimension.
+[CODE: api/pkg/autosteer/selector.go]
+
+**Termination** — Global, gradient-based stop: objective-met,
+diminishing-returns, or budget-exhausted (no per-phase gates).
+[CODE: api/pkg/autosteer/terminator.go]
+
+**Decision trace** — The per-iteration record of the controller's
+reasoning (state → choice → rationale → realized delta), persisted and
+surfaced in the UI. [CODE: api/pkg/autosteer/decision_trace.go]
 
 **Metric (current)** — A scalar measurement collected each iteration
 (e.g., `operational_targets_percentage`, `accessibility_score`,

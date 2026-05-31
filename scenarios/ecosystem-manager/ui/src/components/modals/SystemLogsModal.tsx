@@ -786,44 +786,46 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                     </div>
 
                     <div className="space-y-2">
-                      <div className="text-sm font-semibold text-white">Phase breakdown</div>
+                      <div className="text-sm font-semibold text-white">Skill breakdown</div>
                       {selectedPerformance.phase_breakdown.length === 0 ? (
-                        <div className="text-sm text-slate-400">No phase data recorded</div>
+                        <div className="text-sm text-slate-400">No skill data recorded</div>
                       ) : (
                         <div className="space-y-2">
-                          {selectedPerformance.phase_breakdown.map((phase, idx) => {
-                            const effectiveness = Math.min(100, Math.max(0, Math.round((phase.effectiveness || 0) * 100)));
-                            const improvements = Object.entries(phase.metric_deltas || {})
-                              .map(([metric, delta]) => `${metric}: ${delta > 0 ? '+' : ''}${delta.toFixed(1)}`)
-                              .join(', ');
+                          {(() => {
+                            const maxDelta = Math.max(
+                              0,
+                              ...selectedPerformance.phase_breakdown.map((s) => Math.abs(s.weighted_delta || 0)),
+                            );
+                            return selectedPerformance.phase_breakdown.map((skill, idx) => {
+                              const magnitude = Math.abs(skill.weighted_delta || 0);
+                              const share = maxDelta > 0 ? Math.round((magnitude / maxDelta) * 100) : 0;
+                              const skillIds = [skill.skill_name].filter(Boolean);
 
-                            return (
-                              <div key={`${(phase.skill_ids || []).join('-')}-${idx}`} className="border border-white/5 rounded-md p-3 bg-slate-800/60">
-                                <div className="flex items-center justify-between gap-3">
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-xs text-slate-400">Phase {idx + 1}</span>
+                              return (
+                                <div key={`${skill.skill_name}-${idx}`} className="border border-white/5 rounded-md p-3 bg-slate-800/60">
+                                  <div className="flex items-center justify-between gap-3">
                                     <span className="px-2 py-1 text-xs rounded border border-white/10 bg-white/5">
-                                      <span title={formatSkillSetTooltip(phase.skill_ids, phaseNames)}>
-                                        {formatSkillSetLabel(phase.skill_ids, phaseNames, { maxVisible: 1, emptyLabel: 'Skill set' })}
+                                      <span title={formatSkillSetTooltip(skillIds, phaseNames)}>
+                                        {formatSkillSetLabel(skillIds, phaseNames, { maxVisible: 1, emptyLabel: skill.skill_name || 'Skill' })}
                                       </span>
                                     </span>
+                                    <div className="text-xs text-slate-300">
+                                      {skill.iterations} iteration{skill.iterations === 1 ? '' : 's'}
+                                    </div>
                                   </div>
-                                  <div className="text-xs text-slate-300">
-                                    {phase.iterations} iterations • {formatDurationMs(phase.duration)}
+                                  <div className="mt-2 h-2 w-full rounded-full bg-white/5">
+                                    <div
+                                      className="h-2 rounded-full bg-emerald-400"
+                                      style={{ width: `${share}%` }}
+                                    />
+                                  </div>
+                                  <div className="mt-2 text-xs text-slate-400">
+                                    Weighted-score reduction {skill.weighted_delta > 0 ? '−' : ''}{Math.abs(skill.weighted_delta || 0).toFixed(2)}
                                   </div>
                                 </div>
-                                <div className="mt-2 h-2 w-full rounded-full bg-white/5">
-                                  <div
-                                    className="h-2 rounded-full bg-emerald-400"
-                                    style={{ width: `${effectiveness}%` }}
-                                  />
-                                </div>
-                                <div className="mt-2 text-xs text-slate-400">
-                                  Effectiveness {effectiveness}% {improvements ? `• ${improvements}` : ''}
-                                </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            });
+                          })()}
                         </div>
                       )}
                     </div>

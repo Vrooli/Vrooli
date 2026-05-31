@@ -46,23 +46,19 @@ export function AutoSteerTab() {
 
   const handleDuplicateProfile = (profile: AutoSteerProfile) => {
     setEditingProfile(null);
-    setPrefillData({
-      name: `${profile.name} (Copy)`,
-      description: profile.description,
-      phases: JSON.parse(JSON.stringify(profile.phases || [])),
-      tags: [...(profile.tags || [])],
-    });
+    const { id: _id, created_at: _c, updated_at: _u, ...rest } = JSON.parse(
+      JSON.stringify(profile),
+    ) as AutoSteerProfile;
+    setPrefillData({ ...rest, name: `${profile.name} (Copy)` });
     setIsEditorOpen(true);
   };
 
   const handleUseTemplate = (template: AutoSteerTemplate) => {
     setEditingProfile(null);
-    setPrefillData({
-      name: `${template.name} (Custom)`,
-      description: template.description,
-      phases: template.phases ? JSON.parse(JSON.stringify(template.phases)) : [],
-      tags: [...(template.tags || [])],
-    });
+    const { id: _id, created_at: _c, updated_at: _u, ...rest } = JSON.parse(
+      JSON.stringify(template),
+    ) as AutoSteerTemplate;
+    setPrefillData({ ...rest, name: `${template.name} (Custom)` });
     setIsEditorOpen(true);
   };
 
@@ -136,9 +132,16 @@ export function AutoSteerTab() {
                       </p>
                     )}
                     <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
-                      {profile.phases && (
-                        <span>{profile.phases.length} phase{profile.phases.length !== 1 ? 's' : ''}</span>
-                      )}
+                      <span>
+                        {profile.allowed_skills?.length ?? 0} skill{profile.allowed_skills?.length === 1 ? '' : 's'}
+                      </span>
+                      {profile.objective?.dimension_weights &&
+                        Object.keys(profile.objective.dimension_weights).length > 0 && (
+                          <span>
+                            • {Object.keys(profile.objective.dimension_weights).length} weighted dimension
+                            {Object.keys(profile.objective.dimension_weights).length === 1 ? '' : 's'}
+                          </span>
+                        )}
                       {profile.tags && profile.tags.length > 0 && (
                         <span>• {profile.tags.length} tag{profile.tags.length !== 1 ? 's' : ''}</span>
                       )}
@@ -227,10 +230,10 @@ export function AutoSteerTab() {
       <div className="bg-blue-900/20 border border-blue-400/30 rounded-md p-4">
         <h4 className="text-sm font-medium text-blue-400 mb-2">About Auto Steer</h4>
         <ul className="text-xs text-slate-300 space-y-1">
-          <li>• Auto Steer profiles guide task execution through multi-phase workflows</li>
-          <li>• Each phase can have conditions, actions, and decision logic</li>
+          <li>• An objective profile defines what "done" means — dimension weights and targets</li>
+          <li>• The controller audits, then greedily selects the allowed skill that closes the heaviest open dimension</li>
+          <li>• It terminates when the objective is met, returns diminish, or the iteration budget is spent</li>
           <li>• Use templates as starting points or create custom profiles from scratch</li>
-          <li>• Profiles can be shared across multiple tasks for consistency</li>
         </ul>
       </div>
 

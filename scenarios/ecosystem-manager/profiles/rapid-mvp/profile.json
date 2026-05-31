@@ -1,56 +1,25 @@
 {
   "id": "rapid-mvp",
-  "name": "Rapid MVP",
-  "description": "Fast iteration to minimum viable product. Focuses on getting features working quickly with basic testing.",
-  "phases": [
-    {
-      "id": "rapid-mvp-progress",
-      "skill_ids": ["progress"],
-      "skill_name": "Progress",
-      "modes": [],
-      "stop_conditions": [
-        {
-          "type": "simple",
-          "metric": "operational_targets_percentage",
-          "compare_operator": ">=",
-          "value": 70
-        }
-      ],
-      "max_iterations": 20
+  "objective": {
+    "dimension_weights": {
+      "operational-targets": 1.5,
+      "tests": 0.8,
+      "standards": 0.6
     },
-    {
-      "id": "rapid-mvp-test",
-      "skill_ids": ["test"],
-      "skill_name": "Test",
-      "modes": [],
-      "stop_conditions": [
-        {
-          "type": "simple",
-          "metric": "unit_test_coverage",
-          "compare_operator": ">",
-          "value": 60
-        }
-      ],
-      "max_iterations": 5
-    },
-    {
-      "id": "rapid-mvp-polish",
-      "skill_ids": ["polish"],
-      "skill_name": "Polish",
-      "modes": [],
-      "stop_conditions": [
-        {
-          "type": "simple",
-          "metric": "loops",
-          "compare_operator": ">=",
-          "value": 3
-        }
-      ],
-      "max_iterations": 3
+    "targets": {
+      "max_open_severity": "error",
+      "operational_targets_pct": 70
     }
+  },
+  "allowed_skills": [
+    "progress",
+    "test",
+    "polish"
   ],
-  "quality_gates": [],
-  "created_at": "2026-01-27T00:00:00Z",
-  "updated_at": "2026-01-27T00:00:00Z",
-  "tags": ["rapid", "mvp", "quick"]
+  "budget": {
+    "max_iterations": 15,
+    "diminishing_returns_floor": 0.05,
+    "reaudit_cadence": 3
+  },
+  "audit_preset": "comprehensive"
 }

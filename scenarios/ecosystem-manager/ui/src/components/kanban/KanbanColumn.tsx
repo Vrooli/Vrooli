@@ -133,7 +133,6 @@ export function KanbanColumn({
                       ? autoSteerProfilesById?.[task.auto_steer_profile_id]
                       : undefined
                   }
-                  autoSteerPhaseIndex={task.auto_steer_phase_index}
                 />
               ))
             )}

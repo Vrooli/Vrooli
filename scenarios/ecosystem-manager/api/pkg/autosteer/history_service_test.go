@@ -88,27 +88,16 @@ func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioNam
 		},
 	}
 
-	phaseBreakdown := []PhasePerformance{
+	phaseBreakdown := []SkillPerformance{
 		{
-			SkillIDs:   []string{"progress"},
-			SkillName:  "Progress",
-			Iterations: 10,
-			MetricDeltas: map[string]float64{
-				"operational_targets_percentage": 30.0,
-			},
-			Duration:      600000, // 10 minutes
-			Effectiveness: 3.0,
+			SkillName:     "progress",
+			Iterations:    10,
+			WeightedDelta: 30.0,
 		},
 		{
-			SkillIDs:   []string{"ux"},
-			SkillName:  "UX",
-			Iterations: 5,
-			MetricDeltas: map[string]float64{
-				"accessibility_score": 22.0,
-				"ui_test_coverage":    35.0,
-			},
-			Duration:      300000, // 5 minutes
-			Effectiveness: 11.4,
+			SkillName:     "ux",
+			Iterations:    5,
+			WeightedDelta: 11.4,
 		},
 	}
 
@@ -450,10 +439,6 @@ func TestHistoryService_GetProfileAnalytics(t *testing.T) {
 			t.Errorf("Expected avg iterations 15.0, got %f", analytics.AvgIterations)
 		}
 
-		if analytics.AvgDuration != 900000 {
-			t.Errorf("Expected avg duration 900000ms, got %d", analytics.AvgDuration)
-		}
-
 		// Should have average rating from 2 executions with feedback
 		if analytics.AvgRating != 5.0 {
 			t.Errorf("Expected avg rating 5.0, got %f", analytics.AvgRating)
@@ -473,6 +458,9 @@ func TestHistoryService_GetProfileAnalytics(t *testing.T) {
 			}
 			if progressStats.AvgIterations != 10.0 {
 				t.Errorf("Expected avg 10 iterations for progress, got %f", progressStats.AvgIterations)
+			}
+			if progressStats.AvgWeightedDelta != 30.0 {
+				t.Errorf("Expected avg weighted delta 30.0 for progress, got %f", progressStats.AvgWeightedDelta)
 			}
 		}
 
@@ -542,17 +530,13 @@ func TestHistoryService_PhaseEffectiveness(t *testing.T) {
 		t.Fatal("Expected UX phase statistics")
 	}
 
-	// UX phase had effectiveness of 11.4 (from test data)
-	if uxStats.AvgEffectiveness != 11.4 {
-		t.Errorf("Expected UX effectiveness 11.4, got %f", uxStats.AvgEffectiveness)
+	// UX skill had a realized weighted delta of 11.4 (from test data)
+	if uxStats.AvgWeightedDelta != 11.4 {
+		t.Errorf("Expected UX avg weighted delta 11.4, got %f", uxStats.AvgWeightedDelta)
 	}
 
-	// UX phase had 5 iterations and 5 minutes
+	// UX skill had 5 iterations
 	if uxStats.AvgIterations != 5.0 {
 		t.Errorf("Expected UX avg iterations 5.0, got %f", uxStats.AvgIterations)
-	}
-
-	if uxStats.AvgDuration != 300000 {
-		t.Errorf("Expected UX avg duration 300000ms, got %d", uxStats.AvgDuration)
 	}
 }

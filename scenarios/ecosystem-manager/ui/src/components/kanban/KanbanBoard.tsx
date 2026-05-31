@@ -260,7 +260,6 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
                   ? autoSteerProfileMap[activeTask.auto_steer_profile_id]
                   : undefined
               }
-              autoSteerPhaseIndex={activeTask.auto_steer_phase_index}
             />
           ) : null}
         </DragOverlay>

@@ -64,8 +64,8 @@ func (a *AutoSteerIntegration) InitializeAutoSteer(task *tasks.TaskItem, scenari
 			// Fall through to create a fresh execution below.
 		} else {
 			// Already initialized with the correct profile.
-			log.Printf("Auto Steer already initialized for task %s (profile: %s, phase: %d/%d)",
-				task.ID, task.AutoSteerProfileID, existingState.CurrentPhaseIndex+1, len(existingState.PhaseHistory)+1)
+			log.Printf("Auto Steer already initialized for task %s (profile: %s, iteration: %d, skill: %s)",
+				task.ID, task.AutoSteerProfileID, existingState.Iteration, existingState.CurrentSkill)
 			return nil
 		}
 	}
@@ -117,67 +117,36 @@ func (a *AutoSteerIntegration) EnhancePrompt(task *tasks.TaskItem, basePrompt st
 	return enhancedPrompt, nil
 }
 
-// EvaluateIteration evaluates the current iteration and determines next steps
-// Should be called after successful task execution
-// Returns: shouldContinue, needsPhaseAdvance, error
-func (a *AutoSteerIntegration) EvaluateIteration(task *tasks.TaskItem, scenarioName string) (bool, bool, error) {
+// EvaluateIteration runs one controller MEASURE+TERMINATE step after a task's
+// agent run. The orchestrator re-audits, records the realized delta, and either
+// finalizes (stop) or selects the next skill (continue). Returns whether the
+// loop should continue.
+func (a *AutoSteerIntegration) EvaluateIteration(task *tasks.TaskItem, scenarioName string) (bool, error) {
 	if !a.isEligible(task) {
 		// No Auto Steer - task should continue normally based on ProcessorAutoRequeue
-		return true, false, nil
+		return true, nil
 	}
 
 	log.Printf("Evaluating Auto Steer iteration for task %s", task.ID)
 
-	// Evaluate iteration
 	evaluation, err := a.executionOrchestrator.EvaluateIteration(task.ID, scenarioName)
 	if err != nil {
-		return false, false, fmt.Errorf("failed to evaluate Auto Steer iteration: %w", err)
+		return false, fmt.Errorf("failed to evaluate Auto Steer iteration: %w", err)
 	}
 
-	if !evaluation.ShouldStop {
-		// Continue in current phase
-		log.Printf("Auto Steer: Task %s continuing in current phase", task.ID)
-		return true, false, nil
+	if evaluation.ShouldStop {
+		log.Printf("Auto Steer: Task %s controller stopping (reason: %s)", task.ID, evaluation.Reason)
+		systemlog.Infof("Auto Steer: Task %s run complete - reason: %s", task.ID, evaluation.Reason)
+		return false, nil
 	}
 
-	// Phase should stop
-	log.Printf("Auto Steer: Task %s phase stopping (reason: %s)", task.ID, evaluation.Reason)
-	systemlog.Infof("Auto Steer: Task %s phase complete - reason: %s", task.ID, evaluation.Reason)
-
-	return false, true, nil
+	log.Printf("Auto Steer: Task %s continuing — next skill %q", task.ID, evaluation.ChosenSkill)
+	systemlog.Infof("Auto Steer: Task %s continuing with skill %s", task.ID, evaluation.ChosenSkill)
+	return true, nil
 }
 
-// AdvancePhase advances to the next Auto Steer phase
-// Returns: allPhasesComplete, error
-func (a *AutoSteerIntegration) AdvancePhase(task *tasks.TaskItem, scenarioName string) (bool, error) {
-	log.Printf("Advancing Auto Steer phase for task %s", task.ID)
-	systemlog.Infof("Auto Steer: Advancing phase for task %s", task.ID)
-
-	result, err := a.executionOrchestrator.AdvancePhase(task.ID, scenarioName)
-	if err != nil {
-		return false, fmt.Errorf("failed to advance Auto Steer phase: %w", err)
-	}
-
-	if !result.Success {
-		return false, fmt.Errorf("phase advance failed: %s", result.Message)
-	}
-
-	if result.Completed {
-		// All phases completed
-		log.Printf("Auto Steer: All phases completed for task %s", task.ID)
-		systemlog.Infof("Auto Steer: Task %s completed all phases successfully", task.ID)
-		return true, nil
-	}
-
-	// Advanced to next phase
-	log.Printf("Auto Steer: Task %s advanced to phase %d", task.ID, result.NextPhaseIndex+1)
-	systemlog.Infof("Auto Steer: Task %s advanced to phase %d", task.ID, result.NextPhaseIndex+1)
-
-	return false, nil
-}
-
-// ShouldContinueTask determines if a task should continue (requeue) after execution
-// Takes into account Auto Steer state and phase progression
+// ShouldContinueTask determines if a task should continue (requeue) after
+// execution, driving the controller loop one iteration.
 func (a *AutoSteerIntegration) ShouldContinueTask(task *tasks.TaskItem, scenarioName string) (bool, error) {
 	if task == nil {
 		return false, fmt.Errorf("task is nil")
@@ -194,36 +163,14 @@ func (a *AutoSteerIntegration) ShouldContinueTask(task *tasks.TaskItem, scenario
 		return task.ProcessorAutoRequeue, nil
 	}
 
-	// Evaluate the current iteration
-	shouldContinue, needsPhaseAdvance, err := a.EvaluateIteration(task, scenarioName)
+	shouldContinue, err := a.EvaluateIteration(task, scenarioName)
 	if err != nil {
 		return false, fmt.Errorf("failed to evaluate iteration: %w", err)
 	}
-
-	if shouldContinue && !needsPhaseAdvance {
-		// Continue in current phase
-		return true, nil
+	if !shouldContinue {
+		log.Printf("Auto Steer: Task %s controller finished - will not requeue", task.ID)
 	}
-
-	if needsPhaseAdvance {
-		// Advance to next phase
-		allComplete, err := a.AdvancePhase(task, scenarioName)
-		if err != nil {
-			return false, fmt.Errorf("failed to advance phase: %w", err)
-		}
-
-		if allComplete {
-			// All phases done - don't continue
-			log.Printf("Auto Steer: Task %s fully completed - will not requeue", task.ID)
-			return false, nil
-		}
-
-		// Advanced to next phase - continue
-		return true, nil
-	}
-
-	// Shouldn't get here, but default to not continuing
-	return false, nil
+	return shouldContinue, nil
 }
 
 // GetCurrentSet returns the current Auto Steer skill set for a task

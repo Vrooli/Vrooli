@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -98,97 +96,32 @@ func SetupTestDatabase(t *testing.T) (*PostgresContainer, func()) {
 	return container, cleanup
 }
 
-// createTestSchema creates the necessary database tables
+// createTestSchema creates the controller's tables (the same self-healing DDL
+// the API uses at startup).
 func createTestSchema(db *sql.DB) error {
-	schema := `
-		CREATE TABLE IF NOT EXISTS profile_execution_state (
-			task_id UUID PRIMARY KEY,
-			profile_id VARCHAR(255) NOT NULL,
-			current_phase_index INTEGER NOT NULL,
-			current_phase_iteration INTEGER NOT NULL,
-			auto_steer_iteration INTEGER NOT NULL DEFAULT 0,
-			phase_started_at TIMESTAMP DEFAULT NOW(),
-			phase_history JSONB,
-			metrics JSONB,
-			phase_start_metrics JSONB,
-			started_at TIMESTAMP DEFAULT NOW(),
-			last_updated TIMESTAMP DEFAULT NOW()
-		);
-
-		CREATE TABLE IF NOT EXISTS profile_executions (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			profile_id VARCHAR(255) NOT NULL,
-			task_id UUID NOT NULL,
-			scenario_name VARCHAR(255) NOT NULL,
-			start_metrics JSONB,
-			end_metrics JSONB,
-			phase_breakdown JSONB,
-			total_iterations INTEGER,
-			total_duration_ms BIGINT,
-			user_rating INTEGER CHECK (user_rating >= 1 AND user_rating <= 5),
-			user_comments TEXT,
-			user_feedback_at TIMESTAMP,
-			executed_at TIMESTAMP DEFAULT NOW()
-		);
-
-		CREATE TABLE IF NOT EXISTS execution_feedback_entries (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			execution_task_id VARCHAR(255) NOT NULL,
-			category VARCHAR(100) NOT NULL,
-			severity VARCHAR(20) NOT NULL,
-			suggested_action TEXT,
-			comments TEXT,
-			metadata JSONB,
-			created_at TIMESTAMP DEFAULT NOW()
-		);
-
-		CREATE INDEX IF NOT EXISTS idx_profile_executions_profile_id ON profile_executions(profile_id);
-		CREATE INDEX IF NOT EXISTS idx_profile_executions_scenario ON profile_executions(scenario_name);
-		CREATE INDEX IF NOT EXISTS idx_profile_executions_executed_at ON profile_executions(executed_at DESC);
-	`
-
-	_, err := db.Exec(schema)
-	return err
+	return EnsureTablesExist(db)
 }
 
-// CreateTestProfile creates a simple test profile
+// CreateTestProfile creates a simple objective-function test profile. The mode
+// becomes the single allowed skill; the objective weights one valid dimension.
 func CreateTestProfile(t *testing.T, name string, mode SteerMode, maxIterations int) *AutoSteerProfile {
 	t.Helper()
-
-	skillName := titleize(strings.ReplaceAll(string(mode), "_", " "))
 
 	return &AutoSteerProfile{
 		Name:        name,
 		Description: fmt.Sprintf("Test profile for %s mode", mode),
-		Phases: []SteerPhase{
-			{
-				ID:            uuid.New().String(),
-				SkillIDs:      []string{string(mode)},
-				SkillName:     skillName,
-				MaxIterations: maxIterations,
-				StopConditions: []StopCondition{
-					{
-						Type:            ConditionTypeSimple,
-						Metric:          "loops",
-						CompareOperator: OpGreaterThan,
-						Value:           float64(maxIterations - 2),
-					},
-				},
-			},
+		Objective: Objective{
+			DimensionWeights: map[string]float64{"standards": 1.0},
+			Targets:          ObjectiveTargets{MaxOpenSeverity: "warning"},
 		},
-		Tags: []string{"test"},
-	}
-}
-
-// CreateMultiPhaseProfile creates a profile with multiple phases
-func CreateMultiPhaseProfile(t *testing.T, name string, phases []SteerPhase) *AutoSteerProfile {
-	t.Helper()
-
-	return &AutoSteerProfile{
-		Name:        name,
-		Description: "Multi-phase test profile",
-		Phases:      phases,
-		Tags:        []string{"test", "multi-phase"},
+		AllowedSkills: []string{string(mode)},
+		Budget: Budget{
+			MaxIterations:           maxIterations,
+			DiminishingReturnsFloor: 0.02,
+			ReauditCadence:          0,
+		},
+		AuditPreset: "comprehensive",
+		Tags:        []string{"test"},
 	}
 }
 

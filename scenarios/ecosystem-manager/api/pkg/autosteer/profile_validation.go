@@ -3,84 +3,76 @@ package autosteer
 import (
 	"fmt"
 	"strings"
+
+	"github.com/ecosystem-manager/api/pkg/dimensions"
 )
 
-// ValidateProfile validates a profile's structure and data.
+// validMaxOpenSeverity is the accepted set of max-open-severity target values.
+var validMaxOpenSeverity = map[string]struct{}{
+	"": {}, "none": {},
+	"info": {}, "low": {},
+	"warning": {}, "warn": {}, "medium": {},
+	"error": {}, "high": {},
+	"blocker": {}, "critical": {},
+}
+
+// ValidateProfile validates an objective-function profile in place (normalizing
+// the allowed-skill list). The phase-list schema is gone; a profile is now an
+// objective + allow-set + budget.
 func ValidateProfile(profile *AutoSteerProfile) error {
 	if profile == nil {
 		return fmt.Errorf("profile is required")
 	}
-	if profile.Name == "" {
+	if strings.TrimSpace(profile.Name) == "" {
 		return fmt.Errorf("profile name is required")
 	}
-	if len(profile.Phases) == 0 {
-		return fmt.Errorf("profile must have at least one phase")
+
+	// Allowed-skill set: at least one, no empties.
+	if len(profile.AllowedSkills) == 0 {
+		return fmt.Errorf("profile must allow at least one skill")
+	}
+	normalized := make([]string, 0, len(profile.AllowedSkills))
+	seen := make(map[string]struct{}, len(profile.AllowedSkills))
+	for _, raw := range profile.AllowedSkills {
+		id := strings.TrimSpace(raw)
+		if id == "" {
+			return fmt.Errorf("allowed_skills contains an empty skill id")
+		}
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		normalized = append(normalized, id)
+	}
+	profile.AllowedSkills = normalized
+
+	// Dimension weights must reference the canonical vocabulary and be non-negative.
+	for dim, weight := range profile.Objective.DimensionWeights {
+		if !dimensions.IsValid(dimensions.Dimension(dim)) {
+			return fmt.Errorf("objective.dimension_weights references unknown dimension %q", dim)
+		}
+		if weight < 0 {
+			return fmt.Errorf("objective.dimension_weights[%q] must be non-negative", dim)
+		}
 	}
 
-	for i, phase := range profile.Phases {
-		if len(phase.SkillIDs) == 0 {
-			return fmt.Errorf("phase %d must have non-empty skill_ids", i)
-		}
-		if strings.TrimSpace(phase.SkillName) == "" {
-			return fmt.Errorf("phase %d must have a skill_name", i)
-		}
-		normalizedIDs := make([]string, 0, len(phase.SkillIDs))
-		for _, raw := range phase.SkillIDs {
-			normalizedID := strings.TrimSpace(raw)
-			if normalizedID == "" {
-				return fmt.Errorf("phase %d has an empty skill_id", i)
-			}
-			normalizedIDs = append(normalizedIDs, normalizedID)
-		}
-		profile.Phases[i].SkillIDs = normalizedIDs
-
-		if phase.MaxIterations <= 0 {
-			return fmt.Errorf("phase %d must have maxIterations > 0", i)
-		}
-
-		for j, condition := range phase.StopConditions {
-			if err := ValidateCondition(condition); err != nil {
-				return fmt.Errorf("phase %d, condition %d: %w", i, j, err)
-			}
-		}
+	// Targets.
+	if _, ok := validMaxOpenSeverity[strings.ToLower(strings.TrimSpace(profile.Objective.Targets.MaxOpenSeverity))]; !ok {
+		return fmt.Errorf("objective.targets.max_open_severity %q is not a recognized severity", profile.Objective.Targets.MaxOpenSeverity)
+	}
+	if pct := profile.Objective.Targets.OperationalTargetsPct; pct < 0 || pct > 100 {
+		return fmt.Errorf("objective.targets.operational_targets_pct must be between 0 and 100")
 	}
 
-	return nil
-}
-
-// ValidateCondition validates a stop condition.
-func ValidateCondition(condition StopCondition) error {
-	switch condition.Type {
-	case ConditionTypeSimple:
-		if condition.Metric == "" {
-			return fmt.Errorf("simple condition must have a metric")
-		}
-		if !IsAllowedMetric(condition.Metric) {
-			return fmt.Errorf("unsupported metric '%s' (allowed: %v)", condition.Metric, AllowedMetrics())
-		}
-		if condition.CompareOperator == "" {
-			return fmt.Errorf("simple condition must have a compare operator")
-		}
-		if !IsValidConditionOperator(condition.CompareOperator) {
-			return fmt.Errorf("invalid compare operator '%s'", condition.CompareOperator)
-		}
-	case ConditionTypeCompound:
-		if condition.Operator == "" {
-			return fmt.Errorf("compound condition must have a logical operator")
-		}
-		if !IsValidLogicalOperator(condition.Operator) {
-			return fmt.Errorf("invalid logical operator '%s'", condition.Operator)
-		}
-		if len(condition.Conditions) == 0 {
-			return fmt.Errorf("compound condition must have sub-conditions")
-		}
-		for i, subCondition := range condition.Conditions {
-			if err := ValidateCondition(subCondition); err != nil {
-				return fmt.Errorf("sub-condition %d: %w", i, err)
-			}
-		}
-	default:
-		return fmt.Errorf("unknown condition type: %s", condition.Type)
+	// Budget.
+	if profile.Budget.MaxIterations <= 0 {
+		return fmt.Errorf("budget.max_iterations must be > 0")
+	}
+	if profile.Budget.DiminishingReturnsFloor < 0 {
+		return fmt.Errorf("budget.diminishing_returns_floor must be non-negative")
+	}
+	if profile.Budget.ReauditCadence < 0 {
+		return fmt.Errorf("budget.reaudit_cadence must be non-negative")
 	}
 
 	return nil

@@ -13,10 +13,9 @@ import { useAppState } from '../../contexts/AppStateContext';
 interface TaskCardBodyProps {
   task: Task;
   autoSteerProfile?: AutoSteerProfile;
-  autoSteerPhaseIndex?: number;
 }
 
-export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: TaskCardBodyProps) {
+export function TaskCardBody({ task, autoSteerProfile }: TaskCardBodyProps) {
   const { cachedSettings } = useAppState();
   const condensedMode = cachedSettings?.display?.condensed_mode ?? false;
   const { data: phaseNames = [] } = useMergedPhaseNames();
@@ -30,21 +29,9 @@ export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: Ta
       ? formatSkillSetLabel(manualSet, phaseNames, { maxVisible: 1, emptyLabel: '' })
       : '';
 
-  const phaseIndex = typeof autoSteerPhaseIndex === 'number'
-    ? autoSteerPhaseIndex
-    : typeof task.auto_steer_phase_index === 'number'
-      ? task.auto_steer_phase_index
-      : undefined;
-  const phaseSkillIds =
-    autoSteerProfile?.phases?.[phaseIndex ?? -1]?.skill_ids ?? [];
-  const phaseSetLabel =
-    phaseSkillIds.length > 0
-      ? formatSkillSetLabel(phaseSkillIds, phaseNames, { maxVisible: 1, emptyLabel: '' })
-      : '';
-  const phaseTooltip =
-    phaseIndex !== undefined && phaseSkillIds.length > 0
-      ? `Phase ${phaseIndex + 1}: ${formatSkillSetTooltip(phaseSkillIds, phaseNames)}`
-      : phaseSetLabel || autoSteerProfile?.name || 'Auto Steer';
+  // Auto Steer cards show the profile name; the per-iteration skill choice lives on
+  // execution history, not the kanban card.
+  const autoSteerTooltip = autoSteerProfile?.name || 'Auto Steer';
 
   const primaryTarget = (task.target && task.target[0]) || '';
   const derivedTitle = `${task.operation === 'improver' ? 'Improve' : 'Generate'} ${primaryTarget || task.type}`;
@@ -79,8 +66,7 @@ export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: Ta
 
       <SteerFocusBadge
         autoSteerProfileName={hasAutoSteer ? autoSteerProfile?.name ?? 'Auto Steer' : undefined}
-        phaseSetLabel={phaseSetLabel || undefined}
-        phaseTooltip={phaseTooltip}
+        skillTooltip={hasAutoSteer ? autoSteerTooltip : undefined}
         manualSetLabel={!hasAutoSteer && !hasQueueSteering && manualSetLabel ? manualSetLabel : undefined}
         manualSetTooltip={!hasAutoSteer && !hasQueueSteering ? formatSkillSetTooltip(manualSet, phaseNames) : undefined}
         queueSetLabel={hasQueueSteering ? (task.steering_queue_set_label || queueDisplay.label) : undefined}

@@ -98,27 +98,21 @@ const formatExecutionDuration = (execution?: ExecutionHistory | null) => {
 
 const formatSteerInfo = (
   execution?: ExecutionHistory | null,
-  profilesById: Record<string, AutoSteerProfile | undefined> = {},
+  _profilesById: Record<string, AutoSteerProfile | undefined> = {},
   phaseNames: PhaseInfo[] = [],
 ) => {
   if (!execution) return '—';
-  const phaseIndex = typeof execution.steer_phase_index === 'number' ? execution.steer_phase_index : undefined;
-  const phaseArrayIndex = typeof phaseIndex === 'number' && phaseIndex > 0 ? phaseIndex - 1 : undefined;
 
+  // The controller records the skill it selected in steer_skill_ids;
+  // steer_phase_iteration carries the controller iteration number.
   let setLabel: string | undefined;
-  if (execution.auto_steer_profile_id && typeof phaseArrayIndex === 'number') {
-    const profile = profilesById[execution.auto_steer_profile_id];
-    const skillIds = profile?.phases?.[phaseArrayIndex]?.skill_ids ?? [];
-    setLabel = formatSkillSetLabel(skillIds, phaseNames, { maxVisible: 1, emptyLabel: '' });
-  }
-  if (!setLabel && execution.steer_skill_ids && execution.steer_skill_ids.length > 0) {
+  if (execution.steer_skill_ids && execution.steer_skill_ids.length > 0) {
     setLabel = formatSkillSetLabel(execution.steer_skill_ids, phaseNames, { maxVisible: 1, emptyLabel: '' });
   }
 
   const label = setLabel ?? execution.steer_set_label ?? execution.steering_source ?? '';
-  const phase = phaseIndex ? ` • phase ${phaseIndex}` : '';
   const iteration = execution.steer_phase_iteration ? ` • iteration ${execution.steer_phase_iteration}` : '';
-  return label ? `${label}${phase}${iteration}` : '—';
+  return label ? `${label}${iteration}` : '—';
 };
 
 const MetaItem = ({ label, value }: { label: string; value?: string | number | null }) => (

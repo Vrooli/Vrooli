@@ -359,14 +359,12 @@ type ProfileAnalytics struct {
 	ScenarioStats   []ScenarioStats       `json:"scenario_stats"`
 }
 
-// PhaseStats represents statistics for a specific mode
+// PhaseStats represents aggregated statistics for a specific steer skill.
 type PhaseStats struct {
-	SkillIDs         []string `json:"skill_ids"`
-	SkillName        string   `json:"skill_name"`
-	TotalExecutions  int      `json:"total_executions"`
-	AvgIterations    float64  `json:"avg_iterations"`
-	AvgDuration      int64    `json:"avg_duration"`
-	AvgEffectiveness float64  `json:"avg_effectiveness"`
+	SkillName        string  `json:"skill_name"`
+	TotalExecutions  int     `json:"total_executions"`
+	AvgIterations    float64 `json:"avg_iterations"`
+	AvgWeightedDelta float64 `json:"avg_weighted_delta"`
 }
 
 // ScenarioStats represents statistics for a specific scenario
@@ -406,12 +404,11 @@ func (s *HistoryService) GetProfileAnalytics(profileID string) (*ProfileAnalytic
 	totalIterations := 0
 	totalDuration := int64(0)
 
-	// Phase statistics accumulator
+	// Skill statistics accumulator (keyed by skill name)
 	phaseData := make(map[string]struct {
 		count         int
 		iterations    int
-		duration      int64
-		effectiveness float64
+		weightedDelta float64
 	})
 
 	// Scenario statistics accumulator
@@ -432,14 +429,13 @@ func (s *HistoryService) GetProfileAnalytics(profileID string) (*ProfileAnalytic
 			ratingCount++
 		}
 
-		// Phase statistics
+		// Skill statistics
 		for _, phase := range exec.PhaseBreakdown {
-			key := strings.Join(phase.SkillIDs, ",")
+			key := phase.SkillName
 			data := phaseData[key]
 			data.count++
 			data.iterations += phase.Iterations
-			data.duration += phase.Duration
-			data.effectiveness += phase.Effectiveness
+			data.weightedDelta += phase.WeightedDelta
 			phaseData[key] = data
 		}
 
@@ -463,30 +459,13 @@ func (s *HistoryService) GetProfileAnalytics(profileID string) (*ProfileAnalytic
 		analytics.AvgRating = totalRating / float64(ratingCount)
 	}
 
-	// Build phase stats
-	for skillKey, data := range phaseData {
-		skillName := ""
-		skillIDs := []string{}
-		for _, exec := range history {
-			for _, phase := range exec.PhaseBreakdown {
-				if strings.Join(phase.SkillIDs, ",") == skillKey {
-					skillName = phase.SkillName
-					skillIDs = append([]string(nil), phase.SkillIDs...)
-					break
-				}
-			}
-			if skillName != "" {
-				break
-			}
-		}
-
-		analytics.PhaseStats[skillKey] = PhaseStats{
-			SkillIDs:         skillIDs,
+	// Build skill stats
+	for skillName, data := range phaseData {
+		analytics.PhaseStats[skillName] = PhaseStats{
 			SkillName:        skillName,
 			TotalExecutions:  data.count,
 			AvgIterations:    float64(data.iterations) / float64(data.count),
-			AvgDuration:      data.duration / int64(data.count),
-			AvgEffectiveness: data.effectiveness / float64(data.count),
+			AvgWeightedDelta: data.weightedDelta / float64(data.count),
 		}
 	}
 

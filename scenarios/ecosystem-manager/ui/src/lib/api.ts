@@ -40,6 +40,8 @@ import type {
   ExecutionFeedbackEntryPayload,
   HealthResponse,
   AutoSteerExecutionState,
+  DecisionTraceResponse,
+  DimensionInfo,
   ActiveTarget,
   Campaign,
   InsightReport,
@@ -519,6 +521,10 @@ class ApiClient {
     return this.fetchJSON<AutoSteerExecutionState>(`/api/auto-steer/execution/${taskId}`);
   }
 
+  async getAutoSteerDecisionTrace(taskId: string): Promise<DecisionTraceResponse> {
+    return this.fetchJSON<DecisionTraceResponse>(`/api/auto-steer/execution/${taskId}/trace`);
+  }
+
   async updateAutoSteerProfile(id: string, profile: Partial<AutoSteerProfile>): Promise<AutoSteerProfile> {
     return this.fetchJSON<AutoSteerProfile>(`/api/auto-steer/profiles/${id}`, {
       method: 'PUT',
@@ -581,23 +587,28 @@ class ApiClient {
     });
   }
 
-  async seekAutoSteerExecution(
+  /** Initialize the controller for a task: runs the first audit and selects the first skill. */
+  async startAutoSteerExecution(
     taskId: string,
-    phaseIndex: number,
-    phaseIteration: number,
-    profileId?: string,
-    scenarioName?: string
+    profileId: string,
+    scenarioName: string
   ): Promise<AutoSteerExecutionState> {
-    return this.fetchJSON<AutoSteerExecutionState>(`/api/auto-steer/execution/seek`, {
+    return this.fetchJSON<AutoSteerExecutionState>(`/api/auto-steer/execution/start`, {
       method: 'POST',
       body: JSON.stringify({
         task_id: taskId,
-        phase_index: phaseIndex,
-        phase_iteration: phaseIteration,
-        ...(profileId && { profile_id: profileId }),
-        ...(scenarioName && { scenario_name: scenarioName }),
+        profile_id: profileId,
+        scenario_name: scenarioName,
       }),
     });
+  }
+
+  /** Canonical improvement-dimension vocabulary (SSOT), for the profile editor. */
+  async getAutoSteerDimensions(): Promise<DimensionInfo[]> {
+    const response = await this.fetchJSON<DimensionInfo[] | { dimensions?: DimensionInfo[]; count?: number }>(`/api/auto-steer/dimensions`);
+    if (Array.isArray(response)) return response;
+    if (response && Array.isArray(response.dimensions)) return response.dimensions;
+    return [];
   }
 
   // ==================== Utilities ====================

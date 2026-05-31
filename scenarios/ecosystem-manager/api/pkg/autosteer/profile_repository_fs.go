@@ -493,55 +493,17 @@ func tagsMatch(a, b []string) bool {
 }
 
 func cloneProfile(profile *AutoSteerProfile) *AutoSteerProfile {
-	copy := *profile
-	copy.Tags = append([]string(nil), profile.Tags...)
-	copy.Phases = clonePhases(profile.Phases)
-	copy.QualityGates = cloneQualityGates(profile.QualityGates)
-	return &copy
-}
-
-func clonePhases(phases []SteerPhase) []SteerPhase {
-	if len(phases) == 0 {
-		return nil
+	clone := *profile
+	clone.Tags = append([]string(nil), profile.Tags...)
+	clone.AllowedSkills = append([]string(nil), profile.AllowedSkills...)
+	if profile.Objective.DimensionWeights != nil {
+		weights := make(map[string]float64, len(profile.Objective.DimensionWeights))
+		for k, v := range profile.Objective.DimensionWeights {
+			weights[k] = v
+		}
+		clone.Objective.DimensionWeights = weights
 	}
-	cloned := make([]SteerPhase, len(phases))
-	for i, phase := range phases {
-		cloned[i] = phase
-		cloned[i].SkillIDs = append([]string(nil), phase.SkillIDs...)
-		cloned[i].StopConditions = cloneStopConditions(phase.StopConditions)
-	}
-	return cloned
-}
-
-func cloneQualityGates(gates []QualityGate) []QualityGate {
-	if len(gates) == 0 {
-		return nil
-	}
-	cloned := make([]QualityGate, len(gates))
-	for i, gate := range gates {
-		cloned[i] = gate
-		cloned[i].Condition = cloneStopCondition(gate.Condition)
-	}
-	return cloned
-}
-
-func cloneStopConditions(conditions []StopCondition) []StopCondition {
-	if len(conditions) == 0 {
-		return nil
-	}
-	cloned := make([]StopCondition, len(conditions))
-	for i, condition := range conditions {
-		cloned[i] = cloneStopCondition(condition)
-	}
-	return cloned
-}
-
-func cloneStopCondition(condition StopCondition) StopCondition {
-	clone := condition
-	if len(condition.Conditions) > 0 {
-		clone.Conditions = cloneStopConditions(condition.Conditions)
-	}
-	return clone
+	return &clone
 }
 
 func writeJSONAtomic(path string, value any) error {

@@ -22,6 +22,10 @@ export function ProfilePanel({ value, onChange, profiles, isLoading }: ProfilePa
   const selectedProfile = profiles.find((p) => p.id === value);
   const { data: phaseNames = [] } = useMergedPhaseNames();
 
+  const weightedDimensions = Object.entries(selectedProfile?.objective?.dimension_weights ?? {})
+    .sort(([, a], [, b]) => b - a);
+  const allowedSkills = selectedProfile?.allowed_skills ?? [];
+
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3 mb-4">
@@ -31,7 +35,8 @@ export function ProfilePanel({ value, onChange, profiles, isLoading }: ProfilePa
         <div>
           <h3 className="text-sm font-medium text-slate-200">Auto Steer Profile</h3>
           <p className="text-sm text-slate-400 mt-0.5">
-            Use a predefined profile with multiple phases, stop conditions, and quality gates.
+            Run the closed-loop controller against an objective — it picks skills to close the
+            heaviest open dimensions until the objective is met or the budget is spent.
           </p>
         </div>
       </div>
@@ -67,8 +72,16 @@ export function ProfilePanel({ value, onChange, profiles, isLoading }: ProfilePa
           )}
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <span className="font-medium text-indigo-400">
-              {selectedProfile.phases?.length || 0} phases
+              {allowedSkills.length} skill{allowedSkills.length === 1 ? '' : 's'}
             </span>
+            {weightedDimensions.length > 0 && (
+              <>
+                <span className="text-slate-600">|</span>
+                <span>
+                  {weightedDimensions.length} weighted dimension{weightedDimensions.length === 1 ? '' : 's'}
+                </span>
+              </>
+            )}
             {selectedProfile.tags && selectedProfile.tags.length > 0 && (
               <>
                 <span className="text-slate-600">|</span>
@@ -76,15 +89,28 @@ export function ProfilePanel({ value, onChange, profiles, isLoading }: ProfilePa
               </>
             )}
           </div>
-          {selectedProfile.phases && selectedProfile.phases.length > 0 && (
+          {weightedDimensions.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
-              {selectedProfile.phases.map((phase, idx) => (
+              {weightedDimensions.map(([dim, weight]) => (
                 <span
-                  key={phase.id || idx}
+                  key={dim}
                   className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/20"
-                  title={formatSkillSetTooltip(phase.skill_ids, phaseNames)}
+                  title={`Weight ${weight}`}
                 >
-                  {formatSkillSetLabel(phase.skill_ids, phaseNames, { maxVisible: 1, emptyLabel: phase.skill_name || 'Skill set' })}
+                  {dim} ×{weight}
+                </span>
+              ))}
+            </div>
+          )}
+          {allowedSkills.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {allowedSkills.map((skill) => (
+                <span
+                  key={skill}
+                  className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-slate-700/40 text-slate-300 border border-white/10"
+                  title={formatSkillSetTooltip([skill], phaseNames)}
+                >
+                  {formatSkillSetLabel([skill], phaseNames, { maxVisible: 1, emptyLabel: skill })}
                 </span>
               ))}
             </div>

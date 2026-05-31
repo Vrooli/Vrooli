@@ -56,6 +56,21 @@ export function useAutoSteerExecutionState(taskId?: string) {
 }
 
 /**
+ * Fetch the controller's decision trace for a task (survives finalization).
+ */
+export function useAutoSteerDecisionTrace(taskId?: string) {
+  return useQuery({
+    queryKey: queryKeys.autoSteer.decisionTrace(taskId ?? 'none'),
+    queryFn: async () => {
+      const resp = await api.getAutoSteerDecisionTrace(taskId as string);
+      return resp?.trace ?? [];
+    },
+    enabled: !!taskId,
+    staleTime: 15000,
+  });
+}
+
+/**
  * Reset Auto Steer execution state for a task
  */
 export function useResetAutoSteerExecution() {
@@ -71,29 +86,37 @@ export function useResetAutoSteerExecution() {
 }
 
 /**
- * Seek Auto Steer execution cursor to a specific phase/iteration
- * If profileId and scenarioName are provided and no execution state exists, initializes it first.
+ * Initialize the controller for a task: runs the first audit and selects the
+ * first skill. The controller derives everything else — there is no phase cursor
+ * to seek to.
  */
-export function useSeekAutoSteerExecution() {
+export function useStartAutoSteerExecution() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
       taskId,
-      phaseIndex,
-      phaseIteration,
       profileId,
       scenarioName,
     }: {
       taskId: string;
-      phaseIndex: number;
-      phaseIteration: number;
-      profileId?: string;
-      scenarioName?: string;
-    }) => api.seekAutoSteerExecution(taskId, phaseIndex, phaseIteration, profileId, scenarioName),
+      profileId: string;
+      scenarioName: string;
+    }) => api.startAutoSteerExecution(taskId, profileId, scenarioName),
     onSuccess: (state) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.executionState(state?.task_id ?? 'none') });
     },
+  });
+}
+
+/**
+ * Fetch the canonical improvement-dimension vocabulary (SSOT) for the editor.
+ */
+export function useAutoSteerDimensions() {
+  return useQuery({
+    queryKey: queryKeys.autoSteer.dimensions(),
+    queryFn: () => api.getAutoSteerDimensions(),
+    staleTime: Infinity, // vocabulary is effectively static for a session
   });
 }
 
@@ -167,9 +190,7 @@ export function useAllAutoSteerProfiles() {
 
   const merged = useMemo<AutoSteerProfile[]>(() => {
     const profileIds = new Set(profiles.map((p) => p.id));
-    const fromTemplates: AutoSteerProfile[] = templates
-      .filter((t) => !profileIds.has(t.id))
-      .map((t) => ({ ...t, phases: t.phases ?? [] }));
+    const fromTemplates = templates.filter((t) => !profileIds.has(t.id));
     return [...profiles, ...fromTemplates];
   }, [profiles, templates]);
 

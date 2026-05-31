@@ -2,42 +2,73 @@ package autosteer
 
 import "testing"
 
-func TestValidateCondition(t *testing.T) {
-	t.Run("invalid simple condition", func(t *testing.T) {
-		condition := StopCondition{
-			Type:            ConditionTypeSimple,
-			Metric:          "unknown_metric",
-			CompareOperator: OpEquals,
-			Value:           1,
-		}
+func validObjectiveProfile() *AutoSteerProfile {
+	return &AutoSteerProfile{
+		Name: "Valid",
+		Objective: Objective{
+			DimensionWeights: map[string]float64{"standards": 1.0, "tests": 1.2},
+			Targets:          ObjectiveTargets{MaxOpenSeverity: "warning", OperationalTargetsPct: 90},
+		},
+		AllowedSkills: []string{"progress", "test"},
+		Budget:        Budget{MaxIterations: 20, DiminishingReturnsFloor: 0.02, ReauditCadence: 5},
+		AuditPreset:   "comprehensive",
+	}
+}
 
-		if err := ValidateCondition(condition); err == nil {
-			t.Fatal("expected error for invalid metric")
-		}
-	})
+func TestValidateProfile_Valid(t *testing.T) {
+	p := validObjectiveProfile()
+	if err := ValidateProfile(p); err != nil {
+		t.Fatalf("expected valid profile, got error: %v", err)
+	}
+}
 
-	t.Run("valid compound condition", func(t *testing.T) {
-		condition := StopCondition{
-			Type:     ConditionTypeCompound,
-			Operator: LogicalAND,
-			Conditions: []StopCondition{
-				{
-					Type:            ConditionTypeSimple,
-					Metric:          "loops",
-					CompareOperator: OpGreaterThan,
-					Value:           1,
-				},
-				{
-					Type:            ConditionTypeSimple,
-					Metric:          "build_status",
-					CompareOperator: OpEquals,
-					Value:           1,
-				},
-			},
-		}
+func TestValidateProfile_Invalid(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(*AutoSteerProfile)
+	}{
+		{"nil name", func(p *AutoSteerProfile) { p.Name = "" }},
+		{"no allowed skills", func(p *AutoSteerProfile) { p.AllowedSkills = nil }},
+		{"empty allowed skill", func(p *AutoSteerProfile) { p.AllowedSkills = []string{"  "} }},
+		{"unknown dimension weight", func(p *AutoSteerProfile) {
+			p.Objective.DimensionWeights = map[string]float64{"not-a-dimension": 1.0}
+		}},
+		{"negative weight", func(p *AutoSteerProfile) {
+			p.Objective.DimensionWeights = map[string]float64{"standards": -1}
+		}},
+		{"bad severity", func(p *AutoSteerProfile) { p.Objective.Targets.MaxOpenSeverity = "catastrophic" }},
+		{"op pct out of range", func(p *AutoSteerProfile) { p.Objective.Targets.OperationalTargetsPct = 150 }},
+		{"zero iterations", func(p *AutoSteerProfile) { p.Budget.MaxIterations = 0 }},
+		{"negative floor", func(p *AutoSteerProfile) { p.Budget.DiminishingReturnsFloor = -0.1 }},
+		{"negative cadence", func(p *AutoSteerProfile) { p.Budget.ReauditCadence = -1 }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := validObjectiveProfile()
+			tc.mutate(p)
+			if err := ValidateProfile(p); err == nil {
+				t.Fatalf("expected validation error for %s", tc.name)
+			}
+		})
+	}
+}
 
-		if err := ValidateCondition(condition); err != nil {
-			t.Fatalf("expected valid compound condition, got error: %v", err)
-		}
-	})
+func TestValidateProfile_NormalizesAllowedSkills(t *testing.T) {
+	p := validObjectiveProfile()
+	p.AllowedSkills = []string{" progress ", "test", "test", ""}
+	// Empty entry should fail.
+	if err := ValidateProfile(p); err == nil {
+		t.Fatal("expected error for empty skill id")
+	}
+
+	p.AllowedSkills = []string{" progress ", "test", "test"}
+	if err := ValidateProfile(p); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(p.AllowedSkills) != 2 {
+		t.Fatalf("expected dedup+trim to 2 skills, got %v", p.AllowedSkills)
+	}
+	if p.AllowedSkills[0] != "progress" {
+		t.Fatalf("expected trimmed 'progress', got %q", p.AllowedSkills[0])
+	}
 }

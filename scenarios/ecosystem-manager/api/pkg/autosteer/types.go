@@ -5,9 +5,13 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ecosystem-manager/api/pkg/findings"
 )
 
-// SteerMode defines the different improvement dimensions agents can focus on
+// SteerMode defines the different improvement dimensions agents can focus on.
+// These remain prompt-routing labels (which skill family to render); the
+// controller's dimension vocabulary lives in pkg/dimensions.
 type SteerMode string
 
 const (
@@ -136,96 +140,78 @@ func (m SteerMode) IsValid() bool {
 	return steerModeRegistry.has(normalized)
 }
 
-// ConditionType defines the type of condition (simple or compound)
-type ConditionType string
+// ─────────────────────────────────────────────────────────────────────────────
+// Objective-function profiles (the closed-loop controller model).
+//
+// A profile is no longer a script (ordered phase list). It is an OBJECTIVE
+// FUNCTION: how to weight the open-findings vector, what "done" means, which
+// skills are eligible, and the iteration budget. The controller derives the
+// path from the target's measured state — see docs/concepts/CONTROL-MODEL.md.
+// ─────────────────────────────────────────────────────────────────────────────
 
-const (
-	ConditionTypeSimple   ConditionType = "simple"
-	ConditionTypeCompound ConditionType = "compound"
-)
-
-// ConditionOperator defines comparison operators
-type ConditionOperator string
-
-const (
-	OpGreaterThan       ConditionOperator = ">"
-	OpLessThan          ConditionOperator = "<"
-	OpGreaterThanEquals ConditionOperator = ">="
-	OpLessThanEquals    ConditionOperator = "<="
-	OpEquals            ConditionOperator = "=="
-	OpNotEquals         ConditionOperator = "!="
-)
-
-// LogicalOperator defines how conditions are combined
-type LogicalOperator string
-
-const (
-	LogicalAND LogicalOperator = "AND"
-	LogicalOR  LogicalOperator = "OR"
-)
-
-// StopCondition represents a condition for stopping a phase
-// Can be either simple or compound (recursive)
-type StopCondition struct {
-	Type       ConditionType   `json:"type"`
-	Operator   LogicalOperator `json:"operator,omitempty"`   // For compound conditions
-	Conditions []StopCondition `json:"conditions,omitempty"` // For compound conditions
-
-	// For simple conditions
-	Metric          string            `json:"metric,omitempty"`
-	CompareOperator ConditionOperator `json:"compare_operator,omitempty"`
-	Value           float64           `json:"value,omitempty"`
+// Objective is the weighting + target definition the controller optimizes
+// against. Dimension weights bias selection toward what the profile cares about
+// most; targets define when the objective is met.
+type Objective struct {
+	// DimensionWeights biases the weighted-score of each finding dimension.
+	// A dimension absent from the map defaults to weight 1.0.
+	DimensionWeights map[string]float64 `json:"dimension_weights"`
+	Targets          ObjectiveTargets   `json:"targets"`
 }
 
-// SteerPhase represents a single phase in an Auto Steer profile
-type SteerPhase struct {
-	ID             string          `json:"id"`
-	SkillIDs       []string        `json:"skill_ids"`
-	SkillName      string          `json:"skill_name"`
-	WithScope      bool            `json:"with_scope,omitempty"` // Include default scope from skill
-	Scope          string          `json:"scope,omitempty"`      // Explicit scope skill override
-	StopConditions []StopCondition `json:"stop_conditions"`
-	MaxIterations  int             `json:"max_iterations"`
-	Description    string          `json:"description,omitempty"`
+// ObjectiveTargets define when the controller may declare the objective met.
+type ObjectiveTargets struct {
+	// MaxOpenSeverity is the highest finding severity tolerated at completion.
+	// Findings strictly above this severity keep the loop running. One of
+	// "info", "warning", "error", "blocker" (case-insensitive). Empty means
+	// "no open findings of any severity".
+	MaxOpenSeverity string `json:"max_open_severity,omitempty"`
+	// OperationalTargetsPct is the minimum operational-target completion (0-100)
+	// required at completion, measured from the gap-metric collectors. Zero
+	// disables the gate.
+	OperationalTargetsPct float64 `json:"operational_targets_pct,omitempty"`
 }
 
-// QualityGateAction defines what happens when a quality gate fails
-type QualityGateAction string
-
-const (
-	ActionHalt      QualityGateAction = "halt"       // Stop execution completely
-	ActionSkipPhase QualityGateAction = "skip_phase" // Skip to next phase
-	ActionWarn      QualityGateAction = "warn"       // Log warning but continue
-)
-
-// QualityGate represents a validation check between phases
-type QualityGate struct {
-	Name          string            `json:"name"`
-	Condition     StopCondition     `json:"condition"`
-	FailureAction QualityGateAction `json:"failure_action"`
-	Message       string            `json:"message"`
+// Budget bounds the controller loop (Layer-3 backstop + cost control).
+type Budget struct {
+	// MaxIterations is the hard iteration cap (Layer-3 thrash backstop).
+	MaxIterations int `json:"max_iterations"`
+	// DiminishingReturnsFloor is the minimum mean weighted-score improvement per
+	// iteration (over the trailing window) below which the loop stops.
+	DiminishingReturnsFloor float64 `json:"diminishing_returns_floor"`
+	// ReauditCadence controls re-audit cost. 0 = targeted re-audit each
+	// iteration (only the chosen skill's dimensions); N>0 = run the full preset
+	// every N iterations and a targeted audit otherwise.
+	ReauditCadence int `json:"reaudit_cadence,omitempty"`
 }
 
-// AutoSteerProfile represents a reusable improvement profile
+// AutoSteerProfile is the controller's objective function for an improvement
+// run. (The type name is retained across the API/CLI/UI surfaces; its shape is
+// the greenfield objective model.)
 type AutoSteerProfile struct {
-	ID           string        `json:"id"`
-	Name         string        `json:"name"`
-	Description  string        `json:"description"`
-	Phases       []SteerPhase  `json:"phases"`
-	QualityGates []QualityGate `json:"quality_gates"`
-	CreatedAt    time.Time     `json:"created_at"`
-	UpdatedAt    time.Time     `json:"updated_at"`
-	Tags         []string      `json:"tags"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Description   string    `json:"description"`
+	Objective     Objective `json:"objective"`
+	AllowedSkills []string  `json:"allowed_skills"`
+	Budget        Budget    `json:"budget"`
+	// AuditPreset is the test-genie preset used for full audits (the initial
+	// diagnose and the termination gate). Defaults to "comprehensive".
+	AuditPreset string    `json:"audit_preset,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Tags        []string  `json:"tags"`
 }
 
-// MetricsSnapshot captures all metrics at a point in time
+// MetricsSnapshot captures gap-metric measurements at a point in time. In the
+// controller model these are NOT the primary state (that is the findings
+// vector); they are retained as gap measurements for the objective's
+// operational-targets target and for history/analytics.
 type MetricsSnapshot struct {
 	Timestamp time.Time `json:"timestamp"`
 
-	// Universal metrics
-	// PhaseLoops counts iterations within the current phase (resets when a phase advances)
-	PhaseLoops int `json:"phase_loops"`
-	// TotalLoops is the global iteration counter across all phases
+	// TotalLoops is the global controller iteration counter.
+	PhaseLoops                   int     `json:"phase_loops"`
 	TotalLoops                   int     `json:"total_loops"`
 	BuildStatus                  int     `json:"build_status"` // 0 = failing, 1 = passing
 	OperationalTargetsTotal      int     `json:"operational_targets_total"`
@@ -286,45 +272,62 @@ type SecurityMetrics struct {
 	SecurityScanScore       float64 `json:"security_scan_score"`       // 0-100
 }
 
-// PhaseExecution represents the execution of a single phase
-type PhaseExecution struct {
-	PhaseID      string          `json:"phase_id"`
-	SkillIDs     []string        `json:"skill_ids"`
-	SkillName    string          `json:"skill_name"`
-	WithScope    bool            `json:"with_scope,omitempty"` // Whether scope was included
-	Scope        string          `json:"scope,omitempty"`      // Scope skill that was used
-	Iterations   int             `json:"iterations"`
-	StartMetrics MetricsSnapshot `json:"start_metrics"`
-	EndMetrics   MetricsSnapshot `json:"end_metrics"`
-	Commits      []string        `json:"commits"` // Git commits made during phase
-	StartedAt    time.Time       `json:"started_at"`
-	CompletedAt  *time.Time      `json:"completed_at,omitempty"`
-	StopReason   string          `json:"stop_reason"` // max_iterations, condition_met, quality_gate_failed
+// DecisionTraceEntry records one controller iteration's reasoning so the loop is
+// a glass box (see CONTROL-MODEL.md "Transparency"). One entry is appended when
+// a skill is selected; ScoreAfter / RealizedDelta are filled after the skill
+// runs and the target is re-audited.
+type DecisionTraceEntry struct {
+	Iteration         int                `json:"iteration"`
+	Timestamp         time.Time          `json:"timestamp"`
+	DimensionScores   map[string]float64 `json:"dimension_scores"`
+	HeaviestDimension string             `json:"heaviest_dimension"`
+	ChosenSkill       string             `json:"chosen_skill"`
+	Rationale         string             `json:"rationale"`
+	Fingerprint       string             `json:"fingerprint"`
+	ScoreBefore       float64            `json:"score_before"`
+	ScoreAfter        float64            `json:"score_after"`
+	RealizedDelta     float64            `json:"realized_delta"`
 }
 
-// ProfileExecutionState tracks the current state of an active profile execution
+// ProfileExecutionState tracks the live state of an active controller run.
 type ProfileExecutionState struct {
-	TaskID                string           `json:"task_id"`
-	ProfileID             string           `json:"profile_id"`
-	CurrentPhaseIndex     int              `json:"current_phase_index"`
-	CurrentPhaseIteration int              `json:"current_phase_iteration"`
-	AutoSteerIteration    int              `json:"auto_steer_iteration"`
-	PhaseStartedAt        time.Time        `json:"phase_started_at"`
-	PhaseHistory          []PhaseExecution `json:"phase_history"`
-	Metrics               MetricsSnapshot  `json:"metrics"`             // Current metrics
-	PhaseStartMetrics     MetricsSnapshot  `json:"phase_start_metrics"` // Metrics at start of current phase
-	StartedAt             time.Time        `json:"started_at"`
-	LastUpdated           time.Time        `json:"last_updated"`
+	TaskID    string `json:"task_id"`
+	ProfileID string `json:"profile_id"`
+	// Iteration is the global controller iteration counter (1-based once the
+	// first skill has been selected).
+	Iteration int `json:"iteration"`
+	// CurrentSkill is the skill the controller selected for the next/active run.
+	CurrentSkill string `json:"current_skill"`
+	// CurrentRationale explains why CurrentSkill was selected.
+	CurrentRationale string `json:"current_rationale"`
+	// Findings is the latest diagnosed findings vector (the primary state).
+	Findings findings.FindingsState `json:"findings"`
+	// ScoreHistory is the trailing total weighted-score per iteration, oldest
+	// first; drives diminishing-returns termination.
+	ScoreHistory []float64 `json:"score_history"`
+	// Trace is the per-iteration decision trace.
+	Trace []DecisionTraceEntry `json:"trace"`
+	// Metrics is the latest gap-metric snapshot (operational targets, build).
+	Metrics     MetricsSnapshot `json:"metrics"`
+	StartedAt   time.Time       `json:"started_at"`
+	LastUpdated time.Time       `json:"last_updated"`
 }
 
-// PhasePerformance tracks metrics for a completed phase
-type PhasePerformance struct {
-	SkillIDs      []string           `json:"skill_ids"`
-	SkillName     string             `json:"skill_name"`
-	Iterations    int                `json:"iterations"`
-	MetricDeltas  map[string]float64 `json:"metric_deltas"` // metric_name -> change
-	Duration      int64              `json:"duration"`      // milliseconds
-	Effectiveness float64            `json:"effectiveness"` // Calculated score
+// IterationEvaluation is the result of a controller MEASURE+TERMINATE step.
+type IterationEvaluation struct {
+	ShouldStop bool   `json:"should_stop"`
+	Reason     string `json:"reason,omitempty"`
+	// ChosenSkill is the skill selected for the next iteration when the loop
+	// continues (empty when stopping).
+	ChosenSkill string `json:"chosen_skill,omitempty"`
+}
+
+// SkillPerformance summarizes one skill's contribution within a completed run
+// (derived from the decision trace), used for history/analytics.
+type SkillPerformance struct {
+	SkillName     string  `json:"skill_name"`
+	Iterations    int     `json:"iterations"`
+	WeightedDelta float64 `json:"weighted_delta"` // total realized weighted-score reduction
 }
 
 // ProfilePerformance represents historical performance data for a completed execution
@@ -335,7 +338,7 @@ type ProfilePerformance struct {
 	ExecutionID     string                   `json:"execution_id"`
 	StartMetrics    MetricsSnapshot          `json:"start_metrics"`
 	EndMetrics      MetricsSnapshot          `json:"end_metrics"`
-	PhaseBreakdown  []PhasePerformance       `json:"phase_breakdown"`
+	PhaseBreakdown  []SkillPerformance       `json:"phase_breakdown"`
 	TotalIterations int                      `json:"total_iterations"`
 	TotalDuration   int64                    `json:"total_duration"` // milliseconds
 	UserFeedback    *UserFeedback            `json:"user_feedback,omitempty"`
@@ -368,27 +371,4 @@ type ExecutionFeedbackRequest struct {
 	SuggestedAction string         `json:"suggested_action,omitempty"`
 	Comments        string         `json:"comments,omitempty"`
 	Metadata        map[string]any `json:"metadata,omitempty"`
-}
-
-// IterationEvaluation represents the result of evaluating iteration conditions
-type IterationEvaluation struct {
-	ShouldStop bool   `json:"should_stop"`
-	Reason     string `json:"reason,omitempty"`
-	NextPhase  int    `json:"next_phase,omitempty"`
-}
-
-// PhaseAdvanceResult represents the result of advancing to the next phase
-type PhaseAdvanceResult struct {
-	Success        bool   `json:"success"`
-	NextPhaseIndex int    `json:"next_phase_index"`
-	Completed      bool   `json:"completed"` // True if all phases are done
-	Message        string `json:"message"`
-}
-
-// QualityGateResult represents the result of evaluating a quality gate
-type QualityGateResult struct {
-	GateName string            `json:"gate_name"`
-	Passed   bool              `json:"passed"`
-	Message  string            `json:"message"`
-	Action   QualityGateAction `json:"action"`
 }

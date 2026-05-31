@@ -28,7 +28,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Save, Archive, Trash2, RefreshCw, ChevronsUpDown, AlertCircle, Database, Calendar, Loader2, ExternalLink, RotateCcw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useUpdateTask, useDeleteTask } from '@/hooks/useTaskMutations';
-import { useAllAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExecution, useSeekAutoSteerExecution } from '@/hooks/useAutoSteer';
+import { useAllAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExecution, useStartAutoSteerExecution } from '@/hooks/useAutoSteer';
 import { api, ApiError } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard';
@@ -42,10 +42,11 @@ import {
   extractSteeringFields,
 } from '@/components/steer/SteeringConfigPicker';
 import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfileEditorModal';
+import { DecisionTracePanel } from '@/components/steer/DecisionTracePanel';
 import { InsightsTab } from '@/components/insights/InsightsTab';
 import { QueuePanel } from '@/components/steer/panels/QueuePanel';
 import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
-import { formatSkillSetLabel, formatSkillSetTooltip } from '@/lib/utils';
+import { formatSkillSetLabel } from '@/lib/utils';
 import type { Task, Priority, ExecutionHistory, UpdateTaskInput, Campaign, SteeringConfig } from '@/types/api';
 
 interface TaskDetailsModalProps {
@@ -260,8 +261,6 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const [autoRequeue, setAutoRequeue] = useState(false);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
   const [autoSteerExpanded, setAutoSteerExpanded] = useState(false);
-  const [phaseDraft, setPhaseDraft] = useState(0);
-  const [iterationDraft, setIterationDraft] = useState(0);
   const [autoSteerInitError, setAutoSteerInitError] = useState<string | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [pendingQueuePosition, setPendingQueuePosition] = useState<number | null>(null);
@@ -286,7 +285,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     refetch: refetchAutoSteerState,
   } = useAutoSteerExecutionState(task && hasAutoSteerProfile ? task.id : undefined);
   const resetAutoSteer = useResetAutoSteerExecution();
-  const seekAutoSteer = useSeekAutoSteerExecution();
+  const startAutoSteer = useStartAutoSteerExecution();
   const { data: phaseNames = [] } = useMergedPhaseNames();
 
   // Fetch task prompt
@@ -324,7 +323,6 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   }, [rawExecutions]);
   const latestExecution = sortedExecutions[0] ?? null;
   const selectedExecution = sortedExecutions.find(exec => exec.id === selectedExecutionId) || null;
-  const canSeekAutoSteer = Boolean(task && autoSteerState);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [feedbackDialogExecutionId, setFeedbackDialogExecutionId] = useState<string | null>(null);
   const openFeedbackDialog = (executionId?: string | null) => {
@@ -513,7 +511,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const formatSteerSummary = (focus?: SteerFocusInfo) => {
     if (!focus) return '';
     if (focus.autoSteerProfileName) {
-      return focus.phaseSetLabel ? `${focus.autoSteerProfileName} • ${focus.phaseSetLabel}` : focus.autoSteerProfileName;
+      return focus.skillSetLabel ? `${focus.autoSteerProfileName} • ${focus.skillSetLabel}` : focus.autoSteerProfileName;
     }
     return focus.manualSetLabel ?? '';
   };
@@ -558,40 +556,23 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     '';
 
   const activeProfile = profiles.find(profile => profile.id === autoSteerProfileId);
-  const toNumber = (val: unknown): number =>
-    typeof val === 'number' ? val : Number(val ?? 0);
 
-  const currentPhaseNumber = autoSteerState ? toNumber(autoSteerState.current_phase_index) + 1 : 0;
-  const totalPhases = activeProfile?.phases?.length ?? 0;
-  const currentMode =
-    formatSkillSetLabel(
-      activeProfile?.phases?.[autoSteerState?.current_phase_index ?? 0]?.skill_ids ??
-        (activeProfile?.phases?.[0]?.skill_ids ?? []),
-      phaseNames,
-      { maxVisible: 1, emptyLabel: '' }
-    ) || undefined;
-  const completedPhaseIterations =
-    autoSteerState?.phase_history?.reduce((sum, phase) => sum + toNumber(phase?.iterations), 0) ?? 0;
-  const currentPhaseIteration = toNumber(autoSteerState?.current_phase_iteration);
-  const derivedTotalIterations = completedPhaseIterations + currentPhaseIteration;
-  const historyIterationCount = autoSteerState ? sortedExecutions.length : 0;
-  const latestAutoSteerIteration = toNumber(latestExecution?.auto_steer_iteration);
-  const latestPhaseIteration = toNumber(latestExecution?.steer_phase_iteration);
-  const autoSteerIteration = autoSteerState
-    ? Math.max(
-      toNumber(autoSteerState?.auto_steer_iteration),
-      derivedTotalIterations,
-      latestAutoSteerIteration,
-      historyIterationCount,
-    )
-    : 0;
-  const phaseIteration = autoSteerState
-    ? currentPhaseIteration + 1
-    : latestPhaseIteration || (historyIterationCount > 0 ? 1 : 0);
-  const currentPhaseIndex = autoSteerState?.current_phase_index ?? 0;
-  const currentPhaseIterationRaw = autoSteerState?.current_phase_iteration ?? 0;
-  const selectedPhase = activeProfile?.phases?.[phaseDraft];
-  const selectedPhaseMaxIterations = selectedPhase?.max_iterations ?? 1;
+  // Controller-model derived state. The loop has no phase cursor: it tracks the
+  // current iteration, the skill it last selected, and the open findings vector.
+  const controllerIteration = autoSteerState?.iteration ?? 0;
+  const currentSkillId = autoSteerState?.current_skill ?? '';
+  const currentSkillLabel = currentSkillId
+    ? formatSkillSetLabel([currentSkillId], phaseNames, { maxVisible: 1, emptyLabel: currentSkillId }) || currentSkillId
+    : undefined;
+  const currentRationale = autoSteerState?.current_rationale;
+  const findings = autoSteerState?.findings;
+  const totalScore = findings?.totalScore;
+  const heaviestDimensions = Object.entries(findings?.dimensionScore ?? {})
+    .filter(([, score]) => score > 0)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5);
+  const openFindingsCount = findings?.findings?.length ?? 0;
+
   const autoSteerStateMissing =
     hasAutoSteerProfile && !autoSteerState && !isAutoSteerStateLoading && !isAutoSteerStateError;
   const autoSteerStateErrorMessage = isAutoSteerStateError
@@ -603,27 +584,10 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     : null;
 
   useEffect(() => {
-    if (!autoSteerState) return;
-    const clampedPhase = Math.min(
-      Math.max(autoSteerState.current_phase_index ?? 0, 0),
-      Math.max((activeProfile?.phases?.length ?? 1) - 1, 0)
-    );
-    setPhaseDraft(clampedPhase);
-    setIterationDraft(autoSteerState.current_phase_iteration ?? 0);
-  }, [autoSteerState, activeProfile?.phases?.length]);
-
-  useEffect(() => {
     if (autoSteerState) {
       setAutoSteerInitError(null);
     }
   }, [autoSteerState]);
-
-  useEffect(() => {
-    if (!selectedPhase) return;
-    if (iterationDraft > selectedPhaseMaxIterations) {
-      setIterationDraft(selectedPhaseMaxIterations);
-    }
-  }, [selectedPhase, selectedPhaseMaxIterations, iterationDraft]);
 
   if (!task) return null;
 
@@ -639,25 +603,18 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
 
   const initializeAutoSteerIfMissing = async () => {
     if (!task || !hasAutoSteerProfile || autoSteerState) return false;
+    if (autoSteerProfileId === AUTO_STEER_NONE) return false;
     const scenarioName = resolveScenarioName();
     if (!scenarioName) {
       setAutoSteerInitError('Unable to determine scenario name for Auto Steer initialization.');
       return false;
     }
 
-    const resolvedPhaseIndex = Math.min(
-      Math.max(phaseDraft, 0),
-      Math.max((activeProfile?.phases?.length ?? 1) - 1, 0)
-    );
-    const resolvedPhaseIteration = Math.min(iterationDraft, selectedPhaseMaxIterations);
-
     setAutoSteerInitError(null);
     try {
-      await seekAutoSteer.mutateAsync({
+      await startAutoSteer.mutateAsync({
         taskId: task.id,
-        phaseIndex: resolvedPhaseIndex,
-        phaseIteration: resolvedPhaseIteration,
-        profileId: autoSteerProfileId !== AUTO_STEER_NONE ? autoSteerProfileId : undefined,
+        profileId: autoSteerProfileId,
         scenarioName,
       });
       await refetchAutoSteerState();
@@ -695,27 +652,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
       updates.target = [normalizedTarget];
     }
 
-    const desiredPhaseIteration = Math.min(iterationDraft, selectedPhaseMaxIterations);
-    const seekNeeded =
-      canSeekAutoSteer &&
-      autoSteerState &&
-      (phaseDraft !== currentPhaseIndex || desiredPhaseIteration !== currentPhaseIterationRaw);
-
     try {
-      if (seekNeeded) {
-        const scenarioName = Array.isArray(normalizedTarget)
-          ? normalizedTarget[0]
-          : normalizedTarget;
-        await seekAutoSteer.mutateAsync({
-          taskId: task.id,
-          phaseIndex: phaseDraft,
-          phaseIteration: desiredPhaseIteration,
-          profileId: autoSteerProfileId !== AUTO_STEER_NONE ? autoSteerProfileId : undefined,
-          scenarioName: scenarioName || undefined,
-        });
-        await refetchAutoSteerState();
-      }
-
       await updateTask.mutateAsync({
         id: task.id,
         updates,
@@ -902,17 +839,17 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                           {activeProfile?.name ?? 'Auto Steer profile'}
                         </button>
                         <div className="text-slate-400 flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                          <span>
-                            Phase {Number.isFinite(currentPhaseNumber) && currentPhaseNumber > 0 ? currentPhaseNumber : '—'}{totalPhases ? ` / ${totalPhases}` : ''}
-                          </span>
-                          <span className="hidden sm:inline text-slate-500">•</span>
-                          <span>
-                            Iteration {Number.isFinite(phaseIteration) ? phaseIteration : '—'}{selectedPhaseMaxIterations ? ` / ${selectedPhaseMaxIterations}` : ''}
-                          </span>
-                          {currentMode && (
+                          <span>Iteration {controllerIteration}</span>
+                          {currentSkillLabel && (
                             <>
                               <span className="hidden sm:inline text-slate-500">•</span>
-                              <span className="tracking-wide text-[11px]">{currentMode}</span>
+                              <span className="tracking-wide text-[11px]">Next: {currentSkillLabel}</span>
+                            </>
+                          )}
+                          {typeof totalScore === 'number' && (
+                            <>
+                              <span className="hidden sm:inline text-slate-500">•</span>
+                              <span className="text-[11px]">Open score {totalScore.toFixed(2)}</span>
                             </>
                           )}
                         </div>
@@ -935,7 +872,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                               refetchExecutions?.(),
                             ]);
                           }}
-                          disabled={isAutoSteerStateLoading || isFetchingExecutions || seekAutoSteer.isPending}
+                          disabled={isAutoSteerStateLoading || isFetchingExecutions || startAutoSteer.isPending}
                           aria-label="Refresh Auto Steer status"
                         >
                           <RefreshCw className="h-4 w-4" />
@@ -955,8 +892,8 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                     {!autoSteerExpanded && (
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <div className="text-slate-400">Overall iterations</div>
-                          <div className="font-semibold text-slate-50">{autoSteerIteration}</div>
+                          <div className="text-slate-400">Open findings</div>
+                          <div className="font-semibold text-slate-50">{openFindingsCount}</div>
                         </div>
                         <div>
                           <div className="text-slate-400">Updated</div>
@@ -969,89 +906,54 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                       </div>
                     )}
 
-                    {autoSteerExpanded && activeProfile && (
+                    {autoSteerExpanded && autoSteerState && (
                       <div className="space-y-3">
-                        <div className="flex flex-wrap gap-2">
-                          {activeProfile.phases.map((phase, idx) => {
-                            const isActive = idx === phaseDraft;
-                            return (
-                              <button
-                                key={phase.id ?? `${(phase.skill_ids || []).join('-')}-${idx}`}
-                                type="button"
-                                className={`
-                                  px-3 py-2 rounded-md border text-left transition-all
-                                  ${isActive ? 'border-primary bg-primary/10 text-primary' : 'border-white/10 bg-slate-800/40 hover:border-primary/40'}
-                                `}
-                                onClick={() => {
-                                  setPhaseDraft(idx);
-                                  setIterationDraft(0);
-                                }}
-                              >
-                                <div className="text-[11px] uppercase text-slate-400">Phase {idx + 1}</div>
-                                <div
-                                  className="text-sm font-semibold"
-                                  title={formatSkillSetTooltip(phase.skill_ids, phaseNames)}
-                                >
-                                  {formatSkillSetLabel(phase.skill_ids, phaseNames, { maxVisible: 1, emptyLabel: 'Skill set' })}
-                                </div>
-                                <div className="text-[11px] text-slate-500">
-                                  Max iterations: {phase.max_iterations}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
+                        {currentSkillLabel && (
+                          <div className="rounded-md border border-primary/30 bg-primary/5 p-2.5">
+                            <div className="text-[11px] uppercase text-slate-400">Controller's next move</div>
+                            <div className="text-sm font-semibold text-primary">{currentSkillLabel}</div>
+                            {currentRationale && (
+                              <div className="text-[11px] text-slate-400 mt-1">{currentRationale}</div>
+                            )}
+                          </div>
+                        )}
 
                         <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px] text-slate-400">
-                            <span>Phase iteration</span>
-                            <span>
-                              {iterationDraft} / {selectedPhaseMaxIterations}
-                            </span>
+                          <div className="text-[11px] uppercase text-slate-400">
+                            Open findings by dimension{typeof totalScore === 'number' ? ` (weighted score ${totalScore.toFixed(2)})` : ''}
                           </div>
-                          <input
-                            type="range"
-                            min={0}
-                            max={selectedPhaseMaxIterations}
-                            value={Math.min(iterationDraft, selectedPhaseMaxIterations)}
-                            onChange={(e) => setIterationDraft(Number(e.target.value))}
-                            disabled={!canSeekAutoSteer}
-                            className="w-full accent-primary"
-                          />
+                          {heaviestDimensions.length === 0 ? (
+                            <div className="text-[11px] text-slate-500">No open findings recorded.</div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {heaviestDimensions.map(([dim, score]) => {
+                                const max = heaviestDimensions[0][1] || 1;
+                                const width = Math.max(4, Math.round((score / max) * 100));
+                                const count = findings?.dimensionCount?.[dim];
+                                return (
+                                  <div key={dim}>
+                                    <div className="flex items-center justify-between text-[11px] text-slate-300">
+                                      <span>{dim}{typeof count === 'number' ? ` (${count})` : ''}</span>
+                                      <span className="text-slate-400">{score.toFixed(2)}</span>
+                                    </div>
+                                    <div className="h-1.5 w-full rounded-full bg-white/5">
+                                      <div className="h-1.5 rounded-full bg-amber-400" style={{ width: `${width}%` }} />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={!canSeekAutoSteer || seekAutoSteer.isPending}
-                            onClick={async () => {
-                              if (!task) return;
-                              const scenarioName = Array.isArray(normalizedTarget)
-                                ? normalizedTarget[0]
-                                : (normalizedTarget || task.target);
-                              await seekAutoSteer.mutateAsync({
-                                taskId: task.id,
-                                phaseIndex: phaseDraft,
-                                phaseIteration: Math.min(iterationDraft, selectedPhaseMaxIterations),
-                                profileId: autoSteerProfileId !== AUTO_STEER_NONE ? autoSteerProfileId : undefined,
-                                scenarioName: scenarioName || undefined,
-                              });
-                              await Promise.allSettled([
-                                refetchAutoSteerState(),
-                                refetchExecutions?.(),
-                              ]);
-                            }}
-                          >
-                            Jump to selection
-                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             disabled={resetAutoSteer.isPending || !task}
                             onClick={handleResetAutoSteer}
                           >
-                            Reset to start
+                            Reset controller
                           </Button>
                           {autoSteerState?.last_updated && (
                             <span className="text-[11px] text-slate-500">
@@ -1070,12 +972,12 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                     {autoSteerStateMissing && (
                       <div className="flex flex-wrap items-center gap-2 text-amber-400 text-[11px]">
                         <AlertCircle className="h-3.5 w-3.5" />
-                        <span>No active Auto Steer state yet. Click initialize or run the task to create it.</span>
+                        <span>No active Auto Steer state yet. Initialize to run the first audit, or run the task to create it.</span>
                         <Button
                           size="sm"
                           variant="outline"
                           className="h-6 px-2 text-[11px]"
-                          disabled={seekAutoSteer.isPending}
+                          disabled={startAutoSteer.isPending}
                           onClick={async () => {
                             const initialized = await initializeAutoSteerIfMissing();
                             if (!initialized) {
@@ -1090,6 +992,11 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                     {autoSteerInitError && (
                       <div className="text-red-400 text-[11px]">
                         Auto Steer initialization failed: {autoSteerInitError}
+                      </div>
+                    )}
+                    {task && (
+                      <div className="mt-3 border-t border-border/40 pt-3">
+                        <DecisionTracePanel taskId={task.id} />
                       </div>
                     )}
                   </div>

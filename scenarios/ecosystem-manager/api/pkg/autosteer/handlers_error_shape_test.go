@@ -37,13 +37,6 @@ func (s *stubExecutionEngine) EvaluateIteration(taskID, scenarioName string) (*I
 	return nil, nil
 }
 func (s *stubExecutionEngine) DeleteExecutionState(taskID string) error { return nil }
-func (s *stubExecutionEngine) SeekExecution(taskID, profileID, scenarioName string, phaseIndex, phaseIteration int) (*ProfileExecutionState, error) {
-	return nil, nil
-}
-
-func (s *stubExecutionEngine) AdvancePhase(taskID, scenarioName string) (*PhaseAdvanceResult, error) {
-	return nil, nil
-}
 
 func (s *stubExecutionEngine) GetExecutionState(taskID string) (*ProfileExecutionState, error) {
 	return s.state, s.stateErr
@@ -51,6 +44,10 @@ func (s *stubExecutionEngine) GetExecutionState(taskID string) (*ProfileExecutio
 
 func (s *stubExecutionEngine) GetCurrentSet(taskID string) ([]string, error) {
 	return []string{string(ModeProgress)}, nil
+}
+
+func (s *stubExecutionEngine) GetDecisionTrace(taskID string) ([]DecisionTraceEntry, error) {
+	return nil, nil
 }
 
 type stubHistoryService struct{}

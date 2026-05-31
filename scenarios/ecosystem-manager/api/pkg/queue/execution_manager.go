@@ -320,9 +320,11 @@ func (em *ExecutionManager) enrichSteeringMetadataProfile(task *tasks.TaskItem, 
 		if orchestrator != nil {
 			if state, err := orchestrator.GetExecutionState(task.ID); err == nil && state != nil {
 				history.AutoSteerProfileID = state.ProfileID
-				history.AutoSteerIteration = state.AutoSteerIteration
-				history.SteerPhaseIndex = state.CurrentPhaseIndex + 1
-				history.SteerPhaseIteration = state.CurrentPhaseIteration + 1
+				history.AutoSteerIteration = state.Iteration
+				// The controller has no phases; the legacy phase fields carry the
+				// global iteration count (index pinned to 1) for history continuity.
+				history.SteerPhaseIndex = 1
+				history.SteerPhaseIteration = state.Iteration
 				history.SteeringSource = "auto_steer"
 			}
 

@@ -498,12 +498,12 @@ func (a *Application) registerAutoSteerRoutes(api *mux.Router) {
 	api.HandleFunc("/auto-steer/profiles/{id}", a.autoSteerHandlers.DeleteProfile).Methods("DELETE")
 
 	api.HandleFunc("/auto-steer/templates", a.autoSteerHandlers.GetTemplates).Methods("GET")
+	api.HandleFunc("/auto-steer/dimensions", a.autoSteerHandlers.GetDimensions).Methods("GET")
 
 	api.HandleFunc("/auto-steer/execution/start", a.autoSteerHandlers.StartExecution).Methods("POST")
 	api.HandleFunc("/auto-steer/execution/evaluate", a.autoSteerHandlers.EvaluateIteration).Methods("POST")
 	api.HandleFunc("/auto-steer/execution/reset", a.autoSteerHandlers.ResetExecution).Methods("POST")
-	api.HandleFunc("/auto-steer/execution/advance", a.autoSteerHandlers.AdvancePhase).Methods("POST")
-	api.HandleFunc("/auto-steer/execution/seek", a.autoSteerHandlers.SeekExecution).Methods("POST")
+	api.HandleFunc("/auto-steer/execution/{taskId}/trace", a.autoSteerHandlers.GetDecisionTrace).Methods("GET")
 	api.HandleFunc("/auto-steer/execution/{taskId}", a.autoSteerHandlers.GetExecutionState).Methods("GET")
 
 	api.HandleFunc("/auto-steer/metrics/{taskId}", a.autoSteerHandlers.GetMetrics).Methods("GET")

@@ -32,10 +32,10 @@ function getStrategyDisplay(
   switch (config.strategy) {
     case 'profile': {
       const profile = profiles.find((p) => p.id === config.profileId);
-      const phasesCount = profile?.phases?.length || 0;
+      const skillCount = profile?.allowed_skills?.length || 0;
       return {
         label: profile?.name || 'Unknown Profile',
-        sublabel: phasesCount > 0 ? `${phasesCount} phases` : undefined,
+        sublabel: skillCount > 0 ? `${skillCount} skill${skillCount === 1 ? '' : 's'}` : undefined,
         icon: Zap,
         colorClasses:
           'bg-indigo-500/10 text-indigo-100 border-indigo-500/30 hover:bg-indigo-500/20',

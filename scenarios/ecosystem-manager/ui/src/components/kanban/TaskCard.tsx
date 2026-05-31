@@ -16,7 +16,6 @@ interface TaskCardProps {
   onViewDetails?: (task: Task) => void;
   onDelete?: (task: Task) => void;
   autoSteerProfile?: AutoSteerProfile;
-  autoSteerPhaseIndex?: number;
   dragOverlay?: boolean;
 }
 
@@ -25,7 +24,6 @@ export function TaskCard({
   onViewDetails,
   onDelete,
   autoSteerProfile,
-  autoSteerPhaseIndex,
   dragOverlay = false,
 }: TaskCardProps) {
   const {
@@ -96,7 +94,6 @@ export function TaskCard({
         <TaskCardBody
           task={task}
           autoSteerProfile={autoSteerProfile}
-          autoSteerPhaseIndex={autoSteerPhaseIndex}
         />
         <TaskCardFooter task={task} />
       </div>
@@ -127,7 +124,6 @@ export function TaskCard({
       <TaskCardBody
         task={task}
         autoSteerProfile={autoSteerProfile}
-        autoSteerPhaseIndex={autoSteerPhaseIndex}
       />
       <TaskCardFooter
         task={task}

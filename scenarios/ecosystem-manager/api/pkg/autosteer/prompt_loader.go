@@ -19,15 +19,18 @@ import (
 
 // PromptResponse is the response from prompt-manager for a single prompt.
 type PromptResponse struct {
-	ID                  string   `json:"id"`
-	Name                string   `json:"name"`
-	Description         string   `json:"description"`
-	Content             string   `json:"content"`
-	Modes               []string `json:"modes"`
-	Tags                []string `json:"tags"`
-	Icon                string   `json:"icon,omitempty"`
-	TargetToolID        *string  `json:"targetToolId,omitempty"`
-	DefaultScope        string   `json:"defaultScope,omitempty"` // Default scope skill ID
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	Content      string   `json:"content"`
+	Modes        []string `json:"modes"`
+	Tags         []string `json:"tags"`
+	Icon         string   `json:"icon,omitempty"`
+	TargetToolID *string  `json:"targetToolId,omitempty"`
+	DefaultScope string   `json:"defaultScope,omitempty"` // Default scope skill ID
+	// TargetDimensions are the controller improvement dimensions this skill
+	// closes; consumed by the skill→dimension resolver (pkg/skillmap).
+	TargetDimensions    []string `json:"targetDimensions,omitempty"`
 	Draft               bool     `json:"draft"`
 	Folder              string   `json:"folder"`
 	CreatedAt           string   `json:"createdAt"`
@@ -321,27 +324,6 @@ func (l *PromptLoader) GetSuccessCriteria(mode SteerMode) []string {
 		return nil
 	}
 	return data.SuccessCriteria
-}
-
-// FormatConditionProgress renders stop conditions with their evaluated status.
-func (l *PromptLoader) FormatConditionProgress(conditions []StopCondition, metrics MetricsSnapshot, evaluator ConditionEvaluatorAPI) string {
-	if len(conditions) == 0 {
-		return ""
-	}
-
-	eval := evaluator
-	if eval == nil {
-		eval = NewConditionEvaluator()
-	}
-
-	var builder strings.Builder
-	for _, condition := range conditions {
-		builder.WriteString("- ")
-		builder.WriteString(eval.FormatCondition(condition, metrics))
-		builder.WriteString("\n")
-	}
-
-	return strings.TrimSpace(builder.String())
 }
 
 // FormatModeContent formats the mode content with the steer focus header.

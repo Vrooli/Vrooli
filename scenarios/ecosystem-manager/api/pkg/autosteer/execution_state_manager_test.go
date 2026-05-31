@@ -2,60 +2,120 @@ package autosteer
 
 import (
 	"testing"
-	"time"
 
+	"github.com/ecosystem-manager/api/pkg/dimensions"
+	"github.com/ecosystem-manager/api/pkg/findings"
 	"github.com/google/uuid"
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
-func TestExecutionStateManager_Get_NullJSON(t *testing.T) {
+func TestExecutionStateManager_SaveGetRoundTrip(t *testing.T) {
 	container, cleanup := SetupTestDatabase(t)
 	if cleanup == nil {
 		return
 	}
 	defer cleanup()
 
+	manager := NewExecutionStateManager(container.db)
 	taskID := uuid.New().String()
-	profileID := "profile-null-json"
-	startedAt := time.Now().Add(-1 * time.Minute).UTC()
-	lastUpdated := time.Now().UTC()
 
-	_, err := container.db.Exec(`
-		INSERT INTO profile_execution_state (
-			task_id,
-			profile_id,
-			current_phase_index,
-			current_phase_iteration,
-			auto_steer_iteration,
-			phase_started_at,
-			phase_history,
-			metrics,
-			phase_start_metrics,
-			started_at,
-			last_updated
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-	`, taskID, profileID, 0, 0, 0, nil, nil, nil, nil, startedAt, lastUpdated)
-	if err != nil {
-		t.Fatalf("failed to insert execution state: %v", err)
+	fs := findings.BuildState([]findings.Finding{
+		{ID: "f1", Dimension: dimensions.Dimension("standards"), Severity: architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR},
+	})
+
+	state := manager.InitializeState(taskID, "balanced")
+	state.Findings = fs
+	state.Iteration = 2
+	state.CurrentSkill = "refactor"
+	state.CurrentRationale = "heaviest dimension standards"
+	state.ScoreHistory = []float64{8, 4}
+	state.Trace = []DecisionTraceEntry{{Iteration: 1, ChosenSkill: "refactor", ScoreBefore: 8, ScoreAfter: 4, RealizedDelta: 4}}
+
+	if err := manager.Save(state); err != nil {
+		t.Fatalf("Save returned error: %v", err)
 	}
 
-	manager := NewExecutionStateManager(container.db)
-	state, err := manager.Get(taskID)
+	got, err := manager.Get(taskID)
 	if err != nil {
 		t.Fatalf("Get returned error: %v", err)
 	}
-	if state == nil {
+	if got == nil {
 		t.Fatal("expected execution state, got nil")
 	}
-	if state.ProfileID != profileID {
-		t.Fatalf("expected profile ID %s, got %s", profileID, state.ProfileID)
+	if got.ProfileID != "balanced" {
+		t.Errorf("profile id mismatch: %q", got.ProfileID)
 	}
-	if state.PhaseHistory == nil {
-		t.Error("expected phase history to be initialized")
+	if got.Iteration != 2 || got.CurrentSkill != "refactor" {
+		t.Errorf("iteration/skill mismatch: %d/%q", got.Iteration, got.CurrentSkill)
 	}
-	if state.Metrics.Timestamp.IsZero() {
-		t.Error("expected metrics timestamp to be populated")
+	if len(got.ScoreHistory) != 2 || got.ScoreHistory[1] != 4 {
+		t.Errorf("score history mismatch: %v", got.ScoreHistory)
 	}
-	if state.PhaseStartMetrics.Timestamp.IsZero() {
-		t.Error("expected phase start metrics timestamp to be populated")
+	if len(got.Trace) != 1 || got.Trace[0].RealizedDelta != 4 {
+		t.Errorf("trace mismatch: %+v", got.Trace)
+	}
+	if got.Findings.TotalScore != fs.TotalScore {
+		t.Errorf("findings score mismatch: %v vs %v", got.Findings.TotalScore, fs.TotalScore)
+	}
+}
+
+func TestExecutionStateManager_GetMissing(t *testing.T) {
+	container, cleanup := SetupTestDatabase(t)
+	if cleanup == nil {
+		return
+	}
+	defer cleanup()
+
+	manager := NewExecutionStateManager(container.db)
+	state, err := manager.Get(uuid.New().String())
+	if err != nil {
+		t.Fatalf("Get returned error: %v", err)
+	}
+	if state != nil {
+		t.Fatalf("expected nil state for missing task, got %+v", state)
+	}
+}
+
+func TestExecutionStateManager_FinalizeArchivesAndDeletes(t *testing.T) {
+	container, cleanup := SetupTestDatabase(t)
+	if cleanup == nil {
+		return
+	}
+	defer cleanup()
+
+	manager := NewExecutionStateManager(container.db)
+	taskID := uuid.New().String()
+	state := manager.InitializeState(taskID, "balanced")
+	state.Iteration = 3
+	state.Trace = []DecisionTraceEntry{
+		{Iteration: 1, ChosenSkill: "refactor", RealizedDelta: 2},
+		{Iteration: 2, ChosenSkill: "refactor", RealizedDelta: 1},
+		{Iteration: 3, ChosenSkill: "test", RealizedDelta: 4},
+	}
+	if err := manager.Save(state); err != nil {
+		t.Fatalf("Save error: %v", err)
+	}
+	if err := manager.FinalizeExecution(state, "demo-scenario"); err != nil {
+		t.Fatalf("FinalizeExecution error: %v", err)
+	}
+
+	if got, _ := manager.Get(taskID); got != nil {
+		t.Fatal("expected state deleted after finalize")
+	}
+
+	hist := NewHistoryService(container.db)
+	rows, err := hist.GetHistory(HistoryFilters{ProfileID: "balanced"})
+	if err != nil {
+		t.Fatalf("GetHistory error: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 archived execution, got %d", len(rows))
+	}
+	if rows[0].TotalIterations != 3 {
+		t.Errorf("expected 3 total iterations, got %d", rows[0].TotalIterations)
+	}
+	// Two distinct skills in the trace → two breakdown rows.
+	if len(rows[0].PhaseBreakdown) != 2 {
+		t.Errorf("expected 2 skill-breakdown rows, got %d", len(rows[0].PhaseBreakdown))
 	}
 }

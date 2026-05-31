@@ -4,8 +4,8 @@ import { Compass, ListOrdered, Zap } from 'lucide-react';
 
 export interface SteerFocusBadgeProps {
   autoSteerProfileName?: string;
-  phaseSetLabel?: string;
-  phaseTooltip?: string;
+  skillSetLabel?: string;
+  skillTooltip?: string;
   manualSetLabel?: string;
   manualSetTooltip?: string;
   queueSetLabel?: string;
@@ -18,8 +18,8 @@ export interface SteerFocusBadgeProps {
 
 export interface SteerFocusInfo {
   autoSteerProfileName?: string;
-  phaseSetLabel?: string;
-  phaseTooltip?: string;
+  skillSetLabel?: string;
+  skillTooltip?: string;
   manualSetLabel?: string;
   manualSetTooltip?: string;
   queueSetLabel?: string;
@@ -49,28 +49,25 @@ export function getExecutionSteerFocus(
   const autoSteerProfileName = profileId ? profile?.name ?? profileId : undefined;
 
   if (autoSteerProfileName) {
-    const phaseIndexRaw =
-      typeof execution.steer_phase_index === 'number' ? execution.steer_phase_index : undefined;
-    const phaseArrayIndex =
-      typeof phaseIndexRaw === 'number' && phaseIndexRaw > 0 ? phaseIndexRaw - 1 : undefined;
-    const phaseSkillIds =
-      typeof phaseArrayIndex === 'number' && profile?.phases?.[phaseArrayIndex]
-        ? profile.phases[phaseArrayIndex].skill_ids
-        : execution.steer_skill_ids;
-    const phaseSetLabel = formatSkillSetLabel(phaseSkillIds, phaseNames, {
+    // The controller records the skill it selected per iteration in steer_skill_ids;
+    // steer_phase_iteration carries the controller iteration number.
+    const skillIds = execution.steer_skill_ids ?? [];
+    const iteration =
+      typeof execution.steer_phase_iteration === 'number' ? execution.steer_phase_iteration : undefined;
+    const skillSetLabel = formatSkillSetLabel(skillIds, phaseNames, {
       maxVisible: 1,
       emptyLabel: autoSteerProfileName,
     });
-    const tooltipBody = formatSkillSetTooltip(phaseSkillIds, phaseNames) ?? phaseSetLabel;
-    const phaseTooltip =
-      typeof phaseIndexRaw === 'number'
-        ? `Phase ${phaseIndexRaw}: ${tooltipBody}`
+    const tooltipBody = formatSkillSetTooltip(skillIds, phaseNames) ?? skillSetLabel;
+    const skillTooltip =
+      typeof iteration === 'number' && iteration > 0
+        ? `Iteration ${iteration}: ${tooltipBody}`
         : tooltipBody;
 
     return {
       autoSteerProfileName,
-      phaseSetLabel,
-      phaseTooltip,
+      skillSetLabel,
+      skillTooltip,
     };
   }
 
@@ -83,8 +80,8 @@ export function getExecutionSteerFocus(
 
 export function SteerFocusBadge({
   autoSteerProfileName,
-  phaseSetLabel,
-  phaseTooltip,
+  skillSetLabel,
+  skillTooltip,
   manualSetLabel,
   manualSetTooltip,
   queueSetLabel,
@@ -101,7 +98,7 @@ export function SteerFocusBadge({
   if (autoSteerProfileName) {
     return (
       <div
-        title={phaseTooltip}
+        title={skillTooltip}
         className={cn(
           'flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-100 text-indigo-900 border border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-100 dark:border-indigo-500/30',
           className,
@@ -111,11 +108,11 @@ export function SteerFocusBadge({
         <div className="flex flex-col leading-tight">
           <span className="text-xs font-semibold flex items-center gap-1">
             <span>{autoSteerProfileName}</span>
-            {phaseSetLabel && (
+            {skillSetLabel && (
               <>
                 <span className="text-[10px] text-indigo-800/70 dark:text-indigo-100/70">•</span>
                 <span className="font-normal text-[11px] text-indigo-800/90 dark:text-indigo-100/90">
-                  {phaseSetLabel}
+                  {skillSetLabel}
                 </span>
               </>
             )}

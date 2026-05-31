@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/ecosystem-manager/api/pkg/dimensions"
 	"github.com/gorilla/mux"
 )
 
@@ -22,15 +23,14 @@ type ProfileServiceAPI interface {
 	GetTemplates() []*AutoSteerProfile
 }
 
-// ExecutionEngineAPI defines execution control operations used by HTTP handlers.
+// ExecutionEngineAPI defines controller operations used by HTTP handlers.
 type ExecutionEngineAPI interface {
 	StartExecution(taskID, profileID, scenarioName string) (*ProfileExecutionState, error)
 	EvaluateIteration(taskID, scenarioName string) (*IterationEvaluation, error)
 	DeleteExecutionState(taskID string) error
-	SeekExecution(taskID, profileID, scenarioName string, phaseIndex, phaseIteration int) (*ProfileExecutionState, error)
-	AdvancePhase(taskID, scenarioName string) (*PhaseAdvanceResult, error)
 	GetExecutionState(taskID string) (*ProfileExecutionState, error)
 	GetCurrentSet(taskID string) ([]string, error)
+	GetDecisionTrace(taskID string) ([]DecisionTraceEntry, error)
 }
 
 // HistoryServiceAPI defines history operations used by HTTP handlers.
@@ -180,6 +180,27 @@ func (h *AutoSteerHandlers) GetTemplates(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+// dimensionInfo is the wire shape for one canonical improvement dimension.
+type dimensionInfo struct {
+	ID          string `json:"id"`
+	Description string `json:"description"`
+}
+
+// GetDimensions handles GET /api/auto-steer/dimensions. It serves the canonical
+// dimension vocabulary (SSOT) so the profile editor's weight controls never
+// drift from the controller's actual vocabulary.
+func (h *AutoSteerHandlers) GetDimensions(w http.ResponseWriter, _ *http.Request) {
+	all := dimensions.All()
+	out := make([]dimensionInfo, 0, len(all))
+	for _, d := range all {
+		out = append(out, dimensionInfo{ID: string(d), Description: dimensions.Describe(d)})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"dimensions": out,
+		"count":      len(out),
+	})
+}
+
 // StartExecution handles POST /api/auto-steer/execution/start
 func (h *AutoSteerHandlers) StartExecution(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -265,61 +286,27 @@ func (h *AutoSteerHandlers) ResetExecution(w http.ResponseWriter, r *http.Reques
 	})
 }
 
-// SeekExecution handles POST /api/auto-steer/execution/seek
-// Allows operators to jump to a specific phase/iteration without restarting.
-// If no execution state exists, profile_id and scenario_name can be provided to initialize it first.
-func (h *AutoSteerHandlers) SeekExecution(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		TaskID         string `json:"task_id"`
-		ProfileID      string `json:"profile_id,omitempty"`    // Optional: for initialization if no state exists
-		ScenarioName   string `json:"scenario_name,omitempty"` // Optional: for initialization if no state exists
-		PhaseIndex     int    `json:"phase_index"`
-		PhaseIteration int    `json:"phase_iteration"`
-	}
+// GetDecisionTrace handles GET /api/auto-steer/execution/:taskId/trace.
+// Returns the controller's per-iteration decision trace (state → choice →
+// rationale → realized delta) for the glass-box UI.
+func (h *AutoSteerHandlers) GetDecisionTrace(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	taskID := vars["taskId"]
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
-		return
-	}
-
-	if req.TaskID == "" {
-		writeError(w, http.StatusBadRequest, "task_id is required")
-		return
-	}
-
-	state, err := h.executionEngine.SeekExecution(req.TaskID, req.ProfileID, req.ScenarioName, req.PhaseIndex, req.PhaseIteration)
+	trace, err := h.executionEngine.GetDecisionTrace(taskID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to seek execution: "+err.Error())
+		writeError(w, http.StatusInternalServerError, "Failed to load decision trace: "+err.Error())
 		return
 	}
-
-	writeJSON(w, http.StatusOK, state)
-}
-
-// AdvancePhase handles POST /api/auto-steer/execution/advance
-func (h *AutoSteerHandlers) AdvancePhase(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		TaskID       string `json:"task_id"`
-		ScenarioName string `json:"scenario_name"`
+	if trace == nil {
+		trace = []DecisionTraceEntry{}
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
-		return
-	}
-
-	if req.TaskID == "" || req.ScenarioName == "" {
-		writeError(w, http.StatusBadRequest, "task_id and scenario_name are required")
-		return
-	}
-
-	result, err := h.executionEngine.AdvancePhase(req.TaskID, req.ScenarioName)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to advance phase: "+err.Error())
-		return
-	}
-
-	writeJSON(w, http.StatusOK, result)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"task_id": taskID,
+		"trace":   trace,
+		"count":   len(trace),
+	})
 }
 
 // GetExecutionState handles GET /api/auto-steer/execution/:taskId
