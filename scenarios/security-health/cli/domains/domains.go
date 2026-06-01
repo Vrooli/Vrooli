@@ -2,7 +2,6 @@ package domains
 
 import (
 	"security-health/cli/domains/deps"
-	"security-health/cli/domains/notes"
 	"security-health/cli/domains/reindex"
 	"security-health/cli/domains/validate"
 
@@ -39,9 +38,8 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	out := make([]cliapp.SubcommandGroup, 0, 4)
+	out := make([]cliapp.SubcommandGroup, 0, 3)
 	for _, reg := range []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){
-		notes.Register,
 		validate.Register,
 		deps.Register,
 		reindex.Register,

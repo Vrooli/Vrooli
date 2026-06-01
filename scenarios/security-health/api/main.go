@@ -26,7 +26,6 @@ import (
 
 	dependenciesH "security-health/handlers/dependencies"
 	healthH "security-health/handlers/health"
-	notesH "security-health/handlers/notes"
 	reindexH "security-health/handlers/reindex"
 	validationH "security-health/handlers/validation"
 )
@@ -125,7 +124,6 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "security-health-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, logger),
 		validationH.Module(logger, repoRoot),
 		dependenciesH.Module(logger, depService),
 		reindexH.Module(logger, depService),

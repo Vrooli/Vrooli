@@ -49,29 +49,66 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-06-01 — UI is still the react-vite placeholder (Phase F not built)
+### 2026-06-01 — RESOLVED: Phase F UI built + `notes` example removed (Gate 7)
 
-**Symptom:** The backend (Phases C–E) is complete, but the UI is still the
-generated placeholder shell + `notes` example. The Posture / Dependencies /
-Secrets pages and the embeddable security-posture badge widget (source plan
-Phase F) are not built, and the `notes` example domain has not been removed
-(START-HERE Gate 7).
+**Resolution:** The Posture / Dependencies / Secrets pages and the embeddable
+`PostureBadge` (`@vrooliWidget`, slot INLINE) shipped under `ui/src/features/`
+(`posture`, `dependencies`) with api clients `api/validation.ts` +
+`api/dependencies.ts`. The `notes`/attachment reference domain was removed from
+API, CLI, UI, and proto; `vrooli scenario orient` now passes
+`example-domain-removed`. 140 UI tests + `tsc` + `vite build` green. Kept for
+history; no further action.
 
-**Root cause:** Scoping — the producer loop (the plan's primary purpose) and the
-justifying dependency-intelligence feature were prioritized. The placeholder UI
-boots green, so the scenario self-test stays green in the meantime.
+### 2026-06-01 — Pre-existing react-vite scaffolding lint debt (AppShell + ThemeProvider)
 
-**Workaround:** Use the CLI (`security-health validate scenario <name> --json`,
-`security-health deps search --vulnerable-only`) and the Connect API directly.
+**Symptom:** `pnpm lint` reports 3 errors in template files this scenario never
+touched: `layout/AppShell.tsx:27` uses a literal `aria-label="Main content"`
+instead of the i18n registry (`no-restricted-syntax`), and
+`theme/ThemeProvider.tsx:28,58` have `typeof window === "undefined"` SSR guards
+the typed-lint rule flags as always-falsy (`no-unnecessary-condition`).
 
-**Real fix:** Build Phase F — replace the AppShell + home with Posture (validation
-findings, severity-grouped, remediation, re-scan), Dependencies (the SBOM search
-with ecosystem + vulnerable-only filters), Secrets (gitleaks findings, redacted),
-and the `@vrooliWidget` posture badge; then remove the `notes` example (Gate 7).
+**Root cause:** security-health was generated from an older react-vite snapshot
+than the current pristine template (ui-health's AppShell uses `t(...)` for the
+main-content label and its ThemeProvider lacks the SSR guards). This is part of
+the platform-wide STANDARDS scaffolding campaign, not this scenario's work.
+
+**Workaround:** All Phase-F code is lint-clean; only these two untouched template
+files trip the audit. Treated as pre-existing debt.
+
+**Real fix:** Route the `<main>` label through a `layout.mainContentLabel` string
+key, and drop the dead SSR guards in `resolveChoice`/the media-query effect
+(this is a Vite SPA — `window` is always defined), mirroring the current
+react-vite template.
+
+**Owner:** unassigned (template-wide campaign).
+
+**Refs:** `ui/src/layout/AppShell.tsx`, `ui/src/theme/ThemeProvider.tsx`; sibling
+`scenarios/ui-health/ui` for the fixed shape.
+
+### 2026-06-01 — Residual `notes` prose in doc surfaces (heading contract coupling)
+
+**Symptom:** The notes domain is gone from code/proto/CLI/UI, but some doc prose
+still mentions it: `docs/manifest.json` `requiredHeadings` for the API and CLI
+doc pages include "Notes (CRUD reference)" / "Scenario commands — `notes`", and
+the corresponding `api`/`cli` README sections still describe the removed
+endpoints.
+
+**Root cause:** The docs-completeness contract (manifest required-headings) and
+the doc bodies were authored against the template example. They are internally
+consistent (headings present ⇒ validation passes), so removing one without the
+other would *break* doc validation.
+
+**Workaround:** Left as-is — it validates green; the content is stale, not
+failing.
+
+**Real fix:** Update `docs/manifest.json` required-headings and the matching
+`docs/` (api/cli reference) bodies together, replacing the `notes` worked-example
+sections with the real `validation`/`dependencies`/`reindex` surfaces.
 
 **Owner:** unassigned.
 
-**Refs:** source plan Phase F; `ui/src/`; `docs/START-HERE.md` Gates 6–7.
+**Refs:** `docs/manifest.json` (api/cli requiredHeadings), `docs/` API/CLI
+reference pages.
 
 ### 2026-06-01 — AI/Qdrant semantic search deferred (dependency index is TEXT-only)
 

@@ -24,13 +24,11 @@ import (
 
 	dependenciesH "security-health/handlers/dependencies"
 	healthH "security-health/handlers/health"
-	notesH "security-health/handlers/notes"
 	reindexH "security-health/handlers/reindex"
 	validationH "security-health/handlers/validation"
 	localdb "security-health/internal/database"
 
 	dependenciesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/dependencies"
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/notes"
 	reindexv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/reindex"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/validation"
 )
@@ -43,7 +41,6 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, dependenciesH.Endpoints...)
-	out = append(out, notesH.Endpoints...)
 	out = append(out, reindexH.Endpoints...)
 	out = append(out, validationH.Endpoints...)
 	return out
@@ -73,7 +70,6 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "dependencies", File: dependenciesv1.File_security_health_v1_dependencies_dependencies_proto},
-		{Module: "notes", File: notesv1.File_security_health_v1_notes_notes_proto},
 		{Module: "reindex", File: reindexv1.File_security_health_v1_reindex_reindex_proto},
 		{Module: "validation", File: validationv1.File_security_health_v1_validation_validation_proto},
 	}
@@ -83,15 +79,14 @@ func AllProtoFiles() []ProtoFileEntry {
 // schema (always first; cross-cutting infrastructure runs before any
 // domain table). Consumed by main.go's database.EnsureSchemas call.
 //
-// Order matters: system → health → notes → … (domains alphabetical).
-// Postgres scenarios that put `CREATE EXTENSION ...` in system.sql rely
-// on system running before any domain that references the extension.
+// Order matters: system → health → … (domains alphabetical). Postgres
+// scenarios that put `CREATE EXTENSION ...` in system.sql rely on system
+// running before any domain that references the extension.
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(dependenciesH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema),
 		apidb.SchemaProviderFunc(reindexH.Schema),
 		apidb.SchemaProviderFunc(validationH.Schema),
 	}

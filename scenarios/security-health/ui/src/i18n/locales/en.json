@@ -1,16 +1,15 @@
 {
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Security Health are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Security Health",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "title": "Security Health"
   },
   "layout": {
     "sidebarLabel": "Primary navigation",
-    "bottomNavLabel": "Primary navigation",
+    "bottomNavLabel": "Primary",
     "nav": {
-      "dashboard": "Dashboard",
-      "notes": "Notes",
+      "posture": "Posture",
+      "dependencies": "Dependencies",
+      "secrets": "Secrets",
       "settings": "Settings"
     }
   },
@@ -23,13 +22,17 @@
     }
   },
   "pages": {
-    "dashboard": {
-      "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
+    "posture": {
+      "title": "Security Posture",
+      "description": "Scan a scenario and review its normalized findings, grouped by severity with remediation guidance."
     },
-    "notes": {
-      "title": "Notes"
+    "dependencies": {
+      "title": "Dependencies",
+      "description": "Search the fleet-wide dependency index, filter by ecosystem, and surface known vulnerabilities."
+    },
+    "secrets": {
+      "title": "Secrets",
+      "description": "Secret-scanner findings for a scenario. Locations only — values are never shown."
     },
     "settings": {
       "title": "Settings",
@@ -53,18 +56,59 @@
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
   },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading."
+  "posture": {
+    "title": "Security Posture",
+    "scenarioLabel": "Scenario",
+    "scenarioPlaceholder": "scenario id (e.g. security-health)",
+    "scan": "Scan",
+    "scanning": "Scanning…",
+    "loading": "Running scanners…",
+    "empty": "No findings — this scenario is clean.",
+    "passed": "Passed",
+    "failed": "Failed",
+    "lastScan": "Last scan:",
+    "summary": "{{errors}} errors · {{warnings}} warnings · {{infos}} infos",
+    "skippedScanners": "Skipped (not installed): {{scanners}}",
+    "remediationLabel": "Remediation",
+    "fileLabel": "File:",
+    "severity": {
+      "error": "Error",
+      "warning": "Warning",
+      "info": "Info"
+    }
+  },
+  "dependencies": {
+    "title": "Dependencies",
+    "queryLabel": "Search",
+    "queryPlaceholder": "package name or natural-language query",
+    "search": "Search",
+    "searching": "Searching…",
+    "vulnerableOnly": "Vulnerable only",
+    "ecosystem": "Ecosystem",
+    "ecosystemAll": "All",
+    "ecosystemGo": "Go",
+    "ecosystemNpm": "npm",
+    "empty": "No matching dependencies.",
+    "textModeHint": "Text mode — semantic search is unavailable; structured filters still apply.",
+    "indexedCount": "{{count}} dependencies indexed",
+    "vulnerableCount": "{{count}} vulnerable",
+    "lastReconcile": "Last reconcile:",
+    "columns": {
+      "scenario": "Scenario",
+      "name": "Package",
+      "version": "Version",
+      "ecosystem": "Ecosystem",
+      "vulns": "Vulnerabilities"
+    }
+  },
+  "secrets": {
+    "redactedNote": "Secret values are never shown — only the file:line where each was detected."
+  },
+  "widget": {
+    "title": "Security Posture",
+    "loading": "Checking…",
+    "error": "Unavailable",
+    "clean": "Clean"
   },
   "errors": {
     "canceled": "Operation canceled.",

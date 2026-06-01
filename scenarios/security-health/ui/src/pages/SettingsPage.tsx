@@ -1,9 +1,8 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
-import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
-
-const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
+import { useTheme } from "../theme/ThemeProvider";
+import { THEME_CHOICES, THEME_LABEL } from "../theme/themeChoices";
 
 /**
  * Settings page. Surfaces the locale and theme selectors as a real page (in
@@ -44,7 +43,7 @@ export function SettingsPage() {
                   : "rounded-control border border-app-border px-3 py-1 text-sm text-app-foreground hover:bg-app-surface-muted"
               }
             >
-              {t(strings.theme.choice[c])}
+              {t(THEME_LABEL[c])}
             </button>
           ))}
         </div>

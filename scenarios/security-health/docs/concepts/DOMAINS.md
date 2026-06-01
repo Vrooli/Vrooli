@@ -4,9 +4,9 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-> **Migration note.** The template `notes` domain is still present in code
-> as a worked example and will be removed (START-HERE Gate 7) once the first
-> real domain is green. It is **not** product scope.
+> **Migration note.** The template `notes` worked-example domain has been
+> removed (START-HERE Gate 7) from code, proto, and docs now that the real
+> domains are green. `vrooli scenario orient` passes `example-domain-removed`.
 
 ## Purpose Of This Document
 
@@ -30,7 +30,6 @@ belong in [`DATA.md`](DATA.md). Resource contracts belong in
 | dependencies | Maintain and serve a fleet-wide, vuln-annotated, semantically-searchable index of every scenario's dependencies. | Search / intelligence | Structured dependency table (SQLite) + Qdrant vectors. | API, CLI, UI | OT-P1-001..002 (MOD-P1-007..008). | `api/internal/dependencies/`, `api/handlers/dependencies/`, `cli/domains/deps/`, `ui/src/features/dependencies/`, `packages/proto/schemas/security-health/v1/dependencies/` |
 | reindex | Run async jobs that re-discover lockfiles, re-annotate vuln status, and reconcile the dependency index. | Job / orchestration | Job state (in-memory + SQLite checkpoint). | API, CLI | OT-P1-001 (MOD-P1-007). | `api/internal/reindex/`, `api/handlers/reindex/`, `cli/domains/reindex/`, `packages/proto/schemas/security-health/v1/reindex/` |
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/security-health/v1/health/` |
-| ~~notes~~ | Template worked example — **scheduled for removal**. | CRUD / entity | Notes + attachment metadata. | API, CLI, UI | None (starter). | `api/internal/notes/`, etc. |
 
 ## Domain Details
 
