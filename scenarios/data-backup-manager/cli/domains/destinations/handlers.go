@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	destinationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations"
 	destinationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations/destinations_v1connect"
@@ -170,6 +171,113 @@ func (h *handlers) usage(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) readiness(ctx cliapp.RunContext) error {
+	targetBytes, err := parseOptionalInt64(ctx.Flag("selected-target-bytes"))
+	if err != nil {
+		return fmt.Errorf("--selected-target-bytes: %w", err)
+	}
+	retentionCopies, err := parseOptionalInt32(ctx.Flag("retention-copies"))
+	if err != nil {
+		return fmt.Errorf("--retention-copies: %w", err)
+	}
+	crossPlatform, err := parseOptionalBool(ctx.Flag("cross-platform"))
+	if err != nil {
+		return fmt.Errorf("--cross-platform: %w", err)
+	}
+	resp, err := h.client.AnalyzeDestination(context.Background(), connect.NewRequest(&destinationsv1.AnalyzeDestinationRequest{
+		Location:              ctx.Flag("location"),
+		ProposedSubdir:        ctx.Flag("proposed-subdir"),
+		SelectedTargetBytes:   targetBytes,
+		RetentionCopies:       retentionCopies,
+		CrossPlatformRequired: crossPlatform,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("analyze destination readiness", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Report == nil {
+		return fmt.Errorf("server returned no readiness report")
+	}
+	report := resp.Msg.Report
+	results := []string{formatReadinessReport(report)}
+	for _, c := range report.Checks {
+		results = append(results, fmt.Sprintf("%s=%s — %s", c.Code, readinessSeverityLabel(c.Severity), c.Message))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Readiness for %s: %s.", report.Location, readinessSeverityLabel(report.OverallSeverity))},
+		ResultsHeading: "Readiness checks",
+		Results:        results,
+		RetrievalHints: []string{
+			fmt.Sprintf("`destinations create --name <name> --backend filesystem --location %q` — create a destination at the recommended path after review", report.RecommendedDestinationLocation),
+		},
+	})
+}
+
+func (h *handlers) preparePlan(ctx cliapp.RunContext) error {
+	action, err := parsePreparationAction(ctx.Flag("action"))
+	if err != nil {
+		return err
+	}
+	resp, err := h.client.PlanDestinationPreparation(context.Background(), connect.NewRequest(&destinationsv1.PlanDestinationPreparationRequest{
+		Location:          ctx.Flag("location"),
+		Action:            action,
+		DesiredSubdir:     ctx.Flag("subdir"),
+		DesiredLabel:      ctx.Flag("label"),
+		DesiredFilesystem: ctx.Flag("filesystem"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("plan destination preparation", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Plan == nil {
+		return fmt.Errorf("server returned no preparation plan")
+	}
+	plan := resp.Msg.Plan
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Prepared plan %s.", plan.Id)},
+		ResultsHeading: "Preparation plan",
+		Results: []string{
+			formatPreparationPlan(plan),
+			fmt.Sprintf("confirmation=%q", plan.ConfirmationPhrase),
+		},
+		RetrievalHints: []string{
+			"`destinations prepare-execute --plan-json '<json>' --confirm '<phrase>' --dry-run true` — validate the plan without executing it",
+		},
+	})
+}
+
+func (h *handlers) prepareExecute(ctx cliapp.RunContext) error {
+	plan := &destinationsv1.DestinationPreparationPlan{}
+	if err := protojson.Unmarshal([]byte(ctx.Flag("plan-json")), plan); err != nil {
+		return fmt.Errorf("--plan-json: %w", err)
+	}
+	dryRun := true
+	if raw := ctx.Flag("dry-run"); raw != "" {
+		var err error
+		dryRun, err = strconv.ParseBool(raw)
+		if err != nil {
+			return fmt.Errorf("--dry-run: %w", err)
+		}
+	}
+	ack, err := parseOptionalBool(ctx.Flag("acknowledge-data-loss"))
+	if err != nil {
+		return fmt.Errorf("--acknowledge-data-loss: %w", err)
+	}
+	resp, err := h.client.ExecuteDestinationPreparation(context.Background(), connect.NewRequest(&destinationsv1.ExecuteDestinationPreparationRequest{
+		Plan:                plan,
+		Confirmation:        ctx.Flag("confirm"),
+		DryRun:              &dryRun,
+		AcknowledgeDataLoss: ack,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("execute destination preparation", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no execution response")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result: []string{fmt.Sprintf("Preparation %s for %s (dry-run=%t).", preparationActionLabel(resp.Msg.Action), resp.Msg.Location, resp.Msg.DryRun)},
+	})
+}
+
 // parseBackendKind maps the --backend flag string to the proto BackendKind enum.
 func parseBackendKind(s string) (destinationsv1.BackendKind, error) {
 	switch s {
@@ -207,6 +315,37 @@ func parseOptionalInt64(s string) (int64, error) {
 	return strconv.ParseInt(s, 10, 64)
 }
 
+func parseOptionalInt32(s string) (int32, error) {
+	if s == "" {
+		return 0, nil
+	}
+	n, err := strconv.ParseInt(s, 10, 32)
+	return int32(n), err
+}
+
+func parseOptionalBool(s string) (bool, error) {
+	if s == "" {
+		return false, nil
+	}
+	return strconv.ParseBool(s)
+}
+
+func parsePreparationAction(s string) (destinationsv1.PreparationAction, error) {
+	switch s {
+	case "create-subdir":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_CREATE_SUBDIR, nil
+	case "relabel":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_RELABEL, nil
+	case "clear-directory":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_CLEAR_DIRECTORY, nil
+	case "format":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_FORMAT, nil
+	default:
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_UNSPECIFIED,
+			fmt.Errorf("invalid --action %q: must be one of create-subdir, relabel, clear-directory, format", s)
+	}
+}
+
 func backendKindLabel(k destinationsv1.BackendKind) string {
 	switch k {
 	case destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM:
@@ -240,6 +379,64 @@ func usageStateLabel(s destinationsv1.UsageState) string {
 	default:
 		return "unspecified"
 	}
+}
+
+func readinessSeverityLabel(s destinationsv1.ReadinessSeverity) string {
+	switch s {
+	case destinationsv1.ReadinessSeverity_READINESS_SEVERITY_PASS:
+		return "pass"
+	case destinationsv1.ReadinessSeverity_READINESS_SEVERITY_WARNING:
+		return "warning"
+	case destinationsv1.ReadinessSeverity_READINESS_SEVERITY_FAIL:
+		return "fail"
+	case destinationsv1.ReadinessSeverity_READINESS_SEVERITY_UNKNOWN:
+		return "unknown"
+	default:
+		return "unspecified"
+	}
+}
+
+func preparationActionLabel(a destinationsv1.PreparationAction) string {
+	switch a {
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_CREATE_SUBDIR:
+		return "create-subdir"
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_RELABEL:
+		return "relabel"
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_CLEAR_DIRECTORY:
+		return "clear-directory"
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_FORMAT:
+		return "format"
+	default:
+		return "unspecified"
+	}
+}
+
+func formatReadinessReport(r *destinationsv1.DestinationReadinessReport) string {
+	if r == nil {
+		return "(nil)"
+	}
+	identity := ""
+	if r.Identity != nil {
+		identity = fmt.Sprintf(" device=%s mount=%s fs=%s size=%d", r.Identity.DevicePath, r.Identity.Mountpoint, r.Identity.Filesystem, r.Identity.TotalBytes)
+	}
+	return fmt.Sprintf("overall=%s recommended_location=%s action=%s%s",
+		readinessSeverityLabel(r.OverallSeverity),
+		r.RecommendedDestinationLocation,
+		r.RecommendedAction,
+		identity)
+}
+
+func formatPreparationPlan(p *destinationsv1.DestinationPreparationPlan) string {
+	if p == nil {
+		return "(nil)"
+	}
+	return fmt.Sprintf("%s action=%s target=%s destructive=%t supported=%t unsupported=%q",
+		p.Id,
+		preparationActionLabel(p.Action),
+		p.TargetPath,
+		p.Destructive,
+		p.Supported,
+		p.UnsupportedReason)
 }
 
 func formatDestination(d *destinationsv1.Destination) string {

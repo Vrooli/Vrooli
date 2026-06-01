@@ -36,7 +36,7 @@ template-provided readiness surface and is retained.
 | Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
 |---|---|---|---|---|---|---|
 | targets | Self-registered backup sources owned by other scenarios (owner+name keyed). | Registration / entity | Target records, source kind, locator, optional quiesce-hook references. | API, CLI, UI | OT-P0-001 | `api/internal/targets/`, `api/handlers/targets/`, `cli/domains/targets/`, `ui/src/features/targets/`, `packages/proto/schemas/data-backup-manager/v1/targets/` |
-| destinations | Backup destinations, each a kopia repository (local filesystem or S3/MinIO). | Configuration / entity | Destination records, backend kind, cap, secret references. | API, CLI, UI | OT-P0-003, OT-P0-007, OT-P0-008 | `api/internal/destinations/`, `api/handlers/destinations/`, `cli/domains/destinations/`, `ui/src/features/destinations/`, `packages/proto/schemas/data-backup-manager/v1/destinations/` |
+| destinations | Backup destinations, each a kopia repository (local filesystem or S3/MinIO), plus readiness/preparation onboarding for local drives. | Configuration / entity | Destination records, backend kind, cap, secret references. Readiness persists no data. | API, CLI, UI | OT-P0-003, OT-P0-007, OT-P0-008 | `api/internal/destinations/`, `api/internal/destinationreadiness/`, `api/handlers/destinations/`, `cli/domains/destinations/`, `ui/src/features/destinations/`, `packages/proto/schemas/data-backup-manager/v1/destinations/` |
 | plans | Many-to-many bindings of targets to destinations with schedule and retention. | Orchestration / entity | Plan records, plan↔target and plan↔destination membership, schedule, retention policy. | API, CLI, UI | OT-P0-004, OT-P0-005, OT-P1-002 | `api/internal/plans/`, `api/handlers/plans/`, `cli/domains/plans/`, `ui/src/features/plans/`, `packages/proto/schemas/data-backup-manager/v1/plans/` |
 | runs | Executions of plans; run history and last-success-per-target. | Workflow / job | Run records, per-target run outcomes, snapshot references. | API, CLI, UI | OT-P0-005, OT-P0-009, OT-P0-010 | `api/internal/runs/`, `api/handlers/runs/`, `cli/domains/runs/`, `ui/src/features/runs/`, `packages/proto/schemas/data-backup-manager/v1/runs/` |
 | restores | Restore a target to a location; verify mode test-restores to scratch and checksums. | Workflow / job | Restore records, verify outcomes, last-verified-per-target. | API, CLI, UI | OT-P0-006, OT-P1-004 | `api/internal/restores/`, `api/handlers/restores/`, `cli/domains/restores/`, `ui/src/features/restores/`, `packages/proto/schemas/data-backup-manager/v1/restores/` |
@@ -87,15 +87,23 @@ template-provided readiness surface and is retained.
   `s3`/MinIO), the configurable storage cap, and references to the
   vault-held passphrase and access keys. Tracks usage versus cap from
   kopia repository stats.
+- Also owns local-destination readiness and preparation planning through
+  `api/internal/destinationreadiness/`: read-only mounted-volume
+  inspection, filesystem suitability checks, installer-media/content
+  warnings, recommended backup subdirectory selection, non-destructive
+  `create_subdir` execution, and execution guards for preparation
+  actions. This subdomain persists no data.
 - Does not own: the secrets themselves (the `vault` resource holds
   them; destinations hold only references), repository internals (the
-  `kopia` resource owns dedup/encryption/compression), or scheduling.
+  `kopia` resource owns dedup/encryption/compression), scheduling, or
+  automatic drive formatting/wiping.
 - Invariants: every destination is encrypted by default; a destination
   MUST NOT point under the storage root it would protect
   (separate-root rule); storage limits default to **alert + block**
   (alert and refuse new writes — never silent eviction; eviction
   happens only through explicit retention on a plan).
-- API: `api/internal/destinations/`, `api/handlers/destinations/`.
+- API: `api/internal/destinations/`,
+  `api/internal/destinationreadiness/`, `api/handlers/destinations/`.
 - CLI: `cli/domains/destinations/`.
 - UI: `ui/src/features/destinations/` — usage-versus-cap is the visual
   centerpiece.

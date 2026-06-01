@@ -132,6 +132,14 @@ The product vocabulary is fixed and decouples *what is backed up* from
   the existing `RegisterTarget` / `CreateDestination`, so it never
   becomes a second write path. The OS volume scan is confined behind the
   `internal/sysmounts` seam (the one place `gopsutil` is imported).
+- **Destination readiness** — a read-only safety domain under
+  `api/internal/destinationreadiness/` that analyzes a mounted path before
+  destination creation or drive preparation. It owns filesystem suitability,
+  installer-media/content warnings, capacity fit, protected-path overlap checks,
+  preparation planning, non-destructive backup-subdirectory creation, and
+  confirmation/identity guards. It persists no data and is exposed through
+  additional `DestinationsService` RPCs so destination setup remains one
+  operator-facing surface.
 
 Self-registration mirrors agent-manager's `EnsureProfile`: scenarios
 re-register idempotently on boot, so the catalog is reconstructable and
@@ -262,7 +270,7 @@ in `requirements/` and [`../internal/PROGRESS.md`](../internal/PROGRESS.md).
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Built — 5 Connect-RPC services + health rollup | `targets/destinations/plans/runs/restores` Connect services in `api/handlers/<domain>/`, transport-free domain cores in `api/internal/<domain>/`, per-domain schema, `validateTransport` + proto-parity gates green. 25 endpoints in `.vrooli/endpoints.json`. | P1/P2 features (quiesce hooks, GFS retention, restore granularity); owner-filter on `ListTargetStatus` (see PROBLEMS). |
+| API | Built — 5 Connect-RPC services + health rollup | `targets/destinations/plans/runs/restores` Connect services in `api/handlers/<domain>/`, transport-free domain cores in `api/internal/<domain>/`, per-domain schema, `validateTransport` + proto-parity gates green. Destination readiness/preparation planning is exposed through `DestinationsService`. | P1/P2 features (quiesce hooks, GFS retention, restore granularity); owner-filter on `ListTargetStatus` (see PROBLEMS). |
 | CLI | Built — command per RPC + self-registration | `cli/domains/<domain>/` wraps each RPC via generated Connect clients; manifest-driven; `RequireProtoServiceCoverage` per domain. | — |
 | UI | Designed-only (explicit follow-up plan) | Feature folders + typed client patterns from the template. | Destinations (usage-vs-cap), plans, run history, guided restore/verify to be built per [`UI-ARCHITECTURE.md`](UI-ARCHITECTURE.md). |
 | Docs | Filled to the locked design; reconciled to built state | Concept + reference docs; SEAMS registry updated with KopiaEngine/CommandRunner/Capturer; PROBLEMS tracks deferrals. | — |
@@ -273,7 +281,7 @@ in `requirements/` and [`../internal/PROGRESS.md`](../internal/PROGRESS.md).
 | Domain | Service | Methods |
 |---|---|---|
 | targets | `TargetsService` | RegisterTarget, DeregisterTarget, GetTarget, ListTargets |
-| destinations | `DestinationsService` | CreateDestination, GetDestination, ListDestinations, UpdateDestination, DeleteDestination, GetDestinationUsage |
+| destinations | `DestinationsService` | CreateDestination, GetDestination, ListDestinations, UpdateDestination, DeleteDestination, GetDestinationUsage, AnalyzeDestination, PlanDestinationPreparation, ExecuteDestinationPreparation |
 | plans | `PlansService` | CreatePlan, GetPlan, ListPlans, UpdatePlan, DeletePlan |
 | runs | `RunsService` | TriggerRun, GetRun, ListRuns, ListTargetStatus, BrowseSnapshot |
 | restores | `RestoresService` | RestoreTarget, VerifyTarget, GetRestore, ListRestores |

@@ -126,11 +126,24 @@ data-backup-manager destinations list          # shows usage vs cap
 data-backup-manager destinations get <destination-id>
 data-backup-manager destinations usage <destination-id>
 data-backup-manager destinations update --id <destination-id> --cap-policy alert-block
+
+# Read-only drive readiness before creating a filesystem destination.
+data-backup-manager destinations readiness --location /media/user/USB --json
+
+# Non-mutating preparation planning. Execution stays separate and guarded.
+data-backup-manager destinations prepare-plan --location /media/user/USB \
+  --action create-subdir --subdir vrooli-backups --json
+data-backup-manager destinations prepare-execute --plan-json '<plan-json>' \
+  --confirm '<exact phrase>' --dry-run true
 ```
 
 A destination is rejected if its path would fall under the storage root
 it is meant to protect (separate-root rule). The cap defaults to
-alert + block.
+alert + block. For removable drives, run `destinations readiness` first
+and prefer the recommended `vrooli-backups` subdirectory instead of a
+raw mount root. `prepare-execute` is marked destructive governance and is
+not prompt-manager runnable; real non-dry-run execution requires the
+server-side plan identity checks and confirmation phrase to pass.
 
 ### `data-backup-manager discovery ...`
 

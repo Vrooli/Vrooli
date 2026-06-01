@@ -5,12 +5,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  analyzeDestination,
   createDestination,
   deleteDestination,
   getDestination,
   getDestinationUsage,
   listDestinations,
   updateDestination,
+  type AnalyzeDestinationInput,
   type CreateDestinationInput,
   type UpdateDestinationInput,
 } from "../api/destinations";
@@ -52,6 +54,12 @@ export function useCreateDestination() {
   return useMutation({
     mutationFn: (input: CreateDestinationInput) => createDestination(input),
     onSuccess: invalidate,
+  });
+}
+
+export function useAnalyzeDestination() {
+  return useMutation({
+    mutationFn: (input: AnalyzeDestinationInput) => analyzeDestination(input),
   });
 }
 

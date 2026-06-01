@@ -21,12 +21,15 @@ const GroupName = "destinations"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"DestinationsService.CreateDestination":   h.create,
-		"DestinationsService.GetDestination":      h.get,
-		"DestinationsService.ListDestinations":    h.list,
-		"DestinationsService.UpdateDestination":   h.update,
-		"DestinationsService.DeleteDestination":   h.delete,
-		"DestinationsService.GetDestinationUsage": h.usage,
+		"DestinationsService.CreateDestination":             h.create,
+		"DestinationsService.GetDestination":                h.get,
+		"DestinationsService.ListDestinations":              h.list,
+		"DestinationsService.UpdateDestination":             h.update,
+		"DestinationsService.DeleteDestination":             h.delete,
+		"DestinationsService.GetDestinationUsage":           h.usage,
+		"DestinationsService.AnalyzeDestination":            h.readiness,
+		"DestinationsService.PlanDestinationPreparation":    h.preparePlan,
+		"DestinationsService.ExecuteDestinationPreparation": h.prepareExecute,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { FolderTree, HardDrive, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AlertTriangle, FolderTree, HardDrive, ShieldCheck } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
+import { Dialog } from "../../components/ui/dialog";
 import { StatusChip } from "../../components/ui/status-chip";
 import {
   useDestinationSuggestions,
@@ -10,8 +11,13 @@ import {
   useTargetSuggestions,
 } from "../../hooks/useSuggestions";
 import { useRegisterTarget } from "../../hooks/useTargets";
-import { useCreateDestination } from "../../hooks/useDestinations";
-import { BackendKind, CapPolicy } from "../../api/destinations";
+import { useAnalyzeDestination, useCreateDestination } from "../../hooks/useDestinations";
+import {
+  BackendKind,
+  CapPolicy,
+  ReadinessSeverity,
+  type DestinationReadinessReport,
+} from "../../api/destinations";
 import type { DestinationSuggestion, TargetSuggestion } from "../../api/discovery";
 import { driveClassMeta, sourceKindSlug } from "../../lib/status";
 import { DRIVE_CLASS_STRINGS, SOURCE_KIND_STRINGS } from "../../consts/statusStrings";
@@ -34,10 +40,12 @@ export function SuggestionsPanel({ onboarding = false }: { onboarding?: boolean 
   const dismiss = useDismissSuggestion();
   const register = useRegisterTarget();
   const createDestination = useCreateDestination();
+  const analyzeDestination = useAnalyzeDestination();
   const invalidate = useInvalidateSuggestions();
 
   // Which suggestion is mid-enable, so only its button shows the busy state.
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [reviewSuggestion, setReviewSuggestion] = useState<DestinationSuggestion | null>(null);
 
   const targetList = targets.data ?? [];
   const destinationList = destinations.data ?? [];
@@ -57,18 +65,19 @@ export function SuggestionsPanel({ onboarding = false }: { onboarding?: boolean 
     }
   };
 
-  const enableDestination = async (s: DestinationSuggestion) => {
+  const enableDestination = async (s: DestinationSuggestion, report?: DestinationReadinessReport) => {
     setActiveId(s.id);
     try {
       await createDestination.mutateAsync({
         name: s.label,
         backendKind: BackendKind.FILESYSTEM,
-        location: s.location,
+        location: report?.recommendedDestinationLocation || s.location,
         capBytes: 0n,
         // Server defaults UNSPECIFIED → ALERT_BLOCK (cap-on-by-default policy).
         capPolicy: CapPolicy.UNSPECIFIED,
       });
       invalidate();
+      setReviewSuggestion(null);
     } finally {
       setActiveId(null);
     }
@@ -203,9 +212,9 @@ export function SuggestionsPanel({ onboarding = false }: { onboarding?: boolean 
                         size="sm"
                         data-testid={selectors.discovery.enableButton({ id: s.id })}
                         disabled={activeId === s.id || !s.separateRootOk}
-                        onClick={() => void enableDestination(s)}
+                        onClick={() => setReviewSuggestion(s)}
                       >
-                        {enableLabel(s.id)}
+                        {t(strings.discovery.review)}
                       </Button>
                       <Button
                         size="sm"
@@ -226,6 +235,165 @@ export function SuggestionsPanel({ onboarding = false }: { onboarding?: boolean 
           </ul>
         )}
       </div>
+      <DestinationReviewDialog
+        suggestion={reviewSuggestion}
+        report={analyzeDestination.data}
+        loading={analyzeDestination.isPending}
+        error={analyzeDestination.isError}
+        active={activeId === reviewSuggestion?.id}
+        onClose={() => {
+          analyzeDestination.reset();
+          setReviewSuggestion(null);
+        }}
+        onAnalyze={(s) =>
+          analyzeDestination.mutate({
+            location: s.location,
+            proposedSubdir: "vrooli-backups",
+          })
+        }
+        onCreate={(s, report) => void enableDestination(s, report)}
+      />
     </section>
   );
+}
+
+function DestinationReviewDialog({
+  suggestion,
+  report,
+  loading,
+  error,
+  active,
+  onClose,
+  onAnalyze,
+  onCreate,
+}: {
+  suggestion: DestinationSuggestion | null;
+  report?: DestinationReadinessReport;
+  loading: boolean;
+  error: boolean;
+  active: boolean;
+  onClose: () => void;
+  onAnalyze: (suggestion: DestinationSuggestion) => void;
+  onCreate: (suggestion: DestinationSuggestion, report?: DestinationReadinessReport) => void;
+}) {
+  const { t } = useTranslation();
+
+  const suggestionId = suggestion?.id;
+  useEffect(() => {
+    if (suggestion) onAnalyze(suggestion);
+    // Run once per opened suggestion; mutation callbacks are intentionally
+    // excluded so a render after analysis does not re-trigger the request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestionId]);
+
+  const severity = report?.overallSeverity ?? ReadinessSeverity.UNKNOWN;
+  const canCreate =
+    Boolean(suggestion?.separateRootOk) &&
+    !loading &&
+    !error &&
+    report?.overallSeverity !== ReadinessSeverity.FAIL;
+
+  return (
+    <Dialog
+      open={Boolean(suggestion)}
+      onClose={onClose}
+      title={t(strings.discovery.reviewTitle)}
+      data-testid={selectors.discovery.destinationReview}
+      footer={
+        <>
+          <Button variant="outline" size="sm" onClick={onClose} disabled={active}>
+            {t(strings.common.cancel)}
+          </Button>
+          <Button
+            size="sm"
+            disabled={!canCreate || active}
+            onClick={() => suggestion && onCreate(suggestion, report)}
+            data-testid={selectors.discovery.reviewCreateButton}
+          >
+            {active ? t(strings.discovery.enabling) : t(strings.discovery.createReviewed)}
+          </Button>
+        </>
+      }
+    >
+      {suggestion && (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium text-app-foreground">{suggestion.label}</p>
+            <p className="font-mono text-xs text-app-muted-foreground">{suggestion.location}</p>
+          </div>
+
+          {loading && (
+            <p className="text-sm text-app-muted-foreground">{t(strings.discovery.analyzingDestination)}</p>
+          )}
+          {error && (
+            <div className="flex items-start gap-2 rounded-panel border border-app-danger/40 bg-app-danger/10 p-3 text-sm text-app-danger">
+              <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>{t(strings.discovery.readinessUnavailable)}</p>
+            </div>
+          )}
+
+          {report && (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusChip tone={severityTone(severity)} labelKey={severityLabel(severity)} />
+                {report.identity?.filesystem && (
+                  <span className="text-xs text-app-muted-foreground">
+                    {report.identity.filesystem}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-app-muted-foreground">
+                  {t(strings.discovery.recommendedLocation)}
+                </p>
+                <p className="break-all rounded-control border border-app-border bg-app-surface-muted px-3 py-2 font-mono text-xs text-app-foreground">
+                  {report.recommendedDestinationLocation || suggestion.location}
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-app-muted-foreground">
+                  {t(strings.discovery.readinessChecks)}
+                </p>
+                <ul className="flex flex-col gap-2">
+                  {report.checks.map((check) => (
+                    <li key={check.code} className="flex items-start gap-2 text-sm">
+                      <StatusChip tone={severityTone(check.severity)} labelKey={severityLabel(check.severity)} />
+                      <span className="min-w-0 text-app-muted-foreground">{check.message}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </Dialog>
+  );
+}
+
+function severityTone(severity: ReadinessSeverity) {
+  switch (severity) {
+    case ReadinessSeverity.PASS:
+      return "success";
+    case ReadinessSeverity.WARNING:
+    case ReadinessSeverity.UNKNOWN:
+      return "warning";
+    case ReadinessSeverity.FAIL:
+      return "danger";
+    default:
+      return "info";
+  }
+}
+
+function severityLabel(severity: ReadinessSeverity) {
+  switch (severity) {
+    case ReadinessSeverity.PASS:
+      return strings.discovery.readinessPass;
+    case ReadinessSeverity.WARNING:
+      return strings.discovery.readinessWarning;
+    case ReadinessSeverity.FAIL:
+      return strings.discovery.readinessFail;
+    default:
+      return strings.discovery.readinessUnknown;
+  }
 }

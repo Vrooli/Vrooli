@@ -196,4 +196,110 @@ var Endpoints = []module.EndpointDescriptor{
 			Args:    []string{"<id>"},
 		},
 	},
+	{
+		ID:          "destinations_analyze",
+		Path:        destinationsconnect.DestinationsServiceAnalyzeDestinationProcedure,
+		Method:      "POST",
+		Summary:     "Analyze destination readiness",
+		Description: "Inspects a mounted filesystem location read-only and returns structured readiness checks, device identity, filesystem suitability, content warnings, and a recommended backup subdirectory.",
+		Category:    "destinations",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"location":                "string (required)",
+				"proposed_subdir":         "string (optional)",
+				"selected_target_bytes":   "int64 (optional)",
+				"retention_copies":        "int32 (optional)",
+				"cross_platform_required": "boolean",
+			},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"report": "DestinationReadinessReport"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing location or location is not under a mounted volume"},
+			{Status: 500, Code: "internal", Description: "Read-only inspection failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Analyze a mounted USB drive", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/AnalyzeDestination -H 'Content-Type: application/json' -d '{\"location\":\"/media/user/USB\"}'"},
+		},
+		CLIMapping: &module.CLIMapping{
+			Command: "data-backup-manager destinations readiness",
+			Args:    []string{"--location", "<path>"},
+		},
+	},
+	{
+		ID:          "destinations_prepare_plan",
+		Path:        destinationsconnect.DestinationsServicePlanDestinationPreparationProcedure,
+		Method:      "POST",
+		Summary:     "Plan destination preparation",
+		Description: "Creates a non-mutating preparation plan bound to the observed device identity. The plan includes the exact confirmation phrase and whether the action is supported by this platform.",
+		Category:    "destinations",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"location":           "string (required)",
+				"action":             "PreparationAction (required)",
+				"desired_subdir":     "string",
+				"desired_label":      "string",
+				"desired_filesystem": "string",
+				"expected_identity":  "DestinationDeviceIdentity",
+			},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"plan": "DestinationPreparationPlan"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing location/action or invalid subdirectory"},
+			{Status: 412, Code: "failed_precondition", Description: "Device identity mismatch or protected-path overlap"},
+			{Status: 500, Code: "internal", Description: "Read-only inspection failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Plan a backup subdirectory", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/PlanDestinationPreparation -H 'Content-Type: application/json' -d '{\"location\":\"/media/user/USB\",\"action\":\"PREPARATION_ACTION_CREATE_SUBDIR\",\"desiredSubdir\":\"vrooli-backups\"}'"},
+		},
+		CLIMapping: &module.CLIMapping{
+			Command: "data-backup-manager destinations prepare-plan",
+			Args:    []string{"--location", "<path>", "--action", "<action>"},
+		},
+	},
+	{
+		ID:          "destinations_prepare_execute",
+		Path:        destinationsconnect.DestinationsServiceExecuteDestinationPreparationProcedure,
+		Method:      "POST",
+		Summary:     "Execute destination preparation",
+		Description: "Runs or dry-runs a preparation plan only after confirmation and identity guards pass. Destructive actions additionally require an explicit data-loss acknowledgement.",
+		Category:    "destinations",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"plan":                  "DestinationPreparationPlan (required)",
+				"confirmation":          "string",
+				"dry_run":               "boolean",
+				"acknowledge_data_loss": "boolean",
+			},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"dry_run":            "boolean",
+				"action":             "PreparationAction",
+				"location":           "string",
+				"post_action_report": "DestinationReadinessReport",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing plan"},
+			{Status: 412, Code: "failed_precondition", Description: "Unsupported action, missing confirmation, data-loss acknowledgement missing, or device identity changed"},
+			{Status: 500, Code: "internal", Description: "Preparation execution failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Dry-run a preparation plan", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ExecuteDestinationPreparation -H 'Content-Type: application/json' -d '{\"plan\":{\"id\":\"plan-id\"},\"dryRun\":true}'"},
+		},
+		CLIMapping: &module.CLIMapping{
+			Command: "data-backup-manager destinations prepare-execute",
+			Args:    []string{"--plan-json", "<json>", "--confirm", "<phrase>"},
+		},
+	},
 }

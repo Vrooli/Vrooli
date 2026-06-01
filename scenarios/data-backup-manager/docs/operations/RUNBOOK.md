@@ -63,6 +63,28 @@ data-backup-manager runs list           # run history
 data-backup-manager restores list       # restore and verify history
 ```
 
+### Destination onboarding
+
+Discovery and readiness analysis are read-only. A removable drive is not
+used until an operator reviews it and creates a destination explicitly.
+Prefer a dedicated repository subdirectory such as
+`<mount>/vrooli-backups` instead of the mount root:
+
+```bash
+data-backup-manager discovery destinations
+data-backup-manager destinations readiness --location <mount>
+data-backup-manager destinations prepare-plan \
+  --location <mount> \
+  --action create-subdir \
+  --subdir vrooli-backups
+```
+
+`prepare-execute` defaults to dry-run. Real execution currently supports
+only the non-destructive `create_subdir` action, after confirmation and
+device-identity revalidation. Formatting, relabeling, and clearing files
+remain unsupported operationally; handle those outside this scenario until
+the Linux drive-preparation adapter is implemented and validated.
+
 ### Back up (scheduled + on-demand)
 
 Plans run on cadence via the in-process scheduler. Operators (and

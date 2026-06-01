@@ -131,6 +131,24 @@ and satisfied by thin adapters in `api/adapters.go` (the composition root) over
 the concrete sibling services — keeping the domains decoupled and unit-testable
 against fakes.
 
+### Destination readiness and preparation
+
+| | |
+|---|---|
+| **Seam** | Read-only destination/device inspection |
+| **Interface** | `internal/destinationreadiness/inspector.go::Inspector` (`Inspect(ctx, location)`) plus `VolumeScanner` for mounted-volume enumeration. |
+| **Production wiring** | `handlers/destinations/module.go` constructs `destinationreadiness.NewReadOnlyInspector(sysmounts.New())` and passes it to `destinationreadiness.NewService(...)`. The inspector reads mount metadata and bounded top-level names only; it never writes probe files or mutates devices. |
+| **Test fake** | `internal/destinationreadiness/service_test.go::fakeInspector` and `inspector_test.go::fakeVolumeScanner`. |
+| **Why it exists** | Drive-readiness analysis must be testable without touching real removable media. The seam lets tests model FAT32, installer media, read-only mounts, low capacity, and identity drift without scanning or writing host devices. |
+
+| | |
+|---|---|
+| **Seam** | Destination preparation executor |
+| **Interface** | `internal/destinationreadiness/service.go::Preparer` (`Supported(action)`, `Execute(ctx, plan)`). |
+| **Production wiring** | `handlers/destinations/module.go` wires `internal/destinationreadiness/preparer.go::LocalPreparer`. It supports only `create_subdir`: create a child directory, write a short-lived probe file, remove the probe, then return. `format`, `relabel`, and `clear_directory` remain explicitly unsupported. |
+| **Test fake** | `internal/destinationreadiness/service_test.go::fakePreparer`, which records the requested plan and never touches devices. `preparer_test.go` uses `t.TempDir()` and injected filesystem functions to verify create-subdir behavior without mutating removable media. |
+| **Why it exists** | Formatting, clearing, relabeling, and even creating backup directories are safety-sensitive. The domain proves that analysis and planning do not execute effects and that execution is unreachable until confirmation, data-loss acknowledgement, supported-platform, and identity guards pass. |
+
 ### Connect router (proto-typed transport)
 
 | | |

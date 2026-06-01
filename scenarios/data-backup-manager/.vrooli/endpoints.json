@@ -224,12 +224,12 @@
       "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/DeleteDestination",
       "method": "POST",
       "summary": "Delete a destination",
-      "description": "Removes the destination catalog row. Does NOT delete the underlying kopia repository unless delete_repository is explicitly set (v1: repository deletion is not implemented).",
+      "description": "Removes the destination catalog row. When delete_repository is explicitly set, also removes local resource-kopia metadata and Vault secret refs for the repository.",
       "category": "destinations",
       "request": {
         "type": "object",
         "properties": {
-          "delete_repository": "bool (reserved, not implemented in v1)",
+          "delete_repository": "bool (also remove local resource-kopia metadata and Vault secret refs)",
           "id": "string (required)"
         }
       },
@@ -308,6 +308,170 @@
         "command": "data-backup-manager destinations usage",
         "args": [
           "<id>"
+        ]
+      }
+    },
+    {
+      "id": "destinations_analyze",
+      "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/AnalyzeDestination",
+      "method": "POST",
+      "summary": "Analyze destination readiness",
+      "description": "Inspects a mounted filesystem location read-only and returns structured readiness checks, device identity, filesystem suitability, content warnings, and a recommended backup subdirectory.",
+      "category": "destinations",
+      "request": {
+        "type": "object",
+        "properties": {
+          "cross_platform_required": "boolean",
+          "location": "string (required)",
+          "proposed_subdir": "string (optional)",
+          "retention_copies": "int32 (optional)",
+          "selected_target_bytes": "int64 (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "report": "DestinationReadinessReport"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing location or location is not under a mounted volume"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Read-only inspection failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Analyze a mounted USB drive",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/AnalyzeDestination -H 'Content-Type: application/json' -d '{\"location\":\"/media/user/USB\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager destinations readiness",
+        "args": [
+          "--location",
+          "<path>"
+        ]
+      }
+    },
+    {
+      "id": "destinations_prepare_plan",
+      "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/PlanDestinationPreparation",
+      "method": "POST",
+      "summary": "Plan destination preparation",
+      "description": "Creates a non-mutating preparation plan bound to the observed device identity. The plan includes the exact confirmation phrase and whether the action is supported by this platform.",
+      "category": "destinations",
+      "request": {
+        "type": "object",
+        "properties": {
+          "action": "PreparationAction (required)",
+          "desired_filesystem": "string",
+          "desired_label": "string",
+          "desired_subdir": "string",
+          "expected_identity": "DestinationDeviceIdentity",
+          "location": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "plan": "DestinationPreparationPlan"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing location/action or invalid subdirectory"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Device identity mismatch or protected-path overlap"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Read-only inspection failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Plan a backup subdirectory",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/PlanDestinationPreparation -H 'Content-Type: application/json' -d '{\"location\":\"/media/user/USB\",\"action\":\"PREPARATION_ACTION_CREATE_SUBDIR\",\"desiredSubdir\":\"vrooli-backups\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager destinations prepare-plan",
+        "args": [
+          "--location",
+          "<path>",
+          "--action",
+          "<action>"
+        ]
+      }
+    },
+    {
+      "id": "destinations_prepare_execute",
+      "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/ExecuteDestinationPreparation",
+      "method": "POST",
+      "summary": "Execute destination preparation",
+      "description": "Runs or dry-runs a preparation plan only after confirmation and identity guards pass. Destructive actions additionally require an explicit data-loss acknowledgement.",
+      "category": "destinations",
+      "request": {
+        "type": "object",
+        "properties": {
+          "acknowledge_data_loss": "boolean",
+          "confirmation": "string",
+          "dry_run": "boolean",
+          "plan": "DestinationPreparationPlan (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "action": "PreparationAction",
+          "dry_run": "boolean",
+          "location": "string",
+          "post_action_report": "DestinationReadinessReport"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing plan"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Unsupported action, missing confirmation, data-loss acknowledgement missing, or device identity changed"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Preparation execution failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Dry-run a preparation plan",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ExecuteDestinationPreparation -H 'Content-Type: application/json' -d '{\"plan\":{\"id\":\"plan-id\"},\"dryRun\":true}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager destinations prepare-execute",
+        "args": [
+          "--plan-json",
+          "<json>",
+          "--confirm",
+          "<phrase>"
         ]
       }
     },
@@ -1279,6 +1443,21 @@
       "name": "destinations usage",
       "description": "Show a destination's usage vs cap",
       "endpoint_id": "destinations_usage"
+    },
+    {
+      "name": "destinations readiness",
+      "description": "Analyze a mounted filesystem location for backup readiness",
+      "endpoint_id": "destinations_analyze"
+    },
+    {
+      "name": "destinations prepare-plan",
+      "description": "Create a non-mutating destination-preparation plan",
+      "endpoint_id": "destinations_prepare_plan"
+    },
+    {
+      "name": "destinations prepare-execute",
+      "description": "Dry-run or execute a destination-preparation plan after confirmation",
+      "endpoint_id": "destinations_prepare_execute"
     },
     {
       "name": "discovery targets",

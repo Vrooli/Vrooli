@@ -11,11 +11,19 @@ import { DestinationsService } from "@vrooli/proto-types/data-backup-manager/v1/
 import {
   BackendKind,
   CapPolicy,
+  PreparationAction,
+  ReadinessSeverity,
   UsageState,
 } from "@vrooli/proto-types/data-backup-manager/v1/destinations/destinations_pb";
 import type {
+  AnalyzeDestinationRequest,
   Destination,
+  DestinationPreparationPlan,
+  DestinationReadinessReport,
+  ExecuteDestinationPreparationRequest,
+  ExecuteDestinationPreparationResponse,
   GetDestinationUsageResponse,
+  PlanDestinationPreparationRequest,
 } from "@vrooli/proto-types/data-backup-manager/v1/destinations/destinations_pb";
 
 import { transport } from "./client";
@@ -37,6 +45,14 @@ export interface UpdateDestinationInput {
   id: string;
   capBytes: bigint;
   capPolicy: CapPolicy;
+}
+
+export interface AnalyzeDestinationInput {
+  location: string;
+  proposedSubdir?: string;
+  selectedTargetBytes?: bigint;
+  retentionCopies?: number;
+  crossPlatformRequired?: boolean;
 }
 
 export async function listDestinations(): Promise<Destination[]> {
@@ -73,5 +89,39 @@ export async function getDestinationUsage(id: string): Promise<GetDestinationUsa
   return destinationsClient.getDestinationUsage({ id });
 }
 
-export { BackendKind, CapPolicy, UsageState };
-export type { Destination, GetDestinationUsageResponse };
+export async function analyzeDestination(
+  input: AnalyzeDestinationInput,
+): Promise<DestinationReadinessReport | undefined> {
+  const req: AnalyzeDestinationRequest = {
+    $typeName: "vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationRequest",
+    location: input.location,
+    proposedSubdir: input.proposedSubdir ?? "",
+    selectedTargetBytes: input.selectedTargetBytes ?? 0n,
+    retentionCopies: input.retentionCopies ?? 0,
+    crossPlatformRequired: input.crossPlatformRequired ?? false,
+  };
+  const res = await destinationsClient.analyzeDestination(req);
+  return res.report;
+}
+
+export async function planDestinationPreparation(
+  input: PlanDestinationPreparationRequest,
+): Promise<DestinationPreparationPlan | undefined> {
+  const res = await destinationsClient.planDestinationPreparation(input);
+  return res.plan;
+}
+
+export async function executeDestinationPreparation(
+  input: ExecuteDestinationPreparationRequest,
+): Promise<ExecuteDestinationPreparationResponse> {
+  return destinationsClient.executeDestinationPreparation(input);
+}
+
+export { BackendKind, CapPolicy, PreparationAction, ReadinessSeverity, UsageState };
+export type {
+  Destination,
+  DestinationPreparationPlan,
+  DestinationReadinessReport,
+  ExecuteDestinationPreparationResponse,
+  GetDestinationUsageResponse,
+};

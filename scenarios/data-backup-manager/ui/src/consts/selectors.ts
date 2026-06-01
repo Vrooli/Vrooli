@@ -348,6 +348,8 @@ const literalSelectors = {
     targetsGroup: "discovery-targets-group",
     destinationsGroup: "discovery-destinations-group",
     empty: "discovery-empty",
+    destinationReview: "discovery-destination-review",
+    reviewCreateButton: "discovery-destination-review-create",
   },
   targets: {
     table: "targets-table",

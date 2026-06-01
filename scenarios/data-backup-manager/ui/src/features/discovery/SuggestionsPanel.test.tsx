@@ -25,6 +25,7 @@ vi.mock("../../api/targets", async (importOriginal) => ({
 }));
 vi.mock("../../api/destinations", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/destinations")>()),
+  analyzeDestination: vi.fn(),
   createDestination: vi.fn(),
 }));
 
@@ -32,7 +33,7 @@ import * as discoveryApi from "../../api/discovery";
 import * as targetsApi from "../../api/targets";
 import * as destinationsApi from "../../api/destinations";
 import { SourceKind } from "../../api/targets";
-import { BackendKind, CapPolicy } from "../../api/destinations";
+import { BackendKind, CapPolicy, ReadinessSeverity } from "../../api/destinations";
 import { DriveClass } from "../../api/discovery";
 import { SuggestionsPanel } from "./SuggestionsPanel";
 
@@ -84,6 +85,9 @@ const rootSuggestion = {
   rationale: "Overlaps protected data.",
 };
 
+const readinessWarning = "FAT32 has a 4 GiB per-file limit.";
+const recommendedDestinationLocation = "/media/u/USB/vrooli-backups";
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(discoveryApi.listTargetSuggestions).mockResolvedValue([targetSuggestion] as never);
@@ -93,6 +97,31 @@ beforeEach(() => {
   ] as never);
   vi.mocked(discoveryApi.dismissSuggestion).mockResolvedValue(true);
   vi.mocked(targetsApi.registerTarget).mockResolvedValue({ id: "t1" } as never);
+  vi.mocked(destinationsApi.analyzeDestination).mockResolvedValue({
+    location: "/media/u/USB",
+    overallSeverity: ReadinessSeverity.WARNING,
+    identity: {
+      $typeName: "vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity",
+      devicePath: "/dev/sdz1",
+      mountpoint: "/media/u/USB",
+      label: "USB",
+      filesystem: "vfat",
+      totalBytes: 64n,
+      model: "",
+      serial: "",
+      uuid: "",
+    },
+    checks: [
+      {
+        $typeName: "vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck",
+        code: "filesystem_suitability",
+        severity: ReadinessSeverity.WARNING,
+        message: readinessWarning,
+      },
+    ],
+    recommendedDestinationLocation,
+    recommendedAction: "use_subdirectory",
+  } as never);
   vi.mocked(destinationsApi.createDestination).mockResolvedValue({ id: "d1" } as never);
 });
 
@@ -116,18 +145,29 @@ describe("SuggestionsPanel", () => {
     );
   });
 
-  it("enables a destination suggestion via createDestination with a filesystem backend", async () => {
+  it("reviews a destination suggestion before creating it at the recommended subdirectory", async () => {
     const user = userEvent.setup();
     renderWithProviders(<SuggestionsPanel />);
     await screen.findByTestId(selectors.discovery.suggestionRow({ id: "ds-usb" }));
 
     await user.click(screen.getByTestId(selectors.discovery.enableButton({ id: "ds-usb" })));
+    await screen.findByTestId(selectors.discovery.destinationReview);
 
+    await waitFor(() =>
+      expect(destinationsApi.analyzeDestination).toHaveBeenCalledWith({
+        location: "/media/u/USB",
+        proposedSubdir: "vrooli-backups",
+      }),
+    );
+    expect(screen.getByText(readinessWarning)).toBeInTheDocument();
+    expect(screen.getByText(recommendedDestinationLocation)).toBeInTheDocument();
+
+    await user.click(screen.getByTestId(selectors.discovery.reviewCreateButton));
     await waitFor(() =>
       expect(destinationsApi.createDestination).toHaveBeenCalledWith({
         name: "Removable drive — USB",
         backendKind: BackendKind.FILESYSTEM,
-        location: "/media/u/USB",
+        location: recommendedDestinationLocation,
         capBytes: 0n,
         capPolicy: CapPolicy.UNSPECIFIED,
       }),

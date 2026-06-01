@@ -150,6 +150,57 @@
             "run_eligible": true,
             "permissions": ["network:internal"]
           }
+        },
+        {
+          "name": "readiness",
+          "description": "Analyze a mounted filesystem location for backup readiness without writing to it",
+          "flags": [
+            { "name": "location", "required": true, "description": "Mounted path or subdirectory to analyze" },
+            { "name": "proposed-subdir", "description": "Backup subdirectory to recommend (default: vrooli-backups)" },
+            { "name": "selected-target-bytes", "description": "Optional selected target estimate in bytes for capacity checks" },
+            { "name": "retention-copies", "description": "Optional retention copy count for capacity checks" },
+            { "name": "cross-platform", "bool": true, "description": "Prefer cross-platform filesystem guidance" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "DestinationsService", "method": "AnalyzeDestination" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["filesystem:read", "network:internal"]
+          }
+        },
+        {
+          "name": "prepare-plan",
+          "description": "Create a non-mutating destination-preparation plan with a confirmation phrase",
+          "flags": [
+            { "name": "location", "required": true, "description": "Mounted path or subdirectory to prepare" },
+            { "name": "action", "required": true, "description": "Preparation action: create-subdir|relabel|clear-directory|format" },
+            { "name": "subdir", "description": "Subdirectory name for create-subdir (default: vrooli-backups)" },
+            { "name": "label", "description": "Desired filesystem label for relabel/format" },
+            { "name": "filesystem", "description": "Desired filesystem for format, e.g. ext4 or exfat" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "DestinationsService", "method": "PlanDestinationPreparation" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["filesystem:read", "network:internal"]
+          }
+        },
+        {
+          "name": "prepare-execute",
+          "description": "Dry-run or execute a destination-preparation plan after explicit confirmation",
+          "flags": [
+            { "name": "plan-json", "required": true, "description": "DestinationPreparationPlan JSON returned by prepare-plan" },
+            { "name": "confirm", "description": "Exact confirmation phrase from the plan" },
+            { "name": "dry-run", "description": "Whether to validate only (default: true)" },
+            { "name": "acknowledge-data-loss", "bool": true, "description": "Required for destructive actions when dry-run is false" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "DestinationsService", "method": "ExecuteDestinationPreparation" },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": ["filesystem:write", "network:internal", "admin"]
+          }
         }
       ]
     },

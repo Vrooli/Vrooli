@@ -36,6 +36,9 @@ const (
 
 // Volume is a single mounted, real (non-pseudo) filesystem.
 type Volume struct {
+	// DevicePath is the source device/path backing this mount when the OS
+	// reports one (for example /dev/sdb1 on Linux).
+	DevicePath string
 	// Mountpoint is the absolute path the filesystem is mounted at.
 	Mountpoint string
 	// Filesystem is the filesystem type (ext4, apfs, ntfs, nfs, …).
@@ -49,6 +52,8 @@ type Volume struct {
 	TotalBytes int64
 	// ReadOnly is true when the mount carries the `ro` option.
 	ReadOnly bool
+	// MountOptions is the OS-reported mount option list.
+	MountOptions []string
 }
 
 // Scanner enumerates mounted volumes via gopsutil and classifies them. The
@@ -86,11 +91,13 @@ func (s *Scanner) Scan(ctx context.Context) ([]Volume, error) {
 		}
 		class, removable := s.classifier.classify(m)
 		vol := Volume{
-			Mountpoint: m.Mountpoint,
-			Filesystem: m.Fstype,
-			Class:      class,
-			Removable:  removable,
-			ReadOnly:   isReadOnly(m.Opts),
+			DevicePath:   m.Device,
+			Mountpoint:   m.Mountpoint,
+			Filesystem:   m.Fstype,
+			Class:        class,
+			Removable:    removable,
+			ReadOnly:     isReadOnly(m.Opts),
+			MountOptions: append([]string(nil), m.Opts...),
 		}
 		if u, uerr := s.usage(ctx, m.Mountpoint); uerr == nil && u != nil {
 			vol.FreeBytes = clampUint64(u.Free)

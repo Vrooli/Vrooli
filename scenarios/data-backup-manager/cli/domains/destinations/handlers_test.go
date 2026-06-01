@@ -20,7 +20,8 @@ import (
 // stubDestinationsService is an in-test DestinationsServiceHandler that records
 // the request it receives and returns a canned destination.
 type stubDestinationsService struct {
-	gotCreate *destinationsv1.CreateDestinationRequest
+	gotCreate    *destinationsv1.CreateDestinationRequest
+	gotReadiness *destinationsv1.AnalyzeDestinationRequest
 }
 
 func (s *stubDestinationsService) CreateDestination(_ context.Context, req *connect.Request[destinationsv1.CreateDestinationRequest]) (*connect.Response[destinationsv1.CreateDestinationResponse], error) {
@@ -57,6 +58,43 @@ func (s *stubDestinationsService) DeleteDestination(_ context.Context, _ *connec
 
 func (s *stubDestinationsService) GetDestinationUsage(_ context.Context, req *connect.Request[destinationsv1.GetDestinationUsageRequest]) (*connect.Response[destinationsv1.GetDestinationUsageResponse], error) {
 	return connect.NewResponse(&destinationsv1.GetDestinationUsageResponse{}), nil
+}
+
+func (s *stubDestinationsService) AnalyzeDestination(_ context.Context, req *connect.Request[destinationsv1.AnalyzeDestinationRequest]) (*connect.Response[destinationsv1.AnalyzeDestinationResponse], error) {
+	s.gotReadiness = req.Msg
+	return connect.NewResponse(&destinationsv1.AnalyzeDestinationResponse{
+		Report: &destinationsv1.DestinationReadinessReport{
+			Location:                       req.Msg.Location,
+			OverallSeverity:                destinationsv1.ReadinessSeverity_READINESS_SEVERITY_WARNING,
+			RecommendedDestinationLocation: req.Msg.Location + "/vrooli-backups",
+			RecommendedAction:              "use_subdirectory",
+			Checks: []*destinationsv1.DestinationReadinessCheck{
+				{Code: "filesystem_suitability", Severity: destinationsv1.ReadinessSeverity_READINESS_SEVERITY_WARNING, Message: "FAT32 warning"},
+			},
+		},
+	}), nil
+}
+
+func (s *stubDestinationsService) PlanDestinationPreparation(_ context.Context, req *connect.Request[destinationsv1.PlanDestinationPreparationRequest]) (*connect.Response[destinationsv1.PlanDestinationPreparationResponse], error) {
+	return connect.NewResponse(&destinationsv1.PlanDestinationPreparationResponse{
+		Plan: &destinationsv1.DestinationPreparationPlan{
+			Id:                   "plan-1",
+			Action:               req.Msg.Action,
+			Location:             req.Msg.Location,
+			TargetPath:           req.Msg.Location + "/vrooli-backups",
+			RequiresConfirmation: true,
+			ConfirmationPhrase:   "PREPARE",
+			Supported:            true,
+		},
+	}), nil
+}
+
+func (s *stubDestinationsService) ExecuteDestinationPreparation(_ context.Context, req *connect.Request[destinationsv1.ExecuteDestinationPreparationRequest]) (*connect.Response[destinationsv1.ExecuteDestinationPreparationResponse], error) {
+	return connect.NewResponse(&destinationsv1.ExecuteDestinationPreparationResponse{
+		DryRun:   req.Msg.GetDryRun(),
+		Action:   req.Msg.Plan.GetAction(),
+		Location: req.Msg.Plan.GetTargetPath(),
+	}), nil
 }
 
 // TestCreateDestinationCommand is the per-domain check: the create command parses
@@ -130,9 +168,43 @@ func TestRegisterDestinationsLoadsFromManifest(t *testing.T) {
 	for _, c := range group.Subcommands {
 		got[c.Name] = true
 	}
-	for _, want := range []string{"create", "get", "list", "update", "delete", "usage"} {
+	for _, want := range []string{"create", "get", "list", "update", "delete", "usage", "readiness", "prepare-plan", "prepare-execute"} {
 		if !got[want] {
 			t.Errorf("missing subcommand %q", want)
 		}
+	}
+}
+
+func TestReadinessCommand(t *testing.T) {
+	stub := &stubDestinationsService{}
+	mux := http.NewServeMux()
+	path, h := destinationsconnect.NewDestinationsServiceHandler(stub)
+	mux.Handle(path, h)
+	app := testutil.NewTestApp(t, mux)
+
+	hs := newHandlers(app)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
+		{Name: "location"}, {Name: "proposed-subdir"}, {Name: "selected-target-bytes"}, {Name: "retention-copies"}, {Name: "cross-platform"},
+	}}
+	ctx, stdout := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{
+			"location":              "/media/user/USB",
+			"selected-target-bytes": "1024",
+			"retention-copies":      "2",
+			"cross-platform":        "true",
+		},
+	})
+
+	if err := hs.readiness(ctx); err != nil {
+		t.Fatalf("readiness: %v", err)
+	}
+	if stub.gotReadiness == nil {
+		t.Fatal("server did not receive AnalyzeDestination")
+	}
+	if !stub.gotReadiness.CrossPlatformRequired || stub.gotReadiness.SelectedTargetBytes != 1024 || stub.gotReadiness.RetentionCopies != 2 {
+		t.Fatalf("request fields wrong: %+v", stub.gotReadiness)
+	}
+	if !strings.Contains(stdout.String(), "filesystem_suitability") {
+		t.Fatalf("output missing readiness check: %q", stdout.String())
 	}
 }

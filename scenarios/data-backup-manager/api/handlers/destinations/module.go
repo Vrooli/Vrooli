@@ -4,8 +4,10 @@ import (
 	"log"
 
 	"data-backup-manager/internal/clock"
+	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/module"
+	"data-backup-manager/internal/sysmounts"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -23,9 +25,14 @@ import (
 func Module(db *database.RoutedDB, clk clock.Clock, eng engine.KopiaEngine, protectedRoot string, logger *log.Logger) module.Module {
 	repo := internaldestinations.NewSQLiteRepository(db, clk)
 	svc := internaldestinations.NewService(repo, eng, protectedRoot)
+	readinessSvc := destinationreadiness.NewService(
+		destinationreadiness.NewReadOnlyInspector(sysmounts.New()),
+		destinationreadiness.NewLocalPreparer(),
+	)
 	connectPath, connectHandler := destinationsconnect.NewDestinationsServiceHandler(NewConnectHandler(Deps{
-		Service: svc,
-		Logger:  logger,
+		Service:   svc,
+		Readiness: readinessSvc,
+		Logger:    logger,
 	}))
 	return module.Module{
 		Name: "destinations",
