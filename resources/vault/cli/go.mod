@@ -1,10 +1,11 @@
 module resource-vault/cli
 
-go 1.24.0
+go 1.25.0
 
-toolchain go1.24.12
-
-require github.com/vrooli/cli-core v0.0.0
+require (
+	github.com/vrooli/cli-core v0.0.0
+	gopkg.in/yaml.v3 v3.0.1
+)
 
 require (
 	connectrpc.com/connect v1.19.2 // indirect

@@ -99,3 +99,24 @@ func TestEnsurePassphraseSurfacesVaultError(t *testing.T) {
 		t.Fatal("expected error when vault is down")
 	}
 }
+
+func TestCLIVaultGetSecretClassifiesMissingOnly(t *testing.T) {
+	ctx := context.Background()
+	c := &vault.CLIVault{
+		Command:  "resource-vault",
+		LookPath: func(string) (string, error) { return "/bin/resource-vault", nil },
+		Run: func(context.Context, string, ...string) (string, error) {
+			return "", &vault.CLIError{Command: "resource-vault", Stderr: "No value found at secret/x", Err: errors.New("exit status 2")}
+		},
+	}
+	if _, found, err := c.GetSecret(ctx, "secret/x", "value"); err != nil || found {
+		t.Fatalf("missing secret found=%v err=%v, want found=false err=nil", found, err)
+	}
+
+	c.Run = func(context.Context, string, ...string) (string, error) {
+		return "", &vault.CLIError{Command: "resource-vault", Stderr: "Cannot connect to Docker daemon", Err: errors.New("exit status 1")}
+	}
+	if _, _, err := c.GetSecret(ctx, "secret/x", "value"); err == nil {
+		t.Fatal("expected docker/vault outage to remain a hard error")
+	}
+}

@@ -4,6 +4,7 @@ package mocks
 import (
 	"context"
 	"resource-kopia/cli/internal/vault"
+	"strings"
 	"sync"
 )
 
@@ -13,11 +14,13 @@ type FakeVault struct {
 	mu    sync.Mutex
 	store map[string]string
 	// GetErr / PutErr, when set, are returned to simulate vault being down.
-	GetErr error
-	PutErr error
+	GetErr    error
+	PutErr    error
+	DeleteErr error
 	// Gets / Puts record access for assertions.
-	Gets []string
-	Puts []string
+	Gets    []string
+	Puts    []string
+	Deletes []string
 }
 
 var _ vault.Vault = (*FakeVault)(nil)
@@ -63,6 +66,22 @@ func (f *FakeVault) PutSecret(_ context.Context, path, k, value string) error {
 	}
 	f.store[key(path, k)] = value
 	f.Puts = append(f.Puts, key(path, k))
+	return nil
+}
+
+// DeleteSecret implements vault.Vault.
+func (f *FakeVault) DeleteSecret(_ context.Context, path string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.DeleteErr != nil {
+		return f.DeleteErr
+	}
+	for k := range f.store {
+		if strings.HasPrefix(k, path+"::") {
+			delete(f.store, k)
+		}
+	}
+	f.Deletes = append(f.Deletes, path)
 	return nil
 }
 

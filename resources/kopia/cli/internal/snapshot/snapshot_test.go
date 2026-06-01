@@ -2,12 +2,17 @@ package snapshot_test
 
 import (
 	"context"
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"resource-kopia/cli/internal/invariant"
+	"resource-kopia/cli/internal/kexec"
 	"resource-kopia/cli/internal/registry"
 	"resource-kopia/cli/internal/repoctx"
 	"resource-kopia/cli/internal/snapshot"
 	"resource-kopia/cli/internal/vault"
+	"slices"
+	"strings"
 	"testing"
 
 	kexecmocks "resource-kopia/cli/internal/kexec/mocks"
@@ -113,6 +118,54 @@ func TestSnapshotArgvTranslation(t *testing.T) {
 	}
 }
 
+func TestBrowseRestoresSnapshotToTempAndListsOneDirectoryLevel(t *testing.T) {
+	s, run := newSvc(t)
+	var restoredTo string
+	run.Responder = func(c kexec.Call) ([]byte, error) {
+		if !slices.Equal(c.Args[:4], []string{"--config-file", cfg, "snapshot", "restore"}) {
+			t.Fatalf("unexpected argv prefix: %v", c.Args)
+		}
+		if c.Args[4] != "abc123" {
+			t.Fatalf("snapshot arg = %q, want abc123", c.Args[4])
+		}
+		restoredTo = c.Args[5]
+		mustWriteFile(t, filepath.Join(restoredTo, "root.txt"), "alpha\n")
+		mustWriteFile(t, filepath.Join(restoredTo, "nested", "child.txt"), "beta\n")
+		mustWriteFile(t, filepath.Join(restoredTo, "nested", "second.txt"), "gamma\n")
+		return nil, nil
+	}
+
+	var out strings.Builder
+	s.Out = &out
+	if err := s.Browse(context.Background(), []string{"--repo", "nightly", "--snapshot", "abc123", "--path", "nested", "--json"}); err != nil {
+		t.Fatalf("Browse: %v", err)
+	}
+	if restoredTo == "" {
+		t.Fatal("snapshot was not restored to a temp dir")
+	}
+	if _, err := os.Stat(restoredTo); !os.IsNotExist(err) {
+		t.Fatalf("browse temp dir should be cleaned up; stat err = %v", err)
+	}
+	var entries []struct {
+		Path      string `json:"path"`
+		SizeBytes int64  `json:"sizeBytes"`
+		Type      string `json:"type"`
+		IsDir     bool   `json:"isDir"`
+	}
+	if err := json.Unmarshal([]byte(out.String()), &entries); err != nil {
+		t.Fatalf("parse browse json: %v\n%s", err, out.String())
+	}
+	if len(entries) != 2 {
+		t.Fatalf("entries = %v, want 2 files", entries)
+	}
+	if entries[0].Path != "nested/child.txt" || entries[0].Type != "f" || entries[0].IsDir {
+		t.Fatalf("entry[0] = %+v", entries[0])
+	}
+	if entries[1].Path != "nested/second.txt" || entries[1].SizeBytes != int64(len("gamma\n")) {
+		t.Fatalf("entry[1] = %+v", entries[1])
+	}
+}
+
 func TestSnapshotRequiresFlags(t *testing.T) {
 	s, _ := newSvc(t)
 	if err := s.Create(context.Background(), []string{"--repo", "nightly"}); err == nil {
@@ -123,5 +176,24 @@ func TestSnapshotRequiresFlags(t *testing.T) {
 	}
 	if err := s.Create(context.Background(), []string{"--path", "/x"}); err == nil {
 		t.Fatal("create without --repo should fail")
+	}
+	if err := s.Browse(context.Background(), []string{"--repo", "nightly", "--snapshot", "x"}); err == nil {
+		t.Fatal("browse without --json should fail")
+	}
+	if err := s.Browse(context.Background(), []string{"--repo", "nightly", "--json"}); err == nil {
+		t.Fatal("browse without --snapshot should fail")
+	}
+	if err := s.Browse(context.Background(), []string{"--repo", "nightly", "--snapshot", "x", "--path", "../escape", "--json"}); err == nil {
+		t.Fatal("browse with escaping path should fail")
+	}
+}
+
+func mustWriteFile(t *testing.T, path, contents string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o640); err != nil {
+		t.Fatalf("write %s: %v", path, err)
 	}
 }

@@ -1,62 +1,79 @@
 # Vault Resource
 
-Managed HashiCorp Vault runtime for local secret storage and resource-secret workflows.
+Managed HashiCorp Vault runtime for local Vrooli secret storage and resource-secret workflows.
 
-## Intent
+## Supported Surface
 
-- Resource ID: `vault`
-- Category: `storage`
-- Driver: `docker-service`
-- Portability tier: `full`
+- `resource.json` is the lifecycle authority for the Docker service, ports, health check, volumes, and runtime command.
+- `resource-vault` is the supported CLI for resources and scenarios.
+- `resource-vault content ...` is the supported machine interface for reading and writing KV v2 secrets.
+- `resource-vault secrets ...` is the supported inventory interface for `resources/*/config/secrets.yaml`.
+- `lib/` contains retained shell-era scripts for reference only. New consumers must not call those scripts or old command names.
 
-## Use Cases
+## Runtime Posture
 
-- Provide a central local secret store for resources and scenarios.
-- Validate and export resource-specific secrets from a shared contract.
-- Support development and internal automation that should not hardcode credentials.
+The default local runtime now uses Vault file storage under `${RESOURCE_DATA_DIR}` with config and logs under canonical resource directories. The CLI initializes and unseals a fresh local Vault instance on first secret operation and stores local bootstrap material in the mounted Vault data directory.
 
-## Architecture
+This is suitable for local durable resource secrets such as Kopia repository passphrases. It is not an enterprise production Vault deployment: no HA, auto-unseal, TLS listener, namespaces, dynamic database credentials, PKI, or SSH CA are implemented here.
 
-This resource is being aligned to the updated `docker-service` structure.
-
-- `resource.json` is the declarative authority for lifecycle, runtime, ports, exports, health, and freshness metadata.
-- `cli/` is the thin binary entrypoint and delegated command wiring surface.
-- `cli/internal/` is the default home for Vault-specific Go logic when the manifest and shared control plane are not enough.
-- `lib/` still contains retained shell behavior during the migration. That behavior should move into `cli/internal/...` over time rather than back into `cli/main.go`.
-
-The intended escalation path is:
-
-1. express behavior in `resource.json`
-2. rely on the shared `vrooli resource ...` control plane
-3. add Vault-specific Go code under `cli/internal/...` only where specialization is real
-4. add custom CLI commands only when the resource truly needs resource-local operator actions beyond the standard lifecycle surface
-
-Current internal package boundaries:
-
-- `cli/internal/install`: install/bootstrap helpers unique to Vault
-- `cli/internal/runtime`: runtime and config materialization helpers
-- `cli/internal/status`: richer Vault status interpretation
-- `cli/internal/health`: Vault-specific probe helpers
-- `cli/internal/env`: environment export and derived-config helpers
-
-## Usage
+## Lifecycle
 
 ```bash
-# Install or validate the resource contract
 vrooli resource install vault
-
-# Check status through the shared control plane
+resource-vault start
 resource-vault status
+resource-vault logs
+resource-vault stop
 ```
 
-Connection defaults:
+The lifecycle commands delegate to the shared Vrooli resource control plane. `vrooli resource status vault` is equivalent for status.
 
-- URL: `http://localhost:8200`
-- Dev token: `myroot`
+## Secret Content
 
-## Notes
+Canonical commands:
 
-- Keep `cli/main.go` thin. Do not treat it as the implementation surface for secret, template, or validation workflows.
-- Keep runtime storage rooted in `${RESOURCE_*_DIR}` paths rather than repo-local mutable directories.
-- Existing shell-heavy workflows in `lib/` are transitional. New logic should land in Go under `cli/internal/...`.
-- Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/vault/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+```bash
+resource-vault content set --path secret/resources/example/api/key --key value --value "secret"
+resource-vault content get --path secret/resources/example/api/key --key value --format raw
+resource-vault content get --path secret/resources/example/api/key --format json
+resource-vault content list --path secret/resources/example/
+resource-vault content delete --path secret/resources/example/api/key
+```
+
+Contract:
+
+- KV v2 paths are passed as Vault CLI paths, for example `secret/resources/kopia/repo/<repo>/passphrase`.
+- `--key` defaults to `value`.
+- `--format raw` prints only the secret value and exits non-zero when the path or field is absent.
+- `content set` uses `kv patch` and falls back to `kv put`, preserving sibling fields when the path already exists.
+- Values beginning with `@` are rejected so Vault cannot interpret them as host file references.
+
+## Resource Secret Inventory
+
+Resources declare expected secrets in `resources/<name>/config/secrets.yaml`.
+
+```bash
+resource-vault secrets scan
+resource-vault secrets check kopia
+resource-vault secrets validate
+resource-vault secrets export twilio
+resource-vault secrets provision mail-in-a-box
+```
+
+`check` and `validate` never print secret values. `export` prints shell-safe `export KEY='value'` lines only for present secrets with `default_env` declarations. Dynamic paths such as `{repo-name}` are reported as dynamic inventory entries and are not treated as globally missing.
+
+## Kopia
+
+`resource-kopia` stores repository passphrases through:
+
+```text
+secret/resources/kopia/repo/<repo>/passphrase
+```
+
+with field:
+
+```text
+passphrase
+```
+
+Kopia treats a missing passphrase for an existing repository as a hard error and now distinguishes missing secrets from Vault/Docker outages.

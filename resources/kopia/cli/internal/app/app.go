@@ -120,6 +120,7 @@ func subcommandGroups(app *cliapp.ResourceApp, repoSvc repo.Service, snapSvc sna
 				{Name: "stats", Description: "Show repository size/dedup statistics", Run: wrap(app, repoSvc.Stats)},
 				{Name: "list", Description: "List registered repositories", Run: wrap(app, repoSvc.List)},
 				{Name: "disconnect", Description: "Disconnect from a repository", Run: wrap(app, repoSvc.Disconnect)},
+				{Name: "delete", Description: "Delete local repository metadata and Vault secret refs", Run: wrap(app, repoSvc.Delete)},
 				{Name: "validate", Description: "Validate repository connectivity/integrity", Run: wrap(app, repoSvc.Validate)},
 			},
 		},
@@ -129,6 +130,7 @@ func subcommandGroups(app *cliapp.ResourceApp, repoSvc repo.Service, snapSvc sna
 			Subcommands: []cliapp.Command{
 				{Name: "create", Description: "Create a snapshot of a source path", Run: wrap(app, snapSvc.Create)},
 				{Name: "list", Description: "List snapshots", Run: wrap(app, snapSvc.List)},
+				{Name: "browse", Description: "Browse a snapshot directory as JSON", Run: wrap(app, snapSvc.Browse)},
 				{Name: "restore", Description: "Restore a snapshot to a target dir", Run: wrap(app, snapSvc.Restore)},
 				{Name: "verify", Description: "Verify snapshot/content integrity", Run: wrap(app, snapSvc.Verify)},
 				{Name: "delete", Description: "Delete a snapshot", Run: wrap(app, snapSvc.Delete)},

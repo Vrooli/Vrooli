@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"resource-vault/cli/internal/content"
+	"resource-vault/cli/internal/secrets"
+	"resource-vault/cli/internal/status"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -46,8 +48,10 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
-	app.SetCommandsWithSubgroups(app.StandardLifecycleCommands(), []cliapp.SubcommandGroup{
+	commands := append(app.StandardLifecycleCommands(), status.Command(status.Default()))
+	app.SetCommandsWithSubgroups(commands, []cliapp.SubcommandGroup{
 		content.Commands(content.Default()),
+		secrets.Commands(secrets.Default()),
 	})
 	return app, nil
 }

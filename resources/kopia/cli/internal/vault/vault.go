@@ -26,6 +26,9 @@ type Vault interface {
 	GetSecret(ctx context.Context, path, key string) (value string, found bool, err error)
 	// PutSecret stores value at (path, key).
 	PutSecret(ctx context.Context, path, key, value string) error
+	// DeleteSecret removes the secret at path. Missing paths are ignored by the
+	// vault resource CLI.
+	DeleteSecret(ctx context.Context, path string) error
 }
 
 // ErrPassphraseMissing is returned when a repository's passphrase is required
@@ -121,6 +124,17 @@ func PutS3Credentials(ctx context.Context, v Vault, repo string, creds S3Credent
 	return nil
 }
 
+// DeleteRepositorySecrets removes all vault paths owned by a repository.
+func DeleteRepositorySecrets(ctx context.Context, v Vault, repo string) error {
+	if err := v.DeleteSecret(ctx, PassphrasePath(repo)); err != nil {
+		return fmt.Errorf("delete passphrase for repo %q: %w", repo, err)
+	}
+	if err := v.DeleteSecret(ctx, S3Path(repo)); err != nil {
+		return fmt.Errorf("delete s3 credentials for repo %q: %w", repo, err)
+	}
+	return nil
+}
+
 // S3CredentialsFor returns the stored S3 credentials for a repository. found is
 // false when no S3 credentials have been stored (a filesystem repo, say).
 func S3CredentialsFor(ctx context.Context, v Vault, repo string) (S3Credentials, bool, error) {
@@ -153,6 +167,26 @@ type CLIVault struct {
 
 var _ Vault = (*CLIVault)(nil)
 
+// CLIError preserves resource-vault stderr so callers can distinguish a
+// missing secret from an unavailable Vault/container.
+type CLIError struct {
+	Command string
+	Args    []string
+	Stderr  string
+	Err     error
+}
+
+func (e *CLIError) Error() string {
+	if strings.TrimSpace(e.Stderr) == "" {
+		return fmt.Sprintf("%s %s: %v", e.Command, strings.Join(e.Args, " "), e.Err)
+	}
+	return fmt.Sprintf("%s %s: %v: %s", e.Command, strings.Join(e.Args, " "), e.Err, strings.TrimSpace(e.Stderr))
+}
+
+func (e *CLIError) Unwrap() error {
+	return e.Err
+}
+
 // NewCLIVault returns a CLIVault wired to the standard resource-vault CLI.
 func NewCLIVault() *CLIVault {
 	return &CLIVault{
@@ -169,8 +203,9 @@ func (c *CLIVault) command() string {
 	return c.Command
 }
 
-// GetSecret reads (path, key) via `resource-vault content get`. A non-zero exit
-// is treated as "not found" so callers can distinguish absence from misuse.
+// GetSecret reads (path, key) via `resource-vault content get`. Only the
+// resource-vault missing-secret shape is treated as not found; transport,
+// Docker, and Vault outages are hard errors.
 func (c *CLIVault) GetSecret(ctx context.Context, path, key string) (string, bool, error) {
 	if c.LookPath != nil {
 		if _, err := c.LookPath(c.command()); err != nil {
@@ -183,8 +218,10 @@ func (c *CLIVault) GetSecret(ctx context.Context, path, key string) (string, boo
 	}
 	value, err := run(ctx, c.command(), "content", "get", "--path", path, "--key", key, "--format", "raw")
 	if err != nil {
-		// resource-vault exits non-zero for a missing key; treat as not found.
-		return "", false, nil
+		if isMissingSecretError(err) {
+			return "", false, nil
+		}
+		return "", false, err
 	}
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -210,11 +247,44 @@ func (c *CLIVault) PutSecret(ctx context.Context, path, key, value string) error
 	return nil
 }
 
+// DeleteSecret removes a secret path via `resource-vault content delete`.
+func (c *CLIVault) DeleteSecret(ctx context.Context, path string) error {
+	if c.LookPath != nil {
+		if _, err := c.LookPath(c.command()); err != nil {
+			return fmt.Errorf("vault CLI %q unavailable: %w", c.command(), err)
+		}
+	}
+	run := c.Run
+	if run == nil {
+		run = runCommand
+	}
+	if _, err := run(ctx, c.command(), "content", "delete", "--path", path); err != nil {
+		return fmt.Errorf("vault content delete %s: %w", path, err)
+	}
+	return nil
+}
+
 func runCommand(ctx context.Context, name string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)
+		cliErr := &CLIError{Command: name, Args: append([]string(nil), args...), Err: err}
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			cliErr.Stderr = string(exitErr.Stderr)
+		}
+		return "", cliErr
 	}
 	return strings.TrimSpace(string(out)), nil
+}
+
+func isMissingSecretError(err error) bool {
+	var cliErr *CLIError
+	if !errors.As(err, &cliErr) {
+		return false
+	}
+	msg := strings.ToLower(cliErr.Stderr)
+	return strings.Contains(msg, "no value found") ||
+		strings.Contains(msg, "no secret exists") ||
+		strings.Contains(msg, "not found")
 }

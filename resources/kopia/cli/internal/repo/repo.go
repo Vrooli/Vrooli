@@ -216,6 +216,46 @@ func (s Service) Disconnect(ctx context.Context, args []string) error {
 	return s.simpleRepoCommand(ctx, args, "repo disconnect", []string{"repository", "disconnect"}, false)
 }
 
+// Delete removes the local resource-kopia metadata for a repository and
+// deletes the Vault secret refs that belong to it. Backend object bytes are not
+// removed; operators can reconnect later only if they re-provision the secret.
+func (s Service) Delete(ctx context.Context, args []string) error {
+	fs := cmdutil.NewFlagSet("repo delete")
+	name := fs.String("name", "", "Repository name (required)")
+	if err := cmdutil.Parse(fs, args); err != nil {
+		return err
+	}
+	if err := cmdutil.RequireName(*name); err != nil {
+		return err
+	}
+	entry, found, err := s.Registry.Get(*name)
+	if err != nil {
+		return err
+	}
+	if !found {
+		fmt.Fprintf(s.out(), "repository %q was not registered\n", *name)
+		return nil
+	}
+	if err := vault.DeleteRepositorySecrets(ctx, s.Vault, *name); err != nil {
+		return err
+	}
+	if err := s.Registry.Remove(*name); err != nil {
+		return err
+	}
+	if strings.TrimSpace(entry.ConfigFile) != "" {
+		if err := os.Remove(entry.ConfigFile); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove repo config %s: %w", entry.ConfigFile, err)
+		}
+	}
+	if strings.TrimSpace(entry.CacheDir) != "" {
+		if err := os.RemoveAll(entry.CacheDir); err != nil {
+			return fmt.Errorf("remove repo cache %s: %w", entry.CacheDir, err)
+		}
+	}
+	fmt.Fprintf(s.out(), "deleted repository metadata %q\n", *name)
+	return nil
+}
+
 // List prints the repositories this host has registered (from the registry,
 // which never holds secrets).
 func (s Service) List(_ context.Context, args []string) error {

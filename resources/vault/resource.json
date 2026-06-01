@@ -84,12 +84,13 @@
     "container_name": "vault",
     "env": {
       "VAULT_ADDR": "http://0.0.0.0:8200",
-      "VAULT_API_ADDR": "http://localhost:8200"
+      "VAULT_API_ADDR": "http://localhost:8200",
+      "VAULT_LOCAL_CONFIG": "{\"storage\":{\"file\":{\"path\":\"/vault/file\"}},\"listener\":[{\"tcp\":{\"address\":\"0.0.0.0:8200\",\"tls_disable\":true}}],\"disable_mlock\":true,\"ui\":true}"
     },
     "volumes": [
       {
         "source": "${RESOURCE_DATA_DIR}",
-        "target": "/vault/data"
+        "target": "/vault/file"
       },
       {
         "source": "${RESOURCE_CONFIG_DIR}",
@@ -101,10 +102,7 @@
       }
     ],
     "command": [
-      "server",
-      "-dev",
-      "-dev-root-token-id=myroot",
-      "-dev-listen-address=0.0.0.0:8200"
+      "server"
     ]
   },
   "environment_exports": {

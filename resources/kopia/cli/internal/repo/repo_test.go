@@ -2,6 +2,7 @@ package repo_test
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"resource-kopia/cli/internal/env"
 	"resource-kopia/cli/internal/invariant"
@@ -189,5 +190,48 @@ func TestStatusUnknownRepoFailsClosed(t *testing.T) {
 	}
 	if len(h.run.Calls) != 0 {
 		t.Fatal("must not exec kopia for an unknown repo")
+	}
+}
+
+func TestDeleteRemovesRegistryLocalFilesAndVaultSecrets(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	cfg := h.rt.RepoConfigFile("nightly")
+	cache := h.rt.RepoCacheDir("nightly")
+	if err := os.MkdirAll(filepath.Dir(cfg), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cfg, []byte("config"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(cache, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.reg.Upsert(registry.Entry{Name: "nightly", Backend: registry.BackendFilesystem, ConfigFile: cfg, CacheDir: cache, Path: "/p"}); err != nil {
+		t.Fatal(err)
+	}
+	h.vault.Seed(vault.PassphrasePath("nightly"), "passphrase", "passphrase-value-abcdefghijklmnop")
+	h.vault.Seed(vault.S3Path("nightly"), "access_key", "ak")
+
+	if err := h.svc.Delete(ctx, []string{"--name", "nightly"}); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if _, found, err := h.reg.Get("nightly"); err != nil || found {
+		t.Fatalf("registry found=%v err=%v, want removed", found, err)
+	}
+	if _, err := os.Stat(cfg); !os.IsNotExist(err) {
+		t.Fatalf("config file still exists or unexpected stat error: %v", err)
+	}
+	if _, err := os.Stat(cache); !os.IsNotExist(err) {
+		t.Fatalf("cache dir still exists or unexpected stat error: %v", err)
+	}
+	if _, ok := h.vault.Value(vault.PassphrasePath("nightly"), "passphrase"); ok {
+		t.Fatal("passphrase secret still present")
+	}
+	if _, ok := h.vault.Value(vault.S3Path("nightly"), "access_key"); ok {
+		t.Fatal("s3 secret still present")
+	}
+	if len(h.run.Calls) != 0 {
+		t.Fatalf("delete metadata should not shell out to kopia, got %v", h.run.Calls)
 	}
 }

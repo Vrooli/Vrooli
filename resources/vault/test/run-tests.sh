@@ -6,6 +6,7 @@
 #   smoke       - Quick health validation (30s max)
 #   unit        - Library function tests (60s max)
 #   integration - Full end-to-end testing (120s max)
+#   persistence - Current CLI restart persistence regression
 
 set -euo pipefail
 
@@ -35,16 +36,17 @@ PHASES:
   smoke            Quick health validation (30s)
   unit             Library function tests (60s)
   integration      Full end-to-end testing (120s)
+  persistence      Verify current CLI secrets survive lifecycle restart
   all              Run all test phases (default)
 
 EXAMPLES:
   ./run-tests.sh                    # Run all tests
   ./run-tests.sh smoke              # Quick health check
-  ./run-tests.sh smoke integration  # Smoke + integration only
+  ./run-tests.sh smoke persistence  # Smoke + persistence only
   ./run-tests.sh --verbose all      # All tests with detailed output
 
-NOTE: These tests validate Vault as a RESOURCE (health, connectivity).
-      For secret management testing, use: resource-vault test secrets
+NOTE: The persistence phase validates the supported Go resource-vault CLI
+      and should be preferred over legacy shell-era secret tests.
 EOF
 }
 
@@ -70,6 +72,15 @@ run_unit_tests() {
 run_integration_tests() {
     log::info "=== VAULT RESOURCE INTEGRATION TESTS ==="
     if bash "${TEST_DIR}/phases/test-integration.sh"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+run_persistence_tests() {
+    log::info "=== VAULT RESOURCE PERSISTENCE TESTS ==="
+    if bash "${TEST_DIR}/phases/test-persistence.sh"; then
         return 0
     else
         return 1
@@ -103,10 +114,10 @@ main() {
                 return 0
                 ;;
             all)
-                phases=("smoke" "unit" "integration")
+                phases=("smoke" "unit" "integration" "persistence")
                 shift
                 ;;
-            smoke|unit|integration)
+            smoke|unit|integration|persistence)
                 phases+=("$1")
                 shift
                 ;;
@@ -120,7 +131,7 @@ main() {
     
     # Default to all phases if none specified
     if [[ ${#phases[@]} -eq 0 ]]; then
-        phases=("smoke" "unit" "integration")
+        phases=("smoke" "unit" "integration" "persistence")
     fi
     
     # Set verbose logging if requested
@@ -151,6 +162,9 @@ main() {
                 ;;
             integration)
                 run_integration_tests || phase_status=1
+                ;;
+            persistence)
+                run_persistence_tests || phase_status=1
                 ;;
             *)
                 log::error "Unknown test phase: $phase"

@@ -1,21 +1,57 @@
 # Operations
 
-`vault` is organized as a `docker-service` resource.
+`vault` is a `docker-service` resource managed through the shared Vrooli lifecycle.
 
-## Architecture Boundary
+## Boundaries
 
-Keep responsibilities split cleanly:
+- `resource.json` owns Docker image, runtime command, volumes, ports, health checks, and lifecycle metadata.
+- `cli/` owns the `resource-vault` binary and custom resource commands.
+- `cli/internal/content` owns the canonical KV v2 content wrapper.
+- `cli/internal/secrets` owns `config/secrets.yaml` inventory workflows.
+- `lib/` is retained shell-era reference code and is not authoritative.
 
-- `resource.json` owns declarative runtime, lifecycle, port, export, and health metadata.
-- `cli/` owns the binary entrypoint, wiring, and delegated command registration.
-- `cli/internal/` owns Vault-specific Go logic that cannot be expressed through the manifest or shared control-plane packages.
-- `lib/` contains retained shell behavior only until the resource is fully migrated.
+## Runtime Mode
 
-Do not turn `cli/main.go` into the implementation surface. If the resource needs specialized runtime shaping, richer status interpretation, Vault-specific probes, or environment derivation, grow `cli/internal/install`, `cli/internal/runtime`, `cli/internal/status`, `cli/internal/health`, or `cli/internal/env` first.
+The default local mode uses Vault file storage:
 
-## Operator Checklist
+```json
+{"storage":{"file":{"path":"/vault/file"}}}
+```
 
-- Keep runtime image, ports, volumes, and health checks declared in `resource.json`.
-- Keep mutable runtime state in canonical resource storage paths rather than repo-local ad hoc paths.
-- Move shell workflows from `lib/` into `cli/internal/...` in focused slices instead of re-implementing them in CLI wiring.
-- Prefer shared `vrooli resource ...` lifecycle behavior before adding resource-local commands.
+Data, config, and logs are mounted from canonical resource storage directories. This mode is durable across container restarts and is the expected mode for backup passphrases.
+
+The CLI initializes and unseals a fresh local instance on first secret operation. Bootstrap material is stored in the resource config mount and should be treated as sensitive local operator material. This keeps local development and internal automation usable, but it is not HA or auto-unseal.
+
+## Operational Checks
+
+```bash
+resource-vault status
+vrooli resource status vault
+resource-vault content set --path secret/test/ops --key value --value ok
+resource-vault content get --path secret/test/ops --key value --format raw
+resource-vault content delete --path secret/test/ops
+```
+
+For persistence:
+
+```bash
+resource-vault content set --path secret/test/persistence --key value --value survives-restart
+vrooli resource restart vault
+resource-vault content get --path secret/test/persistence --key value --format raw
+resource-vault content delete --path secret/test/persistence
+```
+
+## Secret Handling
+
+Default status, check, validate, list, and lifecycle commands must not print secret values. Commands that reveal values are limited to direct `content get` and `secrets export` requests.
+
+## Production Gaps
+
+Before using Vault for external production tenants, implement and validate at least:
+
+- TLS listener and certificate management.
+- Externalized unseal strategy or a proper operator runbook.
+- Policy and token model with least privilege per resource.
+- Audit device enablement and log retention.
+- Backup and restore of Vault storage and bootstrap material.
+- HA storage and disaster recovery design.
