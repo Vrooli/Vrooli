@@ -27,9 +27,8 @@ These files are the source of truth. When in doubt, copy their shape:
 - **UI feature**: `ui/src/features/health/HealthCard.test.tsx` —
   `renderWithProviders`, factory data, inline `vi.mock` factory
   closure, cimode assertions, and real-locale assertions.
-- **UI a11y**: `ui/src/components/AppShell.a11y.test.tsx`,
-  `ui/src/features/health/HealthCard.a11y.test.tsx`, and
-  `ui/src/features/notes/NotesCard.a11y.test.tsx` — shell and feature
+- **UI a11y**: `ui/src/components/AppShell.a11y.test.tsx` and
+  `ui/src/features/health/HealthCard.a11y.test.tsx` — shell and feature
   accessibility are tested at their ownership boundary.
 - **CLI**: `cli/app_test.go` — smoke gate (NewApp, --version, --help).
   When domain commands arrive, extend with `clitest.NewAPIServer` +
@@ -173,32 +172,31 @@ hand-written struct mirror to drift against. `DiscardUnknown:true` is
 wired in `MustUnmarshalProto` so the test keeps passing when the wire
 grows fields the proto hasn't caught up to.
 
-### CRUD reference — `notes` end-to-end
+### CRUD reference — `targets` end-to-end
 
-The `notes` domain is the canonical CRUD reference. New scenarios add
-their first non-trivial mutation by copying its layering one file at a
-time. The pattern from wire to render:
+The `targets` domain is the canonical catalog CRUD reference. New
+domains add their first non-trivial mutation by copying its layering
+one file at a time. The pattern from wire to render:
 
 | Layer | File | What it owns |
 |---|---|---|
-| Wire contract | `packages/proto/schemas/data-backup-manager/v1/notes/notes.proto` | `Note`, `service NotesService`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteRequest`, `GetNoteResponse` |
-| REST metadata contract | `packages/proto/schemas/data-backup-manager/v1/notes/attachments.proto` | `Attachment` and `UploadAttachmentResponse` for the multipart upload exception |
-| Connect error mapping | `internal/notes/service_error_mapping.go` | Typed sentinels become Connect codes (`invalid_argument`, `not_found`, `internal`) |
+| Wire contract | `packages/proto/schemas/data-backup-manager/v1/targets/targets.proto` | `Target`, `service TargetsService`, `ListTargetsResponse`, `RegisterTargetRequest`, `RegisterTargetResponse`, `GetTargetRequest`, `GetTargetResponse` |
+| REST metadata contract | Not applicable today | Data Backup Manager has no multipart REST edge. Backup/restore bytes move through source capturers and `KopiaEngine`; REST remains only for `/health`. |
+| Connect error mapping | `internal/targets/service_error_mapping.go` | Typed sentinels become Connect codes (`invalid_argument`, `not_found`, `internal`) |
 | REST error envelope | `packages/proto/schemas/data-backup-manager/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | Typed body for REST exceptions, with canonical codes (`invalid_request`, `not_found`, `internal`) |
-| Domain types | `internal/notes/types.go::{Note, Attachment, CreateInput, ErrInvalidNote, ErrNoteNotFound}` | Domain-pure (no proto imports); typed sentinels translate into Connect errors at the handler edge |
-| Repository interface | `internal/notes/repository.go::Repository` | Persistence seam — `Create` / `Get` / `List` |
-| Repository impl | `internal/notes/sqlite.go::NewSQLiteRepository` | sqlite-backed `Repository`; production wires it once in `main.go` |
-| Schema | `internal/notes/schema.{sql,go}::Schema()` | Domain-owned table DDL embedded via `go:embed`; collected by `internal/modules/registry.go::AllSchemas()` and applied at boot via `apidb.EnsureSchemas` |
-| Repository test | `internal/notes/sqlite_test.go` | Real handle via `db.NewSQLite(t)` + `apidb.EnsureSchemas(ctx, d, ...providers...)` over system + notes (the canonical compose pattern) |
-| Service | `internal/notes/service.go::Service` (+ `NewService`) | Application layer: validation (`title` required after whitespace trim), default substitution (`defaultListLimit = 100` when caller passes 0). Handler depends on this, not the repository. |
-| Service test | `internal/notes/service_test.go` | Substitutes `mocks.FakeRepository` (from co-located `internal/notes/mocks/`); pins the validation, default-substitution, and error-propagation contracts |
-| Connect handler test | `handlers/notes/connect_handler_test.go` | Substitutes `mocks.FakeService` and exercises the generated Connect client/handler path |
-| Multipart handler test | `handlers/notes/attachments_handler_test.go` | Uses `blobstore.MemoryBlobStore` plus test metadata repositories to exercise file-upload success and error paths |
-| Mocks | `internal/notes/mocks/{repository,service}.go::{FakeRepository,FakeService}` | Co-located with the domain (Pass-3 pattern) — `FakeRepository` carries state for service tests; `FakeService` records inputs for handler tests. Both use atomic call counters + per-method error knobs. Deleting `internal/notes/` takes them along. |
-| UI client | `ui/src/api/notes.ts` | `notesClient = createClient(NotesService, transport)` plus `uploadAttachment` for multipart metadata |
-| UI tests | `ui/src/api/notes.test.ts` + component tests | Mock generated client methods and `uploadAttachment`; REST helper tests stub `global.fetch` |
-| CLI client | `cli/domains/notes/{register,handlers,attach_handler}.go` | `Register(core)` returns a `cliapp.SubcommandGroup`; handlers use generated Connect clients or `cliapp.UploadFile` and render via cli-core reports |
-| CLI test | `cli/domains/notes/handlers_test.go` | Spins a real `httptest.Server` via `testutil.NewAPIServer`, captures stdout via `testutil.CaptureStdout` |
+| Domain types | `internal/targets/types.go::{Target, RegisterInput, ErrInvalidTarget, ErrTargetNotFound}` | Domain-pure (no proto imports); typed sentinels translate into Connect errors at the handler edge |
+| Repository interface | `internal/targets/repository.go::Repository` | Persistence seam — register/upsert, get, list, and deregister operations |
+| Repository impl | `internal/targets/sqlite.go::NewSQLiteRepository` | sqlite-backed `Repository`; production wires it once in `main.go` |
+| Schema | `internal/targets/schema.{sql,go}::Schema()` | Domain-owned table DDL embedded via `go:embed`; collected by `internal/modules/registry.go::AllSchemas()` and applied at boot via `database.EnsureSchemas` |
+| Repository test | `internal/targets/sqlite_test.go` | Real handle via `db.NewSQLite(t)` + `database.EnsureSchemas(ctx, d, ...providers...)` over system + targets |
+| Service | `internal/targets/service.go::Service` (+ `NewService`) | Application layer: validation, idempotent owner/name upsert, and deregistration. Handler depends on this, not the repository. |
+| Service test | `internal/targets/service_test.go` | Substitutes `mocks.FakeRepository` (from co-located `internal/targets/mocks/`); pins validation, idempotency, and error propagation |
+| Connect handler test | `handlers/targets/connect_handler_test.go` | Substitutes `mocks.FakeService` and exercises the generated Connect client/handler path |
+| Mocks | `internal/targets/mocks/{repository,service}.go::{FakeRepository,FakeService}` | Co-located with the domain; deleting `internal/targets/` takes them along. |
+| UI client | `ui/src/api/targets.ts` | `targetsClient = createClient(TargetsService, transport)` |
+| UI tests | Feature/component tests | Mock generated client methods; REST helper tests stub `global.fetch` only for REST exceptions. |
+| CLI client | `cli/domains/targets/{register,handlers}.go` | `Register(core, manifest)` returns a manifest-backed `cliapp.SubcommandGroup`; handlers use generated Connect clients and render through cli-core reports |
+| CLI test | `cli/domains/targets/handlers_test.go` | Spins a real `httptest.Server` via `clitest.NewAPIServer`, captures stdout via `clitest.CaptureStdout` |
 
 #### Compose pattern: schema-applied repository test
 
@@ -212,7 +210,7 @@ func newSchemaDB(t *testing.T) *sql.DB {
     d := db.NewSQLite(t)
     require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
         apidb.SchemaProviderFunc(localdb.SystemSchema),
-        apidb.SchemaProviderFunc(notes.Schema),
+        apidb.SchemaProviderFunc(targets.Schema),
     ))
     return d
 }
@@ -226,7 +224,7 @@ source of truth for both production and tests.
 
 ### Service-layer tests
 
-The notes domain uses three test layers, each with a different fake:
+The targets domain uses three test layers, each with a different fake:
 
 ```
 HTTP → handler → Service (validates, applies defaults) → Repository (persists)
@@ -235,15 +233,15 @@ HTTP → handler → Service (validates, applies defaults) → Repository (persi
                                                               Real sqlite (repository tests)
 ```
 
-`internal/notes/service_test.go` is the reference. Service tests:
+`internal/targets/service_test.go` is the reference. Service tests:
 
 - Substitute `mocks.FakeRepository` (in-memory state) so the test can
   assert on what the repository was called with and whether the service
-  filtered the call (e.g., empty title rejected before reaching `Create`).
-- Pin validation contracts (`Create` rejects empty / whitespace-only
-  title with `ErrInvalidNote{Field: "title"}`).
-- Pin default-substitution contracts (`List(0)` substitutes
-  `defaultListLimit`; `List(5)` passes 5 through unchanged).
+  filtered the call (e.g., empty owner/name/locator rejected before reaching persistence).
+- Pin validation contracts (`Register` rejects missing fields with
+  `ErrInvalidTarget{Field: ...}`).
+- Pin idempotency contracts (`Register` updates the owner/name row instead
+  of creating duplicates).
 - Pin error propagation (`Get` returns `ErrNoteNotFound` verbatim;
   `Create` returns repository errors verbatim).
 
@@ -336,20 +334,21 @@ Workflow maturity is incremental:
 | 4 | Declarative contract | A domain-local `*.flow.json` declares states, events, transitions, invariants, and named traces. |
 | 5 | Checked formal model | Quint/TLA+ or equivalent is generated from the contract, checked, and replayed by production tests. |
 
-The notes attachment upload workflow is the reference Level 5 pattern:
+Data Backup Manager currently has no formal flow artifacts. When one is
+added, the reference Level 5 layout is:
 
 - The `flow-verifier` scenario CLI (`flow-verifier verify check|run`, `flows list|validate|explain`)
-- `api/internal/notes/flow/flow.json`
-- `api/internal/notes/flow/transition.go` (package `flow`)
-- `api/internal/notes/flow/flow_test.go` (thin replay delegation, package `flow`)
-- `api/internal/notes/flow/generated/{model.qnt,artifact.json,runtime.go,replay.go}` (package `generated`)
-- `ui/src/features/notes/flow/flow.json`
-- `ui/src/features/notes/flow/transition.ts`
-- `ui/src/features/notes/flow/fixtures.ts`
-- `ui/src/features/notes/flow/flow.test.ts` (thin replay delegation)
-- `ui/src/features/notes/flow/generated/{model.qnt,artifact.json,runtime.ts,replay.helper.ts}`
+- `api/internal/<domain>/flow/flow.json`
+- `api/internal/<domain>/flow/transition.go` (package `flow`)
+- `api/internal/<domain>/flow/flow_test.go` (thin replay delegation, package `flow`)
+- `api/internal/<domain>/flow/generated/{model.qnt,artifact.json,runtime.go,replay.go}` (package `generated`)
+- `ui/src/features/<feature>/flow/flow.json`
+- `ui/src/features/<feature>/flow/transition.ts`
+- `ui/src/features/<feature>/flow/fixtures.ts`
+- `ui/src/features/<feature>/flow/flow.test.ts` (thin replay delegation)
+- `ui/src/features/<feature>/flow/generated/{model.qnt,artifact.json,runtime.ts,replay.helper.ts}`
 
-`make temporal-models` invokes `flow-verifier verify check --root .`, which
+`make temporal-models` invokes `flow-verifier verify check --root "$(CURDIR)"`, which
 runs `quint typecheck`, `quint test`, `quint verify`, and deterministic MBT
 trace generation through the flow-verifier pipeline. It fails if the checked-in
 artifacts, generated declarations, or generated replay files are stale. The
@@ -428,7 +427,7 @@ srv := server.New(server.Deps{
 Discard-only sinks (`log.New(io.Discard, "", 0)`) work for tests that
 don't need to inspect log output; reach for the buffer when the test
 asserts on what was logged (e.g., the 500-path test in
-`handlers/notes/connect_handler_test.go::TestConnectHandler_GetInternalError`
+domain handler tests for internal-error paths
 checks the underlying error reaches operator logs).
 
 ### Testing context cancellation
@@ -611,7 +610,7 @@ CLDR plural variants (`refreshCount_one`,
 smoke-only so deleting a feature does not require rewriting the app
 composition test.
 
-### Mock builders for `api/health` and `api/notes`
+### Mock builders for `api/health` and domain clients
 
 `vi.mock(path, factory)` is hoisted before any user import resolves;
 a wrapper imported from `test-utils` would be in the temporal dead
@@ -622,36 +621,28 @@ a builder function that runs when the closure executes — which is
 
 `@/test-utils` exports shared, cross-feature mock builders such as
 `makeApiMocks()`. Feature-specific builders live beside the feature so
-deleting the feature takes its mocks with it; for notes, import
-`makeNotesMocks()` from `features/notes/mocks/notes`.
+deleting the feature takes its mocks with it.
 
 Canonical shape:
 
 ```tsx
 import { makeApiMocks } from "@/test-utils";
-import { makeNotesMocks } from "./mocks/notes";
-
 vi.mock("../../api/health", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/health")>();
   return { ...actual, ...makeApiMocks() };
 });
-
-vi.mock("../../api/notes", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../api/notes")>();
-  return { ...actual, ...makeNotesMocks() };
-});
 ```
 
 Defaults are picked so the most common test paths work no-args:
-`makeApiMocks().fetchHealth` resolves to a healthy response;
-`makeNotesMocks().notesClient.listNotes` resolves to an empty list;
-`notesClient.createNote({ title })` echoes the title back as a Note.
+`makeApiMocks().fetchHealth` resolves to a healthy response. Domain
+client mocks should expose the generated client methods that the
+feature actually calls.
 Per-test overrides use vitest's standard pattern *after* the mock is wired:
 
 ```tsx
-const { notesClient } = await import("../../api/notes");
-vi.mocked(notesClient.listNotes).mockResolvedValueOnce(
-  makeListNotesResponse({ notes: [makeNote({ id: "a" })] }),
+const { targetsClient } = await import("../../api/targets");
+vi.mocked(targetsClient.listTargets).mockResolvedValueOnce(
+  makeListTargetsResponse({ targets: [makeTarget({ id: "t-1" })] }),
 );
 ```
 
@@ -889,9 +880,9 @@ Steps:
    handler test and decode via `assertx.MustUnmarshalProto`:
 
    ```go
-   import notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/notes"
+   import targetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/targets"
 
-   got := assertx.MustUnmarshalProto[notesv1.ListResponse](t, body)
+   got := assertx.MustUnmarshalProto[targetsv1.ListTargetsResponse](t, body)
    ```
 
    For fixtures, follow the `fixtures/health.go` pattern — re-export
@@ -899,8 +890,8 @@ Steps:
    builders:
 
    ```go
-   type ListResponse = notesv1.ListResponse
-   func NewListResponse(opts ...ListOpt) *notesv1.ListResponse { /* ... */ }
+   type ListTargetsResponse = targetsv1.ListTargetsResponse
+   func NewListTargetsResponse(opts ...ListTargetsOpt) *targetsv1.ListTargetsResponse { /* ... */ }
    ```
 
 4. **Wire it on the UI side.** Import the generated TS schema and use
@@ -908,18 +899,18 @@ Steps:
 
    ```ts
    import { fromJson, create } from "@bufbuild/protobuf";
-   import { ListResponseSchema } from "@vrooli/proto-types/data-backup-manager/v1/notes/notes_pb";
+   import { ListTargetsResponseSchema } from "@vrooli/proto-types/data-backup-manager/v1/targets/targets_pb";
 
    // production
-   return fromJson(ListResponseSchema, json, { ignoreUnknownFields: true });
+   return fromJson(ListTargetsResponseSchema, json, { ignoreUnknownFields: true });
 
    // tests
-   const fixture = create(ListResponseSchema, { items: [{ id: "n-1" }] });
+   const fixture = create(ListTargetsResponseSchema, { targets: [{ id: "t-1" }] });
    ```
 
 5. **Tests follow.** Connect handler tests call the generated client;
    fixture tests assert on the typed shape via `proto.Equal`. UI tests
-   mock `api/notes` and return generated response objects from the
+   mock the relevant `api/<domain>` module and return generated response objects from the
    factory.
 
 Don't add a new `mocks/Fake*` interface for the proto type — the proto

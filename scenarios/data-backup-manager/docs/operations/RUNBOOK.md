@@ -28,11 +28,6 @@ make test
 Do not start API/UI binaries directly. The lifecycle owns process
 naming, ports, health checks, and logs.
 
-> **Procedures below are design-intent.** The scenario is scaffolded but
-> not yet implemented; commands are the planned operator surface and are
-> framed as intended, not yet runnable. They are recorded here because
-> disaster recovery is this scenario's core job.
-
 ## Common Incidents
 
 | Symptom | Checks | Fix | Escalation |
@@ -48,9 +43,9 @@ naming, ports, health checks, and logs.
 
 ## Disaster Recovery — Backup / Restore / Verify
 
-This is the scenario's reason to exist. The intended operating model has
-three loops: **back up** registered targets on schedule, **verify** that
-backups can restore, and **restore** when needed.
+This is the scenario's reason to exist. The operating model has three
+loops: **back up** registered targets on schedule or on demand,
+**verify** that backups can restore, and **restore** when needed.
 
 ### Catalog orientation
 
@@ -61,11 +56,11 @@ the manager's SQLite catalog is a cache and run history, rebuilt from
 re-registration on boot — it is not the source of truth.
 
 ```bash
-# Intended operator surface (planned commands)
-data-backup-manager target list                 # what is registered for backup
-data-backup-manager destination list            # configured kopia repositories
-data-backup-manager plan list                    # target↔destination bindings + schedules
-data-backup-manager run list --target <owner/name>   # run history, last success
+data-backup-manager targets list        # registered backup targets
+data-backup-manager destinations list   # configured kopia repositories
+data-backup-manager plans list          # target-to-destination bindings
+data-backup-manager runs list           # run history
+data-backup-manager restores list       # restore and verify history
 ```
 
 ### Back up (scheduled + on-demand)
@@ -74,8 +69,8 @@ Plans run on cadence via the in-process scheduler. Operators (and
 scenarios) can trigger a run manually:
 
 ```bash
-data-backup-manager run start --plan <plan>      # run a plan now
-data-backup-manager run start --target <owner/name> --destination <dest>
+data-backup-manager runs trigger --plan <plan-id>
+data-backup-manager runs list
 ```
 
 Source capture is per kind: filesystem (direct), SQLite (`VACUUM INTO`),
@@ -91,7 +86,10 @@ scratch location and checksums the result, proving the backup is
 actually recoverable:
 
 ```bash
-data-backup-manager restore verify --target <owner/name> --snapshot latest
+data-backup-manager restores verify \
+  --target <target-id> \
+  --destination <destination-id> \
+  --snapshot <snapshot-id>
 ```
 
 **Rule:** committed runtime data is removed from git only after its
@@ -104,7 +102,11 @@ Restore rehydrates source data to an operator-chosen location. It is a
 privileged operation (see `../internal/SECURITY.md`):
 
 ```bash
-data-backup-manager restore run --target <owner/name> --snapshot <id> --to <path>
+data-backup-manager restores restore \
+  --target <target-id> \
+  --destination <destination-id> \
+  --snapshot <snapshot-id> \
+  --location <path>
 ```
 
 ### Standalone restore (Vrooli down)
@@ -118,7 +120,7 @@ independently of the data it protects.
 
 | Data | Backup Procedure | Restore Procedure | Status |
 |---|---|---|---|
-| Registered source targets | Scheduled/on-demand plan run into an encrypted kopia destination | `restore run` (whole or, post-launch, granular); `restore verify` to prove recoverability | intended (not yet implemented) |
+| Registered source targets | Scheduled/on-demand plan run into an encrypted kopia destination | `restores restore` (whole target in v1); `restores verify` to prove recoverability | implemented; must be validated with a real destination/plan/run per installation |
 | Manager catalog (SQLite) | Not separately backed up — reconstructable from scenario re-registration on boot | Rebuilt automatically as scenarios re-register | by design |
 
 ## Maintenance Tasks

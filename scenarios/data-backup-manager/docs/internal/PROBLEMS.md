@@ -88,8 +88,9 @@ Level 2 captures the load-bearing invariants (partial-failure isolation, the
 verify gate, no-eviction) executably; the Level-5 machinery is additive.
 
 **Workaround:** The Level-2 transition functions and their tests are the
-source of truth today; `flow-verifier verify check` passes because there are no
-`flow.json` files to check.
+source of truth today. `make temporal-models` passes an absolute scenario root
+to `flow-verifier`; using `--root .` from this scenario directory can be
+misinterpreted by the external flow-verifier service as its own scenario root.
 
 **Real fix:** Scaffold `flow-verifier flows new api/internal/runs --flow-id
 backup-run --lang go` (and the restore flow), port the transition tables, and
@@ -119,26 +120,19 @@ missing). Update the assumed-surface table in the source files.
 
 **Owner:** unassigned. **Refs:** `internal/sources/*.go`; `INTEGRATIONS.md`.
 
-### 2026-05-26 — vault secret-read CLI is a stub; snapshot-browse assumes a kopia verb
+### 2026-05-26 — vault secret-read CLI is a stub
 
-**Symptom:** (1) `INTEGRATIONS.md` assumes a `resource-vault secret get` CLI,
-but that surface is a stub. (2) `RunsService.BrowseSnapshot` shells out to
-`resource-kopia snapshot browse`, a command the kopia resource does not yet
-expose.
+**Symptom:** `INTEGRATIONS.md` assumes a `resource-vault secret get` CLI,
+but that surface is a stub.
 
-**Root cause:** Both are substrate gaps surfaced during implementation. Source
+**Root cause:** This substrate gap surfaced during implementation. Source
 credentials are sidestepped today by having each source resource CLI
-self-source its own credentials (so no direct vault read is needed). Snapshot
-browse has no resource-kopia equivalent yet.
+self-source its own credentials, so no direct vault read is needed.
 
-**Workaround:** Source capture works without a raw vault read. Snapshot browse
-returns whatever `resource-kopia snapshot browse` yields; the catalog
-unit tests use the fake engine, so default tests are unaffected.
+**Workaround:** Source capture works without a raw vault read.
 
-**Real fix:** (1) Only add `resource-vault secret get` if a concrete source
-genuinely needs a raw secret the manager must pass. (2) Add a
-`resource-kopia snapshot browse|ls --json` command (fix-substrate) and confirm
-the engine parse in `internal/engine/kopia.go::BrowseSnapshot`.
+**Real fix:** Only add `resource-vault secret get` if a concrete source
+genuinely needs a raw secret the manager must pass.
 
 **Owner:** unassigned. **Refs:** `internal/engine/kopia.go`;
 `INTEGRATIONS.md`; the kopia resource.
@@ -146,62 +140,20 @@ the engine parse in `internal/engine/kopia.go::BrowseSnapshot`.
 ### 2026-05-26 — ListTargetStatus owner filter not wired
 
 **Symptom:** `RunsService.ListTargetStatus` accepts an `owner` field but ignores
-it — runs keys purely on target id and has no target→owner mapping.
+it — runs keys purely on target id and has no owner field in run history.
 
 **Root cause:** The runs domain does not own targets; resolving owners would
 couple it to the targets domain.
 
-**Workaround:** v1 returns all targets seen in run history. The health rollup
-applies its own thresholds without owner filtering.
+**Workaround:** The default status rollup now resolves current target ids at
+the composition edge and excludes orphaned/deleted historical run outcomes.
+Explicit target-id filtering still returns historical records.
 
 **Real fix:** Resolve owner→target-ids via a targets adapter at the handler
 edge and pass the id set to the repository (which already filters by id).
 
 **Owner:** unassigned. **Refs:** `handlers/runs/connect_handler.go::ListTargetStatus`;
 `internal/runs/repository.go::TargetStatuses`.
-
-### 2026-05-26 — UI is a deliberate follow-up (DBM-UI-001 not implemented)
-
-**Symptom:** The scenario ships API + CLI; `ui/src/features/*` is still the
-template shape. DBM-UI-001 is unmet.
-
-**Root cause:** The implementation pass was scoped to API + CLI. The proto
-contracts authored here are exactly what the UI will consume.
-
-**Real fix:** A dedicated UI plan: destinations (usage-vs-cap), plans, run
-history, guided restore/verify, against the generated Connect-Web clients.
-
-**Owner:** unassigned. **Refs:** `UI-ARCHITECTURE.md`; requirements module 08.
-
-### 2026-05-26 — `vrooli scenario test` blocked by a pre-existing HIGH standards false-positive
-
-**Symptom:** `vrooli scenario test data-backup-manager` fails its `standards`
-phase on one HIGH finding: `Direct sql.Open() Without api-core →
-api/internal/sources/sqlite.go:32` (rule `database_backoff` /
-`routed-test-db-v1`), plus benign non-blocking findings (3 MEDIUM, 1 LOW).
-`fail_on=high`, so only the HIGH blocks. The `lint`, `smoke`, and all other
-phases pass.
-
-**Root cause:** The SQLite source capturer must `sql.Open` an *arbitrary
-external target database file* to run `VACUUM INTO` (a consistent copy). The
-`database_backoff` rule flags any `sql.Open` in a non-exempt file, but
-api-core's `database.Open` is designed for the scenario's *own* routed DB via
-`SQLITE_PATH`/`SQLITE_DB` env vars — it cannot open an arbitrary external file
-path. So this is a genuine false-positive, and the rule has no inline
-suppression (exemptions are path-based: `*_test.go`, `testutil/`, `migrations/`,
-`init/`, `scripts/`, `tools/`). Pre-existing since the API+CLI pass; unrelated
-to the `discovery` domain (discovery uses the injected `SQLExecutor` seam, never
-`sql.Open`).
-
-**Real fix (one of):** (a) add a path/dir exemption for source-capturer files to
-the `scenario-auditor` rule's `isExemptPath` (edits a different scenario; affects
-all scenarios — coordinate); or (b) teach api-core's `database.Open` to accept an
-explicit external SQLite DSN and route the capturer through it; or (c) downgrade
-this rule for external-target opens. Do NOT contort the capturer — the
-`sql.Open` here is correct.
-
-**Owner:** unassigned. **Refs:** `api/internal/sources/sqlite.go`;
-`scenarios/scenario-auditor/api/rules/api/database_backoff.go`.
 
 ## Architecture Drift
 

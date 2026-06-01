@@ -36,9 +36,9 @@ type Service interface {
 	// existing destination.
 	UpdateDestination(ctx context.Context, in UpdateInput) (Destination, error)
 
-	// DeleteDestination removes a destination's catalog row. It does NOT delete
-	// the underlying kopia repository unless delete_repository is explicitly
-	// requested (v1: repository deletion is never performed; the flag is ignored).
+	// DeleteDestination removes a destination's catalog row. When
+	// deleteRepository is true, it first removes local resource-kopia metadata
+	// and Vault secret refs for the underlying repository.
 	DeleteDestination(ctx context.Context, id string, deleteRepository bool) (bool, error)
 
 	// GetDestinationUsage returns current usage bytes, cap, state, and policy
@@ -183,9 +183,15 @@ func (s *service) DeleteDestination(ctx context.Context, id string, deleteReposi
 	if strings.TrimSpace(id) == "" {
 		return false, ErrInvalidDestination{Field: "id", Reason: "required"}
 	}
-	// TODO: when deleteRepository is true, delete the underlying kopia repo.
-	// For v1 we never delete the repo — the flag is intentionally ignored here.
-	_ = deleteRepository
+	if deleteRepository {
+		d, err := s.repo.GetByID(ctx, id)
+		if err != nil {
+			return false, err
+		}
+		if err := s.eng.RepoDelete(ctx, d.Name); err != nil {
+			return false, err
+		}
+	}
 	return s.repo.Delete(ctx, id)
 }
 

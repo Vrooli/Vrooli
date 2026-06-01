@@ -18,20 +18,20 @@ prompt-manager skill read scenario-performance-audit
 ## Quick start (Phase 4 of the audit)
 
 ```bash
-SCENARIO=<this-scenario-id>
-WORKDIR="/tmp/${SCENARIO}/perf"
-mkdir -p "${WORKDIR}"
+scenario_id=<this-scenario-id>
+workdir="/tmp/${scenario_id}/perf"
+mkdir -p "${workdir}"
 
 # Copy the template and customise exerciseTarget for the audit.
-cp ui/perf/capture.template.js "${WORKDIR}/capture.js"
-${EDITOR:-vi} "${WORKDIR}/capture.js"
+cp ui/perf/capture.template.js "${workdir}/capture.js"
+${EDITOR:-vi} "${workdir}/capture.js"
 
 # Restart the scenario in profile-mode so the served bundle emits ⚛ entries.
-VROOLI_BUILD_MODE=profile vrooli scenario restart "${SCENARIO}"
+vrooli scenario restart "${scenario_id}"
 
 # Run the capture against the scenario's UI port.
-PORT=$(vrooli scenario port "${SCENARIO}" UI_PORT)
-node "${WORKDIR}/capture.js" "http://localhost:${PORT}" "${WORKDIR}/trace.json"
+port=$(vrooli scenario port "${scenario_id}" UI_PORT)
+node "${workdir}/capture.js" "http://localhost:${port}" "${workdir}/trace.json"
 ```
 
 The capture writes two files:

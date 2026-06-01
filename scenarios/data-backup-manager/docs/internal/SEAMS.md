@@ -106,15 +106,15 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Shared api-core schema execution surface |
 | **Interface** | `api-core/database::SchemaExecer` (`ExecContext(ctx, query, args...)`) consumed by `database.EnsureSchemas`. |
-| **Production wiring** | `main.go` and sqlite tests pass a real `*sql.DB`; the notes sqlite helper composes scenario-specific providers (`localdb.SystemSchema`, `notes.Schema`) before applying them. |
+| **Production wiring** | `main.go` applies `modules.AllSchemas()` over a real `*sql.DB`; domain sqlite tests compose `localdb.SystemSchema` with the domain's own `Schema()` provider before exercising repositories. |
 | **Test fake** | `api-core/databasetest::FakeExecer` is the canonical fake when a test needs to assert schema application order or injected execution failures without opening a real database. |
 | **Why it exists** | Schema application is shared-package behavior, but each scenario owns its provider list. Keep scenario-specific schema composition local; use `databasetest.FakeExecer` only for tests of code that consumes the shared `SchemaExecer` interface directly. |
 
 ### Per-domain Repository + Service seams
 
-Every product domain follows the same two-seam shape (the `targets` domain is
-the canonical reference; copy it). The `notes` example domain that shipped with
-the template has been removed.
+Every product domain follows the same two-seam shape. The `targets` domain is
+the canonical reference for catalog-style CRUD; `runs` and `restores` are the
+references for orchestration seams.
 
 | Domain | Repository (persistence seam) | Service (application seam) | Production wiring | Test fakes |
 |---|---|---|---|---|
@@ -157,8 +157,8 @@ against fakes.
 |---|---|
 | **Seam** | Declarative CLI command surface — single source of truth for groups, commands, args, governance, and proto-method bindings. |
 | **Interface** | `cli/manifest.json` validated against `.vrooli/schemas/cli-manifest.schema.json` (`cli-manifest/v1`); resolved via `repocontract.ScenarioCLIManifestPath`; consumed by `cliapp.LoadFromManifest(raw, groupName, bindings)` where `bindings` is `map["<Service>.<Method>"]func(RunContext) error`. |
-| **Production wiring** | `cli/manifest_embed.go` embeds the manifest bytes; `cli/app.go` passes them to `domains.SubcommandGroups(core, manifest)`; each domain's `Register(core, manifest)` calls `cliapp.LoadFromManifest` with its group name and a bindings map keyed by `Service.Method`. The `notes attach` REST exception is appended outside the manifest path because cli-manifest/v1 only models `binding.kind=connect-rpc`. |
-| **Test fake** | `cli-core/cliapp::RequireProtoServiceCoverage(t, manifest, fd, serviceName)` asserts every RPC on the bound proto service has either a binding or an entry in the manifest's `omitted` array — see `cli/domains/notes/notes_manifest_test.go`. `cliapp.ParseManifest` covers structural validation in isolation. |
+| **Production wiring** | `cli/manifest_embed.go` embeds the manifest bytes; `cli/app.go` passes them to `domains.SubcommandGroups(core, manifest)`; each domain's `Register(core, manifest)` calls `cliapp.LoadFromManifest` with its group name and a bindings map keyed by `Service.Method`. |
+| **Test fake** | `cli-core/cliapp::RequireProtoServiceCoverage(t, manifest, fd, serviceName)` asserts every RPC on the bound proto service has either a binding or an entry in the manifest's `omitted` array — see the per-domain `*_manifest_test.go` files under `cli/domains/*/`. `cliapp.ParseManifest` covers structural validation in isolation. |
 | **Why it exists** | Without this seam, adding a new RPC to the proto compiles fine while the CLI silently lacks a corresponding command, and prompt-manager has no governance signal — every action falls back to `CertaintyOwnerOnly` and is rejected. The manifest crystallises both the command surface and the safety properties (effect, run_eligible, permissions, requires_confirmation) so the coverage test fails fast and prompt-manager can derive certainty automatically. |
 
 ### BlobStore (opaque bytes)
@@ -167,7 +167,7 @@ against fakes.
 |---|---|
 | **Seam** | Binary object storage for REST multipart edges |
 | **Interface** | `api-core/blobstore::BlobStore` (`Put`, `Get`, `Delete`) |
-| **Production wiring** | A domain module that exposes multipart endpoints owns its blob store. The notes reference resolves filesystem-backed storage in `handlers/notes/module.go::defaultBlobStore()`; tests inject `blobstore.NewMemoryBlobStore()` through `ModuleWithBlobStore(...)`. |
+| **Production wiring** | A domain module that exposes multipart endpoints owns its blob store. Data Backup Manager currently has no multipart endpoint; restore and snapshot bytes move through the `KopiaEngine` seam instead. |
 | **Test fake** | `api-core/blobstore.MemoryBlobStore` or a domain-local fake lets handler tests assert metadata and failure behavior without touching the filesystem. |
 | **Why it exists** | Connect-RPC is the default for proto-typed payloads, but opaque bytes are not proto payloads. Keeping bytes behind `BlobStore` lets the handler stay transport-focused and lets future scenarios swap filesystem, S3, or another object store without changing domain services. |
 
@@ -177,8 +177,8 @@ against fakes.
 |---|---|
 | **Seam** | Domain-to-server composition; the contract every handler package returns from its `Module(...)` constructor. |
 | **Interface** | `internal/module/module.go::Module` (`Name string`, `Mount func(r *mux.Router)`, `Endpoints []EndpointDescriptor`). Data type, not behaviour — modules don't have methods. |
-| **Production wiring** | `main.go` calls `healthH.Module(...)`, `notesH.Module(...)`, ..., and passes the slice to `server.New(deps, modules...)`. The server iterates `m.Mount(s.router)` after registering the logging middleware. |
-| **Test fake** | A literal `module.Module{Name: "stub", Mount: func(r){...}}` in `internal/server/server_test.go` proves the iteration; per-domain `module_test.go` files (`handlers/notes/module_test.go`, `handlers/health/module_test.go`) exercise the real constructors against in-memory fixtures. |
+| **Production wiring** | `main.go` calls `healthH.Module(...)`, `targetsH.Module(...)`, `destinationsH.Module(...)`, and the other product modules, then passes the slice to `server.New(deps, modules...)`. The server iterates `m.Mount(s.router)` after registering the logging middleware. |
+| **Test fake** | A literal `module.Module{Name: "stub", Mount: func(r){...}}` in `internal/server/server_test.go` proves the iteration; per-domain `module_test.go` files exercise the real constructors against in-memory fixtures. |
 | **Why it exists** | Eliminates the central registry that would otherwise grow per-domain fields on `server.Deps` and per-domain wiring lines in `routes.go`. Adding a domain means creating files; deleting one means removing files. The endpoint descriptors travel with the module, so `.vrooli/endpoints.json` codegen has a single source per domain (no manual JSON editing). |
 
 ### Endpoints codegen (manifest source-of-truth)
@@ -217,7 +217,7 @@ against fakes.
 |---|---|
 | **Seam** | Outbound HTTP request boundary |
 | **Interface** | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) |
-| **Production wiring** | Ships unwired in production by intent (no consumer until a real outbound call lands). `*http.Client` satisfies `Doer` directly via the compile-time assertion in `doer.go`; the first scenario to need an outbound call adds the field to `server.Deps` and wires `&http.Client{Timeout: …}` from `main.go`. |
+| **Production wiring** | Ships unwired in production by intent (no consumer until a real outbound call lands). `internal/httpc/doer.go::NewDefaultClient` returns the timeout-backed production `Doer`; the first scenario to need an outbound call adds the field to `server.Deps` and wires that constructor from `main.go`. |
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
@@ -302,14 +302,13 @@ why a boundary lives where it does and what still needs follow-up.
 
 ### Domain-scoped packages, not generic `services/`
 
-When a seam belongs to a domain (notes, tasks, users, …), it lives in
+When a seam belongs to a domain (targets, destinations, plans, runs, restores, …), it lives in
 `internal/<domain>/`, NOT in `internal/database/` or
-`internal/services/`. The notes package is the canonical example — copy
-its layout:
+`internal/services/`. The targets package is the canonical CRUD example:
 
 ```
-internal/notes/
-  types.go         # Note, CreateInput, ErrInvalidNote, ErrNoteNotFound
+internal/targets/
+  types.go         # Target, RegisterInput, ErrInvalidTarget, ErrTargetNotFound
   repository.go    # Repository interface
   sqlite.go        # NewSQLiteRepository (production impl)
   sqlite_test.go   # Repository tests against real sqlite
@@ -394,10 +393,10 @@ the goal is the same: production wires once, tests substitute.
 
 | | |
 |---|---|
-| **Seam** | UI ↔ API per-domain endpoints (canonical CRUD reference: `api/notes.ts`) |
-| **Module** | `ui/src/api/notes.ts` exports `notesClient = createClient(NotesService, transport)` and `uploadAttachment(...)` for the multipart REST exception. |
-| **Production wiring** | Feature components wire generated client methods through `useQuery` / `useMutation`, for example `notesClient.listNotes({})` and `notesClient.createNote({ title, body })`. Multipart flows call `uploadAttachment`, which uses `FormData` plus `uploadFile()` and returns generated metadata. |
-| **Test fake** | Component tests use inline `vi.mock("./api/notes", async (importOriginal) => ...)` and replace `notesClient` methods or `uploadAttachment`. Factories build generated proto types, including `Timestamp` values. |
+| **Seam** | UI ↔ API per-domain endpoints (canonical CRUD reference: `api/targets.ts`) |
+| **Module** | `ui/src/api/targets.ts` exports `targetsClient = createClient(TargetsService, transport)`. |
+| **Production wiring** | Feature components wire generated client methods through `useQuery` / `useMutation`, for example `targetsClient.listTargets({})` and `targetsClient.registerTarget({ ... })`. |
+| **Test fake** | Component tests use inline `vi.mock("./api/targets", async (importOriginal) => ...)` and replace typed client methods. Factories build generated proto types, including `Timestamp` values. |
 | **Why it exists** | The canonical per-domain client pattern. Mirror this shape when adding a second domain client: export the generated Connect client, keep binary-upload helpers beside it when needed, and let components consume typed results rather than hand-written response interfaces. |
 
 ### ErrorBoundary (render-error catch)

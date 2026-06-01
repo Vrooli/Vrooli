@@ -12,9 +12,10 @@ Use this document to answer:
 - Which logs or metrics should an operator inspect first?
 - What telemetry gaps remain before deployment or monetization?
 
-> **Signals below are design-intent.** The scenario is scaffolded but not
-> yet implemented; backup-specific signals describe what the health
-> endpoint and event stream are intended to expose.
+The API emits request logs and exposes backup posture through `/health`.
+The first production-grade validation loop is to configure a real
+destination and plan, trigger a run, then verify a restore; until that
+exists, health only proves the service and catalog are reachable.
 
 ## Signals
 
@@ -49,18 +50,17 @@ surfaces recoverability risk.
 
 | Metric | Status | Notes |
 |---|---|---|
-| Last-success / last-verified per target | intended | Primary recoverability metrics; watch these first during an incident. |
-| Storage usage vs cap per destination | intended | Capacity-planning and alert+block trigger. |
-| Run + restore success rate | intended | Reliability of the backup loop over time. |
+| Last-success / last-verified per target | active | Primary recoverability metrics; watch these first during an incident. |
+| Storage usage vs cap per destination | active | Capacity-planning and alert+block trigger. |
+| Run + restore success rate | active | Reliability of the backup loop over time. |
 | Requirement coverage | active | Tracked through requirements and test-genie coverage artifacts. |
 | Performance budgets | deferred | Define in `../internal/PERFORMANCE.md`. |
 
 ## Alerts / Health
 
-Beyond the lifecycle API/UI health checks, the intended alerting model
-is: `/health` flags overdue and failed backups, and run/restore outcome
-events are consumed by infra-health and system-monitor for
-notification. The operator's first-look signals during an incident are
+Beyond the lifecycle API/UI health checks, `/health` flags overdue and
+failed backups, and run/restore outcome events are emitted for platform
+monitoring. The operator's first-look signals during an incident are
 last-success-per-target, last-verified-per-target, and storage usage vs
 cap. A target that is overdue, failing, or failing verification is a
 recoverability risk and should alert.

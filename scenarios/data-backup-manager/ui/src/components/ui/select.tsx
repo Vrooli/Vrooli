@@ -1,12 +1,12 @@
-import * as React from "react";
+import { forwardRef, type SelectHTMLAttributes } from "react";
 
 import { cn } from "../../lib/utils";
 
-export type SelectProps = React.SelectHTMLAttributes<HTMLSelectElement>;
+export type SelectProps = SelectHTMLAttributes<HTMLSelectElement>;
 
 /** Native select styled to the app tokens. Native is deliberate: it gives
  * correct mobile pickers and keyboard behavior for free. */
-export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ className, children, ...props }, ref) => (
     <select
       ref={ref}

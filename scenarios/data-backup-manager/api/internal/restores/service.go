@@ -95,7 +95,20 @@ func (s *service) RestoreTarget(ctx context.Context, targetID, destinationID, sn
 		return s.failRestore(ctx, rec, fmt.Sprintf("resolve destination: %v", err))
 	}
 
-	if err := s.deps.Engine.SnapshotRestore(ctx, dest.Name, snapshotID, location); err != nil {
+	scratchBase := s.deps.ScratchRoot
+	if scratchBase == "" {
+		scratchBase = os.TempDir()
+	}
+	if err := os.MkdirAll(scratchBase, 0o755); err != nil {
+		return s.failRestore(ctx, rec, fmt.Sprintf("scratch root: %v", err))
+	}
+	artifactDir, err := os.MkdirTemp(scratchBase, "dbm-restore-"+sanitize(snapshotID)+"-"+sanitize(targetID)+"-")
+	if err != nil {
+		return s.failRestore(ctx, rec, fmt.Sprintf("scratch dir: %v", err))
+	}
+	defer func() { _ = os.RemoveAll(artifactDir) }()
+
+	if err := s.deps.Engine.SnapshotRestore(ctx, dest.Name, snapshotID, artifactDir); err != nil {
 		return s.failRestore(ctx, rec, fmt.Sprintf("snapshot restore: %v", err))
 	}
 
@@ -105,7 +118,7 @@ func (s *service) RestoreTarget(ctx context.Context, targetID, destinationID, sn
 	}
 	if err := capturer.Restore(ctx, sources.RestoreSpec{
 		Locator:      target.Locator,
-		ArtifactPath: location,
+		ArtifactPath: artifactDir,
 		Target:       location,
 	}); err != nil {
 		return s.failRestore(ctx, rec, fmt.Sprintf("source restore: %v", err))

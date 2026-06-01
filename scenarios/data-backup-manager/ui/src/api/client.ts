@@ -1,8 +1,4 @@
-import {
-  create,
-  fromJson,
-  type JsonValue,
-} from "@bufbuild/protobuf";
+import { create, fromJson, type JsonValue } from "@bufbuild/protobuf";
 import { resolveApiBase, buildApiUrl, createScenarioConnectTransport } from "@vrooli/api-base";
 import {
   ErrorEnvelopeSchema,
@@ -14,6 +10,32 @@ const REST_API_BASE = resolveApiBase({ appendSuffix: true });
 const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
 
 export const transport = createScenarioConnectTransport({ baseUrl: API_BASE });
+
+function isJsonValue(value: unknown): value is JsonValue {
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.every(isJsonValue);
+  }
+  if (typeof value === "object") {
+    return Object.values(value).every(isJsonValue);
+  }
+  return false;
+}
+
+export function parseJsonValue(text: string): JsonValue {
+  const parsed: unknown = JSON.parse(text);
+  if (!isJsonValue(parsed)) {
+    throw new Error("response JSON is not a valid proto JSON value");
+  }
+  return parsed;
+}
 
 /**
  * Typed error thrown when the API returns a non-2xx response. The
@@ -40,7 +62,7 @@ export function makeApiError(code: string, message: string, status = 500): ApiEr
 export async function decodeApiError(res: Response): Promise<ApiError> {
   let envelope: ErrorEnvelope;
   try {
-    const json = (await res.json()) as JsonValue;
+    const json = parseJsonValue(await res.text());
     envelope = fromJson(ErrorEnvelopeSchema, json, PROTO_READ_OPTIONS);
   } catch {
     envelope = create(ErrorEnvelopeSchema, {

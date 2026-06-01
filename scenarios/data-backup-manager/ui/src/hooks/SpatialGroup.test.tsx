@@ -20,6 +20,7 @@
  * touches the controller via the ref it's handed.
  */
 import { useEffect, useRef } from "react";
+import type { SpatialNavController } from "@vrooli/iframe-bridge/spatial";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 
@@ -41,7 +42,7 @@ const Harness = (props: {
   mode: "spatial" | "modal" | "passthrough" | "grid";
   options?: Record<string, unknown>;
 }) => {
-  const ref = useRef<ReturnType<typeof makeMockSpatialNavController> | null>(null);
+  const ref = useRef<SpatialNavController | null>(null);
   // Populate the ref synchronously on first render so SpatialGroup's
   // mount effect sees the controller.
   if (ref.current === null) ref.current = props.controller;
@@ -51,7 +52,7 @@ const Harness = (props: {
   }, [props.controller]);
   return (
     <SpatialGroup
-      controllerRef={ref as unknown as React.RefObject<never>}
+      controllerRef={ref}
       mode={props.mode}
       options={props.options}
     >

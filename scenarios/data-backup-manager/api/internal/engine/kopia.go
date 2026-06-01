@@ -94,6 +94,9 @@ type KopiaEngine interface {
 	RepoStatus(ctx context.Context, repo string) (RepoStatus, error)
 	// RepoStats reports current repository usage in bytes (for storage caps).
 	RepoStats(ctx context.Context, repo string) (RepoStats, error)
+	// RepoDelete removes local resource-kopia metadata and Vault secret refs for
+	// a destination repository.
+	RepoDelete(ctx context.Context, repo string) error
 	// SnapshotCreate snapshots a captured artifact path into a repository and
 	// returns the snapshot reference (including its id).
 	SnapshotCreate(ctx context.Context, repo, path string) (Snapshot, error)
@@ -204,7 +207,7 @@ func (k *KopiaCLI) RepoStatus(ctx context.Context, repo string) (RepoStatus, err
 		return RepoStatus{}, fmt.Errorf("repo status %q: parse json: %w", repo, err)
 	}
 	return RepoStatus{
-		EncryptionAlgorithm: firstString(raw, "encryption", "Encryption", "encryptionAlgorithm"),
+		EncryptionAlgorithm: encryptionAlgorithm(raw),
 		Connected:           true,
 	}, nil
 }
@@ -219,6 +222,13 @@ func (k *KopiaCLI) RepoStats(ctx context.Context, repo string) (RepoStats, error
 		return RepoStats{}, fmt.Errorf("repo stats %q: parse json: %w", repo, err)
 	}
 	return RepoStats{SizeBytes: firstInt(raw, "sizeBytes", "Size", "totalSize", "TotalPackedSize")}, nil
+}
+
+func (k *KopiaCLI) RepoDelete(ctx context.Context, repo string) error {
+	if _, err := k.Runner.Run(ctx, "repo", "delete", "--name", repo); err != nil {
+		return fmt.Errorf("repo delete %q: %w", repo, err)
+	}
+	return nil
 }
 
 func (k *KopiaCLI) SnapshotCreate(ctx context.Context, repo, path string) (Snapshot, error) {
@@ -349,6 +359,25 @@ func firstString(m map[string]json.RawMessage, keys ...string) string {
 			var s string
 			if json.Unmarshal(raw, &s) == nil && s != "" {
 				return s
+			}
+		}
+	}
+	return ""
+}
+
+func encryptionAlgorithm(m map[string]json.RawMessage) string {
+	if algorithm := firstString(m, "encryption", "Encryption", "encryptionAlgorithm"); algorithm != "" {
+		return algorithm
+	}
+	for _, key := range []string{"contentFormat", "ContentFormat"} {
+		raw, ok := m[key]
+		if !ok {
+			continue
+		}
+		var nested map[string]json.RawMessage
+		if json.Unmarshal(raw, &nested) == nil {
+			if algorithm := firstString(nested, "encryption", "Encryption", "encryptionAlgorithm"); algorithm != "" {
+				return algorithm
 			}
 		}
 	}

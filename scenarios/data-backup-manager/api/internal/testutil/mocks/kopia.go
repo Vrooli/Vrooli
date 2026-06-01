@@ -26,6 +26,7 @@ type FakeKopiaEngine struct {
 	RepoCreateFn      func(ctx context.Context, spec engine.RepoSpec) error
 	RepoStatusFn      func(ctx context.Context, repo string) (engine.RepoStatus, error)
 	RepoStatsFn       func(ctx context.Context, repo string) (engine.RepoStats, error)
+	RepoDeleteFn      func(ctx context.Context, repo string) error
 	SnapshotCreateFn  func(ctx context.Context, repo, path string) (engine.Snapshot, error)
 	SnapshotListFn    func(ctx context.Context, repo, path string) ([]engine.Snapshot, error)
 	SnapshotRestoreFn func(ctx context.Context, repo, snapshotID, target string) error
@@ -75,6 +76,16 @@ func (f *FakeKopiaEngine) RepoStats(ctx context.Context, repo string) (engine.Re
 		return f.RepoStatsFn(ctx, repo)
 	}
 	return engine.RepoStats{}, nil
+}
+
+func (f *FakeKopiaEngine) RepoDelete(ctx context.Context, repo string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("RepoDelete(%s)", repo)
+	if f.RepoDeleteFn != nil {
+		return f.RepoDeleteFn(ctx, repo)
+	}
+	return nil
 }
 
 func (f *FakeKopiaEngine) SnapshotCreate(ctx context.Context, repo, path string) (engine.Snapshot, error) {

@@ -28,7 +28,8 @@ export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
 
   return {
-    base: './',  // Required for tunnel/proxy contexts
+    // INTEROP-CRITICAL: relative asset URLs keep bundles working behind lifecycle tunnels and nested proxy paths.
+    base: './',
     plugins: [react(), stringsCodegen()],
     resolve: isProfile
       ? {
@@ -54,6 +55,7 @@ export default defineConfig(({ mode }): UserConfig => {
         provider: 'v8',
         reporter: ['text', 'json-summary', 'json'],
         reportOnFailure: true,
+        // INTEROP-CRITICAL: keep coverage scoped to scenario source so shared/generated packages do not dilute gates.
         // Scope coverage to the source tree. Without `include`, v8 walks every
         // file the bundler touches — config files, eslint plugins, codegen
         // scripts — and pollutes the denominator with files that have no

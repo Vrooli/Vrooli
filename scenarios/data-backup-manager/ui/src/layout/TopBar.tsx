@@ -5,6 +5,9 @@ import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
+const isThemeChoice = (value: string): value is ThemeChoice =>
+  THEME_CHOICES.some((choice) => choice === value);
+
 /**
  * Top app bar — title, locale switcher, theme toggle. Visible at every viewport
  * width. Replace the title with your real product surface; keep the locale and
@@ -57,7 +60,11 @@ export function TopBar() {
           <span className="sr-only">{t(strings.theme.switcherLabel)}</span>
           <select
             value={choice}
-            onChange={(e) => setTheme(e.target.value as ThemeChoice)}
+            onChange={(e) => {
+              if (isThemeChoice(e.target.value)) {
+                setTheme(e.target.value);
+              }
+            }}
             data-testid={selectors.theme.select}
             aria-label={t(strings.theme.switcherLabel)}
             className="rounded-control border border-app-border bg-app-surface px-2 py-1 text-app-foreground"

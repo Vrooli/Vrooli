@@ -1,9 +1,15 @@
 # Data Backup Manager
 
-TODO: scenario description (placeholder)
+Data Backup Manager gives Vrooli a local, engine-backed backup and
+verified-restore control plane for runtime state that should stay out
+of git. Owning scenarios register the state they own as backup targets;
+operators create encrypted kopia destinations, bind targets and
+destinations through plans, trigger or schedule runs, and verify that a
+snapshot can restore before treating the backup as recovery-grade.
 
-This scenario was generated from the `react-vite` template and packages
-the standard full-stack Vrooli scenario shape:
+## What You Get
+
+This scenario packages the standard full-stack Vrooli shape:
 
 - Go API (`api/`)
 - React + TypeScript + Vite UI (`ui/`)
@@ -11,10 +17,10 @@ the standard full-stack Vrooli scenario shape:
 - Lifecycle + health wiring (`.vrooli/service.json`)
 - Requirements registry + progress log (`requirements/`, `docs/internal/PROGRESS.md`)
 
-> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
-> owns the first-session initialization protocol — charter, requirements,
-> domain map, design language, placeholder replacement, and first real
-> vertical slice. Run `make orient` for a machine-readable gate status.
+The implemented product domains are targets, destinations, discovery,
+plans, runs, restores, and health/posture. The scenario is ready for
+implementation validation and first real backup validation; it does not
+back up anything until at least one destination and one plan exist.
 
 ## What's In This Scenario
 
@@ -39,18 +45,10 @@ the standard full-stack Vrooli scenario shape:
   runbooks, observability, security, performance, and durable
   decisions.
 
-## Placeholders vs. Durable Scaffolding
+## Customize Safely
 
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
-
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- The `AppShell` and the centered single-panel home page in `ui/src/`.
-- The bare-minimum settings surface (currently just locale switching).
-
-Treat these as **durable seams** to preserve, even as you rewrite the
-visual layout:
+The generated scaffold has already been replaced with backup-manager
+domains. Preserve these durable seams when extending it:
 
 - i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
 - Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
@@ -65,11 +63,8 @@ an `EndpointDescriptor`, stop — use a proto service method instead.
 Codegen rejects literal Paths that lack an explicit `RESTException`
 tag; the four allowed REST reasons (multipart upload, webhook
 receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
-
-[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
-workflow in full.
+`api/internal/module/module.go`. Use REST only for the documented
+exception cases; current product domains use Connect-RPC.
 
 ## Running The Scenario
 
@@ -86,6 +81,19 @@ See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flo
 Run tests with `make test` (which runs `vrooli scenario test`) or invoke
 `test-genie execute data-backup-manager --preset comprehensive` directly for
 finer-grained presets.
+
+## Operational Status
+
+The lifecycle can start API and UI, and the CLI exposes the real domain
+commands (`data-backup-manager --help`). A healthy `/health` response
+means the service and catalog are reachable; it does not prove that a
+target is protected. A target is actually protected only after:
+
+1. A target is registered.
+2. A destination exists and its kopia repository is reachable.
+3. A plan binds the target to that destination.
+4. A run completes with a snapshot id.
+5. A verify restore succeeds and records evidence.
 
 ## Documentation Map
 
@@ -107,14 +115,14 @@ finer-grained presets.
 
 ## Working Rules
 
-1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
+1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) when orienting on historical scaffold gates.**
 2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
 3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
 4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
 5. **Update `docs/concepts/DOMAINS.md`** before adding product code.
 6. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
 7. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-8. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
+8. **Keep resource declarations accurate.** Kopia and vault are required; source-kind resources stay conditional until their source kinds are used.
 9. **Keep boundaries**: only edit within this scenario's directory.
 
 ## pnpm Everywhere

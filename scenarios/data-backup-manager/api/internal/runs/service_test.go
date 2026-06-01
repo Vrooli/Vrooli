@@ -114,6 +114,64 @@ func TestCatalog_ListAndLastSuccess(t *testing.T) {
 	}
 }
 
+func TestListTargetStatus_DefaultsToActiveCatalogTargets(t *testing.T) {
+	ctx := context.Background()
+	repo := runsmocks.NewFakeRepository()
+	now := time.Date(2026, 6, 1, 1, 0, 0, 0, time.UTC)
+	_, err := repo.SaveRun(ctx, runs.Run{
+		ID:        "run-old",
+		PlanID:    "plan-deleted",
+		Status:    runs.RunCompleted,
+		StartedAt: now.Add(-time.Hour),
+		Outcomes: []runs.TargetOutcome{{
+			TargetID:   "deleted-target",
+			Status:     runs.OutcomeSucceeded,
+			FinishedAt: now.Add(-time.Hour),
+		}},
+	})
+	if err != nil {
+		t.Fatalf("seed deleted run: %v", err)
+	}
+	_, err = repo.SaveRun(ctx, runs.Run{
+		ID:        "run-current",
+		PlanID:    "plan-current",
+		Status:    runs.RunCompleted,
+		StartedAt: now,
+		Outcomes: []runs.TargetOutcome{{
+			TargetID:   "current-target",
+			Status:     runs.OutcomeSucceeded,
+			FinishedAt: now,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("seed current run: %v", err)
+	}
+
+	svc := runs.NewService(runs.Deps{
+		Repo:          repo,
+		ActiveTargets: &runsmocks.FakeActiveTargetLookup{TargetIDs: []string{"current-target"}},
+		Clock:         mocks.NewFakeClock(now),
+	})
+	statuses, err := svc.ListTargetStatus(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListTargetStatus: %v", err)
+	}
+	if len(statuses) != 1 {
+		t.Fatalf("statuses = %+v, want only current target", statuses)
+	}
+	if statuses[0].TargetID != "current-target" {
+		t.Fatalf("target id = %q, want current-target", statuses[0].TargetID)
+	}
+
+	history, err := svc.ListTargetStatus(ctx, []string{"deleted-target"})
+	if err != nil {
+		t.Fatalf("ListTargetStatus explicit deleted target: %v", err)
+	}
+	if len(history) != 1 || history[0].TargetID != "deleted-target" {
+		t.Fatalf("explicit target lookup = %+v, want deleted-target history", history)
+	}
+}
+
 // TestRun_PartialFailure proves a single target's capture failure does not
 // abort the others: the run is partial_failed with one success + one failure.
 func TestRun_PartialFailure(t *testing.T) {

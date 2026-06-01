@@ -37,11 +37,16 @@ describe("modeltest transition matrices", () => {
     const badRows = [
       rows[0],
       ...rows.slice(2),
-      { name: "unknown", from: "ghost" as State, event: "start", to: "busy" },
+      { name: "unknown", from: "ghost", event: "start", to: "busy" },
       { name: "duplicate", from: "idle", event: "start", to: "busy" },
-    ] as const satisfies readonly MatrixRow<State, Event>[];
+    ];
 
-    const errors = validateTransitionMatrix(states, events, badRows, transition);
+    const errors = Reflect.apply(validateTransitionMatrix, undefined, [
+      states,
+      events,
+      badRows,
+      transition,
+    ]);
 
     expect(errors.join("\n")).toContain("unknown: unknown from state ghost");
     expect(errors.join("\n")).toContain("duplicate: duplicate pair idle/start");

@@ -21,8 +21,8 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/handlers/backup/handler_test.go::TestBackupService_Contract",
-          "notes": "Exercise each RPC against the service with fakes; assert request/response shapes."
+          "ref": "api/internal/modules/registry_test.go::TestProtoConnectParity",
+          "notes": "Assert the mounted Connect-RPC endpoint registry stays aligned with the generated proto service procedures."
         }
       ]
     },
@@ -40,8 +40,8 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "cli/domains/backup/commands_test.go::TestRegisterCommand",
-          "notes": "Assert register/destination/plan/run/restore commands parse and call the API client."
+          "ref": "cli/domains/domains_test.go::TestSubcommandGroups",
+          "notes": "Assert the CLI exposes the target, destination, plan, run, restore, health, and discovery command groups."
         }
       ]
     },
@@ -59,8 +59,8 @@
           "type": "test",
           "phase": "ui",
           "status": "planned",
-          "ref": "ui/src/features/backup/__tests__/BackupDashboard.test.tsx::renders run history and storage state",
-          "notes": "Render with mocked client; assert status/usage surfaces and restore entry point."
+          "ref": "ui/src/pages/OverviewPage.test.tsx",
+          "notes": "Current UI smoke coverage renders mocked health, coverage, target status, destination, and discovery surfaces. A dedicated guided restore UI test remains planned."
         }
       ]
     }

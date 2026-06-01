@@ -199,11 +199,19 @@ const flattenDynamicSelectors = (
   return target;
 };
 
-const mergeLiteralAndDynamicNodes = (
+function mergeLiteralAndDynamicNodes<
+  L extends LiteralSelectorTree,
+  D extends DynamicSelectorTree,
+>(
+  literalNode: L | undefined,
+  dynamicNode: D | undefined,
+  path?: string[],
+): SelectorTreeResult<L, D>;
+function mergeLiteralAndDynamicNodes(
   literalNode: LiteralSelectorTree | undefined,
   dynamicNode: DynamicSelectorTree | undefined,
   path: string[] = [],
-): Record<string, unknown> => {
+): Record<string, unknown> {
   const merged: Record<string, unknown> = {};
   const keys = new Set([
     ...Object.keys(literalNode ?? {}),
@@ -239,7 +247,7 @@ const mergeLiteralAndDynamicNodes = (
   });
 
   return merged;
-};
+}
 
 const createDynamicSelectorFn = (
   definition: DynamicSelectorDefinition<ParamSchema | undefined>,
@@ -277,7 +285,7 @@ export const createSelectorRegistry = <
   L extends LiteralSelectorTree,
   D extends DynamicSelectorTree,
 >(literalTree: L, dynamicTree: D) => {
-  const selectors = mergeLiteralAndDynamicNodes(literalTree, dynamicTree) as SelectorTreeResult<L, D>;
+  const selectors = mergeLiteralAndDynamicNodes(literalTree, dynamicTree);
   const manifest = {
     selectors: flattenLiteralSelectors(literalTree),
     dynamicSelectors: flattenDynamicSelectors(dynamicTree),

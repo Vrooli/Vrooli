@@ -2,10 +2,10 @@ package sources
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"path/filepath"
 
+	"github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite" // register "sqlite" driver
 )
 
@@ -25,11 +25,17 @@ func (c *sqliteCapturer) Kind() SourceKind { return KindSQLite }
 // `VACUUM INTO '<StageDir>/snapshot.db'`. The VACUUM INTO statement writes a
 // consistent, fully compacted copy of the database — it is safe to run
 // against a live database with concurrent writers.
-func (c *sqliteCapturer) Capture(_ context.Context, spec CaptureSpec) (Artifact, error) {
+func (c *sqliteCapturer) Capture(ctx context.Context, spec CaptureSpec) (Artifact, error) {
 	dst := filepath.Join(spec.StageDir, "snapshot.db")
 
-	// Open with the modernc sqlite driver (driver name "sqlite").
-	db, err := sql.Open("sqlite", spec.Locator)
+	// Open arbitrary target DBs through api-core/database so this external
+	// capture path gets the same retry/backoff behavior as scenario DB opens.
+	db, err := database.Connect(ctx, database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          spec.Locator,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
 	if err != nil {
 		return Artifact{}, fmt.Errorf("sqlite capture: open %q: %w", spec.Locator, err)
 	}

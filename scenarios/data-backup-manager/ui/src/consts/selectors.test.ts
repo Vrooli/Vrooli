@@ -89,35 +89,31 @@ describe("selectors registry — dynamic selectors", () => {
   it("throws when a required parameter is missing", () => {
     const { selectors } = createSelectorRegistry({}, dynamicTree);
     expect(() =>
-      selectors.user.cardByName({} as { name: string }),
+      Reflect.apply(selectors.user.cardByName, undefined, [{}]),
     ).toThrow(/missing parameter 'name'/i);
   });
 
   it("throws when an unknown parameter is provided", () => {
     const { selectors } = createSelectorRegistry({}, dynamicTree);
     expect(() =>
-      selectors.user.cardByName({
+      Reflect.apply(selectors.user.cardByName, undefined, [{
         name: "Bob",
         typo: "x",
-      } as { name: string }),
+      }]),
     ).toThrow(/unknown parameter/i);
   });
 
   it("throws when a numeric param receives a non-number", () => {
     const { selectors } = createSelectorRegistry({}, dynamicTree);
     expect(() =>
-      selectors.user.itemAt({
-        index: "three" as unknown as number,
-      }),
+      Reflect.apply(selectors.user.itemAt, undefined, [{ index: "three" }]),
     ).toThrow(/must be numeric/i);
   });
 
   it("throws when an enum param is outside the declared set", () => {
     const { selectors } = createSelectorRegistry({}, dynamicTree);
     expect(() =>
-      selectors.user.statusBadge({
-        state: "broken" as "ok",
-      }),
+      Reflect.apply(selectors.user.statusBadge, undefined, [{ state: "broken" }]),
     ).toThrow(/must be one of/i);
   });
 

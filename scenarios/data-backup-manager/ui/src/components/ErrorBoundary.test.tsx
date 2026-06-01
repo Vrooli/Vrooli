@@ -71,7 +71,10 @@ describe("ErrorBoundary", () => {
     expect(call).toBeDefined();
     const [err, info] = call!;
     expect(err).toBeInstanceOf(Error);
-    expect((err as Error).message).toBe("boundary-test");
+    if (!(err instanceof Error)) {
+      throw new Error("onError first argument must be an Error");
+    }
+    expect(err.message).toBe("boundary-test");
     expect(info).toHaveProperty("componentStack");
   });
 

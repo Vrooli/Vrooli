@@ -41,6 +41,19 @@ func (f *FakeTargetLookup) TargetForRun(_ context.Context, targetID string) (run
 	return t, nil
 }
 
+// FakeActiveTargetLookup returns the current live-catalog target ids.
+type FakeActiveTargetLookup struct {
+	TargetIDs []string
+	Err       error
+}
+
+func (f *FakeActiveTargetLookup) ActiveTargetIDs(_ context.Context) ([]string, error) {
+	if f.Err != nil {
+		return nil, f.Err
+	}
+	return append([]string(nil), f.TargetIDs...), nil
+}
+
 // FakeDestinationLookup returns canned destinations and a programmable cap
 // decision. BlockFn, when set, decides WouldBlock per destination+bytes.
 type FakeDestinationLookup struct {
@@ -78,10 +91,11 @@ func (f *FakeEventSink) BackupOutcome(_ context.Context, ev runs.RunOutcomeEvent
 
 // Compile-time guarantees.
 var (
-	_ runs.PlanLookup        = (*FakePlanLookup)(nil)
-	_ runs.TargetLookup      = (*FakeTargetLookup)(nil)
-	_ runs.DestinationLookup = (*FakeDestinationLookup)(nil)
-	_ runs.EventSink         = (*FakeEventSink)(nil)
+	_ runs.PlanLookup         = (*FakePlanLookup)(nil)
+	_ runs.TargetLookup       = (*FakeTargetLookup)(nil)
+	_ runs.ActiveTargetLookup = (*FakeActiveTargetLookup)(nil)
+	_ runs.DestinationLookup  = (*FakeDestinationLookup)(nil)
+	_ runs.EventSink          = (*FakeEventSink)(nil)
 )
 
 type notFound struct {

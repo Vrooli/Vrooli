@@ -16,7 +16,7 @@ func TestModuleMountRegistersRoutes(t *testing.T) {
 	m := module.Module{
 		Name: "demo",
 		Mount: func(r *mux.Router) {
-			r.HandleFunc("/demo", func(w http.ResponseWriter, _ *http.Request) {
+			r.HandleFunc("/api/v1/demo", func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusAccepted)
 			}).Methods(http.MethodPost)
 		},
@@ -25,7 +25,7 @@ func TestModuleMountRegistersRoutes(t *testing.T) {
 
 	m.Mount(router)
 
-	req := httptest.NewRequest(http.MethodPost, "/demo", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/demo", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 

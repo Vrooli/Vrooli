@@ -55,6 +55,9 @@ const stripPluralSuffix = (key: string) => key.replace(PLURAL_SUFFIX, "");
 
 const isSentinelKey = (key: string) => key.startsWith("_");
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 const flatten = (
   obj: Record<string, unknown>,
   prefix = "",
@@ -65,8 +68,8 @@ const flatten = (
     const path = prefix ? `${prefix}.${k}` : k;
     if (typeof v === "string") {
       out[path] = v;
-    } else if (v && typeof v === "object") {
-      Object.assign(out, flatten(v as Record<string, unknown>, path));
+    } else if (isRecord(v)) {
+      Object.assign(out, flatten(v, path));
     }
   }
   return out;
@@ -89,7 +92,10 @@ const tokensPerBase = (catalog: Record<string, unknown>): Map<string, Set<string
     const base = stripPluralSuffix(key);
     const tokens = byBase.get(base) ?? new Set<string>();
     for (const match of value.matchAll(TOKEN_RE)) {
-      tokens.add(match[1] as string);
+      const token = match[1];
+      if (token) {
+        tokens.add(token);
+      }
     }
     byBase.set(base, tokens);
   }

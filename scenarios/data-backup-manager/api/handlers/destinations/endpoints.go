@@ -139,13 +139,13 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        destinationsconnect.DestinationsServiceDeleteDestinationProcedure,
 		Method:      "POST",
 		Summary:     "Delete a destination",
-		Description: "Removes the destination catalog row. Does NOT delete the underlying kopia repository unless delete_repository is explicitly set (v1: repository deletion is not implemented).",
+		Description: "Removes the destination catalog row. When delete_repository is explicitly set, also removes local resource-kopia metadata and Vault secret refs for the repository.",
 		Category:    "destinations",
 		Request: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"id":                "string (required)",
-				"delete_repository": "bool (reserved, not implemented in v1)",
+				"delete_repository": "bool (also remove local resource-kopia metadata and Vault secret refs)",
 			},
 		},
 		Response: &module.Schema{

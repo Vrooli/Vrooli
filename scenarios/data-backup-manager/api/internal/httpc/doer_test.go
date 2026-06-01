@@ -15,9 +15,9 @@ import (
 
 // fetchBody is a tiny inline reference caller — represents the shape
 // any production code would take when consuming the Doer seam. The
-// test exercises both the production satisfier (*http.Client) and the
-// test fake (mocks.FakeDoer) through this same function so the
-// substitution contract is proven end-to-end.
+// test exercises both the production client constructor and the test
+// fake (mocks.FakeDoer) through this same function so the substitution
+// contract is proven end-to-end.
 func fetchBody(d httpc.Doer, url string) (string, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -35,16 +35,16 @@ func fetchBody(d httpc.Doer, url string) (string, error) {
 	return string(body), nil
 }
 
-// TestDoer_ProductionPath wires *http.Client directly against an
-// httptest.Server. Proves the compile-time assertion in doer.go isn't
-// a lie: callers can pass a real client wherever Doer is required.
+// TestDoer_ProductionPath wires the production constructor against an
+// httptest.Server. It proves callers can use the standard Doer seam with a
+// timeout-backed real client.
 func TestDoer_ProductionPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = io.WriteString(w, "hello from production")
 	}))
 	t.Cleanup(srv.Close)
 
-	got, err := fetchBody(http.DefaultClient, srv.URL)
+	got, err := fetchBody(httpc.NewDefaultClient(), srv.URL)
 	require.NoError(t, err)
 	require.Equal(t, "hello from production", got)
 }

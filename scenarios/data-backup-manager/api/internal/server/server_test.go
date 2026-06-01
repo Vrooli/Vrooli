@@ -31,9 +31,10 @@ func TestServer_MountsEachModule(t *testing.T) {
 		Name: "a",
 		Mount: func(r *mux.Router) {
 			aMounted = true
-			r.HandleFunc("/a", func(w http.ResponseWriter, _ *http.Request) {
+			r.HandleFunc("/api/v1/a", func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
-				_, _ = w.Write([]byte("a-ok"))
+				_, _ = w.Write([]byte(`{"status":"a-ok"}`))
 			}).Methods(http.MethodGet)
 		},
 	}
@@ -41,7 +42,7 @@ func TestServer_MountsEachModule(t *testing.T) {
 		Name: "b",
 		Mount: func(r *mux.Router) {
 			bMounted = true
-			r.HandleFunc("/b", func(w http.ResponseWriter, _ *http.Request) {
+			r.HandleFunc("/api/v1/b", func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusTeapot)
 			}).Methods(http.MethodGet)
 		},
@@ -53,11 +54,11 @@ func TestServer_MountsEachModule(t *testing.T) {
 
 	live := httpx.NewLiveServer(t, srv)
 
-	respA, payloadA := live.Do(t, http.MethodGet, "/a", nil)
+	respA, payloadA := live.Do(t, http.MethodGet, "/api/v1/a", nil)
 	require.Equal(t, http.StatusOK, respA.StatusCode)
-	require.Equal(t, "a-ok", string(payloadA))
+	require.Equal(t, `{"status":"a-ok"}`, string(payloadA))
 
-	respB, _ := live.Do(t, http.MethodGet, "/b", nil)
+	respB, _ := live.Do(t, http.MethodGet, "/api/v1/b", nil)
 	require.Equal(t, http.StatusTeapot, respB.StatusCode)
 }
 

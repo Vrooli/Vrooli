@@ -9,10 +9,10 @@ restore: owning scenarios self-register the runtime state they own
 (a **Target**), operators point it at one or more encrypted
 **Destinations**, a **Plan** binds targets to destinations on a
 schedule, each **Run** snapshots them, and a **Restore** (with a
-verify mode) proves they come back. The commands in steps 4 and below
-that name destinations, plans, runs, and restores describe the
-**intended CLI surface** and are pending implementation; the lifecycle
-commands (`make setup`/`start`/`status`/`test`) work today.
+verify mode) proves they come back. The lifecycle commands and
+domain CLI commands are implemented; an installation is not protected
+until at least one destination, one plan, one successful run, and one
+successful verify restore exist.
 
 ## Prerequisites
 
@@ -60,39 +60,65 @@ Or check the URL directly:
 vrooli scenario port data-backup-manager UI_PORT
 ```
 
-You should see the UI rendering live `/health` data, with destination
-usage, plans, and run history as the operational centerpiece once those
-features are built.
+You should see the operational dashboard: live `/health` data,
+discovery suggestions, registered targets, destination usage, plans,
+runs, and restore history.
 
 ## 4 — Talk to the API
 
-The scenario CLI is preferred (it resolves the port and token
-automatically). The `status` command works today; the rest below is the
-**planned operator and self-registration surface** (see
-[`reference/cli-commands.md`](reference/cli-commands.md)):
+The scenario CLI is preferred because it resolves the port and token
+automatically. See [`reference/cli-commands.md`](reference/cli-commands.md)
+for the complete command list.
 
 ```bash
-# Works today
 data-backup-manager status
 
-# Planned operator surface — register a destination, plan, run, restore
-data-backup-manager destinations create --name nightly-local \
-  --backend filesystem --path /var/backups/nightly
-data-backup-manager plans create --name nightly \
-  --target prompt-manager/store-teams --destination nightly-local \
-  --schedule "0 3 * * *" --keep-daily 7
-data-backup-manager runs start --plan nightly
+# Inspect current catalog state.
+data-backup-manager targets list
+data-backup-manager destinations list
+data-backup-manager plans list
 data-backup-manager runs list
-data-backup-manager restores verify --target prompt-manager/store-teams \
-  --destination nightly-local
+data-backup-manager restores list
+
+# Discover local data worth protecting and safe destination candidates.
+data-backup-manager discovery targets
+data-backup-manager discovery destinations
 ```
 
-A scenario self-registers the state it owns (the planned
-self-registration call, run at its own lifecycle):
+First real backup validation follows this shape:
 
 ```bash
+# Register a target if discovery or a scenario lifecycle has not already done it.
 data-backup-manager targets register --owner prompt-manager \
   --name store-teams --kind filesystem --locator store/teams
+
+# Create an encrypted kopia filesystem destination on a separate root.
+data-backup-manager destinations create --name nightly-local \
+  --backend filesystem --location /var/backups/nightly
+
+# Bind one or more target ids to one or more destination ids.
+data-backup-manager plans create --name nightly \
+  --targets <target-id> --destinations <destination-id> \
+  --schedule "24h" --keep-latest 7
+
+data-backup-manager runs trigger --plan <plan-id>
+data-backup-manager runs list
+
+data-backup-manager restores verify --target <target-id> \
+  --destination <destination-id> --snapshot <snapshot-id>
+
+rm -rf /tmp/dbm-restore-check
+data-backup-manager restores restore --target <target-id> \
+  --destination <destination-id> --snapshot <snapshot-id> \
+  --location /tmp/dbm-restore-check
+diff -ru <source-locator> /tmp/dbm-restore-check
+```
+
+For a disposable end-to-end proof that creates canary data, snapshots it,
+verifies it, restores it, byte-compares it, and cleans up its catalog records:
+
+```bash
+DBM_E2E_BACKUP=1 ./scripts/prove-backup-restore.sh
 ```
 
 The `/health` endpoint is reachable directly for probes:

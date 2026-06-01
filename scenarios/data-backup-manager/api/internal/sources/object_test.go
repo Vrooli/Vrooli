@@ -16,7 +16,7 @@ import (
 // TestObjectSource_MirrorRestore is a gated integration test. It skips unless
 // DBM_SOURCE_INTEGRATION=1, which requires resource-minio to be available.
 func TestObjectSource_MirrorRestore(t *testing.T) {
-	if os.Getenv("DBM_SOURCE_INTEGRATION") != "1" {
+	if value, ok := os.LookupEnv("DBM_SOURCE_INTEGRATION"); !ok || value != "1" {
 		t.Skip("set DBM_SOURCE_INTEGRATION=1 to run object storage integration tests")
 	}
 

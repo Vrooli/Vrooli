@@ -26,8 +26,9 @@
  */
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { ResponseSchema } from "@vrooli/proto-types/data-backup-manager/v1/health/health_pb";
-import type { Response as HealthResponse } from "@vrooli/proto-types/data-backup-manager/v1/health/health_pb";
+import type { Response } from "@vrooli/proto-types/data-backup-manager/v1/health/health_pb";
 
+type HealthResponse = Response;
 export type { HealthResponse };
 
 // MessageInitShape<typeof ResponseSchema> is the @bufbuild/protobuf-provided

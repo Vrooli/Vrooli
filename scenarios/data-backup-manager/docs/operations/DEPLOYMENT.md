@@ -16,7 +16,7 @@ Use this document to answer:
 
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
-| Local Vrooli stack | active (target) | Vrooli lifecycle, Go, Node/pnpm, SQLite path, `kopia` + `vault` resources | Not yet implemented; remove example `notes` domain. Companion `kopia` resource must be ready (`docs/plans/kopia-resource-plan.md`). |
+| Local Vrooli stack | active | Vrooli lifecycle, Go, Node/pnpm, SQLite path, `kopia` + `vault` resources | Validate a real destination, scheduled run, and restore verification before treating an install as protected. Companion `kopia` resource must be ready (`docs/plans/kopia-resource-plan.md`). |
 | Desktop/mobile app | deferred | Cross-platform runtime, packaged UI/API, storage resolver | Run cross-platform readiness before adoption. |
 | Managed cloud/SaaS | deferred | Hosted runtime, auth, observability, cost model, offsite destinations | Requires deployment and monetization review. |
 | Enterprise/self-host | deferred (primary monetization path) | Install docs, encrypted + offsite destinations, restore/verify procedures, support model | Requires operational hardening; DR is a paid expectation at this tier (see `../business/MONETIZATION.md`). |

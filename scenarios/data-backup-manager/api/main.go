@@ -41,6 +41,12 @@ import (
 	targetsint "data-backup-manager/internal/targets"
 )
 
+func lookupEnvTrimmed(name string) (string, bool) {
+	value, ok := os.LookupEnv(name)
+	value = strings.TrimSpace(value)
+	return value, ok && value != ""
+}
+
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
 // with the canonical pragma string. Resolution order:
 //
@@ -53,10 +59,10 @@ import (
 // internal/testutil/db.NewSQLite so production and tests open files the
 // same way.
 func sqliteDSN() (string, error) {
-	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
+	if path, ok := lookupEnvTrimmed("SQLITE_PATH"); ok {
 		return sqliteFileDSN(path)
 	}
-	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
+	if path, ok := lookupEnvTrimmed("SQLITE_DB"); ok {
 		return sqliteFileDSN(path)
 	}
 
@@ -97,24 +103,34 @@ func main() {
 	if preflight.Run(preflight.Config{ScenarioName: "data-backup-manager"}) {
 		return
 	}
+	if err := run(context.Background()); err != nil {
+		log.Fatalf("%v", err)
+	}
+}
 
+func healthHandler(handler http.Handler) http.HandlerFunc {
+	return handler.ServeHTTP
+}
+
+func run(ctx context.Context) error {
 	dsn, err := sqliteDSN()
 	if err != nil {
-		log.Fatalf("sqlite configuration failed: %v", err)
+		return fmt.Errorf("sqlite configuration failed: %w", err)
 	}
 
-	db, err := database.Open(context.Background(), database.Config{
+	db, err := database.Open(ctx, database.Config{
 		Driver:       database.DriverSQLite,
 		DSN:          dsn,
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	})
 	if err != nil {
-		log.Fatalf("Database connection failed: %v", err)
+		return fmt.Errorf("database connection failed: %w", err)
 	}
 
-	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
-		log.Fatalf("schema initialization failed: %v", err)
+	if err := database.EnsureSchemas(ctx, db.Primary(), modules.AllSchemas()...); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("schema initialization failed: %w", err)
 	}
 
 	// The backup engine (resource-kopia) wrapped behind the KopiaEngine seam,
@@ -124,7 +140,7 @@ func main() {
 	clk := clock.System{}
 	logger := log.Default()
 	kopia := engine.NewKopiaCLI()
-	protectedRoot := strings.TrimSpace(os.Getenv("SCENARIO_DATA_DIR"))
+	protectedRoot, _ := lookupEnvTrimmed("SCENARIO_DATA_DIR")
 
 	// Concrete domain services used both for mounting (via each module) and as
 	// the backing for the cross-domain adapters the run orchestration needs.
@@ -136,14 +152,15 @@ func main() {
 	// cap-block via destinations, reading plans/targets through adapters.
 	sourceRegistry := sources.NewProductionRegistry(sources.ExecRunner{})
 	runsSvc := runsint.NewService(runsint.Deps{
-		Repo:         runsint.NewSQLiteRepository(db, clk),
-		Plans:        planLookup{svc: plansSvc},
-		Targets:      targetLookup{svc: targetsSvc},
-		Destinations: destinationLookup{svc: destSvc},
-		Engine:       kopia,
-		Sources:      sourceRegistry,
-		Events:       logEventSink{logger: logger},
-		Clock:        clk,
+		Repo:          runsint.NewSQLiteRepository(db, clk),
+		Plans:         planLookup{svc: plansSvc},
+		Targets:       targetLookup{svc: targetsSvc},
+		ActiveTargets: targetLookup{svc: targetsSvc},
+		Destinations:  destinationLookup{svc: destSvc},
+		Engine:        kopia,
+		Sources:       sourceRegistry,
+		Events:        logEventSink{logger: logger},
+		Clock:         clk,
 	})
 
 	// Restore + verify gate: restore a target to a location, or test-restore to
@@ -180,11 +197,19 @@ func main() {
 
 	// In-process scheduler: fires due plans on their cadence (OT-P0-005).
 	scheduler := schedint.New(clk, planSource{svc: plansSvc}, runTrigger{svc: runsSvc})
-	startScheduler(context.Background(), scheduler, logger)
+	if err := startScheduler(ctx, scheduler, logger); err != nil {
+		_ = db.Close()
+		return err
+	}
 
 	// Health reports backup posture (degraded when targets are overdue/failed)
 	// in addition to liveness, and emits a posture event for monitoring.
-	posture := backupPosture{runs: runsSvc, clock: clk, overdueAfter: overdueAfter()}
+	overdue, err := overdueAfter()
+	if err != nil {
+		_ = db.Close()
+		return err
+	}
+	posture := backupPosture{runs: runsSvc, clock: clk, overdueAfter: overdue}
 
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: logger},
@@ -202,6 +227,7 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
+	rootMux.HandleFunc("/health", healthHandler(srv.Handler()))
 	rootMux.Handle("/", srv.Handler())
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
@@ -213,6 +239,7 @@ func main() {
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
-		log.Fatalf("Server error: %v", err)
+		return fmt.Errorf("server error: %w", err)
 	}
+	return nil
 }

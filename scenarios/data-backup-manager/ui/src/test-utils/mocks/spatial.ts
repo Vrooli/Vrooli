@@ -73,6 +73,9 @@ export const makeGamepadInputManagerCtor = (instance: MockGamepadInputManager) =
 
 /** Shape of the SpatialNavController double; mirrors the surface hooks call. */
 export interface MockSpatialNavController {
+  isActive: ReturnType<typeof vi.fn>;
+  enterSpatialMode: ReturnType<typeof vi.fn>;
+  exitSpatialMode: ReturnType<typeof vi.fn>;
   registerGroup: ReturnType<typeof vi.fn>;
   pushScope: ReturnType<typeof vi.fn>;
   popScope: ReturnType<typeof vi.fn>;
@@ -89,6 +92,9 @@ export interface MockSpatialNavController {
 export const makeMockSpatialNavController = (): MockSpatialNavController => {
   const cleanup = vi.fn();
   return {
+    isActive: vi.fn().mockReturnValue(true),
+    enterSpatialMode: vi.fn(),
+    exitSpatialMode: vi.fn(),
     registerGroup: vi.fn().mockReturnValue(cleanup),
     pushScope: vi.fn(),
     popScope: vi.fn(),

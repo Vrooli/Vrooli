@@ -21,7 +21,7 @@ RPC bindings, governance metadata) is declared in
 `cliapp.LoadFromManifest`, which:
 
 - builds each domain's `SubcommandGroup` from its manifest group
-- wires each command's `binding.method` (e.g. `NotesService.ListNotes`)
+- wires each command's `binding.method` (e.g. `TargetsService.ListTargets`)
   to a handler registered in the domain's `register.go` bindings map
 - fails loudly on missing handlers, dead handlers, or unknown groups
 
@@ -36,11 +36,10 @@ The manifest's `governance` block (`effect`, `run_eligible`,
 to derive action certainty automatically; scenarios that adopt the
 manifest don't need hand-classified action-safety lists.
 
-`binding.kind` is currently `connect-rpc` only. REST-exception
-commands (the canonical example is `notes attach`, which uses
-multipart upload) are appended to the loaded group outside the manifest
-path in the domain's `register.go` and documented in the manifest's
-`omitted[]` array.
+`binding.kind` is currently `connect-rpc` only. REST-exception commands
+would be appended to the loaded group outside the manifest path in the
+domain's `register.go` and documented in the manifest's `omitted[]`
+array.
 
 For environment-variable precedence and CLI config-file shape, see
 [`configuration.md`](configuration.md).
@@ -89,15 +88,7 @@ Read values back without an argument:
 data-backup-manager configure api_base
 ```
 
-## Scenario commands — backup management (planned contract)
-
-> **Status — planned.** The command groups in this section describe the
-> **intended** CLI surface for the locked design and are pending
-> implementation. They follow the rules above: one command per API
-> method, declared in `cli/manifest.json`, thin handlers, no local
-> business logic. Flag names are indicative; precise flags firm up with
-> the proto messages. The `status` command and the `notes` worked
-> example below are the only commands present in the template today.
+## Scenario Commands — Backup Management
 
 The CLI serves two audiences: **scenarios** self-register the state
 they own (typically at their own lifecycle), and **operators** manage
@@ -116,12 +107,11 @@ data-backup-manager targets deregister --owner prompt-manager --name store-teams
 
 # Operator inspection
 data-backup-manager targets list
-data-backup-manager targets get prompt-manager/store-teams
+data-backup-manager targets get <target-id>
 ```
 
 `--kind` is one of `filesystem`, `sqlite`, `postgres`, `redis`,
-`qdrant`, `object-storage`. Filesystem locators are storage-root-relative
-for portability.
+`qdrant`, `object-storage`.
 
 ### `data-backup-manager destinations ...`
 
@@ -131,12 +121,11 @@ flags or config.
 
 ```bash
 data-backup-manager destinations create --name nightly-local \
-  --backend filesystem --path /var/backups/nightly --cap 50GiB
-data-backup-manager destinations create --name offsite \
-  --backend s3 --bucket vrooli-backups --endpoint "$MINIO_ENDPOINT" --cap 200GiB
+  --backend filesystem --location /var/backups/nightly --cap-bytes 53687091200
 data-backup-manager destinations list          # shows usage vs cap
-data-backup-manager destinations get offsite
-data-backup-manager destinations check offsite # reachability dry-run (P1)
+data-backup-manager destinations get <destination-id>
+data-backup-manager destinations usage <destination-id>
+data-backup-manager destinations update --id <destination-id> --cap-policy alert-block
 ```
 
 A destination is rejected if its path would fall under the storage root
@@ -171,12 +160,14 @@ Bind targets to destinations with a schedule and retention.
 
 ```bash
 data-backup-manager plans create --name nightly \
-  --target prompt-manager/store-teams \
-  --destination nightly-local \
-  --schedule "0 3 * * *" --keep-daily 7 --keep-weekly 4
+  --targets <target-id> \
+  --destinations <destination-id> \
+  --schedule "24h" --keep-latest 7
 data-backup-manager plans list
-data-backup-manager plans get nightly
-data-backup-manager plans delete nightly
+data-backup-manager plans get <plan-id>
+data-backup-manager plans update --id <plan-id> --name nightly \
+  --targets <target-id> --destinations <destination-id> --schedule "24h"
+data-backup-manager plans delete --id <plan-id>
 ```
 
 A target may be bound to several plans (e.g. daily-to-local and
@@ -187,9 +178,11 @@ weekly-to-offsite).
 Trigger and inspect plan executions.
 
 ```bash
-data-backup-manager runs start --plan nightly   # on-demand; scheduler triggers the same path
+data-backup-manager runs trigger --plan <plan-id>   # on-demand; scheduler triggers the same path
 data-backup-manager runs list
 data-backup-manager runs get <run-id>            # per-target outcomes + snapshot refs
+data-backup-manager runs status                  # current catalog targets by default
+data-backup-manager runs browse --destination <destination-id> --snapshot <snapshot-id>
 ```
 
 ### `data-backup-manager restores ...`
@@ -199,63 +192,23 @@ Restore a target, or verify it can be restored.
 ```bash
 # Verify (test-restore to scratch + checksum) — the gate before removing data from git
 data-backup-manager restores verify \
-  --target prompt-manager/store-teams --destination nightly-local
+  --target <target-id> --destination <destination-id> --snapshot <snapshot-id>
 
 # Restore to a chosen location
-data-backup-manager restores start \
-  --target prompt-manager/store-teams --destination nightly-local \
-  --to /restore/store-teams
+data-backup-manager restores restore \
+  --target <target-id> --destination <destination-id> \
+  --snapshot <snapshot-id> --location /restore/store-teams
 data-backup-manager restores list
 ```
 
-## Scenario commands — `notes` (CRUD reference)
+### Gated backup proof
 
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario.
-
-### `data-backup-manager notes list`
-
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
+Run the disposable canary proof when you need operational evidence that the
+installed manager can back up, verify, restore, and byte-compare a filesystem
+target through the public CLI:
 
 ```bash
-data-backup-manager notes list
-data-backup-manager notes list --json
-```
-
-### `data-backup-manager notes create --title <title> [--body <body>]`
-
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
-
-```bash
-data-backup-manager notes create --title "First note" --body "Hello world"
-```
-
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
-
-### `data-backup-manager notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
-
-```bash
-data-backup-manager notes get abc123
-```
-
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
-
-### `data-backup-manager notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
-
-```bash
-data-backup-manager notes attach abc123 --file ./example.png
+DBM_E2E_BACKUP=1 ./scripts/prove-backup-restore.sh
 ```
 
 ## Output contracts
@@ -278,8 +231,9 @@ helpers).
 
 ## Adding a new command
 
-For a new domain, copy the notes command group first, then replace it
-once your real domain is green.
+For a new domain, copy the closest existing command group first, then
+replace the service binding and handlers once the new API endpoint is
+green.
 
 For a command inside an existing domain:
 
@@ -323,11 +277,11 @@ For a command inside an existing domain:
 
 ## Command structure principles
 
-- **Subcommand groups** (`notes list`, `notes create`) over flat
-  verbs (`list-notes`, `create-note`). Discoverability via `--help`
+- **Subcommand groups** (`targets list`, `plans create`) over flat
+  verbs (`list-targets`, `create-plan`). Discoverability via `--help`
   is the goal.
-- **Positional for required, flags for optional.** `notes get <id>`
-  not `notes get --id <id>`.
+- **Positional for required, flags for optional.** `targets get <id>`
+  not `targets get --id <id>`.
 - **One command per API endpoint.** If you find yourself making two
   endpoint calls, the API is missing a use-case.
 - **Error messages must be actionable.** "API unreachable" is bad;

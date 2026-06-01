@@ -32,8 +32,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // This is the CLI side of the domain-module pattern; the API side uses
 // the same one-liner-per-domain shape via server.New(deps, modules...).
 // See docs/concepts/ARCHITECTURE.md "Domain modules" for the canonical
-// pattern when swapping the notes reference for your scenario's first
-// domain.
+// pattern when adding another product domain.
 //
 // For API-backed commands the manifest carries the declarative surface
 // (governance, flags, positionals, RPC binding). Handlers stay in

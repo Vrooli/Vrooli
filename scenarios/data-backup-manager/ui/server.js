@@ -2,9 +2,20 @@ import { proxyToApi, startScenarioServer } from '@vrooli/api-base/server'
 
 const connectRpcPath = /^\/vrooli\.data_backup_manager\.v1\./
 
+function requiredEnv(name) {
+  const value = process.env[name]
+  if (!value) {
+    throw new Error(`${name} is required`)
+  }
+  return value
+}
+
+const uiPort = requiredEnv('UI_PORT')
+const apiPort = requiredEnv('API_PORT')
+
 startScenarioServer({
-  uiPort: process.env.UI_PORT,
-  apiPort: process.env.API_PORT,
+  uiPort,
+  apiPort,
   distDir: './dist',
   serviceName: 'data-backup-manager',
   corsOrigins: '*',
@@ -16,7 +27,7 @@ startScenarioServer({
       }
 
       proxyToApi(req, res, req.originalUrl || req.url, {
-        apiPort: process.env.API_PORT,
+        apiPort,
       }).catch(next)
     })
   },

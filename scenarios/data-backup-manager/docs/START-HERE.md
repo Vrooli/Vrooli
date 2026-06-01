@@ -6,6 +6,12 @@ protocol: complete the gates in order, check them off as you go, and
 do not start product implementation until the charter and requirements
 gates are complete.
 
+> Current status: the backup-manager domains have replaced the template
+> example. Use this file as historical orientation and gate context; use
+> [`QUICKSTART.md`](QUICKSTART.md), [`concepts/ARCHITECTURE.md`](concepts/ARCHITECTURE.md),
+> and [`operations/RUNBOOK.md`](operations/RUNBOOK.md) for the current
+> operating model.
+
 Run `make orient` from this scenario directory whenever you want a
 machine-readable progress check for these gates. It delegates to
 `vrooli scenario orient data-backup-manager`, which reads the temporary
@@ -13,12 +19,12 @@ machine-readable progress check for these gates. It delegates to
 all required gates pass, run `vrooli scenario orient data-backup-manager
 --finalize` to remove only that temporary orientation metadata.
 
-The generated scaffold is intentionally not the product. Treat every
-generated UI surface as placeholder unless it is explicitly listed as
-durable infrastructure below. In particular:
+The generated scaffold is intentionally not the product. The backup
+manager domains now own the product surface, but this orientation file
+still records the template gates that were used to get there. Treat
+every remaining generated UI surface as placeholder unless it is
+explicitly listed as durable infrastructure below. In particular:
 
-- The `notes` domain is a worked example. Build one real domain beside
-  it, prove that domain is green, then remove the example.
 - The `AppShell` layout, the centered single-panel home page, the title
   / description / eyebrow text, and the bare-minimum settings surface
   are placeholders. They exist so the template boots green; they are
@@ -33,8 +39,7 @@ durable infrastructure below. In particular:
   behaviors just because you delete the visual placeholder.
 
 Binding contract vs. illustrative example: every reference doc this
-scenario ships with — `DESIGN.md`, `PRD.md`, the placeholder shell,
-and the `notes` example — mixes two kinds of guidance. Tokens, motion,
+scenario ships with mixes two kinds of guidance. Tokens, motion,
 status-color semantics, accessibility floors, i18n, and the
 domain/proto/API/CLI/UI shape are **binding contracts**: respect them.
 Specific lists of components, settings, page surfaces, or copy
@@ -212,8 +217,8 @@ it exists, and which files it will touch before writing code.
       in `PRD.md` during the charter gate and in
       `docs/concepts/INTEGRATIONS.md` before editing
       `.vrooli/service.json`.
-- [ ] Confirm no dependency is added only because the example `notes`
-      domain happens to use a local SQLite store.
+- [ ] Confirm every required resource is needed by the backup-manager
+      runtime, not just by copied template code.
 
 **Exit criteria:** `.vrooli/service.json` reflects only dependencies
 the real scenario needs.
@@ -292,10 +297,11 @@ implementation hardens around them.
 **Exit criteria:** every generated documentation stub is either active,
 deferred, or explicitly not-applicable for a reason.
 
-### Gate 6 — First Real Vertical Slice
+### Gate 6 — Product Vertical Slices
 
-- [ ] Add the first real domain beside the example `notes` domain.
-- [ ] **Start in proto.** Author `packages/proto/schemas/data-backup-manager/v1/<domain>/<domain>.proto`
+- [x] Add real backup-manager domains: `targets`, `destinations`,
+      `discovery`, `plans`, `runs`, and `restores`.
+- [ ] **Start new domains in proto.** Author `packages/proto/schemas/data-backup-manager/v1/<domain>/<domain>.proto`
       with a `service` block FIRST, run `make generate`, then write
       handlers/CLI/UI against the generated `*Procedure` constants and
       `*Service` clients. If you find yourself writing `Path:` as a
@@ -313,25 +319,17 @@ deferred, or explicitly not-applicable for a reason.
       tests as needed.
 - [ ] Run `make test`.
 
-**Exit criteria:** the first real domain is green across API, CLI, UI,
+**Exit criteria:** every product domain is green across API, CLI, UI,
 and scenario tests.
 
-### Gate 7 — Remove The Example Domain
+### Gate 7 — Remove Template Residue
 
-- [ ] Delete `api/internal/notes`, `api/handlers/notes`,
-      `cli/domains/notes`, `ui/src/features/notes`,
-      `ui/src/api/notes.ts`, and `ui/src/api/notes.test.ts`.
-- [ ] Remove `notes` imports, module registrations, schema entries, CLI
-      registration, and `<NotesCard />` render.
-- [ ] Remove `notes` command rows from
-      `api/cmd/gen-endpoints/cli_commands_seed.json`, then run
-      `make endpoints`.
-- [ ] Remove notes-specific i18n keys and run `pnpm strings:gen` from
-      `ui/`.
-- [ ] Remove the `notes` block from `ui/src/consts/selectors.ts`.
-- [ ] Verify no product residue remains with focused searches for
-      `notes`, `Notes`, and `NOTES` in `api/`, `cli/`, `ui/src/`,
-      `.vrooli/`, and the scenario's proto schema directory.
+- [x] Remove the template example domain from API, CLI, proto, and UI.
+- [x] Replace command rows with backup-manager endpoint metadata, then
+      run `make endpoints`.
+- [x] Replace product copy and web metadata with backup-manager copy.
+- [ ] Verify no stale template references remain in current user-facing
+      docs or product code.
 - [ ] Run `make test`.
 
 **Exit criteria:** only health plus real scenario domains remain.
@@ -356,16 +354,16 @@ complete, and what remains.
   business rules.
 - Domain-owned schemas live next to the domain code.
 - Generated files are regenerated, not hand-edited.
-- `notes` is a worked example, not product functionality.
+- Backup-manager domain behavior is product functionality; template
+  examples are historical only.
 
 Read `docs/concepts/ARCHITECTURE.md` before changing structure, and
 read `docs/internal/TESTING.md` before adding non-trivial tests.
 
-## Replacing The Example Domain
+## Adding Another Domain
 
-Build your first real domain side-by-side with `notes`, then remove
-`notes`. Use plural package/folder names such as `tasks`, `profiles`,
-or `orders`; use PascalCase for components and Go exported names.
+Use plural package/folder names such as `tasks`, `profiles`, or
+`orders`; use PascalCase for components and Go exported names.
 
 For a normal proto-backed CRUD domain:
 
@@ -393,5 +391,6 @@ For a normal proto-backed CRUD domain:
 8. Run string/code generation as needed, then run `make test`.
 
 If the domain needs opaque binary uploads, keep bytes on a REST
-multipart edge and keep metadata proto-typed. The example `notes`
-attachments path demonstrates that exception.
+multipart edge and keep metadata proto-typed. Data Backup Manager does
+not currently expose multipart endpoints; backup and restore bytes move
+through source capturers and `KopiaEngine`.

@@ -1,7 +1,7 @@
 {
   "name": "Data Backup Manager",
   "short_name": "data-backup-manager",
-  "description": "TODO: scenario description (placeholder)",
+  "description": "Register, schedule, snapshot, and verify backups for Vrooli runtime state.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

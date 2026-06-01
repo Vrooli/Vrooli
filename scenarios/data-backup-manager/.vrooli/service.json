@@ -182,7 +182,7 @@
       "steps": [
         {
           "name": "check-temporal-models",
-          "run": "flow-verifier verify check --root .",
+          "run": "flow-verifier verify check --root \"$(pwd)\"",
           "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
         },
         {

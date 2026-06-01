@@ -23,7 +23,8 @@ type Service interface {
 	GetRun(ctx context.Context, id string) (Run, error)
 	ListRuns(ctx context.Context, planID string, limit int) ([]Run, error)
 	// ListTargetStatus returns the last-success/last-run rollup. targetIDs
-	// empty means "all known from run history".
+	// empty means "current catalog targets" when ActiveTargets is wired,
+	// otherwise "all known from run history" for tests and legacy composition.
 	ListTargetStatus(ctx context.Context, targetIDs []string) ([]TargetStatus, error)
 	// BrowseSnapshot lists entries within a snapshot in a destination.
 	BrowseSnapshot(ctx context.Context, destinationID, snapshotID, path string) ([]engine.SnapshotEntry, error)
@@ -31,14 +32,15 @@ type Service interface {
 
 // Deps bundles the seams the run service orchestrates.
 type Deps struct {
-	Repo         Repository
-	Plans        PlanLookup
-	Targets      TargetLookup
-	Destinations DestinationLookup
-	Engine       engine.KopiaEngine
-	Sources      *sources.Registry
-	Events       EventSink
-	Clock        clock.Clock
+	Repo          Repository
+	Plans         PlanLookup
+	Targets       TargetLookup
+	ActiveTargets ActiveTargetLookup
+	Destinations  DestinationLookup
+	Engine        engine.KopiaEngine
+	Sources       *sources.Registry
+	Events        EventSink
+	Clock         clock.Clock
 	// StagingRoot is the base directory capture artifacts are staged under
 	// before snapshotting. Empty uses the OS temp dir. Each run gets a
 	// subdirectory that is removed when the run closes.
@@ -193,6 +195,16 @@ func (s *service) ListRuns(ctx context.Context, planID string, limit int) ([]Run
 }
 
 func (s *service) ListTargetStatus(ctx context.Context, targetIDs []string) ([]TargetStatus, error) {
+	if len(targetIDs) == 0 && s.deps.ActiveTargets != nil {
+		activeIDs, err := s.deps.ActiveTargets.ActiveTargetIDs(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if len(activeIDs) == 0 {
+			return []TargetStatus{}, nil
+		}
+		targetIDs = activeIDs
+	}
 	return s.deps.Repo.TargetStatuses(ctx, targetIDs)
 }
 

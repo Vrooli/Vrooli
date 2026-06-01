@@ -21,8 +21,9 @@
 const path = require("node:path");
 const fs = require("node:fs");
 function resolveBASNodeModules() {
-  if (process.env.BAS_NODE_MODULES) return process.env.BAS_NODE_MODULES;
-  const root = process.env.VROOLI_ROOT || process.env.VROOLI_SOURCE_ROOT;
+  const basNodeModules = process.env["BAS_NODE_MODULES"];
+  if (basNodeModules) return basNodeModules;
+  const root = process.env["VROOLI_ROOT"] || process.env["VROOLI_SOURCE_ROOT"];
   if (root) {
     return path.join(root, "scenarios", "browser-automation-studio", "playwright-driver", "node_modules");
   }

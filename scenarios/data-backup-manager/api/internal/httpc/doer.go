@@ -1,14 +1,14 @@
 // Package httpc declares the outbound HTTP seam every scenario uses
 // when calling external services.
 //
-// Production wires *http.Client directly — it satisfies Doer through
-// the compile-time assertion below. Tests substitute mocks.FakeDoer to
-// pin request shape and stub responses without touching the network.
+// Production wires the timeout-backed client from NewDefaultClient. Tests
+// substitute mocks.FakeDoer to pin request shape and stub responses without
+// touching the network.
 //
 // # Why ship the seam unwired in production
 //
-// The template has no production consumer of Doer (the notes
-// endpoints are internal-only). Defining the seam *before* the first
+// The current backup manager does not need outbound HTTP in production.
+// Defining the seam *before* the first
 // outbound call means the first scenario to need one — a webhook
 // dispatcher, an upstream-API client, an OAuth handshake — copies the
 // reference test's substitution pattern instead of inventing one. The
@@ -16,11 +16,18 @@
 // reinvention is hours.
 //
 // Add the field to server.Deps when wiring the first consumer; the
-// idiomatic shape is `Doer httpc.Doer` with `&http.Client{Timeout:
-// 10 * time.Second}` constructed in main.go.
+// idiomatic shape is `Doer httpc.Doer` with `httpc.NewDefaultClient()`
+// constructed in main.go.
 package httpc
 
-import "net/http"
+import (
+	"net/http"
+	"time"
+)
+
+// DefaultTimeout is the outbound request timeout used by production callers
+// unless a domain has a stricter integration-specific budget.
+const DefaultTimeout = 10 * time.Second
 
 // Doer is the canonical outbound HTTP interface. The single-method
 // surface is intentional — handlers depend on what they need (Do)
@@ -30,6 +37,9 @@ type Doer interface {
 	Do(*http.Request) (*http.Response, error)
 }
 
-// Compile-time guarantee that *http.Client satisfies Doer. Production
-// callers pass `&http.Client{...}` directly — no wrapper required.
-var _ Doer = (*http.Client)(nil)
+// NewDefaultClient returns the production Doer for outbound HTTP calls. Keep
+// all production construction through this helper so a no-timeout client cannot
+// slip past review or standards scanning.
+func NewDefaultClient() Doer {
+	return &http.Client{Timeout: DefaultTimeout}
+}

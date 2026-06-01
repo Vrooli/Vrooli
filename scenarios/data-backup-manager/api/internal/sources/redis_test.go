@@ -16,7 +16,7 @@ import (
 // TestRedisSource_PrefixDumpRestore is a gated integration test. It skips
 // unless DBM_SOURCE_INTEGRATION=1, which requires resource-redis to be available.
 func TestRedisSource_PrefixDumpRestore(t *testing.T) {
-	if os.Getenv("DBM_SOURCE_INTEGRATION") != "1" {
+	if value, ok := os.LookupEnv("DBM_SOURCE_INTEGRATION"); !ok || value != "1" {
 		t.Skip("set DBM_SOURCE_INTEGRATION=1 to run redis integration tests")
 	}
 

@@ -42,6 +42,14 @@ type TargetLookup interface {
 	TargetForRun(ctx context.Context, targetID string) (TargetForRun, error)
 }
 
+// ActiveTargetLookup lists target ids currently present in the live catalog.
+//
+// seam: implemented by an adapter over targets.Service in main.go. It lets the
+// status rollup exclude orphaned/deleted historical run outcomes by default.
+type ActiveTargetLookup interface {
+	ActiveTargetIDs(ctx context.Context) ([]string, error)
+}
+
 // DestinationForRun is the slice of a destination the runner needs to snapshot
 // into it. Name is the kopia repository name.
 type DestinationForRun struct {

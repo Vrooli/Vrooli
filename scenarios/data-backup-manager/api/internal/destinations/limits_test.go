@@ -2,6 +2,7 @@ package destinations_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"data-backup-manager/internal/destinations"
@@ -96,8 +97,8 @@ func TestLimits_UsageState(t *testing.T) {
 // TestLimits_DefaultAlertBlock drives WouldBlock and proves:
 //  1. With default ALERT_BLOCK policy and cap_bytes > 0, WouldBlock returns
 //     blocked=true when usage + pending exceeds the cap.
-//  2. The engine fake's Calls log contains NO delete call (there is no delete
-//     method — WouldBlock only calls RepoStats).
+//  2. The engine fake's Calls log contains NO delete call; WouldBlock only
+//     inspects RepoStats.
 //  3. ALERT_ONLY policy never blocks even when over cap.
 func TestLimits_DefaultAlertBlock(t *testing.T) {
 	ctx := context.Background()
@@ -138,8 +139,7 @@ func TestLimits_DefaultAlertBlock(t *testing.T) {
 
 		// Assert the call log contains RepoStats but no delete-like call.
 		for _, call := range eng.Calls {
-			// The engine interface has no delete method; verify none slipped in.
-			if call == "RepoDelete" || call == "SnapshotDelete" {
+			if strings.HasPrefix(call, "RepoDelete") || strings.HasPrefix(call, "SnapshotDelete") {
 				t.Fatalf("unexpected delete call in engine log: %q", call)
 			}
 		}

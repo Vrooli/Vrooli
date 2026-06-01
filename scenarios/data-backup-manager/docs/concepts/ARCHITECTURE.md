@@ -192,7 +192,7 @@ REST is allowed only for four enumerated reasons, defined as
 
 | Reason | When it applies |
 |---|---|
-| `RESTReasonMultipartUpload` | Opaque file bytes via `multipart/form-data`. The notes attachments endpoint is the worked example. |
+| `RESTReasonMultipartUpload` | Opaque file bytes via `multipart/form-data`. No current backup-manager product endpoint needs this exception. |
 | `RESTReasonWebhookReceiver` | Endpoint shape is dictated by a third-party system (Stripe, GitHub, etc.) we do not own. |
 | `RESTReasonThirdPartyShape` | Request or response is an externally-defined contract (OAuth callbacks, OpenAPI passthrough). |
 | `RESTReasonOpsProbe` | Lifecycle systems, load balancers, and `curl` must reach the endpoint without a generated client (plain `GET /health`, static iframe-facing HTML wrappers). |
@@ -207,11 +207,9 @@ service method (the preferred path) or to tag the exception
 explicitly. There is no "internal endpoint, REST is fine" path —
 that rationalization is exactly what the validation pass prevents.
 
-Note: even for REST exceptions, the **payload shape** stays
-proto-typed wherever possible. The notes attachments handler returns
-the proto `UploadAttachmentResponse` message; only the request
-transport is multipart. Drift between API/UI/CLI is eliminated as
-long as the wire payload type is shared.
+Note: even for REST exceptions, the **payload shape** should stay
+proto-typed wherever possible. Drift between API/UI/CLI is eliminated
+as long as the wire payload type is shared.
 
 ## Shared Infrastructure
 
@@ -268,7 +266,7 @@ in `requirements/` and [`../internal/PROGRESS.md`](../internal/PROGRESS.md).
 | CLI | Built — command per RPC + self-registration | `cli/domains/<domain>/` wraps each RPC via generated Connect clients; manifest-driven; `RequireProtoServiceCoverage` per domain. | — |
 | UI | Designed-only (explicit follow-up plan) | Feature folders + typed client patterns from the template. | Destinations (usage-vs-cap), plans, run history, guided restore/verify to be built per [`UI-ARCHITECTURE.md`](UI-ARCHITECTURE.md). |
 | Docs | Filled to the locked design; reconciled to built state | Concept + reference docs; SEAMS registry updated with KopiaEngine/CommandRunner/Capturer; PROBLEMS tracks deferrals. | — |
-| Engine integration | Built — wrapped behind the KopiaEngine seam | `api/internal/engine/kopia.go` shells out to the fully-implemented `resource-kopia` CLI; encryption always on; kopia owns repo passphrases via vault. Real-engine paths covered by integration tests gated on `KOPIA_INTEGRATION` / source resources. | Snapshot browsing assumes a `resource-kopia snapshot browse` command (see PROBLEMS). |
+| Engine integration | Built — wrapped behind the KopiaEngine seam | `api/internal/engine/kopia.go` shells out to the fully-implemented `resource-kopia` CLI; encryption always on; kopia owns repo passphrases via vault. Real-engine paths covered by integration tests gated on `KOPIA_INTEGRATION` / source resources. Snapshot browsing is backed by `resource-kopia snapshot browse --json`. | Source-resource integration coverage remains gated. |
 
 ### API surface (built)
 

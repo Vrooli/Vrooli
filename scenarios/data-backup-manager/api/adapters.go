@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -51,6 +50,18 @@ func (a targetLookup) TargetForRun(ctx context.Context, targetID string) (runsin
 		return runsint.TargetForRun{}, err
 	}
 	return runsint.TargetForRun{ID: t.ID, Kind: t.SourceKind, Locator: t.Locator}, nil
+}
+
+func (a targetLookup) ActiveTargetIDs(ctx context.Context) ([]string, error) {
+	targets, err := a.svc.List(ctx, "", catalogScanLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(targets))
+	for _, t := range targets {
+		out = append(out, t.ID)
+	}
+	return out, nil
 }
 
 // destinationLookup adapts destinations.Service to runs.DestinationLookup.
@@ -223,14 +234,16 @@ func (s logEventSink) BackupPostureDegraded(_ context.Context, detail string) {
 
 // overdueAfter returns the age past which a target's last success counts as
 // overdue. Configurable via DBM_OVERDUE_AFTER (a Go duration); default 36h.
-func overdueAfter() time.Duration {
+func overdueAfter() (time.Duration, error) {
 	const def = 36 * time.Hour
-	if raw := strings.TrimSpace(os.Getenv("DBM_OVERDUE_AFTER")); raw != "" {
-		if d, err := time.ParseDuration(raw); err == nil && d > 0 {
-			return d
+	if raw, ok := lookupEnvTrimmed("DBM_OVERDUE_AFTER"); ok {
+		d, err := time.ParseDuration(raw)
+		if err != nil || d <= 0 {
+			return 0, fmt.Errorf("DBM_OVERDUE_AFTER must be a positive Go duration, got %q", raw)
 		}
+		return d, nil
 	}
-	return def
+	return def, nil
 }
 
 // backupPosture adapts runs.Service to health.BackupPosture. A target is
@@ -270,15 +283,15 @@ func (a backupPosture) OverdueOrFailed(ctx context.Context) (bool, string, error
 // default 60s. Setting it to "0" disables the ticker (the manual/on-demand
 // trigger path still works via the RunsService). With no schedulable plans,
 // each tick is a no-op.
-func startScheduler(ctx context.Context, sched *schedint.Scheduler, logger *log.Logger) {
+func startScheduler(ctx context.Context, sched *schedint.Scheduler, logger *log.Logger) error {
 	interval := 60 * time.Second
-	if raw := strings.TrimSpace(os.Getenv("DBM_SCHEDULER_INTERVAL")); raw != "" {
+	if raw, ok := lookupEnvTrimmed("DBM_SCHEDULER_INTERVAL"); ok {
 		d, err := time.ParseDuration(raw)
 		if err != nil {
-			logger.Printf("scheduler: invalid DBM_SCHEDULER_INTERVAL %q, using %s", raw, interval)
+			return fmt.Errorf("DBM_SCHEDULER_INTERVAL must be a Go duration, got %q", raw)
 		} else if d == 0 {
 			logger.Printf("scheduler: disabled via DBM_SCHEDULER_INTERVAL=0")
-			return
+			return nil
 		} else {
 			interval = d
 		}
@@ -297,4 +310,5 @@ func startScheduler(ctx context.Context, sched *schedint.Scheduler, logger *log.
 			}
 		}
 	}()
+	return nil
 }
