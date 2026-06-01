@@ -81,6 +81,7 @@ func (p *Printer) Print(resp execTypes.Response) {
 	}
 	p.printPhaseResults(resp.Phases)
 	p.printSummary(resp)
+	p.printRequirementsSummary(resp)
 	p.printFailureDigest(resp.Phases)
 	p.printQuickFixGuide(resp.Phases)
 	p.printDebugGuides(resp.Phases)
@@ -133,6 +134,7 @@ func (p *Printer) PrintResults(resp execTypes.Response) {
 	}
 	p.printPhaseResults(resp.Phases)
 	p.printSummary(resp)
+	p.printRequirementsSummary(resp)
 	p.printFailureDigest(resp.Phases)
 	p.printQuickFixGuide(resp.Phases)
 	p.printDebugGuides(resp.Phases)
@@ -560,6 +562,160 @@ func (p *Printer) printSummary(resp execTypes.Response) {
 		}
 		fmt.Fprintf(p.w, "  • Status: %s failures detected (see analysis below)\n", p.color.Yellow("⚠"))
 	}
+}
+
+// printRequirementsSummary renders PRD operational-target and requirement
+// status on EVERY run, regardless of which phases were selected. This is the
+// surface that keeps the requirements system discoverable: a full suite shows
+// refreshed counts plus this run's promotions/regressions; a partial/targeted
+// run shows the last-synced counts flagged stale, with the refresh command.
+func (p *Printer) printRequirementsSummary(resp execTypes.Response) {
+	r := resp.Requirements
+	if r == nil {
+		// Scenario has no requirements/ tree — nothing to show.
+		return
+	}
+
+	fmt.Fprintln(p.w)
+	regressions := r.Regressions()
+	header := "REQUIREMENTS & OPERATIONAL TARGETS:"
+	if len(regressions) > 0 {
+		// Loud, non-zero regression signal in the section header itself.
+		fmt.Fprintln(p.w, p.color.BoldRed("⛔ "+header+fmt.Sprintf(" %d regressed this run", len(regressions))))
+	} else {
+		fmt.Fprintln(p.w, p.color.Bold(header))
+	}
+
+	// Operational targets line, with per-priority breakdown when available.
+	otLine := fmt.Sprintf("  • Operational targets: %s complete",
+		p.color.Bold(fmt.Sprintf("%d/%d", r.OTComplete, r.OTTotal)))
+	if band := formatOTByPriority(r.OTByPriority); band != "" {
+		otLine += "  (" + band + ")"
+	}
+	fmt.Fprintln(p.w, otLine)
+
+	// Requirements line, with non-complete status breakdown when available.
+	reqLine := fmt.Sprintf("  • Requirements: %s complete",
+		p.color.Bold(fmt.Sprintf("%d/%d", r.ReqComplete, r.ReqTotal)))
+	if breakdown := formatReqRemainder(r.ReqByStatus); breakdown != "" {
+		reqLine += "  (" + breakdown + ")"
+	}
+	fmt.Fprintln(p.w, reqLine)
+
+	if r.Synced {
+		p.printRequirementsChanges(r, regressions)
+	} else {
+		p.printRequirementsStale(r)
+	}
+
+	// Docs pointer — self-contained, lives in test-genie's own docs.
+	fmt.Fprintf(p.w, "  %s How it works: %s · raise coverage: %s\n",
+		p.color.Cyan("📚"),
+		"scenarios/test-genie/docs/requirements/STATUS_MODEL.md",
+		"scenarios/test-genie/docs/requirements/IMPROVING_COVERAGE.md")
+	fmt.Fprintln(p.w)
+}
+
+// printRequirementsChanges renders this run's status transitions (fresh sync).
+func (p *Printer) printRequirementsChanges(r *execTypes.RequirementsSummary, regressions []execTypes.RequirementChange) {
+	promotions := r.Promotions()
+	if len(promotions) == 0 && len(regressions) == 0 {
+		fmt.Fprintf(p.w, "  • %s\n", p.color.Green("No requirement status changes this run"))
+		return
+	}
+	// Regressions first, escalated — a shipped feature dropping out of complete
+	// is the most important thing an agent can learn from this report.
+	if len(regressions) > 0 {
+		fmt.Fprintf(p.w, "  %s %s\n", p.color.BoldRed("▼"),
+			p.color.BoldRed(fmt.Sprintf("%d requirement(s) regressed:", len(regressions))))
+		for _, c := range regressions {
+			fmt.Fprintf(p.w, "      %s %s%s → %s\n",
+				p.color.Red("▼"), c.ID, formatPRDRef(c.PRDRef),
+				p.color.Red(fmt.Sprintf("%s → %s", c.From, c.To)))
+		}
+	}
+	if len(promotions) > 0 {
+		fmt.Fprintf(p.w, "  %s %d requirement(s) now complete:\n",
+			p.color.Green("▲"), len(promotions))
+		for _, c := range promotions {
+			fmt.Fprintf(p.w, "      %s %s%s %s → %s\n",
+				p.color.Green("▲"), c.ID, formatPRDRef(c.PRDRef),
+				c.From, p.color.Green(c.To))
+		}
+	}
+}
+
+// printRequirementsStale renders the cached-counts notice for a partial/gated
+// run: the counts are real (last persisted), but were not refreshed this run.
+func (p *Printer) printRequirementsStale(r *execTypes.RequirementsSummary) {
+	reason := strings.TrimSpace(r.SkipReason)
+	if reason == "" {
+		reason = "this run did not run the full suite"
+	}
+	fmt.Fprintf(p.w, "  %s %s\n", p.color.Yellow("⚠"),
+		p.color.Yellow("Not updated this run — "+reason+"."))
+	asOf := formatSyncedDate(r.LastSyncedAt)
+	if asOf != "" {
+		fmt.Fprintf(p.w, "    Counts are from the last full sync (%s).\n", asOf)
+	} else {
+		fmt.Fprintln(p.w, "    Counts are from the last full sync.")
+	}
+	fmt.Fprintf(p.w, "    To refresh: %s\n",
+		p.color.Cyan(fmt.Sprintf("test-genie execute %s", p.scenario)))
+}
+
+// formatOTByPriority renders "P0 2/2 · P1 1/3 · P2 0/2" in fixed priority order.
+func formatOTByPriority(byPriority map[string]execTypes.OTCount) string {
+	if len(byPriority) == 0 {
+		return ""
+	}
+	var parts []string
+	for _, band := range []string{"P0", "P1", "P2"} {
+		if c, ok := byPriority[band]; ok && c.Total > 0 {
+			parts = append(parts, fmt.Sprintf("%s %d/%d", band, c.Complete, c.Total))
+		}
+	}
+	return strings.Join(parts, " · ")
+}
+
+// formatReqRemainder renders the non-complete requirement status counts, e.g.
+// "in_progress 4 · planned 2 · pending 1". Returns "" when all are complete.
+func formatReqRemainder(byStatus map[string]int) string {
+	if len(byStatus) == 0 {
+		return ""
+	}
+	var parts []string
+	for _, status := range []string{"in_progress", "planned", "pending", "not_implemented"} {
+		if n, ok := byStatus[status]; ok && n > 0 {
+			parts = append(parts, fmt.Sprintf("%s %d", status, n))
+		}
+	}
+	return strings.Join(parts, " · ")
+}
+
+// formatPRDRef wraps a non-empty PRD reference for inline display.
+func formatPRDRef(ref string) string {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return ""
+	}
+	return " (" + ref + ")"
+}
+
+// formatSyncedDate parses an RFC3339 timestamp and returns the date portion.
+func formatSyncedDate(ts string) string {
+	ts = strings.TrimSpace(ts)
+	if ts == "" {
+		return ""
+	}
+	if t, err := time.Parse(time.RFC3339, ts); err == nil {
+		return t.Format("2006-01-02")
+	}
+	// Fall back to whatever prefix looks like a date.
+	if len(ts) >= 10 {
+		return ts[:10]
+	}
+	return ts
 }
 
 // printPartialSummary renders the PARTIAL verdict: nothing failed, but one or

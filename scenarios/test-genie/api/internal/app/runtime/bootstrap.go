@@ -55,11 +55,14 @@ type RequirementsSyncerAdapter struct {
 	svc *requirements.Service
 }
 
-// Sync performs requirements synchronization for a scenario directory.
+// Sync performs requirements synchronization for a scenario directory. The
+// structured sync report is discarded here; callers of this adapter only need
+// success/failure.
 func (a *RequirementsSyncerAdapter) Sync(ctx context.Context, scenarioDir string) error {
-	return a.svc.Sync(ctx, requirements.SyncInput{
+	_, err := a.svc.Sync(ctx, requirements.SyncInput{
 		ScenarioDir: scenarioDir,
 	})
+	return err
 }
 
 type phaseCatalogProvider interface {

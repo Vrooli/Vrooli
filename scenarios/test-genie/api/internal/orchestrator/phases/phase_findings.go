@@ -65,6 +65,8 @@ func nonEmptyLocations(locs ...string) []string {
 //	CLI / UI     → SMALL    (one contract/slot binding gap)
 //	STANDARDS    → SMALL    (one rule violation, usually one file)
 //	TIDINESS     → SMALL    (file/function quality nit)
+//	COVERAGE     → MEDIUM   (write tests for an under-covered target)
+//	SECURITY     → MEDIUM   (rotate a secret / bump a vulnerable dep)
 //	STRUCTURE    → LARGE    (package mislocation — a structural move)
 //	ARCHITECTURE → LARGE    (import cycle / coupling — structural)
 //	(anything else) → UNSPECIFIED
@@ -77,6 +79,9 @@ func defaultEffortForSource(source architecturev1.FindingSource) architecturev1.
 		architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
 		architecturev1.FindingSource_FINDING_SOURCE_TIDINESS:
 		return architecturev1.EffortHint_EFFORT_HINT_SMALL
+	case architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
+		architecturev1.FindingSource_FINDING_SOURCE_SECURITY:
+		return architecturev1.EffortHint_EFFORT_HINT_MEDIUM
 	case architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
 		architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE:
 		return architecturev1.EffortHint_EFFORT_HINT_LARGE

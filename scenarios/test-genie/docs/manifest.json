@@ -110,6 +110,16 @@
       ]
     },
     {
+      "id": "requirements",
+      "title": "Requirements & Operational Targets",
+      "icon": "target",
+      "description": "How PRD operational-target and requirement status is derived and improved",
+      "documents": [
+        { "path": "requirements/STATUS_MODEL.md", "title": "Status Model", "description": "How requirement/OT status is derived from tests and shown in execute output" },
+        { "path": "requirements/IMPROVING_COVERAGE.md", "title": "Improving Coverage", "description": "Tag tests with [REQ:ID] and raise passing requirements" }
+      ]
+    },
+    {
       "id": "concepts",
       "title": "Concepts",
       "icon": "lightbulb",
@@ -136,6 +146,6 @@
   ],
   "navigation": {
     "primary": ["getting-started", "configuration", "safety", "phases", "guides", "reference"],
-    "secondary": ["concepts", "plans", "standard"]
+    "secondary": ["requirements", "concepts", "plans", "standard"]
   }
 }

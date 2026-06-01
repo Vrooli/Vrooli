@@ -130,6 +130,27 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Runner:      runBusinessPhase,
 		Description: "Audits requirements modules to guarantee operational targets stay mapped.",
 	})
+	register(Spec{
+		Name:           Coverage,
+		Runner:         runCoveragePhase,
+		Optional:       true,
+		DefaultTimeout: 30 * time.Second,
+		Description:    "Parses Go coverage profiles and Node LCOV reports and flags targets below the coverage threshold (source=coverage).",
+	})
+	register(Spec{
+		Name:           Tidiness,
+		Runner:         runTidinessPhase,
+		Optional:       true,
+		DefaultTimeout: 120 * time.Second,
+		Description:    "Delegates file/function quality checks to tidiness-manager and maps violations into findings (source=tidiness).",
+	})
+	register(Spec{
+		Name:           Security,
+		Runner:         runSecurityPhase,
+		Optional:       true,
+		DefaultTimeout: 180 * time.Second,
+		Description:    "Delegates security posture validation to security-health (secrets, Go SAST, Go vuln-DB, JS deps) and maps findings into the FINDING_SOURCE_SECURITY channel that gates the ecosystem-manager R1 ladder rung.",
+	})
 	return catalog
 }
 

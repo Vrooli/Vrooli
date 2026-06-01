@@ -82,6 +82,84 @@ type Response struct {
 	Links          map[string]any `json:"links"`
 	Metadata       map[string]any `json:"metadata"`
 	CampaignNudge  *CampaignNudge `json:"campaignNudge,omitempty"`
+	// Requirements summarizes PRD operational-target and requirement status for
+	// the scenario. Present whenever the scenario has a requirements/ tree. Nil
+	// otherwise. Mirrors the API's orchestrator.requirements.SyncOutcome.
+	Requirements *RequirementsSummary `json:"requirements,omitempty"`
+}
+
+// RequirementsSummary mirrors the API's requirements sync outcome. It is
+// rendered in the execute report on every run so PRD operational-target and
+// requirement status stays visible regardless of which phases were selected.
+type RequirementsSummary struct {
+	// Synced is true when these counts were refreshed this run (full suite).
+	// False means they are the last persisted values (a partial/gated run).
+	Synced bool `json:"synced"`
+	// SkipReason explains why sync did not run, when Synced is false.
+	SkipReason string `json:"skipReason,omitempty"`
+	// LastSyncedAt is the timestamp of the most recent persisted sync (RFC3339).
+	LastSyncedAt string `json:"lastSyncedAt,omitempty"`
+
+	OTComplete   int                `json:"otComplete"`
+	OTTotal      int                `json:"otTotal"`
+	OTByPriority map[string]OTCount `json:"otByPriority,omitempty"`
+
+	ReqComplete int            `json:"reqComplete"`
+	ReqTotal    int            `json:"reqTotal"`
+	ReqByStatus map[string]int `json:"reqByStatus,omitempty"`
+
+	Changes []RequirementChange `json:"changes,omitempty"`
+}
+
+// OTCount is the complete/total tally for one operational-target priority band.
+type OTCount struct {
+	Complete int `json:"complete"`
+	Total    int `json:"total"`
+}
+
+// RequirementChange is one requirement-level status transition. Kind is
+// "promotion" (… → complete), "regression" (complete → …), or "other".
+type RequirementChange struct {
+	ID     string `json:"id"`
+	PRDRef string `json:"prdRef,omitempty"`
+	From   string `json:"from"`
+	To     string `json:"to"`
+	Kind   string `json:"kind"`
+}
+
+// Change-kind constants, mirroring the API.
+const (
+	ChangeKindPromotion  = "promotion"
+	ChangeKindRegression = "regression"
+	ChangeKindOther      = "other"
+)
+
+// Regressions returns the changes classified as regressions.
+func (r *RequirementsSummary) Regressions() []RequirementChange {
+	if r == nil {
+		return nil
+	}
+	var out []RequirementChange
+	for _, c := range r.Changes {
+		if c.Kind == ChangeKindRegression {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// Promotions returns the changes classified as promotions.
+func (r *RequirementsSummary) Promotions() []RequirementChange {
+	if r == nil {
+		return nil
+	}
+	var out []RequirementChange
+	for _, c := range r.Changes {
+		if c.Kind == ChangeKindPromotion {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // CampaignNudge mirrors the API's campaign-nudge steer. Present only when an

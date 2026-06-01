@@ -95,7 +95,7 @@ func TestService_Sync_NoRequirementsDir(t *testing.T) {
 	writer := NewMemWriter()
 	service := NewServiceWithDeps(reader, writer)
 
-	err := service.Sync(context.Background(), SyncInput{
+	_, err := service.Sync(context.Background(), SyncInput{
 		ScenarioName: "demo",
 		ScenarioDir:  "/test/scenarios/demo",
 	})
@@ -111,7 +111,7 @@ func TestService_Sync_EmptyRequirementsDir(t *testing.T) {
 	// Add index.json with no imports (empty requirements)
 	fixture.addIndexFile(t, []string{})
 
-	err := service.Sync(context.Background(), SyncInput{
+	_, err := service.Sync(context.Background(), SyncInput{
 		ScenarioName: "demo",
 		ScenarioDir:  fixture.scenarioDir,
 	})
@@ -154,7 +154,7 @@ func TestService_Sync_BasicRequirement(t *testing.T) {
 		},
 	})
 
-	err := service.Sync(context.Background(), SyncInput{
+	_, err := service.Sync(context.Background(), SyncInput{
 		ScenarioName: "demo",
 		ScenarioDir:  fixture.scenarioDir,
 		PhaseResults: []phases.ExecutionResult{
@@ -164,6 +164,131 @@ func TestService_Sync_BasicRequirement(t *testing.T) {
 	})
 	if err != nil {
 		t.Errorf("sync failed: %v", err)
+	}
+}
+
+func TestService_Sync_ReturnsReportWithCountsAndChanges(t *testing.T) {
+	fixture := newTestFixture(t)
+	service := NewServiceWithDeps(fixture.reader, fixture.writer)
+
+	moduleDir := filepath.Join(fixture.scenarioDir, "requirements", "01-core")
+	fixture.reader.AddDir(moduleDir, []fs.DirEntry{
+		&memDirEntry{name: "module.json", isDir: false},
+	})
+	fixture.addIndexFile(t, []string{"01-core/module.json"})
+	fixture.addRequirementModule(t, "01-core/module.json", map[string]any{
+		"_metadata": map[string]any{"module": "core"},
+		"requirements": []map[string]any{
+			{
+				"id":      "REQ-001",
+				"title":   "Promotable requirement",
+				"prd_ref": "OT-P0-001",
+				"status":  "in_progress",
+				"validation": []map[string]any{
+					// A passing validation should promote in_progress -> complete.
+					{"type": "test", "ref": "test/a.test.ts", "status": "implemented"},
+				},
+			},
+		},
+	})
+
+	report, err := service.Sync(context.Background(), SyncInput{
+		ScenarioName: "demo",
+		ScenarioDir:  fixture.scenarioDir,
+		PhaseResults: []phases.ExecutionResult{
+			{Name: "unit", Status: "passed"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+	if report == nil {
+		t.Fatal("expected non-nil report from Sync")
+	}
+	if !report.Synced {
+		t.Error("expected Synced=true on a full sync")
+	}
+	if report.Summary.Total != 1 {
+		t.Errorf("Summary.Total = %d, want 1", report.Summary.Total)
+	}
+	if report.OT.Total != 1 {
+		t.Errorf("OT.Total = %d, want 1 (OT-P0-001)", report.OT.Total)
+	}
+	// The requirement should have been promoted to complete by the passing
+	// validation, which both completes the OT and emits a status change.
+	if report.OT.Complete != 1 {
+		t.Errorf("OT.Complete = %d, want 1", report.OT.Complete)
+	}
+	foundPromotion := false
+	for _, c := range report.Changes {
+		if c.ID == "REQ-001" && c.To == string(types.StatusComplete) {
+			foundPromotion = true
+			if c.PRDRef != "OT-P0-001" {
+				t.Errorf("change PRDRef = %q, want OT-P0-001", c.PRDRef)
+			}
+		}
+	}
+	if !foundPromotion {
+		t.Errorf("expected a REQ-001 -> complete change, got %+v", report.Changes)
+	}
+}
+
+func TestService_Snapshot_ReadsCachedCountsWithoutWriting(t *testing.T) {
+	fixture := newTestFixture(t)
+	service := NewServiceWithDeps(fixture.reader, fixture.writer)
+
+	moduleDir := filepath.Join(fixture.scenarioDir, "requirements", "01-core")
+	fixture.reader.AddDir(moduleDir, []fs.DirEntry{
+		&memDirEntry{name: "module.json", isDir: false},
+	})
+	fixture.addIndexFile(t, []string{"01-core/module.json"})
+	fixture.addRequirementModule(t, "01-core/module.json", map[string]any{
+		"_metadata": map[string]any{"module": "core"},
+		"requirements": []map[string]any{
+			{"id": "REQ-001", "title": "Done", "prd_ref": "OT-P0-001", "status": "complete"},
+			{"id": "REQ-002", "title": "WIP", "prd_ref": "OT-P1-002", "status": "in_progress"},
+		},
+	})
+
+	report, err := service.Snapshot(context.Background(), SyncInput{
+		ScenarioName: "demo",
+		ScenarioDir:  fixture.scenarioDir,
+	})
+	if err != nil {
+		t.Fatalf("snapshot failed: %v", err)
+	}
+	if report == nil {
+		t.Fatal("expected non-nil report from Snapshot")
+	}
+	if report.Synced {
+		t.Error("expected Synced=false from a read-only snapshot")
+	}
+	if len(report.Changes) != 0 {
+		t.Errorf("expected no changes from a snapshot, got %d", len(report.Changes))
+	}
+	if report.Summary.Total != 2 {
+		t.Errorf("Summary.Total = %d, want 2", report.Summary.Total)
+	}
+	if report.OT.Total != 2 || report.OT.Complete != 1 {
+		t.Errorf("OT = %d/%d, want 1/2", report.OT.Complete, report.OT.Total)
+	}
+	// Snapshot must not write any module files.
+	if n := len(fixture.writer.WrittenFiles()); n > 0 {
+		t.Errorf("snapshot wrote %d files; expected 0", n)
+	}
+}
+
+func TestService_Snapshot_NoRequirementsDir(t *testing.T) {
+	service := NewServiceWithDeps(NewMemReader(), NewMemWriter())
+	report, err := service.Snapshot(context.Background(), SyncInput{
+		ScenarioName: "demo",
+		ScenarioDir:  "/test/scenarios/demo",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if report != nil {
+		t.Errorf("expected nil report when no requirements dir, got %+v", report)
 	}
 }
 
@@ -190,7 +315,7 @@ func TestService_Sync_WithPhaseResults(t *testing.T) {
 	})
 
 	// Sync with phase results
-	err := service.Sync(context.Background(), SyncInput{
+	_, err := service.Sync(context.Background(), SyncInput{
 		ScenarioName: "demo",
 		ScenarioDir:  fixture.scenarioDir,
 		PhaseDefinitions: []phases.Definition{
@@ -417,7 +542,7 @@ func TestService_Sync_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
-	err := service.Sync(ctx, SyncInput{
+	_, err := service.Sync(ctx, SyncInput{
 		ScenarioName: "demo",
 		ScenarioDir:  fixture.scenarioDir,
 	})
@@ -475,7 +600,7 @@ func TestService_Sync_Integration(t *testing.T) {
 
 	// Run sync with real filesystem
 	service := NewService()
-	err := service.Sync(context.Background(), SyncInput{
+	_, err := service.Sync(context.Background(), SyncInput{
 		ScenarioName: "demo",
 		ScenarioDir:  scenarioDir,
 		PhaseDefinitions: []phases.Definition{
@@ -663,7 +788,7 @@ func TestService_FullPipeline_Integration(t *testing.T) {
 		summaryBefore.ByDeclaredStatus[types.StatusInProgress])
 
 	// Test 3: Sync with phase results
-	err = service.Sync(context.Background(), SyncInput{
+	_, err = service.Sync(context.Background(), SyncInput{
 		ScenarioName: "my-scenario",
 		ScenarioDir:  scenarioDir,
 		PhaseDefinitions: []phases.Definition{

@@ -19,15 +19,23 @@ import (
 )
 
 type stubRequirementsSyncer struct {
-	calls int
-	last  reqsync.SyncInput
-	err   error
+	calls         int
+	snapshotCalls int
+	last          reqsync.SyncInput
+	err           error
+	outcome       *reqsync.SyncOutcome
 }
 
-func (s *stubRequirementsSyncer) Sync(ctx context.Context, input reqsync.SyncInput) error {
+func (s *stubRequirementsSyncer) Sync(ctx context.Context, input reqsync.SyncInput) (*reqsync.SyncOutcome, error) {
 	s.calls++
 	s.last = input
-	return s.err
+	return s.outcome, s.err
+}
+
+func (s *stubRequirementsSyncer) Snapshot(ctx context.Context, input reqsync.SyncInput) (*reqsync.SyncOutcome, error) {
+	s.snapshotCalls++
+	s.last = input
+	return s.outcome, s.err
 }
 
 func createScenarioLayout(t *testing.T, root, name string) string {
@@ -428,7 +436,9 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
 		stubRuntimePhaseRunners(orchestrator)
-		stubSyncer := &stubRequirementsSyncer{}
+		stubSyncer := &stubRequirementsSyncer{
+			outcome: &reqsync.SyncOutcome{Synced: true, OTComplete: 1, OTTotal: 3},
+		}
 		orchestrator.requirements = stubSyncer
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
@@ -444,6 +454,17 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 		}
 		if stubSyncer.calls != 1 {
 			t.Fatalf("expected requirements sync to run once, got %d", stubSyncer.calls)
+		}
+		// A full suite run syncs (not snapshots) and the outcome is attached to
+		// the execution result for the report to render.
+		if stubSyncer.snapshotCalls != 0 {
+			t.Fatalf("expected no snapshot calls on a full suite, got %d", stubSyncer.snapshotCalls)
+		}
+		if result.Requirements == nil {
+			t.Fatalf("expected requirements outcome attached to result")
+		}
+		if result.Requirements.OTTotal != 3 || result.Requirements.OTComplete != 1 {
+			t.Fatalf("unexpected requirements counts on result: %#v", result.Requirements)
 		}
 		if stubSyncer.last.ScenarioName != "demo" {
 			t.Fatalf("unexpected scenario name in sync payload: %#v", stubSyncer.last)

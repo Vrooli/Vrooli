@@ -31,6 +31,9 @@ const (
 	Playbooks    Name = "playbooks"
 	Business     Name = "business"
 	Performance  Name = "performance"
+	Coverage     Name = "coverage"
+	Tidiness     Name = "tidiness"
+	Security     Name = "security"
 )
 
 const (

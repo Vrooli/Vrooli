@@ -187,6 +187,11 @@ type SuiteExecutionResult struct {
 	// single-pass threshold, steering the agent to open a tracked
 	// improvement campaign. Nil otherwise.
 	CampaignNudge *CampaignNudge `json:"campaignNudge,omitempty"`
+	// Requirements summarizes PRD operational-target and requirement status for
+	// the scenario. It is populated on every run that has a requirements/ tree:
+	// freshly synced when the full suite ran, or cached (Synced=false) with a
+	// skip reason when sync was gated. Nil when the scenario has no requirements.
+	Requirements *requirements.SyncOutcome `json:"requirements,omitempty"`
 }
 
 type PhaseExecutionResult = phases.ExecutionResult
@@ -303,7 +308,12 @@ func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 		projectRoot:   filepath.Dir(absRoot),
 		phaseTimeout:  defaultPhaseTimeout,
 		catalog:       catalog,
-		requirements:  requirements.NewNodeSyncer(filepath.Dir(absRoot)),
+		// Use NewSyncer (not NewNodeSyncer): NewNodeSyncer returns a nil Syncer
+		// when the legacy scripts/requirements/report.js is absent — which it is
+		// in current installs — leaving requirements sync a silent no-op on every
+		// execute. NewSyncer falls back to the native Go syncer so requirement/OT
+		// status is actually derived and surfaced in the report.
+		requirements:  requirements.NewSyncer(filepath.Dir(absRoot)),
 		phaseToggles:  newPhaseToggleStore(),
 		newRuntime:    targetruntime.New,
 	}, nil
@@ -634,7 +644,7 @@ func (o *SuiteOrchestrator) finalizeExecution(
 		}
 	}(context.Background())
 
-	o.syncRequirementsIfNeeded(ctx, prepared.env, prepared.config, req, prepared.plan, phaseResults)
+	result.Requirements = o.syncRequirementsIfNeeded(ctx, prepared.env, prepared.config, req, prepared.plan, phaseResults)
 	return result
 }
 
@@ -761,6 +771,11 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 	return results, anyFailure
 }
 
+// syncRequirementsIfNeeded synchronizes the PRD/requirements status from this
+// run's evidence when the full suite ran, and otherwise reads back the last
+// persisted counts so the report can always show requirement status. It returns
+// a SyncOutcome (nil only when the scenario has no requirements/ tree) so the
+// execute report can surface counts, deltas, and the skip reason on every run.
 func (o *SuiteOrchestrator) syncRequirementsIfNeeded(
 	ctx context.Context,
 	env workspacepkg.Environment,
@@ -768,16 +783,39 @@ func (o *SuiteOrchestrator) syncRequirementsIfNeeded(
 	req SuiteExecutionRequest,
 	plan *phasePlan,
 	phaseResults []PhaseExecutionResult,
-) {
+) *requirements.SyncOutcome {
 	if o.requirements == nil {
-		return
+		return nil
 	}
+	history := buildCommandHistory(req, plan)
+	input := requirements.SyncInput{
+		ScenarioName:     env.ScenarioName,
+		ScenarioDir:      env.ScenarioDir,
+		PhaseDefinitions: plan.Definitions,
+		PhaseResults:     phaseResults,
+		CommandHistory:   history,
+	}
+
 	decision := newRequirementsSyncDecision(cfg, plan, phaseResults)
 	if !decision.Execute {
+		// Sync is gated (e.g. a partial/targeted run). Don't write, but read the
+		// last persisted counts so the report still shows requirement status,
+		// flagged stale with the skip reason. This is the common agent case.
 		if decision.Reason != "" {
 			log.Printf("requirements sync skipped: %s", decision.Reason)
 		}
-		return
+		outcome, err := o.requirements.Snapshot(ctx, input)
+		if err != nil {
+			log.Printf("requirements snapshot failed: %v", err)
+			return nil
+		}
+		if outcome != nil {
+			outcome.SkipReason = decision.Reason
+			if outcome.SkipReason == "" {
+				outcome.SkipReason = "partial run — requirements not updated"
+			}
+		}
+		return outcome
 	}
 	if decision.Forced && decision.Reason != "" {
 		log.Printf("forcing requirements sync despite: %s", decision.Reason)
@@ -789,17 +827,12 @@ func (o *SuiteOrchestrator) syncRequirementsIfNeeded(
 	if len(phaseResults) < len(plan.Selected) {
 		log.Printf("requirements sync proceeding with partial results: recorded %d of %d phases (fail-fast likely)", len(phaseResults), len(plan.Selected))
 	}
-	history := buildCommandHistory(req, plan)
-	input := requirements.SyncInput{
-		ScenarioName:     env.ScenarioName,
-		ScenarioDir:      env.ScenarioDir,
-		PhaseDefinitions: plan.Definitions,
-		PhaseResults:     phaseResults,
-		CommandHistory:   history,
-	}
-	if err := o.requirements.Sync(ctx, input); err != nil {
+	outcome, err := o.requirements.Sync(ctx, input)
+	if err != nil {
 		log.Printf("requirements sync skipped: %v", err)
+		return nil
 	}
+	return outcome
 }
 
 func (o *SuiteOrchestrator) discoverPhaseDefinitions(env workspacepkg.Environment) ([]phases.Definition, error) {
