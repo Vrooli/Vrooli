@@ -45,7 +45,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        dependenciesconnect.DependencyServiceSearchProcedure,
 		Method:      "POST",
 		Summary:     "Search the fleet dependency & vulnerability index",
-		Description: "Queries the fleet SBOM corpus with a free-text query plus structured filters (ecosystem, vulnerable-only, name glob). Answers 'which scenarios are exposed to CVE-X?' in one call. TEXT/structured mode is always available; MODE_AI degrades to TEXT until the semantic layer is wired.",
+		Description: "Queries the fleet SBOM corpus with a free-text query plus structured filters (ecosystem, vulnerable-only, name glob). Answers 'which scenarios are exposed to CVE-X?' in one call. TEXT/structured mode is always available; MODE_AI ranks by semantic similarity (Ollama embeddings + Qdrant) and degrades to TEXT when those backends are down. The response's mode_used reports which served the request.",
 		Category:    "dependencies",
 		Request: &module.Schema{
 			Type: "object",

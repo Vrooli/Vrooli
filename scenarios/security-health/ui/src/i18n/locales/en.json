@@ -92,6 +92,9 @@
     "textModeHint": "Text mode — semantic search is unavailable; structured filters still apply.",
     "indexedCount": "{{count}} dependencies indexed",
     "vulnerableCount": "{{count}} vulnerable",
+    "indexBuilding": "Index building… {{percent}}%",
+    "indexReady": "Index ready ({{percent}}%)",
+    "coverageTooltip": "AI semantic search is served only once the vector index reaches its coverage threshold; until then queries fall back to deterministic text search.",
     "lastReconcile": "Last reconcile:",
     "columns": {
       "scenario": "Scenario",

@@ -32,6 +32,9 @@ service DestinationsService {
   rpc UpdateDestination(UpdateDestinationRequest) returns (UpdateDestinationResponse);
   rpc DeleteDestination(DeleteDestinationRequest) returns (DeleteDestinationResponse);
   rpc GetDestinationUsage(GetDestinationUsageRequest) returns (GetDestinationUsageResponse);
+  rpc AnalyzeDestination(AnalyzeDestinationRequest) returns (AnalyzeDestinationResponse);
+  rpc PlanDestinationPreparation(PlanDestinationPreparationRequest) returns (PlanDestinationPreparationResponse);
+  rpc ExecuteDestinationPreparation(ExecuteDestinationPreparationRequest) returns (ExecuteDestinationPreparationResponse);
 }
 
 // BackendKind is the kopia repository backend.
@@ -61,6 +64,24 @@ enum UsageState {
   USAGE_STATE_NEAR = 2;
   // At or over the cap.
   USAGE_STATE_OVER = 3;
+}
+
+// ReadinessSeverity is the normalized outcome for destination readiness checks.
+enum ReadinessSeverity {
+  READINESS_SEVERITY_UNSPECIFIED = 0;
+  READINESS_SEVERITY_PASS = 1;
+  READINESS_SEVERITY_WARNING = 2;
+  READINESS_SEVERITY_FAIL = 3;
+  READINESS_SEVERITY_UNKNOWN = 4;
+}
+
+// PreparationAction describes a destination-preparation operation.
+enum PreparationAction {
+  PREPARATION_ACTION_UNSPECIFIED = 0;
+  PREPARATION_ACTION_CREATE_SUBDIR = 1;
+  PREPARATION_ACTION_RELABEL = 2;
+  PREPARATION_ACTION_CLEAR_DIRECTORY = 3;
+  PREPARATION_ACTION_FORMAT = 4;
 }
 
 // Destination is the canonical wire shape for a backup destination.
@@ -156,4 +177,92 @@ message GetDestinationUsageResponse {
   int64 cap_bytes = 2;
   UsageState usage_state = 3;
   CapPolicy cap_policy = 4;
+}
+
+// DestinationDeviceIdentity binds preparation plans to an observed device.
+message DestinationDeviceIdentity {
+  string device_path = 1;
+  string mountpoint = 2;
+  string label = 3;
+  string filesystem = 4;
+  int64 total_bytes = 5;
+  string model = 6;
+  string serial = 7;
+  string uuid = 8;
+}
+
+message DestinationReadinessCheck {
+  string code = 1;
+  ReadinessSeverity severity = 2;
+  string message = 3;
+}
+
+message DestinationReadinessReport {
+  string location = 1;
+  ReadinessSeverity overall_severity = 2;
+  DestinationDeviceIdentity identity = 3;
+  repeated DestinationReadinessCheck checks = 4;
+  string recommended_destination_location = 5;
+  string recommended_action = 6;
+}
+
+message AnalyzeDestinationRequest {
+  string location = 1 [(buf.validate.field).string.min_len = 1];
+  string proposed_subdir = 2;
+  int64 selected_target_bytes = 3 [(buf.validate.field).int64.gte = 0];
+  int32 retention_copies = 4 [(buf.validate.field).int32.gte = 0];
+  bool cross_platform_required = 5;
+}
+
+message AnalyzeDestinationResponse {
+  DestinationReadinessReport report = 1;
+}
+
+message DestinationPreparationPlan {
+  string id = 1;
+  PreparationAction action = 2;
+  string location = 3;
+  string target_path = 4;
+  DestinationDeviceIdentity identity = 5;
+  string desired_label = 6;
+  string desired_filesystem = 7;
+  bool requires_confirmation = 8;
+  bool destructive = 9;
+  string confirmation_phrase = 10;
+  bool supported = 11;
+  string unsupported_reason = 12;
+}
+
+message PlanDestinationPreparationRequest {
+  string location = 1 [(buf.validate.field).string.min_len = 1];
+  PreparationAction action = 2 [
+    (buf.validate.field).enum = {
+      defined_only: true,
+      not_in: [0]
+    }
+  ];
+  string desired_subdir = 3;
+  string desired_label = 4;
+  string desired_filesystem = 5;
+  DestinationDeviceIdentity expected_identity = 6;
+}
+
+message PlanDestinationPreparationResponse {
+  DestinationPreparationPlan plan = 1;
+}
+
+message ExecuteDestinationPreparationRequest {
+  DestinationPreparationPlan plan = 1;
+  string confirmation = 2;
+  // Omitted defaults to true server-side; false requests real execution and
+  // still requires every server-side guard to pass.
+  optional bool dry_run = 3;
+  bool acknowledge_data_loss = 4;
+}
+
+message ExecuteDestinationPreparationResponse {
+  bool dry_run = 1;
+  PreparationAction action = 2;
+  string location = 3;
+  DestinationReadinessReport post_action_report = 4;
 }

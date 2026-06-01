@@ -21,6 +21,13 @@ const ECOSYSTEM_LABEL: Record<Ecosystem, EcosystemLabelKey> = {
   [Ecosystem.NPM]: strings.dependencies.ecosystemNpm,
 };
 
+/** coveragePercent renders indexed/expected as an integer percent (0 when the
+ * corpus is empty), matching the CLI's `index: N/M (P%)` line. */
+function coveragePercent(indexed: number, expected: number): number {
+  if (expected <= 0) return 0;
+  return Math.round((indexed / expected) * 100);
+}
+
 interface SearchParams {
   query: string;
   ecosystem: Ecosystem;
@@ -77,6 +84,18 @@ export function DependenciesCard() {
         <div data-testid={selectors.dependencies.status} className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-app-muted-foreground">
           <span>{t(strings.dependencies.indexedCount, { count: statusQuery.data.indexedCount })}</span>
           <span>{t(strings.dependencies.vulnerableCount, { count: statusQuery.data.vulnerableCount })}</span>
+          <span
+            data-testid={selectors.dependencies.coverage}
+            title={t(strings.dependencies.coverageTooltip)}
+            className={statusQuery.data.indexReady ? undefined : "text-amber-300/80"}
+          >
+            {t(
+              statusQuery.data.indexReady
+                ? strings.dependencies.indexReady
+                : strings.dependencies.indexBuilding,
+              { percent: coveragePercent(statusQuery.data.indexedVectors, statusQuery.data.expectedVectors) },
+            )}
+          </span>
           {statusQuery.data.lastReconcileAt && (
             <span>
               {t(strings.dependencies.lastReconcile)}{" "}

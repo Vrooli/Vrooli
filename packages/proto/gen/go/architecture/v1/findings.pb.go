@@ -46,6 +46,14 @@ const (
 	// TIDINESS: tidiness-manager file/function quality (reserved — not
 	// wired in the unification plan, but a valid future ingest source).
 	FindingSource_FINDING_SOURCE_TIDINESS FindingSource = 7
+	// COVERAGE: test-genie `coverage` phase — parses per-target test
+	// coverage (Go profiles, Node LCOV) and flags under-threshold targets.
+	FindingSource_FINDING_SOURCE_COVERAGE FindingSource = 8
+	// SECURITY: test-genie `security` phase — delegates to the
+	// security-health scenario (secrets, Go SAST, Go vuln-DB, JS deps) and
+	// emits normalized findings whose critical/high → ERROR gates the
+	// ecosystem-manager R1 ("Safe") ladder rung.
+	FindingSource_FINDING_SOURCE_SECURITY FindingSource = 9
 )
 
 // Enum value maps for FindingSource.
@@ -59,6 +67,8 @@ var (
 		5: "FINDING_SOURCE_STANDARDS",
 		6: "FINDING_SOURCE_ARCHITECTURE",
 		7: "FINDING_SOURCE_TIDINESS",
+		8: "FINDING_SOURCE_COVERAGE",
+		9: "FINDING_SOURCE_SECURITY",
 	}
 	FindingSource_value = map[string]int32{
 		"FINDING_SOURCE_UNSPECIFIED":  0,
@@ -69,6 +79,8 @@ var (
 		"FINDING_SOURCE_STANDARDS":    5,
 		"FINDING_SOURCE_ARCHITECTURE": 6,
 		"FINDING_SOURCE_TIDINESS":     7,
+		"FINDING_SOURCE_COVERAGE":     8,
+		"FINDING_SOURCE_SECURITY":     9,
 	}
 )
 
@@ -585,7 +597,7 @@ const file_architecture_v1_findings_proto_rawDesc = "" +
 	"\bevidence\x18\n" +
 	" \x03(\v2 .vrooli.architecture.v1.EvidenceR\bevidence\x12M\n" +
 	"\x0fsuggested_fixes\x18\v \x03(\v2$.vrooli.architecture.v1.SuggestedFixR\x0esuggestedFixes\x12:\n" +
-	"\x06effort\x18\f \x01(\x0e2\".vrooli.architecture.v1.EffortHintR\x06effort*\xf1\x01\n" +
+	"\x06effort\x18\f \x01(\x0e2\".vrooli.architecture.v1.EffortHintR\x06effort*\xab\x02\n" +
 	"\rFindingSource\x12\x1e\n" +
 	"\x1aFINDING_SOURCE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18FINDING_SOURCE_STRUCTURE\x10\x01\x12\x16\n" +
@@ -594,7 +606,9 @@ const file_architecture_v1_findings_proto_rawDesc = "" +
 	"\x13FINDING_SOURCE_DOCS\x10\x04\x12\x1c\n" +
 	"\x18FINDING_SOURCE_STANDARDS\x10\x05\x12\x1f\n" +
 	"\x1bFINDING_SOURCE_ARCHITECTURE\x10\x06\x12\x1b\n" +
-	"\x17FINDING_SOURCE_TIDINESS\x10\a*\xa6\x01\n" +
+	"\x17FINDING_SOURCE_TIDINESS\x10\a\x12\x1b\n" +
+	"\x17FINDING_SOURCE_COVERAGE\x10\b\x12\x1b\n" +
+	"\x17FINDING_SOURCE_SECURITY\x10\t*\xa6\x01\n" +
 	"\x0fFindingSeverity\x12 \n" +
 	"\x1cFINDING_SEVERITY_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15FINDING_SEVERITY_INFO\x10\x01\x12\x1c\n" +

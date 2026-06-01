@@ -12,6 +12,7 @@ import (
 
 	"security-health/internal/clock"
 	"security-health/internal/dependencies"
+	"security-health/internal/dependencies/aisearch"
 	"security-health/internal/modules"
 	"security-health/internal/server"
 
@@ -115,11 +116,25 @@ func main() {
 	// The fleet Dependency & Vulnerability Intelligence service is shared by the
 	// dependencies (search/status) module, the reindex (async job) module, and
 	// the background reconcile loop, so all three see one corpus + job registry.
-	depService := dependencies.NewService(dependencies.Deps{
+	depDeps := dependencies.Deps{
 		RepoRoot: repoRoot,
 		Store:    dependencies.NewStore(db),
 		Clock:    clock.System{},
-	})
+	}
+	// The semantic index is the optional AI-ranking overlay (Ollama embeddings +
+	// Qdrant). NewFromConfig returns nil when disabled; only attach a non-nil
+	// index so the service's nil-check (TEXT-only) stays correct (avoid the
+	// typed-nil interface trap). When attached, search ranks MODE_AI by vector
+	// similarity and degrades to TEXT if the backends are down.
+	if idx := aisearch.NewFromConfig(aisearch.LoadConfigFromEnv()); idx != nil {
+		depDeps.Index = idx
+	}
+	depService := dependencies.NewService(depDeps)
+	// Create the Qdrant collection up front (idempotent, best-effort) so the
+	// first reconcile can populate it without a cold-start miss.
+	if err := depService.EnsureIndex(context.Background()); err != nil {
+		logger.Printf("[security-health] semantic index unavailable at startup (search on TEXT): %v", err)
+	}
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
@@ -181,4 +196,3 @@ func runReconcileLoop(ctx context.Context, svc *dependencies.Service, logger *lo
 		}
 	}
 }
-

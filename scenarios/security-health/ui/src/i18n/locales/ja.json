@@ -89,6 +89,9 @@
     "textModeHint": "テキストモード — セマンティック検索は利用できませんが、構造化フィルターは引き続き適用されます。",
     "indexedCount": "{{count}} 件の依存関係をインデックス済み",
     "vulnerableCount": "{{count}} 件が脆弱",
+    "indexBuilding": "インデックス構築中… {{percent}}%",
+    "indexReady": "インデックス準備完了 ({{percent}}%)",
+    "coverageTooltip": "AIセマンティック検索はベクトルインデックスがカバレッジしきい値に達した後にのみ提供されます。それまでクエリは決定論的なテキスト検索にフォールバックします。",
     "lastReconcile": "最終調整:",
     "columns": {
       "scenario": "シナリオ",

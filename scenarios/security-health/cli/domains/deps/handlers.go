@@ -77,11 +77,26 @@ func (h *handlers) status(ctx cliapp.RunContext) error {
 		Summary: []string{
 			fmt.Sprintf("available=%v ollama=%v qdrant=%v", m.GetAvailable(), m.GetOllama(), m.GetQdrant()),
 			fmt.Sprintf("indexed=%d vulnerable=%d", m.GetIndexedCount(), m.GetVulnerableCount()),
+			indexLine(m.GetIndexedVectors(), m.GetExpectedVectors(), m.GetIndexReady()),
 			fmt.Sprintf("last reconcile: %s — %s", nonEmpty(m.GetLastReconcileAt(), "never"), nonEmpty(m.GetLastReconcileOutcome(), "—")),
 		},
 		ResultsHeading: "Status",
 		Results:        []string{},
 	})
+}
+
+// indexLine renders the vector-index coverage: "index: 4123/4390 (94%) —
+// building" while the backfill populates, "ready" once AI mode is served.
+func indexLine(indexed, expected int32, ready bool) string {
+	state := "building"
+	if ready {
+		state = "ready"
+	}
+	pct := 0
+	if expected > 0 {
+		pct = int(float64(indexed) / float64(expected) * 100)
+	}
+	return fmt.Sprintf("index: %d/%d (%d%%) — %s", indexed, expected, pct, state)
 }
 
 func parseMode(raw string) dependenciesv1.Mode {

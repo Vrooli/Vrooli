@@ -38,6 +38,38 @@ describe("DependenciesCard", () => {
     await waitFor(() => expect(screen.getByTestId(selectors.dependencies.status)).toBeInTheDocument());
   });
 
+  it("renders the index coverage line in both building and ready states", async () => {
+    // Building: ready=false → the coverage span carries the amber building class.
+    mockStatus.mockResolvedValue(
+      create(StatusResponseSchema, {
+        available: true,
+        indexedVectors: 4123,
+        expectedVectors: 4390,
+        indexReady: false,
+      }),
+    );
+    const { unmount } = renderWithProviders(<DependenciesCard />);
+    const building = await screen.findByTestId(selectors.dependencies.coverage);
+    expect(building).toBeInTheDocument();
+    expect(building.className).toContain("amber");
+    unmount();
+    cleanup();
+
+    // Ready: ready=true → no building class.
+    mockStatus.mockResolvedValue(
+      create(StatusResponseSchema, {
+        available: true,
+        indexedVectors: 4390,
+        expectedVectors: 4390,
+        indexReady: true,
+      }),
+    );
+    renderWithProviders(<DependenciesCard />);
+    const ready = await screen.findByTestId(selectors.dependencies.coverage);
+    expect(ready).toBeInTheDocument();
+    expect(ready.className).not.toContain("amber");
+  });
+
   it("runs a search and renders vulnerable results plus the text-mode hint", async () => {
     mockStatus.mockResolvedValue(create(StatusResponseSchema, { available: true, indexedCount: 1, vulnerableCount: 1 }));
     mockSearch.mockResolvedValue(

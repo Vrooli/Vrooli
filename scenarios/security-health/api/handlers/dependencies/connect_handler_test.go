@@ -58,12 +58,18 @@ func TestSearch_MapsFiltersAndRecords(t *testing.T) {
 }
 
 func TestStatus_Maps(t *testing.T) {
-	h := NewConnectHandler(Deps{Service: &stubSearcher{status: depdomain.Status{Available: true, IndexedCount: 7, VulnerableCount: 2, LastReconcileAt: "t"}}})
+	h := NewConnectHandler(Deps{Service: &stubSearcher{status: depdomain.Status{
+		Available: true, IndexedCount: 7, VulnerableCount: 2, LastReconcileAt: "t",
+		IndexedVectors: 4123, ExpectedVectors: 4390, IndexReady: false,
+	}}})
 	resp, err := h.Status(context.Background(), connect.NewRequest(&dependenciesv1.StatusRequest{}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !resp.Msg.GetAvailable() || resp.Msg.GetIndexedCount() != 7 || resp.Msg.GetVulnerableCount() != 2 {
 		t.Errorf("status mapping wrong: %+v", resp.Msg)
+	}
+	if resp.Msg.GetIndexedVectors() != 4123 || resp.Msg.GetExpectedVectors() != 4390 || resp.Msg.GetIndexReady() {
+		t.Errorf("coverage fields not mapped: %+v", resp.Msg)
 	}
 }

@@ -84,6 +84,14 @@ type Status struct {
 	VulnerableCount      int
 	LastReconcileAt      string
 	LastReconcileOutcome string
+	// Vector-index coverage (Plan B). IndexedVectors / ExpectedVectors. These
+	// describe the Qdrant vector index specifically; IndexedCount stays the
+	// SQLite row count.
+	IndexedVectors  int
+	ExpectedVectors int
+	// IndexReady is true when coverage ≥ threshold, i.e. AI mode is served;
+	// false ⇒ search degrades to TEXT until the backfill catches up.
+	IndexReady bool
 }
 
 const (

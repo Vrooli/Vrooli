@@ -63,6 +63,14 @@ enum FindingSource {
   // TIDINESS: tidiness-manager file/function quality (reserved — not
   // wired in the unification plan, but a valid future ingest source).
   FINDING_SOURCE_TIDINESS = 7;
+  // COVERAGE: test-genie `coverage` phase — parses per-target test
+  // coverage (Go profiles, Node LCOV) and flags under-threshold targets.
+  FINDING_SOURCE_COVERAGE = 8;
+  // SECURITY: test-genie `security` phase — delegates to the
+  // security-health scenario (secrets, Go SAST, Go vuln-DB, JS deps) and
+  // emits normalized findings whose critical/high → ERROR gates the
+  // ecosystem-manager R1 ("Safe") ladder rung.
+  FINDING_SOURCE_SECURITY = 9;
 }
 
 // FindingSeverity is the normalized severity ladder. Every producer maps

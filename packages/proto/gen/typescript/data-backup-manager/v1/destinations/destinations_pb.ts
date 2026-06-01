@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file data-backup-manager/v1/destinations/destinations.proto.
  */
 export const file_data_backup_manager_v1_destinations_destinations: GenFile = /*@__PURE__*/
-  fileDesc("CjZkYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL2Rlc3RpbmF0aW9ucy9kZXN0aW5hdGlvbnMucHJvdG8SKnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRlc3RpbmF0aW9ucyLaAwoLRGVzdGluYXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRJNCgxiYWNrZW5kX2tpbmQYAyABKA4yNy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuQmFja2VuZEtpbmQSEAoIbG9jYXRpb24YBCABKAkSEQoJY2FwX2J5dGVzGAUgASgDEkkKCmNhcF9wb2xpY3kYBiABKA4yNS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuQ2FwUG9saWN5EhwKFGVuY3J5cHRpb25fYWxnb3JpdGhtGAcgASgJEhIKCnNlY3JldF9yZWYYCCABKAkSEwoLdXNhZ2VfYnl0ZXMYCSABKAMSSwoLdXNhZ2Vfc3RhdGUYCiABKA4yNi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuVXNhZ2VTdGF0ZRIuCgpjcmVhdGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKOAgoYQ3JlYXRlRGVzdGluYXRpb25SZXF1ZXN0EhUKBG5hbWUYASABKAlCB7pIBHICEAESWQoMYmFja2VuZF9raW5kGAIgASgOMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkJhY2tlbmRLaW5kQgq6SAeCAQQQASAAEhkKCGxvY2F0aW9uGAMgASgJQge6SARyAhABEhoKCWNhcF9ieXRlcxgEIAEoA0IHukgEIgIoABJJCgpjYXBfcG9saWN5GAUgASgOMjUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkNhcFBvbGljeSJpChlDcmVhdGVEZXN0aW5hdGlvblJlc3BvbnNlEkwKC2Rlc3RpbmF0aW9uGAEgASgLMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkRlc3RpbmF0aW9uIiwKFUdldERlc3RpbmF0aW9uUmVxdWVzdBITCgJpZBgBIAEoCUIHukgEcgIQASJmChZHZXREZXN0aW5hdGlvblJlc3BvbnNlEkwKC2Rlc3RpbmF0aW9uGAEgASgLMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkRlc3RpbmF0aW9uIkkKF0xpc3REZXN0aW5hdGlvbnNSZXF1ZXN0EhoKCXBhZ2Vfc2l6ZRgBIAEoBUIHukgEGgIoABISCgpwYWdlX3Rva2VuGAIgASgJIoIBChhMaXN0RGVzdGluYXRpb25zUmVzcG9uc2USTQoMZGVzdGluYXRpb25zGAEgAygLMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkRlc3RpbmF0aW9uEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSKWAQoYVXBkYXRlRGVzdGluYXRpb25SZXF1ZXN0EhMKAmlkGAEgASgJQge6SARyAhABEhoKCWNhcF9ieXRlcxgCIAEoA0IHukgEIgIoABJJCgpjYXBfcG9saWN5GAMgASgOMjUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkNhcFBvbGljeSJpChlVcGRhdGVEZXN0aW5hdGlvblJlc3BvbnNlEkwKC2Rlc3RpbmF0aW9uGAEgASgLMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkRlc3RpbmF0aW9uIkoKGERlbGV0ZURlc3RpbmF0aW9uUmVxdWVzdBITCgJpZBgBIAEoCUIHukgEcgIQARIZChFkZWxldGVfcmVwb3NpdG9yeRgCIAEoCCIsChlEZWxldGVEZXN0aW5hdGlvblJlc3BvbnNlEg8KB3JlbW92ZWQYASABKAgiMQoaR2V0RGVzdGluYXRpb25Vc2FnZVJlcXVlc3QSEwoCaWQYASABKAlCB7pIBHICEAEi3QEKG0dldERlc3RpbmF0aW9uVXNhZ2VSZXNwb25zZRITCgt1c2FnZV9ieXRlcxgBIAEoAxIRCgljYXBfYnl0ZXMYAiABKAMSSwoLdXNhZ2Vfc3RhdGUYAyABKA4yNi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuVXNhZ2VTdGF0ZRJJCgpjYXBfcG9saWN5GAQgASgOMjUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkNhcFBvbGljeSpdCgtCYWNrZW5kS2luZBIcChhCQUNLRU5EX0tJTkRfVU5TUEVDSUZJRUQQABIbChdCQUNLRU5EX0tJTkRfRklMRVNZU1RFTRABEhMKD0JBQ0tFTkRfS0lORF9TMxACKl4KCUNhcFBvbGljeRIaChZDQVBfUE9MSUNZX1VOU1BFQ0lGSUVEEAASGgoWQ0FQX1BPTElDWV9BTEVSVF9CTE9DSxABEhkKFUNBUF9QT0xJQ1lfQUxFUlRfT05MWRACKm0KClVzYWdlU3RhdGUSGwoXVVNBR0VfU1RBVEVfVU5TUEVDSUZJRUQQABIWChJVU0FHRV9TVEFURV9XSVRISU4QARIUChBVU0FHRV9TVEFURV9ORUFSEAISFAoQVVNBR0VfU1RBVEVfT1ZFUhADMuEHChNEZXN0aW5hdGlvbnNTZXJ2aWNlEqABChFDcmVhdGVEZXN0aW5hdGlvbhJELnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRlc3RpbmF0aW9ucy5DcmVhdGVEZXN0aW5hdGlvblJlcXVlc3QaRS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuQ3JlYXRlRGVzdGluYXRpb25SZXNwb25zZRKXAQoOR2V0RGVzdGluYXRpb24SQS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuR2V0RGVzdGluYXRpb25SZXF1ZXN0GkIudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkdldERlc3RpbmF0aW9uUmVzcG9uc2USnQEKEExpc3REZXN0aW5hdGlvbnMSQy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuTGlzdERlc3RpbmF0aW9uc1JlcXVlc3QaRC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuTGlzdERlc3RpbmF0aW9uc1Jlc3BvbnNlEqABChFVcGRhdGVEZXN0aW5hdGlvbhJELnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRlc3RpbmF0aW9ucy5VcGRhdGVEZXN0aW5hdGlvblJlcXVlc3QaRS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuVXBkYXRlRGVzdGluYXRpb25SZXNwb25zZRKgAQoRRGVsZXRlRGVzdGluYXRpb24SRC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuRGVsZXRlRGVzdGluYXRpb25SZXF1ZXN0GkUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkRlbGV0ZURlc3RpbmF0aW9uUmVzcG9uc2USpgEKE0dldERlc3RpbmF0aW9uVXNhZ2USRi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuR2V0RGVzdGluYXRpb25Vc2FnZVJlcXVlc3QaRy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuR2V0RGVzdGluYXRpb25Vc2FnZVJlc3BvbnNlQmRaYmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vZGF0YS1iYWNrdXAtbWFuYWdlci92MS9kZXN0aW5hdGlvbnM7ZGVzdGluYXRpb25zX3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CjZkYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL2Rlc3RpbmF0aW9ucy9kZXN0aW5hdGlvbnMucHJvdG8SKnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRlc3RpbmF0aW9ucyLaAwoLRGVzdGluYXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRJNCgxiYWNrZW5kX2tpbmQYAyABKA4yNy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuQmFja2VuZEtpbmQSEAoIbG9jYXRpb24YBCABKAkSEQoJY2FwX2J5dGVzGAUgASgDEkkKCmNhcF9wb2xpY3kYBiABKA4yNS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuQ2FwUG9saWN5EhwKFGVuY3J5cHRpb25fYWxnb3JpdGhtGAcgASgJEhIKCnNlY3JldF9yZWYYCCABKAkSEwoLdXNhZ2VfYnl0ZXMYCSABKAMSSwoLdXNhZ2Vfc3RhdGUYCiABKA4yNi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuVXNhZ2VTdGF0ZRIuCgpjcmVhdGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKOAgoYQ3JlYXRlRGVzdGluYXRpb25SZXF1ZXN0EhUKBG5hbWUYASABKAlCB7pIBHICEAESWQoMYmFja2VuZF9raW5kGAIgASgOMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkJhY2tlbmRLaW5kQgq6SAeCAQQQASAAEhkKCGxvY2F0aW9uGAMgASgJQge6SARyAhABEhoKCWNhcF9ieXRlcxgEIAEoA0IHukgEIgIoABJJCgpjYXBfcG9saWN5GAUgASgOMjUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkNhcFBvbGljeSJpChlDcmVhdGVEZXN0aW5hdGlvblJlc3BvbnNlEkwKC2Rlc3RpbmF0aW9uGAEgASgLMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkRlc3RpbmF0aW9uIiwKFUdldERlc3RpbmF0aW9uUmVxdWVzdBITCgJpZBgBIAEoCUIHukgEcgIQASJmChZHZXREZXN0aW5hdGlvblJlc3BvbnNlEkwKC2Rlc3RpbmF0aW9uGAEgASgLMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkRlc3RpbmF0aW9uIkkKF0xpc3REZXN0aW5hdGlvbnNSZXF1ZXN0EhoKCXBhZ2Vfc2l6ZRgBIAEoBUIHukgEGgIoABISCgpwYWdlX3Rva2VuGAIgASgJIoIBChhMaXN0RGVzdGluYXRpb25zUmVzcG9uc2USTQoMZGVzdGluYXRpb25zGAEgAygLMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkRlc3RpbmF0aW9uEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSKWAQoYVXBkYXRlRGVzdGluYXRpb25SZXF1ZXN0EhMKAmlkGAEgASgJQge6SARyAhABEhoKCWNhcF9ieXRlcxgCIAEoA0IHukgEIgIoABJJCgpjYXBfcG9saWN5GAMgASgOMjUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkNhcFBvbGljeSJpChlVcGRhdGVEZXN0aW5hdGlvblJlc3BvbnNlEkwKC2Rlc3RpbmF0aW9uGAEgASgLMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkRlc3RpbmF0aW9uIkoKGERlbGV0ZURlc3RpbmF0aW9uUmVxdWVzdBITCgJpZBgBIAEoCUIHukgEcgIQARIZChFkZWxldGVfcmVwb3NpdG9yeRgCIAEoCCIsChlEZWxldGVEZXN0aW5hdGlvblJlc3BvbnNlEg8KB3JlbW92ZWQYASABKAgiMQoaR2V0RGVzdGluYXRpb25Vc2FnZVJlcXVlc3QSEwoCaWQYASABKAlCB7pIBHICEAEi3QEKG0dldERlc3RpbmF0aW9uVXNhZ2VSZXNwb25zZRITCgt1c2FnZV9ieXRlcxgBIAEoAxIRCgljYXBfYnl0ZXMYAiABKAMSSwoLdXNhZ2Vfc3RhdGUYAyABKA4yNi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuVXNhZ2VTdGF0ZRJJCgpjYXBfcG9saWN5GAQgASgOMjUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkNhcFBvbGljeSKpAQoZRGVzdGluYXRpb25EZXZpY2VJZGVudGl0eRITCgtkZXZpY2VfcGF0aBgBIAEoCRISCgptb3VudHBvaW50GAIgASgJEg0KBWxhYmVsGAMgASgJEhIKCmZpbGVzeXN0ZW0YBCABKAkSEwoLdG90YWxfYnl0ZXMYBSABKAMSDQoFbW9kZWwYBiABKAkSDgoGc2VyaWFsGAcgASgJEgwKBHV1aWQYCCABKAkiiwEKGURlc3RpbmF0aW9uUmVhZGluZXNzQ2hlY2sSDAoEY29kZRgBIAEoCRJPCghzZXZlcml0eRgCIAEoDjI9LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRlc3RpbmF0aW9ucy5SZWFkaW5lc3NTZXZlcml0eRIPCgdtZXNzYWdlGAMgASgJIv0CChpEZXN0aW5hdGlvblJlYWRpbmVzc1JlcG9ydBIQCghsb2NhdGlvbhgBIAEoCRJXChBvdmVyYWxsX3NldmVyaXR5GAIgASgOMj0udnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLlJlYWRpbmVzc1NldmVyaXR5ElcKCGlkZW50aXR5GAMgASgLMkUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkRlc3RpbmF0aW9uRGV2aWNlSWRlbnRpdHkSVQoGY2hlY2tzGAQgAygLMkUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkRlc3RpbmF0aW9uUmVhZGluZXNzQ2hlY2sSKAogcmVjb21tZW5kZWRfZGVzdGluYXRpb25fbG9jYXRpb24YBSABKAkSGgoScmVjb21tZW5kZWRfYWN0aW9uGAYgASgJIrsBChlBbmFseXplRGVzdGluYXRpb25SZXF1ZXN0EhkKCGxvY2F0aW9uGAEgASgJQge6SARyAhABEhcKD3Byb3Bvc2VkX3N1YmRpchgCIAEoCRImChVzZWxlY3RlZF90YXJnZXRfYnl0ZXMYAyABKANCB7pIBCICKAASIQoQcmV0ZW50aW9uX2NvcGllcxgEIAEoBUIHukgEGgIoABIfChdjcm9zc19wbGF0Zm9ybV9yZXF1aXJlZBgFIAEoCCJ0ChpBbmFseXplRGVzdGluYXRpb25SZXNwb25zZRJWCgZyZXBvcnQYASABKAsyRi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuRGVzdGluYXRpb25SZWFkaW5lc3NSZXBvcnQiqgMKGkRlc3RpbmF0aW9uUHJlcGFyYXRpb25QbGFuEgoKAmlkGAEgASgJEk0KBmFjdGlvbhgCIAEoDjI9LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRlc3RpbmF0aW9ucy5QcmVwYXJhdGlvbkFjdGlvbhIQCghsb2NhdGlvbhgDIAEoCRITCgt0YXJnZXRfcGF0aBgEIAEoCRJXCghpZGVudGl0eRgFIAEoCzJFLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRlc3RpbmF0aW9ucy5EZXN0aW5hdGlvbkRldmljZUlkZW50aXR5EhUKDWRlc2lyZWRfbGFiZWwYBiABKAkSGgoSZGVzaXJlZF9maWxlc3lzdGVtGAcgASgJEh0KFXJlcXVpcmVzX2NvbmZpcm1hdGlvbhgIIAEoCBITCgtkZXN0cnVjdGl2ZRgJIAEoCBIbChNjb25maXJtYXRpb25fcGhyYXNlGAogASgJEhEKCXN1cHBvcnRlZBgLIAEoCBIaChJ1bnN1cHBvcnRlZF9yZWFzb24YDCABKAkixgIKIVBsYW5EZXN0aW5hdGlvblByZXBhcmF0aW9uUmVxdWVzdBIZCghsb2NhdGlvbhgBIAEoCUIHukgEcgIQARJZCgZhY3Rpb24YAiABKA4yPS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuUHJlcGFyYXRpb25BY3Rpb25CCrpIB4IBBBABIAASFgoOZGVzaXJlZF9zdWJkaXIYAyABKAkSFQoNZGVzaXJlZF9sYWJlbBgEIAEoCRIaChJkZXNpcmVkX2ZpbGVzeXN0ZW0YBSABKAkSYAoRZXhwZWN0ZWRfaWRlbnRpdHkYBiABKAsyRS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuRGVzdGluYXRpb25EZXZpY2VJZGVudGl0eSJ6CiJQbGFuRGVzdGluYXRpb25QcmVwYXJhdGlvblJlc3BvbnNlElQKBHBsYW4YASABKAsyRi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuRGVzdGluYXRpb25QcmVwYXJhdGlvblBsYW4i0wEKJEV4ZWN1dGVEZXN0aW5hdGlvblByZXBhcmF0aW9uUmVxdWVzdBJUCgRwbGFuGAEgASgLMkYudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkRlc3RpbmF0aW9uUHJlcGFyYXRpb25QbGFuEhQKDGNvbmZpcm1hdGlvbhgCIAEoCRIUCgdkcnlfcnVuGAMgASgISACIAQESHQoVYWNrbm93bGVkZ2VfZGF0YV9sb3NzGAQgASgIQgoKCF9kcnlfcnVuIv0BCiVFeGVjdXRlRGVzdGluYXRpb25QcmVwYXJhdGlvblJlc3BvbnNlEg8KB2RyeV9ydW4YASABKAgSTQoGYWN0aW9uGAIgASgOMj0udnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLlByZXBhcmF0aW9uQWN0aW9uEhAKCGxvY2F0aW9uGAMgASgJEmIKEnBvc3RfYWN0aW9uX3JlcG9ydBgEIAEoCzJGLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRlc3RpbmF0aW9ucy5EZXN0aW5hdGlvblJlYWRpbmVzc1JlcG9ydCpdCgtCYWNrZW5kS2luZBIcChhCQUNLRU5EX0tJTkRfVU5TUEVDSUZJRUQQABIbChdCQUNLRU5EX0tJTkRfRklMRVNZU1RFTRABEhMKD0JBQ0tFTkRfS0lORF9TMxACKl4KCUNhcFBvbGljeRIaChZDQVBfUE9MSUNZX1VOU1BFQ0lGSUVEEAASGgoWQ0FQX1BPTElDWV9BTEVSVF9CTE9DSxABEhkKFUNBUF9QT0xJQ1lfQUxFUlRfT05MWRACKm0KClVzYWdlU3RhdGUSGwoXVVNBR0VfU1RBVEVfVU5TUEVDSUZJRUQQABIWChJVU0FHRV9TVEFURV9XSVRISU4QARIUChBVU0FHRV9TVEFURV9ORUFSEAISFAoQVVNBR0VfU1RBVEVfT1ZFUhADKrEBChFSZWFkaW5lc3NTZXZlcml0eRIiCh5SRUFESU5FU1NfU0VWRVJJVFlfVU5TUEVDSUZJRUQQABIbChdSRUFESU5FU1NfU0VWRVJJVFlfUEFTUxABEh4KGlJFQURJTkVTU19TRVZFUklUWV9XQVJOSU5HEAISGwoXUkVBRElORVNTX1NFVkVSSVRZX0ZBSUwQAxIeChpSRUFESU5FU1NfU0VWRVJJVFlfVU5LTk9XThAEKsQBChFQcmVwYXJhdGlvbkFjdGlvbhIiCh5QUkVQQVJBVElPTl9BQ1RJT05fVU5TUEVDSUZJRUQQABIkCiBQUkVQQVJBVElPTl9BQ1RJT05fQ1JFQVRFX1NVQkRJUhABEh4KGlBSRVBBUkFUSU9OX0FDVElPTl9SRUxBQkVMEAISJgoiUFJFUEFSQVRJT05fQUNUSU9OX0NMRUFSX0RJUkVDVE9SWRADEh0KGVBSRVBBUkFUSU9OX0FDVElPTl9GT1JNQVQQBDKMDAoTRGVzdGluYXRpb25zU2VydmljZRKgAQoRQ3JlYXRlRGVzdGluYXRpb24SRC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuQ3JlYXRlRGVzdGluYXRpb25SZXF1ZXN0GkUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkNyZWF0ZURlc3RpbmF0aW9uUmVzcG9uc2USlwEKDkdldERlc3RpbmF0aW9uEkEudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkdldERlc3RpbmF0aW9uUmVxdWVzdBpCLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRlc3RpbmF0aW9ucy5HZXREZXN0aW5hdGlvblJlc3BvbnNlEp0BChBMaXN0RGVzdGluYXRpb25zEkMudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkxpc3REZXN0aW5hdGlvbnNSZXF1ZXN0GkQudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkxpc3REZXN0aW5hdGlvbnNSZXNwb25zZRKgAQoRVXBkYXRlRGVzdGluYXRpb24SRC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuVXBkYXRlRGVzdGluYXRpb25SZXF1ZXN0GkUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLlVwZGF0ZURlc3RpbmF0aW9uUmVzcG9uc2USoAEKEURlbGV0ZURlc3RpbmF0aW9uEkQudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkRlbGV0ZURlc3RpbmF0aW9uUmVxdWVzdBpFLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRlc3RpbmF0aW9ucy5EZWxldGVEZXN0aW5hdGlvblJlc3BvbnNlEqYBChNHZXREZXN0aW5hdGlvblVzYWdlEkYudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkdldERlc3RpbmF0aW9uVXNhZ2VSZXF1ZXN0GkcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkdldERlc3RpbmF0aW9uVXNhZ2VSZXNwb25zZRKjAQoSQW5hbHl6ZURlc3RpbmF0aW9uEkUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLkFuYWx5emVEZXN0aW5hdGlvblJlcXVlc3QaRi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuQW5hbHl6ZURlc3RpbmF0aW9uUmVzcG9uc2USuwEKGlBsYW5EZXN0aW5hdGlvblByZXBhcmF0aW9uEk0udnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZGVzdGluYXRpb25zLlBsYW5EZXN0aW5hdGlvblByZXBhcmF0aW9uUmVxdWVzdBpOLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRlc3RpbmF0aW9ucy5QbGFuRGVzdGluYXRpb25QcmVwYXJhdGlvblJlc3BvbnNlEsQBCh1FeGVjdXRlRGVzdGluYXRpb25QcmVwYXJhdGlvbhJQLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRlc3RpbmF0aW9ucy5FeGVjdXRlRGVzdGluYXRpb25QcmVwYXJhdGlvblJlcXVlc3QaUS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kZXN0aW5hdGlvbnMuRXhlY3V0ZURlc3RpbmF0aW9uUHJlcGFyYXRpb25SZXNwb25zZUJkWmJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2RhdGEtYmFja3VwLW1hbmFnZXIvdjEvZGVzdGluYXRpb25zO2Rlc3RpbmF0aW9uc192MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * Destination is the canonical wire shape for a backup destination.
@@ -378,6 +378,381 @@ export const GetDestinationUsageResponseSchema: GenMessage<GetDestinationUsageRe
   messageDesc(file_data_backup_manager_v1_destinations_destinations, 12);
 
 /**
+ * DestinationDeviceIdentity binds preparation plans to an observed device.
+ *
+ * @generated from message vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+ */
+export type DestinationDeviceIdentity = Message<"vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity"> & {
+  /**
+   * @generated from field: string device_path = 1;
+   */
+  devicePath: string;
+
+  /**
+   * @generated from field: string mountpoint = 2;
+   */
+  mountpoint: string;
+
+  /**
+   * @generated from field: string label = 3;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string filesystem = 4;
+   */
+  filesystem: string;
+
+  /**
+   * @generated from field: int64 total_bytes = 5;
+   */
+  totalBytes: bigint;
+
+  /**
+   * @generated from field: string model = 6;
+   */
+  model: string;
+
+  /**
+   * @generated from field: string serial = 7;
+   */
+  serial: string;
+
+  /**
+   * @generated from field: string uuid = 8;
+   */
+  uuid: string;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity.
+ * Use `create(DestinationDeviceIdentitySchema)` to create a new message.
+ */
+export const DestinationDeviceIdentitySchema: GenMessage<DestinationDeviceIdentity> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_destinations_destinations, 13);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck
+ */
+export type DestinationReadinessCheck = Message<"vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck"> & {
+  /**
+   * @generated from field: string code = 1;
+   */
+  code: string;
+
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.destinations.ReadinessSeverity severity = 2;
+   */
+  severity: ReadinessSeverity;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck.
+ * Use `create(DestinationReadinessCheckSchema)` to create a new message.
+ */
+export const DestinationReadinessCheckSchema: GenMessage<DestinationReadinessCheck> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_destinations_destinations, 14);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport
+ */
+export type DestinationReadinessReport = Message<"vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport"> & {
+  /**
+   * @generated from field: string location = 1;
+   */
+  location: string;
+
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.destinations.ReadinessSeverity overall_severity = 2;
+   */
+  overallSeverity: ReadinessSeverity;
+
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity identity = 3;
+   */
+  identity?: DestinationDeviceIdentity | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck checks = 4;
+   */
+  checks: DestinationReadinessCheck[];
+
+  /**
+   * @generated from field: string recommended_destination_location = 5;
+   */
+  recommendedDestinationLocation: string;
+
+  /**
+   * @generated from field: string recommended_action = 6;
+   */
+  recommendedAction: string;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.
+ * Use `create(DestinationReadinessReportSchema)` to create a new message.
+ */
+export const DestinationReadinessReportSchema: GenMessage<DestinationReadinessReport> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_destinations_destinations, 15);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationRequest
+ */
+export type AnalyzeDestinationRequest = Message<"vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationRequest"> & {
+  /**
+   * @generated from field: string location = 1;
+   */
+  location: string;
+
+  /**
+   * @generated from field: string proposed_subdir = 2;
+   */
+  proposedSubdir: string;
+
+  /**
+   * @generated from field: int64 selected_target_bytes = 3;
+   */
+  selectedTargetBytes: bigint;
+
+  /**
+   * @generated from field: int32 retention_copies = 4;
+   */
+  retentionCopies: number;
+
+  /**
+   * @generated from field: bool cross_platform_required = 5;
+   */
+  crossPlatformRequired: boolean;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationRequest.
+ * Use `create(AnalyzeDestinationRequestSchema)` to create a new message.
+ */
+export const AnalyzeDestinationRequestSchema: GenMessage<AnalyzeDestinationRequest> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_destinations_destinations, 16);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse
+ */
+export type AnalyzeDestinationResponse = Message<"vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse"> & {
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport report = 1;
+   */
+  report?: DestinationReadinessReport | undefined;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse.
+ * Use `create(AnalyzeDestinationResponseSchema)` to create a new message.
+ */
+export const AnalyzeDestinationResponseSchema: GenMessage<AnalyzeDestinationResponse> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_destinations_destinations, 17);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
+ */
+export type DestinationPreparationPlan = Message<"vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.destinations.PreparationAction action = 2;
+   */
+  action: PreparationAction;
+
+  /**
+   * @generated from field: string location = 3;
+   */
+  location: string;
+
+  /**
+   * @generated from field: string target_path = 4;
+   */
+  targetPath: string;
+
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity identity = 5;
+   */
+  identity?: DestinationDeviceIdentity | undefined;
+
+  /**
+   * @generated from field: string desired_label = 6;
+   */
+  desiredLabel: string;
+
+  /**
+   * @generated from field: string desired_filesystem = 7;
+   */
+  desiredFilesystem: string;
+
+  /**
+   * @generated from field: bool requires_confirmation = 8;
+   */
+  requiresConfirmation: boolean;
+
+  /**
+   * @generated from field: bool destructive = 9;
+   */
+  destructive: boolean;
+
+  /**
+   * @generated from field: string confirmation_phrase = 10;
+   */
+  confirmationPhrase: string;
+
+  /**
+   * @generated from field: bool supported = 11;
+   */
+  supported: boolean;
+
+  /**
+   * @generated from field: string unsupported_reason = 12;
+   */
+  unsupportedReason: string;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan.
+ * Use `create(DestinationPreparationPlanSchema)` to create a new message.
+ */
+export const DestinationPreparationPlanSchema: GenMessage<DestinationPreparationPlan> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_destinations_destinations, 18);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest
+ */
+export type PlanDestinationPreparationRequest = Message<"vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest"> & {
+  /**
+   * @generated from field: string location = 1;
+   */
+  location: string;
+
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.destinations.PreparationAction action = 2;
+   */
+  action: PreparationAction;
+
+  /**
+   * @generated from field: string desired_subdir = 3;
+   */
+  desiredSubdir: string;
+
+  /**
+   * @generated from field: string desired_label = 4;
+   */
+  desiredLabel: string;
+
+  /**
+   * @generated from field: string desired_filesystem = 5;
+   */
+  desiredFilesystem: string;
+
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity expected_identity = 6;
+   */
+  expectedIdentity?: DestinationDeviceIdentity | undefined;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest.
+ * Use `create(PlanDestinationPreparationRequestSchema)` to create a new message.
+ */
+export const PlanDestinationPreparationRequestSchema: GenMessage<PlanDestinationPreparationRequest> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_destinations_destinations, 19);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse
+ */
+export type PlanDestinationPreparationResponse = Message<"vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse"> & {
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan plan = 1;
+   */
+  plan?: DestinationPreparationPlan | undefined;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse.
+ * Use `create(PlanDestinationPreparationResponseSchema)` to create a new message.
+ */
+export const PlanDestinationPreparationResponseSchema: GenMessage<PlanDestinationPreparationResponse> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_destinations_destinations, 20);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest
+ */
+export type ExecuteDestinationPreparationRequest = Message<"vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest"> & {
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan plan = 1;
+   */
+  plan?: DestinationPreparationPlan | undefined;
+
+  /**
+   * @generated from field: string confirmation = 2;
+   */
+  confirmation: string;
+
+  /**
+   * Omitted defaults to true server-side; false requests real execution and
+   * still requires every server-side guard to pass.
+   *
+   * @generated from field: optional bool dry_run = 3;
+   */
+  dryRun?: boolean | undefined;
+
+  /**
+   * @generated from field: bool acknowledge_data_loss = 4;
+   */
+  acknowledgeDataLoss: boolean;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest.
+ * Use `create(ExecuteDestinationPreparationRequestSchema)` to create a new message.
+ */
+export const ExecuteDestinationPreparationRequestSchema: GenMessage<ExecuteDestinationPreparationRequest> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_destinations_destinations, 21);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse
+ */
+export type ExecuteDestinationPreparationResponse = Message<"vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse"> & {
+  /**
+   * @generated from field: bool dry_run = 1;
+   */
+  dryRun: boolean;
+
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.destinations.PreparationAction action = 2;
+   */
+  action: PreparationAction;
+
+  /**
+   * @generated from field: string location = 3;
+   */
+  location: string;
+
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport post_action_report = 4;
+   */
+  postActionReport?: DestinationReadinessReport | undefined;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse.
+ * Use `create(ExecuteDestinationPreparationResponseSchema)` to create a new message.
+ */
+export const ExecuteDestinationPreparationResponseSchema: GenMessage<ExecuteDestinationPreparationResponse> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_destinations_destinations, 22);
+
+/**
  * BackendKind is the kopia repository backend.
  *
  * @generated from enum vrooli.data_backup_manager.v1.destinations.BackendKind
@@ -481,6 +856,82 @@ export const UsageStateSchema: GenEnum<UsageState> = /*@__PURE__*/
   enumDesc(file_data_backup_manager_v1_destinations_destinations, 2);
 
 /**
+ * ReadinessSeverity is the normalized outcome for destination readiness checks.
+ *
+ * @generated from enum vrooli.data_backup_manager.v1.destinations.ReadinessSeverity
+ */
+export enum ReadinessSeverity {
+  /**
+   * @generated from enum value: READINESS_SEVERITY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: READINESS_SEVERITY_PASS = 1;
+   */
+  PASS = 1,
+
+  /**
+   * @generated from enum value: READINESS_SEVERITY_WARNING = 2;
+   */
+  WARNING = 2,
+
+  /**
+   * @generated from enum value: READINESS_SEVERITY_FAIL = 3;
+   */
+  FAIL = 3,
+
+  /**
+   * @generated from enum value: READINESS_SEVERITY_UNKNOWN = 4;
+   */
+  UNKNOWN = 4,
+}
+
+/**
+ * Describes the enum vrooli.data_backup_manager.v1.destinations.ReadinessSeverity.
+ */
+export const ReadinessSeveritySchema: GenEnum<ReadinessSeverity> = /*@__PURE__*/
+  enumDesc(file_data_backup_manager_v1_destinations_destinations, 3);
+
+/**
+ * PreparationAction describes a destination-preparation operation.
+ *
+ * @generated from enum vrooli.data_backup_manager.v1.destinations.PreparationAction
+ */
+export enum PreparationAction {
+  /**
+   * @generated from enum value: PREPARATION_ACTION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: PREPARATION_ACTION_CREATE_SUBDIR = 1;
+   */
+  CREATE_SUBDIR = 1,
+
+  /**
+   * @generated from enum value: PREPARATION_ACTION_RELABEL = 2;
+   */
+  RELABEL = 2,
+
+  /**
+   * @generated from enum value: PREPARATION_ACTION_CLEAR_DIRECTORY = 3;
+   */
+  CLEAR_DIRECTORY = 3,
+
+  /**
+   * @generated from enum value: PREPARATION_ACTION_FORMAT = 4;
+   */
+  FORMAT = 4,
+}
+
+/**
+ * Describes the enum vrooli.data_backup_manager.v1.destinations.PreparationAction.
+ */
+export const PreparationActionSchema: GenEnum<PreparationAction> = /*@__PURE__*/
+  enumDesc(file_data_backup_manager_v1_destinations_destinations, 4);
+
+/**
  * @generated from service vrooli.data_backup_manager.v1.destinations.DestinationsService
  */
 export const DestinationsService: GenService<{
@@ -531,6 +982,30 @@ export const DestinationsService: GenService<{
     methodKind: "unary";
     input: typeof GetDestinationUsageRequestSchema;
     output: typeof GetDestinationUsageResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.data_backup_manager.v1.destinations.DestinationsService.AnalyzeDestination
+   */
+  analyzeDestination: {
+    methodKind: "unary";
+    input: typeof AnalyzeDestinationRequestSchema;
+    output: typeof AnalyzeDestinationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.data_backup_manager.v1.destinations.DestinationsService.PlanDestinationPreparation
+   */
+  planDestinationPreparation: {
+    methodKind: "unary";
+    input: typeof PlanDestinationPreparationRequestSchema;
+    output: typeof PlanDestinationPreparationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation
+   */
+  executeDestinationPreparation: {
+    methodKind: "unary";
+    input: typeof ExecuteDestinationPreparationRequestSchema;
+    output: typeof ExecuteDestinationPreparationResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_data_backup_manager_v1_destinations_destinations, 0);

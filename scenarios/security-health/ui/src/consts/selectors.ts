@@ -332,6 +332,7 @@ const literalSelectors = {
     results: "dependencies-results",
     status: "dependencies-status",
     modeHint: "dependencies-mode-hint",
+    coverage: "dependencies-coverage",
   },
   secrets: {
     redactedNote: "secrets-redacted-note",

@@ -75,6 +75,9 @@ func (h *connectHandler) Status(ctx context.Context, _ *connect.Request[dependen
 		VulnerableCount:      int32(st.VulnerableCount),
 		LastReconcileAt:      st.LastReconcileAt,
 		LastReconcileOutcome: st.LastReconcileOutcome,
+		IndexedVectors:       int32(st.IndexedVectors),
+		ExpectedVectors:      int32(st.ExpectedVectors),
+		IndexReady:           st.IndexReady,
 	}), nil
 }
 

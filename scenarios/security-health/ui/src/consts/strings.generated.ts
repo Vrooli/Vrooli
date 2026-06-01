@@ -104,6 +104,9 @@ export const strings = {
     textModeHint: "dependencies.textModeHint",
     indexedCount: "dependencies.indexedCount",
     vulnerableCount: "dependencies.vulnerableCount",
+    indexBuilding: "dependencies.indexBuilding",
+    indexReady: "dependencies.indexReady",
+    coverageTooltip: "dependencies.coverageTooltip",
     lastReconcile: "dependencies.lastReconcile",
     columns: {
       scenario: "dependencies.columns.scenario",

@@ -51,6 +51,15 @@ const (
 	// DestinationsServiceGetDestinationUsageProcedure is the fully-qualified name of the
 	// DestinationsService's GetDestinationUsage RPC.
 	DestinationsServiceGetDestinationUsageProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/GetDestinationUsage"
+	// DestinationsServiceAnalyzeDestinationProcedure is the fully-qualified name of the
+	// DestinationsService's AnalyzeDestination RPC.
+	DestinationsServiceAnalyzeDestinationProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/AnalyzeDestination"
+	// DestinationsServicePlanDestinationPreparationProcedure is the fully-qualified name of the
+	// DestinationsService's PlanDestinationPreparation RPC.
+	DestinationsServicePlanDestinationPreparationProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/PlanDestinationPreparation"
+	// DestinationsServiceExecuteDestinationPreparationProcedure is the fully-qualified name of the
+	// DestinationsService's ExecuteDestinationPreparation RPC.
+	DestinationsServiceExecuteDestinationPreparationProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/ExecuteDestinationPreparation"
 )
 
 // DestinationsServiceClient is a client for the
@@ -62,6 +71,9 @@ type DestinationsServiceClient interface {
 	UpdateDestination(context.Context, *connect.Request[destinations.UpdateDestinationRequest]) (*connect.Response[destinations.UpdateDestinationResponse], error)
 	DeleteDestination(context.Context, *connect.Request[destinations.DeleteDestinationRequest]) (*connect.Response[destinations.DeleteDestinationResponse], error)
 	GetDestinationUsage(context.Context, *connect.Request[destinations.GetDestinationUsageRequest]) (*connect.Response[destinations.GetDestinationUsageResponse], error)
+	AnalyzeDestination(context.Context, *connect.Request[destinations.AnalyzeDestinationRequest]) (*connect.Response[destinations.AnalyzeDestinationResponse], error)
+	PlanDestinationPreparation(context.Context, *connect.Request[destinations.PlanDestinationPreparationRequest]) (*connect.Response[destinations.PlanDestinationPreparationResponse], error)
+	ExecuteDestinationPreparation(context.Context, *connect.Request[destinations.ExecuteDestinationPreparationRequest]) (*connect.Response[destinations.ExecuteDestinationPreparationResponse], error)
 }
 
 // NewDestinationsServiceClient constructs a client for the
@@ -112,17 +124,38 @@ func NewDestinationsServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(destinationsServiceMethods.ByName("GetDestinationUsage")),
 			connect.WithClientOptions(opts...),
 		),
+		analyzeDestination: connect.NewClient[destinations.AnalyzeDestinationRequest, destinations.AnalyzeDestinationResponse](
+			httpClient,
+			baseURL+DestinationsServiceAnalyzeDestinationProcedure,
+			connect.WithSchema(destinationsServiceMethods.ByName("AnalyzeDestination")),
+			connect.WithClientOptions(opts...),
+		),
+		planDestinationPreparation: connect.NewClient[destinations.PlanDestinationPreparationRequest, destinations.PlanDestinationPreparationResponse](
+			httpClient,
+			baseURL+DestinationsServicePlanDestinationPreparationProcedure,
+			connect.WithSchema(destinationsServiceMethods.ByName("PlanDestinationPreparation")),
+			connect.WithClientOptions(opts...),
+		),
+		executeDestinationPreparation: connect.NewClient[destinations.ExecuteDestinationPreparationRequest, destinations.ExecuteDestinationPreparationResponse](
+			httpClient,
+			baseURL+DestinationsServiceExecuteDestinationPreparationProcedure,
+			connect.WithSchema(destinationsServiceMethods.ByName("ExecuteDestinationPreparation")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // destinationsServiceClient implements DestinationsServiceClient.
 type destinationsServiceClient struct {
-	createDestination   *connect.Client[destinations.CreateDestinationRequest, destinations.CreateDestinationResponse]
-	getDestination      *connect.Client[destinations.GetDestinationRequest, destinations.GetDestinationResponse]
-	listDestinations    *connect.Client[destinations.ListDestinationsRequest, destinations.ListDestinationsResponse]
-	updateDestination   *connect.Client[destinations.UpdateDestinationRequest, destinations.UpdateDestinationResponse]
-	deleteDestination   *connect.Client[destinations.DeleteDestinationRequest, destinations.DeleteDestinationResponse]
-	getDestinationUsage *connect.Client[destinations.GetDestinationUsageRequest, destinations.GetDestinationUsageResponse]
+	createDestination             *connect.Client[destinations.CreateDestinationRequest, destinations.CreateDestinationResponse]
+	getDestination                *connect.Client[destinations.GetDestinationRequest, destinations.GetDestinationResponse]
+	listDestinations              *connect.Client[destinations.ListDestinationsRequest, destinations.ListDestinationsResponse]
+	updateDestination             *connect.Client[destinations.UpdateDestinationRequest, destinations.UpdateDestinationResponse]
+	deleteDestination             *connect.Client[destinations.DeleteDestinationRequest, destinations.DeleteDestinationResponse]
+	getDestinationUsage           *connect.Client[destinations.GetDestinationUsageRequest, destinations.GetDestinationUsageResponse]
+	analyzeDestination            *connect.Client[destinations.AnalyzeDestinationRequest, destinations.AnalyzeDestinationResponse]
+	planDestinationPreparation    *connect.Client[destinations.PlanDestinationPreparationRequest, destinations.PlanDestinationPreparationResponse]
+	executeDestinationPreparation *connect.Client[destinations.ExecuteDestinationPreparationRequest, destinations.ExecuteDestinationPreparationResponse]
 }
 
 // CreateDestination calls
@@ -161,6 +194,24 @@ func (c *destinationsServiceClient) GetDestinationUsage(ctx context.Context, req
 	return c.getDestinationUsage.CallUnary(ctx, req)
 }
 
+// AnalyzeDestination calls
+// vrooli.data_backup_manager.v1.destinations.DestinationsService.AnalyzeDestination.
+func (c *destinationsServiceClient) AnalyzeDestination(ctx context.Context, req *connect.Request[destinations.AnalyzeDestinationRequest]) (*connect.Response[destinations.AnalyzeDestinationResponse], error) {
+	return c.analyzeDestination.CallUnary(ctx, req)
+}
+
+// PlanDestinationPreparation calls
+// vrooli.data_backup_manager.v1.destinations.DestinationsService.PlanDestinationPreparation.
+func (c *destinationsServiceClient) PlanDestinationPreparation(ctx context.Context, req *connect.Request[destinations.PlanDestinationPreparationRequest]) (*connect.Response[destinations.PlanDestinationPreparationResponse], error) {
+	return c.planDestinationPreparation.CallUnary(ctx, req)
+}
+
+// ExecuteDestinationPreparation calls
+// vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation.
+func (c *destinationsServiceClient) ExecuteDestinationPreparation(ctx context.Context, req *connect.Request[destinations.ExecuteDestinationPreparationRequest]) (*connect.Response[destinations.ExecuteDestinationPreparationResponse], error) {
+	return c.executeDestinationPreparation.CallUnary(ctx, req)
+}
+
 // DestinationsServiceHandler is an implementation of the
 // vrooli.data_backup_manager.v1.destinations.DestinationsService service.
 type DestinationsServiceHandler interface {
@@ -170,6 +221,9 @@ type DestinationsServiceHandler interface {
 	UpdateDestination(context.Context, *connect.Request[destinations.UpdateDestinationRequest]) (*connect.Response[destinations.UpdateDestinationResponse], error)
 	DeleteDestination(context.Context, *connect.Request[destinations.DeleteDestinationRequest]) (*connect.Response[destinations.DeleteDestinationResponse], error)
 	GetDestinationUsage(context.Context, *connect.Request[destinations.GetDestinationUsageRequest]) (*connect.Response[destinations.GetDestinationUsageResponse], error)
+	AnalyzeDestination(context.Context, *connect.Request[destinations.AnalyzeDestinationRequest]) (*connect.Response[destinations.AnalyzeDestinationResponse], error)
+	PlanDestinationPreparation(context.Context, *connect.Request[destinations.PlanDestinationPreparationRequest]) (*connect.Response[destinations.PlanDestinationPreparationResponse], error)
+	ExecuteDestinationPreparation(context.Context, *connect.Request[destinations.ExecuteDestinationPreparationRequest]) (*connect.Response[destinations.ExecuteDestinationPreparationResponse], error)
 }
 
 // NewDestinationsServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -215,6 +269,24 @@ func NewDestinationsServiceHandler(svc DestinationsServiceHandler, opts ...conne
 		connect.WithSchema(destinationsServiceMethods.ByName("GetDestinationUsage")),
 		connect.WithHandlerOptions(opts...),
 	)
+	destinationsServiceAnalyzeDestinationHandler := connect.NewUnaryHandler(
+		DestinationsServiceAnalyzeDestinationProcedure,
+		svc.AnalyzeDestination,
+		connect.WithSchema(destinationsServiceMethods.ByName("AnalyzeDestination")),
+		connect.WithHandlerOptions(opts...),
+	)
+	destinationsServicePlanDestinationPreparationHandler := connect.NewUnaryHandler(
+		DestinationsServicePlanDestinationPreparationProcedure,
+		svc.PlanDestinationPreparation,
+		connect.WithSchema(destinationsServiceMethods.ByName("PlanDestinationPreparation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	destinationsServiceExecuteDestinationPreparationHandler := connect.NewUnaryHandler(
+		DestinationsServiceExecuteDestinationPreparationProcedure,
+		svc.ExecuteDestinationPreparation,
+		connect.WithSchema(destinationsServiceMethods.ByName("ExecuteDestinationPreparation")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.data_backup_manager.v1.destinations.DestinationsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DestinationsServiceCreateDestinationProcedure:
@@ -229,6 +301,12 @@ func NewDestinationsServiceHandler(svc DestinationsServiceHandler, opts ...conne
 			destinationsServiceDeleteDestinationHandler.ServeHTTP(w, r)
 		case DestinationsServiceGetDestinationUsageProcedure:
 			destinationsServiceGetDestinationUsageHandler.ServeHTTP(w, r)
+		case DestinationsServiceAnalyzeDestinationProcedure:
+			destinationsServiceAnalyzeDestinationHandler.ServeHTTP(w, r)
+		case DestinationsServicePlanDestinationPreparationProcedure:
+			destinationsServicePlanDestinationPreparationHandler.ServeHTTP(w, r)
+		case DestinationsServiceExecuteDestinationPreparationProcedure:
+			destinationsServiceExecuteDestinationPreparationHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -260,4 +338,16 @@ func (UnimplementedDestinationsServiceHandler) DeleteDestination(context.Context
 
 func (UnimplementedDestinationsServiceHandler) GetDestinationUsage(context.Context, *connect.Request[destinations.GetDestinationUsageRequest]) (*connect.Response[destinations.GetDestinationUsageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestinationUsage is not implemented"))
+}
+
+func (UnimplementedDestinationsServiceHandler) AnalyzeDestination(context.Context, *connect.Request[destinations.AnalyzeDestinationRequest]) (*connect.Response[destinations.AnalyzeDestinationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.destinations.DestinationsService.AnalyzeDestination is not implemented"))
+}
+
+func (UnimplementedDestinationsServiceHandler) PlanDestinationPreparation(context.Context, *connect.Request[destinations.PlanDestinationPreparationRequest]) (*connect.Response[destinations.PlanDestinationPreparationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.destinations.DestinationsService.PlanDestinationPreparation is not implemented"))
+}
+
+func (UnimplementedDestinationsServiceHandler) ExecuteDestinationPreparation(context.Context, *connect.Request[destinations.ExecuteDestinationPreparationRequest]) (*connect.Response[destinations.ExecuteDestinationPreparationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation is not implemented"))
 }
