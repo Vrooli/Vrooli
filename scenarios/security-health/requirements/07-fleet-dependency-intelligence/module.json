@@ -1,0 +1,32 @@
+{
+  "module_id": "MOD-P1-007",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "description": "Maintain a continuously-reconciled SBOM corpus across every scenario's lockfiles, annotated with known-vuln status, in Qdrant — the justifying feature beyond being a test-genie producer.",
+  "requirements": [
+    {
+      "id": "REQ-P1-001",
+      "title": "Dependency discovery across the fleet",
+      "prd_ref": "OT-P1-001",
+      "category": "core",
+      "status": "draft",
+      "description": "Discovery must walk every scenario's go.mod and pnpm-lock.yaml and produce a DependencyRecord{scenario, ecosystem(go|npm), name, version, source_file, vuln_ids[], max_severity, last_seen} per dependency.",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "Parsing a go.mod yields one DependencyRecord per required module with ecosystem=go." },
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "Parsing a pnpm-lock.yaml yields DependencyRecords with ecosystem=npm." }
+      ]
+    },
+    {
+      "id": "REQ-P1-002",
+      "title": "Reconcile loop + vuln annotation",
+      "prd_ref": "OT-P1-001",
+      "category": "core",
+      "status": "draft",
+      "description": "A 5-minute reconcile loop must upsert/delete dependency records in the Qdrant collection (security-health-deps, 768-dim cosine) based on a payload hash, and annotate vuln_ids/max_severity from the Phase C scanners (osv-scanner/govulncheck/pnpm audit).",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "A changed dependency version produces a planned upsert; an unchanged one produces no write." },
+        { "type": "test", "phase": "integration", "status": "pending", "notes": "A dependency with a known CVE gets vuln_ids populated and max_severity set." }
+      ]
+    }
+  ]
+}

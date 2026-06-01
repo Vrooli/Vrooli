@@ -1,0 +1,38 @@
+{
+  "_metadata": {
+    "entity": "security-health",
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-substrate-aware-validation/module.json",
+    "02-normalized-severity-contract/module.json",
+    "03-delegation-ready-cli/module.json",
+    "04-test-genie-security-producer/module.json",
+    "05-actionable-remediation/module.json",
+    "06-graceful-scanner-degradation/module.json",
+    "07-fleet-dependency-intelligence/module.json",
+    "08-semantic-structured-dependency-search/module.json",
+    "09-security-posture-ui/module.json",
+    "10-embeddable-posture-badge/module.json",
+    "11-python-jsts-sast/module.json",
+    "12-continuous-cve-alerting/module.json",
+    "13-secret-rotation-workflows/module.json"
+  ],
+  "modules": [
+    { "id": "MOD-P0-001", "path": "01-substrate-aware-validation", "priority": "P0", "title": "Substrate-aware validation" },
+    { "id": "MOD-P0-002", "path": "02-normalized-severity-contract", "priority": "P0", "title": "Normalized severity contract" },
+    { "id": "MOD-P0-003", "path": "03-delegation-ready-cli", "priority": "P0", "title": "Delegation-ready CLI" },
+    { "id": "MOD-P0-004", "path": "04-test-genie-security-producer", "priority": "P0", "title": "test-genie security producer" },
+    { "id": "MOD-P0-005", "path": "05-actionable-remediation", "priority": "P0", "title": "Actionable remediation" },
+    { "id": "MOD-P0-006", "path": "06-graceful-scanner-degradation", "priority": "P0", "title": "Graceful scanner degradation" },
+    { "id": "MOD-P1-007", "path": "07-fleet-dependency-intelligence", "priority": "P1", "title": "Fleet dependency intelligence" },
+    { "id": "MOD-P1-008", "path": "08-semantic-structured-dependency-search", "priority": "P1", "title": "Semantic + structured dependency search" },
+    { "id": "MOD-P1-009", "path": "09-security-posture-ui", "priority": "P1", "title": "Security posture UI" },
+    { "id": "MOD-P1-010", "path": "10-embeddable-posture-badge", "priority": "P1", "title": "Embeddable posture badge" },
+    { "id": "MOD-P2-011", "path": "11-python-jsts-sast", "priority": "P2", "title": "Python & JS/TS SAST" },
+    { "id": "MOD-P2-012", "path": "12-continuous-cve-alerting", "priority": "P2", "title": "Continuous CVE alerting" },
+    { "id": "MOD-P2-013", "path": "13-secret-rotation-workflows", "priority": "P2", "title": "Secret rotation workflows" }
+  ]
+}

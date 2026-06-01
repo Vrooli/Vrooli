@@ -1,0 +1,21 @@
+{
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "description": "Every finding carries a human-readable remediation string so consumers (humans and the controller's steer skill) get an actionable next step, not just a verdict.",
+  "requirements": [
+    {
+      "id": "REQ-P0-008",
+      "title": "Per-finding remediation text",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "status": "draft",
+      "description": "Each scanner runner must attach a concrete remediation string to every finding it emits (e.g. gitleaks -> 'rotate the exposed credential and purge it from history; move it to vault'; osv/govulncheck -> 'bump <module> to >= <patched version>').",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "A gitleaks finding's remediation references rotation and vault." },
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "An osv-scanner finding's remediation names the patched version to bump to." },
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "No emitted finding has an empty remediation field." }
+      ]
+    }
+  ]
+}

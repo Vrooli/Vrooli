@@ -1,0 +1,20 @@
+{
+  "module_id": "MOD-P1-010",
+  "prd_ref": "OT-P1-004",
+  "priority": "P1",
+  "description": "Ship a per-scenario severity-rollup widget honoring the ui-health WidgetDeclaration contract (slot INLINE) so other surfaces can embed a security posture badge.",
+  "requirements": [
+    {
+      "id": "REQ-P1-007",
+      "title": "Security posture badge widget",
+      "prd_ref": "OT-P1-004",
+      "category": "ui",
+      "status": "draft",
+      "description": "An embeddable widget must declare itself via the JSDoc @vrooliWidget contract (slot INLINE) and render a severity rollup, top findings, and last-scan time for a given scenario.",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "The widget exposes a valid WidgetDeclaration discoverable by ui-health." },
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "The badge renders a severity rollup and last-scan time for a scenario with findings." }
+      ]
+    }
+  ]
+}
