@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -190,7 +191,33 @@ type OperationalTargetCounts struct {
 	Passing int
 }
 
-// parseOperationalTargets parses operational target completion from requirements
+// operationalTargetStatusPassing reports whether a requirement/target status
+// counts as satisfied. The scenario portfolio spells "done" several ways
+// (complete/completed/validated from the requirements registry, passing from the
+// legacy module schema); everything else (pending, planned, in_progress,
+// blocked, partial, not_started, not_implemented, …) is an open target.
+func operationalTargetStatusPassing(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "passing", "complete", "completed", "validated", "done", "met":
+		return true
+	default:
+		return false
+	}
+}
+
+// isOperationalTargetRef reports whether a requirement's prd_ref points at the
+// PRD's "Operational Targets" section — the marker that distinguishes an
+// operational target from other requirement categories in the flat schema.
+func isOperationalTargetRef(prdRef string) bool {
+	return strings.Contains(strings.ToLower(prdRef), "operational targets")
+}
+
+// parseOperationalTargets parses operational-target completion from a scenario's
+// requirements/index.json. It supports both the current flat schema (top-level
+// `requirements[]`, where operational targets are the entries whose `prd_ref`
+// references the PRD's Operational Targets section) and the legacy nested schema
+// (`modules[].operationalTargets[]`). A target counts as passing when its status
+// is any recognized "done" spelling (see operationalTargetStatusPassing).
 func (m *MetricsCollector) parseOperationalTargets(scenarioName string) (*OperationalTargetCounts, error) {
 	requirementsPath := filepath.Join(m.projectRoot, "scenarios", scenarioName, "requirements", "index.json")
 
@@ -199,7 +226,14 @@ func (m *MetricsCollector) parseOperationalTargets(scenarioName string) (*Operat
 		return nil, fmt.Errorf("failed to read requirements file: %w", err)
 	}
 
-	var requirements struct {
+	var doc struct {
+		// Current schema: a flat requirements registry.
+		Requirements []struct {
+			ID     string `json:"id"`
+			Status string `json:"status,omitempty"`
+			PRDRef string `json:"prd_ref,omitempty"`
+		} `json:"requirements"`
+		// Legacy schema: targets nested under modules (e.g. vrooli-onboarding).
 		Modules []struct {
 			OperationalTargets []struct {
 				ID     string `json:"id"`
@@ -208,16 +242,26 @@ func (m *MetricsCollector) parseOperationalTargets(scenarioName string) (*Operat
 		} `json:"modules"`
 	}
 
-	if err := json.Unmarshal(data, &requirements); err != nil {
+	if err := json.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("failed to parse requirements JSON: %w", err)
 	}
 
 	counts := &OperationalTargetCounts{}
 
-	for _, module := range requirements.Modules {
+	for _, req := range doc.Requirements {
+		if !isOperationalTargetRef(req.PRDRef) {
+			continue // not an operational target — skip other requirement kinds
+		}
+		counts.Total++
+		if operationalTargetStatusPassing(req.Status) {
+			counts.Passing++
+		}
+	}
+
+	for _, module := range doc.Modules {
 		for _, target := range module.OperationalTargets {
 			counts.Total++
-			if target.Status == "passing" {
+			if operationalTargetStatusPassing(target.Status) {
 				counts.Passing++
 			}
 		}

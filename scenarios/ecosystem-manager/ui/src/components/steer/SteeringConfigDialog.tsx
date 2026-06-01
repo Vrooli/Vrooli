@@ -14,7 +14,7 @@ import { NonePanel } from './panels/NonePanel';
 import { ManualPanel } from './panels/ManualPanel';
 import { ProfilePanel } from './panels/ProfilePanel';
 import { QueuePanel } from './panels/QueuePanel';
-import type { SteeringConfig, SteeringStrategy, AutoSteerProfile, PhaseInfo } from '@/types/api';
+import type { SteeringConfig, SteeringStrategy, AutoSteerProfile, SkillInfo } from '@/types/api';
 
 interface SteeringConfigDialogProps {
   open: boolean;
@@ -22,9 +22,9 @@ interface SteeringConfigDialogProps {
   value: SteeringConfig;
   onChange: (config: SteeringConfig) => void;
   profiles: AutoSteerProfile[];
-  phaseNames: PhaseInfo[];
+  skillNames: SkillInfo[];
   isLoadingProfiles?: boolean;
-  isLoadingPhases?: boolean;
+  isLoadingSkills?: boolean;
   /** Queue progress: current execution position (0-indexed) */
   queueIndex?: number;
   /** Queue progress: whether the queue is fully processed */
@@ -67,9 +67,9 @@ export function SteeringConfigDialog({
   value,
   onChange,
   profiles,
-  phaseNames,
+  skillNames,
   isLoadingProfiles,
-  isLoadingPhases,
+  isLoadingSkills,
   queueIndex,
   queueExhausted,
   onQueuePositionChange,
@@ -135,8 +135,8 @@ export function SteeringConfigDialog({
               <ManualPanel
                 value={localConfig.manualSet || []}
                 onChange={(manualSet) => setLocalConfig((prev) => ({ ...prev, manualSet }))}
-                phaseNames={phaseNames}
-                isLoading={isLoadingPhases}
+                skillNames={skillNames}
+                isLoading={isLoadingSkills}
               />
             </TabsContent>
 
@@ -144,8 +144,8 @@ export function SteeringConfigDialog({
               <QueuePanel
                 value={localConfig.queue || []}
                 onChange={(queue) => setLocalConfig((prev) => ({ ...prev, queue }))}
-                phaseNames={phaseNames}
-                isLoading={isLoadingPhases}
+                skillNames={skillNames}
+                isLoading={isLoadingSkills}
                 currentIndex={queueIndex}
                 isExhausted={queueExhausted}
                 onPositionChange={onQueuePositionChange}

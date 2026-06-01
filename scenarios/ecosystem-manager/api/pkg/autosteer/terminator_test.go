@@ -45,7 +45,8 @@ func TestTerminator_NotMet_FindingAboveSeverity(t *testing.T) {
 
 func TestTerminator_ObjectiveMet_OperationalTargetsGate(t *testing.T) {
 	term := NewTerminator()
-	state := stateWithFindings(nil) // no findings
+	state := stateWithFindings(nil)            // no findings
+	state.Metrics.OperationalTargetsTotal = 10 // targets are declared, so the gate applies
 	state.Metrics.OperationalTargetsPercentage = 80
 	profile := &AutoSteerProfile{
 		Objective: Objective{Targets: ObjectiveTargets{MaxOpenSeverity: "warning", OperationalTargetsPct: 90}},
@@ -58,6 +59,22 @@ func TestTerminator_ObjectiveMet_OperationalTargetsGate(t *testing.T) {
 	state.Metrics.OperationalTargetsPercentage = 95
 	if stop, _ := term.ShouldStop(state, profile); !stop {
 		t.Fatal("expected objective met once operational targets reach the threshold")
+	}
+}
+
+func TestTerminator_ObjectiveMet_NoOperationalTargetsIsVacuouslySatisfied(t *testing.T) {
+	term := NewTerminator()
+	state := stateWithFindings(nil)           // no findings
+	state.Metrics.OperationalTargetsTotal = 0 // scenario declares no operational targets
+	state.Metrics.OperationalTargetsPercentage = 0
+	profile := &AutoSteerProfile{
+		Objective: Objective{Targets: ObjectiveTargets{MaxOpenSeverity: "warning", OperationalTargetsPct: 90}},
+		Budget:    Budget{MaxIterations: 40},
+	}
+	// No declared targets ⇒ the OT gate cannot block objective-met (else it would
+	// be permanently unreachable for scenarios without operational targets).
+	if stop, _ := term.ShouldStop(state, profile); !stop {
+		t.Fatal("expected objective met: no findings and no declared operational targets")
 	}
 }
 

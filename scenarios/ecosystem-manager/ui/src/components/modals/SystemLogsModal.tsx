@@ -17,7 +17,7 @@ import { ExecutionFeedbackPanel } from '@/components/executions/ExecutionFeedbac
 import { SystemInsightsTab } from '../insights';
 import { useSystemLogs } from '@/hooks/useSystemLogs';
 import { useAllAutoSteerProfiles } from '@/hooks/useAutoSteer';
-import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
+import { useMergedSkillNames } from '@/hooks/usePromptFiles';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { formatSkillSetLabel, formatSkillSetTooltip } from '@/lib/utils';
@@ -77,7 +77,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
     });
 
   const { data: profiles = [] } = useAllAutoSteerProfiles();
-  const { data: phaseNames = [] } = useMergedPhaseNames();
+  const { data: skillNames = [] } = useMergedSkillNames();
 
   const profileNameMap = useMemo(
     () => Object.fromEntries((profiles ?? []).map((p) => [p.id, p.name])),
@@ -559,7 +559,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                       )}
                       {filteredExecutions.map((exec) => {
                         const isSelected = exec.id === selectedExecutionId;
-                        const steerFocus = getExecutionSteerFocus(exec, autoSteerProfilesById, phaseNames);
+                        const steerFocus = getExecutionSteerFocus(exec, autoSteerProfilesById, skillNames);
                         const hasSteerFocus = Boolean(steerFocus.autoSteerProfileName || steerFocus.manualSetLabel);
                         return (
                           <tr
@@ -615,7 +615,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                 isLoadingPrompt={isFetchingPrompt}
                 isLoadingOutput={isFetchingSelectedOutput}
                 profilesById={autoSteerProfilesById}
-                phaseNames={phaseNames}
+                skillNames={skillNames}
               />
             </div>
           </TabsContent>
@@ -805,8 +805,8 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                                 <div key={`${skill.skill_name}-${idx}`} className="border border-white/5 rounded-md p-3 bg-slate-800/60">
                                   <div className="flex items-center justify-between gap-3">
                                     <span className="px-2 py-1 text-xs rounded border border-white/10 bg-white/5">
-                                      <span title={formatSkillSetTooltip(skillIds, phaseNames)}>
-                                        {formatSkillSetLabel(skillIds, phaseNames, { maxVisible: 1, emptyLabel: skill.skill_name || 'Skill' })}
+                                      <span title={formatSkillSetTooltip(skillIds, skillNames)}>
+                                        {formatSkillSetLabel(skillIds, skillNames, { maxVisible: 1, emptyLabel: skill.skill_name || 'Skill' })}
                                       </span>
                                     </span>
                                     <div className="text-xs text-slate-300">

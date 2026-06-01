@@ -119,3 +119,55 @@ func TestExecutionStateManager_FinalizeArchivesAndDeletes(t *testing.T) {
 		t.Errorf("expected 2 skill-breakdown rows, got %d", len(rows[0].PhaseBreakdown))
 	}
 }
+
+// TestExecutionStateManager_NonUUIDTaskID is the regression guard for the live
+// P1 failure: real task IDs are strings like
+// "scenario-improver-<name>-<timestamp>", not UUIDs. An earlier schema typed
+// task_id as UUID, so the controller's very first state query threw
+// "pq: invalid input syntax for type uuid" and the closed loop never engaged.
+// Every prior test used uuid.New(), masking the bug. This one uses the real
+// shape and exercises both task_id-keyed tables (profile_execution_state via
+// Save/Get/Delete, profile_executions via FinalizeExecution + GetHistory).
+func TestExecutionStateManager_NonUUIDTaskID(t *testing.T) {
+	container, cleanup := SetupTestDatabase(t)
+	if cleanup == nil {
+		return
+	}
+	defer cleanup()
+
+	manager := NewExecutionStateManager(container.db)
+	taskID := "scenario-improver-bookmark-intelligence-hub-20260531-145604"
+
+	state := manager.InitializeState(taskID, "balanced")
+	state.Iteration = 3
+	state.CurrentSkill = "refactor"
+	state.Trace = []DecisionTraceEntry{
+		{Iteration: 1, ChosenSkill: "refactor", ScoreBefore: 8, ScoreAfter: 6, RealizedDelta: 2},
+		{Iteration: 2, ChosenSkill: "test", ScoreBefore: 6, ScoreAfter: 4, RealizedDelta: 2},
+	}
+
+	if err := manager.Save(state); err != nil {
+		t.Fatalf("Save with non-UUID task ID returned error: %v", err)
+	}
+
+	got, err := manager.Get(taskID)
+	if err != nil {
+		t.Fatalf("Get with non-UUID task ID returned error: %v", err)
+	}
+	if got == nil || got.TaskID != taskID {
+		t.Fatalf("round-trip mismatch: %+v", got)
+	}
+
+	if err := manager.FinalizeExecution(state, "bookmark-intelligence-hub"); err != nil {
+		t.Fatalf("FinalizeExecution with non-UUID task ID returned error: %v", err)
+	}
+
+	hist := NewHistoryService(container.db)
+	rows, err := hist.GetHistory(HistoryFilters{ProfileID: "balanced"})
+	if err != nil {
+		t.Fatalf("GetHistory returned error: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 archived execution, got %d", len(rows))
+	}
+}

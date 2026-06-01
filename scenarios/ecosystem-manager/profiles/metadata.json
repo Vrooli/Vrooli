@@ -13,6 +13,28 @@
       "file": "balanced/profile.json"
     },
     {
+      "id": "e4237387-66bf-438e-99aa-ccf419160d8d",
+      "name": "Balanced (live-validation P8)",
+      "description": "Instantiated from balanced template for P8 selection-stress + convergence-proof runs.",
+      "tags": [
+        "balanced",
+        "live-validation"
+      ],
+      "kind": "profile",
+      "file": "e4237387-66bf-438e-99aa-ccf419160d8d/profile.json"
+    },
+    {
+      "id": "7bf62a70-e8c7-4f10-8e2d-d1e2f2617d16",
+      "name": "Balanced (P1 diagnostic max3)",
+      "description": "Tiny-budget clone of balanced for the attended P1 mechanical run.",
+      "tags": [
+        "balanced",
+        "p1-diagnostic"
+      ],
+      "kind": "profile",
+      "file": "7bf62a70-e8c7-4f10-8e2d-d1e2f2617d16/profile.json"
+    },
+    {
       "id": "8c3e5043-0b33-44e1-aa73-a044f6ac22c2",
       "name": "From Scratch",
       "description": "The entire scenario development lifecycle, after initial setup",

@@ -140,15 +140,15 @@ non-deterministic loop behavior into table-driven unit tests.
 | **Test fake** | Tests call `RecordRunCost` directly (or pass a `RunCost` to credit-assignment tests); `tokensFromRun` is unit-tested against a fake `domainpb.Run`. |
 | **Why it exists** | The run executes out-of-band, so its cost arrives via this stash rather than a MEASURE return value. Isolating it lets credit/selection tests control token cost deterministically. |
 
-### EligibilityFilter (Layer-1 hard gate) — P2 seam, P1 default
+### EligibilityFilter (Layer-1 hard gate) — DTV-backed
 
 | | |
 |---|---|
 | **Seam** | Pre-selection skill gate (Layer-1 thrashing prevention / DTV) |
-| **Interface** | [CODE: api/pkg/autosteer/selector.go]::`EligibilityFilter` (`Allow(skillID, dim) bool`) |
-| **Production wiring** | `AllowAllFilter` (permissive) wired in `newSelector`. P2 swaps a development-toolchain-validator-backed filter without touching selection logic. The cold-start `prior` is likewise injected (uniform in P1) for DTV trust/cost priors. |
-| **Test fake** | Tests inject a custom filter or rely on the allow-all default. |
-| **Why it exists** | Reserves the DTV integration point now so P1 ships a clean seam and P2 wires Layer-1 without re-opening the selector. |
+| **Interface** | [CODE: api/pkg/autosteer/selector.go]::`EligibilityFilter` (`Allow(skillID, dim) bool`); the cold-start `PriorProvider` and the all-red `TrustRanker` are sibling seams. |
+| **Production wiring** | `DTVEligibilityFilter` gates DTV-red skills and `DTVPriorProvider` seeds the cold-start prior, both over a per-task `FitnessSnapshot` from the `dtv.Client` read seam ([CODE: api/pkg/autosteer/execution_orchestrator.go]::`dtvSeams`). UNKNOWN fitness fails open (allow-all + uniform prior). When the gate degrades — DTV unreachable or every candidate red — the controller proceeds with the highest-trust (`TrustRanker`-ordered) skill, halves the remaining iteration budget once, and flags the iteration (`GateDegradedCause`). `AllowAllFilter`/`UniformPrior` are wired only when DTV is disabled on the profile or no fitness provider is set. |
+| **Test fake** | Tests inject a custom filter/prior or build a `FitnessSnapshot` directly (`pkg/autosteer/dtv_selection_test.go`, `gate_policy_test.go`). |
+| **Why it exists** | Keeps the DTV integration behind a narrow seam so selection logic never calls DTV synchronously and tests substitute fitness deterministically. |
 
 ## Adding a new seam
 

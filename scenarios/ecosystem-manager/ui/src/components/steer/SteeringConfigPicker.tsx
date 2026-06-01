@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Circle, Compass, ListOrdered, Zap, ChevronRight } from 'lucide-react';
 import { cn, formatSkillSetLabel, getQueueStepDisplay } from '@/lib/utils';
 import { useAllAutoSteerProfiles } from '@/hooks/useAutoSteer';
-import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
+import { useMergedSkillNames } from '@/hooks/usePromptFiles';
 import { SteeringConfigDialog } from './SteeringConfigDialog';
 import type { SteeringConfig, SteeringStrategy, AutoSteerProfile } from '@/types/api';
 
@@ -27,7 +27,7 @@ interface StrategyDisplay {
 function getStrategyDisplay(
   config: SteeringConfig,
   profiles: AutoSteerProfile[],
-  phaseNames: { id: string; name: string }[]
+  skillNames: { id: string; name: string }[]
 ): StrategyDisplay {
   switch (config.strategy) {
     case 'profile': {
@@ -51,7 +51,7 @@ function getStrategyDisplay(
           colorClasses: 'bg-cyan-500/10 text-cyan-100 border-cyan-500/30 hover:bg-cyan-500/20',
         };
       }
-      const first = getQueueStepDisplay(steps[0], phaseNames).label;
+      const first = getQueueStepDisplay(steps[0], skillNames).label;
       const more = steps.length > 1 ? ` +${steps.length - 1} more` : '';
       return {
         label: `${first}${more}`,
@@ -63,7 +63,7 @@ function getStrategyDisplay(
     case 'manual': {
       const set = config.manualSet ?? [];
       return {
-        label: formatSkillSetLabel(set, phaseNames, { maxVisible: 1, emptyLabel: 'Manual' }),
+        label: formatSkillSetLabel(set, skillNames, { maxVisible: 1, emptyLabel: 'Manual' }),
         sublabel: set.length > 0 ? `${set.length} skill${set.length === 1 ? '' : 's'}` : 'Select skills',
         icon: Compass,
         colorClasses: 'bg-amber-500/10 text-amber-50 border-amber-500/30 hover:bg-amber-500/20',
@@ -92,9 +92,9 @@ export function SteeringConfigPicker({
 }: SteeringConfigPickerProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { data: allProfiles = [], isLoading: isLoadingProfiles } = useAllAutoSteerProfiles();
-  const { data: phaseNames = [], isLoading: isLoadingPhases } = useMergedPhaseNames();
+  const { data: skillNames = [], isLoading: isLoadingSkills } = useMergedSkillNames();
 
-  const display = getStrategyDisplay(value, allProfiles, phaseNames);
+  const display = getStrategyDisplay(value, allProfiles, skillNames);
   const Icon = display.icon;
 
   return (
@@ -126,9 +126,9 @@ export function SteeringConfigPicker({
         value={value}
         onChange={onChange}
         profiles={allProfiles}
-        phaseNames={phaseNames}
+        skillNames={skillNames}
         isLoadingProfiles={isLoadingProfiles}
-        isLoadingPhases={isLoadingPhases}
+        isLoadingSkills={isLoadingSkills}
         queueIndex={queueIndex}
         queueExhausted={queueExhausted}
         onQueuePositionChange={onQueuePositionChange}

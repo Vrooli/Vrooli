@@ -60,6 +60,18 @@ type UniformPrior struct{ Value float64 }
 // Prior implements PriorProvider.
 func (u UniformPrior) Prior(string, dimensions.Dimension) float64 { return u.Value }
 
+// TrustRanker scores a skill's DTV trust (higher = more trusted). It is the
+// ordering key for the degraded-gate fallback: when the Layer-1 gate would veto
+// every candidate (all-red) the selector proceeds with the highest-trust skill
+// rather than first-in-order (the "least-bad" pick of the proceed-cap-flag
+// policy). Nil ranker ⇒ candidate order is left untouched.
+//
+// seam: TrustRanker orders the all-red fallback set; production wires the DTV
+// FitnessSnapshot, tests wire a stub.
+type TrustRanker interface {
+	Trust(skillID string) float64
+}
+
 // Selection is the controller's SELECT-stage decision.
 type Selection struct {
 	// SkillID is the chosen skill, or "" when no eligible skill exists for any
@@ -71,13 +83,22 @@ type Selection struct {
 	WeightedScore float64
 	// Rationale is a human-readable explanation for the decision trace.
 	Rationale string
+	// PredictedReduction is the controller's forward estimate of the weighted-score
+	// reduction the chosen skill will realize: the bandit's expected
+	// reduction-per-token (ExpectedEfficacyPerToken, in net findings closed per
+	// 1000 tokens) scaled by the estimated run tokens and the chosen dimension's
+	// weight, so it is comparable to the realized weighted-score delta (EM-P4). 0
+	// at greedy cold start (no ledger) or when no efficacy estimate is computable.
+	PredictedReduction float64
 	// ExcludedSkills lists skills the Layer-1 eligibility gate denied for the
 	// chosen dimension (their ids). Empty under allow-all (P1). The reason is
 	// attached by the caller, which owns the gate's data source.
 	ExcludedSkills []string
 	// GateOverride is true when the eligibility gate would have emptied the
-	// chosen dimension and the selector fell back to the unfiltered set rather
-	// than stall (the all-red safety valve). Surfaced in the trace.
+	// chosen dimension and the selector fell back to the trust-ordered unfiltered
+	// set rather than stall (the all-red branch of the proceed-cap-flag policy:
+	// proceed with the least-bad skill). The caller flags the iteration and halves
+	// the remaining budget once. Surfaced in the trace.
 	GateOverride bool
 }
 
@@ -101,6 +122,9 @@ type Selector struct {
 	// (hysteresis) — soft, overridden only when every eligible skill is cooling.
 	filter   EligibilityFilter
 	cooldown map[string]bool
+	// redRank orders the all-red fallback set by DTV trust (least-bad first) when
+	// the gate degrades. Nil ⇒ candidate order is unchanged.
+	redRank TrustRanker
 }
 
 // NewSelector creates a pure-greedy Selector (no effectiveness weighting, no
@@ -127,6 +151,9 @@ type SelectorConfig struct {
 	Filter EligibilityFilter
 	// Cooldown lists skills deprioritized this iteration (hysteresis); nil = none.
 	Cooldown map[string]bool
+	// RedRank orders the all-red degraded-gate fallback by DTV trust (least-bad
+	// first); nil leaves candidate order unchanged.
+	RedRank TrustRanker
 }
 
 // NewSelectorWithConfig creates a Selector from an explicit configuration.
@@ -152,6 +179,7 @@ func NewSelectorWithConfig(cfg SelectorConfig) *Selector {
 		seed:     cfg.Seed,
 		filter:   filter,
 		cooldown: cfg.Cooldown,
+		redRank:  cfg.RedRank,
 	}
 }
 
@@ -221,14 +249,17 @@ func (s *Selector) SelectNextSkill(state findings.FindingsState, profile *AutoSt
 		eligible, excluded := s.applyFilter(wd.dim, raw)
 		gateOverride := false
 		if len(eligible) == 0 {
-			// The Layer-1 gate vetoed every skill for this dimension. Rather than
-			// skip the dimension (which could stall the loop when every dimension
-			// is fully gated), fall back to the unfiltered set and flag it — the
-			// all-red safety valve, mirroring the cooldown fallback in preferred().
-			eligible = raw
+			// The Layer-1 gate vetoed every skill for this dimension. Per the
+			// proceed-cap-flag policy we do NOT stall: fall back to the unfiltered
+			// set, but proceed with the least-bad skill — order the red set by DTV
+			// trust descending (stable) so chooseSkill's tiebreak lands on the
+			// highest-trust candidate. The iteration is flagged (GateOverride) and
+			// the caller halves the remaining budget once.
+			eligible = s.orderByTrust(raw)
 			gateOverride = true
 		}
 		chosen, pick := s.chooseSkill(wd.dim, eligible)
+		predicted := pick.predictedReduction(chosen, wd.weight)
 		rationale := fmt.Sprintf(
 			"dimension %q is the heaviest open cluster with an eligible skill (weighted score %.2f, %d findings, weight %.2f); %s",
 			wd.dim, wd.score, wd.count, wd.weight, pick.describe(chosen),
@@ -243,12 +274,13 @@ func (s *Selector) SelectNextSkill(state findings.FindingsState, profile *AutoSt
 			rationale += fmt.Sprintf(" (skipped %v — no eligible skill in allow-set)", skipped)
 		}
 		return Selection{
-			SkillID:        chosen,
-			Dimension:      wd.dim,
-			WeightedScore:  wd.score,
-			Rationale:      rationale,
-			ExcludedSkills: excluded,
-			GateOverride:   gateOverride,
+			SkillID:            chosen,
+			Dimension:          wd.dim,
+			WeightedScore:      wd.score,
+			Rationale:          rationale,
+			ExcludedSkills:     excluded,
+			GateOverride:       gateOverride,
+			PredictedReduction: predicted,
 		}
 	}
 
@@ -272,6 +304,39 @@ type skillPick struct {
 	candidates []candidate
 }
 
+// defaultEstimatedRunTokens is the cold-start token estimate (in tokens) used to
+// scale a forward reduction prediction when the chosen skill has no observed
+// per-run token cost yet. Order-of-magnitude of a typical steer run; only the
+// calibration trend matters, and live runs replace it with the observed mean.
+const defaultEstimatedRunTokens = 3000
+
+// predictedReduction is the controller's forward estimate of the weighted-score
+// reduction the chosen candidate will realize this iteration (EM-P4):
+//
+//	efficacy (net findings closed / 1000 tok) · estTokens/1000 · dimensionWeight
+//
+// The dimension-weight factor lifts the net-findings-per-token efficacy into the
+// same weighted-score units as the realized delta (an approximation: it assumes
+// an average per-finding severity weight of 1). Greedy picks (no candidate
+// stats) predict 0. estTokens is the chosen skill's observed mean, or the
+// cold-start default when it has no runs yet.
+func (p skillPick) predictedReduction(chosen string, dimWeight float64) float64 {
+	for _, c := range p.candidates {
+		if c.id != chosen {
+			continue
+		}
+		estTokens := c.avgTokens
+		if estTokens <= 0 {
+			estTokens = defaultEstimatedRunTokens
+		}
+		if dimWeight <= 0 {
+			dimWeight = 1.0
+		}
+		return c.efficacy * (float64(estTokens) / 1000.0) * dimWeight
+	}
+	return 0
+}
+
 // applyFilter splits eligible skills into those the Layer-1 gate permits and
 // those it vetoes (P1: none vetoed). A nil filter permits everything. The
 // excluded list (empty under allow-all) feeds the decision trace.
@@ -288,6 +353,25 @@ func (s *Selector) applyFilter(dim dimensions.Dimension, eligible []string) (all
 		}
 	}
 	return allowed, excluded
+}
+
+// orderByTrust returns the candidates ordered by DTV trust descending (stable,
+// alphabetical id tiebreak) so the all-red fallback picks the least-bad skill.
+// With no ranker wired the original order is preserved.
+func (s *Selector) orderByTrust(ids []string) []string {
+	if s.redRank == nil || len(ids) < 2 {
+		return ids
+	}
+	out := make([]string, len(ids))
+	copy(out, ids)
+	sort.SliceStable(out, func(i, j int) bool {
+		ti, tj := s.redRank.Trust(out[i]), s.redRank.Trust(out[j])
+		if ti != tj {
+			return ti > tj
+		}
+		return out[i] < out[j]
+	})
+	return out
 }
 
 // preferred applies the hysteresis cooldown: it drops skills cooling down after

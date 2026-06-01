@@ -1,6 +1,6 @@
 import { cn, formatSkillSetLabel } from '@/lib/utils';
 import { MarkdownDisplay } from '@/components/shared/MarkdownDisplay';
-import type { AutoSteerProfile, ExecutionHistory, PhaseInfo } from '@/types/api';
+import type { AutoSteerProfile, ExecutionHistory, SkillInfo } from '@/types/api';
 
 interface ExecutionDetailCardProps {
   execution: ExecutionHistory | null;
@@ -9,7 +9,7 @@ interface ExecutionDetailCardProps {
   isLoadingPrompt?: boolean;
   isLoadingOutput?: boolean;
   profilesById?: Record<string, AutoSteerProfile | undefined>;
-  phaseNames?: PhaseInfo[];
+  skillNames?: SkillInfo[];
   className?: string;
 }
 
@@ -99,7 +99,7 @@ const formatExecutionDuration = (execution?: ExecutionHistory | null) => {
 const formatSteerInfo = (
   execution?: ExecutionHistory | null,
   _profilesById: Record<string, AutoSteerProfile | undefined> = {},
-  phaseNames: PhaseInfo[] = [],
+  skillNames: SkillInfo[] = [],
 ) => {
   if (!execution) return '—';
 
@@ -107,7 +107,7 @@ const formatSteerInfo = (
   // steer_phase_iteration carries the controller iteration number.
   let setLabel: string | undefined;
   if (execution.steer_skill_ids && execution.steer_skill_ids.length > 0) {
-    setLabel = formatSkillSetLabel(execution.steer_skill_ids, phaseNames, { maxVisible: 1, emptyLabel: '' });
+    setLabel = formatSkillSetLabel(execution.steer_skill_ids, skillNames, { maxVisible: 1, emptyLabel: '' });
   }
 
   const label = setLabel ?? execution.steer_set_label ?? execution.steering_source ?? '';
@@ -129,7 +129,7 @@ export function ExecutionDetailCard({
   isLoadingPrompt,
   isLoadingOutput,
   profilesById,
-  phaseNames,
+  skillNames,
   className,
 }: ExecutionDetailCardProps) {
   if (!execution) {
@@ -193,7 +193,7 @@ export function ExecutionDetailCard({
         <MetaItem label="Prompt size" value={execution.prompt_size ?? '—'} />
         <MetaItem label="Agent" value={execution.agent_tag || '—'} />
         <MetaItem label="Process" value={execution.process_id ? `PID ${execution.process_id}` : '—'} />
-        <MetaItem label="Steer" value={formatSteerInfo(execution, profilesById, phaseNames)} />
+        <MetaItem label="Steer" value={formatSteerInfo(execution, profilesById, skillNames)} />
         <MetaItem label="Auto Steer profile" value={execution.auto_steer_profile_id ?? '—'} />
       </div>
 

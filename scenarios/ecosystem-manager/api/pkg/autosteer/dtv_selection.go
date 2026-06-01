@@ -30,6 +30,15 @@ func (s FitnessSnapshot) Get(skillID string) dtv.Fitness {
 	return dtv.Fitness{SkillID: skillID}
 }
 
+// Trust returns a skill's DTV trust (pass-rate, 0–1). It is the ordering key the
+// selector uses to pick the "least-bad" skill when the Layer-1 gate degrades and
+// every candidate is RED (EM-P2 proceed-cap-flag policy). Absent/UNKNOWN ⇒ 0.
+func (s FitnessSnapshot) Trust(skillID string) float64 {
+	return s.Get(skillID).PassRate
+}
+
+var _ TrustRanker = FitnessSnapshot{}
+
 // DTVEligibilityFilter is the Layer-1 hard gate (EM-P2-002). It denies a skill
 // iff DTV currently judges it RED (intrinsic non-convergence / crash — Flavor-1
 // thrashing). UNKNOWN / GREEN / YELLOW are allowed; UNKNOWN fails open (never

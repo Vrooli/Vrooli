@@ -135,8 +135,8 @@ of the felt intelligence.
   that dimension, and at what token cost? Weight selection by **expected
   reduction per token**. This is what kills the "`ux` ran five times and
   accessibility didn't move — stop picking it" failure.
-- **v2 — DTV-primed priors.** Seed the v1 priors from DTV so a fresh
-  target does not learn from zero. See
+- **v2 (shipped) — DTV-primed priors.** Seed the v1 priors from DTV so a
+  fresh target does not learn from zero. See
   [DTV As Gate And Prior](#development-toolchain-validator-as-gate-and-prior).
 
 ## The Effectiveness Table
@@ -188,8 +188,14 @@ DTV plays three roles in this controller:
 
 1. **Eligibility gate.** A skill that is currently DTV-red (failing
    validation — actively buggy or incoherent) is **not eligible for the
-   autonomous fleet at all.** You never turn an unattended loop loose
-   applying a skill you already know is broken; that just scales damage.
+   autonomous fleet** while a healthier skill exists for the dimension. You
+   never turn an unattended loop loose applying a skill you already know is
+   broken; that just scales damage. But the gate never *stalls* the loop: when
+   DTV is unreachable or **every** candidate for the heaviest dimension is red,
+   the controller follows the **proceed-cap-flag** policy — it proceeds with the
+   least-bad (highest-trust) skill, halves the remaining iteration budget once,
+   and prominently flags the iteration for review (`GateDegradedCause`). UNKNOWN
+   fitness (no DTV data) fails open to permissive P1 selection, also flagged.
 2. **Trust + cost priors.** Among DTV-green skills, run-failure rate
    becomes a trust weight, token/duration history becomes the per-token
    denominator, and convergence becomes a stability signal — the v2
@@ -249,10 +255,19 @@ detector are the same measurement viewed two ways.
 Half of "it doesn't feel intelligent" is a *visibility* problem, not an
 algorithm problem. Even today's metric-driven decisions are invisible. A
 glass-box controller feels intelligent at v0; a black box feels dumb at
-v2. Every selection must surface its decision trace, e.g.:
+v2. Every selection surfaces its decision trace, e.g.:
 
 > Picked `test` — 12 open coverage findings (heaviest cluster), expected
 > −8, historical effectiveness 0.7, est. cost ~40k tokens.
+
+The **expected −8** is real: each trace entry carries a `PredictedReduction`
+computed at SELECT time (the bandit's expected reduction-per-token × the
+estimated run tokens × the chosen dimension's weight) alongside the
+`RealizedDelta` filled after MEASURE. The UI renders predicted-vs-realized Δ
+per iteration plus a running mean-absolute-error calibration indicator, so a
+miscalibrated bandit is visible at a glance. When the Layer-1 DTV gate degrades
+(DTV unreachable or every candidate red), the iteration is prominently flagged
+with its `GateDegradedCause` and the remaining budget is halved (proceed-cap-flag).
 
 ## Staged Rollout
 
@@ -262,7 +277,9 @@ v2. Every selection must surface its decision trace, e.g.:
    "diagnose-and-target" — the bulk of the felt-intelligence gain.
 2. **v1:** the effectiveness table + contextual-bandit selection +
    credit assignment + Layer-2 thrashing detection.
-3. **v2:** DTV-primed priors and eligibility gate.
+3. **v2 (shipped):** DTV-primed priors and the Layer-1 eligibility gate,
+   with the proceed-cap-flag degraded-gate policy. See the Current
+   Implementation Status table below.
 
 Fuse with `scenario-improvement-campaign` (consume its ranked findings as
 state) rather than building a parallel findings system.
@@ -286,11 +303,11 @@ practical.
 | Effectiveness table + learning | Yes | **Implemented** (v1) — `pkg/effectiveness` ledger + credit assignment after every iteration |
 | Token-cost capture | Yes | **Implemented** (v1) — `RunCost` from agent-manager run summary → reduction-per-token selection |
 | Termination | Global, gradient | **Implemented** (v0) — objective-met / diminishing-returns / budget |
-| Thrashing Layer 1 (DTV) | Yes | **Implemented** (P2) — `DTVEligibilityFilter` denies DTV-red skills before ranking; all-red safety valve; gated by profile `dtv.gate_enabled` |
+| Thrashing Layer 1 (DTV) | Yes | **Implemented** (P2) — `DTVEligibilityFilter` denies DTV-red skills before ranking; degraded gate (DTV-down / all-red) follows proceed-cap-flag: least-bad skill, budget halved once, flagged; gated by profile `dtv.gate_enabled` |
 | Thrashing Layer 2 (runtime) | Yes | **Implemented** (v1) — fingerprint cycle-halt, net-progress window, hysteresis cooldown, regression veto |
 | Thrashing Layer 3 (budget cap) | Yes | **Implemented** (max-iterations) |
 | DTV priors / eligibility gate | Yes | **Implemented** (P2) — `PriorProvider` seam wires `DTVPriorProvider` (trust/cost/convergence prior from DTV's `GetSkillFitness`); fail-open to uniform when DTV has no data. See `pkg/dtv` + `pkg/autosteer/dtv_selection.go` |
-| Decision-trace transparency | Yes | **Implemented** (v1+P2) — trace carries token cost, per-dimension flow, regression/veto/halt, and DTV verdict / prior provenance / exclusion reasons; read API + CLI + UI |
+| Decision-trace transparency | Yes | **Implemented** (v1+P2+P4) — trace carries token cost, per-dimension flow, regression/veto/halt, DTV verdict / prior provenance / exclusion reasons, predicted-reduction (P4), and the degraded-gate cause; UI renders predicted-vs-realized Δ + a calibration indicator; read API + CLI + UI |
 
 **v1 selection details:** within the heaviest open dimension, eligible skills are
 ranked by `expectedEfficacyPerToken = (n/(n+k))·observed + (k/(n+k))·prior`

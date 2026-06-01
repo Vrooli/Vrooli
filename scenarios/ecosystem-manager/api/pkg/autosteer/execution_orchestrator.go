@@ -19,6 +19,17 @@ import (
 // defaultAuditPreset is used when a profile does not pin one.
 const defaultAuditPreset = "comprehensive"
 
+// Degraded-gate causes (proceed-cap-flag policy, EM-P2). Surfaced on the
+// decision trace and drive the one-time remaining-budget halving.
+const (
+	// GateCauseDTVUnavailable: DTV was unreachable when the snapshot was captured,
+	// so no skill had usable fitness (fail-open ⇒ P1 selection, but flagged+capped).
+	GateCauseDTVUnavailable = "dtv_unavailable"
+	// GateCauseAllRed: every eligible skill in the chosen dimension was DTV-red;
+	// the controller proceeded with the least-bad (highest-trust) red skill.
+	GateCauseAllRed = "all_red"
+)
+
 // Exploration policy for the v1 bandit. epsilon decays as base/(1+iteration):
 // early iterations explore a little to gather efficacy evidence; later ones
 // exploit. The prior is uniform/neutral in P1 (so a fresh target reproduces v0
@@ -173,6 +184,12 @@ func (o *ExecutionOrchestrator) runSelect(state *ProfileExecutionState, profile 
 		return NewSelector(o.resolver()).SelectNextSkill(state.Findings, profile), dtvSelectionInfo{}
 	}
 	prior, filter, info := o.dtvSeams(state, profile)
+	// When DTV is active, the snapshot doubles as the least-bad ranker for the
+	// all-red degraded-gate fallback (proceed-cap-flag policy).
+	var redRank TrustRanker
+	if info.active {
+		redRank = info.snapshot
+	}
 	sel := NewSelectorWithConfig(SelectorConfig{
 		Resolver:      o.resolver(),
 		Effectiveness: o.effectiveness,
@@ -182,6 +199,7 @@ func (o *ExecutionOrchestrator) runSelect(state *ProfileExecutionState, profile 
 		Seed:          explorationSeed(state.TaskID, iteration),
 		Filter:        filter,
 		Cooldown:      cooldownSkills(state, profile.Budget.skillCooldown(), iteration),
+		RedRank:       redRank,
 	}).SelectNextSkill(state.Findings, profile)
 	return sel, info
 }
@@ -343,14 +361,87 @@ func (o *ExecutionOrchestrator) StartExecution(taskID, profileID, scenarioName s
 	return state, nil
 }
 
-// fullAudit runs a complete preset audit and builds the findings vector.
-func (o *ExecutionOrchestrator) fullAudit(ctx context.Context, scenarioName string, profile *AutoSteerProfile) (findings.FindingsState, error) {
-	audit, err := o.auditRunner.Audit(ctx, findings.AuditRequest{
-		Scenario: scenarioName,
-		Preset:   o.auditPreset(profile),
-	})
+// EvaluateStart runs the controller's termination check BEFORE the first agent
+// run. StartExecution has already done the initial DIAGNOSE + SELECT; this asks
+// whether running an agent at all is warranted. When the objective is already
+// met, or there is nothing to steer (empty findings ⇒ no skill selected), it
+// finalizes the run and returns proceed=false — launching a blind, unsteered
+// agent pass on an already-satisfied scenario can only regress it. Otherwise it
+// returns proceed=true and the caller runs the selected skill. This mirrors the
+// post-run termination tail in EvaluateIteration so start and steady-state agree
+// on what "done" means.
+func (o *ExecutionOrchestrator) EvaluateStart(taskID, scenarioName string) (proceed bool, reason string, err error) {
+	state, err := o.stateManager.Get(taskID)
 	if err != nil {
-		return findings.FindingsState{}, err
+		return false, "", fmt.Errorf("failed to get execution state: %w", err)
+	}
+	profile, err := o.profileService.GetProfile(state.ProfileID)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to get profile: %w", err)
+	}
+
+	// Only objective-met is meaningful before the first run. The Layer-2 thrashing
+	// defenses (fingerprint cycle, net-progress stall) and the budget/diminishing
+	// guards all require iteration history and would false-positive at iteration 1,
+	// so they are deliberately not consulted here.
+	if met, metReason := objectiveMet(state, profile); met {
+		o.recordHalt(state, metReason)
+		if ferr := o.stateManager.FinalizeExecution(state, scenarioName); ferr != nil {
+			return false, "", fmt.Errorf("failed to finalize execution: %w", ferr)
+		}
+		log.Printf("Auto Steer: task %s objective already met at start — %s", taskID, metReason)
+		return false, metReason, nil
+	}
+
+	if state.CurrentSkill == "" {
+		o.recordHalt(state, StopNothingActionable)
+		if ferr := o.stateManager.FinalizeExecution(state, scenarioName); ferr != nil {
+			return false, "", fmt.Errorf("failed to finalize execution: %w", ferr)
+		}
+		log.Printf("Auto Steer: task %s nothing actionable at start — %s", taskID, StopNothingActionable)
+		return false, StopNothingActionable, nil
+	}
+
+	return true, "", nil
+}
+
+// auditConclusiveAttempts / auditConclusiveBackoff bound the retry of an
+// inconclusive audit (no phases executed). DIAGNOSE is non-deterministic: a
+// cold/unwarmed test-genie can return an all-skipped report that reads as a
+// spurious clean zero, which would make the controller believe the objective is
+// already met. Retrying recovers the real findings; if it stays inconclusive we
+// proceed with the empty result and let EvaluateStart's guard avoid a blind run.
+// Both are vars (not consts) so tests can disable the backoff.
+var (
+	auditConclusiveAttempts = 3
+	auditConclusiveBackoff  = 3 * time.Second
+)
+
+// fullAudit runs a complete preset audit and builds the findings vector. An
+// audit whose phases all skipped (Conclusive()==false) is retried, since an
+// empty-but-inconclusive result must not be mistaken for a clean scenario.
+func (o *ExecutionOrchestrator) fullAudit(ctx context.Context, scenarioName string, profile *AutoSteerProfile) (findings.FindingsState, error) {
+	preset := o.auditPreset(profile)
+	var audit *findings.Audit
+	for attempt := 1; attempt <= auditConclusiveAttempts; attempt++ {
+		a, err := o.auditRunner.Audit(ctx, findings.AuditRequest{Scenario: scenarioName, Preset: preset})
+		if err != nil {
+			return findings.FindingsState{}, err
+		}
+		audit = a
+		if audit.Conclusive() {
+			break
+		}
+		if attempt < auditConclusiveAttempts {
+			log.Printf("Auto Steer: audit of %q executed no phases (attempt %d/%d) — retrying before trusting an empty result",
+				scenarioName, attempt, auditConclusiveAttempts)
+			if auditConclusiveBackoff > 0 {
+				time.Sleep(auditConclusiveBackoff)
+			}
+			continue
+		}
+		log.Printf("Auto Steer: audit of %q still inconclusive after %d attempts — proceeding with no findings; the start guard will avoid a blind run",
+			scenarioName, auditConclusiveAttempts)
 	}
 	return findings.BuildState(findings.ToFindings(audit)), nil
 }
@@ -364,14 +455,15 @@ func (o *ExecutionOrchestrator) selectInto(state *ProfileExecutionState, profile
 	state.CurrentRationale = sel.Rationale
 
 	entry := DecisionTraceEntry{
-		Iteration:         state.Iteration,
-		Timestamp:         time.Now(),
-		DimensionScores:   dimensionScoreMap(state.Findings),
-		HeaviestDimension: string(sel.Dimension),
-		ChosenSkill:       sel.SkillID,
-		Rationale:         sel.Rationale,
-		Fingerprint:       state.Findings.Fingerprint,
-		ScoreBefore:       state.Findings.TotalScore,
+		Iteration:          state.Iteration,
+		Timestamp:          time.Now(),
+		DimensionScores:    dimensionScoreMap(state.Findings),
+		HeaviestDimension:  string(sel.Dimension),
+		ChosenSkill:        sel.SkillID,
+		Rationale:          sel.Rationale,
+		Fingerprint:        state.Findings.Fingerprint,
+		ScoreBefore:        state.Findings.TotalScore,
+		PredictedReduction: sel.PredictedReduction,
 	}
 	annotateDTVTrace(&entry, sel, dtvInfo)
 	state.Trace = append(state.Trace, entry)
@@ -390,6 +482,16 @@ func annotateDTVTrace(entry *DecisionTraceEntry, sel Selection, info dtvSelectio
 	}
 	entry.DTVDegraded = info.degraded
 	entry.DTVGateOverride = sel.GateOverride
+	// Proceed-cap-flag: a degraded gate is either DTV-unreachable (snapshot
+	// captured while DTV was down) or all-red (gate vetoed every candidate).
+	// dtv_unavailable takes precedence — with no data the all-red path cannot
+	// even fire (UNKNOWN is allowed, not red).
+	switch {
+	case info.degraded:
+		entry.GateDegradedCause = GateCauseDTVUnavailable
+	case sel.GateOverride:
+		entry.GateDegradedCause = GateCauseAllRed
+	}
 	if sel.SkillID != "" {
 		entry.DTVVerdict = info.snapshot.Get(sel.SkillID).Verdict.String()
 		if info.prior != nil {

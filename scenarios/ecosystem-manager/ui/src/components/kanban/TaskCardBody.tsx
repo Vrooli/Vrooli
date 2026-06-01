@@ -6,7 +6,7 @@
 import { FileText } from 'lucide-react';
 import type { Task, AutoSteerProfile } from '../../types/api';
 import { SteerFocusBadge } from '@/components/steer/SteerFocusBadge';
-import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
+import { useMergedSkillNames } from '@/hooks/usePromptFiles';
 import { formatSkillSetLabel, formatSkillSetTooltip, getQueueStepDisplay } from '@/lib/utils';
 import { useAppState } from '../../contexts/AppStateContext';
 
@@ -18,7 +18,7 @@ interface TaskCardBodyProps {
 export function TaskCardBody({ task, autoSteerProfile }: TaskCardBodyProps) {
   const { cachedSettings } = useAppState();
   const condensedMode = cachedSettings?.display?.condensed_mode ?? false;
-  const { data: phaseNames = [] } = useMergedPhaseNames();
+  const { data: skillNames = [] } = useMergedSkillNames();
 
   const hasNotes = task.notes && task.notes.trim().length > 0;
   const hasAutoSteer = !!task.auto_steer_profile_id || !!autoSteerProfile;
@@ -26,7 +26,7 @@ export function TaskCardBody({ task, autoSteerProfile }: TaskCardBodyProps) {
   const manualSet = !hasAutoSteer && !hasQueueSteering ? task.steer_set ?? [] : [];
   const manualSetLabel =
     manualSet.length > 0
-      ? formatSkillSetLabel(manualSet, phaseNames, { maxVisible: 1, emptyLabel: '' })
+      ? formatSkillSetLabel(manualSet, skillNames, { maxVisible: 1, emptyLabel: '' })
       : '';
 
   // Auto Steer cards show the profile name; the per-iteration skill choice lives on
@@ -51,7 +51,7 @@ export function TaskCardBody({ task, autoSteerProfile }: TaskCardBodyProps) {
   const queueStep = hasQueueSteering && typeof effectiveQueueIndex === 'number'
     ? task.steering_queue?.[effectiveQueueIndex]
     : undefined;
-  const queueDisplay = getQueueStepDisplay(queueStep ?? [], phaseNames);
+  const queueDisplay = getQueueStepDisplay(queueStep ?? [], skillNames);
 
   return (
     <div className={spacingClass}>
@@ -68,7 +68,7 @@ export function TaskCardBody({ task, autoSteerProfile }: TaskCardBodyProps) {
         autoSteerProfileName={hasAutoSteer ? autoSteerProfile?.name ?? 'Auto Steer' : undefined}
         skillTooltip={hasAutoSteer ? autoSteerTooltip : undefined}
         manualSetLabel={!hasAutoSteer && !hasQueueSteering && manualSetLabel ? manualSetLabel : undefined}
-        manualSetTooltip={!hasAutoSteer && !hasQueueSteering ? formatSkillSetTooltip(manualSet, phaseNames) : undefined}
+        manualSetTooltip={!hasAutoSteer && !hasQueueSteering ? formatSkillSetTooltip(manualSet, skillNames) : undefined}
         queueSetLabel={hasQueueSteering ? (task.steering_queue_set_label || queueDisplay.label) : undefined}
         queueTooltip={hasQueueSteering ? (queueDisplay.tooltip || undefined) : undefined}
         queueIndex={hasQueueSteering ? effectiveQueueIndex : undefined}

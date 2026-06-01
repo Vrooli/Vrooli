@@ -88,6 +88,19 @@ func (a *AutoSteerIntegration) InitializeAutoSteer(task *tasks.TaskItem, scenari
 	return nil
 }
 
+// EvaluateStart asks the controller whether the first agent run is warranted,
+// after InitializeAutoSteer has run the initial DIAGNOSE + SELECT. It returns
+// proceed=false (with the controller's halt reason) when the objective is
+// already met or there is nothing to steer — in which case the caller should
+// finalize the task instead of launching a blind agent pass. Tasks without an
+// Auto Steer profile always proceed.
+func (a *AutoSteerIntegration) EvaluateStart(task *tasks.TaskItem, scenarioName string) (proceed bool, reason string, err error) {
+	if !a.isEligible(task) {
+		return true, "", nil
+	}
+	return a.executionOrchestrator.EvaluateStart(task.ID, scenarioName)
+}
+
 // EnhancePrompt adds Auto Steer context to the task prompt
 // Returns the enhanced prompt or the original prompt if no Auto Steer is active
 func (a *AutoSteerIntegration) EnhancePrompt(task *tasks.TaskItem, basePrompt string) (string, error) {

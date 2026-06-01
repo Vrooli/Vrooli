@@ -1,19 +1,19 @@
 import { Compass } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { PhasePicker } from '../PhasePicker';
+import { SkillPicker } from '../SkillPicker';
 import { formatSkillSetLabel, formatSkillSetTooltip } from '@/lib/utils';
-import type { PhaseInfo } from '@/types/api';
+import type { SkillInfo } from '@/types/api';
 
 interface ManualPanelProps {
   value: string[];
   onChange: (set: string[]) => void;
-  phaseNames: PhaseInfo[];
+  skillNames: SkillInfo[];
   isLoading?: boolean;
 }
 
-export function ManualPanel({ value, onChange, phaseNames, isLoading }: ManualPanelProps) {
-  const displayName = formatSkillSetLabel(value, phaseNames, { maxVisible: 1, emptyLabel: '' });
-  const displayTooltip = formatSkillSetTooltip(value, phaseNames);
+export function ManualPanel({ value, onChange, skillNames, isLoading }: ManualPanelProps) {
+  const displayName = formatSkillSetLabel(value, skillNames, { maxVisible: 1, emptyLabel: '' });
+  const displayTooltip = formatSkillSetTooltip(value, skillNames);
 
   return (
     <div className="space-y-4">
@@ -32,10 +32,10 @@ export function ManualPanel({ value, onChange, phaseNames, isLoading }: ManualPa
 
       <div className="space-y-2">
         <Label>Focus Skills</Label>
-        <PhasePicker
+        <SkillPicker
           values={value}
           onChange={onChange}
-          phaseNames={phaseNames}
+          skillNames={skillNames}
           isLoading={isLoading}
           selectionMode="multiple"
           placeholder="Select focus skills"

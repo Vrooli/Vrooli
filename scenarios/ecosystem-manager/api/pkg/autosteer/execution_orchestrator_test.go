@@ -125,6 +125,139 @@ func TestController_MiniLoop_ShrinksAndTerminates(t *testing.T) {
 	}
 }
 
+// skippedAudit simulates an inconclusive DIAGNOSE: phases planned but none
+// executed (a cold/unwarmed test-genie), which must not be read as "clean".
+func skippedAudit() *findings.Audit {
+	return &findings.Audit{
+		ScenarioName: "demo",
+		Phases: []findings.AuditPhase{
+			{Name: "standards", Status: "skipped"},
+			{Name: "docs", Status: "pending"},
+		},
+	}
+}
+
+func TestFullAudit_RetriesInconclusiveAudit(t *testing.T) {
+	prev := auditConclusiveBackoff
+	auditConclusiveBackoff = 0 // no sleep in tests
+	defer func() { auditConclusiveBackoff = prev }()
+
+	// First audit is inconclusive (all skipped), second has real findings. The
+	// controller must retry and end up steering on the conclusive result rather
+	// than mistaking the empty first result for an objective-met scenario.
+	runner := &shrinkingRunner{audits: []*findings.Audit{skippedAudit(), standardsAudit(2)}}
+	orch, _, _ := loopOrchestrator(runner)
+
+	state, err := orch.StartExecution("task-retry", "demo", "demo")
+	if err != nil {
+		t.Fatalf("StartExecution error: %v", err)
+	}
+	if state.Findings.TotalScore == 0 {
+		t.Fatal("expected the retry to recover real findings, got an empty (inconclusive) state")
+	}
+	if state.CurrentSkill != "refactor" {
+		t.Fatalf("expected a skill selected from the conclusive audit, got %q", state.CurrentSkill)
+	}
+}
+
+func TestEvaluateStart_ObjectiveMetSkipsFirstRun(t *testing.T) {
+	// Initial audit is clean (no findings) and the demo profile has no
+	// operational-target gate → the objective is already met at start. The
+	// controller must NOT run a blind agent pass; it finalizes immediately.
+	runner := &shrinkingRunner{audits: []*findings.Audit{standardsAudit(0)}}
+	orch, stateRepo, _ := loopOrchestrator(runner)
+
+	taskID := "task-met-at-start"
+	if _, err := orch.StartExecution(taskID, "demo", "demo"); err != nil {
+		t.Fatalf("StartExecution error: %v", err)
+	}
+
+	proceed, reason, err := orch.EvaluateStart(taskID, "demo")
+	if err != nil {
+		t.Fatalf("EvaluateStart error: %v", err)
+	}
+	if proceed {
+		t.Fatal("expected proceed=false: objective already met at start")
+	}
+	if !strings.Contains(reason, "objective met") {
+		t.Fatalf("expected objective-met reason, got %q", reason)
+	}
+	if got, _ := stateRepo.Get(taskID); got != nil {
+		t.Fatal("expected state finalized/deleted when objective met at start")
+	}
+}
+
+func TestEvaluateStart_FindingsPresentProceeds(t *testing.T) {
+	// Initial audit has open ERROR findings → a skill is selected and the agent
+	// run is warranted.
+	runner := &shrinkingRunner{audits: []*findings.Audit{standardsAudit(2)}}
+	orch, _, _ := loopOrchestrator(runner)
+
+	taskID := "task-has-work"
+	if _, err := orch.StartExecution(taskID, "demo", "demo"); err != nil {
+		t.Fatalf("StartExecution error: %v", err)
+	}
+
+	proceed, reason, err := orch.EvaluateStart(taskID, "demo")
+	if err != nil {
+		t.Fatalf("EvaluateStart error: %v", err)
+	}
+	if !proceed {
+		t.Fatalf("expected proceed=true with open findings, got stop (%s)", reason)
+	}
+}
+
+func TestEvaluateStart_UnmetTargetsButNothingSteerableStops(t *testing.T) {
+	// The bookmark-intelligence-hub shape: the audit is clean (no findings to
+	// steer) but operational targets are unmet (50% < 90%). The objective is NOT
+	// met, yet there is no skill to select — so the controller must stop with
+	// "nothing actionable" rather than launch an unsteered pass.
+	stateRepo := NewMockExecutionStateRepository()
+	profileRepo := NewMockProfileRepository()
+	_ = profileRepo.CreateProfile(&AutoSteerProfile{
+		ID:   "ot-demo",
+		Name: "OT Demo",
+		Objective: Objective{
+			DimensionWeights: map[string]float64{"standards": 1.0},
+			Targets:          ObjectiveTargets{MaxOpenSeverity: "warning", OperationalTargetsPct: 90},
+		},
+		AllowedSkills: []string{"refactor"},
+		Budget:        Budget{MaxIterations: 10, ReauditCadence: 1},
+		AuditPreset:   "comprehensive",
+	})
+	catalog := &skillmap.FakeCatalog{Declarations: []skillmap.SkillDeclaration{
+		{ID: "refactor", Dimensions: []string{"standards"}},
+	}}
+	metrics := NewMockMetricsProvider()
+	metrics.Metrics.OperationalTargetsTotal = 10  // targets declared…
+	metrics.Metrics.OperationalTargetsPassing = 5 // …but only half pass (50% < 90%)
+	metrics.Metrics.OperationalTargetsPercentage = 50
+	orch := NewExecutionOrchestrator(
+		stateRepo, profileRepo, &shrinkingRunner{audits: []*findings.Audit{standardsAudit(0)}},
+		catalog, NewMockPromptEnhancerAPI(), metrics, NewTraceStore(nil),
+		effectiveness.NewMemoryStore(),
+	)
+
+	taskID := "task-unmet-but-nothing"
+	if _, err := orch.StartExecution(taskID, "ot-demo", "demo"); err != nil {
+		t.Fatalf("StartExecution error: %v", err)
+	}
+
+	proceed, reason, err := orch.EvaluateStart(taskID, "demo")
+	if err != nil {
+		t.Fatalf("EvaluateStart error: %v", err)
+	}
+	if proceed {
+		t.Fatal("expected proceed=false: nothing steerable even though targets unmet")
+	}
+	if reason != StopNothingActionable {
+		t.Fatalf("expected reason %q, got %q", StopNothingActionable, reason)
+	}
+	if got, _ := stateRepo.Get(taskID); got != nil {
+		t.Fatal("expected state finalized/deleted")
+	}
+}
+
 // growingRunner returns an ever-larger distinct findings set on each call, so
 // the open set always changes (no fingerprint cycle) and net findings flow is
 // always negative (no net-progress stall) — isolating the budget cap as the

@@ -17,16 +17,16 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Check, ChevronDown, GripVertical, ListOrdered, Loader2, X } from 'lucide-react';
-import { PhasePicker } from '../PhasePicker';
+import { SkillPicker } from '../SkillPicker';
 import { getQueueStepDisplay } from '@/lib/utils';
-import type { PhaseInfo } from '@/types/api';
+import type { SkillInfo } from '@/types/api';
 
 type ItemStatus = 'completed' | 'current' | 'pending';
 
 interface QueuePanelProps {
   value: string[][];
   onChange: (queue: string[][]) => void;
-  phaseNames: PhaseInfo[];
+  skillNames: SkillInfo[];
   isLoading?: boolean;
   currentIndex?: number;
   isExhausted?: boolean;
@@ -39,7 +39,7 @@ interface SortableQueueItemProps {
   id: string;
   step: string[];
   index: number;
-  phaseNames: PhaseInfo[];
+  skillNames: SkillInfo[];
   onRemove: () => void;
   onClick?: () => void;
   status?: ItemStatus;
@@ -62,20 +62,20 @@ function getStatusStyles(status: ItemStatus): string {
 function QueueItemContent({
   step,
   index,
-  phaseNames,
+  skillNames,
   status = 'pending',
   isPending,
   onClick,
 }: {
   step: string[];
   index: number;
-  phaseNames: PhaseInfo[];
+  skillNames: SkillInfo[];
   status?: ItemStatus;
   isPending?: boolean;
   onClick?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const summary = getQueueStepDisplay(step, phaseNames);
+  const summary = getQueueStepDisplay(step, skillNames);
   const isClickable = !!onClick && !isPending;
 
   return (
@@ -124,7 +124,7 @@ function QueueItemContent({
               key={`${skillId}-${idx}`}
               className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-cyan-500/10 text-cyan-200 border border-cyan-500/20"
             >
-              {getQueueStepDisplay([skillId], phaseNames).label}
+              {getQueueStepDisplay([skillId], skillNames).label}
             </span>
           ))}
         </div>
@@ -137,7 +137,7 @@ function SortableQueueItem({
   id,
   step,
   index,
-  phaseNames,
+  skillNames,
   onRemove,
   onClick,
   status,
@@ -190,7 +190,7 @@ function SortableQueueItem({
       <QueueItemContent
         step={step}
         index={index}
-        phaseNames={phaseNames}
+        skillNames={skillNames}
         status={status}
         isPending={isPending}
         onClick={onClick}
@@ -213,7 +213,7 @@ function SortableQueueItem({
 export function QueuePanel({
   value,
   onChange,
-  phaseNames,
+  skillNames,
   isLoading,
   currentIndex,
   isExhausted,
@@ -273,10 +273,10 @@ export function QueuePanel({
       )}
 
       {!readOnly && (
-        <PhasePicker
+        <SkillPicker
           values={[]}
           onChange={handleAddSet}
-          phaseNames={phaseNames}
+          skillNames={skillNames}
           isLoading={isLoading}
           selectionMode="multiple"
           placeholder="Add a skill set to queue..."
@@ -304,7 +304,7 @@ export function QueuePanel({
                     id={itemIds[index]}
                     step={step}
                     index={index}
-                    phaseNames={phaseNames}
+                    skillNames={skillNames}
                     onRemove={() => onChange(value.filter((_, i) => i !== index))}
                     status={getItemStatus(index)}
                     onClick={onPositionChange ? () => onPositionChange(index) : undefined}
@@ -322,7 +322,7 @@ export function QueuePanel({
         <div className="text-xs text-slate-500 border-t border-slate-700/50 pt-3">
           <span className="font-medium text-slate-400">Order: </span>
           {value.map((step, idx) => {
-            const summary = getQueueStepDisplay(step, phaseNames);
+            const summary = getQueueStepDisplay(step, skillNames);
             return (
               <span key={idx}>
                 <span className="text-cyan-400" title={summary.tooltip}>{summary.label}</span>

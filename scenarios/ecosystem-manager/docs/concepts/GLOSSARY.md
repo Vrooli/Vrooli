@@ -97,8 +97,9 @@ diagnosis-driven selection.
 **Effectiveness table** — Per-`(skill, dimension)` memory tracking
 *efficacy* (findings closed per token, learned at runtime). Powers both
 selection and thrashing damping. Implemented (v1) in `pkg/effectiveness`
-(`skill_dimension_effectiveness` table). *Trust/cost/stability priors from
-DTV remain a P2 target.*
+(`skill_dimension_effectiveness` table). Trust/cost/stability priors from
+DTV are wired: `DTVPriorProvider` seeds the cold start and the bandit blend
+washes it out as live evidence accrues.
 
 **Credit assignment** — After each run, diffing the findings set into
 closed/introduced (by stable finding ID, bucketed by dimension) and
@@ -122,10 +123,16 @@ execution boundary; auto-steer never runs an agent directly.
 **Development Toolchain Validator (DTV)** — Validates steer skills/tools
 against pristine goldens. For the controller it is an *eligibility gate*
 (DTV-red skills are barred from the autonomous fleet), a source of
-*trust/cost priors*, and *Layer-1 thrashing prevention*. Not yet wired.
+*trust/cost priors*, and *Layer-1 thrashing prevention*. Wired: the
+`DTVEligibilityFilter` gates and `DTVPriorProvider` seeds priors via the
+`dtv.Client` read seam (fail-open when DTV is unreachable). When the gate
+degrades (DTV down or all candidates red) the controller proceeds with the
+least-bad skill, halves the remaining budget, and flags the iteration
+(proceed-cap-flag policy).
 
 **test-genie** — Produces the structured findings that become the
-controller's state. Not yet wired as the state source.
+controller's state. Wired as the state source via `findings.TestGenieRunner`
+(the DIAGNOSE/MEASURE audit runner).
 
 **Steer skill** — A prompt-manager skill that focuses an agent on one
 kind of improvement (e.g., `ux`, `test`, `refactor`, `progress`).

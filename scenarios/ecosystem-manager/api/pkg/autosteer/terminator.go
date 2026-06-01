@@ -78,7 +78,10 @@ func objectiveMet(state *ProfileExecutionState, profile *AutoSteerProfile) (bool
 		}
 	}
 
-	if target := profile.Objective.Targets.OperationalTargetsPct; target > 0 {
+	// Operational-targets gate: only applies when the scenario actually declares
+	// operational targets. A scenario with none is vacuously satisfied — treating
+	// "no targets" as 0% would make objective-met permanently unreachable.
+	if target := profile.Objective.Targets.OperationalTargetsPct; target > 0 && state.Metrics.OperationalTargetsTotal > 0 {
 		if state.Metrics.OperationalTargetsPercentage < target {
 			return false, ""
 		}
@@ -136,8 +139,14 @@ func (t *Terminator) ShouldStop(state *ProfileExecutionState, profile *AutoSteer
 		)
 	}
 
-	if profile.Budget.MaxIterations > 0 && state.Iteration >= profile.Budget.MaxIterations {
-		return true, fmt.Sprintf("%s: reached max %d iterations", StopBudgetExhausted, profile.Budget.MaxIterations)
+	if cap := effectiveMaxIterations(state, profile); cap > 0 && state.Iteration >= cap {
+		if cap < profile.Budget.MaxIterations {
+			return true, fmt.Sprintf(
+				"%s: reached degraded-gate cap %d (halved from %d after the DTV gate degraded)",
+				StopBudgetExhausted, cap, profile.Budget.MaxIterations,
+			)
+		}
+		return true, fmt.Sprintf("%s: reached max %d iterations", StopBudgetExhausted, cap)
 	}
 
 	if floor := profile.Budget.DiminishingReturnsFloor; floor > 0 {
@@ -150,6 +159,37 @@ func (t *Terminator) ShouldStop(state *ProfileExecutionState, profile *AutoSteer
 	}
 
 	return false, StopReasonContinue
+}
+
+// firstDegradedIteration returns the iteration of the earliest trace entry whose
+// Layer-1 DTV gate ran degraded (proceed-cap-flag, EM-P2), or 0 if none. The
+// latch lives in the trace itself (no separate state column) so it survives
+// persistence and the halving stays idempotent across iterations.
+func firstDegradedIteration(state *ProfileExecutionState) int {
+	for _, e := range state.Trace {
+		if e.GateDegradedCause != "" {
+			return e.Iteration
+		}
+	}
+	return 0
+}
+
+// effectiveMaxIterations applies the proceed-cap-flag budget penalty: once the
+// DTV gate has degraded, the remaining iteration budget (from the first degraded
+// iteration onward) is halved — applied exactly once because it is derived from
+// the fixed first-degraded iteration. Returns the profile's MaxIterations
+// unchanged when the gate never degraded (or no cap is set).
+func effectiveMaxIterations(state *ProfileExecutionState, profile *AutoSteerProfile) int {
+	maxIters := profile.Budget.MaxIterations
+	if maxIters <= 0 || state == nil {
+		return maxIters
+	}
+	d := firstDegradedIteration(state)
+	if d <= 0 || d >= maxIters {
+		return maxIters
+	}
+	remaining := maxIters - d
+	return d + remaining/2
 }
 
 // cycleRecurrence reports the iteration at which the current open-findings

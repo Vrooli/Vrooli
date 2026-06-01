@@ -149,6 +149,14 @@ func (em *ExecutionManager) ExecuteTask(ctx context.Context, task tasks.TaskItem
 			log.Printf("Failed to initialize Auto Steer for task %s: %v", task.ID, err)
 			systemlog.Errorf("Auto Steer initialization failed for task %s: %v", task.ID, err)
 			autoSteerInitFailed = true
+		} else if proceed, reason, evErr := em.autoSteerIntegration.EvaluateStart(&task, scenarioName); evErr != nil {
+			// Best-effort: a start-evaluation error must not block the run.
+			log.Printf("Auto Steer: EvaluateStart failed for task %s (proceeding with run): %v", task.ID, evErr)
+		} else if !proceed {
+			// The objective is already met (or nothing is steerable) — finalize
+			// without launching a blind agent pass that could only regress an
+			// already-satisfied scenario.
+			return em.handleControllerDoneAtStart(&task, reason, executionStartTime, timeoutDuration)
 		}
 	}
 
@@ -874,6 +882,46 @@ func (em *ExecutionManager) handleFailedExecution(result *tasks.ClaudeCodeRespon
 }
 
 // handleFailure handles task failure with timing information.
+// handleControllerDoneAtStart finalizes a task whose Auto Steer controller
+// determined — before any agent ran — that there was nothing to do (objective
+// already met, or no steerable findings). It records a successful, no-agent
+// completion and does not requeue. Without this, the processor would launch an
+// unsteered agent pass that can only regress an already-satisfied scenario.
+func (em *ExecutionManager) handleControllerDoneAtStart(task *tasks.TaskItem, reason string, startTime time.Time, timeoutAllowed time.Duration) (*ExecutionResult, error) {
+	summary := fmt.Sprintf("Task %s completed with no agent run — Auto Steer controller stopped at start (%s)", task.ID, reason)
+	log.Println(summary)
+	systemlog.Info(summary)
+
+	completedAt := timeutil.NowRFC3339()
+	taskResults := tasks.NewSuccessResults(
+		summary,
+		"",
+		time.Since(startTime).Round(time.Second).String(),
+		timeoutAllowed.String(),
+		startTime.Format(time.RFC3339),
+		completedAt,
+		"0 chars (0.00 KB)",
+	)
+	task.Results = taskResults.ToMap()
+	task.CurrentPhase = "completed"
+	task.Status = tasks.StatusCompletedFinalized
+	task.CompletedAt = completedAt
+	task.CompletionCount++
+	task.LastCompletedAt = completedAt
+	task.ProcessorAutoRequeue = false
+	task.CooldownUntil = ""
+
+	if em.finalizeFunc != nil {
+		if err := em.finalizeFunc(task, tasks.StatusCompletedFinalized); err != nil {
+			log.Printf("CRITICAL: Failed to finalize controller-done task %s: %v", task.ID, err)
+			return &ExecutionResult{Success: false, Error: err.Error()}, err
+		}
+	}
+
+	em.broadcastUpdate("task_completed", *task)
+	return &ExecutionResult{Success: true}, nil
+}
+
 func (em *ExecutionManager) handleFailure(task *tasks.TaskItem, errorMsg, output string, startTime time.Time, executionTime, timeoutAllowed time.Duration, extras map[string]any) (*ExecutionResult, error) {
 	isTimeout := strings.Contains(errorMsg, "timed out") || strings.Contains(errorMsg, "timeout")
 

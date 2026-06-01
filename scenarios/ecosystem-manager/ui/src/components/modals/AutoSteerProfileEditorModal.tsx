@@ -32,7 +32,7 @@ import {
   useCreateAutoSteerProfile,
   useUpdateAutoSteerProfile,
 } from '@/hooks/useAutoSteer';
-import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
+import { useMergedSkillNames } from '@/hooks/usePromptFiles';
 import type { AutoSteerProfile } from '@/types/api';
 import { TagEditor } from './autosteer/TagEditor';
 import { DimensionWeightEditor } from './autosteer/DimensionWeightEditor';
@@ -105,7 +105,7 @@ export function AutoSteerProfileEditorModal({
   const createProfile = useCreateAutoSteerProfile();
   const updateProfile = useUpdateAutoSteerProfile();
   const { data: dimensions = [], isLoading: dimensionsLoading } = useAutoSteerDimensions();
-  const { data: skillOptions = [], isLoading: skillsLoading } = useMergedPhaseNames();
+  const { data: skillOptions = [], isLoading: skillsLoading } = useMergedSkillNames();
 
   const [local, setLocal] = useState<Partial<AutoSteerProfile>>(emptyProfile());
   const [saveError, setSaveError] = useState<SaveError | null>(null);

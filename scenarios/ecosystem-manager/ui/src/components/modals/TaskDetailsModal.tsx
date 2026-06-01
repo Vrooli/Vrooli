@@ -45,7 +45,7 @@ import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfil
 import { DecisionTracePanel, EffectivenessPanel } from '@/components/steer/DecisionTracePanel';
 import { InsightsTab } from '@/components/insights/InsightsTab';
 import { QueuePanel } from '@/components/steer/panels/QueuePanel';
-import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
+import { useMergedSkillNames } from '@/hooks/usePromptFiles';
 import { formatSkillSetLabel } from '@/lib/utils';
 import type { Task, Priority, ExecutionHistory, UpdateTaskInput, Campaign, SteeringConfig } from '@/types/api';
 
@@ -286,7 +286,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   } = useAutoSteerExecutionState(task && hasAutoSteerProfile ? task.id : undefined);
   const resetAutoSteer = useResetAutoSteerExecution();
   const startAutoSteer = useStartAutoSteerExecution();
-  const { data: phaseNames = [] } = useMergedPhaseNames();
+  const { data: skillNames = [] } = useMergedSkillNames();
 
   // Fetch task prompt
   const { data: promptData } = useQuery({
@@ -562,7 +562,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const controllerIteration = autoSteerState?.iteration ?? 0;
   const currentSkillId = autoSteerState?.current_skill ?? '';
   const currentSkillLabel = currentSkillId
-    ? formatSkillSetLabel([currentSkillId], phaseNames, { maxVisible: 1, emptyLabel: currentSkillId }) || currentSkillId
+    ? formatSkillSetLabel([currentSkillId], skillNames, { maxVisible: 1, emptyLabel: currentSkillId }) || currentSkillId
     : undefined;
   const currentRationale = autoSteerState?.current_rationale;
   const findings = autoSteerState?.findings;
@@ -804,7 +804,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                 <QueuePanel
                   value={task.steering_queue}
                   onChange={() => {}}
-                  phaseNames={phaseNames}
+                  skillNames={skillNames}
                   currentIndex={task.steering_queue_index}
                   isExhausted={task.steering_queue_exhausted}
                   readOnly
@@ -1122,7 +1122,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                 <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
                   {sortedExecutions.map((exec, idx) => {
                     const isSelected = exec.id === selectedExecutionId;
-                    const steerFocus = getExecutionSteerFocus(exec, autoSteerProfilesById, phaseNames);
+                    const steerFocus = getExecutionSteerFocus(exec, autoSteerProfilesById, skillNames);
                     const summaryLabel = formatExecutionSummary(exec, steerFocus);
                     return (
                       <div
@@ -1195,7 +1195,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                   isLoadingPrompt={isLoadingSelectedPrompt}
                   isLoadingOutput={isLoadingSelectedOutput}
                   profilesById={autoSteerProfilesById}
-                  phaseNames={phaseNames}
+                  skillNames={skillNames}
                 />
                 {selectedExecution && (
                   <div className="flex justify-end mt-3">

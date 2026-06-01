@@ -287,6 +287,40 @@ func TestMetricsCollector_ParseOperationalTargets(t *testing.T) {
 		}
 	})
 
+	t.Run("parse flat requirements schema (current)", func(t *testing.T) {
+		// Operational targets are the requirements whose prd_ref references the
+		// PRD's Operational Targets section; success spellings vary across the
+		// portfolio (validated/complete/completed), non-success are open.
+		requirementsJSON := `{
+			"requirements": [
+				{"id": "r1", "status": "validated", "prd_ref": "Operational Targets > P0 > OT-P0-001"},
+				{"id": "r2", "status": "complete",  "prd_ref": "Operational Targets > P0 > OT-P0-002"},
+				{"id": "r3", "status": "pending",   "prd_ref": "Operational Targets > P1 > OT-P1-001"},
+				{"id": "r4", "status": "in_progress","prd_ref": "Operational Targets > P1 > OT-P1-002"},
+				{"id": "r5", "status": "complete",  "prd_ref": "Architecture > some-other-section"}
+			]
+		}`
+
+		requirementsPath := filepath.Join(scenarioDir, "index.json")
+		if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0o644); err != nil {
+			t.Fatalf("Failed to write requirements file: %v", err)
+		}
+
+		collector := NewMetricsCollector(tmpDir)
+		counts, err := collector.parseOperationalTargets("test-scenario")
+		if err != nil {
+			t.Fatalf("parseOperationalTargets() error = %v", err)
+		}
+
+		// r5 is excluded (not an operational-target prd_ref). Of r1–r4: 2 done.
+		if counts.Total != 4 {
+			t.Errorf("Expected 4 operational targets, got %d", counts.Total)
+		}
+		if counts.Passing != 2 {
+			t.Errorf("Expected 2 passing (validated+complete), got %d", counts.Passing)
+		}
+	})
+
 	t.Run("parse file with no targets", func(t *testing.T) {
 		requirementsJSON := `{
 			"modules": [

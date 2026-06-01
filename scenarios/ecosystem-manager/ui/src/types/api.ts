@@ -272,6 +272,19 @@ export interface DecisionTraceEntry {
   dtv_gate_override?: boolean;
   /** DTV was unreachable; this selection used fail-open (P1) behavior. */
   dtv_degraded?: boolean;
+  /**
+   * Non-empty when the Layer-1 DTV gate ran degraded under the proceed-cap-flag
+   * policy (P2): the controller did not stall, it proceeded with the least-bad
+   * skill and halved the remaining iteration budget once. One of
+   * 'dtv_unavailable' or 'all_red'. Empty ⇒ healthy gate.
+   */
+  gate_degraded_cause?: string;
+  /**
+   * Forward estimate (at SELECT time) of the weighted-score reduction the chosen
+   * skill will realize this iteration (bandit reduction-per-token × est. tokens,
+   * P4). Compared against realized_delta to surface calibration. 0 = no estimate.
+   */
+  predicted_reduction?: number;
 }
 
 export interface DecisionTraceResponse {
@@ -637,7 +650,7 @@ export interface PromptFile {
   modified_at?: string;
 }
 
-export interface PhaseInfo {
+export interface SkillInfo {
   id: string;
   name: string;
   description?: string;

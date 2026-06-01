@@ -83,16 +83,15 @@ and `dependencies.scenarios`.
 | prompt-manager down | Skills sync error | Steering prompts unavailable; Auto Steer degrades gracefully. | steering tests |
 | openrouter missing key | No `OPENROUTER_API_KEY` | OpenRouter recycler runs + model discovery disabled; core flow unaffected. | n/a |
 
-### Directional inputs — not yet wired
+### Controller inputs — wired
 
-These are the planned inputs to the **closed-loop controller** described in
-[`CONTROL-MODEL.md`](CONTROL-MODEL.md). They are **not integrated today** —
-listed here so the dependency map reflects intent without overstating reality.
+These are the inputs to the **closed-loop controller** described in
+[`CONTROL-MODEL.md`](CONTROL-MODEL.md). Both are integrated.
 
-| Future input | Role in the controller | Status |
+| Input | Role in the controller | Status |
 |---|---|---|
-| test-genie | Findings-based state — what's broken/risky feeds the controller's next move. | Not wired. |
-| development-toolchain-validator (DTV) | Skill trust + cost priors, an eligibility gate, and a thrashing-prevention layer over steering choices. | Not wired. |
+| test-genie | Findings-based state — what's broken/risky feeds the controller's next move. | Wired — `findings.TestGenieRunner` is the DIAGNOSE/MEASURE audit runner. |
+| development-toolchain-validator (DTV) | Skill trust + cost priors, an eligibility gate, and a Layer-1 thrashing-prevention layer over steering choices. | Wired — `DTVEligibilityFilter` + `DTVPriorProvider` over the `dtv.Client` read seam (fail-open when DTV is unreachable; proceed-cap-flag when the gate degrades). |
 
 ## Cross-References
 

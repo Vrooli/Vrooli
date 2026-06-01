@@ -67,7 +67,7 @@ func ensureProfileExecutionsTable(db *sql.DB) error {
 	CREATE TABLE IF NOT EXISTS profile_executions (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		profile_id VARCHAR(255) NOT NULL,
-		task_id UUID NOT NULL,
+		task_id VARCHAR(255) NOT NULL,
 		scenario_name VARCHAR(255) NOT NULL,
 		start_metrics JSONB,
 		end_metrics JSONB,
@@ -83,6 +83,20 @@ func ensureProfileExecutionsTable(db *sql.DB) error {
 	CREATE INDEX IF NOT EXISTS idx_profile_executions_profile_id ON profile_executions(profile_id);
 	CREATE INDEX IF NOT EXISTS idx_profile_executions_scenario ON profile_executions(scenario_name);
 	CREATE INDEX IF NOT EXISTS idx_profile_executions_executed_at ON profile_executions(executed_at DESC);
+
+	-- Self-healing: task IDs are strings (e.g. "scenario-improver-<name>-<ts>"),
+	-- never UUIDs. An earlier build typed this column UUID, which threw
+	-- "invalid input syntax for type uuid" on every real run. Migrate in place.
+	DO $$
+	BEGIN
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_schema = 'public' AND table_name = 'profile_executions'
+			AND column_name = 'task_id' AND data_type = 'uuid'
+		) THEN
+			ALTER TABLE profile_executions ALTER COLUMN task_id TYPE VARCHAR(255) USING task_id::text;
+		END IF;
+	END $$;
 	`
 	if _, err := db.Exec(query); err != nil {
 		return fmt.Errorf("failed to ensure profile_executions table: %w", err)
@@ -117,7 +131,7 @@ func cutoverLegacyExecutionState(db *sql.DB) error {
 func ensureProfileExecutionStateTable(db *sql.DB) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS profile_execution_state (
-		task_id UUID PRIMARY KEY,
+		task_id VARCHAR(255) PRIMARY KEY,
 		profile_id VARCHAR(255) NOT NULL,
 		iteration INTEGER NOT NULL DEFAULT 0,
 		current_skill VARCHAR(255) NOT NULL DEFAULT '',
@@ -129,6 +143,21 @@ func ensureProfileExecutionStateTable(db *sql.DB) error {
 		started_at TIMESTAMP DEFAULT NOW(),
 		last_updated TIMESTAMP DEFAULT NOW()
 	);
+
+	-- Self-healing: task IDs are strings, never UUIDs (see profile_executions).
+	-- An earlier build typed this PK column UUID, so Auto Steer init threw
+	-- "invalid input syntax for type uuid" on the first state query, and the
+	-- closed loop never engaged. Migrate the column type in place.
+	DO $$
+	BEGIN
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_schema = 'public' AND table_name = 'profile_execution_state'
+			AND column_name = 'task_id' AND data_type = 'uuid'
+		) THEN
+			ALTER TABLE profile_execution_state ALTER COLUMN task_id TYPE VARCHAR(255) USING task_id::text;
+		END IF;
+	END $$;
 	`
 	if _, err := db.Exec(query); err != nil {
 		return fmt.Errorf("failed to ensure profile_execution_state table: %w", err)
@@ -160,6 +189,13 @@ func ensureDecisionTraceTable(db *sql.DB) error {
 		regressed BOOLEAN NOT NULL DEFAULT FALSE,
 		veto_applied BOOLEAN NOT NULL DEFAULT FALSE,
 		halt_reason TEXT NOT NULL DEFAULT '',
+		dtv_verdict VARCHAR(20) NOT NULL DEFAULT '',
+		dtv_prior DOUBLE PRECISION NOT NULL DEFAULT 0,
+		dtv_excluded JSONB,
+		dtv_gate_override BOOLEAN NOT NULL DEFAULT FALSE,
+		dtv_degraded BOOLEAN NOT NULL DEFAULT FALSE,
+		gate_degraded_cause VARCHAR(40) NOT NULL DEFAULT '',
+		predicted_reduction DOUBLE PRECISION NOT NULL DEFAULT 0,
 		created_at TIMESTAMP DEFAULT NOW()
 	);
 
@@ -172,6 +208,13 @@ func ensureDecisionTraceTable(db *sql.DB) error {
 	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS regressed BOOLEAN NOT NULL DEFAULT FALSE;
 	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS veto_applied BOOLEAN NOT NULL DEFAULT FALSE;
 	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS halt_reason TEXT NOT NULL DEFAULT '';
+	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS dtv_verdict VARCHAR(20) NOT NULL DEFAULT '';
+	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS dtv_prior DOUBLE PRECISION NOT NULL DEFAULT 0;
+	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS dtv_excluded JSONB;
+	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS dtv_gate_override BOOLEAN NOT NULL DEFAULT FALSE;
+	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS dtv_degraded BOOLEAN NOT NULL DEFAULT FALSE;
+	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS gate_degraded_cause VARCHAR(40) NOT NULL DEFAULT '';
+	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS predicted_reduction DOUBLE PRECISION NOT NULL DEFAULT 0;
 	`
 	if _, err := db.Exec(query); err != nil {
 		return fmt.Errorf("failed to ensure decision_trace table: %w", err)

@@ -150,11 +150,14 @@ in [`DATA.md`](DATA.md).
 
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| DTV trust gate | Needs development-toolchain-validator wiring (P2). | When skill eligibility/priors are consumed via the `EligibilityFilter` / injected `prior` seams. |
+| _None outstanding._ | — | — |
 
 The effectiveness store shipped as part of auto-steer v1 (`pkg/effectiveness`,
 `skill_dimension_effectiveness`); it is folded into the auto-steer domain rather
-than a standalone domain.
+than a standalone domain. The DTV trust gate likewise shipped: skill eligibility
+and cold-start priors are consumed through the auto-steer `EligibilityFilter` /
+`PriorProvider` seams (`DTVEligibilityFilter`, `DTVPriorProvider`, backed by the
+`dtv.Client` read seam), so it belongs to the auto-steer domain, not deferred.
 
 ## Non-Domains
 

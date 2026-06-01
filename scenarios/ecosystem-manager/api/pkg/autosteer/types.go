@@ -431,6 +431,19 @@ type DecisionTraceEntry struct {
 	// DTVDegraded is true when this selection's fitness snapshot was captured
 	// while DTV was unreachable (fail-open ⇒ P1 behavior).
 	DTVDegraded bool `json:"dtv_degraded,omitempty"`
+	// PredictedReduction is the controller's forward estimate (at SELECT time) of
+	// the weighted-score reduction the chosen skill will realize this iteration:
+	// the bandit's expected reduction-per-token × estimated run tokens (EM-P4).
+	// Compared against RealizedDelta in the trace to surface bandit calibration.
+	// 0 when no estimate was computable (e.g. greedy cold start, no token model).
+	PredictedReduction float64 `json:"predicted_reduction,omitempty"`
+	// GateDegradedCause is non-empty when the Layer-1 DTV gate ran in a degraded
+	// mode for this iteration under the proceed-cap-flag policy (EM-P2): the
+	// controller did not stall, it proceeded with the least-bad skill and halved
+	// the remaining iteration budget once. One of GateCauseDTVUnavailable (DTV
+	// unreachable ⇒ no fitness data) or GateCauseAllRed (every eligible skill in
+	// the chosen dimension was DTV-red). Empty ⇒ healthy gate.
+	GateDegradedCause string `json:"gate_degraded_cause,omitempty"`
 }
 
 // ProfileExecutionState tracks the live state of an active controller run.

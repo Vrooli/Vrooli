@@ -49,20 +49,21 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-05-30 — Auto-steer is an open-loop schedule, not a state-aware controller — RESOLVED (v0+v1); P2 DTV gap remains
+### 2026-05-30 — Auto-steer is an open-loop schedule, not a state-aware controller — RESOLVED (v0+v1+DTV)
 
-> **Resolution (2026-05-31):** Largely resolved. The **v0** closed-loop
-> controller (findings-set state, skill→dimension map, gradient termination,
-> decision trace) and the **v1** effectiveness-weighted controller shipped:
-> a learned per-`(skill, dimension)` effectiveness ledger (`pkg/effectiveness`),
-> credit assignment after every iteration, reduction-per-token bandit selection
-> with shrinkage prior + epsilon-greedy exploration, and the **Layer-2 runtime
+> **Resolution (2026-05-31):** Resolved. The **v0** closed-loop controller
+> (findings-set state, skill→dimension map, gradient termination, decision
+> trace) and the **v1** effectiveness-weighted controller shipped: a learned
+> per-`(skill, dimension)` effectiveness ledger (`pkg/effectiveness`), credit
+> assignment after every iteration, reduction-per-token bandit selection with
+> shrinkage prior + epsilon-greedy exploration, and the **Layer-2 runtime
 > thrashing defense** (fingerprint cycle-halt, net-progress window, hysteresis
-> cooldown, regression veto). The only part of the original root cause still
-> open is **(d) DTV signals as trust/cost priors and an eligibility gate** —
-> the `prior` and `EligibilityFilter` seams are in place (uniform / allow-all)
-> but not wired to development-toolchain-validator. That remaining gap is
-> tracked as the **P2** item below; the rest of this entry is historical.
+> cooldown, regression veto). Root cause **(d) DTV signals as trust/cost priors
+> and an eligibility gate** is now wired too: `DTVEligibilityFilter` /
+> `DTVPriorProvider` over the `dtv.Client` read seam, with the
+> **proceed-cap-flag** degraded-gate policy (DTV-down or all-red ⇒ proceed with
+> the least-bad skill, halve the remaining budget once, flag the iteration). The
+> rest of this entry is historical.
 
 **Symptom:** When ecosystem-manager auto-steers a target toward a maturity
 profile, it does not adapt to the target's actual failing dimensions. The
@@ -181,7 +182,6 @@ a migration handoff with a planned retirement path back into
 |---|---|---|---|
 | Transport | The scenario's own HTTP API is **REST/JSON over gorilla/mux** (`api/pkg/server/server.go` uses `mux.NewRouter()`; no `connect-go`/`connectrpc` dependency), not proto/Connect-RPC — the current Vrooli transport standard. Proto schemas under `packages/proto/schemas/ecosystem-manager/v1/` **do** exist, but they back the agent-manager client serialization and UI response validation only — they do not serve Connect-RPC. Most Go handlers still return `map[string]any`/embedded structs rather than proto response types. | Cross-scenario anti-drift guarantees from proto+Connect are absent; UI relies on fallback normalization at the boundary. | Migrate the API surface to Connect-RPC and return proto response types from handlers. Migration deferred — significant surface (8 domains, ~30 handlers). See [`DECISIONS.md`](DECISIONS.md). |
 | Docs contract | Internal docs predated the v2 scenario-docs contract (ASSUMPTIONS/COHERENCE-NOTES/ERROR-SEMANTICS/EXPERIENCE-AUDIT/INTEROP_AUDIT/INVARIANTS/SECURITY-POSTURE/TEMPORAL-FLOWS). | Stale docs misled agents (e.g., the old INTEROP audit overstated proto adoption). | Overhauled to the v2 contract on 2026-05-30 (this work); stale files folded into PROBLEMS/PROGRESS and retired, and `CONTROL-MODEL.md` authored. |
-| Auto-steer control (DTV priors / eligibility gate) | v0+v1 controller shipped (effectiveness learning + Layer-2 thrashing defense); only DTV trust/cost priors and the Layer-1 eligibility gate remain unwired (see Entry 2026-05-30, Resolution). | No DTV-informed skill trust/cost priors or hard eligibility gate; `prior`/`EligibilityFilter` seams are permissive defaults. | P2: wire development-toolchain-validator into the injected `prior` and `EligibilityFilter` seams. |
 
 ## Cross-references
 

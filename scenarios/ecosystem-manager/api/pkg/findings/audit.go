@@ -54,6 +54,37 @@ func ParseAudit(raw []byte) (*Audit, error) {
 	return &a, nil
 }
 
+// phaseExecuted reports whether a phase actually ran (as opposed to being
+// skipped, pending, or never reached). Only executed phases carry a verdict the
+// controller can trust.
+func phaseExecuted(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "pass", "passed", "fail", "failed", "error", "errored", "partial":
+		return true
+	default: // skip, skipped, pending, "", not_run, blocked → did not execute
+		return false
+	}
+}
+
+// Conclusive reports whether the audit actually assessed the target: at least
+// one phase executed. An audit with no phases — or whose phases were all
+// skipped/pending — did not really run, so its empty findings must NOT be read
+// as "the scenario is clean". A transiently-unwarmed or misconfigured test-genie
+// returns exactly this shape, and treating it as clean makes the controller
+// believe the objective is already met (DIAGNOSE non-determinism). Callers should
+// retry an inconclusive audit rather than trust its emptiness.
+func (a *Audit) Conclusive() bool {
+	if a == nil {
+		return false
+	}
+	for _, ph := range a.Phases {
+		if phaseExecuted(ph.Status) {
+			return true
+		}
+	}
+	return false
+}
+
 // phaseFailed reports whether a phase status counts as an open problem. A
 // findingless failing phase still contributes a synthetic finding so dimensions
 // without structured-finding producers (tests, performance, …) are visible.

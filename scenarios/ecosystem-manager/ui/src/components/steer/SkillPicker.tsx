@@ -4,17 +4,17 @@ import {
   cn,
   formatSkillSetLabel,
   formatSkillSetTooltip,
-  getPhaseDisplayName,
+  getSkillDisplayName,
   normalizeSkillId,
 } from '@/lib/utils';
-import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
-import { PhasePickerDialog } from './PhasePickerDialog';
-import type { PhaseInfo } from '@/types/api';
+import { useMergedSkillNames } from '@/hooks/usePromptFiles';
+import { SkillPickerDialog } from './SkillPickerDialog';
+import type { SkillInfo } from '@/types/api';
 
-interface PhasePickerProps {
+interface SkillPickerProps {
   values?: string[];
-  onChange: (phaseIds: string[]) => void;
-  phaseNames?: PhaseInfo[];
+  onChange: (skillIds: string[]) => void;
+  skillNames?: SkillInfo[];
   isLoading?: boolean;
   placeholder?: string;
   disabled?: boolean;
@@ -26,10 +26,10 @@ interface PhasePickerProps {
   selectionMode?: 'single' | 'multiple';
 }
 
-export function PhasePicker({
+export function SkillPicker({
   values,
   onChange,
-  phaseNames: externalPhaseNames,
+  skillNames: externalSkillNames,
   isLoading: externalLoading,
   placeholder = 'Select focus skills',
   disabled,
@@ -39,27 +39,27 @@ export function PhasePicker({
   confirmLabel,
   variant = 'default',
   selectionMode = 'single',
-}: PhasePickerProps) {
+}: SkillPickerProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const isCompact = variant === 'compact';
 
-  const { data: internalPhaseNames = [], isLoading: internalLoading } = useMergedPhaseNames();
+  const { data: internalSkillNames = [], isLoading: internalLoading } = useMergedSkillNames();
 
-  const phaseNames = externalPhaseNames ?? internalPhaseNames;
+  const skillNames = externalSkillNames ?? internalSkillNames;
   const isLoading = externalLoading ?? internalLoading;
   const normalizedValues = useMemo(
     () => (values ?? []).map((id) => normalizeSkillId(id)).filter(Boolean),
     [values]
   );
 
-  const displayName = formatSkillSetLabel(normalizedValues, phaseNames, {
+  const displayName = formatSkillSetLabel(normalizedValues, skillNames, {
     maxVisible: isCompact ? 1 : 2,
     emptyLabel: '',
   });
-  const displayDescription = formatSkillSetTooltip(normalizedValues, phaseNames);
+  const displayDescription = formatSkillSetTooltip(normalizedValues, skillNames);
 
-  const handleConfirm = (phaseIds: string[]) => {
-    const normalized = phaseIds.map((id) => normalizeSkillId(id)).filter(Boolean);
+  const handleConfirm = (skillIds: string[]) => {
+    const normalized = skillIds.map((id) => normalizeSkillId(id)).filter(Boolean);
     if (selectionMode === 'single') {
       onChange(normalized.slice(0, 1));
       return;
@@ -69,7 +69,7 @@ export function PhasePicker({
 
   const singleDisplayName =
     normalizedValues.length > 0
-      ? getPhaseDisplayName(normalizedValues[0], phaseNames)
+      ? getSkillDisplayName(normalizedValues[0], skillNames)
       : undefined;
   const buttonLabel =
     selectionMode === 'single' ? singleDisplayName ?? '' : displayName;
@@ -109,12 +109,12 @@ export function PhasePicker({
         <ChevronRight className={cn('shrink-0 text-slate-500', isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4')} />
       </button>
 
-      <PhasePickerDialog
+      <SkillPickerDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         values={normalizedValues}
         onConfirm={handleConfirm}
-        phaseNames={phaseNames}
+        skillNames={skillNames}
         isLoading={isLoading}
         title={dialogTitle}
         description={dialogDescription}
@@ -125,4 +125,4 @@ export function PhasePicker({
   );
 }
 
-export { PhasePickerDialog } from './PhasePickerDialog';
+export { SkillPickerDialog } from './SkillPickerDialog';

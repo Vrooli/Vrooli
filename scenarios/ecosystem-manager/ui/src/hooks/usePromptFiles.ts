@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
-import type { PromptFileInfo, PromptFile, PhaseInfo } from '@/types/api';
+import type { PromptFileInfo, PromptFile, SkillInfo } from '@/types/api';
 import { normalizeSkillId } from '@/lib/utils';
 
 export function usePromptFiles() {
@@ -44,19 +44,19 @@ export function useCreatePromptFile() {
 }
 
 /**
- * Hook to fetch phase names from prompt-manager skills.
- * Skills with "Steer" mode are converted to PhaseInfo format.
+ * Hook to fetch skill names from prompt-manager skills.
+ * Skills with "Steer" mode are converted to SkillInfo format.
  */
-export function useMergedPhaseNames() {
+export function useMergedSkillNames() {
   const skillsQuery = useQuery({
     queryKey: queryKeys.skills.list(),
     queryFn: () => api.listSkills(),
   });
 
-  const phases = useMemo(() => {
-    const skills = skillsQuery.data ?? [];
+  const skills = useMemo<SkillInfo[]>(() => {
+    const raw = skillsQuery.data ?? [];
 
-    return skills
+    return raw
       .filter((skill) => normalizeSkillId(skill.modes?.[0]) === 'steer')
       .map((skill) => {
         const modes = (skill.modes ?? []).slice(1).map((mode) => mode.trim()).filter(Boolean);
@@ -68,11 +68,11 @@ export function useMergedPhaseNames() {
           source: 'prompt-manager' as const,
         };
       })
-      .filter((phase) => phase.id && normalizeSkillId(phase.name));
+      .filter((skill) => skill.id && normalizeSkillId(skill.name));
   }, [skillsQuery.data]);
 
   return {
-    data: phases,
+    data: skills,
     isLoading: skillsQuery.isLoading,
     isError: skillsQuery.isError,
     error: skillsQuery.error,

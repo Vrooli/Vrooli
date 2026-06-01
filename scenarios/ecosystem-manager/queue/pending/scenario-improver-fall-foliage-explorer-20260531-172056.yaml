@@ -1,0 +1,32 @@
+id: scenario-improver-fall-foliage-explorer-20260531-172056
+title: Improve scenario fall-foliage-explorer
+type: scenario
+operation: improver
+target: fall-foliage-explorer
+targets:
+    - fall-foliage-explorer
+category: improvement
+priority: medium
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: pending
+current_phase: ""
+started_at: ""
+completed_at: ""
+completion_count: 4
+last_completed_at: "2026-05-31T18:20:36-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2026-05-31T17:20:56-04:00"
+updated_at: "2026-05-31T18:29:55-04:00"
+tags: []
+notes: ""
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true
+auto_steer_profile_id: e4237387-66bf-438e-99aa-ccf419160d8d

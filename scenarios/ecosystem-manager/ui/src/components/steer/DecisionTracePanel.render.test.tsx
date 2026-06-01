@@ -59,6 +59,55 @@ describe('DecisionTraceList rendering', () => {
     const html = renderToStaticMarkup(<DecisionTraceList entries={entries} />);
     expect(html).toContain('DTV degraded → P1');
   });
+
+  it('renders predicted Δ alongside realized Δ and a calibration indicator (P4)', () => {
+    const entries: DecisionTraceEntry[] = [
+      {
+        iteration: 1,
+        chosen_skill: 'refactor',
+        heaviest_dimension: 'standards',
+        predicted_reduction: 6,
+        realized_delta: 4,
+      },
+      {
+        iteration: 2,
+        chosen_skill: 'lint-fix',
+        heaviest_dimension: 'standards',
+        predicted_reduction: 3,
+        realized_delta: 3,
+      },
+    ];
+    const html = renderToStaticMarkup(<DecisionTraceList entries={entries} />);
+    expect(html).toContain('pred Δ −6.0');
+    expect(html).toContain('Δ −4.0 (improved)');
+    // MAE = (|6-4| + |3-3|)/2 = 1.0 over 2 iterations.
+    expect(html).toContain('mean |predicted − realized| = 1.0 over 2 iterations');
+  });
+
+  it('omits the calibration indicator until an iteration has both predicted and realized', () => {
+    const entries: DecisionTraceEntry[] = [
+      { iteration: 1, chosen_skill: 'refactor', predicted_reduction: 6 }, // no realized yet
+    ];
+    const html = renderToStaticMarkup(<DecisionTraceList entries={entries} />);
+    expect(html).not.toContain('mean |predicted − realized|');
+  });
+
+  it('prominently flags a proceed-cap-flag degraded gate with its cause (P2)', () => {
+    const dtvUnavailable: DecisionTraceEntry[] = [
+      { iteration: 1, chosen_skill: 'ux', heaviest_dimension: 'ui', gate_degraded_cause: 'dtv_unavailable' },
+    ];
+    const allRed: DecisionTraceEntry[] = [
+      { iteration: 2, chosen_skill: 'refactor', heaviest_dimension: 'standards', gate_degraded_cause: 'all_red' },
+    ];
+
+    const unavailHtml = renderToStaticMarkup(<DecisionTraceList entries={dtvUnavailable} />);
+    expect(unavailHtml).toContain('Degraded gate (DTV unavailable)');
+    expect(unavailHtml).toContain('budget halved');
+    expect(unavailHtml).toContain('role="alert"');
+
+    const allRedHtml = renderToStaticMarkup(<DecisionTraceList entries={allRed} />);
+    expect(allRedHtml).toContain('Degraded gate (all candidate skills DTV-red)');
+  });
 });
 
 describe('EffectivenessTable rendering', () => {

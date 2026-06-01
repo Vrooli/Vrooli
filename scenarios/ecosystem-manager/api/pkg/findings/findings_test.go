@@ -159,3 +159,33 @@ func TestFakeRunner(t *testing.T) {
 		t.Error("expected error for unconfigured scenario")
 	}
 }
+
+func TestAudit_Conclusive(t *testing.T) {
+	cases := []struct {
+		name  string
+		audit *Audit
+		want  bool
+	}{
+		{"nil", nil, false},
+		{"no phases", &Audit{}, false},
+		{"all skipped", &Audit{Phases: []AuditPhase{
+			{Name: "standards", Status: "skipped"},
+			{Name: "docs", Status: "pending"},
+			{Name: "smoke", Status: ""},
+		}}, false},
+		{"one executed pass", &Audit{Phases: []AuditPhase{
+			{Name: "standards", Status: "skipped"},
+			{Name: "docs", Status: "pass"},
+		}}, true},
+		{"executed fail", &Audit{Phases: []AuditPhase{
+			{Name: "standards", Status: "fail"},
+		}}, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.audit.Conclusive(); got != tc.want {
+				t.Errorf("Conclusive() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}

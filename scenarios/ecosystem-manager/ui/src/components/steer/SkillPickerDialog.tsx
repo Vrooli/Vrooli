@@ -19,16 +19,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn, normalizeSkillId } from '@/lib/utils';
-import { usePhaseUsage, type SortOption } from '@/hooks/usePhaseUsage';
+import { useSkillUsage, type SortOption } from '@/hooks/useSkillUsage';
 import { useSteerSkills, useSyncSkills } from '@/hooks/useSkills';
-import type { PhaseInfo } from '@/types/api';
+import type { SkillInfo } from '@/types/api';
 
-interface PhasePickerDialogProps {
+interface SkillPickerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   values?: string[];
-  onConfirm: (phaseIds: string[]) => void;
-  phaseNames: PhaseInfo[];
+  onConfirm: (skillIds: string[]) => void;
+  skillNames: SkillInfo[];
   isLoading?: boolean;
   title?: string;
   description?: string;
@@ -42,7 +42,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'most-used', label: 'Most Used' },
 ];
 
-const BUILT_IN_PHASES: PhaseInfo[] = [
+const BUILT_IN_SKILLS: SkillInfo[] = [
   { id: 'progress', name: 'Progress', description: 'Advance core objectives and operational targets.', modes: [], source: 'builtin' },
   { id: 'ux', name: 'UX', description: 'Improve usability, accessibility, and user flows.', modes: [], source: 'builtin' },
   { id: 'refactor', name: 'Refactor', description: 'Raise code quality without changing behavior.', modes: [], source: 'builtin' },
@@ -53,34 +53,34 @@ const BUILT_IN_PHASES: PhaseInfo[] = [
   { id: 'security', name: 'Security', description: 'Reduce vulnerabilities and tighten validation.', modes: [], source: 'builtin' },
 ];
 
-export function prioritizeSelectedPhases(
-  phases: PhaseInfo[],
+export function prioritizeSelectedSkills(
+  skills: SkillInfo[],
   selectedSkillIds: string[],
-): PhaseInfo[] {
-  if (phases.length === 0 || selectedSkillIds.length === 0) {
-    return phases;
+): SkillInfo[] {
+  if (skills.length === 0 || selectedSkillIds.length === 0) {
+    return skills;
   }
 
   const selected = new Set(selectedSkillIds.map((id) => normalizeSkillId(id)));
-  return [...phases].sort((a, b) => {
+  return [...skills].sort((a, b) => {
     const aSelected = selected.has(normalizeSkillId(a.id)) ? 1 : 0;
     const bSelected = selected.has(normalizeSkillId(b.id)) ? 1 : 0;
     return bSelected - aSelected;
   });
 }
 
-export function PhasePickerDialog({
+export function SkillPickerDialog({
   open,
   onOpenChange,
   values,
   onConfirm,
-  phaseNames,
+  skillNames,
   isLoading,
-  title = 'Select Focus Modes',
+  title = 'Select Focus Skills',
   description = 'Choose one or more steering skills for this set.',
   selectionMode = 'single',
   confirmLabel = 'Confirm',
-}: PhasePickerDialogProps) {
+}: SkillPickerDialogProps) {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('recent');
   const [focusedIndex, setFocusedIndex] = useState(0);
@@ -90,65 +90,65 @@ export function PhasePickerDialog({
 
   const { data: steerSkills = [], isLoading: skillsLoading, isError: skillsError } = useSteerSkills();
   const syncSkills = useSyncSkills();
-  const { trackUsage, sortByRecent, sortByFrequency, sortByName } = usePhaseUsage();
+  const { trackUsage, sortByRecent, sortByFrequency, sortByName } = useSkillUsage();
   const normalizedSelection = useMemo(
     () => draftSelection.map((id) => normalizeSkillId(id)).filter(Boolean),
     [draftSelection]
   );
   const promptIsLoading = typeof isLoading === 'boolean' ? isLoading : skillsLoading;
   const promptHasError = skillsError;
-  const promptHasData = phaseNames.length > 0 || steerSkills.length > 0;
+  const promptHasData = skillNames.length > 0 || steerSkills.length > 0;
 
-  const filterPhases = useCallback(
-    (phases: PhaseInfo[]) => {
-      if (!search.trim()) return phases;
+  const filterSkills = useCallback(
+    (skills: SkillInfo[]) => {
+      if (!search.trim()) return skills;
       const searchLower = search.toLowerCase();
-      return phases.filter((phase) => {
-        const nameLower = phase.name.toLowerCase();
-        const descLower = (phase.description || '').toLowerCase();
-        const modesLower = (phase.modes || []).join(' ').toLowerCase();
+      return skills.filter((skill) => {
+        const nameLower = skill.name.toLowerCase();
+        const descLower = (skill.description || '').toLowerCase();
+        const modesLower = (skill.modes || []).join(' ').toLowerCase();
         return nameLower.includes(searchLower) || descLower.includes(searchLower) || modesLower.includes(searchLower);
       });
     },
     [search]
   );
 
-  const sortPhases = useCallback(
-    (phases: PhaseInfo[]) => {
+  const sortSkills = useCallback(
+    (skills: SkillInfo[]) => {
       switch (sortBy) {
         case 'recent':
-          return sortByRecent(phases);
+          return sortByRecent(skills);
         case 'most-used':
-          return sortByFrequency(phases);
+          return sortByFrequency(skills);
         case 'name':
         default:
-          return sortByName(phases);
+          return sortByName(skills);
       }
     },
     [sortBy, sortByRecent, sortByFrequency, sortByName]
   );
 
-  const filteredPromptPhases = useMemo(() => filterPhases(phaseNames), [filterPhases, phaseNames]);
-  const filteredBuiltInPhases = useMemo(() => filterPhases(BUILT_IN_PHASES), [filterPhases]);
+  const filteredPromptSkills = useMemo(() => filterSkills(skillNames), [filterSkills, skillNames]);
+  const filteredBuiltInSkills = useMemo(() => filterSkills(BUILT_IN_SKILLS), [filterSkills]);
 
-  const sortedPromptPhases = useMemo(
+  const sortedPromptSkills = useMemo(
     () => {
-      const sorted = sortPhases(filteredPromptPhases);
-      return prioritizeSelectedPhases(sorted, normalizedSelection);
+      const sorted = sortSkills(filteredPromptSkills);
+      return prioritizeSelectedSkills(sorted, normalizedSelection);
     },
-    [filteredPromptPhases, normalizedSelection, sortPhases]
+    [filteredPromptSkills, normalizedSelection, sortSkills]
   );
-  const sortedBuiltInPhases = useMemo(
+  const sortedBuiltInSkills = useMemo(
     () => {
-      const sorted = sortPhases(filteredBuiltInPhases);
-      return prioritizeSelectedPhases(sorted, normalizedSelection);
+      const sorted = sortSkills(filteredBuiltInSkills);
+      return prioritizeSelectedSkills(sorted, normalizedSelection);
     },
-    [filteredBuiltInPhases, normalizedSelection, sortPhases]
+    [filteredBuiltInSkills, normalizedSelection, sortSkills]
   );
 
-  const combinedPhases = useMemo(
-    () => [...sortedPromptPhases, ...sortedBuiltInPhases],
-    [sortedPromptPhases, sortedBuiltInPhases]
+  const combinedSkills = useMemo(
+    () => [...sortedPromptSkills, ...sortedBuiltInSkills],
+    [sortedPromptSkills, sortedBuiltInSkills]
   );
 
   useEffect(() => {
@@ -161,14 +161,14 @@ export function PhasePickerDialog({
   }, [open, values]);
 
   useEffect(() => {
-    if (focusedIndex >= combinedPhases.length) {
-      setFocusedIndex(Math.max(0, combinedPhases.length - 1));
+    if (focusedIndex >= combinedSkills.length) {
+      setFocusedIndex(Math.max(0, combinedSkills.length - 1));
     }
-  }, [combinedPhases.length, focusedIndex]);
+  }, [combinedSkills.length, focusedIndex]);
 
   const toggleSelection = useCallback(
-    (phaseId: string) => {
-      const normalized = normalizeSkillId(phaseId);
+    (skillId: string) => {
+      const normalized = normalizeSkillId(skillId);
       setDraftSelection((prev) => {
         if (selectionMode === 'single') {
           return [normalized];
@@ -195,12 +195,12 @@ export function PhasePickerDialog({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (combinedPhases.length === 0) return;
+      if (combinedSkills.length === 0) return;
 
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
-          setFocusedIndex((prev) => Math.min(prev + GRID_COLUMNS, combinedPhases.length - 1));
+          setFocusedIndex((prev) => Math.min(prev + GRID_COLUMNS, combinedSkills.length - 1));
           break;
         case 'ArrowUp':
           e.preventDefault();
@@ -208,7 +208,7 @@ export function PhasePickerDialog({
           break;
         case 'ArrowRight':
           e.preventDefault();
-          setFocusedIndex((prev) => Math.min(prev + 1, combinedPhases.length - 1));
+          setFocusedIndex((prev) => Math.min(prev + 1, combinedSkills.length - 1));
           break;
         case 'ArrowLeft':
           e.preventDefault();
@@ -217,8 +217,8 @@ export function PhasePickerDialog({
         case 'Enter':
         case ' ':
           e.preventDefault();
-          if (combinedPhases[focusedIndex]) {
-            toggleSelection(combinedPhases[focusedIndex].id);
+          if (combinedSkills[focusedIndex]) {
+            toggleSelection(combinedSkills[focusedIndex].id);
           }
           break;
         case 'Escape':
@@ -227,7 +227,7 @@ export function PhasePickerDialog({
           break;
       }
     },
-    [combinedPhases, focusedIndex, onOpenChange, toggleSelection]
+    [combinedSkills, focusedIndex, onOpenChange, toggleSelection]
   );
 
   useEffect(() => {
@@ -238,13 +238,13 @@ export function PhasePickerDialog({
     }
   }, [focusedIndex]);
 
-  const promptTotal = phaseNames.length;
-  const builtInTotal = BUILT_IN_PHASES.length;
-  const promptFilteredEmpty = !promptIsLoading && !promptHasError && promptTotal > 0 && filteredPromptPhases.length === 0;
+  const promptTotal = skillNames.length;
+  const builtInTotal = BUILT_IN_SKILLS.length;
+  const promptFilteredEmpty = !promptIsLoading && !promptHasError && promptTotal > 0 && filteredPromptSkills.length === 0;
   const promptEmpty = !promptIsLoading && !promptHasError && promptTotal === 0;
   const promptUnavailable = promptHasError || promptEmpty;
-  const builtInFilteredEmpty = filteredBuiltInPhases.length === 0 && search.trim().length > 0;
-  const totalDisplayed = combinedPhases.length;
+  const builtInFilteredEmpty = filteredBuiltInSkills.length === 0 && search.trim().length > 0;
+  const totalDisplayed = combinedSkills.length;
   const hasSelection = normalizedSelection.length > 0;
 
   return (
@@ -352,15 +352,15 @@ export function PhasePickerDialog({
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {sortedPromptPhases.map((phase, index) => {
-                    const normalizedId = normalizeSkillId(phase.id);
+                  {sortedPromptSkills.map((skill, index) => {
+                    const normalizedId = normalizeSkillId(skill.id);
                     const isSelected = normalizedSelection.includes(normalizedId);
                     return (
                       <button
-                        key={`${phase.id}-${index}`}
+                        key={`${skill.id}-${index}`}
                         data-index={index}
                         type="button"
-                        onClick={() => toggleSelection(phase.id)}
+                        onClick={() => toggleSelection(skill.id)}
                         className={cn(
                           'flex items-start gap-2 p-3 rounded-lg border text-left transition-colors',
                           'hover:bg-slate-800 hover:border-slate-600',
@@ -371,11 +371,11 @@ export function PhasePickerDialog({
                         <Checkbox checked={isSelected} className="mt-0.5" />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 w-full">
-                            <span className="font-medium text-sm text-slate-100 truncate">{phase.name}</span>
+                            <span className="font-medium text-sm text-slate-100 truncate">{skill.name}</span>
                             {isSelected && <Check className="h-4 w-4 text-blue-400 ml-auto shrink-0" />}
                           </div>
-                          {phase.description && (
-                            <p className="text-xs text-slate-400 mt-1 line-clamp-2">{phase.description}</p>
+                          {skill.description && (
+                            <p className="text-xs text-slate-400 mt-1 line-clamp-2">{skill.description}</p>
                           )}
                         </div>
                       </button>
@@ -396,16 +396,16 @@ export function PhasePickerDialog({
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {sortedBuiltInPhases.map((phase, index) => {
-                    const combinedIndex = sortedPromptPhases.length + index;
-                    const normalizedId = normalizeSkillId(phase.id);
+                  {sortedBuiltInSkills.map((skill, index) => {
+                    const combinedIndex = sortedPromptSkills.length + index;
+                    const normalizedId = normalizeSkillId(skill.id);
                     const isSelected = normalizedSelection.includes(normalizedId);
                     return (
                       <button
-                        key={phase.id}
+                        key={skill.id}
                         data-index={combinedIndex}
                         type="button"
-                        onClick={() => toggleSelection(phase.id)}
+                        onClick={() => toggleSelection(skill.id)}
                         className={cn(
                           'flex items-start gap-2 p-3 rounded-lg border text-left transition-colors',
                           'hover:bg-slate-800 hover:border-slate-600',
@@ -416,11 +416,11 @@ export function PhasePickerDialog({
                         <Checkbox checked={isSelected} className="mt-0.5" />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 w-full">
-                            <span className="font-medium text-sm text-slate-100 truncate">{phase.name}</span>
+                            <span className="font-medium text-sm text-slate-100 truncate">{skill.name}</span>
                             {isSelected && <Check className="h-4 w-4 text-blue-400 ml-auto shrink-0" />}
                           </div>
-                          {phase.description && (
-                            <p className="text-xs text-slate-400 mt-1 line-clamp-2">{phase.description}</p>
+                          {skill.description && (
+                            <p className="text-xs text-slate-400 mt-1 line-clamp-2">{skill.description}</p>
                           )}
                         </div>
                       </button>

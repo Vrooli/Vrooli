@@ -32,22 +32,49 @@ func (s *TraceStore) Append(taskID, profileID, scenarioName string, e DecisionTr
 	if err != nil {
 		return fmt.Errorf("marshal dimension scores: %w", err)
 	}
+	excludedJSON, err := marshalExcluded(e.DTVExcluded)
+	if err != nil {
+		return fmt.Errorf("marshal dtv_excluded: %w", err)
+	}
 	query := `
 		INSERT INTO decision_trace (
 			task_id, profile_id, scenario_name, iteration, chosen_skill,
 			heaviest_dimension, rationale, dimension_scores, fingerprint,
-			score_before, score_after, realized_delta, tokens_used
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+			score_before, score_after, realized_delta, tokens_used,
+			dtv_verdict, dtv_prior, dtv_excluded, dtv_gate_override, dtv_degraded,
+			gate_degraded_cause, predicted_reduction
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
 	`
 	_, err = s.db.Exec(query,
 		taskID, profileID, scenarioName, e.Iteration, e.ChosenSkill,
 		e.HeaviestDimension, e.Rationale, scoresJSON, e.Fingerprint,
 		e.ScoreBefore, e.ScoreAfter, e.RealizedDelta, e.TokensUsed,
+		e.DTVVerdict, e.DTVPrior, jsonOrNull(excludedJSON), e.DTVGateOverride, e.DTVDegraded,
+		e.GateDegradedCause, e.PredictedReduction,
 	)
 	if err != nil {
 		return fmt.Errorf("append decision trace: %w", err)
 	}
 	return nil
+}
+
+// jsonOrNull returns a NULL-able arg for a JSONB column: a nil/empty byte slice
+// becomes SQL NULL (lib/pq sends a typed nil []byte as the empty string, which
+// is invalid JSON), otherwise the bytes pass through.
+func jsonOrNull(b []byte) any {
+	if len(b) == 0 {
+		return nil
+	}
+	return b
+}
+
+// marshalExcluded marshals the DTV per-skill exclusion-reason map to JSON,
+// returning a nil slice (SQL NULL) for an empty map.
+func marshalExcluded(m map[string]string) ([]byte, error) {
+	if len(m) == 0 {
+		return nil, nil
+	}
+	return json.Marshal(m)
 }
 
 // SetRealized fills in the realized outcome of an iteration after re-audit: the
@@ -72,7 +99,7 @@ func (s *TraceStore) SetRealized(taskID string, e DecisionTraceEntry) error {
 		WHERE task_id = $8 AND iteration = $9
 	`
 	if _, err := s.db.Exec(query, e.ScoreAfter, e.RealizedDelta, e.TokensUsed,
-		closedJSON, introducedJSON, e.Regressed, e.VetoApplied, taskID, e.Iteration); err != nil {
+		jsonOrNull(closedJSON), jsonOrNull(introducedJSON), e.Regressed, e.VetoApplied, taskID, e.Iteration); err != nil {
 		return fmt.Errorf("set realized decision trace: %w", err)
 	}
 	return nil
@@ -112,6 +139,8 @@ func (s *TraceStore) GetTrace(taskID string) ([]DecisionTraceEntry, error) {
 		       dimension_scores, fingerprint, score_before, score_after,
 		       realized_delta, tokens_used, closed_by_dimension,
 		       introduced_by_dimension, regressed, veto_applied, halt_reason,
+		       dtv_verdict, dtv_prior, dtv_excluded, dtv_gate_override,
+		       dtv_degraded, gate_degraded_cause, predicted_reduction,
 		       created_at
 		FROM decision_trace
 		WHERE task_id = $1
@@ -126,14 +155,22 @@ func (s *TraceStore) GetTrace(taskID string) ([]DecisionTraceEntry, error) {
 	out := make([]DecisionTraceEntry, 0)
 	for rows.Next() {
 		var e DecisionTraceEntry
-		var scoresJSON, closedJSON, introducedJSON []byte
+		var scoresJSON, closedJSON, introducedJSON, excludedJSON []byte
 		if err := rows.Scan(
 			&e.Iteration, &e.ChosenSkill, &e.HeaviestDimension, &e.Rationale,
 			&scoresJSON, &e.Fingerprint, &e.ScoreBefore, &e.ScoreAfter,
 			&e.RealizedDelta, &e.TokensUsed, &closedJSON, &introducedJSON,
-			&e.Regressed, &e.VetoApplied, &e.HaltReason, &e.Timestamp,
+			&e.Regressed, &e.VetoApplied, &e.HaltReason,
+			&e.DTVVerdict, &e.DTVPrior, &excludedJSON, &e.DTVGateOverride,
+			&e.DTVDegraded, &e.GateDegradedCause, &e.PredictedReduction,
+			&e.Timestamp,
 		); err != nil {
 			return nil, fmt.Errorf("scan decision trace: %w", err)
+		}
+		if !isNullJSON(excludedJSON) {
+			if err := json.Unmarshal(excludedJSON, &e.DTVExcluded); err != nil {
+				return nil, fmt.Errorf("unmarshal dtv_excluded: %w", err)
+			}
 		}
 		if !isNullJSON(scoresJSON) {
 			if err := json.Unmarshal(scoresJSON, &e.DimensionScores); err != nil {

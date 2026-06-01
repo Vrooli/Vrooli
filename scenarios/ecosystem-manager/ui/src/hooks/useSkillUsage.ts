@@ -1,29 +1,29 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
-const STORAGE_KEY = 'ecosystem-manager:phase-usage';
+const STORAGE_KEY = 'ecosystem-manager:skill-usage';
 const MAX_RECENT = 10;
 
-interface PhaseUsageData {
+interface SkillUsageData {
   recent: string[];
   frequency: Record<string, number>;
   lastUpdated: string;
 }
 
-const defaultUsageData: PhaseUsageData = {
+const defaultUsageData: SkillUsageData = {
   recent: [],
   frequency: {},
   lastUpdated: new Date().toISOString(),
 };
 
 // In-memory cache for the current value
-let cachedData: PhaseUsageData | null = null;
+let cachedData: SkillUsageData | null = null;
 let listeners: Set<() => void> = new Set();
 
 function notifyListeners() {
   listeners.forEach((listener) => listener());
 }
 
-function loadFromStorage(): PhaseUsageData {
+function loadFromStorage(): SkillUsageData {
   if (cachedData) return cachedData;
 
   try {
@@ -40,7 +40,7 @@ function loadFromStorage(): PhaseUsageData {
   return cachedData;
 }
 
-function saveToStorage(data: PhaseUsageData) {
+function saveToStorage(data: SkillUsageData) {
   cachedData = data;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -55,22 +55,22 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-function getSnapshot(): PhaseUsageData {
+function getSnapshot(): SkillUsageData {
   return loadFromStorage();
 }
 
 /**
- * Hook to track phase selection usage in localStorage.
- * Provides recent phases, frequency counts, and sorting utilities.
+ * Hook to track skill selection usage in localStorage.
+ * Provides recent skills, frequency counts, and sorting utilities.
  */
-export function usePhaseUsage() {
+export function useSkillUsage() {
   const usageData = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  const trackUsage = useCallback((phaseId: string) => {
+  const trackUsage = useCallback((skillId: string) => {
     const current = loadFromStorage();
 
     // Update recent list (prepend, remove duplicates, limit)
-    const newRecent = [phaseId, ...current.recent.filter((p) => p !== phaseId)].slice(
+    const newRecent = [skillId, ...current.recent.filter((p) => p !== skillId)].slice(
       0,
       MAX_RECENT
     );
@@ -78,7 +78,7 @@ export function usePhaseUsage() {
     // Increment frequency
     const newFrequency = {
       ...current.frequency,
-      [phaseId]: (current.frequency[phaseId] || 0) + 1,
+      [skillId]: (current.frequency[skillId] || 0) + 1,
     };
 
     saveToStorage({
@@ -89,11 +89,11 @@ export function usePhaseUsage() {
   }, []);
 
   const sortByRecent = useCallback(
-    <T extends { id?: string; name: string }>(phases: T[]): T[] => {
+    <T extends { id?: string; name: string }>(skills: T[]): T[] => {
       const recentSet = new Set(usageData.recent);
       const recentIndex = new Map(usageData.recent.map((name, idx) => [name, idx]));
 
-      return [...phases].sort((a, b) => {
+      return [...skills].sort((a, b) => {
         const aKey = a.id ?? a.name;
         const bKey = b.id ?? b.name;
         const aRecent = recentSet.has(aKey);
@@ -116,8 +116,8 @@ export function usePhaseUsage() {
   );
 
   const sortByFrequency = useCallback(
-    <T extends { id?: string; name: string }>(phases: T[]): T[] => {
-      return [...phases].sort((a, b) => {
+    <T extends { id?: string; name: string }>(skills: T[]): T[] => {
+      return [...skills].sort((a, b) => {
         const aKey = a.id ?? a.name;
         const bKey = b.id ?? b.name;
         const aFreq = usageData.frequency[aKey] || 0;
@@ -133,8 +133,8 @@ export function usePhaseUsage() {
     [usageData.frequency]
   );
 
-  const sortByName = useCallback(<T extends { id?: string; name: string }>(phases: T[]): T[] => {
-    return [...phases].sort((a, b) => a.name.localeCompare(b.name));
+  const sortByName = useCallback(<T extends { id?: string; name: string }>(skills: T[]): T[] => {
+    return [...skills].sort((a, b) => a.name.localeCompare(b.name));
   }, []);
 
   const clearUsage = useCallback(() => {

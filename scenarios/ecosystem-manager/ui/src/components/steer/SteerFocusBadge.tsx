@@ -32,16 +32,16 @@ export interface SteerFocusInfo {
 export function getExecutionSteerFocus(
   execution: ExecutionHistory,
   profilesById: Record<string, AutoSteerProfile | undefined> = {},
-  phaseNames: Array<{ id: string; name: string }> = [],
+  skillNames: Array<{ id: string; name: string }> = [],
 ): SteerFocusInfo {
   const manualSet = execution.steer_skill_ids ?? [];
   const manualSetLabel =
     manualSet.length > 0
-      ? formatSkillSetLabel(manualSet, phaseNames, { maxVisible: 1, emptyLabel: '' })
+      ? formatSkillSetLabel(manualSet, skillNames, { maxVisible: 1, emptyLabel: '' })
       : undefined;
   const manualSetTooltip =
     manualSet.length > 0
-      ? formatSkillSetTooltip(manualSet, phaseNames)
+      ? formatSkillSetTooltip(manualSet, skillNames)
       : undefined;
 
   const profileId = execution.auto_steer_profile_id;
@@ -54,11 +54,11 @@ export function getExecutionSteerFocus(
     const skillIds = execution.steer_skill_ids ?? [];
     const iteration =
       typeof execution.steer_phase_iteration === 'number' ? execution.steer_phase_iteration : undefined;
-    const skillSetLabel = formatSkillSetLabel(skillIds, phaseNames, {
+    const skillSetLabel = formatSkillSetLabel(skillIds, skillNames, {
       maxVisible: 1,
       emptyLabel: autoSteerProfileName,
     });
-    const tooltipBody = formatSkillSetTooltip(skillIds, phaseNames) ?? skillSetLabel;
+    const tooltipBody = formatSkillSetTooltip(skillIds, skillNames) ?? skillSetLabel;
     const skillTooltip =
       typeof iteration === 'number' && iteration > 0
         ? `Iteration ${iteration}: ${tooltipBody}`

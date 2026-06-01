@@ -24,6 +24,34 @@ export function formatRealizedDelta(entry: DecisionTraceEntry): string {
   return '0.0 (no change)';
 }
 
+/** formatPredictedReduction renders an iteration's forward reduction estimate. */
+export function formatPredictedReduction(entry: DecisionTraceEntry): string | null {
+  const p = entry.predicted_reduction;
+  if (p === undefined || p === null || p === 0) return null;
+  return p > 0 ? `−${p.toFixed(1)}` : `+${Math.abs(p).toFixed(1)}`;
+}
+
+/**
+ * calibrationError returns the running mean absolute error between predicted and
+ * realized reduction across iterations where both are known, plus the sample
+ * count. Null when there is no comparable iteration yet. A large error means the
+ * bandit's forward estimate is poorly calibrated to outcomes.
+ */
+export function calibrationError(entries: DecisionTraceEntry[]): { mae: number; n: number } | null {
+  let sum = 0;
+  let n = 0;
+  for (const e of entries) {
+    const p = e.predicted_reduction;
+    const r = e.realized_delta;
+    if (p === undefined || p === null || p === 0) continue;
+    if (r === undefined || r === null) continue;
+    sum += Math.abs(p - r);
+    n += 1;
+  }
+  if (n === 0) return null;
+  return { mae: sum / n, n };
+}
+
 /** dtvVerdictClass maps a DTV fitness verdict to its badge styling. */
 export function dtvVerdictClass(verdict: string): string {
   switch (verdict) {
@@ -35,6 +63,18 @@ export function dtvVerdictClass(verdict: string): string {
       return 'bg-destructive/15 text-destructive';
     default:
       return 'bg-muted text-muted-foreground';
+  }
+}
+
+/** degradedGateLabel renders a human-readable cause for the degraded-gate badge. */
+export function degradedGateLabel(cause: string): string {
+  switch (cause) {
+    case 'dtv_unavailable':
+      return 'DTV unavailable';
+    case 'all_red':
+      return 'all candidate skills DTV-red';
+    default:
+      return cause;
   }
 }
 
@@ -61,8 +101,22 @@ export function DecisionTraceList({ entries }: DecisionTraceListProps) {
     );
   }
 
+  const calibration = calibrationError(entries);
+
   return (
     <ol className="space-y-3" role="list" aria-label="Controller decision trace">
+      {calibration && (
+        <li role="presentation" className="list-none">
+          <p
+            className="rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground"
+            data-testid="calibration-indicator"
+            aria-label={`Bandit calibration: mean absolute prediction error ${calibration.mae.toFixed(1)} over ${calibration.n} iterations`}
+          >
+            Bandit calibration: mean |predicted − realized| = {calibration.mae.toFixed(1)} over {calibration.n}{' '}
+            iteration{calibration.n === 1 ? '' : 's'}
+          </p>
+        </li>
+      )}
       {entries.map((entry) => {
         const dims = topDimensions(entry);
         return (
@@ -86,9 +140,16 @@ export function DecisionTraceList({ entries }: DecisionTraceListProps) {
               </span>
               <span
                 className="text-xs text-muted-foreground"
-                aria-label={`Realized delta ${formatRealizedDelta(entry)}`}
+                aria-label={`Realized delta ${formatRealizedDelta(entry)}${
+                  formatPredictedReduction(entry) ? `, predicted ${formatPredictedReduction(entry)}` : ''
+                }`}
               >
-                Δ {formatRealizedDelta(entry)}
+                {formatPredictedReduction(entry) && (
+                  <span data-testid="trace-predicted" className="mr-2">
+                    pred Δ {formatPredictedReduction(entry)}
+                  </span>
+                )}
+                <span data-testid="trace-realized">Δ {formatRealizedDelta(entry)}</span>
               </span>
             </div>
 
@@ -152,6 +213,17 @@ export function DecisionTraceList({ entries }: DecisionTraceListProps) {
                   </li>
                 )}
               </ul>
+            )}
+
+            {entry.gate_degraded_cause && (
+              <p
+                className="mt-2 rounded border border-destructive/40 bg-destructive/15 px-2 py-1 text-[11px] font-medium text-destructive"
+                role="alert"
+                data-testid="gate-degraded"
+              >
+                ⚠ Degraded gate ({degradedGateLabel(entry.gate_degraded_cause)}) — proceeded with the
+                least-bad skill; remaining iteration budget halved. Review this iteration.
+              </p>
             )}
 
             {(entry.dtv_verdict || (entry.dtv_excluded && Object.keys(entry.dtv_excluded).length > 0) || entry.dtv_degraded) && (

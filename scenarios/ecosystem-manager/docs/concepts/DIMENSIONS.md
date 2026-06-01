@@ -25,6 +25,50 @@ does **not** produce findings for in v0 (`accessibility`, `coverage`,
 they are simply never the heaviest open cluster until a producer exists, and
 `operational-targets` is measured through gap metrics rather than findings.
 
+## Skill actionability (EM-P7)
+
+A dimension is *actionable* when at least one steer skill in the catalog
+declares it in `targetDimensions` — the controller can pick a skill to close
+findings there. A dimension with no targeting skill is *known-unactionable*:
+the controller does not stall on it, it **falls through to the next actionable
+dimension** and records the skip in the decision trace (`SelectNextSkill`).
+
+| Dimension | Actionable by | Status |
+|---|---|---|
+| standards | polish, refactor | actionable |
+| structure | refactor, screaming-architecture-audit, temporal-flow-audit | actionable |
+| cycles | refactor, screaming-architecture-audit, temporal-flow-audit | actionable |
+| ui | ux | actionable |
+| visual | polish, ux | actionable |
+| accessibility | ux | actionable |
+| docs | documentation-health | actionable |
+| tests | test | actionable |
+| coverage | test | actionable |
+| security | security | actionable |
+| performance | performance | actionable |
+| tidiness | polish, refactor | actionable |
+| operational-targets | progress | actionable (gap-metric measured, not findings) |
+| **contracts** | — | **known-unactionable** |
+| **dependencies** | — | **known-unactionable** |
+| **business** | — | **known-unactionable** |
+
+**Known-unactionable dimensions** — `contracts` (CLI/API manifest + binding
+gaps), `dependencies` (dependency hygiene/governance), and `business`
+(business-logic validation) have no steer skill that legitimately closes them.
+They remain first-class vocabulary members (test-genie / skills may still
+produce findings there) but the controller cannot act on them and degrades
+gracefully by falling through. **Revisit trigger:** when a steer skill is
+authored that targets one of these, add it to the skill's `targetDimensions`
+and move the row to *actionable* — the cross-repo vocabulary guard
+(`pkg/skillmap` + prompt-manager `target_dimensions_test.go`) will already
+accept it. Authoring those skills is out of scope here (this section *declares*
+the gap; it does not close it).
+
+`explore` is deliberately **not** findings-routed: it is an experimentation
+mode selected manually/ad-hoc, not by the objective loop, so it declares no
+`targetDimensions` (it previously borrowed `operational-targets`, which muddied
+`progress`'s dimension — removed in P7).
+
 ## Two mapping tables, two signal channels
 
 test-genie surfaces two distinct signals, and the controller ingests both:
