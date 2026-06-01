@@ -22,11 +22,17 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	dependenciesH "security-health/handlers/dependencies"
 	healthH "security-health/handlers/health"
 	notesH "security-health/handlers/notes"
+	reindexH "security-health/handlers/reindex"
+	validationH "security-health/handlers/validation"
 	localdb "security-health/internal/database"
 
+	dependenciesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/dependencies"
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/notes"
+	reindexv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/reindex"
+	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/validation"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -36,7 +42,10 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, dependenciesH.Endpoints...)
 	out = append(out, notesH.Endpoints...)
+	out = append(out, reindexH.Endpoints...)
+	out = append(out, validationH.Endpoints...)
 	return out
 }
 
@@ -63,7 +72,10 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "dependencies", File: dependenciesv1.File_security_health_v1_dependencies_dependencies_proto},
 		{Module: "notes", File: notesv1.File_security_health_v1_notes_notes_proto},
+		{Module: "reindex", File: reindexv1.File_security_health_v1_reindex_reindex_proto},
+		{Module: "validation", File: validationv1.File_security_health_v1_validation_validation_proto},
 	}
 }
 
@@ -78,6 +90,9 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(dependenciesH.Schema),
 		apidb.SchemaProviderFunc(notesH.Schema),
+		apidb.SchemaProviderFunc(reindexH.Schema),
+		apidb.SchemaProviderFunc(validationH.Schema),
 	}
 }

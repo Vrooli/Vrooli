@@ -25,6 +25,77 @@
       ],
       "cli_mapping": {
         "command": "security-health status"
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
+      }
+    },
+    {
+      "id": "dependencies_search",
+      "path": "/vrooli.security_health.v1.dependencies.DependencyService/Search",
+      "method": "POST",
+      "summary": "Search the fleet dependency & vulnerability index",
+      "description": "Queries the fleet SBOM corpus with a free-text query plus structured filters (ecosystem, vulnerable-only, name glob). Answers 'which scenarios are exposed to CVE-X?' in one call. TEXT/structured mode is always available; MODE_AI degrades to TEXT until the semantic layer is wired.",
+      "category": "dependencies",
+      "request": {
+        "type": "object",
+        "properties": {
+          "ecosystem": "Ecosystem (GO|NPM)",
+          "limit": "int32",
+          "mode": "Mode (UNSPECIFIED|AI|TEXT)",
+          "name_glob": "string",
+          "query": "string",
+          "vulnerable_only": "boolean"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "mode_used": "Mode",
+          "results": "array<SearchResult>"
+        }
+      },
+      "examples": [
+        {
+          "name": "Vulnerable deps",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.security_health.v1.dependencies.DependencyService/Search -H 'Content-Type: application/json' -d '{\"vulnerable_only\":true}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "security-health deps search",
+        "args": [
+          "<query>"
+        ]
+      }
+    },
+    {
+      "id": "dependencies_status",
+      "path": "/vrooli.security_health.v1.dependencies.DependencyService/Status",
+      "method": "POST",
+      "summary": "Report dependency-index backend availability and reconcile state",
+      "description": "Returns indexed/vulnerable counts, AI backend availability (ollama/qdrant), and the last reconcile timestamp + outcome.",
+      "category": "dependencies",
+      "response": {
+        "type": "object",
+        "properties": {
+          "available": "boolean",
+          "indexed_count": "int32",
+          "last_reconcile_at": "string",
+          "last_reconcile_outcome": "string",
+          "ollama": "boolean",
+          "qdrant": "boolean",
+          "vulnerable_count": "int32"
+        }
+      },
+      "examples": [
+        {
+          "name": "Status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.security_health.v1.dependencies.DependencyService/Status -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "security-health deps status"
       }
     },
     {
@@ -198,6 +269,157 @@
           "--file",
           "<path>"
         ]
+      },
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message."
+      }
+    },
+    {
+      "id": "reindex_reindex",
+      "path": "/vrooli.security_health.v1.reindex.ReindexService/Reindex",
+      "method": "POST",
+      "summary": "Reconcile the fleet dependency corpus (async)",
+      "description": "Re-discovers every scenario's lockfiles, re-annotates vuln status, and reconciles the SBOM corpus. dry_run returns planned upsert/delete counts without writing; a real run starts an async job and returns its job_id.",
+      "category": "reindex",
+      "request": {
+        "type": "object",
+        "properties": {
+          "dry_run": "boolean",
+          "scenario": "string (empty = all)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dry_run": "boolean",
+          "job_id": "string",
+          "planned_deletes": "int32",
+          "planned_upserts": "int32"
+        }
+      },
+      "examples": [
+        {
+          "name": "Dry-run reindex",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.security_health.v1.reindex.ReindexService/Reindex -H 'Content-Type: application/json' -d '{\"dry_run\":true}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "security-health reindex run"
+      }
+    },
+    {
+      "id": "reindex_status",
+      "path": "/vrooli.security_health.v1.reindex.ReindexService/ReindexStatus",
+      "method": "POST",
+      "summary": "Poll a reindex job",
+      "description": "Reports progress (processed/total) and terminal state for a reindex job.",
+      "category": "reindex",
+      "request": {
+        "type": "object",
+        "properties": {
+          "job_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "error": "string",
+          "job_id": "string",
+          "processed": "int32",
+          "state": "string",
+          "total": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No job with that id"
+        }
+      ],
+      "cli_mapping": {
+        "command": "security-health reindex status",
+        "args": [
+          "<job_id>"
+        ]
+      }
+    },
+    {
+      "id": "reindex_cancel",
+      "path": "/vrooli.security_health.v1.reindex.ReindexService/ReindexCancel",
+      "method": "POST",
+      "summary": "Cancel a reindex job",
+      "description": "Requests cooperative cancellation of a reindex job. Idempotent; cancelling a terminal job reports cancelled=false.",
+      "category": "reindex",
+      "request": {
+        "type": "object",
+        "properties": {
+          "job_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "cancelled": "boolean",
+          "job_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No job with that id"
+        }
+      ],
+      "cli_mapping": {
+        "command": "security-health reindex cancel",
+        "args": [
+          "<job_id>"
+        ]
+      }
+    },
+    {
+      "id": "validation_validate_scenario",
+      "path": "/vrooli.security_health.v1.validation.ValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate a scenario's security posture",
+      "description": "Detects the target scenario's substrates and runs the applicable security scanners (secrets, Go SAST, Go vuln-DB, JS deps), returning normalized severity-correct findings. critical/high → ERROR (gates ecosystem-manager R1), medium → WARNING, low/info → INFO.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string (required, scenario id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "findings": "array<Finding>",
+          "passed": "boolean",
+          "scenario": "string",
+          "skipped_scanners": "array<string>",
+          "summary": "Summary"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario id or scenario not found under scenarios/"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validate scenario",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.security_health.v1.validation.ValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"security-health\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "security-health validate scenario",
+        "args": [
+          "<name>"
+        ]
       }
     }
   ],
@@ -226,6 +448,36 @@
       "name": "notes attach",
       "description": "Upload an attachment for a note (--file PATH)",
       "endpoint_id": "notes_attach"
+    },
+    {
+      "name": "validate scenario",
+      "description": "Validate a scenario's security posture and report normalized findings (--json for the machine shape test-genie parses)",
+      "endpoint_id": "validation_validate_scenario"
+    },
+    {
+      "name": "deps search",
+      "description": "Search the fleet dependency & vulnerability index (--vulnerable-only, --ecosystem, --name-glob)",
+      "endpoint_id": "dependencies_search"
+    },
+    {
+      "name": "deps status",
+      "description": "Report dependency-index availability, counts, and last reconcile",
+      "endpoint_id": "dependencies_status"
+    },
+    {
+      "name": "reindex run",
+      "description": "Reconcile the fleet dependency corpus (--scenario, --dry-run)",
+      "endpoint_id": "reindex_reindex"
+    },
+    {
+      "name": "reindex status",
+      "description": "Poll a reindex job's progress",
+      "endpoint_id": "reindex_status"
+    },
+    {
+      "name": "reindex cancel",
+      "description": "Cancel an in-flight reindex job",
+      "endpoint_id": "reindex_cancel"
     }
   ]
 }

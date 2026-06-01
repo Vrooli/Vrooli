@@ -1,0 +1,125 @@
+package validation
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"path/filepath"
+	"strings"
+)
+
+// gosecScanner runs the gosec Go SAST tool per Go module. gosec's own
+// severity (HIGH/MEDIUM/LOW) flows through NormalizeSeverity, so only HIGH
+// gates R1 while MEDIUM/LOW stay advisory — the false-positive mitigation
+// from the plan (gosec is FP-prone; don't let a medium-confidence medium
+// finding fail a scenario).
+type gosecScanner struct {
+	cmd Commander
+}
+
+func newGosecScanner(cmd Commander) Scanner { return &gosecScanner{cmd: cmd} }
+
+func (g *gosecScanner) Name() string             { return "gosec" }
+func (g *gosecScanner) Binary() string           { return "gosec" }
+func (g *gosecScanner) Applies(s Substrate) bool { return s.Go }
+
+type gosecReport struct {
+	Issues []gosecIssue `json:"Issues"`
+}
+
+type gosecIssue struct {
+	Severity string `json:"severity"`
+	RuleID   string `json:"rule_id"`
+	Details  string `json:"details"`
+	File     string `json:"file"`
+	Line     string `json:"line"`
+}
+
+func (g *gosecScanner) Scan(ctx context.Context, scenarioDir string, sub Substrate) ([]Finding, error) {
+	dirs := sub.GoModDirs
+	if len(dirs) == 0 {
+		dirs = []string{"."}
+	}
+	var findings []Finding
+	var lastErr error
+	parsedAny := false
+	for _, rel := range dirs {
+		modDir := filepath.Join(scenarioDir, rel)
+		// -no-fail keeps gosec's exit code at 0 even with issues; ./... scans
+		// the whole module. We deliberately omit -quiet: with -quiet gosec
+		// emits *nothing* on a clean scan, which is indistinguishable from a
+		// loader failure. Without it, stdout always carries the JSON report
+		// ({"Issues":[]} when clean) and the progress chatter goes to stderr.
+		stdout, stderr, _, err := g.cmd.Run(ctx, modDir, "gosec", "-fmt=json", "-no-fail", "./...")
+		if err != nil {
+			lastErr = fmt.Errorf("gosec failed to run in %s: %w", rel, err)
+			continue
+		}
+		if len(stdout) == 0 {
+			// gosec couldn't analyze (e.g. toolchain/loader incompatibility);
+			// remember why so the Service can emit an INFO observation.
+			lastErr = fmt.Errorf("gosec produced no output in %s: %s", rel, truncate(stderr, 200))
+			continue
+		}
+		var report gosecReport
+		if err := json.Unmarshal(stdout, &report); err != nil {
+			lastErr = fmt.Errorf("parse gosec json in %s: %w", rel, err)
+			continue
+		}
+		parsedAny = true
+		for _, issue := range report.Issues {
+			loc := relPath(scenarioDir, issue.File)
+			if issue.Line != "" {
+				loc = fmt.Sprintf("%s:%s", loc, strings.SplitN(issue.Line, "-", 2)[0])
+			}
+			findings = append(findings, Finding{
+				RuleID:      "gosec." + nonEmpty(issue.RuleID, "unknown"),
+				Severity:    gosecSeverity(issue.RuleID, issue.Severity),
+				Title:       fmt.Sprintf("gosec %s", nonEmpty(issue.RuleID, "finding")),
+				Description: strings.TrimSpace(issue.Details),
+				Remediation: "Review the flagged code; apply the gosec rule's documented fix (e.g. validate inputs, avoid unsafe APIs, use crypto/rand). Suppress with a reviewed #nosec comment only when proven safe.",
+				FilePath:    loc,
+				Scanner:     g.Name(),
+			})
+		}
+	}
+	// If no module parsed cleanly, surface the failure so the Service records a
+	// degraded INFO observation rather than silently reporting "clean".
+	if !parsedAny && lastErr != nil {
+		return nil, lastErr
+	}
+	return findings, nil
+}
+
+// gosecOverFiringRules caps specific gosec rules below their native severity.
+// gosec is FP-prone (plan R2); the contract is to SCOPE an over-firing rule
+// (downgrade it, here, with a regression test) rather than disable it globally.
+// Every entry is one of gosec's newest taint/TOCTOU heuristics, which fire HIGH
+// on idiomatic, operator-controlled code present in the react-vite template —
+// so leaving them at ERROR would perma-gate every Go scenario's R1 on
+// boilerplate. They stay visible as WARNINGs; the high-signal mature rules
+// (G101 hardcoded creds, G401 weak crypto, G501 blocklisted imports, …) keep
+// their native ERROR and still gate.
+//
+//	G115 — "integer overflow conversion": fires on every `int32(len(x))` /
+//	        `int32(count)` cast even when the value is provably small.
+//	G122 — "filesystem op in WalkDir callback (symlink TOCTOU)": fires on any
+//	        os.ReadFile inside a filepath.WalkDir over a controlled tree.
+//	G703 — "path traversal via taint": fires on os.MkdirAll/ReadFile whose path
+//	        derives from operator config (env var, storage resolver), not from
+//	        untrusted request input.
+var gosecOverFiringRules = map[string]Severity{
+	"G115": SeverityWarning,
+	"G122": SeverityWarning,
+	"G703": SeverityWarning,
+}
+
+// gosecSeverity normalizes gosec's native severity, then applies any per-rule
+// cap from gosecOverFiringRules (never escalates, only caps).
+func gosecSeverity(ruleID, native string) Severity {
+	sev := NormalizeSeverity(native)
+	if capped, ok := gosecOverFiringRules[strings.TrimSpace(ruleID)]; ok && capped > sev {
+		return capped
+	}
+	return sev
+}

@@ -8,8 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"security-health/internal/clock"
+	"security-health/internal/dependencies"
 	"security-health/internal/modules"
 	"security-health/internal/server"
 
@@ -19,10 +21,14 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 	_ "modernc.org/sqlite"
 
+	dependenciesH "security-health/handlers/dependencies"
 	healthH "security-health/handlers/health"
 	notesH "security-health/handlers/notes"
+	reindexH "security-health/handlers/reindex"
+	validationH "security-health/handlers/validation"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -101,11 +107,35 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	logger := log.Default()
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		log.Fatalf("resolve repo root: %v", err)
+	}
+
+	// The fleet Dependency & Vulnerability Intelligence service is shared by the
+	// dependencies (search/status) module, the reindex (async job) module, and
+	// the background reconcile loop, so all three see one corpus + job registry.
+	depService := dependencies.NewService(dependencies.Deps{
+		RepoRoot: repoRoot,
+		Store:    dependencies.NewStore(db),
+		Clock:    clock.System{},
+	})
+
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "security-health-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, log.Default()),
+		notesH.Module(db, clock.System{}, logger),
+		validationH.Module(logger, repoRoot),
+		dependenciesH.Module(logger, depService),
+		reindexH.Module(logger, depService),
 	)
+
+	// Background reconcile loop: refresh the fleet SBOM corpus every 5 minutes
+	// so the Dependency feature never blocks on a live scan. Cancelled on
+	// shutdown via reconcileCancel.
+	reconcileCtx, reconcileCancel := context.WithCancel(context.Background())
+	go runReconcileLoop(reconcileCtx, depService, logger)
 
 	// Top-level mux that mounts the API handler plus, when in development
 	// mode, the dev-only RoutingService used by test-genie to install a
@@ -121,9 +151,36 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			reconcileCancel()
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
+	}
+}
+
+// runReconcileLoop drives a periodic fleet reconcile. It runs once shortly
+// after boot (so a freshly-started scenario has an index) and then every
+// reconcileInterval until the context is cancelled. Reconcile failures are
+// logged and retried on the next tick — a transient scanner/network hiccup
+// must never crash the server.
+func runReconcileLoop(ctx context.Context, svc *dependencies.Service, logger *log.Logger) {
+	const reconcileInterval = 5 * time.Minute
+	// Small initial delay so boot isn't competing with the first reconcile's
+	// fleet walk + osv-scanner calls.
+	timer := time.NewTimer(30 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			if err := svc.RunReconcileOnce(ctx); err != nil && ctx.Err() == nil {
+				logger.Printf("[security-health] dependency reconcile failed (will retry): %v", err)
+			}
+			timer.Reset(reconcileInterval)
+		}
 	}
 }
 
