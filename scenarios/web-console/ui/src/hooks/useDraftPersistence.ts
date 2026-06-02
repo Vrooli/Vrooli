@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 const DRAFT_KEY_PREFIX = "wc-mobile-draft";
 const DEBOUNCE_MS = 300;
@@ -8,64 +8,71 @@ function draftKey(sessionId?: string | null): string {
 }
 
 /**
- * Persists a text draft to localStorage so it survives page reloads
- * and accidental navigation. The draft is saved on a debounce timer
- * and cleared explicitly when the caller confirms a successful send.
+ * Persists a text draft to localStorage so it survives page reloads and
+ * accidental navigation, keyed per session.
  *
- * When `sessionId` is provided, each session gets its own draft key.
+ * This is an IMPERATIVE hook — it deliberately holds no React state and never
+ * triggers a re-render. The consumer owns the live value (an uncontrolled
+ * textarea + a ref), so persisting must not round-trip through React on every
+ * keystroke; that round-trip was the source of mobile typing lag. The hook
+ * just reads the stored draft, writes it on a debounce, and clears it.
  */
 export function useDraftPersistence(sessionId?: string | null) {
   const key = draftKey(sessionId);
+  const keyRef = useRef(key);
+  keyRef.current = key;
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [value, setValue] = useState(() => {
+  /** Read the persisted draft for the current session (empty string if none). */
+  const readDraft = useCallback((): string => {
     try {
-      return localStorage.getItem(key) ?? "";
+      return localStorage.getItem(keyRef.current) ?? "";
     } catch {
       return "";
     }
-  });
+  }, []);
 
-  // Re-read from localStorage when the session (key) changes
-  const prevKeyRef = useRef(key);
-  useEffect(() => {
-    if (key === prevKeyRef.current) return;
-    prevKeyRef.current = key;
-    try {
-      setValue(localStorage.getItem(key) ?? "");
-    } catch {
-      setValue("");
-    }
-  }, [key]);
-
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Persist to localStorage on change (debounced)
-  useEffect(() => {
+  /**
+   * Persist `value` for the current session on a debounce. The storage key is
+   * captured at call time so a session switch mid-debounce still writes the
+   * draft it belongs to.
+   */
+  const persistDraft = useCallback((value: string) => {
+    const k = keyRef.current;
     if (timerRef.current !== null) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
+      timerRef.current = null;
       try {
         if (value) {
-          localStorage.setItem(key, value);
+          localStorage.setItem(k, value);
         } else {
-          localStorage.removeItem(key);
+          localStorage.removeItem(k);
         }
       } catch {
-        // Storage full or unavailable — ignore
+        // Storage full or unavailable — ignore.
       }
     }, DEBOUNCE_MS);
-    return () => {
-      if (timerRef.current !== null) clearTimeout(timerRef.current);
-    };
-  }, [value, key]);
+  }, []);
 
+  /** Clear the current session's draft immediately and cancel any pending write. */
   const clearDraft = useCallback(() => {
-    setValue("");
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
     try {
-      localStorage.removeItem(key);
+      localStorage.removeItem(keyRef.current);
     } catch {
       // ignore
     }
-  }, [key]);
+  }, []);
 
-  return { value, setValue, clearDraft };
+  // Flush nothing but cancel a dangling timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  return { key, readDraft, persistDraft, clearDraft };
 }

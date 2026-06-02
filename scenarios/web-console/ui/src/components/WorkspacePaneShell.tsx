@@ -1,4 +1,4 @@
-import { memo, useCallback, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { memo, useCallback, useEffect, useState, useTransition, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { useConversationStore, type PaneViewMode } from "../stores/useConversationStore";
 import type { PaneMetadata } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
@@ -40,6 +40,9 @@ interface WorkspacePaneShellProps {
   onActivate: (sessionId: string) => void;
   onRequestClose: (sessionId: string) => void;
   onToggleView: (sessionId: string, viewMode: PaneViewMode) => void;
+  /** Notifies when this pane is mid view-switch so a shared toolbar button
+   *  (e.g. the tabs-mode floating toggle) can show a loading indicator. */
+  onViewSwitchPendingChange?: (sessionId: string, pending: boolean) => void;
   onStartArrangeDrag?: (paneId: string, e: ReactPointerEvent) => void;
   onTerminalReady: (sessionId: string) => void;
   onTerminalExit: (sessionId: string) => void;
@@ -87,6 +90,7 @@ function WorkspacePaneShell({
   onActivate,
   onRequestClose,
   onToggleView,
+  onViewSwitchPendingChange,
   onStartArrangeDrag,
   onTerminalReady,
   onTerminalExit,
@@ -121,6 +125,24 @@ function WorkspacePaneShell({
       ).length;
     }, [sessionId, supportsMessagesView]),
   );
+
+  // Switching to messages mounts MessagesPane, which synchronously renders
+  // markdown for every (virtualized) row — heavy enough to drop the frame so
+  // the toggle feels like it didn't register. We mirror the store's viewMode
+  // into local state updated inside a transition: the tap commits instantly
+  // (the toggle button can paint a spinner right away) and React renders the
+  // heavy view at low priority without blocking. `renderedViewMode` lags
+  // `viewMode` for exactly the duration of one view switch.
+  const [renderedViewMode, setRenderedViewMode] = useState(viewMode);
+  const [isViewSwitchPending, startViewSwitch] = useTransition();
+  useEffect(() => {
+    if (renderedViewMode === viewMode) return;
+    startViewSwitch(() => setRenderedViewMode(viewMode));
+  }, [viewMode, renderedViewMode]);
+  useEffect(() => {
+    onViewSwitchPendingChange?.(sessionId, isViewSwitchPending);
+    return () => onViewSwitchPendingChange?.(sessionId, false);
+  }, [isViewSwitchPending, sessionId, onViewSwitchPendingChange]);
 
   const wrapperStyle: CSSProperties | undefined = layoutMode === "grid"
     ? { gridColumn, gridRow }
@@ -181,6 +203,7 @@ function WorkspacePaneShell({
           onClose={() => onRequestClose(sessionId)}
           onFocus={() => onActivate(sessionId)}
           onToggleView={supportsMessagesView ? handleToggleView : undefined}
+          isViewSwitchPending={isViewSwitchPending}
           onDragStart={onStartArrangeDrag}
         />
       )}
@@ -200,7 +223,7 @@ function WorkspacePaneShell({
             ref={(handle) => onTerminalRef(sessionId, handle)}
           />
         </ErrorBoundary>
-        {supportsMessagesView && viewMode === "messages" && (
+        {supportsMessagesView && renderedViewMode === "messages" && (
           <div className="absolute inset-0">
             <MessagesPane
               sessionId={sessionId}

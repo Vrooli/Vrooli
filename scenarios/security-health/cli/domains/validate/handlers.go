@@ -3,6 +3,7 @@ package validate
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -18,8 +19,16 @@ type handlers struct {
 	client validationconnect.ValidationServiceClient
 }
 
+// validateScanTimeout is the HTTP client timeout for the validate call. Security
+// scans run gosec/govulncheck/osv-scanner/gitleaks across every substrate in the
+// target, which routinely exceeds the chatty-RPC default (30s) — a warm test-genie
+// scan alone is ~31s, and cold vuln-DB caches push it higher. The default timeout
+// silently breaks the test-genie → security-health producer path, so use a generous
+// ceiling here instead.
+const validateScanTimeout = 5 * time.Minute
+
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, validateScanTimeout)
 	return &handlers{
 		core:   core,
 		client: validationconnect.NewValidationServiceClient(httpClient, baseURL),

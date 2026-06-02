@@ -2,7 +2,7 @@
 // DOC: docs/internal/SEAMS.md#1-entry--presentation
 import { useState, useCallback, useEffect, useRef, type ChangeEvent } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { Menu, MessageSquareText, Plus, Settings, TerminalSquare } from "lucide-react";
+import { Loader2, Menu, MessageSquareText, Plus, Settings, TerminalSquare } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
@@ -763,6 +763,17 @@ export default function Workspace() {
     setConversationViewMode(sessionId, viewMode === "terminal" ? "messages" : "terminal");
   }, [setConversationViewMode]);
 
+  // Tracks which pane (if any) is mid view-switch so the tabs-mode floating
+  // toggle button can show a loading spinner. Each pane shell reports its own
+  // transition state; we only surface the active pane's.
+  const [viewSwitchPendingPane, setViewSwitchPendingPane] = useState<string | null>(null);
+  const handleViewSwitchPendingChange = useCallback((sessionId: string, pending: boolean) => {
+    setViewSwitchPendingPane((prev) => {
+      if (pending) return sessionId;
+      return prev === sessionId ? null : prev;
+    });
+  }, []);
+
   const handlePaneTransportSpeakingEvent = useCallback((sessionId: string, eventId: string | null) => {
     if (sessionId === workspace.activePane) {
       handlePaneTransportEventStart(sessionId, eventId);
@@ -1073,6 +1084,7 @@ export default function Workspace() {
         onActivate={activatePane}
         onRequestClose={handleRequestClose}
         onToggleView={handlePaneToggleView}
+        onViewSwitchPendingChange={handleViewSwitchPendingChange}
         onStartArrangeDrag={startArrangeDrag}
         onTerminalReady={handleTerminalReady}
         onTerminalExit={handleExit}
@@ -1315,9 +1327,11 @@ export default function Workspace() {
                 }}
                 title={activeViewMode === "terminal" ? t(strings.workspace.switchToMessagesTitle) : t(strings.workspace.switchToTerminalTitle)}
               >
-                {activeViewMode === "terminal"
-                  ? <MessageSquareText className="h-3.5 w-3.5" />
-                  : <TerminalSquare className="h-3.5 w-3.5" />}
+                {viewSwitchPendingPane === workspace.activePane
+                  ? <Loader2 data-testid="workspace-toggle-view-pending" className="h-3.5 w-3.5 animate-spin" />
+                  : activeViewMode === "terminal"
+                    ? <MessageSquareText className="h-3.5 w-3.5" />
+                    : <TerminalSquare className="h-3.5 w-3.5" />}
               </button>
             </div>
           )}
@@ -1347,6 +1361,7 @@ export default function Workspace() {
                   onActivate={activatePane}
                   onRequestClose={handleRequestClose}
                   onToggleView={handlePaneToggleView}
+                  onViewSwitchPendingChange={handleViewSwitchPendingChange}
                   onTerminalReady={handleTerminalReady}
                   onTerminalExit={handleExit}
                   onTerminalRef={registerTerminalRef}

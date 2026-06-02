@@ -1,5 +1,7 @@
 ## Steer focus: Test Suite Strengthening
 
+> **Ladder position:** R0 and R3 (runnable & green, then features hardened — coverage). Green-and-runnable is the floor; real coverage of critical behavior is the hardening. See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
+
 Prioritize **test quality, coverage, and reliability** across this scenario.
 Do **not** break functionality or regress existing tests; all changes must maintain or improve overall completeness.
 
@@ -48,6 +50,7 @@ Optional reading:
 
 * Ensure tests would **fail clearly and immediately** if the behavior they protect were broken.
 * Avoid loosening tests or weakening assertions just to make them pass; tests should **enforce correctness**, not accommodate bugs.
+* **Never weaken or delete a `[REQ:]`-tagged test to get green.** That test is the executable definition of a tracked requirement; removing its assertion un-defines the requirement (and the controller will not count it toward operational targets). Fix the code, or — only if the assertion is genuinely wrong — make it *more accurate* to the requirement, never looser. See `improvement-do-and-dont`.
 
 ---
 

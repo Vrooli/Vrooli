@@ -644,6 +644,7 @@
     "title": "المظهر",
     "headerColorHeading": "لون العنوان",
     "noColorTitle": "بدون لون",
+    "customColorTitle": "لون مخصص",
     "terminalThemeHeading": "مظهر الطرفية",
     "fontSizeHeading": "حجم الخط",
     "applyToAll": "تطبيق على جميع الجلسات"

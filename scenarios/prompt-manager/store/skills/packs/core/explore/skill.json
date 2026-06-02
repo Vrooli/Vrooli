@@ -14,10 +14,7 @@
   "icon": "compass",
   "status": "active",
   "entry": "SKILL.md",
-  "targetDimensions": [
-    "operational-targets"
-  ],
-  "revision": 43,
+  "revision": 44,
   "createdAt": "2025-01-15T00:00:00Z",
-  "updatedAt": "2026-02-04T13:13:54Z"
+  "updatedAt": "2026-05-31T00:00:00Z"
 }

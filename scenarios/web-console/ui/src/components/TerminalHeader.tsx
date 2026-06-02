@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
-import { GripVertical, MessageSquareText, TerminalSquare, Palette, X } from "lucide-react";
+import { GripVertical, Loader2, MessageSquareText, TerminalSquare, Palette, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { PaneViewMode } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
@@ -18,6 +18,8 @@ interface TerminalHeaderProps {
   onClose: () => void;
   onFocus: () => void;
   onToggleView?: () => void;
+  /** True while the view is mid-switch; shows a spinner on the toggle button. */
+  isViewSwitchPending?: boolean;
   onDragStart?: (sessionId: string, e: ReactPointerEvent) => void;
 }
 
@@ -31,6 +33,7 @@ export default function TerminalHeader({
   onClose,
   onFocus,
   onToggleView,
+  isViewSwitchPending = false,
   onDragStart,
 }: TerminalHeaderProps) {
   const { t } = useTranslation();
@@ -143,7 +146,9 @@ export default function TerminalHeader({
           }}
           title={viewMode === "terminal" ? t(strings.terminalHeader.showMessages) : t(strings.terminalHeader.showTerminal)}
         >
-          {viewMode === "terminal" ? <MessageSquareText className="h-3.5 w-3.5" /> : <TerminalSquare className="h-3.5 w-3.5" />}
+          {isViewSwitchPending
+            ? <Loader2 data-testid={`terminal-header-toggle-view-pending-${sessionId}`} className="h-3.5 w-3.5 animate-spin" />
+            : viewMode === "terminal" ? <MessageSquareText className="h-3.5 w-3.5" /> : <TerminalSquare className="h-3.5 w-3.5" />}
         </button>
       )}
 

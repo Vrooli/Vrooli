@@ -1,5 +1,7 @@
 ## Steer focus: UX Improvement
 
+> **Ladder position:** R3 (features hardened — ui/visual/accessibility). See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
+
 Prioritize **user experience quality** across all interfaces in this scenario.
 Do **not** break functionality or regress tests; all changes must maintain or improve completeness.
 

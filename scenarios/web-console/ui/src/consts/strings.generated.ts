@@ -674,6 +674,7 @@ export const strings = {
     title: "appearance.title",
     headerColorHeading: "appearance.headerColorHeading",
     noColorTitle: "appearance.noColorTitle",
+    customColorTitle: "appearance.customColorTitle",
     terminalThemeHeading: "appearance.terminalThemeHeading",
     fontSizeHeading: "appearance.fontSizeHeading",
     applyToAll: "appearance.applyToAll",

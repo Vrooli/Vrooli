@@ -1,5 +1,7 @@
 ## Steer focus: Refactor & Structural Improvement
 
+> **Ladder position:** R2–R3 (evolvable architecture / features hardened). Large structural refactors — breaking import cycles, relocating packages, untangling coupling — are the *expected* move at R2; don't shrink them into cosmetic edits. See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
+
 Prioritize **code quality, structure, and maintainability** across this scenario’s implementation.
 Do **not** change the intended behavior, regress tests, or weaken safety guarantees; all changes must maintain or improve completeness.
 
@@ -17,6 +19,7 @@ Required reading:
   * same user-visible workflows and outcomes
   * same API contracts, validation rules, and side effects
 * Do **not** relax tests or assertions to “make refactors pass.” If you must adjust tests, ensure the new expectations are *more accurate* to the PRD, not looser.
+* **Never weaken or delete a `[REQ:]`-tagged test to make a refactor pass** — that test *is* the requirement's definition; loosening it un-defines the requirement. Make the refactored code satisfy the original assertion. (The controller flags this and zeroes the iteration's credit — see `improvement-do-and-dont`.)
 
 ### **2. Improve Code Structure & Readability**
 

@@ -643,6 +643,7 @@
     "title": "外観",
     "headerColorHeading": "ヘッダーの色",
     "noColorTitle": "色なし",
+    "customColorTitle": "カスタムカラー",
     "terminalThemeHeading": "ターミナルテーマ",
     "fontSizeHeading": "フォントサイズ",
     "applyToAll": "すべてのセッションに適用"

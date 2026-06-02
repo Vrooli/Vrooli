@@ -1,5 +1,7 @@
 ## Steer focus: Documentation Health
 
+> **Ladder position:** R2 (evolvable architecture — the docs map that keeps the system legible). See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
+
 Prioritize **documentation quality, consistency, and bidirectional traceability** between code and documentation across this scenario.
 
 Your goal is to ensure documentation remains accurate, discoverable, and tightly coupled to the code it describes, preventing drift, gaps, and duplication.
@@ -330,6 +332,8 @@ You **must**:
 * Over-documenting trivial functions
 * Creating documentation that will immediately become stale
 * Duplicating information that belongs in a single source of truth
+
+**Known-issue ledgers are tracked gaps, not clutter.** `docs/internal/PROBLEMS.md` and `docs/internal/PROGRESS.md` are core internal docs (the "Always — never skip" rows above). **Never delete one to "clean up" a scenario** — that erases the only record that the gap or the history exists. Entries leave a ledger because the work was *done* (then you update/migrate the entry), never because the file was *removed*. Deleting a ledger reads as metric-gaming and the controller flags it (see `improvement-do-and-dont`).
 
 Focus on **documentation that helps agents quickly understand the scenario** and maintain accurate mental models across sessions.
 

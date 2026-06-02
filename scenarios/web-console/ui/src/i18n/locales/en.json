@@ -662,6 +662,7 @@
     "title": "Appearance",
     "headerColorHeading": "Header Color",
     "noColorTitle": "No color",
+    "customColorTitle": "Custom color",
     "terminalThemeHeading": "Terminal Theme",
     "fontSizeHeading": "Font Size",
     "applyToAll": "Apply to all sessions"

@@ -1,5 +1,7 @@
 ## Steer focus: Progress
 
+> **Ladder position:** R4 (capability progression). Advancing an operational target end-to-end — requirement → implementation → tests → validation — is large, expected work; a missing feature is **not** closed by a hygiene pass. Build the missing capability. See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
+
 Prioritize **advancing the scenario’s operational targets** and closing end-to-end gaps in a stable, test-driven manner.
 
 Progress must be **incremental, reliable, and grounded in the scenario’s PRD, requirements, and test suite**.  

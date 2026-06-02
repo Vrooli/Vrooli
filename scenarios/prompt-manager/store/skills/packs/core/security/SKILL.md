@@ -1,5 +1,7 @@
 ## Steer focus: Security Hardening
 
+> **Ladder position:** R1–R2 (safe & standards-clean — a hard gate the scenario must clear early). High/critical security findings block "safe"; clearing them is foundational, not optional polish. See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
+
 Prioritize **improving the security posture** of this scenario across its UI, APIs, background jobs, and data flows.
 
 Do **not** break functionality, regress tests, or weaken existing protections. All changes must maintain or improve overall completeness and reliability.

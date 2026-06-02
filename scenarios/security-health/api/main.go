@@ -164,6 +164,13 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
+		// ValidateScenario runs gosec/govulncheck/osv-scanner/gitleaks
+		// synchronously inside the RPC, which routinely exceeds the api-core
+		// default 30s WriteTimeout (a warm test-genie scan alone is ~31s; cold
+		// vuln-DB caches push it higher). Without this override the server kills
+		// the connection mid-response ("unexpected EOF"), silently breaking the
+		// test-genie → security-health producer path. Match the CLI-side ceiling.
+		WriteTimeout: 5 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			reconcileCancel()
 			return db.Close()
