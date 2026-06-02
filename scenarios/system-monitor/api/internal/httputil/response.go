@@ -1,4 +1,5 @@
 package httputil
+
 // DOC: docs/internal/ERROR-SEMANTICS.md#writeerror
 
 import (

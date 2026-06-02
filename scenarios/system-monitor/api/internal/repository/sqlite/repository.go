@@ -105,8 +105,6 @@ type Repository struct {
 	mu   sync.RWMutex // Serialize SQLite writes
 	thMu sync.RWMutex
 	th   map[string]*models.Threshold
-
-	stopCleanup chan struct{}
 }
 
 // NewRepository opens a SQLite database at dbPath and initializes the schema.
@@ -148,43 +146,9 @@ func NewInMemoryRepository() (*Repository, error) {
 	return NewRepository("file::memory:?cache=shared")
 }
 
-// Close closes the underlying database connection and stops any retention cleanup.
+// Close closes the underlying database connection.
 func (r *Repository) Close() error {
-	r.StopRetentionCleanup()
 	return r.db.Close()
-}
-
-// StartRetentionCleanup starts a background goroutine that periodically deletes
-// metrics older than maxAge.
-func (r *Repository) StartRetentionCleanup(interval, maxAge time.Duration) {
-	r.stopCleanup = make(chan struct{})
-	go func() {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				cutoff := time.Now().Add(-maxAge)
-				r.mu.Lock()
-				r.db.Exec("DELETE FROM metrics WHERE timestamp < ?", cutoff) //nolint:errcheck
-				r.mu.Unlock()
-			case <-r.stopCleanup:
-				return
-			}
-		}
-	}()
-}
-
-// StopRetentionCleanup stops the retention cleanup goroutine if running.
-func (r *Repository) StopRetentionCleanup() {
-	if r.stopCleanup != nil {
-		select {
-		case <-r.stopCleanup:
-			// Already closed.
-		default:
-			close(r.stopCleanup)
-		}
-	}
 }
 
 // ---------------------------------------------------------------------------

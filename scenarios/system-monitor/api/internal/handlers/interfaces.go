@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"system-monitor-api/internal/models"
+	"system-monitor-api/internal/repository"
 	"system-monitor-api/internal/services"
 )
 
@@ -53,6 +54,14 @@ type ReportGenerator interface {
 	GenerateReport(ctx context.Context, reportType string) (*models.EnhancedSystemReport, error)
 	ListReports(ctx context.Context) ([]*models.EnhancedSystemReport, error)
 	GetReport(ctx context.Context, reportID string) (*models.EnhancedSystemReport, error)
+}
+
+// MaintenanceProvider provides metrics-lifecycle maintenance operations.
+type MaintenanceProvider interface {
+	RetentionPreview(ctx context.Context, retentionDays int) (repository.RetentionEstimate, repository.DatabaseStats, error)
+	RetentionApply(ctx context.Context, retentionDays int, confirm bool) (repository.RetentionResult, repository.DatabaseStats, repository.DatabaseStats, error)
+	CompactionPreview(ctx context.Context) (repository.DatabaseStats, int64, error)
+	CompactionApply(ctx context.Context, confirm bool) (repository.CompactionResult, error)
 }
 
 // SettingsProvider provides settings management.

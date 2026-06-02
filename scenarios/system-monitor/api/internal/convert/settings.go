@@ -19,6 +19,11 @@ func SettingsToProto(s *services.Settings) *domain.SystemSettings {
 		CpuThreshold:             s.CPUThreshold,
 		MemoryThreshold:          s.MemoryThreshold,
 		DiskThreshold:            s.DiskThreshold,
+
+		MetricsRetentionDays:          int32(s.MetricsRetentionDays),
+		RetentionCheckIntervalSeconds: int32(s.RetentionCheckIntervalSeconds),
+		RetentionRunOnStartup:         s.RetentionRunOnStartup,
+		CompactAfterRetention:         s.CompactAfterRetention,
 	}
 }
 
@@ -35,5 +40,10 @@ func ProtoToSettings(pb *domain.SystemSettings) *services.Settings {
 		CPUThreshold:             pb.CpuThreshold,
 		MemoryThreshold:          pb.MemoryThreshold,
 		DiskThreshold:            pb.DiskThreshold,
+
+		MetricsRetentionDays:          int(pb.MetricsRetentionDays),
+		RetentionCheckIntervalSeconds: int(pb.RetentionCheckIntervalSeconds),
+		RetentionRunOnStartup:         pb.RetentionRunOnStartup,
+		CompactAfterRetention:         pb.CompactAfterRetention,
 	}
 }

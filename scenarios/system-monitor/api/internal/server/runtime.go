@@ -66,19 +66,29 @@ func Run(cfg *config.Config) error {
 	reportSvc := services.NewReportService(cfg, repo)
 	settingsMgr := services.NewSettingsManager()
 	monitorSvc.SetActive(settingsMgr.IsActive())
+	monitorSvc.ApplySettings(settingsMgr.GetSettings())
 	settingsMgr.SetActiveChangedCallback(func(active bool) {
 		monitorSvc.SetActive(active)
+	})
+	settingsMgr.SetSettingsChangedCallback(func(next services.Settings) {
+		monitorSvc.ApplySettings(next)
 	})
 
 	if err := monitorSvc.Start(); err != nil {
 		return fmt.Errorf("start monitor service: %w", err)
 	}
 
+	// Metrics lifecycle: maintenance service + settings-driven retention scheduler.
+	maintenanceSvc := services.NewMetricsMaintenanceService(repo)
+	retentionScheduler := services.NewRetentionScheduler(maintenanceSvc, settingsMgr, apiLog.With("service", "retention"))
+	retentionScheduler.Start()
+
 	healthHandler := handlers.NewHealthHandler(cfg, monitorSvc, settingsMgr)
 	metricsHandler := handlers.NewMetricsHandler(cfg, monitorSvc, apiLog.With("handler", "metrics"))
 	investigationHandler := handlers.NewInvestigationHandler(cfg, investigationSvc, scriptSvc, apiLog.With("handler", "investigations"))
 	reportHandler := handlers.NewReportHandler(cfg, reportSvc, apiLog.With("handler", "reports"))
 	settingsHandler := handlers.NewSettingsHandler(settingsMgr, apiLog.With("handler", "settings"))
+	maintenanceHandler := handlers.NewMaintenanceHandler(maintenanceSvc, apiLog.With("handler", "maintenance"))
 
 	// Forensics + logs wiring.
 	executor := shellExec{}
@@ -110,7 +120,7 @@ func Run(cfg *config.Config) error {
 	toolExecHandler := toolexecution.NewHandler(toolExecutor, slog.Default())
 	toolsHandler := toolhandlers.NewToolsHandler(toolRegistry, slog.Default())
 
-	router := buildRouter(healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, forensicsHandler, logsHandler, toolsHandler, toolExecHandler)
+	router := buildRouter(healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, forensicsHandler, logsHandler, toolsHandler, toolExecHandler)
 	handler := buildMiddleware(cfg, router)
 
 	srv := &http.Server{
@@ -134,20 +144,16 @@ func Run(cfg *config.Config) error {
 		}
 	}()
 
-	waitForShutdown(monitorSvc, investigationSvc, srv, closer)
+	waitForShutdown(monitorSvc, investigationSvc, retentionScheduler, srv, closer)
 	return nil
 }
 
-func connectRepository(cfg *config.Config) (io.Closer, repository.Repository) {
+func connectRepository(_ *config.Config) (io.Closer, repository.Repository) {
 	sqliteRepo, err := connectSQLite()
 	if err != nil {
 		slog.Warn("Failed to initialize SQLite, using in-memory storage", "error", err)
 		return io.NopCloser(nil), memory.NewRepository()
 	}
-
-	// Start retention cleanup: hourly, delete metrics older than configured retention.
-	maxAge := time.Duration(cfg.Monitoring.RetentionDays) * 24 * time.Hour
-	sqliteRepo.StartRetentionCleanup(1*time.Hour, maxAge)
 
 	return sqliteRepo, sqliteRepo
 }

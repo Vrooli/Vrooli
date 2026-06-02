@@ -1,4 +1,5 @@
 package collectors
+
 // DOC: docs/internal/SEAMS.md#collector-interface
 
 import (

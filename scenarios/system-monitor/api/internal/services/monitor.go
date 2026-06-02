@@ -17,16 +17,17 @@ import (
 
 // MonitorService handles system monitoring operations
 type MonitorService struct {
-	config     *config.Config
-	repo       repository.MetricsRepository
-	collectors *collectors.CollectorRegistry
-	infra      infrastructure.Provider
-	clock      Clock
-	active     bool
-	lastRun    map[string]time.Time
-	mu         sync.RWMutex
-	ctx        context.Context
-	cancel     context.CancelFunc
+	config         *config.Config
+	repo           repository.MetricsRepository
+	collectors     *collectors.CollectorRegistry
+	infra          infrastructure.Provider
+	clock          Clock
+	active         bool
+	metricInterval time.Duration // live baseline collection interval (mu-protected)
+	lastRun        map[string]time.Time
+	mu             sync.RWMutex
+	ctx            context.Context
+	cancel         context.CancelFunc
 }
 
 // MonitorOption configures a MonitorService.
@@ -50,16 +51,22 @@ func WithCollectors(cs ...collectors.Collector) MonitorOption {
 func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, infra infrastructure.Provider, opts ...MonitorOption) *MonitorService {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	baseInterval := cfg.Monitoring.MetricsInterval
+	if baseInterval <= 0 {
+		baseInterval = 10 * time.Second
+	}
+
 	svc := &MonitorService{
-		config:     cfg,
-		repo:       repo,
-		collectors: collectors.NewCollectorRegistry(),
-		infra:      infra,
-		clock:      RealClock{},
-		active:     true,
-		lastRun:    make(map[string]time.Time),
-		ctx:        ctx,
-		cancel:     cancel,
+		config:         cfg,
+		repo:           repo,
+		collectors:     collectors.NewCollectorRegistry(),
+		infra:          infra,
+		clock:          RealClock{},
+		active:         true,
+		metricInterval: baseInterval,
+		lastRun:        make(map[string]time.Time),
+		ctx:            ctx,
+		cancel:         cancel,
 	}
 
 	for _, opt := range opts {
@@ -118,16 +125,35 @@ func (s *MonitorService) IsActive() bool {
 	return s.active
 }
 
-// collectionLoop continuously collects metrics
-func (s *MonitorService) collectionLoop() {
-	ticker := time.NewTicker(s.collectionTickInterval())
-	defer ticker.Stop()
+// ApplySettings applies live settings to the collection cadence. The collection
+// loop re-reads the interval on each cycle, so changes take effect on the next
+// tick without restarting the service. Non-positive intervals are ignored.
+func (s *MonitorService) ApplySettings(settings Settings) {
+	if settings.MetricCollectionInterval <= 0 {
+		return
+	}
+	s.mu.Lock()
+	s.metricInterval = time.Duration(settings.MetricCollectionInterval) * time.Second
+	s.mu.Unlock()
+}
 
+// EffectiveCollectionInterval returns the current baseline collection interval.
+func (s *MonitorService) EffectiveCollectionInterval() time.Duration {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.metricInterval
+}
+
+// collectionLoop continuously collects metrics. The tick interval is recomputed
+// each cycle so live settings changes take effect without a restart.
+func (s *MonitorService) collectionLoop() {
 	for {
+		timer := time.NewTimer(s.collectionTickInterval())
 		select {
 		case <-s.ctx.Done():
+			timer.Stop()
 			return
-		case <-ticker.C:
+		case <-timer.C:
 			if !s.IsActive() {
 				continue
 			}
@@ -137,12 +163,11 @@ func (s *MonitorService) collectionLoop() {
 }
 
 func (s *MonitorService) collectionTickInterval() time.Duration {
-	base := s.config.Monitoring.MetricsInterval
-	if base <= 0 {
-		base = 10 * time.Second
+	minInterval := s.EffectiveCollectionInterval()
+	if minInterval <= 0 {
+		minInterval = 10 * time.Second
 	}
 
-	minInterval := base
 	for _, collector := range s.collectors.GetEnabled() {
 		interval := collector.GetInterval()
 		if interval > 0 && interval < minInterval {
@@ -159,7 +184,7 @@ func (s *MonitorService) collectionTickInterval() time.Duration {
 
 func (s *MonitorService) shouldCollect(name string, interval time.Duration, now time.Time) bool {
 	if interval <= 0 {
-		interval = s.config.Monitoring.MetricsInterval
+		interval = s.EffectiveCollectionInterval()
 	}
 	if interval <= 0 {
 		interval = 10 * time.Second

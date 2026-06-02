@@ -10,7 +10,7 @@ import (
 	"system-monitor-api/internal/toolhandlers"
 )
 
-func buildRouter(health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, forensicsH *handlers.ForensicsHandler, logsH *handlers.LogsHandler, tools *toolhandlers.ToolsHandler, toolExec *toolexecution.Handler) *mux.Router {
+func buildRouter(health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, maintenance *handlers.MaintenanceHandler, forensicsH *handlers.ForensicsHandler, logsH *handlers.LogsHandler, tools *toolhandlers.ToolsHandler, toolExec *toolexecution.Handler) *mux.Router {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/health", health.Handle).Methods("GET")
@@ -63,6 +63,11 @@ func buildRouter(health *handlers.HealthHandler, metrics *handlers.MetricsHandle
 
 	r.HandleFunc("/api/v1/maintenance/state", settings.GetMaintenanceState).Methods("GET")
 	r.HandleFunc("/api/v1/maintenance/state", settings.SetMaintenanceState).Methods("POST")
+
+	r.HandleFunc("/api/v1/maintenance/metrics/retention/preview", maintenance.RetentionPreview).Methods("GET")
+	r.HandleFunc("/api/v1/maintenance/metrics/retention/apply", maintenance.RetentionApply).Methods("POST")
+	r.HandleFunc("/api/v1/maintenance/metrics/compaction/preview", maintenance.CompactionPreview).Methods("GET")
+	r.HandleFunc("/api/v1/maintenance/metrics/compaction/apply", maintenance.CompactionApply).Methods("POST")
 
 	r.HandleFunc("/api/v1/agent/config", investigation.GetAgentConfig).Methods("GET")
 	r.HandleFunc("/api/v1/agent/config", investigation.UpdateAgentConfig).Methods("PUT")

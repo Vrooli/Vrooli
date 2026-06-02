@@ -98,3 +98,48 @@ The API defaults to **in-memory storage** for simplicity. Data is lost on restar
 To use PostgreSQL, set `DATABASE_URL` to a valid connection string. The schema is defined in `initialization/postgres/schema.sql`.
 
 QuestDB can be configured via `QUESTDB_URL` for time-series metrics, but the API currently falls back to in-memory storage regardless.
+
+## Metrics Retention & Compaction
+
+The metrics history is the dominant consumer of database size. Retention and
+compaction settings bound that growth. They live in the settings file
+(`initialization/configuration/system-monitor-settings.json`, canonical
+`{version, metadata, settings}` shape) and are editable via the Settings API/CLI.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `metrics_retention_days` | `30` | Metrics older than this are pruned by scheduled retention. |
+| `retention_check_interval_seconds` | `3600` | Interval between scheduled retention runs (min 60). |
+| `retention_run_on_startup` | `true` | Run retention once at startup so stale data is pruned without waiting a full interval. |
+| `compact_after_retention` | `false` | When true, a scheduled retention prune is followed by database compaction. |
+
+`RETENTION_DAYS` (env) only seeds the default when no settings file exists yet;
+once the settings file is present, the settings values own behavior.
+
+Retention runs on a settings-driven scheduler (not the storage layer). Changes
+to the interval, window, or compaction policy take effect on the next cycle
+without restarting the scenario. Scheduled retention runs regardless of the
+monitor's active/inactive state because it is housekeeping, not collection.
+
+### Manual maintenance
+
+Retention deletes rows; compaction (`VACUUM`) reclaims the freed file space and
+is serialized against metric writes. Both expose a read-only preview and a
+destructive apply that requires explicit confirmation:
+
+```bash
+# Preview how many rows / bytes a 30-day window would prune
+system-monitor maintenance retention preview --days 30
+
+# Apply the prune (confirmation required)
+system-monitor maintenance retention apply --days 30 --confirm
+
+# Preview reclaimable space, then compact
+system-monitor maintenance compact preview
+system-monitor maintenance compact apply --confirm
+```
+
+See [operations/RUNBOOK.md](../operations/RUNBOOK.md) for the full safe workflow
+and backup posture.
+
+`[CODE: api/internal/services/maintenance.go, api/internal/services/retention_scheduler.go]`

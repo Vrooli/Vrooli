@@ -1,4 +1,5 @@
 package repository
+
 // DOC: docs/internal/SEAMS.md#repository-interface
 
 import (
@@ -15,6 +16,7 @@ type Repository interface {
 	ReportRepository
 	ThresholdRepository
 	AlertRepository
+	MaintenanceRepository
 }
 
 // MetricsRepository handles metrics data persistence

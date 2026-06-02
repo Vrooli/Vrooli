@@ -37,6 +37,10 @@ The CLI is installed from the Go module in `cli/` via `cli/install.sh` or `cli/i
 | `settings update` | Update settings and thresholds | `PUT /api/v1/settings` |
 | `settings reset` | Reset settings to defaults | `POST /api/v1/settings/reset` |
 | `settings maintenance` | Get or set maintenance state | `GET/POST /api/v1/maintenance/state` |
+| `maintenance retention preview --days <n>` | Preview metrics that retention would prune (read-only) | `GET /api/v1/maintenance/metrics/retention/preview` |
+| `maintenance retention apply --days <n> --confirm` | Prune metrics older than the window (destructive) | `POST /api/v1/maintenance/metrics/retention/apply` |
+| `maintenance compact preview` | Preview reclaimable database space (read-only) | `GET /api/v1/maintenance/metrics/compaction/preview` |
+| `maintenance compact apply --confirm` | Compact the database to reclaim space (destructive) | `POST /api/v1/maintenance/metrics/compaction/apply` |
 
 ## Global Flags
 

@@ -139,6 +139,20 @@ Valid types: `daily`, `weekly`
 
 `[CODE: api/internal/handlers/settings.go]`
 
+### Metrics lifecycle (retention & compaction)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/maintenance/metrics/retention/preview?days=<n>` | Read-only estimate of rows/bytes/time-range a prune would remove, with DB stats |
+| POST | `/api/v1/maintenance/metrics/retention/apply` | Prune metrics older than the window. Body: `{"retentionDays": <n>, "confirm": true}`. Requires `confirm=true` |
+| GET | `/api/v1/maintenance/metrics/compaction/preview` | Read-only DB stats and estimated reclaimable bytes |
+| POST | `/api/v1/maintenance/metrics/compaction/apply` | Compact the DB (`VACUUM`). Body: `{"confirm": true}`. Requires `confirm=true` |
+
+Destructive applies without `confirm=true` return `400` validation errors.
+Compaction on a non-SQLite backend returns `503` (unsupported).
+
+`[CODE: api/internal/handlers/maintenance.go]`
+
 ---
 
 ## Agent Configuration

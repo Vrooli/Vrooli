@@ -1,4 +1,5 @@
 package handlers
+
 // DOC: docs/reference/api-endpoints.md#settings
 
 import (
@@ -167,6 +168,20 @@ func (h *SettingsHandler) validateSettings(settings *services.Settings) error {
 	}
 	if settings.CooldownPeriodSeconds > 86400 { // Max 24 hours
 		return apierrors.Validation("cooldown_period_seconds", "must be less than or equal to 86400 seconds")
+	}
+
+	// Validate metrics lifecycle settings.
+	if settings.MetricsRetentionDays <= 0 {
+		return apierrors.Validation("metrics_retention_days", "must be greater than 0")
+	}
+	if settings.MetricsRetentionDays > 3650 { // Max ~10 years
+		return apierrors.Validation("metrics_retention_days", "must be less than or equal to 3650 days")
+	}
+	if settings.RetentionCheckIntervalSeconds < 60 {
+		return apierrors.Validation("retention_check_interval_seconds", "must be greater than or equal to 60 seconds")
+	}
+	if settings.RetentionCheckIntervalSeconds > 604800 { // Max 7 days
+		return apierrors.Validation("retention_check_interval_seconds", "must be less than or equal to 604800 seconds")
 	}
 
 	return nil

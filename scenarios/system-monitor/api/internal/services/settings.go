@@ -24,15 +24,30 @@ type Settings struct {
 	CPUThreshold    float64 `json:"cpu_threshold"`
 	MemoryThreshold float64 `json:"memory_threshold"`
 	DiskThreshold   float64 `json:"disk_threshold"`
+
+	// Metrics lifecycle
+	MetricsRetentionDays          int  `json:"metrics_retention_days"`
+	RetentionCheckIntervalSeconds int  `json:"retention_check_interval_seconds"`
+	RetentionRunOnStartup         bool `json:"retention_run_on_startup"`
+	CompactAfterRetention         bool `json:"compact_after_retention"`
+}
+
+// settingsFile is the canonical on-disk representation of the settings file.
+// Settings are always persisted and loaded through this wrapper shape.
+type settingsFile struct {
+	Version  string                 `json:"version"`
+	Metadata map[string]interface{} `json:"metadata"`
+	Settings Settings               `json:"settings"`
 }
 
 // SettingsManager manages system monitor settings with thread safety
 type SettingsManager struct {
-	settings        Settings
-	mutex           sync.RWMutex
-	clock           Clock
-	configStore     ConfigStore
-	onActiveChanged func(active bool) // Callback for when active status changes
+	settings          Settings
+	mutex             sync.RWMutex
+	clock             Clock
+	configStore       ConfigStore
+	onActiveChanged   func(active bool)   // Callback for when active status changes
+	onSettingsChanged func(next Settings) // Callback for any settings change
 }
 
 // SettingsOption configures a SettingsManager.
@@ -58,6 +73,11 @@ var defaultSettings = Settings{
 	CPUThreshold:             85.0,  // 85%
 	MemoryThreshold:          90.0,  // 90%
 	DiskThreshold:            85.0,  // 85%
+
+	MetricsRetentionDays:          30,   // keep 30 days of metrics history
+	RetentionCheckIntervalSeconds: 3600, // re-check retention hourly
+	RetentionRunOnStartup:         true, // prune stale data without waiting an hour
+	CompactAfterRetention:         false,
 }
 
 func sanitizeSettings(settings Settings) (Settings, bool) {
@@ -95,6 +115,20 @@ func sanitizeSettings(settings Settings) (Settings, bool) {
 
 	if settings.DiskThreshold <= 0 {
 		settings.DiskThreshold = defaultSettings.DiskThreshold
+		changed = true
+	}
+
+	// A non-positive retention window means the lifecycle block is unset
+	// (legacy file or fresh defaults); apply the full retention default set,
+	// including enabling startup retention.
+	if settings.MetricsRetentionDays <= 0 {
+		settings.MetricsRetentionDays = defaultSettings.MetricsRetentionDays
+		settings.RetentionRunOnStartup = defaultSettings.RetentionRunOnStartup
+		changed = true
+	}
+
+	if settings.RetentionCheckIntervalSeconds <= 0 {
+		settings.RetentionCheckIntervalSeconds = defaultSettings.RetentionCheckIntervalSeconds
 		changed = true
 	}
 
@@ -152,10 +186,12 @@ func (sm *SettingsManager) UpdateSettings(newSettings Settings) error {
 		return fmt.Errorf("failed to save settings: %w", err)
 	}
 
-	// Call callback if active status changed
+	// Call callbacks outside of the mutex to prevent deadlock.
 	if oldActive != newActive && sm.onActiveChanged != nil {
-		// Call callback outside of mutex to prevent deadlock
 		go sm.onActiveChanged(newActive)
+	}
+	if sm.onSettingsChanged != nil {
+		go sm.onSettingsChanged(sanitized)
 	}
 
 	if changed {
@@ -206,6 +242,15 @@ func (sm *SettingsManager) SetActiveChangedCallback(callback func(active bool)) 
 	sm.onActiveChanged = callback
 }
 
+// SetSettingsChangedCallback sets the callback invoked with the new settings
+// whenever settings are updated (including resets). The callback runs in its
+// own goroutine to avoid holding the settings lock.
+func (sm *SettingsManager) SetSettingsChangedCallback(callback func(next Settings)) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	sm.onSettingsChanged = callback
+}
+
 // loadFromFile loads settings from JSON file
 func (sm *SettingsManager) loadFromFile() error {
 	data, err := sm.configStore.ReadConfig("system-monitor-settings.json")
@@ -213,12 +258,12 @@ func (sm *SettingsManager) loadFromFile() error {
 		return fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	var settings Settings
-	if err := json.Unmarshal(data, &settings); err != nil {
+	var file settingsFile
+	if err := json.Unmarshal(data, &file); err != nil {
 		return fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	sanitized, changed := sanitizeSettings(settings)
+	sanitized, changed := sanitizeSettings(file.Settings)
 	sm.settings = sanitized
 	if changed {
 		fmt.Println("Warning: Detected invalid monitoring settings; reverting to safe defaults")
@@ -231,15 +276,15 @@ func (sm *SettingsManager) loadFromFile() error {
 
 // saveToFile saves current settings to JSON file
 func (sm *SettingsManager) saveToFile() error {
-	// Create config with metadata
-	config := map[string]interface{}{
-		"version": "1.0.0",
-		"metadata": map[string]interface{}{
+	// Create config with metadata using the canonical wrapper shape.
+	config := settingsFile{
+		Version: "1.0.0",
+		Metadata: map[string]interface{}{
 			"last_modified":  sm.clock.Now().Format(time.RFC3339),
 			"config_version": "1.0.0",
 			"description":    "System Monitor settings including active/inactive status",
 		},
-		"settings": sm.settings,
+		Settings: sm.settings,
 	}
 
 	data, err := json.MarshalIndent(config, "", "    ")

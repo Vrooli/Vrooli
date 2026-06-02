@@ -11,13 +11,16 @@ import (
 	"system-monitor-api/internal/services"
 )
 
-func waitForShutdown(monitorSvc *services.MonitorService, investigationSvc *services.InvestigationService, srv *http.Server, repo io.Closer) {
+func waitForShutdown(monitorSvc *services.MonitorService, investigationSvc *services.InvestigationService, retention *services.RetentionScheduler, srv *http.Server, repo io.Closer) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	slog.Info("Shutting down server...")
 
+	if retention != nil {
+		retention.Stop()
+	}
 	investigationSvc.Shutdown()
 	monitorSvc.Stop()
 

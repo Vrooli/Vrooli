@@ -1,7 +1,7 @@
 # Seams & Architecture Boundaries
 
 ## Last Updated
-2026-02-17
+2026-06-02
 
 ## Integration Seams
 
@@ -22,6 +22,10 @@
 - **Clock** (`api/internal/services/clock.go`): `Clock` interface (`Now()`, `Since()`) abstracts time operations. `RealClock` for production, `StubClock` for deterministic testing with `Advance(d)` and `Set(t)` methods. Injected into all five services (MonitorService, InvestigationService, AlertService, ReportService, SettingsManager) via functional options (`WithMonitorClock`, `WithInvestigationClock`, etc.). Testability: high — eliminates flaky time-dependent tests and enables deterministic cooldown/ID testing. [CODE: api/internal/services/clock.go]
 
 - **ConfigStore** (`api/internal/services/configstore.go`): `ConfigStore` interface abstracts configuration file I/O (read/write). `FileConfigStore` reads/writes from disk; `MemoryConfigStore` provides an in-memory implementation for tests. Injected into `InvestigationService` (via `WithConfigStore`) and `SettingsManager` (via `WithSettingsConfigStore`). A separate `promptStore` field on `InvestigationService` (via `WithPromptStore`) abstracts prompt template loading. Testability: high — inject `MemoryConfigStore` to test config read/write without filesystem. [CODE: api/internal/services/configstore.go]
+
+- **MaintenanceRepository** (`api/internal/repository/maintenance.go`): Narrow interface (`EstimateMetricRetention`, `PruneMetricsBefore`, `SQLiteStats`, `Compact`) for the metrics storage lifecycle, embedded in the aggregate `Repository`. SQLite implements all four (prune in a tx, `VACUUM` under the write mutex); the in-memory backend implements estimate/prune and returns `ErrNotSupported` for stats/compaction. `MetricsMaintenanceService` (`api/internal/services/maintenance.go`) owns cutoff computation (via `Clock`) and the destructive-operation confirmation contract on top of it. Testability: high — drive the service over the in-memory or sqlite repo. [CODE: api/internal/repository/maintenance.go]
+
+- **RetentionScheduler** (`api/internal/services/retention_scheduler.go`): Owns *when* scheduled retention runs (startup + live `retention_check_interval_seconds`), delegating storage work to `MetricsMaintenanceService`. Replaces the former repository-owned cleanup goroutine, so timing decisions live in the service layer. Settings are read live each cycle. Testability: high — inject settings + a maintenance service over a fake repo. [CODE: api/internal/services/retention_scheduler.go]
 
 - **CommandRunner** (`api/internal/services/command.go`): `CommandRunner` interface abstracts OS command execution (`Run(ctx, name, args, dir) → stdout, stderr, exitCode, err`). `ExecCommandRunner` wraps `os/exec` for production. Injected into `ScriptService` via optional constructor parameter. Testability: high — mock `CommandRunner` to test script execution without running real bash. [CODE: api/internal/services/command.go]
 
