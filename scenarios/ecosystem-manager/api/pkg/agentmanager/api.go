@@ -36,6 +36,10 @@ type AgentServiceAPI interface {
 	// GetRunStatus returns the current status of a run.
 	GetRunStatus(ctx context.Context, runID string) (*domainpb.Run, error)
 
+	// GetRunDiff returns the code-level diff a run produced (nil for in-place
+	// runs without a sandbox). Used by the anti-gaming classifier.
+	GetRunDiff(ctx context.Context, runID string) (*domainpb.RunDiff, error)
+
 	// StopRun stops an active run.
 	StopRun(ctx context.Context, runID string) error
 

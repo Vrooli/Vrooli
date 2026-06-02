@@ -7,7 +7,7 @@
   "plannedPhases": [
     "structure", "contracts", "ui-health", "standards", "architecture",
     "dependencies", "lint", "docs", "smoke", "unit", "integration",
-    "playbooks", "business", "performance"
+    "playbooks", "business", "performance", "coverage", "tidiness", "security"
   ],
   "phases": [
     {
@@ -67,7 +67,28 @@
     { "name": "integration", "status": "pass", "findings": [] },
     { "name": "playbooks", "status": "pass", "findings": [] },
     { "name": "business", "status": "fail", "findings": [] },
-    { "name": "performance", "status": "pass", "findings": [] }
+    { "name": "performance", "status": "pass", "findings": [] },
+    {
+      "name": "coverage",
+      "status": "fail",
+      "findings": [
+        { "scenario": "fixture-scenario", "source": 8, "code": "low_coverage:go:api", "severity": 3, "locations": ["coverage/go/go-api.coverage.out"], "message": "coverage 42.0% below target", "stable_id": "afid:000000000000000b" }
+      ]
+    },
+    {
+      "name": "tidiness",
+      "status": "fail",
+      "findings": [
+        { "scenario": "fixture-scenario", "source": 7, "code": "TS_DANGEROUS_PATTERNS", "severity": 2, "locations": ["ui/src/y.tsx"], "message": "dangerous TypeScript patterns", "stable_id": "afid:000000000000000c" }
+      ]
+    },
+    {
+      "name": "security",
+      "status": "fail",
+      "findings": [
+        { "scenario": "fixture-scenario", "source": 9, "code": "gitleaks.aws-access-token", "severity": 3, "locations": ["api/config.go:12"], "message": "leaked AWS credential", "stable_id": "afid:000000000000000d" }
+      ]
+    }
   ],
-  "phaseSummary": { "total": 14, "passed": 4, "failed": 10 }
+  "phaseSummary": { "total": 17, "passed": 4, "failed": 13 }
 }

@@ -35,6 +35,10 @@ type MockAgentService struct {
 	GetRunStatusResult *domainpb.Run
 	GetRunStatusError  error
 
+	// GetRunDiff configuration
+	GetRunDiffResult *domainpb.RunDiff
+	GetRunDiffError  error
+
 	// StopRun configuration
 	StopRunError error
 
@@ -56,6 +60,7 @@ type MockAgentService struct {
 		ExecuteTaskAsync int
 		ExecuteInsight   int
 		GetRunStatus     int
+		GetRunDiff       int
 		StopRun          int
 		GetRunEvents     int
 		WaitForRun       int
@@ -67,6 +72,7 @@ type MockAgentService struct {
 	LastInsightReq          InsightRequest
 	LastStopRunID           string
 	LastGetRunStatusID      string
+	LastGetRunDiffID        string
 	LastGetRunEventsID      string
 	LastGetRunEventsAfter   int64
 	LastWaitForRunID        string
@@ -159,6 +165,14 @@ func (m *MockAgentService) GetRunStatus(ctx context.Context, runID string) (*dom
 	return m.GetRunStatusResult, m.GetRunStatusError
 }
 
+func (m *MockAgentService) GetRunDiff(ctx context.Context, runID string) (*domainpb.RunDiff, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Calls.GetRunDiff++
+	m.LastGetRunDiffID = runID
+	return m.GetRunDiffResult, m.GetRunDiffError
+}
+
 func (m *MockAgentService) StopRun(ctx context.Context, runID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -197,6 +211,7 @@ func (m *MockAgentService) Reset() {
 		ExecuteTaskAsync int
 		ExecuteInsight   int
 		GetRunStatus     int
+		GetRunDiff       int
 		StopRun          int
 		GetRunEvents     int
 		WaitForRun       int
@@ -206,6 +221,7 @@ func (m *MockAgentService) Reset() {
 	m.LastInsightReq = InsightRequest{}
 	m.LastStopRunID = ""
 	m.LastGetRunStatusID = ""
+	m.LastGetRunDiffID = ""
 	m.LastGetRunEventsID = ""
 	m.LastGetRunEventsAfter = 0
 	m.LastWaitForRunID = ""

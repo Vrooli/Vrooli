@@ -285,6 +285,18 @@ export interface DecisionTraceEntry {
    * P4). Compared against realized_delta to surface calibration. 0 = no estimate.
    */
   predicted_reduction?: number;
+  /**
+   * Anti-gaming classifier verdict for this iteration. 'gamed:<causes>' (e.g.
+   * 'gamed:test-weakening,suppression') when the code diff matched a gaming
+   * pattern — the iteration's bandit credit was zeroed and it is flagged here.
+   * 'flagged-for-review' for an ambiguous case (no auto-penalty). Empty ⇒ clean.
+   */
+  gaming_cause?: string;
+  /**
+   * The maturity rung the controller worked this iteration (e.g. 'R1 Safe &
+   * standards-clean'). Set by the rung-aware selector. Empty ⇒ no ladder profile.
+   */
+  current_rung?: string;
 }
 
 export interface DecisionTraceResponse {

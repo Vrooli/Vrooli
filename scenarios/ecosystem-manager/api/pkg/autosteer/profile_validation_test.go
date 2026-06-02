@@ -22,6 +22,17 @@ func TestValidateProfile_Valid(t *testing.T) {
 	}
 }
 
+func TestValidateProfile_ValidLadder(t *testing.T) {
+	p := validObjectiveProfile()
+	p.Ladder = &LadderObjective{Enabled: true, TopRung: "R4", BoostFactor: 8, StandardsMaxCount: 3}
+	if err := ValidateProfile(p); err != nil {
+		t.Fatalf("expected valid ladder profile, got error: %v", err)
+	}
+	if !p.ladderEnabled() {
+		t.Error("ladderEnabled() should be true for an enabled ladder block")
+	}
+}
+
 func TestValidateProfile_Invalid(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -41,6 +52,15 @@ func TestValidateProfile_Invalid(t *testing.T) {
 		{"zero iterations", func(p *AutoSteerProfile) { p.Budget.MaxIterations = 0 }},
 		{"negative floor", func(p *AutoSteerProfile) { p.Budget.DiminishingReturnsFloor = -0.1 }},
 		{"negative cadence", func(p *AutoSteerProfile) { p.Budget.ReauditCadence = -1 }},
+		{"bad ladder top_rung", func(p *AutoSteerProfile) {
+			p.Ladder = &LadderObjective{Enabled: true, TopRung: "R9"}
+		}},
+		{"negative ladder boost", func(p *AutoSteerProfile) {
+			p.Ladder = &LadderObjective{Enabled: true, BoostFactor: -1}
+		}},
+		{"negative ladder standards cap", func(p *AutoSteerProfile) {
+			p.Ladder = &LadderObjective{Enabled: true, StandardsMaxCount: -1}
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

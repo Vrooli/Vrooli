@@ -42,15 +42,15 @@ func (s *TraceStore) Append(taskID, profileID, scenarioName string, e DecisionTr
 			heaviest_dimension, rationale, dimension_scores, fingerprint,
 			score_before, score_after, realized_delta, tokens_used,
 			dtv_verdict, dtv_prior, dtv_excluded, dtv_gate_override, dtv_degraded,
-			gate_degraded_cause, predicted_reduction
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+			gate_degraded_cause, predicted_reduction, current_rung
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
 	`
 	_, err = s.db.Exec(query,
 		taskID, profileID, scenarioName, e.Iteration, e.ChosenSkill,
 		e.HeaviestDimension, e.Rationale, scoresJSON, e.Fingerprint,
 		e.ScoreBefore, e.ScoreAfter, e.RealizedDelta, e.TokensUsed,
 		e.DTVVerdict, e.DTVPrior, jsonOrNull(excludedJSON), e.DTVGateOverride, e.DTVDegraded,
-		e.GateDegradedCause, e.PredictedReduction,
+		e.GateDegradedCause, e.PredictedReduction, e.CurrentRung,
 	)
 	if err != nil {
 		return fmt.Errorf("append decision trace: %w", err)
@@ -95,11 +95,12 @@ func (s *TraceStore) SetRealized(taskID string, e DecisionTraceEntry) error {
 		UPDATE decision_trace
 		SET score_after = $1, realized_delta = $2, tokens_used = $3,
 		    closed_by_dimension = $4, introduced_by_dimension = $5,
-		    regressed = $6, veto_applied = $7
-		WHERE task_id = $8 AND iteration = $9
+		    regressed = $6, veto_applied = $7, gaming_cause = $8
+		WHERE task_id = $9 AND iteration = $10
 	`
 	if _, err := s.db.Exec(query, e.ScoreAfter, e.RealizedDelta, e.TokensUsed,
-		jsonOrNull(closedJSON), jsonOrNull(introducedJSON), e.Regressed, e.VetoApplied, taskID, e.Iteration); err != nil {
+		jsonOrNull(closedJSON), jsonOrNull(introducedJSON), e.Regressed, e.VetoApplied,
+		e.GamingCause, taskID, e.Iteration); err != nil {
 		return fmt.Errorf("set realized decision trace: %w", err)
 	}
 	return nil
@@ -141,7 +142,7 @@ func (s *TraceStore) GetTrace(taskID string) ([]DecisionTraceEntry, error) {
 		       introduced_by_dimension, regressed, veto_applied, halt_reason,
 		       dtv_verdict, dtv_prior, dtv_excluded, dtv_gate_override,
 		       dtv_degraded, gate_degraded_cause, predicted_reduction,
-		       created_at
+		       gaming_cause, current_rung, created_at
 		FROM decision_trace
 		WHERE task_id = $1
 		ORDER BY iteration ASC
@@ -163,7 +164,7 @@ func (s *TraceStore) GetTrace(taskID string) ([]DecisionTraceEntry, error) {
 			&e.Regressed, &e.VetoApplied, &e.HaltReason,
 			&e.DTVVerdict, &e.DTVPrior, &excludedJSON, &e.DTVGateOverride,
 			&e.DTVDegraded, &e.GateDegradedCause, &e.PredictedReduction,
-			&e.Timestamp,
+			&e.GamingCause, &e.CurrentRung, &e.Timestamp,
 		); err != nil {
 			return nil, fmt.Errorf("scan decision trace: %w", err)
 		}

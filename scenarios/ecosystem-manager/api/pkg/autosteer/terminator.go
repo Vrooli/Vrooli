@@ -120,8 +120,15 @@ func (t *Terminator) ShouldStop(state *ProfileExecutionState, profile *AutoSteer
 		return false, StopReasonContinue
 	}
 
+	// Objective is met only when the profile's targets are satisfied AND — when a
+	// maturity ladder is configured — every rung up to the profile's top rung
+	// holds. The rung-hold is a real extra guard whenever max_open_severity is set
+	// above "error": objectiveMet could pass with open error-level findings, but a
+	// ladder profile must still clear its hard rungs (R0/R1) before stopping.
 	if met, reason := objectiveMet(state, profile); met {
-		return true, reason
+		if rungsHoldForObjective(state, profile) {
+			return true, reason
+		}
 	}
 
 	if at := cycleRecurrence(state, profile.Budget.cycleWindow()); at > 0 {

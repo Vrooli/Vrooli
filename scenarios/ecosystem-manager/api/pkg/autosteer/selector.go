@@ -9,6 +9,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/dimensions"
 	"github.com/ecosystem-manager/api/pkg/effectiveness"
 	"github.com/ecosystem-manager/api/pkg/findings"
+	"github.com/ecosystem-manager/api/pkg/ladder"
 	"github.com/ecosystem-manager/api/pkg/skillmap"
 )
 
@@ -100,6 +101,10 @@ type Selection struct {
 	// proceed with the least-bad skill). The caller flags the iteration and halves
 	// the remaining budget once. Surfaced in the trace.
 	GateOverride bool
+	// CurrentRung is the maturity rung this selection worked (the lowest
+	// unsatisfied rung at or below the profile's top rung). Empty when the profile
+	// has no ladder or the whole ladder already holds. Surfaced in the trace.
+	CurrentRung string
 }
 
 // Selector implements the controller's SELECT stage. The outer loop ranks open
@@ -125,6 +130,17 @@ type Selector struct {
 	// redRank orders the all-red fallback set by DTV trust (least-bad first) when
 	// the gate degrades. Nil ⇒ candidate order is unchanged.
 	redRank TrustRanker
+	// ladder is the maturity-ladder runtime (nil ⇒ rung-governance disabled,
+	// behavior identical to the pre-ladder weighted-greedy selector).
+	ladder *ladderRuntime
+}
+
+// ladderRuntime holds the per-selection maturity-ladder context: the metrics
+// snapshot the gates read, the resolved thresholds, and the profile's top rung.
+type ladderRuntime struct {
+	metrics    MetricsSnapshot
+	thresholds ladder.Thresholds
+	topRung    ladder.RungID
 }
 
 // NewSelector creates a pure-greedy Selector (no effectiveness weighting, no
@@ -154,6 +170,8 @@ type SelectorConfig struct {
 	// RedRank orders the all-red degraded-gate fallback by DTV trust (least-bad
 	// first); nil leaves candidate order unchanged.
 	RedRank TrustRanker
+	// Ladder is the maturity-ladder runtime; nil leaves rung governance off.
+	Ladder *ladderRuntime
 }
 
 // NewSelectorWithConfig creates a Selector from an explicit configuration.
@@ -180,6 +198,7 @@ func NewSelectorWithConfig(cfg SelectorConfig) *Selector {
 		filter:   filter,
 		cooldown: cfg.Cooldown,
 		redRank:  cfg.RedRank,
+		ladder:   cfg.Ladder,
 	}
 }
 
@@ -234,6 +253,10 @@ func (s *Selector) SelectNextSkill(state findings.FindingsState, profile *AutoSt
 		return Selection{Rationale: "no open findings — nothing to select"}
 	}
 
+	// Maturity-ladder governance: restrict (hard rung) or amplify (soft rung) the
+	// ranked dimensions toward the lowest unsatisfied rung. No-op without a ladder.
+	ranked, currentRung := s.applyRung(ranked, state, profile)
+
 	var allow []string
 	if profile != nil {
 		allow = profile.AllowedSkills
@@ -281,11 +304,13 @@ func (s *Selector) SelectNextSkill(state findings.FindingsState, profile *AutoSt
 			ExcludedSkills:     excluded,
 			GateOverride:       gateOverride,
 			PredictedReduction: predicted,
+			CurrentRung:        currentRung,
 		}
 	}
 
 	return Selection{
-		Rationale: fmt.Sprintf("no eligible skill in allow-set for any open dimension %v", skipped),
+		Rationale:   fmt.Sprintf("no eligible skill in allow-set for any open dimension %v", skipped),
+		CurrentRung: currentRung,
 	}
 }
 

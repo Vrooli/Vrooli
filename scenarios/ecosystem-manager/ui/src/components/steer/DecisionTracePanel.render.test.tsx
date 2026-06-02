@@ -92,6 +92,33 @@ describe('DecisionTraceList rendering', () => {
     expect(html).not.toContain('mean |predicted − realized|');
   });
 
+  it('flags a gamed iteration (credit zeroed) and the maturity rung', () => {
+    const gamed: DecisionTraceEntry[] = [
+      {
+        iteration: 1,
+        chosen_skill: 'refactor',
+        heaviest_dimension: 'standards',
+        gaming_cause: 'gamed:test-weakening,suppression',
+        current_rung: 'R1 Safe & standards-clean',
+      },
+    ];
+    const html = renderToStaticMarkup(<DecisionTraceList entries={gamed} />);
+    expect(html).toContain('gamed:test-weakening,suppression');
+    expect(html).toContain('credit zeroed');
+    // The '&' in the rung label is HTML-escaped in static markup.
+    expect(html).toContain('rung: R1 Safe');
+    expect(html).toContain('standards-clean');
+  });
+
+  it('renders a flagged-for-review iteration without the gamed penalty wording', () => {
+    const flagged: DecisionTraceEntry[] = [
+      { iteration: 1, chosen_skill: 'test', heaviest_dimension: 'tests', gaming_cause: 'flagged-for-review' },
+    ];
+    const html = renderToStaticMarkup(<DecisionTraceList entries={flagged} />);
+    expect(html).toContain('flagged-for-review');
+    expect(html).not.toContain('credit zeroed');
+  });
+
   it('prominently flags a proceed-cap-flag degraded gate with its cause (P2)', () => {
     const dtvUnavailable: DecisionTraceEntry[] = [
       { iteration: 1, chosen_skill: 'ux', heaviest_dimension: 'ui', gate_degraded_cause: 'dtv_unavailable' },

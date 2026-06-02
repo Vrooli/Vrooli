@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/autosteer/gameguard"
 	"github.com/ecosystem-manager/api/pkg/dimensions"
 	"github.com/ecosystem-manager/api/pkg/dtv"
 	"github.com/ecosystem-manager/api/pkg/effectiveness"
@@ -83,6 +84,16 @@ type ExecutionOrchestrator struct {
 	// this seam rather than as a MEASURE return value).
 	costMu      sync.Mutex
 	pendingCost map[string]RunCost
+	// pendingRunID holds the agent-manager run ID of the most recent run per
+	// task, recorded by the queue alongside the cost and consumed once at the
+	// next EvaluateIteration so the anti-gaming classifier can fetch that run's
+	// code-level diff. Guarded by costMu (recorded/consumed with the cost).
+	pendingRunID map[string]string
+
+	// diffProvider is the anti-gaming diff seam. Nil ⇒ gaming detection disabled
+	// (fail-open: the loop runs exactly as before, no credit is zeroed). Production
+	// wires an agent-manager-backed provider via SetDiffProvider.
+	diffProvider RunDiffProvider
 
 	// fitnessProvider is the P2 DTV read seam. Nil ⇒ DTV disabled (pure P1:
 	// uniform prior, allow-all). Production wires dtv.Client; everything below it
@@ -126,6 +137,7 @@ func NewExecutionOrchestrator(
 		effectiveness:    effectivenessStore,
 		terminator:       NewTerminator(),
 		pendingCost:      make(map[string]RunCost),
+		pendingRunID:     make(map[string]string),
 		fitnessSnaps:     make(map[string]*taskFitness),
 		degradedLogged:   make(map[string]bool),
 	}
@@ -180,8 +192,12 @@ type dtvSelectionInfo struct {
 // the hysteresis cooldown); otherwise pure greedy. DTV is consulted only via the
 // per-task snapshot — never synchronously in the candidate-ranking hot path.
 func (o *ExecutionOrchestrator) runSelect(state *ProfileExecutionState, profile *AutoSteerProfile, iteration int) (Selection, dtvSelectionInfo) {
+	// Maturity-ladder runtime (nil unless the profile enables a ladder) is shared
+	// by both the greedy and bandit selection paths so rung governance applies
+	// regardless of whether the effectiveness ledger is wired.
+	ladderRT := newLadderRuntime(profile, state.Metrics)
 	if o.effectiveness == nil {
-		return NewSelector(o.resolver()).SelectNextSkill(state.Findings, profile), dtvSelectionInfo{}
+		return NewSelector(o.resolver()).WithLadder(ladderRT).SelectNextSkill(state.Findings, profile), dtvSelectionInfo{}
 	}
 	prior, filter, info := o.dtvSeams(state, profile)
 	// When DTV is active, the snapshot doubles as the least-bad ranker for the
@@ -200,6 +216,7 @@ func (o *ExecutionOrchestrator) runSelect(state *ProfileExecutionState, profile 
 		Filter:        filter,
 		Cooldown:      cooldownSkills(state, profile.Budget.skillCooldown(), iteration),
 		RedRank:       redRank,
+		Ladder:        ladderRT,
 	}).SelectNextSkill(state.Findings, profile)
 	return sel, info
 }
@@ -464,6 +481,7 @@ func (o *ExecutionOrchestrator) selectInto(state *ProfileExecutionState, profile
 		Fingerprint:        state.Findings.Fingerprint,
 		ScoreBefore:        state.Findings.TotalScore,
 		PredictedReduction: sel.PredictedReduction,
+		CurrentRung:        sel.CurrentRung,
 	}
 	annotateDTVTrace(&entry, sel, dtvInfo)
 	state.Trace = append(state.Trace, entry)
@@ -535,9 +553,13 @@ func (o *ExecutionOrchestrator) EvaluateIteration(taskID, scenarioName string) (
 	realizedDelta := prevScore - scoreAfter // positive = improvement
 
 	// LEARN — attribute the per-dimension findings flow to the skill that ran.
+	// First classify the run's code-level diff for gaming: a gamed iteration is
+	// flagged in the trace and earns no closed-finding credit, so the bandit can
+	// never learn to prefer the cheap complaint-removal move.
 	diff := findings.DiffStates(prevFindings, newFS)
-	o.recordRealized(state, scoreAfter, realizedDelta, cost, diff, profile.Budget.RegressionVeto)
-	o.assignCredit(state, diff, cost)
+	gaming := o.classifyGaming(context.Background(), taskID)
+	o.recordRealized(state, scoreAfter, realizedDelta, cost, diff, profile.Budget.RegressionVeto, gaming)
+	o.assignCredit(state, diff, cost, gaming)
 	state.Findings = newFS
 	state.ScoreHistory = append(state.ScoreHistory, scoreAfter)
 	state.Metrics = o.collectMetrics(scenarioName, state.Iteration)
@@ -625,7 +647,7 @@ func mergeFindings(prior, fresh []findings.Finding, reauditedDims map[dimensions
 // recordRealized fills the realized outcome on the most recent trace entry (the
 // iteration whose skill just ran) — score, realized delta, token cost, and the
 // per-dimension findings flow — in both the live state and the durable store.
-func (o *ExecutionOrchestrator) recordRealized(state *ProfileExecutionState, scoreAfter, realizedDelta float64, cost RunCost, diff findings.Diff, regressionVeto bool) {
+func (o *ExecutionOrchestrator) recordRealized(state *ProfileExecutionState, scoreAfter, realizedDelta float64, cost RunCost, diff findings.Diff, regressionVeto bool, gaming gameguard.Result) {
 	n := len(state.Trace)
 	if n == 0 {
 		return
@@ -641,6 +663,16 @@ func (o *ExecutionOrchestrator) recordRealized(state *ProfileExecutionState, sco
 		e.VetoApplied = true
 		log.Printf("Auto Steer: REGRESSION VETO task %s iteration %d — net weighted score rose by %.2f; flagged and cooled (no auto-rollback in P1)",
 			state.TaskID, e.Iteration, -realizedDelta)
+	}
+	// Anti-gaming: stamp the classifier verdict and treat a gamed iteration as a
+	// veto (flagged + credit zeroed in assignCredit; no auto-revert per decision #4).
+	if cause := gamingTrace(gaming); cause != "" {
+		e.GamingCause = cause
+	}
+	if gaming.Gamed {
+		e.VetoApplied = true
+		log.Printf("Auto Steer: GAMING VETO task %s iteration %d — %s; credit zeroed and flagged (no auto-revert)",
+			state.TaskID, e.Iteration, gaming.CauseString())
 	}
 	if err := o.traceStore.SetRealized(state.TaskID, *e); err != nil {
 		log.Printf("Auto Steer: failed to persist realized delta (non-fatal): %v", err)
@@ -666,7 +698,7 @@ func (o *ExecutionOrchestrator) recordHalt(state *ProfileExecutionState, reason 
 // dimension chosen at SELECT (recorded on the current trace entry); collateral
 // closed/introduced in other dimensions are recorded too, so a skill that fixes
 // one dimension while breaking another earns the debt.
-func (o *ExecutionOrchestrator) assignCredit(state *ProfileExecutionState, diff findings.Diff, cost RunCost) {
+func (o *ExecutionOrchestrator) assignCredit(state *ProfileExecutionState, diff findings.Diff, cost RunCost, gaming gameguard.Result) {
 	if o.effectiveness == nil || state.CurrentSkill == "" {
 		return
 	}
@@ -674,10 +706,18 @@ func (o *ExecutionOrchestrator) assignCredit(state *ProfileExecutionState, diff 
 	if n == 0 {
 		return
 	}
+	// Anti-gaming: a gamed iteration earns ZERO closed-finding credit (decision
+	// #6 — full discount), so the reduction-per-token bandit gets no reward for
+	// the cheap move. The introduced (debt) side is preserved so a gamed
+	// iteration that also broke something still earns the penalty.
+	closed := diff.ClosedByDimension
+	if gaming.Gamed {
+		closed = nil
+	}
 	ev := effectiveness.CreditEvent{
 		SkillID:               state.CurrentSkill,
 		TargetDimension:       dimensions.Dimension(state.Trace[n-1].HeaviestDimension),
-		ClosedByDimension:     diff.ClosedByDimension,
+		ClosedByDimension:     closed,
 		IntroducedByDimension: diff.IntroducedByDimension,
 		Tokens:                cost.TotalTokens,
 	}

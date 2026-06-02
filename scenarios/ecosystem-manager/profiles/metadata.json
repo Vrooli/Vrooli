@@ -13,6 +13,18 @@
       "file": "balanced/profile.json"
     },
     {
+      "id": "balanced-ladder",
+      "name": "Balanced (Maturity Ladder)",
+      "description": "Balanced template with rung-governed selection enabled: hard-gate low rungs (runnable/safe), soft-boost high rungs (architecture/features/capability). For A/B comparison against the plain balanced profile.",
+      "tags": [
+        "balanced",
+        "maturity-ladder",
+        "experimental"
+      ],
+      "kind": "template",
+      "file": "balanced-ladder/profile.json"
+    },
+    {
       "id": "e4237387-66bf-438e-99aa-ccf419160d8d",
       "name": "Balanced (live-validation P8)",
       "description": "Instantiated from balanced template for P8 selection-stress + convergence-proof runs.",

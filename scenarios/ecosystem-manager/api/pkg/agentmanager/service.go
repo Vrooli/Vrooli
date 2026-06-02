@@ -256,12 +256,16 @@ func (s *AgentService) ExecuteTaskAsync(ctx context.Context, req ExecuteRequest)
 	// Build profile reference with current settings
 	profileRef := s.buildTaskProfileRef()
 
-	// Create run
+	// Create run. RunMode is left unset so agent-manager derives it from the
+	// profile's SandboxConfig.Mode (the single source of truth — see
+	// agent-manager domain.DeriveRunMode). The task profile now runs in
+	// SANDBOX_MODE_TRACKING so each iteration's code-level diff is observable
+	// (consumed by the anti-gaming classifier); tracking runs auto-merge by
+	// default, preserving in-place apply semantics for the re-audit.
 	runReq := &apipb.CreateRunRequest{
 		TaskId:     createdTask.Id,
 		ProfileRef: profileRef,
 		Tag:        &tag,
-		RunMode:    domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
 		Force:      true,
 		Prompt:     proto.String(req.Prompt),
 	}
@@ -354,6 +358,12 @@ func (s *AgentService) GetRunStatus(ctx context.Context, runID string) (*domainp
 	return s.client.GetRun(ctx, runID)
 }
 
+// GetRunDiff returns the code-level diff a run produced (nil for in-place runs
+// with no sandbox). Feeds the anti-gaming classifier.
+func (s *AgentService) GetRunDiff(ctx context.Context, runID string) (*domainpb.RunDiff, error) {
+	return s.client.GetRunDiff(ctx, runID)
+}
+
 // StopRun stops an active run.
 func (s *AgentService) StopRun(ctx context.Context, runID string) error {
 	return s.client.StopRun(ctx, runID)
@@ -380,9 +390,11 @@ type ProfileConfig struct {
 	TimeoutSeconds  int32
 	AllowedTools    []string
 	SkipPermissions bool
-	// SandboxMode selects the sandbox execution mode. ecosystem-manager
-	// runs in-place because its tasks operate on the live ecosystem
-	// database and config files. See agent-manager domain.DeriveRunMode.
+	// SandboxMode selects the sandbox execution mode. Task runs use
+	// SANDBOX_MODE_TRACKING so each iteration's code-level diff is observable
+	// by the anti-gaming classifier; tracking runs auto-merge their changes by
+	// default, so live files still reflect the agent's edits for the next
+	// re-audit. See agent-manager domain.DeriveRunMode.
 	SandboxMode domainpb.SandboxMode
 }
 
@@ -395,7 +407,7 @@ func (s *AgentService) buildTaskProfileConfig() *ProfileConfig {
 		TimeoutSeconds:  int32(currentSettings.TaskTimeout * 60), // Convert minutes to seconds
 		AllowedTools:    parseToolsList(currentSettings.AllowedTools),
 		SkipPermissions: currentSettings.SkipPermissions,
-		SandboxMode:     domainpb.SandboxMode_SANDBOX_MODE_OFF, // In-place execution
+		SandboxMode:     domainpb.SandboxMode_SANDBOX_MODE_TRACKING, // observable diff for anti-gaming
 	}
 }
 

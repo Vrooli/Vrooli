@@ -268,6 +268,11 @@ func (em *ExecutionManager) recordAutoSteerRunCost(task *tasks.TaskItem, result 
 	orchestrator.RecordRunCost(task.ID, autosteer.RunCost{
 		TotalTokens: int64(result.TokensUsed),
 	})
+	// Stash the run ID so the next EvaluateIteration can fetch this run's
+	// code-level diff for the anti-gaming classifier.
+	if em.registry != nil {
+		orchestrator.RecordRunID(task.ID, em.registry.GetRunIDForTask(task.ID))
+	}
 }
 
 // handleSteeringContinuation determines whether a task should continue after execution.

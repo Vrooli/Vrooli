@@ -195,8 +195,13 @@ export function DecisionTraceList({ entries }: DecisionTraceListProps) {
               );
             })()}
 
-            {(entry.regressed || entry.veto_applied || entry.halt_reason) && (
+            {(entry.regressed || entry.veto_applied || entry.halt_reason || entry.gaming_cause || entry.current_rung) && (
               <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Controller flags">
+                {entry.current_rung && (
+                  <li className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[11px] text-sky-600" data-testid="flag-rung">
+                    rung: {entry.current_rung}
+                  </li>
+                )}
                 {entry.regressed && (
                   <li className="rounded bg-destructive/15 px-1.5 py-0.5 text-[11px] text-destructive" data-testid="flag-regressed">
                     regressed
@@ -205,6 +210,20 @@ export function DecisionTraceList({ entries }: DecisionTraceListProps) {
                 {entry.veto_applied && (
                   <li className="rounded bg-destructive/15 px-1.5 py-0.5 text-[11px] text-destructive" data-testid="flag-veto">
                     regression veto
+                  </li>
+                )}
+                {entry.gaming_cause && (
+                  <li
+                    className={`rounded px-1.5 py-0.5 text-[11px] ${
+                      entry.gaming_cause.startsWith('gamed:')
+                        ? 'bg-destructive/15 text-destructive'
+                        : 'bg-amber-500/15 text-amber-600'
+                    }`}
+                    data-testid="flag-gaming"
+                  >
+                    {entry.gaming_cause.startsWith('gamed:')
+                      ? `⚠ ${entry.gaming_cause} (credit zeroed)`
+                      : entry.gaming_cause}
                   </li>
                 )}
                 {entry.halt_reason && (

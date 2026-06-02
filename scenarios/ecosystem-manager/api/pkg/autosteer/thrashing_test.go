@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ecosystem-manager/api/pkg/autosteer/gameguard"
 	"github.com/ecosystem-manager/api/pkg/findings"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
@@ -129,19 +130,19 @@ func TestThrashing_RegressionFlagAndVeto(t *testing.T) {
 	orch := &ExecutionOrchestrator{traceStore: NewTraceStore(nil)}
 
 	withVeto := &ProfileExecutionState{Trace: []DecisionTraceEntry{{Iteration: 1}}}
-	orch.recordRealized(withVeto, 12, -4, RunCost{}, findings.Diff{}, true) // score rose → regressed
+	orch.recordRealized(withVeto, 12, -4, RunCost{}, findings.Diff{}, true, gameguard.Result{}) // score rose → regressed
 	if !withVeto.Trace[0].Regressed || !withVeto.Trace[0].VetoApplied {
 		t.Fatalf("expected regressed+veto, got %+v", withVeto.Trace[0])
 	}
 
 	noVeto := &ProfileExecutionState{Trace: []DecisionTraceEntry{{Iteration: 1}}}
-	orch.recordRealized(noVeto, 12, -4, RunCost{}, findings.Diff{}, false)
+	orch.recordRealized(noVeto, 12, -4, RunCost{}, findings.Diff{}, false, gameguard.Result{})
 	if !noVeto.Trace[0].Regressed || noVeto.Trace[0].VetoApplied {
 		t.Fatalf("expected regressed without veto, got %+v", noVeto.Trace[0])
 	}
 
 	improved := &ProfileExecutionState{Trace: []DecisionTraceEntry{{Iteration: 1}}}
-	orch.recordRealized(improved, 4, 4, RunCost{}, findings.Diff{}, true) // score fell → improvement
+	orch.recordRealized(improved, 4, 4, RunCost{}, findings.Diff{}, true, gameguard.Result{}) // score fell → improvement
 	if improved.Trace[0].Regressed {
 		t.Fatalf("improvement must not be flagged regressed")
 	}

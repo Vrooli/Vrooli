@@ -399,6 +399,13 @@ func (qp *Processor) SetAutoSteerIntegration(integration *AutoSteerIntegration) 
 	if qp.executionManager != nil {
 		qp.executionManager.SetAutoSteerIntegration(integration)
 	}
+	// Wire the anti-gaming diff seam: the orchestrator fetches each iteration's
+	// code-level diff from agent-manager (tracking-mode runs) to classify gaming.
+	if integration != nil && qp.agentSvc != nil {
+		if orch := integration.ExecutionOrchestrator(); orch != nil {
+			orch.SetDiffProvider(runDiffAdapter{svc: qp.agentSvc})
+		}
+	}
 	log.Println("✅ Auto Steer integration configured for queue processor")
 	systemlog.Info("Auto Steer integration enabled")
 }

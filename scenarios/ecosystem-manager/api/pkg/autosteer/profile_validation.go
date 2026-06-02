@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/ecosystem-manager/api/pkg/dimensions"
+	"github.com/ecosystem-manager/api/pkg/ladder"
 )
 
 // validMaxOpenSeverity is the accepted set of max-open-severity target values.
@@ -73,6 +74,25 @@ func ValidateProfile(profile *AutoSteerProfile) error {
 	}
 	if profile.Budget.ReauditCadence < 0 {
 		return fmt.Errorf("budget.reaudit_cadence must be non-negative")
+	}
+
+	// Maturity ladder (optional). The rung definitions are canonical in pkg/ladder;
+	// here we only validate the profile's tuning of them.
+	if l := profile.Ladder; l != nil {
+		if strings.TrimSpace(l.TopRung) != "" {
+			if _, ok := ladder.ParseRung(l.TopRung); !ok {
+				return fmt.Errorf("ladder.top_rung %q is not a recognized rung (R0–R4)", l.TopRung)
+			}
+		}
+		if l.BoostFactor < 0 {
+			return fmt.Errorf("ladder.boost_factor must be non-negative")
+		}
+		if l.StandardsMaxCount < 0 {
+			return fmt.Errorf("ladder.standards_max_count must be non-negative")
+		}
+		if l.StructureMaxCount < 0 {
+			return fmt.Errorf("ladder.structure_max_count must be non-negative")
+		}
 	}
 
 	return nil

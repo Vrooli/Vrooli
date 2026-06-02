@@ -196,6 +196,8 @@ func ensureDecisionTraceTable(db *sql.DB) error {
 		dtv_degraded BOOLEAN NOT NULL DEFAULT FALSE,
 		gate_degraded_cause VARCHAR(40) NOT NULL DEFAULT '',
 		predicted_reduction DOUBLE PRECISION NOT NULL DEFAULT 0,
+		gaming_cause VARCHAR(60) NOT NULL DEFAULT '',
+		current_rung VARCHAR(100) NOT NULL DEFAULT '',
 		created_at TIMESTAMP DEFAULT NOW()
 	);
 
@@ -215,6 +217,8 @@ func ensureDecisionTraceTable(db *sql.DB) error {
 	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS dtv_degraded BOOLEAN NOT NULL DEFAULT FALSE;
 	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS gate_degraded_cause VARCHAR(40) NOT NULL DEFAULT '';
 	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS predicted_reduction DOUBLE PRECISION NOT NULL DEFAULT 0;
+	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS gaming_cause VARCHAR(60) NOT NULL DEFAULT '';
+	ALTER TABLE decision_trace ADD COLUMN IF NOT EXISTS current_rung VARCHAR(100) NOT NULL DEFAULT '';
 	`
 	if _, err := db.Exec(query); err != nil {
 		return fmt.Errorf("failed to ensure decision_trace table: %w", err)

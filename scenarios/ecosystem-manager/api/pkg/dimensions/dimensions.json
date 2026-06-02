@@ -12,7 +12,7 @@
     { "id": "docs", "description": "Documentation coverage and reference integrity (knowledge-observatory)." },
     { "id": "tests", "description": "Automated test presence and quality (unit and integration phases)." },
     { "id": "coverage", "description": "Test-coverage levels. No test-genie producer in v0; skill-supplied." },
-    { "id": "security", "description": "Vulnerabilities, input validation, and auth. No test-genie producer in v0; skill-supplied." },
+    { "id": "security", "description": "Vulnerabilities, leaked secrets, and SAST findings. Produced by the test-genie `security` phase, which delegates to the security-health scenario." },
     { "id": "performance", "description": "Bundle size, latency, and web-vitals regressions." },
     { "id": "operational-targets", "description": "PRD / operational-target completion (progress). Measured via gap metrics, not findings." },
     { "id": "dependencies", "description": "Dependency hygiene and governance." },
@@ -26,7 +26,9 @@
     "FINDING_SOURCE_DOCS": "docs",
     "FINDING_SOURCE_STANDARDS": "standards",
     "FINDING_SOURCE_ARCHITECTURE": "cycles",
-    "FINDING_SOURCE_TIDINESS": "tidiness"
+    "FINDING_SOURCE_TIDINESS": "tidiness",
+    "FINDING_SOURCE_COVERAGE": "coverage",
+    "FINDING_SOURCE_SECURITY": "security"
   },
   "testgenie_phase_map": {
     "structure": "structure",
@@ -42,6 +44,9 @@
     "integration": "tests",
     "playbooks": "visual",
     "business": "business",
-    "performance": "performance"
+    "performance": "performance",
+    "coverage": "coverage",
+    "tidiness": "tidiness",
+    "security": "security"
   }
 }

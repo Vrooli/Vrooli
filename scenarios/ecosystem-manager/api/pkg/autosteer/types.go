@@ -264,6 +264,28 @@ type DTVObjective struct {
 	RefreshIters int `json:"refresh_iters,omitempty"`
 }
 
+// LadderObjective is the maturity-ladder objective-block. The ladder definition
+// (rungs + gates) is canonical in pkg/ladder; this block only tunes how a profile
+// pursues it.
+type LadderObjective struct {
+	// Enabled turns rung-governed selection on. false/absent ⇒ pure greedy.
+	Enabled bool `json:"enabled"`
+	// TopRung caps the highest rung the profile pursues ("R0".."R4" or a full
+	// label). Empty ⇒ the whole ladder (R4).
+	TopRung string `json:"top_rung,omitempty"`
+	// BoostFactor multiplies a soft rung's dimension weights. <=0 ⇒ ladder default.
+	BoostFactor float64 `json:"boost_factor,omitempty"`
+	// StandardsMaxCount / StructureMaxCount tighten the R1/R2 gates with an
+	// optional count cap (0 ⇒ error-based gate only).
+	StandardsMaxCount int `json:"standards_max_count,omitempty"`
+	StructureMaxCount int `json:"structure_max_count,omitempty"`
+}
+
+// ladderEnabled reports whether rung-governed selection is on for this profile.
+func (p *AutoSteerProfile) ladderEnabled() bool {
+	return p != nil && p.Ladder != nil && p.Ladder.Enabled
+}
+
 // AutoSteerProfile is the controller's objective function for an improvement
 // run. (The type name is retained across the API/CLI/UI surfaces; its shape is
 // the greenfield objective model.)
@@ -276,6 +298,11 @@ type AutoSteerProfile struct {
 	Budget        Budget    `json:"budget"`
 	// DTV is the optional development-toolchain-validator objective-block (P2).
 	DTV *DTVObjective `json:"dtv,omitempty"`
+	// Ladder is the optional maturity-ladder objective-block. When enabled the
+	// selector becomes rung-governed (hard-gate low rungs, soft-boost high rungs)
+	// and the terminator holds the objective until the ladder is clean to the
+	// profile's top rung. Absent/disabled ⇒ pure weighted-greedy selection.
+	Ladder *LadderObjective `json:"ladder,omitempty"`
 	// AuditPreset is the test-genie preset used for full audits (the initial
 	// diagnose and the termination gate). Defaults to "comprehensive".
 	AuditPreset string    `json:"audit_preset,omitempty"`
@@ -409,8 +436,14 @@ type DecisionTraceEntry struct {
 	IntroducedByDimension map[string]int `json:"introduced_by_dimension,omitempty"`
 	// Regressed is true when this iteration's net weighted score went up.
 	Regressed bool `json:"regressed,omitempty"`
-	// VetoApplied is true when the profile's regression veto fired this iteration.
+	// VetoApplied is true when the profile's regression veto fired this iteration
+	// OR the anti-gaming classifier zeroed credit (see GamingCause).
 	VetoApplied bool `json:"veto_applied,omitempty"`
+	// GamingCause records the anti-gaming classifier verdict for this iteration
+	// when it detected gaming-shaped work (e.g. "gamed:test-weakening,suppression")
+	// or flagged it for review ("flagged-for-review"). Empty ⇒ clean. When a
+	// "gamed:" verdict is present the iteration's bandit credit was zeroed.
+	GamingCause string `json:"gaming_cause,omitempty"`
 	// HaltReason is set on the final iteration when the controller stopped,
 	// capturing why (objective_met, thrashing_cycle, no_net_progress, …).
 	HaltReason string `json:"halt_reason,omitempty"`
@@ -444,6 +477,11 @@ type DecisionTraceEntry struct {
 	// unreachable ⇒ no fitness data) or GateCauseAllRed (every eligible skill in
 	// the chosen dimension was DTV-red). Empty ⇒ healthy gate.
 	GateDegradedCause string `json:"gate_degraded_cause,omitempty"`
+	// CurrentRung is the maturity rung the controller worked this iteration (the
+	// lowest unsatisfied rung at or below the profile's top rung, e.g.
+	// "R1 Safe & standards-clean"). Empty when the profile has no ladder or the
+	// whole ladder already holds. Set at SELECT time.
+	CurrentRung string `json:"current_rung,omitempty"`
 }
 
 // ProfileExecutionState tracks the live state of an active controller run.

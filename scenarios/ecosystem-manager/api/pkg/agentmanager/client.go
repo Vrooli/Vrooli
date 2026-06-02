@@ -204,6 +204,29 @@ func (c *Client) GetRun(ctx context.Context, runID string) (*domainpb.Run, error
 	return result.Run, nil
 }
 
+// GetRunDiff retrieves the code-level diff a run produced. Only sandboxed
+// (tracking) runs carry a diff; an in-place run with no sandbox returns nil.
+func (c *Client) GetRunDiff(ctx context.Context, runID string) (*domainpb.RunDiff, error) {
+	resp, err := c.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/runs/%s/diff", runID), nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.parseError(resp)
+	}
+
+	var result apipb.GetRunDiffResponse
+	if err := c.parseResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return result.Diff, nil
+}
+
 // StopRun stops a running run.
 func (c *Client) StopRun(ctx context.Context, runID string) error {
 	resp, err := c.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/runs/%s/stop", runID), nil)
