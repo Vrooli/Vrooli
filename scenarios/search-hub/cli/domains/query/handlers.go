@@ -1,0 +1,193 @@
+package query
+
+import (
+	"context"
+	"fmt"
+	"strconv"
+	"strings"
+
+	"connectrpc.com/connect"
+
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing/routing_v1connect"
+
+	"github.com/vrooli/cli-core/cliapp"
+)
+
+// handlers bundles the closure over *cliapp.ScenarioApp so the query handler
+// has typed access to the RoutingService client without re-resolving it.
+type handlers struct {
+	core   *cliapp.ScenarioApp
+	client routingconnect.RoutingServiceClient
+}
+
+func newHandlers(core *cliapp.ScenarioApp) *handlers {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return &handlers{
+		core:   core,
+		client: routingconnect.NewRoutingServiceClient(httpClient, baseURL),
+	}
+}
+
+// query fans a natural-language query out across registered providers via
+// RoutingService.Query and renders the by-provider grouping in operator-friendly
+// form (which corpora were searched, per-corpus counts, provenance per hit, and
+// how to expand the search). `--json` emits the raw QueryResponse for scripting.
+func (h *handlers) query(ctx cliapp.RunContext) error {
+	text := strings.TrimSpace(ctx.Positional("text"))
+	if text == "" {
+		return fmt.Errorf("a query text positional is required, e.g. `search-hub query \"restart a scenario\" --type command`")
+	}
+
+	req := &routingv1.QueryRequest{
+		Query:   text,
+		Types:   splitTypes(ctx.Flag("type")),
+		All:     ctx.BoolFlag("all"),
+		Group:   strings.TrimSpace(ctx.Flag("group")),
+		Limit:   parseLimit(ctx.Flag("limit")),
+		Explain: ctx.BoolFlag("explain"),
+	}
+
+	resp, err := h.client.Query(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("query %q", text), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no query response")
+	}
+	msg := resp.Msg
+
+	totalHits := 0
+	for _, g := range msg.GetGroups() {
+		totalHits += len(g.GetHits())
+	}
+
+	summary := []string{
+		fmt.Sprintf("Searched %d corpora; %d total hit(s)%s.",
+			len(msg.GetGroups()), totalHits, degradedSuffix(msg.GetDegraded())),
+		fmt.Sprintf("Latency: %dms. Ranking: %s.", msg.GetLatencyMs(), rankingMode(msg.GetReranked())),
+	}
+	if len(msg.GetRoutingExplanation()) > 0 {
+		summary = append(summary, "Routing:")
+		for _, line := range msg.GetRoutingExplanation() {
+			summary = append(summary, "  • "+line)
+		}
+	}
+
+	results := renderGroups(msg.GetGroups())
+
+	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+		Summary:        summary,
+		ResultsHeading: "Results by provider",
+		Results:        results,
+		RetrievalHints: []string{
+			"`--type <a,b>` — route to specific leaf types (command, doc, record, component…)",
+			"`--all` — fan out to every active provider",
+			"`--group <scenario>` — scope to one scenario's leaves",
+			"`--limit <n>` — change the per-provider result cap (default 10)",
+			"`--explain` — show why these providers were chosen",
+			"`providers list` — see every registered provider and its type",
+		},
+	})
+}
+
+// renderGroups flattens the by-provider grouping into operator-friendly lines:
+// a provider header (with count or a degraded note) followed by each hit's
+// title, snippet, score, and provenance path.
+func renderGroups(groups []*routingv1.ProviderResultGroup) []string {
+	if len(groups) == 0 {
+		return []string{"(no providers matched — pass --type, --all, or --group)"}
+	}
+	out := make([]string, 0, len(groups)*3)
+	for _, g := range groups {
+		if g.GetDegraded() {
+			out = append(out, fmt.Sprintf("▸ %s — degraded: %s", g.GetProviderId(), g.GetNote()))
+			continue
+		}
+		out = append(out, fmt.Sprintf("▸ %s (%d)", g.GetProviderId(), g.GetCount()))
+		if len(g.GetHits()) == 0 {
+			out = append(out, "    (no matches)")
+			continue
+		}
+		for i, hit := range g.GetHits() {
+			out = append(out, formatHit(i+1, hit))
+		}
+	}
+	return out
+}
+
+// formatHit renders one SearchHit with its provenance (provider + path/id) so
+// every result is traceable to where it came from.
+func formatHit(n int, hit *routingv1.SearchHit) string {
+	title := strings.TrimSpace(hit.GetTitle())
+	if title == "" {
+		title = hit.GetId()
+	}
+	line := fmt.Sprintf("    %d. %s", n, title)
+	if snippet := truncate(hit.GetSnippet(), 80); snippet != "" {
+		line += " — " + snippet
+	}
+	provenance := strings.TrimSpace(hit.GetPath())
+	if provenance == "" {
+		provenance = hit.GetId()
+	}
+	line += fmt.Sprintf(" [score=%.3f %s/%s]", hit.GetScore(), hit.GetProviderGroup(), provenance)
+	return line
+}
+
+// splitTypes parses a comma-separated --type value into trimmed, non-empty
+// tokens.
+func splitTypes(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if t := strings.TrimSpace(p); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// parseLimit parses --limit, falling back to the server default (0 ⇒ server
+// applies its own default of 10) on an empty or invalid value.
+func parseLimit(raw string) int32 {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0
+	}
+	// ParseInt with bitSize=32 guarantees the result is already within the
+	// int32 range, so the conversion cannot overflow on user-controlled input
+	// (the gosec-clean idiom — avoids the int32(atoi) overflow pattern).
+	if n, err := strconv.ParseInt(raw, 10, 32); err == nil && n > 0 {
+		return int32(n)
+	}
+	return 0
+}
+
+func degradedSuffix(degraded bool) string {
+	if degraded {
+		return " (some providers degraded — see notes below)"
+	}
+	return ""
+}
+
+func rankingMode(reranked bool) string {
+	if reranked {
+		return "unified rerank"
+	}
+	return "by-provider grouping (cross-provider rerank lands in Phase 6)"
+}
+
+// truncate collapses internal whitespace (provider snippets often carry
+// embedded newlines) to a single clean line, then caps the length.
+func truncate(s string, max int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if max <= 0 || len(s) <= max {
+		return s
+	}
+	return s[:max] + "…"
+}

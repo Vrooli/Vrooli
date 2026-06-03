@@ -1,0 +1,157 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-06-03T12:28:18-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P1-006",
+      "title": "GAP stub: scenarios corpus",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "gap-tracking",
+      "description": "CAPABILITY_GAP stub for the `scenarios` corpus (intended_home: scenario-dependency-analyzer). Visible in providers list/status; no endpoint until its home scenario ships search.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Stub appears in `providers list` with state CAPABILITY_GAP and intended_home."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-007",
+      "title": "GAP stub: resources corpus",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "gap-tracking",
+      "description": "CAPABILITY_GAP stub for the `resources` corpus (intended_home: scenario-dependency-analyzer).",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Stub appears in providers list/status."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-008",
+      "title": "GAP stub: code corpus",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "gap-tracking",
+      "description": "CAPABILITY_GAP stub for the `code` corpus (intended_home: code-reference, planned).",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Stub appears in providers list/status."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-009",
+      "title": "GAP stub: contracts corpus",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "gap-tracking",
+      "description": "CAPABILITY_GAP stub for the `contracts` corpus (intended_home: contract-registry, planned).",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Stub appears in providers list/status."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-010",
+      "title": "GAP stub: runs corpus",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "gap-tracking",
+      "description": "CAPABILITY_GAP stub for the agent-`runs` corpus (intended_home: agent-manager).",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Stub appears in providers list/status."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-011",
+      "title": "GAP stub: git-provenance corpus",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "gap-tracking",
+      "description": "CAPABILITY_GAP stub for the `git-provenance` corpus (intended_home: git-control-tower).",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Stub appears in providers list/status."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-012",
+      "title": "GAP stub: requirements corpus",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "gap-tracking",
+      "description": "CAPABILITY_GAP stub for the `requirements` corpus (intended_home: product-manager-agent / PRD).",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Stub appears in providers list/status."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-013",
+      "title": "GAP stub: config corpus",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "gap-tracking",
+      "description": "CAPABILITY_GAP stub for the `config` corpus (intended_home: vrooli-onboarding).",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Stub appears in providers list/status."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-014",
+      "title": "GAP stub: domain-map corpus",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "gap-tracking",
+      "description": "CAPABILITY_GAP stub for the `domain-map` corpus (intended_home: architecture-cartographer).",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Stub appears in providers list/status."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-015",
+      "title": "GAP stub: metrics corpus",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "gap-tracking",
+      "description": "CAPABILITY_GAP stub for the runtime-`metrics` corpus (intended_home: command-center).",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Stub appears in providers list/status."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "provider_id": "swarm-manager.records",
+  "provider_group": "swarm-manager",
+  "bucket": "BUCKET_KNOW",
+  "type": "record",
+  "description": "Swarm-manager work records — durable write-ups of completed fixes, features, refactors, and investigations across every scenario (the recursive-learning loop's memory). Route here to find prior solutions, decisions, and how a past problem was solved.",
+  "endpoint": {
+    "http_json": {
+      "scenario_id": "swarm-manager",
+      "path": "/api/v1/search/ai",
+      "method": "HTTP_METHOD_POST",
+      "body_template": "{\"query\":\"{{query}}\",\"entity\":\"record\",\"limit\":{{limit}}}",
+      "headers": { "Content-Type": "application/json" }
+    }
+  },
+  "result_mapping": {
+    "results_path": "results",
+    "id_field": "id",
+    "title_field": "payload.record_id",
+    "score_field": "score",
+    "snippet_field": "payload.scenario",
+    "path_field": "payload.record_id",
+    "score_scale": "SCORE_SCALE_COSINE_0_1"
+  },
+  "scope": "SCOPE_PROJECT",
+  "state": "PROVIDER_STATE_ACTIVE"
+}

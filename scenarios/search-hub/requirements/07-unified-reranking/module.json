@@ -1,0 +1,31 @@
+{
+  "module_id": "MOD-P1-007",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "description": "Cross-provider unified ranking. A reranker (LLM-as-reranker via qwen3:4b, swappable for a true cross-encoder later) fuses the heterogeneous shortlist into one comparable ranked list, replacing the Phase-4 by-provider grouping. Reranker unavailable => fall back to by-provider grouping + degraded flag.",
+  "requirements": [
+    {
+      "id": "REQ-P1-001",
+      "title": "Reranked unified list",
+      "prd_ref": "OT-P1-001",
+      "category": "core",
+      "status": "draft",
+      "description": "The reranker scores the fused shortlist into one comparable ranked list across providers, behind a Reranker interface. rerank-on vs rerank-off MRR is reported on testdata/search_queries.json to justify its cost.",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "Rerank produces the expected ordering on a fixture shortlist." },
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "rerank-on MRR is reported alongside rerank-off on the labeled set." }
+      ]
+    },
+    {
+      "id": "REQ-P1-002",
+      "title": "Reranker-down degradation",
+      "prd_ref": "OT-P1-001",
+      "category": "core",
+      "status": "draft",
+      "description": "When the reranker is unavailable, the router falls back to by-provider grouping and sets a degraded flag in status/response — the query still succeeds.",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "With the reranker forced unavailable, Query returns grouped results and reranked=false + degraded=true." }
+      ]
+    }
+  ]
+}

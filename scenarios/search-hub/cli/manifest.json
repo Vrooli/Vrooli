@@ -1,0 +1,87 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "search-hub",
+  "description": "Search Hub CLI surface. Single source of truth for the `providers` domain: schema-validated against cli-manifest/v1 and cross-validated against the RegistryService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "query",
+      "description": "Federated search across registered providers (router domain)",
+      "commands": [
+        {
+          "name": "query",
+          "description": "Search registered providers and return results grouped by provider",
+          "positionals": [
+            { "name": "text", "required": true, "description": "Natural-language query" }
+          ],
+          "flags": [
+            { "name": "type", "description": "Comma-separated leaf types to route to (e.g. command,doc,record)" },
+            { "name": "all", "bool": true, "description": "Fan out to every active provider" },
+            { "name": "group", "description": "Scope the fan-out to one scenario's leaves" },
+            { "name": "limit", "default": "10", "description": "Maximum results per provider" },
+            { "name": "explain", "bool": true, "description": "Include the routing rationale (which selector chose the providers)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RoutingService", "method": "Query" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "providers",
+      "description": "Register, list, and remove federated search providers (registry domain)",
+      "commands": [
+        {
+          "name": "register",
+          "description": "Register (upsert) a provider descriptor",
+          "flags": [
+            { "name": "descriptor", "required": true, "description": "ProviderDescriptor as JSON, or @path to a JSON file" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RegistryService", "method": "RegisterProvider" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List registered providers (optional filters)",
+          "flags": [
+            { "name": "bucket", "description": "Filter by routing bucket: DO|REUSE|KNOW|STATE" },
+            { "name": "type", "description": "Filter by leaf type (command, doc, record, …)" },
+            { "name": "state", "description": "Filter by state: active|capability_gap" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RegistryService", "method": "ListProviders" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "remove",
+          "description": "Deregister a provider by provider_id",
+          "positionals": [
+            { "name": "provider_id", "required": true, "description": "Unique leaf id, e.g. cli-health.commands" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RegistryService", "method": "DeregisterProvider" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "RoutingService",
+      "method": "Status",
+      "reason": "Federation/provider status surface lands with the router in Phase 4/7. No handler exists until the routing + metrics domains are implemented."
+    }
+  ]
+}

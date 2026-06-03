@@ -1,0 +1,29 @@
+{
+  "results": [
+    {
+      "origin": "vrooli",
+      "group": "scenario",
+      "name": "scenario restart",
+      "description": "Restart a scenario's API and UI processes through the lifecycle system.",
+      "score": 0.91,
+      "source": "cli-health:scenario.restart"
+    },
+    {
+      "origin": "vrooli",
+      "group": "scenario",
+      "name": "scenario logs",
+      "description": "Stream a scenario's API and UI logs.",
+      "score": 0.74,
+      "source": "cli-health:scenario.logs"
+    },
+    {
+      "origin": "test-genie",
+      "group": "test",
+      "name": "test-genie execute",
+      "description": "Run the phased test suite for a scenario.",
+      "score": 0.42,
+      "source": "cli-health:test-genie.execute"
+    }
+  ],
+  "modeUsed": "MODE_AI"
+}

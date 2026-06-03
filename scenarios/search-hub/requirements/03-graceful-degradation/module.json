@@ -1,0 +1,20 @@
+{
+  "module_id": "MOD-P0-003",
+  "prd_ref": "OT-P0-003",
+  "priority": "P0",
+  "description": "A down or stale provider is skipped with a surfaced warning and never fails the whole query; partial results return within the timeout. The router aggregates optional status_endpoint reports and surfaces per-provider freshness/health.",
+  "requirements": [
+    {
+      "id": "REQ-P0-007",
+      "title": "Down/stale provider never fails the query",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "status": "draft",
+      "description": "When a provider is unreachable or reports stale freshness, its ProviderResultGroup is marked degraded with a human note (e.g. \"unreachable — skipped\" / \"last sync 3h ago\") and the query still returns successfully with the remaining providers' results.",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "An unreachable provider yields a degraded group + note; the response degraded flag is set; other providers' hits are present." },
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "Status aggregates per-provider freshness from status_endpoint reports." }
+      ]
+    }
+  ]
+}
