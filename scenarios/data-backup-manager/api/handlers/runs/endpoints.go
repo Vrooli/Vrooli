@@ -77,4 +77,16 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples:    []module.Example{{Name: "Browse snapshot", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/BrowseSnapshot -H 'Content-Type: application/json' -d '{\"destinationId\":\"dst-1\",\"snapshotId\":\"snap-1\"}'"}},
 		CLIMapping:  &module.CLIMapping{Command: "data-backup-manager runs browse", Args: []string{"--destination", "<id>", "--snapshot", "<id>"}},
 	},
+	{
+		ID:          "runs_stats",
+		Path:        runsconnect.RunsServiceGetRunStatsProcedure,
+		Method:      "POST",
+		Summary:     "Aggregate run performance metrics",
+		Description: "Reports counts, success rate, p50/p95 wall-clock duration, logical bytes per run, and throughput over the recent run-history window, optionally scoped to one plan.",
+		Category:    "runs",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"plan_id": "string (optional)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"stats": "RunStats"}},
+		Examples:    []module.Example{{Name: "Run stats", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/GetRunStats -H 'Content-Type: application/json' -d '{}'"}},
+		CLIMapping:  &module.CLIMapping{Command: "data-backup-manager runs stats", Args: []string{"--plan", "<plan_id>"}},
+	},
 }

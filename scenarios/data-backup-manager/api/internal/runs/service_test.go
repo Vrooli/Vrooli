@@ -52,6 +52,9 @@ func buildService(t *testing.T, plan runs.PlanForRun, targets map[string]runs.Ta
 		Events:       events,
 		Clock:        mocks.NewFakeClock(time.Time{}),
 		StagingRoot:  t.TempDir(),
+		// Inline executor: TriggerRun runs the job to completion synchronously so
+		// the test can GetRun the terminal run without polling.
+		Executor: runsmocks.NewSyncExecutor(),
 	})
 	return svc, eng, events, capt
 }
@@ -67,9 +70,18 @@ func TestCatalog_ListAndLastSuccess(t *testing.T) {
 	}
 	svc, eng, events, _ := buildService(t, plan, targets, nil)
 
-	run, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual)
+	pending, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual)
 	if err != nil {
 		t.Fatalf("TriggerRun: %v", err)
+	}
+	// TriggerRun returns immediately with a non-terminal run; the inline
+	// executor has driven it to terminal by the time Submit returned.
+	if pending.Status != runs.RunPending {
+		t.Fatalf("triggered run status = %s, want pending (async contract)", pending.Status)
+	}
+	run, err := svc.GetRun(ctx, pending.ID)
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
 	}
 	if run.Status != runs.RunCompleted {
 		t.Fatalf("run status = %s, want completed", run.Status)
@@ -165,39 +177,26 @@ func TestListTargetStatus_DefaultsToActiveCatalogTargets(t *testing.T) {
 	ctx := context.Background()
 	repo := runsmocks.NewFakeRepository()
 	now := time.Date(2026, 6, 1, 1, 0, 0, 0, time.UTC)
-	_, err := repo.SaveRun(ctx, runs.Run{
-		ID:        "run-old",
-		PlanID:    "plan-deleted",
-		Status:    runs.RunCompleted,
-		StartedAt: now.Add(-time.Hour),
-		Outcomes: []runs.TargetOutcome{{
-			TargetID:   "deleted-target",
-			Status:     runs.OutcomeSucceeded,
-			FinishedAt: now.Add(-time.Hour),
-		}},
-	})
-	if err != nil {
-		t.Fatalf("seed deleted run: %v", err)
+	seedRun := func(runID, planID, targetID string, startedAt time.Time) {
+		t.Helper()
+		if _, err := repo.CreateRun(ctx, runs.Run{ID: runID, PlanID: planID, Status: runs.RunPending, StartedAt: startedAt}); err != nil {
+			t.Fatalf("seed run %s: %v", runID, err)
+		}
+		if err := repo.SaveOutcome(ctx, runID, runs.TargetOutcome{TargetID: targetID, Status: runs.OutcomeSucceeded, FinishedAt: startedAt}); err != nil {
+			t.Fatalf("seed outcome %s: %v", runID, err)
+		}
+		if err := repo.FinishRun(ctx, runID, runs.RunCompleted, "", startedAt); err != nil {
+			t.Fatalf("finish run %s: %v", runID, err)
+		}
 	}
-	_, err = repo.SaveRun(ctx, runs.Run{
-		ID:        "run-current",
-		PlanID:    "plan-current",
-		Status:    runs.RunCompleted,
-		StartedAt: now,
-		Outcomes: []runs.TargetOutcome{{
-			TargetID:   "current-target",
-			Status:     runs.OutcomeSucceeded,
-			FinishedAt: now,
-		}},
-	})
-	if err != nil {
-		t.Fatalf("seed current run: %v", err)
-	}
+	seedRun("run-old", "plan-deleted", "deleted-target", now.Add(-time.Hour))
+	seedRun("run-current", "plan-current", "current-target", now)
 
 	svc := runs.NewService(runs.Deps{
 		Repo:          repo,
 		ActiveTargets: &runsmocks.FakeActiveTargetLookup{TargetIDs: []string{"current-target"}},
 		Clock:         mocks.NewFakeClock(now),
+		Executor:      runsmocks.NewSyncExecutor(),
 	})
 	statuses, err := svc.ListTargetStatus(ctx, nil)
 	if err != nil {
@@ -236,9 +235,13 @@ func TestRun_PartialFailure(t *testing.T) {
 		return sources.Artifact{Path: spec.StageDir, Bytes: 10}, nil
 	}
 
-	run, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual)
+	pending, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual)
 	if err != nil {
 		t.Fatalf("TriggerRun: %v", err)
+	}
+	run, err := svc.GetRun(ctx, pending.ID)
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
 	}
 	if run.Status != runs.RunPartialFailed {
 		t.Fatalf("status = %s, want partial_failed", run.Status)
@@ -270,9 +273,13 @@ func TestRun_CapBlock(t *testing.T) {
 	blockAll := func(string, int64) (bool, string, error) { return true, "over cap", nil }
 	svc, eng, _, _ := buildService(t, plan, targets, blockAll)
 
-	run, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual)
+	pending, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual)
 	if err != nil {
 		t.Fatalf("TriggerRun: %v", err)
+	}
+	run, err := svc.GetRun(ctx, pending.ID)
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
 	}
 	if run.Status != runs.RunFailed {
 		t.Fatalf("status = %s, want failed", run.Status)

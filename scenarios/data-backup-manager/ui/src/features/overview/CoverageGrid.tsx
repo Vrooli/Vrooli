@@ -68,7 +68,14 @@ export function CoverageGrid() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <p className="truncate text-sm font-medium text-app-foreground">{row.target.name}</p>
-                        <VerifiedChip lastVerifiedAt={row.lastVerifiedAt} />
+                        <div className="flex shrink-0 items-center gap-1">
+                          {row.overdue && (
+                            <span className="rounded-full bg-app-warning/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-app-warning">
+                              {t(strings.overview.overdueChip)}
+                            </span>
+                          )}
+                          <VerifiedChip lastVerifiedAt={row.lastVerifiedAt} />
+                        </div>
                       </div>
                       <p className="truncate text-xs text-app-muted-foreground">
                         {t(SOURCE_KIND_STRINGS[sourceKindSlug(row.target.sourceKind)])}

@@ -8,7 +8,13 @@ CREATE TABLE IF NOT EXISTS runs (
   trigger     TEXT NOT NULL,
   status      TEXT NOT NULL,
   started_at  TEXT NOT NULL,
-  finished_at TEXT NOT NULL DEFAULT ''
+  finished_at TEXT NOT NULL DEFAULT '',
+  -- run-level failure reason (plan-resolution failure, startup reconciliation);
+  -- per-target errors live on run_outcomes.error
+  error       TEXT NOT NULL DEFAULT '',
+  -- heartbeat: last time the run's status/outcomes were persisted, so an
+  -- in-flight or wedged run is observable and startup reconciliation can age it
+  updated_at  TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_runs_plan ON runs(plan_id, started_at DESC);

@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"sync"
+	"time"
 
 	"data-backup-manager/internal/runs"
 )
@@ -39,20 +40,75 @@ func (f *FakeRepository) CreateRun(_ context.Context, r runs.Run) (runs.Run, err
 	return r, nil
 }
 
-func (f *FakeRepository) SaveRun(_ context.Context, r runs.Run) (runs.Run, error) {
+func (f *FakeRepository) UpdateRunStatus(_ context.Context, runID string, status runs.RunStatus) error {
 	if f.SaveErr != nil {
-		return runs.Run{}, f.SaveErr
+		return f.SaveErr
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for i := range f.runs {
-		if f.runs[i].ID == r.ID {
-			f.runs[i] = r
-			return r, nil
+		if f.runs[i].ID == runID {
+			f.runs[i].Status = status
+			return nil
 		}
 	}
-	f.runs = append(f.runs, r)
-	return r, nil
+	return runs.ErrRunNotFound{ID: runID}
+}
+
+func (f *FakeRepository) SaveOutcome(_ context.Context, runID string, o runs.TargetOutcome) error {
+	if f.SaveErr != nil {
+		return f.SaveErr
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := range f.runs {
+		if f.runs[i].ID != runID {
+			continue
+		}
+		for j := range f.runs[i].Outcomes {
+			ex := f.runs[i].Outcomes[j]
+			if ex.TargetID == o.TargetID && ex.DestinationID == o.DestinationID {
+				f.runs[i].Outcomes[j] = o
+				return nil
+			}
+		}
+		f.runs[i].Outcomes = append(f.runs[i].Outcomes, o)
+		return nil
+	}
+	return runs.ErrRunNotFound{ID: runID}
+}
+
+func (f *FakeRepository) FinishRun(_ context.Context, runID string, status runs.RunStatus, errMsg string, finishedAt time.Time) error {
+	if f.SaveErr != nil {
+		return f.SaveErr
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := range f.runs {
+		if f.runs[i].ID == runID {
+			f.runs[i].Status = status
+			f.runs[i].Error = errMsg
+			f.runs[i].FinishedAt = finishedAt
+			return nil
+		}
+	}
+	return runs.ErrRunNotFound{ID: runID}
+}
+
+func (f *FakeRepository) ListNonTerminalRuns(_ context.Context) ([]runs.Run, error) {
+	if f.ListErr != nil {
+		return nil, f.ListErr
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []runs.Run
+	for _, r := range f.runs {
+		switch r.Status {
+		case runs.RunPending, runs.RunCapturing, runs.RunSnapshotting:
+			out = append(out, r)
+		}
+	}
+	return out, nil
 }
 
 func (f *FakeRepository) GetRun(_ context.Context, id string) (runs.Run, error) {

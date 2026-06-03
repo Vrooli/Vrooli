@@ -122,6 +122,7 @@
     "coverageEmpty": "まだバックアップ対象のターゲットがありません。",
     "lastBackupLabel": "バックアップ",
     "verifiedLabel": "検証",
+    "overdueChip": "期限超過",
     "ownerFallback": "未割り当て",
     "setupTitle": "保護を設定",
     "setupBody": "暗号化された保存先を作成し、ターゲットを結び付けるプランを作成します。最初の検証付きリストアでバックアップが実際に機能することを確認できます。",

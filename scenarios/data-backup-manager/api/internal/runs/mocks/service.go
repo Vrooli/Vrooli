@@ -19,6 +19,8 @@ type FakeService struct {
 	StatusErr  error
 	BrowseOut  []engine.SnapshotEntry
 	BrowseErr  error
+	StatsOut2  runs.RunStats
+	StatsErr2  error
 
 	TriggeredPlan string
 }
@@ -60,3 +62,14 @@ func (f *FakeService) BrowseSnapshot(_ context.Context, _, _, _ string) ([]engin
 	}
 	return f.BrowseOut, nil
 }
+
+func (f *FakeService) GetRunStats(_ context.Context, _ string) (runs.RunStats, error) {
+	if f.StatsErr2 != nil {
+		return runs.RunStats{}, f.StatsErr2
+	}
+	return f.StatsOut2, nil
+}
+
+func (f *FakeService) Reconcile(context.Context) error { return nil }
+
+func (f *FakeService) Shutdown(context.Context) error { return nil }

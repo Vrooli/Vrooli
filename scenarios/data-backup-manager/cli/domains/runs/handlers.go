@@ -16,27 +16,22 @@ import (
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client runsconnect.RunsServiceClient
-	// triggerClient has no client-side deadline. TriggerRun executes the whole
-	// backup (capture + kopia snapshot for every target) synchronously inside the
-	// request, which can run for many minutes on large targets / slow drives. The
-	// default short client timeout would disconnect mid-snapshot — and because the
-	// server execs kopia with the request context, that disconnect kills the
-	// snapshot and wedges the run in PENDING. An unlimited deadline avoids that.
-	triggerClient runsconnect.RunsServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	longClient, longBaseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
 	return &handlers{
-		core:          core,
-		client:        runsconnect.NewRunsServiceClient(httpClient, baseURL),
-		triggerClient: runsconnect.NewRunsServiceClient(longClient, longBaseURL),
+		core:   core,
+		client: runsconnect.NewRunsServiceClient(httpClient, baseURL),
 	}
 }
 
+// trigger enqueues a run. TriggerRun is asynchronous server-side — it returns a
+// run in a non-terminal state immediately and the backup executes on a
+// background worker — so the standard client timeout is appropriate; poll
+// `runs get <id>` for progress and the terminal status.
 func (h *handlers) trigger(ctx cliapp.RunContext) error {
-	resp, err := h.triggerClient.TriggerRun(context.Background(), connect.NewRequest(&runsv1.TriggerRunRequest{
+	resp, err := h.client.TriggerRun(context.Background(), connect.NewRequest(&runsv1.TriggerRunRequest{
 		PlanId: ctx.Flag("plan"),
 	}))
 	if err != nil {
@@ -46,10 +41,10 @@ func (h *handlers) trigger(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no run")
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Triggered run %s.", resp.Msg.Run.Id)},
+		Result:  []string{fmt.Sprintf("Queued run %s — executing in the background.", resp.Msg.Run.Id)},
 		Changes: []string{formatRun(resp.Msg.Run)},
 		NextCommand: []string{
-			fmt.Sprintf("`runs get %s` — show run status", resp.Msg.Run.Id),
+			fmt.Sprintf("`runs get %s` — poll run status until it reaches a terminal state", resp.Msg.Run.Id),
 			"`runs status` — show all target statuses",
 		},
 	})
@@ -115,6 +110,34 @@ func (h *handlers) status(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) stats(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetRunStats(context.Background(), connect.NewRequest(&runsv1.GetRunStatsRequest{
+		PlanId: ctx.Flag("plan"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("get run stats", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Stats == nil {
+		return fmt.Errorf("server returned no stats")
+	}
+	s := resp.Msg.Stats
+	scope := "all plans"
+	if p := ctx.Flag("plan"); p != "" {
+		scope = "plan " + p
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Run metrics over %d run(s) (%s).", s.Window, scope)},
+		ResultsHeading: "Metrics",
+		Results: []string{
+			fmt.Sprintf("runs: %d total — %d completed, %d partial-failed, %d failed", s.TotalRuns, s.Completed, s.PartialFailed, s.Failed),
+			fmt.Sprintf("success rate: %.0f%%", s.SuccessRate*100),
+			fmt.Sprintf("duration: p50 %s, p95 %s", formatMillis(s.P50DurationMs), formatMillis(s.P95DurationMs)),
+			fmt.Sprintf("bytes: %s total, %s avg/run", formatBytes(s.TotalBytes), formatBytes(s.AvgBytesPerRun)),
+			fmt.Sprintf("throughput: %s/s (logical)", formatBytes(int64(s.AvgThroughputBytesPerSec))),
+		},
+	})
+}
+
 func (h *handlers) browse(ctx cliapp.RunContext) error {
 	resp, err := h.client.BrowseSnapshot(context.Background(), connect.NewRequest(&runsv1.BrowseSnapshotRequest{
 		DestinationId: ctx.Flag("destination"),
@@ -172,6 +195,31 @@ func triggerLabel(t runsv1.TriggerSource) string {
 	}
 }
 
+// formatMillis renders a millisecond duration compactly (e.g. 1.4s, 850ms).
+func formatMillis(ms int64) string {
+	if ms <= 0 {
+		return "0ms"
+	}
+	if ms < 1000 {
+		return fmt.Sprintf("%dms", ms)
+	}
+	return fmt.Sprintf("%.1fs", float64(ms)/1000.0)
+}
+
+// formatBytes renders a byte count in binary units (KiB/MiB/GiB).
+func formatBytes(b int64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
 func formatRun(r *runsv1.Run) string {
 	if r == nil {
 		return "(nil)"
@@ -190,8 +238,28 @@ func formatTargetStatus(s *runsv1.TargetStatus) string {
 	}
 	lastSuccess := "never"
 	if s.LastSuccessAt != nil {
-		lastSuccess = s.LastSuccessAt.AsTime().Format(time.RFC3339)
+		lastSuccess = fmt.Sprintf("%s (%s ago)", s.LastSuccessAt.AsTime().Format(time.RFC3339), formatAge(s.LastSuccessAgeSeconds))
 	}
-	return fmt.Sprintf("target=%s last-success=%s last-run-status=%s",
-		s.TargetId, lastSuccess, runStatusLabel(s.LastRunStatus))
+	freshness := "ok"
+	if s.Overdue {
+		freshness = "OVERDUE"
+	}
+	return fmt.Sprintf("target=%s [%s] last-success=%s last-run-status=%s",
+		s.TargetId, freshness, lastSuccess, runStatusLabel(s.LastRunStatus))
+}
+
+// formatAge renders an age in seconds as a compact human duration.
+func formatAge(sec int64) string {
+	switch {
+	case sec <= 0:
+		return "0s"
+	case sec < 60:
+		return fmt.Sprintf("%ds", sec)
+	case sec < 3600:
+		return fmt.Sprintf("%dm", sec/60)
+	case sec < 86400:
+		return fmt.Sprintf("%dh", sec/3600)
+	default:
+		return fmt.Sprintf("%dd", sec/86400)
+	}
 }

@@ -122,6 +122,30 @@ func (h *connectHandler) BrowseSnapshot(ctx context.Context, req *connect.Reques
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) GetRunStats(ctx context.Context, req *connect.Request[runsv1.GetRunStatsRequest]) (*connect.Response[runsv1.GetRunStatsResponse], error) {
+	stats, err := h.deps.Service.GetRunStats(ctx, req.Msg.PlanId)
+	if err != nil {
+		return nil, h.translate("GetRunStats", err)
+	}
+	return connect.NewResponse(&runsv1.GetRunStatsResponse{Stats: runStatsToProto(stats)}), nil
+}
+
+func runStatsToProto(s internalruns.RunStats) *runsv1.RunStats {
+	return &runsv1.RunStats{
+		TotalRuns:                s.TotalRuns,
+		Completed:                s.Completed,
+		PartialFailed:            s.PartialFailed,
+		Failed:                   s.Failed,
+		SuccessRate:              s.SuccessRate,
+		P50DurationMs:            s.P50DurationMs,
+		P95DurationMs:            s.P95DurationMs,
+		TotalBytes:               s.TotalBytes,
+		AvgBytesPerRun:           s.AvgBytesPerRun,
+		AvgThroughputBytesPerSec: s.AvgThroughputBytesPerSec,
+		Window:                   s.Window,
+	}
+}
+
 func (h *connectHandler) translate(op string, err error) error {
 	connectErr := internalruns.ToConnectError(err)
 	if connect.CodeOf(connectErr) == connect.CodeInternal {
@@ -164,7 +188,12 @@ func runToProto(r internalruns.Run) *runsv1.Run {
 }
 
 func targetStatusToProto(s internalruns.TargetStatus) *runsv1.TargetStatus {
-	ps := &runsv1.TargetStatus{TargetId: s.TargetID, LastRunStatus: runStatusToProto(s.LastRunStatus)}
+	ps := &runsv1.TargetStatus{
+		TargetId:              s.TargetID,
+		LastRunStatus:         runStatusToProto(s.LastRunStatus),
+		Overdue:               s.Overdue,
+		LastSuccessAgeSeconds: s.LastSuccessAgeSeconds,
+	}
 	if !s.LastSuccessAt.IsZero() {
 		ps.LastSuccessAt = timestamppb.New(s.LastSuccessAt)
 	}

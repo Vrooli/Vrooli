@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, ShieldAlert } from "lucide-react";
 
 import { fetchHealth } from "../../api/health";
-import { RunStatus } from "../../api/runs";
 import { useTargetStatus } from "../../hooks/useTargetStatus";
 import { queryKeys } from "../../hooks/keys";
 import { selectors } from "../../consts/selectors";
@@ -18,9 +17,11 @@ import { STALE_VERIFY_MS } from "../../lib/status";
  * targets are overdue/failed, and — the metric this product is built around —
  * how many are backed up but not (recently) verified. Calm when all-clear;
  * amber, never alarmist red, when attention is needed.
+ *
+ * Overdue is read from the server's `overdue` field (computed against
+ * DBM_OVERDUE_AFTER) so the banner, `runs status`, and /health share one rule
+ * rather than each re-deriving a threshold client-side.
  */
-const OVERDUE_AFTER_MS = 36 * 60 * 60 * 1000; // mirrors the API's default DBM_OVERDUE_AFTER
-
 export function PostureBanner() {
   const { t } = useTranslation();
   const health = useQuery({ queryKey: queryKeys.health, queryFn: fetchHealth });
@@ -29,12 +30,7 @@ export function PostureBanner() {
   const statuses = status.data ?? [];
   const now = new Date();
 
-  const overdue = statuses.filter((s) => {
-    if (s.lastRunStatus === RunStatus.FAILED || s.lastRunStatus === RunStatus.PARTIAL_FAILED) {
-      return true;
-    }
-    return isOlderThan(tsToDate(s.lastSuccessAt), OVERDUE_AFTER_MS, now);
-  }).length;
+  const overdue = statuses.filter((s) => s.overdue).length;
 
   const unverified = statuses.filter((s) =>
     isOlderThan(tsToDate(s.lastVerifiedAt), STALE_VERIFY_MS, now),

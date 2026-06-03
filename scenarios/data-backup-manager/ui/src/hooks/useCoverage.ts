@@ -18,6 +18,9 @@ export interface CoverageRow {
   lastVerifiedSnapshotId: string;
   lastRunStatus: RunStatus;
   lastRunAt: Date | undefined;
+  // Freshness from the server's single overdue rule (DBM_OVERDUE_AFTER).
+  overdue: boolean;
+  lastSuccessAgeSeconds: bigint;
 }
 
 export interface CoverageResult {
@@ -41,6 +44,8 @@ export function useCoverage(owner = ""): CoverageResult {
       lastVerifiedSnapshotId: s?.lastVerifiedSnapshotId ?? "",
       lastRunStatus: s?.lastRunStatus ?? RunStatus.UNSPECIFIED,
       lastRunAt: tsToDate(s?.lastRunAt),
+      overdue: s?.overdue ?? false,
+      lastSuccessAgeSeconds: s?.lastSuccessAgeSeconds ?? 0n,
     };
   });
 

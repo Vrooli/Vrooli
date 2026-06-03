@@ -36,6 +36,7 @@
     { "name": "runs list", "description": "List runs (optionally by plan)", "endpoint_id": "runs_list" },
     { "name": "runs status", "description": "Show last-success per target", "endpoint_id": "runs_target_status" },
     { "name": "runs browse", "description": "Browse a snapshot's contents", "endpoint_id": "runs_browse_snapshot" },
+    { "name": "runs stats", "description": "Show aggregate run performance metrics", "endpoint_id": "runs_stats" },
 
     { "name": "restores restore", "description": "Restore a target's snapshot to a location", "endpoint_id": "restores_restore" },
     { "name": "restores verify", "description": "Verify a snapshot (test-restore + checksum); the git-removal gate", "endpoint_id": "restores_verify" },

@@ -67,7 +67,15 @@ type Run struct {
 	Status     RunStatus
 	StartedAt  time.Time
 	FinishedAt time.Time
-	Outcomes   []TargetOutcome
+	// Error carries a run-level failure reason — set when a run fails before
+	// any per-target work (e.g. plan resolution) or when startup reconciliation
+	// closes a run that was in-flight across a restart. Per-target failures live
+	// on each TargetOutcome instead.
+	Error string
+	// UpdatedAt is the heartbeat: the last time the run's status or an outcome
+	// was persisted. It makes a long-running or wedged run observable.
+	UpdatedAt time.Time
+	Outcomes  []TargetOutcome
 }
 
 // TargetStatus is the last-success / last-run rollup for one target, derived
@@ -77,6 +85,11 @@ type TargetStatus struct {
 	LastSuccessAt time.Time
 	LastRunStatus RunStatus
 	LastRunAt     time.Time
+	// Freshness (cadence) signals computed by the service against the configured
+	// overdue threshold. Overdue is the single source of truth shared by the
+	// CLI, /health, and the UI so the rule never drifts between surfaces.
+	Overdue               bool
+	LastSuccessAgeSeconds int64
 }
 
 // ErrRunNotFound is the typed sentinel for an unknown run id.

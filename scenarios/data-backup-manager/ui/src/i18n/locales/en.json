@@ -123,6 +123,7 @@
     "coverageEmpty": "No targets are being backed up yet.",
     "lastBackupLabel": "Backed up",
     "verifiedLabel": "Verified",
+    "overdueChip": "Overdue",
     "ownerFallback": "Unassigned",
     "setupTitle": "Set up protection",
     "setupBody": "Create an encrypted destination, then a plan that binds your targets to it. The first verified restore proves the backup actually works.",

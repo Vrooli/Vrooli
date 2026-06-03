@@ -421,6 +421,19 @@
             "run_eligible": true,
             "permissions": ["network:internal"]
           }
+        },
+        {
+          "name": "stats",
+          "description": "Show aggregate run metrics (counts, success rate, p50/p95 duration, bytes/run, throughput)",
+          "flags": [
+            { "name": "plan", "description": "Scope metrics to a single plan id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RunsService", "method": "GetRunStats" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
         }
       ]
     },

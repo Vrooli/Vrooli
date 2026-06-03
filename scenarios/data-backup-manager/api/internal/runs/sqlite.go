@@ -44,9 +44,12 @@ func (s *sqliteRepository) CreateRun(ctx context.Context, r Run) (Run, error) {
 	if r.Status == "" {
 		r.Status = RunPending
 	}
+	if r.UpdatedAt.IsZero() {
+		r.UpdatedAt = r.StartedAt
+	}
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO runs (id, plan_id, trigger, status, started_at, finished_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		r.ID, r.PlanID, string(r.Trigger), string(r.Status), r.StartedAt.Format(runTimeFormat), formatTime(r.FinishedAt),
+		`INSERT INTO runs (id, plan_id, trigger, status, started_at, finished_at, error, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		r.ID, r.PlanID, string(r.Trigger), string(r.Status), r.StartedAt.Format(runTimeFormat), formatTime(r.FinishedAt), r.Error, formatTime(r.UpdatedAt),
 	)
 	if err != nil {
 		return Run{}, fmt.Errorf("insert run: %w", err)
@@ -54,34 +57,75 @@ func (s *sqliteRepository) CreateRun(ctx context.Context, r Run) (Run, error) {
 	return r, nil
 }
 
-func (s *sqliteRepository) SaveRun(ctx context.Context, r Run) (Run, error) {
-	_, err := s.db.ExecContext(ctx,
-		`UPDATE runs SET status = ?, finished_at = ? WHERE id = ?`,
-		string(r.Status), formatTime(r.FinishedAt), r.ID,
-	)
+func (s *sqliteRepository) UpdateRunStatus(ctx context.Context, runID string, status RunStatus) error {
+	now := formatTime(s.clock.Now().UTC())
+	if _, err := s.db.ExecContext(ctx,
+		`UPDATE runs SET status = ?, updated_at = ? WHERE id = ?`,
+		string(status), now, runID,
+	); err != nil {
+		return fmt.Errorf("update run status %q: %w", runID, err)
+	}
+	return nil
+}
+
+func (s *sqliteRepository) SaveOutcome(ctx context.Context, runID string, o TargetOutcome) error {
+	if _, err := s.db.ExecContext(ctx,
+		`INSERT INTO run_outcomes (run_id, target_id, destination_id, status, snapshot_id, bytes, error, started_at, finished_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(run_id, target_id, destination_id) DO UPDATE SET
+		   status = excluded.status, snapshot_id = excluded.snapshot_id, bytes = excluded.bytes,
+		   error = excluded.error, started_at = excluded.started_at, finished_at = excluded.finished_at`,
+		runID, o.TargetID, o.DestinationID, string(o.Status), o.SnapshotID, o.Bytes, o.Error,
+		formatTime(o.StartedAt), formatTime(o.FinishedAt),
+	); err != nil {
+		return fmt.Errorf("save outcome %s/%s: %w", o.TargetID, o.DestinationID, err)
+	}
+	// Heartbeat: a run actively writing outcomes is alive.
+	if _, err := s.db.ExecContext(ctx,
+		`UPDATE runs SET updated_at = ? WHERE id = ?`, formatTime(s.clock.Now().UTC()), runID,
+	); err != nil {
+		return fmt.Errorf("heartbeat run %q: %w", runID, err)
+	}
+	return nil
+}
+
+func (s *sqliteRepository) FinishRun(ctx context.Context, runID string, status RunStatus, errMsg string, finishedAt time.Time) error {
+	now := formatTime(s.clock.Now().UTC())
+	if _, err := s.db.ExecContext(ctx,
+		`UPDATE runs SET status = ?, error = ?, finished_at = ?, updated_at = ? WHERE id = ?`,
+		string(status), errMsg, formatTime(finishedAt), now, runID,
+	); err != nil {
+		return fmt.Errorf("finish run %q: %w", runID, err)
+	}
+	return nil
+}
+
+func (s *sqliteRepository) ListNonTerminalRuns(ctx context.Context) ([]Run, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, plan_id, trigger, status, started_at, finished_at, error, updated_at
+		 FROM runs WHERE status IN (?, ?, ?) ORDER BY started_at ASC, id ASC`,
+		string(RunPending), string(RunCapturing), string(RunSnapshotting))
 	if err != nil {
-		return Run{}, fmt.Errorf("update run %q: %w", r.ID, err)
+		return nil, fmt.Errorf("list non-terminal runs: %w", err)
 	}
-	// Replace outcomes.
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM run_outcomes WHERE run_id = ?`, r.ID); err != nil {
-		return Run{}, fmt.Errorf("clear outcomes %q: %w", r.ID, err)
-	}
-	for _, o := range r.Outcomes {
-		if _, err := s.db.ExecContext(ctx,
-			`INSERT INTO run_outcomes (run_id, target_id, destination_id, status, snapshot_id, bytes, error, started_at, finished_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			r.ID, o.TargetID, o.DestinationID, string(o.Status), o.SnapshotID, o.Bytes, o.Error,
-			formatTime(o.StartedAt), formatTime(o.FinishedAt),
-		); err != nil {
-			return Run{}, fmt.Errorf("insert outcome %s/%s: %w", o.TargetID, o.DestinationID, err)
+	defer rows.Close()
+	var out []Run
+	for rows.Next() {
+		r, err := scanRun(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan non-terminal run: %w", err)
 		}
+		out = append(out, r)
 	}
-	return r, nil
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate non-terminal runs: %w", err)
+	}
+	return out, nil
 }
 
 func (s *sqliteRepository) GetRun(ctx context.Context, id string) (Run, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, plan_id, trigger, status, started_at, finished_at FROM runs WHERE id = ?`, id)
+		`SELECT id, plan_id, trigger, status, started_at, finished_at, error, updated_at FROM runs WHERE id = ?`, id)
 	r, err := scanRun(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Run{}, ErrRunNotFound{ID: id}
@@ -107,11 +151,11 @@ func (s *sqliteRepository) ListRuns(ctx context.Context, planID string, limit in
 	)
 	if planID != "" {
 		rows, err = s.db.QueryContext(ctx,
-			`SELECT id, plan_id, trigger, status, started_at, finished_at FROM runs WHERE plan_id = ? ORDER BY started_at DESC, id DESC LIMIT ?`,
+			`SELECT id, plan_id, trigger, status, started_at, finished_at, error, updated_at FROM runs WHERE plan_id = ? ORDER BY started_at DESC, id DESC LIMIT ?`,
 			planID, limit)
 	} else {
 		rows, err = s.db.QueryContext(ctx,
-			`SELECT id, plan_id, trigger, status, started_at, finished_at FROM runs ORDER BY started_at DESC, id DESC LIMIT ?`,
+			`SELECT id, plan_id, trigger, status, started_at, finished_at, error, updated_at FROM runs ORDER BY started_at DESC, id DESC LIMIT ?`,
 			limit)
 	}
 	if err != nil {
@@ -253,17 +297,18 @@ type rowScanner interface{ Scan(dest ...any) error }
 
 func scanRun(sc rowScanner) (Run, error) {
 	var (
-		r                     Run
-		trigger, status       string
-		startedRaw, finishRaw string
+		r                               Run
+		trigger, status                 string
+		startedRaw, finishRaw, updedRaw string
 	)
-	if err := sc.Scan(&r.ID, &r.PlanID, &trigger, &status, &startedRaw, &finishRaw); err != nil {
+	if err := sc.Scan(&r.ID, &r.PlanID, &trigger, &status, &startedRaw, &finishRaw, &r.Error, &updedRaw); err != nil {
 		return Run{}, err
 	}
 	r.Trigger = TriggerSource(trigger)
 	r.Status = RunStatus(status)
 	r.StartedAt = parseTime(startedRaw)
 	r.FinishedAt = parseTime(finishRaw)
+	r.UpdatedAt = parseTime(updedRaw)
 	return r, nil
 }
 

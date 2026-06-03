@@ -67,6 +67,34 @@ func TestFilesystemSource_RoundTrip(t *testing.T) {
 	assert.Equal(t, wantChecksums, gotChecksums, "restored tree must be byte-identical to source")
 }
 
+// TestFilesystemSource_DirectoryInPlace proves a directory locator is captured
+// in place: the artifact points AT the source (no staging copy), the stage dir
+// stays empty, and the reported bytes are the logical sum of the tree's regular
+// files. This is the I/O win — kopia snapshots the live tree directly.
+func TestFilesystemSource_DirectoryInPlace(t *testing.T) {
+	t.Parallel()
+
+	srcDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(srcDir, "sub"), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.txt"), []byte("12345"), 0o640))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "sub/b.txt"), []byte("678"), 0o640))
+
+	ctx := context.Background()
+	cap, err := sources.NewProductionRegistry(sources.ExecRunner{}).Capturer(sources.KindFilesystem)
+	require.NoError(t, err)
+
+	stageDir := t.TempDir()
+	art, err := cap.Capture(ctx, sources.CaptureSpec{Locator: srcDir, StageDir: stageDir})
+	require.NoError(t, err)
+
+	assert.Equal(t, srcDir, art.Path, "directory capture must be in place (artifact path == source)")
+	assert.Equal(t, int64(8), art.Bytes, "bytes must be the logical sum of regular files")
+
+	entries, err := os.ReadDir(stageDir)
+	require.NoError(t, err)
+	assert.Empty(t, entries, "no staging copy must be made for a directory locator")
+}
+
 // TestFilesystemSource_SingleFile captures a single-file locator (not a
 // directory) and asserts it round-trips as fs/<basename>. This is the shape of
 // most default coverage targets (config.toml, history.jsonl, secrets.json).
@@ -128,18 +156,25 @@ func TestFilesystemSource_PreservesSymlinks(t *testing.T) {
 	art, err := cap.Capture(ctx, sources.CaptureSpec{Locator: srcDir, StageDir: stageDir})
 	require.NoError(t, err, "capturing a tree with symlinks must not error")
 
-	// The symlink-to-dir must be a symlink in the artifact, not a copied tree.
-	info, err := os.Lstat(filepath.Join(art.Path, "link-to-dir"))
+	// Restore exercises copyTree (the path that still copies on the in-place
+	// model): the restored tree must preserve symlinks as links and must NOT
+	// have dereferenced the out-of-tree link into the artifact.
+	restoreDir := t.TempDir()
+	require.NoError(t, cap.Restore(ctx, sources.RestoreSpec{
+		Locator:      srcDir,
+		ArtifactPath: art.Path,
+		Target:       restoreDir,
+	}))
+
+	info, err := os.Lstat(filepath.Join(restoreDir, "link-to-dir"))
 	require.NoError(t, err)
 	assert.NotZero(t, info.Mode()&fs.ModeSymlink, "link-to-dir must be preserved as a symlink")
-	link, err := os.Readlink(filepath.Join(art.Path, "link-to-dir"))
+	link, err := os.Readlink(filepath.Join(restoreDir, "link-to-dir"))
 	require.NoError(t, err)
 	assert.Equal(t, outside, link, "symlink target must be copied verbatim, not dereferenced")
 
-	// The excluded target must NOT have been pulled into the artifact.
-	_, statErr := os.Stat(filepath.Join(art.Path, "link-to-dir", "secret.txt"))
-	_ = statErr // link points outside; existence here would mean we followed it
-	assert.NoFileExists(t, filepath.Join(art.Path, "secret.txt"))
+	// The excluded out-of-tree target must NOT have been pulled in as a real file.
+	assert.NoFileExists(t, filepath.Join(restoreDir, "secret.txt"))
 }
 
 // checksumTree walks root and returns map[relative-path]sha256hex for every file.

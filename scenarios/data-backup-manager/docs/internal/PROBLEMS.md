@@ -247,35 +247,109 @@ targets `RESTORE_STATUS_VERIFIED`.
 **Owner:** resolved. **Refs:** `api/internal/sources/fs.go`,
 `api/internal/sources/sqlite.go`, `api/internal/restores/service.go::checksumDir`.
 
-### 2026-06-03 — Synchronous run/restore execution is interruption-fragile
+### 2026-06-03 — Synchronous run execution is interruption-fragile (runs: resolved)
 
-**Symptom:** A backup/verify/restore that runs longer than the transport
-timeouts (default Connect client timeout; api-core 30 s `WriteTimeout`) gets its
-connection severed mid-operation. Because the server execs kopia with the
-*request* context, the disconnect kills the kopia subprocess; the run is then
-stranded in `RUN_STATUS_PENDING` forever (no terminal status, no
-reconciliation). Multiple orphaned PENDING rows for plan
-`elements-daily-runtime` are this, from before the timeout fix.
+**Symptom:** A backup that ran longer than the transport timeouts (default
+Connect client timeout; api-core 30 s `WriteTimeout`) had its connection severed
+mid-operation. Because the server execed kopia with the *request* context, the
+disconnect killed the kopia subprocess; the run was then stranded in
+`RUN_STATUS_PENDING` forever (no terminal status, no reconciliation). The
+orphaned PENDING rows for plan `elements-daily-runtime` were this.
 
-**Root cause:** `runs.TriggerRun` and `restores.{VerifyTarget,RestoreTarget}`
-execute the whole operation synchronously inside the request handler and thread
-`req.Context()` all the way down to `exec.CommandContext`. There is no async
-execution, no incremental status persistence, and no startup sweep that fails or
-resumes runs left PENDING by a crash/restart/disconnect.
+**Root cause:** `runs.TriggerRun` executed the whole operation synchronously
+inside the request handler and threaded `req.Context()` down to
+`exec.CommandContext`, with no async execution, no incremental status
+persistence, and no startup sweep.
 
-**Workaround (shipped):** CLIs use an unlimited-timeout Connect client for the
-long RPCs and the API sets `WriteTimeout: 6h`, so normal long runs now complete
-and persist cleanly. This does not cover an actual mid-run API restart/SIGTERM.
+**Resolution (runs — shipped 2026-06-03, async backbone):** `runs.TriggerRun`
+now validates the plan, creates the run row, enqueues it onto a background
+`runs.Executor` bound to a server-lifetime (non-request) context, and returns the
+non-terminal run immediately. The worker persists `capturing`→`snapshotting`→
+terminal transitions and writes each `TargetOutcome` as it lands (heartbeat via
+`runs.updated_at`). On boot, `Service.Reconcile` closes any run left non-terminal
+as `failed` with a reconciliation reason (fail-not-resume in v1). The `runs
+trigger` CLI interim workaround was removed (it uses the standard client now).
+The server `WriteTimeout: 6h` in `main.go` is **kept** — but its justification
+changed: runs no longer need it, but `restores verify/restore` are still
+synchronous and long-running (see "Still open" below), and the api-core default
+30s `WriteTimeout` severs them mid-operation ("unexpected EOF"). It drops to the
+default only once restores also become async. Refs:
+`api/internal/runs/{service,executor,repository,sqlite,migrate}.go`,
+`api/main.go` (execCtx + Reconcile + Cleanup drain),
+`cli/domains/runs/handlers.go`.
 
-**Real fix:** Execute runs/restores on a background worker with a non-request
-context, persist `CAPTURING`/`SNAPSHOTTING` transitions as work proceeds, and add
-a startup reconciliation that marks orphaned PENDING runs `FAILED` (or resumes
-them). The proto already has the intermediate `RUN_STATUS_*` states for this.
+**Still open (restores):** `restores.{VerifyTarget,RestoreTarget}` remain
+synchronous and long-running. They are single, bounded, operator-initiated
+operations, so they keep the unlimited-timeout Connect client on the CLI side
+(`cli/domains/restores/handlers.go`) rather than the async treatment. The
+background-job seam is general enough that they *could* opt in later, but that is
+deliberately out of scope. **Resume** of an interrupted run (vs fail) is also
+deferred — v1 fails orphans cleanly.
 
-**Owner:** unassigned (filed via report-bug). **Refs:**
-`api/internal/runs/service.go::TriggerRun`,
-`api/internal/restores/service.go`, `api/main.go` (WriteTimeout),
-`cli/domains/{runs,restores}/handlers.go`.
+**Owner:** restores async / run-resume — unassigned. **Refs:**
+`api/internal/restores/service.go`, `cli/domains/restores/handlers.go`.
+
+### 2026-06-03 — `next_scheduled_at` not yet on the freshness view (Phase 6 partial)
+
+**Symptom:** `runs status` / `TargetStatus` / `/health` report per-target
+`overdue` and `last_success_age_seconds`, but not the *next* scheduled backup
+time per target.
+
+**Root cause:** "Next scheduled" for a target = the minimum, over the plans that
+include it, of (plan's last fire + its schedule interval). That requires three
+inputs the runs status rollup does not have: the target→plans membership, each
+plan's schedule, and the **scheduler's in-memory `lastFire`** map
+(`internal/scheduler/scheduler.go`), which is not currently exposed through any
+seam.
+
+**Workaround:** None needed — overdue + age already answer "is this target
+behind?", the primary cadence question. Next-scheduled is additive.
+
+**Real fix:** Add a scheduler→status seam that surfaces per-plan `lastFire` +
+schedule, join it through target membership in `ListTargetStatus`, and populate
+a `next_scheduled_at` field (additive on `TargetStatus`). Deferred from Phase 6
+of the perf/observability plan.
+
+**Owner:** unassigned. **Refs:** `internal/scheduler/scheduler.go` (`lastFire`),
+`internal/runs/service.go::ListTargetStatus`, Phase-6 section of
+`data-backup-manager-backup-performance-observability-async-execution`.
+
+### 2026-06-03 — Per-target kopia process/connect overhead (Phase 4 descoped)
+
+**Symptom:** Every target costs a fixed ~1.4–1.5s regardless of size — the kopia
+process spawn + repository connect per `resource-kopia snapshot create`. A run's
+floor is therefore (targets / concurrency) × ~1.5s.
+
+**Root cause:** One `resource-kopia` subprocess per target×destination, each
+opening the repository.
+
+**Investigated & rejected — multi-path batching.** `kopia snapshot create A B …`
+runs one process for many paths, but `--override-source`, `--description`, and
+`--tags` are applied **globally to every path**, not per-path (verified: two
+sources batched with `--override-source dbm://shared` both got the colliding
+source identity `dbm:/shared`). DBM stamps a **unique per-target**
+`--override-source dbm://owner/name` plus per-target tags/description so a
+standalone `kopia snapshot list` attributes each snapshot to its target (a
+load-bearing, tested feature for Vrooli-independent recovery). Batching would
+collapse all targets in a destination into one identity — a regression of that
+guarantee. So multi-path cannot preserve per-target granularity and was not
+adopted.
+
+**Workaround (shipped):** Phase 1 (async) + Phase 2 (bounded concurrency,
+`DBM_RUN_CONCURRENCY`=4) already cut the real 16-target run from ~35s to ~8s; the
+per-target floor is masked by parallelism. Phase 3 (in-place fs snapshot) removed
+the separate staging-copy I/O on top of that.
+
+**Real fix (deferred):** A warm/persistent kopia connection reused across a run's
+snapshots — which requires `resource-kopia` to expose kopia **server/daemon**
+mode (open the repo once, submit many snapshots) — would amortize the connect
+cost while keeping per-target identity. That is a substantial resource-level
+change, out of scope for this plan.
+
+**Owner:** unassigned (resource-kopia server-mode is the enabling work). **Refs:**
+`api/internal/engine/kopia.go::SnapshotCreate`, `api/internal/runs/service.go`
+(fan-out), Phase-4 section of
+`data-backup-manager-backup-performance-observability-async-execution`.
 
 ### 2026-06-03 — `destinations usage` fails: resource-kopia `repo stats --json`
 

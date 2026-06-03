@@ -3,9 +3,12 @@ package runs
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"data-backup-manager/internal/clock"
 	"data-backup-manager/internal/engine"
@@ -16,9 +19,13 @@ import (
 // depend on. TriggerRun is the backup-run orchestration (FLOWS.md "Scheduled
 // backup run"): per target × destination, capture → cap-check → snapshot →
 // retention → record outcome, with partial-failure isolation and a
-// backup-outcome event on close.
+// backup-outcome event on close. Execution is asynchronous — TriggerRun
+// enqueues onto a background worker and returns a non-terminal run immediately;
+// callers poll GetRun/ListRuns for progress and terminal status.
 type Service interface {
-	// TriggerRun executes plan planID now and returns the closed run.
+	// TriggerRun creates a run for plan planID, enqueues it for background
+	// execution, and returns the freshly-created (pending) run immediately. The
+	// run executes on the service's executor under a non-request context.
 	TriggerRun(ctx context.Context, planID string, trigger TriggerSource) (Run, error)
 	GetRun(ctx context.Context, id string) (Run, error)
 	ListRuns(ctx context.Context, planID string, limit int) ([]Run, error)
@@ -28,6 +35,15 @@ type Service interface {
 	ListTargetStatus(ctx context.Context, targetIDs []string) ([]TargetStatus, error)
 	// BrowseSnapshot lists entries within a snapshot in a destination.
 	BrowseSnapshot(ctx context.Context, destinationID, snapshotID, path string) ([]engine.SnapshotEntry, error)
+	// GetRunStats aggregates run performance over the recent history window,
+	// optionally scoped to a plan.
+	GetRunStats(ctx context.Context, planID string) (RunStats, error)
+	// Reconcile closes runs left non-terminal by a crash/restart/disconnect,
+	// marking them failed. Called once at startup before serving traffic so no
+	// run can wedge in a non-terminal state across a restart.
+	Reconcile(ctx context.Context) error
+	// Shutdown drains the background executor, bounded by ctx.
+	Shutdown(ctx context.Context) error
 }
 
 // Deps bundles the seams the run service orchestrates.
@@ -41,31 +57,78 @@ type Deps struct {
 	Sources       *sources.Registry
 	Events        EventSink
 	Clock         clock.Clock
+	Logger        *log.Logger
 	// StagingRoot is the base directory capture artifacts are staged under
 	// before snapshotting. Empty uses the OS temp dir. Each run gets a
 	// subdirectory that is removed when the run closes.
 	StagingRoot string
+	// BaseContext is the server-lifetime context the background executor binds
+	// its workers to. Nil uses context.Background(). It must outlive requests —
+	// a client disconnect must not cancel an in-flight backup.
+	BaseContext context.Context
+	// Workers is the number of background run workers (concurrent runs). < 1
+	// clamps to 1. Within-run target concurrency is a separate knob.
+	Workers int
+	// TargetConcurrency bounds how many target×destination units a single run
+	// executes in parallel. < 1 uses defaultTargetConcurrency. Partial-failure
+	// isolation and cap-block-before-write are invariant under concurrency.
+	TargetConcurrency int
+	// OverdueAfter is the age past which a target's last success is overdue.
+	// <= 0 disables the age component (a target is then overdue only when its
+	// last run failed/partial or it has never succeeded). ListTargetStatus uses
+	// it to compute per-target freshness.
+	OverdueAfter time.Duration
+	// Executor overrides the background executor. Nil wires the production
+	// AsyncExecutor. Tests inject a synchronous executor for deterministic
+	// completion.
+	Executor Executor
 }
 
-const defaultRunListLimit = 100
+const (
+	defaultRunListLimit      = 100
+	defaultTargetConcurrency = 4
+	// statsWindow caps how many recent runs GetRunStats aggregates. Run history
+	// is bounded catalog data; the cap keeps the aggregation cheap and is
+	// surfaced as RunStats.Window so the figure is never silently partial.
+	statsWindow = 1000
+)
 
 type service struct {
-	deps Deps
+	deps     Deps
+	executor Executor
 }
 
-// NewService constructs the production run service.
-func NewService(d Deps) Service { return &service{deps: d} }
+// NewService constructs the production run service and starts its background
+// executor. The executor is bound to s.executeRun so enqueued jobs run the
+// full capture→snapshot→persist lifecycle off the request path.
+func NewService(d Deps) Service {
+	s := &service{deps: d}
+	exec := d.Executor
+	if exec == nil {
+		exec = NewAsyncExecutor(d.Workers)
+	}
+	s.executor = exec
+	s.executor.Bind(d.BaseContext, s.executeRun)
+	return s
+}
 
 // Compile-time guarantee.
 var _ Service = (*service)(nil)
+
+func (s *service) logf(format string, args ...any) {
+	if s.deps.Logger != nil {
+		s.deps.Logger.Printf("runs: "+format, args...)
+	}
+}
 
 func (s *service) TriggerRun(ctx context.Context, planID string, trigger TriggerSource) (Run, error) {
 	planID = strings.TrimSpace(planID)
 	if planID == "" {
 		return Run{}, ErrInvalidRun{Field: "plan_id", Reason: "required"}
 	}
-	plan, err := s.deps.Plans.PlanForRun(ctx, planID)
-	if err != nil {
+	// Validate the plan exists up-front so the caller gets a synchronous 404
+	// instead of a run that fails in the background.
+	if _, err := s.deps.Plans.PlanForRun(ctx, planID); err != nil {
 		return Run{}, err
 	}
 
@@ -75,60 +138,152 @@ func (s *service) TriggerRun(ctx context.Context, planID string, trigger Trigger
 		Trigger:   trigger,
 		Status:    RunPending,
 		StartedAt: now,
+		UpdatedAt: now,
 	})
 	if err != nil {
 		return Run{}, fmt.Errorf("create run: %w", err)
 	}
 
-	stageBase, cleanup, err := s.stagingDir(run.ID)
+	s.executor.Submit(RunJob{RunID: run.ID, PlanID: planID, Trigger: trigger})
+	return run, nil
+}
+
+// executeRun is the background worker body: it drives one created run through
+// its persisted lifecycle (capturing → snapshotting → terminal), writing each
+// target outcome as it lands so progress is durable before the run closes. It
+// runs under the executor's base context, so a client disconnect cannot cancel
+// it. It never returns an error — failures are persisted onto the run/outcomes.
+func (s *service) executeRun(ctx context.Context, job RunJob) {
+	plan, err := s.deps.Plans.PlanForRun(ctx, job.PlanID)
 	if err != nil {
-		return Run{}, err
+		s.finishRun(ctx, job, RunFailed, fmt.Sprintf("resolve plan: %v", err), 0, 0, 0)
+		return
+	}
+
+	if err := s.deps.Repo.UpdateRunStatus(ctx, job.RunID, RunCapturing); err != nil {
+		s.logf("run %s -> capturing: %v", job.RunID, err)
+	}
+
+	stageBase, cleanup, err := s.stagingDir(job.RunID)
+	if err != nil {
+		s.finishRun(ctx, job, RunFailed, err.Error(), 0, 0, 0)
+		return
 	}
 	defer cleanup()
 
-	run.Status = RunCapturing // pending -> capturing
-	outcomes := make([]TargetOutcome, 0, len(plan.TargetIDs)*len(plan.DestinationIDs))
+	// The run transitions to snapshotting once the first target begins its
+	// snapshot — guarded so the persisted transition happens exactly once even
+	// under concurrent target fan-out.
+	var once sync.Once
+	onSnapshotStart := func() {
+		once.Do(func() {
+			if err := s.deps.Repo.UpdateRunStatus(ctx, job.RunID, RunSnapshotting); err != nil {
+				s.logf("run %s -> snapshotting: %v", job.RunID, err)
+			}
+		})
+	}
+
+	// Fan out target×destination units with bounded concurrency. Each runOne is
+	// independent; outcomes persist as each completes (SaveOutcome). The tally
+	// and the run-level snapshotting transition are guarded so partial-failure
+	// isolation and cap-block-before-write hold unchanged under concurrency.
+	type unit struct{ targetID, destID string }
+	units := make([]unit, 0, len(plan.TargetIDs)*len(plan.DestinationIDs))
 	for _, targetID := range plan.TargetIDs {
 		for _, destID := range plan.DestinationIDs {
-			outcomes = append(outcomes, s.runOne(ctx, plan, run.ID, targetID, destID, stageBase))
+			units = append(units, unit{targetID, destID})
 		}
 	}
 
-	var succeeded, failed, blocked int
-	for _, o := range outcomes {
-		switch o.Status {
-		case OutcomeSucceeded:
-			succeeded++
-		case OutcomeFailed:
-			failed++
-		case OutcomeBlocked:
-			blocked++
-		}
+	var (
+		mu                         sync.Mutex
+		succeeded, failed, blocked int
+		wg                         sync.WaitGroup
+	)
+	sem := make(chan struct{}, s.targetConcurrency())
+	for _, u := range units {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(u unit) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			o := s.runOne(ctx, plan, job.RunID, u.targetID, u.destID, stageBase, onSnapshotStart)
+			if err := s.deps.Repo.SaveOutcome(ctx, job.RunID, o); err != nil {
+				s.logf("run %s save outcome %s/%s: %v", job.RunID, u.targetID, u.destID, err)
+			}
+			mu.Lock()
+			switch o.Status {
+			case OutcomeSucceeded:
+				succeeded++
+			case OutcomeFailed:
+				failed++
+			case OutcomeBlocked:
+				blocked++
+			}
+			mu.Unlock()
+		}(u)
 	}
-	run.Outcomes = outcomes
-	run.FinishedAt = s.deps.Clock.Now().UTC()
-	if len(outcomes) == 0 {
-		run.Status = RunCompleted // empty plan: vacuously complete
-	} else {
-		run.Status = classifyTerminal(succeeded, failed, blocked)
-	}
+	wg.Wait()
 
-	saved, err := s.deps.Repo.SaveRun(ctx, run)
-	if err != nil {
-		return Run{}, fmt.Errorf("save run %q: %w", run.ID, err)
+	status := RunCompleted // empty plan: vacuously complete
+	if succeeded+failed+blocked > 0 {
+		status = classifyTerminal(succeeded, failed, blocked)
+	}
+	s.finishRun(ctx, job, status, "", succeeded, failed, blocked)
+}
+
+// targetConcurrency bounds in-run target×destination parallelism (>= 1).
+func (s *service) targetConcurrency() int {
+	if s.deps.TargetConcurrency < 1 {
+		return defaultTargetConcurrency
+	}
+	return s.deps.TargetConcurrency
+}
+
+// finishRun persists the terminal state and emits the backup-outcome event.
+func (s *service) finishRun(ctx context.Context, job RunJob, status RunStatus, errMsg string, succeeded, failed, blocked int) {
+	if err := s.deps.Repo.FinishRun(ctx, job.RunID, status, errMsg, s.deps.Clock.Now().UTC()); err != nil {
+		s.logf("run %s finish (%s): %v", job.RunID, status, err)
 	}
 	if s.deps.Events != nil {
 		s.deps.Events.BackupOutcome(ctx, RunOutcomeEvent{
-			RunID: saved.ID, PlanID: planID, Status: saved.Status,
+			RunID: job.RunID, PlanID: job.PlanID, Status: status,
 			Succeeded: succeeded, Failed: failed, Blocked: blocked,
 		})
 	}
-	return saved, nil
+}
+
+// Reconcile closes any run left in a non-terminal state by a crash/restart or a
+// client disconnect that killed an in-flight backup. v1 policy is fail-not-
+// resume: each orphan is marked failed with a reconciliation reason. Resume is
+// a deliberate future option (see docs/internal/PROBLEMS.md).
+func (s *service) Reconcile(ctx context.Context) error {
+	orphans, err := s.deps.Repo.ListNonTerminalRuns(ctx)
+	if err != nil {
+		return fmt.Errorf("reconcile: list non-terminal runs: %w", err)
+	}
+	const reason = "reconciled: process restarted while run was in-flight"
+	for _, r := range orphans {
+		if err := s.deps.Repo.FinishRun(ctx, r.ID, RunFailed, reason, s.deps.Clock.Now().UTC()); err != nil {
+			s.logf("reconcile run %s: %v", r.ID, err)
+		}
+	}
+	if len(orphans) > 0 {
+		s.logf("reconciled %d orphaned non-terminal run(s) to failed", len(orphans))
+	}
+	return nil
+}
+
+// Shutdown drains the background executor, bounded by ctx.
+func (s *service) Shutdown(ctx context.Context) error {
+	return s.executor.Shutdown(ctx)
 }
 
 // runOne executes a single target × destination and returns its outcome. A
-// failure here never aborts the run — the caller aggregates.
-func (s *service) runOne(ctx context.Context, plan PlanForRun, runID, targetID, destID, stageBase string) TargetOutcome {
+// failure here never aborts the run — the caller aggregates. onSnapshotStart is
+// invoked once the capture succeeds and the snapshot is about to begin, so the
+// run can record its capturing→snapshotting transition.
+func (s *service) runOne(ctx context.Context, plan PlanForRun, runID, targetID, destID, stageBase string, onSnapshotStart func()) TargetOutcome {
 	out := TargetOutcome{TargetID: targetID, DestinationID: destID, StartedAt: s.deps.Clock.Now().UTC()}
 	finish := func(status OutcomeStatus, errMsg string) TargetOutcome {
 		out.Status = status
@@ -170,6 +325,9 @@ func (s *service) runOne(ctx context.Context, plan PlanForRun, runID, targetID, 
 		return finish(OutcomeBlocked, "storage cap reached: "+reason)
 	}
 
+	if onSnapshotStart != nil {
+		onSnapshotStart()
+	}
 	snap, err := s.deps.Engine.SnapshotCreate(ctx, dest.Name, artifact.Path,
 		snapshotMetadata(runID, destID, target))
 	if err != nil {
@@ -206,7 +364,43 @@ func (s *service) ListTargetStatus(ctx context.Context, targetIDs []string) ([]T
 		}
 		targetIDs = activeIDs
 	}
-	return s.deps.Repo.TargetStatuses(ctx, targetIDs)
+	statuses, err := s.deps.Repo.TargetStatuses(ctx, targetIDs)
+	if err != nil {
+		return nil, err
+	}
+	now := s.deps.Clock.Now().UTC()
+	for i := range statuses {
+		statuses[i].Overdue = isOverdue(statuses[i], now, s.deps.OverdueAfter)
+		if !statuses[i].LastSuccessAt.IsZero() {
+			if age := now.Sub(statuses[i].LastSuccessAt); age > 0 {
+				statuses[i].LastSuccessAgeSeconds = int64(age.Seconds())
+			}
+		}
+	}
+	return statuses, nil
+}
+
+// isOverdue is the single freshness rule shared by every surface (CLI, /health,
+// UI): a target is overdue when its last run failed or partial-failed, it has
+// never succeeded, or its last success is older than the overdue threshold.
+// A non-positive threshold disables only the age component.
+func isOverdue(s TargetStatus, now time.Time, after time.Duration) bool {
+	switch s.LastRunStatus {
+	case RunFailed, RunPartialFailed:
+		return true
+	}
+	if s.LastSuccessAt.IsZero() {
+		return true
+	}
+	return after > 0 && now.Sub(s.LastSuccessAt) > after
+}
+
+func (s *service) GetRunStats(ctx context.Context, planID string) (RunStats, error) {
+	runs, err := s.deps.Repo.ListRuns(ctx, strings.TrimSpace(planID), statsWindow)
+	if err != nil {
+		return RunStats{}, err
+	}
+	return computeRunStats(runs), nil
 }
 
 func (s *service) BrowseSnapshot(ctx context.Context, destinationID, snapshotID, path string) ([]engine.SnapshotEntry, error) {

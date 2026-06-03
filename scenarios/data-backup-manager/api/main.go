@@ -143,6 +143,14 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("destinations column migration failed: %w", err)
 	}
 
+	// Additive column migration for the runs table (error, updated_at) so the
+	// async-execution columns land on a database that predates them without
+	// losing run history.
+	if err := runsint.EnsureColumns(ctx, db.Primary()); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("runs column migration failed: %w", err)
+	}
+
 	// The backup engine (resource-kopia) wrapped behind the KopiaEngine seam,
 	// and the storage root the manager protects (a destination must not point
 	// under it — the separate-root rule). SCENARIO_DATA_DIR is set by the
@@ -189,19 +197,48 @@ func run(ctx context.Context) error {
 	plansSvc := plansint.NewService(plansint.NewSQLiteRepository(db, clk), planCoverageGuard{svc: guardCoverage})
 
 	// The run orchestration: capture (sources) + snapshot/retention (engine),
-	// cap-block via destinations, reading plans/targets through adapters.
+	// cap-block via destinations, reading plans/targets through adapters. Runs
+	// execute on a background worker bound to execCtx (server lifetime), so a
+	// client/proxy disconnect cannot cancel an in-flight backup. execCtx is
+	// cancelled on graceful shutdown to interrupt and drain in-flight work.
+	execCtx, cancelExec := context.WithCancel(ctx)
+	defer cancelExec()
+	concurrency, err := runConcurrency()
+	if err != nil {
+		cancelExec()
+		_ = db.Close()
+		return err
+	}
+	overdueAfterDur, err := overdueAfter()
+	if err != nil {
+		cancelExec()
+		_ = db.Close()
+		return err
+	}
 	sourceRegistry := sources.NewProductionRegistry(sources.ExecRunner{})
 	runsSvc := runsint.NewService(runsint.Deps{
-		Repo:          runsint.NewSQLiteRepository(db, clk),
-		Plans:         planLookup{svc: plansSvc},
-		Targets:       targetLookup{svc: targetsSvc},
-		ActiveTargets: targetLookup{svc: targetsSvc},
-		Destinations:  destinationLookup{svc: destSvc},
-		Engine:        kopia,
-		Sources:       sourceRegistry,
-		Events:        logEventSink{logger: logger},
-		Clock:         clk,
+		Repo:              runsint.NewSQLiteRepository(db, clk),
+		Plans:             planLookup{svc: plansSvc},
+		Targets:           targetLookup{svc: targetsSvc},
+		ActiveTargets:     targetLookup{svc: targetsSvc},
+		Destinations:      destinationLookup{svc: destSvc},
+		Engine:            kopia,
+		Sources:           sourceRegistry,
+		Events:            logEventSink{logger: logger},
+		Clock:             clk,
+		Logger:            logger,
+		BaseContext:       execCtx,
+		TargetConcurrency: concurrency,
+		OverdueAfter:      overdueAfterDur,
 	})
+
+	// Startup reconciliation: close any run left non-terminal by a prior
+	// crash/restart/disconnect so no run can wedge in pending/capturing forever.
+	if err := runsSvc.Reconcile(ctx); err != nil {
+		cancelExec()
+		_ = db.Close()
+		return fmt.Errorf("run reconciliation failed: %w", err)
+	}
 
 	// Restore + verify gate: restore a target to a location, or test-restore to
 	// scratch + checksum (verify), recording last-verified (OT-P0-006).
@@ -234,13 +271,10 @@ func run(ctx context.Context) error {
 	}
 
 	// Health reports backup posture (degraded when targets are overdue/failed)
-	// in addition to liveness, and emits a posture event for monitoring.
-	overdue, err := overdueAfter()
-	if err != nil {
-		_ = db.Close()
-		return err
-	}
-	posture := backupPosture{runs: runsSvc, clock: clk, overdueAfter: overdue}
+	// in addition to liveness, and emits a posture event for monitoring. It
+	// reads the same per-target Overdue the runs service computes from
+	// overdueAfterDur, so /health and `runs status` never disagree.
+	posture := backupPosture{runs: runsSvc}
 
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: logger},
@@ -269,15 +303,23 @@ func run(ctx context.Context) error {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		// Backup runs, restores, and verifies execute synchronously inside the
-		// request and exec kopia for the whole snapshot — minutes on large
-		// targets / slow external drives. The api-core default WriteTimeout (30s)
-		// severs the connection mid-operation ("unexpected EOF" client-side) even
-		// though the handler keeps running. Give responses a generous ceiling so
-		// these long RPCs return cleanly. (ReadTimeout stays at the default —
-		// request bodies here are tiny.)
+		// Backup runs are now async (TriggerRun returns immediately), so they no
+		// longer need a long write timeout. But restores verify/restore are still
+		// synchronous and exec kopia for the whole restore+checksum — minutes on
+		// large targets / slow external drives. The api-core default WriteTimeout
+		// (30s) severs those mid-operation ("unexpected EOF" client-side) even
+		// though the handler keeps running. A generous ceiling lets them return
+		// cleanly; the CLI pairs it with an unlimited-timeout client for the same
+		// RPCs. (ReadTimeout stays default — request bodies here are tiny.) When
+		// restores also become async this can drop to the api-core default.
 		WriteTimeout: 6 * time.Hour,
-		Cleanup:      func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(cctx context.Context) error {
+			// Interrupt and drain in-flight runs before closing the DB so a
+			// worker cannot write to a closed handle.
+			cancelExec()
+			_ = runsSvc.Shutdown(cctx)
+			return db.Close()
+		},
 	}); err != nil {
 		return fmt.Errorf("server error: %w", err)
 	}

@@ -1276,6 +1276,39 @@
       }
     },
     {
+      "id": "runs_stats",
+      "path": "/vrooli.data_backup_manager.v1.runs.RunsService/GetRunStats",
+      "method": "POST",
+      "summary": "Aggregate run performance metrics",
+      "description": "Reports counts, success rate, p50/p95 wall-clock duration, logical bytes per run, and throughput over the recent run-history window, optionally scoped to one plan.",
+      "category": "runs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "plan_id": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "stats": "RunStats"
+        }
+      },
+      "examples": [
+        {
+          "name": "Run stats",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/GetRunStats -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager runs stats",
+        "args": [
+          "--plan",
+          "<plan_id>"
+        ]
+      }
+    },
+    {
       "id": "targets_register",
       "path": "/vrooli.data_backup_manager.v1.targets.TargetsService/RegisterTarget",
       "method": "POST",
@@ -1610,6 +1643,11 @@
       "name": "runs browse",
       "description": "Browse a snapshot's contents",
       "endpoint_id": "runs_browse_snapshot"
+    },
+    {
+      "name": "runs stats",
+      "description": "Show aggregate run performance metrics",
+      "endpoint_id": "runs_stats"
     },
     {
       "name": "restores restore",

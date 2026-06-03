@@ -26,6 +26,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"RunsService.ListRuns":         h.list,
 		"RunsService.ListTargetStatus": h.status,
 		"RunsService.BrowseSnapshot":   h.browse,
+		"RunsService.GetRunStats":      h.stats,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

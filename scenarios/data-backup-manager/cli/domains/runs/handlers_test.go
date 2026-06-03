@@ -46,6 +46,10 @@ func (s *stubRunsService) BrowseSnapshot(_ context.Context, _ *connect.Request[r
 	return connect.NewResponse(&runsv1.BrowseSnapshotResponse{}), nil
 }
 
+func (s *stubRunsService) GetRunStats(_ context.Context, _ *connect.Request[runsv1.GetRunStatsRequest]) (*connect.Response[runsv1.GetRunStatsResponse], error) {
+	return connect.NewResponse(&runsv1.GetRunStatsResponse{Stats: &runsv1.RunStats{}}), nil
+}
+
 // TestTriggerRunCommand is the per-domain check: the trigger command parses its
 // flags and calls the generated RunsService client against a real Connect server.
 func TestTriggerRunCommand(t *testing.T) {
@@ -94,7 +98,7 @@ func TestRegisterRunsLoadsFromManifest(t *testing.T) {
 	for _, c := range group.Subcommands {
 		got[c.Name] = true
 	}
-	for _, want := range []string{"trigger", "get", "list", "status", "browse"} {
+	for _, want := range []string{"trigger", "get", "list", "status", "browse", "stats"} {
 		if !got[want] {
 			t.Errorf("missing subcommand %q", want)
 		}

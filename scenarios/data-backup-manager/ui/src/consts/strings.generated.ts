@@ -135,6 +135,7 @@ export const strings = {
     coverageEmpty: "overview.coverageEmpty",
     lastBackupLabel: "overview.lastBackupLabel",
     verifiedLabel: "overview.verifiedLabel",
+    overdueChip: "overview.overdueChip",
     ownerFallback: "overview.ownerFallback",
     setupTitle: "overview.setupTitle",
     setupBody: "overview.setupBody",

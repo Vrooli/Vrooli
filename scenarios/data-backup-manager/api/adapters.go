@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
 	runsH "data-backup-manager/handlers/runs"
 
-	"data-backup-manager/internal/clock"
 	coverageint "data-backup-manager/internal/coverage"
 	destint "data-backup-manager/internal/destinations"
 	discoveryint "data-backup-manager/internal/discovery"
@@ -390,6 +390,23 @@ func (s logEventSink) BackupPostureDegraded(_ context.Context, detail string) {
 	s.logger.Printf("backup-posture degraded: %s", detail)
 }
 
+// runConcurrency returns how many target×destination units a single run
+// executes in parallel. Configurable via DBM_RUN_CONCURRENCY (a positive
+// integer); default 4. An invalid value is an error so misconfiguration is
+// loud rather than silently ignored.
+func runConcurrency() (int, error) {
+	const def = 4
+	raw, ok := lookupEnvTrimmed("DBM_RUN_CONCURRENCY")
+	if !ok {
+		return def, nil
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 1 {
+		return 0, fmt.Errorf("DBM_RUN_CONCURRENCY must be a positive integer, got %q", raw)
+	}
+	return n, nil
+}
+
 // overdueAfter returns the age past which a target's last success counts as
 // overdue. Configurable via DBM_OVERDUE_AFTER (a Go duration); default 36h.
 func overdueAfter() (time.Duration, error) {
@@ -404,13 +421,13 @@ func overdueAfter() (time.Duration, error) {
 	return def, nil
 }
 
-// backupPosture adapts runs.Service to health.BackupPosture. A target is
-// "overdue or failed" when its last run failed/partial-failed, it has never
-// succeeded, or its last success is older than overdueAfter.
+// backupPosture adapts runs.Service to health.BackupPosture. It counts the
+// per-target Overdue flag the runs service computes (last run failed/partial,
+// never succeeded, or last success older than DBM_OVERDUE_AFTER) so the health
+// rollup and `runs status` share one freshness rule rather than each applying
+// their own.
 type backupPosture struct {
-	runs         runsint.Service
-	clock        clock.Clock
-	overdueAfter time.Duration
+	runs runsint.Service
 }
 
 func (a backupPosture) OverdueOrFailed(ctx context.Context) (bool, string, error) {
@@ -418,22 +435,41 @@ func (a backupPosture) OverdueOrFailed(ctx context.Context) (bool, string, error
 	if err != nil {
 		return false, "", err
 	}
-	now := a.clock.Now()
+	const maxNamed = 10
+	var named []string
 	bad := 0
 	for _, s := range statuses {
-		switch s.LastRunStatus {
-		case runsint.RunFailed, runsint.RunPartialFailed:
-			bad++
+		if !s.Overdue {
 			continue
 		}
-		if s.LastSuccessAt.IsZero() || now.Sub(s.LastSuccessAt) > a.overdueAfter {
-			bad++
+		bad++
+		if len(named) < maxNamed {
+			named = append(named, fmt.Sprintf("%s (%s)", s.TargetID, overdueReason(s)))
 		}
 	}
-	if bad > 0 {
-		return true, fmt.Sprintf("%d of %d target(s) overdue or last run failed", bad, len(statuses)), nil
+	if bad == 0 {
+		return false, "", nil
 	}
-	return false, "", nil
+	detail := fmt.Sprintf("%d of %d target(s) overdue or last run failed: %s", bad, len(statuses), strings.Join(named, ", "))
+	if bad > len(named) {
+		detail += fmt.Sprintf(", +%d more", bad-len(named))
+	}
+	return true, detail, nil
+}
+
+// overdueReason classifies why a target is overdue, for the /health detail
+// enumeration. Mirrors runs.isOverdue's branches.
+func overdueReason(s runsint.TargetStatus) string {
+	switch s.LastRunStatus {
+	case runsint.RunFailed:
+		return "last run failed"
+	case runsint.RunPartialFailed:
+		return "last run partial-failed"
+	}
+	if s.LastSuccessAt.IsZero() {
+		return "never backed up"
+	}
+	return "stale"
 }
 
 // startScheduler runs the in-process scheduler on a ticker in a background
