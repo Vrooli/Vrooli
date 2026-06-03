@@ -275,8 +275,14 @@ type LadderObjective struct {
 	TopRung string `json:"top_rung,omitempty"`
 	// BoostFactor multiplies a soft rung's dimension weights. <=0 ⇒ ladder default.
 	BoostFactor float64 `json:"boost_factor,omitempty"`
+	// DimensionMaxCount overrides the general per-governed-dimension warning-density
+	// cap (the count of open findings, any severity, a rung tolerates). <=0 ⇒ ladder
+	// default (DefaultDimensionMaxCount). This is the knob that controls how
+	// aggressively the ladder holds a warning-heavy scenario at a lower rung.
+	DimensionMaxCount int `json:"dimension_max_count,omitempty"`
 	// StandardsMaxCount / StructureMaxCount tighten the R1/R2 gates with an
-	// optional count cap (0 ⇒ error-based gate only).
+	// optional dimension-specific count cap that overrides DimensionMaxCount
+	// (0 ⇒ use the general cap).
 	StandardsMaxCount int `json:"standards_max_count,omitempty"`
 	StructureMaxCount int `json:"structure_max_count,omitempty"`
 }
@@ -358,6 +364,12 @@ type MetricsSnapshot struct {
 	OperationalTargetsTotal      int     `json:"operational_targets_total"`
 	OperationalTargetsPassing    int     `json:"operational_targets_passing"`
 	OperationalTargetsPercentage float64 `json:"operational_targets_percentage"`
+	// OperationalTargetsKnown reports whether the operational-targets metric was
+	// actually collected (true) versus a zero-valued best-effort failure (false).
+	// The ladder's R4 gate reads this to avoid treating a collection failure as
+	// "no targets declared". A zero-value MetricsSnapshot (collectMetrics error
+	// path) leaves this false, which is the correct "unknown" signal.
+	OperationalTargetsKnown bool `json:"operational_targets_known"`
 
 	// Mode-specific metrics (optional, populated based on scenario capabilities)
 	UX          *UXMetrics          `json:"ux,omitempty"`

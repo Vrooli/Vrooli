@@ -1,0 +1,55 @@
+{
+  "id": "a714aa5f-47a7-4973-91ad-0ebdf1c05754",
+  "name": "AB Ladder R4",
+  "description": "Live A/B ladder arm: identical to AB Control except ladder enabled R4 boost8. live-validation.",
+  "objective": {
+    "dimension_weights": {
+      "coverage": 0.9,
+      "docs": 0.7,
+      "operational-targets": 1.2,
+      "performance": 0.8,
+      "security": 1,
+      "standards": 1,
+      "structure": 0.9,
+      "tests": 1.1,
+      "tidiness": 0.8,
+      "ui": 0.9
+    },
+    "targets": {
+      "max_open_severity": "warning",
+      "operational_targets_pct": 90
+    }
+  },
+  "allowed_skills": [
+    "progress",
+    "ux",
+    "refactor",
+    "test",
+    "security",
+    "performance",
+    "polish",
+    "documentation-health"
+  ],
+  "budget": {
+    "max_iterations": 10,
+    "diminishing_returns_floor": 0.02,
+    "reaudit_cadence": 1
+  },
+  "dtv": {
+    "gate_enabled": true,
+    "prior_weight": 1,
+    "refresh_iters": 5
+  },
+  "ladder": {
+    "enabled": true,
+    "top_rung": "R4",
+    "boost_factor": 8
+  },
+  "audit_preset": "comprehensive",
+  "created_at": "2026-06-02T15:30:49.13557072Z",
+  "updated_at": "2026-06-02T15:30:49.13557072Z",
+  "tags": [
+    "live-validation",
+    "ab-ladder"
+  ]
+}

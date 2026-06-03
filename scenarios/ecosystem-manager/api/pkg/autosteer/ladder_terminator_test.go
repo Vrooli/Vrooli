@@ -49,7 +49,11 @@ func TestTerminator_RungHoldClearsWhenLadderHolds(t *testing.T) {
 	state := stateWithFindings([]findings.Finding{
 		finding("a", "docs", architecturev1.FindingSeverity_FINDING_SEVERITY_INFO),
 	})
-	state.Metrics = MetricsSnapshot{BuildStatus: 1}
+	// OperationalTargetsKnown=true with no targets ⇒ R4 vacuously satisfied (the
+	// metric was collected; the scenario simply declares no targets). Without the
+	// flag the new R4 gate treats OT as unknown and the ladder correctly refuses
+	// to declare capability progression met.
+	state.Metrics = MetricsSnapshot{BuildStatus: 1, OperationalTargetsKnown: true}
 
 	if stop, reason := term.ShouldStop(state, ladderTermProfile(true)); !stop {
 		t.Fatalf("ladder profile should stop once rungs hold, got reason=%q", reason)

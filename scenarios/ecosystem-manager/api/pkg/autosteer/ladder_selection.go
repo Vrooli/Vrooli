@@ -23,6 +23,9 @@ func newLadderRuntime(profile *AutoSteerProfile, metrics MetricsSnapshot) *ladde
 	if bf := profile.Ladder.BoostFactor; bf > 0 {
 		th.BoostFactor = bf
 	}
+	if dc := profile.Ladder.DimensionMaxCount; dc > 0 {
+		th.DimensionMaxCount = dc
+	}
 	th.StandardsMaxCount = profile.Ladder.StandardsMaxCount
 	th.StructureMaxCount = profile.Ladder.StructureMaxCount
 
@@ -56,6 +59,7 @@ func ladderSignals(state findings.FindingsState, metrics MetricsSnapshot, profil
 		BuildPassing:         metrics.BuildStatus == 1,
 		OTPercentage:         metrics.OperationalTargetsPercentage,
 		OTHasTargets:         metrics.OperationalTargetsTotal > 0,
+		OTKnown:              metrics.OperationalTargetsKnown,
 	}
 	if profile != nil {
 		sig.OTTarget = profile.Objective.Targets.OperationalTargetsPct

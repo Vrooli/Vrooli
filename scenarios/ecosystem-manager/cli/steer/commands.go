@@ -2,14 +2,15 @@
 package steer
 
 import (
-	"ecosystem-manager/cli/internal/appctx"
-	"ecosystem-manager/cli/internal/format"
 	"flag"
 	"fmt"
 	"net/url"
 	"os"
 	"sort"
 	"strings"
+
+	"ecosystem-manager/cli/internal/appctx"
+	"ecosystem-manager/cli/internal/format"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -41,6 +42,14 @@ type Profile struct {
 		DiminishingReturnsFloor float64 `json:"diminishing_returns_floor"`
 		ReauditCadence          int     `json:"reaudit_cadence"`
 	} `json:"budget"`
+	// Ladder mirrors the profile's maturity-ladder block; nil/absent ⇒ plain
+	// greedy. The CLI must declare it or `steer show --json` silently drops it.
+	Ladder *struct {
+		Enabled           bool    `json:"enabled"`
+		TopRung           string  `json:"top_rung,omitempty"`
+		BoostFactor       float64 `json:"boost_factor,omitempty"`
+		DimensionMaxCount int     `json:"dimension_max_count,omitempty"`
+	} `json:"ladder,omitempty"`
 }
 
 // TemplateListResponse represents a list of auto-steer templates.
@@ -100,6 +109,14 @@ type TraceEntry struct {
 	Regressed             bool           `json:"regressed"`
 	VetoApplied           bool           `json:"veto_applied"`
 	HaltReason            string         `json:"halt_reason"`
+
+	// CurrentRung is the maturity rung the controller worked this iteration (the
+	// lowest unsatisfied rung); empty when the profile has no ladder. GamingCause
+	// is the anti-gaming classifier verdict (empty = clean). Both are persisted on
+	// the trace and surfaced by the API/UI; the CLI must mirror them or its --json
+	// silently drops them.
+	CurrentRung string `json:"current_rung"`
+	GamingCause string `json:"gaming_cause"`
 
 	// DTV transparency (P2): the chosen skill's fitness verdict, the cold-start
 	// trust/cost prior DTV seeded, any Layer-1 exclusions, and degradation flags.
@@ -298,6 +315,14 @@ func cmdShow(ctx appctx.Context, args []string) error {
 	results = append(results,
 		fmt.Sprintf("Budget — max iterations: %d, diminishing-returns floor: %.3f, re-audit cadence: %d",
 			profile.Budget.MaxIterations, profile.Budget.DiminishingReturnsFloor, profile.Budget.ReauditCadence))
+	if l := profile.Ladder; l != nil && l.Enabled {
+		top := l.TopRung
+		if top == "" {
+			top = "R4"
+		}
+		results = append(results, fmt.Sprintf("Maturity ladder: enabled, top rung %s, boost ×%.0f, dimension cap %d",
+			top, l.BoostFactor, l.DimensionMaxCount))
+	}
 	if profile.AuditPreset != "" {
 		results = append(results, fmt.Sprintf("Audit preset: %s", profile.AuditPreset))
 	}
@@ -389,6 +414,12 @@ func cmdTrace(ctx appctx.Context, args []string) error {
 		line := fmt.Sprintf("iter %d: %s [%s] score %.1f→%.1f (Δ%+.1f), %d tok",
 			e.Iteration, orNone(e.ChosenSkill), e.HeaviestDimension,
 			e.ScoreBefore, e.ScoreAfter, e.RealizedDelta, e.TokensUsed)
+		if e.CurrentRung != "" {
+			line += fmt.Sprintf(" · rung %s", e.CurrentRung)
+		}
+		if e.GamingCause != "" {
+			line += fmt.Sprintf(" · GAMING: %s", e.GamingCause)
+		}
 		if n := sumCounts(e.ClosedByDimension); n > 0 {
 			line += fmt.Sprintf(" — closed %d", n)
 		}

@@ -77,6 +77,10 @@ func (m *MetricsCollector) collectUniversalMetrics(scenarioName string, snapshot
 		return fmt.Errorf("failed to parse operational targets: %w", err)
 	}
 
+	// Mark the OT metric as actually collected. The zero-value snapshot the
+	// orchestrator returns on a best-effort failure leaves this false, letting the
+	// ladder's R4 gate tell "collection failed" apart from "no targets declared".
+	snapshot.OperationalTargetsKnown = true
 	snapshot.OperationalTargetsTotal = targets.Total
 	snapshot.OperationalTargetsPassing = targets.Passing
 

@@ -48,10 +48,38 @@ type Signals struct {
 	OTPercentage float64
 	OTTarget     float64
 	OTHasTargets bool
+	// OTKnown reports whether the operational-targets metric was actually
+	// collected this loop. It distinguishes "the scenario declares no targets"
+	// (OTKnown && !OTHasTargets — R4 vacuously satisfied) from "metric collection
+	// failed / hasn't run yet" (!OTKnown — R4 unsatisfied so the controller keeps
+	// working the capability rung instead of silently declaring it met). Without
+	// this flag a best-effort collectMetrics failure looks identical to "no
+	// targets", which silently no-ops the only non-error rung and made the whole
+	// ladder inert on warning-only scenarios.
+	OTKnown bool
 }
 
 func (s Signals) errPlus(d dimensions.Dimension) int { return s.ErrorPlusByDimension[d] }
 func (s Signals) count(d dimensions.Dimension) int   { return s.CountByDimension[d] }
+
+// dimClean reports whether a dimension is clean enough to clear a rung: no
+// error-or-worse findings AND (when a count cap applies) at most that many open
+// findings of any severity. The count cap is what lets a hard rung engage on a
+// scenario whose findings are all warnings — without it the error-only gate is
+// vacuously satisfied and the ladder degenerates to plain greedy. The effective
+// cap is the dimension-specific override (standards/structure) when set, else the
+// general DimensionMaxCount; a cap of 0 disables the count check for that
+// dimension (error-based gate only).
+func (s Signals) dimClean(d dimensions.Dimension, th Thresholds) bool {
+	if s.errPlus(d) != 0 {
+		return false
+	}
+	maxCount := th.capFor(d)
+	if maxCount > 0 && s.count(d) > maxCount {
+		return false
+	}
+	return true
+}
 
 // Thresholds tunes the gates and the soft-boost factor. Defaults are error-based
 // (warnings tolerated) so a clean scenario can actually clear the hard rungs even
@@ -61,16 +89,47 @@ type Thresholds struct {
 	// BoostFactor multiplies a soft rung's dimension weights so its work
 	// dominates selection without hard-excluding higher-rung blockers.
 	BoostFactor float64
-	// StandardsMaxCount, when > 0, additionally requires R1's standards dimension
-	// to have at most this many open findings (0 = error-based gate only).
+	// DimensionMaxCount is the general per-governed-dimension open-finding cap a
+	// rung tolerates of any severity (0 = no count cap, error-based gate only).
+	// This is the knob that makes the ladder engage on warning-only scenarios: a
+	// dimension carrying more than this many open findings holds its rung even
+	// when none are error-severity. Dimension-specific caps below override it.
+	DimensionMaxCount int
+	// StandardsMaxCount, when > 0, overrides DimensionMaxCount for R0/R1's
+	// standards dimension (a tighter or looser standards-specific cap).
 	StandardsMaxCount int
-	// StructureMaxCount, when > 0, additionally caps R2's structure findings.
+	// StructureMaxCount, when > 0, overrides DimensionMaxCount for R2's structure
+	// dimension.
 	StructureMaxCount int
 }
 
-// DefaultThresholds is the v1 tuning: boost dominates (8×), error-based gates.
+// capFor returns the effective per-dimension count cap: the dimension-specific
+// override when set, otherwise the general DimensionMaxCount.
+func (t Thresholds) capFor(d dimensions.Dimension) int {
+	switch d {
+	case dim("standards"):
+		if t.StandardsMaxCount > 0 {
+			return t.StandardsMaxCount
+		}
+	case dim("structure"):
+		if t.StructureMaxCount > 0 {
+			return t.StructureMaxCount
+		}
+	}
+	return t.DimensionMaxCount
+}
+
+// DefaultDimensionMaxCount is the v2 default warning-density cap: a governed
+// dimension carrying more than this many open findings (any severity) holds its
+// rung. Tuned so a scenario with a real backlog of warnings climbs deliberately
+// rather than the ladder no-opping past it; tunable per profile.
+const DefaultDimensionMaxCount = 10
+
+// DefaultThresholds is the v2 tuning: boost dominates (8×); hard rungs are
+// error-based AND warning-density-capped so the ladder actually engages on
+// pre-standards scenarios instead of degenerating to greedy.
 func DefaultThresholds() Thresholds {
-	return Thresholds{BoostFactor: 8.0}
+	return Thresholds{BoostFactor: 8.0, DimensionMaxCount: DefaultDimensionMaxCount}
 }
 
 // Rung is one ladder step: the dimensions it governs, whether it hard-gates, and
@@ -128,18 +187,14 @@ func Rungs() []Rung {
 			Dimensions: []dimensions.Dimension{
 				dim("security"), dim("standards"), dim("dependencies"),
 			},
-			// Safe & standards-clean: no high/critical security, standards clean
-			// (error-based, plus an optional count cap), deps sane.
+			// Safe & standards-clean: no high/critical security, standards clean,
+			// deps sane — error-based AND warning-density-capped, so a scenario
+			// carrying a backlog of security/standards warnings is held here until
+			// it cleans up rather than being waved through as "safe".
 			satisfied: func(s Signals, th Thresholds) bool {
-				if s.errPlus(dim("security")) != 0 ||
-					s.errPlus(dim("standards")) != 0 ||
-					s.errPlus(dim("dependencies")) != 0 {
-					return false
-				}
-				if th.StandardsMaxCount > 0 && s.count(dim("standards")) > th.StandardsMaxCount {
-					return false
-				}
-				return true
+				return s.dimClean(dim("security"), th) &&
+					s.dimClean(dim("standards"), th) &&
+					s.dimClean(dim("dependencies"), th)
 			},
 		},
 		{
@@ -148,21 +203,16 @@ func Rungs() []Rung {
 			Dimensions: []dimensions.Dimension{
 				dim("structure"), dim("cycles"), dim("contracts"), dim("docs"),
 			},
-			// Evolvable architecture: no import cycles, structure clean, contracts
-			// and docs map present (coarse — cycles count gate per §8 OQ#3).
+			// Evolvable architecture: no import cycles, structure/contracts/docs clean
+			// (error-based AND warning-density-capped — cycles still hard-block on
+			// any count per §8 OQ#3).
 			satisfied: func(s Signals, th Thresholds) bool {
 				if s.count(dim("cycles")) != 0 {
 					return false
 				}
-				if s.errPlus(dim("structure")) != 0 ||
-					s.errPlus(dim("contracts")) != 0 ||
-					s.errPlus(dim("docs")) != 0 {
-					return false
-				}
-				if th.StructureMaxCount > 0 && s.count(dim("structure")) > th.StructureMaxCount {
-					return false
-				}
-				return true
+				return s.dimClean(dim("structure"), th) &&
+					s.dimClean(dim("contracts"), th) &&
+					s.dimClean(dim("docs"), th)
 			},
 		},
 		{
@@ -172,13 +222,14 @@ func Rungs() []Rung {
 				dim("tests"), dim("coverage"), dim("tidiness"),
 				dim("ui"), dim("visual"), dim("performance"),
 			},
-			// Features hardened: coverage/tidiness/ui/visual/perf clean of errors.
-			satisfied: func(s Signals, _ Thresholds) bool {
+			// Features hardened: coverage/tidiness/ui/visual/perf clean — error-based
+			// AND warning-density-capped.
+			satisfied: func(s Signals, th Thresholds) bool {
 				for _, d := range []dimensions.Dimension{
 					dim("tests"), dim("coverage"), dim("tidiness"),
 					dim("ui"), dim("visual"), dim("performance"),
 				} {
-					if s.errPlus(d) != 0 {
+					if !s.dimClean(d, th) {
 						return false
 					}
 				}
@@ -191,9 +242,17 @@ func Rungs() []Rung {
 			Dimensions: []dimensions.Dimension{
 				dim("operational-targets"), dim("business"),
 			},
-			// Capability progression: operational targets meet the profile threshold
-			// (vacuously satisfied when the scenario declares no targets).
+			// Capability progression: operational targets meet the profile threshold.
+			// Vacuously satisfied ONLY when collection succeeded and the scenario
+			// genuinely declares no targets (OTKnown && !OTHasTargets). When the
+			// metric wasn't collected (OTKnown == false — best-effort failure or not
+			// yet run) the rung is treated as unsatisfied so the controller keeps
+			// working the capability rung rather than silently declaring it met — the
+			// silent no-op that previously made the ladder inert.
 			satisfied: func(s Signals, _ Thresholds) bool {
+				if !s.OTKnown {
+					return false
+				}
 				if !s.OTHasTargets || s.OTTarget <= 0 {
 					return true
 				}

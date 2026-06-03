@@ -17,6 +17,7 @@ func allClean() Signals {
 		OTPercentage:         100,
 		OTTarget:             90,
 		OTHasTargets:         true,
+		OTKnown:              true,
 	}
 }
 
@@ -104,17 +105,60 @@ func TestTopRungCap(t *testing.T) {
 }
 
 func TestStandardsCountCap(t *testing.T) {
-	// No error-level standards findings, but 5 warnings; the count cap tightens R1.
+	// 5 warning-level standards findings, under the default density cap (10) ⇒ R1
+	// still holds; a tighter standards-specific override (3) reopens it.
 	sig := allClean()
 	sig.CountByDimension[dimd("standards")] = 5
 	th := DefaultThresholds()
 	if _, ok := Lowest(sig, th, ""); ok {
-		t.Error("without a count cap, warning-only standards must satisfy R1")
+		t.Error("5 standards warnings (< default cap 10) must still satisfy R1")
 	}
 	th.StandardsMaxCount = 3
 	r, ok := Lowest(sig, th, "")
 	if !ok || r.ID != RungR1 {
-		t.Fatalf("count cap must reopen R1, got %v ok=%v", r.ID, ok)
+		t.Fatalf("standards count cap must reopen R1, got %v ok=%v", r.ID, ok)
+	}
+}
+
+// TestWarningDensityHoldsR1 is the fix-#1 regression: a warning-only scenario
+// with a finding backlog above the default density cap must NOT be waved through
+// R1 as "safe". This is the accessibility-compliance-hub case (95 security / 21
+// standards warnings, zero errors) that previously left the ladder inert.
+func TestWarningDensityHoldsR1(t *testing.T) {
+	sig := allClean()
+	sig.CountByDimension[dimd("security")] = 95
+	sig.CountByDimension[dimd("standards")] = 21
+	r, ok := Lowest(sig, DefaultThresholds(), "")
+	if !ok || r.ID != RungR1 {
+		t.Fatalf("warning-density backlog must hold R1, got %v ok=%v", r.ID, ok)
+	}
+	if !r.HardGate {
+		t.Error("R1 must be a hard gate so selection is restricted to its dimensions")
+	}
+	// Once the backlog clears below the cap, R1 releases and the ladder advances.
+	sig.CountByDimension[dimd("security")] = 4
+	sig.CountByDimension[dimd("standards")] = 2
+	if _, ok := Lowest(sig, DefaultThresholds(), ""); ok {
+		t.Error("cleared backlog (< cap) must release R1")
+	}
+}
+
+// TestR4UnknownNotVacuous is the fix-#2 regression: when the operational-targets
+// metric was not collected (OTKnown == false — a best-effort failure), R4 must be
+// treated as unsatisfied rather than silently "met". Previously the silent zero
+// was indistinguishable from "no targets" and no-opped the only non-error rung.
+func TestR4UnknownNotVacuous(t *testing.T) {
+	sig := allClean() // every lower rung clean
+	sig.OTKnown = false
+	r, ok := Lowest(sig, DefaultThresholds(), "")
+	if !ok || r.ID != RungR4 {
+		t.Fatalf("unknown OT metric must hold R4, got %v ok=%v", r.ID, ok)
+	}
+	// Collected + genuinely no targets ⇒ R4 vacuously satisfied (the legitimate case).
+	sig.OTKnown = true
+	sig.OTHasTargets = false
+	if _, ok := Lowest(sig, DefaultThresholds(), ""); ok {
+		t.Error("collected-but-no-targets must satisfy R4 (no constraint)")
 	}
 }
 
