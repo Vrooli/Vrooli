@@ -51,8 +51,14 @@ type FileWriter struct {
 	timelines sync.Map // executionID -> *executionTimelineData
 
 	// Artifact collection configuration - controls what artifacts are persisted.
-	// Protected by mu for thread-safe access.
+	// Protected by mu for thread-safe access. This is the writer-wide fallback;
+	// per-execution settings in perExecConfig take precedence.
 	artifactConfig config.ArtifactCollectionSettings
+
+	// perExecConfig holds artifact settings scoped to a single execution so that
+	// concurrent executions sharing this recorder cannot leak each other's
+	// configuration. Keyed by execution ID string -> config.ArtifactCollectionSettings.
+	perExecConfig sync.Map
 }
 
 // ExecutionResultData accumulates execution results to be written to disk.
@@ -172,6 +178,46 @@ func (r *FileWriter) GetArtifactConfig() config.ArtifactCollectionSettings {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.artifactConfig
+}
+
+// SetArtifactConfigForExecution scopes artifact collection settings to a single
+// execution. Because the recorder is shared across concurrent executions, this
+// per-execution override is what prevents one execution's profile from leaking
+// into another. Pass nil to clear the override and fall back to the writer-wide
+// config for that execution.
+func (r *FileWriter) SetArtifactConfigForExecution(executionID uuid.UUID, cfg *config.ArtifactCollectionSettings) {
+	if r == nil {
+		return
+	}
+	if cfg == nil {
+		r.perExecConfig.Delete(executionID.String())
+		return
+	}
+	r.perExecConfig.Store(executionID.String(), *cfg)
+}
+
+// ForgetExecution drops per-execution artifact settings once an execution has
+// finished, keeping the per-execution config map from growing unbounded.
+func (r *FileWriter) ForgetExecution(executionID uuid.UUID) {
+	if r == nil {
+		return
+	}
+	r.perExecConfig.Delete(executionID.String())
+}
+
+// artifactConfigForExecution resolves the artifact settings that apply to a
+// specific execution, preferring per-execution settings and falling back to the
+// writer-wide default.
+func (r *FileWriter) artifactConfigForExecution(executionID uuid.UUID) config.ArtifactCollectionSettings {
+	if r == nil {
+		return config.DefaultArtifactSettings()
+	}
+	if v, ok := r.perExecConfig.Load(executionID.String()); ok {
+		if cfg, ok := v.(config.ArtifactCollectionSettings); ok {
+			return cfg
+		}
+	}
+	return r.GetArtifactConfig()
 }
 
 const (
@@ -393,8 +439,8 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		return RecordResult{}, nil
 	}
 
-	// Get current artifact config (thread-safe copy)
-	cfg := r.GetArtifactConfig()
+	// Get the artifact config scoped to this execution (thread-safe copy)
+	cfg := r.artifactConfigForExecution(plan.ExecutionID)
 
 	// Apply configurable limits during sanitization
 	outcome = r.sanitizeOutcomeWithConfig(outcome, cfg)
@@ -1099,8 +1145,8 @@ func (r *FileWriter) RecordTelemetry(ctx context.Context, plan contracts.Executi
 		return nil
 	}
 
-	// Check if telemetry collection is enabled
-	cfg := r.GetArtifactConfig()
+	// Check if telemetry collection is enabled (scoped to this execution)
+	cfg := r.artifactConfigForExecution(plan.ExecutionID)
 	if !cfg.CollectTelemetry {
 		return nil // Skip telemetry recording when disabled
 	}

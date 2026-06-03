@@ -46,6 +46,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/credits"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/recovery"
+	"github.com/vrooli/browser-automation-studio/services/retention"
 	"github.com/vrooli/browser-automation-studio/services/scheduler"
 	"github.com/vrooli/browser-automation-studio/services/testgenie"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
@@ -383,6 +384,7 @@ func main() {
 			Executor:       handler.ExecutionService(),
 			SeedScheduler:  handler.SeedCleanupManager(),
 			RecordingsRoot: handler.RecordingsRoot(),
+			Retention:      retention.NewService(repo, retention.OSFileSystem{}, handler.RecordingsRoot(), log),
 			Logger:         log,
 		}),
 		replayconfigconnect.Module(replayconfigconnect.Deps{

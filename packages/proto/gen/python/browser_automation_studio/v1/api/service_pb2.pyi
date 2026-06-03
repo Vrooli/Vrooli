@@ -474,3 +474,68 @@ class ScheduleSeedCleanupResponse(_message.Message):
     STATUS_FIELD_NUMBER: _ClassVar[int]
     status: str
     def __init__(self, status: _Optional[str] = ...) -> None: ...
+
+class ExecutionArtifactRetentionRequest(_message.Message):
+    __slots__ = ("max_age_days", "keep_latest", "workflow_id", "project_id", "status", "confirm")
+    MAX_AGE_DAYS_FIELD_NUMBER: _ClassVar[int]
+    KEEP_LATEST_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    PROJECT_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CONFIRM_FIELD_NUMBER: _ClassVar[int]
+    max_age_days: int
+    keep_latest: int
+    workflow_id: str
+    project_id: str
+    status: _shared_pb2.ExecutionStatus
+    confirm: bool
+    def __init__(self, max_age_days: _Optional[int] = ..., keep_latest: _Optional[int] = ..., workflow_id: _Optional[str] = ..., project_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., confirm: _Optional[bool] = ...) -> None: ...
+
+class ExecutionRetentionItem(_message.Message):
+    __slots__ = ("execution_id", "status", "workflow_id", "started_at", "completed_at", "result_path", "artifact_dir", "estimated_bytes", "reason")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    RESULT_PATH_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_DIR_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    status: _shared_pb2.ExecutionStatus
+    workflow_id: str
+    started_at: _timestamp_pb2.Timestamp
+    completed_at: _timestamp_pb2.Timestamp
+    result_path: str
+    artifact_dir: str
+    estimated_bytes: int
+    reason: str
+    def __init__(self, execution_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., workflow_id: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., result_path: _Optional[str] = ..., artifact_dir: _Optional[str] = ..., estimated_bytes: _Optional[int] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class ExecutionArtifactRetentionResponse(_message.Message):
+    __slots__ = ("dry_run", "removed", "skipped", "estimated_bytes", "removed_count", "skipped_count", "error_count", "removed_by_status")
+    class RemovedByStatusEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    REMOVED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    REMOVED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    ERROR_COUNT_FIELD_NUMBER: _ClassVar[int]
+    REMOVED_BY_STATUS_FIELD_NUMBER: _ClassVar[int]
+    dry_run: bool
+    removed: _containers.RepeatedCompositeFieldContainer[ExecutionRetentionItem]
+    skipped: _containers.RepeatedCompositeFieldContainer[ExecutionRetentionItem]
+    estimated_bytes: int
+    removed_count: int
+    skipped_count: int
+    error_count: int
+    removed_by_status: _containers.ScalarMap[str, int]
+    def __init__(self, dry_run: _Optional[bool] = ..., removed: _Optional[_Iterable[_Union[ExecutionRetentionItem, _Mapping]]] = ..., skipped: _Optional[_Iterable[_Union[ExecutionRetentionItem, _Mapping]]] = ..., estimated_bytes: _Optional[int] = ..., removed_count: _Optional[int] = ..., skipped_count: _Optional[int] = ..., error_count: _Optional[int] = ..., removed_by_status: _Optional[_Mapping[str, int]] = ...) -> None: ...

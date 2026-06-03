@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'system-monitor/v1/domain/settings.proto\x12\x11system_monitor.v1\"\x8d\x03\n\x0eSystemSettings\x12\x16\n\x06\x61\x63tive\x18\x01 \x01(\x08R\x06\x61\x63tive\x12<\n\x1ametric_collection_interval\x18\x02 \x01(\x05R\x18metricCollectionInterval\x12<\n\x1a\x61nomaly_detection_interval\x18\x03 \x01(\x05R\x18\x61nomalyDetectionInterval\x12\x38\n\x18threshold_check_interval\x18\x04 \x01(\x05R\x16thresholdCheckInterval\x12\x36\n\x17\x63ooldown_period_seconds\x18\x05 \x01(\x05R\x15\x63ooldownPeriodSeconds\x12#\n\rcpu_threshold\x18\x06 \x01(\x01R\x0c\x63puThreshold\x12)\n\x10memory_threshold\x18\x07 \x01(\x01R\x0fmemoryThreshold\x12%\n\x0e\x64isk_threshold\x18\x08 \x01(\x01R\rdiskThresholdBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain;domainb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'system-monitor/v1/domain/settings.proto\x12\x11system_monitor.v1\"\xfd\x04\n\x0eSystemSettings\x12\x16\n\x06\x61\x63tive\x18\x01 \x01(\x08R\x06\x61\x63tive\x12<\n\x1ametric_collection_interval\x18\x02 \x01(\x05R\x18metricCollectionInterval\x12<\n\x1a\x61nomaly_detection_interval\x18\x03 \x01(\x05R\x18\x61nomalyDetectionInterval\x12\x38\n\x18threshold_check_interval\x18\x04 \x01(\x05R\x16thresholdCheckInterval\x12\x36\n\x17\x63ooldown_period_seconds\x18\x05 \x01(\x05R\x15\x63ooldownPeriodSeconds\x12#\n\rcpu_threshold\x18\x06 \x01(\x01R\x0c\x63puThreshold\x12)\n\x10memory_threshold\x18\x07 \x01(\x01R\x0fmemoryThreshold\x12%\n\x0e\x64isk_threshold\x18\x08 \x01(\x01R\rdiskThreshold\x12\x34\n\x16metrics_retention_days\x18\t \x01(\x05R\x14metricsRetentionDays\x12G\n retention_check_interval_seconds\x18\n \x01(\x05R\x1dretentionCheckIntervalSeconds\x12\x37\n\x18retention_run_on_startup\x18\x0b \x01(\x08R\x15retentionRunOnStartup\x12\x36\n\x17\x63ompact_after_retention\x18\x0c \x01(\x08R\x15\x63ompactAfterRetentionBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain;domainb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,5 +33,5 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZNgithub.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain;domain'
   _globals['_SYSTEMSETTINGS']._serialized_start=63
-  _globals['_SYSTEMSETTINGS']._serialized_end=460
+  _globals['_SYSTEMSETTINGS']._serialized_end=700
 # @@protoc_insertion_point(module_scope)

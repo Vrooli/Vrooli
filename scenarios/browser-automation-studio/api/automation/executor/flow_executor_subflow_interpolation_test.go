@@ -189,6 +189,11 @@ func (s *stubExecutionWriter) GetArtifactConfig() config.ArtifactCollectionSetti
 	return config.ArtifactCollectionSettings{}
 }
 
+func (s *stubExecutionWriter) SetArtifactConfigForExecution(uuid.UUID, *config.ArtifactCollectionSettings) {
+}
+
+func (s *stubExecutionWriter) ForgetExecution(uuid.UUID) {}
+
 var (
 	_ executionwriter.ExecutionWriter = (*stubExecutionWriter)(nil)
 	_ WorkflowResolver                = (*stubWorkflowResolver)(nil)

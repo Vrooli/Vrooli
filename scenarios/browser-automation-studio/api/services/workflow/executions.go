@@ -259,11 +259,11 @@ func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[s
 		}
 	}
 
-	// Extract artifact collection config if provided
-	if p.ArtifactConfig != nil {
-		settings := config.ResolveArtifactSettings(p.ArtifactConfig)
-		artifactCfg = &settings
-	}
+	// Resolve artifact collection config, applying the operator-configured global
+	// default profile (BAS_ARTIFACT_DEFAULT_PROFILE, "standard" by default) when
+	// no per-execution config is supplied. An explicit per-execution profile wins.
+	settings := config.ResolveArtifactSettingsWithDefault(p.ArtifactConfig, config.Load().ArtifactLimits.DefaultProfile)
+	artifactCfg = &settings
 
 	// Extract browser profile for anti-detection and human-like behavior if provided
 	if p.BrowserProfile != nil {
@@ -373,10 +373,20 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 	engineName := autoengine.FromEnv().Resolve("")
 	eventSink := s.newEventSink()
 
-	// Configure artifact collection settings on the recorder before execution starts.
-	// This allows per-execution customization of what artifacts are collected.
+	// Resolve the artifact config for this execution. Legacy callers
+	// (ExecuteWorkflow with flat params) pass nil; fall back to the operator-
+	// configured default profile rather than the "collect everything" default.
+	if artifactCfg == nil {
+		settings := config.ResolveArtifactSettingsWithDefault(nil, config.Load().ArtifactLimits.DefaultProfile)
+		artifactCfg = &settings
+	}
+
+	// Configure artifact collection settings scoped to this execution before it
+	// starts. Per-execution scoping prevents concurrent executions from leaking
+	// each other's profile through the shared recorder.
 	if s.artifactRecorder != nil {
-		s.artifactRecorder.SetArtifactConfig(artifactCfg)
+		s.artifactRecorder.SetArtifactConfigForExecution(executionID, artifactCfg)
+		defer s.artifactRecorder.ForgetExecution(executionID)
 	}
 
 	compileCtx := ctx

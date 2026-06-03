@@ -46,4 +46,16 @@ message SystemSettings {
 
   // Disk alert threshold percentage.
   double disk_threshold = 8;
+
+  // Number of days of metrics history to retain before scheduled pruning.
+  int32 metrics_retention_days = 9;
+
+  // Interval in seconds between scheduled retention runs.
+  int32 retention_check_interval_seconds = 10;
+
+  // Whether retention runs once immediately at service startup.
+  bool retention_run_on_startup = 11;
+
+  // Whether a scheduled retention prune is followed by database compaction.
+  bool compact_after_retention = 12;
 }

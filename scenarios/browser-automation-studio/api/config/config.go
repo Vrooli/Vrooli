@@ -450,9 +450,10 @@ type ArtifactLimitsConfig struct {
 	// Env: BAS_ARTIFACT_MAX_NETWORK_PREVIEW_BYTES (default: 65536, 64KB)
 	MaxNetworkPreviewBytes int
 
-	// DefaultProfile is the default artifact collection profile when not specified.
+	// DefaultProfile is the default artifact collection profile used for executions
+	// that do not supply an explicit per-execution artifact config.
 	// Valid values: "full", "standard", "minimal", "debug", "none"
-	// Env: BAS_ARTIFACT_DEFAULT_PROFILE (default: "full")
+	// Env: BAS_ARTIFACT_DEFAULT_PROFILE (default: "standard")
 	DefaultProfile string
 }
 
@@ -716,7 +717,7 @@ func loadFromEnv() *Config {
 			MaxDOMSnapshotBytes:    parseInt("BAS_ARTIFACT_MAX_DOM_SNAPSHOT_BYTES", 524288),
 			MaxConsoleEntryBytes:   parseInt("BAS_ARTIFACT_MAX_CONSOLE_ENTRY_BYTES", 16384),
 			MaxNetworkPreviewBytes: parseInt("BAS_ARTIFACT_MAX_NETWORK_PREVIEW_BYTES", 65536),
-			DefaultProfile:         parseString("BAS_ARTIFACT_DEFAULT_PROFILE", "full"),
+			DefaultProfile:         parseString("BAS_ARTIFACT_DEFAULT_PROFILE", "standard"),
 		},
 		HTTP: HTTPConfig{
 			MaxBodyBytes:     parseInt64("BAS_HTTP_MAX_BODY_BYTES", 1048576),

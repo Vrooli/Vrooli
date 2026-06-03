@@ -106,6 +106,12 @@ const (
 	// ExecutionsServiceScheduleExecutionSeedCleanupProcedure is the fully-qualified name of the
 	// ExecutionsService's ScheduleExecutionSeedCleanup RPC.
 	ExecutionsServiceScheduleExecutionSeedCleanupProcedure = "/browser_automation_studio.v1.ExecutionsService/ScheduleExecutionSeedCleanup"
+	// ExecutionsServicePreviewExecutionArtifactRetentionProcedure is the fully-qualified name of the
+	// ExecutionsService's PreviewExecutionArtifactRetention RPC.
+	ExecutionsServicePreviewExecutionArtifactRetentionProcedure = "/browser_automation_studio.v1.ExecutionsService/PreviewExecutionArtifactRetention"
+	// ExecutionsServiceRunExecutionArtifactRetentionProcedure is the fully-qualified name of the
+	// ExecutionsService's RunExecutionArtifactRetention RPC.
+	ExecutionsServiceRunExecutionArtifactRetentionProcedure = "/browser_automation_studio.v1.ExecutionsService/RunExecutionArtifactRetention"
 )
 
 // WorkflowsServiceClient is a client for the browser_automation_studio.v1.WorkflowsService service.
@@ -543,6 +549,12 @@ type ExecutionsServiceClient interface {
 	GetExecutionRecordedHar(context.Context, *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[api.GetExecutionHarResponse], error)
 	// Schedules deferred seed cleanup for a previously executed seed scenario.
 	ScheduleExecutionSeedCleanup(context.Context, *connect.Request[api.ScheduleSeedCleanupRequest]) (*connect.Response[api.ScheduleSeedCleanupResponse], error)
+	// Previews (dry-run) which terminal executions and artifact directories a
+	// retention sweep would remove. Read-only: performs no deletion.
+	PreviewExecutionArtifactRetention(context.Context, *connect.Request[api.ExecutionArtifactRetentionRequest]) (*connect.Response[api.ExecutionArtifactRetentionResponse], error)
+	// Runs a retention sweep, deleting matched terminal execution rows and their
+	// artifact directories together. Requires confirm=true to mutate.
+	RunExecutionArtifactRetention(context.Context, *connect.Request[api.ExecutionArtifactRetentionRequest]) (*connect.Response[api.ExecutionArtifactRetentionResponse], error)
 }
 
 // NewExecutionsServiceClient constructs a client for the
@@ -617,21 +629,35 @@ func NewExecutionsServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(executionsServiceMethods.ByName("ScheduleExecutionSeedCleanup")),
 			connect.WithClientOptions(opts...),
 		),
+		previewExecutionArtifactRetention: connect.NewClient[api.ExecutionArtifactRetentionRequest, api.ExecutionArtifactRetentionResponse](
+			httpClient,
+			baseURL+ExecutionsServicePreviewExecutionArtifactRetentionProcedure,
+			connect.WithSchema(executionsServiceMethods.ByName("PreviewExecutionArtifactRetention")),
+			connect.WithClientOptions(opts...),
+		),
+		runExecutionArtifactRetention: connect.NewClient[api.ExecutionArtifactRetentionRequest, api.ExecutionArtifactRetentionResponse](
+			httpClient,
+			baseURL+ExecutionsServiceRunExecutionArtifactRetentionProcedure,
+			connect.WithSchema(executionsServiceMethods.ByName("RunExecutionArtifactRetention")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // executionsServiceClient implements ExecutionsServiceClient.
 type executionsServiceClient struct {
-	listExecutions               *connect.Client[api.ListExecutionsRequest, api.ListExecutionsResponse]
-	getExecution                 *connect.Client[api.GetExecutionRequest, api.GetExecutionResponse]
-	getExecutionTimeline         *connect.Client[api.GetExecutionTimelineRequest, timeline.ExecutionTimeline]
-	stopExecution                *connect.Client[api.StopExecutionRequest, api.StopExecutionResponse]
-	resumeExecution              *connect.Client[api.ResumeExecutionRequest, api.ResumeExecutionResponse]
-	getExecutionScreenshots      *connect.Client[api.GetExecutionScreenshotsRequest, execution.GetScreenshotsResponse]
-	getExecutionRecordedVideos   *connect.Client[api.GetExecutionArtifactsRequest, api.GetExecutionVideosResponse]
-	getExecutionRecordedTraces   *connect.Client[api.GetExecutionArtifactsRequest, api.GetExecutionTracesResponse]
-	getExecutionRecordedHar      *connect.Client[api.GetExecutionArtifactsRequest, api.GetExecutionHarResponse]
-	scheduleExecutionSeedCleanup *connect.Client[api.ScheduleSeedCleanupRequest, api.ScheduleSeedCleanupResponse]
+	listExecutions                    *connect.Client[api.ListExecutionsRequest, api.ListExecutionsResponse]
+	getExecution                      *connect.Client[api.GetExecutionRequest, api.GetExecutionResponse]
+	getExecutionTimeline              *connect.Client[api.GetExecutionTimelineRequest, timeline.ExecutionTimeline]
+	stopExecution                     *connect.Client[api.StopExecutionRequest, api.StopExecutionResponse]
+	resumeExecution                   *connect.Client[api.ResumeExecutionRequest, api.ResumeExecutionResponse]
+	getExecutionScreenshots           *connect.Client[api.GetExecutionScreenshotsRequest, execution.GetScreenshotsResponse]
+	getExecutionRecordedVideos        *connect.Client[api.GetExecutionArtifactsRequest, api.GetExecutionVideosResponse]
+	getExecutionRecordedTraces        *connect.Client[api.GetExecutionArtifactsRequest, api.GetExecutionTracesResponse]
+	getExecutionRecordedHar           *connect.Client[api.GetExecutionArtifactsRequest, api.GetExecutionHarResponse]
+	scheduleExecutionSeedCleanup      *connect.Client[api.ScheduleSeedCleanupRequest, api.ScheduleSeedCleanupResponse]
+	previewExecutionArtifactRetention *connect.Client[api.ExecutionArtifactRetentionRequest, api.ExecutionArtifactRetentionResponse]
+	runExecutionArtifactRetention     *connect.Client[api.ExecutionArtifactRetentionRequest, api.ExecutionArtifactRetentionResponse]
 }
 
 // ListExecutions calls browser_automation_studio.v1.ExecutionsService.ListExecutions.
@@ -689,6 +715,18 @@ func (c *executionsServiceClient) ScheduleExecutionSeedCleanup(ctx context.Conte
 	return c.scheduleExecutionSeedCleanup.CallUnary(ctx, req)
 }
 
+// PreviewExecutionArtifactRetention calls
+// browser_automation_studio.v1.ExecutionsService.PreviewExecutionArtifactRetention.
+func (c *executionsServiceClient) PreviewExecutionArtifactRetention(ctx context.Context, req *connect.Request[api.ExecutionArtifactRetentionRequest]) (*connect.Response[api.ExecutionArtifactRetentionResponse], error) {
+	return c.previewExecutionArtifactRetention.CallUnary(ctx, req)
+}
+
+// RunExecutionArtifactRetention calls
+// browser_automation_studio.v1.ExecutionsService.RunExecutionArtifactRetention.
+func (c *executionsServiceClient) RunExecutionArtifactRetention(ctx context.Context, req *connect.Request[api.ExecutionArtifactRetentionRequest]) (*connect.Response[api.ExecutionArtifactRetentionResponse], error) {
+	return c.runExecutionArtifactRetention.CallUnary(ctx, req)
+}
+
 // ExecutionsServiceHandler is an implementation of the
 // browser_automation_studio.v1.ExecutionsService service.
 type ExecutionsServiceHandler interface {
@@ -712,6 +750,12 @@ type ExecutionsServiceHandler interface {
 	GetExecutionRecordedHar(context.Context, *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[api.GetExecutionHarResponse], error)
 	// Schedules deferred seed cleanup for a previously executed seed scenario.
 	ScheduleExecutionSeedCleanup(context.Context, *connect.Request[api.ScheduleSeedCleanupRequest]) (*connect.Response[api.ScheduleSeedCleanupResponse], error)
+	// Previews (dry-run) which terminal executions and artifact directories a
+	// retention sweep would remove. Read-only: performs no deletion.
+	PreviewExecutionArtifactRetention(context.Context, *connect.Request[api.ExecutionArtifactRetentionRequest]) (*connect.Response[api.ExecutionArtifactRetentionResponse], error)
+	// Runs a retention sweep, deleting matched terminal execution rows and their
+	// artifact directories together. Requires confirm=true to mutate.
+	RunExecutionArtifactRetention(context.Context, *connect.Request[api.ExecutionArtifactRetentionRequest]) (*connect.Response[api.ExecutionArtifactRetentionResponse], error)
 }
 
 // NewExecutionsServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -781,6 +825,18 @@ func NewExecutionsServiceHandler(svc ExecutionsServiceHandler, opts ...connect.H
 		connect.WithSchema(executionsServiceMethods.ByName("ScheduleExecutionSeedCleanup")),
 		connect.WithHandlerOptions(opts...),
 	)
+	executionsServicePreviewExecutionArtifactRetentionHandler := connect.NewUnaryHandler(
+		ExecutionsServicePreviewExecutionArtifactRetentionProcedure,
+		svc.PreviewExecutionArtifactRetention,
+		connect.WithSchema(executionsServiceMethods.ByName("PreviewExecutionArtifactRetention")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionsServiceRunExecutionArtifactRetentionHandler := connect.NewUnaryHandler(
+		ExecutionsServiceRunExecutionArtifactRetentionProcedure,
+		svc.RunExecutionArtifactRetention,
+		connect.WithSchema(executionsServiceMethods.ByName("RunExecutionArtifactRetention")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/browser_automation_studio.v1.ExecutionsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ExecutionsServiceListExecutionsProcedure:
@@ -803,6 +859,10 @@ func NewExecutionsServiceHandler(svc ExecutionsServiceHandler, opts ...connect.H
 			executionsServiceGetExecutionRecordedHarHandler.ServeHTTP(w, r)
 		case ExecutionsServiceScheduleExecutionSeedCleanupProcedure:
 			executionsServiceScheduleExecutionSeedCleanupHandler.ServeHTTP(w, r)
+		case ExecutionsServicePreviewExecutionArtifactRetentionProcedure:
+			executionsServicePreviewExecutionArtifactRetentionHandler.ServeHTTP(w, r)
+		case ExecutionsServiceRunExecutionArtifactRetentionProcedure:
+			executionsServiceRunExecutionArtifactRetentionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -850,4 +910,12 @@ func (UnimplementedExecutionsServiceHandler) GetExecutionRecordedHar(context.Con
 
 func (UnimplementedExecutionsServiceHandler) ScheduleExecutionSeedCleanup(context.Context, *connect.Request[api.ScheduleSeedCleanupRequest]) (*connect.Response[api.ScheduleSeedCleanupResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.ScheduleExecutionSeedCleanup is not implemented"))
+}
+
+func (UnimplementedExecutionsServiceHandler) PreviewExecutionArtifactRetention(context.Context, *connect.Request[api.ExecutionArtifactRetentionRequest]) (*connect.Response[api.ExecutionArtifactRetentionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.PreviewExecutionArtifactRetention is not implemented"))
+}
+
+func (UnimplementedExecutionsServiceHandler) RunExecutionArtifactRetention(context.Context, *connect.Request[api.ExecutionArtifactRetentionRequest]) (*connect.Response[api.ExecutionArtifactRetentionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.RunExecutionArtifactRetention is not implemented"))
 }

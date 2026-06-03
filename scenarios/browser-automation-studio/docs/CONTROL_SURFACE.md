@@ -11,6 +11,7 @@ Scenario-level control surface for browser-automation-studio across the Go API, 
 | Session concurrency/pooling | Driver `MAX_SESSIONS`, `SESSION_POOL_SIZE`, `SESSION_IDLE_TIMEOUT_MS`; engine capabilities mirror driver | 10 concurrent / pool 5 / idle 5m | Raise pool/idle for reuse-heavy runs; cap lower for resource-constrained nodes. Keep `maxConcurrent >= poolSize`. |
 | Telemetry backpressure | `BAS_EVENTS_PER_EXECUTION_BUFFER`, `BAS_EVENTS_PER_ATTEMPT_BUFFER`, `BAS_WS_CLIENT_*` | 200 per execution / 50 per attempt; WS send 256 / binary 120 / read 512 | Raise for verbose console/network/heartbeat streams or UX metrics; lower on memory pressure. Droppable events are heartbeat/telemetry/screenshot; completion/failure stay guaranteed. |
 | Recording quality & archive bounds | `BAS_RECORDING_DEFAULT_*`, `BAS_RECORDING_MAX_ARCHIVE_BYTES`, `BAS_RECORDING_MAX_FRAMES`, driver recording toggles | 1280x720, 6 FPS, JPEG 55; 200MB archive; 400 frames; 90s idle timeout | Raise quality/FPS for demos; lower for CI to reduce bandwidth and processing. Trim archive/frame caps when running many parallel recordings. |
+| Default artifact profile | `BAS_ARTIFACT_DEFAULT_PROFILE` (per-execution `ExecutionParameters.artifact_config.profile` overrides) | `standard` (screenshots, console, extracted data, assertions; **no** DOM snapshots or network capture) | Leave on `standard` for normal/test-heavy local use to curb `recordings/` growth (DOM snapshots are a top storage category). Set to `full` when debugging needs DOM/network/cursor artifacts; `minimal`/`none` for the leanest runs. |
 | Replay/export workload | `BAS_REPLAY_CAPTURE_INTERVAL_MS`, `BAS_REPLAY_MAX_CAPTURE_FRAMES`, `BAS_REPLAY_RENDER_TIMEOUT_MS`, `BAS_EXPORT_FRAME_INTERVAL_MS`, `FFMPEG_BIN` | 40ms interval, 720 frames, 16m render timeout | Tighten for CI to avoid long ffmpeg runs; loosen for customer-ready exports. |
 | DOM/AI extraction limits | `BAS_AI_DOM_*`, `BAS_AI_PREVIEW_*` | Depth 6, nodes 800, text 120 chars, waits 750/1200ms; preview 1920x1080 | Raise for complex SPAs; lower to keep payloads lean and control inference cost. |
 | Database resilience | `BAS_SQLITE_PATH`, `DATABASE_URL=file:…`, retry envs | SQLite single-connection (busy_timeout=10s, WAL); retries 10 with 1s base and jitter 0.25 | Override the file path for non-default deployments. Increase retry delay/jitter for noisy filesystems. |
@@ -38,6 +39,31 @@ Scenario-level control surface for browser-automation-studio across the Go API, 
 - Adhoc cleanup cadence/retention configurable via `BAS_EXECUTION_ADHOC_CLEANUP_INTERVAL_MS` / `BAS_EXECUTION_ADHOC_RETENTION_PERIOD_MS`.
 - Engine concurrency cap mirrors driver `MAX_SESSIONS` (default 10) for consistent pool limits.
 
+## Execution artifact retention
+
+Normal executions default to the `standard` artifact profile, but `recordings/<execution-id>/`
+directories still accumulate for every run. Retention is an explicit, operator-driven
+operation (no automatic background sweep): preview first, then apply with confirmation.
+
+Selection is restricted to terminal executions (`completed`, `failed`) — running/pending
+executions are never touched. `keep_latest` spares the N most-recent terminal executions
+per workflow; `max_age_days` filters by `completed_at` (falling back to `started_at`).
+Each removal deletes the DB index row and the matching artifact directory together; the
+directory must resolve under the configured recordings root or it is skipped as unsafe.
+
+```bash
+# Dry-run: report what would be removed and the reclaim estimate (no mutation).
+browser-automation-studio executions retention-preview --max-age-days 3 --keep-latest 50
+
+# Apply: delete matched rows + artifact directories. --confirm is mandatory.
+browser-automation-studio executions retention-run --max-age-days 3 --keep-latest 50 --confirm
+```
+
+Recommended local default for adhoc/test-heavy use: `--max-age-days 3 --keep-latest 50`.
+Both commands accept optional `--workflow-id` / `--project-id` filters and `--json` for the
+proto-shaped report. The same operation is exposed over Connect as
+`ExecutionsService.PreviewExecutionArtifactRetention` / `RunExecutionArtifactRetention`.
+
 ## Non-levers (keep internal)
 
 - Driver safety guards (`MIN_TIMEOUT_MS`, `MAX_TIMEOUT_MS`, allowed URL protocols, drag/swipe step counts) stay fixed to prevent unsafe automation behavior.
@@ -51,3 +77,5 @@ Scenario-level control surface for browser-automation-studio across the Go API, 
 - `api/services/workflow/automation.go` – heartbeat wiring into executor requests.
 - `api/services/workflow/service.go` / `api/handlers/handler.go` – event buffer limits applied to WebSocket sinks.
 - `playwright-driver/src/config.ts` and `playwright-driver/CONTROL-SURFACE.md` – driver-side levers.
+- `api/config/artifact_profiles.go` – artifact profiles and default-profile resolution (`BAS_ARTIFACT_DEFAULT_PROFILE`).
+- `api/services/retention/` – execution artifact retention service (FileSystem seam, selection/safety rules).

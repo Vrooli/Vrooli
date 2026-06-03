@@ -63,6 +63,12 @@ func (r *inMemoryRecorder) GetArtifactConfig() config.ArtifactCollectionSettings
 	return config.DefaultArtifactSettings() // In-memory recorder uses default (collect all)
 }
 
+func (r *inMemoryRecorder) SetArtifactConfigForExecution(_ uuid.UUID, _ *config.ArtifactCollectionSettings) {
+	// In-memory recorder ignores per-execution artifact config - collects everything.
+}
+
+func (r *inMemoryRecorder) ForgetExecution(_ uuid.UUID) {}
+
 func (r *inMemoryRecorder) Outcomes() []autocontracts.StepOutcome {
 	r.mu.Lock()
 	defer r.mu.Unlock()

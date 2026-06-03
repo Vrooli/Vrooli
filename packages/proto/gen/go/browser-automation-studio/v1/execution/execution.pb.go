@@ -32,7 +32,8 @@ const (
 type ArtifactCollectionConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Preset profile name. When set, individual toggles are derived from the profile.
-	// Valid values: "full" (default), "standard", "minimal", "debug", "none", "custom"
+	// Valid values: "standard" (normal default), "full", "minimal", "debug", "none", "custom".
+	// When unset, the operator-configured global default profile is applied.
 	// Use "custom" to enable individual toggle fields below.
 	Profile *string `protobuf:"bytes,1,opt,name=profile,proto3,oneof" json:"profile,omitempty"`
 	// Capture screenshots at each step completion.

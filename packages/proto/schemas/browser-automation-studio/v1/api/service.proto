@@ -91,6 +91,12 @@ service ExecutionsService {
   rpc GetExecutionRecordedHar(GetExecutionArtifactsRequest) returns (GetExecutionHarResponse);
   // Schedules deferred seed cleanup for a previously executed seed scenario.
   rpc ScheduleExecutionSeedCleanup(ScheduleSeedCleanupRequest) returns (ScheduleSeedCleanupResponse);
+  // Previews (dry-run) which terminal executions and artifact directories a
+  // retention sweep would remove. Read-only: performs no deletion.
+  rpc PreviewExecutionArtifactRetention(ExecutionArtifactRetentionRequest) returns (ExecutionArtifactRetentionResponse);
+  // Runs a retention sweep, deleting matched terminal execution rows and their
+  // artifact directories together. Requires confirm=true to mutate.
+  rpc RunExecutionArtifactRetention(ExecutionArtifactRetentionRequest) returns (ExecutionArtifactRetentionResponse);
 }
 
 // =============================================================================
@@ -618,4 +624,77 @@ message ScheduleSeedCleanupRequest {
 message ScheduleSeedCleanupResponse {
   // Always "scheduled" on success.
   string status = 1;
+}
+
+// =============================================================================
+// EXECUTION ARTIFACT RETENTION
+// =============================================================================
+
+// ExecutionArtifactRetentionRequest selects terminal executions for an artifact
+// retention sweep. The same message drives both the read-only preview and the
+// confirmed run; only terminal executions (completed, failed) are ever eligible.
+message ExecutionArtifactRetentionRequest {
+  // Select executions older than this many days, measured from completed_at when
+  // present, otherwise started_at. 0 disables the age filter.
+  int32 max_age_days = 1 [(buf.validate.field).int32.gte = 0];
+  // Keep this many most-recent terminal executions per workflow, exempt from
+  // removal. 0 keeps none beyond what the age filter spares.
+  int32 keep_latest = 2 [(buf.validate.field).int32.gte = 0];
+  // Optional workflow filter.
+  // @format uuid
+  optional string workflow_id = 3 [(buf.validate.field).string.uuid = true];
+  // Optional project filter.
+  // @format uuid
+  optional string project_id = 4 [(buf.validate.field).string.uuid = true];
+  // Optional terminal-status filter. When set, only that status is considered
+  // (must be completed or failed); when unset, both terminal statuses apply.
+  optional ExecutionStatus status = 5;
+  // Required confirmation for RunExecutionArtifactRetention. Ignored by the
+  // preview RPC. The run RPC refuses to delete anything unless confirm=true.
+  bool confirm = 6;
+}
+
+// ExecutionRetentionItem describes one execution considered by a retention sweep.
+message ExecutionRetentionItem {
+  // Execution ID.
+  // @format uuid
+  string execution_id = 1;
+  // Execution status (completed, failed, running, pending).
+  ExecutionStatus status = 2;
+  // Workflow ID the execution belongs to.
+  // @format uuid
+  string workflow_id = 3;
+  // When the execution started.
+  optional google.protobuf.Timestamp started_at = 4;
+  // When the execution completed, if terminal.
+  optional google.protobuf.Timestamp completed_at = 5;
+  // Result file path recorded for the execution.
+  string result_path = 6;
+  // Artifact directory that holds this execution's recordings.
+  string artifact_dir = 7;
+  // Estimated bytes occupied by the artifact directory.
+  int64 estimated_bytes = 8;
+  // Reason this item was skipped or errored. Empty for cleanly removed items.
+  string reason = 9;
+}
+
+// ExecutionArtifactRetentionResponse is the structured report returned by both
+// the preview and run RPCs.
+message ExecutionArtifactRetentionResponse {
+  // True when this report came from a dry-run (no mutation performed).
+  bool dry_run = 1;
+  // Executions removed by this sweep (or that would be removed in dry-run).
+  repeated ExecutionRetentionItem removed = 2;
+  // Executions considered but skipped, each carrying a reason.
+  repeated ExecutionRetentionItem skipped = 3;
+  // Total estimated bytes reclaimed (or reclaimable) across removed items.
+  int64 estimated_bytes = 4;
+  // Count of removed executions.
+  int32 removed_count = 5;
+  // Count of skipped executions.
+  int32 skipped_count = 6;
+  // Count of executions that errored during deletion (run mode only).
+  int32 error_count = 7;
+  // Per-status counts of removed executions, keyed by lowercase status string.
+  map<string, int32> removed_by_status = 8;
 }

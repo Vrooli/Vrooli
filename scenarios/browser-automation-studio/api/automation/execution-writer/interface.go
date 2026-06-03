@@ -39,13 +39,22 @@ type ExecutionWriter interface {
 	// RecordExecutionArtifacts persists execution-level artifacts (such as video/trace files).
 	RecordExecutionArtifacts(ctx context.Context, plan contracts.ExecutionPlan, artifacts []ExternalArtifact) error
 
-	// SetArtifactConfig updates the artifact collection settings for this writer.
-	// Call this before starting execution to configure what artifacts are collected.
-	// If not called, defaults to "full" profile (all artifacts collected).
+	// SetArtifactConfig updates the writer-wide artifact collection settings.
+	// This is the fallback used when no per-execution config is set; prefer
+	// SetArtifactConfigForExecution for concurrency-safe per-run configuration.
 	SetArtifactConfig(cfg *config.ArtifactCollectionSettings)
 
-	// GetArtifactConfig returns the current artifact collection settings.
+	// GetArtifactConfig returns the writer-wide artifact collection settings.
 	GetArtifactConfig() config.ArtifactCollectionSettings
+
+	// SetArtifactConfigForExecution scopes artifact collection settings to a
+	// single execution so concurrent executions sharing this recorder cannot
+	// leak configuration. Pass nil to clear the override for that execution.
+	SetArtifactConfigForExecution(executionID uuid.UUID, cfg *config.ArtifactCollectionSettings)
+
+	// ForgetExecution drops per-execution artifact settings once an execution
+	// has finished, keeping the per-execution config map bounded.
+	ForgetExecution(executionID uuid.UUID)
 }
 
 // ExternalArtifact captures an execution-level artifact to persist.

@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/connectx"
 
+	"github.com/vrooli/browser-automation-studio/services/retention"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
 )
@@ -30,6 +31,13 @@ type SeedScheduler interface {
 	Schedule(executionID string, seedScenario string, cleanupToken string) error
 }
 
+// RetentionSweeper runs execution-artifact retention sweeps. It is the seam onto
+// services/retention so the handler stays transport-only and tests can inject a
+// fake.
+type RetentionSweeper interface {
+	Sweep(ctx context.Context, opts retention.Options) (*retention.Report, error)
+}
+
 // Deps wires the executions handler.
 type Deps struct {
 	// Executor delivers all execution-state read operations and lifecycle
@@ -42,6 +50,9 @@ type Deps struct {
 	// requests to probe for a recorded video artifact. Empty means
 	// "skip the recorded-video probe".
 	RecordingsRoot string
+	// Retention runs execution-artifact retention sweeps. When nil the
+	// retention RPCs return connect.CodeFailedPrecondition.
+	Retention RetentionSweeper
 	// Logger is required.
 	Logger *logrus.Logger
 }

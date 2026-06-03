@@ -175,6 +175,18 @@ func hydrateFromContext(rc cliapp.RunContext, md protoreflect.MessageDescriptor,
 			continue
 		}
 		names := candidateNames(fd)
+		// Bool fields are carried in RunContext's bool-flag set, not the
+		// string-flag map, so they require a dedicated lookup. proto3 bool
+		// defaults to false, so only an explicitly-provided true needs setting.
+		if fd.Kind() == protoreflect.BoolKind && !fd.IsList() && !fd.IsMap() {
+			for _, name := range names {
+				if set, ok := safeBoolFlagWithOK(rc, name); ok && set {
+					msg.Set(fd, protoreflect.ValueOfBool(true))
+					break
+				}
+			}
+			continue
+		}
 		for _, name := range names {
 			val, ok := lookupValue(rc, name)
 			if !ok {
@@ -337,6 +349,15 @@ func safeFlagWithOK(rc cliapp.RunContext, name string) (out string, ok bool) {
 	}()
 	v := rc.Flag(name)
 	return v, true
+}
+
+func safeBoolFlagWithOK(rc cliapp.RunContext, name string) (set bool, ok bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			set, ok = false, false
+		}
+	}()
+	return rc.BoolFlag(name), true
 }
 
 func safePositionalWithOK(rc cliapp.RunContext, name string) (out string, ok bool) {

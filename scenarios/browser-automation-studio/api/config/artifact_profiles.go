@@ -177,9 +177,40 @@ func GetArtifactProfiles() []ArtifactProfile {
 	}
 }
 
-// DefaultArtifactSettings returns the default configuration (full profile).
+// DefaultArtifactSettings returns the "collect everything" configuration (full
+// profile). This is the hard fallback used by in-memory recorders that always
+// want every artifact. The normal per-execution default is the operator-
+// configured profile (BAS_ARTIFACT_DEFAULT_PROFILE, "standard" by default);
+// resolve that via ResolveArtifactSettingsWithDefault, not this function.
 func DefaultArtifactSettings() ArtifactCollectionSettings {
 	return artifactProfiles[ProfileFull]
+}
+
+// DefaultArtifactSettingsForProfile returns the settings for the named profile,
+// falling back to the standard profile when the name is empty or unknown.
+func DefaultArtifactSettingsForProfile(profile string) ArtifactCollectionSettings {
+	name := strings.ToLower(strings.TrimSpace(profile))
+	if name == "" {
+		name = ProfileStandard
+	}
+	if settings, ok := artifactProfiles[name]; ok {
+		return settings
+	}
+	return artifactProfiles[ProfileStandard]
+}
+
+// ResolveArtifactSettingsWithDefault resolves a proto ArtifactCollectionConfig to
+// concrete settings, applying defaultProfile when no per-execution profile is
+// supplied. An explicit cfg.Profile always wins over defaultProfile; size-limit
+// overrides on cfg are honored in both cases. defaultProfile is the operator-
+// configured global default (BAS_ARTIFACT_DEFAULT_PROFILE).
+func ResolveArtifactSettingsWithDefault(cfg *basexecution.ArtifactCollectionConfig, defaultProfile string) ArtifactCollectionSettings {
+	if cfg == nil || strings.TrimSpace(cfg.GetProfile()) == "" {
+		settings := DefaultArtifactSettingsForProfile(defaultProfile)
+		// Allow per-execution size-limit overrides even when the profile is defaulted.
+		return applyLimitOverrides(settings, cfg)
+	}
+	return ResolveArtifactSettings(cfg)
 }
 
 // ResolveArtifactSettings converts a proto ArtifactCollectionConfig to resolved settings.

@@ -35,7 +35,8 @@ export const file_browser_automation_studio_v1_execution_execution: GenFile = /*
 export type ArtifactCollectionConfig = Message<"browser_automation_studio.v1.ArtifactCollectionConfig"> & {
   /**
    * Preset profile name. When set, individual toggles are derived from the profile.
-   * Valid values: "full" (default), "standard", "minimal", "debug", "none", "custom"
+   * Valid values: "standard" (normal default), "full", "minimal", "debug", "none", "custom".
+   * When unset, the operator-configured global default profile is applied.
    * Use "custom" to enable individual toggle fields below.
    *
    * @generated from field: optional string profile = 1;

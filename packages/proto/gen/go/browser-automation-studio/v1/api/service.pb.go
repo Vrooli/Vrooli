@@ -2936,6 +2936,335 @@ func (x *ScheduleSeedCleanupResponse) GetStatus() string {
 	return ""
 }
 
+// ExecutionArtifactRetentionRequest selects terminal executions for an artifact
+// retention sweep. The same message drives both the read-only preview and the
+// confirmed run; only terminal executions (completed, failed) are ever eligible.
+type ExecutionArtifactRetentionRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Select executions older than this many days, measured from completed_at when
+	// present, otherwise started_at. 0 disables the age filter.
+	MaxAgeDays int32 `protobuf:"varint,1,opt,name=max_age_days,json=maxAgeDays,proto3" json:"max_age_days,omitempty"`
+	// Keep this many most-recent terminal executions per workflow, exempt from
+	// removal. 0 keeps none beyond what the age filter spares.
+	KeepLatest int32 `protobuf:"varint,2,opt,name=keep_latest,json=keepLatest,proto3" json:"keep_latest,omitempty"`
+	// Optional workflow filter.
+	// @format uuid
+	WorkflowId *string `protobuf:"bytes,3,opt,name=workflow_id,json=workflowId,proto3,oneof" json:"workflow_id,omitempty"`
+	// Optional project filter.
+	// @format uuid
+	ProjectId *string `protobuf:"bytes,4,opt,name=project_id,json=projectId,proto3,oneof" json:"project_id,omitempty"`
+	// Optional terminal-status filter. When set, only that status is considered
+	// (must be completed or failed); when unset, both terminal statuses apply.
+	Status *base.ExecutionStatus `protobuf:"varint,5,opt,name=status,proto3,enum=browser_automation_studio.v1.ExecutionStatus,oneof" json:"status,omitempty"`
+	// Required confirmation for RunExecutionArtifactRetention. Ignored by the
+	// preview RPC. The run RPC refuses to delete anything unless confirm=true.
+	Confirm       bool `protobuf:"varint,6,opt,name=confirm,proto3" json:"confirm,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExecutionArtifactRetentionRequest) Reset() {
+	*x = ExecutionArtifactRetentionRequest{}
+	mi := &file_browser_automation_studio_v1_api_service_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecutionArtifactRetentionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecutionArtifactRetentionRequest) ProtoMessage() {}
+
+func (x *ExecutionArtifactRetentionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_api_service_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecutionArtifactRetentionRequest.ProtoReflect.Descriptor instead.
+func (*ExecutionArtifactRetentionRequest) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_api_service_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *ExecutionArtifactRetentionRequest) GetMaxAgeDays() int32 {
+	if x != nil {
+		return x.MaxAgeDays
+	}
+	return 0
+}
+
+func (x *ExecutionArtifactRetentionRequest) GetKeepLatest() int32 {
+	if x != nil {
+		return x.KeepLatest
+	}
+	return 0
+}
+
+func (x *ExecutionArtifactRetentionRequest) GetWorkflowId() string {
+	if x != nil && x.WorkflowId != nil {
+		return *x.WorkflowId
+	}
+	return ""
+}
+
+func (x *ExecutionArtifactRetentionRequest) GetProjectId() string {
+	if x != nil && x.ProjectId != nil {
+		return *x.ProjectId
+	}
+	return ""
+}
+
+func (x *ExecutionArtifactRetentionRequest) GetStatus() base.ExecutionStatus {
+	if x != nil && x.Status != nil {
+		return *x.Status
+	}
+	return base.ExecutionStatus(0)
+}
+
+func (x *ExecutionArtifactRetentionRequest) GetConfirm() bool {
+	if x != nil {
+		return x.Confirm
+	}
+	return false
+}
+
+// ExecutionRetentionItem describes one execution considered by a retention sweep.
+type ExecutionRetentionItem struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Execution ID.
+	// @format uuid
+	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	// Execution status (completed, failed, running, pending).
+	Status base.ExecutionStatus `protobuf:"varint,2,opt,name=status,proto3,enum=browser_automation_studio.v1.ExecutionStatus" json:"status,omitempty"`
+	// Workflow ID the execution belongs to.
+	// @format uuid
+	WorkflowId string `protobuf:"bytes,3,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	// When the execution started.
+	StartedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
+	// When the execution completed, if terminal.
+	CompletedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
+	// Result file path recorded for the execution.
+	ResultPath string `protobuf:"bytes,6,opt,name=result_path,json=resultPath,proto3" json:"result_path,omitempty"`
+	// Artifact directory that holds this execution's recordings.
+	ArtifactDir string `protobuf:"bytes,7,opt,name=artifact_dir,json=artifactDir,proto3" json:"artifact_dir,omitempty"`
+	// Estimated bytes occupied by the artifact directory.
+	EstimatedBytes int64 `protobuf:"varint,8,opt,name=estimated_bytes,json=estimatedBytes,proto3" json:"estimated_bytes,omitempty"`
+	// Reason this item was skipped or errored. Empty for cleanly removed items.
+	Reason        string `protobuf:"bytes,9,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExecutionRetentionItem) Reset() {
+	*x = ExecutionRetentionItem{}
+	mi := &file_browser_automation_studio_v1_api_service_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecutionRetentionItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecutionRetentionItem) ProtoMessage() {}
+
+func (x *ExecutionRetentionItem) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_api_service_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecutionRetentionItem.ProtoReflect.Descriptor instead.
+func (*ExecutionRetentionItem) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_api_service_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *ExecutionRetentionItem) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *ExecutionRetentionItem) GetStatus() base.ExecutionStatus {
+	if x != nil {
+		return x.Status
+	}
+	return base.ExecutionStatus(0)
+}
+
+func (x *ExecutionRetentionItem) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *ExecutionRetentionItem) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *ExecutionRetentionItem) GetCompletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CompletedAt
+	}
+	return nil
+}
+
+func (x *ExecutionRetentionItem) GetResultPath() string {
+	if x != nil {
+		return x.ResultPath
+	}
+	return ""
+}
+
+func (x *ExecutionRetentionItem) GetArtifactDir() string {
+	if x != nil {
+		return x.ArtifactDir
+	}
+	return ""
+}
+
+func (x *ExecutionRetentionItem) GetEstimatedBytes() int64 {
+	if x != nil {
+		return x.EstimatedBytes
+	}
+	return 0
+}
+
+func (x *ExecutionRetentionItem) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+// ExecutionArtifactRetentionResponse is the structured report returned by both
+// the preview and run RPCs.
+type ExecutionArtifactRetentionResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when this report came from a dry-run (no mutation performed).
+	DryRun bool `protobuf:"varint,1,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	// Executions removed by this sweep (or that would be removed in dry-run).
+	Removed []*ExecutionRetentionItem `protobuf:"bytes,2,rep,name=removed,proto3" json:"removed,omitempty"`
+	// Executions considered but skipped, each carrying a reason.
+	Skipped []*ExecutionRetentionItem `protobuf:"bytes,3,rep,name=skipped,proto3" json:"skipped,omitempty"`
+	// Total estimated bytes reclaimed (or reclaimable) across removed items.
+	EstimatedBytes int64 `protobuf:"varint,4,opt,name=estimated_bytes,json=estimatedBytes,proto3" json:"estimated_bytes,omitempty"`
+	// Count of removed executions.
+	RemovedCount int32 `protobuf:"varint,5,opt,name=removed_count,json=removedCount,proto3" json:"removed_count,omitempty"`
+	// Count of skipped executions.
+	SkippedCount int32 `protobuf:"varint,6,opt,name=skipped_count,json=skippedCount,proto3" json:"skipped_count,omitempty"`
+	// Count of executions that errored during deletion (run mode only).
+	ErrorCount int32 `protobuf:"varint,7,opt,name=error_count,json=errorCount,proto3" json:"error_count,omitempty"`
+	// Per-status counts of removed executions, keyed by lowercase status string.
+	RemovedByStatus map[string]int32 `protobuf:"bytes,8,rep,name=removed_by_status,json=removedByStatus,proto3" json:"removed_by_status,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ExecutionArtifactRetentionResponse) Reset() {
+	*x = ExecutionArtifactRetentionResponse{}
+	mi := &file_browser_automation_studio_v1_api_service_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecutionArtifactRetentionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecutionArtifactRetentionResponse) ProtoMessage() {}
+
+func (x *ExecutionArtifactRetentionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_api_service_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecutionArtifactRetentionResponse.ProtoReflect.Descriptor instead.
+func (*ExecutionArtifactRetentionResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_api_service_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *ExecutionArtifactRetentionResponse) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+func (x *ExecutionArtifactRetentionResponse) GetRemoved() []*ExecutionRetentionItem {
+	if x != nil {
+		return x.Removed
+	}
+	return nil
+}
+
+func (x *ExecutionArtifactRetentionResponse) GetSkipped() []*ExecutionRetentionItem {
+	if x != nil {
+		return x.Skipped
+	}
+	return nil
+}
+
+func (x *ExecutionArtifactRetentionResponse) GetEstimatedBytes() int64 {
+	if x != nil {
+		return x.EstimatedBytes
+	}
+	return 0
+}
+
+func (x *ExecutionArtifactRetentionResponse) GetRemovedCount() int32 {
+	if x != nil {
+		return x.RemovedCount
+	}
+	return 0
+}
+
+func (x *ExecutionArtifactRetentionResponse) GetSkippedCount() int32 {
+	if x != nil {
+		return x.SkippedCount
+	}
+	return 0
+}
+
+func (x *ExecutionArtifactRetentionResponse) GetErrorCount() int32 {
+	if x != nil {
+		return x.ErrorCount
+	}
+	return 0
+}
+
+func (x *ExecutionArtifactRetentionResponse) GetRemovedByStatus() map[string]int32 {
+	if x != nil {
+		return x.RemovedByStatus
+	}
+	return nil
+}
+
 var File_browser_automation_studio_v1_api_service_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_api_service_proto_rawDesc = "" +
@@ -3181,7 +3510,49 @@ const file_browser_automation_studio_v1_api_service_proto_rawDesc = "" +
 	"\rcleanup_token\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fcleanupToken\x12#\n" +
 	"\rseed_scenario\x18\x03 \x01(\tR\fseedScenario\"5\n" +
 	"\x1bScheduleSeedCleanupResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status2\x9e\r\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\"\xe6\x02\n" +
+	"!ExecutionArtifactRetentionRequest\x12)\n" +
+	"\fmax_age_days\x18\x01 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\n" +
+	"maxAgeDays\x12(\n" +
+	"\vkeep_latest\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\n" +
+	"keepLatest\x12.\n" +
+	"\vworkflow_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\n" +
+	"workflowId\x88\x01\x01\x12,\n" +
+	"\n" +
+	"project_id\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x01R\tprojectId\x88\x01\x01\x12J\n" +
+	"\x06status\x18\x05 \x01(\x0e2-.browser_automation_studio.v1.ExecutionStatusH\x02R\x06status\x88\x01\x01\x12\x18\n" +
+	"\aconfirm\x18\x06 \x01(\bR\aconfirmB\x0e\n" +
+	"\f_workflow_idB\r\n" +
+	"\v_project_idB\t\n" +
+	"\a_status\"\xcc\x03\n" +
+	"\x16ExecutionRetentionItem\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12E\n" +
+	"\x06status\x18\x02 \x01(\x0e2-.browser_automation_studio.v1.ExecutionStatusR\x06status\x12\x1f\n" +
+	"\vworkflow_id\x18\x03 \x01(\tR\n" +
+	"workflowId\x12>\n" +
+	"\n" +
+	"started_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\tstartedAt\x88\x01\x01\x12B\n" +
+	"\fcompleted_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x01R\vcompletedAt\x88\x01\x01\x12\x1f\n" +
+	"\vresult_path\x18\x06 \x01(\tR\n" +
+	"resultPath\x12!\n" +
+	"\fartifact_dir\x18\a \x01(\tR\vartifactDir\x12'\n" +
+	"\x0festimated_bytes\x18\b \x01(\x03R\x0eestimatedBytes\x12\x16\n" +
+	"\x06reason\x18\t \x01(\tR\x06reasonB\r\n" +
+	"\v_started_atB\x0f\n" +
+	"\r_completed_at\"\xb9\x04\n" +
+	"\"ExecutionArtifactRetentionResponse\x12\x17\n" +
+	"\adry_run\x18\x01 \x01(\bR\x06dryRun\x12N\n" +
+	"\aremoved\x18\x02 \x03(\v24.browser_automation_studio.v1.ExecutionRetentionItemR\aremoved\x12N\n" +
+	"\askipped\x18\x03 \x03(\v24.browser_automation_studio.v1.ExecutionRetentionItemR\askipped\x12'\n" +
+	"\x0festimated_bytes\x18\x04 \x01(\x03R\x0eestimatedBytes\x12#\n" +
+	"\rremoved_count\x18\x05 \x01(\x05R\fremovedCount\x12#\n" +
+	"\rskipped_count\x18\x06 \x01(\x05R\fskippedCount\x12\x1f\n" +
+	"\verror_count\x18\a \x01(\x05R\n" +
+	"errorCount\x12\x81\x01\n" +
+	"\x11removed_by_status\x18\b \x03(\v2U.browser_automation_studio.v1.ExecutionArtifactRetentionResponse.RemovedByStatusEntryR\x0fremovedByStatus\x1aB\n" +
+	"\x14RemovedByStatusEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x012\x9e\r\n" +
 	"\x10WorkflowsService\x12x\n" +
 	"\rListWorkflows\x122.browser_automation_studio.v1.ListWorkflowsRequest\x1a3.browser_automation_studio.v1.ListWorkflowsResponse\x12r\n" +
 	"\vGetWorkflow\x120.browser_automation_studio.v1.GetWorkflowRequest\x1a1.browser_automation_studio.v1.GetWorkflowResponse\x12{\n" +
@@ -3195,8 +3566,7 @@ const file_browser_automation_studio_v1_api_service_proto_rawDesc = "" +
 	"\x0eModifyWorkflow\x123.browser_automation_studio.v1.ModifyWorkflowRequest\x1a4.browser_automation_studio.v1.UpdateWorkflowResponse\x12\x84\x01\n" +
 	"\x14ListWorkflowVersions\x129.browser_automation_studio.v1.ListWorkflowVersionsRequest\x1a1.browser_automation_studio.v1.WorkflowVersionList\x12|\n" +
 	"\x12GetWorkflowVersion\x127.browser_automation_studio.v1.GetWorkflowVersionRequest\x1a-.browser_automation_studio.v1.WorkflowVersion\x12\x93\x01\n" +
-	"\x16RestoreWorkflowVersion\x12;.browser_automation_studio.v1.RestoreWorkflowVersionRequest\x1a<.browser_automation_studio.v1.RestoreWorkflowVersionResponse2\xe5\n" +
-	"\n" +
+	"\x16RestoreWorkflowVersion\x12;.browser_automation_studio.v1.RestoreWorkflowVersionRequest\x1a<.browser_automation_studio.v1.RestoreWorkflowVersionResponse2\xb3\r\n" +
 	"\x11ExecutionsService\x12{\n" +
 	"\x0eListExecutions\x123.browser_automation_studio.v1.ListExecutionsRequest\x1a4.browser_automation_studio.v1.ListExecutionsResponse\x12u\n" +
 	"\fGetExecution\x121.browser_automation_studio.v1.GetExecutionRequest\x1a2.browser_automation_studio.v1.GetExecutionResponse\x12\x82\x01\n" +
@@ -3207,7 +3577,9 @@ const file_browser_automation_studio_v1_api_service_proto_rawDesc = "" +
 	"\x1aGetExecutionRecordedVideos\x12:.browser_automation_studio.v1.GetExecutionArtifactsRequest\x1a8.browser_automation_studio.v1.GetExecutionVideosResponse\x12\x92\x01\n" +
 	"\x1aGetExecutionRecordedTraces\x12:.browser_automation_studio.v1.GetExecutionArtifactsRequest\x1a8.browser_automation_studio.v1.GetExecutionTracesResponse\x12\x8c\x01\n" +
 	"\x17GetExecutionRecordedHar\x12:.browser_automation_studio.v1.GetExecutionArtifactsRequest\x1a5.browser_automation_studio.v1.GetExecutionHarResponse\x12\x93\x01\n" +
-	"\x1cScheduleExecutionSeedCleanup\x128.browser_automation_studio.v1.ScheduleSeedCleanupRequest\x1a9.browser_automation_studio.v1.ScheduleSeedCleanupResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api;apib\x06proto3"
+	"\x1cScheduleExecutionSeedCleanup\x128.browser_automation_studio.v1.ScheduleSeedCleanupRequest\x1a9.browser_automation_studio.v1.ScheduleSeedCleanupResponse\x12\xa6\x01\n" +
+	"!PreviewExecutionArtifactRetention\x12?.browser_automation_studio.v1.ExecutionArtifactRetentionRequest\x1a@.browser_automation_studio.v1.ExecutionArtifactRetentionResponse\x12\xa2\x01\n" +
+	"\x1dRunExecutionArtifactRetention\x12?.browser_automation_studio.v1.ExecutionArtifactRetentionRequest\x1a@.browser_automation_studio.v1.ExecutionArtifactRetentionResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api;apib\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_api_service_proto_rawDescOnce sync.Once
@@ -3221,163 +3593,178 @@ func file_browser_automation_studio_v1_api_service_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_api_service_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_api_service_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
+var file_browser_automation_studio_v1_api_service_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
 var file_browser_automation_studio_v1_api_service_proto_goTypes = []any{
-	(*WorkflowSummary)(nil),                  // 0: browser_automation_studio.v1.WorkflowSummary
-	(*WorkflowVersion)(nil),                  // 1: browser_automation_studio.v1.WorkflowVersion
-	(*WorkflowList)(nil),                     // 2: browser_automation_studio.v1.WorkflowList
-	(*WorkflowVersionList)(nil),              // 3: browser_automation_studio.v1.WorkflowVersionList
-	(*ListWorkflowsRequest)(nil),             // 4: browser_automation_studio.v1.ListWorkflowsRequest
-	(*ListWorkflowsResponse)(nil),            // 5: browser_automation_studio.v1.ListWorkflowsResponse
-	(*GetWorkflowRequest)(nil),               // 6: browser_automation_studio.v1.GetWorkflowRequest
-	(*GetWorkflowResponse)(nil),              // 7: browser_automation_studio.v1.GetWorkflowResponse
-	(*CreateWorkflowRequest)(nil),            // 8: browser_automation_studio.v1.CreateWorkflowRequest
-	(*CreateWorkflowResponse)(nil),           // 9: browser_automation_studio.v1.CreateWorkflowResponse
-	(*UpdateWorkflowRequest)(nil),            // 10: browser_automation_studio.v1.UpdateWorkflowRequest
-	(*UpdateWorkflowResponse)(nil),           // 11: browser_automation_studio.v1.UpdateWorkflowResponse
-	(*DeleteWorkflowRequest)(nil),            // 12: browser_automation_studio.v1.DeleteWorkflowRequest
-	(*DeleteWorkflowResponse)(nil),           // 13: browser_automation_studio.v1.DeleteWorkflowResponse
-	(*ExecuteWorkflowRequest)(nil),           // 14: browser_automation_studio.v1.ExecuteWorkflowRequest
-	(*ExecuteWorkflowResponse)(nil),          // 15: browser_automation_studio.v1.ExecuteWorkflowResponse
-	(*ListExecutionsRequest)(nil),            // 16: browser_automation_studio.v1.ListExecutionsRequest
-	(*ListExecutionsResponse)(nil),           // 17: browser_automation_studio.v1.ListExecutionsResponse
-	(*ExecutionExportability)(nil),           // 18: browser_automation_studio.v1.ExecutionExportability
-	(*GetExecutionRequest)(nil),              // 19: browser_automation_studio.v1.GetExecutionRequest
-	(*GetExecutionResponse)(nil),             // 20: browser_automation_studio.v1.GetExecutionResponse
-	(*ValidateWorkflowRequest)(nil),          // 21: browser_automation_studio.v1.ValidateWorkflowRequest
-	(*ValidateWorkflowResponse)(nil),         // 22: browser_automation_studio.v1.ValidateWorkflowResponse
-	(*WorkflowValidationIssue)(nil),          // 23: browser_automation_studio.v1.WorkflowValidationIssue
-	(*WorkflowValidationStats)(nil),          // 24: browser_automation_studio.v1.WorkflowValidationStats
-	(*WorkflowValidationResult)(nil),         // 25: browser_automation_studio.v1.WorkflowValidationResult
-	(*RestoreWorkflowVersionResponse)(nil),   // 26: browser_automation_studio.v1.RestoreWorkflowVersionResponse
-	(*ListWorkflowVersionsRequest)(nil),      // 27: browser_automation_studio.v1.ListWorkflowVersionsRequest
-	(*GetWorkflowVersionRequest)(nil),        // 28: browser_automation_studio.v1.GetWorkflowVersionRequest
-	(*RestoreWorkflowVersionRequest)(nil),    // 29: browser_automation_studio.v1.RestoreWorkflowVersionRequest
-	(*ModifyWorkflowRequest)(nil),            // 30: browser_automation_studio.v1.ModifyWorkflowRequest
-	(*GetExecutionTimelineRequest)(nil),      // 31: browser_automation_studio.v1.GetExecutionTimelineRequest
-	(*StopExecutionRequest)(nil),             // 32: browser_automation_studio.v1.StopExecutionRequest
-	(*StopExecutionResponse)(nil),            // 33: browser_automation_studio.v1.StopExecutionResponse
-	(*ResumeExecutionRequest)(nil),           // 34: browser_automation_studio.v1.ResumeExecutionRequest
-	(*ResumeExecutionResponse)(nil),          // 35: browser_automation_studio.v1.ResumeExecutionResponse
-	(*GetExecutionScreenshotsRequest)(nil),   // 36: browser_automation_studio.v1.GetExecutionScreenshotsRequest
-	(*GetExecutionArtifactsRequest)(nil),     // 37: browser_automation_studio.v1.GetExecutionArtifactsRequest
-	(*ExecutionFileArtifact)(nil),            // 38: browser_automation_studio.v1.ExecutionFileArtifact
-	(*GetExecutionVideosResponse)(nil),       // 39: browser_automation_studio.v1.GetExecutionVideosResponse
-	(*GetExecutionTracesResponse)(nil),       // 40: browser_automation_studio.v1.GetExecutionTracesResponse
-	(*GetExecutionHarResponse)(nil),          // 41: browser_automation_studio.v1.GetExecutionHarResponse
-	(*ScheduleSeedCleanupRequest)(nil),       // 42: browser_automation_studio.v1.ScheduleSeedCleanupRequest
-	(*ScheduleSeedCleanupResponse)(nil),      // 43: browser_automation_studio.v1.ScheduleSeedCleanupResponse
-	nil,                                      // 44: browser_automation_studio.v1.ListExecutionsResponse.ExportabilityEntry
-	(base.ChangeSource)(0),                   // 45: browser_automation_studio.v1.ChangeSource
-	(*timestamppb.Timestamp)(nil),            // 46: google.protobuf.Timestamp
-	(*workflows.WorkflowDefinitionV2)(nil),   // 47: browser_automation_studio.v1.WorkflowDefinitionV2
-	(*execution.ExecutionParameters)(nil),    // 48: browser_automation_studio.v1.ExecutionParameters
-	(*execution.ExecuteWorkflowOptions)(nil), // 49: browser_automation_studio.v1.ExecuteWorkflowOptions
-	(base.ExecutionStatus)(0),                // 50: browser_automation_studio.v1.ExecutionStatus
-	(*execution.Execution)(nil),              // 51: browser_automation_studio.v1.Execution
-	(base.ValidationSeverity)(0),             // 52: browser_automation_studio.v1.ValidationSeverity
-	(actions.ActionType)(0),                  // 53: browser_automation_studio.v1.ActionType
-	(*v1.JsonObject)(nil),                    // 54: common.v1.JsonObject
-	(*execution.ExecuteAdhocRequest)(nil),    // 55: browser_automation_studio.v1.ExecuteAdhocRequest
-	(*execution.ExecuteAdhocResponse)(nil),   // 56: browser_automation_studio.v1.ExecuteAdhocResponse
-	(*timeline.ExecutionTimeline)(nil),       // 57: browser_automation_studio.v1.ExecutionTimeline
-	(*execution.GetScreenshotsResponse)(nil), // 58: browser_automation_studio.v1.GetScreenshotsResponse
+	(*WorkflowSummary)(nil),                    // 0: browser_automation_studio.v1.WorkflowSummary
+	(*WorkflowVersion)(nil),                    // 1: browser_automation_studio.v1.WorkflowVersion
+	(*WorkflowList)(nil),                       // 2: browser_automation_studio.v1.WorkflowList
+	(*WorkflowVersionList)(nil),                // 3: browser_automation_studio.v1.WorkflowVersionList
+	(*ListWorkflowsRequest)(nil),               // 4: browser_automation_studio.v1.ListWorkflowsRequest
+	(*ListWorkflowsResponse)(nil),              // 5: browser_automation_studio.v1.ListWorkflowsResponse
+	(*GetWorkflowRequest)(nil),                 // 6: browser_automation_studio.v1.GetWorkflowRequest
+	(*GetWorkflowResponse)(nil),                // 7: browser_automation_studio.v1.GetWorkflowResponse
+	(*CreateWorkflowRequest)(nil),              // 8: browser_automation_studio.v1.CreateWorkflowRequest
+	(*CreateWorkflowResponse)(nil),             // 9: browser_automation_studio.v1.CreateWorkflowResponse
+	(*UpdateWorkflowRequest)(nil),              // 10: browser_automation_studio.v1.UpdateWorkflowRequest
+	(*UpdateWorkflowResponse)(nil),             // 11: browser_automation_studio.v1.UpdateWorkflowResponse
+	(*DeleteWorkflowRequest)(nil),              // 12: browser_automation_studio.v1.DeleteWorkflowRequest
+	(*DeleteWorkflowResponse)(nil),             // 13: browser_automation_studio.v1.DeleteWorkflowResponse
+	(*ExecuteWorkflowRequest)(nil),             // 14: browser_automation_studio.v1.ExecuteWorkflowRequest
+	(*ExecuteWorkflowResponse)(nil),            // 15: browser_automation_studio.v1.ExecuteWorkflowResponse
+	(*ListExecutionsRequest)(nil),              // 16: browser_automation_studio.v1.ListExecutionsRequest
+	(*ListExecutionsResponse)(nil),             // 17: browser_automation_studio.v1.ListExecutionsResponse
+	(*ExecutionExportability)(nil),             // 18: browser_automation_studio.v1.ExecutionExportability
+	(*GetExecutionRequest)(nil),                // 19: browser_automation_studio.v1.GetExecutionRequest
+	(*GetExecutionResponse)(nil),               // 20: browser_automation_studio.v1.GetExecutionResponse
+	(*ValidateWorkflowRequest)(nil),            // 21: browser_automation_studio.v1.ValidateWorkflowRequest
+	(*ValidateWorkflowResponse)(nil),           // 22: browser_automation_studio.v1.ValidateWorkflowResponse
+	(*WorkflowValidationIssue)(nil),            // 23: browser_automation_studio.v1.WorkflowValidationIssue
+	(*WorkflowValidationStats)(nil),            // 24: browser_automation_studio.v1.WorkflowValidationStats
+	(*WorkflowValidationResult)(nil),           // 25: browser_automation_studio.v1.WorkflowValidationResult
+	(*RestoreWorkflowVersionResponse)(nil),     // 26: browser_automation_studio.v1.RestoreWorkflowVersionResponse
+	(*ListWorkflowVersionsRequest)(nil),        // 27: browser_automation_studio.v1.ListWorkflowVersionsRequest
+	(*GetWorkflowVersionRequest)(nil),          // 28: browser_automation_studio.v1.GetWorkflowVersionRequest
+	(*RestoreWorkflowVersionRequest)(nil),      // 29: browser_automation_studio.v1.RestoreWorkflowVersionRequest
+	(*ModifyWorkflowRequest)(nil),              // 30: browser_automation_studio.v1.ModifyWorkflowRequest
+	(*GetExecutionTimelineRequest)(nil),        // 31: browser_automation_studio.v1.GetExecutionTimelineRequest
+	(*StopExecutionRequest)(nil),               // 32: browser_automation_studio.v1.StopExecutionRequest
+	(*StopExecutionResponse)(nil),              // 33: browser_automation_studio.v1.StopExecutionResponse
+	(*ResumeExecutionRequest)(nil),             // 34: browser_automation_studio.v1.ResumeExecutionRequest
+	(*ResumeExecutionResponse)(nil),            // 35: browser_automation_studio.v1.ResumeExecutionResponse
+	(*GetExecutionScreenshotsRequest)(nil),     // 36: browser_automation_studio.v1.GetExecutionScreenshotsRequest
+	(*GetExecutionArtifactsRequest)(nil),       // 37: browser_automation_studio.v1.GetExecutionArtifactsRequest
+	(*ExecutionFileArtifact)(nil),              // 38: browser_automation_studio.v1.ExecutionFileArtifact
+	(*GetExecutionVideosResponse)(nil),         // 39: browser_automation_studio.v1.GetExecutionVideosResponse
+	(*GetExecutionTracesResponse)(nil),         // 40: browser_automation_studio.v1.GetExecutionTracesResponse
+	(*GetExecutionHarResponse)(nil),            // 41: browser_automation_studio.v1.GetExecutionHarResponse
+	(*ScheduleSeedCleanupRequest)(nil),         // 42: browser_automation_studio.v1.ScheduleSeedCleanupRequest
+	(*ScheduleSeedCleanupResponse)(nil),        // 43: browser_automation_studio.v1.ScheduleSeedCleanupResponse
+	(*ExecutionArtifactRetentionRequest)(nil),  // 44: browser_automation_studio.v1.ExecutionArtifactRetentionRequest
+	(*ExecutionRetentionItem)(nil),             // 45: browser_automation_studio.v1.ExecutionRetentionItem
+	(*ExecutionArtifactRetentionResponse)(nil), // 46: browser_automation_studio.v1.ExecutionArtifactRetentionResponse
+	nil,                                      // 47: browser_automation_studio.v1.ListExecutionsResponse.ExportabilityEntry
+	nil,                                      // 48: browser_automation_studio.v1.ExecutionArtifactRetentionResponse.RemovedByStatusEntry
+	(base.ChangeSource)(0),                   // 49: browser_automation_studio.v1.ChangeSource
+	(*timestamppb.Timestamp)(nil),            // 50: google.protobuf.Timestamp
+	(*workflows.WorkflowDefinitionV2)(nil),   // 51: browser_automation_studio.v1.WorkflowDefinitionV2
+	(*execution.ExecutionParameters)(nil),    // 52: browser_automation_studio.v1.ExecutionParameters
+	(*execution.ExecuteWorkflowOptions)(nil), // 53: browser_automation_studio.v1.ExecuteWorkflowOptions
+	(base.ExecutionStatus)(0),                // 54: browser_automation_studio.v1.ExecutionStatus
+	(*execution.Execution)(nil),              // 55: browser_automation_studio.v1.Execution
+	(base.ValidationSeverity)(0),             // 56: browser_automation_studio.v1.ValidationSeverity
+	(actions.ActionType)(0),                  // 57: browser_automation_studio.v1.ActionType
+	(*v1.JsonObject)(nil),                    // 58: common.v1.JsonObject
+	(*execution.ExecuteAdhocRequest)(nil),    // 59: browser_automation_studio.v1.ExecuteAdhocRequest
+	(*execution.ExecuteAdhocResponse)(nil),   // 60: browser_automation_studio.v1.ExecuteAdhocResponse
+	(*timeline.ExecutionTimeline)(nil),       // 61: browser_automation_studio.v1.ExecutionTimeline
+	(*execution.GetScreenshotsResponse)(nil), // 62: browser_automation_studio.v1.GetScreenshotsResponse
 }
 var file_browser_automation_studio_v1_api_service_proto_depIdxs = []int32{
-	45, // 0: browser_automation_studio.v1.WorkflowSummary.last_change_source:type_name -> browser_automation_studio.v1.ChangeSource
-	46, // 1: browser_automation_studio.v1.WorkflowSummary.created_at:type_name -> google.protobuf.Timestamp
-	46, // 2: browser_automation_studio.v1.WorkflowSummary.updated_at:type_name -> google.protobuf.Timestamp
-	47, // 3: browser_automation_studio.v1.WorkflowSummary.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
-	47, // 4: browser_automation_studio.v1.WorkflowVersion.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
-	46, // 5: browser_automation_studio.v1.WorkflowVersion.created_at:type_name -> google.protobuf.Timestamp
+	49, // 0: browser_automation_studio.v1.WorkflowSummary.last_change_source:type_name -> browser_automation_studio.v1.ChangeSource
+	50, // 1: browser_automation_studio.v1.WorkflowSummary.created_at:type_name -> google.protobuf.Timestamp
+	50, // 2: browser_automation_studio.v1.WorkflowSummary.updated_at:type_name -> google.protobuf.Timestamp
+	51, // 3: browser_automation_studio.v1.WorkflowSummary.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
+	51, // 4: browser_automation_studio.v1.WorkflowVersion.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
+	50, // 5: browser_automation_studio.v1.WorkflowVersion.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 6: browser_automation_studio.v1.WorkflowList.workflows:type_name -> browser_automation_studio.v1.WorkflowSummary
 	1,  // 7: browser_automation_studio.v1.WorkflowVersionList.versions:type_name -> browser_automation_studio.v1.WorkflowVersion
 	0,  // 8: browser_automation_studio.v1.ListWorkflowsResponse.workflows:type_name -> browser_automation_studio.v1.WorkflowSummary
 	0,  // 9: browser_automation_studio.v1.GetWorkflowResponse.workflow:type_name -> browser_automation_studio.v1.WorkflowSummary
-	47, // 10: browser_automation_studio.v1.CreateWorkflowRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
+	51, // 10: browser_automation_studio.v1.CreateWorkflowRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
 	0,  // 11: browser_automation_studio.v1.CreateWorkflowResponse.workflow:type_name -> browser_automation_studio.v1.WorkflowSummary
-	47, // 12: browser_automation_studio.v1.CreateWorkflowResponse.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
-	47, // 13: browser_automation_studio.v1.UpdateWorkflowRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
-	45, // 14: browser_automation_studio.v1.UpdateWorkflowRequest.source:type_name -> browser_automation_studio.v1.ChangeSource
+	51, // 12: browser_automation_studio.v1.CreateWorkflowResponse.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
+	51, // 13: browser_automation_studio.v1.UpdateWorkflowRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
+	49, // 14: browser_automation_studio.v1.UpdateWorkflowRequest.source:type_name -> browser_automation_studio.v1.ChangeSource
 	0,  // 15: browser_automation_studio.v1.UpdateWorkflowResponse.workflow:type_name -> browser_automation_studio.v1.WorkflowSummary
-	47, // 16: browser_automation_studio.v1.UpdateWorkflowResponse.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
-	48, // 17: browser_automation_studio.v1.ExecuteWorkflowRequest.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
-	49, // 18: browser_automation_studio.v1.ExecuteWorkflowRequest.options:type_name -> browser_automation_studio.v1.ExecuteWorkflowOptions
-	50, // 19: browser_automation_studio.v1.ExecuteWorkflowResponse.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	46, // 20: browser_automation_studio.v1.ExecuteWorkflowResponse.completed_at:type_name -> google.protobuf.Timestamp
-	50, // 21: browser_automation_studio.v1.ListExecutionsRequest.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	51, // 22: browser_automation_studio.v1.ListExecutionsResponse.executions:type_name -> browser_automation_studio.v1.Execution
-	44, // 23: browser_automation_studio.v1.ListExecutionsResponse.exportability:type_name -> browser_automation_studio.v1.ListExecutionsResponse.ExportabilityEntry
-	51, // 24: browser_automation_studio.v1.GetExecutionResponse.execution:type_name -> browser_automation_studio.v1.Execution
-	47, // 25: browser_automation_studio.v1.ValidateWorkflowRequest.workflow:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
+	51, // 16: browser_automation_studio.v1.UpdateWorkflowResponse.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
+	52, // 17: browser_automation_studio.v1.ExecuteWorkflowRequest.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
+	53, // 18: browser_automation_studio.v1.ExecuteWorkflowRequest.options:type_name -> browser_automation_studio.v1.ExecuteWorkflowOptions
+	54, // 19: browser_automation_studio.v1.ExecuteWorkflowResponse.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	50, // 20: browser_automation_studio.v1.ExecuteWorkflowResponse.completed_at:type_name -> google.protobuf.Timestamp
+	54, // 21: browser_automation_studio.v1.ListExecutionsRequest.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	55, // 22: browser_automation_studio.v1.ListExecutionsResponse.executions:type_name -> browser_automation_studio.v1.Execution
+	47, // 23: browser_automation_studio.v1.ListExecutionsResponse.exportability:type_name -> browser_automation_studio.v1.ListExecutionsResponse.ExportabilityEntry
+	55, // 24: browser_automation_studio.v1.GetExecutionResponse.execution:type_name -> browser_automation_studio.v1.Execution
+	51, // 25: browser_automation_studio.v1.ValidateWorkflowRequest.workflow:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
 	25, // 26: browser_automation_studio.v1.ValidateWorkflowResponse.result:type_name -> browser_automation_studio.v1.WorkflowValidationResult
-	52, // 27: browser_automation_studio.v1.WorkflowValidationIssue.severity:type_name -> browser_automation_studio.v1.ValidationSeverity
-	53, // 28: browser_automation_studio.v1.WorkflowValidationIssue.node_type:type_name -> browser_automation_studio.v1.ActionType
+	56, // 27: browser_automation_studio.v1.WorkflowValidationIssue.severity:type_name -> browser_automation_studio.v1.ValidationSeverity
+	57, // 28: browser_automation_studio.v1.WorkflowValidationIssue.node_type:type_name -> browser_automation_studio.v1.ActionType
 	23, // 29: browser_automation_studio.v1.WorkflowValidationResult.errors:type_name -> browser_automation_studio.v1.WorkflowValidationIssue
 	23, // 30: browser_automation_studio.v1.WorkflowValidationResult.warnings:type_name -> browser_automation_studio.v1.WorkflowValidationIssue
 	24, // 31: browser_automation_studio.v1.WorkflowValidationResult.stats:type_name -> browser_automation_studio.v1.WorkflowValidationStats
-	46, // 32: browser_automation_studio.v1.WorkflowValidationResult.checked_at:type_name -> google.protobuf.Timestamp
+	50, // 32: browser_automation_studio.v1.WorkflowValidationResult.checked_at:type_name -> google.protobuf.Timestamp
 	0,  // 33: browser_automation_studio.v1.RestoreWorkflowVersionResponse.workflow:type_name -> browser_automation_studio.v1.WorkflowSummary
 	1,  // 34: browser_automation_studio.v1.RestoreWorkflowVersionResponse.restored_version:type_name -> browser_automation_studio.v1.WorkflowVersion
-	47, // 35: browser_automation_studio.v1.ModifyWorkflowRequest.current_flow:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
-	54, // 36: browser_automation_studio.v1.ResumeExecutionRequest.parameters:type_name -> common.v1.JsonObject
-	51, // 37: browser_automation_studio.v1.ResumeExecutionResponse.execution:type_name -> browser_automation_studio.v1.Execution
-	54, // 38: browser_automation_studio.v1.ExecutionFileArtifact.payload:type_name -> common.v1.JsonObject
+	51, // 35: browser_automation_studio.v1.ModifyWorkflowRequest.current_flow:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
+	58, // 36: browser_automation_studio.v1.ResumeExecutionRequest.parameters:type_name -> common.v1.JsonObject
+	55, // 37: browser_automation_studio.v1.ResumeExecutionResponse.execution:type_name -> browser_automation_studio.v1.Execution
+	58, // 38: browser_automation_studio.v1.ExecutionFileArtifact.payload:type_name -> common.v1.JsonObject
 	38, // 39: browser_automation_studio.v1.GetExecutionVideosResponse.videos:type_name -> browser_automation_studio.v1.ExecutionFileArtifact
 	38, // 40: browser_automation_studio.v1.GetExecutionTracesResponse.traces:type_name -> browser_automation_studio.v1.ExecutionFileArtifact
 	38, // 41: browser_automation_studio.v1.GetExecutionHarResponse.har_files:type_name -> browser_automation_studio.v1.ExecutionFileArtifact
-	18, // 42: browser_automation_studio.v1.ListExecutionsResponse.ExportabilityEntry.value:type_name -> browser_automation_studio.v1.ExecutionExportability
-	4,  // 43: browser_automation_studio.v1.WorkflowsService.ListWorkflows:input_type -> browser_automation_studio.v1.ListWorkflowsRequest
-	6,  // 44: browser_automation_studio.v1.WorkflowsService.GetWorkflow:input_type -> browser_automation_studio.v1.GetWorkflowRequest
-	8,  // 45: browser_automation_studio.v1.WorkflowsService.CreateWorkflow:input_type -> browser_automation_studio.v1.CreateWorkflowRequest
-	10, // 46: browser_automation_studio.v1.WorkflowsService.UpdateWorkflow:input_type -> browser_automation_studio.v1.UpdateWorkflowRequest
-	12, // 47: browser_automation_studio.v1.WorkflowsService.DeleteWorkflow:input_type -> browser_automation_studio.v1.DeleteWorkflowRequest
-	14, // 48: browser_automation_studio.v1.WorkflowsService.ExecuteWorkflow:input_type -> browser_automation_studio.v1.ExecuteWorkflowRequest
-	55, // 49: browser_automation_studio.v1.WorkflowsService.ExecuteAdhocWorkflow:input_type -> browser_automation_studio.v1.ExecuteAdhocRequest
-	21, // 50: browser_automation_studio.v1.WorkflowsService.ValidateWorkflow:input_type -> browser_automation_studio.v1.ValidateWorkflowRequest
-	21, // 51: browser_automation_studio.v1.WorkflowsService.ValidateResolvedWorkflow:input_type -> browser_automation_studio.v1.ValidateWorkflowRequest
-	30, // 52: browser_automation_studio.v1.WorkflowsService.ModifyWorkflow:input_type -> browser_automation_studio.v1.ModifyWorkflowRequest
-	27, // 53: browser_automation_studio.v1.WorkflowsService.ListWorkflowVersions:input_type -> browser_automation_studio.v1.ListWorkflowVersionsRequest
-	28, // 54: browser_automation_studio.v1.WorkflowsService.GetWorkflowVersion:input_type -> browser_automation_studio.v1.GetWorkflowVersionRequest
-	29, // 55: browser_automation_studio.v1.WorkflowsService.RestoreWorkflowVersion:input_type -> browser_automation_studio.v1.RestoreWorkflowVersionRequest
-	16, // 56: browser_automation_studio.v1.ExecutionsService.ListExecutions:input_type -> browser_automation_studio.v1.ListExecutionsRequest
-	19, // 57: browser_automation_studio.v1.ExecutionsService.GetExecution:input_type -> browser_automation_studio.v1.GetExecutionRequest
-	31, // 58: browser_automation_studio.v1.ExecutionsService.GetExecutionTimeline:input_type -> browser_automation_studio.v1.GetExecutionTimelineRequest
-	32, // 59: browser_automation_studio.v1.ExecutionsService.StopExecution:input_type -> browser_automation_studio.v1.StopExecutionRequest
-	34, // 60: browser_automation_studio.v1.ExecutionsService.ResumeExecution:input_type -> browser_automation_studio.v1.ResumeExecutionRequest
-	36, // 61: browser_automation_studio.v1.ExecutionsService.GetExecutionScreenshots:input_type -> browser_automation_studio.v1.GetExecutionScreenshotsRequest
-	37, // 62: browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedVideos:input_type -> browser_automation_studio.v1.GetExecutionArtifactsRequest
-	37, // 63: browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedTraces:input_type -> browser_automation_studio.v1.GetExecutionArtifactsRequest
-	37, // 64: browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedHar:input_type -> browser_automation_studio.v1.GetExecutionArtifactsRequest
-	42, // 65: browser_automation_studio.v1.ExecutionsService.ScheduleExecutionSeedCleanup:input_type -> browser_automation_studio.v1.ScheduleSeedCleanupRequest
-	5,  // 66: browser_automation_studio.v1.WorkflowsService.ListWorkflows:output_type -> browser_automation_studio.v1.ListWorkflowsResponse
-	7,  // 67: browser_automation_studio.v1.WorkflowsService.GetWorkflow:output_type -> browser_automation_studio.v1.GetWorkflowResponse
-	9,  // 68: browser_automation_studio.v1.WorkflowsService.CreateWorkflow:output_type -> browser_automation_studio.v1.CreateWorkflowResponse
-	11, // 69: browser_automation_studio.v1.WorkflowsService.UpdateWorkflow:output_type -> browser_automation_studio.v1.UpdateWorkflowResponse
-	13, // 70: browser_automation_studio.v1.WorkflowsService.DeleteWorkflow:output_type -> browser_automation_studio.v1.DeleteWorkflowResponse
-	15, // 71: browser_automation_studio.v1.WorkflowsService.ExecuteWorkflow:output_type -> browser_automation_studio.v1.ExecuteWorkflowResponse
-	56, // 72: browser_automation_studio.v1.WorkflowsService.ExecuteAdhocWorkflow:output_type -> browser_automation_studio.v1.ExecuteAdhocResponse
-	22, // 73: browser_automation_studio.v1.WorkflowsService.ValidateWorkflow:output_type -> browser_automation_studio.v1.ValidateWorkflowResponse
-	22, // 74: browser_automation_studio.v1.WorkflowsService.ValidateResolvedWorkflow:output_type -> browser_automation_studio.v1.ValidateWorkflowResponse
-	11, // 75: browser_automation_studio.v1.WorkflowsService.ModifyWorkflow:output_type -> browser_automation_studio.v1.UpdateWorkflowResponse
-	3,  // 76: browser_automation_studio.v1.WorkflowsService.ListWorkflowVersions:output_type -> browser_automation_studio.v1.WorkflowVersionList
-	1,  // 77: browser_automation_studio.v1.WorkflowsService.GetWorkflowVersion:output_type -> browser_automation_studio.v1.WorkflowVersion
-	26, // 78: browser_automation_studio.v1.WorkflowsService.RestoreWorkflowVersion:output_type -> browser_automation_studio.v1.RestoreWorkflowVersionResponse
-	17, // 79: browser_automation_studio.v1.ExecutionsService.ListExecutions:output_type -> browser_automation_studio.v1.ListExecutionsResponse
-	20, // 80: browser_automation_studio.v1.ExecutionsService.GetExecution:output_type -> browser_automation_studio.v1.GetExecutionResponse
-	57, // 81: browser_automation_studio.v1.ExecutionsService.GetExecutionTimeline:output_type -> browser_automation_studio.v1.ExecutionTimeline
-	33, // 82: browser_automation_studio.v1.ExecutionsService.StopExecution:output_type -> browser_automation_studio.v1.StopExecutionResponse
-	35, // 83: browser_automation_studio.v1.ExecutionsService.ResumeExecution:output_type -> browser_automation_studio.v1.ResumeExecutionResponse
-	58, // 84: browser_automation_studio.v1.ExecutionsService.GetExecutionScreenshots:output_type -> browser_automation_studio.v1.GetScreenshotsResponse
-	39, // 85: browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedVideos:output_type -> browser_automation_studio.v1.GetExecutionVideosResponse
-	40, // 86: browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedTraces:output_type -> browser_automation_studio.v1.GetExecutionTracesResponse
-	41, // 87: browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedHar:output_type -> browser_automation_studio.v1.GetExecutionHarResponse
-	43, // 88: browser_automation_studio.v1.ExecutionsService.ScheduleExecutionSeedCleanup:output_type -> browser_automation_studio.v1.ScheduleSeedCleanupResponse
-	66, // [66:89] is the sub-list for method output_type
-	43, // [43:66] is the sub-list for method input_type
-	43, // [43:43] is the sub-list for extension type_name
-	43, // [43:43] is the sub-list for extension extendee
-	0,  // [0:43] is the sub-list for field type_name
+	54, // 42: browser_automation_studio.v1.ExecutionArtifactRetentionRequest.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	54, // 43: browser_automation_studio.v1.ExecutionRetentionItem.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	50, // 44: browser_automation_studio.v1.ExecutionRetentionItem.started_at:type_name -> google.protobuf.Timestamp
+	50, // 45: browser_automation_studio.v1.ExecutionRetentionItem.completed_at:type_name -> google.protobuf.Timestamp
+	45, // 46: browser_automation_studio.v1.ExecutionArtifactRetentionResponse.removed:type_name -> browser_automation_studio.v1.ExecutionRetentionItem
+	45, // 47: browser_automation_studio.v1.ExecutionArtifactRetentionResponse.skipped:type_name -> browser_automation_studio.v1.ExecutionRetentionItem
+	48, // 48: browser_automation_studio.v1.ExecutionArtifactRetentionResponse.removed_by_status:type_name -> browser_automation_studio.v1.ExecutionArtifactRetentionResponse.RemovedByStatusEntry
+	18, // 49: browser_automation_studio.v1.ListExecutionsResponse.ExportabilityEntry.value:type_name -> browser_automation_studio.v1.ExecutionExportability
+	4,  // 50: browser_automation_studio.v1.WorkflowsService.ListWorkflows:input_type -> browser_automation_studio.v1.ListWorkflowsRequest
+	6,  // 51: browser_automation_studio.v1.WorkflowsService.GetWorkflow:input_type -> browser_automation_studio.v1.GetWorkflowRequest
+	8,  // 52: browser_automation_studio.v1.WorkflowsService.CreateWorkflow:input_type -> browser_automation_studio.v1.CreateWorkflowRequest
+	10, // 53: browser_automation_studio.v1.WorkflowsService.UpdateWorkflow:input_type -> browser_automation_studio.v1.UpdateWorkflowRequest
+	12, // 54: browser_automation_studio.v1.WorkflowsService.DeleteWorkflow:input_type -> browser_automation_studio.v1.DeleteWorkflowRequest
+	14, // 55: browser_automation_studio.v1.WorkflowsService.ExecuteWorkflow:input_type -> browser_automation_studio.v1.ExecuteWorkflowRequest
+	59, // 56: browser_automation_studio.v1.WorkflowsService.ExecuteAdhocWorkflow:input_type -> browser_automation_studio.v1.ExecuteAdhocRequest
+	21, // 57: browser_automation_studio.v1.WorkflowsService.ValidateWorkflow:input_type -> browser_automation_studio.v1.ValidateWorkflowRequest
+	21, // 58: browser_automation_studio.v1.WorkflowsService.ValidateResolvedWorkflow:input_type -> browser_automation_studio.v1.ValidateWorkflowRequest
+	30, // 59: browser_automation_studio.v1.WorkflowsService.ModifyWorkflow:input_type -> browser_automation_studio.v1.ModifyWorkflowRequest
+	27, // 60: browser_automation_studio.v1.WorkflowsService.ListWorkflowVersions:input_type -> browser_automation_studio.v1.ListWorkflowVersionsRequest
+	28, // 61: browser_automation_studio.v1.WorkflowsService.GetWorkflowVersion:input_type -> browser_automation_studio.v1.GetWorkflowVersionRequest
+	29, // 62: browser_automation_studio.v1.WorkflowsService.RestoreWorkflowVersion:input_type -> browser_automation_studio.v1.RestoreWorkflowVersionRequest
+	16, // 63: browser_automation_studio.v1.ExecutionsService.ListExecutions:input_type -> browser_automation_studio.v1.ListExecutionsRequest
+	19, // 64: browser_automation_studio.v1.ExecutionsService.GetExecution:input_type -> browser_automation_studio.v1.GetExecutionRequest
+	31, // 65: browser_automation_studio.v1.ExecutionsService.GetExecutionTimeline:input_type -> browser_automation_studio.v1.GetExecutionTimelineRequest
+	32, // 66: browser_automation_studio.v1.ExecutionsService.StopExecution:input_type -> browser_automation_studio.v1.StopExecutionRequest
+	34, // 67: browser_automation_studio.v1.ExecutionsService.ResumeExecution:input_type -> browser_automation_studio.v1.ResumeExecutionRequest
+	36, // 68: browser_automation_studio.v1.ExecutionsService.GetExecutionScreenshots:input_type -> browser_automation_studio.v1.GetExecutionScreenshotsRequest
+	37, // 69: browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedVideos:input_type -> browser_automation_studio.v1.GetExecutionArtifactsRequest
+	37, // 70: browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedTraces:input_type -> browser_automation_studio.v1.GetExecutionArtifactsRequest
+	37, // 71: browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedHar:input_type -> browser_automation_studio.v1.GetExecutionArtifactsRequest
+	42, // 72: browser_automation_studio.v1.ExecutionsService.ScheduleExecutionSeedCleanup:input_type -> browser_automation_studio.v1.ScheduleSeedCleanupRequest
+	44, // 73: browser_automation_studio.v1.ExecutionsService.PreviewExecutionArtifactRetention:input_type -> browser_automation_studio.v1.ExecutionArtifactRetentionRequest
+	44, // 74: browser_automation_studio.v1.ExecutionsService.RunExecutionArtifactRetention:input_type -> browser_automation_studio.v1.ExecutionArtifactRetentionRequest
+	5,  // 75: browser_automation_studio.v1.WorkflowsService.ListWorkflows:output_type -> browser_automation_studio.v1.ListWorkflowsResponse
+	7,  // 76: browser_automation_studio.v1.WorkflowsService.GetWorkflow:output_type -> browser_automation_studio.v1.GetWorkflowResponse
+	9,  // 77: browser_automation_studio.v1.WorkflowsService.CreateWorkflow:output_type -> browser_automation_studio.v1.CreateWorkflowResponse
+	11, // 78: browser_automation_studio.v1.WorkflowsService.UpdateWorkflow:output_type -> browser_automation_studio.v1.UpdateWorkflowResponse
+	13, // 79: browser_automation_studio.v1.WorkflowsService.DeleteWorkflow:output_type -> browser_automation_studio.v1.DeleteWorkflowResponse
+	15, // 80: browser_automation_studio.v1.WorkflowsService.ExecuteWorkflow:output_type -> browser_automation_studio.v1.ExecuteWorkflowResponse
+	60, // 81: browser_automation_studio.v1.WorkflowsService.ExecuteAdhocWorkflow:output_type -> browser_automation_studio.v1.ExecuteAdhocResponse
+	22, // 82: browser_automation_studio.v1.WorkflowsService.ValidateWorkflow:output_type -> browser_automation_studio.v1.ValidateWorkflowResponse
+	22, // 83: browser_automation_studio.v1.WorkflowsService.ValidateResolvedWorkflow:output_type -> browser_automation_studio.v1.ValidateWorkflowResponse
+	11, // 84: browser_automation_studio.v1.WorkflowsService.ModifyWorkflow:output_type -> browser_automation_studio.v1.UpdateWorkflowResponse
+	3,  // 85: browser_automation_studio.v1.WorkflowsService.ListWorkflowVersions:output_type -> browser_automation_studio.v1.WorkflowVersionList
+	1,  // 86: browser_automation_studio.v1.WorkflowsService.GetWorkflowVersion:output_type -> browser_automation_studio.v1.WorkflowVersion
+	26, // 87: browser_automation_studio.v1.WorkflowsService.RestoreWorkflowVersion:output_type -> browser_automation_studio.v1.RestoreWorkflowVersionResponse
+	17, // 88: browser_automation_studio.v1.ExecutionsService.ListExecutions:output_type -> browser_automation_studio.v1.ListExecutionsResponse
+	20, // 89: browser_automation_studio.v1.ExecutionsService.GetExecution:output_type -> browser_automation_studio.v1.GetExecutionResponse
+	61, // 90: browser_automation_studio.v1.ExecutionsService.GetExecutionTimeline:output_type -> browser_automation_studio.v1.ExecutionTimeline
+	33, // 91: browser_automation_studio.v1.ExecutionsService.StopExecution:output_type -> browser_automation_studio.v1.StopExecutionResponse
+	35, // 92: browser_automation_studio.v1.ExecutionsService.ResumeExecution:output_type -> browser_automation_studio.v1.ResumeExecutionResponse
+	62, // 93: browser_automation_studio.v1.ExecutionsService.GetExecutionScreenshots:output_type -> browser_automation_studio.v1.GetScreenshotsResponse
+	39, // 94: browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedVideos:output_type -> browser_automation_studio.v1.GetExecutionVideosResponse
+	40, // 95: browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedTraces:output_type -> browser_automation_studio.v1.GetExecutionTracesResponse
+	41, // 96: browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedHar:output_type -> browser_automation_studio.v1.GetExecutionHarResponse
+	43, // 97: browser_automation_studio.v1.ExecutionsService.ScheduleExecutionSeedCleanup:output_type -> browser_automation_studio.v1.ScheduleSeedCleanupResponse
+	46, // 98: browser_automation_studio.v1.ExecutionsService.PreviewExecutionArtifactRetention:output_type -> browser_automation_studio.v1.ExecutionArtifactRetentionResponse
+	46, // 99: browser_automation_studio.v1.ExecutionsService.RunExecutionArtifactRetention:output_type -> browser_automation_studio.v1.ExecutionArtifactRetentionResponse
+	75, // [75:100] is the sub-list for method output_type
+	50, // [50:75] is the sub-list for method input_type
+	50, // [50:50] is the sub-list for extension type_name
+	50, // [50:50] is the sub-list for extension extendee
+	0,  // [0:50] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_api_service_proto_init() }
@@ -3392,13 +3779,15 @@ func file_browser_automation_studio_v1_api_service_proto_init() {
 	file_browser_automation_studio_v1_api_service_proto_msgTypes[15].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_api_service_proto_msgTypes[16].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_api_service_proto_msgTypes[38].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_api_service_proto_msgTypes[44].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_api_service_proto_msgTypes[45].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_api_service_proto_rawDesc), len(file_browser_automation_studio_v1_api_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   45,
+			NumMessages:   49,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

@@ -829,6 +829,37 @@ func TestRecordingPipeline_EndToEnd(t *testing.T) {
 
 ---
 
+### 29. Execution Artifact Retention Seam (Strong)
+
+**Location:** `api/services/retention/retention.go`
+
+**Purpose:** Select terminal executions for artifact cleanup and, in apply mode, delete their artifact directories and DB index rows together. Owns the retention business logic so the Connect handler (`handlers/executions/retention.go`) and CLI stay thin.
+
+**Interfaces:**
+
+```go
+// api/services/retention/retention.go
+type FileSystem interface {
+    DirSize(dir string) (sizeBytes int64, exists bool, err error) // missing dir -> (0,false,nil)
+    RemoveAll(dir string) error
+}
+
+type ExecutionStore interface {
+    ListExecutions(ctx, workflowID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error)
+    ListExecutionsByStatus(ctx, status string, limit, offset int) ([]*database.ExecutionIndex, error)
+    DeleteExecution(ctx, id uuid.UUID) error
+}
+```
+
+**Why it's a seam:**
+- `FileSystem` (`OSFileSystem` in prod) lets tests run sizing/deletion without touching disk and keeps deletion constrained to the recordings root (`underRoot` containment check).
+- `ExecutionStore` (the DB repository in prod) is faked in tests to assert selection, `keep_latest`, age filtering, and that file-delete failures prevent DB-row deletion.
+- `Service.WithClock` injects a fixed time so age-filter tests are deterministic.
+
+**Safety invariants:** only terminal executions (`completed`/`failed`) are eligible; running/pending are never gathered; artifact directories must resolve strictly under the configured recordings root; dry-run performs no filesystem or DB mutation.
+
+---
+
 ## TypeScript Playwright-Driver Seams
 
 ### 12. InstructionHandler Seam (Strong)

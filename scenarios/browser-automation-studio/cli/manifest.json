@@ -976,6 +976,39 @@
             "run_eligible": true,
             "permissions": ["network:internal"]
           }
+        },
+        {
+          "name": "retention-preview",
+          "description": "Preview (dry-run) which terminal executions and artifact directories a retention sweep would remove. No deletion is performed.",
+          "flags": [
+            { "name": "max-age-days", "description": "Remove executions older than this many days (0 disables the age filter)" },
+            { "name": "keep-latest", "description": "Keep this many most-recent terminal executions per workflow" },
+            { "name": "workflow-id", "description": "Restrict to a single workflow UUID" },
+            { "name": "project-id", "description": "Restrict to a single project UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "PreviewExecutionArtifactRetention" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "retention-run",
+          "description": "Delete matched terminal execution rows and their artifact directories together. Requires --confirm to mutate.",
+          "flags": [
+            { "name": "max-age-days", "description": "Remove executions older than this many days (0 disables the age filter)" },
+            { "name": "keep-latest", "description": "Keep this many most-recent terminal executions per workflow" },
+            { "name": "workflow-id", "description": "Restrict to a single workflow UUID" },
+            { "name": "project-id", "description": "Restrict to a single project UUID" },
+            { "name": "confirm", "bool": true, "description": "Required explicit confirmation; without it the run is refused" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "RunExecutionArtifactRetention" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
         }
       ]
     },

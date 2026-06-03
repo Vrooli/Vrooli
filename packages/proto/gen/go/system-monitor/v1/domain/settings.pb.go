@@ -40,8 +40,16 @@ type SystemSettings struct {
 	MemoryThreshold float64 `protobuf:"fixed64,7,opt,name=memory_threshold,json=memoryThreshold,proto3" json:"memory_threshold,omitempty"`
 	// Disk alert threshold percentage.
 	DiskThreshold float64 `protobuf:"fixed64,8,opt,name=disk_threshold,json=diskThreshold,proto3" json:"disk_threshold,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Number of days of metrics history to retain before scheduled pruning.
+	MetricsRetentionDays int32 `protobuf:"varint,9,opt,name=metrics_retention_days,json=metricsRetentionDays,proto3" json:"metrics_retention_days,omitempty"`
+	// Interval in seconds between scheduled retention runs.
+	RetentionCheckIntervalSeconds int32 `protobuf:"varint,10,opt,name=retention_check_interval_seconds,json=retentionCheckIntervalSeconds,proto3" json:"retention_check_interval_seconds,omitempty"`
+	// Whether retention runs once immediately at service startup.
+	RetentionRunOnStartup bool `protobuf:"varint,11,opt,name=retention_run_on_startup,json=retentionRunOnStartup,proto3" json:"retention_run_on_startup,omitempty"`
+	// Whether a scheduled retention prune is followed by database compaction.
+	CompactAfterRetention bool `protobuf:"varint,12,opt,name=compact_after_retention,json=compactAfterRetention,proto3" json:"compact_after_retention,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *SystemSettings) Reset() {
@@ -130,11 +138,39 @@ func (x *SystemSettings) GetDiskThreshold() float64 {
 	return 0
 }
 
+func (x *SystemSettings) GetMetricsRetentionDays() int32 {
+	if x != nil {
+		return x.MetricsRetentionDays
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetRetentionCheckIntervalSeconds() int32 {
+	if x != nil {
+		return x.RetentionCheckIntervalSeconds
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetRetentionRunOnStartup() bool {
+	if x != nil {
+		return x.RetentionRunOnStartup
+	}
+	return false
+}
+
+func (x *SystemSettings) GetCompactAfterRetention() bool {
+	if x != nil {
+		return x.CompactAfterRetention
+	}
+	return false
+}
+
 var File_system_monitor_v1_domain_settings_proto protoreflect.FileDescriptor
 
 const file_system_monitor_v1_domain_settings_proto_rawDesc = "" +
 	"\n" +
-	"'system-monitor/v1/domain/settings.proto\x12\x11system_monitor.v1\"\x8d\x03\n" +
+	"'system-monitor/v1/domain/settings.proto\x12\x11system_monitor.v1\"\xfd\x04\n" +
 	"\x0eSystemSettings\x12\x16\n" +
 	"\x06active\x18\x01 \x01(\bR\x06active\x12<\n" +
 	"\x1ametric_collection_interval\x18\x02 \x01(\x05R\x18metricCollectionInterval\x12<\n" +
@@ -143,7 +179,12 @@ const file_system_monitor_v1_domain_settings_proto_rawDesc = "" +
 	"\x17cooldown_period_seconds\x18\x05 \x01(\x05R\x15cooldownPeriodSeconds\x12#\n" +
 	"\rcpu_threshold\x18\x06 \x01(\x01R\fcpuThreshold\x12)\n" +
 	"\x10memory_threshold\x18\a \x01(\x01R\x0fmemoryThreshold\x12%\n" +
-	"\x0edisk_threshold\x18\b \x01(\x01R\rdiskThresholdBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain;domainb\x06proto3"
+	"\x0edisk_threshold\x18\b \x01(\x01R\rdiskThreshold\x124\n" +
+	"\x16metrics_retention_days\x18\t \x01(\x05R\x14metricsRetentionDays\x12G\n" +
+	" retention_check_interval_seconds\x18\n" +
+	" \x01(\x05R\x1dretentionCheckIntervalSeconds\x127\n" +
+	"\x18retention_run_on_startup\x18\v \x01(\bR\x15retentionRunOnStartup\x126\n" +
+	"\x17compact_after_retention\x18\f \x01(\bR\x15compactAfterRetentionBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain;domainb\x06proto3"
 
 var (
 	file_system_monitor_v1_domain_settings_proto_rawDescOnce sync.Once
