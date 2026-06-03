@@ -201,6 +201,7 @@ credential is stored anywhere in this folder.
 func renderRecovery(meta BundleMetadata) string {
 	secretRef := meta.SecretRef
 	if secretRef == "" {
+		// #nosec G101 -- human-readable fallback message for the recovery doc, not a credential.
 		secretRef = "(see your Vrooli vault; no secret reference was recorded)"
 	}
 	return fmt.Sprintf(`Vrooli Data Backup Manager — Standalone Recovery

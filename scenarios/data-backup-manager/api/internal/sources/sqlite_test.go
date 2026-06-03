@@ -87,7 +87,13 @@ func TestSqliteSource_VacuumIntoConsistent(t *testing.T) {
 	wg.Wait()
 	require.NoError(t, err)
 	assert.NotEmpty(t, art.Path)
-	assert.FileExists(t, art.Path)
+	// The artifact is a directory containing snapshot.db (so the kopia snapshot
+	// root is a directory, restorable into a directory target).
+	artInfo, statErr := os.Stat(art.Path)
+	require.NoError(t, statErr)
+	assert.True(t, artInfo.IsDir(), "sqlite artifact must be a directory")
+	assert.FileExists(t, filepath.Join(art.Path, "snapshot.db"))
+	assert.Positive(t, art.Bytes, "sqlite artifact must report copied bytes")
 
 	// --- Restore ---
 	restorePath := filepath.Join(t.TempDir(), "restored.db")
@@ -116,7 +122,7 @@ func TestSqliteSource_VacuumIntoConsistent(t *testing.T) {
 		assert.Equal(t, row.name, name, "seeded row id=%d name must match", row.id)
 	}
 
-	// The artifact file must exist on disk.
-	_, statErr := os.Stat(art.Path)
-	assert.NoError(t, statErr, "artifact file must exist on disk")
+	// The artifact's snapshot.db must exist on disk.
+	_, dbStatErr := os.Stat(filepath.Join(art.Path, "snapshot.db"))
+	assert.NoError(t, dbStatErr, "artifact snapshot.db must exist on disk")
 }

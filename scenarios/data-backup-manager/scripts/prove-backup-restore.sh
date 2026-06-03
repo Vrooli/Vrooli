@@ -117,12 +117,17 @@ TARGET_JSON="$(data-backup-manager targets register \
   --json)"
 TARGET_ID="$(jq -r '.target.id // .id' <<<"${TARGET_JSON}")"
 
+# This canary is a self-contained engine proof: it binds only its own disposable
+# temp target to a disposable temp destination and tears both down on exit. The
+# default-coverage guard reflects the *host's* global backup posture, which is
+# irrelevant to an isolated engine check, so bypass it here explicitly.
 PLAN_JSON="$(data-backup-manager plans create \
   --name "e2e-manual-${SUFFIX}" \
   --targets "${TARGET_ID}" \
   --destinations "${DESTINATION_ID}" \
   --schedule "" \
   --keep-latest 3 \
+  --allow-incomplete-coverage \
   --json)"
 PLAN_ID="$(jq -r '.plan.id // .id' <<<"${PLAN_JSON}")"
 

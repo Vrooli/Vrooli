@@ -16,18 +16,27 @@ import (
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client runsconnect.RunsServiceClient
+	// triggerClient has no client-side deadline. TriggerRun executes the whole
+	// backup (capture + kopia snapshot for every target) synchronously inside the
+	// request, which can run for many minutes on large targets / slow drives. The
+	// default short client timeout would disconnect mid-snapshot — and because the
+	// server execs kopia with the request context, that disconnect kills the
+	// snapshot and wedges the run in PENDING. An unlimited deadline avoids that.
+	triggerClient runsconnect.RunsServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	longClient, longBaseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
 	return &handlers{
-		core:   core,
-		client: runsconnect.NewRunsServiceClient(httpClient, baseURL),
+		core:          core,
+		client:        runsconnect.NewRunsServiceClient(httpClient, baseURL),
+		triggerClient: runsconnect.NewRunsServiceClient(longClient, longBaseURL),
 	}
 }
 
 func (h *handlers) trigger(ctx cliapp.RunContext) error {
-	resp, err := h.client.TriggerRun(context.Background(), connect.NewRequest(&runsv1.TriggerRunRequest{
+	resp, err := h.triggerClient.TriggerRun(context.Background(), connect.NewRequest(&runsv1.TriggerRunRequest{
 		PlanId: ctx.Flag("plan"),
 	}))
 	if err != nil {

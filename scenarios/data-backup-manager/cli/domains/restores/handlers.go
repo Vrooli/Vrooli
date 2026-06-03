@@ -16,18 +16,27 @@ import (
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client restoresconnect.RestoresServiceClient
+	// longClient has no client-side deadline. RestoreTarget and VerifyTarget run
+	// synchronously inside the request — each does a full kopia restore (and, for
+	// verify, a 100% byte-verify) of the snapshot, which can take many minutes on
+	// large targets / slow drives. The default short client timeout would
+	// disconnect mid-restore; because the server execs kopia with the request
+	// context, that disconnect kills the work. An unlimited deadline avoids it.
+	longClient restoresconnect.RestoresServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	longHTTP, longBaseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
 	return &handlers{
-		core:   core,
-		client: restoresconnect.NewRestoresServiceClient(httpClient, baseURL),
+		core:       core,
+		client:     restoresconnect.NewRestoresServiceClient(httpClient, baseURL),
+		longClient: restoresconnect.NewRestoresServiceClient(longHTTP, longBaseURL),
 	}
 }
 
 func (h *handlers) restore(ctx cliapp.RunContext) error {
-	resp, err := h.client.RestoreTarget(context.Background(), connect.NewRequest(&restoresv1.RestoreTargetRequest{
+	resp, err := h.longClient.RestoreTarget(context.Background(), connect.NewRequest(&restoresv1.RestoreTargetRequest{
 		TargetId:      ctx.Flag("target"),
 		DestinationId: ctx.Flag("destination"),
 		SnapshotId:    ctx.Flag("snapshot"),
@@ -49,7 +58,7 @@ func (h *handlers) restore(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) verify(ctx cliapp.RunContext) error {
-	resp, err := h.client.VerifyTarget(context.Background(), connect.NewRequest(&restoresv1.VerifyTargetRequest{
+	resp, err := h.longClient.VerifyTarget(context.Background(), connect.NewRequest(&restoresv1.VerifyTargetRequest{
 		TargetId:      ctx.Flag("target"),
 		DestinationId: ctx.Flag("destination"),
 		SnapshotId:    ctx.Flag("snapshot"),

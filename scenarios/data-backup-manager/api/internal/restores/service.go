@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -257,19 +258,30 @@ func isNonEmptyDir(path string) (bool, error) {
 }
 
 // checksumDir computes a deterministic sha256 over the contents of all files
-// under dir, sorted by path, as verify evidence.
+// under dir, sorted by path, as verify evidence. Symlinks are hashed by their
+// link target (never followed) — a restored tree can contain links to
+// directories (e.g. ~/.vrooli/state's codex session trees), which os.Open would
+// choke on, and following them would reach outside the snapshot entirely.
 func checksumDir(dir string) (string, error) {
 	h := sha256.New()
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
+		if d.IsDir() {
 			return nil
 		}
 		// Include the relative path in the hash for determinism.
 		rel, _ := filepath.Rel(dir, path)
 		_, _ = fmt.Fprintf(h, "%s\n", rel)
+		if d.Type()&fs.ModeSymlink != 0 {
+			link, linkErr := os.Readlink(path)
+			if linkErr != nil {
+				return linkErr
+			}
+			_, _ = fmt.Fprintf(h, "symlink:%s\n", link)
+			return nil
+		}
 		f, err := os.Open(path)
 		if err != nil {
 			return err

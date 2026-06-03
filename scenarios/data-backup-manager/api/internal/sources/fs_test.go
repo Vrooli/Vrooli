@@ -67,6 +67,81 @@ func TestFilesystemSource_RoundTrip(t *testing.T) {
 	assert.Equal(t, wantChecksums, gotChecksums, "restored tree must be byte-identical to source")
 }
 
+// TestFilesystemSource_SingleFile captures a single-file locator (not a
+// directory) and asserts it round-trips as fs/<basename>. This is the shape of
+// most default coverage targets (config.toml, history.jsonl, secrets.json).
+func TestFilesystemSource_SingleFile(t *testing.T) {
+	t.Parallel()
+
+	srcDir := t.TempDir()
+	srcFile := filepath.Join(srcDir, "config.toml")
+	content := []byte("model = \"opus\"\n")
+	require.NoError(t, os.WriteFile(srcFile, content, 0o640))
+
+	ctx := context.Background()
+	cap, err := sources.NewProductionRegistry(sources.ExecRunner{}).Capturer(sources.KindFilesystem)
+	require.NoError(t, err)
+
+	stageDir := t.TempDir()
+	art, err := cap.Capture(ctx, sources.CaptureSpec{Locator: srcFile, StageDir: stageDir})
+	require.NoError(t, err)
+	assert.Equal(t, int64(len(content)), art.Bytes)
+
+	staged := filepath.Join(art.Path, "config.toml")
+	got, err := os.ReadFile(staged)
+	require.NoError(t, err)
+	assert.Equal(t, content, got, "single file must be staged as fs/<basename>")
+
+	restoreDir := t.TempDir()
+	require.NoError(t, cap.Restore(ctx, sources.RestoreSpec{
+		Locator:      srcFile,
+		ArtifactPath: art.Path,
+		Target:       restoreDir,
+	}))
+	restored, err := os.ReadFile(filepath.Join(restoreDir, "config.toml"))
+	require.NoError(t, err)
+	assert.Equal(t, content, restored)
+}
+
+// TestFilesystemSource_PreservesSymlinks asserts a symlink in the source tree —
+// including one pointing at a directory and one pointing OUTSIDE the captured
+// tree — is preserved as a symlink, not followed. Following an out-of-tree link
+// (the ~/.vrooli/state → ~/.codex/auth.json pattern) would both break the copy
+// and dereference deliberately-excluded files.
+func TestFilesystemSource_PreservesSymlinks(t *testing.T) {
+	t.Parallel()
+
+	// An external directory the in-tree symlink will point at.
+	outside := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("nope"), 0o600))
+
+	srcDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "real.txt"), []byte("real\n"), 0o640))
+	require.NoError(t, os.Symlink(outside, filepath.Join(srcDir, "link-to-dir")))
+	require.NoError(t, os.Symlink("real.txt", filepath.Join(srcDir, "link-to-file")))
+
+	ctx := context.Background()
+	cap, err := sources.NewProductionRegistry(sources.ExecRunner{}).Capturer(sources.KindFilesystem)
+	require.NoError(t, err)
+
+	stageDir := t.TempDir()
+	art, err := cap.Capture(ctx, sources.CaptureSpec{Locator: srcDir, StageDir: stageDir})
+	require.NoError(t, err, "capturing a tree with symlinks must not error")
+
+	// The symlink-to-dir must be a symlink in the artifact, not a copied tree.
+	info, err := os.Lstat(filepath.Join(art.Path, "link-to-dir"))
+	require.NoError(t, err)
+	assert.NotZero(t, info.Mode()&fs.ModeSymlink, "link-to-dir must be preserved as a symlink")
+	link, err := os.Readlink(filepath.Join(art.Path, "link-to-dir"))
+	require.NoError(t, err)
+	assert.Equal(t, outside, link, "symlink target must be copied verbatim, not dereferenced")
+
+	// The excluded target must NOT have been pulled into the artifact.
+	_, statErr := os.Stat(filepath.Join(art.Path, "link-to-dir", "secret.txt"))
+	_ = statErr // link points outside; existence here would mean we followed it
+	assert.NoFileExists(t, filepath.Join(art.Path, "secret.txt"))
+}
+
 // checksumTree walks root and returns map[relative-path]sha256hex for every file.
 func checksumTree(t *testing.T, root string) map[string]string {
 	t.Helper()

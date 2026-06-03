@@ -218,6 +218,83 @@ edge and pass the id set to the repository (which already filters by id).
 **Owner:** unassigned. **Refs:** `handlers/runs/connect_handler.go::ListTargetStatus`;
 `internal/runs/repository.go::TargetStatuses`.
 
+### 2026-06-03 — Filesystem/SQLite capturer single-file + symlink handling (resolved)
+
+**Symptom:** The first real multi-target backup (16 default-coverage targets to
+the Elements drive) returned `PARTIAL_FAILED`: every single-file target
+(`*.toml`, `*.jsonl`, `secrets.json`) failed `capture: … copyFile create
+".../fs": is a directory`; `~/.vrooli/state` failed `copy_file_range … is a
+directory`; and the two SQLite targets passed capture but failed `restores
+verify` with `snapshot restore … is a directory`.
+
+**Root cause:** `sources/fs.go` always treated the staged artifact root `fs/` as
+a directory: a single-file locator's only walk entry has `rel == "."`, so the
+copy clobbered the directory. The walk also treated symlinks as regular files
+(`d.IsDir()` is false for a symlink), so `os.Open` followed `~/.vrooli/state`'s
+links into directories (`rules → ~/.codex/rules`) — and, worse, into the
+deliberately-excluded `~/.codex/auth.json` credential. `sources/sqlite.go`
+produced a single *file* artifact, but the engine snapshots the artifact and
+later restores it into a fresh *directory*, which kopia cannot do for a
+single-file snapshot root.
+
+**Resolution:** fs.go stages single files under `fs/<basename>` and preserves
+symlinks as symlinks (never dereferenced); `restores/service.go::checksumDir`
+hashes link targets instead of opening them; sqlite.go stages into a directory
+(`sqlite/snapshot.db`). Covered by new `sources` tests (single-file, symlink,
+sqlite directory shape). After the fix a fresh run is `COMPLETED` with all 16
+targets `RESTORE_STATUS_VERIFIED`.
+
+**Owner:** resolved. **Refs:** `api/internal/sources/fs.go`,
+`api/internal/sources/sqlite.go`, `api/internal/restores/service.go::checksumDir`.
+
+### 2026-06-03 — Synchronous run/restore execution is interruption-fragile
+
+**Symptom:** A backup/verify/restore that runs longer than the transport
+timeouts (default Connect client timeout; api-core 30 s `WriteTimeout`) gets its
+connection severed mid-operation. Because the server execs kopia with the
+*request* context, the disconnect kills the kopia subprocess; the run is then
+stranded in `RUN_STATUS_PENDING` forever (no terminal status, no
+reconciliation). Multiple orphaned PENDING rows for plan
+`elements-daily-runtime` are this, from before the timeout fix.
+
+**Root cause:** `runs.TriggerRun` and `restores.{VerifyTarget,RestoreTarget}`
+execute the whole operation synchronously inside the request handler and thread
+`req.Context()` all the way down to `exec.CommandContext`. There is no async
+execution, no incremental status persistence, and no startup sweep that fails or
+resumes runs left PENDING by a crash/restart/disconnect.
+
+**Workaround (shipped):** CLIs use an unlimited-timeout Connect client for the
+long RPCs and the API sets `WriteTimeout: 6h`, so normal long runs now complete
+and persist cleanly. This does not cover an actual mid-run API restart/SIGTERM.
+
+**Real fix:** Execute runs/restores on a background worker with a non-request
+context, persist `CAPTURING`/`SNAPSHOTTING` transitions as work proceeds, and add
+a startup reconciliation that marks orphaned PENDING runs `FAILED` (or resumes
+them). The proto already has the intermediate `RUN_STATUS_*` states for this.
+
+**Owner:** unassigned (filed via report-bug). **Refs:**
+`api/internal/runs/service.go::TriggerRun`,
+`api/internal/restores/service.go`, `api/main.go` (WriteTimeout),
+`cli/domains/{runs,restores}/handlers.go`.
+
+### 2026-06-03 — `destinations usage` fails: resource-kopia `repo stats --json`
+
+**Symptom:** `data-backup-manager destinations usage <id>` errors with
+`kopia … content stats --json: unknown long flag '--json'`.
+
+**Root cause:** External — `resource-kopia repo stats --json` shells out to
+`kopia content stats --json`, but the installed kopia build does not accept
+`--json` on `content stats`. Not a DBM defect; DBM only consumes the wrapper.
+
+**Workaround:** Usage reporting is informational and unused by the backup/verify
+path; ignore the error. Capacity caps still work (they use a different path).
+
+**Real fix:** Fix `resource-kopia repo stats` to not pass an unsupported flag
+(or parse non-JSON output). Filed against the kopia resource via report-bug.
+
+**Owner:** resource-kopia (filed). **Refs:** `resources/kopia` CLI; surfaced at
+`api/internal/engine/kopia.go` (RepoStats).
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

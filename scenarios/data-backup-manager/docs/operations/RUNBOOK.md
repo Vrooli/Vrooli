@@ -112,6 +112,20 @@ device-identity revalidation. Formatting, relabeling, and clearing files
 remain unsupported operationally; handle those outside this scenario until
 the Linux drive-preparation adapter is implemented and validated.
 
+Note: `prepare-plan --json` wraps the plan as `{"plan": {…}}`, but
+`prepare-execute --plan-json` expects the **inner** plan object. Extract it and
+pass the exact `confirmation_phrase`:
+
+```bash
+PLAN=$(data-backup-manager destinations prepare-plan \
+  --location <mount> --action create-subdir --subdir vrooli-backups \
+  --json | jq -c '.plan')
+data-backup-manager destinations prepare-execute \
+  --plan-json "$PLAN" \
+  --confirm "$(jq -r '.confirmation_phrase' <<<"$PLAN")" \
+  --dry-run false
+```
+
 After review, create the destination at the bundle root (a slug-safe name):
 
 ```bash

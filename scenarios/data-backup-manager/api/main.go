@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"data-backup-manager/internal/clock"
 	"data-backup-manager/internal/engine"
@@ -268,7 +269,15 @@ func run(ctx context.Context) error {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		// Backup runs, restores, and verifies execute synchronously inside the
+		// request and exec kopia for the whole snapshot — minutes on large
+		// targets / slow external drives. The api-core default WriteTimeout (30s)
+		// severs the connection mid-operation ("unexpected EOF" client-side) even
+		// though the handler keeps running. Give responses a generous ceiling so
+		// these long RPCs return cleanly. (ReadTimeout stays at the default —
+		// request bodies here are tiny.)
+		WriteTimeout: 6 * time.Hour,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		return fmt.Errorf("server error: %w", err)
 	}
