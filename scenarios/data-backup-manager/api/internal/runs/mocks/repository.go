@@ -78,7 +78,7 @@ func (f *FakeRepository) SaveOutcome(_ context.Context, runID string, o runs.Tar
 	return runs.ErrRunNotFound{ID: runID}
 }
 
-func (f *FakeRepository) FinishRun(_ context.Context, runID string, status runs.RunStatus, errMsg string, finishedAt time.Time) error {
+func (f *FakeRepository) FinishRun(_ context.Context, runID string, status runs.RunStatus, errMsg string, finishedAt time.Time, physicalBytes int64) error {
 	if f.SaveErr != nil {
 		return f.SaveErr
 	}
@@ -89,6 +89,7 @@ func (f *FakeRepository) FinishRun(_ context.Context, runID string, status runs.
 			f.runs[i].Status = status
 			f.runs[i].Error = errMsg
 			f.runs[i].FinishedAt = finishedAt
+			f.runs[i].PhysicalBytes = physicalBytes
 			return nil
 		}
 	}

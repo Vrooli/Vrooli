@@ -16,27 +16,29 @@ import (
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client restoresconnect.RestoresServiceClient
-	// longClient has no client-side deadline. RestoreTarget and VerifyTarget run
-	// synchronously inside the request — each does a full kopia restore (and, for
-	// verify, a 100% byte-verify) of the snapshot, which can take many minutes on
-	// large targets / slow drives. The default short client timeout would
-	// disconnect mid-restore; because the server execs kopia with the request
-	// context, that disconnect kills the work. An unlimited deadline avoids it.
-	longClient restoresconnect.RestoresServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	longHTTP, longBaseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
 	return &handlers{
-		core:       core,
-		client:     restoresconnect.NewRestoresServiceClient(httpClient, baseURL),
-		longClient: restoresconnect.NewRestoresServiceClient(longHTTP, longBaseURL),
+		core:   core,
+		client: restoresconnect.NewRestoresServiceClient(httpClient, baseURL),
 	}
 }
 
+// restorePollInterval is how often the CLI polls a restore/verify for its
+// terminal state. The request RPCs are now async (they return immediately), so
+// the CLI owns the wait — each poll is a fast GetRestore, no long-lived request.
+const restorePollInterval = 2 * time.Second
+
+// restorePollDeadline caps how long the CLI waits for a restore/verify to reach
+// a terminal state. A real restore can take many minutes on large targets/slow
+// drives; this generous ceiling only guards against a wedged backend (the
+// worker always reaches terminal, and startup reconciliation closes orphans).
+const restorePollDeadline = 6 * time.Hour
+
 func (h *handlers) restore(ctx cliapp.RunContext) error {
-	resp, err := h.longClient.RestoreTarget(context.Background(), connect.NewRequest(&restoresv1.RestoreTargetRequest{
+	resp, err := h.client.RestoreTarget(context.Background(), connect.NewRequest(&restoresv1.RestoreTargetRequest{
 		TargetId:      ctx.Flag("target"),
 		DestinationId: ctx.Flag("destination"),
 		SnapshotId:    ctx.Flag("snapshot"),
@@ -48,17 +50,21 @@ func (h *handlers) restore(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil || resp.Msg.Restore == nil {
 		return fmt.Errorf("server returned no restore")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Restore requested: %s.", resp.Msg.Restore.Id)},
-		Changes: []string{formatRestore(resp.Msg.Restore)},
+	final, err := h.pollToTerminal(resp.Msg.Restore.Id)
+	if err != nil {
+		return cliapp.WrapAPIError("restore target", err, nil)
+	}
+	return cliapp.RenderProtoMutation(ctx, &restoresv1.RestoreTargetResponse{Restore: final}, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Restore %s: %s.", restoreStatusLabel(final.Status), final.Id)},
+		Changes: []string{formatRestore(final)},
 		NextCommand: []string{
-			fmt.Sprintf("`restores get %s` — show restore status", resp.Msg.Restore.Id),
+			fmt.Sprintf("`restores get %s` — show restore status", final.Id),
 		},
 	})
 }
 
 func (h *handlers) verify(ctx cliapp.RunContext) error {
-	resp, err := h.longClient.VerifyTarget(context.Background(), connect.NewRequest(&restoresv1.VerifyTargetRequest{
+	resp, err := h.client.VerifyTarget(context.Background(), connect.NewRequest(&restoresv1.VerifyTargetRequest{
 		TargetId:      ctx.Flag("target"),
 		DestinationId: ctx.Flag("destination"),
 		SnapshotId:    ctx.Flag("snapshot"),
@@ -69,13 +75,51 @@ func (h *handlers) verify(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil || resp.Msg.Restore == nil {
 		return fmt.Errorf("server returned no restore")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Verify requested: %s.", resp.Msg.Restore.Id)},
-		Changes: []string{formatRestore(resp.Msg.Restore)},
+	final, err := h.pollToTerminal(resp.Msg.Restore.Id)
+	if err != nil {
+		return cliapp.WrapAPIError("verify target", err, nil)
+	}
+	return cliapp.RenderProtoMutation(ctx, &restoresv1.VerifyTargetResponse{Restore: final}, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Verify %s: %s.", restoreStatusLabel(final.Status), final.Id)},
+		Changes: []string{formatRestore(final)},
 		NextCommand: []string{
-			fmt.Sprintf("`restores get %s` — show verify status", resp.Msg.Restore.Id),
+			fmt.Sprintf("`restores get %s` — show verify status", final.Id),
 		},
 	})
+}
+
+// pollToTerminal polls GetRestore until the record reaches a terminal state.
+// Restore/verify now run in the background, so the CLI waits here rather than
+// holding a long request open — each poll is a quick GetRestore.
+func (h *handlers) pollToTerminal(id string) (*restoresv1.Restore, error) {
+	deadline := time.Now().Add(restorePollDeadline)
+	for {
+		resp, err := h.client.GetRestore(context.Background(), connect.NewRequest(&restoresv1.GetRestoreRequest{Id: id}))
+		if err != nil {
+			return nil, err
+		}
+		if resp == nil || resp.Msg == nil || resp.Msg.Restore == nil {
+			return nil, fmt.Errorf("server returned no restore for %q", id)
+		}
+		if isTerminalRestore(resp.Msg.Restore.Status) {
+			return resp.Msg.Restore, nil
+		}
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("restore %q did not reach a terminal state within %s (still %s)", id, restorePollDeadline, restoreStatusLabel(resp.Msg.Restore.Status))
+		}
+		time.Sleep(restorePollInterval)
+	}
+}
+
+func isTerminalRestore(s restoresv1.RestoreStatus) bool {
+	switch s {
+	case restoresv1.RestoreStatus_RESTORE_STATUS_VERIFIED,
+		restoresv1.RestoreStatus_RESTORE_STATUS_RESTORED,
+		restoresv1.RestoreStatus_RESTORE_STATUS_FAILED:
+		return true
+	default:
+		return false
+	}
 }
 
 func (h *handlers) get(ctx cliapp.RunContext) error {

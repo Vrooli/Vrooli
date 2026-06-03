@@ -64,3 +64,47 @@ func TestComputeRunStats_Empty(t *testing.T) {
 		t.Errorf("empty stats not zero-valued: %+v", st)
 	}
 }
+
+func TestComputeRunStatsPhysicalAndDedup(t *testing.T) {
+	withPhysical := func(r Run, physical int64) Run { r.PhysicalBytes = physical; return r }
+	runs := []Run{
+		withPhysical(run(RunCompleted, 0, 2, 800), 100), // logical 800, physical 100
+		withPhysical(run(RunCompleted, 10, 2, 1200), 0), // physical 0 (full dedup): omitted from physical total
+		withPhysical(run(RunFailed, 20, 2), -50),        // negative is never produced, but must not subtract
+	}
+	st := computeRunStats(runs)
+	if st.TotalPhysicalBytes != 100 {
+		t.Errorf("total physical = %d, want 100 (only positive deltas)", st.TotalPhysicalBytes)
+	}
+	if st.TotalBytes != 2000 {
+		t.Errorf("total logical = %d, want 2000 (all succeeded outcomes)", st.TotalBytes)
+	}
+	// dedup ratio is over the MEASURED subset only: the second run (physical 0,
+	// logical 1200) is excluded, so it is 800 (measured logical) ÷ 100 = 8 —
+	// NOT 2000 ÷ 100 = 20, which would inflate it with unmeasured logical bytes.
+	if st.DedupRatio != 8 {
+		t.Errorf("dedup ratio = %v, want 8 (measured logical 800 ÷ physical 100)", st.DedupRatio)
+	}
+}
+
+func TestRepoGrowth(t *testing.T) {
+	pre := map[string]int64{"d1": 1000, "d2": 5000, "d3": 200}
+	post := map[string]int64{
+		"d1": 1300, // +300 growth
+		"d2": 4800, // -200 (compaction) → clamped to 0
+		"d3": 200,  // unchanged
+		"d4": 999,  // no baseline → ignored (must not count full repo)
+	}
+	if got := repoGrowth(pre, post); got != 300 {
+		t.Fatalf("repoGrowth = %d, want 300", got)
+	}
+}
+
+func TestComputeRunStatsDedupRatioZeroWhenNoPhysical(t *testing.T) {
+	// No run reported physical bytes (e.g. repo-stats unavailable): ratio must be
+	// 0 (unknown), never a divide-by-zero or a misleading number.
+	st := computeRunStats([]Run{run(RunCompleted, 0, 2, 500)})
+	if st.TotalPhysicalBytes != 0 || st.DedupRatio != 0 {
+		t.Errorf("physical/ratio = %d/%v, want 0/0 when physical unknown", st.TotalPhysicalBytes, st.DedupRatio)
+	}
+}

@@ -35,11 +35,14 @@ type Service interface {
 	SchedulablePlans(ctx context.Context) ([]SchedulablePlan, error)
 }
 
-// SchedulablePlan is a narrow projection of Plan used by the scheduler seam.
+// SchedulablePlan is a narrow projection of Plan used by the scheduler seam and
+// the next-scheduled-fire rollup (TargetIDs lets the rollup attribute a plan's
+// next fire to each of its targets).
 type SchedulablePlan struct {
-	ID       string
-	Schedule string
-	Enabled  bool
+	ID        string
+	Schedule  string
+	Enabled   bool
+	TargetIDs []string
 }
 
 type service struct {
@@ -173,9 +176,10 @@ func (s *service) SchedulablePlans(ctx context.Context) ([]SchedulablePlan, erro
 	out := make([]SchedulablePlan, 0, len(plans))
 	for _, p := range plans {
 		out = append(out, SchedulablePlan{
-			ID:       p.ID,
-			Schedule: p.Schedule,
-			Enabled:  p.Enabled,
+			ID:        p.ID,
+			Schedule:  p.Schedule,
+			Enabled:   p.Enabled,
+			TargetIDs: p.TargetIDs,
 		})
 	}
 	return out, nil

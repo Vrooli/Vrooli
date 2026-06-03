@@ -88,6 +88,11 @@ export function CoverageGrid() {
                           <StatusChip tone={runMeta.tone} labelKey={RUN_STATUS_STRINGS[runMeta.slug]} />
                         )}
                       </div>
+                      {row.nextScheduledAt && (
+                        <p className="text-xs text-app-muted-foreground">
+                          {t(strings.overview.nextBackupLabel)} {formatAge(row.nextScheduledAt, never)}
+                        </p>
+                      )}
                     </li>
                   );
                 })}

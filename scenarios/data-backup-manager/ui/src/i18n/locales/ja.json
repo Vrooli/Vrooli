@@ -129,7 +129,13 @@
     "setupCtaDestinations": "保存先を追加",
     "setupCtaPlans": "プランを作成",
     "usageOfCap": "{{cap}} 中 {{used}}",
-    "usageUncapped": "{{used}} 使用中"
+    "usageUncapped": "{{used}} 使用中",
+    "metricsHeading": "バックアップ効率",
+    "metricsDedup": "ディスク上 {{physical}} · {{ratio}}× 重複排除",
+    "metricsDedupApprox": "概算",
+    "metricsDedupEmpty": "ディスク使用量は未計測です — バックアップを実行すると重複排除が表示されます。",
+    "metricsWindow": "{{count}} 件の実行",
+    "nextBackupLabel": "次回のバックアップ"
   },
   "discovery": {
     "title": "提案",

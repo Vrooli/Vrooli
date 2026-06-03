@@ -67,6 +67,25 @@ func TestPassphraseRefMatchesResourceKopiaConvention(t *testing.T) {
 	}
 }
 
+func TestRepoStatsParsesPhysicalBytesShape(t *testing.T) {
+	runner := &recordingRunner{output: []byte(`{
+		"physicalBytes": 11097041777,
+		"blobCount": 1332
+	}`)}
+	cli := &KopiaCLI{Runner: runner}
+	got, err := cli.RepoStats(context.Background(), "elements-local")
+	if err != nil {
+		t.Fatalf("RepoStats: %v", err)
+	}
+	if got.SizeBytes != 11097041777 || got.BlobCount != 1332 {
+		t.Fatalf("stats = %+v, want {SizeBytes:11097041777 BlobCount:1332}", got)
+	}
+	want := []string{"repo", "stats", "--name", "elements-local", "--json"}
+	if !slices.Equal(runner.args[0], want) {
+		t.Fatalf("args = %v, want %v", runner.args[0], want)
+	}
+}
+
 func TestSnapshotCreateParsesResourceKopiaJSONShape(t *testing.T) {
 	runner := &recordingRunner{output: []byte(`{
 		"id": "kabc123",

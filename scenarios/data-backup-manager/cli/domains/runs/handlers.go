@@ -134,8 +134,22 @@ func (h *handlers) stats(ctx cliapp.RunContext) error {
 			fmt.Sprintf("duration: p50 %s, p95 %s", formatMillis(s.P50DurationMs), formatMillis(s.P95DurationMs)),
 			fmt.Sprintf("bytes: %s total, %s avg/run", formatBytes(s.TotalBytes), formatBytes(s.AvgBytesPerRun)),
 			fmt.Sprintf("throughput: %s/s (logical)", formatBytes(int64(s.AvgThroughputBytesPerSec))),
+			formatDedup(s.TotalPhysicalBytes, s.DedupRatio),
 		},
 	})
+}
+
+// formatDedup renders the physical (on-disk) cost and dedup ratio, or a clear
+// "unavailable" line when no run in the window could measure physical bytes.
+// The ratio is over the runs that measured physical growth (not the window's
+// whole logical total), so it is not paired with the total-logical figure; the
+// approximate figure is never dressed up as exact, and a 0 denominator never
+// shows as a ratio.
+func formatDedup(physical int64, ratio float64) string {
+	if physical <= 0 {
+		return "physical: unavailable (no run measured repo growth this window)"
+	}
+	return fmt.Sprintf("physical: %s on disk — %.1f× dedup (approx.)", formatBytes(physical), ratio)
 }
 
 func (h *handlers) browse(ctx cliapp.RunContext) error {
@@ -244,8 +258,32 @@ func formatTargetStatus(s *runsv1.TargetStatus) string {
 	if s.Overdue {
 		freshness = "OVERDUE"
 	}
-	return fmt.Sprintf("target=%s [%s] last-success=%s last-run-status=%s",
-		s.TargetId, freshness, lastSuccess, runStatusLabel(s.LastRunStatus))
+	nextScheduled := "manual-only"
+	if s.NextScheduledAt != nil {
+		nextScheduled = fmt.Sprintf("in %s", formatUntil(s.NextScheduledAt.AsTime()))
+	}
+	return fmt.Sprintf("target=%s [%s] last-success=%s last-run-status=%s next-backup=%s",
+		s.TargetId, freshness, lastSuccess, runStatusLabel(s.LastRunStatus), nextScheduled)
+}
+
+// formatUntil renders the time until t as a compact human duration ("2h",
+// "now" when already due). The next-fire prediction is the scheduler's
+// in-memory view, so a past value just means "due on the next tick".
+func formatUntil(t time.Time) string {
+	d := time.Until(t)
+	if d <= 0 {
+		return "now"
+	}
+	switch {
+	case d < time.Minute:
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	case d < time.Hour:
+		return fmt.Sprintf("%dm", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh", int(d.Hours()))
+	default:
+		return fmt.Sprintf("%dd", int(d.Hours())/24)
+	}
 }
 
 // formatAge renders an age in seconds as a compact human duration.

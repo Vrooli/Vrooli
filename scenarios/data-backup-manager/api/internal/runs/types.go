@@ -75,7 +75,12 @@ type Run struct {
 	// UpdatedAt is the heartbeat: the last time the run's status or an outcome
 	// was persisted. It makes a long-running or wedged run observable.
 	UpdatedAt time.Time
-	Outcomes  []TargetOutcome
+	// PhysicalBytes is the deduped+compressed repo growth attributable to this
+	// run, summed across the destinations it wrote (a repo-size delta measured
+	// around the run). Compared against the logical bytes on Outcomes it yields a
+	// dedup ratio. Approximate when runs to the same repo overlap; clamped >= 0.
+	PhysicalBytes int64
+	Outcomes      []TargetOutcome
 }
 
 // TargetStatus is the last-success / last-run rollup for one target, derived
@@ -90,6 +95,11 @@ type TargetStatus struct {
 	// CLI, /health, and the UI so the rule never drifts between surfaces.
 	Overdue               bool
 	LastSuccessAgeSeconds int64
+	// NextScheduledAt is when this target's soonest scheduled backup next fires
+	// (the earliest next-fire across the scheduled plans it belongs to). Zero
+	// when the target is manual-only, on a disabled plan, or its schedule has
+	// not fired since startup — surfaces decide how to render "not scheduled".
+	NextScheduledAt time.Time
 }
 
 // ErrRunNotFound is the typed sentinel for an unknown run id.

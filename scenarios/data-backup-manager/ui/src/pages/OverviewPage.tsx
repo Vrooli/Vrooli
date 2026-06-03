@@ -6,6 +6,7 @@ import { EmptyState } from "../components/EmptyState";
 import { Button } from "../components/ui/button";
 import { PostureBanner } from "../features/posture/PostureBanner";
 import { StorageStrip } from "../features/overview/StorageStrip";
+import { MetricsStrip } from "../features/overview/MetricsStrip";
 import { CoverageGrid } from "../features/overview/CoverageGrid";
 import { CoverageBanner } from "../features/backup-coverage/CoverageBanner";
 import { SuggestionsPanel } from "../features/discovery/SuggestionsPanel";
@@ -78,6 +79,7 @@ export function OverviewPage() {
           <CoverageBanner />
           {hasSuggestions && <SuggestionsPanel />}
           <StorageStrip />
+          <MetricsStrip />
           <CoverageGrid />
         </>
       )}

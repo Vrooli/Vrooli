@@ -346,28 +346,54 @@ mode (open the repo once, submit many snapshots) — would amortize the connect
 cost while keeping per-target identity. That is a substantial resource-level
 change, out of scope for this plan.
 
+**Spike + decision (2026-06-03) — RE-DEFERRED with rationale.** Benchmarked the
+real overhead on the live `elements-local` repo:
+- One `kopia repository status` (connect + op): **~0.2s**; the `resource-kopia`
+  wrapper around it: **~0.5s** (vault read + registry resolve + spawn).
+- A fresh-process `snapshot create` of a tiny path: **3.89s cold, then ~0.32s**
+  on the next runs — and those warm runs were SEPARATE processes, proving kopia's
+  on-disk content cache already persists across spawns. A warm connection would
+  therefore save only the ~0.2–0.5s connect handshake per target, NOT the
+  cache-warm-up that dominates a cold run.
+- Targets already fan out at `DBM_RUN_CONCURRENCY`=4, so for a 16-target run the
+  connect overhead is ~4 waves × ~0.5s ≈ **~2s total per run**, already parallel.
+
+Decision: **re-defer.** The amortizable saving (~2s on a background, scheduled
+backup) is marginal, while kopia server mode is a large daemon-lifecycle/auth/
+connection-pooling change AND the per-target `--override-source dbm://owner/name`
+identity constraint — the same blocker that killed multi-path batching above —
+very likely does not survive kopia's server snapshot API (server snapshots are of
+registered sources, not per-request override paths). Until that identity question
+is answered, the work is high-cost/uncertain-payoff. No daemon scaffolding was
+left behind (the spike was benchmark-only). Revisit only if a future profile
+shows per-run latency is a real constraint or kopia's server API gains per-request
+source override.
+
 **Owner:** unassigned (resource-kopia server-mode is the enabling work). **Refs:**
 `api/internal/engine/kopia.go::SnapshotCreate`, `api/internal/runs/service.go`
 (fan-out), Phase-4 section of
 `data-backup-manager-backup-performance-observability-async-execution`.
 
-### 2026-06-03 — `destinations usage` fails: resource-kopia `repo stats --json`
+### 2026-06-03 — `destinations usage` fails: resource-kopia `repo stats --json` — RESOLVED 2026-06-03
 
-**Symptom:** `data-backup-manager destinations usage <id>` errors with
+**Symptom:** `data-backup-manager destinations usage <id>` errored with
 `kopia … content stats --json: unknown long flag '--json'`.
 
-**Root cause:** External — `resource-kopia repo stats --json` shells out to
+**Root cause:** External — `resource-kopia repo stats --json` shelled out to
 `kopia content stats --json`, but the installed kopia build does not accept
 `--json` on `content stats`. Not a DBM defect; DBM only consumes the wrapper.
 
-**Workaround:** Usage reporting is informational and unused by the backup/verify
-path; ignore the error. Capacity caps still work (they use a different path).
+**Fix (shipped):** `resources/kopia/cli/internal/repo/repo.go::Stats` now derives
+the repository's true physical (on-disk, post dedup+compression) footprint from
+`kopia blob stats --raw` (exact byte integers) and emits a stable JSON summary
+`{"physicalBytes":N,"blobCount":N}`; text mode passes kopia's native output
+through. `api/internal/engine/kopia.go::RepoStats` parses `physicalBytes`.
+Validated end-to-end: `destinations usage` now returns real bytes
+(`usage=11097041777` against `elements-local`). This also supplies the physical
+denominator for the dedup metric (Phase B).
 
-**Real fix:** Fix `resource-kopia repo stats` to not pass an unsupported flag
-(or parse non-JSON output). Filed against the kopia resource via report-bug.
-
-**Owner:** resource-kopia (filed). **Refs:** `resources/kopia` CLI; surfaced at
-`api/internal/engine/kopia.go` (RepoStats).
+**Owner:** resource-kopia. **Refs:** `resources/kopia/cli/internal/repo/repo.go`,
+`api/internal/engine/kopia.go` (RepoStats); `cap-4ca780dbb3ba91af` resolved.
 
 ## Architecture Drift
 

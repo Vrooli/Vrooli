@@ -104,6 +104,27 @@ func (s *Scheduler) Tick(ctx context.Context) error {
 	return nil
 }
 
+// NextFire reports the next scheduled fire time for planID, computed as its
+// last fire plus the schedule interval. ok is false when the schedule is empty
+// or unparseable, or when the plan has not fired during this process's lifetime
+// — the lastFire history is in-memory and reset by a restart, so there is no
+// durable basis to predict the next fire until the plan fires once (after which
+// the next Tick will have recorded it). Callers pass the plan's schedule string
+// (they already hold it) so the scheduler need not re-resolve the plan.
+func (s *Scheduler) NextFire(planID, schedule string) (time.Time, bool) {
+	interval, err := time.ParseDuration(schedule)
+	if err != nil || interval <= 0 {
+		return time.Time{}, false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	last, fired := s.lastFire[planID]
+	if !fired {
+		return time.Time{}, false
+	}
+	return last.Add(interval), true
+}
+
 // TriggerManual calls RunTrigger directly for planID, bypassing the schedule.
 // It records the fire time so the next Tick sees the updated lastFire.
 func (s *Scheduler) TriggerManual(ctx context.Context, planID string) error {

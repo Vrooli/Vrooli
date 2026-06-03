@@ -29,9 +29,11 @@ type Repository interface {
 	SaveOutcome(ctx context.Context, runID string, o TargetOutcome) error
 
 	// FinishRun records the run's terminal status, an optional run-level error
-	// reason, and FinishedAt. It is the single terminal-write the executor and
-	// startup reconciliation share.
-	FinishRun(ctx context.Context, runID string, status RunStatus, errMsg string, finishedAt time.Time) error
+	// reason, FinishedAt, and the physical (deduped) repo-growth bytes attributed
+	// to the run. It is the single terminal-write the executor and startup
+	// reconciliation share (reconciliation passes 0 — an orphan wrote nothing
+	// measurable).
+	FinishRun(ctx context.Context, runID string, status RunStatus, errMsg string, finishedAt time.Time, physicalBytes int64) error
 
 	// ListNonTerminalRuns returns runs left in a non-terminal status
 	// (pending/capturing/snapshotting) — the orphans startup reconciliation

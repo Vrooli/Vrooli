@@ -130,7 +130,13 @@
     "setupCtaDestinations": "Add a destination",
     "setupCtaPlans": "Create a plan",
     "usageOfCap": "{{used}} of {{cap}}",
-    "usageUncapped": "{{used}} used"
+    "usageUncapped": "{{used}} used",
+    "metricsHeading": "Backup economics",
+    "metricsDedup": "{{physical}} on disk · {{ratio}}× dedup",
+    "metricsDedupApprox": "approximate",
+    "metricsDedupEmpty": "On-disk cost not measured yet — run a backup to see dedup.",
+    "metricsWindow": "over {{count}} run(s)",
+    "nextBackupLabel": "Next backup"
   },
   "discovery": {
     "title": "Suggestions",

@@ -21,6 +21,9 @@ export interface CoverageRow {
   // Freshness from the server's single overdue rule (DBM_OVERDUE_AFTER).
   overdue: boolean;
   lastSuccessAgeSeconds: bigint;
+  // When the soonest scheduled backup next fires; undefined = not scheduled
+  // (manual-only, disabled, or no fire recorded since the API started).
+  nextScheduledAt: Date | undefined;
 }
 
 export interface CoverageResult {
@@ -46,6 +49,7 @@ export function useCoverage(owner = ""): CoverageResult {
       lastRunAt: tsToDate(s?.lastRunAt),
       overdue: s?.overdue ?? false,
       lastSuccessAgeSeconds: s?.lastSuccessAgeSeconds ?? 0n,
+      nextScheduledAt: tsToDate(s?.nextScheduledAt),
     };
   });
 

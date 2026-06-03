@@ -342,6 +342,7 @@ const literalSelectors = {
     coverage: "overview-coverage",
     coverageEmpty: "overview-coverage-empty",
     setupCta: "overview-setup-cta",
+    metrics: "overview-metrics",
   },
   coverage: {
     banner: "coverage-banner",

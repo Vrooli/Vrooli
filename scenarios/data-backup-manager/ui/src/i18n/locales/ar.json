@@ -134,7 +134,13 @@
     "setupCtaDestinations": "إضافة وجهة",
     "setupCtaPlans": "إنشاء خطة",
     "usageOfCap": "{{used}} من {{cap}}",
-    "usageUncapped": "{{used}} مستخدَمة"
+    "usageUncapped": "{{used}} مستخدَمة",
+    "metricsHeading": "اقتصاديات النسخ الاحتياطي",
+    "metricsDedup": "{{physical}} على القرص · إزالة تكرار {{ratio}}×",
+    "metricsDedupApprox": "تقريبي",
+    "metricsDedupEmpty": "لم يُقَس حجم القرص بعد — شغّل نسخة احتياطية لرؤية إزالة التكرار.",
+    "metricsWindow": "عبر {{count}} عملية",
+    "nextBackupLabel": "النسخة الاحتياطية القادمة"
   },
   "discovery": {
     "title": "اقتراحات",

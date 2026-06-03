@@ -49,7 +49,12 @@ func (s *stubRestoresService) VerifyTarget(_ context.Context, req *connect.Reque
 }
 
 func (s *stubRestoresService) GetRestore(_ context.Context, req *connect.Request[restoresv1.GetRestoreRequest]) (*connect.Response[restoresv1.GetRestoreResponse], error) {
-	return connect.NewResponse(&restoresv1.GetRestoreResponse{Restore: &restoresv1.Restore{Id: req.Msg.Id}}), nil
+	// Return a terminal status so the CLI's poll-to-terminal loop completes; the
+	// request RPCs are async, so restore/verify poll GetRestore for the result.
+	return connect.NewResponse(&restoresv1.GetRestoreResponse{Restore: &restoresv1.Restore{
+		Id:     req.Msg.Id,
+		Status: restoresv1.RestoreStatus_RESTORE_STATUS_VERIFIED,
+	}}), nil
 }
 
 func (s *stubRestoresService) ListRestores(_ context.Context, _ *connect.Request[restoresv1.ListRestoresRequest]) (*connect.Response[restoresv1.ListRestoresResponse], error) {

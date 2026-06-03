@@ -52,7 +52,11 @@ type Restore struct {
 	LastVerifiedAt time.Time // set when a verify succeeds; zero otherwise
 	RequestedAt    time.Time
 	FinishedAt     time.Time
-	Error          string
+	// UpdatedAt is the heartbeat: the last time the record's status was
+	// persisted. It makes a long-running or wedged restore observable and lets
+	// startup reconciliation age non-terminal restores (mirrors runs).
+	UpdatedAt time.Time
+	Error     string
 }
 
 // VerifiedStatus is the latest successful verify for one target, derived from

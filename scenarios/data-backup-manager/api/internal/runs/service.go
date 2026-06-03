@@ -54,10 +54,13 @@ type Deps struct {
 	ActiveTargets ActiveTargetLookup
 	Destinations  DestinationLookup
 	Engine        engine.KopiaEngine
-	Sources       *sources.Registry
-	Events        EventSink
-	Clock         clock.Clock
-	Logger        *log.Logger
+	// NextSchedule resolves each target's next scheduled backup time. Optional —
+	// nil omits next_scheduled_at from ListTargetStatus.
+	NextSchedule NextScheduleSource
+	Sources      *sources.Registry
+	Events       EventSink
+	Clock        clock.Clock
+	Logger       *log.Logger
 	// StagingRoot is the base directory capture artifacts are staged under
 	// before snapshotting. Empty uses the OS temp dir. Each run gets a
 	// subdirectory that is removed when the run closes.
@@ -156,7 +159,7 @@ func (s *service) TriggerRun(ctx context.Context, planID string, trigger Trigger
 func (s *service) executeRun(ctx context.Context, job RunJob) {
 	plan, err := s.deps.Plans.PlanForRun(ctx, job.PlanID)
 	if err != nil {
-		s.finishRun(ctx, job, RunFailed, fmt.Sprintf("resolve plan: %v", err), 0, 0, 0)
+		s.finishRun(ctx, job, RunFailed, fmt.Sprintf("resolve plan: %v", err), 0, 0, 0, 0)
 		return
 	}
 
@@ -166,10 +169,16 @@ func (s *service) executeRun(ctx context.Context, job RunJob) {
 
 	stageBase, cleanup, err := s.stagingDir(job.RunID)
 	if err != nil {
-		s.finishRun(ctx, job, RunFailed, err.Error(), 0, 0, 0)
+		s.finishRun(ctx, job, RunFailed, err.Error(), 0, 0, 0, 0)
 		return
 	}
 	defer cleanup()
+
+	// Physical-bytes baseline: snapshot each destination repo's on-disk size
+	// before fan-out, so the post-run delta is the deduped growth this run
+	// caused. Best-effort observability — a measurement failure just omits that
+	// destination from the metric and never blocks the backup.
+	preSizes := s.measureRepoSizes(ctx, plan.DestinationIDs)
 
 	// The run transitions to snapshotting once the first target begins its
 	// snapshot — guarded so the persisted transition happens exactly once even
@@ -225,11 +234,55 @@ func (s *service) executeRun(ctx context.Context, job RunJob) {
 	}
 	wg.Wait()
 
+	// Measure again and attribute the deduped repo growth to this run. Only
+	// destinations with a baseline count (a missing baseline would make the
+	// whole repo look like this run's delta); negative deltas (maintenance or a
+	// concurrent run's compaction) are clamped to 0.
+	physicalBytes := repoGrowth(preSizes, s.measureRepoSizes(ctx, plan.DestinationIDs))
+
 	status := RunCompleted // empty plan: vacuously complete
 	if succeeded+failed+blocked > 0 {
 		status = classifyTerminal(succeeded, failed, blocked)
 	}
-	s.finishRun(ctx, job, status, "", succeeded, failed, blocked)
+	s.finishRun(ctx, job, status, "", succeeded, failed, blocked, physicalBytes)
+}
+
+// measureRepoSizes returns the current physical (on-disk, deduped) size of each
+// destination repo keyed by destination id. It is best-effort: a resolve or
+// repo-stats failure logs and omits that destination rather than failing the
+// run, because the physical-bytes metric is observability, never a gate.
+func (s *service) measureRepoSizes(ctx context.Context, destIDs []string) map[string]int64 {
+	sizes := make(map[string]int64, len(destIDs))
+	for _, destID := range destIDs {
+		dest, err := s.deps.Destinations.DestinationForRun(ctx, destID)
+		if err != nil {
+			s.logf("physical-bytes: resolve destination %s: %v", destID, err)
+			continue
+		}
+		stats, err := s.deps.Engine.RepoStats(ctx, dest.Name)
+		if err != nil {
+			s.logf("physical-bytes: repo stats %s: %v", dest.Name, err)
+			continue
+		}
+		sizes[destID] = stats.SizeBytes
+	}
+	return sizes
+}
+
+// repoGrowth sums the post-minus-pre repo-size delta across destinations that
+// were measured both before and after the run, clamping negative deltas to 0.
+func repoGrowth(pre, post map[string]int64) int64 {
+	var total int64
+	for destID, after := range post {
+		before, ok := pre[destID]
+		if !ok {
+			continue // no baseline — don't mistake the whole repo for this run
+		}
+		if d := after - before; d > 0 {
+			total += d
+		}
+	}
+	return total
 }
 
 // targetConcurrency bounds in-run target×destination parallelism (>= 1).
@@ -241,8 +294,8 @@ func (s *service) targetConcurrency() int {
 }
 
 // finishRun persists the terminal state and emits the backup-outcome event.
-func (s *service) finishRun(ctx context.Context, job RunJob, status RunStatus, errMsg string, succeeded, failed, blocked int) {
-	if err := s.deps.Repo.FinishRun(ctx, job.RunID, status, errMsg, s.deps.Clock.Now().UTC()); err != nil {
+func (s *service) finishRun(ctx context.Context, job RunJob, status RunStatus, errMsg string, succeeded, failed, blocked int, physicalBytes int64) {
+	if err := s.deps.Repo.FinishRun(ctx, job.RunID, status, errMsg, s.deps.Clock.Now().UTC(), physicalBytes); err != nil {
 		s.logf("run %s finish (%s): %v", job.RunID, status, err)
 	}
 	if s.deps.Events != nil {
@@ -264,7 +317,7 @@ func (s *service) Reconcile(ctx context.Context) error {
 	}
 	const reason = "reconciled: process restarted while run was in-flight"
 	for _, r := range orphans {
-		if err := s.deps.Repo.FinishRun(ctx, r.ID, RunFailed, reason, s.deps.Clock.Now().UTC()); err != nil {
+		if err := s.deps.Repo.FinishRun(ctx, r.ID, RunFailed, reason, s.deps.Clock.Now().UTC(), 0); err != nil {
 			s.logf("reconcile run %s: %v", r.ID, err)
 		}
 	}
@@ -369,12 +422,25 @@ func (s *service) ListTargetStatus(ctx context.Context, targetIDs []string) ([]T
 		return nil, err
 	}
 	now := s.deps.Clock.Now().UTC()
+	// Next scheduled fire per target (best-effort: a failure here must not break
+	// the freshness rollup, which is load-bearing for /health and the UI).
+	var nextByTarget map[string]time.Time
+	if s.deps.NextSchedule != nil {
+		if m, err := s.deps.NextSchedule.NextScheduledByTarget(ctx); err != nil {
+			s.logf("next-scheduled lookup: %v", err)
+		} else {
+			nextByTarget = m
+		}
+	}
 	for i := range statuses {
 		statuses[i].Overdue = isOverdue(statuses[i], now, s.deps.OverdueAfter)
 		if !statuses[i].LastSuccessAt.IsZero() {
 			if age := now.Sub(statuses[i].LastSuccessAt); age > 0 {
 				statuses[i].LastSuccessAgeSeconds = int64(age.Seconds())
 			}
+		}
+		if next, ok := nextByTarget[statuses[i].TargetID]; ok {
+			statuses[i].NextScheduledAt = next.UTC()
 		}
 	}
 	return statuses, nil

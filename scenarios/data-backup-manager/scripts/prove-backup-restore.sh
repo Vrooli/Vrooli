@@ -131,8 +131,25 @@ PLAN_JSON="$(data-backup-manager plans create \
   --json)"
 PLAN_ID="$(jq -r '.plan.id // .id' <<<"${PLAN_JSON}")"
 
-RUN_JSON="$(data-backup-manager runs trigger --plan "${PLAN_ID}" --json)"
-RUN_STATUS="$(jq -r '.run.status // .status // empty' <<<"${RUN_JSON}")"
+# Runs are asynchronous: `runs trigger` returns a pending run immediately, so
+# poll `runs get` until the run reaches a terminal state before asserting.
+TRIGGER_JSON="$(data-backup-manager runs trigger --plan "${PLAN_ID}" --json)"
+RUN_ID="$(jq -r '.run.id // .id // empty' <<<"${TRIGGER_JSON}")"
+if [[ -z "${RUN_ID}" || "${RUN_ID}" == "null" ]]; then
+  echo "runs trigger did not return a run id" >&2
+  echo "${TRIGGER_JSON}" >&2
+  exit 1
+fi
+RUN_JSON=""
+RUN_STATUS=""
+for _ in $(seq 1 120); do
+  RUN_JSON="$(data-backup-manager runs get "${RUN_ID}" --json)"
+  RUN_STATUS="$(jq -r '.run.status // .status // empty' <<<"${RUN_JSON}")"
+  case "${RUN_STATUS}" in
+    RUN_STATUS_COMPLETED|RUN_STATUS_PARTIAL_FAILED|RUN_STATUS_FAILED) break ;;
+  esac
+  sleep 2
+done
 SNAPSHOT_ID="$(jq -r '.outcomes[0].snapshotId // .outcomes[0].snapshot_id // .run.outcomes[0].snapshotId // .run.outcomes[0].snapshot_id // empty' <<<"${RUN_JSON}")"
 OUTCOME_STATUS="$(jq -r '.outcomes[0].status // .run.outcomes[0].status // empty' <<<"${RUN_JSON}")"
 

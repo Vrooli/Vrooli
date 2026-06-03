@@ -36,6 +36,9 @@ func newVerifyService(t *testing.T, scratchRoot string, eng *mocks.FakeKopiaEngi
 		Sources:     registry,
 		Clock:       clk,
 		ScratchRoot: scratchRoot,
+		// Inline executor: the request runs the job to completion synchronously so
+		// the test can observe the terminal record without polling.
+		Executor: restoresmocks.NewSyncExecutor(),
 	})
 }
 

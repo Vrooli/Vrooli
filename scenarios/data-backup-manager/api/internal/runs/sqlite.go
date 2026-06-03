@@ -89,11 +89,14 @@ func (s *sqliteRepository) SaveOutcome(ctx context.Context, runID string, o Targ
 	return nil
 }
 
-func (s *sqliteRepository) FinishRun(ctx context.Context, runID string, status RunStatus, errMsg string, finishedAt time.Time) error {
+func (s *sqliteRepository) FinishRun(ctx context.Context, runID string, status RunStatus, errMsg string, finishedAt time.Time, physicalBytes int64) error {
 	now := formatTime(s.clock.Now().UTC())
+	if physicalBytes < 0 {
+		physicalBytes = 0
+	}
 	if _, err := s.db.ExecContext(ctx,
-		`UPDATE runs SET status = ?, error = ?, finished_at = ?, updated_at = ? WHERE id = ?`,
-		string(status), errMsg, formatTime(finishedAt), now, runID,
+		`UPDATE runs SET status = ?, error = ?, finished_at = ?, updated_at = ?, physical_bytes = ? WHERE id = ?`,
+		string(status), errMsg, formatTime(finishedAt), now, physicalBytes, runID,
 	); err != nil {
 		return fmt.Errorf("finish run %q: %w", runID, err)
 	}
@@ -102,7 +105,7 @@ func (s *sqliteRepository) FinishRun(ctx context.Context, runID string, status R
 
 func (s *sqliteRepository) ListNonTerminalRuns(ctx context.Context) ([]Run, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, plan_id, trigger, status, started_at, finished_at, error, updated_at
+		`SELECT id, plan_id, trigger, status, started_at, finished_at, error, updated_at, physical_bytes
 		 FROM runs WHERE status IN (?, ?, ?) ORDER BY started_at ASC, id ASC`,
 		string(RunPending), string(RunCapturing), string(RunSnapshotting))
 	if err != nil {
@@ -125,7 +128,7 @@ func (s *sqliteRepository) ListNonTerminalRuns(ctx context.Context) ([]Run, erro
 
 func (s *sqliteRepository) GetRun(ctx context.Context, id string) (Run, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, plan_id, trigger, status, started_at, finished_at, error, updated_at FROM runs WHERE id = ?`, id)
+		`SELECT id, plan_id, trigger, status, started_at, finished_at, error, updated_at, physical_bytes FROM runs WHERE id = ?`, id)
 	r, err := scanRun(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Run{}, ErrRunNotFound{ID: id}
@@ -151,11 +154,11 @@ func (s *sqliteRepository) ListRuns(ctx context.Context, planID string, limit in
 	)
 	if planID != "" {
 		rows, err = s.db.QueryContext(ctx,
-			`SELECT id, plan_id, trigger, status, started_at, finished_at, error, updated_at FROM runs WHERE plan_id = ? ORDER BY started_at DESC, id DESC LIMIT ?`,
+			`SELECT id, plan_id, trigger, status, started_at, finished_at, error, updated_at, physical_bytes FROM runs WHERE plan_id = ? ORDER BY started_at DESC, id DESC LIMIT ?`,
 			planID, limit)
 	} else {
 		rows, err = s.db.QueryContext(ctx,
-			`SELECT id, plan_id, trigger, status, started_at, finished_at, error, updated_at FROM runs ORDER BY started_at DESC, id DESC LIMIT ?`,
+			`SELECT id, plan_id, trigger, status, started_at, finished_at, error, updated_at, physical_bytes FROM runs ORDER BY started_at DESC, id DESC LIMIT ?`,
 			limit)
 	}
 	if err != nil {
@@ -301,7 +304,7 @@ func scanRun(sc rowScanner) (Run, error) {
 		trigger, status                 string
 		startedRaw, finishRaw, updedRaw string
 	)
-	if err := sc.Scan(&r.ID, &r.PlanID, &trigger, &status, &startedRaw, &finishRaw, &r.Error, &updedRaw); err != nil {
+	if err := sc.Scan(&r.ID, &r.PlanID, &trigger, &status, &startedRaw, &finishRaw, &r.Error, &updedRaw, &r.PhysicalBytes); err != nil {
 		return Run{}, err
 	}
 	r.Trigger = TriggerSource(trigger)

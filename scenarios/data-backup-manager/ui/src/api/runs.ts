@@ -18,6 +18,7 @@ import type {
   TargetOutcome,
   TargetStatus,
   SnapshotEntry,
+  RunStats,
 } from "@vrooli/proto-types/data-backup-manager/v1/runs/runs_pb";
 
 import { transport } from "./client";
@@ -54,5 +55,15 @@ export async function browseSnapshot(
   return res.entries;
 }
 
+/**
+ * Aggregate run metrics over the recent run-history window, optionally scoped
+ * to one plan. Carries the deduped/physical figure and dedup ratio (0 when no
+ * run in the window could measure repo growth — never a divide-by-zero).
+ */
+export async function getRunStats(planId = ""): Promise<RunStats | undefined> {
+  const res = await runsClient.getRunStats({ planId });
+  return res.stats;
+}
+
 export { RunStatus, TriggerSource, TargetOutcomeStatus };
-export type { Run, TargetOutcome, TargetStatus, SnapshotEntry };
+export type { Run, TargetOutcome, TargetStatus, SnapshotEntry, RunStats };

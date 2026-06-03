@@ -69,8 +69,11 @@ type RepoStatus struct {
 }
 
 // RepoStats is the subset of `resource-kopia repo stats` used for usage-vs-cap.
+// SizeBytes is the repository's physical on-disk footprint (post dedup +
+// compression) — the real storage cost and the denominator for a dedup ratio.
 type RepoStats struct {
 	SizeBytes int64
+	BlobCount int64
 }
 
 // SnapshotMetadata is the optional self-identifying metadata DBM attaches to a
@@ -259,7 +262,10 @@ func (k *KopiaCLI) RepoStats(ctx context.Context, repo string) (RepoStats, error
 	if err := json.Unmarshal(out, &raw); err != nil {
 		return RepoStats{}, fmt.Errorf("repo stats %q: parse json: %w", repo, err)
 	}
-	return RepoStats{SizeBytes: firstInt(raw, "sizeBytes", "Size", "totalSize", "TotalPackedSize")}, nil
+	return RepoStats{
+		SizeBytes: firstInt(raw, "physicalBytes", "sizeBytes", "Size", "totalSize", "TotalPackedSize"),
+		BlobCount: firstInt(raw, "blobCount"),
+	}, nil
 }
 
 func (k *KopiaCLI) RepoDelete(ctx context.Context, repo string) error {

@@ -70,3 +70,7 @@ func (f *FakeService) LastVerifiedByTarget(_ context.Context, _ []string) ([]res
 	}
 	return f.VerifiedOut, nil
 }
+
+func (f *FakeService) Reconcile(_ context.Context) error { return nil }
+
+func (f *FakeService) Shutdown(_ context.Context) error { return nil }

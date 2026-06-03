@@ -6,7 +6,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { browseSnapshot, getRun, listRuns, triggerRun } from "../api/runs";
+import { browseSnapshot, getRun, getRunStats, listRuns, triggerRun } from "../api/runs";
 import { isRunInFlight } from "../lib/status";
 import { queryKeys } from "./keys";
 
@@ -36,12 +36,20 @@ export function useRun(id: string | undefined) {
   });
 }
 
+export function useRunStats(planId = "") {
+  return useQuery({
+    queryKey: queryKeys.runStats(planId),
+    queryFn: () => getRunStats(planId),
+  });
+}
+
 export function useTriggerRun() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (planId: string) => triggerRun(planId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["runs"] });
+      void qc.invalidateQueries({ queryKey: ["runStats"] });
       void qc.invalidateQueries({ queryKey: ["targetStatus"] });
     },
   });

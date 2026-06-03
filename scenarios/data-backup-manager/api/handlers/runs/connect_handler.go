@@ -143,6 +143,8 @@ func runStatsToProto(s internalruns.RunStats) *runsv1.RunStats {
 		AvgBytesPerRun:           s.AvgBytesPerRun,
 		AvgThroughputBytesPerSec: s.AvgThroughputBytesPerSec,
 		Window:                   s.Window,
+		TotalPhysicalBytes:       s.TotalPhysicalBytes,
+		DedupRatio:               s.DedupRatio,
 	}
 }
 
@@ -199,6 +201,9 @@ func targetStatusToProto(s internalruns.TargetStatus) *runsv1.TargetStatus {
 	}
 	if !s.LastRunAt.IsZero() {
 		ps.LastRunAt = timestamppb.New(s.LastRunAt)
+	}
+	if !s.NextScheduledAt.IsZero() {
+		ps.NextScheduledAt = timestamppb.New(s.NextScheduledAt)
 	}
 	return ps
 }

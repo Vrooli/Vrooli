@@ -2,6 +2,7 @@ package runs
 
 import (
 	"context"
+	"time"
 
 	"data-backup-manager/internal/sources"
 )
@@ -69,6 +70,19 @@ type DestinationLookup interface {
 	// WouldBlock reports whether writing pendingBytes to the destination would
 	// exceed its cap under an alert+block policy (never evicts).
 	WouldBlock(ctx context.Context, destinationID string, pendingBytes int64) (blocked bool, reason string, err error)
+}
+
+// NextScheduleSource reports the next scheduled backup time per target id,
+// derived from the scheduler's fire history joined with each plan's schedule.
+// A target absent from the map is not on any active schedule — manual-only,
+// disabled, or not yet fired since startup (the scheduler's fire history is
+// in-memory and reset by a restart).
+//
+// seam: implemented in main.go by an adapter over the scheduler + plans; the
+// runs service stays unaware of either concrete type. Optional — when nil,
+// ListTargetStatus simply omits next_scheduled_at.
+type NextScheduleSource interface {
+	NextScheduledByTarget(ctx context.Context) (map[string]time.Time, error)
 }
 
 // RunOutcomeEvent is the backup-outcome event emitted for platform monitoring

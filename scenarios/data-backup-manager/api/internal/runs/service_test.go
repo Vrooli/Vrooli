@@ -185,7 +185,7 @@ func TestListTargetStatus_DefaultsToActiveCatalogTargets(t *testing.T) {
 		if err := repo.SaveOutcome(ctx, runID, runs.TargetOutcome{TargetID: targetID, Status: runs.OutcomeSucceeded, FinishedAt: startedAt}); err != nil {
 			t.Fatalf("seed outcome %s: %v", runID, err)
 		}
-		if err := repo.FinishRun(ctx, runID, runs.RunCompleted, "", startedAt); err != nil {
+		if err := repo.FinishRun(ctx, runID, runs.RunCompleted, "", startedAt, 0); err != nil {
 			t.Fatalf("finish run %s: %v", runID, err)
 		}
 	}
@@ -215,6 +215,58 @@ func TestListTargetStatus_DefaultsToActiveCatalogTargets(t *testing.T) {
 	}
 	if len(history) != 1 || history[0].TargetID != "deleted-target" {
 		t.Fatalf("explicit target lookup = %+v, want deleted-target history", history)
+	}
+}
+
+// fakeNextSchedule is an inline runs.NextScheduleSource returning a fixed map.
+type fakeNextSchedule struct{ byTarget map[string]time.Time }
+
+func (f fakeNextSchedule) NextScheduledByTarget(_ context.Context) (map[string]time.Time, error) {
+	return f.byTarget, nil
+}
+
+// TestListTargetStatus_NextScheduledAt proves the freshness rollup carries the
+// scheduler's next-fire for scheduled targets and leaves it zero for targets
+// the schedule source does not report (manual-only / not scheduled).
+func TestListTargetStatus_NextScheduledAt(t *testing.T) {
+	ctx := context.Background()
+	repo := runsmocks.NewFakeRepository()
+	now := time.Date(2026, 6, 1, 1, 0, 0, 0, time.UTC)
+	if _, err := repo.CreateRun(ctx, runs.Run{ID: "r1", PlanID: "p1", Status: runs.RunPending, StartedAt: now}); err != nil {
+		t.Fatalf("seed run: %v", err)
+	}
+	if err := repo.SaveOutcome(ctx, "r1", runs.TargetOutcome{TargetID: "scheduled-target", Status: runs.OutcomeSucceeded, FinishedAt: now}); err != nil {
+		t.Fatalf("seed outcome scheduled: %v", err)
+	}
+	if err := repo.SaveOutcome(ctx, "r1", runs.TargetOutcome{TargetID: "manual-target", Status: runs.OutcomeSucceeded, FinishedAt: now}); err != nil {
+		t.Fatalf("seed outcome manual: %v", err)
+	}
+	if err := repo.FinishRun(ctx, "r1", runs.RunCompleted, "", now, 0); err != nil {
+		t.Fatalf("finish run: %v", err)
+	}
+
+	nextFire := now.Add(2 * time.Hour)
+	svc := runs.NewService(runs.Deps{
+		Repo:          repo,
+		ActiveTargets: &runsmocks.FakeActiveTargetLookup{TargetIDs: []string{"scheduled-target", "manual-target"}},
+		NextSchedule:  fakeNextSchedule{byTarget: map[string]time.Time{"scheduled-target": nextFire}},
+		Clock:         mocks.NewFakeClock(now),
+		Executor:      runsmocks.NewSyncExecutor(),
+	})
+
+	statuses, err := svc.ListTargetStatus(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListTargetStatus: %v", err)
+	}
+	byID := map[string]runs.TargetStatus{}
+	for _, s := range statuses {
+		byID[s.TargetID] = s
+	}
+	if got := byID["scheduled-target"].NextScheduledAt; !got.Equal(nextFire) {
+		t.Fatalf("scheduled target NextScheduledAt = %v, want %v", got, nextFire)
+	}
+	if got := byID["manual-target"].NextScheduledAt; !got.IsZero() {
+		t.Fatalf("manual target NextScheduledAt = %v, want zero (not scheduled)", got)
 	}
 }
 

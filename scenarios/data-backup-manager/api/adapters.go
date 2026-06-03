@@ -374,6 +374,43 @@ func (a planSource) SchedulablePlans(ctx context.Context) ([]schedint.DuePlan, e
 	return out, nil
 }
 
+// nextScheduleAdapter satisfies runs.NextScheduleSource by joining the plans
+// service (which plans target a given schedule) with the in-process scheduler
+// (when each plan next fires). The scheduler is set after construction because
+// it depends on the runs service (runTrigger), which in turn carries this
+// adapter — a late bind breaks the cycle. The pointer is always populated
+// before any request reaches ListTargetStatus.
+type nextScheduleAdapter struct {
+	plans plansint.Service
+	sched *schedint.Scheduler
+}
+
+func (a *nextScheduleAdapter) NextScheduledByTarget(ctx context.Context) (map[string]time.Time, error) {
+	if a.sched == nil {
+		return nil, nil
+	}
+	plans, err := a.plans.SchedulablePlans(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]time.Time)
+	for _, p := range plans {
+		if !p.Enabled || strings.TrimSpace(p.Schedule) == "" {
+			continue
+		}
+		next, ok := a.sched.NextFire(p.ID, p.Schedule)
+		if !ok {
+			continue
+		}
+		for _, tid := range p.TargetIDs {
+			if cur, exists := out[tid]; !exists || next.Before(cur) {
+				out[tid] = next
+			}
+		}
+	}
+	return out, nil
+}
+
 // logEventSink is the production runs.EventSink: it logs backup outcomes for
 // platform monitoring (infra-health / system-monitor) to pick up. A routed
 // notification sink (OT-P1-006) replaces this later.

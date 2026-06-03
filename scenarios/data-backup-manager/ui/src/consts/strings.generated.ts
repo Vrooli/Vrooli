@@ -143,6 +143,12 @@ export const strings = {
     setupCtaPlans: "overview.setupCtaPlans",
     usageOfCap: "overview.usageOfCap",
     usageUncapped: "overview.usageUncapped",
+    metricsHeading: "overview.metricsHeading",
+    metricsDedup: "overview.metricsDedup",
+    metricsDedupApprox: "overview.metricsDedupApprox",
+    metricsDedupEmpty: "overview.metricsDedupEmpty",
+    metricsWindow: "overview.metricsWindow",
+    nextBackupLabel: "overview.nextBackupLabel",
   },
   discovery: {
     title: "discovery.title",

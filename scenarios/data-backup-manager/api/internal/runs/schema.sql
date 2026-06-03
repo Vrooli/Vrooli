@@ -14,7 +14,12 @@ CREATE TABLE IF NOT EXISTS runs (
   error       TEXT NOT NULL DEFAULT '',
   -- heartbeat: last time the run's status/outcomes were persisted, so an
   -- in-flight or wedged run is observable and startup reconciliation can age it
-  updated_at  TEXT NOT NULL DEFAULT ''
+  updated_at  TEXT NOT NULL DEFAULT '',
+  -- physical (deduped+compressed) repo growth attributable to this run, summed
+  -- across the destinations it wrote — the on-disk cost vs the logical bytes on
+  -- run_outcomes. A repo-size delta measured around the run; approximate when
+  -- runs to the same repo overlap (see internal/runs/stats.go).
+  physical_bytes INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_runs_plan ON runs(plan_id, started_at DESC);

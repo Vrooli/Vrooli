@@ -122,14 +122,17 @@ references for orchestration seams.
 | destinations | `internal/destinations/repository.go::Repository` | `internal/destinations/service.go::Service` (Create→bundle prepare/RepoCreate/RepoStatus/bundle metadata, slug-safe name, separate-root rule, bundle-root vs repository-path split, usage-vs-cap, `WouldBlock`) | `handlers/destinations/module.go::Module(db, clk, KopiaEngine, protectedRoot, logger)` (constructs `FSBundleWriter` internally) | `internal/destinations/mocks::{FakeRepository, FakeService, FakeBundleWriter}` |
 | plans | `internal/plans/repository.go::Repository` (membership tables) | `internal/plans/service.go::Service` (+ `SchedulablePlans` for the scheduler) | `handlers/plans/module.go::Module(db, clk, logger)` | `internal/plans/mocks::{FakeRepository, FakeService}` |
 | runs | `internal/runs/repository.go::Repository` (runs + outcomes + last-success rollup; incremental `UpdateRunStatus`/`SaveOutcome`/`FinishRun` + `ListNonTerminalRuns` for async + reconciliation) | `internal/runs/service.go::Service` (async TriggerRun→enqueue; `executeRun` worker; `Reconcile`/`Shutdown`) + `internal/runs/executor.go::Executor` (background-run seam) | service built in `main.go` (needs cross-domain adapters + `BaseContext`/startup `Reconcile`), mounted via `handlers/runs/module.go::Module(svc, logger)` | `internal/runs/mocks::{FakeRepository, FakeService, SyncExecutor, FakePlanLookup, FakeTargetLookup, FakeDestinationLookup, FakeEventSink}` |
-| restores | `internal/restores/repository.go::Repository` | `internal/restores/service.go::Service` (RestoreTarget, VerifyTarget gate) | service built in `main.go`, mounted via `handlers/restores/module.go::Module(svc, logger)` | `internal/restores/mocks::{FakeService, FakeTargetLookup, FakeDestinationLookup}` |
+| restores | `internal/restores/repository.go::Repository` (incremental `UpdateRestoreStatus`/`FinishRestore` + `ListNonTerminalRestores` for async + reconciliation) | `internal/restores/service.go::Service` (async RestoreTarget/VerifyTarget→enqueue; `executeJob` worker; `Reconcile`/`Shutdown`) + `internal/restores/executor.go::Executor` (background-restore seam, mirrors runs) | service built in `main.go` (needs `BaseContext`/startup `Reconcile`), mounted via `handlers/restores/module.go::Module(svc, logger)` | `internal/restores/mocks::{FakeService, SyncExecutor, FakeTargetLookup, FakeDestinationLookup}` |
 
 The cross-domain reader/effect seams the runs and restores orchestration depend
-on (`PlanLookup`, `TargetLookup`, `DestinationLookup`, `EventSink`, restores'
-`TargetLookup`/`DestinationLookup`) are declared in each consumer's `deps.go`
-and satisfied by thin adapters in `api/adapters.go` (the composition root) over
-the concrete sibling services — keeping the domains decoupled and unit-testable
-against fakes.
+on (`PlanLookup`, `TargetLookup`, `DestinationLookup`, `EventSink`, runs'
+`NextScheduleSource`, restores' `TargetLookup`/`DestinationLookup`) are declared
+in each consumer's `deps.go` and satisfied by thin adapters in `api/adapters.go`
+(the composition root) over the concrete sibling services — keeping the domains
+decoupled and unit-testable against fakes. `NextScheduleSource` is notable: its
+adapter (`nextScheduleAdapter`) is **late-bound** — the scheduler depends on the
+runs service (its trigger), so the adapter's scheduler pointer is assigned after
+both are constructed, breaking the cycle without either importing the other.
 
 ### Destination readiness and preparation
 

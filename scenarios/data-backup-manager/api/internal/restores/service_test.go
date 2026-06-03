@@ -66,6 +66,7 @@ func buildRestoreService(t *testing.T) (restores.Service, *mocks.FakeKopiaEngine
 		Sources:     registry,
 		Clock:       clk,
 		ScratchRoot: t.TempDir(),
+		Executor:    restoresmocks.NewSyncExecutor(),
 	})
 	return svc, eng, capturers
 }
@@ -185,6 +186,7 @@ func TestRestoreTarget_RestoresSnapshotArtifactToFinalLocation(t *testing.T) {
 		Sources:     sources.NewRegistry(fsCapturer),
 		Clock:       mocks.NewFakeClock(time.Time{}),
 		ScratchRoot: scratchRoot,
+		Executor:    restoresmocks.NewSyncExecutor(),
 	})
 
 	rec, err := svc.RestoreTarget(ctx, "tgt-fs", "dst-1", "snap-abc", finalLocation)

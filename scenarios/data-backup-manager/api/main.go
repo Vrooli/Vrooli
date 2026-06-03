@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"data-backup-manager/internal/clock"
 	"data-backup-manager/internal/engine"
@@ -151,6 +150,13 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("runs column migration failed: %w", err)
 	}
 
+	// Additive column migration for the restores table (updated_at heartbeat) so
+	// async-restore columns land on a database that predates them.
+	if err := restoresint.EnsureColumns(ctx, db.Primary()); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("restores column migration failed: %w", err)
+	}
+
 	// The backup engine (resource-kopia) wrapped behind the KopiaEngine seam,
 	// and the storage root the manager protects (a destination must not point
 	// under it — the separate-root rule). SCENARIO_DATA_DIR is set by the
@@ -216,6 +222,9 @@ func run(ctx context.Context) error {
 		return err
 	}
 	sourceRegistry := sources.NewProductionRegistry(sources.ExecRunner{})
+	// Late-bound: the scheduler is constructed below (it needs runsSvc as its
+	// trigger), then assigned into this adapter before any request runs.
+	nextSched := &nextScheduleAdapter{plans: plansSvc}
 	runsSvc := runsint.NewService(runsint.Deps{
 		Repo:              runsint.NewSQLiteRepository(db, clk),
 		Plans:             planLookup{svc: plansSvc},
@@ -230,6 +239,7 @@ func run(ctx context.Context) error {
 		BaseContext:       execCtx,
 		TargetConcurrency: concurrency,
 		OverdueAfter:      overdueAfterDur,
+		NextSchedule:      nextSched,
 	})
 
 	// Startup reconciliation: close any run left non-terminal by a prior
@@ -249,7 +259,21 @@ func run(ctx context.Context) error {
 		Engine:       kopia,
 		Sources:      sourceRegistry,
 		Clock:        clk,
+		// Restores run async on a background worker bound to the server-lifetime
+		// context, so the request RPC returns immediately and a client disconnect
+		// cannot sever an in-flight restore (no more 6h WriteTimeout).
+		BaseContext: execCtx,
+		Workers:     concurrency,
+		Logger:      logger,
 	})
+
+	// Startup reconciliation: close any restore left non-terminal by a prior
+	// crash/restart/disconnect, fail-not-resume (never falsely "verified").
+	if err := restoresSvc.Reconcile(ctx); err != nil {
+		cancelExec()
+		_ = db.Close()
+		return fmt.Errorf("restore reconciliation failed: %w", err)
+	}
 
 	// Coverage: the first-real-backup readiness surface. Composes discovery
 	// suggestions with the targets/plans/runs/restores catalogs into one report
@@ -265,6 +289,7 @@ func run(ctx context.Context) error {
 
 	// In-process scheduler: fires due plans on their cadence (OT-P0-005).
 	scheduler := schedint.New(clk, planSource{svc: plansSvc}, runTrigger{svc: runsSvc})
+	nextSched.sched = scheduler // late bind: see nextScheduleAdapter
 	if err := startScheduler(ctx, scheduler, logger); err != nil {
 		_ = db.Close()
 		return err
@@ -303,21 +328,18 @@ func run(ctx context.Context) error {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		// Backup runs are now async (TriggerRun returns immediately), so they no
-		// longer need a long write timeout. But restores verify/restore are still
-		// synchronous and exec kopia for the whole restore+checksum — minutes on
-		// large targets / slow external drives. The api-core default WriteTimeout
-		// (30s) severs those mid-operation ("unexpected EOF" client-side) even
-		// though the handler keeps running. A generous ceiling lets them return
-		// cleanly; the CLI pairs it with an unlimited-timeout client for the same
-		// RPCs. (ReadTimeout stays default — request bodies here are tiny.) When
-		// restores also become async this can drop to the api-core default.
-		WriteTimeout: 6 * time.Hour,
+		// Both backup runs AND restores/verifies are now async: their RPCs persist
+		// a record, schedule the kopia work on a server-lifetime background worker,
+		// and return immediately. Nothing blocks the HTTP handler for the duration
+		// of a kopia operation anymore, so the api-core default WriteTimeout is
+		// sufficient — the 6h override (and the CLI's unlimited-timeout client)
+		// that the synchronous restore path needed are gone.
 		Cleanup: func(cctx context.Context) error {
-			// Interrupt and drain in-flight runs before closing the DB so a
-			// worker cannot write to a closed handle.
+			// Interrupt and drain in-flight runs + restores before closing the DB
+			// so no worker can write to a closed handle.
 			cancelExec()
 			_ = runsSvc.Shutdown(cctx)
+			_ = restoresSvc.Shutdown(cctx)
 			return db.Close()
 		},
 	}); err != nil {
