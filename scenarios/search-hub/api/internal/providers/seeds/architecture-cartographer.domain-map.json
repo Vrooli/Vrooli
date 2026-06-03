@@ -1,0 +1,10 @@
+{
+  "provider_id": "architecture-cartographer.domain-map",
+  "provider_group": "architecture-cartographer",
+  "bucket": "BUCKET_STATE",
+  "type": "domain-map",
+  "description": "Domain map and architecture ownership searchable by domain — 'who owns domain X; where is the boundary?'. No semantic search exists yet; today this means DOMAINS.md and the cartographer's evidence-based convergence.",
+  "intended_home": "architecture-cartographer",
+  "state": "PROVIDER_STATE_CAPABILITY_GAP",
+  "scope": "SCOPE_PROJECT"
+}

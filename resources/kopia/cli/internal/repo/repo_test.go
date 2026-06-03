@@ -4,15 +4,14 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
-	"testing"
-
 	"resource-kopia/cli/internal/env"
 	"resource-kopia/cli/internal/invariant"
 	"resource-kopia/cli/internal/registry"
 	"resource-kopia/cli/internal/repo"
 	"resource-kopia/cli/internal/repoctx"
 	"resource-kopia/cli/internal/vault"
+	"strings"
+	"testing"
 
 	kexecmocks "resource-kopia/cli/internal/kexec/mocks"
 

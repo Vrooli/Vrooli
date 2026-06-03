@@ -25,7 +25,9 @@ import (
 // provenance (provider_id, provider_group, type). Scores are normalized to the
 // [0,1] band per the mapping's score_scale so they are comparable before
 // rerank. When filter_field/filter_value are set, only items whose filter_field
-// equals filter_value are kept (the multi-leaf-on-one-endpoint case).
+// equals filter_value are kept (the multi-leaf-on-one-endpoint case). When
+// presence_field is set, only items where that field is populated are kept (the
+// presence-discriminated case, e.g. ui-health surfaces that carry a `widget`).
 //
 // It returns an error only on malformed JSON or a results_path that does not
 // resolve to an array; individual items with missing fields degrade gracefully
@@ -43,12 +45,21 @@ func MapResults(d *registryv1.ProviderDescriptor, body []byte) ([]*routingv1.Sea
 	}
 
 	rawResults := lookupPath(root, m.GetResultsPath())
+	// An absent or JSON-null results array is an honest "no matches", not a
+	// mapping failure: many providers (e.g. ui-health) omit the `results` key
+	// entirely on a zero-result query. Map that to an empty hit set so the leaf
+	// reports an honest empty group rather than degrading. Only a results_path
+	// that resolves to a *present, non-array* value is a real mapping error.
+	if rawResults == nil {
+		return []*routingv1.SearchHit{}, nil
+	}
 	items, ok := rawResults.([]any)
 	if !ok {
 		return nil, fmt.Errorf("provider %q: results_path %q did not resolve to an array", d.GetProviderId(), m.GetResultsPath())
 	}
 
 	filterField := strings.TrimSpace(m.GetFilterField())
+	presenceField := strings.TrimSpace(m.GetPresenceField())
 	hits := make([]*routingv1.SearchHit, 0, len(items))
 	for _, raw := range items {
 		item, ok := raw.(map[string]any)
@@ -59,6 +70,9 @@ func MapResults(d *registryv1.ProviderDescriptor, body []byte) ([]*routingv1.Sea
 			if stringField(item, filterField) != m.GetFilterValue() {
 				continue
 			}
+		}
+		if presenceField != "" && !isPresent(lookupPath(item, presenceField)) {
+			continue // keep only items where the presence_field is populated
 		}
 		hits = append(hits, &routingv1.SearchHit{
 			ProviderId:    d.GetProviderId(),
@@ -139,6 +153,26 @@ func stringField(item map[string]any, path string) string {
 		return ""
 	default:
 		return fmt.Sprintf("%v", t)
+	}
+}
+
+// isPresent reports whether a JSON value (from lookupPath) counts as "present"
+// for a presence_field filter: a non-nil value that isn't an empty
+// string/object/array. A populated nested object (e.g. ui-health's `widget`
+// WidgetDeclaration) is present; an omitted field (nil) or an empty container
+// is not. Scalar non-strings (numbers, bools) are always present.
+func isPresent(v any) bool {
+	switch t := v.(type) {
+	case nil:
+		return false
+	case string:
+		return strings.TrimSpace(t) != ""
+	case map[string]any:
+		return len(t) > 0
+	case []any:
+		return len(t) > 0
+	default:
+		return true
 	}
 }
 

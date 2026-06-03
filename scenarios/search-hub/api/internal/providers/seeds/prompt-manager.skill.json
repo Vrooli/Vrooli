@@ -1,0 +1,27 @@
+{
+  "provider_id": "prompt-manager.skill",
+  "provider_group": "prompt-manager",
+  "bucket": "BUCKET_DO",
+  "type": "skill",
+  "description": "Prompt-manager skills — reusable agent playbooks and methodologies (for example scientific debugging, idea workshop, ecosystem fit) that teach an agent HOW to approach a class of task. Route here to find guidance or a proven method before improvising one.",
+  "endpoint": {
+    "http_json": {
+      "scenario_id": "prompt-manager",
+      "path": "/api/v1/discover",
+      "method": "HTTP_METHOD_POST",
+      "body_template": "{\"queries\":[\"{{query}}\"],\"type\":\"{{type}}\",\"limit\":{{limit}}}",
+      "headers": { "Content-Type": "application/json" }
+    }
+  },
+  "result_mapping": {
+    "results_path": "results",
+    "id_field": "id",
+    "title_field": "name",
+    "score_field": "score",
+    "snippet_field": "description",
+    "path_field": "id",
+    "score_scale": "SCORE_SCALE_COSINE_0_1"
+  },
+  "scope": "SCOPE_PROJECT",
+  "state": "PROVIDER_STATE_ACTIVE"
+}

@@ -322,7 +322,23 @@ const literalSelectors = {
     switcher: "theme-switcher",
     select: "theme-select",
   },
+  search: {
+    panel: "search-panel",
+    input: "search-input",
+    submit: "search-submit",
+    expandToggle: "search-expand-toggle",
+    typeFacets: "search-type-facets",
+    loading: "search-loading",
+    error: "search-error",
+    empty: "search-empty",
+    noResults: "search-no-results",
+    summary: "search-summary",
+    results: "search-results",
+    routing: "search-routing",
+    statusBar: "search-status-bar",
+  },
   pages: {
+    search: "page-search",
     dashboard: "page-dashboard",
     settings: "page-settings",
   },
@@ -352,12 +368,24 @@ const dynamicSelectorDefinitions = {
     sidebarLink: defineDynamicSelector({
       description: "Sidebar navigation link by canonical nav key",
       testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "settings"] as const } },
+      params: { key: { type: "enum", values: ["search", "dashboard", "settings"] as const } },
     }),
     bottomNavLink: defineDynamicSelector({
       description: "Bottom-nav link by canonical nav key",
       testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "settings"] as const } },
+      params: { key: { type: "enum", values: ["search", "dashboard", "settings"] as const } },
+    }),
+  },
+  search: {
+    typeFacet: defineDynamicSelector({
+      description: "Type facet toggle on the search page, by leaf type token",
+      testIdPattern: "search-type-facet-${type}",
+      params: { type: { type: "string" } },
+    }),
+    providerChip: defineDynamicSelector({
+      description: "Federation-status provider chip, by provider_id",
+      testIdPattern: "search-provider-chip-${providerId}",
+      params: { providerId: { type: "string" } },
     }),
   },
   settingsPage: {

@@ -1,0 +1,27 @@
+{
+  "provider_id": "swarm-manager.backlog",
+  "provider_group": "swarm-manager",
+  "bucket": "BUCKET_STATE",
+  "type": "backlog",
+  "description": "Swarm-manager backlog items — the planned-but-not-yet-built work across every scenario (features, fixes, chores, research), searchable by what each item proposes to do. Route here to check whether a piece of work is already planned or in flight before proposing it.",
+  "endpoint": {
+    "http_json": {
+      "scenario_id": "swarm-manager",
+      "path": "/api/v1/search/ai",
+      "method": "HTTP_METHOD_POST",
+      "body_template": "{\"query\":\"{{query}}\",\"entity\":\"backlog\",\"limit\":{{limit}}}",
+      "headers": { "Content-Type": "application/json" }
+    }
+  },
+  "result_mapping": {
+    "results_path": "results",
+    "id_field": "id",
+    "title_field": "payload.title",
+    "score_field": "score",
+    "snippet_field": "payload.status",
+    "path_field": "payload.name",
+    "score_scale": "SCORE_SCALE_COSINE_0_1"
+  },
+  "scope": "SCOPE_PROJECT",
+  "state": "PROVIDER_STATE_ACTIVE"
+}

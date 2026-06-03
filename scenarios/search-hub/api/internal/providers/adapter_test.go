@@ -83,6 +83,38 @@ func TestMapResultsFilterField(t *testing.T) {
 	require.Equal(t, "c", hits[1].Id)
 }
 
+func TestMapResultsPresenceField(t *testing.T) {
+	// ui-health-style: one endpoint returns all surfaces; the widgets leaf keeps
+	// only results where the `widget` object is populated (presence, not value —
+	// there is no "widget" kind to equality-filter on).
+	d := &registryv1.ProviderDescriptor{
+		ProviderId:    "ui-health.widgets",
+		ProviderGroup: "ui-health",
+		Type:          "widget",
+		ResultMapping: &registryv1.ResultMapping{
+			ResultsPath:   "results",
+			IdField:       "filePath",
+			TitleField:    "displayName",
+			ScoreField:    "score",
+			PathField:     "filePath",
+			ScoreScale:    registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1,
+			PresenceField: "widget",
+		},
+	}
+	body := []byte(`{"results":[
+		{"displayName":"Plain page","filePath":"a.tsx","score":0.8},
+		{"displayName":"Chat widget","filePath":"b.tsx","score":0.7,"widget":{"slug":"chat","entry":"Chat"}},
+		{"displayName":"Empty widget obj","filePath":"c.tsx","score":0.6,"widget":{}},
+		{"displayName":"Null widget","filePath":"d.tsx","score":0.5,"widget":null}
+	]}`)
+
+	hits, err := providers.MapResults(d, body)
+	require.NoError(t, err)
+	require.Len(t, hits, 1, "only the populated-widget surface is kept (empty/null/absent are dropped)")
+	require.Equal(t, "b.tsx", hits[0].Id)
+	require.Equal(t, "Chat widget", hits[0].Title)
+}
+
 func TestMapResultsNestedPaths(t *testing.T) {
 	// swarm-manager-style payload: title nested under payload.title.
 	d := &registryv1.ProviderDescriptor{
@@ -123,6 +155,21 @@ func TestMapResultsErrors(t *testing.T) {
 
 	t.Run("missing results yields empty, not error", func(t *testing.T) {
 		hits, err := providers.MapResults(d, []byte(`{"results":[]}`))
+		require.NoError(t, err)
+		require.Empty(t, hits)
+	})
+
+	t.Run("absent results_path yields empty, not error (no-match response)", func(t *testing.T) {
+		// A provider (e.g. ui-health) that omits the results key entirely on a
+		// zero-result query must map to an honest empty group, never a degraded
+		// mapping error. Regression guard for the F.5/G.4/I.4 adapter bug.
+		hits, err := providers.MapResults(d, []byte(`{"total":0}`))
+		require.NoError(t, err)
+		require.Empty(t, hits)
+	})
+
+	t.Run("null results_path yields empty, not error", func(t *testing.T) {
+		hits, err := providers.MapResults(d, []byte(`{"results":null}`))
 		require.NoError(t, err)
 		require.Empty(t, hits)
 	})

@@ -1,0 +1,10 @@
+{
+  "provider_id": "scenario-dependency-analyzer.scenarios",
+  "provider_group": "scenario-dependency-analyzer",
+  "bucket": "BUCKET_REUSE",
+  "type": "scenarios",
+  "description": "Whole scenarios (complete capabilities/products) searchable by the capability each delivers — 'does a scenario already deliver this?'. No semantic search exists yet; today this means `vrooli scenario list` + reading PRDs.",
+  "intended_home": "scenario-dependency-analyzer",
+  "state": "PROVIDER_STATE_CAPABILITY_GAP",
+  "scope": "SCOPE_PROJECT"
+}

@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%search-hub/v1/registry/registry.proto\x12\x1dvrooli.search_hub.v1.registry\"\xa2\x01\n\x08\x45ndpoint\x12N\n\thttp_json\x18\x01 \x01(\x0b\x32/.vrooli.search_hub.v1.registry.HttpJsonEndpointH\x00R\x08httpJson\x12>\n\x03\x63li\x18\x02 \x01(\x0b\x32*.vrooli.search_hub.v1.registry.CliEndpointH\x00R\x03\x63liB\x06\n\x04kind\"\xc3\x02\n\x10HttpJsonEndpoint\x12\x1f\n\x0bscenario_id\x18\x01 \x01(\tR\nscenarioId\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path\x12\x41\n\x06method\x18\x03 \x01(\x0e\x32).vrooli.search_hub.v1.registry.HttpMethodR\x06method\x12#\n\rbody_template\x18\x04 \x01(\tR\x0c\x62odyTemplate\x12V\n\x07headers\x18\x05 \x03(\x0b\x32<.vrooli.search_hub.v1.registry.HttpJsonEndpoint.HeadersEntryR\x07headers\x1a:\n\x0cHeadersEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"2\n\x0b\x43liEndpoint\x12#\n\rargv_template\x18\x01 \x03(\tR\x0c\x61rgvTemplate\"\xe5\x02\n\rResultMapping\x12!\n\x0cresults_path\x18\x01 \x01(\tR\x0bresultsPath\x12\x19\n\x08id_field\x18\x02 \x01(\tR\x07idField\x12\x1f\n\x0btitle_field\x18\x03 \x01(\tR\ntitleField\x12\x1f\n\x0bscore_field\x18\x04 \x01(\tR\nscoreField\x12#\n\rsnippet_field\x18\x05 \x01(\tR\x0csnippetField\x12\x1d\n\npath_field\x18\x06 \x01(\tR\tpathField\x12J\n\x0bscore_scale\x18\x07 \x01(\x0e\x32).vrooli.search_hub.v1.registry.ScoreScaleR\nscoreScale\x12!\n\x0c\x66ilter_field\x18\x08 \x01(\tR\x0b\x66ilterField\x12!\n\x0c\x66ilter_value\x18\t \x01(\tR\x0b\x66ilterValue\"\x81\x05\n\x12ProviderDescriptor\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12%\n\x0eprovider_group\x18\x02 \x01(\tR\rproviderGroup\x12=\n\x06\x62ucket\x18\x03 \x01(\x0e\x32%.vrooli.search_hub.v1.registry.BucketR\x06\x62ucket\x12\x12\n\x04type\x18\x04 \x01(\tR\x04type\x12 \n\x0b\x64\x65scription\x18\x05 \x01(\tR\x0b\x64\x65scription\x12\x43\n\x08\x65ndpoint\x18\x06 \x01(\x0b\x32\'.vrooli.search_hub.v1.registry.EndpointR\x08\x65ndpoint\x12S\n\x0eresult_mapping\x18\x07 \x01(\x0b\x32,.vrooli.search_hub.v1.registry.ResultMappingR\rresultMapping\x12\x1d\n\nquery_hint\x18\x08 \x01(\tR\tqueryHint\x12P\n\x0fstatus_endpoint\x18\t \x01(\x0b\x32\'.vrooli.search_hub.v1.registry.EndpointR\x0estatusEndpoint\x12:\n\x05scope\x18\n \x01(\x0e\x32$.vrooli.search_hub.v1.registry.ScopeR\x05scope\x12\x42\n\x05state\x18\x0b \x01(\x0e\x32,.vrooli.search_hub.v1.registry.ProviderStateR\x05state\x12#\n\rintended_home\x18\x0c \x01(\tR\x0cintendedHome\"l\n\x17RegisterProviderRequest\x12Q\n\ndescriptor\x18\x01 \x01(\x0b\x32\x31.vrooli.search_hub.v1.registry.ProviderDescriptorR\ndescriptor\"\x87\x01\n\x18RegisterProviderResponse\x12Q\n\ndescriptor\x18\x01 \x01(\x0b\x32\x31.vrooli.search_hub.v1.registry.ProviderDescriptorR\ndescriptor\x12\x18\n\x07\x63reated\x18\x02 \x01(\x08R\x07\x63reated\"\xad\x01\n\x14ListProvidersRequest\x12=\n\x06\x62ucket\x18\x01 \x01(\x0e\x32%.vrooli.search_hub.v1.registry.BucketR\x06\x62ucket\x12\x12\n\x04type\x18\x02 \x01(\tR\x04type\x12\x42\n\x05state\x18\x03 \x01(\x0e\x32,.vrooli.search_hub.v1.registry.ProviderStateR\x05state\"h\n\x15ListProvidersResponse\x12O\n\tproviders\x18\x01 \x03(\x0b\x32\x31.vrooli.search_hub.v1.registry.ProviderDescriptorR\tproviders\"<\n\x19\x44\x65registerProviderRequest\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\"6\n\x1a\x44\x65registerProviderResponse\x12\x18\n\x07removed\x18\x01 \x01(\x08R\x07removed*d\n\x06\x42ucket\x12\x16\n\x12\x42UCKET_UNSPECIFIED\x10\x00\x12\r\n\tBUCKET_DO\x10\x01\x12\x10\n\x0c\x42UCKET_REUSE\x10\x02\x12\x0f\n\x0b\x42UCKET_KNOW\x10\x03\x12\x10\n\x0c\x42UCKET_STATE\x10\x04*E\n\x05Scope\x12\x15\n\x11SCOPE_UNSPECIFIED\x10\x00\x12\x11\n\rSCOPE_PROJECT\x10\x01\x12\x12\n\x0eSCOPE_EXTERNAL\x10\x02*m\n\rProviderState\x12\x1e\n\x1aPROVIDER_STATE_UNSPECIFIED\x10\x00\x12\x19\n\x15PROVIDER_STATE_ACTIVE\x10\x01\x12!\n\x1dPROVIDER_STATE_CAPABILITY_GAP\x10\x02*y\n\nScoreScale\x12\x1b\n\x17SCORE_SCALE_UNSPECIFIED\x10\x00\x12\x1a\n\x16SCORE_SCALE_COSINE_0_1\x10\x01\x12\x1d\n\x19SCORE_SCALE_PERCENT_0_100\x10\x02\x12\x13\n\x0fSCORE_SCALE_RAW\x10\x03*T\n\nHttpMethod\x12\x1b\n\x17HTTP_METHOD_UNSPECIFIED\x10\x00\x12\x14\n\x10HTTP_METHOD_POST\x10\x01\x12\x13\n\x0fHTTP_METHOD_GET\x10\x02\x32\x9f\x03\n\x0fRegistryService\x12\x83\x01\n\x10RegisterProvider\x12\x36.vrooli.search_hub.v1.registry.RegisterProviderRequest\x1a\x37.vrooli.search_hub.v1.registry.RegisterProviderResponse\x12z\n\rListProviders\x12\x33.vrooli.search_hub.v1.registry.ListProvidersRequest\x1a\x34.vrooli.search_hub.v1.registry.ListProvidersResponse\x12\x89\x01\n\x12\x44\x65registerProvider\x12\x38.vrooli.search_hub.v1.registry.DeregisterProviderRequest\x1a\x39.vrooli.search_hub.v1.registry.DeregisterProviderResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry;registry_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%search-hub/v1/registry/registry.proto\x12\x1dvrooli.search_hub.v1.registry\"\xa2\x01\n\x08\x45ndpoint\x12N\n\thttp_json\x18\x01 \x01(\x0b\x32/.vrooli.search_hub.v1.registry.HttpJsonEndpointH\x00R\x08httpJson\x12>\n\x03\x63li\x18\x02 \x01(\x0b\x32*.vrooli.search_hub.v1.registry.CliEndpointH\x00R\x03\x63liB\x06\n\x04kind\"\xc3\x02\n\x10HttpJsonEndpoint\x12\x1f\n\x0bscenario_id\x18\x01 \x01(\tR\nscenarioId\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path\x12\x41\n\x06method\x18\x03 \x01(\x0e\x32).vrooli.search_hub.v1.registry.HttpMethodR\x06method\x12#\n\rbody_template\x18\x04 \x01(\tR\x0c\x62odyTemplate\x12V\n\x07headers\x18\x05 \x03(\x0b\x32<.vrooli.search_hub.v1.registry.HttpJsonEndpoint.HeadersEntryR\x07headers\x1a:\n\x0cHeadersEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"2\n\x0b\x43liEndpoint\x12#\n\rargv_template\x18\x01 \x03(\tR\x0c\x61rgvTemplate\"\x8c\x03\n\rResultMapping\x12!\n\x0cresults_path\x18\x01 \x01(\tR\x0bresultsPath\x12\x19\n\x08id_field\x18\x02 \x01(\tR\x07idField\x12\x1f\n\x0btitle_field\x18\x03 \x01(\tR\ntitleField\x12\x1f\n\x0bscore_field\x18\x04 \x01(\tR\nscoreField\x12#\n\rsnippet_field\x18\x05 \x01(\tR\x0csnippetField\x12\x1d\n\npath_field\x18\x06 \x01(\tR\tpathField\x12J\n\x0bscore_scale\x18\x07 \x01(\x0e\x32).vrooli.search_hub.v1.registry.ScoreScaleR\nscoreScale\x12!\n\x0c\x66ilter_field\x18\x08 \x01(\tR\x0b\x66ilterField\x12!\n\x0c\x66ilter_value\x18\t \x01(\tR\x0b\x66ilterValue\x12%\n\x0epresence_field\x18\n \x01(\tR\rpresenceField\"\x81\x05\n\x12ProviderDescriptor\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12%\n\x0eprovider_group\x18\x02 \x01(\tR\rproviderGroup\x12=\n\x06\x62ucket\x18\x03 \x01(\x0e\x32%.vrooli.search_hub.v1.registry.BucketR\x06\x62ucket\x12\x12\n\x04type\x18\x04 \x01(\tR\x04type\x12 \n\x0b\x64\x65scription\x18\x05 \x01(\tR\x0b\x64\x65scription\x12\x43\n\x08\x65ndpoint\x18\x06 \x01(\x0b\x32\'.vrooli.search_hub.v1.registry.EndpointR\x08\x65ndpoint\x12S\n\x0eresult_mapping\x18\x07 \x01(\x0b\x32,.vrooli.search_hub.v1.registry.ResultMappingR\rresultMapping\x12\x1d\n\nquery_hint\x18\x08 \x01(\tR\tqueryHint\x12P\n\x0fstatus_endpoint\x18\t \x01(\x0b\x32\'.vrooli.search_hub.v1.registry.EndpointR\x0estatusEndpoint\x12:\n\x05scope\x18\n \x01(\x0e\x32$.vrooli.search_hub.v1.registry.ScopeR\x05scope\x12\x42\n\x05state\x18\x0b \x01(\x0e\x32,.vrooli.search_hub.v1.registry.ProviderStateR\x05state\x12#\n\rintended_home\x18\x0c \x01(\tR\x0cintendedHome\"l\n\x17RegisterProviderRequest\x12Q\n\ndescriptor\x18\x01 \x01(\x0b\x32\x31.vrooli.search_hub.v1.registry.ProviderDescriptorR\ndescriptor\"\x87\x01\n\x18RegisterProviderResponse\x12Q\n\ndescriptor\x18\x01 \x01(\x0b\x32\x31.vrooli.search_hub.v1.registry.ProviderDescriptorR\ndescriptor\x12\x18\n\x07\x63reated\x18\x02 \x01(\x08R\x07\x63reated\"\xad\x01\n\x14ListProvidersRequest\x12=\n\x06\x62ucket\x18\x01 \x01(\x0e\x32%.vrooli.search_hub.v1.registry.BucketR\x06\x62ucket\x12\x12\n\x04type\x18\x02 \x01(\tR\x04type\x12\x42\n\x05state\x18\x03 \x01(\x0e\x32,.vrooli.search_hub.v1.registry.ProviderStateR\x05state\"h\n\x15ListProvidersResponse\x12O\n\tproviders\x18\x01 \x03(\x0b\x32\x31.vrooli.search_hub.v1.registry.ProviderDescriptorR\tproviders\"<\n\x19\x44\x65registerProviderRequest\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\"6\n\x1a\x44\x65registerProviderResponse\x12\x18\n\x07removed\x18\x01 \x01(\x08R\x07removed*d\n\x06\x42ucket\x12\x16\n\x12\x42UCKET_UNSPECIFIED\x10\x00\x12\r\n\tBUCKET_DO\x10\x01\x12\x10\n\x0c\x42UCKET_REUSE\x10\x02\x12\x0f\n\x0b\x42UCKET_KNOW\x10\x03\x12\x10\n\x0c\x42UCKET_STATE\x10\x04*E\n\x05Scope\x12\x15\n\x11SCOPE_UNSPECIFIED\x10\x00\x12\x11\n\rSCOPE_PROJECT\x10\x01\x12\x12\n\x0eSCOPE_EXTERNAL\x10\x02*m\n\rProviderState\x12\x1e\n\x1aPROVIDER_STATE_UNSPECIFIED\x10\x00\x12\x19\n\x15PROVIDER_STATE_ACTIVE\x10\x01\x12!\n\x1dPROVIDER_STATE_CAPABILITY_GAP\x10\x02*y\n\nScoreScale\x12\x1b\n\x17SCORE_SCALE_UNSPECIFIED\x10\x00\x12\x1a\n\x16SCORE_SCALE_COSINE_0_1\x10\x01\x12\x1d\n\x19SCORE_SCALE_PERCENT_0_100\x10\x02\x12\x13\n\x0fSCORE_SCALE_RAW\x10\x03*T\n\nHttpMethod\x12\x1b\n\x17HTTP_METHOD_UNSPECIFIED\x10\x00\x12\x14\n\x10HTTP_METHOD_POST\x10\x01\x12\x13\n\x0fHTTP_METHOD_GET\x10\x02\x32\x9f\x03\n\x0fRegistryService\x12\x83\x01\n\x10RegisterProvider\x12\x36.vrooli.search_hub.v1.registry.RegisterProviderRequest\x1a\x37.vrooli.search_hub.v1.registry.RegisterProviderResponse\x12z\n\rListProviders\x12\x33.vrooli.search_hub.v1.registry.ListProvidersRequest\x1a\x34.vrooli.search_hub.v1.registry.ListProvidersResponse\x12\x89\x01\n\x12\x44\x65registerProvider\x12\x38.vrooli.search_hub.v1.registry.DeregisterProviderRequest\x1a\x39.vrooli.search_hub.v1.registry.DeregisterProviderResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry;registry_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,16 +34,16 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'ZQgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry;registry_v1'
   _globals['_HTTPJSONENDPOINT_HEADERSENTRY']._loaded_options = None
   _globals['_HTTPJSONENDPOINT_HEADERSENTRY']._serialized_options = b'8\001'
-  _globals['_BUCKET']._serialized_start=2267
-  _globals['_BUCKET']._serialized_end=2367
-  _globals['_SCOPE']._serialized_start=2369
-  _globals['_SCOPE']._serialized_end=2438
-  _globals['_PROVIDERSTATE']._serialized_start=2440
-  _globals['_PROVIDERSTATE']._serialized_end=2549
-  _globals['_SCORESCALE']._serialized_start=2551
-  _globals['_SCORESCALE']._serialized_end=2672
-  _globals['_HTTPMETHOD']._serialized_start=2674
-  _globals['_HTTPMETHOD']._serialized_end=2758
+  _globals['_BUCKET']._serialized_start=2306
+  _globals['_BUCKET']._serialized_end=2406
+  _globals['_SCOPE']._serialized_start=2408
+  _globals['_SCOPE']._serialized_end=2477
+  _globals['_PROVIDERSTATE']._serialized_start=2479
+  _globals['_PROVIDERSTATE']._serialized_end=2588
+  _globals['_SCORESCALE']._serialized_start=2590
+  _globals['_SCORESCALE']._serialized_end=2711
+  _globals['_HTTPMETHOD']._serialized_start=2713
+  _globals['_HTTPMETHOD']._serialized_end=2797
   _globals['_ENDPOINT']._serialized_start=73
   _globals['_ENDPOINT']._serialized_end=235
   _globals['_HTTPJSONENDPOINT']._serialized_start=238
@@ -53,21 +53,21 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_CLIENDPOINT']._serialized_start=563
   _globals['_CLIENDPOINT']._serialized_end=613
   _globals['_RESULTMAPPING']._serialized_start=616
-  _globals['_RESULTMAPPING']._serialized_end=973
-  _globals['_PROVIDERDESCRIPTOR']._serialized_start=976
-  _globals['_PROVIDERDESCRIPTOR']._serialized_end=1617
-  _globals['_REGISTERPROVIDERREQUEST']._serialized_start=1619
-  _globals['_REGISTERPROVIDERREQUEST']._serialized_end=1727
-  _globals['_REGISTERPROVIDERRESPONSE']._serialized_start=1730
-  _globals['_REGISTERPROVIDERRESPONSE']._serialized_end=1865
-  _globals['_LISTPROVIDERSREQUEST']._serialized_start=1868
-  _globals['_LISTPROVIDERSREQUEST']._serialized_end=2041
-  _globals['_LISTPROVIDERSRESPONSE']._serialized_start=2043
-  _globals['_LISTPROVIDERSRESPONSE']._serialized_end=2147
-  _globals['_DEREGISTERPROVIDERREQUEST']._serialized_start=2149
-  _globals['_DEREGISTERPROVIDERREQUEST']._serialized_end=2209
-  _globals['_DEREGISTERPROVIDERRESPONSE']._serialized_start=2211
-  _globals['_DEREGISTERPROVIDERRESPONSE']._serialized_end=2265
-  _globals['_REGISTRYSERVICE']._serialized_start=2761
-  _globals['_REGISTRYSERVICE']._serialized_end=3176
+  _globals['_RESULTMAPPING']._serialized_end=1012
+  _globals['_PROVIDERDESCRIPTOR']._serialized_start=1015
+  _globals['_PROVIDERDESCRIPTOR']._serialized_end=1656
+  _globals['_REGISTERPROVIDERREQUEST']._serialized_start=1658
+  _globals['_REGISTERPROVIDERREQUEST']._serialized_end=1766
+  _globals['_REGISTERPROVIDERRESPONSE']._serialized_start=1769
+  _globals['_REGISTERPROVIDERRESPONSE']._serialized_end=1904
+  _globals['_LISTPROVIDERSREQUEST']._serialized_start=1907
+  _globals['_LISTPROVIDERSREQUEST']._serialized_end=2080
+  _globals['_LISTPROVIDERSRESPONSE']._serialized_start=2082
+  _globals['_LISTPROVIDERSRESPONSE']._serialized_end=2186
+  _globals['_DEREGISTERPROVIDERREQUEST']._serialized_start=2188
+  _globals['_DEREGISTERPROVIDERREQUEST']._serialized_end=2248
+  _globals['_DEREGISTERPROVIDERRESPONSE']._serialized_start=2250
+  _globals['_DEREGISTERPROVIDERRESPONSE']._serialized_end=2304
+  _globals['_REGISTRYSERVICE']._serialized_start=2800
+  _globals['_REGISTRYSERVICE']._serialized_end=3215
 # @@protoc_insertion_point(module_scope)

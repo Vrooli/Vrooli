@@ -7,6 +7,7 @@
     "sidebarLabel": "メインナビゲーション",
     "bottomNavLabel": "メインナビゲーション（モバイル）",
     "nav": {
+      "search": "検索",
       "dashboard": "ダッシュボード",
       "settings": "設定"
     },
@@ -30,6 +31,10 @@
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
+    },
+    "search": {
+      "title": "検索",
+      "description": "登録されたすべてのコーパスを横断する単一のクエリ。ルーターが分類し、ファンアウトし、単一のリストに再ランクします。"
     }
   },
   "health": {
@@ -70,5 +75,34 @@
     "title": "問題が発生しました",
     "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
     "retry": "再試行"
+  },
+  "search": {
+    "queryLabel": "検索クエリ",
+    "queryPlaceholder": "登録されたすべてのコーパスを検索…",
+    "submit": "検索",
+    "searching": "検索中…",
+    "expandLabel": "すべてのプロバイダーを検索",
+    "typesLabel": "タイプで絞り込み",
+    "emptyState": "クエリを入力して、登録されたすべてのコーパスを検索します。",
+    "noResults": "結果がありません。「すべてのプロバイダーを検索」で範囲を広げてください。",
+    "error": "検索に失敗しました。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "summary": "{{corpora}} コーパス · {{hits}} 件 · {{latency}} ms",
+    "rankedHeading": "統合ランキング",
+    "groupedHeading": "プロバイダー別の結果",
+    "routingHeading": "ルーティング",
+    "reranked": "再ランク済み",
+    "grouped": "プロバイダー別",
+    "degraded": "劣化",
+    "groupEmpty": "一致なし",
+    "score": "スコア {{value}}",
+    "rerank": "再ランク {{value}}",
+    "provenance": "{{group}} · {{path}}",
+    "statusHeading": "フェデレーション",
+    "classifier": "分類器",
+    "reranker": "リランカー",
+    "available": "利用可能",
+    "unavailable": "利用不可",
+    "statusError": "ステータスを取得できません",
+    "providersReachable": "{{reachable}}/{{total}} プロバイダーに到達可能"
   }
 }

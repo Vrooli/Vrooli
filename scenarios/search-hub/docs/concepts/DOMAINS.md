@@ -14,7 +14,28 @@ registry row, never router code. See
 [`ARCHITECTURE.md`](ARCHITECTURE.md) §Thin-router boundary and the plan
 `docs/plans/unified-search-hub-plan.md` §3.
 
-> **Domain status (updated 2026-06-03, Phase 7).** The product
+> **Domain status (updated 2026-06-03, Phase 9 — plan COMPLETE).** The
+> **Search UI shipped** (`ui/src/features/search/`): a query box, registry-
+> driven type facets, an "expand search" (`--all`) affordance, per-result
+> provenance, and a live federation-status strip (model availability +
+> per-provider reachability from `RoutingService.Status`) — wired to the
+> Query/Status surfaces and the registry's ListProviders. The carried-forward
+> ui-health adapter no-match bug (F.5/G.4/I.4) is **fixed** (an absent/null
+> `results_path` now maps to an honest empty group, verified live:
+> `ui-health.widgets` returns empty-not-degraded). Every product interface
+> (programmatic / CLI / UI) now exists. The plan delivered **axis ① for
+> currently-live providers**; Tracks A (federate the 10 gap corpora) and B
+> (deduplicate onto `packages/aisearch-go`) remain — see plan §9.
+>
+> **Domain status (Phase 8).** All five product
+> domains are implemented and **all currently-live providers are
+> federated** (Phase 8): 9 ACTIVE leaves (`cli-health.commands`,
+> `ui-health.surfaces`/`.widgets`, `swarm-manager.records`/`.backlog`/
+> `.initiative`, `knowledge-observatory.docs`, `prompt-manager.skill`/
+> `.action`) + 10 `capability_gap` stubs (the Track-A checklist from
+> `ai-search-routing.md`). The earlier-phase summary below remains accurate.
+>
+> **Domain status (Phase 7).** The product
 > domains below (`registry`, `routing`, `rerank`, `metrics`,
 > `providers`) are the **target map**. `registry` + `providers` are live
 > (Phase 3, first vertical slice), `routing` fan-out is live (Phase 4)
@@ -126,7 +147,12 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
 - Requirements: MOD-P1-009 (live providers federated), MOD-P1-010 (gap
   stubs).
 - Tests: result-mapping against captured provider fixtures, score
-  normalization, base-URL resolution seam.
+  normalization, base-URL resolution seam, the `filter_field`/`filter_value`
+  equality filter, and the `presence_field` filter (Phase 8 — keeps only
+  items where a field is populated; the `ui-health.widgets` case where the
+  surface↔widget discriminator is *presence of the `widget` object*, not a
+  filterable value). All 19 embedded seeds (9 live + 10 gap stubs) pass the
+  registry's own `Normalize`+`Validate`.
 
 ### routing
 

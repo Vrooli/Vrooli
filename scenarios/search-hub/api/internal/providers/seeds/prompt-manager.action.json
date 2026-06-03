@@ -1,0 +1,27 @@
+{
+  "provider_id": "prompt-manager.action",
+  "provider_group": "prompt-manager",
+  "bucket": "BUCKET_DO",
+  "type": "action",
+  "description": "Prompt-manager actions — typed, executable wrappers over a single Vrooli CLI command (for example \"show scenario status\", \"restart a scenario\"), searchable by what each action does. Route here to find a ready-to-run command instead of hand-rolling one.",
+  "endpoint": {
+    "http_json": {
+      "scenario_id": "prompt-manager",
+      "path": "/api/v1/discover",
+      "method": "HTTP_METHOD_POST",
+      "body_template": "{\"queries\":[\"{{query}}\"],\"type\":\"{{type}}\",\"limit\":{{limit}}}",
+      "headers": { "Content-Type": "application/json" }
+    }
+  },
+  "result_mapping": {
+    "results_path": "results",
+    "id_field": "id",
+    "title_field": "name",
+    "score_field": "score",
+    "snippet_field": "description",
+    "path_field": "id",
+    "score_scale": "SCORE_SCALE_COSINE_0_1"
+  },
+  "scope": "SCOPE_PROJECT",
+  "state": "PROVIDER_STATE_ACTIVE"
+}

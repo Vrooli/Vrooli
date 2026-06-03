@@ -7,6 +7,7 @@
     "sidebarLabel": "Primary navigation",
     "bottomNavLabel": "Primary navigation (mobile)",
     "nav": {
+      "search": "Search",
       "dashboard": "Dashboard",
       "settings": "Settings"
     },
@@ -30,6 +31,10 @@
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language"
+    },
+    "search": {
+      "title": "Search",
+      "description": "One query across every registered corpus — the router classifies, fans out, and reranks into a single list."
     }
   },
   "health": {
@@ -73,5 +78,34 @@
     "title": "Something went wrong",
     "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
     "retry": "Try again"
+  },
+  "search": {
+    "queryLabel": "Search query",
+    "queryPlaceholder": "Search across all registered corpora…",
+    "submit": "Search",
+    "searching": "Searching…",
+    "expandLabel": "Search all providers",
+    "typesLabel": "Filter by type",
+    "emptyState": "Enter a query to search across every registered corpus.",
+    "noResults": "No results. Try “Search all providers” to widen the search.",
+    "error": "Search failed. Make sure the scenario is running through `vrooli scenario start`.",
+    "summary": "{{corpora}} corpora · {{hits}} hits · {{latency}} ms",
+    "rankedHeading": "Unified ranking",
+    "groupedHeading": "Results by provider",
+    "routingHeading": "Routing",
+    "reranked": "reranked",
+    "grouped": "by-provider",
+    "degraded": "degraded",
+    "groupEmpty": "No matches",
+    "score": "score {{value}}",
+    "rerank": "rerank {{value}}",
+    "provenance": "{{group}} · {{path}}",
+    "statusHeading": "Federation",
+    "classifier": "Classifier",
+    "reranker": "Reranker",
+    "available": "available",
+    "unavailable": "unavailable",
+    "statusError": "Status unavailable",
+    "providersReachable": "{{reachable}}/{{total}} providers reachable"
   }
 }

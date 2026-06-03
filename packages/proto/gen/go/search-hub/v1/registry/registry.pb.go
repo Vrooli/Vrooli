@@ -515,8 +515,19 @@ type ResultMapping struct {
 	// only matching items. Empty filter_field means "no filter" (the common
 	// single-leaf case). Applied generically by the adapter — no per-provider
 	// code.
-	FilterField   string `protobuf:"bytes,8,opt,name=filter_field,json=filterField,proto3" json:"filter_field,omitempty"`
-	FilterValue   string `protobuf:"bytes,9,opt,name=filter_value,json=filterValue,proto3" json:"filter_value,omitempty"`
+	FilterField string `protobuf:"bytes,8,opt,name=filter_field,json=filterField,proto3" json:"filter_field,omitempty"`
+	FilterValue string `protobuf:"bytes,9,opt,name=filter_value,json=filterValue,proto3" json:"filter_value,omitempty"`
+	// Optional presence filter for the case where leaves on one endpoint are
+	// distinguished by the PRESENCE of a field rather than a field's value. The
+	// canonical case is ui-health: its SearchResult has no "surface" vs "widget"
+	// discriminator value (kind is a SurfaceKind enum with no widget member) —
+	// a widget-bearing surface is identified by a populated `widget` object. The
+	// `ui-health.widgets` leaf sets presence_field = "widget" so the adapter
+	// keeps only results where that JSON path resolves to a present (non-empty)
+	// value. Empty presence_field means "no presence filter". Like
+	// filter_field/value, this is applied generically by the adapter — no
+	// per-provider code (preserves the no-conditional-monolith invariant).
+	PresenceField string `protobuf:"bytes,10,opt,name=presence_field,json=presenceField,proto3" json:"presence_field,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -610,6 +621,13 @@ func (x *ResultMapping) GetFilterField() string {
 func (x *ResultMapping) GetFilterValue() string {
 	if x != nil {
 		return x.FilterValue
+	}
+	return ""
+}
+
+func (x *ResultMapping) GetPresenceField() string {
+	if x != nil {
+		return x.PresenceField
 	}
 	return ""
 }
@@ -1068,7 +1086,7 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"2\n" +
 	"\vCliEndpoint\x12#\n" +
-	"\rargv_template\x18\x01 \x03(\tR\fargvTemplate\"\xe5\x02\n" +
+	"\rargv_template\x18\x01 \x03(\tR\fargvTemplate\"\x8c\x03\n" +
 	"\rResultMapping\x12!\n" +
 	"\fresults_path\x18\x01 \x01(\tR\vresultsPath\x12\x19\n" +
 	"\bid_field\x18\x02 \x01(\tR\aidField\x12\x1f\n" +
@@ -1082,7 +1100,9 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\vscore_scale\x18\a \x01(\x0e2).vrooli.search_hub.v1.registry.ScoreScaleR\n" +
 	"scoreScale\x12!\n" +
 	"\ffilter_field\x18\b \x01(\tR\vfilterField\x12!\n" +
-	"\ffilter_value\x18\t \x01(\tR\vfilterValue\"\x81\x05\n" +
+	"\ffilter_value\x18\t \x01(\tR\vfilterValue\x12%\n" +
+	"\x0epresence_field\x18\n" +
+	" \x01(\tR\rpresenceField\"\x81\x05\n" +
 	"\x12ProviderDescriptor\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12%\n" +

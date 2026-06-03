@@ -1,0 +1,10 @@
+{
+  "provider_id": "scenario-dependency-analyzer.resources",
+  "provider_group": "scenario-dependency-analyzer",
+  "bucket": "BUCKET_REUSE",
+  "type": "resources",
+  "description": "Local resources (the shared substrate: ollama, qdrant, postgres, redis, judge0, browserless, vault, …) searchable by what each offers — 'what resource exists that provides X?'. No semantic search exists yet; today this means browsing resources/.",
+  "intended_home": "scenario-dependency-analyzer",
+  "state": "PROVIDER_STATE_CAPABILITY_GAP",
+  "scope": "SCOPE_PROJECT"
+}

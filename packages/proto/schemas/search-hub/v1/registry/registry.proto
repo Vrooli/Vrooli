@@ -122,6 +122,17 @@ message ResultMapping {
   // code.
   string filter_field = 8;
   string filter_value = 9;
+  // Optional presence filter for the case where leaves on one endpoint are
+  // distinguished by the PRESENCE of a field rather than a field's value. The
+  // canonical case is ui-health: its SearchResult has no "surface" vs "widget"
+  // discriminator value (kind is a SurfaceKind enum with no widget member) —
+  // a widget-bearing surface is identified by a populated `widget` object. The
+  // `ui-health.widgets` leaf sets presence_field = "widget" so the adapter
+  // keeps only results where that JSON path resolves to a present (non-empty)
+  // value. Empty presence_field means "no presence filter". Like
+  // filter_field/value, this is applied generically by the adapter — no
+  // per-provider code (preserves the no-conditional-monolith invariant).
+  string presence_field = 10;
 }
 
 // The unit of registration: one (corpus, type) leaf.

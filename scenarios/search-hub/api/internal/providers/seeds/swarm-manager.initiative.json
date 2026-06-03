@@ -1,0 +1,27 @@
+{
+  "provider_id": "swarm-manager.initiative",
+  "provider_group": "swarm-manager",
+  "bucket": "BUCKET_STATE",
+  "type": "initiative",
+  "description": "Swarm-manager initiatives — multi-item bodies of work that group related backlog items toward a larger goal (the strategic roadmap layer), searchable by the outcome each initiative pursues. Route here to find which initiative owns a theme or whether one already exists for a goal.",
+  "endpoint": {
+    "http_json": {
+      "scenario_id": "swarm-manager",
+      "path": "/api/v1/search/ai",
+      "method": "HTTP_METHOD_POST",
+      "body_template": "{\"query\":\"{{query}}\",\"entity\":\"initiative\",\"limit\":{{limit}}}",
+      "headers": { "Content-Type": "application/json" }
+    }
+  },
+  "result_mapping": {
+    "results_path": "results",
+    "id_field": "id",
+    "title_field": "payload.title",
+    "score_field": "score",
+    "snippet_field": "payload.status",
+    "path_field": "payload.name",
+    "score_scale": "SCORE_SCALE_COSINE_0_1"
+  },
+  "scope": "SCOPE_PROJECT",
+  "state": "PROVIDER_STATE_ACTIVE"
+}

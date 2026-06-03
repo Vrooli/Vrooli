@@ -7,6 +7,7 @@
     "sidebarLabel": "التنقل الرئيسي",
     "bottomNavLabel": "التنقل الرئيسي (الجوال)",
     "nav": {
+      "search": "بحث",
       "dashboard": "لوحة التحكم",
       "settings": "الإعدادات"
     },
@@ -30,6 +31,10 @@
       "title": "الإعدادات",
       "themeHeading": "المظهر",
       "localeHeading": "اللغة"
+    },
+    "search": {
+      "title": "بحث",
+      "description": "استعلام واحد عبر كل مجموعة بيانات مسجّلة — يصنّف الموجّه ويوزّع ويعيد الترتيب في قائمة واحدة."
     }
   },
   "health": {
@@ -73,5 +78,34 @@
     "title": "حدث خطأ ما",
     "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",
     "retry": "إعادة المحاولة"
+  },
+  "search": {
+    "queryLabel": "استعلام البحث",
+    "queryPlaceholder": "ابحث في كل المجموعات المسجّلة…",
+    "submit": "بحث",
+    "searching": "جارٍ البحث…",
+    "expandLabel": "ابحث في كل المزوّدين",
+    "typesLabel": "تصفية حسب النوع",
+    "emptyState": "أدخل استعلامًا للبحث في كل مجموعة بيانات مسجّلة.",
+    "noResults": "لا توجد نتائج. جرّب «ابحث في كل المزوّدين» لتوسيع البحث.",
+    "error": "فشل البحث. تأكد من تشغيل السيناريو عبر `vrooli scenario start`.",
+    "summary": "{{corpora}} مجموعات · {{hits}} نتائج · {{latency}} م.ث",
+    "rankedHeading": "الترتيب الموحّد",
+    "groupedHeading": "النتائج حسب المزوّد",
+    "routingHeading": "التوجيه",
+    "reranked": "أُعيد ترتيبه",
+    "grouped": "حسب المزوّد",
+    "degraded": "متدهور",
+    "groupEmpty": "لا تطابق",
+    "score": "النتيجة {{value}}",
+    "rerank": "إعادة الترتيب {{value}}",
+    "provenance": "{{group}} · {{path}}",
+    "statusHeading": "الاتحاد",
+    "classifier": "المصنّف",
+    "reranker": "مُعيد الترتيب",
+    "available": "متاح",
+    "unavailable": "غير متاح",
+    "statusError": "الحالة غير متاحة",
+    "providersReachable": "{{reachable}}/{{total}} مزوّدين يمكن الوصول إليهم"
   }
 }
