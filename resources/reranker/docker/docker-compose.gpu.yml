@@ -1,0 +1,47 @@
+services:
+  reranker:
+    # GPU overlay: swap to the CUDA TEI image matching this host's GPU
+    # (RTX 40 / Ada = sm_89, CUDA 12.x — pinned in the Phase 0 spike) and add the
+    # nvidia runtime + device reservation. TEI falls back to CPU automatically if
+    # no GPU is visible, but this overlay is only applied when the nvidia probe
+    # passes (resource.json gpu.probe).
+    image: ${RERANKER_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:89-1.7}
+    container_name: ${RERANKER_CONTAINER_NAME:-reranker}
+    hostname: reranker
+    restart: unless-stopped
+    ports:
+      - "${RERANKER_BIND_ADDRESS:-127.0.0.1}:${RERANKER_PORT:-11453}:80"
+    volumes:
+      - reranker_models:/data:rw
+    environment:
+      - MODEL_ID=${RERANKER_MODEL:-BAAI/bge-reranker-v2-m3}
+      - PORT=80
+      - HOSTNAME=0.0.0.0
+      - NVIDIA_VISIBLE_DEVICES=all
+    networks:
+      - reranker-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: ${RERANKER_MEMORY_LIMIT:-6G}
+        reservations:
+          memory: ${RERANKER_MEMORY_RESERVATION:-3G}
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    runtime: nvidia
+
+volumes:
+  reranker_models:
+    driver: local
+
+networks:
+  reranker-network:
+    name: ${RERANKER_NETWORK_NAME:-reranker-network}
+    driver: bridge

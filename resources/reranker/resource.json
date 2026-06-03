@@ -1,0 +1,103 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "reranker",
+  "display_name": "Reranker",
+  "description": "Managed cross-encoder reranking service (HuggingFace Text-Embeddings-Inference serving BAAI/bge-reranker-v2-m3) with a compose-backed lifecycle. Scores query/passage relevance for the second stage of hybrid retrieval; consumed by aisearch-go and search-hub.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-reranker",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "install": [
+      {
+        "os": ["linux", "darwin"],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": ["windows"],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-reranker"
+    },
+    "freshness": {
+      "inputs": ["cli/**", "cli/internal/**", "docs/**", "README.md", "resource.json"]
+    }
+  },
+  "template": "compose-service",
+  "driver": "compose-service",
+  "compose_file": "docker/docker-compose.yml",
+  "gpu": {
+    "probe": "nvidia",
+    "compose_overlay": "docker/docker-compose.gpu.yml"
+  },
+  "portability_tier": "partial",
+  "category": "ai",
+  "platforms": {
+    "linux": "supported",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 80,
+      "host": 11453
+    }
+  ],
+  "orchestration": {
+    "startup_order": 566,
+    "startup_timeout_seconds": 180,
+    "startup_time_estimate": "first start pulls ~2.3GB model (1-5 min); warm start 10-30s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "environment_exports": {
+    "static": {
+      "RERANKER_HOST": "localhost",
+      "RERANKER_MODEL": "BAAI/bge-reranker-v2-m3"
+    },
+    "from_ports": {
+      "RERANKER_PORT": "http"
+    },
+    "derived": {
+      "RERANKER_URL": {
+        "template": "http://${RERANKER_HOST}:${RERANKER_PORT}"
+      },
+      "RERANKER_BASE_URL": {
+        "template": "${RERANKER_URL}"
+      },
+      "RERANKER_RERANK_ENDPOINT": {
+        "template": "${RERANKER_URL}/rerank"
+      }
+    }
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:11453/health",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
+  },
+  "template_version": "2"
+}

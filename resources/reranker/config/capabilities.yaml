@@ -1,0 +1,134 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: reranker
+  category: ai
+  subcategory: retrieval-reranking
+  description: "Cross-encoder relevance reranking via HuggingFace Text-Embeddings-Inference serving BAAI/bge-reranker-v2-m3; the second stage of hybrid (BM25+dense) retrieval"
+  maturity: beta
+  complexity: intermediate
+
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - reranking
+      - cross-encoder-scoring
+    secondary:
+      - relevance-ordering
+      - shortlist-rescoring
+    specialized:
+      - bge-reranker-v2-m3
+      - multilingual-reranking
+
+  # API interfaces available (served by the prebuilt TEI image)
+  interfaces:
+    - name: health
+      endpoint: "/health"
+      method: [GET]
+      inputTypes: []
+      outputTypes: [application/json]
+      description: "Liveness/readiness probe (200 once the model is loaded)"
+    - name: info
+      endpoint: "/info"
+      method: [GET]
+      inputTypes: []
+      outputTypes: [application/json]
+      description: "Served model id, type, dtype, and runtime device"
+    - name: rerank
+      endpoint: "/rerank"
+      method: [POST]
+      inputTypes: [application/json]
+      outputTypes: [application/json]
+      description: "Score a query against candidate passages; returns indices ordered by relevance"
+
+  # Resource dependencies and requirements
+  dependencies:
+    required: []
+    optional:
+      - nvidia-gpu
+      - docker
+    incompatible: []
+
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - knowledge-observatory
+      - search-hub
+    secondary:
+      - cli-health
+      - ui-health
+      - security-health
+    optimal_combinations:
+      - [reranker, qdrant, ollama]   # hybrid retrieval: dense (ollama) + sparse, reranked
+
+  # Technical specifications
+  technical:
+    ports: [11453]
+    protocols: [http, rest]
+    data_formats: [json]
+    resource_requirements:
+      memory:
+        minimum: "3GB"
+        recommended: "6GB"
+        optimal: "8GB+"
+      cpu:
+        minimum: "2 cores"
+        recommended: "4 cores"
+        optimal: "8+ cores"
+      storage:
+        minimum: "3GB"
+        recommended: "4GB"
+        optimal: "5GB+"
+      gpu:
+        required: false
+        recommended: true
+        supported: ["NVIDIA CUDA"]
+    scaling:
+      horizontal: true
+      vertical: true
+      max_concurrent_requests: 16
+      execution_modes: [cpu, gpu, docker]
+
+  # Specialized features
+  features:
+    bge_reranker_v2_m3:
+      enabled: true
+      description: "BAAI/bge-reranker-v2-m3 cross-encoder; multilingual, ~2.3GB, served by TEI; auto-pulled from the HF Hub on first start"
+      model: "BAAI/bge-reranker-v2-m3"
+      serving_engine: "huggingface/text-embeddings-inference"
+    degradation:
+      enabled: true
+      description: "Consumers (aisearch-go) fall back to an LLM reranker (qwen3:4b via Ollama) then to RRF-fused order when this resource is unavailable"
+
+  # Testing and validation
+  testing:
+    test_file: "resources/reranker/test/integration-test.sh"
+    test_coverage:
+      - service_health
+      - info_endpoint
+      - rerank_ordering
+    integration_tests:
+      - reranker_rerank_ordering
+
+  # Documentation and examples
+  documentation:
+    readme: "resources/reranker/README.md"
+    api_reference: "resources/reranker/docs/README.md"
+
+  # Version and compatibility
+  version_info:
+    min_version: "0.1.0"
+    tested_version: "0.1.0"
+    api_version: "v1"
+    compatibility_matrix:
+      docker: ">=20.10.0"
+      architecture: [amd64, arm64]
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "ai"
+  resource.vrooli.com/type: "retrieval-reranking"
+  resource.vrooli.com/maturity: "beta"
+  resource.vrooli.com/ai-friendly: "true"
+  resource.vrooli.com/gpu-enabled: "optional"
