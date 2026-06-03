@@ -294,6 +294,30 @@
     "empty": "This path is empty.",
     "up": "Up"
   },
+  "audits": {
+    "action": "Audit snapshot",
+    "running": "Auditing…",
+    "error": "Couldn't run the audit.",
+    "verdictPass": "Passed — restored snapshot matches live by all generic signals.",
+    "verdictDrift": "Differences explained by drift — live changed after the snapshot.",
+    "verdictDiff": "Differences found — live is not newer than the snapshot. Investigate.",
+    "verdictFailed": "Audit failed.",
+    "verdictRunning": "Audit in progress…",
+    "restorable": "Restorable",
+    "notRestorable": "Not restorable",
+    "mismatches": "Mismatches",
+    "live": "Live",
+    "snapshot": "Snapshot",
+    "files": "files",
+    "dirs": "dirs",
+    "symlinks": "symlinks",
+    "pathHash": "path hash",
+    "contentHash": "content hash",
+    "sqlite": "SQLite",
+    "integrity": "integrity",
+    "tables": "tables",
+    "unreadable": "unreadable paths"
+  },
   "pages": {
     "settings": {
       "title": "Settings",

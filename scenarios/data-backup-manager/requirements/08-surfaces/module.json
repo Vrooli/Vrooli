@@ -74,19 +74,19 @@
     {
       "id": "DBM-UI-001",
       "title": "UI for destinations, plans, runs, storage, restore",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-011",
       "category": "ui",
       "criticality": "P0",
-      "description": "The UI presents destinations (with storage usage vs cap), plans, run history with status, and a guided restore/verify flow, using platform design tokens and WCAG AA patterns.",
+      "description": "The UI presents destinations (with storage usage vs cap), plans, run history with status, and a guided restore/verify/audit flow, using platform design tokens and WCAG AA patterns. The guided restore flow offers one-click non-destructive verify, a confirmation-gated restore, lazy snapshot browsing, and a generic snapshot audit that proves a backup's filesystem/database shape matches live.",
       "tags": ["ui"],
       "validation": [
         {
           "type": "test",
           "phase": "ui",
-          "status": "planned",
-          "ref": "ui/src/pages/OverviewPage.test.tsx",
-          "notes": "Current UI smoke coverage renders mocked health, coverage, target status, destination, and discovery surfaces. A dedicated guided restore UI test remains planned."
+          "status": "implemented",
+          "ref": "ui/src/pages/RestoresPage.test.tsx",
+          "notes": "Guided restore flow: one-click non-destructive verify, confirmation-gated restore, and the generic snapshot audit action rendering its verdict. Destination usage-vs-cap (DestinationsPage.test.tsx), run history/status (RunsPage.test.tsx), plans (PlansPage.test.tsx), overview posture (OverviewPage.test.tsx + a11y), and the audit report (features/audits/AuditReport.test.tsx) round out parity."
         }
       ]
     }

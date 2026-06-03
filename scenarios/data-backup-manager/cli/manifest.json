@@ -499,6 +499,94 @@
           }
         }
       ]
+    },
+    {
+      "name": "audits",
+      "description": "Generic snapshot audits: prove a backup's filesystem/database shape matches live",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run a generic snapshot audit (restore to scratch, capture live, compare generic inventory)",
+          "flags": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Target id"
+            },
+            {
+              "name": "destination",
+              "required": true,
+              "description": "Destination id containing the snapshot"
+            },
+            {
+              "name": "snapshot",
+              "required": true,
+              "description": "Snapshot id to audit"
+            },
+            {
+              "name": "no-content-hash",
+              "bool": true,
+              "description": "Skip the streaming tree content hash (use for huge trees)"
+            },
+            {
+              "name": "no-sqlite-checks",
+              "bool": true,
+              "description": "Skip SQLite integrity/schema checks"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditsService",
+            "method": "RunSnapshotAudit"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a snapshot audit record by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Audit id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditsService",
+            "method": "GetAudit"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List snapshot audit records (optionally filtered by target)",
+          "flags": [
+            {
+              "name": "target",
+              "description": "Filter by target id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditsService",
+            "method": "ListAudits"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
     }
   ],
   "omitted": []

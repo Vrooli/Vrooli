@@ -105,6 +105,22 @@ Connect service:
 | `GetRestore` | Fetch a restore/verify record by id. | `restores get` |
 | `ListRestores` | List restore/verify records, optionally by target. | `restores list` |
 
+## Audits
+
+Connect service:
+`/vrooli.data_backup_manager.v1.audits.AuditsService/<method>`
+
+| Method | Purpose | CLI |
+|---|---|---|
+| `RunSnapshotAudit` | Generic snapshot audit: restore to scratch + capture live + compare by generic inventory (counts, bytes, hashes, SQLite integrity). Async — returns a requested record. | `audits run` |
+| `GetAudit` | Fetch a snapshot audit record (status, inventories, comparison) by id. | `audits get` |
+| `ListAudits` | List snapshot audit records, optionally by target. | `audits list` |
+
+The audit is scenario-agnostic: it stores relative paths, counts, and
+hashes only — never file contents or secrets — and reports a
+`live_newer_than_snapshot` drift flag so a mismatch caused by live
+changing after the snapshot is distinguishable from corruption.
+
 ## Updating This File
 
 After endpoint changes, run:

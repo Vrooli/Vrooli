@@ -41,6 +41,10 @@
     { "name": "restores restore", "description": "Restore a target's snapshot to a location", "endpoint_id": "restores_restore" },
     { "name": "restores verify", "description": "Verify a snapshot (test-restore + checksum); the git-removal gate", "endpoint_id": "restores_verify" },
     { "name": "restores get", "description": "Get a restore record by id", "endpoint_id": "restores_get" },
-    { "name": "restores list", "description": "List restore records (optionally by target)", "endpoint_id": "restores_list" }
+    { "name": "restores list", "description": "List restore records (optionally by target)", "endpoint_id": "restores_list" },
+
+    { "name": "audits run", "description": "Run a generic snapshot audit: restore to scratch, capture live, compare generic inventory", "endpoint_id": "audits_run_snapshot" },
+    { "name": "audits get", "description": "Get a snapshot audit record by id", "endpoint_id": "audits_get" },
+    { "name": "audits list", "description": "List snapshot audit records (optionally by target)", "endpoint_id": "audits_list" }
   ]
 }

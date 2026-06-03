@@ -22,6 +22,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	auditsH "data-backup-manager/handlers/audits"
 	coverageH "data-backup-manager/handlers/coverage"
 	destinationsH "data-backup-manager/handlers/destinations"
 	discoveryH "data-backup-manager/handlers/discovery"
@@ -32,6 +33,7 @@ import (
 	targetsH "data-backup-manager/handlers/targets"
 	localdb "data-backup-manager/internal/database"
 
+	auditsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/audits"
 	coveragev1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/coverage"
 	destinationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations"
 	discoveryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/discovery"
@@ -48,6 +50,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, auditsH.Endpoints...)
 	out = append(out, coverageH.Endpoints...)
 	out = append(out, destinationsH.Endpoints...)
 	out = append(out, discoveryH.Endpoints...)
@@ -81,6 +84,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "audits", File: auditsv1.File_data_backup_manager_v1_audits_audits_proto},
 		{Module: "coverage", File: coveragev1.File_data_backup_manager_v1_coverage_coverage_proto},
 		{Module: "destinations", File: destinationsv1.File_data_backup_manager_v1_destinations_destinations_proto},
 		{Module: "discovery", File: discoveryv1.File_data_backup_manager_v1_discovery_discovery_proto},
@@ -102,6 +106,7 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(auditsH.Schema),
 		apidb.SchemaProviderFunc(destinationsH.Schema),
 		apidb.SchemaProviderFunc(discoveryH.Schema),
 		apidb.SchemaProviderFunc(plansH.Schema),

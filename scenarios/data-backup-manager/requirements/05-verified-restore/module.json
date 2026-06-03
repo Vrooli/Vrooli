@@ -44,6 +44,32 @@
           "notes": "Run verify; assert scratch is cleaned up, checksum matches source manifest, last_verified_at is set."
         }
       ]
+    },
+    {
+      "id": "DBM-RST-003",
+      "title": "Generic snapshot audit (inventory compare)",
+      "status": "implemented",
+      "prd_ref": "OT-P0-006",
+      "category": "restore.audit",
+      "criticality": "P0",
+      "description": "A scenario-agnostic audit restores a snapshot to scratch (proving recoverability), captures the live target to scratch (read-only on live), walks both trees with one generic filesystem walker, and compares them by generic signals only: file/dir/symlink counts, regular bytes, a path-list hash, a tree content hash, and per-SQLite-file integrity/schema/page facts. It distinguishes a true mismatch from explainable drift (live newer than the snapshot), persists each proof, and exposes it across API, CLI, and UI. DBM never encodes any scenario's domain objects; reports store relative paths, counts, and hashes only — never file contents or secrets.",
+      "tags": ["restore", "audit", "integrity", "generic", "api", "cli", "ui", "connect-rpc"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/internal/audits/service_test.go::TestRunAudit_ExactMatch",
+          "notes": "Restore + live-capture identical trees → matches=true, restorable=true; mismatch and drift covered by TestRunAudit_ContentMismatch / TestRunAudit_LiveNewerSetsDrift; scratch cleanup by TestRunAudit_ScratchCleanedUp; walker/sqlite/comparator by inventory_test.go, dbcheck_test.go, comparator_test.go."
+        },
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "implemented",
+          "ref": "ui/src/features/audits/AuditReport.test.tsx",
+          "notes": "Audit report renders pass/diff/drift/failed verdicts, mismatches, generic inventory, and SQLite integrity; the restore flow audit action is covered in ui/src/pages/RestoresPage.test.tsx."
+        }
+      ]
     }
   ]
 }

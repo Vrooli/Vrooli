@@ -10,6 +10,7 @@ import (
 
 	runsH "data-backup-manager/handlers/runs"
 
+	auditsint "data-backup-manager/internal/audits"
 	coverageint "data-backup-manager/internal/coverage"
 	destint "data-backup-manager/internal/destinations"
 	discoveryint "data-backup-manager/internal/discovery"
@@ -100,6 +101,28 @@ func (a restoreDestinationLookup) DestinationForRestore(ctx context.Context, des
 		return restoresint.DestinationForRestore{}, err
 	}
 	return restoresint.DestinationForRestore{ID: d.ID, Name: d.Name}, nil
+}
+
+// auditTargetLookup adapts targets.Service to audits.TargetLookup.
+type auditTargetLookup struct{ svc targetsint.Service }
+
+func (a auditTargetLookup) TargetForAudit(ctx context.Context, targetID string) (auditsint.TargetForAudit, error) {
+	t, err := a.svc.Get(ctx, targetID)
+	if err != nil {
+		return auditsint.TargetForAudit{}, err
+	}
+	return auditsint.TargetForAudit{ID: t.ID, Kind: t.SourceKind, Locator: t.Locator}, nil
+}
+
+// auditDestinationLookup adapts destinations.Service to audits.DestinationLookup.
+type auditDestinationLookup struct{ svc destint.Service }
+
+func (a auditDestinationLookup) DestinationForAudit(ctx context.Context, destID string) (auditsint.DestinationForAudit, error) {
+	d, err := a.svc.GetDestination(ctx, destID)
+	if err != nil {
+		return auditsint.DestinationForAudit{}, err
+	}
+	return auditsint.DestinationForAudit{ID: d.ID, Name: d.Name}, nil
 }
 
 // verifiedLookup adapts restores.Service to the runs handler's VerifiedLookup

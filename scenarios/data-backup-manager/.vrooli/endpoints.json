@@ -32,6 +32,139 @@
       }
     },
     {
+      "id": "audits_run_snapshot",
+      "path": "/vrooli.data_backup_manager.v1.audits.AuditsService/RunSnapshotAudit",
+      "method": "POST",
+      "summary": "Run a generic snapshot audit",
+      "description": "Restores a snapshot to scratch, captures the live target to scratch (read-only on live), walks both trees, and compares them by generic signals only (counts, bytes, path-list/content hashes, per-SQLite integrity/schema). Asynchronous: returns the requested record; poll GetAudit for the verdict.",
+      "category": "audits",
+      "request": {
+        "type": "object",
+        "properties": {
+          "destination_id": "string (required)",
+          "include_content_hash": "bool (clients default true)",
+          "include_sqlite_checks": "bool (clients default true)",
+          "snapshot_id": "string (required)",
+          "target_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "audit": "Audit"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing required field"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown target or destination"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Engine or persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Run a snapshot audit",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.audits.AuditsService/RunSnapshotAudit -H 'Content-Type: application/json' -d '{\"targetId\":\"t-1\",\"destinationId\":\"dst-1\",\"snapshotId\":\"snap-1\",\"includeContentHash\":true,\"includeSqliteChecks\":true}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager audits run",
+        "args": [
+          "--target",
+          "<id>",
+          "--destination",
+          "<id>",
+          "--snapshot",
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "audits_get",
+      "path": "/vrooli.data_backup_manager.v1.audits.AuditsService/GetAudit",
+      "method": "POST",
+      "summary": "Get an audit by id",
+      "description": "Returns a single snapshot audit record (status, inventories, comparison) by id.",
+      "category": "audits",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "audit": "Audit"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No audit with that id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get an audit",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.audits.AuditsService/GetAudit -H 'Content-Type: application/json' -d '{\"id\":\"audit-1\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager audits get",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "audits_list",
+      "path": "/vrooli.data_backup_manager.v1.audits.AuditsService/ListAudits",
+      "method": "POST",
+      "summary": "List audits",
+      "description": "Lists snapshot audit records newest-first, optionally filtered by target id.",
+      "category": "audits",
+      "request": {
+        "type": "object",
+        "properties": {
+          "page_size": "int32",
+          "page_token": "string",
+          "target_id": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "audits": "array<Audit>",
+          "next_page_token": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "List audits",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.audits.AuditsService/ListAudits -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager audits list",
+        "args": [
+          "--target",
+          "<id>"
+        ]
+      }
+    },
+    {
       "id": "coverage_report",
       "path": "/vrooli.data_backup_manager.v1.coverage.CoverageService/GetCoverageReport",
       "method": "POST",
@@ -1668,6 +1801,21 @@
       "name": "restores list",
       "description": "List restore records (optionally by target)",
       "endpoint_id": "restores_list"
+    },
+    {
+      "name": "audits run",
+      "description": "Run a generic snapshot audit: restore to scratch, capture live, compare generic inventory",
+      "endpoint_id": "audits_run_snapshot"
+    },
+    {
+      "name": "audits get",
+      "description": "Get a snapshot audit record by id",
+      "endpoint_id": "audits_get"
+    },
+    {
+      "name": "audits list",
+      "description": "List snapshot audit records (optionally by target)",
+      "endpoint_id": "audits_list"
     }
   ]
 }

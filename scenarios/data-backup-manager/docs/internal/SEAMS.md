@@ -123,11 +123,12 @@ references for orchestration seams.
 | plans | `internal/plans/repository.go::Repository` (membership tables) | `internal/plans/service.go::Service` (+ `SchedulablePlans` for the scheduler) | `handlers/plans/module.go::Module(db, clk, logger)` | `internal/plans/mocks::{FakeRepository, FakeService}` |
 | runs | `internal/runs/repository.go::Repository` (runs + outcomes + last-success rollup; incremental `UpdateRunStatus`/`SaveOutcome`/`FinishRun` + `ListNonTerminalRuns` for async + reconciliation) | `internal/runs/service.go::Service` (async TriggerRun→enqueue; `executeRun` worker; `Reconcile`/`Shutdown`) + `internal/runs/executor.go::Executor` (background-run seam) | service built in `main.go` (needs cross-domain adapters + `BaseContext`/startup `Reconcile`), mounted via `handlers/runs/module.go::Module(svc, logger)` | `internal/runs/mocks::{FakeRepository, FakeService, SyncExecutor, FakePlanLookup, FakeTargetLookup, FakeDestinationLookup, FakeEventSink}` |
 | restores | `internal/restores/repository.go::Repository` (incremental `UpdateRestoreStatus`/`FinishRestore` + `ListNonTerminalRestores` for async + reconciliation) | `internal/restores/service.go::Service` (async RestoreTarget/VerifyTarget→enqueue; `executeJob` worker; `Reconcile`/`Shutdown`) + `internal/restores/executor.go::Executor` (background-restore seam, mirrors runs) | service built in `main.go` (needs `BaseContext`/startup `Reconcile`), mounted via `handlers/restores/module.go::Module(svc, logger)` | `internal/restores/mocks::{FakeService, SyncExecutor, FakeTargetLookup, FakeDestinationLookup}` |
+| audits | `internal/audits/repository.go::Repository` (incremental `UpdateAuditStatus`/`FinishAudit` + `ListNonTerminalAudits` for async + reconciliation) | `internal/audits/service.go::Service` (async RunSnapshotAudit→enqueue; `executeJob` worker restores+captures+walks+compares; `Reconcile`/`Shutdown`) + `internal/audits/executor.go::Executor` (background-audit seam, mirrors restores) + `internal/audits/dbcheck.go::SQLiteChecker` (read-only DB inspection seam) | service built in `main.go` (needs `BaseContext`/startup `Reconcile`), mounted via `handlers/audits/module.go::Module(svc, logger)` | `internal/audits/mocks::{FakeService, SyncExecutor, InMemoryRepository, FakeTargetLookup, FakeDestinationLookup, FakeSQLiteChecker}` |
 
-The cross-domain reader/effect seams the runs and restores orchestration depend
-on (`PlanLookup`, `TargetLookup`, `DestinationLookup`, `EventSink`, runs'
-`NextScheduleSource`, restores' `TargetLookup`/`DestinationLookup`) are declared
-in each consumer's `deps.go` and satisfied by thin adapters in `api/adapters.go`
+The cross-domain reader/effect seams the runs, restores, and audits orchestration
+depend on (`PlanLookup`, `TargetLookup`, `DestinationLookup`, `EventSink`, runs'
+`NextScheduleSource`, restores'/audits' `TargetLookup`/`DestinationLookup`) are
+declared in each consumer's `deps.go` and satisfied by thin adapters in `api/adapters.go`
 (the composition root) over the concrete sibling services — keeping the domains
 decoupled and unit-testable against fakes. `NextScheduleSource` is notable: its
 adapter (`nextScheduleAdapter`) is **late-bound** — the scheduler depends on the
@@ -227,8 +228,8 @@ both are constructed, breaking the cycle without either importing the other.
 | | |
 |---|---|
 | **Seam** | Each domain's SQL contribution |
-| **Interface** | `internal/<domain>/schema.go::Schema() string` (consumed via `handlers/<domain>/module.go::Schema` re-export, then `api-core/database.SchemaProvider`). Domains: targets, destinations, plans, runs, restores. |
-| **Production wiring** | `internal/modules/registry.go::AllSchemas()` lists `apidb.SchemaProviderFunc(<domain>H.Schema)` for each domain (system → health → destinations → plans → restores → runs → targets); applied at boot via `apidb.EnsureSchemas`. |
+| **Interface** | `internal/<domain>/schema.go::Schema() string` (consumed via `handlers/<domain>/module.go::Schema` re-export, then `api-core/database.SchemaProvider`). Domains: targets, destinations, plans, runs, restores, audits. |
+| **Production wiring** | `internal/modules/registry.go::AllSchemas()` lists `apidb.SchemaProviderFunc(<domain>H.Schema)` for each domain (system → health → audits → destinations → plans → restores → runs → targets); applied at boot via `apidb.EnsureSchemas`. |
 | **Test fake** | Each domain's `sqlite_test.go` builds a fresh handle with `db.NewSQLite(t)` + `apidb.EnsureSchemas(...)` over the system + that domain's provider, so repository tests get a real table without touching the central registry. |
 | **Why it exists** | Domain ownership of the schema. Adding a column lands in the same diff as the Go change. Deleting `internal/<domain>/` deletes the table definition with it, so removed domains do not leave tables created on boot. The `handlers/<domain>/module.go::Schema` re-export keeps the registry's import surface narrow. |
 

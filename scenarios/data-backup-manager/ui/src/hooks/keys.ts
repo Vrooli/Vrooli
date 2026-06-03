@@ -18,6 +18,8 @@ export const queryKeys = {
   runStats: (planId = "") => ["runStats", planId] as const,
   restores: (targetId = "") => ["restores", targetId] as const,
   restore: (id: string) => ["restore", id] as const,
+  audits: (targetId = "") => ["audits", targetId] as const,
+  audit: (id: string) => ["audit", id] as const,
   targetSuggestions: ["targetSuggestions"] as const,
   destinationSuggestions: ["destinationSuggestions"] as const,
   coverageReport: ["coverageReport"] as const,

@@ -293,6 +293,30 @@
     "empty": "このパスは空です。",
     "up": "上へ"
   },
+  "audits": {
+    "action": "スナップショットを監査",
+    "running": "監査中…",
+    "error": "監査を実行できませんでした。",
+    "verdictPass": "合格 — 復元したスナップショットは、すべての汎用シグナルでライブと一致します。",
+    "verdictDrift": "差分はドリフトで説明可能 — スナップショット後にライブが変更されました。",
+    "verdictDiff": "差分を検出 — ライブはスナップショットより新しくありません。調査してください。",
+    "verdictFailed": "監査に失敗しました。",
+    "verdictRunning": "監査を実行中…",
+    "restorable": "復元可能",
+    "notRestorable": "復元不可",
+    "mismatches": "不一致",
+    "live": "ライブ",
+    "snapshot": "スナップショット",
+    "files": "ファイル",
+    "dirs": "ディレクトリ",
+    "symlinks": "シンボリックリンク",
+    "pathHash": "パスハッシュ",
+    "contentHash": "コンテンツハッシュ",
+    "sqlite": "SQLite",
+    "integrity": "整合性",
+    "tables": "テーブル",
+    "unreadable": "読み取り不可のパス"
+  },
   "pages": {
     "settings": {
       "title": "設定",

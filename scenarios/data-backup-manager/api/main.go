@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	auditsH "data-backup-manager/handlers/audits"
 	coverageH "data-backup-manager/handlers/coverage"
 	destinationsH "data-backup-manager/handlers/destinations"
 	discoveryH "data-backup-manager/handlers/discovery"
@@ -31,6 +32,7 @@ import (
 	runsH "data-backup-manager/handlers/runs"
 	targetsH "data-backup-manager/handlers/targets"
 
+	auditsint "data-backup-manager/internal/audits"
 	coverageint "data-backup-manager/internal/coverage"
 	destint "data-backup-manager/internal/destinations"
 	discoveryint "data-backup-manager/internal/discovery"
@@ -275,6 +277,30 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("restore reconciliation failed: %w", err)
 	}
 
+	// Generic snapshot audit: restore a snapshot to scratch, capture the live
+	// target to scratch (read-only on live), walk both, and compare by generic
+	// signals only. Scenario-agnostic — DBM never learns a domain's objects.
+	// Runs async on a background worker bound to the server-lifetime context.
+	auditsSvc := auditsint.NewService(auditsint.Deps{
+		Repo:         auditsint.NewSQLiteRepository(db, clk),
+		Targets:      auditTargetLookup{svc: targetsSvc},
+		Destinations: auditDestinationLookup{svc: destSvc},
+		Engine:       kopia,
+		Sources:      sourceRegistry,
+		Clock:        clk,
+		BaseContext:  execCtx,
+		Workers:      concurrency,
+		Logger:       logger,
+	})
+
+	// Startup reconciliation: close any audit left non-terminal by a prior
+	// crash/restart/disconnect, fail-not-resume.
+	if err := auditsSvc.Reconcile(ctx); err != nil {
+		cancelExec()
+		_ = db.Close()
+		return fmt.Errorf("audit reconciliation failed: %w", err)
+	}
+
 	// Coverage: the first-real-backup readiness surface. Composes discovery
 	// suggestions with the targets/plans/runs/restores catalogs into one report
 	// plus bulk default acceptance. Owns no scanner logic; reads no file
@@ -304,6 +330,7 @@ func run(ctx context.Context) error {
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: logger},
 		healthH.ModuleWithPosture(db, "data-backup-manager-api", "1.0.0", posture, logEventSink{logger: logger}),
+		auditsH.Module(auditsSvc, logger),
 		coverageH.Module(coverageSvc, logger),
 		destinationsH.Module(db, clk, kopia, protectedRoot, logger),
 		discoveryH.Module(discoverySvc, logger),
@@ -340,6 +367,7 @@ func run(ctx context.Context) error {
 			cancelExec()
 			_ = runsSvc.Shutdown(cctx)
 			_ = restoresSvc.Shutdown(cctx)
+			_ = auditsSvc.Shutdown(cctx)
 			return db.Close()
 		},
 	}); err != nil {

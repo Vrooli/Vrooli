@@ -24,7 +24,7 @@
 - [x] OT-P0-008 | Storage limits | Per-destination caps that are configurable and default to alert+block (no silent eviction of backups)
 - [x] OT-P0-009 | Catalog & run history | List targets, destinations, plans, and runs; show last-success per target and browse snapshot contents
 - [x] OT-P0-010 | Health & observability | Health endpoint flags overdue/failed backups; backup outcomes are emitted as events for platform monitoring
-- [ ] OT-P0-011 | Three coordinated surfaces | API, CLI, and UI all expose the registration / destination / plan / run / restore model over the same Connect-RPC contract
+- [x] OT-P0-011 | Three coordinated surfaces | API, CLI, and UI all expose the registration / destination / plan / run / restore model over the same Connect-RPC contract
 
 ### 🟠 P1 – Should have post-launch
 - [x] OT-P1-001 | Quiesce hooks | Targets declare pre/post hooks so live databases get application-consistent snapshots

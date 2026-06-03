@@ -32,6 +32,7 @@ current state.
 | Default coverage acceptance | coverage | Operator runs `coverage accept-defaults` (or the UI "Register recommended"). | All non-sensitive discovered durable targets registered; sensitive ones skipped unless opted in. | Idempotent bulk upsert; per-item success/skip/fail. | Coverage service tests (split, dry-run, idempotency, partial failure). |
 | Scheduled backup run | runs | In-process scheduler fires a plan, or operator/scenario triggers on-demand. | One snapshot per target per destination, run + per-target outcomes recorded. | Stateful job with per-target fan-out and partial failure. | Planned: Level 5 flow model (states, traces, checked model, replay). |
 | Verified restore | restores | Operator/scenario requests restore or verify of a target. | Target restored to a location, or test-restored to scratch + checksummed (last-verified recorded). | Stateful job with verify gate. | Planned: Level 5 flow model. |
+| Generic snapshot audit | audits | Operator/scenario requests an audit of a snapshot. | Snapshot restored to scratch (recoverability), live target captured to scratch (read-only), both walked and compared by generic inventory; proof persisted. | Stateful async job; pass/diff/drift/failed terminal. | Implemented: service + walker + dbcheck + comparator tests (`api/internal/audits/*_test.go`). |
 | Storage-limit block | destinations / runs | A run would write past a destination's cap. | Run is blocked, an alert is raised, no bytes are written; never silent eviction. | Branch on cap-check before write. | Planned: service-level cap-enforcement tests. |
 
 ## Flow Details
@@ -130,6 +131,41 @@ current state.
 - Gate property: a verified restore is the precondition for removing a
   target's committed runtime data from git. No verify, no git removal.
 - Requirements: OT-P0-006; OT-P1-004 (granularity) extends step 1.
+
+### Generic snapshot audit
+
+- Owner domain: audits.
+- Trigger: operator/scenario requests `audits run` for a target +
+  destination + snapshot.
+- Inputs: target, destination, snapshot, and two cost knobs —
+  `include_content_hash` and `include_sqlite_checks` (clients default
+  both on; opt out for huge trees).
+- Steps (async on a background worker; the request returns a `requested`
+  record and the CLI/UI poll to terminal):
+  1. Restore the snapshot to a scratch directory (`resource-kopia
+     snapshot restore`). Success sets `restorable=true`.
+  2. Resolve the snapshot's start time from the engine snapshot list (for
+     drift interpretation).
+  3. Walk the restored tree with one generic filesystem walker → snapshot
+     inventory (counts, bytes, path-list hash, optional content hash,
+     SQLite candidates).
+  4. Capture the live target to a *second* scratch directory via the
+     same `sources.Capturer` used by backup — read-only on live, never
+     mutating it.
+  5. Walk the captured live tree → live inventory.
+  6. For each discovered SQLite file (detected by magic header, not
+     extension), run a read-only `PRAGMA integrity_check`, page facts, and
+     a normalized schema hash.
+  7. Compare the two inventories by generic signals only and persist the
+     completed audit. Both scratch directories are always removed.
+- Outputs: an audit record with the verdict — `matches`, the specific
+  generic `mismatches`, and `live_newer_than_snapshot` (a mismatch
+  explained as drift when live changed after the snapshot timestamp).
+- Genericity property: DBM never encodes any scenario's domain objects.
+  The proof is counts, bytes, hashes, and SQLite integrity — never file
+  contents or secrets. Scenario-specific semantic proof, if ever needed,
+  belongs to future scenario-owned hooks, not DBM core.
+- Requirements: DBM-RST-003 (OT-P0-006).
 
 ### Storage-limit block
 

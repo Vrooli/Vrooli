@@ -258,6 +258,22 @@ data-backup-manager restores restore \
 data-backup-manager restores list
 ```
 
+### Audit a snapshot (generic inventory proof)
+
+```bash
+# Restore to scratch + capture live + compare by generic inventory.
+# --no-content-hash / --no-sqlite-checks trade proof strength for speed on huge trees.
+data-backup-manager audits run \
+  --target <target-id> --destination <destination-id> --snapshot <snapshot-id>
+
+data-backup-manager audits get <audit-id>
+data-backup-manager audits list --target <target-id>
+```
+
+The audit prints an operator verdict (PASSED / DIFF / DIFF-drift / FAILED),
+the generic mismatches, and the live-vs-snapshot inventory evidence. It is
+scenario-agnostic and read-only on the live target.
+
 ### Gated backup proof
 
 Run the disposable canary proof when you need operational evidence that the

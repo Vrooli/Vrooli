@@ -6,7 +6,9 @@ import { Input } from "../../components/ui/input";
 import { Select } from "../../components/ui/select";
 import { Button } from "../../components/ui/button";
 import { SnapshotBrowser } from "../snapshot/SnapshotBrowser";
+import { AuditReport } from "../audits/AuditReport";
 import { useRuns } from "../../hooks/useRuns";
+import { useRunAudit } from "../../hooks/useAudits";
 import { useVerifyTarget, useRestoreTarget } from "../../hooks/useRestores";
 import { TargetOutcomeStatus } from "../../api/runs";
 import { formatAge } from "../../lib/format";
@@ -34,6 +36,7 @@ export function RestoreFlowDialog({ open, onClose }: { open: boolean; onClose: (
   const runs = useRuns();
   const verify = useVerifyTarget();
   const restore = useRestoreTarget();
+  const audit = useRunAudit();
 
   const choices = useMemo<SnapshotChoice[]>(() => {
     const out: SnapshotChoice[] = [];
@@ -70,7 +73,17 @@ export function RestoreFlowDialog({ open, onClose }: { open: boolean; onClose: (
     setTouched(false);
     verify.reset();
     restore.reset();
+    audit.reset();
     onClose();
+  };
+
+  const runAudit = () => {
+    if (!selected) return;
+    audit.mutate({
+      targetId: selected.targetId,
+      destinationId: selected.destinationId,
+      snapshotId: selected.snapshotId,
+    });
   };
 
   const runVerify = () => {
@@ -180,9 +193,22 @@ export function RestoreFlowDialog({ open, onClose }: { open: boolean; onClose: (
                 >
                   {verify.isPending ? t(strings.common.saving) : t(strings.restores.verify)}
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid={selectors.audits.runButton}
+                  onClick={runAudit}
+                  disabled={busy || audit.isPending}
+                >
+                  {audit.isPending ? t(strings.audits.running) : t(strings.audits.action)}
+                </Button>
               </div>
               <p className="text-xs text-app-muted-foreground">{t(strings.restores.verifyHint)}</p>
               {verify.isError && <p className="text-sm text-app-danger">{t(strings.restores.verifyError)}</p>}
+
+              {(audit.isPending || audit.isError || audit.data) && (
+                <AuditReport audit={audit.data} loading={audit.isPending} error={audit.isError} />
+              )}
 
               {showBrowse && (
                 <SnapshotBrowser destinationId={selected.destinationId} snapshotId={selected.snapshotId} />

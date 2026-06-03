@@ -54,6 +54,7 @@ before editing `.vrooli/service.json`.
 | Plan bindings | plans | SQLite | `api/internal/plans/schema.sql` | Until the plan is deleted | Many-to-many plan↔target and plan↔destination membership plus schedule and retention. |
 | Run history | runs | SQLite | `api/internal/runs/schema.sql` | Bounded retention (see Retention And Deletion) | Per-run and per-target outcomes; carries last-success-per-target and snapshot references. |
 | Restore records | restores | SQLite | `api/internal/restores/schema.sql` | Bounded retention | Includes verify outcomes and last-verified-per-target (the git-removal gate). |
+| Audit records | audits | SQLite | `api/internal/audits/schema.sql` | Bounded retention | Generic snapshot-audit proofs: status, restorability, live + snapshot inventories and the comparison, stored as JSON blobs. **Only relative paths, counts, and hashes — never file contents or secrets.** |
 | Backup artifacts (snapshots) | destinations / kopia | kopia repository (filesystem or S3/MinIO) | The kopia repository per destination | Per-plan retention policy, applied by kopia; **alert+block, never silent eviction** | Encrypted by default; reached only via `resource-kopia`; never under the scenario source tree. |
 | Repository passphrases & access keys | (referenced by) destinations | `vault` resource | `vault` | Lives with the destination | Catalog stores only secret references; the `kopia` resource sources the actual values from vault at call time. |
 
@@ -66,7 +67,8 @@ before editing `.vrooli/service.json`.
 | plans tables (+ membership) | plans | `api/internal/plans/schema.sql` | plans repository/service/handlers |
 | runs tables (+ per-target outcomes) | runs | `api/internal/runs/schema.sql` | runs repository/service/handlers, health rollup |
 | restores tables | restores | `api/internal/restores/schema.sql` | restores repository/service/handlers |
-| kopia repositories (per destination) | kopia resource | created via `resource-kopia repo create` | runs (snapshot create), restores (snapshot restore/verify), destinations (stats/usage) |
+| audits table | audits | `api/internal/audits/schema.sql` | audits repository/service/handlers |
+| kopia repositories (per destination) | kopia resource | created via `resource-kopia repo create` | runs (snapshot create), restores (snapshot restore/verify), audits (snapshot restore-to-scratch), destinations (stats/usage) |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
 ## Migrations And Compatibility
@@ -140,7 +142,10 @@ business data. Two controls bound the exposure: every destination is
 encrypted by default, and all passphrases and access keys come from the
 `vault` resource — never config files, env files, or process argv. The
 manager handles source bytes only in transit (capture → kopia) and does
-not retain them in its own catalog. Update this document and
+not retain them in its own catalog. The generic snapshot audit upholds
+the same bound: it walks restored and live bytes in scratch only, and the
+persisted audit record carries relative paths, counts, and hashes — never
+file contents, table rows, or secret values. Update this document and
 [`../internal/SECURITY.md`](../internal/SECURITY.md) when source kinds,
 destination backends, or secret handling change.
 

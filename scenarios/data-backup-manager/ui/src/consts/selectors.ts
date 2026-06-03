@@ -423,6 +423,11 @@ const literalSelectors = {
     browser: "snapshot-browser",
     up: "snapshot-up",
   },
+  audits: {
+    runButton: "audits-run-button",
+    report: "audits-report",
+    verdict: "audits-verdict",
+  },
   errorBoundary: {
     root: "error-boundary-root",
     retryButton: "error-boundary-retry",
