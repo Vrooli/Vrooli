@@ -32,11 +32,12 @@ func NewConnectHandler(d Deps) *connectHandler {
 
 func (h *connectHandler) CreatePlan(ctx context.Context, req *connect.Request[plansv1.CreatePlanRequest]) (*connect.Response[plansv1.CreatePlanResponse], error) {
 	in := plans.CreateInput{
-		Name:           req.Msg.Name,
-		TargetIDs:      req.Msg.TargetIds,
-		DestinationIDs: req.Msg.DestinationIds,
-		Schedule:       req.Msg.Schedule,
-		Enabled:        req.Msg.Enabled,
+		Name:                    req.Msg.Name,
+		TargetIDs:               req.Msg.TargetIds,
+		DestinationIDs:          req.Msg.DestinationIds,
+		Schedule:                req.Msg.Schedule,
+		Enabled:                 req.Msg.Enabled,
+		AllowIncompleteCoverage: req.Msg.AllowIncompleteCoverage,
 	}
 	if req.Msg.Retention != nil {
 		in.KeepLatest = req.Msg.Retention.KeepLatest
@@ -70,12 +71,13 @@ func (h *connectHandler) ListPlans(ctx context.Context, req *connect.Request[pla
 
 func (h *connectHandler) UpdatePlan(ctx context.Context, req *connect.Request[plansv1.UpdatePlanRequest]) (*connect.Response[plansv1.UpdatePlanResponse], error) {
 	in := plans.UpdateInput{
-		ID:             req.Msg.Id,
-		Name:           req.Msg.Name,
-		TargetIDs:      req.Msg.TargetIds,
-		DestinationIDs: req.Msg.DestinationIds,
-		Schedule:       req.Msg.Schedule,
-		Enabled:        req.Msg.Enabled,
+		ID:                      req.Msg.Id,
+		Name:                    req.Msg.Name,
+		TargetIDs:               req.Msg.TargetIds,
+		DestinationIDs:          req.Msg.DestinationIds,
+		Schedule:                req.Msg.Schedule,
+		Enabled:                 req.Msg.Enabled,
+		AllowIncompleteCoverage: req.Msg.AllowIncompleteCoverage,
 	}
 	if req.Msg.Retention != nil {
 		in.KeepLatest = req.Msg.Retention.KeepLatest

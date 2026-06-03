@@ -19,6 +19,13 @@ export interface PlanInput {
   schedule: string;
   keepLatest: number;
   enabled: boolean;
+  /**
+   * When false/unset the API rejects the plan with FAILED_PRECONDITION if
+   * non-sensitive recommended targets remain unregistered. The Plans UI sets it
+   * true only after the operator explicitly chooses to proceed with incomplete
+   * coverage. See CoverageService.
+   */
+  allowIncompleteCoverage?: boolean;
 }
 
 export async function listPlans(): Promise<Plan[]> {
@@ -39,6 +46,7 @@ export async function createPlan(input: PlanInput): Promise<Plan | undefined> {
     schedule: input.schedule,
     retention: { keepLatest: input.keepLatest },
     enabled: input.enabled,
+    allowIncompleteCoverage: input.allowIncompleteCoverage ?? false,
   });
   return res.plan;
 }
@@ -52,6 +60,7 @@ export async function updatePlan(id: string, input: PlanInput): Promise<Plan | u
     schedule: input.schedule,
     retention: { keepLatest: input.keepLatest },
     enabled: input.enabled,
+    allowIncompleteCoverage: input.allowIncompleteCoverage ?? false,
   });
   return res.plan;
 }

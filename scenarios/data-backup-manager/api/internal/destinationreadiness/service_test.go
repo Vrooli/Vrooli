@@ -105,6 +105,27 @@ func TestAnalyzeIsReadOnlyAndReportsWarnings(t *testing.T) {
 	}
 }
 
+func TestAnalyzeRecognizesNTFS3AsUsableFilesystem(t *testing.T) {
+	inspected := inspection()
+	inspected.Identity.Filesystem = "ntfs3"
+	inspected.NonEmptyRoot = false
+	inspected.InstallerMedia = false
+	inspector := &fakeInspector{inspection: inspected}
+	svc := destinationreadiness.NewService(inspector, &fakePreparer{})
+
+	report, err := svc.Analyze(context.Background(), destinationreadiness.AnalyzeInput{
+		Location:            "/media/user/Elements",
+		SelectedTargetBytes: 1 << 30,
+		RetentionCopies:     2,
+	})
+	if err != nil {
+		t.Fatalf("Analyze returned error: %v", err)
+	}
+	if got := severity(report.Checks, "filesystem_suitability"); got != destinationreadiness.SeverityPass {
+		t.Fatalf("filesystem_suitability severity = %s, want %s (checks=%+v)", got, destinationreadiness.SeverityPass, report.Checks)
+	}
+}
+
 func TestPlanGenerationDoesNotExecute(t *testing.T) {
 	inspector := &fakeInspector{inspection: inspection()}
 	preparer := &fakePreparer{supported: map[destinationreadiness.PreparationAction]bool{

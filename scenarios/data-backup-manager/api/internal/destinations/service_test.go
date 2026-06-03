@@ -138,10 +138,9 @@ func TestCreateDestinations_FsAndS3(t *testing.T) {
 		svc := destinations.NewService(repo, eng, bundle, protected)
 
 		d, err := svc.CreateDestination(ctx, destinations.CreateInput{
-			Name:      "elements-local",
-			Backend:   destinations.BackendFilesystem,
-			Location:  "/mnt/backup",
-			SecretRef: "vault://x/passphrase",
+			Name:     "elements-local",
+			Backend:  destinations.BackendFilesystem,
+			Location: "/mnt/backup",
 		})
 		if err != nil {
 			t.Fatalf("CreateDestination: %v", err)
@@ -168,8 +167,15 @@ func TestCreateDestinations_FsAndS3(t *testing.T) {
 		if len(bundle.Metadata) != 1 {
 			t.Fatalf("WriteMetadata calls = %d, want 1", len(bundle.Metadata))
 		}
-		if bundle.Metadata[0].SecretRef != "vault://x/passphrase" {
-			t.Fatalf("manifest secret ref = %q", bundle.Metadata[0].SecretRef)
+		// The bundle manifest carries the engine-derived vault reference path so a
+		// detached drive points the operator at the passphrase location, not a
+		// caller guess. It is a reference, never the secret value.
+		wantRef := "secret/resources/kopia/repo/elements-local/passphrase"
+		if bundle.Metadata[0].SecretRef != wantRef {
+			t.Fatalf("manifest secret ref = %q, want %q", bundle.Metadata[0].SecretRef, wantRef)
+		}
+		if d.SecretRef != wantRef {
+			t.Fatalf("persisted secret ref = %q, want %q", d.SecretRef, wantRef)
 		}
 	})
 

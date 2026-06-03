@@ -8,6 +8,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Button } from "../components/ui/button";
 import { StatusChip } from "../components/ui/status-chip";
 import { PlanFormDialog } from "../features/plans/PlanFormDialog";
+import { CoverageBanner } from "../features/backup-coverage/CoverageBanner";
 import { usePlans, useDeletePlan } from "../hooks/usePlans";
 import { useRuns, useTriggerRun } from "../hooks/useRuns";
 import type { Plan } from "../api/plans";
@@ -122,6 +123,8 @@ export function PlansPage() {
           }
         />
       </div>
+
+      <CoverageBanner />
 
       <AsyncSection
         isLoading={isLoading}

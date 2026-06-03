@@ -52,6 +52,21 @@ Connect service:
 | `ListDestinationSuggestions` | Suggest safe destination volumes. | `discovery destinations` |
 | `DismissSuggestion` | Hide a suggestion permanently. | `discovery dismiss` |
 
+## Coverage
+
+Connect service:
+`/vrooli.data_backup_manager.v1.coverage.CoverageService/<method>`
+
+| Method | Purpose | CLI |
+|---|---|---|
+| `GetCoverageReport` | Live first-backup readiness: registered vs recommended vs sensitive targets, plus planned/backed-up/verified posture. | `coverage report` |
+| `AcceptDefaultTargets` | Bulk-register non-sensitive discovered durable targets (`include_sensitive` opts in credential/token targets; `dry_run` registers nothing). | `coverage accept-defaults` |
+
+Coverage composes the discovery, targets, plans, runs and restores seams; it
+reads no file contents and persists nothing of its own. `AcceptDefaultTargets`
+returns per-item `accepted` / `skipped_sensitive` / `failed` lists so partial
+failures are never swallowed.
+
 ## Plans
 
 Connect service:
@@ -59,10 +74,10 @@ Connect service:
 
 | Method | Purpose | CLI |
 |---|---|---|
-| `CreatePlan` | Bind targets to destinations with schedule and retention. | `plans create` |
+| `CreatePlan` | Bind targets to destinations with schedule and retention. Blocked with `failed_precondition` when non-sensitive recommended targets are unregistered unless `allow_incomplete_coverage` is set. | `plans create` |
 | `GetPlan` | Fetch a plan by id. | `plans get` |
 | `ListPlans` | List backup plans. | `plans list` |
-| `UpdatePlan` | Replace plan fields and membership. | `plans update` |
+| `UpdatePlan` | Replace plan fields and membership. Same coverage guard as create via `allow_incomplete_coverage`. | `plans update` |
 | `DeletePlan` | Delete a plan. | `plans delete` |
 
 ## Runs

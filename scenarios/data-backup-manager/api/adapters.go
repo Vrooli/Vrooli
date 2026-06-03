@@ -10,6 +10,7 @@ import (
 	runsH "data-backup-manager/handlers/runs"
 
 	"data-backup-manager/internal/clock"
+	coverageint "data-backup-manager/internal/coverage"
 	destint "data-backup-manager/internal/destinations"
 	discoveryint "data-backup-manager/internal/discovery"
 	plansint "data-backup-manager/internal/plans"
@@ -191,6 +192,163 @@ func (a discoveryProtectedPaths) ProtectedPaths(ctx context.Context) ([]string, 
 		}
 	}
 	return paths, nil
+}
+
+// --- Coverage composition seams -------------------------------------------
+//
+// Coverage reads every fact through a seam and owns no scanner/catalog logic;
+// these adapters back its seams with the concrete sibling services. Discovery
+// is the single authority for "what durable state is worth protecting", so both
+// the coverage report and the plan guard read suggestions from it.
+
+// coverageSuggestions adapts discovery.Service to coverage.SuggestionSource.
+// Discovery already filters out registered and dismissed suggestions, so the
+// recommended/sensitive split is the only classification coverage adds.
+type coverageSuggestions struct{ svc discoveryint.Service }
+
+func (a coverageSuggestions) ListTargetSuggestions(ctx context.Context) ([]coverageint.Suggestion, error) {
+	sugs, err := a.svc.ListTargetSuggestions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]coverageint.Suggestion, 0, len(sugs))
+	for _, s := range sugs {
+		out = append(out, coverageint.Suggestion{
+			ID:          s.ID,
+			Owner:       s.Owner,
+			Name:        s.Name,
+			SourceKind:  s.SourceKind,
+			Locator:     s.Locator,
+			Rationale:   s.Rationale,
+			ApproxBytes: s.ApproxBytes,
+			Sensitive:   s.Sensitive,
+			Warning:     discoverySensitiveWarning(s.Sensitive),
+		})
+	}
+	return out, nil
+}
+
+// discoverySensitiveWarning mirrors the discovery handler's sensitive warning so
+// the coverage surface shows the same caution without importing the handler.
+func discoverySensitiveWarning(sensitive bool) string {
+	if !sensitive {
+		return ""
+	}
+	return "Includes credentials/tokens — review before backing up; restoring stale tokens can silently break auth."
+}
+
+// coverageTargetCatalog adapts targets.Service to coverage.TargetCatalog: it
+// lists registered targets and registers accepted suggestions (idempotent
+// upsert, locators only — no content read).
+type coverageTargetCatalog struct{ svc targetsint.Service }
+
+func (a coverageTargetCatalog) List(ctx context.Context) ([]coverageint.CatalogTarget, error) {
+	ts, err := a.svc.List(ctx, "", catalogScanLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]coverageint.CatalogTarget, 0, len(ts))
+	for _, t := range ts {
+		out = append(out, coverageint.CatalogTarget{
+			ID:         t.ID,
+			Owner:      t.Owner,
+			Name:       t.Name,
+			SourceKind: t.SourceKind,
+			Locator:    t.Locator,
+		})
+	}
+	return out, nil
+}
+
+func (a coverageTargetCatalog) Register(ctx context.Context, in coverageint.RegisterInput) (coverageint.CatalogTarget, error) {
+	t, err := a.svc.Register(ctx, targetsint.RegisterInput{
+		Owner:      in.Owner,
+		Name:       in.Name,
+		SourceKind: in.SourceKind,
+		Locator:    in.Locator,
+	})
+	if err != nil {
+		return coverageint.CatalogTarget{}, err
+	}
+	return coverageint.CatalogTarget{
+		ID:         t.ID,
+		Owner:      t.Owner,
+		Name:       t.Name,
+		SourceKind: t.SourceKind,
+		Locator:    t.Locator,
+	}, nil
+}
+
+// coveragePlanCatalog adapts plans.Service to coverage.PlanCatalog: it rolls
+// every plan's target membership into the set of planned target ids.
+type coveragePlanCatalog struct{ svc plansint.Service }
+
+func (a coveragePlanCatalog) PlannedTargetIDs(ctx context.Context) (map[string]struct{}, error) {
+	ps, err := a.svc.List(ctx, catalogScanLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]struct{})
+	for _, p := range ps {
+		for _, id := range p.TargetIDs {
+			out[id] = struct{}{}
+		}
+	}
+	return out, nil
+}
+
+// coverageRunStatus adapts runs.Service to coverage.RunStatusSource: the last
+// successful backup time per target.
+type coverageRunStatus struct{ svc runsint.Service }
+
+func (a coverageRunStatus) LastSuccessByTarget(ctx context.Context, targetIDs []string) (map[string]time.Time, error) {
+	statuses, err := a.svc.ListTargetStatus(ctx, targetIDs)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]time.Time, len(statuses))
+	for _, s := range statuses {
+		if !s.LastSuccessAt.IsZero() {
+			out[s.TargetID] = s.LastSuccessAt
+		}
+	}
+	return out, nil
+}
+
+// coverageVerified adapts restores.Service to coverage.VerifiedSource: the last
+// verified-restore time per target.
+type coverageVerified struct{ svc restoresint.Service }
+
+func (a coverageVerified) LastVerifiedByTarget(ctx context.Context, targetIDs []string) (map[string]time.Time, error) {
+	statuses, err := a.svc.LastVerifiedByTarget(ctx, targetIDs)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]time.Time, len(statuses))
+	for _, s := range statuses {
+		if !s.LastVerifiedAt.IsZero() {
+			out[s.TargetID] = s.LastVerifiedAt
+		}
+	}
+	return out, nil
+}
+
+// planCoverageGuard adapts the coverage service to plans.CoverageGuard. The
+// plans service consults it before persisting a create/update so a plan cannot
+// silently omit non-sensitive recommended default coverage. It reads only the
+// non-sensitive recommendations — sensitive suggestions never block a plan.
+type planCoverageGuard struct{ svc coverageint.Service }
+
+func (a planCoverageGuard) UnregisteredDefaultTargets(ctx context.Context) ([]plansint.MissingTarget, error) {
+	recs, err := a.svc.UnregisteredDefaultTargets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]plansint.MissingTarget, 0, len(recs))
+	for _, r := range recs {
+		out = append(out, plansint.MissingTarget{Owner: r.Owner, Name: r.Name, Locator: r.Locator})
+	}
+	return out, nil
 }
 
 // runTrigger adapts runs.Service to scheduler.RunTrigger (scheduler-fired runs).

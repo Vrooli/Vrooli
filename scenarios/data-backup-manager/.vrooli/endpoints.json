@@ -32,6 +32,83 @@
       }
     },
     {
+      "id": "coverage_report",
+      "path": "/vrooli.data_backup_manager.v1.coverage.CoverageService/GetCoverageReport",
+      "method": "POST",
+      "summary": "Get the backup coverage report",
+      "description": "Derives, live, the first-real-backup readiness picture: registered targets annotated with planned/backed-up/verified state, the non-sensitive discovered targets recommended for default coverage but not yet registered, and the sensitive (credential/token) suggestions held for review. Composes the discovery, targets, plans, runs and restores seams; reads no file contents and persists nothing.",
+      "category": "coverage",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "report": "CoverageReport"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Suggestion scan or catalog read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get coverage report",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.coverage.CoverageService/GetCoverageReport -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager coverage report"
+      }
+    },
+    {
+      "id": "coverage_accept_defaults",
+      "path": "/vrooli.data_backup_manager.v1.coverage.CoverageService/AcceptDefaultTargets",
+      "method": "POST",
+      "summary": "Accept default coverage targets",
+      "description": "Bulk-registers every non-sensitive discovered durable target so default coverage protects all known regenerable-once state. Sensitive credential/token suggestions are skipped unless include_sensitive is set. dry_run registers nothing and reports what would be registered. Idempotent — already-registered targets are not re-suggested, so re-running accepts nothing new. Registration stores locators only; file contents are never read.",
+      "category": "coverage",
+      "request": {
+        "type": "object",
+        "properties": {
+          "dry_run": "bool (default false)",
+          "include_sensitive": "bool (default false)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "array<AcceptedTarget>",
+          "dry_run": "boolean",
+          "failed": "array<AcceptError>",
+          "skipped_sensitive": "array<SuggestedTarget>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Suggestion scan failure before any registration"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Preview default acceptance",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.coverage.CoverageService/AcceptDefaultTargets -H 'Content-Type: application/json' -d '{\"dryRun\":true}'"
+        },
+        {
+          "name": "Register non-sensitive defaults",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.coverage.CoverageService/AcceptDefaultTargets -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager coverage accept-defaults"
+      }
+    },
+    {
       "id": "destinations_create",
       "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/CreateDestination",
       "method": "POST",
@@ -1473,6 +1550,16 @@
       "name": "discovery dismiss",
       "description": "Dismiss a suggestion permanently by id",
       "endpoint_id": "discovery_dismiss"
+    },
+    {
+      "name": "coverage report",
+      "description": "Show first-backup coverage: registered, recommended, sensitive, planned, backed-up, verified",
+      "endpoint_id": "coverage_report"
+    },
+    {
+      "name": "coverage accept-defaults",
+      "description": "Bulk-register non-sensitive discovered durable targets (sensitive require --include-sensitive)",
+      "endpoint_id": "coverage_accept_defaults"
     },
     {
       "name": "plans create",

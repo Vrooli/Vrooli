@@ -96,6 +96,13 @@ if jq -e '.repository_path' "${BUNDLE_ROOT}/vrooli-backup-destination.json" >/de
   echo "manifest missing repository_path" >&2
   exit 1
 fi
+# secret_ref must be a vault REFERENCE PATH (not blank, not a value): a detached
+# bundle has to tell the operator where the passphrase lives for standalone
+# recovery. resource-kopia keeps passphrases under secret/resources/kopia/...
+if [[ "${MANIFEST_SECRET_REF}" != secret/resources/kopia/* ]]; then
+  echo "manifest secret_ref is not a vault reference path: '${MANIFEST_SECRET_REF}'" >&2
+  exit 1
+fi
 # Defense-in-depth: no obvious passphrase/credential value text in the bundle.
 if grep -RiE 'passphrase[-_ ]?value|BEGIN [A-Z ]*PRIVATE KEY|secret[-_ ]?access[-_ ]?key' "${BUNDLE_ROOT}/README.txt" "${BUNDLE_ROOT}/RECOVERY.txt" "${BUNDLE_ROOT}/vrooli-backup-destination.json" >/dev/null; then
   echo "bundle metadata appears to contain a secret value" >&2

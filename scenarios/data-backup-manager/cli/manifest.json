@@ -244,6 +244,36 @@
       ]
     },
     {
+      "name": "coverage",
+      "description": "First-real-backup readiness: see what is registered/recommended/sensitive/planned/backed-up/verified, and bulk-register default coverage",
+      "commands": [
+        {
+          "name": "report",
+          "description": "Show the backup coverage report (registered, recommended, sensitive, planned, backed-up, verified)",
+          "binding": { "kind": "connect-rpc", "service": "CoverageService", "method": "GetCoverageReport" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "accept-defaults",
+          "description": "Bulk-register non-sensitive discovered durable targets as default coverage",
+          "flags": [
+            { "name": "include-sensitive", "bool": true, "description": "Also register sensitive credential/token suggestions (deliberate opt-in)" },
+            { "name": "dry-run", "bool": true, "description": "Report what would be registered without registering anything" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CoverageService", "method": "AcceptDefaultTargets" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
       "name": "plans",
       "description": "Manage backup plans (bind targets to destinations on a schedule)",
       "commands": [
@@ -256,7 +286,8 @@
             { "name": "destinations", "required": true, "description": "Comma-separated destination ids" },
             { "name": "schedule", "description": "Cron-style schedule expression (empty = manual only)" },
             { "name": "keep-latest", "description": "Retention: keep at most N latest snapshots (0 = keep all)" },
-            { "name": "enabled", "description": "Enable scheduler for this plan (default: true)" }
+            { "name": "enabled", "description": "Enable scheduler for this plan (default: true)" },
+            { "name": "allow-incomplete-coverage", "bool": true, "description": "Proceed even if non-sensitive recommended targets are unregistered (default: blocked)" }
           ],
           "binding": { "kind": "connect-rpc", "service": "PlansService", "method": "CreatePlan" },
           "governance": {
@@ -298,7 +329,8 @@
             { "name": "destinations", "description": "Comma-separated destination ids (replaces existing)" },
             { "name": "schedule", "description": "New schedule expression" },
             { "name": "keep-latest", "description": "Retention: keep at most N latest snapshots" },
-            { "name": "enabled", "description": "Enable or disable scheduler for this plan" }
+            { "name": "enabled", "description": "Enable or disable scheduler for this plan" },
+            { "name": "allow-incomplete-coverage", "bool": true, "description": "Proceed even if non-sensitive recommended targets are unregistered (default: blocked)" }
           ],
           "binding": { "kind": "connect-rpc", "service": "PlansService", "method": "UpdatePlan" },
           "governance": {

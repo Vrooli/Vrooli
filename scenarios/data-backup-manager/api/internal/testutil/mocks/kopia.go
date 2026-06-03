@@ -25,6 +25,7 @@ type FakeKopiaEngine struct {
 	// Programmable behavior. Leave nil to use the default.
 	RepoCreateFn      func(ctx context.Context, spec engine.RepoSpec) error
 	RepoStatusFn      func(ctx context.Context, repo string) (engine.RepoStatus, error)
+	PassphraseRefFn   func(repo string) string
 	RepoStatsFn       func(ctx context.Context, repo string) (engine.RepoStats, error)
 	RepoDeleteFn      func(ctx context.Context, repo string) error
 	SnapshotCreateFn  func(ctx context.Context, repo, path string, meta engine.SnapshotMetadata) (engine.Snapshot, error)
@@ -67,6 +68,16 @@ func (f *FakeKopiaEngine) RepoStatus(ctx context.Context, repo string) (engine.R
 		return f.RepoStatusFn(ctx, repo)
 	}
 	return engine.RepoStatus{EncryptionAlgorithm: "AES256-GCM-HMAC-SHA256", Connected: true}, nil
+}
+
+// PassphraseRef mirrors the production convention by default so tests can
+// assert the bundle carries the real reference path; override PassphraseRefFn
+// to inject a custom value.
+func (f *FakeKopiaEngine) PassphraseRef(repo string) string {
+	if f.PassphraseRefFn != nil {
+		return f.PassphraseRefFn(repo)
+	}
+	return "secret/resources/kopia/repo/" + repo + "/passphrase"
 }
 
 func (f *FakeKopiaEngine) RepoStats(ctx context.Context, repo string) (engine.RepoStats, error) {

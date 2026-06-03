@@ -22,6 +22,9 @@
     { "name": "discovery destinations", "description": "List suggested destinations (mounted volumes / plugged-in drives) to back up to", "endpoint_id": "discovery_destination_suggestions" },
     { "name": "discovery dismiss", "description": "Dismiss a suggestion permanently by id", "endpoint_id": "discovery_dismiss" },
 
+    { "name": "coverage report", "description": "Show first-backup coverage: registered, recommended, sensitive, planned, backed-up, verified", "endpoint_id": "coverage_report" },
+    { "name": "coverage accept-defaults", "description": "Bulk-register non-sensitive discovered durable targets (sensitive require --include-sensitive)", "endpoint_id": "coverage_accept_defaults" },
+
     { "name": "plans create", "description": "Create a backup plan (targets×destinations, schedule, retention)", "endpoint_id": "plans_create" },
     { "name": "plans get", "description": "Get a plan by id", "endpoint_id": "plans_get" },
     { "name": "plans list", "description": "List plans", "endpoint_id": "plans_list" },

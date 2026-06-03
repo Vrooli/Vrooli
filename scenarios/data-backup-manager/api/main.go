@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	coverageH "data-backup-manager/handlers/coverage"
 	destinationsH "data-backup-manager/handlers/destinations"
 	discoveryH "data-backup-manager/handlers/discovery"
 	healthH "data-backup-manager/handlers/health"
@@ -30,6 +31,7 @@ import (
 	runsH "data-backup-manager/handlers/runs"
 	targetsH "data-backup-manager/handlers/targets"
 
+	coverageint "data-backup-manager/internal/coverage"
 	destint "data-backup-manager/internal/destinations"
 	discoveryint "data-backup-manager/internal/discovery"
 	plansint "data-backup-manager/internal/plans"
@@ -153,7 +155,37 @@ func run(ctx context.Context) error {
 	// the backing for the cross-domain adapters the run orchestration needs.
 	targetsSvc := targetsint.NewService(targetsint.NewSQLiteRepository(db, clk))
 	destSvc := destint.NewService(destint.NewSQLiteRepository(db, clk), kopia, &destint.FSBundleWriter{}, protectedRoot)
-	plansSvc := plansint.NewService(plansint.NewSQLiteRepository(db, clk))
+
+	// Discovery: read-only onboarding suggestions. Scans well-known runtime
+	// state (~/.vrooli) for targets and mounted volumes for destinations,
+	// filtering against the live catalog + a dismissals table. Suggestions are
+	// derived; only dismissals persist. The protected-path set is computed here
+	// (runtime root + registered destinations + registered target locators) —
+	// wider than the destinations service's own protectedRoot (D4). Built before
+	// plans because the plan coverage guard reads its recommendations.
+	discoverySvc := discoveryint.NewService(discoveryint.Deps{
+		Volumes: sysmounts.New(),
+		// Two source scanners behind one seam: Vrooli's own runtime home
+		// (~/.vrooli) plus each external-cli resource's declared durable host
+		// state (coding-agent conversation history, via `vrooli resource list`).
+		Sources: discoveryint.NewCompositeScanner(
+			discoveryint.NewWellKnownScanner(),
+			discoveryint.NewResourceDataScanner(discoveryint.NewResourceEnumerator()),
+		),
+		Targets:      discoveryTargetCatalog{svc: targetsSvc},
+		Destinations: discoveryDestCatalog{svc: destSvc},
+		Protected:    discoveryProtectedPaths{runtimeRoot: discoveryint.RuntimeRoot(), targets: targetsSvc, dests: destSvc},
+		Dismissals:   discoveryint.NewSQLiteDismissalStore(db, clk),
+	})
+
+	// Plan coverage guard: a suggestions-only coverage instance backs the plans
+	// service so create/update can block on incomplete non-sensitive default
+	// coverage. It depends only on discovery (not plans), which keeps the
+	// construction graph acyclic — the full coverage service below reads plans.
+	guardCoverage := coverageint.NewService(coverageint.Deps{
+		Suggestions: coverageSuggestions{svc: discoverySvc},
+	})
+	plansSvc := plansint.NewService(plansint.NewSQLiteRepository(db, clk), planCoverageGuard{svc: guardCoverage})
 
 	// The run orchestration: capture (sources) + snapshot/retention (engine),
 	// cap-block via destinations, reading plans/targets through adapters.
@@ -181,25 +213,16 @@ func run(ctx context.Context) error {
 		Clock:        clk,
 	})
 
-	// Discovery: read-only onboarding suggestions. Scans well-known runtime
-	// state (~/.vrooli) for targets and mounted volumes for destinations,
-	// filtering against the live catalog + a dismissals table. Suggestions are
-	// derived; only dismissals persist. The protected-path set is computed here
-	// (runtime root + registered destinations + registered target locators) —
-	// wider than the destinations service's own protectedRoot (D4).
-	discoverySvc := discoveryint.NewService(discoveryint.Deps{
-		Volumes: sysmounts.New(),
-		// Two source scanners behind one seam: Vrooli's own runtime home
-		// (~/.vrooli) plus each external-cli resource's declared durable host
-		// state (coding-agent conversation history, via `vrooli resource list`).
-		Sources: discoveryint.NewCompositeScanner(
-			discoveryint.NewWellKnownScanner(),
-			discoveryint.NewResourceDataScanner(discoveryint.NewResourceEnumerator()),
-		),
-		Targets:      discoveryTargetCatalog{svc: targetsSvc},
-		Destinations: discoveryDestCatalog{svc: destSvc},
-		Protected:    discoveryProtectedPaths{runtimeRoot: discoveryint.RuntimeRoot(), targets: targetsSvc, dests: destSvc},
-		Dismissals:   discoveryint.NewSQLiteDismissalStore(db, clk),
+	// Coverage: the first-real-backup readiness surface. Composes discovery
+	// suggestions with the targets/plans/runs/restores catalogs into one report
+	// plus bulk default acceptance. Owns no scanner logic; reads no file
+	// contents; persists nothing.
+	coverageSvc := coverageint.NewService(coverageint.Deps{
+		Suggestions: coverageSuggestions{svc: discoverySvc},
+		Targets:     coverageTargetCatalog{svc: targetsSvc},
+		Plans:       coveragePlanCatalog{svc: plansSvc},
+		Runs:        coverageRunStatus{svc: runsSvc},
+		Restores:    coverageVerified{svc: restoresSvc},
 	})
 
 	// In-process scheduler: fires due plans on their cadence (OT-P0-005).
@@ -221,9 +244,10 @@ func run(ctx context.Context) error {
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: logger},
 		healthH.ModuleWithPosture(db, "data-backup-manager-api", "1.0.0", posture, logEventSink{logger: logger}),
+		coverageH.Module(coverageSvc, logger),
 		destinationsH.Module(db, clk, kopia, protectedRoot, logger),
 		discoveryH.Module(discoverySvc, logger),
-		plansH.Module(db, clk, logger),
+		plansH.Module(plansSvc, logger),
 		restoresH.Module(restoresSvc, logger),
 		runsH.Module(runsSvc, verifiedLookup{svc: restoresSvc}, logger),
 		targetsH.Module(db, clk, logger),

@@ -16,7 +16,7 @@ import (
 func TestPlan_ManyToManyBindings(t *testing.T) {
 	ctx := context.Background()
 	repo := mocks.NewFakeRepository()
-	svc := plans.NewService(repo)
+	svc := plans.NewService(repo, nil)
 
 	in := plans.CreateInput{
 		Name:           "nightly",
@@ -80,7 +80,7 @@ func TestPlan_ManyToManyBindings(t *testing.T) {
 // TestPlan_Validation pins the typed validation errors.
 func TestPlan_Validation(t *testing.T) {
 	ctx := context.Background()
-	svc := plans.NewService(mocks.NewFakeRepository())
+	svc := plans.NewService(mocks.NewFakeRepository(), nil)
 
 	cases := []struct {
 		name  string
@@ -110,7 +110,7 @@ func TestPlan_Validation(t *testing.T) {
 func TestPlan_DeleteAndGet(t *testing.T) {
 	ctx := context.Background()
 	repo := mocks.NewFakeRepository()
-	svc := plans.NewService(repo)
+	svc := plans.NewService(repo, nil)
 
 	p, err := svc.Create(ctx, plans.CreateInput{
 		Name:           "tmp",

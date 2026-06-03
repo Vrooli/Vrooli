@@ -204,6 +204,8 @@ func checkFilesystem(fs string, crossPlatform bool) CheckResult {
 		return CheckResult{Code: "filesystem_suitability", Severity: SeverityPass, Message: "ext4 is recommended for Linux backup drives"}
 	case "exfat":
 		return CheckResult{Code: "filesystem_suitability", Severity: SeverityPass, Message: "exFAT is usable for cross-platform backup drives"}
+	case "ntfs", "ntfs3":
+		return CheckResult{Code: "filesystem_suitability", Severity: SeverityPass, Message: "NTFS is usable for filesystem backup repositories on this mounted drive"}
 	case "vfat", "fat32", "msdos":
 		return CheckResult{Code: "filesystem_suitability", Severity: SeverityWarning, Message: "FAT32 has a 4 GiB per-file limit and is not recommended for serious backup repositories"}
 	case "":

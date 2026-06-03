@@ -10,6 +10,7 @@ import { StatusChip } from "../components/ui/status-chip";
 import { VerifiedChip } from "../components/ui/verified-chip";
 import { RegisterTargetDialog } from "../features/targets/RegisterTargetDialog";
 import { TargetInspector } from "../features/targets/TargetInspector";
+import { CoverageBanner } from "../features/backup-coverage/CoverageBanner";
 import { useCoverage, type CoverageRow } from "../hooks/useCoverage";
 import { useDeregisterTarget } from "../hooks/useTargets";
 import { RunStatus } from "../api/runs";
@@ -79,6 +80,8 @@ export function TargetsPage() {
           }
         />
       </div>
+
+      <CoverageBanner detailed />
 
       <AsyncSection
         isLoading={isLoading}

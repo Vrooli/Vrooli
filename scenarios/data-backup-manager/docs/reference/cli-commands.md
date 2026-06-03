@@ -183,6 +183,27 @@ against the live catalog + dismissals, so once you register/create one it
 stops appearing. A destination suggestion flagged `separate-root=UNSAFE`
 overlaps protected data and `destinations create` would reject it.
 
+### `data-backup-manager coverage ...`
+
+First-real-backup readiness. Where `discovery` lists raw suggestions, `coverage`
+is the decision surface: it composes discovery with the targets/plans/runs/
+restores catalogs into one report and bulk-registers the recommended
+non-sensitive defaults — so a plan protects *all* known non-regenerable durable
+state, not just one self-registered target.
+
+```bash
+data-backup-manager coverage report                       # registered/recommended/sensitive/planned/backed-up/verified
+data-backup-manager coverage accept-defaults --dry-run    # preview — registers nothing
+data-backup-manager coverage accept-defaults              # register non-sensitive discovered durable targets
+data-backup-manager coverage accept-defaults --include-sensitive  # also register credential/token targets (deliberate)
+```
+
+Sensitive credential/token suggestions are **never** registered by default;
+they require the explicit `--include-sensitive` opt-in. Acceptance is idempotent
+(discovery already excludes registered targets) and reads no file contents —
+registration stores locators only. Per-item failures are reported, never
+swallowed.
+
 ### `data-backup-manager plans ...`
 
 Bind targets to destinations with a schedule and retention.
@@ -201,6 +222,13 @@ data-backup-manager plans delete --id <plan-id>
 
 A target may be bound to several plans (e.g. daily-to-local and
 weekly-to-offsite).
+
+**Coverage guard.** `plans create` / `plans update` are blocked
+(`failed_precondition`) while any non-sensitive recommended target is still
+unregistered, so a plan cannot silently omit default coverage. Run
+`coverage accept-defaults` first, or pass `--allow-incomplete-coverage` to
+proceed deliberately with a narrow plan. Sensitive unregistered suggestions warn
+but never block.
 
 ### `data-backup-manager runs ...`
 

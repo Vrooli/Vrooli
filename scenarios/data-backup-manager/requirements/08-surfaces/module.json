@@ -41,7 +41,33 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "cli/domains/domains_test.go::TestSubcommandGroups",
-          "notes": "Assert the CLI exposes the target, destination, plan, run, restore, health, and discovery command groups."
+          "notes": "Assert the CLI exposes the target, destination, discovery, coverage, plan, run, and restore command groups."
+        }
+      ]
+    },
+    {
+      "id": "DBM-COV-001",
+      "title": "First-backup coverage activation",
+      "status": "implemented",
+      "prd_ref": "OT-P0-011",
+      "category": "api",
+      "criticality": "P0",
+      "description": "CoverageService reports first-backup readiness (registered vs recommended vs sensitive targets, plus planned/backed-up/verified posture) and bulk-registers non-sensitive discovered durable targets; sensitive credential/token targets require explicit opt-in. Plan create/update is guarded against incomplete non-sensitive default coverage unless allow_incomplete_coverage is set. Surfaced across API, CLI (coverage group), and UI (coverage banner).",
+      "tags": ["api", "cli", "ui", "coverage", "connect-rpc"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/internal/coverage/service_test.go",
+          "notes": "Coverage report classification + dry-run/idempotency/partial-failure of bulk accept; plan guard tested in api/internal/plans/coverage_guard_test.go."
+        },
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "implemented",
+          "ref": "ui/src/features/backup-coverage/CoverageBanner.test.tsx",
+          "notes": "Register-recommended action, sensitive opt-in, and the plans incomplete-coverage proceed path (ui/src/features/plans/PlanFormDialog.test.tsx)."
         }
       ]
     },

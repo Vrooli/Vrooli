@@ -51,14 +51,18 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 	}
 
 	resp, err := h.client.CreatePlan(context.Background(), connect.NewRequest(&plansv1.CreatePlanRequest{
-		Name:           ctx.Flag("name"),
-		TargetIds:      targetIDs,
-		DestinationIds: destIDs,
-		Schedule:       ctx.Flag("schedule"),
-		Retention:      retention,
-		Enabled:        enabled,
+		Name:                    ctx.Flag("name"),
+		TargetIds:               targetIDs,
+		DestinationIds:          destIDs,
+		Schedule:                ctx.Flag("schedule"),
+		Retention:               retention,
+		Enabled:                 enabled,
+		AllowIncompleteCoverage: ctx.BoolFlag("allow-incomplete-coverage"),
 	}))
 	if err != nil {
+		// The API returns FAILED_PRECONDITION with the exact remediation commands
+		// (coverage report / coverage accept-defaults) in the message, so the
+		// wrapped error already guides the operator.
 		return cliapp.WrapAPIError("create plan", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Plan == nil {
@@ -136,13 +140,14 @@ func (h *handlers) update(ctx cliapp.RunContext) error {
 	}
 
 	resp, err := h.client.UpdatePlan(context.Background(), connect.NewRequest(&plansv1.UpdatePlanRequest{
-		Id:             ctx.Flag("id"),
-		Name:           ctx.Flag("name"),
-		TargetIds:      targetIDs,
-		DestinationIds: destIDs,
-		Schedule:       ctx.Flag("schedule"),
-		Retention:      retention,
-		Enabled:        enabled,
+		Id:                      ctx.Flag("id"),
+		Name:                    ctx.Flag("name"),
+		TargetIds:               targetIDs,
+		DestinationIds:          destIDs,
+		Schedule:                ctx.Flag("schedule"),
+		Retention:               retention,
+		Enabled:                 enabled,
+		AllowIncompleteCoverage: ctx.BoolFlag("allow-incomplete-coverage"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("update plan", err, nil)

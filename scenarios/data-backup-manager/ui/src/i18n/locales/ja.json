@@ -158,6 +158,20 @@
     "approxSize": "≈{{size}}",
     "freeOfTotal": "{{total}} 中 {{free}} 空き"
   },
+  "coverage": {
+    "title": "バックアップカバレッジ",
+    "incompleteTitle": "既定のカバレッジが不完全です",
+    "incompleteBody": "このマシンで検出された推奨の永続ターゲット {{count}} 件が未登録です。プランで保護できるよう登録してください。",
+    "complete": "既定のカバレッジは完了しています — 推奨される永続ターゲットはすべて登録済みです。",
+    "registerRecommended": "推奨を登録 ({{count}})",
+    "registering": "登録中…",
+    "sensitiveTitle": "機密ターゲットの確認が必要です",
+    "sensitiveBody": "検出されたターゲット {{count}} 件に資格情報またはトークンが含まれます。既定では登録されません。確認のうえ意図的に有効化してください。",
+    "registerSensitive": "機密を登録 ({{count}})",
+    "summary": "登録 {{registered}} · 推奨 {{recommended}} · 機密 {{sensitive}} · 計画 {{planned}} · 検証 {{verified}}",
+    "incompleteRejected": "推奨される既定カバレッジが不完全なため、このプランはブロックされました。推奨ターゲットを登録するか、不完全なカバレッジのまま続行してください。",
+    "proceedIncomplete": "不完全なカバレッジのまま続行"
+  },
   "targets": {
     "subtitle": "バックアップ対象として登録されたランタイム状態。通常はシナリオが自動登録しますが、ここで手動で追加・削除することもできます。",
     "register": "ターゲットを登録",

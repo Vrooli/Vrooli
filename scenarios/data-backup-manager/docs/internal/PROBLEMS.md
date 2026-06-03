@@ -49,6 +49,30 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-06-03 — Discovered-vs-registered coverage gap closed (resolved)
+
+**Symptom:** Discovery suggested durable state worth protecting (Vrooli runtime
++ coding-agent state), but only *registered* targets are eligible for plans and
+runs. On a fresh install an operator could build a plan that looked protective
+while it backed up a single self-registered target — accepting a suggestion was
+a per-item manual `targets register`, with no bulk path and no plan-time guard.
+
+**Root cause:** Two separate truths (registered catalog vs derived suggestions)
+with no surface that reconciled them or enforced default coverage at plan
+creation.
+
+**Resolution:** Added the coverage domain (`CoverageService` —
+`GetCoverageReport` + `AcceptDefaultTargets`) composing discovery + targets +
+plans + runs + restores. `coverage accept-defaults` bulk-registers non-sensitive
+discovered durable targets (sensitive credential/token targets require explicit
+`--include-sensitive`); `plans create/update` are guarded
+(`failed_precondition`) while non-sensitive recommendations remain unregistered
+unless `allow_incomplete_coverage` is set. Surfaced in CLI (`coverage` group),
+API (CoverageService + plan guard field) and UI (coverage banner on Overview /
+Targets / Plans, plus an explicit "proceed with incomplete coverage" path).
+Coverage reads no file contents and persists nothing. See FLOWS.md "Default
+coverage acceptance".
+
 ### 2026-06-02 — Stale local kopia metadata is not auto-reaped
 
 **Symptom:** Old e2e/canary runs can leave local resource-kopia config

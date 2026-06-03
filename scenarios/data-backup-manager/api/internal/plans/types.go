@@ -14,7 +14,9 @@
 package plans
 
 import (
+	"context"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -42,6 +44,10 @@ type CreateInput struct {
 	Schedule       string
 	KeepLatest     int32
 	Enabled        bool
+	// AllowIncompleteCoverage bypasses the coverage guard: when false (default)
+	// the service rejects the plan if any non-sensitive discovered durable
+	// target is still unregistered.
+	AllowIncompleteCoverage bool
 }
 
 // UpdateInput is the DTO for full-replace updates.
@@ -53,6 +59,48 @@ type UpdateInput struct {
 	Schedule       string
 	KeepLatest     int32
 	Enabled        bool
+	// AllowIncompleteCoverage — see CreateInput.
+	AllowIncompleteCoverage bool
+}
+
+// CoverageGuard is the seam the plans service consults before persisting a
+// create/update to enforce default backup coverage. It returns the non-sensitive
+// discovered durable targets that are recommended for protection but not yet
+// registered. The concrete implementation lives in the composition root and is
+// backed by discovery; plans never imports discovery or coverage.
+//
+// A nil guard disables the check (used by the scheduler/test services that never
+// create plans).
+type CoverageGuard interface {
+	UnregisteredDefaultTargets(ctx context.Context) ([]MissingTarget, error)
+}
+
+// MissingTarget is a non-sensitive recommended target that is not yet
+// registered, surfaced in the incomplete-coverage error so operators see
+// exactly what default coverage they are about to skip.
+type MissingTarget struct {
+	Owner   string
+	Name    string
+	Locator string
+}
+
+// ErrIncompleteCoverage is the typed sentinel returned when a plan would be
+// created/updated while non-sensitive recommended targets remain unregistered
+// and the caller did not set AllowIncompleteCoverage. Handlers translate it into
+// connect.CodeFailedPrecondition.
+type ErrIncompleteCoverage struct {
+	Missing []MissingTarget
+}
+
+func (e ErrIncompleteCoverage) Error() string {
+	names := make([]string, 0, len(e.Missing))
+	for _, m := range e.Missing {
+		names = append(names, m.Owner+"/"+m.Name)
+	}
+	return fmt.Sprintf(
+		"incomplete default coverage: %d recommended target(s) not yet registered (%s); run `data-backup-manager coverage accept-defaults` or pass allow_incomplete_coverage to proceed",
+		len(e.Missing), strings.Join(names, ", "),
+	)
 }
 
 // ErrPlanNotFound is the typed sentinel returned by Repository.GetByID when no

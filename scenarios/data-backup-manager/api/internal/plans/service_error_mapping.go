@@ -20,5 +20,9 @@ func ToConnectError(err error) error {
 	if errors.As(err, &notFound) {
 		return connect.NewError(connect.CodeNotFound, notFound)
 	}
+	var incomplete ErrIncompleteCoverage
+	if errors.As(err, &incomplete) {
+		return connect.NewError(connect.CodeFailedPrecondition, incomplete)
+	}
 	return connect.NewError(connect.CodeInternal, err)
 }

@@ -29,6 +29,7 @@ current state.
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
 | Target self-registration | targets | A scenario calls register at its lifecycle. | Target upserted (owner+name), or no-op if unchanged. | Idempotent upsert; create-vs-update branch. | Planned: service-level idempotency tests. |
+| Default coverage acceptance | coverage | Operator runs `coverage accept-defaults` (or the UI "Register recommended"). | All non-sensitive discovered durable targets registered; sensitive ones skipped unless opted in. | Idempotent bulk upsert; per-item success/skip/fail. | Coverage service tests (split, dry-run, idempotency, partial failure). |
 | Scheduled backup run | runs | In-process scheduler fires a plan, or operator/scenario triggers on-demand. | One snapshot per target per destination, run + per-target outcomes recorded. | Stateful job with per-target fan-out and partial failure. | Planned: Level 5 flow model (states, traces, checked model, replay). |
 | Verified restore | restores | Operator/scenario requests restore or verify of a target. | Target restored to a location, or test-restored to scratch + checksummed (last-verified recorded). | Stateful job with verify gate. | Planned: Level 5 flow model. |
 | Storage-limit block | destinations / runs | A run would write past a destination's cap. | Run is blocked, an alert is raised, no bytes are written; never silent eviction. | Branch on cap-check before write. | Planned: service-level cap-enforcement tests. |
@@ -52,6 +53,31 @@ current state.
 - Idempotency: re-registration on boot is the normal path. The catalog
   is a cache; the registration model is reconstructable.
 - Requirements: OT-P0-001.
+
+### Default coverage acceptance
+
+- Owner domain: coverage (composes discovery + targets + plans + runs +
+  restores; owns no scanner logic of its own).
+- Trigger: operator runs `coverage accept-defaults`, or clicks "Register
+  recommended" in the UI coverage banner.
+- Inputs: `include_sensitive` (default false), `dry_run` (default false).
+- Steps:
+  1. List discovery target suggestions (already filtered to unregistered +
+     non-dismissed).
+  2. Partition into non-sensitive (default recommendations) and sensitive
+     (review-only).
+  3. For each non-sensitive suggestion — and sensitive ones only when
+     `include_sensitive` — register it via the targets service (idempotent
+     upsert, locators only, no content read). Under `dry_run`, register nothing
+     and report what would be registered.
+  4. Return per-item `accepted` / `skipped_sensitive` / `failed`.
+- Outputs: the accept result; sensitive suggestions stay review-only unless
+  explicitly opted in.
+- Guard: `plans create` / `plans update` block with `failed_precondition` while
+  non-sensitive recommendations remain unregistered, unless
+  `allow_incomplete_coverage` is set.
+- Idempotency: discovery excludes registered targets, so re-running accepts
+  nothing new.
 
 ### Scheduled backup run
 

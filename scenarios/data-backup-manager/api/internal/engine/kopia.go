@@ -26,6 +26,14 @@ import (
 // kopiaBinary is the wrapped resource CLI. All engine work flows through it.
 const kopiaBinary = "resource-kopia"
 
+// passphraseRefFormat is the vault path where resource-kopia stores a
+// repository's encryption passphrase. It MUST stay byte-identical to
+// resource-kopia's own PassphrasePath (resources/kopia/cli/internal/vault/
+// vault.go) — they are two ends of the same convention and must move in
+// lockstep. DBM only ever records this *reference path* in a bundle; it never
+// reads or transmits the passphrase value itself.
+const passphraseRefFormat = "secret/resources/kopia/repo/%s/passphrase"
+
 // Backend kinds, matching resource-kopia's --backend flag values.
 const (
 	BackendFilesystem = "filesystem"
@@ -106,6 +114,12 @@ type KopiaEngine interface {
 	RepoCreate(ctx context.Context, spec RepoSpec) error
 	// RepoStatus reports the repository's encryption algorithm and connection.
 	RepoStatus(ctx context.Context, repo string) (RepoStatus, error)
+	// PassphraseRef returns the vault reference *path* (never the value) where
+	// resource-kopia stores this repository's encryption passphrase, so a
+	// detached destination bundle can point an operator at the key for
+	// standalone recovery. It is a pure, deterministic string derivation —
+	// no I/O, no secret read.
+	PassphraseRef(repo string) string
 	// RepoStats reports current repository usage in bytes (for storage caps).
 	RepoStats(ctx context.Context, repo string) (RepoStats, error)
 	// RepoDelete removes local resource-kopia metadata and Vault secret refs for
@@ -210,6 +224,13 @@ func (k *KopiaCLI) RepoCreate(ctx context.Context, spec RepoSpec) error {
 		return fmt.Errorf("repo create %q: %w", spec.Name, err)
 	}
 	return nil
+}
+
+// PassphraseRef derives the vault reference path for a repository's passphrase.
+// Pure string formatting — it deliberately performs no vault I/O so it can be
+// called during create without a round-trip and never risks touching a secret.
+func (k *KopiaCLI) PassphraseRef(repo string) string {
+	return fmt.Sprintf(passphraseRefFormat, repo)
 }
 
 func (k *KopiaCLI) RepoStatus(ctx context.Context, repo string) (RepoStatus, error) {

@@ -22,10 +22,9 @@ func TestDestination_EncryptedByDefault(t *testing.T) {
 	svc := destinations.NewService(repo, eng, mocks.NewFakeBundleWriter(), "/protected")
 
 	d, err := svc.CreateDestination(ctx, destinations.CreateInput{
-		Name:      "encrypted-dest",
-		Backend:   destinations.BackendFilesystem,
-		Location:  "/mnt/safe",
-		SecretRef: "vault/kopia/encrypted-dest",
+		Name:     "encrypted-dest",
+		Backend:  destinations.BackendFilesystem,
+		Location: "/mnt/safe",
 	})
 	if err != nil {
 		t.Fatalf("CreateDestination: %v", err)
@@ -39,9 +38,11 @@ func TestDestination_EncryptedByDefault(t *testing.T) {
 		t.Fatalf("EncryptionAlgorithm = %q, want AES256-GCM-HMAC-SHA256", d.EncryptionAlgorithm)
 	}
 
-	// Only the vault reference must be stored — never a secret value.
-	if d.SecretRef != "vault/kopia/encrypted-dest" {
-		t.Fatalf("SecretRef = %q, want vault/kopia/encrypted-dest", d.SecretRef)
+	// Only the vault reference must be stored — never a secret value. The ref is
+	// derived authoritatively from the engine's deterministic passphrase path.
+	wantRef := "secret/resources/kopia/repo/encrypted-dest/passphrase"
+	if d.SecretRef != wantRef {
+		t.Fatalf("SecretRef = %q, want %q", d.SecretRef, wantRef)
 	}
 	// The domain type has no "secret" or "passphrase" field; asserting the struct
 	// shape guarantees that no secret is accidentally captured.

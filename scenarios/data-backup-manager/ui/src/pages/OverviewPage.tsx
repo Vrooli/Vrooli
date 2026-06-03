@@ -7,6 +7,7 @@ import { Button } from "../components/ui/button";
 import { PostureBanner } from "../features/posture/PostureBanner";
 import { StorageStrip } from "../features/overview/StorageStrip";
 import { CoverageGrid } from "../features/overview/CoverageGrid";
+import { CoverageBanner } from "../features/backup-coverage/CoverageBanner";
 import { SuggestionsPanel } from "../features/discovery/SuggestionsPanel";
 import { useDestinations } from "../hooks/useDestinations";
 import { useTargets } from "../hooks/useTargets";
@@ -74,6 +75,7 @@ export function OverviewPage() {
         )
       ) : (
         <>
+          <CoverageBanner />
           {hasSuggestions && <SuggestionsPanel />}
           <StorageStrip />
           <CoverageGrid />

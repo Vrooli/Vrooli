@@ -163,6 +163,9 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 		}
 	}
 
+	// The encryption passphrase is generated and owned by resource-kopia; DBM
+	// records only the deterministic vault *reference path* (never the value) so
+	// a detached bundle can point an operator at the key for standalone recovery.
 	d := Destination{
 		Name:                name,
 		BackendKind:         in.Backend,
@@ -171,7 +174,7 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 		CapBytes:            in.CapBytes,
 		CapPolicy:           capPolicy,
 		EncryptionAlgorithm: status.EncryptionAlgorithm,
-		SecretRef:           in.SecretRef,
+		SecretRef:           s.eng.PassphraseRef(name),
 	}
 
 	saved, err := s.repo.Create(ctx, d)

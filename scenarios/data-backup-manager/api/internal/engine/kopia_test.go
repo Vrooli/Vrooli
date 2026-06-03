@@ -49,6 +49,24 @@ func TestRepoDeleteUsesResourceKopiaDeleteCommand(t *testing.T) {
 	}
 }
 
+// TestPassphraseRefMatchesResourceKopiaConvention pins the vault reference path
+// DBM records to resource-kopia's own PassphrasePath convention
+// (resources/kopia/cli/internal/vault/vault.go). The two ends must stay
+// byte-identical; if resource-kopia moves the path, this test is the tripwire.
+// It is a pure derivation — no Runner is invoked, so no secret can be read.
+func TestPassphraseRefMatchesResourceKopiaConvention(t *testing.T) {
+	cli := &KopiaCLI{Runner: &recordingRunner{}}
+	got := cli.PassphraseRef("elements-local")
+	want := "secret/resources/kopia/repo/elements-local/passphrase"
+	if got != want {
+		t.Fatalf("PassphraseRef = %q, want %q", got, want)
+	}
+	// A reference path only: it must never look like or contain a secret value.
+	if strings.Contains(got, "passphrase=") || len(got) == 0 {
+		t.Fatalf("PassphraseRef must be a reference path, got %q", got)
+	}
+}
+
 func TestSnapshotCreateParsesResourceKopiaJSONShape(t *testing.T) {
 	runner := &recordingRunner{output: []byte(`{
 		"id": "kabc123",

@@ -343,6 +343,14 @@ const literalSelectors = {
     coverageEmpty: "overview-coverage-empty",
     setupCta: "overview-setup-cta",
   },
+  coverage: {
+    banner: "coverage-banner",
+    registerRecommended: "coverage-register-recommended",
+    recommendedList: "coverage-recommended-list",
+    sensitiveList: "coverage-sensitive-list",
+    registerSensitive: "coverage-register-sensitive",
+    complete: "coverage-complete",
+  },
   discovery: {
     panel: "discovery-panel",
     targetsGroup: "discovery-targets-group",
@@ -395,6 +403,8 @@ const literalSelectors = {
     formSubmit: "plans-form-submit",
     runNowButton: "plans-run-now-button",
     deleteButton: "plans-delete-button",
+    coverageWarning: "plans-coverage-warning",
+    proceedIncompleteCoverage: "plans-proceed-incomplete-coverage",
   },
   runs: {
     table: "runs-table",

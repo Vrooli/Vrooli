@@ -159,6 +159,20 @@
     "approxSize": "≈{{size}}",
     "freeOfTotal": "{{free}} free of {{total}}"
   },
+  "coverage": {
+    "title": "Backup coverage",
+    "incompleteTitle": "Default coverage is incomplete",
+    "incompleteBody": "{{count}} recommended durable target(s) discovered on this machine are not registered yet. Register them so a plan can protect them.",
+    "complete": "Default coverage complete — every recommended durable target is registered.",
+    "registerRecommended": "Register recommended ({{count}})",
+    "registering": "Registering…",
+    "sensitiveTitle": "Sensitive targets need review",
+    "sensitiveBody": "{{count}} discovered target(s) include credentials or tokens. They are never registered by default — review and enable them deliberately.",
+    "registerSensitive": "Register sensitive ({{count}})",
+    "summary": "{{registered}} registered · {{recommended}} recommended · {{sensitive}} sensitive · {{planned}} planned · {{verified}} verified",
+    "incompleteRejected": "This plan was blocked because recommended default coverage is incomplete. Register the recommended targets, or proceed with incomplete coverage.",
+    "proceedIncomplete": "Proceed with incomplete coverage"
+  },
   "targets": {
     "subtitle": "Runtime state registered for backup. Scenarios usually register themselves; you can also add or remove targets here.",
     "register": "Register target",

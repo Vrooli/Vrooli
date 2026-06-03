@@ -19,4 +19,5 @@ export const queryKeys = {
   restore: (id: string) => ["restore", id] as const,
   targetSuggestions: ["targetSuggestions"] as const,
   destinationSuggestions: ["destinationSuggestions"] as const,
+  coverageReport: ["coverageReport"] as const,
 };

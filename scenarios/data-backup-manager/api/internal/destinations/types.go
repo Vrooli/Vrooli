@@ -113,7 +113,6 @@ type CreateInput struct {
 	Location  string
 	CapBytes  int64
 	CapPolicy CapPolicy
-	SecretRef string
 }
 
 // UpdateInput carries the mutable fields Service.UpdateDestination accepts.

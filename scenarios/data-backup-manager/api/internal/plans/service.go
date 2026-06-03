@@ -43,12 +43,15 @@ type SchedulablePlan struct {
 }
 
 type service struct {
-	repo Repository
+	repo  Repository
+	guard CoverageGuard
 }
 
-// NewService constructs the production Service.
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+// NewService constructs the production Service. guard may be nil to disable the
+// default-coverage check (the scheduler/run services that never create plans
+// pass nil); the API-serving service is wired with a discovery-backed guard.
+func NewService(repo Repository, guard CoverageGuard) Service {
+	return &service{repo: repo, guard: guard}
 }
 
 // Compile-time guarantee.
@@ -64,6 +67,9 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Plan, error) {
 	}
 	if len(in.DestinationIDs) == 0 {
 		return Plan{}, ErrInvalidPlan{Field: "destination_ids", Reason: "at least one required"}
+	}
+	if err := s.checkCoverage(ctx, in.AllowIncompleteCoverage); err != nil {
+		return Plan{}, err
 	}
 
 	p := Plan{
@@ -117,6 +123,9 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Plan, error) {
 	if len(in.DestinationIDs) == 0 {
 		return Plan{}, ErrInvalidPlan{Field: "destination_ids", Reason: "at least one required"}
 	}
+	if err := s.checkCoverage(ctx, in.AllowIncompleteCoverage); err != nil {
+		return Plan{}, err
+	}
 
 	p := Plan{
 		ID:             in.ID,
@@ -128,6 +137,25 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Plan, error) {
 		Enabled:        in.Enabled,
 	}
 	return s.repo.Update(ctx, p)
+}
+
+// checkCoverage enforces the default-coverage guard: unless the caller opts out
+// (allowIncomplete) or no guard is wired, a plan cannot be created/updated while
+// non-sensitive recommended targets remain unregistered. Sensitive suggestions
+// never block (they require deliberate opt-in via coverage accept-defaults
+// --include-sensitive); the guard returns non-sensitive recommendations only.
+func (s *service) checkCoverage(ctx context.Context, allowIncomplete bool) error {
+	if allowIncomplete || s.guard == nil {
+		return nil
+	}
+	missing, err := s.guard.UnregisteredDefaultTargets(ctx)
+	if err != nil {
+		return err
+	}
+	if len(missing) > 0 {
+		return ErrIncompleteCoverage{Missing: missing}
+	}
+	return nil
 }
 
 func (s *service) Delete(ctx context.Context, id string) (bool, error) {

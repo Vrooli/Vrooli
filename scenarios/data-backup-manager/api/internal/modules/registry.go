@@ -22,6 +22,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	coverageH "data-backup-manager/handlers/coverage"
 	destinationsH "data-backup-manager/handlers/destinations"
 	discoveryH "data-backup-manager/handlers/discovery"
 	healthH "data-backup-manager/handlers/health"
@@ -31,6 +32,7 @@ import (
 	targetsH "data-backup-manager/handlers/targets"
 	localdb "data-backup-manager/internal/database"
 
+	coveragev1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/coverage"
 	destinationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations"
 	discoveryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/discovery"
 	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/plans"
@@ -46,6 +48,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, coverageH.Endpoints...)
 	out = append(out, destinationsH.Endpoints...)
 	out = append(out, discoveryH.Endpoints...)
 	out = append(out, plansH.Endpoints...)
@@ -78,6 +81,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "coverage", File: coveragev1.File_data_backup_manager_v1_coverage_coverage_proto},
 		{Module: "destinations", File: destinationsv1.File_data_backup_manager_v1_destinations_destinations_proto},
 		{Module: "discovery", File: discoveryv1.File_data_backup_manager_v1_discovery_discovery_proto},
 		{Module: "plans", File: plansv1.File_data_backup_manager_v1_plans_plans_proto},

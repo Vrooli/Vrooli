@@ -63,6 +63,33 @@ data-backup-manager runs list           # run history
 data-backup-manager restores list       # restore and verify history
 ```
 
+### Coverage — register default protection
+
+Discovery only *suggests* durable state worth protecting; a plan can only back
+up *registered* targets. On a fresh install that gap lets an operator build a
+plan that looks protective while it covers a single self-registered target.
+The coverage surface closes it: it reports what is registered vs
+recommended-but-unregistered vs sensitive, and bulk-registers the recommended
+non-sensitive defaults in one action.
+
+```bash
+data-backup-manager coverage report                       # registered/recommended/sensitive/planned/verified
+data-backup-manager coverage accept-defaults --dry-run    # preview — registers nothing
+data-backup-manager coverage accept-defaults              # register non-sensitive discovered durable targets
+```
+
+Sensitive suggestions (credential/token files such as `codex/auth`,
+`claude-code/credentials`) are **never** registered by default. Register them
+deliberately only after review:
+
+```bash
+data-backup-manager coverage accept-defaults --include-sensitive
+```
+
+Coverage reads no file contents and registers locators only. Because plan
+creation is guarded (see below), running `coverage accept-defaults` before
+`plans create` is the normal first-backup order.
+
 ### Destination onboarding
 
 Discovery and readiness analysis are read-only. A removable drive is not
@@ -105,7 +132,13 @@ the drive to confirm it explains itself; the `repository_location` reported by
    [cli-commands](../reference/cli-commands.md)) under a `/tmp` root to confirm
    create → run → verify → restore → `diff` is clean and the bundle metadata
    contains no secret value.
-2. Only then create the real external-drive destination and run a plan. Verify
+2. Register default coverage so the plan protects all known non-regenerable
+   durable state, not just one self-registered target:
+   `coverage report` → `coverage accept-defaults --dry-run` →
+   `coverage accept-defaults`. Plan creation is blocked while non-sensitive
+   recommendations remain unregistered (override with
+   `plans create --allow-incomplete-coverage` only on purpose).
+3. Only then create the real external-drive destination and run a plan. Verify
    (`restores verify`) before trusting it; verify is non-destructive.
 
 ### Back up (scheduled + on-demand)

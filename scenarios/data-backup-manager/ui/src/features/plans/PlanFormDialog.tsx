@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Code, ConnectError } from "@connectrpc/connect";
 
 import { Dialog } from "../../components/ui/dialog";
 import { Field } from "../../components/ui/field";
@@ -97,9 +98,17 @@ export function PlanFormDialog({
     onClose();
   };
 
-  const submit = () => {
-    setTouched(true);
-    if (!name.trim() || targetIds.length === 0 || destinationIds.length === 0) return;
+  // The API rejects a plan with FAILED_PRECONDITION when non-sensitive
+  // recommended targets remain unregistered. We surface that as a distinct
+  // warning with an explicit "proceed" path that resubmits with
+  // allowIncompleteCoverage — incomplete coverage is never silently allowed.
+  const errorCode = (err: unknown) =>
+    err ? ConnectError.from(err).code : undefined;
+  const isCoverageError =
+    errorCode(create.error) === Code.FailedPrecondition ||
+    errorCode(update.error) === Code.FailedPrecondition;
+
+  const runMutation = (allowIncompleteCoverage: boolean) => {
     const input = {
       name: name.trim(),
       targetIds,
@@ -107,12 +116,19 @@ export function PlanFormDialog({
       schedule: schedule.trim(),
       keepLatest: Number(keepLatest) || 0,
       enabled,
+      allowIncompleteCoverage,
     };
     if (isEdit && plan) {
       update.mutate({ id: plan.id, input }, { onSuccess: close });
     } else {
       create.mutate(input, { onSuccess: close });
     }
+  };
+
+  const submit = () => {
+    setTouched(true);
+    if (!name.trim() || targetIds.length === 0 || destinationIds.length === 0) return;
+    runMutation(false);
   };
 
   return (
@@ -206,10 +222,30 @@ export function PlanFormDialog({
           })}
         </p>
 
-        {(create.isError || update.isError) && (
-          <p className="text-sm text-app-danger">
-            {isEdit ? t(strings.plans.updateError) : t(strings.plans.createError)}
-          </p>
+        {isCoverageError ? (
+          <div
+            data-testid={selectors.plans.coverageWarning}
+            className="flex flex-col gap-2 rounded-panel border border-app-warning/40 bg-app-warning/10 p-3"
+          >
+            <p className="text-sm text-app-foreground">{t(strings.coverage.incompleteRejected)}</p>
+            <div>
+              <Button
+                size="sm"
+                variant="outline"
+                data-testid={selectors.plans.proceedIncompleteCoverage}
+                disabled={mutation.isPending}
+                onClick={() => runMutation(true)}
+              >
+                {t(strings.coverage.proceedIncomplete)}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          (create.isError || update.isError) && (
+            <p className="text-sm text-app-danger">
+              {isEdit ? t(strings.plans.updateError) : t(strings.plans.createError)}
+            </p>
+          )
         )}
       </div>
     </Dialog>
