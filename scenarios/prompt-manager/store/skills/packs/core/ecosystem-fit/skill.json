@@ -1,0 +1,24 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "ecosystem-fit",
+  "name": "Ecosystem Fit",
+  "description": "Decision-time lens for placing a scenario in Vrooli's self-improving ecosystem: which interfaces it serves or enables, what functional role it plays, and how it is built for compound value. Translates the vision into concrete 'what does done mean' obligations during planning, building, and refactoring. Cites docs/concepts/ECOSYSTEM.md.",
+  "modes": [
+    "practice"
+  ],
+  "tags": [
+    "practice",
+    "planning",
+    "ecosystem",
+    "architecture",
+    "scenario-design",
+    "methodology"
+  ],
+  "icon": "network",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-06-03T00:00:00Z",
+  "updatedAt": "2026-06-03T00:00:00Z"
+}

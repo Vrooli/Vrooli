@@ -129,6 +129,7 @@ What is the user doing?
 ├─ Brainstorming/workshopping a new idea  → prompt-manager skill read idea-workshop
 ├─ Debugging a non-obvious issue          → prompt-manager skill read scientific-debugging
 ├─ Creating an implementation plan        → prompt-manager skill read plan-skill-discovery
+├─ Building/repurposing a scenario        → prompt-manager skill read ecosystem-fit
 ├─ Deploying/publishing a scenario        → prompt-manager skill read deployment-coordinator
 ├─ (add new entries as patterns emerge)
 └─ None of the above                      → proceed normally, no skill needed

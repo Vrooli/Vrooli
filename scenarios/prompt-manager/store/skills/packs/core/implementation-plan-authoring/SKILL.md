@@ -10,6 +10,7 @@ Conditional reading (load only when the plan touches the matching surface — `p
 - `api-steer` — when the plan adds or modifies a proto / Connect-RPC contract.
 - `utils-unification` — when the plan introduces new helpers or touches shared utilities.
 - `seam-discovery-and-enforcement` — when the plan introduces new testability seams or changes existing ones.
+- `ecosystem-fit` — when the plan creates a new scenario or significantly changes an existing one's role or interface surface. Places it in Vrooli's interfaces, functional role, and compound-value design (`path:docs/concepts/ECOSYSTEM.md`).
 
 Skip these reads entirely for plans that don't touch the corresponding surface (e.g., pure docs, UI-only, research conclusions). Reading skills that don't apply wastes context.
 
@@ -146,7 +147,7 @@ Every plan must include:
 10. Rollout/Validation Checklist — must contain a "Regression check" line matching section 6a's strategy: `git-control-tower baseline diff --scenario <s> --name <plan-slug>` (per pair; exit 0 required, exit 1/2 must be triaged), or `git diff --stat <sha> -- <paths>` showing only declared files.
 11. Risks + Mitigations
 12. Non-goals / Prohibited Patterns
-13. Definition of Done — must include "Regression check from section 10 passes" alongside the other pass criteria.
+13. Definition of Done — must include "Regression check from section 10 passes" alongside the other pass criteria. For plans that create a new scenario or change an existing one's role or interface surface, also include an "Ecosystem-fit considered" criterion: the scenario's served/enabled interfaces, functional role, and compound-value seams are reflected in Target End State (per `ecosystem-fit` / `path:docs/concepts/ECOSYSTEM.md`).
 
 If user requests strict constraints (for example greenfield):
 - Add a dedicated hard-rule section near the top.

@@ -61,6 +61,8 @@ What kind of work is this?
 └─ Unsure               → concepts: "<goal description>", "<technology>", "<problem type>"
 ```
 
+> **Ecosystem-fit check (new-scenario & refactor work).** For **New feature/scenario** and **Refactor/cleanup** classifications, also load `ecosystem-fit` (`prompt-manager skill read ecosystem-fit`). It places the scenario in Vrooli's interfaces, functional role, and compound-value design so the plan reflects how the work fits the whole — not just the local task. See `path:docs/concepts/ECOSYSTEM.md`.
+
 2. Formulate 2-5 focused search queries, one per concept.
 
 **Exit criteria:**
