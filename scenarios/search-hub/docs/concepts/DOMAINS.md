@@ -14,13 +14,19 @@ registry row, never router code. See
 [`ARCHITECTURE.md`](ARCHITECTURE.md) §Thin-router boundary and the plan
 `docs/plans/unified-search-hub-plan.md` §3.
 
-> **Scaffold status (2026-06-03, Phase 2 orientation).** The product
+> **Domain status (updated 2026-06-03, Phase 7).** The product
 > domains below (`registry`, `routing`, `rerank`, `metrics`,
-> `providers`) are the **target map**. As of Phase 3 the `registry` and
-> `providers` domains are **live** (the first real vertical slice); the
-> template's `notes` worked example has been **removed**, and `health`
-> is kept. `routing`/`rerank`/`metrics` are still planned. The "Build
-> Phase" column records the plan phase that lands each domain.
+> `providers`) are the **target map**. `registry` + `providers` are live
+> (Phase 3, first vertical slice), `routing` fan-out is live (Phase 4)
+> with the classifier auto-routing layer (Phase 5), `rerank` is live
+> (Phase 6) — implemented as a seam *within* the `routing` package (see
+> the rerank section) — and `metrics` is now **live (Phase 7)**: the
+> `query_telemetry` store, `MetricsService.Insights`, and the implemented
+> `RoutingService.Status` (per-provider health + classifier/reranker
+> availability). The template's `notes` worked example has been
+> **removed**, and `health` is kept. All five product domains are now
+> implemented. The "Build Phase" column records the plan phase that lands
+> each domain.
 
 ## Purpose Of This Document
 
@@ -61,7 +67,7 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
 | registry | Persist provider descriptors and serve registration CRUD. The contract every provider self-registers against. | Registry / entity | `providers` table (descriptors only — no corpus data). | API, CLI, UI | MOD-P0-001, MOD-P1-010 | 3 | `api/internal/registry/`, `api/handlers/registry/`, `cli/domains/providers/`, `ui/src/features/providers/`, `packages/proto/schemas/search-hub/v1/registry/` |
 | providers | Turn a descriptor into unified `SearchHit`s: call the leaf endpoint (HTTP+JSON or CLI), apply the declarative `ResultMapping`, normalize the score. Holds the live-provider registration rows + gap stubs. | Adapter / integration | None (stateless adapters; descriptor rows owned by `registry`). | API (internal), CLI (register hooks) | MOD-P1-009, MOD-P1-010 | 3 (first leaf), 4/8 (rest) | `api/internal/providers/`, `api/internal/providers/adapters/`, registration descriptors |
 | routing | Classify a free query to provider types, fan out with bounded concurrency + per-provider timeout, collect candidates with provenance, group/return them, render operator-friendly output. | Orchestration / query | None (stateless). | API, CLI, UI | MOD-P0-002, MOD-P0-003, MOD-P0-004, MOD-P0-005, MOD-P0-006 | 4 (fan-out), 5 (classifier) | `api/internal/routing/`, `api/internal/routing/classifier/`, `api/handlers/routing/`, `cli/domains/search/`, `ui/src/features/search/`, `packages/proto/schemas/search-hub/v1/routing/` |
-| rerank | Fuse the per-provider shortlists into one comparable, ranked list; degrade gracefully to by-provider grouping when the reranker is unavailable. | Transform / ranking | None (calls Ollama). | API (internal) | MOD-P1-007 | 6 | `api/internal/rerank/` |
+| rerank | Fuse the per-provider shortlists into one comparable, ranked list; degrade gracefully to by-provider grouping when the reranker is unavailable. | Transform / ranking | None (calls Ollama). | API (internal) | MOD-P1-007 | 6 ✅ | `api/internal/routing/reranker.go`, `api/internal/routing/reranker_ollama.go` (a seam *within* the routing package — it post-processes the same fan-out, so co-location keeps the merge step beside what it merges; not a separate Go package) |
 | metrics | Persist per-query telemetry and compute insights: provider utilization, under-used providers, zero-result rate, latency percentiles. The validation backbone. | Telemetry / reporting | `query_telemetry` table (+ derived aggregates). | API, CLI, UI | MOD-P1-008 | 7 | `api/internal/metrics/`, `api/handlers/metrics/`, `ui/src/features/insights/` |
 | health | Report runtime readiness and dependency reachability (template-provided, kept). | Reporting / query | No product data. | API, UI | Starter scaffold health. | (scaffold) | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/search-hub/v1/health/` |
 
@@ -148,23 +154,42 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
   uncertain-widens-not-drops, partial-results-on-timeout, operator
   output shape.
 
-### rerank
+### rerank ✅ (Phase 6)
 
 - Purpose: merge the heterogeneous per-provider shortlists into one
   comparable, ranked list. Raw provider scores are not comparable across
-  corpora, so rerank is the merge step. Until it lands (Phase 6),
-  results are grouped by provider rather than falsely interleaved.
+  corpora, so rerank is the merge step. When no reranker is wired (or it
+  is unavailable), results are grouped by provider rather than falsely
+  interleaved.
 - Primary archetype: transform / ranking.
+- Implementation note: rerank is a **seam within the `routing` package**
+  (`api/internal/routing/reranker*.go`), not a standalone Go package — it
+  post-processes the same fan-out it ranks, so co-locating the merge step
+  beside what it merges keeps the cohesion the plan's F.6 handoff
+  prescribes ("a `Reranker` interface … in the `routing` domain"). The
+  earlier `api/internal/rerank/` target path was a Phase-2 sketch,
+  superseded.
 - Owns: the `Reranker` interface and its default implementation
-  (LLM-as-reranker via `qwen3:4b`, pointwise relevance), plus the
-  degradation path: reranker unavailable ⇒ fall back to by-provider
-  grouping + a `degraded` flag. Swap in a true cross-encoder behind the
-  same interface when the KO cutover plan lands one — the contract does
-  not change.
+  (LLM-as-reranker, pointwise 0–10 relevance), plus the degradation path:
+  reranker unavailable/erroring ⇒ fall back to by-provider grouping +
+  `reranked=false` + a `degraded` flag. Swap in a true cross-encoder
+  (`bge-reranker-v2-m3`) behind the same interface when the KO cutover
+  plan lands one — the router contract does not change.
+- Model note: the default model is **`qwen3:1.7b`**, not the Phase-0
+  nominee `qwen3:4b`. qwen3:4b does not honor `/no_think` through the
+  resource-ollama gateway and reasons past the gateway's ~60s deadline
+  (every rerank would time out and degrade); qwen3:1.7b honors it, emits
+  the scores JSON directly, and reranks in ~6s. The order also breaks
+  rerank-score ties by the original per-provider score, so a hedging
+  small model (all-5/10) preserves the providers' retrieval signal rather
+  than collapsing to fan-out order. Override with
+  `SEARCH_HUB_RERANKER_MODEL`.
 - Does not own: candidate generation (providers) or fan-out (routing).
 - Storage: none (calls Ollama).
 - Requirements: MOD-P1-007 (unified cross-provider ranking).
-- Tests: rerank ordering on a fixture, the degradation fallback path.
+- Tests: deterministic parse/ordering/fuse unit tests (always-on) + the
+  real-model rerank-ordering/MRR gate (`reranker_mrr_test.go`, skips when
+  Ollama is down) + the degradation fallback path.
 
 ### metrics
 
@@ -173,17 +198,31 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
   actually working and where it is under-used. This is first-class, not
   an afterthought — it is how the classifier/rerank earn their cost.
 - Primary archetype: telemetry / reporting.
-- Owns: the `query_telemetry` table (classified types, providers hit,
-  result counts, latency, re-query/"again" count, zero-result flag) and
-  the aggregates surfaced via `status` and an insights view: per-provider
-  utilization, registered-but-never-routed-to providers (signals bad
-  descriptions), zero-result rate, p50/p95 latency.
+- Owns: the `query_telemetry` + `query_telemetry_provider` tables
+  (routed types, per-provider hit counts, total result count, latency,
+  degraded/zero-result/reranked flags) and the aggregates surfaced via
+  `MetricsService.Insights` (CLI `search-hub insights`): per-provider
+  utilization, registered-but-never-routed-to providers (`under_utilized`,
+  signals bad descriptions), zero-result rate, p50/p95 latency. Live
+  federation health (per-provider reachability + classifier/reranker
+  availability) is surfaced via `RoutingService.Status` (CLI
+  `search-hub federation`) — implemented in the `routing` package since it
+  reads the registry + the model seams, not the telemetry tables.
+- Boundary: the router owns the `TelemetrySample` write seam
+  (`internal/routing/telemetry.go`); the metrics store implements it via a
+  bridge at the wiring edge (`handlers/metrics/recorder.go`), so
+  `internal/metrics` never imports `internal/routing` and vice versa.
 - Does not own: query orchestration (routing) or descriptors (registry).
-  Query text is hashed/opt-in (privacy).
+  Query text is **hashed** (SHA-256) before it reaches telemetry — the
+  tables carry no recoverable user input.
 - Storage: embedded SQLite (`SQLITE_PATH`). See [`DATA.md`](DATA.md).
 - Requirements: MOD-P1-008 (measurement backbone).
-- Tests: a query writes a telemetry row with providers-hit/counts/
-  latency; under-utilized and zero-result aggregates compute correctly.
+- Tests: `internal/metrics/store_test.go` (Record + p50/p95 + window +
+  per-provider aggregates), `handlers/metrics/connect_handler_test.go`
+  (under-utilized reconciliation + zero-divide guard + opaque errors),
+  `internal/routing/telemetry_status_test.go` (a query records exactly one
+  sample with hashed text; `Status` reports reachability + model
+  availability).
 
 ### health
 

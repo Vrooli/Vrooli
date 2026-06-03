@@ -17,6 +17,7 @@ import (
 // edge is exercised without real provider fan-out.
 type Querier interface {
 	Query(ctx context.Context, req *routingv1.QueryRequest) (*routingv1.QueryResponse, error)
+	Status(ctx context.Context) (*routingv1.StatusResponse, error)
 }
 
 // Deps wires the seams the routing Connect handler needs.
@@ -61,13 +62,17 @@ func (h *connectHandler) Query(ctx context.Context, req *connect.Request[routing
 	return connect.NewResponse(resp), nil
 }
 
-// Status is reserved for Phase 7 (federation status + per-provider health +
-// classifier/reranker availability). It is intentionally Unimplemented until
-// the metrics domain lands; the CLI manifest keeps it in `omitted[]` so no
-// command binds to it yet.
-func (h *connectHandler) Status(context.Context, *connect.Request[routingv1.StatusRequest]) (*connect.Response[routingv1.StatusResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented,
-		errors.New("RoutingService.Status lands in Phase 7 (federation status + metrics)"))
+// Status reports federation health (Phase 7): per-provider reachability plus
+// classifier/reranker availability. It delegates to the router, which never
+// fails on an individual provider — a registry read failure is the only error
+// path (an opaque Internal so store internals never leak).
+func (h *connectHandler) Status(ctx context.Context, _ *connect.Request[routingv1.StatusRequest]) (*connect.Response[routingv1.StatusResponse], error) {
+	resp, err := h.deps.Router.Status(ctx)
+	if err != nil {
+		h.deps.Logger.Printf("routing.Status: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal error"))
+	}
+	return connect.NewResponse(resp), nil
 }
 
 // toConnectError translates routing-domain sentinels into Connect codes at the

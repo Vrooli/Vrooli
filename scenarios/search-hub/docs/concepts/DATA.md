@@ -31,26 +31,26 @@ Schemas are applied on startup through `api-core/database`'s
 > `RoutedDB`+modules pattern uses SQLite, and staying on SQLite keeps the
 > whole pure-Go test harness intact with no new test dependency
 > (testcontainers). The provisioned postgres DB is left unused (harmless).
-> The `providers` table is **live as of Phase 3**; `query_telemetry`
-> lands in Phase 7.
+> The `providers` table is **live as of Phase 3**; `query_telemetry` +
+> `query_telemetry_provider` are **live as of Phase 7**.
 
 ## Data Ownership
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Status |
 |---|---|---|---|---|---|
 | Provider descriptors (`providers`) | registry | SQLite | `api/internal/registry/schema.sql` | Until deregistered | **Live — Phase 3.** Full descriptor persisted as a protojson blob plus projected filter columns (`provider_group`, `bucket`, `type`, `state`, `scope`). Includes `CAPABILITY_GAP` stubs (no endpoint). |
-| Per-query telemetry (`query_telemetry`) | metrics | SQLite | `api/internal/metrics/schema.sql` (planned) | Rolling window (define in Phase 7) | **Planned — Phase 7.** Classified types, providers hit, counts, latency, re-query count, zero-result flag. Query text hashed/opt-in. |
+| Per-query telemetry (`query_telemetry`, `query_telemetry_provider`) | metrics | SQLite | `api/internal/metrics/schema.sql` | Unbounded for v1 (rolling-window prune is a follow-up) | **Live — Phase 7.** Routed types, per-provider hit counts, total count, latency, degraded/zero-result/reranked flags. Query text is SHA-256 **hashed** before storage (no raw text). |
 
 ## Schema Map
 
 | Table/File/Object | Owner | Defined In | Used By | Status |
 |---|---|---|---|---|
 | `providers` table | registry | `api/internal/registry/schema.sql` | registry store/handlers, routing fan-out | Live — Phase 3 |
-| `query_telemetry` table | metrics | `api/internal/metrics/schema.sql` | metrics writer + insights aggregates | Planned — Phase 7 |
+| `query_telemetry` + `query_telemetry_provider` tables | metrics | `api/internal/metrics/schema.sql` | metrics store (Record via routing telemetry bridge) + Insights aggregates | Live — Phase 7 |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup | Live |
 
 The router imports **no qdrant client** and defines **no corpus-content
-tables** — only `providers` + `query_telemetry`. This is a guarded
+tables** — only `providers` + `query_telemetry`(+`_provider`). This is a guarded
 invariant (plan §6 Validation #4): an architectural test asserts the
 absence of a qdrant import and corpus tables.
 
@@ -75,7 +75,7 @@ backfills, add a scenario-specific migration plan here and update
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
 | Provider descriptors | `DeregisterProvider` (explicit) | Held until deregistered | Re-registration is upsert; no soft-delete history in v1. |
-| Per-query telemetry | Rolling-window prune (Phase 7) | Define window + prune job in Phase 7 | Window/prune not yet implemented (Phase 7). Query text hashed/opt-in. |
+| Per-query telemetry | Rolling-window prune (follow-up) | Define window + prune job as a follow-up | v1 keeps all rows; Insights accepts a `window_days` filter at read time. Query text is SHA-256 hashed. |
 | Template notes data | Domain removal (Phase 3) | Local development data only | Removed with the notes scaffold in Phase 3. |
 
 ## Privacy Notes

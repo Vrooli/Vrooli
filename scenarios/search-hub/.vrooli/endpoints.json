@@ -32,6 +32,57 @@
       }
     },
     {
+      "id": "metrics_insights",
+      "path": "/vrooli.search_hub.v1.metrics.MetricsService/Insights",
+      "method": "POST",
+      "summary": "Federation telemetry insights",
+      "description": "Aggregates per-query telemetry over an optional recent window into federation-health signals: total/zero-result/degraded/reranked query counts, zero-result rate, p50/p95 latency, and per-provider utilization (including registered-but-never-routed leaves flagged under_utilized). The router records one hashed-query telemetry row per Query; this is the read side.",
+      "category": "metrics",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window_days": "int32 — restrict aggregates to the last N days (0 = all-time)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "degraded_queries": "int64 — queries where a provider degraded",
+          "latency_p50_ms": "int64 — median latency",
+          "latency_p95_ms": "int64 — p95 latency",
+          "providers": "array<ProviderUtilization> — per-provider routed/hit totals + under_utilized flag",
+          "reranked_queries": "int64 — queries that produced a unified rerank",
+          "total_queries": "int64 — queries recorded in the window",
+          "zero_result_queries": "int64 — queries that returned no results",
+          "zero_result_rate": "double — zero_result_queries / total_queries"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Telemetry or registry read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "All-time insights",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.metrics.MetricsService/Insights -H 'Content-Type: application/json' -d '{}'"
+        },
+        {
+          "name": "Last 7 days",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.metrics.MetricsService/Insights -H 'Content-Type: application/json' -d '{\"window_days\":7}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "search-hub insights",
+        "args": [
+          "--window",
+          "<days>"
+        ]
+      }
+    },
+    {
       "id": "providers_register",
       "path": "/vrooli.search_hub.v1.registry.RegistryService/RegisterProvider",
       "method": "POST",
@@ -217,8 +268,8 @@
       "id": "routing_status",
       "path": "/vrooli.search_hub.v1.routing.RoutingService/Status",
       "method": "POST",
-      "summary": "Federation status (reserved — Phase 7)",
-      "description": "Reserved for the metrics domain (Phase 7): per-provider reachability/freshness + classifier/reranker availability. Returns Unimplemented until then; no CLI command binds to it yet (manifest omitted[]).",
+      "summary": "Federation status (per-provider health + model availability)",
+      "description": "Reports each ACTIVE provider's reachability plus whether the classifier and reranker models are available. An unreachable leaf is reported degraded rather than failing the call; only a registry read failure errors. Backs `search-hub status`.",
       "category": "routing",
       "request": {
         "type": "object"
@@ -226,18 +277,27 @@
       "response": {
         "type": "object",
         "properties": {
-          "classifier_available": "bool",
-          "providers": "array<ProviderHealth>",
-          "reranker_available": "bool"
+          "classifier_available": "bool — automatic routing model reachable",
+          "providers": "array<ProviderHealth> — per-leaf reachability + freshness note",
+          "reranker_available": "bool — unified-rerank model reachable (false ⇒ degraded ranking mode)"
         }
       },
       "errors": [
         {
-          "status": 501,
-          "code": "unimplemented",
-          "description": "Lands in Phase 7 (federation status + metrics)"
+          "status": 500,
+          "code": "internal",
+          "description": "Registry read failure"
         }
-      ]
+      ],
+      "examples": [
+        {
+          "name": "Federation status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.routing.RoutingService/Status -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "search-hub federation"
+      }
     }
   ],
   "cli_commands": [
@@ -265,6 +325,16 @@
       "name": "query",
       "description": "Federated search across registered providers (explicit --type/--all/--group; classifier lands Phase 5)",
       "endpoint_id": "routing_query"
+    },
+    {
+      "name": "federation",
+      "description": "Federation status: per-provider reachability + classifier/reranker availability (RoutingService.Status)",
+      "endpoint_id": "routing_status"
+    },
+    {
+      "name": "insights",
+      "description": "Federation telemetry insights: zero-result rate, p50/p95 latency, per-provider utilization (--window <days>)",
+      "endpoint_id": "metrics_insights"
     }
   ]
 }

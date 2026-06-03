@@ -25,6 +25,16 @@
       "name": "query",
       "description": "Federated search across registered providers (explicit --type/--all/--group; classifier lands Phase 5)",
       "endpoint_id": "routing_query"
+    },
+    {
+      "name": "federation",
+      "description": "Federation status: per-provider reachability + classifier/reranker availability (RoutingService.Status)",
+      "endpoint_id": "routing_status"
+    },
+    {
+      "name": "insights",
+      "description": "Federation telemetry insights: zero-result rate, p50/p95 latency, per-provider utilization (--window <days>)",
+      "endpoint_id": "metrics_insights"
     }
   ]
 }

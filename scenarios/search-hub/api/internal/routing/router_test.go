@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"testing"
 
@@ -174,8 +175,9 @@ func TestQueryRejectsNoSelector(t *testing.T) {
 	r := routing.NewRouter(routing.Deps{
 		Lister: &fakeLister{}, Resolver: staticResolver{}, Doer: routeDoer{},
 	})
-	// No --all, no types, no group: Phase 4 has no classifier, so this is an
-	// honest InvalidArgument rather than a silent widen.
+	// No --all, no types, no group, and no Classifier wired in Deps: this is an
+	// honest InvalidArgument rather than a silent widen. (With a Classifier set,
+	// the same request routes automatically — see TestAutoRouteUsesClassifierTypes.)
 	_, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "restart a scenario"})
 	require.ErrorAs(t, err, &routing.ErrInvalidQuery{})
 }
@@ -351,10 +353,249 @@ func TestListerErrorPropagates(t *testing.T) {
 	require.NotErrorIs(t, err, routing.ErrInvalidQuery{}, "a registry failure is not a caller error")
 }
 
+// --- classifier (Phase 5 automatic routing) --------------------------------
+
+// fakeClassifier records whether it was consulted and returns a canned result
+// (or error). called lets a test assert the explicit-selector path bypasses it.
+type fakeClassifier struct {
+	result    routing.ClassifyResult
+	err       error
+	called    bool
+	gotQuery  string
+	gotalltyp []string
+}
+
+func (f *fakeClassifier) Classify(_ context.Context, query string, profiles []routing.ProviderProfile) (routing.ClassifyResult, error) {
+	f.called = true
+	f.gotQuery = query
+	for _, p := range profiles {
+		f.gotalltyp = append(f.gotalltyp, p.Type)
+	}
+	return f.result, f.err
+}
+
+func (f *fakeClassifier) Available(context.Context) bool { return f.err == nil }
+
+func threeProviderLister() *fakeLister {
+	return &fakeLister{providers: []*registryv1.ProviderDescriptor{
+		cliHealthCommands(), uiSurfacesFiltered(), swarmRecords(),
+	}}
+}
+
+func threeProviderResolver() staticResolver {
+	return staticResolver{urls: map[string]string{
+		"cli-health":    "http://cli-health.test",
+		"ui-health":     "http://ui-health.test",
+		"swarm-manager": "http://swarm-manager.test",
+	}}
+}
+
+func threeProviderDoer() routeDoer {
+	return routeDoer{byURL: map[string]cannedResponse{
+		"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {status: 200, body: `{"results":[{"name":"scenario restart","description":"Restart","score":0.9}]}`},
+		"http://ui-health.test/vrooli.ui_health.v1.search.SearchService/Search":   {status: 200, body: `{"results":[{"displayName":"Settings","filePath":"s.tsx","kind":"surface","score":0.6}]}`},
+		"http://swarm-manager.test/api/v1/search/ai":                              {status: 200, body: `{"results":[{"id":"pt-1","score":0.7,"payload":{"record_id":"rec-a","scenario":"x"}}]}`},
+	}}
+}
+
+func TestAutoRouteUsesClassifierTypes(t *testing.T) {
+	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.9, Rationale: "CLI op"}}
+	r := routing.NewRouter(routing.Deps{
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(), Classifier: clf,
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "restart a scenario", Explain: true})
+	require.NoError(t, err)
+	require.True(t, clf.called)
+	require.Equal(t, "restart a scenario", clf.gotQuery)
+	require.Subset(t, clf.gotalltyp, []string{"command", "component", "record"}, "every active type's description is offered to the classifier")
+
+	require.Len(t, resp.GetGroups(), 1, "confident single-type route hits only that provider")
+	require.Equal(t, "cli-health.commands", resp.GetGroups()[0].GetProviderId())
+	require.False(t, resp.GetDegraded())
+
+	joined := strings.Join(resp.GetRoutingExplanation(), "\n")
+	require.Contains(t, joined, "automatic routing via classifier")
+	require.Contains(t, joined, "CLI op")
+	require.Contains(t, joined, "routed to types: command")
+	require.Contains(t, joined, "cli-health.commands")
+}
+
+func TestAutoRouteWidensOnLowConfidence(t *testing.T) {
+	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.2}}
+	r := routing.NewRouter(routing.Deps{
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(), Classifier: clf,
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "something vague", Explain: true})
+	require.NoError(t, err)
+	require.Len(t, resp.GetGroups(), 3, "uncertain ⇒ widen to every active provider (recall over precision)")
+	require.False(t, resp.GetDegraded(), "widening is not degradation")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "widened on uncertainty")
+}
+
+func TestAutoRouteClassifierErrorWidensAndFlagsDegraded(t *testing.T) {
+	clf := &fakeClassifier{err: errors.New("model unreachable")}
+	r := routing.NewRouter(routing.Deps{
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(), Classifier: clf,
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "anything", Explain: true})
+	require.NoError(t, err, "a classifier failure never fails the query")
+	require.Len(t, resp.GetGroups(), 3, "degrade ⇒ fall back to all active providers")
+	require.True(t, resp.GetDegraded(), "classifier failure flags the response degraded")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "classifier unavailable")
+}
+
+func TestExplicitSelectorBypassesClassifier(t *testing.T) {
+	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"record"}, Confidence: 0.9}}
+	r := routing.NewRouter(routing.Deps{
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(), Classifier: clf,
+	})
+
+	// --type given: the classifier must NOT be consulted.
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", Types: []string{"command"}})
+	require.NoError(t, err)
+	require.False(t, clf.called, "explicit --type overrides the classifier")
+	require.Len(t, resp.GetGroups(), 1)
+	require.Equal(t, "cli-health.commands", resp.GetGroups()[0].GetProviderId())
+}
+
 func groupsByID(groups []*routingv1.ProviderResultGroup) map[string]*routingv1.ProviderResultGroup {
 	out := make(map[string]*routingv1.ProviderResultGroup, len(groups))
 	for _, g := range groups {
 		out[g.GetProviderId()] = g
 	}
 	return out
+}
+
+// --- reranker (Phase 6 unified ranking) ------------------------------------
+
+// fakeReranker records the candidates it was handed and orders them by a fixed
+// score map keyed on hit id (or errors). It lets the router's rerank wiring be
+// tested without a model.
+type fakeReranker struct {
+	scoreByID map[string]float64
+	err       error
+	called    bool
+	gotQuery  string
+	gotCount  int
+}
+
+func (f *fakeReranker) Rerank(_ context.Context, query string, candidates []*routingv1.SearchHit) ([]*routingv1.SearchHit, error) {
+	f.called = true
+	f.gotQuery = query
+	f.gotCount = len(candidates)
+	if f.err != nil {
+		return nil, f.err
+	}
+	scores := make([]float64, len(candidates))
+	for i, h := range candidates {
+		scores[i] = f.scoreByID[h.GetId()]
+	}
+	return applyRerankForTest(candidates, scores), nil
+}
+
+func (f *fakeReranker) Available(context.Context) bool { return f.err == nil }
+
+// applyRerankForTest mirrors the production applyRerank ordering (descending,
+// stable) for the fake — the routing package's own applyRerank is unexported, so
+// the external test reconstructs the contract it relies on.
+func applyRerankForTest(candidates []*routingv1.SearchHit, scores []float64) []*routingv1.SearchHit {
+	ranked := make([]*routingv1.SearchHit, len(candidates))
+	copy(ranked, candidates)
+	for i, h := range ranked {
+		h.RerankScore = scores[i]
+	}
+	sort.SliceStable(ranked, func(i, j int) bool {
+		return ranked[i].GetRerankScore() > ranked[j].GetRerankScore()
+	})
+	return ranked
+}
+
+func TestRerankProducesUnifiedRankedList(t *testing.T) {
+	// swarm-manager's record (raw provider score 0.7) is the best answer; the
+	// reranker must float it above cli-health's command (raw 0.9) — proving the
+	// unified list is NOT just the per-provider scores interleaved.
+	rr := &fakeReranker{scoreByID: map[string]float64{
+		"scenario restart": 0.4, // cli-health hit (its PathField=name → id="scenario restart")
+		"pt-1":             0.95,
+	}}
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), swarmRecords()}},
+		Resolver: threeProviderResolver(),
+		Doer:     threeProviderDoer(),
+		Reranker: rr,
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "restart a scenario", All: true, Explain: true})
+	require.NoError(t, err)
+	require.True(t, rr.called)
+	require.Equal(t, "restart a scenario", rr.gotQuery)
+	require.Equal(t, 2, rr.gotCount, "every group's hit is fused into the shortlist")
+
+	require.True(t, resp.GetReranked(), "a successful rerank flags the response reranked")
+	require.False(t, resp.GetDegraded())
+	require.Len(t, resp.GetRanked(), 2)
+	require.Equal(t, "pt-1", resp.GetRanked()[0].GetId(), "highest rerank_score ranks first across providers")
+	require.InDelta(t, 0.95, resp.GetRanked()[0].GetRerankScore(), 1e-9)
+
+	// Groups stay populated for provenance.
+	require.Len(t, resp.GetGroups(), 2)
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranked 2 candidate")
+}
+
+func TestRerankDegradesToGroupingOnError(t *testing.T) {
+	rr := &fakeReranker{err: errors.New("model unreachable")}
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands()}},
+		Resolver: threeProviderResolver(),
+		Doer:     threeProviderDoer(),
+		Reranker: rr,
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true, Explain: true})
+	require.NoError(t, err, "a reranker failure never fails the query")
+	require.False(t, resp.GetReranked(), "degraded ⇒ keep honest by-provider grouping")
+	require.Empty(t, resp.GetRanked())
+	require.True(t, resp.GetDegraded(), "reranker failure flags the response degraded")
+	require.NotEmpty(t, resp.GetGroups(), "the grouping is still returned")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranker unavailable")
+}
+
+func TestNoRerankerKeepsGroupingOnly(t *testing.T) {
+	// No Reranker wired ⇒ the Phase-4/5 behavior is preserved exactly.
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands()}},
+		Resolver: threeProviderResolver(),
+		Doer:     threeProviderDoer(),
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true})
+	require.NoError(t, err)
+	require.False(t, resp.GetReranked())
+	require.Empty(t, resp.GetRanked())
+	require.False(t, resp.GetDegraded())
+	require.NotEmpty(t, resp.GetGroups())
+}
+
+func TestRerankSkippedWhenNoHits(t *testing.T) {
+	// All providers return empty: there is nothing to rerank, so reranked stays
+	// false WITHOUT flagging degraded (an empty result set is not a failure).
+	rr := &fakeReranker{scoreByID: map[string]float64{}}
+	doer := routeDoer{byURL: map[string]cannedResponse{
+		"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {status: 200, body: `{"results":[]}`},
+	}}
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands()}},
+		Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
+		Doer:     doer,
+		Reranker: rr,
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true})
+	require.NoError(t, err)
+	require.False(t, rr.called, "reranker is not invoked when there are zero candidates")
+	require.False(t, resp.GetReranked())
+	require.False(t, resp.GetDegraded(), "an empty result set is not a degradation")
 }

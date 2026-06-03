@@ -75,13 +75,42 @@
           }
         }
       ]
+    },
+    {
+      "name": "federation",
+      "description": "Federation status: per-provider reachability + classifier/reranker availability (routing domain)",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show each active provider's reachability and whether the classifier/reranker models are available",
+          "binding": { "kind": "connect-rpc", "service": "RoutingService", "method": "Status" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "insights",
+      "description": "Federation telemetry insights: utilization, zero-result rate, latency percentiles (metrics domain)",
+      "commands": [
+        {
+          "name": "insights",
+          "description": "Aggregate per-query telemetry into federation-health signals (under-utilized providers, zero-result rate, p50/p95 latency)",
+          "flags": [
+            { "name": "window", "description": "Restrict aggregates to the last N days (0 or unset = all-time)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MetricsService", "method": "Insights" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
     }
   ],
-  "omitted": [
-    {
-      "service": "RoutingService",
-      "method": "Status",
-      "reason": "Federation/provider status surface lands with the router in Phase 4/7. No handler exists until the routing + metrics domains are implemented."
-    }
-  ]
+  "omitted": []
 }

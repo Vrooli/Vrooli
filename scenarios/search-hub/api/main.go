@@ -22,6 +22,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	healthH "search-hub/handlers/health"
+	metricsH "search-hub/handlers/metrics"
 	registryH "search-hub/handlers/registry"
 	routingH "search-hub/handlers/routing"
 )
@@ -102,11 +103,17 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	// The metrics domain owns the query_telemetry store. Its Recorder bridge is
+	// injected into the routing module so each federated query records telemetry
+	// (Phase 7), while the routing handler stays free of any metrics-store import.
+	telemetryRecorder := metricsH.Recorder(db, clock.System{}, log.Default())
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "search-hub-api", "1.0.0"),
+		metricsH.Module(db, clock.System{}, log.Default()),
 		registryH.Module(db, clock.System{}, log.Default()),
-		routingH.Module(db, clock.System{}, log.Default()),
+		routingH.Module(db, clock.System{}, log.Default(), telemetryRecorder),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

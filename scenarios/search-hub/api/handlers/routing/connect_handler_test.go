@@ -21,14 +21,22 @@ import (
 // the recorded request. Keeps the handler test off real provider fan-out (that
 // path is covered by internal/routing/router_test.go).
 type fakeRouter struct {
-	out     *routingv1.QueryResponse
-	err     error
-	lastReq *routingv1.QueryRequest
+	out        *routingv1.QueryResponse
+	err        error
+	lastReq    *routingv1.QueryRequest
+	statusOut  *routingv1.StatusResponse
+	statusErr  error
+	statusCall bool
 }
 
 func (f *fakeRouter) Query(_ context.Context, req *routingv1.QueryRequest) (*routingv1.QueryResponse, error) {
 	f.lastReq = req
 	return f.out, f.err
+}
+
+func (f *fakeRouter) Status(context.Context) (*routingv1.StatusResponse, error) {
+	f.statusCall = true
+	return f.statusOut, f.statusErr
 }
 
 func newClient(t *testing.T, router handler.Querier) routingconnect.RoutingServiceClient {
@@ -79,9 +87,31 @@ func TestQueryInternalErrorIsOpaque(t *testing.T) {
 	require.NotContains(t, err.Error(), "secret", "internal details must not leak to the client")
 }
 
-func TestStatusUnimplemented(t *testing.T) {
-	client := newClient(t, &fakeRouter{})
+func TestStatusReturnsHealth(t *testing.T) {
+	router := &fakeRouter{statusOut: &routingv1.StatusResponse{
+		Providers: []*routingv1.ProviderHealth{
+			{ProviderId: "cli-health.commands", Reachable: true, Freshness: "endpoint resolved"},
+		},
+		ClassifierAvailable: true,
+		RerankerAvailable:   false,
+	}}
+	client := newClient(t, router)
+
+	resp, err := client.Status(context.Background(), connect.NewRequest(&routingv1.StatusRequest{}))
+	require.NoError(t, err)
+	require.True(t, router.statusCall)
+	require.Len(t, resp.Msg.GetProviders(), 1)
+	require.True(t, resp.Msg.GetProviders()[0].GetReachable())
+	require.True(t, resp.Msg.GetClassifierAvailable())
+	require.False(t, resp.Msg.GetRerankerAvailable())
+}
+
+func TestStatusInternalErrorIsOpaque(t *testing.T) {
+	router := &fakeRouter{statusErr: errors.New("registry db on fire: /var/lib/secret")}
+	client := newClient(t, router)
+
 	_, err := client.Status(context.Background(), connect.NewRequest(&routingv1.StatusRequest{}))
 	require.Error(t, err)
-	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
+	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
+	require.NotContains(t, err.Error(), "secret", "internal details must not leak to the client")
 }

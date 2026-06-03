@@ -4,10 +4,11 @@
 // domain.
 //
 // This package is the wiring edge: it composes the pure internal/routing.Router
-// with the concrete cross-scenario URL resolver (api-core/discovery) and the
-// timed outbound HTTP client (internal/httpc). internal/routing itself stays
-// dependency-light (interfaces only) so it is unit-testable without the network
-// or the CLI.
+// with the concrete cross-scenario URL resolver (api-core/discovery), the timed
+// outbound HTTP client (internal/httpc), the local-Ollama classifier (Phase 5
+// automatic routing), and the local-Ollama reranker (Phase 6 unified ranking).
+// internal/routing itself stays dependency-light (interfaces only) so it is
+// unit-testable without the network, a model, or the CLI.
 package routing
 
 import (
@@ -33,13 +34,21 @@ import (
 // RoutingService Connect handler backed by a Router that reads the same SQLite
 // provider registry the registry domain writes, resolves provider base URLs at
 // call-time, and fans out over a timed HTTP client.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+//
+// recorder is the Phase-7 telemetry write seam (the metrics domain's bridge);
+// it may be nil, in which case no telemetry is recorded. It is injected rather
+// than constructed here so the routing handler stays free of any metrics-store
+// import (the seam-discovery / wiring-edge convention).
+func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder) module.Module {
 	store := internalregistry.NewSQLiteStore(db, clk)
 	router := internalrouting.NewRouter(internalrouting.Deps{
-		Lister:   store,
-		Resolver: newScenarioResolver(),
-		Doer:     httpc.NewDefault(),
-		Logger:   logger,
+		Lister:     store,
+		Resolver:   newScenarioResolver(),
+		Doer:       httpc.NewDefault(),
+		Classifier: internalrouting.NewOllamaClassifier(),
+		Reranker:   internalrouting.NewOllamaReranker(),
+		Recorder:   recorder,
+		Logger:     logger,
 	})
 	connectPath, connectHandler := routingconnect.NewRoutingServiceHandler(NewConnectHandler(Deps{
 		Router: router,

@@ -10,10 +10,14 @@
 // path + body_template + ResultMapping); the live base URL is resolved at
 // call-time via the cross-scenario URLResolver seam (never client-computed).
 //
-// Phase 4 ships explicit-type fan-out and honest by-provider grouping — there
-// is no cross-provider score interleave until the cross-encoder reranker lands
-// (Phase 6), and no automatic classifier until Phase 5 (a query with neither
-// explicit types, --all, nor --group is rejected, not silently widened).
+// Routing is explicit (--type/--all/--group) or automatic: when no selector is
+// given and a Classifier is wired (Phase 5), the router asks the classifier
+// which provider types to hit — reading only the registry's NL descriptions —
+// and widens on uncertainty (over-fetch, recall over precision) so the bare
+// `search-hub query "…"` routes on its own. Results are always grouped honestly
+// by provider for provenance; when a Reranker is wired (Phase 6) the fused
+// shortlist is additionally reranked into one comparable cross-provider list,
+// degrading back to grouping-only if the reranker is unavailable.
 package routing
 
 import (
@@ -47,6 +51,12 @@ const (
 	defaultConcurrency = 6
 	// defaultLimit is the per-provider result cap when the request omits one.
 	defaultLimit = 10
+	// defaultRerankTimeout bounds the single reranker round-trip so a slow or
+	// thinky model degrades to honest grouping fast instead of hanging the whole
+	// query (the reranker sits on the hot path, unlike per-provider fan-out which
+	// is already bounded). The underlying gateway has its own ~60s cap; this is
+	// the tighter, router-owned bound.
+	defaultRerankTimeout = 30 * time.Second
 	// maxResponseBytes caps how much of a provider response the router reads,
 	// so a misbehaving leaf cannot exhaust memory.
 	maxResponseBytes = 8 << 20 // 8 MiB
@@ -78,14 +88,25 @@ type ErrInvalidQuery struct{ Reason string }
 func (e ErrInvalidQuery) Error() string { return e.Reason }
 
 // Deps wires the router's seams. Lister/Resolver/Doer are required; the rest
-// default in NewRouter.
+// default in NewRouter. Classifier is optional: when nil, a query with no
+// explicit selector is rejected (the Phase-4 contract); when set, such a query
+// is routed automatically (Phase 5). Reranker is optional: when nil, results
+// stay grouped by provider (honest Phase-4 grouping); when set, the fused
+// shortlist is reranked into one comparable list, degrading back to grouping if
+// the reranker fails (Phase 6). Recorder is optional: when set, each completed
+// query emits a TelemetrySample (Phase 7 metrics); when nil, no telemetry is
+// recorded.
 type Deps struct {
 	Lister             ProviderLister
 	Resolver           URLResolver
 	Doer               httpc.Doer
+	Classifier         Classifier
+	Reranker           Reranker
+	Recorder           TelemetryRecorder
 	Logger             *log.Logger
 	Concurrency        int
 	PerProviderTimeout time.Duration
+	RerankTimeout      time.Duration
 }
 
 // Router executes federated queries across registered providers.
@@ -106,6 +127,9 @@ func NewRouter(d Deps) *Router {
 	if d.PerProviderTimeout <= 0 {
 		d.PerProviderTimeout = defaultPerProviderTimeout
 	}
+	if d.RerankTimeout <= 0 {
+		d.RerankTimeout = defaultRerankTimeout
+	}
 	return &Router{deps: d}
 }
 
@@ -125,9 +149,11 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	if query == "" {
 		return nil, ErrInvalidQuery{Reason: "query text is required"}
 	}
-	group := strings.TrimSpace(req.GetGroup())
-	if !req.GetAll() && len(nonEmpty(req.GetTypes())) == 0 && group == "" {
-		return nil, ErrInvalidQuery{Reason: "no routing target: pass explicit --type <types>, --all, or --group <scenario> (automatic routing lands in Phase 5)"}
+	hasExplicit := req.GetAll() || len(nonEmpty(req.GetTypes())) > 0 || strings.TrimSpace(req.GetGroup()) != ""
+	if !hasExplicit && r.deps.Classifier == nil {
+		// No selector and no classifier wired ⇒ the Phase-4 contract: reject
+		// rather than silently widen.
+		return nil, ErrInvalidQuery{Reason: "no routing target: pass explicit --type <types>, --all, or --group <scenario> (automatic routing requires a classifier)"}
 	}
 
 	limit := req.GetLimit()
@@ -144,13 +170,26 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		return nil, fmt.Errorf("list providers: %w", err)
 	}
 
-	targets := selectTargets(active, req)
+	var (
+		targets         []*registryv1.ProviderDescriptor
+		autoExplain     []string
+		classifierError bool
+	)
+	if hasExplicit {
+		targets = selectTargets(active, req)
+	} else {
+		targets, autoExplain, classifierError = r.autoSelect(ctx, active, query)
+	}
 
 	groups := r.fanOut(ctx, targets, query, limit)
 
+	ranked, reranked, rerankDegraded, rerankExplain := r.maybeRerank(ctx, query, groups)
+
 	resp := &routingv1.QueryResponse{
+		Ranked:   ranked,
 		Groups:   groups,
-		Reranked: false, // honest by-provider grouping until Phase 6 rerank
+		Reranked: reranked,
+		Degraded: classifierError || rerankDegraded,
 	}
 	for _, g := range groups {
 		resp.CorporaSearched = append(resp.CorporaSearched, g.GetProviderId())
@@ -159,10 +198,124 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		}
 	}
 	if req.GetExplain() {
-		resp.RoutingExplanation = explain(req, targets)
+		if hasExplicit {
+			resp.RoutingExplanation = explain(req, targets)
+		} else {
+			resp.RoutingExplanation = append(autoExplain, matchedProvidersLine(targets))
+		}
+		resp.RoutingExplanation = append(resp.RoutingExplanation, rerankExplain...)
 	}
 	resp.LatencyMs = time.Since(start).Milliseconds()
+
+	// Phase-7 telemetry: record the query's outcome (best-effort; the recorder
+	// swallows its own errors so a telemetry failure never affects the query).
+	// LatencyMs is already stamped, so recording time is not counted.
+	if r.deps.Recorder != nil {
+		r.deps.Recorder.Record(ctx, buildSample(query, targets, resp))
+	}
 	return resp, nil
+}
+
+// maybeRerank fuses the per-provider groups into one shortlist and reranks it
+// into a unified, cross-provider ordered list. It never fails the query:
+//
+//   - no reranker wired ⇒ keep honest by-provider grouping (Phase-4 behavior).
+//   - nothing to rank (zero hits) ⇒ same — grouping only, not a degradation.
+//   - reranker errors (model down, bad output) ⇒ keep grouping and flag the
+//     response degraded (the mandatory Phase-6 graceful-degradation path,
+//     mirroring the classifier's).
+//
+// On success it returns the ranked list (each hit carrying RerankScore),
+// reranked=true, and a one-line --explain note.
+func (r *Router) maybeRerank(ctx context.Context, query string, groups []*routingv1.ProviderResultGroup) (ranked []*routingv1.SearchHit, reranked, degraded bool, explain []string) {
+	if r.deps.Reranker == nil {
+		return nil, false, false, nil
+	}
+	candidates := fuseGroups(groups)
+	if len(candidates) == 0 {
+		return nil, false, false, nil
+	}
+	rctx, cancel := context.WithTimeout(ctx, r.deps.RerankTimeout)
+	defer cancel()
+	ranked, err := r.deps.Reranker.Rerank(rctx, query, candidates)
+	if err != nil {
+		r.deps.Logger.Printf("routing.maybeRerank: reranker failed, keeping by-provider grouping: %v", err)
+		return nil, false, true, []string{
+			fmt.Sprintf("reranker unavailable (%s) — showing honest by-provider grouping", oneLine(err.Error())),
+		}
+	}
+	return ranked, true, false, []string{
+		fmt.Sprintf("reranked %d candidate(s) into one unified cross-provider list", len(ranked)),
+	}
+}
+
+// autoSelect runs the classifier over the active providers' descriptions and
+// returns the leaves to fan out to. It never fails the query: if the classifier
+// errors (model down, unparseable output) it widens to every active provider
+// and reports classifierError=true so the response is flagged degraded. The
+// widen-on-uncertainty policy (low confidence ⇒ broaden) lives in widenPolicy.
+func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDescriptor, query string) (targets []*registryv1.ProviderDescriptor, explain []string, classifierError bool) {
+	available := availableTypes(active)
+	profiles := buildProfiles(active)
+
+	result, err := r.deps.Classifier.Classify(ctx, query, profiles)
+	if err != nil {
+		// Graceful degradation: route to everything and let the operator see the
+		// classifier failed (never a hard error).
+		r.deps.Logger.Printf("routing.autoSelect: classifier failed, widening to all active providers: %v", err)
+		return providersByType(active, available), []string{
+			"automatic routing requested (no explicit selector)",
+			fmt.Sprintf("classifier unavailable (%s) — widened to all active providers", oneLine(err.Error())),
+		}, true
+	}
+
+	chosen, widened := widenPolicy(result, available)
+	targets = providersByType(active, chosen)
+
+	explain = []string{"automatic routing via classifier (no explicit selector)"}
+	if r := strings.TrimSpace(result.Rationale); r != "" {
+		explain = append(explain, "classifier rationale: "+r)
+	}
+	explain = append(explain, fmt.Sprintf("classifier confidence: %.2f", result.Confidence))
+	routed := fmt.Sprintf("routed to types: %s", strings.Join(chosen, ", "))
+	if widened {
+		routed += " (widened on uncertainty — over-fetching for recall)"
+	}
+	explain = append(explain, routed)
+	return targets, explain, false
+}
+
+// providersByType returns the active leaves whose type is in the chosen set,
+// preserving the registry's provider_id order. Leaves without a callable
+// endpoint are skipped defensively.
+func providersByType(active []*registryv1.ProviderDescriptor, types []string) []*registryv1.ProviderDescriptor {
+	want := make(map[string]struct{}, len(types))
+	for _, t := range types {
+		want[t] = struct{}{}
+	}
+	out := make([]*registryv1.ProviderDescriptor, 0, len(active))
+	for _, p := range active {
+		if p.GetEndpoint() == nil {
+			continue
+		}
+		if _, ok := want[p.GetType()]; ok {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// matchedProvidersLine renders the final --explain line naming the leaves the
+// router fanned out to (shared by the explicit and classifier paths' output).
+func matchedProvidersLine(targets []*registryv1.ProviderDescriptor) string {
+	if len(targets) == 0 {
+		return "matched providers: none"
+	}
+	ids := make([]string, 0, len(targets))
+	for _, t := range targets {
+		ids = append(ids, t.GetProviderId())
+	}
+	return fmt.Sprintf("matched providers: %s", strings.Join(ids, ", "))
 }
 
 // selectTargets applies the explicit routing selectors to the active provider
@@ -343,9 +496,10 @@ func applyHeaders(req *http.Request, headers map[string]string) {
 	}
 }
 
-// explain renders the human-readable routing rationale for --explain. Phase 4
-// routing is purely explicit (no classifier), so the explanation states which
-// selector chose the targets.
+// explain renders the human-readable routing rationale for --explain on the
+// explicit-selector path: the caller named --all/--type/--group, so the
+// explanation states which selector chose the targets (the classifier path has
+// its own explanation, built in autoSelect).
 func explain(req *routingv1.QueryRequest, targets []*registryv1.ProviderDescriptor) []string {
 	ids := make([]string, 0, len(targets))
 	for _, t := range targets {
@@ -364,7 +518,7 @@ func explain(req *routingv1.QueryRequest, targets []*registryv1.ProviderDescript
 		selector += fmt.Sprintf(" scoped to --group %s", g)
 	}
 	out := []string{
-		"automatic routing (classifier) lands in Phase 5; Phase 4 routes on explicit selectors only",
+		"explicit routing (selector provided; classifier not consulted)",
 		fmt.Sprintf("selector: %s", selector),
 	}
 	if len(ids) == 0 {

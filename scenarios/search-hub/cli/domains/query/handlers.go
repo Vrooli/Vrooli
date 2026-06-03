@@ -74,11 +74,22 @@ func (h *handlers) query(ctx cliapp.RunContext) error {
 		}
 	}
 
+	// When the reranker produced a unified cross-provider ordering, that ranked
+	// list is the primary operator view; the by-provider grouping stays as the
+	// provenance/degradation detail beneath it. Pre-rerank (or on rerank
+	// degradation) we show the honest grouping alone.
+	resultsHeading := "Results by provider"
 	results := renderGroups(msg.GetGroups())
+	if msg.GetReranked() && len(msg.GetRanked()) > 0 {
+		resultsHeading = "Unified ranking (reranked across providers)"
+		results = renderRanked(msg.GetRanked())
+		results = append(results, "", "Provenance by provider:")
+		results = append(results, renderGroups(msg.GetGroups())...)
+	}
 
 	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
 		Summary:        summary,
-		ResultsHeading: "Results by provider",
+		ResultsHeading: resultsHeading,
 		Results:        results,
 		RetrievalHints: []string{
 			"`--type <a,b>` — route to specific leaf types (command, doc, record, component…)",
@@ -112,6 +123,33 @@ func renderGroups(groups []*routingv1.ProviderResultGroup) []string {
 		for i, hit := range g.GetHits() {
 			out = append(out, formatHit(i+1, hit))
 		}
+	}
+	return out
+}
+
+// renderRanked renders the unified, cross-provider ranked list (Phase 6). Each
+// line carries the rerank score plus the owning provider/leaf so a result is
+// both comparably ranked and traceable to where it came from.
+func renderRanked(hits []*routingv1.SearchHit) []string {
+	if len(hits) == 0 {
+		return []string{"(no results)"}
+	}
+	out := make([]string, 0, len(hits))
+	for i, hit := range hits {
+		title := strings.TrimSpace(hit.GetTitle())
+		if title == "" {
+			title = hit.GetId()
+		}
+		line := fmt.Sprintf("%d. %s", i+1, title)
+		if snippet := truncate(hit.GetSnippet(), 80); snippet != "" {
+			line += " — " + snippet
+		}
+		provenance := strings.TrimSpace(hit.GetPath())
+		if provenance == "" {
+			provenance = hit.GetId()
+		}
+		line += fmt.Sprintf(" [rerank=%.3f %s/%s]", hit.GetRerankScore(), hit.GetProviderId(), provenance)
+		out = append(out, line)
 	}
 	return out
 }
@@ -177,9 +215,9 @@ func degradedSuffix(degraded bool) string {
 
 func rankingMode(reranked bool) string {
 	if reranked {
-		return "unified rerank"
+		return "unified cross-provider rerank"
 	}
-	return "by-provider grouping (cross-provider rerank lands in Phase 6)"
+	return "by-provider grouping (no rerank — reranker disabled or unavailable)"
 }
 
 // truncate collapses internal whitespace (provider snippets often carry

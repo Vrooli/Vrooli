@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package vrooli.search_hub.v1.metrics;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/metrics;metrics_v1";
+
+// =============================================================================
+// SEARCH-HUB METRICS DOMAIN — query telemetry insights
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain metrics
+// @stability beta
+//
+// Wire contract for MetricsService. The router records one telemetry row per
+// federated query (routed types, providers hit, per-provider hit counts,
+// latency, degraded/zero-result/reranked flags; query text is HASHED, never
+// stored raw). Insights aggregates that telemetry into the federation health
+// signals the plan's §6 #7 gate and PRD OT-P2 targets measure: zero-result
+// rate, p50/p95 latency, and per-provider utilization (including providers that
+// are registered-but-never-routed-to — the "bad description / bad routing"
+// smell).
+//
+// This is the only table the thin router owns beyond the registry. It holds NO
+// corpus content and NO vectors (the load-bearing thin-router invariant).
+//
+// See docs/plans/unified-search-hub-plan.md Appendix G.5 for the Phase-7
+// design.
+// =============================================================================
+
+service MetricsService {
+  rpc Insights(InsightsRequest) returns (InsightsResponse);
+}
+
+message InsightsRequest {
+  // Optional: restrict aggregates to telemetry recorded in the last N days.
+  // 0 (the default) means all-time.
+  int32 window_days = 1;
+}
+
+// Per-provider routing utilization over the window. `times_routed` counts the
+// queries that fanned out to this leaf; `total_hits` sums the results it
+// contributed. `under_utilized` flags an ACTIVE registry leaf that was never
+// routed-to in the window — a signal its description routes poorly (or it is
+// genuinely never needed).
+message ProviderUtilization {
+  string provider_id = 1;
+  string provider_group = 2;
+  string type = 3;
+  int64 times_routed = 4;
+  int64 total_hits = 5;
+  bool under_utilized = 6;
+}
+
+message InsightsResponse {
+  // Total federated queries recorded in the window.
+  int64 total_queries = 1;
+  // Queries that returned zero results across all providers.
+  int64 zero_result_queries = 2;
+  // zero_result_queries / total_queries (0 when no queries).
+  double zero_result_rate = 3;
+  // Queries where at least one provider degraded.
+  int64 degraded_queries = 4;
+  // Queries that produced a unified reranked list.
+  int64 reranked_queries = 5;
+  // Latency percentiles over the window (milliseconds).
+  int64 latency_p50_ms = 6;
+  int64 latency_p95_ms = 7;
+  // Per-provider utilization, including ACTIVE leaves never routed-to
+  // (under_utilized=true, times_routed=0), ordered by provider_id.
+  repeated ProviderUtilization providers = 8;
+}

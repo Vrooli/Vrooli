@@ -59,20 +59,26 @@ var Endpoints = []module.EndpointDescriptor{
 		ID:          "routing_status",
 		Path:        routingconnect.RoutingServiceStatusProcedure,
 		Method:      "POST",
-		Summary:     "Federation status (reserved — Phase 7)",
-		Description: "Reserved for the metrics domain (Phase 7): per-provider reachability/freshness + classifier/reranker availability. Returns Unimplemented until then; no CLI command binds to it yet (manifest omitted[]).",
+		Summary:     "Federation status (per-provider health + model availability)",
+		Description: "Reports each ACTIVE provider's reachability plus whether the classifier and reranker models are available. An unreachable leaf is reported degraded rather than failing the call; only a registry read failure errors. Backs `search-hub status`.",
 		Category:    "routing",
 		Request:     &module.Schema{Type: "object"},
 		Response: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"providers":            "array<ProviderHealth>",
-				"classifier_available": "bool",
-				"reranker_available":   "bool",
+				"providers":            "array<ProviderHealth> — per-leaf reachability + freshness note",
+				"classifier_available": "bool — automatic routing model reachable",
+				"reranker_available":   "bool — unified-rerank model reachable (false ⇒ degraded ranking mode)",
 			},
 		},
 		Errors: []module.ErrorDesc{
-			{Status: 501, Code: "unimplemented", Description: "Lands in Phase 7 (federation status + metrics)"},
+			{Status: 500, Code: "internal", Description: "Registry read failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Federation status", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.routing.RoutingService/Status -H 'Content-Type: application/json' -d '{}'"},
+		},
+		CLIMapping: &module.CLIMapping{
+			Command: "search-hub federation",
 		},
 	},
 }

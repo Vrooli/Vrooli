@@ -23,10 +23,12 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "search-hub/handlers/health"
+	metricsH "search-hub/handlers/metrics"
 	registryH "search-hub/handlers/registry"
 	routingH "search-hub/handlers/routing"
 	localdb "search-hub/internal/database"
 
+	metricsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/metrics"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 )
@@ -38,6 +40,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, metricsH.Endpoints...)
 	out = append(out, registryH.Endpoints...)
 	out = append(out, routingH.Endpoints...)
 	return out
@@ -66,6 +69,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "metrics", File: metricsv1.File_search_hub_v1_metrics_metrics_proto},
 		{Module: "registry", File: registryv1.File_search_hub_v1_registry_registry_proto},
 		{Module: "routing", File: routingv1.File_search_hub_v1_routing_routing_proto},
 	}
@@ -82,6 +86,7 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(metricsH.Schema),
 		apidb.SchemaProviderFunc(registryH.Schema),
 	}
 }
