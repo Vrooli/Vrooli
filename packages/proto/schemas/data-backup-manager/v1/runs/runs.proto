@@ -116,6 +116,12 @@ message TargetStatus {
   // Seconds since the last successful backup; 0 when never backed up (pair with
   // last_success_at being unset to distinguish "0s ago" from "never").
   int64 last_success_age_seconds = 8;
+  // When this target's soonest scheduled backup next fires (earliest next-fire
+  // across the scheduled plans it belongs to). Unset/zero means not scheduled —
+  // manual-only, on a disabled plan, or its schedule has not fired since the API
+  // started (the scheduler's fire history is in-memory). Surfaces treat absent
+  // as "manual-only / not scheduled".
+  google.protobuf.Timestamp next_scheduled_at = 9;
 }
 
 message TriggerRunRequest {
@@ -179,11 +185,13 @@ message GetRunStatsRequest {
 
 // RunStats is aggregate run performance over the recent run history window.
 // Durations are wall-clock per run (finished_at − started_at over terminal
-// runs). Bytes are the logical (pre-dedup) total of succeeded outcomes; the
-// deduped/physical figure and dedup ratio are NOT reported — kopia's
-// `snapshot create --json` does not expose uploaded bytes in this build and
-// `repo stats --json` is separately broken (see PROBLEMS.md). Throughput is
-// logical bytes ÷ wall-clock.
+// runs). total_bytes is the logical (pre-dedup) total of succeeded outcomes;
+// total_physical_bytes is the on-disk (deduped+compressed) repo growth those
+// runs caused — a per-run repo-size delta — and dedup_ratio is logical ÷
+// physical. Physical attribution is approximate (a repo-size delta around each
+// run; concurrent runs to the same repo can mis-attribute growth, and negative
+// deltas from maintenance are clamped to 0) — an observability signal, not an
+// exact accounting. Throughput is logical bytes ÷ wall-clock.
 message RunStats {
   int64 total_runs = 1;
   int64 completed = 2;
@@ -201,6 +209,11 @@ message RunStats {
   // Number of runs the stats were computed over (the window cap may truncate
   // older history — surfaced so the figure is never silently partial).
   int64 window = 11;
+  // On-disk (deduped+compressed) repo growth attributed to the window's runs.
+  // 0 when no run could measure it (e.g. repo stats unavailable).
+  int64 total_physical_bytes = 12;
+  // Logical ÷ physical. 0 when physical is unknown (never a divide-by-zero).
+  double dedup_ratio = 13;
 }
 
 message GetRunStatsResponse {

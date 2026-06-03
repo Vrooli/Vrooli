@@ -4,14 +4,15 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
+	"testing"
+
 	"resource-kopia/cli/internal/env"
 	"resource-kopia/cli/internal/invariant"
 	"resource-kopia/cli/internal/registry"
 	"resource-kopia/cli/internal/repo"
 	"resource-kopia/cli/internal/repoctx"
 	"resource-kopia/cli/internal/vault"
-	"strings"
-	"testing"
 
 	kexecmocks "resource-kopia/cli/internal/kexec/mocks"
 
@@ -173,13 +174,25 @@ func TestStatusAndStatsArgv(t *testing.T) {
 		t.Fatal("status must inject passphrase env")
 	}
 
+	// `repo stats` reports the physical on-disk footprint via `blob stats`.
+	// kopia has no `--json` for stats subcommands, so the wrapper runs the
+	// `--raw` text form and constructs JSON itself.
+	h.run.Output = []byte("Count: 1332\nTotal: 11097041777\nAverage: 8331112\nHistogram:\n        0 between 0 and 10 (total 0)\n")
+	out := h.svc.Out.(*strings.Builder)
+	out.Reset()
 	if err := h.svc.Stats(context.Background(), []string{"--name", "nightly", "--json"}); err != nil {
 		t.Fatalf("Stats error = %v", err)
 	}
 	call, _ = h.run.LastCall()
-	want = []string{"--config-file", h.rt.RepoConfigFile("nightly"), "content", "stats", "--json"}
+	want = []string{"--config-file", h.rt.RepoConfigFile("nightly"), "blob", "stats", "--raw"}
 	if !argsEqual(call.Args, want) {
 		t.Fatalf("stats argv = %v want %v", call.Args, want)
+	}
+	if !strings.Contains(out.String(), `"physicalBytes": 11097041777`) {
+		t.Fatalf("stats --json must emit physicalBytes; got %q", out.String())
+	}
+	if !strings.Contains(out.String(), `"blobCount": 1332`) {
+		t.Fatalf("stats --json must emit blobCount; got %q", out.String())
 	}
 }
 

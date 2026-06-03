@@ -87,7 +87,7 @@ class Run(_message.Message):
     def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., trigger: _Optional[_Union[TriggerSource, str]] = ..., status: _Optional[_Union[RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., outcomes: _Optional[_Iterable[_Union[TargetOutcome, _Mapping]]] = ...) -> None: ...
 
 class TargetStatus(_message.Message):
-    __slots__ = ("target_id", "last_success_at", "last_run_status", "last_run_at", "last_verified_at", "last_verified_snapshot_id", "overdue", "last_success_age_seconds")
+    __slots__ = ("target_id", "last_success_at", "last_run_status", "last_run_at", "last_verified_at", "last_verified_snapshot_id", "overdue", "last_success_age_seconds", "next_scheduled_at")
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     LAST_SUCCESS_AT_FIELD_NUMBER: _ClassVar[int]
     LAST_RUN_STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -96,6 +96,7 @@ class TargetStatus(_message.Message):
     LAST_VERIFIED_SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
     OVERDUE_FIELD_NUMBER: _ClassVar[int]
     LAST_SUCCESS_AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_SCHEDULED_AT_FIELD_NUMBER: _ClassVar[int]
     target_id: str
     last_success_at: _timestamp_pb2.Timestamp
     last_run_status: RunStatus
@@ -104,7 +105,8 @@ class TargetStatus(_message.Message):
     last_verified_snapshot_id: str
     overdue: bool
     last_success_age_seconds: int
-    def __init__(self, target_id: _Optional[str] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_run_status: _Optional[_Union[RunStatus, str]] = ..., last_run_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_verified_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_verified_snapshot_id: _Optional[str] = ..., overdue: _Optional[bool] = ..., last_success_age_seconds: _Optional[int] = ...) -> None: ...
+    next_scheduled_at: _timestamp_pb2.Timestamp
+    def __init__(self, target_id: _Optional[str] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_run_status: _Optional[_Union[RunStatus, str]] = ..., last_run_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_verified_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_verified_snapshot_id: _Optional[str] = ..., overdue: _Optional[bool] = ..., last_success_age_seconds: _Optional[int] = ..., next_scheduled_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class TriggerRunRequest(_message.Message):
     __slots__ = ("plan_id",)
@@ -193,7 +195,7 @@ class GetRunStatsRequest(_message.Message):
     def __init__(self, plan_id: _Optional[str] = ...) -> None: ...
 
 class RunStats(_message.Message):
-    __slots__ = ("total_runs", "completed", "partial_failed", "failed", "success_rate", "p50_duration_ms", "p95_duration_ms", "total_bytes", "avg_bytes_per_run", "avg_throughput_bytes_per_sec", "window")
+    __slots__ = ("total_runs", "completed", "partial_failed", "failed", "success_rate", "p50_duration_ms", "p95_duration_ms", "total_bytes", "avg_bytes_per_run", "avg_throughput_bytes_per_sec", "window", "total_physical_bytes", "dedup_ratio")
     TOTAL_RUNS_FIELD_NUMBER: _ClassVar[int]
     COMPLETED_FIELD_NUMBER: _ClassVar[int]
     PARTIAL_FAILED_FIELD_NUMBER: _ClassVar[int]
@@ -205,6 +207,8 @@ class RunStats(_message.Message):
     AVG_BYTES_PER_RUN_FIELD_NUMBER: _ClassVar[int]
     AVG_THROUGHPUT_BYTES_PER_SEC_FIELD_NUMBER: _ClassVar[int]
     WINDOW_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_PHYSICAL_BYTES_FIELD_NUMBER: _ClassVar[int]
+    DEDUP_RATIO_FIELD_NUMBER: _ClassVar[int]
     total_runs: int
     completed: int
     partial_failed: int
@@ -216,7 +220,9 @@ class RunStats(_message.Message):
     avg_bytes_per_run: int
     avg_throughput_bytes_per_sec: float
     window: int
-    def __init__(self, total_runs: _Optional[int] = ..., completed: _Optional[int] = ..., partial_failed: _Optional[int] = ..., failed: _Optional[int] = ..., success_rate: _Optional[float] = ..., p50_duration_ms: _Optional[int] = ..., p95_duration_ms: _Optional[int] = ..., total_bytes: _Optional[int] = ..., avg_bytes_per_run: _Optional[int] = ..., avg_throughput_bytes_per_sec: _Optional[float] = ..., window: _Optional[int] = ...) -> None: ...
+    total_physical_bytes: int
+    dedup_ratio: float
+    def __init__(self, total_runs: _Optional[int] = ..., completed: _Optional[int] = ..., partial_failed: _Optional[int] = ..., failed: _Optional[int] = ..., success_rate: _Optional[float] = ..., p50_duration_ms: _Optional[int] = ..., p95_duration_ms: _Optional[int] = ..., total_bytes: _Optional[int] = ..., avg_bytes_per_run: _Optional[int] = ..., avg_throughput_bytes_per_sec: _Optional[float] = ..., window: _Optional[int] = ..., total_physical_bytes: _Optional[int] = ..., dedup_ratio: _Optional[float] = ...) -> None: ...
 
 class GetRunStatsResponse(_message.Message):
     __slots__ = ("stats",)

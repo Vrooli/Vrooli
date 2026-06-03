@@ -140,6 +140,8 @@ Every deployed scenario enables new capabilities:
 ### The Implications
 Every business becomes a software company instantly. Every idea becomes an application immediately. Every problem becomes solvable automatically.
 
+> **Operational detail:** this section is the *why*. For the concrete monetization plan — bundles, delivery tiers, pricing, and revenue lines — see [`docs/monetization/`](docs/monetization/README.md).
+
 ## Why This Changes Everything
 
 ### The End of Traditional Development

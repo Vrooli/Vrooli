@@ -12,18 +12,22 @@
 package repo
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+
 	"resource-kopia/cli/internal/cmdutil"
 	"resource-kopia/cli/internal/env"
 	"resource-kopia/cli/internal/kexec"
 	"resource-kopia/cli/internal/registry"
 	"resource-kopia/cli/internal/repoctx"
 	"resource-kopia/cli/internal/vault"
-	"strings"
 )
 
 // Service wires the dependencies the repository commands need.
@@ -200,9 +204,73 @@ func (s Service) Status(ctx context.Context, args []string) error {
 	return s.simpleRepoCommand(ctx, args, "repo status", []string{"repository", "status"}, true)
 }
 
-// Stats prints content/size statistics for a repository (storage-usage views).
+// repoStatsSummary is the JSON shape emitted by `repo stats --json`. It reports
+// the repository's true on-disk (physical) footprint: the bytes actually stored
+// on the backend after kopia's content-addressed dedup and compression. This is
+// the denominator for a dedup ratio (logical bytes ÷ physical bytes).
+type repoStatsSummary struct {
+	PhysicalBytes int64 `json:"physicalBytes"`
+	BlobCount     int64 `json:"blobCount"`
+}
+
+// Stats reports storage-usage statistics for a repository. kopia's stats
+// subcommands have no `--json` flag in the supported build, so we run
+// `kopia blob stats --raw` (exact byte integers) and either pass kopia's native
+// text through or parse it into our own stable JSON summary.
 func (s Service) Stats(ctx context.Context, args []string) error {
-	return s.simpleRepoCommand(ctx, args, "repo stats", []string{"content", "stats"}, true)
+	fs := cmdutil.NewFlagSet("repo stats")
+	name := fs.String("name", "", "Repository name (required)")
+	jsonOut := fs.Bool("json", false, "Emit a JSON physical-size summary")
+	if err := cmdutil.Parse(fs, args); err != nil {
+		return err
+	}
+	if err := cmdutil.RequireName(*name); err != nil {
+		return err
+	}
+	target, err := s.Resolver.Resolve(ctx, *name)
+	if err != nil {
+		return err
+	}
+	// `blob stats` measures the physical bytes stored on the backend; `--raw`
+	// makes kopia print exact integers instead of human-readable units.
+	argv := append(target.GlobalArgs(), "blob", "stats", "--raw")
+	out, err := s.Runner.Run(ctx, kexec.Call{Args: argv, Env: target.Env})
+	if err != nil {
+		return err
+	}
+	if !*jsonOut {
+		_, err = s.out().Write(cmdutil.EnsureTrailingNewline(out))
+		return err
+	}
+	summary, err := parseBlobStats(out)
+	if err != nil {
+		return fmt.Errorf("repo stats %q: %w", *name, err)
+	}
+	return cmdutil.WriteJSON(s.out(), summary)
+}
+
+// parseBlobStats extracts the total physical bytes and blob count from the
+// output of `kopia blob stats --raw`, whose first lines are `Count: <n>` and
+// `Total: <bytes>`. Histogram rows use a lowercase "(total …)" and never match.
+func parseBlobStats(raw []byte) (repoStatsSummary, error) {
+	var summary repoStatsSummary
+	sc := bufio.NewScanner(bytes.NewReader(raw))
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		switch {
+		case strings.HasPrefix(line, "Count:"):
+			summary.BlobCount, _ = strconv.ParseInt(strings.TrimSpace(strings.TrimPrefix(line, "Count:")), 10, 64)
+		case strings.HasPrefix(line, "Total:"):
+			summary.PhysicalBytes, _ = strconv.ParseInt(strings.TrimSpace(strings.TrimPrefix(line, "Total:")), 10, 64)
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return repoStatsSummary{}, fmt.Errorf("scan blob stats output: %w", err)
+	}
+	if summary.PhysicalBytes == 0 && summary.BlobCount == 0 {
+		return repoStatsSummary{}, fmt.Errorf("could not parse physical size from blob stats output")
+	}
+	return summary, nil
 }
 
 // Validate runs a provider connectivity/integrity check.

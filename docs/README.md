@@ -24,6 +24,24 @@ For the long-term philosophical thesis (recursive intelligence, evolution timeli
 - [reference/cli-commands.md](reference/cli-commands.md) for the current CLI surface
 - [reference/machine-readable-references.md](reference/machine-readable-references.md) for `[CODE:]` / `[DOC:]` traceability references and marked inline references such as `path:...` and `topic:...`
 
+## How docs/ is organized: three pillars
+
+Most folders here are one of three canon types. Knowing which you're in tells you who may edit it and how:
+
+1. **Identity & concept canon** — *what Vrooli is and how its pieces fit.* [`../VISION.md`](../VISION.md) (the why), [`narrative/`](narrative/) (the story), and [`concepts/`](concepts/): [`ARCHITECTURE.md`](concepts/ARCHITECTURE.md) (technical how), [`ECOSYSTEM.md`](concepts/ECOSYSTEM.md) (how a scenario fits the whole), [`PAID_FEATURES.md`](concepts/PAID_FEATURES.md) (paid-feature contract), [`GLOSSARY.md`](concepts/GLOSSARY.md). Operator-curated.
+
+2. **Team plan-of-records (PoR)** — *each agent team's durable, accepted truth.* One folder per team, all following the shared contract in [`agent-system/team-plan-of-record.manifest.json`](agent-system/team-plan-of-record.manifest.json): a README hub → `operating/` → optional `strategy/` `evidence/` `catalogs/` `taxonomies/` → `governance/`. **Agents never edit PoR canon directly** — changes flow through operator-approved decisions; see [`agent-system/TEAM_DOCS_PATTERNS.md`](agent-system/TEAM_DOCS_PATTERNS.md) for the write boundary. The teams with a PoR:
+   - [`monetization/`](monetization/README.md) — revenue, SKUs, delivery tiers, pricing, funnel
+   - [`marketing/`](marketing/) — voice, audiences, channels, campaigns, brand assets
+   - [`director-swarm/`](director-swarm/) — portfolio philosophy, roadmap, outcomes charter
+   - [`infra-health/`](infra-health/) — platform reliability, instrumentation, portability
+   - [`meta-optimization/`](meta-optimization/) — friction-report taxonomy + self-improvement
+   - [`scenario-qa/`](scenario-qa/) — bug taxonomy, investigation + audit methods
+
+3. **Agent-system framework canon** — *the rules the teams themselves run on* (skills, agents, teams, decisions, topics, and the PoR contract above). Lives in [`agent-system/`](agent-system/README.md); it is itself a plan-of-record, edited via `meta-optimization` decisions.
+
+Everything else (`guides/`, `reference/`, `operations/`, `deployment/`, `scenarios/`, `resources/`, `strategy/`, `design/`, `skills/`, `development/`, `internal/`, `plans/`) is supporting documentation, not canon in the above sense.
+
 ## Canonical Areas
 
 - [narrative/](narrative/) — project-identity canon (pitch, story, FAQ, press kit, pitch-deck outline) consumed across teams
