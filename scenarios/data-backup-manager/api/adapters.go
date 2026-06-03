@@ -49,7 +49,7 @@ func (a targetLookup) TargetForRun(ctx context.Context, targetID string) (runsin
 	if err != nil {
 		return runsint.TargetForRun{}, err
 	}
-	return runsint.TargetForRun{ID: t.ID, Kind: t.SourceKind, Locator: t.Locator}, nil
+	return runsint.TargetForRun{ID: t.ID, Owner: t.Owner, Name: t.Name, Kind: t.SourceKind, Locator: t.Locator}, nil
 }
 
 func (a targetLookup) ActiveTargetIDs(ctx context.Context) ([]string, error) {

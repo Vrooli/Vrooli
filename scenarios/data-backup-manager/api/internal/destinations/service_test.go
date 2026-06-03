@@ -23,7 +23,7 @@ func TestCreateDestinations_FsAndS3(t *testing.T) {
 	t.Run("filesystem destination created successfully", func(t *testing.T) {
 		eng := &enginemocks.FakeKopiaEngine{}
 		repo := mocks.NewFakeRepository()
-		svc := destinations.NewService(repo, eng, protected)
+		svc := destinations.NewService(repo, eng, mocks.NewFakeBundleWriter(), protected)
 
 		d, err := svc.CreateDestination(ctx, destinations.CreateInput{
 			Name:     "fs-dest",
@@ -69,7 +69,7 @@ func TestCreateDestinations_FsAndS3(t *testing.T) {
 	t.Run("s3 destination created successfully", func(t *testing.T) {
 		eng := &enginemocks.FakeKopiaEngine{}
 		repo := mocks.NewFakeRepository()
-		svc := destinations.NewService(repo, eng, protected)
+		svc := destinations.NewService(repo, eng, mocks.NewFakeBundleWriter(), protected)
 
 		d, err := svc.CreateDestination(ctx, destinations.CreateInput{
 			Name:     "s3-dest",
@@ -97,7 +97,7 @@ func TestCreateDestinations_FsAndS3(t *testing.T) {
 	t.Run("filesystem destination under protectedRoot is rejected", func(t *testing.T) {
 		eng := &enginemocks.FakeKopiaEngine{}
 		repo := mocks.NewFakeRepository()
-		svc := destinations.NewService(repo, eng, protected)
+		svc := destinations.NewService(repo, eng, mocks.NewFakeBundleWriter(), protected)
 
 		// Exact match.
 		_, err := svc.CreateDestination(ctx, destinations.CreateInput{
@@ -131,8 +131,76 @@ func TestCreateDestinations_FsAndS3(t *testing.T) {
 		}
 	})
 
+	t.Run("filesystem create writes bundle with nested repository path", func(t *testing.T) {
+		eng := &enginemocks.FakeKopiaEngine{}
+		repo := mocks.NewFakeRepository()
+		bundle := mocks.NewFakeBundleWriter()
+		svc := destinations.NewService(repo, eng, bundle, protected)
+
+		d, err := svc.CreateDestination(ctx, destinations.CreateInput{
+			Name:      "elements-local",
+			Backend:   destinations.BackendFilesystem,
+			Location:  "/mnt/backup",
+			SecretRef: "vault://x/passphrase",
+		})
+		if err != nil {
+			t.Fatalf("CreateDestination: %v", err)
+		}
+		wantRepo := destinations.RepositoryPathFor("/mnt/backup", "elements-local")
+		if d.RepositoryLocation != wantRepo {
+			t.Fatalf("RepositoryLocation = %q, want %q", d.RepositoryLocation, wantRepo)
+		}
+		if d.Location != "/mnt/backup" {
+			t.Fatalf("Location = %q, want bundle root /mnt/backup", d.Location)
+		}
+		foundRepoSpec := false
+		for _, spec := range eng.Repos {
+			if spec.Path == wantRepo {
+				foundRepoSpec = true
+			}
+		}
+		if !foundRepoSpec {
+			t.Fatalf("RepoCreate path = %+v, want %q", eng.Repos, wantRepo)
+		}
+		if len(bundle.Prepared) != 1 || bundle.Prepared[0].RepositoryPath != wantRepo {
+			t.Fatalf("PrepareRepository = %+v, want repo path %q", bundle.Prepared, wantRepo)
+		}
+		if len(bundle.Metadata) != 1 {
+			t.Fatalf("WriteMetadata calls = %d, want 1", len(bundle.Metadata))
+		}
+		if bundle.Metadata[0].SecretRef != "vault://x/passphrase" {
+			t.Fatalf("manifest secret ref = %q", bundle.Metadata[0].SecretRef)
+		}
+	})
+
+	t.Run("s3 create does not invoke the filesystem bundle writer", func(t *testing.T) {
+		eng := &enginemocks.FakeKopiaEngine{}
+		bundle := mocks.NewFakeBundleWriter()
+		svc := destinations.NewService(mocks.NewFakeRepository(), eng, bundle, protected)
+
+		if _, err := svc.CreateDestination(ctx, destinations.CreateInput{
+			Name:     "s3-dest",
+			Backend:  destinations.BackendS3,
+			Location: "my-bucket",
+		}); err != nil {
+			t.Fatalf("CreateDestination s3: %v", err)
+		}
+		if len(bundle.Prepared) != 0 || len(bundle.Metadata) != 0 {
+			t.Fatalf("s3 backend must not touch the filesystem bundle writer: %+v / %+v", bundle.Prepared, bundle.Metadata)
+		}
+	})
+
+	t.Run("non-slug name rejected", func(t *testing.T) {
+		svc := destinations.NewService(mocks.NewFakeRepository(), &enginemocks.FakeKopiaEngine{}, mocks.NewFakeBundleWriter(), protected)
+		_, err := svc.CreateDestination(ctx, destinations.CreateInput{Name: "Elements Local", Backend: destinations.BackendFilesystem, Location: "/mnt/x"})
+		var invalid destinations.ErrInvalidDestination
+		if !errors.As(err, &invalid) || invalid.Field != "name" {
+			t.Fatalf("expected ErrInvalidDestination{name} for non-slug name, got %v", err)
+		}
+	})
+
 	t.Run("missing name rejected", func(t *testing.T) {
-		svc := destinations.NewService(mocks.NewFakeRepository(), &enginemocks.FakeKopiaEngine{}, protected)
+		svc := destinations.NewService(mocks.NewFakeRepository(), &enginemocks.FakeKopiaEngine{}, mocks.NewFakeBundleWriter(), protected)
 		_, err := svc.CreateDestination(ctx, destinations.CreateInput{Backend: destinations.BackendFilesystem, Location: "/x"})
 		var invalid destinations.ErrInvalidDestination
 		if !errors.As(err, &invalid) || invalid.Field != "name" {
@@ -141,7 +209,7 @@ func TestCreateDestinations_FsAndS3(t *testing.T) {
 	})
 
 	t.Run("missing location rejected", func(t *testing.T) {
-		svc := destinations.NewService(mocks.NewFakeRepository(), &enginemocks.FakeKopiaEngine{}, protected)
+		svc := destinations.NewService(mocks.NewFakeRepository(), &enginemocks.FakeKopiaEngine{}, mocks.NewFakeBundleWriter(), protected)
 		_, err := svc.CreateDestination(ctx, destinations.CreateInput{Name: "x", Backend: destinations.BackendFilesystem})
 		var invalid destinations.ErrInvalidDestination
 		if !errors.As(err, &invalid) || invalid.Field != "location" {

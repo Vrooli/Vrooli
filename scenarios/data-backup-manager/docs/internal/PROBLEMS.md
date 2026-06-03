@@ -49,6 +49,45 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-06-02 — Stale local kopia metadata is not auto-reaped
+
+**Symptom:** Old e2e/canary runs can leave local resource-kopia config
+directories under `~/.config/vrooli/resources/kopia/repos` even when
+`resource-kopia repo list --json` returns `[]`. There is no DBM command that
+inspects or reaps this stale local metadata.
+
+**Root cause:** `destinations delete --delete-repository` removes local
+metadata + vault refs for the destination it is given, but a test that creates a
+repository and is killed before its cleanup runs (or a registry that drifts from
+the on-disk config) can orphan a local config dir with no catalog row pointing at
+it.
+
+**Workaround:** The disposable proof (`scripts/prove-backup-restore.sh`) cleans
+up everything it creates via `--delete-repository true` in its EXIT trap. For
+pre-existing stale dirs, inspect manually before removing — never auto-delete
+vault secrets for a repo that might still be registered.
+
+**Real fix:** An inspection-first maintenance path (report orphaned local kopia
+config dirs with no catalog row, then a guarded, opt-in reap). Deliberately
+deferred: cleanup that deletes recoverability secrets must be guarded, not
+automatic. See the production-ready destination-UX plan §7.
+
+### 2026-06-02 — Filesystem destinations are now self-describing bundles (resolved)
+
+**Symptom (was):** A filesystem destination folder was a bare encrypted kopia
+repository — opaque in a file browser, with no README, recovery steps, or
+non-secret manifest, and delete wording implied backend bytes were removed when
+only local metadata was.
+
+**Resolution:** Filesystem destinations are now self-describing bundles: the
+operator-facing bundle root (`location`) holds `README.txt`, `RECOVERY.txt`, and
+`vrooli-backup-destination.json`, with the vanilla kopia repository nested under
+`repositories/<slug>.kopia` (`repository_location`). Snapshots carry
+self-identifying kopia metadata (description/override-source/tags). Delete
+wording across API/CLI/UI now states precisely what is and is not removed
+(encrypted backend bytes always remain). The repository stays a vanilla kopia
+repo restorable with plain kopia + passphrase.
+
 ### 2026-05-26 — Redis source backups are best-effort, not point-in-time
 
 **Symptom:** A Redis source backup may not represent a single

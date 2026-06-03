@@ -90,7 +90,7 @@ func (s *service) TriggerRun(ctx context.Context, planID string, trigger Trigger
 	outcomes := make([]TargetOutcome, 0, len(plan.TargetIDs)*len(plan.DestinationIDs))
 	for _, targetID := range plan.TargetIDs {
 		for _, destID := range plan.DestinationIDs {
-			outcomes = append(outcomes, s.runOne(ctx, plan, targetID, destID, stageBase))
+			outcomes = append(outcomes, s.runOne(ctx, plan, run.ID, targetID, destID, stageBase))
 		}
 	}
 
@@ -128,7 +128,7 @@ func (s *service) TriggerRun(ctx context.Context, planID string, trigger Trigger
 
 // runOne executes a single target × destination and returns its outcome. A
 // failure here never aborts the run — the caller aggregates.
-func (s *service) runOne(ctx context.Context, plan PlanForRun, targetID, destID, stageBase string) TargetOutcome {
+func (s *service) runOne(ctx context.Context, plan PlanForRun, runID, targetID, destID, stageBase string) TargetOutcome {
 	out := TargetOutcome{TargetID: targetID, DestinationID: destID, StartedAt: s.deps.Clock.Now().UTC()}
 	finish := func(status OutcomeStatus, errMsg string) TargetOutcome {
 		out.Status = status
@@ -170,7 +170,8 @@ func (s *service) runOne(ctx context.Context, plan PlanForRun, targetID, destID,
 		return finish(OutcomeBlocked, "storage cap reached: "+reason)
 	}
 
-	snap, err := s.deps.Engine.SnapshotCreate(ctx, dest.Name, artifact.Path)
+	snap, err := s.deps.Engine.SnapshotCreate(ctx, dest.Name, artifact.Path,
+		snapshotMetadata(runID, destID, target))
 	if err != nil {
 		return finish(OutcomeFailed, fmt.Sprintf("snapshot: %v", err))
 	}
@@ -227,6 +228,37 @@ func (s *service) stagingDir(runID string) (string, func(), error) {
 		return "", func() {}, fmt.Errorf("staging dir: %w", err)
 	}
 	return dir, func() { _ = os.RemoveAll(dir) }, nil
+}
+
+// snapshotMetadata builds the self-identifying kopia metadata stamped on each
+// snapshot so a standalone `kopia snapshot list --json` can attribute it to a
+// DBM owner/name/kind/run/destination without DBM running. It deliberately
+// omits the target locator (potentially sensitive) and never carries a secret.
+func snapshotMetadata(runID, destID string, target TargetForRun) engine.SnapshotMetadata {
+	owner := strings.TrimSpace(target.Owner)
+	name := strings.TrimSpace(target.Name)
+	ref := name
+	if owner != "" {
+		ref = owner + "/" + name
+	}
+	tags := []string{
+		"dbm:true",
+		"dbm.target_id:" + target.ID,
+		"dbm.kind:" + string(target.Kind),
+		"dbm.run_id:" + runID,
+		"dbm.destination_id:" + destID,
+	}
+	if owner != "" {
+		tags = append(tags, "dbm.owner:"+owner)
+	}
+	if name != "" {
+		tags = append(tags, "dbm.name:"+name)
+	}
+	return engine.SnapshotMetadata{
+		Description:    fmt.Sprintf("Data Backup Manager target %s run %s", ref, runID),
+		OverrideSource: "dbm://" + ref,
+		Tags:           tags,
+	}
 }
 
 // sanitize keeps path fragments filesystem-safe.

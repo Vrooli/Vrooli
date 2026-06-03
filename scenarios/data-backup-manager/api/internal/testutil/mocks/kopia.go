@@ -27,7 +27,7 @@ type FakeKopiaEngine struct {
 	RepoStatusFn      func(ctx context.Context, repo string) (engine.RepoStatus, error)
 	RepoStatsFn       func(ctx context.Context, repo string) (engine.RepoStats, error)
 	RepoDeleteFn      func(ctx context.Context, repo string) error
-	SnapshotCreateFn  func(ctx context.Context, repo, path string) (engine.Snapshot, error)
+	SnapshotCreateFn  func(ctx context.Context, repo, path string, meta engine.SnapshotMetadata) (engine.Snapshot, error)
 	SnapshotListFn    func(ctx context.Context, repo, path string) ([]engine.Snapshot, error)
 	SnapshotRestoreFn func(ctx context.Context, repo, snapshotID, target string) error
 	SnapshotVerifyFn  func(ctx context.Context, repo, snapshotID string, verifyPercent int) error
@@ -35,9 +35,10 @@ type FakeKopiaEngine struct {
 	PolicySetFn       func(ctx context.Context, repo, path string, keepLatest int) error
 
 	// Recorded state.
-	Calls       []string
-	Repos       []engine.RepoSpec
-	snapshotSeq int
+	Calls         []string
+	Repos         []engine.RepoSpec
+	SnapshotMetas []engine.SnapshotMetadata
+	snapshotSeq   int
 }
 
 // Compile-time guarantee.
@@ -88,12 +89,13 @@ func (f *FakeKopiaEngine) RepoDelete(ctx context.Context, repo string) error {
 	return nil
 }
 
-func (f *FakeKopiaEngine) SnapshotCreate(ctx context.Context, repo, path string) (engine.Snapshot, error) {
+func (f *FakeKopiaEngine) SnapshotCreate(ctx context.Context, repo, path string, meta engine.SnapshotMetadata) (engine.Snapshot, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.record("SnapshotCreate(%s,%s)", repo, path)
+	f.SnapshotMetas = append(f.SnapshotMetas, meta)
 	if f.SnapshotCreateFn != nil {
-		return f.SnapshotCreateFn(ctx, repo, path)
+		return f.SnapshotCreateFn(ctx, repo, path, meta)
 	}
 	f.snapshotSeq++
 	return engine.Snapshot{ID: fmt.Sprintf("snap-%d", f.snapshotSeq), Path: path}, nil

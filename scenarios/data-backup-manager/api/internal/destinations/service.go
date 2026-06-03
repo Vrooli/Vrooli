@@ -2,6 +2,7 @@ package destinations
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -64,14 +65,19 @@ type UsageReport struct {
 type service struct {
 	repo          Repository
 	eng           engine.KopiaEngine
+	bundle        BundleWriter
 	protectedRoot string
 }
 
-// NewService constructs the production Service.
-func NewService(repo Repository, eng engine.KopiaEngine, protectedRoot string) Service {
+// NewService constructs the production Service. bundle materializes the
+// self-describing filesystem destination bundle (README/RECOVERY/manifest +
+// repositories/<slug>.kopia); pass nil for an S3-only deployment or a fake in
+// tests.
+func NewService(repo Repository, eng engine.KopiaEngine, bundle BundleWriter, protectedRoot string) Service {
 	return &service{
 		repo:          repo,
 		eng:           eng,
+		bundle:        bundle,
 		protectedRoot: filepath.Clean(protectedRoot),
 	}
 }
@@ -84,6 +90,14 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 	if name == "" {
 		return Destination{}, ErrInvalidDestination{Field: "name", Reason: "required"}
 	}
+	// A destination name doubles as its kopia repository name, so it must be a
+	// stable slug — never an arbitrary label with spaces or slashes.
+	if !ValidSlug(name) {
+		return Destination{}, ErrInvalidDestination{
+			Field:  "name",
+			Reason: "must be slug-safe: lowercase letters, digits and hyphens only (e.g. elements-local)",
+		}
+	}
 	if !in.Backend.Valid() {
 		return Destination{}, ErrInvalidDestination{Field: "backend_kind", Reason: "must be filesystem or s3"}
 	}
@@ -92,22 +106,15 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 		return Destination{}, ErrInvalidDestination{Field: "location", Reason: "required"}
 	}
 
-	// Separate-root rule: a filesystem destination must not point under the
-	// protectedRoot (the storage root the manager protects).
-	if in.Backend == BackendFilesystem {
-		clean := filepath.Clean(location)
-		if clean == s.protectedRoot || strings.HasPrefix(clean, s.protectedRoot+string(filepath.Separator)) {
-			return Destination{}, ErrInvalidDestination{
-				Field:  "location",
-				Reason: "filesystem destination must not point inside the protected root",
-			}
-		}
-	}
-
 	capPolicy := in.CapPolicy
 	if capPolicy == "" {
 		capPolicy = CapPolicyAlertBlock
 	}
+
+	// repositoryLocation is the concrete backend path resource-kopia targets.
+	// For filesystem it nests under the operator-facing bundle root; for S3 it
+	// is the bucket/prefix itself.
+	var repositoryLocation string
 
 	// Build the kopia RepoSpec and create the repository.
 	spec := engine.RepoSpec{
@@ -116,8 +123,27 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 	}
 	switch in.Backend {
 	case BackendFilesystem:
-		spec.Path = location
+		// Separate-root rule: a filesystem destination must not point under the
+		// protectedRoot (the storage root the manager protects).
+		clean := filepath.Clean(location)
+		if clean == s.protectedRoot || strings.HasPrefix(clean, s.protectedRoot+string(filepath.Separator)) {
+			return Destination{}, ErrInvalidDestination{
+				Field:  "location",
+				Reason: "filesystem destination must not point inside the protected root",
+			}
+		}
+		repositoryLocation = RepositoryPathFor(location, name)
+		// Materialize the bundle root + repository directory before creating the
+		// repository so kopia writes into repositories/<slug>.kopia, not the bare
+		// operator-facing root.
+		if s.bundle != nil {
+			if err := s.bundle.PrepareRepository(ctx, location, repositoryLocation); err != nil {
+				return Destination{}, err
+			}
+		}
+		spec.Path = repositoryLocation
 	case BackendS3:
+		repositoryLocation = location
 		spec.Bucket = location
 	}
 
@@ -141,13 +167,56 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 		Name:                name,
 		BackendKind:         in.Backend,
 		Location:            location,
+		RepositoryLocation:  repositoryLocation,
 		CapBytes:            in.CapBytes,
 		CapPolicy:           capPolicy,
 		EncryptionAlgorithm: status.EncryptionAlgorithm,
 		SecretRef:           in.SecretRef,
 	}
 
-	return s.repo.Create(ctx, d)
+	saved, err := s.repo.Create(ctx, d)
+	if err != nil {
+		return Destination{}, err
+	}
+
+	// Write the human-facing bundle files now that the destination id and
+	// encryption algorithm are known. Filesystem backends only; never carries a
+	// secret value.
+	if in.Backend == BackendFilesystem && s.bundle != nil {
+		if err := s.bundle.WriteMetadata(ctx, BundleMetadata{
+			DestinationID:       saved.ID,
+			Name:                saved.Name,
+			Backend:             string(saved.BackendKind),
+			BundleRoot:          saved.Location,
+			RepositoryPath:      saved.RepositoryLocation,
+			EncryptionAlgorithm: saved.EncryptionAlgorithm,
+			SecretRef:           saved.SecretRef,
+			CreatedAt:           saved.CreatedAt,
+			Host:                hostname(),
+			User:                username(),
+		}); err != nil {
+			return Destination{}, err
+		}
+	}
+
+	return saved, nil
+}
+
+// hostname / username best-effort host identity for the manifest. Empty on
+// error — they are optional, non-secret context only.
+func hostname() string {
+	h, err := os.Hostname()
+	if err != nil {
+		return ""
+	}
+	return h
+}
+
+func username() string {
+	if u := os.Getenv("USER"); u != "" {
+		return u
+	}
+	return os.Getenv("USERNAME")
 }
 
 func (s *service) GetDestination(ctx context.Context, id string) (Destination, error) {

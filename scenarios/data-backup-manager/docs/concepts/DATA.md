@@ -49,7 +49,8 @@ before editing `.vrooli/service.json`.
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
 | Targets | targets | SQLite | `api/internal/targets/schema.sql` | Until deregistered by the owning scenario | Keyed by `owner + name`; reconstructable from re-registration on boot. |
-| Destinations | destinations | SQLite | `api/internal/destinations/schema.sql` | Until removed by an operator | Holds backend kind, storage cap, and vault references — never the secrets themselves. |
+| Destinations | destinations | SQLite | `api/internal/destinations/schema.sql` | Until removed by an operator | Holds backend kind, storage cap, vault references, and the bundle-root (`location`) vs repository-path (`repository_location`) split — never the secrets themselves. |
+| Destination bundle files | destinations | filesystem (bundle root) | The bundle root on the backend drive | Lives with the destination | `README.txt`, `RECOVERY.txt`, `vrooli-backup-destination.json` — non-secret operator-facing files written by the `BundleWriter` seam. Never contain a passphrase, only a vault secret *reference*. |
 | Plan bindings | plans | SQLite | `api/internal/plans/schema.sql` | Until the plan is deleted | Many-to-many plan↔target and plan↔destination membership plus schedule and retention. |
 | Run history | runs | SQLite | `api/internal/runs/schema.sql` | Bounded retention (see Retention And Deletion) | Per-run and per-target outcomes; carries last-success-per-target and snapshot references. |
 | Restore records | restores | SQLite | `api/internal/restores/schema.sql` | Bounded retention | Includes verify outcomes and last-verified-per-target (the git-removal gate). |
@@ -97,6 +98,39 @@ backfills, add a scenario-specific migration plan here and update
 The single most important deletion rule: the manager never deletes a
 backup to stay under a storage cap. Hitting a cap alerts and refuses
 new writes; reclaiming space requires explicit retention on a plan.
+
+### Filesystem destination bundle layout
+
+A filesystem destination is a self-describing bundle, not a bare repository:
+
+```text
+<location>/                                  ← bundle root (operator-facing)
+  README.txt                                 ← what this is; do not edit the repo by hand
+  RECOVERY.txt                               ← standalone recovery steps (plain kopia + passphrase)
+  vrooli-backup-destination.json             ← non-secret manifest (schema version, ids, repo path, secret REF)
+  repositories/
+    <slug>.kopia/                            ← the vanilla, encrypted kopia repository
+```
+
+- `location` is the operator-facing **bundle root**; `repository_location` is the
+  concrete kopia repository path (`<location>/repositories/<name>.kopia`). The
+  name is slug-safe (lowercase, digits, hyphens) because it doubles as the kopia
+  repository name.
+- The repository remains a **vanilla kopia repository** — no proprietary layer.
+  It is restorable with the plain `kopia` binary plus the passphrase from vault.
+- Bundle files never contain a secret value, only a vault secret *reference*.
+- S3 destinations have no filesystem bundle files; `location` and
+  `repository_location` are the bucket/prefix.
+
+### Deletion retention rules (destinations)
+
+| Command | Removes | Leaves intact |
+|---|---|---|
+| `destinations delete` (default) | Catalog row only | Local kopia metadata, vault secret refs, encrypted repository bytes, bundle files |
+| `destinations delete --delete-repository` | Catalog row + local resource-kopia metadata/config/cache + vault secret refs | **Encrypted repository bytes on the backend** and bundle files — never removed by DBM |
+
+To destroy the backups themselves, an operator removes the bundle folder
+manually. DBM never deletes backend repository bytes.
 
 ## Privacy Notes
 

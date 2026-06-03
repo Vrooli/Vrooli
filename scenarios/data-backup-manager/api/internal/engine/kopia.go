@@ -65,6 +65,20 @@ type RepoStats struct {
 	SizeBytes int64
 }
 
+// SnapshotMetadata is the optional self-identifying metadata DBM attaches to a
+// kopia snapshot so standalone tooling can read owner/name/run without DBM. It
+// must never carry a secret value (no passphrases, tokens, or raw credentials);
+// locator paths are also excluded by default as potentially sensitive.
+type SnapshotMetadata struct {
+	// Description is a human one-liner recorded on the snapshot.
+	Description string
+	// OverrideSource is a stable logical source (e.g. dbm://<owner>/<name>) so
+	// the snapshot is not labeled with the throwaway staging path.
+	OverrideSource string
+	// Tags are key:value pairs passed through to kopia (repeatable --tags).
+	Tags []string
+}
+
 // Snapshot is a kopia snapshot reference produced/listed by the engine.
 type Snapshot struct {
 	ID        string
@@ -98,8 +112,11 @@ type KopiaEngine interface {
 	// a destination repository.
 	RepoDelete(ctx context.Context, repo string) error
 	// SnapshotCreate snapshots a captured artifact path into a repository and
-	// returns the snapshot reference (including its id).
-	SnapshotCreate(ctx context.Context, repo, path string) (Snapshot, error)
+	// returns the snapshot reference (including its id). meta carries optional
+	// self-identifying kopia metadata (description, override-source, tags) so a
+	// standalone `kopia snapshot list` can attribute the snapshot without DBM
+	// running. meta never carries a secret.
+	SnapshotCreate(ctx context.Context, repo, path string, meta SnapshotMetadata) (Snapshot, error)
 	// SnapshotList lists snapshots in a repository, optionally for one path.
 	SnapshotList(ctx context.Context, repo, path string) ([]Snapshot, error)
 	// SnapshotRestore restores a snapshot's contents into target.
@@ -231,8 +248,19 @@ func (k *KopiaCLI) RepoDelete(ctx context.Context, repo string) error {
 	return nil
 }
 
-func (k *KopiaCLI) SnapshotCreate(ctx context.Context, repo, path string) (Snapshot, error) {
-	out, err := k.Runner.Run(ctx, "snapshot", "create", "--repo", repo, "--path", path, "--json")
+func (k *KopiaCLI) SnapshotCreate(ctx context.Context, repo, path string, meta SnapshotMetadata) (Snapshot, error) {
+	args := []string{"snapshot", "create", "--repo", repo, "--path", path}
+	if meta.Description != "" {
+		args = append(args, "--description", meta.Description)
+	}
+	if meta.OverrideSource != "" {
+		args = append(args, "--override-source", meta.OverrideSource)
+	}
+	for _, tag := range meta.Tags {
+		args = append(args, "--tags", tag)
+	}
+	args = append(args, "--json")
+	out, err := k.Runner.Run(ctx, args...)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("snapshot create repo=%q path=%q: %w", repo, path, err)
 	}

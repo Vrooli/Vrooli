@@ -21,12 +21,19 @@ require_command vrooli
 SCENARIO_NAME="data-backup-manager"
 CANARY_ROOT="${DBM_E2E_ROOT:-/tmp/dbm-e2e-$(date +%Y%m%d-%H%M%S)-$$}"
 SOURCE_DIR="${CANARY_ROOT}/source"
-REPO_DIR="${CANARY_ROOT}/repo"
+# BUNDLE_ROOT is the operator-facing destination bundle root: it holds the
+# README/RECOVERY/manifest files, with the vanilla kopia repository nested under
+# repositories/<slug>.kopia.
+BUNDLE_ROOT="${CANARY_ROOT}/bundle"
 RESTORE_DIR="${CANARY_ROOT}/restore"
 OWNER="data-backup-manager"
-SUFFIX="$(basename "${CANARY_ROOT}")"
+# Slug-safe suffix: lowercase, only [a-z0-9-]. mktemp -d XXXXXX can yield mixed
+# case, which the slug-safe destination-name contract rejects.
+SUFFIX="$(basename "${CANARY_ROOT}" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '-' | sed 's/-\{2,\}/-/g; s/^-//; s/-$//')"
 TARGET_NAME="e2e-source-${SUFFIX}"
+DEST_NAME="e2e-local-${SUFFIX}"
 DESTINATION_ID=""
+REPOSITORY_LOCATION=""
 TARGET_ID=""
 PLAN_ID=""
 
@@ -51,17 +58,49 @@ trap cleanup EXIT
 
 vrooli scenario start "${SCENARIO_NAME}" >/dev/null
 
-mkdir -p "${SOURCE_DIR}/nested" "${REPO_DIR}"
+mkdir -p "${SOURCE_DIR}/nested" "${BUNDLE_ROOT}"
 printf 'alpha\n' > "${SOURCE_DIR}/root.txt"
 printf 'beta\n' > "${SOURCE_DIR}/nested/child.txt"
 
 DEST_JSON="$(data-backup-manager destinations create \
-  --name "e2e-local-${SUFFIX}" \
+  --name "${DEST_NAME}" \
   --backend filesystem \
-  --location "${REPO_DIR}" \
+  --location "${BUNDLE_ROOT}" \
   --cap-bytes 0 \
   --json)"
 DESTINATION_ID="$(jq -r '.destination.id // .id' <<<"${DEST_JSON}")"
+REPOSITORY_LOCATION="$(jq -r '.destination.repositoryLocation // .destination.repository_location // empty' <<<"${DEST_JSON}")"
+
+# --- Bundle layout assertions -------------------------------------------------
+# The bundle root must carry the human-facing explanatory files...
+for f in README.txt RECOVERY.txt vrooli-backup-destination.json; do
+  if [[ ! -f "${BUNDLE_ROOT}/${f}" ]]; then
+    echo "expected bundle file missing: ${BUNDLE_ROOT}/${f}" >&2
+    exit 1
+  fi
+done
+# ...and the actual kopia repository must live under repositories/<slug>.kopia.
+EXPECTED_REPO="${BUNDLE_ROOT}/repositories/${DEST_NAME}.kopia"
+if [[ "${REPOSITORY_LOCATION}" != "${EXPECTED_REPO}" ]]; then
+  echo "repository_location was ${REPOSITORY_LOCATION}; expected ${EXPECTED_REPO}" >&2
+  exit 1
+fi
+if [[ ! -d "${REPOSITORY_LOCATION}" ]]; then
+  echo "kopia repository dir not found at ${REPOSITORY_LOCATION}" >&2
+  exit 1
+fi
+# The manifest must carry a vault secret REFERENCE (a path), never a secret
+# value, and must be valid JSON.
+MANIFEST_SECRET_REF="$(jq -r '.secret_ref // empty' "${BUNDLE_ROOT}/vrooli-backup-destination.json")"
+if jq -e '.repository_path' "${BUNDLE_ROOT}/vrooli-backup-destination.json" >/dev/null; then :; else
+  echo "manifest missing repository_path" >&2
+  exit 1
+fi
+# Defense-in-depth: no obvious passphrase/credential value text in the bundle.
+if grep -RiE 'passphrase[-_ ]?value|BEGIN [A-Z ]*PRIVATE KEY|secret[-_ ]?access[-_ ]?key' "${BUNDLE_ROOT}/README.txt" "${BUNDLE_ROOT}/RECOVERY.txt" "${BUNDLE_ROOT}/vrooli-backup-destination.json" >/dev/null; then
+  echo "bundle metadata appears to contain a secret value" >&2
+  exit 1
+fi
 
 TARGET_JSON="$(data-backup-manager targets register \
   --owner "${OWNER}" \
@@ -96,6 +135,19 @@ if [[ -z "${SNAPSHOT_ID}" || "${SNAPSHOT_ID}" == "null" ]]; then
   exit 1
 fi
 
+# Browsing the snapshot should surface the disposable source files.
+BROWSE_JSON="$(data-backup-manager runs browse \
+  --destination "${DESTINATION_ID}" \
+  --snapshot "${SNAPSHOT_ID}" \
+  --json 2>/dev/null || true)"
+if [[ -n "${BROWSE_JSON}" ]]; then
+  if ! grep -q 'root.txt' <<<"${BROWSE_JSON}"; then
+    echo "snapshot browse did not list expected file root.txt" >&2
+    echo "${BROWSE_JSON}" >&2
+    exit 1
+  fi
+fi
+
 VERIFY_JSON="$(data-backup-manager restores verify \
   --target "${TARGET_ID}" \
   --destination "${DESTINATION_ID}" \
@@ -127,6 +179,9 @@ diff -ru "${SOURCE_DIR}" "${RESTORE_DIR}" >/dev/null
 
 jq -n \
   --arg canaryRoot "${CANARY_ROOT}" \
+  --arg bundleRoot "${BUNDLE_ROOT}" \
+  --arg repositoryLocation "${REPOSITORY_LOCATION}" \
+  --arg manifestSecretRef "${MANIFEST_SECRET_REF}" \
   --arg destinationId "${DESTINATION_ID}" \
   --arg targetId "${TARGET_ID}" \
   --arg planId "${PLAN_ID}" \
@@ -138,6 +193,9 @@ jq -n \
   --arg checksum "${VERIFY_CHECKSUM}" \
   '{
     canary_root: $canaryRoot,
+    bundle_root: $bundleRoot,
+    repository_location: $repositoryLocation,
+    manifest_secret_ref: $manifestSecretRef,
     destination_id: $destinationId,
     target_id: $targetId,
     plan_id: $planId,
@@ -147,5 +205,6 @@ jq -n \
     verify_status: $verifyStatus,
     restore_status: $restoreStatus,
     checksum: $checksum,
+    bundle_files: ["README.txt","RECOVERY.txt","vrooli-backup-destination.json"],
     diff: "clean"
   }'

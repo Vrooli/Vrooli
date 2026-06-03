@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -55,7 +56,7 @@ func TestSnapshotCreateParsesResourceKopiaJSONShape(t *testing.T) {
 		"stats": {"totalSize": 11}
 	}`)}
 	cli := &KopiaCLI{Runner: runner}
-	got, err := cli.SnapshotCreate(context.Background(), "nightly", "/stage/fs")
+	got, err := cli.SnapshotCreate(context.Background(), "nightly", "/stage/fs", SnapshotMetadata{})
 	if err != nil {
 		t.Fatalf("SnapshotCreate: %v", err)
 	}
@@ -65,6 +66,35 @@ func TestSnapshotCreateParsesResourceKopiaJSONShape(t *testing.T) {
 	want := []string{"snapshot", "create", "--repo", "nightly", "--path", "/stage/fs", "--json"}
 	if !slices.Equal(runner.args[0], want) {
 		t.Fatalf("args = %v, want %v", runner.args[0], want)
+	}
+}
+
+func TestSnapshotCreatePassesMetadataFlagsAndNeverASecret(t *testing.T) {
+	runner := &recordingRunner{output: []byte(`{"id":"k1","stats":{"totalSize":1}}`)}
+	cli := &KopiaCLI{Runner: runner}
+	_, err := cli.SnapshotCreate(context.Background(), "nightly", "/stage/fs", SnapshotMetadata{
+		Description:    "Data Backup Manager target acme/db run r1",
+		OverrideSource: "dbm://acme/db",
+		Tags:           []string{"dbm:true", "dbm.run_id:r1"},
+	})
+	if err != nil {
+		t.Fatalf("SnapshotCreate: %v", err)
+	}
+	want := []string{
+		"snapshot", "create", "--repo", "nightly", "--path", "/stage/fs",
+		"--description", "Data Backup Manager target acme/db run r1",
+		"--override-source", "dbm://acme/db",
+		"--tags", "dbm:true", "--tags", "dbm.run_id:r1",
+		"--json",
+	}
+	if !slices.Equal(runner.args[0], want) {
+		t.Fatalf("args = %v, want %v", runner.args[0], want)
+	}
+	// Defense-in-depth: no token that looks like a passphrase/secret flag.
+	for _, a := range runner.args[0] {
+		if strings.Contains(strings.ToLower(a), "passphrase") || strings.Contains(strings.ToLower(a), "password") {
+			t.Fatalf("secret-looking token in argv: %q", a)
+		}
 	}
 }
 

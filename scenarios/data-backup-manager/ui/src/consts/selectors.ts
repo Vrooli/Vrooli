@@ -372,6 +372,7 @@ const literalSelectors = {
     formName: "destinations-form-name",
     formBackend: "destinations-form-backend",
     formLocation: "destinations-form-location",
+    formRepoPreview: "destinations-form-repo-preview",
     formCap: "destinations-form-cap",
     formPolicy: "destinations-form-policy",
     formSubmit: "destinations-form-submit",

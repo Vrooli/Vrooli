@@ -74,6 +74,17 @@ func (s *service) RestoreTarget(ctx context.Context, targetID, destinationID, sn
 	if location == "" {
 		return Restore{}, ErrInvalidRestore{Field: "location", Reason: "required"}
 	}
+	// Fail-closed safety (Contract Decision): refuse to restore into an existing
+	// non-empty directory. v1 has no overwrite flag, so a restore must target an
+	// empty or not-yet-existing path — this prevents clobbering live data.
+	if nonEmpty, err := isNonEmptyDir(location); err != nil {
+		return Restore{}, ErrInvalidRestore{Field: "location", Reason: fmt.Sprintf("cannot inspect restore target: %v", err)}
+	} else if nonEmpty {
+		return Restore{}, ErrInvalidRestore{
+			Field:  "location",
+			Reason: "restore target already exists and is not empty; choose an empty or new directory (overwriting existing data is not supported)",
+		}
+	}
 
 	now := s.deps.Clock.Now().UTC()
 	rec := Restore{
@@ -221,6 +232,28 @@ func (s *service) failRestore(ctx context.Context, rec Restore, errMsg string) (
 		return Restore{}, fmt.Errorf("persist failed restore: %w (original: %s)", persistErr, errMsg)
 	}
 	return saved, nil
+}
+
+// isNonEmptyDir reports whether path exists, is a directory, and contains at
+// least one entry. A non-existent path is not "non-empty" (the source restore
+// step creates it). A path that exists but is not a directory is treated as
+// non-empty (it would be clobbered), so the restore fails closed.
+func isNonEmptyDir(path string) (bool, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if !info.IsDir() {
+		return true, nil
+	}
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return false, err
+	}
+	return len(entries) > 0, nil
 }
 
 // checksumDir computes a deterministic sha256 over the contents of all files

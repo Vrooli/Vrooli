@@ -108,6 +108,12 @@ export function DestinationsPage() {
                 <UsageBar usageBytes={d.usageBytes} capBytes={d.capBytes} usageState={d.usageState} />
 
                 <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-xs">
+                  {d.repositoryLocation && d.repositoryLocation !== d.location && (
+                    <>
+                      <dt className="text-app-muted-foreground">{t(strings.destinations.repositoryPath)}</dt>
+                      <dd className="truncate font-mono text-app-foreground">{d.repositoryLocation}</dd>
+                    </>
+                  )}
                   <dt className="text-app-muted-foreground">{t(strings.destinations.policy)}</dt>
                   <dd className="text-app-foreground">{t(CAP_POLICY_STRINGS[capPolicySlug(d.capPolicy)])}</dd>
                   <dt className="text-app-muted-foreground">{t(strings.destinations.encryption)}</dt>

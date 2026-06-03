@@ -38,8 +38,8 @@ const destTimeFormat = time.RFC3339Nano
 
 const (
 	insertDestSQL = `
-INSERT INTO destinations (id, name, backend_kind, location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO destinations (id, name, backend_kind, location, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 	updateDestSQL = `
 UPDATE destinations
@@ -47,15 +47,15 @@ SET cap_bytes = ?, cap_policy = ?, updated_at = ?
 WHERE id = ?
 `
 	selectDestByIDSQL = `
-SELECT id, name, backend_kind, location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, created_at, updated_at
+SELECT id, name, backend_kind, location, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, created_at, updated_at
 FROM destinations WHERE id = ?
 `
 	selectDestByNameSQL = `
-SELECT id, name, backend_kind, location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, created_at, updated_at
+SELECT id, name, backend_kind, location, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, created_at, updated_at
 FROM destinations WHERE name = ?
 `
 	listDestsSQL = `
-SELECT id, name, backend_kind, location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, created_at, updated_at
+SELECT id, name, backend_kind, location, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, created_at, updated_at
 FROM destinations
 ORDER BY name ASC
 LIMIT ?
@@ -75,7 +75,7 @@ func (s *sqliteRepository) Create(ctx context.Context, d Destination) (Destinati
 		d.UpdatedAt = d.CreatedAt
 	}
 	_, err := s.db.ExecContext(ctx, insertDestSQL,
-		d.ID, d.Name, string(d.BackendKind), d.Location, d.CapBytes, string(d.CapPolicy),
+		d.ID, d.Name, string(d.BackendKind), d.Location, d.RepositoryLocation, d.CapBytes, string(d.CapPolicy),
 		d.EncryptionAlgorithm, d.SecretRef,
 		d.CreatedAt.Format(destTimeFormat), d.UpdatedAt.Format(destTimeFormat),
 	)
@@ -169,7 +169,7 @@ func scanDest(sc rowScanner) (Destination, error) {
 		updatedRaw string
 	)
 	if err := sc.Scan(
-		&d.ID, &d.Name, &backendRaw, &d.Location, &d.CapBytes, &policyRaw,
+		&d.ID, &d.Name, &backendRaw, &d.Location, &d.RepositoryLocation, &d.CapBytes, &policyRaw,
 		&d.EncryptionAlgorithm, &d.SecretRef, &createdRaw, &updatedRaw,
 	); err != nil {
 		return Destination{}, err

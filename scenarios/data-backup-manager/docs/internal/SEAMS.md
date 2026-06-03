@@ -119,7 +119,7 @@ references for orchestration seams.
 | Domain | Repository (persistence seam) | Service (application seam) | Production wiring | Test fakes |
 |---|---|---|---|---|
 | targets | `internal/targets/repository.go::Repository` (Create/Update/GetByOwnerName/GetByID/List/DeleteByOwnerName) | `internal/targets/service.go::Service` (Register idempotent upsert, Deregister, Get, List) | `handlers/targets/module.go::Module(db, clk, logger)` builds repo→service→connect handler | `internal/targets/mocks::{FakeRepository, FakeService}` |
-| destinations | `internal/destinations/repository.go::Repository` | `internal/destinations/service.go::Service` (Create→RepoCreate/RepoStatus, separate-root rule, usage-vs-cap, `WouldBlock`) | `handlers/destinations/module.go::Module(db, clk, KopiaEngine, protectedRoot, logger)` | `internal/destinations/mocks::{FakeRepository, FakeService}` |
+| destinations | `internal/destinations/repository.go::Repository` | `internal/destinations/service.go::Service` (Create→bundle prepare/RepoCreate/RepoStatus/bundle metadata, slug-safe name, separate-root rule, bundle-root vs repository-path split, usage-vs-cap, `WouldBlock`) | `handlers/destinations/module.go::Module(db, clk, KopiaEngine, protectedRoot, logger)` (constructs `FSBundleWriter` internally) | `internal/destinations/mocks::{FakeRepository, FakeService, FakeBundleWriter}` |
 | plans | `internal/plans/repository.go::Repository` (membership tables) | `internal/plans/service.go::Service` (+ `SchedulablePlans` for the scheduler) | `handlers/plans/module.go::Module(db, clk, logger)` | `internal/plans/mocks::{FakeRepository, FakeService}` |
 | runs | `internal/runs/repository.go::Repository` (runs + outcomes + last-success rollup) | `internal/runs/service.go::Service` (TriggerRun orchestration; deps via `deps.go` seams) | service built in `main.go` (needs cross-domain adapters), mounted via `handlers/runs/module.go::Module(svc, logger)` | `internal/runs/mocks::{FakeRepository, FakeService, FakePlanLookup, FakeTargetLookup, FakeDestinationLookup, FakeEventSink}` |
 | restores | `internal/restores/repository.go::Repository` | `internal/restores/service.go::Service` (RestoreTarget, VerifyTarget gate) | service built in `main.go`, mounted via `handlers/restores/module.go::Module(svc, logger)` | `internal/restores/mocks::{FakeService, FakeTargetLookup, FakeDestinationLookup}` |
@@ -244,10 +244,20 @@ against fakes.
 | | |
 |---|---|
 | **Seam** | The single boundary to the wrapped backup engine (`resource-kopia`). |
-| **Interface** | `internal/engine/kopia.go::KopiaEngine` (`RepoCreate`, `RepoStatus`, `RepoStats`, `SnapshotCreate`/`List`/`Restore`/`Verify`, `BrowseSnapshot`, `PolicySet`). |
+| **Interface** | `internal/engine/kopia.go::KopiaEngine` (`RepoCreate`, `RepoStatus`, `RepoStats`, `SnapshotCreate(…, SnapshotMetadata)`/`List`/`Restore`/`Verify`, `BrowseSnapshot`, `PolicySet`). `SnapshotCreate` takes optional self-identifying metadata (description/override-source/tags) passed through to kopia; never carries a secret. |
 | **Production wiring** | `engine.NewKopiaCLI()` shells out to `resource-kopia` through the `CommandRunner` seam; wired once and threaded into the destinations, runs, and restores modules. Lives in the substrate `internal/engine/` package (consumed by three domains), mirroring the `httpc.Doer` ambient-seam shape. |
 | **Test fake** | `internal/testutil/mocks::FakeKopiaEngine` — per-method overridable func fields with minimally-working defaults (RepoCreate remembers the repo, SnapshotCreate returns deterministic ids, RepoStatus reports encryption on), plus a `Calls` log. A test programs `RepoStatsFn`/`SnapshotVerifyFn` etc. to drive cap-block and checksum-mismatch paths. |
 | **Why it exists** | Backup/restore/verify must be substitutable so domain tests stay hermetic — they assert "the run snapshotted into the right repo and applied retention", not real kopia behavior. Encryption-on-by-default and "kopia owns the passphrase via vault" mean no secret ever crosses this interface; the production impl never puts a passphrase in argv. Real-engine behavior is covered by integration tests gated behind `KOPIA_INTEGRATION`. |
+
+### BundleWriter (filesystem destination bundle)
+
+| | |
+|---|---|
+| **Seam** | The boundary that turns a bare filesystem folder into a self-describing Vrooli backup bundle (README.txt, RECOVERY.txt, vrooli-backup-destination.json) and creates the nested `repositories/<slug>.kopia` repository directory. |
+| **Interface** | `internal/destinations/bundle.go::BundleWriter` (`PrepareRepository`, `WriteMetadata`). |
+| **Production wiring** | `&destinations.FSBundleWriter{}` constructed in `handlers/destinations/module.go::Module` and `main.go`; the destinations service calls it only for filesystem backends (S3 skips it). |
+| **Test fake** | `internal/destinations/mocks::FakeBundleWriter` — records `PrepareRepository`/`WriteMetadata` calls so `CreateDestination` is exercised without touching the real filesystem, with `PrepareErr`/`MetadataErr` knobs. |
+| **Why it exists** | A detached external drive must explain itself: the operator-facing bundle root carries human-readable README/RECOVERY plus a non-secret JSON manifest, while the vanilla kopia repository stays nested under `repositories/<slug>.kopia` (never wrapped or made DBM-proprietary). The seam keeps that filesystem materialization out of the service's decision logic and out of test paths. The writer is idempotent on identical content and fails closed on conflicting pre-existing files; it never writes a secret value (only a vault secret *reference*). |
 
 ### CommandRunner (process-exec boundary for resource-kopia)
 

@@ -85,6 +85,29 @@ device-identity revalidation. Formatting, relabeling, and clearing files
 remain unsupported operationally; handle those outside this scenario until
 the Linux drive-preparation adapter is implemented and validated.
 
+After review, create the destination at the bundle root (a slug-safe name):
+
+```bash
+data-backup-manager destinations create \
+  --name elements-local --backend filesystem \
+  --location <mount>/vrooli-backups
+```
+
+This materializes a self-describing bundle at `<mount>/vrooli-backups`:
+`README.txt`, `RECOVERY.txt`, `vrooli-backup-destination.json`, and the vanilla
+kopia repository under `repositories/elements-local.kopia`. Open `README.txt` on
+the drive to confirm it explains itself; the `repository_location` reported by
+`destinations get` is the path to hand to plain kopia for standalone recovery.
+
+#### First real backup (data-safe order)
+
+1. Run the disposable proof first (see "Gated backup proof" in
+   [cli-commands](../reference/cli-commands.md)) under a `/tmp` root to confirm
+   create → run → verify → restore → `diff` is clean and the bundle metadata
+   contains no secret value.
+2. Only then create the real external-drive destination and run a plan. Verify
+   (`restores verify`) before trusting it; verify is non-destructive.
+
 ### Back up (scheduled + on-demand)
 
 Plans run on cadence via the in-process scheduler. Operators (and
@@ -139,6 +162,13 @@ an operator can restore directly with the kopia CLI even if the manager,
 API, or the whole Vrooli stack is unavailable. This is a deliberate
 disaster-recovery property — keep the passphrase recoverable
 independently of the data it protects.
+
+For a filesystem destination, the drive itself explains how: read
+`RECOVERY.txt` at the bundle root, and connect plain kopia to the **nested**
+repository path (`repository_location` /
+`<bundle-root>/repositories/<slug>.kopia` — recorded in
+`vrooli-backup-destination.json`), **not** the bundle root. The manifest also
+records the vault `secret_ref` (a reference path, never the passphrase value).
 
 | Data | Backup Procedure | Restore Procedure | Status |
 |---|---|---|---|

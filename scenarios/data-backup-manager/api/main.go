@@ -133,6 +133,13 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("schema initialization failed: %w", err)
 	}
 
+	// Additive column migration for the destinations table (SQLite has no
+	// ADD COLUMN IF NOT EXISTS); idempotent on fresh and existing databases.
+	if err := destint.EnsureColumns(ctx, db.Primary()); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("destinations column migration failed: %w", err)
+	}
+
 	// The backup engine (resource-kopia) wrapped behind the KopiaEngine seam,
 	// and the storage root the manager protects (a destination must not point
 	// under it — the separate-root rule). SCENARIO_DATA_DIR is set by the
@@ -145,7 +152,7 @@ func run(ctx context.Context) error {
 	// Concrete domain services used both for mounting (via each module) and as
 	// the backing for the cross-domain adapters the run orchestration needs.
 	targetsSvc := targetsint.NewService(targetsint.NewSQLiteRepository(db, clk))
-	destSvc := destint.NewService(destint.NewSQLiteRepository(db, clk), kopia, protectedRoot)
+	destSvc := destint.NewService(destint.NewSQLiteRepository(db, clk), kopia, &destint.FSBundleWriter{}, protectedRoot)
 	plansSvc := plansint.NewService(plansint.NewSQLiteRepository(db, clk))
 
 	// The run orchestration: capture (sources) + snapshot/retention (engine),

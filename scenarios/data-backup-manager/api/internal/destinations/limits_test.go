@@ -2,6 +2,7 @@ package destinations_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -30,7 +31,7 @@ func TestLimits_UsageState(t *testing.T) {
 		{"over cap (over)", 1200, destinations.UsageStateOver},
 	}
 
-	for _, tc := range cases {
+	for i, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			usage := tc.usageBytes // capture
 			eng := &enginemocks.FakeKopiaEngine{
@@ -39,10 +40,10 @@ func TestLimits_UsageState(t *testing.T) {
 				},
 			}
 			repo := mocks.NewFakeRepository()
-			svc := destinations.NewService(repo, eng, "/protected")
+			svc := destinations.NewService(repo, eng, mocks.NewFakeBundleWriter(), "/protected")
 
 			d, err := svc.CreateDestination(ctx, destinations.CreateInput{
-				Name:      "cap-dest-" + tc.name,
+				Name:      fmt.Sprintf("cap-dest-%d", i),
 				Backend:   destinations.BackendFilesystem,
 				Location:  "/mnt/cap",
 				CapBytes:  cap,
@@ -73,7 +74,7 @@ func TestLimits_UsageState(t *testing.T) {
 			},
 		}
 		repo := mocks.NewFakeRepository()
-		svc := destinations.NewService(repo, eng, "/protected")
+		svc := destinations.NewService(repo, eng, mocks.NewFakeBundleWriter(), "/protected")
 
 		d, err := svc.CreateDestination(ctx, destinations.CreateInput{
 			Name:     "nocap-dest",
@@ -112,7 +113,7 @@ func TestLimits_DefaultAlertBlock(t *testing.T) {
 			},
 		}
 		repo := mocks.NewFakeRepository()
-		svc := destinations.NewService(repo, eng, "/protected")
+		svc := destinations.NewService(repo, eng, mocks.NewFakeBundleWriter(), "/protected")
 
 		d, err := svc.CreateDestination(ctx, destinations.CreateInput{
 			Name:      "block-dest",
@@ -162,7 +163,7 @@ func TestLimits_DefaultAlertBlock(t *testing.T) {
 			},
 		}
 		repo := mocks.NewFakeRepository()
-		svc := destinations.NewService(repo, eng, "/protected")
+		svc := destinations.NewService(repo, eng, mocks.NewFakeBundleWriter(), "/protected")
 
 		d, err := svc.CreateDestination(ctx, destinations.CreateInput{
 			Name:      "within-dest",
@@ -191,7 +192,7 @@ func TestLimits_DefaultAlertBlock(t *testing.T) {
 			},
 		}
 		repo := mocks.NewFakeRepository()
-		svc := destinations.NewService(repo, eng, "/protected")
+		svc := destinations.NewService(repo, eng, mocks.NewFakeBundleWriter(), "/protected")
 
 		d, err := svc.CreateDestination(ctx, destinations.CreateInput{
 			Name:      "alertonly-dest",
@@ -215,7 +216,7 @@ func TestLimits_DefaultAlertBlock(t *testing.T) {
 	t.Run("no cap never blocks", func(t *testing.T) {
 		eng := &enginemocks.FakeKopiaEngine{}
 		repo := mocks.NewFakeRepository()
-		svc := destinations.NewService(repo, eng, "/protected")
+		svc := destinations.NewService(repo, eng, mocks.NewFakeBundleWriter(), "/protected")
 
 		d, err := svc.CreateDestination(ctx, destinations.CreateInput{
 			Name:     "nocap-block-dest",

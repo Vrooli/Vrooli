@@ -209,6 +209,7 @@ func domainToProto(d destinations.Destination) *destinationsv1.Destination {
 		Name:                d.Name,
 		BackendKind:         backendToProto(d.BackendKind),
 		Location:            d.Location,
+		RepositoryLocation:  d.RepositoryLocation,
 		CapBytes:            d.CapBytes,
 		CapPolicy:           capPolicyToProto(d.CapPolicy),
 		EncryptionAlgorithm: d.EncryptionAlgorithm,

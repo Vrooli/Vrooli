@@ -90,8 +90,10 @@ message Destination {
   // Operator-facing unique name.
   string name = 2;
   BackendKind backend_kind = 3;
-  // Backend location: a filesystem path (filesystem) or an s3://bucket/prefix
-  // endpoint reference (s3). Never holds credentials.
+  // Operator-facing destination root. For a filesystem backend this is the
+  // self-describing bundle root (the folder that holds README.txt, RECOVERY.txt,
+  // vrooli-backup-destination.json, and the repositories/ subfolder). For S3 it
+  // is the bucket/prefix reference. Never holds credentials.
   string location = 4;
   // Configurable storage cap in bytes. Zero means "no cap".
   int64 cap_bytes = 5;
@@ -107,6 +109,12 @@ message Destination {
   UsageState usage_state = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
+  // Concrete backend repository location passed to resource-kopia. For a
+  // filesystem backend this is the vanilla kopia repository path nested inside
+  // the bundle root, e.g. "<location>/repositories/<name>.kopia". For S3 it is
+  // the same bucket/prefix as location. Distinct from location so the operator
+  // sees the human bundle root while the engine targets the repository folder.
+  string repository_location = 13;
 }
 
 message CreateDestinationRequest {

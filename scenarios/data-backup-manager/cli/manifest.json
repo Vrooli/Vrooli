@@ -126,10 +126,10 @@
         },
         {
           "name": "delete",
-          "description": "Delete a backup destination record",
+          "description": "Delete a backup destination record (catalog row). Encrypted repository bytes on the backend are never removed by this command",
           "flags": [
             { "name": "id", "required": true, "description": "Destination id" },
-            { "name": "delete-repository", "description": "Also delete the underlying kopia repository (default: false)" }
+            { "name": "delete-repository", "description": "Also remove local resource-kopia metadata/config/cache and vault secret refs. Does NOT delete the encrypted repository bytes on the backend (default: false)" }
           ],
           "binding": { "kind": "connect-rpc", "service": "DestinationsService", "method": "DeleteDestination" },
           "governance": {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -111,6 +112,52 @@ func TestCatalog_ListAndLastSuccess(t *testing.T) {
 		if s.LastRunStatus != runs.RunCompleted {
 			t.Errorf("target %s last_run_status = %s", s.TargetID, s.LastRunStatus)
 		}
+	}
+}
+
+// TestSnapshotMetadataStampsOwnerNameRunDestination proves each snapshot is
+// created with self-identifying kopia metadata (override-source, description,
+// owner/name/kind/run/destination tags) and that the target locator never
+// leaks into tags/description/override-source.
+func TestSnapshotMetadataStampsOwnerNameRunDestination(t *testing.T) {
+	ctx := context.Background()
+	plan := runs.PlanForRun{ID: "plan-1", TargetIDs: []string{"t1"}, DestinationIDs: []string{"dst-1"}}
+	const secretLocator = "/very/sensitive/path"
+	targets := map[string]runs.TargetForRun{
+		"t1": {ID: "t1", Owner: "acme", Name: "db", Kind: sources.KindFilesystem, Locator: secretLocator},
+	}
+	svc, eng, _, _ := buildService(t, plan, targets, nil)
+
+	run, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual)
+	if err != nil {
+		t.Fatalf("TriggerRun: %v", err)
+	}
+	if len(eng.SnapshotMetas) != 1 {
+		t.Fatalf("snapshot metas = %d, want 1", len(eng.SnapshotMetas))
+	}
+	meta := eng.SnapshotMetas[0]
+	if meta.OverrideSource != "dbm://acme/db" {
+		t.Errorf("override-source = %q, want dbm://acme/db", meta.OverrideSource)
+	}
+	wantTags := map[string]bool{
+		"dbm:true": true, "dbm.target_id:t1": true, "dbm.kind:filesystem": true,
+		"dbm.run_id:" + run.ID: true, "dbm.destination_id:dst-1": true,
+		"dbm.owner:acme": true, "dbm.name:db": true,
+	}
+	for _, tag := range meta.Tags {
+		delete(wantTags, tag)
+	}
+	if len(wantTags) != 0 {
+		t.Errorf("missing tags: %v (got %v)", wantTags, meta.Tags)
+	}
+	// Locator must never appear anywhere in the metadata.
+	for _, tag := range meta.Tags {
+		if strings.Contains(tag, secretLocator) {
+			t.Errorf("locator leaked into tag %q", tag)
+		}
+	}
+	if strings.Contains(meta.Description, secretLocator) || strings.Contains(meta.OverrideSource, secretLocator) {
+		t.Errorf("locator leaked into description/override-source: %q / %q", meta.Description, meta.OverrideSource)
 	}
 }
 

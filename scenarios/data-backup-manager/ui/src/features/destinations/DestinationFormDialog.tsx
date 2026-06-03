@@ -23,6 +23,18 @@ const bytesToGb = (bytes: bigint): string => {
 const BACKEND_OPTIONS = [BackendKind.FILESYSTEM, BackendKind.S3];
 const POLICY_OPTIONS = [CapPolicy.ALERT_BLOCK, CapPolicy.ALERT_ONLY];
 
+// SLUG_RE mirrors the server's slug-safe destination-name contract (a name is
+// also its kopia repository name). Keep in sync with destinations.ValidSlug.
+const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
+
+// derivedRepositoryPath shows the operator the concrete kopia repository path
+// that will be created inside the bundle root, matching the server's
+// RepositoryPathFor (<bundleRoot>/repositories/<name>.kopia).
+function derivedRepositoryPath(location: string, name: string): string {
+  const root = location.trim().replace(/\/+$/, "");
+  return `${root}/repositories/${name.trim()}.kopia`;
+}
+
 /**
  * Create / edit a destination. On create the operator picks the backend and
  * location; on edit those are locked (the repository already exists) and only
@@ -51,8 +63,16 @@ export function DestinationFormDialog({
   const [touched, setTouched] = useState(false);
 
   const mutation = isEdit ? update : create;
-  const nameError = !isEdit && touched && !name.trim() ? t(strings.destinations.nameRequired) : undefined;
+  const nameError = !isEdit && touched
+    ? !name.trim()
+      ? t(strings.destinations.nameRequired)
+      : !SLUG_RE.test(name.trim())
+        ? t(strings.destinations.nameInvalid)
+        : undefined
+    : undefined;
   const locationError = !isEdit && touched && !location.trim() ? t(strings.destinations.locationRequired) : undefined;
+  const showRepoPreview =
+    !isEdit && backend === BackendKind.FILESYSTEM && location.trim() !== "" && SLUG_RE.test(name.trim());
 
   const close = () => {
     create.reset();
@@ -70,7 +90,7 @@ export function DestinationFormDialog({
       );
       return;
     }
-    if (!name.trim() || !location.trim()) return;
+    if (!name.trim() || !location.trim() || !SLUG_RE.test(name.trim())) return;
     create.mutate(
       {
         name: name.trim(),
@@ -150,6 +170,12 @@ export function DestinationFormDialog({
             />
           )}
         </Field>
+        {showRepoPreview && (
+          <p className="-mt-2 text-xs text-app-muted-foreground" data-testid={selectors.destinations.formRepoPreview}>
+            {t(strings.destinations.repositoryPathPreview)}:{" "}
+            <span className="font-mono text-app-foreground">{derivedRepositoryPath(location, name)}</span>
+          </p>
+        )}
         <Field label={t(strings.destinations.cap)} hint={t(strings.destinations.capHint)}>
           {(p) => (
             <Input

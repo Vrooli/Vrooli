@@ -28,9 +28,13 @@ type PlanLookup interface {
 	PlanForRun(ctx context.Context, planID string) (PlanForRun, error)
 }
 
-// TargetForRun is the slice of a target the runner needs to capture it.
+// TargetForRun is the slice of a target the runner needs to capture it. Owner
+// and Name are carried (in addition to ID) so the run can stamp self-identifying
+// snapshot metadata (override-source, description, tags) without a second lookup.
 type TargetForRun struct {
 	ID      string
+	Owner   string
+	Name    string
 	Kind    sources.SourceKind
 	Locator string
 }

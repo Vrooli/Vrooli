@@ -120,12 +120,20 @@ on; passphrases and access keys come from the `vault` resource, never
 flags or config.
 
 ```bash
+# --name must be slug-safe (lowercase, digits, hyphens) — it is also the kopia
+# repository name. --location is the operator-facing bundle root for filesystem.
 data-backup-manager destinations create --name nightly-local \
   --backend filesystem --location /var/backups/nightly --cap-bytes 53687091200
-data-backup-manager destinations list          # shows usage vs cap
+data-backup-manager destinations list          # shows bundle root, repository path, usage vs cap
 data-backup-manager destinations get <destination-id>
 data-backup-manager destinations usage <destination-id>
 data-backup-manager destinations update --id <destination-id> --cap-policy alert-block
+
+# Delete is precise about what it removes:
+data-backup-manager destinations delete --id <destination-id>                       # catalog row only
+data-backup-manager destinations delete --id <destination-id> --delete-repository true
+#   ^ also removes LOCAL kopia metadata/config/cache + vault secret refs.
+#     The encrypted repository bytes on the backend are NEVER deleted by DBM.
 
 # Read-only drive readiness before creating a filesystem destination.
 data-backup-manager destinations readiness --location /media/user/USB --json
@@ -137,8 +145,16 @@ data-backup-manager destinations prepare-execute --plan-json '<plan-json>' \
   --confirm '<exact phrase>' --dry-run true
 ```
 
+For a filesystem backend, `create` builds a self-describing **bundle** at the
+bundle root (`location`): `README.txt`, `RECOVERY.txt`,
+`vrooli-backup-destination.json`, plus the vanilla kopia repository nested under
+`repositories/<slug>.kopia` (shown as `repository_location`). The create output
+lists the bundle root, the nested repository path, and the metadata files
+written.
+
 A destination is rejected if its path would fall under the storage root
-it is meant to protect (separate-root rule). The cap defaults to
+it is meant to protect (separate-root rule), if its name is not slug-safe, or if
+the bundle root is already a kopia repository at its root. The cap defaults to
 alert + block. For removable drives, run `destinations readiness` first
 and prefer the recommended `vrooli-backups` subdirectory instead of a
 raw mount root. `prepare-execute` is marked destructive governance and is

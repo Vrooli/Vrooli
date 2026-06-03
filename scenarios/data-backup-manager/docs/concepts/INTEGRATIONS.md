@@ -43,11 +43,28 @@ registered.
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
 | kopia | required | The wrapped backup engine; one kopia repository per destination. All snapshot/restore/verify/stats/retention go through `resource-kopia`. | n/a — foundational to the scenario. |
+<!-- kopia snapshot metadata: see "Self-identifying snapshot metadata" below. -->
 | vault | required | All destination passphrases and source/access secrets are sourced from vault; never config or argv. | n/a — foundational to the encryption-on-by-default rule. |
 | postgres | conditional | Needed to `pg_dump` Postgres-kind targets. | Enable when a Postgres target is registered. |
 | redis | conditional | Needed to capture Redis-kind targets (best-effort prefix snapshot). | Enable when a Redis target is registered. |
 | qdrant | conditional | Needed to capture Qdrant-kind targets via the snapshot API. | Enable when a Qdrant target is registered. |
 | minio | conditional | Backs object-storage source mirrors and S3-backed destinations. | Enable when an S3/MinIO source or destination is used. |
+
+### Self-identifying snapshot metadata
+
+Every backup run stamps self-identifying metadata onto its kopia snapshot via
+`resource-kopia snapshot create`, so a standalone `kopia snapshot list --json`
+can attribute a snapshot without DBM running:
+
+- `--override-source dbm://<owner>/<name>` — a stable logical source, so the
+  snapshot is not labeled with the throwaway staging path.
+- `--description "Data Backup Manager target <owner>/<name> run <run-id>"`.
+- `--tags` (repeatable `key:value`): `dbm:true`, `dbm.target_id:<id>`,
+  `dbm.owner:<owner>`, `dbm.name:<name>`, `dbm.kind:<kind>`, `dbm.run_id:<id>`,
+  `dbm.destination_id:<id>`.
+
+The target **locator** is deliberately excluded from tags/description/override
+(potentially sensitive); none of these fields ever carry a secret value.
 
 ## Scenario Dependencies
 

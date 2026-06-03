@@ -302,8 +302,10 @@ type Destination struct {
 	// Operator-facing unique name.
 	Name        string      `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	BackendKind BackendKind `protobuf:"varint,3,opt,name=backend_kind,json=backendKind,proto3,enum=vrooli.data_backup_manager.v1.destinations.BackendKind" json:"backend_kind,omitempty"`
-	// Backend location: a filesystem path (filesystem) or an s3://bucket/prefix
-	// endpoint reference (s3). Never holds credentials.
+	// Operator-facing destination root. For a filesystem backend this is the
+	// self-describing bundle root (the folder that holds README.txt, RECOVERY.txt,
+	// vrooli-backup-destination.json, and the repositories/ subfolder). For S3 it
+	// is the bucket/prefix reference. Never holds credentials.
 	Location string `protobuf:"bytes,4,opt,name=location,proto3" json:"location,omitempty"`
 	// Configurable storage cap in bytes. Zero means "no cap".
 	CapBytes  int64     `protobuf:"varint,5,opt,name=cap_bytes,json=capBytes,proto3" json:"cap_bytes,omitempty"`
@@ -315,12 +317,18 @@ type Destination struct {
 	// passphrase/access keys. The kopia resource resolves it at call time.
 	SecretRef string `protobuf:"bytes,8,opt,name=secret_ref,json=secretRef,proto3" json:"secret_ref,omitempty"`
 	// Current bytes used, read from kopia repository stats (best-effort cache).
-	UsageBytes    int64                  `protobuf:"varint,9,opt,name=usage_bytes,json=usageBytes,proto3" json:"usage_bytes,omitempty"`
-	UsageState    UsageState             `protobuf:"varint,10,opt,name=usage_state,json=usageState,proto3,enum=vrooli.data_backup_manager.v1.destinations.UsageState" json:"usage_state,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	UsageBytes int64                  `protobuf:"varint,9,opt,name=usage_bytes,json=usageBytes,proto3" json:"usage_bytes,omitempty"`
+	UsageState UsageState             `protobuf:"varint,10,opt,name=usage_state,json=usageState,proto3,enum=vrooli.data_backup_manager.v1.destinations.UsageState" json:"usage_state,omitempty"`
+	CreatedAt  *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt  *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Concrete backend repository location passed to resource-kopia. For a
+	// filesystem backend this is the vanilla kopia repository path nested inside
+	// the bundle root, e.g. "<location>/repositories/<name>.kopia". For S3 it is
+	// the same bucket/prefix as location. Distinct from location so the operator
+	// sees the human bundle root while the engine targets the repository folder.
+	RepositoryLocation string `protobuf:"bytes,13,opt,name=repository_location,json=repositoryLocation,proto3" json:"repository_location,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Destination) Reset() {
@@ -435,6 +443,13 @@ func (x *Destination) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Destination) GetRepositoryLocation() string {
+	if x != nil {
+		return x.RepositoryLocation
+	}
+	return ""
 }
 
 type CreateDestinationRequest struct {
@@ -1833,7 +1848,7 @@ var File_data_backup_manager_v1_destinations_destinations_proto protoreflect.Fil
 
 const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\n" +
-	"6data-backup-manager/v1/destinations/destinations.proto\x12*vrooli.data_backup_manager.v1.destinations\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xde\x04\n" +
+	"6data-backup-manager/v1/destinations/destinations.proto\x12*vrooli.data_backup_manager.v1.destinations\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8f\x05\n" +
 	"\vDestination\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12Z\n" +
@@ -1853,7 +1868,8 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xc0\x02\n" +
+	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12/\n" +
+	"\x13repository_location\x18\r \x01(\tR\x12repositoryLocation\"\xc0\x02\n" +
 	"\x18CreateDestinationRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12f\n" +
 	"\fbackend_kind\x18\x02 \x01(\x0e27.vrooli.data_backup_manager.v1.destinations.BackendKindB\n" +

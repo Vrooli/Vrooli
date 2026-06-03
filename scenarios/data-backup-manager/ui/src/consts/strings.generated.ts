@@ -221,6 +221,9 @@ export const strings = {
     deleteRepoHint: "destinations.deleteRepoHint",
     createError: "destinations.createError",
     updateError: "destinations.updateError",
+    nameInvalid: "destinations.nameInvalid",
+    repositoryPath: "destinations.repositoryPath",
+    repositoryPathPreview: "destinations.repositoryPathPreview",
   },
   plans: {
     subtitle: "plans.subtitle",

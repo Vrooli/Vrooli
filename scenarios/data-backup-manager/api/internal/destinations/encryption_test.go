@@ -19,7 +19,7 @@ func TestDestination_EncryptedByDefault(t *testing.T) {
 	ctx := context.Background()
 	eng := &enginemocks.FakeKopiaEngine{} // default returns "AES256-GCM-HMAC-SHA256"
 	repo := mocks.NewFakeRepository()
-	svc := destinations.NewService(repo, eng, "/protected")
+	svc := destinations.NewService(repo, eng, mocks.NewFakeBundleWriter(), "/protected")
 
 	d, err := svc.CreateDestination(ctx, destinations.CreateInput{
 		Name:      "encrypted-dest",
@@ -56,7 +56,7 @@ func TestDeleteDestinationDeletesKopiaMetadataWhenRequested(t *testing.T) {
 	ctx := context.Background()
 	eng := &enginemocks.FakeKopiaEngine{}
 	repo := mocks.NewFakeRepository()
-	svc := destinations.NewService(repo, eng, "/protected")
+	svc := destinations.NewService(repo, eng, mocks.NewFakeBundleWriter(), "/protected")
 
 	d, err := svc.CreateDestination(ctx, destinations.CreateInput{
 		Name:     "cleanup-dest",
@@ -85,7 +85,7 @@ func TestDeleteDestinationDoesNotRemoveCatalogWhenKopiaDeleteFails(t *testing.T)
 		RepoDeleteFn: func(context.Context, string) error { return deleteErr },
 	}
 	repo := mocks.NewFakeRepository()
-	svc := destinations.NewService(repo, eng, "/protected")
+	svc := destinations.NewService(repo, eng, mocks.NewFakeBundleWriter(), "/protected")
 
 	d, err := svc.CreateDestination(ctx, destinations.CreateInput{
 		Name:     "cleanup-fails",

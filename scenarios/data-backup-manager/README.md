@@ -22,6 +22,20 @@ plans, runs, restores, and health/posture. The scenario is ready for
 implementation validation and first real backup validation; it does not
 back up anything until at least one destination and one plan exist.
 
+### Self-describing destination bundles
+
+A filesystem destination is a **self-describing bundle**, not a bare encrypted
+folder. At the operator-facing bundle root you'll find `README.txt`,
+`RECOVERY.txt`, and a non-secret `vrooli-backup-destination.json` manifest; the
+vanilla, encrypted kopia repository is nested under
+`repositories/<slug>.kopia`. A detached drive therefore explains what it is and
+how to recover it — with plain kopia plus the vault passphrase — even with
+Vrooli down. Bundle files never contain a secret, only a vault secret
+*reference*. Delete operations are precise: DBM never removes the encrypted
+repository bytes on the backend. See
+[docs/concepts/DATA.md](docs/concepts/DATA.md) for the full layout and deletion
+rules.
+
 ## What's In This Scenario
 
 - Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)

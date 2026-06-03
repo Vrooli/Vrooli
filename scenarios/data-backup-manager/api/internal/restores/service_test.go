@@ -2,6 +2,7 @@ package restores_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -207,6 +208,45 @@ func TestRestoreTarget_RestoresSnapshotArtifactToFinalLocation(t *testing.T) {
 	}
 	assertFile(t, filepath.Join(finalLocation, "root.txt"), "alpha\n")
 	assertFile(t, filepath.Join(finalLocation, "nested", "child.txt"), "beta\n")
+}
+
+// TestRestoreTarget_RefusesNonEmptyTarget proves the fail-closed safety
+// contract: restoring into an existing non-empty directory is rejected with
+// ErrInvalidRestore{location} and the engine is never touched.
+func TestRestoreTarget_RefusesNonEmptyTarget(t *testing.T) {
+	ctx := context.Background()
+	nonEmpty := t.TempDir()
+	mustWriteFile(t, filepath.Join(nonEmpty, "existing.txt"), "do not clobber\n")
+
+	eng := &mocks.FakeKopiaEngine{}
+	svc := restores.NewService(restores.Deps{
+		Repo: restores.NewSQLiteRepository(newRestoresDB(t), mocks.NewFakeClock(time.Time{})),
+		Targets: &restoresmocks.FakeTargetLookup{
+			Targets: map[string]restores.TargetForRestore{
+				"tgt-fs": {ID: "tgt-fs", Kind: sources.KindFilesystem, Locator: "source-locator"},
+			},
+		},
+		Destinations: &restoresmocks.FakeDestinationLookup{
+			Destinations: map[string]restores.DestinationForRestore{"dst-1": {ID: "dst-1", Name: "nightly"}},
+		},
+		Engine:      eng,
+		Sources:     sources.NewRegistry(&sourcesmocks.FakeCapturer{SourceKind: sources.KindFilesystem}),
+		Clock:       mocks.NewFakeClock(time.Time{}),
+		ScratchRoot: t.TempDir(),
+	})
+
+	_, err := svc.RestoreTarget(ctx, "tgt-fs", "dst-1", "snap-abc", nonEmpty)
+	var invalid restores.ErrInvalidRestore
+	if !errors.As(err, &invalid) || invalid.Field != "location" {
+		t.Fatalf("expected ErrInvalidRestore{location}, got %v", err)
+	}
+	for _, c := range eng.Calls {
+		if strings.HasPrefix(c, "SnapshotRestore") {
+			t.Fatalf("engine must not be touched when target is non-empty; calls = %v", eng.Calls)
+		}
+	}
+	// The pre-existing file is untouched.
+	assertFile(t, filepath.Join(nonEmpty, "existing.txt"), "do not clobber\n")
 }
 
 func copyTree(src, dst string) error {

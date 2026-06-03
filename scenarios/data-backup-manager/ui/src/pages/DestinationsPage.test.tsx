@@ -71,6 +71,36 @@ describe("DestinationsPage", () => {
     );
   });
 
+  it("previews the derived kopia repository path for a filesystem destination", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DestinationsPage />);
+    await user.click(screen.getByTestId(selectors.destinations.createButton));
+    await user.type(screen.getByTestId(selectors.destinations.formName), "elements-local");
+    await user.type(screen.getByTestId(selectors.destinations.formLocation), "/media/usb/vrooli-backups");
+    const preview = await screen.findByTestId(selectors.destinations.formRepoPreview);
+    expect(preview).toHaveTextContent("/media/usb/vrooli-backups/repositories/elements-local.kopia");
+  });
+
+  it("rejects a non-slug destination name", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DestinationsPage />);
+    await user.click(screen.getByTestId(selectors.destinations.createButton));
+    await user.type(screen.getByTestId(selectors.destinations.formName), "Elements Local");
+    await user.type(screen.getByTestId(selectors.destinations.formLocation), "/media/usb");
+    await user.click(screen.getByTestId(selectors.destinations.formSubmit));
+    expect(screen.getByText(strings.destinations.nameInvalid)).toBeInTheDocument();
+    expect(api.createDestination).not.toHaveBeenCalled();
+  });
+
+  it("shows the nested repository path on a destination row", async () => {
+    vi.mocked(api.listDestinations).mockResolvedValue([
+      { ...dest, repositoryLocation: "/var/backups/repositories/local.kopia" },
+    ] as never);
+    renderWithProviders(<DestinationsPage />);
+    const row = await screen.findByTestId(selectors.destinations.row({ id: "d1" }));
+    expect(row).toHaveTextContent("/var/backups/repositories/local.kopia");
+  });
+
   it("passes the delete-repository choice through delete", async () => {
     const user = userEvent.setup();
     renderWithProviders(<DestinationsPage />);

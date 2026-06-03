@@ -15,6 +15,8 @@ package destinations
 
 import (
 	"fmt"
+	"path/filepath"
+	"regexp"
 	"time"
 )
 
@@ -58,16 +60,48 @@ const (
 // Distinct from the proto wire type; handlers translate at the boundary so the
 // domain layer never imports proto.
 type Destination struct {
-	ID                  string
-	Name                string
-	BackendKind         BackendKind
-	Location            string
+	ID          string
+	Name        string
+	BackendKind BackendKind
+	// Location is the operator-facing destination root. For a filesystem backend
+	// this is the self-describing bundle root that holds README.txt, RECOVERY.txt,
+	// vrooli-backup-destination.json, and the repositories/ subfolder. For S3 it
+	// is the bucket/prefix reference.
+	Location string
+	// RepositoryLocation is the concrete backend repository path handed to
+	// resource-kopia. For a filesystem backend it nests inside the bundle root
+	// (RepositoryPath below); for S3 it equals Location.
+	RepositoryLocation  string
 	CapBytes            int64
 	CapPolicy           CapPolicy
 	EncryptionAlgorithm string
 	SecretRef           string
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
+}
+
+// repoSubdir is the bundle subfolder that holds the vanilla kopia repository.
+// The operator-facing bundle root holds README/RECOVERY/manifest; the opaque
+// repository bytes live under repositories/<slug>.kopia so a file browser never
+// mistakes the encrypted repository for the destination itself.
+const repoSubdir = "repositories"
+
+// slugPattern is the slug-safe repository-name contract enforced on Name. A
+// destination name is also its kopia repository name, so it must be a stable
+// slug — never an arbitrary label with spaces or slashes (see plan §8).
+var slugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+
+// ValidSlug reports whether name is a slug-safe kopia repository name.
+func ValidSlug(name string) bool {
+	return slugPattern.MatchString(name)
+}
+
+// RepositoryPathFor derives the concrete filesystem kopia repository path for a
+// bundle root and slug-safe name: <bundleRoot>/repositories/<name>.kopia. It is
+// pure (filepath.Join only) so callers and tests agree on the layout without
+// touching the filesystem; the OS separator is applied for the running platform.
+func RepositoryPathFor(bundleRoot, name string) string {
+	return filepath.Join(filepath.Clean(bundleRoot), repoSubdir, name+".kopia")
 }
 
 // CreateInput is the explicit DTO Service.CreateDestination accepts. Distinct

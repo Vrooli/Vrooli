@@ -26,12 +26,17 @@ type stubDestinationsService struct {
 
 func (s *stubDestinationsService) CreateDestination(_ context.Context, req *connect.Request[destinationsv1.CreateDestinationRequest]) (*connect.Response[destinationsv1.CreateDestinationResponse], error) {
 	s.gotCreate = req.Msg
+	repo := req.Msg.Location
+	if req.Msg.BackendKind == destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM {
+		repo = req.Msg.Location + "/repositories/" + req.Msg.Name + ".kopia"
+	}
 	return connect.NewResponse(&destinationsv1.CreateDestinationResponse{
 		Destination: &destinationsv1.Destination{
-			Id:          "dst-1",
-			Name:        req.Msg.Name,
-			BackendKind: req.Msg.BackendKind,
-			Location:    req.Msg.Location,
+			Id:                 "dst-1",
+			Name:               req.Msg.Name,
+			BackendKind:        req.Msg.BackendKind,
+			Location:           req.Msg.Location,
+			RepositoryLocation: repo,
 		},
 	}), nil
 }
@@ -135,6 +140,51 @@ func TestCreateDestinationCommand(t *testing.T) {
 	}
 	if !strings.Contains(out, "dst-1") {
 		t.Fatalf("output missing destination id: %q", out)
+	}
+	// The create output must surface the bundle root and the nested kopia
+	// repository path, plus the metadata files written into the bundle.
+	if !strings.Contains(out, "/backups/my-backup/repositories/my-backup.kopia") {
+		t.Fatalf("output missing nested repository path: %q", out)
+	}
+	if !strings.Contains(out, "README.txt") || !strings.Contains(out, "vrooli-backup-destination.json") {
+		t.Fatalf("output should mention bundle metadata files: %q", out)
+	}
+}
+
+// TestDeleteDestinationWordingMatchesBehavior proves the delete command states
+// precisely what is and is not removed — encrypted backend bytes always remain.
+func TestDeleteDestinationWordingMatchesBehavior(t *testing.T) {
+	stub := &stubDestinationsService{}
+	mux := http.NewServeMux()
+	path, h := destinationsconnect.NewDestinationsServiceHandler(stub)
+	mux.Handle(path, h)
+	app := testutil.NewTestApp(t, mux)
+	hs := newHandlers(app)
+
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "id"}, {Name: "delete-repository"}}}
+
+	// Default delete: catalog row only.
+	ctx, stdout := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"id": "dst-1"},
+	})
+	if err := hs.delete(ctx); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "catalog row only") {
+		t.Fatalf("default delete should say catalog row only: %q", out)
+	}
+
+	// --delete-repository: local metadata + vault refs, but NOT backend bytes.
+	ctx2, stdout2 := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"id": "dst-1", "delete-repository": "true"},
+	})
+	if err := hs.delete(ctx2); err != nil {
+		t.Fatalf("delete --delete-repository: %v", err)
+	}
+	out2 := stdout2.String()
+	if !strings.Contains(out2, "NOT removed") || !strings.Contains(strings.ToLower(out2), "encrypted repository bytes") {
+		t.Fatalf("delete-repository output must clarify backend bytes remain: %q", out2)
 	}
 }
 

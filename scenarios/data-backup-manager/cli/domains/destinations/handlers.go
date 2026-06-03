@@ -54,12 +54,23 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil || resp.Msg.Destination == nil {
 		return fmt.Errorf("server returned no destination")
 	}
+	d := resp.Msg.Destination
+	changes := []string{formatDestination(d)}
+	if d.BackendKind == destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM {
+		changes = append(changes,
+			fmt.Sprintf("bundle root: %s (README.txt, RECOVERY.txt, vrooli-backup-destination.json)", d.Location),
+			fmt.Sprintf("kopia repository: %s", d.RepositoryLocation),
+			"the repository is encrypted; the passphrase is held in vault and never written to the drive",
+		)
+	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Created destination %s.", resp.Msg.Destination.Id)},
-		Changes: []string{formatDestination(resp.Msg.Destination)},
+		Result:  []string{fmt.Sprintf("Created destination %s.", d.Id)},
+		Changes: changes,
 		NextCommand: []string{
-			fmt.Sprintf("`destinations get %s` — show this destination", resp.Msg.Destination.Id),
-			"`destinations list` — show all destinations",
+			fmt.Sprintf("`destinations get %s` — show this destination", d.Id),
+			"`plans create --target-ids <id> --destination-ids " + d.Id + "` — create a backup plan",
+			"`runs trigger --plan-id <plan>` — run a backup now",
+			"`restores verify --target-id <t> --destination-id " + d.Id + "` — verify a snapshot is restorable",
 		},
 	})
 }
@@ -142,11 +153,25 @@ func (h *handlers) delete(ctx cliapp.RunContext) error {
 		return cliapp.WrapAPIError("delete destination", err, nil)
 	}
 	msg := "No matching destination to delete."
+	var changes []string
 	if resp != nil && resp.Msg != nil && resp.Msg.Removed {
 		msg = "Deleted destination."
+		if deleteRepo {
+			changes = []string{
+				"Removed: catalog row + local resource-kopia metadata/config/cache + vault secret refs.",
+				"NOT removed: the encrypted repository bytes on the backend remain on disk. " +
+					"Delete the bundle folder manually if you intend to destroy the backups.",
+			}
+		} else {
+			changes = []string{
+				"Removed: catalog row only. Local kopia metadata, vault secret refs, and the encrypted repository bytes all remain.",
+				"Pass --delete-repository to also remove local kopia metadata and vault secret refs.",
+			}
+		}
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{msg},
+		Result:  []string{msg},
+		Changes: changes,
 	})
 }
 
@@ -447,10 +472,23 @@ func formatDestination(d *destinationsv1.Destination) string {
 	if d.CreatedAt != nil {
 		created = d.CreatedAt.AsTime().Format(time.RFC3339)
 	}
-	return fmt.Sprintf("%s — %s [backend=%s location=%s cap=%d policy=%s usage=%d state=%s created=%s]",
+	repo := d.RepositoryLocation
+	if repo == "" {
+		repo = d.Location
+	}
+	return fmt.Sprintf("%s — %s [backend=%s bundle_root=%s repository=%s encryption=%s cap=%d policy=%s usage=%d state=%s created=%s]",
 		d.Id, d.Name,
-		backendKindLabel(d.BackendKind), d.Location,
+		backendKindLabel(d.BackendKind), d.Location, repo,
+		emptyDash(d.EncryptionAlgorithm),
 		d.CapBytes, capPolicyLabel(d.CapPolicy),
 		d.UsageBytes, usageStateLabel(d.UsageState),
 		created)
+}
+
+// emptyDash renders an empty string as a dash for tidy CLI output.
+func emptyDash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
 }
