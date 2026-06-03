@@ -68,6 +68,31 @@ resource-kopia snapshot create --repo nightly --path /data/pg
 resource-kopia snapshot list --repo nightly --path /data/pg --json
 ```
 
+`snapshot create` accepts optional self-identifying metadata that is passed
+straight through to kopia (and never carries a secret):
+
+```bash
+resource-kopia snapshot create --repo nightly --path /data/pg \
+  --description "nightly pg backup" \
+  --override-source dbm://acme/db \
+  --tags app:dbm --tags run:r1
+```
+
+These let a standalone `kopia snapshot list --json` attribute a snapshot to its
+owner without the calling application running. Data Backup Manager uses them to
+stamp `dbm.*` tags on every backup.
+
+### Destination bundles (Data Backup Manager)
+
+When Data Backup Manager creates a filesystem destination, it does **not** point
+kopia at the operator-facing folder directly. Instead it builds a self-describing
+*bundle*: the folder holds `README.txt`, `RECOVERY.txt`, and
+`vrooli-backup-destination.json`, and the actual vanilla kopia repository lives
+under `repositories/<slug>.kopia`. The concrete repository path is recorded in
+the manifest's `repository_path` field. The repository itself is an ordinary
+kopia repository — connect to that nested path (not the bundle root) for
+standalone recovery.
+
 Full command reference: [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
 
 ## Architecture

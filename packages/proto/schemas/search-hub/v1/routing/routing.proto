@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package vrooli.search_hub.v1.routing;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing;routing_v1";
+
+// =============================================================================
+// SEARCH-HUB ROUTING DOMAIN — federated query + status
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain routing
+// @stability beta
+//
+// Wire contract for RoutingService. Query fans out to the matching registered
+// providers (explicit --type tokens, --all, or classifier-routed when neither
+// is given), collects heterogeneous candidates with provenance, and returns
+// them. Until the cross-encoder rerank lands, results are grouped BY PROVIDER
+// (honest grouping, no false cross-provider score interleave); once rerank
+// exists it populates `ranked`. A down/stale provider is skipped with a
+// surfaced warning and never fails the whole query.
+//
+// See docs/plans/unified-search-hub-plan.md Appendix A for the full design.
+// =============================================================================
+
+service RoutingService {
+  rpc Query(QueryRequest) returns (QueryResponse);
+  rpc Status(StatusRequest) returns (StatusResponse);
+}
+
+message QueryRequest {
+  string query = 1;
+  // Explicit --type tokens; empty + all=false => the classifier routes.
+  repeated string types = 2;
+  // --all: fan out to every active provider.
+  bool all = 3;
+  // Per-provider limit (default 10).
+  int32 limit = 4;
+  // Optional --group <scenario> scoping.
+  string group = 5;
+  // --explain: include routing rationale in the response.
+  bool explain = 6;
+}
+
+message SearchHit {
+  // Provenance: which leaf produced this hit.
+  string provider_id = 1;
+  string provider_group = 2;
+  string type = 3;
+  string id = 4;
+  string title = 5;
+  string snippet = 6;
+  // File / id / command locator.
+  string path = 7;
+  // Normalized [0,1] (pre-rerank) score.
+  double score = 8;
+  // Set when reranked.
+  double rerank_score = 9;
+}
+
+// Phase-4 honest grouping (pre-rerank): candidates kept per provider.
+message ProviderResultGroup {
+  string provider_id = 1;
+  repeated SearchHit hits = 2;
+  int32 count = 3;
+  // Stale / timed-out / down.
+  bool degraded = 4;
+  // e.g. "last sync 3h ago" / "unreachable — skipped".
+  string note = 5;
+}
+
+message QueryResponse {
+  // Unified ranked list — populated once rerank lands (Phase 6).
+  repeated SearchHit ranked = 1;
+  // By-provider grouping — always populated.
+  repeated ProviderResultGroup groups = 2;
+  // Which providers were hit (operator output).
+  repeated string corpora_searched = 3;
+  // Populated when explain=true.
+  repeated string routing_explanation = 4;
+  // false => honest grouping only (no rerank applied).
+  bool reranked = 5;
+  // Any provider degraded.
+  bool degraded = 6;
+  int64 latency_ms = 7;
+}
+
+message StatusRequest {}
+
+message ProviderHealth {
+  string provider_id = 1;
+  bool reachable = 2;
+  // e.g. "synced 12m ago".
+  string freshness = 3;
+  int64 point_count = 4;
+  bool degraded = 5;
+}
+
+message StatusResponse {
+  repeated ProviderHealth providers = 1;
+  bool classifier_available = 2;
+  // false => degraded ranking mode (by-provider grouping only).
+  bool reranker_available = 3;
+}

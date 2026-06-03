@@ -194,9 +194,14 @@ type CreatePlanRequest struct {
 	Schedule       string                 `protobuf:"bytes,4,opt,name=schedule,proto3" json:"schedule,omitempty"`
 	Retention      *RetentionPolicy       `protobuf:"bytes,5,opt,name=retention,proto3" json:"retention,omitempty"`
 	// Optional; defaults to true when unset on create.
-	Enabled       bool `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Enabled bool `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	// When false (default), the server rejects the plan with FAILED_PRECONDITION
+	// if any non-sensitive discovered durable target is still unregistered, so a
+	// plan cannot silently omit recommended default coverage. Set true to proceed
+	// with deliberately incomplete coverage. See CoverageService.
+	AllowIncompleteCoverage bool `protobuf:"varint,7,opt,name=allow_incomplete_coverage,json=allowIncompleteCoverage,proto3" json:"allow_incomplete_coverage,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *CreatePlanRequest) Reset() {
@@ -267,6 +272,13 @@ func (x *CreatePlanRequest) GetRetention() *RetentionPolicy {
 func (x *CreatePlanRequest) GetEnabled() bool {
 	if x != nil {
 		return x.Enabled
+	}
+	return false
+}
+
+func (x *CreatePlanRequest) GetAllowIncompleteCoverage() bool {
+	if x != nil {
+		return x.AllowIncompleteCoverage
 	}
 	return false
 }
@@ -516,8 +528,10 @@ type UpdatePlanRequest struct {
 	Schedule       string                 `protobuf:"bytes,5,opt,name=schedule,proto3" json:"schedule,omitempty"`
 	Retention      *RetentionPolicy       `protobuf:"bytes,6,opt,name=retention,proto3" json:"retention,omitempty"`
 	Enabled        bool                   `protobuf:"varint,7,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// See CreatePlanRequest.allow_incomplete_coverage — same guard on update.
+	AllowIncompleteCoverage bool `protobuf:"varint,8,opt,name=allow_incomplete_coverage,json=allowIncompleteCoverage,proto3" json:"allow_incomplete_coverage,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *UpdatePlanRequest) Reset() {
@@ -595,6 +609,13 @@ func (x *UpdatePlanRequest) GetRetention() *RetentionPolicy {
 func (x *UpdatePlanRequest) GetEnabled() bool {
 	if x != nil {
 		return x.Enabled
+	}
+	return false
+}
+
+func (x *UpdatePlanRequest) GetAllowIncompleteCoverage() bool {
+	if x != nil {
+		return x.AllowIncompleteCoverage
 	}
 	return false
 }
@@ -751,7 +772,7 @@ const file_data_backup_manager_v1_plans_plans_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x96\x02\n" +
+	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xd2\x02\n" +
 	"\x11CreatePlanRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12'\n" +
 	"\n" +
@@ -759,7 +780,8 @@ const file_data_backup_manager_v1_plans_plans_proto_rawDesc = "" +
 	"\x0fdestination_ids\x18\x03 \x03(\tB\b\xbaH\x05\x92\x01\x02\b\x01R\x0edestinationIds\x12\x1a\n" +
 	"\bschedule\x18\x04 \x01(\tR\bschedule\x12R\n" +
 	"\tretention\x18\x05 \x01(\v24.vrooli.data_backup_manager.v1.plans.RetentionPolicyR\tretention\x12\x18\n" +
-	"\aenabled\x18\x06 \x01(\bR\aenabled\"S\n" +
+	"\aenabled\x18\x06 \x01(\bR\aenabled\x12:\n" +
+	"\x19allow_incomplete_coverage\x18\a \x01(\bR\x17allowIncompleteCoverage\"S\n" +
 	"\x12CreatePlanResponse\x12=\n" +
 	"\x04plan\x18\x01 \x01(\v2).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\")\n" +
 	"\x0eGetPlanRequest\x12\x17\n" +
@@ -772,7 +794,7 @@ const file_data_backup_manager_v1_plans_plans_proto_rawDesc = "" +
 	"page_token\x18\x02 \x01(\tR\tpageToken\"|\n" +
 	"\x11ListPlansResponse\x12?\n" +
 	"\x05plans\x18\x01 \x03(\v2).vrooli.data_backup_manager.v1.plans.PlanR\x05plans\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x92\x02\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xce\x02\n" +
 	"\x11UpdatePlanRequest\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
@@ -781,7 +803,8 @@ const file_data_backup_manager_v1_plans_plans_proto_rawDesc = "" +
 	"\x0fdestination_ids\x18\x04 \x03(\tR\x0edestinationIds\x12\x1a\n" +
 	"\bschedule\x18\x05 \x01(\tR\bschedule\x12R\n" +
 	"\tretention\x18\x06 \x01(\v24.vrooli.data_backup_manager.v1.plans.RetentionPolicyR\tretention\x12\x18\n" +
-	"\aenabled\x18\a \x01(\bR\aenabled\"S\n" +
+	"\aenabled\x18\a \x01(\bR\aenabled\x12:\n" +
+	"\x19allow_incomplete_coverage\x18\b \x01(\bR\x17allowIncompleteCoverage\"S\n" +
 	"\x12UpdatePlanResponse\x12=\n" +
 	"\x04plan\x18\x01 \x01(\v2).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\",\n" +
 	"\x11DeletePlanRequest\x12\x17\n" +

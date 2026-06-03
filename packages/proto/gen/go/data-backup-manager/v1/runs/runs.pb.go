@@ -404,8 +404,16 @@ type TargetStatus struct {
 	// Snapshot id of that latest successful verify; powers a "verify the same
 	// point again" shortcut. Empty when last_verified_at is unset.
 	LastVerifiedSnapshotId string `protobuf:"bytes,6,opt,name=last_verified_snapshot_id,json=lastVerifiedSnapshotId,proto3" json:"last_verified_snapshot_id,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Freshness (cadence) signals, computed server-side against DBM_OVERDUE_AFTER
+	// so every surface (CLI, /health, UI) reads one consistent overdue rule.
+	// overdue is true when the last run failed/partial-failed, or the target has
+	// never succeeded, or its last success is older than the overdue threshold.
+	Overdue bool `protobuf:"varint,7,opt,name=overdue,proto3" json:"overdue,omitempty"`
+	// Seconds since the last successful backup; 0 when never backed up (pair with
+	// last_success_at being unset to distinguish "0s ago" from "never").
+	LastSuccessAgeSeconds int64 `protobuf:"varint,8,opt,name=last_success_age_seconds,json=lastSuccessAgeSeconds,proto3" json:"last_success_age_seconds,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *TargetStatus) Reset() {
@@ -478,6 +486,20 @@ func (x *TargetStatus) GetLastVerifiedSnapshotId() string {
 		return x.LastVerifiedSnapshotId
 	}
 	return ""
+}
+
+func (x *TargetStatus) GetOverdue() bool {
+	if x != nil {
+		return x.Overdue
+	}
+	return false
+}
+
+func (x *TargetStatus) GetLastSuccessAgeSeconds() int64 {
+	if x != nil {
+		return x.LastSuccessAgeSeconds
+	}
+	return 0
 }
 
 type TriggerRunRequest struct {
@@ -1023,6 +1045,231 @@ func (x *BrowseSnapshotResponse) GetEntries() []*SnapshotEntry {
 	return nil
 }
 
+type GetRunStatsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional plan filter; empty aggregates across all plans.
+	PlanId        string `protobuf:"bytes,1,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRunStatsRequest) Reset() {
+	*x = GetRunStatsRequest{}
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRunStatsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRunStatsRequest) ProtoMessage() {}
+
+func (x *GetRunStatsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRunStatsRequest.ProtoReflect.Descriptor instead.
+func (*GetRunStatsRequest) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetRunStatsRequest) GetPlanId() string {
+	if x != nil {
+		return x.PlanId
+	}
+	return ""
+}
+
+// RunStats is aggregate run performance over the recent run history window.
+// Durations are wall-clock per run (finished_at − started_at over terminal
+// runs). Bytes are the logical (pre-dedup) total of succeeded outcomes; the
+// deduped/physical figure and dedup ratio are NOT reported — kopia's
+// `snapshot create --json` does not expose uploaded bytes in this build and
+// `repo stats --json` is separately broken (see PROBLEMS.md). Throughput is
+// logical bytes ÷ wall-clock.
+type RunStats struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TotalRuns     int64                  `protobuf:"varint,1,opt,name=total_runs,json=totalRuns,proto3" json:"total_runs,omitempty"`
+	Completed     int64                  `protobuf:"varint,2,opt,name=completed,proto3" json:"completed,omitempty"`
+	PartialFailed int64                  `protobuf:"varint,3,opt,name=partial_failed,json=partialFailed,proto3" json:"partial_failed,omitempty"`
+	Failed        int64                  `protobuf:"varint,4,opt,name=failed,proto3" json:"failed,omitempty"`
+	// completed ÷ terminal runs, 0..1.
+	SuccessRate   float64 `protobuf:"fixed64,5,opt,name=success_rate,json=successRate,proto3" json:"success_rate,omitempty"`
+	P50DurationMs int64   `protobuf:"varint,6,opt,name=p50_duration_ms,json=p50DurationMs,proto3" json:"p50_duration_ms,omitempty"`
+	P95DurationMs int64   `protobuf:"varint,7,opt,name=p95_duration_ms,json=p95DurationMs,proto3" json:"p95_duration_ms,omitempty"`
+	// Sum of logical bytes across succeeded outcomes in the window.
+	TotalBytes     int64 `protobuf:"varint,8,opt,name=total_bytes,json=totalBytes,proto3" json:"total_bytes,omitempty"`
+	AvgBytesPerRun int64 `protobuf:"varint,9,opt,name=avg_bytes_per_run,json=avgBytesPerRun,proto3" json:"avg_bytes_per_run,omitempty"`
+	// Logical bytes per wall-clock second, averaged over terminal runs.
+	AvgThroughputBytesPerSec float64 `protobuf:"fixed64,10,opt,name=avg_throughput_bytes_per_sec,json=avgThroughputBytesPerSec,proto3" json:"avg_throughput_bytes_per_sec,omitempty"`
+	// Number of runs the stats were computed over (the window cap may truncate
+	// older history — surfaced so the figure is never silently partial).
+	Window        int64 `protobuf:"varint,11,opt,name=window,proto3" json:"window,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunStats) Reset() {
+	*x = RunStats{}
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunStats) ProtoMessage() {}
+
+func (x *RunStats) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunStats.ProtoReflect.Descriptor instead.
+func (*RunStats) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *RunStats) GetTotalRuns() int64 {
+	if x != nil {
+		return x.TotalRuns
+	}
+	return 0
+}
+
+func (x *RunStats) GetCompleted() int64 {
+	if x != nil {
+		return x.Completed
+	}
+	return 0
+}
+
+func (x *RunStats) GetPartialFailed() int64 {
+	if x != nil {
+		return x.PartialFailed
+	}
+	return 0
+}
+
+func (x *RunStats) GetFailed() int64 {
+	if x != nil {
+		return x.Failed
+	}
+	return 0
+}
+
+func (x *RunStats) GetSuccessRate() float64 {
+	if x != nil {
+		return x.SuccessRate
+	}
+	return 0
+}
+
+func (x *RunStats) GetP50DurationMs() int64 {
+	if x != nil {
+		return x.P50DurationMs
+	}
+	return 0
+}
+
+func (x *RunStats) GetP95DurationMs() int64 {
+	if x != nil {
+		return x.P95DurationMs
+	}
+	return 0
+}
+
+func (x *RunStats) GetTotalBytes() int64 {
+	if x != nil {
+		return x.TotalBytes
+	}
+	return 0
+}
+
+func (x *RunStats) GetAvgBytesPerRun() int64 {
+	if x != nil {
+		return x.AvgBytesPerRun
+	}
+	return 0
+}
+
+func (x *RunStats) GetAvgThroughputBytesPerSec() float64 {
+	if x != nil {
+		return x.AvgThroughputBytesPerSec
+	}
+	return 0
+}
+
+func (x *RunStats) GetWindow() int64 {
+	if x != nil {
+		return x.Window
+	}
+	return 0
+}
+
+type GetRunStatsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Stats         *RunStats              `protobuf:"bytes,1,opt,name=stats,proto3" json:"stats,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRunStatsResponse) Reset() {
+	*x = GetRunStatsResponse{}
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRunStatsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRunStatsResponse) ProtoMessage() {}
+
+func (x *GetRunStatsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRunStatsResponse.ProtoReflect.Descriptor instead.
+func (*GetRunStatsResponse) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetRunStatsResponse) GetStats() *RunStats {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
 var File_data_backup_manager_v1_runs_runs_proto protoreflect.FileDescriptor
 
 const file_data_backup_manager_v1_runs_runs_proto_rawDesc = "" +
@@ -1049,14 +1296,16 @@ const file_data_backup_manager_v1_runs_runs_proto_rawDesc = "" +
 	"started_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12;\n" +
 	"\vfinished_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"finishedAt\x12M\n" +
-	"\boutcomes\x18\a \x03(\v21.vrooli.data_backup_manager.v1.runs.TargetOutcomeR\boutcomes\"\x83\x03\n" +
+	"\boutcomes\x18\a \x03(\v21.vrooli.data_backup_manager.v1.runs.TargetOutcomeR\boutcomes\"\xd6\x03\n" +
 	"\fTargetStatus\x12\x1b\n" +
 	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12B\n" +
 	"\x0flast_success_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\rlastSuccessAt\x12U\n" +
 	"\x0flast_run_status\x18\x03 \x01(\x0e2-.vrooli.data_backup_manager.v1.runs.RunStatusR\rlastRunStatus\x12:\n" +
 	"\vlast_run_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tlastRunAt\x12D\n" +
 	"\x10last_verified_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x0elastVerifiedAt\x129\n" +
-	"\x19last_verified_snapshot_id\x18\x06 \x01(\tR\x16lastVerifiedSnapshotId\"5\n" +
+	"\x19last_verified_snapshot_id\x18\x06 \x01(\tR\x16lastVerifiedSnapshotId\x12\x18\n" +
+	"\aoverdue\x18\a \x01(\bR\aoverdue\x127\n" +
+	"\x18last_success_age_seconds\x18\b \x01(\x03R\x15lastSuccessAgeSeconds\"5\n" +
 	"\x11TriggerRunRequest\x12 \n" +
 	"\aplan_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06planId\"O\n" +
 	"\x12TriggerRunResponse\x129\n" +
@@ -1088,7 +1337,26 @@ const file_data_backup_manager_v1_runs_runs_proto_rawDesc = "" +
 	"snapshotId\x12\x12\n" +
 	"\x04path\x18\x03 \x01(\tR\x04path\"e\n" +
 	"\x16BrowseSnapshotResponse\x12K\n" +
-	"\aentries\x18\x01 \x03(\v21.vrooli.data_backup_manager.v1.runs.SnapshotEntryR\aentries*\xc6\x01\n" +
+	"\aentries\x18\x01 \x03(\v21.vrooli.data_backup_manager.v1.runs.SnapshotEntryR\aentries\"-\n" +
+	"\x12GetRunStatsRequest\x12\x17\n" +
+	"\aplan_id\x18\x01 \x01(\tR\x06planId\"\x9d\x03\n" +
+	"\bRunStats\x12\x1d\n" +
+	"\n" +
+	"total_runs\x18\x01 \x01(\x03R\ttotalRuns\x12\x1c\n" +
+	"\tcompleted\x18\x02 \x01(\x03R\tcompleted\x12%\n" +
+	"\x0epartial_failed\x18\x03 \x01(\x03R\rpartialFailed\x12\x16\n" +
+	"\x06failed\x18\x04 \x01(\x03R\x06failed\x12!\n" +
+	"\fsuccess_rate\x18\x05 \x01(\x01R\vsuccessRate\x12&\n" +
+	"\x0fp50_duration_ms\x18\x06 \x01(\x03R\rp50DurationMs\x12&\n" +
+	"\x0fp95_duration_ms\x18\a \x01(\x03R\rp95DurationMs\x12\x1f\n" +
+	"\vtotal_bytes\x18\b \x01(\x03R\n" +
+	"totalBytes\x12)\n" +
+	"\x11avg_bytes_per_run\x18\t \x01(\x03R\x0eavgBytesPerRun\x12>\n" +
+	"\x1cavg_throughput_bytes_per_sec\x18\n" +
+	" \x01(\x01R\x18avgThroughputBytesPerSec\x12\x16\n" +
+	"\x06window\x18\v \x01(\x03R\x06window\"Y\n" +
+	"\x13GetRunStatsResponse\x12B\n" +
+	"\x05stats\x18\x01 \x01(\v2,.vrooli.data_backup_manager.v1.runs.RunStatsR\x05stats*\xc6\x01\n" +
 	"\tRunStatus\x12\x1a\n" +
 	"\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12RUN_STATUS_PENDING\x10\x01\x12\x18\n" +
@@ -1105,14 +1373,15 @@ const file_data_backup_manager_v1_runs_runs_proto_rawDesc = "" +
 	"!TARGET_OUTCOME_STATUS_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fTARGET_OUTCOME_STATUS_SUCCEEDED\x10\x01\x12 \n" +
 	"\x1cTARGET_OUTCOME_STATUS_FAILED\x10\x02\x12!\n" +
-	"\x1dTARGET_OUTCOME_STATUS_BLOCKED\x10\x032\x8c\x05\n" +
+	"\x1dTARGET_OUTCOME_STATUS_BLOCKED\x10\x032\x8c\x06\n" +
 	"\vRunsService\x12{\n" +
 	"\n" +
 	"TriggerRun\x125.vrooli.data_backup_manager.v1.runs.TriggerRunRequest\x1a6.vrooli.data_backup_manager.v1.runs.TriggerRunResponse\x12o\n" +
 	"\x06GetRun\x121.vrooli.data_backup_manager.v1.runs.GetRunRequest\x1a2.vrooli.data_backup_manager.v1.runs.GetRunResponse\x12u\n" +
 	"\bListRuns\x123.vrooli.data_backup_manager.v1.runs.ListRunsRequest\x1a4.vrooli.data_backup_manager.v1.runs.ListRunsResponse\x12\x8d\x01\n" +
 	"\x10ListTargetStatus\x12;.vrooli.data_backup_manager.v1.runs.ListTargetStatusRequest\x1a<.vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse\x12\x87\x01\n" +
-	"\x0eBrowseSnapshot\x129.vrooli.data_backup_manager.v1.runs.BrowseSnapshotRequest\x1a:.vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/runs;runs_v1b\x06proto3"
+	"\x0eBrowseSnapshot\x129.vrooli.data_backup_manager.v1.runs.BrowseSnapshotRequest\x1a:.vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse\x12~\n" +
+	"\vGetRunStats\x126.vrooli.data_backup_manager.v1.runs.GetRunStatsRequest\x1a7.vrooli.data_backup_manager.v1.runs.GetRunStatsResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/runs;runs_v1b\x06proto3"
 
 var (
 	file_data_backup_manager_v1_runs_runs_proto_rawDescOnce sync.Once
@@ -1127,7 +1396,7 @@ func file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP() []byte {
 }
 
 var file_data_backup_manager_v1_runs_runs_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_data_backup_manager_v1_runs_runs_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_data_backup_manager_v1_runs_runs_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_data_backup_manager_v1_runs_runs_proto_goTypes = []any{
 	(RunStatus)(0),                   // 0: vrooli.data_backup_manager.v1.runs.RunStatus
 	(TriggerSource)(0),               // 1: vrooli.data_backup_manager.v1.runs.TriggerSource
@@ -1146,41 +1415,47 @@ var file_data_backup_manager_v1_runs_runs_proto_goTypes = []any{
 	(*SnapshotEntry)(nil),            // 14: vrooli.data_backup_manager.v1.runs.SnapshotEntry
 	(*BrowseSnapshotRequest)(nil),    // 15: vrooli.data_backup_manager.v1.runs.BrowseSnapshotRequest
 	(*BrowseSnapshotResponse)(nil),   // 16: vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse
-	(*timestamppb.Timestamp)(nil),    // 17: google.protobuf.Timestamp
+	(*GetRunStatsRequest)(nil),       // 17: vrooli.data_backup_manager.v1.runs.GetRunStatsRequest
+	(*RunStats)(nil),                 // 18: vrooli.data_backup_manager.v1.runs.RunStats
+	(*GetRunStatsResponse)(nil),      // 19: vrooli.data_backup_manager.v1.runs.GetRunStatsResponse
+	(*timestamppb.Timestamp)(nil),    // 20: google.protobuf.Timestamp
 }
 var file_data_backup_manager_v1_runs_runs_proto_depIdxs = []int32{
 	2,  // 0: vrooli.data_backup_manager.v1.runs.TargetOutcome.status:type_name -> vrooli.data_backup_manager.v1.runs.TargetOutcomeStatus
-	17, // 1: vrooli.data_backup_manager.v1.runs.TargetOutcome.started_at:type_name -> google.protobuf.Timestamp
-	17, // 2: vrooli.data_backup_manager.v1.runs.TargetOutcome.finished_at:type_name -> google.protobuf.Timestamp
+	20, // 1: vrooli.data_backup_manager.v1.runs.TargetOutcome.started_at:type_name -> google.protobuf.Timestamp
+	20, // 2: vrooli.data_backup_manager.v1.runs.TargetOutcome.finished_at:type_name -> google.protobuf.Timestamp
 	1,  // 3: vrooli.data_backup_manager.v1.runs.Run.trigger:type_name -> vrooli.data_backup_manager.v1.runs.TriggerSource
 	0,  // 4: vrooli.data_backup_manager.v1.runs.Run.status:type_name -> vrooli.data_backup_manager.v1.runs.RunStatus
-	17, // 5: vrooli.data_backup_manager.v1.runs.Run.started_at:type_name -> google.protobuf.Timestamp
-	17, // 6: vrooli.data_backup_manager.v1.runs.Run.finished_at:type_name -> google.protobuf.Timestamp
+	20, // 5: vrooli.data_backup_manager.v1.runs.Run.started_at:type_name -> google.protobuf.Timestamp
+	20, // 6: vrooli.data_backup_manager.v1.runs.Run.finished_at:type_name -> google.protobuf.Timestamp
 	3,  // 7: vrooli.data_backup_manager.v1.runs.Run.outcomes:type_name -> vrooli.data_backup_manager.v1.runs.TargetOutcome
-	17, // 8: vrooli.data_backup_manager.v1.runs.TargetStatus.last_success_at:type_name -> google.protobuf.Timestamp
+	20, // 8: vrooli.data_backup_manager.v1.runs.TargetStatus.last_success_at:type_name -> google.protobuf.Timestamp
 	0,  // 9: vrooli.data_backup_manager.v1.runs.TargetStatus.last_run_status:type_name -> vrooli.data_backup_manager.v1.runs.RunStatus
-	17, // 10: vrooli.data_backup_manager.v1.runs.TargetStatus.last_run_at:type_name -> google.protobuf.Timestamp
-	17, // 11: vrooli.data_backup_manager.v1.runs.TargetStatus.last_verified_at:type_name -> google.protobuf.Timestamp
+	20, // 10: vrooli.data_backup_manager.v1.runs.TargetStatus.last_run_at:type_name -> google.protobuf.Timestamp
+	20, // 11: vrooli.data_backup_manager.v1.runs.TargetStatus.last_verified_at:type_name -> google.protobuf.Timestamp
 	4,  // 12: vrooli.data_backup_manager.v1.runs.TriggerRunResponse.run:type_name -> vrooli.data_backup_manager.v1.runs.Run
 	4,  // 13: vrooli.data_backup_manager.v1.runs.GetRunResponse.run:type_name -> vrooli.data_backup_manager.v1.runs.Run
 	4,  // 14: vrooli.data_backup_manager.v1.runs.ListRunsResponse.runs:type_name -> vrooli.data_backup_manager.v1.runs.Run
 	5,  // 15: vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse.statuses:type_name -> vrooli.data_backup_manager.v1.runs.TargetStatus
 	14, // 16: vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse.entries:type_name -> vrooli.data_backup_manager.v1.runs.SnapshotEntry
-	6,  // 17: vrooli.data_backup_manager.v1.runs.RunsService.TriggerRun:input_type -> vrooli.data_backup_manager.v1.runs.TriggerRunRequest
-	8,  // 18: vrooli.data_backup_manager.v1.runs.RunsService.GetRun:input_type -> vrooli.data_backup_manager.v1.runs.GetRunRequest
-	10, // 19: vrooli.data_backup_manager.v1.runs.RunsService.ListRuns:input_type -> vrooli.data_backup_manager.v1.runs.ListRunsRequest
-	12, // 20: vrooli.data_backup_manager.v1.runs.RunsService.ListTargetStatus:input_type -> vrooli.data_backup_manager.v1.runs.ListTargetStatusRequest
-	15, // 21: vrooli.data_backup_manager.v1.runs.RunsService.BrowseSnapshot:input_type -> vrooli.data_backup_manager.v1.runs.BrowseSnapshotRequest
-	7,  // 22: vrooli.data_backup_manager.v1.runs.RunsService.TriggerRun:output_type -> vrooli.data_backup_manager.v1.runs.TriggerRunResponse
-	9,  // 23: vrooli.data_backup_manager.v1.runs.RunsService.GetRun:output_type -> vrooli.data_backup_manager.v1.runs.GetRunResponse
-	11, // 24: vrooli.data_backup_manager.v1.runs.RunsService.ListRuns:output_type -> vrooli.data_backup_manager.v1.runs.ListRunsResponse
-	13, // 25: vrooli.data_backup_manager.v1.runs.RunsService.ListTargetStatus:output_type -> vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse
-	16, // 26: vrooli.data_backup_manager.v1.runs.RunsService.BrowseSnapshot:output_type -> vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse
-	22, // [22:27] is the sub-list for method output_type
-	17, // [17:22] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	18, // 17: vrooli.data_backup_manager.v1.runs.GetRunStatsResponse.stats:type_name -> vrooli.data_backup_manager.v1.runs.RunStats
+	6,  // 18: vrooli.data_backup_manager.v1.runs.RunsService.TriggerRun:input_type -> vrooli.data_backup_manager.v1.runs.TriggerRunRequest
+	8,  // 19: vrooli.data_backup_manager.v1.runs.RunsService.GetRun:input_type -> vrooli.data_backup_manager.v1.runs.GetRunRequest
+	10, // 20: vrooli.data_backup_manager.v1.runs.RunsService.ListRuns:input_type -> vrooli.data_backup_manager.v1.runs.ListRunsRequest
+	12, // 21: vrooli.data_backup_manager.v1.runs.RunsService.ListTargetStatus:input_type -> vrooli.data_backup_manager.v1.runs.ListTargetStatusRequest
+	15, // 22: vrooli.data_backup_manager.v1.runs.RunsService.BrowseSnapshot:input_type -> vrooli.data_backup_manager.v1.runs.BrowseSnapshotRequest
+	17, // 23: vrooli.data_backup_manager.v1.runs.RunsService.GetRunStats:input_type -> vrooli.data_backup_manager.v1.runs.GetRunStatsRequest
+	7,  // 24: vrooli.data_backup_manager.v1.runs.RunsService.TriggerRun:output_type -> vrooli.data_backup_manager.v1.runs.TriggerRunResponse
+	9,  // 25: vrooli.data_backup_manager.v1.runs.RunsService.GetRun:output_type -> vrooli.data_backup_manager.v1.runs.GetRunResponse
+	11, // 26: vrooli.data_backup_manager.v1.runs.RunsService.ListRuns:output_type -> vrooli.data_backup_manager.v1.runs.ListRunsResponse
+	13, // 27: vrooli.data_backup_manager.v1.runs.RunsService.ListTargetStatus:output_type -> vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse
+	16, // 28: vrooli.data_backup_manager.v1.runs.RunsService.BrowseSnapshot:output_type -> vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse
+	19, // 29: vrooli.data_backup_manager.v1.runs.RunsService.GetRunStats:output_type -> vrooli.data_backup_manager.v1.runs.GetRunStatsResponse
+	24, // [24:30] is the sub-list for method output_type
+	18, // [18:24] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_data_backup_manager_v1_runs_runs_proto_init() }
@@ -1194,7 +1469,7 @@ func file_data_backup_manager_v1_runs_runs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_data_backup_manager_v1_runs_runs_proto_rawDesc), len(file_data_backup_manager_v1_runs_runs_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   14,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

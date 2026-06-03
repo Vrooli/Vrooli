@@ -34,11 +34,19 @@ func (s Service) out() io.Writer {
 	return os.Stdout
 }
 
-// Create takes a snapshot of a source path into a repository.
+// Create takes a snapshot of a source path into a repository. Optional
+// self-identifying metadata (--description, repeated --tags key:value, and
+// --override-source) is passed straight through to kopia so a standalone
+// `kopia snapshot list` can identify a snapshot's owner without the wrapping
+// application running. None of these flags ever carry a secret.
 func (s Service) Create(ctx context.Context, args []string) error {
 	fs := cmdutil.NewFlagSet("snapshot create")
 	repo := fs.String("repo", "", "Repository name (required)")
 	path := fs.String("path", "", "Source path to snapshot (required)")
+	description := fs.String("description", "", "Optional human description recorded on the snapshot")
+	overrideSource := fs.String("override-source", "", "Optional stable source override (user@host:/path) recorded on the snapshot")
+	var tags cmdutil.RepeatedFlag
+	fs.Var(&tags, "tags", "Optional snapshot tag in key:value form; repeatable")
 	jsonOut := fs.Bool("json", false, "Emit kopia's native JSON (includes the snapshot id)")
 	if err := cmdutil.Parse(fs, args); err != nil {
 		return err
@@ -46,11 +54,25 @@ func (s Service) Create(ctx context.Context, args []string) error {
 	if strings.TrimSpace(*path) == "" {
 		return fmt.Errorf("--path is required")
 	}
+	for _, tag := range tags {
+		if !strings.Contains(tag, ":") {
+			return fmt.Errorf("--tags %q must be in key:value form", tag)
+		}
+	}
 	target, err := s.resolve(ctx, *repo)
 	if err != nil {
 		return err
 	}
 	argv := append(target.GlobalArgs(), "snapshot", "create", *path)
+	if strings.TrimSpace(*description) != "" {
+		argv = append(argv, "--description", *description)
+	}
+	if strings.TrimSpace(*overrideSource) != "" {
+		argv = append(argv, "--override-source", *overrideSource)
+	}
+	for _, tag := range tags {
+		argv = append(argv, "--tags", tag)
+	}
 	if *jsonOut {
 		argv = append(argv, "--json")
 	}

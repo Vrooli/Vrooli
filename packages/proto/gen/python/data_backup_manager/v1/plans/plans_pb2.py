@@ -26,7 +26,7 @@ from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(data-backup-manager/v1/plans/plans.proto\x12#vrooli.data_backup_manager.v1.plans\x1a\x1b\x62uf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\";\n\x0fRetentionPolicy\x12(\n\x0bkeep_latest\x18\x01 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\nkeepLatest\"\xf2\x02\n\x04Plan\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n\ntarget_ids\x18\x03 \x03(\tR\ttargetIds\x12\'\n\x0f\x64\x65stination_ids\x18\x04 \x03(\tR\x0e\x64\x65stinationIds\x12\x1a\n\x08schedule\x18\x05 \x01(\tR\x08schedule\x12R\n\tretention\x18\x06 \x01(\x0b\x32\x34.vrooli.data_backup_manager.v1.plans.RetentionPolicyR\tretention\x12\x18\n\x07\x65nabled\x18\x07 \x01(\x08R\x07\x65nabled\x12\x39\n\ncreated_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\"\x96\x02\n\x11\x43reatePlanRequest\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12\'\n\ntarget_ids\x18\x02 \x03(\tB\x08\xbaH\x05\x92\x01\x02\x08\x01R\ttargetIds\x12\x31\n\x0f\x64\x65stination_ids\x18\x03 \x03(\tB\x08\xbaH\x05\x92\x01\x02\x08\x01R\x0e\x64\x65stinationIds\x12\x1a\n\x08schedule\x18\x04 \x01(\tR\x08schedule\x12R\n\tretention\x18\x05 \x01(\x0b\x32\x34.vrooli.data_backup_manager.v1.plans.RetentionPolicyR\tretention\x12\x18\n\x07\x65nabled\x18\x06 \x01(\x08R\x07\x65nabled\"S\n\x12\x43reatePlanResponse\x12=\n\x04plan\x18\x01 \x01(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\")\n\x0eGetPlanRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\"P\n\x0fGetPlanResponse\x12=\n\x04plan\x18\x01 \x01(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\"W\n\x10ListPlansRequest\x12$\n\tpage_size\x18\x01 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\x08pageSize\x12\x1d\n\npage_token\x18\x02 \x01(\tR\tpageToken\"|\n\x11ListPlansResponse\x12?\n\x05plans\x18\x01 \x03(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x05plans\x12&\n\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x92\x02\n\x11UpdatePlanRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n\ntarget_ids\x18\x03 \x03(\tR\ttargetIds\x12\'\n\x0f\x64\x65stination_ids\x18\x04 \x03(\tR\x0e\x64\x65stinationIds\x12\x1a\n\x08schedule\x18\x05 \x01(\tR\x08schedule\x12R\n\tretention\x18\x06 \x01(\x0b\x32\x34.vrooli.data_backup_manager.v1.plans.RetentionPolicyR\tretention\x12\x18\n\x07\x65nabled\x18\x07 \x01(\x08R\x07\x65nabled\"S\n\x12UpdatePlanResponse\x12=\n\x04plan\x18\x01 \x01(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\",\n\x11\x44\x65letePlanRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\".\n\x12\x44\x65letePlanResponse\x12\x18\n\x07removed\x18\x01 \x01(\x08R\x07removed2\xfd\x04\n\x0cPlansService\x12}\n\nCreatePlan\x12\x36.vrooli.data_backup_manager.v1.plans.CreatePlanRequest\x1a\x37.vrooli.data_backup_manager.v1.plans.CreatePlanResponse\x12t\n\x07GetPlan\x12\x33.vrooli.data_backup_manager.v1.plans.GetPlanRequest\x1a\x34.vrooli.data_backup_manager.v1.plans.GetPlanResponse\x12z\n\tListPlans\x12\x35.vrooli.data_backup_manager.v1.plans.ListPlansRequest\x1a\x36.vrooli.data_backup_manager.v1.plans.ListPlansResponse\x12}\n\nUpdatePlan\x12\x36.vrooli.data_backup_manager.v1.plans.UpdatePlanRequest\x1a\x37.vrooli.data_backup_manager.v1.plans.UpdatePlanResponse\x12}\n\nDeletePlan\x12\x36.vrooli.data_backup_manager.v1.plans.DeletePlanRequest\x1a\x37.vrooli.data_backup_manager.v1.plans.DeletePlanResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/plans;plans_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(data-backup-manager/v1/plans/plans.proto\x12#vrooli.data_backup_manager.v1.plans\x1a\x1b\x62uf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\";\n\x0fRetentionPolicy\x12(\n\x0bkeep_latest\x18\x01 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\nkeepLatest\"\xf2\x02\n\x04Plan\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n\ntarget_ids\x18\x03 \x03(\tR\ttargetIds\x12\'\n\x0f\x64\x65stination_ids\x18\x04 \x03(\tR\x0e\x64\x65stinationIds\x12\x1a\n\x08schedule\x18\x05 \x01(\tR\x08schedule\x12R\n\tretention\x18\x06 \x01(\x0b\x32\x34.vrooli.data_backup_manager.v1.plans.RetentionPolicyR\tretention\x12\x18\n\x07\x65nabled\x18\x07 \x01(\x08R\x07\x65nabled\x12\x39\n\ncreated_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\"\xd2\x02\n\x11\x43reatePlanRequest\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12\'\n\ntarget_ids\x18\x02 \x03(\tB\x08\xbaH\x05\x92\x01\x02\x08\x01R\ttargetIds\x12\x31\n\x0f\x64\x65stination_ids\x18\x03 \x03(\tB\x08\xbaH\x05\x92\x01\x02\x08\x01R\x0e\x64\x65stinationIds\x12\x1a\n\x08schedule\x18\x04 \x01(\tR\x08schedule\x12R\n\tretention\x18\x05 \x01(\x0b\x32\x34.vrooli.data_backup_manager.v1.plans.RetentionPolicyR\tretention\x12\x18\n\x07\x65nabled\x18\x06 \x01(\x08R\x07\x65nabled\x12:\n\x19\x61llow_incomplete_coverage\x18\x07 \x01(\x08R\x17\x61llowIncompleteCoverage\"S\n\x12\x43reatePlanResponse\x12=\n\x04plan\x18\x01 \x01(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\")\n\x0eGetPlanRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\"P\n\x0fGetPlanResponse\x12=\n\x04plan\x18\x01 \x01(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\"W\n\x10ListPlansRequest\x12$\n\tpage_size\x18\x01 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\x08pageSize\x12\x1d\n\npage_token\x18\x02 \x01(\tR\tpageToken\"|\n\x11ListPlansResponse\x12?\n\x05plans\x18\x01 \x03(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x05plans\x12&\n\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xce\x02\n\x11UpdatePlanRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n\ntarget_ids\x18\x03 \x03(\tR\ttargetIds\x12\'\n\x0f\x64\x65stination_ids\x18\x04 \x03(\tR\x0e\x64\x65stinationIds\x12\x1a\n\x08schedule\x18\x05 \x01(\tR\x08schedule\x12R\n\tretention\x18\x06 \x01(\x0b\x32\x34.vrooli.data_backup_manager.v1.plans.RetentionPolicyR\tretention\x12\x18\n\x07\x65nabled\x18\x07 \x01(\x08R\x07\x65nabled\x12:\n\x19\x61llow_incomplete_coverage\x18\x08 \x01(\x08R\x17\x61llowIncompleteCoverage\"S\n\x12UpdatePlanResponse\x12=\n\x04plan\x18\x01 \x01(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\",\n\x11\x44\x65letePlanRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\".\n\x12\x44\x65letePlanResponse\x12\x18\n\x07removed\x18\x01 \x01(\x08R\x07removed2\xfd\x04\n\x0cPlansService\x12}\n\nCreatePlan\x12\x36.vrooli.data_backup_manager.v1.plans.CreatePlanRequest\x1a\x37.vrooli.data_backup_manager.v1.plans.CreatePlanResponse\x12t\n\x07GetPlan\x12\x33.vrooli.data_backup_manager.v1.plans.GetPlanRequest\x1a\x34.vrooli.data_backup_manager.v1.plans.GetPlanResponse\x12z\n\tListPlans\x12\x35.vrooli.data_backup_manager.v1.plans.ListPlansRequest\x1a\x36.vrooli.data_backup_manager.v1.plans.ListPlansResponse\x12}\n\nUpdatePlan\x12\x36.vrooli.data_backup_manager.v1.plans.UpdatePlanRequest\x1a\x37.vrooli.data_backup_manager.v1.plans.UpdatePlanResponse\x12}\n\nDeletePlan\x12\x36.vrooli.data_backup_manager.v1.plans.DeletePlanRequest\x1a\x37.vrooli.data_backup_manager.v1.plans.DeletePlanResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/plans;plans_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -55,25 +55,25 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_PLAN']._serialized_start=205
   _globals['_PLAN']._serialized_end=575
   _globals['_CREATEPLANREQUEST']._serialized_start=578
-  _globals['_CREATEPLANREQUEST']._serialized_end=856
-  _globals['_CREATEPLANRESPONSE']._serialized_start=858
-  _globals['_CREATEPLANRESPONSE']._serialized_end=941
-  _globals['_GETPLANREQUEST']._serialized_start=943
-  _globals['_GETPLANREQUEST']._serialized_end=984
-  _globals['_GETPLANRESPONSE']._serialized_start=986
-  _globals['_GETPLANRESPONSE']._serialized_end=1066
-  _globals['_LISTPLANSREQUEST']._serialized_start=1068
-  _globals['_LISTPLANSREQUEST']._serialized_end=1155
-  _globals['_LISTPLANSRESPONSE']._serialized_start=1157
-  _globals['_LISTPLANSRESPONSE']._serialized_end=1281
-  _globals['_UPDATEPLANREQUEST']._serialized_start=1284
-  _globals['_UPDATEPLANREQUEST']._serialized_end=1558
-  _globals['_UPDATEPLANRESPONSE']._serialized_start=1560
-  _globals['_UPDATEPLANRESPONSE']._serialized_end=1643
-  _globals['_DELETEPLANREQUEST']._serialized_start=1645
-  _globals['_DELETEPLANREQUEST']._serialized_end=1689
-  _globals['_DELETEPLANRESPONSE']._serialized_start=1691
-  _globals['_DELETEPLANRESPONSE']._serialized_end=1737
-  _globals['_PLANSSERVICE']._serialized_start=1740
-  _globals['_PLANSSERVICE']._serialized_end=2377
+  _globals['_CREATEPLANREQUEST']._serialized_end=916
+  _globals['_CREATEPLANRESPONSE']._serialized_start=918
+  _globals['_CREATEPLANRESPONSE']._serialized_end=1001
+  _globals['_GETPLANREQUEST']._serialized_start=1003
+  _globals['_GETPLANREQUEST']._serialized_end=1044
+  _globals['_GETPLANRESPONSE']._serialized_start=1046
+  _globals['_GETPLANRESPONSE']._serialized_end=1126
+  _globals['_LISTPLANSREQUEST']._serialized_start=1128
+  _globals['_LISTPLANSREQUEST']._serialized_end=1215
+  _globals['_LISTPLANSRESPONSE']._serialized_start=1217
+  _globals['_LISTPLANSRESPONSE']._serialized_end=1341
+  _globals['_UPDATEPLANREQUEST']._serialized_start=1344
+  _globals['_UPDATEPLANREQUEST']._serialized_end=1678
+  _globals['_UPDATEPLANRESPONSE']._serialized_start=1680
+  _globals['_UPDATEPLANRESPONSE']._serialized_end=1763
+  _globals['_DELETEPLANREQUEST']._serialized_start=1765
+  _globals['_DELETEPLANREQUEST']._serialized_end=1809
+  _globals['_DELETEPLANRESPONSE']._serialized_start=1811
+  _globals['_DELETEPLANRESPONSE']._serialized_end=1857
+  _globals['_PLANSSERVICE']._serialized_start=1860
+  _globals['_PLANSSERVICE']._serialized_end=2497
 # @@protoc_insertion_point(module_scope)

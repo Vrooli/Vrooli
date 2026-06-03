@@ -1,0 +1,187 @@
+syntax = "proto3";
+
+package vrooli.search_hub.v1.registry;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry;registry_v1";
+
+// =============================================================================
+// SEARCH-HUB REGISTRY DOMAIN — provider self-registration contract
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain registry
+// @stability beta
+//
+// Wire contract for RegistryService. A scenario that owns a searchable corpus
+// registers a declarative ProviderDescriptor (one indexed corpus of one type =
+// one "leaf"; a scenario that indexes several types registers N leaves). The
+// router stores these descriptors in postgres and routes purely on them — it
+// holds NO corpus content and NO vectors, and contains zero provider-specific
+// code. Adding a provider is one RegisterProvider call, never a router change.
+//
+// The descriptor's `description` is natural-language and is what the classifier
+// reads to route. The descriptor's `result_mapping` is the declarative spec
+// that maps a provider's heterogeneous response onto the unified SearchHit —
+// this is what makes "a new provider = a registry row" true.
+//
+// Endpoints are LOGICAL targets (owning scenario + path/RPC). Provider ports
+// are lifecycle-allocated and dynamic, so the router resolves the live base URL
+// at call-time via the backend cross-scenario resolver — never client-computed.
+//
+// See docs/plans/unified-search-hub-plan.md Appendix A for the full design.
+// =============================================================================
+
+// Routing facet — the four search-context buckets (DO / REUSE / KNOW / STATE).
+enum Bucket {
+  BUCKET_UNSPECIFIED = 0;
+  BUCKET_DO = 1;
+  BUCKET_REUSE = 2;
+  BUCKET_KNOW = 3;
+  BUCKET_STATE = 4;
+}
+
+// Whether the corpus is project-internal or an external (e.g. paid) source.
+// Carried from day one so web/papers/inventory providers register identically.
+enum Scope {
+  SCOPE_UNSPECIFIED = 0;
+  SCOPE_PROJECT = 1;
+  SCOPE_EXTERNAL = 2;
+}
+
+// ACTIVE = a live, callable provider. CAPABILITY_GAP = a tracked stub with a
+// description + intended_home but no endpoint (the Track-A checklist).
+enum ProviderState {
+  PROVIDER_STATE_UNSPECIFIED = 0;
+  PROVIDER_STATE_ACTIVE = 1;
+  PROVIDER_STATE_CAPABILITY_GAP = 2;
+}
+
+// The scale a provider returns scores on, so the router normalizes to [0,1].
+enum ScoreScale {
+  SCORE_SCALE_UNSPECIFIED = 0;
+  SCORE_SCALE_COSINE_0_1 = 1;
+  SCORE_SCALE_PERCENT_0_100 = 2;
+  SCORE_SCALE_RAW = 3;
+}
+
+enum HttpMethod {
+  HTTP_METHOD_UNSPECIFIED = 0;
+  HTTP_METHOD_POST = 1;
+  HTTP_METHOD_GET = 2;
+}
+
+// How the router reaches one leaf. Logical target; base URL resolved at
+// call-time. http_json covers BOTH Connect-via-JSON and plain REST (Connect
+// RPCs accept POST {service}/{method} with application/json), so the router
+// needs only an HTTP+JSON client plus a CLI fallback — no per-provider Go
+// clients.
+message Endpoint {
+  oneof kind {
+    HttpJsonEndpoint http_json = 1;
+    CliEndpoint cli = 2;
+  }
+}
+
+message HttpJsonEndpoint {
+  // Owning scenario; the cross-scenario resolver supplies the live base URL.
+  string scenario_id = 1;
+  // Path, e.g. "/search/ai" or "/cli_health.v1.search.SearchService/Search".
+  string path = 2;
+  HttpMethod method = 3;
+  // JSON body with {{query}} {{limit}} {{type}} placeholders.
+  string body_template = 4;
+  // e.g. Content-Type: application/json.
+  map<string, string> headers = 5;
+}
+
+// CLI fallback for surfaces with no HTTP endpoint. Tokens carry {{query}} /
+// {{limit}} placeholders.
+message CliEndpoint {
+  repeated string argv_template = 1;
+}
+
+// Declarative provider->unified mapping. THIS is what makes "new provider =
+// a row": the router applies these JSON-path selectors generically, with no
+// per-provider parsing code.
+message ResultMapping {
+  // JSON path to the result array, e.g. "results".
+  string results_path = 1;
+  string id_field = 2;
+  string title_field = 3;
+  string score_field = 4;
+  string snippet_field = 5;
+  // Provenance locator (file / id / command).
+  string path_field = 6;
+  ScoreScale score_scale = 7;
+  // Optional result filter for the multi-leaf-on-one-endpoint case: when one
+  // provider endpoint serves several leaves (e.g. ui-health's SearchService
+  // returns both surfaces and widgets), the leaf descriptor sets
+  // filter_field = "kind" and filter_value = "surface" so the router keeps
+  // only matching items. Empty filter_field means "no filter" (the common
+  // single-leaf case). Applied generically by the adapter — no per-provider
+  // code.
+  string filter_field = 8;
+  string filter_value = 9;
+}
+
+// The unit of registration: one (corpus, type) leaf.
+message ProviderDescriptor {
+  // Unique leaf id, e.g. "cli-health.commands".
+  string provider_id = 1;
+  // Owning scenario (the provider group), e.g. "cli-health".
+  string provider_group = 2;
+  Bucket bucket = 3;
+  // The --type token, e.g. "command", "doc", "record".
+  string type = 4;
+  // Natural-language description of what this corpus holds — the classifier
+  // routes on this; the router never hardcodes routing knowledge.
+  string description = 5;
+  Endpoint endpoint = 6;
+  ResultMapping result_mapping = 7;
+  // Optional advisory the provider wants applied (HyDE / instruction-prefix);
+  // the transform still executes provider-side.
+  string query_hint = 8;
+  // Optional freshness probe the router aggregates into status.
+  Endpoint status_endpoint = 9;
+  Scope scope = 10;
+  ProviderState state = 11;
+  // For CAPABILITY_GAP stubs: the planned home scenario (from
+  // docs/reference/ai-search-routing.md).
+  string intended_home = 12;
+}
+
+service RegistryService {
+  rpc RegisterProvider(RegisterProviderRequest) returns (RegisterProviderResponse);
+  rpc ListProviders(ListProvidersRequest) returns (ListProvidersResponse);
+  rpc DeregisterProvider(DeregisterProviderRequest) returns (DeregisterProviderResponse);
+}
+
+message RegisterProviderRequest {
+  ProviderDescriptor descriptor = 1;
+}
+
+// Registration is an upsert; `created` is false when an existing leaf was
+// updated.
+message RegisterProviderResponse {
+  ProviderDescriptor descriptor = 1;
+  bool created = 2;
+}
+
+// All filters optional; an UNSPECIFIED enum or empty string means "no filter".
+message ListProvidersRequest {
+  Bucket bucket = 1;
+  string type = 2;
+  ProviderState state = 3;
+}
+
+message ListProvidersResponse {
+  repeated ProviderDescriptor providers = 1;
+}
+
+message DeregisterProviderRequest {
+  string provider_id = 1;
+}
+
+message DeregisterProviderResponse {
+  bool removed = 1;
+}

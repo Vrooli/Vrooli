@@ -65,6 +65,11 @@ message CreatePlanRequest {
   RetentionPolicy retention = 5;
   // Optional; defaults to true when unset on create.
   bool enabled = 6;
+  // When false (default), the server rejects the plan with FAILED_PRECONDITION
+  // if any non-sensitive discovered durable target is still unregistered, so a
+  // plan cannot silently omit recommended default coverage. Set true to proceed
+  // with deliberately incomplete coverage. See CoverageService.
+  bool allow_incomplete_coverage = 7;
 }
 
 message CreatePlanResponse {
@@ -97,6 +102,8 @@ message UpdatePlanRequest {
   string schedule = 5;
   RetentionPolicy retention = 6;
   bool enabled = 7;
+  // See CreatePlanRequest.allow_incomplete_coverage — same guard on update.
+  bool allow_incomplete_coverage = 8;
 }
 
 message UpdatePlanResponse {

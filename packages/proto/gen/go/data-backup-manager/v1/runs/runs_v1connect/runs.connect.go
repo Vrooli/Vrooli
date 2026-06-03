@@ -45,6 +45,8 @@ const (
 	// RunsServiceBrowseSnapshotProcedure is the fully-qualified name of the RunsService's
 	// BrowseSnapshot RPC.
 	RunsServiceBrowseSnapshotProcedure = "/vrooli.data_backup_manager.v1.runs.RunsService/BrowseSnapshot"
+	// RunsServiceGetRunStatsProcedure is the fully-qualified name of the RunsService's GetRunStats RPC.
+	RunsServiceGetRunStatsProcedure = "/vrooli.data_backup_manager.v1.runs.RunsService/GetRunStats"
 )
 
 // RunsServiceClient is a client for the vrooli.data_backup_manager.v1.runs.RunsService service.
@@ -54,6 +56,10 @@ type RunsServiceClient interface {
 	ListRuns(context.Context, *connect.Request[runs.ListRunsRequest]) (*connect.Response[runs.ListRunsResponse], error)
 	ListTargetStatus(context.Context, *connect.Request[runs.ListTargetStatusRequest]) (*connect.Response[runs.ListTargetStatusResponse], error)
 	BrowseSnapshot(context.Context, *connect.Request[runs.BrowseSnapshotRequest]) (*connect.Response[runs.BrowseSnapshotResponse], error)
+	// GetRunStats reports aggregate run performance over run history (optionally
+	// scoped to one plan): counts, success rate, p50/p95 duration, bytes/run, and
+	// logical throughput. Powers `runs stats` and the metrics surface.
+	GetRunStats(context.Context, *connect.Request[runs.GetRunStatsRequest]) (*connect.Response[runs.GetRunStatsResponse], error)
 }
 
 // NewRunsServiceClient constructs a client for the vrooli.data_backup_manager.v1.runs.RunsService
@@ -97,6 +103,12 @@ func NewRunsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(runsServiceMethods.ByName("BrowseSnapshot")),
 			connect.WithClientOptions(opts...),
 		),
+		getRunStats: connect.NewClient[runs.GetRunStatsRequest, runs.GetRunStatsResponse](
+			httpClient,
+			baseURL+RunsServiceGetRunStatsProcedure,
+			connect.WithSchema(runsServiceMethods.ByName("GetRunStats")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -107,6 +119,7 @@ type runsServiceClient struct {
 	listRuns         *connect.Client[runs.ListRunsRequest, runs.ListRunsResponse]
 	listTargetStatus *connect.Client[runs.ListTargetStatusRequest, runs.ListTargetStatusResponse]
 	browseSnapshot   *connect.Client[runs.BrowseSnapshotRequest, runs.BrowseSnapshotResponse]
+	getRunStats      *connect.Client[runs.GetRunStatsRequest, runs.GetRunStatsResponse]
 }
 
 // TriggerRun calls vrooli.data_backup_manager.v1.runs.RunsService.TriggerRun.
@@ -134,6 +147,11 @@ func (c *runsServiceClient) BrowseSnapshot(ctx context.Context, req *connect.Req
 	return c.browseSnapshot.CallUnary(ctx, req)
 }
 
+// GetRunStats calls vrooli.data_backup_manager.v1.runs.RunsService.GetRunStats.
+func (c *runsServiceClient) GetRunStats(ctx context.Context, req *connect.Request[runs.GetRunStatsRequest]) (*connect.Response[runs.GetRunStatsResponse], error) {
+	return c.getRunStats.CallUnary(ctx, req)
+}
+
 // RunsServiceHandler is an implementation of the vrooli.data_backup_manager.v1.runs.RunsService
 // service.
 type RunsServiceHandler interface {
@@ -142,6 +160,10 @@ type RunsServiceHandler interface {
 	ListRuns(context.Context, *connect.Request[runs.ListRunsRequest]) (*connect.Response[runs.ListRunsResponse], error)
 	ListTargetStatus(context.Context, *connect.Request[runs.ListTargetStatusRequest]) (*connect.Response[runs.ListTargetStatusResponse], error)
 	BrowseSnapshot(context.Context, *connect.Request[runs.BrowseSnapshotRequest]) (*connect.Response[runs.BrowseSnapshotResponse], error)
+	// GetRunStats reports aggregate run performance over run history (optionally
+	// scoped to one plan): counts, success rate, p50/p95 duration, bytes/run, and
+	// logical throughput. Powers `runs stats` and the metrics surface.
+	GetRunStats(context.Context, *connect.Request[runs.GetRunStatsRequest]) (*connect.Response[runs.GetRunStatsResponse], error)
 }
 
 // NewRunsServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -181,6 +203,12 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(runsServiceMethods.ByName("BrowseSnapshot")),
 		connect.WithHandlerOptions(opts...),
 	)
+	runsServiceGetRunStatsHandler := connect.NewUnaryHandler(
+		RunsServiceGetRunStatsProcedure,
+		svc.GetRunStats,
+		connect.WithSchema(runsServiceMethods.ByName("GetRunStats")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.data_backup_manager.v1.runs.RunsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RunsServiceTriggerRunProcedure:
@@ -193,6 +221,8 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 			runsServiceListTargetStatusHandler.ServeHTTP(w, r)
 		case RunsServiceBrowseSnapshotProcedure:
 			runsServiceBrowseSnapshotHandler.ServeHTTP(w, r)
+		case RunsServiceGetRunStatsProcedure:
+			runsServiceGetRunStatsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -220,4 +250,8 @@ func (UnimplementedRunsServiceHandler) ListTargetStatus(context.Context, *connec
 
 func (UnimplementedRunsServiceHandler) BrowseSnapshot(context.Context, *connect.Request[runs.BrowseSnapshotRequest]) (*connect.Response[runs.BrowseSnapshotResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.runs.RunsService.BrowseSnapshot is not implemented"))
+}
+
+func (UnimplementedRunsServiceHandler) GetRunStats(context.Context, *connect.Request[runs.GetRunStatsRequest]) (*connect.Response[runs.GetRunStatsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.runs.RunsService.GetRunStats is not implemented"))
 }

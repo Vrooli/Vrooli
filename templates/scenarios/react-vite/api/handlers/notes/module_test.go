@@ -30,7 +30,7 @@ func TestModule_Shape(t *testing.T) {
 		apidb.SchemaProviderFunc(internalnotes.Schema),
 	))
 
-	m := notes.ModuleWithBlobStore(d, clock.System{}, blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
+	m := notes.ModuleWithBlobStore(apidb.NewFromPrimary(d), clock.System{}, blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
 
 	require.Equal(t, "notes", m.Name)
 	require.NotNil(t, m.Mount, "Mount closure must be set")
@@ -46,7 +46,7 @@ func TestModule_RoutesAreReachable(t *testing.T) {
 		apidb.SchemaProviderFunc(internalnotes.Schema),
 	))
 
-	m := notes.ModuleWithBlobStore(d, clock.System{}, blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
+	m := notes.ModuleWithBlobStore(apidb.NewFromPrimary(d), clock.System{}, blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
 	r := mux.NewRouter()
 	m.Mount(r)
 

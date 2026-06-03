@@ -39,20 +39,22 @@ class Plan(_message.Message):
     def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., target_ids: _Optional[_Iterable[str]] = ..., destination_ids: _Optional[_Iterable[str]] = ..., schedule: _Optional[str] = ..., retention: _Optional[_Union[RetentionPolicy, _Mapping]] = ..., enabled: _Optional[bool] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class CreatePlanRequest(_message.Message):
-    __slots__ = ("name", "target_ids", "destination_ids", "schedule", "retention", "enabled")
+    __slots__ = ("name", "target_ids", "destination_ids", "schedule", "retention", "enabled", "allow_incomplete_coverage")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TARGET_IDS_FIELD_NUMBER: _ClassVar[int]
     DESTINATION_IDS_FIELD_NUMBER: _ClassVar[int]
     SCHEDULE_FIELD_NUMBER: _ClassVar[int]
     RETENTION_FIELD_NUMBER: _ClassVar[int]
     ENABLED_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_INCOMPLETE_COVERAGE_FIELD_NUMBER: _ClassVar[int]
     name: str
     target_ids: _containers.RepeatedScalarFieldContainer[str]
     destination_ids: _containers.RepeatedScalarFieldContainer[str]
     schedule: str
     retention: RetentionPolicy
     enabled: bool
-    def __init__(self, name: _Optional[str] = ..., target_ids: _Optional[_Iterable[str]] = ..., destination_ids: _Optional[_Iterable[str]] = ..., schedule: _Optional[str] = ..., retention: _Optional[_Union[RetentionPolicy, _Mapping]] = ..., enabled: _Optional[bool] = ...) -> None: ...
+    allow_incomplete_coverage: bool
+    def __init__(self, name: _Optional[str] = ..., target_ids: _Optional[_Iterable[str]] = ..., destination_ids: _Optional[_Iterable[str]] = ..., schedule: _Optional[str] = ..., retention: _Optional[_Union[RetentionPolicy, _Mapping]] = ..., enabled: _Optional[bool] = ..., allow_incomplete_coverage: _Optional[bool] = ...) -> None: ...
 
 class CreatePlanResponse(_message.Message):
     __slots__ = ("plan",)
@@ -89,7 +91,7 @@ class ListPlansResponse(_message.Message):
     def __init__(self, plans: _Optional[_Iterable[_Union[Plan, _Mapping]]] = ..., next_page_token: _Optional[str] = ...) -> None: ...
 
 class UpdatePlanRequest(_message.Message):
-    __slots__ = ("id", "name", "target_ids", "destination_ids", "schedule", "retention", "enabled")
+    __slots__ = ("id", "name", "target_ids", "destination_ids", "schedule", "retention", "enabled", "allow_incomplete_coverage")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TARGET_IDS_FIELD_NUMBER: _ClassVar[int]
@@ -97,6 +99,7 @@ class UpdatePlanRequest(_message.Message):
     SCHEDULE_FIELD_NUMBER: _ClassVar[int]
     RETENTION_FIELD_NUMBER: _ClassVar[int]
     ENABLED_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_INCOMPLETE_COVERAGE_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     target_ids: _containers.RepeatedScalarFieldContainer[str]
@@ -104,7 +107,8 @@ class UpdatePlanRequest(_message.Message):
     schedule: str
     retention: RetentionPolicy
     enabled: bool
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., target_ids: _Optional[_Iterable[str]] = ..., destination_ids: _Optional[_Iterable[str]] = ..., schedule: _Optional[str] = ..., retention: _Optional[_Union[RetentionPolicy, _Mapping]] = ..., enabled: _Optional[bool] = ...) -> None: ...
+    allow_incomplete_coverage: bool
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., target_ids: _Optional[_Iterable[str]] = ..., destination_ids: _Optional[_Iterable[str]] = ..., schedule: _Optional[str] = ..., retention: _Optional[_Union[RetentionPolicy, _Mapping]] = ..., enabled: _Optional[bool] = ..., allow_incomplete_coverage: _Optional[bool] = ...) -> None: ...
 
 class UpdatePlanResponse(_message.Message):
     __slots__ = ("plan",)

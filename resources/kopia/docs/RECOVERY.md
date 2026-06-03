@@ -47,6 +47,14 @@ kopia --config-file /tmp/dr.config repository connect filesystem \
   --path /var/backups/nightly
 ```
 
+> **Data Backup Manager destination bundles.** If the folder you plugged in is a
+> DBM destination *bundle* (it contains `README.txt`, `RECOVERY.txt`, and
+> `vrooli-backup-destination.json`), the kopia repository is **not** at the
+> folder root — it is nested under `repositories/<slug>.kopia`. Read the exact
+> path from `vrooli-backup-destination.json`'s `repository_path` field and pass
+> that to `--path`. The bundle's own `RECOVERY.txt` repeats these steps with the
+> concrete path filled in.
+
 ### S3 / MinIO repository
 
 ```bash

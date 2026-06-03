@@ -87,20 +87,24 @@ class Run(_message.Message):
     def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., trigger: _Optional[_Union[TriggerSource, str]] = ..., status: _Optional[_Union[RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., outcomes: _Optional[_Iterable[_Union[TargetOutcome, _Mapping]]] = ...) -> None: ...
 
 class TargetStatus(_message.Message):
-    __slots__ = ("target_id", "last_success_at", "last_run_status", "last_run_at", "last_verified_at", "last_verified_snapshot_id")
+    __slots__ = ("target_id", "last_success_at", "last_run_status", "last_run_at", "last_verified_at", "last_verified_snapshot_id", "overdue", "last_success_age_seconds")
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     LAST_SUCCESS_AT_FIELD_NUMBER: _ClassVar[int]
     LAST_RUN_STATUS_FIELD_NUMBER: _ClassVar[int]
     LAST_RUN_AT_FIELD_NUMBER: _ClassVar[int]
     LAST_VERIFIED_AT_FIELD_NUMBER: _ClassVar[int]
     LAST_VERIFIED_SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    OVERDUE_FIELD_NUMBER: _ClassVar[int]
+    LAST_SUCCESS_AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
     target_id: str
     last_success_at: _timestamp_pb2.Timestamp
     last_run_status: RunStatus
     last_run_at: _timestamp_pb2.Timestamp
     last_verified_at: _timestamp_pb2.Timestamp
     last_verified_snapshot_id: str
-    def __init__(self, target_id: _Optional[str] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_run_status: _Optional[_Union[RunStatus, str]] = ..., last_run_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_verified_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_verified_snapshot_id: _Optional[str] = ...) -> None: ...
+    overdue: bool
+    last_success_age_seconds: int
+    def __init__(self, target_id: _Optional[str] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_run_status: _Optional[_Union[RunStatus, str]] = ..., last_run_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_verified_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_verified_snapshot_id: _Optional[str] = ..., overdue: _Optional[bool] = ..., last_success_age_seconds: _Optional[int] = ...) -> None: ...
 
 class TriggerRunRequest(_message.Message):
     __slots__ = ("plan_id",)
@@ -181,3 +185,41 @@ class BrowseSnapshotResponse(_message.Message):
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
     entries: _containers.RepeatedCompositeFieldContainer[SnapshotEntry]
     def __init__(self, entries: _Optional[_Iterable[_Union[SnapshotEntry, _Mapping]]] = ...) -> None: ...
+
+class GetRunStatsRequest(_message.Message):
+    __slots__ = ("plan_id",)
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    plan_id: str
+    def __init__(self, plan_id: _Optional[str] = ...) -> None: ...
+
+class RunStats(_message.Message):
+    __slots__ = ("total_runs", "completed", "partial_failed", "failed", "success_rate", "p50_duration_ms", "p95_duration_ms", "total_bytes", "avg_bytes_per_run", "avg_throughput_bytes_per_sec", "window")
+    TOTAL_RUNS_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    PARTIAL_FAILED_FIELD_NUMBER: _ClassVar[int]
+    FAILED_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_RATE_FIELD_NUMBER: _ClassVar[int]
+    P50_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    P95_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_BYTES_FIELD_NUMBER: _ClassVar[int]
+    AVG_BYTES_PER_RUN_FIELD_NUMBER: _ClassVar[int]
+    AVG_THROUGHPUT_BYTES_PER_SEC_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    total_runs: int
+    completed: int
+    partial_failed: int
+    failed: int
+    success_rate: float
+    p50_duration_ms: int
+    p95_duration_ms: int
+    total_bytes: int
+    avg_bytes_per_run: int
+    avg_throughput_bytes_per_sec: float
+    window: int
+    def __init__(self, total_runs: _Optional[int] = ..., completed: _Optional[int] = ..., partial_failed: _Optional[int] = ..., failed: _Optional[int] = ..., success_rate: _Optional[float] = ..., p50_duration_ms: _Optional[int] = ..., p95_duration_ms: _Optional[int] = ..., total_bytes: _Optional[int] = ..., avg_bytes_per_run: _Optional[int] = ..., avg_throughput_bytes_per_sec: _Optional[float] = ..., window: _Optional[int] = ...) -> None: ...
+
+class GetRunStatsResponse(_message.Message):
+    __slots__ = ("stats",)
+    STATS_FIELD_NUMBER: _ClassVar[int]
+    stats: RunStats
+    def __init__(self, stats: _Optional[_Union[RunStats, _Mapping]] = ...) -> None: ...

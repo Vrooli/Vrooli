@@ -32,6 +32,10 @@ service RunsService {
   rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
   rpc ListTargetStatus(ListTargetStatusRequest) returns (ListTargetStatusResponse);
   rpc BrowseSnapshot(BrowseSnapshotRequest) returns (BrowseSnapshotResponse);
+  // GetRunStats reports aggregate run performance over run history (optionally
+  // scoped to one plan): counts, success rate, p50/p95 duration, bytes/run, and
+  // logical throughput. Powers `runs stats` and the metrics surface.
+  rpc GetRunStats(GetRunStatsRequest) returns (GetRunStatsResponse);
 }
 
 // RunStatus is the lifecycle state of a run.
@@ -104,6 +108,14 @@ message TargetStatus {
   // Snapshot id of that latest successful verify; powers a "verify the same
   // point again" shortcut. Empty when last_verified_at is unset.
   string last_verified_snapshot_id = 6;
+  // Freshness (cadence) signals, computed server-side against DBM_OVERDUE_AFTER
+  // so every surface (CLI, /health, UI) reads one consistent overdue rule.
+  // overdue is true when the last run failed/partial-failed, or the target has
+  // never succeeded, or its last success is older than the overdue threshold.
+  bool overdue = 7;
+  // Seconds since the last successful backup; 0 when never backed up (pair with
+  // last_success_at being unset to distinguish "0s ago" from "never").
+  int64 last_success_age_seconds = 8;
 }
 
 message TriggerRunRequest {
@@ -158,4 +170,39 @@ message BrowseSnapshotRequest {
 
 message BrowseSnapshotResponse {
   repeated SnapshotEntry entries = 1;
+}
+
+message GetRunStatsRequest {
+  // Optional plan filter; empty aggregates across all plans.
+  string plan_id = 1;
+}
+
+// RunStats is aggregate run performance over the recent run history window.
+// Durations are wall-clock per run (finished_at − started_at over terminal
+// runs). Bytes are the logical (pre-dedup) total of succeeded outcomes; the
+// deduped/physical figure and dedup ratio are NOT reported — kopia's
+// `snapshot create --json` does not expose uploaded bytes in this build and
+// `repo stats --json` is separately broken (see PROBLEMS.md). Throughput is
+// logical bytes ÷ wall-clock.
+message RunStats {
+  int64 total_runs = 1;
+  int64 completed = 2;
+  int64 partial_failed = 3;
+  int64 failed = 4;
+  // completed ÷ terminal runs, 0..1.
+  double success_rate = 5;
+  int64 p50_duration_ms = 6;
+  int64 p95_duration_ms = 7;
+  // Sum of logical bytes across succeeded outcomes in the window.
+  int64 total_bytes = 8;
+  int64 avg_bytes_per_run = 9;
+  // Logical bytes per wall-clock second, averaged over terminal runs.
+  double avg_throughput_bytes_per_sec = 10;
+  // Number of runs the stats were computed over (the window cap may truncate
+  // older history — surfaced so the figure is never silently partial).
+  int64 window = 11;
+}
+
+message GetRunStatsResponse {
+  RunStats stats = 1;
 }

@@ -31,6 +31,20 @@ func Parse(fs *flag.FlagSet, args []string) error {
 	return nil
 }
 
+// RepeatedFlag collects a string flag that may be supplied more than once, in
+// declaration order. Register with fs.Var(&rf, "tags", "..."); each occurrence
+// appends one value. Used for kopia snapshot --tags key:value pairs.
+type RepeatedFlag []string
+
+// String renders the collected values (flag.Value).
+func (r *RepeatedFlag) String() string { return strings.Join(*r, ",") }
+
+// Set appends one occurrence (flag.Value).
+func (r *RepeatedFlag) Set(v string) error {
+	*r = append(*r, v)
+	return nil
+}
+
 // RequireName validates a required --name flag.
 func RequireName(name string) error {
 	if strings.TrimSpace(name) == "" {

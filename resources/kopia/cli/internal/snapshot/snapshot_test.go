@@ -97,6 +97,25 @@ func TestSnapshotArgvTranslation(t *testing.T) {
 			},
 			want: []string{"--config-file", cfg, "snapshot", "delete", "abc123", "--delete"},
 		},
+		{
+			name: "create with description override-source and repeated tags",
+			run: func(s snapshot.Service) error {
+				return s.Create(context.Background(), []string{
+					"--repo", "nightly", "--path", "/data/pg",
+					"--description", "DBM target acme/db run r1",
+					"--override-source", "dbm://acme/db",
+					"--tags", "dbm:true", "--tags", "dbm.run_id:r1",
+					"--json",
+				})
+			},
+			want: []string{
+				"--config-file", cfg, "snapshot", "create", "/data/pg",
+				"--description", "DBM target acme/db run r1",
+				"--override-source", "dbm://acme/db",
+				"--tags", "dbm:true", "--tags", "dbm.run_id:r1",
+				"--json",
+			},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -115,6 +134,21 @@ func TestSnapshotArgvTranslation(t *testing.T) {
 				t.Fatalf("encryption flag leaked: %q", tok)
 			}
 		})
+	}
+}
+
+func TestSnapshotCreateRejectsMalformedTag(t *testing.T) {
+	s, run := newSvc(t)
+	err := s.Create(context.Background(), []string{"--repo", "nightly", "--path", "/data/pg", "--tags", "nocolon"})
+	if err == nil {
+		t.Fatal("expected error for tag without ':'")
+	}
+	if !strings.Contains(err.Error(), "key:value") {
+		t.Fatalf("error should explain key:value form, got %v", err)
+	}
+	// No kopia process should have run for a rejected tag.
+	if _, ok := run.LastCall(); ok {
+		t.Fatal("kopia should not be invoked when a tag is malformed")
 	}
 }
 
