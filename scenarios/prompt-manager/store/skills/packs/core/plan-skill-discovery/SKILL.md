@@ -15,7 +15,9 @@ Use Plan Skill Discovery when:
 - An executing agent needs to know which skills to load
 - An automated workshop agent needs to discover domain-relevant skills for a backlog item
 
-This workflow intentionally uses skill-only discovery. It finds guidelines, methodologies, and required reading for implementation plans. Do not add `--type all` here unless prompt-manager's budget and read-command generation are redesigned so executable Actions cannot crowd out relevant steer/practice skills.
+This workflow uses **skill mode** (`--type skill`, the default) on purpose. Skill mode is *curated*: discover treats topics as packs — when your query fires a relevant topic, that topic's whole skill pack (its own skills plus its folder's and the root's) is included as required reading, and strong direct matches surface above the packs. That curated behavior is exactly what an implementation plan wants. Operational `--type all` is the opposite (best-match relevance, no packs) and is for "is there already a tool for X?" lookups, not plan authoring — so stay in skill mode here.
+
+> The old caveat "do not add `--type all` because Actions crowd out skills" no longer applies: discover is now mode-aware (I8). `--type all` ranks skills and actions purely by relevance with no pack injection, so it can't bury steer skills under a curated dev pack — but it also won't *give* you the curated pack a plan needs, which is why skill mode remains correct here.
 
 **Do NOT use** for:
 - Routine task execution (skills should already be embedded in the plan)
@@ -81,20 +83,47 @@ What kind of work is this?
    prompt-manager discover "concept1" "concept2" "concept3" --complexity moderate
    ```
    The `discover` command performs both topic search and skill search for each query,
-   deduplicates results, sorts them (general topics first, then specific skills),
-   and reports content size against the complexity budget.
+   deduplicates results, and reports content size against the complexity budget.
+   It ranks by **relevance with topics as curated packs**: strong direct matches
+   surface at the top, the curated pack for any topic your query fires is always
+   included, and neither crowds out the other. (This replaced the old topic-first
+   ordering that buried the best matches under a generic seed bundle.)
+
+   **Phrase queries as activity + surface concepts so the right topic packs fire.**
+   A topic only contributes its pack when the query is semantically close to the
+   topic's description. Name the *kind of work* and the *surface* — e.g.
+   "refactor and clean up duplication", "design a CLI command surface",
+   "tunable config levers and thresholds", "graceful degradation under failure" —
+   rather than a bare noun. A vague query fires no topic and you fall back to pure
+   skill search.
 
 2. **Choose the complexity that matches the work:**
 
-   | Complexity | Char Budget | When to Use |
+   | Complexity | Char Budget (live) | When to Use |
    |---|---|---|
-   | `minor` | ~4,000 | Bug fix, small tweak |
-   | `moderate` | ~8,000 | New feature, refactor |
-   | `major` | ~12,000 | Multi-file feature, new endpoint |
-   | `architectural` | ~18,000 | Cross-scenario, new system design |
+   | `minor` | ~50,000 | Bug fix, small tweak |
+   | `moderate` | ~75,000 | New feature, refactor |
+   | `major` | ~100,000 | Multi-file feature, new endpoint |
+   | `architectural` | ~150,000 | Cross-scenario, new system design |
+
+   These are the **live** budgets (from `store/config/budgets.json`), not the
+   small code defaults. They are deliberately generous — at these sizes the
+   budget rarely binds, so **do not reflexively prefer the trimmed command**.
+   Include the full discovered set unless `discover` explicitly reports `over`.
 
 3. **If over budget:** use the recommended (trimmed) read command from the output.
-4. **If under budget with few results**, consider broadening search terms or adding more concepts.
+   The trim is block-aware: it keeps the strong direct matches and the curated
+   packs whole and trims the weak embedding tail first, so the recommended set is
+   the dependable core, not an arbitrary prefix.
+4. **If you get few results**, broaden the query phrasing — name the activity and
+   surface (see Phase 1 above) so a topic pack fires, and add more concepts. Two
+   secondary causes, in order: a relevant **topic isn't firing** because the query
+   doesn't match its description (rephrase toward the kind of work), or the
+   **similarity floor** (`AI_SEARCH_THRESHOLD`, default 0.5) drops individual
+   skills scoring just below it (add concepts to recover them). See
+   `path:scenarios/prompt-manager/docs/reference/discovery-pipeline.md` for the
+   ranking model and `prompt-manager discovery-metrics` for the measured
+   near-threshold/returned-count rates.
 5. **If you need to narrow results for a specific concept, use tag filtering:**
    ```bash
    prompt-manager search "<concept>" -tag testing

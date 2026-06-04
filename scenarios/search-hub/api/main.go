@@ -8,8 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"search-hub/internal/clock"
+	"search-hub/internal/eval"
 	"search-hub/internal/modules"
 	"search-hub/internal/server"
 
@@ -21,6 +23,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	evalH "search-hub/handlers/eval"
 	healthH "search-hub/handlers/health"
 	metricsH "search-hub/handlers/metrics"
 	registryH "search-hub/handlers/registry"
@@ -103,6 +106,15 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	// Register the eval suites search-hub ships (idempotent upsert by suite_id)
+	// so a fresh boot has the baseline suites and their run history is populated
+	// as soon as a suite is run. Provider descriptors are still operator/CLI
+	// registered (a suite only references a provider_id; the runner resolves it
+	// at run time).
+	if err := eval.RegisterSeeds(context.Background(), eval.NewSQLiteStore(db, clock.System{})); err != nil {
+		log.Fatalf("eval seed registration failed: %v", err)
+	}
+
 	// The metrics domain owns the query_telemetry store. Its Recorder bridge is
 	// injected into the routing module so each federated query records telemetry
 	// (Phase 7), while the routing handler stays free of any metrics-store import.
@@ -114,6 +126,7 @@ func main() {
 		metricsH.Module(db, clock.System{}, log.Default()),
 		registryH.Module(db, clock.System{}, log.Default()),
 		routingH.Module(db, clock.System{}, log.Default(), telemetryRecorder),
+		evalH.Module(db, clock.System{}, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -130,7 +143,14 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		// EvalService.RunSuite is a synchronous, long-running RPC: it fans out one
+		// HTTP call per golden case to the target provider, and a provider whose
+		// active reranker leg is an LLM (seconds per query) can push a full suite
+		// well past the 30s default. Give the server enough headroom to finish a
+		// suite run rather than resetting the connection mid-fan-out (which would
+		// discard the immutable run record the harness exists to produce).
+		WriteTimeout: 15 * time.Minute,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

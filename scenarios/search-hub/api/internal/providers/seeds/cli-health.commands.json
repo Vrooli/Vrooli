@@ -22,6 +22,15 @@
     "path_field": "name",
     "score_scale": "SCORE_SCALE_COSINE_0_1"
   },
+  "status_endpoint": {
+    "http_json": {
+      "scenario_id": "cli-health",
+      "path": "/vrooli.cli_health.v1.search.SearchService/Status",
+      "method": "HTTP_METHOD_POST",
+      "body_template": "{}",
+      "headers": { "Content-Type": "application/json" }
+    }
+  },
   "scope": "SCOPE_PROJECT",
   "state": "PROVIDER_STATE_ACTIVE"
 }

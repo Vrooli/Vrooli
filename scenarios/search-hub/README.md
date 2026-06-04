@@ -105,6 +105,46 @@ finer-grained presets.
 | Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
 | Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
 
+## Search-quality baselines (eval domain)
+
+The `eval` domain turns search quality into something **measurable, historical,
+and experiment-friendly**. A provider that owns a corpus registers a JSON suite
+of golden retrieval cases (a query + soft expectations); running a suite calls
+that provider's already-registered endpoint (reusing the registry's
+`ResultMapping` — no provider-specific code), labels each case, and stores an
+**immutable, tagged** run. The UI's **Evals** tab shows per-suite run history
+(trend) and side-by-side run compare.
+
+This is **not** a pass/fail gate: expectations produce soft labels (`met` /
+`below_expectation` / `unexpected_hit` / …), never a non-zero exit. A consumer
+that wants CI enforcement opts in per-run with `evals run … --assert`; the hub
+never imposes it.
+
+**Register a baseline suite** (recipe):
+
+1. Make sure the provider is registered (`search-hub providers register …`); a
+   suite only references a `provider_id` and the runner resolves it at run time.
+2. Author the suite JSON (see `api/internal/eval/seeds/cli-health.commands.primary.json`
+   for the worked example): a `suite_id`, the `provider_id`, and `cases[]` with
+   `query`, `tags` (`strong` / `weak-real` / `gibberish`), and expectations
+   (`expect_ids`, `expect_within_top_k`, `expect_min_score`/`expect_max_score`,
+   or `expect_no_strong_hit` for junk-rejection cases).
+3. Register it: `search-hub evals register --suite @path/to/suite.json` (or ship
+   it under `api/internal/eval/seeds/*.json` to register at boot).
+4. Run it with an experiment tag and inspect the history:
+
+   ```bash
+   search-hub evals run  cli-health.commands.primary --tag rerank-off
+   search-hub evals run  cli-health.commands.primary --tag cross-encoder
+   search-hub evals runs cli-health.commands.primary           # history, newest first
+   search-hub evals compare <run_a> <run_b>                    # per-case A/B delta
+   ```
+
+The CLI mirrors the `EvalService` RPCs (`register` / `list` / `show` / `run` /
+`runs` / `show-run` / `compare`); the same data drives the UI Evals tab. Runs
+snapshot the config that affects results (active reranker leg, embed model,
+indexed count) so a comparison stays meaningful months later.
+
 ## Working Rules
 
 1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.

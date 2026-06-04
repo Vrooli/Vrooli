@@ -847,7 +847,7 @@ func TestSandboxLauncher_LaunchTranslatesHostMergedPath(t *testing.T) {
 	proc, err := launcher.Launch(ctx, runner.LaunchRequest{
 		Command:    "claude",
 		WorkingDir: host,
-		Env:        []string{"VROOLI_SANDBOX_MERGED=" + host, "PATH=/usr/bin"},
+		Env:        []string{"VROOLI_SANDBOX_MERGED=" + host, "PATH=/usr/bin", "HOME=.home"},
 	})
 	if err != nil {
 		t.Fatalf("Launch: %v", err)
@@ -867,6 +867,13 @@ func TestSandboxLauncher_LaunchTranslatesHostMergedPath(t *testing.T) {
 	}
 	if _, ok := envAny["PATH"]; ok {
 		t.Errorf("env PATH should be omitted; workspace-sandbox owns vrooli-aware PATH construction")
+	}
+	// A relative inherited HOME (e.g. HOME=.home from a sandboxed parent)
+	// must not cross the boundary: with --chdir <workspace> it would
+	// materialize `<workspace>/.home` from $HOME-relative writes. The
+	// vrooli-aware profile owns HOME, so it is dropped here.
+	if _, ok := envAny["HOME"]; ok {
+		t.Errorf("env HOME should be omitted; workspace-sandbox owns vrooli-aware HOME construction")
 	}
 
 	go func() {

@@ -1,0 +1,82 @@
+{
+  "suite_id": "cli-health.commands.primary",
+  "provider_id": "cli-health.commands",
+  "name": "CLI command discovery — primary",
+  "description": "Golden retrieval cases for the cli-health command corpus: strong intent->command matches, a known lexical-gap case, known-weak concept queries, and a gibberish junk-rejection case. Soft labels only (never a build gate). CALIBRATION (2026-06-04, run 164528ee): bands target the DEFAULT config — rerank ON via the cross-encoder (BAAI/bge-reranker-v2-m3) — whose scores are 0..1 relevance (strong matches ~0.85-1.0, junk ~0). NOTE: the provider's result id_field is `name` (the command's leaf token, e.g. `restart`, `logs`, `duplicates`), so expect_ids assert on leaf names, not full command paths; ambiguous leaves (e.g. `scenario`) are asserted by score+topk instead. If the cross-encoder resource is down the leg degrades to dense (cosine) order on a different scale and these bands will mislabel — check ConfigSnapshot.reranker_leg before trusting a run.",
+  "state": "active",
+  "cases": [
+    {
+      "case_id": "restart",
+      "query": "how do I restart a scenario",
+      "tags": ["strong"],
+      "expect_ids": ["restart"],
+      "expect_within_top_k": 3,
+      "expect_min_score": 0.5,
+      "note": "vrooli scenario restart — unambiguous leaf; cross-encoder ~0.98"
+    },
+    {
+      "case_id": "view-logs",
+      "query": "view scenario logs",
+      "tags": ["strong"],
+      "expect_ids": ["logs"],
+      "expect_within_top_k": 3,
+      "expect_min_score": 0.5,
+      "note": "vrooli scenario logs — unambiguous leaf; cross-encoder ~0.99"
+    },
+    {
+      "case_id": "stop-scenario",
+      "query": "stop a running scenario",
+      "tags": ["strong"],
+      "expect_ids": ["stop"],
+      "expect_within_top_k": 3,
+      "expect_min_score": 0.5,
+      "note": "vrooli scenario stop — unambiguous leaf; cross-encoder ~0.97"
+    },
+    {
+      "case_id": "run-tests",
+      "query": "run scenario tests",
+      "tags": ["strong"],
+      "expect_ids": ["test"],
+      "expect_within_top_k": 3,
+      "expect_min_score": 0.5,
+      "note": "vrooli scenario test — unambiguous leaf; cross-encoder ~0.99"
+    },
+    {
+      "case_id": "validate-manifest",
+      "query": "validate cli manifest",
+      "tags": ["strong"],
+      "expect_within_top_k": 3,
+      "expect_min_score": 0.5,
+      "note": "Asserted by score+topk, not id: the top hit's leaf (`scenario`) is too common to assert on. Cross-encoder ~0.86 for the validate command at #1."
+    },
+    {
+      "case_id": "duplicate-code",
+      "query": "find duplicate code",
+      "tags": ["strong", "lexical-gap"],
+      "expect_ids": ["duplicates"],
+      "expect_within_top_k": 3,
+      "note": "file-tools files duplicates IS the #1 hit, but the cross-encoder honestly down-weights it (~0.2) because the command targets duplicate FILES while the query says CODE. Asserted by RANK only — deliberately NO score floor, since low confidence here is correct behavior, not a regression."
+    },
+    {
+      "case_id": "remove-bookmark",
+      "query": "remove a bookmark",
+      "tags": ["weak-real"],
+      "expect_within_top_k": 5,
+      "note": "No dedicated 'remove bookmark' command exists; the cross-encoder returns the nearest action at ~0.01. Expectation is only that the query returns SOMETHING plausible (non-empty), not a confident match."
+    },
+    {
+      "case_id": "embeddings",
+      "query": "generate embeddings for text",
+      "tags": ["weak-real"],
+      "note": "known weak — concept vs keyword; informational (no hard expectation)"
+    },
+    {
+      "case_id": "gibberish-1",
+      "query": "asdfqwer zxcvbnm qwertyuiop florbnax",
+      "tags": ["gibberish"],
+      "expect_no_strong_hit": true,
+      "expect_max_score": 0.1,
+      "note": "Junk rejection under the rerank-on default: the cross-encoder scores this ~0.000. Ceiling tightened from the cosine-era 0.4 to 0.1 so any real leakage (or a dense-fallback run, which leaks ~0.58) is flagged."
+    }
+  ]
+}

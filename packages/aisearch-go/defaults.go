@@ -24,4 +24,11 @@ const (
 
 	// DefaultQdrantURL is the local Qdrant address used when none is configured.
 	DefaultQdrantURL = "http://127.0.0.1:6333"
+
+	// DefaultRelevanceMaxGap / DefaultRelevanceHardFloor tune ApplyRelevanceFloor
+	// (WS2). MaxGap is the primary, query-adaptive gate; HardFloor is a
+	// garbage-only safety net. Both are heuristic defaults, not contracts — they
+	// want one attended tuning pass against the live corpus.
+	DefaultRelevanceMaxGap    = 0.15
+	DefaultRelevanceHardFloor = 0.35
 )

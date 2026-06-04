@@ -7,11 +7,12 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"testing"
+
 	"prompt-manager/search"
 	"prompt-manager/skills"
 	"prompt-manager/store"
-	"strings"
-	"testing"
 )
 
 // MockTopicStoreReader implements TopicStoreReader for testing.
@@ -388,32 +389,21 @@ func TestActionQueryTermsDropsGenericActionWords(t *testing.T) {
 	}
 }
 
-func TestSortDiscoverTopicResults(t *testing.T) {
-	depth0 := 0
-	depth1 := 1
-	depth2 := 2
-
-	results := []DiscoverResult{
-		{ID: "c", TopicDepth: &depth2, Score: 0.9},
-		{ID: "a", TopicDepth: &depth0, Score: 0.7},
-		{ID: "b", TopicDepth: &depth1, Score: 0.8},
-		{ID: "a2", TopicDepth: &depth0, Score: 0.9},
+func TestSortPacksByScore(t *testing.T) {
+	packs := []discoverPack{
+		{topicID: "t-low", score: 0.6},
+		{topicID: "t-high", score: 0.9},
+		{topicID: "t-mid", score: 0.7},
+		{topicID: "t-high2", score: 0.9}, // ties with t-high; topicID breaks the tie
 	}
 
-	sortDiscoverTopicResults(results)
+	sortPacksByScore(packs)
 
-	// depth 0 first (higher score first within same depth)
-	if results[0].ID != "a2" {
-		t.Errorf("expected first result to be 'a2' (depth 0, score 0.9), got %q", results[0].ID)
-	}
-	if results[1].ID != "a" {
-		t.Errorf("expected second result to be 'a' (depth 0, score 0.7), got %q", results[1].ID)
-	}
-	if results[2].ID != "b" {
-		t.Errorf("expected third result to be 'b' (depth 1), got %q", results[2].ID)
-	}
-	if results[3].ID != "c" {
-		t.Errorf("expected fourth result to be 'c' (depth 2), got %q", results[3].ID)
+	wantOrder := []string{"t-high", "t-high2", "t-mid", "t-low"}
+	for i, want := range wantOrder {
+		if packs[i].topicID != want {
+			t.Errorf("packs[%d] = %q, want %q", i, packs[i].topicID, want)
+		}
 	}
 }
 
@@ -608,15 +598,26 @@ func TestDiscover_FullPipeline_TopicAndSkillResults(t *testing.T) {
 		t.Error("expected at least one topic-sourced result")
 	}
 
-	// All topic results should come before search results in the slice
-	seenSearch := false
-	for _, r := range resp.Results {
-		if r.Source == "search" {
-			seenSearch = true
+	// New block-aware ranking (I3): a high-confidence direct match (api-steer,
+	// 0.82 >= the 0.65 bar) ranks ABOVE the topic pack block instead of being
+	// buried beneath it. The pack still appears (verified below), just not first.
+	apiSteerIdx, docHealthIdx := -1, -1
+	for i, r := range resp.Results {
+		switch r.ID {
+		case "api-steer":
+			apiSteerIdx = i
+		case "doc-health":
+			docHealthIdx = i
 		}
-		if r.Source == "topic" && seenSearch {
-			t.Errorf("topic result %q appeared after search results (wrong ordering)", r.ID)
-		}
+	}
+	if apiSteerIdx == -1 {
+		t.Error("expected high-confidence individual api-steer in results")
+	}
+	if docHealthIdx == -1 {
+		t.Error("expected topic-pack skill doc-health in results")
+	}
+	if apiSteerIdx != -1 && docHealthIdx != -1 && apiSteerIdx > docHealthIdx {
+		t.Errorf("expected strong individual api-steer (#%d) to rank above pack skill doc-health (#%d)", apiSteerIdx, docHealthIdx)
 	}
 
 	// --- Verify content chars are populated ---
@@ -756,6 +757,80 @@ func TestDiscover_OverBudget_TrimsReadCommand(t *testing.T) {
 	// Full readCommand should include all 3
 	if !strings.Contains(resp.ReadCommand, "skill-c") {
 		t.Error("readCommand should include all skills including skill-c")
+	}
+}
+
+func TestDiscover_OverBudget_SkipsOversizedKeepsSmaller(t *testing.T) {
+	// Regression for the trim early-`break` bug: an oversized skill that sorts
+	// FIRST (highest score) must not starve smaller relevant skills after it.
+	// Old behavior (break) dropped every skill following the first overflow,
+	// yielding an EMPTY recommendation. New behavior (continue) skips the
+	// oversized skill and keeps packing the smaller ones toward the budget.
+	mockSkills := NewMockSkillStore()
+	big := strings.Repeat("x", 5000)   // alone exceeds the minor=4000 budget
+	small := strings.Repeat("y", 1500) // two of these fit (3000 <= 4000)
+	mockSkills.AddSkill("core", skills.Metadata{
+		ID: "skill-big", Name: "Big", Description: "B",
+		File: "skill-big.md", Tags: []string{}, Modes: []string{},
+	}, big)
+	mockSkills.AddSkill("core", skills.Metadata{
+		ID: "skill-small1", Name: "Small1", Description: "S1",
+		File: "skill-small1.md", Tags: []string{}, Modes: []string{},
+	}, small)
+	mockSkills.AddSkill("core", skills.Metadata{
+		ID: "skill-small2", Name: "Small2", Description: "S2",
+		File: "skill-small2.md", Tags: []string{}, Modes: []string{},
+	}, small)
+
+	embedder, closeEmbed := newTestEmbedder(t)
+	defer closeEmbed()
+
+	// Scores order big (0.9) first, then the two small skills.
+	skillVS, closeSkillVS := newTestVectorStore(t, "prompt-manager-skills", []searchResultFixture{
+		{ID: "uuid-big", Score: 0.9, Payload: map[string]interface{}{
+			"skill_id": "skill-big", "name": "Big", "description": "B",
+			"folder": "core", "tags": []interface{}{}, "modes": []interface{}{},
+		}},
+		{ID: "uuid-s1", Score: 0.8, Payload: map[string]interface{}{
+			"skill_id": "skill-small1", "name": "Small1", "description": "S1",
+			"folder": "core", "tags": []interface{}{}, "modes": []interface{}{},
+		}},
+		{ID: "uuid-s2", Score: 0.7, Payload: map[string]interface{}{
+			"skill_id": "skill-small2", "name": "Small2", "description": "S2",
+			"folder": "core", "tags": []interface{}{}, "modes": []interface{}{},
+		}},
+	})
+	defer closeSkillVS()
+
+	svc := &Service{
+		embedder:      embedder,
+		vectorStore:   skillVS,
+		skillStore:    mockSkills,
+		searchService: search.NewService(mockSkills),
+		threshold:     0.5,
+	}
+
+	resp, err := svc.Discover(context.Background(), []string{"stuff"}, "minor", 10)
+	if err != nil {
+		t.Fatalf("Discover failed: %v", err)
+	}
+	if resp.BudgetStatus != "over" {
+		t.Fatalf("expected budgetStatus 'over', got %q", resp.BudgetStatus)
+	}
+	if resp.RecommendedReadCommand == "" {
+		t.Fatal("expected non-empty RecommendedReadCommand: the smaller skills should survive the oversized one")
+	}
+	// The two smaller skills must be retained even though the oversized one
+	// sorted first and could not fit.
+	if !strings.Contains(resp.RecommendedReadCommand, "skill-small1") {
+		t.Errorf("expected skill-small1 to be kept, got %q", resp.RecommendedReadCommand)
+	}
+	if !strings.Contains(resp.RecommendedReadCommand, "skill-small2") {
+		t.Errorf("expected skill-small2 to be kept, got %q", resp.RecommendedReadCommand)
+	}
+	// The oversized skill alone blows the budget — it must be skipped.
+	if strings.Contains(resp.RecommendedReadCommand, "skill-big") {
+		t.Errorf("expected skill-big to be skipped (oversized), got %q", resp.RecommendedReadCommand)
 	}
 }
 

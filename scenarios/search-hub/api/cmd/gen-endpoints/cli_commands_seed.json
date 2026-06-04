@@ -35,6 +35,41 @@
       "name": "insights",
       "description": "Federation telemetry insights: zero-result rate, p50/p95 latency, per-provider utilization (--window <days>)",
       "endpoint_id": "metrics_insights"
+    },
+    {
+      "name": "evals register",
+      "description": "Register (upsert) a provider-owned eval suite (--suite JSON or @file)",
+      "endpoint_id": "evals_register_suite"
+    },
+    {
+      "name": "evals list",
+      "description": "List eval suites (optional --provider filter)",
+      "endpoint_id": "evals_list_suites"
+    },
+    {
+      "name": "evals show",
+      "description": "Show one eval suite by suite_id",
+      "endpoint_id": "evals_get_suite"
+    },
+    {
+      "name": "evals run",
+      "description": "Run an eval suite against its provider and store a tagged run (--tag, --limit)",
+      "endpoint_id": "evals_run_suite"
+    },
+    {
+      "name": "evals runs",
+      "description": "List a suite's run history, newest first (--tag, --limit filters)",
+      "endpoint_id": "evals_list_runs"
+    },
+    {
+      "name": "evals show-run",
+      "description": "Show one immutable eval run by run_id",
+      "endpoint_id": "evals_get_run"
+    },
+    {
+      "name": "evals compare",
+      "description": "Compare two eval runs (per-case outcome + score delta)",
+      "endpoint_id": "evals_compare_runs"
     }
   ]
 }

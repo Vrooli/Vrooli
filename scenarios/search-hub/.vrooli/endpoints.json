@@ -32,6 +32,276 @@
       }
     },
     {
+      "id": "evals_register_suite",
+      "path": "/vrooli.search_hub.v1.eval.EvalService/RegisterSuite",
+      "method": "POST",
+      "summary": "Register (upsert) an eval suite",
+      "description": "Validates and persists a provider-owned golden suite (upsert keyed by suite_id). created=false when an existing suite was updated.",
+      "category": "eval",
+      "request": {
+        "type": "object",
+        "properties": {
+          "suite": "EvalSuite (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "created": "bool",
+          "suite": "EvalSuite"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Suite failed validation"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Eval store write failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "search-hub evals register",
+        "args": [
+          "--suite",
+          "<json>"
+        ]
+      }
+    },
+    {
+      "id": "evals_list_suites",
+      "path": "/vrooli.search_hub.v1.eval.EvalService/ListSuites",
+      "method": "POST",
+      "summary": "List eval suites",
+      "description": "Returns registered eval suites, optionally filtered by provider_id.",
+      "category": "eval",
+      "request": {
+        "type": "object",
+        "properties": {
+          "provider_id": "string (optional filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "suites": "array<EvalSuite>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Eval store read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "search-hub evals list"
+      }
+    },
+    {
+      "id": "evals_get_suite",
+      "path": "/vrooli.search_hub.v1.eval.EvalService/GetSuite",
+      "method": "POST",
+      "summary": "Get an eval suite",
+      "description": "Returns the suite with the given suite_id.",
+      "category": "eval",
+      "request": {
+        "type": "object",
+        "properties": {
+          "suite_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "suite": "EvalSuite"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such suite"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Eval store read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "search-hub evals show",
+        "args": [
+          "<suite_id>"
+        ]
+      }
+    },
+    {
+      "id": "evals_run_suite",
+      "path": "/vrooli.search_hub.v1.eval.EvalService/RunSuite",
+      "method": "POST",
+      "summary": "Run an eval suite",
+      "description": "Executes the suite against its provider's registered endpoint and stores an immutable, tagged run. Soft labels only — never a pass/fail gate.",
+      "category": "eval",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int (per-case fetch depth)",
+          "suite_id": "string (required)",
+          "tag": "string (experiment label)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "EvalRun"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such suite"
+        },
+        {
+          "status": 400,
+          "code": "failed_precondition",
+          "description": "Suite's provider is not registered/reachable"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Eval store write failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "search-hub evals run",
+        "args": [
+          "<suite_id>",
+          "--tag",
+          "<tag>"
+        ]
+      }
+    },
+    {
+      "id": "evals_list_runs",
+      "path": "/vrooli.search_hub.v1.eval.EvalService/ListRuns",
+      "method": "POST",
+      "summary": "List eval runs",
+      "description": "Returns a suite's run history (newest first), optionally filtered by tag and capped by limit.",
+      "category": "eval",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int (optional cap)",
+          "suite_id": "string (required)",
+          "tag": "string (optional filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "runs": "array<EvalRun>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Eval store read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "search-hub evals runs",
+        "args": [
+          "<suite_id>"
+        ]
+      }
+    },
+    {
+      "id": "evals_get_run",
+      "path": "/vrooli.search_hub.v1.eval.EvalService/GetRun",
+      "method": "POST",
+      "summary": "Get an eval run",
+      "description": "Returns the immutable run with the given run_id.",
+      "category": "eval",
+      "request": {
+        "type": "object",
+        "properties": {
+          "run_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "EvalRun"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such run"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Eval store read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "search-hub evals show-run",
+        "args": [
+          "<run_id>"
+        ]
+      }
+    },
+    {
+      "id": "evals_compare_runs",
+      "path": "/vrooli.search_hub.v1.eval.EvalService/CompareRuns",
+      "method": "POST",
+      "summary": "Compare two eval runs",
+      "description": "Returns both runs plus a per-case delta (outcome and score change) — the A/B experimentation surface.",
+      "category": "eval",
+      "request": {
+        "type": "object",
+        "properties": {
+          "run_a": "string (required)",
+          "run_b": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "deltas": "array<CaseDelta>",
+          "run_a": "EvalRun",
+          "run_b": "EvalRun"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such run"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Eval store read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "search-hub evals compare",
+        "args": [
+          "<run_a>",
+          "<run_b>"
+        ]
+      }
+    },
+    {
       "id": "metrics_insights",
       "path": "/vrooli.search_hub.v1.metrics.MetricsService/Insights",
       "method": "POST",
@@ -335,6 +605,41 @@
       "name": "insights",
       "description": "Federation telemetry insights: zero-result rate, p50/p95 latency, per-provider utilization (--window <days>)",
       "endpoint_id": "metrics_insights"
+    },
+    {
+      "name": "evals register",
+      "description": "Register (upsert) a provider-owned eval suite (--suite JSON or @file)",
+      "endpoint_id": "evals_register_suite"
+    },
+    {
+      "name": "evals list",
+      "description": "List eval suites (optional --provider filter)",
+      "endpoint_id": "evals_list_suites"
+    },
+    {
+      "name": "evals show",
+      "description": "Show one eval suite by suite_id",
+      "endpoint_id": "evals_get_suite"
+    },
+    {
+      "name": "evals run",
+      "description": "Run an eval suite against its provider and store a tagged run (--tag, --limit)",
+      "endpoint_id": "evals_run_suite"
+    },
+    {
+      "name": "evals runs",
+      "description": "List a suite's run history, newest first (--tag, --limit filters)",
+      "endpoint_id": "evals_list_runs"
+    },
+    {
+      "name": "evals show-run",
+      "description": "Show one immutable eval run by run_id",
+      "endpoint_id": "evals_get_run"
+    },
+    {
+      "name": "evals compare",
+      "description": "Compare two eval runs (per-case outcome + score delta)",
+      "endpoint_id": "evals_compare_runs"
     }
   ]
 }

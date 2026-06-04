@@ -1,0 +1,37 @@
+{
+  "suite_id": "knowledge-observatory.docs.starter",
+  "provider_id": "knowledge-observatory.docs",
+  "name": "Knowledge-observatory docs — starter baseline",
+  "description": "STARTER baseline (loose bands) for the knowledge-observatory documentation corpus — a few how-to queries plus a junk-rejection case. KO docs run hybrid retrieval (rerank-off by design), so this baseline mostly tracks recall over time; the KO owner should tighten bands and add expect_ids once canonical doc ids are known.",
+  "state": "active",
+  "cases": [
+    {
+      "case_id": "deploy-scenario",
+      "query": "how do I deploy a scenario",
+      "tags": ["strong"],
+      "expect_within_top_k": 5,
+      "expect_min_score": 0.4
+    },
+    {
+      "case_id": "what-is-a-resource",
+      "query": "what is a resource in vrooli",
+      "tags": ["strong"],
+      "expect_within_top_k": 5,
+      "expect_min_score": 0.4
+    },
+    {
+      "case_id": "ai-search-routing",
+      "query": "how does ai search routing work",
+      "tags": ["weak-real"],
+      "expect_within_top_k": 8,
+      "expect_min_score": 0.35
+    },
+    {
+      "case_id": "gibberish-1",
+      "query": "asdfqwer zxcvbnm qwertyuiop florbnax",
+      "tags": ["gibberish"],
+      "expect_no_strong_hit": true,
+      "expect_max_score": 0.45
+    }
+  ]
+}

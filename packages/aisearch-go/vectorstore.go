@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -25,6 +27,52 @@ const (
 	denseVectorName  = "dense"
 	sparseVectorName = "sparse"
 )
+
+// engineSchemaVersion is the on-disk schema generation recorded on the meta
+// sentinel. Bump it when a change to the point/payload layout requires a
+// deliberate re-index of every existing collection.
+const engineSchemaVersion = 1
+
+// Meta-sentinel reserved keys. A single sentinel point per collection records
+// the embedding model + vector layout the collection was created with, so a
+// future model/dimension swap fails loudly instead of silently embedding into
+// an incompatible collection. The sentinel is excluded from search (Query) and
+// from reconcile drift (ScrollIDs) by the presence of metaMarkerKey, so it is
+// invisible to consumers and never ghost-deleted.
+const (
+	metaMarkerKey        = "__aisearch_meta__" // bool true; marks the sentinel
+	metaModelKey         = "model"
+	metaDenseSizeKey     = "dense_size"
+	metaDenseDistanceKey = "dense_distance"
+	metaSchemaVersionKey = "engine_schema_version"
+	// metaIDPrefix derives the deterministic sentinel point ID from the
+	// collection name; reserved so it can never collide with a real source key.
+	metaIDPrefix = "__aisearch_meta__:"
+)
+
+// ErrCollectionSchemaMismatch is the sentinel wrapped by every schema-guard
+// failure; callers test it with errors.Is. The wrapping
+// *CollectionSchemaMismatchError carries the offending field + remediation.
+var ErrCollectionSchemaMismatch = errors.New("aisearch: collection schema mismatch")
+
+// CollectionSchemaMismatchError reports that a pre-existing collection's layout
+// disagrees with the requested CollectionSpec. It never auto-drops — the fix is
+// operator-initiated (data loss must be deliberate).
+type CollectionSchemaMismatchError struct {
+	Collection string
+	Field      string
+	Want       string
+	Got        string
+}
+
+func (e *CollectionSchemaMismatchError) Error() string {
+	return fmt.Sprintf(
+		"aisearch: collection %q schema mismatch on %s (want %q, got %q); drop the collection and reindex (this is a deliberate, data-losing operation)",
+		e.Collection, e.Field, e.Want, e.Got,
+	)
+}
+
+func (e *CollectionSchemaMismatchError) Unwrap() error { return ErrCollectionSchemaMismatch }
 
 // httpDoer is the minimal HTTP surface the store needs; injectable for tests.
 type httpDoer interface {
@@ -104,9 +152,179 @@ type createCollectionRequest struct {
 	SparseVectors map[string]sparseVectorParams `json:"sparse_vectors,omitempty"`
 }
 
+// --- schema inspection ------------------------------------------------------
+
+// collectionInfoResponse decodes the parts of GET /collections/<name> the
+// schema guard needs: the dense vector params (named-map or legacy single) and
+// the sparse-vector map.
+type collectionInfoResponse struct {
+	Result struct {
+		Config struct {
+			Params struct {
+				Vectors       json.RawMessage            `json:"vectors"`
+				SparseVectors map[string]json.RawMessage `json:"sparse_vectors"`
+			} `json:"params"`
+		} `json:"config"`
+	} `json:"result"`
+}
+
+// collectionLayout is the normalized view of an existing collection's vector
+// schema used by checkLayout.
+type collectionLayout struct {
+	hasDense      bool
+	denseSize     int
+	denseDistance string
+	unnamedDense  bool // a legacy single unnamed vector is present
+	hasSparse     bool
+}
+
+// inspect fetches the collection and parses its vector layout. found=false
+// (no error) when the collection does not exist (404).
+func (v *qdrantVectorStore) inspect(ctx context.Context) (collectionLayout, bool, error) {
+	endpoint, err := v.endpoint("")
+	if err != nil {
+		return collectionLayout{}, false, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return collectionLayout{}, false, fmt.Errorf("failed to create request: %w", err)
+	}
+	resp, err := v.do(req)
+	if err != nil {
+		return collectionLayout{}, false, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return collectionLayout{}, false, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return collectionLayout{}, false, fmt.Errorf("qdrant collection info returned status %d", resp.StatusCode)
+	}
+	var decoded collectionInfoResponse
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return collectionLayout{}, false, fmt.Errorf("failed to decode collection info: %w", err)
+	}
+	layout := parseVectorLayout(decoded.Result.Config.Params.Vectors)
+	layout.hasSparse = func() bool {
+		_, ok := decoded.Result.Config.Params.SparseVectors[sparseVectorName]
+		return ok
+	}()
+	return layout, true, nil
+}
+
+// parseVectorLayout normalizes Qdrant's vectors field, which is either a
+// named-vector map ({"dense":{"size":…}}) or — for a legacy collection — a
+// single unnamed vector object ({"size":…,"distance":…}).
+func parseVectorLayout(raw json.RawMessage) collectionLayout {
+	var layout collectionLayout
+	if len(raw) == 0 {
+		return layout
+	}
+	// Try the named-vector map first.
+	var named map[string]namedVectorParams
+	if err := json.Unmarshal(raw, &named); err == nil && len(named) > 0 {
+		if dp, ok := named[denseVectorName]; ok && dp.Size > 0 {
+			layout.hasDense = true
+			layout.denseSize = dp.Size
+			layout.denseDistance = dp.Distance
+		}
+		return layout
+	}
+	// Fall back to a single unnamed vector (the legacy trap).
+	var single namedVectorParams
+	if err := json.Unmarshal(raw, &single); err == nil && single.Size > 0 {
+		layout.unnamedDense = true
+		layout.denseSize = single.Size
+		layout.denseDistance = single.Distance
+	}
+	return layout
+}
+
+// --- meta sentinel ----------------------------------------------------------
+
+// metaPointID is the deterministic sentinel point ID for this collection.
+func (v *qdrantVectorStore) metaPointID() string {
+	return PointIDFor(metaIDPrefix, v.collection, 0, 1)
+}
+
+// writeMetaSentinel upserts the per-collection meta sentinel recording the
+// embedding model + vector layout. The dense vector is a unit placeholder (so a
+// Cosine collection never sees a zero vector); the sentinel is excluded from
+// search and reconcile by metaMarkerKey.
+func (v *qdrantVectorStore) writeMetaSentinel(ctx context.Context, spec CollectionSpec, size int, distance string) error {
+	dense := make([]float64, size)
+	if size > 0 {
+		dense[0] = 1
+	}
+	payload := map[string]any{
+		metaMarkerKey:        true,
+		metaModelKey:         strings.TrimSpace(spec.Model),
+		metaDenseSizeKey:     size,
+		metaDenseDistanceKey: distance,
+		metaSchemaVersionKey: engineSchemaVersion,
+	}
+	return v.Upsert(ctx, Point{ID: v.metaPointID(), Dense: dense, Payload: payload})
+}
+
+type pointRetrieveResponse struct {
+	Result struct {
+		Payload map[string]any `json:"payload"`
+	} `json:"result"`
+}
+
+// readMetaModel retrieves the sentinel's recorded model. ok=false when no
+// sentinel exists (a pre-guard collection).
+func (v *qdrantVectorStore) readMetaModel(ctx context.Context) (string, bool, error) {
+	endpoint, err := v.endpoint("/points/" + url.PathEscape(v.metaPointID()))
+	if err != nil {
+		return "", false, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to create request: %w", err)
+	}
+	resp, err := v.do(req)
+	if err != nil {
+		return "", false, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return "", false, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", false, fmt.Errorf("qdrant point retrieve returned status %d", resp.StatusCode)
+	}
+	var decoded pointRetrieveResponse
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return "", false, fmt.Errorf("failed to decode point retrieve: %w", err)
+	}
+	if decoded.Result.Payload == nil {
+		return "", false, nil
+	}
+	model, _ := decoded.Result.Payload[metaModelKey].(string)
+	return model, true, nil
+}
+
 // EnsureCollection creates the collection (named dense vector, optional named
 // sparse vector with idf modifier) if it does not already exist. Idempotent.
+//
+// When the collection already exists, its on-disk layout is inspected and
+// compared against spec: a named "dense" vector of the right size/distance,
+// sparse presence matching spec.Sparse, and — when both the sentinel and
+// spec.Model are present — the recorded embedding model. Any disagreement
+// returns a *CollectionSchemaMismatchError (errors.Is ErrCollectionSchemaMismatch)
+// rather than silently upserting named-vector points into an incompatible
+// collection. The guard never auto-drops; remediation is operator-initiated.
 func (v *qdrantVectorStore) EnsureCollection(ctx context.Context, spec CollectionSpec) error {
+	// CollectionSpec.Name is an optional cross-check; the store (NewVectorStore)
+	// owns the authoritative collection name. A non-empty disagreement is a
+	// mis-target (the adopter set spec.Name expecting it to choose the
+	// collection) — fail loudly at boot rather than silently operating on
+	// v.collection.
+	if name := strings.TrimSpace(spec.Name); name != "" && name != v.collection {
+		return fmt.Errorf("aisearch: CollectionSpec.Name %q != store collection %q; the store (NewVectorStore) owns the collection name", spec.Name, v.collection)
+	}
+
 	size := spec.DenseSize
 	if size <= 0 {
 		size = DefaultVectorSize
@@ -115,27 +333,19 @@ func (v *qdrantVectorStore) EnsureCollection(ctx context.Context, spec Collectio
 	if distance == "" {
 		distance = DefaultDenseDistance
 	}
+
+	layout, found, err := v.inspect(ctx)
+	if err != nil {
+		return err
+	}
+	if found {
+		return v.checkLayout(ctx, spec, size, distance, layout)
+	}
+
 	endpoint, err := v.endpoint("")
 	if err != nil {
 		return err
 	}
-
-	getReq, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-	getResp, err := v.do(getReq)
-	if err != nil {
-		return err
-	}
-	_ = getResp.Body.Close()
-	if getResp.StatusCode == http.StatusOK {
-		return nil
-	}
-	if getResp.StatusCode != http.StatusNotFound {
-		return fmt.Errorf("qdrant collection info returned status %d", getResp.StatusCode)
-	}
-
 	create := createCollectionRequest{
 		Vectors: map[string]namedVectorParams{
 			denseVectorName: {Size: size, Distance: distance},
@@ -167,6 +377,63 @@ func (v *qdrantVectorStore) EnsureCollection(ctx context.Context, spec Collectio
 	if putResp.StatusCode != http.StatusOK {
 		raw, _ := io.ReadAll(putResp.Body)
 		return fmt.Errorf("qdrant create collection returned status %d: %s", putResp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	// Record the model + layout on the meta sentinel so a future model/dimension
+	// swap is caught by the guard above instead of corrupting this collection.
+	return v.writeMetaSentinel(ctx, spec, size, distance)
+}
+
+// checkLayout compares a discovered layout against the requested spec and
+// returns a *CollectionSchemaMismatchError on the first disagreement. When the
+// vector layout is compatible but the collection carries no meta sentinel (e.g.
+// one created before this guard shipped), the sentinel is backfilled with
+// spec.Model so the model guard is armed for the next EnsureCollection — a
+// migrated collection no longer leaves the guard permanently disarmed.
+func (v *qdrantVectorStore) checkLayout(ctx context.Context, spec CollectionSpec, size int, distance string, layout collectionLayout) error {
+	mismatch := func(field, want, got string) error {
+		return &CollectionSchemaMismatchError{Collection: v.collection, Field: field, Want: want, Got: got}
+	}
+	if layout.unnamedDense {
+		return mismatch("dense vector", "named \""+denseVectorName+"\" vector", "legacy unnamed vector")
+	}
+	if !layout.hasDense {
+		return mismatch("dense vector", "named \""+denseVectorName+"\" vector", "absent")
+	}
+	if layout.denseSize != size {
+		return mismatch("dense.size", fmt.Sprintf("%d", size), fmt.Sprintf("%d", layout.denseSize))
+	}
+	if layout.denseDistance != "" && !strings.EqualFold(layout.denseDistance, distance) {
+		return mismatch("dense.distance", distance, layout.denseDistance)
+	}
+	if layout.hasSparse != spec.Sparse {
+		return mismatch("sparse vector", fmt.Sprintf("%t", spec.Sparse), fmt.Sprintf("%t", layout.hasSparse))
+	}
+	// Model guard. When the caller declared a model:
+	//   - sentinel present + different model → mismatch (the WS1-round-1 guard);
+	//   - sentinel present + matching model  → pass;
+	//   - sentinel ABSENT → backfill it. A collection migrated in before the
+	//     guard shipped (or recreated under the named-vector layout with point
+	//     IDs preserved) has no sentinel, so the guard was disarmed: a future
+	//     model swap would silently embed into an incompatible collection. The
+	//     layout has already been validated as compatible above, so we record
+	//     spec.Model on a fresh sentinel — arming the guard for next time. This
+	//     only ADDS the reserved meta point; it never deletes or re-embeds, so
+	//     the never-auto-drop contract holds. (Risks §11: a layout-compatible
+	//     sentinel-less collection is presumed to have been embedded with
+	//     spec.Model — certain for cli-health's single-model corpus; foreign
+	//     forks should drop+recreate. Logged loudly so an operator can intervene.)
+	if want := strings.TrimSpace(spec.Model); want != "" {
+		got, ok, err := v.readMetaModel(ctx)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			log.Printf("[aisearch] backfilled meta sentinel for %s: model=%s", v.collection, want)
+			return v.writeMetaSentinel(ctx, spec, size, distance)
+		}
+		if got != "" && !strings.EqualFold(got, want) {
+			return mismatch("embedding model", want, got)
+		}
 	}
 	return nil
 }
@@ -309,6 +576,9 @@ func (v *qdrantVectorStore) Query(ctx context.Context, q HybridQuery) ([]SearchR
 	}
 	out := make([]SearchResult, 0, len(decoded.Result.Points))
 	for _, p := range decoded.Result.Points {
+		if _, isMeta := p.Payload[metaMarkerKey]; isMeta {
+			continue // never surface the schema sentinel as a search hit
+		}
 		out = append(out, SearchResult{ID: stringifyID(p.ID), Score: p.Score, Payload: p.Payload})
 	}
 	return out, nil
@@ -339,13 +609,23 @@ type countResponse struct {
 	} `json:"result"`
 }
 
-// CountPoints returns the exact number of points in the collection.
+// CountPoints returns the exact number of real points in the collection. The
+// meta sentinel (metaMarkerKey) is excluded via a must_not filter so the count
+// matches what Query/ScrollIDs surface (which post-filter the sentinel out);
+// without this the reported count is off by one.
 func (v *qdrantVectorStore) CountPoints(ctx context.Context) (int, error) {
 	endpoint, err := v.endpoint("/points/count")
 	if err != nil {
 		return 0, err
 	}
-	body, err := json.Marshal(map[string]any{"exact": true})
+	body, err := json.Marshal(map[string]any{
+		"exact": true,
+		"filter": map[string]any{
+			"must_not": []map[string]any{
+				{"key": metaMarkerKey, "match": map[string]any{"value": true}},
+			},
+		},
+	})
 	if err != nil {
 		return 0, fmt.Errorf("failed to marshal count request: %w", err)
 	}
@@ -398,7 +678,7 @@ func (v *qdrantVectorStore) ScrollIDs(ctx context.Context) (map[string]ScrollIte
 	for {
 		reqObj := scrollRequest{
 			Limit:       scrollPageLimit,
-			WithPayload: []string{payloadHashKey, sourceIDKey, sourceHashKey, chunkTotalKey},
+			WithPayload: []string{payloadHashKey, sourceIDKey, sourceHashKey, chunkTotalKey, metaMarkerKey},
 			WithVectors: false,
 			Offset:      offset,
 		}
@@ -435,6 +715,9 @@ func (v *qdrantVectorStore) ScrollIDs(ctx context.Context) (map[string]ScrollIte
 			id := stringifyID(p.ID)
 			if id == "" {
 				continue
+			}
+			if _, isMeta := p.Payload[metaMarkerKey]; isMeta {
+				continue // sentinel: no source_id, excluded from drift/ghost logic
 			}
 			hash, _ := p.Payload[payloadHashKey].(string)
 			srcID, _ := p.Payload[sourceIDKey].(string)

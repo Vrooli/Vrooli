@@ -337,8 +337,22 @@ const literalSelectors = {
     routing: "search-routing",
     statusBar: "search-status-bar",
   },
+  evals: {
+    panel: "evals-panel",
+    loading: "evals-loading",
+    error: "evals-error",
+    suiteList: "evals-suite-list",
+    noSuites: "evals-no-suites",
+    selectSuite: "evals-select-suite",
+    runHistory: "evals-run-history",
+    noRuns: "evals-no-runs",
+    trend: "evals-trend",
+    compareButton: "evals-compare-button",
+    compareResult: "evals-compare-result",
+  },
   pages: {
     search: "page-search",
+    evals: "page-evals",
     dashboard: "page-dashboard",
     settings: "page-settings",
   },
@@ -368,12 +382,12 @@ const dynamicSelectorDefinitions = {
     sidebarLink: defineDynamicSelector({
       description: "Sidebar navigation link by canonical nav key",
       testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["search", "dashboard", "settings"] as const } },
+      params: { key: { type: "enum", values: ["search", "evals", "dashboard", "settings"] as const } },
     }),
     bottomNavLink: defineDynamicSelector({
       description: "Bottom-nav link by canonical nav key",
       testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["search", "dashboard", "settings"] as const } },
+      params: { key: { type: "enum", values: ["search", "evals", "dashboard", "settings"] as const } },
     }),
   },
   search: {
@@ -386,6 +400,23 @@ const dynamicSelectorDefinitions = {
       description: "Federation-status provider chip, by provider_id",
       testIdPattern: "search-provider-chip-${providerId}",
       params: { providerId: { type: "string" } },
+    }),
+  },
+  evals: {
+    suiteItem: defineDynamicSelector({
+      description: "Eval suite list item, by suite_id",
+      testIdPattern: "evals-suite-${suiteId}",
+      params: { suiteId: { type: "string" } },
+    }),
+    runRow: defineDynamicSelector({
+      description: "Eval run-history row, by run_id",
+      testIdPattern: "evals-run-${runId}",
+      params: { runId: { type: "string" } },
+    }),
+    runSelect: defineDynamicSelector({
+      description: "Eval run compare-select checkbox, by run_id",
+      testIdPattern: "evals-run-select-${runId}",
+      params: { runId: { type: "string" } },
     }),
   },
   settingsPage: {

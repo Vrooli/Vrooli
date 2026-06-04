@@ -226,6 +226,52 @@ Located at `initialization/configuration/app-config.json`:
 }
 ```
 
+## Discover Ranking & Budget Configuration
+
+`prompt-manager discover` exposes a small control surface for how it composes
+skill results in **curated (plan-authoring) mode**. See
+[`reference/discovery-pipeline.md`](discovery-pipeline.md) for the full ranking
+model (invariants I1–I8) these levers govern.
+
+### Ranking levers — `store/config/discover-ranking.json`
+
+Git-tracked and hot-loadable. Missing file → the defaults below.
+
+```json
+{
+  "topicGate": 0.55,
+  "highConfidenceBar": 0.65,
+  "maxIndividualsAbovePack": 3,
+  "topicSkillCap": 12
+}
+```
+
+| Lever | Default | Valid range | What it trades off |
+|---|---|---|---|
+| `topicGate` | 0.55 | `(AI_SEARCH_THRESHOLD, 1]` | How strong a topic must score for its whole skill **pack** to be force-included. Higher → fewer, more-relevant packs. Must exceed the skill threshold (a pack is a bigger commitment than one skill). |
+| `highConfidenceBar` | 0.65 | `(0, 1]` | How strong a *direct* skill match must score to rank **above** the pack block. Higher → packs dominate the top; lower → strong direct matches surface first. |
+| `maxIndividualsAbovePack` | 3 | `≥ 0` | Caps how many high-confidence direct matches sit above the pack block. (Ignored when no pack is selected — pure score ranking.) |
+| `topicSkillCap` | 12 | `> 0` | Caps the total skills all selected packs contribute. Packs are added whole in relevance order; an overflowing pack is skipped so a smaller, more-relevant one can fit. |
+
+Levers are validated on load (bounds + `topicGate > AI_SEARCH_THRESHOLD`); an
+invalid file falls back to defaults. Tune **only from `discovery-metrics`**
+(see the rubric in the discovery-pipeline doc), not from a hunch, and record any
+change in a `swarm-manager records create --kind execute` entry.
+
+**Levers deliberately *not* exposed:** the similarity threshold (it is
+`AI_SEARCH_THRESHOLD`, an env var — §Environment Variables) and the per-result
+budget unit (always the skill's own `SKILL.md` size — no transitive budget knob).
+
+### Complexity budgets — `store/config/budgets.json`
+
+Per-complexity character budgets for the returned set (git-tracked, hot-loadable;
+missing file → small code defaults). Tiers must be positive, ascending, and
+≤ 200,000.
+
+```json
+{ "minor": 50000, "moderate": 75000, "major": 100000, "architectural": 150000 }
+```
+
 ## Graph Health Configuration
 
 Graph health scoring controls are persisted in:

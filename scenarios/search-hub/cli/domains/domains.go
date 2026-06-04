@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"search-hub/cli/domains/evals"
 	"search-hub/cli/domains/federation"
 	"search-hub/cli/domains/insights"
 	"search-hub/cli/domains/providers"
@@ -55,5 +56,9 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{providersGroup, queryGroup, federationGroup, insightsGroup}, nil
+	evalsGroup, err := evals.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{providersGroup, queryGroup, federationGroup, insightsGroup, evalsGroup}, nil
 }

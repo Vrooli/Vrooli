@@ -382,6 +382,32 @@ func (h *Handlers) DiscoveryGaps(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// DiscoveryMetrics handles GET /api/v1/discovery-metrics - aggregate discovery
+// telemetry (call volume, returned-count distribution, over-budget and
+// threshold-clipping rates, budget-hog skills) from the per-call telemetry
+// window. This is the read surface that makes threshold/budget tuning
+// evidence-based rather than guessed.
+func (h *Handlers) DiscoveryMetrics(w http.ResponseWriter, r *http.Request) {
+	window, err := parseSinceWindow(r.URL.Query().Get("since"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	typeFilter := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("type")))
+	if typeFilter != "" && normalizeDiscoverType(typeFilter) == "" {
+		http.Error(w, "type must be one of: skill, action, all", http.StatusBadRequest)
+		return
+	}
+	report, err := h.service.DiscoveryMetrics(window, typeFilter)
+	if err != nil {
+		log.Printf("[aisearch] DiscoveryMetrics error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(report)
+}
+
 // GetBudgetConfig handles GET /api/v1/config/budgets.
 func (h *Handlers) GetBudgetConfig(w http.ResponseWriter, r *http.Request) {
 	if h.budgetConfigStore == nil {

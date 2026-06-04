@@ -8,6 +8,7 @@
     "bottomNavLabel": "التنقل الرئيسي (الجوال)",
     "nav": {
       "search": "بحث",
+      "evals": "التقييمات",
       "dashboard": "لوحة التحكم",
       "settings": "الإعدادات"
     },
@@ -35,6 +36,10 @@
     "search": {
       "title": "بحث",
       "description": "استعلام واحد عبر كل مجموعة بيانات مسجّلة — يصنّف الموجّه ويوزّع ويعيد الترتيب في قائمة واحدة."
+    },
+    "evals": {
+      "title": "التقييمات",
+      "description": "خطوط أساس لجودة البحث لكل مزوّد: مجموعات ذهبية مسجّلة، وسجلّ تشغيل موسوم، ومقارنة جنبًا إلى جنب بين عمليات التشغيل. تسميات لينة وليست بوابة نجاح/فشل."
     }
   },
   "health": {
@@ -107,5 +112,36 @@
     "unavailable": "غير متاح",
     "statusError": "الحالة غير متاحة",
     "providersReachable": "{{reachable}}/{{total}} مزوّدين يمكن الوصول إليهم"
+  },
+  "evals": {
+    "suitesHeading": "المجموعات",
+    "loading": "جارٍ التحميل…",
+    "error": "تعذّر تحميل التقييمات. تأكّد من تشغيل السيناريو عبر `vrooli scenario start`.",
+    "noSuites": "لا توجد مجموعات تقييم مسجّلة بعد.",
+    "suiteMeta": "{{provider}} · {{cases}} حالة",
+    "selectSuite": "اختر مجموعة لعرض سجلّ تشغيلها.",
+    "runsHeading": "سجلّ التشغيل",
+    "noRuns": "لا توجد عمليات تشغيل بعد. شغّلها من سطر الأوامر: search-hub evals run <suite> --tag <tag>.",
+    "trendHeading": "الاتجاه (من الأقدم إلى الأحدث)",
+    "trendStrong": "أعلى نتيجة للاستعلامات القوية",
+    "trendGibberish": "أقصى نتيجة للاستعلامات العبثية",
+    "runMet": "{{met}}/{{cases}} مُحقّقة",
+    "runConfig": "مُعيد الترتيب {{reranker}}",
+    "casesHeading": "الحالات",
+    "colCase": "الحالة",
+    "colOutcome": "النتيجة",
+    "colTop": "أعلى نتيجة",
+    "colRank": "الترتيب",
+    "compareHint": "حدّد عمليتي تشغيل للمقارنة.",
+    "compareButton": "قارن المحدّد",
+    "compareHeading": "الفرق لكل حالة (A ← B)",
+    "compareLegend": "A = {{a}} ← B = {{b}}",
+    "compareColA": "A",
+    "compareColB": "B",
+    "colDelta": "Δ الأعلى",
+    "viewRun": "عرض الحالات",
+    "hideRun": "إخفاء الحالات",
+    "tagLabel": "وسم {{tag}}",
+    "untagged": "بدون وسم"
   }
 }

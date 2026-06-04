@@ -7,6 +7,7 @@ Required reading:
 
 Optional reading:
 - `path:VISION.md` — the *why* behind the loop.
+- `path:docs/concepts/PAID_FEATURES.md` — the free / metered / gated contract, for cluster 5 (monetization).
 - `prompt-manager skill read morning-vision-walk` — the same lens applied at the portfolio level.
 
 ---
@@ -17,9 +18,9 @@ Apply the lens with **depth scaled to the work**. Do not run a four-cluster revi
 
 ```
 What kind of work is this?
-├─ New scenario                     → apply ALL FOUR clusters; record the answers in the plan
-├─ Significant refactor / repurpose → apply ALL FOUR; re-check role + interfaces may have shifted
-├─ New feature on a scenario        → clusters 1 (interfaces) + 3 (compound value)
+├─ New scenario                     → apply ALL FIVE clusters; record the answers in the plan
+├─ Significant refactor / repurpose → apply ALL FIVE; re-check role + interfaces may have shifted
+├─ New feature on a scenario        → clusters 1 (interfaces) + 3 (compound value); + 5 if it is a paid/expensive feature
 ├─ Small feature / polish           → cluster 1 only (does "done" mean a new interface obligation?)
 └─ Bugfix / chore                   → skip; note fit only if the fix reveals a missing interface/seam
 ```
@@ -45,6 +46,8 @@ What kind of work is this?
 - Skill discovery for the plan — that is `plan-skill-discovery`.
 - Editing the canonical taxonomy itself — that is a change to `path:docs/concepts/ECOSYSTEM.md` (operator-reviewed).
 - Portfolio prioritization — that is `morning-vision-walk`.
+- Monetization *strategy* (whether to monetize, pricing, bundle membership) — operator-curated `path:docs/monetization/` canon; this skill only routes there, it never decides or edits it.
+- Paid-feature *wiring* detail — `path:docs/concepts/PAID_FEATURES.md` + `prompt-manager skill read bundle-integration-steer`.
 
 ---
 
@@ -58,6 +61,7 @@ Walk these in order. Each row names the question and what a *good* answer looks 
 | **2. Role & multiplier** | Which functional role does this play, and is there a cheap way to raise its multiplier? | The role (meta / interface-enabler / integration / product) **and** at least a quick check for: an LLM step that could become deterministic code or a `prompt-manager action`; a capability worth exposing instead of burying. |
 | **3. Compound value** | Is it built to be extended and composed later? What seams make that cheap? | The concrete seam(s) (data surface, declared widgets/tools, stable CLI) that let a *future* scenario reuse this one instead of re-implementing it. |
 | **4. Self-improvement** | Could this cheaply advance a Vrooli meta-capability (engineering, testing, deployment, monetization, upkeep, or operator/user interaction)? | Either a concrete meta-capability it advances, or an explicit "no — pure product," which is a valid answer. |
+| **5. Monetization & bundle fit** | How does this earn its keep, and which bundle does it serve? | The bundle (business / lifestyle) + headliner-or-depth, **and** whether each capability is free / metered / gated. Strategy (whether to monetize, pricing) is deferred to canon — routed, not decided here. |
 
 #### The interface "done" map (cluster 1 detail)
 
@@ -68,6 +72,19 @@ Walk these in order. Each row names the question and what a *good* answer looks 
 | Voice | Voice features wired into the actual consuming scenarios, not merely available |
 | Programmatic | A clean, reusable CLI / Connect surface — assume other scenarios will call it |
 | Embodied / embedded | A connector seam; do not hand-roll the outbound integration inside the scenario |
+
+#### Monetization routing (cluster 5 detail)
+
+This skill **routes**, it does not decide strategy. Read the canon, pick the integration pattern:
+
+| Need | Where (read-only — never edit canon) |
+|---|---|
+| Which bundle / SKU role | `path:docs/monetization/catalogs/CATALOG.md` + `scenario-sku-map.json` |
+| Monetization posture / "should we even charge" | `path:docs/monetization/strategy/STRATEGY.md`; portfolio call → `morning-vision-walk` |
+| Free vs **metered** vs **gated**, and how to wire each | `path:docs/concepts/PAID_FEATURES.md` |
+| Wiring the bundle/entitlement integration | `prompt-manager skill read bundle-integration-steer` |
+
+Two hard rules carried from `PAID_FEATURES.md`: never gate a capability a self-hoster could run with their own keys (keep BYOK valid); route metered/gated features through LPBS instead of reinventing credits/entitlements.
 
 ---
 
@@ -98,10 +115,11 @@ When this skill is applied during planning, you **must** produce:
 
 You **should** also:
 - Note any cheap multiplier raise spotted in cluster 2 (LLM→action/code, capability to expose).
+- When cluster 5 applies, name the **bundle** and the **free / metered / gated** mode per chargeable capability — routing to `path:docs/concepts/PAID_FEATURES.md`, never deciding pricing.
 - Keep the output to a few lines — this is a lens, not a deliverable. The depth tree in §1 governs how much to write.
 
 You **must not:**
-- Run all four clusters on work the §1 tree says to skip.
+- Run all five clusters on work the §1 tree says to skip.
 - Invent interface or voice obligations for a scenario that genuinely has none — an honest "pure product, direct UI only" is a complete answer.
 - Restate the taxonomy from `path:docs/concepts/ECOSYSTEM.md` in the plan; cite it and apply it.
 

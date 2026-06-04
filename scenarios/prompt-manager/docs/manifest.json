@@ -126,6 +126,12 @@
           "audience": ["developers", "operators"]
         },
         {
+          "path": "reference/discovery-pipeline.md",
+          "title": "Discovery Pipeline",
+          "description": "How discover finds Required Reading: threshold, budget unit/tiers, trimming, telemetry, and the tuning rubric",
+          "audience": ["developers"]
+        },
+        {
           "path": "reference/heartbeat-api.md",
           "title": "Heartbeat API",
           "description": "REST API endpoints for heartbeat configuration and execution",

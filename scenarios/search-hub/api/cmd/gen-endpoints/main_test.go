@@ -24,6 +24,13 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 		{Name: "query", Description: "Federated search", EndpointID: "routing_query"},
 		{Name: "federation", Description: "Federation status", EndpointID: "routing_status"},
 		{Name: "insights", Description: "Federation telemetry insights", EndpointID: "metrics_insights"},
+		{Name: "evals register", Description: "Register an eval suite", EndpointID: "evals_register_suite"},
+		{Name: "evals list", Description: "List eval suites", EndpointID: "evals_list_suites"},
+		{Name: "evals show", Description: "Show an eval suite", EndpointID: "evals_get_suite"},
+		{Name: "evals run", Description: "Run an eval suite", EndpointID: "evals_run_suite"},
+		{Name: "evals runs", Description: "List eval runs", EndpointID: "evals_list_runs"},
+		{Name: "evals show-run", Description: "Show an eval run", EndpointID: "evals_get_run"},
+		{Name: "evals compare", Description: "Compare two eval runs", EndpointID: "evals_compare_runs"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -54,8 +61,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 7 {
-		t.Errorf("cli_commands count = %d, want 7", len(got.CLICommands))
+	if len(got.CLICommands) != 14 {
+		t.Errorf("cli_commands count = %d, want 14", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

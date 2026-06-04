@@ -43,29 +43,33 @@ class SearchResult(_message.Message):
     def __init__(self, origin: _Optional[str] = ..., group: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., score: _Optional[float] = ..., source: _Optional[str] = ...) -> None: ...
 
 class SearchResponse(_message.Message):
-    __slots__ = ("results", "mode_used")
+    __slots__ = ("results", "mode_used", "reranker")
     RESULTS_FIELD_NUMBER: _ClassVar[int]
     MODE_USED_FIELD_NUMBER: _ClassVar[int]
+    RERANKER_FIELD_NUMBER: _ClassVar[int]
     results: _containers.RepeatedCompositeFieldContainer[SearchResult]
     mode_used: Mode
-    def __init__(self, results: _Optional[_Iterable[_Union[SearchResult, _Mapping]]] = ..., mode_used: _Optional[_Union[Mode, str]] = ...) -> None: ...
+    reranker: str
+    def __init__(self, results: _Optional[_Iterable[_Union[SearchResult, _Mapping]]] = ..., mode_used: _Optional[_Union[Mode, str]] = ..., reranker: _Optional[str] = ...) -> None: ...
 
 class StatusRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
 class StatusResponse(_message.Message):
-    __slots__ = ("available", "ollama", "qdrant", "indexed_count", "last_reconcile_at", "last_reconcile_outcome")
+    __slots__ = ("available", "ollama", "qdrant", "indexed_count", "last_reconcile_at", "last_reconcile_outcome", "reranker")
     AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     OLLAMA_FIELD_NUMBER: _ClassVar[int]
     QDRANT_FIELD_NUMBER: _ClassVar[int]
     INDEXED_COUNT_FIELD_NUMBER: _ClassVar[int]
     LAST_RECONCILE_AT_FIELD_NUMBER: _ClassVar[int]
     LAST_RECONCILE_OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    RERANKER_FIELD_NUMBER: _ClassVar[int]
     available: bool
     ollama: bool
     qdrant: bool
     indexed_count: int
     last_reconcile_at: str
     last_reconcile_outcome: str
-    def __init__(self, available: _Optional[bool] = ..., ollama: _Optional[bool] = ..., qdrant: _Optional[bool] = ..., indexed_count: _Optional[int] = ..., last_reconcile_at: _Optional[str] = ..., last_reconcile_outcome: _Optional[str] = ...) -> None: ...
+    reranker: str
+    def __init__(self, available: _Optional[bool] = ..., ollama: _Optional[bool] = ..., qdrant: _Optional[bool] = ..., indexed_count: _Optional[int] = ..., last_reconcile_at: _Optional[str] = ..., last_reconcile_outcome: _Optional[str] = ..., reranker: _Optional[str] = ...) -> None: ...

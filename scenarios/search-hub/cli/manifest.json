@@ -110,6 +110,113 @@
           }
         }
       ]
+    },
+    {
+      "name": "evals",
+      "description": "Register provider-owned golden suites and run them to baseline search quality over time (eval domain)",
+      "commands": [
+        {
+          "name": "register",
+          "description": "Register (upsert) an eval suite as JSON, or @path to a JSON file",
+          "flags": [
+            { "name": "suite", "required": true, "description": "EvalSuite as JSON, or @path to a JSON file" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EvalService", "method": "RegisterSuite" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List registered eval suites (optional --provider filter)",
+          "flags": [
+            { "name": "provider", "description": "Filter by provider_id (e.g. cli-health.commands)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EvalService", "method": "ListSuites" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one eval suite by suite_id",
+          "positionals": [
+            { "name": "suite_id", "required": true, "description": "Suite id, e.g. cli-health.commands.primary" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EvalService", "method": "GetSuite" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "run",
+          "description": "Run an eval suite against its provider and store a tagged run",
+          "positionals": [
+            { "name": "suite_id", "required": true, "description": "Suite id to run" }
+          ],
+          "flags": [
+            { "name": "tag", "description": "Free-text experiment label stored with the run (e.g. rerank-off, cross-encoder)" },
+            { "name": "limit", "description": "Per-case fetch depth (0 = a sensible default)" },
+            { "name": "assert", "bool": true, "description": "Opt-in CI gate: exit non-zero if any case is below_expectation or unexpected_hit (the run is still stored)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EvalService", "method": "RunSuite" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "runs",
+          "description": "List a suite's run history (newest first; --tag/--limit filters)",
+          "positionals": [
+            { "name": "suite_id", "required": true, "description": "Suite id whose runs to list" }
+          ],
+          "flags": [
+            { "name": "tag", "description": "Filter to runs with this experiment tag" },
+            { "name": "limit", "description": "Cap to the N most recent runs (0 = all)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EvalService", "method": "ListRuns" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "show-run",
+          "description": "Show one immutable eval run by run_id",
+          "positionals": [
+            { "name": "run_id", "required": true, "description": "Run id, e.g. a UUID returned by `evals run`" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EvalService", "method": "GetRun" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "compare",
+          "description": "Compare two eval runs (per-case outcome + score delta) — the A/B surface",
+          "positionals": [
+            { "name": "run_a", "required": true, "description": "First run id (baseline)" },
+            { "name": "run_b", "required": true, "description": "Second run id (experiment)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EvalService", "method": "CompareRuns" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
     }
   ],
   "omitted": []

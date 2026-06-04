@@ -76,6 +76,7 @@
 
   "POST /discover": {"status": "covered", "cli": "discover"},
   "GET /discovery-gaps": {"status": "covered", "cli": "discovery-gaps"},
+  "GET /discovery-metrics": {"status": "covered", "cli": "discovery-metrics"},
 
   "GET /config/budgets": {"status": "audit-pending", "reason": "No dedicated budgets get/put subcommand visible — likely surfaced via discover or admin tooling"},
   "PUT /config/budgets": {"status": "audit-pending", "reason": "See above"},

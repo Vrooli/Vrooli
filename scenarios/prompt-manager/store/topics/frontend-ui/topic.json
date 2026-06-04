@@ -1,0 +1,22 @@
+{
+  "kind": "topic",
+  "schemaVersion": 1,
+  "id": "frontend-ui",
+  "name": "Frontend / UI",
+  "description": "Frontend and UI work: React coherence and stability, Vrooli UI interop, UX and experience architecture, navigation integrity, design-system migration, and internationalization.",
+  "parentTopicId": "development",
+  "skills": [
+    "react-coherence",
+    "react-stability",
+    "vrooli-ui-interop",
+    "ux",
+    "experience-architecture-audit",
+    "navigation-integrity-audit",
+    "ui-design-system-migration",
+    "ui-i18n-adoption"
+  ],
+  "status": "active",
+  "revision": 1,
+  "createdAt": "2026-06-04T17:35:21Z",
+  "updatedAt": "2026-06-04T17:35:21Z"
+}

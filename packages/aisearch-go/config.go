@@ -26,6 +26,16 @@ type Config struct {
 	QdrantURL        string
 	QdrantAPIKey     string
 	EmbedModel       string
+	// RelevanceMaxGap / RelevanceHardFloor tune ApplyRelevanceFloor (WS2). They
+	// are read from <prefix>_RELEVANCE_MAX_GAP / _RELEVANCE_HARD_FLOOR.
+	RelevanceMaxGap    float64
+	RelevanceHardFloor float64
+	// RerankEnabled gates the reranker chain (WS4); default off until validated
+	// by an attended A/B. RerankModel selects the LLM-fallback model. Read from
+	// <prefix>_RERANK_ENABLED / _RERANK_MODEL. The cross-encoder URL is resolved
+	// from the reranker resource's own (unprefixed) RERANKER_URL env.
+	RerankEnabled bool
+	RerankModel   string
 }
 
 // LoadConfig reads tunables under "<prefix>_<NAME>", falling back to the engine
@@ -47,7 +57,24 @@ func LoadConfig(prefix string) Config {
 		QdrantURL:            envString(key("QDRANT_URL"), DefaultQdrantURL),
 		QdrantAPIKey:         envString(key("QDRANT_API_KEY"), ""),
 		EmbedModel:           envString(key("EMBED_MODEL"), DefaultEmbedModel),
+		RelevanceMaxGap:      envFloat(key("RELEVANCE_MAX_GAP"), DefaultRelevanceMaxGap),
+		RelevanceHardFloor:   envFloat(key("RELEVANCE_HARD_FLOOR"), DefaultRelevanceHardFloor),
+		RerankEnabled:        envBool(key("RERANK_ENABLED")),
+		RerankModel:          envString(key("RERANK_MODEL"), DefaultRerankModel),
 	}
+}
+
+func envFloat(name string, def float64) float64 {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return def
+	}
+	v, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		log.Printf("[aisearch] invalid env %s=%q, using default %g", name, raw, def)
+		return def
+	}
+	return v
 }
 
 func envDuration(name string, def time.Duration) time.Duration {

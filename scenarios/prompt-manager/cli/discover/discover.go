@@ -84,6 +84,15 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 					return cmdDiscoveryGaps(ctx, args)
 				},
 			},
+			{
+				Name:        "discovery-metrics",
+				Aliases:     []string{"disc-metrics"},
+				NeedsAPI:    true,
+				Description: "Show aggregate discovery telemetry (call volume, returned-count distribution, budget/clipping rates) within a window",
+				Run: func(args []string) error {
+					return cmdDiscoveryMetrics(ctx, args)
+				},
+			},
 		},
 	}
 }
@@ -157,6 +166,129 @@ func cmdDiscoveryGaps(ctx appctx.Context, args []string) error {
 	fmt.Println("These are queries that returned nothing useful. Each is a candidate for:")
 	fmt.Println("  - a new action over an existing CLI command, or")
 	fmt.Println("  - a capability-gap / cli-backlog when no command covers it yet.")
+	return nil
+}
+
+// DistributionStats summarizes a numeric sample (e.g. returned-count per call).
+type DistributionStats struct {
+	Count  int     `json:"count"`
+	Min    float64 `json:"min"`
+	P10    float64 `json:"p10"`
+	Median float64 `json:"median"`
+	P90    float64 `json:"p90"`
+	Max    float64 `json:"max"`
+	Mean   float64 `json:"mean"`
+}
+
+// ComplexityMetric is the per-tier breakdown of the headline numbers.
+type ComplexityMetric struct {
+	CallCount      int     `json:"callCount"`
+	OverBudgetRate float64 `json:"overBudgetRate"`
+	MedianReturned float64 `json:"medianReturned"`
+}
+
+// BudgetHogSkill is a large skill that pressures the budget.
+type BudgetHogSkill struct {
+	ID                  string `json:"id"`
+	MaxChars            int    `json:"maxChars"`
+	Occurrences         int    `json:"occurrences"`
+	OverBudgetSightings int    `json:"overBudgetSightings"`
+}
+
+// DiscoveryMetricsResponse mirrors the API's aggregate discovery report.
+type DiscoveryMetricsResponse struct {
+	Since             string                      `json:"since"`
+	CallCount         int                         `json:"callCount"`
+	ReturnedCount     DistributionStats           `json:"returnedCount"`
+	BudgetedCallCount int                         `json:"budgetedCallCount"`
+	OverBudgetRate    float64                     `json:"overBudgetRate"`
+	NearThresholdRate float64                     `json:"nearThresholdRate"`
+	ProbedCallCount   int                         `json:"probedCallCount"`
+	ThresholdClipRate float64                     `json:"thresholdClipRate"`
+	ClippedPerProbe   DistributionStats           `json:"clippedPerProbe"`
+	PerComplexity     map[string]ComplexityMetric `json:"perComplexity"`
+	BudgetHogs        []BudgetHogSkill            `json:"budgetHogs"`
+}
+
+func cmdDiscoveryMetrics(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("discovery-metrics", flag.ContinueOnError)
+	since := fs.String("since", "7d", "Window to report (e.g. 7d, 24h, 30m)")
+	resultType := fs.String("type", "", "Filter by call type (skill|action|all)")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if *resultType != "" && !validDiscoverType(*resultType) {
+		return fmt.Errorf("--type must be one of: skill, action, all")
+	}
+
+	query := url.Values{}
+	query.Set("since", *since)
+	if *resultType != "" {
+		query.Set("type", *resultType)
+	}
+
+	var resp DiscoveryMetricsResponse
+	if err := ctx.GetWithQuery("/discovery-metrics", query, &resp); err != nil {
+		return fmt.Errorf("discovery-metrics failed: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if resp.CallCount == 0 {
+		fmt.Printf("No discovery calls recorded in the last %s.\n", *since)
+		return nil
+	}
+
+	fmt.Printf("Discovery metrics (last %s, %d call(s)):\n\n", *since, resp.CallCount)
+	fmt.Printf("  Returned per call:   median %.0f  (p10 %.0f, p90 %.0f, min %.0f, max %.0f)\n",
+		resp.ReturnedCount.Median, resp.ReturnedCount.P10, resp.ReturnedCount.P90,
+		resp.ReturnedCount.Min, resp.ReturnedCount.Max)
+	fmt.Printf("  Over-budget rate:    %.0f%% of %d budgeted call(s)\n",
+		resp.OverBudgetRate*100, resp.BudgetedCallCount)
+	fmt.Printf("  Near-threshold rate: %.0f%% (calls whose lowest result sits on the score floor)\n",
+		resp.NearThresholdRate*100)
+	if resp.ProbedCallCount > 0 {
+		fmt.Printf("  Clipping (probed):   %.0f%% of %d probed call(s) clipped >=1 result (median %.0f clipped)\n",
+			resp.ThresholdClipRate*100, resp.ProbedCallCount, resp.ClippedPerProbe.Median)
+	} else {
+		fmt.Println("  Clipping (probed):   no probe samples (set DISCOVERY_PROBE_SAMPLE to enable)")
+	}
+
+	if len(resp.PerComplexity) > 0 {
+		fmt.Println()
+		fmt.Printf("  %-15s  %-6s  %-12s  %s\n", "Complexity", "Calls", "Over-budget", "Median ret.")
+		for _, tier := range []string{"minor", "moderate", "major", "architectural"} {
+			m, ok := resp.PerComplexity[tier]
+			if !ok {
+				continue
+			}
+			fmt.Printf("  %-15s  %-6d  %-12s  %.0f\n",
+				tier, m.CallCount, fmt.Sprintf("%.0f%%", m.OverBudgetRate*100), m.MedianReturned)
+		}
+	}
+
+	if len(resp.BudgetHogs) > 0 {
+		fmt.Println()
+		fmt.Println("  Largest skills seen (budget hogs):")
+		fmt.Printf("  %-32s  %-8s  %-6s  %s\n", "ID", "MaxChars", "Seen", "OverBudgetSeen")
+		for _, h := range resp.BudgetHogs {
+			id := h.ID
+			if len(id) > 32 {
+				id = id[:29] + "..."
+			}
+			fmt.Printf("  %-32s  %-8d  %-6d  %d\n", id, h.MaxChars, h.Occurrences, h.OverBudgetSightings)
+		}
+	}
+
+	fmt.Println()
+	fmt.Println("These metrics drive evidence-based tuning: a high near-threshold or clip rate")
+	fmt.Println("suggests lowering AI_SEARCH_THRESHOLD; a high over-budget rate suggests raising")
+	fmt.Println("the affected complexity budget.")
 	return nil
 }
 

@@ -314,6 +314,14 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 	// Dropping inherited PATH here prevents an interactive shell's tool
 	// order from becoming part of the audited sandbox launch contract.
 	delete(envMap, "PATH")
+	// The same profile owns HOME (it sets HOME=$HOME against the sandbox's
+	// own absolute home). Dropping inherited HOME here stops a relative
+	// HOME (e.g. HOME=.home from a sandboxed parent process) from crossing
+	// the API boundary; with `--chdir <workspace>` a relative HOME
+	// otherwise materializes `<workspace>/.home` from $HOME-relative writes
+	// (Go build cache, vrooli CLI metrics, tool config). See
+	// exec/config.go for the matching profile-side guard.
+	delete(envMap, "HOME")
 
 	// Translate host paths to in-namespace paths. Inside the bwrap mount
 	// namespace the sandbox's merged dir is bind-mounted at

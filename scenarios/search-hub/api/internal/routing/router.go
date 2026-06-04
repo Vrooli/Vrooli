@@ -23,13 +23,11 @@ package routing
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -391,7 +389,7 @@ func (r *Router) callProvider(ctx context.Context, d *registryv1.ProviderDescrip
 		return degrade(g, fmt.Sprintf("provider scenario %q unreachable: %s", hj.GetScenarioId(), oneLine(err.Error())))
 	}
 
-	body, err := renderBody(hj.GetBodyTemplate(), query, limit, d.GetType())
+	body, err := providers.RenderBody(hj.GetBodyTemplate(), query, limit, d.GetType())
 	if err != nil {
 		return degrade(g, fmt.Sprintf("request build failed: %s", err))
 	}
@@ -400,11 +398,11 @@ func (r *Router) callProvider(ctx context.Context, d *registryv1.ProviderDescrip
 	defer cancel()
 
 	url := strings.TrimRight(base, "/") + hj.GetPath()
-	httpReq, err := http.NewRequestWithContext(cctx, httpMethod(hj.GetMethod()), url, bytes.NewReader([]byte(body)))
+	httpReq, err := http.NewRequestWithContext(cctx, providers.HTTPMethod(hj.GetMethod()), url, bytes.NewReader([]byte(body)))
 	if err != nil {
 		return degrade(g, fmt.Sprintf("request build failed: %s", oneLine(err.Error())))
 	}
-	applyHeaders(httpReq, hj.GetHeaders())
+	providers.ApplyHeaders(httpReq, hj.GetHeaders())
 
 	resp, err := r.deps.Doer.Do(httpReq)
 	if err != nil {
@@ -438,62 +436,6 @@ func degrade(g *routingv1.ProviderResultGroup, note string) *routingv1.ProviderR
 	g.Degraded = true
 	g.Note = note
 	return g
-}
-
-// renderBody substitutes the {{query}}, {{limit}}, and {{type}} placeholders in
-// a provider's body_template. {{query}} and {{type}} sit inside JSON string
-// quotes in the template, so they are inserted as JSON-escaped *inner* strings
-// (no surrounding quotes); {{limit}} is a bare integer. The result is validated
-// as JSON so a malformed template surfaces as a degraded provider, not a
-// confusing downstream parse error.
-func renderBody(tmpl, query string, limit int32, typ string) (string, error) {
-	if strings.TrimSpace(tmpl) == "" {
-		return "", fmt.Errorf("empty body_template")
-	}
-	out := tmpl
-	out = strings.ReplaceAll(out, "{{query}}", jsonStringInner(query))
-	out = strings.ReplaceAll(out, "{{limit}}", strconv.FormatInt(int64(limit), 10))
-	out = strings.ReplaceAll(out, "{{type}}", jsonStringInner(typ))
-	if !json.Valid([]byte(out)) {
-		return "", fmt.Errorf("rendered body is not valid JSON")
-	}
-	return out, nil
-}
-
-// jsonStringInner returns s JSON-escaped with the surrounding quotes stripped,
-// so it can be dropped into a "{{placeholder}}" slot that already lives inside
-// quotes in the template.
-func jsonStringInner(s string) string {
-	b, err := json.Marshal(s)
-	if err != nil || len(b) < 2 {
-		return ""
-	}
-	return string(b[1 : len(b)-1])
-}
-
-// httpMethod maps the descriptor's HttpMethod enum to a net/http verb,
-// defaulting to POST (the dominant Connect/REST search shape).
-func httpMethod(m registryv1.HttpMethod) string {
-	if m == registryv1.HttpMethod_HTTP_METHOD_GET {
-		return http.MethodGet
-	}
-	return http.MethodPost
-}
-
-// applyHeaders copies the descriptor's headers, defaulting Content-Type to
-// application/json when the descriptor omits it (every search endpoint the hub
-// federates speaks JSON).
-func applyHeaders(req *http.Request, headers map[string]string) {
-	hasContentType := false
-	for k, v := range headers {
-		req.Header.Set(k, v)
-		if strings.EqualFold(k, "Content-Type") {
-			hasContentType = true
-		}
-	}
-	if !hasContentType {
-		req.Header.Set("Content-Type", "application/json")
-	}
 }
 
 // explain renders the human-readable routing rationale for --explain on the

@@ -343,7 +343,7 @@ Why this isn't too situational:
 **When to suggest:** A Vrooli-controlled CLI command already performs one deterministic operation, but agents must learn it through prose.
 
 Check first:
-- Run `prompt-manager discover "<operation>" --type all` to find existing Actions.
+- Run `prompt-manager discover "<operation>" --type all` to find existing Actions. `--type all` is *best-match relevance* (skills and actions ranked purely by score, no curated topic packs), so phrase the query as the operation / what you need — not as a planning topic.
 - If an exact Action exists, suggest improving or referencing it instead of creating a new one.
 - If no CLI command exists, this is a CLI/tool suggestion or backlog item, not an Action candidate.
 

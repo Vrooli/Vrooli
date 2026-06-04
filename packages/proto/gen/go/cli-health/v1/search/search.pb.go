@@ -231,9 +231,13 @@ func (x *SearchResult) GetSource() string {
 // SearchResponse echoes which Mode actually served the request so the CLI
 // can render a "(text mode fallback)" hint when AI is unavailable.
 type SearchResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Results       []*SearchResult        `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
-	ModeUsed      Mode                   `protobuf:"varint,2,opt,name=mode_used,json=modeUsed,proto3,enum=vrooli.cli_health.v1.search.Mode" json:"mode_used,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Results  []*SearchResult        `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	ModeUsed Mode                   `protobuf:"varint,2,opt,name=mode_used,json=modeUsed,proto3,enum=vrooli.cli_health.v1.search.Mode" json:"mode_used,omitempty"`
+	// Active reranker leg that ordered these results ("cross-encoder:…",
+	// "llm:…") or "none" when reranking is disabled/unavailable (results then
+	// keep their fused/dense order).
+	Reranker      string `protobuf:"bytes,3,opt,name=reranker,proto3" json:"reranker,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -280,6 +284,13 @@ func (x *SearchResponse) GetModeUsed() Mode {
 		return x.ModeUsed
 	}
 	return Mode_MODE_UNSPECIFIED
+}
+
+func (x *SearchResponse) GetReranker() string {
+	if x != nil {
+		return x.Reranker
+	}
+	return ""
 }
 
 // StatusRequest is currently empty; reserved for future filters.
@@ -337,8 +348,11 @@ type StatusResponse struct {
 	// Free-form outcome string from the most recent reconcile ("ok",
 	// "partial: 2 errors", etc.).
 	LastReconcileOutcome string `protobuf:"bytes,6,opt,name=last_reconcile_outcome,json=lastReconcileOutcome,proto3" json:"last_reconcile_outcome,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Active reranker leg ("cross-encoder:…", "llm:…"), "none" when reranking is
+	// disabled, or "degraded" when enabled but no leg is currently reachable.
+	Reranker      string `protobuf:"bytes,7,opt,name=reranker,proto3" json:"reranker,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StatusResponse) Reset() {
@@ -413,6 +427,13 @@ func (x *StatusResponse) GetLastReconcileOutcome() string {
 	return ""
 }
 
+func (x *StatusResponse) GetReranker() string {
+	if x != nil {
+		return x.Reranker
+	}
+	return ""
+}
+
 var File_cli_health_v1_search_search_proto protoreflect.FileDescriptor
 
 const file_cli_health_v1_search_search_proto_rawDesc = "" +
@@ -428,18 +449,20 @@ const file_cli_health_v1_search_search_proto_rawDesc = "" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x14\n" +
 	"\x05score\x18\x05 \x01(\x01R\x05score\x12\x16\n" +
-	"\x06source\x18\x06 \x01(\tR\x06source\"\x95\x01\n" +
+	"\x06source\x18\x06 \x01(\tR\x06source\"\xb1\x01\n" +
 	"\x0eSearchResponse\x12C\n" +
 	"\aresults\x18\x01 \x03(\v2).vrooli.cli_health.v1.search.SearchResultR\aresults\x12>\n" +
-	"\tmode_used\x18\x02 \x01(\x0e2!.vrooli.cli_health.v1.search.ModeR\bmodeUsed\"\x0f\n" +
-	"\rStatusRequest\"\xe5\x01\n" +
+	"\tmode_used\x18\x02 \x01(\x0e2!.vrooli.cli_health.v1.search.ModeR\bmodeUsed\x12\x1a\n" +
+	"\breranker\x18\x03 \x01(\tR\breranker\"\x0f\n" +
+	"\rStatusRequest\"\x81\x02\n" +
 	"\x0eStatusResponse\x12\x1c\n" +
 	"\tavailable\x18\x01 \x01(\bR\tavailable\x12\x16\n" +
 	"\x06ollama\x18\x02 \x01(\bR\x06ollama\x12\x16\n" +
 	"\x06qdrant\x18\x03 \x01(\bR\x06qdrant\x12#\n" +
 	"\rindexed_count\x18\x04 \x01(\x05R\findexedCount\x12*\n" +
 	"\x11last_reconcile_at\x18\x05 \x01(\tR\x0flastReconcileAt\x124\n" +
-	"\x16last_reconcile_outcome\x18\x06 \x01(\tR\x14lastReconcileOutcome*8\n" +
+	"\x16last_reconcile_outcome\x18\x06 \x01(\tR\x14lastReconcileOutcome\x12\x1a\n" +
+	"\breranker\x18\a \x01(\tR\breranker*8\n" +
 	"\x04Mode\x12\x14\n" +
 	"\x10MODE_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aMODE_AI\x10\x01\x12\r\n" +

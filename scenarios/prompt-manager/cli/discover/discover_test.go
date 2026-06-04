@@ -21,7 +21,7 @@ func TestFormatNumberAddsThousandsSeparators(t *testing.T) {
 
 func TestCommandsRegistersDiscoverCommand(t *testing.T) {
 	group := Commands(nil)
-	if group.Title != "Discovery" || len(group.Commands) != 2 {
+	if group.Title != "Discovery" || len(group.Commands) != 3 {
 		t.Fatalf("unexpected command group: %+v", group)
 	}
 	byName := map[string]bool{}
@@ -31,9 +31,40 @@ func TestCommandsRegistersDiscoverCommand(t *testing.T) {
 		}
 		byName[command.Name] = true
 	}
-	if !byName["discover"] || !byName["discovery-gaps"] {
-		t.Fatalf("expected discover and discovery-gaps commands, got %+v", group.Commands)
+	if !byName["discover"] || !byName["discovery-gaps"] || !byName["discovery-metrics"] {
+		t.Fatalf("expected discover, discovery-gaps, and discovery-metrics commands, got %+v", group.Commands)
 	}
+}
+
+func TestCmdDiscoveryMetricsQueriesEndpoint(t *testing.T) {
+	ctx := clitest.NewContext(t)
+	ctx.Respond("GET", "/discovery-metrics", DiscoveryMetricsResponse{
+		Since:     "168h0m0s",
+		CallCount: 3,
+		ReturnedCount: DistributionStats{
+			Count: 3, Min: 1, P10: 1, Median: 2, P90: 4, Max: 4, Mean: 2.3,
+		},
+		BudgetedCallCount: 3,
+		OverBudgetRate:    0.33,
+		PerComplexity: map[string]ComplexityMetric{
+			"moderate": {CallCount: 3, OverBudgetRate: 0.33, MedianReturned: 2},
+		},
+	})
+	if err := cmdDiscoveryMetrics(ctx, []string{"--since=7d"}); err != nil {
+		t.Fatalf("cmdDiscoveryMetrics: %v", err)
+	}
+	request := ctx.LastRequest()
+	if request.Method != "GET" || request.Path != "/discovery-metrics" {
+		t.Fatalf("unexpected request: %+v", request)
+	}
+}
+
+func TestCmdDiscoveryMetricsRejectsInvalidType(t *testing.T) {
+	ctx := clitest.NewContext(t)
+	if err := cmdDiscoveryMetrics(ctx, []string{"--type=capability"}); err == nil {
+		t.Fatal("expected invalid type to fail")
+	}
+	ctx.RequireNoRequests()
 }
 
 func TestCmdDiscoverDefaultsToSkillRequest(t *testing.T) {

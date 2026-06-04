@@ -8,6 +8,7 @@
     "bottomNavLabel": "メインナビゲーション（モバイル）",
     "nav": {
       "search": "検索",
+      "evals": "評価",
       "dashboard": "ダッシュボード",
       "settings": "設定"
     },
@@ -35,6 +36,10 @@
     "search": {
       "title": "検索",
       "description": "登録されたすべてのコーパスを横断する単一のクエリ。ルーターが分類し、ファンアウトし、単一のリストに再ランクします。"
+    },
+    "evals": {
+      "title": "評価",
+      "description": "プロバイダーごとの検索品質ベースライン：登録済みのゴールデンスイート、タグ付き実行履歴、実行の並列比較。合否ゲートではなくソフトラベルです。"
     }
   },
   "health": {
@@ -104,5 +109,36 @@
     "unavailable": "利用不可",
     "statusError": "ステータスを取得できません",
     "providersReachable": "{{reachable}}/{{total}} プロバイダーに到達可能"
+  },
+  "evals": {
+    "suitesHeading": "スイート",
+    "loading": "読み込み中…",
+    "error": "評価を読み込めません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "noSuites": "登録された評価スイートがまだありません。",
+    "suiteMeta": "{{provider}} · {{cases}} 件のケース",
+    "selectSuite": "スイートを選択すると実行履歴が表示されます。",
+    "runsHeading": "実行履歴",
+    "noRuns": "実行がまだありません。CLI から実行してください: search-hub evals run <suite> --tag <tag>。",
+    "trendHeading": "トレンド（古い → 新しい）",
+    "trendStrong": "強クエリ top-1",
+    "trendGibberish": "無意味クエリ最大",
+    "runMet": "{{met}}/{{cases}} 達成",
+    "runConfig": "リランカー {{reranker}}",
+    "casesHeading": "ケース",
+    "colCase": "ケース",
+    "colOutcome": "結果",
+    "colTop": "トップスコア",
+    "colRank": "順位",
+    "compareHint": "2 件の実行にチェックを入れて比較します。",
+    "compareButton": "選択した実行を比較",
+    "compareHeading": "ケースごとの差分 (A → B)",
+    "compareLegend": "A = {{a}} → B = {{b}}",
+    "compareColA": "A",
+    "compareColB": "B",
+    "colDelta": "Δ トップ",
+    "viewRun": "ケースを表示",
+    "hideRun": "ケースを隠す",
+    "tagLabel": "タグ {{tag}}",
+    "untagged": "タグなし"
   }
 }

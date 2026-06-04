@@ -259,11 +259,29 @@ func main() {
 	aiSearchService.SetDiscoverFilterConfig(discoverFilterConfigStore)
 	aiSearchHandlers.SetDiscoverFilterConfigStore(discoverFilterConfigStore)
 
+	// Discover ranking config store (topic gate, high-confidence bar, caps).
+	// The topic gate must exceed the skill similarity threshold, so the store is
+	// constructed with it for validation. Hot-loadable like budgets.json.
+	discoverRankingConfigStore := aisearch.NewDiscoverRankingConfigStore(roots.Config, aiSearchThreshold)
+	aiSearchService.SetDiscoverRankingConfig(discoverRankingConfigStore)
+
 	// Discovery-miss telemetry store. Lives under the runtime-data root (not
 	// the git-tracked store tree) so misses are durable runtime signal, not
 	// source. Resolved via the storage path layer — no hard-coded ~/.vrooli.
 	discoveryMissStore := store.NewDiscoveryMissStore(roots.RuntimeData)
 	aiSearchService.SetDiscoveryMissStore(discoveryMissStore)
+
+	// Per-call discovery telemetry store (sibling of the miss store) records
+	// every discover call so threshold/budget/clipping behavior is measurable.
+	discoveryCallStore := store.NewDiscoveryCallStore(roots.RuntimeData)
+	aiSearchService.SetDiscoveryCallStore(discoveryCallStore)
+	// Opt-in threshold-clipping probe (default off). DISCOVERY_PROBE_SAMPLE=N
+	// samples 1-in-N calls to re-search at threshold 0 and count clipped hits.
+	if sampleStr := os.Getenv("DISCOVERY_PROBE_SAMPLE"); sampleStr != "" {
+		if parsed, err := strconv.Atoi(sampleStr); err == nil {
+			aiSearchService.SetDiscoveryProbeSample(parsed)
+		}
+	}
 
 	// Set AI indexer on agent and team handlers for CRUD hook integration
 	agentHandlers.SetAIIndexer(aiSearchService)
@@ -453,6 +471,7 @@ func main() {
 	// Discovery route (unified topic + skill search)
 	v1.HandleFunc("/discover", aiSearchHandlers.Discover).Methods("POST")
 	v1.HandleFunc("/discovery-gaps", aiSearchHandlers.DiscoveryGaps).Methods("GET")
+	v1.HandleFunc("/discovery-metrics", aiSearchHandlers.DiscoveryMetrics).Methods("GET")
 
 	// Budget config routes
 	v1.HandleFunc("/config/budgets", aiSearchHandlers.GetBudgetConfig).Methods("GET")

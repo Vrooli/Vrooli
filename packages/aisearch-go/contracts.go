@@ -118,6 +118,9 @@ type SparseEncoder interface {
 // deliberate re-index, not a silent dimension mismatch (the exact failure that
 // stranded the legacy 1024-dim KO collections).
 type CollectionSpec struct {
+	// Name is an optional cross-check; the authoritative collection name is the
+	// one passed to NewVectorStore. EnsureCollection errors if a non-empty Name
+	// disagrees with the store's collection, so it can never silently mis-target.
 	Name           string
 	DenseSize      int    // e.g. 768 for nomic-embed-text
 	DenseDistance  string // e.g. "Cosine"

@@ -8,6 +8,7 @@
     "bottomNavLabel": "Primary navigation (mobile)",
     "nav": {
       "search": "Search",
+      "evals": "Evals",
       "dashboard": "Dashboard",
       "settings": "Settings"
     },
@@ -35,6 +36,10 @@
     "search": {
       "title": "Search",
       "description": "One query across every registered corpus — the router classifies, fans out, and reranks into a single list."
+    },
+    "evals": {
+      "title": "Evals",
+      "description": "Per-provider search-quality baselines: registered golden suites, tagged run history, and side-by-side run comparison. Soft labels, not a pass/fail gate."
     }
   },
   "health": {
@@ -107,5 +112,36 @@
     "unavailable": "unavailable",
     "statusError": "Status unavailable",
     "providersReachable": "{{reachable}}/{{total}} providers reachable"
+  },
+  "evals": {
+    "suitesHeading": "Suites",
+    "loading": "Loading…",
+    "error": "Unable to load evals. Make sure the scenario is running through `vrooli scenario start`.",
+    "noSuites": "No eval suites registered yet.",
+    "suiteMeta": "{{provider}} · {{cases}} case(s)",
+    "selectSuite": "Select a suite to see its run history.",
+    "runsHeading": "Run history",
+    "noRuns": "No runs yet. Run this suite from the CLI: search-hub evals run <suite> --tag <tag>.",
+    "trendHeading": "Trend (oldest → newest)",
+    "trendStrong": "Strong top-1",
+    "trendGibberish": "Gibberish max",
+    "runMet": "{{met}}/{{cases}} met",
+    "runConfig": "reranker {{reranker}}",
+    "casesHeading": "Cases",
+    "colCase": "Case",
+    "colOutcome": "Outcome",
+    "colTop": "Top score",
+    "colRank": "Rank",
+    "compareHint": "Tick two runs to compare them.",
+    "compareButton": "Compare selected",
+    "compareHeading": "Per-case delta (A → B)",
+    "compareLegend": "A = {{a}} → B = {{b}}",
+    "compareColA": "A",
+    "compareColB": "B",
+    "colDelta": "Δ top",
+    "viewRun": "View cases",
+    "hideRun": "Hide cases",
+    "tagLabel": "tag {{tag}}",
+    "untagged": "untagged"
   }
 }

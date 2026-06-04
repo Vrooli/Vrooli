@@ -1,0 +1,16 @@
+{
+  "kind": "topic",
+  "schemaVersion": 1,
+  "id": "configuration-observability",
+  "name": "Configuration \u0026 observability",
+  "description": "Configuration and observability: designing tunable control surfaces and levers, and the signal and feedback surfaces that make behavior visible and steerable.",
+  "parentTopicId": "development",
+  "skills": [
+    "control-surface-tunable-levers-design",
+    "signal-and-feedback-surface-design"
+  ],
+  "status": "active",
+  "revision": 1,
+  "createdAt": "2026-06-04T17:35:22Z",
+  "updatedAt": "2026-06-04T17:35:22Z"
+}

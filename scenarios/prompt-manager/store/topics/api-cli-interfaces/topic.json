@@ -1,0 +1,18 @@
+{
+  "kind": "topic",
+  "schemaVersion": 1,
+  "id": "api-cli-interfaces",
+  "name": "API \u0026 CLI interfaces",
+  "description": "Designing and evolving API, CLI, and cross-component interfaces: HTTP/Connect APIs, CLI command surfaces, interoperability contracts, and bundle integration.",
+  "parentTopicId": "architecture",
+  "skills": [
+    "api-steer",
+    "cli-steer",
+    "interoperability-steer",
+    "bundle-integration-steer"
+  ],
+  "status": "active",
+  "revision": 1,
+  "createdAt": "2026-06-04T17:35:17Z",
+  "updatedAt": "2026-06-04T17:35:17Z"
+}

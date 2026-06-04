@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync/atomic"
 
 	"prompt-manager/search"
 	"prompt-manager/skills"
@@ -42,8 +43,22 @@ type Service struct {
 	// Discover filter configuration
 	filterConfig DiscoverFilterConfigProvider
 
+	// Discover ranking configuration (topic gate, high-confidence bar, caps).
+	// nil = use DefaultDiscoverRankingConfig().
+	rankingConfig DiscoverRankingConfigProvider
+
 	// Discovery-miss telemetry sink/source (optional; nil = disabled)
 	missStore DiscoveryMissStore
+
+	// Per-call discovery telemetry sink/source (optional; nil = disabled).
+	// Records EVERY discover call, not just misses, so threshold/budget/clip
+	// behavior is measurable.
+	callStore DiscoveryCallStore
+	// probeSample controls the opt-in threshold-clipping probe: when > 0, every
+	// Nth call re-searches at threshold 0 to count clipped results. 0 = off.
+	probeSample int
+	// callSeq counts discover calls for deterministic 1-in-N probe sampling.
+	callSeq atomic.Uint64
 }
 
 // AgentStoreReader provides read access to agents for AI search.
@@ -323,75 +338,127 @@ func (s *Service) DiscoverTyped(ctx context.Context, queries []string, complexit
 	includeSkills := discoverType == "skill" || discoverType == "all"
 	includeActions := discoverType == "action" || discoverType == "all"
 	legacySkillOnly := discoverType == "skill" && requestedType == ""
+	// Curated/plan-authoring mode (skill only) gets topic packs (I1–I7). Operational
+	// modes (all/action) rank by pure relevance with NO pack force-inclusion (I8).
+	curatedMode := discoverType == "skill"
 
+	ranking := s.rankingCfg(ctx)
 	seen := make(map[string]*discoverSkillEntry)
 	seenActions := make(map[string]DiscoverResult)
-	topicNames := make(map[string]string) // cache topic ID → name
 	method := "ai"
 
-	// Step 1: Topic search per query
-	for _, query := range queries {
-		if !includeSkills {
-			break
-		}
-		topicResults, topicMethod, err := s.SearchTopics(ctx, query, 3)
-		if err != nil {
-			log.Printf("[aisearch] Discover topic search failed for %q: %v", query, err)
-			continue
-		}
-		if topicMethod == "none" {
-			if method == "ai" {
+	// selectedPacks holds the gated, deduped, cap-bounded topic packs in
+	// descending topic relevance; it drives the pack block and the I7 trim.
+	var selectedPacks []discoverPack
+	packTopicScore := make(map[string]float64) // skillID -> max gated topic score
+
+	// Step 1: Topic search per query (curated/skill mode only — see I8).
+	if curatedMode {
+		// Collect gated topic candidates across queries, deduped by topic (max score).
+		candidates := make(map[string]discoverPack)
+		for _, query := range queries {
+			topicResults, topicMethod, err := s.SearchTopics(ctx, query, 3)
+			if err != nil {
+				log.Printf("[aisearch] Discover topic search failed for %q: %v", query, err)
+				continue
+			}
+			if topicMethod == "none" && method == "ai" {
 				method = "mixed"
 			}
-		}
-
-		for _, tr := range topicResults {
-			topicID, _ := tr.Payload["topic_id"].(string)
-			if topicID == "" || s.topicStore == nil {
-				continue
-			}
-
-			// Resolve and cache topic name
-			if _, cached := topicNames[topicID]; !cached {
-				if t, nameErr := s.topicStore.Get(ctx, topicID); nameErr == nil && t != nil {
-					topicNames[topicID] = t.Name
+			for _, tr := range topicResults {
+				topicID, _ := tr.Payload["topic_id"].(string)
+				if topicID == "" || s.topicStore == nil {
+					continue
 				}
-			}
-
-			// Get ancestors to compute depth
-			ancestors, err := s.topicStore.GetAncestors(ctx, topicID)
-			if err != nil {
-				log.Printf("[aisearch] Discover get ancestors failed for topic %s: %v", topicID, err)
-				continue
-			}
-			topicDepth := len(ancestors)
-
-			// Accumulate skills from this topic + ancestors
-			skillIDs, err := s.topicStore.AccumulateSkills(ctx, topicID)
-			if err != nil {
-				log.Printf("[aisearch] Discover accumulate skills failed for topic %s: %v", topicID, err)
-				continue
-			}
-
-			for _, skillID := range skillIDs {
-				if existing, exists := seen[skillID]; exists {
-					// Keep the shallowest depth
-					if existing.result.TopicDepth != nil && topicDepth < *existing.result.TopicDepth {
-						d := topicDepth
-						existing.result.TopicDepth = &d
-						existing.result.TopicID = topicID
-						existing.result.TopicName = topicNames[topicID]
+				// INVARIANT: discoverTopicGate — a pack is force-included only if
+				// its topic clears the gate (I2). Higher bar than a single skill.
+				if tr.Score < ranking.TopicGate {
+					continue
+				}
+				if existing, ok := candidates[topicID]; ok {
+					if tr.Score > existing.score {
+						existing.score = tr.Score
+						candidates[topicID] = existing
 					}
 					continue
 				}
+				name := ""
+				if t, nameErr := s.topicStore.Get(ctx, topicID); nameErr == nil && t != nil {
+					name = t.Name
+				}
+				ancestors, ancErr := s.topicStore.GetAncestors(ctx, topicID)
+				if ancErr != nil {
+					log.Printf("[aisearch] Discover get ancestors failed for topic %s: %v", topicID, ancErr)
+					continue
+				}
+				skillIDs, accErr := s.topicStore.AccumulateSkills(ctx, topicID)
+				if accErr != nil {
+					log.Printf("[aisearch] Discover accumulate skills failed for topic %s: %v", topicID, accErr)
+					continue
+				}
+				candidates[topicID] = discoverPack{
+					topicID:   topicID,
+					topicName: name,
+					score:     tr.Score,
+					depth:     len(ancestors),
+					skillIDs:  skillIDs,
+				}
+			}
+		}
 
+		// Sort gated topics by score desc (topicID tiebreak for determinism).
+		ordered := make([]discoverPack, 0, len(candidates))
+		for _, c := range candidates {
+			ordered = append(ordered, c)
+		}
+		sortPacksByScore(ordered)
+
+		// INVARIANT: discoverTopicSkillCap — add packs whole in relevance order;
+		// skip a pack that would overflow the remaining cap and try the next
+		// (smaller) one. Prefers several precise packs over one large loose one.
+		distinct := 0
+		for _, pack := range ordered {
+			newCount := 0
+			for _, id := range pack.skillIDs {
+				if _, already := packTopicScore[id]; !already {
+					newCount++
+				}
+			}
+			if distinct+newCount > ranking.TopicSkillCap {
+				continue
+			}
+			distinct += newCount
+			selectedPacks = append(selectedPacks, pack)
+			for _, id := range pack.skillIDs {
+				if cur, ok := packTopicScore[id]; !ok || pack.score > cur {
+					packTopicScore[id] = pack.score
+				}
+			}
+		}
+
+		// Materialize pack-member entries. INVARIANT: discoverPackCarriesTopicScore
+		// — each pack skill carries its topic's score, not its own embedding score (I1).
+		for _, pack := range selectedPacks {
+			for _, skillID := range pack.skillIDs {
+				if existing, exists := seen[skillID]; exists {
+					// Skill belongs to multiple selected packs: keep the
+					// highest-scoring topic as the display owner.
+					if pack.score > existing.result.Score {
+						existing.result.Score = pack.score
+						existing.result.ScorePercent = int(pack.score * 100)
+						existing.result.TopicID = pack.topicID
+						existing.result.TopicName = pack.topicName
+						d := pack.depth
+						existing.result.TopicDepth = &d
+					}
+					continue
+				}
 				meta, folder, findErr := s.skillStore.FindByID(skillID)
 				if findErr != nil || meta == nil {
 					continue
 				}
-
-				d := topicDepth
-				seen[skillID] = &discoverSkillEntry{
+				d := pack.depth
+				entry := &discoverSkillEntry{
 					draft: meta.Draft,
 					result: DiscoverResult{
 						ID:           meta.ID,
@@ -399,20 +466,18 @@ func (s *Service) DiscoverTyped(ctx context.Context, queries []string, complexit
 						Description:  meta.Description,
 						Tags:         meta.Tags,
 						Modes:        meta.Modes,
-						Score:        tr.Score,
-						ScorePercent: int(tr.Score * 100),
+						Score:        pack.score,
+						ScorePercent: int(pack.score * 100),
 						Source:       "topic",
 						TopicDepth:   &d,
-						TopicID:      topicID,
-						TopicName:    topicNames[topicID],
+						TopicID:      pack.topicID,
+						TopicName:    pack.topicName,
 					},
 				}
-
-				// Load content size
-				content, contentErr := s.skillStore.GetContent(folder, meta.File)
-				if contentErr == nil {
-					seen[skillID].result.ContentChars = len(content)
+				if content, contentErr := s.skillStore.GetContent(folder, meta.File); contentErr == nil {
+					entry.result.ContentChars = len(content)
 				}
+				seen[skillID] = entry
 			}
 		}
 	}
@@ -433,8 +498,12 @@ func (s *Service) DiscoverTyped(ctx context.Context, queries []string, complexit
 
 		for _, r := range resp.Results {
 			if existing, exists := seen[r.ID]; exists {
-				// Topic source wins; for search dupes keep higher score
-				if existing.result.Source == "search" && r.Score > existing.result.Score {
+				// INVARIANT: discoverDedupMaxScore — a skill found via both a
+				// selected pack and direct search is included once and ranks by
+				// max(individualScore, topicScore) (I6). A pack member keeps its
+				// topic Source (pack inclusion is authoritative); only its score
+				// rises to the stronger of the two.
+				if r.Score > existing.result.Score {
 					existing.result.Score = r.Score
 					existing.result.ScorePercent = r.ScorePercent
 				}
@@ -508,34 +577,88 @@ func (s *Service) DiscoverTyped(ctx context.Context, queries []string, complexit
 		}
 	}
 
-	// Step 3: Sort - topic-sourced first (depth asc, score desc), then search-sourced (score desc)
-	var topicResults, searchResults []DiscoverResult
+	// Step 3: Compose results.
+	//   Curated/skill mode with selected packs → block-aware ranking:
+	//     [≤N high-confidence non-pack individuals] + [pack block(s)] + [tail].
+	//   Otherwise → pure relevance (curated no-pack I5 fallback / operational I8).
+	packMembers := make(map[string]DiscoverResult)
+	var individuals []DiscoverResult
 	for _, entry := range seen {
 		if !legacySkillOnly {
 			entry.result.Type = "skill"
 		}
 		if entry.result.Source == "topic" {
-			topicResults = append(topicResults, entry.result)
+			packMembers[entry.result.ID] = entry.result
 		} else {
-			searchResults = append(searchResults, entry.result)
+			individuals = append(individuals, entry.result)
 		}
 	}
+	sortDiscoverSearchResults(individuals)
+
 	actionResults := make([]DiscoverResult, 0, len(seenActions))
 	for _, result := range seenActions {
 		actionResults = append(actionResults, result)
 	}
-
-	sortDiscoverTopicResults(topicResults)
-	sortDiscoverSearchResults(searchResults)
 	sortDiscoverSearchResults(actionResults)
 
-	results := append(topicResults, searchResults...)
-	results = append(results, actionResults...)
-	if len(results) > limit {
-		if includeSkills && includeActions && len(actionResults) > 0 {
-			results = keepDiscoverActionsWithinLimit(topicResults, searchResults, actionResults, limit)
+	var results []DiscoverResult
+	// protected = pack members + the top-N high-confidence individuals; the I7
+	// budget trim never amputates these (only the tail is trimmed).
+	protected := make(map[string]bool)
+	hasPacks := curatedMode && len(packMembers) > 0
+	if hasPacks {
+		// INVARIANT: discoverStrongIndividualsAbovePack — at most
+		// MaxIndividualsAbovePack non-pack skills scoring >= HighConfidenceBar
+		// rank above the pack block (I3/I5).
+		aboveSet := make(map[string]bool)
+		var above []DiscoverResult
+		for _, ind := range individuals {
+			if len(above) >= ranking.MaxIndividualsAbovePack {
+				break
+			}
+			if ind.Score >= ranking.HighConfidenceBar {
+				above = append(above, ind)
+				aboveSet[ind.ID] = true
+				protected[ind.ID] = true
+			}
+		}
+		// INVARIANT: discoverPackNeverCrowdedOut — selected packs appear whole, in
+		// topic-relevance order, each skill once (I4).
+		var packBlock []DiscoverResult
+		emitted := make(map[string]bool)
+		for _, pack := range selectedPacks {
+			for _, id := range pack.skillIDs {
+				if emitted[id] {
+					continue
+				}
+				if r, ok := packMembers[id]; ok {
+					packBlock = append(packBlock, r)
+					emitted[id] = true
+					protected[id] = true
+				}
+			}
+		}
+		// Tail: every other individual by score (incl. high-confidence ones
+		// beyond the above-pack cap).
+		var tail []DiscoverResult
+		for _, ind := range individuals {
+			if aboveSet[ind.ID] {
+				continue
+			}
+			tail = append(tail, ind)
+		}
+		results = append(results, above...)
+		results = append(results, packBlock...)
+		results = append(results, tail...)
+	} else {
+		// Pure relevance. In operational mode skills and actions compete on score.
+		results = append(results, individuals...)
+		if includeActions {
+			results = append(results, actionResults...)
+			sortDiscoverSearchResults(results)
 		}
 	}
+
 	if len(results) > limit {
 		results = results[:limit]
 	}
@@ -573,6 +696,7 @@ func (s *Service) DiscoverTyped(ctx context.Context, queries []string, complexit
 	}
 
 	// Step 5: Budget calculation
+	trimmedCount := 0
 	if complexity != "" {
 		budgetChars := 0
 		if s.budgetConfig != nil {
@@ -594,26 +718,47 @@ func (s *Service) DiscoverTyped(ctx context.Context, queries []string, complexit
 				resp.BudgetStatus = "under"
 			default:
 				resp.BudgetStatus = "over"
-				trimmedIDs := []string{}
+				// INVARIANT: discoverBlockAwareTrim — over budget, keep protected
+				// items (top-N high-confidence individuals + selected packs, whole)
+				// in display order and never amputate them; fill the remaining
+				// budget from the tail (skip-oversized, not hard-stop). If the
+				// protected core alone exceeds budget, report it honestly as "over"
+				// rather than cutting a pack (I7). With no packs (operational /
+				// curated-no-pack) protected is empty and this degrades to a
+				// greedy skip-oversized pack by score.
+				keptIDs := []string{}
 				cumChars := 0
+				skillCount := 0
 				for _, r := range results {
 					if r.Type == "action" {
 						continue
 					}
+					skillCount++
+					if protected[r.ID] {
+						cumChars += r.ContentChars
+						keptIDs = append(keptIDs, r.ID)
+						continue
+					}
 					if cumChars+r.ContentChars > budgetChars {
-						break
+						continue
 					}
 					cumChars += r.ContentChars
-					trimmedIDs = append(trimmedIDs, r.ID)
+					keptIDs = append(keptIDs, r.ID)
 				}
-				if len(trimmedIDs) > 0 {
-					resp.RecommendedReadCommand = "prompt-manager skill read " + strings.Join(trimmedIDs, " ")
+				trimmedCount = skillCount - len(keptIDs)
+				if len(keptIDs) > 0 {
+					resp.RecommendedReadCommand = "prompt-manager skill read " + strings.Join(keptIDs, " ")
 				}
 			}
 		}
 	}
 
-	// Step 6: Discovery-miss telemetry (best-effort; never fails the response).
+	// Step 6: Per-call telemetry (best-effort; never fails the response). The
+	// optional clipping probe is sampled to bound the extra embed+search cost.
+	clipped := s.maybeProbeClipping(ctx, queries, results, limit)
+	s.recordDiscoveryCall(ctx, resp, queries, discoverType, complexity, trimmedCount, clipped)
+
+	// Step 7: Discovery-miss telemetry (best-effort; never fails the response).
 	s.recordDiscoveryMiss(ctx, resp, discoverType, complexity)
 
 	return resp, nil
@@ -632,26 +777,6 @@ func normalizeDiscoverType(discoverType string) string {
 	}
 }
 
-func sortDiscoverTopicResults(results []DiscoverResult) {
-	for i := 1; i < len(results); i++ {
-		for j := i; j > 0; j-- {
-			a, b := results[j], results[j-1]
-			aDepth, bDepth := 0, 0
-			if a.TopicDepth != nil {
-				aDepth = *a.TopicDepth
-			}
-			if b.TopicDepth != nil {
-				bDepth = *b.TopicDepth
-			}
-			if aDepth < bDepth || (aDepth == bDepth && a.Score > b.Score) {
-				results[j], results[j-1] = results[j-1], results[j]
-			} else {
-				break
-			}
-		}
-	}
-}
-
 func sortDiscoverSearchResults(results []DiscoverResult) {
 	for i := 1; i < len(results); i++ {
 		for j := i; j > 0 && results[j].Score > results[j-1].Score; j-- {
@@ -660,32 +785,29 @@ func sortDiscoverSearchResults(results []DiscoverResult) {
 	}
 }
 
-func keepDiscoverActionsWithinLimit(topicResults, searchResults, actionResults []DiscoverResult, limit int) []DiscoverResult {
-	if limit <= 0 {
-		return nil
-	}
-	if len(actionResults) > limit {
-		actionResults = actionResults[:limit]
-	}
-	remaining := limit - len(actionResults)
-	if remaining <= 0 {
-		return append([]DiscoverResult(nil), actionResults...)
-	}
-	out := make([]DiscoverResult, 0, limit)
-	for _, r := range topicResults {
-		if len(out) >= remaining {
-			break
+// discoverPack is a gated topic whose accumulated skills (own + ancestors) are
+// force-included as a curated unit. Built during Step 1 of DiscoverTyped.
+type discoverPack struct {
+	topicID   string
+	topicName string
+	score     float64
+	depth     int
+	skillIDs  []string
+}
+
+// sortPacksByScore orders packs by topic score descending, with topicID as a
+// deterministic tiebreak so equal-score packs compose reproducibly.
+func sortPacksByScore(packs []discoverPack) {
+	for i := 1; i < len(packs); i++ {
+		for j := i; j > 0; j-- {
+			a, b := packs[j], packs[j-1]
+			if a.score > b.score || (a.score == b.score && a.topicID < b.topicID) {
+				packs[j], packs[j-1] = packs[j-1], packs[j]
+			} else {
+				break
+			}
 		}
-		out = append(out, r)
 	}
-	for _, r := range searchResults {
-		if len(out) >= remaining {
-			break
-		}
-		out = append(out, r)
-	}
-	out = append(out, actionResults...)
-	return out
 }
 
 // discoverSkillEntry tracks a skill during discover result accumulation.
@@ -942,6 +1064,25 @@ func (s *Service) SetBudgetConfig(p BudgetConfigProvider) {
 // SetDiscoverFilterConfig sets the discover filter configuration provider.
 func (s *Service) SetDiscoverFilterConfig(p DiscoverFilterConfigProvider) {
 	s.filterConfig = p
+}
+
+// SetDiscoverRankingConfig sets the discover ranking configuration provider.
+func (s *Service) SetDiscoverRankingConfig(p DiscoverRankingConfigProvider) {
+	s.rankingConfig = p
+}
+
+// rankingCfg resolves the active ranking levers, falling back to defaults when
+// no provider is wired or the provider errors (best-effort: never fails discover).
+func (s *Service) rankingCfg(ctx context.Context) DiscoverRankingConfig {
+	if s.rankingConfig == nil {
+		return DefaultDiscoverRankingConfig()
+	}
+	cfg, err := s.rankingConfig.Get(ctx)
+	if err != nil {
+		log.Printf("[aisearch] ranking config load failed, using defaults: %v", err)
+		return DefaultDiscoverRankingConfig()
+	}
+	return cfg
 }
 
 // SearchAgents performs AI semantic search for agents with fallback to text search.

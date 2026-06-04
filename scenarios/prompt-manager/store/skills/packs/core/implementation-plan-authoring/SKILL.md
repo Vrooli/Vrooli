@@ -103,6 +103,8 @@ Then run its discovery process — typically:
 prompt-manager discover "<concept-1>" "<concept-2>" "<concept-3>" --complexity moderate
 ```
 
+Keep the default **skill mode** and pass `--complexity`: skill mode is curated — discover returns the relevant topic packs (each topic's skills plus its folder's and the root's) alongside strong direct matches, which is the required-reading set a plan wants. Do not switch to `--type all` for plan authoring (that is best-match relevance for "find an existing tool", not curated packs).
+
 If the discovery output surfaces any of the conditional reads above (`cli-steer`, `api-steer`, `utils-unification`, `seam-discovery-and-enforcement`), or your plan obviously touches their surface, load them now. Otherwise skip them. Then gather implementation evidence (commands, files, observed failures) before writing.
 
 #### Step A.5: Anchor the regression surface

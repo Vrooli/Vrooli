@@ -68,6 +68,10 @@ message SearchResult {
 message SearchResponse {
   repeated SearchResult results = 1;
   Mode mode_used = 2;
+  // Active reranker leg that ordered these results ("cross-encoder:…",
+  // "llm:…") or "none" when reranking is disabled/unavailable (results then
+  // keep their fused/dense order).
+  string reranker = 3;
 }
 
 // StatusRequest is currently empty; reserved for future filters.
@@ -91,4 +95,7 @@ message StatusResponse {
   // Free-form outcome string from the most recent reconcile ("ok",
   // "partial: 2 errors", etc.).
   string last_reconcile_outcome = 6;
+  // Active reranker leg ("cross-encoder:…", "llm:…"), "none" when reranking is
+  // disabled, or "degraded" when enabled but no leg is currently reachable.
+  string reranker = 7;
 }

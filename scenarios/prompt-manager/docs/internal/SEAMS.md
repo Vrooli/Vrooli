@@ -53,8 +53,11 @@ The prompt-manager uses interface-based design to create clear testing seams. Ea
 | `TeamRelReader` | `aisearch` | Team member relations for team embeddings |
 | `TopicStoreReader` | `aisearch` | Read-only topic access for discover pipeline |
 | `BudgetConfigProvider` | `aisearch` | Budget tier config for discover budgeting |
+| `DiscoverFilterConfigProvider` | `aisearch` | Discover exclusion filter config (drafts/ids/modes/tags) |
+| `DiscoverRankingConfigProvider` | `aisearch` | Ranking levers (topic gate, high-confidence bar, caps) for the block-aware discover composition; faked via `MockRankingConfigProvider` in tests |
 | `SemanticActionSearcher` | `actions` | Semantic similarity for `action create` dedup previews (adapts aisearch; faked in tests) |
 | `DiscoveryMissStore` | `aisearch` | Discovery-miss telemetry sink/source (impl: `store.DiscoveryMissStore`; faked in tests) |
+| `DiscoveryCallStore` | `aisearch` | Per-call discovery telemetry sink/source — records EVERY discover call, not just misses (impl: `store.DiscoveryCallStore`; faked in tests) |
 
 ### Search Service Seams
 
@@ -511,6 +514,46 @@ tests to verify budget calculation with arbitrary tier configs without touching 
 
 **Handlers:** `GetBudgetConfig`/`PutBudgetConfig` on `aisearch.Handlers` follow the same
 pattern as `graph.Handlers.GetHealthConfig`/`PutHealthConfig`.
+
+---
+
+## Discovery Telemetry
+
+The discover pipeline has two parallel telemetry seams, both interfaces in the
+`aisearch` package whose production impls live in `store` and whose fakes are
+injected in tests:
+
+```go
+type DiscoveryMissStore interface { // unmet queries only (top score < 0.45)
+    Append(miss store.DiscoveryMiss) error
+    ReadSince(window time.Duration) ([]store.DiscoveryMiss, error)
+}
+
+type DiscoveryCallStore interface { // EVERY discover call
+    Append(call store.DiscoveryCall) error
+    ReadSince(window time.Duration) ([]store.DiscoveryCall, error)
+}
+```
+
+**Why two.** The miss store answers "what are agents looking for that we don't
+have?" (mined as capability-gap alpha). The call store answers "is the
+threshold/budget tuned right?" — it records every call (scores, budget status,
+trimmed count, optional clip count) so a call that returns relevant-but-clipped
+results is visible. The miss store alone is blind to that case.
+
+**Production:** `store.DiscoveryMissStore` / `store.DiscoveryCallStore` write
+bounded, time-windowed JSONL (`discovery-misses.jsonl` / `discovery-calls.jsonl`)
+under the runtime-data root — separate files so miss-mining semantics stay
+clean. Wired in `main.go` via `SetDiscoveryMissStore` / `SetDiscoveryCallStore`.
+
+**Testing:** `fakeMissStore` / `fakeCallStore` capture appended records and
+return canned read responses, so `recordDiscoveryMiss`, `recordDiscoveryCall`,
+`DiscoveryGaps`, and `DiscoveryMetrics` are tested without a filesystem home.
+Both recorders are guarded (nil store = no-op) and log-and-continue on error so
+telemetry never fails the discover response.
+
+See [discovery-pipeline.md](../reference/discovery-pipeline.md) for the full
+pipeline, threshold/budget semantics, and tuning rubric.
 
 ---
 
