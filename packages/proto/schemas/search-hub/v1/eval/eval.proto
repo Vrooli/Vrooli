@@ -1,0 +1,223 @@
+syntax = "proto3";
+
+package vrooli.search_hub.v1.eval;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval;eval_v1";
+
+// =============================================================================
+// SEARCH-HUB EVAL DOMAIN — per-provider search-quality baseline harness
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain eval
+// @stability beta
+//
+// Wire contract for EvalService. A provider that owns a searchable corpus ships
+// a JSON suite of golden retrieval cases (a query + soft expectations). Running
+// a suite calls that provider's already-registered endpoint (via the registry's
+// ResultMapping — no provider-specific code), labels each case against its
+// expectations, and stores an immutable, TAGGED run. The UI shows run history so
+// experiments are comparable over time.
+//
+// This is explicitly NOT a programmatic pass/fail gate: expectations produce
+// soft labels (met / below_expectation / …), never a non-zero exit. A consumer
+// that wants CI enforcement opts in with `evals run … --assert`; the hub never
+// imposes it.
+//
+// A suite references a provider_id; the runner uses that provider's registered
+// Endpoint + ResultMapping. Adding a suite for a new provider therefore requires
+// the provider to be registered first — the eval domain is a SIBLING of the
+// registry, not a fork of it (no ProviderDescriptor schema change).
+//
+// See docs/plans/search-quality-baseline-harness-and-rerank-enablement-plan.md.
+// =============================================================================
+
+// A registered, provider-owned suite of golden retrieval cases.
+message EvalSuite {
+  // Stable suite id, e.g. "cli-health.commands.primary".
+  string suite_id = 1;
+  // FK → registry providers.provider_id; the runner reuses that endpoint.
+  string provider_id = 2;
+  string name = 3;
+  string description = 4;
+  repeated EvalCase cases = 5;
+  // "active" | "archived".
+  string state = 6;
+  // RFC3339Nano.
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+// One golden query + its EXPECTATIONS. Expectations are soft: they produce a
+// label per run, they never fail a build.
+message EvalCase {
+  string case_id = 1;
+  string query = 2;
+  // "strong" | "weak-real" | "gibberish" | corpus tags.
+  repeated string tags = 3;
+  // Positive expectations (omit for gibberish):
+  // ids (per the provider's id_field) that SHOULD appear.
+  repeated string expect_ids = 4;
+  // expected item should land within top-K (0 = unset).
+  int32 expect_within_top_k = 5;
+  // expected top/target score floor (0 = unset).
+  double expect_min_score = 6;
+  // upper band (0 = unset).
+  double expect_max_score = 7;
+  // Negative expectation (gibberish / no-answer): when true, NO result should
+  // exceed expect_max_score (the "junk should be rejected" case).
+  bool expect_no_strong_hit = 8;
+  string note = 9;
+}
+
+// An immutable execution of a suite. The TAG is the experimentation lever.
+message EvalRun {
+  string run_id = 1;
+  string suite_id = 2;
+  // free-text experiment label, e.g. "rerank-off" | "cross-encoder" | "llm-qwen3".
+  string tag = 3;
+  string created_at = 4;
+  // self-describing snapshot of the config that affects results.
+  ConfigSnapshot config = 5;
+  repeated CaseResult results = 6;
+  EvalAggregate aggregate = 7;
+}
+
+// Captured from the provider's status probe at run time so a historical
+// comparison stays meaningful months later. Fields the probe can't supply are
+// left zero (honest).
+message ConfigSnapshot {
+  bool rerank_enabled = 1;
+  // "none" | "cross-encoder:…" | "llm:qwen3:4b" | "degraded".
+  string reranker_leg = 2;
+  string embed_model = 3;
+  int32 indexed_count = 4;
+  // free-form (e.g. git sha if the provider exposes one).
+  string provider_note = 5;
+}
+
+message CaseResult {
+  string case_id = 1;
+  // the top-K returned, in rank order.
+  repeated ScoredHit top = 2;
+  // 1-based rank of the first expect_id (0 = absent).
+  int32 expected_rank = 3;
+  double observed_top_score = 4;
+  // "met" | "below_expectation" | "above_expectation" | "unexpected_hit" | "n/a".
+  string outcome = 5;
+}
+
+message ScoredHit {
+  string id = 1;
+  string title = 2;
+  double score = 3;
+}
+
+// Roll-up for trend / compare — NOT a pass/fail verdict.
+message EvalAggregate {
+  int32 cases = 1;
+  int32 met = 2;
+  int32 below = 3;
+  // mean top-1 score over "strong" cases.
+  double mean_strong_top1 = 4;
+  // worst junk leakage over gibberish cases (lower = better).
+  double max_gibberish_score = 5;
+  int32 latency_p95_ms = 6;
+}
+
+service EvalService {
+  // Upsert a suite (keyed by suite_id).
+  rpc RegisterSuite(RegisterSuiteRequest) returns (RegisterSuiteResponse);
+  rpc ListSuites(ListSuitesRequest) returns (ListSuitesResponse);
+  rpc GetSuite(GetSuiteRequest) returns (GetSuiteResponse);
+  // Execute a suite against its provider and store an immutable, tagged run.
+  rpc RunSuite(RunSuiteRequest) returns (RunSuiteResponse);
+  // History, optionally filtered by tag.
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  // A-vs-B per-case delta.
+  rpc CompareRuns(CompareRunsRequest) returns (CompareRunsResponse);
+}
+
+message RegisterSuiteRequest {
+  EvalSuite suite = 1;
+}
+
+message RegisterSuiteResponse {
+  EvalSuite suite = 1;
+  // false when an existing suite was updated.
+  bool created = 2;
+}
+
+message ListSuitesRequest {
+  // optional filter; empty means all.
+  string provider_id = 1;
+}
+
+message ListSuitesResponse {
+  repeated EvalSuite suites = 1;
+}
+
+message GetSuiteRequest {
+  string suite_id = 1;
+}
+
+message GetSuiteResponse {
+  EvalSuite suite = 1;
+}
+
+message RunSuiteRequest {
+  string suite_id = 1;
+  // free-text experiment label stored with the run.
+  string tag = 2;
+  // per-case fetch depth; 0 → a sensible default (max(expect_within_top_k, 10)).
+  int32 limit = 3;
+}
+
+message RunSuiteResponse {
+  EvalRun run = 1;
+}
+
+message ListRunsRequest {
+  string suite_id = 1;
+  // optional tag filter; empty means all tags.
+  string tag = 2;
+  // optional max rows (0 → all), newest first.
+  int32 limit = 3;
+}
+
+message ListRunsResponse {
+  // newest first.
+  repeated EvalRun runs = 1;
+}
+
+message GetRunRequest {
+  string run_id = 1;
+}
+
+message GetRunResponse {
+  EvalRun run = 1;
+}
+
+message CompareRunsRequest {
+  string run_a = 1;
+  string run_b = 2;
+}
+
+// Per-case delta between two runs of (ideally) the same suite. case_only_in_a /
+// case_only_in_b list case_ids present in just one run (suites drift over time).
+message CompareRunsResponse {
+  EvalRun run_a = 1;
+  EvalRun run_b = 2;
+  repeated CaseDelta deltas = 3;
+}
+
+message CaseDelta {
+  string case_id = 1;
+  string outcome_a = 2;
+  string outcome_b = 3;
+  double top_score_a = 4;
+  double top_score_b = 5;
+  int32 expected_rank_a = 6;
+  int32 expected_rank_b = 7;
+}

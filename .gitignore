@@ -2,6 +2,14 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=react,node
 # NOTE: Currently identical to the `.cursorignore` file. If you change one, consider changing the other
 
+### Sandbox-leaked HOME (defensive safety net) ###
+# A sandboxed agent run with a relative HOME (e.g. HOME=.home) and
+# --chdir <workspace> materializes a fake home in the repo root from
+# $HOME-relative writes (Go build cache, vrooli CLI metrics, tool config).
+# The root cause is guarded in agent-manager + workspace-sandbox; this
+# entry prevents an accidental commit if it ever recurs.
+/.home/
+
 ### Kubernetes configs ###
 k8s/kubeconfig-*.yaml
 k8s/ca-certificate.crt
