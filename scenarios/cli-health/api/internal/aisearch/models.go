@@ -1,13 +1,15 @@
-// Package aisearch is the AI-powered semantic search for cli-health.
-// Structure mirrors scenarios/prompt-manager/api/aisearch verbatim where
-// reusable; cli-health-specific types (CommandRecord, SearchHit) live here.
-//
-// Duplicate-before-extract: this package is a copy of the prompt-manager
-// implementation. Bug fixes flow upstream first, then are mirrored here.
-// Extraction into a shared package is deferred to a future scenario.
+// Package aisearch is cli-health's thin consumer of the shared retrieval engine
+// in packages/aisearch-go. This package owns only the cli-health-specific
+// concerns: command discovery (discovery.go / helpparser.go), the Source adapter
+// + result projection (command_index.go), and the search/reindex orchestration
+// surface the Connect handlers call (service.go). The index/store/reconcile core
+// — embedding, the Qdrant vector store, drift reconciliation, the sync loop, and
+// env config — lives in github.com/vrooli/aisearch-go.
 package aisearch
 
-import "time"
+// DefaultCollection is the Qdrant collection cli-health indexes its commands
+// into. Single named-dense vector layout (the shared engine's CollectionSpec).
+const DefaultCollection = "cli-health-commands"
 
 // CommandRecord is the canonical view of a single CLI command, regardless of
 // source (manifest or --help fallback). It is the unit that gets embedded,
@@ -24,6 +26,21 @@ type CommandRecord struct {
 	Binding     string   `json:"binding,omitempty"` // "Service.Method" when source=manifest
 	Source      string   `json:"source"`            // "manifest" | "help" | "help-failed"
 }
+
+// Read-path adoption status (WS5): SearchHit / SearchResponse / StatusReport
+// here — and SearchMode in service.go — are cli-health's command-domain
+// *projection* of the generic read-path in github.com/vrooli/aisearch-go
+// (pkg.SearchHit / pkg.SearchResponse / pkg.StatusReport / pkg.SearchMode).
+// They are kept local on purpose, not by drift:
+//   - SearchHit carries command fields the generic type lacks (Origin, Group,
+//     Binding, ScorePercent) — a 1:1 merge would be wrong.
+//   - SearchMode is the proto-facing enum (MODE_AI/MODE_TEXT/MODE_AUTO) the
+//     Connect handler maps to; pkg.SearchMode (hybrid/dense) has no "ai" member.
+//
+// The generic pkg.Service/SearchQuery read-path is intentionally exercised
+// first by the KO docs adopter, so that contract is deferred-not-dead. See
+// docs/internal/DECISIONS.md (2026-06-03). If the federation SearchHit shape
+// (search-hub Appendix A.5) changes, update that descriptor in lockstep.
 
 // SearchHit is the per-result projection returned by Service.Search.
 type SearchHit struct {
@@ -42,10 +59,11 @@ type SearchHit struct {
 
 // SearchResponse wraps results with the request echo + retrieval method.
 type SearchResponse struct {
-	Results []SearchHit `json:"results"`
-	Total   int         `json:"total"`
-	Query   string      `json:"query"`
-	Method  string      `json:"method"` // "ai" | "text"
+	Results  []SearchHit `json:"results"`
+	Total    int         `json:"total"`
+	Query    string      `json:"query"`
+	Method   string      `json:"method"`             // "ai" | "text"
+	Reranker string      `json:"reranker,omitempty"` // active reranker leg or "none"
 }
 
 // StatusReport describes search backend availability.
@@ -56,82 +74,7 @@ type StatusReport struct {
 	IndexedCount         int    `json:"indexedCount"`
 	LastReconcileAt      string `json:"lastReconcileAt,omitempty"`
 	LastReconcileOutcome string `json:"lastReconcileOutcome,omitempty"`
-}
-
-// EntityKind names the collection a reconciler item belongs to. cli-health
-// has one kind today; the type stays so the reconciler stays generic.
-type EntityKind string
-
-const KindCommand EntityKind = "command"
-
-// ItemRef is the reconciler's handle on a single planned item.
-type ItemRef struct {
-	Kind        EntityKind  `json:"kind"`
-	PointID     string      `json:"pointId"`
-	Name        string      `json:"name"`
-	PayloadHash string      `json:"payloadHash"`
-	Snapshot    interface{} `json:"-"`
-}
-
-// CollectionDriftReport captures Plan output for one collection.
-type CollectionDriftReport struct {
-	Kind           EntityKind `json:"kind"`
-	ToUpsert       []ItemRef  `json:"toUpsert,omitempty"`
-	ToDelete       []string   `json:"toDelete,omitempty"`
-	UnchangedCount int        `json:"unchangedCount"`
-	LegacyCount    int        `json:"legacyCount"`
-}
-
-// DriftReport is the full Plan output across all configured collections.
-type DriftReport struct {
-	PlannedAt   time.Time               `json:"plannedAt"`
-	Collections []CollectionDriftReport `json:"collections"`
-}
-
-// HasWork returns true when any collection has upserts or deletes pending.
-func (d *DriftReport) HasWork() bool {
-	if d == nil {
-		return false
-	}
-	for _, c := range d.Collections {
-		if len(c.ToUpsert) > 0 || len(c.ToDelete) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
-// CollectionApplyResult captures Apply output for one collection.
-type CollectionApplyResult struct {
-	Kind     EntityKind `json:"kind"`
-	Upserted int        `json:"upserted"`
-	Deleted  int        `json:"deleted"`
-}
-
-// ReconcileError is one entry in ApplyResult.Errors.
-type ReconcileError struct {
-	Kind    EntityKind `json:"kind"`
-	PointID string     `json:"pointId,omitempty"`
-	Name    string     `json:"name,omitempty"`
-	Op      string     `json:"op"`
-	Err     string     `json:"err"`
-}
-
-// ApplyResult captures the actions Apply took.
-type ApplyResult struct {
-	StartedAt   time.Time               `json:"startedAt"`
-	FinishedAt  time.Time               `json:"finishedAt"`
-	Collections []CollectionApplyResult `json:"collections"`
-	Errors      []ReconcileError        `json:"errors,omitempty"`
-}
-
-// ReconcileStatus is the Reconciler state surfaced to handlers/CLI.
-type ReconcileStatus struct {
-	Running    bool         `json:"running"`
-	StartedAt  string       `json:"startedAt,omitempty"`
-	FinishedAt string       `json:"finishedAt,omitempty"`
-	LastPlan   *DriftReport `json:"lastPlan,omitempty"`
-	LastResult *ApplyResult `json:"lastResult,omitempty"`
-	LastError  string       `json:"lastError,omitempty"`
-	Canceled   bool         `json:"canceled,omitempty"`
+	// Reranker is the active reranker leg ("cross-encoder:…" / "llm:…"), "none"
+	// when disabled, or "degraded" when enabled but no leg is reachable.
+	Reranker string `json:"reranker,omitempty"`
 }

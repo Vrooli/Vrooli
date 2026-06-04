@@ -229,10 +229,19 @@
         "models": [
           "nomic-embed-text"
         ]
+      },
+      "reranker": {
+        "type": "reranker",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Cross-encoder reranker (BAAI/bge-reranker-v2-m3 via TEI) that reorders the dense command-search shortlist; validated 2026-06-04 to collapse gibberish leakage from 0.583 to 0.000 at sub-second latency.",
+        "degraded_behavior": "Reranking falls back to raw dense (cosine) order; search still returns results, only the final ordering is less precise. The local-LLM fallback leg is best-effort only — qwen3:1.7b cannot discriminate (all-zero scores) and qwen3:4b is too slow (~38s/query) to serve, so the cross-encoder resource is effectively required for the rerank quality win."
       }
     }
   },
   "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/cli-health.db"
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/cli-health.db",
+    "CLI_HEALTH_RERANK_ENABLED": "1"
   }
 }

@@ -48,8 +48,10 @@
     "loading": "検索中…",
     "error": "検索に失敗しました: {{message}}",
     "modeUsed": "{{mode}} モードで処理されました。",
+    "reranker": "{{reranker}} で再ランク付けされました。",
     "resultScore": "スコア: {{score}}",
-    "resultSource": "ソース: {{source}}"
+    "resultSource": "ソース: {{source}}",
+    "weakMatch": "弱い一致"
   },
   "validate": {
     "title": "マニフェスト検証",

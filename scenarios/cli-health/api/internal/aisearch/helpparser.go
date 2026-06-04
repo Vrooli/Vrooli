@@ -255,6 +255,10 @@ func newRecord(origin string, path []string) CommandRecord {
 	return rec
 }
 
+// helpDescription returns the help body trimmed to start at its first non-empty
+// line. The body already leads with the command's summary line, so it is used
+// verbatim — prepending firstNonEmptyLine again (the old behavior) duplicated
+// the summary in both the embedded vector and the displayed snippet.
 func helpDescription(helpOut []byte) string {
-	return truncateForEmbedding(firstNonEmptyLine(string(helpOut))+"\n"+string(helpOut), 1800)
+	return truncateForEmbedding(strings.TrimLeft(string(helpOut), " \t\r\n"), 1800)
 }

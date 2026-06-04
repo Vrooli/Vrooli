@@ -13,6 +13,7 @@ import (
 	"cli-health/internal/modules"
 	"cli-health/internal/server"
 
+	aisearchpkg "github.com/vrooli/aisearch-go"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -108,21 +109,31 @@ func main() {
 		log.Fatalf("resolve repo root: %v", err)
 	}
 
-	// AI search wiring: embedder + vector store + discovery + reconciler. The
-	// service exposes both Search/Status and Reindex surfaces to handlers.
-	searchCfg := aisearch.LoadConfigFromEnv()
-	embedder := aisearch.NewEmbedder(searchCfg.EmbedModel)
-	vectorStore := aisearch.NewVectorStore(searchCfg.QdrantURL, searchCfg.QdrantAPIKey, aisearch.DefaultCollection, aisearch.DefaultVectorSize)
+	// AI search wiring: the shared engine (packages/aisearch-go) provides the
+	// embedder + vector store + reconciler + env config + sync loop; cli-health
+	// supplies the command discovery source and the search/reindex service.
+	// NewDenseEngine assembles the dense-only common case (embedder + store +
+	// reranker chain) so the collection name is named exactly once; the reranker
+	// chain stays default-off (CLI_HEALTH_RERANK_ENABLED) until an attended A/B.
+	searchCfg := aisearchpkg.LoadConfig("CLI_HEALTH")
+	engine := aisearchpkg.NewDenseEngine(searchCfg, aisearch.DefaultCollection)
 	discovery := aisearch.NewFilesystemDiscoverySource(repoRoot)
 	// Index the top-level vrooli CLI alongside scenario CLIs. The
 	// records carry Origin="vrooli"; the validation handler rejects
 	// "vrooli" because no proto contract exists for it.
 	discovery.ExternalCLIs = []aisearch.ExternalCLI{{Name: "vrooli", Binary: "vrooli"}}
 	aiService := aisearch.NewService(aisearch.Options{
-		Embedder:    embedder,
-		VectorStore: vectorStore,
-		Discovery:   discovery,
-		Parallelism: searchCfg.ReconcileParallelism,
+		Embedder:         engine.Embedder,
+		VectorStore:      engine.VectorStore,
+		Discovery:        discovery,
+		Parallelism:      searchCfg.ReconcileParallelism,
+		MaxEmbedsPerTick: searchCfg.MaxEmbedsPerTick,
+		Floor: aisearchpkg.FloorConfig{
+			MaxGap:    searchCfg.RelevanceMaxGap,
+			HardFloor: searchCfg.RelevanceHardFloor,
+		},
+		RerankEnabled: searchCfg.RerankEnabled,
+		Reranker:      engine.Reranker,
 	})
 
 	// EnsureCollection is best-effort: if qdrant is unreachable at boot, the
@@ -134,7 +145,7 @@ func main() {
 	// Sync loop drives periodic reconcile against qdrant. Cancelled by the
 	// api-core server's shutdown context.
 	syncCtx, cancelSync := context.WithCancel(context.Background())
-	syncLoop := aisearch.NewSyncLoop(aiService.Reconciler())
+	syncLoop := aisearchpkg.NewSyncLoop("cli-health", aiService.Reconciler(), searchCfg)
 	go syncLoop.Start(syncCtx)
 
 	srv := server.New(

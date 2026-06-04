@@ -277,6 +277,47 @@ Commands:
 	}
 }
 
+// TestLeafRecordDescriptionNoDuplicateSummary guards WS4: a leaf command whose
+// --help body leads with its summary line must not store that line twice in
+// Description (which pollutes both the embedded vector and the displayed
+// snippet). The leaf is reached when a subcommand's --help reveals no further
+// subcommands, so its full help body becomes the Description.
+func TestLeafRecordDescriptionNoDuplicateSummary(t *testing.T) {
+	const providerLogsHelp = "audio-tools provider logs - Stream provider logs\n\nUsage:\n  audio-tools provider logs [options]\n\nOptions:\n  --follow\n"
+	run, _ := staticRunner(t, map[string]string{
+		"audio-tools":               "audio-tools CLI\n\nUsage:\n  audio-tools <command>\n\nCommands:\n    provider           Manage providers\n",
+		"audio-tools provider":      "Usage:\n  audio-tools provider <subcommand>\n\nCommands:\n    logs               Stream provider logs\n",
+		"audio-tools provider logs": providerLogsHelp,
+	})
+	records := ParseHelpTree(context.Background(), run, "audio-tools", HelpTreeOptions{Origin: "audio-tools"})
+
+	var leaf *CommandRecord
+	for i := range records {
+		if records[i].FullPath == "audio-tools provider logs" {
+			leaf = &records[i]
+			break
+		}
+	}
+	if leaf == nil {
+		t.Fatalf("missing leaf 'audio-tools provider logs'; got %v", recordPaths(records))
+	}
+
+	summary := "audio-tools provider logs - Stream provider logs"
+	if !strings.HasPrefix(leaf.Description, summary) {
+		t.Fatalf("Description must lead with the summary line, got %q", leaf.Description)
+	}
+	if strings.Count(leaf.Description, summary) != 1 {
+		t.Fatalf("summary line must appear exactly once, got %d in %q", strings.Count(leaf.Description, summary), leaf.Description)
+	}
+	// No adjacent duplicate of any line (the precise old defect).
+	lines := strings.Split(leaf.Description, "\n")
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) != "" && lines[i] == lines[i-1] {
+			t.Fatalf("adjacent duplicate line %q in Description %q", lines[i], leaf.Description)
+		}
+	}
+}
+
 func keys(m map[string]CommandRecord) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {

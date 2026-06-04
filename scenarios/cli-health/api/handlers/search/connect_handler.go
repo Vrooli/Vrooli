@@ -52,6 +52,7 @@ func (h *connectHandler) Search(ctx context.Context, req *connect.Request[search
 	}
 	wire := &searchv1.SearchResponse{
 		ModeUsed: serviceMethodToProto(resp.Method),
+		Reranker: resp.Reranker,
 	}
 	for _, hit := range resp.Results {
 		wire.Results = append(wire.Results, &searchv1.SearchResult{
@@ -78,6 +79,7 @@ func (h *connectHandler) Status(ctx context.Context, _ *connect.Request[searchv1
 		IndexedCount:         int32(rep.IndexedCount),
 		LastReconcileAt:      rep.LastReconcileAt,
 		LastReconcileOutcome: rep.LastReconcileOutcome,
+		Reranker:             rep.Reranker,
 	}), nil
 }
 

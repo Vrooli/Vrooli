@@ -326,16 +326,6 @@ func (d *FilesystemDiscoverySource) resolveBinary(scenario string) string {
 	return ""
 }
 
-func firstNonEmptyLine(s string) string {
-	for _, line := range strings.Split(s, "\n") {
-		t := strings.TrimSpace(line)
-		if t != "" {
-			return t
-		}
-	}
-	return ""
-}
-
 func truncateForEmbedding(s string, max int) string {
 	if max <= 0 || len(s) <= max {
 		return s

@@ -60,8 +60,10 @@ export const strings = {
     loading: "search.loading",
     error: "search.error",
     modeUsed: "search.modeUsed",
+    reranker: "search.reranker",
     resultScore: "search.resultScore",
     resultSource: "search.resultSource",
+    weakMatch: "search.weakMatch",
   },
   validate: {
     title: "validate.title",

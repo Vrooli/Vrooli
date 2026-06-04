@@ -9,6 +9,11 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { Mode, type SearchResponse } from "@vrooli/proto-types/cli-health/v1/search/search_pb";
 
+// lowConfidenceThreshold is the display cutoff below which an AI result is
+// flagged as a weak match — the human judges the ambiguous band the server-side
+// relevance floor intentionally keeps (WS2).
+const lowConfidenceThreshold = 0.55;
+
 const modeLabel = (mode: Mode): string => {
   switch (mode) {
     case Mode.AI:
@@ -103,6 +108,14 @@ export function SearchPanel() {
           >
             {t(strings.search.modeUsed, { mode: modeLabel(mutation.data.modeUsed) })}
           </p>
+          {mutation.data.reranker && mutation.data.reranker !== "none" && (
+            <p
+              data-testid={selectors.search.reranker}
+              className="mt-1 text-xs text-app-muted-foreground"
+            >
+              {t(strings.search.reranker, { reranker: mutation.data.reranker })}
+            </p>
+          )}
           {results.length === 0 ? (
             <p data-testid={selectors.search.empty} className="mt-2 text-sm">
               {t(strings.search.noResults)}
@@ -117,6 +130,14 @@ export function SearchPanel() {
                 >
                   <p className="font-mono text-sm">
                     {r.origin} {r.group} {r.name}
+                    {r.score < lowConfidenceThreshold && (
+                      <span
+                        data-testid={selectors.search.weakMatch}
+                        className="ms-2 rounded-control border border-app-border px-1.5 py-0.5 text-xs text-app-muted-foreground align-middle"
+                      >
+                        {t(strings.search.weakMatch)}
+                      </span>
+                    )}
                   </p>
                   {r.description && (
                     <p className="mt-1 text-sm text-app-muted-foreground">{r.description}</p>

@@ -77,6 +77,40 @@ describe("SearchPanel", () => {
     expect(await screen.findByTestId(selectors.search.empty)).toBeInTheDocument();
   });
 
+  it("flags low-confidence results as weak matches and leaves strong ones unmarked", async () => {
+    vi.mocked(searchClient.search).mockResolvedValue({
+      results: [
+        {
+          origin: "cli-health",
+          group: "validate",
+          name: "scenario",
+          description: "Strong match.",
+          score: 0.81, // >= 0.55 -> no weak chip
+          source: "manifest",
+        },
+        {
+          origin: "other",
+          group: "",
+          name: "thing",
+          description: "Ambiguous match.",
+          score: 0.42, // < 0.55 -> weak chip
+          source: "help",
+        },
+      ],
+      modeUsed: Mode.AI,
+    } as never);
+
+    renderWithProviders(<SearchPanel />);
+    fireEvent.change(screen.getByTestId(selectors.search.input), {
+      target: { value: "thing" },
+    });
+    fireEvent.click(screen.getByTestId(selectors.search.submit));
+
+    await screen.findAllByTestId(selectors.search.result);
+    const weak = screen.getAllByTestId(selectors.search.weakMatch);
+    expect(weak).toHaveLength(1);
+  });
+
   it("renders an error when the client rejects", async () => {
     vi.mocked(searchClient.search).mockRejectedValue(new Error("backend down"));
 

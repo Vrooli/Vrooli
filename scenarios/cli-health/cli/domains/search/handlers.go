@@ -13,6 +13,11 @@ import (
 	searchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/search/search_v1connect"
 )
 
+// lowConfidenceThreshold is the display cutoff below which an AI result is
+// flagged "(weak)" — the human judges the ambiguous band the server-side
+// relevance floor intentionally keeps (WS2).
+const lowConfidenceThreshold = 0.55
+
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client searchconnect.SearchServiceClient
@@ -54,8 +59,14 @@ func (h *handlers) query(ctx cliapp.RunContext) error {
 	for i, r := range resp.Msg.Results {
 		full := strings.TrimSpace(strings.Join([]string{r.Origin, r.Group, r.Name}, " "))
 		desc := truncate(r.Description, 80)
-		results = append(results, fmt.Sprintf("%d. %s — %s [score=%.3f source=%s]",
-			i+1, full, desc, r.Score, r.Source))
+		// WS2: flag low-confidence (weak) matches so a human judges the ambiguous
+		// band the relevance floor intentionally keeps.
+		weak := ""
+		if r.Score < lowConfidenceThreshold {
+			weak = " (weak)"
+		}
+		results = append(results, fmt.Sprintf("%d. %s — %s [score=%.3f source=%s]%s",
+			i+1, full, desc, r.Score, r.Source, weak))
 	}
 	if len(results) == 0 {
 		results = append(results, "(no matches)")
@@ -84,10 +95,15 @@ func (h *handlers) status(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no status response")
 	}
+	reranker := resp.Msg.Reranker
+	if reranker == "" {
+		reranker = "none"
+	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary: []string{
 			fmt.Sprintf("Available: %v", resp.Msg.Available),
 			fmt.Sprintf("Ollama: %v  Qdrant: %v  Indexed: %d", resp.Msg.Ollama, resp.Msg.Qdrant, resp.Msg.IndexedCount),
+			fmt.Sprintf("Reranker: %s", reranker),
 		},
 		ResultsHeading: "Backend status",
 		Results:        []string{},

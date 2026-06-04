@@ -48,8 +48,10 @@
     "loading": "Searching…",
     "error": "Search failed: {{message}}",
     "modeUsed": "Served via {{mode}} mode.",
+    "reranker": "Reranked by {{reranker}}.",
     "resultScore": "Score: {{score}}",
-    "resultSource": "Source: {{source}}"
+    "resultSource": "Source: {{source}}",
+    "weakMatch": "Weak match"
   },
   "validate": {
     "title": "Manifest validation",

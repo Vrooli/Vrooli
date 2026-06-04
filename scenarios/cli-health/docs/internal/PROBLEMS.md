@@ -49,7 +49,40 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-_None yet._
+### Pre-existing STANDARDS + security campaign blocks `vrooli scenario test`
+
+**Symptom:** `vrooli scenario test cli-health` fails the `standards` phase
+(`fail_on=high`, highest=critical) and reports security findings. As of
+2026-06-03: 236 findings (4 blocker/error, 111 warn, 121 info), 36 standards
+violations (2 critical, 33 medium, 1 low).
+
+**Cause:** Template/scaffolding and repo-wide debt, **not** the
+aisearch-adoption-hardening work:
+- **critical** `api/internal/httpc/doer.go:34` "HTTP Client Without Timeout" —
+  false-positive: the flagged line is a *comment* (`// callers pass
+  &http.Client{...} directly`), not code.
+- **critical** `Makefile` "Scenario Required Structure / lifecycle wrapper
+  targets" — template structural gap.
+- **medium** "Unstructured Logging in API" across `aisearch/service.go`,
+  `command_index.go`, `main.go` — the whole package uses `log.Printf` by
+  convention; converting to `slog` is a package-wide refactor (separate
+  campaign). New log lines added by this work follow the existing convention.
+- **security** `osv.GO-2026-5038 / GO-2026-5039` stdlib@1.25.0 (api + cli
+  `go.mod`) — bump toolchain to ≥1.25.11; repo-wide, toolchain-level.
+
+**Workaround:** The actual code gates are green — `gofumpt`, `go build`,
+`golangci-lint`, `go test` (api + cli + packages/aisearch-go), and the UI
+`eslint` / `tsc` / `vitest` all pass. Track the standards debt as a campaign.
+
+**Real fix:** `architecture-cartographer campaign create cli-health
+--from-audit <audit.json>`; fix the httpc false-positive in scenario-auditor's
+`resource-management-v1` rule; add the Makefile lifecycle targets; bump the Go
+toolchain repo-wide.
+
+**Owner:** unassigned (campaign).
+
+**Refs:** `docs/plans/aisearch-adoption-hardening-plan.md`; auditor run
+`scenario-auditor standards scan cli-health`.
 
 ## Architecture Drift
 

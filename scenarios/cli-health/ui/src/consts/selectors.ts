@@ -318,8 +318,10 @@ locale: {
     error: "search-error",
     empty: "search-empty",
     modeUsed: "search-mode-used",
+    reranker: "search-reranker",
     results: "search-results",
     result: "search-result",
+    weakMatch: "search-weak-match",
   },
   validate: {
     card: "validate-card",

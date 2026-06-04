@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	pkg "github.com/vrooli/aisearch-go"
 )
 
 // staticDiscovery is a deterministic DiscoverySource for tests.
@@ -64,58 +66,61 @@ func (f *fakeEmbedder) Embed(_ context.Context, text string) ([]float64, error) 
 }
 func (f *fakeEmbedder) Available(_ context.Context) bool { return f.available }
 
-// fakeVectorStore tracks upserts/deletes and can simulate availability.
+// fakeVectorStore is an in-memory pkg.VectorStore that honors the same on-disk
+// payload contract as Qdrant (ScrollIDs projects payload_hash / source_id /
+// source_hash / chunk_total), so the shared reconciler's two-level drift logic
+// is exercised end-to-end through the Service.
 type fakeVectorStore struct {
 	available bool
 	count     int
 	scrollErr error
 	upsertErr error
-	searchOut []SearchResult
+	searchOut []pkg.SearchResult
 	searchErr error
 
 	mu     sync.Mutex
-	points map[string]map[string]interface{}
-	hashes map[string]string
+	points map[string]pkg.Point
 }
 
 func newFakeStore() *fakeVectorStore {
 	return &fakeVectorStore{
 		available: true,
-		points:    map[string]map[string]interface{}{},
-		hashes:    map[string]string{},
+		points:    map[string]pkg.Point{},
 	}
 }
 
-func (s *fakeVectorStore) EnsureCollection(_ context.Context) error { return nil }
-func (s *fakeVectorStore) Upsert(_ context.Context, id string, _ []float64, payload map[string]interface{}) error {
+func (s *fakeVectorStore) EnsureCollection(_ context.Context, _ pkg.CollectionSpec) error { return nil }
+
+func (s *fakeVectorStore) Upsert(_ context.Context, p pkg.Point) error {
 	if s.upsertErr != nil {
 		return s.upsertErr
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.points[id] = payload
-	if h, ok := payload[payloadHashKey].(string); ok {
-		s.hashes[id] = h
-	}
+	s.points[p.ID] = p
 	return nil
 }
 
-func (s *fakeVectorStore) Delete(_ context.Context, id string) error {
+func (s *fakeVectorStore) SetPayload(_ context.Context, id string, payload map[string]any) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.points, id)
-	delete(s.hashes, id)
-	return nil
-}
-
-func (s *fakeVectorStore) BatchDelete(ctx context.Context, ids []string) error {
-	for _, id := range ids {
-		_ = s.Delete(ctx, id)
+	if p, ok := s.points[id]; ok {
+		p.Payload = payload
+		s.points[id] = p
 	}
 	return nil
 }
 
-func (s *fakeVectorStore) Search(_ context.Context, _ []float64, _ int, _ float64) ([]SearchResult, error) {
+func (s *fakeVectorStore) BatchDelete(_ context.Context, ids []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, id := range ids {
+		delete(s.points, id)
+	}
+	return nil
+}
+
+func (s *fakeVectorStore) Query(_ context.Context, _ pkg.HybridQuery) ([]pkg.SearchResult, error) {
 	if s.searchErr != nil {
 		return nil, s.searchErr
 	}
@@ -131,21 +136,27 @@ func (s *fakeVectorStore) CountPoints(_ context.Context) (int, error) {
 	return len(s.points), nil
 }
 
-func (s *fakeVectorStore) ScrollIDs(_ context.Context) (map[string]ScrollItem, error) {
+// ScrollIDs projects the on-disk drift fields by their payload-key string
+// literals — the same keys the shared engine's buildChunkPayload writes.
+func (s *fakeVectorStore) ScrollIDs(_ context.Context) (map[string]pkg.ScrollItem, error) {
 	if s.scrollErr != nil {
 		return nil, s.scrollErr
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	out := make(map[string]ScrollItem, len(s.hashes))
-	for id, h := range s.hashes {
-		out[id] = ScrollItem{PayloadHash: h}
+	out := make(map[string]pkg.ScrollItem, len(s.points))
+	for id, p := range s.points {
+		hash, _ := p.Payload["payload_hash"].(string)
+		srcID, _ := p.Payload["source_id"].(string)
+		srcHash, _ := p.Payload["source_hash"].(string)
+		total, _ := p.Payload["chunk_total"].(int)
+		out[id] = pkg.ScrollItem{PayloadHash: hash, SourceID: srcID, SourceHash: srcHash, ChunkTotal: total}
 	}
 	return out, nil
 }
 func (s *fakeVectorStore) Available(_ context.Context) bool { return s.available }
 
-func newTestService(disc DiscoverySource, embedder Embedder, store VectorStore) *Service {
+func newTestService(disc DiscoverySource, embedder pkg.Embedder, store pkg.VectorStore) *Service {
 	return NewService(Options{
 		Embedder:    embedder,
 		VectorStore: store,
@@ -223,10 +234,10 @@ func TestService_AIMode_ReturnsVectorHits(t *testing.T) {
 	emb := &fakeEmbedder{available: true}
 	store := newFakeStore()
 	rec := CommandRecord{Origin: "demo", Name: "x", FullPath: "demo x", Source: SourceManifest}
-	store.searchOut = []SearchResult{{
-		ID:      PointIDForCommand(rec.FullPath),
+	store.searchOut = []pkg.SearchResult{{
+		ID:      pointIDForCommand(rec.FullPath),
 		Score:   0.91,
-		Payload: buildCommandPayload(rec, composeCommandEmbeddingText(rec)),
+		Payload: commandMeta(rec),
 	}}
 	svc := newTestService(sampleCorpus(), emb, store)
 	resp, err := svc.Search(context.Background(), "anything", 5, ModeAI)
@@ -241,6 +252,161 @@ func TestService_AIMode_ReturnsVectorHits(t *testing.T) {
 	}
 	if resp.Results[0].ScorePercent != 91 {
 		t.Errorf("ScorePercent = %d, want 91", resp.Results[0].ScorePercent)
+	}
+}
+
+// TestService_AIMode_AppliesRelevanceFloor asserts WS2: the query-adaptive
+// relative cutoff drops a hit that trails the top by more than the default gap,
+// while keeping the top and near hits.
+func TestService_AIMode_AppliesRelevanceFloor(t *testing.T) {
+	emb := &fakeEmbedder{available: true}
+	store := newFakeStore()
+	mk := func(name string, score float64) pkg.SearchResult {
+		rec := CommandRecord{Origin: "demo", Name: name, FullPath: "demo " + name, Source: SourceManifest}
+		return pkg.SearchResult{ID: pointIDForCommand(rec.FullPath), Score: score, Payload: commandMeta(rec)}
+	}
+	// Default gap 0.15 off the 0.80 top -> cutoff 0.65; the 0.50 hit is dropped.
+	store.searchOut = []pkg.SearchResult{mk("top", 0.80), mk("near", 0.70), mk("far", 0.50)}
+
+	svc := newTestService(sampleCorpus(), emb, store)
+	resp, err := svc.Search(context.Background(), "anything", 10, ModeAI)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(resp.Results) != 2 {
+		t.Fatalf("expected floor to drop the weak hit, got %d: %+v", len(resp.Results), resp.Results)
+	}
+	for _, r := range resp.Results {
+		if r.FullPath == "demo far" {
+			t.Fatalf("weak hit (0.50) should have been filtered, got %+v", resp.Results)
+		}
+	}
+}
+
+// fakeReranker is a programmable pkg.Reranker for WS4 tests.
+type fakeReranker struct {
+	name      string
+	available bool
+	scores    map[string]float64
+	err       error
+}
+
+func (f *fakeReranker) Name() string                     { return f.name }
+func (f *fakeReranker) Available(_ context.Context) bool { return f.available }
+func (f *fakeReranker) Rerank(_ context.Context, _ string, cands []pkg.RerankCandidate) ([]pkg.RerankScore, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	out := make([]pkg.RerankScore, 0, len(cands))
+	for _, c := range cands {
+		if s, ok := f.scores[c.ID]; ok {
+			out = append(out, pkg.RerankScore{ID: c.ID, Score: s})
+		}
+	}
+	return out, nil
+}
+
+func mkResult(name string, score float64) pkg.SearchResult {
+	rec := CommandRecord{Origin: "demo", Name: name, FullPath: "demo " + name, Source: SourceManifest}
+	return pkg.SearchResult{ID: pointIDForCommand(rec.FullPath), Score: score, Payload: commandMeta(rec)}
+}
+
+func newRerankService(disc DiscoverySource, emb pkg.Embedder, store pkg.VectorStore, enabled bool, r pkg.Reranker) *Service {
+	return NewService(Options{
+		Embedder:      emb,
+		VectorStore:   store,
+		Discovery:     disc,
+		Parallelism:   2,
+		RerankEnabled: enabled,
+		Reranker:      pkg.NewRerankerChain(r),
+	})
+}
+
+func TestService_AIMode_RerankReordersAndTruncates(t *testing.T) {
+	emb := &fakeEmbedder{available: true}
+	store := newFakeStore()
+	a, b, c := mkResult("alpha", 0.80), mkResult("bravo", 0.78), mkResult("charlie", 0.76)
+	store.searchOut = []pkg.SearchResult{a, b, c}
+	// Reranker prefers charlie over the dense order. Scores stay within the
+	// default floor gap (0.15 off the 0.99 top) so all three survive the
+	// post-rerank floor and the assertion isolates reorder + truncation.
+	rr := &fakeReranker{name: "fake:rr", available: true, scores: map[string]float64{
+		a.ID: 0.90, b.ID: 0.92, c.ID: 0.99,
+	}}
+	svc := newRerankService(sampleCorpus(), emb, store, true, rr)
+
+	resp, err := svc.Search(context.Background(), "anything", 2, ModeAI)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if resp.Reranker != "fake:rr" {
+		t.Errorf("Reranker = %q, want fake:rr", resp.Reranker)
+	}
+	if len(resp.Results) != 2 {
+		t.Fatalf("expected truncation to limit=2, got %d", len(resp.Results))
+	}
+	if resp.Results[0].FullPath != "demo charlie" {
+		t.Errorf("rerank winner should sort first, got %+v", resp.Results)
+	}
+}
+
+// TestService_AIMode_FloorRunsAfterRerank asserts the A2 reorder: a junk hit
+// whose DENSE score is close to the strong hit (so the pre-rerank floor would
+// keep it) but which the reranker drives to ~0 is dropped by the floor that now
+// runs AFTER rerank (cap-fabecce56b518120). Under the old order (floor first)
+// the junk would ride along on its dense score and inflate the page count.
+func TestService_AIMode_FloorRunsAfterRerank(t *testing.T) {
+	emb := &fakeEmbedder{available: true}
+	store := newFakeStore()
+	strong, junk := mkResult("strong", 0.80), mkResult("junk", 0.79)
+	// Dense scores are within the 0.15 gap → a pre-rerank floor keeps BOTH.
+	store.searchOut = []pkg.SearchResult{strong, junk}
+	// Reranker keeps the strong hit high and collapses the junk to ~0.
+	rr := &fakeReranker{name: "fake:rr", available: true, scores: map[string]float64{
+		strong.ID: 0.95, junk.ID: 0.001,
+	}}
+	svc := newRerankService(sampleCorpus(), emb, store, true, rr)
+
+	resp, err := svc.Search(context.Background(), "anything", 10, ModeAI)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(resp.Results) != 1 || resp.Results[0].FullPath != "demo strong" {
+		t.Fatalf("post-rerank floor must drop the junk hit reranked to ~0, got %+v", resp.Results)
+	}
+}
+
+func TestService_AIMode_RerankUnavailableKeepsDenseOrder(t *testing.T) {
+	emb := &fakeEmbedder{available: true}
+	store := newFakeStore()
+	a, b := mkResult("alpha", 0.80), mkResult("bravo", 0.78)
+	store.searchOut = []pkg.SearchResult{a, b}
+	rr := &fakeReranker{name: "fake:rr", available: false} // no leg reachable
+	svc := newRerankService(sampleCorpus(), emb, store, true, rr)
+
+	resp, err := svc.Search(context.Background(), "anything", 10, ModeAI)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if resp.Reranker != "none" {
+		t.Errorf("Reranker = %q, want none when no leg reachable", resp.Reranker)
+	}
+	if len(resp.Results) != 2 || resp.Results[0].FullPath != "demo alpha" {
+		t.Fatalf("dense order must be preserved, got %+v", resp.Results)
+	}
+}
+
+func TestService_Status_ReportsReranker(t *testing.T) {
+	store := newFakeStore()
+	rr := &fakeReranker{name: "fake:rr", available: true}
+	svc := newRerankService(sampleCorpus(), &fakeEmbedder{available: true}, store, true, rr)
+	if got := svc.Status(context.Background()).Reranker; got != "fake:rr" {
+		t.Errorf("Status.Reranker = %q, want fake:rr", got)
+	}
+
+	off := newTestService(sampleCorpus(), &fakeEmbedder{available: true}, newFakeStore())
+	if got := off.Status(context.Background()).Reranker; got != "none" {
+		t.Errorf("disabled reranker status = %q, want none", got)
 	}
 }
 
@@ -356,7 +522,7 @@ func TestReindex_WalksScenariosAndExternalCLIs(t *testing.T) {
 	// Both origins must be reflected in the store payload.
 	origins := map[string]int{}
 	for _, p := range store.points {
-		if v, _ := p["origin"].(string); v != "" {
+		if v, _ := p.Payload["origin"].(string); v != "" {
 			origins[v]++
 		}
 	}

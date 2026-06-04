@@ -48,8 +48,10 @@
     "loading": "جارٍ البحث…",
     "error": "فشل البحث: {{message}}",
     "modeUsed": "تمت المعالجة في وضع {{mode}}.",
+    "reranker": "أُعيد ترتيبها بواسطة {{reranker}}.",
     "resultScore": "النتيجة: {{score}}",
-    "resultSource": "المصدر: {{source}}"
+    "resultSource": "المصدر: {{source}}",
+    "weakMatch": "تطابق ضعيف"
   },
   "validate": {
     "title": "التحقق من البيان",
