@@ -20,7 +20,7 @@
   "dependencies": {
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
-    "axios": "^1.6.2",
+    "axios": "^1.16.0",
     "clsx": "^2.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
