@@ -9,8 +9,6 @@ import type {
   CollectionInventoryItem,
   CollectionMaintenanceResponse,
   CollectionRecordsResponse,
-  DocumentDeleteResponse,
-  IngestHealthResponse,
 } from "../../../shared/services/api";
 
 // AI_CHECK: REACT_STABILITY=1 | LAST: 2026-01-25
@@ -35,14 +33,6 @@ const DEFAULT_VIEW_MODEL: MetricsViewModel = {
 type MaintenanceAction = "prune-stale-chunks" | "dedupe-content";
 type CollectionDrilldownTab = "integrity" | "chunking" | "failures" | "records" | "maintenance";
 type OwnershipTone = "good" | "medium" | "poor";
-
-type DocumentOption = {
-  key: string;
-  namespace: string;
-  documentID: string;
-  label: string;
-  count: number;
-};
 
 function MetricCard({ label, percentageLabel, description, tone }: MetricCardView) {
   const styles = toneStyles[tone] ?? toneStyles.medium;
@@ -142,7 +132,6 @@ export type MetricsPanelProps = {
   errorMessage: string;
   hasData: boolean;
   viewModel: MetricsViewModel;
-  ingestHealth?: IngestHealthResponse | null;
   selectedCollection: string;
   diagnostics?: CollectionDiagnostics | null;
   diagnosticsError: string;
@@ -155,9 +144,6 @@ export type MetricsPanelProps = {
   maintenanceMaxDeletes: number;
   getMaintenancePreview: (collection: string, action: MaintenanceAction) => CollectionMaintenanceResponse | null;
   getCollectionInventory: (collection: string) => CollectionInventoryItem | null;
-  documentOptions: DocumentOption[];
-  selectedDocumentKey: string;
-  documentDeletePreview?: DocumentDeleteResponse | null;
   collectionRecords: CollectionRecordsResponse | null;
   recordsLoading: boolean;
   recordsError: string;
@@ -166,7 +152,6 @@ export type MetricsPanelProps = {
   recordsDocumentFilter: string;
   onSelectCollection: (name: string) => void;
   onDrilldownTabChange: (tab: CollectionDrilldownTab) => void;
-  onSelectedDocumentKeyChange: (key: string) => void;
   onUseSampleDiagnostics: () => void;
   onUseFullDiagnostics: () => void;
   onMaintenanceMaxDeletesChange: (value: number) => void;
@@ -177,8 +162,6 @@ export type MetricsPanelProps = {
   onRecordsPreviousPage: () => void;
   onPreviewMaintenance: (collection: string, action: MaintenanceAction) => void;
   onApplyMaintenance: (collection: string, action: MaintenanceAction) => void;
-  onPreviewDeleteDocument: () => void;
-  onApplyDeleteDocument: () => void;
   collectionDeleteInFlight: boolean;
   onDeleteCollection: (collection: string) => void;
   onRetry: () => void;
@@ -190,7 +173,6 @@ export function MetricsPanel({
   errorMessage,
   hasData,
   viewModel,
-  ingestHealth,
   selectedCollection,
   diagnostics,
   diagnosticsError: _diagnosticsError,
@@ -203,9 +185,6 @@ export function MetricsPanel({
   maintenanceMaxDeletes: _maintenanceMaxDeletes,
   getMaintenancePreview: _getMaintenancePreview,
   getCollectionInventory,
-  documentOptions: _documentOptions,
-  selectedDocumentKey: _selectedDocumentKey,
-  documentDeletePreview: _documentDeletePreview,
   collectionRecords: _collectionRecords,
   recordsLoading: _recordsLoading,
   recordsError: _recordsError,
@@ -214,7 +193,6 @@ export function MetricsPanel({
   recordsDocumentFilter: _recordsDocumentFilter,
   onSelectCollection,
   onDrilldownTabChange: _onDrilldownTabChange,
-  onSelectedDocumentKeyChange: _onSelectedDocumentKeyChange,
   onUseSampleDiagnostics: _onUseSampleDiagnostics,
   onUseFullDiagnostics: _onUseFullDiagnostics,
   onMaintenanceMaxDeletesChange: _onMaintenanceMaxDeletesChange,
@@ -225,8 +203,6 @@ export function MetricsPanel({
   onRecordsPreviousPage: _onRecordsPreviousPage,
   onPreviewMaintenance: _onPreviewMaintenance,
   onApplyMaintenance: _onApplyMaintenance,
-  onPreviewDeleteDocument: _onPreviewDeleteDocument,
-  onApplyDeleteDocument: _onApplyDeleteDocument,
   onRetry,
 }: MetricsPanelProps) {
   const handleRetry = () => {
@@ -286,7 +262,6 @@ export function MetricsPanel({
       ? safeViewModel.totalEntriesLabel
       : "Unknown";
   const hasMetrics = safeViewModel.hasMetrics || metricCards.length > 0;
-  const ingestStatus = ingestHealth?.status?.trim() || "unknown";
 
   return (
     <div className="ko-stack">
@@ -313,22 +288,6 @@ export function MetricsPanel({
       <div className="ko-panel p-3 ko-text-xs ko-subtle">
         Each collection card shows how many items (embeddings) are currently stored. Click <strong>Open Details</strong> to
         debug or manage a specific collection.
-      </div>
-
-      <div className="ko-panel p-4">
-        <h4 className="font-semibold ko-text-strong mb-2">Ingest Pipeline</h4>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 ko-text-xs">
-          <div><span className="ko-subtle">Status:</span><span className="ko-text-strong ml-1 capitalize">{ingestStatus}</span></div>
-          <div><span className="ko-subtle">Pending:</span><span className="ko-text-strong ml-1">{ingestHealth?.pending_jobs ?? 0}</span></div>
-          <div><span className="ko-subtle">Running:</span><span className="ko-text-strong ml-1">{ingestHealth?.running_jobs ?? 0}</span></div>
-          <div><span className="ko-subtle">Failures (24h):</span><span className="ko-text-strong ml-1">{ingestHealth?.failures_last_24h ?? 0}</span></div>
-        </div>
-        <p className="ko-text-xs ko-subtle mt-2">
-          Runner interval: {ingestHealth?.runner_interval_ms ?? 500}ms
-          {typeof ingestHealth?.oldest_pending_age_ms === "number"
-            ? ` · Oldest pending age: ${Math.round(ingestHealth.oldest_pending_age_ms / 1000)}s`
-            : ""}
-        </p>
       </div>
 
       {!hasMetrics && (

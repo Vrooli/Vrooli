@@ -210,10 +210,19 @@
         "type": "ollama",
         "enabled": false,
         "required": false,
-        "description": "Enhanced semantic analysis and natural language query understanding",
+        "description": "Dense embeddings (nomic-embed-text) for hybrid documentation search and the LLM-as-reranker fallback (qwen3:4b)",
         "models": [
-          "nomic-embed-text"
+          "nomic-embed-text",
+          "qwen3:4b"
         ]
+      },
+      "reranker": {
+        "type": "reranker",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Cross-encoder reranker (BAAI/bge-reranker-v2-m3 via TEI) that reorders the fused hybrid-search shortlist for the strongest result ordering.",
+        "degraded_behavior": "Reranking falls back to the qwen3:4b LLM reranker, then to raw RRF-fused order; search still returns results, only the final ordering is less precise."
       }
     },
     "scenarios": {}

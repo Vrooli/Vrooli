@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"knowledge-observatory/internal/services/search"
+	pkg "github.com/vrooli/aisearch-go"
 )
 
 const (
@@ -151,32 +151,33 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s == nil || s.searchService == nil {
-		s.respondError(w, http.StatusInternalServerError, "Search service unavailable")
+	if s == nil || s.docSearch == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "Search service unavailable")
 		return
 	}
 
-	afterMS, err := parseRFC3339Millis(req.IngestedAfter)
-	if err != nil {
+	// IngestedAfter/Before were records-era filters; the documentation corpus
+	// has no ingest timestamps, but keep validating the RFC3339 shape so
+	// malformed input is still rejected with a 400.
+	if _, err := parseRFC3339Millis(req.IngestedAfter); err != nil {
 		s.respondError(w, http.StatusBadRequest, "Invalid ingested_after (must be RFC3339)")
 		return
 	}
-	beforeMS, err := parseRFC3339Millis(req.IngestedBefore)
-	if err != nil {
+	if _, err := parseRFC3339Millis(req.IngestedBefore); err != nil {
 		s.respondError(w, http.StatusBadRequest, "Invalid ingested_before (must be RFC3339)")
 		return
 	}
 
-	out, err := s.searchService.Search(r.Context(), search.Request{
-		Query:            req.Query,
-		Collection:       req.Collection,
-		Namespaces:       req.Namespaces,
-		Visibility:       req.Visibility,
-		Tags:             req.Tags,
-		IngestedAfterMS:  afterMS,
-		IngestedBeforeMS: beforeMS,
-		Limit:            req.Limit,
-		Threshold:        req.Threshold,
+	// Re-pointed at the hybrid documentation engine (Phase 6 cutover). The
+	// legacy records-collection filters (collection/namespaces/visibility/tags)
+	// no longer apply — the only semantic corpus is now vrooli-docs — so this
+	// endpoint runs an auto (hybrid→dense→grep) documentation query and projects
+	// the hit body into the historical {id,score,content,metadata} shape the UI
+	// expects.
+	out, err := s.docSearch.Search(r.Context(), pkg.SearchQuery{
+		Query: req.Query,
+		Mode:  pkg.ModeAuto,
+		Limit: req.Limit,
 	})
 	if err != nil {
 		s.log("search failed", map[string]interface{}{"error": err.Error()})
@@ -185,19 +186,19 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	results := make([]SearchResult, 0, len(out.Results))
-	for _, r := range out.Results {
+	for _, h := range out.Results {
 		results = append(results, SearchResult{
-			ID:       r.ID,
-			Score:    r.Score,
-			Content:  r.Content,
-			Metadata: r.Metadata,
+			ID:       h.ID,
+			Score:    h.Score,
+			Content:  h.Snippet,
+			Metadata: h.Payload,
 		})
 	}
 
 	response := SearchResponse{
 		Results: results,
 		Query:   req.Query,
-		Took:    maxInt64(out.TookMS, time.Since(start).Milliseconds()),
+		Took:    time.Since(start).Milliseconds(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

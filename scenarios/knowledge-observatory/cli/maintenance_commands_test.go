@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	knowledgedomain "knowledge-observatory/cli/domains/knowledge"
@@ -110,79 +109,5 @@ func TestCmdCollectionDiagnostics_QueryAndPath(t *testing.T) {
 	}
 	if !hit {
 		t.Fatal("expected diagnostics endpoint to be called")
-	}
-}
-
-func TestCmdDocumentDelete_ValidateAndRequest(t *testing.T) {
-	t.Setenv("KNOWLEDGE_OBSERVATORY_API_BASE", "http://127.0.0.1:1")
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("new app: %v", err)
-	}
-
-	err = app.Run([]string{"document-delete", "--namespace", "docs"})
-	if err == nil || !strings.Contains(err.Error(), "usage: document-delete") {
-		t.Fatalf("expected usage error for missing identifiers, got %v", err)
-	}
-
-	var got knowledgedomain.DocumentDeleteRequest
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", r.Method)
-		}
-		if r.URL.Path != "/api/v1/knowledge/documents/delete" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
-			t.Fatalf("decode body: %v", err)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"deleted_count":1}`))
-	}))
-	defer server.Close()
-
-	t.Setenv("KNOWLEDGE_OBSERVATORY_API_BASE", server.URL)
-	app, err = NewApp()
-	if err != nil {
-		t.Fatalf("new app: %v", err)
-	}
-
-	if err := app.Run([]string{"document-delete", "--namespace", "docs", "--external-id", "ext-1", "--apply"}); err != nil {
-		t.Fatalf("document-delete failed: %v", err)
-	}
-	if got.Namespace != "docs" || got.ExternalID != "ext-1" {
-		t.Fatalf("unexpected request payload: %+v", got)
-	}
-	if got.DryRun {
-		t.Fatalf("expected dry_run=false when --apply is set")
-	}
-}
-
-func TestCmdIngestHealth(t *testing.T) {
-	hit := false
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		hit = true
-		if r.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", r.Method)
-		}
-		if r.URL.Path != "/api/v1/ingest/health" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"healthy"}`))
-	}))
-	defer server.Close()
-
-	t.Setenv("KNOWLEDGE_OBSERVATORY_API_BASE", server.URL)
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("new app: %v", err)
-	}
-
-	if err := app.Run([]string{"ingest-health"}); err != nil {
-		t.Fatalf("ingest-health failed: %v", err)
-	}
-	if !hit {
-		t.Fatal("expected ingest health endpoint to be called")
 	}
 }

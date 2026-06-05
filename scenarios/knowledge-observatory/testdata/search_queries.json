@@ -1,0 +1,188 @@
+{
+  "version": 1,
+  "description": "Hand-labeled accuracy corpus for knowledge-observatory documentation search. Each case maps a natural-language query to the documentation file(s) a good retriever should surface. The Phase-7 harness asserts recall@5 >= 0.8 (a case passes when any expected_paths entry is in the top-5) and reports MRR@3 over primary_path. Paths are repo-relative with forward slashes, matching the SourceDoc.ID emitted by kodocsource. This is the Phase-3 seed that drove the markdown chunker design; Phase 7 expands and runs it.",
+  "scoring": {
+    "recall_at": 5,
+    "recall_target": 0.8,
+    "mrr_at": 3,
+    "rule": "A case is satisfied when at least one expected_paths entry appears in the top-N results. MRR uses the rank of primary_path."
+  },
+  "cases": [
+    {
+      "id": "project-quickstart",
+      "query": "how do I get started and set up vrooli for the first time",
+      "scope": "global",
+      "primary_path": "docs/QUICKSTART.md",
+      "expected_paths": ["docs/QUICKSTART.md", "docs/CONTRIBUTING.md"],
+      "notes": "Project-level onboarding doc."
+    },
+    {
+      "id": "project-architecture",
+      "query": "overall platform architecture and operating model",
+      "scope": "global",
+      "primary_path": "docs/concepts/ARCHITECTURE.md",
+      "expected_paths": ["docs/concepts/ARCHITECTURE.md", "docs/concepts/ECOSYSTEM.md"],
+      "notes": "Project concepts."
+    },
+    {
+      "id": "project-glossary",
+      "query": "shared vocabulary and definitions of platform terms",
+      "scope": "global",
+      "primary_path": "docs/concepts/GLOSSARY.md",
+      "expected_paths": ["docs/concepts/GLOSSARY.md"],
+      "notes": "Glossary by title/description."
+    },
+    {
+      "id": "project-contributing",
+      "query": "contributor workflow and how to submit changes",
+      "scope": "global",
+      "primary_path": "docs/CONTRIBUTING.md",
+      "expected_paths": ["docs/CONTRIBUTING.md"],
+      "notes": "Contributing guide."
+    },
+    {
+      "id": "project-design-governance",
+      "query": "design language system governance for scenario user interfaces",
+      "scope": "global",
+      "primary_path": "docs/design/README.md",
+      "expected_paths": ["docs/design/README.md", "docs/design/governance.md", "docs/design/registry.md"],
+      "notes": "Design canon docs."
+    },
+    {
+      "id": "config-resources",
+      "query": "configure local resources like postgres redis and qdrant",
+      "scope": "global",
+      "primary_path": "docs/configuration/resources.md",
+      "expected_paths": ["docs/configuration/resources.md", "docs/configuration/README.md"],
+      "notes": "Resource configuration."
+    },
+    {
+      "id": "config-operating-mode",
+      "query": "set the operating mode for the platform",
+      "scope": "global",
+      "primary_path": "docs/configuration/operating-mode.md",
+      "expected_paths": ["docs/configuration/operating-mode.md"],
+      "notes": "Operating mode config."
+    },
+    {
+      "id": "config-secrets",
+      "query": "how to manage secrets and credentials configuration",
+      "scope": "global",
+      "primary_path": "docs/configuration/secrets.md",
+      "expected_paths": ["docs/configuration/secrets.md"],
+      "notes": "Secrets config."
+    },
+    {
+      "id": "config-profiles",
+      "query": "environment profiles development production minimal",
+      "scope": "global",
+      "primary_path": "docs/configuration/profiles.md",
+      "expected_paths": ["docs/configuration/profiles.md"],
+      "notes": "Setup profiles."
+    },
+    {
+      "id": "deployment-storage",
+      "query": "where does deployment data get stored",
+      "scope": "global",
+      "primary_path": "docs/deployment/storage.md",
+      "expected_paths": ["docs/deployment/storage.md", "docs/deployment/README.md"],
+      "notes": "Deployment storage."
+    },
+    {
+      "id": "development-proto",
+      "query": "regenerate protobuf generated code from proto schemas",
+      "scope": "global",
+      "primary_path": "docs/development/proto.md",
+      "expected_paths": ["docs/development/proto.md"],
+      "notes": "Proto regeneration guide."
+    },
+    {
+      "id": "agent-layers",
+      "query": "the layers of the agent system",
+      "scope": "global",
+      "primary_path": "docs/agent-system/LAYERS.md",
+      "expected_paths": ["docs/agent-system/LAYERS.md", "docs/agent-system/PRIMITIVES.md"],
+      "notes": "Agent-system architecture."
+    },
+    {
+      "id": "agent-skill-authoring",
+      "query": "how to author a new skill for agents",
+      "scope": "global",
+      "primary_path": "docs/agent-system/SKILL_AUTHORING.md",
+      "expected_paths": ["docs/agent-system/SKILL_AUTHORING.md"],
+      "notes": "Skill authoring."
+    },
+    {
+      "id": "agent-promotion-ladder",
+      "query": "promotion ladder for graduating agent capabilities",
+      "scope": "global",
+      "primary_path": "docs/agent-system/PROMOTION_LADDER.md",
+      "expected_paths": ["docs/agent-system/PROMOTION_LADDER.md"],
+      "notes": "Promotion ladder."
+    },
+    {
+      "id": "agent-deprecation-policy",
+      "query": "policy for deprecating and removing capabilities",
+      "scope": "global",
+      "primary_path": "docs/agent-system/DEPRECATION_POLICY.md",
+      "expected_paths": ["docs/agent-system/DEPRECATION_POLICY.md"],
+      "notes": "Deprecation policy."
+    },
+    {
+      "id": "agent-shared-package-testing",
+      "query": "how to test shared go packages",
+      "scope": "global",
+      "primary_path": "docs/agent-system/SHARED_PACKAGE_TESTING.md",
+      "expected_paths": ["docs/agent-system/SHARED_PACKAGE_TESTING.md"],
+      "notes": "Shared package testing."
+    },
+    {
+      "id": "cli-health-architecture-scoped",
+      "query": "architecture of the service",
+      "scope": "scenario:cli-health",
+      "primary_path": "scenarios/cli-health/docs/concepts/ARCHITECTURE.md",
+      "expected_paths": ["scenarios/cli-health/docs/concepts/ARCHITECTURE.md"],
+      "notes": "Scope filter must keep this to cli-health, excluding the project ARCHITECTURE.md."
+    },
+    {
+      "id": "cli-health-seams-scoped",
+      "query": "testability seams and boundaries",
+      "scope": "scenario:cli-health",
+      "primary_path": "scenarios/cli-health/docs/internal/SEAMS.md",
+      "expected_paths": ["scenarios/cli-health/docs/internal/SEAMS.md"],
+      "notes": "Scenario internal doc."
+    },
+    {
+      "id": "cli-health-runbook-scoped",
+      "query": "operational runbook for incidents",
+      "scope": "scenario:cli-health",
+      "primary_path": "scenarios/cli-health/docs/operations/RUNBOOK.md",
+      "expected_paths": ["scenarios/cli-health/docs/operations/RUNBOOK.md", "scenarios/cli-health/docs/operations/OBSERVABILITY.md"],
+      "notes": "Operations doc."
+    },
+    {
+      "id": "cli-health-monetization-scoped",
+      "query": "monetization and go to market strategy",
+      "scope": "scenario:cli-health",
+      "primary_path": "scenarios/cli-health/docs/business/MONETIZATION.md",
+      "expected_paths": ["scenarios/cli-health/docs/business/MONETIZATION.md", "scenarios/cli-health/docs/business/GO-TO-MARKET.md"],
+      "notes": "Business docs."
+    },
+    {
+      "id": "cli-health-error-handling-scoped",
+      "query": "how errors are handled and classified",
+      "scope": "scenario:cli-health",
+      "primary_path": "scenarios/cli-health/docs/internal/ERROR-HANDLING.md",
+      "expected_paths": ["scenarios/cli-health/docs/internal/ERROR-HANDLING.md"],
+      "notes": "Error handling doc."
+    },
+    {
+      "id": "path-scoped-concepts",
+      "query": "architecture",
+      "scope": "path:docs/concepts",
+      "primary_path": "docs/concepts/ARCHITECTURE.md",
+      "expected_paths": ["docs/concepts/ARCHITECTURE.md"],
+      "notes": "Path-prefix scope confines results to docs/concepts/."
+    }
+  ]
+}

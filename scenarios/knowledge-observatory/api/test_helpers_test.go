@@ -7,11 +7,36 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	pkg "github.com/vrooli/aisearch-go"
 
 	"knowledge-observatory/internal/ports"
 	"knowledge-observatory/internal/services/graph"
-	"knowledge-observatory/internal/services/search"
 )
+
+// fakeDocSearch is a deterministic docSearchEngine for handler tests that need
+// the search surface wired without a live Ollama/Qdrant backend.
+type fakeDocSearch struct{}
+
+func (fakeDocSearch) Search(ctx context.Context, q pkg.SearchQuery) (pkg.SearchResponse, error) {
+	return pkg.SearchResponse{
+		Results: []pkg.SearchHit{{
+			ID:           "demo",
+			RelativePath: "docs/demo.md",
+			Score:        0.9,
+			Snippet:      "demo",
+			Path:         "docs/demo.md",
+			Payload:      map[string]any{"body": "demo", "scenario": "knowledge-observatory"},
+		}},
+		Total:    1,
+		Query:    q.Query,
+		Method:   "hybrid",
+		Reranker: "none",
+	}, nil
+}
+
+func (fakeDocSearch) Status(ctx context.Context) pkg.StatusReport {
+	return pkg.StatusReport{Available: true, Ollama: true, Qdrant: true, Reranker: "none", IndexedCount: 1}
+}
 
 func writeDocFile(t *testing.T, path string, content string) {
 	t.Helper()
@@ -86,7 +111,7 @@ func newTestServerWithServices() *Server {
 	srv := newTestServer()
 	vs := stubVectorStore{collections: []string{"default"}}
 	emb := stubEmbedder{}
-	srv.searchService = &search.Service{VectorStore: vs, Embedder: emb}
+	srv.docSearch = fakeDocSearch{}
 	srv.graphService = &graph.Service{VectorStore: vs, Embedder: emb}
 	srv.setupRoutes()
 	return srv

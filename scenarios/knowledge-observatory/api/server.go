@@ -21,6 +21,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	pkg "github.com/vrooli/aisearch-go"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -33,10 +34,10 @@ import (
 	"knowledge-observatory/internal/adapters/docaccessstore"
 	"knowledge-observatory/internal/adapters/dochealingstore"
 	"knowledge-observatory/internal/adapters/embedder"
-	"knowledge-observatory/internal/adapters/jobstore"
 	"knowledge-observatory/internal/adapters/metadatastore"
 	"knowledge-observatory/internal/adapters/promptmanager"
 	"knowledge-observatory/internal/adapters/vectorstore"
+	"knowledge-observatory/internal/aisearch"
 	"knowledge-observatory/internal/ports"
 	"knowledge-observatory/internal/services/deepsearch"
 	"knowledge-observatory/internal/services/dochealing"
@@ -44,9 +45,6 @@ import (
 	"knowledge-observatory/internal/services/docsearch"
 	"knowledge-observatory/internal/services/explorer"
 	"knowledge-observatory/internal/services/graph"
-	"knowledge-observatory/internal/services/ingest"
-	"knowledge-observatory/internal/services/ingestjobs"
-	"knowledge-observatory/internal/services/search"
 	"knowledge-observatory/internal/services/viewer"
 )
 
@@ -73,11 +71,7 @@ type Server struct {
 
 	vectorStore ports.VectorStore
 	embedder    ports.Embedder
-	metadata    ports.MetadataStore
-	jobStore    ports.JobStore
 
-	ingestService        *ingest.Service
-	searchService        *search.Service
 	graphService         *graph.Service
 	docHealthService     *dochealth.Service
 	docSearchService     *docsearch.Service
@@ -88,8 +82,14 @@ type Server struct {
 
 	docAccessLogger ports.DocAccessLogger
 
-	ingestJobRunner *ingestjobs.Runner
-	materializer    *Materializer
+	materializer *Materializer
+
+	// Documentation hybrid search (Phase 6 cutover): the indexer owns the
+	// vrooli-docs collection + reconciler, docSearch is the read path (hybrid
+	// dense+sparse RRF + rerank), and docSyncLoop drives periodic reconcile.
+	docIndexer  *aisearch.Indexer
+	docSearch   docSearchEngine
+	docSyncLoop *pkg.SyncLoop
 }
 
 // NewServer initializes configuration, database, and routes
@@ -158,27 +158,8 @@ func (s *Server) setupServices() {
 		meta = &metadatastore.Postgres{DB: s.db}
 	}
 
-	var js ports.JobStore
-	if s.db != nil {
-		js = &jobstore.Postgres{DB: s.db}
-	}
-
 	s.vectorStore = vs
 	s.embedder = emb
-	s.metadata = meta
-	s.jobStore = js
-
-	s.ingestService = &ingest.Service{
-		VectorStore: vs,
-		Embedder:    emb,
-		Metadata:    meta,
-	}
-
-	s.searchService = &search.Service{
-		VectorStore: vs,
-		Embedder:    emb,
-		Metadata:    meta,
-	}
 
 	s.graphService = &graph.Service{
 		VectorStore: vs,
@@ -206,8 +187,60 @@ func (s *Server) setupServices() {
 		if err != nil {
 			s.log("doc search service disabled", map[string]interface{}{"error": err.Error()})
 		} else {
-			service.Semantic = s.searchService
 			s.docSearchService = service
+		}
+	}
+
+	// Documentation hybrid search (Phase 6 cutover). The shared engine
+	// (packages/aisearch-go) supplies the embedder, vector store, reconciler,
+	// env config, and sync loop; the KO-local internal/aisearch package supplies
+	// the manifest-driven doc source, markdown chunker, hybrid read path, and
+	// reranker chain. The grep fallback reuses docSearchService; the unified
+	// endpoint's semantic leg is re-pointed here (replacing the deleted
+	// internal/services/search read path).
+	if s.config != nil && s.config.ScenariosRoot != "" {
+		docCfg := pkg.LoadConfig("KO_DOCS")
+		maxEmbeds := docCfg.MaxEmbedsPerTick
+		if maxEmbeds <= 0 {
+			// The documentation corpus is large (~6k chunks); cap embeds per
+			// reconcile tick so the first full index never starves Ollama
+			// (plan §4.2). A one-shot `reindex run` still applies uncapped.
+			maxEmbeds = defaultDocEmbedsPerTick
+		}
+		docEmbedder := pkg.NewEmbedder(s.ollamaEmbeddingModel())
+		docStore := pkg.NewVectorStore(s.qdrantURL(), s.qdrantAPIKey(), aisearch.DefaultCollection)
+		indexer, err := aisearch.NewIndexer(aisearch.Options{
+			Embedder:         docEmbedder,
+			VectorStore:      docStore,
+			ScenariosRoot:    s.config.ScenariosRoot,
+			Parallelism:      docCfg.ReconcileParallelism,
+			MaxEmbedsPerTick: maxEmbeds,
+		})
+		if err != nil {
+			s.log("documentation indexer disabled", map[string]interface{}{"error": err.Error()})
+		} else {
+			s.docIndexer = indexer
+			// EnsureCollection is best-effort: if qdrant is down at boot the
+			// scenario still serves grep-fallback search and a degraded status.
+			if cerr := indexer.EnsureCollection(context.Background()); cerr != nil {
+				s.log("vrooli-docs collection ensure failed (degraded search)", map[string]interface{}{"error": cerr.Error()})
+			}
+			var fallback aisearch.TextFallback
+			if s.docSearchService != nil {
+				fallback = aisearch.NewDocsearchFallback(s.docSearchService)
+			}
+			searchSvc := aisearch.NewSearchService(aisearch.ServiceOptions{
+				Embedder:     docEmbedder,
+				VectorStore:  docStore,
+				Reranker:     aisearch.NewDefaultReranker(),
+				TextFallback: fallback,
+				Reconciler:   indexer.Reconciler(),
+			})
+			s.docSearch = searchSvc
+			if s.docSearchService != nil {
+				s.docSearchService.Semantic = docSemanticAdapter{engine: searchSvc}
+			}
+			s.docSyncLoop = pkg.NewSyncLoop("knowledge-observatory", indexer.Reconciler(), docCfg)
 		}
 	}
 	if s.config != nil && s.config.ScenariosRoot != "" {
@@ -265,16 +298,6 @@ func (s *Server) setupServices() {
 		s.docAccessLogger = &docaccessstore.Postgres{DB: s.db}
 	}
 
-	if js != nil {
-		s.ingestJobRunner = &ingestjobs.Runner{
-			Jobs:      js,
-			Ingest:    s.ingestService,
-			Now:       time.Now,
-			Sleep:     time.Sleep,
-			MaxChunks: maxChunksPerDoc,
-		}
-	}
-
 	if meta != nil {
 		s.materializer = &Materializer{
 			VectorStore:           vs,
@@ -295,8 +318,17 @@ func (s *Server) setupRoutes() {
 	// Health endpoint using api-core/health for standardized response format
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
 
-	// Semantic search endpoint [REQ:KO-SS-001]
+	// Semantic search endpoint [REQ:KO-SS-001] (re-pointed to the hybrid engine)
 	s.router.HandleFunc("/api/v1/knowledge/search", s.handleSearch).Methods("POST")
+
+	// Documentation hybrid search surface (Phase 6 cutover): converged
+	// search query/status + reindex run/status/cancel verbs over the
+	// vrooli-docs collection. Mirrors cli-health's verb semantics.
+	s.router.HandleFunc("/api/v1/search/query", s.handleSearchQuery).Methods("POST")
+	s.router.HandleFunc("/api/v1/search/status", s.handleSearchStatus).Methods("GET")
+	s.router.HandleFunc("/api/v1/reindex/run", s.handleReindexRun).Methods("POST")
+	s.router.HandleFunc("/api/v1/reindex/status", s.handleReindexStatus).Methods("GET")
+	s.router.HandleFunc("/api/v1/reindex/cancel", s.handleReindexCancel).Methods("POST")
 
 	// Knowledge health metrics endpoint [REQ:KO-QM-004]
 	s.router.HandleFunc("/api/v1/knowledge/health", s.handleHealthEndpoint).Methods("GET")
@@ -337,22 +369,13 @@ func (s *Server) setupRoutes() {
 		connectx.RegisterServices(s.router, connectx.ServiceMount{Path: path, Handler: h})
 	}
 
-	// Canonical knowledge write path (records) - sync upsert
-	s.router.HandleFunc("/api/v1/knowledge/records/upsert", s.handleUpsertRecord).Methods("POST")
-	s.router.HandleFunc("/api/v1/knowledge/records/{record_id}", s.handleDeleteRecord).Methods("DELETE")
-	s.router.HandleFunc("/api/v1/knowledge/documents/ingest", s.handleIngestDocument).Methods("POST")
-	s.router.HandleFunc("/api/v1/knowledge/documents/delete", s.handleDeleteDocument).Methods("POST")
+	// Knowledge collection inventory + maintenance (qdrant-direct utilities).
 	s.router.HandleFunc("/api/v1/knowledge/collections", s.handleCollectionInventory).Methods("GET")
 	s.router.HandleFunc("/api/v1/knowledge/collections/{collection}", s.handleDeleteCollection).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/knowledge/collections/{collection}/diagnostics", s.handleCollectionDiagnostics).Methods("GET")
 	s.router.HandleFunc("/api/v1/knowledge/collections/{collection}/records", s.handleCollectionRecords).Methods("GET")
 	s.router.HandleFunc("/api/v1/knowledge/collections/{collection}/maintenance/prune-stale-chunks", s.handlePruneStaleChunks).Methods("POST")
 	s.router.HandleFunc("/api/v1/knowledge/collections/{collection}/maintenance/dedupe-content", s.handleDedupeContent).Methods("POST")
-
-	// Async ingest jobs
-	s.router.HandleFunc("/api/v1/ingest/jobs", s.handleCreateIngestJob).Methods("POST")
-	s.router.HandleFunc("/api/v1/ingest/jobs/{job_id}", s.handleGetIngestJob).Methods("GET")
-	s.router.HandleFunc("/api/v1/ingest/health", s.handleIngestHealth).Methods("GET")
 }
 
 func (s *Server) handler() http.Handler {
@@ -421,11 +444,11 @@ func (s *Server) Start() error {
 	})
 
 	runnerCtx, runnerCancel := context.WithCancel(context.Background())
-	if s.ingestJobRunner != nil && s.db != nil {
-		go s.ingestJobRunner.Run(runnerCtx)
-	}
 	if s.materializer != nil && s.db != nil {
 		go s.materializer.Run(runnerCtx)
+	}
+	if s.docSyncLoop != nil {
+		go s.docSyncLoop.Start(runnerCtx)
 	}
 
 	httpServer := &http.Server{
