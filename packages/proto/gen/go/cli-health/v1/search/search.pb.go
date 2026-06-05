@@ -147,11 +147,25 @@ type SearchResult struct {
 	Group       string `protobuf:"bytes,2,opt,name=group,proto3" json:"group,omitempty"`
 	Name        string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	// Higher is better. AI mode returns cosine similarity; TEXT mode returns
-	// a normalized lexical score in [0, 1].
+	// Higher is better. The number's regime depends on the active reranker leg
+	// (see `reranker` on SearchResponse): cross-encoder sigmoid, dense cosine, or
+	// LLM 0..1. Clients MUST NOT threshold it themselves — use `weak` below.
 	Score float64 `protobuf:"fixed64,5,opt,name=score,proto3" json:"score,omitempty"`
 	// "manifest" or "help".
-	Source        string `protobuf:"bytes,6,opt,name=source,proto3" json:"source,omitempty"`
+	Source string `protobuf:"bytes,6,opt,name=source,proto3" json:"source,omitempty"`
+	// Canonical invocable command string ("<scenario> <group> <name>") — the
+	// copy-pasteable form, projected straight from the index payload.
+	FullPath string `protobuf:"bytes,7,opt,name=full_path,json=fullPath,proto3" json:"full_path,omitempty"`
+	// Free-form tags attached to the command in its manifest.
+	Tags []string `protobuf:"bytes,8,rep,name=tags,proto3" json:"tags,omitempty"`
+	// "Service.Method" binding when the command came from a manifest; empty for
+	// --help-derived commands.
+	Binding string `protobuf:"bytes,9,opt,name=binding,proto3" json:"binding,omitempty"`
+	// Server-computed weak-match flag: true when this hit falls in the uncertain
+	// band for the regime that produced its score. Computed once in the service
+	// via the shared engine's regime-aware LabelWeak so CLI and UI render an
+	// identical "(weak)" badge without re-deriving a threshold.
+	Weak          bool `protobuf:"varint,10,opt,name=weak,proto3" json:"weak,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -226,6 +240,34 @@ func (x *SearchResult) GetSource() string {
 		return x.Source
 	}
 	return ""
+}
+
+func (x *SearchResult) GetFullPath() string {
+	if x != nil {
+		return x.FullPath
+	}
+	return ""
+}
+
+func (x *SearchResult) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *SearchResult) GetBinding() string {
+	if x != nil {
+		return x.Binding
+	}
+	return ""
+}
+
+func (x *SearchResult) GetWeak() bool {
+	if x != nil {
+		return x.Weak
+	}
+	return false
 }
 
 // SearchResponse echoes which Mode actually served the request so the CLI
@@ -442,14 +484,19 @@ const file_cli_health_v1_search_search_proto_rawDesc = "" +
 	"\rSearchRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x125\n" +
-	"\x04mode\x18\x03 \x01(\x0e2!.vrooli.cli_health.v1.search.ModeR\x04mode\"\xa0\x01\n" +
+	"\x04mode\x18\x03 \x01(\x0e2!.vrooli.cli_health.v1.search.ModeR\x04mode\"\xff\x01\n" +
 	"\fSearchResult\x12\x16\n" +
 	"\x06origin\x18\x01 \x01(\tR\x06origin\x12\x14\n" +
 	"\x05group\x18\x02 \x01(\tR\x05group\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x14\n" +
 	"\x05score\x18\x05 \x01(\x01R\x05score\x12\x16\n" +
-	"\x06source\x18\x06 \x01(\tR\x06source\"\xb1\x01\n" +
+	"\x06source\x18\x06 \x01(\tR\x06source\x12\x1b\n" +
+	"\tfull_path\x18\a \x01(\tR\bfullPath\x12\x12\n" +
+	"\x04tags\x18\b \x03(\tR\x04tags\x12\x18\n" +
+	"\abinding\x18\t \x01(\tR\abinding\x12\x12\n" +
+	"\x04weak\x18\n" +
+	" \x01(\bR\x04weak\"\xb1\x01\n" +
 	"\x0eSearchResponse\x12C\n" +
 	"\aresults\x18\x01 \x03(\v2).vrooli.cli_health.v1.search.SearchResultR\aresults\x12>\n" +
 	"\tmode_used\x18\x02 \x01(\x0e2!.vrooli.cli_health.v1.search.ModeR\bmodeUsed\x12\x1a\n" +

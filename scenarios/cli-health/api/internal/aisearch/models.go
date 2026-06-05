@@ -55,6 +55,11 @@ type SearchHit struct {
 	Source       string   `json:"source"`
 	Score        float64  `json:"score"`
 	ScorePercent int      `json:"scorePercent"`
+	// Weak is the regime-aware weak-match flag, computed once in Service.Search
+	// via the shared engine's pkg.LabelWeak(activeLeg, score). Carried to the
+	// proto so CLI and UI render an identical "(weak)" badge — neither client
+	// re-derives a threshold (the duplicated 0.55 constants are deleted).
+	Weak bool `json:"weak"`
 }
 
 // SearchResponse wraps results with the request echo + retrieval method.

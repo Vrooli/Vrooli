@@ -42,6 +42,7 @@ type Service struct {
 
 	rerankEnabled bool
 	reranker      *pkg.RerankerChain
+	shortlist     int // over-fetch depth for reranking (the configured lever)
 
 	mu      sync.Mutex
 	jobs    map[string]*reindexJob
@@ -77,6 +78,10 @@ type Options struct {
 	// keep their dense order — a pure addition.
 	RerankEnabled bool
 	Reranker      *pkg.RerankerChain
+	// RerankShortlist is the over-fetch depth handed to the reranker (the
+	// configured lever, <PREFIX>_RERANK_SHORTLIST). Non-positive falls back to
+	// the engine default so the pool is always meaningful.
+	RerankShortlist int
 }
 
 // NewService builds a Service over the shared engine. cli-health indexes
@@ -94,6 +99,10 @@ func NewService(opts Options) *Service {
 	if threshold < 0 {
 		threshold = 0
 	}
+	shortlist := opts.RerankShortlist
+	if shortlist <= 0 {
+		shortlist = pkg.DefaultRerankShortlist
+	}
 	return &Service{
 		embedder:    opts.Embedder,
 		vectorStore: opts.VectorStore,
@@ -109,6 +118,7 @@ func NewService(opts Options) *Service {
 		floor:         opts.Floor,
 		rerankEnabled: opts.RerankEnabled,
 		reranker:      opts.Reranker,
+		shortlist:     shortlist,
 		jobs:          make(map[string]*reindexJob),
 	}
 }
@@ -157,8 +167,8 @@ func (s *Service) Search(ctx context.Context, query string, limit int, mode Sear
 	// candidates to reorder beyond the requested page.
 	doRerank := s.rerankEnabled && s.reranker != nil
 	queryLimit := limit
-	if doRerank && rerankShortlist(limit) > queryLimit {
-		queryLimit = rerankShortlist(limit)
+	if doRerank && s.rerankShortlist(limit) > queryLimit {
+		queryLimit = s.rerankShortlist(limit)
 	}
 
 	results, err := s.vectorStore.Query(ctx, pkg.HybridQuery{
@@ -188,10 +198,10 @@ func (s *Service) Search(ctx context.Context, query string, limit int, mode Sear
 	// WS2: drop weak/garbage hits with a query-adaptive relative cutoff AFTER
 	// rerank (cap-fabecce56b518120) — junk the reranker drives to ~0 then
 	// collapses out of the page count instead of riding along on its dense
-	// score. With rerank off this is identical to flooring the dense scores.
-	// Keeps the top hit; never hides correct answers to sparse queries (a fixed
-	// floor would, given the weak-real/gibberish overlap).
-	results = pkg.ApplyRelevanceFloor(results, s.floor)
+	// score. The floor band is regime-aware: FloorForLeg picks the cross-encoder
+	// / llm / cosine defaults for the active leg, with s.floor as the operator
+	// override. Keeps the top hit; never hides correct answers to sparse queries.
+	results = pkg.ApplyRelevanceFloor(results, pkg.FloorForLeg(reranker, s.floor))
 
 	if len(results) > limit {
 		results = results[:limit]
@@ -201,6 +211,7 @@ func (s *Service) Search(ctx context.Context, query string, limit int, mode Sear
 	for _, r := range results {
 		hits = append(hits, payloadToHit(r.ID, r.Score, r.Payload))
 	}
+	labelWeak(hits, reranker)
 	return &SearchResponse{
 		Results:  hits,
 		Total:    len(hits),
@@ -210,14 +221,25 @@ func (s *Service) Search(ctx context.Context, query string, limit int, mode Sear
 	}, nil
 }
 
-// rerankShortlist is the candidate count fetched for reranking — at least 20,
-// or the page size when larger — so the reranker reorders a meaningful pool.
-func rerankShortlist(limit int) int {
-	const minShortlist = 20
-	if limit > minShortlist {
+// labelWeak sets the regime-aware weak-match flag on every hit using the active
+// reranker leg the response reports. This is the single home for the "weak vs
+// strong" decision in cli-health: the bool rides the proto to CLI and UI, which
+// render it directly and never re-derive a threshold. An empty leg (text /
+// rerank-off) maps to the dense-cosine regime in the shared engine.
+func labelWeak(hits []SearchHit, leg string) {
+	for i := range hits {
+		hits[i].Weak = pkg.LabelWeak(leg, hits[i].Score)
+	}
+}
+
+// rerankShortlist is the candidate count fetched for reranking — at least the
+// configured shortlist depth (<PREFIX>_RERANK_SHORTLIST), or the page size when
+// larger — so the reranker reorders a meaningful pool.
+func (s *Service) rerankShortlist(limit int) int {
+	if limit > s.shortlist {
 		return limit
 	}
-	return minShortlist
+	return s.shortlist
 }
 
 // rerankResults reorders a result set by a reranker's scores, preserving the
@@ -346,6 +368,9 @@ func (s *Service) textSearch(ctx context.Context, query string, limit int) (*Sea
 	for _, sh := range scoredHits {
 		out = append(out, sh.hit)
 	}
+	// Text mode has no reranker leg; the normalized lexical score is judged on
+	// the dense-cosine weak band (empty leg → cosine regime).
+	labelWeak(out, "")
 	return &SearchResponse{
 		Results: out,
 		Total:   len(out),
@@ -472,7 +497,9 @@ func (s *Service) rerankerStatus(ctx context.Context) string {
 	if !s.rerankEnabled || s.reranker == nil {
 		return "none"
 	}
-	if active := s.reranker.Active(ctx); active != nil {
+	// Live readout: bypass the chain's per-query TTL cache so `search status`
+	// reflects the reranker's true current reachability, not a cached probe.
+	if active := s.reranker.ActiveUncached(ctx); active != nil {
 		return active.Name()
 	}
 	return "degraded"

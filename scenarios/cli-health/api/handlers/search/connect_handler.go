@@ -62,6 +62,10 @@ func (h *connectHandler) Search(ctx context.Context, req *connect.Request[search
 			Description: hit.Description,
 			Score:       hit.Score,
 			Source:      hit.Source,
+			FullPath:    hit.FullPath,
+			Tags:        hit.Tags,
+			Binding:     hit.Binding,
+			Weak:        hit.Weak,
 		})
 	}
 	return connect.NewResponse(wire), nil

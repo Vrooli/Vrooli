@@ -192,6 +192,16 @@ service AgentManagerService {
     };
   }
 
+  // QuiesceScenario drains in-flight runs targeting a scenario so a Baseline
+  // Modes promote can re-point and restart its live instance without killing
+  // in-flight agent work.
+  rpc QuiesceScenario(QuiesceScenarioRequest) returns (QuiesceScenarioResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runs/quiesce"
+      body: "*"
+    };
+  }
+
   // RecoverRun drains a durable transcript and reconciles the run outcome.
   rpc RecoverRun(RecoverRunRequest) returns (RecoverRunResponse) {
     option (google.api.http) = {post: "/api/v1/runs/{run_id}/recover"};
@@ -801,6 +811,73 @@ message StopAllRunsRequest {
 message StopAllRunsResponse {
   // Result details.
   StopAllResult result = 1;
+}
+
+// QuiesceScenarioRequest drains in-flight runs targeting a scenario before a
+// Baseline Modes promote re-points and restarts its live instance.
+message QuiesceScenarioRequest {
+  // Target scenario slug (drives scope, self-guard, and messaging).
+  string scenario = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Override the working-tree scope used to find runs targeting the scenario.
+  // Empty ⇒ "scenarios/<scenario>".
+  optional string scope_prefix = 2;
+
+  // Also enumerate runs by tag prefix — catches whole-repo orchestrator runs
+  // whose task scope is the repo root rather than scenarios/<scenario>.
+  optional string tag_prefix = 3;
+
+  // The promoting run's own ID, excluded from the drain set. If it is itself
+  // active against the scenario, the promote is rejected (self-deadlock guard).
+  // @format uuid
+  optional string exclude_run_id = 4;
+
+  // Max wait for in-flight runs to terminate, as a Go duration string (e.g.
+  // "5m"). Empty ⇒ the server default.
+  optional string timeout = 5;
+
+  // On timeout, cancel survivors via the graceful StopRun instead of aborting.
+  bool force = 6;
+}
+
+// QuiesceScenarioResponse returns the outcome of a promote-quiesce drain.
+message QuiesceScenarioResponse {
+  QuiesceResult result = 1;
+}
+
+// QuiesceResult reports the outcome of a promote-quiesce drain.
+message QuiesceResult {
+  // Target scenario slug.
+  string scenario = 1;
+
+  // Scenario is now quiet (no in-flight runs target it).
+  bool drained = 2;
+
+  // Timed out without force; in-flight work was left untouched.
+  bool aborted = 3;
+
+  // In-flight count when the drain started (after excluding the promoter).
+  int32 initial = 4;
+
+  // Runs still active at the end (abort case).
+  repeated QuiesceRunRef in_flight = 5;
+
+  // Runs force-cancelled.
+  repeated QuiesceRunRef cancelled = 6;
+
+  // Wall-clock spent waiting, in milliseconds.
+  int64 waited_ms = 7;
+
+  // Human-facing guidance / recommended next action.
+  string reason = 8;
+}
+
+// QuiesceRunRef is a compact description of one run in the drain set.
+message QuiesceRunRef {
+  string id = 1;
+  string tag = 2;
+  string status = 3;
+  string scope_path = 4;
 }
 
 message RecoverRunRequest {

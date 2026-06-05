@@ -77,24 +77,30 @@ describe("SearchPanel", () => {
     expect(await screen.findByTestId(selectors.search.empty)).toBeInTheDocument();
   });
 
-  it("flags low-confidence results as weak matches and leaves strong ones unmarked", async () => {
+  it("renders the server-computed weak flag and leaves strong ones unmarked", async () => {
+    // The server computes the regime-aware weak flag; the UI just renders it
+    // (no client-side score threshold).
     vi.mocked(searchClient.search).mockResolvedValue({
       results: [
         {
           origin: "cli-health",
           group: "validate",
           name: "scenario",
+          fullPath: "cli-health validate scenario",
           description: "Strong match.",
-          score: 0.81, // >= 0.55 -> no weak chip
+          score: 0.81,
           source: "manifest",
+          weak: false,
         },
         {
           origin: "other",
           group: "",
           name: "thing",
+          fullPath: "other thing",
           description: "Ambiguous match.",
-          score: 0.42, // < 0.55 -> weak chip
+          score: 0.42,
           source: "help",
+          weak: true,
         },
       ],
       modeUsed: Mode.AI,

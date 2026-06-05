@@ -56,11 +56,25 @@ message SearchResult {
   string group = 2;
   string name = 3;
   string description = 4;
-  // Higher is better. AI mode returns cosine similarity; TEXT mode returns
-  // a normalized lexical score in [0, 1].
+  // Higher is better. The number's regime depends on the active reranker leg
+  // (see `reranker` on SearchResponse): cross-encoder sigmoid, dense cosine, or
+  // LLM 0..1. Clients MUST NOT threshold it themselves — use `weak` below.
   double score = 5;
   // "manifest" or "help".
   string source = 6;
+  // Canonical invocable command string ("<scenario> <group> <name>") — the
+  // copy-pasteable form, projected straight from the index payload.
+  string full_path = 7;
+  // Free-form tags attached to the command in its manifest.
+  repeated string tags = 8;
+  // "Service.Method" binding when the command came from a manifest; empty for
+  // --help-derived commands.
+  string binding = 9;
+  // Server-computed weak-match flag: true when this hit falls in the uncertain
+  // band for the regime that produced its score. Computed once in the service
+  // via the shared engine's regime-aware LabelWeak so CLI and UI render an
+  // identical "(weak)" badge without re-deriving a threshold.
+  bool weak = 10;
 }
 
 // SearchResponse echoes which Mode actually served the request so the CLI

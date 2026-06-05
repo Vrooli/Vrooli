@@ -132,8 +132,9 @@ func main() {
 			MaxGap:    searchCfg.RelevanceMaxGap,
 			HardFloor: searchCfg.RelevanceHardFloor,
 		},
-		RerankEnabled: searchCfg.RerankEnabled,
-		Reranker:      engine.Reranker,
+		RerankEnabled:   searchCfg.RerankEnabled,
+		Reranker:        engine.Reranker,
+		RerankShortlist: searchCfg.RerankShortlist,
 	})
 
 	// EnsureCollection is best-effort: if qdrant is unreachable at boot, the

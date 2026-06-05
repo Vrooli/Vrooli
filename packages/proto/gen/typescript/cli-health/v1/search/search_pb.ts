@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cli-health/v1/search/search.proto.
  */
 export const file_cli_health_v1_search_search: GenFile = /*@__PURE__*/
-  fileDesc("CiFjbGktaGVhbHRoL3YxL3NlYXJjaC9zZWFyY2gucHJvdG8SG3Zyb29saS5jbGlfaGVhbHRoLnYxLnNlYXJjaCJeCg1TZWFyY2hSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBWxpbWl0GAIgASgFEi8KBG1vZGUYAyABKA4yIS52cm9vbGkuY2xpX2hlYWx0aC52MS5zZWFyY2guTW9kZSJvCgxTZWFyY2hSZXN1bHQSDgoGb3JpZ2luGAEgASgJEg0KBWdyb3VwGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSDQoFc2NvcmUYBSABKAESDgoGc291cmNlGAYgASgJIpQBCg5TZWFyY2hSZXNwb25zZRI6CgdyZXN1bHRzGAEgAygLMikudnJvb2xpLmNsaV9oZWFsdGgudjEuc2VhcmNoLlNlYXJjaFJlc3VsdBI0Cgltb2RlX3VzZWQYAiABKA4yIS52cm9vbGkuY2xpX2hlYWx0aC52MS5zZWFyY2guTW9kZRIQCghyZXJhbmtlchgDIAEoCSIPCg1TdGF0dXNSZXF1ZXN0IqcBCg5TdGF0dXNSZXNwb25zZRIRCglhdmFpbGFibGUYASABKAgSDgoGb2xsYW1hGAIgASgIEg4KBnFkcmFudBgDIAEoCBIVCg1pbmRleGVkX2NvdW50GAQgASgFEhkKEWxhc3RfcmVjb25jaWxlX2F0GAUgASgJEh4KFmxhc3RfcmVjb25jaWxlX291dGNvbWUYBiABKAkSEAoIcmVyYW5rZXIYByABKAkqOAoETW9kZRIUChBNT0RFX1VOU1BFQ0lGSUVEEAASCwoHTU9ERV9BSRABEg0KCU1PREVfVEVYVBACMtUBCg1TZWFyY2hTZXJ2aWNlEmEKBlNlYXJjaBIqLnZyb29saS5jbGlfaGVhbHRoLnYxLnNlYXJjaC5TZWFyY2hSZXF1ZXN0GisudnJvb2xpLmNsaV9oZWFsdGgudjEuc2VhcmNoLlNlYXJjaFJlc3BvbnNlEmEKBlN0YXR1cxIqLnZyb29saS5jbGlfaGVhbHRoLnYxLnNlYXJjaC5TdGF0dXNSZXF1ZXN0GisudnJvb2xpLmNsaV9oZWFsdGgudjEuc2VhcmNoLlN0YXR1c1Jlc3BvbnNlQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY2xpLWhlYWx0aC92MS9zZWFyY2g7c2VhcmNoX3YxYgZwcm90bzM");
+  fileDesc("CiFjbGktaGVhbHRoL3YxL3NlYXJjaC9zZWFyY2gucHJvdG8SG3Zyb29saS5jbGlfaGVhbHRoLnYxLnNlYXJjaCJeCg1TZWFyY2hSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBWxpbWl0GAIgASgFEi8KBG1vZGUYAyABKA4yIS52cm9vbGkuY2xpX2hlYWx0aC52MS5zZWFyY2guTW9kZSKvAQoMU2VhcmNoUmVzdWx0Eg4KBm9yaWdpbhgBIAEoCRINCgVncm91cBgCIAEoCRIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEg0KBXNjb3JlGAUgASgBEg4KBnNvdXJjZRgGIAEoCRIRCglmdWxsX3BhdGgYByABKAkSDAoEdGFncxgIIAMoCRIPCgdiaW5kaW5nGAkgASgJEgwKBHdlYWsYCiABKAgilAEKDlNlYXJjaFJlc3BvbnNlEjoKB3Jlc3VsdHMYASADKAsyKS52cm9vbGkuY2xpX2hlYWx0aC52MS5zZWFyY2guU2VhcmNoUmVzdWx0EjQKCW1vZGVfdXNlZBgCIAEoDjIhLnZyb29saS5jbGlfaGVhbHRoLnYxLnNlYXJjaC5Nb2RlEhAKCHJlcmFua2VyGAMgASgJIg8KDVN0YXR1c1JlcXVlc3QipwEKDlN0YXR1c1Jlc3BvbnNlEhEKCWF2YWlsYWJsZRgBIAEoCBIOCgZvbGxhbWEYAiABKAgSDgoGcWRyYW50GAMgASgIEhUKDWluZGV4ZWRfY291bnQYBCABKAUSGQoRbGFzdF9yZWNvbmNpbGVfYXQYBSABKAkSHgoWbGFzdF9yZWNvbmNpbGVfb3V0Y29tZRgGIAEoCRIQCghyZXJhbmtlchgHIAEoCSo4CgRNb2RlEhQKEE1PREVfVU5TUEVDSUZJRUQQABILCgdNT0RFX0FJEAESDQoJTU9ERV9URVhUEAIy1QEKDVNlYXJjaFNlcnZpY2USYQoGU2VhcmNoEioudnJvb2xpLmNsaV9oZWFsdGgudjEuc2VhcmNoLlNlYXJjaFJlcXVlc3QaKy52cm9vbGkuY2xpX2hlYWx0aC52MS5zZWFyY2guU2VhcmNoUmVzcG9uc2USYQoGU3RhdHVzEioudnJvb2xpLmNsaV9oZWFsdGgudjEuc2VhcmNoLlN0YXR1c1JlcXVlc3QaKy52cm9vbGkuY2xpX2hlYWx0aC52MS5zZWFyY2guU3RhdHVzUmVzcG9uc2VCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jbGktaGVhbHRoL3YxL3NlYXJjaDtzZWFyY2hfdjFiBnByb3RvMw");
 
 /**
  * SearchRequest is the body accepted by SearchService.Search.
@@ -78,8 +78,9 @@ export type SearchResult = Message<"vrooli.cli_health.v1.search.SearchResult"> &
   description: string;
 
   /**
-   * Higher is better. AI mode returns cosine similarity; TEXT mode returns
-   * a normalized lexical score in [0, 1].
+   * Higher is better. The number's regime depends on the active reranker leg
+   * (see `reranker` on SearchResponse): cross-encoder sigmoid, dense cosine, or
+   * LLM 0..1. Clients MUST NOT threshold it themselves — use `weak` below.
    *
    * @generated from field: double score = 5;
    */
@@ -91,6 +92,39 @@ export type SearchResult = Message<"vrooli.cli_health.v1.search.SearchResult"> &
    * @generated from field: string source = 6;
    */
   source: string;
+
+  /**
+   * Canonical invocable command string ("<scenario> <group> <name>") — the
+   * copy-pasteable form, projected straight from the index payload.
+   *
+   * @generated from field: string full_path = 7;
+   */
+  fullPath: string;
+
+  /**
+   * Free-form tags attached to the command in its manifest.
+   *
+   * @generated from field: repeated string tags = 8;
+   */
+  tags: string[];
+
+  /**
+   * "Service.Method" binding when the command came from a manifest; empty for
+   * --help-derived commands.
+   *
+   * @generated from field: string binding = 9;
+   */
+  binding: string;
+
+  /**
+   * Server-computed weak-match flag: true when this hit falls in the uncertain
+   * band for the regime that produced its score. Computed once in the service
+   * via the shared engine's regime-aware LabelWeak so CLI and UI render an
+   * identical "(weak)" badge without re-deriving a threshold.
+   *
+   * @generated from field: bool weak = 10;
+   */
+  weak: boolean;
 };
 
 /**

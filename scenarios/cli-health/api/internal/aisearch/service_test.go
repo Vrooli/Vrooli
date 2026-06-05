@@ -396,6 +396,58 @@ func TestService_AIMode_RerankUnavailableKeepsDenseOrder(t *testing.T) {
 	}
 }
 
+// TestService_AIMode_LabelsWeakByRegime asserts the weak flag is computed once
+// in the service against the ACTIVE leg's regime, not a fixed cosine 0.55. With
+// a cross-encoder leg, a 0.40 hit is strong (xenc weak threshold 0.30) — under
+// the old cosine 0.55 line it would have been mislabeled weak. The 0.25 hit
+// survives the (permissive) cross-encoder floor and is correctly weak.
+func TestService_AIMode_LabelsWeakByRegime(t *testing.T) {
+	emb := &fakeEmbedder{available: true}
+	store := newFakeStore()
+	strong, low := mkResult("strong", 0.70), mkResult("low", 0.60)
+	store.searchOut = []pkg.SearchResult{strong, low}
+	rr := &fakeReranker{name: "cross-encoder:bge", available: true, scores: map[string]float64{
+		strong.ID: 0.40, low.ID: 0.25,
+	}}
+	svc := newRerankService(sampleCorpus(), emb, store, true, rr)
+
+	resp, err := svc.Search(context.Background(), "anything", 10, ModeAI)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if resp.Reranker != "cross-encoder:bge" {
+		t.Fatalf("Reranker = %q", resp.Reranker)
+	}
+	byPath := map[string]SearchHit{}
+	for _, r := range resp.Results {
+		byPath[r.FullPath] = r
+	}
+	if len(byPath) != 2 {
+		t.Fatalf("expected both hits to survive the cross-encoder floor, got %+v", resp.Results)
+	}
+	if byPath["demo strong"].Weak {
+		t.Errorf("0.40 under cross-encoder regime must NOT be weak (xenc threshold 0.30; cosine 0.55 would mislabel)")
+	}
+	if !byPath["demo low"].Weak {
+		t.Errorf("0.25 under cross-encoder regime must be weak")
+	}
+}
+
+func TestService_TextSearch_LabelsWeakCosine(t *testing.T) {
+	// Text mode has no reranker → cosine regime (0.55). A normalized lexical
+	// score below 0.55 is weak.
+	svc := newTestService(sampleCorpus(), &fakeEmbedder{available: true}, newFakeStore())
+	resp, err := svc.Search(context.Background(), "restart", 10, ModeText)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	for _, r := range resp.Results {
+		if want := r.Score < 0.55; r.Weak != want {
+			t.Errorf("%s score=%.3f Weak=%v, want %v (cosine 0.55)", r.FullPath, r.Score, r.Weak, want)
+		}
+	}
+}
+
 func TestService_Status_ReportsReranker(t *testing.T) {
 	store := newFakeStore()
 	rr := &fakeReranker{name: "fake:rr", available: true}

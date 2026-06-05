@@ -13,11 +13,6 @@ import (
 	searchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/search/search_v1connect"
 )
 
-// lowConfidenceThreshold is the display cutoff below which an AI result is
-// flagged "(weak)" — the human judges the ambiguous band the server-side
-// relevance floor intentionally keeps (WS2).
-const lowConfidenceThreshold = 0.55
-
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client searchconnect.SearchServiceClient
@@ -57,12 +52,17 @@ func (h *handlers) query(ctx cliapp.RunContext) error {
 	}
 	results := make([]string, 0, len(resp.Msg.Results))
 	for i, r := range resp.Msg.Results {
-		full := strings.TrimSpace(strings.Join([]string{r.Origin, r.Group, r.Name}, " "))
+		// Prefer the server's canonical full_path; fall back to assembling the
+		// pieces for any result that predates the field.
+		full := strings.TrimSpace(r.FullPath)
+		if full == "" {
+			full = strings.TrimSpace(strings.Join([]string{r.Origin, r.Group, r.Name}, " "))
+		}
 		desc := truncate(r.Description, 80)
-		// WS2: flag low-confidence (weak) matches so a human judges the ambiguous
-		// band the relevance floor intentionally keeps.
+		// WS2: the server computes the regime-aware weak flag once; the CLI just
+		// renders it (no client-side threshold).
 		weak := ""
-		if r.Score < lowConfidenceThreshold {
+		if r.Weak {
 			weak = " (weak)"
 		}
 		results = append(results, fmt.Sprintf("%d. %s — %s [score=%.3f source=%s]%s",

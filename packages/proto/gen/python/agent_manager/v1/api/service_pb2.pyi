@@ -491,6 +491,60 @@ class StopAllRunsResponse(_message.Message):
     result: _run_pb2.StopAllResult
     def __init__(self, result: _Optional[_Union[_run_pb2.StopAllResult, _Mapping]] = ...) -> None: ...
 
+class QuiesceScenarioRequest(_message.Message):
+    __slots__ = ("scenario", "scope_prefix", "tag_prefix", "exclude_run_id", "timeout", "force")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_PREFIX_FIELD_NUMBER: _ClassVar[int]
+    TAG_PREFIX_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDE_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_FIELD_NUMBER: _ClassVar[int]
+    FORCE_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    scope_prefix: str
+    tag_prefix: str
+    exclude_run_id: str
+    timeout: str
+    force: bool
+    def __init__(self, scenario: _Optional[str] = ..., scope_prefix: _Optional[str] = ..., tag_prefix: _Optional[str] = ..., exclude_run_id: _Optional[str] = ..., timeout: _Optional[str] = ..., force: _Optional[bool] = ...) -> None: ...
+
+class QuiesceScenarioResponse(_message.Message):
+    __slots__ = ("result",)
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    result: QuiesceResult
+    def __init__(self, result: _Optional[_Union[QuiesceResult, _Mapping]] = ...) -> None: ...
+
+class QuiesceResult(_message.Message):
+    __slots__ = ("scenario", "drained", "aborted", "initial", "in_flight", "cancelled", "waited_ms", "reason")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    DRAINED_FIELD_NUMBER: _ClassVar[int]
+    ABORTED_FIELD_NUMBER: _ClassVar[int]
+    INITIAL_FIELD_NUMBER: _ClassVar[int]
+    IN_FLIGHT_FIELD_NUMBER: _ClassVar[int]
+    CANCELLED_FIELD_NUMBER: _ClassVar[int]
+    WAITED_MS_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    drained: bool
+    aborted: bool
+    initial: int
+    in_flight: _containers.RepeatedCompositeFieldContainer[QuiesceRunRef]
+    cancelled: _containers.RepeatedCompositeFieldContainer[QuiesceRunRef]
+    waited_ms: int
+    reason: str
+    def __init__(self, scenario: _Optional[str] = ..., drained: _Optional[bool] = ..., aborted: _Optional[bool] = ..., initial: _Optional[int] = ..., in_flight: _Optional[_Iterable[_Union[QuiesceRunRef, _Mapping]]] = ..., cancelled: _Optional[_Iterable[_Union[QuiesceRunRef, _Mapping]]] = ..., waited_ms: _Optional[int] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class QuiesceRunRef(_message.Message):
+    __slots__ = ("id", "tag", "status", "scope_path")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TAG_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_PATH_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    tag: str
+    status: str
+    scope_path: str
+    def __init__(self, id: _Optional[str] = ..., tag: _Optional[str] = ..., status: _Optional[str] = ..., scope_path: _Optional[str] = ...) -> None: ...
+
 class RecoverRunRequest(_message.Message):
     __slots__ = ("run_id",)
     RUN_ID_FIELD_NUMBER: _ClassVar[int]

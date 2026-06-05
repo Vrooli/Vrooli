@@ -27,20 +27,28 @@ class SearchRequest(_message.Message):
     def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ..., mode: _Optional[_Union[Mode, str]] = ...) -> None: ...
 
 class SearchResult(_message.Message):
-    __slots__ = ("origin", "group", "name", "description", "score", "source")
+    __slots__ = ("origin", "group", "name", "description", "score", "source", "full_path", "tags", "binding", "weak")
     ORIGIN_FIELD_NUMBER: _ClassVar[int]
     GROUP_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     SCORE_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
+    FULL_PATH_FIELD_NUMBER: _ClassVar[int]
+    TAGS_FIELD_NUMBER: _ClassVar[int]
+    BINDING_FIELD_NUMBER: _ClassVar[int]
+    WEAK_FIELD_NUMBER: _ClassVar[int]
     origin: str
     group: str
     name: str
     description: str
     score: float
     source: str
-    def __init__(self, origin: _Optional[str] = ..., group: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., score: _Optional[float] = ..., source: _Optional[str] = ...) -> None: ...
+    full_path: str
+    tags: _containers.RepeatedScalarFieldContainer[str]
+    binding: str
+    weak: bool
+    def __init__(self, origin: _Optional[str] = ..., group: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., score: _Optional[float] = ..., source: _Optional[str] = ..., full_path: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., binding: _Optional[str] = ..., weak: _Optional[bool] = ...) -> None: ...
 
 class SearchResponse(_message.Message):
     __slots__ = ("results", "mode_used", "reranker")

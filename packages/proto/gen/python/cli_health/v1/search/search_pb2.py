@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n!cli-health/v1/search/search.proto\x12\x1bvrooli.cli_health.v1.search\"r\n\rSearchRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x35\n\x04mode\x18\x03 \x01(\x0e\x32!.vrooli.cli_health.v1.search.ModeR\x04mode\"\xa0\x01\n\x0cSearchResult\x12\x16\n\x06origin\x18\x01 \x01(\tR\x06origin\x12\x14\n\x05group\x18\x02 \x01(\tR\x05group\x12\x12\n\x04name\x18\x03 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x04 \x01(\tR\x0b\x64\x65scription\x12\x14\n\x05score\x18\x05 \x01(\x01R\x05score\x12\x16\n\x06source\x18\x06 \x01(\tR\x06source\"\xb1\x01\n\x0eSearchResponse\x12\x43\n\x07results\x18\x01 \x03(\x0b\x32).vrooli.cli_health.v1.search.SearchResultR\x07results\x12>\n\tmode_used\x18\x02 \x01(\x0e\x32!.vrooli.cli_health.v1.search.ModeR\x08modeUsed\x12\x1a\n\x08reranker\x18\x03 \x01(\tR\x08reranker\"\x0f\n\rStatusRequest\"\x81\x02\n\x0eStatusResponse\x12\x1c\n\tavailable\x18\x01 \x01(\x08R\tavailable\x12\x16\n\x06ollama\x18\x02 \x01(\x08R\x06ollama\x12\x16\n\x06qdrant\x18\x03 \x01(\x08R\x06qdrant\x12#\n\rindexed_count\x18\x04 \x01(\x05R\x0cindexedCount\x12*\n\x11last_reconcile_at\x18\x05 \x01(\tR\x0flastReconcileAt\x12\x34\n\x16last_reconcile_outcome\x18\x06 \x01(\tR\x14lastReconcileOutcome\x12\x1a\n\x08reranker\x18\x07 \x01(\tR\x08reranker*8\n\x04Mode\x12\x14\n\x10MODE_UNSPECIFIED\x10\x00\x12\x0b\n\x07MODE_AI\x10\x01\x12\r\n\tMODE_TEXT\x10\x02\x32\xd5\x01\n\rSearchService\x12\x61\n\x06Search\x12*.vrooli.cli_health.v1.search.SearchRequest\x1a+.vrooli.cli_health.v1.search.SearchResponse\x12\x61\n\x06Status\x12*.vrooli.cli_health.v1.search.StatusRequest\x1a+.vrooli.cli_health.v1.search.StatusResponseBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/search;search_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n!cli-health/v1/search/search.proto\x12\x1bvrooli.cli_health.v1.search\"r\n\rSearchRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x35\n\x04mode\x18\x03 \x01(\x0e\x32!.vrooli.cli_health.v1.search.ModeR\x04mode\"\xff\x01\n\x0cSearchResult\x12\x16\n\x06origin\x18\x01 \x01(\tR\x06origin\x12\x14\n\x05group\x18\x02 \x01(\tR\x05group\x12\x12\n\x04name\x18\x03 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x04 \x01(\tR\x0b\x64\x65scription\x12\x14\n\x05score\x18\x05 \x01(\x01R\x05score\x12\x16\n\x06source\x18\x06 \x01(\tR\x06source\x12\x1b\n\tfull_path\x18\x07 \x01(\tR\x08\x66ullPath\x12\x12\n\x04tags\x18\x08 \x03(\tR\x04tags\x12\x18\n\x07\x62inding\x18\t \x01(\tR\x07\x62inding\x12\x12\n\x04weak\x18\n \x01(\x08R\x04weak\"\xb1\x01\n\x0eSearchResponse\x12\x43\n\x07results\x18\x01 \x03(\x0b\x32).vrooli.cli_health.v1.search.SearchResultR\x07results\x12>\n\tmode_used\x18\x02 \x01(\x0e\x32!.vrooli.cli_health.v1.search.ModeR\x08modeUsed\x12\x1a\n\x08reranker\x18\x03 \x01(\tR\x08reranker\"\x0f\n\rStatusRequest\"\x81\x02\n\x0eStatusResponse\x12\x1c\n\tavailable\x18\x01 \x01(\x08R\tavailable\x12\x16\n\x06ollama\x18\x02 \x01(\x08R\x06ollama\x12\x16\n\x06qdrant\x18\x03 \x01(\x08R\x06qdrant\x12#\n\rindexed_count\x18\x04 \x01(\x05R\x0cindexedCount\x12*\n\x11last_reconcile_at\x18\x05 \x01(\tR\x0flastReconcileAt\x12\x34\n\x16last_reconcile_outcome\x18\x06 \x01(\tR\x14lastReconcileOutcome\x12\x1a\n\x08reranker\x18\x07 \x01(\tR\x08reranker*8\n\x04Mode\x12\x14\n\x10MODE_UNSPECIFIED\x10\x00\x12\x0b\n\x07MODE_AI\x10\x01\x12\r\n\tMODE_TEXT\x10\x02\x32\xd5\x01\n\rSearchService\x12\x61\n\x06Search\x12*.vrooli.cli_health.v1.search.SearchRequest\x1a+.vrooli.cli_health.v1.search.SearchResponse\x12\x61\n\x06Status\x12*.vrooli.cli_health.v1.search.StatusRequest\x1a+.vrooli.cli_health.v1.search.StatusResponseBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/search;search_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,18 +32,18 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'cli_health.v1.search.search
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZMgithub.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/search;search_v1'
-  _globals['_MODE']._serialized_start=802
-  _globals['_MODE']._serialized_end=858
+  _globals['_MODE']._serialized_start=897
+  _globals['_MODE']._serialized_end=953
   _globals['_SEARCHREQUEST']._serialized_start=66
   _globals['_SEARCHREQUEST']._serialized_end=180
   _globals['_SEARCHRESULT']._serialized_start=183
-  _globals['_SEARCHRESULT']._serialized_end=343
-  _globals['_SEARCHRESPONSE']._serialized_start=346
-  _globals['_SEARCHRESPONSE']._serialized_end=523
-  _globals['_STATUSREQUEST']._serialized_start=525
-  _globals['_STATUSREQUEST']._serialized_end=540
-  _globals['_STATUSRESPONSE']._serialized_start=543
-  _globals['_STATUSRESPONSE']._serialized_end=800
-  _globals['_SEARCHSERVICE']._serialized_start=861
-  _globals['_SEARCHSERVICE']._serialized_end=1074
+  _globals['_SEARCHRESULT']._serialized_end=438
+  _globals['_SEARCHRESPONSE']._serialized_start=441
+  _globals['_SEARCHRESPONSE']._serialized_end=618
+  _globals['_STATUSREQUEST']._serialized_start=620
+  _globals['_STATUSREQUEST']._serialized_end=635
+  _globals['_STATUSRESPONSE']._serialized_start=638
+  _globals['_STATUSRESPONSE']._serialized_end=895
+  _globals['_SEARCHSERVICE']._serialized_start=956
+  _globals['_SEARCHSERVICE']._serialized_end=1169
 # @@protoc_insertion_point(module_scope)

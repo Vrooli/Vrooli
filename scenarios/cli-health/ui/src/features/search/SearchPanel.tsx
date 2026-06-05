@@ -9,11 +9,6 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { Mode, type SearchResponse } from "@vrooli/proto-types/cli-health/v1/search/search_pb";
 
-// lowConfidenceThreshold is the display cutoff below which an AI result is
-// flagged as a weak match — the human judges the ambiguous band the server-side
-// relevance floor intentionally keeps (WS2).
-const lowConfidenceThreshold = 0.55;
-
 const modeLabel = (mode: Mode): string => {
   switch (mode) {
     case Mode.AI:
@@ -129,8 +124,8 @@ export function SearchPanel() {
                   className="rounded-md border border-app-border bg-app-surface-muted p-3"
                 >
                   <p className="font-mono text-sm">
-                    {r.origin} {r.group} {r.name}
-                    {r.score < lowConfidenceThreshold && (
+                    {r.fullPath || `${r.origin} ${r.group} ${r.name}`}
+                    {r.weak && (
                       <span
                         data-testid={selectors.search.weakMatch}
                         className="ms-2 rounded-control border border-app-border px-1.5 py-0.5 text-xs text-app-muted-foreground align-middle"
