@@ -229,12 +229,24 @@ func (s *Server) setupServices() {
 			if s.docSearchService != nil {
 				fallback = aisearch.NewDocsearchFallback(s.docSearchService)
 			}
+			// Rerank on docs is a config-gated, A/B-justified decision (plan §5).
+			// Default OFF: the validated finding is that hybrid RRF + authority boost
+			// ties the cross-encoder and beats the LLM reranker on recall for this
+			// corpus — reranking buys ordering parity, not recall. Flip
+			// KO_DOCS_RERANK_ENABLED=1 (and re-run the search-hub eval A/B) to enable.
+			// The flag is passed explicitly (shared convention); the chain is only
+			// built when enabled.
+			var docReranker *pkg.RerankerChain
+			if docCfg.RerankEnabled {
+				docReranker = aisearch.NewDefaultReranker()
+			}
 			searchSvc := aisearch.NewSearchService(aisearch.ServiceOptions{
-				Embedder:     docEmbedder,
-				VectorStore:  docStore,
-				Reranker:     aisearch.NewDefaultReranker(),
-				TextFallback: fallback,
-				Reconciler:   indexer.Reconciler(),
+				Embedder:      docEmbedder,
+				VectorStore:   docStore,
+				RerankEnabled: docCfg.RerankEnabled,
+				Reranker:      docReranker,
+				TextFallback:  fallback,
+				Reconciler:    indexer.Reconciler(),
 			})
 			s.docSearch = searchSvc
 			if s.docSearchService != nil {

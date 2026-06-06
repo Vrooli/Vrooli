@@ -19,7 +19,7 @@ import (
 // same global/scenario/path scopes, so the mapping is direct; the only shaping
 // is projecting a TextSearchMatch into the federation SearchHit (keys.go).
 func NewDocsearchFallback(svc *docsearch.Service) TextFallback {
-	return func(ctx context.Context, q pkg.SearchQuery) ([]pkg.SearchHit, error) {
+	return func(ctx context.Context, q pkg.SearchQuery) ([]pkg.SearchResult, error) {
 		req := docsearch.TextSearchRequest{
 			Query:        q.Query,
 			Scope:        scopeToDocsearch(q.Scope.Kind),
@@ -36,10 +36,10 @@ func NewDocsearchFallback(svc *docsearch.Service) TextFallback {
 		if err != nil {
 			return nil, err
 		}
-		hits := make([]pkg.SearchHit, 0, len(matches))
+		hits := make([]pkg.SearchResult, 0, len(matches))
 		for i, m := range matches {
 			body := strings.TrimSpace(strings.Join([]string{m.ContextBefore, m.Content, m.ContextAfter}, "\n"))
-			hits = append(hits, pkg.SearchHit{
+			hits = append(hits, pkg.SearchResult{
 				ID:           grepID(m.Path, m.LineNumber),
 				RelativePath: m.RelativePath,
 				// Grep has no relevance score; preserve match order with a

@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -19,20 +20,34 @@ import (
 // package — the search-hub plan reuses the exact same impls and the chain so
 // every federated leaf reranks consistently.
 //
-//   - LLMReranker:          qwen3:4b via `resource-ollama gateway generate`
-//     (dependency-free, always-available fallback).
+//   - LLMReranker:          a non-reasoning instruct model via
+//     `resource-ollama gateway generate` (dependency-free fallback for hosts
+//     without the cross-encoder GPU resource).
 //   - CrossEncoderReranker: BAAI/bge-reranker-v2-m3 served by the dedicated
 //     `reranker` TEI resource (Phase 4) via RERANKER_URL /rerank.
 //   - RerankerChain:        cross-encoder -> LLM -> fused (RRF) order.
 
-// DefaultRerankModel is the substrate-standard LLM-as-reranker model. qwen3:4b
-// is small, already pulled, and reasons well over a short candidate list.
-const DefaultRerankModel = "qwen3:4b"
+// DefaultRerankModel is the substrate-standard LLM-as-reranker model. It must be
+// a NON-reasoning instruct model: a probe (2026-06-05) showed qwen3:4b burns its
+// whole token budget on a <think> preamble (~38 s/query) even with /no_think,
+// while llama3.2:3b emits clean, complete, correctly-ordered listwise JSON at
+// ~2.8 s warm. The leg is the CPU-only fallback when the cross-encoder resource
+// is down — see Track D in the score-regime-calibration plan.
+const DefaultRerankModel = "llama3.2:3b"
 
 // rerankCandidateCharCap bounds each candidate's text in the LLM prompt so a
 // long doc chunk can't blow the context window (the cross-encoder resource has
 // its own server-side truncation).
 const rerankCandidateCharCap = 700
+
+// maxCrossEncoderBatch bounds how many candidates go in one TEI /rerank request.
+// The TEI server enforces --max-client-batch-size (default 32) and answers a
+// larger batch with HTTP 413, so the engine chunks the shortlist into requests
+// of at most this many candidates and merges the scores. This decouples the
+// RERANK_SHORTLIST lever from the server limit: any shortlist reranks correctly
+// (the /rerank scores are per query-candidate pair, so they are comparable and
+// mergeable across chunks).
+const maxCrossEncoderBatch = 32
 
 // =============================================================================
 // LLM-as-reranker (qwen3:4b via resource-ollama gateway generate)
@@ -91,12 +106,15 @@ func (r *LLMReranker) Name() string { return "llm:" + r.model }
 
 // Available probes the model with a one-token generation. Cheap relative to a
 // full rerank and only consulted when the cross-encoder is down (the chain
-// tries the cross-encoder first).
+// tries the cross-encoder first). The timeout matches the cross-encoder probe
+// (3 s) so an unreachable LLM leg can never reintroduce the per-query latency
+// cliff — and RerankerChain TTL-caches the probe, so it runs at most once per
+// window regardless.
 func (r *LLMReranker) Available(ctx context.Context) bool {
 	if r.run == nil {
 		return false
 	}
-	probeCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	probeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	args := []string{r.bin, "gateway", "generate", "--model", r.model, "--max-tokens", "1", "--json", "--prompt-stdin"}
 	_, err := r.run(probeCtx, args, []byte("ok"))
@@ -151,10 +169,10 @@ func (r *LLMReranker) Rerank(ctx context.Context, query string, candidates []Rer
 
 func buildRerankPrompt(query string, candidates []RerankCandidate) string {
 	var b strings.Builder
-	// /no_think tells qwen3-class models to skip the <think> reasoning block so
-	// the response is the bare JSON array (parseLLMScores also strips any block
-	// defensively for models that ignore the directive).
-	b.WriteString("/no_think\n")
+	// The default model is a non-reasoning instruct model (llama3.2:3b) that
+	// emits the bare JSON array directly, so no anti-reasoning directive is
+	// needed; parseLLMScores still strips any <think> block defensively in case a
+	// consumer points RERANK_MODEL at a reasoning model.
 	b.WriteString("You are a documentation-search relevance judge. Score how well each candidate passage answers the user query, from 0.0 (irrelevant) to 1.0 (directly answers it).\n\n")
 	b.WriteString("Query: ")
 	b.WriteString(strings.TrimSpace(query))
@@ -248,22 +266,31 @@ func balancedArraySpans(s string) []string {
 // Cross-encoder reranker (bge-reranker-v2-m3 via the TEI `reranker` resource)
 // =============================================================================
 
-// CrossEncoderReranker calls the dedicated `reranker` TEI resource (Phase 4)
-// over HTTP. The base URL is resolved from the resource's exported environment
-// (RERANKER_URL), never computed by the caller.
+// CrossEncoderReranker calls the dedicated `reranker` TEI resource over HTTP.
+// The base URL and model flow in from Config (prefix-aware), so two scenarios on
+// one host can target different rerankers; when a value is empty the constructor
+// falls back to the resource's own unprefixed env, preserving zero-config use.
 type CrossEncoderReranker struct {
 	baseURL string
 	model   string
 	http    httpDoer
 }
 
-// NewCrossEncoderReranker resolves the base URL from the environment exported
-// by the reranker resource. When unset it falls back to the resource's default
-// host:port so a locally-started resource works without explicit wiring.
-func NewCrossEncoderReranker() *CrossEncoderReranker {
+// NewCrossEncoderReranker builds the cross-encoder leg from the Config-resolved
+// base URL and model. An empty baseURL falls back to ResolveRerankerURL over the
+// process env (RERANKER_BASE_URL/RERANKER_URL/RERANKER_HOST+PORT, then the
+// resource default); an empty model falls back to RERANKER_MODEL, then the
+// bge-reranker-v2-m3 default. Pass cfg.RerankerURL / cfg.RerankerModel.
+func NewCrossEncoderReranker(baseURL, model string) *CrossEncoderReranker {
+	if strings.TrimSpace(baseURL) == "" {
+		baseURL = ResolveRerankerURL(os.Getenv)
+	}
+	if strings.TrimSpace(model) == "" {
+		model = envOr("RERANKER_MODEL", "bge-reranker-v2-m3")
+	}
 	return &CrossEncoderReranker{
-		baseURL: ResolveRerankerURL(os.Getenv),
-		model:   envOr("RERANKER_MODEL", "bge-reranker-v2-m3"),
+		baseURL: strings.TrimRight(strings.TrimSpace(baseURL), "/"),
+		model:   strings.TrimSpace(model),
 		http:    &http.Client{Timeout: 30 * time.Second},
 	}
 }
@@ -341,8 +368,12 @@ type teiRankResult struct {
 	Score float64 `json:"score"`
 }
 
-// Rerank posts the shortlist to TEI /rerank and maps the returned, score-sorted
-// indices back to candidate IDs.
+// Rerank scores the shortlist with the cross-encoder, chunking into TEI
+// /rerank requests of at most maxCrossEncoderBatch candidates (the server's
+// --max-client-batch-size; a larger batch is answered with HTTP 413) and
+// merging the per-candidate scores. Any chunk failing aborts the whole rerank
+// so the caller cleanly degrades to fused/dense order rather than reordering on
+// a partial set.
 func (r *CrossEncoderReranker) Rerank(ctx context.Context, query string, candidates []RerankCandidate) ([]RerankScore, error) {
 	if r.http == nil || r.baseURL == "" {
 		return nil, fmt.Errorf("cross-encoder reranker: base URL not resolved")
@@ -350,8 +381,29 @@ func (r *CrossEncoderReranker) Rerank(ctx context.Context, query string, candida
 	if len(candidates) == 0 {
 		return nil, nil
 	}
-	texts := make([]string, len(candidates))
-	for i, c := range candidates {
+	out := make([]RerankScore, 0, len(candidates))
+	for start := 0; start < len(candidates); start += maxCrossEncoderBatch {
+		end := start + maxCrossEncoderBatch
+		if end > len(candidates) {
+			end = len(candidates)
+		}
+		scores, err := r.rerankBatch(ctx, query, candidates[start:end])
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, scores...)
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("cross-encoder reranker: empty response")
+	}
+	return out, nil
+}
+
+// rerankBatch posts one ≤maxCrossEncoderBatch chunk to TEI /rerank and maps the
+// returned indices (relative to the chunk) back to candidate IDs.
+func (r *CrossEncoderReranker) rerankBatch(ctx context.Context, query string, chunk []RerankCandidate) ([]RerankScore, error) {
+	texts := make([]string, len(chunk))
+	for i, c := range chunk {
 		texts[i] = c.Text
 	}
 	payload, err := json.Marshal(teiRerankRequest{Query: query, Texts: texts})
@@ -377,13 +429,10 @@ func (r *CrossEncoderReranker) Rerank(ctx context.Context, query string, candida
 	}
 	out := make([]RerankScore, 0, len(results))
 	for _, res := range results {
-		if res.Index < 0 || res.Index >= len(candidates) {
+		if res.Index < 0 || res.Index >= len(chunk) {
 			continue
 		}
-		out = append(out, RerankScore{ID: candidates[res.Index].ID, Score: res.Score})
-	}
-	if len(out) == 0 {
-		return nil, fmt.Errorf("cross-encoder reranker: empty response")
+		out = append(out, RerankScore{ID: chunk[res.Index].ID, Score: res.Score})
 	}
 	return out, nil
 }
@@ -392,34 +441,99 @@ func (r *CrossEncoderReranker) Rerank(ctx context.Context, query string, candida
 // Degradation chain
 // =============================================================================
 
+// DefaultRerankerProbeTTL bounds how long RerankerChain caches its availability
+// probe. Without it, every Search re-ran the per-leg Available() probe (a
+// cross-encoder /health GET, or worse an LLM generate) — so a single down leg
+// imposed a probe on every query. Caching the probe for a short window caps that
+// to one probe per TTL and reflects an outage or recovery within one window.
+const DefaultRerankerProbeTTL = 20 * time.Second
+
 // RerankerChain composes rerankers in preference order and routes a Rerank call
 // to the first Available one (cross-encoder -> LLM by convention). When none is
 // available it returns (nil, nil) so the caller keeps the upstream fused order.
 // It satisfies the Reranker interface itself, so a consumer can hold a single
 // Reranker and the search-hub plan can reuse the same composition.
+//
+// Active() is TTL-cached behind an injected clock (the same func()time.Time
+// seam Reconciler/SyncLoop use) so the availability probe is off the per-query
+// hot path.
 type RerankerChain struct {
 	rerankers []Reranker
+	clock     func() time.Time
+	ttl       time.Duration
+
+	mu       sync.Mutex
+	cached   Reranker
+	cachedAt time.Time
+	primed   bool
 }
 
-// NewRerankerChain builds a chain in preference order. Nil entries are dropped.
+// NewRerankerChain builds a chain in preference order with the default probe
+// TTL and wall clock. Nil entries are dropped.
 func NewRerankerChain(rerankers ...Reranker) *RerankerChain {
+	return newRerankerChain(time.Now, DefaultRerankerProbeTTL, rerankers...)
+}
+
+// NewRerankerChainWithClock injects the clock + probe TTL (tests prove the
+// cache hits/expires without real time). Extends the existing func()time.Time
+// clock seam rather than introducing a parallel one.
+func NewRerankerChainWithClock(clock func() time.Time, ttl time.Duration, rerankers ...Reranker) *RerankerChain {
+	return newRerankerChain(clock, ttl, rerankers...)
+}
+
+func newRerankerChain(clock func() time.Time, ttl time.Duration, rerankers ...Reranker) *RerankerChain {
 	filtered := make([]Reranker, 0, len(rerankers))
 	for _, r := range rerankers {
 		if r != nil {
 			filtered = append(filtered, r)
 		}
 	}
-	return &RerankerChain{rerankers: filtered}
+	if clock == nil {
+		clock = time.Now
+	}
+	if ttl <= 0 {
+		ttl = DefaultRerankerProbeTTL
+	}
+	return &RerankerChain{rerankers: filtered, clock: clock, ttl: ttl}
 }
 
-// Active returns the first available reranker, or nil when none is reachable.
+// Active returns the first available reranker (cross-encoder -> LLM), or nil
+// when none is reachable. The result is cached for ttl so the availability probe
+// runs at most once per window, never once per query. A live readout (e.g. a
+// status surface) should use ActiveUncached.
 func (c *RerankerChain) Active(ctx context.Context) Reranker {
+	c.mu.Lock()
+	if c.primed && c.clock().Sub(c.cachedAt) < c.ttl {
+		active := c.cached
+		c.mu.Unlock()
+		return active
+	}
+	c.mu.Unlock()
+	return c.refresh(ctx)
+}
+
+// ActiveUncached probes the legs live (bypassing the TTL cache) and refreshes
+// it. The cache exists for the search hot path; a rarely-called status probe
+// wants the current truth, not a cached one (plan §13).
+func (c *RerankerChain) ActiveUncached(ctx context.Context) Reranker {
+	return c.refresh(ctx)
+}
+
+// refresh probes the legs in order and stores the result with a fresh timestamp.
+func (c *RerankerChain) refresh(ctx context.Context) Reranker {
+	var active Reranker
 	for _, r := range c.rerankers {
 		if r.Available(ctx) {
-			return r
+			active = r
+			break
 		}
 	}
-	return nil
+	c.mu.Lock()
+	c.cached = active
+	c.cachedAt = c.clock()
+	c.primed = true
+	c.mu.Unlock()
+	return active
 }
 
 // Name reports the chain's composition (for diagnostics). Use ActiveName for
@@ -458,12 +572,13 @@ func (c *RerankerChain) Rerank(ctx context.Context, query string, candidates []R
 	return active.Rerank(ctx, query, candidates)
 }
 
-// ApplyRerank reorders hits by a reranker's scores, preserving the upstream
-// (fused) order as the stable tie-break and for any hit the reranker omitted.
-// Hits the reranker scored sort to the front by descending score; unscored hits
-// keep their relative order behind them. This is the shared helper both KO and
-// search-hub use so reordering semantics never drift.
-func ApplyRerank(hits []SearchHit, scores []RerankScore) []SearchHit {
+// ApplyRerank reorders results by a reranker's scores, preserving the upstream
+// (fused) order as the stable tie-break and for any result the reranker omitted.
+// Results the reranker scored sort to the front by descending score; unscored
+// results keep their relative order behind them. It operates on the unified
+// SearchResult — the same type VectorStore.Query returns and ApplyRelevanceFloor
+// consumes — so no adopter re-implements reordering against a second type.
+func ApplyRerank(hits []SearchResult, scores []RerankScore) []SearchResult {
 	if len(scores) == 0 || len(hits) == 0 {
 		return hits
 	}
@@ -472,7 +587,7 @@ func ApplyRerank(hits []SearchHit, scores []RerankScore) []SearchHit {
 		scoreByID[s.ID] = s.Score
 	}
 	type ranked struct {
-		hit    SearchHit
+		hit    SearchResult
 		score  float64
 		scored bool
 		order  int
@@ -491,7 +606,7 @@ func ApplyRerank(hits []SearchHit, scores []RerankScore) []SearchHit {
 		}
 		return items[i].order < items[j].order
 	})
-	out := make([]SearchHit, len(items))
+	out := make([]SearchResult, len(items))
 	for i, it := range items {
 		h := it.hit
 		if it.scored {

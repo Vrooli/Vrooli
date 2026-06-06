@@ -26,6 +26,41 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if cfg.EmbedModel != DefaultEmbedModel {
 		t.Errorf("EmbedModel = %q, want %q", cfg.EmbedModel, DefaultEmbedModel)
 	}
+	if cfg.RerankShortlist != DefaultRerankShortlist {
+		t.Errorf("RerankShortlist = %d, want %d", cfg.RerankShortlist, DefaultRerankShortlist)
+	}
+	// Floor overrides default to 0 ("unset") so FloorForLeg supplies the regime
+	// default rather than a hard-coded cosine value seeded by config.
+	if cfg.RelevanceMaxGap != 0 || cfg.RelevanceHardFloor != 0 {
+		t.Errorf("floor overrides = (%g, %g), want (0, 0) unset", cfg.RelevanceMaxGap, cfg.RelevanceHardFloor)
+	}
+}
+
+func TestLoadConfigRerankShortlist(t *testing.T) {
+	t.Run("parses set value", func(t *testing.T) {
+		t.Setenv("SL_RERANK_SHORTLIST", "120")
+		if got := LoadConfig("SL").RerankShortlist; got != 120 {
+			t.Errorf("RerankShortlist = %d, want 120", got)
+		}
+	})
+	t.Run("clamps above max", func(t *testing.T) {
+		t.Setenv("SLMAX_RERANK_SHORTLIST", "99999")
+		if got := LoadConfig("SLMAX").RerankShortlist; got != MaxRerankShortlist {
+			t.Errorf("RerankShortlist = %d, want clamp to %d", got, MaxRerankShortlist)
+		}
+	})
+	t.Run("clamps below min", func(t *testing.T) {
+		t.Setenv("SLMIN_RERANK_SHORTLIST", "0")
+		if got := LoadConfig("SLMIN").RerankShortlist; got != MinRerankShortlist {
+			t.Errorf("RerankShortlist = %d, want clamp to %d", got, MinRerankShortlist)
+		}
+	})
+	t.Run("malformed falls back to default", func(t *testing.T) {
+		t.Setenv("SLBAD_RERANK_SHORTLIST", "not-a-number")
+		if got := LoadConfig("SLBAD").RerankShortlist; got != DefaultRerankShortlist {
+			t.Errorf("RerankShortlist = %d, want default %d", got, DefaultRerankShortlist)
+		}
+	})
 }
 
 func TestLoadConfigReadsPrefixedEnv(t *testing.T) {

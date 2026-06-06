@@ -167,11 +167,32 @@ type HybridQuery struct {
 	Fusion         string  // "rrf" (empty => dense-only)
 }
 
-// SearchResult is one raw vector-store hit before reranking/projection.
+// SearchResult is THE result type for the whole read path — there is no
+// separate "hit" type. It starts life as a raw vector-store hit (only ID,
+// Score, Payload set), is reordered by ApplyRerank, filtered by
+// ApplyRelevanceFloor, weak-labeled by LabelWeak (which sets Weak), and finally
+// projected in place by an adopter's Projector (which fills the projection
+// fields below from Payload). Carrying one type end-to-end is deliberate: it is
+// why no adopter re-implements rerank reordering against a second "hit" type.
+//
+// The projection fields RelativePath/Score/Snippet/Path (plus ID) are the
+// federation contract the search-hub registry maps for the KO `doc` leaf — keep
+// their names/JSON shape stable or update the provider descriptor in lockstep.
+// A non-doc adopter (e.g. cli-health commands) leaves the doc-flavored fields
+// empty and reads its corpus-specific fields from Payload, which is always the
+// full vector-store payload.
 type SearchResult struct {
 	ID      string
 	Score   float64
 	Payload map[string]any
+	// Projection fields, filled by a Projector after rerank + floor + weak-label.
+	RelativePath string
+	Snippet      string
+	Path         string
+	SourceID     string
+	// Weak is set by LabelWeak from the active reranker leg's regime; carried so
+	// CLI and UI never re-derive (and never drift on) the weak/strong threshold.
+	Weak bool
 }
 
 // ScrollItem is the per-point projection used by the reconciler to detect
@@ -290,24 +311,10 @@ type SearchQuery struct {
 	Limit  int
 }
 
-// SearchHit is the per-result projection. The first five fields
-// (ID, RelativePath, Score, Snippet, Path) are the federation contract the
-// search-hub registry maps for the KO `doc` leaf (its Appendix A.5) — keep
-// this shape stable or update the descriptor in lockstep.
-type SearchHit struct {
-	ID           string
-	RelativePath string
-	Score        float64
-	Snippet      string
-	Path         string
-	SourceID     string
-	Payload      map[string]any
-}
-
 // SearchResponse wraps results with the leg that answered and the active
 // reranker, for observability and the degraded-state UI.
 type SearchResponse struct {
-	Results  []SearchHit
+	Results  []SearchResult
 	Total    int
 	Query    string
 	Method   string // which leg answered: "hybrid" | "dense" | "text"
@@ -315,6 +322,14 @@ type SearchResponse struct {
 }
 
 // StatusReport describes backend availability for `search status`.
+//
+// Available carries a deliberate default that adopters sometimes override:
+// Service.Status sets it to (Qdrant OR a text fallback exists) — "search can
+// answer at all", which suits a doc corpus that degrades to grep. A corpus where
+// AI search is the product (e.g. cli-health) means something stricter —
+// (Ollama AND Qdrant) — and recomputes Available in its own Status wrapper,
+// treating the text leg as a degradation, not "available". Decide which you mean
+// and override if the default does not fit.
 type StatusReport struct {
 	Available            bool
 	Ollama               bool
@@ -325,10 +340,6 @@ type StatusReport struct {
 	LastReconcileOutcome string
 }
 
-// Service is the consumer-facing search surface. Reindex job control
-// (Run/Status/Cancel) is exposed by the reconciler and wired through the same
-// concrete service; it is intentionally not part of this read-path interface.
-type Service interface {
-	Search(ctx context.Context, q SearchQuery) (SearchResponse, error)
-	Status(ctx context.Context) StatusReport
-}
+// The consumer-facing search surface is the concrete *Service in service.go
+// (Search + Status + reindex job control). Adopters that want a test seam define
+// their own narrow interface over it (KO's docSearchEngine does exactly this).

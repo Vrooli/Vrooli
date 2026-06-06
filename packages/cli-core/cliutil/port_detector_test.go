@@ -87,3 +87,65 @@ func TestDetectPortFromVrooliFallsBackToBareCommand(t *testing.T) {
 		t.Fatalf("expected 18847, got %q", port)
 	}
 }
+
+func TestDetectPortFromVrooliRoutesToShadowWhenShadowed(t *testing.T) {
+	clearInstanceOverrides(t)
+	t.Setenv(EnvShadowScenarios, "agent-manager")
+
+	originalLookPath := lookPathFn
+	originalExec := execCommandContextFn
+	t.Cleanup(func() {
+		lookPathFn = originalLookPath
+		execCommandContextFn = originalExec
+	})
+	lookPathFn = func(string) (string, error) { return "vrooli", nil }
+
+	var gotTarget string
+	execCommandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		// args: --no-stale-check --json scenario port <target> API_PORT
+		gotTarget = args[len(args)-2]
+		return exec.CommandContext(ctx, "bash", "-lc", "printf '{\"port\":19001}\\n'")
+	}
+
+	port := DetectPortFromVrooli("agent-manager", "API_PORT")()
+	if gotTarget != "agent-manager@shadow" {
+		t.Fatalf("expected shadow target, got %q", gotTarget)
+	}
+	if port != "19001" {
+		t.Fatalf("expected 19001, got %q", port)
+	}
+}
+
+func TestDetectPortFromVrooliFallsBackToLiveWhenShadowMissing(t *testing.T) {
+	clearInstanceOverrides(t)
+	t.Setenv(EnvShadowScenarios, "swarm-manager")
+	// Fresh warn-dedup so the fallback is exercisable.
+	shadowFallbackWarned.Delete("swarm-manager")
+
+	originalLookPath := lookPathFn
+	originalExec := execCommandContextFn
+	t.Cleanup(func() {
+		lookPathFn = originalLookPath
+		execCommandContextFn = originalExec
+	})
+	lookPathFn = func(string) (string, error) { return "vrooli", nil }
+
+	var targets []string
+	execCommandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		target := args[len(args)-2]
+		targets = append(targets, target)
+		if target == "swarm-manager@shadow" {
+			// Simulate "not found": non-zero exit yields empty port.
+			return exec.CommandContext(ctx, "bash", "-lc", "exit 1")
+		}
+		return exec.CommandContext(ctx, "bash", "-lc", "printf '{\"port\":20002}\\n'")
+	}
+
+	port := DetectPortFromVrooli("swarm-manager", "API_PORT")()
+	if len(targets) != 2 || targets[0] != "swarm-manager@shadow" || targets[1] != "swarm-manager" {
+		t.Fatalf("expected shadow-then-live lookups, got %v", targets)
+	}
+	if port != "20002" {
+		t.Fatalf("expected live fallback port 20002, got %q", port)
+	}
+}

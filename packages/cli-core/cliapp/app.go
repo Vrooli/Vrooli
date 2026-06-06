@@ -78,6 +78,11 @@ type GlobalOptions struct {
 	ColorEnabled    bool
 	AutoStart       bool
 	DryRun          bool
+	// Instance selects which variant of the CLI's own scenario its API calls
+	// target (e.g. "shadow"). Empty means "use the default routing" (ambient
+	// VROOLI_SHADOW_SCENARIOS, else live). An explicit "live" forces live even
+	// when the scenario is ambiently shadowed.
+	Instance string
 }
 
 // DefaultColorEnabled derives the default color setting from NO_COLOR.
@@ -126,6 +131,10 @@ func (a *App) Run(args []string) error {
 		return err
 	}
 	a.applyColor()
+	// Scope the --instance selection to this CLI's own scenario so its API-base
+	// port detector (Case A) routes to the chosen variant, without affecting how
+	// it resolves unrelated targets.
+	cliutil.SetInstanceOverride(a.opts.Name, a.global.Instance)
 
 	if len(remaining) == 0 {
 		a.PrintHelp()
@@ -301,6 +310,7 @@ func (a *App) PrintHelp() {
 
 	fmt.Print("Global Options:\n")
 	fmt.Println("  --api-base <url>   Override API base URL (default: auto-detected)")
+	fmt.Println("  --instance <name>  Target a scenario variant (e.g. shadow); default: live")
 	fmt.Println("  --auto-start       Auto-start the scenario if not running")
 	fmt.Println("  --dry-run          Validate without executing mutations")
 	fmt.Println("  --no-color         Disable ANSI color output (or set NO_COLOR)")
@@ -409,6 +419,12 @@ func ParseGlobalFlags(args []string, global *GlobalOptions, apiOverrideTarget *s
 			if apiOverrideTarget != nil {
 				*apiOverrideTarget = args[i+1]
 			}
+			i++
+		case "--instance":
+			if i+1 >= len(args) {
+				return nil, errors.New("missing value for --instance")
+			}
+			global.Instance = args[i+1]
 			i++
 		case "--auto-start":
 			global.AutoStart = true

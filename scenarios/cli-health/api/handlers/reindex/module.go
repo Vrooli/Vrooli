@@ -32,8 +32,8 @@ func Module(logger *log.Logger, reindexer Reindexer) module.Module {
 	}
 }
 
-// Schema returns "" — Phase 1 stub keeps reindex stateless. Phase 3 adds
-// a jobs table for status polling and crash recovery.
+// Schema returns "" — reindex job state is held in-process; the index itself
+// lives in Qdrant, not the scenario database.
 func Schema() string { return "" }
 
 var Endpoints = []module.EndpointDescriptor{
@@ -42,7 +42,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        reindexconnect.ReindexServiceReindexProcedure,
 		Method:      "POST",
 		Summary:     "Start a reindex job",
-		Description: "Queues a reconcile job that upserts/deletes points in Qdrant. Phase 1 stub returns Unimplemented.",
+		Description: "Queues a reconcile job that upserts/deletes points in Qdrant.",
 		Category:    "reindex",
 		Request: &module.Schema{
 			Type: "object",
@@ -61,7 +61,7 @@ var Endpoints = []module.EndpointDescriptor{
 			},
 		},
 		Errors: []module.ErrorDesc{
-			{Status: 501, Code: "unimplemented", Description: "Phase 1 stub; Phase 3 wires the orchestrator"},
+			{Status: 501, Code: "unimplemented", Description: "Returned only when no reindex backend is configured"},
 		},
 		Examples: []module.Example{
 			{Name: "Reindex (dry-run)", Curl: "curl http://localhost:${API_PORT}/vrooli.cli_health.v1.reindex.ReindexService/Reindex -H 'Content-Type: application/json' -d '{\"dry_run\":true}'"},
@@ -93,7 +93,7 @@ var Endpoints = []module.EndpointDescriptor{
 			},
 		},
 		Errors: []module.ErrorDesc{
-			{Status: 501, Code: "unimplemented", Description: "Phase 1 stub; Phase 3 wires the job store"},
+			{Status: 501, Code: "unimplemented", Description: "Returned only when no reindex backend is configured"},
 		},
 		Examples: []module.Example{
 			{Name: "Job status", Curl: "curl http://localhost:${API_PORT}/vrooli.cli_health.v1.reindex.ReindexService/ReindexStatus -H 'Content-Type: application/json' -d '{\"job_id\":\"job-abc\"}'"},
@@ -122,7 +122,7 @@ var Endpoints = []module.EndpointDescriptor{
 			},
 		},
 		Errors: []module.ErrorDesc{
-			{Status: 501, Code: "unimplemented", Description: "Phase 1 stub; Phase 3 wires the orchestrator"},
+			{Status: 501, Code: "unimplemented", Description: "Returned only when no reindex backend is configured"},
 		},
 		Examples: []module.Example{
 			{Name: "Cancel job", Curl: "curl http://localhost:${API_PORT}/vrooli.cli_health.v1.reindex.ReindexService/ReindexCancel -H 'Content-Type: application/json' -d '{\"job_id\":\"job-abc\"}'"},

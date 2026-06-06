@@ -3,9 +3,12 @@ package aisearch
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseLLMScores(t *testing.T) {
@@ -80,6 +83,47 @@ func TestLLMRerankerRerank(t *testing.T) {
 	}
 }
 
+func TestDefaultRerankModelIsNonReasoning(t *testing.T) {
+	// Track D: the default must be the non-reasoning instruct model, not qwen3
+	// (which burns its token budget on a <think> preamble).
+	if DefaultRerankModel != "llama3.2:3b" {
+		t.Fatalf("DefaultRerankModel = %q, want llama3.2:3b", DefaultRerankModel)
+	}
+	if NewLLMReranker("").Name() != "llm:llama3.2:3b" {
+		t.Fatalf("empty model should default to llama3.2:3b, got %q", NewLLMReranker("").Name())
+	}
+}
+
+func TestRerankPromptHasNoReasoningHack(t *testing.T) {
+	// The qwen-specific /no_think directive is gone (the default model is
+	// non-reasoning); the prompt still asks for a bare JSON array.
+	prompt := buildRerankPrompt("restart a scenario", []RerankCandidate{{ID: "a", Text: "vrooli scenario restart"}})
+	if strings.Contains(prompt, "/no_think") {
+		t.Error("prompt still carries the qwen3 /no_think hack")
+	}
+	if !strings.Contains(prompt, "JSON array") {
+		t.Error("prompt no longer requests a JSON array")
+	}
+}
+
+func TestLLMRerankerParsesCleanLlamaOutput(t *testing.T) {
+	// llama3.2:3b emits clean, complete, correctly-ordered listwise JSON with no
+	// <think> block (the measured Track-D behavior).
+	run := func(_ context.Context, _ []string, _ []byte) ([]byte, error) {
+		body, _ := json.Marshal(generateResponse{Response: `[{"index":1,"score":0.86},{"index":0,"score":0.12}]`})
+		return body, nil
+	}
+	r := NewLLMRerankerWithRunner("llama3.2:3b", run)
+	scores, err := r.Rerank(context.Background(), "restart a scenario",
+		[]RerankCandidate{{ID: "noise", Text: "x"}, {ID: "answer", Text: "vrooli scenario restart"}})
+	if err != nil {
+		t.Fatalf("Rerank: %v", err)
+	}
+	if len(scores) != 2 || scores[0].ID != "answer" || scores[0].Score != 0.86 {
+		t.Fatalf("scores = %+v, want answer first @0.86", scores)
+	}
+}
+
 func TestLLMRerankerRerankBadResponse(t *testing.T) {
 	run := func(_ context.Context, _ []string, _ []byte) ([]byte, error) {
 		body, _ := json.Marshal(generateResponse{Response: "no json here"})
@@ -115,6 +159,49 @@ func TestCrossEncoderRerankerRerank(t *testing.T) {
 	}
 	if len(scores) != 2 || scores[0].ID != "b" || scores[0].Score != 0.88 {
 		t.Fatalf("scores = %+v, want b first @0.88", scores)
+	}
+}
+
+func TestCrossEncoderRerankerChunksLargeShortlist(t *testing.T) {
+	// A shortlist larger than the TEI client batch limit must be split into
+	// multiple requests (each ≤ maxCrossEncoderBatch) and merged — otherwise the
+	// server answers HTTP 413 and rerank silently degrades to dense order.
+	var batchSizes []int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		var body teiRerankRequest
+		_ = json.NewDecoder(req.Body).Decode(&body)
+		if len(body.Texts) > maxCrossEncoderBatch {
+			http.Error(w, "batch too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		batchSizes = append(batchSizes, len(body.Texts))
+		out := make([]teiRankResult, len(body.Texts))
+		for i := range body.Texts {
+			out[i] = teiRankResult{Index: i, Score: 0.5}
+		}
+		_ = json.NewEncoder(w).Encode(out)
+	}))
+	defer srv.Close()
+
+	r := NewCrossEncoderRerankerWithClient(srv.URL, srv.Client())
+	const n = maxCrossEncoderBatch*2 + 5 // 69 → 3 chunks (32,32,5)
+	cands := make([]RerankCandidate, n)
+	for i := range cands {
+		cands[i] = RerankCandidate{ID: fmt.Sprintf("c%d", i), Text: "candidate"}
+	}
+	scores, err := r.Rerank(context.Background(), "q", cands)
+	if err != nil {
+		t.Fatalf("Rerank: %v", err)
+	}
+	if len(scores) != n {
+		t.Fatalf("got %d scores, want %d (every candidate scored across chunks)", len(scores), n)
+	}
+	if len(batchSizes) != 3 || batchSizes[0] != maxCrossEncoderBatch || batchSizes[2] != 5 {
+		t.Fatalf("chunking = %v, want [32 32 5]", batchSizes)
+	}
+	// IDs must map back correctly across chunk boundaries.
+	if scores[maxCrossEncoderBatch].ID != fmt.Sprintf("c%d", maxCrossEncoderBatch) {
+		t.Fatalf("chunk-boundary ID mismap: %q", scores[maxCrossEncoderBatch].ID)
 	}
 }
 
@@ -159,15 +246,20 @@ func TestResolveRerankerURL(t *testing.T) {
 
 // stubReranker is a controllable Reranker for chain tests.
 type stubReranker struct {
-	name      string
-	available bool
-	scores    []RerankScore
-	err       error
-	called    bool
+	name       string
+	available  bool
+	scores     []RerankScore
+	err        error
+	called     bool
+	availCalls int // how many times Available() was probed
 }
 
-func (s *stubReranker) Name() string                   { return s.name }
-func (s *stubReranker) Available(context.Context) bool { return s.available }
+func (s *stubReranker) Name() string { return s.name }
+func (s *stubReranker) Available(context.Context) bool {
+	s.availCalls++
+	return s.available
+}
+
 func (s *stubReranker) Rerank(_ context.Context, _ string, _ []RerankCandidate) ([]RerankScore, error) {
 	s.called = true
 	return s.scores, s.err
@@ -223,8 +315,83 @@ func TestRerankerChainNoneAvailable(t *testing.T) {
 	}
 }
 
+func TestRerankerChainCachesActiveProbe(t *testing.T) {
+	now := time.Unix(1000, 0)
+	clock := func() time.Time { return now }
+	cross := &stubReranker{name: "cross", available: true}
+	llm := &stubReranker{name: "llm", available: true}
+	chain := NewRerankerChainWithClock(clock, 20*time.Second, cross, llm)
+
+	// First call probes; the next two within the TTL must hit the cache and not
+	// re-probe — this is the per-query latency cliff the cache removes.
+	for i := 0; i < 3; i++ {
+		if got := chain.ActiveName(context.Background()); got != "cross" {
+			t.Fatalf("call %d active = %q, want cross", i, got)
+		}
+	}
+	if cross.availCalls != 1 {
+		t.Fatalf("cross probed %d times within TTL, want 1 (cached)", cross.availCalls)
+	}
+
+	// Advance past the TTL → the probe runs again.
+	now = now.Add(21 * time.Second)
+	if got := chain.ActiveName(context.Background()); got != "cross" {
+		t.Fatalf("post-expiry active = %q, want cross", got)
+	}
+	if cross.availCalls != 2 {
+		t.Fatalf("cross probed %d times across one expiry, want 2", cross.availCalls)
+	}
+}
+
+func TestRerankerChainOutageNoPerQueryProbe(t *testing.T) {
+	now := time.Unix(2000, 0)
+	clock := func() time.Time { return now }
+	// Both legs down: Active is nil and the down-state is cached, so a flood of
+	// queries does NOT re-probe the (potentially slow) legs every time.
+	cross := &stubReranker{name: "cross", available: false}
+	llm := &stubReranker{name: "llm", available: false}
+	chain := NewRerankerChainWithClock(clock, 20*time.Second, cross, llm)
+
+	for i := 0; i < 5; i++ {
+		if chain.Active(context.Background()) != nil {
+			t.Fatalf("call %d: expected no active leg", i)
+		}
+	}
+	if llm.availCalls != 1 {
+		t.Fatalf("llm probed %d times during outage, want 1 (cached) — the 20s cliff is back", llm.availCalls)
+	}
+
+	// A recovering leg is picked up within one TTL window.
+	now = now.Add(21 * time.Second)
+	cross.available = true
+	if got := chain.ActiveName(context.Background()); got != "cross" {
+		t.Fatalf("recovered active = %q, want cross", got)
+	}
+}
+
+func TestRerankerChainActiveUncachedBypasses(t *testing.T) {
+	now := time.Unix(3000, 0)
+	cross := &stubReranker{name: "cross", available: false}
+	chain := NewRerankerChainWithClock(func() time.Time { return now }, 60*time.Second, cross)
+
+	// Prime the cache with the down-state.
+	if chain.Active(context.Background()) != nil {
+		t.Fatal("expected nil active")
+	}
+	// Leg recovers; ActiveUncached must see it immediately even though the TTL
+	// has not expired (the live status-readout path, plan §13).
+	cross.available = true
+	if got := chain.ActiveUncached(context.Background()); got == nil || got.Name() != "cross" {
+		t.Fatalf("ActiveUncached = %v, want live cross", got)
+	}
+	// And the refresh updated the cache for subsequent cached reads.
+	if got := chain.ActiveName(context.Background()); got != "cross" {
+		t.Fatalf("post-refresh cached active = %q, want cross", got)
+	}
+}
+
 func TestApplyRerank(t *testing.T) {
-	hits := []SearchHit{
+	hits := []SearchResult{
 		{ID: "a", Score: 0.5},
 		{ID: "b", Score: 0.4},
 		{ID: "c", Score: 0.3},
@@ -244,7 +411,7 @@ func TestApplyRerank(t *testing.T) {
 }
 
 func TestApplyRerankNoScores(t *testing.T) {
-	hits := []SearchHit{{ID: "a"}, {ID: "b"}}
+	hits := []SearchResult{{ID: "a"}, {ID: "b"}}
 	got := ApplyRerank(hits, nil)
 	if len(got) != 2 || got[0].ID != "a" {
 		t.Fatalf("expected unchanged order, got %+v", got)

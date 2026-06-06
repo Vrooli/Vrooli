@@ -38,6 +38,27 @@ func TestParseGlobalFlagsMissingValue(t *testing.T) {
 	}
 }
 
+func TestParseGlobalFlagsInstance(t *testing.T) {
+	global := GlobalOptions{}
+	remaining, err := ParseGlobalFlags([]string{"--instance", "shadow", "backlog", "list"}, &global, nil)
+	if err != nil {
+		t.Fatalf("ParseGlobalFlags: %v", err)
+	}
+	if global.Instance != "shadow" {
+		t.Fatalf("expected instance=shadow, got %q", global.Instance)
+	}
+	if len(remaining) != 2 || remaining[0] != "backlog" || remaining[1] != "list" {
+		t.Fatalf("unexpected remaining args: %v", remaining)
+	}
+}
+
+func TestParseGlobalFlagsInstanceMissingValue(t *testing.T) {
+	global := GlobalOptions{}
+	if _, err := ParseGlobalFlags([]string{"--instance"}, &global, nil); err == nil {
+		t.Fatalf("expected missing value error for --instance")
+	}
+}
+
 func TestParseGlobalFlagsStopsAtCommandBoundary(t *testing.T) {
 	api := ""
 	global := GlobalOptions{ColorEnabled: true}
@@ -90,6 +111,40 @@ func TestAppRoutesCommandsAndRunsStaleCheck(t *testing.T) {
 	}
 	if !called {
 		t.Fatalf("expected stale checker to run for NeedsAPI command")
+	}
+}
+
+func TestAppRunWiresInstanceOverrideScopedToOwnScenario(t *testing.T) {
+	cliutil.SetInstanceOverride("swarm-manager", "")
+	cliutil.SetInstanceOverride("agent-manager", "")
+	t.Cleanup(func() {
+		cliutil.SetInstanceOverride("swarm-manager", "")
+		cliutil.SetInstanceOverride("agent-manager", "")
+	})
+
+	group := CommandGroup{
+		Title: "Demo",
+		Commands: []Command{
+			{Name: "run", Description: "Run demo", Run: func(args []string) error { return nil }},
+		},
+	}
+	app := NewApp(AppOptions{
+		Name:         "swarm-manager",
+		Version:      "0.0.1",
+		Commands:     []CommandGroup{group},
+		ColorEnabled: DefaultColorEnabled(),
+	})
+
+	if err := app.Run([]string{"--instance", "shadow", "run"}); err != nil {
+		t.Fatalf("app run: %v", err)
+	}
+	// The CLI's own scenario routes to shadow...
+	if got := cliutil.ResolveShadowTarget("swarm-manager"); got != "swarm-manager@shadow" {
+		t.Fatalf("own scenario target = %q, want swarm-manager@shadow", got)
+	}
+	// ...but an unrelated target is untouched by this CLI's --instance flag.
+	if got := cliutil.ResolveShadowTarget("agent-manager"); got != "agent-manager" {
+		t.Fatalf("unrelated target = %q, want agent-manager (bare)", got)
 	}
 }
 

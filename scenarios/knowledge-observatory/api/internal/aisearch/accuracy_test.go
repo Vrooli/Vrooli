@@ -163,7 +163,7 @@ type evalResult struct {
 
 // evalConfig runs every corpus case through svc in the given mode and aggregates
 // recall@k / MRR@n per the corpus scoring block.
-func evalConfig(ctx context.Context, t *testing.T, name string, svc *SearchService, c corpus, mode pkg.SearchMode) evalResult {
+func evalConfig(ctx context.Context, t *testing.T, name string, svc *pkg.Service, c corpus, mode pkg.SearchMode) evalResult {
 	t.Helper()
 	recallK := c.Scoring.RecallAt
 	mrrN := c.Scoring.MRRAt
@@ -336,7 +336,7 @@ func TestAccuracyCorpus(t *testing.T) {
 	// Production config: the default degradation chain (cross-encoder -> LLM).
 	prodSvc := NewSearchService(ServiceOptions{
 		Embedder: embedder, VectorStore: store,
-		Reranker: NewDefaultReranker(), TextFallback: grep,
+		RerankEnabled: true, Reranker: NewDefaultReranker(), TextFallback: grep,
 	})
 
 	// ---- Retrieval-leg comparison (reranker held at production default) ----
@@ -352,7 +352,7 @@ func TestAccuracyCorpus(t *testing.T) {
 	// ---- Reranker comparison on the hybrid leg ----
 	crossSvc := NewSearchService(ServiceOptions{
 		Embedder: embedder, VectorStore: store,
-		Reranker: pkg.NewRerankerChain(pkg.NewCrossEncoderReranker()), TextFallback: grep,
+		RerankEnabled: true, Reranker: pkg.NewRerankerChain(pkg.NewCrossEncoderReranker("", "")), TextFallback: grep,
 	})
 	noneSvc := NewSearchService(ServiceOptions{
 		Embedder: embedder, VectorStore: store, TextFallback: grep,
@@ -365,7 +365,7 @@ func TestAccuracyCorpus(t *testing.T) {
 	if os.Getenv("KO_SKIP_LLM_RERANK") == "" {
 		llmSvc := NewSearchService(ServiceOptions{
 			Embedder: embedder, VectorStore: store,
-			Reranker: pkg.NewRerankerChain(pkg.NewLLMReranker("")), TextFallback: grep,
+			RerankEnabled: true, Reranker: pkg.NewRerankerChain(pkg.NewLLMReranker("")), TextFallback: grep,
 		})
 		logEval(t, evalConfig(ctx, t, "hybrid+llm", llmSvc, c, pkg.ModeHybrid))
 	} else {
@@ -401,8 +401,9 @@ func TestAccuracyDiagnostic(t *testing.T) {
 	embedder, store := liveStore(ctx, t)
 	svc := NewSearchService(ServiceOptions{
 		Embedder: embedder, VectorStore: store,
-		Reranker:     pkg.NewRerankerChain(pkg.NewCrossEncoderReranker()),
-		TextFallback: newGrepFallback(t),
+		RerankEnabled: true,
+		Reranker:      pkg.NewRerankerChain(pkg.NewCrossEncoderReranker("", "")),
+		TextFallback:  newGrepFallback(t),
 	})
 
 	only := map[string]bool{}
@@ -450,7 +451,7 @@ func TestScopeFiltering(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	embedder, store := liveStore(ctx, t)
-	svc := NewSearchService(ServiceOptions{Embedder: embedder, VectorStore: store, Reranker: NewDefaultReranker()})
+	svc := NewSearchService(ServiceOptions{Embedder: embedder, VectorStore: store, RerankEnabled: true, Reranker: NewDefaultReranker()})
 
 	// scenario scope: every hit must belong to the scoped scenario.
 	scoped, err := svc.Search(ctx, pkg.SearchQuery{
@@ -543,7 +544,7 @@ func TestRerankerDegradation(t *testing.T) {
 		t.Errorf("both rerankers down: expected active=none, got %q", got)
 	}
 
-	svc := NewSearchService(ServiceOptions{Embedder: embedder, VectorStore: store, Reranker: noneChain})
+	svc := NewSearchService(ServiceOptions{Embedder: embedder, VectorStore: store, RerankEnabled: true, Reranker: noneChain})
 	resp, err := svc.Search(ctx, pkg.SearchQuery{Query: "documentation chunking and indexing", Mode: pkg.ModeHybrid, Limit: 5})
 	if err != nil {
 		t.Fatalf("search with no reranker available: %v", err)

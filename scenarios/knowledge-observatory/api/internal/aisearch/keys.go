@@ -11,6 +11,8 @@
 // the Indexer exposed here.
 package aisearch
 
+import pkg "github.com/vrooli/aisearch-go"
+
 // DocKind is the logical collection/entity these sources belong to. One Source
 // emits a single Kind (the shared SourceBinding.Kind).
 const DocKind = "doc"
@@ -40,15 +42,21 @@ const (
 	MetaRelativePath = "relative_path" // repo-relative path, forward slashes
 	MetaPath         = "path"          // repo-relative path (federation contract field)
 	MetaDocType      = "doc_type"      // manifest docType, or inferred (readme/prd/doc)
-	MetaTitle        = "title"         // manifest title, or first H1 / filename
-	MetaDescription  = "description"   // manifest description (may be empty)
 	MetaAudience     = "audience"      // []string facet
 	MetaCanonicalFor = "canonical_for" // []string facet
 	MetaMaturity     = "maturity"      // manifest maturity (active/draft/stub/...)
 	MetaScope        = "scope"         // derived: project | scenario
 	MetaSource       = "source"        // discovery origin: manifest | readme | prd | sweep
-	MetaHeadingPath  = "heading_path"  // chunk-derived: "H1 > H2 > H3"
 	MetaPathPrefixes = "path_prefixes" // []string ancestor dir prefixes, for server-side path scope
+
+	// MetaTitle/MetaDescription/MetaHeadingPath are the contextual-composition
+	// keys OWNED by the shared package (its MarkdownChunker writes heading_path;
+	// its ContextualComposer reads all three). Aliased here so KO's source/search
+	// code keeps using the short names while the string values stay single-homed
+	// in the package — no drift, and the Qdrant payload keys are unchanged.
+	MetaTitle       = pkg.MetaTitle
+	MetaDescription = pkg.MetaDescription
+	MetaHeadingPath = pkg.MetaHeadingPath
 )
 
 // Scope values stored in the MetaScope payload field.

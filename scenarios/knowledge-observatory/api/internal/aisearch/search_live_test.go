@@ -78,10 +78,11 @@ func TestLiveSearchServiceHybridRerank(t *testing.T) {
 
 	reranker := NewDefaultReranker()
 	svc := NewSearchService(ServiceOptions{
-		Embedder:    embedder,
-		VectorStore: store,
-		Reranker:    reranker,
-		Reconciler:  idx.Reconciler(),
+		Embedder:      embedder,
+		VectorStore:   store,
+		RerankEnabled: true,
+		Reranker:      reranker,
+		Reconciler:    idx.Reconciler(),
 	})
 
 	status := svc.Status(ctx)

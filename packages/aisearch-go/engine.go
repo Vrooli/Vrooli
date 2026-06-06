@@ -32,7 +32,7 @@ func NewDenseEngine(cfg Config, collection string) DenseEngine {
 		Embedder:    NewEmbedder(cfg.EmbedModel),
 		VectorStore: NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, collection),
 		Reranker: NewRerankerChain(
-			NewCrossEncoderReranker(),
+			NewCrossEncoderReranker(cfg.RerankerURL, cfg.RerankerModel),
 			NewLLMReranker(cfg.RerankModel),
 		),
 		Spec: CollectionSpec{
@@ -40,6 +40,48 @@ func NewDenseEngine(cfg Config, collection string) DenseEngine {
 			DenseSize:     DefaultVectorSize,
 			DenseDistance: DefaultDenseDistance,
 			Model:         cfg.EmbedModel,
+		},
+	}
+}
+
+// HybridEngine is the assembled bundle a hybrid (dense + sparse) adopter wires
+// at boot — symmetric with DenseEngine but with the sparse leg the doc/record
+// corpora need for BM25+dense RRF fusion. It adds the SparseEncoder and a Spec
+// whose Sparse/SparseModifier are set automatically, closing the silent cliff
+// that NewDenseEngine left open: a hand-built hybrid wiring that forgot
+// Spec.Sparse=true would create a dense-only collection and silently never fuse.
+type HybridEngine struct {
+	Embedder      Embedder
+	VectorStore   VectorStore
+	SparseEncoder SparseEncoder
+	Reranker      *RerankerChain
+	Spec          CollectionSpec
+}
+
+// NewHybridEngine assembles the hybrid common case from existing constructors,
+// mirroring NewDenseEngine. The CollectionSpec ALWAYS sets Sparse=true and
+// SparseModifier=idf so the named sparse vector (with server-side IDF) cannot be
+// silently omitted; the dense leg keeps the engine defaults (size 768, Cosine)
+// and records cfg.EmbedModel for the schema guard. The default local
+// SparseEncoder (BM25-style, model-free) is wired so the adopter supplies only a
+// collection name. An adopter embedding with a non-768 model must set
+// Spec.DenseSize itself (or hand-wire).
+func NewHybridEngine(cfg Config, collection string) HybridEngine {
+	return HybridEngine{
+		Embedder:      NewEmbedder(cfg.EmbedModel),
+		VectorStore:   NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, collection),
+		SparseEncoder: NewBM25SparseEncoder(),
+		Reranker: NewRerankerChain(
+			NewCrossEncoderReranker(cfg.RerankerURL, cfg.RerankerModel),
+			NewLLMReranker(cfg.RerankModel),
+		),
+		Spec: CollectionSpec{
+			Name:           collection,
+			DenseSize:      DefaultVectorSize,
+			DenseDistance:  DefaultDenseDistance,
+			Sparse:         true,
+			SparseModifier: DefaultSparseModifier,
+			Model:          cfg.EmbedModel,
 		},
 	}
 }

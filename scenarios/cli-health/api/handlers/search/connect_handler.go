@@ -1,6 +1,5 @@
 // Package search hosts the Connect-RPC handler for cli-health's
-// SearchService. Phase 3 wires it to the aisearch service (AI-first with
-// text fallback).
+// SearchService, wired to the aisearch service (AI-first with text fallback).
 package search
 
 import (
@@ -31,8 +30,8 @@ type connectHandler struct {
 	deps Deps
 }
 
-// NewConnectHandler builds the Connect handler. Searcher may be nil for the
-// Phase 1 stub path — Search/Status return Unimplemented in that case.
+// NewConnectHandler builds the Connect handler. Searcher may be nil when no
+// search backend is configured — Search/Status then return Unimplemented.
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()

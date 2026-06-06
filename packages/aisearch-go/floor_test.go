@@ -10,6 +10,88 @@ func ids(results []SearchResult) []string {
 	return out
 }
 
+func TestFloorForLeg(t *testing.T) {
+	t.Run("cross-encoder regime default", func(t *testing.T) {
+		got := FloorForLeg("cross-encoder:bge-reranker-v2-m3", FloorConfig{})
+		if got.MaxGap != CrossEncoderRelevanceMaxGap || got.HardFloor != CrossEncoderRelevanceHardFloor {
+			t.Fatalf("got %+v, want cross-encoder regime floor", got)
+		}
+	})
+	t.Run("llm regime default", func(t *testing.T) {
+		got := FloorForLeg("llm:llama3.2:3b", FloorConfig{})
+		if got.MaxGap != LLMRelevanceMaxGap || got.HardFloor != LLMRelevanceHardFloor {
+			t.Fatalf("got %+v, want llm regime floor", got)
+		}
+	})
+	t.Run("unknown leg falls back to cosine", func(t *testing.T) {
+		got := FloorForLeg("none", FloorConfig{})
+		if got.MaxGap != DefaultRelevanceMaxGap || got.HardFloor != DefaultRelevanceHardFloor {
+			t.Fatalf("got %+v, want cosine regime floor", got)
+		}
+	})
+	t.Run("override wins per field", func(t *testing.T) {
+		// MaxGap overridden, HardFloor left 0 (unset) → regime HardFloor kept.
+		got := FloorForLeg("cross-encoder:m", FloorConfig{MaxGap: 0.42})
+		if got.MaxGap != 0.42 {
+			t.Errorf("MaxGap = %g, want override 0.42", got.MaxGap)
+		}
+		if got.HardFloor != CrossEncoderRelevanceHardFloor {
+			t.Errorf("HardFloor = %g, want regime default (unset override)", got.HardFloor)
+		}
+	})
+	t.Run("negative hard floor override disables", func(t *testing.T) {
+		got := FloorForLeg("cross-encoder:m", FloorConfig{HardFloor: -1})
+		if got.HardFloor != -1 {
+			t.Errorf("HardFloor = %g, want -1 (operator-disabled)", got.HardFloor)
+		}
+	})
+}
+
+func TestFloorForMethodLeg(t *testing.T) {
+	t.Run("rerank-off hybrid is the fusion band (no hard floor)", func(t *testing.T) {
+		got := FloorForMethodLeg("hybrid", "none", FloorConfig{})
+		if got.MaxGap != FusionRelevanceMaxGap || got.HardFloor != FusionRelevanceHardFloor {
+			t.Fatalf("got %+v, want fusion regime floor (MaxGap=%g HardFloor=%g)", got, FusionRelevanceMaxGap, FusionRelevanceHardFloor)
+		}
+		if got.HardFloor != 0 {
+			t.Fatalf("fusion HardFloor must be disabled (0), got %g", got.HardFloor)
+		}
+	})
+	t.Run("rerank-off dense stays cosine", func(t *testing.T) {
+		got := FloorForMethodLeg("dense", "none", FloorConfig{})
+		if got.MaxGap != DefaultRelevanceMaxGap || got.HardFloor != DefaultRelevanceHardFloor {
+			t.Fatalf("got %+v, want cosine regime floor", got)
+		}
+	})
+	t.Run("reranker leg wins over hybrid method", func(t *testing.T) {
+		got := FloorForMethodLeg("hybrid", "cross-encoder:m", FloorConfig{})
+		if got.MaxGap != CrossEncoderRelevanceMaxGap || got.HardFloor != CrossEncoderRelevanceHardFloor {
+			t.Fatalf("got %+v, want cross-encoder regime floor (rerank rescored the fused hits)", got)
+		}
+	})
+}
+
+func TestFusionFloorKeepsRealHits(t *testing.T) {
+	// The end-to-end point of the fusion band: a real RRF result far below the top
+	// (here 0.30 vs top 0.56) survives, where the cosine 0.35 HardFloor would have
+	// annihilated it.
+	in := []SearchResult{
+		{ID: "top", Score: 0.56},
+		{ID: "mid", Score: 0.40},
+		{ID: "low-real", Score: 0.30},
+	}
+	fusion := FloorForMethodLeg("hybrid", "none", FloorConfig{})
+	got := ids(ApplyRelevanceFloor(in, fusion))
+	if len(got) != 3 {
+		t.Fatalf("fusion floor must keep the real low hit, got %v", got)
+	}
+	// Contrast: the cosine band would drop low-real on its 0.35 hard floor.
+	cosine := FloorForMethodLeg("dense", "none", FloorConfig{})
+	if dropped := ids(ApplyRelevanceFloor(in, cosine)); len(dropped) == 3 {
+		t.Fatalf("expected cosine band to drop the 0.30 hit, kept %v", dropped)
+	}
+}
+
 func TestApplyRelevanceFloor(t *testing.T) {
 	cfg := FloorConfig{MaxGap: 0.15, HardFloor: 0.35}
 

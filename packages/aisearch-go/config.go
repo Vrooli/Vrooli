@@ -26,16 +26,30 @@ type Config struct {
 	QdrantURL        string
 	QdrantAPIKey     string
 	EmbedModel       string
-	// RelevanceMaxGap / RelevanceHardFloor tune ApplyRelevanceFloor (WS2). They
-	// are read from <prefix>_RELEVANCE_MAX_GAP / _RELEVANCE_HARD_FLOOR.
+	// RelevanceMaxGap / RelevanceHardFloor are consumer *overrides* for the
+	// ApplyRelevanceFloor band (WS2), read from <prefix>_RELEVANCE_MAX_GAP /
+	// _RELEVANCE_HARD_FLOOR. They default to 0 ("unset") so FloorForLeg supplies
+	// the regime-appropriate default; a non-zero value overrides it. The package
+	// owns the right band per regime — these exist only to override, not to seed.
 	RelevanceMaxGap    float64
 	RelevanceHardFloor float64
-	// RerankEnabled gates the reranker chain (WS4); default off until validated
-	// by an attended A/B. RerankModel selects the LLM-fallback model. Read from
-	// <prefix>_RERANK_ENABLED / _RERANK_MODEL. The cross-encoder URL is resolved
-	// from the reranker resource's own (unprefixed) RERANKER_URL env.
-	RerankEnabled bool
-	RerankModel   string
+	// RerankEnabled gates the reranker chain (WS4) — the one genuine per-corpus
+	// lever (precision/junk-rejection corpora win; recall corpora don't). Default
+	// off so a resource-less consumer degrades cleanly to dense order. RerankModel
+	// selects the LLM-fallback model; RerankShortlist is the over-fetch depth.
+	// Read from <prefix>_RERANK_ENABLED / _RERANK_MODEL / _RERANK_SHORTLIST.
+	RerankEnabled   bool
+	RerankModel     string
+	RerankShortlist int
+	// RerankerURL / RerankerModel target the cross-encoder `reranker` resource.
+	// Read from <prefix>_RERANKER_URL / _RERANKER_MODEL, they let two scenarios on
+	// one host point at *different* rerankers. Both default to "" ("unset"): the
+	// cross-encoder then falls back to the resource's own unprefixed env
+	// (RERANKER_BASE_URL/RERANKER_URL/RERANKER_HOST+PORT, model RERANKER_MODEL),
+	// preserving zero-config local use. Distinct from RerankModel, which is the
+	// LLM *fallback* leg's model.
+	RerankerURL   string
+	RerankerModel string
 }
 
 // LoadConfig reads tunables under "<prefix>_<NAME>", falling back to the engine
@@ -57,10 +71,13 @@ func LoadConfig(prefix string) Config {
 		QdrantURL:            envString(key("QDRANT_URL"), DefaultQdrantURL),
 		QdrantAPIKey:         envString(key("QDRANT_API_KEY"), ""),
 		EmbedModel:           envString(key("EMBED_MODEL"), DefaultEmbedModel),
-		RelevanceMaxGap:      envFloat(key("RELEVANCE_MAX_GAP"), DefaultRelevanceMaxGap),
-		RelevanceHardFloor:   envFloat(key("RELEVANCE_HARD_FLOOR"), DefaultRelevanceHardFloor),
+		RelevanceMaxGap:      envFloat(key("RELEVANCE_MAX_GAP"), 0),
+		RelevanceHardFloor:   envFloat(key("RELEVANCE_HARD_FLOOR"), 0),
 		RerankEnabled:        envBool(key("RERANK_ENABLED")),
 		RerankModel:          envString(key("RERANK_MODEL"), DefaultRerankModel),
+		RerankShortlist:      envInt(key("RERANK_SHORTLIST"), DefaultRerankShortlist, MinRerankShortlist, MaxRerankShortlist),
+		RerankerURL:          envString(key("RERANKER_URL"), ""),
+		RerankerModel:        envString(key("RERANKER_MODEL"), ""),
 	}
 }
 

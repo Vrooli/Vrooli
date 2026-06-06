@@ -187,7 +187,7 @@ func TestRerankReorders(t *testing.T) {
 		available: true,
 		scores:    []pkg.RerankScore{{ID: "ko-docs:b#0", Score: 0.99}, {ID: "ko-docs:a#0", Score: 0.01}},
 	})
-	svc := NewSearchService(ServiceOptions{Embedder: &searchEmbedder{available: true}, VectorStore: store, Reranker: rr})
+	svc := NewSearchService(ServiceOptions{Embedder: &searchEmbedder{available: true}, VectorStore: store, RerankEnabled: true, Reranker: rr})
 	resp, err := svc.Search(context.Background(), pkg.SearchQuery{Query: "x", Mode: pkg.ModeDense})
 	if err != nil {
 		t.Fatalf("Search: %v", err)
@@ -204,9 +204,9 @@ func TestAutoFallsBackToText(t *testing.T) {
 	// Store down + embedder down => auto must use the text fallback.
 	store := &searchStore{available: false}
 	called := false
-	text := func(_ context.Context, q pkg.SearchQuery) ([]pkg.SearchHit, error) {
+	text := func(_ context.Context, q pkg.SearchQuery) ([]pkg.SearchResult, error) {
 		called = true
-		return []pkg.SearchHit{{ID: "grep:1", RelativePath: "docs/z.md", Score: 1, Path: "docs/z.md"}}, nil
+		return []pkg.SearchResult{{ID: "grep:1", RelativePath: "docs/z.md", Score: 1, Path: "docs/z.md"}}, nil
 	}
 	svc := NewSearchService(ServiceOptions{
 		Embedder: &searchEmbedder{available: false}, VectorStore: store, TextFallback: text,
@@ -222,8 +222,8 @@ func TestAutoFallsBackToText(t *testing.T) {
 
 func TestAutoFallsBackWhenHybridErrors(t *testing.T) {
 	store := &searchStore{available: true, queryErr: errors.New("qdrant boom")}
-	text := func(_ context.Context, _ pkg.SearchQuery) ([]pkg.SearchHit, error) {
-		return []pkg.SearchHit{{ID: "grep:1", RelativePath: "docs/z.md", Score: 1}}, nil
+	text := func(_ context.Context, _ pkg.SearchQuery) ([]pkg.SearchResult, error) {
+		return []pkg.SearchResult{{ID: "grep:1", RelativePath: "docs/z.md", Score: 1}}, nil
 	}
 	svc := NewSearchService(ServiceOptions{
 		Embedder: &searchEmbedder{available: true}, VectorStore: store, TextFallback: text,
@@ -239,9 +239,10 @@ func TestAutoFallsBackWhenHybridErrors(t *testing.T) {
 
 func TestStatusReportsBackends(t *testing.T) {
 	svc := NewSearchService(ServiceOptions{
-		Embedder:    &searchEmbedder{available: true},
-		VectorStore: &searchStore{available: true, count: 6373},
-		Reranker:    pkg.NewRerankerChain(&fixedReranker{name: "cross", available: true}),
+		Embedder:      &searchEmbedder{available: true},
+		VectorStore:   &searchStore{available: true, count: 6373},
+		RerankEnabled: true,
+		Reranker:      pkg.NewRerankerChain(&fixedReranker{name: "cross", available: true}),
 	})
 	st := svc.Status(context.Background())
 	if !st.Available || !st.Ollama || !st.Qdrant {

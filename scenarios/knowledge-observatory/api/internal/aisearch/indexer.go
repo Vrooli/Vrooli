@@ -47,15 +47,10 @@ func NewIndexer(opts Options) (*Indexer, error) {
 		return nil, err
 	}
 
-	binding := pkg.SourceBinding{
-		Kind:     DocKind,
-		Store:    opts.VectorStore,
-		Source:   source,
-		Chunker:  NewMarkdownChunker(),
-		Composer: NewContextualComposer(),
-		Sparse:   pkg.NewBM25SparseEncoder(),
-		IDPrefix: IDPrefix,
-	}
+	// The hybrid assembler collapses the 7-field binding literal and wires the
+	// shared markdown chunker + contextual composer + sparse encoder.
+	binding := pkg.NewHybridBinding(DocKind, IDPrefix, opts.VectorStore, source,
+		pkg.NewMarkdownChunker(), pkg.NewContextualComposer(), pkg.NewBM25SparseEncoder())
 	rec := pkg.NewReconciler(opts.Embedder, []pkg.SourceBinding{binding}, opts.Parallelism)
 	rec.MaxEmbedsPerTick = opts.MaxEmbedsPerTick
 

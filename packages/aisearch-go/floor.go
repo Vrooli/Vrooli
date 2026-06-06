@@ -15,6 +15,55 @@ type FloorConfig struct {
 	HardFloor float64
 }
 
+// FloorForLeg returns the regime-appropriate FloorConfig for the active reranker
+// leg (method-agnostic), with any explicitly-set field of override winning.
+// Prefer FloorForMethodLeg when the retrieval method is known so a rerank-off
+// RRF-fused leg gets the fusion band; a leg-only call classifies it as cosine.
+func FloorForLeg(leg string, override FloorConfig) FloorConfig {
+	return FloorForMethodLeg("", leg, override)
+}
+
+// FloorForMethodLeg returns the regime-appropriate FloorConfig for the given
+// retrieval method + active reranker leg, with any explicitly-set field of
+// override winning. The regime is auto-detected (cross-encoder / llm / fusion /
+// cosine), so an adopter gets a correct floor with no per-scenario tuning; an
+// operator who sets <PREFIX>_RELEVANCE_MAX_GAP / _RELEVANCE_HARD_FLOOR still
+// overrides the regime default. Override precedence: MaxGap > 0 and
+// HardFloor != 0 are treated as "set" (HardFloor is set to a negative value to
+// deliberately disable it).
+//
+// The fusion band (rerank-off hybrid) disables the absolute HardFloor and keeps
+// only the relative MaxGap, which is why ServiceOptions.ApplyFloor is now safe to
+// leave on for a fused/doc adopter: the cosine 0.35 HardFloor that used to
+// annihilate real RRF hits no longer applies to them.
+//
+// This is the single home for "which floor band applies to these scores?" — the
+// floor *math* lives in ApplyRelevanceFloor; the *policy* of which band lives here.
+func FloorForMethodLeg(method, leg string, override FloorConfig) FloorConfig {
+	base := regimeFloor(regimeFor(method, leg))
+	if override.MaxGap > 0 {
+		base.MaxGap = override.MaxGap
+	}
+	if override.HardFloor != 0 {
+		base.HardFloor = override.HardFloor
+	}
+	return base
+}
+
+// regimeFloor is the regime→FloorConfig table.
+func regimeFloor(r scoreRegime) FloorConfig {
+	switch r {
+	case regimeCrossEncoder:
+		return FloorConfig{MaxGap: CrossEncoderRelevanceMaxGap, HardFloor: CrossEncoderRelevanceHardFloor}
+	case regimeLLM:
+		return FloorConfig{MaxGap: LLMRelevanceMaxGap, HardFloor: LLMRelevanceHardFloor}
+	case regimeFusion:
+		return FloorConfig{MaxGap: FusionRelevanceMaxGap, HardFloor: FusionRelevanceHardFloor}
+	default:
+		return FloorConfig{MaxGap: DefaultRelevanceMaxGap, HardFloor: DefaultRelevanceHardFloor}
+	}
+}
+
 // ApplyRelevanceFloor drops weak/garbage hits without hiding correct answers to
 // legitimately-sparse queries. It always keeps the single best hit, then drops
 // any hit scoring below max(topScore-MaxGap, HardFloor). Input order is

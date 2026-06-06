@@ -20,6 +20,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/go-chi/chi/v5 v5.2.5 // indirect
+	github.com/vrooli/cli-core v0.0.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251213004720-97cd9d5aeac2 // indirect
 )
@@ -33,3 +34,5 @@ replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/vrooli => ../../..
+
+replace github.com/vrooli/cli-core => ../../../packages/cli-core

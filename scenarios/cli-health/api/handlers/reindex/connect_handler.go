@@ -1,5 +1,5 @@
 // Package reindex hosts the Connect-RPC handler for cli-health's
-// ReindexService. Phase 3 wires it to the aisearch service.
+// ReindexService, wired to the aisearch service's reconcile job control.
 package reindex
 
 import (

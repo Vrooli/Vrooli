@@ -17,16 +17,18 @@
 //     Source, SourceDoc, Chunk, Chunker, EmbeddingTextComposer, Reranker,
 //     plus the hybrid VectorStore and the search Service surface.
 //
-// Status: Phase 0 (contracts only). This file defines the interfaces and the
-// data-transfer types they exchange. There are deliberately NO concrete
-// implementations here yet — the engine is lifted from cli-health in Phase 1,
-// generalized for the 1-source -> N-chunk fan-out, and proven by migrating
-// cli-health onto it in Phase 2 before any Knowledge Observatory behavior
-// changes. Consumers inject concrete impls; tests inject fakes.
+// Status: production. The package ships concrete implementations for the full
+// pipeline: the dense and hybrid engine assemblers (NewDenseEngine /
+// NewHybridEngine), the two-level reconciler, the hybrid VectorStore, the
+// reranker chain, and the shared read-path Service (query -> floor -> rerank ->
+// project -> text-fallback, plus reindex job control). Two in-tree adopters
+// consume it: cli-health (dense, command corpus) and knowledge-observatory
+// (hybrid, markdown-doc corpus). Consumers inject a Source plus a Projector and
+// (optionally) a TextFallback; tests inject fakes.
 //
-// The generalization over the current command/surface engines is the
-// 1-source -> N-chunk fan-out: a single CLI command embeds as one vector, but
-// a single documentation file fans out into many chunks. Everything else
-// (drift skip via payload hash, ghost deletion, bounded-concurrency embed,
-// auto -> ai -> text fallback) carries over unchanged.
+// The generalization over a single command engine is the 1-source -> N-chunk
+// fan-out: a single CLI command embeds as one vector, but a single
+// documentation file fans out into many chunks. Everything else (drift skip via
+// payload hash, ghost deletion, bounded-concurrency embed, auto -> ai -> text
+// fallback) is shared unchanged across adopters.
 package aisearch

@@ -1,32 +1,28 @@
 package aisearch
 
 import (
-	"context"
-	"fmt"
-	"sort"
 	"strings"
 
 	pkg "github.com/vrooli/aisearch-go"
 )
 
-// search.go is Phase 5 of the KO search cutover: the hybrid (dense+sparse RRF)
-// documentation read path with reranking, scope/facet filters, an authority
-// boost, and the auto fallback chain (hybrid -> dense -> grep). It implements
-// the shared pkg.Service contract over the vrooli-docs collection the Phase-3
-// Indexer populates, projecting hits into the search-hub federation shape
-// (keys.go).
+// search.go is KO's documentation read path. The query -> rerank -> floor ->
+// project -> fallback ORCHESTRATION now lives in the shared engine
+// (pkg.Service); this file supplies only the doc-specific shaping the engine is
+// parameterized over: the scope/facet payload filter, the client-side path-scope
+// trim, the authority boost, the federation projection, and the reranker
+// contextual text. NewSearchService wires those seams onto a pkg.Service over
+// the vrooli-docs collection.
 
 const (
-	// defaultSearchLimit is the result count returned when a query omits Limit.
+	// defaultSearchLimit / maxSearchLimit bound the returned result count.
 	defaultSearchLimit = 10
-	// maxSearchLimit caps the returned result count.
-	maxSearchLimit = 100
-	// shortlistMultiplier widens the vector shortlist relative to the final
-	// limit so the reranker has more candidates to reorder (two-stage retrieval).
-	shortlistMultiplier = 4
-	// minShortlist / maxShortlist bound the reranked candidate pool.
-	minShortlist = 20
-	maxShortlist = 60
+	maxSearchLimit     = 100
+	// docShortlist is the over-fetch depth: the doc read path always widens the
+	// vector shortlist (the engine over-fetches because a PostFilter + Decorator
+	// run before the page is cut) so path-scope trimming and the authority boost
+	// have headroom, and the reranker (when enabled) reorders a real pool.
+	docShortlist = 60
 	// prefetchLimit is the per-leg (dense/sparse) shortlist before RRF fusion.
 	prefetchLimit = 60
 	// snippetLen bounds the projected snippet length.
@@ -35,275 +31,99 @@ const (
 	rerankCandidateLen = 900
 
 	// authorityActiveBoost / authorityCanonicalBoost nudge ranking toward
-	// canonical, maintained docs (plan §3.3 authority boost). Applied as a
-	// scale-relative multiplier to the final (post-rerank) score so the signal
-	// survives both ~0.01 RRF scores and ~0..1 rerank scores without dominating.
+	// canonical, maintained docs. Applied as a scale-relative multiplier to the
+	// final (post-rerank) score so the signal survives both ~0.01 RRF scores and
+	// ~0..1 rerank scores without dominating.
 	authorityActiveBoost    = 0.10
 	authorityCanonicalBoost = 0.15
-	// authorityProjectBoost favors root /docs (the canonical platform docs) over
-	// scenario docs for corpus-wide queries — a scenario's same-named page (e.g.
-	// its own QUICKSTART) should not outrank the project-level answer.
+	// authorityProjectBoost favors root /docs over scenario docs for corpus-wide
+	// queries (a scenario's same-named page should not outrank the project answer).
 	authorityProjectBoost = 0.12
 )
 
 // TextFallback is the offline-safe keyword leg (the repurposed docsearch grep).
-// It is injected so the search service stays decoupled from KO's filesystem
-// search and unit tests need no on-disk corpus. NewDocsearchFallback adapts the
-// concrete docsearch.Service to this shape.
-type TextFallback func(ctx context.Context, q pkg.SearchQuery) ([]pkg.SearchHit, error)
+// Its signature matches pkg.TextFallbackFunc so it plugs straight into the
+// shared Service. NewDocsearchFallback adapts the concrete docsearch.Service.
+type TextFallback = pkg.TextFallbackFunc
 
-// ServiceOptions configures a SearchService. Embedder/VectorStore are required
-// for the vector legs; TextFallback (optional) provides the grep degradation;
-// Reranker (optional) enables two-stage retrieval; Reconciler (optional) feeds
-// Status's last-reconcile fields.
+// ServiceOptions configures KO's documentation search. Embedder/VectorStore are
+// required for the vector legs; Sparse defaults to the BM25 encoder (matching
+// the indexer); RerankEnabled gates the rerank pass and Reranker supplies the
+// degradation chain (cross-encoder -> llm -> fused order); TextFallback provides
+// the grep degradation; Reconciler feeds Status's last-reconcile fields.
 type ServiceOptions struct {
-	Embedder     pkg.Embedder
-	Sparse       pkg.SparseEncoder
-	VectorStore  pkg.VectorStore
-	Reranker     *pkg.RerankerChain
-	TextFallback TextFallback
-	Reconciler   *pkg.Reconciler
+	Embedder    pkg.Embedder
+	Sparse      pkg.SparseEncoder
+	VectorStore pkg.VectorStore
+	// RerankEnabled is the explicit rerank-on/off lever (the shared convention —
+	// matches cli-health — instead of inferring it from a nil Reranker). The
+	// caller wires it from KO_DOCS_RERANK_ENABLED; see server.go.
+	RerankEnabled bool
+	Reranker      *pkg.RerankerChain
+	TextFallback  TextFallback
+	Reconciler    *pkg.Reconciler
 }
 
-// SearchService is KO's documentation search read path. It satisfies
-// pkg.Service.
-type SearchService struct {
-	embedder   pkg.Embedder
-	sparse     pkg.SparseEncoder
-	store      pkg.VectorStore
-	reranker   *pkg.RerankerChain
-	text       TextFallback
-	reconciler *pkg.Reconciler
-}
-
-// NewSearchService wires the documentation search service. Sparse defaults to
-// the BM25 encoder (the same one the indexer uses, so query/index weighting
-// match).
-func NewSearchService(opts ServiceOptions) *SearchService {
+// NewSearchService wires the documentation read path onto the shared engine.
+// Reranking is gated by the explicit RerankEnabled flag (the rerank-on/off
+// decision is the caller's — see KO_DOCS_RERANK_ENABLED in server.go), default
+// OFF for this corpus. The relevance floor is ON and correct: the doc corpus runs
+// RRF-fused hybrid, and the shared Service now classifies that rerank-off fused
+// leg into the fusion floor band (relative MaxGap only, the absolute cosine
+// HardFloor that would have annihilated real fused hits is disabled), so the
+// floor trims only the far tail. Ranking quality still comes from fusion + the
+// authority boost (+ rerank when enabled).
+func NewSearchService(opts ServiceOptions) *pkg.Service {
 	sparse := opts.Sparse
 	if sparse == nil {
 		sparse = pkg.NewBM25SparseEncoder()
 	}
-	return &SearchService{
-		embedder:   opts.Embedder,
-		sparse:     sparse,
-		store:      opts.VectorStore,
-		reranker:   opts.Reranker,
-		text:       opts.TextFallback,
-		reconciler: opts.Reconciler,
-	}
+	return pkg.NewService(pkg.ServiceOptions{
+		Embedder:      opts.Embedder,
+		SparseEncoder: sparse,
+		VectorStore:   opts.VectorStore,
+		Reranker:      opts.Reranker,
+		Reconciler:    opts.Reconciler,
+		RerankEnabled: opts.RerankEnabled,
+		ApplyFloor:    true,
+		Shortlist:     docShortlist,
+		PrefetchLimit: prefetchLimit,
+		DefaultLimit:  defaultSearchLimit,
+		MaxLimit:      maxSearchLimit,
+		Project:       docProject,
+		Filter:        func(q pkg.SearchQuery) *pkg.QueryFilter { return docFilter(q.Scope, q.Facets) },
+		PostFilter: func(hits []pkg.SearchResult, q pkg.SearchQuery) []pkg.SearchResult {
+			return filterPathScope(hits, q.Scope)
+		},
+		Decorate:     applyAuthorityBoost,
+		RerankText:   rerankText,
+		TextFallback: opts.TextFallback,
+	})
 }
 
 // NewDefaultReranker builds the production degradation chain: the cross-encoder
 // TEI resource first, the always-available LLM reranker second. The chain
 // returns the fused order when neither is reachable.
 func NewDefaultReranker() *pkg.RerankerChain {
-	return pkg.NewRerankerChain(pkg.NewCrossEncoderReranker(), pkg.NewLLMReranker(""))
+	return pkg.NewRerankerChain(pkg.NewCrossEncoderReranker("", ""), pkg.NewLLMReranker(""))
 }
 
-func normalizeQuery(q pkg.SearchQuery) pkg.SearchQuery {
-	q.Query = strings.TrimSpace(q.Query)
-	if q.Mode == "" {
-		q.Mode = pkg.ModeAuto
+// docProject maps a raw vector-store result into the federation hit shape,
+// pulling the retrievable body, paths, and source id from the payload. The first
+// fields (id, relative_path, score, snippet, path) are the search-hub federation
+// contract for the KO `doc` leaf — keep them stable (search_surface.go's
+// docSearchHit serializes them).
+func docProject(r pkg.SearchResult) pkg.SearchResult {
+	rel := payloadString(r.Payload, MetaRelativePath)
+	path := payloadString(r.Payload, MetaPath)
+	if path == "" {
+		path = rel
 	}
-	if q.Scope.Kind == "" {
-		q.Scope.Kind = pkg.ScopeGlobal
-	}
-	if q.Limit <= 0 {
-		q.Limit = defaultSearchLimit
-	}
-	if q.Limit > maxSearchLimit {
-		q.Limit = maxSearchLimit
-	}
-	return q
-}
-
-// Search runs one documentation query, dispatching on mode and walking the auto
-// fallback chain so it never hard-fails.
-func (s *SearchService) Search(ctx context.Context, q pkg.SearchQuery) (pkg.SearchResponse, error) {
-	q = normalizeQuery(q)
-	if q.Query == "" {
-		return pkg.SearchResponse{}, fmt.Errorf("query is required")
-	}
-
-	switch q.Mode {
-	case pkg.ModeText:
-		return s.textSearch(ctx, q)
-	case pkg.ModeDense:
-		return s.vectorSearch(ctx, q, false)
-	case pkg.ModeHybrid:
-		return s.vectorSearch(ctx, q, true)
-	case pkg.ModeAuto:
-		return s.autoSearch(ctx, q)
-	default:
-		return pkg.SearchResponse{}, fmt.Errorf("unknown search mode %q", q.Mode)
-	}
-}
-
-// autoSearch walks hybrid -> dense -> grep, degrading on unavailability or
-// error so search always returns something useful.
-func (s *SearchService) autoSearch(ctx context.Context, q pkg.SearchQuery) (pkg.SearchResponse, error) {
-	storeUp := s.store != nil && s.store.Available(ctx)
-	embedUp := s.embedder != nil && s.embedder.Available(ctx)
-	if storeUp && embedUp {
-		if resp, err := s.vectorSearch(ctx, q, true); err == nil && len(resp.Results) > 0 {
-			return resp, nil
-		}
-		// Hybrid empty/errored — try dense-only before grep.
-		if resp, err := s.vectorSearch(ctx, q, false); err == nil && len(resp.Results) > 0 {
-			return resp, nil
-		}
-	}
-	return s.textSearch(ctx, q)
-}
-
-// vectorSearch runs the dense or hybrid vector leg, then authority-boosts,
-// reranks, and projects the result.
-func (s *SearchService) vectorSearch(ctx context.Context, q pkg.SearchQuery, hybrid bool) (pkg.SearchResponse, error) {
-	if s.store == nil || s.embedder == nil {
-		return pkg.SearchResponse{}, fmt.Errorf("vector search requires an embedder and vector store")
-	}
-	dense, err := s.embedder.Embed(ctx, q.Query)
-	if err != nil {
-		return pkg.SearchResponse{}, fmt.Errorf("embed query: %w", err)
-	}
-
-	shortlist := q.Limit * shortlistMultiplier
-	if shortlist < minShortlist {
-		shortlist = minShortlist
-	}
-	if shortlist > maxShortlist {
-		shortlist = maxShortlist
-	}
-	// Path scope is filtered client-side (Qdrant keyword match has no prefix
-	// op), so widen the shortlist to avoid losing in-prefix hits.
-	if q.Scope.Kind == pkg.ScopePath {
-		shortlist = maxShortlist
-	}
-
-	hq := pkg.HybridQuery{
-		Dense:         dense,
-		Filter:        docFilter(q.Scope, q.Facets),
-		Limit:         shortlist,
-		PrefetchLimit: prefetchLimit,
-	}
-	method := "dense"
-	if hybrid {
-		sparse := s.sparse.Encode(q.Query)
-		hq.Sparse = &sparse
-		hq.Fusion = "rrf"
-		method = "hybrid"
-	}
-
-	raw, err := s.store.Query(ctx, hq)
-	if err != nil {
-		return pkg.SearchResponse{}, fmt.Errorf("vector query: %w", err)
-	}
-
-	hits := projectHits(raw)
-	hits = filterPathScope(hits, q.Scope)
-	sort.SliceStable(hits, func(i, j int) bool { return hits[i].Score > hits[j].Score })
-
-	rerankerName := "none"
-	if s.reranker != nil {
-		if active := s.reranker.Active(ctx); active != nil {
-			reordered, rerr := s.rerank(ctx, q.Query, hits, active)
-			if rerr == nil {
-				hits = reordered
-				rerankerName = active.Name()
-			}
-			// On reranker error keep the fused order (rerankerName stays "none").
-		}
-	}
-
-	// Authority is a final, reranker-agnostic nudge: it edges canonical,
-	// maintained, and project-level docs up at the margins regardless of which
-	// leg (fusion / cross-encoder / LLM) produced the order. A neutral
-	// cross-encoder can't know a root /docs page is the canonical answer over a
-	// scenario's same-named doc; this signal supplies that. Applied as a
-	// scale-relative multiplier so it survives both ~0.01 RRF scores and ~0..1
-	// rerank scores without dominating either.
-	applyAuthorityBoost(hits)
-	sort.SliceStable(hits, func(i, j int) bool { return hits[i].Score > hits[j].Score })
-
-	total := len(hits)
-	if len(hits) > q.Limit {
-		hits = hits[:q.Limit]
-	}
-	return pkg.SearchResponse{
-		Results:  hits,
-		Total:    total,
-		Query:    q.Query,
-		Method:   method,
-		Reranker: rerankerName,
-	}, nil
-}
-
-// rerank scores the shortlist with the active reranker and reorders it,
-// preserving fused order for any candidate the reranker omits.
-func (s *SearchService) rerank(ctx context.Context, query string, hits []pkg.SearchHit, active pkg.Reranker) ([]pkg.SearchHit, error) {
-	cands := make([]pkg.RerankCandidate, len(hits))
-	for i, h := range hits {
-		cands[i] = pkg.RerankCandidate{ID: h.ID, Text: rerankText(h)}
-	}
-	scores, err := active.Rerank(ctx, query, cands)
-	if err != nil {
-		return nil, err
-	}
-	return pkg.ApplyRerank(hits, scores), nil
-}
-
-// textSearch is the grep degradation leg.
-func (s *SearchService) textSearch(ctx context.Context, q pkg.SearchQuery) (pkg.SearchResponse, error) {
-	if s.text == nil {
-		return pkg.SearchResponse{}, fmt.Errorf("text fallback is not configured")
-	}
-	hits, err := s.text(ctx, q)
-	if err != nil {
-		return pkg.SearchResponse{}, fmt.Errorf("text search: %w", err)
-	}
-	total := len(hits)
-	if len(hits) > q.Limit {
-		hits = hits[:q.Limit]
-	}
-	return pkg.SearchResponse{Results: hits, Total: total, Query: q.Query, Method: "text", Reranker: "none"}, nil
-}
-
-// Status reports backend availability for `search status`.
-func (s *SearchService) Status(ctx context.Context) pkg.StatusReport {
-	ollama := s.embedder != nil && s.embedder.Available(ctx)
-	qdrant := s.store != nil && s.store.Available(ctx)
-	report := pkg.StatusReport{
-		Ollama:   ollama,
-		Qdrant:   qdrant,
-		Reranker: "none",
-		// Search is available whenever a vector backend OR the grep fallback can
-		// answer — it never hard-fails.
-		Available: qdrant || s.text != nil,
-	}
-	if qdrant {
-		if count, err := s.store.CountPoints(ctx); err == nil {
-			report.IndexedCount = count
-		}
-	}
-	if s.reranker != nil {
-		report.Reranker = s.reranker.ActiveName(ctx)
-	}
-	if s.reconciler != nil {
-		st := s.reconciler.Status()
-		report.LastReconcileAt = st.FinishedAt
-		switch {
-		case st.Running:
-			report.LastReconcileOutcome = "running"
-		case st.Canceled:
-			report.LastReconcileOutcome = "canceled"
-		case st.LastError != "":
-			report.LastReconcileOutcome = "error: " + st.LastError
-		case st.FinishedAt != "":
-			report.LastReconcileOutcome = "ok"
-		}
-	}
-	return report
+	r.RelativePath = rel
+	r.Path = path
+	r.Snippet = snippet(payloadString(r.Payload, "body"))
+	r.SourceID = payloadString(r.Payload, "source_id")
+	return r
 }
 
 // docFilter builds the Qdrant payload filter from scope + facets. Path scope is
@@ -345,7 +165,7 @@ func docFilter(scope pkg.Scope, facets pkg.Facets) *pkg.QueryFilter {
 
 // filterPathScope keeps only hits whose relative path is under the prefix when
 // the query uses path scope. A no-op for other scopes.
-func filterPathScope(hits []pkg.SearchHit, scope pkg.Scope) []pkg.SearchHit {
+func filterPathScope(hits []pkg.SearchResult, scope pkg.Scope) []pkg.SearchResult {
 	if scope.Kind != pkg.ScopePath || strings.TrimSpace(scope.Value) == "" {
 		return hits
 	}
@@ -360,7 +180,7 @@ func filterPathScope(hits []pkg.SearchHit, scope pkg.Scope) []pkg.SearchHit {
 }
 
 // applyAuthorityBoost nudges the fused score toward canonical, maintained docs.
-func applyAuthorityBoost(hits []pkg.SearchHit) {
+func applyAuthorityBoost(hits []pkg.SearchResult) {
 	for i := range hits {
 		factor := 1.0
 		if maturity, _ := hits[i].Payload[MetaMaturity].(string); strings.EqualFold(maturity, "active") {
@@ -389,33 +209,10 @@ func hasAny(v any) bool {
 	}
 }
 
-// projectHits maps raw vector-store results into the federation SearchHit
-// shape, pulling the retrievable body, paths, and metadata from the payload.
-func projectHits(raw []pkg.SearchResult) []pkg.SearchHit {
-	out := make([]pkg.SearchHit, 0, len(raw))
-	for _, r := range raw {
-		rel := payloadString(r.Payload, MetaRelativePath)
-		path := payloadString(r.Payload, MetaPath)
-		if path == "" {
-			path = rel
-		}
-		out = append(out, pkg.SearchHit{
-			ID:           r.ID,
-			RelativePath: rel,
-			Score:        r.Score,
-			Snippet:      snippet(payloadString(r.Payload, "body")),
-			Path:         path,
-			SourceID:     payloadString(r.Payload, "source_id"),
-			Payload:      r.Payload,
-		})
-	}
-	return out
-}
-
 // rerankText composes the contextual text a reranker scores: title, heading
 // path, then the chunk body (bounded). Mirrors the indexing-time contextual
 // prefix so the reranker sees the same self-contained context.
-func rerankText(h pkg.SearchHit) string {
+func rerankText(h pkg.SearchResult) string {
 	var b strings.Builder
 	if title := payloadString(h.Payload, MetaTitle); title != "" {
 		b.WriteString(title)

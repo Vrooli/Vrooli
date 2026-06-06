@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // CommandRunner executes a command and returns combined stdout/stderr.
@@ -161,13 +163,33 @@ func (r *Resolver) ResolveScenarioPort(ctx context.Context, scenarioSlug, portKe
 		portKey = defaultPortKey
 	}
 
-	output, err := r.runner(ctx, r.vrooliPath, "scenario", "port", scenarioSlug, portKey)
+	// Instance routing (Case B): when the target scenario is ambiently shadowed
+	// (VROOLI_SHADOW_SCENARIOS), address its "@shadow" record. If that non-live
+	// lookup reports the scenario isn't running — the engagement may have been
+	// torn down — warn once and fall back to the live instance. Never silent.
+	target := cliutil.ResolveShadowTarget(scenarioSlug)
+	port, derr := r.lookupPort(ctx, scenarioSlug, target, portKey)
+	if derr != nil && cliutil.IsNonLiveTarget(target) && derr.Kind == ErrScenarioNotRunning {
+		cliutil.WarnShadowFallback(scenarioSlug)
+		port, derr = r.lookupPort(ctx, scenarioSlug, scenarioSlug, portKey)
+	}
+	if derr != nil {
+		return 0, derr
+	}
+	return port, nil
+}
+
+// lookupPort shells `vrooli scenario port <target> <portKey>` and classifies the
+// result. reportSlug is the user-facing scenario name recorded on any Error
+// (which may differ from target when routing to a variant record).
+func (r *Resolver) lookupPort(ctx context.Context, reportSlug, target, portKey string) (int, *Error) {
+	output, err := r.runner(ctx, r.vrooliPath, "scenario", "port", target, portKey)
 	text := strings.TrimSpace(string(output))
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return 0, &Error{
 				Kind:     ErrTimeout,
-				Scenario: scenarioSlug,
+				Scenario: reportSlug,
 				PortKey:  portKey,
 				Output:   text,
 				Err:      ctxErr,
@@ -176,7 +198,7 @@ func (r *Resolver) ResolveScenarioPort(ctx context.Context, scenarioSlug, portKe
 		if errors.Is(err, exec.ErrNotFound) {
 			return 0, &Error{
 				Kind:     ErrVrooliNotFound,
-				Scenario: scenarioSlug,
+				Scenario: reportSlug,
 				PortKey:  portKey,
 				Output:   text,
 				Err:      err,
@@ -186,7 +208,7 @@ func (r *Resolver) ResolveScenarioPort(ctx context.Context, scenarioSlug, portKe
 		if strings.Contains(lower, "not running") || strings.Contains(lower, "not started") {
 			return 0, &Error{
 				Kind:     ErrScenarioNotRunning,
-				Scenario: scenarioSlug,
+				Scenario: reportSlug,
 				PortKey:  portKey,
 				Output:   text,
 				Err:      err,
@@ -194,7 +216,7 @@ func (r *Resolver) ResolveScenarioPort(ctx context.Context, scenarioSlug, portKe
 		}
 		return 0, &Error{
 			Kind:     ErrCommandFailed,
-			Scenario: scenarioSlug,
+			Scenario: reportSlug,
 			PortKey:  portKey,
 			Output:   text,
 			Err:      err,
@@ -205,7 +227,7 @@ func (r *Resolver) ResolveScenarioPort(ctx context.Context, scenarioSlug, portKe
 	if parseErr != nil || port <= 0 {
 		return 0, &Error{
 			Kind:     ErrInvalidPort,
-			Scenario: scenarioSlug,
+			Scenario: reportSlug,
 			PortKey:  portKey,
 			Output:   text,
 			Err:      parseErr,

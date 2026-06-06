@@ -19,7 +19,7 @@ type fakeDocSearch struct{}
 
 func (fakeDocSearch) Search(ctx context.Context, q pkg.SearchQuery) (pkg.SearchResponse, error) {
 	return pkg.SearchResponse{
-		Results: []pkg.SearchHit{{
+		Results: []pkg.SearchResult{{
 			ID:           "demo",
 			RelativePath: "docs/demo.md",
 			Score:        0.9,

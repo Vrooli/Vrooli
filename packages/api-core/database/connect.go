@@ -202,6 +202,14 @@ func buildDSNFromEnv(cfg Config) (string, error) {
 }
 
 // buildPostgresDSN constructs a PostgreSQL connection string from environment.
+//
+// Shadow isolation: POSTGRES_DB is injected by the lifecycle from
+// scenarioruntime.InstanceKey.Namespace().PostgresDB — "vrooli_<scenario>" for
+// the live instance, "vrooli_<scenario>_<variant>" for a shadow. Postgres
+// therefore inherits variant isolation for free; do NOT hardcode the scenario's
+// database name anywhere — that would point a shadow at live's database. See the
+// storage package's variant-aware namespace helpers for the Redis/Qdrant
+// equivalent.
 func buildPostgresDSN(getenv func(string) string) (string, error) {
 	// First check if a complete URL is already set
 	if url := getenv("POSTGRES_URL"); url != "" {
@@ -262,6 +270,12 @@ func buildPostgresDSN(getenv func(string) string) (string, error) {
 }
 
 // buildSQLiteDSN returns the SQLite database file path from environment.
+//
+// Shadow isolation: SQLITE_PATH (or the storage resolver's variant-scoped data
+// dir behind SQLITE_DB) is rooted under the lifecycle's per-variant data
+// directory, so a shadow's SQLite file is physically distinct from live's. Read
+// the path from the environment as below; never hardcode a per-scenario path
+// that would alias the two variants.
 func buildSQLiteDSN(getenv func(string) string) (string, error) {
 	if path := getenv("SQLITE_PATH"); path != "" {
 		return path, nil

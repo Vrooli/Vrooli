@@ -3,11 +3,10 @@ package database_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"sync"
 	"testing"
-
-	"errors"
 
 	_ "modernc.org/sqlite"
 

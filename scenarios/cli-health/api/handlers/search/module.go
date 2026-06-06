@@ -18,7 +18,8 @@ var ProtoFile = searchv1.File_cli_health_v1_search_search_proto
 
 // Module returns the search domain's contribution to the API: the Connect
 // SearchService handler mounted at the generated procedure paths. Searcher
-// may be nil; the handler then returns Unimplemented (Phase 1 stub path).
+// may be nil; the handler then returns Unimplemented (no search backend
+// configured).
 func Module(logger *log.Logger, searcher Searcher) module.Module {
 	connectPath, connectHandler := searchconnect.NewSearchServiceHandler(NewConnectHandler(Deps{
 		Logger:   logger,
@@ -33,8 +34,8 @@ func Module(logger *log.Logger, searcher Searcher) module.Module {
 	}
 }
 
-// Schema returns "" — Phase 1 stub keeps search stateless. Phase 3 may
-// add tables for indexed-document tracking or reconcile checkpoints.
+// Schema returns "" — search is stateless; the index lives in Qdrant, not the
+// scenario database.
 func Schema() string { return "" }
 
 var Endpoints = []module.EndpointDescriptor{
@@ -43,7 +44,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        searchconnect.SearchServiceSearchProcedure,
 		Method:      "POST",
 		Summary:     "Search CLI commands across scenarios",
-		Description: "Semantic (AI) and text-fallback search across every scenario's CLI manifest. Phase 1 stub returns Unimplemented.",
+		Description: "Semantic (AI) and text-fallback search across every scenario's CLI manifest.",
 		Category:    "search",
 		Request: &module.Schema{
 			Type: "object",
@@ -61,7 +62,7 @@ var Endpoints = []module.EndpointDescriptor{
 			},
 		},
 		Errors: []module.ErrorDesc{
-			{Status: 501, Code: "unimplemented", Description: "Phase 1 stub; Phase 3 wires AI + text retrieval"},
+			{Status: 501, Code: "unimplemented", Description: "Returned only when no search backend is configured"},
 		},
 		Examples: []module.Example{
 			{Name: "Search", Curl: "curl http://localhost:${API_PORT}/vrooli.cli_health.v1.search.SearchService/Search -H 'Content-Type: application/json' -d '{\"query\":\"list goldens\",\"limit\":10}'"},
@@ -90,7 +91,7 @@ var Endpoints = []module.EndpointDescriptor{
 			},
 		},
 		Errors: []module.ErrorDesc{
-			{Status: 501, Code: "unimplemented", Description: "Phase 1 stub; Phase 3 wires the backend probes"},
+			{Status: 501, Code: "unimplemented", Description: "Returned only when no search backend is configured"},
 		},
 		Examples: []module.Example{
 			{Name: "Status", Curl: "curl http://localhost:${API_PORT}/vrooli.cli_health.v1.search.SearchService/Status -H 'Content-Type: application/json' -d '{}'"},

@@ -357,7 +357,7 @@ func parseScope(kind, target string) pkg.Scope {
 	}
 }
 
-func projectDocHits(hits []pkg.SearchHit) []docSearchHit {
+func projectDocHits(hits []pkg.SearchResult) []docSearchHit {
 	out := make([]docSearchHit, 0, len(hits))
 	for _, h := range hits {
 		out = append(out, docSearchHit{

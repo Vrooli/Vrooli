@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "scoring": {
+    "recall_at": 5,
+    "recall_target": 0.8
+  },
+  "_note": "Hand-labeled command-search corpus for REQ-P0-004 (recall@5 >= 0.8). expected_paths are command FullPaths ('<origin> <group> <name>'). VERIFIED 2026-06-05 against the real CLI command trees (vrooli/scenario CLIs) — these are the genuine canonical answers, not approximations. Do NOT 'fix' a label by replacing it with whatever the engine currently returns: the gate intentionally tests DESIRED behavior. The live calibration pass found recall@5=0.40 (rerank ON) — a real retrieval gap (canonical commands buried under fleet near-duplicates + query/description vocabulary mismatch), tracked as a bug; see requirements/02-.../module.json REQ-P0-004. Gate assertion is enabled by CLI_HEALTH_AISEARCH_LIVE=1.",
+  "cases": [
+    { "id": "restart-scenario", "query": "restart a scenario", "expected_paths": ["vrooli scenario restart"] },
+    { "id": "start-scenario", "query": "start a scenario", "expected_paths": ["vrooli scenario start"] },
+    { "id": "stop-scenario", "query": "stop a running scenario", "expected_paths": ["vrooli scenario stop"] },
+    { "id": "test-scenario", "query": "run the tests for a scenario", "expected_paths": ["vrooli scenario test"] },
+    { "id": "scenario-logs", "query": "view logs for a scenario", "expected_paths": ["vrooli scenario logs"] },
+    { "id": "list-scenarios", "query": "list all scenarios", "expected_paths": ["vrooli scenario list"] },
+    { "id": "setup-project", "query": "set up the project and install dependencies", "expected_paths": ["vrooli setup"] },
+    { "id": "develop", "query": "start the development environment", "expected_paths": ["vrooli develop"] },
+    { "id": "help", "query": "show available commands", "expected_paths": ["vrooli help"] },
+    { "id": "search-command", "query": "search for a cli command across scenarios", "expected_paths": ["cli-health search query"] },
+    { "id": "reindex-commands", "query": "reindex the command search index", "expected_paths": ["cli-health reindex run"] },
+    { "id": "search-status", "query": "check whether ai command search is available", "expected_paths": ["cli-health search status"] },
+    { "id": "reindex-status", "query": "check the progress of a reindex job", "expected_paths": ["cli-health reindex status"] },
+    { "id": "validate-scenario", "query": "validate a scenario against the cli-health rules", "expected_paths": ["cli-health validate scenario"] },
+    { "id": "report-bug", "query": "report a bug or defect", "expected_paths": ["app-issue-tracker issue create"] },
+    { "id": "discover-skill", "query": "discover an existing skill or action", "expected_paths": ["prompt-manager discover"] },
+    { "id": "create-record", "query": "write a record of completed work", "expected_paths": ["swarm-manager records create"] },
+    { "id": "baseline-snapshot", "query": "capture a regression baseline for a scenario", "expected_paths": ["git-control-tower baseline snapshot"] },
+    { "id": "create-action", "query": "register a reusable cli action", "expected_paths": ["prompt-manager action create"] },
+    { "id": "scenario-test-genie", "query": "run the test genie suite for a scenario", "expected_paths": ["test-genie execute", "test-genie run-tests"] }
+  ]
+}

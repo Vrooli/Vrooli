@@ -44,10 +44,10 @@
           "type": "test"
         },
         {
-          "notes": "Recall@5 evaluation test: run all ~20 queries from search_queries.json against a populated index and assert recall@5 ≥ 0.8",
+          "notes": "Recall@5 evaluation test: run all ~20 queries from search_queries.json against a populated index and assert recall@5 ≥ 0.8. HARNESS AUTHORED (api/internal/aisearch/recall_test.go::TestCommandRecall, live-gated by CLI_HEALTH_AISEARCH_LIVE=1) + 20-case corpus authored (testdata/search_queries.json). LIVE CALIBRATION PASS DONE 2026-06-05 (cross-encoder reranker healthy, 2237 cmds indexed): labels VERIFIED against the real CLI trees and 3 genuinely-wrong ones corrected (validate-scenario→'cli-health validate scenario'; report-bug→'app-issue-tracker issue create'; scenario-test-genie→'test-genie execute|run-tests'). The remaining labels are correct. RESULT: recall@5 = 0.50 with rerank ON after the label corrections (0.40 before them; 0.35 dense-only) — STILL BELOW the 0.8 gate, and the residual 10 misses are a GENUINE retrieval-quality gap, NOT a labeling artifact: (1) canonical commands are buried under fleet near-duplicates (e.g. 'vrooli scenario list' ranks #9 behind 8 other scenarios' 'scenarios list' cross-encoder-scored 0.6–0.96, vs 0.54), and (2) vocabulary mismatch leaves real answers unretrieved (e.g. 'register a reusable cli action' does not retrieve 'prompt-manager action create' into the shortlist; sole survivor scores 0.001). Closing the gate needs a retrieval improvement — a canonical/authority boost via the (currently unused) cli-health Service Decorate seam + index-time description enrichment — NOT label edits. Tracked as a bug; status stays in_progress until the retrieval work lands and recall@5 ≥ 0.8 is observed.",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/aisearch/recall_test.go",
+          "status": "in_progress",
           "type": "test"
         },
         {
