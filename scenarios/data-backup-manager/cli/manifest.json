@@ -501,6 +501,78 @@
       ]
     },
     {
+      "name": "safety",
+      "description": "Baseline Modes data substrate: ensure the safety destination and take pre-promote scenario snapshots",
+      "commands": [
+        {
+          "name": "ensure-destination",
+          "description": "Idempotently provision the reserved baseline-safety destination",
+          "flags": [
+            {
+              "name": "cap-bytes",
+              "description": "Optional storage cap in bytes for the safety repository (0 = no cap); applied only at creation"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "EnsureSafetyDestination"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "backup-now",
+          "description": "Back up a scenario's registered targets now to the safety destination",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario whose registered targets (owner=scenario) to back up"
+            },
+            {
+              "name": "keep-latest",
+              "description": "Keep at most this many latest safety snapshots per target (0 = keep all)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "BackupScenarioNow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "register-targets",
+          "description": "Derive and register a scenario's backup targets (Postgres + data dir) from its service.json",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario whose backup targets to derive and register (owner=scenario)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "RegisterScenarioTargets"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
       "name": "audits",
       "description": "Generic snapshot audits: prove a backup's filesystem/database shape matches live",
       "commands": [

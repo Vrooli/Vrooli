@@ -30,6 +30,7 @@ import (
 	plansH "data-backup-manager/handlers/plans"
 	restoresH "data-backup-manager/handlers/restores"
 	runsH "data-backup-manager/handlers/runs"
+	safetyH "data-backup-manager/handlers/safety"
 	targetsH "data-backup-manager/handlers/targets"
 
 	auditsint "data-backup-manager/internal/audits"
@@ -39,6 +40,8 @@ import (
 	plansint "data-backup-manager/internal/plans"
 	restoresint "data-backup-manager/internal/restores"
 	runsint "data-backup-manager/internal/runs"
+	safetyint "data-backup-manager/internal/safety"
+	scenariospecint "data-backup-manager/internal/scenariospec"
 	schedint "data-backup-manager/internal/scheduler"
 	"data-backup-manager/internal/sources"
 	"data-backup-manager/internal/sysmounts"
@@ -327,6 +330,18 @@ func run(ctx context.Context) error {
 	// overdueAfterDur, so /health and `runs status` never disagree.
 	posture := backupPosture{runs: runsSvc}
 
+	// Baseline Modes safety substrate: pure orchestration over the
+	// destinations/targets/plans/runs services (no tables of its own) that the
+	// platform recovery floor shells out to for pre-promote scenario snapshots.
+	safetySvc := safetyint.NewService(safetyint.Deps{
+		Destinations: safetyDestinations{svc: destSvc},
+		Targets:      safetyTargets{svc: targetsSvc},
+		Plans:        safetyPlans{svc: plansSvc},
+		Runs:         safetyRuns{svc: runsSvc},
+		Inspector:    safetyScenarioInspector{insp: scenariospecint.NewInspector()},
+		RuntimeRoot:  discoveryint.RuntimeRoot,
+	})
+
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: logger},
 		healthH.ModuleWithPosture(db, "data-backup-manager-api", "1.0.0", posture, logEventSink{logger: logger}),
@@ -337,6 +352,7 @@ func run(ctx context.Context) error {
 		plansH.Module(plansSvc, logger),
 		restoresH.Module(restoresSvc, logger),
 		runsH.Module(runsSvc, verifiedLookup{svc: restoresSvc}, logger),
+		safetyH.Module(safetySvc, logger),
 		targetsH.Module(db, clk, logger),
 	)
 

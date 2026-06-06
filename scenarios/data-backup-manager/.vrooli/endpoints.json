@@ -1442,6 +1442,145 @@
       }
     },
     {
+      "id": "safety_ensure_destination",
+      "path": "/vrooli.data_backup_manager.v1.safety.SafetyService/EnsureSafetyDestination",
+      "method": "POST",
+      "summary": "Ensure the Baseline Modes safety destination",
+      "description": "Idempotently provisions (or returns the existing) reserved baseline-safety filesystem destination used only for pre-promote safety snapshots. Returns created=true only when this call created it.",
+      "category": "safety",
+      "request": {
+        "type": "object",
+        "properties": {
+          "cap_bytes": "int64 (optional; 0 = no cap)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "created": "bool",
+          "destination": "SafetyDestination"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Runtime root unresolved or destination create failed"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Ensure safety destination",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/EnsureSafetyDestination -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager safety ensure-destination"
+      }
+    },
+    {
+      "id": "safety_backup_scenario_now",
+      "path": "/vrooli.data_backup_manager.v1.safety.SafetyService/BackupScenarioNow",
+      "method": "POST",
+      "summary": "Back up a scenario's targets now",
+      "description": "Backs up every target registered under owner=scenario to the safety destination immediately, by building-or-reusing a manual-only ephemeral per-scenario plan and triggering a run. The run executes asynchronously; poll `runs get <id>`.",
+      "category": "safety",
+      "request": {
+        "type": "object",
+        "properties": {
+          "keep_latest": "int32 (optional)",
+          "scenario": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "destination_id": "string",
+          "plan_id": "string",
+          "run_id": "string",
+          "status": "string",
+          "target_count": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Scenario has no registered targets"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Plan/run orchestration failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Back up a scenario now",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/BackupScenarioNow -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager safety backup-now",
+        "args": [
+          "--scenario",
+          "<scenario>"
+        ]
+      }
+    },
+    {
+      "id": "safety_register_scenario_targets",
+      "path": "/vrooli.data_backup_manager.v1.safety.SafetyService/RegisterScenarioTargets",
+      "method": "POST",
+      "summary": "Derive and register a scenario's backup targets",
+      "description": "Derives a scenario's reliably-conventional backup targets from its .vrooli/service.json + on-disk layout (Postgres `vrooli_<scenario>` when declared; the filesystem data dir when present) and idempotently registers them under owner=scenario, so `safety backup-now` works without a hand-run `targets register`. Redis/Qdrant/SQLite are not derivable and are returned in `skipped`.",
+      "category": "safety",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "registered": "RegisteredTarget[]",
+          "scenario": "string",
+          "skipped": "SkippedTarget[]"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Manifest/data-dir inspection or target registration failed"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Register a scenario's targets",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/RegisterScenarioTargets -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager safety register-targets",
+        "args": [
+          "--scenario",
+          "<scenario>"
+        ]
+      }
+    },
+    {
       "id": "targets_register",
       "path": "/vrooli.data_backup_manager.v1.targets.TargetsService/RegisterTarget",
       "method": "POST",
@@ -1781,6 +1920,21 @@
       "name": "runs stats",
       "description": "Show aggregate run performance metrics",
       "endpoint_id": "runs_stats"
+    },
+    {
+      "name": "safety ensure-destination",
+      "description": "Ensure the Baseline Modes safety destination",
+      "endpoint_id": "safety_ensure_destination"
+    },
+    {
+      "name": "safety backup-now",
+      "description": "Back up a scenario's targets now",
+      "endpoint_id": "safety_backup_scenario_now"
+    },
+    {
+      "name": "safety register-targets",
+      "description": "Derive and register a scenario's backup targets",
+      "endpoint_id": "safety_register_scenario_targets"
     },
     {
       "name": "restores restore",

@@ -8,6 +8,7 @@ import (
 	"data-backup-manager/cli/domains/plans"
 	"data-backup-manager/cli/domains/restores"
 	"data-backup-manager/cli/domains/runs"
+	"data-backup-manager/cli/domains/safety"
 	"data-backup-manager/cli/domains/targets"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -70,6 +71,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
+	safetyGroup, err := safety.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
 	auditsGroup, err := audits.Register(core, manifest)
 	if err != nil {
 		return nil, err
@@ -82,6 +87,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		plansGroup,
 		runsGroup,
 		restoresGroup,
+		safetyGroup,
 		auditsGroup,
 	}, nil
 }

@@ -17,7 +17,10 @@ import (
 	plansint "data-backup-manager/internal/plans"
 	restoresint "data-backup-manager/internal/restores"
 	runsint "data-backup-manager/internal/runs"
+	safetyint "data-backup-manager/internal/safety"
+	scenariospecint "data-backup-manager/internal/scenariospec"
 	schedint "data-backup-manager/internal/scheduler"
+	sourcesint "data-backup-manager/internal/sources"
 	targetsint "data-backup-manager/internal/targets"
 )
 
@@ -141,6 +144,150 @@ func (a verifiedLookup) LastVerifiedByTarget(ctx context.Context) (map[string]ru
 		out[s.TargetID] = runsH.VerifiedInfo{LastVerifiedAt: s.LastVerifiedAt, SnapshotID: s.SnapshotID}
 	}
 	return out, nil
+}
+
+// --- Baseline Modes safety substrate seams --------------------------------
+//
+// The safety domain composes the destinations/targets/plans/runs services to
+// provision the reserved safety destination and take pre-promote scenario
+// snapshots. These adapters back its narrow seams with the concrete services so
+// the safety orchestration stays decoupled and unit-testable.
+
+// safetyDestinations adapts destinations.Service to safety.Destinations.
+type safetyDestinations struct{ svc destint.Service }
+
+func (a safetyDestinations) List(ctx context.Context) ([]safetyint.DestinationRef, error) {
+	ds, err := a.svc.ListDestinations(ctx, catalogScanLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]safetyint.DestinationRef, 0, len(ds))
+	for _, d := range ds {
+		out = append(out, safetyDestRef(d))
+	}
+	return out, nil
+}
+
+func (a safetyDestinations) CreateSafety(ctx context.Context, name, location string, capBytes int64) (safetyint.DestinationRef, error) {
+	d, err := a.svc.CreateDestination(ctx, destint.CreateInput{
+		Name:      name,
+		Backend:   destint.BackendFilesystem,
+		Location:  location,
+		CapBytes:  capBytes,
+		CapPolicy: destint.CapPolicyAlertBlock,
+	})
+	if err != nil {
+		return safetyint.DestinationRef{}, err
+	}
+	return safetyDestRef(d), nil
+}
+
+func safetyDestRef(d destint.Destination) safetyint.DestinationRef {
+	return safetyint.DestinationRef{
+		ID:                 d.ID,
+		Name:               d.Name,
+		Location:           d.Location,
+		RepositoryLocation: d.RepositoryLocation,
+	}
+}
+
+// safetyTargets adapts targets.Service to safety.Targets.
+type safetyTargets struct{ svc targetsint.Service }
+
+func (a safetyTargets) ListByOwner(ctx context.Context, owner string) ([]safetyint.TargetRef, error) {
+	ts, err := a.svc.List(ctx, owner, catalogScanLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]safetyint.TargetRef, 0, len(ts))
+	for _, t := range ts {
+		out = append(out, safetyint.TargetRef{ID: t.ID, Owner: t.Owner, Name: t.Name})
+	}
+	return out, nil
+}
+
+func (a safetyTargets) Register(ctx context.Context, owner, name string, kind sourcesint.SourceKind, locator string) error {
+	_, err := a.svc.Register(ctx, targetsint.RegisterInput{Owner: owner, Name: name, SourceKind: kind, Locator: locator})
+	return err
+}
+
+// safetyScenarioInspector adapts scenariospec.Inspector to
+// safety.ScenarioInspector, mapping the package's Facts onto the safety seam's
+// ScenarioFacts so the orchestration never imports scenariospec directly.
+type safetyScenarioInspector struct{ insp *scenariospecint.Inspector }
+
+func (a safetyScenarioInspector) Inspect(ctx context.Context, scenario string) (safetyint.ScenarioFacts, error) {
+	f, err := a.insp.Inspect(ctx, scenario)
+	if err != nil {
+		return safetyint.ScenarioFacts{}, err
+	}
+	return safetyint.ScenarioFacts{
+		UsesPostgres:   f.UsesPostgres,
+		DataDir:        f.DataDir,
+		DataDirPresent: f.DataDirPresent,
+	}, nil
+}
+
+// safetyPlans adapts plans.Service to safety.Plans. The ephemeral plan is
+// always created/updated with AllowIncompleteCoverage=true (it deliberately
+// scopes to one scenario's targets, not the full default-coverage set) and an
+// empty schedule (manual-only — the scheduler never fires it).
+type safetyPlans struct{ svc plansint.Service }
+
+func (a safetyPlans) List(ctx context.Context) ([]safetyint.PlanRef, error) {
+	ps, err := a.svc.List(ctx, catalogScanLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]safetyint.PlanRef, 0, len(ps))
+	for _, p := range ps {
+		out = append(out, safetyint.PlanRef{ID: p.ID, Name: p.Name})
+	}
+	return out, nil
+}
+
+func (a safetyPlans) Create(ctx context.Context, name string, targetIDs, destinationIDs []string, keepLatest int32) (safetyint.PlanRef, error) {
+	p, err := a.svc.Create(ctx, plansint.CreateInput{
+		Name:                    name,
+		TargetIDs:               targetIDs,
+		DestinationIDs:          destinationIDs,
+		Schedule:                "",
+		KeepLatest:              keepLatest,
+		Enabled:                 true,
+		AllowIncompleteCoverage: true,
+	})
+	if err != nil {
+		return safetyint.PlanRef{}, err
+	}
+	return safetyint.PlanRef{ID: p.ID, Name: p.Name}, nil
+}
+
+func (a safetyPlans) Update(ctx context.Context, id, name string, targetIDs, destinationIDs []string, keepLatest int32) (safetyint.PlanRef, error) {
+	p, err := a.svc.Update(ctx, plansint.UpdateInput{
+		ID:                      id,
+		Name:                    name,
+		TargetIDs:               targetIDs,
+		DestinationIDs:          destinationIDs,
+		Schedule:                "",
+		KeepLatest:              keepLatest,
+		Enabled:                 true,
+		AllowIncompleteCoverage: true,
+	})
+	if err != nil {
+		return safetyint.PlanRef{}, err
+	}
+	return safetyint.PlanRef{ID: p.ID, Name: p.Name}, nil
+}
+
+// safetyRuns adapts runs.Service to safety.Runs (manual-triggered safety run).
+type safetyRuns struct{ svc runsint.Service }
+
+func (a safetyRuns) TriggerManual(ctx context.Context, planID string) (safetyint.RunRef, error) {
+	r, err := a.svc.TriggerRun(ctx, planID, runsint.TriggerManual)
+	if err != nil {
+		return safetyint.RunRef{}, err
+	}
+	return safetyint.RunRef{ID: r.ID, PlanID: r.PlanID, Status: string(r.Status)}, nil
 }
 
 // catalogScanLimit is a generous upper bound for the "list everything" catalog

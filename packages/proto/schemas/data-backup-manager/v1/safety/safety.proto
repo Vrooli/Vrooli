@@ -1,0 +1,149 @@
+syntax = "proto3";
+
+package vrooli.data_backup_manager.v1.safety;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/safety;safety_v1";
+
+// =============================================================================
+// SAFETY DOMAIN — Baseline Modes data substrate (pre-promote snapshots)
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain safety
+// @stability beta
+//
+// Wire contract for SafetyService — the data-backup-manager surface the
+// platform Baseline Modes recovery floor shells out to. Baseline Modes lets a
+// scenario be developed/validated in a shadow while its last-known-good copy
+// keeps running; before a shadow is promoted to live, the floor takes a
+// pre-promote safety snapshot of the scenario's stateful targets so a failed
+// promote can be rolled back.
+//
+// This domain is pure orchestration over the existing destinations/plans/runs
+// domains — it owns no tables of its own. Two reflexive properties make
+// data-backup-manager itself part of the protected core set: it is the
+// promote/rollback data substrate, and the safety destination below is the
+// substrate's dedicated, operator-distinct backup location.
+//
+//   1. EnsureSafetyDestination — idempotently provision the reserved
+//      "baseline-safety" filesystem destination, kept separate from any
+//      operator-configured destination, used only for Baseline Modes snapshots.
+//   2. BackupScenarioNow — back up one scenario's already-registered targets
+//      *now*, without a hand-built plan, by building-or-reusing an ephemeral
+//      per-scenario plan that reuses the whole plan -> run path.
+//
+// Both verbs are idempotent and safe to call repeatedly from the floor.
+// =============================================================================
+
+service SafetyService {
+  // EnsureSafetyDestination provisions (or returns the existing) reserved
+  // "baseline-safety" filesystem destination. Idempotent: a second call returns
+  // the same destination with created=false. The location is resolved
+  // server-side to a Vrooli-runtime-root sibling of the protected data dir so it
+  // satisfies the destinations separate-root rule.
+  rpc EnsureSafetyDestination(EnsureSafetyDestinationRequest) returns (EnsureSafetyDestinationResponse);
+
+  // BackupScenarioNow backs up every target registered under owner=scenario to
+  // the safety destination right now. It ensures the safety destination exists,
+  // builds-or-reuses a disabled, manual-only ephemeral plan bound to those
+  // targets, and triggers a run. The run executes asynchronously; poll
+  // RunsService.GetRun with the returned run id for the terminal status.
+  rpc BackupScenarioNow(BackupScenarioNowRequest) returns (BackupScenarioNowResponse);
+
+  // RegisterScenarioTargets derives a scenario's backup targets from its
+  // .vrooli/service.json declarations + on-disk data layout and idempotently
+  // registers the reliably-conventional ones (owner=scenario), so the floor can
+  // call BackupScenarioNow without a hand-run `targets register` first. v1
+  // derives the two override-free kinds: Postgres (the lifecycle DB name
+  // vrooli_<scenario>, registered when the scenario declares an enabled Postgres
+  // resource) and the filesystem durable-data directory (registered only when it
+  // exists on disk at the conventional path — self-validating). Redis, Qdrant and
+  // SQLite are NOT reliably derivable from service.json (their prefix/collection/
+  // file path is per-scenario), so they are reported in `skipped` for the
+  // scenario to self-register. Idempotent: a re-run upserts and re-reports.
+  rpc RegisterScenarioTargets(RegisterScenarioTargetsRequest) returns (RegisterScenarioTargetsResponse);
+}
+
+// SafetyDestination is the lean projection of the reserved baseline-safety
+// destination the floor needs (the full record lives in the destinations
+// domain).
+message SafetyDestination {
+  string id = 1;
+  // Reserved name, always "baseline-safety".
+  string name = 2;
+  // Operator-facing bundle root the snapshots land under.
+  string location = 3;
+  // Concrete kopia repository path nested in the bundle root.
+  string repository_location = 4;
+}
+
+message EnsureSafetyDestinationRequest {
+  // Optional storage cap in bytes for the safety repository. Zero means no cap.
+  // Applied only when the destination is first created; ignored when it already
+  // exists.
+  int64 cap_bytes = 1 [(buf.validate.field).int64.gte = 0];
+}
+
+message EnsureSafetyDestinationResponse {
+  SafetyDestination destination = 1;
+  // True when this call created the destination; false when it already existed.
+  bool created = 2;
+}
+
+message BackupScenarioNowRequest {
+  // Owner whose registered targets are backed up. This is the scenario slug
+  // targets were registered under (targets carry owner=scenario).
+  string scenario = 1 [(buf.validate.field).string.min_len = 1];
+  // Optional retention: keep at most this many latest safety snapshots per
+  // target. Zero means keep all (no count pruning).
+  int32 keep_latest = 2 [(buf.validate.field).int32.gte = 0];
+}
+
+message BackupScenarioNowResponse {
+  // The enqueued run id; poll RunsService.GetRun for terminal status.
+  string run_id = 1;
+  // The ephemeral per-scenario plan the run executes.
+  string plan_id = 2;
+  // The baseline-safety destination the snapshot lands in.
+  string destination_id = 3;
+  // Number of registered targets bound to this backup.
+  int32 target_count = 4;
+  // The run's (non-terminal) status at enqueue time.
+  string status = 5;
+}
+
+message RegisterScenarioTargetsRequest {
+  // Scenario slug whose targets to derive and register (owner=scenario).
+  string scenario = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// RegisteredTarget is one target RegisterScenarioTargets derived and upserted.
+message RegisteredTarget {
+  // Target name within the owner namespace (e.g. "postgres", "data").
+  string name = 1;
+  // Domain source-kind string (postgres | filesystem | sqlite | redis | qdrant |
+  // object-storage).
+  string source_kind = 2;
+  // The resolved locator the capturer reads (Postgres DB name, or absolute path).
+  string locator = 3;
+}
+
+// SkippedTarget records a kind RegisterScenarioTargets considered but did not
+// register, with the reason — so the caller knows what to self-register.
+message SkippedTarget {
+  // The kind (or comma-list of kinds) that was not registered.
+  string source_kind = 1;
+  // Why it was skipped (not declared, no data on disk, or not derivable).
+  string reason = 2;
+}
+
+message RegisterScenarioTargetsResponse {
+  // Echoes the scenario the targets were registered under.
+  string scenario = 1;
+  // Targets newly registered or refreshed (idempotent upsert by owner+name).
+  repeated RegisteredTarget registered = 2;
+  // Kinds considered but not registered, with the reason.
+  repeated SkippedTarget skipped = 3;
+}

@@ -30,6 +30,7 @@ import (
 	plansH "data-backup-manager/handlers/plans"
 	restoresH "data-backup-manager/handlers/restores"
 	runsH "data-backup-manager/handlers/runs"
+	safetyH "data-backup-manager/handlers/safety"
 	targetsH "data-backup-manager/handlers/targets"
 	localdb "data-backup-manager/internal/database"
 
@@ -40,6 +41,7 @@ import (
 	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/plans"
 	restoresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/restores"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/runs"
+	safetyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/safety"
 	targetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/targets"
 )
 
@@ -57,6 +59,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, plansH.Endpoints...)
 	out = append(out, restoresH.Endpoints...)
 	out = append(out, runsH.Endpoints...)
+	out = append(out, safetyH.Endpoints...)
 	out = append(out, targetsH.Endpoints...)
 	return out
 }
@@ -91,6 +94,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "plans", File: plansv1.File_data_backup_manager_v1_plans_plans_proto},
 		{Module: "restores", File: restoresv1.File_data_backup_manager_v1_restores_restores_proto},
 		{Module: "runs", File: runsv1.File_data_backup_manager_v1_runs_runs_proto},
+		{Module: "safety", File: safetyv1.File_data_backup_manager_v1_safety_safety_proto},
 		{Module: "targets", File: targetsv1.File_data_backup_manager_v1_targets_targets_proto},
 	}
 }
