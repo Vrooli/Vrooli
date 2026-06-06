@@ -307,7 +307,7 @@ func (a *Application) initializeComponents() error {
 	systemlog.Info("Auto Steer components initialized")
 
 	// Connect Auto Steer to queue processor
-	autoSteerIntegration := queue.NewAutoSteerIntegration(a.autoSteerExecutionEngine)
+	autoSteerIntegration := queue.NewAutoSteerIntegration(a.autoSteerExecutionEngine, a.projectRoot)
 	a.processor.SetAutoSteerIntegration(autoSteerIntegration)
 
 	// Initialize unified steering registry

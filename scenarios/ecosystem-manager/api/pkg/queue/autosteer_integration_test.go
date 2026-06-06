@@ -101,7 +101,7 @@ func TestInitializeAutoSteerResetsOnProfileChange(t *testing.T) {
 	}
 
 	orchestrator, stateRepo := newTestOrchestrator(profileRepo)
-	integration := NewAutoSteerIntegration(orchestrator)
+	integration := NewAutoSteerIntegration(orchestrator, "")
 
 	taskID := "task-profile-change"
 	scenarioName := "test-scenario"
@@ -146,7 +146,7 @@ func TestInitializeAutoSteerPreservesStateWhenProfileUnchanged(t *testing.T) {
 	}
 
 	orchestrator, stateRepo := newTestOrchestrator(profileRepo)
-	integration := NewAutoSteerIntegration(orchestrator)
+	integration := NewAutoSteerIntegration(orchestrator, "")
 
 	taskID := "task-same-profile"
 	scenarioName := "test-scenario"

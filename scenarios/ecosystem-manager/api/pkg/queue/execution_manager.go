@@ -433,6 +433,19 @@ func (em *ExecutionManager) enrichSteeringMetadataNone(task *tasks.TaskItem, his
 	history.SteerPhaseIteration = 1
 }
 
+// shadowEnvForTask builds the agent run's shadow-routing environment: the
+// ambient context this EM process forwards (AmbientShadowEnv) unioned with the
+// scenario this task's own Baseline Modes engagement is improving, so the coding
+// agent's nested CLI calls target the shadow instance. Returns nil when nothing
+// is active (the pre-Baseline-Modes default).
+func (em *ExecutionManager) shadowEnvForTask(taskID string) map[string]string {
+	base := agentmanager.AmbientShadowEnv()
+	if em.autoSteerIntegration == nil {
+		return base
+	}
+	return agentmanager.WithEngagedShadowScenario(base, em.autoSteerIntegration.ShadowScenarioForTask(taskID))
+}
+
 // callClaudeCode executes via agent-manager.
 func (em *ExecutionManager) callClaudeCode(ctx context.Context, prompt string, task tasks.TaskItem, executionID string, startTime time.Time, timeoutDuration time.Duration, history *ExecutionHistory) (*tasks.ClaudeCodeResponse, func(), error) {
 	cleanup := func() {}
@@ -470,6 +483,11 @@ func (em *ExecutionManager) callClaudeCode(ctx context.Context, prompt string, t
 		Prompt:  prompt,
 		Timeout: timeoutDuration,
 		Tag:     agentTag,
+		// Route the coding agent's nested CLI calls to the shadow instance: forward
+		// any ambient shadow context this EM process carries (Baseline Modes P1.5
+		// §137) AND, when this task drives its own engagement (P6 §192), the engaged
+		// scenario. Nil/unchanged when no engagement is active — no behavior change.
+		Environment: em.shadowEnvForTask(task.ID),
 	})
 	if err != nil {
 		return &tasks.ClaudeCodeResponse{
@@ -480,6 +498,11 @@ func (em *ExecutionManager) callClaudeCode(ctx context.Context, prompt string, t
 
 	em.registry.ReserveExecution(task.ID, agentTag, startTime)
 	em.registry.RegisterRunID(task.ID, runID)
+	// Record the run on any active Baseline Modes engagement so a later promote
+	// excludes it from the drain set (the self-deadlock guard).
+	if em.autoSteerIntegration != nil {
+		em.autoSteerIntegration.SetEngagementRunID(task.ID, runID)
+	}
 	em.initTaskLogBuffer(task.ID, agentTag, 0)
 
 	cleanup = func() {

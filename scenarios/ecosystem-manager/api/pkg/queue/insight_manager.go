@@ -780,6 +780,10 @@ func (im *InsightManager) callClaudeCodeForInsight(prompt string, taskID string)
 		TaskID:  taskID,
 		Prompt:  prompt,
 		Timeout: 5 * time.Minute,
+		// Inherit the orchestrator's ambient shadow-routing context (Baseline
+		// Modes P1.5 §137) so an insight that inspects a shadowed scenario reads
+		// the shadow. Nil when no engagement is active.
+		Environment: agentmanager.AmbientShadowEnv(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("agent-manager execute insight: %w", err)

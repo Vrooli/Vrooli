@@ -95,5 +95,20 @@ func ValidateProfile(profile *AutoSteerProfile) error {
 		}
 	}
 
+	// Baseline Modes promote block (optional). Normalizes the mode in place so an
+	// empty value transparently means the end_of_engagement default downstream.
+	if bp := profile.BaselinePromote; bp != nil {
+		mode := strings.ToLower(strings.TrimSpace(bp.Mode))
+		switch mode {
+		case "", BaselinePromoteEndOfEngagement, BaselinePromoteCheckpointOnGreen:
+		default:
+			return fmt.Errorf("baseline_promote.mode %q is not recognized (end_of_engagement|checkpoint_on_green)", bp.Mode)
+		}
+		bp.Mode = mode
+		if bp.CadenceIter < 0 {
+			return fmt.Errorf("baseline_promote.cadence_iter must be non-negative")
+		}
+	}
+
 	return nil
 }

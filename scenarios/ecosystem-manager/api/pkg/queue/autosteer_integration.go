@@ -3,6 +3,7 @@ package queue
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/ecosystem-manager/api/pkg/autosteer"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
@@ -12,13 +13,32 @@ import (
 // AutoSteerIntegration handles Auto Steer integration with the task processor
 type AutoSteerIntegration struct {
 	executionOrchestrator *autosteer.ExecutionOrchestrator
+
+	// Baseline Modes engagement (plan P6 §192). baselineRunner shells
+	// git-control-tower; engagements holds per-task engagement state between
+	// EvaluateStart and the controller's terminal decision. selfScenario is the
+	// loop's own scenario, which is never engaged (self-promote is externalized).
+	baselineRunner BaselineEngagementRunner
+	selfScenario   string
+	engMu          sync.Mutex
+	engagements    map[string]*taskEngagement
 }
 
-// NewAutoSteerIntegration creates a new Auto Steer integration handler
-func NewAutoSteerIntegration(executionOrchestrator *autosteer.ExecutionOrchestrator) *AutoSteerIntegration {
+// NewAutoSteerIntegration creates a new Auto Steer integration handler. projectRoot
+// is the repo root the default git-control-tower baseline runner shells from.
+func NewAutoSteerIntegration(executionOrchestrator *autosteer.ExecutionOrchestrator, projectRoot string) *AutoSteerIntegration {
 	return &AutoSteerIntegration{
 		executionOrchestrator: executionOrchestrator,
+		baselineRunner:        &GCTBaselineRunner{ProjectRoot: projectRoot},
+		selfScenario:          defaultSelfScenario,
+		engagements:           make(map[string]*taskEngagement),
 	}
+}
+
+// SetBaselineRunner overrides the Baseline Modes engagement runner (test seam).
+func (a *AutoSteerIntegration) SetBaselineRunner(r BaselineEngagementRunner) *AutoSteerIntegration {
+	a.baselineRunner = r
+	return a
 }
 
 // isEligible constrains Auto Steer usage to the task shapes it was designed for.
@@ -98,7 +118,13 @@ func (a *AutoSteerIntegration) EvaluateStart(task *tasks.TaskItem, scenarioName 
 	if !a.isEligible(task) {
 		return true, "", nil
 	}
-	return a.executionOrchestrator.EvaluateStart(task.ID, scenarioName)
+	proceed, reason, err = a.executionOrchestrator.EvaluateStart(task.ID, scenarioName)
+	if err == nil && proceed {
+		// About to run an agent: open a Baseline Modes engagement if the profile
+		// enables it (idempotent + best-effort — never blocks the run).
+		a.maybeStartEngagement(task, scenarioName)
+	}
+	return proceed, reason, err
 }
 
 // EnhancePrompt adds Auto Steer context to the task prompt
@@ -150,6 +176,16 @@ func (a *AutoSteerIntegration) EvaluateIteration(task *tasks.TaskItem, scenarioN
 	if evaluation.ShouldStop {
 		log.Printf("Auto Steer: Task %s controller stopping (reason: %s)", task.ID, evaluation.Reason)
 		systemlog.Infof("Auto Steer: Task %s run complete - reason: %s", task.ID, evaluation.Reason)
+		// Close any Baseline Modes engagement: promote (objective met) or abandon.
+		a.maybeFinishEngagement(task.ID, evaluation.Reason)
+		return false, nil
+	}
+
+	// Continuing: a checkpoint_on_green engagement banks a validated win early,
+	// ending the loop rather than risking a later regression.
+	if a.maybeCheckpointPromote(task.ID, evaluation) {
+		log.Printf("Auto Steer: Task %s promoted at green checkpoint — ending engagement", task.ID)
+		systemlog.Infof("Auto Steer: Task %s promoted at green checkpoint", task.ID)
 		return false, nil
 	}
 

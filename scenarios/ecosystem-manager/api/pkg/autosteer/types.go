@@ -292,6 +292,64 @@ func (p *AutoSteerProfile) ladderEnabled() bool {
 	return p != nil && p.Ladder != nil && p.Ladder.Enabled
 }
 
+// BaselinePromote cadence modes (Baseline Modes P6). The value selects WHEN an
+// engagement's shadow is promoted to live during an autosteer run.
+const (
+	// BaselinePromoteEndOfEngagement promotes once, when the controller's loop
+	// terminates with the objective met — the safe default. A non-objective-met
+	// stop (budget/diminishing/thrashing) abandons the shadow instead.
+	BaselinePromoteEndOfEngagement = "end_of_engagement"
+	// BaselinePromoteCheckpointOnGreen promotes early — the first time a cadence
+	// checkpoint observes an already-met objective while the loop would otherwise
+	// keep grinding (e.g. a ladder holding the run open for a higher rung) —
+	// banking the validated win rather than risking a later regression.
+	BaselinePromoteCheckpointOnGreen = "checkpoint_on_green"
+)
+
+// BaselinePromoteObjective is the optional Baseline Modes block of a profile
+// (P6). Absent (nil) or Enabled=false ⇒ the autosteer loop edits the scenario in
+// place exactly as before — no engagement, no shadow, no promote — so existing
+// profiles are unperturbed until they opt in. When enabled the orchestrator
+// fronts the run with `git-control-tower baseline start` (which runs the mode
+// decision tree and takes a git-free restore point), routes the coding agent's
+// nested CLI calls to the shadow instance via VROOLI_SHADOW_SCENARIOS, and
+// promotes (shadow→live, green) or abandons (tear down the shadow, not green)
+// per Mode at the controller's terminal decision.
+type BaselinePromoteObjective struct {
+	// Enabled turns Baseline Modes engagement on for this profile. Default-off.
+	Enabled bool `json:"enabled"`
+	// Mode selects the promote cadence. Empty ⇒ end_of_engagement.
+	Mode string `json:"mode,omitempty"`
+	// CadenceIter throttles checkpoint_on_green: only consider an early promote
+	// every CadenceIter controller iterations. <=0 ⇒ consider every iteration.
+	// Ignored by end_of_engagement.
+	CadenceIter int `json:"cadence_iter,omitempty"`
+}
+
+// BaselinePromoteEnabled reports whether Baseline Modes engagement is on. The
+// queue's engagement layer (a separate package) consumes it, so it is exported.
+func (p *AutoSteerProfile) BaselinePromoteEnabled() bool {
+	return p != nil && p.BaselinePromote != nil && p.BaselinePromote.Enabled
+}
+
+// BaselinePromoteMode returns the effective promote cadence (default
+// end_of_engagement when unset).
+func (p *AutoSteerProfile) BaselinePromoteMode() string {
+	if p == nil || p.BaselinePromote == nil || strings.TrimSpace(p.BaselinePromote.Mode) == "" {
+		return BaselinePromoteEndOfEngagement
+	}
+	return p.BaselinePromote.Mode
+}
+
+// BaselinePromoteCadence returns the effective checkpoint cadence (<=0 ⇒ every
+// iteration).
+func (p *AutoSteerProfile) BaselinePromoteCadence() int {
+	if p == nil || p.BaselinePromote == nil {
+		return 0
+	}
+	return p.BaselinePromote.CadenceIter
+}
+
 // AutoSteerProfile is the controller's objective function for an improvement
 // run. (The type name is retained across the API/CLI/UI surfaces; its shape is
 // the greenfield objective model.)
@@ -309,6 +367,9 @@ type AutoSteerProfile struct {
 	// and the terminator holds the objective until the ladder is clean to the
 	// profile's top rung. Absent/disabled ⇒ pure weighted-greedy selection.
 	Ladder *LadderObjective `json:"ladder,omitempty"`
+	// BaselinePromote is the optional Baseline Modes engagement block (P6).
+	// Absent/disabled ⇒ the loop edits the scenario in place (no shadow/promote).
+	BaselinePromote *BaselinePromoteObjective `json:"baseline_promote,omitempty"`
 	// AuditPreset is the test-genie preset used for full audits (the initial
 	// diagnose and the termination gate). Defaults to "comprehensive".
 	AuditPreset string    `json:"audit_preset,omitempty"`
@@ -527,6 +588,14 @@ type IterationEvaluation struct {
 	// ChosenSkill is the skill selected for the next iteration when the loop
 	// continues (empty when stopping).
 	ChosenSkill string `json:"chosen_skill,omitempty"`
+	// ObjectiveMet reports whether the profile's objective is satisfied by the
+	// state measured this iteration. It can be true even when ShouldStop is false
+	// (e.g. a ladder holding the run open for a higher rung); the Baseline Modes
+	// checkpoint_on_green cadence consumes it to promote a validated win early.
+	ObjectiveMet bool `json:"objective_met,omitempty"`
+	// Iteration is the controller iteration this evaluation reflects, used by the
+	// checkpoint cadence to throttle how often an early promote is considered.
+	Iteration int `json:"iteration,omitempty"`
 }
 
 // SkillPerformance summarizes one skill's contribution within a completed run

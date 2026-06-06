@@ -160,6 +160,15 @@ type ExecuteRequest struct {
 	Timeout time.Duration
 	// Optional tag override (defaults to ecosystem-{taskID})
 	Tag string
+	// Environment carries extra VROOLI_-prefixed env vars injected into the
+	// agent-manager run (CreateRunRequest.environment, proto field 11). Baseline
+	// Modes uses it to propagate the ambient VROOLI_SHADOW_SCENARIOS routing var
+	// so the coding agent's nested CLI calls auto-target the shadow instance
+	// instead of live (plan P1.5 §137 / P6 §193). Keys must satisfy
+	// agent-manager's validateCustomEnvironment contract (VROOLI_ prefix, ≤20
+	// entries, ≤4096B total) — use AmbientShadowEnv, which guarantees it. Empty/nil
+	// ⇒ the run inherits no extra env (the pre-Baseline-Modes behavior).
+	Environment map[string]string
 }
 
 // ExecuteResult contains the result of agent execution.
@@ -202,12 +211,13 @@ func (s *AgentService) ExecuteTask(ctx context.Context, req ExecuteRequest) (*Ex
 
 	// Create run
 	runReq := &apipb.CreateRunRequest{
-		TaskId:     createdTask.Id,
-		ProfileRef: profileRef,
-		Tag:        &tag,
-		RunMode:    domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
-		Force:      true, // Bypass capacity limits for ecosystem tasks
-		Prompt:     proto.String(req.Prompt),
+		TaskId:      createdTask.Id,
+		ProfileRef:  profileRef,
+		Tag:         &tag,
+		RunMode:     domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
+		Force:       true, // Bypass capacity limits for ecosystem tasks
+		Prompt:      proto.String(req.Prompt),
+		Environment: req.Environment, // Baseline Modes shadow routing (P1.5 §137)
 	}
 
 	// Apply timeout override if specified
@@ -263,11 +273,12 @@ func (s *AgentService) ExecuteTaskAsync(ctx context.Context, req ExecuteRequest)
 	// (consumed by the anti-gaming classifier); tracking runs auto-merge by
 	// default, preserving in-place apply semantics for the re-audit.
 	runReq := &apipb.CreateRunRequest{
-		TaskId:     createdTask.Id,
-		ProfileRef: profileRef,
-		Tag:        &tag,
-		Force:      true,
-		Prompt:     proto.String(req.Prompt),
+		TaskId:      createdTask.Id,
+		ProfileRef:  profileRef,
+		Tag:         &tag,
+		Force:       true,
+		Prompt:      proto.String(req.Prompt),
+		Environment: req.Environment, // Baseline Modes shadow routing (P1.5 §137)
 	}
 
 	if req.Timeout > 0 {
@@ -292,6 +303,11 @@ type InsightRequest struct {
 	Prompt string
 	// Timeout for this execution
 	Timeout time.Duration
+	// Environment carries extra VROOLI_-prefixed env vars injected into the
+	// insight run (same Baseline Modes shadow-routing propagation as
+	// ExecuteRequest.Environment — an insight that analyzes a shadowed scenario
+	// should read the shadow too). Empty/nil ⇒ no extra env.
+	Environment map[string]string
 }
 
 // ExecuteInsight runs an insight generation task.
@@ -322,12 +338,13 @@ func (s *AgentService) ExecuteInsight(ctx context.Context, req InsightRequest) (
 	}
 
 	runReq := &apipb.CreateRunRequest{
-		TaskId:     createdTask.Id,
-		ProfileRef: profileRef,
-		Tag:        &tag,
-		RunMode:    domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
-		Force:      true,
-		Prompt:     proto.String(req.Prompt),
+		TaskId:      createdTask.Id,
+		ProfileRef:  profileRef,
+		Tag:         &tag,
+		RunMode:     domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
+		Force:       true,
+		Prompt:      proto.String(req.Prompt),
+		Environment: req.Environment, // Baseline Modes shadow routing (P1.5 §137)
 		InlineConfig: &domainpb.RunConfigOverrides{
 			Timeout: durationpb.New(timeout),
 			// Insights are read-only analysis — the deliverable is a report

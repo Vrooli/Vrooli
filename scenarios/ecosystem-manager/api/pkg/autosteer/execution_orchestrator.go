@@ -564,6 +564,13 @@ func (o *ExecutionOrchestrator) EvaluateIteration(taskID, scenarioName string) (
 	state.ScoreHistory = append(state.ScoreHistory, scoreAfter)
 	state.Metrics = o.collectMetrics(scenarioName, state.Iteration)
 
+	// Snapshot the objective-met signal and the completed iteration before SELECT
+	// advances the counter — the Baseline Modes checkpoint_on_green cadence reads
+	// these from the continue-path evaluation to promote a validated win early
+	// (e.g. when a ladder would otherwise hold the run open for a higher rung).
+	objMet, _ := objectiveMet(state, profile)
+	completedIter := state.Iteration
+
 	// TERMINATE — global, gradient-based + Layer-2 thrashing defenses.
 	if stop, reason := o.terminator.ShouldStop(state, profile); stop {
 		log.Printf("Auto Steer: task %s stopping — %s", taskID, reason)
@@ -588,7 +595,13 @@ func (o *ExecutionOrchestrator) EvaluateIteration(taskID, scenarioName string) (
 	if err := o.stateManager.Save(state); err != nil {
 		return nil, fmt.Errorf("failed to save execution state: %w", err)
 	}
-	return &IterationEvaluation{ShouldStop: false, Reason: StopReasonContinue, ChosenSkill: state.CurrentSkill}, nil
+	return &IterationEvaluation{
+		ShouldStop:   false,
+		Reason:       StopReasonContinue,
+		ChosenSkill:  state.CurrentSkill,
+		ObjectiveMet: objMet,
+		Iteration:    completedIter,
+	}, nil
 }
 
 // reaudit re-measures the target. Cost control: a targeted re-audit (only the
@@ -742,6 +755,21 @@ func dimCountsToStringMap(m map[dimensions.Dimension]int) map[string]int {
 // GetExecutionState retrieves the current controller state for a task.
 func (o *ExecutionOrchestrator) GetExecutionState(taskID string) (*ProfileExecutionState, error) {
 	return o.stateManager.Get(taskID)
+}
+
+// ProfileForTask returns the objective-function profile a task is executing
+// under (nil when the task has no controller state). It backs the queue's
+// Baseline Modes engagement decisions (reading the profile's BaselinePromote
+// block) without exposing the internal profile/state repositories.
+func (o *ExecutionOrchestrator) ProfileForTask(taskID string) (*AutoSteerProfile, error) {
+	state, err := o.stateManager.Get(taskID)
+	if err != nil {
+		return nil, err
+	}
+	if state == nil {
+		return nil, nil
+	}
+	return o.profileService.GetProfile(state.ProfileID)
 }
 
 // Effectiveness returns the effectiveness-ledger rows, optionally filtered by
