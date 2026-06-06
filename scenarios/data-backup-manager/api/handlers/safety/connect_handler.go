@@ -81,6 +81,38 @@ func (h *connectHandler) RegisterScenarioTargets(ctx context.Context, req *conne
 	}), nil
 }
 
+func (h *connectHandler) PopulateShadow(ctx context.Context, req *connect.Request[safetyv1.PopulateShadowRequest]) (*connect.Response[safetyv1.PopulateShadowResponse], error) {
+	mappings := make([]internalsafety.ShadowMapping, 0, len(req.Msg.Mappings))
+	for _, m := range req.Msg.Mappings {
+		mappings = append(mappings, internalsafety.ShadowMapping{TargetName: m.GetTargetName(), Location: m.GetLocation()})
+	}
+	res, err := h.deps.Service.PopulateShadow(ctx, req.Msg.Scenario, req.Msg.RunId, mappings)
+	if err != nil {
+		return nil, h.translate("PopulateShadow", err)
+	}
+	restores := make([]*safetyv1.ShadowRestore, 0, len(res.Restores))
+	for _, r := range res.Restores {
+		restores = append(restores, &safetyv1.ShadowRestore{
+			TargetName: r.TargetName,
+			TargetId:   r.TargetID,
+			SnapshotId: r.SnapshotID,
+			RestoreId:  r.RestoreID,
+			Location:   r.Location,
+			Status:     r.Status,
+		})
+	}
+	skipped := make([]*safetyv1.ShadowPopulateSkip, 0, len(res.Skipped))
+	for _, s := range res.Skipped {
+		skipped = append(skipped, &safetyv1.ShadowPopulateSkip{TargetName: s.TargetName, Reason: s.Reason})
+	}
+	return connect.NewResponse(&safetyv1.PopulateShadowResponse{
+		Scenario: res.Scenario,
+		RunId:    res.RunID,
+		Restores: restores,
+		Skipped:  skipped,
+	}), nil
+}
+
 func destinationToProto(d internalsafety.DestinationRef) *safetyv1.SafetyDestination {
 	return &safetyv1.SafetyDestination{
 		Id:                 d.ID,
@@ -95,7 +127,9 @@ func destinationToProto(d internalsafety.DestinationRef) *safetyv1.SafetyDestina
 // everything else is an upstream domain failure surfaced as Internal and logged.
 func (h *connectHandler) translate(op string, err error) error {
 	switch {
-	case errors.Is(err, internalsafety.ErrNoTargets):
+	case errors.Is(err, internalsafety.ErrNoTargets),
+		errors.Is(err, internalsafety.ErrNoSafetyBackup),
+		errors.Is(err, internalsafety.ErrRunNotTerminal):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	default:
 		h.deps.Logger.Printf("safety.%s: %v", op, err)

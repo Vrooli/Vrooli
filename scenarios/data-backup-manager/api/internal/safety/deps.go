@@ -56,6 +56,32 @@ type RunRef struct {
 	Status string
 }
 
+// RunDetail is a run plus its per-target snapshot outcomes — the snapshot map
+// PopulateShadow reads to find each target's restorable snapshot. Returned by
+// the Runs seam.
+type RunDetail struct {
+	ID       string
+	PlanID   string
+	Status   string
+	Terminal bool
+	Outcomes []TargetSnapshot
+}
+
+// TargetSnapshot is one target's snapshot result inside a run.
+type TargetSnapshot struct {
+	TargetID      string
+	DestinationID string
+	SnapshotID    string
+	// Succeeded is true only for an outcome that wrote a usable snapshot.
+	Succeeded bool
+}
+
+// RestoreRef is the slice of a restore PopulateShadow enqueues per target.
+type RestoreRef struct {
+	ID     string
+	Status string
+}
+
 // Destinations is the destinations-domain seam: list existing destinations and
 // create the reserved safety destination. Implemented by an adapter over
 // destinations.Service in main.go.
@@ -105,10 +131,24 @@ type Plans interface {
 	Update(ctx context.Context, id, name string, targetIDs, destinationIDs []string, keepLatest int32) (PlanRef, error)
 }
 
-// Runs is the runs-domain seam: trigger a manual run. Implemented by an adapter
-// over runs.Service in main.go.
+// Runs is the runs-domain seam: trigger a manual run and read run state for
+// shadow population. Implemented by an adapter over runs.Service in main.go.
 type Runs interface {
 	TriggerManual(ctx context.Context, planID string) (RunRef, error)
+	// GetRun returns a single run plus its per-target snapshot outcomes.
+	GetRun(ctx context.Context, runID string) (RunDetail, error)
+	// LatestTerminalRun returns the newest terminal run for the plan (the most
+	// recent finished safety backup). ok is false when the plan has no terminal
+	// run yet.
+	LatestTerminalRun(ctx context.Context, planID string) (RunDetail, bool, error)
+}
+
+// Restores is the restores-domain seam: restore a snapshot into a shadow
+// namespace. Implemented by an adapter over restores.Service in main.go. The
+// restore runs asynchronously — the returned ref is non-terminal; the caller
+// polls the restores domain for the terminal status.
+type Restores interface {
+	RestoreTarget(ctx context.Context, targetID, destinationID, snapshotID, location string) (RestoreRef, error)
 }
 
 // RuntimeRootFunc resolves the Vrooli runtime root (~/.vrooli) under which the

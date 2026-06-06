@@ -338,6 +338,7 @@ func run(ctx context.Context) error {
 		Targets:      safetyTargets{svc: targetsSvc},
 		Plans:        safetyPlans{svc: plansSvc},
 		Runs:         safetyRuns{svc: runsSvc},
+		Restores:     safetyRestores{svc: restoresSvc},
 		Inspector:    safetyScenarioInspector{insp: scenariospecint.NewInspector()},
 		RuntimeRoot:  discoveryint.RuntimeRoot,
 	})

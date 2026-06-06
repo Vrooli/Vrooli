@@ -279,7 +279,8 @@ func (a safetyPlans) Update(ctx context.Context, id, name string, targetIDs, des
 	return safetyint.PlanRef{ID: p.ID, Name: p.Name}, nil
 }
 
-// safetyRuns adapts runs.Service to safety.Runs (manual-triggered safety run).
+// safetyRuns adapts runs.Service to safety.Runs (manual-triggered safety run +
+// the run reads PopulateShadow needs to find each target's restorable snapshot).
 type safetyRuns struct{ svc runsint.Service }
 
 func (a safetyRuns) TriggerManual(ctx context.Context, planID string) (safetyint.RunRef, error) {
@@ -288,6 +289,72 @@ func (a safetyRuns) TriggerManual(ctx context.Context, planID string) (safetyint
 		return safetyint.RunRef{}, err
 	}
 	return safetyint.RunRef{ID: r.ID, PlanID: r.PlanID, Status: string(r.Status)}, nil
+}
+
+func (a safetyRuns) GetRun(ctx context.Context, runID string) (safetyint.RunDetail, error) {
+	r, err := a.svc.GetRun(ctx, runID)
+	if err != nil {
+		return safetyint.RunDetail{}, err
+	}
+	return safetyRunDetail(r), nil
+}
+
+// safetyRunListLimit bounds the run scan LatestTerminalRun does; the ephemeral
+// safety plan accrues few runs, so the newest terminal one is well within this.
+const safetyRunListLimit = 50
+
+func (a safetyRuns) LatestTerminalRun(ctx context.Context, planID string) (safetyint.RunDetail, bool, error) {
+	// ListRuns returns newest-first, so the first terminal run is the latest.
+	rs, err := a.svc.ListRuns(ctx, planID, safetyRunListLimit)
+	if err != nil {
+		return safetyint.RunDetail{}, false, err
+	}
+	for _, r := range rs {
+		if isTerminalRunStatus(r.Status) {
+			return safetyRunDetail(r), true, nil
+		}
+	}
+	return safetyint.RunDetail{}, false, nil
+}
+
+func safetyRunDetail(r runsint.Run) safetyint.RunDetail {
+	outcomes := make([]safetyint.TargetSnapshot, 0, len(r.Outcomes))
+	for _, o := range r.Outcomes {
+		outcomes = append(outcomes, safetyint.TargetSnapshot{
+			TargetID:      o.TargetID,
+			DestinationID: o.DestinationID,
+			SnapshotID:    o.SnapshotID,
+			Succeeded:     o.Status == runsint.OutcomeSucceeded,
+		})
+	}
+	return safetyint.RunDetail{
+		ID:       r.ID,
+		PlanID:   r.PlanID,
+		Status:   string(r.Status),
+		Terminal: isTerminalRunStatus(r.Status),
+		Outcomes: outcomes,
+	}
+}
+
+func isTerminalRunStatus(s runsint.RunStatus) bool {
+	switch s {
+	case runsint.RunCompleted, runsint.RunPartialFailed, runsint.RunFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+// safetyRestores adapts restores.Service to safety.Restores — PopulateShadow
+// restores each target's safety snapshot into its shadow namespace.
+type safetyRestores struct{ svc restoresint.Service }
+
+func (a safetyRestores) RestoreTarget(ctx context.Context, targetID, destinationID, snapshotID, location string) (safetyint.RestoreRef, error) {
+	r, err := a.svc.RestoreTarget(ctx, targetID, destinationID, snapshotID, location)
+	if err != nil {
+		return safetyint.RestoreRef{}, err
+	}
+	return safetyint.RestoreRef{ID: r.ID, Status: string(r.Status)}, nil
 }
 
 // catalogScanLimit is a generous upper bound for the "list everything" catalog

@@ -42,6 +42,9 @@ const (
 	// SafetyServiceRegisterScenarioTargetsProcedure is the fully-qualified name of the SafetyService's
 	// RegisterScenarioTargets RPC.
 	SafetyServiceRegisterScenarioTargetsProcedure = "/vrooli.data_backup_manager.v1.safety.SafetyService/RegisterScenarioTargets"
+	// SafetyServicePopulateShadowProcedure is the fully-qualified name of the SafetyService's
+	// PopulateShadow RPC.
+	SafetyServicePopulateShadowProcedure = "/vrooli.data_backup_manager.v1.safety.SafetyService/PopulateShadow"
 )
 
 // SafetyServiceClient is a client for the vrooli.data_backup_manager.v1.safety.SafetyService
@@ -71,6 +74,23 @@ type SafetyServiceClient interface {
 	// file path is per-scenario), so they are reported in `skipped` for the
 	// scenario to self-register. Idempotent: a re-run upserts and re-reports.
 	RegisterScenarioTargets(context.Context, *connect.Request[safety.RegisterScenarioTargetsRequest]) (*connect.Response[safety.RegisterScenarioTargetsResponse], error)
+	// PopulateShadow seeds a shadow instance's stateful namespaces with a copy of
+	// live data, by restoring a scenario's already-captured safety snapshots into
+	// caller-chosen shadow destinations. It is the data half of `baseline start`
+	// in shadow mode (the code half is the restore-point copy): each registered
+	// target's latest successful snapshot from a terminal safety run is restored
+	// into the fresh shadow namespace the caller names (Postgres DB, Qdrant
+	// collection, Redis prefix, or an empty filesystem path).
+	//
+	// The caller (the recovery floor) owns shadow-namespace uniqueness + teardown
+	// because the restore OVERWRITES its destination; restoring into an existing
+	// non-empty filesystem directory is refused. The restores execute
+	// asynchronously — poll RestoresService.GetRestore with each returned restore
+	// id for the terminal status. Copy is type-agnostic; whether the shadow
+	// instance then READS the restored data depends on the engine being
+	// variant-namespace-aware (the api-core storage helpers), so an un-adopted
+	// Redis/Qdrant writer is routed to live mode by the decision tree instead.
+	PopulateShadow(context.Context, *connect.Request[safety.PopulateShadowRequest]) (*connect.Response[safety.PopulateShadowResponse], error)
 }
 
 // NewSafetyServiceClient constructs a client for the
@@ -103,6 +123,12 @@ func NewSafetyServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(safetyServiceMethods.ByName("RegisterScenarioTargets")),
 			connect.WithClientOptions(opts...),
 		),
+		populateShadow: connect.NewClient[safety.PopulateShadowRequest, safety.PopulateShadowResponse](
+			httpClient,
+			baseURL+SafetyServicePopulateShadowProcedure,
+			connect.WithSchema(safetyServiceMethods.ByName("PopulateShadow")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -111,6 +137,7 @@ type safetyServiceClient struct {
 	ensureSafetyDestination *connect.Client[safety.EnsureSafetyDestinationRequest, safety.EnsureSafetyDestinationResponse]
 	backupScenarioNow       *connect.Client[safety.BackupScenarioNowRequest, safety.BackupScenarioNowResponse]
 	registerScenarioTargets *connect.Client[safety.RegisterScenarioTargetsRequest, safety.RegisterScenarioTargetsResponse]
+	populateShadow          *connect.Client[safety.PopulateShadowRequest, safety.PopulateShadowResponse]
 }
 
 // EnsureSafetyDestination calls
@@ -128,6 +155,11 @@ func (c *safetyServiceClient) BackupScenarioNow(ctx context.Context, req *connec
 // vrooli.data_backup_manager.v1.safety.SafetyService.RegisterScenarioTargets.
 func (c *safetyServiceClient) RegisterScenarioTargets(ctx context.Context, req *connect.Request[safety.RegisterScenarioTargetsRequest]) (*connect.Response[safety.RegisterScenarioTargetsResponse], error) {
 	return c.registerScenarioTargets.CallUnary(ctx, req)
+}
+
+// PopulateShadow calls vrooli.data_backup_manager.v1.safety.SafetyService.PopulateShadow.
+func (c *safetyServiceClient) PopulateShadow(ctx context.Context, req *connect.Request[safety.PopulateShadowRequest]) (*connect.Response[safety.PopulateShadowResponse], error) {
+	return c.populateShadow.CallUnary(ctx, req)
 }
 
 // SafetyServiceHandler is an implementation of the
@@ -157,6 +189,23 @@ type SafetyServiceHandler interface {
 	// file path is per-scenario), so they are reported in `skipped` for the
 	// scenario to self-register. Idempotent: a re-run upserts and re-reports.
 	RegisterScenarioTargets(context.Context, *connect.Request[safety.RegisterScenarioTargetsRequest]) (*connect.Response[safety.RegisterScenarioTargetsResponse], error)
+	// PopulateShadow seeds a shadow instance's stateful namespaces with a copy of
+	// live data, by restoring a scenario's already-captured safety snapshots into
+	// caller-chosen shadow destinations. It is the data half of `baseline start`
+	// in shadow mode (the code half is the restore-point copy): each registered
+	// target's latest successful snapshot from a terminal safety run is restored
+	// into the fresh shadow namespace the caller names (Postgres DB, Qdrant
+	// collection, Redis prefix, or an empty filesystem path).
+	//
+	// The caller (the recovery floor) owns shadow-namespace uniqueness + teardown
+	// because the restore OVERWRITES its destination; restoring into an existing
+	// non-empty filesystem directory is refused. The restores execute
+	// asynchronously — poll RestoresService.GetRestore with each returned restore
+	// id for the terminal status. Copy is type-agnostic; whether the shadow
+	// instance then READS the restored data depends on the engine being
+	// variant-namespace-aware (the api-core storage helpers), so an un-adopted
+	// Redis/Qdrant writer is routed to live mode by the decision tree instead.
+	PopulateShadow(context.Context, *connect.Request[safety.PopulateShadowRequest]) (*connect.Response[safety.PopulateShadowResponse], error)
 }
 
 // NewSafetyServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -184,6 +233,12 @@ func NewSafetyServiceHandler(svc SafetyServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(safetyServiceMethods.ByName("RegisterScenarioTargets")),
 		connect.WithHandlerOptions(opts...),
 	)
+	safetyServicePopulateShadowHandler := connect.NewUnaryHandler(
+		SafetyServicePopulateShadowProcedure,
+		svc.PopulateShadow,
+		connect.WithSchema(safetyServiceMethods.ByName("PopulateShadow")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.data_backup_manager.v1.safety.SafetyService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SafetyServiceEnsureSafetyDestinationProcedure:
@@ -192,6 +247,8 @@ func NewSafetyServiceHandler(svc SafetyServiceHandler, opts ...connect.HandlerOp
 			safetyServiceBackupScenarioNowHandler.ServeHTTP(w, r)
 		case SafetyServiceRegisterScenarioTargetsProcedure:
 			safetyServiceRegisterScenarioTargetsHandler.ServeHTTP(w, r)
+		case SafetyServicePopulateShadowProcedure:
+			safetyServicePopulateShadowHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -211,4 +268,8 @@ func (UnimplementedSafetyServiceHandler) BackupScenarioNow(context.Context, *con
 
 func (UnimplementedSafetyServiceHandler) RegisterScenarioTargets(context.Context, *connect.Request[safety.RegisterScenarioTargetsRequest]) (*connect.Response[safety.RegisterScenarioTargetsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.safety.SafetyService.RegisterScenarioTargets is not implemented"))
+}
+
+func (UnimplementedSafetyServiceHandler) PopulateShadow(context.Context, *connect.Request[safety.PopulateShadowRequest]) (*connect.Response[safety.PopulateShadowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.safety.SafetyService.PopulateShadow is not implemented"))
 }

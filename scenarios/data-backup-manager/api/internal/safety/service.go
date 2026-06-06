@@ -15,6 +15,16 @@ import (
 // first (e.g. via `targets register`) before requesting a safety snapshot.
 var ErrNoTargets = errors.New("scenario has no registered targets")
 
+// ErrNoSafetyBackup is returned by PopulateShadow when there is no completed
+// safety backup to restore from — the safety destination is missing, or the
+// scenario's ephemeral safety plan has no terminal run yet. The caller runs
+// `safety backup-now` first.
+var ErrNoSafetyBackup = errors.New("no completed safety backup for scenario")
+
+// ErrRunNotTerminal is returned by PopulateShadow when an explicitly-requested
+// run has not finished yet — its snapshots are not safe to restore from.
+var ErrRunNotTerminal = errors.New("safety run is not finished")
+
 // Service is the application surface the safety handlers depend on. It owns the
 // Baseline Modes substrate orchestration; persistence lives in the composed
 // domains, never here.
@@ -35,6 +45,17 @@ type Service interface {
 	// BackupScenarioNow works without a hand-run `targets register`. Kinds that
 	// aren't derivable (Redis/Qdrant/SQLite) are returned in Skipped.
 	RegisterScenarioTargets(ctx context.Context, scenario string) (RegisterTargetsResult, error)
+
+	// PopulateShadow restores a scenario's already-captured safety snapshots into
+	// the caller-chosen shadow namespaces (the data half of `baseline start` in
+	// shadow mode). It resolves the safety run (the given runID, or the latest
+	// terminal run of the ephemeral safety plan when empty), and for each mapping
+	// restores the target's latest successful snapshot into its shadow location.
+	// The restores run asynchronously; poll the restores domain for each. A
+	// mapping with no registered target or no successful snapshot is reported in
+	// Skipped rather than failing the whole call. ErrNoSafetyBackup when there is
+	// nothing to restore from; ErrRunNotTerminal when an explicit run is unfinished.
+	PopulateShadow(ctx context.Context, scenario, runID string, mappings []ShadowMapping) (PopulateShadowResult, error)
 }
 
 // BackupResult is the outcome of a BackupScenarioNow call. The run executes
@@ -66,12 +87,47 @@ type SkippedNote struct {
 	Reason string
 }
 
+// ShadowMapping maps one registered target to the fresh shadow namespace its
+// latest safety snapshot is restored into. The caller owns the namespace's
+// uniqueness + teardown (the restore overwrites it).
+type ShadowMapping struct {
+	TargetName string
+	Location   string
+}
+
+// PopulateShadowResult is the outcome of a PopulateShadow call: the restores
+// enqueued (one per populated target, each non-terminal — poll the restores
+// domain) and the mappings skipped with the reason.
+type PopulateShadowResult struct {
+	Scenario string
+	RunID    string
+	Restores []ShadowRestoreRef
+	Skipped  []ShadowSkip
+}
+
+// ShadowRestoreRef is one enqueued restore of a target's snapshot into its shadow.
+type ShadowRestoreRef struct {
+	TargetName string
+	TargetID   string
+	SnapshotID string
+	RestoreID  string
+	Location   string
+	Status     string
+}
+
+// ShadowSkip records a mapping that was not populated, with the reason.
+type ShadowSkip struct {
+	TargetName string
+	Reason     string
+}
+
 // Deps are the seams the service composes, injected from main.go.
 type Deps struct {
 	Destinations Destinations
 	Targets      Targets
 	Plans        Plans
 	Runs         Runs
+	Restores     Restores
 	Inspector    ScenarioInspector
 	RuntimeRoot  RuntimeRootFunc
 }
@@ -242,4 +298,145 @@ func (s *service) ensureEphemeralPlan(ctx context.Context, name string, targetID
 		return PlanRef{}, fmt.Errorf("create ephemeral plan: %w", err)
 	}
 	return created, nil
+}
+
+func (s *service) PopulateShadow(ctx context.Context, scenario, runID string, mappings []ShadowMapping) (PopulateShadowResult, error) {
+	scenario = strings.TrimSpace(scenario)
+	runID = strings.TrimSpace(runID)
+	if scenario == "" {
+		return PopulateShadowResult{}, errors.New("scenario is required")
+	}
+	if len(mappings) == 0 {
+		return PopulateShadowResult{}, errors.New("at least one target mapping is required")
+	}
+
+	// The snapshots live in the reserved safety destination. It must already
+	// exist — populate-shadow restores from a prior `safety backup-now`, it never
+	// creates the backup.
+	safetyDest, err := s.findSafetyDestination(ctx)
+	if err != nil {
+		return PopulateShadowResult{}, err
+	}
+
+	// Map registered target name -> id so a mapping addresses a target by its
+	// stable name (e.g. "postgres", "data") rather than a generated id.
+	targets, err := s.deps.Targets.ListByOwner(ctx, scenario)
+	if err != nil {
+		return PopulateShadowResult{}, fmt.Errorf("list targets for %q: %w", scenario, err)
+	}
+	targetByName := make(map[string]TargetRef, len(targets))
+	for _, t := range targets {
+		targetByName[t.Name] = t
+	}
+
+	run, err := s.resolveSafetyRun(ctx, scenario, runID)
+	if err != nil {
+		return PopulateShadowResult{}, err
+	}
+
+	// Index the run's successful snapshots in the safety destination by target.
+	snapshotByTarget := make(map[string]string, len(run.Outcomes))
+	for _, o := range run.Outcomes {
+		if o.DestinationID == safetyDest.ID && o.Succeeded && o.SnapshotID != "" {
+			snapshotByTarget[o.TargetID] = o.SnapshotID
+		}
+	}
+
+	res := PopulateShadowResult{Scenario: scenario, RunID: run.ID}
+	for _, m := range mappings {
+		name := strings.TrimSpace(m.TargetName)
+		location := strings.TrimSpace(m.Location)
+		if name == "" || location == "" {
+			res.Skipped = append(res.Skipped, ShadowSkip{TargetName: name, Reason: "mapping requires both target_name and location"})
+			continue
+		}
+		target, ok := targetByName[name]
+		if !ok {
+			res.Skipped = append(res.Skipped, ShadowSkip{TargetName: name, Reason: fmt.Sprintf("no target named %q registered under %q", name, scenario)})
+			continue
+		}
+		snapshotID, ok := snapshotByTarget[target.ID]
+		if !ok {
+			res.Skipped = append(res.Skipped, ShadowSkip{TargetName: name, Reason: fmt.Sprintf("target %q has no successful snapshot in safety run %s", name, run.ID)})
+			continue
+		}
+		// The restore overwrites its destination, so the caller must hand us a
+		// fresh shadow namespace; a non-empty existing filesystem dir is refused
+		// by the restores domain and surfaces here as a per-mapping skip (the
+		// other mappings still proceed).
+		restore, err := s.deps.Restores.RestoreTarget(ctx, target.ID, safetyDest.ID, snapshotID, location)
+		if err != nil {
+			res.Skipped = append(res.Skipped, ShadowSkip{TargetName: name, Reason: fmt.Sprintf("restore into %q failed: %v", location, err)})
+			continue
+		}
+		res.Restores = append(res.Restores, ShadowRestoreRef{
+			TargetName: name,
+			TargetID:   target.ID,
+			SnapshotID: snapshotID,
+			RestoreID:  restore.ID,
+			Location:   location,
+			Status:     restore.Status,
+		})
+	}
+	return res, nil
+}
+
+// findSafetyDestination returns the reserved baseline-safety destination, or
+// ErrNoSafetyBackup when it has never been provisioned (so no snapshot exists).
+func (s *service) findSafetyDestination(ctx context.Context) (DestinationRef, error) {
+	existing, err := s.deps.Destinations.List(ctx)
+	if err != nil {
+		return DestinationRef{}, fmt.Errorf("list destinations: %w", err)
+	}
+	for _, d := range existing {
+		if d.Name == SafetyDestinationName {
+			return d, nil
+		}
+	}
+	return DestinationRef{}, fmt.Errorf("%w: safety destination not provisioned; run `safety backup-now` first", ErrNoSafetyBackup)
+}
+
+// resolveSafetyRun resolves the safety run whose snapshots populate the shadow.
+// An explicit runID must be terminal; an empty runID resolves the latest
+// terminal run of the scenario's ephemeral safety plan.
+func (s *service) resolveSafetyRun(ctx context.Context, scenario, runID string) (RunDetail, error) {
+	if runID != "" {
+		run, err := s.deps.Runs.GetRun(ctx, runID)
+		if err != nil {
+			return RunDetail{}, fmt.Errorf("get safety run %q: %w", runID, err)
+		}
+		if !run.Terminal {
+			return RunDetail{}, fmt.Errorf("%w: run %s is %s", ErrRunNotTerminal, runID, run.Status)
+		}
+		return run, nil
+	}
+
+	planName := ephemeralPlanPrefix + scenario
+	planID, err := s.findPlanID(ctx, planName)
+	if err != nil {
+		return RunDetail{}, err
+	}
+	run, ok, err := s.deps.Runs.LatestTerminalRun(ctx, planID)
+	if err != nil {
+		return RunDetail{}, fmt.Errorf("resolve latest safety run: %w", err)
+	}
+	if !ok {
+		return RunDetail{}, fmt.Errorf("%w: ephemeral safety plan has no finished run; run `safety backup-now --scenario %s` first", ErrNoSafetyBackup, scenario)
+	}
+	return run, nil
+}
+
+// findPlanID resolves the ephemeral safety plan id by name, or ErrNoSafetyBackup
+// when it was never built (so no backup has run).
+func (s *service) findPlanID(ctx context.Context, name string) (string, error) {
+	plans, err := s.deps.Plans.List(ctx)
+	if err != nil {
+		return "", fmt.Errorf("list plans: %w", err)
+	}
+	for _, p := range plans {
+		if p.Name == name {
+			return p.ID, nil
+		}
+	}
+	return "", fmt.Errorf("%w: no ephemeral safety plan %q", ErrNoSafetyBackup, name)
 }

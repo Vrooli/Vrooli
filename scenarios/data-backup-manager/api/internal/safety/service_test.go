@@ -3,6 +3,7 @@ package safety
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"data-backup-manager/internal/sources"
@@ -100,12 +101,58 @@ func (f *fakePlans) Update(_ context.Context, id, name string, targetIDs, destin
 type fakeRuns struct {
 	calls      int
 	lastPlanID string
+
+	// PopulateShadow reads (all optional; zero value is "not configured").
+	getByID      map[string]RunDetail
+	getErr       error
+	latestByPlan map[string]RunDetail
+	latestErr    error
 }
 
 func (f *fakeRuns) TriggerManual(_ context.Context, planID string) (RunRef, error) {
 	f.calls++
 	f.lastPlanID = planID
 	return RunRef{ID: "run-1", PlanID: planID, Status: "pending"}, nil
+}
+
+func (f *fakeRuns) GetRun(_ context.Context, runID string) (RunDetail, error) {
+	if f.getErr != nil {
+		return RunDetail{}, f.getErr
+	}
+	r, ok := f.getByID[runID]
+	if !ok {
+		return RunDetail{}, fmt.Errorf("run %q not found", runID)
+	}
+	return r, nil
+}
+
+func (f *fakeRuns) LatestTerminalRun(_ context.Context, planID string) (RunDetail, bool, error) {
+	if f.latestErr != nil {
+		return RunDetail{}, false, f.latestErr
+	}
+	r, ok := f.latestByPlan[planID]
+	return r, ok, nil
+}
+
+// fakeRestores records the RestoreTarget calls PopulateShadow makes and returns
+// a deterministic non-terminal restore ref (or a configured error).
+type fakeRestores struct {
+	calls   []restoreCall
+	err     error
+	nextNum int
+}
+
+type restoreCall struct {
+	targetID, destID, snapshotID, location string
+}
+
+func (f *fakeRestores) RestoreTarget(_ context.Context, targetID, destID, snapshotID, location string) (RestoreRef, error) {
+	if f.err != nil {
+		return RestoreRef{}, f.err
+	}
+	f.calls = append(f.calls, restoreCall{targetID: targetID, destID: destID, snapshotID: snapshotID, location: location})
+	f.nextNum++
+	return RestoreRef{ID: fmt.Sprintf("restore-%d", f.nextNum), Status: "requested"}, nil
 }
 
 func fixedRoot(p string) RuntimeRootFunc { return func() string { return p } }

@@ -63,4 +63,23 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		CLIMapping: &module.CLIMapping{Command: "data-backup-manager safety register-targets", Args: []string{"--scenario", "<scenario>"}},
 	},
+	{
+		ID:          "safety_populate_shadow",
+		Path:        safetyconnect.SafetyServicePopulateShadowProcedure,
+		Method:      "POST",
+		Summary:     "Populate a shadow with a scenario's safety snapshots",
+		Description: "Restores a scenario's already-captured safety snapshots into caller-chosen shadow namespaces (the data half of `baseline start` in shadow mode). Resolves the safety run (explicit run_id, or the latest terminal run), and for each mapping restores the target's latest successful snapshot into its shadow location. Restores run asynchronously; poll `restores get <id>`. Mappings with no target or no snapshot are returned in `skipped`.",
+		Category:    "safety",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string (required)", "run_id": "string (optional)", "mappings": "ShadowTargetMapping[] (required; {target_name, location})"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "run_id": "string", "restores": "ShadowRestore[]", "skipped": "ShadowPopulateSkip[]"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing scenario or no mappings"},
+			{Status: 412, Code: "failed_precondition", Description: "No completed safety backup, or the requested run is unfinished"},
+			{Status: 500, Code: "internal", Description: "Target/run lookup or restore orchestration failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Populate a shadow's postgres + data", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/PopulateShadow -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\",\"mappings\":[{\"target_name\":\"postgres\",\"location\":\"vrooli_swarm-manager_shadow\"}]}'"},
+		},
+		CLIMapping: &module.CLIMapping{Command: "data-backup-manager safety populate-shadow", Args: []string{"--scenario", "<scenario>", "--mappings", "<name=location,...>"}},
+	},
 }

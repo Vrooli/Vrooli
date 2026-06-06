@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file data-backup-manager/v1/safety/safety.proto.
  */
 export const file_data_backup_manager_v1_safety_safety: GenFile = /*@__PURE__*/
-  fileDesc("CipkYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL3NhZmV0eS9zYWZldHkucHJvdG8SJHZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnNhZmV0eSJcChFTYWZldHlEZXN0aW5hdGlvbhIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhAKCGxvY2F0aW9uGAMgASgJEhsKE3JlcG9zaXRvcnlfbG9jYXRpb24YBCABKAkiPAoeRW5zdXJlU2FmZXR5RGVzdGluYXRpb25SZXF1ZXN0EhoKCWNhcF9ieXRlcxgBIAEoA0IHukgEIgIoACKAAQofRW5zdXJlU2FmZXR5RGVzdGluYXRpb25SZXNwb25zZRJMCgtkZXN0aW5hdGlvbhgBIAEoCzI3LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnNhZmV0eS5TYWZldHlEZXN0aW5hdGlvbhIPCgdjcmVhdGVkGAIgASgIIlMKGEJhY2t1cFNjZW5hcmlvTm93UmVxdWVzdBIZCghzY2VuYXJpbxgBIAEoCUIHukgEcgIQARIcCgtrZWVwX2xhdGVzdBgCIAEoBUIHukgEGgIoACJ6ChlCYWNrdXBTY2VuYXJpb05vd1Jlc3BvbnNlEg4KBnJ1bl9pZBgBIAEoCRIPCgdwbGFuX2lkGAIgASgJEhYKDmRlc3RpbmF0aW9uX2lkGAMgASgJEhQKDHRhcmdldF9jb3VudBgEIAEoBRIOCgZzdGF0dXMYBSABKAkiOwoeUmVnaXN0ZXJTY2VuYXJpb1RhcmdldHNSZXF1ZXN0EhkKCHNjZW5hcmlvGAEgASgJQge6SARyAhABIkYKEFJlZ2lzdGVyZWRUYXJnZXQSDAoEbmFtZRgBIAEoCRITCgtzb3VyY2Vfa2luZBgCIAEoCRIPCgdsb2NhdG9yGAMgASgJIjQKDVNraXBwZWRUYXJnZXQSEwoLc291cmNlX2tpbmQYASABKAkSDgoGcmVhc29uGAIgASgJIsUBCh9SZWdpc3RlclNjZW5hcmlvVGFyZ2V0c1Jlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEkoKCnJlZ2lzdGVyZWQYAiADKAsyNi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5zYWZldHkuUmVnaXN0ZXJlZFRhcmdldBJECgdza2lwcGVkGAMgAygLMjMudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuc2FmZXR5LlNraXBwZWRUYXJnZXQy+AMKDVNhZmV0eVNlcnZpY2USpgEKF0Vuc3VyZVNhZmV0eURlc3RpbmF0aW9uEkQudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuc2FmZXR5LkVuc3VyZVNhZmV0eURlc3RpbmF0aW9uUmVxdWVzdBpFLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnNhZmV0eS5FbnN1cmVTYWZldHlEZXN0aW5hdGlvblJlc3BvbnNlEpQBChFCYWNrdXBTY2VuYXJpb05vdxI+LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnNhZmV0eS5CYWNrdXBTY2VuYXJpb05vd1JlcXVlc3QaPy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5zYWZldHkuQmFja3VwU2NlbmFyaW9Ob3dSZXNwb25zZRKmAQoXUmVnaXN0ZXJTY2VuYXJpb1RhcmdldHMSRC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5zYWZldHkuUmVnaXN0ZXJTY2VuYXJpb1RhcmdldHNSZXF1ZXN0GkUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuc2FmZXR5LlJlZ2lzdGVyU2NlbmFyaW9UYXJnZXRzUmVzcG9uc2VCWFpWZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL3NhZmV0eTtzYWZldHlfdjFiBnByb3RvMw", [file_buf_validate_validate]);
+  fileDesc("CipkYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL3NhZmV0eS9zYWZldHkucHJvdG8SJHZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnNhZmV0eSJcChFTYWZldHlEZXN0aW5hdGlvbhIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhAKCGxvY2F0aW9uGAMgASgJEhsKE3JlcG9zaXRvcnlfbG9jYXRpb24YBCABKAkiPAoeRW5zdXJlU2FmZXR5RGVzdGluYXRpb25SZXF1ZXN0EhoKCWNhcF9ieXRlcxgBIAEoA0IHukgEIgIoACKAAQofRW5zdXJlU2FmZXR5RGVzdGluYXRpb25SZXNwb25zZRJMCgtkZXN0aW5hdGlvbhgBIAEoCzI3LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnNhZmV0eS5TYWZldHlEZXN0aW5hdGlvbhIPCgdjcmVhdGVkGAIgASgIIlMKGEJhY2t1cFNjZW5hcmlvTm93UmVxdWVzdBIZCghzY2VuYXJpbxgBIAEoCUIHukgEcgIQARIcCgtrZWVwX2xhdGVzdBgCIAEoBUIHukgEGgIoACJ6ChlCYWNrdXBTY2VuYXJpb05vd1Jlc3BvbnNlEg4KBnJ1bl9pZBgBIAEoCRIPCgdwbGFuX2lkGAIgASgJEhYKDmRlc3RpbmF0aW9uX2lkGAMgASgJEhQKDHRhcmdldF9jb3VudBgEIAEoBRIOCgZzdGF0dXMYBSABKAkiOwoeUmVnaXN0ZXJTY2VuYXJpb1RhcmdldHNSZXF1ZXN0EhkKCHNjZW5hcmlvGAEgASgJQge6SARyAhABIkYKEFJlZ2lzdGVyZWRUYXJnZXQSDAoEbmFtZRgBIAEoCRITCgtzb3VyY2Vfa2luZBgCIAEoCRIPCgdsb2NhdG9yGAMgASgJIjQKDVNraXBwZWRUYXJnZXQSEwoLc291cmNlX2tpbmQYASABKAkSDgoGcmVhc29uGAIgASgJIsUBCh9SZWdpc3RlclNjZW5hcmlvVGFyZ2V0c1Jlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEkoKCnJlZ2lzdGVyZWQYAiADKAsyNi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5zYWZldHkuUmVnaXN0ZXJlZFRhcmdldBJECgdza2lwcGVkGAMgAygLMjMudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuc2FmZXR5LlNraXBwZWRUYXJnZXQimQEKFVBvcHVsYXRlU2hhZG93UmVxdWVzdBIZCghzY2VuYXJpbxgBIAEoCUIHukgEcgIQARIOCgZydW5faWQYAiABKAkSVQoIbWFwcGluZ3MYAyADKAsyOS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5zYWZldHkuU2hhZG93VGFyZ2V0TWFwcGluZ0IIukgFkgECCAEiTgoTU2hhZG93VGFyZ2V0TWFwcGluZxIcCgt0YXJnZXRfbmFtZRgBIAEoCUIHukgEcgIQARIZCghsb2NhdGlvbhgCIAEoCUIHukgEcgIQASLMAQoWUG9wdWxhdGVTaGFkb3dSZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkSRQoIcmVzdG9yZXMYAyADKAsyMy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5zYWZldHkuU2hhZG93UmVzdG9yZRJJCgdza2lwcGVkGAQgAygLMjgudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuc2FmZXR5LlNoYWRvd1BvcHVsYXRlU2tpcCKCAQoNU2hhZG93UmVzdG9yZRITCgt0YXJnZXRfbmFtZRgBIAEoCRIRCgl0YXJnZXRfaWQYAiABKAkSEwoLc25hcHNob3RfaWQYAyABKAkSEgoKcmVzdG9yZV9pZBgEIAEoCRIQCghsb2NhdGlvbhgFIAEoCRIOCgZzdGF0dXMYBiABKAkiOQoSU2hhZG93UG9wdWxhdGVTa2lwEhMKC3RhcmdldF9uYW1lGAEgASgJEg4KBnJlYXNvbhgCIAEoCTKGBQoNU2FmZXR5U2VydmljZRKmAQoXRW5zdXJlU2FmZXR5RGVzdGluYXRpb24SRC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5zYWZldHkuRW5zdXJlU2FmZXR5RGVzdGluYXRpb25SZXF1ZXN0GkUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuc2FmZXR5LkVuc3VyZVNhZmV0eURlc3RpbmF0aW9uUmVzcG9uc2USlAEKEUJhY2t1cFNjZW5hcmlvTm93Ej4udnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuc2FmZXR5LkJhY2t1cFNjZW5hcmlvTm93UmVxdWVzdBo/LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnNhZmV0eS5CYWNrdXBTY2VuYXJpb05vd1Jlc3BvbnNlEqYBChdSZWdpc3RlclNjZW5hcmlvVGFyZ2V0cxJELnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnNhZmV0eS5SZWdpc3RlclNjZW5hcmlvVGFyZ2V0c1JlcXVlc3QaRS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5zYWZldHkuUmVnaXN0ZXJTY2VuYXJpb1RhcmdldHNSZXNwb25zZRKLAQoOUG9wdWxhdGVTaGFkb3cSOy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5zYWZldHkuUG9wdWxhdGVTaGFkb3dSZXF1ZXN0GjwudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuc2FmZXR5LlBvcHVsYXRlU2hhZG93UmVzcG9uc2VCWFpWZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL3NhZmV0eTtzYWZldHlfdjFiBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * SafetyDestination is the lean projection of the reserved baseline-safety
@@ -293,6 +293,195 @@ export const RegisterScenarioTargetsResponseSchema: GenMessage<RegisterScenarioT
   messageDesc(file_data_backup_manager_v1_safety_safety, 8);
 
 /**
+ * @generated from message vrooli.data_backup_manager.v1.safety.PopulateShadowRequest
+ */
+export type PopulateShadowRequest = Message<"vrooli.data_backup_manager.v1.safety.PopulateShadowRequest"> & {
+  /**
+   * Scenario whose registered targets (owner=scenario) and safety snapshots to
+   * restore into the shadow.
+   *
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * Optional id of the terminal safety run whose snapshots to restore. Empty
+   * resolves the latest terminal run of the scenario's ephemeral safety plan.
+   *
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+
+  /**
+   * The per-target shadow destinations to populate; at least one is required.
+   *
+   * @generated from field: repeated vrooli.data_backup_manager.v1.safety.ShadowTargetMapping mappings = 3;
+   */
+  mappings: ShadowTargetMapping[];
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.safety.PopulateShadowRequest.
+ * Use `create(PopulateShadowRequestSchema)` to create a new message.
+ */
+export const PopulateShadowRequestSchema: GenMessage<PopulateShadowRequest> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_safety_safety, 9);
+
+/**
+ * ShadowTargetMapping maps one registered target to the fresh shadow namespace
+ * its latest safety snapshot is restored into.
+ *
+ * @generated from message vrooli.data_backup_manager.v1.safety.ShadowTargetMapping
+ */
+export type ShadowTargetMapping = Message<"vrooli.data_backup_manager.v1.safety.ShadowTargetMapping"> & {
+  /**
+   * Registered target name within owner=scenario (e.g. "postgres", "data").
+   *
+   * @generated from field: string target_name = 1;
+   */
+  targetName: string;
+
+  /**
+   * The fresh shadow namespace/location the snapshot restores into: a Postgres
+   * DB name, Qdrant collection, Redis prefix, or an empty/new filesystem path.
+   * The caller owns its uniqueness + teardown; restoring into an existing
+   * non-empty filesystem directory is refused (fail-closed, no overwrite).
+   *
+   * @generated from field: string location = 2;
+   */
+  location: string;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.safety.ShadowTargetMapping.
+ * Use `create(ShadowTargetMappingSchema)` to create a new message.
+ */
+export const ShadowTargetMappingSchema: GenMessage<ShadowTargetMapping> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_safety_safety, 10);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.safety.PopulateShadowResponse
+ */
+export type PopulateShadowResponse = Message<"vrooli.data_backup_manager.v1.safety.PopulateShadowResponse"> & {
+  /**
+   * Echoes the scenario whose shadow was populated.
+   *
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * The resolved safety run whose snapshots were restored.
+   *
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+
+  /**
+   * The restores enqueued, one per populated target. Each runs asynchronously;
+   * poll `restores get <id>` for the terminal status.
+   *
+   * @generated from field: repeated vrooli.data_backup_manager.v1.safety.ShadowRestore restores = 3;
+   */
+  restores: ShadowRestore[];
+
+  /**
+   * Mappings that could not be populated, with the reason (unknown target name,
+   * no successful snapshot in the run, or a restore precondition failure).
+   *
+   * @generated from field: repeated vrooli.data_backup_manager.v1.safety.ShadowPopulateSkip skipped = 4;
+   */
+  skipped: ShadowPopulateSkip[];
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.safety.PopulateShadowResponse.
+ * Use `create(PopulateShadowResponseSchema)` to create a new message.
+ */
+export const PopulateShadowResponseSchema: GenMessage<PopulateShadowResponse> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_safety_safety, 11);
+
+/**
+ * ShadowRestore is one enqueued restore of a target's snapshot into its shadow.
+ *
+ * @generated from message vrooli.data_backup_manager.v1.safety.ShadowRestore
+ */
+export type ShadowRestore = Message<"vrooli.data_backup_manager.v1.safety.ShadowRestore"> & {
+  /**
+   * The registered target name the mapping addressed.
+   *
+   * @generated from field: string target_name = 1;
+   */
+  targetName: string;
+
+  /**
+   * The resolved target id.
+   *
+   * @generated from field: string target_id = 2;
+   */
+  targetId: string;
+
+  /**
+   * The snapshot restored (the target's latest success in the safety run).
+   *
+   * @generated from field: string snapshot_id = 3;
+   */
+  snapshotId: string;
+
+  /**
+   * The enqueued restore id; poll `restores get <id>` for the terminal status.
+   *
+   * @generated from field: string restore_id = 4;
+   */
+  restoreId: string;
+
+  /**
+   * The shadow namespace/location the snapshot is being restored into.
+   *
+   * @generated from field: string location = 5;
+   */
+  location: string;
+
+  /**
+   * The restore's (non-terminal) status at enqueue time.
+   *
+   * @generated from field: string status = 6;
+   */
+  status: string;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.safety.ShadowRestore.
+ * Use `create(ShadowRestoreSchema)` to create a new message.
+ */
+export const ShadowRestoreSchema: GenMessage<ShadowRestore> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_safety_safety, 12);
+
+/**
+ * ShadowPopulateSkip records a mapping that was not populated, with the reason.
+ *
+ * @generated from message vrooli.data_backup_manager.v1.safety.ShadowPopulateSkip
+ */
+export type ShadowPopulateSkip = Message<"vrooli.data_backup_manager.v1.safety.ShadowPopulateSkip"> & {
+  /**
+   * @generated from field: string target_name = 1;
+   */
+  targetName: string;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.safety.ShadowPopulateSkip.
+ * Use `create(ShadowPopulateSkipSchema)` to create a new message.
+ */
+export const ShadowPopulateSkipSchema: GenMessage<ShadowPopulateSkip> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_safety_safety, 13);
+
+/**
  * @generated from service vrooli.data_backup_manager.v1.safety.SafetyService
  */
 export const SafetyService: GenService<{
@@ -343,6 +532,31 @@ export const SafetyService: GenService<{
     methodKind: "unary";
     input: typeof RegisterScenarioTargetsRequestSchema;
     output: typeof RegisterScenarioTargetsResponseSchema;
+  },
+  /**
+   * PopulateShadow seeds a shadow instance's stateful namespaces with a copy of
+   * live data, by restoring a scenario's already-captured safety snapshots into
+   * caller-chosen shadow destinations. It is the data half of `baseline start`
+   * in shadow mode (the code half is the restore-point copy): each registered
+   * target's latest successful snapshot from a terminal safety run is restored
+   * into the fresh shadow namespace the caller names (Postgres DB, Qdrant
+   * collection, Redis prefix, or an empty filesystem path).
+   *
+   * The caller (the recovery floor) owns shadow-namespace uniqueness + teardown
+   * because the restore OVERWRITES its destination; restoring into an existing
+   * non-empty filesystem directory is refused. The restores execute
+   * asynchronously — poll RestoresService.GetRestore with each returned restore
+   * id for the terminal status. Copy is type-agnostic; whether the shadow
+   * instance then READS the restored data depends on the engine being
+   * variant-namespace-aware (the api-core storage helpers), so an un-adopted
+   * Redis/Qdrant writer is routed to live mode by the decision tree instead.
+   *
+   * @generated from rpc vrooli.data_backup_manager.v1.safety.SafetyService.PopulateShadow
+   */
+  populateShadow: {
+    methodKind: "unary";
+    input: typeof PopulateShadowRequestSchema;
+    output: typeof PopulateShadowResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_data_backup_manager_v1_safety_safety, 0);

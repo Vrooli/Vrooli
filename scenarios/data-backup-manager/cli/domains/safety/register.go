@@ -24,6 +24,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"SafetyService.EnsureSafetyDestination": h.ensureDestination,
 		"SafetyService.BackupScenarioNow":       h.backupNow,
 		"SafetyService.RegisterScenarioTargets": h.registerTargets,
+		"SafetyService.PopulateShadow":          h.populateShadow,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

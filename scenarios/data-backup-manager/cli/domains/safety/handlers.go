@@ -118,6 +118,75 @@ func (h *handlers) registerTargets(ctx cliapp.RunContext) error {
 	})
 }
 
+// populateShadow restores a scenario's safety snapshots into the caller-named
+// shadow namespaces (the data half of `baseline start` in shadow mode). The
+// restores run asynchronously — poll `restores get <id>` for each.
+func (h *handlers) populateShadow(ctx cliapp.RunContext) error {
+	mappings, err := parseShadowMappings(ctx.Flag("mappings"))
+	if err != nil {
+		return fmt.Errorf("--mappings: %w", err)
+	}
+	resp, err := h.client.PopulateShadow(context.Background(), connect.NewRequest(&safetyv1.PopulateShadowRequest{
+		Scenario: ctx.Flag("scenario"),
+		RunId:    ctx.Flag("run-id"),
+		Mappings: mappings,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("populate shadow", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no response")
+	}
+	m := resp.Msg
+	changes := make([]string, 0, len(m.Restores)+len(m.Skipped))
+	next := make([]string, 0, len(m.Restores))
+	for _, r := range m.Restores {
+		changes = append(changes, fmt.Sprintf("restoring %s [%s] → %s (restore=%s status=%s)", r.TargetName, r.SnapshotId, r.Location, r.RestoreId, r.Status))
+		next = append(next, fmt.Sprintf("`restores get %s` — poll the restore until it reaches a terminal state", r.RestoreId))
+	}
+	for _, s := range m.Skipped {
+		changes = append(changes, fmt.Sprintf("skipped %s — %s", s.TargetName, s.Reason))
+	}
+	result := fmt.Sprintf("Populating shadow for %q from safety run %s: %d restore(s) enqueued, %d skipped.", m.Scenario, m.RunId, len(m.Restores), len(m.Skipped))
+	if len(m.Restores) == 0 {
+		result = fmt.Sprintf("No shadow restores enqueued for %q (run %s); %d mapping(s) skipped.", m.Scenario, m.RunId, len(m.Skipped))
+	}
+	return cliapp.RenderProtoMutation(ctx, m, cliapp.MutationReport{
+		Result:      []string{result},
+		Changes:     changes,
+		NextCommand: next,
+	})
+}
+
+// parseShadowMappings parses a comma-separated `target_name=location` list into
+// the proto mapping slice. A filesystem location may itself contain no comma; a
+// path with an '=' is preserved (only the first '=' splits name from location).
+func parseShadowMappings(raw string) ([]*safetyv1.ShadowTargetMapping, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, fmt.Errorf("at least one target_name=location mapping is required")
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]*safetyv1.ShadowTargetMapping, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		name, location, ok := strings.Cut(p, "=")
+		name = strings.TrimSpace(name)
+		location = strings.TrimSpace(location)
+		if !ok || name == "" || location == "" {
+			return nil, fmt.Errorf("invalid mapping %q (expected target_name=location)", p)
+		}
+		out = append(out, &safetyv1.ShadowTargetMapping{TargetName: name, Location: location})
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("at least one target_name=location mapping is required")
+	}
+	return out, nil
+}
+
 // parseOptionalInt64 parses an optional non-negative int64 flag; empty -> 0.
 func parseOptionalInt64(s string) (int64, error) {
 	s = strings.TrimSpace(s)

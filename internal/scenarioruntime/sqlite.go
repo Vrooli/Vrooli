@@ -16,6 +16,7 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 
+	// Register the pure-Go SQLite driver ("sqlite") used by sql.Open below.
 	_ "modernc.org/sqlite"
 )
 
@@ -105,6 +106,10 @@ func (s *SQLiteStore) CreateInstance(ctx context.Context, in Instance) (Instance
 	if strings.TrimSpace(in.Scenario) == "" {
 		return Instance{}, fmt.Errorf("create instance: scenario is required")
 	}
+	// Normalize the variant through the InstanceKey SSOT so an empty/whitespace
+	// variant becomes "live" and casing is canonical — the per-(scenario,variant)
+	// uniqueness and generation counter depend on it being normalized.
+	in.Variant = InstanceKey{Scenario: in.Scenario, Variant: in.Variant}.Normalize().Variant
 	now := s.now()
 	if in.Status == "" {
 		in.Status = StatusStarting
@@ -123,7 +128,7 @@ func (s *SQLiteStore) CreateInstance(ctx context.Context, in Instance) (Instance
 
 	err := s.withTx(ctx, func(tx *sql.Tx) error {
 		if in.Generation <= 0 {
-			next, err := nextGeneration(ctx, tx, in.Scenario)
+			next, err := nextGeneration(ctx, tx, in.Scenario, in.Variant)
 			if err != nil {
 				return err
 			}
@@ -131,13 +136,13 @@ func (s *SQLiteStore) CreateInstance(ctx context.Context, in Instance) (Instance
 		}
 		_, err := tx.ExecContext(ctx, `
 INSERT INTO runtime_instances (
-  instance_id, scenario, generation, scope_path, sandbox_id, status, phase,
+  instance_id, scenario, variant, generation, scope_path, sandbox_id, status, phase,
   started_at, updated_at, last_heartbeat_at, heartbeat_deadline_at, stopped_at,
   stop_reason, owner_kind, owner_pid, working_dir, host_boot_id, host_session_id,
   supervisor_id, supervised_at, last_reconciled_at, reconciliation_status,
   reconciliation_reason, supervision_policy, schema_version
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			in.InstanceID, in.Scenario, in.Generation, in.ScopePath, in.SandboxID, in.Status, in.Phase,
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			in.InstanceID, in.Scenario, in.Variant, in.Generation, in.ScopePath, in.SandboxID, in.Status, in.Phase,
 			formatTime(in.StartedAt), formatTime(in.UpdatedAt), formatOptionalTime(in.LastHeartbeatAt),
 			formatOptionalTime(in.HeartbeatDeadlineAt), formatOptionalTime(in.StoppedAt),
 			in.StopReason, in.OwnerKind, optionalIntValue(in.OwnerPID), in.WorkingDir, in.HostBootID, in.HostSessionID,
@@ -194,6 +199,10 @@ func (s *SQLiteStore) ListInstances(ctx context.Context, filter InstanceFilter) 
 		clauses = append(clauses, "scenario = ?")
 		args = append(args, filter.Scenario)
 	}
+	if filter.Variant != "" {
+		clauses = append(clauses, "variant = ?")
+		args = append(args, filter.Variant)
+	}
 	if len(filter.Statuses) > 0 {
 		clauses = append(clauses, "status IN ("+placeholders(len(filter.Statuses))+")")
 		for _, status := range filter.Statuses {
@@ -227,6 +236,7 @@ func (s *SQLiteStore) AcquirePortClaim(ctx context.Context, claim PortClaim) (Po
 	if strings.TrimSpace(claim.Scenario) == "" {
 		return PortClaim{}, fmt.Errorf("acquire port claim: scenario is required")
 	}
+	claim.Variant = InstanceKey{Scenario: claim.Scenario, Variant: claim.Variant}.Normalize().Variant
 	if claim.Port <= 0 {
 		return PortClaim{}, fmt.Errorf("acquire port claim: port must be positive")
 	}
@@ -248,12 +258,12 @@ func (s *SQLiteStore) AcquirePortClaim(ctx context.Context, claim PortClaim) (Po
 	err := s.withTx(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `
 INSERT INTO runtime_port_claims (
-  claim_id, instance_id, scenario, port_name, env_var, port, bind_host, url,
+  claim_id, instance_id, scenario, variant, port_name, env_var, port, bind_host, url,
   status, created_at, updated_at, expires_at, last_bound_at, last_listener_check_at,
   last_listener_seen_at, first_unbound_at, consecutive_listener_misses, listener_status,
   listener_pid, listener_process_label
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			claim.ClaimID, claim.InstanceID, claim.Scenario, claim.PortName, claim.EnvVar, claim.Port, claim.BindHost,
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			claim.ClaimID, claim.InstanceID, claim.Scenario, claim.Variant, claim.PortName, claim.EnvVar, claim.Port, claim.BindHost,
 			claim.URL, claim.Status, formatTime(claim.CreatedAt), formatTime(claim.UpdatedAt),
 			formatOptionalTime(claim.ExpiresAt), formatOptionalTime(claim.LastBoundAt),
 			formatOptionalTime(claim.LastListenerCheckAt), formatOptionalTime(claim.LastListenerSeenAt),
@@ -461,6 +471,10 @@ func (s *SQLiteStore) ListPortClaims(ctx context.Context, filter PortClaimFilter
 	if filter.Scenario != "" {
 		clauses = append(clauses, "scenario = ?")
 		args = append(args, filter.Scenario)
+	}
+	if filter.Variant != "" {
+		clauses = append(clauses, "variant = ?")
+		args = append(args, filter.Variant)
 	}
 	if filter.InstanceID != "" {
 		clauses = append(clauses, "instance_id = ?")
@@ -754,9 +768,9 @@ func buildReadOnlyDSN(path string) string {
 	return "file:" + url.PathEscape(path) + "?mode=ro&nolock=1&_pragma=foreign_keys(ON)&_pragma=query_only(ON)&_pragma=busy_timeout(10000)&_pragma=temp_store(MEMORY)"
 }
 
-func nextGeneration(ctx context.Context, tx *sql.Tx, scenario string) (int64, error) {
+func nextGeneration(ctx context.Context, tx *sql.Tx, scenario, variant string) (int64, error) {
 	var generation sql.NullInt64
-	if err := tx.QueryRowContext(ctx, `SELECT MAX(generation) FROM runtime_instances WHERE scenario = ?`, scenario).Scan(&generation); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT MAX(generation) FROM runtime_instances WHERE scenario = ? AND variant = ?`, scenario, variant).Scan(&generation); err != nil {
 		return 0, fmt.Errorf("read next runtime generation: %w", err)
 	}
 	if !generation.Valid {

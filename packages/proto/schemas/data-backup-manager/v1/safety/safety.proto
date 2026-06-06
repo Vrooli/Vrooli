@@ -64,6 +64,24 @@ service SafetyService {
   // file path is per-scenario), so they are reported in `skipped` for the
   // scenario to self-register. Idempotent: a re-run upserts and re-reports.
   rpc RegisterScenarioTargets(RegisterScenarioTargetsRequest) returns (RegisterScenarioTargetsResponse);
+
+  // PopulateShadow seeds a shadow instance's stateful namespaces with a copy of
+  // live data, by restoring a scenario's already-captured safety snapshots into
+  // caller-chosen shadow destinations. It is the data half of `baseline start`
+  // in shadow mode (the code half is the restore-point copy): each registered
+  // target's latest successful snapshot from a terminal safety run is restored
+  // into the fresh shadow namespace the caller names (Postgres DB, Qdrant
+  // collection, Redis prefix, or an empty filesystem path).
+  //
+  // The caller (the recovery floor) owns shadow-namespace uniqueness + teardown
+  // because the restore OVERWRITES its destination; restoring into an existing
+  // non-empty filesystem directory is refused. The restores execute
+  // asynchronously — poll RestoresService.GetRestore with each returned restore
+  // id for the terminal status. Copy is type-agnostic; whether the shadow
+  // instance then READS the restored data depends on the engine being
+  // variant-namespace-aware (the api-core storage helpers), so an un-adopted
+  // Redis/Qdrant writer is routed to live mode by the decision tree instead.
+  rpc PopulateShadow(PopulateShadowRequest) returns (PopulateShadowResponse);
 }
 
 // SafetyDestination is the lean projection of the reserved baseline-safety
@@ -146,4 +164,62 @@ message RegisterScenarioTargetsResponse {
   repeated RegisteredTarget registered = 2;
   // Kinds considered but not registered, with the reason.
   repeated SkippedTarget skipped = 3;
+}
+
+message PopulateShadowRequest {
+  // Scenario whose registered targets (owner=scenario) and safety snapshots to
+  // restore into the shadow.
+  string scenario = 1 [(buf.validate.field).string.min_len = 1];
+  // Optional id of the terminal safety run whose snapshots to restore. Empty
+  // resolves the latest terminal run of the scenario's ephemeral safety plan.
+  string run_id = 2;
+  // The per-target shadow destinations to populate; at least one is required.
+  repeated ShadowTargetMapping mappings = 3 [(buf.validate.field).repeated.min_items = 1];
+}
+
+// ShadowTargetMapping maps one registered target to the fresh shadow namespace
+// its latest safety snapshot is restored into.
+message ShadowTargetMapping {
+  // Registered target name within owner=scenario (e.g. "postgres", "data").
+  string target_name = 1 [(buf.validate.field).string.min_len = 1];
+  // The fresh shadow namespace/location the snapshot restores into: a Postgres
+  // DB name, Qdrant collection, Redis prefix, or an empty/new filesystem path.
+  // The caller owns its uniqueness + teardown; restoring into an existing
+  // non-empty filesystem directory is refused (fail-closed, no overwrite).
+  string location = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message PopulateShadowResponse {
+  // Echoes the scenario whose shadow was populated.
+  string scenario = 1;
+  // The resolved safety run whose snapshots were restored.
+  string run_id = 2;
+  // The restores enqueued, one per populated target. Each runs asynchronously;
+  // poll `restores get <id>` for the terminal status.
+  repeated ShadowRestore restores = 3;
+  // Mappings that could not be populated, with the reason (unknown target name,
+  // no successful snapshot in the run, or a restore precondition failure).
+  repeated ShadowPopulateSkip skipped = 4;
+}
+
+// ShadowRestore is one enqueued restore of a target's snapshot into its shadow.
+message ShadowRestore {
+  // The registered target name the mapping addressed.
+  string target_name = 1;
+  // The resolved target id.
+  string target_id = 2;
+  // The snapshot restored (the target's latest success in the safety run).
+  string snapshot_id = 3;
+  // The enqueued restore id; poll `restores get <id>` for the terminal status.
+  string restore_id = 4;
+  // The shadow namespace/location the snapshot is being restored into.
+  string location = 5;
+  // The restore's (non-terminal) status at enqueue time.
+  string status = 6;
+}
+
+// ShadowPopulateSkip records a mapping that was not populated, with the reason.
+message ShadowPopulateSkip {
+  string target_name = 1;
+  string reason = 2;
 }

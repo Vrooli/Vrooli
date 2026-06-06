@@ -569,6 +569,36 @@
             "run_eligible": true,
             "permissions": ["network:internal"]
           }
+        },
+        {
+          "name": "populate-shadow",
+          "description": "Restore a scenario's safety snapshots into shadow namespaces (the data half of `baseline start`)",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario whose registered targets + safety snapshots to restore into the shadow"
+            },
+            {
+              "name": "run-id",
+              "description": "Optional terminal safety run id to restore from (default: the latest terminal run)"
+            },
+            {
+              "name": "mappings",
+              "required": true,
+              "description": "Comma-separated target-to-shadow map, each `target_name=shadow_location` (e.g. postgres=vrooli_x_shadow,data=/path/to/shadow/data)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "PopulateShadow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
         }
       ]
     },

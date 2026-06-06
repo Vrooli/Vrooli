@@ -161,3 +161,79 @@ func summaryText(raw string) string {
 	s = strings.ReplaceAll(s, "\"", "")
 	return strings.TrimSpace(s)
 }
+
+// printStart renders the engagement mode header (Target End State §6): the mode,
+// the resolved target, the available next verbs, the ambient routing var, the
+// human-friendly TTL, and the decision-tree reasoning.
+func printStart(res startResult) {
+	target := res.Scenario
+	header := fmt.Sprintf("Mode: %s · Target: %s", strings.ToUpper(res.Decision.Mode), target)
+	if res.Variant != "" && res.Variant != "live" {
+		header = fmt.Sprintf("Mode: %s · Target: %s@%s (db vrooli_%s_%s)",
+			strings.ToUpper(res.Decision.Mode), res.Scenario, res.Variant, res.Scenario, res.Variant)
+	}
+	header += " · Available: " + strings.Join(res.Available, ", ")
+	fmt.Println(header)
+	if res.AmbientVar != "" {
+		fmt.Printf("  ambient routing: VROOLI_SHADOW_SCENARIOS=%s (nested CLI calls auto-target the shadow)\n", res.AmbientVar)
+	}
+	if res.Anchor != "" {
+		fmt.Printf("  diff anchor: %s\n", res.Anchor)
+	}
+	for _, note := range res.DataPopulation {
+		fmt.Printf("  shadow data: %s\n", note)
+	}
+	if res.TTL != "" {
+		fmt.Printf("  auto-cleanup in ~%s; change with: baseline status (set-ttl)\n", res.TTL)
+	} else {
+		fmt.Println("  no idle TTL (orchestrator-heartbeat mode)")
+	}
+	fmt.Println("  decision:")
+	for _, r := range res.Decision.Reasons {
+		fmt.Printf("    - %s\n", r)
+	}
+}
+
+// printCheck renders a check result: the verdict glyph plus the mode-aware guidance.
+func printCheck(res checkResult) {
+	fmt.Printf("%s %s/%s [%s] verdict: %s\n", verdictMark(res.Verdict), res.Scenario, res.Slug, res.Mode, res.Verdict)
+	fmt.Printf("  → %s\n", res.Guidance)
+}
+
+// printPromote renders a promote outcome: the headline verdict, the ordered
+// step trace, and (on rollback) the data-snapshot pointer for manual recovery.
+func printPromote(res promoteResult) {
+	mark := "✓"
+	if !res.Promoted {
+		mark = "✗"
+	}
+	fmt.Printf("%s %s/%s [%s] %s\n", mark, res.Scenario, res.Slug, res.Mode, res.Message)
+	for _, s := range res.Steps {
+		fmt.Printf("  · %s\n", s)
+	}
+	if res.RolledBack && res.DataSnapshot != "" {
+		fmt.Printf("  data snapshot for manual restore: %s\n", res.DataSnapshot)
+	}
+}
+
+// printStatus renders the active engagements (globbed from the floor manifests).
+func printStatus(engagements []engagementView) {
+	if len(engagements) == 0 {
+		fmt.Println("no active engagements")
+		return
+	}
+	for _, e := range engagements {
+		expiry := "never (idle)"
+		if e.ExpiresAt != nil {
+			expiry = e.ExpiresAt.Format("2006-01-02T15:04:05Z07:00")
+			if e.Expired {
+				expiry += " (EXPIRED)"
+			}
+		}
+		target := e.Scenario
+		if e.Variant != "" && e.Variant != "live" {
+			target = e.Scenario + "@" + e.Variant
+		}
+		fmt.Printf("%s/%s\t%s\ttarget=%s\tttl=%s\texpires=%s\n", e.Scenario, e.Slug, e.Mode, target, e.TTL, expiry)
+	}
+}

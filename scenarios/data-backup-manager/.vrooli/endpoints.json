@@ -1581,6 +1581,63 @@
       }
     },
     {
+      "id": "safety_populate_shadow",
+      "path": "/vrooli.data_backup_manager.v1.safety.SafetyService/PopulateShadow",
+      "method": "POST",
+      "summary": "Populate a shadow with a scenario's safety snapshots",
+      "description": "Restores a scenario's already-captured safety snapshots into caller-chosen shadow namespaces (the data half of `baseline start` in shadow mode). Resolves the safety run (explicit run_id, or the latest terminal run), and for each mapping restores the target's latest successful snapshot into its shadow location. Restores run asynchronously; poll `restores get <id>`. Mappings with no target or no snapshot are returned in `skipped`.",
+      "category": "safety",
+      "request": {
+        "type": "object",
+        "properties": {
+          "mappings": "ShadowTargetMapping[] (required; {target_name, location})",
+          "run_id": "string (optional)",
+          "scenario": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "restores": "ShadowRestore[]",
+          "run_id": "string",
+          "scenario": "string",
+          "skipped": "ShadowPopulateSkip[]"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario or no mappings"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "No completed safety backup, or the requested run is unfinished"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Target/run lookup or restore orchestration failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Populate a shadow's postgres + data",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/PopulateShadow -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\",\"mappings\":[{\"target_name\":\"postgres\",\"location\":\"vrooli_swarm-manager_shadow\"}]}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "data-backup-manager safety populate-shadow",
+        "args": [
+          "--scenario",
+          "<scenario>",
+          "--mappings",
+          "<name=location,...>"
+        ]
+      }
+    },
+    {
       "id": "targets_register",
       "path": "/vrooli.data_backup_manager.v1.targets.TargetsService/RegisterTarget",
       "method": "POST",
@@ -1935,6 +1992,11 @@
       "name": "safety register-targets",
       "description": "Derive and register a scenario's backup targets",
       "endpoint_id": "safety_register_scenario_targets"
+    },
+    {
+      "name": "safety populate-shadow",
+      "description": "Populate a shadow with a scenario's safety snapshots",
+      "endpoint_id": "safety_populate_shadow"
     },
     {
       "name": "restores restore",

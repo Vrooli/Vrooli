@@ -562,6 +562,348 @@ func (x *RegisterScenarioTargetsResponse) GetSkipped() []*SkippedTarget {
 	return nil
 }
 
+type PopulateShadowRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Scenario whose registered targets (owner=scenario) and safety snapshots to
+	// restore into the shadow.
+	Scenario string `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Optional id of the terminal safety run whose snapshots to restore. Empty
+	// resolves the latest terminal run of the scenario's ephemeral safety plan.
+	RunId string `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// The per-target shadow destinations to populate; at least one is required.
+	Mappings      []*ShadowTargetMapping `protobuf:"bytes,3,rep,name=mappings,proto3" json:"mappings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PopulateShadowRequest) Reset() {
+	*x = PopulateShadowRequest{}
+	mi := &file_data_backup_manager_v1_safety_safety_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PopulateShadowRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PopulateShadowRequest) ProtoMessage() {}
+
+func (x *PopulateShadowRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_safety_safety_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PopulateShadowRequest.ProtoReflect.Descriptor instead.
+func (*PopulateShadowRequest) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_safety_safety_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *PopulateShadowRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *PopulateShadowRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *PopulateShadowRequest) GetMappings() []*ShadowTargetMapping {
+	if x != nil {
+		return x.Mappings
+	}
+	return nil
+}
+
+// ShadowTargetMapping maps one registered target to the fresh shadow namespace
+// its latest safety snapshot is restored into.
+type ShadowTargetMapping struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Registered target name within owner=scenario (e.g. "postgres", "data").
+	TargetName string `protobuf:"bytes,1,opt,name=target_name,json=targetName,proto3" json:"target_name,omitempty"`
+	// The fresh shadow namespace/location the snapshot restores into: a Postgres
+	// DB name, Qdrant collection, Redis prefix, or an empty/new filesystem path.
+	// The caller owns its uniqueness + teardown; restoring into an existing
+	// non-empty filesystem directory is refused (fail-closed, no overwrite).
+	Location      string `protobuf:"bytes,2,opt,name=location,proto3" json:"location,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShadowTargetMapping) Reset() {
+	*x = ShadowTargetMapping{}
+	mi := &file_data_backup_manager_v1_safety_safety_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShadowTargetMapping) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShadowTargetMapping) ProtoMessage() {}
+
+func (x *ShadowTargetMapping) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_safety_safety_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShadowTargetMapping.ProtoReflect.Descriptor instead.
+func (*ShadowTargetMapping) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_safety_safety_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ShadowTargetMapping) GetTargetName() string {
+	if x != nil {
+		return x.TargetName
+	}
+	return ""
+}
+
+func (x *ShadowTargetMapping) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
+type PopulateShadowResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Echoes the scenario whose shadow was populated.
+	Scenario string `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// The resolved safety run whose snapshots were restored.
+	RunId string `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// The restores enqueued, one per populated target. Each runs asynchronously;
+	// poll `restores get <id>` for the terminal status.
+	Restores []*ShadowRestore `protobuf:"bytes,3,rep,name=restores,proto3" json:"restores,omitempty"`
+	// Mappings that could not be populated, with the reason (unknown target name,
+	// no successful snapshot in the run, or a restore precondition failure).
+	Skipped       []*ShadowPopulateSkip `protobuf:"bytes,4,rep,name=skipped,proto3" json:"skipped,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PopulateShadowResponse) Reset() {
+	*x = PopulateShadowResponse{}
+	mi := &file_data_backup_manager_v1_safety_safety_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PopulateShadowResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PopulateShadowResponse) ProtoMessage() {}
+
+func (x *PopulateShadowResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_safety_safety_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PopulateShadowResponse.ProtoReflect.Descriptor instead.
+func (*PopulateShadowResponse) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_safety_safety_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *PopulateShadowResponse) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *PopulateShadowResponse) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *PopulateShadowResponse) GetRestores() []*ShadowRestore {
+	if x != nil {
+		return x.Restores
+	}
+	return nil
+}
+
+func (x *PopulateShadowResponse) GetSkipped() []*ShadowPopulateSkip {
+	if x != nil {
+		return x.Skipped
+	}
+	return nil
+}
+
+// ShadowRestore is one enqueued restore of a target's snapshot into its shadow.
+type ShadowRestore struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The registered target name the mapping addressed.
+	TargetName string `protobuf:"bytes,1,opt,name=target_name,json=targetName,proto3" json:"target_name,omitempty"`
+	// The resolved target id.
+	TargetId string `protobuf:"bytes,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	// The snapshot restored (the target's latest success in the safety run).
+	SnapshotId string `protobuf:"bytes,3,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
+	// The enqueued restore id; poll `restores get <id>` for the terminal status.
+	RestoreId string `protobuf:"bytes,4,opt,name=restore_id,json=restoreId,proto3" json:"restore_id,omitempty"`
+	// The shadow namespace/location the snapshot is being restored into.
+	Location string `protobuf:"bytes,5,opt,name=location,proto3" json:"location,omitempty"`
+	// The restore's (non-terminal) status at enqueue time.
+	Status        string `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShadowRestore) Reset() {
+	*x = ShadowRestore{}
+	mi := &file_data_backup_manager_v1_safety_safety_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShadowRestore) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShadowRestore) ProtoMessage() {}
+
+func (x *ShadowRestore) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_safety_safety_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShadowRestore.ProtoReflect.Descriptor instead.
+func (*ShadowRestore) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_safety_safety_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ShadowRestore) GetTargetName() string {
+	if x != nil {
+		return x.TargetName
+	}
+	return ""
+}
+
+func (x *ShadowRestore) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *ShadowRestore) GetSnapshotId() string {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return ""
+}
+
+func (x *ShadowRestore) GetRestoreId() string {
+	if x != nil {
+		return x.RestoreId
+	}
+	return ""
+}
+
+func (x *ShadowRestore) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
+func (x *ShadowRestore) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+// ShadowPopulateSkip records a mapping that was not populated, with the reason.
+type ShadowPopulateSkip struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TargetName    string                 `protobuf:"bytes,1,opt,name=target_name,json=targetName,proto3" json:"target_name,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShadowPopulateSkip) Reset() {
+	*x = ShadowPopulateSkip{}
+	mi := &file_data_backup_manager_v1_safety_safety_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShadowPopulateSkip) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShadowPopulateSkip) ProtoMessage() {}
+
+func (x *ShadowPopulateSkip) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_safety_safety_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShadowPopulateSkip.ProtoReflect.Descriptor instead.
+func (*ShadowPopulateSkip) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_safety_safety_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ShadowPopulateSkip) GetTargetName() string {
+	if x != nil {
+		return x.TargetName
+	}
+	return ""
+}
+
+func (x *ShadowPopulateSkip) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 var File_data_backup_manager_v1_safety_safety_proto protoreflect.FileDescriptor
 
 const file_data_backup_manager_v1_safety_safety_proto_rawDesc = "" +
@@ -603,11 +945,39 @@ const file_data_backup_manager_v1_safety_safety_proto_rawDesc = "" +
 	"\n" +
 	"registered\x18\x02 \x03(\v26.vrooli.data_backup_manager.v1.safety.RegisteredTargetR\n" +
 	"registered\x12M\n" +
-	"\askipped\x18\x03 \x03(\v23.vrooli.data_backup_manager.v1.safety.SkippedTargetR\askipped2\xf8\x03\n" +
+	"\askipped\x18\x03 \x03(\v23.vrooli.data_backup_manager.v1.safety.SkippedTargetR\askipped\"\xb4\x01\n" +
+	"\x15PopulateShadowRequest\x12#\n" +
+	"\bscenario\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bscenario\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12_\n" +
+	"\bmappings\x18\x03 \x03(\v29.vrooli.data_backup_manager.v1.safety.ShadowTargetMappingB\b\xbaH\x05\x92\x01\x02\b\x01R\bmappings\"d\n" +
+	"\x13ShadowTargetMapping\x12(\n" +
+	"\vtarget_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"targetName\x12#\n" +
+	"\blocation\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\blocation\"\xf0\x01\n" +
+	"\x16PopulateShadowResponse\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12O\n" +
+	"\brestores\x18\x03 \x03(\v23.vrooli.data_backup_manager.v1.safety.ShadowRestoreR\brestores\x12R\n" +
+	"\askipped\x18\x04 \x03(\v28.vrooli.data_backup_manager.v1.safety.ShadowPopulateSkipR\askipped\"\xc1\x01\n" +
+	"\rShadowRestore\x12\x1f\n" +
+	"\vtarget_name\x18\x01 \x01(\tR\n" +
+	"targetName\x12\x1b\n" +
+	"\ttarget_id\x18\x02 \x01(\tR\btargetId\x12\x1f\n" +
+	"\vsnapshot_id\x18\x03 \x01(\tR\n" +
+	"snapshotId\x12\x1d\n" +
+	"\n" +
+	"restore_id\x18\x04 \x01(\tR\trestoreId\x12\x1a\n" +
+	"\blocation\x18\x05 \x01(\tR\blocation\x12\x16\n" +
+	"\x06status\x18\x06 \x01(\tR\x06status\"M\n" +
+	"\x12ShadowPopulateSkip\x12\x1f\n" +
+	"\vtarget_name\x18\x01 \x01(\tR\n" +
+	"targetName\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason2\x86\x05\n" +
 	"\rSafetyService\x12\xa6\x01\n" +
 	"\x17EnsureSafetyDestination\x12D.vrooli.data_backup_manager.v1.safety.EnsureSafetyDestinationRequest\x1aE.vrooli.data_backup_manager.v1.safety.EnsureSafetyDestinationResponse\x12\x94\x01\n" +
 	"\x11BackupScenarioNow\x12>.vrooli.data_backup_manager.v1.safety.BackupScenarioNowRequest\x1a?.vrooli.data_backup_manager.v1.safety.BackupScenarioNowResponse\x12\xa6\x01\n" +
-	"\x17RegisterScenarioTargets\x12D.vrooli.data_backup_manager.v1.safety.RegisterScenarioTargetsRequest\x1aE.vrooli.data_backup_manager.v1.safety.RegisterScenarioTargetsResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/safety;safety_v1b\x06proto3"
+	"\x17RegisterScenarioTargets\x12D.vrooli.data_backup_manager.v1.safety.RegisterScenarioTargetsRequest\x1aE.vrooli.data_backup_manager.v1.safety.RegisterScenarioTargetsResponse\x12\x8b\x01\n" +
+	"\x0ePopulateShadow\x12;.vrooli.data_backup_manager.v1.safety.PopulateShadowRequest\x1a<.vrooli.data_backup_manager.v1.safety.PopulateShadowResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/safety;safety_v1b\x06proto3"
 
 var (
 	file_data_backup_manager_v1_safety_safety_proto_rawDescOnce sync.Once
@@ -621,7 +991,7 @@ func file_data_backup_manager_v1_safety_safety_proto_rawDescGZIP() []byte {
 	return file_data_backup_manager_v1_safety_safety_proto_rawDescData
 }
 
-var file_data_backup_manager_v1_safety_safety_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_data_backup_manager_v1_safety_safety_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_data_backup_manager_v1_safety_safety_proto_goTypes = []any{
 	(*SafetyDestination)(nil),               // 0: vrooli.data_backup_manager.v1.safety.SafetyDestination
 	(*EnsureSafetyDestinationRequest)(nil),  // 1: vrooli.data_backup_manager.v1.safety.EnsureSafetyDestinationRequest
@@ -632,22 +1002,32 @@ var file_data_backup_manager_v1_safety_safety_proto_goTypes = []any{
 	(*RegisteredTarget)(nil),                // 6: vrooli.data_backup_manager.v1.safety.RegisteredTarget
 	(*SkippedTarget)(nil),                   // 7: vrooli.data_backup_manager.v1.safety.SkippedTarget
 	(*RegisterScenarioTargetsResponse)(nil), // 8: vrooli.data_backup_manager.v1.safety.RegisterScenarioTargetsResponse
+	(*PopulateShadowRequest)(nil),           // 9: vrooli.data_backup_manager.v1.safety.PopulateShadowRequest
+	(*ShadowTargetMapping)(nil),             // 10: vrooli.data_backup_manager.v1.safety.ShadowTargetMapping
+	(*PopulateShadowResponse)(nil),          // 11: vrooli.data_backup_manager.v1.safety.PopulateShadowResponse
+	(*ShadowRestore)(nil),                   // 12: vrooli.data_backup_manager.v1.safety.ShadowRestore
+	(*ShadowPopulateSkip)(nil),              // 13: vrooli.data_backup_manager.v1.safety.ShadowPopulateSkip
 }
 var file_data_backup_manager_v1_safety_safety_proto_depIdxs = []int32{
-	0, // 0: vrooli.data_backup_manager.v1.safety.EnsureSafetyDestinationResponse.destination:type_name -> vrooli.data_backup_manager.v1.safety.SafetyDestination
-	6, // 1: vrooli.data_backup_manager.v1.safety.RegisterScenarioTargetsResponse.registered:type_name -> vrooli.data_backup_manager.v1.safety.RegisteredTarget
-	7, // 2: vrooli.data_backup_manager.v1.safety.RegisterScenarioTargetsResponse.skipped:type_name -> vrooli.data_backup_manager.v1.safety.SkippedTarget
-	1, // 3: vrooli.data_backup_manager.v1.safety.SafetyService.EnsureSafetyDestination:input_type -> vrooli.data_backup_manager.v1.safety.EnsureSafetyDestinationRequest
-	3, // 4: vrooli.data_backup_manager.v1.safety.SafetyService.BackupScenarioNow:input_type -> vrooli.data_backup_manager.v1.safety.BackupScenarioNowRequest
-	5, // 5: vrooli.data_backup_manager.v1.safety.SafetyService.RegisterScenarioTargets:input_type -> vrooli.data_backup_manager.v1.safety.RegisterScenarioTargetsRequest
-	2, // 6: vrooli.data_backup_manager.v1.safety.SafetyService.EnsureSafetyDestination:output_type -> vrooli.data_backup_manager.v1.safety.EnsureSafetyDestinationResponse
-	4, // 7: vrooli.data_backup_manager.v1.safety.SafetyService.BackupScenarioNow:output_type -> vrooli.data_backup_manager.v1.safety.BackupScenarioNowResponse
-	8, // 8: vrooli.data_backup_manager.v1.safety.SafetyService.RegisterScenarioTargets:output_type -> vrooli.data_backup_manager.v1.safety.RegisterScenarioTargetsResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	0,  // 0: vrooli.data_backup_manager.v1.safety.EnsureSafetyDestinationResponse.destination:type_name -> vrooli.data_backup_manager.v1.safety.SafetyDestination
+	6,  // 1: vrooli.data_backup_manager.v1.safety.RegisterScenarioTargetsResponse.registered:type_name -> vrooli.data_backup_manager.v1.safety.RegisteredTarget
+	7,  // 2: vrooli.data_backup_manager.v1.safety.RegisterScenarioTargetsResponse.skipped:type_name -> vrooli.data_backup_manager.v1.safety.SkippedTarget
+	10, // 3: vrooli.data_backup_manager.v1.safety.PopulateShadowRequest.mappings:type_name -> vrooli.data_backup_manager.v1.safety.ShadowTargetMapping
+	12, // 4: vrooli.data_backup_manager.v1.safety.PopulateShadowResponse.restores:type_name -> vrooli.data_backup_manager.v1.safety.ShadowRestore
+	13, // 5: vrooli.data_backup_manager.v1.safety.PopulateShadowResponse.skipped:type_name -> vrooli.data_backup_manager.v1.safety.ShadowPopulateSkip
+	1,  // 6: vrooli.data_backup_manager.v1.safety.SafetyService.EnsureSafetyDestination:input_type -> vrooli.data_backup_manager.v1.safety.EnsureSafetyDestinationRequest
+	3,  // 7: vrooli.data_backup_manager.v1.safety.SafetyService.BackupScenarioNow:input_type -> vrooli.data_backup_manager.v1.safety.BackupScenarioNowRequest
+	5,  // 8: vrooli.data_backup_manager.v1.safety.SafetyService.RegisterScenarioTargets:input_type -> vrooli.data_backup_manager.v1.safety.RegisterScenarioTargetsRequest
+	9,  // 9: vrooli.data_backup_manager.v1.safety.SafetyService.PopulateShadow:input_type -> vrooli.data_backup_manager.v1.safety.PopulateShadowRequest
+	2,  // 10: vrooli.data_backup_manager.v1.safety.SafetyService.EnsureSafetyDestination:output_type -> vrooli.data_backup_manager.v1.safety.EnsureSafetyDestinationResponse
+	4,  // 11: vrooli.data_backup_manager.v1.safety.SafetyService.BackupScenarioNow:output_type -> vrooli.data_backup_manager.v1.safety.BackupScenarioNowResponse
+	8,  // 12: vrooli.data_backup_manager.v1.safety.SafetyService.RegisterScenarioTargets:output_type -> vrooli.data_backup_manager.v1.safety.RegisterScenarioTargetsResponse
+	11, // 13: vrooli.data_backup_manager.v1.safety.SafetyService.PopulateShadow:output_type -> vrooli.data_backup_manager.v1.safety.PopulateShadowResponse
+	10, // [10:14] is the sub-list for method output_type
+	6,  // [6:10] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_data_backup_manager_v1_safety_safety_proto_init() }
@@ -661,7 +1041,7 @@ func file_data_backup_manager_v1_safety_safety_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_data_backup_manager_v1_safety_safety_proto_rawDesc), len(file_data_backup_manager_v1_safety_safety_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

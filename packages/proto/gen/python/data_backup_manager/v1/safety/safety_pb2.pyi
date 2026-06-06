@@ -88,3 +88,57 @@ class RegisterScenarioTargetsResponse(_message.Message):
     registered: _containers.RepeatedCompositeFieldContainer[RegisteredTarget]
     skipped: _containers.RepeatedCompositeFieldContainer[SkippedTarget]
     def __init__(self, scenario: _Optional[str] = ..., registered: _Optional[_Iterable[_Union[RegisteredTarget, _Mapping]]] = ..., skipped: _Optional[_Iterable[_Union[SkippedTarget, _Mapping]]] = ...) -> None: ...
+
+class PopulateShadowRequest(_message.Message):
+    __slots__ = ("scenario", "run_id", "mappings")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    MAPPINGS_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    run_id: str
+    mappings: _containers.RepeatedCompositeFieldContainer[ShadowTargetMapping]
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ..., mappings: _Optional[_Iterable[_Union[ShadowTargetMapping, _Mapping]]] = ...) -> None: ...
+
+class ShadowTargetMapping(_message.Message):
+    __slots__ = ("target_name", "location")
+    TARGET_NAME_FIELD_NUMBER: _ClassVar[int]
+    LOCATION_FIELD_NUMBER: _ClassVar[int]
+    target_name: str
+    location: str
+    def __init__(self, target_name: _Optional[str] = ..., location: _Optional[str] = ...) -> None: ...
+
+class PopulateShadowResponse(_message.Message):
+    __slots__ = ("scenario", "run_id", "restores", "skipped")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    RESTORES_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    run_id: str
+    restores: _containers.RepeatedCompositeFieldContainer[ShadowRestore]
+    skipped: _containers.RepeatedCompositeFieldContainer[ShadowPopulateSkip]
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ..., restores: _Optional[_Iterable[_Union[ShadowRestore, _Mapping]]] = ..., skipped: _Optional[_Iterable[_Union[ShadowPopulateSkip, _Mapping]]] = ...) -> None: ...
+
+class ShadowRestore(_message.Message):
+    __slots__ = ("target_name", "target_id", "snapshot_id", "restore_id", "location", "status")
+    TARGET_NAME_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    RESTORE_ID_FIELD_NUMBER: _ClassVar[int]
+    LOCATION_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    target_name: str
+    target_id: str
+    snapshot_id: str
+    restore_id: str
+    location: str
+    status: str
+    def __init__(self, target_name: _Optional[str] = ..., target_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., restore_id: _Optional[str] = ..., location: _Optional[str] = ..., status: _Optional[str] = ...) -> None: ...
+
+class ShadowPopulateSkip(_message.Message):
+    __slots__ = ("target_name", "reason")
+    TARGET_NAME_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    target_name: str
+    reason: str
+    def __init__(self, target_name: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...

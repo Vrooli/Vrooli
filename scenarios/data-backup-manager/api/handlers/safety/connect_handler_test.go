@@ -19,6 +19,8 @@ type fakeService struct {
 	backupErr   error
 	register    internalsafety.RegisterTargetsResult
 	registerErr error
+	populate    internalsafety.PopulateShadowResult
+	populateErr error
 }
 
 func (f *fakeService) EnsureSafetyDestination(context.Context, int64) (internalsafety.DestinationRef, bool, error) {
@@ -31,6 +33,10 @@ func (f *fakeService) BackupScenarioNow(context.Context, string, int32) (interna
 
 func (f *fakeService) RegisterScenarioTargets(context.Context, string) (internalsafety.RegisterTargetsResult, error) {
 	return f.register, f.registerErr
+}
+
+func (f *fakeService) PopulateShadow(context.Context, string, string, []internalsafety.ShadowMapping) (internalsafety.PopulateShadowResult, error) {
+	return f.populate, f.populateErr
 }
 
 func TestEnsureSafetyDestination_MapsFieldsAndCreatedFlag(t *testing.T) {
@@ -129,6 +135,51 @@ func TestBackupScenarioNow_NoTargetsIsFailedPrecondition(t *testing.T) {
 	if err == nil {
 		t.Fatalf("want error")
 	}
+	if got := connect.CodeOf(err); got != connect.CodeFailedPrecondition {
+		t.Fatalf("code = %v, want FailedPrecondition", got)
+	}
+}
+
+func TestPopulateShadow_MapsRestoresAndSkipped(t *testing.T) {
+	svc := &fakeService{
+		populate: internalsafety.PopulateShadowResult{
+			Scenario: "alpha",
+			RunID:    "run-7",
+			Restores: []internalsafety.ShadowRestoreRef{
+				{TargetName: "postgres", TargetID: "t-pg", SnapshotID: "snap-pg", RestoreID: "restore-1", Location: "vrooli_alpha_shadow", Status: "requested"},
+			},
+			Skipped: []internalsafety.ShadowSkip{{TargetName: "redis", Reason: "no target named \"redis\""}},
+		},
+	}
+	h := NewConnectHandler(Deps{Service: svc})
+
+	resp, err := h.PopulateShadow(context.Background(), connect.NewRequest(&safetyv1.PopulateShadowRequest{
+		Scenario: "alpha",
+		Mappings: []*safetyv1.ShadowTargetMapping{{TargetName: "postgres", Location: "vrooli_alpha_shadow"}},
+	}))
+	if err != nil {
+		t.Fatalf("PopulateShadow: %v", err)
+	}
+	m := resp.Msg
+	if m.Scenario != "alpha" || m.RunId != "run-7" {
+		t.Fatalf("scenario/run = %q/%q, want alpha/run-7", m.Scenario, m.RunId)
+	}
+	if len(m.Restores) != 1 || m.Restores[0].RestoreId != "restore-1" || m.Restores[0].Location != "vrooli_alpha_shadow" {
+		t.Fatalf("restores wrong: %+v", m.Restores)
+	}
+	if len(m.Skipped) != 1 || m.Skipped[0].TargetName != "redis" {
+		t.Fatalf("skipped wrong: %+v", m.Skipped)
+	}
+}
+
+func TestPopulateShadow_NoSafetyBackupIsFailedPrecondition(t *testing.T) {
+	svc := &fakeService{populateErr: internalsafety.ErrNoSafetyBackup}
+	h := NewConnectHandler(Deps{Service: svc})
+
+	_, err := h.PopulateShadow(context.Background(), connect.NewRequest(&safetyv1.PopulateShadowRequest{
+		Scenario: "alpha",
+		Mappings: []*safetyv1.ShadowTargetMapping{{TargetName: "postgres", Location: "x"}},
+	}))
 	if got := connect.CodeOf(err); got != connect.CodeFailedPrecondition {
 		t.Fatalf("code = %v, want FailedPrecondition", got)
 	}

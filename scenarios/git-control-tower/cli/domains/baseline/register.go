@@ -50,21 +50,26 @@ var clientFactory = func(core *cliapp.ScenarioApp) baselines_v1connect.Baselines
 		connect.WithInterceptors(callerheader.New()))
 }
 
-// Register wires the baseline command group.
+// Register wires the baseline command group: the passive *record* verbs
+// (snapshot/diff/list/show/delete/create/edit) plus the stateful *engagement*
+// verbs (start/check/promote/abandon/status/gc — Baseline Modes P2, in
+// engagement.go + promote.go).
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+	subcommands := []cliapp.Command{
+		{Name: "snapshot", NeedsAPI: true, Description: "Capture a baseline (--scenario --name [--branch] [--include w,t,...] [--fast|--full] [--reason])", Run: func(a []string) error { return runSnapshot(core, a) }},
+		{Name: "diff", NeedsAPI: true, Description: "Diff a baseline against the working tree (--scenario --name [--branch] [--surface]); exit 1 on regression, 2 on not-comparable", Run: func(a []string) error { return runDiff(core, a) }},
+		{Name: "list", NeedsAPI: true, Description: "List baselines (--scenario [--branch] [--all-branches])", Run: func(a []string) error { return runList(core, a) }},
+		{Name: "show", NeedsAPI: true, Description: "Show one baseline (--scenario --name [--branch])", Run: func(a []string) error { return runShow(core, a) }},
+		{Name: "delete", NeedsAPI: true, Description: "Delete a baseline and unpin its test-genie runs (--scenario --name [--branch])", Run: func(a []string) error { return runDelete(core, a) }},
+		{Name: "create", NeedsAPI: true, Description: "Create an empty baseline (no capture) (--scenario --name [--branch])", Run: func(a []string) error { return runCreate(core, a) }},
+		{Name: "edit", NeedsAPI: true, Description: "Re-point a surface at a pinned test-genie run (--scenario --name --surface --pin-run <runID> [--branch])", Run: func(a []string) error { return runEdit(core, a) }},
+	}
+	subcommands = append(subcommands, registerEngagementVerbs(core)...)
 	return cliapp.SubcommandGroup{
 		Name:        "baseline",
-		Description: "Capture and diff cross-surface review baselines (replaces git stash for regression diagnosis)",
+		Description: "Capture/diff review baselines and run shadow/live engagements (Baseline Modes)",
 		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{Name: "snapshot", NeedsAPI: true, Description: "Capture a baseline (--scenario --name [--branch] [--include w,t,...] [--fast|--full] [--reason])", Run: func(a []string) error { return runSnapshot(core, a) }},
-			{Name: "diff", NeedsAPI: true, Description: "Diff a baseline against the working tree (--scenario --name [--branch] [--surface]); exit 1 on regression, 2 on not-comparable", Run: func(a []string) error { return runDiff(core, a) }},
-			{Name: "list", NeedsAPI: true, Description: "List baselines (--scenario [--branch] [--all-branches])", Run: func(a []string) error { return runList(core, a) }},
-			{Name: "show", NeedsAPI: true, Description: "Show one baseline (--scenario --name [--branch])", Run: func(a []string) error { return runShow(core, a) }},
-			{Name: "delete", NeedsAPI: true, Description: "Delete a baseline and unpin its test-genie runs (--scenario --name [--branch])", Run: func(a []string) error { return runDelete(core, a) }},
-			{Name: "create", NeedsAPI: true, Description: "Create an empty baseline (no capture) (--scenario --name [--branch])", Run: func(a []string) error { return runCreate(core, a) }},
-			{Name: "edit", NeedsAPI: true, Description: "Re-point a surface at a pinned test-genie run (--scenario --name --surface --pin-run <runID> [--branch])", Run: func(a []string) error { return runEdit(core, a) }},
-		},
+		Subcommands: subcommands,
 	}
 }
 
