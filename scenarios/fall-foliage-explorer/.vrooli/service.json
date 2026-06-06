@@ -134,7 +134,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install",
+          "run": "cd ui && pnpm install --ignore-workspace",
           "description": "Install UI dependencies"
         },
         {

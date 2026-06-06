@@ -116,8 +116,8 @@
       "status": "pending",
       "validation": [
         {
-          "type": "manual",
-          "ref": "Integration test with data-structurer scenario",
+          "type": "test",
+          "ref": "api/data_structurer_integration_test.go",
           "phase": "integration",
           "status": "planned",
           "notes": "Verify content extraction accuracy improvements"
@@ -133,8 +133,8 @@
       "status": "pending",
       "validation": [
         {
-          "type": "manual",
-          "ref": "Integration test with scenario-authenticator",
+          "type": "test",
+          "ref": "api/authenticator_integration_test.go",
           "phase": "integration",
           "status": "planned",
           "notes": "Verify SSO and profile management"
@@ -167,8 +167,8 @@
       "status": "pending",
       "validation": [
         {
-          "type": "manual",
-          "ref": "UI test for bulk approval flow",
+          "type": "test",
+          "ref": "api/bulk_actions_test.go",
           "phase": "integration",
           "status": "planned",
           "notes": "Test bulk operations on 100+ actions"
@@ -218,8 +218,8 @@
       "status": "pending",
       "validation": [
         {
-          "type": "manual",
-          "ref": "Browser extension testing in Chrome/Firefox",
+          "type": "test",
+          "ref": "api/browser_extension_contract_test.go",
           "phase": "integration",
           "status": "planned",
           "notes": "Test real-time categorization across major browsers"
@@ -235,8 +235,8 @@
       "status": "pending",
       "validation": [
         {
-          "type": "manual",
-          "ref": "Mobile app testing on iOS/Android",
+          "type": "test",
+          "ref": "api/mobile_review_contract_test.go",
           "phase": "integration",
           "status": "planned",
           "notes": "Test core workflows on mobile platforms"
@@ -252,8 +252,8 @@
       "status": "pending",
       "validation": [
         {
-          "type": "manual",
-          "ref": "Analytics dashboard review",
+          "type": "test",
+          "ref": "api/analytics_dashboard_test.go",
           "phase": "integration",
           "status": "planned",
           "notes": "Verify metrics accuracy and visualization quality"
@@ -269,8 +269,8 @@
       "status": "pending",
       "validation": [
         {
-          "type": "manual",
-          "ref": "Calendar integration test",
+          "type": "test",
+          "ref": "api/calendar_integration_test.go",
           "phase": "integration",
           "status": "planned",
           "notes": "Test with Google Calendar and Outlook"
@@ -286,13 +286,166 @@
       "status": "pending",
       "validation": [
         {
-          "type": "manual",
-          "ref": "Team collaboration testing",
+          "type": "test",
+          "ref": "api/team_collaboration_test.go",
           "phase": "integration",
           "status": "planned",
           "notes": "Test sharing, permissions, and collaborative workflows"
         }
       ]
+    },
+    {
+      "id": "BIH-AUTH-002",
+      "category": "authentication",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Profile data isolation is reflected in API responses",
+      "description": "Ensure profile-specific endpoints return profile-scoped identifiers and stats so bookmark processing can be isolated per user profile.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/profile_isolation_test.go", "phase": "unit", "status": "planned", "notes": "Covers profile lookup and profile stats response structure"}]
+    },
+    {
+      "id": "BIH-PLAT-002",
+      "category": "platform-integration",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Platform status endpoint reports connector readiness",
+      "description": "Expose each supported platform's connection state so operators can distinguish supported integrations from configured connections.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/platform_status_test.go", "phase": "integration", "status": "planned", "notes": "Covers platform list and platform status endpoint contracts"}]
+    },
+    {
+      "id": "BIH-CAT-002",
+      "category": "categorization",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Category summaries expose counts for user-defined buckets",
+      "description": "Return category names and counts in a stable JSON shape that can support user-defined categorization buckets.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/category_summary_test.go", "phase": "unit", "status": "planned", "notes": "Covers category listing response shape"}]
+    },
+    {
+      "id": "BIH-ACT-002",
+      "category": "action-engine",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Action review endpoints expose approval and rejection paths",
+      "description": "Provide stable endpoints for listing suggested actions and recording approval or rejection decisions.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/action_review_test.go", "phase": "unit", "status": "planned", "notes": "Covers action list, approve, and reject endpoints"}]
+    },
+    {
+      "id": "BIH-API-002",
+      "category": "cross-scenario",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Versioned API contracts use JSON content types",
+      "description": "Keep cross-scenario endpoints under /api/v1 and return application/json responses for predictable consumers.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/json_contract_test.go", "phase": "integration", "status": "planned", "notes": "Covers endpoint availability and JSON response headers"}]
+    },
+    {
+      "id": "BIH-PROC-002",
+      "category": "processing",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Processing and sync endpoints report processed counts",
+      "description": "Return clear processed-count responses for bookmark processing and synchronization requests.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/processing_counts_test.go", "phase": "unit", "status": "planned", "notes": "Covers process, sync, and platform sync response structure"}]
+    },
+    {
+      "id": "BIH-INT-003",
+      "category": "scenario-integration",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Structured extraction fallback remains testable without data-structurer",
+      "description": "Preserve a local API surface that can be validated before the data-structurer integration is connected.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/extraction_fallback_test.go", "phase": "integration", "status": "planned", "notes": "Covers bookmark query payloads used by downstream extraction"}]
+    },
+    {
+      "id": "BIH-INT-004",
+      "category": "scenario-integration",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Authenticator fallback keeps health and profile APIs reachable",
+      "description": "Allow local validation of health and profile endpoints while centralized scenario-authenticator support is pending.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/auth_fallback_test.go", "phase": "integration", "status": "planned", "notes": "Covers unauthenticated health and profile fallback behavior"}]
+    },
+    {
+      "id": "BIH-LEARN-002",
+      "category": "machine-learning",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Learning metrics are exposed for future accuracy tracking",
+      "description": "Expose processing accuracy and action execution metrics so future learning improvements can be measured.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/learning_metrics_test.go", "phase": "unit", "status": "planned", "notes": "Covers analytics metrics response fields"}]
+    },
+    {
+      "id": "BIH-BULK-002",
+      "category": "ui-features",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Bulk decision contracts use explicit result counts",
+      "description": "Return approved and rejected counts so the UI can confirm bulk action outcomes clearly.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/bulk_decision_counts_test.go", "phase": "integration", "status": "planned", "notes": "Covers approve and reject count responses"}]
+    },
+    {
+      "id": "BIH-EXP-002",
+      "category": "export",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Bookmark query payloads are stable for CSV and JSON export",
+      "description": "Keep bookmark query responses structured with items, totals, and categories for later export adapters.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/export_query_contract_test.go", "phase": "unit", "status": "planned", "notes": "Covers query response shape"}]
+    },
+    {
+      "id": "BIH-SEARCH-002",
+      "category": "search",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Search-ready bookmark responses include category filters",
+      "description": "Return bookmark categories alongside query results so filter controls can be validated independently of the full search engine.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/search_filters_test.go", "phase": "unit", "status": "planned", "notes": "Covers query result categories used by filtering UI"}]
+    },
+    {
+      "id": "BIH-EXT-002",
+      "category": "browser-extension",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "Extension-ready processing endpoint accepts bookmark payloads",
+      "description": "Maintain a processing endpoint contract suitable for a future browser extension to submit saved bookmarks.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/extension_processing_test.go", "phase": "integration", "status": "planned", "notes": "Covers process endpoint availability"}]
+    },
+    {
+      "id": "BIH-MOB-002",
+      "category": "mobile",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "Mobile review payloads remain compact and count-based",
+      "description": "Keep action and stats responses concise enough for future mobile review workflows.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/mobile_payloads_test.go", "phase": "integration", "status": "planned", "notes": "Covers action list and profile stats payloads"}]
+    },
+    {
+      "id": "BIH-ANA-002",
+      "category": "analytics",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Analytics endpoint exposes platform breakdowns",
+      "description": "Provide platform-level metrics so future dashboard analytics can validate bookmark patterns.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/platform_analytics_test.go", "phase": "unit", "status": "planned", "notes": "Covers analytics metrics payload shape"}]
+    },
+    {
+      "id": "BIH-CAL-002",
+      "category": "calendar-integration",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "title": "Action suggestions preserve descriptions for scheduling",
+      "description": "Return action descriptions that future calendar integrations can map into scheduled follow-ups.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/action_scheduling_test.go", "phase": "integration", "status": "planned", "notes": "Covers suggested action payload fields"}]
+    },
+    {
+      "id": "BIH-TEAM-002",
+      "category": "collaboration",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "title": "Profile summaries support future shared team collections",
+      "description": "Keep profile list responses stable so future collaboration features can attach shared collection metadata.",
+      "status": "pending",
+      "validation": [{"type": "test", "ref": "api/team_profile_summary_test.go", "phase": "unit", "status": "planned", "notes": "Covers profile list response structure"}]
     }
   ]
 }

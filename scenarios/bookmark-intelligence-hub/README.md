@@ -27,15 +27,20 @@ The Bookmark Intelligence Hub automatically discovers, extracts, categorizes, an
 
 1. Run the scenario setup:
    ```bash
-   vrooli scenario run bookmark-intelligence-hub
+   vrooli scenario setup bookmark-intelligence-hub
    ```
 
-2. Open the dashboard:
-   ```
-   http://localhost:3200
+2. Start the managed scenario lifecycle:
+   ```bash
+   vrooli scenario start bookmark-intelligence-hub
    ```
 
-3. Configure your social media platforms in the dashboard
+3. Open the dashboard with the allocated UI port:
+   ```bash
+   vrooli scenario open bookmark-intelligence-hub
+   ```
+
+4. Configure your social media platforms in the dashboard
 
 ### CLI Usage
 
@@ -165,8 +170,12 @@ Create custom categories with:
 # API endpoint tests
 ./test/test-bookmark-processing.sh
 
-# Full scenario test
-vrooli scenario test bookmark-intelligence-hub
+# Full scenario test with requirement sync
+vrooli scenario test bookmark-intelligence-hub all
+
+# Fast health and bundle check
+vrooli scenario status bookmark-intelligence-hub
+vrooli scenario ui-smoke bookmark-intelligence-hub
 ```
 
 ### Test Data
@@ -265,7 +274,7 @@ pm::logs bookmark-intelligence-hub-api
 Enable verbose logging:
 ```bash
 export DEBUG=true
-vrooli scenario run bookmark-intelligence-hub
+vrooli scenario start bookmark-intelligence-hub
 ```
 
 ## 📚 Documentation

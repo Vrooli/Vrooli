@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// [REQ:REQ-P0-007] CLI app constructs through the scenario command adapter.
 func TestNewAppConstructs(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
@@ -15,6 +16,7 @@ func TestNewAppConstructs(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-P0-007] CLI exposes a lifecycle-compatible version command.
 func TestRunVersion(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
@@ -27,6 +29,7 @@ func TestRunVersion(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-P0-007] CLI help exposes migrated foliage, report, and trip domains.
 func TestRunHelpListsMigratedDomains(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
@@ -42,6 +45,7 @@ func TestRunHelpListsMigratedDomains(t *testing.T) {
 	// by cli-core's own tests.
 }
 
+// [REQ:REQ-P0-007] CLI metadata matches the scenario identity.
 func TestMetadata(t *testing.T) {
 	if !strings.EqualFold(appName, "fall-foliage-explorer") {
 		t.Fatalf("appName = %q, want fall-foliage-explorer", appName)

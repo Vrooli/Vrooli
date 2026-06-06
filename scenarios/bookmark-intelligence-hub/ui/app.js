@@ -203,7 +203,7 @@ class BookmarkIntelligenceHub {
             ]);
             
             this.updateStats(stats);
-            this.updateRecentBookmarks(bookmarks);
+            this.updateRecentBookmarks(bookmarks.bookmarks || bookmarks);
             this.updateCategories(categories);
             this.updatePendingActions(actions);
             this.updatePlatformStatus(platformStatus);
@@ -218,10 +218,10 @@ class BookmarkIntelligenceHub {
      * Update stats display
      */
     updateStats(stats) {
-        document.getElementById('total-bookmarks').textContent = stats.totalBookmarks || 0;
-        document.getElementById('categories-count').textContent = stats.categoriesCount || 0;
-        document.getElementById('pending-actions').textContent = stats.pendingActions || 0;
-        document.getElementById('accuracy-rate').textContent = `${stats.accuracyRate || 0}%`;
+        document.getElementById('total-bookmarks').textContent = stats.totalBookmarks || stats.total_bookmarks || 0;
+        document.getElementById('categories-count').textContent = stats.categoriesCount || stats.categories_count || 0;
+        document.getElementById('pending-actions').textContent = stats.pendingActions || stats.pending_actions || 0;
+        document.getElementById('accuracy-rate').textContent = `${stats.accuracyRate || stats.accuracy_rate || 0}%`;
     }
 
     /**
@@ -330,15 +330,17 @@ class BookmarkIntelligenceHub {
         ];
         
         container.innerHTML = platforms.map(platform => {
+            const platformId = platform.id || platform.name;
+            const platformName = platform.display_name || platform.name;
             const statusClass = platform.connected ? 'status-connected' : 'status-disconnected';
             const statusText = platform.connected ? 'Connected' : 'Disconnected';
-            const iconClass = platform.id === 'twitter' ? 'fa-twitter' : `fa-${platform.id}`;
+            const iconClass = platformId === 'twitter' ? 'fa-twitter' : `fa-${platformId}`;
             
             return `
                 <div class="platform-item">
                     <div class="platform-info">
                         <i class="fab ${iconClass}"></i>
-                        <span>${platform.name}</span>
+                        <span>${platformName}</span>
                     </div>
                     <div class="status-badge ${statusClass}">
                         <i class="fas fa-circle"></i> ${statusText}

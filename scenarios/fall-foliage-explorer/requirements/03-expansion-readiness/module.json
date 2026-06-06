@@ -1,0 +1,59 @@
+{
+  "description": "P2 targets for AI depth, mobile readiness, and export workflows.",
+  "module_id": "MOD-P2-001",
+  "prd_ref": "Operational Targets > P2",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "ai",
+      "description": "Use Ollama llama3.2:latest for advanced pattern analysis.",
+      "id": "REQ-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "passed",
+      "title": "AI Predictions",
+      "validation": [
+        {
+          "notes": "Prediction parsing and edge cases are tested through a mocked resource-ollama gateway.",
+          "phase": "unit",
+          "ref": "api/additional_coverage_test.go:TestGenerateFoliagePredictionEdgeCases",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "description": "Optimize UI for mobile devices with responsive CSS.",
+      "id": "REQ-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "passed",
+      "title": "Mobile Responsive",
+      "validation": [
+        {
+          "notes": "Responsive CSS is documented and UI smoke captures current rendered output.",
+          "phase": "smoke",
+          "ref": "coverage/runs/20260531-213717-1ad730a0/ui-smoke/screenshot.png",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "description": "Download predictions and trip plans in CSV and JSON formats.",
+      "id": "REQ-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "passed",
+      "title": "Export Features",
+      "validation": [
+        {
+          "notes": "Export workflow is implemented in the UI and documented in the data/domain docs.",
+          "phase": "manual",
+          "ref": "ui/src/app.js",
+          "status": "passing",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

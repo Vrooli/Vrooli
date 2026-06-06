@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -39,9 +40,9 @@ func setupTestLogger() func() {
 
 // TestDatabase manages test database connections
 type TestDatabase struct {
-	DB       *sql.DB
-	Config   *Config
-	Cleanup  func()
+	DB      *sql.DB
+	Config  *Config
+	Cleanup func()
 }
 
 // setupTestDatabase creates an isolated test database
@@ -84,10 +85,10 @@ func setupTestDatabase(t *testing.T) *TestDatabase {
 
 // TestServer manages test server instances
 type TestServer struct {
-	Server   *Server
-	Router   *mux.Router
-	Config   *Config
-	Cleanup  func()
+	Server  *Server
+	Router  *mux.Router
+	Config  *Config
+	Cleanup func()
 }
 
 // setupTestServer creates a test server instance
@@ -123,9 +124,9 @@ func setupTestServer(t *testing.T, withDB bool) *TestServer {
 	}
 
 	return &TestServer{
-		Server:  server,
-		Router:  server.router,
-		Config:  config,
+		Server: server,
+		Router: server.router,
+		Config: config,
 		Cleanup: func() {
 			if server != nil {
 				server.Close()
@@ -262,6 +263,11 @@ func assertJSONArray(t *testing.T, w *httptest.ResponseRecorder, expectedStatus 
 	if w.Code != expectedStatus {
 		t.Errorf("Expected status %d, got %d. Response: %s", expectedStatus, w.Code, w.Body.String())
 		return nil
+	}
+
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("Expected Content-Type application/json, got %s", contentType)
 	}
 
 	var response []interface{}

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -14,90 +13,8 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
 )
-
-var db *sql.DB
-
-type Response struct {
-	Status  string      `json:"status"`
-	Message string      `json:"message,omitempty"`
-	Data    interface{} `json:"data,omitempty"`
-	Error   string      `json:"error,omitempty"`
-}
-
-type Region struct {
-	ID              int     `json:"id"`
-	Name            string  `json:"name"`
-	State           string  `json:"state"`
-	Country         string  `json:"country"`
-	Latitude        float64 `json:"latitude"`
-	Longitude       float64 `json:"longitude"`
-	ElevationMeters *int    `json:"elevation_meters,omitempty"`
-	TypicalPeakWeek *int    `json:"typical_peak_week,omitempty"`
-	DataSource      string  `json:"data_source,omitempty"`
-}
-
-type ResponseMeta struct {
-	Source            string `json:"source"`
-	SourceDescription string `json:"source_description,omitempty"`
-	RetrievedAt       string `json:"retrieved_at"`
-	RowCount          int    `json:"row_count"`
-	UsingFallback     bool   `json:"using_fallback"`
-}
-
-type RegionsPayload struct {
-	Regions []Region     `json:"regions"`
-	Meta    ResponseMeta `json:"meta"`
-}
-
-type FoliageData struct {
-	RegionID          int     `json:"region_id"`
-	ObservationDate   string  `json:"observation_date"`
-	FoliagePercent    int     `json:"foliage_percentage"`
-	ColorIntensity    int     `json:"color_intensity"`
-	PeakStatus        string  `json:"peak_status"`
-	PredictedPeak     string  `json:"predicted_peak,omitempty"`
-	ConfidenceScore   float64 `json:"confidence_score,omitempty"`
-	DataSource        string  `json:"data_source,omitempty"`
-	SourceDescription string  `json:"source_description,omitempty"`
-}
-
-type UserReport struct {
-	ID            int    `json:"id"`
-	RegionID      int    `json:"region_id"`
-	ReportDate    string `json:"report_date"`
-	FoliageStatus string `json:"foliage_status"`
-	Description   string `json:"description"`
-	PhotoURL      string `json:"photo_url,omitempty"`
-}
-
-type TripPlan struct {
-	ID        int    `json:"id"`
-	Name      string `json:"name"`
-	StartDate string `json:"start_date"`
-	EndDate   string `json:"end_date"`
-	Regions   []int  `json:"regions"`
-	Notes     string `json:"notes,omitempty"`
-	CreatedAt string `json:"created_at,omitempty"`
-}
-
-func initDB() error {
-	// Connect to database with automatic retry and backoff.
-	// Reads POSTGRES_* environment variables set by the lifecycle system.
-	var err error
-	db, err = database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
-	})
-	if err != nil {
-		return fmt.Errorf("database connection failed: %w", err)
-	}
-	log.Println("Database connection established")
-	return nil
-}
 
 func regionsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -108,7 +25,7 @@ func regionsHandler(w http.ResponseWriter, r *http.Request) {
 			Regions: regions,
 			Meta:    buildRegionsMeta(len(regions), true, "sample_dataset"),
 		}
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusOK, Response{
 			Status:  "success",
 			Message: "Database not connected. Serving packaged sample dataset.",
 			Data:    payload,
@@ -122,13 +39,13 @@ func regionsHandler(w http.ResponseWriter, r *http.Request) {
 		ORDER BY name
 	`)
 	if err != nil {
-		log.Printf("Failed to query regions: %v", err)
+		logWarn("failed to query regions", "error", err)
 		regions := sampleRegionsDataset()
 		payload := RegionsPayload{
 			Regions: regions,
 			Meta:    buildRegionsMeta(len(regions), true, "sample_dataset"),
 		}
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusOK, Response{
 			Status:  "success",
 			Message: fmt.Sprintf("Returning sample dataset because database query failed: %v", err),
 			Data:    payload,
@@ -151,7 +68,7 @@ func regionsHandler(w http.ResponseWriter, r *http.Request) {
 			&region.TypicalPeakWeek,
 		)
 		if err != nil {
-			log.Printf("Error scanning region: %v", err)
+			logWarn("error scanning region", "error", err)
 			continue
 		}
 		region.DataSource = "postgres.regions"
@@ -163,7 +80,7 @@ func regionsHandler(w http.ResponseWriter, r *http.Request) {
 		Meta:    buildRegionsMeta(len(regions), false, "postgres.regions"),
 	}
 
-	json.NewEncoder(w).Encode(Response{
+	writeJSON(w, http.StatusOK, Response{
 		Status: "success",
 		Data:   payload,
 	})
@@ -174,8 +91,7 @@ func foliageHandler(w http.ResponseWriter, r *http.Request) {
 
 	regionID := r.URL.Query().Get("region_id")
 	if regionID == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusBadRequest, Response{
 			Status: "error",
 			Error:  "region_id parameter is required",
 		})
@@ -184,8 +100,7 @@ func foliageHandler(w http.ResponseWriter, r *http.Request) {
 
 	rid, err := strconv.Atoi(regionID)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusBadRequest, Response{
 			Status: "error",
 			Error:  "Invalid region_id",
 		})
@@ -205,7 +120,7 @@ func foliageHandler(w http.ResponseWriter, r *http.Request) {
 			DataSource:        "sample_dataset",
 			SourceDescription: "Static sample foliage reading used when the live database is unavailable.",
 		}
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusOK, Response{
 			Status: "success",
 			Data:   foliageData,
 		})
@@ -245,8 +160,7 @@ func foliageHandler(w http.ResponseWriter, r *http.Request) {
 			SourceDescription: "No observations recorded yet; providing synthesized baseline values.",
 		}
 	} else if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusInternalServerError, Response{
 			Status: "error",
 			Error:  fmt.Sprintf("Failed to query foliage data: %v", err),
 		})
@@ -278,7 +192,7 @@ func foliageHandler(w http.ResponseWriter, r *http.Request) {
 		foliage.SourceDescription = "Live foliage observation retrieved from the database."
 	}
 
-	json.NewEncoder(w).Encode(Response{
+	writeJSON(w, http.StatusOK, Response{
 		Status: "success",
 		Data:   foliage,
 	})
@@ -322,8 +236,7 @@ func predictHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusMethodNotAllowed, Response{
 			Status: "error",
 			Error:  "Method not allowed",
 		})
@@ -332,8 +245,7 @@ func predictHandler(w http.ResponseWriter, r *http.Request) {
 
 	var request map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusBadRequest, Response{
 			Status: "error",
 			Error:  "Invalid request body",
 		})
@@ -342,8 +254,7 @@ func predictHandler(w http.ResponseWriter, r *http.Request) {
 
 	regionIDFloat, ok := request["region_id"].(float64)
 	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusBadRequest, Response{
 			Status: "error",
 			Error:  "region_id is required and must be a number",
 		})
@@ -360,15 +271,13 @@ func predictHandler(w http.ResponseWriter, r *http.Request) {
 		&region.Longitude, &region.ElevationMeters, &region.TypicalPeakWeek)
 
 	if err == sql.ErrNoRows {
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusNotFound, Response{
 			Status: "error",
 			Error:  "Region not found",
 		})
 		return
 	} else if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusInternalServerError, Response{
 			Status: "error",
 			Error:  fmt.Sprintf("Database error: %v", err),
 		})
@@ -379,14 +288,14 @@ func predictHandler(w http.ResponseWriter, r *http.Request) {
 	prediction, confidence, err := generateFoliagePrediction(region)
 	if err != nil {
 		// Fallback to typical peak week if Ollama fails
-		log.Printf("Ollama prediction failed, using fallback: %v", err)
+		logWarn("ollama prediction failed; using fallback", "error", err)
 		typicalWeek := 41
 		if region.TypicalPeakWeek != nil {
 			typicalWeek = *region.TypicalPeakWeek
 		}
 		fallbackDate := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, (typicalWeek-1)*7)
 
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusOK, Response{
 			Status:  "success",
 			Message: "Prediction generated (fallback mode)",
 			Data: map[string]interface{}{
@@ -405,12 +314,11 @@ func predictHandler(w http.ResponseWriter, r *http.Request) {
 		INSERT INTO foliage_predictions (region_id, predicted_peak_date, confidence_score, created_at)
 		VALUES ($1, $2, $3, $4)
 	`, regionID, prediction, confidence, time.Now())
-
 	if err != nil {
-		log.Printf("Failed to store prediction: %v", err)
+		logWarn("failed to store prediction", "error", err)
 	}
 
-	json.NewEncoder(w).Encode(Response{
+	writeJSON(w, http.StatusOK, Response{
 		Status:  "success",
 		Message: "Prediction generated using AI",
 		Data: map[string]interface{}{
@@ -515,8 +423,7 @@ func weatherHandler(w http.ResponseWriter, r *http.Request) {
 	date := r.URL.Query().Get("date")
 
 	if regionID == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusBadRequest, Response{
 			Status: "error",
 			Error:  "region_id parameter is required",
 		})
@@ -529,8 +436,7 @@ func weatherHandler(w http.ResponseWriter, r *http.Request) {
 
 	rid, err := strconv.Atoi(regionID)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusBadRequest, Response{
 			Status: "error",
 			Error:  "Invalid region_id",
 		})
@@ -539,7 +445,7 @@ func weatherHandler(w http.ResponseWriter, r *http.Request) {
 
 	if db == nil {
 		// Return mock data
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusOK, Response{
 			Status: "success",
 			Data: map[string]interface{}{
 				"region_id":        rid,
@@ -567,15 +473,14 @@ func weatherHandler(w http.ResponseWriter, r *http.Request) {
 	`, rid, date).Scan(&weather.TempHigh, &weather.TempLow, &weather.Precipitation, &weather.Humidity)
 
 	if err == sql.ErrNoRows {
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusOK, Response{
 			Status:  "success",
 			Message: "No weather data available for this date",
 			Data:    nil,
 		})
 		return
 	} else if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusInternalServerError, Response{
 			Status: "error",
 			Error:  fmt.Sprintf("Failed to query weather data: %v", err),
 		})
@@ -600,7 +505,7 @@ func weatherHandler(w http.ResponseWriter, r *http.Request) {
 		result["humidity_percent"] = weather.Humidity.Int32
 	}
 
-	json.NewEncoder(w).Encode(Response{
+	writeJSON(w, http.StatusOK, Response{
 		Status: "success",
 		Data:   result,
 	})
@@ -615,8 +520,7 @@ func reportsHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		submitReport(w, r)
 	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusMethodNotAllowed, Response{
 			Status: "error",
 			Error:  "Method not allowed",
 		})
@@ -626,8 +530,7 @@ func reportsHandler(w http.ResponseWriter, r *http.Request) {
 func getReports(w http.ResponseWriter, r *http.Request) {
 	regionID := r.URL.Query().Get("region_id")
 	if regionID == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusBadRequest, Response{
 			Status: "error",
 			Error:  "region_id parameter is required",
 		})
@@ -636,8 +539,7 @@ func getReports(w http.ResponseWriter, r *http.Request) {
 
 	rid, err := strconv.Atoi(regionID)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusBadRequest, Response{
 			Status: "error",
 			Error:  "Invalid region_id",
 		})
@@ -646,7 +548,7 @@ func getReports(w http.ResponseWriter, r *http.Request) {
 
 	if db == nil {
 		// Return mock data
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusOK, Response{
 			Status: "success",
 			Data:   []UserReport{},
 		})
@@ -661,8 +563,7 @@ func getReports(w http.ResponseWriter, r *http.Request) {
 		LIMIT 10
 	`, rid)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusInternalServerError, Response{
 			Status: "error",
 			Error:  fmt.Sprintf("Failed to query reports: %v", err),
 		})
@@ -683,7 +584,7 @@ func getReports(w http.ResponseWriter, r *http.Request) {
 			&photoURL,
 		)
 		if err != nil {
-			log.Printf("Error scanning report: %v", err)
+			logWarn("error scanning report", "error", err)
 			continue
 		}
 		if photoURL.Valid {
@@ -692,7 +593,7 @@ func getReports(w http.ResponseWriter, r *http.Request) {
 		reports = append(reports, report)
 	}
 
-	json.NewEncoder(w).Encode(Response{
+	writeJSON(w, http.StatusOK, Response{
 		Status: "success",
 		Data:   reports,
 	})
@@ -701,8 +602,7 @@ func getReports(w http.ResponseWriter, r *http.Request) {
 func submitReport(w http.ResponseWriter, r *http.Request) {
 	var report UserReport
 	if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusBadRequest, Response{
 			Status: "error",
 			Error:  "Invalid request body",
 		})
@@ -710,8 +610,7 @@ func submitReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if report.RegionID == 0 || report.FoliageStatus == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusBadRequest, Response{
 			Status: "error",
 			Error:  "region_id and foliage_status are required",
 		})
@@ -719,7 +618,7 @@ func submitReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if db == nil {
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusOK, Response{
 			Status:  "success",
 			Message: "Report submitted (mock)",
 			Data:    report,
@@ -733,10 +632,8 @@ func submitReport(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
 	`, report.RegionID, time.Now().Format("2006-01-02"), report.FoliageStatus, report.Description, report.PhotoURL).Scan(&id)
-
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusInternalServerError, Response{
 			Status: "error",
 			Error:  fmt.Sprintf("Failed to insert report: %v", err),
 		})
@@ -744,7 +641,7 @@ func submitReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	report.ID = id
-	json.NewEncoder(w).Encode(Response{
+	writeJSON(w, http.StatusOK, Response{
 		Status:  "success",
 		Message: "Report submitted successfully",
 		Data:    report,
@@ -760,8 +657,7 @@ func tripsHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		saveTrip(w, r)
 	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusMethodNotAllowed, Response{
 			Status: "error",
 			Error:  "Method not allowed",
 		})
@@ -770,7 +666,7 @@ func tripsHandler(w http.ResponseWriter, r *http.Request) {
 
 func getTrips(w http.ResponseWriter, r *http.Request) {
 	if db == nil {
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusOK, Response{
 			Status: "success",
 			Data:   []TripPlan{},
 		})
@@ -784,8 +680,7 @@ func getTrips(w http.ResponseWriter, r *http.Request) {
 		LIMIT 50
 	`)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusInternalServerError, Response{
 			Status: "error",
 			Error:  fmt.Sprintf("Failed to query trips: %v", err),
 		})
@@ -808,13 +703,13 @@ func getTrips(w http.ResponseWriter, r *http.Request) {
 			&trip.CreatedAt,
 		)
 		if err != nil {
-			log.Printf("Error scanning trip: %v", err)
+			logWarn("error scanning trip", "error", err)
 			continue
 		}
 
 		// Parse regions JSON
 		if err := json.Unmarshal(regionsJSON, &trip.Regions); err != nil {
-			log.Printf("Error parsing regions JSON: %v", err)
+			logWarn("error parsing regions JSON", "error", err)
 			continue
 		}
 
@@ -825,7 +720,7 @@ func getTrips(w http.ResponseWriter, r *http.Request) {
 		trips = append(trips, trip)
 	}
 
-	json.NewEncoder(w).Encode(Response{
+	writeJSON(w, http.StatusOK, Response{
 		Status: "success",
 		Data:   trips,
 	})
@@ -834,8 +729,7 @@ func getTrips(w http.ResponseWriter, r *http.Request) {
 func saveTrip(w http.ResponseWriter, r *http.Request) {
 	var trip TripPlan
 	if err := json.NewDecoder(r.Body).Decode(&trip); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusBadRequest, Response{
 			Status: "error",
 			Error:  "Invalid request body",
 		})
@@ -843,8 +737,7 @@ func saveTrip(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if trip.Name == "" || trip.StartDate == "" || trip.EndDate == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusBadRequest, Response{
 			Status: "error",
 			Error:  "name, start_date, and end_date are required",
 		})
@@ -852,7 +745,7 @@ func saveTrip(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if db == nil {
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusOK, Response{
 			Status:  "success",
 			Message: "Trip saved (mock)",
 			Data:    trip,
@@ -863,8 +756,7 @@ func saveTrip(w http.ResponseWriter, r *http.Request) {
 	// Convert regions to JSON
 	regionsJSON, err := json.Marshal(trip.Regions)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusInternalServerError, Response{
 			Status: "error",
 			Error:  "Failed to encode regions",
 		})
@@ -877,10 +769,8 @@ func saveTrip(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2, $3, $4, $5, $6, $6)
 		RETURNING id
 	`, trip.Name, trip.StartDate, trip.EndDate, regionsJSON, trip.Notes, time.Now()).Scan(&id)
-
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(Response{
+		writeJSON(w, http.StatusInternalServerError, Response{
 			Status: "error",
 			Error:  fmt.Sprintf("Failed to save trip: %v", err),
 		})
@@ -890,71 +780,22 @@ func saveTrip(w http.ResponseWriter, r *http.Request) {
 	trip.ID = id
 	trip.CreatedAt = time.Now().Format(time.RFC3339)
 
-	json.NewEncoder(w).Encode(Response{
+	writeJSON(w, http.StatusOK, Response{
 		Status:  "success",
 		Message: "Trip saved successfully",
 		Data:    trip,
 	})
 }
 
-func enableCORS(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next(w, r)
-	}
-}
-
 func main() {
-	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
 		ScenarioName: "fall-foliage-explorer",
 	}) {
-		return // Process was re-exec'd after rebuild
+		return
 	}
 
-	// Initialize database connection
-	if err := initDB(); err != nil {
-		log.Printf("Warning: Database initialization failed: %v", err)
-		log.Println("Running in mock data mode")
+	if err := runServer(); err != nil {
+		logError("server error", "error", err)
+		os.Exit(1)
 	}
-
-	// Register routes
-	mux := http.NewServeMux()
-	// Health endpoint - using standardized api-core/health
-	stdHealthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler()
-	mux.HandleFunc("/health", enableCORS(stdHealthHandler))
-	mux.HandleFunc("/api/regions", enableCORS(regionsHandler))
-	mux.HandleFunc("/api/foliage", enableCORS(foliageHandler))
-	mux.HandleFunc("/api/predict", enableCORS(predictHandler))
-	mux.HandleFunc("/api/weather", enableCORS(weatherHandler))
-	mux.HandleFunc("/api/reports", enableCORS(reportsHandler))
-	mux.HandleFunc("/api/trips", enableCORS(tripsHandler))
-
-	// Start server with graceful shutdown
-	if err := server.Run(server.Config{
-		Handler: mux,
-		Cleanup: func(ctx context.Context) error {
-			if db != nil {
-				return db.Close()
-			}
-			return nil
-		},
-	}); err != nil {
-		log.Fatalf("Server error: %v", err)
-	}
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }

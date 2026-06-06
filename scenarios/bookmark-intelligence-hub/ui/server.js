@@ -8,17 +8,29 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
-const PORT = process.env.UI_PORT || 3200;
-const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${process.env.API_PORT || 15200}`;
+const PORT = requireEnv('UI_PORT');
+const API_BASE_URL = process.env.API_BASE_URL || buildLocalApiBaseUrl();
 const distDir = path.join(__dirname, 'dist');
 const staticRoot = fs.existsSync(distDir) ? distDir : __dirname;
 const modulesDir = path.join(__dirname, 'node_modules');
+
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is required; start the scenario through the Vrooli lifecycle so ports are allocated correctly.`);
+  }
+  return value;
+}
+
+function buildLocalApiBaseUrl() {
+  return `http://localhost:${requireEnv('API_PORT')}`;
+}
 
 let parsedApiBaseUrl;
 try {
   parsedApiBaseUrl = new URL(API_BASE_URL);
 } catch (error) {
-  console.error('Invalid API_BASE_URL provided for UI proxy:', API_BASE_URL, error);
+  console.error('Invalid API_BASE_URL provided for UI proxy:', API_BASE_URL, error.message);
   parsedApiBaseUrl = null;
 }
 
@@ -51,8 +63,6 @@ function proxyToApi(req, res, upstreamPath) {
     method: req.method,
     headers
   };
-
-  console.log(`[proxyToApi] ${req.method} ${req.originalUrl} -> ${targetUrl.href}`);
 
   const proxyReq = client.request(options, (proxyRes) => {
     res.status(proxyRes.statusCode || 500);
