@@ -1306,6 +1306,69 @@ func TestStopAllRuns_EmptyBody(t *testing.T) {
 	}
 }
 
+// TestQuiesceScenario_DrainsWhenIdle verifies the endpoint returns drained=true
+// for a scenario with no in-flight runs.
+func TestQuiesceScenario_DrainsWhenIdle(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	timeout := "40ms"
+	body := encodeProtoJSON(t, &apipb.QuiesceScenarioRequest{
+		Scenario: "scenario-with-no-runs",
+		Timeout:  &timeout,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/quiesce", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var resp struct {
+		Result struct {
+			Drained bool `json:"drained"`
+		} `json:"result"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !resp.Result.Drained {
+		t.Fatalf("expected drained=true for an idle scenario, body: %s", rr.Body.String())
+	}
+}
+
+// TestQuiesceScenario_MissingScenario verifies proto validation rejects a blank
+// scenario.
+func TestQuiesceScenario_MissingScenario(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	body := encodeProtoJSON(t, &apipb.QuiesceScenarioRequest{Scenario: ""})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/quiesce", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code == http.StatusOK {
+		t.Fatalf("expected a 4xx for a blank scenario, got 200: %s", rr.Body.String())
+	}
+}
+
+// TestQuiesceScenario_InvalidTimeout verifies a non-duration timeout is rejected.
+func TestQuiesceScenario_InvalidTimeout(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	bad := "not-a-duration"
+	body := encodeProtoJSON(t, &apipb.QuiesceScenarioRequest{Scenario: "x", Timeout: &bad})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/quiesce", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code == http.StatusOK {
+		t.Fatalf("expected a 4xx for an invalid timeout, got 200: %s", rr.Body.String())
+	}
+}
+
 // TestGetRunEvents tests retrieving events for a run.
 func TestGetRunEvents_Success(t *testing.T) {
 	_, router := setupTestHandler(t)

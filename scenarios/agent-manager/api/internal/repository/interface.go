@@ -32,6 +32,7 @@ type RunListFilter struct {
 	AgentProfileID            *uuid.UUID
 	Status                    *domain.RunStatus
 	TagPrefix                 string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+	ScopePrefix               string // Filter runs by the joined task's scope_path prefix (e.g., "scenarios/agent-manager" to drain runs targeting a scenario)
 	InvestigatesRunID         *uuid.UUID
 	AppliesInvestigationRunID *uuid.UUID
 }

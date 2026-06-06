@@ -81,6 +81,7 @@ type Service interface {
 	StopRun(ctx context.Context, id uuid.UUID) error
 	StopRunByTag(ctx context.Context, tag string) error
 	StopAllRuns(ctx context.Context, opts StopAllOptions) (*StopAllResult, error)
+	QuiesceScenario(ctx context.Context, opts QuiesceOptions) (*QuiesceResult, error)
 	ContinueRun(ctx context.Context, req ContinueRunRequest) (*domain.Run, error)
 	RecoverRun(ctx context.Context, id uuid.UUID) (*RecoverResult, error)
 	DeleteRunMessage(ctx context.Context, runID uuid.UUID, eventID uuid.UUID) (*domain.RunEvent, error)
@@ -158,6 +159,7 @@ type RunListOptions struct {
 	AgentProfileID            *uuid.UUID
 	Status                    *domain.RunStatus
 	TagPrefix                 string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+	ScopePrefix               string // Filter runs by the joined task's scope_path prefix (e.g., "scenarios/agent-manager")
 	InvestigatesRunID         *uuid.UUID
 	AppliesInvestigationRunID *uuid.UUID
 }
@@ -1912,6 +1914,7 @@ func (o *Orchestrator) ListRuns(ctx context.Context, opts RunListOptions) ([]*do
 		AgentProfileID:            opts.AgentProfileID,
 		Status:                    opts.Status,
 		TagPrefix:                 opts.TagPrefix,
+		ScopePrefix:               opts.ScopePrefix,
 		InvestigatesRunID:         opts.InvestigatesRunID,
 		AppliesInvestigationRunID: opts.AppliesInvestigationRunID,
 	})

@@ -31,6 +31,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
@@ -128,7 +129,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/investigation-apply", h.CreateInvestigationApplyRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/resume-from-failed", h.ResumeFromFailedRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs", h.ListRuns).Methods("GET")
-	r.HandleFunc("/api/v1/runs/stop-all", h.StopAllRuns).Methods("POST") // Must be before /{id}
+	r.HandleFunc("/api/v1/runs/stop-all", h.StopAllRuns).Methods("POST")    // Must be before /{id}
+	r.HandleFunc("/api/v1/runs/quiesce", h.QuiesceScenario).Methods("POST") // Must be before /{id}
 	r.HandleFunc("/api/v1/runs/tag/{tag}", h.GetRunByTag).Methods("GET")
 	r.HandleFunc("/api/v1/runs/tag/{tag}/stop", h.StopRunByTag).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}", h.GetRun).Methods("GET")
@@ -2161,6 +2163,93 @@ func (h *Handler) StopAllRuns(w http.ResponseWriter, r *http.Request) {
 			FailedIDs: result.FailedIDs,
 		}),
 	})
+}
+
+// QuiesceScenario drains in-flight runs targeting a scenario so a Baseline Modes
+// promote can re-point and restart its live instance without killing in-flight
+// agent work (Baseline Modes P6).
+func (h *Handler) QuiesceScenario(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req apipb.QuiesceScenarioRequest
+	if len(body) > 0 {
+		if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+			writeSimpleError(w, r, "body", "invalid JSON request body")
+			return
+		}
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+
+	opts := orchestration.QuiesceOptions{
+		Scenario:    req.GetScenario(),
+		ScopePrefix: req.GetScopePrefix(),
+		TagPrefix:   req.GetTagPrefix(),
+		Force:       req.GetForce(),
+	}
+	if v := req.GetExcludeRunId(); v != "" {
+		id, perr := uuid.Parse(v)
+		if perr != nil {
+			writeSimpleError(w, r, "exclude_run_id", "invalid UUID format for exclude_run_id")
+			return
+		}
+		opts.ExcludeRunID = &id
+	}
+	if v := req.GetTimeout(); v != "" {
+		d, perr := time.ParseDuration(v)
+		if perr != nil {
+			writeSimpleError(w, r, "timeout", "invalid duration; use a Go duration like \"5m\"")
+			return
+		}
+		opts.Timeout = d
+	}
+
+	result, err := h.svc.QuiesceScenario(r.Context(), opts)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.QuiesceScenarioResponse{
+		Result: quiesceResultToProto(result),
+	})
+}
+
+func quiesceResultToProto(res *orchestration.QuiesceResult) *apipb.QuiesceResult {
+	if res == nil {
+		return nil
+	}
+	return &apipb.QuiesceResult{
+		Scenario:  res.Scenario,
+		Drained:   res.Drained,
+		Aborted:   res.Aborted,
+		Initial:   int32(res.Initial),
+		InFlight:  quiesceRefsToProto(res.InFlight),
+		Cancelled: quiesceRefsToProto(res.Cancelled),
+		WaitedMs:  res.WaitedMs,
+		Reason:    res.Reason,
+	}
+}
+
+func quiesceRefsToProto(refs []orchestration.QuiesceRunRef) []*apipb.QuiesceRunRef {
+	if len(refs) == 0 {
+		return nil
+	}
+	out := make([]*apipb.QuiesceRunRef, len(refs))
+	for i, ref := range refs {
+		out[i] = &apipb.QuiesceRunRef{
+			Id:        ref.ID,
+			Tag:       ref.Tag,
+			Status:    ref.Status,
+			ScopePath: ref.ScopePath,
+		}
+	}
+	return out
 }
 
 // GetRunEvents returns events for a run.

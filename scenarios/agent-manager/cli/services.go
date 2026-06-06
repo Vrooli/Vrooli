@@ -398,6 +398,25 @@ func (s *RunService) StopAll(req *apipb.StopAllRunsRequest) ([]byte, *domainpb.S
 	return body, resp.Result, nil
 }
 
+// Quiesce drains in-flight runs targeting a scenario so a Baseline Modes promote
+// can re-point and restart its live instance (Baseline Modes P6).
+func (s *RunService) Quiesce(req *apipb.QuiesceScenarioRequest) ([]byte, *apipb.QuiesceResult, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/quiesce", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.QuiesceScenarioResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Result, nil
+}
+
 // Approve approves a run.
 func (s *RunService) Approve(id string, req *apipb.ApproveRunRequest) ([]byte, *domainpb.ApproveResult, error) {
 	payload, err := marshalProtoRequest(req)

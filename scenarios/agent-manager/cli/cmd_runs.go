@@ -41,6 +41,8 @@ func (a *App) cmdRun(args []string) error {
 		return a.runStopByTag(args[1:])
 	case "stop-all":
 		return a.runStopAll(args[1:])
+	case "quiesce":
+		return a.runQuiesce(args[1:])
 	case "continue":
 		return a.runContinue(args[1:])
 	case "recover":
@@ -82,6 +84,7 @@ Subcommands:
   stop <id>                   Stop a run by UUID
   stop-by-tag <tag>           Stop a run by custom tag
   stop-all                    Stop all running runs
+  quiesce --scenario <s>      Drain in-flight runs targeting a scenario (promote)
   continue <id>               Continue a run with a follow-up message
   recover <id>                Drain transcript and reconcile a run
   investigate                 Create an investigation run from existing runs
@@ -557,6 +560,68 @@ func (a *App) runStopAll(args []string) error {
 				fmt.Printf("Failed IDs: %v\n", failedIDs)
 			}
 		}
+	}
+	return nil
+}
+
+// =============================================================================
+// Run Quiesce (Baseline Modes promote drain)
+// =============================================================================
+
+func (a *App) runQuiesce(args []string) error {
+	fs := flag.NewFlagSet("run quiesce", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	scenario := fs.String("scenario", "", "Target scenario slug to quiesce (required)")
+	scopePrefix := fs.String("scope-prefix", "", "Override the working-tree scope (default scenarios/<scenario>)")
+	tagPrefix := fs.String("tag-prefix", "", "Also enumerate in-flight runs by this tag prefix (whole-repo runs)")
+	excludeRun := fs.String("exclude-run", "", "The promoting run's own ID, excluded from the drain set")
+	timeout := fs.String("timeout", "", "Max wait for in-flight runs to terminate (e.g. 5m)")
+	force := fs.Bool("force", false, "On timeout, cancel survivors instead of aborting")
+
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if *scenario == "" {
+		return fmt.Errorf("--scenario is required")
+	}
+
+	req := &apipb.QuiesceScenarioRequest{Scenario: *scenario, Force: *force}
+	if *scopePrefix != "" {
+		req.ScopePrefix = protoString(*scopePrefix)
+	}
+	if *tagPrefix != "" {
+		req.TagPrefix = protoString(*tagPrefix)
+	}
+	if *excludeRun != "" {
+		req.ExcludeRunId = protoString(*excludeRun)
+	}
+	if *timeout != "" {
+		req.Timeout = protoString(*timeout)
+	}
+
+	body, result, err := a.services.Runs.Quiesce(req)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput || result == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	if result.Drained {
+		fmt.Printf("✓ %s drained — safe to promote\n", result.Scenario)
+	} else if result.Aborted {
+		fmt.Printf("✗ %s NOT drained — %d run(s) still in-flight\n", result.Scenario, len(result.InFlight))
+	}
+	if len(result.Cancelled) > 0 {
+		fmt.Printf("Cancelled: %d run(s)\n", len(result.Cancelled))
+	}
+	for _, ref := range result.InFlight {
+		fmt.Printf("  in-flight: %s [%s] %s\n", ref.Id, ref.Status, ref.Tag)
+	}
+	if result.Reason != "" {
+		fmt.Printf("→ %s\n", result.Reason)
 	}
 	return nil
 }

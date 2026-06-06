@@ -435,6 +435,15 @@ func (r *runRepository) List(ctx context.Context, filter repository.RunListFilte
 		conditions = append(conditions, "runs.tag LIKE ?")
 		args = append(args, filter.TagPrefix+"%")
 	}
+	if filter.ScopePrefix != "" {
+		// Enumerate by the joined task's scope_path rather than an ad-hoc tag
+		// LIKE: this is what the promote-quiesce drain uses to find every run
+		// targeting a scenario (scope "scenarios/<name>"). The exact-boundary
+		// refinement (scenarios/foo vs scenarios/foo-bar) is the caller's job;
+		// the SQL is a cheap prefix narrowing on the existing tasks JOIN.
+		conditions = append(conditions, "t.scope_path LIKE ?")
+		args = append(args, filter.ScopePrefix+"%")
+	}
 	if filter.InvestigatesRunID != nil {
 		conditions = append(conditions, "EXISTS (SELECT 1 FROM json_each(runs.source_run_ids) WHERE json_each.value = ?)")
 		args = append(args, (*filter.InvestigatesRunID).String())
