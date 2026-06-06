@@ -603,6 +603,38 @@ func TestApplyIsolationProfile_MergesVrooliAwarePath(t *testing.T) {
 	}
 }
 
+// TestApplyIsolationProfile_RelativeHostHomeNotExpanded pins the guard
+// that a non-absolute HostHome (e.g. HOME=.home inherited from a sandboxed
+// parent) never expands into a workspace-relative $HOME. With
+// `--chdir <workspace>` such a HOME would otherwise materialize
+// `<workspace>/.home` from every $HOME-relative write. The bind side
+// already refuses a relative HostHome (see args.go); the env side must
+// match — $HOME expands to empty rather than `.home`.
+func TestApplyIsolationProfile_RelativeHostHomeNotExpanded(t *testing.T) {
+	cfg := DefaultBwrapConfig()
+	cfg.HostHome = ".home"
+	p := &IsolationProfile{
+		ID: "vrooli-aware",
+		Environment: map[string]string{
+			"HOME": "$HOME",
+			"PATH": "$HOME/.vrooli/bin:/usr/bin",
+		},
+	}
+
+	if err := ApplyIsolationProfile(&cfg, p); err != nil {
+		t.Fatalf("ApplyIsolationProfile: %v", err)
+	}
+
+	if got := cfg.Env["HOME"]; strings.Contains(got, ".home") {
+		t.Fatalf("HOME = %q; relative host home must not expand into a workspace-relative path", got)
+	}
+	for _, entry := range strings.Split(cfg.Env["PATH"], ":") {
+		if strings.HasPrefix(entry, ".home") || entry == ".home/.vrooli/bin" {
+			t.Fatalf("PATH entry %q leaked relative host home", entry)
+		}
+	}
+}
+
 func TestApplyIsolationProfile_DeduplicatesPathEntries(t *testing.T) {
 	homeDir := t.TempDir()
 	cfg := DefaultBwrapConfig()

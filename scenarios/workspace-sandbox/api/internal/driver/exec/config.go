@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -213,6 +214,18 @@ func ApplyIsolationProfile(cfg *BwrapConfig, profile *IsolationProfile) error {
 	home := cfg.HostHome
 	if home == "" {
 		home = os.Getenv("HOME")
+	}
+	// A non-absolute $HOME would expand into a workspace-relative path
+	// (e.g. HOME=.home). Combined with `--chdir <workspace>`, every
+	// $HOME-relative write — Go build cache, vrooli CLI metrics, tool
+	// config — then lands inside the tracked workspace as
+	// `<workspace>/.home` instead of a real home. BuildBwrapArgs already
+	// refuses to bind a relative HostHome (see args.go); mirror that guard
+	// here so a relative HOME never reaches the sandbox env or bind
+	// expansions either. Dropping to "" makes $HOME expand to empty, which
+	// well-behaved tools resolve via /etc/passwd rather than the workspace.
+	if home != "" && !filepath.IsAbs(home) {
+		home = ""
 	}
 	user := os.Getenv("USER")
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
