@@ -31,6 +31,10 @@ func (s *Service) registryDetailsByScenario(ctx context.Context, items []scenari
 		detail   Detail
 		instance scenarioruntime.Instance
 	}
+	// Key the dedup by (scenario, variant) so a live and a shadow instance of
+	// the same scenario never collapse into one "latest" entry — without this,
+	// a shadow could overwrite the live instance's reported status (or vice
+	// versa). Live ⇒ bare slug, so single-instance scenarios are unchanged.
 	latest := make(map[string]reconciledDetail, len(instances))
 	for _, instance := range instances {
 		item, ok := registryScenarioBySlug(items, instance.Scenario)
@@ -44,14 +48,15 @@ func (s *Service) registryDetailsByScenario(ctx context.Context, items []scenari
 		if !authoritative {
 			continue
 		}
-		if current, ok := latest[instance.Scenario]; !ok || isNewerRuntimeInstance(instance, current.instance) {
-			latest[instance.Scenario] = reconciledDetail{detail: detail, instance: instance}
+		instKey := scenarioruntime.InstanceKey{Scenario: instance.Scenario, Variant: instance.Variant}.Slug()
+		if current, ok := latest[instKey]; !ok || isNewerRuntimeInstance(instance, current.instance) {
+			latest[instKey] = reconciledDetail{detail: detail, instance: instance}
 		}
 	}
 
 	out := make(map[string]Detail, len(latest))
 	for _, item := range items {
-		entry, ok := latest[item.Slug]
+		entry, ok := latest[scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Slug()]
 		if !ok {
 			continue
 		}
@@ -78,6 +83,7 @@ func (s *Service) registryDetail(ctx context.Context, item scenario.Scenario) (D
 
 	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{
 		Scenario: item.Slug,
+		Variant:  scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Normalize().Variant,
 		Statuses: scenarioruntime.ActiveInstanceStatuses(),
 	})
 	if err != nil {

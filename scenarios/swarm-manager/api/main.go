@@ -26,11 +26,11 @@ import (
 	"swarm-manager/handlers/audio_runtime"
 	"swarm-manager/handlers/discovery"
 	"swarm-manager/integrations/audiotools"
-	"swarm-manager/internal/audioports"
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/aisearch"
+	"swarm-manager/internal/audioports"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/captures"
 	"swarm-manager/internal/eventlog"
@@ -102,6 +102,7 @@ type Server struct {
 	aiSearchSyncLoop    *aisearch.SyncLoop
 	aiSearchStopChan    chan struct{}
 	feedbackSweeperStop chan struct{}
+	reviewSweeperStop   chan struct{}
 	audioToolsResolver  audiotools.URLResolver
 
 	// Audio ports — all backed by audio-tools. Mirrors web-console's
@@ -180,6 +181,7 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 		initReviewStopChan:  make(chan struct{}),
 		aiSearchStopChan:    make(chan struct{}),
 		feedbackSweeperStop: make(chan struct{}),
+		reviewSweeperStop:   make(chan struct{}),
 		scenarioRoot:        scenarioRoot,
 		dataRoot:            dataRoot,
 		cacheRoot:           cacheRoot,
@@ -571,6 +573,7 @@ func main() {
 	close(srv.initReviewStopChan)
 	close(srv.aiSearchStopChan)
 	close(srv.feedbackSweeperStop)
+	close(srv.reviewSweeperStop)
 }
 
 // startAISearchBackground kicks off two background tasks for aisearch:

@@ -55,6 +55,7 @@ func registerRoutes(router *gin.Engine, handler *handler) {
 		api.GET("/analyze/:scenario", handler.analyzeScenario)
 		api.GET("/scenarios/:scenario/dependencies", handler.getDependencies)
 		api.POST("/scenarios/:scenario/scan", handler.scanScenario)
+		api.GET("/core-set", handler.getCoreSet)
 		api.GET("/graph/:type", handler.getGraph)
 		api.GET("/graph/:type/cycles", handler.detectCycles)
 		api.GET("/dependencies/:name/impact", handler.getDependencyImpact)

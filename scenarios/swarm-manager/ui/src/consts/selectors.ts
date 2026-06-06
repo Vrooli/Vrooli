@@ -158,6 +158,7 @@ export const literalSelectors = {
     messageImageThumbnails: "session-message-image-thumbnails",
     starterSuggestions: "agent-session-starter-suggestions",
     starterSuggestion: "agent-session-starter-suggestion",
+    starterSuggestionCount: "agent-session-starter-suggestion-count",
   },
   // Inline question stepper selectors
   questionStepper: {

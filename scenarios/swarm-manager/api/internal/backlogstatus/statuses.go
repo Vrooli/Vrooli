@@ -80,6 +80,13 @@ func IsTerminal(s string) bool {
 
 // IsReview reports whether s is an active review-phase status (agent
 // gathering evidence or awaiting user verdict).
+//
+// Invariant: `in_review` means a review round is actively gathering evidence.
+// Code paths that cannot start (or continue) a review round must NOT leave an
+// item in `in_review` — they route to `review_pending` (human-decidable)
+// instead. The review sweeper (internal/review) and the recover-review
+// endpoint enforce this by draining any item stranded in `in_review` with no
+// live round, so a bogus `in_review` can never become a permanent dead-end.
 func IsReview(s string) bool {
 	switch s {
 	case InReview, ReviewPending:

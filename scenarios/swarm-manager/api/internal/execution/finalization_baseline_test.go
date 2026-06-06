@@ -84,13 +84,22 @@ func TestRunBaselineDiffs_RegressionAndScopeExpansion(t *testing.T) {
 		t.Fatalf("load record: %v", err)
 	}
 	foundWarning := false
+	foundRegressionWarning := false
 	for _, w := range rec[0].Finalization.Warnings {
 		if w.Code == finalizationWarningBaselineScopeExpanded && w.ScenarioName == "beta" {
 			foundWarning = true
 		}
+		if w.Code == finalizationWarningBaselineRegression && w.ScenarioName == "alpha" {
+			foundRegressionWarning = true
+		}
 	}
 	if !foundWarning {
 		t.Errorf("expected scope-expanded warning for beta, warnings=%+v", rec[0].Finalization.Warnings)
+	}
+	// alpha's regression must surface as a first-class, attributable warning
+	// (the audit/UI signal paired with the summarizeFinalization gate).
+	if !foundRegressionWarning {
+		t.Errorf("expected baseline-regression warning for alpha, warnings=%+v", rec[0].Finalization.Warnings)
 	}
 
 	// Phase should have advanced to baseline_diff.

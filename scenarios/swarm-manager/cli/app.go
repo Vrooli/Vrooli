@@ -118,6 +118,7 @@ func (a *App) dependencies() support.Dependencies {
 		BacklogClarifyNext:              a.cmdBacklogClarifyContinue,
 		BacklogClarifyAction:            a.cmdBacklogClarifyAction,
 		BacklogReviewDecide:             a.cmdBacklogReviewDecide,
+		BacklogRecoverReview:            a.cmdBacklogRecoverReview,
 		BacklogRetry:                    a.cmdBacklogRetry,
 		ScenariosList:                   a.cmdScenariosList,
 		ScenariosGet:                    a.cmdScenariosGet,

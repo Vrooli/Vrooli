@@ -28,6 +28,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/packagehandlers"
 	"github.com/vrooli/vrooli/internal/cli/planshandlers"
 	"github.com/vrooli/vrooli/internal/cli/projectcli"
+	"github.com/vrooli/vrooli/internal/cli/recoveryhandlers"
 	"github.com/vrooli/vrooli/internal/cli/resourcehandlers"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
@@ -957,6 +958,11 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 		topcli.CommandAgentPolicy: agentpolicyhandlers.RootHandler(agentpolicyhandlers.HandlerDeps[*CommandContext]{
 			Stdout: commandStdout,
 			Stderr: func(ctx *CommandContext) io.Writer { return ctx.Stderr },
+		}),
+		topcli.CommandRecovery: recoveryhandlers.RootHandler(recoveryhandlers.HandlerDeps[*CommandContext]{
+			Stdout:       commandStdout,
+			Root:         func(ctx *CommandContext) string { return ctx.Root },
+			OutputFormat: projectOutputFormat,
 		}),
 		topcli.CommandLifecycle: projectcli.LifecycleHandler(commandStdout, func(ctx *CommandContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
 	}

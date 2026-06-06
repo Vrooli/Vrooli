@@ -407,12 +407,15 @@ func (m *Manager) BuildEnvironment(item scenario.Scenario, records []process.Rec
 }
 
 func (m *Manager) BuildEnvironmentWithRuntimeClaims(item scenario.Scenario, _ []process.Record, claimOptions RuntimeClaimOptions) (Environment, error) {
-	allocated, envVars, runtimeClaims, err := m.allocateScenario(item.Slug, item.Manifest, claimOptions)
+	instanceKey := scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Normalize()
+	ns := instanceKey.Namespace()
+
+	allocated, envVars, runtimeClaims, err := m.allocateScenario(instanceKey, item.Manifest, claimOptions)
 	if err != nil {
 		return Environment{}, err
 	}
 
-	resourceEnv, err := m.loadResourceEnvironment(item.Slug, item.Manifest)
+	resourceEnv, err := m.loadResourceEnvironment(instanceKey, item.Manifest)
 	if err != nil {
 		return Environment{}, err
 	}
@@ -427,6 +430,13 @@ func (m *Manager) BuildEnvironmentWithRuntimeClaims(item scenario.Scenario, _ []
 		"SCENARIO_DATA_DIR":   filepath.Join(item.Path, "data"),
 		"VROOLI_SCENARIO":     item.Slug,
 		"VROOLI_SCENARIO_DIR": item.Path,
+	}
+	// VROOLI_SCENARIO stays the bare slug; the variant-aware namespace is carried
+	// in its own env vars (VROOLI_VARIANT + VROOLI_STORAGE_NAMESPACE) from the
+	// InstanceKey SSOT, so scenarios derive shadow-isolated storage namespaces
+	// from the environment instead of hardcoding their slug. See §1a / P5.
+	for key, value := range ns.EnvVars {
+		scenarioVars[key] = value
 	}
 	for key, value := range scenarioVars {
 		envVars[key] = value
@@ -469,7 +479,7 @@ func (m *Manager) BuildProjectEnvironment(item scenario.Scenario) (Environment, 
 		envVars[portSummary.EnvVar] = strconv.Itoa(port)
 	}
 
-	resourceEnv, err := m.loadResourceEnvironment(item.Slug, item.Manifest)
+	resourceEnv, err := m.loadResourceEnvironment(scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Normalize(), item.Manifest)
 	if err != nil {
 		return Environment{}, err
 	}
@@ -492,16 +502,16 @@ func (m *Manager) BuildProjectEnvironment(item scenario.Scenario) (Environment, 
 	}, nil
 }
 
-func (m *Manager) allocateScenario(scenarioName string, manifest scenario.ServiceManifest, claimOptions RuntimeClaimOptions) (map[string]int, map[string]string, map[string]scenarioruntime.PortClaim, error) {
+func (m *Manager) allocateScenario(key scenarioruntime.InstanceKey, manifest scenario.ServiceManifest, claimOptions RuntimeClaimOptions) (map[string]int, map[string]string, map[string]scenarioruntime.PortClaim, error) {
 	allocated := make(map[string]int)
 	envVars := make(map[string]string)
 	runtimeClaims := make(map[string]scenarioruntime.PortClaim)
 	newRuntimeClaims := make(map[string]scenarioruntime.PortClaim)
 
 	for _, portSummary := range manifest.SortedPorts() {
-		allocation, err := m.allocatePortDefinition(scenarioName, portSummary, claimOptions)
+		allocation, err := m.allocatePortDefinition(key, portSummary, claimOptions)
 		if err != nil {
-			m.releaseNewRuntimeClaims(runtimeClaimContext(claimOptions), claimOptions.Store, scenarioName, newRuntimeClaims)
+			m.releaseNewRuntimeClaims(runtimeClaimContext(claimOptions), claimOptions.Store, key.Scenario, newRuntimeClaims)
 			return nil, nil, nil, err
 		}
 		port := allocation.port
@@ -527,14 +537,23 @@ type portAllocation struct {
 	newClaim     bool
 }
 
-func (m *Manager) allocatePortDefinition(scenarioName string, portSummary scenario.PortSummary, claimOptions RuntimeClaimOptions) (portAllocation, error) {
+func (m *Manager) allocatePortDefinition(key scenarioruntime.InstanceKey, portSummary scenario.PortSummary, claimOptions RuntimeClaimOptions) (portAllocation, error) {
+	ns := key.Namespace()
 	if portSummary.FixedPort != nil {
+		// Fixed ports are a live-only privilege (§1a / P1): a constant port can
+		// only be honored by one instance, and that is reserved for live. A
+		// non-live variant skips the fixed definition entirely so it can never
+		// preempt or collide with the live instance on it. (The offset/range
+		// fallback that gives a shadow an alternate port is a deferred follow-up.)
+		if !key.IsLive() {
+			return portAllocation{}, nil
+		}
 		port := *portSummary.FixedPort
-		claim, claimed, err := m.acquireRuntimePortClaim(scenarioName, portSummary, port, claimOptions, true)
+		claim, claimed, err := m.acquireRuntimePortClaim(key, portSummary, port, claimOptions, true)
 		if err != nil {
 			return portAllocation{}, fmt.Errorf("fixed port %d for %s unavailable: %w", port, portSummary.Name, err)
 		}
-		if err := m.ensurePortBindable(port, scenarioName); err != nil {
+		if err := m.ensurePortBindable(port, key.Scenario); err != nil {
 			if claimed {
 				_, _ = claimOptions.Store.ReleasePortClaim(runtimeClaimContext(claimOptions), claim.ClaimID)
 			}
@@ -556,14 +575,17 @@ func (m *Manager) allocatePortDefinition(scenarioName string, portSummary scenar
 	}
 
 	size := end - start + 1
-	offset := int(crc32.ChecksumIEEE([]byte(scenarioName+"_"+portSummary.Name)) % uint32(size))
+	// Seed the deterministic first-choice port from the variant-aware PortSeed
+	// (bare slug for live — so live ports never shift — "scenario@variant"
+	// otherwise) so the two variants hash to different first-choice ports.
+	offset := int(crc32.ChecksumIEEE([]byte(ns.PortSeed+"_"+portSummary.Name)) % uint32(size))
 	for attempt := 0; attempt < size; attempt++ {
 		port := start + ((offset + attempt) % size)
-		claim, claimed, err := m.acquireRuntimePortClaim(scenarioName, portSummary, port, claimOptions, false)
+		claim, claimed, err := m.acquireRuntimePortClaim(key, portSummary, port, claimOptions, false)
 		if err != nil {
 			continue
 		}
-		if err := m.ensurePortBindable(port, scenarioName); err != nil {
+		if err := m.ensurePortBindable(port, key.Scenario); err != nil {
 			if claimed {
 				_, _ = claimOptions.Store.ReleasePortClaim(runtimeClaimContext(claimOptions), claim.ClaimID)
 			}
@@ -575,7 +597,7 @@ func (m *Manager) allocatePortDefinition(scenarioName string, portSummary scenar
 	return portAllocation{}, fmt.Errorf("no available ports in range %s for %s", portSummary.Range, portSummary.Name)
 }
 
-func (m *Manager) acquireRuntimePortClaim(scenarioName string, portSummary scenario.PortSummary, port int, options RuntimeClaimOptions, fixed bool) (scenarioruntime.PortClaim, bool, error) {
+func (m *Manager) acquireRuntimePortClaim(key scenarioruntime.InstanceKey, portSummary scenario.PortSummary, port int, options RuntimeClaimOptions, fixed bool) (scenarioruntime.PortClaim, bool, error) {
 	if !runtimeClaimsEnabled(options) {
 		return scenarioruntime.PortClaim{}, false, nil
 	}
@@ -598,7 +620,8 @@ func (m *Manager) acquireRuntimePortClaim(scenarioName string, portSummary scena
 	newClaim := func() (scenarioruntime.PortClaim, error) {
 		return options.Store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
 			InstanceID: options.InstanceID,
-			Scenario:   scenarioName,
+			Scenario:   key.Scenario,
+			Variant:    key.Variant,
 			PortName:   portSummary.Name,
 			EnvVar:     portSummary.EnvVar,
 			Port:       port,
@@ -621,7 +644,7 @@ func (m *Manager) acquireRuntimePortClaim(scenarioName string, portSummary scena
 	if !fixed {
 		return scenarioruntime.PortClaim{}, false, fmt.Errorf("active registry claim already owns port %d", port)
 	}
-	preempted, kind, conflictScenario, perr := m.preemptFixedPortConflict(ctx, options, scenarioName, port)
+	preempted, kind, conflictScenario, perr := m.preemptFixedPortConflict(ctx, options, key, port)
 	if perr != nil {
 		return scenarioruntime.PortClaim{}, false, fmt.Errorf("active registry claim already owns port %d: preemption failed: %w", port, perr)
 	}
@@ -635,7 +658,7 @@ func (m *Manager) acquireRuntimePortClaim(scenarioName string, portSummary scena
 		}
 		return scenarioruntime.PortClaim{}, false, err
 	}
-	m.recordPortPreemptedEvent(ctx, options, scenarioName, port, kind, conflictScenario)
+	m.recordPortPreemptedEvent(ctx, options, key.Scenario, port, kind, conflictScenario)
 	return claim, true, nil
 }
 
@@ -647,7 +670,7 @@ func (m *Manager) acquireRuntimePortClaim(scenarioName string, portSummary scena
 // conflicts are stopped via the lifecycle Preempter callback when one is
 // configured; without a Preempter, a live conflict is not preempted and the
 // caller surfaces the original ErrActiveClaimConflict.
-func (m *Manager) preemptFixedPortConflict(ctx context.Context, options RuntimeClaimOptions, requestingScenario string, port int) (bool, string, string, error) {
+func (m *Manager) preemptFixedPortConflict(ctx context.Context, options RuntimeClaimOptions, key scenarioruntime.InstanceKey, port int) (bool, string, string, error) {
 	conflict, ok, err := findActiveClaimOnPort(ctx, options.Store, port)
 	if err != nil {
 		return false, "", "", err
@@ -657,6 +680,14 @@ func (m *Manager) preemptFixedPortConflict(ctx context.Context, options RuntimeC
 		// with another in-flight acquire, or transient. Let the caller
 		// surface the original conflict error.
 		return false, "", "", nil
+	}
+	// Never preempt a different variant. Fixed ports are live-only, so the
+	// requester here is always live and may only reclaim its own live-variant
+	// stale/leftover claim; a claim owned by another variant is left untouched
+	// (defense in depth — the allocator already skips fixed ports for non-live).
+	conflictVariant := scenarioruntime.InstanceKey{Scenario: conflict.Scenario, Variant: conflict.Variant}.Normalize().Variant
+	if conflictVariant != key.Variant {
+		return false, "live", conflict.Scenario, nil
 	}
 	instance, err := options.Store.GetInstance(ctx, conflict.InstanceID)
 	if err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
@@ -967,8 +998,8 @@ func isTCPPortInUse(port int) (bool, error) {
 	return false, nil
 }
 
-func (m *Manager) loadResourceEnvironment(scenarioName string, manifest scenario.ServiceManifest) (map[string]string, error) {
-	resolution, err := resourceenv.ResolveScenario(m.Root, m.Home, scenarioName, manifest)
+func (m *Manager) loadResourceEnvironment(key scenarioruntime.InstanceKey, manifest scenario.ServiceManifest) (map[string]string, error) {
+	resolution, err := resourceenv.ResolveScenario(m.Root, m.Home, key.Scenario, key.Variant, manifest)
 	if err != nil {
 		return nil, err
 	}

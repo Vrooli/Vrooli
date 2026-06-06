@@ -32,6 +32,7 @@ type Dependencies struct {
 	BacklogClarifyNext      CommandFunc
 	BacklogClarifyAction    CommandFunc
 	BacklogReviewDecide     CommandFunc
+	BacklogRecoverReview    CommandFunc
 	BacklogRetry            CommandFunc
 	ScenariosList           CommandFunc
 	ScenariosGet            CommandFunc

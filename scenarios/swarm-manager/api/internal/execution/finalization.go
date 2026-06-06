@@ -97,6 +97,16 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 
 	// Evidence gathering phase (optional, policy-gated). The review agent
 	// spawns asynchronously; its failure is non-fatal to finalization.
+	//
+	// reviewStarted records whether a review round was actually spawned. It
+	// drives the terminal status decision in finishFinalization: a started
+	// review lands the item in `in_review` (a round is actively gathering);
+	// a review that was disabled or failed to spawn lands the item directly
+	// in `review_pending` so the user can still decide a terminal state via
+	// review-decide instead of being stranded in an `in_review` with no
+	// review round behind it (the orphaned-in_review dead-end).
+	reviewStarted := false
+	reviewSkipReason := ""
 	switch enabled, reason := s.checkReviewAgentEnabled(); {
 	case enabled:
 		if err := s.markFinalizationPhase(executionID, FinalizationPhaseEvidenceGathering); err != nil {
@@ -104,12 +114,16 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 		}
 		if err := s.triggerReviewAgent(ctx, executionID, scope, item); err != nil {
 			slog.Warn("review agent spawn failed", "execution_id", executionID, "err", err)
+			reviewSkipReason = "review agent spawn failed: " + err.Error()
 			_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
 				finalizationWarningReviewAgentFailed, "", err.Error(), false,
 			))
+		} else {
+			reviewStarted = true
 		}
 	default:
 		slog.Info("evidence gathering skipped", "execution_id", executionID, "reason", reason)
+		reviewSkipReason = s.evidenceSkipMessage(reason)
 		_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
 			reason, "", s.evidenceSkipMessage(reason), false,
 		))
@@ -120,7 +134,7 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 	// unless configured to retain. Best-effort — never blocks finalization.
 	s.cleanupPreExecBaselines(ctx, record.PreExecBaselines)
 
-	return s.finishFinalization(executionID)
+	return s.finishFinalization(executionID, reviewStarted, reviewSkipReason)
 }
 
 func (s *Service) runScenarioReview(ctx context.Context, executionID, scenarioName, sandboxID string, acceptanceAllow []string) error {
@@ -204,7 +218,17 @@ func (s *Service) runScenarioReview(ctx context.Context, executionID, scenarioNa
 	}
 }
 
-func (s *Service) finishFinalization(executionID string) error {
+// finishFinalization writes the terminal finalization state and moves the
+// backlog item into the review gate.
+//
+// reviewStarted reports whether processFinalization actually spawned a review
+// round. When true the item enters `in_review` (a round is gathering). When
+// false — the review agent was disabled or its spawn failed — the item enters
+// `review_pending` directly so the user can decide a terminal state, instead of
+// being stranded in `in_review` with no review round to ever advance it (the
+// orphaned-in_review dead-end). reviewSkipReason explains the latter case and
+// is recorded as a synthetic review round for UI/audit clarity.
+func (s *Service) finishFinalization(executionID string, reviewStarted bool, reviewSkipReason string) error {
 	s.mu.Lock()
 	records, idx, err := s.loadRecordLocked(executionID)
 	if err != nil {
@@ -218,12 +242,20 @@ func (s *Service) finishFinalization(executionID string) error {
 	finalization.Status = FinalizationStatusCompleted
 	finalization.Phase = FinalizationPhaseCompleted
 	finalization.CompletedAt = nowRFC3339()
-	classification, summary, hasActionableFailure := summarizeFinalization(*finalization)
+	classification, summary, hasActionableFailure := summarizeFinalization(*finalization, s.finalizationCfg.BaselineRegressionGateEnabled)
 	finalization.AggregateClassification = classification
 	finalization.AggregateSummary = summary
 	record.Finalization = finalization
 	record.UpdatedAt = nowRFC3339()
 	record.FinishedAt = nowRFC3339()
+
+	// A started review gathers evidence in `in_review`; without one, route the
+	// item straight to the human-decidable `review_pending` so it can never be
+	// orphaned in `in_review` with no round behind it.
+	reviewStatus := backlogStatusInReview
+	if !reviewStarted {
+		reviewStatus = backlogStatusReviewPending
+	}
 
 	item, loadErr := s.loadBacklogItemByRecord(record)
 	autoSpawnFixup := false
@@ -239,18 +271,16 @@ func (s *Service) finishFinalization(executionID string) error {
 				record.Status = StatusNeedsFixup
 				record.FailureReason = ""
 			}
-			// Review agent will run and gather evidence; user decides terminal state.
-			if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
-				slog.Warn("failed to set backlog status to in_review after finalization",
-					"execution_id", executionID, "backlog_ref", item.Kind+"/"+item.Name, "err", err)
+			if err := s.updateBacklogStatus(item, reviewStatus); err != nil {
+				slog.Warn("failed to set backlog review status after finalization",
+					"execution_id", executionID, "backlog_ref", item.Kind+"/"+item.Name, "status", reviewStatus, "err", err)
 			}
 		default:
 			record.Status = StatusCompleted
 			record.FailureReason = ""
-			// Review agent will run and gather evidence; user decides terminal state.
-			if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
-				slog.Warn("failed to set backlog status to in_review after finalization",
-					"execution_id", executionID, "backlog_ref", item.Kind+"/"+item.Name, "err", err)
+			if err := s.updateBacklogStatus(item, reviewStatus); err != nil {
+				slog.Warn("failed to set backlog review status after finalization",
+					"execution_id", executionID, "backlog_ref", item.Kind+"/"+item.Name, "status", reviewStatus, "err", err)
 			}
 		}
 	} else {
@@ -263,6 +293,21 @@ func (s *Service) finishFinalization(executionID string) error {
 		return err
 	}
 	s.mu.Unlock()
+
+	// Record why no evidence was gathered when we routed straight to
+	// review_pending, so the review surface explains the empty round set.
+	// Best-effort: never blocks finalization. Done outside the lock (disk I/O).
+	if loadErr == nil && !reviewStarted && s.reviewService != nil {
+		reason := strings.TrimSpace(reviewSkipReason)
+		if reason == "" {
+			reason = "review agent did not run; routed to review_pending for manual decision"
+		}
+		if recErr := s.reviewService.RecordUnavailableReview(item.Kind, item.Name, executionID, reason); recErr != nil {
+			slog.Warn("failed to record review-unavailable marker",
+				"execution_id", executionID, "backlog_ref", item.Kind+"/"+item.Name, "err", recErr)
+		}
+	}
+
 	s.dispatchStatusAndLog(*record, prevStatus)
 
 	// Fire-and-forget: record experiment outcome if this execution was part of an experiment.

@@ -11,7 +11,29 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/resources"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
+
+// instanceOption is the shared `--instance <variant>` flag that lets every
+// scenario-addressing command target a named instance (e.g. a shadow). It is
+// sugar for the canonical `name@variant` argument; both resolve through the one
+// scenarioruntime.ParseInstanceKey parser (§1a), and supplying them with
+// conflicting values is a hard error.
+func instanceOption() commandtree.OptionArg {
+	return commandtree.OptionArg{Name: "--instance", ValueName: "variant", Description: "Target a named instance/variant (e.g. shadow); equivalent to name@variant"}
+}
+
+// resolveInstanceArg folds a scenario-name argument and the --instance flag into
+// the canonical instance slug ("scenario" for live, "scenario@variant"
+// otherwise). It is the single CLI-side resolution point so downstream layers
+// receive one unambiguous identifier rather than re-splitting the name.
+func resolveInstanceArg(command, name, instanceFlag string) (string, error) {
+	key, err := scenarioruntime.ParseInstanceKey(name, instanceFlag)
+	if err != nil {
+		return "", clipolicy.UsageErrorf("scenario "+command, "%s", err.Error())
+	}
+	return key.Slug(), nil
+}
 
 type CommandID string
 
@@ -53,7 +75,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		},
 		{
 			Name: string(CommandStatus), Group: "Read-only Commands", Summary: "Show scenario runtime status", Handler: CommandStatus, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
-			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name"}}, Options: []commandtree.OptionArg{commandtree.JSONOption()}},
+			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name"}}, Options: []commandtree.OptionArg{commandtree.JSONOption(), instanceOption()}},
 		},
 		{
 			Name: string(CommandValidateEnv), Group: "Read-only Commands", Summary: "Validate resource-derived environment injection for a scenario", Handler: CommandValidateEnv, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
@@ -64,7 +86,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandStart), Group: "Lifecycle and Utility Commands", Summary: "Start a scenario", Handler: CommandStart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true, Repeatable: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, commandtree.JSONOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, commandtree.JSONOption(), instanceOption()},
 			},
 		},
 		{
@@ -79,12 +101,12 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandRestart), Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: CommandRestart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, commandtree.JSONOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, commandtree.JSONOption(), instanceOption()},
 			},
 		},
 		{
 			Name: string(CommandStop), Group: "Lifecycle and Utility Commands", Summary: "Stop a running scenario", Handler: CommandStop, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
-			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{commandtree.JSONOption()}},
+			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{commandtree.JSONOption(), instanceOption()}},
 		},
 		{
 			Name: string(CommandStopAll), Group: "Lifecycle and Utility Commands", Summary: "Stop all running scenarios", Handler: CommandStopAll, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
@@ -103,7 +125,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandPort), Group: "Lifecycle and Utility Commands", Summary: "Show running port assignments", Handler: CommandPort, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}, {Name: "port name"}},
-				Options:     []commandtree.OptionArg{commandtree.JSONOption()},
+				Options:     []commandtree.OptionArg{commandtree.JSONOption(), instanceOption()},
 			},
 		},
 		{Name: string(CommandUISmoke), Group: "Lifecycle and Utility Commands", Summary: "Run the Browserless UI smoke harness", Handler: CommandUISmoke, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
@@ -264,7 +286,16 @@ func ParseScenarioStartArgs(defaultJSON bool, args []string) ([]string, lifecycl
 		CleanStale: parsed.HasFlag("--clean-stale"),
 		CustomPath: parsed.FlagValue("--path"),
 	}
-	return append([]string(nil), parsed.Positionals...), opts, defaultJSON || parsed.HasFlag("--json"), parsed.HasFlag("--open"), nil
+	instanceFlag := parsed.FlagValue("--instance")
+	names := make([]string, 0, len(parsed.Positionals))
+	for _, positional := range parsed.Positionals {
+		slug, err := resolveInstanceArg("start", positional, instanceFlag)
+		if err != nil {
+			return nil, lifecycle.StartOptions{}, false, false, err
+		}
+		names = append(names, slug)
+	}
+	return names, opts, defaultJSON || parsed.HasFlag("--json"), parsed.HasFlag("--open"), nil
 }
 
 func ParseScenarioSingleStartArgs(command string, defaultJSON bool, args []string) (string, lifecycle.StartOptions, bool, bool, error) {
@@ -301,14 +332,19 @@ func ParseStartRequest(globalsJSON bool, args []string) (StartRequest, error) {
 }
 
 func ParseStopRequest(globalsJSON bool, args []string) (StopRequest, error) {
-	name, jsonFlag, err := parseOptionalScenarioNameAndJSONWithHelp("stop", globalsJSON, commandHelpText(CommandStop), args)
+	spec := commandSpec(CommandStop)
+	parsed, err := commandtree.ParseArgs("scenario stop", commandHelpText(CommandStop), spec.Args, args)
 	if err != nil {
 		return StopRequest{}, err
 	}
-	if name == "" {
+	if len(parsed.Positionals) == 0 {
 		return StopRequest{}, clipolicy.UsageErrorf("scenario stop", "scenario stop requires a scenario name")
 	}
-	return StopRequest{Name: name, JSON: jsonFlag}, nil
+	slug, err := resolveInstanceArg("stop", parsed.Positionals[0], parsed.FlagValue("--instance"))
+	if err != nil {
+		return StopRequest{}, err
+	}
+	return StopRequest{Name: slug, JSON: globalsJSON || parsed.HasFlag("--json")}, nil
 }
 
 func ParseRestartRequest(globalsJSON bool, args []string) (RestartRequest, error) {
@@ -337,11 +373,20 @@ func ParseListRequest(globalsJSON bool, args []string) (ListRequest, error) {
 }
 
 func ParseStatusRequest(globalsJSON bool, args []string) (StatusRequest, error) {
-	name, jsonFlag, err := parseOptionalScenarioNameAndJSONWithHelp("status", globalsJSON, commandHelpText(CommandStatus), args)
+	spec := commandSpec(CommandStatus)
+	parsed, err := commandtree.ParseArgs("scenario status", commandHelpText(CommandStatus), spec.Args, args)
 	if err != nil {
 		return StatusRequest{}, err
 	}
-	return StatusRequest{Name: name, JSON: jsonFlag}, nil
+	name := ""
+	if len(parsed.Positionals) == 1 {
+		if name, err = resolveInstanceArg("status", parsed.Positionals[0], parsed.FlagValue("--instance")); err != nil {
+			return StatusRequest{}, err
+		}
+	} else if parsed.FlagValue("--instance") != "" {
+		return StatusRequest{}, clipolicy.UsageErrorf("scenario status", "scenario status --instance requires a scenario name")
+	}
+	return StatusRequest{Name: name, JSON: globalsJSON || parsed.HasFlag("--json")}, nil
 }
 
 func ParseValidateEnvRequest(globalsJSON bool, args []string) (ValidateEnvRequest, error) {
@@ -522,8 +567,12 @@ func ParsePortRequest(globalsJSON bool, args []string) (PortRequest, error) {
 	if err != nil {
 		return PortRequest{}, err
 	}
+	slug, err := resolveInstanceArg("port", parsed.Positionals[0], parsed.FlagValue("--instance"))
+	if err != nil {
+		return PortRequest{}, err
+	}
 	req := PortRequest{
-		ScenarioName: parsed.Positionals[0],
+		ScenarioName: slug,
 		JSON:         globalsJSON || parsed.HasFlag("--json"),
 	}
 	if len(parsed.Positionals) > 1 {

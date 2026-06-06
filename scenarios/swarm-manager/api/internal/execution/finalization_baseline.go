@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 )
 
 // runBaselineDiffs compares each affected scenario against the baseline captured
@@ -72,6 +73,23 @@ func (s *Service) runBaselineDiffs(ctx context.Context, executionID string, scop
 		diff := result
 		if err := s.updateScenarioBaselineDiff(executionID, scenarioName, &diff); err != nil {
 			return err
+		}
+		// A genuine regression (a surface that passed in the pre-exec baseline
+		// and fails now) is attributable to this change, so surface it as a
+		// first-class, non-retryable warning. summarizeFinalization reads the
+		// same recorded verdict to gate the finalization outcome when
+		// BaselineRegressionGateEnabled is set (plan P6 §200-201) — the warning
+		// is the audit/UI signal, the gate is the decision.
+		if diff.HasNewRegressions() {
+			if err := s.appendFinalizationWarning(executionID, newFinalizationWarning(
+				finalizationWarningBaselineRegression,
+				scenarioName,
+				fmt.Sprintf("%q introduced %d regression(s) on %s; this change turned previously-passing surface(s) red.",
+					scenarioName, len(diff.Regressions), strings.Join(diff.RegressedSurfaces, ", ")),
+				false,
+			)); err != nil {
+				return err
+			}
 		}
 		slog.Info("baseline diff complete",
 			"execution_id", executionID,

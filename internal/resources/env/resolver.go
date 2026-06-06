@@ -15,6 +15,7 @@ import (
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/secrets"
 )
 
@@ -31,7 +32,12 @@ type PortRegistry struct {
 
 type ResolveOptions struct {
 	ScenarioName string
-	Dependency   scenario.Dependency
+	// Variant selects the instance whose namespace the resolved values address.
+	// Empty ⇒ live, so the Postgres database name stays "vrooli_<scenario>" for
+	// the canonical instance and becomes "vrooli_<scenario>_<variant>" for a
+	// shadow — both derived from the InstanceKey SSOT. See Baseline Modes §1a.
+	Variant    string
+	Dependency scenario.Dependency
 }
 
 type ResourceReport struct {
@@ -47,7 +53,7 @@ type ScenarioResolution struct {
 	Warnings  []string          `json:"warnings,omitempty"`
 }
 
-func ResolveScenario(root, home, scenarioName string, manifest scenario.ServiceManifest) (ScenarioResolution, error) {
+func ResolveScenario(root, home, scenarioName, variant string, manifest scenario.ServiceManifest) (ScenarioResolution, error) {
 	report := ScenarioResolution{
 		Values:    map[string]string{},
 		Resources: []ResourceReport{},
@@ -67,6 +73,7 @@ func ResolveScenario(root, home, scenarioName string, manifest scenario.ServiceM
 		dep := manifest.Dependencies.Resources[resourceName]
 		result, err := ResolveResource(root, home, resourceName, ResolveOptions{
 			ScenarioName: scenarioName,
+			Variant:      variant,
 			Dependency:   dep,
 		})
 		if err != nil {
@@ -353,7 +360,8 @@ func isLegacyRepoDataPath(root, source string) bool {
 }
 
 func ValidateScenario(root, home, scenarioName string, manifest scenario.ServiceManifest) (ScenarioResolution, []string, error) {
-	resolution, err := ResolveScenario(root, home, scenarioName, manifest)
+	// Validation resolves against the canonical (live) namespace.
+	resolution, err := ResolveScenario(root, home, scenarioName, "", manifest)
 	if err != nil {
 		return ScenarioResolution{}, nil, err
 	}
@@ -476,7 +484,12 @@ func applyDependencyOverrides(resourceName string, opts ResolveOptions, values m
 	}
 	dbName := strings.TrimSpace(opts.Dependency.Database)
 	if dbName == "" && strings.TrimSpace(opts.ScenarioName) != "" {
-		dbName = "vrooli_" + strings.ReplaceAll(opts.ScenarioName, "-", "_")
+		// SSOT: live ⇒ "vrooli_<scenario>" (unchanged); shadow ⇒
+		// "vrooli_<scenario>_<variant>" so a shadow never writes live's database.
+		dbName = scenarioruntime.InstanceKey{
+			Scenario: opts.ScenarioName,
+			Variant:  opts.Variant,
+		}.Namespace().PostgresDB
 	}
 	if dbName != "" {
 		values["POSTGRES_DB"] = dbName

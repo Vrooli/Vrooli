@@ -11,9 +11,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/ports"
-	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -313,8 +313,12 @@ func injectTestGenieAutoStart(command string) string {
 }
 
 func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step scenario.PhaseStep, env map[string]string) error {
-	processID := fmt.Sprintf("vrooli.%s.%s.%s", phase, item.Slug, step.Name)
-	logDir, err := process.ScenarioLogsDir(r.Home, item.Slug)
+	// Record/log directories are keyed by the instance record slug so two
+	// variants running the same step (e.g. "develop") never overwrite each
+	// other's record/PID/log files. Live ⇒ bare slug (unchanged). See §1a / P1.
+	slug := recordSlug(item)
+	processID := fmt.Sprintf("vrooli.%s.%s.%s", phase, slug, step.Name)
+	logDir, err := process.ScenarioLogsDir(r.Home, slug)
 	if err != nil {
 		return err
 	}
@@ -369,20 +373,20 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 		StartedAt:  time.Now().UTC(),
 		Status:     "running",
 	}
-	if err := process.WriteScenarioRecord(r.Home, item.Slug, step.Name, record); err != nil {
+	if err := process.WriteScenarioRecord(r.Home, slug, step.Name, record); err != nil {
 		_ = cmd.Process.Kill()
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
 	}
 	if err := recordRuntimeProcessRef(context.Background(), r.runtimeDeps(), r.Home, env, record); err != nil {
 		_ = cmd.Process.Kill()
-		_ = process.RemoveScenarioRecord(r.Home, item.Slug, step.Name)
+		_ = process.RemoveScenarioRecord(r.Home, slug, step.Name)
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
 	}
 
 	r.runtimeDeps().sleep(200 * time.Millisecond)
 	if err := cmd.Process.Signal(syscall.Signal(0)); err != nil {
 		record.Status = "failed"
-		_ = process.WriteScenarioRecord(r.Home, item.Slug, step.Name, record)
+		_ = process.WriteScenarioRecord(r.Home, slug, step.Name, record)
 		return newPhaseStepError(
 			item.Slug,
 			phase,

@@ -66,6 +66,7 @@ func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Sc
 	ownerPID := os.Getpid()
 	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
 		Scenario:      item.Slug,
+		Variant:       item.Variant,
 		Status:        scenarioruntime.StatusStarting,
 		Phase:         "planning",
 		ScopePath:     r.Root,
@@ -87,13 +88,18 @@ func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Sc
 	}, nil
 }
 
-func (r *Runner) beginRuntimeRegistryStop(ctx context.Context, scenarioName string) (runtimeRegistryStopSession, error) {
+func (r *Runner) beginRuntimeRegistryStop(ctx context.Context, scenarioName, variant string) (runtimeRegistryStopSession, error) {
 	store, err := r.runtimeDeps().runtimeRegistry(ctx, r.Home)
 	if err != nil {
 		return runtimeRegistryStopSession{}, err
 	}
+	// Scope by variant so stopping one instance never marks/releases a sibling's
+	// rows. A normalized variant (never empty) restricts the filter to exactly
+	// this instance; an empty variant would match all variants (the dangerous
+	// reap-sibling behavior this fixes), so callers pass the resolved variant.
 	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{
 		Scenario: scenarioName,
+		Variant:  scenarioruntime.InstanceKey{Scenario: scenarioName, Variant: variant}.Normalize().Variant,
 		Statuses: scenarioruntime.StopCandidateInstanceStatuses(),
 	})
 	if err != nil {
@@ -175,6 +181,7 @@ func (s *runtimeRegistrySession) adoptOrReservePorts(ctx context.Context, item s
 		claim, err := s.store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
 			InstanceID: s.instance.InstanceID,
 			Scenario:   item.Slug,
+			Variant:    item.Variant,
 			PortName:   summary.Name,
 			EnvVar:     summary.EnvVar,
 			Port:       port,
@@ -419,6 +426,7 @@ func (r *Runner) lookupRegistryRuntime(ctx context.Context, item scenario.Scenar
 
 	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{
 		Scenario: item.Slug,
+		Variant:  scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Normalize().Variant,
 		Statuses: scenarioruntime.ActiveInstanceStatuses(),
 	})
 	if err != nil {

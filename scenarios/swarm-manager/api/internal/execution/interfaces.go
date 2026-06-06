@@ -53,6 +53,11 @@ type GovernanceProvider interface {
 // import cycles between the execution and review packages.
 type ReviewServiceIntegration interface {
 	StartReviewForExecution(ctx context.Context, executionID, backlogKind, backlogName, itemTitle, itemDir string, affectedScenarios []string, changedPathsByScenario map[string][]string, gctResultsJSON, baselineDiffJSON string) error
+	// RecordUnavailableReview writes a synthetic terminal review round when no
+	// review agent ran (disabled or spawn failure) so the review surface can
+	// explain why no evidence exists for an item routed straight to
+	// review_pending. Best-effort; must not block finalization.
+	RecordUnavailableReview(kind, name, executionID, reason string) error
 }
 
 // ActivityLaneReader exposes per-lane active counts from the agentactivity

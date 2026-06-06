@@ -7,7 +7,7 @@ import (
 )
 
 const instanceSelectSQL = `
-SELECT instance_id, scenario, generation, scope_path, sandbox_id, status, phase,
+SELECT instance_id, scenario, variant, generation, scope_path, sandbox_id, status, phase,
   started_at, updated_at, last_heartbeat_at, heartbeat_deadline_at, stopped_at,
   stop_reason, owner_kind, owner_pid, working_dir, host_boot_id, host_session_id,
   supervisor_id, supervised_at, last_reconciled_at, reconciliation_status,
@@ -20,7 +20,7 @@ SELECT supervisor_id, host_boot_id, host_session_id, pid, status, started_at,
 FROM runtime_supervisor_sessions`
 
 const portClaimSelectSQL = `
-SELECT claim_id, instance_id, scenario, port_name, env_var, port, bind_host, url,
+SELECT claim_id, instance_id, scenario, variant, port_name, env_var, port, bind_host, url,
   status, created_at, updated_at, expires_at, last_bound_at, last_listener_check_at,
   last_listener_seen_at, first_unbound_at, consecutive_listener_misses, listener_status,
   listener_pid, listener_process_label
@@ -45,7 +45,7 @@ func scanInstance(row scanner) (Instance, error) {
 	var lastHeartbeatAt, heartbeatDeadlineAt, stoppedAt, supervisedAt, lastReconciledAt sql.NullString
 	var ownerPID sql.NullInt64
 	err := row.Scan(
-		&in.InstanceID, &in.Scenario, &in.Generation, &in.ScopePath, &in.SandboxID, &in.Status, &in.Phase,
+		&in.InstanceID, &in.Scenario, &in.Variant, &in.Generation, &in.ScopePath, &in.SandboxID, &in.Status, &in.Phase,
 		&startedAt, &updatedAt, &lastHeartbeatAt, &heartbeatDeadlineAt, &stoppedAt,
 		&in.StopReason, &in.OwnerKind, &ownerPID, &in.WorkingDir, &in.HostBootID, &in.HostSessionID,
 		&in.SupervisorID, &supervisedAt, &lastReconciledAt, &in.ReconciliationStatus,
@@ -162,7 +162,7 @@ func scanPortClaim(row scanner) (PortClaim, error) {
 	var expiresAt, lastBoundAt, lastListenerCheckAt, lastListenerSeenAt, firstUnboundAt sql.NullString
 	var listenerPID sql.NullInt64
 	err := row.Scan(
-		&claim.ClaimID, &claim.InstanceID, &claim.Scenario, &claim.PortName, &claim.EnvVar, &claim.Port,
+		&claim.ClaimID, &claim.InstanceID, &claim.Scenario, &claim.Variant, &claim.PortName, &claim.EnvVar, &claim.Port,
 		&claim.BindHost, &claim.URL, &claim.Status, &createdAt, &updatedAt, &expiresAt, &lastBoundAt,
 		&lastListenerCheckAt, &lastListenerSeenAt, &firstUnboundAt, &claim.ConsecutiveListenerMisses,
 		&claim.ListenerStatus, &listenerPID, &claim.ListenerProcessLabel,

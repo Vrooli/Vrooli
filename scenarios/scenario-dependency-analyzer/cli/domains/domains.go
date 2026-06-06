@@ -3,6 +3,7 @@ package domains
 import (
 	"scenario-dependency-analyzer/cli/domains/analyze"
 	"scenario-dependency-analyzer/cli/domains/bundle"
+	"scenario-dependency-analyzer/cli/domains/coreset"
 	"scenario-dependency-analyzer/cli/domains/cycles"
 	"scenario-dependency-analyzer/cli/domains/dag"
 	"scenario-dependency-analyzer/cli/domains/dependencies"
@@ -24,6 +25,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 	return []cliapp.CommandGroup{
 		analyze.Register(core),
 		scan.Register(core),
+		coreset.Register(core),
 		graph.Register(core),
 		cycles.Register(core),
 		impact.Register(core),

@@ -84,7 +84,19 @@ type ServiceConfig struct {
 	// OnRoundTerminal fires when a review round transitions to complete/failed.
 	// Used to flip the backlog item's status to review_pending.
 	OnRoundTerminal RoundTerminalHandler
+	// RoundMaxAge bounds how long a round may sit in `gathering` before the
+	// poller treats its run as abandoned and finalizes it as failed (which
+	// fires OnRoundTerminal so the item leaves in_review). Zero uses
+	// DefaultRoundMaxAge.
+	RoundMaxAge time.Duration
 }
+
+// DefaultRoundMaxAge is the wall-clock age past which a still-gathering review
+// round is treated as abandoned (its run died without agent-manager reporting
+// a terminal state). Chosen well above any healthy review run so a slow review
+// isn't interrupted, but short enough that a crashed run can't strand an item
+// in in_review for hours. Mirrors feedback.DefaultStuckMaxAge.
+const DefaultRoundMaxAge = 30 * time.Minute
 
 // activeRound tracks a gathering round so the poller knows which runs to check.
 type activeRound struct {
@@ -106,6 +118,8 @@ type Service struct {
 	loadItemTitle        func(kind, name string) (string, error)
 	loadExecutionContext func(ctx context.Context, executionID string) (*ExecutionContext, error)
 	onRoundTerminal      RoundTerminalHandler
+	roundMaxAge          time.Duration
+	clock                func() time.Time
 
 	mu           sync.Mutex
 	activeRounds map[string]activeRound // keyed by RunID
@@ -117,6 +131,10 @@ func NewService(cfg ServiceConfig) *Service {
 	if pc == nil {
 		pc = promptmanager.NewHTTPClient()
 	}
+	roundMaxAge := cfg.RoundMaxAge
+	if roundMaxAge <= 0 {
+		roundMaxAge = envDuration("SWARM_MANAGER_REVIEW_ROUND_MAX_AGE", DefaultRoundMaxAge)
+	}
 	svc := &Service{
 		dataRoot:             cfg.DataRoot,
 		agentService:         cfg.AgentService,
@@ -125,6 +143,8 @@ func NewService(cfg ServiceConfig) *Service {
 		loadItemTitle:        cfg.LoadItemTitle,
 		loadExecutionContext: cfg.LoadExecutionContext,
 		onRoundTerminal:      cfg.OnRoundTerminal,
+		roundMaxAge:          roundMaxAge,
+		clock:                time.Now,
 		activeRounds:         make(map[string]activeRound),
 	}
 	// Type-assert for RunInspector capability (matches execution pattern).
@@ -535,6 +555,39 @@ func (s *Service) DismissRequest(kind, name string, roundNum int, threadID strin
 	return SaveRound(itemDir, *round)
 }
 
+// RecordUnavailableReview writes a synthetic terminal review round for an item
+// whose finalization routed it straight to review_pending because no review
+// agent ran (disabled or spawn failure). The round carries the reason so the
+// review surface explains the empty evidence set, and the item already sits in
+// review_pending — no in_review→review_pending flip is needed. Satisfies
+// execution.ReviewServiceIntegration. Best-effort and idempotent-ish: a new
+// round number is allocated each call, but callers invoke it once per
+// finalization.
+func (s *Service) RecordUnavailableReview(kind, name, executionID, reason string) error {
+	itemDir := s.resolveItemDir(kind, name)
+	roundNum, err := NextRoundNumber(itemDir)
+	if err != nil {
+		return fmt.Errorf("determine next round: %w", err)
+	}
+	if strings.TrimSpace(reason) == "" {
+		reason = "review agent did not run; routed to review_pending for manual decision"
+	}
+	round := Round{
+		RoundNum:      roundNum,
+		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
+		ExecutionID:   executionID,
+		Status:        RoundStatusFailed,
+		FailureReason: reason,
+		Notes:         []string{"No review agent ran for this item. Decide a terminal status via review-decide, or recover the item if it was handled out-of-band."},
+		Evidence:      []EvidenceItem{},
+	}
+	if err := SaveRound(itemDir, round); err != nil {
+		return fmt.Errorf("save review-unavailable round: %w", err)
+	}
+	slog.Info("recorded review-unavailable round", "kind", kind, "name", name, "round", roundNum, "execution_id", executionID)
+	return nil
+}
+
 // TriggerReviewAgent manually triggers a review agent for an execution.
 // Used when the user wants to re-run or initiate evidence gathering.
 func (s *Service) TriggerReviewAgent(ctx context.Context, executionID string) error {
@@ -645,32 +698,40 @@ func (s *Service) RefreshGatheringRounds(ctx context.Context) {
 	s.mu.Unlock()
 
 	for runID, ar := range snapshot {
-		state, err := s.inspector.GetRunState(ctx, runID)
-		if err != nil {
-			continue // transient error, retry next tick
-		}
-
-		if mapRunStatusToRoundStatus(state.Status) == "" {
-			continue // still running
-		}
-
 		round, loadErr := LoadRound(ar.ItemDir, ar.RoundNum)
 		if loadErr != nil || round == nil {
-			s.mu.Lock()
-			delete(s.activeRounds, runID)
-			s.mu.Unlock()
+			s.untrackRound(runID)
 			continue
 		}
 
 		if round.Status == RoundStatusComplete || round.Status == RoundStatusFailed {
 			// Already terminal (e.g. agent wrote the round file itself).
-			s.mu.Lock()
-			delete(s.activeRounds, runID)
-			s.mu.Unlock()
+			s.untrackRound(runID)
 			continue
 		}
 
-		*round = finalizeRoundFromRunState(*round, state)
+		state, err := s.inspector.GetRunState(ctx, runID)
+		switch {
+		case err == nil && mapRunStatusToRoundStatus(state.Status) != "":
+			// Run reached a terminal state; adopt its outcome.
+			*round = finalizeRoundFromRunState(*round, state)
+		case s.roundExceededMaxAge(*round):
+			// Run is unreachable or wedged past the max age — treat the round
+			// as abandoned so the item can leave in_review. This is the
+			// backstop for a review run that died without agent-manager ever
+			// reporting a terminal status (a top cause of orphaned in_review).
+			round.Status = RoundStatusFailed
+			if strings.TrimSpace(round.FailureReason) == "" {
+				round.FailureReason = fmt.Sprintf("review run did not finish within %s and was treated as abandoned", s.maxRoundAge())
+			}
+			slog.Warn("review round exceeded max age, finalizing as failed",
+				"round", ar.RoundNum, "run_id", runID, "max_age", s.maxRoundAge())
+		default:
+			// Transient inspector error or run still in flight within budget;
+			// retry next tick.
+			continue
+		}
+
 		if saveErr := SaveRound(ar.ItemDir, *round); saveErr != nil {
 			slog.Error("update review round status", "round", ar.RoundNum, "run_id", runID, "error", saveErr)
 			continue
@@ -696,10 +757,42 @@ func (s *Service) RefreshGatheringRounds(ctx context.Context) {
 			s.onRoundTerminal(ctx, ar.Kind, ar.Name, *round)
 		}
 
-		s.mu.Lock()
-		delete(s.activeRounds, runID)
-		s.mu.Unlock()
+		s.untrackRound(runID)
 	}
+}
+
+// untrackRound removes a run from the active-round tracking map.
+func (s *Service) untrackRound(runID string) {
+	s.mu.Lock()
+	delete(s.activeRounds, runID)
+	s.mu.Unlock()
+}
+
+// maxRoundAge returns the configured abandoned-round threshold, defaulting when
+// unset.
+func (s *Service) maxRoundAge() time.Duration {
+	if s.roundMaxAge > 0 {
+		return s.roundMaxAge
+	}
+	return DefaultRoundMaxAge
+}
+
+// roundExceededMaxAge reports whether a gathering round was generated longer
+// ago than the max-age threshold. An unparseable timestamp is treated as not
+// exceeded so a malformed round isn't force-failed on a clock guess.
+func (s *Service) roundExceededMaxAge(round Round) bool {
+	generated, err := time.Parse(time.RFC3339, round.GeneratedAt)
+	if err != nil {
+		return false
+	}
+	return s.now().Sub(generated) > s.maxRoundAge()
+}
+
+func (s *Service) now() time.Time {
+	if s.clock != nil {
+		return s.clock().UTC()
+	}
+	return time.Now().UTC()
 }
 
 func (s *Service) buildStartReviewParamsFromExecution(ctx context.Context, executionID string) (startReviewParams, error) {
@@ -845,7 +938,19 @@ func (s *Service) RecoverActiveRounds() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, kindDir := range []string{"ideas", "research", "fix", "execute", "chore"} {
+	// Map each on-disk kind directory back to its backlog kind so recovered
+	// rounds carry Kind/Name. Without these, RefreshGatheringRounds skips the
+	// onRoundTerminal flip (guarded on ar.Kind/ar.Name), which would leave an
+	// item stuck in in_review even after its review run completes — a silent
+	// contributor to the orphaned-in_review dead-end after a restart.
+	kindByDir := map[string]string{
+		"ideas":    "idea",
+		"research": "research",
+		"fix":      "fix",
+		"execute":  "execute",
+		"chore":    "chore",
+	}
+	for kindDir, kind := range kindByDir {
 		baseDir := s.dataRoot + "/" + kindDir
 		entries, err := os.ReadDir(baseDir)
 		if err != nil {
@@ -863,6 +968,8 @@ func (s *Service) RecoverActiveRounds() {
 			for _, round := range rounds {
 				if round.Status == RoundStatusGathering && round.RunID != "" {
 					s.activeRounds[round.RunID] = activeRound{
+						Kind:     kind,
+						Name:     entry.Name(),
 						ItemDir:  itemDir,
 						RoundNum: round.RoundNum,
 						RunID:    round.RunID,

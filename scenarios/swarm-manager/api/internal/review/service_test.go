@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
@@ -41,7 +42,11 @@ func newTestService(spawner *capturingSpawner, promptResult string) *Service {
 		promptClient:  &promptmanager.MockClient{Result: promptResult},
 		itemDirFn:     func(_, _ string) string { return "/tmp/test-backlog/tasks/test-item" },
 		loadItemTitle: func(_, _ string) (string, error) { return "Loaded Title", nil },
-		activeRounds:  make(map[string]activeRound),
+		// Disable the abandoned-round age backstop by default so tests that use
+		// fixed placeholder timestamps aren't force-failed by it. Tests that
+		// exercise the backstop set roundMaxAge + clock explicitly.
+		roundMaxAge:  100 * 365 * 24 * time.Hour,
+		activeRounds: make(map[string]activeRound),
 	}
 	return svc
 }

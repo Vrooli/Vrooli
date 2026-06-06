@@ -8,7 +8,12 @@ import (
 )
 
 const (
-	SchemaVersion = 4
+	// SchemaVersion 5 adds the `variant` dimension: runtime_instances and
+	// runtime_port_claims gain a `variant` column ('live' by default) and the
+	// instance uniqueness constraint becomes (scenario, variant, generation), so
+	// two named instances of one scenario (e.g. live + shadow) coexist with
+	// independent generation counters. See the Baseline Modes plan, P1.
+	SchemaVersion = 5
 
 	StatusStarting = "starting"
 	StatusRunning  = "running"
@@ -109,8 +114,12 @@ type Clock interface {
 }
 
 type Instance struct {
-	InstanceID           string
-	Scenario             string
+	InstanceID string
+	Scenario   string
+	// Variant names which instance of the scenario this is ("live" for the
+	// canonical primary, "shadow" etc. for alternates). Empty is normalized to
+	// DefaultVariant on create, so pre-variant callers address the live instance.
+	Variant              string
 	Generation           int64
 	ScopePath            string
 	SandboxID            string
@@ -152,9 +161,13 @@ type SupervisorSession struct {
 }
 
 type PortClaim struct {
-	ClaimID                   string
-	InstanceID                string
-	Scenario                  string
+	ClaimID    string
+	InstanceID string
+	Scenario   string
+	// Variant denormalizes the owning instance's variant onto the claim so
+	// port-conflict queries can be scoped to a variant without a join. Empty is
+	// normalized to DefaultVariant on acquire.
+	Variant                   string
 	PortName                  string
 	EnvVar                    string
 	Port                      int
@@ -211,7 +224,11 @@ type Event struct {
 }
 
 type InstanceFilter struct {
-	Scenario     string
+	Scenario string
+	// Variant, when non-empty, restricts the query to one variant so live and
+	// shadow each resolve their own authoritative instance. Empty matches all
+	// variants (the pre-variant behavior).
+	Variant      string
 	Statuses     []string
 	SupervisorID string
 }
@@ -228,6 +245,7 @@ type SupervisionClaim struct {
 
 type PortClaimFilter struct {
 	Scenario   string
+	Variant    string
 	InstanceID string
 	Statuses   []string
 }

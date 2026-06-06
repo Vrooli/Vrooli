@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
@@ -80,13 +81,22 @@ func (s *Service) InventoryReport() (InventoryReport, error) {
 }
 
 func (s *Service) Lookup(name string) (Detail, bool, error) {
-	item, err := scenario.Load(s.Root, name, scenario.SandboxEnvFromEnv())
+	// Resolve an optional "@variant" suffix through the single shared parser
+	// (§1a) so every reader that bottoms out in Lookup — Detail, ResolvePort,
+	// status/port/info — selects the addressed instance. A bare name (no "@")
+	// normalizes to the live variant, so existing callers are unchanged.
+	key, err := scenarioruntime.ParseInstanceKey(name, "")
+	if err != nil {
+		return Detail{}, false, err
+	}
+	item, err := scenario.Load(s.Root, key.Scenario, scenario.SandboxEnvFromEnv())
 	if err != nil {
 		if err == scenario.ErrNotFound {
 			return Detail{}, false, nil
 		}
 		return Detail{}, false, err
 	}
+	item.Variant = key.Variant
 
 	ctx := context.Background()
 	detail, ok, err := s.registryDetail(ctx, item)

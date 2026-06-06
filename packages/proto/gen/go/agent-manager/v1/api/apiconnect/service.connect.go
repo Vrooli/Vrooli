@@ -99,6 +99,9 @@ const (
 	// AgentManagerServiceStopAllRunsProcedure is the fully-qualified name of the AgentManagerService's
 	// StopAllRuns RPC.
 	AgentManagerServiceStopAllRunsProcedure = "/agent_manager.v1.AgentManagerService/StopAllRuns"
+	// AgentManagerServiceQuiesceScenarioProcedure is the fully-qualified name of the
+	// AgentManagerService's QuiesceScenario RPC.
+	AgentManagerServiceQuiesceScenarioProcedure = "/agent_manager.v1.AgentManagerService/QuiesceScenario"
 	// AgentManagerServiceRecoverRunProcedure is the fully-qualified name of the AgentManagerService's
 	// RecoverRun RPC.
 	AgentManagerServiceRecoverRunProcedure = "/agent_manager.v1.AgentManagerService/RecoverRun"
@@ -171,6 +174,10 @@ type AgentManagerServiceClient interface {
 	StopRunByTag(context.Context, *connect.Request[api.StopRunByTagRequest]) (*connect.Response[api.StopRunByTagResponse], error)
 	// StopAllRuns stops all running runs, optionally filtered by tag prefix.
 	StopAllRuns(context.Context, *connect.Request[api.StopAllRunsRequest]) (*connect.Response[api.StopAllRunsResponse], error)
+	// QuiesceScenario drains in-flight runs targeting a scenario so a Baseline
+	// Modes promote can re-point and restart its live instance without killing
+	// in-flight agent work.
+	QuiesceScenario(context.Context, *connect.Request[api.QuiesceScenarioRequest]) (*connect.Response[api.QuiesceScenarioResponse], error)
 	// RecoverRun drains a durable transcript and reconciles the run outcome.
 	RecoverRun(context.Context, *connect.Request[api.RecoverRunRequest]) (*connect.Response[api.RecoverRunResponse], error)
 	// GetRunEvents returns the event stream for a run.
@@ -332,6 +339,12 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(agentManagerServiceMethods.ByName("StopAllRuns")),
 			connect.WithClientOptions(opts...),
 		),
+		quiesceScenario: connect.NewClient[api.QuiesceScenarioRequest, api.QuiesceScenarioResponse](
+			httpClient,
+			baseURL+AgentManagerServiceQuiesceScenarioProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("QuiesceScenario")),
+			connect.WithClientOptions(opts...),
+		),
 		recoverRun: connect.NewClient[api.RecoverRunRequest, api.RecoverRunResponse](
 			httpClient,
 			baseURL+AgentManagerServiceRecoverRunProcedure,
@@ -407,6 +420,7 @@ type agentManagerServiceClient struct {
 	stopRun                   *connect.Client[api.StopRunRequest, api.StopRunResponse]
 	stopRunByTag              *connect.Client[api.StopRunByTagRequest, api.StopRunByTagResponse]
 	stopAllRuns               *connect.Client[api.StopAllRunsRequest, api.StopAllRunsResponse]
+	quiesceScenario           *connect.Client[api.QuiesceScenarioRequest, api.QuiesceScenarioResponse]
 	recoverRun                *connect.Client[api.RecoverRunRequest, api.RecoverRunResponse]
 	getRunEvents              *connect.Client[api.GetRunEventsRequest, api.GetRunEventsResponse]
 	getRunDiff                *connect.Client[api.GetRunDiffRequest, api.GetRunDiffResponse]
@@ -527,6 +541,11 @@ func (c *agentManagerServiceClient) StopAllRuns(ctx context.Context, req *connec
 	return c.stopAllRuns.CallUnary(ctx, req)
 }
 
+// QuiesceScenario calls agent_manager.v1.AgentManagerService.QuiesceScenario.
+func (c *agentManagerServiceClient) QuiesceScenario(ctx context.Context, req *connect.Request[api.QuiesceScenarioRequest]) (*connect.Response[api.QuiesceScenarioResponse], error) {
+	return c.quiesceScenario.CallUnary(ctx, req)
+}
+
 // RecoverRun calls agent_manager.v1.AgentManagerService.RecoverRun.
 func (c *agentManagerServiceClient) RecoverRun(ctx context.Context, req *connect.Request[api.RecoverRunRequest]) (*connect.Response[api.RecoverRunResponse], error) {
 	return c.recoverRun.CallUnary(ctx, req)
@@ -614,6 +633,10 @@ type AgentManagerServiceHandler interface {
 	StopRunByTag(context.Context, *connect.Request[api.StopRunByTagRequest]) (*connect.Response[api.StopRunByTagResponse], error)
 	// StopAllRuns stops all running runs, optionally filtered by tag prefix.
 	StopAllRuns(context.Context, *connect.Request[api.StopAllRunsRequest]) (*connect.Response[api.StopAllRunsResponse], error)
+	// QuiesceScenario drains in-flight runs targeting a scenario so a Baseline
+	// Modes promote can re-point and restart its live instance without killing
+	// in-flight agent work.
+	QuiesceScenario(context.Context, *connect.Request[api.QuiesceScenarioRequest]) (*connect.Response[api.QuiesceScenarioResponse], error)
 	// RecoverRun drains a durable transcript and reconciles the run outcome.
 	RecoverRun(context.Context, *connect.Request[api.RecoverRunRequest]) (*connect.Response[api.RecoverRunResponse], error)
 	// GetRunEvents returns the event stream for a run.
@@ -771,6 +794,12 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		connect.WithSchema(agentManagerServiceMethods.ByName("StopAllRuns")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagerServiceQuiesceScenarioHandler := connect.NewUnaryHandler(
+		AgentManagerServiceQuiesceScenarioProcedure,
+		svc.QuiesceScenario,
+		connect.WithSchema(agentManagerServiceMethods.ByName("QuiesceScenario")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagerServiceRecoverRunHandler := connect.NewUnaryHandler(
 		AgentManagerServiceRecoverRunProcedure,
 		svc.RecoverRun,
@@ -865,6 +894,8 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceStopRunByTagHandler.ServeHTTP(w, r)
 		case AgentManagerServiceStopAllRunsProcedure:
 			agentManagerServiceStopAllRunsHandler.ServeHTTP(w, r)
+		case AgentManagerServiceQuiesceScenarioProcedure:
+			agentManagerServiceQuiesceScenarioHandler.ServeHTTP(w, r)
 		case AgentManagerServiceRecoverRunProcedure:
 			agentManagerServiceRecoverRunHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRunEventsProcedure:
@@ -976,6 +1007,10 @@ func (UnimplementedAgentManagerServiceHandler) StopRunByTag(context.Context, *co
 
 func (UnimplementedAgentManagerServiceHandler) StopAllRuns(context.Context, *connect.Request[api.StopAllRunsRequest]) (*connect.Response[api.StopAllRunsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.StopAllRuns is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) QuiesceScenario(context.Context, *connect.Request[api.QuiesceScenarioRequest]) (*connect.Response[api.QuiesceScenarioResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.QuiesceScenario is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) RecoverRun(context.Context, *connect.Request[api.RecoverRunRequest]) (*connect.Response[api.RecoverRunResponse], error) {

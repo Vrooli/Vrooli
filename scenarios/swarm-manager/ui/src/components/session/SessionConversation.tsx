@@ -1,16 +1,5 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Activity,
-  Gauge,
-  GitPullRequestArrow,
-  Image,
-  Layers,
-  ListTodo,
-  Search,
-  Workflow,
-  type LucideIcon,
-} from "lucide-react";
 import { ChatThread } from "../chat/ChatThread";
 import { MessageComposer } from "../composer/MessageComposer";
 import { formatRelativeTime } from "../../lib/format-utils";
@@ -21,6 +10,14 @@ import type { AgentSessionAttachment, AgentSessionContextType, AgentSessionKind,
 import type { ChatMessageView } from "../chat/chat-types";
 import type { SessionContextOption } from "./context/session-context-refs";
 import { SessionContextPicker } from "./context/SessionContextPicker";
+import { useStarterContextCounts } from "./context/useStarterContextCounts";
+import { countForStarterCard, type StarterContextFilterKey } from "./context/starter-context-filters";
+import {
+  starterCardBadgeSpec,
+  starterSuggestionsForKind,
+  type StarterSuggestion,
+  type SuggestionRequirement,
+} from "./session-starter-suggestions";
 
 interface SessionConversationProps {
   messages: AgentSessionMessage[];
@@ -64,6 +61,7 @@ export function SessionConversation({
   const navigate = useNavigate();
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
   const [contextPickerInitialType, setContextPickerInitialType] = useState<AgentSessionContextType | null>(null);
+  const [contextPickerFilterKey, setContextPickerFilterKey] = useState<StarterContextFilterKey | null>(null);
   const [imagePickerRequestKey, setImagePickerRequestKey] = useState(0);
   const isDraft = sessionStatus === "draft";
   const placeholder = isDraft
@@ -89,8 +87,12 @@ export function SessionConversation({
     [sortedMessages],
   );
 
-  const openContextPicker = (initialType: AgentSessionContextType | null = null) => {
+  const openContextPicker = (
+    initialType: AgentSessionContextType | null = null,
+    filterKey: StarterContextFilterKey | null = null,
+  ) => {
     setContextPickerInitialType(initialType);
+    setContextPickerFilterKey(filterKey);
     setContextPickerOpen(true);
   };
 
@@ -110,7 +112,7 @@ export function SessionConversation({
           pendingContext={pendingContext}
           pendingAttachmentCount={pendingAttachments.length}
           onChooseText={onDraftChange}
-          onRequestContext={(type) => openContextPicker(type)}
+          onRequestContext={(type, filterKey) => openContextPicker(type, filterKey)}
           onRequestImage={() => setImagePickerRequestKey((value) => value + 1)}
           className={cn("flex-1 p-3", variant === "mobile" && "px-3 pb-40")}
         />
@@ -169,6 +171,7 @@ export function SessionConversation({
           onApply={onPendingContextChange}
           currentSessionId={sessionId}
           initialType={contextPickerInitialType}
+          initialFilterKey={contextPickerFilterKey}
         />
       </div>
     </section>
@@ -217,19 +220,7 @@ function SessionMessageExtras({ message, attachments }: { message: ChatMessageVi
   );
 }
 
-type SuggestionRequirement =
-  | { kind: "context"; type: AgentSessionContextType; optional?: boolean }
-  | { kind: "image"; optional?: boolean };
-
-interface StarterSuggestion {
-  id: string;
-  icon: LucideIcon;
-  text: string;
-  detail?: string;
-  requirements?: SuggestionRequirement[];
-}
-
-function SessionStarterSuggestions({
+export function SessionStarterSuggestions({
   sessionKind,
   pendingContext,
   pendingAttachmentCount,
@@ -242,11 +233,12 @@ function SessionStarterSuggestions({
   pendingContext: SessionContextOption[];
   pendingAttachmentCount: number;
   onChooseText: (value: string) => void;
-  onRequestContext: (type: AgentSessionContextType) => void;
+  onRequestContext: (type: AgentSessionContextType, filterKey?: StarterContextFilterKey) => void;
   onRequestImage: () => void;
   className?: string;
 }) {
   const suggestions = starterSuggestionsForKind(sessionKind);
+  const { optionsByType, executions, loading } = useStarterContextCounts(sessionKind);
 
   return (
     <div className={cn("min-h-0 overflow-y-auto", className)} data-testid={selectors.agentSessions.starterSuggestions}>
@@ -256,14 +248,26 @@ function SessionStarterSuggestions({
         </div>
         {suggestions.map((suggestion) => {
           const missing = firstMissingRequirement(suggestion, pendingContext, pendingAttachmentCount);
+          const badge = starterCardBadgeSpec(suggestion);
+          const badgeLoading = badge ? Boolean(loading[badge.type]) : false;
+          const badgeCount = badge && !badgeLoading
+            ? countForStarterCard({ optionsByType, executions, type: badge.type, filterKey: badge.filterKey })
+            : null;
+          // A required-context card whose backing set resolved to zero is a
+          // dead-end click (empty picker) — disable it. Never disable while the
+          // count is still loading, and never for soft/optional/text cards.
+          const disabled = Boolean(badge?.gating && !badgeLoading && badgeCount === 0);
           const Icon = suggestion.icon;
           return (
             <button
               key={suggestion.id}
               type="button"
+              disabled={disabled}
+              aria-disabled={disabled}
               onClick={() => {
+                if (disabled) return;
                 if (missing?.kind === "context") {
-                  onRequestContext(missing.type);
+                  onRequestContext(missing.type, missing.filterKey);
                   return;
                 }
                 if (missing?.kind === "image") {
@@ -272,7 +276,12 @@ function SessionStarterSuggestions({
                 }
                 onChooseText(suggestion.text);
               }}
-              className="group flex w-full items-start gap-3 rounded-md border border-slate-800 bg-slate-950/45 px-3 py-3 text-left transition-colors hover:border-cyan-500/45 hover:bg-slate-900/70"
+              className={cn(
+                "group flex w-full items-start gap-3 rounded-md border px-3 py-3 text-left transition-colors",
+                disabled
+                  ? "cursor-not-allowed border-slate-800/60 bg-slate-950/25 opacity-55"
+                  : "border-slate-800 bg-slate-950/45 hover:border-cyan-500/45 hover:bg-slate-900/70",
+              )}
               data-testid={selectors.agentSessions.starterSuggestion}
             >
               <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-cyan-500/20 bg-cyan-500/10 text-cyan-200 transition-colors group-hover:border-cyan-400/45 group-hover:text-cyan-100">
@@ -281,7 +290,8 @@ function SessionStarterSuggestions({
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-medium leading-5 text-slate-100">{suggestion.text}</span>
                 {suggestion.detail && <span className="mt-0.5 block text-xs leading-5 text-slate-400">{suggestion.detail}</span>}
-                <span className="mt-2 flex flex-wrap gap-1.5">
+                <span className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {badge && <StarterCountChip type={badge.type} count={badgeCount} loading={badgeLoading} />}
                   {requirementChips(suggestion, pendingContext, pendingAttachmentCount)}
                 </span>
               </span>
@@ -291,89 +301,6 @@ function SessionStarterSuggestions({
       </div>
     </div>
   );
-}
-
-function starterSuggestionsForKind(kind: AgentSessionKind): StarterSuggestion[] {
-  switch (kind) {
-    case "swarm_operations":
-      return [
-        {
-          id: "operations-review",
-          icon: Gauge,
-          text: "Review active initiatives and recommend the top next action.",
-        },
-        {
-          id: "operations-decisions",
-          icon: ListTodo,
-          text: "Help me drain workshop decisions for a backlog item.",
-          requirements: [{ kind: "context", type: "backlog_item" }],
-        },
-        {
-          id: "operations-run",
-          icon: Activity,
-          text: "Review a failed or stale run and recommend recovery.",
-          requirements: [{ kind: "context", type: "execution" }, { kind: "context", type: "agent_activity", optional: true }],
-        },
-        {
-          id: "operations-initiative",
-          icon: Layers,
-          text: "Assess an initiative and recommend the best operating mode.",
-          requirements: [{ kind: "context", type: "initiative" }],
-        },
-      ];
-    case "operating_mode_authoring":
-      return [
-        {
-          id: "mode-classify",
-          icon: Search,
-          text: "Classify whether this workflow deserves a new operating mode.",
-        },
-        {
-          id: "mode-draft",
-          icon: GitPullRequestArrow,
-          text: "Draft a mode proposal with phases, artifacts, metrics, and tests.",
-        },
-        {
-          id: "mode-compare",
-          icon: Gauge,
-          text: "Compare this workflow against an existing operating mode.",
-          requirements: [{ kind: "context", type: "operating_mode" }],
-        },
-        {
-          id: "mode-initiative",
-          icon: Layers,
-          text: "Design an operating mode for this initiative's workflow.",
-          requirements: [{ kind: "context", type: "initiative" }],
-        },
-      ];
-    case "meta_orchestration":
-    default:
-      return [
-        {
-          id: "meta-plan",
-          icon: Workflow,
-          text: "Turn this idea into initiatives and backlog items.",
-        },
-        {
-          id: "meta-existing",
-          icon: Search,
-          text: "Inspect existing Swarm context first, then propose a plan.",
-          requirements: [{ kind: "context", type: "initiative", optional: true }, { kind: "context", type: "scenario", optional: true }],
-        },
-        {
-          id: "meta-backlog",
-          icon: ListTodo,
-          text: "Plan follow-up work for a backlog item.",
-          requirements: [{ kind: "context", type: "backlog_item" }],
-        },
-        {
-          id: "meta-image",
-          icon: Image,
-          text: "Use an image or whiteboard as source material for backlog candidates.",
-          requirements: [{ kind: "image" }],
-        },
-      ];
-  }
 }
 
 function firstMissingRequirement(
@@ -450,6 +377,51 @@ function RequirementChip({ label, state }: { label: string; state: "ready" | "mi
       {label}
     </span>
   );
+}
+
+function StarterCountChip({ type, count, loading }: { type: AgentSessionContextType; count: number | null; loading: boolean }) {
+  if (loading) {
+    return (
+      <span
+        className="inline-flex h-[18px] w-14 animate-pulse rounded border border-slate-700 bg-slate-800/60"
+        data-testid={selectors.agentSessions.starterSuggestionCount}
+        data-loading="true"
+        aria-hidden="true"
+      />
+    );
+  }
+  const value = count ?? 0;
+  const zero = value === 0;
+  return (
+    <span
+      className={cn(
+        "rounded border px-1.5 py-0.5 text-[11px] font-medium leading-4 tabular-nums",
+        zero ? "border-slate-700 bg-slate-800/50 text-slate-500" : "border-cyan-400/30 bg-cyan-400/10 text-cyan-100",
+      )}
+      data-testid={selectors.agentSessions.starterSuggestionCount}
+      data-count={value}
+    >
+      {value} {countNoun(type, value)}
+    </span>
+  );
+}
+
+function countNoun(type: AgentSessionContextType, count: number): string {
+  const plural = count !== 1;
+  switch (type) {
+    case "backlog_item":
+      return plural ? "backlog items" : "backlog item";
+    case "execution":
+      return plural ? "runs" : "run";
+    case "initiative":
+      return plural ? "initiatives" : "initiative";
+    case "operating_mode":
+      return plural ? "modes" : "mode";
+    case "scenario":
+      return plural ? "scenarios" : "scenario";
+    default:
+      return type.replace(/_/g, " ");
+  }
 }
 
 function contextLabel(type: AgentSessionContextType): string {

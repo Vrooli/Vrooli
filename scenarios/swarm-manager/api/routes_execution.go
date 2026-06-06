@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"swarm-manager/internal/backlog"
@@ -161,5 +162,33 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 	// Wire review service into execution service for finalization integration.
 	if execSvc != nil {
 		execSvc.SetReviewService(s.reviewSvc)
+	}
+
+	// Wire the review-round liveness seam so the recover-review endpoint can
+	// refuse to short-circuit an in-flight review.
+	if s.backlogHandler != nil {
+		s.backlogHandler.SetReviewRoundInspector(s.reviewSvc)
+
+		// Orphaned-in_review safety net: a boot-time sweep recovers any items
+		// stranded in in_review with no live review round (work done
+		// out-of-band, a review run that died, or a premature mark), and the
+		// ticker keeps the invariant for the process lifetime. Mirrors the
+		// feedback sweeper. Recovery routes items to review_pending so a human
+		// still decides the terminal state.
+		sweeper := review.NewSweeper(s.reviewSvc, backlogStore, s.backlogHandler.RecoverOrphanedReview)
+		if recovered, err := sweeper.RunOnce(context.Background()); err != nil {
+			slog.Warn("review: boot-time orphaned-in_review sweep failed", "err", err)
+		} else if recovered > 0 {
+			slog.Info("review: boot-time orphaned-in_review sweep recovered items", "count", recovered)
+		}
+		go func() {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			go func() {
+				<-s.reviewSweeperStop
+				cancel()
+			}()
+			sweeper.Start(ctx)
+		}()
 	}
 }

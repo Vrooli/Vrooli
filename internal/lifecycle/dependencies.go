@@ -145,6 +145,12 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 		dependencyOpts := opts
 		dependencyOpts.CustomPath = ""
 		dependencyOpts.CleanStale = false
+		// Dependencies are shared live infrastructure: a shadow scenario adopts
+		// the live dependency instances rather than spinning variant-scoped
+		// copies, so the parent's variant must never leak onto a dependency
+		// start. dependencyItem is loaded as live above; clear the carried
+		// variant too so the "deps are always live" invariant is explicit.
+		dependencyOpts.Variant = ""
 
 		// Acquire the per-scenario single-flight lock for this transitive
 		// dependency. Without it, two top-level scenario starts that

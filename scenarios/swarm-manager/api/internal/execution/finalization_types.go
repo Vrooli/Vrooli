@@ -51,6 +51,7 @@ const (
 	finalizationWarningFinalizationInfra         = "finalization_infrastructure"
 	finalizationWarningBaselineScopeExpanded     = "baseline_scope_expanded_no_baseline"
 	finalizationWarningBaselineDiffFailed        = "baseline_diff_failed"
+	finalizationWarningBaselineRegression        = "baseline_regression"
 	finalizationWarningReviewAgentFailed         = "review_agent_failed"
 	finalizationWarningEvidenceSkippedDisabled   = "evidence_skipped_disabled"
 	finalizationWarningEvidenceSkippedPolicyErr  = "evidence_skipped_policy_error"

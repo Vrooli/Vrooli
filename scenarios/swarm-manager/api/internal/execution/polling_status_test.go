@@ -336,7 +336,9 @@ func TestFinalization_Finish_WritesInReview(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if err := svc.finishFinalization("exec-fin"); err != nil {
+			// reviewStarted=true models a review round actually spawning, so
+			// the item lands in in_review where the agent gathers evidence.
+			if err := svc.finishFinalization("exec-fin", true, ""); err != nil {
 				t.Fatalf("finishFinalization: %v", err)
 			}
 
@@ -344,6 +346,57 @@ func TestFinalization_Finish_WritesInReview(t *testing.T) {
 				t.Fatalf("backlog status = %q, want %q (review agent runs, user decides)", got, backlogStatusInReview)
 			}
 		})
+	}
+}
+
+// TestFinalization_Finish_NoReviewAgent_WritesReviewPending verifies the
+// orphaned-in_review source fix: when no review round was started (agent
+// disabled or spawn failure), finishFinalization routes the item straight to
+// review_pending instead of stranding it in in_review with no round to ever
+// advance it.
+func TestFinalization_Finish_NoReviewAgent_WritesReviewPending(t *testing.T) {
+	svc := newTestPollingService(t, &mockInspector{})
+	specPath := seedBacklogSpec(t, svc, "execute", "fin-noagent", "in_progress")
+
+	rec := Record{
+		ExecutionID: "exec-noagent",
+		BacklogKind: "execute",
+		BacklogName: "fin-noagent",
+		RunID:       "run-noagent",
+		Status:      StatusValidating,
+		CreatedAt:   nowRFC3339(),
+		UpdatedAt:   nowRFC3339(),
+		Finalization: &Finalization{
+			Eligible:          true,
+			Status:            FinalizationStatusRunning,
+			Phase:             FinalizationPhaseReviewing,
+			ScopeSource:       FinalizationScopeSandboxDiff,
+			AffectedScenarios: []string{"scenario-a"},
+			Scenarios: []ScenarioFinalization{
+				{
+					ScenarioName: "scenario-a",
+					Restart:      RestartResult{Status: FinalizationStatusCompleted},
+					Health:       HealthCheckResult{Status: FinalizationStatusCompleted},
+					Review: ScenarioReviewStep{
+						Status: FinalizationStatusCompleted,
+						Result: &ReviewResult{Classification: FinalizationAggregateReady, Summary: "ok"},
+					},
+				},
+			},
+			Warnings:  []FinalizationWarning{},
+			StartedAt: nowRFC3339(),
+		},
+	}
+	if err := svc.store.Save([]Record{rec}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := svc.finishFinalization("exec-noagent", false, "review agent disabled in settings"); err != nil {
+		t.Fatalf("finishFinalization: %v", err)
+	}
+
+	if got := loadSpecStatus(t, specPath); got != backlogStatusReviewPending {
+		t.Fatalf("backlog status = %q, want %q (no review agent → human-decidable)", got, backlogStatusReviewPending)
 	}
 }
 

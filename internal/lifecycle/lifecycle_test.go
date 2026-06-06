@@ -2462,7 +2462,7 @@ func TestVerifyPortsReleased_HappyPath(t *testing.T) {
 			sleep: func(time.Duration) {},
 		},
 	}
-	if err := runner.verifyPortsReleased("alpha", map[int]struct{}{21234: {}}); err != nil {
+	if err := runner.verifyPortsReleased(scenarioruntime.InstanceKey{Scenario: "alpha"}, map[int]struct{}{21234: {}}); err != nil {
 		t.Fatalf("verifyPortsReleased: %v", err)
 	}
 	if calls != 1 {
@@ -2479,7 +2479,7 @@ func TestVerifyPortsReleased_StillBoundFails(t *testing.T) {
 			sleep: func(time.Duration) {},
 		},
 	}
-	err := runner.verifyPortsReleased("alpha", map[int]struct{}{21234: {}})
+	err := runner.verifyPortsReleased(scenarioruntime.InstanceKey{Scenario: "alpha"}, map[int]struct{}{21234: {}})
 	if err == nil {
 		t.Fatal("expected error when port stays bound")
 	}
@@ -2502,7 +2502,7 @@ func TestVerifyPortsReleased_EventuallyFreesSucceeds(t *testing.T) {
 			sleep: func(time.Duration) {},
 		},
 	}
-	if err := runner.verifyPortsReleased("alpha", map[int]struct{}{21234: {}}); err != nil {
+	if err := runner.verifyPortsReleased(scenarioruntime.InstanceKey{Scenario: "alpha"}, map[int]struct{}{21234: {}}); err != nil {
 		t.Fatalf("verifyPortsReleased: %v", err)
 	}
 	if polls < 3 {
@@ -2512,7 +2512,7 @@ func TestVerifyPortsReleased_EventuallyFreesSucceeds(t *testing.T) {
 
 func TestVerifyPortsReleased_EmptyPortSetSkips(t *testing.T) {
 	runner := &Runner{deps: lifecycleDeps{}}
-	if err := runner.verifyPortsReleased("alpha", nil); err != nil {
+	if err := runner.verifyPortsReleased(scenarioruntime.InstanceKey{Scenario: "alpha"}, nil); err != nil {
 		t.Errorf("empty portsToCheck should be no-op: %v", err)
 	}
 }

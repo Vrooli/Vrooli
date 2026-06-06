@@ -9,7 +9,17 @@ import (
 	"swarm-manager/internal/pathutil"
 )
 
-func summarizeFinalization(finalization Finalization) (classification string, summary string, hasActionableFailure bool) {
+// summarizeFinalization folds the per-scenario finalization steps into an
+// aggregate classification, a human summary, and the hasActionableFailure flag
+// that routes the backlog item to needs-fixup/hand-back (vs accepted).
+//
+// gateRegressions enables the Baseline Modes promote gate (plan P6 §200-201):
+// when set, a scenario whose recorded before/after diff verdict is a genuine
+// regression counts as an actionable failure even if every other step passed,
+// so a change that turns a previously-passing surface red is handed back
+// instead of silently accepted. When false the verdict is still recorded and
+// warned (see runBaselineDiffs) but does not gate the outcome.
+func summarizeFinalization(finalization Finalization, gateRegressions bool) (classification string, summary string, hasActionableFailure bool) {
 	if finalization.Status == FinalizationStatusSkipped {
 		return FinalizationAggregateSkipped, strings.TrimSpace(finalization.SkipReason), false
 	}
@@ -49,6 +59,21 @@ func summarizeFinalization(finalization Finalization) (classification string, su
 				hasActionableFailure = true
 				summaries = append(summaries, fmt.Sprintf("%s needs follow-up: %s", scenario.ScenarioName, scenario.Review.Result.Summary))
 			}
+		}
+
+		// Baseline regression gate (plan P6 §200-201): a change that turned a
+		// previously-passing surface red is a regression attributable to this
+		// item, so hand it back even when the absolute review came back ready.
+		// Only the genuine "regression" verdict gates — new-failure /
+		// pre-existing / not-comparable are not this change's fault.
+		if gateRegressions && scenario.BaselineDiff != nil && scenario.BaselineDiff.HasNewRegressions() {
+			hasActionableFailure = true
+			surfaces := strings.Join(scenario.BaselineDiff.RegressedSurfaces, ", ")
+			if surfaces == "" {
+				surfaces = "tests"
+			}
+			summaries = append(summaries, fmt.Sprintf("%s introduced %d regression(s) [%s]",
+				scenario.ScenarioName, len(scenario.BaselineDiff.Regressions), surfaces))
 		}
 	}
 

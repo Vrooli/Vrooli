@@ -38,6 +38,23 @@ type FinalizationConfig struct {
 	// baselines do not accumulate; set true for debugging or audit.
 	BaselineRetainAfterFinalization bool
 
+	// BaselineRegressionGateEnabled makes a detected regression — a surface
+	// that passed in the pre-execution baseline and fails now — gate the
+	// finalization outcome: the item is routed to needs-fixup / hand-back
+	// (and auto-fixup when policy allows) instead of being accepted, even when
+	// the absolute review came back ready. This is the swarm-manager half of
+	// the Baseline Modes promote gate (plan P6 §200-201): the before/after
+	// verdict is no longer merely recorded for the review agent, it decides
+	// whether the change keeps or is handed back.
+	//
+	// Subordinate to BaselineDiffEnabled (no diff is computed ⇒ nothing to
+	// gate). Only a genuine "regression" verdict gates; new-failure,
+	// pre-existing, and not-comparable verdicts do not (they are not
+	// attributable to this change). Default true; set false to observe
+	// regressions (still recorded + warned) without enforcing the gate — the
+	// shadow-observe-then-enforce rollout lever for the reflexive kernel.
+	BaselineRegressionGateEnabled bool
+
 	// BaselineDiffTimeout bounds a single baseline diff call during
 	// finalization (the diff re-runs test-genie surfaces against the working
 	// tree and can take minutes).
@@ -56,6 +73,7 @@ func DefaultFinalizationConfig() FinalizationConfig {
 
 		BaselineDiffEnabled:             true,
 		BaselineRetainAfterFinalization: false,
+		BaselineRegressionGateEnabled:   true,
 		BaselineDiffTimeout:             15 * time.Minute,
 	}
 }

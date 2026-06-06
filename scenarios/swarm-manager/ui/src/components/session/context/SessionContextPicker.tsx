@@ -28,6 +28,8 @@ import { SessionSummaryCard } from "../session-summary-card";
 import { PickModeRow } from "./selectable-card";
 import type { CardSelection } from "./selectable";
 import { allowedContextTypesForKind, CONTEXT_TYPE_CAPS, CONTEXT_TYPE_LABELS, totalContextCapForKind } from "./session-context-config";
+import { buildContextOptionsByType } from "./session-context-options";
+import { executionIsFailedOrStale, STARTER_FILTER_TARGET_TYPE, type StarterContextFilterKey } from "./starter-context-filters";
 import {
   activityOption,
   backlogOption,
@@ -51,6 +53,12 @@ interface SessionContextPickerProps {
   onApply: (items: SessionContextOption[]) => void;
   currentSessionId?: string;
   initialType?: AgentSessionContextType | null;
+  /**
+   * Narrows one type's list to the actionable subset when opened from a starter
+   * card (e.g. "failed or stale" executions), so the picker matches that card's
+   * count badge. Null/absent → show the full list (e.g. the composer's +context).
+   */
+  initialFilterKey?: StarterContextFilterKey | null;
 }
 
 export function SessionContextPicker({
@@ -69,6 +77,7 @@ function SessionContextPickerContent({
   onApply,
   currentSessionId,
   initialType,
+  initialFilterKey,
 }: SessionContextPickerProps) {
   const allowedTypes = useMemo(() => allowedContextTypesForKind(sessionKind), [sessionKind]);
   const [activeType, setActiveType] = useState<AgentSessionContextType>(allowedTypes[0] ?? "initiative");
@@ -112,18 +121,33 @@ function SessionContextPickerContent({
     void fetchSessions({ limit: 100 });
   }, [allowedTypes, fetchBacklog, fetchCaptures, fetchExecutions, fetchInitiatives, fetchScenarios, fetchSessions, initialType, isOpen, refreshActivities, selected]);
 
-  const optionsByType = useMemo<Record<AgentSessionContextType, SessionContextOption[]>>(() => ({
-    backlog_item: backlogItems.map(backlogOption),
-    initiative: initiatives.map(initiativeOption),
-    capture: captures.map(captureOption),
-    execution: executions.map(executionOption),
-    agent_activity: activities.map(activityOption),
-    scenario: scenarios.map(scenarioOption),
-    operating_mode: (modesQuery.data?.modes ?? []).map(operatingModeOption).filter((mode) => mode.ref),
-    session: sessions.filter((session) => session.id !== currentSessionId).map(sessionOption),
-    operations_briefing: [operationsBriefingOption()],
-    startup_brief: [startupBriefOption(sessionKind)],
+  const optionsByType = useMemo<Record<AgentSessionContextType, SessionContextOption[]>>(() => buildContextOptionsByType({
+    backlogItems,
+    initiatives,
+    captures,
+    executions,
+    activities,
+    scenarios,
+    modes: modesQuery.data?.modes ?? [],
+    sessions,
+    sessionKind,
+    currentSessionId,
   }), [activities, backlogItems, captures, currentSessionId, executions, initiatives, modesQuery.data?.modes, scenarios, sessionKind, sessions]);
+
+  // Phase-3 narrowing: when opened from a starter card carrying a filter key,
+  // the targeted type's list (and its tab count) shrink to the actionable subset,
+  // mirroring that card's badge. Other tabs are unaffected.
+  const filterExecutions = initialFilterKey === "execution_failed_or_stale";
+  const visibleExecutions = useMemo(
+    () => (filterExecutions ? executions.filter((execution) => executionIsFailedOrStale(execution)) : executions),
+    [executions, filterExecutions],
+  );
+  const tabCountFor = (type: AgentSessionContextType): number => {
+    if (filterExecutions && type === STARTER_FILTER_TARGET_TYPE.execution_failed_or_stale) {
+      return visibleExecutions.length;
+    }
+    return optionsByType[type]?.length ?? 0;
+  };
 
   const selectedKeys = useMemo(() => new Set(draft.map((item) => contextKey(item.type, item.ref))), [draft]);
 
@@ -202,7 +226,7 @@ function SessionContextPickerContent({
             <InitiativeSummaryCard key={contextKey(option.type, option.ref)} item={entity} selection={selectionFor(option)} />
           ));
       case "execution":
-        return executions
+        return visibleExecutions
           .map((entity) => ({ entity, option: executionOption(entity) }))
           .filter(({ option }) => matchesNeedle(option))
           .slice(0, 80)
@@ -304,7 +328,7 @@ function SessionContextPickerContent({
           items={allowedTypes.map((type) => ({
             value: type,
             label: CONTEXT_TYPE_LABELS[type],
-            count: optionsByType[type]?.length ?? 0,
+            count: tabCountFor(type),
           }))}
           activeValue={activeType}
           onValueChange={setActiveType}

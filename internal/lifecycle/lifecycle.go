@@ -187,10 +187,18 @@ type StartOptions struct {
 	ForceSetup         bool
 	ForceSetupScenario string
 	Operation          string
+	// Variant selects which instance to start ("" / "live" for the canonical
+	// primary, "shadow" etc. for an alternate). It is sugar for a "name@variant"
+	// argument; both are resolved through scenarioruntime.ParseInstanceKey at the
+	// entry point, so passing them disagreeing is a hard error. See §1a.
+	Variant string
 }
 
 type StopOptions struct {
 	CustomPath string
+	// Variant selects which instance to stop. Empty / "live" stops only the
+	// canonical instance and never reaps a sibling shadow (and vice versa).
+	Variant string
 }
 
 type PhaseOptions struct {
@@ -319,14 +327,28 @@ func (r *Runner) runtimeDeps() lifecycleDeps {
 	return deps
 }
 
+// recordSlug returns the on-disk record/log/lock directory name for an
+// instance: the bare scenario slug for the live instance, "scenario@variant"
+// for any non-live variant. Record, log, and advisory-lock paths use it so two
+// variants of the same scenario never clobber each other's files. "@" is
+// filename-safe on ext4 and Windows, so it is used directly. See §1a.
+func recordSlug(item scenario.Scenario) string {
+	return scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Slug()
+}
+
 func (r *Runner) Start(name string, opts StartOptions) (Result, error) {
-	release, err := r.acquireScenarioLock(name)
+	key, err := scenarioruntime.ParseInstanceKey(name, opts.Variant)
 	if err != nil {
-		r.logError("Scenario start blocked by concurrent invocation", err, logx.AttrScenario, name)
+		return Result{}, err
+	}
+	opts.Variant = key.Variant
+	release, err := r.acquireScenarioLock(key.Slug())
+	if err != nil {
+		r.logError("Scenario start blocked by concurrent invocation", err, logx.AttrScenario, key.Slug())
 		return Result{}, err
 	}
 	defer release()
-	return r.startLocked(name, opts)
+	return r.startLocked(key.Scenario, opts)
 }
 
 // startLocked is the lock-free body of Start. Callers must already hold the
@@ -360,6 +382,10 @@ func (r *Runner) startWithState(name string, opts StartOptions, ready map[string
 	if err != nil {
 		return Result{}, err
 	}
+	// Stamp the requested variant onto the descriptor so every downstream
+	// registry/lock/port/storage derivation addresses this instance. Empty ⇒
+	// live, so the pre-variant path is unchanged.
+	item.Variant = opts.Variant
 	// Port policy is enforced here rather than inside scenario.ReadService so
 	// that Stop, Status, List, and other observation-only paths can still
 	// operate on manifests whose ports pre-date the canonical bands.
@@ -391,8 +417,8 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		// Dependencies and resources that were started earlier in the recursive chain
 		// are shared runtime infrastructure and may already be needed by other live
 		// scenarios, so this rollback must not unwind them opportunistically.
-		if cleanupErr := r.cleanupScenarioRuntimeWithRegistry(item.Slug, opts.CustomPath, false, false); cleanupErr != nil {
-			r.logError("Failed to roll back failed scenario start", cleanupErr, logx.AttrScenario, item.Slug)
+		if cleanupErr := r.cleanupScenarioRuntimeWithRegistry(item.Slug, item.Variant, opts.CustomPath, false, false); cleanupErr != nil {
+			r.logError("Failed to roll back failed scenario start", cleanupErr, logx.AttrScenario, recordSlug(item))
 			err = errors.Join(err, fmt.Errorf("rollback failed: %w", cleanupErr))
 		}
 	}()
@@ -436,14 +462,14 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 				AlreadyRunning:     true,
 			}, nil
 		}
-		if err := r.stopLocked(item.Slug, StopOptions{}); err != nil {
+		if err := r.stopLocked(item.Slug, StopOptions{Variant: item.Variant}); err != nil {
 			return Result{}, err
 		}
 		deps.sleep(1 * time.Second)
 	} else if registryView.Present {
 		// Stale or non-authoritative registry instance exists; clean it up
 		// before starting fresh so leftover claims do not collide.
-		if err := r.stopLocked(item.Slug, StopOptions{}); err != nil {
+		if err := r.stopLocked(item.Slug, StopOptions{Variant: item.Variant}); err != nil {
 			return Result{}, err
 		}
 		deps.sleep(1 * time.Second)
@@ -582,52 +608,65 @@ func (r *Runner) prepareScenarioEnvironment(item scenario.Scenario, runtimeSessi
 }
 
 func (r *Runner) Stop(name string, opts StopOptions) error {
-	release, err := r.acquireScenarioLock(name)
+	key, err := scenarioruntime.ParseInstanceKey(name, opts.Variant)
 	if err != nil {
-		r.logError("Scenario stop blocked by concurrent invocation", err, logx.AttrScenario, name)
+		return err
+	}
+	opts.Variant = key.Variant
+	release, err := r.acquireScenarioLock(key.Slug())
+	if err != nil {
+		r.logError("Scenario stop blocked by concurrent invocation", err, logx.AttrScenario, key.Slug())
 		return err
 	}
 	defer release()
-	return r.stopLocked(name, opts)
+	return r.stopLocked(key.Scenario, opts)
 }
 
 // stopLocked is the lock-free body of Stop. Callers must already hold the
 // per-scenario advisory lock. Used internally by startScenario (which is
 // itself called under the Start/Restart lock) and by Restart.
 func (r *Runner) stopLocked(name string, opts StopOptions) error {
-	r.progressf("stopping %s...", name)
-	r.logInfo("Scenario stop requested", logx.AttrScenario, name)
-	if err := r.cleanupScenarioRuntime(name, opts.CustomPath, true); err != nil {
-		r.logError("Failed to remove scenario locks", err, logx.AttrScenario, name)
+	slug := scenarioruntime.InstanceKey{Scenario: name, Variant: opts.Variant}.Slug()
+	r.progressf("stopping %s...", slug)
+	r.logInfo("Scenario stop requested", logx.AttrScenario, slug)
+	if err := r.cleanupScenarioRuntime(name, opts.Variant, opts.CustomPath, true); err != nil {
+		r.logError("Failed to remove scenario locks", err, logx.AttrScenario, slug)
 		return err
 	}
-	r.logInfo("Scenario stop completed", logx.AttrScenario, name)
+	r.logInfo("Scenario stop completed", logx.AttrScenario, slug)
 	return nil
 }
 
-func (r *Runner) cleanupScenarioRuntime(name, customPath string, includeManifestFixedPorts bool) error {
-	return r.cleanupScenarioRuntimeWithRegistry(name, customPath, includeManifestFixedPorts, true)
+func (r *Runner) cleanupScenarioRuntime(name, variant, customPath string, includeManifestFixedPorts bool) error {
+	return r.cleanupScenarioRuntimeWithRegistry(name, variant, customPath, includeManifestFixedPorts, true)
 }
 
-func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, customPath string, includeManifestFixedPorts bool, writeRegistry bool) error {
+// cleanupScenarioRuntimeWithRegistry tears down one instance of a scenario.
+// `name` is the bare scenario slug and `variant` selects the instance; the two
+// are combined into a record slug for all on-disk record/log/lock operations
+// and into an InstanceFilter for the registry, so stopping one variant never
+// reaps a sibling (the reap-sibling bug fixed here). Empty variant ⇒ live.
+func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, variant, customPath string, includeManifestFixedPorts bool, writeRegistry bool) error {
 	deps := r.runtimeDeps()
 	ctx := context.Background()
+	key := scenarioruntime.InstanceKey{Scenario: name, Variant: variant}.Normalize()
+	slug := key.Slug()
 	runtimeStop := runtimeRegistryStopSession{}
 	if writeRegistry {
 		var err error
-		runtimeStop, err = r.beginRuntimeRegistryStop(ctx, name)
+		runtimeStop, err = r.beginRuntimeRegistryStop(ctx, key.Scenario, key.Variant)
 		if err != nil {
 			return err
 		}
 	}
 	defer runtimeStop.close()
 
-	records, err := deps.readScenarioRecords(r.Home, name)
+	records, err := deps.readScenarioRecords(r.Home, slug)
 	if err != nil {
 		return err
 	}
 
-	processDir, err := process.ScenarioProcessDir(r.Home, name)
+	processDir, err := process.ScenarioProcessDir(r.Home, slug)
 	if err != nil {
 		return err
 	}
@@ -662,11 +701,11 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, customPath string, inc
 
 	for _, stepFile := range stepFiles {
 		step := strings.TrimSuffix(filepath.Base(stepFile), filepath.Ext(stepFile))
-		_ = process.RemoveScenarioRecord(r.Home, name, step)
+		_ = process.RemoveScenarioRecord(r.Home, slug, step)
 	}
 
 	portsToCheck := make(map[int]struct{})
-	locks, err := r.Ports.LocksForScenario(name)
+	locks, err := r.Ports.LocksForScenario(slug)
 	if err != nil {
 		return err
 	}
@@ -688,11 +727,11 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, customPath string, inc
 		return err
 	}
 
-	if err := r.verifyPortsReleased(name, portsToCheck); err != nil {
+	if err := r.verifyPortsReleased(key, portsToCheck); err != nil {
 		return err
 	}
 
-	if err := r.Ports.RemoveScenarioLocks(name); err != nil {
+	if err := r.Ports.RemoveScenarioLocks(slug); err != nil {
 		return err
 	}
 	if err := runtimeStop.finish(ctx); err != nil {
@@ -702,28 +741,34 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, customPath string, inc
 }
 
 func (r *Runner) Restart(name string, opts StartOptions) (Result, error) {
-	release, err := r.acquireScenarioLock(name)
+	key, err := scenarioruntime.ParseInstanceKey(name, opts.Variant)
 	if err != nil {
-		r.logError("Scenario restart blocked by concurrent invocation", err, logx.AttrScenario, name)
+		return Result{}, err
+	}
+	opts.Variant = key.Variant
+	slug := key.Slug()
+	release, err := r.acquireScenarioLock(slug)
+	if err != nil {
+		r.logError("Scenario restart blocked by concurrent invocation", err, logx.AttrScenario, slug)
 		return Result{}, err
 	}
 	defer release()
 	deps := r.runtimeDeps()
-	r.logInfo("Scenario restart requested", logx.AttrScenario, name)
-	if err := r.stopLocked(name, StopOptions{}); err != nil {
-		r.logError("Scenario restart failed during stop", err, logx.AttrScenario, name)
+	r.logInfo("Scenario restart requested", logx.AttrScenario, slug)
+	if err := r.stopLocked(key.Scenario, StopOptions{Variant: key.Variant}); err != nil {
+		r.logError("Scenario restart failed during stop", err, logx.AttrScenario, slug)
 		return Result{}, err
 	}
 	deps.sleep(1 * time.Second)
 	opts.ForceSetup = true
-	opts.ForceSetupScenario = name
+	opts.ForceSetupScenario = key.Scenario
 	opts.Operation = "restart"
-	result, err := r.startLocked(name, opts)
+	result, err := r.startLocked(key.Scenario, opts)
 	if err != nil {
-		r.logError("Scenario restart failed during start", err, logx.AttrScenario, name)
+		r.logError("Scenario restart failed during start", err, logx.AttrScenario, slug)
 		return Result{}, err
 	}
-	r.logInfo("Scenario restart completed", logx.AttrScenario, name, logx.AttrStatus, result.Health)
+	r.logInfo("Scenario restart completed", logx.AttrScenario, slug, logx.AttrStatus, result.Health)
 	return result, nil
 }
 
@@ -809,10 +854,11 @@ func (r *Runner) logError(msg string, err error, args ...any) {
 // returns a loud error if any are still held. Surfacing this at stop time
 // lets Restart fail fast with a diagnostic rather than silently racing into
 // a Start that will itself fail with the generic "port already in use".
-func (r *Runner) verifyPortsReleased(scenarioName string, portsToCheck map[int]struct{}) error {
+func (r *Runner) verifyPortsReleased(key scenarioruntime.InstanceKey, portsToCheck map[int]struct{}) error {
 	if len(portsToCheck) == 0 {
 		return nil
 	}
+	scenarioName := key.Slug()
 	deps := r.runtimeDeps()
 	const (
 		maxAttempts = 20
@@ -881,6 +927,13 @@ func (r *Runner) killOrphansOnPorts(portsToCheck map[int]struct{}) error {
 }
 
 func (r *Runner) cleanupFixedPortOrphans(item scenario.Scenario) error {
+	key := scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Normalize()
+	// Fixed ports are a live-only privilege (§1a / P1): a non-live variant never
+	// claims them and so must never clean up "orphans" on them — that would reach
+	// across the variant boundary and kill the live instance's fixed-port process.
+	if !key.IsLive() {
+		return nil
+	}
 	portsToCheck := make(map[int]struct{})
 	for _, portSummary := range item.Manifest.SortedPorts() {
 		if portSummary.FixedPort == nil {
@@ -891,7 +944,7 @@ func (r *Runner) cleanupFixedPortOrphans(item scenario.Scenario) error {
 	if len(portsToCheck) == 0 {
 		return nil
 	}
-	return r.killManagedScenarioListeners(portsToCheck, item.Slug)
+	return r.killManagedScenarioListeners(portsToCheck, key)
 }
 
 // envPortOrphanStrict disables the aggressive start-time fallback. When set
@@ -902,7 +955,9 @@ func (r *Runner) cleanupFixedPortOrphans(item scenario.Scenario) error {
 // (node grandchildren under vite, for example) are the common real cause.
 const envPortOrphanStrict = "VROOLI_PORT_ORPHAN_STRICT"
 
-func (r *Runner) killManagedScenarioListeners(portsToCheck map[int]struct{}, scenarioName string) error {
+func (r *Runner) killManagedScenarioListeners(portsToCheck map[int]struct{}, key scenarioruntime.InstanceKey) error {
+	key = key.Normalize()
+	scenarioName := key.Slug()
 	deps := r.runtimeDeps()
 	targets := make(map[int]struct{})
 	fallbackPorts := make(map[int][]int) // port -> pids seen without env match
@@ -924,9 +979,14 @@ func (r *Runner) killManagedScenarioListeners(portsToCheck map[int]struct{}, sce
 				fallbackPorts[port] = append(fallbackPorts[port], listener.PID)
 				continue
 			}
-			if strings.TrimSpace(env["VROOLI_SCENARIO"]) != scenarioName {
-				// Different scenario owns the port — leave it. Orphan
-				// fallback must not reach across scenario boundaries.
+			// Match on BOTH scenario and variant so orphan cleanup never reaches
+			// across a scenario OR variant boundary. A listener with no
+			// VROOLI_VARIANT (legacy / pre-variant process) is treated as live.
+			listenerKey := scenarioruntime.InstanceKey{
+				Scenario: strings.TrimSpace(env["VROOLI_SCENARIO"]),
+				Variant:  strings.TrimSpace(env[scenarioruntime.EnvVariant]),
+			}.Normalize()
+			if listenerKey != key {
 				continue
 			}
 			targets[listener.PID] = struct{}{}

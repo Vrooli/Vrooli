@@ -57,6 +57,13 @@ type Scenario struct {
 	ServicePath string
 	Redirected  bool
 	Manifest    ServiceManifest
+	// Variant names which instance of the scenario this descriptor addresses.
+	// Empty means the canonical "live" instance, so every pre-variant caller is
+	// a backward-compatible no-op. The lifecycle sets it from the parsed
+	// InstanceKey at the Start/Stop/Restart entry points; downstream registry,
+	// lock, port, and storage-namespace derivations all read it (normalized
+	// through scenarioruntime.InstanceKey). See the Baseline Modes plan, §1a.
+	Variant string
 }
 
 type ServiceManifest struct {

@@ -10,6 +10,7 @@ const schemaSQL = `
 CREATE TABLE IF NOT EXISTS runtime_instances (
   instance_id TEXT PRIMARY KEY,
   scenario TEXT NOT NULL,
+  variant TEXT NOT NULL DEFAULT 'live',
   generation INTEGER NOT NULL,
   scope_path TEXT NOT NULL DEFAULT '',
   sandbox_id TEXT NOT NULL DEFAULT '',
@@ -33,9 +34,10 @@ CREATE TABLE IF NOT EXISTS runtime_instances (
   reconciliation_reason TEXT NOT NULL DEFAULT '',
   supervision_policy TEXT NOT NULL DEFAULT 'managed',
   schema_version INTEGER NOT NULL,
-  UNIQUE(scenario, generation)
+  UNIQUE(scenario, variant, generation)
 );
 CREATE INDEX IF NOT EXISTS idx_runtime_instances_scenario ON runtime_instances(scenario);
+CREATE INDEX IF NOT EXISTS idx_runtime_instances_scenario_variant ON runtime_instances(scenario, variant);
 CREATE INDEX IF NOT EXISTS idx_runtime_instances_status ON runtime_instances(status);
 CREATE INDEX IF NOT EXISTS idx_runtime_instances_heartbeat_deadline ON runtime_instances(heartbeat_deadline_at);
 CREATE INDEX IF NOT EXISTS idx_runtime_instances_host_boot ON runtime_instances(host_boot_id);
@@ -63,6 +65,7 @@ CREATE TABLE IF NOT EXISTS runtime_port_claims (
   claim_id TEXT PRIMARY KEY,
   instance_id TEXT NOT NULL,
   scenario TEXT NOT NULL,
+  variant TEXT NOT NULL DEFAULT 'live',
   port_name TEXT NOT NULL DEFAULT '',
   env_var TEXT NOT NULL DEFAULT '',
   port INTEGER NOT NULL,
@@ -84,6 +87,7 @@ CREATE TABLE IF NOT EXISTS runtime_port_claims (
 );
 CREATE INDEX IF NOT EXISTS idx_runtime_port_claims_instance ON runtime_port_claims(instance_id);
 CREATE INDEX IF NOT EXISTS idx_runtime_port_claims_scenario ON runtime_port_claims(scenario);
+CREATE INDEX IF NOT EXISTS idx_runtime_port_claims_scenario_variant ON runtime_port_claims(scenario, variant);
 CREATE INDEX IF NOT EXISTS idx_runtime_port_claims_status ON runtime_port_claims(status);
 CREATE INDEX IF NOT EXISTS idx_runtime_port_claims_expiry ON runtime_port_claims(expires_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_runtime_port_claims_active_port
@@ -145,6 +149,16 @@ func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 		return fmt.Errorf("runtime registry schema_version %d > expected %d: binary is older than database", current, SchemaVersion)
 	}
 	if current == SchemaVersion {
+		return nil
+	}
+	if current == 4 {
+		// In-place, row-preserving migration. The registry tracks LIVE
+		// processes, so a destructive drop-and-recreate would orphan every
+		// running scenario; migrateV4ToV5 instead copies all rows forward
+		// (variant defaulting to 'live'), leaving live processes addressable.
+		if err := s.migrateV4ToV5(ctx); err != nil {
+			return fmt.Errorf("migrate runtime registry schema 4 -> 5: %w", err)
+		}
 		return nil
 	}
 	if current != 0 {

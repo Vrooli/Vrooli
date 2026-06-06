@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	coresetpkg "scenario-dependency-analyzer/internal/coreset"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
@@ -79,6 +80,25 @@ func (h *handler) scenarioService() services.ScenarioService         { return h.
 func (h *handler) dependencyService() services.DependencyService     { return h.services.Dependencies }
 func (h *handler) deploymentService() services.DeploymentService     { return h.services.Deployment }
 func (h *handler) proposalService() services.ProposalService         { return h.services.Proposal }
+
+// scenariosDir resolves the scenarios root for fresh-from-disk computation,
+// preferring the active runtime config and falling back to a fresh load.
+func (h *handler) scenariosDir() string {
+	if h.runtime != nil {
+		if dir := strings.TrimSpace(h.runtime.Config().ScenariosDir); dir != "" {
+			return dir
+		}
+	}
+	return loadConfig().ScenariosDir
+}
+
+// getCoreSet returns the reflexive core set (9-seed ∪ transitive Required
+// closure) and the trusted-base subset, computed fresh from disk. This path is
+// database-free by design, so the core set the Baseline Modes decision tree
+// consumes is available even when postgres is down.
+func (h *handler) getCoreSet(c *gin.Context) {
+	c.JSON(http.StatusOK, coresetpkg.Compute(h.scenariosDir()))
+}
 
 func (h *handler) analysisHealth(c *gin.Context) {
 	graphSvc := h.graphService()
