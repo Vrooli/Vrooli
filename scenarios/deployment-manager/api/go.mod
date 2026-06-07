@@ -1,13 +1,13 @@
 module deployment-manager
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/lib/pq v1.10.9
-	github.com/santhosh-tekuri/jsonschema/v5 v5.3.0
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/stretchr/testify v1.11.1
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
@@ -24,6 +24,10 @@ require (
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+require github.com/vrooli/cli-core v0.0.0 // indirect
+
+replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 

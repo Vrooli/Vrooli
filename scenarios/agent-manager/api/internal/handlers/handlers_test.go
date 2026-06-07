@@ -956,6 +956,51 @@ func TestCreateRun_MalformedJSON(t *testing.T) {
 	}
 }
 
+// TestCreateInvestigationRun_RejectsNonVrooliEnv verifies that the investigation
+// + apply endpoints validate custom environment variables the same way the
+// CreateRun path does: a non-VROOLI_-prefixed key is rejected with 400 before
+// the run is created. This closes the gap where investigation runs silently
+// dropped the Environment field (e.g. VROOLI_SHADOW_SCENARIOS) instead of
+// forwarding it.
+func TestCreateInvestigationRun_RejectsNonVrooliEnv(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	cases := []struct {
+		name string
+		path string
+		body string
+	}{
+		{
+			name: "investigate",
+			path: "/api/v1/runs/investigate",
+			body: `{"runIds":["` + uuid.New().String() + `"],"environment":{"NOT_VROOLI":"x"}}`,
+		},
+		{
+			name: "investigation-apply",
+			path: "/api/v1/runs/investigation-apply",
+			body: `{"investigationRunId":"` + uuid.New().String() + `","environment":{"NOT_VROOLI":"x"}}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, tc.path, bytes.NewReader([]byte(tc.body)))
+			req.Header.Set("Content-Type", "application/json")
+			rr := httptest.NewRecorder()
+
+			router.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("expected status %d for non-VROOLI_ env, got %d: %s",
+					http.StatusBadRequest, rr.Code, rr.Body.String())
+			}
+			if !strings.Contains(rr.Body.String(), "VROOLI_") {
+				t.Errorf("expected error to mention VROOLI_ prefix, got: %s", rr.Body.String())
+			}
+		})
+	}
+}
+
 // TestUpdateProfile_InvalidUUID tests profile update with invalid UUID.
 func TestUpdateProfile_InvalidUUID(t *testing.T) {
 	_, router := setupTestHandler(t)

@@ -53,12 +53,24 @@ func (f *fakeRunner) install() func() {
 }
 
 func (f *fakeRunner) sawCommand(substr string) bool {
-	for _, c := range f.calls {
+	return f.firstIndex(substr) >= 0
+}
+
+// firstIndex returns the index of the first recorded call matching substr, or -1.
+func (f *fakeRunner) firstIndex(substr string) int {
+	for i, c := range f.calls {
 		if strings.Contains(c.name+" "+strings.Join(c.args, " "), substr) {
-			return true
+			return i
 		}
 	}
-	return false
+	return -1
+}
+
+// sawInOrder reports whether the first match of a precedes the first match of b
+// (and both occurred).
+func (f *fakeRunner) sawInOrder(a, b string) bool {
+	ia, ib := f.firstIndex(a), f.firstIndex(b)
+	return ia >= 0 && ib >= 0 && ia < ib
 }
 
 // ---- decision tree -------------------------------------------------------
@@ -556,7 +568,7 @@ func TestCheckNoAnchorIsError(t *testing.T) {
 
 // ---- abandon -------------------------------------------------------------
 
-func TestAbandonShadowTearsDownLeavesLiveUntouched(t *testing.T) {
+func TestAbandonShadowDiscardsCandidateLeavesLiveUntouched(t *testing.T) {
 	f := newFakeRunner(t)
 	f.stdout["recovery show"] = engagementJSON("shadow", "shadow", "engagement-wip")
 	defer f.install()()
@@ -568,9 +580,16 @@ func TestAbandonShadowTearsDownLeavesLiveUntouched(t *testing.T) {
 	if !f.sawCommand("scenario stop demo-scenario --instance shadow") {
 		t.Errorf("shadow abandon must stop the shadow; calls=%v", f.calls)
 	}
-	if f.sawCommand("recovery restore") {
-		t.Errorf("shadow abandon must NOT restore live; calls=%v", f.calls)
+	// In the live-from-copy model the working tree holds the candidate, so abandon
+	// must discard it by restoring the baseline over the working tree — after the
+	// shadow (which runs from that tree) is stopped.
+	if !f.sawCommand("recovery restore --scenario demo-scenario --slug wip") {
+		t.Errorf("shadow abandon must restore the baseline over the working tree; calls=%v", f.calls)
 	}
+	if !f.sawInOrder("scenario stop demo-scenario --instance shadow", "recovery restore --scenario demo-scenario --slug wip") {
+		t.Errorf("shadow must be stopped before the working tree is overwritten; calls=%v", f.calls)
+	}
+	// Live served the baseline from the copy throughout — it is never restarted.
 	if f.sawCommand("scenario restart") {
 		t.Errorf("shadow abandon must NOT restart live; calls=%v", f.calls)
 	}

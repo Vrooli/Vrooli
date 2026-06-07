@@ -383,6 +383,12 @@ type CreateInvestigationRequest struct {
 	// preset whose model chain currently works, without editing the registry.
 	RunnerType  *domain.RunnerType  `json:"runnerType,omitempty"`
 	ModelPreset *domain.ModelPreset `json:"modelPreset,omitempty"`
+	// Environment carries custom VROOLI_-prefixed variables (e.g.
+	// VROOLI_SHADOW_SCENARIOS) into the investigation runner process — same
+	// contract as CreateRunRequest.Environment. Without this, an investigation
+	// triggered for a run under a shadow engagement would route its lifecycle
+	// ops to the live variant.
+	Environment map[string]string `json:"environment,omitempty"`
 }
 
 // CreateInvestigationApplyRequest contains parameters for creating an apply run.
@@ -393,6 +399,9 @@ type CreateInvestigationApplyRequest struct {
 	// Runner + preset overrides for the apply agent; same semantics as investigation.
 	RunnerType  *domain.RunnerType  `json:"runnerType,omitempty"`
 	ModelPreset *domain.ModelPreset `json:"modelPreset,omitempty"`
+	// Environment carries custom VROOLI_-prefixed variables into the apply runner
+	// process; same contract as CreateInvestigationRequest.Environment.
+	Environment map[string]string `json:"environment,omitempty"`
 }
 
 // ApproveRequest contains parameters for approving a run.

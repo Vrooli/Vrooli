@@ -285,7 +285,7 @@ func runStartCmd(core *cliapp.ScenarioApp, args []string) error {
 	fs.StringVar(&ttlStr, "ttl", "", "Idle TTL for a human-owned engagement (e.g. 3h); omit for orchestrator-heartbeat mode")
 	fs.StringVar(&anchor, "anchor", "", "Reuse an existing baseline record as the diff anchor (default: capture engagement-<slug>)")
 	fs.BoolVar(&operatorConfirm, "operator-confirm", false, "Operator nod authorizing live mode on a reflexive scenario")
-	fs.BoolVar(&writesShared, "writes-shared-store", false, "Declare the change writes an un-adopted Redis/Qdrant store (hard namespaceability gate → live)")
+	fs.BoolVar(&writesShared, "writes-shared-store", false, "Force the namespaceability gate (→ live); auto-detected from scenario-auditor storage-namespace-v1 by default, this overrides it")
 	fs.BoolVar(&modifiesLifecycle, "modifies-lifecycle", false, "Declare the change modifies lifecycle/registry/promote machinery (→ live)")
 	fs.BoolVar(&singleton, "singleton-resource", false, "Declare the change needs a non-duplicable singleton resource (→ live)")
 	fs.BoolVar(&noAnchor, "no-anchor", false, "Skip capturing a diff anchor (restore-point safety net only)")
@@ -350,7 +350,25 @@ func startEngagement(core *cliapp.ScenarioApp, p startParams) (startResult, erro
 
 	ctx := context.Background()
 	cs := loadCoreSet(ctx)
-	decision := decideMode(scenario, modeReq, p.signals, cs)
+
+	// Namespaceability gate: auto-derive whether the scenario writes an un-adopted
+	// Redis/Qdrant store from the scenario-auditor storage-namespace-v1 standard
+	// (plan §1a — the mode must be chosen automatically, not hand-declared). Only
+	// worth querying when a shadow could still be chosen: live mode is already the
+	// gate's destination, and a trusted-base scenario is hard-routed to live
+	// regardless. The declared --writes-shared-store flag remains an override.
+	sig := p.signals
+	var nsNote string
+	if modeReq != modeLive && !cs.isTrustedBase(scenario) {
+		v := resolveSharedStoreSignal(ctx, scenario, sig.writesSharedStore)
+		sig.writesSharedStore = v.writesSharedStore
+		nsNote = v.note
+	}
+
+	decision := decideMode(scenario, modeReq, sig, cs)
+	if nsNote != "" {
+		decision.Reasons = append(decision.Reasons, "namespaceability signal: "+nsNote)
+	}
 	if decision.NeedsOperator {
 		return startResult{}, fmt.Errorf("live mode on reflexive scenario %q requires an operator nod — re-run with --operator-confirm (reasons: %s)",
 			scenario, strings.Join(decision.Reasons, "; "))
@@ -723,9 +741,17 @@ func runAbandonCmd(core *cliapp.ScenarioApp, args []string) error {
 	return nil
 }
 
-// abandonEngagement is the mode-symmetric give-up: shadow → tear down the shadow
-// (live was never touched); live → overlay the restore point back onto the
-// working tree (the git-free undo; post-capture files are left = dirty work parked).
+// abandonEngagement is the "discard the Candidate, keep the Baseline" give-up.
+// Both modes overlay the Baseline (the restore point) back onto the working tree
+// — the edited location — so the in-progress candidate is thrown away (git-free
+// undo; post-capture untracked files are left = dirty work parked). They differ
+// only in how the serving instance is handled:
+//   - shadow: live has been serving the Baseline from the restore-point copy the
+//     whole time and never ran the candidate, so it is left untouched (no
+//     restart); its next restart resolves to the now-restored working tree. The
+//     shadow instance that WAS running the candidate is torn down.
+//   - live: live ran the edited working tree in place, so after the restore it is
+//     restarted to pick the Baseline back up.
 func abandonEngagement(core *cliapp.ScenarioApp, scenario, slug string) (abandonResult, error) {
 	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
@@ -741,6 +767,8 @@ func abandonEngagement(core *cliapp.ScenarioApp, scenario, slug string) (abandon
 	}
 	res := abandonResult{Scenario: scenario, Slug: slug, Mode: eng.Mode}
 	if eng.Mode == modeShadow {
+		// Stop the shadow first (it is reading the working tree as its CWD), then
+		// discard the candidate by restoring the baseline over the working tree.
 		variant := eng.Variant
 		if variant == "" {
 			variant = modeShadow
@@ -748,16 +776,19 @@ func abandonEngagement(core *cliapp.ScenarioApp, scenario, slug string) (abandon
 		if _, err := runCommand(ctx, "vrooli", "scenario", "stop", scenario, "--instance", variant); err != nil {
 			return abandonResult{}, fmt.Errorf("tear down shadow %s@%s: %w", scenario, variant, err)
 		}
-		res.Action = "shadow torn down; live untouched"
+		if _, err := runCommand(ctx, "vrooli", "recovery", "restore", "--scenario", scenario, "--slug", slug); err != nil {
+			return abandonResult{}, fmt.Errorf("restore baseline over working tree: %w", err)
+		}
+		res.Action = "candidate discarded (working tree restored from baseline); shadow torn down; live untouched"
 	} else {
 		if _, err := runCommand(ctx, "vrooli", "recovery", "restore", "--scenario", scenario, "--slug", slug); err != nil {
-			return abandonResult{}, fmt.Errorf("restore live working tree: %w", err)
+			return abandonResult{}, fmt.Errorf("restore baseline over working tree: %w", err)
 		}
-		// Rebuild from the restored tree so the running process picks it up.
+		// Rebuild from the restored tree so the running live process picks it up.
 		if _, err := runCommand(ctx, "vrooli", "scenario", "restart", scenario); err != nil {
 			return abandonResult{}, fmt.Errorf("restart live after restore: %w", err)
 		}
-		res.Action = "working tree restored from the restore point; live restarted"
+		res.Action = "live edits discarded (working tree restored from baseline); live restarted"
 	}
 	// Drop the engagement (restore point + manifest) — idempotent.
 	if _, err := runCommand(ctx, "vrooli", "recovery", "clean", "--scenario", scenario, "--slug", slug); err != nil {

@@ -61,6 +61,7 @@ func TestPromoteShadowHappyPath(t *testing.T) {
 		"agent-manager run quiesce --scenario demo-scenario",
 		"data-backup-manager safety backup-now --scenario demo-scenario",
 		"vrooli recovery migrate --scenario demo-scenario --slug wip --json",
+		"vrooli recovery set-mode --scenario demo-scenario --slug wip --mode live",
 		"vrooli scenario restart demo-scenario",
 		"vrooli scenario status demo-scenario --json",
 		"vrooli scenario stop demo-scenario --instance shadow",
@@ -70,6 +71,15 @@ func TestPromoteShadowHappyPath(t *testing.T) {
 		if !f.sawCommand(w) {
 			t.Errorf("missing step %q; calls=%v", w, f.calls)
 		}
+	}
+	// The re-point (collapse the split) MUST happen before the restart, or the
+	// restart would relaunch live from the frozen baseline copy.
+	if !f.sawInOrder("recovery set-mode --scenario demo-scenario --slug wip --mode live", "scenario restart demo-scenario") {
+		t.Errorf("re-point (set-mode live) must precede the live restart; calls=%v", f.calls)
+	}
+	// A clean promote never restores the working tree (the candidate is what we keep).
+	if f.sawCommand("recovery restore") {
+		t.Errorf("happy-path promote must NOT restore the working tree; calls=%v", f.calls)
 	}
 	// The drain must carry a timeout (default) and JSON.
 	if !f.sawCommand("run quiesce --scenario demo-scenario --json --timeout 5m0s") {
@@ -122,9 +132,14 @@ func TestPromoteProbeFailureAutoRollsBack(t *testing.T) {
 	if !res.RolledBack {
 		t.Errorf("expected RolledBack=true, got %+v", res)
 	}
-	// Auto-rollback = restore the code from the restore point + restart.
-	if !f.sawCommand("recovery restore --scenario demo-scenario --slug wip") {
-		t.Errorf("rollback must restore the restore point; calls=%v", f.calls)
+	// Auto-rollback = re-open the shadow split (flip back to shadow mode) + restart;
+	// the resolver then routes live back to the frozen baseline copy. No working-tree
+	// restore is performed — the working tree legitimately keeps the candidate.
+	if !f.sawCommand("recovery set-mode --scenario demo-scenario --slug wip --mode shadow") {
+		t.Errorf("rollback must re-point live back to the baseline (set-mode shadow); calls=%v", f.calls)
+	}
+	if f.sawCommand("recovery restore") {
+		t.Errorf("rollback must NOT restore the working tree (candidate is kept); calls=%v", f.calls)
 	}
 	// The shadow is left standing for diagnosis (no teardown on rollback).
 	if f.sawCommand("scenario stop demo-scenario --instance shadow") {

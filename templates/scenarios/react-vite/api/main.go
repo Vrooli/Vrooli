@@ -33,6 +33,14 @@ import (
 //  3. storage.NewResolver(ProfileAuto) — the storage-steer-mandated
 //     filesystem-safe-by-default location.
 //
+// The path scope is the variant-aware namespace (storage.ScenarioNamespace),
+// not the bare slug: under a Baseline Modes shadow engagement the lifecycle
+// injects VROOLI_STORAGE_NAMESPACE, so the shadow's SQLite file lands beside
+// "<scenario>_shadow" and never shares live's database. Outside the lifecycle
+// (local `go run`, tests) it falls back to the compile-time slug, so live paths
+// are unchanged. This is why a generated scenario is shadow-safe with zero
+// per-scenario work — see packages/api-core/storage/namespace.go.
+//
 // The pragmas mirror agent-inbox; tweak in lockstep with
 // internal/testutil/db.NewSQLite so production and tests open files the
 // same way.
@@ -51,8 +59,12 @@ func sqliteDSN() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("create storage resolver: %w", err)
 	}
+	scenarioID, err := storage.ScenarioNamespace("{{SCENARIO_ID}}")
+	if err != nil {
+		return "", fmt.Errorf("resolve {{SCENARIO_ID}} storage namespace: %w", err)
+	}
 	path, err := resolver.Path(
-		storage.Options{ScenarioID: "{{SCENARIO_ID}}"},
+		storage.Options{ScenarioID: scenarioID},
 		storage.ClassData,
 		"{{SCENARIO_ID}}.db",
 	)

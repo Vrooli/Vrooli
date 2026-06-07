@@ -1,6 +1,6 @@
 module device-sync-hub
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/google/uuid v1.6.0
@@ -21,6 +21,10 @@ require (
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+require github.com/vrooli/cli-core v0.0.0 // indirect
+
+replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 

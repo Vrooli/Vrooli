@@ -1,8 +1,6 @@
 module landing-manager
 
-go 1.24.0
-
-toolchain go1.24.10
+go 1.25.0
 
 require (
 	github.com/gorilla/handlers v1.5.2
@@ -18,6 +16,10 @@ require (
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+require github.com/vrooli/cli-core v0.0.0 // indirect
+
+replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 

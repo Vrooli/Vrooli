@@ -122,7 +122,15 @@ func scenarioDBPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return resolver.Path(storage.Options{ScenarioID: "agent-manager"}, storage.ClassData, "agent-manager.db")
+	// Variant-aware path scope (Baseline Modes): under a shadow engagement the
+	// lifecycle injects VROOLI_STORAGE_NAMESPACE, so the shadow's SQLite file is
+	// scoped to "agent-manager_shadow" and never shares live's database. Falls
+	// back to the bare slug outside the lifecycle (local run / tests).
+	scenarioID, err := storage.ScenarioNamespace("agent-manager")
+	if err != nil {
+		return "", err
+	}
+	return resolver.Path(storage.Options{ScenarioID: scenarioID}, storage.ClassData, "agent-manager.db")
 }
 
 // Close closes the database connection.

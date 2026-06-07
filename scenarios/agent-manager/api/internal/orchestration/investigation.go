@@ -249,6 +249,7 @@ func (o *Orchestrator) CreateInvestigationRun(
 		investigationProfileRefWithOverrides(req.RunnerType, req.ModelPreset),
 		req.RunIDs,
 		nil,
+		req.Environment,
 	)
 	if err != nil {
 		return nil, err
@@ -339,6 +340,7 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 		applyInvestigationProfileRefWithOverrides(req.RunnerType, req.ModelPreset),
 		nil,
 		&investigationRunID,
+		req.Environment,
 	)
 	if err != nil {
 		return nil, err
@@ -430,6 +432,7 @@ func (o *Orchestrator) createInvestigationRunWithProfile(
 	profileRef *ProfileRef,
 	sourceRunIDs []uuid.UUID,
 	sourceInvestigationRunID *uuid.UUID,
+	environment map[string]string,
 ) (*domain.Run, error) {
 	// Investigations are diagnostic by intent — the deliverable is a written
 	// report, not repo mutations. ManualReview=true defers apply at run end
@@ -450,6 +453,7 @@ func (o *Orchestrator) createInvestigationRunWithProfile(
 		SandboxConfig:            sandboxConfig,
 		SourceRunIDs:             sourceRunIDs,
 		SourceInvestigationRunID: sourceInvestigationRunID,
+		Environment:              environment,
 	})
 }
 

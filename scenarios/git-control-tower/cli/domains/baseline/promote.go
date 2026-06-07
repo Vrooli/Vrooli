@@ -12,14 +12,22 @@
 // Shadow-mode promote sequence (§8):
 //
 //	quiesce/drain live  →  pre-promote data snapshot (secondary location)
-//	  →  re-point live to the (blessed) working tree
 //	  →  apply managed schema migrations to live (dry-run against a throwaway copy
 //	      first; bounce on failure with live untouched; no scripts ⇒ shape-
 //	      unchanged fast path; SQLite engine in v1 — `vrooli recovery migrate`)
-//	  →  restart live
-//	  →  health+smoke probe
-//	  →  (probe fails ⇒ swap code back from the restore point + restart = auto-rollback)
-//	  →  tear down the shadow  →  clean the engagement
+//	  →  RE-POINT live from the frozen baseline copy to the blessed working tree by
+//	      collapsing the shadow split (`recovery set-mode --mode live`): while the
+//	      engagement is a shadow split the lifecycle EngagementResolver routes a
+//	      live restart to the restore-point copy, so a plain restart would relaunch
+//	      the OLD code; flipping to live mode makes the resolver stop redirecting so
+//	      live resolves to the working tree. The restore-point copy is preserved as
+//	      the rollback source (dropped only after the probe passes).
+//	  →  restart live  →  health+smoke probe
+//	  →  (probe fails ⇒ re-open the split [`set-mode --mode shadow`] + restart =
+//	      auto-rollback: live resolves back to the baseline copy, the working tree
+//	      keeps the candidate, the shadow is left standing, the engagement stays
+//	      open for retry — no working-tree restore needed)
+//	  →  tear down the shadow  →  clean the engagement (drop the restore point)
 //
 // Live-mode promote is "accept": the working tree was edited+validated in place,
 // so promote just drops the restore point + manifest (the safety net is no
@@ -189,16 +197,28 @@ func promoteEngagement(core *cliapp.ScenarioApp, p promoteParams) (promoteResult
 	}
 	res.Steps = append(res.Steps, "migrations: "+migNote)
 
-	// 4. Re-point live to the blessed working tree and restart. In the current
-	//    lifecycle model live already runs from the working tree (the deeper
-	//    "live runs from the restore-point copy" feature is deferred), so the
-	//    re-point is implicit and this is a restart that picks up the edits the
-	//    shadow validated.
+	// 4. Re-point live from the frozen baseline copy to the blessed working tree.
+	//    While the engagement is a shadow split, the lifecycle EngagementResolver
+	//    routes a live (re)start to the restore-point copy (the old baseline), so a
+	//    plain restart would relaunch the OLD code, not the validated edits.
+	//    Collapsing the split (flip the engagement to live mode) makes the resolver
+	//    stop redirecting, so live resolves to the working tree. The restore-point
+	//    copy is preserved on disk as the rollback source — it is dropped only after
+	//    the probe passes (step 7). The re-point is now an explicit, observable step
+	//    rather than a no-op restart.
+	if _, err := runCommand(ctx, "vrooli", "recovery", "set-mode", "--scenario", scenario, "--slug", slug, "--mode", modeLive); err != nil {
+		// Nothing has restarted yet; live still serves the baseline from the copy.
+		// Leave the engagement open (still a shadow split) for a retry.
+		res.Steps = append(res.Steps, fmt.Sprintf("✗ re-point failed (live untouched): %v", err))
+		res.Message = "promote aborted: re-point failed"
+		return res, fmt.Errorf("promote aborted: re-point: %w", err)
+	}
+	res.Steps = append(res.Steps, "live re-pointed from the baseline copy to the blessed working tree (split collapsed)")
 	if _, err := runCommand(ctx, "vrooli", "scenario", "restart", scenario); err != nil {
-		// Restart itself failed → roll the code back and bail.
+		// Restart failed after the re-point → roll back (re-open the split + restart).
 		return rollback(ctx, res, scenario, slug, fmt.Sprintf("restart failed: %v", err))
 	}
-	res.Steps = append(res.Steps, "live re-pointed to the working tree and restarted")
+	res.Steps = append(res.Steps, "live restarted on the working tree")
 
 	// 5. Health + smoke probe. On failure, auto-rollback (swap code back from the
 	//    restore point + restart).
@@ -401,22 +421,26 @@ func extractStatus(out []byte) string {
 	return ""
 }
 
-// rollback performs the auto-rollback: overlay the pre-edit code back from the
-// restore point and restart live. The shadow is left standing (it is the known-
-// good validated copy) for diagnosis; `baseline abandon`/`gc` reap it. Returns
-// the result annotated as rolled-back plus a non-nil error describing the cause.
+// rollback performs the auto-rollback after a failed shadow promote: it re-opens
+// the shadow split (flip the engagement back to shadow mode) and restarts live,
+// which the resolver then routes back to the frozen restore-point copy — the old
+// baseline. No working-tree restore is needed: unlike the pre-floor model live
+// never ran from the working tree, so the working tree is left holding the
+// candidate (the in-progress code, untouched for a retry). The shadow instance is
+// left standing for diagnosis; `baseline abandon`/`gc` reap it. Returns the
+// result annotated as rolled-back plus a non-nil error describing the cause.
 func rollback(ctx context.Context, res promoteResult, scenario, slug, cause string) (promoteResult, error) {
 	res.Steps = append(res.Steps, "✗ "+cause+" — auto-rolling back")
-	if _, err := runCommand(ctx, "vrooli", "recovery", "restore", "--scenario", scenario, "--slug", slug); err != nil {
-		res.Steps = append(res.Steps, fmt.Sprintf("⚠ code rollback FAILED: %v — see docs/operations/manual-scenario-recovery.md", err))
-		return res, fmt.Errorf("promote failed (%s) AND auto-rollback failed: %w", cause, err)
+	if _, err := runCommand(ctx, "vrooli", "recovery", "set-mode", "--scenario", scenario, "--slug", slug, "--mode", modeShadow); err != nil {
+		res.Steps = append(res.Steps, fmt.Sprintf("⚠ re-point back to the baseline copy FAILED: %v — see docs/operations/manual-scenario-recovery.md", err))
+		return res, fmt.Errorf("promote failed (%s) AND auto-rollback re-point failed: %w", cause, err)
 	}
 	if _, err := runCommand(ctx, "vrooli", "scenario", "restart", scenario); err != nil {
 		res.Steps = append(res.Steps, fmt.Sprintf("⚠ restart after rollback FAILED: %v", err))
-		return res, fmt.Errorf("promote failed (%s); code rolled back but restart failed: %w", cause, err)
+		return res, fmt.Errorf("promote failed (%s); re-pointed back to baseline but restart failed: %w", cause, err)
 	}
 	res.RolledBack = true
-	res.Steps = append(res.Steps, "live restored to the restore point and restarted")
+	res.Steps = append(res.Steps, "live re-pointed back to the baseline copy and restarted; shadow left standing, engagement open for retry")
 	dataNote := ""
 	if res.DataSnapshot != "" {
 		dataNote = fmt.Sprintf(" (data snapshot %s available for manual restore)", res.DataSnapshot)

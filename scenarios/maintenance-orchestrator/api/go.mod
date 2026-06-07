@@ -1,6 +1,6 @@
 module maintenance-orchestrator
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/gorilla/mux v1.8.1
@@ -11,6 +11,10 @@ require (
 require github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+require github.com/vrooli/cli-core v0.0.0 // indirect
+
+replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 

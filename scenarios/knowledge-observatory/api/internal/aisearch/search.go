@@ -180,7 +180,9 @@ func filterPathScope(hits []pkg.SearchResult, scope pkg.Scope) []pkg.SearchResul
 }
 
 // applyAuthorityBoost nudges the fused score toward canonical, maintained docs.
-func applyAuthorityBoost(hits []pkg.SearchResult) {
+// It is purely facet-driven (maturity/canonicalFor/scope) so it ignores the
+// query the shared seam now passes.
+func applyAuthorityBoost(hits []pkg.SearchResult, _ pkg.SearchQuery) {
 	for i := range hits {
 		factor := 1.0
 		if maturity, _ := hits[i].Payload[MetaMaturity].(string); strings.EqualFold(maturity, "active") {

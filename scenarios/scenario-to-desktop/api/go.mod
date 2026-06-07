@@ -1,11 +1,9 @@
 module scenario-to-desktop-api
 
-go 1.24.0
-
-toolchain go1.24.11
+go 1.25.0
 
 require (
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
@@ -36,6 +34,10 @@ require (
 replace scenario-to-desktop-runtime => ../runtime
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+require github.com/vrooli/cli-core v0.0.0 // indirect
+
+replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 

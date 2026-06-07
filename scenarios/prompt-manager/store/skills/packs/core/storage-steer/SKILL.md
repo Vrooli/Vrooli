@@ -145,16 +145,22 @@ This keeps the registry's import surface narrow — it imports handler packages,
 
 #### 4.2 Qdrant collections
 
-Each domain that uses vectors ships its collection setup in `internal/<dom>/qdrant.go`. Collection names are scenario-and-domain-prefixed:
+Each domain that uses vectors ships its collection setup in `internal/<dom>/qdrant.go`. Collection names are scenario-and-domain-prefixed — but the prefix is **resolved at runtime through the variant-aware helper, never hardcoded as a compile-time constant**:
 
 ```go
 // internal/notes/qdrant.go
-const CollectionName = "{{TARGET}}_notes_embeddings"
-
 func SetupQdrant(ctx context.Context, client *qdrant.Client) error {
-    return client.EnsureCollection(ctx, CollectionName, vectorSize, distance)
+    collection, err := storage.Collection("notes") // "<scenario>_notes" live, "<scenario>_shadow_notes" under a shadow
+    if err != nil {
+        return err
+    }
+    return client.EnsureCollection(ctx, collection, vectorSize, distance)
 }
 ```
+
+Resolve the collection name once where you need it (or via a small `func CollectionName() (string, error)` wrapper) — do **not** bake it into a package-level `const`. `storage.Collection(domain)` (`packages/api-core/storage/namespace.go`) reads the lifecycle-injected `VROOLI_STORAGE_NAMESPACE`, so live and a Baseline-Modes shadow address **different** collections automatically.
+
+> **Why (shadow isolation / Baseline Modes).** A hardcoded `const CollectionName = "<scenario>_notes_embeddings"` makes a shadow instance read and write *live's* collection — corrupting the very state the engagement exists to protect. Hardcoding the scenario slug is therefore a **maturity-ladder regression**: it routes the scenario to live-only mode in the Baseline Modes decision tree (it cannot be safely shadowed) and is flagged as a finding (§4.5). Going through the helper is the difference between a scenario that can be safely self-improved and one that can't.
 
 `SetupQdrant` registers in `modules.AllQdrantSetups()` (or equivalent) and runs at API boot, after `EnsureSchemas` for SQL. The pattern is symmetric: providers register, applied at boot, idempotent.
 
@@ -162,34 +168,45 @@ When a Qdrant collection is genuinely shared across multiple domains (rare — a
 
 #### 4.3 Redis namespacing
 
-Each domain that uses Redis owns its key namespace constants in `internal/<dom>/redis.go`:
+Each domain that uses Redis owns its key construction in `internal/<dom>/redis.go` — built through the variant-aware helper, **not** a hardcoded prefix constant:
 
 ```go
 // internal/auth/redis.go
-const (
-    SessionPrefix = "{{TARGET}}:auth:session:"
-    LockPrefix    = "{{TARGET}}:auth:lock:"
-)
+func SessionKey(id string) (string, error) {
+    return storage.RedisKey("auth", "session", id) // "<scenario>:auth:session:<id>"
+}
 
-func SessionKey(id string) string { return SessionPrefix + id }
+func LockKey(resource string) (string, error) {
+    return storage.RedisKey("auth", "lock", resource)
+}
 ```
 
-Standard key-pattern shapes:
+Two helpers (`packages/api-core/storage/namespace.go`):
+- `storage.RedisKey(domain, segments...)` — the full key, segments joined with `:`. Use this for real keys; it reproduces a mid-string dynamic token like `<scenario>:idea:<id>:research` that a flat prefix **cannot** (`RedisKey("idea", id, "research")`).
+- `storage.RedisPrefix(domain)` — a terminated prefix (`<scenario>:<domain>:`) for `SCAN`/`KEYS` patterns where the full key isn't known.
 
-| Pattern | Example |
-|---|---|
-| `{scenario}:{domain}:session:{id}` | `lpbs:auth:session:abc123` |
-| `{scenario}:{domain}:cache:{entity}:{id}` | `lpbs:notes:cache:note:42` |
-| `{scenario}:{domain}:rate:{resource}:{id}` | `lpbs:downloads:rate:api:user-7` |
-| `{scenario}:{domain}:lock:{resource}` | `lpbs:migrations:lock:run` |
+Both resolve the `<scenario>[_<variant>]` root from the lifecycle-injected `VROOLI_STORAGE_NAMESPACE`. Standard key-pattern shapes (the leading `{scenario}` is the helper-supplied root — live `lpbs`, shadow `lpbs_shadow`):
 
-The scenario prefix prevents cross-scenario collisions on a shared Redis. The domain prefix prevents cross-domain collisions within one scenario.
+| Pattern | `RedisKey(...)` call | Live example |
+|---|---|---|
+| `{scenario}:{domain}:session:{id}` | `RedisKey("auth", "session", id)` | `lpbs:auth:session:abc123` |
+| `{scenario}:{domain}:cache:{entity}:{id}` | `RedisKey("notes", "cache", "note", id)` | `lpbs:notes:cache:note:42` |
+| `{scenario}:{domain}:rate:{resource}:{id}` | `RedisKey("downloads", "rate", "api", userID)` | `lpbs:downloads:rate:api:user-7` |
+| `{scenario}:{domain}:lock:{resource}` | `RedisKey("migrations", "lock", "run")` | `lpbs:migrations:lock:run` |
+
+The scenario prefix prevents cross-scenario collisions on a shared Redis; the domain prefix prevents cross-domain collisions within one scenario; and the **variant** dimension (folded into the root by the helper) prevents a shadow from colliding with live.
+
+> **Why (shadow isolation / Baseline Modes).** A hardcoded `const SessionPrefix = "<scenario>:auth:session:"` has no variant dimension, so a shadow instance writes into live's keyspace. Like Qdrant, this is a maturity-ladder regression that routes the scenario to live-only mode and is flagged as a finding (§4.5). Always build keys through `RedisKey`/`RedisPrefix`.
 
 #### 4.4 The pattern as a rule, not a recipe
 
 **Whatever store the domain touches, the domain owns the setup.** If a domain wires to a new store tomorrow (Neo4j, ClickHouse, MinIO), the new file goes in `path:internal/<dom>/`, gets a `Setup()` function, gets registered in the modules registry, gets applied at boot. Same shape, every time.
 
 The rule's purpose is to make the architecture *uniform* so agents (and humans) don't have to invent a new pattern per engine.
+
+#### 4.5 The variant-aware namespace rule (Redis + Qdrant)
+
+**Never hardcode a Redis key prefix or Qdrant collection name that embeds the scenario slug.** Compose them through `storage.Collection` / `storage.RedisKey` / `storage.RedisPrefix` so the variant is resolved at runtime from the lifecycle-injected environment. This is what lets the scenario be developed and validated as a shadow while its live version keeps serving (Baseline Modes), and it is the maturity-ladder floor for every store except the variant-isolated-by-default ones (Postgres/SQLite/filesystem, which the lifecycle env scopes directly — for SQLite/data paths use `storage.ScenarioNamespace(slug)` as the `Options.ScenarioID`). The api-core helper docstrings state this contract; the scenario-auditor `storage-namespace-v1` standard (rule `storage_namespace_helpers`, surfaced through test-genie's standards battery as a `FINDING_SOURCE_STANDARDS` finding) flags any hardcoded Redis/Qdrant namespace so the EM maturity loop migrates the long tail and the Baseline-Modes decision tree can route an un-adopted writer to live mode.
 
 ---
 
@@ -227,6 +244,21 @@ For multi-session work where `/tmp` clears on reboot, use `~/.cache/vrooli/<scen
 4. Boot's `EnsureSchemas` confirms the new schema; the script is no longer needed; delete it.
 
 **Why this exists:** so you can comfortably evolve the database after starting to use a scenario locally — without polluting the codebase with version-history files that no one will read. The script handles your personal data; the repo only ever describes the clean state.
+
+#### Under a Baseline Modes engagement — the managed migration folder
+
+The `/tmp` hand-run pattern above is for *ad-hoc personal* evolution. When a **Baseline Modes** shadow engagement is active (the safe shadow-and-promote development path — `git-control-tower baseline start`), schema migrations are not hand-run scratch: they live in the engagement's **managed per-baseline migration folder** (ordered), and the **promote machinery applies them to live**, not you. The contract:
+
+- **Location:** the managed folder beside the engagement's restore point (not `/tmp`), so it survives and is discoverable by promote — never deleted by hand.
+- **Transactional + re-runnable:** each script wraps in a transaction and is idempotent (safe to apply twice), because promote dry-runs them against a fresh copy of current live first and bounces on failure rather than half-applying.
+- **Applied by promote, ordered:** the runner applies the folder's scripts in order during `baseline promote`, inside the quiesce window.
+- **Shape-unchanged fast path:** no scripts authored **and** the schema fingerprint matches ⇒ promote skips all DB handling and does a code-swap + restart only; live data is untouched.
+
+This is distinct from the one-off adoption rename below, which is a single platform-evolution event, not a per-engagement schema change.
+
+#### One-off: adopting the variant-aware storage helpers (§4.5)
+
+Switching an existing scenario's Redis/Qdrant namespaces from hardcoded slug constants to the `storage.Collection`/`RedisKey`/`RedisPrefix` helpers is a **rename**, and existing keys/collections use inconsistent separators (`scenario-backlog` vs `workflow_embeddings`). The shipped helper and scenario code stay greenfield (no back-compat shim); the actual reindex/rename of *existing* data is a **throwaway one-off script** under `/tmp/<scenario>/migrate-*` (the greenfield pattern above), run once with the scenario stopped, **after `data-backup-manager safety backup-now --scenario <s>` takes a pre-migration snapshot** as the safety net. If a specific reindex is non-obvious (e.g. a raw-HTTP Qdrant writer), escalate for guidance rather than guessing. Do not put adoption-rename logic in committed code.
 
 #### Brownfield — versioned migrations folder
 
