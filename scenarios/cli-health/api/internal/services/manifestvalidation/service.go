@@ -18,6 +18,7 @@ type Service struct {
 	manifests ManifestLoader
 	schema    SchemaValidator
 	protos    ProtoLoader
+	measures  MeasureSchemaReader
 	logger    *log.Logger
 }
 
@@ -27,7 +28,10 @@ type Deps struct {
 	Manifests ManifestLoader
 	Schema    SchemaValidator
 	Protos    ProtoLoader
-	Logger    *log.Logger
+	// Measures resolves proto param schemas for measure blocks. Optional: nil
+	// disables measure validation (a no-op for manifests without measures).
+	Measures MeasureSchemaReader
+	Logger   *log.Logger
 }
 
 // New returns a service bound to the given dependencies. Callers pass nil
@@ -40,6 +44,7 @@ func New(d Deps) *Service {
 		manifests: d.Manifests,
 		schema:    d.Schema,
 		protos:    d.Protos,
+		measures:  d.Measures,
 		logger:    d.Logger,
 	}
 }
@@ -113,6 +118,7 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	}
 
 	findings = append(findings, crossCheck(m, surface, path)...)
+	findings = append(findings, s.measureCheck(raw, path)...)
 
 	return finalize(scenario, findings), nil
 }

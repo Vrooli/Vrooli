@@ -31,6 +31,11 @@ import (
 // a calibration pass: fix any expected_paths that differ from what discovery
 // emits, then the gate is meaningful.
 
+// recallGateCollection is a dedicated, self-contained collection the gate
+// rebuilds each run so it never depends on a warm/stale prod index or disturbs
+// the live cli-health-commands collection.
+const recallGateCollection = "cli-health-commands-recall-gate"
+
 type commandCase struct {
 	ID            string   `json:"id"`
 	Query         string   `json:"query"`
@@ -96,15 +101,24 @@ func TestCommandRecall(t *testing.T) {
 	}
 
 	cfg := pkg.LoadConfig("CLI_HEALTH")
-	engine := pkg.NewDenseEngine(cfg, DefaultCollection)
+	// The gate mirrors the PRODUCTION read policy: task-prefixed embeddings
+	// (EmbedTaskPrefix -> nomic search_query:/search_document:) + the RRF rerank
+	// BLEND (rerank reorders are fused with retrieval order, not applied outright
+	// — see TestRecallFinal). Both are the measured config that lifts recall@5
+	// 0.50 -> 0.70 without losing junk rejection. Both are forced on here so the
+	// gate reflects prod even if the env is unset.
+	cfg.EmbedTaskPrefix = true
+	engine := pkg.NewDenseEngine(cfg, recallGateCollection)
 	discovery := NewFilesystemDiscoverySource(repoRoot)
 	discovery.ExternalCLIs = []ExternalCLI{{Name: "vrooli", Binary: "vrooli"}}
 	svc := NewService(Options{
 		Embedder:        engine.Embedder,
-		VectorStore:     engine.VectorStore,
+		VectorStore:     pkg.NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, recallGateCollection),
 		Discovery:       discovery,
 		Parallelism:     cfg.ReconcileParallelism,
-		RerankEnabled:   cfg.RerankEnabled,
+		Collection:      recallGateCollection,
+		RerankEnabled:   true,
+		RerankBlend:     true,
 		Reranker:        engine.Reranker,
 		RerankShortlist: cfg.RerankShortlist,
 	})
@@ -112,6 +126,11 @@ func TestCommandRecall(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 18*time.Minute)
 	defer cancel()
 
+	// Build a prefix-fresh collection: the prod index may predate the task-prefix
+	// embedder, and the recipe-aware drift hash would re-embed it anyway, but a
+	// dedicated collection keeps the gate self-contained and off the live index.
+	dropCollection(t, cfg.QdrantURL, cfg.QdrantAPIKey, recallGateCollection)
+	defer dropCollection(t, cfg.QdrantURL, cfg.QdrantAPIKey, recallGateCollection)
 	if err := svc.EnsureCollection(ctx); err != nil {
 		t.Fatalf("ensure collection: %v", err)
 	}

@@ -133,6 +133,7 @@ func main() {
 			HardFloor: searchCfg.RelevanceHardFloor,
 		},
 		RerankEnabled:   searchCfg.RerankEnabled,
+		RerankBlend:     searchCfg.RerankBlend,
 		Reranker:        engine.Reranker,
 		RerankShortlist: searchCfg.RerankShortlist,
 	})

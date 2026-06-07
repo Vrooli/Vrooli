@@ -25,6 +25,40 @@ type CommandRecord struct {
 	Tags        []string `json:"tags,omitempty"`
 	Binding     string   `json:"binding,omitempty"` // "Service.Method" when source=manifest
 	Source      string   `json:"source"`            // "manifest" | "help" | "help-failed"
+	// Measure carries the parsed `measure` block + proto-derived param schema
+	// when this command declares one (source=manifest only). Nil otherwise. Its
+	// questions/intent are folded into the enriched embedding text so the command
+	// is retrievable by the natural-language questions it answers.
+	Measure *MeasureRecord `json:"measure,omitempty"`
+}
+
+// MeasureRecord is the discovery projection of a command's `measure` block: the
+// curated prose + result shape from the manifest, joined with the proto-derived
+// param schema and the graded adoption tier. It is the unit measures-health (a
+// later phase) harvests and the central index embeds.
+type MeasureRecord struct {
+	Name       string               `json:"name"`   // "<domain>.<command>"
+	Domain     string               `json:"domain"` // group name, or measure.domain override
+	Intent     string               `json:"intent,omitempty"`
+	Questions  []string             `json:"questions,omitempty"`
+	Params     []MeasureParamRecord `json:"params,omitempty"`
+	ResultKind string               `json:"resultKind,omitempty"`
+	ValueField string               `json:"valueField,omitempty"`
+	Unit       string               `json:"unit,omitempty"`
+	Effect     string               `json:"effect,omitempty"`
+	Tier       string               `json:"tier,omitempty"` // full | partial | fallback; empty if unassembled
+}
+
+// MeasureParamRecord is a single measure parameter's discovery projection: the
+// proto-derived type/enum/required (authoritative) overlaid with the manifest's
+// default/values_source. Param types are NEVER authored in the manifest.
+type MeasureParamRecord struct {
+	Name         string   `json:"name"`
+	Type         string   `json:"type"`
+	Required     bool     `json:"required,omitempty"`
+	EnumValues   []string `json:"enumValues,omitempty"`
+	Default      string   `json:"default,omitempty"`
+	ValuesSource string   `json:"valuesSource,omitempty"`
 }
 
 // Read-path adoption status (WS5): SearchHit / SearchResponse / StatusReport

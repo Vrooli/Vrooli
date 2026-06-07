@@ -22,7 +22,7 @@ func TestLoadAll_ExcludesHelpFailedStubs(t *testing.T) {
 			"extcli": {{Origin: "extcli", Name: "extcli", FullPath: "extcli", Source: SourceHelpFailed}},
 		},
 	}
-	docs, err := newCommandSource(disc).LoadAll(context.Background())
+	docs, err := newCommandSource(disc, nil).LoadAll(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestCommandToSourceDoc_Shape(t *testing.T) {
 		Origin: "demo", Group: "x", Name: "y", FullPath: "demo x y",
 		Description: "list things", Source: SourceManifest,
 	}
-	doc := commandToSourceDoc(r)
+	doc := commandToSourceDoc(r, composeCommandEmbeddingText)
 	if doc.ID != "demo x y" {
 		t.Errorf("ID = %q, want command full path", doc.ID)
 	}

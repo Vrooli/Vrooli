@@ -221,6 +221,47 @@ func TestParseHelpTree_CategoryLabelsIgnored(t *testing.T) {
 	}
 }
 
+// TestParseHelpTree_AliasSubcommands covers the cli-core "Subcommands:" listing
+// where each row is a comma-separated alias list (`create, add  <desc>`). Before
+// the commandLineRE fix the whole row failed to match, so `action` collapsed to
+// a leaf and its real subcommand `prompt-manager action create` was never indexed
+// — a concrete REQ-P0-004 recall miss.
+func TestParseHelpTree_AliasSubcommands(t *testing.T) {
+	const pmRoot = `prompt-manager CLI
+
+Commands:
+    action             Manage Actions (list|show|create)
+`
+	const actionHelp = `prompt-manager action - Manage Actions
+
+Usage: prompt-manager action <subcommand> [args]
+
+Subcommands:
+  create, add          Create an Action from a --command
+  list, ls             List Actions
+`
+	run, _ := staticRunner(t, map[string]string{
+		"prompt-manager":               pmRoot,
+		"prompt-manager action":        actionHelp,
+		"prompt-manager action create": "Create an Action from a --command\n",
+		"prompt-manager action list":   "List Actions\n",
+	})
+	records := ParseHelpTree(context.Background(), run, "prompt-manager", HelpTreeOptions{Origin: "prompt-manager"})
+	paths := make(map[string]bool, len(records))
+	for _, r := range records {
+		paths[r.FullPath] = true
+	}
+	for _, want := range []string{"prompt-manager action create", "prompt-manager action list"} {
+		if !paths[want] {
+			t.Errorf("missing aliased subcommand %q; got %v", want, recordPaths(records))
+		}
+	}
+	// The canonical (first) alias is used, not the secondary one.
+	if paths["prompt-manager action add"] {
+		t.Errorf("secondary alias 'add' should not be a separate record; got %v", recordPaths(records))
+	}
+}
+
 func TestParseHelpTree_BinaryMissing(t *testing.T) {
 	run := func(context.Context, string, []string) ([]byte, error) {
 		return nil, errors.New("exec: file not found")

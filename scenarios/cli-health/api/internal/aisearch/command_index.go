@@ -41,8 +41,129 @@ func composeCommandEmbeddingText(r CommandRecord) string {
 	if r.Binding != "" {
 		parts = append(parts, "Binding: "+r.Binding)
 	}
+	parts = appendMeasureText(parts, r)
 	parts = append(parts, "Source: "+r.Source)
 	return strings.Join(parts, "\n\n")
+}
+
+// appendMeasureText folds a command's measure intent + the natural-language
+// questions it answers into the embedding text, so a measure command is
+// retrievable by the analytical question a user actually asks ("how many backlog
+// items closed this week") rather than only by its machine identity. No-op for
+// commands without a measure block.
+func appendMeasureText(parts []string, r CommandRecord) []string {
+	if r.Measure == nil {
+		return parts
+	}
+	if r.Measure.Intent != "" {
+		parts = append(parts, "Measures: "+r.Measure.Intent)
+	}
+	if len(r.Measure.Questions) > 0 {
+		parts = append(parts, "Answers: "+strings.Join(r.Measure.Questions, "; "))
+	}
+	return parts
+}
+
+// composeCommandEmbeddingTextEnriched is the retrieval-tuned embedding-text
+// strategy. Over the terse default it adds the three things that close the
+// vocabulary gap between a long natural-language query and a short command:
+//
+//  1. a HUMANIZED identity line — every path/group/name segment split on
+//     kebab/snake/camelCase into plain words ("list-all" -> "list all",
+//     "RewriteApply" -> "rewrite apply") so the query's everyday words overlap
+//     the command's machine identifiers;
+//  2. a CLEANED description — help-source records carry a verbose Usage/Options
+//     dump that dilutes the dense vector; only the lead gloss is kept;
+//  3. drops the machine-only "Binding:"/"Source:" lines (they add noise, never
+//     query overlap).
+//
+// It is an injectable lever (Options.Compose) so its effect on recall is
+// measured, not assumed.
+func composeCommandEmbeddingTextEnriched(r CommandRecord) string {
+	var parts []string
+	parts = append(parts, r.FullPath)
+	if h := humanizePath(r.FullPath); h != "" && !strings.EqualFold(h, r.FullPath) {
+		parts = append(parts, h)
+	}
+	if desc := cleanDescription(r); desc != "" {
+		parts = append(parts, desc)
+	}
+	if len(r.Flags) > 0 {
+		parts = append(parts, "Flags: "+strings.Join(r.Flags, ", "))
+	}
+	if len(r.Positionals) > 0 {
+		parts = append(parts, "Args: "+strings.Join(r.Positionals, ", "))
+	}
+	if len(r.Tags) > 0 {
+		parts = append(parts, "Tags: "+strings.Join(r.Tags, ", "))
+	}
+	parts = appendMeasureText(parts, r)
+	return strings.Join(parts, "\n\n")
+}
+
+// humanizePath splits each whitespace-separated path segment on kebab/snake/camel
+// boundaries into lowercase words, so "maintenance-orchestrator scenario
+// list-all" -> "maintenance orchestrator scenario list all".
+func humanizePath(full string) string {
+	var words []string
+	for _, seg := range strings.Fields(full) {
+		words = append(words, splitIdentifier(seg)...)
+	}
+	return strings.Join(words, " ")
+}
+
+// splitIdentifier breaks one identifier into lowercase words on '-', '_', and
+// camelCase / digit boundaries.
+func splitIdentifier(s string) []string {
+	fields := strings.FieldsFunc(s, func(r rune) bool { return r == '-' || r == '_' })
+	out := make([]string, 0, len(fields))
+	for _, f := range fields {
+		out = append(out, splitCamel(f)...)
+	}
+	return out
+}
+
+func splitCamel(s string) []string {
+	if s == "" {
+		return nil
+	}
+	runes := []rune(s)
+	var out []string
+	start := 0
+	isUpper := func(r rune) bool { return r >= 'A' && r <= 'Z' }
+	isLowerOrDigit := func(r rune) bool { return (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') }
+	for i := 1; i < len(runes); i++ {
+		// boundary on lower/digit -> Upper (fooBar) ...
+		if isUpper(runes[i]) && isLowerOrDigit(runes[i-1]) {
+			out = append(out, strings.ToLower(string(runes[start:i])))
+			start = i
+		}
+	}
+	out = append(out, strings.ToLower(string(runes[start:])))
+	return out
+}
+
+// cleanDescription returns the lead gloss of a command's description, stripping
+// the verbose help dump (everything from "Usage:" on) and the echoed
+// "<path> - " prefix help output carries, and collapsing whitespace.
+func cleanDescription(r CommandRecord) string {
+	d := strings.TrimSpace(r.Description)
+	if d == "" {
+		return ""
+	}
+	if i := indexFold(d, "usage:"); i >= 0 {
+		d = strings.TrimSpace(d[:i])
+	}
+	// Help glosses echo the command path then " - <gloss>"; keep the gloss.
+	if i := strings.Index(d, " - "); i >= 0 && i < 96 {
+		d = strings.TrimSpace(d[i+3:])
+	}
+	return strings.Join(strings.Fields(d), " ")
+}
+
+// indexFold is a case-insensitive strings.Index.
+func indexFold(s, sub string) int {
+	return strings.Index(strings.ToLower(s), strings.ToLower(sub))
 }
 
 // commandMeta returns the per-command payload fields propagated into the chunk
@@ -74,13 +195,15 @@ func commandContentHash(r CommandRecord) string {
 
 // commandToSourceDoc adapts one CommandRecord to the engine's SourceDoc. Body is
 // the pre-composed embedding text (the identity composer embeds it verbatim);
-// the command fields ride along as Meta for filtering + result projection.
-func commandToSourceDoc(r CommandRecord) pkg.SourceDoc {
+// the command fields ride along as Meta for filtering + result projection. The
+// compose function is injectable so the embedding-text strategy is a measurable
+// lever (see composeCommandEmbeddingText vs composeCommandEmbeddingTextEnriched).
+func commandToSourceDoc(r CommandRecord, compose func(CommandRecord) string) pkg.SourceDoc {
 	return pkg.SourceDoc{
 		ID:          r.FullPath,
 		Kind:        commandKind,
 		ContentHash: commandContentHash(r),
-		Body:        composeCommandEmbeddingText(r),
+		Body:        compose(r),
 		Meta:        commandMeta(r),
 	}
 }
@@ -90,9 +213,15 @@ func commandToSourceDoc(r CommandRecord) pkg.SourceDoc {
 // each configured external CLI.
 type commandSource struct {
 	discovery DiscoverySource
+	compose   func(CommandRecord) string
 }
 
-func newCommandSource(d DiscoverySource) *commandSource { return &commandSource{discovery: d} }
+func newCommandSource(d DiscoverySource, compose func(CommandRecord) string) *commandSource {
+	if compose == nil {
+		compose = composeCommandEmbeddingText
+	}
+	return &commandSource{discovery: d, compose: compose}
+}
 
 // LoadAll enumerates every command record as a SourceDoc. A discovery failure
 // for one scenario/CLI is logged and skipped — indexing never crashes.
@@ -115,7 +244,7 @@ func (s *commandSource) LoadAll(ctx context.Context) ([]pkg.SourceDoc, error) {
 			if records[i].Source == SourceHelpFailed {
 				continue
 			}
-			out = append(out, commandToSourceDoc(records[i]))
+			out = append(out, commandToSourceDoc(records[i], s.compose))
 		}
 	}
 	for _, cli := range s.discovery.ListExternalCLIs() {
@@ -128,7 +257,7 @@ func (s *commandSource) LoadAll(ctx context.Context) ([]pkg.SourceDoc, error) {
 			if records[i].Source == SourceHelpFailed { // WS3: see above.
 				continue
 			}
-			out = append(out, commandToSourceDoc(records[i]))
+			out = append(out, commandToSourceDoc(records[i], s.compose))
 		}
 	}
 	return out, nil

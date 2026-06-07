@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"cli-health/internal/measurescan"
+
 	"github.com/vrooli/cli-core/cliapp"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
@@ -53,8 +55,29 @@ type FilesystemDiscoverySource struct {
 	HelpBinaryEnv string        // optional override; when set, this env var holds the binary path
 	ExternalCLIs  []ExternalCLI // non-scenario CLIs (e.g. vrooli) indexed alongside scenarios
 
+	// MeasureSchema resolves proto param schemas for measure blocks. Optional:
+	// when nil it defaults (lazily) to a descriptor reader rooted at RepoRoot.
+	// Tests inject a stub to avoid touching the committed descriptor image.
+	MeasureSchema measurescan.SchemaSource
+
 	mu        sync.Mutex
 	helpCache map[string]helpCacheEntry // keyed by absolute binary path
+
+	measureOnce sync.Once
+	measureSrc  measurescan.SchemaSource
+}
+
+// measureSchemaSource returns the configured SchemaSource, lazily defaulting to
+// a descriptor reader on RepoRoot (which itself loads the image lazily, so a
+// missing descriptor degrades gracefully rather than crashing indexing).
+func (d *FilesystemDiscoverySource) measureSchemaSource() measurescan.SchemaSource {
+	if d.MeasureSchema != nil {
+		return d.MeasureSchema
+	}
+	d.measureOnce.Do(func() {
+		d.measureSrc = measurescan.NewDescriptorSchemaReader(d.RepoRoot)
+	})
+	return d.measureSrc
 }
 
 // helpCacheEntry holds the parsed help tree for a binary at a given mtime.
@@ -150,13 +173,89 @@ func (d *FilesystemDiscoverySource) Discover(ctx context.Context, scenario strin
 
 	raw, err := os.ReadFile(path)
 	if err == nil {
-		return parseManifestRecords(scenario, raw)
+		records, perr := parseManifestRecords(scenario, raw)
+		if perr != nil {
+			return nil, perr
+		}
+		attachMeasures(records, raw, d.measureSchemaSource())
+		return records, nil
 	}
 	if !os.IsNotExist(err) {
 		return nil, fmt.Errorf("read manifest: %w", err)
 	}
 
 	return d.helpFallback(ctx, scenario), nil
+}
+
+// attachMeasures parses the manifest's measure blocks and joins each onto its
+// matching CommandRecord (by group+command). Best-effort: a parse failure or an
+// unresolvable proto schema leaves the records untouched / the tier ungraded so
+// indexing never crashes (plan §11).
+func attachMeasures(records []CommandRecord, raw []byte, src measurescan.SchemaSource) {
+	parsed, err := measurescan.Parse(raw)
+	if err != nil || len(parsed.Commands) == 0 {
+		return
+	}
+	byKey := make(map[string]int, len(records))
+	for i := range records {
+		byKey[records[i].Group+"\x00"+records[i].Name] = i
+	}
+	for _, cm := range parsed.Commands {
+		idx, ok := byKey[cm.Group+"\x00"+cm.Command]
+		if !ok {
+			continue
+		}
+		records[idx].Measure = buildMeasureRecord(cm, src)
+	}
+}
+
+// buildMeasureRecord projects a CommandMeasure into the discovery MeasureRecord.
+// When assembly against the proto schema succeeds it carries the authoritative
+// param schema + graded tier; otherwise it degrades to the manifest-authored
+// params (names/annotations only) with an empty (ungraded) tier.
+func buildMeasureRecord(cm measurescan.CommandMeasure, src measurescan.SchemaSource) *MeasureRecord {
+	mr := &MeasureRecord{
+		Name:       cm.MeasureName(),
+		Domain:     cm.Domain,
+		Intent:     cm.Measure.Intent,
+		Questions:  cm.Measure.Questions,
+		ResultKind: string(cm.Measure.Result.Kind),
+		ValueField: cm.Measure.Result.ValueField,
+		Unit:       cm.Measure.Result.Unit,
+		Effect:     string(cm.Governance.Effect),
+	}
+	if decl, err := cm.Assemble(src); err == nil {
+		mr.Tier = string(measurescan.GradeTier(decl))
+		for _, name := range decl.ParamNames() {
+			p := decl.Params[name]
+			mr.Params = append(mr.Params, MeasureParamRecord{
+				Name:         p.Name,
+				Type:         p.Type,
+				Required:     p.Required,
+				EnumValues:   p.EnumValues,
+				Default:      p.Default,
+				ValuesSource: p.ValuesSource,
+			})
+		}
+		return mr
+	}
+	// Degraded: surface manifest-authored params so the command stays
+	// discoverable; tier left empty (ungraded).
+	names := make([]string, 0, len(cm.Measure.Params))
+	for n := range cm.Measure.Params {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		mp := cm.Measure.Params[n]
+		mr.Params = append(mr.Params, MeasureParamRecord{
+			Name:         n,
+			Type:         mp.Type,
+			Default:      mp.Default,
+			ValuesSource: mp.ValuesSource,
+		})
+	}
+	return mr
 }
 
 func parseManifestRecords(scenario string, raw []byte) ([]CommandRecord, error) {

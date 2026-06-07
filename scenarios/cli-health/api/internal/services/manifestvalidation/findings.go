@@ -27,6 +27,13 @@ const (
 	CodeBindingDuplicate     = "binding.duplicate"
 	CodeProtoOrphanMethod    = "proto.orphan_method"
 	CodeOmissionOrphan       = "omission.orphan"
+
+	// Measure-block codes (Phase 2 of the measures plan). Static well-formedness
+	// only — coverage/expected/waived domain grading is measures-health's job.
+	CodeMeasureInvalid      = "measure.invalid"            // assembly/Validate failure (drift, bad result/effect)
+	CodeMeasureUnknownType  = "measure.unknown_param_type" // manifest param `type` annotation is not a known canonical convention
+	CodeMeasureSchemaUnread = "measure.schema_unread"      // proto param schema could not be resolved (descriptor unavailable)
+	CodeMeasureTier         = "measure.tier"               // info: the graded adoption tier for a well-formed measure
 )
 
 // Finding is a single validation result.

@@ -1,6 +1,20 @@
 package manifestvalidation
 
-import "context"
+import (
+	"context"
+
+	measures "github.com/vrooli/measures-go"
+)
+
+// MeasureSchemaReader resolves the proto-derived param schema for a measure
+// command's binding (the Phase 0 descriptor reader). measurescan.SchemaSource
+// and measurescan.DescriptorSchemaReader satisfy it. The seam is optional: when
+// the service is constructed without one, measure validation is skipped (so a
+// scenario with no measure blocks, and unit tests that don't exercise measures,
+// are unaffected). Tests inject a stub to drive specific proto shapes.
+type MeasureSchemaReader interface {
+	RequestParams(service, method string) ([]measures.ParamSchema, error)
+}
 
 // ManifestLoader fetches the raw cli/manifest.json bytes for a scenario.
 // Returns (nil, "", os.ErrNotExist) when the file is absent so the service

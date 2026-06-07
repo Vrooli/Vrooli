@@ -28,6 +28,7 @@ type Service struct {
 	*pkg.Service
 	vectorStore pkg.VectorStore
 	spec        pkg.CollectionSpec
+	hybrid      bool
 }
 
 // Options configure NewService.
@@ -50,6 +51,30 @@ type Options struct {
 	// configured lever, <PREFIX>_RERANK_SHORTLIST). Non-positive falls back to the
 	// engine default.
 	RerankShortlist int
+	// RerankBlend fuses the reranker order with the retrieval order (RRF) instead
+	// of letting the reranker reorder outright — it keeps the cross-encoder's
+	// gibberish rejection while not burying strongly-retrieved canonical commands.
+	RerankBlend bool
+	// Sparse, when non-nil, switches the index+query to the hybrid (dense+sparse
+	// RRF) leg — the lexical half that nails exact-token command queries a terse
+	// dense vector fumbles. nil keeps the dense-only common case.
+	Sparse pkg.SparseEncoder
+	// Collection overrides the Qdrant collection name (default DefaultCollection).
+	// Used by the recall experiment to index alternative strategies into scratch
+	// collections without disturbing the live index.
+	Collection string
+	// Compose overrides the per-command embedding-text strategy (nil =>
+	// composeCommandEmbeddingText). composeCommandEmbeddingTextEnriched is the
+	// retrieval-tuned alternative.
+	Compose func(CommandRecord) string
+	// Decorate is the late, query-aware authority prior applied after the floor
+	// (nil => none). newAuthorityDecorator supplies cli-health's canonical-origin
+	// boost.
+	Decorate pkg.ScoreDecorator
+	// DisableFloor turns OFF ApplyRelevanceFloor (default: floor ON). The floor
+	// trims the low-relevance tail but, in the cosine regime, can also drop a
+	// genuinely-relevant-but-mid-score canonical command — a measured recall cost.
+	DisableFloor bool
 }
 
 // NewService builds a Service over the shared engine. cli-health indexes commands
@@ -57,32 +82,56 @@ type Options struct {
 // shared read path applies the relevance floor (commands are cosine/cross-encoder
 // scored, not RRF-fused) and reranks when a chain is supplied.
 func NewService(opts Options) *Service {
-	binding := pkg.NewDenseBinding(commandKind, idPrefix, opts.VectorStore, newCommandSource(opts.Discovery))
+	collection := opts.Collection
+	if collection == "" {
+		collection = DefaultCollection
+	}
+	source := newCommandSource(opts.Discovery, opts.Compose)
+
+	hybrid := opts.Sparse != nil
+	var binding pkg.SourceBinding
+	if hybrid {
+		// Single-chunk hybrid: identity chunk/compose (the Body is the pre-composed
+		// embedding text) plus the local sparse encoder for the BM25 leg.
+		binding = pkg.NewHybridBinding(commandKind, idPrefix, opts.VectorStore, source,
+			pkg.NewIdentityChunker(), pkg.NewIdentityComposer(), opts.Sparse)
+	} else {
+		binding = pkg.NewDenseBinding(commandKind, idPrefix, opts.VectorStore, source)
+	}
 	rec := pkg.NewReconciler(opts.Embedder, []pkg.SourceBinding{binding}, opts.Parallelism)
 	rec.MaxEmbedsPerTick = opts.MaxEmbedsPerTick
 
 	engine := pkg.NewService(pkg.ServiceOptions{
 		Embedder:      opts.Embedder,
+		SparseEncoder: opts.Sparse,
 		VectorStore:   opts.VectorStore,
 		Reconciler:    rec,
 		RerankEnabled: opts.RerankEnabled,
+		RerankBlend:   opts.RerankBlend,
 		Reranker:      opts.Reranker,
-		ApplyFloor:    true,
+		ApplyFloor:    !opts.DisableFloor,
 		Floor:         opts.Floor,
 		Threshold:     opts.Threshold,
 		Shortlist:     opts.RerankShortlist,
+		Decorate:      opts.Decorate,
 		RerankText:    func(r pkg.SearchResult) string { return candidateText(r.Payload) },
 		TextFallback:  commandTextFallback(opts.Discovery),
 	})
+	spec := pkg.CollectionSpec{
+		Name:          collection,
+		DenseSize:     pkg.DefaultVectorSize,
+		DenseDistance: pkg.DefaultDenseDistance,
+		Model:         pkg.DefaultEmbedModel,
+	}
+	if hybrid {
+		spec.Sparse = true
+		spec.SparseModifier = pkg.DefaultSparseModifier
+	}
 	return &Service{
 		Service:     engine,
 		vectorStore: opts.VectorStore,
-		spec: pkg.CollectionSpec{
-			Name:          DefaultCollection,
-			DenseSize:     pkg.DefaultVectorSize,
-			DenseDistance: pkg.DefaultDenseDistance,
-			Model:         pkg.DefaultEmbedModel,
-		},
+		spec:        spec,
+		hybrid:      hybrid,
 	}
 }
 
@@ -100,7 +149,7 @@ func (s *Service) Search(ctx context.Context, query string, limit int, mode Sear
 	// SearchTyped projects each finished result into cli-health's typed command hit
 	// at the engine boundary (the shared generic), so this surface owns no
 	// projection loop and cannot drift from the engine's result ordering.
-	hits, presp, err := pkg.SearchTyped(ctx, s.Service, pkg.SearchQuery{Query: query, Limit: limit, Mode: serviceMode(mode)},
+	hits, presp, err := pkg.SearchTyped(ctx, s.Service, pkg.SearchQuery{Query: query, Limit: limit, Mode: s.serviceMode(mode)},
 		func(r pkg.SearchResult) SearchHit {
 			hit := payloadToHit(r.ID, r.Score, r.Payload)
 			hit.Weak = r.Weak
@@ -123,10 +172,13 @@ func (s *Service) Search(ctx context.Context, query string, limit int, mode Sear
 }
 
 // serviceMode maps cli-health's ai/text/auto vocab to the engine's mode set.
-// "ai" is the dense vector leg (cli-health has no sparse vector).
-func serviceMode(m SearchMode) pkg.SearchMode {
+// "ai" is the hybrid leg when a sparse encoder is configured, else the dense leg.
+func (s *Service) serviceMode(m SearchMode) pkg.SearchMode {
 	switch m {
 	case ModeAI:
+		if s.hybrid {
+			return pkg.ModeHybrid
+		}
 		return pkg.ModeDense
 	case ModeText:
 		return pkg.ModeText
@@ -150,6 +202,58 @@ func (s *Service) Status(ctx context.Context) StatusReport {
 		LastReconcileAt:      r.LastReconcileAt,
 		LastReconcileOutcome: r.LastReconcileOutcome,
 		Reranker:             r.Reranker,
+	}
+}
+
+// CanonicalOriginBoost is the multiplicative authority prior applied to the root
+// orchestrator's commands (see newAuthorityDecorator). >1 lifts them above the
+// fleet of near-duplicate scenario commands that mirror the same verb.
+const CanonicalOriginBoost = 1.25
+
+// canonicalOrigin is the root CLI whose commands are the canonical home for the
+// fleet-wide verbs (scenario start/stop/list, setup, develop, help) that dozens
+// of scenario CLIs mirror. Its commands lose to literal-token sibling matches
+// under the cross-encoder ("vrooli scenario list" buried behind 8 other
+// scenarios' list commands) — the authority prior corrects that.
+const canonicalOrigin = "vrooli"
+
+// newAuthorityDecorator returns the late, query-aware authority prior: it boosts
+// the canonical origin's commands UNLESS the query explicitly names a different
+// origin (so "swarm-manager …" style queries are never hijacked). It is the
+// cli-health analogue of KO's facet authority boost, applied via the shared
+// Decorate seam after the relevance floor.
+func newAuthorityDecorator() pkg.ScoreDecorator {
+	return func(hits []pkg.SearchResult, q pkg.SearchQuery) {
+		qTokens := make(map[string]struct{})
+		for _, t := range tokenize(q.Query) {
+			qTokens[t] = struct{}{}
+		}
+		// Does the query name a non-canonical origin present in the result set?
+		// If so, the user is steering to a specific CLI — do not apply the prior.
+		queryNamesOther := false
+		for i := range hits {
+			origin, _ := hits[i].Payload["origin"].(string)
+			if origin == "" || origin == canonicalOrigin {
+				continue
+			}
+			for _, w := range splitIdentifier(origin) {
+				if _, ok := qTokens[w]; ok {
+					queryNamesOther = true
+					break
+				}
+			}
+			if queryNamesOther {
+				break
+			}
+		}
+		if queryNamesOther {
+			return
+		}
+		for i := range hits {
+			if origin, _ := hits[i].Payload["origin"].(string); origin == canonicalOrigin {
+				hits[i].Score *= CanonicalOriginBoost
+			}
+		}
 	}
 }
 

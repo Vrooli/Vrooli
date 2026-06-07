@@ -111,9 +111,12 @@ var (
 	sectionHeaderRE = regexp.MustCompile(`^(\S[^:]*):\s*$`)
 
 	// A command line is indented and looks like: `<spaces><name><2+ spaces><desc>`.
-	// We also accept lines without a description (visual category labels) so the
-	// caller can filter them out.
-	commandLineRE = regexp.MustCompile(`^(\s+)(\S+)(?:\s{2,}(.+))?\s*$`)
+	// The name may be a comma-separated alias list (`create, add   <desc>`), the
+	// cli-core convention — without this the whole line failed to match and the
+	// command (and all its subcommands) was silently dropped, e.g.
+	// `prompt-manager action create`. We also accept lines without a description
+	// (visual category labels) so the caller can filter them out.
+	commandLineRE = regexp.MustCompile(`^(\s+)([A-Za-z][A-Za-z0-9_.-]*(?:,\s*[A-Za-z0-9_.-]+)*)(?:\s{2,}(.+))?\s*$`)
 
 	// Section header names that contain any of these substrings (case-insensitive)
 	// hold flags/usage text, not subcommands. Skip them.
