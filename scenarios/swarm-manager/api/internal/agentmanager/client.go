@@ -288,6 +288,42 @@ func (c *HTTPClient) GetRunDiff(ctx context.Context, runID string) (*domainpb.Ru
 	return result.Diff, nil
 }
 
+// ApproveRun releases a run that is held at needs_review, merging its sandbox
+// overlay into the working tree. Used by the pre-merge engagement hold: the
+// caller opens the Baseline Modes restore point (capturing the clean working
+// tree) BEFORE calling this, so the merge lands the candidate on top of a
+// captured baseline.
+func (c *HTTPClient) ApproveRun(ctx context.Context, runID, actor, commitMsg string) error {
+	trimmed := strings.TrimSpace(runID)
+	if trimmed == "" {
+		return fmt.Errorf("%w: run id is required", ErrRequestFailed)
+	}
+
+	req := &apipb.ApproveRunRequest{RunId: trimmed}
+	if a := strings.TrimSpace(actor); a != "" {
+		req.Actor = &a
+	}
+	if m := strings.TrimSpace(commitMsg); m != "" {
+		req.CommitMsg = &m
+	}
+	body, err := protoJSONMarshal.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/runs/"+url.PathEscape(trimmed)+"/approve", body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return readErrorResponse(resp)
+	}
+
+	return nil
+}
+
 // ContinueRun sends a follow-up message to an existing run's conversation.
 func (c *HTTPClient) ContinueRun(ctx context.Context, runID string, message string) error {
 	trimmed := strings.TrimSpace(runID)

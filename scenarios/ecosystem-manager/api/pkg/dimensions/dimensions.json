@@ -17,7 +17,8 @@
     { "id": "operational-targets", "description": "PRD / operational-target completion (progress). Measured via gap metrics, not findings." },
     { "id": "dependencies", "description": "Dependency hygiene and governance." },
     { "id": "business", "description": "Business-logic validation." },
-    { "id": "tidiness", "description": "File and function quality nits (tidiness-manager)." }
+    { "id": "tidiness", "description": "File and function quality nits (tidiness-manager)." },
+    { "id": "measures", "description": "Measure coverage of stateful domains: each persisted-entity domain declares a named, typed, parameterized analytical query (or is waived). Produced by the test-genie `measures` phase, which delegates to the measures-health scenario." }
   ],
   "testgenie_source_map": {
     "FINDING_SOURCE_STRUCTURE": "structure",
@@ -28,7 +29,8 @@
     "FINDING_SOURCE_ARCHITECTURE": "cycles",
     "FINDING_SOURCE_TIDINESS": "tidiness",
     "FINDING_SOURCE_COVERAGE": "coverage",
-    "FINDING_SOURCE_SECURITY": "security"
+    "FINDING_SOURCE_SECURITY": "security",
+    "FINDING_SOURCE_MEASURES": "measures"
   },
   "testgenie_phase_map": {
     "structure": "structure",
@@ -47,6 +49,7 @@
     "performance": "performance",
     "coverage": "coverage",
     "tidiness": "tidiness",
-    "security": "security"
+    "security": "security",
+    "measures": "measures"
   }
 }

@@ -169,6 +169,7 @@ type ServiceConfig struct {
 	Archiver                 Archiver
 	ReviewClient             ReviewClient
 	BaselineClient           BaselineClient
+	BaselineEngagementRunner BaselineEngagementRunner
 	Finalization             FinalizationConfig
 }
 
@@ -191,9 +192,12 @@ type Service struct {
 	archiver                 Archiver
 	reviewClient             ReviewClient
 	baselineClient           BaselineClient
+	baselineEngagementRunner BaselineEngagementRunner
+	engagementStore          *EngagementStore
 	inspector                RunInspector
 	differ                   RunDiffer
 	stopper                  RunStopper
+	approver                 RunApprover
 	continuer                RunContinuer
 	scenarioLifecycle        ScenarioLifecycle
 	scenarioHealth           ScenarioHealthChecker
@@ -204,6 +208,7 @@ type Service struct {
 	activityLaneReader       ActivityLaneReader
 	remediationFiler         RemediationFiler
 	processingFinalizations  map[string]struct{}
+	processingHolds          map[string]struct{}
 	runTrackers              map[string]*runTracker
 	mu                       sync.Mutex
 }
@@ -290,10 +295,13 @@ func NewService(cfg ServiceConfig) *Service {
 		archiver:                 cfg.Archiver,
 		reviewClient:             cfg.ReviewClient,
 		baselineClient:           cfg.BaselineClient,
+		baselineEngagementRunner: cfg.BaselineEngagementRunner,
+		engagementStore:          NewEngagementStore(engagementStorePath(cfg.StorePath)),
 		scenarioLifecycle:        cfg.ScenarioLifecycle,
 		scenarioHealth:           cfg.ScenarioHealthChecker,
 		circuitBreaker:           NewCircuitBreaker(circuitBreakerPath),
 		processingFinalizations:  map[string]struct{}{},
+		processingHolds:          map[string]struct{}{},
 		runTrackers:              map[string]*runTracker{},
 	}
 	if inspector, ok := cfg.AgentService.(RunInspector); ok {
@@ -308,6 +316,9 @@ func NewService(cfg ServiceConfig) *Service {
 	if stopper, ok := cfg.AgentService.(RunStopper); ok {
 		service.stopper = stopper
 	}
+	if approver, ok := cfg.AgentService.(RunApprover); ok {
+		service.approver = approver
+	}
 	return service
 }
 
@@ -320,6 +331,16 @@ func defaultCircuitBreakerPath(storePath string) string {
 		panic(err)
 	}
 	return path
+}
+
+// engagementStorePath places the Baseline Modes engagement-owner index next to
+// the execution records store so they share a lifecycle/backup boundary. Empty
+// store path ⇒ the engagement store resolves the runtime state dir itself.
+func engagementStorePath(storePath string) string {
+	if trimmed := strings.TrimSpace(storePath); trimmed != "" {
+		return filepath.Join(filepath.Dir(trimmed), "engagement-owners.json")
+	}
+	return ""
 }
 
 // SetEventDispatcher sets an optional event dispatcher for real-time graph updates.

@@ -56,6 +56,15 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		return Record{}, apierr.BadRequest("process preflight failed: %s", strings.Join(preflight.BlockingReasons, "; "))
 	}
 
+	// Baseline Modes exclusivity (plan P-b.4): with shadow engagement on, refuse
+	// to start an owner whose projected scope (acceptance_allow) intersects a
+	// scenario already engaged under a different owner. Block-at-start, never
+	// queue. No-op when the engagement machinery is off. Force does not bypass —
+	// the conflict is a data-safety invariant, not a readiness heuristic.
+	if err := s.checkExclusivityAtStart(item, ownerKeyFor(record.BacklogKind, record.BacklogName)); err != nil {
+		return Record{}, err
+	}
+
 	itemDir := s.itemDir(item.Kind, item.Name)
 	deliverablePath := deliverableForKind(item.Kind)
 	deliverableContent := workshop.LoadPlanContentByName(itemDir, deliverablePath)
@@ -104,6 +113,11 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		},
 	))
 
+	// Pre-merge hold: with shadow engagement on, spawn with agent-manager's
+	// ManualReview so the run parks at needs_review (overlay NOT merged). The
+	// poller's processEngagementHold then opens shadow restore points from the
+	// actual diff and approves the merge. Flag off ⇒ today's auto-merge path.
+	manualReview := s.engagementHoldActive()
 	runResult, err := s.agentService.SpawnBacklog(activityCtx, agentmanager.BacklogSpawnRequest{
 		Kind:            item.Kind,
 		Name:            item.Name,
@@ -118,6 +132,7 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		AcceptanceDeny:  item.AcceptanceDeny,
 		Creates:         item.Creates,
 		Environment:     map[string]string{"VROOLI_SPAWN_SOURCE": item.Kind + "/" + item.Name},
+		ManualReview:    manualReview,
 	})
 	if err != nil {
 		return Record{}, wrapAgentError(err)
@@ -135,6 +150,12 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		return Record{}, err
 	}
 	s.dispatchStatusUpdate(record)
+
+	// Baseline Modes engagements are now opened at the pre-merge hold from the
+	// ACTUAL diff (processEngagementHold), not here from the declared scope — see
+	// engagement_hold.go. The ManualReview spawn above is what routes the run to
+	// that hold.
+
 	return record, nil
 }
 

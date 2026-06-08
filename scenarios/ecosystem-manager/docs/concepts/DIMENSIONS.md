@@ -51,6 +51,7 @@ dimension** and records the skip in the decision trace (`SelectNextSkill`).
 | **contracts** | — | **known-unactionable** |
 | **dependencies** | — | **known-unactionable** |
 | **business** | — | **known-unactionable** |
+| **measures** | — | **known-unactionable** (steer skill pending — see measures plan Phase 7) |
 
 **Known-unactionable dimensions** — `contracts` (CLI/API manifest + binding
 gaps), `dependencies` (dependency hygiene/governance), and `business`
@@ -103,6 +104,8 @@ return exactly one dimension by map construction.
 | `unit`, `integration` | `tests` |
 | `business` | `business` |
 | `performance` | `performance` |
+| `security` | `security` |
+| `measures` | `measures` |
 
 ### Source → dimension (v0)
 
@@ -115,6 +118,9 @@ return exactly one dimension by map construction.
 | `STANDARDS` | `standards` |
 | `ARCHITECTURE` | `cycles` |
 | `TIDINESS` | `tidiness` |
+| `COVERAGE` | `coverage` |
+| `SECURITY` | `security` |
+| `MEASURES` | `measures` |
 
 ## Anti-drift
 

@@ -84,6 +84,10 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		Operation:         "fixup",
 		ParentExecutionID: record.ExecutionID,
 		FixupAttempt:      record.FixupAttempt + 1,
+		// No per-record engagement inheritance (plan P-b): engagements are owned by
+		// the backlog item (ownerKeyFor), and a fixup shares the parent's
+		// kind/name, so it transparently sees the same EngagementStore set. The
+		// fixup's own pre-merge hold expands the set if it touches new scenarios.
 		PromptTrace: &PromptTrace{
 			Purpose:        "fixup",
 			Prompt:         prompt,

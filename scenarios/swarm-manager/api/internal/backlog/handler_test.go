@@ -168,6 +168,10 @@ func (m *mockAgentService) SpawnBacklog(_ context.Context, req agentmanager.Back
 	return m.result, m.err
 }
 
+func (m *mockAgentService) ApproveRun(_ context.Context, _ string, _ string, _ string) error {
+	return nil
+}
+
 func (m *mockAgentService) ContinueRun(_ context.Context, _ string, _ string) error {
 	return nil
 }

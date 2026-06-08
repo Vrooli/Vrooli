@@ -73,7 +73,10 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 		return err
 	}
 	for _, scenarioName := range scope.affectedScenarios {
-		if err := s.runScenarioRestartAndHealth(ctx, executionID, scenarioName); err != nil {
+		// Route restart/health to @shadow when this scenario is shadow-engaged
+		// under the owner (plan P-b.5); bare name otherwise.
+		target := s.shadowTargetFor(record, scenarioName)
+		if err := s.runScenarioRestartAndHealth(ctx, executionID, scenarioName, target); err != nil {
 			return err
 		}
 	}
@@ -312,6 +315,13 @@ func (s *Service) finishFinalization(executionID string, reviewStarted bool, rev
 
 	// Fire-and-forget: record experiment outcome if this execution was part of an experiment.
 	s.recordExperimentOutcome(record)
+
+	// Baseline Modes engagements are NOT closed here (plan P-c). Finalization is
+	// the agent's verdict, not the user's: the owner's engagement set is held
+	// across finalization into review_pending and promoted/abandoned as a whole
+	// at review-decide (the atomic accept/reject), so a candidate is never blessed
+	// into live before the human accept. The owner keying (ownerKeyFor) means a
+	// fixup transparently shares the same set — no per-record inheritance needed.
 
 	if autoSpawnFixup {
 		s.spawnFixupRun(context.Background(), record, item)

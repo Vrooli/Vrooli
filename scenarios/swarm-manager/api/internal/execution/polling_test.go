@@ -178,7 +178,7 @@ func TestPolling_ConsecutiveErrors(t *testing.T) {
 	ctx := context.Background()
 	for i := 0; i < maxErrors-1; i++ {
 		svc.mu.Lock()
-		_, _ = svc.refreshRunningLocked(ctx)
+		_, _, _ = svc.refreshRunningLocked(ctx)
 		svc.mu.Unlock()
 	}
 
@@ -188,7 +188,7 @@ func TestPolling_ConsecutiveErrors(t *testing.T) {
 	}
 
 	svc.mu.Lock()
-	_, _ = svc.refreshRunningLocked(ctx)
+	_, _, _ = svc.refreshRunningLocked(ctx)
 	svc.mu.Unlock()
 
 	loaded, _ = svc.store.Load()
@@ -228,7 +228,7 @@ func TestPolling_ErrorReset(t *testing.T) {
 
 	ctx := context.Background()
 	svc.mu.Lock()
-	_, _ = svc.refreshRunningLocked(ctx)
+	_, _, _ = svc.refreshRunningLocked(ctx)
 	svc.mu.Unlock()
 
 	if tracker.ConsecutiveErrors != 0 {
@@ -269,7 +269,7 @@ func TestPolling_MaxAge(t *testing.T) {
 
 	ctx := context.Background()
 	svc.mu.Lock()
-	_, _ = svc.refreshRunningLocked(ctx)
+	_, _, _ = svc.refreshRunningLocked(ctx)
 	svc.mu.Unlock()
 
 	loaded, _ := svc.store.Load()

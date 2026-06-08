@@ -374,6 +374,36 @@ New execution record created with ParentExecutionID linking to original
 
 **Timing**: Review polling runs on the same 2s tick as the main `refreshRunningLocked` loop. Follow-up is synchronous from the user's perspective (request returns the new execution record).
 
+### Baseline Modes Shadow Engagement Lifecycle
+
+**Location**: `api/internal/execution/engagement_owner.go`, `engagement_hold.go`, `engagement_close.go`, `baseline_engagement.go`; wiring in `routes_execution.go`.
+
+Opt-in via `SWARM_MANAGER_BASELINE_ENGAGEMENT`. When on, a backlog run is isolated from its in-progress candidate by a shadow restore point opened at the **pre-merge hold** — not before the run (declared scope) and not at finalization (the agent's verdict). Engagements are owned by the backlog item (`ownerKeyFor`, `EngagementStore`), so they span the main run, every fixup, and the gap until review-decide.
+
+```
+start (flag ON)
+    ↓ checkExclusivityAtStart — block if a projected scenario is engaged under another owner (409, no queue)
+    ↓ SpawnBacklog(ManualReview=true)
+agent edits in the sandbox overlay (NOT merged)
+    ↓ run parks at needs_review (poller maps → StatusNeedsReview)
+processEngagementHold (outside the lock, idempotent via Record.EngagementHoldAt):
+    1. GetRunDiff → directly-touched scenarios
+    2. for each not already engaged under this owner:
+         baseline start --mode shadow   ← captures the CLEAN working tree into the restore-point copy
+    3. ApproveRun                        ← merges the overlay → working tree (now the candidate)
+    ↓
+finalization restarts/health-checks <scenario>@shadow (shadowTargetFor) — live keeps serving the captured baseline
+    ↓ review agent gathers evidence → review_pending  (engagement set HELD across this gap)
+review-decide (the atomic accept/reject) → itemTerminalHandler → CloseOwnerEngagements:
+  ┌─ accept   → promote the whole set (candidate becomes baseline; drop restore point)
+  ├─ fail     → abandon the whole set (discard candidate; restore baseline)
+  └─ followup → leave the set open (next run continues under the same owner)
+```
+
+**Why the ordering matters**: opening the restore point BEFORE `ApproveRun` is what makes the isolation floor (platform `internal/lifecycle`, plan P-a) hold — a restart of live during the engagement resolves to the frozen copy, never the working tree the merge just landed the candidate on. A `baseline start` failure aborts the hold (no merge without isolation); the run stays held for a later cycle.
+
+**Timing**: the hold and finalization both run on the `refreshRunningLocked` poll tick, outside the service mutex (`baseline start`/`promote`/`abandon` shell out to git-control-tower and take minutes). The review-decide close self-dispatches its GCT work in a goroutine so the HTTP handler returns immediately.
+
 ### Initiative Operating Mode Phase Lifecycle
 
 **Location**: `api/internal/operatingmode/phase_runner.go`, `round_refresher.go`, `artifact_applier.go`; UI read model in `ui/src/components/initiative/operating-mode/round-view-model.ts`.

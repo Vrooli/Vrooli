@@ -16,10 +16,20 @@ import (
 // pending items when capacity opens, and drives post-run finalization work.
 func (s *Service) ProcessActiveExecutions(ctx context.Context) error {
 	s.mu.Lock()
-	candidates, err := s.refreshRunningLocked(ctx)
+	holdCandidates, candidates, err := s.refreshRunningLocked(ctx)
 	s.mu.Unlock()
 	if err != nil {
 		return err
+	}
+	// Pre-merge engagement holds (plan P-b.3): open shadow restore points from
+	// the actual diff and approve the merge for runs parked at needs_review.
+	// Runs outside the service lock (baseline start is slow); a failure leaves the
+	// run held for a later cycle/operator.
+	for _, executionID := range holdCandidates {
+		if holdErr := s.processEngagementHold(ctx, executionID); holdErr != nil {
+			slog.Warn("baseline engagement: pre-merge hold failed (run left held)",
+				"execution_id", executionID, "err", holdErr)
+		}
 	}
 	for _, executionID := range candidates {
 		logFinalizationError(executionID, s.processFinalization(ctx, executionID))
@@ -78,15 +88,16 @@ func (s *Service) drainPendingLocked(ctx context.Context) {
 	}
 }
 
-func (s *Service) refreshRunningLocked(ctx context.Context) ([]string, error) {
+func (s *Service) refreshRunningLocked(ctx context.Context) (holdCandidates []string, finalizationCandidates []string, err error) {
 	records, err := s.store.Load()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	changed := false
 	changedRecords := make(map[string]Record)
-	finalizationCandidates := make([]string, 0)
+	finalizationCandidates = make([]string, 0)
+	holdCandidates = make([]string, 0)
 
 	for i := range records {
 		record := &records[i]
@@ -270,16 +281,33 @@ func (s *Service) refreshRunningLocked(ctx context.Context) ([]string, error) {
 		}
 	}
 
+	// Collect pre-merge engagement-hold candidates: runs parked at needs_review
+	// whose hold hasn't been processed yet and that aren't already in flight.
+	// Done after the inspector pass so a same-cycle transition into needs_review
+	// is caught immediately. Dormant unless the engagement machinery is active.
+	if s.engagementHoldActive() {
+		for i := range records {
+			record := &records[i]
+			if record.Status != StatusNeedsReview || strings.TrimSpace(record.EngagementHoldAt) != "" {
+				continue
+			}
+			if _, exists := s.processingHolds[record.ExecutionID]; exists {
+				continue
+			}
+			holdCandidates = append(holdCandidates, record.ExecutionID)
+		}
+		holdCandidates = pathutil.UniqueSortedStrings(holdCandidates)
+	}
+
 	if changed {
 		if err := s.store.Save(records); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for _, record := range changedRecords {
 			s.dispatchStatusUpdate(record)
 		}
-		return pathutil.UniqueSortedStrings(finalizationCandidates), nil
 	}
-	return pathutil.UniqueSortedStrings(finalizationCandidates), nil
+	return holdCandidates, pathutil.UniqueSortedStrings(finalizationCandidates), nil
 }
 
 func mapRunStatus(status, errorMsg string, tracker *runTracker, maxConsecutiveUnknown int) (Status, string) {

@@ -57,8 +57,9 @@ func (s *Server) registerInitiativeReviewRoutes(materializer *graph.Materializer
 	// Install trigger hook so the backlog review-decide endpoint notifies
 	// initiative review when an item reaches terminal. The hook is
 	// idempotent: it no-ops if the initiative is already under review or
-	// has outstanding non-terminal items.
-	s.backlogHandler.SetItemTerminalHandler(func(ctx context.Context, kind, name string, _ backlog.BacklogStatus) {
+	// has outstanding non-terminal items. Add (not Set) so it chains with the
+	// Baseline Modes engagement-close handler registered by registerExecutionRoutes.
+	s.backlogHandler.AddItemTerminalHandler(func(ctx context.Context, kind, name string, _ backlog.BacklogStatus) {
 		svc.TriggerForItem(ctx, kind, name)
 	})
 }

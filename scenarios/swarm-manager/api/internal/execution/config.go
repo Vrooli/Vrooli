@@ -59,6 +59,33 @@ type FinalizationConfig struct {
 	// finalization (the diff re-runs test-genie surfaces against the working
 	// tree and can take minutes).
 	BaselineDiffTimeout time.Duration
+
+	// BaselineEngagementEnabled turns on Baseline Modes engagements for backlog
+	// execution (plan P6 §200 — the swarm-manager promote half). When set, each
+	// declared (acceptance_allow) scenario an execution may touch is fronted with
+	// a `git-control-tower baseline start --mode live` engagement: a git-free
+	// restore point is captured before the agent's edits merge to the working
+	// tree, and at finalization the engagement is closed terminally — promoted
+	// (green: the change is accepted and the safety net dropped) or abandoned
+	// (terminal hand-back: live is rolled back to the restore point so a botched
+	// change can never strand the scenario broken). The whole point of Baseline
+	// Modes is that swarm-manager can improve a scenario without leaving it in an
+	// unrecoverable state; this is that net for the live-edit flow.
+	//
+	// Default false (opt-in). The mechanism is best-effort throughout: a failed
+	// `baseline start` degrades to the existing in-place edit (no net) and never
+	// blocks the spawn; a failed promote/abandon is logged and the orphaned
+	// engagement is reclaimed by the recovery-floor reaper/TTL. Scenarios routed
+	// away from a live engagement by the decision tree (trusted-base / reflexive
+	// without an operator nod) simply get no engagement — shadow-mode engagement
+	// for those is a fast-follow that requires routing finalization's
+	// restart/health to the shadow variant.
+	//
+	// Only acts when an engagement actually opened (recorded on the Record). When
+	// false, or when no engagement opened, finalization behaves exactly as before
+	// — this flag adds a terminal promote/abandon step, it does not change the
+	// restart/health/review/regression-gate pipeline.
+	BaselineEngagementEnabled bool
 }
 
 // DefaultFinalizationConfig returns the production defaults for finalization

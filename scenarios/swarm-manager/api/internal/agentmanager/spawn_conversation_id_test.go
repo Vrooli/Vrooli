@@ -52,6 +52,11 @@ type capturedCreateRun struct {
 
 func newSpawnTestService(t *testing.T, baseURL string) *AgentService {
 	t.Helper()
+	// The lifecycle always injects the scenario identity into a running
+	// swarm-manager process; the variant-aware research tag (buildResearchTag)
+	// resolves its namespace from it. Mirror that here so spawn tests exercise
+	// the live path instead of failing loud on a missing namespace.
+	t.Setenv("VROOLI_SCENARIO", "swarm-manager")
 	svc := NewAgentService(AgentServiceConfig{
 		ProfileName: "swarm-manager",
 		ProfileKey:  "swarm-manager/default",

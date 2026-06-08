@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // Env-var names are declared as constants so the resolvers, the test harness,
@@ -37,12 +39,29 @@ const (
 	// to [1, MaxReconcileParallelism].
 	EnvAISearchReconcileParallelism = "AI_SEARCH_RECONCILE_PARALLELISM"
 
-	DefaultEmbeddingModel       = "nomic-embed-text"
-	DefaultVectorDimensions     = 768
-	DefaultThreshold            = 0.5
-	DefaultBacklogCollection    = "swarm-manager-backlog"
-	DefaultInitiativeCollection = "swarm-manager-initiatives"
-	DefaultRecordCollection     = "swarm-manager-records"
+	DefaultEmbeddingModel   = "nomic-embed-text"
+	DefaultVectorDimensions = 768
+	DefaultThreshold        = 0.5
+
+	// Qdrant collection DOMAINS (Baseline Modes P5). The actual collection
+	// names are composed variant-awarely by storage.Collection(domain), which
+	// reads the lifecycle-injected VROOLI_STORAGE_NAMESPACE: the live instance
+	// uses "swarm-manager_backlog" while a shadow uses
+	// "swarm-manager_shadow_backlog", so the two instances never share a
+	// collection. Hardcoding "swarm-manager-backlog" here would bypass shadow
+	// isolation — exactly what storage-steer / test-genie flag as a finding.
+	// (Adopting these is a rename from the old hyphenated names; the convergent
+	// reconciler repopulates the new collections from the backlog/initiative/
+	// record stores on its next sync.)
+	CollectionDomainBacklog    = "backlog"
+	CollectionDomainInitiative = "initiatives"
+	CollectionDomainRecord     = "records"
+
+	// scenarioSlug is this scenario's own identity, used ONLY to compose a
+	// variant-safe fallback collection name when no identity environment is
+	// injected at all (a non-lifecycle/dev/test context, which is inherently
+	// live). It is never used to bypass an injected shadow namespace.
+	scenarioSlug = "swarm-manager"
 
 	// DefaultSyncInterval is the SyncLoop tick interval when unset. 5m matches
 	// the original Service.StartPeriodicSync interval — the convergent
@@ -156,21 +175,12 @@ func LoadConfigFromEnv() Config {
 		EmbeddingModel:       DefaultEmbeddingModel,
 		VectorDimensions:     DefaultVectorDimensions,
 		Threshold:            DefaultThreshold,
-		BacklogCollection:    DefaultBacklogCollection,
-		InitiativeCollection: DefaultInitiativeCollection,
-		RecordCollection:     DefaultRecordCollection,
+		BacklogCollection:    resolveCollection(EnvAISearchBacklogColl, CollectionDomainBacklog),
+		InitiativeCollection: resolveCollection(EnvAISearchInitiativeColl, CollectionDomainInitiative),
+		RecordCollection:     resolveCollection(EnvAISearchRecordColl, CollectionDomainRecord),
 	}
 	if v := strings.TrimSpace(os.Getenv(EnvAISearchModel)); v != "" {
 		cfg.EmbeddingModel = v
-	}
-	if v := strings.TrimSpace(os.Getenv(EnvAISearchBacklogColl)); v != "" {
-		cfg.BacklogCollection = v
-	}
-	if v := strings.TrimSpace(os.Getenv(EnvAISearchInitiativeColl)); v != "" {
-		cfg.InitiativeCollection = v
-	}
-	if v := strings.TrimSpace(os.Getenv(EnvAISearchRecordColl)); v != "" {
-		cfg.RecordCollection = v
 	}
 	if v := strings.TrimSpace(os.Getenv(EnvAISearchThreshold)); v != "" {
 		if parsed, err := strconv.ParseFloat(v, 64); err == nil && parsed > 0 {
@@ -178,4 +188,46 @@ func LoadConfigFromEnv() Config {
 		}
 	}
 	return cfg
+}
+
+// resolveCollection composes the variant-aware Qdrant collection name for a
+// domain (Baseline Modes P5). Precedence:
+//
+//  1. An explicit operator override (envKey, e.g. AI_SEARCH_BACKLOG_COLLECTION)
+//     wins verbatim — operators retain full control.
+//  2. Otherwise the name comes from storage.Collection(domain), which reads the
+//     lifecycle-injected VROOLI_STORAGE_NAMESPACE so a shadow instance gets its
+//     own collection and never writes into live's.
+//
+// storage.Collection only errors outside the variant-aware lifecycle (no
+// identity environment at all), which is necessarily a live/dev/test context.
+// In that case we compose the fallback from VROOLI_VARIANT + this scenario's own
+// slug using the SAME "<root>_<domain>" shape the SSOT uses, so even a manually
+// mis-set non-live variant stays isolated from live — we never alias a shadow's
+// collection onto live's. We never fall back to the pre-adoption hyphenated name.
+func resolveCollection(envKey, domain string) string {
+	if v := strings.TrimSpace(os.Getenv(envKey)); v != "" {
+		return v
+	}
+	name, err := storage.Collection(domain)
+	if err != nil {
+		fallback := fallbackNamespaceRoot() + "_" + domain
+		slog.Warn("[aisearch] variant-aware collection unavailable; composing from local identity",
+			"domain", domain, "fallback", fallback, "error", err)
+		return fallback
+	}
+	return name
+}
+
+// fallbackNamespaceRoot mirrors scenarioruntime.InstanceKey.Namespace()'s
+// StorageNamespace composition ("<scenario>" for live, "<scenario>_<variant>"
+// otherwise) using this scenario's known slug. It is only reached when the
+// lifecycle injected no namespace environment; it preserves variant isolation so
+// the fallback can never alias a shadow onto live.
+func fallbackNamespaceRoot() string {
+	variant := strings.ToLower(strings.TrimSpace(os.Getenv(storage.EnvVariant)))
+	if variant == "" || variant == "live" {
+		return scenarioSlug
+	}
+	return scenarioSlug + "_" + variant
 }

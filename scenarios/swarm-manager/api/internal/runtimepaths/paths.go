@@ -18,7 +18,15 @@ func pathFor(class storage.Class, rel string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return r.Path(storage.Options{ScenarioID: scenarioID}, class, rel)
+	// Variant-aware path scope (Baseline Modes): a shadow engagement resolves to
+	// "swarm-manager_shadow" via the lifecycle-injected VROOLI_STORAGE_NAMESPACE,
+	// so shadow state/data/cache never collide with live. Falls back to the bare
+	// slug outside the lifecycle.
+	ns, err := storage.ScenarioNamespace(scenarioID)
+	if err != nil {
+		return "", err
+	}
+	return r.Path(storage.Options{ScenarioID: ns}, class, rel)
 }
 
 func StatePath(rel string) (string, error) {

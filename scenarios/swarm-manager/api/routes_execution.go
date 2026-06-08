@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"swarm-manager/internal/backlog"
@@ -25,6 +28,15 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 		panic(err)
 	}
 
+	// Baseline Modes engagement (plan P6 §200): opt-in via
+	// SWARM_MANAGER_BASELINE_ENGAGEMENT so execution fronts each declared scenario
+	// with a live-mode `baseline start` (git-free restore point) and
+	// promotes-on-green / abandons-on-terminal-failure at finalization. Default
+	// off — the mechanism is dormant until an operator flips the env, which keeps
+	// the reflexive kernel unperturbed during rollout.
+	finalizationCfg := execution.DefaultFinalizationConfig()
+	finalizationCfg.BaselineEngagementEnabled = baselineEngagementEnabled()
+
 	// Execution control endpoints
 	cfg := execution.ServiceConfig{
 		DataRoot:                 dataRoot,
@@ -40,6 +52,8 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 		Archiver:                 archiver,
 		ReviewClient:             execution.NewHTTPReviewClient(nil),
 		BaselineClient:           execution.NewConnectBaselineClient(nil),
+		BaselineEngagementRunner: &execution.GCTBaselineEngagementRunner{ProjectRoot: repoRootFromScenarioRoot(scenarioRoot)},
+		Finalization:             finalizationCfg,
 	}
 	s.executionSvc = execution.NewService(cfg)
 	// Wire the agentactivity service in as the lane reader so
@@ -73,8 +87,62 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 	}
 	if s.backlogHandler != nil {
 		s.backlogHandler.SetExecutionQueuer(s.executionSvc)
+
+		// Baseline Modes engagement close (plan P-c): promote/abandon the owner's
+		// whole engagement set at the review-decide terminal transition — the
+		// atomic accept/reject — not at finalization. Chained via Add so it
+		// coexists with the initiative-review trigger.
+		execSvc := s.executionSvc
+		s.backlogHandler.AddItemTerminalHandler(func(ctx context.Context, kind, name string, status backlog.BacklogStatus) {
+			execSvc.CloseOwnerEngagements(ctx, kind, name, engagementCloseDecisionForStatus(status))
+		})
 	}
 	return s.executionSvc
+}
+
+// engagementCloseDecisionForStatus maps a backlog terminal status onto the
+// execution package's engagement-close decision. Accept (completed) promotes the
+// set; reject (failed) abandons it; needs_followup leaves it open for the next
+// run under the same owner.
+func engagementCloseDecisionForStatus(status backlog.BacklogStatus) execution.EngagementCloseDecision {
+	switch status {
+	case backlog.StatusCompleted:
+		return execution.EngagementPromote
+	case backlog.StatusFailed:
+		return execution.EngagementAbandon
+	default:
+		return execution.EngagementLeaveOpen
+	}
+}
+
+// baselineEngagementEnabled reports whether Baseline Modes engagements are
+// turned on for backlog execution (plan P6 §200). Opt-in via
+// SWARM_MANAGER_BASELINE_ENGAGEMENT (1/true/yes/on, case-insensitive); default
+// off so the reflexive kernel runs unchanged until an operator enables it.
+func baselineEngagementEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("SWARM_MANAGER_BASELINE_ENGAGEMENT"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+// repoRootFromScenarioRoot derives the repo root from the scenario source path
+// (`<repo>/scenarios/swarm-manager` → `<repo>`), used as the working dir for the
+// git-control-tower engagement runner. Returns "" when the path does not look
+// like a scenario root (the runner then inherits the process working dir; GCT
+// baseline verbs resolve scenarios via the vrooli registry regardless).
+func repoRootFromScenarioRoot(scenarioRoot string) string {
+	root := strings.TrimSpace(scenarioRoot)
+	if root == "" {
+		return ""
+	}
+	parent := filepath.Dir(root)
+	if filepath.Base(parent) == "scenarios" {
+		return filepath.Dir(parent)
+	}
+	return ""
 }
 
 func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Service) {

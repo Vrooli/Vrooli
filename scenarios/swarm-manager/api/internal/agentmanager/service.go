@@ -18,6 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/scenario"
+	"github.com/vrooli/api-core/storage"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -43,6 +44,7 @@ type Service interface {
 	SpawnResearch(ctx context.Context, req ResearchSpawnRequest) (RunResult, error)
 	GetRunState(ctx context.Context, runID string) (RunState, error)
 	GetRunDiff(ctx context.Context, runID string) (RunDiff, error)
+	ApproveRun(ctx context.Context, runID, actor, commitMsg string) error
 	StopRun(ctx context.Context, runID string) error
 	ContinueRun(ctx context.Context, runID string, message string) error
 }
@@ -269,6 +271,11 @@ type BacklogSpawnRequest struct {
 	Environment        map[string]string
 	ContextAttachments []*domainpb.ContextAttachment
 	ProfileKey         string
+	// ManualReview, when true, spawns the run with SandboxConfig.ManualReview so
+	// agent-manager holds it at needs_review (overlay NOT merged) until the
+	// caller approves. The Baseline Modes pre-merge engagement hold uses this to
+	// open a shadow restore point from the actual diff before the merge lands.
+	ManualReview bool
 }
 
 // RunResult returns agent-manager identifiers.
@@ -357,7 +364,10 @@ func (s *AgentService) SpawnResearch(ctx context.Context, req ResearchSpawnReque
 		return RunResult{}, err
 	}
 
-	tag := buildResearchTag(req.IdeaName)
+	tag, err := buildResearchTag(req.IdeaName)
+	if err != nil {
+		return RunResult{}, err
+	}
 	profileRef, err := s.profileRefFor(req.ProfileKey)
 	if err != nil {
 		return RunResult{}, err
@@ -518,6 +528,9 @@ func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest
 		runReq.Environment = req.Environment
 	}
 	applyAcceptanceOverride(runReq, req.AcceptanceAllow, req.AcceptanceDeny)
+	if req.ManualReview {
+		applyManualReview(runReq)
+	}
 
 	run, err := s.client.CreateRun(ctx, runReq)
 	if err != nil {
@@ -639,6 +652,21 @@ func applyAcceptanceOverride(runReq *apipb.CreateRunRequest, allow, deny []strin
 	}
 }
 
+// applyManualReview sets SandboxConfig.ManualReview=true on the run request so
+// agent-manager defers the overlay merge and holds the run at needs_review.
+// Like applyAcceptanceOverride, it sets ONLY the one field it owns; the
+// orchestrator backfills Mode/NetworkMode from DefaultSandboxConfig(), so this
+// never strips the protected-mode default.
+func applyManualReview(runReq *apipb.CreateRunRequest) {
+	if runReq.InlineConfig == nil {
+		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
+	}
+	if runReq.InlineConfig.SandboxConfig == nil {
+		runReq.InlineConfig.SandboxConfig = &domainpb.SandboxConfig{}
+	}
+	runReq.InlineConfig.SandboxConfig.ManualReview = true
+}
+
 // GetRunState resolves run state from agent-manager.
 func (s *AgentService) GetRunState(ctx context.Context, runID string) (RunState, error) {
 	if !s.enabled {
@@ -734,12 +762,31 @@ func (s *AgentService) StopRun(ctx context.Context, runID string) error {
 	return s.client.StopRun(ctx, runID)
 }
 
-func buildResearchTag(ideaName string) string {
+// ApproveRun releases a run held at needs_review, merging its sandbox overlay
+// into the working tree. The Baseline Modes pre-merge hold calls this after the
+// shadow restore point has captured the clean working tree.
+func (s *AgentService) ApproveRun(ctx context.Context, runID, actor, commitMsg string) error {
+	if !s.enabled {
+		return ErrNotAvailable
+	}
+	return s.client.ApproveRun(ctx, runID, actor, commitMsg)
+}
+
+// buildResearchTag composes the agent-manager run tag for an idea-research run.
+// It is variant-aware (Baseline Modes P5): under the live instance the tag is
+// "swarm-manager:idea:<idea>:research" (byte-identical to the pre-adoption
+// form), while a shadow instance tags its runs "swarm-manager_shadow:idea:...",
+// so a shadow's research runs are never confused with live's when enumerated by
+// tag. storage.RedisKey is the right helper because the key interleaves a
+// dynamic token (the idea name) mid-string. It only errors outside the
+// variant-aware lifecycle (no identity env), which is necessarily live; the
+// caller propagates that rather than silently aliasing onto live.
+func buildResearchTag(ideaName string) (string, error) {
 	ideaName = strings.TrimSpace(ideaName)
 	if ideaName == "" {
-		return "swarm-manager:idea:research"
+		return storage.RedisKey("idea", "research")
 	}
-	return fmt.Sprintf("swarm-manager:idea:%s:research", ideaName)
+	return storage.RedisKey("idea", ideaName, "research")
 }
 
 func buildResearchTitle(mode, ideaName string) string {

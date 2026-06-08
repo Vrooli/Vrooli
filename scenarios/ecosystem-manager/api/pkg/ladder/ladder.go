@@ -240,16 +240,23 @@ func Rungs() []Rung {
 			ID:       RungR4,
 			HardGate: false,
 			Dimensions: []dimensions.Dimension{
-				dim("operational-targets"), dim("business"),
+				dim("operational-targets"), dim("business"), dim("measures"),
 			},
-			// Capability progression: operational targets meet the profile threshold.
-			// Vacuously satisfied ONLY when collection succeeded and the scenario
+			// Capability progression: operational targets meet the profile threshold
+			// AND the scenario's stateful domains are measure-covered. The `measures`
+			// dimension is soft here — a scenario stays runnable/safe (R0/R1) and
+			// evolvable (R2/R3) without measures, but cannot reach top maturity (R4)
+			// while a stateful domain is left uncovered and unwaived. Vacuously
+			// satisfied for the OT leg ONLY when collection succeeded and the scenario
 			// genuinely declares no targets (OTKnown && !OTHasTargets). When the
 			// metric wasn't collected (OTKnown == false — best-effort failure or not
 			// yet run) the rung is treated as unsatisfied so the controller keeps
 			// working the capability rung rather than silently declaring it met — the
 			// silent no-op that previously made the ladder inert.
-			satisfied: func(s Signals, _ Thresholds) bool {
+			satisfied: func(s Signals, th Thresholds) bool {
+				if !s.dimClean(dim("measures"), th) {
+					return false
+				}
 				if !s.OTKnown {
 					return false
 				}

@@ -28,6 +28,10 @@ func (m *mockAgentErrorService) SpawnBacklog(_ context.Context, _ agentmanager.B
 	return agentmanager.RunResult{}, m.err
 }
 
+func (m *mockAgentErrorService) ApproveRun(_ context.Context, _ string, _ string, _ string) error {
+	return nil
+}
+
 func (m *mockAgentErrorService) ContinueRun(_ context.Context, _ string, _ string) error {
 	return nil
 }

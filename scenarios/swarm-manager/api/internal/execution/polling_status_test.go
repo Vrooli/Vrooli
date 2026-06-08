@@ -62,7 +62,7 @@ func runRefresh(t *testing.T, svc *Service) {
 	t.Helper()
 	svc.mu.Lock()
 	defer svc.mu.Unlock()
-	if _, err := svc.refreshRunningLocked(context.Background()); err != nil {
+	if _, _, err := svc.refreshRunningLocked(context.Background()); err != nil {
 		t.Fatalf("refreshRunningLocked: %v", err)
 	}
 }

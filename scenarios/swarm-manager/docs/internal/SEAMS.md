@@ -2307,3 +2307,34 @@ only path through which the audio-tools base URL reaches the UI.
 **Test seam:** `ChatMessageSpeakController` is a plain interface; the
 audio bubble test injects a fake controller and asserts `speak()` /
 `stop()` calls without touching the audio-integration core.
+
+### Baseline Modes engagement seams
+
+*Added: 2026-06-07*
+
+Shadow-mode engagement (plan P-b/P-c) is built from a few narrow seams so the
+pre-merge hold, ownership, and review-decide close stay independently testable
+and the policy levers have single sources of truth.
+
+**Files / seams:**
+- `api/internal/execution/engagement_owner.go` — `EngagementStore` (owner → set,
+  self-locking JSON), `ownerKeyFor` (the **one** definition of "what owns an
+  engagement"), `engagementMode` (= `shadow`, the one mode constant), and
+  `engagementExclusivityPolicy` (named `ExclusivityPolicy`, not an inline `if` —
+  switch to queueing in one place).
+- `api/internal/execution/interfaces.go` — `RunApprover` (release a
+  needs_review hold); cast from the agent-manager service alongside the existing
+  `RunDiffer`/`RunInspector`/`RunStopper`.
+- `agentmanager.Service.ApproveRun` + `BacklogSpawnRequest.ManualReview` — the
+  pre-merge hold wire protocol (POST `/runs/{id}/approve`, `SandboxConfig.ManualReview`).
+- `backlog.AddItemTerminalHandler` — the review-decide close hook. Chained (Add,
+  not Set) so the engagement close and the initiative-review trigger coexist.
+
+**Test seam:** `BaselineEngagementRunner` (fake GCT), `RunDiffer`/`RunApprover`
+fakes, and an `EngagementStore` over a temp file let `processEngagementHold`,
+`checkExclusivityAtStart`, `shadowTargetFor`, and `CloseOwnerEngagements` be
+unit-tested with no agent-manager or git-control-tower binary.
+
+**Why seams:** the engagement set must outlive any single run (fixups, the gap
+until review-decide), so it cannot live on the per-run execution Record; keying
+it by owner is what makes inheritance and the atomic accept/reject work.

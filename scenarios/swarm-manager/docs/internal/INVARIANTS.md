@@ -171,6 +171,18 @@ Operating-mode methodology behavior must stay registry-owned so new modes remain
 | New phase purposes do not require shared activity or lock constants | Registry purpose token validation and initiative-owned activity validation | Lets a mode author add phases without editing unrelated shared packages |
 | A synthetic non-production mode exercises authoring seams | `api/internal/operatingmode/synthetic_mode_test.go` | Catches accidental regressions toward production-mode hardcoding |
 
+## Baseline Modes Engagement Invariants
+
+Shadow-mode engagements (plan P-b/P-c) isolate a live scenario from an in-progress candidate. These invariants keep the isolation sound and the policy levers single-sourced.
+
+| Invariant | Enforced by | Why it matters |
+|-----------|-------------|----------------|
+| The shadow restore point is opened (clean working tree captured) BEFORE the overlay merge is approved | `execution.processEngagementHold` (open → ApproveRun ordering); a `baseline start` failure aborts before approve | A merge without a restore point would let a live restart rebuild the candidate — the platform isolation floor (P-a) depends on the copy already existing |
+| A scenario has at most one open engagement across all owners | `EngagementStore.HolderOf` + `checkExclusivityAtStart` (block-at-start) + the diff-level conflict check in `processEngagementHold` | One working tree can hold one candidate; two owners editing it concurrently would corrupt each other's baseline |
+| An engagement set is owned by the backlog item, never the per-run Record | `ownerKeyFor` (single definition) + `EngagementStore`; fixups share the owner key | The set must outlive the main run + every fixup and survive until review-decide; per-run keying would close it too early or lose it |
+| Promote/abandon happen only at review-decide (the atomic accept/reject), never at finalization | `CloseOwnerEngagements` via `AddItemTerminalHandler`; finalization no longer closes | A candidate must not be blessed into live before the human accept |
+| Validation restart/health route to `@shadow` for shadow-engaged scenarios; live is untouched | `execution.shadowTargetFor` feeding `runScenarioRestartAndHealth` | Validates the candidate without disturbing the live instance still serving the baseline |
+
 ### Audit Trail
 
 | Date | Author | Change |
@@ -179,3 +191,4 @@ Operating-mode methodology behavior must stay registry-owned so new modes remain
 | 2026-04-25 | Retry-as-new-attempt rewrite | Documented terminal-state writer pair (review-decide forward, reopenForRetry backward); replaced in-place `execution.Retry` with new-attempt semantics; added `RetryLatestForBacklog` and `POST /api/v1/backlog/{kind}/{name}/retry` route |
 | 2026-04-30 | Operating-mode hardening | Documented non-default operating-mode lifecycle, output-contract, round-action, backlog-sync, and UI view-model invariants |
 | 2026-05-01 | Operating-mode authoring architecture | Documented registry-owned authoring invariants for definitions, transitions, result bindings, prompt catalog, metrics, capabilities, purposes, and synthetic-mode coverage |
+| 2026-06-07 | Shadow-mode engagement rework (plan P-b/P-c) | Replaced per-execution live-mode engagement with owner-keyed shadow engagements: pre-merge hold (ManualReview → diff-driven `baseline start --mode shadow` → ApproveRun), block-at-start exclusivity, `@shadow` validation routing, promote/abandon moved to review-decide. Added the Baseline Modes Engagement Invariants table |

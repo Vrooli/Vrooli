@@ -38,6 +38,10 @@ func (c *countingAgentService) SpawnBacklog(_ context.Context, _ agentmanager.Ba
 	return c.result, c.err
 }
 
+func (c *countingAgentService) ApproveRun(_ context.Context, _ string, _ string, _ string) error {
+	return nil
+}
+
 func (c *countingAgentService) ContinueRun(_ context.Context, _ string, _ string) error {
 	return nil
 }

@@ -103,6 +103,15 @@ type Record struct {
 	// this item caused from pre-existing failures. Keyed only by scenarios
 	// declared in acceptance_allow (the sole pre-execution scope signal).
 	PreExecBaselines map[string]string `json:"pre_exec_baselines,omitempty"`
+	// EngagementHoldAt timestamps when this run's pre-merge Baseline Modes hold
+	// was processed (shadow restore points opened from the actual diff, then the
+	// overlay merge approved). It is the idempotency marker for the hold: the
+	// poller may observe needs_review on several cycles before ApproveRun takes
+	// effect, so a non-empty value tells processEngagementHold to skip re-opening
+	// and re-approving. The engagements themselves are owned by the backlog item
+	// (EngagementStore, keyed by ownerKeyFor), not the execution Record — so they
+	// survive across the main run, every fixup, and the gap until review-decide.
+	EngagementHoldAt string `json:"engagement_hold_at,omitempty"`
 	// ManuallyAccepted is set when the user overrode a failed/canceled/
 	// needs_fixup execution by manually marking the backlog item completed.
 	// Stats treat manually-accepted runs as successful so the Agent tab

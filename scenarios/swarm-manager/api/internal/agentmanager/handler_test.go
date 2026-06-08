@@ -37,6 +37,10 @@ func (s *handlerStubService) SpawnResearch(_ context.Context, _ ResearchSpawnReq
 	return RunResult{}, nil
 }
 
+func (s *handlerStubService) ApproveRun(_ context.Context, _ string, _ string, _ string) error {
+	return nil
+}
+
 func (s *handlerStubService) ContinueRun(_ context.Context, _ string, _ string) error {
 	return nil
 }

@@ -74,6 +74,10 @@ func (s *stubAgentService) StopRun(_ context.Context, runID string) error {
 	return s.stopErr
 }
 
+func (s *stubAgentService) ApproveRun(_ context.Context, _ string, _ string, _ string) error {
+	return nil
+}
+
 func (s *stubAgentService) ContinueRun(_ context.Context, runID string, _ string) error {
 	s.continueRuns = append(s.continueRuns, runID)
 	return s.continueErr

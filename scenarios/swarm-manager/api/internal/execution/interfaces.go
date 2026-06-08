@@ -23,6 +23,13 @@ type RunStopper interface {
 	StopRun(ctx context.Context, runID string) error
 }
 
+// RunApprover releases a run held at needs_review, merging its sandbox overlay
+// into the working tree. The Baseline Modes pre-merge hold calls this after the
+// shadow restore point has captured the clean working tree.
+type RunApprover interface {
+	ApproveRun(ctx context.Context, runID, actor, commitMsg string) error
+}
+
 // RunContinuer sends a follow-up message to a running agent session.
 type RunContinuer interface {
 	ContinueRun(ctx context.Context, runID string, message string) error
