@@ -84,8 +84,25 @@ toolchain repo-wide.
 **Refs:** `docs/plans/aisearch-adoption-hardening-plan.md`; auditor run
 `scenario-auditor standards scan cli-health`.
 
-### Two unsynchronized cli-health command-search corpora — RESOLVED (Phase 1)
+### Two unsynchronized cli-health command-search corpora — RESOLVED (Phase 1) + no-drift sync CLOSED (follow-on)
 
+> **NO-DRIFT SYNC CLOSED 2026-06-08 (Search Corpus File-SSOT Bidirectional Sync).**
+> Phase 1 (below) collapsed the two corpora into one `tests` block but the
+> SELF-REGISTRATION half was never wired — search-hub's eval suite stayed a stale,
+> hand-registered artifact decoupled from `search.json` (the "Phase 2 wires the
+> push" promise was unkept). The follow-on plan closed it: (1) the corpus collapsed
+> to ONE canonical rank-centric shape — `expected_paths`, the separate `negatives[]`
+> array, `recall_at`/`recall_target`, and `source` were **deleted** (the recall gate
+> now grades `expect_ids` against the leaf, K/target are test constants); (2) a
+> lossless `aisearch.TestSuite ⟷ evalv1.EvalSuite` converter
+> (`searchregister-go/corpus.go`, `corpusRoundTripsLossless`); (3) boot
+> self-registration mirrors the corpus into the eval store at every boot
+> (`corpusStoreMirrorsFile`); (4) a `WriteCorpus` control RPC + `FileCorpusWriter`
+> route every machine mutation (`evals generate --apply`) back through the file
+> (`corpusMutationsGoThroughFile`, `onlyScenarioWritesItsFile`). The store is now a
+> verified mirror; a manual file edit self-heals on the next boot. See
+> `/home/matthalloran8/.vrooli/plans/search-corpus-file-ssot-bidirectional-sync-self-registration-writecorpus-no-drift.md`.
+>
 > **RESOLVED 2026-06-07 (Search Self-Tuning System, Phase 1).** Both corpora were
 > collapsed into one `tests` block (`cases` + `negatives`) inside the new
 > scenario-owned SSOT `scenarios/cli-health/.vrooli/search.json` (provider

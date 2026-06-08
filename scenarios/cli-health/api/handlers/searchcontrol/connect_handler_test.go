@@ -10,6 +10,7 @@ import (
 
 	aisearchpkg "github.com/vrooli/aisearch-go"
 	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
+	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 )
 
@@ -75,6 +76,27 @@ func (f *fakeConfigWriter) WriteTuning(providerID string, _ aisearchpkg.TuningCo
 	return f.effective, f.idxChanged, f.written, f.err
 }
 
+type fakeCorpusWriter struct {
+	effective    aisearchpkg.TestSuite
+	written      bool
+	err          error
+	calls        int
+	lastProvider string
+	lastSuite    aisearchpkg.TestSuite
+	lastDry      bool
+}
+
+func (f *fakeCorpusWriter) WriteCorpus(providerID string, suite aisearchpkg.TestSuite, dryRun bool) (aisearchpkg.TestSuite, bool, error) {
+	f.calls++
+	f.lastProvider = providerID
+	f.lastSuite = suite
+	f.lastDry = dryRun
+	if f.err != nil {
+		return aisearchpkg.TestSuite{}, false, f.err
+	}
+	return f.effective, f.written, nil
+}
+
 const testToken = "s3cr3t-control-token"
 
 func enabledGate() *searchcontrol.Gate {
@@ -92,6 +114,23 @@ func newHandler(g *searchcontrol.Gate, r searchcontrol.Reindexer, w searchcontro
 		ConfigWriter: w,
 		Gate:         g,
 	})
+}
+
+func newCorpusHandler(g *searchcontrol.Gate, w searchcontrol.CorpusWriter) interface {
+	WriteCorpus(context.Context, *connect.Request[controlv1.WriteCorpusRequest]) (*connect.Response[controlv1.WriteCorpusResponse], error)
+} {
+	return searchcontrol.NewConnectHandler(searchcontrol.Deps{CorpusWriter: w, Gate: g})
+}
+
+// sampleCorpus is a minimal well-formed corpus on the wire shape.
+func sampleCorpus() *evalv1.EvalSuite {
+	return &evalv1.EvalSuite{
+		SuiteId:    "cli-health.commands.primary",
+		ProviderId: "cli-health.commands",
+		Cases: []*evalv1.EvalCase{
+			{CaseId: "restart", Query: "restart a scenario", ExpectIds: []string{"restart"}, ExpectWithinTopK: 3},
+		},
+	}
 }
 
 // --- gate ------------------------------------------------------------------
@@ -307,6 +346,107 @@ func TestWriteConfigDeniedOnTokenMismatch(t *testing.T) {
 		t.Fatalf("bad token: want PermissionDenied, got %v", connect.CodeOf(err))
 	}
 	if fw.calls != 0 {
+		t.Fatalf("writer must not run when the control token is rejected")
+	}
+}
+
+// --- WriteCorpus -----------------------------------------------------------
+
+func TestWriteCorpusRequiresProviderID(t *testing.T) {
+	cw := &fakeCorpusWriter{}
+	h := newCorpusHandler(enabledGate(), cw)
+	_, err := h.WriteCorpus(context.Background(), connect.NewRequest(&controlv1.WriteCorpusRequest{
+		ControlToken: testToken, Corpus: sampleCorpus(),
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("missing provider_id: want InvalidArgument, got %v", connect.CodeOf(err))
+	}
+	if cw.calls != 0 {
+		t.Fatalf("writer must not run on a malformed request")
+	}
+}
+
+func TestWriteCorpusRejectsMalformedCorpus(t *testing.T) {
+	cw := &fakeCorpusWriter{}
+	h := newCorpusHandler(enabledGate(), cw)
+	bad := &evalv1.EvalSuite{Cases: []*evalv1.EvalCase{{CaseId: "c1"}}} // missing query
+	_, err := h.WriteCorpus(context.Background(), connect.NewRequest(&controlv1.WriteCorpusRequest{
+		ControlToken: testToken, ProviderId: "cli-health.commands", Corpus: bad,
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("malformed corpus: want InvalidArgument, got %v", connect.CodeOf(err))
+	}
+	if cw.calls != 0 {
+		t.Fatalf("writer must not run when the corpus fails validation")
+	}
+}
+
+func TestWriteCorpusPersistsAndEchoes(t *testing.T) {
+	cw := &fakeCorpusWriter{
+		effective: aisearchpkg.TestSuite{Cases: []aisearchpkg.TestCase{{ID: "restart", Query: "restart a scenario", ExpectIDs: []string{"restart"}, ExpectWithinTopK: 3}}},
+		written:   true,
+	}
+	h := newCorpusHandler(enabledGate(), cw)
+	resp, err := h.WriteCorpus(context.Background(), connect.NewRequest(&controlv1.WriteCorpusRequest{
+		ControlToken: testToken, ProviderId: "cli-health.commands", Corpus: sampleCorpus(),
+	}))
+	if err != nil {
+		t.Fatalf("WriteCorpus: %v", err)
+	}
+	if !resp.Msg.GetWritten() {
+		t.Fatalf("expected written=true")
+	}
+	if cw.calls != 1 || cw.lastProvider != "cli-health.commands" {
+		t.Fatalf("writer not called as expected: calls=%d provider=%q", cw.calls, cw.lastProvider)
+	}
+	// The handler converted the wire corpus to the file shape before persisting.
+	if len(cw.lastSuite.Cases) != 1 || cw.lastSuite.Cases[0].ID != "restart" {
+		t.Fatalf("corpus not converted to file shape: %+v", cw.lastSuite)
+	}
+	// And echoed the effective corpus back on the wire shape.
+	if got := resp.Msg.GetEffective(); got == nil || len(got.GetCases()) != 1 || got.GetCases()[0].GetCaseId() != "restart" {
+		t.Fatalf("effective corpus not echoed: %+v", resp.Msg.GetEffective())
+	}
+}
+
+func TestWriteCorpusDryRunThreadsFlag(t *testing.T) {
+	cw := &fakeCorpusWriter{written: false}
+	h := newCorpusHandler(enabledGate(), cw)
+	resp, err := h.WriteCorpus(context.Background(), connect.NewRequest(&controlv1.WriteCorpusRequest{
+		ControlToken: testToken, ProviderId: "cli-health.commands", Corpus: sampleCorpus(), DryRun: true,
+	}))
+	if err != nil {
+		t.Fatalf("WriteCorpus: %v", err)
+	}
+	if resp.Msg.GetWritten() {
+		t.Fatalf("dry run must not report written")
+	}
+	if !cw.lastDry {
+		t.Fatalf("dry_run not threaded to the writer")
+	}
+}
+
+func TestWriteCorpusUnknownProviderIsNotFound(t *testing.T) {
+	cw := &fakeCorpusWriter{err: aisearchpkg.ErrProviderNotInFile{ProviderID: "nope", Path: "/x/search.json"}}
+	h := newCorpusHandler(enabledGate(), cw)
+	_, err := h.WriteCorpus(context.Background(), connect.NewRequest(&controlv1.WriteCorpusRequest{
+		ControlToken: testToken, ProviderId: "nope", Corpus: sampleCorpus(),
+	}))
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("unknown provider: want NotFound, got %v", connect.CodeOf(err))
+	}
+}
+
+func TestWriteCorpusDeniedOnTokenMismatch(t *testing.T) {
+	cw := &fakeCorpusWriter{}
+	h := newCorpusHandler(enabledGate(), cw)
+	_, err := h.WriteCorpus(context.Background(), connect.NewRequest(&controlv1.WriteCorpusRequest{
+		ControlToken: "wrong", ProviderId: "cli-health.commands", Corpus: sampleCorpus(),
+	}))
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("bad token: want PermissionDenied, got %v", connect.CodeOf(err))
+	}
+	if cw.calls != 0 {
 		t.Fatalf("writer must not run when the control token is rejected")
 	}
 }

@@ -6,13 +6,15 @@ import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegen
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Tuning } from "../registry/registry_pb";
 import { file_search_hub_v1_registry_registry } from "../registry/registry_pb";
+import type { EvalSuite } from "../eval/eval_pb";
+import { file_search_hub_v1_eval_eval } from "../eval/eval_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file search-hub/v1/control/control.proto.
  */
 export const file_search_hub_v1_control_control: GenFile = /*@__PURE__*/
-  fileDesc("CiNzZWFyY2gtaHViL3YxL2NvbnRyb2wvY29udHJvbC5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEuY29udHJvbCJHCg5SZWluZGV4UmVxdWVzdBINCgVzY29wZRgBIAEoCRIPCgdkcnlfcnVuGAIgASgIEhUKDWNvbnRyb2xfdG9rZW4YAyABKAkiZAoPUmVpbmRleFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRIXCg9wbGFubmVkX3Vwc2VydHMYAiABKAUSFwoPcGxhbm5lZF9kZWxldGVzGAMgASgFEg8KB2RyeV9ydW4YBCABKAgiPQoUUmVpbmRleFN0YXR1c1JlcXVlc3QSDgoGam9iX2lkGAEgASgJEhUKDWNvbnRyb2xfdG9rZW4YAiABKAkiZwoVUmVpbmRleFN0YXR1c1Jlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRINCgVzdGF0ZRgCIAEoCRIRCglwcm9jZXNzZWQYAyABKAUSDQoFdG90YWwYBCABKAUSDQoFZXJyb3IYBSABKAkiPQoUUmVpbmRleENhbmNlbFJlcXVlc3QSDgoGam9iX2lkGAEgASgJEhUKDWNvbnRyb2xfdG9rZW4YAiABKAkiOgoVUmVpbmRleENhbmNlbFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRIRCgljYW5jZWxsZWQYAiABKAgiiAEKEldyaXRlQ29uZmlnUmVxdWVzdBITCgtwcm92aWRlcl9pZBgBIAEoCRI1CgZ0dW5pbmcYAiABKAsyJS52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5UdW5pbmcSFQoNY29udHJvbF90b2tlbhgDIAEoCRIPCgdkcnlfcnVuGAQgASgIIpMBChNXcml0ZUNvbmZpZ1Jlc3BvbnNlEg8KB3dyaXR0ZW4YASABKAgSGQoRcmVpbmRleF90cmlnZ2VyZWQYAiABKAgSFgoOcmVpbmRleF9qb2JfaWQYAyABKAkSOAoJZWZmZWN0aXZlGAQgASgLMiUudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuVHVuaW5nMuYDChRTZWFyY2hDb250cm9sU2VydmljZRJmCgdSZWluZGV4EiwudnJvb2xpLnNlYXJjaF9odWIudjEuY29udHJvbC5SZWluZGV4UmVxdWVzdBotLnZyb29saS5zZWFyY2hfaHViLnYxLmNvbnRyb2wuUmVpbmRleFJlc3BvbnNlEngKDVJlaW5kZXhTdGF0dXMSMi52cm9vbGkuc2VhcmNoX2h1Yi52MS5jb250cm9sLlJlaW5kZXhTdGF0dXNSZXF1ZXN0GjMudnJvb2xpLnNlYXJjaF9odWIudjEuY29udHJvbC5SZWluZGV4U3RhdHVzUmVzcG9uc2USeAoNUmVpbmRleENhbmNlbBIyLnZyb29saS5zZWFyY2hfaHViLnYxLmNvbnRyb2wuUmVpbmRleENhbmNlbFJlcXVlc3QaMy52cm9vbGkuc2VhcmNoX2h1Yi52MS5jb250cm9sLlJlaW5kZXhDYW5jZWxSZXNwb25zZRJyCgtXcml0ZUNvbmZpZxIwLnZyb29saS5zZWFyY2hfaHViLnYxLmNvbnRyb2wuV3JpdGVDb25maWdSZXF1ZXN0GjEudnJvb2xpLnNlYXJjaF9odWIudjEuY29udHJvbC5Xcml0ZUNvbmZpZ1Jlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc2VhcmNoLWh1Yi92MS9jb250cm9sO2NvbnRyb2xfdjFiBnByb3RvMw", [file_search_hub_v1_registry_registry]);
+  fileDesc("CiNzZWFyY2gtaHViL3YxL2NvbnRyb2wvY29udHJvbC5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEuY29udHJvbCJHCg5SZWluZGV4UmVxdWVzdBINCgVzY29wZRgBIAEoCRIPCgdkcnlfcnVuGAIgASgIEhUKDWNvbnRyb2xfdG9rZW4YAyABKAkiZAoPUmVpbmRleFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRIXCg9wbGFubmVkX3Vwc2VydHMYAiABKAUSFwoPcGxhbm5lZF9kZWxldGVzGAMgASgFEg8KB2RyeV9ydW4YBCABKAgiPQoUUmVpbmRleFN0YXR1c1JlcXVlc3QSDgoGam9iX2lkGAEgASgJEhUKDWNvbnRyb2xfdG9rZW4YAiABKAkiZwoVUmVpbmRleFN0YXR1c1Jlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRINCgVzdGF0ZRgCIAEoCRIRCglwcm9jZXNzZWQYAyABKAUSDQoFdG90YWwYBCABKAUSDQoFZXJyb3IYBSABKAkiPQoUUmVpbmRleENhbmNlbFJlcXVlc3QSDgoGam9iX2lkGAEgASgJEhUKDWNvbnRyb2xfdG9rZW4YAiABKAkiOgoVUmVpbmRleENhbmNlbFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRIRCgljYW5jZWxsZWQYAiABKAgiiAEKEldyaXRlQ29uZmlnUmVxdWVzdBITCgtwcm92aWRlcl9pZBgBIAEoCRI1CgZ0dW5pbmcYAiABKAsyJS52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5UdW5pbmcSFQoNY29udHJvbF90b2tlbhgDIAEoCRIPCgdkcnlfcnVuGAQgASgIIpMBChNXcml0ZUNvbmZpZ1Jlc3BvbnNlEg8KB3dyaXR0ZW4YASABKAgSGQoRcmVpbmRleF90cmlnZ2VyZWQYAiABKAgSFgoOcmVpbmRleF9qb2JfaWQYAyABKAkSOAoJZWZmZWN0aXZlGAQgASgLMiUudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuVHVuaW5nIocBChJXcml0ZUNvcnB1c1JlcXVlc3QSEwoLcHJvdmlkZXJfaWQYASABKAkSNAoGY29ycHVzGAIgASgLMiQudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5FdmFsU3VpdGUSFQoNY29udHJvbF90b2tlbhgDIAEoCRIPCgdkcnlfcnVuGAQgASgIIl8KE1dyaXRlQ29ycHVzUmVzcG9uc2USDwoHd3JpdHRlbhgBIAEoCBI3CgllZmZlY3RpdmUYAiABKAsyJC52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkV2YWxTdWl0ZTLaBAoUU2VhcmNoQ29udHJvbFNlcnZpY2USZgoHUmVpbmRleBIsLnZyb29saS5zZWFyY2hfaHViLnYxLmNvbnRyb2wuUmVpbmRleFJlcXVlc3QaLS52cm9vbGkuc2VhcmNoX2h1Yi52MS5jb250cm9sLlJlaW5kZXhSZXNwb25zZRJ4Cg1SZWluZGV4U3RhdHVzEjIudnJvb2xpLnNlYXJjaF9odWIudjEuY29udHJvbC5SZWluZGV4U3RhdHVzUmVxdWVzdBozLnZyb29saS5zZWFyY2hfaHViLnYxLmNvbnRyb2wuUmVpbmRleFN0YXR1c1Jlc3BvbnNlEngKDVJlaW5kZXhDYW5jZWwSMi52cm9vbGkuc2VhcmNoX2h1Yi52MS5jb250cm9sLlJlaW5kZXhDYW5jZWxSZXF1ZXN0GjMudnJvb2xpLnNlYXJjaF9odWIudjEuY29udHJvbC5SZWluZGV4Q2FuY2VsUmVzcG9uc2UScgoLV3JpdGVDb25maWcSMC52cm9vbGkuc2VhcmNoX2h1Yi52MS5jb250cm9sLldyaXRlQ29uZmlnUmVxdWVzdBoxLnZyb29saS5zZWFyY2hfaHViLnYxLmNvbnRyb2wuV3JpdGVDb25maWdSZXNwb25zZRJyCgtXcml0ZUNvcnB1cxIwLnZyb29saS5zZWFyY2hfaHViLnYxLmNvbnRyb2wuV3JpdGVDb3JwdXNSZXF1ZXN0GjEudnJvb2xpLnNlYXJjaF9odWIudjEuY29udHJvbC5Xcml0ZUNvcnB1c1Jlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc2VhcmNoLWh1Yi92MS9jb250cm9sO2NvbnRyb2xfdjFiBnByb3RvMw", [file_search_hub_v1_registry_registry, file_search_hub_v1_eval_eval]);
 
 /**
  * ReindexRequest starts a reconcile job. `scope` is a provider-defined sub-scope
@@ -287,6 +289,80 @@ export const WriteConfigResponseSchema: GenMessage<WriteConfigResponse> = /*@__P
   messageDesc(file_search_hub_v1_control_control, 7);
 
 /**
+ * WriteCorpusRequest persists a new evaluation corpus (the sweep/generate result)
+ * into the provider's search.json `tests` block. The provider validates it before
+ * writing and rewrites ONLY that block, leaving the descriptor + tuning untouched.
+ *
+ * @generated from message vrooli.search_hub.v1.control.WriteCorpusRequest
+ */
+export type WriteCorpusRequest = Message<"vrooli.search_hub.v1.control.WriteCorpusRequest"> & {
+  /**
+   * The leaf whose corpus is being rewritten, e.g. "cli-health.commands".
+   *
+   * @generated from field: string provider_id = 1;
+   */
+  providerId: string;
+
+  /**
+   * The new corpus (full replacement of the `tests` block), carried as the eval
+   * domain's store/wire shape; the scenario converts it to its file shape.
+   *
+   * @generated from field: vrooli.search_hub.v1.eval.EvalSuite corpus = 2;
+   */
+  corpus?: EvalSuite | undefined;
+
+  /**
+   * Required: the provider's control token. Rejected on mismatch.
+   *
+   * @generated from field: string control_token = 3;
+   */
+  controlToken: string;
+
+  /**
+   * dry_run validates + diffs without writing.
+   *
+   * @generated from field: bool dry_run = 4;
+   */
+  dryRun: boolean;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.control.WriteCorpusRequest.
+ * Use `create(WriteCorpusRequestSchema)` to create a new message.
+ */
+export const WriteCorpusRequestSchema: GenMessage<WriteCorpusRequest> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_control_control, 8);
+
+/**
+ * WriteCorpusResponse reports what the write did.
+ *
+ * @generated from message vrooli.search_hub.v1.control.WriteCorpusResponse
+ */
+export type WriteCorpusResponse = Message<"vrooli.search_hub.v1.control.WriteCorpusResponse"> & {
+  /**
+   * false on dry_run or when the submitted corpus equals the current one.
+   *
+   * @generated from field: bool written = 1;
+   */
+  written: boolean;
+
+  /**
+   * The corpus now in effect after the write (echo for confirmation), as the
+   * eval store/wire shape — the optimizer re-registers this into the eval cache.
+   *
+   * @generated from field: vrooli.search_hub.v1.eval.EvalSuite effective = 2;
+   */
+  effective?: EvalSuite | undefined;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.control.WriteCorpusResponse.
+ * Use `create(WriteCorpusResponseSchema)` to create a new message.
+ */
+export const WriteCorpusResponseSchema: GenMessage<WriteCorpusResponse> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_control_control, 9);
+
+/**
  * @generated from service vrooli.search_hub.v1.control.SearchControlService
  */
 export const SearchControlService: GenService<{
@@ -330,6 +406,18 @@ export const SearchControlService: GenService<{
     methodKind: "unary";
     input: typeof WriteConfigRequestSchema;
     output: typeof WriteConfigResponseSchema;
+  },
+  /**
+   * Validate + persist a new evaluation corpus (the `tests` block) into the
+   * provider's search.json atomically. The scenario is the only writer of its
+   * own file; the corpus then re-registers so the eval store mirror re-syncs.
+   *
+   * @generated from rpc vrooli.search_hub.v1.control.SearchControlService.WriteCorpus
+   */
+  writeCorpus: {
+    methodKind: "unary";
+    input: typeof WriteCorpusRequestSchema;
+    output: typeof WriteCorpusResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_search_hub_v1_control_control, 0);

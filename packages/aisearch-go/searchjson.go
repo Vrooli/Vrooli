@@ -51,53 +51,86 @@ type ProviderConfig struct {
 
 	// Tuning is the factor values the adopter reads at boot and the sweep writes.
 	Tuning TuningConfig `json:"tuning"`
-	// Tests is the unified evaluation corpus (cases + negatives).
+	// Tests is the scenario's evaluation corpus — the SSOT for the suite that
+	// search-hub's eval store mirrors (see searchregister.RegisterCorpus).
 	Tests TestSuite `json:"tests"`
 }
 
-// TestSuite is the unified evaluation corpus. It collapses the two divergent
-// cli-health corpora — the recall@5 gate's full-path labels and the search-hub
-// eval suite's leaf ids + difficulty tags + a gibberish negative — into one
-// shape, so there is exactly one labelled corpus per provider.
+// TestSuite is a provider's evaluation corpus: the single source of truth that
+// search-hub's eval store mirrors. After unification it is a 1:1 shape of the
+// search-hub eval proto's EvalSuite (modulo the store-assigned provider_id /
+// created_at / updated_at / state), so searchregister-go converts it losslessly
+// and a scenario self-registers it at boot. There is exactly one labelled corpus
+// per provider and exactly one case list — negatives are cases, not a separate
+// array.
 type TestSuite struct {
-	// RecallAt / RecallTarget drive the scenario's per-build recall gate
-	// (REQ-P0-004 for cli-health). 0 means "use the harness default" (5 / 0.8).
-	RecallAt     int     `json:"recall_at,omitempty"`
-	RecallTarget float64 `json:"recall_target,omitempty"`
-	// Cases are the positive labelled queries; Negatives are queries that should
-	// return no strong hit (junk-rejection guards). The sweep optimizes against
-	// Cases and validates that Negatives stay rejected.
-	Cases     []TestCase `json:"cases"`
-	Negatives []TestCase `json:"negatives,omitempty"`
+	// SuiteID overrides the default suite id "<provider_id>.primary"; only the
+	// rare provider that owns more than one suite needs to set it.
+	SuiteID string `json:"suite_id,omitempty"`
+	// Name / Description are human-facing suite metadata mirrored into the store.
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	// Cases is the whole corpus — positive labelled queries AND negatives. A
+	// negative is just a case with ExpectNoStrongHit set; the sweep optimizes
+	// against the positives and validates that negatives stay rejected.
+	Cases []TestCase `json:"cases"`
 }
 
-// TestCase is one labelled query. ExpectedPaths (full command/doc paths) and
-// ExpectIDs (leaf ids) are alternative label shapes — a case may carry either or
-// both; a recall gate that compares full paths reads ExpectedPaths, a leaf-id
-// eval reads ExpectIDs. The Expect* score/rank fields are soft eval signals; a
-// negative case uses ExpectNoStrongHit / ExpectMaxScore.
+// TestCase is one labelled query in the canonical RANK-CENTRIC shape. A positive
+// asserts ExpectIDs (leaf ids per the provider's id_field) landing within
+// ExpectWithinTopK; a negative sets ExpectNoStrongHit (+ ExpectMaxScore). By
+// design a positive carries NO absolute ExpectMinScore: the sweep compares arms
+// across score regimes (dense cosine, cross-encoder, RRF-blend) where a shared
+// absolute band would mislabel a rank-correct hit as a miss. ExpectMinScore /
+// ExpectMaxScore stay available for a single-regime corpus but are not the
+// default. Provenance rides Tags ("generated" is the load-bearing marker the
+// sweep holds out of the tuning fold).
 type TestCase struct {
 	ID                string   `json:"id"`
 	Query             string   `json:"query"`
-	ExpectedPaths     []string `json:"expected_paths,omitempty"`
-	ExpectIDs         []string `json:"expect_ids,omitempty"`
 	Tags              []string `json:"tags,omitempty"`
+	ExpectIDs         []string `json:"expect_ids,omitempty"`
 	ExpectWithinTopK  int      `json:"expect_within_top_k,omitempty"`
 	ExpectMinScore    float64  `json:"expect_min_score,omitempty"`
 	ExpectMaxScore    float64  `json:"expect_max_score,omitempty"`
 	ExpectNoStrongHit bool     `json:"expect_no_strong_hit,omitempty"`
-	// Source marks provenance: "" / "curated" is the human-authored golden core;
-	// "generated" is a corpus-gen proposal the sweep holds out of tuning (overfit
-	// guard). The constants below name the two values.
-	Source string `json:"source,omitempty"`
-	Note   string `json:"note,omitempty"`
+	Note              string   `json:"note,omitempty"`
 }
 
-// Test-case provenance values (TestCase.Source).
-const (
-	SourceCurated   = "curated"
-	SourceGenerated = "generated"
-)
+// TagGenerated marks a machine-generated (corpus-gen) case. The sweep ALWAYS
+// holds these out of the tuning fold (overfit guard #2) — a tuning can never be
+// selected on cases a machine wrote for it.
+const TagGenerated = "generated"
+
+// SuiteID returns the suite's id, defaulting to "<providerID>.primary" when the
+// file does not set an explicit override.
+func (s TestSuite) ResolvedSuiteID(providerID string) string {
+	if strings.TrimSpace(s.SuiteID) != "" {
+		return s.SuiteID
+	}
+	return providerID + ".primary"
+}
+
+// Validate checks the corpus is well-formed enough to persist: every case has a
+// non-empty id + query and case ids are unique. It is intentionally light — the
+// corpus is rank-centric data, not typed config; deeper adequacy (count floor,
+// negatives, coverage) is search-hub's warn-level job, never a hard gate here.
+func (s TestSuite) Validate() error {
+	seen := make(map[string]bool, len(s.Cases))
+	for i, c := range s.Cases {
+		if strings.TrimSpace(c.ID) == "" {
+			return fmt.Errorf("tests.cases[%d]: id is required", i)
+		}
+		if strings.TrimSpace(c.Query) == "" {
+			return fmt.Errorf("tests.cases[%d] (%q): query is required", i, c.ID)
+		}
+		if seen[c.ID] {
+			return fmt.Errorf("tests.cases: duplicate id %q", c.ID)
+		}
+		seen[c.ID] = true
+	}
+	return nil
+}
 
 // ParseSearchFile parses search.json bytes and validates every provider's
 // tuning + structural invariants (version present, provider_ids present and

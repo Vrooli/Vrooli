@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.search_hub.v1.control;
 
 import "search-hub/v1/registry/registry.proto";
+import "search-hub/v1/eval/eval.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control;control_v1";
 
@@ -39,7 +40,18 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v
 // embed_model / embed_task_prefix). Query-time-only changes take effect without
 // a reindex.
 //
-// See docs/plans/search-self-tuning-system-*.md Phase 3/5.
+// WriteCorpus is the CORPUS write-back verb — the symmetric twin of WriteConfig
+// for the `tests` block. The optimizer (e.g. `evals generate --apply`) holds the
+// control token and calls WriteCorpus to persist a new corpus into the provider's
+// search.json atomically; the scenario remains the ONLY writer of its own file
+// (search-hub never touches a scenario's search.json directly). The corpus rides
+// the wire as the eval domain's EvalSuite so there is exactly one corpus shape on
+// the wire and in the store; the scenario converts it to its file shape. After
+// WriteCorpus the file is authoritative and the scenario re-registers the corpus,
+// so the store mirror re-syncs with no reverse drift (corpusStoreMirrorsFile).
+//
+// See docs/plans/search-self-tuning-system-*.md Phase 3/5 and
+// docs/plans/search-corpus-file-ssot-bidirectional-sync-*.md.
 // =============================================================================
 
 service SearchControlService {
@@ -52,6 +64,10 @@ service SearchControlService {
   // Validate + persist a new tuning block into the provider's search.json,
   // reindexing automatically if an index-time factor changed.
   rpc WriteConfig(WriteConfigRequest) returns (WriteConfigResponse);
+  // Validate + persist a new evaluation corpus (the `tests` block) into the
+  // provider's search.json atomically. The scenario is the only writer of its
+  // own file; the corpus then re-registers so the eval store mirror re-syncs.
+  rpc WriteCorpus(WriteCorpusRequest) returns (WriteCorpusResponse);
 }
 
 // ReindexRequest starts a reconcile job. `scope` is a provider-defined sub-scope
@@ -130,4 +146,28 @@ message WriteConfigResponse {
   string reindex_job_id = 3;
   // The tuning now in effect after the write (echo for confirmation).
   vrooli.search_hub.v1.registry.Tuning effective = 4;
+}
+
+// WriteCorpusRequest persists a new evaluation corpus (the sweep/generate result)
+// into the provider's search.json `tests` block. The provider validates it before
+// writing and rewrites ONLY that block, leaving the descriptor + tuning untouched.
+message WriteCorpusRequest {
+  // The leaf whose corpus is being rewritten, e.g. "cli-health.commands".
+  string provider_id = 1;
+  // The new corpus (full replacement of the `tests` block), carried as the eval
+  // domain's store/wire shape; the scenario converts it to its file shape.
+  vrooli.search_hub.v1.eval.EvalSuite corpus = 2;
+  // Required: the provider's control token. Rejected on mismatch.
+  string control_token = 3;
+  // dry_run validates + diffs without writing.
+  bool dry_run = 4;
+}
+
+// WriteCorpusResponse reports what the write did.
+message WriteCorpusResponse {
+  // false on dry_run or when the submitted corpus equals the current one.
+  bool written = 1;
+  // The corpus now in effect after the write (echo for confirmation), as the
+  // eval store/wire shape — the optimizer re-registers this into the eval cache.
+  vrooli.search_hub.v1.eval.EvalSuite effective = 2;
 }

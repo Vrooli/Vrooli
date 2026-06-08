@@ -1,4 +1,5 @@
 from search_hub.v1.registry import registry_pb2 as _registry_pb2
+from search_hub.v1.eval import eval_pb2 as _eval_pb2
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Mapping as _Mapping
@@ -89,3 +90,23 @@ class WriteConfigResponse(_message.Message):
     reindex_job_id: str
     effective: _registry_pb2.Tuning
     def __init__(self, written: _Optional[bool] = ..., reindex_triggered: _Optional[bool] = ..., reindex_job_id: _Optional[str] = ..., effective: _Optional[_Union[_registry_pb2.Tuning, _Mapping]] = ...) -> None: ...
+
+class WriteCorpusRequest(_message.Message):
+    __slots__ = ("provider_id", "corpus", "control_token", "dry_run")
+    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    CORPUS_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    provider_id: str
+    corpus: _eval_pb2.EvalSuite
+    control_token: str
+    dry_run: bool
+    def __init__(self, provider_id: _Optional[str] = ..., corpus: _Optional[_Union[_eval_pb2.EvalSuite, _Mapping]] = ..., control_token: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+
+class WriteCorpusResponse(_message.Message):
+    __slots__ = ("written", "effective")
+    WRITTEN_FIELD_NUMBER: _ClassVar[int]
+    EFFECTIVE_FIELD_NUMBER: _ClassVar[int]
+    written: bool
+    effective: _eval_pb2.EvalSuite
+    def __init__(self, written: _Optional[bool] = ..., effective: _Optional[_Union[_eval_pb2.EvalSuite, _Mapping]] = ...) -> None: ...

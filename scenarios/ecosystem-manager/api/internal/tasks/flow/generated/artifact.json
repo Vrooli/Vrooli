@@ -1,0 +1,946 @@
+{
+  "schemaVersion": 6,
+  "flowId": "tasks.lifecycle.api",
+  "source": {
+    "contractPath": "api/internal/tasks/flow/flow.json",
+    "contractSha256": "5ac261bc0259d3358a2456225f8e89c178f0091bea0583b33de5e0c32e6b4c0e",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/tasks/flow/generated/model.qnt",
+    "modelSha256": "b623074f99c5a282f1ff712b23f1f45c380f8267053b316e538a5059646799df",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "api/internal/tasks/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026060801",
+      "--max-samples",
+      "8",
+      "--n-traces",
+      "8",
+      "--max-steps",
+      "7",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "api/internal/tasks/flow/generated/model.qnt",
+      "--seed",
+      "2026060801"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "api/internal/tasks/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "api/internal/tasks/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "TerminalClosure",
+      "IllegalTransitionsPreserveState",
+      "FinalizeSuccessRequiresCompleted",
+      "FinalizeFailureRequiresFailed",
+      "--max-steps",
+      "7"
+    ]
+  },
+  "states": [
+    "pending",
+    "in_progress",
+    "completed",
+    "failed",
+    "completed_finalized",
+    "failed_blocked",
+    "archived"
+  ],
+  "events": [
+    "start",
+    "succeed",
+    "fail",
+    "requeue",
+    "finalize_success",
+    "finalize_failure",
+    "archive"
+  ],
+  "transitions": [
+    {
+      "from": "pending",
+      "event": "start",
+      "to": "in_progress",
+      "wantError": false
+    },
+    {
+      "from": "pending",
+      "event": "succeed",
+      "to": "pending",
+      "wantError": true
+    },
+    {
+      "from": "pending",
+      "event": "fail",
+      "to": "pending",
+      "wantError": true
+    },
+    {
+      "from": "pending",
+      "event": "requeue",
+      "to": "pending",
+      "wantError": true
+    },
+    {
+      "from": "pending",
+      "event": "finalize_success",
+      "to": "pending",
+      "wantError": true
+    },
+    {
+      "from": "pending",
+      "event": "finalize_failure",
+      "to": "pending",
+      "wantError": true
+    },
+    {
+      "from": "pending",
+      "event": "archive",
+      "to": "pending",
+      "wantError": true
+    },
+    {
+      "from": "in_progress",
+      "event": "start",
+      "to": "in_progress",
+      "wantError": true
+    },
+    {
+      "from": "in_progress",
+      "event": "succeed",
+      "to": "completed",
+      "wantError": false
+    },
+    {
+      "from": "in_progress",
+      "event": "fail",
+      "to": "failed",
+      "wantError": false
+    },
+    {
+      "from": "in_progress",
+      "event": "requeue",
+      "to": "pending",
+      "wantError": false
+    },
+    {
+      "from": "in_progress",
+      "event": "finalize_success",
+      "to": "in_progress",
+      "wantError": true
+    },
+    {
+      "from": "in_progress",
+      "event": "finalize_failure",
+      "to": "in_progress",
+      "wantError": true
+    },
+    {
+      "from": "in_progress",
+      "event": "archive",
+      "to": "in_progress",
+      "wantError": true
+    },
+    {
+      "from": "completed",
+      "event": "start",
+      "to": "completed",
+      "wantError": true
+    },
+    {
+      "from": "completed",
+      "event": "succeed",
+      "to": "completed",
+      "wantError": true
+    },
+    {
+      "from": "completed",
+      "event": "fail",
+      "to": "completed",
+      "wantError": true
+    },
+    {
+      "from": "completed",
+      "event": "requeue",
+      "to": "pending",
+      "wantError": false
+    },
+    {
+      "from": "completed",
+      "event": "finalize_success",
+      "to": "completed_finalized",
+      "wantError": false
+    },
+    {
+      "from": "completed",
+      "event": "finalize_failure",
+      "to": "completed",
+      "wantError": true
+    },
+    {
+      "from": "completed",
+      "event": "archive",
+      "to": "archived",
+      "wantError": false
+    },
+    {
+      "from": "failed",
+      "event": "start",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "succeed",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "fail",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "requeue",
+      "to": "pending",
+      "wantError": false
+    },
+    {
+      "from": "failed",
+      "event": "finalize_success",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "finalize_failure",
+      "to": "failed_blocked",
+      "wantError": false
+    },
+    {
+      "from": "failed",
+      "event": "archive",
+      "to": "archived",
+      "wantError": false
+    },
+    {
+      "from": "completed_finalized",
+      "event": "start",
+      "to": "completed_finalized",
+      "wantError": true
+    },
+    {
+      "from": "completed_finalized",
+      "event": "succeed",
+      "to": "completed_finalized",
+      "wantError": true
+    },
+    {
+      "from": "completed_finalized",
+      "event": "fail",
+      "to": "completed_finalized",
+      "wantError": true
+    },
+    {
+      "from": "completed_finalized",
+      "event": "requeue",
+      "to": "completed_finalized",
+      "wantError": true
+    },
+    {
+      "from": "completed_finalized",
+      "event": "finalize_success",
+      "to": "completed_finalized",
+      "wantError": true
+    },
+    {
+      "from": "completed_finalized",
+      "event": "finalize_failure",
+      "to": "completed_finalized",
+      "wantError": true
+    },
+    {
+      "from": "completed_finalized",
+      "event": "archive",
+      "to": "completed_finalized",
+      "wantError": true
+    },
+    {
+      "from": "failed_blocked",
+      "event": "start",
+      "to": "failed_blocked",
+      "wantError": true
+    },
+    {
+      "from": "failed_blocked",
+      "event": "succeed",
+      "to": "failed_blocked",
+      "wantError": true
+    },
+    {
+      "from": "failed_blocked",
+      "event": "fail",
+      "to": "failed_blocked",
+      "wantError": true
+    },
+    {
+      "from": "failed_blocked",
+      "event": "requeue",
+      "to": "failed_blocked",
+      "wantError": true
+    },
+    {
+      "from": "failed_blocked",
+      "event": "finalize_success",
+      "to": "failed_blocked",
+      "wantError": true
+    },
+    {
+      "from": "failed_blocked",
+      "event": "finalize_failure",
+      "to": "failed_blocked",
+      "wantError": true
+    },
+    {
+      "from": "failed_blocked",
+      "event": "archive",
+      "to": "failed_blocked",
+      "wantError": true
+    },
+    {
+      "from": "archived",
+      "event": "start",
+      "to": "archived",
+      "wantError": true
+    },
+    {
+      "from": "archived",
+      "event": "succeed",
+      "to": "archived",
+      "wantError": true
+    },
+    {
+      "from": "archived",
+      "event": "fail",
+      "to": "archived",
+      "wantError": true
+    },
+    {
+      "from": "archived",
+      "event": "requeue",
+      "to": "archived",
+      "wantError": true
+    },
+    {
+      "from": "archived",
+      "event": "finalize_success",
+      "to": "archived",
+      "wantError": true
+    },
+    {
+      "from": "archived",
+      "event": "finalize_failure",
+      "to": "archived",
+      "wantError": true
+    },
+    {
+      "from": "archived",
+      "event": "archive",
+      "to": "archived",
+      "wantError": true
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "happy_completion",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "start",
+          "want": "in_progress",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "completed",
+          "wantError": false
+        },
+        {
+          "event": "finalize_success",
+          "want": "completed_finalized",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "failure_block",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "start",
+          "want": "in_progress",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "finalize_failure",
+          "want": "failed_blocked",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "requeue_from_progress",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "start",
+          "want": "in_progress",
+          "wantError": false
+        },
+        {
+          "event": "requeue",
+          "want": "pending",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "recycle_from_completed",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "start",
+          "want": "in_progress",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "completed",
+          "wantError": false
+        },
+        {
+          "event": "requeue",
+          "want": "pending",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "terminal_rejects_event",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "start",
+          "want": "in_progress",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "completed",
+          "wantError": false
+        },
+        {
+          "event": "finalize_success",
+          "want": "completed_finalized",
+          "wantError": false
+        },
+        {
+          "event": "start",
+          "want": "completed_finalized",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "illegal_finalize_from_pending",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "finalize_success",
+          "want": "pending",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "archive_completed",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "start",
+          "want": "in_progress",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "completed",
+          "wantError": false
+        },
+        {
+          "event": "archive",
+          "want": "archived",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "archive_failed",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "start",
+          "want": "in_progress",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "archive",
+          "want": "archived",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "archive",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "requeue",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "finalize_failure",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "finalize_success",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "pending",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "finalize_failure",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "finalize_failure",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "start",
+          "want": "in_progress",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "start",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "archive",
+          "want": "archived",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "archived",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "succeed",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "finalize_success",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "requeue",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "start",
+          "want": "in_progress",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "archive",
+          "want": "archived",
+          "wantError": false
+        },
+        {
+          "event": "start",
+          "want": "archived",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "finalize_failure",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "requeue",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "start",
+          "want": "in_progress",
+          "wantError": false
+        },
+        {
+          "event": "requeue",
+          "want": "pending",
+          "wantError": false
+        },
+        {
+          "event": "finalize_success",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "finalize_success",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "archive",
+          "want": "pending",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "archive",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "finalize_failure",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "pending",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "succeed",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "finalize_failure",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "start",
+          "want": "in_progress",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "completed",
+          "wantError": false
+        },
+        {
+          "event": "start",
+          "want": "completed",
+          "wantError": true
+        },
+        {
+          "event": "requeue",
+          "want": "pending",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_007",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "fail",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "start",
+          "want": "in_progress",
+          "wantError": false
+        },
+        {
+          "event": "archive",
+          "want": "in_progress",
+          "wantError": true
+        },
+        {
+          "event": "finalize_success",
+          "want": "in_progress",
+          "wantError": true
+        },
+        {
+          "event": "requeue",
+          "want": "pending",
+          "wantError": false
+        },
+        {
+          "event": "finalize_failure",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "archive",
+          "want": "pending",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_008",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "finalize_failure",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "finalize_failure",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "archive",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "requeue",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "finalize_failure",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "pending",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "TerminalClosure",
+    "IllegalTransitionsPreserveState",
+    "FinalizeSuccessRequiresCompleted",
+    "FinalizeFailureRequiresFailed"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "pending",
+        "in_progress",
+        "completed",
+        "failed",
+        "completed_finalized",
+        "failed_blocked",
+        "archived"
+      ],
+      "coveredEvents": [
+        "start",
+        "succeed",
+        "fail",
+        "requeue",
+        "finalize_success",
+        "finalize_failure",
+        "archive"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": false,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "pending",
+        "in_progress",
+        "completed",
+        "failed",
+        "archived"
+      ],
+      "coveredEvents": [
+        "start",
+        "succeed",
+        "fail",
+        "requeue",
+        "finalize_success",
+        "finalize_failure",
+        "archive"
+      ],
+      "coveredPairs": [
+        "pending/start",
+        "pending/succeed",
+        "pending/fail",
+        "pending/requeue",
+        "pending/finalize_success",
+        "pending/finalize_failure",
+        "pending/archive",
+        "in_progress/succeed",
+        "in_progress/fail",
+        "in_progress/requeue",
+        "in_progress/finalize_success",
+        "in_progress/archive",
+        "completed/start",
+        "completed/requeue",
+        "failed/start",
+        "failed/archive",
+        "archived/start",
+        "archived/succeed"
+      ],
+      "allPairsCovered": false
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

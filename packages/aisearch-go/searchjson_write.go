@@ -79,6 +79,59 @@ func WriteProviderTuning(path, id string, tuning TuningConfig, dryRun bool) (eff
 	return effective, indexTimeChanged, true, nil
 }
 
+// WriteProviderCorpus persists suite as the new `tests` block of provider id in
+// the search.json at path — the corpus twin of WriteProviderTuning. It loads +
+// validates the file, validates the incoming corpus, and (unless dryRun) atomically
+// rewrites the file with ONLY the tests block changed (the descriptor and tuning
+// round-trip verbatim). This is the persistence primitive behind the WriteCorpus
+// control RPC and is also how `evals generate --apply` reaches the SSOT.
+//
+// Returns:
+//   - effective: the corpus now in effect; on dryRun or a no-op this is the
+//     submitted / current corpus respectively.
+//   - written: true only when the file was actually rewritten — false on dryRun and
+//     false when the submitted corpus equals the current one (mirrors the
+//     WriteCorpusResponse.written contract).
+//
+// The provider must already exist in the file (corpus-write replaces a tests block;
+// it never creates a provider). An absent provider is ErrProviderNotInFile.
+func WriteProviderCorpus(path, id string, suite TestSuite, dryRun bool) (effective TestSuite, written bool, err error) {
+	file, err := LoadSearchFile(path)
+	if err != nil {
+		return TestSuite{}, false, err
+	}
+
+	idx := -1
+	for i := range file.Providers {
+		if file.Providers[i].ProviderID == id {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return TestSuite{}, false, ErrProviderNotInFile{ProviderID: id, Path: path}
+	}
+
+	if vErr := suite.Validate(); vErr != nil {
+		return TestSuite{}, false, fmt.Errorf("search.json: provider %q: %w", id, vErr)
+	}
+
+	current := file.Providers[idx].Tests
+	// A no-op (equal corpus) or a dry run never touches the file.
+	if dryRun || reflect.DeepEqual(suite, current) {
+		if reflect.DeepEqual(suite, current) {
+			return current, false, nil
+		}
+		return suite, false, nil
+	}
+
+	file.Providers[idx].Tests = suite
+	if wErr := writeSearchFileAtomic(path, file); wErr != nil {
+		return TestSuite{}, false, wErr
+	}
+	return suite, true, nil
+}
+
 // writeSearchFileAtomic serializes the whole search.json and replaces the file at
 // path atomically (write a sibling temp file, fsync, rename). Rewriting the whole
 // document (rather than splicing the tuning block) keeps the output deterministic;

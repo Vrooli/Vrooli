@@ -185,12 +185,15 @@ func main() {
 	// SSOT, not toggled by an env var.
 	controlGate := &searchcontrolH.Gate{Token: controlToken.Get}
 
-	// Self-register this scenario's search provider(s) with search-hub from the
-	// same `.vrooli/search.json` SSOT. search-hub is an OPTIONAL dependency, so
-	// this runs in the background with bounded retry and degrades gracefully —
-	// the scenario serves search whether or not the hub is up. The registry is an
-	// idempotent upsert, so re-registering on every boot is safe. The returned
-	// control token is cached so the override gate above can validate it.
+	// Self-register this scenario's search provider(s) AND their evaluation corpus
+	// with search-hub from the same `.vrooli/search.json` SSOT: the descriptor goes
+	// to the registry, the tests block is mirrored into the eval store as
+	// "<provider_id>.primary" (corpusStoreMirrorsFile — the store is a cache of the
+	// file, healed on every boot). search-hub is an OPTIONAL dependency, so this
+	// runs in the background with bounded retry and degrades gracefully — the
+	// scenario serves search whether or not the hub is up. Both upserts are
+	// idempotent, so re-registering on every boot is safe. The returned control
+	// token is cached so the override gate above can validate it.
 	go searchregister.Register(syncCtx, searchregister.Config{
 		ScenarioID:     "cli-health",
 		SearchFilePath: searchJSONPath,
@@ -207,6 +210,7 @@ func main() {
 			Logger:       logger,
 			Reindexer:    searchcontrolH.ServiceAdapter{Service: aiService},
 			ConfigWriter: searchcontrolH.FileConfigWriter{Path: searchJSONPath},
+			CorpusWriter: searchcontrolH.FileCorpusWriter{Path: searchJSONPath},
 			Gate:         controlGate,
 		}),
 	)

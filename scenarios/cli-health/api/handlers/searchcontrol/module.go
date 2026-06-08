@@ -167,4 +167,36 @@ var Endpoints = []module.EndpointDescriptor{
 			{Name: "Write config (dry-run)", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/WriteConfig -H 'Content-Type: application/json' -d '{\"provider_id\":\"cli-health.commands\",\"dry_run\":true,\"control_token\":\"<token>\",\"tuning\":{\"engine\":\"dense\"}}'"},
 		},
 	},
+	{
+		ID:          "searchcontrol_write_corpus",
+		Path:        controlconnect.SearchControlServiceWriteCorpusProcedure,
+		Method:      "POST",
+		Summary:     "Write an evaluation corpus back to search.json (token-gated)",
+		Description: "Validates a new evaluation corpus (the tests block, carried as an eval EvalSuite) and atomically rewrites ONLY that block in the provider's search.json — the corpus twin of WriteConfig. The search-hub optimizer's corpus write-back verb (e.g. `evals generate --apply`); not an interactive operator command. Never triggers a reindex.",
+		Category:    "searchcontrol",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"provider_id":   "string (required; the leaf whose corpus is rewritten)",
+				"corpus":        "object (full replacement tests block, as an eval EvalSuite)",
+				"dry_run":       "boolean (validate + diff without writing)",
+				"control_token": "string (required)",
+			},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"written":   "boolean",
+				"effective": "object (corpus now in effect, as an eval EvalSuite)",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing provider_id or a malformed corpus (case missing id/query, duplicate id)"},
+			{Status: 403, Code: "permission_denied", Description: "Control plane disabled or control token mismatch"},
+			{Status: 404, Code: "not_found", Description: "provider_id not present in search.json"},
+		},
+		Examples: []module.Example{
+			{Name: "Write corpus (dry-run)", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/WriteCorpus -H 'Content-Type: application/json' -d '{\"provider_id\":\"cli-health.commands\",\"dry_run\":true,\"control_token\":\"<token>\",\"corpus\":{\"suite_id\":\"cli-health.commands.primary\",\"cases\":[]}}'"},
+		},
+	},
 }

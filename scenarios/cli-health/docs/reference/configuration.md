@@ -173,7 +173,7 @@ are gone; the schema + per-knob dashboard live in the engine package
 | Engine | `dense` | terse 1-line commands embed well; no sparse leg needed. |
 | `embed_task_prefix` | `true` | nomic `search_query:`/`search_document:` — +0.20 recall@5 on this corpus. |
 | `rerank_enabled` + `rerank_blend` | `true` + `true` | the cross-encoder collapses gibberish to ~0 (junk rejection); RRF blend keeps canonical hits from being buried. |
-| Recall gate | `recall_at: 5`, `recall_target: 0.8` | drives the per-build REQ-P0-004 gate. |
+| Recall gate | `recallGateK = 5`, `recallGateTarget = 0.8` (test constants) | the per-build REQ-P0-004 gate grades `expect_ids` within top-K; K and the bar are gate policy in `recall_test.go`, not corpus fields. |
 
 This is the measured-best `aisearch.CommandCorpusTuning()` preset (recall@5
 `0.50 → 0.70`). At boot, `main.go` reads the `tuning` block and wires the engine

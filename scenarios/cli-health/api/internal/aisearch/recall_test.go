@@ -18,8 +18,10 @@ import (
 // scenarios/cli-health/.vrooli/search.json (provider "cli-health.commands",
 // tests.cases). It mirrors the KO docs accuracy harness — a thin per-build smoke
 // gate, NOT a second eval system (the search-hub eval domain owns A/B tuning).
-// Only gradeable cases (those carrying expected_paths) count toward recall;
-// soft eval cases (weak-real, score-asserted) and negatives are skipped here.
+// The corpus is RANK-CENTRIC: a positive case asserts expect_ids (LEAF command
+// name) landing within the gate's top-K; negatives (expect_no_strong_hit) and any
+// unlabelled case are skipped from the recall denominator. K and the pass bar are
+// gate POLICY — package constants here, not corpus fields.
 //
 // Live-gated (needs ollama + qdrant + a populated index):
 //
@@ -28,19 +30,27 @@ import (
 // Optional env: QDRANT_URL, QDRANT_API_KEY, CLI_HEALTH_SEARCH_FILE (search.json
 // override), CLI_HEALTH_REPO_ROOT (discovery repo root).
 //
-// On a miss the harness prints the actual top FullPaths so the FIRST live run is
-// a calibration pass: fix any expected_paths that differ from what discovery
-// emits, then the gate is meaningful.
+// On a miss the harness prints the actual top leaf names so the FIRST live run is
+// a calibration pass: fix any expect_ids that differ from what discovery emits,
+// then the gate is meaningful.
 
 // recallGateCollection is a dedicated, self-contained collection the gate
 // rebuilds each run so it never depends on a warm/stale prod index or disturbs
 // the live cli-health-commands collection.
 const recallGateCollection = "cli-health-commands-recall-gate"
 
+// Gate policy (NOT corpus fields): recall@recallGateK over the positive cases must
+// reach recallGateTarget. The corpus stays rank-centric and regime-agnostic; the
+// per-build bar lives here.
+const (
+	recallGateK      = 5
+	recallGateTarget = 0.8
+)
+
 type commandCase struct {
-	ID            string
-	Query         string
-	ExpectedPaths []string
+	ID        string
+	Query     string
+	ExpectIDs []string
 }
 
 type commandScoring struct {
@@ -80,35 +90,30 @@ func commandsTuning(t *testing.T, _ string) pkg.TuningConfig {
 }
 
 // loadCommandCorpus reads the gate corpus from the scenario-owned search.json
-// SSOT (provider "cli-health.commands", tests block) and keeps only the gradeable
-// cases — those carrying expected_paths. Soft eval cases (no full-path label) and
-// negatives are intentionally excluded from the recall denominator.
+// SSOT (provider "cli-health.commands", tests block) and keeps only the positive,
+// labelled cases — those carrying expect_ids and not marked expect_no_strong_hit.
+// Negatives and any unlabelled case are excluded from the recall denominator. The
+// scoring (K + target) is fixed gate policy, not read from the file.
 func loadCommandCorpus(t *testing.T) commandCorpus {
 	t.Helper()
 	suite := searchProvider(t).Tests
-	c := commandCorpus{Scoring: commandScoring{RecallAt: suite.RecallAt, RecallTarget: suite.RecallTarget}}
+	c := commandCorpus{Scoring: commandScoring{RecallAt: recallGateK, RecallTarget: recallGateTarget}}
 	for _, tc := range suite.Cases {
-		if len(tc.ExpectedPaths) == 0 {
-			continue // soft eval case — not gradeable for recall
+		if len(tc.ExpectIDs) == 0 || tc.ExpectNoStrongHit {
+			continue // negative or unlabelled — not a positive recall case
 		}
-		c.Cases = append(c.Cases, commandCase{ID: tc.ID, Query: tc.Query, ExpectedPaths: tc.ExpectedPaths})
+		c.Cases = append(c.Cases, commandCase{ID: tc.ID, Query: tc.Query, ExpectIDs: tc.ExpectIDs})
 	}
 	if len(c.Cases) == 0 {
-		t.Fatal("corpus has no gradeable cases")
-	}
-	if c.Scoring.RecallAt == 0 {
-		c.Scoring.RecallAt = 5
-	}
-	if c.Scoring.RecallTarget == 0 {
-		c.Scoring.RecallTarget = 0.8
+		t.Fatal("corpus has no gradeable positive cases")
 	}
 	return c
 }
 
 // TestSearchSSOTWellFormed is a non-live per-build guard: the scenario-owned
 // search.json SSOT must parse, expose the cli-health.commands provider with the
-// measured-best command tuning, and carry a non-empty gradeable corpus + at least
-// one negative. It catches an SSOT regression without needing ollama/qdrant.
+// measured-best command tuning, and carry a non-empty positive corpus + at least
+// one negative case. It catches an SSOT regression without needing ollama/qdrant.
 func TestSearchSSOTWellFormed(t *testing.T) {
 	provider := searchProvider(t)
 	tuning := provider.ResolvedTuning()
@@ -117,13 +122,19 @@ func TestSearchSSOTWellFormed(t *testing.T) {
 	}
 	corpus := loadCommandCorpus(t)
 	if len(corpus.Cases) == 0 {
-		t.Fatal("no gradeable cases in the SSOT")
+		t.Fatal("no gradeable positive cases in the SSOT")
 	}
-	if len(provider.Tests.Negatives) == 0 {
-		t.Error("SSOT has no negatives (junk-rejection guard missing)")
+	negatives := 0
+	for _, tc := range provider.Tests.Cases {
+		if tc.ExpectNoStrongHit {
+			negatives++
+		}
+	}
+	if negatives == 0 {
+		t.Error("SSOT has no negative cases (junk-rejection guard missing)")
 	}
 	for _, c := range corpus.Cases {
-		if c.Query == "" || len(c.ExpectedPaths) == 0 {
+		if c.Query == "" || len(c.ExpectIDs) == 0 {
 			t.Errorf("gradeable case %q is malformed: %+v", c.ID, c)
 		}
 	}
@@ -209,9 +220,9 @@ func TestCommandRecall(t *testing.T) {
 		if err != nil {
 			t.Fatalf("search %q: %v", c.ID, err)
 		}
-		want := make(map[string]bool, len(c.ExpectedPaths))
-		for _, p := range c.ExpectedPaths {
-			want[normPath(p)] = true
+		want := make(map[string]bool, len(c.ExpectIDs))
+		for _, id := range c.ExpectIDs {
+			want[normPath(id)] = true
 		}
 		got := make([]string, 0, len(resp.Results))
 		found := false
@@ -219,8 +230,8 @@ func TestCommandRecall(t *testing.T) {
 			if i >= k {
 				break
 			}
-			got = append(got, h.FullPath)
-			if want[normPath(h.FullPath)] {
+			got = append(got, h.Name)
+			if want[normPath(h.Name)] {
 				found = true
 			}
 		}
@@ -228,7 +239,7 @@ func TestCommandRecall(t *testing.T) {
 			hits++
 		} else {
 			t.Logf("MISS %s (%q): expected one of %v; got top-%d %v",
-				c.ID, c.Query, c.ExpectedPaths, k, got)
+				c.ID, c.Query, c.ExpectIDs, k, got)
 		}
 	}
 

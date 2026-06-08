@@ -170,9 +170,9 @@ func measureRecall(ctx context.Context, t *testing.T, svc *Service, corpus comma
 		if err != nil {
 			t.Fatalf("search %q: %v", c.ID, err)
 		}
-		want := make(map[string]bool, len(c.ExpectedPaths))
-		for _, p := range c.ExpectedPaths {
-			want[normPath(p)] = true
+		want := make(map[string]bool, len(c.ExpectIDs))
+		for _, id := range c.ExpectIDs {
+			want[normPath(id)] = true
 		}
 		got := make([]string, 0, len(resp.Results))
 		found := false
@@ -180,15 +180,15 @@ func measureRecall(ctx context.Context, t *testing.T, svc *Service, corpus comma
 			if i >= k {
 				break
 			}
-			got = append(got, h.FullPath)
-			if want[normPath(h.FullPath)] {
+			got = append(got, h.Name)
+			if want[normPath(h.Name)] {
 				found = true
 			}
 		}
 		if found {
 			hits++
 		} else {
-			misses = append(misses, fmt.Sprintf("%s (%q): want %v; got %v", c.ID, c.Query, c.ExpectedPaths, got))
+			misses = append(misses, fmt.Sprintf("%s (%q): want %v; got %v", c.ID, c.Query, c.ExpectIDs, got))
 		}
 	}
 	sort.Strings(misses)

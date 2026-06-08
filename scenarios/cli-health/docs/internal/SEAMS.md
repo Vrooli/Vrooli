@@ -468,6 +468,32 @@ The CI drift check (`make endpoints && git diff --exit-code
 .vrooli/endpoints.json`) fails the build if step 4 was skipped, with
 an actionable diff showing exactly which entries diverged.
 
+## Invariants — search corpus SSOT (Tier-2, cross-cutting)
+
+These hold across every state transition of the command-search corpus. Each is
+tagged at its enforcement site with `// INVARIANT: <name>` and backed by a test.
+
+1. **`corpusStoreMirrorsFile`.** search-hub's eval store suite for
+   `cli-health.commands` is a MIRROR of the `tests` block in
+   `scenarios/cli-health/.vrooli/search.json` (the SSOT). Boot self-registration
+   (`searchregister.Register` → `registerCorpus`) re-registers it on every boot —
+   an idempotent upsert keyed by `suite_id` — so a manual file edit self-heals on
+   the scenario's next restart. The store is never an independent authority.
+   *Enforced:* `packages/searchregister-go/register.go` (registerCorpus);
+   `register_test.go` (`TestRegisterMirrorsCorpus`).
+2. **`corpusRoundTripsLossless`.** `SuiteFromProto(SuiteToProto(pid, ts)) == ts`
+   for the file corpus — the file ⟷ store conversion never mutates the corpus.
+   *Enforced:* `packages/searchregister-go/corpus.go`; `corpus_test.go`; and on the
+   real committed corpus by `internal/aisearch/corpus_roundtrip_test.go`.
+3. **`onlyScenarioWritesItsFile`.** search-hub never writes a scenario's
+   `search.json` directly; every corpus write-back arrives through the token-gated
+   `WriteCorpus` control RPC and lands in this scenario's own process
+   (`FileCorpusWriter`). *Enforced:* `api/handlers/searchcontrol/connect_handler.go`.
+4. **Recall gate ↔ production cannot drift.** The REQ-P0-004 recall gate reads its
+   corpus AND builds its engine tuning from the same `search.json` SSOT; K and the
+   pass bar are gate-policy constants in the test, not corpus fields.
+   *Enforced:* `internal/aisearch/recall_test.go`.
+
 ## Cross-references
 
 - Test fakes lifecycle and naming convention: [`docs/internal/TESTING.md`](TESTING.md).

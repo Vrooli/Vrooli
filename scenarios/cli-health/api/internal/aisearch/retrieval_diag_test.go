@@ -93,7 +93,7 @@ func TestRetrievalRankDiagnostic(t *testing.T) {
 	}()
 
 	const probe = 100
-	// rawRank returns the 0-based rank of the first wanted full_path in the raw
+	// rawRank returns the 0-based rank of the first wanted leaf name in the raw
 	// vector results, or -1 if not in the top `probe`.
 	rawRank := func(ix idx, query string, want map[string]bool, hybrid bool) int {
 		var dense []float64
@@ -118,8 +118,8 @@ func TestRetrievalRankDiagnostic(t *testing.T) {
 			t.Fatalf("query: %v", err)
 		}
 		for i, r := range raw {
-			fp, _ := r.Payload["full_path"].(string)
-			if want[normPath(fp)] {
+			leaf, _ := r.Payload["name"].(string)
+			if want[normPath(leaf)] {
 				return i
 			}
 		}
@@ -136,9 +136,9 @@ func TestRetrievalRankDiagnostic(t *testing.T) {
 	t.Log("RAW RETRIEVAL RANK of canonical command (0-based; >100 = not retrieved)")
 	t.Logf("%-20s | %5s | %5s | %7s | %7s", "query", "A", "B", "C-hyb", "C-dense")
 	for _, c := range corpus.Cases {
-		want := make(map[string]bool, len(c.ExpectedPaths))
-		for _, p := range c.ExpectedPaths {
-			want[normPath(p)] = true
+		want := make(map[string]bool, len(c.ExpectIDs))
+		for _, id := range c.ExpectIDs {
+			want[normPath(id)] = true
 		}
 		ra := rawRank(indices[0], c.Query, want, false)
 		rb := rawRank(indices[1], c.Query, want, false)

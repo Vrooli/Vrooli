@@ -45,6 +45,9 @@ const (
 	// SearchControlServiceWriteConfigProcedure is the fully-qualified name of the
 	// SearchControlService's WriteConfig RPC.
 	SearchControlServiceWriteConfigProcedure = "/vrooli.search_hub.v1.control.SearchControlService/WriteConfig"
+	// SearchControlServiceWriteCorpusProcedure is the fully-qualified name of the
+	// SearchControlService's WriteCorpus RPC.
+	SearchControlServiceWriteCorpusProcedure = "/vrooli.search_hub.v1.control.SearchControlService/WriteCorpus"
 )
 
 // SearchControlServiceClient is a client for the vrooli.search_hub.v1.control.SearchControlService
@@ -59,6 +62,10 @@ type SearchControlServiceClient interface {
 	// Validate + persist a new tuning block into the provider's search.json,
 	// reindexing automatically if an index-time factor changed.
 	WriteConfig(context.Context, *connect.Request[control.WriteConfigRequest]) (*connect.Response[control.WriteConfigResponse], error)
+	// Validate + persist a new evaluation corpus (the `tests` block) into the
+	// provider's search.json atomically. The scenario is the only writer of its
+	// own file; the corpus then re-registers so the eval store mirror re-syncs.
+	WriteCorpus(context.Context, *connect.Request[control.WriteCorpusRequest]) (*connect.Response[control.WriteCorpusResponse], error)
 }
 
 // NewSearchControlServiceClient constructs a client for the
@@ -97,6 +104,12 @@ func NewSearchControlServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(searchControlServiceMethods.ByName("WriteConfig")),
 			connect.WithClientOptions(opts...),
 		),
+		writeCorpus: connect.NewClient[control.WriteCorpusRequest, control.WriteCorpusResponse](
+			httpClient,
+			baseURL+SearchControlServiceWriteCorpusProcedure,
+			connect.WithSchema(searchControlServiceMethods.ByName("WriteCorpus")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -106,6 +119,7 @@ type searchControlServiceClient struct {
 	reindexStatus *connect.Client[control.ReindexStatusRequest, control.ReindexStatusResponse]
 	reindexCancel *connect.Client[control.ReindexCancelRequest, control.ReindexCancelResponse]
 	writeConfig   *connect.Client[control.WriteConfigRequest, control.WriteConfigResponse]
+	writeCorpus   *connect.Client[control.WriteCorpusRequest, control.WriteCorpusResponse]
 }
 
 // Reindex calls vrooli.search_hub.v1.control.SearchControlService.Reindex.
@@ -128,6 +142,11 @@ func (c *searchControlServiceClient) WriteConfig(ctx context.Context, req *conne
 	return c.writeConfig.CallUnary(ctx, req)
 }
 
+// WriteCorpus calls vrooli.search_hub.v1.control.SearchControlService.WriteCorpus.
+func (c *searchControlServiceClient) WriteCorpus(ctx context.Context, req *connect.Request[control.WriteCorpusRequest]) (*connect.Response[control.WriteCorpusResponse], error) {
+	return c.writeCorpus.CallUnary(ctx, req)
+}
+
 // SearchControlServiceHandler is an implementation of the
 // vrooli.search_hub.v1.control.SearchControlService service.
 type SearchControlServiceHandler interface {
@@ -140,6 +159,10 @@ type SearchControlServiceHandler interface {
 	// Validate + persist a new tuning block into the provider's search.json,
 	// reindexing automatically if an index-time factor changed.
 	WriteConfig(context.Context, *connect.Request[control.WriteConfigRequest]) (*connect.Response[control.WriteConfigResponse], error)
+	// Validate + persist a new evaluation corpus (the `tests` block) into the
+	// provider's search.json atomically. The scenario is the only writer of its
+	// own file; the corpus then re-registers so the eval store mirror re-syncs.
+	WriteCorpus(context.Context, *connect.Request[control.WriteCorpusRequest]) (*connect.Response[control.WriteCorpusResponse], error)
 }
 
 // NewSearchControlServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -173,6 +196,12 @@ func NewSearchControlServiceHandler(svc SearchControlServiceHandler, opts ...con
 		connect.WithSchema(searchControlServiceMethods.ByName("WriteConfig")),
 		connect.WithHandlerOptions(opts...),
 	)
+	searchControlServiceWriteCorpusHandler := connect.NewUnaryHandler(
+		SearchControlServiceWriteCorpusProcedure,
+		svc.WriteCorpus,
+		connect.WithSchema(searchControlServiceMethods.ByName("WriteCorpus")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.search_hub.v1.control.SearchControlService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SearchControlServiceReindexProcedure:
@@ -183,6 +212,8 @@ func NewSearchControlServiceHandler(svc SearchControlServiceHandler, opts ...con
 			searchControlServiceReindexCancelHandler.ServeHTTP(w, r)
 		case SearchControlServiceWriteConfigProcedure:
 			searchControlServiceWriteConfigHandler.ServeHTTP(w, r)
+		case SearchControlServiceWriteCorpusProcedure:
+			searchControlServiceWriteCorpusHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -206,4 +237,8 @@ func (UnimplementedSearchControlServiceHandler) ReindexCancel(context.Context, *
 
 func (UnimplementedSearchControlServiceHandler) WriteConfig(context.Context, *connect.Request[control.WriteConfigRequest]) (*connect.Response[control.WriteConfigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.control.SearchControlService.WriteConfig is not implemented"))
+}
+
+func (UnimplementedSearchControlServiceHandler) WriteCorpus(context.Context, *connect.Request[control.WriteCorpusRequest]) (*connect.Response[control.WriteCorpusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.control.SearchControlService.WriteCorpus is not implemented"))
 }

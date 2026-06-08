@@ -58,6 +58,17 @@ type ConfigWriter interface {
 	WriteTuning(providerID string, tuning aisearchpkg.TuningConfig, dryRun bool) (effective aisearchpkg.TuningConfig, indexTimeChanged, written bool, err error)
 }
 
+// CorpusWriter is the seam that persists a new tests corpus into the provider's
+// search.json SSOT — the corpus twin of ConfigWriter. FileCorpusWriter is the
+// production implementation (atomic write via aisearch-go); tests substitute a
+// fake.
+type CorpusWriter interface {
+	// WriteCorpus validates and persists suite for providerID, returning the corpus
+	// now in effect and whether the file was actually rewritten (false on dryRun or
+	// a no-op).
+	WriteCorpus(providerID string, suite aisearchpkg.TestSuite, dryRun bool) (effective aisearchpkg.TestSuite, written bool, err error)
+}
+
 // Gate is the control-token guard every control RPC passes through. It mirrors
 // the search handler's OverrideGate but rejects (rather than silently degrading)
 // because a control verb has no public fallback. search-hub minted the token at
@@ -97,6 +108,7 @@ type Deps struct {
 	Logger       *log.Logger
 	Reindexer    Reindexer
 	ConfigWriter ConfigWriter
+	CorpusWriter CorpusWriter
 	Gate         *Gate
 }
 
@@ -220,6 +232,44 @@ func (h *connectHandler) WriteConfig(ctx context.Context, req *connect.Request[c
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) WriteCorpus(_ context.Context, req *connect.Request[controlv1.WriteCorpusRequest]) (*connect.Response[controlv1.WriteCorpusResponse], error) {
+	r := req.Msg
+	if err := h.deps.Gate.authorize(h.deps.Logger, r.GetControlToken()); err != nil {
+		return nil, err
+	}
+	if h.deps.CorpusWriter == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("corpus-write backend not configured"))
+	}
+	providerID := r.GetProviderId()
+	if providerID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("provider_id is required"))
+	}
+
+	// Convert the wire/store corpus shape (EvalSuite) into the scenario's file
+	// shape (TestSuite), then validate up front so a malformed corpus is a clean
+	// InvalidArgument, leaving WriteCorpus's remaining failures to NotFound (unknown
+	// provider) or Internal (IO). Unlike WriteConfig, a corpus write never triggers
+	// a reindex — the eval corpus is grading data, not the searchable index.
+	suite := searchregister.SuiteFromProto(r.GetCorpus())
+	if err := suite.Validate(); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	effective, written, err := h.deps.CorpusWriter.WriteCorpus(providerID, suite, r.GetDryRun())
+	if err != nil {
+		var notIn aisearchpkg.ErrProviderNotInFile
+		if errors.As(err, &notIn) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(&controlv1.WriteCorpusResponse{
+		Written:   written,
+		Effective: searchregister.SuiteToProto(providerID, effective),
+	}), nil
+}
+
 // ServiceAdapter wraps *aisearch.Service to satisfy the Reindexer seam. (Moved
 // verbatim from the deleted private reindex handler; the reconcile job control
 // itself is unchanged — only the wire contract in front of it is now shared.)
@@ -262,4 +312,19 @@ type FileConfigWriter struct{ Path string }
 
 func (w FileConfigWriter) WriteTuning(providerID string, tuning aisearchpkg.TuningConfig, dryRun bool) (aisearchpkg.TuningConfig, bool, bool, error) {
 	return aisearchpkg.WriteProviderTuning(w.Path, providerID, tuning, dryRun)
+}
+
+// FileCorpusWriter persists a tests corpus into a scenario's search.json via
+// aisearch-go's atomic writer. Path is the absolute path to the scenario-owned
+// search.json.
+//
+// INVARIANT: onlyScenarioWritesItsFile
+//
+//	search-hub never writes a scenario's search.json directly. Every corpus
+//	write-back arrives through the token-gated WriteCorpus RPC and lands HERE — in
+//	the scenario's own process — so the scenario stays the sole writer of its file.
+type FileCorpusWriter struct{ Path string }
+
+func (w FileCorpusWriter) WriteCorpus(providerID string, suite aisearchpkg.TestSuite, dryRun bool) (aisearchpkg.TestSuite, bool, error) {
+	return aisearchpkg.WriteProviderCorpus(w.Path, providerID, suite, dryRun)
 }

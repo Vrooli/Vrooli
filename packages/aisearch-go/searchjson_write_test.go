@@ -56,11 +56,11 @@ func TestWriteProviderTuningQueryTimeOnly(t *testing.T) {
 	if len(p.Endpoint) == 0 {
 		t.Fatalf("endpoint sub-object dropped by write")
 	}
-	if len(p.Tests.Cases) != 1 || p.Tests.Cases[0].ID != "c1" {
+	if len(p.Tests.Cases) != 2 || p.Tests.Cases[0].ID != "c1" {
 		t.Fatalf("tests corpus not preserved: %+v", p.Tests)
 	}
-	if len(p.Tests.Negatives) != 1 {
-		t.Fatalf("negatives not preserved")
+	if !p.Tests.Cases[1].ExpectNoStrongHit {
+		t.Fatalf("negative case not preserved")
 	}
 }
 

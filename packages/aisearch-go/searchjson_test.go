@@ -25,13 +25,11 @@ const sampleSearchJSON = `{
       "floor": {"max_gap": 0, "hard_floor": 0}
     },
     "tests": {
-      "recall_at": 5,
-      "recall_target": 0.8,
+      "name": "demo commands — primary",
+      "description": "rank-centric demo corpus",
       "cases": [
-        {"id": "c1", "query": "restart a scenario", "expected_paths": ["vrooli scenario restart"], "expect_ids": ["restart"], "tags": ["strong"]}
-      ],
-      "negatives": [
-        {"id": "n1", "query": "asdf qwer", "expect_no_strong_hit": true, "expect_max_score": 0.1}
+        {"id": "c1", "query": "restart a scenario", "expect_ids": ["restart"], "tags": ["strong"], "expect_within_top_k": 3},
+        {"id": "n1", "query": "asdf qwer", "expect_no_strong_hit": true, "expect_max_score": 0.1, "tags": ["gibberish"]}
       ]
     }
   }]
@@ -56,15 +54,20 @@ func TestParseSearchFile(t *testing.T) {
 	if !strings.Contains(string(p.Endpoint), "http_json") {
 		t.Errorf("endpoint raw not preserved: %s", p.Endpoint)
 	}
-	if len(p.Tests.Cases) != 1 || len(p.Tests.Negatives) != 1 {
-		t.Fatalf("tests not parsed: %+v", p.Tests)
+	// One unified case list: a positive and a negative live side by side.
+	if len(p.Tests.Cases) != 2 {
+		t.Fatalf("tests not parsed (want 2 cases incl. negative): %+v", p.Tests)
+	}
+	if p.Tests.ResolvedSuiteID("demo.commands") != "demo.commands.primary" {
+		t.Errorf("default suite id not derived: %q", p.Tests.ResolvedSuiteID("demo.commands"))
 	}
 	c := p.Tests.Cases[0]
-	if len(c.ExpectedPaths) != 1 || len(c.ExpectIDs) != 1 {
-		t.Errorf("both label shapes must survive: %+v", c)
+	if len(c.ExpectIDs) != 1 || c.ExpectWithinTopK != 3 {
+		t.Errorf("positive case not parsed rank-centrically: %+v", c)
 	}
-	if p.Tests.Negatives[0].ExpectMaxScore != 0.1 {
-		t.Errorf("negative expect_max_score not parsed: %+v", p.Tests.Negatives[0])
+	neg := p.Tests.Cases[1]
+	if !neg.ExpectNoStrongHit || neg.ExpectMaxScore != 0.1 {
+		t.Errorf("negative case not parsed: %+v", neg)
 	}
 }
 

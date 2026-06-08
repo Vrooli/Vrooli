@@ -113,44 +113,52 @@ decide whether persisting a new `tuning` block also requires a reindex.
 > it. The `floor.*` fields exist only as overrides for an operator with eval
 > evidence. See [`configuration.md`](configuration.md) §2.
 
-## 4. `tests` — the unified evaluation corpus (`TestSuite`)
+## 4. `tests` — the evaluation corpus (`TestSuite`)
 
-One labelled corpus per provider — the file collapses what used to be two
-divergent corpora (a recall-gate's full-path labels and an eval suite's leaf ids +
-difficulty tags) into a single shape.
+One labelled corpus per provider, in **one canonical rank-centric shape** that is a
+1:1 structural match (modulo store-assigned fields) of search-hub's eval proto
+`EvalSuite` — so it converts losslessly and a scenario self-registers it at boot
+(§5). There is one case list; **negatives are cases** (a case with
+`expect_no_strong_hit`), not a separate array.
 
 ```jsonc
 "tests": {
-  "recall_at": 5,            // recall gate K (0 ⇒ harness default 5)
-  "recall_target": 0.8,      // recall gate threshold (0 ⇒ harness default 0.8)
-  "cases": [                 // positive labelled queries (the recall objective)
+  "suite_id": "cli-health.commands.primary",  // optional; default "<provider_id>.primary"
+  "name": "cli-health commands — primary",     // optional suite metadata (mirrored)
+  "description": "rank-centric golden corpus",  // optional
+  "cases": [
     {
       "id": "restart-scenario",
       "query": "restart a scenario",
-      "expected_paths": ["scenario restart"],   // full-path label shape
-      "expect_ids": ["scenario.restart"],        // leaf-id label shape (either/both)
-      "tags": ["strong"],                        // difficulty band: strong|weak|weak-real|hard
-      "expect_within_top_k": 3,                  // soft eval signal
-      "expect_min_score": 0.5,                   // soft eval signal
-      "source": "curated"                        // "curated" | "generated"
+      "tags": ["strong", "lifecycle"],          // difficulty/category/provenance band
+      "expect_ids": ["restart"],                // POSITIVE label: leaf ids (per id_field)
+      "expect_within_top_k": 3                  // the expected hit must land within K
+    },
+    {
+      "id": "gibberish-1",                       // a NEGATIVE is just a case…
+      "query": "asdf qwer zxcv",
+      "tags": ["gibberish"],
+      "expect_no_strong_hit": true,              // …with expect_no_strong_hit set
+      "expect_max_score": 0.3
     }
-  ],
-  "negatives": [             // queries that must return NO strong hit (junk rejection)
-    { "id": "gibberish-1", "query": "asdf qwer zxcv", "expect_no_strong_hit": true, "expect_max_score": 0.3 }
   ]
 }
 ```
 
-- **`cases`** are the positive labelled queries — the sweep's recall objective.
-  `expected_paths` (full command/doc paths) and `expect_ids` (leaf ids) are
-  alternative label shapes; a case may carry either or both.
-- **`negatives`** are the junk-rejection guards — the sweep validates they stay
-  rejected (the gibberish constraint), never optimizes against them.
-- **`source`** marks provenance. `""`/`"curated"` is the human-authored golden
-  core; `"generated"` is a `evals generate` proposal (query inversion). The sweep
-  **always holds generated cases out of the tuning fold** (overfit guard #2): a
-  tuning can never be selected on cases a machine wrote for it. Generation
-  augments the curated core; it never replaces it.
+- **Positives** assert `expect_ids` (leaf ids per the provider's `id_field`) landing
+  within `expect_within_top_k`. By design a positive carries **no absolute
+  `expect_min_score`**: the sweep compares arms across score regimes (dense cosine,
+  cross-encoder, RRF-blend) where a shared absolute band would mislabel a
+  rank-correct hit. `expect_min_score`/`expect_max_score` remain available for a
+  single-regime corpus but are not the default.
+- **Negatives** are cases with `expect_no_strong_hit` (+ `expect_max_score`) — the
+  junk-rejection guards the sweep validates stay rejected, never optimizes against.
+- **Provenance rides `tags`.** `"generated"` is the load-bearing marker the sweep
+  **always holds out of the tuning fold** (overfit guard #2): a tuning can never be
+  selected on cases a machine wrote for it. There is no separate `source` field.
+- **Deleted vs. the old shape:** `expected_paths` (one label shape now — `expect_ids`),
+  the separate `negatives[]` array, `recall_at`/`recall_target` (gate policy, now a
+  test constant), and `source` (now a tag) were all removed (greenfield).
 
 **Adequacy, not just well-formedness.** Parsing only checks the suite is
 *well-formed*. Search-hub additionally **grades** the corpus (warn-level, never
@@ -164,19 +172,25 @@ overfit risk, so the warnings fire loudly on `evals show` / `evals run` /
 ```
 scenario boot ──► LoadSearchFile(.vrooli/search.json)
                     ├─ tuning  ──► NewServiceForTuning(tuning, deps)   (engine: dense|hybrid, by DATA)
-                    └─ self-register ──► search-hub RegisterProvider (descriptor + tuning + tests)
-                                          └─ search-hub mints a control TOKEN, returns it to the scenario
+                    └─ self-register ──► RegisterProvider(descriptor + tuning) ──► registry store (cache)
+                                          ├─ search-hub mints a control TOKEN, returns it to the scenario
+                                          └─ RegisterSuite(convert(tests))     ──► eval store (cache)   ← corpusStoreMirrorsFile
 
-search-hub evals sweep ──► (query-time arms via overrides | index-time arms via config-push+reindex)
-                    └─ on a significant, constraint-satisfying, held-out-validated winner + --apply:
-                         WriteConfig(token) ──► scenario rewrites its OWN search.json `tuning`
-                                                 └─ reindex iff IndexTimeChanged
+search-hub optimization (holds the control token):
+  evals sweep --apply     ─► WriteConfig(token)  ─► scenario rewrites its OWN search.json `tuning`
+                                                     ├─ reindex iff IndexTimeChanged
+                                                     └─ registry cache refreshed (no reboot)
+  evals generate --apply  ─► WriteCorpus(token)  ─► scenario rewrites its OWN search.json `tests`
+                                                     └─ eval cache re-registered from the file
 ```
 
-The scenario's file is **authoritative**: write-back goes through the scenario's
-own token-gated `WriteConfig` RPC, which rewrites the file (and reindexes if an
-index-time factor moved). search-hub keeps a registered copy for routing/sweeping
-but the file on disk in the scenario is the SSOT.
+The scenario's file is **authoritative** for both `tuning` and `tests`: every
+machine write-back goes through the scenario's own token-gated `WriteConfig` /
+`WriteCorpus` RPC, which rewrites the file. search-hub's registry tuning and eval
+suite are **verified mirrors** of the file (`corpusStoreMirrorsFile`); the only way
+they diverge is a manual file edit, which re-registration heals on the scenario's
+next boot. A provider that declares no `config_endpoint` can still self-register and
+be swept by overrides, but cannot accept a `tuning`/`corpus` write-back.
 
 ## 6. Minimal worked example
 
@@ -210,13 +224,9 @@ small golden corpus:
         "floor": { "max_gap": 0, "hard_floor": 0 }
       },
       "tests": {
-        "recall_at": 5,
-        "recall_target": 0.8,
         "cases": [
-          { "id": "restart-scenario", "query": "restart a scenario", "expect_ids": ["scenario.restart"], "tags": ["strong"], "source": "curated" }
-        ],
-        "negatives": [
-          { "id": "gibberish-1", "query": "asdf qwer zxcv", "expect_no_strong_hit": true }
+          { "id": "restart-scenario", "query": "restart a scenario", "expect_ids": ["restart"], "tags": ["strong"], "expect_within_top_k": 3 },
+          { "id": "gibberish-1", "query": "asdf qwer zxcv", "expect_no_strong_hit": true, "expect_max_score": 0.3, "tags": ["gibberish"] }
         ]
       }
     }

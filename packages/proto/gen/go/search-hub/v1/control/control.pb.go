@@ -7,6 +7,7 @@
 package control_v1
 
 import (
+	eval "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registry "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -546,11 +547,143 @@ func (x *WriteConfigResponse) GetEffective() *registry.Tuning {
 	return nil
 }
 
+// WriteCorpusRequest persists a new evaluation corpus (the sweep/generate result)
+// into the provider's search.json `tests` block. The provider validates it before
+// writing and rewrites ONLY that block, leaving the descriptor + tuning untouched.
+type WriteCorpusRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The leaf whose corpus is being rewritten, e.g. "cli-health.commands".
+	ProviderId string `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	// The new corpus (full replacement of the `tests` block), carried as the eval
+	// domain's store/wire shape; the scenario converts it to its file shape.
+	Corpus *eval.EvalSuite `protobuf:"bytes,2,opt,name=corpus,proto3" json:"corpus,omitempty"`
+	// Required: the provider's control token. Rejected on mismatch.
+	ControlToken string `protobuf:"bytes,3,opt,name=control_token,json=controlToken,proto3" json:"control_token,omitempty"`
+	// dry_run validates + diffs without writing.
+	DryRun        bool `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WriteCorpusRequest) Reset() {
+	*x = WriteCorpusRequest{}
+	mi := &file_search_hub_v1_control_control_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WriteCorpusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WriteCorpusRequest) ProtoMessage() {}
+
+func (x *WriteCorpusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_control_control_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WriteCorpusRequest.ProtoReflect.Descriptor instead.
+func (*WriteCorpusRequest) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_control_control_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *WriteCorpusRequest) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *WriteCorpusRequest) GetCorpus() *eval.EvalSuite {
+	if x != nil {
+		return x.Corpus
+	}
+	return nil
+}
+
+func (x *WriteCorpusRequest) GetControlToken() string {
+	if x != nil {
+		return x.ControlToken
+	}
+	return ""
+}
+
+func (x *WriteCorpusRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+// WriteCorpusResponse reports what the write did.
+type WriteCorpusResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// false on dry_run or when the submitted corpus equals the current one.
+	Written bool `protobuf:"varint,1,opt,name=written,proto3" json:"written,omitempty"`
+	// The corpus now in effect after the write (echo for confirmation), as the
+	// eval store/wire shape — the optimizer re-registers this into the eval cache.
+	Effective     *eval.EvalSuite `protobuf:"bytes,2,opt,name=effective,proto3" json:"effective,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WriteCorpusResponse) Reset() {
+	*x = WriteCorpusResponse{}
+	mi := &file_search_hub_v1_control_control_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WriteCorpusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WriteCorpusResponse) ProtoMessage() {}
+
+func (x *WriteCorpusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_control_control_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WriteCorpusResponse.ProtoReflect.Descriptor instead.
+func (*WriteCorpusResponse) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_control_control_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *WriteCorpusResponse) GetWritten() bool {
+	if x != nil {
+		return x.Written
+	}
+	return false
+}
+
+func (x *WriteCorpusResponse) GetEffective() *eval.EvalSuite {
+	if x != nil {
+		return x.Effective
+	}
+	return nil
+}
+
 var File_search_hub_v1_control_control_proto protoreflect.FileDescriptor
 
 const file_search_hub_v1_control_control_proto_rawDesc = "" +
 	"\n" +
-	"#search-hub/v1/control/control.proto\x12\x1cvrooli.search_hub.v1.control\x1a%search-hub/v1/registry/registry.proto\"d\n" +
+	"#search-hub/v1/control/control.proto\x12\x1cvrooli.search_hub.v1.control\x1a%search-hub/v1/registry/registry.proto\x1a\x1dsearch-hub/v1/eval/eval.proto\"d\n" +
 	"\x0eReindexRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x17\n" +
 	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12#\n" +
@@ -585,12 +718,22 @@ const file_search_hub_v1_control_control_proto_rawDesc = "" +
 	"\awritten\x18\x01 \x01(\bR\awritten\x12+\n" +
 	"\x11reindex_triggered\x18\x02 \x01(\bR\x10reindexTriggered\x12$\n" +
 	"\x0ereindex_job_id\x18\x03 \x01(\tR\freindexJobId\x12C\n" +
-	"\teffective\x18\x04 \x01(\v2%.vrooli.search_hub.v1.registry.TuningR\teffective2\xe6\x03\n" +
+	"\teffective\x18\x04 \x01(\v2%.vrooli.search_hub.v1.registry.TuningR\teffective\"\xb1\x01\n" +
+	"\x12WriteCorpusRequest\x12\x1f\n" +
+	"\vprovider_id\x18\x01 \x01(\tR\n" +
+	"providerId\x12<\n" +
+	"\x06corpus\x18\x02 \x01(\v2$.vrooli.search_hub.v1.eval.EvalSuiteR\x06corpus\x12#\n" +
+	"\rcontrol_token\x18\x03 \x01(\tR\fcontrolToken\x12\x17\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"s\n" +
+	"\x13WriteCorpusResponse\x12\x18\n" +
+	"\awritten\x18\x01 \x01(\bR\awritten\x12B\n" +
+	"\teffective\x18\x02 \x01(\v2$.vrooli.search_hub.v1.eval.EvalSuiteR\teffective2\xda\x04\n" +
 	"\x14SearchControlService\x12f\n" +
 	"\aReindex\x12,.vrooli.search_hub.v1.control.ReindexRequest\x1a-.vrooli.search_hub.v1.control.ReindexResponse\x12x\n" +
 	"\rReindexStatus\x122.vrooli.search_hub.v1.control.ReindexStatusRequest\x1a3.vrooli.search_hub.v1.control.ReindexStatusResponse\x12x\n" +
 	"\rReindexCancel\x122.vrooli.search_hub.v1.control.ReindexCancelRequest\x1a3.vrooli.search_hub.v1.control.ReindexCancelResponse\x12r\n" +
-	"\vWriteConfig\x120.vrooli.search_hub.v1.control.WriteConfigRequest\x1a1.vrooli.search_hub.v1.control.WriteConfigResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control;control_v1b\x06proto3"
+	"\vWriteConfig\x120.vrooli.search_hub.v1.control.WriteConfigRequest\x1a1.vrooli.search_hub.v1.control.WriteConfigResponse\x12r\n" +
+	"\vWriteCorpus\x120.vrooli.search_hub.v1.control.WriteCorpusRequest\x1a1.vrooli.search_hub.v1.control.WriteCorpusResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control;control_v1b\x06proto3"
 
 var (
 	file_search_hub_v1_control_control_proto_rawDescOnce sync.Once
@@ -604,7 +747,7 @@ func file_search_hub_v1_control_control_proto_rawDescGZIP() []byte {
 	return file_search_hub_v1_control_control_proto_rawDescData
 }
 
-var file_search_hub_v1_control_control_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_search_hub_v1_control_control_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_search_hub_v1_control_control_proto_goTypes = []any{
 	(*ReindexRequest)(nil),        // 0: vrooli.search_hub.v1.control.ReindexRequest
 	(*ReindexResponse)(nil),       // 1: vrooli.search_hub.v1.control.ReindexResponse
@@ -614,24 +757,31 @@ var file_search_hub_v1_control_control_proto_goTypes = []any{
 	(*ReindexCancelResponse)(nil), // 5: vrooli.search_hub.v1.control.ReindexCancelResponse
 	(*WriteConfigRequest)(nil),    // 6: vrooli.search_hub.v1.control.WriteConfigRequest
 	(*WriteConfigResponse)(nil),   // 7: vrooli.search_hub.v1.control.WriteConfigResponse
-	(*registry.Tuning)(nil),       // 8: vrooli.search_hub.v1.registry.Tuning
+	(*WriteCorpusRequest)(nil),    // 8: vrooli.search_hub.v1.control.WriteCorpusRequest
+	(*WriteCorpusResponse)(nil),   // 9: vrooli.search_hub.v1.control.WriteCorpusResponse
+	(*registry.Tuning)(nil),       // 10: vrooli.search_hub.v1.registry.Tuning
+	(*eval.EvalSuite)(nil),        // 11: vrooli.search_hub.v1.eval.EvalSuite
 }
 var file_search_hub_v1_control_control_proto_depIdxs = []int32{
-	8, // 0: vrooli.search_hub.v1.control.WriteConfigRequest.tuning:type_name -> vrooli.search_hub.v1.registry.Tuning
-	8, // 1: vrooli.search_hub.v1.control.WriteConfigResponse.effective:type_name -> vrooli.search_hub.v1.registry.Tuning
-	0, // 2: vrooli.search_hub.v1.control.SearchControlService.Reindex:input_type -> vrooli.search_hub.v1.control.ReindexRequest
-	2, // 3: vrooli.search_hub.v1.control.SearchControlService.ReindexStatus:input_type -> vrooli.search_hub.v1.control.ReindexStatusRequest
-	4, // 4: vrooli.search_hub.v1.control.SearchControlService.ReindexCancel:input_type -> vrooli.search_hub.v1.control.ReindexCancelRequest
-	6, // 5: vrooli.search_hub.v1.control.SearchControlService.WriteConfig:input_type -> vrooli.search_hub.v1.control.WriteConfigRequest
-	1, // 6: vrooli.search_hub.v1.control.SearchControlService.Reindex:output_type -> vrooli.search_hub.v1.control.ReindexResponse
-	3, // 7: vrooli.search_hub.v1.control.SearchControlService.ReindexStatus:output_type -> vrooli.search_hub.v1.control.ReindexStatusResponse
-	5, // 8: vrooli.search_hub.v1.control.SearchControlService.ReindexCancel:output_type -> vrooli.search_hub.v1.control.ReindexCancelResponse
-	7, // 9: vrooli.search_hub.v1.control.SearchControlService.WriteConfig:output_type -> vrooli.search_hub.v1.control.WriteConfigResponse
-	6, // [6:10] is the sub-list for method output_type
-	2, // [2:6] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	10, // 0: vrooli.search_hub.v1.control.WriteConfigRequest.tuning:type_name -> vrooli.search_hub.v1.registry.Tuning
+	10, // 1: vrooli.search_hub.v1.control.WriteConfigResponse.effective:type_name -> vrooli.search_hub.v1.registry.Tuning
+	11, // 2: vrooli.search_hub.v1.control.WriteCorpusRequest.corpus:type_name -> vrooli.search_hub.v1.eval.EvalSuite
+	11, // 3: vrooli.search_hub.v1.control.WriteCorpusResponse.effective:type_name -> vrooli.search_hub.v1.eval.EvalSuite
+	0,  // 4: vrooli.search_hub.v1.control.SearchControlService.Reindex:input_type -> vrooli.search_hub.v1.control.ReindexRequest
+	2,  // 5: vrooli.search_hub.v1.control.SearchControlService.ReindexStatus:input_type -> vrooli.search_hub.v1.control.ReindexStatusRequest
+	4,  // 6: vrooli.search_hub.v1.control.SearchControlService.ReindexCancel:input_type -> vrooli.search_hub.v1.control.ReindexCancelRequest
+	6,  // 7: vrooli.search_hub.v1.control.SearchControlService.WriteConfig:input_type -> vrooli.search_hub.v1.control.WriteConfigRequest
+	8,  // 8: vrooli.search_hub.v1.control.SearchControlService.WriteCorpus:input_type -> vrooli.search_hub.v1.control.WriteCorpusRequest
+	1,  // 9: vrooli.search_hub.v1.control.SearchControlService.Reindex:output_type -> vrooli.search_hub.v1.control.ReindexResponse
+	3,  // 10: vrooli.search_hub.v1.control.SearchControlService.ReindexStatus:output_type -> vrooli.search_hub.v1.control.ReindexStatusResponse
+	5,  // 11: vrooli.search_hub.v1.control.SearchControlService.ReindexCancel:output_type -> vrooli.search_hub.v1.control.ReindexCancelResponse
+	7,  // 12: vrooli.search_hub.v1.control.SearchControlService.WriteConfig:output_type -> vrooli.search_hub.v1.control.WriteConfigResponse
+	9,  // 13: vrooli.search_hub.v1.control.SearchControlService.WriteCorpus:output_type -> vrooli.search_hub.v1.control.WriteCorpusResponse
+	9,  // [9:14] is the sub-list for method output_type
+	4,  // [4:9] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_search_hub_v1_control_control_proto_init() }
@@ -645,7 +795,7 @@ func file_search_hub_v1_control_control_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_search_hub_v1_control_control_proto_rawDesc), len(file_search_hub_v1_control_control_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
