@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../scripts/scenarios/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "knowledge-observatory.docs",
+      "provider_group": "knowledge-observatory",
+      "bucket": "BUCKET_KNOW",
+      "type": "doc",
+      "description": "Project documentation across every scenario and the repo root — READMEs, guides, concept docs, runbooks, plans — searchable semantically by what each doc explains (for example \"how does the lifecycle system work\", \"sandbox architecture\"). Route here to find an explanation, guide, or reference that has already been written.",
+      "scope": "SCOPE_PROJECT",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "knowledge-observatory",
+          "path": "/api/v1/search/query",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "path",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {
+        "engine": "hybrid",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": false,
+        "rerank_enabled": false,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "floor": { "max_gap": 0, "hard_floor": 0 }
+      }
+    }
+  ]
+}

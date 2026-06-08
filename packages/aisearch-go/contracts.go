@@ -93,6 +93,63 @@ type Embedder interface {
 	Available(ctx context.Context) bool
 }
 
+// TaskEmbedder is an optional Embedder that distinguishes the two embedding
+// roles an asymmetric model requires: the query and the indexed passage are
+// prefixed with different task instructions (e.g. nomic-embed-text's
+// "search_query:" vs "search_document:"). The read path embeds the query with
+// EmbedQuery and the reconciler embeds each passage with EmbedDocument, so an
+// asymmetric model lands both sides in the trained space — the single biggest
+// dense-retrieval lever for a terse corpus matched by long natural-language
+// queries. An Embedder that does NOT implement this interface is embedded
+// symmetrically via the embedQueryText / embedDocumentText helpers (they fall
+// back to Embed), so existing fakes and symmetric models keep working unchanged.
+type TaskEmbedder interface {
+	Embedder
+	EmbedQuery(ctx context.Context, text string) ([]float64, error)
+	EmbedDocument(ctx context.Context, text string) ([]float64, error)
+}
+
+// RecipeEmbedder is an optional Embedder that reports a stable identity for its
+// embedding "recipe" — the model plus any task prefixes — so the reconciler can
+// fold it into the chunk drift hash. When the recipe changes (a model swap, or
+// task prefixes being added), every chunk's hash changes and the next reconcile
+// re-embeds the whole corpus into the new vector space, instead of silently
+// serving queries embedded one way against passages embedded another. An empty
+// recipe (the default for symmetric embedders and all existing fakes) folds
+// nothing in, so legacy collections keep byte-identical hashes and are NOT
+// spuriously re-embedded.
+type RecipeEmbedder interface {
+	EmbedRecipe() string
+}
+
+// embedderRecipe returns the embedder's recipe identity, or "" when it does not
+// report one.
+func embedderRecipe(e Embedder) string {
+	if r, ok := e.(RecipeEmbedder); ok {
+		return r.EmbedRecipe()
+	}
+	return ""
+}
+
+// embedQueryText embeds a query, using the role-aware EmbedQuery when the
+// embedder supports it (TaskEmbedder) and falling back to the symmetric Embed
+// otherwise. The read path calls this for the query vector.
+func embedQueryText(ctx context.Context, e Embedder, text string) ([]float64, error) {
+	if te, ok := e.(TaskEmbedder); ok {
+		return te.EmbedQuery(ctx, text)
+	}
+	return e.Embed(ctx, text)
+}
+
+// embedDocumentText embeds an indexed passage, using EmbedDocument when
+// available and falling back to Embed. The reconciler calls this per chunk.
+func embedDocumentText(ctx context.Context, e Embedder, text string) ([]float64, error) {
+	if te, ok := e.(TaskEmbedder); ok {
+		return te.EmbedDocument(ctx, text)
+	}
+	return e.Embed(ctx, text)
+}
+
 // SparseVector is a BM25-style term-weight vector: parallel index/value
 // slices. Qdrant applies IDF server-side via the collection's "idf" modifier
 // (validated against the live 1.15.3 instance in Phase 0), so the encoder only

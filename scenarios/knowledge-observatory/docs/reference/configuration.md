@@ -60,3 +60,36 @@ Config directory overrides:
 
 [CODE: api/internal/adapters/embedder/ollama.go]
 [CODE: api/internal/adapters/metadatastore/postgres.go]
+
+## Docs Search Tuning (`.vrooli/search.json`)
+
+The docs-search tuning factors live in the scenario-owned SSOT
+`.vrooli/search.json`, not in env vars. KO is the **docs** consumer of the shared
+search-tuning contract; the schema + per-knob dashboard live in the engine package
+[`packages/aisearch-go/docs/reference/search-json.md`](../../../../packages/aisearch-go/docs/reference/search-json.md).
+
+| What | Value | Notes |
+|---|---|---|
+| Provider id | `knowledge-observatory.docs` | the project documentation corpus. |
+| Engine | `hybrid` | dense + BM25 sparse with RRF fusion — recall on long-form prose. |
+| `embed_task_prefix` | `false` | symmetric embeddings — **load-bearing** (see below). |
+| `rerank_enabled` / `rerank_blend` | `false` / `false` | hybrid RRF + authority boosting ties the cross-encoder on recall here; reranking buys ordering parity, not recall, so it is OFF by default. |
+
+This is the measured-best `aisearch.DocCorpusTuning()` preset. At boot the
+`loadDocsTuning()` helper reads the `tuning` block from `search.json` and wires the
+hybrid engine from it; `server.go` self-registers the file with `search-hub`
+(idempotent upsert, best-effort, search-hub is an optional dependency).
+
+> **Recall guard — do not change `embed_task_prefix` or the rerank defaults
+> without re-measuring.** KO's guarded **recall@5 = 0.818** baseline rests on the
+> symmetric embedder (`embed_task_prefix:false`, which keeps the recipe-aware
+> drift hash byte-identical for the empty recipe) and rerank-off. Any sweep that
+> proposes an index-time change must re-run the accuracy gate
+> (`KO_AISEARCH_LIVE=1 go test ./internal/aisearch/ -run TestAccuracyCorpus`) and
+> confirm recall@5 stays ≥ 0.818 before the tuning is written back. The
+> `testdata/search_queries.json` corpus (186 cases) is the per-build smoke gate;
+> the golden `tests` corpus in `search.json` is what the search-hub sweep
+> optimizes against.
+
+[CODE: api/server.go]
+[CODE: .vrooli/search.json]

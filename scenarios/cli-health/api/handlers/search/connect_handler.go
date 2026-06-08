@@ -28,16 +28,16 @@ type Searcher interface {
 
 // OverrideGate is the OUTER security layer of the query-time override channel
 // (the inner layer is the engine's clamping OverridePolicy). A request's
-// overrides are honored only when BOTH hold: the per-environment experiment flag
-// is on (Enabled — CLI_HEALTH_SEARCH_OVERRIDES_ENABLED, default off), and the
-// request's control-token header matches the token search-hub minted for this
-// provider (Token, cached in memory from self-registration). A nil gate, a
-// disabled gate, an empty cached token, or a mismatched token all mean "ignore
-// the override, serve the ordinary search" — never an error.
+// overrides are honored only when its control-token header matches the token
+// search-hub minted for this provider at registration (Token, cached in memory
+// from self-registration). Since search-hub is the only holder of that token,
+// only search-hub's sweep can vary the query-time factors; an ordinary public
+// request carries no token and gets the normal search. A nil gate, an empty
+// cached token (not yet registered), or a mismatched token all mean "ignore the
+// override, serve the ordinary search" — never an error. There is no env flag:
+// the contract is governed by the SSOT (a provider opts out of being tuned by
+// omitting its control endpoints in search.json) + this token.
 type OverrideGate struct {
-	// Enabled is the experiment flag. False (default) disables the channel
-	// entirely regardless of token.
-	Enabled bool
 	// Token returns the provider's current cached control token ("" until the
 	// scenario has self-registered with search-hub). Must be safe for concurrent
 	// use with the registration goroutine that sets it.
@@ -102,17 +102,17 @@ func (h *connectHandler) Search(ctx context.Context, req *connect.Request[search
 // overrideOptions decides whether to honor per-request query-time overrides and
 // returns the SearchOptions to thread into the engine. An ordinary request (no
 // override header) returns nil silently. A request that DOES carry overrides is
-// honored only past the gate (channel enabled + control token matches); every
-// other outcome is logged once as telemetry and returns nil, so a rejected
-// override degrades to the ordinary public search rather than failing.
+// honored only when the control token matches; every other outcome is logged once
+// as telemetry and returns nil, so a rejected override degrades to the ordinary
+// public search rather than failing.
 func (h *connectHandler) overrideOptions(hdr http.Header) []pkg.SearchOption {
 	raw := strings.TrimSpace(hdr.Get(pkg.OverridesHeader))
 	if raw == "" {
 		return nil // ordinary request — no override path, no telemetry.
 	}
 	gate := h.deps.Overrides
-	if gate == nil || !gate.Enabled {
-		h.deps.Logger.Printf("[cli-health] search override ignored: channel disabled")
+	if gate == nil {
+		h.deps.Logger.Printf("[cli-health] search override ignored: channel not configured")
 		return nil
 	}
 	if !gate.tokenMatches(hdr.Get(pkg.ControlTokenHeader)) {

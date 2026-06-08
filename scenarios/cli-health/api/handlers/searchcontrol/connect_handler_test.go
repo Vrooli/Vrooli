@@ -27,6 +27,10 @@ type fakeReindexer struct {
 	statusState string
 
 	cancelled bool
+
+	applyN      int
+	lastApplied aisearchpkg.TuningConfig
+	applyErr    error
 }
 
 func (f *fakeReindexer) Reindex(_ context.Context, scope string, dryRun bool) (string, int, int, error) {
@@ -44,6 +48,15 @@ func (f *fakeReindexer) ReindexStatus(jobID string) (string, int, int, string, b
 }
 
 func (f *fakeReindexer) ReindexCancel(string) bool { return f.cancelled }
+
+func (f *fakeReindexer) ApplyTuning(_ context.Context, tuning aisearchpkg.TuningConfig) (string, int, int, error) {
+	f.applyN++
+	f.lastApplied = tuning
+	if f.applyErr != nil {
+		return "", 0, 0, f.applyErr
+	}
+	return f.jobID, f.upserts, f.deletes, nil
+}
 
 type fakeConfigWriter struct {
 	effective    aisearchpkg.TuningConfig
@@ -65,7 +78,7 @@ func (f *fakeConfigWriter) WriteTuning(providerID string, _ aisearchpkg.TuningCo
 const testToken = "s3cr3t-control-token"
 
 func enabledGate() *searchcontrol.Gate {
-	return &searchcontrol.Gate{Enabled: true, Token: func() string { return testToken }}
+	return &searchcontrol.Gate{Token: func() string { return testToken }}
 }
 
 func newHandler(g *searchcontrol.Gate, r searchcontrol.Reindexer, w searchcontrol.ConfigWriter) interface {
@@ -83,11 +96,13 @@ func newHandler(g *searchcontrol.Gate, r searchcontrol.Reindexer, w searchcontro
 
 // --- gate ------------------------------------------------------------------
 
-func TestReindexDeniedWhenPlaneDisabled(t *testing.T) {
-	h := newHandler(&searchcontrol.Gate{Enabled: false, Token: func() string { return testToken }}, &fakeReindexer{}, &fakeConfigWriter{})
+func TestReindexDeniedWhenUnregistered(t *testing.T) {
+	// No minted token yet (cached "") → the mutating plane is closed even when the
+	// caller presents a token. Token presence is the only gate (no env flag).
+	h := newHandler(&searchcontrol.Gate{Token: func() string { return "" }}, &fakeReindexer{}, &fakeConfigWriter{})
 	_, err := h.Reindex(context.Background(), connect.NewRequest(&controlv1.ReindexRequest{ControlToken: testToken}))
 	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("disabled plane: want PermissionDenied, got %v (%v)", connect.CodeOf(err), err)
+		t.Fatalf("unregistered provider: want PermissionDenied, got %v (%v)", connect.CodeOf(err), err)
 	}
 }
 
@@ -208,15 +223,15 @@ func TestWriteConfigQueryTimeChangeNoReindex(t *testing.T) {
 	if resp.Msg.GetReindexTriggered() {
 		t.Fatalf("query-time-only change must not trigger a reindex")
 	}
-	if fr.reindexN != 0 {
-		t.Fatalf("reindex must not run for a query-time-only change")
+	if fr.reindexN != 0 || fr.applyN != 0 {
+		t.Fatalf("neither reindex nor apply must run for a query-time-only change (reindexN=%d applyN=%d)", fr.reindexN, fr.applyN)
 	}
 	if resp.Msg.GetEffective().GetRerankShortlist() != int32(aisearchpkg.CommandCorpusTuning().RerankShortlist) {
 		t.Fatalf("effective tuning not echoed")
 	}
 }
 
-func TestWriteConfigIndexTimeChangeTriggersReindex(t *testing.T) {
+func TestWriteConfigIndexTimeChangeAppliesTuningInProcess(t *testing.T) {
 	fr := &fakeReindexer{jobID: "job-reindex-9"}
 	eff := aisearchpkg.CommandCorpusTuning()
 	eff.EmbedTaskPrefix = false // an index-time flip
@@ -230,13 +245,18 @@ func TestWriteConfigIndexTimeChangeTriggersReindex(t *testing.T) {
 		t.Fatalf("WriteConfig: %v", err)
 	}
 	if !resp.Msg.GetReindexTriggered() {
-		t.Fatalf("index-time change must trigger a reindex")
+		t.Fatalf("index-time change must trigger an in-process apply")
 	}
 	if resp.Msg.GetReindexJobId() != "job-reindex-9" {
-		t.Fatalf("reindex job id not surfaced: %q", resp.Msg.GetReindexJobId())
+		t.Fatalf("apply job id not surfaced: %q", resp.Msg.GetReindexJobId())
 	}
-	if fr.reindexN != 1 || fr.lastScope != "" || fr.lastDry {
-		t.Fatalf("expected one full-corpus non-dry reindex, got n=%d scope=%q dry=%v", fr.reindexN, fr.lastScope, fr.lastDry)
+	// The index-time change must go through ApplyTuning (live engine rebuild +
+	// re-embed), NOT the boot-recipe Reindex, and must carry the EFFECTIVE tuning.
+	if fr.applyN != 1 || fr.reindexN != 0 {
+		t.Fatalf("expected one in-process ApplyTuning and no boot-recipe reindex, got applyN=%d reindexN=%d", fr.applyN, fr.reindexN)
+	}
+	if fr.lastApplied.EmbedTaskPrefix != false || fr.lastApplied.RerankBlend != eff.RerankBlend {
+		t.Fatalf("ApplyTuning got %+v, want the effective tuning %+v", fr.lastApplied, eff)
 	}
 }
 
@@ -260,8 +280,8 @@ func TestWriteConfigDryRunNoReindex(t *testing.T) {
 	if !fw.lastDry {
 		t.Fatalf("dry_run not threaded to the writer")
 	}
-	if fr.reindexN != 0 {
-		t.Fatalf("dry run must not reindex")
+	if fr.reindexN != 0 || fr.applyN != 0 {
+		t.Fatalf("dry run must neither reindex nor apply (reindexN=%d applyN=%d)", fr.reindexN, fr.applyN)
 	}
 }
 
@@ -277,16 +297,16 @@ func TestWriteConfigUnknownProviderIsNotFound(t *testing.T) {
 	}
 }
 
-func TestWriteConfigDeniedWhenDisabled(t *testing.T) {
+func TestWriteConfigDeniedOnTokenMismatch(t *testing.T) {
 	fw := &fakeConfigWriter{}
-	h := newHandler(&searchcontrol.Gate{Enabled: false, Token: func() string { return testToken }}, &fakeReindexer{}, fw)
+	h := newHandler(enabledGate(), &fakeReindexer{}, fw)
 	_, err := h.WriteConfig(context.Background(), connect.NewRequest(&controlv1.WriteConfigRequest{
-		ControlToken: testToken, ProviderId: "cli-health.commands", Tuning: &registryv1.Tuning{Engine: "dense"},
+		ControlToken: "wrong", ProviderId: "cli-health.commands", Tuning: &registryv1.Tuning{Engine: "dense"},
 	}))
 	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("disabled: want PermissionDenied, got %v", connect.CodeOf(err))
+		t.Fatalf("bad token: want PermissionDenied, got %v", connect.CodeOf(err))
 	}
 	if fw.calls != 0 {
-		t.Fatalf("writer must not run when the plane is disabled")
+		t.Fatalf("writer must not run when the control token is rejected")
 	}
 }

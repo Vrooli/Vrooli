@@ -127,31 +127,28 @@ func main() {
 	// vars are no longer consulted — search.json replaces them.
 	searchCfg := aisearchpkg.LoadConfig("CLI_HEALTH")
 	tuning := loadSearchTuning(searchJSONPath, commandsProviderID)
-	engine := aisearchpkg.NewServiceForTuning(tuning, aisearchpkg.EngineDeps{
-		QdrantURL:     searchCfg.QdrantURL,
-		QdrantAPIKey:  searchCfg.QdrantAPIKey,
-		Collection:    aisearch.DefaultCollection,
-		RerankerURL:   searchCfg.RerankerURL,
-		RerankerModel: searchCfg.RerankerModel,
-		RerankModel:   searchCfg.RerankModel,
-	})
 	discovery := aisearch.NewFilesystemDiscoverySource(repoRoot)
 	// Index the top-level vrooli CLI alongside scenario CLIs. The
 	// records carry Origin="vrooli"; the validation handler rejects
 	// "vrooli" because no proto contract exists for it.
 	discovery.ExternalCLIs = []aisearch.ExternalCLI{{Name: "vrooli", Binary: "vrooli"}}
-	aiService := aisearch.NewService(aisearch.Options{
-		Embedder:         engine.Embedder,
-		VectorStore:      engine.VectorStore,
-		Sparse:           engine.SparseEncoder,
+	// NewTunedService assembles the engine FROM the tuning (engine shape, embed
+	// recipe, rerank policy, floor band) and retains the builder so the search
+	// control plane's WriteConfig can re-assemble + re-embed in place when a sweep
+	// changes an index-time factor — no restart. The wiring (Qdrant, reranker
+	// resource endpoints, reconcile cadence) stays in EngineDeps/LoadConfig.
+	aiService := aisearch.NewTunedService(tuning, aisearch.TunedOptions{
 		Discovery:        discovery,
 		Parallelism:      searchCfg.ReconcileParallelism,
 		MaxEmbedsPerTick: searchCfg.MaxEmbedsPerTick,
-		Floor:            engine.Tuning.Floor.Config(),
-		RerankEnabled:    engine.Tuning.RerankEnabled,
-		RerankBlend:      engine.Tuning.RerankBlend,
-		Reranker:         engine.Reranker,
-		RerankShortlist:  engine.Tuning.RerankShortlist,
+		EngineDeps: aisearchpkg.EngineDeps{
+			QdrantURL:     searchCfg.QdrantURL,
+			QdrantAPIKey:  searchCfg.QdrantAPIKey,
+			Collection:    aisearch.DefaultCollection,
+			RerankerURL:   searchCfg.RerankerURL,
+			RerankerModel: searchCfg.RerankerModel,
+			RerankModel:   searchCfg.RerankModel,
+		},
 	})
 
 	// EnsureCollection is best-effort: if qdrant is unreachable at boot, the
@@ -163,32 +160,30 @@ func main() {
 	// Sync loop drives periodic reconcile against qdrant. Cancelled by the
 	// api-core server's shutdown context.
 	syncCtx, cancelSync := context.WithCancel(context.Background())
-	syncLoop := aisearchpkg.NewSyncLoop("cli-health", aiService.Reconciler(), searchCfg)
+	// Resolve the reconciler each tick (not bound once) so a live ApplyTuning swap
+	// re-points the loop at the new engine — otherwise the loop would keep
+	// reconciling with the old recipe and the drift hash would undo the apply.
+	syncLoop := aisearchpkg.NewSyncLoopFunc("cli-health", aiService.Reconciler, searchCfg)
 	go syncLoop.Start(syncCtx)
 
 	// The override gate is the OUTER security layer of the query-time override
 	// channel: search-hub's sweep/A-B can vary rerank/floor/shortlist per request,
-	// but only when the experiment flag is on AND the request carries the control
-	// token search-hub minted for this provider. The token is cached in memory
-	// from the self-registration echo below; until then Get() returns "" and the
-	// gate stays closed. The channel is OFF by default (defense in depth) — set
-	// CLI_HEALTH_SEARCH_OVERRIDES_ENABLED=1 to opt an environment in.
+	// but only when the request carries the control token search-hub minted for
+	// this provider. The token is cached in memory from the self-registration echo
+	// below; until then Get() returns "" and the gate stays closed. Since
+	// search-hub is the only holder of that token, only its sweep can apply
+	// overrides — no env flag is needed (a public request carries no token and
+	// gets ordinary search).
 	controlToken := searchH.NewTokenHolder()
-	overrideGate := &searchH.OverrideGate{
-		Enabled: boolEnv("CLI_HEALTH_SEARCH_OVERRIDES_ENABLED"),
-		Token:   controlToken.Get,
-	}
+	overrideGate := &searchH.OverrideGate{Token: controlToken.Get}
 
 	// The control gate guards the SHARED reindex + config-write plane
 	// (search-hub.v1.control.SearchControlService). It shares the same minted
-	// control token as the override gate but is a SEPARATE per-environment flag
-	// (CLI_HEALTH_SEARCH_CONTROL_ENABLED, default OFF) so an environment can run
-	// the query-time override A/B without also exposing the index/config-mutating
-	// verbs, and vice versa.
-	controlGate := &searchcontrolH.Gate{
-		Enabled: boolEnv("CLI_HEALTH_SEARCH_CONTROL_ENABLED"),
-		Token:   controlToken.Get,
-	}
+	// control token; the token alone gates the mutating verbs. A provider that does
+	// not want to be tuned at all omits its control endpoints in search.json (the
+	// control client then gets ErrNoControlPlane) — tunability is declared in the
+	// SSOT, not toggled by an env var.
+	controlGate := &searchcontrolH.Gate{Token: controlToken.Get}
 
 	// Self-register this scenario's search provider(s) with search-hub from the
 	// same `.vrooli/search.json` SSOT. search-hub is an OPTIONAL dependency, so
@@ -252,16 +247,4 @@ func externalCLINames(clis []aisearch.ExternalCLI) []string {
 		out = append(out, c.Name)
 	}
 	return out
-}
-
-// boolEnv reports whether an environment variable is set to a truthy value
-// (1/true/yes/on, case-insensitive). Unset or unparseable => false, so a
-// security-sensitive flag like the override channel stays OFF by default.
-func boolEnv(key string) bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
-	case "1", "true", "yes", "on":
-		return true
-	default:
-		return false
-	}
 }

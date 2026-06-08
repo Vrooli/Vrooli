@@ -17,7 +17,7 @@ import (
 // the search surface wired without a live Ollama/Qdrant backend.
 type fakeDocSearch struct{}
 
-func (fakeDocSearch) Search(ctx context.Context, q pkg.SearchQuery) (pkg.SearchResponse, error) {
+func (fakeDocSearch) Search(ctx context.Context, q pkg.SearchQuery, _ ...pkg.SearchOption) (pkg.SearchResponse, error) {
 	return pkg.SearchResponse{
 		Results: []pkg.SearchResult{{
 			ID:           "demo",

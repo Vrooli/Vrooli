@@ -158,6 +158,131 @@ search-hub`").
 These files are read by tooling (`vrooli scenario test`, `test-genie`,
 the doc viewer) — keep them in sync with the code they describe.
 
+## Search tuning control surface
+
+Beyond routing and eval *tracking*, search-hub owns the **search-tuning
+authority**: it sweeps a provider's tuning factors against that provider's golden
+corpus and writes the winner back, and it grows + grades the corpus itself. This
+is the operator recipe; the factor schema (`tuning` block of `.vrooli/search.json`)
+and the per-knob dashboard live in the engine package
+[`packages/aisearch-go/docs/reference/search-json.md`](../../../../packages/aisearch-go/docs/reference/search-json.md).
+
+### The closed loop
+
+```
+search.json (scenario SSOT: descriptor + tuning + tests)
+   │  self-register at boot ─────────────────────────────────► search-hub registry
+   │                                                              (mints + stores a control TOKEN)
+   ▼
+evals generate ──► grow the golden corpus (query inversion + hard negatives, de-duped, marked "generated")
+   ▼
+evals sweep ──► run the suite under candidate tunings, clear the overfit guards, pick a winner
+   ▼  --apply (token-gated WriteConfig RPC)
+search.json `tuning` rewritten by the scenario  (+ reindex iff an index-time factor moved)
+```
+
+### `evals sweep` — the two-tier optimizer
+
+```bash
+# Preview a ranked arm table + recommendation (no write):
+search-hub evals sweep <suite_id>
+# Cheap path only (no reindex), and write the winner back:
+search-hub evals sweep <suite_id> --query-time-only --apply
+```
+
+The provider is derived from the suite (e.g. `cli-health.commands.primary` →
+`cli-health.commands`); there is no separate `--provider` argument.
+
+| Flag | Effect |
+|---|---|
+| `<suite_id>` (positional) | the golden corpus to optimize against (the provider's `tests`, registered as a suite). |
+| `--query-time-only` | skip the expensive index-time tier (no reindex-per-arm). |
+| `--apply` | gate the **write-back**; default previews the ranked table + recommendation and changes nothing. |
+| `--limit <n>` | per-case fetch depth (0 = a sensible default). |
+
+- **Incumbent** — the provider's current tuning is always evaluated as the baseline.
+- **Query-time tier** — `rerank_enabled` × `rerank_blend` (and other query-time
+  factors) explored **full-factorial** via per-request overrides. No reindex; cheap.
+- **Index-time tier** — `engine`, `embed_model`, `embed_task_prefix` explored by
+  **coordinate-ascent** (one factor at a time) to bound reindex cost: each value
+  is `config-push → reindex → poll terminal → run suite`. Interactions across
+  index-time factors are *not* explored — that limitation is reported in the
+  result note, never silently capped. Skipped entirely under `--query-time-only`.
+- Every arm is one stored, immutable, tagged `EvalRun` with a complete
+  `ConfigSnapshot` (engine, embed recipe, rerank policy, floor regime) so it is
+  self-describing and reproducible.
+
+### The four overfit guards (all mandatory; a winner clears every one)
+
+The sweep's contract is *"find a **robust** improvement or report none."* It will
+**refuse to promote a within-noise win**:
+
+1. **Significance** — a paired bootstrap CI of the per-case recall margin
+   (winner − incumbent) must exclude 0.
+2. **Held-out validation** — the winner, selected on the tuning fold, must hold on
+   an independent held-out fold. Machine-`generated` cases are *always* held out
+   of the tuning fold (so a tuning is never selected on cases a machine wrote).
+3. **Multi-objective constraints** — recall is maximized **subject to** a
+   gibberish/negatives ceiling and a p95-latency budget; an arm that leaks junk or
+   blows the budget is infeasible regardless of recall.
+4. **Complexity / incumbent tie-break** — among significant, feasible arms, prefer
+   the simpler config (dense over hybrid, rerank-off over on) and the incumbent;
+   switch only past the noise band guard #1 defines.
+
+On a cleared winner with `--apply`, the sweep calls the provider's token-gated
+`SearchControlService.WriteConfig` to persist the new `tuning` into the scenario's
+own `search.json`; otherwise it reports "no significant improvement" and changes
+nothing.
+
+### `evals generate` — grow + grade the corpus
+
+Optimizing against a hand-curated dozen-query corpus is trivially overfittable, so
+search-hub can grow the corpus from the provider's own index:
+
+```bash
+# Preview proposals (no write):
+search-hub evals generate <suite_id> --count 20 --negatives
+# Append the proposals to the provider's tests (human/agent reviews before merge):
+search-hub evals generate <suite_id> --count 20 --negatives --apply
+```
+
+It stratified-samples the index, inverts each sampled item to a natural-language
+query that should retrieve it (a positive case), optionally proposes hard
+negatives, and de-dupes against the existing corpus and each other. Every proposal
+is marked `tags:["generated", <stratum>]` — the marker the sweep holds out (guard
+#2). **Generation augments the curated golden core; it never replaces it.**
+
+**Adequacy warnings** (warn-level, *never* gating — a malformed suite is rejected
+by `Validate`, but a thin one is only flagged) surface on `evals show`, `evals
+run`, and `evals generate`:
+
+| Code | Fires when |
+|---|---|
+| `too_few_cases` | fewer than 12 positive cases (too small for a trustworthy held-out split). |
+| `no_negatives` | no junk-rejection cases — the gibberish constraint can't be checked. |
+| `thin_difficulty` | every case is one difficulty band (over-reports recall). |
+| `duplicate_query` | two cases share a query. |
+| `coverage_gap` | a live-index stratum (type/group/origin bucket) has no case (only when a live sample is supplied). |
+
+### Two documented limitations (not bugs — see [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md))
+
+- **The sampler enumerates only what its probes surface.** The unified search
+  contract has no list-all RPC, so `evals generate`'s sampler discovers items via
+  probe queries and reports the true count (no silent cap).
+- **De-dup is lexical (token-Jaccard), not embedding-semantic.** search-hub holds
+  no embedder of its own; `JaccardDeduper` is a stand-in behind the `Deduper` seam
+  and a cosine-over-embeddings deduper drops in unchanged when an embedder reaches
+  search-hub.
+
+### Security — the control token
+
+Sweep + reindex + config-write run over a **token-gated** control plane
+(`search-hub.v1.control.SearchControlService`). search-hub mints an opaque control
+token at the provider's first `RegisterProvider`, stores it server-side, and
+presents it on every reindex / config-write / per-request override. Public search
+(no overrides) needs no token. A provider that declares neither `reindex_endpoint`
+nor `config_endpoint` is routable but not sweep-tunable.
+
 ## Cross-references
 
 - [`QUICKSTART.md`](../QUICKSTART.md) — boot the scenario in 5 minutes

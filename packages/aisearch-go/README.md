@@ -134,12 +134,18 @@ The two cliffs the assemblers close: `NewHybridEngine` can't forget
 `Spec.Sparse=true`, and `EnsureCollectionForBinding` turns a hybrid-binding /
 dense-spec mismatch into a boot error instead of silently dropping the sparse leg.
 
-### 7. Wire an eval suite + set the rerank flag
+### 7. Ship `search.json` + let the sweep set the tuning
 
-Register a baseline suite in search-hub, run the rerank-on vs rerank-off A/B, and
-set `<PREFIX>_RERANK_ENABLED` from the result — see *Measuring adoption quality*
-below. Until you have run it, default rerank OFF for fused/doc corpora and ON for
-dense precision corpora.
+Author the provider's `.vrooli/search.json` (descriptor + `tuning` + a small
+golden `tests` corpus — start from `CommandCorpusTuning()` / `DocCorpusTuning()`)
+and wire the engine from it with `NewServiceForTuning(provider.ResolvedTuning(),
+deps)` instead of hand-picking `NewDenseEngine` vs `NewHybridEngine` (the
+`engine` field decides, by data). The scenario self-registers the file with
+search-hub at boot; the search-hub **sweep** then runs the rerank-on/off (and
+other) arms and writes the winning `tuning` back — see
+[`docs/reference/search-json.md`](docs/reference/search-json.md) for the schema +
+factor dashboard and *Measuring adoption quality* below. Until you sweep, default
+rerank OFF for fused/doc corpora and ON for dense precision corpora.
 
 ### Foot-guns this engine closes for you
 
@@ -253,12 +259,35 @@ off so a resource-less consumer degrades cleanly to dense order.
 > rerank step, on the reranked scores. cli-health now does this (the WS4 rerank
 > runs before the WS2 floor); `cap-fabecce56b518120` is closed.
 
-## Config knobs (`LoadConfig("<PREFIX>")`)
+## Config knobs
 
-`<PREFIX>_` + `SYNC_INTERVAL`, `SYNC_DISABLED`, `RECONCILE_PARALLELISM`,
-`MAX_EMBEDS_PER_TICK`, `QDRANT_URL`, `QDRANT_API_KEY`, `EMBED_MODEL`,
-`RERANK_ENABLED`, `RERANK_MODEL`, `RERANK_SHORTLIST`, `RELEVANCE_MAX_GAP`,
-`RELEVANCE_HARD_FLOOR`.
+> **The tuning SSOT is `.vrooli/search.json`**, not the environment. The search
+> *factors* — `engine`, `embed_model`, `embed_task_prefix`, `rerank_enabled`,
+> `rerank_blend`, `rerank_shortlist`, `floor.{max_gap,hard_floor}` — live in the
+> scenario-owned `tuning` block (schema + dashboard:
+> [`docs/reference/search-json.md`](docs/reference/search-json.md)) and are read
+> via `NewServiceForTuning`. The env vars below are **wiring/operational** config
+> plus unset-by-default operator *overrides* of those factors.
+
+`LoadConfig("<PREFIX>")` reads `<PREFIX>_` + `SYNC_INTERVAL`, `SYNC_DISABLED`,
+`RECONCILE_PARALLELISM`, `MAX_EMBEDS_PER_TICK`, `QDRANT_URL`, `QDRANT_API_KEY`,
+`EMBED_MODEL`, `EMBED_TASK_PREFIX`, `RERANK_ENABLED`, `RERANK_BLEND`,
+`RERANK_MODEL`, `RERANK_SHORTLIST`, `RELEVANCE_MAX_GAP`, `RELEVANCE_HARD_FLOOR`.
+
+**Two recall levers added 2026-06-07 (measured +0.20 recall@5 on cli-health
+commands, no precision loss — see the retrospective):**
+- `EMBED_TASK_PREFIX` (default off) — embed queries with `search_query:` and
+  passages with `search_document:` for an asymmetric model (nomic-embed-text).
+  A large retrieval win for terse corpora matched by natural-language queries.
+  Flipping it on changes the embedding space; the drift hash is recipe-aware, so
+  the next reconcile **auto-re-embeds** the corpus (a one-time cost). Leave it off
+  for a guarded/symmetric baseline until you have re-measured it.
+- `RERANK_BLEND` (default off; requires `RERANK_ENABLED`) — fuse the reranker
+  order with the retrieval order via RRF instead of letting the reranker reorder
+  outright. A pure-reorder cross-encoder can *bury* a strongly-retrieved canonical
+  result beneath literal-token lookalikes (measured −0.20 recall); blending keeps
+  the reranker's junk rejection while preserving retrieval recall. If you run a
+  rerank on a corpus where recall matters, prefer blend.
 
 **The full control surface — every knob, its range, default, and tradeoff, plus
 the regime-keyed weak/floor calibration (and why the thresholds are NOT levers),
@@ -292,32 +321,26 @@ is a stored, tagged artifact, not a one-off. See
 
 ### Worked example: the rerank-on-docs decision (the tuning loop)
 
-The rerank on/off choice is per-corpus and must be *measured*, not assumed. The
-loop, end to end:
+The rerank on/off choice is per-corpus and must be *measured*, not assumed — and
+it is now a `tuning.rerank_enabled` value in `search.json`, swept and written
+back, not an env flag flipped across restarts. The loop, end to end:
 
 ```bash
-# 1. Register the corpus suite (rank-centric so it survives the score-regime
-#    difference between the two arms — RRF ~0.01 vs cross-encoder ~0..1).
-search-hub evals register --suite @knowledge-observatory.docs.starter.json
-
-# 2. Run both arms as immutable tagged runs (flip the scenario flag between runs).
-KO_DOCS_RERANK_ENABLED=0 vrooli scenario restart knowledge-observatory
-search-hub evals run knowledge-observatory.docs.starter --tag rerank-off
-KO_DOCS_RERANK_ENABLED=1 vrooli scenario restart knowledge-observatory
-search-hub evals run knowledge-observatory.docs.starter --tag rerank-on
-
-# 3. Compare and decide on the SCALE-INVARIANT signal (top-K rank), not the score.
-search-hub evals compare <run_off> <run_on>
-
-# 4. Set the per-scenario flag from the winner. For KO docs the measured finding
-#    is that rerank buys ordering parity, not recall, so the default is OFF.
+# Query-time arms (rerank on/off × blend on/off) are explored full-factorial via
+# per-request overrides — NO reindex, no restart. The sweep runs the provider's
+# golden suite under each, stores one immutable tagged run per arm, and (with
+# --apply) writes the winning tuning back into search.json — but only if it
+# clears the four overfit guards (significance, held-out, constraints,
+# complexity tie-break). A within-noise result changes nothing.
+search-hub evals sweep knowledge-observatory.docs.starter --query-time-only --apply
 ```
 
-The flag is `<PREFIX>_RERANK_ENABLED` (`KO_DOCS_RERANK_ENABLED` for KO docs,
-`CLI_HEALTH_RERANK_ENABLED` for cli-health commands). A scenario disables the
-rerank pass simply by not constructing a reranker chain (KO) or setting the flag
-false (cli-health). The decision is justified by the stored, tagged A/B above —
-never hard-coded in a constructor.
+For KO docs the measured finding is that rerank buys ordering parity, not recall,
+so the winner is rerank-OFF and the sweep leaves `search.json` unchanged. The
+decision is justified by the stored, tagged arms — never hard-coded in a
+constructor. (Inspect a single pair by hand with `evals register` / `evals run
+--tag` / `evals compare` when you want to eyeball the score-regime difference —
+RRF ~0.01 vs cross-encoder ~0..1 — that the sweep handles rank-wise for you.)
 
 **One SSOT, two surfaces — do not build a third.** The search-hub `eval` domain
 is the single source of truth for *A/B and tuning*: it is where you justify a
@@ -326,11 +349,11 @@ stored, tagged, comparable run. A scenario *may* also keep a thin **recall@k
 per-build gate** (e.g. KO's `TestAccuracyCorpus`) — but that gate is a smoke
 check that the corpus still resolves its own goldens, NOT a second eval system:
 it must not re-implement A/B comparison, run storage, or experiment tagging.
-When you want to *change* a knob, register/compare in search-hub and flip the
-flag from the measured result. When you want to *guard* a build, the local
-recall gate is enough. The tuning loop is: register suite → run tagged A/B →
-`evals compare` → set the per-scenario flag (e.g. `<PREFIX>_RERANK_ENABLED`)
-from the winner.
+When you want to *change* a knob, run `evals sweep` (or register/compare by hand)
+in search-hub and let it write the winning `tuning` back into `search.json`. When
+you want to *guard* a build, the local recall gate is enough. The tuning loop is:
+golden suite in `search.json` → `evals sweep --apply` → the four overfit guards →
+winning `tuning` written back into `search.json` (the SSOT).
 
 ## Canonical worked example
 

@@ -310,6 +310,36 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | Covered by `internal/eval/runner_test.go` (override forwarding) and the sweep fakes. |
 | **Why it exists** | The sweep must vary query-time factors per arm through the SAME execution + labeling path the baseline uses, so an arm's result is comparable to the incumbent's; `RunWith` is the one method that threads overrides without forking the runner. |
 
+### corpusgen.Deps (the generator's seam bundle)
+
+| | |
+|---|---|
+| **Seam** | The three consumer-declared interfaces the transport-free corpus-generation core (`internal/corpusgen`) is built over — it imports no HTTP, no Connect, no store. |
+| **Interface** | `internal/corpusgen`: `Sampler.Sample(ctx, target)` (draw index items), `Inverter.{InvertPositive,InvertNegative}(ctx, item)` (the LLM query-inversion seam), `Deduper.IsDuplicate(candidate, seen)` (near-duplicate judgement). |
+| **Production wiring** | `handlers/eval/corpusgen.go`: `Sampler` = `corpusSampler` (probes the provider's registered search endpoint via the shared `eval.ProviderClient` — the only enumeration the search contract affords); `Inverter` = `corpusgen.OllamaInverter` (the local gateway); `Deduper` = `corpusgen.JaccardDeduper` (lexical token-overlap — a documented stand-in until search-hub has its own embedder). |
+| **Test fake** | `internal/corpusgen/*_test.go`: `fakeSampler` (canned items), `fakeInverter` (id→query map, empties model "failed" inversions), and the real `JaccardDeduper`. They prove the generated marker + anchoring, count cap, dedup vs corpus + self, negatives + floor, stable idempotent case ids, and strata reporting. |
+| **Why it exists** | Corpus generation's value is the orchestration (sample → invert → dedup → mark), which must be unit-testable without an LLM, a live index, or a network. The seams keep that core pure (boundary-of-responsibility); the heavy live concern (probe quality) stays at the handler edge. |
+
+### CorpusGenerator (the Generate-handler seam)
+
+| | |
+|---|---|
+| **Seam** | One-call generation for the connect handler: given a suite + its provider descriptor + options, return de-duped proposals + sampling stats. Hides the per-request sampler construction from the handler. |
+| **Interface** | `handlers/eval/corpusgen.go::CorpusGenerator.Generate(ctx, suite, desc, opts)`. |
+| **Production wiring** | `handlers/eval/module.go`: `newLiveCorpusGenerator(client)` builds the per-request `corpusSampler` over the same `eval.ProviderClient` the runner/sweep use, plus the Ollama inverter + Jaccard deduper. |
+| **Test fake** | `handlers/eval/generate_test.go::fakeGenerator` (canned `corpusgen.Result` / error). Proves preview-vs-apply (no persist on preview, append+upsert on apply), zero-proposal no-op, NotFound/Unregistered/Unimplemented translation, and adequacy surfacing. |
+| **Why it exists** | The handler must stay transport-only; the generator owns the (per-suite, per-descriptor) sampler wiring. The seam lets the handler's orchestration (resolve → generate → merge → adequacy → persist) be tested without an LLM or live index. |
+
+### ollama.Generate / Available (the one gateway to the local LLM)
+
+| | |
+|---|---|
+| **Seam** | The single transport to the shared Ollama daemon. Not substituted directly (callers seam at their own `generateFn` field); listed here because it is the one place the `resource-ollama gateway` shell + envelope-unwrap + think-strip lives, reused by the classifier, reranker, and corpus inverter. |
+| **Interface** | `internal/ollama`: `Generate(ctx, model, prompt, maxTokens)`, `Available(ctx)`, `UnwrapResponse`, `StripThink`, `ExtractJSONObject`. |
+| **Production wiring** | `routing.NewOllamaClassifier`/`NewOllamaReranker` and `corpusgen.NewOllamaInverter` default their `generate` field to `ollama.Generate`. |
+| **Test fake** | Each caller injects a deterministic `generateFn`; `internal/ollama/gateway_test.go` covers the envelope/think/JSON helpers directly. |
+| **Why it exists** | Three LLM callers were each shelling the gateway + unwrapping its envelope. Extracting it removes the duplication (utils-unification) and gives one governed entry point to the throttled daemon. |
+
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching

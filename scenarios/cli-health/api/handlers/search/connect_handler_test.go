@@ -62,7 +62,7 @@ func searchWith(t *testing.T, h *connectHandler, rs *recordingSearcher, override
 const goodOverrides = `{"rerank_enabled":true,"rerank_shortlist":40}`
 
 func gateEnabled(token string) *OverrideGate {
-	return &OverrideGate{Enabled: true, Token: func() string { return token }}
+	return &OverrideGate{Token: func() string { return token }}
 }
 
 func TestOverrideIgnoredWhenNoHeader(t *testing.T) {
@@ -79,10 +79,13 @@ func TestOverrideIgnoredWhenGateNil(t *testing.T) {
 	}
 }
 
-func TestOverrideIgnoredWhenChannelDisabled(t *testing.T) {
-	h, rs := quietHandler(t, &OverrideGate{Enabled: false, Token: func() string { return "tok" }})
+func TestOverrideIgnoredWhenGateHasNilTokenFunc(t *testing.T) {
+	// A gate with no token source can never match — the channel is closed until
+	// self-registration populates the token. (The old per-env "disabled channel"
+	// flag is gone; token presence is the only gate.)
+	h, rs := quietHandler(t, &OverrideGate{Token: nil})
 	if n := searchWith(t, h, rs, goodOverrides, "tok"); n != 0 {
-		t.Fatalf("disabled channel must ignore overrides, got %d options", n)
+		t.Fatalf("gate with nil token func must ignore overrides, got %d options", n)
 	}
 }
 
@@ -109,10 +112,10 @@ func TestOverrideIgnoredWhenCachedTokenEmpty(t *testing.T) {
 	}
 }
 
-func TestOverrideHonoredWhenEnabledAndTokenMatches(t *testing.T) {
+func TestOverrideHonoredWhenTokenMatches(t *testing.T) {
 	h, rs := quietHandler(t, gateEnabled("tok"))
 	if n := searchWith(t, h, rs, goodOverrides, "tok"); n != 1 {
-		t.Fatalf("enabled gate + matching token must thread the override option, got %d", n)
+		t.Fatalf("matching token must thread the override option, got %d", n)
 	}
 }
 
@@ -149,14 +152,14 @@ func TestTokenMatches(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			g := &OverrideGate{Enabled: true, Token: func() string { return c.cached }}
+			g := &OverrideGate{Token: func() string { return c.cached }}
 			if got := g.tokenMatches(c.presented); got != c.want {
 				t.Fatalf("tokenMatches(%q,%q) = %v, want %v", c.cached, c.presented, got, c.want)
 			}
 		})
 	}
 	// nil Token func never matches.
-	g := &OverrideGate{Enabled: true, Token: nil}
+	g := &OverrideGate{Token: nil}
 	if g.tokenMatches("anything") {
 		t.Fatal("nil Token func must never match")
 	}

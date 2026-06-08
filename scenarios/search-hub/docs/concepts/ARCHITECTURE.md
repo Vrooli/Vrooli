@@ -195,6 +195,44 @@ business-vocabulary-free and used by unrelated domains or surfaces.
 If shared infrastructure starts using product vocabulary, move that
 piece back into the owning domain or split a new domain first.
 
+## The self-tuning authority (sweep / corpusgen / control)
+
+search-hub's role expands beyond *router + eval tracker* to the
+**search-tuning authority**: it owns the closed optimization loop that
+sweeps a provider's tuning factors against that provider's golden
+corpus and writes the winner back, and the corpus-generation capability
+that grows + grades those corpora. Any scenario that adopts
+`.vrooli/search.json` gains auto-tuning for free — the compound-value
+seam.
+
+Three internal domains carry it, all built to the thin-router
+invariant (no vectors, no embedder, no provider-specific code) and the
+boundary-of-responsibility rule (a transport-free core behind small
+seams):
+
+| Domain | Role | Owns | Seams (test-injection boundaries) |
+|---|---|---|---|
+| `api/internal/sweep/` | The two-tier, overfit-safe optimizer. Pure functions: enumerate arms (query-time full-factorial, index-time coordinate-ascent), score each immutable run, apply the four guards, pick a winner. | The algorithm + the four overfit guards (significance, held-out, constraints, complexity tie-break). | suite reader, provider reader, arm runner, config controller, clock — satisfied in `handlers/eval` by the real eval Runner/store, the registry store, and the `control` client. |
+| `api/internal/corpusgen/` | Grow a provider's golden corpus from its own index (sample → invert → negatives → de-dup). Transport- and store-free. | The generation orchestration; every proposal marked `tags:["generated", …]`. | `Sampler` (reach the index), `Inverter` (LLM query inversion, via `ollama`), `Deduper` (near-duplicate judgement). |
+| `api/internal/control/` | Registry-side client for a provider's **token-gated** control plane (`SearchControlService` reindex + config-write). The mutating counterpart to the eval read path. | Call-time URL resolution via discovery, control-token presentation, transient-only retry. | the outbound HTTP/Connect seam; resolves base URL per call (never client-computed). |
+
+The `eval` domain expands too: it remains the suite store + run tracker,
+but now also hosts the `Sweep` and `Generate` handlers (wiring the
+`sweep`/`corpusgen` cores to the live seams) and the **adequacy** grader
+(`eval/adequacy.go`, warn-level — distinct from `eval/validate.go`, the
+hard gate). The shared `api/internal/ollama/` client is the single path
+to the local Ollama daemon (query classifier, reranker, and corpusgen
+inverter all route through `resource-ollama gateway`, so daemon load
+stays governed in one place).
+
+Both new factor-bearing contracts are **consumed, not redefined**: the
+factor taxonomy and the `search.json` schema are owned by
+`packages/aisearch-go` (`tuning.go`, `searchjson.go`); the control plane
+is the shared `search-hub.v1.control` proto. See
+[`../reference/configuration.md`](../reference/configuration.md#search-tuning-control-surface)
+for the operator recipe and [`../internal/SEAMS.md`](../internal/SEAMS.md)
+for the seam registry.
+
 ## Extension Rules
 
 Add product behavior by adding or updating the owning domain, not by

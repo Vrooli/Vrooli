@@ -4,6 +4,30 @@ Known issues, technical debt, and deferred work for Knowledge Observatory.
 
 ## Entries
 
+### 2026-06-08 — Self-registers `knowledge-observatory.docs` with search-hub at boot
+
+**Symptom:** (by design) KO now pushes its docs search provider descriptor to
+search-hub at startup instead of relying on an operator to register it.
+
+**Root cause / change:** Search Self-Tuning System plan Phase 2. `server.go`'s
+`selfRegisterSearch` (launched in a background goroutine alongside the docs
+indexer) reads the `knowledge-observatory.docs` descriptor from the
+`.vrooli/search.json` SSOT and upserts it via `RegistryService.RegisterProvider`
+through the shared `packages/searchregister-go` helper. search-hub is declared an
+**optional** scenario dependency (`.vrooli/service.json` →
+`dependencies.scenarios.search-hub`, `required:false`, `try_start`): if the hub is
+down at boot, registration retries briefly then degrades, and KO serves docs
+search normally. The upsert is idempotent, so re-registering every boot is safe.
+
+**Deferred:** the registration carries only the descriptor today; the
+`tuning`/`tests` blocks and the control token ride in once `registry.proto` gains
+those fields (plan Phase 3). KO's `tuning` (hybrid, symmetric nomic, rerank-off)
+continues to be read directly from `search.json` at boot, preserving the guarded
+recall@5=0.818.
+
+**Refs:** `api/server.go` (`selfRegisterSearch`), `.vrooli/service.json`,
+`packages/searchregister-go/`; Search Self-Tuning System plan §7 Phase 2.
+
 ## Architecture Drift
 
 ### 2026-05-08: Retired Standalone Screaming Architecture Audit Report

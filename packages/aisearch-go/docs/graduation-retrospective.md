@@ -142,6 +142,67 @@ build/test/vet/gofumpt clean):
   real quality gap (authority boost via the unused cli-health Decorate seam +
   index-time description enrichment is the fix, out of this read-path's scope).
 
+## Recall-gap investigation (2026-06-07) — what actually moved cli-health
+
+A measured deep-dive into cli-health's REQ-P0-004 recall gap (0.50) — every
+hypothesis was run as an isolated experiment against scratch collections
+(`scenarios/cli-health/.../{experiment,retrieval_diag,bvariants,final}_test.go`),
+not assumed. The headline: **the measurement overturned the intuitions.**
+
+- **Always separate retrieval rank from rerank order.** The first experiment
+  showed prefixes had "no effect" on recall@5 — but a raw-retrieval-rank probe
+  (no rerank, no floor) showed task prefixes were a *large* retrieval win
+  (`vrooli scenario list` #17→#2, `create a record` #32→#4). The gain was
+  invisible because the cross-encoder rerank re-sorted everything back. Measure
+  the shortlist rank, not just the final page, or you will misattribute.
+- **A pure-reorder reranker can DESTROY recall.** On this command corpus the
+  cross-encoder cost **−0.20 recall@5** (0.70 raw → 0.50) by promoting
+  literal-token siblings over the canonical command. But it is also what rejects
+  gibberish (collapses junk to ~0). The fix that keeps both is **RRF blend**
+  (`ServiceOptions.RerankBlend` / `ApplyRerankRRF`): fuse the reranker order with
+  the retrieval order instead of letting the reranker win outright. Final matrix
+  (prefix index): rerank-ON 0.50 (junk rejected); rerank-OFF 0.70 (5 strong junk
+  hits leaked); **rerank-BLEND 0.70 (junk rejected)** — strictly dominant.
+- **Task prefixes are opt-in, and a model/prefix change must re-embed.** nomic
+  needs `search_query:` / `search_document:` (`Config.EmbedTaskPrefix` →
+  `NewEmbedderForConfig`; default OFF so a guarded baseline like KO is never
+  silently re-spaced). Flipping it on changes the embedding space, so the drift
+  hash is now **recipe-aware** (`RecipeEmbedder` folded into `buildChunkPayload`):
+  an empty recipe keeps legacy hashes byte-identical; a non-empty recipe
+  auto-triggers a one-time re-embed. This also makes any future model swap safe.
+- **Things that sounded right and measured WRONG (not shipped):** enriching the
+  embedding text 0.70→0.40 (humanized identity made the literal-token siblings
+  match *more*); a hybrid sparse leg (mixed/negative on terse commands); a
+  canonical-origin authority boost 0.70→0.65.
+  - **Removed in the Search Self-Tuning System greenfield cleanup (2026-06-07,
+    Phase 0):** the two measured-to-HURT cli-health implementations —
+    `composeCommandEmbeddingTextEnriched` (+ `humanizePath`/`splitIdentifier`/
+    `splitCamel`/`cleanDescription`/`indexFold`) and `newAuthorityDecorator`
+    (+ `CanonicalOriginBoost`/`canonicalOrigin`) — are **deleted** from
+    `scenarios/cli-health/api/internal/aisearch`, along with the now-producerless
+    cli-health `Options.Decorate` passthrough. The generic seams stay in
+    `aisearch-go` (`ServiceOptions.Decorate`/`pkg.ScoreDecorator`, and the
+    injectable command composer via `Options.Compose`) for future corpora; only
+    the cli-health HURTS implementations are gone. The hybrid sparse leg is NOT
+    removed — it is a genuine live lever (`Options.Sparse`) kept for the sweep.
+    The recall-experiment harnesses
+    (`experiment_test.go`/`retrieval_diag_test.go`/`bvariants_test.go`) had their
+    enriched/authority arms stripped; they now compare only the live levers
+    (task-prefix, hybrid, rerank, floor). `enrichment_test.go` (which tested only
+    the deleted implementations) was deleted. The verdicts persist here in docs.
+- **Recall can be gated by discovery/labels, not retrieval.** Three of the six
+  residual misses were not retrieval problems at all: a real command absent from
+  another scenario's manifest (git-control-tower's `baseline` group — filed), a
+  label pointing at a non-command (`vrooli help`), and a help-parser that dropped
+  `name, alias  <desc>` subcommand rows (fixed in cli-health). Always confirm the
+  target is *in the index* before tuning the ranker.
+
+Net: cli-health recall@5 0.50 → **0.70**, with junk rejection preserved, via two
+shared-lib capabilities (`EmbedTaskPrefix`, `RerankBlend`) that any adopter can
+turn on. The 0.8 gate remains blocked by the GCT manifest fix + a genuine
+vocabulary gap on ~3 queries (would need a stronger embed model or per-command
+synonyms), so REQ-P0-004 stays `in_progress`.
+
 ## What adopter #3 does (the whole job)
 
 1. `LoadConfig("MYSCENARIO")`; `NewDenseEngine` (or `NewHybridEngine`).

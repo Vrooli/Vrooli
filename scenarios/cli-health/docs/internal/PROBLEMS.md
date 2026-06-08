@@ -196,21 +196,50 @@ reindex + config-write contract any search provider speaks, so search-hub's swee
 drives index-time experiments uniformly. `search.json` declares `reindex_endpoint`
 + `config_endpoint`; the CLI `reindex` group is repointed onto the shared service
 and takes a `--control-token` flag (or `CLI_HEALTH_SEARCH_CONTROL_TOKEN`). The whole
-plane is gated by `CLI_HEALTH_SEARCH_CONTROL_ENABLED` (default OFF) + the minted
-control token.
+plane is gated solely by the minted control token (search-hub is its only holder);
+there is no env flag — a provider opts out of tuning by omitting its control
+endpoints in `search.json`. (The earlier per-env `CLI_HEALTH_SEARCH_*_ENABLED`
+flags were removed 2026-06-08: redundant with the token + the declarative
+endpoint-omission opt-out, and a default-OFF flag contradicted the "auto-tuning
+for free" contract — greenfield, no env-as-gate.)
 
-**Known boundary (deferred to Phase 6 — NOT a bug):** `WriteConfig` validates and
-atomically rewrites `search.json`, and on an INDEX-TIME factor change (engine /
-embed_model / embed_task_prefix) it triggers a reindex and returns
-`reindex_triggered=true`. But the live reconciler embeds with the **boot-time
-recipe**, so an index-time recipe change only fully applies after the process
-restarts and re-reads `search.json` (the boot path rebuilds the engine and the
-recipe-aware drift hash re-embeds). The triggered reindex still reconciles corpus
-membership and gives search-hub a job to poll. Making an index-time change apply
-**in-process** (live engine rebuild + reconciler swap, so no restart is needed)
-is the Phase-6 sweep's responsibility. Query-time-only changes need no reindex and
-take effect on next boot. Until then, an operator applying an index-time tuning
-change should restart cli-health.
+**In-process index-time apply — LANDED (Phase 8, 2026-06-08).** `WriteConfig`
+validates and atomically rewrites `search.json`; on an INDEX-TIME factor change
+(engine / embed_model / embed_task_prefix) it now calls `ApplyTuning` instead of a
+boot-recipe reindex. `ApplyTuning` (`internal/aisearch/service.go`) **rebuilds the
+live engine for the new tuning and re-embeds the corpus with the new recipe in
+process — no restart**:
+- The cli-health `aisearch.Service` no longer embeds `*pkg.Service`; it holds the
+  engine behind an `sync.RWMutex` and swaps the pointer atomically. All access
+  (Search/Status/Reindex/Reconciler) funnels through `current()` under the read
+  lock, so a concurrent swap never races the embedded pointer.
+- The sync loop is driven via `aisearchpkg.NewSyncLoopFunc` (a reconciler
+  *provider*, resolved each tick) so after a swap it reconciles the NEW engine —
+  otherwise the loop's old reconciler + the recipe-aware drift hash would re-embed
+  back to the old recipe within one interval and undo the apply.
+- `NewTunedService` retains the factor builder (`pkg.NewServiceForTuning`) so the
+  rebuild re-derives embedder recipe / engine shape from the tuning data.
+- **Boundary kept:** a STRUCTURAL change (dense↔hybrid) flips the collection's
+  sparse-vector layout; `ApplyTuning` ensures the new collection BEFORE swapping,
+  so the schema guard's mismatch surfaces as an error **without** swapping or
+  dropping data (aisearch-go never auto-drops — data loss is operator-initiated).
+  That arm still needs a manual collection rebuild / restart. Recipe changes
+  (`embed_task_prefix`, an in-dimension `embed_model` swap) apply fully live.
+- Tests: `internal/aisearch/apply_tuning_test.go` (swap + re-embed into the new
+  store; structural mismatch does not swap; not-rebuildable guard) +
+  `handlers/searchcontrol` (WriteConfig routes an index-time change through
+  ApplyTuning with the effective tuning, not the boot-recipe reindex).
+
+**Pre-existing `-race` finding (NOT this change — discovered while verifying):**
+`go test -race ./internal/aisearch/` reports a data race on `ReindexJob.State`:
+aisearch-go's `Service.ReindexStatus` returns the live `*ReindexJob` pointer and
+the test helper `waitJob` (plus `ServiceAdapter`/`JobExport`) read `.State`/`.Plan`
+outside the package's job mutex while `runReindex` writes them under it. The
+racing accesses are entirely in `packages/aisearch-go` + the test helper, not in
+the engine-swap code (which is correctly RWMutex-guarded); plain `go test` is
+green. The clean fix is for `ReindexStatus` to return a snapshot copy taken under
+the lock — an aisearch-go change that ripples to KO/swarm-manager, so it is left
+for a focused job-state-concurrency pass rather than bundled here.
 
 **Manifest-validation note:** the cli-health manifest validator
 (`internal/services/manifestvalidation`) now loads the shared `search-hub/v1/control`

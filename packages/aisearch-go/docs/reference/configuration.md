@@ -10,12 +10,26 @@ flooring with zero tuning, because the package detects the active scoring regime
 at runtime and picks the right bands. The one decision a human/agent owns —
 *whether to rerank at all* — is documented below with a data-driven recipe.
 
+> **The tuning SSOT is `.vrooli/search.json`, not the environment.** The genuine
+> search *factors* (engine shape, embedding recipe, rerank policy, floor band)
+> live in the scenario-owned `tuning` block — see
+> [`search-json.md`](search-json.md) for the schema + the full factor dashboard
+> (tier, default, decision rule per knob). A migrated adopter (cli-health, KO)
+> reads them via `NewServiceForTuning(tuning, deps)` and the `search-hub` sweep
+> writes them back; nothing search-tunable is a Go literal or an env-var-that-is-
+> the-SSOT. The env vars in §1 are now **wiring/operational** config plus
+> unset-by-default operator *overrides* — not the source of truth.
+
 ---
 
-## 1. The control surface (`LoadConfig("<PREFIX>")`)
+## 1. The operational control surface (`LoadConfig("<PREFIX>")`)
 
-Every knob is read from `<PREFIX>_<NAME>` (an empty prefix reads the bare name).
-Malformed values log a warning and fall back to the default.
+These are the **wiring/operational** knobs (sync cadence, Qdrant address,
+reranker resource endpoints) plus the override forms of the search factors. Each
+is read from `<PREFIX>_<NAME>` (an empty prefix reads the bare name); malformed
+values log a warning and fall back to the default. The factor values themselves
+are owned by `search.json` (above) — a migrated adopter ignores the factor env
+reads below.
 
 | Env var | Type | Default | What it trades off |
 |---|---|---|---|
@@ -87,25 +101,25 @@ what reranking buys depends on the corpus:
   hybrid RRF + authority boosting already ties the cross-encoder on recall, so
   the doc leaf runs rerank-off.
 
-So the engine ships `RERANK_ENABLED` **default-off** (a resource-less consumer
-degrades cleanly to dense order), and an adopter decides with evidence:
+So the engine ships rerank **default-off** in the taxonomy (a resource-less
+consumer degrades cleanly to dense order), the decision is persisted as
+`tuning.rerank_enabled` (+ `rerank_blend`) in `search.json`, and an adopter
+decides with evidence. The `search-hub` **sweep** automates the A/B and the
+write-back:
 
 ```bash
-# 1. Register a baseline eval suite for your provider (golden queries + soft
-#    expectations + score bands).
-search-hub evals register --suite @your-suite.json
-
-# 2. Run it both ways. Runs are immutable and snapshot the config that affects
-#    results (active reranker leg, embed model, indexed count).
-search-hub evals run your-provider.leaf --tag rerank-off
-search-hub evals run your-provider.leaf --tag cross-encoder
-
-# 3. Compare and decide.
-search-hub evals compare <run_off> <run_cross>
+# One command: enumerate the query-time arms (rerank on/off × blend on/off),
+# run the provider's golden suite under each via per-request overrides, and
+# (with --apply) write the winning tuning back — but ONLY if it clears the four
+# overfit guards (significance, held-out, constraints, complexity tie-break).
+search-hub evals sweep cli-health.commands.primary --query-time-only --apply
 ```
 
-Keep the lever count small and intentional: this is the high-value, low-regret
-toggle; the thresholds above are not knobs (§2).
+The manual A/B still exists when you want to inspect a single pair
+(`evals register` / `evals run --tag` / `evals compare`), but the sweep is the
+loop: it never promotes a within-noise win and it writes the result into the
+tuning SSOT for you. Keep the lever count small and intentional: this is the
+high-value, low-regret toggle; the thresholds above are not knobs (§2).
 
 ---
 
@@ -141,14 +155,23 @@ boundary:
 
 ## 5. End-to-end: adopt → calibrate → validate
 
-1. **Adopt.** Wire the engine per `README.md` (`NewDenseEngine` + a `Source`
-   adapter). Reranking is off by default — you get correct dense-cosine
-   weak-labeling and flooring immediately, no tuning.
-2. **Calibrate.** Decide the one lever: register a `search-hub` eval suite, run
-   `rerank-off` vs `cross-encoder`, `evals compare`, and set `RERANK_ENABLED`
-   from the delta (§3). The regime thresholds need no per-scenario tuning.
-3. **Validate.** Store the tagged runs as immutable evidence. Re-run the suite
-   after any retrieval change to catch regressions. The thresholds baked into
-   the package were themselves chosen from this eval matrix on the live
+1. **Adopt.** Author `.vrooli/search.json` (descriptor + a starting `tuning`
+   block + a small golden `tests` corpus — start from `CommandCorpusTuning()` or
+   `DocCorpusTuning()`), then wire the engine with
+   `NewServiceForTuning(provider.ResolvedTuning(), deps)` per `README.md`. The
+   scenario self-registers the file with `search-hub` at boot. Reranking is off
+   by default — you get correct dense-cosine weak-labeling and flooring
+   immediately, no tuning.
+2. **Calibrate.** Run `search-hub evals sweep <suite_id> --apply`.
+   The sweep enumerates the arms, runs the golden suite under each, clears the
+   four overfit guards, and writes the winning `tuning` back into `search.json`
+   (reindexing if an index-time factor moved). The regime thresholds need no
+   per-scenario tuning. Grow a thin corpus first with `evals generate` (adequacy
+   warnings tell you when it is too thin to trust a sweep).
+3. **Validate.** Each arm is a stored, immutable, tagged run snapshotting the
+   config that affects results. Re-run the suite (or the scenario's thin recall
+   gate) after any retrieval change to catch regressions. The thresholds baked
+   into the package were themselves chosen from this eval matrix on the live
    cli-health corpus; an adopter whose corpus disagrees overrides via the
-   `RELEVANCE_*` env vars with its own run IDs as justification.
+   `tuning.floor.*` fields (or the `RELEVANCE_*` env override) with its own run
+   IDs as justification.

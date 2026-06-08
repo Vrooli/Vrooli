@@ -223,8 +223,8 @@ implemented end-to-end. **Provider side (cli-health):** the cli-health-private
 `cli-health/v1/reindex` proto + handler are **deleted**; cli-health implements
 `SearchControlService` (`handlers/searchcontrol`) — `Reindex`/`ReindexStatus`/
 `ReindexCancel` wired to aisearch-go's reconcile job control, and `WriteConfig`
-wired to a `search.json` writer. Token + per-env-flag gated
-(`CLI_HEALTH_SEARCH_CONTROL_ENABLED`, default OFF). `search.json` now declares
+wired to a `search.json` writer. Control-token gated (the per-env `*_ENABLED`
+flags were removed 2026-06-08 — see the Phase 8 entry). `search.json` now declares
 `reindex_endpoint` + `config_endpoint`; the search.schema.json + aisearch-go
 `ProviderConfig` carry them; searchregister-go maps them onto the descriptor.
 
@@ -316,6 +316,167 @@ change is additive only (new field numbers 6–9, a new RPC, new messages).
 **Refs:** `internal/sweep/{sweep,taxonomy,score,guards}.go` (+ tests);
 `handlers/eval/{module,connect_handler,endpoints}.go`; `cli/domains/evals/`;
 `packages/proto/schemas/search-hub/v1/eval/eval.proto`; plan §7 Phase 6.
+
+### Search Self-Tuning System — Phase 7 (corpus generation + adequacy checks) DONE
+
+The corpus the sweep optimizes against can now be **grown from the index itself**
+and **graded** for adequacy — closing the overfit risk a hand-curated dozen-query
+corpus carries. Three pieces:
+
+- **`internal/corpusgen/` — transport-free generation core** (seams `Sampler`,
+  `Inverter`, `Deduper` — see SEAMS.md; 22 unit tests, `-race` clean). `Generate`
+  samples the provider's index, inverts each item to a natural-language query
+  (positive case anchored to the item's id), optionally proposes hard negatives
+  (`expect_no_strong_hit`), and de-dupes candidates against the existing corpus +
+  each other. **Every proposed case is marked `tags:["generated", <stratum>]`** —
+  the load-bearing marker the sweep already keys guard #2 on (`generatedCaseIDs`
+  → always held out of the tuning fold). Case ids are a stable FNV hash of the
+  normalized query, so re-running `generate` is idempotent. Default `Inverter` =
+  `OllamaInverter` (local gateway, `qwen3:1.7b`, override `SEARCH_HUB_CORPUSGEN_MODEL`);
+  default `Deduper` = `JaccardDeduper` (see the deliberate limitation below).
+- **`EvalService.Generate` RPC + `evals generate <suite_id> [--count N] [--negatives] [--apply]`.**
+  Preview by default (proposals + resulting-corpus adequacy, no mutation); `--apply`
+  appends the proposals and upserts. Production sampler (`handlers/eval/corpusgen.go::corpusSampler`)
+  probes the provider's registered search endpoint and collects distinct hits.
+- **Warn-level adequacy (`internal/eval/adequacy.go::CheckAdequacy`).** Never fails,
+  never gates. Findings: `too_few_cases` (< `MinPositiveCases` = 12), `no_negatives`,
+  `thin_difficulty` (one band only), `duplicate_query`, and `coverage_gap` (only when
+  a live sample's strata are supplied — corpusgen passes them; `GetSuite`/`RunSuite`
+  pass nil and run the structural checks). Surfaced on `evals show`, `evals run`, and
+  `evals generate` (`GetSuiteResponse.adequacy`, `RunSuiteResponse.adequacy`,
+  `GenerateResponse.adequacy`).
+
+Also: extracted **`internal/ollama`** — the single gateway transport (`Generate` /
+`Available` / envelope-unwrap / think-strip) the classifier, reranker, and inverter
+now share (was duplicated across the two routing files); utils-unification, behavior
+preserved verbatim, routing tests unchanged + green.
+
+**Deliberate limitation (NOT a bug) — two stand-ins gated on follow-ups:**
+1. **The sampler enumerates only what its probes surface.** The unified search
+   contract has no list-all / dump RPC, so `corpusSampler` discovers items by issuing
+   probe queries (the suite's existing case queries + content words from the
+   descriptor) and collecting the hits. It therefore cannot see items no probe
+   reaches; `Result.Sampled` reports the true count (no silent cap). Phase 8 (live
+   validation) widens the probe set against the real index.
+2. **De-dup is lexical (token-Jaccard), not embedding-semantic.** search-hub holds
+   no embedder of its own (embeddings live provider-side); `JaccardDeduper` is a
+   pragmatic stand-in behind the `Deduper` seam. When an embedder reaches search-hub,
+   a cosine-over-embeddings `Deduper` drops in with no change to the generator.
+
+**Verification (all green):** `search-hub/api` + `cli` build+vet+test (`internal/corpusgen`
+`-race`, gofumpt-clean); proto-parity (`TestProtoConnectParity`) + gen-endpoints tests
+updated and green; `.vrooli/endpoints.json` regenerated (`evals_generate` + CLI seed);
+`buf lint` clean; eval.proto change additive only (new RPC + `AdequacyWarning` /
+`GenerateRequest` / `GeneratedCase` / `GenerateResponse`, new `adequacy` fields on
+`GetSuiteResponse`/`RunSuiteResponse`) and contained to search-hub (no other Go module
+imports `search-hub/v1/eval`). NOTE: `make breaking` reports the same git-workspace
+image-count artifact in this environment, not a real break.
+
+**Refs:** `internal/corpusgen/*`; `internal/ollama/*`; `internal/eval/adequacy.go`;
+`handlers/eval/{corpusgen,generate,connect_handler,endpoints,module}.go`;
+`cli/domains/evals/{handlers,register}.go`; `cli/manifest.json`;
+`packages/proto/schemas/search-hub/v1/eval/eval.proto`; plan §7 Phase 7.
+
+### Search Self-Tuning System — Phase 8 (docs + adoption parity) — docs DONE; live + provider-rebuild OPEN
+
+**What landed (docs deliverable, the plan §13 DoD doc item):**
+- The control-surface **dashboard** is now documented as the canonical engine
+  reference: `packages/aisearch-go/docs/reference/search-json.md` (NEW) carries
+  the `.vrooli/search.json` schema + the per-knob factor table (key / tier /
+  kind / default / decision rule) + presets + the read/write lifecycle.
+  `configuration.md` and `README.md` in `aisearch-go` were **de-staled**: the
+  tuning SSOT is `search.json`, the env factor reads are demoted to operator
+  overrides, and the tuning loop is `evals sweep`/`generate` write-back — not the
+  old env-flag + `vrooli scenario restart` recipe.
+- search-hub: `docs/reference/configuration.md` gained a **Search tuning control
+  surface** section (the `evals sweep`/`evals generate` operator recipe, the four
+  overfit guards, the adequacy codes, the control token, the two documented
+  limitations). `ARCHITECTURE.md` gained **The self-tuning authority** zone map
+  (sweep / corpusgen / control internal domains + the expanded eval/ollama
+  roles). SEAMS.md already registered the new seams (Phases 6–7); no change
+  needed.
+- Adopting scenarios: cli-health + KO `configuration.md` gained **Search tuning
+  (`.vrooli/search.json`)** sections (provider id, the measured tuning + why,
+  self-registration, control plane; KO records the recall@5=0.818 guard).
+
+**Provider-side in-process index-time apply — LANDED (2026-06-08).** The Phase-5/6
+deferral is closed: cli-health's `WriteConfig` now calls `ApplyTuning`, which
+rebuilds the live engine for the new tuning and re-embeds the corpus with the new
+recipe **in process, no restart** (engine held behind an RWMutex + swapped
+atomically; sync loop driven by `aisearchpkg.NewSyncLoopFunc` so it resolves the
+current reconciler each tick). A structural dense↔hybrid change still needs a
+manual collection rebuild (the schema guard surfaces it without auto-dropping
+data). aisearch-go gained `NewSyncLoopFunc` for the swappable-reconciler case.
+See `scenarios/cli-health/docs/internal/PROBLEMS.md`. This unblocks an attended
+*index-time* sweep.
+
+**Live engine validated through the refactor (2026-06-08, resources up).** Ran
+cli-health's live recall gate (`CLI_HEALTH_AISEARCH_LIVE=1 go test -run
+TestCommandRecall`, ~145 s): the full engine exercised the refactored
+`aisearch.Service` end-to-end on real ollama + qdrant — embed (nomic task prefix)
+→ qdrant retrieve → cross-encoder rerank+blend → score — into a scratch collection
+(dropped on defer, live index untouched). **recall@5 = 0.714 (15/21)**, at/above
+the documented ~0.70 post-`embed_task_prefix`+`rerank_blend` baseline, so the
+engine-swap refactor **did not regress retrieval**. The 0.714 < 0.80 gate gap is
+the pre-existing, documented label/manifest/vocab gap — every MISS is one of:
+`git-control-tower baseline snapshot` (the GCT baseline-manifest omission, bug
+`knw-1780810146590717122`, out of scope per plan §4), the `vrooli help`
+non-command label, and ~4 vocab-gap cases (bug `knw-1780702659191582434`, stays
+`in_progress`). This validates the read + reindex path ApplyTuning reuses; the
+swap + re-embed mechanics are covered by `apply_tuning_test.go` (fakes).
+
+**Env-flag gating REMOVED → token-only (2026-06-08, greenfield).** The Phase-4/5
+`CLI_HEALTH_SEARCH_OVERRIDES_ENABLED` / `CLI_HEALTH_SEARCH_CONTROL_ENABLED`
+default-OFF feature flags were deleted. They were redundant with (a) the
+registration-minted control token (search-hub is its only holder) and (b) the
+declarative opt-out (a provider omits its control endpoints in `search.json`), and
+a default-OFF flag contradicted the DoD's "auto-tuning for free." The override gate
++ control gate are now token-only, so a plain restart is sweep-ready with no env
+setup. (`handlers/search`/`searchcontrol` gate structs, `main.go`, tests, SEAMS.md
+all repointed; dead `boolEnv` deleted.)
+
+**Live sweep + generate VALIDATED end-to-end (2026-06-08, resources up).** After
+restarting cli-health (fresh binary, token-only gating):
+- `evals sweep cli-health.commands.primary --query-time-only` ran the suite across
+  arms **via the token-gated override channel** — arms produced *different* recall
+  (incumbent 0.286 vs query-time 1.000), proving cli-health actually applied the
+  per-request overrides (token honored). **All four overfit guards fired:** the
+  best arm (margin +0.500) was **not promoted** because its 95% CI [0,+1.0]
+  overlaps 0 (significance); held-out fold winner=incumbent=0.000 (held-out); one
+  arm flagged **INFEASIBLE "gibberish leakage above ceiling"** (constraint) →
+  "no significant improvement — incumbent retained." The sweep correctly **refused
+  a within-noise win** (the plan's contract). `search.json` left **unchanged**
+  (sha-verified; no `--apply` needed since nothing was promoted).
+- `evals show … --json` surfaced the adequacy warning `too_few_cases` ("only 7
+  positive case(s) — below the floor of 12").
+- `evals generate cli-health.commands.primary --count 6 --negatives` (preview):
+  sampled 6 → LLM-inverted via ollama → 6 positives + 2 hard negatives, each
+  marked `{generated,…}` (the sweep's held-out marker), preview-only.
+
+**Defect found + filed during validation — `knw-1780935292042898963` (major).**
+The sweep first failed `no such column: control_token`: the registry SQLite DB
+predated the Phase-4 column and there is **no working additive-column migration**
+(`ADD COLUMN IF NOT EXISTS` is invalid SQLite; `EnsureSchemas` execs the file
+atomically), so **all** provider registration had been silently failing on any
+non-fresh DB. Surgically unblocked (non-destructive `ALTER TABLE providers ADD
+COLUMN control_token …` + cli-health re-register → real token minted). The
+misleading "ADD COLUMN IF NOT EXISTS" guidance in `registry/schema.go` +
+`eval/schema.go` was corrected; the real fix is the deferred brownfield
+additive-migration mechanism (escalate per storage-steer §6) — see the bug.
+
+**Still OPEN:**
+1. **Index-time sweep** (`embed_task_prefix` arm, now unblocked by the in-process
+   apply) + a `--apply` write-back demo (snapshot `search.json` to /tmp + restore;
+   only meaningful once a corpus large enough to clear the guards exists — grow it
+   first with `evals generate --apply`). Reconfirm **KO recall@5 = 0.818**
+   (`KO_AISEARCH_LIVE=1 go test ./internal/aisearch/ -run TestAccuracyCorpus`).
+2. On plan completion, write the `kind: execute` record
+   (`swarm-manager records create`) per plan §13.
+
+**Refs:** `packages/aisearch-go/docs/reference/{search-json,configuration}.md`,
+`packages/aisearch-go/README.md`; `scenarios/{search-hub,cli-health,
+knowledge-observatory}/docs/`; bug `knw-1780935292042898963`; plan §7 Phase 8 +
+§13 DoD.
 
 ## Architecture Drift
 

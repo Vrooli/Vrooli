@@ -11,11 +11,27 @@ import (
 // DefaultSyncInterval is the reconcile cadence used when no interval is set.
 const DefaultSyncInterval = 5 * time.Minute
 
-// Config holds the reconciler / sync-loop tunables a consumer reads from the
+// Config holds the OPERATIONAL / WIRING knobs a consumer reads from the
 // environment. Each consumer scopes its variables under a prefix (e.g.
 // "CLI_HEALTH" → CLI_HEALTH_SYNC_INTERVAL) so multiple aisearch consumers on one
 // host are tuned independently.
+//
+// Control-surface map (see tuning.go for the factor taxonomy SSOT). The fields
+// here fall in three groups:
+//
+//   - WIRING/operational (the source of truth, always): sync cadence,
+//     parallelism, embed batch cap, Qdrant address, reranker resource endpoints.
+//     These are deployment facts, not search "factors".
+//   - SEARCH FACTORS (EmbedModel, EmbedTaskPrefix, Relevance*, Rerank{Enabled,
+//     Blend,Model,Shortlist}): these are GENUINE per-corpus tuning factors and
+//     are now owned by TuningConfig / `.vrooli/search.json` (the SSOT). They are
+//     retained on Config only for env-driven consumers that have not yet migrated
+//     to search.json; a migrated adopter (cli-health, KO) reads them from the
+//     SSOT via NewServiceForTuning and ignores the env reads below.
+//   - PACKAGE-OWNED CALIBRATION (the floor regime bands, RRF k) lives in
+//     defaults.go and floor.go, not here — an adopter does not tune it.
 type Config struct {
+	// --- WIRING / operational ---
 	SyncInterval         time.Duration
 	SyncDisabled         bool
 	ReconcileParallelism int
@@ -25,7 +41,17 @@ type Config struct {
 	MaxEmbedsPerTick int
 	QdrantURL        string
 	QdrantAPIKey     string
-	EmbedModel       string
+
+	// --- SEARCH FACTORS (now owned by TuningConfig / search.json; see tuning.go) ---
+	EmbedModel string
+	// EmbedTaskPrefix opts into asymmetric task-instruction prefixes for the
+	// embedding model (read from <prefix>_EMBED_TASK_PREFIX). For nomic-embed-text
+	// this applies "search_query:"/"search_document:", a measured +0.20 recall on
+	// the cli-health command corpus. Default off: flipping it on changes the
+	// embedding space, so the adopter must reindex (the recipe-aware drift hash
+	// triggers the re-embed automatically). Symmetric corpora / already-tuned
+	// adopters (e.g. KO's guarded baseline) leave it off until validated.
+	EmbedTaskPrefix bool
 	// RelevanceMaxGap / RelevanceHardFloor are consumer *overrides* for the
 	// ApplyRelevanceFloor band (WS2), read from <prefix>_RELEVANCE_MAX_GAP /
 	// _RELEVANCE_HARD_FLOOR. They default to 0 ("unset") so FloorForLeg supplies
@@ -41,6 +67,12 @@ type Config struct {
 	RerankEnabled   bool
 	RerankModel     string
 	RerankShortlist int
+	// RerankBlend fuses the reranker order with the retrieval order via RRF rather
+	// than letting the reranker reorder outright (read from <prefix>_RERANK_BLEND).
+	// It keeps the reranker's junk rejection while not burying strongly-retrieved
+	// canonical results — a measured +0.20 recall on the cli-health command corpus
+	// with no precision loss. Default off (opt-in, like the other rerank levers).
+	RerankBlend bool
 	// RerankerURL / RerankerModel target the cross-encoder `reranker` resource.
 	// Read from <prefix>_RERANKER_URL / _RERANKER_MODEL, they let two scenarios on
 	// one host point at *different* rerankers. Both default to "" ("unset"): the
@@ -48,6 +80,7 @@ type Config struct {
 	// (RERANKER_BASE_URL/RERANKER_URL/RERANKER_HOST+PORT, model RERANKER_MODEL),
 	// preserving zero-config local use. Distinct from RerankModel, which is the
 	// LLM *fallback* leg's model.
+	// --- WIRING: reranker resource endpoints (operational, not a factor) ---
 	RerankerURL   string
 	RerankerModel string
 }
@@ -71,9 +104,11 @@ func LoadConfig(prefix string) Config {
 		QdrantURL:            envString(key("QDRANT_URL"), DefaultQdrantURL),
 		QdrantAPIKey:         envString(key("QDRANT_API_KEY"), ""),
 		EmbedModel:           envString(key("EMBED_MODEL"), DefaultEmbedModel),
+		EmbedTaskPrefix:      envBool(key("EMBED_TASK_PREFIX")),
 		RelevanceMaxGap:      envFloat(key("RELEVANCE_MAX_GAP"), 0),
 		RelevanceHardFloor:   envFloat(key("RELEVANCE_HARD_FLOOR"), 0),
 		RerankEnabled:        envBool(key("RERANK_ENABLED")),
+		RerankBlend:          envBool(key("RERANK_BLEND")),
 		RerankModel:          envString(key("RERANK_MODEL"), DefaultRerankModel),
 		RerankShortlist:      envInt(key("RERANK_SHORTLIST"), DefaultRerankShortlist, MinRerankShortlist, MaxRerankShortlist),
 		RerankerURL:          envString(key("RERANKER_URL"), ""),

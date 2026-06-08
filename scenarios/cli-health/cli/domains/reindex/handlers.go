@@ -16,8 +16,8 @@ import (
 // controlTokenEnv is the operator escape hatch for the control token. The token
 // is normally minted by search-hub and held in the API process; an operator who
 // drives reindex locally supplies it via --control-token or this env var. Without
-// a matching token (and CLI_HEALTH_SEARCH_CONTROL_ENABLED on the API) the server
-// rejects the call — there is no token-free control verb.
+// a matching token the server rejects the call — the control token is the only
+// gate (there is no token-free control verb).
 const controlTokenEnv = "CLI_HEALTH_SEARCH_CONTROL_TOKEN"
 
 type handlers struct {

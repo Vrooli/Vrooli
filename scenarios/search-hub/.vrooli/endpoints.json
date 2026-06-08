@@ -344,6 +344,55 @@
       }
     },
     {
+      "id": "evals_generate",
+      "path": "/vrooli.search_hub.v1.eval.EvalService/Generate",
+      "method": "POST",
+      "summary": "Generate golden cases for a suite by sampling + inverting the provider's index",
+      "description": "Samples the provider's live index (stratified), inverts each sampled item to a natural-language query that should retrieve it (+ optional hard negatives), de-dupes against the existing corpus, and proposes the cases — each marked tags:[\"generated\"] so the sweep holds them out of tuning. Preview-only by default; --apply appends the proposals to the suite. Returns the resulting corpus's warn-level adequacy.",
+      "category": "eval",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "bool (append proposals to the suite; default preview-only)",
+          "count": "int (target positive cases; 0 = default)",
+          "negatives": "bool (also propose hard negatives)",
+          "suite_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adequacy": "array<AdequacyWarning>",
+          "applied": "bool",
+          "proposed": "array<GeneratedCase>",
+          "suite": "EvalSuite (when applied)",
+          "summary": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such suite"
+        },
+        {
+          "status": 400,
+          "code": "failed_precondition",
+          "description": "Provider unregistered / index could not be sampled / proposals failed validation"
+        }
+      ],
+      "cli_mapping": {
+        "command": "search-hub evals generate",
+        "args": [
+          "<suite_id>",
+          "--count",
+          "<n>",
+          "--negatives",
+          "--apply"
+        ]
+      }
+    },
+    {
       "id": "metrics_insights",
       "path": "/vrooli.search_hub.v1.metrics.MetricsService/Insights",
       "method": "POST",
@@ -687,6 +736,11 @@
       "name": "evals sweep",
       "description": "Overfit-safe two-tier tuning sweep; --apply writes back a significant, validated winner",
       "endpoint_id": "evals_sweep"
+    },
+    {
+      "name": "evals generate",
+      "description": "Grow a suite's corpus by sampling + inverting the provider's index (+ hard negatives); --apply appends the deduped proposals",
+      "endpoint_id": "evals_generate"
     }
   ]
 }

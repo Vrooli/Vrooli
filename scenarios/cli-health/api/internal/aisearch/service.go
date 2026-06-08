@@ -2,8 +2,11 @@ package aisearch
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	pkg "github.com/vrooli/aisearch-go"
 )
@@ -20,15 +23,42 @@ const (
 	ModeText SearchMode = "text" // text only; never embed
 )
 
-// Service is cli-health's command-search surface. It embeds the shared read-path
-// engine (*pkg.Service) — which owns the query/floor/rerank/fallback pipeline and
-// the reindex job control — and adds only the command-domain shaping: the
-// typed-hit projection, the discovery text fallback, and the ai/text mode vocab.
-type Service struct {
-	*pkg.Service
+// engine is the assembled, immutable retrieval bundle a Service serves from: the
+// shared read-path engine (*pkg.Service — query/floor/rerank/fallback pipeline +
+// reindex job control) plus the collection identity. ApplyTuning builds a FRESH
+// engine for a new tuning and swaps the Service's pointer to it under the write
+// lock, so an index-time tuning change (embed recipe) re-embeds live without a
+// process restart.
+type engine struct {
+	svc         *pkg.Service
 	vectorStore pkg.VectorStore
 	spec        pkg.CollectionSpec
 	hybrid      bool
+}
+
+// Service is cli-health's command-search surface. It adds the command-domain
+// shaping (typed-hit projection, discovery text fallback, ai/text mode vocab)
+// over the shared read-path engine. The engine is held behind an RWMutex rather
+// than embedded so ApplyTuning can swap it in place (live index-time tuning
+// apply) while concurrent Search/Reindex/sync-loop calls read a consistent
+// bundle. Every access goes through current() under the read lock — embedding the
+// engine and swapping the pointer would race on that field.
+type Service struct {
+	mu  sync.RWMutex
+	eng *engine
+
+	// rebuild, when non-nil (a Service built via NewTunedService), assembles a
+	// fresh engine for a tuning — the seam ApplyTuning re-runs. A Service built
+	// from explicit components (NewService, used by the recall experiments and
+	// tests) has no builder and is not tuning-rebuildable.
+	rebuild func(pkg.TuningConfig) *engine
+}
+
+// current returns the live engine under the read lock.
+func (s *Service) current() *engine {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.eng
 }
 
 // Options configure NewService.
@@ -74,11 +104,20 @@ type Options struct {
 	DisableFloor bool
 }
 
-// NewService builds a Service over the shared engine. cli-health indexes commands
-// as single-chunk, dense-only sources (the NewDenseBinding common case); the
-// shared read path applies the relevance floor (commands are cosine/cross-encoder
-// scored, not RRF-fused) and reranks when a chain is supplied.
+// NewService builds a Service over the shared engine from explicit components.
+// cli-health indexes commands as single-chunk, dense-only sources (the
+// NewDenseBinding common case); the shared read path applies the relevance floor
+// (commands are cosine/cross-encoder scored, not RRF-fused) and reranks when a
+// chain is supplied. A Service built this way is NOT tuning-rebuildable (it has
+// no factor builder) — it is used by the recall experiments and tests that index
+// alternative strategies into scratch collections. Production uses
+// NewTunedService.
 func NewService(opts Options) *Service {
+	return &Service{eng: buildEngine(opts)}
+}
+
+// buildEngine assembles one immutable engine bundle from explicit components.
+func buildEngine(opts Options) *engine {
 	collection := opts.Collection
 	if collection == "" {
 		collection = DefaultCollection
@@ -98,7 +137,7 @@ func NewService(opts Options) *Service {
 	rec := pkg.NewReconciler(opts.Embedder, []pkg.SourceBinding{binding}, opts.Parallelism)
 	rec.MaxEmbedsPerTick = opts.MaxEmbedsPerTick
 
-	engine := pkg.NewService(pkg.ServiceOptions{
+	svc := pkg.NewService(pkg.ServiceOptions{
 		Embedder:      opts.Embedder,
 		SparseEncoder: opts.Sparse,
 		VectorStore:   opts.VectorStore,
@@ -128,17 +167,131 @@ func NewService(opts Options) *Service {
 		spec.Sparse = true
 		spec.SparseModifier = pkg.DefaultSparseModifier
 	}
-	return &Service{
-		Service:     engine,
+	return &engine{
+		svc:         svc,
 		vectorStore: opts.VectorStore,
 		spec:        spec,
 		hybrid:      hybrid,
 	}
 }
 
+// TunedOptions carries the non-tuning wiring NewTunedService needs to (re)assemble
+// the engine for a tuning: the command discovery source, the reconcile knobs, the
+// embed-text composer, the collection name, and the reranker resource endpoints.
+// These are deployment facts, not search factors, so they stay outside the
+// TuningConfig the sweep moves.
+type TunedOptions struct {
+	Discovery        DiscoverySource
+	Parallelism      int
+	MaxEmbedsPerTick int
+	Compose          func(CommandRecord) string
+	Collection       string
+	EngineDeps       pkg.EngineDeps
+}
+
+// NewTunedService builds the production Service: its engine is assembled FROM a
+// TuningConfig (engine shape, embed recipe, rerank policy, floor band) via the
+// shared pkg.NewServiceForTuning, so the engine shape is chosen by data, not a
+// code literal. It retains the builder so ApplyTuning can re-assemble the engine
+// for a swept tuning in place — an index-time change re-embeds without a restart.
+func NewTunedService(tuning pkg.TuningConfig, opts TunedOptions) *Service {
+	if opts.Collection == "" {
+		opts.Collection = DefaultCollection
+	}
+	// The store collection name lives in EngineDeps (NewServiceForTuning builds the
+	// vector store) and must agree with the spec buildEngine records.
+	opts.EngineDeps.Collection = opts.Collection
+	build := func(t pkg.TuningConfig) *engine {
+		te := pkg.NewServiceForTuning(t, opts.EngineDeps)
+		return buildEngine(Options{
+			Embedder:         te.Embedder,
+			VectorStore:      te.VectorStore,
+			Sparse:           te.SparseEncoder,
+			Reranker:         te.Reranker,
+			RerankEnabled:    te.Tuning.RerankEnabled,
+			RerankBlend:      te.Tuning.RerankBlend,
+			RerankShortlist:  te.Tuning.RerankShortlist,
+			Floor:            te.Tuning.Floor.Config(),
+			Discovery:        opts.Discovery,
+			Parallelism:      opts.Parallelism,
+			MaxEmbedsPerTick: opts.MaxEmbedsPerTick,
+			Compose:          opts.Compose,
+			Collection:       opts.Collection,
+		})
+	}
+	return &Service{eng: build(tuning), rebuild: build}
+}
+
+// Reconciler exposes the current engine's reconciler (the sync loop resolves it
+// each tick via this, so a live ApplyTuning swap re-points the loop) and is also
+// used by the recall experiments to drive Plan/Apply directly.
+func (s *Service) Reconciler() *pkg.Reconciler { return s.current().svc.Reconciler() }
+
+// Reindex / ReindexStatus / ReindexCancel / JobExport forward to the current
+// engine's read-path service under the read lock (the searchcontrol Reindexer
+// seam calls these). They are explicit forwarders rather than promoted methods so
+// an ApplyTuning swap of the engine pointer can never race a concurrent caller.
+func (s *Service) Reindex(ctx context.Context, scenario string, dryRun bool) (*pkg.ReindexJob, error) {
+	return s.current().svc.Reindex(ctx, scenario, dryRun)
+}
+
+func (s *Service) ReindexStatus(jobID string) (*pkg.ReindexJob, bool) {
+	return s.current().svc.ReindexStatus(jobID)
+}
+
+func (s *Service) ReindexCancel(jobID string) bool { return s.current().svc.ReindexCancel(jobID) }
+
+func (s *Service) JobExport(job *pkg.ReindexJob) map[string]any {
+	return s.current().svc.JobExport(job)
+}
+
+// ApplyTuning rebuilds the engine for tuning and swaps it in place, then kicks an
+// async re-embed so the stored vectors converge to the new recipe — the live
+// index-time apply that avoids a process restart. It returns the reindex job id +
+// planned drift counts (the same shape Reindex returns) so the caller can poll
+// ReindexStatus to terminal.
+//
+// Ordering is swap-safe: the new engine's collection is ensured BEFORE the swap,
+// so a structural change the schema guard rejects (e.g. dense↔hybrid flips the
+// sparse-vector layout) returns an error and leaves the live engine untouched.
+// aisearch-go never auto-drops a collection (data loss is operator-initiated), so
+// such an arm needs a manual collection rebuild / restart. Recipe changes
+// (embed_task_prefix, an in-dimension embed_model swap) keep the collection layout
+// and re-embed live — the case the boot-recipe reindex could not apply.
+func (s *Service) ApplyTuning(ctx context.Context, tuning pkg.TuningConfig) (jobID string, plannedUpserts, plannedDeletes int, err error) {
+	s.mu.RLock()
+	build := s.rebuild
+	s.mu.RUnlock()
+	if build == nil {
+		return "", 0, 0, errors.New("aisearch: service is not tuning-rebuildable (built without NewTunedService)")
+	}
+
+	next := build(tuning)
+	if err := next.vectorStore.EnsureCollection(ctx, next.spec); err != nil {
+		// Structural mismatch (or qdrant unreachable): do not swap, do not drop.
+		return "", 0, 0, fmt.Errorf("apply tuning: ensure collection: %w", err)
+	}
+
+	s.mu.Lock()
+	s.eng = next
+	s.mu.Unlock()
+
+	// Re-embed the stored vectors with the new recipe. The recipe-aware drift hash
+	// marks every point drifted, so this re-upserts the whole corpus.
+	job, err := next.svc.Reindex(ctx, "", false)
+	if err != nil {
+		return "", 0, 0, fmt.Errorf("apply tuning: reindex: %w", err)
+	}
+	exp := next.svc.JobExport(job)
+	up, _ := exp["planned_upserts"].(int)
+	del, _ := exp["planned_deletes"].(int)
+	return job.ID, up, del, nil
+}
+
 // EnsureCollection is called once at startup; idempotent.
 func (s *Service) EnsureCollection(ctx context.Context) error {
-	return s.vectorStore.EnsureCollection(ctx, s.spec)
+	e := s.current()
+	return e.vectorStore.EnsureCollection(ctx, e.spec)
 }
 
 // Search performs retrieval with AI-first, text-fallback semantics, projecting
@@ -150,10 +303,11 @@ func (s *Service) Search(ctx context.Context, query string, limit int, mode Sear
 	if strings.TrimSpace(query) == "" {
 		return &SearchResponse{Query: query, Method: "text"}, nil
 	}
+	e := s.current()
 	// SearchTyped projects each finished result into cli-health's typed command hit
 	// at the engine boundary (the shared generic), so this surface owns no
 	// projection loop and cannot drift from the engine's result ordering.
-	hits, presp, err := pkg.SearchTyped(ctx, s.Service, pkg.SearchQuery{Query: query, Limit: limit, Mode: s.serviceMode(mode)},
+	hits, presp, err := pkg.SearchTyped(ctx, e.svc, pkg.SearchQuery{Query: query, Limit: limit, Mode: serviceMode(e.hybrid, mode)},
 		func(r pkg.SearchResult) SearchHit {
 			hit := payloadToHit(r.ID, r.Score, r.Payload)
 			hit.Weak = r.Weak
@@ -176,11 +330,12 @@ func (s *Service) Search(ctx context.Context, query string, limit int, mode Sear
 }
 
 // serviceMode maps cli-health's ai/text/auto vocab to the engine's mode set.
-// "ai" is the hybrid leg when a sparse encoder is configured, else the dense leg.
-func (s *Service) serviceMode(m SearchMode) pkg.SearchMode {
+// "ai" is the hybrid leg when the current engine is hybrid, else the dense leg —
+// so a live ApplyTuning that flips engine shape routes correctly.
+func serviceMode(hybrid bool, m SearchMode) pkg.SearchMode {
 	switch m {
 	case ModeAI:
-		if s.hybrid {
+		if hybrid {
 			return pkg.ModeHybrid
 		}
 		return pkg.ModeDense
@@ -197,7 +352,7 @@ func (s *Service) serviceMode(m SearchMode) pkg.SearchMode {
 // looser doc-search semantics); the text fallback is a degradation, not
 // "available".
 func (s *Service) Status(ctx context.Context) StatusReport {
-	r := s.Service.Status(ctx)
+	r := s.current().svc.Status(ctx)
 	return StatusReport{
 		Available:            r.Ollama && r.Qdrant,
 		Ollama:               r.Ollama,

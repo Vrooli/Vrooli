@@ -32,6 +32,12 @@ const (
 	MinRerankShortlist     = 1
 	MaxRerankShortlist     = 500
 
+	// DefaultRRFK is the rank-fusion constant used by ApplyRerankRRF (and the
+	// hybrid dense+sparse fusion convention): a larger k flattens the contribution
+	// of rank position, a smaller k sharpens it. 60 is the value from the original
+	// RRF paper and the de-facto default.
+	DefaultRRFK = 60
+
 	// DefaultQdrantURL is the local Qdrant address used when none is configured.
 	DefaultQdrantURL = "http://127.0.0.1:6333"
 

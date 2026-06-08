@@ -158,6 +158,54 @@ cli-health`").
 These files are read by tooling (`vrooli scenario test`, `test-genie`,
 the doc viewer) — keep them in sync with the code they describe.
 
+## Search tuning (`.vrooli/search.json`)
+
+The command-search subsystem is **not** tuned through env vars. Its tuning factors
+live in `.vrooli/search.json` — the scenario-owned SSOT for the search descriptor,
+the tuning block, and the golden test corpus. The old `CLI_HEALTH_RERANK_*` /
+`CLI_HEALTH_EMBED_TASK_PREFIX` env reads and the `NewDenseEngine(...)` code literal
+are gone; the schema + per-knob dashboard live in the engine package
+[`packages/aisearch-go/docs/reference/search-json.md`](../../../../packages/aisearch-go/docs/reference/search-json.md).
+
+| What | Value | Notes |
+|---|---|---|
+| Provider id | `cli-health.commands` | the cross-scenario CLI-command corpus. |
+| Engine | `dense` | terse 1-line commands embed well; no sparse leg needed. |
+| `embed_task_prefix` | `true` | nomic `search_query:`/`search_document:` — +0.20 recall@5 on this corpus. |
+| `rerank_enabled` + `rerank_blend` | `true` + `true` | the cross-encoder collapses gibberish to ~0 (junk rejection); RRF blend keeps canonical hits from being buried. |
+| Recall gate | `recall_at: 5`, `recall_target: 0.8` | drives the per-build REQ-P0-004 gate. |
+
+This is the measured-best `aisearch.CommandCorpusTuning()` preset (recall@5
+`0.50 → 0.70`). At boot, `main.go` reads the `tuning` block and wires the engine
+with `NewServiceForTuning(...)` (engine shape chosen by **data**, not a code
+literal), then self-registers the whole file with `search-hub` via
+`searchregister.Register` (idempotent upsert; the returned control token is cached
+for the secured control plane). search-hub's `evals sweep` is the loop that
+refines these values and writes them back — see the
+[search-hub tuning recipe](../../../../scenarios/search-hub/docs/reference/configuration.md#search-tuning-control-surface).
+
+**Control plane (token-gated).** cli-health implements the shared
+`SearchControlService` (`handlers/searchcontrol`): `Reindex`/`ReindexStatus`/
+`ReindexCancel` + `WriteConfig` (the RPC search-hub calls to persist a swept
+tuning back into this file). It is gated solely by the **registration-minted
+control token** — search-hub is its only holder, so only search-hub's sweep can
+drive these verbs; there is **no env flag**. A scenario that does not want to be
+auto-tuned at all simply omits `reindex_endpoint`/`config_endpoint` from its
+`search.json` (tunability is declared in the SSOT, not toggled by the
+environment). Likewise the query-time override channel (`handlers/search`) is
+token-gated only: a public request carries no token and gets ordinary search.
+
+**In-process index-time apply.** A *query-time* tuning change (rerank / blend /
+floor) takes effect immediately on the next request. An *index-time* recipe change
+(`embed_task_prefix`, an in-dimension `embed_model` swap) now applies **live**:
+`WriteConfig` calls `ApplyTuning`, which rebuilds the engine for the new tuning and
+re-embeds the corpus with the new recipe **without a restart** (the engine is held
+behind an RWMutex and swapped atomically; the sync loop resolves the current
+reconciler each tick). A *structural* change (`engine` dense↔hybrid) flips the
+collection's sparse-vector layout — the schema guard surfaces that as an error
+without dropping data, so that one arm still needs a manual collection rebuild /
+restart. See [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md).
+
 ## Cross-references
 
 - [`QUICKSTART.md`](../QUICKSTART.md) — boot the scenario in 5 minutes

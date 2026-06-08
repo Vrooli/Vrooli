@@ -245,10 +245,10 @@ and use matrix/trace helpers from the relevant testutil package.
 | | |
 |---|---|
 | **Seam** | Outer security gate for the query-time search-override channel |
-| **Interface** | `handlers/search/connect_handler.go::OverrideGate{Enabled bool; Token func() string}`, consumed by the search Connect handler; the inner clamping layer is `aisearch-go`'s `OverridePolicy` (cli-health wires `pkg.AllowOverrides()` so the engine bounds factors while this gate authenticates). |
-| **Production wiring** | `main.go` builds `OverrideGate{Enabled: boolEnv("CLI_HEALTH_SEARCH_OVERRIDES_ENABLED"), Token: controlToken.Get}` and passes it to `searchH.Module`. The token comes from `search.TokenHolder`, populated by the `searchregister.Register` `OnControlToken` callback. |
-| **Test fake** | None needed — the gate is a value type. `handlers/search/connect_handler_test.go` exercises every gate outcome (disabled / nil / missing-token / wrong-token / empty-cached-token / honored / malformed) via a `recordingSearcher` that counts threaded `SearchOption`s. |
-| **Why it exists** | The override channel is a privileged surface on an otherwise-public search endpoint. The gate keeps authentication (control-token match) + the per-environment experiment flag at the transport edge, so a tokenless or flag-off request degrades silently to the ordinary public search — never an error, never an applied override. Defaults closed. |
+| **Interface** | `handlers/search/connect_handler.go::OverrideGate{Token func() string}`, consumed by the search Connect handler; the inner clamping layer is `aisearch-go`'s `OverridePolicy` (cli-health wires `pkg.AllowOverrides()` so the engine bounds factors while this gate authenticates). |
+| **Production wiring** | `main.go` builds `OverrideGate{Token: controlToken.Get}` and passes it to `searchH.Module`. The token comes from `search.TokenHolder`, populated by the `searchregister.Register` `OnControlToken` callback. There is no env flag — token presence is the only gate (search-hub is the sole holder of the minted token). |
+| **Test fake** | None needed — the gate is a value type. `handlers/search/connect_handler_test.go` exercises every gate outcome (nil-gate / nil-token-func / missing-token / wrong-token / empty-cached-token / honored / malformed) via a `recordingSearcher` that counts threaded `SearchOption`s. |
+| **Why it exists** | The override channel is a privileged surface on an otherwise-public search endpoint. The gate authenticates (constant-time control-token match) at the transport edge, so a tokenless or wrong-token request degrades silently to the ordinary public search — never an error, never an applied override. Closed until self-registration mints the token. |
 
 ### search.TokenHolder (in-memory control token)
 
@@ -260,15 +260,15 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | None — concrete, race-tested directly in `handlers/search/token_holder_test.go` (`-race`). |
 | **Why it exists** | The registration goroutine (writer) and the search handler (reader) race for the token. The holder is the one synchronized hand-off point, and `Get() == ""` before registration completes is exactly the "channel closed until registered" semantics the gate relies on. |
 
-### searchcontrol.Gate (control-plane token + flag gate)
+### searchcontrol.Gate (control-plane token gate)
 
 | | |
 |---|---|
-| **Seam** | Token + experiment-flag gate for the shared, mutating search control plane (reindex + config-write) |
-| **Interface** | `handlers/searchcontrol/connect_handler.go::Gate{Enabled bool; Token func() string}`, consumed by every `SearchControlService` RPC. Mirrors `search.OverrideGate` but REJECTS (constant-time token compare, uniform `PermissionDenied`) rather than silently degrading — a control verb has no public fallback. |
-| **Production wiring** | `main.go` builds `Gate{Enabled: boolEnv("CLI_HEALTH_SEARCH_CONTROL_ENABLED"), Token: controlToken.Get}`. It SHARES the `search.TokenHolder` with the override gate (one minted token) but a SEPARATE per-environment flag, so an env can run the query-time override A/B without exposing the index/config-mutating verbs. Default OFF. |
-| **Test fake** | None — value type. `handlers/searchcontrol/connect_handler_test.go` drives every outcome (disabled / wrong-token / empty-token / authorized) against `fakeReindexer` + `fakeConfigWriter`. |
-| **Why it exists** | The control plane mutates the Qdrant index and the `search.json` SSOT. Token + flag at the transport edge means there is no token-free control verb (the plan's security invariant); public `Search` stays the only unauthenticated path. |
+| **Seam** | Control-token gate for the shared, mutating search control plane (reindex + config-write) |
+| **Interface** | `handlers/searchcontrol/connect_handler.go::Gate{Token func() string}`, consumed by every `SearchControlService` RPC. Mirrors `search.OverrideGate` but REJECTS (constant-time token compare, uniform `PermissionDenied`) rather than silently degrading — a control verb has no public fallback. |
+| **Production wiring** | `main.go` builds `Gate{Token: controlToken.Get}`, SHARING the `search.TokenHolder` with the override gate (one minted token). The token alone gates the mutating verbs — there is no env flag. A provider that does not want to be tuned at all declares it in the SSOT by omitting its control endpoints in `search.json` (the search-hub control client then gets `ErrNoControlPlane`). |
+| **Test fake** | None — value type. `handlers/searchcontrol/connect_handler_test.go` drives every outcome (unregistered / wrong-token / empty-token / authorized) against `fakeReindexer` + `fakeConfigWriter`. |
+| **Why it exists** | The control plane mutates the Qdrant index and the `search.json` SSOT. The control token at the transport edge means there is no token-free control verb (the plan's security invariant); public `Search` stays the only unauthenticated path. |
 
 ### searchcontrol.Reindexer (reconcile job control)
 

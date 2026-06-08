@@ -75,6 +75,11 @@
       "name": "evals sweep",
       "description": "Overfit-safe two-tier tuning sweep; --apply writes back a significant, validated winner",
       "endpoint_id": "evals_sweep"
+    },
+    {
+      "name": "evals generate",
+      "description": "Grow a suite's corpus by sampling + inverting the provider's index (+ hard negatives); --apply appends the deduped proposals",
+      "endpoint_id": "evals_generate"
     }
   ]
 }

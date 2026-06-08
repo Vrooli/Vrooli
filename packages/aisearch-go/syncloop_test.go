@@ -39,6 +39,48 @@ func TestSyncLoopRunOnceSwallowsBusy(t *testing.T) {
 	}
 }
 
+func TestSyncLoopFuncResolvesCurrentReconciler(t *testing.T) {
+	// A consumer that swaps its engine in place exposes the loop to the CURRENT
+	// reconciler via Resolve. RunOnce must drive whichever reconciler Resolve
+	// returns at call time — proving a post-swap loop reconciles the new index,
+	// not the stale one it was constructed against.
+	srcOld := &sliceSource{docs: []SourceDoc{doc("old.md", "alpha")}}
+	srcNew := &sliceSource{docs: []SourceDoc{doc("new.md", "beta\ngamma")}}
+	storeOld, storeNew := newMemStore(), newMemStore()
+	recOld := newDocReconciler(srcOld, storeOld, &countingEmbedder{})
+	recNew := newDocReconciler(srcNew, storeNew, &countingEmbedder{})
+
+	current := recOld
+	loop := NewSyncLoopFunc("test", func() *Reconciler { return current }, Config{SyncInterval: time.Minute})
+
+	if _, _, err := loop.RunOnce(context.Background()); err != nil {
+		t.Fatalf("RunOnce(old): %v", err)
+	}
+	if storeOld.upserts != 1 || storeNew.upserts != 0 {
+		t.Fatalf("before swap: old=%d new=%d, want 1/0", storeOld.upserts, storeNew.upserts)
+	}
+
+	current = recNew // simulate an in-process engine swap
+	if _, _, err := loop.RunOnce(context.Background()); err != nil {
+		t.Fatalf("RunOnce(new): %v", err)
+	}
+	if storeNew.upserts != 2 {
+		t.Errorf("after swap: new upserts = %d, want 2 (the swapped index reconciled)", storeNew.upserts)
+	}
+	if storeOld.upserts != 1 {
+		t.Errorf("after swap: old upserts = %d, want 1 (stale reconciler must NOT run again)", storeOld.upserts)
+	}
+}
+
+func TestSyncLoopFuncNilResolveIsNoOp(t *testing.T) {
+	// Resolve returning nil mid-swap is a safe no-op, not a panic.
+	loop := NewSyncLoopFunc("test", func() *Reconciler { return nil }, Config{SyncInterval: time.Minute})
+	plan, apply, err := loop.RunOnce(context.Background())
+	if err != nil || plan != nil || apply != nil {
+		t.Fatalf("nil-resolve RunOnce = (%v,%v,%v), want all nil", plan, apply, err)
+	}
+}
+
 func TestSyncLoopStartDisabledReturns(t *testing.T) {
 	// Disabled / non-positive interval / nil reconciler must return promptly
 	// instead of spinning a ticker.

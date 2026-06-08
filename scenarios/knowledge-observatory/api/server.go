@@ -25,6 +25,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
+	searchregister "github.com/vrooli/searchregister-go"
 
 	knowledgeobservatoryv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1/knowledgeobservatoryv1connect"
 
@@ -207,7 +208,18 @@ func (s *Server) setupServices() {
 			// (plan §4.2). A one-shot `reindex run` still applies uncapped.
 			maxEmbeds = defaultDocEmbedsPerTick
 		}
-		docEmbedder := pkg.NewEmbedder(s.ollamaEmbeddingModel())
+		// The scenario-owned `.vrooli/search.json` is the SSOT for the docs search
+		// tuning (engine shape, embed recipe, rerank policy). LoadConfig above
+		// supplies only operational wiring (sync cadence, parallelism). The
+		// KO_DOCS_{RERANK_*,EMBED_TASK_PREFIX} tuning env vars are no longer
+		// consulted. KO's docs corpus is hybrid by construction; the SSOT records
+		// that plus the symmetric-embedder / rerank-off baseline that preserves the
+		// guarded recall@5=0.818.
+		docsTuning := s.loadDocsTuning()
+		docEmbedder := pkg.NewEmbedderForConfig(pkg.Config{
+			EmbedModel:      docsTuning.EmbedModel,
+			EmbedTaskPrefix: docsTuning.EmbedTaskPrefix,
+		})
 		docStore := pkg.NewVectorStore(s.qdrantURL(), s.qdrantAPIKey(), aisearch.DefaultCollection)
 		indexer, err := aisearch.NewIndexer(aisearch.Options{
 			Embedder:         docEmbedder,
@@ -229,21 +241,21 @@ func (s *Server) setupServices() {
 			if s.docSearchService != nil {
 				fallback = aisearch.NewDocsearchFallback(s.docSearchService)
 			}
-			// Rerank on docs is a config-gated, A/B-justified decision (plan §5).
+			// Rerank on docs is a tuning decision, now owned by search.json (plan §5).
 			// Default OFF: the validated finding is that hybrid RRF + authority boost
 			// ties the cross-encoder and beats the LLM reranker on recall for this
-			// corpus — reranking buys ordering parity, not recall. Flip
-			// KO_DOCS_RERANK_ENABLED=1 (and re-run the search-hub eval A/B) to enable.
-			// The flag is passed explicitly (shared convention); the chain is only
-			// built when enabled.
+			// corpus — reranking buys ordering parity, not recall. Set
+			// tuning.rerank_enabled=true in search.json (and re-run the search-hub
+			// eval A/B) to enable. The flag is passed explicitly (shared convention);
+			// the chain is only built when enabled.
 			var docReranker *pkg.RerankerChain
-			if docCfg.RerankEnabled {
+			if docsTuning.RerankEnabled {
 				docReranker = aisearch.NewDefaultReranker()
 			}
 			searchSvc := aisearch.NewSearchService(aisearch.ServiceOptions{
 				Embedder:      docEmbedder,
 				VectorStore:   docStore,
-				RerankEnabled: docCfg.RerankEnabled,
+				RerankEnabled: docsTuning.RerankEnabled,
 				Reranker:      docReranker,
 				TextFallback:  fallback,
 				Reconciler:    indexer.Reconciler(),
@@ -253,6 +265,12 @@ func (s *Server) setupServices() {
 				s.docSearchService.Semantic = docSemanticAdapter{engine: searchSvc}
 			}
 			s.docSyncLoop = pkg.NewSyncLoop("knowledge-observatory", indexer.Reconciler(), docCfg)
+			// Self-register the docs provider with search-hub from the same
+			// `.vrooli/search.json` SSOT (descriptor mapped to the registry
+			// contract). search-hub is an OPTIONAL dependency: this runs in the
+			// background with bounded retry and degrades gracefully, so KO serves
+			// docs search whether or not the hub is up. The upsert is idempotent.
+			go s.selfRegisterSearch()
 		}
 	}
 	if s.config != nil && s.config.ScenariosRoot != "" {
@@ -572,6 +590,39 @@ func (s *Server) qdrantAPIKey() string {
 		}
 	}
 	return strings.TrimSpace(os.Getenv("QDRANT_API_KEY"))
+}
+
+// loadDocsTuning reads the docs search tuning from the scenario-owned
+// `.vrooli/search.json` SSOT (provider knowledge-observatory.docs). On a
+// missing/malformed file it logs and falls back to the typed DocCorpusTuning
+// preset — whose values are exactly what the committed file holds — so docs
+// search degrades to its measured-best baseline rather than failing to boot.
+func (s *Server) loadDocsTuning() pkg.TuningConfig {
+	path := filepath.Join(s.config.ScenariosRoot, "knowledge-observatory", ".vrooli", "search.json")
+	file, err := pkg.LoadSearchFile(path)
+	if err != nil {
+		s.log("docs search tuning: falling back to DocCorpus preset", map[string]interface{}{"error": err.Error(), "path": path})
+		return pkg.DocCorpusTuning()
+	}
+	provider, ok := file.Provider("knowledge-observatory.docs")
+	if !ok {
+		s.log("docs search tuning: provider missing, falling back to DocCorpus preset", map[string]interface{}{"path": path})
+		return pkg.DocCorpusTuning()
+	}
+	return provider.ResolvedTuning()
+}
+
+// selfRegisterSearch pushes KO's `knowledge-observatory.docs` provider to
+// search-hub from the `.vrooli/search.json` SSOT. It is best-effort and blocks
+// only its own goroutine; failures are logged inside searchregister.Register and
+// returned as error-bearing Results (search-hub is optional).
+func (s *Server) selfRegisterSearch() {
+	path := filepath.Join(s.config.ScenariosRoot, "knowledge-observatory", ".vrooli", "search.json")
+	searchregister.Register(context.Background(), searchregister.Config{
+		ScenarioID:     "knowledge-observatory",
+		SearchFilePath: path,
+		Logger:         log.Default(),
+	})
 }
 
 func (s *Server) ollamaEmbeddingModel() string {

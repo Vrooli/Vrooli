@@ -38,6 +38,13 @@ type Reindexer interface {
 	Reindex(ctx context.Context, scope string, dryRun bool) (jobID string, plannedUpserts, plannedDeletes int, err error)
 	ReindexStatus(jobID string) (state string, processed, total int, errMsg string, ok bool)
 	ReindexCancel(jobID string) bool
+	// ApplyTuning rebuilds the live engine for the new tuning and re-embeds the
+	// corpus with the new recipe IN PROCESS — the index-time apply that takes
+	// effect without a restart. It returns the reindex job id + planned drift so
+	// the caller can poll ReindexStatus to terminal. A structural change the
+	// collection schema guard rejects (dense↔hybrid) returns an error and leaves
+	// the live engine untouched (no auto-drop).
+	ApplyTuning(ctx context.Context, tuning aisearchpkg.TuningConfig) (jobID string, plannedUpserts, plannedDeletes int, err error)
 }
 
 // ConfigWriter is the seam that persists a new tuning block into the provider's
@@ -51,29 +58,24 @@ type ConfigWriter interface {
 	WriteTuning(providerID string, tuning aisearchpkg.TuningConfig, dryRun bool) (effective aisearchpkg.TuningConfig, indexTimeChanged, written bool, err error)
 }
 
-// Gate is the token + experiment-flag guard every control RPC passes through. It
-// mirrors the search handler's OverrideGate but rejects (rather than silently
-// degrading) because a control verb has no public fallback.
+// Gate is the control-token guard every control RPC passes through. It mirrors
+// the search handler's OverrideGate but rejects (rather than silently degrading)
+// because a control verb has no public fallback. search-hub minted the token at
+// registration and is its only holder, so the token alone gates the mutating
+// plane; a provider that does not want to be tuned at all omits its control
+// endpoints in search.json (no env flag).
 type Gate struct {
-	// Enabled reflects CLI_HEALTH_SEARCH_CONTROL_ENABLED; false => the whole
-	// control plane is closed.
-	Enabled bool
 	// Token returns the currently-cached control token ("" until search-hub
 	// registration echoes one back). A "" want always denies.
 	Token func() string
 }
 
 // authorize returns nil when the request may proceed, else a connect error. It
-// logs the specific denial reason server-side but returns a uniform
-// PermissionDenied so the wire response never reveals whether the plane is
-// disabled vs the token is wrong.
+// logs the denial reason server-side but returns a uniform PermissionDenied so
+// the wire response never reveals why (unregistered vs wrong token).
 func (g *Gate) authorize(logger *log.Logger, presented string) error {
-	if g == nil || !g.Enabled {
-		logger.Printf("[cli-health] search control denied: plane disabled (set CLI_HEALTH_SEARCH_CONTROL_ENABLED to opt in)")
-		return connect.NewError(connect.CodePermissionDenied, errors.New("search control plane is not available"))
-	}
-	if !g.tokenMatches(presented) {
-		logger.Printf("[cli-health] search control denied: control token mismatch")
+	if g == nil || !g.tokenMatches(presented) {
+		logger.Printf("[cli-health] search control denied: control token missing or mismatched")
 		return connect.NewError(connect.CodePermissionDenied, errors.New("search control plane is not available"))
 	}
 	return nil
@@ -201,15 +203,14 @@ func (h *connectHandler) WriteConfig(ctx context.Context, req *connect.Request[c
 		Effective: searchregister.TuningToProto(effective),
 	}
 
-	// An index-time factor change requires a reindex to take full effect. We start
-	// one through the same reconcile control the Reindex RPC uses. NOTE (documented
-	// in PROBLEMS.md): the live reconciler embeds with the boot-time recipe, so an
-	// index-time recipe change is only fully applied after the process restarts and
-	// re-reads search.json; the job here still reconciles corpus membership and
-	// gives search-hub a job to poll. Wiring a live engine rebuild so the reindex
-	// applies the new recipe in-process is the Phase-6 sweep's responsibility.
+	// An index-time factor change requires re-embedding to take full effect.
+	// ApplyTuning rebuilds the live engine with the new recipe and re-embeds the
+	// corpus IN PROCESS (no restart) — the recipe-aware drift hash marks every
+	// point drifted — returning a job the caller polls. A structural change the
+	// schema guard rejects (dense↔hybrid) surfaces here without mutating the live
+	// engine or dropping data; that arm needs a manual collection rebuild.
 	if written && indexTimeChanged && h.deps.Reindexer != nil {
-		jobID, _, _, rErr := h.deps.Reindexer.Reindex(ctx, "", false)
+		jobID, _, _, rErr := h.deps.Reindexer.ApplyTuning(ctx, effective)
 		if rErr != nil {
 			return nil, connect.NewError(connect.CodeInternal, rErr)
 		}
@@ -249,6 +250,11 @@ func (a ServiceAdapter) ReindexStatus(jobID string) (string, int, int, string, b
 }
 
 func (a ServiceAdapter) ReindexCancel(jobID string) bool { return a.Service.ReindexCancel(jobID) }
+
+// ApplyTuning delegates to the live service's in-process engine rebuild + re-embed.
+func (a ServiceAdapter) ApplyTuning(ctx context.Context, tuning aisearchpkg.TuningConfig) (string, int, int, error) {
+	return a.Service.ApplyTuning(ctx, tuning)
+}
 
 // FileConfigWriter persists tuning into a scenario's search.json via aisearch-go's
 // atomic writer. Path is the absolute path to the scenario-owned search.json.

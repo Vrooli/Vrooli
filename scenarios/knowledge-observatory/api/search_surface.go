@@ -29,9 +29,12 @@ const defaultDocEmbedsPerTick = 800
 
 // docSearchEngine is the read-path seam the api package depends on so handlers
 // stay testable with a fake (the concrete *aisearch.SearchService satisfies
-// it). It is the shared pkg.Service surface.
+// it). It is the shared pkg.Service surface. Search mirrors the engine's
+// variadic SearchOption signature so the concrete *pkg.Service satisfies this
+// interface (KO passes no options today — the query-time override channel is a
+// cli-health adopter feature; KO keeps its measured default behavior).
 type docSearchEngine interface {
-	Search(ctx context.Context, q pkg.SearchQuery) (pkg.SearchResponse, error)
+	Search(ctx context.Context, q pkg.SearchQuery, opts ...pkg.SearchOption) (pkg.SearchResponse, error)
 	Status(ctx context.Context) pkg.StatusReport
 }
 
