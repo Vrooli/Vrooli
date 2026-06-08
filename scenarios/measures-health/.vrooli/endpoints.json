@@ -1,0 +1,222 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "measures-health status"
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
+      }
+    },
+    {
+      "id": "search_search",
+      "path": "/vrooli.measures_health.v1.search.SearchService/Search",
+      "method": "POST",
+      "summary": "Match an analytical question to a measure and answer it",
+      "description": "The federated measures provider (search-hub 'measure' type): matches a natural-language analytical question to the best-fitting measure across the fleet, resolves its parameters (deterministic time_window first, constrained extraction for the rest), and — for a safe read-only measure resolved at high confidence — proxies execution to the owning scenario and returns the answer with provenance. A write/destructive measure is never auto-executed.",
+      "category": "index",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int (max measure hits; a measure provider returns the best answer)",
+          "query": "string (required, natural-language analytical question)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "matcher": "string (lexical | ai | none)",
+          "results": "array<MeasureResult{score, measure}>"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Measures index not configured"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Answer an analytical question",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.search.SearchService/Search -H 'Content-Type: application/json' -d '{\"query\":\"how many backlog items did we complete this week\",\"limit\":1}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "measures-health search query",
+        "args": [
+          "<question>",
+          "--limit"
+        ]
+      }
+    },
+    {
+      "id": "search_status",
+      "path": "/vrooli.measures_health.v1.search.SearchService/Status",
+      "method": "POST",
+      "summary": "Report measure-index + backend availability",
+      "description": "Reports the central measure index size, whether the ollama constrained-extraction backend is reachable, and the active matcher leg — so callers (and the search-hub status_endpoint) can degrade gracefully.",
+      "category": "index",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "available": "bool",
+          "indexed_count": "int",
+          "matcher": "string",
+          "ollama": "bool",
+          "qdrant": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Measures index not configured"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Index status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.search.SearchService/Status -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "measures-health search status"
+      }
+    },
+    {
+      "id": "validation_validate_scenario",
+      "path": "/vrooli.measures_health.v1.validation.ValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate a scenario's measure coverage",
+      "description": "Grades a scenario's measure adoption: derives its stateful domains, classifies each covered/waived/uncovered against the manifest measure blocks, grades per-measure extraction tier, and (when probe=true) behaviorally probes each declared measure end-to-end. Returns an expected/covered/waived report with normalized producer findings and a pass/fail verdict.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "probe": "bool (run the behavioral adoption probe against live endpoints)",
+          "scenario": "string (required, scenario id under scenarios/)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "domains": "array<DomainCoverage>",
+          "findings": "array<Finding>",
+          "passed": "bool",
+          "scenario": "string",
+          "summary": "Summary"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Manifest/proto read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validate swarm-manager",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.validation.ValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "measures-health validate scenario",
+        "args": [
+          "<name>",
+          "--probe"
+        ]
+      }
+    },
+    {
+      "id": "validation_list_fleet_coverage",
+      "path": "/vrooli.measures_health.v1.validation.ValidationService/ListFleetCoverage",
+      "method": "POST",
+      "summary": "Roll up measure coverage across scenarios",
+      "description": "Statically grades every discovered scenario (or the requested subset) and returns one coverage rollup each: expected/covered/waived/uncovered counts, worst tier, and the pass/fail verdict. Powers the fleet-view UI.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenarios": "array<string> (empty = every discovered scenario)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "entries": "array<FleetEntry>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Scenario enumeration failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Fleet coverage",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.validation.ValidationService/ListFleetCoverage -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "measures-health validate coverage"
+      }
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "validate scenario",
+      "description": "Grade a scenario's measure coverage (expected/covered/waived); --probe round-trips live endpoints",
+      "endpoint_id": "validation_validate_scenario"
+    },
+    {
+      "name": "validate coverage",
+      "description": "Roll up measure coverage across every discovered scenario (the fleet view)",
+      "endpoint_id": "validation_list_fleet_coverage"
+    },
+    {
+      "name": "search query",
+      "description": "Match an analytical question to a measure and return the computed answer (the search-hub measure provider)",
+      "endpoint_id": "search_search"
+    },
+    {
+      "name": "search status",
+      "description": "Report measure-index and backend availability",
+      "endpoint_id": "search_status"
+    }
+  ]
+}

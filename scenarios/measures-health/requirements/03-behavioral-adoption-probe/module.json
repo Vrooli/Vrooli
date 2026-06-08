@@ -1,0 +1,85 @@
+{
+  "description": "Call each declared measure endpoint, assert the response conforms to its declared `result` shape, and round-trip one `questions[]` example end-to-end (match → extract → execute → plausible); a hollow declaration (404 or non-conforming response) is an ERROR, proving real adoption rather than mere declaration.",
+  "module_id": "MOD-P1-003",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Implement a behavioral adoption probe that calls each declared measure endpoint from a scenario's manifest, asserts the HTTP response conforms to the declared `result` shape (schema validation), and round-trips one `questions[]` example end-to-end: match the question, extract parameters via LLMExtractor, execute via HTTPExecutor, and assert the result is plausible. A 404 response or a response that does not conform to the declared result shape must be classified as ERROR, proving real adoption rather than mere declaration. The probe must reuse packages/measures-go (LLMExtractor, HTTPExecutor) and must not re-author measure execution logic.",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "draft",
+      "title": "Behavioral Adoption Probe for Declared Measure Endpoints",
+      "validation": [
+        {
+          "notes": "Go unit test: probe classifies a 404 response from a declared measure endpoint as ERROR",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go unit test: probe classifies a response whose body does not conform to the declared result JSON schema as ERROR",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go unit test: probe classifies a correctly shaped response from a live endpoint as PASS",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go unit test: round-trip pipeline (match → extract → execute → plausibility check) returns PASS for a fixture questions[] example with a stub HTTP server",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Boot a fixture scenario serving a compliant measure endpoint; run the behavioral probe; assert all measures return PASS with no ERRORs",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Boot a fixture scenario with a measure endpoint returning 404; run the behavioral probe; assert the measure is classified as ERROR in the probe report",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run a full round-trip probe against a fixture scenario: provide a questions[] example, assert match succeeds, LLMExtractor returns non-empty params, HTTPExecutor returns HTTP 200, and plausibility check passes",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Behavioral probe for a single scenario with up to 10 measure endpoints completes within 30 seconds",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Probe results are included in the `measures-health validate scenario --json` report alongside static coverage findings, so a single command surfaces both static and behavioral issues",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Behavioral Adoption Probe"
+}

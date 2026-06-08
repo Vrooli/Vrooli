@@ -1,0 +1,112 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "measures-health",
+  "description": "measures-health CLI surface. Single source of truth for the `validate` and `search` domains: schema-validated against cli-manifest/v1 and cross-validated against the ValidationService/SearchService proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "validate",
+      "description": "Validate scenario measure coverage and grade adoption",
+      "commands": [
+        {
+          "name": "scenario",
+          "description": "Grade a scenario's measure coverage (expected/covered/waived) and optionally probe its declared measures end-to-end",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id (directory name under scenarios/)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "probe",
+              "bool": true,
+              "description": "Run the behavioral adoption probe against live measure endpoints"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "coverage",
+          "description": "Roll up measure coverage across every discovered scenario (the fleet view)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "ListFleetCoverage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "description": "Query the central measures index (the federated measures provider)",
+      "commands": [
+        {
+          "name": "query",
+          "description": "Match an analytical question to a measure and return the computed answer (the search-hub measure provider)",
+          "positionals": [
+            {
+              "name": "question",
+              "required": true,
+              "description": "Natural-language analytical question"
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "default": "1",
+              "description": "Maximum number of measure hits to return"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Search"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Report measure-index and backend availability",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Status"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": []
+}

@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../scripts/scenarios/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "measures-health.measures",
+      "provider_group": "measures-health",
+      "bucket": "BUCKET_STATE",
+      "type": "measure",
+      "description": "Analytical measures across every scenario: typed, parameterized questions whose answer is a computed value — \"how many / what is the rate / what is next\" (for example \"how many backlog items did we complete this week\", \"what is on my calendar next week\"). Route analytical/quantitative questions here; the provider matches the measure, resolves its parameters, and returns the computed answer for safe read-only measures.",
+      "scope": "SCOPE_PROJECT",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "measures-health",
+          "path": "/vrooli.measures_health.v1.search.SearchService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "measures-health",
+          "path": "/vrooli.measures_health.v1.search.SearchService/Status",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "measure.measure_id",
+        "title_field": "measure.measure_id",
+        "snippet_field": "measure.answer",
+        "score_field": "score",
+        "measure_field": "measure",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "rerank_enabled": false,
+        "floor": { "max_gap": 0, "hard_floor": 0 }
+      }
+    }
+  ]
+}
