@@ -1,5 +1,7 @@
-// Package reindex is the CLI's reindex-domain command surface. Mirrors
-// the API's Connect-RPC ReindexService.
+// Package reindex is the CLI's reindex-domain command surface. It binds to the
+// SHARED, token-gated search control plane (search-hub.v1.control.
+// SearchControlService) — the same RPCs search-hub's sweep drives — exposing the
+// operator-facing reindex verbs (run/status/cancel) over it.
 package reindex
 
 import (
@@ -16,9 +18,9 @@ const GroupName = "reindex"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"ReindexService.Reindex":       h.run,
-		"ReindexService.ReindexStatus": h.status,
-		"ReindexService.ReindexCancel": h.cancel,
+		"SearchControlService.Reindex":       h.run,
+		"SearchControlService.ReindexStatus": h.status,
+		"SearchControlService.ReindexCancel": h.cancel,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

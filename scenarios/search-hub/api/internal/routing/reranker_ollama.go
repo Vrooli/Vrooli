@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"search-hub/internal/ollama"
+
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 )
 
@@ -66,8 +68,8 @@ func NewOllamaReranker() *OllamaReranker {
 	return &OllamaReranker{
 		model:     model,
 		maxTokens: rerankerMaxTokens,
-		generate:  ollamaGenerate,
-		checkUp:   ollamaAvailable,
+		generate:  ollama.Generate,
+		checkUp:   ollama.Available,
 	}
 }
 
@@ -147,10 +149,10 @@ func buildRerankPrompt(query string, candidates []*routingv1.SearchHit) string {
 // (a candidate the model omitted keeps score 0 ⇒ ranked last). It tries strict
 // JSON first, then a salvage pass for the malformed cases small models hit.
 func parseRerankResponse(raw []byte, n int) ([]float64, error) {
-	text := stripThink(unwrapGatewayResponse(raw))
+	text := ollama.StripThink(ollama.UnwrapResponse(raw))
 
 	// Strict path: a well-formed {"scores":[{"index":i,"score":s},...]} object.
-	if obj := extractJSONObject(text); obj != "" {
+	if obj := ollama.ExtractJSONObject(text); obj != "" {
 		var decoded rerankJSON
 		if err := json.Unmarshal([]byte(obj), &decoded); err == nil && len(decoded.Scores) > 0 {
 			scores := make([]float64, n)

@@ -187,6 +187,43 @@ Phase 3). The override/reindex/config-write verbs that consume the token are Pha
 **Refs:** `api/main.go` (self-register goroutine), `.vrooli/service.json`,
 `packages/searchregister-go/`; Search Self-Tuning System plan §7 Phase 2.
 
+### 2026-06-08 — Shared SearchControlService replaces private reindex proto (Phase 5)
+
+**Change:** the cli-health-private `cli-health/v1/reindex` proto + `handlers/reindex`
+are **deleted**. cli-health now implements the shared, token-gated
+`search-hub.v1.control.SearchControlService` (`handlers/searchcontrol`) — the same
+reindex + config-write contract any search provider speaks, so search-hub's sweep
+drives index-time experiments uniformly. `search.json` declares `reindex_endpoint`
++ `config_endpoint`; the CLI `reindex` group is repointed onto the shared service
+and takes a `--control-token` flag (or `CLI_HEALTH_SEARCH_CONTROL_TOKEN`). The whole
+plane is gated by `CLI_HEALTH_SEARCH_CONTROL_ENABLED` (default OFF) + the minted
+control token.
+
+**Known boundary (deferred to Phase 6 — NOT a bug):** `WriteConfig` validates and
+atomically rewrites `search.json`, and on an INDEX-TIME factor change (engine /
+embed_model / embed_task_prefix) it triggers a reindex and returns
+`reindex_triggered=true`. But the live reconciler embeds with the **boot-time
+recipe**, so an index-time recipe change only fully applies after the process
+restarts and re-reads `search.json` (the boot path rebuilds the engine and the
+recipe-aware drift hash re-embeds). The triggered reindex still reconciles corpus
+membership and gives search-hub a job to poll. Making an index-time change apply
+**in-process** (live engine rebuild + reconciler swap, so no restart is needed)
+is the Phase-6 sweep's responsibility. Query-time-only changes need no reindex and
+take effect on next boot. Until then, an operator applying an index-time tuning
+change should restart cli-health.
+
+**Manifest-validation note:** the cli-health manifest validator
+(`internal/services/manifestvalidation`) now loads the shared `search-hub/v1/control`
+proto alongside each scenario's own protos and classifies its services as **Shared**
+— bindable from a CLI but NOT coverage-checked — so a provider that adopts the shared
+control plane (binds e.g. `SearchControlService.Reindex`) is not flagged
+`binding.unknown_service`, and an unbound shared RPC like `WriteConfig` is not an
+orphan.
+
+**Refs:** `handlers/searchcontrol/`, `api/main.go`, `cli/domains/reindex/`,
+`cli/manifest.json`, `.vrooli/search.json`, `packages/aisearch-go/searchjson_write.go`,
+`internal/services/manifestvalidation/{seams,protoloader}.go`; plan §7 Phase 5.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.
@@ -196,7 +233,7 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| _None yet._ |  |  |  |
+| UI reindex button (`ui/src/features/status/StatusPanel.tsx`, `ui/src/api/clients.ts`) | Calls the **deleted** `cli-health/v1/reindex` `ReindexService` (Phase 5). The UI still *builds* (its `@vrooli/proto-types` node_modules copy is a stale pre-control build that still ships the reindex TS types), but the button now hits an unmounted endpoint → 404 at runtime. | Medium — a visible operator action is runtime-dead. | Repoint onto the shared `SearchControlService` (TS gen already exists at `packages/proto/gen/typescript/search-hub/v1/control/control_pb.ts`; the node_modules proto-types package must be rebuilt first). BUT the control plane is token-gated + flag-gated, and a browser has no control token — so the correct fix is most likely to **remove** the unauthenticated UI reindex trigger (keep the status display) and drive reindex from the token-gated CLI (`cli-health reindex run --control-token …`) / the search-hub sweep. Deferred per plan §4 (UI out of scope) + §7 Phase 8 (adoption parity). Touches: `StatusPanel.tsx`, `clients.ts`, `StatusPanel.test.tsx`, `SearchPanel.test.tsx` + `ValidatePanel.test.tsx` (reindexClient mocks), and the `status.reindex*` strings/selectors. |
 
 ## Cross-references
 

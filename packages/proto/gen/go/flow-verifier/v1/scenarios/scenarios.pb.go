@@ -541,7 +541,7 @@ var File_flow_verifier_v1_scenarios_scenarios_proto protoreflect.FileDescriptor
 
 const file_flow_verifier_v1_scenarios_scenarios_proto_rawDesc = "" +
 	"\n" +
-	"*flow-verifier/v1/scenarios/scenarios.proto\x12!vrooli.flow_verifier.v1.scenarios\x1a\"flow-verifier/v1/flows/flows.proto\x1a*flow-verifier/v1/artifacts/artifacts.proto\"\xc2\x01\n" +
+	"*flow-verifier/v1/scenarios/scenarios.proto\x12!vrooli.flow_verifier.v1.scenarios\x1a*flow-verifier/v1/artifacts/artifacts.proto\x1a\"flow-verifier/v1/flows/flows.proto\"\xc2\x01\n" +
 	"\x0fScenarioSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +

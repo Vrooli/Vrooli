@@ -67,18 +67,26 @@ class EvalRun(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., suite_id: _Optional[str] = ..., tag: _Optional[str] = ..., created_at: _Optional[str] = ..., config: _Optional[_Union[ConfigSnapshot, _Mapping]] = ..., results: _Optional[_Iterable[_Union[CaseResult, _Mapping]]] = ..., aggregate: _Optional[_Union[EvalAggregate, _Mapping]] = ...) -> None: ...
 
 class ConfigSnapshot(_message.Message):
-    __slots__ = ("rerank_enabled", "reranker_leg", "embed_model", "indexed_count", "provider_note")
+    __slots__ = ("rerank_enabled", "reranker_leg", "embed_model", "indexed_count", "provider_note", "embed_task_prefix", "rerank_blend", "engine", "floor_regime")
     RERANK_ENABLED_FIELD_NUMBER: _ClassVar[int]
     RERANKER_LEG_FIELD_NUMBER: _ClassVar[int]
     EMBED_MODEL_FIELD_NUMBER: _ClassVar[int]
     INDEXED_COUNT_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_NOTE_FIELD_NUMBER: _ClassVar[int]
+    EMBED_TASK_PREFIX_FIELD_NUMBER: _ClassVar[int]
+    RERANK_BLEND_FIELD_NUMBER: _ClassVar[int]
+    ENGINE_FIELD_NUMBER: _ClassVar[int]
+    FLOOR_REGIME_FIELD_NUMBER: _ClassVar[int]
     rerank_enabled: bool
     reranker_leg: str
     embed_model: str
     indexed_count: int
     provider_note: str
-    def __init__(self, rerank_enabled: _Optional[bool] = ..., reranker_leg: _Optional[str] = ..., embed_model: _Optional[str] = ..., indexed_count: _Optional[int] = ..., provider_note: _Optional[str] = ...) -> None: ...
+    embed_task_prefix: bool
+    rerank_blend: bool
+    engine: str
+    floor_regime: str
+    def __init__(self, rerank_enabled: _Optional[bool] = ..., reranker_leg: _Optional[str] = ..., embed_model: _Optional[str] = ..., indexed_count: _Optional[int] = ..., provider_note: _Optional[str] = ..., embed_task_prefix: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., engine: _Optional[str] = ..., floor_regime: _Optional[str] = ...) -> None: ...
 
 class CaseResult(_message.Message):
     __slots__ = ("case_id", "top", "expected_rank", "observed_top_score", "outcome")
@@ -153,10 +161,12 @@ class GetSuiteRequest(_message.Message):
     def __init__(self, suite_id: _Optional[str] = ...) -> None: ...
 
 class GetSuiteResponse(_message.Message):
-    __slots__ = ("suite",)
+    __slots__ = ("suite", "adequacy")
     SUITE_FIELD_NUMBER: _ClassVar[int]
+    ADEQUACY_FIELD_NUMBER: _ClassVar[int]
     suite: EvalSuite
-    def __init__(self, suite: _Optional[_Union[EvalSuite, _Mapping]] = ...) -> None: ...
+    adequacy: _containers.RepeatedCompositeFieldContainer[AdequacyWarning]
+    def __init__(self, suite: _Optional[_Union[EvalSuite, _Mapping]] = ..., adequacy: _Optional[_Iterable[_Union[AdequacyWarning, _Mapping]]] = ...) -> None: ...
 
 class RunSuiteRequest(_message.Message):
     __slots__ = ("suite_id", "tag", "limit")
@@ -169,10 +179,12 @@ class RunSuiteRequest(_message.Message):
     def __init__(self, suite_id: _Optional[str] = ..., tag: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
 
 class RunSuiteResponse(_message.Message):
-    __slots__ = ("run",)
+    __slots__ = ("run", "adequacy")
     RUN_FIELD_NUMBER: _ClassVar[int]
+    ADEQUACY_FIELD_NUMBER: _ClassVar[int]
     run: EvalRun
-    def __init__(self, run: _Optional[_Union[EvalRun, _Mapping]] = ...) -> None: ...
+    adequacy: _containers.RepeatedCompositeFieldContainer[AdequacyWarning]
+    def __init__(self, run: _Optional[_Union[EvalRun, _Mapping]] = ..., adequacy: _Optional[_Iterable[_Union[AdequacyWarning, _Mapping]]] = ...) -> None: ...
 
 class ListRunsRequest(_message.Message):
     __slots__ = ("suite_id", "tag", "limit")
@@ -237,3 +249,135 @@ class CaseDelta(_message.Message):
     expected_rank_a: int
     expected_rank_b: int
     def __init__(self, case_id: _Optional[str] = ..., outcome_a: _Optional[str] = ..., outcome_b: _Optional[str] = ..., top_score_a: _Optional[float] = ..., top_score_b: _Optional[float] = ..., expected_rank_a: _Optional[int] = ..., expected_rank_b: _Optional[int] = ...) -> None: ...
+
+class SweepRequest(_message.Message):
+    __slots__ = ("suite_id", "query_time_only", "apply", "limit")
+    SUITE_ID_FIELD_NUMBER: _ClassVar[int]
+    QUERY_TIME_ONLY_FIELD_NUMBER: _ClassVar[int]
+    APPLY_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    suite_id: str
+    query_time_only: bool
+    apply: bool
+    limit: int
+    def __init__(self, suite_id: _Optional[str] = ..., query_time_only: _Optional[bool] = ..., apply: _Optional[bool] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class SweepArm(_message.Message):
+    __slots__ = ("tag", "tier", "config", "run_id", "score", "aggregate", "feasible", "note")
+    TAG_FIELD_NUMBER: _ClassVar[int]
+    TIER_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SCORE_FIELD_NUMBER: _ClassVar[int]
+    AGGREGATE_FIELD_NUMBER: _ClassVar[int]
+    FEASIBLE_FIELD_NUMBER: _ClassVar[int]
+    NOTE_FIELD_NUMBER: _ClassVar[int]
+    tag: str
+    tier: str
+    config: ConfigSnapshot
+    run_id: str
+    score: float
+    aggregate: EvalAggregate
+    feasible: bool
+    note: str
+    def __init__(self, tag: _Optional[str] = ..., tier: _Optional[str] = ..., config: _Optional[_Union[ConfigSnapshot, _Mapping]] = ..., run_id: _Optional[str] = ..., score: _Optional[float] = ..., aggregate: _Optional[_Union[EvalAggregate, _Mapping]] = ..., feasible: _Optional[bool] = ..., note: _Optional[str] = ...) -> None: ...
+
+class SweepResult(_message.Message):
+    __slots__ = ("suite_id", "provider_id", "arms", "incumbent_tag", "winner_tag", "promoted", "recommendation", "stats")
+    SUITE_ID_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    ARMS_FIELD_NUMBER: _ClassVar[int]
+    INCUMBENT_TAG_FIELD_NUMBER: _ClassVar[int]
+    WINNER_TAG_FIELD_NUMBER: _ClassVar[int]
+    PROMOTED_FIELD_NUMBER: _ClassVar[int]
+    RECOMMENDATION_FIELD_NUMBER: _ClassVar[int]
+    STATS_FIELD_NUMBER: _ClassVar[int]
+    suite_id: str
+    provider_id: str
+    arms: _containers.RepeatedCompositeFieldContainer[SweepArm]
+    incumbent_tag: str
+    winner_tag: str
+    promoted: bool
+    recommendation: str
+    stats: SweepStats
+    def __init__(self, suite_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., arms: _Optional[_Iterable[_Union[SweepArm, _Mapping]]] = ..., incumbent_tag: _Optional[str] = ..., winner_tag: _Optional[str] = ..., promoted: _Optional[bool] = ..., recommendation: _Optional[str] = ..., stats: _Optional[_Union[SweepStats, _Mapping]] = ...) -> None: ...
+
+class SweepStats(_message.Message):
+    __slots__ = ("incumbent_score", "winner_score", "margin", "ci_low", "ci_high", "heldout_winner_score", "heldout_incumbent_score", "query_time_arms", "index_time_arms", "dropped_index_interactions")
+    INCUMBENT_SCORE_FIELD_NUMBER: _ClassVar[int]
+    WINNER_SCORE_FIELD_NUMBER: _ClassVar[int]
+    MARGIN_FIELD_NUMBER: _ClassVar[int]
+    CI_LOW_FIELD_NUMBER: _ClassVar[int]
+    CI_HIGH_FIELD_NUMBER: _ClassVar[int]
+    HELDOUT_WINNER_SCORE_FIELD_NUMBER: _ClassVar[int]
+    HELDOUT_INCUMBENT_SCORE_FIELD_NUMBER: _ClassVar[int]
+    QUERY_TIME_ARMS_FIELD_NUMBER: _ClassVar[int]
+    INDEX_TIME_ARMS_FIELD_NUMBER: _ClassVar[int]
+    DROPPED_INDEX_INTERACTIONS_FIELD_NUMBER: _ClassVar[int]
+    incumbent_score: float
+    winner_score: float
+    margin: float
+    ci_low: float
+    ci_high: float
+    heldout_winner_score: float
+    heldout_incumbent_score: float
+    query_time_arms: int
+    index_time_arms: int
+    dropped_index_interactions: int
+    def __init__(self, incumbent_score: _Optional[float] = ..., winner_score: _Optional[float] = ..., margin: _Optional[float] = ..., ci_low: _Optional[float] = ..., ci_high: _Optional[float] = ..., heldout_winner_score: _Optional[float] = ..., heldout_incumbent_score: _Optional[float] = ..., query_time_arms: _Optional[int] = ..., index_time_arms: _Optional[int] = ..., dropped_index_interactions: _Optional[int] = ...) -> None: ...
+
+class SweepResponse(_message.Message):
+    __slots__ = ("result",)
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    result: SweepResult
+    def __init__(self, result: _Optional[_Union[SweepResult, _Mapping]] = ...) -> None: ...
+
+class AdequacyWarning(_message.Message):
+    __slots__ = ("code", "message", "subject")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    message: str
+    subject: str
+    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., subject: _Optional[str] = ...) -> None: ...
+
+class GenerateRequest(_message.Message):
+    __slots__ = ("suite_id", "count", "negatives", "apply")
+    SUITE_ID_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    NEGATIVES_FIELD_NUMBER: _ClassVar[int]
+    APPLY_FIELD_NUMBER: _ClassVar[int]
+    suite_id: str
+    count: int
+    negatives: bool
+    apply: bool
+    def __init__(self, suite_id: _Optional[str] = ..., count: _Optional[int] = ..., negatives: _Optional[bool] = ..., apply: _Optional[bool] = ...) -> None: ...
+
+class GeneratedCase(_message.Message):
+    __slots__ = ("case", "source_id", "stratum")
+    CASE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_ID_FIELD_NUMBER: _ClassVar[int]
+    STRATUM_FIELD_NUMBER: _ClassVar[int]
+    case: EvalCase
+    source_id: str
+    stratum: str
+    def __init__(self, case: _Optional[_Union[EvalCase, _Mapping]] = ..., source_id: _Optional[str] = ..., stratum: _Optional[str] = ...) -> None: ...
+
+class GenerateResponse(_message.Message):
+    __slots__ = ("suite_id", "provider_id", "proposed", "suite", "applied", "adequacy", "summary")
+    SUITE_ID_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    PROPOSED_FIELD_NUMBER: _ClassVar[int]
+    SUITE_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_FIELD_NUMBER: _ClassVar[int]
+    ADEQUACY_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    suite_id: str
+    provider_id: str
+    proposed: _containers.RepeatedCompositeFieldContainer[GeneratedCase]
+    suite: EvalSuite
+    applied: bool
+    adequacy: _containers.RepeatedCompositeFieldContainer[AdequacyWarning]
+    summary: str
+    def __init__(self, suite_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., proposed: _Optional[_Iterable[_Union[GeneratedCase, _Mapping]]] = ..., suite: _Optional[_Union[EvalSuite, _Mapping]] = ..., applied: _Optional[bool] = ..., adequacy: _Optional[_Iterable[_Union[AdequacyWarning, _Mapping]]] = ..., summary: _Optional[str] = ...) -> None: ...

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file search-hub/v1/eval/eval.proto.
  */
 export const file_search_hub_v1_eval_eval: GenFile = /*@__PURE__*/
-  fileDesc("Ch1zZWFyY2gtaHViL3YxL2V2YWwvZXZhbC5wcm90bxIZdnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbCLAAQoJRXZhbFN1aXRlEhAKCHN1aXRlX2lkGAEgASgJEhMKC3Byb3ZpZGVyX2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSMgoFY2FzZXMYBSADKAsyIy52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkV2YWxDYXNlEg0KBXN0YXRlGAYgASgJEhIKCmNyZWF0ZWRfYXQYByABKAkSEgoKdXBkYXRlZF9hdBgIIAEoCSLJAQoIRXZhbENhc2USDwoHY2FzZV9pZBgBIAEoCRINCgVxdWVyeRgCIAEoCRIMCgR0YWdzGAMgAygJEhIKCmV4cGVjdF9pZHMYBCADKAkSGwoTZXhwZWN0X3dpdGhpbl90b3BfaxgFIAEoBRIYChBleHBlY3RfbWluX3Njb3JlGAYgASgBEhgKEGV4cGVjdF9tYXhfc2NvcmUYByABKAESHAoUZXhwZWN0X25vX3N0cm9uZ19oaXQYCCABKAgSDAoEbm90ZRgJIAEoCSL8AQoHRXZhbFJ1bhIOCgZydW5faWQYASABKAkSEAoIc3VpdGVfaWQYAiABKAkSCwoDdGFnGAMgASgJEhIKCmNyZWF0ZWRfYXQYBCABKAkSOQoGY29uZmlnGAUgASgLMikudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5Db25maWdTbmFwc2hvdBI2CgdyZXN1bHRzGAYgAygLMiUudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5DYXNlUmVzdWx0EjsKCWFnZ3JlZ2F0ZRgHIAEoCzIoLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuRXZhbEFnZ3JlZ2F0ZSKBAQoOQ29uZmlnU25hcHNob3QSFgoOcmVyYW5rX2VuYWJsZWQYASABKAgSFAoMcmVyYW5rZXJfbGVnGAIgASgJEhMKC2VtYmVkX21vZGVsGAMgASgJEhUKDWluZGV4ZWRfY291bnQYBCABKAUSFQoNcHJvdmlkZXJfbm90ZRgFIAEoCSKUAQoKQ2FzZVJlc3VsdBIPCgdjYXNlX2lkGAEgASgJEjEKA3RvcBgCIAMoCzIkLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuU2NvcmVkSGl0EhUKDWV4cGVjdGVkX3JhbmsYAyABKAUSGgoSb2JzZXJ2ZWRfdG9wX3Njb3JlGAQgASgBEg8KB291dGNvbWUYBSABKAkiNQoJU2NvcmVkSGl0EgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEg0KBXNjb3JlGAMgASgBIokBCg1FdmFsQWdncmVnYXRlEg0KBWNhc2VzGAEgASgFEgsKA21ldBgCIAEoBRINCgViZWxvdxgDIAEoBRIYChBtZWFuX3N0cm9uZ190b3AxGAQgASgBEhsKE21heF9naWJiZXJpc2hfc2NvcmUYBSABKAESFgoObGF0ZW5jeV9wOTVfbXMYBiABKAUiSwoUUmVnaXN0ZXJTdWl0ZVJlcXVlc3QSMwoFc3VpdGUYASABKAsyJC52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkV2YWxTdWl0ZSJdChVSZWdpc3RlclN1aXRlUmVzcG9uc2USMwoFc3VpdGUYASABKAsyJC52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkV2YWxTdWl0ZRIPCgdjcmVhdGVkGAIgASgIIigKEUxpc3RTdWl0ZXNSZXF1ZXN0EhMKC3Byb3ZpZGVyX2lkGAEgASgJIkoKEkxpc3RTdWl0ZXNSZXNwb25zZRI0CgZzdWl0ZXMYASADKAsyJC52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkV2YWxTdWl0ZSIjCg9HZXRTdWl0ZVJlcXVlc3QSEAoIc3VpdGVfaWQYASABKAkiRwoQR2V0U3VpdGVSZXNwb25zZRIzCgVzdWl0ZRgBIAEoCzIkLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuRXZhbFN1aXRlIj8KD1J1blN1aXRlUmVxdWVzdBIQCghzdWl0ZV9pZBgBIAEoCRILCgN0YWcYAiABKAkSDQoFbGltaXQYAyABKAUiQwoQUnVuU3VpdGVSZXNwb25zZRIvCgNydW4YASABKAsyIi52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkV2YWxSdW4iPwoPTGlzdFJ1bnNSZXF1ZXN0EhAKCHN1aXRlX2lkGAEgASgJEgsKA3RhZxgCIAEoCRINCgVsaW1pdBgDIAEoBSJEChBMaXN0UnVuc1Jlc3BvbnNlEjAKBHJ1bnMYASADKAsyIi52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkV2YWxSdW4iHwoNR2V0UnVuUmVxdWVzdBIOCgZydW5faWQYASABKAkiQQoOR2V0UnVuUmVzcG9uc2USLwoDcnVuGAEgASgLMiIudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5FdmFsUnVuIjIKEkNvbXBhcmVSdW5zUmVxdWVzdBINCgVydW5fYRgBIAEoCRINCgVydW5fYhgCIAEoCSKxAQoTQ29tcGFyZVJ1bnNSZXNwb25zZRIxCgVydW5fYRgBIAEoCzIiLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuRXZhbFJ1bhIxCgVydW5fYhgCIAEoCzIiLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuRXZhbFJ1bhI0CgZkZWx0YXMYAyADKAsyJC52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkNhc2VEZWx0YSKeAQoJQ2FzZURlbHRhEg8KB2Nhc2VfaWQYASABKAkSEQoJb3V0Y29tZV9hGAIgASgJEhEKCW91dGNvbWVfYhgDIAEoCRITCgt0b3Bfc2NvcmVfYRgEIAEoARITCgt0b3Bfc2NvcmVfYhgFIAEoARIXCg9leHBlY3RlZF9yYW5rX2EYBiABKAUSFwoPZXhwZWN0ZWRfcmFua19iGAcgASgFMugFCgtFdmFsU2VydmljZRJyCg1SZWdpc3RlclN1aXRlEi8udnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5SZWdpc3RlclN1aXRlUmVxdWVzdBowLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuUmVnaXN0ZXJTdWl0ZVJlc3BvbnNlEmkKCkxpc3RTdWl0ZXMSLC52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkxpc3RTdWl0ZXNSZXF1ZXN0Gi0udnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5MaXN0U3VpdGVzUmVzcG9uc2USYwoIR2V0U3VpdGUSKi52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkdldFN1aXRlUmVxdWVzdBorLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuR2V0U3VpdGVSZXNwb25zZRJjCghSdW5TdWl0ZRIqLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuUnVuU3VpdGVSZXF1ZXN0GisudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5SdW5TdWl0ZVJlc3BvbnNlEmMKCExpc3RSdW5zEioudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5MaXN0UnVuc1JlcXVlc3QaKy52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkxpc3RSdW5zUmVzcG9uc2USXQoGR2V0UnVuEigudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5HZXRSdW5SZXF1ZXN0GikudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5HZXRSdW5SZXNwb25zZRJsCgtDb21wYXJlUnVucxItLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuQ29tcGFyZVJ1bnNSZXF1ZXN0Gi4udnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5Db21wYXJlUnVuc1Jlc3BvbnNlQktaSWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc2VhcmNoLWh1Yi92MS9ldmFsO2V2YWxfdjFiBnByb3RvMw");
+  fileDesc("Ch1zZWFyY2gtaHViL3YxL2V2YWwvZXZhbC5wcm90bxIZdnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbCLAAQoJRXZhbFN1aXRlEhAKCHN1aXRlX2lkGAEgASgJEhMKC3Byb3ZpZGVyX2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSMgoFY2FzZXMYBSADKAsyIy52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkV2YWxDYXNlEg0KBXN0YXRlGAYgASgJEhIKCmNyZWF0ZWRfYXQYByABKAkSEgoKdXBkYXRlZF9hdBgIIAEoCSLJAQoIRXZhbENhc2USDwoHY2FzZV9pZBgBIAEoCRINCgVxdWVyeRgCIAEoCRIMCgR0YWdzGAMgAygJEhIKCmV4cGVjdF9pZHMYBCADKAkSGwoTZXhwZWN0X3dpdGhpbl90b3BfaxgFIAEoBRIYChBleHBlY3RfbWluX3Njb3JlGAYgASgBEhgKEGV4cGVjdF9tYXhfc2NvcmUYByABKAESHAoUZXhwZWN0X25vX3N0cm9uZ19oaXQYCCABKAgSDAoEbm90ZRgJIAEoCSL8AQoHRXZhbFJ1bhIOCgZydW5faWQYASABKAkSEAoIc3VpdGVfaWQYAiABKAkSCwoDdGFnGAMgASgJEhIKCmNyZWF0ZWRfYXQYBCABKAkSOQoGY29uZmlnGAUgASgLMikudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5Db25maWdTbmFwc2hvdBI2CgdyZXN1bHRzGAYgAygLMiUudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5DYXNlUmVzdWx0EjsKCWFnZ3JlZ2F0ZRgHIAEoCzIoLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuRXZhbEFnZ3JlZ2F0ZSLYAQoOQ29uZmlnU25hcHNob3QSFgoOcmVyYW5rX2VuYWJsZWQYASABKAgSFAoMcmVyYW5rZXJfbGVnGAIgASgJEhMKC2VtYmVkX21vZGVsGAMgASgJEhUKDWluZGV4ZWRfY291bnQYBCABKAUSFQoNcHJvdmlkZXJfbm90ZRgFIAEoCRIZChFlbWJlZF90YXNrX3ByZWZpeBgGIAEoCBIUCgxyZXJhbmtfYmxlbmQYByABKAgSDgoGZW5naW5lGAggASgJEhQKDGZsb29yX3JlZ2ltZRgJIAEoCSKUAQoKQ2FzZVJlc3VsdBIPCgdjYXNlX2lkGAEgASgJEjEKA3RvcBgCIAMoCzIkLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuU2NvcmVkSGl0EhUKDWV4cGVjdGVkX3JhbmsYAyABKAUSGgoSb2JzZXJ2ZWRfdG9wX3Njb3JlGAQgASgBEg8KB291dGNvbWUYBSABKAkiNQoJU2NvcmVkSGl0EgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEg0KBXNjb3JlGAMgASgBIokBCg1FdmFsQWdncmVnYXRlEg0KBWNhc2VzGAEgASgFEgsKA21ldBgCIAEoBRINCgViZWxvdxgDIAEoBRIYChBtZWFuX3N0cm9uZ190b3AxGAQgASgBEhsKE21heF9naWJiZXJpc2hfc2NvcmUYBSABKAESFgoObGF0ZW5jeV9wOTVfbXMYBiABKAUiSwoUUmVnaXN0ZXJTdWl0ZVJlcXVlc3QSMwoFc3VpdGUYASABKAsyJC52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkV2YWxTdWl0ZSJdChVSZWdpc3RlclN1aXRlUmVzcG9uc2USMwoFc3VpdGUYASABKAsyJC52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkV2YWxTdWl0ZRIPCgdjcmVhdGVkGAIgASgIIigKEUxpc3RTdWl0ZXNSZXF1ZXN0EhMKC3Byb3ZpZGVyX2lkGAEgASgJIkoKEkxpc3RTdWl0ZXNSZXNwb25zZRI0CgZzdWl0ZXMYASADKAsyJC52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkV2YWxTdWl0ZSIjCg9HZXRTdWl0ZVJlcXVlc3QSEAoIc3VpdGVfaWQYASABKAkihQEKEEdldFN1aXRlUmVzcG9uc2USMwoFc3VpdGUYASABKAsyJC52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkV2YWxTdWl0ZRI8CghhZGVxdWFjeRgCIAMoCzIqLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuQWRlcXVhY3lXYXJuaW5nIj8KD1J1blN1aXRlUmVxdWVzdBIQCghzdWl0ZV9pZBgBIAEoCRILCgN0YWcYAiABKAkSDQoFbGltaXQYAyABKAUigQEKEFJ1blN1aXRlUmVzcG9uc2USLwoDcnVuGAEgASgLMiIudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5FdmFsUnVuEjwKCGFkZXF1YWN5GAIgAygLMioudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5BZGVxdWFjeVdhcm5pbmciPwoPTGlzdFJ1bnNSZXF1ZXN0EhAKCHN1aXRlX2lkGAEgASgJEgsKA3RhZxgCIAEoCRINCgVsaW1pdBgDIAEoBSJEChBMaXN0UnVuc1Jlc3BvbnNlEjAKBHJ1bnMYASADKAsyIi52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkV2YWxSdW4iHwoNR2V0UnVuUmVxdWVzdBIOCgZydW5faWQYASABKAkiQQoOR2V0UnVuUmVzcG9uc2USLwoDcnVuGAEgASgLMiIudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5FdmFsUnVuIjIKEkNvbXBhcmVSdW5zUmVxdWVzdBINCgVydW5fYRgBIAEoCRINCgVydW5fYhgCIAEoCSKxAQoTQ29tcGFyZVJ1bnNSZXNwb25zZRIxCgVydW5fYRgBIAEoCzIiLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuRXZhbFJ1bhIxCgVydW5fYhgCIAEoCzIiLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuRXZhbFJ1bhI0CgZkZWx0YXMYAyADKAsyJC52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkNhc2VEZWx0YSKeAQoJQ2FzZURlbHRhEg8KB2Nhc2VfaWQYASABKAkSEQoJb3V0Y29tZV9hGAIgASgJEhEKCW91dGNvbWVfYhgDIAEoCRITCgt0b3Bfc2NvcmVfYRgEIAEoARITCgt0b3Bfc2NvcmVfYhgFIAEoARIXCg9leHBlY3RlZF9yYW5rX2EYBiABKAUSFwoPZXhwZWN0ZWRfcmFua19iGAcgASgFIlcKDFN3ZWVwUmVxdWVzdBIQCghzdWl0ZV9pZBgBIAEoCRIXCg9xdWVyeV90aW1lX29ubHkYAiABKAgSDQoFYXBwbHkYAyABKAgSDQoFbGltaXQYBCABKAUi3AEKCFN3ZWVwQXJtEgsKA3RhZxgBIAEoCRIMCgR0aWVyGAIgASgJEjkKBmNvbmZpZxgDIAEoCzIpLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuQ29uZmlnU25hcHNob3QSDgoGcnVuX2lkGAQgASgJEg0KBXNjb3JlGAUgASgBEjsKCWFnZ3JlZ2F0ZRgGIAEoCzIoLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuRXZhbEFnZ3JlZ2F0ZRIQCghmZWFzaWJsZRgHIAEoCBIMCgRub3RlGAggASgJIvIBCgtTd2VlcFJlc3VsdBIQCghzdWl0ZV9pZBgBIAEoCRITCgtwcm92aWRlcl9pZBgCIAEoCRIxCgRhcm1zGAMgAygLMiMudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5Td2VlcEFybRIVCg1pbmN1bWJlbnRfdGFnGAQgASgJEhIKCndpbm5lcl90YWcYBSABKAkSEAoIcHJvbW90ZWQYBiABKAgSFgoOcmVjb21tZW5kYXRpb24YByABKAkSNAoFc3RhdHMYCCABKAsyJS52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLlN3ZWVwU3RhdHMigQIKClN3ZWVwU3RhdHMSFwoPaW5jdW1iZW50X3Njb3JlGAEgASgBEhQKDHdpbm5lcl9zY29yZRgCIAEoARIOCgZtYXJnaW4YAyABKAESDgoGY2lfbG93GAQgASgBEg8KB2NpX2hpZ2gYBSABKAESHAoUaGVsZG91dF93aW5uZXJfc2NvcmUYBiABKAESHwoXaGVsZG91dF9pbmN1bWJlbnRfc2NvcmUYByABKAESFwoPcXVlcnlfdGltZV9hcm1zGAggASgFEhcKD2luZGV4X3RpbWVfYXJtcxgJIAEoBRIiChpkcm9wcGVkX2luZGV4X2ludGVyYWN0aW9ucxgKIAEoBSJHCg1Td2VlcFJlc3BvbnNlEjYKBnJlc3VsdBgBIAEoCzImLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuU3dlZXBSZXN1bHQiQQoPQWRlcXVhY3lXYXJuaW5nEgwKBGNvZGUYASABKAkSDwoHbWVzc2FnZRgCIAEoCRIPCgdzdWJqZWN0GAMgASgJIlQKD0dlbmVyYXRlUmVxdWVzdBIQCghzdWl0ZV9pZBgBIAEoCRINCgVjb3VudBgCIAEoBRIRCgluZWdhdGl2ZXMYAyABKAgSDQoFYXBwbHkYBCABKAgiZgoNR2VuZXJhdGVkQ2FzZRIxCgRjYXNlGAEgASgLMiMudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5FdmFsQ2FzZRIRCglzb3VyY2VfaWQYAiABKAkSDwoHc3RyYXR1bRgDIAEoCSKKAgoQR2VuZXJhdGVSZXNwb25zZRIQCghzdWl0ZV9pZBgBIAEoCRITCgtwcm92aWRlcl9pZBgCIAEoCRI6Cghwcm9wb3NlZBgDIAMoCzIoLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuR2VuZXJhdGVkQ2FzZRIzCgVzdWl0ZRgEIAEoCzIkLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuRXZhbFN1aXRlEg8KB2FwcGxpZWQYBSABKAgSPAoIYWRlcXVhY3kYBiADKAsyKi52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkFkZXF1YWN5V2FybmluZxIPCgdzdW1tYXJ5GAcgASgJMqkHCgtFdmFsU2VydmljZRJyCg1SZWdpc3RlclN1aXRlEi8udnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5SZWdpc3RlclN1aXRlUmVxdWVzdBowLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuUmVnaXN0ZXJTdWl0ZVJlc3BvbnNlEmkKCkxpc3RTdWl0ZXMSLC52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkxpc3RTdWl0ZXNSZXF1ZXN0Gi0udnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5MaXN0U3VpdGVzUmVzcG9uc2USYwoIR2V0U3VpdGUSKi52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkdldFN1aXRlUmVxdWVzdBorLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuR2V0U3VpdGVSZXNwb25zZRJjCghSdW5TdWl0ZRIqLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuUnVuU3VpdGVSZXF1ZXN0GisudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5SdW5TdWl0ZVJlc3BvbnNlEmMKCExpc3RSdW5zEioudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5MaXN0UnVuc1JlcXVlc3QaKy52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkxpc3RSdW5zUmVzcG9uc2USXQoGR2V0UnVuEigudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5HZXRSdW5SZXF1ZXN0GikudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5HZXRSdW5SZXNwb25zZRJsCgtDb21wYXJlUnVucxItLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuQ29tcGFyZVJ1bnNSZXF1ZXN0Gi4udnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5Db21wYXJlUnVuc1Jlc3BvbnNlEloKBVN3ZWVwEicudnJvb2xpLnNlYXJjaF9odWIudjEuZXZhbC5Td2VlcFJlcXVlc3QaKC52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLlN3ZWVwUmVzcG9uc2USYwoIR2VuZXJhdGUSKi52cm9vbGkuc2VhcmNoX2h1Yi52MS5ldmFsLkdlbmVyYXRlUmVxdWVzdBorLnZyb29saS5zZWFyY2hfaHViLnYxLmV2YWwuR2VuZXJhdGVSZXNwb25zZUJLWklnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NlYXJjaC1odWIvdjEvZXZhbDtldmFsX3YxYgZwcm90bzM");
 
 /**
  * A registered, provider-owned suite of golden retrieval cases.
@@ -204,7 +204,9 @@ export const EvalRunSchema: GenMessage<EvalRun> = /*@__PURE__*/
 /**
  * Captured from the provider's status probe at run time so a historical
  * comparison stays meaningful months later. Fields the probe can't supply are
- * left zero (honest).
+ * left zero (honest). The sweep (Sweep RPC) fills the factor fields directly
+ * from the arm's tuning rather than a probe, so every swept arm is fully
+ * self-describing — the whole tuning that produced a result is on the run.
  *
  * @generated from message vrooli.search_hub.v1.eval.ConfigSnapshot
  */
@@ -237,6 +239,38 @@ export type ConfigSnapshot = Message<"vrooli.search_hub.v1.eval.ConfigSnapshot">
    * @generated from field: string provider_note = 5;
    */
   providerNote: string;
+
+  /**
+   * INDEX-TIME: nomic search_query:/search_document: task prefixes were applied
+   * when the corpus was embedded (changes the embedding space → reindex).
+   *
+   * @generated from field: bool embed_task_prefix = 6;
+   */
+  embedTaskPrefix: boolean;
+
+  /**
+   * QUERY-TIME: the rerank order was blended with retrieval via RRF rather than a
+   * pure cross-encoder reorder (only meaningful when rerank_enabled).
+   *
+   * @generated from field: bool rerank_blend = 7;
+   */
+  rerankBlend: boolean;
+
+  /**
+   * INDEX-TIME: the structural engine shape, "dense" | "hybrid".
+   *
+   * @generated from field: string engine = 8;
+   */
+  engine: string;
+
+  /**
+   * The score regime the relevance floor applied in: "fused" (RRF — hybrid or
+   * rerank-blend, floor near 0) | "cosine" (single-leg dense, a real floor). A
+   * descriptive label so a historical run records which floor band was in force.
+   *
+   * @generated from field: string floor_regime = 9;
+   */
+  floorRegime: string;
 };
 
 /**
@@ -466,6 +500,16 @@ export type GetSuiteResponse = Message<"vrooli.search_hub.v1.eval.GetSuiteRespon
    * @generated from field: vrooli.search_hub.v1.eval.EvalSuite suite = 1;
    */
   suite?: EvalSuite | undefined;
+
+  /**
+   * Warn-level corpus adequacy findings (never an error — they inform, never
+   * gate). Computed structurally from the suite alone (count floor, missing
+   * negatives, duplicate queries, thin difficulty spread). The coverage-vs-index
+   * findings need a live sample and surface on Generate instead.
+   *
+   * @generated from field: repeated vrooli.search_hub.v1.eval.AdequacyWarning adequacy = 2;
+   */
+  adequacy: AdequacyWarning[];
 };
 
 /**
@@ -514,6 +558,16 @@ export type RunSuiteResponse = Message<"vrooli.search_hub.v1.eval.RunSuiteRespon
    * @generated from field: vrooli.search_hub.v1.eval.EvalRun run = 1;
    */
   run?: EvalRun | undefined;
+
+  /**
+   * Warn-level corpus adequacy findings for the suite that was run (same
+   * structural checks as GetSuiteResponse.adequacy) — surfaced here so an
+   * operator running a suite sees, alongside the result, whether the corpus the
+   * result rests on is thin/negative-less. Never affects the run or its labels.
+   *
+   * @generated from field: repeated vrooli.search_hub.v1.eval.AdequacyWarning adequacy = 2;
+   */
+  adequacy: AdequacyWarning[];
 };
 
 /**
@@ -707,6 +761,461 @@ export const CaseDeltaSchema: GenMessage<CaseDelta> = /*@__PURE__*/
   messageDesc(file_search_hub_v1_eval_eval, 21);
 
 /**
+ * @generated from message vrooli.search_hub.v1.eval.SweepRequest
+ */
+export type SweepRequest = Message<"vrooli.search_hub.v1.eval.SweepRequest"> & {
+  /**
+   * The suite to optimize; its provider supplies the incumbent tuning + the
+   * token-gated control plane (reindex_endpoint / config_endpoint).
+   *
+   * @generated from field: string suite_id = 1;
+   */
+  suiteId: string;
+
+  /**
+   * Restrict to the cheap query-time tier (skip the reindex-per-arm index-time
+   * tier). Default runs both tiers.
+   *
+   * @generated from field: bool query_time_only = 2;
+   */
+  queryTimeOnly: boolean;
+
+  /**
+   * Persist the winning tuning back into the provider's search.json via the
+   * config-write contract. Default false = preview only (ranked table +
+   * recommendation, no provider mutation).
+   *
+   * @generated from field: bool apply = 3;
+   */
+  apply: boolean;
+
+  /**
+   * Per-case fetch depth forwarded to every arm's run (0 = suite default).
+   *
+   * @generated from field: int32 limit = 4;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.eval.SweepRequest.
+ * Use `create(SweepRequestSchema)` to create a new message.
+ */
+export const SweepRequestSchema: GenMessage<SweepRequest> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_eval_eval, 22);
+
+/**
+ * One evaluated configuration: its full (self-describing) tuning, the immutable
+ * run it produced, its primary objective, and whether it cleared the
+ * multi-objective constraints.
+ *
+ * @generated from message vrooli.search_hub.v1.eval.SweepArm
+ */
+export type SweepArm = Message<"vrooli.search_hub.v1.eval.SweepArm"> & {
+  /**
+   * Stable arm label; also the stored run's tag, e.g.
+   * "sweep:qt:rerank_enabled=true,rerank_blend=true".
+   *
+   * @generated from field: string tag = 1;
+   */
+  tag: string;
+
+  /**
+   * "query_time" | "index_time" | "incumbent" — which tier produced this arm.
+   *
+   * @generated from field: string tier = 2;
+   */
+  tier: string;
+
+  /**
+   * The arm's full config as a self-describing snapshot.
+   *
+   * @generated from field: vrooli.search_hub.v1.eval.ConfigSnapshot config = 3;
+   */
+  config?: ConfigSnapshot | undefined;
+
+  /**
+   * The stored EvalRun's id (inspect with `evals show-run`).
+   *
+   * @generated from field: string run_id = 4;
+   */
+  runId: string;
+
+  /**
+   * Primary objective: recall@k over the positive (non-gibberish) cases [0,1].
+   *
+   * @generated from field: double score = 5;
+   */
+  score: number;
+
+  /**
+   * @generated from field: vrooli.search_hub.v1.eval.EvalAggregate aggregate = 6;
+   */
+  aggregate?: EvalAggregate | undefined;
+
+  /**
+   * Cleared the constraints (gibberish ceiling + latency budget).
+   *
+   * @generated from field: bool feasible = 7;
+   */
+  feasible: boolean;
+
+  /**
+   * Human-readable note (e.g. why infeasible, or "incumbent").
+   *
+   * @generated from field: string note = 8;
+   */
+  note: string;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.eval.SweepArm.
+ * Use `create(SweepArmSchema)` to create a new message.
+ */
+export const SweepArmSchema: GenMessage<SweepArm> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_eval_eval, 23);
+
+/**
+ * The ranked outcome + the promotion verdict.
+ *
+ * @generated from message vrooli.search_hub.v1.eval.SweepResult
+ */
+export type SweepResult = Message<"vrooli.search_hub.v1.eval.SweepResult"> & {
+  /**
+   * @generated from field: string suite_id = 1;
+   */
+  suiteId: string;
+
+  /**
+   * @generated from field: string provider_id = 2;
+   */
+  providerId: string;
+
+  /**
+   * Arms best-first: feasible above infeasible, then by descending score.
+   *
+   * @generated from field: repeated vrooli.search_hub.v1.eval.SweepArm arms = 3;
+   */
+  arms: SweepArm[];
+
+  /**
+   * The incumbent (current tuning) arm's tag — always evaluated as the baseline.
+   *
+   * @generated from field: string incumbent_tag = 4;
+   */
+  incumbentTag: string;
+
+  /**
+   * The promoted winner's tag, or "" when no arm cleared every guard (the
+   * incumbent stays).
+   *
+   * @generated from field: string winner_tag = 5;
+   */
+  winnerTag: string;
+
+  /**
+   * True when apply=true AND a winner cleared every guard AND the config-write
+   * contract persisted it.
+   *
+   * @generated from field: bool promoted = 6;
+   */
+  promoted: boolean;
+
+  /**
+   * The verdict, one or more lines (significance, constraints, held-out,
+   * tie-break) — the recommendation a human/agent reads.
+   *
+   * @generated from field: string recommendation = 7;
+   */
+  recommendation: string;
+
+  /**
+   * @generated from field: vrooli.search_hub.v1.eval.SweepStats stats = 8;
+   */
+  stats?: SweepStats | undefined;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.eval.SweepResult.
+ * Use `create(SweepResultSchema)` to create a new message.
+ */
+export const SweepResultSchema: GenMessage<SweepResult> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_eval_eval, 24);
+
+/**
+ * The decision math behind the verdict (so the verdict is auditable).
+ *
+ * @generated from message vrooli.search_hub.v1.eval.SweepStats
+ */
+export type SweepStats = Message<"vrooli.search_hub.v1.eval.SweepStats"> & {
+  /**
+   * @generated from field: double incumbent_score = 1;
+   */
+  incumbentScore: number;
+
+  /**
+   * @generated from field: double winner_score = 2;
+   */
+  winnerScore: number;
+
+  /**
+   * Paired winner-minus-incumbent recall margin on the tuning fold (point est.).
+   *
+   * @generated from field: double margin = 3;
+   */
+  margin: number;
+
+  /**
+   * Bootstrap 95% CI of the paired margin; promotion requires ci_low > 0.
+   *
+   * @generated from field: double ci_low = 4;
+   */
+  ciLow: number;
+
+  /**
+   * @generated from field: double ci_high = 5;
+   */
+  ciHigh: number;
+
+  /**
+   * The winner's / incumbent's recall on the held-out validation fold (the
+   * winner must not regress relative to the incumbent here).
+   *
+   * @generated from field: double heldout_winner_score = 6;
+   */
+  heldoutWinnerScore: number;
+
+  /**
+   * @generated from field: double heldout_incumbent_score = 7;
+   */
+  heldoutIncumbentScore: number;
+
+  /**
+   * @generated from field: int32 query_time_arms = 8;
+   */
+  queryTimeArms: number;
+
+  /**
+   * @generated from field: int32 index_time_arms = 9;
+   */
+  indexTimeArms: number;
+
+  /**
+   * Index-time factor interactions deliberately not explored (full-factorial
+   * size minus the coordinate-ascent arms). Reported, never silently capped.
+   *
+   * @generated from field: int32 dropped_index_interactions = 10;
+   */
+  droppedIndexInteractions: number;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.eval.SweepStats.
+ * Use `create(SweepStatsSchema)` to create a new message.
+ */
+export const SweepStatsSchema: GenMessage<SweepStats> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_eval_eval, 25);
+
+/**
+ * @generated from message vrooli.search_hub.v1.eval.SweepResponse
+ */
+export type SweepResponse = Message<"vrooli.search_hub.v1.eval.SweepResponse"> & {
+  /**
+   * @generated from field: vrooli.search_hub.v1.eval.SweepResult result = 1;
+   */
+  result?: SweepResult | undefined;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.eval.SweepResponse.
+ * Use `create(SweepResponseSchema)` to create a new message.
+ */
+export const SweepResponseSchema: GenMessage<SweepResponse> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_eval_eval, 26);
+
+/**
+ * One warn-level corpus adequacy finding. Severity is always informational —
+ * adequacy NEVER fails a build or blocks a run; it tells an operator the corpus
+ * the numbers rest on is thin so they grow it (e.g. via Generate).
+ *
+ * @generated from message vrooli.search_hub.v1.eval.AdequacyWarning
+ */
+export type AdequacyWarning = Message<"vrooli.search_hub.v1.eval.AdequacyWarning"> & {
+  /**
+   * Stable machine code, e.g. "too_few_cases" | "no_negatives" |
+   * "duplicate_query" | "thin_difficulty" | "coverage_gap".
+   *
+   * @generated from field: string code = 1;
+   */
+  code: string;
+
+  /**
+   * Human-readable detail, e.g. "only 6 positive cases (floor 12)".
+   *
+   * @generated from field: string message = 2;
+   */
+  message: string;
+
+  /**
+   * The corpus dimension the finding is about, when applicable (a case_id, a
+   * stratum key, a query) — empty for whole-corpus findings.
+   *
+   * @generated from field: string subject = 3;
+   */
+  subject: string;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.eval.AdequacyWarning.
+ * Use `create(AdequacyWarningSchema)` to create a new message.
+ */
+export const AdequacyWarningSchema: GenMessage<AdequacyWarning> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_eval_eval, 27);
+
+/**
+ * @generated from message vrooli.search_hub.v1.eval.GenerateRequest
+ */
+export type GenerateRequest = Message<"vrooli.search_hub.v1.eval.GenerateRequest"> & {
+  /**
+   * The suite (and thus provider) to augment. The provider must be registered;
+   * its endpoint is sampled to discover index items to invert.
+   *
+   * @generated from field: string suite_id = 1;
+   */
+  suiteId: string;
+
+  /**
+   * Target number of positive cases to propose (0 = a sensible default).
+   *
+   * @generated from field: int32 count = 2;
+   */
+  count: number;
+
+  /**
+   * Also propose hard-negative (gibberish) cases (expect_no_strong_hit).
+   *
+   * @generated from field: bool negatives = 3;
+   */
+  negatives: boolean;
+
+  /**
+   * Append the proposals into the suite (each marked tags:["generated"]) and
+   * persist. Default false = preview only: proposals are returned, the stored
+   * suite is NOT mutated (a human/agent reviews before applying).
+   *
+   * @generated from field: bool apply = 4;
+   */
+  apply: boolean;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.eval.GenerateRequest.
+ * Use `create(GenerateRequestSchema)` to create a new message.
+ */
+export const GenerateRequestSchema: GenMessage<GenerateRequest> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_eval_eval, 28);
+
+/**
+ * One proposed case + the provenance that produced it (so a reviewer can audit
+ * where it came from before applying).
+ *
+ * @generated from message vrooli.search_hub.v1.eval.GeneratedCase
+ */
+export type GeneratedCase = Message<"vrooli.search_hub.v1.eval.GeneratedCase"> & {
+  /**
+   * The proposed case, already marked tags:["generated", <stratum>] and (for a
+   * positive case) expect_ids = [the sampled item's id].
+   *
+   * @generated from field: vrooli.search_hub.v1.eval.EvalCase case = 1;
+   */
+  case?: EvalCase | undefined;
+
+  /**
+   * The index item id this case was inverted from (a positive case) — empty for
+   * a hard negative, which is not anchored to a single item.
+   *
+   * @generated from field: string source_id = 2;
+   */
+  sourceId: string;
+
+  /**
+   * The stratum the sampled item fell in (type/group/origin bucket) — also added
+   * to case.tags so coverage is inspectable.
+   *
+   * @generated from field: string stratum = 3;
+   */
+  stratum: string;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.eval.GeneratedCase.
+ * Use `create(GeneratedCaseSchema)` to create a new message.
+ */
+export const GeneratedCaseSchema: GenMessage<GeneratedCase> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_eval_eval, 29);
+
+/**
+ * @generated from message vrooli.search_hub.v1.eval.GenerateResponse
+ */
+export type GenerateResponse = Message<"vrooli.search_hub.v1.eval.GenerateResponse"> & {
+  /**
+   * @generated from field: string suite_id = 1;
+   */
+  suiteId: string;
+
+  /**
+   * @generated from field: string provider_id = 2;
+   */
+  providerId: string;
+
+  /**
+   * The de-duped proposals, positives first then negatives.
+   *
+   * @generated from field: repeated vrooli.search_hub.v1.eval.GeneratedCase proposed = 3;
+   */
+  proposed: GeneratedCase[];
+
+  /**
+   * When apply=true, the suite AFTER appending the proposals (its new case
+   * count, the merged cases). Unset on a preview.
+   *
+   * @generated from field: vrooli.search_hub.v1.eval.EvalSuite suite = 4;
+   */
+  suite?: EvalSuite | undefined;
+
+  /**
+   * True when apply=true AND the proposals were appended and persisted.
+   *
+   * @generated from field: bool applied = 5;
+   */
+  applied: boolean;
+
+  /**
+   * Warn-level adequacy of the RESULTING corpus (post-merge on apply, or the
+   * would-be corpus on preview), including the coverage-vs-index findings the
+   * live sample makes possible.
+   *
+   * @generated from field: repeated vrooli.search_hub.v1.eval.AdequacyWarning adequacy = 6;
+   */
+  adequacy: AdequacyWarning[];
+
+  /**
+   * Human-readable summary, e.g. "sampled 24 items across 3 strata → 24 inverted
+   * → 6 deduped → 18 proposed (15 positive, 3 negative)".
+   *
+   * @generated from field: string summary = 7;
+   */
+  summary: string;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.eval.GenerateResponse.
+ * Use `create(GenerateResponseSchema)` to create a new message.
+ */
+export const GenerateResponseSchema: GenMessage<GenerateResponse> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_eval_eval, 30);
+
+/**
  * @generated from service vrooli.search_hub.v1.eval.EvalService
  */
 export const EvalService: GenService<{
@@ -773,6 +1282,33 @@ export const EvalService: GenService<{
     methodKind: "unary";
     input: typeof CompareRunsRequestSchema;
     output: typeof CompareRunsResponseSchema;
+  },
+  /**
+   * Run the two-tier, overfit-safe parameter sweep over a suite's provider and
+   * (optionally) write back a statistically-significant winning tuning. Each arm
+   * is one stored, tagged EvalRun. See SweepRequest/SweepResult.
+   *
+   * @generated from rpc vrooli.search_hub.v1.eval.EvalService.Sweep
+   */
+  sweep: {
+    methodKind: "unary";
+    input: typeof SweepRequestSchema;
+    output: typeof SweepResponseSchema;
+  },
+  /**
+   * Propose machine-generated golden cases for a suite by sampling the
+   * provider's index and inverting each sampled item to a natural-language
+   * query (+ optional hard negatives), de-duped against the existing corpus.
+   * Proposals are PREVIEW-only by default; --apply appends them to the suite,
+   * each marked tags:["generated"] so the sweep holds them out of tuning. See
+   * GenerateRequest/GenerateResponse.
+   *
+   * @generated from rpc vrooli.search_hub.v1.eval.EvalService.Generate
+   */
+  generate: {
+    methodKind: "unary";
+    input: typeof GenerateRequestSchema;
+    output: typeof GenerateResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_search_hub_v1_eval_eval, 0);

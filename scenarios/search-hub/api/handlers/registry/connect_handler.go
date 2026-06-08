@@ -45,7 +45,7 @@ var _ = func() any {
 
 func (h *connectHandler) RegisterProvider(ctx context.Context, req *connect.Request[registryv1.RegisterProviderRequest]) (*connect.Response[registryv1.RegisterProviderResponse], error) {
 	desc := req.Msg.GetDescriptor_()
-	created, err := h.deps.Store.Upsert(ctx, desc)
+	created, token, err := h.deps.Store.Upsert(ctx, desc, req.Msg.GetControlToken())
 	if err != nil {
 		connectErr := toConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
@@ -54,8 +54,9 @@ func (h *connectHandler) RegisterProvider(ctx context.Context, req *connect.Requ
 		return nil, connectErr
 	}
 	return connect.NewResponse(&registryv1.RegisterProviderResponse{
-		Descriptor_: desc,
-		Created:     created,
+		Descriptor_:  desc,
+		Created:      created,
+		ControlToken: token,
 	}), nil
 }
 
@@ -96,6 +97,10 @@ func toConnectError(err error) error {
 	var notFound internalregistry.ErrProviderNotFound
 	if errors.As(err, &notFound) {
 		return connect.NewError(connect.CodeNotFound, notFound)
+	}
+	var tokenMismatch internalregistry.ErrTokenMismatch
+	if errors.As(err, &tokenMismatch) {
+		return connect.NewError(connect.CodePermissionDenied, tokenMismatch)
 	}
 	return connect.NewError(connect.CodeInternal, errors.New("internal error"))
 }

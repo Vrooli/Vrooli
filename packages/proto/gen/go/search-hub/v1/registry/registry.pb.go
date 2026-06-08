@@ -528,6 +528,15 @@ type ResultMapping struct {
 	// filter_field/value, this is applied generically by the adapter — no
 	// per-provider code (preserves the no-conditional-monolith invariant).
 	PresenceField string `protobuf:"bytes,10,opt,name=presence_field,json=presenceField,proto3" json:"presence_field,omitempty"`
+	// Optional measure carrier path. When set, the adapter decodes the per-item
+	// object at this JSON path into SearchHit.measure (the measures provider's
+	// structured answer). The object's keys follow the fixed MeasureHit contract
+	// (measure_id, scenario, params, answer, needs, effect, executed_query,
+	// confidence). Empty means "no measure carrier" — every retrieval provider
+	// leaves it unset. Applied generically by the adapter, like the filters above
+	// (no per-provider code), so only the single registered measures provider
+	// (measures-health) populates it.
+	MeasureField  string `protobuf:"bytes,11,opt,name=measure_field,json=measureField,proto3" json:"measure_field,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -628,6 +637,13 @@ func (x *ResultMapping) GetFilterValue() string {
 func (x *ResultMapping) GetPresenceField() string {
 	if x != nil {
 		return x.PresenceField
+	}
+	return ""
+}
+
+func (x *ResultMapping) GetMeasureField() string {
+	if x != nil {
+		return x.MeasureField
 	}
 	return ""
 }
@@ -1310,7 +1326,7 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"2\n" +
 	"\vCliEndpoint\x12#\n" +
-	"\rargv_template\x18\x01 \x03(\tR\fargvTemplate\"\x8c\x03\n" +
+	"\rargv_template\x18\x01 \x03(\tR\fargvTemplate\"\xb1\x03\n" +
 	"\rResultMapping\x12!\n" +
 	"\fresults_path\x18\x01 \x01(\tR\vresultsPath\x12\x19\n" +
 	"\bid_field\x18\x02 \x01(\tR\aidField\x12\x1f\n" +
@@ -1326,7 +1342,8 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\ffilter_field\x18\b \x01(\tR\vfilterField\x12!\n" +
 	"\ffilter_value\x18\t \x01(\tR\vfilterValue\x12%\n" +
 	"\x0epresence_field\x18\n" +
-	" \x01(\tR\rpresenceField\"E\n" +
+	" \x01(\tR\rpresenceField\x12#\n" +
+	"\rmeasure_field\x18\v \x01(\tR\fmeasureField\"E\n" +
 	"\vFloorConfig\x12\x17\n" +
 	"\amax_gap\x18\x01 \x01(\x01R\x06maxGap\x12\x1d\n" +
 	"\n" +

@@ -22,6 +22,16 @@ import (
 // cross-encoder and rerank-off legs finish in well under a second.
 const runSuiteTimeout = 10 * time.Minute
 
+// sweepTimeout bounds a full `evals sweep`: it runs the suite once per arm and,
+// on the index-time tier, reindexes the provider per arm — so it can run for many
+// minutes. Far longer than runSuiteTimeout.
+const sweepTimeout = 45 * time.Minute
+
+// generateTimeout bounds `evals generate`: it samples the provider's index and
+// invokes the local LLM once per sampled item (query inversion + negatives), so
+// it can run for several minutes on a large --count.
+const generateTimeout = 20 * time.Minute
+
 // handlers bundles the closure over *cliapp.ScenarioApp so each RunCtx-func has
 // typed access to the EvalService client without re-resolving it.
 type handlers struct {
@@ -180,6 +190,99 @@ func failingCases(r *evalv1.EvalRun) []string {
 		}
 	}
 	return out
+}
+
+// sweep runs the two-tier overfit-safe tuning sweep and renders the ranked arms
+// + the promotion verdict. --apply gates the write-back; default is preview.
+func (h *handlers) sweep(ctx cliapp.RunContext) error {
+	id := ctx.Positional("suite_id")
+	limit, err := parseLimit(ctx.Flag("limit"))
+	if err != nil {
+		return err
+	}
+	// A sweep runs the suite once per arm and (index-time tier) reindexes per arm,
+	// so it needs a much longer client timeout than a single run.
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(h.core, sweepTimeout)
+	client := evalconnect.NewEvalServiceClient(httpClient, baseURL)
+	resp, err := client.Sweep(context.Background(), connect.NewRequest(&evalv1.SweepRequest{
+		SuiteId:       id,
+		QueryTimeOnly: ctx.BoolFlag("query-time-only"),
+		Apply:         ctx.BoolFlag("apply"),
+		Limit:         limit,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("sweep suite %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.GetResult() == nil {
+		return fmt.Errorf("server returned no sweep result")
+	}
+	res := resp.Msg.GetResult()
+	results := make([]string, 0, len(res.GetArms()))
+	for _, a := range res.GetArms() {
+		results = append(results, formatSweepArm(a, res.GetWinnerTag()))
+	}
+	next := []string{fmt.Sprintf("`evals runs %s` — every arm is stored as a tagged run", id)}
+	if !ctx.BoolFlag("apply") && res.GetWinnerTag() != "" {
+		next = append([]string{fmt.Sprintf("`evals sweep %s --apply` — write back the recommended winner", id)}, next...)
+	}
+	return cliapp.RenderProtoList(ctx, res, cliapp.ListReport{
+		Summary:        formatSweepSummary(res),
+		ResultsHeading: "Arms (best-first)",
+		Results:        results,
+		RetrievalHints: next,
+	})
+}
+
+// generate proposes machine-generated cases for a suite by sampling + inverting
+// the provider's index. --apply appends them (each marked generated); default is
+// a preview of the proposals + the resulting corpus's adequacy.
+func (h *handlers) generate(ctx cliapp.RunContext) error {
+	id := ctx.Positional("suite_id")
+	count, err := parseLimit(ctx.Flag("count"))
+	if err != nil {
+		return fmt.Errorf("invalid --count: %w", err)
+	}
+	// Generation calls the local LLM once per sampled item, so it needs a long
+	// client timeout (like run/sweep) — far past the scenario's default.
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(h.core, generateTimeout)
+	client := evalconnect.NewEvalServiceClient(httpClient, baseURL)
+	resp, err := client.Generate(context.Background(), connect.NewRequest(&evalv1.GenerateRequest{
+		SuiteId:   id,
+		Count:     count,
+		Negatives: ctx.BoolFlag("negatives"),
+		Apply:     ctx.BoolFlag("apply"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("generate cases for %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no generate response")
+	}
+	msg := resp.Msg
+	results := make([]string, 0, len(msg.GetProposed()))
+	for _, gc := range msg.GetProposed() {
+		results = append(results, formatGeneratedCase(gc))
+	}
+
+	summary := []string{fmt.Sprintf("Generate %s [provider=%s]", msg.GetSuiteId(), msg.GetProviderId()), msg.GetSummary()}
+	if msg.GetApplied() {
+		summary = append(summary, fmt.Sprintf("APPLIED — suite now has %d case(s).", len(msg.GetSuite().GetCases())))
+	} else if len(msg.GetProposed()) > 0 {
+		summary = append(summary, "preview only — re-run with --apply to append these cases.")
+	}
+	summary = append(summary, formatAdequacy(msg.GetAdequacy())...)
+
+	next := []string{}
+	if !ctx.BoolFlag("apply") && len(msg.GetProposed()) > 0 {
+		next = append(next, fmt.Sprintf("`evals generate %s --apply` — append the proposed cases", id))
+	}
+	next = append(next, fmt.Sprintf("`evals show %s` — review the suite's cases", id))
+	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+		Summary:        summary,
+		ResultsHeading: "Proposed cases",
+		Results:        results,
+		RetrievalHints: next,
+	})
 }
 
 // runs lists a suite's run history.
@@ -365,4 +468,80 @@ func emptyDash(s string) string {
 		return "-"
 	}
 	return s
+}
+
+// formatSweepSummary renders the verdict header: the provider, the incumbent vs
+// winner, whether a winner was promoted, the decision stats, and the
+// recommendation lines.
+func formatSweepSummary(res *evalv1.SweepResult) []string {
+	st := res.GetStats()
+	verdict := "no significant improvement — incumbent retained"
+	if res.GetWinnerTag() != "" {
+		verdict = "winner: " + res.GetWinnerTag()
+		if res.GetPromoted() {
+			verdict += " (PROMOTED — written back)"
+		} else {
+			verdict += " (preview only — re-run with --apply to write back)"
+		}
+	}
+	out := []string{
+		fmt.Sprintf("Sweep %s [provider=%s]", res.GetSuiteId(), res.GetProviderId()),
+		verdict,
+		fmt.Sprintf("incumbent recall=%.3f  winner recall=%.3f  margin=%+.3f  95%% CI=[%+.3f,%+.3f]",
+			st.GetIncumbentScore(), st.GetWinnerScore(), st.GetMargin(), st.GetCiLow(), st.GetCiHigh()),
+		fmt.Sprintf("held-out: winner=%.3f incumbent=%.3f  |  arms: query-time=%d index-time=%d  dropped-interactions=%d",
+			st.GetHeldoutWinnerScore(), st.GetHeldoutIncumbentScore(), st.GetQueryTimeArms(), st.GetIndexTimeArms(), st.GetDroppedIndexInteractions()),
+	}
+	for _, line := range strings.Split(strings.TrimSpace(res.GetRecommendation()), "\n") {
+		if strings.TrimSpace(line) != "" {
+			out = append(out, "→ "+line)
+		}
+	}
+	return out
+}
+
+// formatGeneratedCase renders one proposed case: its provenance (source item +
+// stratum) followed by the case itself.
+func formatGeneratedCase(gc *evalv1.GeneratedCase) string {
+	c := gc.GetCase()
+	prov := gc.GetStratum()
+	if gc.GetSourceId() != "" {
+		prov = fmt.Sprintf("%s ← %s", emptyDash(gc.GetStratum()), gc.GetSourceId())
+	}
+	return fmt.Sprintf("[%s] %s", prov, formatCase(c))
+}
+
+// formatAdequacy renders the warn-level adequacy findings (each prefixed "⚠"),
+// or a single "corpus adequate" line when there are none.
+func formatAdequacy(ws []*evalv1.AdequacyWarning) []string {
+	if len(ws) == 0 {
+		return []string{"adequacy: corpus adequate (no warnings)"}
+	}
+	out := make([]string, 0, len(ws)+1)
+	out = append(out, fmt.Sprintf("adequacy: %d warning(s)", len(ws)))
+	for _, w := range ws {
+		out = append(out, fmt.Sprintf("  ⚠ %s: %s", w.GetCode(), w.GetMessage()))
+	}
+	return out
+}
+
+// formatSweepArm renders one ranked arm line: a marker for the winner, the tier,
+// recall, feasibility, the floor regime, and any note.
+func formatSweepArm(a *evalv1.SweepArm, winnerTag string) string {
+	marker := " "
+	if a.GetTag() == winnerTag {
+		marker = "★"
+	}
+	feasible := "ok"
+	if !a.GetFeasible() {
+		feasible = "INFEASIBLE"
+	}
+	cfg := a.GetConfig()
+	note := ""
+	if strings.TrimSpace(a.GetNote()) != "" {
+		note = "  (" + a.GetNote() + ")"
+	}
+	return fmt.Sprintf("%s [%-11s] recall=%.3f %-10s engine=%s rerank=%t/blend=%t prefix=%t floor=%s%s",
+		marker, a.GetTier(), a.GetScore(), feasible,
+		emptyDash(cfg.GetEngine()), cfg.GetRerankEnabled(), cfg.GetRerankBlend(), cfg.GetEmbedTaskPrefix(), emptyDash(cfg.GetFloorRegime()), note)
 }

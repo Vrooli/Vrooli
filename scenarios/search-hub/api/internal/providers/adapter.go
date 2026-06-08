@@ -60,6 +60,7 @@ func MapResults(d *registryv1.ProviderDescriptor, body []byte) ([]*routingv1.Sea
 
 	filterField := strings.TrimSpace(m.GetFilterField())
 	presenceField := strings.TrimSpace(m.GetPresenceField())
+	measureField := strings.TrimSpace(m.GetMeasureField())
 	hits := make([]*routingv1.SearchHit, 0, len(items))
 	for _, raw := range items {
 		item, ok := raw.(map[string]any)
@@ -83,9 +84,51 @@ func MapResults(d *registryv1.ProviderDescriptor, body []byte) ([]*routingv1.Sea
 			Snippet:       stringField(item, m.GetSnippetField()),
 			Path:          stringField(item, m.GetPathField()),
 			Score:         normalizeScore(numberField(item, m.GetScoreField()), m.GetScoreScale()),
+			// Measure carrier: nil for every retrieval provider (measure_field
+			// unset); populated only for the measures provider, generically.
+			Measure: decodeMeasureHit(item, measureField),
 		})
 	}
 	return hits, nil
+}
+
+// decodeMeasureHit decodes the per-item measure object at `path` into a
+// SearchHit.MeasureHit, following the fixed contract keys the measures provider
+// emits (measure_id, scenario, params, answer, needs, effect, executed_query,
+// confidence). It returns nil when `path` is empty (every non-measure provider)
+// or resolves to no object — so the field stays unset for retrieval hits. This
+// is the generic carrier: there is still zero provider-specific code here, the
+// descriptor's measure_field is the only switch.
+func decodeMeasureHit(item map[string]any, path string) *routingv1.MeasureHit {
+	if path == "" {
+		return nil
+	}
+	obj, ok := lookupPath(item, path).(map[string]any)
+	if !ok || len(obj) == 0 {
+		return nil
+	}
+	mh := &routingv1.MeasureHit{
+		MeasureId:     coerceString(obj["measure_id"]),
+		Scenario:      coerceString(obj["scenario"]),
+		Answer:        coerceString(obj["answer"]),
+		Effect:        coerceString(obj["effect"]),
+		ExecutedQuery: coerceString(obj["executed_query"]),
+		Confidence:    coerceNumber(obj["confidence"]),
+	}
+	if pm, ok := obj["params"].(map[string]any); ok && len(pm) > 0 {
+		mh.Params = make(map[string]string, len(pm))
+		for k, v := range pm {
+			mh.Params[k] = coerceString(v)
+		}
+	}
+	if needs, ok := obj["needs"].([]any); ok {
+		for _, n := range needs {
+			if s := coerceString(n); s != "" {
+				mh.Needs = append(mh.Needs, s)
+			}
+		}
+	}
+	return mh
 }
 
 // normalizeScore maps a provider's raw score onto the comparable [0,1] band per
@@ -141,7 +184,13 @@ func stringField(item map[string]any, path string) string {
 	if strings.TrimSpace(path) == "" {
 		return ""
 	}
-	v := lookupPath(item, path)
+	return coerceString(lookupPath(item, path))
+}
+
+// coerceString renders a decoded JSON value as a string (string verbatim,
+// number/bool in natural form, nil as ""). Shared by the path-based field
+// extractor and the measure-object decoder.
+func coerceString(v any) string {
 	switch t := v.(type) {
 	case string:
 		return t
@@ -154,6 +203,20 @@ func stringField(item map[string]any, path string) string {
 	default:
 		return fmt.Sprintf("%v", t)
 	}
+}
+
+// coerceNumber renders a decoded JSON value as a float (number verbatim, numeric
+// string parsed; otherwise 0). Shared by numberField and the measure decoder.
+func coerceNumber(v any) float64 {
+	switch t := v.(type) {
+	case float64:
+		return t
+	case string:
+		if f, err := strconv.ParseFloat(t, 64); err == nil {
+			return f
+		}
+	}
+	return 0
 }
 
 // isPresent reports whether a JSON value (from lookupPath) counts as "present"
@@ -183,13 +246,5 @@ func numberField(item map[string]any, path string) float64 {
 	if strings.TrimSpace(path) == "" {
 		return 0
 	}
-	switch t := lookupPath(item, path).(type) {
-	case float64:
-		return t
-	case string:
-		if f, err := strconv.ParseFloat(t, 64); err == nil {
-			return f
-		}
-	}
-	return 0
+	return coerceNumber(lookupPath(item, path))
 }

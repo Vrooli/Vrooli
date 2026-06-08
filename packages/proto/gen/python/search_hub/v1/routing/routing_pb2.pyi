@@ -41,7 +41,7 @@ class SearchOverrides(_message.Message):
     def __init__(self, rerank_enabled: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., rerank_shortlist: _Optional[int] = ..., floor_max_gap: _Optional[float] = ..., floor_hard_floor: _Optional[float] = ...) -> None: ...
 
 class SearchHit(_message.Message):
-    __slots__ = ("provider_id", "provider_group", "type", "id", "title", "snippet", "path", "score", "rerank_score")
+    __slots__ = ("provider_id", "provider_group", "type", "id", "title", "snippet", "path", "score", "rerank_score", "measure")
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_GROUP_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -51,6 +51,7 @@ class SearchHit(_message.Message):
     PATH_FIELD_NUMBER: _ClassVar[int]
     SCORE_FIELD_NUMBER: _ClassVar[int]
     RERANK_SCORE_FIELD_NUMBER: _ClassVar[int]
+    MEASURE_FIELD_NUMBER: _ClassVar[int]
     provider_id: str
     provider_group: str
     type: str
@@ -60,7 +61,35 @@ class SearchHit(_message.Message):
     path: str
     score: float
     rerank_score: float
-    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., type: _Optional[str] = ..., id: _Optional[str] = ..., title: _Optional[str] = ..., snippet: _Optional[str] = ..., path: _Optional[str] = ..., score: _Optional[float] = ..., rerank_score: _Optional[float] = ...) -> None: ...
+    measure: MeasureHit
+    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., type: _Optional[str] = ..., id: _Optional[str] = ..., title: _Optional[str] = ..., snippet: _Optional[str] = ..., path: _Optional[str] = ..., score: _Optional[float] = ..., rerank_score: _Optional[float] = ..., measure: _Optional[_Union[MeasureHit, _Mapping]] = ...) -> None: ...
+
+class MeasureHit(_message.Message):
+    __slots__ = ("measure_id", "scenario", "params", "answer", "needs", "effect", "executed_query", "confidence")
+    class ParamsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    MEASURE_ID_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PARAMS_FIELD_NUMBER: _ClassVar[int]
+    ANSWER_FIELD_NUMBER: _ClassVar[int]
+    NEEDS_FIELD_NUMBER: _ClassVar[int]
+    EFFECT_FIELD_NUMBER: _ClassVar[int]
+    EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    measure_id: str
+    scenario: str
+    params: _containers.ScalarMap[str, str]
+    answer: str
+    needs: _containers.RepeatedScalarFieldContainer[str]
+    effect: str
+    executed_query: str
+    confidence: float
+    def __init__(self, measure_id: _Optional[str] = ..., scenario: _Optional[str] = ..., params: _Optional[_Mapping[str, str]] = ..., answer: _Optional[str] = ..., needs: _Optional[_Iterable[str]] = ..., effect: _Optional[str] = ..., executed_query: _Optional[str] = ..., confidence: _Optional[float] = ...) -> None: ...
 
 class ProviderResultGroup(_message.Message):
     __slots__ = ("provider_id", "hits", "count", "degraded", "note")

@@ -112,6 +112,11 @@ func NewService(opts Options) *Service {
 		Shortlist:     opts.RerankShortlist,
 		RerankText:    func(r pkg.SearchResult) string { return candidateText(r.Payload) },
 		TextFallback:  commandTextFallback(opts.Discovery),
+		// Allow the engine to honor per-request query-time overrides. This is the
+		// INNER layer only (it still clamps every factor to its taxonomy range);
+		// the OUTER token + experiment-flag gate lives in the search handler, so a
+		// public, tokenless request never reaches an applied override.
+		OverridePolicy: pkg.AllowOverrides(),
 	})
 	spec := pkg.CollectionSpec{
 		Name:          collection,
@@ -137,8 +142,11 @@ func (s *Service) EnsureCollection(ctx context.Context) error {
 }
 
 // Search performs retrieval with AI-first, text-fallback semantics, projecting
-// the shared engine's results back into cli-health's typed command hits.
-func (s *Service) Search(ctx context.Context, query string, limit int, mode SearchMode) (*SearchResponse, error) {
+// the shared engine's results back into cli-health's typed command hits. Optional
+// pkg.SearchOptions (pkg.WithOverrides) vary the query-time factors for this one
+// call — the search handler passes them only after the token + experiment-flag
+// gate; an ordinary request passes none.
+func (s *Service) Search(ctx context.Context, query string, limit int, mode SearchMode, opts ...pkg.SearchOption) (*SearchResponse, error) {
 	if strings.TrimSpace(query) == "" {
 		return &SearchResponse{Query: query, Method: "text"}, nil
 	}
@@ -150,7 +158,7 @@ func (s *Service) Search(ctx context.Context, query string, limit int, mode Sear
 			hit := payloadToHit(r.ID, r.Score, r.Payload)
 			hit.Weak = r.Weak
 			return hit
-		})
+		}, opts...)
 	if err != nil {
 		return nil, err
 	}

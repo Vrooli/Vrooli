@@ -1,5 +1,5 @@
-from flow_verifier.v1.flows import flows_pb2 as _flows_pb2
 from flow_verifier.v1.artifacts import artifacts_pb2 as _artifacts_pb2
+from flow_verifier.v1.flows import flows_pb2 as _flows_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message

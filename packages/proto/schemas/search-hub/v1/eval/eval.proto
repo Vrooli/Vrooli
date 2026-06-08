@@ -85,7 +85,9 @@ message EvalRun {
 
 // Captured from the provider's status probe at run time so a historical
 // comparison stays meaningful months later. Fields the probe can't supply are
-// left zero (honest).
+// left zero (honest). The sweep (Sweep RPC) fills the factor fields directly
+// from the arm's tuning rather than a probe, so every swept arm is fully
+// self-describing — the whole tuning that produced a result is on the run.
 message ConfigSnapshot {
   bool rerank_enabled = 1;
   // "none" | "cross-encoder:…" | "llm:qwen3:4b" | "degraded".
@@ -94,6 +96,18 @@ message ConfigSnapshot {
   int32 indexed_count = 4;
   // free-form (e.g. git sha if the provider exposes one).
   string provider_note = 5;
+  // INDEX-TIME: nomic search_query:/search_document: task prefixes were applied
+  // when the corpus was embedded (changes the embedding space → reindex).
+  bool embed_task_prefix = 6;
+  // QUERY-TIME: the rerank order was blended with retrieval via RRF rather than a
+  // pure cross-encoder reorder (only meaningful when rerank_enabled).
+  bool rerank_blend = 7;
+  // INDEX-TIME: the structural engine shape, "dense" | "hybrid".
+  string engine = 8;
+  // The score regime the relevance floor applied in: "fused" (RRF — hybrid or
+  // rerank-blend, floor near 0) | "cosine" (single-leg dense, a real floor). A
+  // descriptive label so a historical run records which floor band was in force.
+  string floor_regime = 9;
 }
 
 message CaseResult {
@@ -137,6 +151,17 @@ service EvalService {
   rpc GetRun(GetRunRequest) returns (GetRunResponse);
   // A-vs-B per-case delta.
   rpc CompareRuns(CompareRunsRequest) returns (CompareRunsResponse);
+  // Run the two-tier, overfit-safe parameter sweep over a suite's provider and
+  // (optionally) write back a statistically-significant winning tuning. Each arm
+  // is one stored, tagged EvalRun. See SweepRequest/SweepResult.
+  rpc Sweep(SweepRequest) returns (SweepResponse);
+  // Propose machine-generated golden cases for a suite by sampling the
+  // provider's index and inverting each sampled item to a natural-language
+  // query (+ optional hard negatives), de-duped against the existing corpus.
+  // Proposals are PREVIEW-only by default; --apply appends them to the suite,
+  // each marked tags:["generated"] so the sweep holds them out of tuning. See
+  // GenerateRequest/GenerateResponse.
+  rpc Generate(GenerateRequest) returns (GenerateResponse);
 }
 
 message RegisterSuiteRequest {
@@ -164,6 +189,11 @@ message GetSuiteRequest {
 
 message GetSuiteResponse {
   EvalSuite suite = 1;
+  // Warn-level corpus adequacy findings (never an error — they inform, never
+  // gate). Computed structurally from the suite alone (count floor, missing
+  // negatives, duplicate queries, thin difficulty spread). The coverage-vs-index
+  // findings need a live sample and surface on Generate instead.
+  repeated AdequacyWarning adequacy = 2;
 }
 
 message RunSuiteRequest {
@@ -176,6 +206,11 @@ message RunSuiteRequest {
 
 message RunSuiteResponse {
   EvalRun run = 1;
+  // Warn-level corpus adequacy findings for the suite that was run (same
+  // structural checks as GetSuiteResponse.adequacy) — surfaced here so an
+  // operator running a suite sees, alongside the result, whether the corpus the
+  // result rests on is thin/negative-less. Never affects the run or its labels.
+  repeated AdequacyWarning adequacy = 2;
 }
 
 message ListRunsRequest {
@@ -220,4 +255,193 @@ message CaseDelta {
   double top_score_b = 5;
   int32 expected_rank_a = 6;
   int32 expected_rank_b = 7;
+}
+
+// =============================================================================
+// SWEEP — automated, overfit-safe two-tier parameter optimization.
+// =============================================================================
+//
+// Sweep is the closed optimization loop: it reads a provider's factor taxonomy
+// (the aisearch-go tuning factors carried on its registered descriptor), runs
+// the suite under each candidate configuration (an "arm"), and decides — under
+// four mandatory overfit guards — whether any arm beats the provider's current
+// tuning robustly enough to write back.
+//
+//   - QUERY-TIME tier (cheap): query-time factors (rerank on/off, blend,
+//     shortlist, floor) are varied FULL-FACTORIAL via per-request overrides — no
+//     reindex. One stored, tagged run per arm.
+//   - INDEX-TIME tier (expensive): index-time factors (engine, embed recipe) are
+//     explored by COORDINATE-ASCENT (one factor at a time, to bound reindex
+//     cost) via config-push → reindex → poll → run. Interactions across
+//     index-time factors are deliberately NOT explored (reported, never silently
+//     capped — see SweepStats.dropped_index_interactions).
+//
+// The winner is promoted only when it is (1) statistically significant vs the
+// incumbent (bootstrap CI of the paired per-case recall margin excludes 0),
+// (2) non-regressing on a held-out validation split, (3) constraint-satisfying
+// (gibberish ceiling + latency budget), and (4) past the complexity/incumbent
+// tie-break noise band. A within-noise result changes nothing.
+
+message SweepRequest {
+  // The suite to optimize; its provider supplies the incumbent tuning + the
+  // token-gated control plane (reindex_endpoint / config_endpoint).
+  string suite_id = 1;
+  // Restrict to the cheap query-time tier (skip the reindex-per-arm index-time
+  // tier). Default runs both tiers.
+  bool query_time_only = 2;
+  // Persist the winning tuning back into the provider's search.json via the
+  // config-write contract. Default false = preview only (ranked table +
+  // recommendation, no provider mutation).
+  bool apply = 3;
+  // Per-case fetch depth forwarded to every arm's run (0 = suite default).
+  int32 limit = 4;
+}
+
+// One evaluated configuration: its full (self-describing) tuning, the immutable
+// run it produced, its primary objective, and whether it cleared the
+// multi-objective constraints.
+message SweepArm {
+  // Stable arm label; also the stored run's tag, e.g.
+  // "sweep:qt:rerank_enabled=true,rerank_blend=true".
+  string tag = 1;
+  // "query_time" | "index_time" | "incumbent" — which tier produced this arm.
+  string tier = 2;
+  // The arm's full config as a self-describing snapshot.
+  ConfigSnapshot config = 3;
+  // The stored EvalRun's id (inspect with `evals show-run`).
+  string run_id = 4;
+  // Primary objective: recall@k over the positive (non-gibberish) cases [0,1].
+  double score = 5;
+  EvalAggregate aggregate = 6;
+  // Cleared the constraints (gibberish ceiling + latency budget).
+  bool feasible = 7;
+  // Human-readable note (e.g. why infeasible, or "incumbent").
+  string note = 8;
+}
+
+// The ranked outcome + the promotion verdict.
+message SweepResult {
+  string suite_id = 1;
+  string provider_id = 2;
+  // Arms best-first: feasible above infeasible, then by descending score.
+  repeated SweepArm arms = 3;
+  // The incumbent (current tuning) arm's tag — always evaluated as the baseline.
+  string incumbent_tag = 4;
+  // The promoted winner's tag, or "" when no arm cleared every guard (the
+  // incumbent stays).
+  string winner_tag = 5;
+  // True when apply=true AND a winner cleared every guard AND the config-write
+  // contract persisted it.
+  bool promoted = 6;
+  // The verdict, one or more lines (significance, constraints, held-out,
+  // tie-break) — the recommendation a human/agent reads.
+  string recommendation = 7;
+  SweepStats stats = 8;
+}
+
+// The decision math behind the verdict (so the verdict is auditable).
+message SweepStats {
+  double incumbent_score = 1;
+  double winner_score = 2;
+  // Paired winner-minus-incumbent recall margin on the tuning fold (point est.).
+  double margin = 3;
+  // Bootstrap 95% CI of the paired margin; promotion requires ci_low > 0.
+  double ci_low = 4;
+  double ci_high = 5;
+  // The winner's / incumbent's recall on the held-out validation fold (the
+  // winner must not regress relative to the incumbent here).
+  double heldout_winner_score = 6;
+  double heldout_incumbent_score = 7;
+  int32 query_time_arms = 8;
+  int32 index_time_arms = 9;
+  // Index-time factor interactions deliberately not explored (full-factorial
+  // size minus the coordinate-ascent arms). Reported, never silently capped.
+  int32 dropped_index_interactions = 10;
+}
+
+message SweepResponse {
+  SweepResult result = 1;
+}
+
+// =============================================================================
+// CORPUS GENERATION + ADEQUACY — grow and grade the golden corpus.
+// =============================================================================
+//
+// A hand-curated corpus of a dozen queries is trivially overfittable: a sweep
+// can find a tuning that wins on exactly those twelve and generalizes to
+// nothing. Generate counters that by GROWING the corpus from the index itself —
+// it samples the provider's live index (stratified so every bucket/type/origin
+// is covered), inverts each sampled item to a natural-language query that should
+// retrieve it, and (optionally) proposes hard negatives (plausible queries that
+// should NOT produce a strong hit). Candidates are semantically de-duped against
+// the existing corpus and each other.
+//
+// Generation AUGMENTS, never replaces, the curated golden core: proposals are
+// preview-only by default and every applied case is marked tags:["generated"]
+// so (a) a human/agent can review provenance and (b) the sweep ALWAYS holds
+// generated cases out of the tuning fold (overfit guard #2) — a tuning can never
+// be selected on cases a machine wrote for it.
+//
+// Adequacy is the grading side: warn-level (never failing) findings on whether a
+// corpus is large enough, has negatives, lacks duplicates, and covers the index.
+
+// One warn-level corpus adequacy finding. Severity is always informational —
+// adequacy NEVER fails a build or blocks a run; it tells an operator the corpus
+// the numbers rest on is thin so they grow it (e.g. via Generate).
+message AdequacyWarning {
+  // Stable machine code, e.g. "too_few_cases" | "no_negatives" |
+  // "duplicate_query" | "thin_difficulty" | "coverage_gap".
+  string code = 1;
+  // Human-readable detail, e.g. "only 6 positive cases (floor 12)".
+  string message = 2;
+  // The corpus dimension the finding is about, when applicable (a case_id, a
+  // stratum key, a query) — empty for whole-corpus findings.
+  string subject = 3;
+}
+
+message GenerateRequest {
+  // The suite (and thus provider) to augment. The provider must be registered;
+  // its endpoint is sampled to discover index items to invert.
+  string suite_id = 1;
+  // Target number of positive cases to propose (0 = a sensible default).
+  int32 count = 2;
+  // Also propose hard-negative (gibberish) cases (expect_no_strong_hit).
+  bool negatives = 3;
+  // Append the proposals into the suite (each marked tags:["generated"]) and
+  // persist. Default false = preview only: proposals are returned, the stored
+  // suite is NOT mutated (a human/agent reviews before applying).
+  bool apply = 4;
+}
+
+// One proposed case + the provenance that produced it (so a reviewer can audit
+// where it came from before applying).
+message GeneratedCase {
+  // The proposed case, already marked tags:["generated", <stratum>] and (for a
+  // positive case) expect_ids = [the sampled item's id].
+  EvalCase case = 1;
+  // The index item id this case was inverted from (a positive case) — empty for
+  // a hard negative, which is not anchored to a single item.
+  string source_id = 2;
+  // The stratum the sampled item fell in (type/group/origin bucket) — also added
+  // to case.tags so coverage is inspectable.
+  string stratum = 3;
+}
+
+message GenerateResponse {
+  string suite_id = 1;
+  string provider_id = 2;
+  // The de-duped proposals, positives first then negatives.
+  repeated GeneratedCase proposed = 3;
+  // When apply=true, the suite AFTER appending the proposals (its new case
+  // count, the merged cases). Unset on a preview.
+  EvalSuite suite = 4;
+  // True when apply=true AND the proposals were appended and persisted.
+  bool applied = 5;
+  // Warn-level adequacy of the RESULTING corpus (post-merge on apply, or the
+  // would-be corpus on preview), including the coverage-vs-index findings the
+  // live sample makes possible.
+  repeated AdequacyWarning adequacy = 6;
+  // Human-readable summary, e.g. "sampled 24 items across 3 strata → 24 inverted
+  // → 6 deduped → 18 proposed (15 positive, 3 negative)".
+  string summary = 7;
 }

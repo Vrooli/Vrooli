@@ -71,6 +71,12 @@ enum FindingSource {
   // emits normalized findings whose critical/high → ERROR gates the
   // ecosystem-manager R1 ("Safe") ladder rung.
   FINDING_SOURCE_SECURITY = 9;
+  // MEASURES: test-genie `measures` phase — delegates to the
+  // measures-health scenario (measure coverage of stateful domains +
+  // behavioral adoption probe) and emits normalized findings whose
+  // uncovered-stateful-domain / hollow-declaration → ERROR feeds the
+  // ecosystem-manager soft `measures` ladder dimension (R4).
+  FINDING_SOURCE_MEASURES = 10;
 }
 
 // FindingSeverity is the normalized severity ladder. Every producer maps

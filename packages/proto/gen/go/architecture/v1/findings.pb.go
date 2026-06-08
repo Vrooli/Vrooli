@@ -54,21 +54,28 @@ const (
 	// emits normalized findings whose critical/high → ERROR gates the
 	// ecosystem-manager R1 ("Safe") ladder rung.
 	FindingSource_FINDING_SOURCE_SECURITY FindingSource = 9
+	// MEASURES: test-genie `measures` phase — delegates to the
+	// measures-health scenario (measure coverage of stateful domains +
+	// behavioral adoption probe) and emits normalized findings whose
+	// uncovered-stateful-domain / hollow-declaration → ERROR feeds the
+	// ecosystem-manager soft `measures` ladder dimension (R4).
+	FindingSource_FINDING_SOURCE_MEASURES FindingSource = 10
 )
 
 // Enum value maps for FindingSource.
 var (
 	FindingSource_name = map[int32]string{
-		0: "FINDING_SOURCE_UNSPECIFIED",
-		1: "FINDING_SOURCE_STRUCTURE",
-		2: "FINDING_SOURCE_CLI",
-		3: "FINDING_SOURCE_UI",
-		4: "FINDING_SOURCE_DOCS",
-		5: "FINDING_SOURCE_STANDARDS",
-		6: "FINDING_SOURCE_ARCHITECTURE",
-		7: "FINDING_SOURCE_TIDINESS",
-		8: "FINDING_SOURCE_COVERAGE",
-		9: "FINDING_SOURCE_SECURITY",
+		0:  "FINDING_SOURCE_UNSPECIFIED",
+		1:  "FINDING_SOURCE_STRUCTURE",
+		2:  "FINDING_SOURCE_CLI",
+		3:  "FINDING_SOURCE_UI",
+		4:  "FINDING_SOURCE_DOCS",
+		5:  "FINDING_SOURCE_STANDARDS",
+		6:  "FINDING_SOURCE_ARCHITECTURE",
+		7:  "FINDING_SOURCE_TIDINESS",
+		8:  "FINDING_SOURCE_COVERAGE",
+		9:  "FINDING_SOURCE_SECURITY",
+		10: "FINDING_SOURCE_MEASURES",
 	}
 	FindingSource_value = map[string]int32{
 		"FINDING_SOURCE_UNSPECIFIED":  0,
@@ -81,6 +88,7 @@ var (
 		"FINDING_SOURCE_TIDINESS":     7,
 		"FINDING_SOURCE_COVERAGE":     8,
 		"FINDING_SOURCE_SECURITY":     9,
+		"FINDING_SOURCE_MEASURES":     10,
 	}
 )
 
@@ -597,7 +605,7 @@ const file_architecture_v1_findings_proto_rawDesc = "" +
 	"\bevidence\x18\n" +
 	" \x03(\v2 .vrooli.architecture.v1.EvidenceR\bevidence\x12M\n" +
 	"\x0fsuggested_fixes\x18\v \x03(\v2$.vrooli.architecture.v1.SuggestedFixR\x0esuggestedFixes\x12:\n" +
-	"\x06effort\x18\f \x01(\x0e2\".vrooli.architecture.v1.EffortHintR\x06effort*\xab\x02\n" +
+	"\x06effort\x18\f \x01(\x0e2\".vrooli.architecture.v1.EffortHintR\x06effort*\xc8\x02\n" +
 	"\rFindingSource\x12\x1e\n" +
 	"\x1aFINDING_SOURCE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18FINDING_SOURCE_STRUCTURE\x10\x01\x12\x16\n" +
@@ -608,7 +616,9 @@ const file_architecture_v1_findings_proto_rawDesc = "" +
 	"\x1bFINDING_SOURCE_ARCHITECTURE\x10\x06\x12\x1b\n" +
 	"\x17FINDING_SOURCE_TIDINESS\x10\a\x12\x1b\n" +
 	"\x17FINDING_SOURCE_COVERAGE\x10\b\x12\x1b\n" +
-	"\x17FINDING_SOURCE_SECURITY\x10\t*\xa6\x01\n" +
+	"\x17FINDING_SOURCE_SECURITY\x10\t\x12\x1b\n" +
+	"\x17FINDING_SOURCE_MEASURES\x10\n" +
+	"*\xa6\x01\n" +
 	"\x0fFindingSeverity\x12 \n" +
 	"\x1cFINDING_SEVERITY_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15FINDING_SEVERITY_INFO\x10\x01\x12\x1c\n" +

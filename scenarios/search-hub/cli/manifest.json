@@ -215,6 +215,42 @@
             "run_eligible": true,
             "permissions": ["network:internal"]
           }
+        },
+        {
+          "name": "sweep",
+          "description": "Overfit-safe two-tier tuning sweep over a suite's provider; stores one tagged run per arm and (with --apply) writes back a statistically-significant, held-out-validated, constraint-satisfying winner",
+          "positionals": [
+            { "name": "suite_id", "required": true, "description": "Suite id to optimize, e.g. cli-health.commands.primary" }
+          ],
+          "flags": [
+            { "name": "query-time-only", "bool": true, "description": "Skip the reindex-per-arm index-time tier (cheap, full-factorial query-time only)" },
+            { "name": "apply", "bool": true, "description": "Write the winning tuning back into the provider's search.json via config-write (default: preview only)" },
+            { "name": "limit", "description": "Per-case fetch depth (0 = a sensible default)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EvalService", "method": "Sweep" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "generate",
+          "description": "Grow a suite's golden corpus by sampling + inverting the provider's index (query inversion + hard negatives), de-duped against the existing corpus; preview by default, --apply appends",
+          "positionals": [
+            { "name": "suite_id", "required": true, "description": "Suite id to augment, e.g. cli-health.commands.primary" }
+          ],
+          "flags": [
+            { "name": "count", "description": "Target number of positive cases to propose (0 = a sensible default)" },
+            { "name": "negatives", "bool": true, "description": "Also propose hard-negative (no-strong-hit) cases" },
+            { "name": "apply", "bool": true, "description": "Append the proposals to the suite (each marked generated); default: preview only" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EvalService", "method": "Generate" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
         }
       ]
     }

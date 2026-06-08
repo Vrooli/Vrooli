@@ -620,7 +620,7 @@ var File_audio_tools_v1_usage_usage_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_usage_usage_proto_rawDesc = "" +
 	"\n" +
-	" audio-tools/v1/usage/usage.proto\x12\x1bvrooli.audio_tools.v1.usage\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\"audio-tools/v1/common/common.proto\"\xdf\x04\n" +
+	" audio-tools/v1/usage/usage.proto\x12\x1bvrooli.audio_tools.v1.usage\x1a\"audio-tools/v1/common/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdf\x04\n" +
 	"\bUsageRow\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x129\n" +
 	"\n" +

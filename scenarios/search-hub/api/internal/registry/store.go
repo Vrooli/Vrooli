@@ -2,7 +2,9 @@ package registry
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -32,13 +34,26 @@ type Store interface {
 	// Upsert validates and persists d (upsert keyed by provider_id). Returns
 	// created=true when a new leaf was inserted, false when an existing leaf
 	// was updated. Returns ErrInvalidDescriptor on validation failure.
-	Upsert(ctx context.Context, d *registryv1.ProviderDescriptor) (created bool, err error)
+	//
+	// presentedToken is the control token the caller cached from a prior
+	// registration (empty on a first registration or after the provider lost its
+	// in-memory copy on restart). On INSERT the store MINTS a fresh token and
+	// ignores presentedToken; on UPDATE it requires presentedToken to be empty or
+	// to match the stored token (else ErrTokenMismatch). The authoritative token
+	// for the provider is always returned so the caller can (re)cache it.
+	Upsert(ctx context.Context, d *registryv1.ProviderDescriptor, presentedToken string) (created bool, controlToken string, err error)
 
 	// List returns descriptors matching filter, ordered by provider_id.
 	List(ctx context.Context, filter ListFilter) ([]*registryv1.ProviderDescriptor, error)
 
 	// Get returns the descriptor for id or ErrProviderNotFound.
 	Get(ctx context.Context, id string) (*registryv1.ProviderDescriptor, error)
+
+	// Token returns the stored control token for id (empty string when the
+	// provider exists but has no token yet). Returns ErrProviderNotFound when no
+	// such provider is registered. search-hub uses it to present the token when
+	// it calls a provider's token-gated verbs (override/reindex/config-write).
+	Token(ctx context.Context, id string) (string, error)
 
 	// Delete removes the leaf with the given provider_id. Returns removed=true
 	// when a row was deleted, false when no such leaf existed (idempotent).
@@ -70,49 +85,88 @@ const providerTimeFormat = time.RFC3339Nano
 // human inspects the column).
 var marshalOpts = protojson.MarshalOptions{UseProtoNames: true}
 
-func (s *sqliteStore) Upsert(ctx context.Context, d *registryv1.ProviderDescriptor) (bool, error) {
+func (s *sqliteStore) Upsert(ctx context.Context, d *registryv1.ProviderDescriptor, presentedToken string) (bool, string, error) {
 	Normalize(d)
 	if err := Validate(d); err != nil {
-		return false, err
+		return false, "", err
 	}
 
 	blob, err := marshalOpts.Marshal(d)
 	if err != nil {
-		return false, fmt.Errorf("marshal descriptor: %w", err)
+		return false, "", fmt.Errorf("marshal descriptor: %w", err)
 	}
 
 	now := s.clock.Now().UTC().Format(providerTimeFormat)
 
-	// Determine insert vs update so we can report `created` honestly. SQLite is
-	// a single writer, so the read-then-write race is benign for this registry.
-	var existingCreatedAt string
-	err = s.db.QueryRowContext(ctx, `SELECT created_at FROM providers WHERE provider_id = ?`, d.ProviderId).
-		Scan(&existingCreatedAt)
+	// Determine insert vs update so we can report `created` honestly and so the
+	// token is minted exactly once (on insert) and echoed thereafter. SQLite is a
+	// single writer, so the read-then-write race is benign for this registry.
+	var storedToken string
+	err = s.db.QueryRowContext(ctx, `SELECT control_token FROM providers WHERE provider_id = ?`, d.ProviderId).
+		Scan(&storedToken)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
+		token := newControlToken()
 		_, insErr := s.db.ExecContext(ctx, `
-INSERT INTO providers (provider_id, provider_group, bucket, type, state, scope, descriptor, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+INSERT INTO providers (provider_id, provider_group, bucket, type, state, scope, descriptor, control_token, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			d.ProviderId, d.ProviderGroup, int32(d.Bucket), d.Type, int32(d.State), int32(d.Scope),
-			string(blob), now, now)
+			string(blob), token, now, now)
 		if insErr != nil {
-			return false, fmt.Errorf("insert provider: %w", insErr)
+			return false, "", fmt.Errorf("insert provider: %w", insErr)
 		}
-		return true, nil
+		return true, token, nil
 	case err != nil:
-		return false, fmt.Errorf("probe provider: %w", err)
+		return false, "", fmt.Errorf("probe provider: %w", err)
 	default:
+		// Ownership proof: a non-empty presented token must match the stored one.
+		// An empty presented token is allowed (the provider re-registers on every
+		// boot but holds the token only in memory) and simply receives the echo.
+		if presentedToken != "" && presentedToken != storedToken {
+			return false, "", ErrTokenMismatch{ProviderID: d.ProviderId}
+		}
+		// Heal a legacy row that predates the token column (empty stored token) by
+		// minting one now, so every registered provider ends up with a stable token.
+		if storedToken == "" {
+			storedToken = newControlToken()
+		}
 		_, updErr := s.db.ExecContext(ctx, `
 UPDATE providers
-SET provider_group = ?, bucket = ?, type = ?, state = ?, scope = ?, descriptor = ?, updated_at = ?
+SET provider_group = ?, bucket = ?, type = ?, state = ?, scope = ?, descriptor = ?, control_token = ?, updated_at = ?
 WHERE provider_id = ?`,
 			d.ProviderGroup, int32(d.Bucket), d.Type, int32(d.State), int32(d.Scope),
-			string(blob), now, d.ProviderId)
+			string(blob), storedToken, now, d.ProviderId)
 		if updErr != nil {
-			return false, fmt.Errorf("update provider: %w", updErr)
+			return false, "", fmt.Errorf("update provider: %w", updErr)
 		}
-		return false, nil
+		return false, storedToken, nil
 	}
+}
+
+// Token returns the stored control token for id (empty when the provider has
+// none yet), or ErrProviderNotFound when no such provider is registered.
+func (s *sqliteStore) Token(ctx context.Context, id string) (string, error) {
+	var token string
+	err := s.db.QueryRowContext(ctx, `SELECT control_token FROM providers WHERE provider_id = ?`, id).Scan(&token)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrProviderNotFound{ProviderID: id}
+	}
+	if err != nil {
+		return "", fmt.Errorf("get provider token: %w", err)
+	}
+	return token, nil
+}
+
+// newControlToken returns a random 128-bit hex token (stdlib only — no external
+// uuid dep, matching the aisearch reindex job-id generator's posture). A
+// crypto/rand failure is fatal to security, so it panics rather than minting a
+// predictable token.
+func newControlToken() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		panic(fmt.Sprintf("registry: crypto/rand failed minting control token: %v", err))
+	}
+	return hex.EncodeToString(b[:])
 }
 
 func (s *sqliteStore) List(ctx context.Context, filter ListFilter) ([]*registryv1.ProviderDescriptor, error) {

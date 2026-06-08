@@ -21,20 +21,25 @@ import (
 // assert against the recorded call inputs. Keeps the handler test off a real
 // DB (that path is covered by internal/registry/store_test.go).
 type fakeStore struct {
-	upsertOut  bool
-	upsertErr  error
-	listOut    []*registryv1.ProviderDescriptor
-	listErr    error
-	deleteOut  bool
-	deleteErr  error
-	lastUpsert *registryv1.ProviderDescriptor
-	lastFilter internalregistry.ListFilter
-	lastDelete string
+	upsertOut   bool
+	upsertToken string
+	upsertErr   error
+	listOut     []*registryv1.ProviderDescriptor
+	listErr     error
+	tokenOut    string
+	tokenErr    error
+	deleteOut   bool
+	deleteErr   error
+	lastUpsert  *registryv1.ProviderDescriptor
+	lastToken   string
+	lastFilter  internalregistry.ListFilter
+	lastDelete  string
 }
 
-func (f *fakeStore) Upsert(_ context.Context, d *registryv1.ProviderDescriptor) (bool, error) {
+func (f *fakeStore) Upsert(_ context.Context, d *registryv1.ProviderDescriptor, presentedToken string) (bool, string, error) {
 	f.lastUpsert = d
-	return f.upsertOut, f.upsertErr
+	f.lastToken = presentedToken
+	return f.upsertOut, f.upsertToken, f.upsertErr
 }
 
 func (f *fakeStore) List(_ context.Context, filter internalregistry.ListFilter) ([]*registryv1.ProviderDescriptor, error) {
@@ -44,6 +49,10 @@ func (f *fakeStore) List(_ context.Context, filter internalregistry.ListFilter) 
 
 func (f *fakeStore) Get(_ context.Context, id string) (*registryv1.ProviderDescriptor, error) {
 	return nil, internalregistry.ErrProviderNotFound{ProviderID: id}
+}
+
+func (f *fakeStore) Token(_ context.Context, id string) (string, error) {
+	return f.tokenOut, f.tokenErr
 }
 
 func (f *fakeStore) Delete(_ context.Context, id string) (bool, error) {

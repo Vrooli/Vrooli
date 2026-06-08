@@ -34,8 +34,8 @@ type TypedProjector[H any] func(SearchResult) H
 // fields in Payload (commands, surfaces, …): the adopter no longer writes a
 // manual `for _, r := range resp.Results { ... }` projection loop and cannot
 // drift from the Service's result ordering.
-func SearchTyped[H any](ctx context.Context, s *Service, q SearchQuery, project TypedProjector[H]) ([]H, SearchResponse, error) {
-	resp, err := s.Search(ctx, q)
+func SearchTyped[H any](ctx context.Context, s *Service, q SearchQuery, project TypedProjector[H], opts ...SearchOption) ([]H, SearchResponse, error) {
+	resp, err := s.Search(ctx, q, opts...)
 	if err != nil {
 		return nil, resp, err
 	}

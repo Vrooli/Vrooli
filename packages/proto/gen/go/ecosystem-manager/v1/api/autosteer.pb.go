@@ -778,7 +778,7 @@ var File_ecosystem_manager_v1_api_autosteer_proto protoreflect.FileDescriptor
 
 const file_ecosystem_manager_v1_api_autosteer_proto_rawDesc = "" +
 	"\n" +
-	"(ecosystem-manager/v1/api/autosteer.proto\x12\x14ecosystem_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a+ecosystem-manager/v1/domain/autosteer.proto\"\x89\x02\n" +
+	"(ecosystem-manager/v1/api/autosteer.proto\x12\x14ecosystem_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+ecosystem-manager/v1/domain/autosteer.proto\x1a\x1cgoogle/protobuf/struct.proto\"\x89\x02\n" +
 	"\x14ProfileCreateRequest\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x1d\n" +
 	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\x04name\x12 \n" +

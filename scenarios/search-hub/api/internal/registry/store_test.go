@@ -35,16 +35,18 @@ func TestStoreUpsertInsertThenUpdate(t *testing.T) {
 	ctx := context.Background()
 	d := validActive()
 
-	created, err := store.Upsert(ctx, d)
+	created, token, err := store.Upsert(ctx, d, "")
 	require.NoError(t, err)
 	require.True(t, created, "first upsert inserts")
+	require.NotEmpty(t, token, "first registration mints a control token")
 
 	// Re-register the same leaf with a changed description → update, not insert.
 	d2 := validActive()
 	d2.Description = "Updated description."
-	created, err = store.Upsert(ctx, d2)
+	created, token2, err := store.Upsert(ctx, d2, "")
 	require.NoError(t, err)
 	require.False(t, created, "second upsert updates")
+	require.Equal(t, token, token2, "re-register echoes the same token (empty presented)")
 
 	got, err := store.Get(ctx, "cli-health.commands")
 	require.NoError(t, err)
@@ -55,12 +57,48 @@ func TestStoreUpsertInsertThenUpdate(t *testing.T) {
 	require.Len(t, all, 1, "upsert must not duplicate the leaf")
 }
 
+func TestStoreUpsertTokenOwnership(t *testing.T) {
+	store, _ := newStore(t)
+	ctx := context.Background()
+
+	_, token, err := store.Upsert(ctx, validActive(), "")
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+
+	// A re-register presenting a WRONG non-empty token is rejected (ownership).
+	_, _, err = store.Upsert(ctx, validActive(), "deadbeef-not-the-token")
+	require.Error(t, err)
+	var mismatch registry.ErrTokenMismatch
+	require.ErrorAs(t, err, &mismatch)
+
+	// Presenting the CORRECT token succeeds and echoes it.
+	_, echoed, err := store.Upsert(ctx, validActive(), token)
+	require.NoError(t, err)
+	require.Equal(t, token, echoed)
+}
+
+func TestStoreToken(t *testing.T) {
+	store, _ := newStore(t)
+	ctx := context.Background()
+
+	_, token, err := store.Upsert(ctx, validActive(), "")
+	require.NoError(t, err)
+
+	got, err := store.Token(ctx, "cli-health.commands")
+	require.NoError(t, err)
+	require.Equal(t, token, got)
+
+	_, err = store.Token(ctx, "nope.unknown")
+	var notFound registry.ErrProviderNotFound
+	require.ErrorAs(t, err, &notFound)
+}
+
 func TestStoreUpsertRejectsInvalid(t *testing.T) {
 	store, _ := newStore(t)
 	d := validActive()
 	d.Description = ""
 
-	_, err := store.Upsert(context.Background(), d)
+	_, _, err := store.Upsert(context.Background(), d, "")
 	require.Error(t, err)
 	var invalid registry.ErrInvalidDescriptor
 	require.ErrorAs(t, err, &invalid)
@@ -72,7 +110,7 @@ func TestStoreUpsertRoundTripsDescriptor(t *testing.T) {
 	in := validActive()
 	in.QueryHint = "prefix: find the command that"
 
-	_, err := store.Upsert(ctx, in)
+	_, _, err := store.Upsert(ctx, in, "")
 	require.NoError(t, err)
 
 	got, err := store.Get(ctx, in.GetProviderId())
@@ -166,6 +204,6 @@ func TestStoreDeleteIdempotent(t *testing.T) {
 
 func mustUpsert(t *testing.T, store registry.Store, d *registryv1.ProviderDescriptor) error {
 	t.Helper()
-	_, err := store.Upsert(context.Background(), d)
+	_, _, err := store.Upsert(context.Background(), d, "")
 	return err
 }

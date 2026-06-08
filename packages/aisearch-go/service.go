@@ -45,8 +45,12 @@ type PostFilterFunc func([]SearchResult, SearchQuery) []SearchResult
 
 // ScoreDecorator adjusts hit scores in place after the floor — e.g. an authority
 // boost nudging canonical/maintained docs up at the margins. It runs late so it
-// edges the final order regardless of which leg produced it. nil => no-op.
-type ScoreDecorator func([]SearchResult)
+// edges the final order regardless of which leg produced it. It receives the
+// originating SearchQuery so a decorator can be query-aware (e.g. boost a
+// canonical command only when the query does not name a different scenario);
+// a decorator that only uses static payload facets (KO's maturity/canonicalFor
+// boost) simply ignores it. nil => no-op.
+type ScoreDecorator func([]SearchResult, SearchQuery)
 
 // RerankTextFunc composes the passage handed to a reranker for one hit (the
 // contextual text the reranker scores). nil => the payload "body" string.
@@ -60,6 +64,16 @@ type TextFallbackFunc func(context.Context, SearchQuery) ([]SearchResult, error)
 // ServiceOptions configures the shared Service. Embedder + VectorStore are
 // required for the vector legs; SparseEncoder (non-nil) enables the hybrid
 // (dense+sparse RRF) leg; Reconciler (optional) feeds Status + reindex jobs.
+//
+// Control-surface map: the fields here are three kinds — (1) WIRING/SEAMS
+// (Embedder, SparseEncoder, VectorStore, Reranker, Reconciler, and the *Func
+// seams: Project/Filter/PostFilter/Decorate/RerankText/TextFallback); (2) the
+// resolved GENUINE FACTORS the read path honors per construction (RerankEnabled,
+// RerankBlend, Shortlist, ApplyFloor, Floor) — an adopter on the SSOT fills these
+// from TuningConfig (see NewServiceForTuning / tuning.go), not by hand; (3)
+// numeric BOUNDS (DefaultLimit/MaxLimit/PrefetchLimit/RRFK/Threshold) that shape
+// the page. The factor taxonomy itself lives in tuning.go; this struct is the
+// wiring it resolves into.
 type ServiceOptions struct {
 	Embedder      Embedder
 	SparseEncoder SparseEncoder
@@ -72,6 +86,15 @@ type ServiceOptions struct {
 	// DefaultRerankShortlist).
 	RerankEnabled bool
 	Shortlist     int
+	// RerankBlend fuses the reranker order with the retrieval order via RRF
+	// (ApplyRerankRRF) instead of letting the reranker order win outright. It
+	// preserves the reranker's junk rejection while preventing it from burying a
+	// strongly-retrieved canonical result beneath literal-token lookalikes — the
+	// measured cli-health failure mode. When set, the fused (rank-signal) score is
+	// classified with the fusion regime for the floor/weak label. RerankRRFK tunes
+	// the fusion constant (<=0 => DefaultRRFK).
+	RerankBlend bool
+	RerankRRFK  int
 
 	// ApplyFloor gates ApplyRelevanceFloor. It exists because the regime floor
 	// bands (cross-encoder / llm / cosine) assume a 0..1 score; an RRF-fused
@@ -98,6 +121,11 @@ type ServiceOptions struct {
 	Decorate     ScoreDecorator
 	RerankText   RerankTextFunc
 	TextFallback TextFallbackFunc
+
+	// OverridePolicy gates the per-request query-time override channel (see
+	// override.go). nil => DenyOverrides: the secure default in which the Service
+	// honors no per-request override regardless of what a Search call passes.
+	OverridePolicy OverridePolicy
 }
 
 // Service is the concrete shared read path. Construct it with NewService.
@@ -109,6 +137,8 @@ type Service struct {
 	reconciler *Reconciler
 
 	rerankEnabled bool
+	rerankBlend   bool
+	rrfK          int
 	shortlist     int
 	applyFloor    bool
 	floor         FloorConfig
@@ -123,6 +153,8 @@ type Service struct {
 	decorate   ScoreDecorator
 	rerankText RerankTextFunc
 	text       TextFallbackFunc
+
+	overridePolicy OverridePolicy
 
 	mu      sync.Mutex
 	jobs    map[string]*ReindexJob
@@ -148,31 +180,38 @@ func NewService(opts ServiceOptions) *Service {
 	if prefetch <= 0 {
 		prefetch = shortlist
 	}
+	rrfK := opts.RerankRRFK
+	if rrfK <= 0 {
+		rrfK = DefaultRRFK
+	}
 	threshold := opts.Threshold
 	if threshold < 0 {
 		threshold = 0
 	}
 	return &Service{
-		embedder:      opts.Embedder,
-		sparse:        opts.SparseEncoder,
-		store:         opts.VectorStore,
-		reranker:      opts.Reranker,
-		reconciler:    opts.Reconciler,
-		rerankEnabled: opts.RerankEnabled,
-		shortlist:     shortlist,
-		applyFloor:    opts.ApplyFloor,
-		floor:         opts.Floor,
-		threshold:     threshold,
-		defaultLimit:  defaultLimit,
-		maxLimit:      maxLimit,
-		prefetchLimit: prefetch,
-		project:       opts.Project,
-		filter:        opts.Filter,
-		postFilter:    opts.PostFilter,
-		decorate:      opts.Decorate,
-		rerankText:    opts.RerankText,
-		text:          opts.TextFallback,
-		jobs:          make(map[string]*ReindexJob),
+		embedder:       opts.Embedder,
+		sparse:         opts.SparseEncoder,
+		store:          opts.VectorStore,
+		reranker:       opts.Reranker,
+		reconciler:     opts.Reconciler,
+		rerankEnabled:  opts.RerankEnabled,
+		rerankBlend:    opts.RerankBlend,
+		rrfK:           rrfK,
+		shortlist:      shortlist,
+		applyFloor:     opts.ApplyFloor,
+		floor:          opts.Floor,
+		threshold:      threshold,
+		defaultLimit:   defaultLimit,
+		maxLimit:       maxLimit,
+		prefetchLimit:  prefetch,
+		project:        opts.Project,
+		filter:         opts.Filter,
+		postFilter:     opts.PostFilter,
+		decorate:       opts.Decorate,
+		rerankText:     opts.RerankText,
+		text:           opts.TextFallback,
+		overridePolicy: opts.OverridePolicy,
+		jobs:           make(map[string]*ReindexJob),
 	}
 }
 
@@ -197,24 +236,28 @@ func (s *Service) normalize(q SearchQuery) SearchQuery {
 }
 
 // Search runs one query, dispatching on mode and (for ModeAuto) walking the
-// hybrid -> dense -> text fallback chain so it never hard-fails.
-func (s *Service) Search(ctx context.Context, q SearchQuery) (SearchResponse, error) {
+// hybrid -> dense -> text fallback chain so it never hard-fails. Optional
+// SearchOptions (WithOverrides) vary the query-time factors for this one call,
+// subject to the Service's OverridePolicy and clamping; without options the
+// Service's constructed defaults apply unchanged.
+func (s *Service) Search(ctx context.Context, q SearchQuery, opts ...SearchOption) (SearchResponse, error) {
 	q = s.normalize(q)
 	if q.Query == "" {
 		return SearchResponse{}, fmt.Errorf("query is required")
 	}
+	eff := s.resolveEffective(opts...)
 	switch q.Mode {
 	case ModeText:
 		return s.textSearch(ctx, q)
 	case ModeDense:
-		return s.vectorSearch(ctx, q, false)
+		return s.vectorSearch(ctx, q, false, eff)
 	case ModeHybrid:
 		if s.sparse == nil {
 			return SearchResponse{}, fmt.Errorf("hybrid mode requires a sparse encoder")
 		}
-		return s.vectorSearch(ctx, q, true)
+		return s.vectorSearch(ctx, q, true, eff)
 	case ModeAuto:
-		return s.autoSearch(ctx, q)
+		return s.autoSearch(ctx, q, eff)
 	default:
 		return SearchResponse{}, fmt.Errorf("unknown search mode %q", q.Mode)
 	}
@@ -222,16 +265,16 @@ func (s *Service) Search(ctx context.Context, q SearchQuery) (SearchResponse, er
 
 // autoSearch degrades hybrid -> dense -> text on unavailability or empty result,
 // so search always returns something useful.
-func (s *Service) autoSearch(ctx context.Context, q SearchQuery) (SearchResponse, error) {
+func (s *Service) autoSearch(ctx context.Context, q SearchQuery, eff effectiveParams) (SearchResponse, error) {
 	storeUp := s.store != nil && s.store.Available(ctx)
 	embedUp := s.embedder != nil && s.embedder.Available(ctx)
 	if storeUp && embedUp {
 		if s.sparse != nil {
-			if resp, err := s.vectorSearch(ctx, q, true); err == nil && len(resp.Results) > 0 {
+			if resp, err := s.vectorSearch(ctx, q, true, eff); err == nil && len(resp.Results) > 0 {
 				return resp, nil
 			}
 		}
-		if resp, err := s.vectorSearch(ctx, q, false); err == nil && len(resp.Results) > 0 {
+		if resp, err := s.vectorSearch(ctx, q, false, eff); err == nil && len(resp.Results) > 0 {
 			return resp, nil
 		}
 	}
@@ -245,11 +288,13 @@ func (s *Service) autoSearch(ctx context.Context, q SearchQuery) (SearchResponse
 
 // vectorSearch runs the dense or hybrid leg, then projects, post-filters,
 // reranks, floors, decorates, weak-labels, and trims — the one true ordering.
-func (s *Service) vectorSearch(ctx context.Context, q SearchQuery, hybrid bool) (SearchResponse, error) {
+// eff carries the resolved query-time parameters (Service defaults overlaid by
+// any permitted per-call overrides) the rerank/floor stages read.
+func (s *Service) vectorSearch(ctx context.Context, q SearchQuery, hybrid bool, eff effectiveParams) (SearchResponse, error) {
 	if s.store == nil || s.embedder == nil {
 		return SearchResponse{}, fmt.Errorf("vector search requires an embedder and vector store")
 	}
-	dense, err := s.embedder.Embed(ctx, q.Query)
+	dense, err := embedQueryText(ctx, s.embedder, q.Query)
 	if err != nil {
 		return SearchResponse{}, fmt.Errorf("embed query: %w", err)
 	}
@@ -260,9 +305,9 @@ func (s *Service) vectorSearch(ctx context.Context, q SearchQuery, hybrid bool) 
 	// headroom those stages would operate on too few candidates and the page
 	// could lose in-scope or better-ranked results.
 	shortlist := q.Limit
-	overfetch := (s.rerankEnabled && s.reranker != nil) || s.postFilter != nil || s.decorate != nil
-	if overfetch && s.shortlist > shortlist {
-		shortlist = s.shortlist
+	overfetch := (eff.rerankEnabled && s.reranker != nil) || s.postFilter != nil || s.decorate != nil
+	if overfetch && eff.shortlist > shortlist {
+		shortlist = eff.shortlist
 	}
 
 	hq := HybridQuery{
@@ -296,33 +341,51 @@ func (s *Service) vectorSearch(ctx context.Context, q SearchQuery, hybrid bool) 
 	sortByScoreDesc(hits)
 
 	leg := "none"
-	if s.rerankEnabled && s.reranker != nil {
+	reranked := false
+	if eff.rerankEnabled && s.reranker != nil {
 		if active := s.reranker.Active(ctx); active != nil {
-			if reordered, rerr := s.applyRerank(ctx, q.Query, hits, active); rerr == nil {
+			reorder := s.applyRerank
+			if eff.rerankBlend {
+				reorder = s.applyRerankRRF
+			}
+			if reordered, rerr := reorder(ctx, q.Query, hits, active); rerr == nil {
 				hits = reordered
 				leg = active.Name()
+				reranked = true
 			} else {
 				log.Printf("[aisearch] rerank failed, keeping fused order: %v", rerr)
 			}
 		}
 	}
 
+	// Choose the regime that classifies the post-rerank scores for the floor and
+	// weak label. A pure rerank leaves cross-encoder/llm 0..1 scores (judged in
+	// that leg's regime); an RRF BLEND replaces them with a rank-fusion signal, so
+	// it is classified by the fusion regime (relative MaxGap only, no absolute
+	// HardFloor) exactly like rerank-off hybrid. respLeg keeps the reranker name
+	// for observability.
+	floorMethod, floorLeg, respLeg := method, leg, leg
+	if reranked && eff.rerankBlend {
+		floorMethod, floorLeg = "hybrid", "" // force the fusion regime
+		respLeg = "blend:" + leg
+	}
+
 	// Floor AFTER rerank (plan §8): junk the reranker drives to ~0 then drops out
 	// of the page instead of riding its raw dense score. Regime-aware via
-	// FloorForMethodLeg — which classifies a rerank-off hybrid leg as the fusion
-	// band (relative MaxGap only, no absolute HardFloor) rather than cosine, so
-	// ApplyFloor is safe to leave on for a fused adopter. Still gated by ApplyFloor
-	// for an adopter that wants no floor at all.
-	if s.applyFloor {
-		hits = ApplyRelevanceFloor(hits, FloorForMethodLeg(method, leg, s.floor))
+	// FloorForMethodLeg — which classifies a rerank-off hybrid leg (and a blended
+	// leg) as the fusion band (relative MaxGap only, no absolute HardFloor) rather
+	// than cosine, so ApplyFloor is safe to leave on for a fused adopter. Still
+	// gated by ApplyFloor for an adopter that wants no floor at all.
+	if eff.applyFloor {
+		hits = ApplyRelevanceFloor(hits, FloorForMethodLeg(floorMethod, floorLeg, eff.floor))
 	}
 
 	if s.decorate != nil {
-		s.decorate(hits)
+		s.decorate(hits, q)
 		sortByScoreDesc(hits)
 	}
 
-	labelWeak(hits, method, leg)
+	labelWeak(hits, floorMethod, floorLeg)
 
 	total := len(hits)
 	if len(hits) > q.Limit {
@@ -333,7 +396,7 @@ func (s *Service) vectorSearch(ctx context.Context, q SearchQuery, hybrid bool) 
 		Total:    total,
 		Query:    q.Query,
 		Method:   method,
-		Reranker: leg,
+		Reranker: respLeg,
 	}, nil
 }
 
@@ -378,6 +441,20 @@ func (s *Service) applyRerank(ctx context.Context, query string, hits []SearchRe
 		return nil, err
 	}
 	return ApplyRerank(hits, scores), nil
+}
+
+// applyRerankRRF scores the shortlist with the active leg and fuses its order
+// with the retrieval order via ApplyRerankRRF (the blend path).
+func (s *Service) applyRerankRRF(ctx context.Context, query string, hits []SearchResult, active Reranker) ([]SearchResult, error) {
+	cands := make([]RerankCandidate, len(hits))
+	for i, h := range hits {
+		cands[i] = RerankCandidate{ID: h.ID, Text: s.rerankCandidateText(h)}
+	}
+	scores, err := active.Rerank(ctx, query, cands)
+	if err != nil {
+		return nil, err
+	}
+	return ApplyRerankRRF(hits, scores, s.rrfK), nil
 }
 
 func (s *Service) rerankCandidateText(h SearchResult) string {

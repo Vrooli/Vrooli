@@ -16,10 +16,10 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v
 //
 // Wire contract for SearchControlService — the ONE shared, token-gated control
 // plane that any search provider implements. It replaces the per-scenario
-// reindex contract (formerly cli-health's private cli-health/v1/reindex, which
-// is deleted once cli-health is repointed onto this service): every provider
-// that owns a searchable corpus now speaks the same reindex + config-write RPCs
-// so search-hub's sweep can drive index-time experiments uniformly.
+// reindex contract (formerly cli-health's private reindex proto, now deleted and
+// repointed onto this service): every provider that owns a searchable corpus now
+// speaks the same reindex + config-write RPCs so search-hub's sweep can drive
+// index-time experiments uniformly.
 //
 // SECURITY: every RPC here mutates index or config state, so every request
 // carries the control_token search-hub minted for the provider at first

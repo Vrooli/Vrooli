@@ -341,7 +341,9 @@ func (x *EvalRun) GetAggregate() *EvalAggregate {
 
 // Captured from the provider's status probe at run time so a historical
 // comparison stays meaningful months later. Fields the probe can't supply are
-// left zero (honest).
+// left zero (honest). The sweep (Sweep RPC) fills the factor fields directly
+// from the arm's tuning rather than a probe, so every swept arm is fully
+// self-describing — the whole tuning that produced a result is on the run.
 type ConfigSnapshot struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RerankEnabled bool                   `protobuf:"varint,1,opt,name=rerank_enabled,json=rerankEnabled,proto3" json:"rerank_enabled,omitempty"`
@@ -350,7 +352,19 @@ type ConfigSnapshot struct {
 	EmbedModel   string `protobuf:"bytes,3,opt,name=embed_model,json=embedModel,proto3" json:"embed_model,omitempty"`
 	IndexedCount int32  `protobuf:"varint,4,opt,name=indexed_count,json=indexedCount,proto3" json:"indexed_count,omitempty"`
 	// free-form (e.g. git sha if the provider exposes one).
-	ProviderNote  string `protobuf:"bytes,5,opt,name=provider_note,json=providerNote,proto3" json:"provider_note,omitempty"`
+	ProviderNote string `protobuf:"bytes,5,opt,name=provider_note,json=providerNote,proto3" json:"provider_note,omitempty"`
+	// INDEX-TIME: nomic search_query:/search_document: task prefixes were applied
+	// when the corpus was embedded (changes the embedding space → reindex).
+	EmbedTaskPrefix bool `protobuf:"varint,6,opt,name=embed_task_prefix,json=embedTaskPrefix,proto3" json:"embed_task_prefix,omitempty"`
+	// QUERY-TIME: the rerank order was blended with retrieval via RRF rather than a
+	// pure cross-encoder reorder (only meaningful when rerank_enabled).
+	RerankBlend bool `protobuf:"varint,7,opt,name=rerank_blend,json=rerankBlend,proto3" json:"rerank_blend,omitempty"`
+	// INDEX-TIME: the structural engine shape, "dense" | "hybrid".
+	Engine string `protobuf:"bytes,8,opt,name=engine,proto3" json:"engine,omitempty"`
+	// The score regime the relevance floor applied in: "fused" (RRF — hybrid or
+	// rerank-blend, floor near 0) | "cosine" (single-leg dense, a real floor). A
+	// descriptive label so a historical run records which floor band was in force.
+	FloorRegime   string `protobuf:"bytes,9,opt,name=floor_regime,json=floorRegime,proto3" json:"floor_regime,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -416,6 +430,34 @@ func (x *ConfigSnapshot) GetIndexedCount() int32 {
 func (x *ConfigSnapshot) GetProviderNote() string {
 	if x != nil {
 		return x.ProviderNote
+	}
+	return ""
+}
+
+func (x *ConfigSnapshot) GetEmbedTaskPrefix() bool {
+	if x != nil {
+		return x.EmbedTaskPrefix
+	}
+	return false
+}
+
+func (x *ConfigSnapshot) GetRerankBlend() bool {
+	if x != nil {
+		return x.RerankBlend
+	}
+	return false
+}
+
+func (x *ConfigSnapshot) GetEngine() string {
+	if x != nil {
+		return x.Engine
+	}
+	return ""
+}
+
+func (x *ConfigSnapshot) GetFloorRegime() string {
+	if x != nil {
+		return x.FloorRegime
 	}
 	return ""
 }
@@ -877,8 +919,13 @@ func (x *GetSuiteRequest) GetSuiteId() string {
 }
 
 type GetSuiteResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Suite         *EvalSuite             `protobuf:"bytes,1,opt,name=suite,proto3" json:"suite,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Suite *EvalSuite             `protobuf:"bytes,1,opt,name=suite,proto3" json:"suite,omitempty"`
+	// Warn-level corpus adequacy findings (never an error — they inform, never
+	// gate). Computed structurally from the suite alone (count floor, missing
+	// negatives, duplicate queries, thin difficulty spread). The coverage-vs-index
+	// findings need a live sample and surface on Generate instead.
+	Adequacy      []*AdequacyWarning `protobuf:"bytes,2,rep,name=adequacy,proto3" json:"adequacy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -916,6 +963,13 @@ func (*GetSuiteResponse) Descriptor() ([]byte, []int) {
 func (x *GetSuiteResponse) GetSuite() *EvalSuite {
 	if x != nil {
 		return x.Suite
+	}
+	return nil
+}
+
+func (x *GetSuiteResponse) GetAdequacy() []*AdequacyWarning {
+	if x != nil {
+		return x.Adequacy
 	}
 	return nil
 }
@@ -983,8 +1037,13 @@ func (x *RunSuiteRequest) GetLimit() int32 {
 }
 
 type RunSuiteResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Run           *EvalRun               `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Run   *EvalRun               `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	// Warn-level corpus adequacy findings for the suite that was run (same
+	// structural checks as GetSuiteResponse.adequacy) — surfaced here so an
+	// operator running a suite sees, alongside the result, whether the corpus the
+	// result rests on is thin/negative-less. Never affects the run or its labels.
+	Adequacy      []*AdequacyWarning `protobuf:"bytes,2,rep,name=adequacy,proto3" json:"adequacy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1022,6 +1081,13 @@ func (*RunSuiteResponse) Descriptor() ([]byte, []int) {
 func (x *RunSuiteResponse) GetRun() *EvalRun {
 	if x != nil {
 		return x.Run
+	}
+	return nil
+}
+
+func (x *RunSuiteResponse) GetAdequacy() []*AdequacyWarning {
+	if x != nil {
+		return x.Adequacy
 	}
 	return nil
 }
@@ -1427,6 +1493,781 @@ func (x *CaseDelta) GetExpectedRankB() int32 {
 	return 0
 }
 
+type SweepRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The suite to optimize; its provider supplies the incumbent tuning + the
+	// token-gated control plane (reindex_endpoint / config_endpoint).
+	SuiteId string `protobuf:"bytes,1,opt,name=suite_id,json=suiteId,proto3" json:"suite_id,omitempty"`
+	// Restrict to the cheap query-time tier (skip the reindex-per-arm index-time
+	// tier). Default runs both tiers.
+	QueryTimeOnly bool `protobuf:"varint,2,opt,name=query_time_only,json=queryTimeOnly,proto3" json:"query_time_only,omitempty"`
+	// Persist the winning tuning back into the provider's search.json via the
+	// config-write contract. Default false = preview only (ranked table +
+	// recommendation, no provider mutation).
+	Apply bool `protobuf:"varint,3,opt,name=apply,proto3" json:"apply,omitempty"`
+	// Per-case fetch depth forwarded to every arm's run (0 = suite default).
+	Limit         int32 `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SweepRequest) Reset() {
+	*x = SweepRequest{}
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SweepRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SweepRequest) ProtoMessage() {}
+
+func (x *SweepRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SweepRequest.ProtoReflect.Descriptor instead.
+func (*SweepRequest) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *SweepRequest) GetSuiteId() string {
+	if x != nil {
+		return x.SuiteId
+	}
+	return ""
+}
+
+func (x *SweepRequest) GetQueryTimeOnly() bool {
+	if x != nil {
+		return x.QueryTimeOnly
+	}
+	return false
+}
+
+func (x *SweepRequest) GetApply() bool {
+	if x != nil {
+		return x.Apply
+	}
+	return false
+}
+
+func (x *SweepRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+// One evaluated configuration: its full (self-describing) tuning, the immutable
+// run it produced, its primary objective, and whether it cleared the
+// multi-objective constraints.
+type SweepArm struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable arm label; also the stored run's tag, e.g.
+	// "sweep:qt:rerank_enabled=true,rerank_blend=true".
+	Tag string `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
+	// "query_time" | "index_time" | "incumbent" — which tier produced this arm.
+	Tier string `protobuf:"bytes,2,opt,name=tier,proto3" json:"tier,omitempty"`
+	// The arm's full config as a self-describing snapshot.
+	Config *ConfigSnapshot `protobuf:"bytes,3,opt,name=config,proto3" json:"config,omitempty"`
+	// The stored EvalRun's id (inspect with `evals show-run`).
+	RunId string `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// Primary objective: recall@k over the positive (non-gibberish) cases [0,1].
+	Score     float64        `protobuf:"fixed64,5,opt,name=score,proto3" json:"score,omitempty"`
+	Aggregate *EvalAggregate `protobuf:"bytes,6,opt,name=aggregate,proto3" json:"aggregate,omitempty"`
+	// Cleared the constraints (gibberish ceiling + latency budget).
+	Feasible bool `protobuf:"varint,7,opt,name=feasible,proto3" json:"feasible,omitempty"`
+	// Human-readable note (e.g. why infeasible, or "incumbent").
+	Note          string `protobuf:"bytes,8,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SweepArm) Reset() {
+	*x = SweepArm{}
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SweepArm) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SweepArm) ProtoMessage() {}
+
+func (x *SweepArm) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SweepArm.ProtoReflect.Descriptor instead.
+func (*SweepArm) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *SweepArm) GetTag() string {
+	if x != nil {
+		return x.Tag
+	}
+	return ""
+}
+
+func (x *SweepArm) GetTier() string {
+	if x != nil {
+		return x.Tier
+	}
+	return ""
+}
+
+func (x *SweepArm) GetConfig() *ConfigSnapshot {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+func (x *SweepArm) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *SweepArm) GetScore() float64 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+func (x *SweepArm) GetAggregate() *EvalAggregate {
+	if x != nil {
+		return x.Aggregate
+	}
+	return nil
+}
+
+func (x *SweepArm) GetFeasible() bool {
+	if x != nil {
+		return x.Feasible
+	}
+	return false
+}
+
+func (x *SweepArm) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+// The ranked outcome + the promotion verdict.
+type SweepResult struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	SuiteId    string                 `protobuf:"bytes,1,opt,name=suite_id,json=suiteId,proto3" json:"suite_id,omitempty"`
+	ProviderId string                 `protobuf:"bytes,2,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	// Arms best-first: feasible above infeasible, then by descending score.
+	Arms []*SweepArm `protobuf:"bytes,3,rep,name=arms,proto3" json:"arms,omitempty"`
+	// The incumbent (current tuning) arm's tag — always evaluated as the baseline.
+	IncumbentTag string `protobuf:"bytes,4,opt,name=incumbent_tag,json=incumbentTag,proto3" json:"incumbent_tag,omitempty"`
+	// The promoted winner's tag, or "" when no arm cleared every guard (the
+	// incumbent stays).
+	WinnerTag string `protobuf:"bytes,5,opt,name=winner_tag,json=winnerTag,proto3" json:"winner_tag,omitempty"`
+	// True when apply=true AND a winner cleared every guard AND the config-write
+	// contract persisted it.
+	Promoted bool `protobuf:"varint,6,opt,name=promoted,proto3" json:"promoted,omitempty"`
+	// The verdict, one or more lines (significance, constraints, held-out,
+	// tie-break) — the recommendation a human/agent reads.
+	Recommendation string      `protobuf:"bytes,7,opt,name=recommendation,proto3" json:"recommendation,omitempty"`
+	Stats          *SweepStats `protobuf:"bytes,8,opt,name=stats,proto3" json:"stats,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SweepResult) Reset() {
+	*x = SweepResult{}
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SweepResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SweepResult) ProtoMessage() {}
+
+func (x *SweepResult) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SweepResult.ProtoReflect.Descriptor instead.
+func (*SweepResult) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *SweepResult) GetSuiteId() string {
+	if x != nil {
+		return x.SuiteId
+	}
+	return ""
+}
+
+func (x *SweepResult) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *SweepResult) GetArms() []*SweepArm {
+	if x != nil {
+		return x.Arms
+	}
+	return nil
+}
+
+func (x *SweepResult) GetIncumbentTag() string {
+	if x != nil {
+		return x.IncumbentTag
+	}
+	return ""
+}
+
+func (x *SweepResult) GetWinnerTag() string {
+	if x != nil {
+		return x.WinnerTag
+	}
+	return ""
+}
+
+func (x *SweepResult) GetPromoted() bool {
+	if x != nil {
+		return x.Promoted
+	}
+	return false
+}
+
+func (x *SweepResult) GetRecommendation() string {
+	if x != nil {
+		return x.Recommendation
+	}
+	return ""
+}
+
+func (x *SweepResult) GetStats() *SweepStats {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
+// The decision math behind the verdict (so the verdict is auditable).
+type SweepStats struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	IncumbentScore float64                `protobuf:"fixed64,1,opt,name=incumbent_score,json=incumbentScore,proto3" json:"incumbent_score,omitempty"`
+	WinnerScore    float64                `protobuf:"fixed64,2,opt,name=winner_score,json=winnerScore,proto3" json:"winner_score,omitempty"`
+	// Paired winner-minus-incumbent recall margin on the tuning fold (point est.).
+	Margin float64 `protobuf:"fixed64,3,opt,name=margin,proto3" json:"margin,omitempty"`
+	// Bootstrap 95% CI of the paired margin; promotion requires ci_low > 0.
+	CiLow  float64 `protobuf:"fixed64,4,opt,name=ci_low,json=ciLow,proto3" json:"ci_low,omitempty"`
+	CiHigh float64 `protobuf:"fixed64,5,opt,name=ci_high,json=ciHigh,proto3" json:"ci_high,omitempty"`
+	// The winner's / incumbent's recall on the held-out validation fold (the
+	// winner must not regress relative to the incumbent here).
+	HeldoutWinnerScore    float64 `protobuf:"fixed64,6,opt,name=heldout_winner_score,json=heldoutWinnerScore,proto3" json:"heldout_winner_score,omitempty"`
+	HeldoutIncumbentScore float64 `protobuf:"fixed64,7,opt,name=heldout_incumbent_score,json=heldoutIncumbentScore,proto3" json:"heldout_incumbent_score,omitempty"`
+	QueryTimeArms         int32   `protobuf:"varint,8,opt,name=query_time_arms,json=queryTimeArms,proto3" json:"query_time_arms,omitempty"`
+	IndexTimeArms         int32   `protobuf:"varint,9,opt,name=index_time_arms,json=indexTimeArms,proto3" json:"index_time_arms,omitempty"`
+	// Index-time factor interactions deliberately not explored (full-factorial
+	// size minus the coordinate-ascent arms). Reported, never silently capped.
+	DroppedIndexInteractions int32 `protobuf:"varint,10,opt,name=dropped_index_interactions,json=droppedIndexInteractions,proto3" json:"dropped_index_interactions,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *SweepStats) Reset() {
+	*x = SweepStats{}
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SweepStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SweepStats) ProtoMessage() {}
+
+func (x *SweepStats) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SweepStats.ProtoReflect.Descriptor instead.
+func (*SweepStats) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *SweepStats) GetIncumbentScore() float64 {
+	if x != nil {
+		return x.IncumbentScore
+	}
+	return 0
+}
+
+func (x *SweepStats) GetWinnerScore() float64 {
+	if x != nil {
+		return x.WinnerScore
+	}
+	return 0
+}
+
+func (x *SweepStats) GetMargin() float64 {
+	if x != nil {
+		return x.Margin
+	}
+	return 0
+}
+
+func (x *SweepStats) GetCiLow() float64 {
+	if x != nil {
+		return x.CiLow
+	}
+	return 0
+}
+
+func (x *SweepStats) GetCiHigh() float64 {
+	if x != nil {
+		return x.CiHigh
+	}
+	return 0
+}
+
+func (x *SweepStats) GetHeldoutWinnerScore() float64 {
+	if x != nil {
+		return x.HeldoutWinnerScore
+	}
+	return 0
+}
+
+func (x *SweepStats) GetHeldoutIncumbentScore() float64 {
+	if x != nil {
+		return x.HeldoutIncumbentScore
+	}
+	return 0
+}
+
+func (x *SweepStats) GetQueryTimeArms() int32 {
+	if x != nil {
+		return x.QueryTimeArms
+	}
+	return 0
+}
+
+func (x *SweepStats) GetIndexTimeArms() int32 {
+	if x != nil {
+		return x.IndexTimeArms
+	}
+	return 0
+}
+
+func (x *SweepStats) GetDroppedIndexInteractions() int32 {
+	if x != nil {
+		return x.DroppedIndexInteractions
+	}
+	return 0
+}
+
+type SweepResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Result        *SweepResult           `protobuf:"bytes,1,opt,name=result,proto3" json:"result,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SweepResponse) Reset() {
+	*x = SweepResponse{}
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SweepResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SweepResponse) ProtoMessage() {}
+
+func (x *SweepResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SweepResponse.ProtoReflect.Descriptor instead.
+func (*SweepResponse) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *SweepResponse) GetResult() *SweepResult {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
+// One warn-level corpus adequacy finding. Severity is always informational —
+// adequacy NEVER fails a build or blocks a run; it tells an operator the corpus
+// the numbers rest on is thin so they grow it (e.g. via Generate).
+type AdequacyWarning struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable machine code, e.g. "too_few_cases" | "no_negatives" |
+	// "duplicate_query" | "thin_difficulty" | "coverage_gap".
+	Code string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	// Human-readable detail, e.g. "only 6 positive cases (floor 12)".
+	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	// The corpus dimension the finding is about, when applicable (a case_id, a
+	// stratum key, a query) — empty for whole-corpus findings.
+	Subject       string `protobuf:"bytes,3,opt,name=subject,proto3" json:"subject,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdequacyWarning) Reset() {
+	*x = AdequacyWarning{}
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdequacyWarning) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdequacyWarning) ProtoMessage() {}
+
+func (x *AdequacyWarning) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdequacyWarning.ProtoReflect.Descriptor instead.
+func (*AdequacyWarning) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *AdequacyWarning) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *AdequacyWarning) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *AdequacyWarning) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+type GenerateRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The suite (and thus provider) to augment. The provider must be registered;
+	// its endpoint is sampled to discover index items to invert.
+	SuiteId string `protobuf:"bytes,1,opt,name=suite_id,json=suiteId,proto3" json:"suite_id,omitempty"`
+	// Target number of positive cases to propose (0 = a sensible default).
+	Count int32 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	// Also propose hard-negative (gibberish) cases (expect_no_strong_hit).
+	Negatives bool `protobuf:"varint,3,opt,name=negatives,proto3" json:"negatives,omitempty"`
+	// Append the proposals into the suite (each marked tags:["generated"]) and
+	// persist. Default false = preview only: proposals are returned, the stored
+	// suite is NOT mutated (a human/agent reviews before applying).
+	Apply         bool `protobuf:"varint,4,opt,name=apply,proto3" json:"apply,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GenerateRequest) Reset() {
+	*x = GenerateRequest{}
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GenerateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenerateRequest) ProtoMessage() {}
+
+func (x *GenerateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenerateRequest.ProtoReflect.Descriptor instead.
+func (*GenerateRequest) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *GenerateRequest) GetSuiteId() string {
+	if x != nil {
+		return x.SuiteId
+	}
+	return ""
+}
+
+func (x *GenerateRequest) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *GenerateRequest) GetNegatives() bool {
+	if x != nil {
+		return x.Negatives
+	}
+	return false
+}
+
+func (x *GenerateRequest) GetApply() bool {
+	if x != nil {
+		return x.Apply
+	}
+	return false
+}
+
+// One proposed case + the provenance that produced it (so a reviewer can audit
+// where it came from before applying).
+type GeneratedCase struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The proposed case, already marked tags:["generated", <stratum>] and (for a
+	// positive case) expect_ids = [the sampled item's id].
+	Case *EvalCase `protobuf:"bytes,1,opt,name=case,proto3" json:"case,omitempty"`
+	// The index item id this case was inverted from (a positive case) — empty for
+	// a hard negative, which is not anchored to a single item.
+	SourceId string `protobuf:"bytes,2,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	// The stratum the sampled item fell in (type/group/origin bucket) — also added
+	// to case.tags so coverage is inspectable.
+	Stratum       string `protobuf:"bytes,3,opt,name=stratum,proto3" json:"stratum,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GeneratedCase) Reset() {
+	*x = GeneratedCase{}
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GeneratedCase) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GeneratedCase) ProtoMessage() {}
+
+func (x *GeneratedCase) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GeneratedCase.ProtoReflect.Descriptor instead.
+func (*GeneratedCase) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *GeneratedCase) GetCase() *EvalCase {
+	if x != nil {
+		return x.Case
+	}
+	return nil
+}
+
+func (x *GeneratedCase) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+func (x *GeneratedCase) GetStratum() string {
+	if x != nil {
+		return x.Stratum
+	}
+	return ""
+}
+
+type GenerateResponse struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	SuiteId    string                 `protobuf:"bytes,1,opt,name=suite_id,json=suiteId,proto3" json:"suite_id,omitempty"`
+	ProviderId string                 `protobuf:"bytes,2,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	// The de-duped proposals, positives first then negatives.
+	Proposed []*GeneratedCase `protobuf:"bytes,3,rep,name=proposed,proto3" json:"proposed,omitempty"`
+	// When apply=true, the suite AFTER appending the proposals (its new case
+	// count, the merged cases). Unset on a preview.
+	Suite *EvalSuite `protobuf:"bytes,4,opt,name=suite,proto3" json:"suite,omitempty"`
+	// True when apply=true AND the proposals were appended and persisted.
+	Applied bool `protobuf:"varint,5,opt,name=applied,proto3" json:"applied,omitempty"`
+	// Warn-level adequacy of the RESULTING corpus (post-merge on apply, or the
+	// would-be corpus on preview), including the coverage-vs-index findings the
+	// live sample makes possible.
+	Adequacy []*AdequacyWarning `protobuf:"bytes,6,rep,name=adequacy,proto3" json:"adequacy,omitempty"`
+	// Human-readable summary, e.g. "sampled 24 items across 3 strata → 24 inverted
+	// → 6 deduped → 18 proposed (15 positive, 3 negative)".
+	Summary       string `protobuf:"bytes,7,opt,name=summary,proto3" json:"summary,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GenerateResponse) Reset() {
+	*x = GenerateResponse{}
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GenerateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenerateResponse) ProtoMessage() {}
+
+func (x *GenerateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenerateResponse.ProtoReflect.Descriptor instead.
+func (*GenerateResponse) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *GenerateResponse) GetSuiteId() string {
+	if x != nil {
+		return x.SuiteId
+	}
+	return ""
+}
+
+func (x *GenerateResponse) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *GenerateResponse) GetProposed() []*GeneratedCase {
+	if x != nil {
+		return x.Proposed
+	}
+	return nil
+}
+
+func (x *GenerateResponse) GetSuite() *EvalSuite {
+	if x != nil {
+		return x.Suite
+	}
+	return nil
+}
+
+func (x *GenerateResponse) GetApplied() bool {
+	if x != nil {
+		return x.Applied
+	}
+	return false
+}
+
+func (x *GenerateResponse) GetAdequacy() []*AdequacyWarning {
+	if x != nil {
+		return x.Adequacy
+	}
+	return nil
+}
+
+func (x *GenerateResponse) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
 var File_search_hub_v1_eval_eval_proto protoreflect.FileDescriptor
 
 const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
@@ -1463,14 +2304,18 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12A\n" +
 	"\x06config\x18\x05 \x01(\v2).vrooli.search_hub.v1.eval.ConfigSnapshotR\x06config\x12?\n" +
 	"\aresults\x18\x06 \x03(\v2%.vrooli.search_hub.v1.eval.CaseResultR\aresults\x12F\n" +
-	"\taggregate\x18\a \x01(\v2(.vrooli.search_hub.v1.eval.EvalAggregateR\taggregate\"\xc5\x01\n" +
+	"\taggregate\x18\a \x01(\v2(.vrooli.search_hub.v1.eval.EvalAggregateR\taggregate\"\xcf\x02\n" +
 	"\x0eConfigSnapshot\x12%\n" +
 	"\x0ererank_enabled\x18\x01 \x01(\bR\rrerankEnabled\x12!\n" +
 	"\freranker_leg\x18\x02 \x01(\tR\vrerankerLeg\x12\x1f\n" +
 	"\vembed_model\x18\x03 \x01(\tR\n" +
 	"embedModel\x12#\n" +
 	"\rindexed_count\x18\x04 \x01(\x05R\findexedCount\x12#\n" +
-	"\rprovider_note\x18\x05 \x01(\tR\fproviderNote\"\xca\x01\n" +
+	"\rprovider_note\x18\x05 \x01(\tR\fproviderNote\x12*\n" +
+	"\x11embed_task_prefix\x18\x06 \x01(\bR\x0fembedTaskPrefix\x12!\n" +
+	"\frerank_blend\x18\a \x01(\bR\vrerankBlend\x12\x16\n" +
+	"\x06engine\x18\b \x01(\tR\x06engine\x12!\n" +
+	"\ffloor_regime\x18\t \x01(\tR\vfloorRegime\"\xca\x01\n" +
 	"\n" +
 	"CaseResult\x12\x17\n" +
 	"\acase_id\x18\x01 \x01(\tR\x06caseId\x126\n" +
@@ -1500,15 +2345,17 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\x12ListSuitesResponse\x12<\n" +
 	"\x06suites\x18\x01 \x03(\v2$.vrooli.search_hub.v1.eval.EvalSuiteR\x06suites\",\n" +
 	"\x0fGetSuiteRequest\x12\x19\n" +
-	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\"N\n" +
+	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\"\x96\x01\n" +
 	"\x10GetSuiteResponse\x12:\n" +
-	"\x05suite\x18\x01 \x01(\v2$.vrooli.search_hub.v1.eval.EvalSuiteR\x05suite\"T\n" +
+	"\x05suite\x18\x01 \x01(\v2$.vrooli.search_hub.v1.eval.EvalSuiteR\x05suite\x12F\n" +
+	"\badequacy\x18\x02 \x03(\v2*.vrooli.search_hub.v1.eval.AdequacyWarningR\badequacy\"T\n" +
 	"\x0fRunSuiteRequest\x12\x19\n" +
 	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\x12\x10\n" +
 	"\x03tag\x18\x02 \x01(\tR\x03tag\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\x05R\x05limit\"H\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"\x90\x01\n" +
 	"\x10RunSuiteResponse\x124\n" +
-	"\x03run\x18\x01 \x01(\v2\".vrooli.search_hub.v1.eval.EvalRunR\x03run\"T\n" +
+	"\x03run\x18\x01 \x01(\v2\".vrooli.search_hub.v1.eval.EvalRunR\x03run\x12F\n" +
+	"\badequacy\x18\x02 \x03(\v2*.vrooli.search_hub.v1.eval.AdequacyWarningR\badequacy\"T\n" +
 	"\x0fListRunsRequest\x12\x19\n" +
 	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\x12\x10\n" +
 	"\x03tag\x18\x02 \x01(\tR\x03tag\x12\x14\n" +
@@ -1533,7 +2380,69 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\vtop_score_a\x18\x04 \x01(\x01R\ttopScoreA\x12\x1e\n" +
 	"\vtop_score_b\x18\x05 \x01(\x01R\ttopScoreB\x12&\n" +
 	"\x0fexpected_rank_a\x18\x06 \x01(\x05R\rexpectedRankA\x12&\n" +
-	"\x0fexpected_rank_b\x18\a \x01(\x05R\rexpectedRankB2\xe8\x05\n" +
+	"\x0fexpected_rank_b\x18\a \x01(\x05R\rexpectedRankB\"}\n" +
+	"\fSweepRequest\x12\x19\n" +
+	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\x12&\n" +
+	"\x0fquery_time_only\x18\x02 \x01(\bR\rqueryTimeOnly\x12\x14\n" +
+	"\x05apply\x18\x03 \x01(\bR\x05apply\x12\x14\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\"\x98\x02\n" +
+	"\bSweepArm\x12\x10\n" +
+	"\x03tag\x18\x01 \x01(\tR\x03tag\x12\x12\n" +
+	"\x04tier\x18\x02 \x01(\tR\x04tier\x12A\n" +
+	"\x06config\x18\x03 \x01(\v2).vrooli.search_hub.v1.eval.ConfigSnapshotR\x06config\x12\x15\n" +
+	"\x06run_id\x18\x04 \x01(\tR\x05runId\x12\x14\n" +
+	"\x05score\x18\x05 \x01(\x01R\x05score\x12F\n" +
+	"\taggregate\x18\x06 \x01(\v2(.vrooli.search_hub.v1.eval.EvalAggregateR\taggregate\x12\x1a\n" +
+	"\bfeasible\x18\a \x01(\bR\bfeasible\x12\x12\n" +
+	"\x04note\x18\b \x01(\tR\x04note\"\xc7\x02\n" +
+	"\vSweepResult\x12\x19\n" +
+	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\x12\x1f\n" +
+	"\vprovider_id\x18\x02 \x01(\tR\n" +
+	"providerId\x127\n" +
+	"\x04arms\x18\x03 \x03(\v2#.vrooli.search_hub.v1.eval.SweepArmR\x04arms\x12#\n" +
+	"\rincumbent_tag\x18\x04 \x01(\tR\fincumbentTag\x12\x1d\n" +
+	"\n" +
+	"winner_tag\x18\x05 \x01(\tR\twinnerTag\x12\x1a\n" +
+	"\bpromoted\x18\x06 \x01(\bR\bpromoted\x12&\n" +
+	"\x0erecommendation\x18\a \x01(\tR\x0erecommendation\x12;\n" +
+	"\x05stats\x18\b \x01(\v2%.vrooli.search_hub.v1.eval.SweepStatsR\x05stats\"\x98\x03\n" +
+	"\n" +
+	"SweepStats\x12'\n" +
+	"\x0fincumbent_score\x18\x01 \x01(\x01R\x0eincumbentScore\x12!\n" +
+	"\fwinner_score\x18\x02 \x01(\x01R\vwinnerScore\x12\x16\n" +
+	"\x06margin\x18\x03 \x01(\x01R\x06margin\x12\x15\n" +
+	"\x06ci_low\x18\x04 \x01(\x01R\x05ciLow\x12\x17\n" +
+	"\aci_high\x18\x05 \x01(\x01R\x06ciHigh\x120\n" +
+	"\x14heldout_winner_score\x18\x06 \x01(\x01R\x12heldoutWinnerScore\x126\n" +
+	"\x17heldout_incumbent_score\x18\a \x01(\x01R\x15heldoutIncumbentScore\x12&\n" +
+	"\x0fquery_time_arms\x18\b \x01(\x05R\rqueryTimeArms\x12&\n" +
+	"\x0findex_time_arms\x18\t \x01(\x05R\rindexTimeArms\x12<\n" +
+	"\x1adropped_index_interactions\x18\n" +
+	" \x01(\x05R\x18droppedIndexInteractions\"O\n" +
+	"\rSweepResponse\x12>\n" +
+	"\x06result\x18\x01 \x01(\v2&.vrooli.search_hub.v1.eval.SweepResultR\x06result\"Y\n" +
+	"\x0fAdequacyWarning\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12\x18\n" +
+	"\asubject\x18\x03 \x01(\tR\asubject\"v\n" +
+	"\x0fGenerateRequest\x12\x19\n" +
+	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\x12\x1c\n" +
+	"\tnegatives\x18\x03 \x01(\bR\tnegatives\x12\x14\n" +
+	"\x05apply\x18\x04 \x01(\bR\x05apply\"\x7f\n" +
+	"\rGeneratedCase\x127\n" +
+	"\x04case\x18\x01 \x01(\v2#.vrooli.search_hub.v1.eval.EvalCaseR\x04case\x12\x1b\n" +
+	"\tsource_id\x18\x02 \x01(\tR\bsourceId\x12\x18\n" +
+	"\astratum\x18\x03 \x01(\tR\astratum\"\xcc\x02\n" +
+	"\x10GenerateResponse\x12\x19\n" +
+	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\x12\x1f\n" +
+	"\vprovider_id\x18\x02 \x01(\tR\n" +
+	"providerId\x12D\n" +
+	"\bproposed\x18\x03 \x03(\v2(.vrooli.search_hub.v1.eval.GeneratedCaseR\bproposed\x12:\n" +
+	"\x05suite\x18\x04 \x01(\v2$.vrooli.search_hub.v1.eval.EvalSuiteR\x05suite\x12\x18\n" +
+	"\aapplied\x18\x05 \x01(\bR\aapplied\x12F\n" +
+	"\badequacy\x18\x06 \x03(\v2*.vrooli.search_hub.v1.eval.AdequacyWarningR\badequacy\x12\x18\n" +
+	"\asummary\x18\a \x01(\tR\asummary2\xa9\a\n" +
 	"\vEvalService\x12r\n" +
 	"\rRegisterSuite\x12/.vrooli.search_hub.v1.eval.RegisterSuiteRequest\x1a0.vrooli.search_hub.v1.eval.RegisterSuiteResponse\x12i\n" +
 	"\n" +
@@ -1542,7 +2451,9 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\bRunSuite\x12*.vrooli.search_hub.v1.eval.RunSuiteRequest\x1a+.vrooli.search_hub.v1.eval.RunSuiteResponse\x12c\n" +
 	"\bListRuns\x12*.vrooli.search_hub.v1.eval.ListRunsRequest\x1a+.vrooli.search_hub.v1.eval.ListRunsResponse\x12]\n" +
 	"\x06GetRun\x12(.vrooli.search_hub.v1.eval.GetRunRequest\x1a).vrooli.search_hub.v1.eval.GetRunResponse\x12l\n" +
-	"\vCompareRuns\x12-.vrooli.search_hub.v1.eval.CompareRunsRequest\x1a..vrooli.search_hub.v1.eval.CompareRunsResponseBKZIgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval;eval_v1b\x06proto3"
+	"\vCompareRuns\x12-.vrooli.search_hub.v1.eval.CompareRunsRequest\x1a..vrooli.search_hub.v1.eval.CompareRunsResponse\x12Z\n" +
+	"\x05Sweep\x12'.vrooli.search_hub.v1.eval.SweepRequest\x1a(.vrooli.search_hub.v1.eval.SweepResponse\x12c\n" +
+	"\bGenerate\x12*.vrooli.search_hub.v1.eval.GenerateRequest\x1a+.vrooli.search_hub.v1.eval.GenerateResponseBKZIgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval;eval_v1b\x06proto3"
 
 var (
 	file_search_hub_v1_eval_eval_proto_rawDescOnce sync.Once
@@ -1556,7 +2467,7 @@ func file_search_hub_v1_eval_eval_proto_rawDescGZIP() []byte {
 	return file_search_hub_v1_eval_eval_proto_rawDescData
 }
 
-var file_search_hub_v1_eval_eval_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_search_hub_v1_eval_eval_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_search_hub_v1_eval_eval_proto_goTypes = []any{
 	(*EvalSuite)(nil),             // 0: vrooli.search_hub.v1.eval.EvalSuite
 	(*EvalCase)(nil),              // 1: vrooli.search_hub.v1.eval.EvalCase
@@ -1580,6 +2491,15 @@ var file_search_hub_v1_eval_eval_proto_goTypes = []any{
 	(*CompareRunsRequest)(nil),    // 19: vrooli.search_hub.v1.eval.CompareRunsRequest
 	(*CompareRunsResponse)(nil),   // 20: vrooli.search_hub.v1.eval.CompareRunsResponse
 	(*CaseDelta)(nil),             // 21: vrooli.search_hub.v1.eval.CaseDelta
+	(*SweepRequest)(nil),          // 22: vrooli.search_hub.v1.eval.SweepRequest
+	(*SweepArm)(nil),              // 23: vrooli.search_hub.v1.eval.SweepArm
+	(*SweepResult)(nil),           // 24: vrooli.search_hub.v1.eval.SweepResult
+	(*SweepStats)(nil),            // 25: vrooli.search_hub.v1.eval.SweepStats
+	(*SweepResponse)(nil),         // 26: vrooli.search_hub.v1.eval.SweepResponse
+	(*AdequacyWarning)(nil),       // 27: vrooli.search_hub.v1.eval.AdequacyWarning
+	(*GenerateRequest)(nil),       // 28: vrooli.search_hub.v1.eval.GenerateRequest
+	(*GeneratedCase)(nil),         // 29: vrooli.search_hub.v1.eval.GeneratedCase
+	(*GenerateResponse)(nil),      // 30: vrooli.search_hub.v1.eval.GenerateResponse
 }
 var file_search_hub_v1_eval_eval_proto_depIdxs = []int32{
 	1,  // 0: vrooli.search_hub.v1.eval.EvalSuite.cases:type_name -> vrooli.search_hub.v1.eval.EvalCase
@@ -1591,31 +2511,46 @@ var file_search_hub_v1_eval_eval_proto_depIdxs = []int32{
 	0,  // 6: vrooli.search_hub.v1.eval.RegisterSuiteResponse.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
 	0,  // 7: vrooli.search_hub.v1.eval.ListSuitesResponse.suites:type_name -> vrooli.search_hub.v1.eval.EvalSuite
 	0,  // 8: vrooli.search_hub.v1.eval.GetSuiteResponse.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
-	2,  // 9: vrooli.search_hub.v1.eval.RunSuiteResponse.run:type_name -> vrooli.search_hub.v1.eval.EvalRun
-	2,  // 10: vrooli.search_hub.v1.eval.ListRunsResponse.runs:type_name -> vrooli.search_hub.v1.eval.EvalRun
-	2,  // 11: vrooli.search_hub.v1.eval.GetRunResponse.run:type_name -> vrooli.search_hub.v1.eval.EvalRun
-	2,  // 12: vrooli.search_hub.v1.eval.CompareRunsResponse.run_a:type_name -> vrooli.search_hub.v1.eval.EvalRun
-	2,  // 13: vrooli.search_hub.v1.eval.CompareRunsResponse.run_b:type_name -> vrooli.search_hub.v1.eval.EvalRun
-	21, // 14: vrooli.search_hub.v1.eval.CompareRunsResponse.deltas:type_name -> vrooli.search_hub.v1.eval.CaseDelta
-	7,  // 15: vrooli.search_hub.v1.eval.EvalService.RegisterSuite:input_type -> vrooli.search_hub.v1.eval.RegisterSuiteRequest
-	9,  // 16: vrooli.search_hub.v1.eval.EvalService.ListSuites:input_type -> vrooli.search_hub.v1.eval.ListSuitesRequest
-	11, // 17: vrooli.search_hub.v1.eval.EvalService.GetSuite:input_type -> vrooli.search_hub.v1.eval.GetSuiteRequest
-	13, // 18: vrooli.search_hub.v1.eval.EvalService.RunSuite:input_type -> vrooli.search_hub.v1.eval.RunSuiteRequest
-	15, // 19: vrooli.search_hub.v1.eval.EvalService.ListRuns:input_type -> vrooli.search_hub.v1.eval.ListRunsRequest
-	17, // 20: vrooli.search_hub.v1.eval.EvalService.GetRun:input_type -> vrooli.search_hub.v1.eval.GetRunRequest
-	19, // 21: vrooli.search_hub.v1.eval.EvalService.CompareRuns:input_type -> vrooli.search_hub.v1.eval.CompareRunsRequest
-	8,  // 22: vrooli.search_hub.v1.eval.EvalService.RegisterSuite:output_type -> vrooli.search_hub.v1.eval.RegisterSuiteResponse
-	10, // 23: vrooli.search_hub.v1.eval.EvalService.ListSuites:output_type -> vrooli.search_hub.v1.eval.ListSuitesResponse
-	12, // 24: vrooli.search_hub.v1.eval.EvalService.GetSuite:output_type -> vrooli.search_hub.v1.eval.GetSuiteResponse
-	14, // 25: vrooli.search_hub.v1.eval.EvalService.RunSuite:output_type -> vrooli.search_hub.v1.eval.RunSuiteResponse
-	16, // 26: vrooli.search_hub.v1.eval.EvalService.ListRuns:output_type -> vrooli.search_hub.v1.eval.ListRunsResponse
-	18, // 27: vrooli.search_hub.v1.eval.EvalService.GetRun:output_type -> vrooli.search_hub.v1.eval.GetRunResponse
-	20, // 28: vrooli.search_hub.v1.eval.EvalService.CompareRuns:output_type -> vrooli.search_hub.v1.eval.CompareRunsResponse
-	22, // [22:29] is the sub-list for method output_type
-	15, // [15:22] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	27, // 9: vrooli.search_hub.v1.eval.GetSuiteResponse.adequacy:type_name -> vrooli.search_hub.v1.eval.AdequacyWarning
+	2,  // 10: vrooli.search_hub.v1.eval.RunSuiteResponse.run:type_name -> vrooli.search_hub.v1.eval.EvalRun
+	27, // 11: vrooli.search_hub.v1.eval.RunSuiteResponse.adequacy:type_name -> vrooli.search_hub.v1.eval.AdequacyWarning
+	2,  // 12: vrooli.search_hub.v1.eval.ListRunsResponse.runs:type_name -> vrooli.search_hub.v1.eval.EvalRun
+	2,  // 13: vrooli.search_hub.v1.eval.GetRunResponse.run:type_name -> vrooli.search_hub.v1.eval.EvalRun
+	2,  // 14: vrooli.search_hub.v1.eval.CompareRunsResponse.run_a:type_name -> vrooli.search_hub.v1.eval.EvalRun
+	2,  // 15: vrooli.search_hub.v1.eval.CompareRunsResponse.run_b:type_name -> vrooli.search_hub.v1.eval.EvalRun
+	21, // 16: vrooli.search_hub.v1.eval.CompareRunsResponse.deltas:type_name -> vrooli.search_hub.v1.eval.CaseDelta
+	3,  // 17: vrooli.search_hub.v1.eval.SweepArm.config:type_name -> vrooli.search_hub.v1.eval.ConfigSnapshot
+	6,  // 18: vrooli.search_hub.v1.eval.SweepArm.aggregate:type_name -> vrooli.search_hub.v1.eval.EvalAggregate
+	23, // 19: vrooli.search_hub.v1.eval.SweepResult.arms:type_name -> vrooli.search_hub.v1.eval.SweepArm
+	25, // 20: vrooli.search_hub.v1.eval.SweepResult.stats:type_name -> vrooli.search_hub.v1.eval.SweepStats
+	24, // 21: vrooli.search_hub.v1.eval.SweepResponse.result:type_name -> vrooli.search_hub.v1.eval.SweepResult
+	1,  // 22: vrooli.search_hub.v1.eval.GeneratedCase.case:type_name -> vrooli.search_hub.v1.eval.EvalCase
+	29, // 23: vrooli.search_hub.v1.eval.GenerateResponse.proposed:type_name -> vrooli.search_hub.v1.eval.GeneratedCase
+	0,  // 24: vrooli.search_hub.v1.eval.GenerateResponse.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
+	27, // 25: vrooli.search_hub.v1.eval.GenerateResponse.adequacy:type_name -> vrooli.search_hub.v1.eval.AdequacyWarning
+	7,  // 26: vrooli.search_hub.v1.eval.EvalService.RegisterSuite:input_type -> vrooli.search_hub.v1.eval.RegisterSuiteRequest
+	9,  // 27: vrooli.search_hub.v1.eval.EvalService.ListSuites:input_type -> vrooli.search_hub.v1.eval.ListSuitesRequest
+	11, // 28: vrooli.search_hub.v1.eval.EvalService.GetSuite:input_type -> vrooli.search_hub.v1.eval.GetSuiteRequest
+	13, // 29: vrooli.search_hub.v1.eval.EvalService.RunSuite:input_type -> vrooli.search_hub.v1.eval.RunSuiteRequest
+	15, // 30: vrooli.search_hub.v1.eval.EvalService.ListRuns:input_type -> vrooli.search_hub.v1.eval.ListRunsRequest
+	17, // 31: vrooli.search_hub.v1.eval.EvalService.GetRun:input_type -> vrooli.search_hub.v1.eval.GetRunRequest
+	19, // 32: vrooli.search_hub.v1.eval.EvalService.CompareRuns:input_type -> vrooli.search_hub.v1.eval.CompareRunsRequest
+	22, // 33: vrooli.search_hub.v1.eval.EvalService.Sweep:input_type -> vrooli.search_hub.v1.eval.SweepRequest
+	28, // 34: vrooli.search_hub.v1.eval.EvalService.Generate:input_type -> vrooli.search_hub.v1.eval.GenerateRequest
+	8,  // 35: vrooli.search_hub.v1.eval.EvalService.RegisterSuite:output_type -> vrooli.search_hub.v1.eval.RegisterSuiteResponse
+	10, // 36: vrooli.search_hub.v1.eval.EvalService.ListSuites:output_type -> vrooli.search_hub.v1.eval.ListSuitesResponse
+	12, // 37: vrooli.search_hub.v1.eval.EvalService.GetSuite:output_type -> vrooli.search_hub.v1.eval.GetSuiteResponse
+	14, // 38: vrooli.search_hub.v1.eval.EvalService.RunSuite:output_type -> vrooli.search_hub.v1.eval.RunSuiteResponse
+	16, // 39: vrooli.search_hub.v1.eval.EvalService.ListRuns:output_type -> vrooli.search_hub.v1.eval.ListRunsResponse
+	18, // 40: vrooli.search_hub.v1.eval.EvalService.GetRun:output_type -> vrooli.search_hub.v1.eval.GetRunResponse
+	20, // 41: vrooli.search_hub.v1.eval.EvalService.CompareRuns:output_type -> vrooli.search_hub.v1.eval.CompareRunsResponse
+	26, // 42: vrooli.search_hub.v1.eval.EvalService.Sweep:output_type -> vrooli.search_hub.v1.eval.SweepResponse
+	30, // 43: vrooli.search_hub.v1.eval.EvalService.Generate:output_type -> vrooli.search_hub.v1.eval.GenerateResponse
+	35, // [35:44] is the sub-list for method output_type
+	26, // [26:35] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_search_hub_v1_eval_eval_proto_init() }
@@ -1629,7 +2564,7 @@ func file_search_hub_v1_eval_eval_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_search_hub_v1_eval_eval_proto_rawDesc), len(file_search_hub_v1_eval_eval_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   22,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

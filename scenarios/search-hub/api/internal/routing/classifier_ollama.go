@@ -1,15 +1,15 @@
 package routing
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"search-hub/internal/ollama"
 )
 
 // Salvage regexes recover a routing decision from the *malformed* JSON small
@@ -33,12 +33,8 @@ const defaultClassifierModel = "qwen3:1.7b"
 // object ({"types":[…],"confidence":…}); 256 is ample headroom.
 const classifierMaxTokens = 256
 
-// ollamaBin is the resource CLI that fronts the shared Ollama daemon (the same
-// throttled gateway cli-health and agent-manager use).
-const ollamaBin = "resource-ollama"
-
-// generateFn shells out one completion. Seamed so tests inject a deterministic
-// runner instead of the real model.
+// generateFn shells out one completion (via internal/ollama). Seamed so tests
+// inject a deterministic runner instead of the real model.
 type generateFn func(ctx context.Context, model, prompt string, maxTokens int) ([]byte, error)
 
 // availFn reports daemon reachability for the Phase 7 Status surface. Seamed for
@@ -67,8 +63,8 @@ func NewOllamaClassifier() *OllamaClassifier {
 	return &OllamaClassifier{
 		model:     model,
 		maxTokens: classifierMaxTokens,
-		generate:  ollamaGenerate,
-		checkUp:   ollamaAvailable,
+		generate:  ollama.Generate,
+		checkUp:   ollama.Available,
 	}
 }
 
@@ -132,10 +128,10 @@ func buildClassifierPrompt(query string, profiles []ProviderProfile) string {
 // strips qwen3 <think> blocks, and decodes the routing JSON — first strictly,
 // then via a salvage pass for the malformed-JSON cases small models hit.
 func parseClassifierResponse(raw []byte) (ClassifyResult, error) {
-	text := stripThink(unwrapGatewayResponse(raw))
+	text := ollama.StripThink(ollama.UnwrapResponse(raw))
 
 	// Strict path: a well-formed {"types":[…],"confidence":…,"reason":…} object.
-	if obj := extractJSONObject(text); obj != "" {
+	if obj := ollama.ExtractJSONObject(text); obj != "" {
 		var decoded classifierJSON
 		if err := json.Unmarshal([]byte(obj), &decoded); err == nil {
 			return normalizeClassifier(decoded.Types, decoded.Confidence, decoded.Reason), nil
@@ -204,114 +200,10 @@ func salvageClassifier(text string) (types []string, confidence float64, reason 
 	return types, confidence, reason, true
 }
 
-// unwrapGatewayResponse returns the model's text. `resource-ollama gateway
-// generate --json` wraps the completion as {"response":"…","eval_count":N}; if
-// the output is not that envelope (e.g. a plain-text run) it is returned as-is.
-func unwrapGatewayResponse(raw []byte) string {
-	trimmed := bytes.TrimSpace(raw)
-	var env struct {
-		Response string `json:"response"`
-	}
-	if err := json.Unmarshal(trimmed, &env); err == nil && env.Response != "" {
-		return env.Response
-	}
-	return string(trimmed)
-}
-
-// stripThink removes qwen3 reasoning blocks (<think>…</think>) that survive even
-// with /no_think (they come back empty but present).
-func stripThink(s string) string {
-	for {
-		start := strings.Index(s, "<think>")
-		if start == -1 {
-			break
-		}
-		end := strings.Index(s, "</think>")
-		if end == -1 || end < start {
-			// Unterminated think block: drop everything from it onward.
-			s = s[:start]
-			break
-		}
-		s = s[:start] + s[end+len("</think>"):]
-	}
-	return s
-}
-
-// extractJSONObject returns the first balanced {…} object in s, ignoring braces
-// inside JSON strings. Empty string when none is found.
-func extractJSONObject(s string) string {
-	start := strings.Index(s, "{")
-	if start == -1 {
-		return ""
-	}
-	depth := 0
-	inStr := false
-	escaped := false
-	for i := start; i < len(s); i++ {
-		c := s[i]
-		if escaped {
-			escaped = false
-			continue
-		}
-		if c == '\\' && inStr {
-			escaped = true
-			continue
-		}
-		if c == '"' {
-			inStr = !inStr
-			continue
-		}
-		if inStr {
-			continue
-		}
-		switch c {
-		case '{':
-			depth++
-		case '}':
-			depth--
-			if depth == 0 {
-				return s[start : i+1]
-			}
-		}
-	}
-	return ""
-}
-
 func truncateForErr(s string) string {
 	s = strings.Join(strings.Fields(s), " ")
 	if len(s) > 120 {
 		return s[:120] + "…"
 	}
 	return s
-}
-
-// ollamaGenerate is the default generateFn: it pipes the prompt to
-// `resource-ollama gateway generate --json` and returns the raw stdout envelope.
-func ollamaGenerate(ctx context.Context, model, prompt string, maxTokens int) ([]byte, error) {
-	args := []string{
-		"gateway", "generate",
-		"--model", model,
-		"--json",
-		"--max-tokens", fmt.Sprintf("%d", maxTokens),
-		"--temperature", "0",
-		"--prompt-stdin",
-	}
-	cmd := exec.CommandContext(ctx, ollamaBin, args...)
-	cmd.Stdin = strings.NewReader(prompt)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		if msg := strings.TrimSpace(stderr.String()); msg != "" {
-			return nil, fmt.Errorf("%s: %w", oneLine(msg), err)
-		}
-		return nil, err
-	}
-	return stdout.Bytes(), nil
-}
-
-// ollamaAvailable is the default availFn: `resource-ollama status` exits 0 when
-// the daemon is reachable.
-func ollamaAvailable(ctx context.Context) bool {
-	return exec.CommandContext(ctx, ollamaBin, "status").Run() == nil
 }

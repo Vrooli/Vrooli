@@ -229,7 +229,13 @@ type SearchHit struct {
 	// Normalized [0,1] (pre-rerank) score.
 	Score float64 `protobuf:"fixed64,8,opt,name=score,proto3" json:"score,omitempty"`
 	// Set when reranked.
-	RerankScore   float64 `protobuf:"fixed64,9,opt,name=rerank_score,json=rerankScore,proto3" json:"rerank_score,omitempty"`
+	RerankScore float64 `protobuf:"fixed64,9,opt,name=rerank_score,json=rerankScore,proto3" json:"rerank_score,omitempty"`
+	// Set ONLY by the measures provider (the federated metrics layer). When this
+	// hit is a matched *measure* — a typed, parameterized analytical query —
+	// rather than a retrieved document, this carries the structured measure
+	// answer/resolution. Greenfield-additive: every retrieval provider leaves it
+	// unset and consumers that do not understand measures ignore it.
+	Measure       *MeasureHit `protobuf:"bytes,10,opt,name=measure,proto3" json:"measure,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -327,6 +333,144 @@ func (x *SearchHit) GetRerankScore() float64 {
 	return 0
 }
 
+func (x *SearchHit) GetMeasure() *MeasureHit {
+	if x != nil {
+		return x.Measure
+	}
+	return nil
+}
+
+// MeasureHit is the structured payload of a measure match: the resolved measure,
+// its extracted parameters, and — for a safe read-only measure resolved at high
+// confidence — the executed answer. It is the wire form of search-hub's answer
+// to an analytical ("how many / what's the rate / what's next") question.
+//
+// The auto-execution contract is encoded in which fields are populated (the
+// router never interprets these — it carries them; the measures provider fills
+// them per the gate keyed on `effect`):
+//   - answer set + executed_query set  ⇒ the measure was auto-executed (only
+//     ever for effect == "read" AND run_eligible AND confidence >= θ).
+//   - needs non-empty                  ⇒ a required parameter could not be
+//     resolved; the measure was NOT executed (the consumer must ask, not guess).
+//   - answer empty + needs empty + effect in {write, destructive} ⇒ params were
+//     fully resolved but execution is withheld pending confirmation (a
+//     write/destructive measure is NEVER auto-run, even at full confidence).
+type MeasureHit struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable measure identifier (the measure declaration name, conventionally
+	// "<domain>.<verb>", e.g. "backlog.completed").
+	MeasureId string `protobuf:"bytes,1,opt,name=measure_id,json=measureId,proto3" json:"measure_id,omitempty"`
+	// Owning scenario — who computes the answer (the execution-proxy target the
+	// central index resolves at execution time).
+	Scenario string `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Resolved parameter values (param name → string value: a time-window token,
+	// an enum member, or an extracted scalar). Only successfully-resolved params
+	// appear; an unresolved required param is reported in `needs` instead.
+	Params map[string]string `protobuf:"bytes,3,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// The computed answer rendered for presentation (e.g. "42 backlog items
+	// completed (this_week)"). Empty unless the measure was auto-executed.
+	Answer string `protobuf:"bytes,4,opt,name=answer,proto3" json:"answer,omitempty"`
+	// Required parameters that could not be resolved. Non-empty ⇒ not executed —
+	// the consumer should ask for these rather than guess.
+	Needs []string `protobuf:"bytes,5,rep,name=needs,proto3" json:"needs,omitempty"`
+	// Side-effect class of the measure ("read" | "write" | "destructive"). The
+	// auto-exec gate keys on this — only "read" is ever auto-run.
+	Effect string `protobuf:"bytes,6,opt,name=effect,proto3" json:"effect,omitempty"`
+	// The concrete query/aggregation that produced `answer` (provenance). Empty
+	// unless executed.
+	ExecutedQuery string `protobuf:"bytes,7,opt,name=executed_query,json=executedQuery,proto3" json:"executed_query,omitempty"`
+	// Extraction/match confidence in [0,1]; the gate compares it against θ.
+	Confidence    float64 `protobuf:"fixed64,8,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MeasureHit) Reset() {
+	*x = MeasureHit{}
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MeasureHit) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MeasureHit) ProtoMessage() {}
+
+func (x *MeasureHit) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MeasureHit.ProtoReflect.Descriptor instead.
+func (*MeasureHit) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *MeasureHit) GetMeasureId() string {
+	if x != nil {
+		return x.MeasureId
+	}
+	return ""
+}
+
+func (x *MeasureHit) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *MeasureHit) GetParams() map[string]string {
+	if x != nil {
+		return x.Params
+	}
+	return nil
+}
+
+func (x *MeasureHit) GetAnswer() string {
+	if x != nil {
+		return x.Answer
+	}
+	return ""
+}
+
+func (x *MeasureHit) GetNeeds() []string {
+	if x != nil {
+		return x.Needs
+	}
+	return nil
+}
+
+func (x *MeasureHit) GetEffect() string {
+	if x != nil {
+		return x.Effect
+	}
+	return ""
+}
+
+func (x *MeasureHit) GetExecutedQuery() string {
+	if x != nil {
+		return x.ExecutedQuery
+	}
+	return ""
+}
+
+func (x *MeasureHit) GetConfidence() float64 {
+	if x != nil {
+		return x.Confidence
+	}
+	return 0
+}
+
 // Phase-4 honest grouping (pre-rerank): candidates kept per provider.
 type ProviderResultGroup struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
@@ -343,7 +487,7 @@ type ProviderResultGroup struct {
 
 func (x *ProviderResultGroup) Reset() {
 	*x = ProviderResultGroup{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[3]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -355,7 +499,7 @@ func (x *ProviderResultGroup) String() string {
 func (*ProviderResultGroup) ProtoMessage() {}
 
 func (x *ProviderResultGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[3]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -368,7 +512,7 @@ func (x *ProviderResultGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderResultGroup.ProtoReflect.Descriptor instead.
 func (*ProviderResultGroup) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{3}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ProviderResultGroup) GetProviderId() string {
@@ -427,7 +571,7 @@ type QueryResponse struct {
 
 func (x *QueryResponse) Reset() {
 	*x = QueryResponse{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[4]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -439,7 +583,7 @@ func (x *QueryResponse) String() string {
 func (*QueryResponse) ProtoMessage() {}
 
 func (x *QueryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[4]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -452,7 +596,7 @@ func (x *QueryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryResponse.ProtoReflect.Descriptor instead.
 func (*QueryResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{4}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *QueryResponse) GetRanked() []*SearchHit {
@@ -512,7 +656,7 @@ type StatusRequest struct {
 
 func (x *StatusRequest) Reset() {
 	*x = StatusRequest{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[5]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -524,7 +668,7 @@ func (x *StatusRequest) String() string {
 func (*StatusRequest) ProtoMessage() {}
 
 func (x *StatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[5]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -537,7 +681,7 @@ func (x *StatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusRequest.ProtoReflect.Descriptor instead.
 func (*StatusRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{5}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{6}
 }
 
 type ProviderHealth struct {
@@ -554,7 +698,7 @@ type ProviderHealth struct {
 
 func (x *ProviderHealth) Reset() {
 	*x = ProviderHealth{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[6]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -566,7 +710,7 @@ func (x *ProviderHealth) String() string {
 func (*ProviderHealth) ProtoMessage() {}
 
 func (x *ProviderHealth) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[6]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -579,7 +723,7 @@ func (x *ProviderHealth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderHealth.ProtoReflect.Descriptor instead.
 func (*ProviderHealth) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{6}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ProviderHealth) GetProviderId() string {
@@ -629,7 +773,7 @@ type StatusResponse struct {
 
 func (x *StatusResponse) Reset() {
 	*x = StatusResponse{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[7]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -641,7 +785,7 @@ func (x *StatusResponse) String() string {
 func (*StatusResponse) ProtoMessage() {}
 
 func (x *StatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[7]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -654,7 +798,7 @@ func (x *StatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusResponse.ProtoReflect.Descriptor instead.
 func (*StatusResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{7}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *StatusResponse) GetProviders() []*ProviderHealth {
@@ -702,7 +846,7 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\r_rerank_blendB\x13\n" +
 	"\x11_rerank_shortlistB\x10\n" +
 	"\x0e_floor_max_gapB\x13\n" +
-	"\x11_floor_hard_floor\"\xf4\x01\n" +
+	"\x11_floor_hard_floor\"\xb8\x02\n" +
 	"\tSearchHit\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12%\n" +
@@ -713,7 +857,25 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\asnippet\x18\x06 \x01(\tR\asnippet\x12\x12\n" +
 	"\x04path\x18\a \x01(\tR\x04path\x12\x14\n" +
 	"\x05score\x18\b \x01(\x01R\x05score\x12!\n" +
-	"\frerank_score\x18\t \x01(\x01R\vrerankScore\"\xb9\x01\n" +
+	"\frerank_score\x18\t \x01(\x01R\vrerankScore\x12B\n" +
+	"\ameasure\x18\n" +
+	" \x01(\v2(.vrooli.search_hub.v1.routing.MeasureHitR\ameasure\"\xdd\x02\n" +
+	"\n" +
+	"MeasureHit\x12\x1d\n" +
+	"\n" +
+	"measure_id\x18\x01 \x01(\tR\tmeasureId\x12\x1a\n" +
+	"\bscenario\x18\x02 \x01(\tR\bscenario\x12L\n" +
+	"\x06params\x18\x03 \x03(\v24.vrooli.search_hub.v1.routing.MeasureHit.ParamsEntryR\x06params\x12\x16\n" +
+	"\x06answer\x18\x04 \x01(\tR\x06answer\x12\x14\n" +
+	"\x05needs\x18\x05 \x03(\tR\x05needs\x12\x16\n" +
+	"\x06effect\x18\x06 \x01(\tR\x06effect\x12%\n" +
+	"\x0eexecuted_query\x18\a \x01(\tR\rexecutedQuery\x12\x1e\n" +
+	"\n" +
+	"confidence\x18\b \x01(\x01R\n" +
+	"confidence\x1a9\n" +
+	"\vParamsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb9\x01\n" +
 	"\x13ProviderResultGroup\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12;\n" +
@@ -759,32 +921,36 @@ func file_search_hub_v1_routing_routing_proto_rawDescGZIP() []byte {
 	return file_search_hub_v1_routing_routing_proto_rawDescData
 }
 
-var file_search_hub_v1_routing_routing_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_search_hub_v1_routing_routing_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_search_hub_v1_routing_routing_proto_goTypes = []any{
 	(*QueryRequest)(nil),        // 0: vrooli.search_hub.v1.routing.QueryRequest
 	(*SearchOverrides)(nil),     // 1: vrooli.search_hub.v1.routing.SearchOverrides
 	(*SearchHit)(nil),           // 2: vrooli.search_hub.v1.routing.SearchHit
-	(*ProviderResultGroup)(nil), // 3: vrooli.search_hub.v1.routing.ProviderResultGroup
-	(*QueryResponse)(nil),       // 4: vrooli.search_hub.v1.routing.QueryResponse
-	(*StatusRequest)(nil),       // 5: vrooli.search_hub.v1.routing.StatusRequest
-	(*ProviderHealth)(nil),      // 6: vrooli.search_hub.v1.routing.ProviderHealth
-	(*StatusResponse)(nil),      // 7: vrooli.search_hub.v1.routing.StatusResponse
+	(*MeasureHit)(nil),          // 3: vrooli.search_hub.v1.routing.MeasureHit
+	(*ProviderResultGroup)(nil), // 4: vrooli.search_hub.v1.routing.ProviderResultGroup
+	(*QueryResponse)(nil),       // 5: vrooli.search_hub.v1.routing.QueryResponse
+	(*StatusRequest)(nil),       // 6: vrooli.search_hub.v1.routing.StatusRequest
+	(*ProviderHealth)(nil),      // 7: vrooli.search_hub.v1.routing.ProviderHealth
+	(*StatusResponse)(nil),      // 8: vrooli.search_hub.v1.routing.StatusResponse
+	nil,                         // 9: vrooli.search_hub.v1.routing.MeasureHit.ParamsEntry
 }
 var file_search_hub_v1_routing_routing_proto_depIdxs = []int32{
 	1, // 0: vrooli.search_hub.v1.routing.QueryRequest.overrides:type_name -> vrooli.search_hub.v1.routing.SearchOverrides
-	2, // 1: vrooli.search_hub.v1.routing.ProviderResultGroup.hits:type_name -> vrooli.search_hub.v1.routing.SearchHit
-	2, // 2: vrooli.search_hub.v1.routing.QueryResponse.ranked:type_name -> vrooli.search_hub.v1.routing.SearchHit
-	3, // 3: vrooli.search_hub.v1.routing.QueryResponse.groups:type_name -> vrooli.search_hub.v1.routing.ProviderResultGroup
-	6, // 4: vrooli.search_hub.v1.routing.StatusResponse.providers:type_name -> vrooli.search_hub.v1.routing.ProviderHealth
-	0, // 5: vrooli.search_hub.v1.routing.RoutingService.Query:input_type -> vrooli.search_hub.v1.routing.QueryRequest
-	5, // 6: vrooli.search_hub.v1.routing.RoutingService.Status:input_type -> vrooli.search_hub.v1.routing.StatusRequest
-	4, // 7: vrooli.search_hub.v1.routing.RoutingService.Query:output_type -> vrooli.search_hub.v1.routing.QueryResponse
-	7, // 8: vrooli.search_hub.v1.routing.RoutingService.Status:output_type -> vrooli.search_hub.v1.routing.StatusResponse
-	7, // [7:9] is the sub-list for method output_type
-	5, // [5:7] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	3, // 1: vrooli.search_hub.v1.routing.SearchHit.measure:type_name -> vrooli.search_hub.v1.routing.MeasureHit
+	9, // 2: vrooli.search_hub.v1.routing.MeasureHit.params:type_name -> vrooli.search_hub.v1.routing.MeasureHit.ParamsEntry
+	2, // 3: vrooli.search_hub.v1.routing.ProviderResultGroup.hits:type_name -> vrooli.search_hub.v1.routing.SearchHit
+	2, // 4: vrooli.search_hub.v1.routing.QueryResponse.ranked:type_name -> vrooli.search_hub.v1.routing.SearchHit
+	4, // 5: vrooli.search_hub.v1.routing.QueryResponse.groups:type_name -> vrooli.search_hub.v1.routing.ProviderResultGroup
+	7, // 6: vrooli.search_hub.v1.routing.StatusResponse.providers:type_name -> vrooli.search_hub.v1.routing.ProviderHealth
+	0, // 7: vrooli.search_hub.v1.routing.RoutingService.Query:input_type -> vrooli.search_hub.v1.routing.QueryRequest
+	6, // 8: vrooli.search_hub.v1.routing.RoutingService.Status:input_type -> vrooli.search_hub.v1.routing.StatusRequest
+	5, // 9: vrooli.search_hub.v1.routing.RoutingService.Query:output_type -> vrooli.search_hub.v1.routing.QueryResponse
+	8, // 10: vrooli.search_hub.v1.routing.RoutingService.Status:output_type -> vrooli.search_hub.v1.routing.StatusResponse
+	9, // [9:11] is the sub-list for method output_type
+	7, // [7:9] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_search_hub_v1_routing_routing_proto_init() }
@@ -799,7 +965,7 @@ func file_search_hub_v1_routing_routing_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_search_hub_v1_routing_routing_proto_rawDesc), len(file_search_hub_v1_routing_routing_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

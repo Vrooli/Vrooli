@@ -30,8 +30,16 @@ import (
 //	prefix, _ := storage.RedisPrefix("idea")        // "swarm-manager:idea:"
 //	key, _ := storage.RedisKey("idea", id, "research") // "swarm-manager:idea:<id>:research"
 //
-// Hardcoding the scenario name in a collection or key prefix BYPASSES shadow
-// isolation and is exactly what storage-steer / test-genie flag as a finding.
+// Filesystem state (SQLite files, the data/blob dirs) isolates the same way:
+// pass the variant-aware identity to the path resolver via ScenarioNamespace,
+//
+//	scenarioID, _ := storage.ScenarioNamespace("swarm-manager") // "swarm-manager" live,
+//	                                                            // "swarm-manager_shadow" shadow
+//	path, _ := resolver.Path(storage.Options{ScenarioID: scenarioID}, storage.ClassData, "db.sqlite")
+//
+// Hardcoding the scenario name in a collection, key prefix, or path scope
+// BYPASSES shadow isolation and is exactly what storage-steer / test-genie flag
+// as a finding.
 const (
 	// EnvStorageNamespace carries the variant-aware namespace ROOT injected by
 	// the lifecycle from scenarioruntime.InstanceKey.Namespace().StorageNamespace
@@ -84,6 +92,15 @@ type NamespaceConfig struct {
 	// Variant forces the variant label for the Variant()/IsLive() accessors when
 	// Root is set. Ignored when Root is empty (the env supplies the variant).
 	Variant string
+	// FallbackScenario is the compile-time scenario slug used as the LIVE-only
+	// fallback root when neither Root nor the injected VROOLI_STORAGE_NAMESPACE /
+	// VROOLI_SCENARIO env is present — e.g. a binary run outside the variant-aware
+	// lifecycle (local `go run`, a unit test). It NEVER overrides an injected
+	// root, and a non-live VROOLI_VARIANT with no injected root is still a hard
+	// error, so the fallback can never alias a shadow onto live. Lifecycle-driven
+	// code leaves this empty; a scenario passes its own slug (the template's
+	// "{{SCENARIO_ID}}") only as the no-env safety net. See ScenarioNamespace.
+	FallbackScenario string
 }
 
 // ResolveNamespace resolves the variant-aware namespace from configuration and
@@ -124,14 +141,18 @@ func ResolveNamespace(cfg NamespaceConfig) (Namespace, error) {
 		return Namespace{root: root, variant: envVariant}, nil
 	}
 
-	// No namespace root injected. Fall back to the bare scenario slug, but only
-	// for the live variant — a non-live variant here means the lifecycle did not
-	// inject the root, and proceeding would alias shadow state onto live.
+	// No namespace root injected. Fall back to the bare scenario slug (the env
+	// var, else the caller-supplied compile-time slug), but only for the live
+	// variant — a non-live variant here means the lifecycle did not inject the
+	// root, and proceeding would alias shadow state onto live.
 	scenario := strings.TrimSpace(get(EnvScenario))
+	if scenario == "" {
+		scenario = strings.TrimSpace(cfg.FallbackScenario)
+	}
 	if scenario == "" {
 		return Namespace{}, &Error{
 			Kind:    ErrInvalidInput,
-			Message: "no storage namespace available: set " + EnvStorageNamespace + " (injected by the lifecycle) or NamespaceConfig.Root",
+			Message: "no storage namespace available: set " + EnvStorageNamespace + " (injected by the lifecycle), NamespaceConfig.Root, or NamespaceConfig.FallbackScenario",
 		}
 	}
 	if envVariant != "" && envVariant != defaultVariant {
@@ -239,6 +260,30 @@ func RedisKey(domain string, segments ...string) (string, error) {
 		return "", err
 	}
 	return ns.RedisKey(domain, segments...)
+}
+
+// ScenarioNamespace resolves the variant-aware scenario identity for FILESYSTEM
+// path scoping — SQLite database files and the data/blob directories — the path
+// analogue of Collection/RedisKey for Redis/Qdrant. It returns the namespace
+// ROOT ("<scenario>" for live, "<scenario>_<variant>" for a shadow), which a
+// scenario passes as storage.Options.ScenarioID so the resolver scopes its
+// on-disk state to "<class-root>/<app>/<root>/" and live and shadow never share
+// a SQLite file or data dir.
+//
+// The lifecycle injects VROOLI_STORAGE_NAMESPACE for every instance, so a
+// lifecycle-launched scenario isolates automatically. fallback is the
+// compile-time scenario slug, used only when the process runs OUTSIDE the
+// variant-aware lifecycle (no namespace env injected) so local `go run` and
+// tests keep working; live resolves to fallback verbatim, leaving existing
+// on-disk paths unchanged. A non-live VROOLI_VARIANT with no injected root is
+// still a hard error — the fail-loud guard that prevents a shadow from writing
+// into live's filesystem state.
+func ScenarioNamespace(fallback string) (string, error) {
+	ns, err := ResolveNamespace(NamespaceConfig{FallbackScenario: fallback})
+	if err != nil {
+		return "", err
+	}
+	return ns.Root(), nil
 }
 
 func normalizeVariant(v string) string {

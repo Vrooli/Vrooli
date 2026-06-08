@@ -10,9 +10,11 @@ import (
 	"strings"
 	"time"
 
+	internaleval "search-hub/internal/eval"
 	"search-hub/internal/httpc"
 	"search-hub/internal/providers"
 
+	aisearch "github.com/vrooli/aisearch-go"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
@@ -44,7 +46,7 @@ func newHTTPProviderClient(resolver URLResolver, doer httpc.Doer) *httpProviderC
 	return &httpProviderClient{resolver: resolver, doer: doer}
 }
 
-func (c *httpProviderClient) Search(ctx context.Context, d *registryv1.ProviderDescriptor, query string, limit int32) ([]*routingv1.SearchHit, error) {
+func (c *httpProviderClient) Search(ctx context.Context, d *registryv1.ProviderDescriptor, query string, limit int32, opts internaleval.SearchCallOptions) ([]*routingv1.SearchHit, error) {
 	hj := d.GetEndpoint().GetHttpJson()
 	if hj == nil {
 		return nil, fmt.Errorf("provider %q: only http_json endpoints are callable", d.GetProviderId())
@@ -66,6 +68,9 @@ func (c *httpProviderClient) Search(ctx context.Context, d *registryv1.ProviderD
 		return nil, fmt.Errorf("build request: %w", err)
 	}
 	providers.ApplyHeaders(req, hj.GetHeaders())
+	if err := applyOverrideHeaders(req, opts); err != nil {
+		return nil, err
+	}
 
 	resp, err := c.doer.Do(req)
 	if err != nil {
@@ -87,6 +92,30 @@ func (c *httpProviderClient) Search(ctx context.Context, d *registryv1.ProviderD
 		hits = hits[:limit]
 	}
 	return hits, nil
+}
+
+// applyOverrideHeaders sets the query-time override + control-token headers on
+// req when opts carries non-zero overrides. It is a no-op for the baseline call
+// (nil/zero overrides), so an ordinary eval run sends no extra headers and the
+// provider's public search path is untouched. The header names + JSON shape are
+// the shared aisearch contract (override_transport.go) both sides import, so they
+// cannot drift.
+func applyOverrideHeaders(req *http.Request, opts internaleval.SearchCallOptions) error {
+	if opts.Overrides == nil || opts.Overrides.IsZero() {
+		return nil
+	}
+	value, err := aisearch.MarshalOverridesHeader(*opts.Overrides)
+	if err != nil {
+		return fmt.Errorf("encode search overrides: %w", err)
+	}
+	if value == "" {
+		return nil
+	}
+	req.Header.Set(aisearch.OverridesHeader, value)
+	if opts.ControlToken != "" {
+		req.Header.Set(aisearch.ControlTokenHeader, opts.ControlToken)
+	}
+	return nil
 }
 
 // Snapshot probes the provider's status_endpoint (if registered) and extracts

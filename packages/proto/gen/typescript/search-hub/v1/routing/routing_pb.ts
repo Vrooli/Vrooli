@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file search-hub/v1/routing/routing.proto.
  */
 export const file_search_hub_v1_routing_routing: GenFile = /*@__PURE__*/
-  fileDesc("CiNzZWFyY2gtaHViL3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZyLBAQoMUXVlcnlSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBXR5cGVzGAIgAygJEgsKA2FsbBgDIAEoCBINCgVsaW1pdBgEIAEoBRINCgVncm91cBgFIAEoCRIPCgdleHBsYWluGAYgASgIEkAKCW92ZXJyaWRlcxgHIAEoCzItLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoT3ZlcnJpZGVzEhUKDWNvbnRyb2xfdG9rZW4YCCABKAkigwIKD1NlYXJjaE92ZXJyaWRlcxIbCg5yZXJhbmtfZW5hYmxlZBgBIAEoCEgAiAEBEhkKDHJlcmFua19ibGVuZBgCIAEoCEgBiAEBEh0KEHJlcmFua19zaG9ydGxpc3QYAyABKAVIAogBARIaCg1mbG9vcl9tYXhfZ2FwGAQgASgBSAOIAQESHQoQZmxvb3JfaGFyZF9mbG9vchgFIAEoAUgEiAEBQhEKD19yZXJhbmtfZW5hYmxlZEIPCg1fcmVyYW5rX2JsZW5kQhMKEV9yZXJhbmtfc2hvcnRsaXN0QhAKDl9mbG9vcl9tYXhfZ2FwQhMKEV9mbG9vcl9oYXJkX2Zsb29yIqUBCglTZWFyY2hIaXQSEwoLcHJvdmlkZXJfaWQYASABKAkSFgoOcHJvdmlkZXJfZ3JvdXAYAiABKAkSDAoEdHlwZRgDIAEoCRIKCgJpZBgEIAEoCRINCgV0aXRsZRgFIAEoCRIPCgdzbmlwcGV0GAYgASgJEgwKBHBhdGgYByABKAkSDQoFc2NvcmUYCCABKAESFAoMcmVyYW5rX3Njb3JlGAkgASgBIpABChNQcm92aWRlclJlc3VsdEdyb3VwEhMKC3Byb3ZpZGVyX2lkGAEgASgJEjUKBGhpdHMYAiADKAsyJy52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlNlYXJjaEhpdBINCgVjb3VudBgDIAEoBRIQCghkZWdyYWRlZBgEIAEoCBIMCgRub3RlGAUgASgJIvoBCg1RdWVyeVJlc3BvbnNlEjcKBnJhbmtlZBgBIAMoCzInLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoSGl0EkEKBmdyb3VwcxgCIAMoCzIxLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUHJvdmlkZXJSZXN1bHRHcm91cBIYChBjb3Jwb3JhX3NlYXJjaGVkGAMgAygJEhsKE3JvdXRpbmdfZXhwbGFuYXRpb24YBCADKAkSEAoIcmVyYW5rZWQYBSABKAgSEAoIZGVncmFkZWQYBiABKAgSEgoKbGF0ZW5jeV9tcxgHIAEoAyIPCg1TdGF0dXNSZXF1ZXN0InIKDlByb3ZpZGVySGVhbHRoEhMKC3Byb3ZpZGVyX2lkGAEgASgJEhEKCXJlYWNoYWJsZRgCIAEoCBIRCglmcmVzaG5lc3MYAyABKAkSEwoLcG9pbnRfY291bnQYBCABKAMSEAoIZGVncmFkZWQYBSABKAgiiwEKDlN0YXR1c1Jlc3BvbnNlEj8KCXByb3ZpZGVycxgBIAMoCzIsLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUHJvdmlkZXJIZWFsdGgSHAoUY2xhc3NpZmllcl9hdmFpbGFibGUYAiABKAgSGgoScmVyYW5rZXJfYXZhaWxhYmxlGAMgASgIMtcBCg5Sb3V0aW5nU2VydmljZRJgCgVRdWVyeRIqLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUXVlcnlSZXF1ZXN0GisudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5RdWVyeVJlc3BvbnNlEmMKBlN0YXR1cxIrLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU3RhdHVzUmVxdWVzdBosLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU3RhdHVzUmVzcG9uc2VCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zZWFyY2gtaHViL3YxL3JvdXRpbmc7cm91dGluZ192MWIGcHJvdG8z");
+  fileDesc("CiNzZWFyY2gtaHViL3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZyLBAQoMUXVlcnlSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBXR5cGVzGAIgAygJEgsKA2FsbBgDIAEoCBINCgVsaW1pdBgEIAEoBRINCgVncm91cBgFIAEoCRIPCgdleHBsYWluGAYgASgIEkAKCW92ZXJyaWRlcxgHIAEoCzItLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoT3ZlcnJpZGVzEhUKDWNvbnRyb2xfdG9rZW4YCCABKAkigwIKD1NlYXJjaE92ZXJyaWRlcxIbCg5yZXJhbmtfZW5hYmxlZBgBIAEoCEgAiAEBEhkKDHJlcmFua19ibGVuZBgCIAEoCEgBiAEBEh0KEHJlcmFua19zaG9ydGxpc3QYAyABKAVIAogBARIaCg1mbG9vcl9tYXhfZ2FwGAQgASgBSAOIAQESHQoQZmxvb3JfaGFyZF9mbG9vchgFIAEoAUgEiAEBQhEKD19yZXJhbmtfZW5hYmxlZEIPCg1fcmVyYW5rX2JsZW5kQhMKEV9yZXJhbmtfc2hvcnRsaXN0QhAKDl9mbG9vcl9tYXhfZ2FwQhMKEV9mbG9vcl9oYXJkX2Zsb29yIuABCglTZWFyY2hIaXQSEwoLcHJvdmlkZXJfaWQYASABKAkSFgoOcHJvdmlkZXJfZ3JvdXAYAiABKAkSDAoEdHlwZRgDIAEoCRIKCgJpZBgEIAEoCRINCgV0aXRsZRgFIAEoCRIPCgdzbmlwcGV0GAYgASgJEgwKBHBhdGgYByABKAkSDQoFc2NvcmUYCCABKAESFAoMcmVyYW5rX3Njb3JlGAkgASgBEjkKB21lYXN1cmUYCiABKAsyKC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLk1lYXN1cmVIaXQiggIKCk1lYXN1cmVIaXQSEgoKbWVhc3VyZV9pZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRJECgZwYXJhbXMYAyADKAsyNC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLk1lYXN1cmVIaXQuUGFyYW1zRW50cnkSDgoGYW5zd2VyGAQgASgJEg0KBW5lZWRzGAUgAygJEg4KBmVmZmVjdBgGIAEoCRIWCg5leGVjdXRlZF9xdWVyeRgHIAEoCRISCgpjb25maWRlbmNlGAggASgBGi0KC1BhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEikAEKE1Byb3ZpZGVyUmVzdWx0R3JvdXASEwoLcHJvdmlkZXJfaWQYASABKAkSNQoEaGl0cxgCIAMoCzInLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoSGl0Eg0KBWNvdW50GAMgASgFEhAKCGRlZ3JhZGVkGAQgASgIEgwKBG5vdGUYBSABKAki+gEKDVF1ZXJ5UmVzcG9uc2USNwoGcmFua2VkGAEgAygLMicudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5TZWFyY2hIaXQSQQoGZ3JvdXBzGAIgAygLMjEudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5Qcm92aWRlclJlc3VsdEdyb3VwEhgKEGNvcnBvcmFfc2VhcmNoZWQYAyADKAkSGwoTcm91dGluZ19leHBsYW5hdGlvbhgEIAMoCRIQCghyZXJhbmtlZBgFIAEoCBIQCghkZWdyYWRlZBgGIAEoCBISCgpsYXRlbmN5X21zGAcgASgDIg8KDVN0YXR1c1JlcXVlc3QicgoOUHJvdmlkZXJIZWFsdGgSEwoLcHJvdmlkZXJfaWQYASABKAkSEQoJcmVhY2hhYmxlGAIgASgIEhEKCWZyZXNobmVzcxgDIAEoCRITCgtwb2ludF9jb3VudBgEIAEoAxIQCghkZWdyYWRlZBgFIAEoCCKLAQoOU3RhdHVzUmVzcG9uc2USPwoJcHJvdmlkZXJzGAEgAygLMiwudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5Qcm92aWRlckhlYWx0aBIcChRjbGFzc2lmaWVyX2F2YWlsYWJsZRgCIAEoCBIaChJyZXJhbmtlcl9hdmFpbGFibGUYAyABKAgy1wEKDlJvdXRpbmdTZXJ2aWNlEmAKBVF1ZXJ5EioudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5RdWVyeVJlcXVlc3QaKy52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlF1ZXJ5UmVzcG9uc2USYwoGU3RhdHVzEisudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5TdGF0dXNSZXF1ZXN0GiwudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5TdGF0dXNSZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NlYXJjaC1odWIvdjEvcm91dGluZztyb3V0aW5nX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.QueryRequest
@@ -184,6 +184,17 @@ export type SearchHit = Message<"vrooli.search_hub.v1.routing.SearchHit"> & {
    * @generated from field: double rerank_score = 9;
    */
   rerankScore: number;
+
+  /**
+   * Set ONLY by the measures provider (the federated metrics layer). When this
+   * hit is a matched *measure* — a typed, parameterized analytical query —
+   * rather than a retrieved document, this carries the structured measure
+   * answer/resolution. Greenfield-additive: every retrieval provider leaves it
+   * unset and consumers that do not understand measures ignore it.
+   *
+   * @generated from field: vrooli.search_hub.v1.routing.MeasureHit measure = 10;
+   */
+  measure?: MeasureHit | undefined;
 };
 
 /**
@@ -192,6 +203,98 @@ export type SearchHit = Message<"vrooli.search_hub.v1.routing.SearchHit"> & {
  */
 export const SearchHitSchema: GenMessage<SearchHit> = /*@__PURE__*/
   messageDesc(file_search_hub_v1_routing_routing, 2);
+
+/**
+ * MeasureHit is the structured payload of a measure match: the resolved measure,
+ * its extracted parameters, and — for a safe read-only measure resolved at high
+ * confidence — the executed answer. It is the wire form of search-hub's answer
+ * to an analytical ("how many / what's the rate / what's next") question.
+ *
+ * The auto-execution contract is encoded in which fields are populated (the
+ * router never interprets these — it carries them; the measures provider fills
+ * them per the gate keyed on `effect`):
+ *   - answer set + executed_query set  ⇒ the measure was auto-executed (only
+ *     ever for effect == "read" AND run_eligible AND confidence >= θ).
+ *   - needs non-empty                  ⇒ a required parameter could not be
+ *     resolved; the measure was NOT executed (the consumer must ask, not guess).
+ *   - answer empty + needs empty + effect in {write, destructive} ⇒ params were
+ *     fully resolved but execution is withheld pending confirmation (a
+ *     write/destructive measure is NEVER auto-run, even at full confidence).
+ *
+ * @generated from message vrooli.search_hub.v1.routing.MeasureHit
+ */
+export type MeasureHit = Message<"vrooli.search_hub.v1.routing.MeasureHit"> & {
+  /**
+   * Stable measure identifier (the measure declaration name, conventionally
+   * "<domain>.<verb>", e.g. "backlog.completed").
+   *
+   * @generated from field: string measure_id = 1;
+   */
+  measureId: string;
+
+  /**
+   * Owning scenario — who computes the answer (the execution-proxy target the
+   * central index resolves at execution time).
+   *
+   * @generated from field: string scenario = 2;
+   */
+  scenario: string;
+
+  /**
+   * Resolved parameter values (param name → string value: a time-window token,
+   * an enum member, or an extracted scalar). Only successfully-resolved params
+   * appear; an unresolved required param is reported in `needs` instead.
+   *
+   * @generated from field: map<string, string> params = 3;
+   */
+  params: { [key: string]: string };
+
+  /**
+   * The computed answer rendered for presentation (e.g. "42 backlog items
+   * completed (this_week)"). Empty unless the measure was auto-executed.
+   *
+   * @generated from field: string answer = 4;
+   */
+  answer: string;
+
+  /**
+   * Required parameters that could not be resolved. Non-empty ⇒ not executed —
+   * the consumer should ask for these rather than guess.
+   *
+   * @generated from field: repeated string needs = 5;
+   */
+  needs: string[];
+
+  /**
+   * Side-effect class of the measure ("read" | "write" | "destructive"). The
+   * auto-exec gate keys on this — only "read" is ever auto-run.
+   *
+   * @generated from field: string effect = 6;
+   */
+  effect: string;
+
+  /**
+   * The concrete query/aggregation that produced `answer` (provenance). Empty
+   * unless executed.
+   *
+   * @generated from field: string executed_query = 7;
+   */
+  executedQuery: string;
+
+  /**
+   * Extraction/match confidence in [0,1]; the gate compares it against θ.
+   *
+   * @generated from field: double confidence = 8;
+   */
+  confidence: number;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.routing.MeasureHit.
+ * Use `create(MeasureHitSchema)` to create a new message.
+ */
+export const MeasureHitSchema: GenMessage<MeasureHit> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_routing_routing, 3);
 
 /**
  * Phase-4 honest grouping (pre-rerank): candidates kept per provider.
@@ -234,7 +337,7 @@ export type ProviderResultGroup = Message<"vrooli.search_hub.v1.routing.Provider
  * Use `create(ProviderResultGroupSchema)` to create a new message.
  */
 export const ProviderResultGroupSchema: GenMessage<ProviderResultGroup> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 3);
+  messageDesc(file_search_hub_v1_routing_routing, 4);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.QueryResponse
@@ -293,7 +396,7 @@ export type QueryResponse = Message<"vrooli.search_hub.v1.routing.QueryResponse"
  * Use `create(QueryResponseSchema)` to create a new message.
  */
 export const QueryResponseSchema: GenMessage<QueryResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 4);
+  messageDesc(file_search_hub_v1_routing_routing, 5);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.StatusRequest
@@ -306,7 +409,7 @@ export type StatusRequest = Message<"vrooli.search_hub.v1.routing.StatusRequest"
  * Use `create(StatusRequestSchema)` to create a new message.
  */
 export const StatusRequestSchema: GenMessage<StatusRequest> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 5);
+  messageDesc(file_search_hub_v1_routing_routing, 6);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.ProviderHealth
@@ -345,7 +448,7 @@ export type ProviderHealth = Message<"vrooli.search_hub.v1.routing.ProviderHealt
  * Use `create(ProviderHealthSchema)` to create a new message.
  */
 export const ProviderHealthSchema: GenMessage<ProviderHealth> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 6);
+  messageDesc(file_search_hub_v1_routing_routing, 7);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.StatusResponse
@@ -374,7 +477,7 @@ export type StatusResponse = Message<"vrooli.search_hub.v1.routing.StatusRespons
  * Use `create(StatusResponseSchema)` to create a new message.
  */
 export const StatusResponseSchema: GenMessage<StatusResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 7);
+  messageDesc(file_search_hub_v1_routing_routing, 8);
 
 /**
  * @generated from service vrooli.search_hub.v1.routing.RoutingService

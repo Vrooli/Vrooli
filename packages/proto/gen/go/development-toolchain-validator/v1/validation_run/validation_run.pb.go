@@ -490,7 +490,7 @@ var File_development_toolchain_validator_v1_validation_run_validation_run_proto 
 
 const file_development_toolchain_validator_v1_validation_run_validation_run_proto_rawDesc = "" +
 	"\n" +
-	"Fdevelopment-toolchain-validator/v1/validation_run/validation_run.proto\x128vrooli.development_toolchain_validator.v1.validation_run\x1a\x1fgoogle/protobuf/timestamp.proto\x1aLdevelopment-toolchain-validator/v1/validation_record/validation_record.proto\"\x94\x05\n" +
+	"Fdevelopment-toolchain-validator/v1/validation_run/validation_run.proto\x128vrooli.development_toolchain_validator.v1.validation_run\x1aLdevelopment-toolchain-validator/v1/validation_record/validation_record.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x94\x05\n" +
 	"\rValidationRun\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12e\n" +
 	"\n" +

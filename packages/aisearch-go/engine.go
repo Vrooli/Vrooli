@@ -29,7 +29,7 @@ type DenseEngine struct {
 // DefaultVectorSize must set Spec.DenseSize themselves (or hand-wire).
 func NewDenseEngine(cfg Config, collection string) DenseEngine {
 	return DenseEngine{
-		Embedder:    NewEmbedder(cfg.EmbedModel),
+		Embedder:    NewEmbedderForConfig(cfg),
 		VectorStore: NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, collection),
 		Reranker: NewRerankerChain(
 			NewCrossEncoderReranker(cfg.RerankerURL, cfg.RerankerModel),
@@ -68,7 +68,7 @@ type HybridEngine struct {
 // Spec.DenseSize itself (or hand-wire).
 func NewHybridEngine(cfg Config, collection string) HybridEngine {
 	return HybridEngine{
-		Embedder:      NewEmbedder(cfg.EmbedModel),
+		Embedder:      NewEmbedderForConfig(cfg),
 		VectorStore:   NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, collection),
 		SparseEncoder: NewBM25SparseEncoder(),
 		Reranker: NewRerankerChain(

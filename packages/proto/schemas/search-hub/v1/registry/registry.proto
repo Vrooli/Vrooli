@@ -133,6 +133,15 @@ message ResultMapping {
   // filter_field/value, this is applied generically by the adapter — no
   // per-provider code (preserves the no-conditional-monolith invariant).
   string presence_field = 10;
+  // Optional measure carrier path. When set, the adapter decodes the per-item
+  // object at this JSON path into SearchHit.measure (the measures provider's
+  // structured answer). The object's keys follow the fixed MeasureHit contract
+  // (measure_id, scenario, params, answer, needs, effect, executed_query,
+  // confidence). Empty means "no measure carrier" — every retrieval provider
+  // leaves it unset. Applied generically by the adapter, like the filters above
+  // (no per-provider code), so only the single registered measures provider
+  // (measures-health) populates it.
+  string measure_field = 11;
 }
 
 // Per-leg score floor (query-time). A value of 0 means "use the regime

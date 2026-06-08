@@ -2,6 +2,7 @@ package eval_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -207,4 +208,62 @@ func TestCompareRunsMissingRunNotFound(t *testing.T) {
 	_, err := client.CompareRuns(context.Background(), connect.NewRequest(&evalv1.CompareRunsRequest{RunA: "a", RunB: "missing"}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+// fakeSweeper is a hand-written handler.Sweeper. The real optimization is covered
+// by internal/sweep/*_test.go; here we assert the handler forwards and maps errors.
+type fakeSweeper struct {
+	out *evalv1.SweepResult
+	err error
+	got *evalv1.SweepRequest
+}
+
+func (f *fakeSweeper) Run(_ context.Context, req *evalv1.SweepRequest) (*evalv1.SweepResult, error) {
+	f.got = req
+	return f.out, f.err
+}
+
+func newClientWithSweeper(t *testing.T, store internaleval.Store, sweeper handler.Sweeper) evalconnect.EvalServiceClient {
+	t.Helper()
+	logger, _ := connectxtest.NewLogger(t)
+	path, h := evalconnect.NewEvalServiceHandler(handler.NewConnectHandler(handler.Deps{Store: store, Runner: &fakeRunner{}, Sweeper: sweeper, Logger: logger}))
+	server := connectxtest.StartTestServer(t, connectx.ServiceMount{Path: path, Handler: h})
+	return evalconnect.NewEvalServiceClient(server.Client(), server.URL)
+}
+
+func TestSweepForwardsResult(t *testing.T) {
+	sweeper := &fakeSweeper{out: &evalv1.SweepResult{
+		SuiteId: "s", ProviderId: "p", WinnerTag: "sweep:query_time:win", Promoted: true,
+		Stats: &evalv1.SweepStats{WinnerScore: 0.8, IncumbentScore: 0.5},
+	}}
+	client := newClientWithSweeper(t, newFakeStore(), sweeper)
+	resp, err := client.Sweep(context.Background(), connect.NewRequest(&evalv1.SweepRequest{SuiteId: "s", Apply: true}))
+	require.NoError(t, err)
+	require.Equal(t, "sweep:query_time:win", resp.Msg.GetResult().GetWinnerTag())
+	require.True(t, resp.Msg.GetResult().GetPromoted())
+	require.True(t, sweeper.got.GetApply(), "handler must forward the apply flag")
+}
+
+func TestSweepSuiteNotFoundMapsToNotFound(t *testing.T) {
+	sweeper := &fakeSweeper{err: internaleval.ErrSuiteNotFound{SuiteID: "missing"}}
+	client := newClientWithSweeper(t, newFakeStore(), sweeper)
+	_, err := client.Sweep(context.Background(), connect.NewRequest(&evalv1.SweepRequest{SuiteId: "missing"}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+func TestSweepPreconditionError(t *testing.T) {
+	sweeper := &fakeSweeper{err: errors.New("provider declares no control plane")}
+	client := newClientWithSweeper(t, newFakeStore(), sweeper)
+	_, err := client.Sweep(context.Background(), connect.NewRequest(&evalv1.SweepRequest{SuiteId: "s"}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+}
+
+func TestSweepUnconfiguredUnimplemented(t *testing.T) {
+	// newClient leaves Sweeper nil → the handler must report Unimplemented, not panic.
+	client := newClient(t, newFakeStore(), &fakeRunner{})
+	_, err := client.Sweep(context.Background(), connect.NewRequest(&evalv1.SweepRequest{SuiteId: "s"}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
 }

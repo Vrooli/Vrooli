@@ -19,11 +19,13 @@ var ProtoFile = searchv1.File_cli_health_v1_search_search_proto
 // Module returns the search domain's contribution to the API: the Connect
 // SearchService handler mounted at the generated procedure paths. Searcher
 // may be nil; the handler then returns Unimplemented (no search backend
-// configured).
-func Module(logger *log.Logger, searcher Searcher) module.Module {
+// configured). overrides, when non-nil, enables the token-gated query-time
+// override channel (nil leaves it closed — override headers are ignored).
+func Module(logger *log.Logger, searcher Searcher, overrides *OverrideGate) module.Module {
 	connectPath, connectHandler := searchconnect.NewSearchServiceHandler(NewConnectHandler(Deps{
-		Logger:   logger,
-		Searcher: searcher,
+		Logger:    logger,
+		Searcher:  searcher,
+		Overrides: overrides,
 	}))
 	return module.Module{
 		Name: "search",

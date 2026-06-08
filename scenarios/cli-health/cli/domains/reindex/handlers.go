@@ -3,32 +3,52 @@ package reindex
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
 	"connectrpc.com/connect"
 
 	"github.com/vrooli/cli-core/cliapp"
-	reindexv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/reindex"
-	reindexconnect "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/reindex/reindex_v1connect"
+	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
+	controlconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control/control_v1connect"
 )
+
+// controlTokenEnv is the operator escape hatch for the control token. The token
+// is normally minted by search-hub and held in the API process; an operator who
+// drives reindex locally supplies it via --control-token or this env var. Without
+// a matching token (and CLI_HEALTH_SEARCH_CONTROL_ENABLED on the API) the server
+// rejects the call — there is no token-free control verb.
+const controlTokenEnv = "CLI_HEALTH_SEARCH_CONTROL_TOKEN"
 
 type handlers struct {
 	core   *cliapp.ScenarioApp
-	client reindexconnect.ReindexServiceClient
+	client controlconnect.SearchControlServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
 		core:   core,
-		client: reindexconnect.NewReindexServiceClient(httpClient, baseURL),
+		client: controlconnect.NewSearchControlServiceClient(httpClient, baseURL),
 	}
 }
 
-// run calls the generated Connect ReindexService.Reindex method.
+// controlToken resolves the control token from the --control-token flag, falling
+// back to the CLI_HEALTH_SEARCH_CONTROL_TOKEN env var.
+func controlToken(ctx cliapp.RunContext) string {
+	if t := strings.TrimSpace(ctx.Flag("control-token")); t != "" {
+		return t
+	}
+	return strings.TrimSpace(os.Getenv(controlTokenEnv))
+}
+
+// run calls the shared SearchControlService.Reindex method. The legacy
+// --scenario flag maps onto the contract's provider-defined `scope` filter.
 func (h *handlers) run(ctx cliapp.RunContext) error {
-	resp, err := h.client.Reindex(context.Background(), connect.NewRequest(&reindexv1.ReindexRequest{
-		Scenario: ctx.Flag("scenario"),
-		DryRun:   ctx.BoolFlag("dry-run"),
+	resp, err := h.client.Reindex(context.Background(), connect.NewRequest(&controlv1.ReindexRequest{
+		Scope:        ctx.Flag("scenario"),
+		DryRun:       ctx.BoolFlag("dry-run"),
+		ControlToken: controlToken(ctx),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("reindex run", err, nil)
@@ -49,11 +69,12 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	})
 }
 
-// status calls the generated Connect ReindexService.ReindexStatus method.
+// status calls the shared SearchControlService.ReindexStatus method.
 func (h *handlers) status(ctx cliapp.RunContext) error {
 	jobID := ctx.Positional("job_id")
-	resp, err := h.client.ReindexStatus(context.Background(), connect.NewRequest(&reindexv1.ReindexStatusRequest{
-		JobId: jobID,
+	resp, err := h.client.ReindexStatus(context.Background(), connect.NewRequest(&controlv1.ReindexStatusRequest{
+		JobId:        jobID,
+		ControlToken: controlToken(ctx),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("reindex status %q", jobID), err, nil)
@@ -70,11 +91,12 @@ func (h *handlers) status(ctx cliapp.RunContext) error {
 	})
 }
 
-// cancel calls the generated Connect ReindexService.ReindexCancel method.
+// cancel calls the shared SearchControlService.ReindexCancel method.
 func (h *handlers) cancel(ctx cliapp.RunContext) error {
 	jobID := ctx.Positional("job_id")
-	resp, err := h.client.ReindexCancel(context.Background(), connect.NewRequest(&reindexv1.ReindexCancelRequest{
-		JobId: jobID,
+	resp, err := h.client.ReindexCancel(context.Background(), connect.NewRequest(&controlv1.ReindexCancelRequest{
+		JobId:        jobID,
+		ControlToken: controlToken(ctx),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("reindex cancel %q", jobID), err, nil)

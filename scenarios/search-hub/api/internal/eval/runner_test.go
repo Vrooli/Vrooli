@@ -34,7 +34,7 @@ type fakeClient struct {
 	snap     *evalv1.ConfigSnapshot
 }
 
-func (f fakeClient) Search(_ context.Context, _ *registryv1.ProviderDescriptor, query string, _ int32) ([]*routingv1.SearchHit, error) {
+func (f fakeClient) Search(_ context.Context, _ *registryv1.ProviderDescriptor, query string, _ int32, _ eval.SearchCallOptions) ([]*routingv1.SearchHit, error) {
 	if f.errQuery != nil {
 		if err, ok := f.errQuery[query]; ok {
 			return nil, err

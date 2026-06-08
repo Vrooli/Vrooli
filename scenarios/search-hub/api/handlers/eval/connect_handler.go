@@ -19,11 +19,25 @@ type Runner interface {
 	Run(ctx context.Context, suite *evalv1.EvalSuite, tag string, limit int32) (*evalv1.EvalRun, error)
 }
 
+// Sweeper is the optimization seam: it runs the two-tier, overfit-safe parameter
+// sweep for a suite and (optionally) writes back a winner. internal/sweep.
+// Orchestrator satisfies it; it persists one tagged run per arm itself (through
+// its own store seam), so the handler only forwards the request/response.
+type Sweeper interface {
+	Run(ctx context.Context, req *evalv1.SweepRequest) (*evalv1.SweepResult, error)
+}
+
 // Deps wires the seams the Connect eval handler needs.
 type Deps struct {
-	Store  internaleval.Store
-	Runner Runner
-	Logger *log.Logger
+	Store internaleval.Store
+	// Providers resolves a suite's provider descriptor (Generate samples the
+	// provider's index; the corpus generator needs its endpoint + facets).
+	Providers internaleval.ProviderResolver
+	Runner    Runner
+	Sweeper   Sweeper
+	// Generator proposes machine-generated cases for a suite (Generate RPC).
+	Generator CorpusGenerator
+	Logger    *log.Logger
 }
 
 type connectHandler struct {
@@ -50,6 +64,8 @@ var _ = func() any {
 		ListRuns(context.Context, *connect.Request[evalv1.ListRunsRequest]) (*connect.Response[evalv1.ListRunsResponse], error)
 		GetRun(context.Context, *connect.Request[evalv1.GetRunRequest]) (*connect.Response[evalv1.GetRunResponse], error)
 		CompareRuns(context.Context, *connect.Request[evalv1.CompareRunsRequest]) (*connect.Response[evalv1.CompareRunsResponse], error)
+		Sweep(context.Context, *connect.Request[evalv1.SweepRequest]) (*connect.Response[evalv1.SweepResponse], error)
+		Generate(context.Context, *connect.Request[evalv1.GenerateRequest]) (*connect.Response[evalv1.GenerateResponse], error)
 	}
 	var _ evalServiceHandler = (*connectHandler)(nil)
 	return nil
@@ -82,7 +98,10 @@ func (h *connectHandler) GetSuite(ctx context.Context, req *connect.Request[eval
 	if err != nil {
 		return nil, h.logged("eval.GetSuite", req.Msg.GetSuiteId(), err)
 	}
-	return connect.NewResponse(&evalv1.GetSuiteResponse{Suite: suite}), nil
+	return connect.NewResponse(&evalv1.GetSuiteResponse{
+		Suite:    suite,
+		Adequacy: internaleval.CheckAdequacy(suite, nil),
+	}), nil
 }
 
 func (h *connectHandler) RunSuite(ctx context.Context, req *connect.Request[evalv1.RunSuiteRequest]) (*connect.Response[evalv1.RunSuiteResponse], error) {
@@ -102,7 +121,10 @@ func (h *connectHandler) RunSuite(ctx context.Context, req *connect.Request[eval
 		h.deps.Logger.Printf("eval.RunSuite(%q) persist: %v", suiteID, err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal error"))
 	}
-	return connect.NewResponse(&evalv1.RunSuiteResponse{Run: run}), nil
+	return connect.NewResponse(&evalv1.RunSuiteResponse{
+		Run:      run,
+		Adequacy: internaleval.CheckAdequacy(suite, nil),
+	}), nil
 }
 
 func (h *connectHandler) ListRuns(ctx context.Context, req *connect.Request[evalv1.ListRunsRequest]) (*connect.Response[evalv1.ListRunsResponse], error) {
@@ -140,6 +162,28 @@ func (h *connectHandler) CompareRuns(ctx context.Context, req *connect.Request[e
 		RunB:   runB,
 		Deltas: buildDeltas(runA, runB),
 	}), nil
+}
+
+// Sweep runs the two-tier parameter sweep for a suite and returns the ranked
+// result + promotion verdict. The orchestrator stores one tagged run per arm
+// itself, so the handler only translates errors. A sweep error is almost always
+// a caller-correctable precondition (no such suite, the suite's provider is
+// unregistered/declares no control plane, or the suite has no positive cases) —
+// not an internal fault.
+func (h *connectHandler) Sweep(ctx context.Context, req *connect.Request[evalv1.SweepRequest]) (*connect.Response[evalv1.SweepResponse], error) {
+	if h.deps.Sweeper == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sweep is not configured on this server"))
+	}
+	res, err := h.deps.Sweeper.Run(ctx, req.Msg)
+	if err != nil {
+		h.deps.Logger.Printf("eval.Sweep(%q): %v", req.Msg.GetSuiteId(), err)
+		var suiteNotFound internaleval.ErrSuiteNotFound
+		if errors.As(err, &suiteNotFound) {
+			return nil, connect.NewError(connect.CodeNotFound, suiteNotFound)
+		}
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&evalv1.SweepResponse{Result: res}), nil
 }
 
 // buildDeltas pairs the two runs' per-case results by case_id. Cases present in

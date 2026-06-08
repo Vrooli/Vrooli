@@ -1,6 +1,6 @@
-from google.protobuf import struct_pb2 as _struct_pb2
 from ecosystem_manager.v1.domain import queue_pb2 as _queue_pb2
 from ecosystem_manager.v1.domain import task_pb2 as _task_pb2
+from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message

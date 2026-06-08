@@ -28,6 +28,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"EvalService.ListRuns":      h.runs,
 		"EvalService.GetRun":        h.showRun,
 		"EvalService.CompareRuns":   h.compare,
+		"EvalService.Sweep":         h.sweep,
+		"EvalService.Generate":      h.generate,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

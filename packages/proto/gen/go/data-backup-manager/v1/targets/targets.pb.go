@@ -546,7 +546,7 @@ var File_data_backup_manager_v1_targets_targets_proto protoreflect.FileDescripto
 
 const file_data_backup_manager_v1_targets_targets_proto_rawDesc = "" +
 	"\n" +
-	",data-backup-manager/v1/targets/targets.proto\x12%vrooli.data_backup_manager.v1.targets\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a,data-backup-manager/v1/sources/sources.proto\"\xa6\x02\n" +
+	",data-backup-manager/v1/targets/targets.proto\x12%vrooli.data_backup_manager.v1.targets\x1a\x1bbuf/validate/validate.proto\x1a,data-backup-manager/v1/sources/sources.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa6\x02\n" +
 	"\x06Target\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x12\n" +

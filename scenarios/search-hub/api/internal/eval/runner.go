@@ -7,6 +7,7 @@ import (
 
 	"search-hub/internal/clock"
 
+	aisearch "github.com/vrooli/aisearch-go"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
@@ -21,6 +22,22 @@ type ProviderResolver interface {
 	Get(ctx context.Context, providerID string) (*registryv1.ProviderDescriptor, error)
 }
 
+// SearchCallOptions carries the optional per-call query-time overrides and the
+// control token one provider Search applies. The ZERO value is the baseline path
+// (no overrides, no token, public search) the eval runner uses today; the sweep
+// (Phase 6) fills it per arm — Overrides with the arm's factor values and
+// ControlToken with the provider's token (looked up via registry Store.Token).
+// Defined at the consumer (seam-discovery) so a fake never depends on transport.
+type SearchCallOptions struct {
+	// Overrides, when non-nil and non-zero, are forwarded to the provider as the
+	// query-time override header; the provider honors them only past its own
+	// token + experiment-flag gate.
+	Overrides *aisearch.SearchOverrides
+	// ControlToken is presented alongside the overrides so the provider's gate
+	// can authenticate them. Ignored when Overrides is nil/zero.
+	ControlToken string
+}
+
 // ProviderClient calls one provider's registered endpoint and returns mapped,
 // score-normalized hits, plus a best-effort config snapshot. This is the seam
 // that makes the runner testable without the network: production wires an HTTP
@@ -28,8 +45,9 @@ type ProviderResolver interface {
 // providers.MapResults; tests inject a fake returning canned hits.
 type ProviderClient interface {
 	// Search calls the provider for one query and returns up to `limit` hits in
-	// rank order (scores already normalized to [0,1] by the adapter).
-	Search(ctx context.Context, d *registryv1.ProviderDescriptor, query string, limit int32) ([]*routingv1.SearchHit, error)
+	// rank order (scores already normalized to [0,1] by the adapter). opts carries
+	// optional query-time overrides + control token (zero value = baseline call).
+	Search(ctx context.Context, d *registryv1.ProviderDescriptor, query string, limit int32, opts SearchCallOptions) ([]*routingv1.SearchHit, error)
 	// Snapshot probes the provider's status endpoint (if any) for the config
 	// that affects results. Best-effort: it never errors — an unreachable or
 	// status-less provider yields a mostly-empty snapshot (honest).
@@ -62,7 +80,21 @@ func NewRunner(resolver ProviderResolver, client ProviderClient, clk clock.Clock
 // cannot be resolved (the suite references an unregistered provider) — an
 // individual case's search failure degrades to a "n/a" outcome for that case,
 // never the whole run (mirroring the router's graceful degradation).
+//
+// Run is the BASELINE path (no overrides): it evaluates the provider's live
+// configuration. The sweep (Phase 6) re-runs the same suite through RunWith,
+// passing per-arm query-time overrides + the provider's control token.
 func (r *Runner) Run(ctx context.Context, suite *evalv1.EvalSuite, tag string, limit int32) (*evalv1.EvalRun, error) {
+	return r.RunWith(ctx, suite, tag, limit, SearchCallOptions{})
+}
+
+// RunWith is Run with explicit per-call SearchCallOptions: the sweep passes an
+// arm's query-time Overrides + ControlToken so each case is searched under that
+// arm's configuration (the provider honors the overrides only past its own
+// token + experiment-flag gate; a zero opts is exactly the baseline Run path).
+// The returned run is identical in shape to Run's — the overrides change only
+// which configuration the provider serves, not how the result is labeled.
+func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag string, limit int32, opts SearchCallOptions) (*evalv1.EvalRun, error) {
 	if suite == nil {
 		return nil, fmt.Errorf("nil suite")
 	}
@@ -78,7 +110,7 @@ func (r *Runner) Run(ctx context.Context, suite *evalv1.EvalSuite, tag string, l
 	latencies := make([]int64, 0, len(suite.GetCases()))
 	for _, c := range suite.GetCases() {
 		start := r.clock.Now()
-		hits, searchErr := r.client.Search(ctx, desc, c.GetQuery(), effLimit)
+		hits, searchErr := r.client.Search(ctx, desc, c.GetQuery(), effLimit, opts)
 		latencies = append(latencies, r.clock.Now().Sub(start).Milliseconds())
 
 		top := toScoredHits(hits)

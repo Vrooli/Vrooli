@@ -578,6 +578,64 @@ func (c *RerankerChain) Rerank(ctx context.Context, query string, candidates []R
 // results keep their relative order behind them. It operates on the unified
 // SearchResult — the same type VectorStore.Query returns and ApplyRelevanceFloor
 // consumes — so no adopter re-implements reordering against a second type.
+// ApplyRerankRRF fuses the upstream (retrieval) order with the reranker's order
+// via Reciprocal Rank Fusion instead of letting the reranker's order win
+// outright. Each result's fused score is 1/(k+retrievalRank) + 1/(k+rerankRank).
+//
+// This keeps the reranker's junk-rejection power — a candidate ranked low by
+// BOTH retrieval and the reranker stays low, and a cross-encoder that collapses
+// gibberish to ~0 still pushes it to the bottom — while preventing the reranker
+// from BURYING a strongly-retrieved canonical result beneath literal-token
+// lookalikes it happens to score higher. That burial is the measured failure
+// mode on the cli-health command corpus, where the cross-encoder costs ~0.20
+// recall@5 by pure-reordering; blending recovers most of it without giving up
+// junk rejection. The fused score replaces Score and is a rank signal, not a
+// 0..1 relevance probability, so classify it with the fusion regime (relative
+// gap only, no absolute hard floor) — the Service does this automatically when
+// RerankBlend is set. Results the reranker omitted keep only their retrieval-leg
+// contribution; ties fall back to retrieval order.
+func ApplyRerankRRF(hits []SearchResult, scores []RerankScore, k int) []SearchResult {
+	if len(hits) == 0 {
+		return hits
+	}
+	if k <= 0 {
+		k = DefaultRRFK
+	}
+	rerankRankByID := make(map[string]int, len(scores))
+	sorted := make([]RerankScore, len(scores))
+	copy(sorted, scores)
+	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].Score > sorted[j].Score })
+	for rank, s := range sorted {
+		rerankRankByID[s.ID] = rank
+	}
+	type fused struct {
+		hit   SearchResult
+		score float64
+		order int
+	}
+	items := make([]fused, len(hits))
+	for i, h := range hits {
+		rrf := 1.0 / float64(k+i) // retrieval leg always contributes
+		if rr, ok := rerankRankByID[h.ID]; ok {
+			rrf += 1.0 / float64(k+rr)
+		}
+		items[i] = fused{hit: h, score: rrf, order: i}
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].score != items[j].score {
+			return items[i].score > items[j].score
+		}
+		return items[i].order < items[j].order
+	})
+	out := make([]SearchResult, len(items))
+	for i, it := range items {
+		h := it.hit
+		h.Score = it.score
+		out[i] = h
+	}
+	return out
+}
+
 func ApplyRerank(hits []SearchResult, scores []RerankScore) []SearchResult {
 	if len(scores) == 0 || len(hits) == 0 {
 		return hits

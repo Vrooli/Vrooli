@@ -70,6 +70,11 @@
       "name": "evals compare",
       "description": "Compare two eval runs (per-case outcome + score delta)",
       "endpoint_id": "evals_compare_runs"
+    },
+    {
+      "name": "evals sweep",
+      "description": "Overfit-safe two-tier tuning sweep; --apply writes back a significant, validated winner",
+      "endpoint_id": "evals_sweep"
     }
   ]
 }

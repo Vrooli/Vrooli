@@ -240,6 +240,56 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
+### search.OverrideGate (query-time override gate)
+
+| | |
+|---|---|
+| **Seam** | Outer security gate for the query-time search-override channel |
+| **Interface** | `handlers/search/connect_handler.go::OverrideGate{Enabled bool; Token func() string}`, consumed by the search Connect handler; the inner clamping layer is `aisearch-go`'s `OverridePolicy` (cli-health wires `pkg.AllowOverrides()` so the engine bounds factors while this gate authenticates). |
+| **Production wiring** | `main.go` builds `OverrideGate{Enabled: boolEnv("CLI_HEALTH_SEARCH_OVERRIDES_ENABLED"), Token: controlToken.Get}` and passes it to `searchH.Module`. The token comes from `search.TokenHolder`, populated by the `searchregister.Register` `OnControlToken` callback. |
+| **Test fake** | None needed — the gate is a value type. `handlers/search/connect_handler_test.go` exercises every gate outcome (disabled / nil / missing-token / wrong-token / empty-cached-token / honored / malformed) via a `recordingSearcher` that counts threaded `SearchOption`s. |
+| **Why it exists** | The override channel is a privileged surface on an otherwise-public search endpoint. The gate keeps authentication (control-token match) + the per-environment experiment flag at the transport edge, so a tokenless or flag-off request degrades silently to the ordinary public search — never an error, never an applied override. Defaults closed. |
+
+### search.TokenHolder (in-memory control token)
+
+| | |
+|---|---|
+| **Seam** | In-memory home for the search-hub-minted control token |
+| **Interface** | `handlers/search/token_holder.go::TokenHolder` (`Set(string)`, `Get() string`, RWMutex-guarded). |
+| **Production wiring** | `main.go` creates one, hands `Set` to `searchregister.Register` (`OnControlToken`) and `Get` to the `OverrideGate`. Memory-only: a restart drops it and the next boot's self-registration re-acquires it from the register echo (search-hub holds the authoritative copy). |
+| **Test fake** | None — concrete, race-tested directly in `handlers/search/token_holder_test.go` (`-race`). |
+| **Why it exists** | The registration goroutine (writer) and the search handler (reader) race for the token. The holder is the one synchronized hand-off point, and `Get() == ""` before registration completes is exactly the "channel closed until registered" semantics the gate relies on. |
+
+### searchcontrol.Gate (control-plane token + flag gate)
+
+| | |
+|---|---|
+| **Seam** | Token + experiment-flag gate for the shared, mutating search control plane (reindex + config-write) |
+| **Interface** | `handlers/searchcontrol/connect_handler.go::Gate{Enabled bool; Token func() string}`, consumed by every `SearchControlService` RPC. Mirrors `search.OverrideGate` but REJECTS (constant-time token compare, uniform `PermissionDenied`) rather than silently degrading — a control verb has no public fallback. |
+| **Production wiring** | `main.go` builds `Gate{Enabled: boolEnv("CLI_HEALTH_SEARCH_CONTROL_ENABLED"), Token: controlToken.Get}`. It SHARES the `search.TokenHolder` with the override gate (one minted token) but a SEPARATE per-environment flag, so an env can run the query-time override A/B without exposing the index/config-mutating verbs. Default OFF. |
+| **Test fake** | None — value type. `handlers/searchcontrol/connect_handler_test.go` drives every outcome (disabled / wrong-token / empty-token / authorized) against `fakeReindexer` + `fakeConfigWriter`. |
+| **Why it exists** | The control plane mutates the Qdrant index and the `search.json` SSOT. Token + flag at the transport edge means there is no token-free control verb (the plan's security invariant); public `Search` stays the only unauthenticated path. |
+
+### searchcontrol.Reindexer (reconcile job control)
+
+| | |
+|---|---|
+| **Seam** | The reconcile job control behind the shared `SearchControlService` reindex verbs |
+| **Interface** | `handlers/searchcontrol/connect_handler.go::Reindexer` (`Reindex(ctx, scope, dryRun)`, `ReindexStatus(jobID)`, `ReindexCancel(jobID)`). |
+| **Production wiring** | `main.go` passes `searchcontrol.ServiceAdapter{Service: aiService}`, wrapping the live `aisearch.Service`'s `Reindex`/`ReindexStatus`/`ReindexCancel`/`JobExport`. |
+| **Test fake** | `fakeReindexer` in `connect_handler_test.go`. |
+| **Why it exists** | The handler owns transport + auth; the reconcile job lifecycle is aisearch-go's. The adapter is the one translation point, so the handler tests never touch Qdrant. |
+
+### searchcontrol.ConfigWriter (search.json write-back)
+
+| | |
+|---|---|
+| **Seam** | Persisting a new tuning block into the scenario-owned `search.json` SSOT |
+| **Interface** | `handlers/searchcontrol/connect_handler.go::ConfigWriter.WriteTuning(providerID, tuning, dryRun) (effective, indexTimeChanged, written, err)`. |
+| **Production wiring** | `main.go` passes `searchcontrol.FileConfigWriter{Path: searchJSONPath}`, delegating to `aisearch-go`'s `WriteProviderTuning` (validate → atomic write → report index-time-changed). |
+| **Test fake** | `fakeConfigWriter` in `connect_handler_test.go`. |
+| **Why it exists** | `WriteConfig` is the sweep's write-back verb. The seam keeps the atomic-write + index-time-detection logic in aisearch-go (the SSOT owner) and lets the handler tests assert the reindex-on-index-time-change behavior without a real file. **Known boundary (see PROBLEMS.md):** the triggered reindex reconciles with the boot-time embedding recipe; an index-time recipe change fully applies after the process restarts and re-reads `search.json`. |
+
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching

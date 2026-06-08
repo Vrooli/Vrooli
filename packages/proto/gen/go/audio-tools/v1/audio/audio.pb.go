@@ -1294,7 +1294,7 @@ var File_audio_tools_v1_audio_audio_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_audio_audio_proto_rawDesc = "" +
 	"\n" +
-	" audio-tools/v1/audio/audio.proto\x12\x1bvrooli.audio_tools.v1.audio\x1a\x1bbuf/validate/validate.proto\x1a\"audio-tools/v1/common/common.proto\"\xb0\x02\n" +
+	" audio-tools/v1/audio/audio.proto\x12\x1bvrooli.audio_tools.v1.audio\x1a\"audio-tools/v1/common/common.proto\x1a\x1bbuf/validate/validate.proto\"\xb0\x02\n" +
 	"\x10TranscodeRequest\x12\x1d\n" +
 	"\x05audio\x18\x01 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x05audio\x12L\n" +
 	"\finput_format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatR\vinputFormat\x12X\n" +

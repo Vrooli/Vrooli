@@ -302,6 +302,48 @@
       }
     },
     {
+      "id": "evals_sweep",
+      "path": "/vrooli.search_hub.v1.eval.EvalService/Sweep",
+      "method": "POST",
+      "summary": "Sweep a suite's tuning (overfit-safe) and optionally write back the winner",
+      "description": "Runs the two-tier parameter sweep over the suite's provider — query-time factors full-factorial via per-request overrides, index-time factors by coordinate-ascent via config-push+reindex — stores one tagged run per arm, and promotes a winner only when it is statistically significant (bootstrap CI), held-out-validated, constraint-satisfying, and past the complexity tie-break. --apply gates the write-back; default previews the ranked table + recommendation.",
+      "category": "eval",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "bool (persist the winner via config-write; default preview-only)",
+          "limit": "int (per-case fetch depth)",
+          "query_time_only": "bool (skip the reindex-per-arm index-time tier)",
+          "suite_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "result": "SweepResult (ranked arms + winner_tag + promoted + recommendation + stats)"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such suite"
+        },
+        {
+          "status": 400,
+          "code": "failed_precondition",
+          "description": "Provider unregistered / declares no control plane / suite has no positive cases"
+        }
+      ],
+      "cli_mapping": {
+        "command": "search-hub evals sweep",
+        "args": [
+          "<suite_id>",
+          "--apply"
+        ]
+      }
+    },
+    {
       "id": "metrics_insights",
       "path": "/vrooli.search_hub.v1.metrics.MetricsService/Insights",
       "method": "POST",
@@ -640,6 +682,11 @@
       "name": "evals compare",
       "description": "Compare two eval runs (per-case outcome + score delta)",
       "endpoint_id": "evals_compare_runs"
+    },
+    {
+      "name": "evals sweep",
+      "description": "Overfit-safe two-tier tuning sweep; --apply writes back a significant, validated winner",
+      "endpoint_id": "evals_sweep"
     }
   ]
 }

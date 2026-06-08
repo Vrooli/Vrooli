@@ -403,7 +403,7 @@ var File_ecosystem_manager_v1_api_queue_proto protoreflect.FileDescriptor
 
 const file_ecosystem_manager_v1_api_queue_proto_rawDesc = "" +
 	"\n" +
-	"$ecosystem-manager/v1/api/queue.proto\x12\x14ecosystem_manager.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a'ecosystem-manager/v1/domain/queue.proto\x1a&ecosystem-manager/v1/domain/task.proto\"P\n" +
+	"$ecosystem-manager/v1/api/queue.proto\x12\x14ecosystem_manager.v1\x1a'ecosystem-manager/v1/domain/queue.proto\x1a&ecosystem-manager/v1/domain/task.proto\x1a\x1cgoogle/protobuf/struct.proto\"P\n" +
 	"\x13QueueStatusResponse\x129\n" +
 	"\x06status\x18\x01 \x01(\v2!.ecosystem_manager.v1.QueueStatusR\x06status\"\x8a\x01\n" +
 	"\x13ProcessListResponse\x12?\n" +

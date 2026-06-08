@@ -4268,7 +4268,7 @@ var File_audio_tools_v1_stt_stt_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\n" +
-	"\x1caudio-tools/v1/stt/stt.proto\x12\x19vrooli.audio_tools.v1.stt\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\"audio-tools/v1/common/common.proto\"\xfe\x01\n" +
+	"\x1caudio-tools/v1/stt/stt.proto\x12\x19vrooli.audio_tools.v1.stt\x1a\"audio-tools/v1/common/common.proto\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfe\x01\n" +
 	"\x11TranscribeRequest\x12\x1d\n" +
 	"\x05audio\x18\x01 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x05audio\x12K\n" +
 	"\x06format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatB\b\xbaH\x05\x82\x01\x02 \x00R\x06format\x12\x1a\n" +

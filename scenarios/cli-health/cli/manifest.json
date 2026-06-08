@@ -52,9 +52,10 @@
           "description": "Start a reindex job",
           "flags": [
             { "name": "scenario", "description": "Limit to a single scenario; empty means all" },
-            { "name": "dry-run", "bool": true, "description": "Compute planned upserts/deletes without writing" }
+            { "name": "dry-run", "bool": true, "description": "Compute planned upserts/deletes without writing" },
+            { "name": "control-token", "description": "Control token for the token-gated control plane (or set CLI_HEALTH_SEARCH_CONTROL_TOKEN)" }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ReindexService", "method": "Reindex" },
+          "binding": { "kind": "connect-rpc", "service": "SearchControlService", "method": "Reindex" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
@@ -63,7 +64,10 @@
           "positionals": [
             { "name": "job_id", "required": true, "description": "Job id returned by `reindex run`" }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ReindexService", "method": "ReindexStatus" },
+          "flags": [
+            { "name": "control-token", "description": "Control token for the token-gated control plane (or set CLI_HEALTH_SEARCH_CONTROL_TOKEN)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SearchControlService", "method": "ReindexStatus" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
@@ -72,7 +76,10 @@
           "positionals": [
             { "name": "job_id", "required": true, "description": "Job id returned by `reindex run`" }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ReindexService", "method": "ReindexCancel" },
+          "flags": [
+            { "name": "control-token", "description": "Control token for the token-gated control plane (or set CLI_HEALTH_SEARCH_CONTROL_TOKEN)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SearchControlService", "method": "ReindexCancel" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]

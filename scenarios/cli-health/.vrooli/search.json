@@ -27,6 +27,24 @@
           "headers": { "Content-Type": "application/json" }
         }
       },
+      "reindex_endpoint": {
+        "http_json": {
+          "scenario_id": "cli-health",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/Reindex",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"scope\":\"{{scope}}\",\"dry_run\":false}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "config_endpoint": {
+        "http_json": {
+          "scenario_id": "cli-health",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/WriteConfig",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
       "result_mapping": {
         "results_path": "results",
         "id_field": "name",

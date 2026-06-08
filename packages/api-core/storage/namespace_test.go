@@ -2,6 +2,8 @@ package storage
 
 import (
 	"errors"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -132,6 +134,150 @@ func TestResolveNamespace_FailLoud(t *testing.T) {
 				t.Fatalf("expected *Error{Kind: invalid_input}, got %v", err)
 			}
 		})
+	}
+}
+
+func TestResolveNamespace_FallbackScenario(t *testing.T) {
+	// No env at all: the compile-time fallback slug stands in as a live root, so
+	// a binary run outside the variant-aware lifecycle still resolves.
+	ns, err := ResolveNamespace(NamespaceConfig{
+		EnvGet:           envMap(map[string]string{}),
+		FallbackScenario: "my-scenario",
+	})
+	if err != nil {
+		t.Fatalf("ResolveNamespace with fallback returned error: %v", err)
+	}
+	if ns.Root() != "my-scenario" || !ns.IsLive() {
+		t.Errorf("fallback Root()/IsLive() = %q/%v, want my-scenario/true", ns.Root(), ns.IsLive())
+	}
+
+	// An injected namespace root always wins over the fallback.
+	ns2, err := ResolveNamespace(NamespaceConfig{
+		EnvGet:           envMap(map[string]string{EnvStorageNamespace: "my-scenario_shadow", EnvVariant: "shadow"}),
+		FallbackScenario: "my-scenario",
+	})
+	if err != nil {
+		t.Fatalf("ResolveNamespace returned error: %v", err)
+	}
+	if ns2.Root() != "my-scenario_shadow" {
+		t.Errorf("injected root must win over fallback: got %q", ns2.Root())
+	}
+
+	// VROOLI_SCENARIO (lifecycle-set bare slug) wins over the fallback too.
+	ns3, _ := ResolveNamespace(NamespaceConfig{
+		EnvGet:           envMap(map[string]string{EnvScenario: "from-env"}),
+		FallbackScenario: "my-scenario",
+	})
+	if ns3.Root() != "from-env" {
+		t.Errorf("VROOLI_SCENARIO must win over fallback: got %q", ns3.Root())
+	}
+}
+
+func TestResolveNamespace_FallbackNeverAliasesShadow(t *testing.T) {
+	// The one invariant the whole mechanism protects: a non-live variant with no
+	// injected root must fail loud even when a fallback slug is supplied, rather
+	// than silently writing shadow state into the live namespace.
+	_, err := ResolveNamespace(NamespaceConfig{
+		EnvGet:           envMap(map[string]string{EnvVariant: "shadow"}),
+		FallbackScenario: "my-scenario",
+	})
+	if err == nil {
+		t.Fatal("expected fail-loud error for non-live variant with fallback, got nil")
+	}
+	var serr *Error
+	if !errors.As(err, &serr) || serr.Kind != ErrInvalidInput {
+		t.Fatalf("expected *Error{Kind: invalid_input}, got %v", err)
+	}
+}
+
+func TestScenarioNamespace(t *testing.T) {
+	// Live in the lifecycle: resolves to the bare slug, so on-disk paths are
+	// unchanged from pre-Baseline-Modes behavior.
+	t.Run("live injected", func(t *testing.T) {
+		t.Setenv(EnvStorageNamespace, "my-scenario")
+		t.Setenv(EnvVariant, "live")
+		got, err := ScenarioNamespace("my-scenario")
+		if err != nil {
+			t.Fatalf("ScenarioNamespace: %v", err)
+		}
+		if got != "my-scenario" {
+			t.Errorf("ScenarioNamespace = %q, want my-scenario", got)
+		}
+	})
+
+	// Shadow in the lifecycle: resolves to the variant-suffixed root, so the
+	// resolver scopes SQLite/data to a distinct directory.
+	t.Run("shadow injected", func(t *testing.T) {
+		t.Setenv(EnvStorageNamespace, "my-scenario_shadow")
+		t.Setenv(EnvVariant, "shadow")
+		got, err := ScenarioNamespace("my-scenario")
+		if err != nil {
+			t.Fatalf("ScenarioNamespace: %v", err)
+		}
+		if got != "my-scenario_shadow" {
+			t.Errorf("ScenarioNamespace = %q, want my-scenario_shadow", got)
+		}
+	})
+
+	// Non-live with no injected root still fails loud through the helper.
+	t.Run("shadow without root fails loud", func(t *testing.T) {
+		t.Setenv(EnvVariant, "shadow")
+		if _, err := ScenarioNamespace("my-scenario"); err == nil {
+			t.Fatal("expected fail-loud error, got nil")
+		}
+	})
+}
+
+// TestScenarioNamespace_ResolverPathIsolation exercises the exact resolution the
+// react-vite template's sqliteDSN() performs: ScenarioNamespace(slug) feeding
+// Resolver.Path(Options{ScenarioID}, ClassData, ...). It is the end-to-end proof
+// that a generated scenario's SQLite file auto-isolates under a shadow with zero
+// per-scenario work — live and shadow resolve to distinct on-disk paths.
+func TestScenarioNamespace_ResolverPathIsolation(t *testing.T) {
+	// Hermetic: clear any inherited namespace env so the live case truly relies
+	// on the compile-time fallback slug.
+	t.Setenv(EnvStorageNamespace, "")
+	t.Setenv(EnvScenario, "")
+	t.Setenv(EnvVariant, "")
+
+	tmp := t.TempDir()
+	resolve := func() string {
+		t.Helper()
+		r, err := NewResolver(ResolverConfig{
+			AppID:   "vrooli",
+			Profile: ProfileAuto,
+			EnvGet:  envMap(map[string]string{envStorageRoot: tmp}),
+		})
+		if err != nil {
+			t.Fatalf("NewResolver: %v", err)
+		}
+		id, err := ScenarioNamespace("demo")
+		if err != nil {
+			t.Fatalf("ScenarioNamespace: %v", err)
+		}
+		p, err := r.Path(Options{ScenarioID: id}, ClassData, "demo.db")
+		if err != nil {
+			t.Fatalf("Path: %v", err)
+		}
+		return p
+	}
+
+	// Live: no namespace injected ⇒ fallback slug ⇒ path scoped to ".../demo/".
+	livePath := resolve()
+	if !strings.HasSuffix(livePath, filepath.Join("vrooli", "demo", "demo.db")) {
+		t.Errorf("live path %q not scoped to the bare slug", livePath)
+	}
+
+	// Shadow: lifecycle-injected namespace ⇒ path scoped to ".../demo_shadow/".
+	t.Setenv(EnvStorageNamespace, "demo_shadow")
+	t.Setenv(EnvVariant, "shadow")
+	shadowPath := resolve()
+	if !strings.HasSuffix(shadowPath, filepath.Join("vrooli", "demo_shadow", "demo.db")) {
+		t.Errorf("shadow path %q not scoped to demo_shadow", shadowPath)
+	}
+
+	if livePath == shadowPath {
+		t.Fatalf("shadow and live SQLite paths must differ; both = %q", livePath)
 	}
 }
 

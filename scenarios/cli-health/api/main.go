@@ -23,8 +23,8 @@ import (
 	_ "modernc.org/sqlite"
 
 	healthH "cli-health/handlers/health"
-	reindexH "cli-health/handlers/reindex"
 	searchH "cli-health/handlers/search"
+	searchcontrolH "cli-health/handlers/searchcontrol"
 	validationH "cli-health/handlers/validation"
 )
 
@@ -110,6 +110,12 @@ func main() {
 		log.Fatalf("resolve repo root: %v", err)
 	}
 
+	// The scenario-owned search.json is the single source of truth for the search
+	// descriptor + tuning + tests. Both the boot tuning read and the self-register
+	// push read it, and the config-write control RPC rewrites it, so the path is
+	// resolved once here.
+	searchJSONPath := filepath.Join(repoRoot, "scenarios", "cli-health", ".vrooli", "search.json")
+
 	// AI search wiring: the scenario-owned `.vrooli/search.json` is the SSOT for
 	// the search tuning factors (engine shape, embed recipe, rerank policy, floor
 	// band) — read here at boot. The shared engine (packages/aisearch-go) provides
@@ -120,7 +126,7 @@ func main() {
 	// literal. The CLI_HEALTH_{RERANK_*,EMBED_TASK_PREFIX,RELEVANCE_*} tuning env
 	// vars are no longer consulted — search.json replaces them.
 	searchCfg := aisearchpkg.LoadConfig("CLI_HEALTH")
-	tuning := loadSearchTuning(repoRoot, commandsProviderID)
+	tuning := loadSearchTuning(searchJSONPath, commandsProviderID)
 	engine := aisearchpkg.NewServiceForTuning(tuning, aisearchpkg.EngineDeps{
 		QdrantURL:     searchCfg.QdrantURL,
 		QdrantAPIKey:  searchCfg.QdrantAPIKey,
@@ -160,23 +166,54 @@ func main() {
 	syncLoop := aisearchpkg.NewSyncLoop("cli-health", aiService.Reconciler(), searchCfg)
 	go syncLoop.Start(syncCtx)
 
+	// The override gate is the OUTER security layer of the query-time override
+	// channel: search-hub's sweep/A-B can vary rerank/floor/shortlist per request,
+	// but only when the experiment flag is on AND the request carries the control
+	// token search-hub minted for this provider. The token is cached in memory
+	// from the self-registration echo below; until then Get() returns "" and the
+	// gate stays closed. The channel is OFF by default (defense in depth) — set
+	// CLI_HEALTH_SEARCH_OVERRIDES_ENABLED=1 to opt an environment in.
+	controlToken := searchH.NewTokenHolder()
+	overrideGate := &searchH.OverrideGate{
+		Enabled: boolEnv("CLI_HEALTH_SEARCH_OVERRIDES_ENABLED"),
+		Token:   controlToken.Get,
+	}
+
+	// The control gate guards the SHARED reindex + config-write plane
+	// (search-hub.v1.control.SearchControlService). It shares the same minted
+	// control token as the override gate but is a SEPARATE per-environment flag
+	// (CLI_HEALTH_SEARCH_CONTROL_ENABLED, default OFF) so an environment can run
+	// the query-time override A/B without also exposing the index/config-mutating
+	// verbs, and vice versa.
+	controlGate := &searchcontrolH.Gate{
+		Enabled: boolEnv("CLI_HEALTH_SEARCH_CONTROL_ENABLED"),
+		Token:   controlToken.Get,
+	}
+
 	// Self-register this scenario's search provider(s) with search-hub from the
 	// same `.vrooli/search.json` SSOT. search-hub is an OPTIONAL dependency, so
 	// this runs in the background with bounded retry and degrades gracefully —
 	// the scenario serves search whether or not the hub is up. The registry is an
-	// idempotent upsert, so re-registering on every boot is safe.
+	// idempotent upsert, so re-registering on every boot is safe. The returned
+	// control token is cached so the override gate above can validate it.
 	go searchregister.Register(syncCtx, searchregister.Config{
 		ScenarioID:     "cli-health",
-		SearchFilePath: filepath.Join(repoRoot, "scenarios", "cli-health", ".vrooli", "search.json"),
+		SearchFilePath: searchJSONPath,
 		Logger:         logger,
+		OnControlToken: func(_ string, token string) { controlToken.Set(token) },
 	})
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "cli-health-api", "1.0.0"),
 		validationH.Module(logger, repoRoot, externalCLINames(discovery.ListExternalCLIs())),
-		searchH.Module(logger, aiService),
-		reindexH.Module(logger, reindexH.ServiceAdapter{Service: aiService}),
+		searchH.Module(logger, aiService, overrideGate),
+		searchcontrolH.Module(logger, searchcontrolH.Deps{
+			Logger:       logger,
+			Reindexer:    searchcontrolH.ServiceAdapter{Service: aiService},
+			ConfigWriter: searchcontrolH.FileConfigWriter{Path: searchJSONPath},
+			Gate:         controlGate,
+		}),
 	)
 
 	if err := apiserver.Run(apiserver.Config{
@@ -197,8 +234,7 @@ const commandsProviderID = "cli-health.commands"
 // `.vrooli/search.json` (the SSOT). The file is committed and authoritative, so a
 // missing/malformed file or an absent provider is a fatal boot error — there is
 // no env/code fallback by design (greenfield §0).
-func loadSearchTuning(repoRoot, providerID string) aisearchpkg.TuningConfig {
-	path := filepath.Join(repoRoot, "scenarios", "cli-health", ".vrooli", "search.json")
+func loadSearchTuning(path, providerID string) aisearchpkg.TuningConfig {
 	file, err := aisearchpkg.LoadSearchFile(path)
 	if err != nil {
 		log.Fatalf("load search tuning: %v", err)
@@ -216,4 +252,16 @@ func externalCLINames(clis []aisearch.ExternalCLI) []string {
 		out = append(out, c.Name)
 	}
 	return out
+}
+
+// boolEnv reports whether an environment variable is set to a truthy value
+// (1/true/yes/on, case-insensitive). Unset or unparseable => false, so a
+// security-sensitive flag like the override channel stays OFF by default.
+func boolEnv(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }

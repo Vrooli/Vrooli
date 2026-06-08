@@ -102,6 +102,7 @@ func (r *Reconciler) Plan(ctx context.Context) (*DriftReport, error) {
 
 func (r *Reconciler) planBinding(ctx context.Context, b SourceBinding) CollectionDriftReport {
 	col := CollectionDriftReport{Kind: b.Kind}
+	recipe := embedderRecipe(r.Embedder)
 
 	docs, err := b.Source.LoadAll(ctx)
 	if err != nil {
@@ -150,7 +151,7 @@ func (r *Reconciler) planBinding(ctx context.Context, b SourceBinding) Collectio
 			seen[pid] = struct{}{}
 
 			text := composer.Compose(chunk)
-			payload := buildChunkPayload(chunk, text, doc.ContentHash, total)
+			payload := buildChunkPayload(chunk, text, doc.ContentHash, total, recipe)
 			hash, _ := payload[payloadHashKey].(string)
 
 			existing, ok := stored[pid]
@@ -278,12 +279,12 @@ func (r *Reconciler) Apply(ctx context.Context, plan *DriftReport) (*ApplyResult
 				return nil
 			}
 			text := w.b.composer().Compose(w.ref.Chunk)
-			dense, err := r.Embedder.Embed(gctx, text)
+			dense, err := embedDocumentText(gctx, r.Embedder, text)
 			if err != nil {
 				addErr(ReconcileError{Kind: w.b.Kind, PointID: w.ref.PointID, Name: w.ref.Name, Op: "embed", Err: err.Error()})
 				return nil
 			}
-			point := Point{ID: w.ref.PointID, Dense: dense, Payload: buildChunkPayload(w.ref.Chunk, text, w.ref.SourceHash, w.ref.Total)}
+			point := Point{ID: w.ref.PointID, Dense: dense, Payload: buildChunkPayload(w.ref.Chunk, text, w.ref.SourceHash, w.ref.Total, embedderRecipe(r.Embedder))}
 			if w.b.Sparse != nil {
 				sv := w.b.Sparse.Encode(text)
 				point.Sparse = &sv
@@ -426,7 +427,7 @@ func (r *Reconciler) now() time.Time {
 // metadata, the retrievable body, the grouping/drift fields, and the two
 // reconciler hashes (payload_hash excludes both hashes; source_hash is stored
 // for the source-level gate).
-func buildChunkPayload(chunk Chunk, embeddingText, sourceHash string, total int) map[string]any {
+func buildChunkPayload(chunk Chunk, embeddingText, sourceHash string, total int, recipe string) map[string]any {
 	p := make(map[string]any, len(chunk.Meta)+6)
 	for k, v := range chunk.Meta {
 		p[k] = v
@@ -435,7 +436,13 @@ func buildChunkPayload(chunk Chunk, embeddingText, sourceHash string, total int)
 	p[sourceIDKey] = chunk.SourceID
 	p[chunkIndexKey] = chunk.Index
 	p[chunkTotalKey] = total
-	p[payloadHashKey] = composePayloadHash(embeddingText, p)
+	// Fold the embedding recipe into the hashed text so a model/prefix change
+	// re-embeds the corpus. An empty recipe keeps the legacy hash byte-identical.
+	hashText := embeddingText
+	if recipe != "" {
+		hashText = recipe + "\x00" + embeddingText
+	}
+	p[payloadHashKey] = composePayloadHash(hashText, p)
 	if strings.TrimSpace(sourceHash) != "" {
 		p[sourceHashKey] = sourceHash
 	}

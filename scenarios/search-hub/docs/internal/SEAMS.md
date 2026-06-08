@@ -240,6 +240,76 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
+### ProviderClient.SearchCallOptions (query-time override forwarding)
+
+| | |
+|---|---|
+| **Seam** | Per-call query-time overrides + control token on a provider Search |
+| **Interface** | `internal/eval/runner.go::SearchCallOptions{Overrides *aisearch.SearchOverrides; ControlToken string}`, a parameter of `ProviderClient.Search`. |
+| **Production wiring** | `handlers/eval/provider_client.go::httpProviderClient.Search` calls `applyOverrideHeaders`, which sets the shared `aisearch.OverridesHeader` / `aisearch.ControlTokenHeader` (`override_transport.go`) when `Overrides` is non-zero. The eval runner passes the zero value (baseline); the Phase 6 sweep fills it per arm (overrides from the factor enumeration, token from `registry.Store.Token`). |
+| **Test fake** | `internal/eval/runner_test.go::fakeClient` (signature carries the param, ignores it for baseline runs); header forwarding is pinned in `handlers/eval/provider_client_test.go` via `mocks.FakeDoer`. |
+| **Why it exists** | The override channel must travel without touching the provider-owned search body (a generic descriptor-rendered template). Headers carry the cross-cutting concern; the zero value keeps an ordinary eval run header-free so the public search path is untouched. The shared aisearch transport contract stops sender/receiver header drift. |
+
+### registry.Store.Token (control-token lookup)
+
+| | |
+|---|---|
+| **Seam** | Per-provider control-token read |
+| **Interface** | `internal/registry/store.go::Store.Token(ctx, id) (string, error)` (mint/persist lives in `Store.Upsert(ctx, d, presentedToken)`). |
+| **Production wiring** | `RegisterProvider` mints on first insert and echoes thereafter; the sweep (Phase 6) reads the token here to present it when issuing token-gated overrides to the provider. Persisted in the `providers.control_token` column. |
+| **Test fake** | `handlers/registry/connect_handler_test.go::fakeStore` (token in/out + presented-token capture); SQLite behavior pinned in `internal/registry/store_test.go` (`TestStoreUpsertTokenOwnership`, `TestStoreToken`). |
+| **Why it exists** | The control token is the shared secret gating override/reindex/config-write. search-hub is the authoritative minter+store; a provider re-acquires it from the register echo each boot (memory-only), so the token survives a provider restart without provider-side persistence. |
+
+### ResultMapping.measure_field (measure carrier)
+
+| | |
+|---|---|
+| **Seam** | Per-provider measure carrier on the generic result adapter |
+| **Interface** | `registry.proto::ResultMapping.measure_field` (a JSON path) → `internal/providers/adapter.go::decodeMeasureHit`, populating `routing.proto::SearchHit.measure` (`MeasureHit{measure_id, scenario, params, answer, needs, effect, executed_query, confidence}`). |
+| **Production wiring** | Only the single registered measures provider (`measures-health`, Phase 4) sets `measure_field` (to `"measure"`); the adapter then decodes the per-item measure object into `SearchHit.measure` for every hit. Every retrieval provider leaves `measure_field` unset, so `SearchHit.measure` stays nil — the carrier is opt-in via the descriptor, no provider-specific code in the adapter or router (the no-conditional-monolith invariant holds). |
+| **Test fake** | `internal/providers/adapter_test.go` (`TestMapResultsMeasureCarrier_*`: executed / needs / write-unexecuted / nil-when-absent); end-to-end through the real router in `internal/routing/measure_carrier_test.go` (`referenceMeasureProvider` httptest server + `TestRouter_Carries*`). |
+| **Why it exists** | An analytical ("how many / what's the rate / what's next") answer is a *structured* measure resolution, not a document snippet. Carrying it as a typed sub-message (rather than JSON-in-snippet) lets a consumer act on `answer`/`needs`/`effect` while the router stays thin: matching, param extraction, the auto-exec gate, and execution all happen *inside* the measures provider (`packages/measures-go` engine), and search-hub only carries the result. The measure object's keys are the fixed `MeasureHit` contract; the provider emits them, the adapter decodes them. |
+
+### control.URLResolver (provider base-URL resolution for control calls)
+
+| | |
+|---|---|
+| **Seam** | Call-time resolution of a provider's live base URL for the control plane |
+| **Interface** | `internal/control/client.go::URLResolver.ResolveScenarioURL(ctx, scenarioID)` — the same shape the routing/eval domains use. Production: `control.DiscoveryResolver` (wraps `api-core/discovery`, no caching, so a restarted/re-ported provider is always reached). |
+| **Production wiring** | The Phase-6 sweep constructs `control.NewClient(control.NewDiscoveryResolver())`; the scenario_id comes from the descriptor's `reindex_endpoint`/`config_endpoint`. |
+| **Test fake** | `internal/control/client_test.go::fakeResolver` (canned URL + recorded scenario id). |
+| **Why it exists** | Provider ports are lifecycle-allocated and dynamic, so the control client must resolve the live URL per call rather than hardcode it — identical to the public read path. |
+
+### control.ServiceClientFactory (control Connect client)
+
+| | |
+|---|---|
+| **Seam** | Construction of the generated `SearchControlServiceClient` for a resolved base URL |
+| **Interface** | `internal/control/client.go::ServiceClientFactory func(baseURL) controlconnect.SearchControlServiceClient` (override via `control.WithClientFactory`). |
+| **Production wiring** | Default builds `controlconnect.NewSearchControlServiceClient(&http.Client{...}, baseURL)` — a generated Connect client for all proto-owned calls (§12). The control token rides as a request FIELD (`control_token`), not a header. |
+| **Test fake** | `internal/control/client_test.go::fakeControlClient` (queued errors + recorded requests) proves bounded retry: transient `Unavailable`/`DeadlineExceeded` are retried, permanent `PermissionDenied`/`InvalidArgument`/`NotFound` are returned on the first attempt. |
+| **Why it exists** | The registry-side control client is what the sweep uses to drive a provider's reindex + config-write. The factory seam keeps the retry/resolve logic testable without an HTTP server, and isolates the one place the generated client is built. |
+
+### sweep.Deps (the optimizer's seam bundle)
+
+| | |
+|---|---|
+| **Seam** | The four consumer-declared interfaces the transport-free sweep core (`internal/sweep`) is built over — it imports no HTTP, Connect, or concrete store. |
+| **Interface** | `internal/sweep/sweep.go`: `SuiteReader.GetSuite`, `ProviderReader.{Get,Token}`, `ArmRunner.Run(ctx, suite, tag, overrides, token, limit)`, `ConfigController.{WriteConfig,ReindexStatus}` — plus `clock.Clock`, a `Sleep func(time.Duration)`, and a `*rand.Rand` (seeded; deterministic in tests). |
+| **Production wiring** | `handlers/eval/module.go`: `SuiteReader`/`ProviderReader` = the SQLite eval + registry stores; `ConfigController` = `internal/control.Client`; `ArmRunner` = `handlers/eval/module.go::armRunner` (adapts the pure `eval.Runner.RunWith` + `eval.Store.AppendRun` — one stored, tagged run per arm). |
+| **Test fake** | `internal/sweep/sweep_test.go`: `fakeSuites`, `fakeProviders`, `fakeRunner` (produces a run from a per-tag outcome map), `fakeControl` (tracks live config, triggers reindex on an index-time change, returns a configurable poll state). They prove each overfit guard blocks promotion independently, write-back gating (`apply`), and the index-time coordinate-ascent (visits the right arms, polls to terminal, restores the incumbent). |
+| **Why it exists** | The sweep is the system's optimization authority; its value is the decision logic (enumeration + the four guards + selection), which must be unit-testable without a network, a real reindex, or a live index. The seams keep that core pure (boundary-of-responsibility) and let the handler compose it with the real runner/control client. |
+
+### eval.Runner.RunWith (per-arm override execution)
+
+| | |
+|---|---|
+| **Seam** | Re-running a suite under explicit per-call `SearchCallOptions` (the arm's query-time overrides + control token) instead of the baseline path. |
+| **Interface** | `internal/eval/runner.go::Runner.RunWith(ctx, suite, tag, limit, opts)`; `Run` delegates to it with the zero `opts` (exactly the baseline). |
+| **Production wiring** | The sweep's `armRunner` adapter (above) calls `RunWith` with the arm's overrides, then persists. |
+| **Test fake** | Covered by `internal/eval/runner_test.go` (override forwarding) and the sweep fakes. |
+| **Why it exists** | The sweep must vary query-time factors per arm through the SAME execution + labeling path the baseline uses, so an arm's result is comparable to the incumbent's; `RunWith` is the one method that threads overrides without forking the runner. |
+
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching

@@ -1225,7 +1225,7 @@ var File_browser_automation_studio_v1_projects_project_proto protoreflect.FileDe
 
 const file_browser_automation_studio_v1_projects_project_proto_rawDesc = "" +
 	"\n" +
-	"3browser-automation-studio/v1/projects/project.proto\x12%browser_automation_studio.v1.projects\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a.browser-automation-studio/v1/api/service.proto\"\xe6\x01\n" +
+	"3browser-automation-studio/v1/projects/project.proto\x12%browser_automation_studio.v1.projects\x1a.browser-automation-studio/v1/api/service.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe6\x01\n" +
 	"\aProject\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +

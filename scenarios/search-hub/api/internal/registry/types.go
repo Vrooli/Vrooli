@@ -49,3 +49,18 @@ type ErrProviderNotFound struct {
 func (e ErrProviderNotFound) Error() string {
 	return fmt.Sprintf("provider %q not found", e.ProviderID)
 }
+
+// ErrTokenMismatch is the typed sentinel returned by Store.Upsert when a
+// re-registration presents a NON-EMPTY control token that does not match the
+// one minted for the provider — a stale token or an attempt to hijack an
+// existing provider_id. Presenting an EMPTY token is allowed (the normal
+// restart case: the provider holds the token only in memory and re-acquires it
+// from the register echo), so this fires only on a positively wrong token.
+// Handlers translate it via errors.As into connect.CodePermissionDenied.
+type ErrTokenMismatch struct {
+	ProviderID string
+}
+
+func (e ErrTokenMismatch) Error() string {
+	return fmt.Sprintf("control token mismatch for provider %q", e.ProviderID)
+}

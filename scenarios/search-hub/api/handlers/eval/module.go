@@ -25,10 +25,14 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
 
+	aisearch "github.com/vrooli/aisearch-go"
+	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	evalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval/eval_v1connect"
 
+	"search-hub/internal/control"
 	internaleval "search-hub/internal/eval"
 	internalregistry "search-hub/internal/registry"
+	"search-hub/internal/sweep"
 )
 
 // Module returns the eval domain's contribution to the API: the generated
@@ -38,15 +42,34 @@ import (
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
 	store := internaleval.NewSQLiteStore(db, clk)
 	// The registry store doubles as the runner's provider resolver (its Get
-	// returns the descriptor whose endpoint the runner reuses).
+	// returns the descriptor whose endpoint the runner reuses) and the sweep's
+	// provider reader (Get + Token, to present the control token on the secured
+	// reindex/config-write verbs).
 	resolver := internalregistry.NewSQLiteStore(db, clk)
 	client := newHTTPProviderClient(newScenarioResolver(), httpc.NewDefault())
 	runner := internaleval.NewRunner(resolver, client, clk, uuid.NewString)
 
+	// The sweep orchestrator drives the SAME runner (with per-arm overrides) and
+	// the registry-side control client (for the index-time tier + write-back). Its
+	// arm runner adapts the runner's pure RunWith into the persist-each-arm seam.
+	sweeper := sweep.New(sweep.Deps{
+		Suites:    store,
+		Providers: resolver,
+		Runner:    armRunner{runner: runner, store: store},
+		Control:   control.NewClient(control.NewDiscoveryResolver()),
+		Clock:     clk,
+	}, sweep.Options{})
+
 	connectPath, connectHandler := evalconnect.NewEvalServiceHandler(NewConnectHandler(Deps{
-		Store:  store,
-		Runner: runner,
-		Logger: logger,
+		Store:     store,
+		Providers: resolver,
+		Runner:    runner,
+		Sweeper:   sweeper,
+		// The corpus generator samples the provider through the SAME client the
+		// runner/sweep use (its index is reached only via its search endpoint) and
+		// inverts items with the local Ollama gateway.
+		Generator: newLiveCorpusGenerator(client),
+		Logger:    logger,
 	}))
 	return module.Module{
 		Name: "eval",
@@ -60,6 +83,26 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 // Schema re-exports internaleval.Schema so the modules registry collects both
 // endpoint descriptors and schema from one symbol per handler package.
 func Schema() string { return internaleval.Schema() }
+
+// armRunner adapts the pure eval Runner (which builds but does not persist a
+// run) into the sweep's ArmRunner seam (run an arm THEN store it — the sweep's
+// contract is one immutable, tagged run per arm). It threads the per-arm
+// query-time overrides + control token through RunWith.
+type armRunner struct {
+	runner *internaleval.Runner
+	store  internaleval.Store
+}
+
+func (a armRunner) Run(ctx context.Context, suite *evalv1.EvalSuite, tag string, overrides *aisearch.SearchOverrides, controlToken string, limit int32) (*evalv1.EvalRun, error) {
+	run, err := a.runner.RunWith(ctx, suite, tag, limit, internaleval.SearchCallOptions{Overrides: overrides, ControlToken: controlToken})
+	if err != nil {
+		return nil, err
+	}
+	if err := a.store.AppendRun(ctx, run); err != nil {
+		return nil, err
+	}
+	return run, nil
+}
 
 // scenarioResolver adapts api-core/discovery's Resolver to the eval client's
 // URLResolver seam — the same backend cross-scenario resolution the routing

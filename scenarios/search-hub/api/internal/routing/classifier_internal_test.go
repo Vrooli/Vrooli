@@ -57,17 +57,6 @@ func TestParseClassifierResponse_SalvagesMalformedTypesArray(t *testing.T) {
 	require.Equal(t, []string{"command"}, chosen)
 }
 
-func TestStripThink(t *testing.T) {
-	require.Equal(t, "\n\nhello", stripThink("<think>reasoning here</think>\n\nhello"))
-	require.Equal(t, "abc", stripThink("abc"))
-	require.Equal(t, "", stripThink("<think>never closed"))
-}
-
-func TestExtractJSONObject_IgnoresBracesInStrings(t *testing.T) {
-	require.Equal(t, `{"a":"x}y"}`, extractJSONObject(`noise {"a":"x}y"} trailing`))
-	require.Equal(t, "", extractJSONObject("no object here"))
-}
-
 // --- widen policy ----------------------------------------------------------
 
 func TestWidenPolicy_ConfidentNarrows(t *testing.T) {

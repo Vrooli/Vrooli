@@ -238,3 +238,122 @@ func readFixture(t *testing.T, name string) []byte {
 	require.NoError(t, err)
 	return b
 }
+
+// measureDescriptor builds a measures-provider descriptor whose ResultMapping
+// carries a measure_field, so MapResults decodes the per-item measure object
+// into SearchHit.Measure (the only switch that turns on the carrier).
+func measureDescriptor() *registryv1.ProviderDescriptor {
+	return &registryv1.ProviderDescriptor{
+		ProviderId:    "measures-health.measures",
+		ProviderGroup: "measures-health",
+		Type:          "measure",
+		ResultMapping: &registryv1.ResultMapping{
+			ResultsPath:  "results",
+			IdField:      "measure.measure_id",
+			TitleField:   "measure.measure_id",
+			SnippetField: "measure.answer",
+			ScoreField:   "score",
+			ScoreScale:   registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1,
+			MeasureField: "measure",
+		},
+	}
+}
+
+// TestMapResultsMeasureCarrier_Executed proves a read-only measure that was
+// auto-executed carries its answer + executed_query through the generic adapter
+// into SearchHit.measure — no measure-specific code in the adapter, only the
+// descriptor's measure_field.
+func TestMapResultsMeasureCarrier_Executed(t *testing.T) {
+	body := []byte(`{"results":[{
+		"score":0.91,
+		"measure":{
+			"measure_id":"backlog.completed",
+			"scenario":"swarm-manager",
+			"params":{"window":"this_week"},
+			"answer":"42 backlog items completed (this_week)",
+			"effect":"read",
+			"executed_query":"SELECT count(*) ...",
+			"confidence":1.0
+		}
+	}]}`)
+
+	hits, err := providers.MapResults(measureDescriptor(), body)
+	require.NoError(t, err)
+	require.Len(t, hits, 1)
+
+	h := hits[0]
+	require.InDelta(t, 0.91, h.Score, 1e-9)
+	require.Equal(t, "backlog.completed", h.Id, "id_field reaches into the measure object")
+	require.Equal(t, "42 backlog items completed (this_week)", h.Snippet)
+
+	m := h.GetMeasure()
+	require.NotNil(t, m, "measure carrier must be populated")
+	require.Equal(t, "backlog.completed", m.GetMeasureId())
+	require.Equal(t, "swarm-manager", m.GetScenario())
+	require.Equal(t, "this_week", m.GetParams()["window"])
+	require.Equal(t, "42 backlog items completed (this_week)", m.GetAnswer())
+	require.Equal(t, "read", m.GetEffect())
+	require.Equal(t, "SELECT count(*) ...", m.GetExecutedQuery())
+	require.InDelta(t, 1.0, m.GetConfidence(), 1e-9)
+	require.Empty(t, m.GetNeeds())
+}
+
+// TestMapResultsMeasureCarrier_Needs proves an under-specified measure carries
+// needs[] and no answer.
+func TestMapResultsMeasureCarrier_Needs(t *testing.T) {
+	body := []byte(`{"results":[{
+		"score":0.8,
+		"measure":{
+			"measure_id":"backlog.completed",
+			"scenario":"swarm-manager",
+			"needs":["initiative"],
+			"effect":"read",
+			"confidence":1.0
+		}
+	}]}`)
+
+	hits, err := providers.MapResults(measureDescriptor(), body)
+	require.NoError(t, err)
+	require.Len(t, hits, 1)
+
+	m := hits[0].GetMeasure()
+	require.NotNil(t, m)
+	require.Equal(t, []string{"initiative"}, m.GetNeeds())
+	require.Empty(t, m.GetAnswer(), "an unresolved measure carries no answer")
+	require.Empty(t, m.GetExecutedQuery())
+}
+
+// TestMapResultsMeasureCarrier_WriteUnexecuted proves a write measure carries
+// resolved params but no answer (the confirmation case).
+func TestMapResultsMeasureCarrier_WriteUnexecuted(t *testing.T) {
+	body := []byte(`{"results":[{
+		"score":0.95,
+		"measure":{
+			"measure_id":"backlog.archive",
+			"scenario":"swarm-manager",
+			"params":{"window":"last_month"},
+			"effect":"write",
+			"confidence":1.0
+		}
+	}]}`)
+
+	hits, err := providers.MapResults(measureDescriptor(), body)
+	require.NoError(t, err)
+	m := hits[0].GetMeasure()
+	require.NotNil(t, m)
+	require.Equal(t, "write", m.GetEffect())
+	require.Equal(t, "last_month", m.GetParams()["window"])
+	require.Empty(t, m.GetAnswer(), "a write measure is never auto-executed")
+}
+
+// TestMapResultsNoMeasureField_LeavesMeasureNil proves a retrieval provider
+// (no measure_field) leaves SearchHit.measure unset even if items happen to
+// carry a "measure" key — the carrier is opt-in via the descriptor.
+func TestMapResultsNoMeasureField_LeavesMeasureNil(t *testing.T) {
+	d := mappingDescriptor(registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1, "", "")
+	body := []byte(`{"results":[{"id":"x","title":"X","score":0.5,"measure":{"measure_id":"should.be.ignored"}}]}`)
+	hits, err := providers.MapResults(d, body)
+	require.NoError(t, err)
+	require.Len(t, hits, 1)
+	require.Nil(t, hits[0].GetMeasure(), "no measure_field ⇒ measure stays nil")
+}

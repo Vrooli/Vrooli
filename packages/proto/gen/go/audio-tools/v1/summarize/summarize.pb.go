@@ -711,7 +711,7 @@ var File_audio_tools_v1_summarize_summarize_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_summarize_summarize_proto_rawDesc = "" +
 	"\n" +
-	"(audio-tools/v1/summarize/summarize.proto\x12\x1fvrooli.audio_tools.v1.summarize\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\"audio-tools/v1/common/common.proto\"\xd8\x01\n" +
+	"(audio-tools/v1/summarize/summarize.proto\x12\x1fvrooli.audio_tools.v1.summarize\x1a\"audio-tools/v1/common/common.proto\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\"\xd8\x01\n" +
 	"\x0fSummarizeConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12%\n" +
 	"\x0echar_threshold\x18\x02 \x01(\x05R\rcharThreshold\x12E\n" +

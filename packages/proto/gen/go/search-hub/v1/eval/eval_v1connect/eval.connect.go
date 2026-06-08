@@ -48,6 +48,10 @@ const (
 	EvalServiceGetRunProcedure = "/vrooli.search_hub.v1.eval.EvalService/GetRun"
 	// EvalServiceCompareRunsProcedure is the fully-qualified name of the EvalService's CompareRuns RPC.
 	EvalServiceCompareRunsProcedure = "/vrooli.search_hub.v1.eval.EvalService/CompareRuns"
+	// EvalServiceSweepProcedure is the fully-qualified name of the EvalService's Sweep RPC.
+	EvalServiceSweepProcedure = "/vrooli.search_hub.v1.eval.EvalService/Sweep"
+	// EvalServiceGenerateProcedure is the fully-qualified name of the EvalService's Generate RPC.
+	EvalServiceGenerateProcedure = "/vrooli.search_hub.v1.eval.EvalService/Generate"
 )
 
 // EvalServiceClient is a client for the vrooli.search_hub.v1.eval.EvalService service.
@@ -63,6 +67,17 @@ type EvalServiceClient interface {
 	GetRun(context.Context, *connect.Request[eval.GetRunRequest]) (*connect.Response[eval.GetRunResponse], error)
 	// A-vs-B per-case delta.
 	CompareRuns(context.Context, *connect.Request[eval.CompareRunsRequest]) (*connect.Response[eval.CompareRunsResponse], error)
+	// Run the two-tier, overfit-safe parameter sweep over a suite's provider and
+	// (optionally) write back a statistically-significant winning tuning. Each arm
+	// is one stored, tagged EvalRun. See SweepRequest/SweepResult.
+	Sweep(context.Context, *connect.Request[eval.SweepRequest]) (*connect.Response[eval.SweepResponse], error)
+	// Propose machine-generated golden cases for a suite by sampling the
+	// provider's index and inverting each sampled item to a natural-language
+	// query (+ optional hard negatives), de-duped against the existing corpus.
+	// Proposals are PREVIEW-only by default; --apply appends them to the suite,
+	// each marked tags:["generated"] so the sweep holds them out of tuning. See
+	// GenerateRequest/GenerateResponse.
+	Generate(context.Context, *connect.Request[eval.GenerateRequest]) (*connect.Response[eval.GenerateResponse], error)
 }
 
 // NewEvalServiceClient constructs a client for the vrooli.search_hub.v1.eval.EvalService service.
@@ -118,6 +133,18 @@ func NewEvalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(evalServiceMethods.ByName("CompareRuns")),
 			connect.WithClientOptions(opts...),
 		),
+		sweep: connect.NewClient[eval.SweepRequest, eval.SweepResponse](
+			httpClient,
+			baseURL+EvalServiceSweepProcedure,
+			connect.WithSchema(evalServiceMethods.ByName("Sweep")),
+			connect.WithClientOptions(opts...),
+		),
+		generate: connect.NewClient[eval.GenerateRequest, eval.GenerateResponse](
+			httpClient,
+			baseURL+EvalServiceGenerateProcedure,
+			connect.WithSchema(evalServiceMethods.ByName("Generate")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -130,6 +157,8 @@ type evalServiceClient struct {
 	listRuns      *connect.Client[eval.ListRunsRequest, eval.ListRunsResponse]
 	getRun        *connect.Client[eval.GetRunRequest, eval.GetRunResponse]
 	compareRuns   *connect.Client[eval.CompareRunsRequest, eval.CompareRunsResponse]
+	sweep         *connect.Client[eval.SweepRequest, eval.SweepResponse]
+	generate      *connect.Client[eval.GenerateRequest, eval.GenerateResponse]
 }
 
 // RegisterSuite calls vrooli.search_hub.v1.eval.EvalService.RegisterSuite.
@@ -167,6 +196,16 @@ func (c *evalServiceClient) CompareRuns(ctx context.Context, req *connect.Reques
 	return c.compareRuns.CallUnary(ctx, req)
 }
 
+// Sweep calls vrooli.search_hub.v1.eval.EvalService.Sweep.
+func (c *evalServiceClient) Sweep(ctx context.Context, req *connect.Request[eval.SweepRequest]) (*connect.Response[eval.SweepResponse], error) {
+	return c.sweep.CallUnary(ctx, req)
+}
+
+// Generate calls vrooli.search_hub.v1.eval.EvalService.Generate.
+func (c *evalServiceClient) Generate(ctx context.Context, req *connect.Request[eval.GenerateRequest]) (*connect.Response[eval.GenerateResponse], error) {
+	return c.generate.CallUnary(ctx, req)
+}
+
 // EvalServiceHandler is an implementation of the vrooli.search_hub.v1.eval.EvalService service.
 type EvalServiceHandler interface {
 	// Upsert a suite (keyed by suite_id).
@@ -180,6 +219,17 @@ type EvalServiceHandler interface {
 	GetRun(context.Context, *connect.Request[eval.GetRunRequest]) (*connect.Response[eval.GetRunResponse], error)
 	// A-vs-B per-case delta.
 	CompareRuns(context.Context, *connect.Request[eval.CompareRunsRequest]) (*connect.Response[eval.CompareRunsResponse], error)
+	// Run the two-tier, overfit-safe parameter sweep over a suite's provider and
+	// (optionally) write back a statistically-significant winning tuning. Each arm
+	// is one stored, tagged EvalRun. See SweepRequest/SweepResult.
+	Sweep(context.Context, *connect.Request[eval.SweepRequest]) (*connect.Response[eval.SweepResponse], error)
+	// Propose machine-generated golden cases for a suite by sampling the
+	// provider's index and inverting each sampled item to a natural-language
+	// query (+ optional hard negatives), de-duped against the existing corpus.
+	// Proposals are PREVIEW-only by default; --apply appends them to the suite,
+	// each marked tags:["generated"] so the sweep holds them out of tuning. See
+	// GenerateRequest/GenerateResponse.
+	Generate(context.Context, *connect.Request[eval.GenerateRequest]) (*connect.Response[eval.GenerateResponse], error)
 }
 
 // NewEvalServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -231,6 +281,18 @@ func NewEvalServiceHandler(svc EvalServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(evalServiceMethods.ByName("CompareRuns")),
 		connect.WithHandlerOptions(opts...),
 	)
+	evalServiceSweepHandler := connect.NewUnaryHandler(
+		EvalServiceSweepProcedure,
+		svc.Sweep,
+		connect.WithSchema(evalServiceMethods.ByName("Sweep")),
+		connect.WithHandlerOptions(opts...),
+	)
+	evalServiceGenerateHandler := connect.NewUnaryHandler(
+		EvalServiceGenerateProcedure,
+		svc.Generate,
+		connect.WithSchema(evalServiceMethods.ByName("Generate")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.search_hub.v1.eval.EvalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case EvalServiceRegisterSuiteProcedure:
@@ -247,6 +309,10 @@ func NewEvalServiceHandler(svc EvalServiceHandler, opts ...connect.HandlerOption
 			evalServiceGetRunHandler.ServeHTTP(w, r)
 		case EvalServiceCompareRunsProcedure:
 			evalServiceCompareRunsHandler.ServeHTTP(w, r)
+		case EvalServiceSweepProcedure:
+			evalServiceSweepHandler.ServeHTTP(w, r)
+		case EvalServiceGenerateProcedure:
+			evalServiceGenerateHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -282,4 +348,12 @@ func (UnimplementedEvalServiceHandler) GetRun(context.Context, *connect.Request[
 
 func (UnimplementedEvalServiceHandler) CompareRuns(context.Context, *connect.Request[eval.CompareRunsRequest]) (*connect.Response[eval.CompareRunsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.eval.EvalService.CompareRuns is not implemented"))
+}
+
+func (UnimplementedEvalServiceHandler) Sweep(context.Context, *connect.Request[eval.SweepRequest]) (*connect.Response[eval.SweepResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.eval.EvalService.Sweep is not implemented"))
+}
+
+func (UnimplementedEvalServiceHandler) Generate(context.Context, *connect.Request[eval.GenerateRequest]) (*connect.Response[eval.GenerateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.eval.EvalService.Generate is not implemented"))
 }

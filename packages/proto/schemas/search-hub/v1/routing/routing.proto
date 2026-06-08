@@ -79,6 +79,54 @@ message SearchHit {
   double score = 8;
   // Set when reranked.
   double rerank_score = 9;
+  // Set ONLY by the measures provider (the federated metrics layer). When this
+  // hit is a matched *measure* — a typed, parameterized analytical query —
+  // rather than a retrieved document, this carries the structured measure
+  // answer/resolution. Greenfield-additive: every retrieval provider leaves it
+  // unset and consumers that do not understand measures ignore it.
+  MeasureHit measure = 10;
+}
+
+// MeasureHit is the structured payload of a measure match: the resolved measure,
+// its extracted parameters, and — for a safe read-only measure resolved at high
+// confidence — the executed answer. It is the wire form of search-hub's answer
+// to an analytical ("how many / what's the rate / what's next") question.
+//
+// The auto-execution contract is encoded in which fields are populated (the
+// router never interprets these — it carries them; the measures provider fills
+// them per the gate keyed on `effect`):
+//   - answer set + executed_query set  ⇒ the measure was auto-executed (only
+//     ever for effect == "read" AND run_eligible AND confidence >= θ).
+//   - needs non-empty                  ⇒ a required parameter could not be
+//     resolved; the measure was NOT executed (the consumer must ask, not guess).
+//   - answer empty + needs empty + effect in {write, destructive} ⇒ params were
+//     fully resolved but execution is withheld pending confirmation (a
+//     write/destructive measure is NEVER auto-run, even at full confidence).
+message MeasureHit {
+  // Stable measure identifier (the measure declaration name, conventionally
+  // "<domain>.<verb>", e.g. "backlog.completed").
+  string measure_id = 1;
+  // Owning scenario — who computes the answer (the execution-proxy target the
+  // central index resolves at execution time).
+  string scenario = 2;
+  // Resolved parameter values (param name → string value: a time-window token,
+  // an enum member, or an extracted scalar). Only successfully-resolved params
+  // appear; an unresolved required param is reported in `needs` instead.
+  map<string, string> params = 3;
+  // The computed answer rendered for presentation (e.g. "42 backlog items
+  // completed (this_week)"). Empty unless the measure was auto-executed.
+  string answer = 4;
+  // Required parameters that could not be resolved. Non-empty ⇒ not executed —
+  // the consumer should ask for these rather than guess.
+  repeated string needs = 5;
+  // Side-effect class of the measure ("read" | "write" | "destructive"). The
+  // auto-exec gate keys on this — only "read" is ever auto-run.
+  string effect = 6;
+  // The concrete query/aggregation that produced `answer` (provenance). Empty
+  // unless executed.
+  string executed_query = 7;
+  // Extraction/match confidence in [0,1]; the gate compares it against θ.
+  double confidence = 8;
 }
 
 // Phase-4 honest grouping (pre-rerank): candidates kept per provider.
