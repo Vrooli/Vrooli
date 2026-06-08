@@ -83,7 +83,14 @@ message InsightPromptPreviewResponse {
 message SuggestionStatusUpdateRequest {
   // New status.
   // @constraint one of: pending, applied, rejected, superseded
-  string status = 1 [(buf.validate.field).string = { in: ["pending", "applied", "rejected", "superseded"] }];
+  string status = 1 [(buf.validate.field).string = {
+    in: [
+      "pending",
+      "applied",
+      "rejected",
+      "superseded"
+    ]
+  }];
 }
 
 // SuggestionStatusUpdateResponse returns the result of updating suggestion status.

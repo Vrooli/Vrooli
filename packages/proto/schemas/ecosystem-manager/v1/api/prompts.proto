@@ -54,10 +54,20 @@ message UpdatePromptFileRequest {
 // PromptPreviewRequest defines the payload for previewing an assembled prompt.
 message PromptPreviewRequest {
   // Task type.
-  string type = 1 [(buf.validate.field).string = { in: ["resource", "scenario"] }];
+  string type = 1 [(buf.validate.field).string = {
+    in: [
+      "resource",
+      "scenario"
+    ]
+  }];
 
   // Task operation.
-  string operation = 2 [(buf.validate.field).string = { in: ["generator", "improver"] }];
+  string operation = 2 [(buf.validate.field).string = {
+    in: [
+      "generator",
+      "improver"
+    ]
+  }];
 
   // Target name.
   string target = 3 [(buf.validate.field).string.min_len = 1];

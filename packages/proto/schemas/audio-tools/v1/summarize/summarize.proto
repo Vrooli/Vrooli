@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package vrooli.audio_tools.v1.summarize;
 
+import "audio-tools/v1/common/common.proto";
 import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
-import "audio-tools/v1/common/common.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize;summarize_v1";
 
@@ -101,8 +101,11 @@ message ListSummarizeModelsResponse {
 message SummarizeRequest {
   string text = 1 [(buf.validate.field).string.min_len = 1];
   SummarizeLevel level = 2;
-  string model = 3;                   // optional override
-  int32 timeout_seconds = 4 [(buf.validate.field).int32 = { gte: 0, lte: 600 }];
+  string model = 3; // optional override
+  int32 timeout_seconds = 4 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 600
+  }];
 }
 
 message SummarizeResponse {

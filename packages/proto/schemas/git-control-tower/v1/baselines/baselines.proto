@@ -70,7 +70,7 @@ message SurfacePointer {
   string kind = 2; // test-genie-run | gct-local-snapshot | external
   string ref = 3;
   string captured_at = 4; // RFC3339
-  string summary = 5;     // surface-specific short summary (raw JSON)
+  string summary = 5; // surface-specific short summary (raw JSON)
 }
 
 // BaselineManifest is the stored baseline document.

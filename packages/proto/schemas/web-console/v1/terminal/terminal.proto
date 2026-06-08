@@ -129,7 +129,7 @@ message SendInputRequest {
   }
   // Optional metadata for diagnostics. "paste" requests use the PTY
   // bracketed-paste path when supported.
-  string source = 5;  // free-form, e.g. "agent:claude-driver", "cli", "test"
+  string source = 5; // free-form, e.g. "agent:claude-driver", "cli", "test"
   bool is_paste = 6;
 }
 

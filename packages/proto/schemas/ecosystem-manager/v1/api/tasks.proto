@@ -27,13 +27,26 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-ma
 // TaskCreateRequest defines the payload for creating a new task.
 message TaskCreateRequest {
   // Human-readable task title.
-  string title = 1 [(buf.validate.field).string = { min_len: 1, max_len: 200 }];
+  string title = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 200
+  }];
 
   // Task type.
-  string type = 2 [(buf.validate.field).string = { in: ["resource", "scenario"] }];
+  string type = 2 [(buf.validate.field).string = {
+    in: [
+      "resource",
+      "scenario"
+    ]
+  }];
 
   // Task operation.
-  string operation = 3 [(buf.validate.field).string = { in: ["generator", "improver"] }];
+  string operation = 3 [(buf.validate.field).string = {
+    in: [
+      "generator",
+      "improver"
+    ]
+  }];
 
   // Primary target name.
   optional string target = 4;
@@ -45,7 +58,15 @@ message TaskCreateRequest {
   optional string category = 6;
 
   // Priority level.
-  optional string priority = 7 [(buf.validate.field).string = { in: ["", "low", "medium", "high", "critical"] }];
+  optional string priority = 7 [(buf.validate.field).string = {
+    in: [
+      "",
+      "low",
+      "medium",
+      "high",
+      "critical"
+    ]
+  }];
 
   // Effort estimate description.
   optional string effort_estimate = 8;
@@ -84,19 +105,29 @@ message TaskUpdateRequest {
   optional string title = 1;
 
   // Updated priority.
-  optional string priority = 2 [(buf.validate.field).string = { in: ["", "low", "medium", "high", "critical"] }];
+  optional string priority = 2 [(buf.validate.field).string = {
+    in: [
+      "",
+      "low",
+      "medium",
+      "high",
+      "critical"
+    ]
+  }];
 
   // Updated status.
-  optional string status = 3 [(buf.validate.field).string = { in: [
-    "",
-    "pending",
-    "in-progress",
-    "completed",
-    "failed",
-    "completed-finalized",
-    "failed-blocked",
-    "archived"
-  ] }];
+  optional string status = 3 [(buf.validate.field).string = {
+    in: [
+      "",
+      "pending",
+      "in-progress",
+      "completed",
+      "failed",
+      "completed-finalized",
+      "failed-blocked",
+      "archived"
+    ]
+  }];
 
   // Updated primary target.
   optional string target = 4;

@@ -50,8 +50,8 @@ message ConversationEvent {
   bool summarized = 8;
   string created_at = 9; // RFC3339
   int64 sequence = 10;
-  string delivery_state = 11;   // "pending" | "received" | "seen"
-  string tts_state = 12;        // "idle" | "playing" | "played" | "rejected" | "failed"
+  string delivery_state = 11; // "pending" | "received" | "seen"
+  string tts_state = 12; // "idle" | "playing" | "played" | "rejected" | "failed"
   string consumption_state = 13; // "unseen" | "seen" | "listening" | "listened"
 }
 
@@ -123,7 +123,7 @@ message ResolveFileReferenceResponse {
   bool has_line = 4;
   bool exists = 5;
   string resolution_basis = 6; // "session_cwd" | "project_root" | "absolute_allowed" | "session_upload"
-  string category = 7;         // "markdown" | "code" | "text" | "binary"
+  string category = 7; // "markdown" | "code" | "text" | "binary"
   bool can_preview = 8;
 }
 

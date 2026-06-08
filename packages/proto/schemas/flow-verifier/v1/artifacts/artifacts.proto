@@ -69,7 +69,9 @@ message GetArtifactStatusRequest {
   // Optional Vrooli root override; falls back to server default.
   string root = 3;
 }
-message GetArtifactStatusResponse { ArtifactReport report = 1; }
+message GetArtifactStatusResponse {
+  ArtifactReport report = 1;
+}
 
 message GenerateArtifactsRequest {
   string flow_id = 1;

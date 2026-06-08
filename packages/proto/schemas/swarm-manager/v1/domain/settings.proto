@@ -52,34 +52,66 @@ message DeleteConfirmationSettings {
 // Settings captures persisted configuration for Swarm Manager.
 message Settings {
   // UI theme preference.
-  string theme = 1 [(buf.validate.field).string = { in: ["dark", "light", "system"] }];
+  string theme = 1 [(buf.validate.field).string = {
+    in: [
+      "dark",
+      "light",
+      "system"
+    ]
+  }];
 
   reserved 2, 3, 4;
 
   // Execution defaults (absorbed from ExecutionPolicy).
-  string default_mode = 5 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  string default_mode = 5 [(buf.validate.field).string = {
+    in: [
+      "manual",
+      "yolo"
+    ]
+  }];
   reserved 6;
   bool auto_fixup = 7;
-  int32 max_fixup_attempts = 8 [(buf.validate.field).int32 = { gte: 0, lte: 5 }];
+  int32 max_fixup_attempts = 8 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 5
+  }];
   bool review_agent_enabled = 31;
 
   // Workshop settings.
-  int32 max_auto_rounds = 9 [(buf.validate.field).int32 = { gte: 0, lte: 50 }];
+  int32 max_auto_rounds = 9 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 50
+  }];
   bool auto_initialize_workshop = 16;
   bool auto_advance_workshop = 17;
   bool auto_cascade_workshop = 18;
   // Grace period (seconds) before auto-advance spawns the next round. 0 = instant.
-  int32 auto_advance_delay_seconds = 32 [(buf.validate.field).int32 = { gte: 0, lte: 120 }];
+  int32 auto_advance_delay_seconds = 32 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 120
+  }];
 
   // Agent behavior settings.
-  int32 agent_max_turns = 10 [(buf.validate.field).int32 = { gte: 5, lte: 1000 }];
-  int32 agent_timeout_seconds = 11 [(buf.validate.field).int32 = { gte: 60, lte: 3600 }];
+  int32 agent_max_turns = 10 [(buf.validate.field).int32 = {
+    gte: 5
+    lte: 1000
+  }];
+  int32 agent_timeout_seconds = 11 [(buf.validate.field).int32 = {
+    gte: 60
+    lte: 3600
+  }];
   reserved 12;
   reserved "agent_requires_approval";
 
   // UI preference settings.
-  int32 search_debounce_ms = 13 [(buf.validate.field).int32 = { gte: 100, lte: 2000 }];
-  int32 toast_duration_ms = 14 [(buf.validate.field).int32 = { gte: 1000, lte: 30000 }];
+  int32 search_debounce_ms = 13 [(buf.validate.field).int32 = {
+    gte: 100
+    lte: 2000
+  }];
+  int32 toast_duration_ms = 14 [(buf.validate.field).int32 = {
+    gte: 1000
+    lte: 30000
+  }];
   reserved 15;
   reserved "confirm_destructive_actions";
   // Field 33 held the fixed-shape DeleteConfirmationSettings message
@@ -95,8 +127,14 @@ message Settings {
   map<string, DeleteConfirmLevel> delete_confirmation_levels = 37;
 
   // Review thresholds.
-  double review_code_quality_min_score = 19 [(buf.validate.field).double = { gte: 0, lte: 100 }];
-  double review_test_min_pass_rate = 20 [(buf.validate.field).double = { gte: 0, lte: 1 }];
+  double review_code_quality_min_score = 19 [(buf.validate.field).double = {
+    gte: 0
+    lte: 100
+  }];
+  double review_test_min_pass_rate = 20 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
   int32 review_max_blocking_violations = 21 [(buf.validate.field).int32.gte = 0];
   int32 review_max_warnings = 22 [(buf.validate.field).int32.gte = -1];
   bool review_require_screenshots = 23;
@@ -107,16 +145,34 @@ message Settings {
   // operatingmode.PhaseKind values: "investigate", "execute", "review",
   // "reconcile". Replaces the legacy single global cap (reserved 25).
   map<string, int32> lane_concurrency_limits = 34;
-  int32 max_queue_depth = 26 [(buf.validate.field).int32 = { gte: 0, lte: 100 }];
-  int32 circuit_breaker_threshold = 27 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
-  int32 circuit_breaker_cooldown_minutes = 28 [(buf.validate.field).int32 = { gte: 5, lte: 1440 }];
+  int32 max_queue_depth = 26 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 100
+  }];
+  int32 circuit_breaker_threshold = 27 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 10
+  }];
+  int32 circuit_breaker_cooldown_minutes = 28 [(buf.validate.field).int32 = {
+    gte: 5
+    lte: 1440
+  }];
   double execution_cost_cap_per_run = 29 [(buf.validate.field).double.gte = 0];
-  double cost_per_turn_estimate = 30 [(buf.validate.field).double = { gte: 0, lte: 5 }];
+  double cost_per_turn_estimate = 30 [(buf.validate.field).double = {
+    gte: 0
+    lte: 5
+  }];
 
   // Fix-before-feature gate. "off" | "suggest" (default) | "block": when a
   // feature item (kind=execute) is queued onto a scenario with open fix/chore
   // items, advise or block accordingly.
-  string fix_before_feature = 35 [(buf.validate.field).string = { in: ["off", "suggest", "block"] }];
+  string fix_before_feature = 35 [(buf.validate.field).string = {
+    in: [
+      "off",
+      "suggest",
+      "block"
+    ]
+  }];
   // When true, queuing a feature item onto a scenario with no known open fix
   // work triggers an async on-demand readiness review that auto-files fixes.
   bool fix_before_feature_discovery = 36;

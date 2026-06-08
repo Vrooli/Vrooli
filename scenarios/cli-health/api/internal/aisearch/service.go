@@ -64,13 +64,10 @@ type Options struct {
 	// collections without disturbing the live index.
 	Collection string
 	// Compose overrides the per-command embedding-text strategy (nil =>
-	// composeCommandEmbeddingText). composeCommandEmbeddingTextEnriched is the
-	// retrieval-tuned alternative.
+	// composeCommandEmbeddingText, the measured-best production strategy). The
+	// seam is retained for measurement; an enriched variant was tried and removed
+	// (see graduation-retrospective.md).
 	Compose func(CommandRecord) string
-	// Decorate is the late, query-aware authority prior applied after the floor
-	// (nil => none). newAuthorityDecorator supplies cli-health's canonical-origin
-	// boost.
-	Decorate pkg.ScoreDecorator
 	// DisableFloor turns OFF ApplyRelevanceFloor (default: floor ON). The floor
 	// trims the low-relevance tail but, in the cosine regime, can also drop a
 	// genuinely-relevant-but-mid-score canonical command — a measured recall cost.
@@ -113,7 +110,6 @@ func NewService(opts Options) *Service {
 		Floor:         opts.Floor,
 		Threshold:     opts.Threshold,
 		Shortlist:     opts.RerankShortlist,
-		Decorate:      opts.Decorate,
 		RerankText:    func(r pkg.SearchResult) string { return candidateText(r.Payload) },
 		TextFallback:  commandTextFallback(opts.Discovery),
 	})
@@ -202,58 +198,6 @@ func (s *Service) Status(ctx context.Context) StatusReport {
 		LastReconcileAt:      r.LastReconcileAt,
 		LastReconcileOutcome: r.LastReconcileOutcome,
 		Reranker:             r.Reranker,
-	}
-}
-
-// CanonicalOriginBoost is the multiplicative authority prior applied to the root
-// orchestrator's commands (see newAuthorityDecorator). >1 lifts them above the
-// fleet of near-duplicate scenario commands that mirror the same verb.
-const CanonicalOriginBoost = 1.25
-
-// canonicalOrigin is the root CLI whose commands are the canonical home for the
-// fleet-wide verbs (scenario start/stop/list, setup, develop, help) that dozens
-// of scenario CLIs mirror. Its commands lose to literal-token sibling matches
-// under the cross-encoder ("vrooli scenario list" buried behind 8 other
-// scenarios' list commands) — the authority prior corrects that.
-const canonicalOrigin = "vrooli"
-
-// newAuthorityDecorator returns the late, query-aware authority prior: it boosts
-// the canonical origin's commands UNLESS the query explicitly names a different
-// origin (so "swarm-manager …" style queries are never hijacked). It is the
-// cli-health analogue of KO's facet authority boost, applied via the shared
-// Decorate seam after the relevance floor.
-func newAuthorityDecorator() pkg.ScoreDecorator {
-	return func(hits []pkg.SearchResult, q pkg.SearchQuery) {
-		qTokens := make(map[string]struct{})
-		for _, t := range tokenize(q.Query) {
-			qTokens[t] = struct{}{}
-		}
-		// Does the query name a non-canonical origin present in the result set?
-		// If so, the user is steering to a specific CLI — do not apply the prior.
-		queryNamesOther := false
-		for i := range hits {
-			origin, _ := hits[i].Payload["origin"].(string)
-			if origin == "" || origin == canonicalOrigin {
-				continue
-			}
-			for _, w := range splitIdentifier(origin) {
-				if _, ok := qTokens[w]; ok {
-					queryNamesOther = true
-					break
-				}
-			}
-			if queryNamesOther {
-				break
-			}
-		}
-		if queryNamesOther {
-			return
-		}
-		for i := range hits {
-			if origin, _ := hits[i].Payload["origin"].(string); origin == canonicalOrigin {
-				hits[i].Score *= CanonicalOriginBoost
-			}
-		}
 	}
 }
 

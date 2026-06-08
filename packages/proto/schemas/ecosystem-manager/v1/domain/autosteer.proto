@@ -31,7 +31,12 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-ma
 message StopCondition {
   // Condition type.
   // @constraint one of: simple, compound
-  string type = 1 [(buf.validate.field).string = { in: ["simple", "compound"] }];
+  string type = 1 [(buf.validate.field).string = {
+    in: [
+      "simple",
+      "compound"
+    ]
+  }];
 
   // Logical operator for compound conditions.
   // @constraint one of: AND, OR
@@ -88,7 +93,13 @@ message QualityGate {
 
   // Action on failure.
   // @constraint one of: halt, skip_phase, warn
-  string failure_action = 3 [(buf.validate.field).string = { in: ["halt", "skip_phase", "warn"] }];
+  string failure_action = 3 [(buf.validate.field).string = {
+    in: [
+      "halt",
+      "skip_phase",
+      "warn"
+    ]
+  }];
 
   // Message to display on gate evaluation.
   string message = 4;
@@ -353,7 +364,10 @@ message PhasePerformance {
 // UserFeedback represents user rating and comments for an execution.
 message UserFeedback {
   // Rating (1-5).
-  int32 rating = 1 [(buf.validate.field).int32 = { gte: 1, lte: 5 }];
+  int32 rating = 1 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 5
+  }];
 
   // User comments.
   string comments = 2;

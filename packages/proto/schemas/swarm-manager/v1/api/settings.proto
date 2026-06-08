@@ -32,12 +32,25 @@ message SettingsResponse {
 // UpdateSettingsRequest applies partial settings updates.
 message UpdateSettingsRequest {
   // Optional theme override.
-  optional string theme = 1 [(buf.validate.field).string = { in: ["", "dark", "light", "system"] }];
+  optional string theme = 1 [(buf.validate.field).string = {
+    in: [
+      "",
+      "dark",
+      "light",
+      "system"
+    ]
+  }];
 
   reserved 2, 3, 4;
 
   // Execution defaults.
-  optional string default_mode = 5 [(buf.validate.field).string = { in: ["", "manual", "yolo"] }];
+  optional string default_mode = 5 [(buf.validate.field).string = {
+    in: [
+      "",
+      "manual",
+      "yolo"
+    ]
+  }];
   reserved 6;
   optional bool auto_fixup = 7;
   optional int32 max_fixup_attempts = 8;
@@ -92,7 +105,14 @@ message UpdateSettingsRequest {
   optional double cost_per_turn_estimate = 30;
 
   // Fix-before-feature gate controls (see domain Settings).
-  optional string fix_before_feature = 35 [(buf.validate.field).string = { in: ["", "off", "suggest", "block"] }];
+  optional string fix_before_feature = 35 [(buf.validate.field).string = {
+    in: [
+      "",
+      "off",
+      "suggest",
+      "block"
+    ]
+  }];
   optional bool fix_before_feature_discovery = 36;
 
   reserved 25;

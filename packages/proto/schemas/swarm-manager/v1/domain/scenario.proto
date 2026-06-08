@@ -37,24 +37,32 @@ message Scenario {
 
   // Runtime state.
   // @constraint one of: running, stopped, error, unknown
-  string status = 4 [(buf.validate.field).string = { in: [
-    "running",
-    "stopped",
-    "error",
-    "unknown"
-  ] }];
+  string status = 4 [(buf.validate.field).string = {
+    in: [
+      "running",
+      "stopped",
+      "error",
+      "unknown"
+    ]
+  }];
 
   // Priority level (1 = highest, 10 = lowest).
-  int32 priority = 5 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+  int32 priority = 5 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 10
+  }];
 
   // Completeness score (0-100) if available.
-  optional int32 completeness_score = 6 [(buf.validate.field).int32 = { gte: 0, lte: 100 }];
+  optional int32 completeness_score = 6 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 100
+  }];
 
   // Whether this scenario is greenfield.
   bool is_greenfield = 7;
 
   // Categorization tags.
-  repeated string tags = 8 [(buf.validate.field).repeated = { unique: true }];
+  repeated string tags = 8 [(buf.validate.field).repeated = {unique: true}];
 
   // Classification from the most recent GCT review.
   // One of: ready, ready_with_notes, needs_work, not_assessable.

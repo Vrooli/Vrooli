@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package vrooli.flow_verifier.v1.scenarios;
 
-import "flow-verifier/v1/flows/flows.proto";
 import "flow-verifier/v1/artifacts/artifacts.proto";
+import "flow-verifier/v1/flows/flows.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/scenarios;scenarios_v1";
 
@@ -61,10 +61,16 @@ message ListScenariosResponse {
   repeated ScenarioSummary scenarios = 2;
 }
 
-message GetScenarioRequest { string id = 1; }
-message GetScenarioResponse { ScenarioDetail scenario = 1; }
+message GetScenarioRequest {
+  string id = 1;
+}
+message GetScenarioResponse {
+  ScenarioDetail scenario = 1;
+}
 
-message GenerateScenarioArtifactsRequest { string scenario_id = 1; }
+message GenerateScenarioArtifactsRequest {
+  string scenario_id = 1;
+}
 
 // GenerateScenarioArtifactsResponse is one message in the server-stream.
 // Exactly one of `report` or `error_message` is populated per message:
@@ -76,7 +82,9 @@ message GenerateScenarioArtifactsResponse {
   string error_message = 3;
 }
 
-message ClearScenarioArtifactsRequest { string scenario_id = 1; }
+message ClearScenarioArtifactsRequest {
+  string scenario_id = 1;
+}
 message ClearScenarioArtifactsResponse {
   repeated vrooli.flow_verifier.v1.artifacts.ClearArtifactsResponse flows = 1;
 }

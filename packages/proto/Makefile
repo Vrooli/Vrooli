@@ -1,8 +1,9 @@
 BUF_BASE_BRANCH ?= master
+DESCRIPTOR_DIR ?= gen/descriptor
 
-.PHONY: generate lint format breaking check clean refresh-vendor
+.PHONY: generate descriptor lint format breaking check clean refresh-vendor
 
-generate:
+generate: descriptor
 	buf generate
 	# Mark every generated Python package directory as typed (PEP 561).
 	# Recursive find replaces the previous hardcoded list so adding a new
@@ -10,6 +11,17 @@ generate:
 	@if [ -d gen/python ]; then \
 		find gen/python -type d -exec touch {}/py.typed \; ; \
 	fi
+
+# descriptor emits a self-contained FileDescriptorSet ("image") so request-
+# message param schemas — buf.validate constraints, enum values, optionality,
+# and leading comments — are runtime-introspectable by packages/measures-go and
+# any other consumer. This is a `buf build` invocation, not a `buf generate`
+# plugin. image.binpb is committed (the canonical artifact); image.json is an
+# optional human/debug rendering and is gitignored.
+descriptor:
+	@mkdir -p $(DESCRIPTOR_DIR)
+	buf build -o $(DESCRIPTOR_DIR)/image.binpb
+	buf build -o $(DESCRIPTOR_DIR)/image.json
 
 lint:
 	buf lint
@@ -25,8 +37,10 @@ breaking:
 
 check: lint
 	buf generate
+	@mkdir -p $(DESCRIPTOR_DIR)
+	buf build -o $(DESCRIPTOR_DIR)/image.binpb
 	@if ! git diff --quiet gen/; then \
-		echo "ERROR: Generated code is out of date. Run 'make generate' and commit.'"; \
+		echo "ERROR: Generated code (or descriptor) is out of date. Run 'make generate' and commit.'"; \
 		git diff --stat gen/; \
 		exit 1; \
 	fi

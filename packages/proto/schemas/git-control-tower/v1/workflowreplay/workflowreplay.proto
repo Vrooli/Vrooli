@@ -35,13 +35,13 @@ service WorkflowReplayService {
 // RunSummary is a compact playbooks-run record for the Workflows tab list.
 message RunSummary {
   string run_id = 1;
-  string status = 2;        // in_progress | passed | failed | aborted
-  string started_at = 3;    // RFC3339
-  string completed_at = 4;  // RFC3339, empty if in-progress
+  string status = 2; // in_progress | passed | failed | aborted
+  string started_at = 3; // RFC3339
+  string completed_at = 4; // RFC3339, empty if in-progress
   string git_sha = 5;
   string git_branch = 6;
   bool git_dirty = 7;
-  string playbooks_status = 8;          // passed | failed | skipped
+  string playbooks_status = 8; // passed | failed | skipped
   double playbooks_duration_seconds = 9;
 }
 

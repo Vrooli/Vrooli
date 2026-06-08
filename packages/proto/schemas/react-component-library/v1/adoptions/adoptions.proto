@@ -156,10 +156,10 @@ message RefreshAdoptionsRequest {
 // know whether to trust the pre-filled path.
 enum ResolveSource {
   RESOLVE_SOURCE_UNSPECIFIED = 0;
-  RESOLVE_SOURCE_EXPLICIT = 1;            // Caller supplied an override.
-  RESOLVE_SOURCE_TEMPLATE_MANIFEST = 2;   // Resolved via the template's ui/manifest.json.
-  RESOLVE_SOURCE_HEURISTIC = 3;           // Manifest absent; matched directory by name.
-  RESOLVE_SOURCE_FALLBACK = 4;            // No manifest, no heuristic match — last resort.
+  RESOLVE_SOURCE_EXPLICIT = 1; // Caller supplied an override.
+  RESOLVE_SOURCE_TEMPLATE_MANIFEST = 2; // Resolved via the template's ui/manifest.json.
+  RESOLVE_SOURCE_HEURISTIC = 3; // Manifest absent; matched directory by name.
+  RESOLVE_SOURCE_FALLBACK = 4; // No manifest, no heuristic match — last resort.
 }
 
 message ResolveAdoptionPathRequest {

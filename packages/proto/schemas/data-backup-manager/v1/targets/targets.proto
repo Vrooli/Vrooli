@@ -3,8 +3,8 @@ syntax = "proto3";
 package vrooli.data_backup_manager.v1.targets;
 
 import "buf/validate/validate.proto";
-import "google/protobuf/timestamp.proto";
 import "data-backup-manager/v1/sources/sources.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/targets;targets_v1";
 
@@ -67,12 +67,10 @@ message Target {
 message RegisterTargetRequest {
   string owner = 1 [(buf.validate.field).string.min_len = 1];
   string name = 2 [(buf.validate.field).string.min_len = 1];
-  vrooli.data_backup_manager.v1.sources.SourceKind source_kind = 3 [
-    (buf.validate.field).enum = {
-      defined_only: true,
-      not_in: [0]
-    }
-  ];
+  vrooli.data_backup_manager.v1.sources.SourceKind source_kind = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   string locator = 4 [(buf.validate.field).string.min_len = 1];
 }
 

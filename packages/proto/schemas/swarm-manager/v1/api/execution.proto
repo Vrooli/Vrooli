@@ -22,7 +22,12 @@ message ExecutionPolicyResponse {
 message CreateExecutionRequest {
   string backlog_kind = 1 [(buf.validate.field).string.min_len = 1];
   string backlog_name = 2 [(buf.validate.field).string.min_len = 1];
-  string mode = 3 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  string mode = 3 [(buf.validate.field).string = {
+    in: [
+      "manual",
+      "yolo"
+    ]
+  }];
   reserved 4;
   optional string started_by = 5;
   optional string operation = 6;
@@ -32,9 +37,20 @@ message CreateExecutionRequest {
 message FollowUpExecutionRequest {
   string execution_id = 1 [(buf.validate.field).string.min_len = 1];
   // Follow-up type: fixup (fix review issues), followup (general continuation), custom (free-form).
-  string follow_up_type = 2 [(buf.validate.field).string = { in: ["fixup", "followup", "custom"] }];
+  string follow_up_type = 2 [(buf.validate.field).string = {
+    in: [
+      "fixup",
+      "followup",
+      "custom"
+    ]
+  }];
   // Additional context or instructions for the follow-up.
   optional string context = 3;
   // Run mode: continue (reply to existing agent-manager run) or new (spawn fresh run).
-  string run_mode = 4 [(buf.validate.field).string = { in: ["continue", "new"] }];
+  string run_mode = 4 [(buf.validate.field).string = {
+    in: [
+      "continue",
+      "new"
+    ]
+  }];
 }

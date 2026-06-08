@@ -63,8 +63,7 @@ message Golden {
   google.protobuf.Timestamp last_regenerated_at = 7;
 }
 
-message ListGoldensRequest {
-}
+message ListGoldensRequest {}
 
 message ListGoldensResponse {
   // Goldens ordered by slug ascending.
@@ -110,8 +109,7 @@ message DeleteGoldenRequest {
   string slug = 1;
 }
 
-message DeleteGoldenResponse {
-}
+message DeleteGoldenResponse {}
 
 message RegenerateGoldenRequest {
   string slug = 1;

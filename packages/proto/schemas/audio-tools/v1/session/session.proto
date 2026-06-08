@@ -87,7 +87,7 @@ message CloseSessionResponse {}
 message SendTextRequest {
   string session_id = 1;
   string text = 2;
-  bool cancel_inflight = 3;           // false = queue, true = barge-in
+  bool cancel_inflight = 3; // false = queue, true = barge-in
 }
 
 message SendTextResponse {

@@ -49,10 +49,10 @@ enum CaptureType {
 // remember pixel counts. Explicit width/height in `Dimensions` always
 // overrides a preset.
 enum DimensionsPreset {
-  DIMENSIONS_PRESET_UNSPECIFIED = 0;  // server default: desktop
-  DIMENSIONS_PRESET_MOBILE = 1;       // 390x844  (iPhone 14 portrait)
-  DIMENSIONS_PRESET_TABLET = 2;       // 768x1024 (iPad portrait)
-  DIMENSIONS_PRESET_DESKTOP = 3;      // 1440x900 (laptop)
+  DIMENSIONS_PRESET_UNSPECIFIED = 0; // server default: desktop
+  DIMENSIONS_PRESET_MOBILE = 1; // 390x844  (iPhone 14 portrait)
+  DIMENSIONS_PRESET_TABLET = 2; // 768x1024 (iPad portrait)
+  DIMENSIONS_PRESET_DESKTOP = 3; // 1440x900 (laptop)
 }
 
 // Dimensions specifies the browser viewport. A caller picks a preset OR
@@ -60,9 +60,18 @@ enum DimensionsPreset {
 // device_scale_factor field is optional and applies to either path.
 message Dimensions {
   DimensionsPreset preset = 1;
-  optional int32 width = 2 [(buf.validate.field).int32 = {gte: 100, lte: 4000}];
-  optional int32 height = 3 [(buf.validate.field).int32 = {gte: 100, lte: 4000}];
-  optional double device_scale_factor = 4 [(buf.validate.field).double = {gte: 0.5, lte: 4.0}];
+  optional int32 width = 2 [(buf.validate.field).int32 = {
+    gte: 100
+    lte: 4000
+  }];
+  optional int32 height = 3 [(buf.validate.field).int32 = {
+    gte: 100
+    lte: 4000
+  }];
+  optional double device_scale_factor = 4 [(buf.validate.field).double = {
+    gte: 0.5
+    lte: 4.0
+  }];
 }
 
 // WaitFor controls the readiness condition the executor waits on before

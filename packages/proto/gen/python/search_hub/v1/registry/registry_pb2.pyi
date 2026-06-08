@@ -117,8 +117,34 @@ class ResultMapping(_message.Message):
     presence_field: str
     def __init__(self, results_path: _Optional[str] = ..., id_field: _Optional[str] = ..., title_field: _Optional[str] = ..., score_field: _Optional[str] = ..., snippet_field: _Optional[str] = ..., path_field: _Optional[str] = ..., score_scale: _Optional[_Union[ScoreScale, str]] = ..., filter_field: _Optional[str] = ..., filter_value: _Optional[str] = ..., presence_field: _Optional[str] = ...) -> None: ...
 
+class FloorConfig(_message.Message):
+    __slots__ = ("max_gap", "hard_floor")
+    MAX_GAP_FIELD_NUMBER: _ClassVar[int]
+    HARD_FLOOR_FIELD_NUMBER: _ClassVar[int]
+    max_gap: float
+    hard_floor: float
+    def __init__(self, max_gap: _Optional[float] = ..., hard_floor: _Optional[float] = ...) -> None: ...
+
+class Tuning(_message.Message):
+    __slots__ = ("engine", "embed_model", "embed_task_prefix", "rerank_enabled", "rerank_blend", "rerank_shortlist", "floor")
+    ENGINE_FIELD_NUMBER: _ClassVar[int]
+    EMBED_MODEL_FIELD_NUMBER: _ClassVar[int]
+    EMBED_TASK_PREFIX_FIELD_NUMBER: _ClassVar[int]
+    RERANK_ENABLED_FIELD_NUMBER: _ClassVar[int]
+    RERANK_BLEND_FIELD_NUMBER: _ClassVar[int]
+    RERANK_SHORTLIST_FIELD_NUMBER: _ClassVar[int]
+    FLOOR_FIELD_NUMBER: _ClassVar[int]
+    engine: str
+    embed_model: str
+    embed_task_prefix: bool
+    rerank_enabled: bool
+    rerank_blend: bool
+    rerank_shortlist: int
+    floor: FloorConfig
+    def __init__(self, engine: _Optional[str] = ..., embed_model: _Optional[str] = ..., embed_task_prefix: _Optional[bool] = ..., rerank_enabled: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., rerank_shortlist: _Optional[int] = ..., floor: _Optional[_Union[FloorConfig, _Mapping]] = ...) -> None: ...
+
 class ProviderDescriptor(_message.Message):
-    __slots__ = ("provider_id", "provider_group", "bucket", "type", "description", "endpoint", "result_mapping", "query_hint", "status_endpoint", "scope", "state", "intended_home")
+    __slots__ = ("provider_id", "provider_group", "bucket", "type", "description", "endpoint", "result_mapping", "query_hint", "status_endpoint", "scope", "state", "intended_home", "reindex_endpoint", "config_endpoint", "tuning")
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_GROUP_FIELD_NUMBER: _ClassVar[int]
     BUCKET_FIELD_NUMBER: _ClassVar[int]
@@ -131,6 +157,9 @@ class ProviderDescriptor(_message.Message):
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
     INTENDED_HOME_FIELD_NUMBER: _ClassVar[int]
+    REINDEX_ENDPOINT_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_ENDPOINT_FIELD_NUMBER: _ClassVar[int]
+    TUNING_FIELD_NUMBER: _ClassVar[int]
     provider_id: str
     provider_group: str
     bucket: Bucket
@@ -143,21 +172,28 @@ class ProviderDescriptor(_message.Message):
     scope: Scope
     state: ProviderState
     intended_home: str
-    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., bucket: _Optional[_Union[Bucket, str]] = ..., type: _Optional[str] = ..., description: _Optional[str] = ..., endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., result_mapping: _Optional[_Union[ResultMapping, _Mapping]] = ..., query_hint: _Optional[str] = ..., status_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., scope: _Optional[_Union[Scope, str]] = ..., state: _Optional[_Union[ProviderState, str]] = ..., intended_home: _Optional[str] = ...) -> None: ...
+    reindex_endpoint: Endpoint
+    config_endpoint: Endpoint
+    tuning: Tuning
+    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., bucket: _Optional[_Union[Bucket, str]] = ..., type: _Optional[str] = ..., description: _Optional[str] = ..., endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., result_mapping: _Optional[_Union[ResultMapping, _Mapping]] = ..., query_hint: _Optional[str] = ..., status_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., scope: _Optional[_Union[Scope, str]] = ..., state: _Optional[_Union[ProviderState, str]] = ..., intended_home: _Optional[str] = ..., reindex_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., config_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., tuning: _Optional[_Union[Tuning, _Mapping]] = ...) -> None: ...
 
 class RegisterProviderRequest(_message.Message):
-    __slots__ = ("descriptor",)
+    __slots__ = ("descriptor", "control_token")
     DESCRIPTOR_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_TOKEN_FIELD_NUMBER: _ClassVar[int]
     descriptor: ProviderDescriptor
-    def __init__(self, descriptor: _Optional[_Union[ProviderDescriptor, _Mapping]] = ...) -> None: ...
+    control_token: str
+    def __init__(self, descriptor: _Optional[_Union[ProviderDescriptor, _Mapping]] = ..., control_token: _Optional[str] = ...) -> None: ...
 
 class RegisterProviderResponse(_message.Message):
-    __slots__ = ("descriptor", "created")
+    __slots__ = ("descriptor", "created", "control_token")
     DESCRIPTOR_FIELD_NUMBER: _ClassVar[int]
     CREATED_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_TOKEN_FIELD_NUMBER: _ClassVar[int]
     descriptor: ProviderDescriptor
     created: bool
-    def __init__(self, descriptor: _Optional[_Union[ProviderDescriptor, _Mapping]] = ..., created: _Optional[bool] = ...) -> None: ...
+    control_token: str
+    def __init__(self, descriptor: _Optional[_Union[ProviderDescriptor, _Mapping]] = ..., created: _Optional[bool] = ..., control_token: _Optional[str] = ...) -> None: ...
 
 class ListProvidersRequest(_message.Message):
     __slots__ = ("bucket", "type", "state")

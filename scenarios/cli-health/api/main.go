@@ -19,6 +19,7 @@ import (
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
+	searchregister "github.com/vrooli/searchregister-go"
 	_ "modernc.org/sqlite"
 
 	healthH "cli-health/handlers/health"
@@ -109,14 +110,25 @@ func main() {
 		log.Fatalf("resolve repo root: %v", err)
 	}
 
-	// AI search wiring: the shared engine (packages/aisearch-go) provides the
-	// embedder + vector store + reconciler + env config + sync loop; cli-health
-	// supplies the command discovery source and the search/reindex service.
-	// NewDenseEngine assembles the dense-only common case (embedder + store +
-	// reranker chain) so the collection name is named exactly once; the reranker
-	// chain stays default-off (CLI_HEALTH_RERANK_ENABLED) until an attended A/B.
+	// AI search wiring: the scenario-owned `.vrooli/search.json` is the SSOT for
+	// the search tuning factors (engine shape, embed recipe, rerank policy, floor
+	// band) — read here at boot. The shared engine (packages/aisearch-go) provides
+	// the embedder + vector store + reconciler + sync loop; LoadConfig supplies
+	// only the OPERATIONAL wiring (Qdrant address, sync cadence, parallelism,
+	// reranker resource endpoints), not the tuning. NewServiceForTuning picks dense
+	// vs hybrid from the tuning DATA, so the engine shape is no longer a code
+	// literal. The CLI_HEALTH_{RERANK_*,EMBED_TASK_PREFIX,RELEVANCE_*} tuning env
+	// vars are no longer consulted — search.json replaces them.
 	searchCfg := aisearchpkg.LoadConfig("CLI_HEALTH")
-	engine := aisearchpkg.NewDenseEngine(searchCfg, aisearch.DefaultCollection)
+	tuning := loadSearchTuning(repoRoot, commandsProviderID)
+	engine := aisearchpkg.NewServiceForTuning(tuning, aisearchpkg.EngineDeps{
+		QdrantURL:     searchCfg.QdrantURL,
+		QdrantAPIKey:  searchCfg.QdrantAPIKey,
+		Collection:    aisearch.DefaultCollection,
+		RerankerURL:   searchCfg.RerankerURL,
+		RerankerModel: searchCfg.RerankerModel,
+		RerankModel:   searchCfg.RerankModel,
+	})
 	discovery := aisearch.NewFilesystemDiscoverySource(repoRoot)
 	// Index the top-level vrooli CLI alongside scenario CLIs. The
 	// records carry Origin="vrooli"; the validation handler rejects
@@ -125,17 +137,15 @@ func main() {
 	aiService := aisearch.NewService(aisearch.Options{
 		Embedder:         engine.Embedder,
 		VectorStore:      engine.VectorStore,
+		Sparse:           engine.SparseEncoder,
 		Discovery:        discovery,
 		Parallelism:      searchCfg.ReconcileParallelism,
 		MaxEmbedsPerTick: searchCfg.MaxEmbedsPerTick,
-		Floor: aisearchpkg.FloorConfig{
-			MaxGap:    searchCfg.RelevanceMaxGap,
-			HardFloor: searchCfg.RelevanceHardFloor,
-		},
-		RerankEnabled:   searchCfg.RerankEnabled,
-		RerankBlend:     searchCfg.RerankBlend,
-		Reranker:        engine.Reranker,
-		RerankShortlist: searchCfg.RerankShortlist,
+		Floor:            engine.Tuning.Floor.Config(),
+		RerankEnabled:    engine.Tuning.RerankEnabled,
+		RerankBlend:      engine.Tuning.RerankBlend,
+		Reranker:         engine.Reranker,
+		RerankShortlist:  engine.Tuning.RerankShortlist,
 	})
 
 	// EnsureCollection is best-effort: if qdrant is unreachable at boot, the
@@ -149,6 +159,17 @@ func main() {
 	syncCtx, cancelSync := context.WithCancel(context.Background())
 	syncLoop := aisearchpkg.NewSyncLoop("cli-health", aiService.Reconciler(), searchCfg)
 	go syncLoop.Start(syncCtx)
+
+	// Self-register this scenario's search provider(s) with search-hub from the
+	// same `.vrooli/search.json` SSOT. search-hub is an OPTIONAL dependency, so
+	// this runs in the background with bounded retry and degrades gracefully —
+	// the scenario serves search whether or not the hub is up. The registry is an
+	// idempotent upsert, so re-registering on every boot is safe.
+	go searchregister.Register(syncCtx, searchregister.Config{
+		ScenarioID:     "cli-health",
+		SearchFilePath: filepath.Join(repoRoot, "scenarios", "cli-health", ".vrooli", "search.json"),
+		Logger:         logger,
+	})
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
@@ -167,6 +188,26 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// commandsProviderID is the provider id cli-health owns in its search.json SSOT.
+const commandsProviderID = "cli-health.commands"
+
+// loadSearchTuning reads the search tuning for a provider from the scenario-owned
+// `.vrooli/search.json` (the SSOT). The file is committed and authoritative, so a
+// missing/malformed file or an absent provider is a fatal boot error — there is
+// no env/code fallback by design (greenfield §0).
+func loadSearchTuning(repoRoot, providerID string) aisearchpkg.TuningConfig {
+	path := filepath.Join(repoRoot, "scenarios", "cli-health", ".vrooli", "search.json")
+	file, err := aisearchpkg.LoadSearchFile(path)
+	if err != nil {
+		log.Fatalf("load search tuning: %v", err)
+	}
+	provider, ok := file.Provider(providerID)
+	if !ok {
+		log.Fatalf("load search tuning: provider %q not found in %s", providerID, path)
+	}
+	return provider.ResolvedTuning()
 }
 
 func externalCLINames(clis []aisearch.ExternalCLI) []string {

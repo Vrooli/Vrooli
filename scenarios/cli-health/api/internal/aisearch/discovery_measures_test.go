@@ -102,17 +102,12 @@ func TestComposeEmbedding_IncludesMeasureQuestions(t *testing.T) {
 			Questions: []string{"how many backlog items did we complete this week"},
 		},
 	}
-	for _, compose := range []func(CommandRecord) string{
-		composeCommandEmbeddingText,
-		composeCommandEmbeddingTextEnriched,
-	} {
-		text := compose(r)
-		if !strings.Contains(text, "how many backlog items did we complete this week") {
-			t.Fatalf("embedding text must include the measure question; got:\n%s", text)
-		}
-		if !strings.Contains(text, "time window") {
-			t.Fatalf("embedding text must include the measure intent; got:\n%s", text)
-		}
+	text := composeCommandEmbeddingText(r)
+	if !strings.Contains(text, "how many backlog items did we complete this week") {
+		t.Fatalf("embedding text must include the measure question; got:\n%s", text)
+	}
+	if !strings.Contains(text, "time window") {
+		t.Fatalf("embedding text must include the measure intent; got:\n%s", text)
 	}
 }
 

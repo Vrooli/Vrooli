@@ -135,6 +135,41 @@ message ResultMapping {
   string presence_field = 10;
 }
 
+// Per-leg score floor (query-time). A value of 0 means "use the regime
+// default" — the floor is not disabled, it falls back to aisearch-go's
+// regime-aware FloorForLeg calibration. Carried so the sweep can write a
+// measured override back into search.json without touching code.
+message FloorConfig {
+  double max_gap = 1;
+  double hard_floor = 2;
+}
+
+// The tuning factors the sweep optimizes and writes back. This is the wire
+// carrier for the `tuning` block of a scenario's .vrooli/search.json; the
+// authoritative taxonomy (legal values, defaults, cost tier) lives in
+// packages/aisearch-go's Factor table, NOT here — this message only transports
+// the chosen values. Each factor is tagged INDEX-TIME (changing it requires a
+// reindex) or QUERY-TIME (applicable per request, no reindex) so the sweep and
+// the override channel (routing.SearchOverrides) know which tier a factor
+// belongs to.
+message Tuning {
+  // INDEX-TIME: "dense" | "hybrid" — the structural engine choice. Data-driven
+  // here so dense-vs-hybrid stops being a Go code literal.
+  string engine = 1;
+  // INDEX-TIME: embedding model id, e.g. "nomic-embed-text".
+  string embed_model = 2;
+  // INDEX-TIME: emit nomic search_query:/search_document: task prefixes.
+  bool embed_task_prefix = 3;
+  // QUERY-TIME: run the cross-encoder/LLM rerank leg.
+  bool rerank_enabled = 4;
+  // QUERY-TIME: blend rerank with RRF rather than pure cross-encoder reorder.
+  bool rerank_blend = 5;
+  // QUERY-TIME: rerank candidate shortlist depth (0 = package default).
+  int32 rerank_shortlist = 6;
+  // QUERY-TIME: per-leg score floor overrides (0 fields = regime default).
+  FloorConfig floor = 7;
+}
+
 // The unit of registration: one (corpus, type) leaf.
 message ProviderDescriptor {
   // Unique leaf id, e.g. "cli-health.commands".
@@ -159,6 +194,19 @@ message ProviderDescriptor {
   // For CAPABILITY_GAP stubs: the planned home scenario (from
   // docs/reference/ai-search-routing.md).
   string intended_home = 12;
+  // Secured control-plane targets (search-hub.v1.control.SearchControlService).
+  // reindex_endpoint triggers/poll/cancels an async corpus reconcile;
+  // config_endpoint writes a new `tuning` block back into the provider's
+  // search.json. Both are token-gated (see the control token below). A provider
+  // that exposes neither leaves these unset — it is then routable + evaluable
+  // but not sweep-tunable. Logical targets; base URL resolved at call-time.
+  Endpoint reindex_endpoint = 13;
+  Endpoint config_endpoint = 14;
+  // The provider's current tuning factors (the search.json `tuning` block). The
+  // sweep reads this as the incumbent and writes the winner back via
+  // config_endpoint. Absent for providers that declare no tuning (they run on
+  // aisearch-go defaults).
+  Tuning tuning = 15;
 }
 
 service RegistryService {
@@ -169,6 +217,11 @@ service RegistryService {
 
 message RegisterProviderRequest {
   ProviderDescriptor descriptor = 1;
+  // Ownership proof on re-registration: a provider caches the control_token it
+  // received on first registration and echoes it here so a different actor
+  // cannot hijack an existing provider_id by re-registering it with a new
+  // endpoint. Empty on first registration (the leaf does not yet exist).
+  string control_token = 2;
 }
 
 // Registration is an upsert; `created` is false when an existing leaf was
@@ -176,6 +229,13 @@ message RegisterProviderRequest {
 message RegisterProviderResponse {
   ProviderDescriptor descriptor = 1;
   bool created = 2;
+  // The control token for this leaf — minted by search-hub on first
+  // registration and echoed on every subsequent upsert so the provider always
+  // re-acquires it after a restart/cache loss. The provider must present this
+  // token on routing overrides (routing.QueryRequest.control_token) and on the
+  // secured control-plane RPCs (reindex / config-write). Opaque; stored
+  // server-side per provider.
+  string control_token = 3;
 }
 
 // All filters optional; an UNSPECIFIED enum or empty string means "no filter".

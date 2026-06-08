@@ -57,9 +57,9 @@ enum AuthorityConfidence {
 // or extracted a fresh one. Content-hash driven, not time-based.
 enum SnapshotFreshness {
   SNAPSHOT_FRESHNESS_UNSPECIFIED = 0;
-  SNAPSHOT_FRESHNESS_CACHED = 1;       // hash matched persisted snapshot
+  SNAPSHOT_FRESHNESS_CACHED = 1; // hash matched persisted snapshot
   SNAPSHOT_FRESHNESS_RE_EXTRACTED = 2; // hash diverged or no snapshot
-  SNAPSHOT_FRESHNESS_FRESH = 3;        // initial extraction (no prior)
+  SNAPSHOT_FRESHNESS_FRESH = 3; // initial extraction (no prior)
 }
 
 // ConflictSummary is a compact, machine-friendly projection of a

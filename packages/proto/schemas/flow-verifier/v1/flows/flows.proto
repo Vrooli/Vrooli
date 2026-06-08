@@ -95,7 +95,9 @@ message FlowTrace {
   repeated FlowTraceStep steps = 3;
 }
 
-message FlowVerify { repeated string invariants = 1; }
+message FlowVerify {
+  repeated string invariants = 1;
+}
 
 message FlowModel {
   string module = 1;
@@ -132,7 +134,9 @@ message TypeScriptRuntime {
 // VariantFields is the wrapper around an inner map<string,string> so it
 // can be used as the value type of an outer map. Mirrors the JSON shape
 // {"<field>": "<type>"}.
-message VariantFields { map<string, string> fields = 1; }
+message VariantFields {
+  map<string, string> fields = 1;
+}
 
 message FlowRuntime {
   GoRuntime go = 1;
@@ -174,13 +178,17 @@ message ListFlowsRequest {
   // Optional kind filter; empty means "every kind".
   string kind = 3;
 }
-message ListFlowsResponse { repeated FlowSummary flows = 1; }
+message ListFlowsResponse {
+  repeated FlowSummary flows = 1;
+}
 
 message GetFlowRequest {
   string flow_id = 1;
   string root = 2;
 }
-message GetFlowResponse { FlowDetail flow = 1; }
+message GetFlowResponse {
+  FlowDetail flow = 1;
+}
 
 message CreateFlowRequest {
   // Path of the directory the new flow's directory will be created
@@ -204,13 +212,17 @@ message ValidateFlowRequest {
   string flow_id = 1;
   string root = 2;
 }
-message ValidateFlowResponse { repeated FlowSummary flows = 1; }
+message ValidateFlowResponse {
+  repeated FlowSummary flows = 1;
+}
 
 message ExplainFlowRequest {
   string flow_id = 1;
   string root = 2;
 }
-message ExplainFlowResponse { string report = 1; }
+message ExplainFlowResponse {
+  string report = 1;
+}
 
 // CodegenFlow emits kind-specific source artifacts (e.g. navigation's
 // routes.generated.ts) derived from the spec. The response carries the

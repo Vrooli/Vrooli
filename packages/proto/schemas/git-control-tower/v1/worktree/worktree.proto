@@ -183,4 +183,3 @@ message PruneWorktreesResponse {
   repeated string pruned_paths = 1;
   bool dry_run = 2;
 }
-

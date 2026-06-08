@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#search-hub/v1/routing/routing.proto\x12\x1cvrooli.search_hub.v1.routing\"\x92\x01\n\x0cQueryRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05types\x18\x02 \x03(\tR\x05types\x12\x10\n\x03\x61ll\x18\x03 \x01(\x08R\x03\x61ll\x12\x14\n\x05limit\x18\x04 \x01(\x05R\x05limit\x12\x14\n\x05group\x18\x05 \x01(\tR\x05group\x12\x18\n\x07\x65xplain\x18\x06 \x01(\x08R\x07\x65xplain\"\xf4\x01\n\tSearchHit\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12%\n\x0eprovider_group\x18\x02 \x01(\tR\rproviderGroup\x12\x12\n\x04type\x18\x03 \x01(\tR\x04type\x12\x0e\n\x02id\x18\x04 \x01(\tR\x02id\x12\x14\n\x05title\x18\x05 \x01(\tR\x05title\x12\x18\n\x07snippet\x18\x06 \x01(\tR\x07snippet\x12\x12\n\x04path\x18\x07 \x01(\tR\x04path\x12\x14\n\x05score\x18\x08 \x01(\x01R\x05score\x12!\n\x0crerank_score\x18\t \x01(\x01R\x0brerankScore\"\xb9\x01\n\x13ProviderResultGroup\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12;\n\x04hits\x18\x02 \x03(\x0b\x32\'.vrooli.search_hub.v1.routing.SearchHitR\x04hits\x12\x14\n\x05\x63ount\x18\x03 \x01(\x05R\x05\x63ount\x12\x1a\n\x08\x64\x65graded\x18\x04 \x01(\x08R\x08\x64\x65graded\x12\x12\n\x04note\x18\x05 \x01(\tR\x04note\"\xce\x02\n\rQueryResponse\x12?\n\x06ranked\x18\x01 \x03(\x0b\x32\'.vrooli.search_hub.v1.routing.SearchHitR\x06ranked\x12I\n\x06groups\x18\x02 \x03(\x0b\x32\x31.vrooli.search_hub.v1.routing.ProviderResultGroupR\x06groups\x12)\n\x10\x63orpora_searched\x18\x03 \x03(\tR\x0f\x63orporaSearched\x12/\n\x13routing_explanation\x18\x04 \x03(\tR\x12routingExplanation\x12\x1a\n\x08reranked\x18\x05 \x01(\x08R\x08reranked\x12\x1a\n\x08\x64\x65graded\x18\x06 \x01(\x08R\x08\x64\x65graded\x12\x1d\n\nlatency_ms\x18\x07 \x01(\x03R\tlatencyMs\"\x0f\n\rStatusRequest\"\xaa\x01\n\x0eProviderHealth\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12\x1c\n\treachable\x18\x02 \x01(\x08R\treachable\x12\x1c\n\tfreshness\x18\x03 \x01(\tR\tfreshness\x12\x1f\n\x0bpoint_count\x18\x04 \x01(\x03R\npointCount\x12\x1a\n\x08\x64\x65graded\x18\x05 \x01(\x08R\x08\x64\x65graded\"\xbe\x01\n\x0eStatusResponse\x12J\n\tproviders\x18\x01 \x03(\x0b\x32,.vrooli.search_hub.v1.routing.ProviderHealthR\tproviders\x12\x31\n\x14\x63lassifier_available\x18\x02 \x01(\x08R\x13\x63lassifierAvailable\x12-\n\x12reranker_available\x18\x03 \x01(\x08R\x11rerankerAvailable2\xd7\x01\n\x0eRoutingService\x12`\n\x05Query\x12*.vrooli.search_hub.v1.routing.QueryRequest\x1a+.vrooli.search_hub.v1.routing.QueryResponse\x12\x63\n\x06Status\x12+.vrooli.search_hub.v1.routing.StatusRequest\x1a,.vrooli.search_hub.v1.routing.StatusResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing;routing_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#search-hub/v1/routing/routing.proto\x12\x1cvrooli.search_hub.v1.routing\"\x84\x02\n\x0cQueryRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05types\x18\x02 \x03(\tR\x05types\x12\x10\n\x03\x61ll\x18\x03 \x01(\x08R\x03\x61ll\x12\x14\n\x05limit\x18\x04 \x01(\x05R\x05limit\x12\x14\n\x05group\x18\x05 \x01(\tR\x05group\x12\x18\n\x07\x65xplain\x18\x06 \x01(\x08R\x07\x65xplain\x12K\n\toverrides\x18\x07 \x01(\x0b\x32-.vrooli.search_hub.v1.routing.SearchOverridesR\toverrides\x12#\n\rcontrol_token\x18\x08 \x01(\tR\x0c\x63ontrolToken\"\xcd\x02\n\x0fSearchOverrides\x12*\n\x0ererank_enabled\x18\x01 \x01(\x08H\x00R\rrerankEnabled\x88\x01\x01\x12&\n\x0crerank_blend\x18\x02 \x01(\x08H\x01R\x0brerankBlend\x88\x01\x01\x12.\n\x10rerank_shortlist\x18\x03 \x01(\x05H\x02R\x0frerankShortlist\x88\x01\x01\x12\'\n\rfloor_max_gap\x18\x04 \x01(\x01H\x03R\x0b\x66loorMaxGap\x88\x01\x01\x12-\n\x10\x66loor_hard_floor\x18\x05 \x01(\x01H\x04R\x0e\x66loorHardFloor\x88\x01\x01\x42\x11\n\x0f_rerank_enabledB\x0f\n\r_rerank_blendB\x13\n\x11_rerank_shortlistB\x10\n\x0e_floor_max_gapB\x13\n\x11_floor_hard_floor\"\xf4\x01\n\tSearchHit\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12%\n\x0eprovider_group\x18\x02 \x01(\tR\rproviderGroup\x12\x12\n\x04type\x18\x03 \x01(\tR\x04type\x12\x0e\n\x02id\x18\x04 \x01(\tR\x02id\x12\x14\n\x05title\x18\x05 \x01(\tR\x05title\x12\x18\n\x07snippet\x18\x06 \x01(\tR\x07snippet\x12\x12\n\x04path\x18\x07 \x01(\tR\x04path\x12\x14\n\x05score\x18\x08 \x01(\x01R\x05score\x12!\n\x0crerank_score\x18\t \x01(\x01R\x0brerankScore\"\xb9\x01\n\x13ProviderResultGroup\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12;\n\x04hits\x18\x02 \x03(\x0b\x32\'.vrooli.search_hub.v1.routing.SearchHitR\x04hits\x12\x14\n\x05\x63ount\x18\x03 \x01(\x05R\x05\x63ount\x12\x1a\n\x08\x64\x65graded\x18\x04 \x01(\x08R\x08\x64\x65graded\x12\x12\n\x04note\x18\x05 \x01(\tR\x04note\"\xce\x02\n\rQueryResponse\x12?\n\x06ranked\x18\x01 \x03(\x0b\x32\'.vrooli.search_hub.v1.routing.SearchHitR\x06ranked\x12I\n\x06groups\x18\x02 \x03(\x0b\x32\x31.vrooli.search_hub.v1.routing.ProviderResultGroupR\x06groups\x12)\n\x10\x63orpora_searched\x18\x03 \x03(\tR\x0f\x63orporaSearched\x12/\n\x13routing_explanation\x18\x04 \x03(\tR\x12routingExplanation\x12\x1a\n\x08reranked\x18\x05 \x01(\x08R\x08reranked\x12\x1a\n\x08\x64\x65graded\x18\x06 \x01(\x08R\x08\x64\x65graded\x12\x1d\n\nlatency_ms\x18\x07 \x01(\x03R\tlatencyMs\"\x0f\n\rStatusRequest\"\xaa\x01\n\x0eProviderHealth\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12\x1c\n\treachable\x18\x02 \x01(\x08R\treachable\x12\x1c\n\tfreshness\x18\x03 \x01(\tR\tfreshness\x12\x1f\n\x0bpoint_count\x18\x04 \x01(\x03R\npointCount\x12\x1a\n\x08\x64\x65graded\x18\x05 \x01(\x08R\x08\x64\x65graded\"\xbe\x01\n\x0eStatusResponse\x12J\n\tproviders\x18\x01 \x03(\x0b\x32,.vrooli.search_hub.v1.routing.ProviderHealthR\tproviders\x12\x31\n\x14\x63lassifier_available\x18\x02 \x01(\x08R\x13\x63lassifierAvailable\x12-\n\x12reranker_available\x18\x03 \x01(\x08R\x11rerankerAvailable2\xd7\x01\n\x0eRoutingService\x12`\n\x05Query\x12*.vrooli.search_hub.v1.routing.QueryRequest\x1a+.vrooli.search_hub.v1.routing.QueryResponse\x12\x63\n\x06Status\x12+.vrooli.search_hub.v1.routing.StatusRequest\x1a,.vrooli.search_hub.v1.routing.StatusResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing;routing_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,19 +33,21 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZOgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing;routing_v1'
   _globals['_QUERYREQUEST']._serialized_start=70
-  _globals['_QUERYREQUEST']._serialized_end=216
-  _globals['_SEARCHHIT']._serialized_start=219
-  _globals['_SEARCHHIT']._serialized_end=463
-  _globals['_PROVIDERRESULTGROUP']._serialized_start=466
-  _globals['_PROVIDERRESULTGROUP']._serialized_end=651
-  _globals['_QUERYRESPONSE']._serialized_start=654
-  _globals['_QUERYRESPONSE']._serialized_end=988
-  _globals['_STATUSREQUEST']._serialized_start=990
-  _globals['_STATUSREQUEST']._serialized_end=1005
-  _globals['_PROVIDERHEALTH']._serialized_start=1008
-  _globals['_PROVIDERHEALTH']._serialized_end=1178
-  _globals['_STATUSRESPONSE']._serialized_start=1181
-  _globals['_STATUSRESPONSE']._serialized_end=1371
-  _globals['_ROUTINGSERVICE']._serialized_start=1374
-  _globals['_ROUTINGSERVICE']._serialized_end=1589
+  _globals['_QUERYREQUEST']._serialized_end=330
+  _globals['_SEARCHOVERRIDES']._serialized_start=333
+  _globals['_SEARCHOVERRIDES']._serialized_end=666
+  _globals['_SEARCHHIT']._serialized_start=669
+  _globals['_SEARCHHIT']._serialized_end=913
+  _globals['_PROVIDERRESULTGROUP']._serialized_start=916
+  _globals['_PROVIDERRESULTGROUP']._serialized_end=1101
+  _globals['_QUERYRESPONSE']._serialized_start=1104
+  _globals['_QUERYRESPONSE']._serialized_end=1438
+  _globals['_STATUSREQUEST']._serialized_start=1440
+  _globals['_STATUSREQUEST']._serialized_end=1455
+  _globals['_PROVIDERHEALTH']._serialized_start=1458
+  _globals['_PROVIDERHEALTH']._serialized_end=1628
+  _globals['_STATUSRESPONSE']._serialized_start=1631
+  _globals['_STATUSRESPONSE']._serialized_end=1821
+  _globals['_ROUTINGSERVICE']._serialized_start=1824
+  _globals['_ROUTINGSERVICE']._serialized_end=2039
 # @@protoc_insertion_point(module_scope)

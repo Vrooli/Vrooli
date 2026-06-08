@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../scripts/scenarios/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "cli-health.commands",
+      "provider_group": "cli-health",
+      "bucket": "BUCKET_DO",
+      "type": "command",
+      "description": "Vrooli CLI commands across every scenario CLI, searchable by what each command does (for example \"restart a scenario\", \"view logs\", \"run tests\"). Route here to discover which CLI command performs an operation.",
+      "scope": "SCOPE_PROJECT",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "cli-health",
+          "path": "/vrooli.cli_health.v1.search.SearchService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"mode\":\"MODE_AI\"}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "cli-health",
+          "path": "/vrooli.cli_health.v1.search.SearchService/Status",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "name",
+        "title_field": "name",
+        "score_field": "score",
+        "snippet_field": "description",
+        "path_field": "name",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "rerank_enabled": true,
+        "rerank_blend": true,
+        "rerank_shortlist": 50,
+        "floor": { "max_gap": 0, "hard_floor": 0 }
+      },
+      "tests": {
+        "recall_at": 5,
+        "recall_target": 0.8,
+        "cases": [
+          { "id": "restart-scenario", "query": "restart a scenario", "expected_paths": ["vrooli scenario restart"], "expect_ids": ["restart"], "tags": ["strong"], "expect_within_top_k": 3, "expect_min_score": 0.5, "source": "curated" },
+          { "id": "start-scenario", "query": "start a scenario", "expected_paths": ["vrooli scenario start"], "expect_ids": ["start"], "tags": ["strong"], "source": "curated" },
+          { "id": "stop-scenario", "query": "stop a running scenario", "expected_paths": ["vrooli scenario stop"], "expect_ids": ["stop"], "tags": ["strong"], "expect_within_top_k": 3, "expect_min_score": 0.5, "source": "curated" },
+          { "id": "test-scenario", "query": "run the tests for a scenario", "expected_paths": ["vrooli scenario test"], "expect_ids": ["test"], "tags": ["strong"], "expect_within_top_k": 3, "expect_min_score": 0.5, "source": "curated" },
+          { "id": "scenario-logs", "query": "view logs for a scenario", "expected_paths": ["vrooli scenario logs"], "expect_ids": ["logs"], "tags": ["strong"], "expect_within_top_k": 3, "expect_min_score": 0.5, "source": "curated" },
+          { "id": "list-scenarios", "query": "list all scenarios", "expected_paths": ["vrooli scenario list"], "expect_ids": ["list"], "tags": ["strong"], "source": "curated" },
+          { "id": "setup-project", "query": "set up the project and install dependencies", "expected_paths": ["vrooli setup"], "expect_ids": ["setup"], "tags": ["strong"], "source": "curated" },
+          { "id": "develop", "query": "start the development environment", "expected_paths": ["vrooli develop"], "expect_ids": ["develop"], "tags": ["strong"], "source": "curated" },
+          { "id": "help", "query": "show available commands", "expected_paths": ["vrooli help"], "tags": ["weak-real"], "source": "curated", "note": "KNOWN-IMPERFECT LABEL: 'vrooli help' is not a discrete command ('--help' is a flag). Re-scope or drop (filed). Not gamed." },
+          { "id": "search-command", "query": "search for a cli command across scenarios", "expected_paths": ["cli-health search query"], "expect_ids": ["query"], "tags": ["vocab-gap"], "source": "curated", "note": "Indexed but ranks just outside top-5 (genuine vocab gap)." },
+          { "id": "reindex-commands", "query": "reindex the command search index", "expected_paths": ["cli-health reindex run"], "expect_ids": ["run"], "source": "curated" },
+          { "id": "search-status", "query": "check whether ai command search is available", "expected_paths": ["cli-health search status"], "expect_ids": ["status"], "tags": ["vocab-gap"], "source": "curated" },
+          { "id": "reindex-status", "query": "check the progress of a reindex job", "expected_paths": ["cli-health reindex status"], "expect_ids": ["status"], "source": "curated" },
+          { "id": "validate-scenario", "query": "validate a scenario against the cli-health rules", "expected_paths": ["cli-health validate scenario"], "source": "curated" },
+          { "id": "report-bug", "query": "report a bug or defect", "expected_paths": ["app-issue-tracker issue create"], "expect_ids": ["create"], "tags": ["vocab-gap"], "source": "curated" },
+          { "id": "discover-skill", "query": "discover an existing skill or action", "expected_paths": ["prompt-manager discover"], "expect_ids": ["discover"], "source": "curated" },
+          { "id": "create-record", "query": "write a record of completed work", "expected_paths": ["swarm-manager records create"], "expect_ids": ["create"], "source": "curated" },
+          { "id": "baseline-snapshot", "query": "capture a regression baseline for a scenario", "expected_paths": ["git-control-tower baseline snapshot"], "tags": ["not-indexed"], "source": "curated", "note": "Real command, but git-control-tower's manifest omits the baseline group so it is not indexed (filed knw-1780810146590717122)." },
+          { "id": "create-action", "query": "register a reusable cli action", "expected_paths": ["prompt-manager action create"], "expect_ids": ["create"], "tags": ["vocab-gap"], "source": "curated" },
+          { "id": "scenario-test-genie", "query": "run the test genie suite for a scenario", "expected_paths": ["test-genie execute", "test-genie run-tests"], "source": "curated" },
+          { "id": "duplicate-code", "query": "find duplicate code", "expected_paths": ["file-tools files duplicates"], "expect_ids": ["duplicates"], "tags": ["strong", "lexical-gap"], "expect_within_top_k": 3, "source": "curated", "note": "file-tools files duplicates IS the #1 hit, but the cross-encoder honestly down-weights it (~0.2) because the command targets duplicate FILES while the query says CODE. Asserted by RANK only — deliberately no score floor." },
+          { "id": "validate-manifest", "query": "validate cli manifest", "expect_within_top_k": 3, "expect_min_score": 0.5, "tags": ["strong"], "source": "curated", "note": "Soft eval case (no full-path label): asserted by score+topk, not id — the top hit's leaf ('scenario') is too common to assert on. Not counted by the recall gate." },
+          { "id": "remove-bookmark", "query": "remove a bookmark", "expect_within_top_k": 5, "tags": ["weak-real"], "source": "curated", "note": "Soft eval case (no full-path label): no dedicated 'remove bookmark' command exists; expectation is only that the query returns SOMETHING plausible. Not counted by the recall gate." },
+          { "id": "embeddings", "query": "generate embeddings for text", "tags": ["weak-real"], "source": "curated", "note": "Soft eval case (no full-path label): known weak — concept vs keyword; informational. Not counted by the recall gate." }
+        ],
+        "negatives": [
+          { "id": "gibberish-1", "query": "asdfqwer zxcvbnm qwertyuiop florbnax", "expect_no_strong_hit": true, "expect_max_score": 0.1, "tags": ["gibberish"], "source": "curated", "note": "Junk rejection under the rerank-on default: the cross-encoder scores this ~0.000. Ceiling 0.1 flags any leakage (a dense-fallback run leaks ~0.58)." }
+        ]
+      }
+    }
+  ]
+}

@@ -97,8 +97,7 @@ message Manifest {
   google.protobuf.Timestamp updated_at = 9;
 }
 
-message ListManifestsRequest {
-}
+message ListManifestsRequest {}
 
 message ListManifestsResponse {
   repeated Manifest manifests = 1;

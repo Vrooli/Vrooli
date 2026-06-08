@@ -46,13 +46,15 @@ message PreserveFilesRequest {
   repeated string paths = 1;
 
   // Preset name: "documentation", "requirements", "planning", "all-planning".
-  optional string preset = 2 [(buf.validate.field).string = { in: [
-    "",
-    "documentation",
-    "requirements",
-    "planning",
-    "all-planning"
-  ] }];
+  optional string preset = 2 [(buf.validate.field).string = {
+    in: [
+      "",
+      "documentation",
+      "requirements",
+      "planning",
+      "all-planning"
+    ]
+  }];
 }
 
 // DeleteScenarioRequest specifies options for scenario deletion.
@@ -88,7 +90,12 @@ message ScenarioFile {
   string path = 2 [(buf.validate.field).string.min_len = 1];
 
   // Type: "file" or "directory".
-  string type = 3 [(buf.validate.field).string = { in: ["file", "directory"] }];
+  string type = 3 [(buf.validate.field).string = {
+    in: [
+      "file",
+      "directory"
+    ]
+  }];
 
   // File size in bytes (only for files).
   optional int64 size = 4;
@@ -124,7 +131,10 @@ message SpecSyncArchiveResponse {
 // ScenarioReviewQueueRequest configures the review queue query.
 message ScenarioReviewQueueRequest {
   // Maximum scenarios to return (1-50, default 5).
-  optional int32 limit = 1 [(buf.validate.field).int32 = { gte: 1, lte: 50 }];
+  optional int32 limit = 1 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 50
+  }];
 
   // Tag used to identify QA-created fix items for exclusion (default: "preemptive-qa").
   optional string exclude_tag = 2;

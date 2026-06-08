@@ -68,7 +68,7 @@ message Session {
   string created_at = 3;
   int32 cols = 4;
   int32 rows = 5;
-  string backend = 6;            // "persistent" | "ephemeral"
+  string backend = 6; // "persistent" | "ephemeral"
   bool survives_restart = 7;
   ExpirationPolicy policy = 8;
   bool busy = 9;
@@ -85,7 +85,7 @@ message RecoverableSession {
   string created_at = 6;
   string orphaned_at = 7;
   string last_activity_at = 8;
-  string agent_type = 9;          // "none" | "codex" | "claude"
+  string agent_type = 9; // "none" | "codex" | "claude"
   string agent_session_id = 10;
   string launch_command = 11;
   string cwd = 12;

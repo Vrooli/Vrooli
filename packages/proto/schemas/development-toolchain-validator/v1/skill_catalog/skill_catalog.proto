@@ -53,8 +53,7 @@ message Skill {
   google.protobuf.Timestamp synced_at = 4;
 }
 
-message SyncRequest {
-}
+message SyncRequest {}
 
 message SyncResponse {
   // Catalog state after reconcile, ordered by id.
@@ -71,8 +70,7 @@ message SyncResponse {
   int32 removed = 4;
 }
 
-message ListSkillsRequest {
-}
+message ListSkillsRequest {}
 
 message ListSkillsResponse {
   repeated Skill skills = 1;

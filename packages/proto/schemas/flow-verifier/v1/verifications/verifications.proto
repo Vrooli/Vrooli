@@ -55,5 +55,9 @@ message StartVerificationResponse {
   repeated vrooli.flow_verifier.v1.runs.Run runs = 3;
 }
 
-message GetVerificationRequest { string run_id = 1; }
-message GetVerificationResponse { vrooli.flow_verifier.v1.runs.Run run = 1; }
+message GetVerificationRequest {
+  string run_id = 1;
+}
+message GetVerificationResponse {
+  vrooli.flow_verifier.v1.runs.Run run = 1;
+}

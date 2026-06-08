@@ -41,7 +41,13 @@ message Capture {
   string created = 4 [(buf.validate.field).string.min_len = 1];
 
   // Lifecycle status of the capture.
-  string status = 5 [(buf.validate.field).string = { in: ["classifying", "classified", "failed"] }];
+  string status = 5 [(buf.validate.field).string = {
+    in: [
+      "classifying",
+      "classified",
+      "failed"
+    ]
+  }];
 
   // Classification result (populated after agent completes).
   optional CaptureClassification classification = 6;
@@ -64,7 +70,15 @@ message CaptureClassification {
 // CaptureClassificationItem represents one suggested backlog item.
 message CaptureClassificationItem {
   // Suggested backlog kind.
-  string kind = 1 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore"] }];
+  string kind = 1 [(buf.validate.field).string = {
+    in: [
+      "idea",
+      "research",
+      "fix",
+      "execute",
+      "chore"
+    ]
+  }];
 
   // Suggested title.
   string title = 2 [(buf.validate.field).string.min_len = 1];
@@ -73,7 +87,10 @@ message CaptureClassificationItem {
   string description = 3;
 
   // Suggested priority (1-10).
-  int32 priority = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+  int32 priority = 4 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 10
+  }];
 
   // Suggested tags.
   repeated string tags = 5;

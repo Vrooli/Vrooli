@@ -56,7 +56,14 @@ message Pattern {
 
   // Severity level.
   // @constraint one of: critical, high, medium, low
-  string severity = 4 [(buf.validate.field).string = { in: ["critical", "high", "medium", "low"] }];
+  string severity = 4 [(buf.validate.field).string = {
+    in: [
+      "critical",
+      "high",
+      "medium",
+      "low"
+    ]
+  }];
 
   // Human-readable description.
   string description = 5;
@@ -75,7 +82,13 @@ message ProposedChange {
 
   // Change type.
   // @constraint one of: edit, create, config_update
-  string type = 2 [(buf.validate.field).string = { in: ["edit", "create", "config_update"] }];
+  string type = 2 [(buf.validate.field).string = {
+    in: [
+      "edit",
+      "create",
+      "config_update"
+    ]
+  }];
 
   // Change description.
   string description = 3;
@@ -106,7 +119,13 @@ message ImpactEstimate {
 
   // Confidence level.
   // @constraint one of: high, medium, low
-  string confidence = 3 [(buf.validate.field).string = { in: ["high", "medium", "low"] }];
+  string confidence = 3 [(buf.validate.field).string = {
+    in: [
+      "high",
+      "medium",
+      "low"
+    ]
+  }];
 
   // Rationale for the estimate.
   string rationale = 4;
@@ -126,7 +145,14 @@ message Suggestion {
 
   // Priority level.
   // @constraint one of: critical, high, medium, low
-  string priority = 4 [(buf.validate.field).string = { in: ["critical", "high", "medium", "low"] }];
+  string priority = 4 [(buf.validate.field).string = {
+    in: [
+      "critical",
+      "high",
+      "medium",
+      "low"
+    ]
+  }];
 
   // Suggestion title.
   string title = 5 [(buf.validate.field).string.min_len = 1];
@@ -142,7 +168,14 @@ message Suggestion {
 
   // Suggestion status.
   // @constraint one of: pending, applied, rejected, superseded
-  string status = 9 [(buf.validate.field).string = { in: ["pending", "applied", "rejected", "superseded"] }];
+  string status = 9 [(buf.validate.field).string = {
+    in: [
+      "pending",
+      "applied",
+      "rejected",
+      "superseded"
+    ]
+  }];
 
   // RFC3339 timestamp when applied (empty if not yet applied).
   // @format rfc3339

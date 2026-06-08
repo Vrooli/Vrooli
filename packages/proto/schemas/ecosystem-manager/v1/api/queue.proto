@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package ecosystem_manager.v1;
 
-import "google/protobuf/struct.proto";
 import "ecosystem-manager/v1/domain/queue.proto";
 import "ecosystem-manager/v1/domain/task.proto";
+import "google/protobuf/struct.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/api;api";
 

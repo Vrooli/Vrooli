@@ -54,7 +54,9 @@ message ProviderConfig {
 }
 
 message GetProviderConfigRequest {}
-message GetProviderConfigResponse { ProviderConfig config = 1; }
+message GetProviderConfigResponse {
+  ProviderConfig config = 1;
+}
 
 // UpdateProviderConfigRequest carries FieldMask + a full ProviderConfig
 // payload. Server validates each path in `update_mask.paths`; unknown
@@ -65,16 +67,18 @@ message UpdateProviderConfigRequest {
   ProviderConfig config = 2;
 }
 
-message UpdateProviderConfigResponse { ProviderConfig config = 1; }
+message UpdateProviderConfigResponse {
+  ProviderConfig config = 1;
+}
 
 // -----------------------------------------------------------------------------
 // BYOK credential storage
 // -----------------------------------------------------------------------------
 
 message BYOKCredentialSummary {
-  string provider_id = 1;             // "openai-whisper", "deepgram", ...
-  string capability = 2;              // "stt" | "tts" | "summarize"
-  string fingerprint = 3;             // redacted display, e.g., "sk-***abcd"
+  string provider_id = 1; // "openai-whisper", "deepgram", ...
+  string capability = 2; // "stt" | "tts" | "summarize"
+  string fingerprint = 3; // redacted display, e.g., "sk-***abcd"
   google.protobuf.Timestamp created_at = 4;
   google.protobuf.Timestamp last_used_at = 5;
 }
@@ -112,16 +116,20 @@ message DeleteBYOKCredentialResponse {}
 // -----------------------------------------------------------------------------
 
 message VoiceOverride {
-  string canonical_voice = 1;         // "voice.feminine.warm"
-  string tier_provider = 2;           // "byok:elevenlabs", "local:kokoro"
-  string adapter_voice = 3;           // backend voice name override
+  string canonical_voice = 1; // "voice.feminine.warm"
+  string tier_provider = 2; // "byok:elevenlabs", "local:kokoro"
+  string adapter_voice = 3; // backend voice name override
 }
 
 message GetVoiceOverridesRequest {}
-message GetVoiceOverridesResponse { repeated VoiceOverride overrides = 1; }
+message GetVoiceOverridesResponse {
+  repeated VoiceOverride overrides = 1;
+}
 
 message SetVoiceOverrideRequest {
   VoiceOverride override = 1;
   // If adapter_voice is empty, the override is deleted.
 }
-message SetVoiceOverrideResponse { repeated VoiceOverride overrides = 1; }
+message SetVoiceOverrideResponse {
+  repeated VoiceOverride overrides = 1;
+}

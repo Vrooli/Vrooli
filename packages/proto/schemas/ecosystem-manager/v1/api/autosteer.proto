@@ -3,8 +3,8 @@ syntax = "proto3";
 package ecosystem_manager.v1;
 
 import "buf/validate/validate.proto";
-import "google/protobuf/struct.proto";
 import "ecosystem-manager/v1/domain/autosteer.proto";
+import "google/protobuf/struct.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/api;api";
 
@@ -31,7 +31,10 @@ message ProfileCreateRequest {
   optional string id = 1;
 
   // Profile display name.
-  string name = 2 [(buf.validate.field).string = { min_len: 1, max_len: 100 }];
+  string name = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 100
+  }];
 
   // Profile description.
   string description = 3;

@@ -209,7 +209,15 @@
     }
   },
   "dependencies": {
-    "scenarios": {},
+    "scenarios": {
+      "search-hub": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Federated search router. cli-health self-registers its `cli-health.commands` provider (descriptor + tuning + tests) from `.vrooli/search.json` at boot so search-hub can route to it and run quality sweeps. Registration is an idempotent upsert.",
+        "degraded_behavior": "If search-hub is down at boot, self-registration retries briefly then gives up; cli-health serves command search normally and re-registers on its next boot."
+      }
+    },
     "resources": {
       "qdrant": {
         "type": "qdrant",

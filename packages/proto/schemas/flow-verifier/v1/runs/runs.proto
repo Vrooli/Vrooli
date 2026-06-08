@@ -97,7 +97,13 @@ message ListRunsRequest {
   uint32 limit = 2;
 }
 
-message ListRunsResponse { repeated Run runs = 1; }
+message ListRunsResponse {
+  repeated Run runs = 1;
+}
 
-message GetRunRequest { string id = 1; }
-message GetRunResponse { Run run = 1; }
+message GetRunRequest {
+  string id = 1;
+}
+message GetRunResponse {
+  Run run = 1;
+}

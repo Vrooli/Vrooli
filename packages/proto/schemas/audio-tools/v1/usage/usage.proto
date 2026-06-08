@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package vrooli.audio_tools.v1.usage;
 
-import "google/protobuf/timestamp.proto";
 import "audio-tools/v1/common/common.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage;usage_v1";
 
@@ -26,10 +26,10 @@ service UsageService {
 }
 
 message UsageRow {
-  string operation_id = 1;            // UUID, idempotency key
+  string operation_id = 1; // UUID, idempotency key
   google.protobuf.Timestamp emitted_at = 2;
-  string capability = 3;              // "stt" | "tts" | "summarize" | "audio"
-  string operation = 4;               // "transcribe" | "synthesize" | "summarize" | "transcode" | ...
+  string capability = 3; // "stt" | "tts" | "summarize" | "audio"
+  string operation = 4; // "transcribe" | "synthesize" | "summarize" | "transcode" | ...
   vrooli.audio_tools.v1.common.ProviderTier provider_tier = 5;
   string provider_id = 6;
   string model_id = 7;
@@ -38,8 +38,8 @@ message UsageRow {
   int32 prompt_tokens = 10;
   int32 output_tokens = 11;
   double audio_duration_seconds = 12;
-  string error = 13;                  // empty when success
-  string fallback_reason = 14;        // when a higher-tier provider was skipped
+  string error = 13; // empty when success
+  string fallback_reason = 14; // when a higher-tier provider was skipped
   string user_identity = 15;
 }
 
@@ -47,8 +47,8 @@ message ListRecentRequest {
   // Either since_seconds (lookback) or after_emitted_at (cursor).
   int64 since_seconds = 1;
   google.protobuf.Timestamp after_emitted_at = 2;
-  int32 limit = 3;                    // default 100, max 1000
-  string capability = 4;              // optional filter
+  int32 limit = 3; // default 100, max 1000
+  string capability = 4; // optional filter
   vrooli.audio_tools.v1.common.ProviderTier provider_tier = 5;
 }
 

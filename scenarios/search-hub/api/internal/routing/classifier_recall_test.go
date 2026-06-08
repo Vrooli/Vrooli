@@ -15,7 +15,6 @@ import (
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 
-	"search-hub/internal/providers"
 	"search-hub/internal/routing"
 )
 
@@ -59,9 +58,11 @@ func TestClassifierRoutingRecall(t *testing.T) {
 		t.Skip("resource-ollama unavailable — routing recall gate requires the local Ollama daemon + classifier model")
 	}
 
-	// Build the lister from the real shipped seeds (their NL descriptions are
-	// exactly what the classifier routes on) and a type→provider_id index.
-	seeds := providers.Seeds()
+	// Build the lister from the provider corpus fixtures (their NL descriptions
+	// are exactly what the classifier routes on) and a type→provider_id index.
+	// The corpus is test data, not a registration source — providers self-register
+	// from their own search.json (Phase 2); see testdata/provider_corpus/README.md.
+	seeds := loadProviderCorpus(t)
 	descriptors := make([]*registryv1.ProviderDescriptor, 0, len(seeds))
 	idToType := map[string]string{}
 	resolverURLs := map[string]string{}

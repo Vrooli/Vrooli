@@ -33,7 +33,7 @@ service ValidationRecordService {
 enum TupleKind {
   TUPLE_KIND_UNSPECIFIED = 0;
   TUPLE_KIND_SKILL = 1;
-  TUPLE_KIND_TOOL  = 2;
+  TUPLE_KIND_TOOL = 2;
 }
 
 // Verdict enumerates the terminal outcomes of a validation run.
@@ -59,15 +59,15 @@ message ValidationRecord {
   string id = 1;
 
   TupleKind tuple_kind = 2;
-  string subject_id    = 3;  // skill id (SKILL) or tool name (TOOL)
-  string golden_slug   = 4;
+  string subject_id = 3; // skill id (SKILL) or tool name (TOOL)
+  string golden_slug = 4;
 
   google.protobuf.Timestamp started_at = 5;
-  google.protobuf.Timestamp ended_at   = 6;
+  google.protobuf.Timestamp ended_at = 6;
   int64 duration_ms = 7;
 
   // Per-run metrics. Zero is meaningful (not absent).
-  int64 tokens_used    = 8;
+  int64 tokens_used = 8;
   int64 cost_usd_micro = 9;
 
   Verdict verdict = 10;
@@ -75,8 +75,8 @@ message ValidationRecord {
   // Diff metadata. diff_hash is sha256 hex of the canonical diff text;
   // diff_path_count is the number of files touched. Blob lives in
   // workspace-sandbox.
-  string diff_hash       = 11;
-  int32  diff_path_count = 12;
+  string diff_hash = 11;
+  int32 diff_path_count = 12;
 
   // Agent-manager run id for traceability; empty when tuple_kind=TOOL.
   string agent_manager_run_id = 13;
@@ -84,7 +84,7 @@ message ValidationRecord {
   // Manifest pinning snapshot captured at run time so P1 staleness
   // analysis can reconstruct what the manifest expected.
   string manifest_template_version_at_run = 14;
-  string manifest_skill_version_at_run    = 15;
+  string manifest_skill_version_at_run = 15;
 
   // For RUN_FAILURE / TOOL_FAILURE verdicts: human-readable cause.
   string error_message = 16;
@@ -93,18 +93,18 @@ message ValidationRecord {
   // expectation result (e.g. "all 14 phase(s) passed", "score 92 < floor
   // 96"); tool_raw_output is the captured stdout+stderr of the tool
   // invocation, persisted for triage. Empty for skill runs.
-  string tool_detail     = 17;
+  string tool_detail = 17;
   string tool_raw_output = 18;
 }
 
 message ListRecordsRequest {
   // Filters. Empty fields are treated as "any". page_token is the
   // opaque cursor returned by the previous ListRecordsResponse.
-  string    golden_slug = 1;
-  string    subject_id  = 2;
-  TupleKind tuple_kind  = 3;
+  string golden_slug = 1;
+  string subject_id = 2;
+  TupleKind tuple_kind = 3;
 
-  int32  page_size  = 4;
+  int32 page_size = 4;
   string page_token = 5;
 }
 

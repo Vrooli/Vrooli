@@ -21,7 +21,7 @@ import (
 func TestMapResultsCLIHealthFixture(t *testing.T) {
 	body := readFixture(t, "cli_health_search.json")
 
-	hits, err := providers.MapResults(providers.CLIHealthCommands(), body)
+	hits, err := providers.MapResults(cliHealthCommandsDescriptor(), body)
 	require.NoError(t, err)
 	require.Len(t, hits, 3)
 
@@ -180,6 +180,30 @@ func TestMapResultsErrors(t *testing.T) {
 		require.Len(t, hits, 1)
 		require.Equal(t, "42", hits[0].Id)
 	})
+}
+
+// cliHealthCommandsDescriptor builds the cli-health.commands descriptor the
+// fixture test maps against. It mirrors the result_mapping in cli-health's
+// `.vrooli/search.json` (id/title/path = "name", snippet = "description"). It is
+// inlined here because search-hub no longer ships any provider descriptor — the
+// generic adapter is exercised against a representative descriptor, and the real
+// one now lives in cli-health's own SSOT and is self-registered at boot.
+func cliHealthCommandsDescriptor() *registryv1.ProviderDescriptor {
+	return &registryv1.ProviderDescriptor{
+		ProviderId:    "cli-health.commands",
+		ProviderGroup: "cli-health",
+		Bucket:        registryv1.Bucket_BUCKET_DO,
+		Type:          "command",
+		ResultMapping: &registryv1.ResultMapping{
+			ResultsPath:  "results",
+			IdField:      "name",
+			TitleField:   "name",
+			ScoreField:   "score",
+			SnippetField: "description",
+			PathField:    "name",
+			ScoreScale:   registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1,
+		},
+	}
 }
 
 // mappingDescriptor builds a minimal descriptor whose result items live at

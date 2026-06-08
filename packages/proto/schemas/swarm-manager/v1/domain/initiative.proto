@@ -38,7 +38,16 @@ message Initiative {
 
   // Lifecycle state for the initiative.
   // @constraint one of: active, in_review, review_pending, completed, failed, needs_followup
-  string status = 4 [(buf.validate.field).string = { in: ["active", "in_review", "review_pending", "completed", "failed", "needs_followup"] }];
+  string status = 4 [(buf.validate.field).string = {
+    in: [
+      "active",
+      "in_review",
+      "review_pending",
+      "completed",
+      "failed",
+      "needs_followup"
+    ]
+  }];
 
   // Backlog item references as "kind/name" strings.
   repeated string items = 5;
@@ -69,7 +78,13 @@ message Initiative {
 
   // Operating mode that owns initiative execution semantics.
   // @constraint one of: item-level, holistic-loop, phased-plan-drain
-  string mode = 12 [(buf.validate.field).string = { in: ["item-level", "holistic-loop", "phased-plan-drain"] }];
+  string mode = 12 [(buf.validate.field).string = {
+    in: [
+      "item-level",
+      "holistic-loop",
+      "phased-plan-drain"
+    ]
+  }];
 
   // Initiative-scoped acceptance criteria used by non-item-level modes.
   repeated string acceptance_criteria = 13;

@@ -73,8 +73,8 @@ enum NodeKind {
   NODE_KIND_PACKAGE = 2;
   NODE_KIND_MODULE = 3;
   // Producer-owned ranges. Do not reuse across producers.
-  reserved 100 to 199;  // Go (see go-code-graph)
-  reserved 200 to 299;  // TypeScript (see typescript-code-graph)
+  reserved 100 to 199; // Go (see go-code-graph)
+  reserved 200 to 299; // TypeScript (see typescript-code-graph)
 }
 
 enum EdgeKind {

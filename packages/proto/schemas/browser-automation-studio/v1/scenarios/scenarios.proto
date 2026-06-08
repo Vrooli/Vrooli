@@ -50,8 +50,7 @@ message Scenario {
   string status = 3;
 }
 
-message ListScenariosRequest {
-}
+message ListScenariosRequest {}
 
 message ListScenariosResponse {
   repeated Scenario scenarios = 1;

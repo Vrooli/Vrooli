@@ -7,20 +7,38 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class QueryRequest(_message.Message):
-    __slots__ = ("query", "types", "all", "limit", "group", "explain")
+    __slots__ = ("query", "types", "all", "limit", "group", "explain", "overrides", "control_token")
     QUERY_FIELD_NUMBER: _ClassVar[int]
     TYPES_FIELD_NUMBER: _ClassVar[int]
     ALL_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     GROUP_FIELD_NUMBER: _ClassVar[int]
     EXPLAIN_FIELD_NUMBER: _ClassVar[int]
+    OVERRIDES_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_TOKEN_FIELD_NUMBER: _ClassVar[int]
     query: str
     types: _containers.RepeatedScalarFieldContainer[str]
     all: bool
     limit: int
     group: str
     explain: bool
-    def __init__(self, query: _Optional[str] = ..., types: _Optional[_Iterable[str]] = ..., all: _Optional[bool] = ..., limit: _Optional[int] = ..., group: _Optional[str] = ..., explain: _Optional[bool] = ...) -> None: ...
+    overrides: SearchOverrides
+    control_token: str
+    def __init__(self, query: _Optional[str] = ..., types: _Optional[_Iterable[str]] = ..., all: _Optional[bool] = ..., limit: _Optional[int] = ..., group: _Optional[str] = ..., explain: _Optional[bool] = ..., overrides: _Optional[_Union[SearchOverrides, _Mapping]] = ..., control_token: _Optional[str] = ...) -> None: ...
+
+class SearchOverrides(_message.Message):
+    __slots__ = ("rerank_enabled", "rerank_blend", "rerank_shortlist", "floor_max_gap", "floor_hard_floor")
+    RERANK_ENABLED_FIELD_NUMBER: _ClassVar[int]
+    RERANK_BLEND_FIELD_NUMBER: _ClassVar[int]
+    RERANK_SHORTLIST_FIELD_NUMBER: _ClassVar[int]
+    FLOOR_MAX_GAP_FIELD_NUMBER: _ClassVar[int]
+    FLOOR_HARD_FLOOR_FIELD_NUMBER: _ClassVar[int]
+    rerank_enabled: bool
+    rerank_blend: bool
+    rerank_shortlist: int
+    floor_max_gap: float
+    floor_hard_floor: float
+    def __init__(self, rerank_enabled: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., rerank_shortlist: _Optional[int] = ..., floor_max_gap: _Optional[float] = ..., floor_hard_floor: _Optional[float] = ...) -> None: ...
 
 class SearchHit(_message.Message):
     __slots__ = ("provider_id", "provider_group", "type", "id", "title", "snippet", "path", "score", "rerank_score")

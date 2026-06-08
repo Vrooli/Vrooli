@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package vrooli.audio_tools.v1.stt;
 
+import "audio-tools/v1/common/common.proto";
 import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
-import "audio-tools/v1/common/common.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt;stt_v1";
 
@@ -110,12 +110,10 @@ enum StrategyPreference {
 
 message TranscribeRequest {
   bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
-  vrooli.audio_tools.v1.common.AudioFormat format = 2 [
-    (buf.validate.field).enum.not_in = 0
-  ];
-  string language = 3;                 // empty = provider auto-detect
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
+  string language = 3; // empty = provider auto-detect
   bool skip_speaker_verification = 4;
-  string initial_prompt = 5;           // optional Whisper-style prompt
+  string initial_prompt = 5; // optional Whisper-style prompt
 }
 
 message TranscribeResponse {
@@ -150,13 +148,22 @@ message StreamConfig {
   StrategyPreference strategy_preference = 9;
   // vad_silence_ms: silence window that closes a VAD-segment.
   // Range 200..3000; 0 defaults to 700.
-  int32 vad_silence_ms = 10 [(buf.validate.field).int32 = { gte: 0, lte: 3000 }];
+  int32 vad_silence_ms = 10 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 3000
+  }];
   // overlap_window_ms: sliding-window size for OverlapAgreeStrategy.
   // Range 1000..5000; 0 defaults to 2000.
-  int32 overlap_window_ms = 11 [(buf.validate.field).int32 = { gte: 0, lte: 5000 }];
+  int32 overlap_window_ms = 11 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 5000
+  }];
   // overlap_commit_runs: consecutive agreeing runs to commit a prefix.
   // Range 2..4; 0 defaults to 2.
-  int32 overlap_commit_runs = 12 [(buf.validate.field).int32 = { gte: 0, lte: 4 }];
+  int32 overlap_commit_runs = 12 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 4
+  }];
 
   // Post-recognition egress-gate levers (see
   // scenarios/audio-tools/docs/reference/configuration.md#egress-gate).
@@ -174,10 +181,16 @@ message StreamConfig {
   // no_speech_threshold: signal-domain drop when a segment's mean
   // no_speech_prob exceeds this AND its avg_logprob is below
   // logprob_threshold. Range (0,1]; 0 defaults to 0.6.
-  double no_speech_threshold = 15 [(buf.validate.field).double = { gte: 0, lte: 1 }];
+  double no_speech_threshold = 15 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
   // logprob_threshold: paired with no_speech_threshold (see above).
   // Range [-10,0); 0 defaults to -1.0.
-  double logprob_threshold = 16 [(buf.validate.field).double = { gte: -10, lte: 0 }];
+  double logprob_threshold = 16 [(buf.validate.field).double = {
+    gte: -10
+    lte: 0
+  }];
 
   // engine_id selects the active STT engine (an sttengine manifest id, e.g.
   // "whisper-local"). Empty resolves to the manifest's default engine. Only
@@ -263,9 +276,9 @@ message GetEngineSwitchImpactRequest {
 // ScenarioResourceConsumer is one other scenario that declares the resource as
 // a dependency.
 message ScenarioResourceConsumer {
-  string scenario = 1;       // scenario directory id
-  string display_name = 2;   // service.json display name (falls back to id)
-  bool required = 3;         // true when the scenario hard-requires the resource
+  string scenario = 1; // scenario directory id
+  string display_name = 2; // service.json display name (falls back to id)
+  bool required = 3; // true when the scenario hard-requires the resource
 }
 
 message GetEngineSwitchImpactResponse {
@@ -468,9 +481,7 @@ message SpeakerEnrollment {
 // `optional` rather than has_X partners.
 message EnrollSpeakerProfileRequest {
   bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
-  vrooli.audio_tools.v1.common.AudioFormat format = 2 [
-    (buf.validate.field).enum.not_in = 0
-  ];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
   string profile_id = 3;
   string display_name = 4 [(buf.validate.field).string.min_len = 1];
   string notes = 5;

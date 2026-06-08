@@ -100,8 +100,7 @@ message SearchResponse {
 }
 
 // StatusRequest is currently empty; reserved for future filters.
-message StatusRequest {
-}
+message StatusRequest {}
 
 // StatusResponse reports backend availability and the last reconcile state.
 message StatusResponse {
@@ -127,8 +126,8 @@ message StatusResponse {
   // These describe the Qdrant vector index specifically — distinct
   // (ecosystem, name, version) packages — whereas indexed_count is the SQLite
   // per-scenario row count.
-  int32 indexed_vectors = 8;   // points currently in Qdrant
-  int32 expected_vectors = 9;  // distinct packages that should be indexed
+  int32 indexed_vectors = 8; // points currently in Qdrant
+  int32 expected_vectors = 9; // distinct packages that should be indexed
   // True ⇒ coverage ≥ threshold and MODE_AI is served; false ⇒ the backfill is
   // still populating and search degrades to TEXT.
   bool index_ready = 10;

@@ -49,7 +49,12 @@ message UpdateInitiativeRequest {
 
   // Lifecycle state.
   // @constraint one of: active, completed
-  string status = 3 [(buf.validate.field).string = { in: ["active", "completed"] }];
+  string status = 3 [(buf.validate.field).string = {
+    in: [
+      "active",
+      "completed"
+    ]
+  }];
 
   // Backlog item references as "kind/name" strings.
   repeated string items = 4;

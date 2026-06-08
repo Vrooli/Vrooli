@@ -33,7 +33,15 @@ type QueryRequest struct {
 	// Optional --group <scenario> scoping.
 	Group string `protobuf:"bytes,5,opt,name=group,proto3" json:"group,omitempty"`
 	// --explain: include routing rationale in the response.
-	Explain       bool `protobuf:"varint,6,opt,name=explain,proto3" json:"explain,omitempty"`
+	Explain bool `protobuf:"varint,6,opt,name=explain,proto3" json:"explain,omitempty"`
+	// Query-time tuning overrides for the sweep's cheap full-factorial tier. A
+	// provider honors these ONLY when control_token matches its minted token AND
+	// its per-environment override flag is enabled; otherwise they are ignored
+	// (with telemetry) and the public, unauthenticated search path is unchanged.
+	Overrides *SearchOverrides `protobuf:"bytes,7,opt,name=overrides,proto3" json:"overrides,omitempty"`
+	// The provider's control token (registry.RegisterProviderResponse). Required
+	// for `overrides` to be honored; unused for ordinary public search.
+	ControlToken  string `protobuf:"bytes,8,opt,name=control_token,json=controlToken,proto3" json:"control_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -110,6 +118,103 @@ func (x *QueryRequest) GetExplain() bool {
 	return false
 }
 
+func (x *QueryRequest) GetOverrides() *SearchOverrides {
+	if x != nil {
+		return x.Overrides
+	}
+	return nil
+}
+
+func (x *QueryRequest) GetControlToken() string {
+	if x != nil {
+		return x.ControlToken
+	}
+	return ""
+}
+
+// Per-request override of QUERY-TIME tuning factors only — index-time factors
+// (engine, embed_model, embed_task_prefix) are never per-request because they
+// require a reindex; they are excluded by construction. Every field is
+// optional (proto3 presence): an unset field means "use the provider's
+// registered tuning". This is the wire form the sweep drives full-factorial
+// without a reindex per arm.
+type SearchOverrides struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	RerankEnabled   *bool                  `protobuf:"varint,1,opt,name=rerank_enabled,json=rerankEnabled,proto3,oneof" json:"rerank_enabled,omitempty"`
+	RerankBlend     *bool                  `protobuf:"varint,2,opt,name=rerank_blend,json=rerankBlend,proto3,oneof" json:"rerank_blend,omitempty"`
+	RerankShortlist *int32                 `protobuf:"varint,3,opt,name=rerank_shortlist,json=rerankShortlist,proto3,oneof" json:"rerank_shortlist,omitempty"`
+	// 0-or-unset => regime default (mirrors registry.FloorConfig semantics).
+	FloorMaxGap    *float64 `protobuf:"fixed64,4,opt,name=floor_max_gap,json=floorMaxGap,proto3,oneof" json:"floor_max_gap,omitempty"`
+	FloorHardFloor *float64 `protobuf:"fixed64,5,opt,name=floor_hard_floor,json=floorHardFloor,proto3,oneof" json:"floor_hard_floor,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SearchOverrides) Reset() {
+	*x = SearchOverrides{}
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchOverrides) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchOverrides) ProtoMessage() {}
+
+func (x *SearchOverrides) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchOverrides.ProtoReflect.Descriptor instead.
+func (*SearchOverrides) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SearchOverrides) GetRerankEnabled() bool {
+	if x != nil && x.RerankEnabled != nil {
+		return *x.RerankEnabled
+	}
+	return false
+}
+
+func (x *SearchOverrides) GetRerankBlend() bool {
+	if x != nil && x.RerankBlend != nil {
+		return *x.RerankBlend
+	}
+	return false
+}
+
+func (x *SearchOverrides) GetRerankShortlist() int32 {
+	if x != nil && x.RerankShortlist != nil {
+		return *x.RerankShortlist
+	}
+	return 0
+}
+
+func (x *SearchOverrides) GetFloorMaxGap() float64 {
+	if x != nil && x.FloorMaxGap != nil {
+		return *x.FloorMaxGap
+	}
+	return 0
+}
+
+func (x *SearchOverrides) GetFloorHardFloor() float64 {
+	if x != nil && x.FloorHardFloor != nil {
+		return *x.FloorHardFloor
+	}
+	return 0
+}
+
 type SearchHit struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Provenance: which leaf produced this hit.
@@ -131,7 +236,7 @@ type SearchHit struct {
 
 func (x *SearchHit) Reset() {
 	*x = SearchHit{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[1]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -143,7 +248,7 @@ func (x *SearchHit) String() string {
 func (*SearchHit) ProtoMessage() {}
 
 func (x *SearchHit) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[1]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -156,7 +261,7 @@ func (x *SearchHit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchHit.ProtoReflect.Descriptor instead.
 func (*SearchHit) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{1}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *SearchHit) GetProviderId() string {
@@ -238,7 +343,7 @@ type ProviderResultGroup struct {
 
 func (x *ProviderResultGroup) Reset() {
 	*x = ProviderResultGroup{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[2]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -250,7 +355,7 @@ func (x *ProviderResultGroup) String() string {
 func (*ProviderResultGroup) ProtoMessage() {}
 
 func (x *ProviderResultGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[2]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -263,7 +368,7 @@ func (x *ProviderResultGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderResultGroup.ProtoReflect.Descriptor instead.
 func (*ProviderResultGroup) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{2}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ProviderResultGroup) GetProviderId() string {
@@ -322,7 +427,7 @@ type QueryResponse struct {
 
 func (x *QueryResponse) Reset() {
 	*x = QueryResponse{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[3]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -334,7 +439,7 @@ func (x *QueryResponse) String() string {
 func (*QueryResponse) ProtoMessage() {}
 
 func (x *QueryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[3]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -347,7 +452,7 @@ func (x *QueryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryResponse.ProtoReflect.Descriptor instead.
 func (*QueryResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{3}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *QueryResponse) GetRanked() []*SearchHit {
@@ -407,7 +512,7 @@ type StatusRequest struct {
 
 func (x *StatusRequest) Reset() {
 	*x = StatusRequest{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[4]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -419,7 +524,7 @@ func (x *StatusRequest) String() string {
 func (*StatusRequest) ProtoMessage() {}
 
 func (x *StatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[4]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -432,7 +537,7 @@ func (x *StatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusRequest.ProtoReflect.Descriptor instead.
 func (*StatusRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{4}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{5}
 }
 
 type ProviderHealth struct {
@@ -449,7 +554,7 @@ type ProviderHealth struct {
 
 func (x *ProviderHealth) Reset() {
 	*x = ProviderHealth{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[5]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -461,7 +566,7 @@ func (x *ProviderHealth) String() string {
 func (*ProviderHealth) ProtoMessage() {}
 
 func (x *ProviderHealth) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[5]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -474,7 +579,7 @@ func (x *ProviderHealth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderHealth.ProtoReflect.Descriptor instead.
 func (*ProviderHealth) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{5}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ProviderHealth) GetProviderId() string {
@@ -524,7 +629,7 @@ type StatusResponse struct {
 
 func (x *StatusResponse) Reset() {
 	*x = StatusResponse{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[6]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -536,7 +641,7 @@ func (x *StatusResponse) String() string {
 func (*StatusResponse) ProtoMessage() {}
 
 func (x *StatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[6]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -549,7 +654,7 @@ func (x *StatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusResponse.ProtoReflect.Descriptor instead.
 func (*StatusResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{6}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *StatusResponse) GetProviders() []*ProviderHealth {
@@ -577,14 +682,27 @@ var File_search_hub_v1_routing_routing_proto protoreflect.FileDescriptor
 
 const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\n" +
-	"#search-hub/v1/routing/routing.proto\x12\x1cvrooli.search_hub.v1.routing\"\x92\x01\n" +
+	"#search-hub/v1/routing/routing.proto\x12\x1cvrooli.search_hub.v1.routing\"\x84\x02\n" +
 	"\fQueryRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
 	"\x05types\x18\x02 \x03(\tR\x05types\x12\x10\n" +
 	"\x03all\x18\x03 \x01(\bR\x03all\x12\x14\n" +
 	"\x05limit\x18\x04 \x01(\x05R\x05limit\x12\x14\n" +
 	"\x05group\x18\x05 \x01(\tR\x05group\x12\x18\n" +
-	"\aexplain\x18\x06 \x01(\bR\aexplain\"\xf4\x01\n" +
+	"\aexplain\x18\x06 \x01(\bR\aexplain\x12K\n" +
+	"\toverrides\x18\a \x01(\v2-.vrooli.search_hub.v1.routing.SearchOverridesR\toverrides\x12#\n" +
+	"\rcontrol_token\x18\b \x01(\tR\fcontrolToken\"\xcd\x02\n" +
+	"\x0fSearchOverrides\x12*\n" +
+	"\x0ererank_enabled\x18\x01 \x01(\bH\x00R\rrerankEnabled\x88\x01\x01\x12&\n" +
+	"\frerank_blend\x18\x02 \x01(\bH\x01R\vrerankBlend\x88\x01\x01\x12.\n" +
+	"\x10rerank_shortlist\x18\x03 \x01(\x05H\x02R\x0frerankShortlist\x88\x01\x01\x12'\n" +
+	"\rfloor_max_gap\x18\x04 \x01(\x01H\x03R\vfloorMaxGap\x88\x01\x01\x12-\n" +
+	"\x10floor_hard_floor\x18\x05 \x01(\x01H\x04R\x0efloorHardFloor\x88\x01\x01B\x11\n" +
+	"\x0f_rerank_enabledB\x0f\n" +
+	"\r_rerank_blendB\x13\n" +
+	"\x11_rerank_shortlistB\x10\n" +
+	"\x0e_floor_max_gapB\x13\n" +
+	"\x11_floor_hard_floor\"\xf4\x01\n" +
 	"\tSearchHit\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12%\n" +
@@ -641,30 +759,32 @@ func file_search_hub_v1_routing_routing_proto_rawDescGZIP() []byte {
 	return file_search_hub_v1_routing_routing_proto_rawDescData
 }
 
-var file_search_hub_v1_routing_routing_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_search_hub_v1_routing_routing_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_search_hub_v1_routing_routing_proto_goTypes = []any{
 	(*QueryRequest)(nil),        // 0: vrooli.search_hub.v1.routing.QueryRequest
-	(*SearchHit)(nil),           // 1: vrooli.search_hub.v1.routing.SearchHit
-	(*ProviderResultGroup)(nil), // 2: vrooli.search_hub.v1.routing.ProviderResultGroup
-	(*QueryResponse)(nil),       // 3: vrooli.search_hub.v1.routing.QueryResponse
-	(*StatusRequest)(nil),       // 4: vrooli.search_hub.v1.routing.StatusRequest
-	(*ProviderHealth)(nil),      // 5: vrooli.search_hub.v1.routing.ProviderHealth
-	(*StatusResponse)(nil),      // 6: vrooli.search_hub.v1.routing.StatusResponse
+	(*SearchOverrides)(nil),     // 1: vrooli.search_hub.v1.routing.SearchOverrides
+	(*SearchHit)(nil),           // 2: vrooli.search_hub.v1.routing.SearchHit
+	(*ProviderResultGroup)(nil), // 3: vrooli.search_hub.v1.routing.ProviderResultGroup
+	(*QueryResponse)(nil),       // 4: vrooli.search_hub.v1.routing.QueryResponse
+	(*StatusRequest)(nil),       // 5: vrooli.search_hub.v1.routing.StatusRequest
+	(*ProviderHealth)(nil),      // 6: vrooli.search_hub.v1.routing.ProviderHealth
+	(*StatusResponse)(nil),      // 7: vrooli.search_hub.v1.routing.StatusResponse
 }
 var file_search_hub_v1_routing_routing_proto_depIdxs = []int32{
-	1, // 0: vrooli.search_hub.v1.routing.ProviderResultGroup.hits:type_name -> vrooli.search_hub.v1.routing.SearchHit
-	1, // 1: vrooli.search_hub.v1.routing.QueryResponse.ranked:type_name -> vrooli.search_hub.v1.routing.SearchHit
-	2, // 2: vrooli.search_hub.v1.routing.QueryResponse.groups:type_name -> vrooli.search_hub.v1.routing.ProviderResultGroup
-	5, // 3: vrooli.search_hub.v1.routing.StatusResponse.providers:type_name -> vrooli.search_hub.v1.routing.ProviderHealth
-	0, // 4: vrooli.search_hub.v1.routing.RoutingService.Query:input_type -> vrooli.search_hub.v1.routing.QueryRequest
-	4, // 5: vrooli.search_hub.v1.routing.RoutingService.Status:input_type -> vrooli.search_hub.v1.routing.StatusRequest
-	3, // 6: vrooli.search_hub.v1.routing.RoutingService.Query:output_type -> vrooli.search_hub.v1.routing.QueryResponse
-	6, // 7: vrooli.search_hub.v1.routing.RoutingService.Status:output_type -> vrooli.search_hub.v1.routing.StatusResponse
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	1, // 0: vrooli.search_hub.v1.routing.QueryRequest.overrides:type_name -> vrooli.search_hub.v1.routing.SearchOverrides
+	2, // 1: vrooli.search_hub.v1.routing.ProviderResultGroup.hits:type_name -> vrooli.search_hub.v1.routing.SearchHit
+	2, // 2: vrooli.search_hub.v1.routing.QueryResponse.ranked:type_name -> vrooli.search_hub.v1.routing.SearchHit
+	3, // 3: vrooli.search_hub.v1.routing.QueryResponse.groups:type_name -> vrooli.search_hub.v1.routing.ProviderResultGroup
+	6, // 4: vrooli.search_hub.v1.routing.StatusResponse.providers:type_name -> vrooli.search_hub.v1.routing.ProviderHealth
+	0, // 5: vrooli.search_hub.v1.routing.RoutingService.Query:input_type -> vrooli.search_hub.v1.routing.QueryRequest
+	5, // 6: vrooli.search_hub.v1.routing.RoutingService.Status:input_type -> vrooli.search_hub.v1.routing.StatusRequest
+	4, // 7: vrooli.search_hub.v1.routing.RoutingService.Query:output_type -> vrooli.search_hub.v1.routing.QueryResponse
+	7, // 8: vrooli.search_hub.v1.routing.RoutingService.Status:output_type -> vrooli.search_hub.v1.routing.StatusResponse
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_search_hub_v1_routing_routing_proto_init() }
@@ -672,13 +792,14 @@ func file_search_hub_v1_routing_routing_proto_init() {
 	if File_search_hub_v1_routing_routing_proto != nil {
 		return
 	}
+	file_search_hub_v1_routing_routing_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_search_hub_v1_routing_routing_proto_rawDesc), len(file_search_hub_v1_routing_routing_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

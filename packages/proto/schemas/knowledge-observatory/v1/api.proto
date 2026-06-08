@@ -59,11 +59,17 @@ message SearchRequest {
 
   // Maximum number of results to return.
   // @constraint 1-100
-  optional int32 limit = 8 [(buf.validate.field).int32 = { gte: 1, lte: 100 }];
+  optional int32 limit = 8 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 100
+  }];
 
   // Minimum similarity threshold (0-1).
   // @constraint 0-1
-  optional double threshold = 9 [(buf.validate.field).double = { gte: 0, lte: 1 }];
+  optional double threshold = 9 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
 }
 
 // SearchResult represents a single semantic match.

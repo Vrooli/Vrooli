@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package vrooli.audio_tools.v1.tts;
 
-import "buf/validate/validate.proto";
-import "google/protobuf/field_mask.proto";
 import "audio-tools/v1/common/common.proto";
 import "audio-tools/v1/health_status/health_status.proto";
+import "buf/validate/validate.proto";
+import "google/protobuf/field_mask.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts;tts_v1";
 
@@ -93,8 +93,8 @@ message SynthesizeRequest {
   repeated AdapterMapping voice_overrides = 3;
   // 0.5–4.0 when set; 0 = use server default.
   double speed = 4 [(buf.validate.field).cel = {
-    id: "tts.synthesize.speed.range",
-    message: "speed must be 0 (default) or in [0.5, 4.0]",
+    id: "tts.synthesize.speed.range"
+    message: "speed must be 0 (default) or in [0.5, 4.0]"
     expression: "this == 0.0 || (this >= 0.5 && this <= 4.0)"
   }];
   vrooli.audio_tools.v1.common.ResponseFormat response_format = 5;
@@ -107,11 +107,11 @@ message SynthesizeRequest {
 message SynthesizeResponse {
   bytes audio = 1;
   string content_type = 2;
-  string content_hash = 3;            // SHA256 of the synthesis input key
+  string content_hash = 3; // SHA256 of the synthesis input key
   vrooli.audio_tools.v1.common.ProviderTier provider_tier = 4;
   string provider_id = 5;
   string model_id = 6;
-  string voice_used = 7;              // resolved backend voice name
+  string voice_used = 7; // resolved backend voice name
   double latency_ms = 8;
 }
 
@@ -137,8 +137,8 @@ message AudioFrame {
 // -----------------------------------------------------------------------------
 
 message Voice {
-  string id = 1;                      // canonical id (e.g., voice.feminine.warm)
-  string name = 2;                    // human label
+  string id = 1; // canonical id (e.g., voice.feminine.warm)
+  string name = 2; // human label
   string description = 3;
   // Per-adapter mapping snapshot.
   repeated AdapterMapping adapter_mappings = 4;
@@ -160,8 +160,8 @@ message GetCacheRequest {
   string event_id = 1;
   string voice = 2;
   double speed = 3;
-  string version = 4;                 // defaults to "active"
-  string content_hash = 5;            // direct content-addressable lookup
+  string version = 4; // defaults to "active"
+  string content_hash = 5; // direct content-addressable lookup
   vrooli.audio_tools.v1.common.ResponseFormat response_format = 6;
 }
 
@@ -178,15 +178,14 @@ message GetCacheResponse {
 
 message Config {
   bool auto_enabled = 1;
-  string default_voice = 2;           // canonical voice id
+  string default_voice = 2; // canonical voice id
   double default_speed = 3;
   vrooli.audio_tools.v1.common.ResponseFormat default_response_format = 4;
   // Summarize config has migrated to SummarizeService.SummarizeConfig
   // (audio-tools/v1/summarize/summarize.proto). Consumers should call
   // SummarizeService.GetSummarizeConfig / UpdateSummarizeConfig.
   reserved 5, 6, 7, 8, 9;
-  reserved "summarize_enabled", "summarize_char_threshold",
-           "summarize_level", "summarize_model", "summarize_timeout_seconds";
+  reserved "summarize_enabled", "summarize_char_threshold", "summarize_level", "summarize_model", "summarize_timeout_seconds";
 }
 
 message GetConfigRequest {}

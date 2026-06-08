@@ -17,13 +17,15 @@ import (
 // experiment_test.go is the recall-gap exploration harness (NOT the gate — that
 // is TestCommandRecall). It builds several index strategies into scratch
 // collections and measures recall@5 for each configuration, isolating the
-// contribution of every lever:
+// contribution of every LIVE lever:
 //
 //	H1  query/document task prefixes (nomic-embed-text)
-//	H5  enriched embedding text (humanized identity + cleaned gloss)
 //	H2  hybrid (dense + sparse BM25 RRF) leg
-//	H4  canonical-origin authority prior
 //	    + the rerank on/off contrast
+//
+// The enriched-embedding-text (H5) and canonical-origin authority (H4) arms
+// were measured to HURT recall (0.70→0.40 and 0.70→0.65) and have been removed;
+// their verdicts live in packages/aisearch-go/docs/graduation-retrospective.md.
 //
 // It prints a comparison table so the productionized config is chosen from data.
 // Expensive (several full re-indexes + many reranked searches), so it is gated
@@ -78,9 +80,8 @@ func TestRecallExperiment(t *testing.T) {
 	}
 	idxA := idx{"A:noprefix+terse+dense", "cli-health-exp-a", noPrefix, composeCommandEmbeddingText, nil}
 	idxB := idx{"B:prefix+terse+dense", "cli-health-exp-b", prefixed, composeCommandEmbeddingText, nil}
-	idxC := idx{"C:prefix+enriched+dense", "cli-health-exp-c", prefixed, composeCommandEmbeddingTextEnriched, nil}
-	idxD := idx{"D:prefix+enriched+hybrid", "cli-health-exp-d", prefixed, composeCommandEmbeddingTextEnriched, bm25}
-	indices := []idx{idxA, idxB, idxC, idxD}
+	idxC := idx{"C:prefix+terse+hybrid", "cli-health-exp-c", prefixed, composeCommandEmbeddingText, bm25}
+	indices := []idx{idxA, idxB, idxC}
 
 	for _, ix := range indices {
 		dropCollection(t, cfg.QdrantURL, cfg.QdrantAPIKey, ix.collection)
@@ -113,20 +114,17 @@ func TestRecallExperiment(t *testing.T) {
 		}
 	}()
 
-	// Query-time configs (reuse an index; vary rerank + authority prior).
+	// Query-time configs (reuse an index; vary rerank).
 	type cfgRow struct {
-		name     string
-		ix       idx
-		rerank   bool
-		decorate pkg.ScoreDecorator
+		name   string
+		ix     idx
+		rerank bool
 	}
 	rows := []cfgRow{
-		{"C0 baseline (noprefix,terse,dense,rerank)", idxA, true, nil},
-		{"C1 +prefix (H1)", idxB, true, nil},
-		{"C2 +enriched (H5)", idxC, true, nil},
-		{"C3 +hybrid (H2)", idxD, true, nil},
-		{"C4 +authority (H4)", idxD, true, newAuthorityDecorator()},
-		{"C5 hybrid+authority, NO rerank", idxD, false, newAuthorityDecorator()},
+		{"C0 baseline (noprefix,terse,dense,rerank)", idxA, true},
+		{"C1 +prefix (H1)", idxB, true},
+		{"C2 +hybrid (H2)", idxC, true},
+		{"C3 hybrid, NO rerank", idxC, false},
 	}
 
 	type result struct {
@@ -145,7 +143,6 @@ func TestRecallExperiment(t *testing.T) {
 			RerankEnabled:   r.rerank,
 			Reranker:        reranker(),
 			RerankShortlist: cfg.RerankShortlist,
-			Decorate:        r.decorate,
 		})
 		recall, hits, misses := measureRecall(ctx, t, svc, corpus)
 		results = append(results, result{r.name, recall, hits})

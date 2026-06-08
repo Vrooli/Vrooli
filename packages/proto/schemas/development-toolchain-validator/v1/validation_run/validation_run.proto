@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package vrooli.development_toolchain_validator.v1.validation_run;
 
-import "google/protobuf/timestamp.proto";
 import "development-toolchain-validator/v1/validation_record/validation_record.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/validation_run;validation_run_v1";
 
@@ -30,17 +30,17 @@ service ValidationRunService {
 // Status enumerates the operational state of a validation run.
 enum Status {
   STATUS_UNSPECIFIED = 0;
-  STATUS_QUEUED      = 1;
-  STATUS_RUNNING     = 2;
-  STATUS_EVALUATING  = 3;
-  STATUS_TERMINAL    = 4;
+  STATUS_QUEUED = 1;
+  STATUS_RUNNING = 2;
+  STATUS_EVALUATING = 3;
+  STATUS_TERMINAL = 4;
 }
 
 message ValidationRun {
   string id = 1;
 
   vrooli.development_toolchain_validator.v1.validation_record.TupleKind tuple_kind = 2;
-  string subject_id  = 3;
+  string subject_id = 3;
   string golden_slug = 4;
 
   Status status = 5;
@@ -52,7 +52,7 @@ message ValidationRun {
 
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp started_at = 9;
-  google.protobuf.Timestamp ended_at   = 10;
+  google.protobuf.Timestamp ended_at = 10;
 
   // Populated when terminal_verdict is RUN_FAILURE / TOOL_FAILURE /
   // UNEXPECTED_MUTATION.
@@ -61,9 +61,9 @@ message ValidationRun {
 
 message StartRequest {
   vrooli.development_toolchain_validator.v1.validation_record.TupleKind tuple_kind = 1;
-  string subject_id  = 2;
+  string subject_id = 2;
   string golden_slug = 3;
-  bool   force       = 4;
+  bool force = 4;
 }
 
 message StartResponse {
@@ -78,8 +78,7 @@ message GetResponse {
   ValidationRun run = 1;
 }
 
-message ListActiveRequest {
-}
+message ListActiveRequest {}
 
 message ListActiveResponse {
   repeated ValidationRun runs = 1;

@@ -77,9 +77,9 @@ message PhaseInfo {
 message RunInfo {
   string run_id = 1;
   string scenario = 2;
-  string started_at = 3;   // RFC3339
+  string started_at = 3; // RFC3339
   string completed_at = 4; // RFC3339, empty if in-progress
-  string status = 5;       // in_progress | passed | failed | aborted
+  string status = 5; // in_progress | passed | failed | aborted
   repeated PhaseInfo phases = 6;
   string git_sha = 7;
   string git_branch = 8;
@@ -92,7 +92,7 @@ message RunInfo {
 message ListRunsRequest {
   string scenario = 1;
   string status = 2; // optional filter: passed | failed | ...
-  int32 limit = 3;   // 0 = all
+  int32 limit = 3; // 0 = all
 }
 
 message ListRunsResponse {
@@ -143,7 +143,7 @@ message CompareRunsRequest {
   string scenario = 1;
   string run_id_a = 2; // baseline
   string run_id_b = 3; // current
-  string phase = 4;    // optional: restrict to one phase
+  string phase = 4; // optional: restrict to one phase
 }
 
 // PhaseDiff classifies the difference for a single phase between run A and B.
@@ -153,10 +153,10 @@ message PhaseDiff {
   string status_b = 3;
   // verdict: clean | regression | new-failure | preexisting | not-comparable
   string verdict = 4;
-  repeated string regressions = 5;          // passing in A, failing in B
-  repeated string new_failures = 6;         // absent in A, failing in B
+  repeated string regressions = 5; // passing in A, failing in B
+  repeated string new_failures = 6; // absent in A, failing in B
   repeated string preexisting_failures = 7; // failing in both
-  repeated string cleared_failures = 8;     // failing in A, passing in B
+  repeated string cleared_failures = 8; // failing in A, passing in B
 }
 
 message CompareRunsResponse {
@@ -173,7 +173,7 @@ message GetPhaseArtifactRequest {
 }
 
 message GetPhaseArtifactResponse {
-  string content = 1;      // raw phase-results JSON
+  string content = 1; // raw phase-results JSON
   string content_type = 2; // "application/json"
 }
 
@@ -181,7 +181,7 @@ message GetPhaseArtifactResponse {
 // relative to the run's artifact root.
 message RunVideo {
   string workflow = 1;
-  string rel_path = 2;    // path relative to the run dir; handle for the binary route
+  string rel_path = 2; // path relative to the run dir; handle for the binary route
   int64 size_bytes = 3;
 }
 

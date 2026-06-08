@@ -83,9 +83,18 @@ message StreamConfig {
   int32 segment_silence_ms = 7;
   vrooli.swarm_manager.v1.audio_common.StreamingMode streaming_mode = 8;
   vrooli.swarm_manager.v1.audio_common.StrategyPreference strategy_preference = 9;
-  int32 vad_silence_ms = 10 [(buf.validate.field).int32 = { gte: 0, lte: 3000 }];
-  int32 overlap_window_ms = 11 [(buf.validate.field).int32 = { gte: 0, lte: 5000 }];
-  int32 overlap_commit_runs = 12 [(buf.validate.field).int32 = { gte: 0, lte: 4 }];
+  int32 vad_silence_ms = 10 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 3000
+  }];
+  int32 overlap_window_ms = 11 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 5000
+  }];
+  int32 overlap_commit_runs = 12 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 4
+  }];
 }
 
 message GetStreamConfigRequest {}
@@ -152,7 +161,10 @@ message DeleteWakeWordTemplateResponse {
 message SpeakerConfig {
   bool enabled = 1;
   repeated string profile_ids = 2;
-  double threshold = 3 [(buf.validate.field).double = { gte: 0.0, lte: 1.0 }];
+  double threshold = 3 [(buf.validate.field).double = {
+    gte: 0.0
+    lte: 1.0
+  }];
   vrooli.swarm_manager.v1.audio_common.SpeakerMode mode = 4;
   vrooli.swarm_manager.v1.audio_common.RejectBehavior reject_behavior = 5;
   bool fallback_without_verification = 6;
@@ -233,9 +245,7 @@ message SpeakerEnrollment {
 
 message EnrollSpeakerProfileRequest {
   bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
-  vrooli.swarm_manager.v1.audio_common.AudioFormat format = 2 [
-    (buf.validate.field).enum.not_in = 0
-  ];
+  vrooli.swarm_manager.v1.audio_common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
   string profile_id = 3;
   string display_name = 4 [(buf.validate.field).string.min_len = 1];
   string notes = 5;
@@ -305,7 +315,10 @@ message SummarizeConfig {
   int32 char_threshold = 2;
   vrooli.swarm_manager.v1.audio_common.SummarizeLevel level = 3;
   string model = 4;
-  int32 timeout_seconds = 5 [(buf.validate.field).int32 = { gte: 0, lte: 600 }];
+  int32 timeout_seconds = 5 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 600
+  }];
 }
 
 message GetSummarizeConfigRequest {}

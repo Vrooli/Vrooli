@@ -45,8 +45,7 @@ service ToolsService {
   rpc Execute(ExecuteToolRequest) returns (ExecuteToolResponse);
 }
 
-message ListToolsRequest {
-}
+message ListToolsRequest {}
 
 message ListToolsResponse {
   // Manifest reuses the canonical agent-inbox ToolManifest shape so the

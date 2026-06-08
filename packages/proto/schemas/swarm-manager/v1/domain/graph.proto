@@ -41,23 +41,36 @@ message GraphInitiativeRollup {
 
 // GraphBacklogNodeData describes a backlog item node.
 message GraphBacklogNodeData {
-  string kind = 1 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore"] }];
+  string kind = 1 [(buf.validate.field).string = {
+    in: [
+      "idea",
+      "research",
+      "fix",
+      "execute",
+      "chore"
+    ]
+  }];
   string name = 2 [(buf.validate.field).string.min_len = 1];
   string title = 3 [(buf.validate.field).string.min_len = 1];
-  string status = 4 [(buf.validate.field).string = { in: [
-    "backlog",
-    "researching",
-    "ready",
-    "queued",
-    "in_progress",
-    "in_review",
-    "review_pending",
-    "completed",
-    "failed",
-    "needs_followup",
-    "archived"
-  ] }];
-  int32 priority = 5 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+  string status = 4 [(buf.validate.field).string = {
+    in: [
+      "backlog",
+      "researching",
+      "ready",
+      "queued",
+      "in_progress",
+      "in_review",
+      "review_pending",
+      "completed",
+      "failed",
+      "needs_followup",
+      "archived"
+    ]
+  }];
+  int32 priority = 5 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 10
+  }];
   // Cross-lens execution status annotation (topology enrichment).
   optional string active_execution_status = 6;
   int32 active_execution_count = 7;
@@ -70,7 +83,12 @@ message GraphInitiativeActiveRound {
   string mode = 1 [(buf.validate.field).string.min_len = 1];
   string phase = 2 [(buf.validate.field).string.min_len = 1];
   int32 round = 3 [(buf.validate.field).int32.gte = 1];
-  string status = 4 [(buf.validate.field).string = { in: ["reserved", "agent_running"] }];
+  string status = 4 [(buf.validate.field).string = {
+    in: [
+      "reserved",
+      "agent_running"
+    ]
+  }];
 }
 
 // GraphInitiativeNodeData describes an initiative node.
@@ -90,69 +108,115 @@ message GraphInitiativeNodeData {
 message GraphCaptureNodeData {
   string id = 1 [(buf.validate.field).string.min_len = 1];
   string text = 2 [(buf.validate.field).string.min_len = 1];
-  string status = 3 [(buf.validate.field).string = { in: ["classifying", "classified", "failed"] }];
+  string status = 3 [(buf.validate.field).string = {
+    in: [
+      "classifying",
+      "classified",
+      "failed"
+    ]
+  }];
 }
 
 // GraphScenarioNodeData describes a scenario node.
 message GraphScenarioNodeData {
   string name = 1 [(buf.validate.field).string.min_len = 1];
-  string status = 2 [(buf.validate.field).string = { in: ["running", "stopped", "error", "unknown"] }];
+  string status = 2 [(buf.validate.field).string = {
+    in: [
+      "running",
+      "stopped",
+      "error",
+      "unknown"
+    ]
+  }];
 }
 
 // GraphExecutionNodeData describes an execution node.
 message GraphExecutionNodeData {
   string execution_id = 1 [(buf.validate.field).string.min_len = 1];
-  string backlog_kind = 2 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore", "spec-sync"] }];
+  string backlog_kind = 2 [(buf.validate.field).string = {
+    in: [
+      "idea",
+      "research",
+      "fix",
+      "execute",
+      "chore",
+      "spec-sync"
+    ]
+  }];
   string backlog_name = 3 [(buf.validate.field).string.min_len = 1];
-  string status = 4 [(buf.validate.field).string = { in: [
-    "pending",
-    "starting",
-    "running",
-    "needs_review",
-    "validating",
-    "needs_fixup",
-    "completed",
-    "failed",
-    "canceled"
-  ] }];
-  string mode = 5 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  string status = 4 [(buf.validate.field).string = {
+    in: [
+      "pending",
+      "starting",
+      "running",
+      "needs_review",
+      "validating",
+      "needs_fixup",
+      "completed",
+      "failed",
+      "canceled"
+    ]
+  }];
+  string mode = 5 [(buf.validate.field).string = {
+    in: [
+      "manual",
+      "yolo"
+    ]
+  }];
   optional string run_id = 6;
 }
 
 // GraphAgentActivityNodeData describes a tracked agent activity node.
 message GraphAgentActivityNodeData {
   string activity_id = 1 [(buf.validate.field).string.min_len = 1];
-  string owner_type = 2 [(buf.validate.field).string = { in: ["backlog", "capture", "scenario", "initiative", "session"] }];
+  string owner_type = 2 [(buf.validate.field).string = {
+    in: [
+      "backlog",
+      "capture",
+      "scenario",
+      "initiative",
+      "session"
+    ]
+  }];
   optional string owner_kind = 3;
   string owner_name = 4 [(buf.validate.field).string.min_len = 1];
   optional string owner_title = 5;
   optional string execution_id = 6;
-  string purpose = 7 [(buf.validate.field).string = { in: [
-    "initialize",
-    "workshop",
-    "finalize",
-    "research",
-    "process",
-    "fixup",
-    "followup",
-    "spec_sync",
-    "classify",
-    "clarify",
-    "feedback",
-    "feedback_continue",
-    "review"
-  ] }];
-  string interaction_type = 8 [(buf.validate.field).string = { in: ["spawn", "continue"] }];
-  string status = 9 [(buf.validate.field).string = { in: [
-    "pending",
-    "starting",
-    "running",
-    "needs_review",
-    "complete",
-    "failed",
-    "cancelled",
-    "unspecified"
-  ] }];
+  string purpose = 7 [(buf.validate.field).string = {
+    in: [
+      "initialize",
+      "workshop",
+      "finalize",
+      "research",
+      "process",
+      "fixup",
+      "followup",
+      "spec_sync",
+      "classify",
+      "clarify",
+      "feedback",
+      "feedback_continue",
+      "review"
+    ]
+  }];
+  string interaction_type = 8 [(buf.validate.field).string = {
+    in: [
+      "spawn",
+      "continue"
+    ]
+  }];
+  string status = 9 [(buf.validate.field).string = {
+    in: [
+      "pending",
+      "starting",
+      "running",
+      "needs_review",
+      "complete",
+      "failed",
+      "cancelled",
+      "unspecified"
+    ]
+  }];
   optional string run_id = 10;
   optional string task_id = 11;
   string requested_at = 12 [(buf.validate.field).string.min_len = 1];
@@ -181,15 +245,17 @@ message GraphNodeData {
 // GraphNode is a node in the graph workspace.
 message GraphNode {
   string id = 1 [(buf.validate.field).string.min_len = 1];
-  string type = 2 [(buf.validate.field).string = { in: [
-    "BacklogItem",
-    "Initiative",
-    "Capture",
-    "Scenario",
-    "ExecutionRecord",
-    "AgentActivity",
-    "Run"
-  ] }];
+  string type = 2 [(buf.validate.field).string = {
+    in: [
+      "BacklogItem",
+      "Initiative",
+      "Capture",
+      "Scenario",
+      "ExecutionRecord",
+      "AgentActivity",
+      "Run"
+    ]
+  }];
   GraphNodeData data = 3;
   GraphPosition position = 4;
 }
@@ -199,23 +265,31 @@ message GraphEdge {
   string id = 1 [(buf.validate.field).string.min_len = 1];
   string source = 2 [(buf.validate.field).string.min_len = 1];
   string target = 3 [(buf.validate.field).string.min_len = 1];
-  string type = 4 [(buf.validate.field).string = { in: [
-    "depends_on",
-    "member_of",
-    "classified_as",
-    "targets",
-    "executes",
-    "follow_up",
-    "activity_for",
-    "records_activity",
-    "spawned_run",
-    "continued_run"
-  ] }];
+  string type = 4 [(buf.validate.field).string = {
+    in: [
+      "depends_on",
+      "member_of",
+      "classified_as",
+      "targets",
+      "executes",
+      "follow_up",
+      "activity_for",
+      "records_activity",
+      "spawned_run",
+      "continued_run"
+    ]
+  }];
 }
 
 // GraphMeta describes the graph projection metadata.
 message GraphMeta {
-  string lens = 1 [(buf.validate.field).string = { in: ["topology", "flow", "operations"] }];
+  string lens = 1 [(buf.validate.field).string = {
+    in: [
+      "topology",
+      "flow",
+      "operations"
+    ]
+  }];
   int32 node_count = 2 [(buf.validate.field).int32.gte = 0];
   int32 edge_count = 3 [(buf.validate.field).int32.gte = 0];
   string generated_at = 4 [(buf.validate.field).string.min_len = 1];

@@ -89,8 +89,7 @@ message SearchResponse {
 }
 
 // StatusRequest is currently empty; reserved for future filters.
-message StatusRequest {
-}
+message StatusRequest {}
 
 // StatusResponse reports backend availability and the last reconcile state.
 // Used by the CLI's `search status` and by AI workflows that need to know

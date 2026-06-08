@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file search-hub/v1/routing/routing.proto.
  */
 export const file_search_hub_v1_routing_routing: GenFile = /*@__PURE__*/
-  fileDesc("CiNzZWFyY2gtaHViL3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZyJoCgxRdWVyeVJlcXVlc3QSDQoFcXVlcnkYASABKAkSDQoFdHlwZXMYAiADKAkSCwoDYWxsGAMgASgIEg0KBWxpbWl0GAQgASgFEg0KBWdyb3VwGAUgASgJEg8KB2V4cGxhaW4YBiABKAgipQEKCVNlYXJjaEhpdBITCgtwcm92aWRlcl9pZBgBIAEoCRIWCg5wcm92aWRlcl9ncm91cBgCIAEoCRIMCgR0eXBlGAMgASgJEgoKAmlkGAQgASgJEg0KBXRpdGxlGAUgASgJEg8KB3NuaXBwZXQYBiABKAkSDAoEcGF0aBgHIAEoCRINCgVzY29yZRgIIAEoARIUCgxyZXJhbmtfc2NvcmUYCSABKAEikAEKE1Byb3ZpZGVyUmVzdWx0R3JvdXASEwoLcHJvdmlkZXJfaWQYASABKAkSNQoEaGl0cxgCIAMoCzInLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoSGl0Eg0KBWNvdW50GAMgASgFEhAKCGRlZ3JhZGVkGAQgASgIEgwKBG5vdGUYBSABKAki+gEKDVF1ZXJ5UmVzcG9uc2USNwoGcmFua2VkGAEgAygLMicudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5TZWFyY2hIaXQSQQoGZ3JvdXBzGAIgAygLMjEudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5Qcm92aWRlclJlc3VsdEdyb3VwEhgKEGNvcnBvcmFfc2VhcmNoZWQYAyADKAkSGwoTcm91dGluZ19leHBsYW5hdGlvbhgEIAMoCRIQCghyZXJhbmtlZBgFIAEoCBIQCghkZWdyYWRlZBgGIAEoCBISCgpsYXRlbmN5X21zGAcgASgDIg8KDVN0YXR1c1JlcXVlc3QicgoOUHJvdmlkZXJIZWFsdGgSEwoLcHJvdmlkZXJfaWQYASABKAkSEQoJcmVhY2hhYmxlGAIgASgIEhEKCWZyZXNobmVzcxgDIAEoCRITCgtwb2ludF9jb3VudBgEIAEoAxIQCghkZWdyYWRlZBgFIAEoCCKLAQoOU3RhdHVzUmVzcG9uc2USPwoJcHJvdmlkZXJzGAEgAygLMiwudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5Qcm92aWRlckhlYWx0aBIcChRjbGFzc2lmaWVyX2F2YWlsYWJsZRgCIAEoCBIaChJyZXJhbmtlcl9hdmFpbGFibGUYAyABKAgy1wEKDlJvdXRpbmdTZXJ2aWNlEmAKBVF1ZXJ5EioudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5RdWVyeVJlcXVlc3QaKy52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlF1ZXJ5UmVzcG9uc2USYwoGU3RhdHVzEisudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5TdGF0dXNSZXF1ZXN0GiwudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5TdGF0dXNSZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NlYXJjaC1odWIvdjEvcm91dGluZztyb3V0aW5nX3YxYgZwcm90bzM");
+  fileDesc("CiNzZWFyY2gtaHViL3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZyLBAQoMUXVlcnlSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBXR5cGVzGAIgAygJEgsKA2FsbBgDIAEoCBINCgVsaW1pdBgEIAEoBRINCgVncm91cBgFIAEoCRIPCgdleHBsYWluGAYgASgIEkAKCW92ZXJyaWRlcxgHIAEoCzItLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoT3ZlcnJpZGVzEhUKDWNvbnRyb2xfdG9rZW4YCCABKAkigwIKD1NlYXJjaE92ZXJyaWRlcxIbCg5yZXJhbmtfZW5hYmxlZBgBIAEoCEgAiAEBEhkKDHJlcmFua19ibGVuZBgCIAEoCEgBiAEBEh0KEHJlcmFua19zaG9ydGxpc3QYAyABKAVIAogBARIaCg1mbG9vcl9tYXhfZ2FwGAQgASgBSAOIAQESHQoQZmxvb3JfaGFyZF9mbG9vchgFIAEoAUgEiAEBQhEKD19yZXJhbmtfZW5hYmxlZEIPCg1fcmVyYW5rX2JsZW5kQhMKEV9yZXJhbmtfc2hvcnRsaXN0QhAKDl9mbG9vcl9tYXhfZ2FwQhMKEV9mbG9vcl9oYXJkX2Zsb29yIqUBCglTZWFyY2hIaXQSEwoLcHJvdmlkZXJfaWQYASABKAkSFgoOcHJvdmlkZXJfZ3JvdXAYAiABKAkSDAoEdHlwZRgDIAEoCRIKCgJpZBgEIAEoCRINCgV0aXRsZRgFIAEoCRIPCgdzbmlwcGV0GAYgASgJEgwKBHBhdGgYByABKAkSDQoFc2NvcmUYCCABKAESFAoMcmVyYW5rX3Njb3JlGAkgASgBIpABChNQcm92aWRlclJlc3VsdEdyb3VwEhMKC3Byb3ZpZGVyX2lkGAEgASgJEjUKBGhpdHMYAiADKAsyJy52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlNlYXJjaEhpdBINCgVjb3VudBgDIAEoBRIQCghkZWdyYWRlZBgEIAEoCBIMCgRub3RlGAUgASgJIvoBCg1RdWVyeVJlc3BvbnNlEjcKBnJhbmtlZBgBIAMoCzInLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoSGl0EkEKBmdyb3VwcxgCIAMoCzIxLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUHJvdmlkZXJSZXN1bHRHcm91cBIYChBjb3Jwb3JhX3NlYXJjaGVkGAMgAygJEhsKE3JvdXRpbmdfZXhwbGFuYXRpb24YBCADKAkSEAoIcmVyYW5rZWQYBSABKAgSEAoIZGVncmFkZWQYBiABKAgSEgoKbGF0ZW5jeV9tcxgHIAEoAyIPCg1TdGF0dXNSZXF1ZXN0InIKDlByb3ZpZGVySGVhbHRoEhMKC3Byb3ZpZGVyX2lkGAEgASgJEhEKCXJlYWNoYWJsZRgCIAEoCBIRCglmcmVzaG5lc3MYAyABKAkSEwoLcG9pbnRfY291bnQYBCABKAMSEAoIZGVncmFkZWQYBSABKAgiiwEKDlN0YXR1c1Jlc3BvbnNlEj8KCXByb3ZpZGVycxgBIAMoCzIsLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUHJvdmlkZXJIZWFsdGgSHAoUY2xhc3NpZmllcl9hdmFpbGFibGUYAiABKAgSGgoScmVyYW5rZXJfYXZhaWxhYmxlGAMgASgIMtcBCg5Sb3V0aW5nU2VydmljZRJgCgVRdWVyeRIqLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUXVlcnlSZXF1ZXN0GisudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5RdWVyeVJlc3BvbnNlEmMKBlN0YXR1cxIrLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU3RhdHVzUmVxdWVzdBosLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU3RhdHVzUmVzcG9uc2VCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zZWFyY2gtaHViL3YxL3JvdXRpbmc7cm91dGluZ192MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.QueryRequest
@@ -55,6 +55,24 @@ export type QueryRequest = Message<"vrooli.search_hub.v1.routing.QueryRequest"> 
    * @generated from field: bool explain = 6;
    */
   explain: boolean;
+
+  /**
+   * Query-time tuning overrides for the sweep's cheap full-factorial tier. A
+   * provider honors these ONLY when control_token matches its minted token AND
+   * its per-environment override flag is enabled; otherwise they are ignored
+   * (with telemetry) and the public, unauthenticated search path is unchanged.
+   *
+   * @generated from field: vrooli.search_hub.v1.routing.SearchOverrides overrides = 7;
+   */
+  overrides?: SearchOverrides | undefined;
+
+  /**
+   * The provider's control token (registry.RegisterProviderResponse). Required
+   * for `overrides` to be honored; unused for ordinary public search.
+   *
+   * @generated from field: string control_token = 8;
+   */
+  controlToken: string;
 };
 
 /**
@@ -63,6 +81,52 @@ export type QueryRequest = Message<"vrooli.search_hub.v1.routing.QueryRequest"> 
  */
 export const QueryRequestSchema: GenMessage<QueryRequest> = /*@__PURE__*/
   messageDesc(file_search_hub_v1_routing_routing, 0);
+
+/**
+ * Per-request override of QUERY-TIME tuning factors only — index-time factors
+ * (engine, embed_model, embed_task_prefix) are never per-request because they
+ * require a reindex; they are excluded by construction. Every field is
+ * optional (proto3 presence): an unset field means "use the provider's
+ * registered tuning". This is the wire form the sweep drives full-factorial
+ * without a reindex per arm.
+ *
+ * @generated from message vrooli.search_hub.v1.routing.SearchOverrides
+ */
+export type SearchOverrides = Message<"vrooli.search_hub.v1.routing.SearchOverrides"> & {
+  /**
+   * @generated from field: optional bool rerank_enabled = 1;
+   */
+  rerankEnabled?: boolean | undefined;
+
+  /**
+   * @generated from field: optional bool rerank_blend = 2;
+   */
+  rerankBlend?: boolean | undefined;
+
+  /**
+   * @generated from field: optional int32 rerank_shortlist = 3;
+   */
+  rerankShortlist?: number | undefined;
+
+  /**
+   * 0-or-unset => regime default (mirrors registry.FloorConfig semantics).
+   *
+   * @generated from field: optional double floor_max_gap = 4;
+   */
+  floorMaxGap?: number | undefined;
+
+  /**
+   * @generated from field: optional double floor_hard_floor = 5;
+   */
+  floorHardFloor?: number | undefined;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.routing.SearchOverrides.
+ * Use `create(SearchOverridesSchema)` to create a new message.
+ */
+export const SearchOverridesSchema: GenMessage<SearchOverrides> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_routing_routing, 1);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.SearchHit
@@ -127,7 +191,7 @@ export type SearchHit = Message<"vrooli.search_hub.v1.routing.SearchHit"> & {
  * Use `create(SearchHitSchema)` to create a new message.
  */
 export const SearchHitSchema: GenMessage<SearchHit> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 1);
+  messageDesc(file_search_hub_v1_routing_routing, 2);
 
 /**
  * Phase-4 honest grouping (pre-rerank): candidates kept per provider.
@@ -170,7 +234,7 @@ export type ProviderResultGroup = Message<"vrooli.search_hub.v1.routing.Provider
  * Use `create(ProviderResultGroupSchema)` to create a new message.
  */
 export const ProviderResultGroupSchema: GenMessage<ProviderResultGroup> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 2);
+  messageDesc(file_search_hub_v1_routing_routing, 3);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.QueryResponse
@@ -229,7 +293,7 @@ export type QueryResponse = Message<"vrooli.search_hub.v1.routing.QueryResponse"
  * Use `create(QueryResponseSchema)` to create a new message.
  */
 export const QueryResponseSchema: GenMessage<QueryResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 3);
+  messageDesc(file_search_hub_v1_routing_routing, 4);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.StatusRequest
@@ -242,7 +306,7 @@ export type StatusRequest = Message<"vrooli.search_hub.v1.routing.StatusRequest"
  * Use `create(StatusRequestSchema)` to create a new message.
  */
 export const StatusRequestSchema: GenMessage<StatusRequest> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 4);
+  messageDesc(file_search_hub_v1_routing_routing, 5);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.ProviderHealth
@@ -281,7 +345,7 @@ export type ProviderHealth = Message<"vrooli.search_hub.v1.routing.ProviderHealt
  * Use `create(ProviderHealthSchema)` to create a new message.
  */
 export const ProviderHealthSchema: GenMessage<ProviderHealth> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 5);
+  messageDesc(file_search_hub_v1_routing_routing, 6);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.StatusResponse
@@ -310,7 +374,7 @@ export type StatusResponse = Message<"vrooli.search_hub.v1.routing.StatusRespons
  * Use `create(StatusResponseSchema)` to create a new message.
  */
 export const StatusResponseSchema: GenMessage<StatusResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 6);
+  messageDesc(file_search_hub_v1_routing_routing, 7);
 
 /**
  * @generated from service vrooli.search_hub.v1.routing.RoutingService

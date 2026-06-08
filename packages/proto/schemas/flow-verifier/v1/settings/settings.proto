@@ -98,7 +98,9 @@ message Settings {
 }
 
 message GetSettingsRequest {}
-message GetSettingsResponse { Settings settings = 1; }
+message GetSettingsResponse {
+  Settings settings = 1;
+}
 
 // UpdateSettingsRequest carries a partial patch. Only fields named in
 // `update_mask` are merged into the stored row; every other field is
@@ -111,4 +113,6 @@ message UpdateSettingsRequest {
   google.protobuf.FieldMask update_mask = 2;
 }
 
-message UpdateSettingsResponse { Settings settings = 1; }
+message UpdateSettingsResponse {
+  Settings settings = 1;
+}

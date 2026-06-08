@@ -39,11 +39,21 @@ message Task {
 
   // Task type.
   // @constraint one of: resource, scenario
-  string type = 3 [(buf.validate.field).string = { in: ["resource", "scenario"] }];
+  string type = 3 [(buf.validate.field).string = {
+    in: [
+      "resource",
+      "scenario"
+    ]
+  }];
 
   // Task operation.
   // @constraint one of: generator, improver
-  string operation = 4 [(buf.validate.field).string = { in: ["generator", "improver"] }];
+  string operation = 4 [(buf.validate.field).string = {
+    in: [
+      "generator",
+      "improver"
+    ]
+  }];
 
   // Primary target name (legacy single-target field).
   string target = 5;
@@ -56,7 +66,14 @@ message Task {
 
   // Priority level.
   // @constraint one of: critical, high, medium, low
-  string priority = 8 [(buf.validate.field).string = { in: ["critical", "high", "medium", "low"] }];
+  string priority = 8 [(buf.validate.field).string = {
+    in: [
+      "critical",
+      "high",
+      "medium",
+      "low"
+    ]
+  }];
 
   // Effort estimate description.
   string effort_estimate = 9;
@@ -78,15 +95,17 @@ message Task {
 
   // Lifecycle status.
   // @constraint one of: pending, in-progress, completed, failed, completed-finalized, failed-blocked, archived
-  string status = 15 [(buf.validate.field).string = { in: [
-    "pending",
-    "in-progress",
-    "completed",
-    "failed",
-    "completed-finalized",
-    "failed-blocked",
-    "archived"
-  ] }];
+  string status = 15 [(buf.validate.field).string = {
+    in: [
+      "pending",
+      "in-progress",
+      "completed",
+      "failed",
+      "completed-finalized",
+      "failed-blocked",
+      "archived"
+    ]
+  }];
 
   // Current execution phase description.
   string current_phase = 16;

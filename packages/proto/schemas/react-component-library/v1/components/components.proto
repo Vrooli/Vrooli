@@ -135,8 +135,7 @@ message GetComponentByLibraryIdResponse {
 
 // IndexComponentsRequest triggers a re-walk of the configured source root.
 // Currently parameter-less; future filters (subtree, dry-run) land here.
-message IndexComponentsRequest {
-}
+message IndexComponentsRequest {}
 
 // IndexComponentsResponse summarises the index pass.
 message IndexComponentsResponse {

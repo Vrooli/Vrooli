@@ -14,8 +14,9 @@ import (
 // bvariants_test.go pins down the production config on the winning index
 // (prefix + terse + dense, "index B" from the retrieval diagnostic): the raw
 // retrieval there puts the canonical command in the top-5 for ~14/20 queries
-// (~0.70), so the question is which pipeline (rerank / floor / authority prior)
-// preserves that rather than eroding it.
+// (~0.70), so the question is which pipeline (rerank / floor) preserves that
+// rather than eroding it. The authority-prior arm was measured to HURT recall
+// and removed (see graduation-retrospective.md).
 //
 //	CLI_HEALTH_AISEARCH_LIVE=1 CLI_HEALTH_RECALL_EXPERIMENT=1 \
 //	  go test ./internal/aisearch/ -run TestRecallBVariants -v -timeout 20m
@@ -73,18 +74,14 @@ func TestRecallBVariants(t *testing.T) {
 	defer dropCollection(t, cfg.QdrantURL, cfg.QdrantAPIKey, collection)
 
 	type row struct {
-		name      string
-		rerank    bool
-		floorOff  bool
-		authority bool
+		name     string
+		rerank   bool
+		floorOff bool
 	}
 	rows := []row{
-		{"B1 rerank+floor (prod-equiv+prefix)", true, false, false},
-		{"B2 rerank+floor+authority", true, false, true},
-		{"B3 norerank+floor", false, false, false},
-		{"B4 norerank+floor+authority", false, false, true},
-		{"B5 norerank+NOfloor", false, true, false},
-		{"B6 norerank+NOfloor+authority", false, true, true},
+		{"B1 rerank+floor (prod-equiv+prefix)", true, false},
+		{"B3 norerank+floor", false, false},
+		{"B5 norerank+NOfloor", false, true},
 	}
 
 	type res struct {
@@ -94,10 +91,6 @@ func TestRecallBVariants(t *testing.T) {
 	}
 	var out []res
 	for _, r := range rows {
-		var dec pkg.ScoreDecorator
-		if r.authority {
-			dec = newAuthorityDecorator()
-		}
 		svc := NewService(Options{
 			Embedder:        prefixed,
 			VectorStore:     pkg.NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, collection),
@@ -107,7 +100,6 @@ func TestRecallBVariants(t *testing.T) {
 			Reranker:        reranker(),
 			RerankShortlist: cfg.RerankShortlist,
 			DisableFloor:    r.floorOff,
-			Decorate:        dec,
 		})
 		recall, hits, misses := measureRecall(ctx, t, svc, corpus)
 		out = append(out, res{r.name, recall, hits})

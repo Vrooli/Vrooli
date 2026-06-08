@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+package vrooli.search_hub.v1.control;
+
+import "search-hub/v1/registry/registry.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control;control_v1";
+
+// =============================================================================
+// SEARCH-HUB CONTROL DOMAIN — secured reindex + config-write control plane
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain control
+// @stability beta
+//
+// Wire contract for SearchControlService — the ONE shared, token-gated control
+// plane that any search provider implements. It replaces the per-scenario
+// reindex contract (formerly cli-health's private cli-health/v1/reindex, which
+// is deleted once cli-health is repointed onto this service): every provider
+// that owns a searchable corpus now speaks the same reindex + config-write RPCs
+// so search-hub's sweep can drive index-time experiments uniformly.
+//
+// SECURITY: every RPC here mutates index or config state, so every request
+// carries the control_token search-hub minted for the provider at first
+// registration (registry.RegisterProviderResponse.control_token). The provider
+// rejects any call whose token does not match. There is no unauthenticated
+// control verb — public search (routing.Query without overrides) is the only
+// token-free path. As defense in depth the implementing provider also gates the
+// whole service behind a per-environment flag (default off).
+//
+// Reindex is long-running: Reindex starts a job and returns a job_id;
+// ReindexStatus polls; ReindexCancel requests cooperative cancellation. dry_run
+// returns planned upsert/delete counts without touching the vector store.
+//
+// WriteConfig is the sweep's write-back verb: it validates a new tuning block
+// against the provider's search.json schema, writes it atomically, and triggers
+// a reindex automatically when an INDEX-TIME factor changed (engine /
+// embed_model / embed_task_prefix). Query-time-only changes take effect without
+// a reindex.
+//
+// See docs/plans/search-self-tuning-system-*.md Phase 3/5.
+// =============================================================================
+
+service SearchControlService {
+  // Start an async corpus reconcile job; returns a job_id to poll.
+  rpc Reindex(ReindexRequest) returns (ReindexResponse);
+  // Poll a reindex job by id.
+  rpc ReindexStatus(ReindexStatusRequest) returns (ReindexStatusResponse);
+  // Cooperatively cancel a reindex job (idempotent; terminal jobs are a no-op).
+  rpc ReindexCancel(ReindexCancelRequest) returns (ReindexCancelResponse);
+  // Validate + persist a new tuning block into the provider's search.json,
+  // reindexing automatically if an index-time factor changed.
+  rpc WriteConfig(WriteConfigRequest) returns (WriteConfigResponse);
+}
+
+// ReindexRequest starts a reconcile job. `scope` is a provider-defined sub-scope
+// filter (e.g. cli-health interprets it as a scenario filter); empty means the
+// provider's full corpus. dry_run computes planned upserts/deletes without
+// writing to the vector store.
+message ReindexRequest {
+  string scope = 1;
+  bool dry_run = 2;
+  // Required: the provider's control token. Rejected on mismatch.
+  string control_token = 3;
+}
+
+// ReindexResponse returns the assigned job_id plus the planned upsert/delete
+// counts computed before execution. Counts are exact for dry_run; for real runs
+// they are the planned (pre-execution) figures.
+message ReindexResponse {
+  string job_id = 1;
+  int32 planned_upserts = 2;
+  int32 planned_deletes = 3;
+  bool dry_run = 4;
+}
+
+// ReindexStatusRequest looks up a job by its assigned id.
+message ReindexStatusRequest {
+  string job_id = 1;
+  string control_token = 2;
+}
+
+// ReindexStatusResponse reports progress and terminal state for a job. State
+// values: "pending", "running", "succeeded", "failed", "cancelled".
+message ReindexStatusResponse {
+  string job_id = 1;
+  string state = 2;
+  int32 processed = 3;
+  int32 total = 4;
+  // Empty unless state == "failed".
+  string error = 5;
+}
+
+// ReindexCancelRequest requests cooperative cancellation. Idempotent;
+// cancelling a terminal job is a no-op.
+message ReindexCancelRequest {
+  string job_id = 1;
+  string control_token = 2;
+}
+
+// ReindexCancelResponse reports whether the cancel signal was accepted. False
+// when the job was already terminal at the time of the request.
+message ReindexCancelResponse {
+  string job_id = 1;
+  bool cancelled = 2;
+}
+
+// WriteConfigRequest persists a new tuning block (the sweep's winner) into the
+// provider's search.json. The provider validates it against the search.json
+// schema before writing.
+message WriteConfigRequest {
+  // The leaf whose tuning is being rewritten, e.g. "cli-health.commands".
+  string provider_id = 1;
+  // The new tuning to persist (full replacement of the `tuning` block).
+  vrooli.search_hub.v1.registry.Tuning tuning = 2;
+  // Required: the provider's control token. Rejected on mismatch.
+  string control_token = 3;
+  // dry_run validates + diffs without writing or reindexing.
+  bool dry_run = 4;
+}
+
+// WriteConfigResponse reports what the write did.
+message WriteConfigResponse {
+  // false on dry_run or when the submitted tuning equals the current one.
+  bool written = 1;
+  // true when an INDEX-TIME factor changed and a reindex was started.
+  bool reindex_triggered = 2;
+  // Set when reindex_triggered; poll via ReindexStatus.
+  string reindex_job_id = 3;
+  // The tuning now in effect after the write (echo for confirmation).
+  vrooli.search_hub.v1.registry.Tuning effective = 4;
+}

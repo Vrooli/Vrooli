@@ -77,8 +77,7 @@ message SearchResponse {
   int32 indexed_count = 3;
 }
 
-message StatusRequest {
-}
+message StatusRequest {}
 
 message StatusResponse {
   // True when backends are reachable AND the corpus has content. An empty

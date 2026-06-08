@@ -50,9 +50,7 @@ service AudioRuntimeService {
 
 message TranscribeRequest {
   bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
-  vrooli.swarm_manager.v1.audio_common.AudioFormat format = 2 [
-    (buf.validate.field).enum.not_in = 0
-  ];
+  vrooli.swarm_manager.v1.audio_common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
   string language = 3;
   bool skip_speaker_verification = 4;
   string initial_prompt = 5;
@@ -85,8 +83,8 @@ message SynthesizeRequest {
   string voice = 2;
   repeated AdapterMapping voice_overrides = 3;
   double speed = 4 [(buf.validate.field).cel = {
-    id: "audio_runtime.synthesize.speed.range",
-    message: "speed must be 0 (default) or in [0.5, 4.0]",
+    id: "audio_runtime.synthesize.speed.range"
+    message: "speed must be 0 (default) or in [0.5, 4.0]"
     expression: "this == 0.0 || (this >= 0.5 && this <= 4.0)"
   }];
   vrooli.swarm_manager.v1.audio_common.ResponseFormat response_format = 5;
@@ -159,7 +157,10 @@ message SummarizeRequest {
   string text = 1 [(buf.validate.field).string.min_len = 1];
   vrooli.swarm_manager.v1.audio_common.SummarizeLevel level = 2;
   string model = 3;
-  int32 timeout_seconds = 4 [(buf.validate.field).int32 = { gte: 0, lte: 600 }];
+  int32 timeout_seconds = 4 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 600
+  }];
 }
 
 message SummarizeResponse {

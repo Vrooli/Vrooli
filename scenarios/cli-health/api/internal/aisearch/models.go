@@ -27,8 +27,8 @@ type CommandRecord struct {
 	Source      string   `json:"source"`            // "manifest" | "help" | "help-failed"
 	// Measure carries the parsed `measure` block + proto-derived param schema
 	// when this command declares one (source=manifest only). Nil otherwise. Its
-	// questions/intent are folded into the enriched embedding text so the command
-	// is retrievable by the natural-language questions it answers.
+	// questions/intent are folded into the embedding text (appendMeasureText) so
+	// the command is retrievable by the natural-language questions it answers.
 	Measure *MeasureRecord `json:"measure,omitempty"`
 }
 

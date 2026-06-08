@@ -119,12 +119,10 @@ message Destination {
 
 message CreateDestinationRequest {
   string name = 1 [(buf.validate.field).string.min_len = 1];
-  BackendKind backend_kind = 2 [
-    (buf.validate.field).enum = {
-      defined_only: true,
-      not_in: [0]
-    }
-  ];
+  BackendKind backend_kind = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   string location = 3 [(buf.validate.field).string.min_len = 1];
   int64 cap_bytes = 4 [(buf.validate.field).int64.gte = 0];
   // Optional; defaults to CAP_POLICY_ALERT_BLOCK when unspecified.
@@ -243,12 +241,10 @@ message DestinationPreparationPlan {
 
 message PlanDestinationPreparationRequest {
   string location = 1 [(buf.validate.field).string.min_len = 1];
-  PreparationAction action = 2 [
-    (buf.validate.field).enum = {
-      defined_only: true,
-      not_in: [0]
-    }
-  ];
+  PreparationAction action = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   string desired_subdir = 3;
   string desired_label = 4;
   string desired_filesystem = 5;

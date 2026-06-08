@@ -2,7 +2,6 @@ package aisearch
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,16 +14,18 @@ import (
 )
 
 // recall_test.go is cli-health's REQ-P0-004 acceptance gate: command search must
-// achieve recall@5 >= 0.8 on the hand-labeled corpus at
-// scenarios/cli-health/testdata/search_queries.json. It mirrors the KO docs
-// accuracy harness — a thin per-build smoke gate, NOT a second eval system (the
-// search-hub eval domain owns A/B tuning).
+// achieve recall@5 >= 0.8 on the labelled corpus in the scenario-owned SSOT
+// scenarios/cli-health/.vrooli/search.json (provider "cli-health.commands",
+// tests.cases). It mirrors the KO docs accuracy harness — a thin per-build smoke
+// gate, NOT a second eval system (the search-hub eval domain owns A/B tuning).
+// Only gradeable cases (those carrying expected_paths) count toward recall;
+// soft eval cases (weak-real, score-asserted) and negatives are skipped here.
 //
 // Live-gated (needs ollama + qdrant + a populated index):
 //
 //	CLI_HEALTH_AISEARCH_LIVE=1 go test ./internal/aisearch/ -run TestCommandRecall -v -timeout 20m
 //
-// Optional env: QDRANT_URL, QDRANT_API_KEY, CLI_HEALTH_CORPUS_FILE (corpus
+// Optional env: QDRANT_URL, QDRANT_API_KEY, CLI_HEALTH_SEARCH_FILE (search.json
 // override), CLI_HEALTH_REPO_ROOT (discovery repo root).
 //
 // On a miss the harness prints the actual top FullPaths so the FIRST live run is
@@ -37,38 +38,63 @@ import (
 const recallGateCollection = "cli-health-commands-recall-gate"
 
 type commandCase struct {
-	ID            string   `json:"id"`
-	Query         string   `json:"query"`
-	ExpectedPaths []string `json:"expected_paths"`
+	ID            string
+	Query         string
+	ExpectedPaths []string
 }
 
 type commandScoring struct {
-	RecallAt     int     `json:"recall_at"`
-	RecallTarget float64 `json:"recall_target"`
+	RecallAt     int
+	RecallTarget float64
 }
 
 type commandCorpus struct {
-	Scoring commandScoring `json:"scoring"`
-	Cases   []commandCase  `json:"cases"`
+	Scoring commandScoring
+	Cases   []commandCase
 }
 
-func loadCommandCorpus(t *testing.T) commandCorpus {
+// searchProvider loads the cli-health.commands provider from the search.json
+// SSOT (CLI_HEALTH_SEARCH_FILE overrides the package-relative default path).
+func searchProvider(t *testing.T) pkg.ProviderConfig {
 	t.Helper()
-	path := os.Getenv("CLI_HEALTH_CORPUS_FILE")
+	path := os.Getenv("CLI_HEALTH_SEARCH_FILE")
 	if path == "" {
 		// Resolved relative to this package dir: .../api/internal/aisearch.
-		path = filepath.Join("..", "..", "..", "testdata", "search_queries.json")
+		path = filepath.Join("..", "..", "..", ".vrooli", "search.json")
 	}
-	raw, err := os.ReadFile(path)
+	file, err := pkg.LoadSearchFile(path)
 	if err != nil {
-		t.Fatalf("read corpus %s: %v", path, err)
+		t.Fatalf("load search.json %s: %v", path, err)
 	}
-	var c commandCorpus
-	if err := json.Unmarshal(raw, &c); err != nil {
-		t.Fatalf("parse corpus %s: %v", path, err)
+	provider, ok := file.Provider("cli-health.commands")
+	if !ok {
+		t.Fatalf("provider cli-health.commands not found in %s", path)
+	}
+	return provider
+}
+
+// commandsTuning returns the resolved tuning for the command corpus from the SSOT.
+func commandsTuning(t *testing.T, _ string) pkg.TuningConfig {
+	t.Helper()
+	return searchProvider(t).ResolvedTuning()
+}
+
+// loadCommandCorpus reads the gate corpus from the scenario-owned search.json
+// SSOT (provider "cli-health.commands", tests block) and keeps only the gradeable
+// cases — those carrying expected_paths. Soft eval cases (no full-path label) and
+// negatives are intentionally excluded from the recall denominator.
+func loadCommandCorpus(t *testing.T) commandCorpus {
+	t.Helper()
+	suite := searchProvider(t).Tests
+	c := commandCorpus{Scoring: commandScoring{RecallAt: suite.RecallAt, RecallTarget: suite.RecallTarget}}
+	for _, tc := range suite.Cases {
+		if len(tc.ExpectedPaths) == 0 {
+			continue // soft eval case — not gradeable for recall
+		}
+		c.Cases = append(c.Cases, commandCase{ID: tc.ID, Query: tc.Query, ExpectedPaths: tc.ExpectedPaths})
 	}
 	if len(c.Cases) == 0 {
-		t.Fatal("corpus has no cases")
+		t.Fatal("corpus has no gradeable cases")
 	}
 	if c.Scoring.RecallAt == 0 {
 		c.Scoring.RecallAt = 5
@@ -77,6 +103,30 @@ func loadCommandCorpus(t *testing.T) commandCorpus {
 		c.Scoring.RecallTarget = 0.8
 	}
 	return c
+}
+
+// TestSearchSSOTWellFormed is a non-live per-build guard: the scenario-owned
+// search.json SSOT must parse, expose the cli-health.commands provider with the
+// measured-best command tuning, and carry a non-empty gradeable corpus + at least
+// one negative. It catches an SSOT regression without needing ollama/qdrant.
+func TestSearchSSOTWellFormed(t *testing.T) {
+	provider := searchProvider(t)
+	tuning := provider.ResolvedTuning()
+	if tuning.Engine != pkg.EngineDense || !tuning.EmbedTaskPrefix || !tuning.RerankEnabled || !tuning.RerankBlend {
+		t.Errorf("command tuning is not the measured-best config: %+v", tuning)
+	}
+	corpus := loadCommandCorpus(t)
+	if len(corpus.Cases) == 0 {
+		t.Fatal("no gradeable cases in the SSOT")
+	}
+	if len(provider.Tests.Negatives) == 0 {
+		t.Error("SSOT has no negatives (junk-rejection guard missing)")
+	}
+	for _, c := range corpus.Cases {
+		if c.Query == "" || len(c.ExpectedPaths) == 0 {
+			t.Errorf("gradeable case %q is malformed: %+v", c.ID, c)
+		}
+	}
 }
 
 // normPath lowercases + collapses whitespace so a FullPath comparison is robust
@@ -101,26 +151,34 @@ func TestCommandRecall(t *testing.T) {
 	}
 
 	cfg := pkg.LoadConfig("CLI_HEALTH")
-	// The gate mirrors the PRODUCTION read policy: task-prefixed embeddings
-	// (EmbedTaskPrefix -> nomic search_query:/search_document:) + the RRF rerank
-	// BLEND (rerank reorders are fused with retrieval order, not applied outright
-	// — see TestRecallFinal). Both are the measured config that lifts recall@5
-	// 0.50 -> 0.70 without losing junk rejection. Both are forced on here so the
-	// gate reflects prod even if the env is unset.
-	cfg.EmbedTaskPrefix = true
-	engine := pkg.NewDenseEngine(cfg, recallGateCollection)
+	// The gate reads the SAME tuning the booted service uses — the SSOT in
+	// search.json (provider cli-health.commands) — so the gate and production can
+	// never drift. For the command corpus that tuning is the measured-best config
+	// (dense + nomic task prefixes + RRF rerank blend) that lifts recall@5
+	// 0.50 -> 0.70 without losing junk rejection.
+	tuning := commandsTuning(t, repoRoot)
+	engine := pkg.NewServiceForTuning(tuning, pkg.EngineDeps{
+		QdrantURL:     cfg.QdrantURL,
+		QdrantAPIKey:  cfg.QdrantAPIKey,
+		Collection:    recallGateCollection,
+		RerankerURL:   cfg.RerankerURL,
+		RerankerModel: cfg.RerankerModel,
+		RerankModel:   cfg.RerankModel,
+	})
 	discovery := NewFilesystemDiscoverySource(repoRoot)
 	discovery.ExternalCLIs = []ExternalCLI{{Name: "vrooli", Binary: "vrooli"}}
 	svc := NewService(Options{
 		Embedder:        engine.Embedder,
-		VectorStore:     pkg.NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, recallGateCollection),
+		VectorStore:     engine.VectorStore,
+		Sparse:          engine.SparseEncoder,
 		Discovery:       discovery,
 		Parallelism:     cfg.ReconcileParallelism,
 		Collection:      recallGateCollection,
-		RerankEnabled:   true,
-		RerankBlend:     true,
+		Floor:           engine.Tuning.Floor.Config(),
+		RerankEnabled:   engine.Tuning.RerankEnabled,
+		RerankBlend:     engine.Tuning.RerankBlend,
 		Reranker:        engine.Reranker,
-		RerankShortlist: cfg.RerankShortlist,
+		RerankShortlist: engine.Tuning.RerankShortlist,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 18*time.Minute)
@@ -177,7 +235,7 @@ func TestCommandRecall(t *testing.T) {
 	recall := float64(hits) / float64(len(corpus.Cases))
 	t.Logf("recall@%d = %.3f (%d/%d), target %.2f", k, recall, hits, len(corpus.Cases), corpus.Scoring.RecallTarget)
 	if recall < corpus.Scoring.RecallTarget {
-		t.Fatalf("recall@%d = %.3f below target %.2f — calibrate testdata/search_queries.json expected_paths from the MISS logs above, or investigate the index",
+		t.Fatalf("recall@%d = %.3f below target %.2f — calibrate .vrooli/search.json expected_paths from the MISS logs above, or investigate the index",
 			k, recall, corpus.Scoring.RecallTarget)
 	}
 }

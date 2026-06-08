@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package vrooli.audio_tools.v1.audio;
 
-import "buf/validate/validate.proto";
 import "audio-tools/v1/common/common.proto";
+import "buf/validate/validate.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio;audio_v1";
 
@@ -60,12 +60,10 @@ enum NormalizationMethod {
 message TranscodeRequest {
   bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
   vrooli.audio_tools.v1.common.AudioFormat input_format = 2;
-  vrooli.audio_tools.v1.common.AudioFormat output_format = 3 [
-    (buf.validate.field).enum.not_in = 0
-  ];
-  int32 sample_rate = 4;              // 0 = passthrough
-  int32 channels = 5;                 // 0 = passthrough
-  int32 bitrate = 6;                  // bps; 0 = format default
+  vrooli.audio_tools.v1.common.AudioFormat output_format = 3 [(buf.validate.field).enum.not_in = 0];
+  int32 sample_rate = 4; // 0 = passthrough
+  int32 channels = 5; // 0 = passthrough
+  int32 bitrate = 6; // bps; 0 = format default
 }
 
 message TranscodeResponse {
@@ -78,11 +76,9 @@ message TranscodeResponse {
 
 message TrimRequest {
   bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
-  vrooli.audio_tools.v1.common.AudioFormat format = 2 [
-    (buf.validate.field).enum.not_in = 0
-  ];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
   double start_seconds = 3;
-  double end_seconds = 4;             // 0 = end-of-file
+  double end_seconds = 4; // 0 = end-of-file
 }
 
 message TrimResponse {
@@ -95,17 +91,13 @@ message TrimResponse {
 
 message MergeSource {
   bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
-  vrooli.audio_tools.v1.common.AudioFormat format = 2 [
-    (buf.validate.field).enum.not_in = 0
-  ];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
 }
 
 message MergeRequest {
   repeated MergeSource sources = 1;
-  vrooli.audio_tools.v1.common.AudioFormat output_format = 2 [
-    (buf.validate.field).enum.not_in = 0
-  ];
-  double crossfade_seconds = 3;       // 0 = hard concat
+  vrooli.audio_tools.v1.common.AudioFormat output_format = 2 [(buf.validate.field).enum.not_in = 0];
+  double crossfade_seconds = 3; // 0 = hard concat
 }
 
 message MergeResponse {
@@ -118,9 +110,7 @@ message MergeResponse {
 
 message SplitRequest {
   bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
-  vrooli.audio_tools.v1.common.AudioFormat format = 2 [
-    (buf.validate.field).enum.not_in = 0
-  ];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
   // Either equal chunks (chunk_seconds > 0) OR explicit boundaries.
   double chunk_seconds = 3;
   repeated double boundaries_seconds = 4;
@@ -142,9 +132,7 @@ message SplitResponse {
 
 message FadeRequest {
   bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
-  vrooli.audio_tools.v1.common.AudioFormat format = 2 [
-    (buf.validate.field).enum.not_in = 0
-  ];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
   double fade_in_seconds = 3;
   double fade_out_seconds = 4;
   vrooli.audio_tools.v1.common.AudioFormat output_format = 5;
@@ -159,9 +147,7 @@ message FadeResponse {
 
 message VolumeRequest {
   bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
-  vrooli.audio_tools.v1.common.AudioFormat format = 2 [
-    (buf.validate.field).enum.not_in = 0
-  ];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
   double gain_db = 3;
   vrooli.audio_tools.v1.common.AudioFormat output_format = 4;
 }
@@ -175,9 +161,7 @@ message VolumeResponse {
 
 message NormalizeRequest {
   bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
-  vrooli.audio_tools.v1.common.AudioFormat format = 2 [
-    (buf.validate.field).enum.not_in = 0
-  ];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
   // NORMALIZATION_METHOD_UNSPECIFIED is treated as EBU_R128 by the server.
   NormalizationMethod method = 3;
   double target_lufs = 4;
@@ -208,9 +192,7 @@ message AudioMetadata {
 
 message ExtractMetadataRequest {
   bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
-  vrooli.audio_tools.v1.common.AudioFormat format = 2 [
-    (buf.validate.field).enum.not_in = 0
-  ];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
 }
 
 message ExtractMetadataResponse {

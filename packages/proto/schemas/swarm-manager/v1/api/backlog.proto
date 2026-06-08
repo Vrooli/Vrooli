@@ -37,13 +37,24 @@ message CreateBacklogItemRequest {
   optional string description = 3;
 
   // Optional priority level (1-10).
-  optional int32 priority = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+  optional int32 priority = 4 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 10
+  }];
 
   // Optional tags for categorization.
-  repeated string tags = 5 [(buf.validate.field).repeated = { unique: true }];
+  repeated string tags = 5 [(buf.validate.field).repeated = {unique: true}];
 
   // Required backlog kind.
-  string kind = 6 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore"] }];
+  string kind = 6 [(buf.validate.field).string = {
+    in: [
+      "idea",
+      "research",
+      "fix",
+      "execute",
+      "chore"
+    ]
+  }];
 
   reserved 7; // research_target — removed; research items execute directly.
 
@@ -56,7 +67,15 @@ message CreateBacklogItemRequest {
   reserved 10; // auto_workshop removed — use settings.auto_initialize_workshop instead.
 
   // Effort estimate: XS, S, M, L, XL.
-  optional string effort = 11 [(buf.validate.field).string = { in: ["XS", "S", "M", "L", "XL"] }];
+  optional string effort = 11 [(buf.validate.field).string = {
+    in: [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ]
+  }];
 
   reserved 12; // scope — removed; acceptance_allow/deny are the sole boundary definitions.
 
@@ -95,21 +114,26 @@ message UpdateBacklogItemRequest {
 
   // Lifecycle status.
   // @constraint one of: backlog, researching, ready, queued, in_progress, completed, failed
-  optional string status = 3 [(buf.validate.field).string = { in: [
-    "backlog",
-    "researching",
-    "ready",
-    "queued",
-    "in_progress",
-    "completed",
-    "failed"
-  ] }];
+  optional string status = 3 [(buf.validate.field).string = {
+    in: [
+      "backlog",
+      "researching",
+      "ready",
+      "queued",
+      "in_progress",
+      "completed",
+      "failed"
+    ]
+  }];
 
   // Priority level (1-10).
-  optional int32 priority = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+  optional int32 priority = 4 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 10
+  }];
 
   // Tags for categorization.
-  repeated string tags = 5 [(buf.validate.field).repeated = { unique: true }];
+  repeated string tags = 5 [(buf.validate.field).repeated = {unique: true}];
 
   reserved 6; // research_target — removed; research items execute directly.
 
@@ -120,7 +144,16 @@ message UpdateBacklogItemRequest {
   optional string initiative = 8;
 
   // Effort estimate: XS, S, M, L, XL. Set to the empty string to clear.
-  optional string effort = 9 [(buf.validate.field).string = { in: ["", "XS", "S", "M", "L", "XL"] }];
+  optional string effort = 9 [(buf.validate.field).string = {
+    in: [
+      "",
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ]
+  }];
 
   reserved 10; // scope — removed; acceptance_allow/deny are the sole boundary definitions.
 
@@ -186,12 +219,14 @@ message BacklogFileResponse {
 message BacklogFileOperationRequest {
   // Operation to apply.
   // @constraint one of: rename, move, copy, delete
-  string operation = 1 [(buf.validate.field).string = { in: [
-    "rename",
-    "move",
-    "copy",
-    "delete"
-  ] }];
+  string operation = 1 [(buf.validate.field).string = {
+    in: [
+      "rename",
+      "move",
+      "copy",
+      "delete"
+    ]
+  }];
 
   // Source path relative to backlog item root.
   string source_path = 2 [(buf.validate.field).string.min_len = 1];
@@ -213,9 +248,19 @@ message BacklogFileOperationResponse {
 // QueueBacklogItemRequest queues a backlog item for processing.
 message QueueBacklogItemRequest {
   // Optional operation hint for idea processing.
-  optional string operation = 1 [(buf.validate.field).string = { in: ["generator", "improver"] }];
+  optional string operation = 1 [(buf.validate.field).string = {
+    in: [
+      "generator",
+      "improver"
+    ]
+  }];
   // Execution mode override (defaults to policy default).
-  optional string mode = 2 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  optional string mode = 2 [(buf.validate.field).string = {
+    in: [
+      "manual",
+      "yolo"
+    ]
+  }];
   reserved 3;
   // Human or agent identifier that initiated the queue action.
   optional string started_by = 4;
@@ -262,14 +307,16 @@ message BacklogResearchRequest {
   optional string project_root = 3;
 
   // Optional research mode.
-  optional string mode = 4 [(buf.validate.field).string = { in: [
-    "clarify",
-    "suggest",
-    "enhance",
-    "finalize",
-    "initialize",
-    "workshop"
-  ] }];
+  optional string mode = 4 [(buf.validate.field).string = {
+    in: [
+      "clarify",
+      "suggest",
+      "enhance",
+      "finalize",
+      "initialize",
+      "workshop"
+    ]
+  }];
 
   reserved 5; // target_kind — removed; research items execute directly.
 
@@ -317,7 +364,10 @@ message ExportBacklogRequest {
   repeated string names = 3;
 
   // Only include items with priority <= this value.
-  optional int32 priority_max = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+  optional int32 priority_max = 4 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 10
+  }];
 
   // Only include items with any of these tags.
   repeated string tags = 5;
@@ -409,7 +459,12 @@ message WorkshopAutoAdvance {
   string reason = 4;
 
   // The recommended next mode when manual follow-up is required.
-  optional string next_mode = 5 [(buf.validate.field).string = { in: ["workshop", "finalize"] }];
+  optional string next_mode = 5 [(buf.validate.field).string = {
+    in: [
+      "workshop",
+      "finalize"
+    ]
+  }];
 
   // Whether an advance is pending (countdown active, not yet spawned).
   bool pending = 6;
@@ -503,12 +558,14 @@ message GetClarificationResponse {
 message ClarificationActionRequest {
   // Action to apply.
   // @constraint one of: got_it, update_decision, remove_decision, invalidate_round
-  string action = 1 [(buf.validate.field).string = { in: [
-    "got_it",
-    "update_decision",
-    "remove_decision",
-    "invalidate_round"
-  ] }];
+  string action = 1 [(buf.validate.field).string = {
+    in: [
+      "got_it",
+      "update_decision",
+      "remove_decision",
+      "invalidate_round"
+    ]
+  }];
 
   // For update_decision: JSON-encoded updated item (topic, context, options).
   optional string updated_item_json = 2;

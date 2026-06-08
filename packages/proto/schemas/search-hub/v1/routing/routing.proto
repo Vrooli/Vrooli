@@ -40,6 +40,29 @@ message QueryRequest {
   string group = 5;
   // --explain: include routing rationale in the response.
   bool explain = 6;
+  // Query-time tuning overrides for the sweep's cheap full-factorial tier. A
+  // provider honors these ONLY when control_token matches its minted token AND
+  // its per-environment override flag is enabled; otherwise they are ignored
+  // (with telemetry) and the public, unauthenticated search path is unchanged.
+  SearchOverrides overrides = 7;
+  // The provider's control token (registry.RegisterProviderResponse). Required
+  // for `overrides` to be honored; unused for ordinary public search.
+  string control_token = 8;
+}
+
+// Per-request override of QUERY-TIME tuning factors only — index-time factors
+// (engine, embed_model, embed_task_prefix) are never per-request because they
+// require a reindex; they are excluded by construction. Every field is
+// optional (proto3 presence): an unset field means "use the provider's
+// registered tuning". This is the wire form the sweep drives full-factorial
+// without a reindex per arm.
+message SearchOverrides {
+  optional bool rerank_enabled = 1;
+  optional bool rerank_blend = 2;
+  optional int32 rerank_shortlist = 3;
+  // 0-or-unset => regime default (mirrors registry.FloorConfig semantics).
+  optional double floor_max_gap = 4;
+  optional double floor_hard_floor = 5;
 }
 
 message SearchHit {

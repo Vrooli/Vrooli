@@ -60,8 +60,7 @@ func TestRetrievalRankDiagnostic(t *testing.T) {
 	indices := []idx{
 		{"A noprefix+terse", "cli-health-diag-a", noPrefix, composeCommandEmbeddingText, nil, false},
 		{"B prefix+terse", "cli-health-diag-b", prefixed, composeCommandEmbeddingText, nil, false},
-		{"C prefix+enriched", "cli-health-diag-c", prefixed, composeCommandEmbeddingTextEnriched, nil, false},
-		{"D prefix+enriched+hybrid", "cli-health-diag-d", prefixed, composeCommandEmbeddingTextEnriched, bm25, true},
+		{"C prefix+terse+hybrid", "cli-health-diag-c", prefixed, composeCommandEmbeddingText, bm25, true},
 	}
 
 	for _, ix := range indices {
@@ -135,7 +134,7 @@ func TestRetrievalRankDiagnostic(t *testing.T) {
 	}
 
 	t.Log("RAW RETRIEVAL RANK of canonical command (0-based; >100 = not retrieved)")
-	t.Logf("%-20s | %5s | %5s | %5s | %7s | %7s", "query", "A", "B", "C", "D-hyb", "D-dense")
+	t.Logf("%-20s | %5s | %5s | %7s | %7s", "query", "A", "B", "C-hyb", "C-dense")
 	for _, c := range corpus.Cases {
 		want := make(map[string]bool, len(c.ExpectedPaths))
 		for _, p := range c.ExpectedPaths {
@@ -143,9 +142,8 @@ func TestRetrievalRankDiagnostic(t *testing.T) {
 		}
 		ra := rawRank(indices[0], c.Query, want, false)
 		rb := rawRank(indices[1], c.Query, want, false)
-		rc := rawRank(indices[2], c.Query, want, false)
-		rdH := rawRank(indices[3], c.Query, want, true)
-		rdD := rawRank(indices[3], c.Query, want, false)
-		t.Logf("%-20s | %5s | %5s | %5s | %7s | %7s", c.ID, rankStr(ra), rankStr(rb), rankStr(rc), rankStr(rdH), rankStr(rdD))
+		rcH := rawRank(indices[2], c.Query, want, true)
+		rcD := rawRank(indices[2], c.Query, want, false)
+		t.Logf("%-20s | %5s | %5s | %7s | %7s", c.ID, rankStr(ra), rankStr(rb), rankStr(rcH), rankStr(rcD))
 	}
 }
