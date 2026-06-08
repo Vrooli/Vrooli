@@ -110,6 +110,9 @@ const normalizeParams = (
     }
     const definitionEntry = schema[key];
     const value = raw[key];
+    if (value === undefined) {
+      throw new Error(`Selector '${path}' is missing parameter '${key}'`);
+    }
     if (definitionEntry.type === "number") {
       if (typeof value !== "number") {
         throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);

@@ -23,7 +23,6 @@ import { createValidator } from "@bufbuild/protovalidate";
 import { TaskSchema } from "@vrooli/proto-types/ecosystem-manager/v1/domain/task_pb";
 import { ExecutionRecordSchema, QueueStatusSchema } from "@vrooli/proto-types/ecosystem-manager/v1/domain/queue_pb";
 import { SettingsSchema, RecyclerSettingsSchema } from "@vrooli/proto-types/ecosystem-manager/v1/domain/settings_pb";
-import { ResourceSchema, ScenarioSchema } from "@vrooli/proto-types/ecosystem-manager/v1/domain/discovery_pb";
 
 // Proto domain types
 import type {
@@ -38,11 +37,6 @@ import type {
 import type {
   Settings as ProtoSettings,
 } from "@vrooli/proto-types/ecosystem-manager/v1/domain/settings_pb";
-import type {
-  Resource as ProtoResource,
-  Scenario as ProtoScenario,
-} from "@vrooli/proto-types/ecosystem-manager/v1/domain/discovery_pb";
-
 // Proto API schemas
 import { TaskListResponseSchema, TaskDetailResponseSchema } from "@vrooli/proto-types/ecosystem-manager/v1/api/tasks_pb";
 import { SettingsResponseSchema } from "@vrooli/proto-types/ecosystem-manager/v1/api/settings_pb";
@@ -417,35 +411,6 @@ export function mapUiSettingsToProtoJson(settings: Settings): Record<string, unk
 /**
  * Maps a proto Resource to the UI Resource shape.
  */
-export function mapProtoResource(proto: ProtoResource): Resource {
-  return {
-    name: proto.name,
-    display_name: proto.displayName || proto.name,
-    description: proto.description || undefined,
-    path: proto.path || undefined,
-    port: proto.port || undefined,
-    category: proto.category || undefined,
-    version: proto.version || undefined,
-    healthy: proto.healthy,
-    status: proto.status || undefined,
-  };
-}
-
-/**
- * Maps a proto Scenario to the UI Scenario shape.
- */
-export function mapProtoScenario(proto: ProtoScenario): Scenario {
-  return {
-    name: proto.name,
-    display_name: proto.displayName || proto.name,
-    status: proto.status || undefined,
-    description: proto.description || undefined,
-    path: proto.path || undefined,
-    category: proto.category || undefined,
-    version: proto.version || undefined,
-  };
-}
-
 /**
  * Maps a proto ActiveTarget to the UI ActiveTarget shape.
  */
@@ -763,59 +728,9 @@ export function parseRunningProcessResponse(raw: unknown): RunningProcess {
 }
 
 // ---------------------------------------------------------------------------
-// Resource / Scenario / ActiveTarget parse helpers
+// ActiveTarget parse helpers
+// (Resource / Scenario moved to Connect-RPC — see ui/src/api/discovery.ts)
 // ---------------------------------------------------------------------------
-
-/**
- * Parse a raw resource JSON entry with proto validation fallback.
- */
-export function parseResourceResponse(raw: unknown): Resource {
-  if (!raw || typeof raw !== "object") {
-    return { name: "", healthy: false };
-  }
-  try {
-    const parsed = fromJson(ResourceSchema, raw as JsonValue, { ignoreUnknownFields: true });
-    return mapProtoResource(parsed);
-  } catch {
-    // Fallback: direct field mapping
-    const r = raw as Record<string, unknown>;
-    return {
-      name: String(r.name ?? ""),
-      display_name: String(r.display_name ?? r.displayName ?? r.name ?? ""),
-      description: r.description != null ? String(r.description) : undefined,
-      path: r.path != null ? String(r.path) : undefined,
-      port: typeof r.port === "number" ? r.port : undefined,
-      category: r.category != null ? String(r.category) : undefined,
-      version: r.version != null ? String(r.version) : undefined,
-      healthy: r.healthy === true,
-      status: r.status != null ? String(r.status) : undefined,
-    };
-  }
-}
-
-/**
- * Parse a raw scenario JSON entry with proto validation fallback.
- */
-export function parseScenarioResponse(raw: unknown): Scenario {
-  if (!raw || typeof raw !== "object") {
-    return { name: "" };
-  }
-  try {
-    const parsed = fromJson(ScenarioSchema, raw as JsonValue, { ignoreUnknownFields: true });
-    return mapProtoScenario(parsed);
-  } catch {
-    const r = raw as Record<string, unknown>;
-    return {
-      name: String(r.name ?? ""),
-      display_name: String(r.display_name ?? r.displayName ?? r.name ?? ""),
-      status: r.status != null ? String(r.status) : undefined,
-      description: r.description != null ? String(r.description) : undefined,
-      path: r.path != null ? String(r.path) : undefined,
-      category: r.category != null ? String(r.category) : undefined,
-      version: r.version != null ? String(r.version) : undefined,
-    };
-  }
-}
 
 /**
  * Parse a raw active target JSON entry with proto validation fallback.
@@ -837,4 +752,4 @@ export function parseActiveTargetResponse(raw: unknown): ActiveTarget | null {
 }
 
 // Re-export schema descriptors for request building
-export { TaskSchema, ExecutionRecordSchema, QueueStatusSchema, SettingsSchema, RecyclerSettingsSchema, ResourceSchema, ScenarioSchema };
+export { TaskSchema, ExecutionRecordSchema, QueueStatusSchema, SettingsSchema, RecyclerSettingsSchema };

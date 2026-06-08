@@ -25,6 +25,8 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 
+	discoveryhandler "github.com/ecosystem-manager/api/handlers/discovery"
+	"github.com/ecosystem-manager/api/internal/module"
 	"github.com/ecosystem-manager/api/pkg/autosteer"
 	"github.com/ecosystem-manager/api/pkg/handlers"
 	"github.com/ecosystem-manager/api/pkg/prompts"
@@ -62,7 +64,6 @@ type Application struct {
 	// Handlers
 	taskHandlers           *handlers.TaskHandlers
 	queueHandlers          *handlers.QueueHandlers
-	discoveryHandlers      *handlers.DiscoveryHandlers
 	healthHandlers         *handlers.HealthHandlers
 	settingsHandlers       *handlers.SettingsHandlers
 	promptsHandlers        *handlers.PromptsHandlers
@@ -339,7 +340,6 @@ func (a *Application) initializeComponents() error {
 	targetValidator := handlers.NewFSTargetValidator(a.projectRoot)
 	a.taskHandlers = handlers.NewTaskHandlers(a.storage, a.assembler, a.processor, a.wsManager, a.autoSteerProfileService, coord, queueStateRepo, targetValidator)
 	a.queueHandlers = handlers.NewQueueHandlers(a.processor, a.wsManager, a.storage, coord)
-	a.discoveryHandlers = handlers.NewDiscoveryHandlers(a.assembler)
 	a.healthHandlers = handlers.NewHealthHandlers(a.processor, a.taskRecycler, queueDir, a.db, apiVersion)
 	a.settingsHandlers = handlers.NewSettingsHandlers(a.processor, a.wsManager, a.taskRecycler)
 	a.promptsHandlers = handlers.NewPromptsHandlers(a.assembler)
@@ -373,11 +373,15 @@ func (a *Application) setupRoutes() http.Handler {
 	a.registerPromptRoutes(api)
 	a.registerQueueRoutes(api)
 	a.registerSettingsRoutes(api)
-	a.registerDiscoveryRoutes(api)
 	a.registerInsightRoutes(api)
 	a.registerAutoSteerRoutes(api)
 	a.registerSkillsRoutes(api)
 	a.registerVisitedTrackerRoutes(api)
+
+	// Connect-RPC domains mount on the ROOT router (their procedure paths are
+	// /vrooli.ecosystem_manager.v1.<domain>.<Service>/<Method>, not under /api).
+	// REST and Connect share one mux during the incremental migration.
+	a.mountConnectModules(router)
 
 	origins := a.allowedOrigins
 	if len(origins) == 0 {
@@ -399,6 +403,26 @@ func (a *Application) setupRoutes() http.Handler {
 
 	log.Println("✅ HTTP routes configured")
 	return handler
+}
+
+// connectModules returns the live Connect-RPC domain modules. Each migrated
+// domain's handlers package contributes one module here (discovery is the
+// reference — see docs/internal/MIGRATION-GUIDE.md). Un-migrated domains keep
+// their REST registration.
+func (a *Application) connectModules() []module.Module {
+	return []module.Module{
+		discoveryhandler.Module(a.assembler),
+	}
+}
+
+// mountConnectModules registers each Connect-RPC domain's handlers on the root
+// router via the module's Mount closure (which calls connectx.RegisterServices).
+func (a *Application) mountConnectModules(router *mux.Router) {
+	for _, m := range a.connectModules() {
+		if m.Mount != nil {
+			m.Mount(router)
+		}
+	}
 }
 
 func (a *Application) shutdown() {
@@ -465,15 +489,6 @@ func (a *Application) registerSettingsRoutes(api *mux.Router) {
 	api.HandleFunc("/settings", a.settingsHandlers.UpdateSettingsHandler).Methods("PUT")
 	api.HandleFunc("/settings/reset", a.settingsHandlers.ResetSettingsHandler).Methods("POST")
 	api.HandleFunc("/settings/recycler/models", a.settingsHandlers.GetRecyclerModelsHandler).Methods("GET")
-}
-
-func (a *Application) registerDiscoveryRoutes(api *mux.Router) {
-	api.HandleFunc("/resources", a.discoveryHandlers.GetResourcesHandler).Methods("GET")
-	api.HandleFunc("/scenarios", a.discoveryHandlers.GetScenariosHandler).Methods("GET")
-	api.HandleFunc("/resources/{name}/status", a.discoveryHandlers.GetResourceStatusHandler).Methods("GET")
-	api.HandleFunc("/scenarios/{name}/status", a.discoveryHandlers.GetScenarioStatusHandler).Methods("GET")
-	api.HandleFunc("/operations", a.discoveryHandlers.GetOperationsHandler).Methods("GET")
-	api.HandleFunc("/categories", a.discoveryHandlers.GetCategoriesHandler).Methods("GET")
 }
 
 func (a *Application) registerInsightRoutes(api *mux.Router) {

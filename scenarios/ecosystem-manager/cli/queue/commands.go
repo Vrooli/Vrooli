@@ -2,11 +2,12 @@
 package queue
 
 import (
-	"ecosystem-manager/cli/internal/appctx"
-	"ecosystem-manager/cli/internal/format"
 	"flag"
 	"fmt"
 	"os"
+
+	"ecosystem-manager/cli/internal/appctx"
+	"ecosystem-manager/cli/internal/format"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"

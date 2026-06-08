@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
 	"github.com/ecosystem-manager/api/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

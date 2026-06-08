@@ -104,7 +104,7 @@ export function RecyclerTab({ settings, onChange, constraints }: RecyclerTabProp
             max={constraints?.recycler.interval_seconds.max ?? 1800}
             step={30}
             value={[settings.recycle_interval]}
-            onValueChange={([val]) => updateSetting('recycle_interval', val)}
+            onValueChange={([val]) => updateSetting('recycle_interval', val ?? settings.recycle_interval)}
           />
           <p className="text-xs text-slate-400">
             Backstop sweep to catch manual moves; event-driven triggers run immediately.
@@ -123,7 +123,7 @@ export function RecyclerTab({ settings, onChange, constraints }: RecyclerTabProp
               max={constraints?.recycler.max_retries.max ?? 10}
               step={1}
               value={[settings.max_retries]}
-              onValueChange={([val]) => updateSetting('max_retries', val)}
+              onValueChange={([val]) => updateSetting('max_retries', val ?? settings.max_retries)}
             />
             <p className="text-xs text-slate-400">
               Retries when recycler processing fails (0 = no retries)
@@ -139,7 +139,7 @@ export function RecyclerTab({ settings, onChange, constraints }: RecyclerTabProp
               max={constraints?.recycler.retry_delay_seconds.max ?? 60}
               step={1}
               value={[settings.retry_delay_seconds]}
-              onValueChange={([val]) => updateSetting('retry_delay_seconds', val)}
+              onValueChange={([val]) => updateSetting('retry_delay_seconds', val ?? settings.retry_delay_seconds)}
             />
             <p className="text-xs text-slate-400">
               Linear backoff per attempt (delay × attempt)
@@ -207,7 +207,7 @@ export function RecyclerTab({ settings, onChange, constraints }: RecyclerTabProp
               max={constraints?.recycler.completion_threshold.max ?? 10}
               step={1}
               value={[settings.completion_threshold]}
-              onValueChange={([val]) => updateSetting('completion_threshold', val)}
+              onValueChange={([val]) => updateSetting('completion_threshold', val ?? settings.completion_threshold)}
             />
             <p className="text-xs text-slate-400">
               Min score (1-10) to consider output complete
@@ -224,7 +224,7 @@ export function RecyclerTab({ settings, onChange, constraints }: RecyclerTabProp
               max={constraints?.recycler.failure_threshold.max ?? 10}
               step={1}
               value={[settings.failure_threshold]}
-              onValueChange={([val]) => updateSetting('failure_threshold', val)}
+              onValueChange={([val]) => updateSetting('failure_threshold', val ?? settings.failure_threshold)}
             />
             <p className="text-xs text-slate-400">
               Max score (1-10) to retry failed tasks

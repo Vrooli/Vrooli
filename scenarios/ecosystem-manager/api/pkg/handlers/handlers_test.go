@@ -98,7 +98,7 @@ global_config:
 	return tempDir, cleanup
 }
 
-func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHandlers, *HealthHandlers, *DiscoveryHandlers, *SettingsHandlers) {
+func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHandlers, *HealthHandlers, *SettingsHandlers) {
 	t.Helper()
 
 	resetTimings := queue.SetTimingScaleForTests(0.01)
@@ -134,10 +134,9 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 	taskHandlers := NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord, nil, nil)
 	queueHandlers := NewQueueHandlers(processor, wsManager, storage, coord)
 	healthHandlers := NewHealthHandlers(processor, nil, queueDir, nil, "test-version")
-	discoveryHandlers := NewDiscoveryHandlers(assembler)
 	settingsHandlers := NewSettingsHandlers(processor, wsManager, testRecycler)
 
-	return taskHandlers, queueHandlers, healthHandlers, discoveryHandlers, settingsHandlers
+	return taskHandlers, queueHandlers, healthHandlers, settingsHandlers
 }
 
 func mustSaveTask(t *testing.T, storage tasks.StorageAPI, status string, task tasks.TaskItem) tasks.TaskItem {
@@ -284,7 +283,7 @@ func TestHealthCheckHandler(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	_, _, healthHandlers, _, _ := createTestHandlers(t, tempDir)
+	_, _, healthHandlers, _ := createTestHandlers(t, tempDir)
 
 	t.Run("Success", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/health", nil)
@@ -389,7 +388,7 @@ func TestHealthEndpointHTTPServer(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	_, _, healthHandlers, _, _ := createTestHandlers(t, tempDir)
+	_, _, healthHandlers, _ := createTestHandlers(t, tempDir)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/health", healthHandlers.HealthCheckHandler).Methods("GET")
@@ -435,7 +434,7 @@ func TestTaskHandlers_GetTasks(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+	taskHandlers, _, _, _ := createTestHandlers(t, tempDir)
 
 	t.Run("EmptyQueue", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/tasks", nil)
@@ -504,7 +503,7 @@ func TestTaskHandlers_CreateTask(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+	taskHandlers, _, _, _ := createTestHandlers(t, tempDir)
 
 	t.Run("ValidSingleTarget", func(t *testing.T) {
 		taskBody := map[string]any{
@@ -758,7 +757,7 @@ func TestTaskHandlers_CreateTask_MultiTarget(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+	taskHandlers, _, _, _ := createTestHandlers(t, tempDir)
 
 	body := map[string]any{
 		"type":      "resource",
@@ -802,7 +801,7 @@ func TestTaskHandlers_CreateTask_AutoRequeueEnabled(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+	taskHandlers, _, _, _ := createTestHandlers(t, tempDir)
 
 	t.Run("SingleTarget", func(t *testing.T) {
 		taskBody := map[string]any{
@@ -872,7 +871,7 @@ func TestTaskHandlers_GetTask(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+	taskHandlers, _, _, _ := createTestHandlers(t, tempDir)
 
 	t.Run("ExistingTask", func(t *testing.T) {
 		task := tasks.TaskItem{
@@ -918,7 +917,7 @@ func TestQueueHandlers_GetQueueStatus(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	_, queueHandlers, _, _, _ := createTestHandlers(t, tempDir)
+	_, queueHandlers, _, _ := createTestHandlers(t, tempDir)
 
 	t.Run("Success", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/queue/status", nil)
@@ -942,47 +941,14 @@ func TestQueueHandlers_GetQueueStatus(t *testing.T) {
 }
 
 // TestDiscoveryHandlers tests discovery endpoints
-func TestDiscoveryHandlers_GetResources(t *testing.T) {
-	tempDir, cleanup := setupTestEnv(t)
-	defer cleanup()
-
-	_, _, _, discoveryHandlers, _ := createTestHandlers(t, tempDir)
-
-	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/discovery/resources", nil)
-		w := httptest.NewRecorder()
-
-		discoveryHandlers.GetResourcesHandler(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d", w.Code)
-		}
-	})
-}
-
-func TestDiscoveryHandlers_GetScenarios(t *testing.T) {
-	tempDir, cleanup := setupTestEnv(t)
-	defer cleanup()
-
-	_, _, _, discoveryHandlers, _ := createTestHandlers(t, tempDir)
-
-	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/discovery/scenarios", nil)
-		w := httptest.NewRecorder()
-
-		discoveryHandlers.GetScenariosHandler(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d", w.Code)
-		}
-	})
-}
+// Discovery is now a Connect-RPC domain — its handler tests live in
+// api/handlers/discovery and api/internal/discovery.
 
 func TestTaskHandlers_GetActiveTargets(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+	taskHandlers, _, _, _ := createTestHandlers(t, tempDir)
 
 	mustSaveTask(t, taskHandlers.storage, "pending", tasks.TaskItem{
 		ID:        "t-pending",
@@ -1038,7 +1004,7 @@ func TestTaskHandlers_UpdateTask(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+	taskHandlers, _, _, _ := createTestHandlers(t, tempDir)
 
 	current := mustSaveTask(t, taskHandlers.storage, "pending", tasks.TaskItem{
 		ID:        "update-task",
@@ -1088,7 +1054,7 @@ func TestTaskHandlers_UpdateTask_PreservesOriginWhenOmitted(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+	taskHandlers, _, _, _ := createTestHandlers(t, tempDir)
 
 	current := mustSaveTask(t, taskHandlers.storage, "pending", tasks.TaskItem{
 		ID:        "update-origin-task",
@@ -1261,7 +1227,7 @@ func TestTaskHandlers_DeleteTask(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+	taskHandlers, _, _, _ := createTestHandlers(t, tempDir)
 
 	task := mustSaveTask(t, taskHandlers.storage, "pending", tasks.TaskItem{
 		ID:        "delete-me",

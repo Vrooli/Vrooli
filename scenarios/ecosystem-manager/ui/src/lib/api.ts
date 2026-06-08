@@ -56,8 +56,6 @@ import {
   parseSettingsResponse,
   parseQueueStatusResponse,
   parseRunningProcessResponse,
-  parseResourceResponse,
-  parseScenarioResponse,
   parseActiveTargetResponse,
   mapUiSettingsToProtoJson,
 } from './proto-contracts';
@@ -338,37 +336,8 @@ class ApiClient {
     return this.fetchJSON<string[]>(`/api/settings/recycler/models?${params.toString()}`);
   }
 
-  // ==================== Discovery ====================
-
-  async getResources(): Promise<Resource[]> {
-    const raw = await this.fetchJSON<unknown>(`/api/resources`);
-    const wrapper = raw as Record<string, unknown> | unknown[];
-    const list: unknown[] = Array.isArray(wrapper) ? wrapper : Array.isArray((wrapper as Record<string, unknown>)?.resources) ? (wrapper as Record<string, unknown>).resources as unknown[] : [];
-    return list.map(parseResourceResponse);
-  }
-
-  async getScenarios(): Promise<Scenario[]> {
-    const raw = await this.fetchJSON<unknown>(`/api/scenarios`);
-    const wrapper = raw as Record<string, unknown> | unknown[];
-    const list: unknown[] = Array.isArray(wrapper) ? wrapper : Array.isArray((wrapper as Record<string, unknown>)?.scenarios) ? (wrapper as Record<string, unknown>).scenarios as unknown[] : [];
-    return list.map(parseScenarioResponse);
-  }
-
-  async getResourceStatus(resourceName: string): Promise<Resource> {
-    return this.fetchJSON<Resource>(`/api/resources/${resourceName}/status`);
-  }
-
-  async getScenarioStatus(scenarioName: string): Promise<Scenario> {
-    return this.fetchJSON<Scenario>(`/api/scenarios/${scenarioName}/status`);
-  }
-
-  async getOperations(): Promise<Operation[]> {
-    return this.fetchJSON<Operation[]>(`/api/operations`);
-  }
-
-  async getCategories(): Promise<Category[]> {
-    return this.fetchJSON<Category[]>(`/api/categories`);
-  }
+  // Discovery moved to Connect-RPC: see ui/src/api/discovery.ts (discoveryClient)
+  // and ui/src/stores/discoveryStore.ts.
 
   // ==================== Logs ====================
 

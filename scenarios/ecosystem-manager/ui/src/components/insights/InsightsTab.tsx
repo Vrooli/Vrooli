@@ -125,7 +125,7 @@ export function InsightsTab({ task }: InsightsTabProps) {
 
   // Auto-select first report when loaded
   if (reports && reports.length > 0 && !selectedReportId) {
-    setSelectedReportId(reports[0].id);
+    setSelectedReportId(reports[0]?.id ?? null);
   }
 
   // Render dialog at the top level (always visible)

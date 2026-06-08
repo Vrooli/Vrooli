@@ -40,7 +40,7 @@ func NewApp() (*App, error) {
 		AllowAnonymous:   true,
 		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 			app.core = core
-			return domains.CommandGroups(appctx.New(core))
+			return domains.CommandGroups(appctx.New(core), core)
 		},
 	})
 	if err != nil {

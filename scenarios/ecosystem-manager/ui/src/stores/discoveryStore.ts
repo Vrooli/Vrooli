@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { api } from '@/lib/api';
+import { discoveryClient } from '@/api/discovery';
 import type { Resource, Scenario } from '@/types/api';
 
 type DiscoveryState = {
@@ -41,18 +41,31 @@ async function fetchDiscovery() {
   inFlight = (async () => {
     setState({ loading: true, error: undefined });
     try {
-      const [resources, scenarios] = await Promise.all([api.getResources(), api.getScenarios()]);
-      setState({
-        resources: (resources || []).map(resource => ({
-          ...resource,
-          display_name: resource.display_name || resource.name,
-        })),
-        scenarios: (scenarios || []).map(scenario => ({
-          ...scenario,
-          display_name: scenario.display_name || scenario.name,
-        })),
-        initialized: true,
-      });
+      const [resourcesRes, scenariosRes] = await Promise.all([
+        discoveryClient.listResources({}),
+        discoveryClient.listScenarios({}),
+      ]);
+      const resources: Resource[] = resourcesRes.resources.map(r => ({
+        name: r.name,
+        display_name: r.displayName || r.name,
+        description: r.description,
+        path: r.path,
+        port: r.port,
+        category: r.category,
+        version: r.version,
+        healthy: r.healthy,
+        status: r.status,
+      }));
+      const scenarios: Scenario[] = scenariosRes.scenarios.map(s => ({
+        name: s.name,
+        display_name: s.displayName || s.name,
+        description: s.description,
+        path: s.path,
+        category: s.category,
+        version: s.version,
+        status: s.status,
+      }));
+      setState({ resources, scenarios, initialized: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load discovery data';
       setState({ error: message });

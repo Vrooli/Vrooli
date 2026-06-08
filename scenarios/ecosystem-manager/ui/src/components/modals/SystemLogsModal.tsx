@@ -302,8 +302,8 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
   useEffect(() => {
     if (filteredPerformance.length > 0 && !selectedPerformanceId) {
       const firstId =
-        filteredPerformance[0].execution_id ||
-        (filteredPerformance[0] as any).id ||
+        filteredPerformance[0]?.execution_id ||
+        (filteredPerformance[0] as any)?.id ||
         null;
       if (firstId) {
         setSelectedPerformanceId(String(firstId));

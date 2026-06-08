@@ -1,362 +1,105 @@
-# Ecosystem Manager - Product Requirements Document
-
-## Executive Summary
-
-The Ecosystem Manager is a unified platform for generating and improving both resources and scenarios across the Vrooli ecosystem. It consolidates four separate management tools into a single, comprehensive system with enhanced cross-type intelligence and streamlined operations.
-
-**Revenue Opportunity:** $50,000-150,000 annual value through automated ecosystem expansion and maintenance optimization.
-
-## Problem Statement
-
-### Current Pain Points
-- **Fragmented Management**: Four separate tools (resource-generator, resource-improver, scenario-generator, scenario-improver) with overlapping functionality
-- **Limited Visibility**: No unified view of ecosystem development activities
-- **Resource Conflicts**: Port allocation and process coordination issues between tools
-- **Context Loss**: No cross-type intelligence or dependency awareness
-- **Maintenance Overhead**: 4x the deployment, monitoring, and maintenance complexity
-
-### Business Impact
-- Development teams waste 20+ hours/week switching between tools
-- Critical dependencies missed due to siloed operations
-- Resource conflicts cause 15% task failure rate
-- Maintenance costs 4x higher than necessary
-
-## Vision & Goals
-
-### Primary Vision
-Transform ecosystem management from four disconnected tools into one intelligent, unified platform that accelerates Vrooli's self-improvement capabilities.
-
-### Key Goals
-1. **Unification**: Consolidate 4 tools into 1 with enhanced capabilities
-2. **Intelligence**: Enable cross-type dependency analysis and smart prioritization  
-3. **Efficiency**: Reduce management overhead by 75% while improving success rates
-4. **Scalability**: Support growing ecosystem complexity without linear cost increases
-5. **Revenue**: Generate $50K-150K annual value through ecosystem expansion
-
-## Success Metrics
-
-### Primary KPIs
-- **Consolidation Success**: 4 tools → 1 tool (100% reduction in tool count)
-- **Task Success Rate**: >90% (up from 85% with fragmented tools)
-- **Cross-type Intelligence**: 100% of tasks analyzed for dependencies
-- **Time to Value**: <60 seconds from task creation to queue processing
-- **System Reliability**: 99.5% uptime with proper health monitoring
-
-### Business Metrics
-- **Cost Reduction**: 75% reduction in infrastructure/maintenance costs
-- **Developer Productivity**: 20+ hours/week saved per development team
-- **Ecosystem Growth**: 50% faster resource/scenario creation
-- **Revenue Generation**: $50K-150K annually from accelerated ecosystem expansion
-
-## User Stories & Acceptance Criteria
-
-### Epic 1: Unified Task Management
-
-#### Story 1.1: Unified Task Creation
-**As a** developer  
-**I want** to create any type of ecosystem task from a single interface  
-**So that** I don't need to switch between multiple tools
-
-**Acceptance Criteria:**
-- [ ] Single modal supports all 4 operation types (resource/scenario × generator/improver)
-- [ ] Form adapts dynamically based on operation selection
-- [ ] Validation prevents invalid configurations
-- [ ] Tasks appear in appropriate queue column immediately
-- [ ] Categories auto-populate from target resource/scenario for improver operations
-
-#### Story 1.2: Trello-like Task Visualization
-**As a** project manager  
-**I want** to see all ecosystem tasks in a visual kanban board  
-**So that** I can track progress across all work types
-
-**Acceptance Criteria:**
-- [ ] 5 columns: Pending, In Progress, Review, Completed, Failed
-- [ ] Drag-and-drop task movement between columns
-- [ ] Real-time updates via WebSocket
-- [ ] Task cards show type, operation, priority, and progress
-- [ ] Filter by type, operation, category, priority, and search terms
-- [ ] Column counts update automatically
-
-#### Story 1.3: Advanced Task Filtering
-**As a** developer  
-**I want** to filter and search tasks efficiently  
-**So that** I can find specific work quickly in large task lists
-
-**Acceptance Criteria:**
-- [ ] Text search across task titles and IDs
-- [ ] Filter by status, type, operation, category, priority
-- [ ] Combined filters work together (AND logic)
-- [ ] Clear all filters with single button
-- [ ] Filtered results update in real-time
-- [ ] Filter state persists during session
-
-### Epic 2: Intelligent Queue Processing
-
-#### Story 2.1: Smart Queue Coordination
-**As a** system administrator  
-**I want** queue processing to be intelligent and coordinated  
-**So that** tasks don't conflict and resources are used efficiently
-
-**Acceptance Criteria:**
-- [ ] Concurrent slot management prevents overload
-- [ ] Port allocation coordination prevents conflicts
-- [ ] Process monitoring shows real-time Claude Code execution
-- [ ] Failed processes can be terminated manually
-- [ ] Queue processor can be paused/resumed
-- [ ] Settings control slot count, cooldowns, and behavior
-
-#### Story 2.2: Cross-type Intelligence
-**As a** product manager  
-**I want** the system to understand dependencies between resources and scenarios  
-**So that** work is prioritized and coordinated intelligently
-
-**Acceptance Criteria:**
-- [ ] Resource improvements flag dependent scenarios
-- [ ] Scenario creation suggests required resources
-- [ ] Impact analysis shows affected items
-- [ ] Smart prioritization considers ecosystem effects
-- [ ] Duplicate prevention for similar tasks
-- [ ] Dependency chains visualized in task details
-
-#### Story 2.3: Real-time Process Monitoring
-**As a** developer  
-**I want** to monitor Claude Code execution in real-time  
-**So that** I can track progress and intervene if needed
-
-**Acceptance Criteria:**
-- [ ] Live process count display
-- [ ] Execution timers for active tasks
-- [ ] Process termination controls
-- [ ] Log viewing for running tasks
-- [ ] WebSocket updates for process changes
-- [ ] Process health indicators
-
-### Epic 3: Enhanced Developer Experience
-
-#### Story 3.1: Comprehensive Task Details
-**As a** developer  
-**I want** detailed information about each task  
-**So that** I can understand progress, results, and take action
-
-**Acceptance Criteria:**
-- [ ] Task details modal with full information
-- [ ] Progress tracking with phase indicators
-- [ ] Error display with formatted messages
-- [ ] Result viewing for completed tasks
-- [ ] Prompt viewing for understanding task context
-- [ ] Edit capabilities for pending tasks
-- [ ] Log viewing for debugging
-
-#### Story 3.2: Smart Prompt Assembly
-**As a** technical user  
-**I want** to view the complete prompt used for any task  
-**So that** I can understand and debug task execution
-
-**Acceptance Criteria:**
-- [ ] Assembled prompt viewing with metadata
-- [ ] Copy-to-clipboard functionality
-- [ ] Prompt length and source indicators
-- [ ] Syntax highlighting for readability
-- [ ] Cache status (fresh vs. cached from execution)
-- [ ] Prompt configuration API access
-
-#### Story 3.3: Natural CLI Integration
-**As a** power user  
-**I want** a natural command-line interface  
-**So that** I can manage tasks efficiently from the terminal
-
-**Acceptance Criteria:**
-- [ ] Natural language commands (e.g., `ecosystem-manager add resource vault`)
-- [ ] Dynamic port discovery via vrooli CLI
-- [ ] Color-coded output for status indication
-- [ ] Progress monitoring from command line
-- [ ] Bulk operations support
-- [ ] Shell completion for commands
-
-### Epic 4: System Reliability & Performance
-
-#### Story 4.1: Robust Settings Management
-**As a** system administrator  
-**I want** comprehensive settings management with persistence  
-**So that** system behavior is controlled and reliable
-
-**Acceptance Criteria:**
-- [ ] Settings persist across restarts
-- [ ] Backend API with localStorage fallback
-- [ ] Theme support (light/dark/auto)
-- [ ] Queue processor configuration
-- [ ] Claude Code agent settings (tools, timeouts, etc.)
-- [ ] Settings validation and defaults
-- [ ] Reset to defaults functionality
-
-#### Story 4.2: Health Monitoring & Recovery
-**As a** operations engineer  
-**I want** comprehensive health monitoring and automatic recovery  
-**So that** the system remains reliable and self-healing
-
-**Acceptance Criteria:**
-- [ ] Health check endpoints for all components
-- [ ] Automatic WebSocket reconnection
-- [ ] Stale task recovery on startup
-- [ ] Process orphan detection and cleanup
-- [ ] Database connection retry logic
-- [ ] Service restart capabilities
-
-## Technical Requirements
-
-### Architecture Standards
-- **API Versioning**: All endpoints prefixed with `/api/v1/` for future compatibility
-- **Modular UI**: Component-based architecture with < 500 lines per file
-- **ES6 Modules**: Modern JavaScript with proper import/export structure
-- **WebSocket**: Real-time updates for all state changes
-- **No Hard-coding**: All ports, URLs, and configuration via environment variables
-
-### Performance Requirements
-- **Response Time**: API responses < 200ms for 95% of requests
-- **UI Rendering**: Task list updates < 100ms for lists up to 1000 tasks
-- **WebSocket Latency**: Real-time updates delivered < 50ms after server event
-- **Memory Usage**: Client-side memory usage < 50MB for typical workloads
-- **Startup Time**: Full application ready < 3 seconds on modern hardware
-
-### Reliability Requirements
-- **Uptime**: 99.5% availability during business hours
-- **Data Consistency**: Zero data loss during normal operations
-- **Error Recovery**: Automatic recovery from transient failures
-- **Graceful Degradation**: Core functionality available even with partial failures
-- **Process Management**: Orphaned processes cleaned up automatically
-
-### Security Requirements
-- **Input Validation**: All user inputs validated and sanitized
-- **XSS Prevention**: All dynamic content properly escaped
-- **CORS Configuration**: Appropriate origin restrictions for production
-- **Process Isolation**: Task execution properly sandboxed
-- **Secret Management**: No secrets in logs or client-side code
-
-### Scalability Requirements
-- **Task Volume**: Support 10,000+ tasks without performance degradation
-- **Concurrent Processing**: Handle up to 10 concurrent Claude Code executions
-- **Memory Efficiency**: Linear memory growth with task count
-- **Database Performance**: Efficient queries for large task datasets
-- **UI Responsiveness**: Maintain performance with 1000+ visible tasks
-
-## Revenue Projections
-
-### Direct Value Creation
-- **Accelerated Development**: $30K-60K annually from 50% faster ecosystem expansion
-- **Reduced Maintenance**: $15K-30K annually from 75% cost reduction
-- **Improved Success Rate**: $10K-20K annually from reduced failures and rework
-- **Enhanced Capabilities**: $20K-40K annually from cross-type intelligence enabling new workflows
-
-### Cost Avoidance
-- **Infrastructure Savings**: $10K annually from consolidated deployment
-- **Monitoring Reduction**: $5K annually from unified observability
-- **Developer Time**: $25K annually from eliminated tool-switching overhead
-
-### Total Annual Value: $115K-185K
-**Conservative Estimate: $50K-150K** (accounting for implementation costs and adoption curve)
-
-## Implementation Phases
-
-### Phase 1: Foundation (Weeks 1-2) ✅ COMPLETED
-- [x] Modular UI architecture with component separation
-- [x] WebSocket real-time communication
-- [x] Basic task CRUD operations
-- [x] Queue management with process monitoring
-- [x] Settings management with persistence
-
-### Phase 2: Intelligence (Weeks 3-4)
-- [ ] API versioning implementation
-- [ ] Cross-type dependency analysis
-- [ ] Smart task prioritization
-- [ ] Enhanced CLI with natural commands
-- [ ] Comprehensive test suite
-
-### Phase 3: Polish & Scale (Weeks 5-6)
-- [ ] Performance optimization
-- [ ] Advanced filtering and search
-- [ ] Bulk operations support
-- [ ] Enhanced error handling and recovery
-- [ ] Production deployment preparation
-
-### Phase 4: Advanced Features (Weeks 7-8)
-- [ ] Advanced analytics and reporting
-- [ ] Task templates and automation
-- [ ] Integration with external tools
-- [ ] Advanced workflow orchestration
-- [ ] Performance monitoring dashboard
-
-## Auto-Steer Controller (v1)
-
-The auto-steer controller is the scenario's improvement control loop: it drives a
-target scenario toward an objective profile by repeatedly diagnosing open
-findings, selecting the skill most likely to close the heaviest dimension,
-executing it via agent-manager, re-measuring, and terminating on objective-met,
-diminishing returns, runtime thrashing, or the budget cap. The conceptual
-specification is [`docs/concepts/CONTROL-MODEL.md`](docs/concepts/CONTROL-MODEL.md);
-the operational targets below are tracked in
-[`requirements/index.json`](requirements/index.json).
-
-The v1 ("effectiveness-weighted") operational targets:
-
-- **Token-cost capture** — every agent run's token cost flows from agent-manager
-  into the controller's reduction-per-token selection.
-- **Effectiveness ledger** — a per-`(skill, dimension)` table learns findings
-  closed/introduced per token at runtime.
-- **Credit assignment** — each iteration's per-dimension findings delta is
-  attributed to the skill that ran.
-- **Effectiveness-weighted selection** — within the heaviest dimension, skills
-  are ranked by expected reduction-per-token (shrinkage prior + epsilon-greedy
-  exploration), degrading to greedy when cold.
-- **Layer-2 thrashing defense** — fingerprint cycle-halt, net-progress window,
-  hysteresis cooldown, and regression veto stop emergent oscillation at runtime.
-- **Transparency** — the decision trace, an effectiveness API/CLI/UI surface,
-  and per-iteration token/flow/halt annotations make the loop a glass box.
-
-P2 (future): development-toolchain-validator trust/cost priors and a Layer-1
-eligibility gate (seams are in place; not yet wired).
-
-## Risk Assessment
-
-### High Risk
-- **Claude Code Integration**: Dependency on external AI service could cause availability issues
-  - *Mitigation*: Robust error handling, fallback modes, service monitoring
-
-### Medium Risk  
-- **Complexity Migration**: Moving from 4 tools to 1 could introduce edge cases
-  - *Mitigation*: Comprehensive testing, gradual migration, rollback procedures
-
-### Low Risk
-- **UI Performance**: Complex filtering/rendering could slow down with large datasets
-  - *Mitigation*: Virtualization, pagination, performance monitoring
-
-## Definition of Done
-
-### Feature Complete
-- [ ] All user stories implemented with acceptance criteria met
-- [ ] API versioning implemented across all endpoints
-- [ ] Comprehensive test suite with >90% coverage
-- [ ] Performance benchmarks meet requirements
-- [ ] Security review passed
-- [ ] Documentation complete
-
-### Production Ready
-- [ ] Health monitoring and alerting configured
-- [ ] Error tracking and logging implemented
-- [ ] Deployment automation working
-- [ ] Rollback procedures tested
-- [ ] Performance monitoring dashboard active
-- [ ] User training materials created
-
-### Business Value Realized
-- [ ] Tool consolidation saves 20+ hours/week per team
-- [ ] Task success rate >90%
-- [ ] Cross-type intelligence demonstrably improves outcomes
-- [ ] Revenue generation tracking shows positive ROI
-- [ ] User satisfaction scores >8/10
+# Ecosystem Manager — Product Requirements Document
+
+> **Template Version**: 2.0
+> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
+> **Validation**: Enforced by `prd-control-tower` + `scenario-auditor`
+
+## 🎯 Overview
+- **Purpose**: Provide the unified control plane that generates and improves Vrooli resources and scenarios — the self-improvement kernel that turns open findings into agent-driven work and learns which interventions pay off. It also serves as the reference scenario whose own migration (R0/R1 conformance + Connect-RPC) other old-template scenarios copy.
+- **Primary users/verticals**: Vrooli platform engineers, the autosteer control loop itself (programmatic consumer), and operators monitoring ecosystem development across the fleet.
+- **Deployment surfaces**: API (Go, transitioning gorilla/mux REST → Connect-RPC), CLI (`ecosystem-manager` via cli-core), UI (React + Vite kanban + insights), and the WebSocket live-update channel.
+- **Value promise**: Consolidates four legacy tools (resource/scenario × generator/improver) into one intelligent platform; drives a measurable improvement loop (effectiveness-weighted skill selection, maturity ladder) instead of ad-hoc tool-switching.
+
+## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+- [ ] OT-P0-001 | Unified task queue | Create/track all four operation types from one surface with real-time WebSocket updates.
+- [ ] OT-P0-002 | Closed-loop autosteer | Diagnose findings → select skill → execute via agent-manager → re-measure → terminate on objective/diminishing-returns/budget.
+- [ ] OT-P0-003 | Settings control | Persisted slots/cooldown/agent settings governing queue concurrency, with validated partial updates and side-effects on the processor.
+- [ ] OT-P0-004 | Health + recovery | `/health` on the root router, stale-task recovery on startup, automatic WebSocket reconnection.
+- [ ] OT-P0-005 | Template conformance | EM itself passes the react-vite template standards/docs gates so it can be the migration reference for the rest of the fleet.
+
+### 🟠 P1 – Should have post-launch
+- [ ] OT-P1-001 | Connect-RPC transport | Migrate domains off hand-rolled REST/Zod onto proto-first Connect-RPC, one domain at a time (settings is the reference).
+- [ ] OT-P1-002 | Cross-type intelligence | Dependency analysis flags affected scenarios/resources and feeds smart prioritization.
+- [ ] OT-P1-003 | Effectiveness transparency | Per-(skill, dimension) ledger + decision trace exposed via API/CLI/UI as a glass box.
+- [ ] OT-P1-004 | Temporal-flow verification | Model the queue/task state machine with `flow-verifier` (Quint) and gate transitions.
+
+### 🟢 P2 – Future / expansion
+- [ ] OT-P2-001 | Toolchain trust/cost priors | Wire development-toolchain-validator priors + a Layer-1 eligibility gate (seams exist).
+- [ ] OT-P2-002 | Fleet autosteer | Point EM's loop at other old-template scenarios and have it migrate them automatically.
+- [ ] OT-P2-003 | Advanced analytics | Reporting dashboard, task templates/automation, external-tool integration.
+
+## 🧱 Tech Direction Snapshot
+- Preferred stacks / frameworks: Go API (`api-core`/`cli-core`/`connectrpc.com/connect`), React + Vite + Tailwind UI, proto-first contracts under `packages/proto`.
+- Data + storage expectations: filesystem-backed queue (`queue/{pending,...}`), `config/settings.json` for settings, sqlite/postgres for findings/effectiveness as applicable.
+- Integration strategy: proto-typed Connect-RPC clients consumed by UI + CLI; agent-manager for agent execution; shared workflows > resource CLI > direct API.
+- Non-goals / guardrails: no big-bang multi-domain transport migration (one reference domain per plan); no compatibility shims within a migrated domain; no disabling lint/security rules to pass gates.
+
+## 🤝 Dependencies & Launch Plan
+- Required resources: `agent-manager` (agent execution), `scenario-auditor` (standards), `test-genie` (finding producers), `flow-verifier` (temporal verification), `git-control-tower` (regression baselines).
+- Scenario dependencies: consumes the broader Vrooli fleet as both targets (scenarios it improves) and producers (test-genie phases feeding the ladder).
+- Operational risks: external-agent availability (Claude Code), transport-migration state-tracking drift, pre-existing UI type-safety backlog under strict lint.
+- Launch sequencing: (1) R0/R1 + standards/docs conformance; (2) Connect-RPC foundation; (3) settings reference domain; (4) temporal-flow reference; (5) incremental per-domain migration of the remaining seven domains.
+
+## 🎨 UX & Branding
+- Look & feel: dense operator dashboard — kanban task board (Pending/In Progress/Review/Completed/Failed), insights panels, light/dark/system theme.
+- Accessibility: focus-visible styling on interactive elements, keyboard navigation via the iframe-bridge spatial nav, WCAG-aligned color contrast.
+- Voice & messaging: precise, engineering-operator tone; status is color-coded and quantitative (counts, timers, token costs).
+- Branding hooks: consistent Vrooli iconography (lucide-react), monospace for IDs/paths, the kanban board as the signature surface.
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2025-01-11  
-**Next Review**: 2025-02-11  
+## Detailed Requirements
+
+### Executive Summary
+The Ecosystem Manager consolidates four separate management tools (resource-generator, resource-improver, scenario-generator, scenario-improver) into a single platform with cross-type intelligence and a closed-loop improvement controller.
+
+### Problem Statement
+- **Fragmented Management**: four overlapping tools with siloed operations.
+- **Limited Visibility**: no unified view of ecosystem development.
+- **Resource Conflicts**: port allocation / process coordination issues.
+- **Context Loss**: no cross-type dependency awareness.
+- **Maintenance Overhead**: 4× deployment/monitoring/maintenance complexity.
+
+### Epics & User Stories (acceptance criteria)
+
+#### Epic 1: Unified Task Management
+- **Unified task creation** — single modal supports all four operation types; form adapts; validation prevents invalid configs; tasks queue immediately.
+- **Kanban visualization** — five columns, drag-and-drop, real-time WebSocket updates, filterable cards.
+- **Advanced filtering** — text search + status/type/operation/category/priority filters (AND logic), session-persistent.
+
+#### Epic 2: Intelligent Queue Processing
+- **Smart queue coordination** — concurrent slot management, port coordination, live process monitoring, pause/resume, settings-controlled behavior.
+- **Cross-type intelligence** — dependency flagging, impact analysis, smart prioritization, duplicate prevention.
+- **Real-time process monitoring** — live counts, execution timers, termination controls, log viewing.
+
+#### Epic 3: Enhanced Developer Experience
+- **Comprehensive task details** — full info modal, phase progress, error/result viewing, edit for pending.
+- **Smart prompt assembly** — assembled-prompt viewing with metadata, copy, cache status.
+- **Natural CLI integration** — natural commands, dynamic port discovery, color-coded output, bulk ops.
+
+#### Epic 4: System Reliability & Performance
+- **Robust settings management** — persisted across restarts, backend API with localStorage fallback, theme support, validation/defaults, reset.
+- **Health monitoring & recovery** — health endpoints, WebSocket reconnect, stale-task recovery, orphan cleanup, retry logic.
+
+### Architecture & Non-functional Standards
+- **API versioning**: endpoints prefixed `/api/v1/` (REST remainder); Connect-RPC procedure paths for migrated domains.
+- **Performance**: API < 200ms p95; UI list updates < 100ms up to 1000 tasks; WebSocket latency < 50ms.
+- **Reliability**: 99.5% availability; zero data loss in normal operation; graceful degradation; orphan cleanup.
+- **Security**: input validation, XSS prevention, CORS restrictions, process isolation, no secrets in logs/client.
+- **Scalability**: 10,000+ tasks; up to 10 concurrent agent executions; linear memory growth.
+
+### Auto-Steer Controller (v1, effectiveness-weighted)
+Drives a target scenario toward an objective profile: diagnose open findings → select the skill most likely to close the heaviest dimension → execute via agent-manager → re-measure → terminate on objective-met / diminishing returns / runtime thrashing / budget cap. Conceptual spec: [`docs/concepts/CONTROL-MODEL.md`](docs/concepts/CONTROL-MODEL.md); targets tracked in [`requirements/index.json`](requirements/index.json). Includes token-cost capture, a per-(skill, dimension) effectiveness ledger, credit assignment, effectiveness-weighted selection (shrinkage prior + epsilon-greedy), Layer-2 thrashing defense, and a decision-trace glass box. P2: development-toolchain-validator priors + Layer-1 eligibility gate (seams present, not yet wired).
+
+### Risk Assessment
+- **High** — external AI-service dependency (mitigation: robust error handling, fallback, monitoring).
+- **Medium** — 4-tools→1 migration edge cases (mitigation: comprehensive testing, gradual migration, rollback).
+- **Low** — UI performance on large datasets (mitigation: virtualization, pagination, monitoring).
+
+---
+
+**Document Version**: 2.0
+**Last Updated**: 2026-06-08
 **Owner**: Ecosystem Manager Development Team

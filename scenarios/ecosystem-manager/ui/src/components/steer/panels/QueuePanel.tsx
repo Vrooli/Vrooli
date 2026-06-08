@@ -300,8 +300,8 @@ export function QueuePanel({
               <div className="space-y-2">
                 {value.map((step, index) => (
                   <SortableQueueItem
-                    key={itemIds[index]}
-                    id={itemIds[index]}
+                    key={itemIds[index] ?? index}
+                    id={itemIds[index] ?? String(index)}
                     step={step}
                     index={index}
                     skillNames={skillNames}

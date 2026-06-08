@@ -80,7 +80,7 @@ export function getApiErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     try {
       const match = error.message.match(/API Error \(\d+\): (.+)/);
-      if (match) {
+      if (match?.[1]) {
         const parsed = JSON.parse(match[1]);
         if (typeof parsed === 'string') {
           return parsed;

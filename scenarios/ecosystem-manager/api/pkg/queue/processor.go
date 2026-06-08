@@ -833,7 +833,14 @@ func (qp *Processor) finalizeTaskStatus(task *tasks.TaskItem, toStatus string) e
 	// This includes successful requeues (to pending with completed phase) and finalized buckets.
 	if shouldCountExecution(toStatus, preTransitionPhase) {
 		if qp.incrementExecutionCount() {
-			go func() {
+			// Run the auto-stop on a goroutine bound to the processor context so a
+			// concurrent shutdown short-circuits the redundant teardown gracefully.
+			go func(ctx context.Context) {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
 				qp.Stop()
 				s := settings.GetSettings()
 				s.Active = false
@@ -846,7 +853,7 @@ func (qp *Processor) finalizeTaskStatus(task *tasks.TaskItem, toStatus string) e
 					"execution_limit":      s.ExecutionLimit,
 				})
 				log.Printf("Execution limit reached (%d tasks); processor auto-stopped", s.ExecutionLimit)
-			}()
+			}(qp.ctx)
 		}
 	}
 

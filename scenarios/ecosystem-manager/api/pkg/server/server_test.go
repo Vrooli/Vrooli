@@ -84,7 +84,6 @@ func setupTestServer(t *testing.T) (http.Handler, string, func()) {
 
 	taskHandlers := handlers.NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord, nil, nil)
 	queueHandlers := handlers.NewQueueHandlers(processor, wsManager, storage, coord)
-	discoveryHandlers := handlers.NewDiscoveryHandlers(assembler)
 	healthHandlers := handlers.NewHealthHandlers(processor, recyclerSvc, queueDir, nil, "test-version")
 	settingsHandlers := handlers.NewSettingsHandlers(processor, wsManager, recyclerSvc)
 	promptsHandlers := handlers.NewPromptsHandlers(assembler)
@@ -98,7 +97,6 @@ func setupTestServer(t *testing.T) (http.Handler, string, func()) {
 		taskRecycler:      recyclerSvc,
 		taskHandlers:      taskHandlers,
 		queueHandlers:     queueHandlers,
-		discoveryHandlers: discoveryHandlers,
 		healthHandlers:    healthHandlers,
 		settingsHandlers:  settingsHandlers,
 		promptsHandlers:   promptsHandlers,

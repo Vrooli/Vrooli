@@ -312,20 +312,6 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, response, http.StatusOK)
 }
 
-// previewMetricsSnapshot returns a minimal metrics snapshot suitable for preview prompts.
-func previewMetricsSnapshot() autosteer.MetricsSnapshot {
-	now := time.Now()
-	return autosteer.MetricsSnapshot{
-		Timestamp:                    now,
-		PhaseLoops:                   0,
-		TotalLoops:                   0,
-		BuildStatus:                  1,
-		OperationalTargetsTotal:      0,
-		OperationalTargetsPassing:    0,
-		OperationalTargetsPercentage: 0,
-	}
-}
-
 // manualOrDefaultSteeringSection renders the manual steer set (if provided) or defaults to Progress.
 func (h *TaskHandlers) manualOrDefaultSteeringSection(task tasks.TaskItem) string {
 	if h == nil || h.assembler == nil {

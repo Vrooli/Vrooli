@@ -46,7 +46,7 @@ export function ExecutionFeedbackPanel({
   disabledMessage,
   isLoading = false,
 }: ExecutionFeedbackPanelProps) {
-  const [category, setCategory] = useState(FEEDBACK_CATEGORIES[0].value);
+  const [category, setCategory] = useState((FEEDBACK_CATEGORIES[0]?.value ?? ''));
   const [severity, setSeverity] = useState('medium');
   const [suggestedAction, setSuggestedAction] = useState('');
   const [comments, setComments] = useState('');
@@ -56,7 +56,7 @@ export function ExecutionFeedbackPanel({
   const [errorText, setErrorText] = useState<string | null>(null);
 
   useEffect(() => {
-    setCategory(FEEDBACK_CATEGORIES[0].value);
+    setCategory((FEEDBACK_CATEGORIES[0]?.value ?? ''));
     setSeverity('medium');
     setSuggestedAction('');
     setComments('');

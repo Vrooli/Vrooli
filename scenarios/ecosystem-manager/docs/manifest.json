@@ -7,8 +7,23 @@
     "kind": "scenario-docs",
     "template": "react-vite",
     "schema": "scenario-docs-manifest/v2",
-    "maturityValues": ["missing", "stub", "draft", "active", "not-applicable", "deferred", "retired"],
-    "stages": ["generated", "oriented", "implemented", "validated", "deployable", "monetizable"],
+    "maturityValues": [
+      "missing",
+      "stub",
+      "draft",
+      "active",
+      "not-applicable",
+      "deferred",
+      "retired"
+    ],
+    "stages": [
+      "generated",
+      "oriented",
+      "implemented",
+      "validated",
+      "deployable",
+      "monetizable"
+    ],
     "extensionRule": "Every durable scenario document should be registered here. Use docs/concepts/ for product and system concepts (CONTROL-MODEL.md is the canonical improvement-loop model), docs/guides/ for task procedures, docs/reference/ for stable lookup material, docs/internal/ for developer and agent memory, docs/operations/ for runtime operations, and docs/business/ for commercial strategy."
   },
   "sections": [
@@ -25,14 +40,30 @@
           "docType": "readme",
           "title": "README",
           "description": "Top-level scenario summary and primary human entrypoint",
-          "audience": ["users", "operators", "developers", "agents"],
-          "canonicalFor": ["scenario-summary", "entrypoint"],
+          "audience": [
+            "users",
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "scenario-summary",
+            "entrypoint"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated"],
+          "requiredBy": [
+            "generated"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["What You Get", "Documentation Map", "Customize Safely"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "What You Get",
+              "Documentation Map",
+              "Customize Safely"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -40,14 +71,30 @@
           "docType": "start-here",
           "title": "Start Here",
           "description": "Orientation for an agent or developer picking up work in this scenario",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["orientation", "onboarding"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "orientation",
+            "onboarding"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "oriented"],
+          "requiredBy": [
+            "generated",
+            "oriented"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Orientation", "Read These First", "Working Agreements", "Architecture Rules"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Orientation",
+              "Read These First",
+              "Working Agreements",
+              "Architecture Rules"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -55,10 +102,19 @@
           "docType": "manifest",
           "title": "Documentation Manifest",
           "description": "Machine-readable documentation contract used by documentation health tooling",
-          "audience": ["developers", "agents", "tools"],
-          "canonicalFor": ["documentation-contract", "documentation-validation"],
+          "audience": [
+            "developers",
+            "agents",
+            "tools"
+          ],
+          "canonicalFor": [
+            "documentation-contract",
+            "documentation-validation"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated"],
+          "requiredBy": [
+            "generated"
+          ],
           "completion": "required",
           "validation": {}
         },
@@ -67,10 +123,19 @@
           "docType": "prd",
           "title": "Product Requirements",
           "description": "Scenario purpose, users, operational targets, dependencies, and direction",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["product-requirements", "operational-targets"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "product-requirements",
+            "operational-targets"
+          ],
           "maturity": "active",
-          "requiredBy": ["oriented"],
+          "requiredBy": [
+            "oriented"
+          ],
           "completion": "required",
           "validation": {}
         },
@@ -79,14 +144,33 @@
           "docType": "quickstart",
           "title": "Quickstart",
           "description": "Clone-to-running in a few minutes",
-          "audience": ["users", "operators", "developers", "agents"],
-          "canonicalFor": ["local-runbook", "first-run"],
+          "audience": [
+            "users",
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "local-runbook",
+            "first-run"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated"],
+          "requiredBy": [
+            "generated"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Prerequisites", "1 — Setup", "2 — Start", "3 — Open", "4 — Create your first task", "5 — Run the tests"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Prerequisites",
+              "1 \u2014 Setup",
+              "2 \u2014 Start",
+              "3 \u2014 Open",
+              "4 \u2014 Create your first task",
+              "5 \u2014 Run the tests"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         }
       ]
@@ -103,16 +187,49 @@
           "path": "concepts/CONTROL-MODEL.md",
           "docType": "control-model",
           "title": "Control Model",
-          "aliases": ["controller", "improvement-loop", "auto-steer-model"],
+          "aliases": [
+            "controller",
+            "improvement-loop",
+            "auto-steer-model"
+          ],
           "description": "The closed-loop controller mental model: diagnose, select, execute, measure, learn; profiles as objective functions; DTV priors; thrashing defense",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["control-model", "improvement-loop", "skill-selection", "thrashing-defense"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "control-model",
+            "improvement-loop",
+            "skill-selection",
+            "thrashing-defense"
+          ],
           "maturity": "active",
-          "requiredBy": ["oriented", "implemented"],
+          "requiredBy": [
+            "oriented",
+            "implemented"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "The Core Reframe", "The Control Loop", "State: The Findings Vector", "The Skill → Dimension Capability Map", "Selection Policy", "The Effectiveness Table", "Profiles Are Objective Functions", "Development Toolchain Validator As Gate And Prior", "Thrashing Defense", "Termination", "Transparency", "Staged Rollout", "Current Implementation Status", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "The Core Reframe",
+              "The Control Loop",
+              "State: The Findings Vector",
+              "The Skill \u2192 Dimension Capability Map",
+              "Selection Policy",
+              "The Effectiveness Table",
+              "Profiles Are Objective Functions",
+              "Development Toolchain Validator As Gate And Prior",
+              "Thrashing Defense",
+              "Termination",
+              "Transparency",
+              "Staged Rollout",
+              "Current Implementation Status",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -120,15 +237,46 @@
           "docType": "architecture",
           "title": "Architecture",
           "description": "System map: surfaces, contracts, boundaries, shared infrastructure, extension rules, deviations",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["system-architecture", "surface-responsibilities"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "system-architecture",
+            "surface-responsibilities"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "oriented", "implemented"],
+          "requiredBy": [
+            "generated",
+            "oriented",
+            "implemented"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Scenario Shape", "System Boundaries", "Contracts And Data Flow", "Shared Infrastructure", "Extension Rules", "Architecture Maturity", "Intentional Deviations", "Documentation Architecture", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
-            "requiredLinks": ["CONTROL-MODEL.md", "DOMAINS.md", "FLOWS.md", "DATA.md", "INTEGRATIONS.md", "../internal/SEAMS.md", "../internal/TESTING.md"]
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Scenario Shape",
+              "System Boundaries",
+              "Contracts And Data Flow",
+              "Shared Infrastructure",
+              "Extension Rules",
+              "Architecture Maturity",
+              "Intentional Deviations",
+              "Documentation Architecture",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
+            "requiredLinks": [
+              "CONTROL-MODEL.md",
+              "DOMAINS.md",
+              "FLOWS.md",
+              "DATA.md",
+              "INTEGRATIONS.md",
+              "../internal/SEAMS.md",
+              "../internal/TESTING.md"
+            ]
           }
         },
         {
@@ -136,15 +284,40 @@
           "docType": "domains",
           "title": "Domains",
           "description": "Bounded contexts, capabilities, ownership, and source paths",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["bounded-contexts", "capability-ownership", "domain-map"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "bounded-contexts",
+            "capability-ownership",
+            "domain-map"
+          ],
           "maturity": "active",
-          "requiredBy": ["oriented", "implemented"],
+          "requiredBy": [
+            "oriented",
+            "implemented"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Domain Inventory", "Domain Details", "Shared Concepts", "Deferred Domains", "Non-Domains", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
-            "requiredLinks": ["ARCHITECTURE.md", "FLOWS.md", "DATA.md", "../internal/SEAMS.md"]
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Domain Inventory",
+              "Domain Details",
+              "Shared Concepts",
+              "Deferred Domains",
+              "Non-Domains",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
+            "requiredLinks": [
+              "ARCHITECTURE.md",
+              "FLOWS.md",
+              "DATA.md",
+              "../internal/SEAMS.md"
+            ]
           }
         },
         {
@@ -152,14 +325,27 @@
           "docType": "glossary",
           "title": "Glossary",
           "description": "Domain and control-loop vocabulary",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["vocabulary", "terminology"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "vocabulary",
+            "terminology"
+          ],
           "maturity": "active",
-          "requiredBy": ["oriented"],
+          "requiredBy": [
+            "oriented"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -167,15 +353,41 @@
           "docType": "flows",
           "title": "Flows",
           "description": "Workflows and state transitions, centered on the auto-steer control loop",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["workflows", "state-transitions", "control-loop-states"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "workflows",
+            "state-transitions",
+            "control-loop-states"
+          ],
           "maturity": "active",
-          "requiredBy": ["implemented", "validated"],
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Flow Inventory", "Flow Details", "State Machines", "Maturity Ladder", "Production Shape", "Deferred / Unmodeled Flows", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
-            "requiredLinks": ["DOMAINS.md", "DATA.md", "../internal/SEAMS.md", "../internal/TESTING.md"]
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Flow Inventory",
+              "Flow Details",
+              "State Machines",
+              "Maturity Ladder",
+              "Production Shape",
+              "Deferred / Unmodeled Flows",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
+            "requiredLinks": [
+              "DOMAINS.md",
+              "DATA.md",
+              "../internal/SEAMS.md",
+              "../internal/TESTING.md"
+            ]
           }
         },
         {
@@ -183,14 +395,38 @@
           "docType": "data",
           "title": "Data",
           "description": "Data ownership, persistence, retention, and migrations",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["data-model", "storage-ownership", "retention"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "data-model",
+            "storage-ownership",
+            "retention"
+          ],
           "maturity": "active",
-          "requiredBy": ["oriented", "implemented", "deployable"],
+          "requiredBy": [
+            "oriented",
+            "implemented",
+            "deployable"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Storage Overview", "Data Ownership", "Schema Map", "Migrations And Compatibility", "Import / Export", "Retention And Deletion", "Privacy Notes", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Storage Overview",
+              "Data Ownership",
+              "Schema Map",
+              "Migrations And Compatibility",
+              "Import / Export",
+              "Retention And Deletion",
+              "Privacy Notes",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -198,14 +434,36 @@
           "docType": "integrations",
           "title": "Integrations",
           "description": "Resource, scenario, and third-party dependency contracts",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["resources", "scenario-dependencies", "integration-contracts"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "resources",
+            "scenario-dependencies",
+            "integration-contracts"
+          ],
           "maturity": "active",
-          "requiredBy": ["oriented", "implemented", "deployable"],
+          "requiredBy": [
+            "oriented",
+            "implemented",
+            "deployable"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Dependency Inventory", "Vrooli Resources", "Scenario Dependencies", "Third-Party Services", "Failure Modes", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Dependency Inventory",
+              "Vrooli Resources",
+              "Scenario Dependencies",
+              "Third-Party Services",
+              "Failure Modes",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -213,15 +471,51 @@
           "docType": "ui-architecture",
           "title": "UI Architecture",
           "description": "UI source layout and the (not-yet-adopted) slot taxonomy",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["ui-architecture", "ui-layout"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "ui-architecture",
+            "ui-layout"
+          ],
           "maturity": "draft",
-          "requiredBy": ["implemented"],
+          "requiredBy": [
+            "implemented"
+          ],
           "completion": "optional",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Source Layout", "Slots Are A Contract", "Adoption Resolver Flow", "Extending The Manifest", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Source Layout",
+              "Slots Are A Contract",
+              "Adoption Resolver Flow",
+              "Extending The Manifest",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
+        },
+        {
+          "path": "concepts/DIMENSIONS.md",
+          "docType": "dimensions",
+          "title": "Dimensions",
+          "description": "Finding dimensions taxonomy used by the autosteer controller",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "completion": "optional",
+          "requiredBy": [
+            "implemented"
+          ],
+          "canonicalFor": [
+            "dimensions",
+            "dimension-vocabulary"
+          ]
         }
       ]
     },
@@ -238,15 +532,35 @@
           "docType": "monetization",
           "title": "Monetization",
           "description": "Revenue role, packaging, and validation plan",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["monetization", "packaging"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "monetization",
+            "packaging"
+          ],
           "maturity": "draft",
-          "requiredBy": ["monetizable"],
+          "requiredBy": [
+            "monetizable"
+          ],
           "completion": "conditional",
           "condition": "Required when evaluated as a product, SKU component, or service accelerator.",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Role In Vrooli", "Customer / Buyer", "Packaging", "Pricing Hypothesis", "Validation Plan", "Current Status", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Role In Vrooli",
+              "Customer / Buyer",
+              "Packaging",
+              "Pricing Hypothesis",
+              "Validation Plan",
+              "Current Status",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
             "allowNotApplicable": true
           }
         },
@@ -255,15 +569,34 @@
           "docType": "go-to-market",
           "title": "Go To Market",
           "description": "Positioning, channels, and validation experiments",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["go-to-market", "channels"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "go-to-market",
+            "channels"
+          ],
           "maturity": "draft",
-          "requiredBy": ["monetizable"],
+          "requiredBy": [
+            "monetizable"
+          ],
           "completion": "conditional",
           "condition": "Required when the scenario has a market-facing use case.",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Audience And Positioning", "Channels", "Launch Motion", "Messaging", "Validation Experiments", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Audience And Positioning",
+              "Channels",
+              "Launch Motion",
+              "Messaging",
+              "Validation Experiments",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
             "allowNotApplicable": true
           }
         }
@@ -282,14 +615,33 @@
           "docType": "deployment",
           "title": "Deployment",
           "description": "Supported tiers, runtime requirements, and readiness",
-          "audience": ["operators", "developers", "agents"],
-          "canonicalFor": ["deployment", "delivery-tiers"],
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "deployment",
+            "delivery-tiers"
+          ],
           "maturity": "active",
-          "requiredBy": ["deployable"],
+          "requiredBy": [
+            "deployable"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Supported Tiers", "Runtime Requirements", "Packaging", "Release Checklist", "Rollback", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Supported Tiers",
+              "Runtime Requirements",
+              "Packaging",
+              "Release Checklist",
+              "Rollback",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -297,14 +649,33 @@
           "docType": "runbook",
           "title": "Runbook",
           "description": "Operator procedures for running, diagnosing, and recovering",
-          "audience": ["operators", "developers", "agents"],
-          "canonicalFor": ["runbook", "operator-procedures"],
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "runbook",
+            "operator-procedures"
+          ],
           "maturity": "active",
-          "requiredBy": ["deployable"],
+          "requiredBy": [
+            "deployable"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Start / Stop / Status", "Common Incidents", "Backup / Restore", "Maintenance Tasks", "Escalation", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Start / Stop / Status",
+              "Common Incidents",
+              "Backup / Restore",
+              "Maintenance Tasks",
+              "Escalation",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -312,14 +683,35 @@
           "docType": "observability",
           "title": "Observability",
           "description": "Logs, metrics, health signals, and telemetry gaps",
-          "audience": ["operators", "developers", "agents"],
-          "canonicalFor": ["observability", "telemetry", "health-signals"],
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "observability",
+            "telemetry",
+            "health-signals"
+          ],
           "maturity": "active",
-          "requiredBy": ["deployable", "monetizable"],
+          "requiredBy": [
+            "deployable",
+            "monetizable"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Signals", "Logs", "Metrics", "Alerts / Health", "Telemetry Gaps", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Signals",
+              "Logs",
+              "Metrics",
+              "Alerts / Health",
+              "Telemetry Gaps",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         }
       ]
@@ -337,15 +729,56 @@
           "docType": "troubleshooting",
           "title": "Troubleshooting",
           "description": "Common issues and fixes",
-          "audience": ["users", "operators", "developers", "agents"],
-          "canonicalFor": ["troubleshooting", "common-failures"],
+          "audience": [
+            "users",
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "troubleshooting",
+            "common-failures"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated"],
+          "requiredBy": [
+            "generated"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Lifecycle and ports", "API and CLI", "Build and dependencies", "Tests", "Storage (Postgres + filesystem)", "Auto-steer and the queue", "When to add a new entry here", "Cross-references"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Lifecycle and ports",
+              "API and CLI",
+              "Build and dependencies",
+              "Tests",
+              "Storage (Postgres + filesystem)",
+              "Auto-steer and the queue",
+              "When to add a new entry here",
+              "Cross-references"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
+        },
+        {
+          "path": "guides/getting-started.md",
+          "docType": "getting-started",
+          "title": "Getting Started",
+          "description": "First-run walkthrough: start the scenario, create a task, watch it process",
+          "audience": [
+            "users",
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "completion": "optional",
+          "requiredBy": [
+            "generated"
+          ],
+          "canonicalFor": [
+            "getting-started",
+            "first-run"
+          ]
         }
       ]
     },
@@ -362,14 +795,31 @@
           "docType": "api-reference",
           "title": "API Endpoints",
           "description": "REST/JSON HTTP API reference",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["api-reference"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "api-reference"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "implemented"],
+          "requiredBy": [
+            "generated",
+            "implemented"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["System", "Tasks & Queue", "Auto-Steer", "Settings, Discovery & Insights", "Adding a new endpoint", "Cross-references"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "System",
+              "Tasks & Queue",
+              "Auto-Steer",
+              "Settings, Discovery & Insights",
+              "Adding a new endpoint",
+              "Cross-references"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -377,14 +827,32 @@
           "docType": "cli-reference",
           "title": "CLI Commands",
           "description": "CLI command reference (built-ins + scenario commands)",
-          "audience": ["operators", "developers", "agents"],
-          "canonicalFor": ["cli-reference"],
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "cli-reference"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "implemented"],
+          "requiredBy": [
+            "generated",
+            "implemented"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Global flags (provided by cli-core)", "Built-in commands", "Scenario commands", "Output contracts", "Adding a new command", "Cross-references"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Global flags (provided by cli-core)",
+              "Built-in commands",
+              "Scenario commands",
+              "Output contracts",
+              "Adding a new command",
+              "Cross-references"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -392,14 +860,34 @@
           "docType": "configuration-reference",
           "title": "Configuration",
           "description": "Environment variables, service manifest, database, profiles, and test configuration",
-          "audience": ["operators", "developers", "agents"],
-          "canonicalFor": ["configuration-reference", "runtime-configuration"],
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "configuration-reference",
+            "runtime-configuration"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "deployable"],
+          "requiredBy": [
+            "generated",
+            "deployable"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Environment variables", "Service manifest (`.vrooli/service.json`)", "Database & schema bootstrap", "Profiles registry", "CLI config file", "Test/CI configuration", "Cross-references"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Environment variables",
+              "Service manifest (`.vrooli/service.json`)",
+              "Database & schema bootstrap",
+              "Profiles registry",
+              "CLI config file",
+              "Test/CI configuration",
+              "Cross-references"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -407,14 +895,30 @@
           "docType": "ui-manifest-reference",
           "title": "UI Manifest",
           "description": "UI slot manifest status (pre-adoption) and what adopting it entails",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["ui-manifest-reference"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "ui-manifest-reference"
+          ],
           "maturity": "draft",
-          "requiredBy": ["generated"],
+          "requiredBy": [
+            "generated"
+          ],
           "completion": "optional",
           "validation": {
-            "requiredHeadings": ["Contract", "Slots (v1)", "Path-Pattern Tokens", "Resolution Order (Adoption Resolver)", "Overlays", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Contract",
+              "Slots (v1)",
+              "Path-Pattern Tokens",
+              "Resolution Order (Adoption Resolver)",
+              "Overlays",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         }
       ]
@@ -432,15 +936,34 @@
           "path": "internal/SEAMS.md",
           "docType": "seams",
           "title": "Seams",
-          "description": "Boundary registry — interfaces and their production / test fakes",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["seams", "test-substitution"],
+          "description": "Boundary registry \u2014 interfaces and their production / test fakes",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "seams",
+            "test-substitution"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "implemented", "validated"],
+          "requiredBy": [
+            "generated",
+            "implemented",
+            "validated"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["How to read this file", "Current seams", "Adding a new seam", "What is NOT a seam", "Architecture alignment notes", "Cross-references"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "How to read this file",
+              "Current seams",
+              "Adding a new seam",
+              "What is NOT a seam",
+              "Architecture alignment notes",
+              "Cross-references"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -448,14 +971,34 @@
           "docType": "testing",
           "title": "Testing",
           "description": "Layered test patterns, control-loop testing, and coverage expectations",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["testing-strategy", "test-patterns"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "testing-strategy",
+            "test-patterns"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "validated"],
+          "requiredBy": [
+            "generated",
+            "validated"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["TL;DR — the canonical examples", "API testing", "Auto-steer control-loop testing", "UI testing", "CLI testing", "Coverage thresholds", "Common patterns and anti-patterns", "Cross-references"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "TL;DR \u2014 the canonical examples",
+              "API testing",
+              "Auto-steer control-loop testing",
+              "UI testing",
+              "CLI testing",
+              "Coverage thresholds",
+              "Common patterns and anti-patterns",
+              "Cross-references"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -463,14 +1006,32 @@
           "docType": "error-handling",
           "title": "Error Handling",
           "description": "REST/JSON error shape, categories, and UI mapping",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["error-semantics", "recovery-paths"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "error-semantics",
+            "recovery-paths"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "validated"],
+          "requiredBy": [
+            "generated",
+            "validated"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Transport error shape (REST/JSON)", "Error categories", "UI error mapping", "Deviation from the proto/Connect standard", "Cross-references"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Transport error shape (REST/JSON)",
+              "Error categories",
+              "UI error mapping",
+              "Deviation from the proto/Connect standard",
+              "Cross-references"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -478,14 +1039,33 @@
           "docType": "security",
           "title": "Security",
           "description": "Trust model, auth, secrets, threats, and gaps",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["security", "threat-model"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "security",
+            "threat-model"
+          ],
           "maturity": "draft",
-          "requiredBy": ["deployable"],
+          "requiredBy": [
+            "deployable"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Data Sensitivity", "Auth And Authorization", "Secrets", "Threat Model", "Security Gaps", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Data Sensitivity",
+              "Auth And Authorization",
+              "Secrets",
+              "Threat Model",
+              "Security Gaps",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
             "allowNotApplicable": true
           }
         },
@@ -494,15 +1074,34 @@
           "docType": "performance",
           "title": "Performance",
           "description": "Token/time budgets, measurements, and regression procedure",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["performance", "budgets"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "performance",
+            "budgets"
+          ],
           "maturity": "draft",
-          "requiredBy": ["validated", "deployable"],
+          "requiredBy": [
+            "validated",
+            "deployable"
+          ],
           "completion": "conditional",
           "condition": "Required given the scenario's token/time-sensitive agent loops.",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Budgets", "Current Measurements", "Known Constraints", "Regression Procedure", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Budgets",
+              "Current Measurements",
+              "Known Constraints",
+              "Regression Procedure",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
             "allowNotApplicable": true
           }
         },
@@ -511,14 +1110,30 @@
           "docType": "decisions",
           "title": "Decisions",
           "description": "Durable decisions and tradeoffs, including the control-model reframe",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["decision-log", "tradeoffs"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "decision-log",
+            "tradeoffs"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "implemented"],
+          "requiredBy": [
+            "generated",
+            "implemented"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Decision Log", "Superseded Decisions", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Decision Log",
+              "Superseded Decisions",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -526,10 +1141,21 @@
           "docType": "problems",
           "title": "Problems",
           "description": "Known issues, drift, and the controller implementation gap",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["known-problems", "deferred-work", "architecture-drift"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "known-problems",
+            "deferred-work",
+            "architecture-drift"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "implemented", "validated"],
+          "requiredBy": [
+            "generated",
+            "implemented",
+            "validated"
+          ],
           "completion": "required",
           "operations": {
             "appendLog": {
@@ -537,7 +1163,10 @@
               "targetHeading": "Entries",
               "format": "dated-markdown-section",
               "emptyMarker": "_None yet._",
-              "fields": ["title", "body"],
+              "fields": [
+                "title",
+                "body"
+              ],
               "retention": {
                 "supportsReset": true,
                 "dateSource": "heading",
@@ -546,19 +1175,38 @@
             }
           },
           "validation": {
-            "requiredHeadings": ["What belongs here", "What does NOT belong here", "Entry template", "Entries", "Architecture Drift", "Cross-references"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "What belongs here",
+              "What does NOT belong here",
+              "Entry template",
+              "Entries",
+              "Architecture Drift",
+              "Cross-references"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
           "path": "internal/PROGRESS.md",
           "docType": "progress",
           "title": "Progress",
-          "description": "Lifecycle log — append a row whenever work lands",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["change-history", "handoff-log"],
+          "description": "Lifecycle log \u2014 append a row whenever work lands",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "change-history",
+            "handoff-log"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "implemented", "validated"],
+          "requiredBy": [
+            "generated",
+            "implemented",
+            "validated"
+          ],
           "completion": "required",
           "operations": {
             "appendLog": {
@@ -566,7 +1214,12 @@
               "targetHeading": "Progress Log",
               "format": "markdown-table",
               "emptyMarker": "_No progress entries yet._",
-              "fields": ["date", "author", "status", "notes"],
+              "fields": [
+                "date",
+                "author",
+                "status",
+                "notes"
+              ],
               "retention": {
                 "supportsReset": true,
                 "dateSource": "first-column",
@@ -575,15 +1228,66 @@
             }
           },
           "validation": {
-            "requiredHeadings": ["Progress Log"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Progress Log"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
+        },
+        {
+          "path": "internal/COHERENCE-NOTES.md",
+          "docType": "coherence-notes",
+          "title": "Coherence Notes",
+          "description": "Transport & contract drift (REST vs proto Connect-RPC) and the per-domain migration policy",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "completion": "optional",
+          "requiredBy": [
+            "implemented"
+          ],
+          "canonicalFor": [
+            "transport-drift",
+            "coherence-notes"
+          ]
+        },
+        {
+          "path": "internal/MIGRATION-GUIDE.md",
+          "docType": "migration-guide",
+          "title": "Connect-RPC Domain Migration Guide",
+          "description": "Mechanical recipe for migrating one domain off REST/Zod onto proto-first Connect-RPC",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "domain-migration",
+            "connect-migration"
+          ],
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "maturity": "active"
         }
       ]
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "business", "operations", "guides", "reference"],
-    "secondary": ["internal"]
+    "primary": [
+      "getting-started",
+      "concepts",
+      "business",
+      "operations",
+      "guides",
+      "reference"
+    ],
+    "secondary": [
+      "internal"
+    ]
   }
 }

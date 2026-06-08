@@ -29,7 +29,7 @@ are atomic file moves. [CODE: api/pkg/queue/processor.go]
 
 **Auto-steer** — The improvement control loop: applying steer skills
 across iterations and deciding when to advance or stop. The domain the
-[control model](CONTROL-MODEL.md) describes. [CODE: api/pkg/autosteer/]
+[control model](CONTROL-MODEL.md) describes. [CODE: api/pkg/autosteer/decision_trace.go]
 
 ## Control-Loop Terms
 
@@ -53,11 +53,11 @@ and what do I care about most," not a script.
 
 **Dimension** — A canonical improvement axis (`standards`, `tests`,
 `structure`, …) that both test-genie findings and skill declarations map
-to. The vocabulary SSOT. [CODE: api/pkg/dimensions/]
+to. The vocabulary SSOT. [CODE: api/pkg/dimensions/dimensions.go]
 
 **Findings vector** — The controller's primary state: open test-genie
 findings bucketed by dimension and weighted by severity.
-[CODE: api/pkg/findings/]
+[CODE: api/pkg/findings/audit.go]
 
 **Selection** — The controller's greedy SELECT stage: pick the skill that
 best closes the heaviest profile-weighted open dimension.
@@ -138,7 +138,7 @@ controller's state. Wired as the state source via `findings.TestGenieRunner`
 kind of improvement (e.g., `ux`, `test`, `refactor`, `progress`).
 
 **Steering mode** — How a task is steered: a saved profile, an ad-hoc
-mode queue, a single manual mode, or none. [CODE: api/pkg/steering/]
+mode queue, a single manual mode, or none. [CODE: api/pkg/steering/manual_provider.go]
 
 ## Cross-References
 

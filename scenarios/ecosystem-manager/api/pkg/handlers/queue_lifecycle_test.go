@@ -16,7 +16,7 @@ func TestQueueHandlersStartStop(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	_, queueHandlers, _, _, _ := createTestHandlers(t, tempDir)
+	_, queueHandlers, _, _ := createTestHandlers(t, tempDir)
 
 	startReq := httptest.NewRequest(http.MethodPost, "/queue/start", nil)
 	startResp := httptest.NewRecorder()
@@ -51,7 +51,7 @@ func TestQueueHandlersMaintenanceState(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	_, queueHandlers, _, _, _ := createTestHandlers(t, tempDir)
+	_, queueHandlers, _, _ := createTestHandlers(t, tempDir)
 
 	payload := []byte(`{"state":"inactive"}`)
 	req := httptest.NewRequest(http.MethodPost, "/queue/maintenance/state", bytes.NewReader(payload))
@@ -90,7 +90,7 @@ func TestTerminateProcessHandlerNotFound(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	_, queueHandlers, _, _, _ := createTestHandlers(t, tempDir)
+	_, queueHandlers, _, _ := createTestHandlers(t, tempDir)
 
 	body, _ := json.Marshal(map[string]string{"task_id": "non-existent"})
 	req := httptest.NewRequest(http.MethodPost, "/queue/processes/terminate", bytes.NewReader(body))
@@ -108,7 +108,7 @@ func TestTerminateProcessHandlerRespectsAutoRequeueLock(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	_, queueHandlers, _, _, _ := createTestHandlers(t, tempDir)
+	_, queueHandlers, _, _ := createTestHandlers(t, tempDir)
 
 	task := tasks.TaskItem{
 		ID:                   "locked-task",
@@ -133,7 +133,7 @@ func TestTerminateProcessHandlerAllowsPendingWhenAutoRequeueEnabled(t *testing.T
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	_, queueHandlers, _, _, _ := createTestHandlers(t, tempDir)
+	_, queueHandlers, _, _ := createTestHandlers(t, tempDir)
 
 	task := tasks.TaskItem{
 		ID:                   "unlocked-task",

@@ -2,13 +2,13 @@
   "schemaVersion": 6,
   "flowId": "tasks.lifecycle.api",
   "source": {
-    "contractPath": "api/internal/tasks/flow/flow.json",
+    "contractPath": "internal/tasks/flow/flow.json",
     "contractSha256": "5ac261bc0259d3358a2456225f8e89c178f0091bea0583b33de5e0c32e6b4c0e",
     "generatorPath": "flow-verifier",
     "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
     "generatorVersion": 7,
-    "modelPath": "api/internal/tasks/flow/generated/model.qnt",
-    "modelSha256": "b623074f99c5a282f1ff712b23f1f45c380f8267053b316e538a5059646799df",
+    "modelPath": "internal/tasks/flow/generated/model.qnt",
+    "modelSha256": "6a547ade3db852531eb2a97839e7b86caf7cb68347d0b51c7bd9a431182daabb",
     "quintVersion": "0.32.0",
     "verificationBackend": "apalache"
   },
@@ -16,7 +16,7 @@
     "run": [
       "quint",
       "run",
-      "api/internal/tasks/flow/generated/model.qnt",
+      "internal/tasks/flow/generated/model.qnt",
       "--mbt",
       "--seed",
       "2026060801",
@@ -32,19 +32,19 @@
     "test": [
       "quint",
       "test",
-      "api/internal/tasks/flow/generated/model.qnt",
+      "internal/tasks/flow/generated/model.qnt",
       "--seed",
       "2026060801"
     ],
     "typecheck": [
       "quint",
       "typecheck",
-      "api/internal/tasks/flow/generated/model.qnt"
+      "internal/tasks/flow/generated/model.qnt"
     ],
     "verify": [
       "quint",
       "verify",
-      "api/internal/tasks/flow/generated/model.qnt",
+      "internal/tasks/flow/generated/model.qnt",
       "--invariants",
       "TypeOK",
       "TerminalClosure",

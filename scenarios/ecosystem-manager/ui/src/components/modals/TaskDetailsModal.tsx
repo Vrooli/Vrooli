@@ -927,7 +927,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                           ) : (
                             <div className="space-y-1.5">
                               {heaviestDimensions.map(([dim, score]) => {
-                                const max = heaviestDimensions[0][1] || 1;
+                                const max = heaviestDimensions[0]?.[1] || 1;
                                 const width = Math.max(4, Math.round((score / max) * 100));
                                 const count = findings?.dimensionCount?.[dim];
                                 return (

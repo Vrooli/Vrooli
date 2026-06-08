@@ -245,7 +245,7 @@ export function SystemInsightsTab() {
                     </div>
                   ) : (
                     ['critical', 'high', 'medium', 'low']
-                      .filter(priority => suggestionsByPriority[priority]?.length > 0)
+                      .filter(priority => (suggestionsByPriority[priority]?.length ?? 0) > 0)
                       .map(priority => (
                         <div key={priority} className="space-y-2">
                           <div className="flex items-center gap-2">
@@ -253,10 +253,10 @@ export function SystemInsightsTab() {
                               {priority}
                             </Badge>
                             <span className="text-xs text-slate-400">
-                              {suggestionsByPriority[priority].length} suggestions
+                              {(suggestionsByPriority[priority] ?? []).length} suggestions
                             </span>
                           </div>
-                          {suggestionsByPriority[priority].slice(0, 2).map((suggestion, idx) => (
+                          {(suggestionsByPriority[priority] ?? []).slice(0, 2).map((suggestion, idx) => (
                             <div
                               key={`${suggestion.id}-${idx}`}
                               className="border border-white/5 rounded-lg p-3 bg-slate-800/50"

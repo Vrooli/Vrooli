@@ -11,14 +11,16 @@ Add to it whenever you introduce a new interface that production wires
 once and tests substitute. Remove from it only when the seam is
 genuinely gone — not when "we don't fake it yet."
 
-> **Transport note.** Ecosystem-manager is a Go REST/JSON API over
-> `gorilla/mux` ([CODE: api/pkg/server/server.go]), **not** proto +
-> Connect-RPC. Its seams are plain Go interfaces with compile-time
-> assertions (`var _ Iface = (*impl)(nil)`), not generated wire
-> contracts. The "wire contracts live in proto" framing of the template
-> does not apply here — see [ERROR-HANDLING.md](ERROR-HANDLING.md) and
-> [../internal/DECISIONS.md](../internal/DECISIONS.md) for the deviation
-> rationale.
+> **Transport note.** Ecosystem-manager is mid-migration from a Go REST/JSON
+> API over `gorilla/mux` ([CODE: api/pkg/server/server.go]) to proto-first
+> Connect-RPC. The **discovery** domain is the first migrated vertical (the
+> reference — [MIGRATION-GUIDE.md](MIGRATION-GUIDE.md)): its wire contract is
+> the generated `DiscoveryService` and its domain seam is the
+> `internal/discovery.Service` boundary below. The remaining domains still
+> serve REST routes; their seams are plain Go interfaces with compile-time
+> assertions (`var _ Iface = (*impl)(nil)`). Both transports share one mux —
+> see [COHERENCE-NOTES.md](COHERENCE-NOTES.md) and
+> [../internal/DECISIONS.md](../internal/DECISIONS.md).
 
 ## How to read this file
 
@@ -203,9 +205,21 @@ mechanical:
 | Loop = controller | The auto-steer loop was historically described procedurally (start → iterate → advance). | Reframed as a closed-loop controller: `MetricsProvider` is the sensor, agent-manager is the actuator, `PhaseCoordinator`/`ConditionEvaluator` are the control law, `ExecutionStateRepository` holds controller state. | Mental model lives in [../concepts/CONTROL-MODEL.md](../concepts/CONTROL-MODEL.md); keep seam responsibilities mapped to controller roles. |
 | Mixed persistence | Profiles on filesystem YAML, execution state/history in Postgres. | Intentional: profiles are human-editable templates; loop state is transactional. Both sit behind their own repository seam so the split is invisible to the orchestrator. | If a store moves, change only the production impl + its round-trip test; the interface and fakes stay. |
 
+### DiscoveryService (discovery domain — Connect-RPC reference)
+
+| | |
+|---|---|
+| **Seam** | Discovery domain service (resources/scenarios/operations/categories), the reference Connect-RPC vertical |
+| **Interface** | The transport edge is the generated `DiscoveryServiceHandler` ([CODE: packages/proto/schemas/ecosystem-manager/v1/discovery/discovery.proto]); the domain seam is [CODE: api/internal/discovery/service.go]::`Service` (`Resources`, `Scenarios`, `Resource`, `Scenario`, `Operations`, `ResourceCategories`, `ScenarioCategories`) plus `ToConnectError`. |
+| **Production wiring** | `handlers/discovery.Module(assembler)` ([CODE: api/handlers/discovery/module.go]) builds the Connect handler over `internal/discovery.NewService` and mounts it via `connectx.RegisterServices`; registered in `server.connectModules()` ([CODE: api/pkg/server/server.go]) and `internal/modules.AllEndpoints()`/`MigratedDomains()`. |
+| **Test fake** | The discovery sweep is faked at the `commandRunner` seam in [CODE: api/internal/discovery/runner.go] (`execRunner`), exercised by [CODE: api/internal/discovery/discovery_test.go]; the Connect handler maps sentinel errors (`ErrResourceNotFound`→`CodeNotFound`, `ErrEmptyName`→`CodeInvalidArgument`). |
+| **Why it exists** | The copy-this-shape reference for migrating the remaining REST domains (tasks, queue, autosteer, insights, prompts, executions) to Connect-RPC. The thin handler → `internal/<domain>` service split is also the god-object decomposition reference. |
+
 ## Cross-references
 
 - [../concepts/CONTROL-MODEL.md](../concepts/CONTROL-MODEL.md) — auto-steer as a closed-loop controller
+- [MIGRATION-GUIDE.md](MIGRATION-GUIDE.md) — how to migrate a domain to Connect-RPC (discovery worked example)
+- [COHERENCE-NOTES.md](COHERENCE-NOTES.md) — REST↔Connect transport coexistence during migration
 - [../concepts/ARCHITECTURE.md](../concepts/ARCHITECTURE.md) — overall scenario architecture
 - [../internal/DECISIONS.md](../internal/DECISIONS.md) — REST/JSON-over-Connect deviation rationale
 - [TESTING.md](TESTING.md) — control-loop testing pattern using `MockMetricsProvider`

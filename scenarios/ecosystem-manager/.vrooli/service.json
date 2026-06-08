@@ -1,6 +1,18 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "2.0.0",
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.0.1"
+    },
+    "generated_at": "2026-06-08T00:00:00Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    }
+  },
   "service": {
     "name": "ecosystem-manager",
     "displayName": "Ecosystem Manager",
@@ -140,7 +152,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && if [ -f package.json ]; then npm install --silent; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies if package.json exists",
           "condition": {
             "file_exists": "ui/package.json"
@@ -148,7 +160,7 @@
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm run build",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
           "description": "Build production UI"
         },
         {

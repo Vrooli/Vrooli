@@ -2,8 +2,6 @@
 package tasks
 
 import (
-	"ecosystem-manager/cli/internal/appctx"
-	"ecosystem-manager/cli/internal/format"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -11,6 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"ecosystem-manager/cli/internal/appctx"
+	"ecosystem-manager/cli/internal/format"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"

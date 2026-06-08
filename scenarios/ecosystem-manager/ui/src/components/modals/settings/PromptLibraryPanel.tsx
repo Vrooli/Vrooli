@@ -91,7 +91,7 @@ export function PromptLibraryPanel() {
 
   // Build grouped sections with local files and skills
   const groupedSections: GroupedItems[] = useMemo(() => {
-    const groups: Record<string, DropdownItem[]> = {
+    const groups: { skill: DropdownItem[]; template: DropdownItem[]; other: DropdownItem[] } = {
       skill: [],
       template: [],
       other: [],
@@ -99,7 +99,7 @@ export function PromptLibraryPanel() {
 
     // Add local files (excluding phases - those now come from prompt-manager)
     files.forEach((f) => {
-      const key = f.type && groups[f.type] ? f.type : 'other';
+      const key = (f.type && f.type in groups ? f.type : 'other') as keyof typeof groups;
       groups[key].push({
         id: f.id,
         displayName: f.display_name || f.id,
@@ -146,7 +146,7 @@ export function PromptLibraryPanel() {
   // Auto-select first item
   useEffect(() => {
     if (!selectedId && groupedSections.length > 0) {
-      const first = groupedSections[0].items[0];
+      const first = groupedSections[0]?.items[0];
       if (first) {
         setSelectedId(first.id);
       }

@@ -41,7 +41,7 @@ export const extractExecutionFinalMessage = (output?: string, maxLength = 600) =
   if (lines.length === 0) return '';
 
   for (let i = lines.length - 1; i >= 0; i -= 1) {
-    const line = lines[i].toLowerCase();
+    const line = (lines[i] ?? '').toLowerCase();
     const isSummaryHeading = /^#+\s+(task\s+)?(completion\s+)?summary/.test(line);
     const isFinalHeading = line.startsWith('final response') || line.startsWith('final message');
     if (isSummaryHeading || isFinalHeading) {
