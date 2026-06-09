@@ -11,9 +11,10 @@ import (
 
 // TestLiveLLMRerankerFallback proves the degradation chain's second leg works
 // against a real Ollama: with the cross-encoder pointed at a dead address, the
-// chain must select the qwen3:4b LLM reranker and produce a usable ordering.
+// chain must select the LLM reranker (DefaultRerankModel, llama3.2:3b) and
+// produce a usable ordering.
 //
-// Gated on KO_AISEARCH_LIVE (needs the ollama resource with qwen3:4b pulled):
+// Gated on KO_AISEARCH_LIVE (needs the ollama resource with DefaultRerankModel pulled):
 //
 //	KO_AISEARCH_LIVE=1 go test . -run TestLiveLLMRerankerFallback -v
 func TestLiveLLMRerankerFallback(t *testing.T) {
@@ -29,7 +30,7 @@ func TestLiveLLMRerankerFallback(t *testing.T) {
 	chain := NewRerankerChain(dead, llm)
 
 	if !llm.Available(ctx) {
-		t.Skip("qwen3:4b not available via resource-ollama; skipping live fallback proof")
+		t.Skip("DefaultRerankModel not available via resource-ollama; skipping live fallback proof")
 	}
 	if got := chain.ActiveName(ctx); got != llm.Name() {
 		t.Fatalf("active leg = %q, want the LLM reranker %q", got, llm.Name())

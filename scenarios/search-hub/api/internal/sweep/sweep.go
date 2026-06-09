@@ -430,29 +430,31 @@ func (o *Orchestrator) decide(suite *evalv1.EvalSuite, arms []*armEval, incumben
 
 	var winner *armEval
 	var verdict string
-	for _, cand := range candidates {
+	// candidates is pre-sorted best-first (significance-then-tie-break), so only the
+	// top arm can win: a later arm is by construction no better. Evaluate that one
+	// arm against the incumbent's three guards.
+	if len(candidates) > 0 {
+		cand := candidates[0]
 		wVec := vectorOver(cand.recall, tuningFold)
 		iVec := vectorOver(incumbent.recall, tuningFold)
 		mean, lo, hi := pairedMarginCI(wVec, iVec, o.opts.BootstrapIters, o.deps.Rand)
 		held, heldReason := heldoutHolds(cand.recall, incumbent.recall, heldout, o.opts.MinHeldout)
-		if lo <= 0 {
+		switch {
+		case lo <= 0:
 			verdict = fmt.Sprintf("best candidate %s: margin %+.3f, 95%% CI [%+.3f,%+.3f] overlaps 0 — within noise, not promoted.", shortTag(cand.proto.GetTag()), mean, lo, hi)
 			stats.Margin, stats.CiLow, stats.CiHigh = mean, lo, hi
-			break
-		}
-		if !held {
+		case !held:
 			verdict = fmt.Sprintf("best candidate %s: significant on tuning fold (CI [%+.3f,%+.3f]) but %s — not promoted.", shortTag(cand.proto.GetTag()), lo, hi, heldReason)
 			stats.Margin, stats.CiLow, stats.CiHigh = mean, lo, hi
-			break
+		default:
+			// Cleared significance + held-out + (already) feasibility + tie-break order.
+			winner = cand
+			stats.Margin, stats.CiLow, stats.CiHigh = mean, lo, hi
+			stats.WinnerScore = meanOver(cand.recall, positive)
+			stats.HeldoutWinnerScore = meanOver(cand.recall, heldout)
+			verdict = fmt.Sprintf("winner %s: recall %.3f vs incumbent %.3f, paired margin %+.3f (95%% CI [%+.3f,%+.3f] > 0), held-out %.3f ≥ %.3f — promotable.",
+				shortTag(cand.proto.GetTag()), stats.WinnerScore, incScore, mean, lo, hi, stats.HeldoutWinnerScore, incHeldout)
 		}
-		// Cleared significance + held-out + (already) feasibility + tie-break order.
-		winner = cand
-		stats.Margin, stats.CiLow, stats.CiHigh = mean, lo, hi
-		stats.WinnerScore = meanOver(cand.recall, positive)
-		stats.HeldoutWinnerScore = meanOver(cand.recall, heldout)
-		verdict = fmt.Sprintf("winner %s: recall %.3f vs incumbent %.3f, paired margin %+.3f (95%% CI [%+.3f,%+.3f] > 0), held-out %.3f ≥ %.3f — promotable.",
-			shortTag(cand.proto.GetTag()), stats.WinnerScore, incScore, mean, lo, hi, stats.HeldoutWinnerScore, incHeldout)
-		break
 	}
 	if winner == nil && verdict == "" {
 		verdict = fmt.Sprintf("no feasible arm beat the incumbent (recall %.3f) on the tuning fold — incumbent retained.", incTuningFold)

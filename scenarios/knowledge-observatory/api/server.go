@@ -609,7 +609,22 @@ func (s *Server) loadDocsTuning() pkg.TuningConfig {
 		s.log("docs search tuning: provider missing, falling back to DocCorpus preset", map[string]interface{}{"path": path})
 		return pkg.DocCorpusTuning()
 	}
-	return provider.ResolvedTuning()
+	tuning := provider.ResolvedTuning()
+	// KO's docs read+index path (internal/aisearch) is HYBRID BY CONSTRUCTION: the
+	// indexer always builds a NewHybridBinding (dense + BM25 sparse) and the read
+	// service always carries a sparse leg — there is no dense code path. So
+	// tuning.engine is a fixed invariant for this provider, not a tunable axis
+	// (KO also exposes no config_endpoint, so search-hub cannot sweep it). Enforce
+	// the invariant loudly rather than silently honoring a value the engine can't
+	// satisfy: an SSOT that says anything but "hybrid" (including the WithDefaults
+	// "dense" fallback when the field is omitted) is corrected to hybrid with a
+	// warning, so the running config can never diverge from what is actually built.
+	if tuning.Engine != pkg.EngineHybrid {
+		s.log("docs search tuning: engine pinned to hybrid (KO is hybrid by construction; SSOT value ignored)",
+			map[string]interface{}{"ssot_engine": tuning.Engine, "path": path})
+		tuning.Engine = pkg.EngineHybrid
+	}
+	return tuning
 }
 
 // selfRegisterSearch pushes KO's `knowledge-observatory.docs` provider to

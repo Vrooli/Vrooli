@@ -60,7 +60,7 @@ func NewEmbedder(model string) Embedder {
 	return &cliEmbedder{
 		bin:   defaultEmbedderBin,
 		model: model,
-		run:   defaultEmbedRunner,
+		run:   runLocalCLI,
 	}
 }
 
@@ -93,7 +93,7 @@ func NewEmbedderWithPrefixes(model, queryPrefix, docPrefix string) Embedder {
 	return &cliEmbedder{
 		bin:         defaultEmbedderBin,
 		model:       model,
-		run:         defaultEmbedRunner,
+		run:         runLocalCLI,
 		queryPrefix: queryPrefix,
 		docPrefix:   docPrefix,
 	}
@@ -118,7 +118,12 @@ func NewEmbedderWithRunnerPrefixed(model string, run EmbedRunner) Embedder {
 	return &cliEmbedder{bin: defaultEmbedderBin, model: model, run: run, queryPrefix: qp, docPrefix: dp}
 }
 
-func defaultEmbedRunner(ctx context.Context, args []string, stdin []byte) ([]byte, error) {
+// runLocalCLI is the shared default subprocess runner behind both the embedder
+// (EmbedRunner) and the LLM reranker (GenerateRunner) — they shell out the same
+// way (resource-ollama gateway {embed,generate}), so the plumbing lives here
+// once. It runs args[0] with args[1:], pipes stdin when present, and surfaces
+// stderr in the error so a failed gateway call is diagnosable.
+func runLocalCLI(ctx context.Context, args []string, stdin []byte) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	if len(stdin) > 0 {
 		cmd.Stdin = bytes.NewReader(stdin)

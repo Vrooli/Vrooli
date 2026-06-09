@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"sort"
 	"strings"
 	"sync"
@@ -50,11 +49,13 @@ const rerankCandidateCharCap = 700
 const maxCrossEncoderBatch = 32
 
 // =============================================================================
-// LLM-as-reranker (qwen3:4b via resource-ollama gateway generate)
+// LLM-as-reranker (DefaultRerankModel via resource-ollama gateway generate)
 // =============================================================================
 
 // GenerateRunner runs the text-generation subprocess. Injectable so tests
-// substitute a fake without shelling out (mirrors embedder.EmbedRunner).
+// substitute a fake without shelling out. Shares the default implementation
+// (runLocalCLI) with the embedder's EmbedRunner — identical signature, identical
+// gateway-subprocess plumbing.
 type GenerateRunner func(ctx context.Context, args []string, stdin []byte) ([]byte, error)
 
 // LLMReranker scores a shortlist with a local instruction model via
@@ -67,12 +68,12 @@ type LLMReranker struct {
 }
 
 // NewLLMReranker returns the production LLM reranker (shells out to
-// resource-ollama). An empty model defaults to qwen3:4b.
+// resource-ollama). An empty model defaults to DefaultRerankModel.
 func NewLLMReranker(model string) *LLMReranker {
 	if strings.TrimSpace(model) == "" {
 		model = DefaultRerankModel
 	}
-	return &LLMReranker{bin: defaultEmbedderBin, model: model, run: defaultGenerateRunner}
+	return &LLMReranker{bin: defaultEmbedderBin, model: model, run: runLocalCLI}
 }
 
 // NewLLMRerankerWithRunner injects a runner (tests).
@@ -81,24 +82,6 @@ func NewLLMRerankerWithRunner(model string, run GenerateRunner) *LLMReranker {
 		model = DefaultRerankModel
 	}
 	return &LLMReranker{bin: defaultEmbedderBin, model: model, run: run}
-}
-
-func defaultGenerateRunner(ctx context.Context, args []string, stdin []byte) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
-	if len(stdin) > 0 {
-		cmd.Stdin = bytes.NewReader(stdin)
-	}
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			return nil, err
-		}
-		return nil, fmt.Errorf("%s: %w", msg, err)
-	}
-	return stdout.Bytes(), nil
 }
 
 // Name identifies the active reranker for StatusReport / SearchResponse.

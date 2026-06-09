@@ -199,6 +199,11 @@ func main() {
 		SearchFilePath: searchJSONPath,
 		Logger:         logger,
 		OnControlToken: func(_ string, token string) { controlToken.Set(token) },
+		// Echo the cached token on re-registration so a different actor can't hijack
+		// the provider_id. Empty until the first registration completes (in-memory
+		// holder); the hub then treats it as first-contact. Single provider, so the
+		// provider id is irrelevant here.
+		ControlToken: func(string) string { return controlToken.Get() },
 	})
 
 	srv := server.New(

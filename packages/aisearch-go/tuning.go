@@ -150,8 +150,10 @@ type FloorTuning struct {
 }
 
 // Config converts the wire shape to the package FloorConfig the floor band uses.
+// The two structs share field names/types (FloorTuning only adds JSON tags), so a
+// direct conversion suffices.
 func (f FloorTuning) Config() FloorConfig {
-	return FloorConfig{MaxGap: f.MaxGap, HardFloor: f.HardFloor}
+	return FloorConfig(f)
 }
 
 // TuningConfig is the typed, validated value of the `tuning` block in

@@ -46,12 +46,20 @@ production wiring (api-core discovery + a Connect client + a short boot-friendly
 retry) and are overridden in tests. The `RegistryClient` interface is the narrow
 RPC seam unit tests fake.
 
-## What it does NOT do (yet)
+## What it carries
 
-The descriptor is the only payload the current `registry.proto` carries. Pushing
-the `tuning` + `tests` blocks and minting/returning the per-provider **control
-token** arrive with the Phase 3 proto deltas; this package maps the descriptor
-faithfully and drops tuning/tests until the contract carries them.
+The descriptor maps the full `search.json` provider block — including the
+`tuning` block (so search-hub reads the incumbent factors for sweeps) — and the
+`tests` block is mirrored into search-hub's eval store as `<provider_id>.primary`
+via `RegisterSuite` (`corpusStoreMirrorsFile`: the store is a cache of the file,
+re-healed on every boot).
+
+The per-provider **control token** flows both ways: `OnControlToken` receives the
+token search-hub mints/echoes so the scenario can cache it (in memory) to gate its
+own override / reindex / config-write verbs, and `ControlToken` supplies the
+cached token back to Register so it is echoed as ownership proof on
+re-registration (an empty token — first boot, holder not yet populated — is the
+normal first-contact case).
 
 ## Consumers
 

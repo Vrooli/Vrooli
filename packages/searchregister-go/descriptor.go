@@ -38,10 +38,14 @@ import (
 // The tuning block IS now mapped onto the descriptor's `tuning` field (proto
 // field 15, added in Phase 3): search-hub persists the incumbent tuning
 // alongside the descriptor so the sweep can read it via ListProviders/Get
-// without a second round-trip. The tests block is still dropped — the corpus
-// self-registers through EvalService.RegisterSuite, not the descriptor — and the
-// scenario's own boot path reads both tuning and tests directly from search.json
-// (the SSOT). search-hub's stored copy is a convenience, never authoritative.
+// without a second round-trip. The tests block is still dropped HERE — but it is
+// no longer lost: it self-registers through EvalService.RegisterSuite alongside
+// this descriptor push (see Register → registerCorpus, which converts the corpus
+// with corpus.go's SuiteToProto). The descriptor carries routing+tuning; the
+// corpus rides the sibling eval RPC. The scenario's own boot path reads both
+// tuning and tests directly from search.json (the SSOT); search-hub's stored
+// copies (registry tuning + eval suite) are verified mirrors, never authoritative
+// (corpusStoreMirrorsFile).
 //
 // State is deliberately left unset: search-hub's registry Normalize defaults an
 // unspecified state to ACTIVE, so a live provider's search.json need not repeat

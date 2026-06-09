@@ -199,10 +199,10 @@ func complexity(t aisearch.TuningConfig) int {
 		c += 2
 	}
 	if t.RerankBlend {
-		c += 1
+		c++
 	}
 	if t.EmbedTaskPrefix {
-		c += 1
+		c++
 	}
 	return c
 }
