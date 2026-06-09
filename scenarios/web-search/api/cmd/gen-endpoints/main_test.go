@@ -18,11 +18,21 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	seed := filepath.Join(t.TempDir(), "seed.json")
 	writeSeed(t, seed, []CLICommand{
 		{Name: "status", Description: "Health check", EndpointID: "health"},
-		{Name: "notes list", Description: "List notes", EndpointID: "notes_list"},
-		{Name: "notes create", Description: "Create note", EndpointID: "notes_create"},
-		{Name: "notes get", Description: "Get note", EndpointID: "notes_get"},
-		{Name: "notes count", Description: "Count notes", EndpointID: "notes_count"},
-		{Name: "notes attach", Description: "Attach file", EndpointID: "notes_attach"},
+		{Name: "findings list", Description: "List findings", EndpointID: "findings_list"},
+		{Name: "findings get", Description: "Get finding", EndpointID: "findings_get"},
+		{Name: "findings add", Description: "Add finding", EndpointID: "findings_add"},
+		{Name: "findings edit", Description: "Edit finding", EndpointID: "findings_edit"},
+		{Name: "findings supersede", Description: "Supersede finding", EndpointID: "findings_supersede"},
+		{Name: "findings flag", Description: "Flag finding", EndpointID: "findings_flag"},
+		{Name: "disputes list", Description: "List disputed findings", EndpointID: "findings_disputes_list"},
+		{Name: "disputes resolve", Description: "Resolve a dispute", EndpointID: "findings_resolve"},
+		{Name: "findings prune", Description: "Prune findings", EndpointID: "findings_prune"},
+		{Name: "findings search", Description: "Search findings", EndpointID: "findings_search"},
+		{Name: "findings count", Description: "Count findings", EndpointID: "findings_count"},
+		{Name: "search", Description: "Live web search", EndpointID: "livesearch_search"},
+		{Name: "research l2", Description: "L2 research", EndpointID: "research_l2"},
+		{Name: "research l3", Description: "L3 research", EndpointID: "research_l3"},
+		{Name: "research status", Description: "Poll L3 run", EndpointID: "research_status"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -53,8 +63,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 6 {
-		t.Errorf("cli_commands count = %d, want 6", len(got.CLICommands))
+	if len(got.CLICommands) != 16 {
+		t.Errorf("cli_commands count = %d, want 16", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.
@@ -103,15 +113,15 @@ func TestCrossCheck_PassesWhenSeeded(t *testing.T) {
 }
 
 // TestStripBinaryPrefix is the smallest unit on the command-name
-// normalisation step: the endpoint's "web-search notes list"
-// must compare against the seed's "notes list".
+// normalisation step: the endpoint's "web-search findings list"
+// must compare against the seed's "findings list".
 func TestStripBinaryPrefix(t *testing.T) {
 	cases := []struct {
 		in   string
 		want string
 	}{
 		{in: "web-search status", want: "status"},
-		{in: "web-search notes list", want: "notes list"},
+		{in: "web-search findings list", want: "findings list"},
 		{in: "already-stripped", want: "already-stripped"},
 		{in: "web-search", want: "web-search"}, // no trailing space → preserved
 	}

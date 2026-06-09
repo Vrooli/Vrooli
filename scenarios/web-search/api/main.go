@@ -10,20 +10,34 @@ import (
 	"strings"
 
 	"web-search/internal/clock"
+	"web-search/internal/findingindex"
 	"web-search/internal/modules"
 	"web-search/internal/server"
 
+	aisearchpkg "github.com/vrooli/aisearch-go"
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
+	searchregister "github.com/vrooli/searchregister-go"
 	_ "modernc.org/sqlite"
 
+	findingsH "web-search/handlers/findings"
 	healthH "web-search/handlers/health"
-	notesH "web-search/handlers/notes"
+	livesearchH "web-search/handlers/livesearch"
+	researchH "web-search/handlers/research"
+	internalfindings "web-search/internal/findings"
+	internallivesearch "web-search/internal/livesearch"
+	internalresearch "web-search/internal/research"
+	researchagent "web-search/internal/research/agentmanager"
 )
+
+// findingsProviderID is the search-hub provider id whose tuning block in
+// .vrooli/search.json drives the findings semantic index.
+const findingsProviderID = "web-search.learnings"
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
 // with the canonical pragma string. Resolution order:
@@ -113,10 +127,102 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	logger := log.Default()
+
+	// AI search wiring for the findings knowledge store. The scenario-owned
+	// .vrooli/search.json is the SSOT for the search tuning (engine shape, embed
+	// recipe, rerank policy, floor band); the shared aisearch-go engine provides
+	// the embedder + vector store + reconciler + sync loop. LoadConfig supplies
+	// the operational wiring (qdrant address, sync cadence, parallelism, reranker
+	// resource endpoints) from env, not the tuning. The index is best-effort:
+	// when qdrant/ollama are unreachable the rest of the API still serves.
+	searchCfg := aisearchpkg.LoadConfig("WEB_SEARCH")
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		log.Fatalf("resolve repo root: %v", err)
+	}
+	searchJSONPath := filepath.Join(repoRoot, "scenarios", "web-search", ".vrooli", "search.json")
+	findingsTuning := loadFindingsTuning(searchJSONPath, findingsProviderID)
+
+	indexFindings := internalfindings.NewService(internalfindings.NewSQLiteRepository(db, clock.System{}))
+	searcher := findingindex.New(findingsTuning, findingindex.Options{
+		Loader:           indexFindings.LoadIndexable,
+		Parallelism:      searchCfg.ReconcileParallelism,
+		MaxEmbedsPerTick: searchCfg.MaxEmbedsPerTick,
+		EngineDeps: aisearchpkg.EngineDeps{
+			QdrantURL:     searchCfg.QdrantURL,
+			QdrantAPIKey:  searchCfg.QdrantAPIKey,
+			Collection:    findingindex.DefaultCollection,
+			RerankerURL:   searchCfg.RerankerURL,
+			RerankerModel: searchCfg.RerankerModel,
+			RerankModel:   searchCfg.RerankModel,
+		},
+	})
+
+	if err := searcher.EnsureCollection(context.Background()); err != nil {
+		logger.Printf("[web-search] qdrant collection ensure failed (continuing with degraded search): %v", err)
+	}
+
+	// Sync loop drives periodic reconcile of the findings index against qdrant.
+	// Cancelled on shutdown via the Cleanup hook below.
+	syncCtx, cancelSync := context.WithCancel(context.Background())
+	syncLoop := aisearchpkg.NewSyncLoopFunc("web-search", searcher.Reconciler, searchCfg)
+	go syncLoop.Start(syncCtx)
+
+	// Self-register both search providers (web-search.learnings SCOPE_PROJECT and
+	// web-search.live SCOPE_EXTERNAL) with search-hub from the same
+	// .vrooli/search.json SSOT. search-hub is an OPTIONAL dependency, so this runs
+	// in the background with bounded retry and degrades gracefully; the upserts
+	// are idempotent, so re-registering on every boot is safe. The returned
+	// control tokens are cached so a re-registration can echo them as the
+	// ownership proof.
+	tokens := newTokenHolder()
+	go searchregister.Register(syncCtx, searchregister.Config{
+		ScenarioID:     "web-search",
+		SearchFilePath: searchJSONPath,
+		Logger:         logger,
+		OnControlToken: func(providerID, token string) { tokens.set(providerID, token) },
+		ControlToken:   func(providerID string) string { return tokens.get(providerID) },
+	})
+
+	// Live web search (L0) + optional snippet synthesis (L1). The SearXNG
+	// client, in-memory TTL cache, budget governor, and synthesizer are all
+	// seams constructed here from env (with localhost defaults for SearXNG and
+	// Ollama); the service owns the orchestration. Synthesis is off unless a
+	// request opts in, and the raw L0 results are never blocked by it.
+	liveClock := clock.System{}
+	liveService := internallivesearch.NewService(internallivesearch.Deps{
+		Client:      internallivesearch.NewHTTPSearxngClient(os.Getenv("SEARXNG_URL"), nil),
+		Cache:       internallivesearch.NewCache(internallivesearch.DefaultCacheTTL, liveClock),
+		Governor:    internallivesearch.NewGovernor(internallivesearch.DefaultGovernorCapacity, internallivesearch.DefaultGovernorWindow, liveClock),
+		Synthesizer: internallivesearch.NewOllamaSynthesizer(os.Getenv("OLLAMA_URL"), os.Getenv("OLLAMA_SYNTHESIS_MODEL"), nil),
+		Logger:      logger,
+	})
+
+	// L2/L3 deep research. L2 reuses the live-search service for candidate URLs,
+	// the browserless resource for full-page fetch + readable-text extraction,
+	// and an Ollama chat model for the single-pass cited synthesis. L3 hands the
+	// iterative research-and-reconcile loop to an agent-manager run. Every seam is
+	// constructed from env with graceful defaults; all are best-effort, so the API
+	// still serves when browserless/agent-manager are down (L2 abstains, L3
+	// surfaces Unavailable). Capture (L3 always, L2 opt-in) writes to the same
+	// findings store, attributed to the "agent" actor.
+	researchFindings := internalfindings.NewServiceWithActor(internalfindings.NewSQLiteRepository(db, clock.System{}), "agent")
+	researchService := internalresearch.NewService(internalresearch.Deps{
+		Searcher:     internalresearch.LiveSearcher{Service: liveService},
+		Fetcher:      internalresearch.NewBrowserlessFetcher(os.Getenv("BROWSERLESS_URL"), nil),
+		Synthesizer:  internalresearch.NewOllamaSynthesizer(os.Getenv("OLLAMA_URL"), os.Getenv("OLLAMA_SYNTHESIS_MODEL"), nil),
+		Findings:     researchFindings,
+		AgentManager: researchagent.NewService(researchagent.NewHTTPClient()),
+		Logger:       logger,
+	})
+
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "web-search-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, log.Default()),
+		findingsH.Module(db, clock.System{}, searcher, logger),
+		livesearchH.Module(liveService, logger),
+		researchH.Module(researchService, logger),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -125,16 +231,15 @@ func main() {
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
 
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
+	// /measures is the measures-go serve substrate: the central measures index
+	// harvests <prefix>/declarations and the auto-execution path POSTs
+	// <prefix>/execute. The findings domain owns the canonical measure
+	// (findings.count).
+	findingsMeasures, err := findingsH.MeasuresHandler(db, clock.System{})
 	if err != nil {
 		log.Fatalf("measures registry: %v", err)
 	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
+	rootMux.Handle("/measures/", http.StripPrefix("/measures", findingsMeasures))
 
 	rootMux.Handle("/", srv.Handler())
 
@@ -145,9 +250,11 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			cancelSync()
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }
-

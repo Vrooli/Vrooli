@@ -1,18 +1,19 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
-export type ThemeChoice = "light" | "dark" | "system";
+import { ThemeContext, type ThemeChoice, type ThemeContextValue } from "./themeContext";
 
 const STORAGE_KEY = "vrooli.theme";
 
-interface ThemeContextValue {
-  /** The user's stated choice (light/dark/system). */
-  choice: ThemeChoice;
-  /** The currently-applied theme; `system` resolves to light or dark via media query. */
-  resolved: "light" | "dark";
-  setTheme: (choice: ThemeChoice) => void;
-}
-
-const ThemeContext = createContext<ThemeContextValue | null>(null);
+/**
+ * Resolve `window.matchMedia` defensively. lib.dom types it as always-present,
+ * but jsdom (and SSR) can omit it, so we read it through a structurally-typed
+ * view where the method is optional. This keeps the runtime guard honest
+ * without tripping `no-unnecessary-condition` (which trusts the lib.dom type).
+ */
+const getMatchMedia = (): typeof window.matchMedia | undefined => {
+  if (typeof window === "undefined") return undefined;
+  return (window as { matchMedia?: typeof window.matchMedia }).matchMedia;
+};
 
 const readStoredChoice = (): ThemeChoice => {
   if (typeof window === "undefined") return "system";
@@ -25,8 +26,9 @@ const readStoredChoice = (): ThemeChoice => {
 
 const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
   if (choice === "light" || choice === "dark") return choice;
-  if (typeof window === "undefined" || !window.matchMedia) return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  const matchMedia = getMatchMedia();
+  if (!matchMedia) return "light";
+  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
 
 const applyTheme = (resolved: "light" | "dark", choice: ThemeChoice) => {
@@ -55,9 +57,10 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   }, [resolved, choice]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    const matchMedia = getMatchMedia();
+    if (!matchMedia) return undefined;
     if (choice !== "system") return undefined;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const mq = matchMedia("(prefers-color-scheme: dark)");
     const handler = () => setResolved(mq.matches ? "dark" : "light");
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
@@ -74,12 +77,4 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   const value = useMemo<ThemeContextValue>(() => ({ choice, resolved, setTheme }), [choice, resolved, setTheme]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
-}
-
-export function useTheme(): ThemeContextValue {
-  const ctx = useContext(ThemeContext);
-  if (!ctx) {
-    throw new Error("useTheme must be called inside <ThemeProvider>");
-  }
-  return ctx;
 }

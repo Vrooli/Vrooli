@@ -149,6 +149,19 @@ const computeOrphans = () => {
     }
   }
 
+  // A key counts as used if it — or any *ancestor* prefix — is referenced
+  // via the accessor form. The ancestor case covers legitimate dynamic
+  // member access: `t(strings.theme.choice[c])` captures `theme.choice` (the
+  // regex stops at `[`), so every `theme.choice.<variant>` leaf is reached at
+  // runtime even though no per-variant accessor literal appears in source.
+  const ancestorAccessed = (base) => {
+    const segments = base.split(".");
+    for (let i = segments.length; i >= 1; i -= 1) {
+      if (usedAccessors.has(segments.slice(0, i).join("."))) return true;
+    }
+    return false;
+  };
+
   const orphans = [];
   for (const base of basesNeeded) {
     // Two usage signals:
@@ -156,11 +169,12 @@ const computeOrphans = () => {
     //      and the registry-emitted literal at `strings.feature.key`'s leaf
     //      (the registry produces strings, so any consumer of `strings.x.y`
     //      either reads it as a string or accesses it via the accessor form).
-    //   2. Accessor walk — `strings.feature.key` import-time reference, also
+    //   2. Accessor walk — `strings.feature.key` import-time reference (or a
+    //      dynamically-indexed ancestor like `strings.theme.choice[c]`), also
     //      covers test files that import `strings` under any alias since the
     //      regex anchors on the literal `strings.` token.
     if (usedDotted.has(base)) continue;
-    if (usedAccessors.has(base)) continue;
+    if (ancestorAccessed(base)) continue;
     orphans.push(base);
   }
   cached = { orphans, catalogMissing: false };

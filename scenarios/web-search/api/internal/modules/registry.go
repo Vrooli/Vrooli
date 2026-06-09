@@ -22,11 +22,15 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	findingsH "web-search/handlers/findings"
 	healthH "web-search/handlers/health"
-	notesH "web-search/handlers/notes"
+	livesearchH "web-search/handlers/livesearch"
+	researchH "web-search/handlers/research"
 	localdb "web-search/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/notes"
+	findingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/findings"
+	livesearchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch"
+	researchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -36,7 +40,9 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...)
+	out = append(out, findingsH.Endpoints...)
+	out = append(out, livesearchH.Endpoints...)
+	out = append(out, researchH.Endpoints...)
 	return out
 }
 
@@ -63,7 +69,9 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_web_search_v1_notes_notes_proto},
+		{Module: "findings", File: findingsv1.File_web_search_v1_findings_findings_proto},
+		{Module: "livesearch", File: livesearchv1.File_web_search_v1_livesearch_livesearch_proto},
+		{Module: "research", File: researchv1.File_web_search_v1_research_research_proto},
 	}
 }
 
@@ -78,6 +86,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema),
+		apidb.SchemaProviderFunc(findingsH.Schema),
 	}
 }

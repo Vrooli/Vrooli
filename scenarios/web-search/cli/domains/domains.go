@@ -1,7 +1,10 @@
 package domains
 
 import (
-	"web-search/cli/domains/notes"
+	"web-search/cli/domains/disputes"
+	"web-search/cli/domains/findings"
+	"web-search/cli/domains/livesearch"
+	"web-search/cli/domains/research"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -26,9 +29,8 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 //
 // This is the CLI side of the domain-module pattern; the API side uses
 // the same one-liner-per-domain shape via server.New(deps, modules...).
-// See docs/concepts/ARCHITECTURE.md "Domain modules" for the canonical
-// pattern when swapping the notes reference for your scenario's first
-// domain.
+// Each domain package owns a Register(core, manifest) function; append its
+// returned SubcommandGroup to the slice below.
 //
 // For API-backed commands the manifest carries the declarative surface
 // (governance, flags, positionals, RPC binding). Handlers stay in
@@ -36,9 +38,21 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	notesGroup, err := notes.Register(core, manifest)
+	findingsGroup, err := findings.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{notesGroup}, nil
+	livesearchGroup, err := livesearch.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	researchGroup, err := research.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	disputesGroup, err := disputes.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{findingsGroup, livesearchGroup, researchGroup, disputesGroup}, nil
 }

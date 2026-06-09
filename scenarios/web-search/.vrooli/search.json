@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../scripts/scenarios/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "web-search.learnings",
+      "provider_group": "web-search",
+      "bucket": "BUCKET_KNOW",
+      "type": "learning",
+      "description": "Self-curating, citation-backed findings distilled from prior web research. Route here to recall what the system already learned from the web about a topic (project-scope knowledge), rather than hitting the live internet.",
+      "scope": "SCOPE_PROJECT",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "web-search",
+          "path": "/vrooli.web_search.v1.findings.FindingsService/SearchFindings",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "result_mapping": {
+        "results_path": "hits",
+        "id_field": "finding.id",
+        "title_field": "finding.claim",
+        "score_field": "score",
+        "snippet_field": "finding.claim",
+        "path_field": "finding.id",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "rerank_enabled": true,
+        "rerank_blend": true,
+        "rerank_shortlist": 50,
+        "floor": { "max_gap": 0, "hard_floor": 0 }
+      },
+      "tests": {
+        "name": "web-search findings — semantic recall corpus",
+        "description": "Golden corpus for the findings knowledge store. Positive cases assert that a finding's id lands within expect_within_top_k for a natural-language query about its claim. The corpus is seeded at runtime by the scenario; cases here document the intended recall behavior.",
+        "cases": []
+      }
+    },
+    {
+      "provider_id": "web-search.live",
+      "provider_group": "web-search",
+      "bucket": "BUCKET_KNOW",
+      "type": "web",
+      "description": "Live web search via SearXNG. External, rate-limited corpus: reached only on an explicit --type web / --all selector, never on the default federated (auto) query path. Returns raw web results; no synthesis on the federation path.",
+      "scope": "SCOPE_EXTERNAL",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "web-search",
+          "path": "/vrooli.web_search.v1.livesearch.LiveSearchService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"synthesize\":false}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "url",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "url",
+        "score_scale": "SCORE_SCALE_RAW"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text"
+      }
+    }
+  ]
+}

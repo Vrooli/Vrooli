@@ -7,29 +7,79 @@
       "endpoint_id": "health"
     },
     {
-      "name": "notes list",
-      "description": "List all notes (newest-first, default limit 100)",
-      "endpoint_id": "notes_list"
+      "name": "findings list",
+      "description": "List findings (newest-first; superseded excluded unless --include-archived)",
+      "endpoint_id": "findings_list"
     },
     {
-      "name": "notes create",
-      "description": "Create a note (--title TITLE [--body BODY])",
-      "endpoint_id": "notes_create"
+      "name": "findings get",
+      "description": "Get a finding by id",
+      "endpoint_id": "findings_get"
     },
     {
-      "name": "notes get",
-      "description": "Get a note by id",
-      "endpoint_id": "notes_get"
+      "name": "findings add",
+      "description": "Add a citation-backed finding (--claim CLAIM [--confidence C] [--citations url|title,...])",
+      "endpoint_id": "findings_add"
     },
     {
-      "name": "notes count",
-      "description": "Count notes created in a time window (--window WINDOW); the reference measure",
-      "endpoint_id": "notes_count"
+      "name": "findings edit",
+      "description": "Edit a finding's claim/confidence",
+      "endpoint_id": "findings_edit"
     },
     {
-      "name": "notes attach",
-      "description": "Upload an attachment for a note (--file PATH)",
-      "endpoint_id": "notes_attach"
+      "name": "findings supersede",
+      "description": "Supersede a finding (--replacement ID --reason REASON)",
+      "endpoint_id": "findings_supersede"
+    },
+    {
+      "name": "findings flag",
+      "description": "Flag a finding as disputed (--reason REASON)",
+      "endpoint_id": "findings_flag"
+    },
+    {
+      "name": "disputes resolve",
+      "description": "Resolve a disputed finding (--resolution keep|supersede [--replacement ID] [--reason R])",
+      "endpoint_id": "findings_resolve"
+    },
+    {
+      "name": "findings prune",
+      "description": "Prune superseded findings ([--dry-run])",
+      "endpoint_id": "findings_prune"
+    },
+    {
+      "name": "findings search",
+      "description": "Semantic search over findings (QUERY [--limit N] [--include-archived])",
+      "endpoint_id": "findings_search"
+    },
+    {
+      "name": "findings count",
+      "description": "Count findings captured in a time window (--window WINDOW); the canonical measure",
+      "endpoint_id": "findings_count"
+    },
+    {
+      "name": "search",
+      "description": "Live web search (QUERY [--limit N] [--synthesis]); L0 results with optional L1 snippet synthesis",
+      "endpoint_id": "livesearch_search"
+    },
+    {
+      "name": "research l2",
+      "description": "L2 fetch-read-synthesize (QUERY [--top-n N] [--capture]); full-page cited synthesis",
+      "endpoint_id": "research_l2"
+    },
+    {
+      "name": "research l3",
+      "description": "Start an L3 iterative research-and-reconcile run (QUERY)",
+      "endpoint_id": "research_l3"
+    },
+    {
+      "name": "research status",
+      "description": "Poll an L3 research run (ID)",
+      "endpoint_id": "research_status"
+    },
+    {
+      "name": "disputes list",
+      "description": "List disputed findings (the dispute review queue)",
+      "endpoint_id": "findings_disputes_list"
     }
   ]
 }

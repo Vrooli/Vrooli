@@ -32,166 +32,176 @@
       }
     },
     {
-      "id": "notes_list",
-      "path": "/vrooli.web_search.v1.notes.NotesService/ListNotes",
+      "id": "findings_list",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/ListFindings",
       "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.web_search.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ],
+      "summary": "List findings",
+      "description": "Lists findings newest-first. Superseded are excluded unless include_archived; an explicit status filters to one lifecycle state.",
+      "category": "findings",
       "cli_mapping": {
-        "command": "web-search notes list"
+        "command": "web-search findings list"
       }
     },
     {
-      "id": "notes_create",
-      "path": "/vrooli.web_search.v1.notes.NotesService/CreateNote",
+      "id": "findings_get",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/GetFinding",
       "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.web_search.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ],
+      "summary": "Get a finding by id",
+      "description": "Returns the finding (with citations) matching the request id.",
+      "category": "findings",
       "cli_mapping": {
-        "command": "web-search notes create",
-        "args": [
-          "--title",
-          "<title>",
-          "--body",
-          "<body>"
-        ]
-      }
-    },
-    {
-      "id": "notes_get",
-      "path": "/vrooli.web_search.v1.notes.NotesService/GetNote",
-      "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.web_search.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ],
-      "cli_mapping": {
-        "command": "web-search notes get",
+        "command": "web-search findings get",
         "args": [
           "<id>"
         ]
       }
     },
     {
-      "id": "notes_count",
-      "path": "/vrooli.web_search.v1.notes.NotesService/CountNotes",
+      "id": "findings_add",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/AddFinding",
       "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.web_search.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ],
+      "summary": "Add a finding",
+      "description": "Persists a citation-backed claim. Claim is required; confidence is clamped to [0,1].",
+      "category": "findings",
       "cli_mapping": {
-        "command": "web-search notes count",
+        "command": "web-search findings add",
+        "args": [
+          "--claim",
+          "<claim>",
+          "--confidence",
+          "<c>",
+          "--citations",
+          "<url|title,...>"
+        ]
+      }
+    },
+    {
+      "id": "findings_edit",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/EditFinding",
+      "method": "POST",
+      "summary": "Edit a finding",
+      "description": "Overwrites the claim and confidence of an existing finding; appends an audit row.",
+      "category": "findings",
+      "cli_mapping": {
+        "command": "web-search findings edit",
+        "args": [
+          "<id>",
+          "--claim",
+          "<claim>",
+          "--confidence",
+          "<c>"
+        ]
+      }
+    },
+    {
+      "id": "findings_supersede",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/SupersedeFinding",
+      "method": "POST",
+      "summary": "Supersede a finding",
+      "description": "Soft-retires a finding (status=superseded, superseded_by=replacement). Never deletes; excluded from default search.",
+      "category": "findings",
+      "cli_mapping": {
+        "command": "web-search findings supersede",
+        "args": [
+          "<id>",
+          "--replacement",
+          "<id>",
+          "--reason",
+          "<reason>"
+        ]
+      }
+    },
+    {
+      "id": "findings_flag",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/FlagFinding",
+      "method": "POST",
+      "summary": "Flag a finding as disputed",
+      "description": "Moves a finding to DISPUTED with a dispute note. Disputed findings are returned by search with a flag.",
+      "category": "findings",
+      "cli_mapping": {
+        "command": "web-search findings flag",
+        "args": [
+          "<id>",
+          "--reason",
+          "<reason>"
+        ]
+      }
+    },
+    {
+      "id": "findings_disputes_list",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/ListDisputes",
+      "method": "POST",
+      "summary": "List disputed findings",
+      "description": "Returns the DISPUTED findings — the dispute review queue's read side. Convenience over ListFindings(status=disputed).",
+      "category": "findings",
+      "cli_mapping": {
+        "command": "web-search disputes list",
+        "args": [
+          "--limit",
+          "<n>"
+        ]
+      }
+    },
+    {
+      "id": "findings_resolve",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/ResolveDispute",
+      "method": "POST",
+      "summary": "Resolve a disputed finding",
+      "description": "Closes a DISPUTED finding: --resolution keep returns it to ACTIVE (clearing the dispute); --resolution supersede retires it in favor of --replacement. Writes an audit row.",
+      "category": "findings",
+      "cli_mapping": {
+        "command": "web-search disputes resolve",
+        "args": [
+          "<id>",
+          "--resolution",
+          "<keep|supersede>",
+          "--replacement",
+          "<id>",
+          "--reason",
+          "<reason>"
+        ]
+      }
+    },
+    {
+      "id": "findings_prune",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/PruneFindings",
+      "method": "POST",
+      "summary": "Prune superseded findings",
+      "description": "Archives (hard-deletes) superseded findings. --dry-run reports what would be pruned.",
+      "category": "findings",
+      "cli_mapping": {
+        "command": "web-search findings prune",
+        "args": [
+          "--dry-run"
+        ]
+      }
+    },
+    {
+      "id": "findings_search",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/SearchFindings",
+      "method": "POST",
+      "summary": "Semantic search over findings",
+      "description": "Runs the aisearch-go read path over the findings corpus. Default excludes superseded; disputed returned flagged.",
+      "category": "findings",
+      "cli_mapping": {
+        "command": "web-search findings search",
+        "args": [
+          "<query>",
+          "--limit",
+          "<n>",
+          "--include-archived"
+        ]
+      }
+    },
+    {
+      "id": "findings_count",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/CountFindings",
+      "method": "POST",
+      "summary": "Count findings in a time window",
+      "description": "Counts findings captured within the requested canonical time window. Bound to the `findings count` measure.",
+      "category": "findings",
+      "cli_mapping": {
+        "command": "web-search findings count",
         "args": [
           "--window",
           "<window>"
@@ -199,58 +209,65 @@
       }
     },
     {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
+      "id": "livesearch_search",
+      "path": "/vrooli.web_search.v1.livesearch.LiveSearchService/Search",
       "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
+      "summary": "Live web search (L0) with optional snippet synthesis (L1)",
+      "description": "Fans the query out to SearXNG and returns normalized results. With --synthesis, runs an optional always-cited LLM pass over the returned snippets (abstains rather than fabricates). Budget-governed: returns degraded without calling SearXNG when the live budget is exhausted.",
+      "category": "livesearch",
       "cli_mapping": {
-        "command": "web-search notes attach",
+        "command": "web-search search",
         "args": [
-          "<id>",
-          "--file",
-          "<path>"
+          "<query>",
+          "--limit",
+          "<n>",
+          "--synthesis"
         ]
-      },
-      "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message."
+      }
+    },
+    {
+      "id": "research_l2",
+      "path": "/vrooli.web_search.v1.research.ResearchService/RunL2",
+      "method": "POST",
+      "summary": "L2 fetch, read, and single-pass cited synthesis",
+      "description": "Fetches the top-N result pages via browserless, extracts readable text, and produces one always-cited synthesis grounded in full page content (richer than L1 snippet synthesis, at higher latency). With --capture, distills the synthesis into the findings store (L2 capture is opt-in).",
+      "category": "research",
+      "cli_mapping": {
+        "command": "web-search research l2",
+        "args": [
+          "<query>",
+          "--top-n",
+          "<n>",
+          "--capture"
+        ]
+      }
+    },
+    {
+      "id": "research_l3",
+      "path": "/vrooli.web_search.v1.research.ResearchService/RunL3",
+      "method": "POST",
+      "summary": "Start an L3 iterative research-and-reconcile run",
+      "description": "Spawns an agent-manager run that gathers nearby findings, researches the gap with L2 tools, and reconciles (distill, supersede outdated, flag low-confidence contradictions). Returns a run handle to poll. L3 auto-captures findings.",
+      "category": "research",
+      "cli_mapping": {
+        "command": "web-search research l3",
+        "args": [
+          "<query>"
+        ]
+      }
+    },
+    {
+      "id": "research_status",
+      "path": "/vrooli.web_search.v1.research.ResearchService/GetResearchStatus",
+      "method": "POST",
+      "summary": "Poll an L3 research run",
+      "description": "Returns the current status (and final summary when complete) of an L3 research run by id.",
+      "category": "research",
+      "cli_mapping": {
+        "command": "web-search research status",
+        "args": [
+          "<id>"
+        ]
       }
     }
   ],
@@ -261,29 +278,79 @@
       "endpoint_id": "health"
     },
     {
-      "name": "notes list",
-      "description": "List all notes (newest-first, default limit 100)",
-      "endpoint_id": "notes_list"
+      "name": "findings list",
+      "description": "List findings (newest-first; superseded excluded unless --include-archived)",
+      "endpoint_id": "findings_list"
     },
     {
-      "name": "notes create",
-      "description": "Create a note (--title TITLE [--body BODY])",
-      "endpoint_id": "notes_create"
+      "name": "findings get",
+      "description": "Get a finding by id",
+      "endpoint_id": "findings_get"
     },
     {
-      "name": "notes get",
-      "description": "Get a note by id",
-      "endpoint_id": "notes_get"
+      "name": "findings add",
+      "description": "Add a citation-backed finding (--claim CLAIM [--confidence C] [--citations url|title,...])",
+      "endpoint_id": "findings_add"
     },
     {
-      "name": "notes count",
-      "description": "Count notes created in a time window (--window WINDOW); the reference measure",
-      "endpoint_id": "notes_count"
+      "name": "findings edit",
+      "description": "Edit a finding's claim/confidence",
+      "endpoint_id": "findings_edit"
     },
     {
-      "name": "notes attach",
-      "description": "Upload an attachment for a note (--file PATH)",
-      "endpoint_id": "notes_attach"
+      "name": "findings supersede",
+      "description": "Supersede a finding (--replacement ID --reason REASON)",
+      "endpoint_id": "findings_supersede"
+    },
+    {
+      "name": "findings flag",
+      "description": "Flag a finding as disputed (--reason REASON)",
+      "endpoint_id": "findings_flag"
+    },
+    {
+      "name": "disputes resolve",
+      "description": "Resolve a disputed finding (--resolution keep|supersede [--replacement ID] [--reason R])",
+      "endpoint_id": "findings_resolve"
+    },
+    {
+      "name": "findings prune",
+      "description": "Prune superseded findings ([--dry-run])",
+      "endpoint_id": "findings_prune"
+    },
+    {
+      "name": "findings search",
+      "description": "Semantic search over findings (QUERY [--limit N] [--include-archived])",
+      "endpoint_id": "findings_search"
+    },
+    {
+      "name": "findings count",
+      "description": "Count findings captured in a time window (--window WINDOW); the canonical measure",
+      "endpoint_id": "findings_count"
+    },
+    {
+      "name": "search",
+      "description": "Live web search (QUERY [--limit N] [--synthesis]); L0 results with optional L1 snippet synthesis",
+      "endpoint_id": "livesearch_search"
+    },
+    {
+      "name": "research l2",
+      "description": "L2 fetch-read-synthesize (QUERY [--top-n N] [--capture]); full-page cited synthesis",
+      "endpoint_id": "research_l2"
+    },
+    {
+      "name": "research l3",
+      "description": "Start an L3 iterative research-and-reconcile run (QUERY)",
+      "endpoint_id": "research_l3"
+    },
+    {
+      "name": "research status",
+      "description": "Poll an L3 research run (ID)",
+      "endpoint_id": "research_status"
+    },
+    {
+      "name": "disputes list",
+      "description": "List disputed findings (the dispute review queue)",
+      "endpoint_id": "findings_disputes_list"
     }
   ]
 }

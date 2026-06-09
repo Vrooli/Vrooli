@@ -1,17 +1,19 @@
 {
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Web Search are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Web Search",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "title": "Web Search"
   },
   "layout": {
     "sidebarLabel": "Primary navigation",
-    "bottomNavLabel": "Primary navigation",
+    "bottomNavLabel": "Mobile navigation",
+    "mainLabel": "Main content",
     "nav": {
       "dashboard": "Dashboard",
-      "notes": "Notes",
-      "settings": "Settings"
+      "search": "Search",
+      "findings": "Findings",
+      "ops": "Operations",
+      "settings": "Settings",
+      "disputes": "Disputes"
     }
   },
   "theme": {
@@ -28,13 +30,26 @@
       "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
       "statPlaceholderLabel": "Stat"
     },
-    "notes": {
-      "title": "Notes"
-    },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language"
+    },
+    "search": {
+      "title": "Search",
+      "description": "Search the live web or the curated learnings corpus."
+    },
+    "findings": {
+      "title": "Findings",
+      "description": "Manage the self-curating, citation-backed knowledge store."
+    },
+    "disputes": {
+      "title": "Disputes",
+      "description": "Review and resolve contested findings where sources conflict."
+    },
+    "ops": {
+      "title": "Operations",
+      "description": "Dependency status and live-search health signals."
     }
   },
   "health": {
@@ -48,28 +63,135 @@
     "serviceLabel": "Service:",
     "timestampLabel": "Timestamp:"
   },
+  "search": {
+    "placeholder": "Search the web or your learnings…",
+    "submit": "Search",
+    "modeLabel": "Source",
+    "modeLive": "Live web",
+    "modeLearnings": "Learnings",
+    "synthesizeLabel": "Synthesize an answer",
+    "loading": "Searching…",
+    "error": "Search failed: {{message}}",
+    "empty": "No results.",
+    "emptyLearnings": "No matching learnings.",
+    "method": "Method: {{method}}",
+    "cached": "Cached result",
+    "fresh": "Live result",
+    "weak": "Weak match",
+    "resultScore": "Score {{score}}",
+    "resultEngine": "via {{engine}}",
+    "openResult": "Open result in a new tab",
+    "degraded": "Live search degraded: {{reason}}",
+    "synthesisHeading": "Synthesized answer",
+    "synthesisAbstained": "The sources were insufficient or in conflict, so no answer was synthesized.",
+    "synthesisCitations": "Sources"
+  },
+  "history": {
+    "title": "Recent searches",
+    "empty": "No recent searches yet. Run a search to build your history.",
+    "replay": "Replay this search",
+    "clear": "Clear history",
+    "modeLive": "Live",
+    "modeLearnings": "Learnings"
+  },
+  "ops": {
+    "dependenciesHeading": "Dependencies",
+    "dependenciesLoading": "Checking dependencies…",
+    "dependenciesError": "Unable to load dependency status.",
+    "dependencyConnected": "Connected",
+    "dependencyDisconnected": "Unreachable",
+    "dependencyLatency": "{{latency}} ms",
+    "noDependencies": "No dependencies reported.",
+    "lastQueryHeading": "Last live-search health",
+    "lastQueryEmpty": "Run a live web search to populate these signals.",
+    "lastQueryLabel": "Query:",
+    "cachedLabel": "Cache:",
+    "cachedYes": "Served from cache",
+    "cachedNo": "Fetched live",
+    "degradedLabel": "Status:",
+    "degradedYes": "Degraded",
+    "degradedNo": "Healthy",
+    "degradedReasonLabel": "Reason:",
+    "resultCountLabel": "Results:"
+  },
+  "findings": {
+    "filterLabel": "Filter",
+    "filterAll": "All",
+    "filterActive": "Active",
+    "filterDisputed": "Disputed",
+    "filterSuperseded": "Superseded",
+    "includeArchivedLabel": "Include superseded",
+    "loading": "Loading findings…",
+    "error": "Unable to load findings: {{message}}",
+    "empty": "No findings match this filter.",
+    "statusActive": "Active",
+    "statusDisputed": "Disputed",
+    "statusSuperseded": "Superseded",
+    "statusUnspecified": "Unknown",
+    "confidenceLabel": "Confidence {{value}}",
+    "queryLabel": "Query: {{query}}",
+    "citationsLabel": "Citations",
+    "disputeNoteLabel": "Dispute note: {{note}}",
+    "supersededByLabel": "Superseded by {{id}}",
+    "addHeading": "Add a finding",
+    "addClaimLabel": "Claim",
+    "addClaimPlaceholder": "The claim this finding asserts…",
+    "addConfidenceLabel": "Confidence (0–1)",
+    "addQueryLabel": "Query",
+    "addQueryPlaceholder": "The query that surfaced this…",
+    "addCitationUrlPlaceholder": "Citation URL",
+    "addCitationTitlePlaceholder": "Citation title",
+    "addCitationRow": "Add citation",
+    "addCitationRemove": "Remove citation",
+    "addSubmit": "Add finding",
+    "addError": "Could not add finding: {{message}}",
+    "claimRequired": "A claim is required.",
+    "editAction": "Edit",
+    "editSave": "Save",
+    "editCancel": "Cancel",
+    "editClaimLabel": "Claim",
+    "editConfidenceLabel": "Confidence (0–1)",
+    "editError": "Could not save: {{message}}",
+    "supersedeAction": "Supersede",
+    "supersedeReplacementPlaceholder": "Replacement finding ID",
+    "supersedeReasonPlaceholder": "Reason",
+    "supersedeSubmit": "Supersede",
+    "supersedeError": "Could not supersede: {{message}}",
+    "flagAction": "Flag",
+    "flagReasonPlaceholder": "Why is this disputed?",
+    "flagSubmit": "Flag as disputed",
+    "flagError": "Could not flag: {{message}}",
+    "cancel": "Cancel",
+    "pruneHeading": "Prune superseded",
+    "pruneDryRun": "Preview prune",
+    "pruneApply": "Prune now",
+    "pruneError": "Prune failed: {{message}}",
+    "pruneDryRunResult": "{{count}} findings would be pruned.",
+    "pruneDryRunResult_one": "1 finding would be pruned.",
+    "pruneDryRunResult_zero": "Nothing would be pruned.",
+    "pruneApplied": "{{count}} findings pruned.",
+    "pruneApplied_one": "1 finding pruned.",
+    "pruneApplied_zero": "Nothing was pruned."
+  },
+  "disputes": {
+    "loading": "Loading disputes…",
+    "error": "Could not load disputes: {{message}}",
+    "empty": "No disputed findings — the knowledge store is in agreement.",
+    "noteLabel": "Sources conflict: {{note}}",
+    "resolveAction": "Resolve",
+    "resolutionLabel": "Resolution",
+    "resolutionKeep": "Keep (return to active)",
+    "resolutionSupersede": "Supersede",
+    "replacementPlaceholder": "Replacement finding id",
+    "reasonPlaceholder": "Reason for the resolution",
+    "resolveSubmit": "Apply resolution",
+    "cancel": "Cancel",
+    "resolveError": "Could not resolve: {{message}}"
+  },
   "notifications": {
     "summary": "{{count}} notifications",
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

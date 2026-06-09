@@ -248,10 +248,10 @@
       },
       "browserless": {
         "type": "browserless",
-        "enabled": false,
+        "enabled": true,
         "required": false,
-        "startup_policy": "ignore",
-        "description": "Headless browser for L2/L3 page fetch + readable-text extraction. Disabled until the P1 fetch-and-synthesize work lands (OT-P1-001); enable when L2 ships.",
+        "startup_policy": "try_start",
+        "description": "Headless browser for L2/L3 page fetch + readable-text extraction. Backs the L2 fetch-and-synthesize path (OT-P1-001): web-search POSTs result-page URLs to its /content endpoint and extracts readable body text for full-page cited synthesis.",
         "degraded_behavior": "Without browserless, L2/L3 fall back to snippet-only synthesis (L1 behavior); no full-page content extraction."
       }
     },
@@ -264,10 +264,10 @@
         "degraded_behavior": "If search-hub is down at boot, self-registration retries briefly then gives up; web-search serves its own search/research endpoints normally and re-registers on its next boot."
       },
       "agent-manager": {
-        "enabled": false,
+        "enabled": true,
         "required": false,
-        "startup_policy": "ignore",
-        "description": "Agentic run lifecycle for L3 iterative research (OT-P1-002): web-search spawns an agent-manager run that uses L2 endpoints and web-search CLI commands as tools to plan, loop, verify, and emit a cited brief. Disabled until P1/L3 lands; enable when L3 ships.",
+        "startup_policy": "try_start",
+        "description": "Agentic run lifecycle for L3 iterative research (OT-P1-002): web-search spawns an agent-manager run that uses L2 endpoints and web-search CLI commands as tools to plan, loop, verify, and emit a cited brief. The L3 RPC starts the run and returns a handle the caller polls via GetResearchStatus.",
         "degraded_behavior": "Without agent-manager, only L0/L1/L2 (single-pass) research is available; L3 iterative research-and-reconcile is unavailable."
       }
     }
