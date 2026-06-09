@@ -49,15 +49,21 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 	client := newHTTPProviderClient(newScenarioResolver(), httpc.NewDefault())
 	runner := internaleval.NewRunner(resolver, client, clk, uuid.NewString)
 
+	// One registry-side control client drives BOTH the sweep's index-time tier +
+	// tuning write-back AND the eval handler's corpus write-back (generate --apply).
+	controlClient := control.NewClient(control.NewDiscoveryResolver())
+
 	// The sweep orchestrator drives the SAME runner (with per-arm overrides) and
-	// the registry-side control client (for the index-time tier + write-back). Its
-	// arm runner adapts the runner's pure RunWith into the persist-each-arm seam.
+	// the control client. Its arm runner adapts the runner's pure RunWith into the
+	// persist-each-arm seam.
 	sweeper := sweep.New(sweep.Deps{
 		Suites:    store,
 		Providers: resolver,
 		Runner:    armRunner{runner: runner, store: store},
-		Control:   control.NewClient(control.NewDiscoveryResolver()),
-		Clock:     clk,
+		Control:   controlClient,
+		// The registry store doubles as the tuning cache the write-back refreshes.
+		Cache: resolver,
+		Clock: clk,
 	}, sweep.Options{})
 
 	connectPath, connectHandler := evalconnect.NewEvalServiceHandler(NewConnectHandler(Deps{
@@ -69,7 +75,12 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		// runner/sweep use (its index is reached only via its search endpoint) and
 		// inverts items with the local Ollama gateway.
 		Generator: newLiveCorpusGenerator(client),
-		Logger:    logger,
+		// generate --apply writes the grown corpus back to the provider's
+		// search.json via the control client (authorized with the registry-minted
+		// token), then re-registers it into the store.
+		Control: controlClient,
+		Tokens:  resolver,
+		Logger:  logger,
 	}))
 	return module.Module{
 		Name: "eval",

@@ -10,9 +10,11 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	connectxtest "github.com/vrooli/api-core/connectxtest"
 
+	"search-hub/internal/control"
 	"search-hub/internal/corpusgen"
 	internaleval "search-hub/internal/eval"
 
+	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	evalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval/eval_v1connect"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
@@ -46,11 +48,45 @@ func (f *fakeGenerator) Generate(_ context.Context, suite *evalv1.EvalSuite, _ *
 	return f.res, f.err
 }
 
+// fakeCorpusControl is a hand-written handler.CorpusController. It records the
+// corpus written back and (by default) echoes it as the effective corpus, the way
+// a real provider does after a lossless file round-trip.
+type fakeCorpusControl struct {
+	gotCorpus *evalv1.EvalSuite
+	gotToken  string
+	written   bool
+	err       error
+}
+
+func (f *fakeCorpusControl) WriteCorpus(_ context.Context, _ *registryv1.ProviderDescriptor, token string, corpus *evalv1.EvalSuite, _ bool) (*controlv1.WriteCorpusResponse, error) {
+	f.gotCorpus = corpus
+	f.gotToken = token
+	if f.err != nil {
+		return nil, f.err
+	}
+	return &controlv1.WriteCorpusResponse{Written: f.written, Effective: corpus}, nil
+}
+
+// fakeTokens is a hand-written handler.ControlTokenResolver.
+type fakeTokens struct {
+	token string
+	err   error
+}
+
+func (f fakeTokens) Token(_ context.Context, _ string) (string, error) { return f.token, f.err }
+
 func newGenerateClient(t *testing.T, store internaleval.Store, providers internaleval.ProviderResolver, gen handler.CorpusGenerator) evalconnect.EvalServiceClient {
+	t.Helper()
+	// Default apply wiring: a control plane that accepts + echoes the corpus and a
+	// resolvable token, so `--apply` succeeds through WriteCorpus.
+	return newGenerateClientFull(t, store, providers, gen, &fakeCorpusControl{written: true}, fakeTokens{token: "tok-123"})
+}
+
+func newGenerateClientFull(t *testing.T, store internaleval.Store, providers internaleval.ProviderResolver, gen handler.CorpusGenerator, ctrl handler.CorpusController, tokens handler.ControlTokenResolver) evalconnect.EvalServiceClient {
 	t.Helper()
 	logger, _ := connectxtest.NewLogger(t)
 	path, h := evalconnect.NewEvalServiceHandler(handler.NewConnectHandler(handler.Deps{
-		Store: store, Providers: providers, Generator: gen, Logger: logger,
+		Store: store, Providers: providers, Generator: gen, Control: ctrl, Tokens: tokens, Logger: logger,
 	}))
 	server := connectxtest.StartTestServer(t, connectx.ServiceMount{Path: path, Handler: h})
 	return evalconnect.NewEvalServiceClient(server.Client(), server.URL)
@@ -103,10 +139,11 @@ func TestGeneratePreviewDoesNotPersist(t *testing.T) {
 	require.NotEmpty(t, resp.Msg.GetAdequacy())
 }
 
-func TestGenerateApplyAppendsAndPersists(t *testing.T) {
+func TestGenerateApplyWritesFileThenMirrorsStore(t *testing.T) {
 	store := newFakeStore()
 	_, _ = store.UpsertSuite(context.Background(), genSuite())
-	client := newGenerateClient(t, store, genProviders(), &fakeGenerator{res: oneProposal()})
+	ctrl := &fakeCorpusControl{written: true}
+	client := newGenerateClientFull(t, store, genProviders(), &fakeGenerator{res: oneProposal()}, ctrl, fakeTokens{token: "tok-123"})
 
 	resp, err := client.Generate(context.Background(), connect.NewRequest(&evalv1.GenerateRequest{
 		SuiteId: "cli-health.commands.primary", Count: 5, Apply: true,
@@ -114,9 +151,16 @@ func TestGenerateApplyAppendsAndPersists(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, resp.Msg.GetApplied())
 	require.Len(t, resp.Msg.GetSuite().GetCases(), 2, "the proposal is appended to the original case")
+
+	// corpusMutationsGoThroughFile: the grown corpus was written back via the
+	// control plane (WriteCorpus), authorized with the registry-minted token.
+	require.NotNil(t, ctrl.gotCorpus, "apply must write back through WriteCorpus, not a direct store upsert")
+	require.Len(t, ctrl.gotCorpus.GetCases(), 2)
+	require.Equal(t, "tok-123", ctrl.gotToken, "the control token is presented on the write-back")
+
+	// The store then mirrors the file's effective corpus.
 	stored, _ := store.GetSuite(context.Background(), "cli-health.commands.primary")
-	require.Len(t, stored.GetCases(), 2, "the merged suite is persisted")
-	// The appended case carries the generated marker (so the sweep holds it out).
+	require.Len(t, stored.GetCases(), 2, "the store re-syncs to the file's effective corpus")
 	var found bool
 	for _, c := range stored.GetCases() {
 		if c.GetCaseId() == "gen-abc" {
@@ -125,6 +169,40 @@ func TestGenerateApplyAppendsAndPersists(t *testing.T) {
 		}
 	}
 	require.True(t, found)
+}
+
+func TestGenerateApplyNoControlPlaneIsPrecondition(t *testing.T) {
+	store := newFakeStore()
+	_, _ = store.UpsertSuite(context.Background(), genSuite())
+	// The provider declares no control endpoint → cannot write the corpus back.
+	ctrl := &fakeCorpusControl{err: control.ErrNoControlPlane}
+	client := newGenerateClientFull(t, store, genProviders(), &fakeGenerator{res: oneProposal()}, ctrl, fakeTokens{token: "tok-123"})
+
+	_, err := client.Generate(context.Background(), connect.NewRequest(&evalv1.GenerateRequest{
+		SuiteId: "cli-health.commands.primary", Apply: true,
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	// The store was NOT mutated (no reverse drift to a cache the file can't back).
+	stored, _ := store.GetSuite(context.Background(), "cli-health.commands.primary")
+	require.Len(t, stored.GetCases(), 1)
+}
+
+func TestGenerateApplyWithoutControlIsUnimplemented(t *testing.T) {
+	store := newFakeStore()
+	_, _ = store.UpsertSuite(context.Background(), genSuite())
+	logger, _ := connectxtest.NewLogger(t)
+	// Generator wired but NO Control/Tokens → preview works, apply is Unimplemented.
+	path, h := evalconnect.NewEvalServiceHandler(handler.NewConnectHandler(handler.Deps{
+		Store: store, Providers: genProviders(), Generator: &fakeGenerator{res: oneProposal()}, Logger: logger,
+	}))
+	server := connectxtest.StartTestServer(t, connectx.ServiceMount{Path: path, Handler: h})
+	client := evalconnect.NewEvalServiceClient(server.Client(), server.URL)
+	_, err := client.Generate(context.Background(), connect.NewRequest(&evalv1.GenerateRequest{
+		SuiteId: "cli-health.commands.primary", Apply: true,
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
 }
 
 func TestGenerateApplyWithNoProposalsDoesNotPersist(t *testing.T) {

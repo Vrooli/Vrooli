@@ -31,6 +31,7 @@ import (
 
 	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
 	controlconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control/control_v1connect"
+	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 )
 
@@ -169,6 +170,30 @@ func (c *Client) WriteConfig(ctx context.Context, d *registryv1.ProviderDescript
 	err = c.call(ctx, func() error {
 		resp, err := cl.WriteConfig(ctx, connect.NewRequest(&controlv1.WriteConfigRequest{
 			ProviderId: d.GetProviderId(), Tuning: tuning, ControlToken: controlToken, DryRun: dryRun,
+		}))
+		if err != nil {
+			return err
+		}
+		out = resp.Msg
+		return nil
+	})
+	return out, err
+}
+
+// WriteCorpus persists a new evaluation corpus on the provider behind d's
+// config_endpoint — the SAME control plane WriteConfig uses (the corpus + tuning
+// write-backs are sibling verbs on one SearchControlService). The corpus rides as
+// the eval store/wire shape; the provider converts it to its file shape and
+// rewrites only the tests block. A corpus write never triggers a reindex.
+func (c *Client) WriteCorpus(ctx context.Context, d *registryv1.ProviderDescriptor, controlToken string, corpus *evalv1.EvalSuite, dryRun bool) (*controlv1.WriteCorpusResponse, error) {
+	cl, err := c.clientFor(ctx, d.GetConfigEndpoint())
+	if err != nil {
+		return nil, err
+	}
+	var out *controlv1.WriteCorpusResponse
+	err = c.call(ctx, func() error {
+		resp, err := cl.WriteCorpus(ctx, connect.NewRequest(&controlv1.WriteCorpusRequest{
+			ProviderId: d.GetProviderId(), Corpus: corpus, ControlToken: controlToken, DryRun: dryRun,
 		}))
 		if err != nil {
 			return err

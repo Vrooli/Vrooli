@@ -518,6 +518,30 @@ The CI drift check (`make endpoints && git diff --exit-code
 .vrooli/endpoints.json`) fails the build if step 4 was skipped, with
 an actionable diff showing exactly which entries diverged.
 
+## Invariants — eval corpus is a file mirror (Tier-2, cross-cutting)
+
+search-hub's eval store is a CACHE of each provider's `search.json` `tests` block,
+never an independent authority. Each is tagged `// INVARIANT: <name>` at its site.
+
+1. **`corpusMutationsGoThroughFile`.** A corpus mutation (`evals generate --apply`)
+   is written to the owning scenario's `search.json` via the token-gated
+   `WriteCorpus` control RPC, then re-registered into the eval store — never
+   upserted into the store directly. The file stays authoritative; no reverse
+   drift is possible. A provider that declares no control endpoint can PREVIEW but
+   not `--apply`. *Enforced:* `api/handlers/eval/generate.go` (`applyCorpus`);
+   `generate_test.go` (`TestGenerateApplyWritesFileThenMirrorsStore`,
+   `…NoControlPlaneIsPrecondition`).
+2. **Tuning cache refresh is immediate, not reboot-gated.** After a sweep
+   write-back (`WriteConfig`), the registry cache is re-upserted with the freshly
+   written tuning so `ListProviders`/`Get` reflect the SSOT without waiting for the
+   provider's next boot. *Enforced:* `api/internal/sweep/sweep.go`
+   (`refreshTuningCache`); `sweep_test.go` (`TestSweep_WriteBack_RefreshesTuningCache`).
+3. **Shipped eval seeds are a shrinking legacy.** A scenario that owns a
+   `search.json` `tests` block self-registers its corpus at boot and ships no seed
+   (knowledge-observatory graduated this way). The embedded seeds in
+   `api/internal/eval/seeds/` persist ONLY for providers not yet self-registering
+   (swarm-manager.records, ui-health.surfaces) and are deleted as each adopts.
+
 ## Cross-references
 
 - Test fakes lifecycle and naming convention: [`docs/internal/TESTING.md`](TESTING.md).

@@ -14,11 +14,17 @@ import (
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 )
 
-// seedFS holds the eval suites search-hub ships, as protojson files. They are
-// the single source of truth registered at boot (RegisterSeeds) and the
-// fixtures the seed-validity test maps against — embedding keeps the registered
-// suite and the tested suite literally the same bytes (no drift). Mirrors
-// internal/providers/seeds.
+// seedFS holds the SHRINKING set of starter eval suites search-hub still ships,
+// as protojson files, for providers that have NOT yet adopted corpus
+// self-registration. A scenario that owns a `.vrooli/search.json` with a `tests`
+// block self-registers its corpus at boot (searchregister.Register → the eval
+// store mirrors the file — corpusStoreMirrorsFile), and so needs no seed here:
+// knowledge-observatory graduated this way (its starter seed was migrated into
+// scenarios/knowledge-observatory/.vrooli/search.json and deleted). The remaining
+// seeds (swarm-manager.records, ui-health.surfaces) persist ONLY because those
+// scenarios do not yet self-register a search provider at all (no search.json, no
+// boot wiring); migrating them is provider-adoption work tracked separately. When
+// the last scenario adopts, this whole mechanism is deleted.
 //
 //go:embed seeds/*.json
 var seedFS embed.FS

@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/api-core/retry"
 	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
 	controlconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control/control_v1connect"
+	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 )
 
@@ -38,13 +39,15 @@ func (f *fakeResolver) ResolveScenarioURL(_ context.Context, id string) (string,
 // returns the queued errors first (one per call), then canned successes, and
 // records the last request of each kind for assertions.
 type fakeControlClient struct {
-	errs        []error
-	reindexN    int
-	statusN     int
-	cancelN     int
-	writeN      int
-	lastReindex *controlv1.ReindexRequest
-	lastWrite   *controlv1.WriteConfigRequest
+	errs         []error
+	reindexN     int
+	statusN      int
+	cancelN      int
+	writeN       int
+	writeCorpusN int
+	lastReindex  *controlv1.ReindexRequest
+	lastWrite    *controlv1.WriteConfigRequest
+	lastCorpus   *controlv1.WriteCorpusRequest
 }
 
 func (f *fakeControlClient) next() error {
@@ -88,6 +91,15 @@ func (f *fakeControlClient) WriteConfig(_ context.Context, req *connect.Request[
 		return nil, err
 	}
 	return connect.NewResponse(&controlv1.WriteConfigResponse{Written: true, ReindexTriggered: true, ReindexJobId: "job-99"}), nil
+}
+
+func (f *fakeControlClient) WriteCorpus(_ context.Context, req *connect.Request[controlv1.WriteCorpusRequest]) (*connect.Response[controlv1.WriteCorpusResponse], error) {
+	f.writeCorpusN++
+	f.lastCorpus = req.Msg
+	if err := f.next(); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&controlv1.WriteCorpusResponse{Written: true, Effective: req.Msg.GetCorpus()}), nil
 }
 
 // --- helpers ---------------------------------------------------------------
@@ -156,6 +168,46 @@ func TestWriteConfigUsesConfigEndpoint(t *testing.T) {
 	}
 	if !resp.GetReindexTriggered() || resp.GetReindexJobId() != "job-99" {
 		t.Fatalf("unexpected response: %+v", resp)
+	}
+}
+
+func TestWriteCorpusUsesConfigEndpoint(t *testing.T) {
+	res := &fakeResolver{url: "http://localhost:1234"}
+	fc := &fakeControlClient{}
+	c := control.NewClient(res, control.WithClientFactory(func(string) controlconnect.SearchControlServiceClient { return fc }))
+
+	corpus := &evalv1.EvalSuite{SuiteId: "cli-health.commands.primary", Cases: []*evalv1.EvalCase{{CaseId: "c1", Query: "q"}}}
+	resp, err := c.WriteCorpus(context.Background(), descriptorWithControl(), "tok", corpus, false)
+	if err != nil {
+		t.Fatalf("WriteCorpus: %v", err)
+	}
+	if fc.writeCorpusN != 1 {
+		t.Fatalf("WriteCorpus called %d times, want 1", fc.writeCorpusN)
+	}
+	if fc.lastCorpus.GetProviderId() != "cli-health.commands" || fc.lastCorpus.GetControlToken() != "tok" {
+		t.Fatalf("corpus request not threaded: %+v", fc.lastCorpus)
+	}
+	if got := fc.lastCorpus.GetCorpus(); got == nil || len(got.GetCases()) != 1 {
+		t.Fatalf("corpus not forwarded: %+v", fc.lastCorpus)
+	}
+	if !resp.GetWritten() || len(resp.GetEffective().GetCases()) != 1 {
+		t.Fatalf("unexpected response: %+v", resp)
+	}
+}
+
+func TestWriteCorpusNoControlPlane(t *testing.T) {
+	res := &fakeResolver{url: "http://localhost:1234"}
+	fc := &fakeControlClient{}
+	c := control.NewClient(res, control.WithClientFactory(func(string) controlconnect.SearchControlServiceClient { return fc }))
+
+	// A descriptor with no config_endpoint cannot accept a corpus write-back.
+	d := &registryv1.ProviderDescriptor{ProviderId: "x.leaf"}
+	_, err := c.WriteCorpus(context.Background(), d, "tok", &evalv1.EvalSuite{}, false)
+	if !errors.Is(err, control.ErrNoControlPlane) {
+		t.Fatalf("want ErrNoControlPlane, got %v", err)
+	}
+	if fc.writeCorpusN != 0 {
+		t.Fatalf("client must not be called without a control endpoint")
 	}
 }
 

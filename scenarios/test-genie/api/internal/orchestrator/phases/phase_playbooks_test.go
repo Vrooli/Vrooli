@@ -190,6 +190,14 @@ func (stubBAS) ValidateWorkflow(context.Context, *connect.Request[basapi.Validat
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: ValidateWorkflow"))
 }
 
+func (stubBAS) PreviewExecutionArtifactRetention(context.Context, *connect.Request[basapi.ExecutionArtifactRetentionRequest]) (*connect.Response[basapi.ExecutionArtifactRetentionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: PreviewExecutionArtifactRetention"))
+}
+
+func (stubBAS) RunExecutionArtifactRetention(context.Context, *connect.Request[basapi.ExecutionArtifactRetentionRequest]) (*connect.Response[basapi.ExecutionArtifactRetentionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stub: RunExecutionArtifactRetention"))
+}
+
 func (stubBAS) ValidateResolvedWorkflow(_ context.Context, _ *connect.Request[basapi.ValidateWorkflowRequest]) (*connect.Response[basapi.ValidateWorkflowResponse], error) {
 	return connect.NewResponse(&basapi.ValidateWorkflowResponse{
 		Result: &basapi.WorkflowValidationResult{Valid: true},

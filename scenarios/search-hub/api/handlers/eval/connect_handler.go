@@ -7,7 +7,9 @@ import (
 
 	"connectrpc.com/connect"
 
+	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 
 	internaleval "search-hub/internal/eval"
 )
@@ -27,6 +29,21 @@ type Sweeper interface {
 	Run(ctx context.Context, req *evalv1.SweepRequest) (*evalv1.SweepResult, error)
 }
 
+// CorpusController writes a grown corpus back to a provider's search.json SSOT via
+// the token-gated WriteCorpus control RPC. internal/control.Client satisfies it.
+// `generate --apply` routes through this so the FILE is the mutation target, never
+// the store (corpusMutationsGoThroughFile). A server without it can still preview.
+type CorpusController interface {
+	WriteCorpus(ctx context.Context, d *registryv1.ProviderDescriptor, controlToken string, corpus *evalv1.EvalSuite, dryRun bool) (*controlv1.WriteCorpusResponse, error)
+}
+
+// ControlTokenResolver resolves a provider's control token (minted at
+// registration) to present on the WriteCorpus call. The registry store satisfies
+// it (same Token method the sweep uses).
+type ControlTokenResolver interface {
+	Token(ctx context.Context, providerID string) (string, error)
+}
+
 // Deps wires the seams the Connect eval handler needs.
 type Deps struct {
 	Store internaleval.Store
@@ -37,7 +54,13 @@ type Deps struct {
 	Sweeper   Sweeper
 	// Generator proposes machine-generated cases for a suite (Generate RPC).
 	Generator CorpusGenerator
-	Logger    *log.Logger
+	// Control + Tokens drive the corpus write-back: `generate --apply` persists the
+	// grown corpus into the provider's search.json (Control.WriteCorpus, authorized
+	// with Tokens.Token), then re-registers the returned corpus into the store so
+	// the store mirror re-syncs with the file. Both nil => apply is Unimplemented.
+	Control CorpusController
+	Tokens  ControlTokenResolver
+	Logger  *log.Logger
 }
 
 type connectHandler struct {

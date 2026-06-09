@@ -34,6 +34,7 @@ const (
 	Coverage     Name = "coverage"
 	Tidiness     Name = "tidiness"
 	Security     Name = "security"
+	Measures     Name = "measures"
 )
 
 const (

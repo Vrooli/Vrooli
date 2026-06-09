@@ -8,8 +8,11 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
 
+	"search-hub/internal/control"
 	"search-hub/internal/corpusgen"
 	internaleval "search-hub/internal/eval"
+
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 )
@@ -67,16 +70,61 @@ func (h *connectHandler) Generate(ctx context.Context, req *connect.Request[eval
 	}
 
 	if req.Msg.GetApply() && len(proposed) > 0 {
-		if _, err := h.deps.Store.UpsertSuite(ctx, resulting); err != nil {
-			// A validation failure on the merged suite is caller-facing; anything
-			// else is an opaque internal fault.
-			return nil, toConnectError(err)
+		applied, effective, aerr := h.applyCorpus(ctx, desc, resulting)
+		if aerr != nil {
+			return nil, aerr
 		}
-		resp.Applied = true
-		resp.Suite = resulting
+		resp.Applied = applied
+		resp.Suite = effective
 	}
 
 	return connect.NewResponse(resp), nil
+}
+
+// applyCorpus persists the grown corpus to the provider's search.json SSOT through
+// the token-gated WriteCorpus control RPC, then re-registers the returned,
+// now-authoritative corpus into the eval store so the store mirror re-syncs with
+// the file immediately (it would otherwise re-sync only on the scenario's next
+// boot). The store is NEVER the apply target.
+//
+// INVARIANT: corpusMutationsGoThroughFile
+//
+//	A corpus mutation (generate --apply) is written to the scenario's search.json
+//	via WriteCorpus, not to search-hub's store. The store is re-derived from the
+//	file's effective corpus, so the file stays authoritative and no reverse drift
+//	is possible.
+func (h *connectHandler) applyCorpus(ctx context.Context, desc *registryv1.ProviderDescriptor, resulting *evalv1.EvalSuite) (applied bool, effective *evalv1.EvalSuite, err error) {
+	if h.deps.Control == nil || h.deps.Tokens == nil {
+		return false, nil, connect.NewError(connect.CodeUnimplemented,
+			errors.New("corpus write-back is not configured on this server (preview is available; --apply needs the control plane)"))
+	}
+	providerID := desc.GetProviderId()
+	token, terr := h.deps.Tokens.Token(ctx, providerID)
+	if terr != nil {
+		h.deps.Logger.Printf("eval.Generate(apply) token for %q: %v", providerID, terr)
+		return false, nil, connect.NewError(connect.CodeFailedPrecondition,
+			fmt.Errorf("resolve control token for %q: %w", providerID, terr))
+	}
+
+	wc, werr := h.deps.Control.WriteCorpus(ctx, desc, token, resulting, false)
+	if werr != nil {
+		if errors.Is(werr, control.ErrNoControlPlane) {
+			return false, nil, connect.NewError(connect.CodeFailedPrecondition,
+				fmt.Errorf("provider %q declares no control endpoint; a grown corpus cannot be written back to its search.json", providerID))
+		}
+		// permission / argument / not-found from the provider already carry a code;
+		// surface them verbatim. A bare transport failure is logged + Unavailable.
+		h.deps.Logger.Printf("eval.Generate(apply) WriteCorpus %q: %v", providerID, werr)
+		return false, nil, werr
+	}
+
+	effective = wc.GetEffective()
+	// Re-register the file's authoritative corpus into the eval cache so the store
+	// mirrors the file without waiting for the scenario's next boot.
+	if _, uerr := h.deps.Store.UpsertSuite(ctx, effective); uerr != nil {
+		return false, nil, toConnectError(uerr)
+	}
+	return wc.GetWritten(), effective, nil
 }
 
 // toGeneratedCases converts corpusgen proposals into the wire shape.

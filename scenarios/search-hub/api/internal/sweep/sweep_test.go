@@ -100,6 +100,19 @@ func (c *fakeControl) ReindexStatus(_ context.Context, _ *registryv1.ProviderDes
 	return &controlv1.ReindexStatusResponse{JobId: jobID, State: st}, nil
 }
 
+// fakeCache records the descriptor re-upserts the write-back performs to refresh
+// the registry's cached tuning.
+type fakeCache struct {
+	upserts []*registryv1.ProviderDescriptor
+	tokens  []string
+}
+
+func (c *fakeCache) Upsert(_ context.Context, d *registryv1.ProviderDescriptor, token string) (bool, string, error) {
+	c.upserts = append(c.upserts, d)
+	c.tokens = append(c.tokens, token)
+	return false, token, nil
+}
+
 // ---------------------------------------------------------------------------
 // Harness
 // ---------------------------------------------------------------------------
@@ -115,6 +128,10 @@ func makeSuite(n int) *evalv1.EvalSuite {
 }
 
 func newHarness(t *testing.T, suite *evalv1.EvalSuite, incumbent aisearch.TuningConfig, runner *fakeRunner, control *fakeControl) *Orchestrator {
+	return newHarnessWithCache(t, suite, incumbent, runner, control, nil)
+}
+
+func newHarnessWithCache(t *testing.T, suite *evalv1.EvalSuite, incumbent aisearch.TuningConfig, runner *fakeRunner, control *fakeControl, cache TuningCache) *Orchestrator {
 	t.Helper()
 	if control.current == (aisearch.TuningConfig{}) {
 		control.current = incumbent.WithDefaults()
@@ -130,6 +147,7 @@ func newHarness(t *testing.T, suite *evalv1.EvalSuite, incumbent aisearch.Tuning
 		Providers: fakeProviders{d: desc, token: "tok"},
 		Runner:    runner,
 		Control:   control,
+		Cache:     cache,
 		Clock:     clock.System{},
 		Sleep:     func(time.Duration) {},
 		Rand:      newSeededRand(),
@@ -205,6 +223,40 @@ func TestSweep_PromotesClearWinner_QueryTimeOnly(t *testing.T) {
 	}
 	if res.GetStats().GetCiLow() <= 0 {
 		t.Fatalf("a promoted winner must have CI low > 0, got %v", res.GetStats().GetCiLow())
+	}
+}
+
+func TestSweep_WriteBack_RefreshesTuningCache(t *testing.T) {
+	suite := makeSuite(8)
+	inc := aisearch.TuningConfig{Engine: aisearch.EngineDense}.WithDefaults()
+	control := &fakeControl{}
+	cache := &fakeCache{}
+	runner := &fakeRunner{produce: func(tag string) (map[string]bool, *evalv1.EvalAggregate) {
+		agg := &evalv1.EvalAggregate{MaxGibberishScore: 0.3}
+		if strings.Contains(tag, "rerank_enabled=true,rerank_blend=true") {
+			return allSet(posIDs(8)...), agg
+		}
+		return map[string]bool{}, agg
+	}}
+	o := newHarnessWithCache(t, suite, inc, runner, control, cache)
+
+	res, err := o.Run(context.Background(), &evalv1.SweepRequest{SuiteId: "s.primary", QueryTimeOnly: true, Apply: true})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if !res.GetPromoted() {
+		t.Fatalf("expected promotion; recommendation: %s", res.GetRecommendation())
+	}
+	// The registry cache was refreshed exactly once with the winning tuning, under
+	// the provider's control token — no reboot needed for ListProviders to be fresh.
+	if len(cache.upserts) != 1 {
+		t.Fatalf("expected one cache refresh, got %d", len(cache.upserts))
+	}
+	if !cache.upserts[0].GetTuning().GetRerankBlend() {
+		t.Fatalf("cache refreshed with the wrong tuning: %+v", cache.upserts[0].GetTuning())
+	}
+	if cache.tokens[0] != "tok" {
+		t.Fatalf("cache refresh must present the control token, got %q", cache.tokens[0])
 	}
 }
 

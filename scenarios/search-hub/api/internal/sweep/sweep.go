@@ -72,13 +72,27 @@ type ConfigController interface {
 	ReindexStatus(ctx context.Context, d *registryv1.ProviderDescriptor, controlToken, jobID string) (*controlv1.ReindexStatusResponse, error)
 }
 
+// TuningCache refreshes search-hub's cached copy of a provider's tuning after a
+// write-back. WriteConfig persists the winner into the provider's search.json (the
+// SSOT), but the registry cache still holds the old tuning until the provider's
+// next boot re-registers — so ListProviders/Get would report stale tuning in the
+// meantime. Re-upserting the descriptor with the freshly written tuning closes
+// that symmetric staleness immediately. The registry store's Upsert satisfies it.
+// Optional: nil skips the refresh (the next boot re-syncs regardless).
+type TuningCache interface {
+	Upsert(ctx context.Context, d *registryv1.ProviderDescriptor, presentedToken string) (created bool, controlToken string, err error)
+}
+
 // Deps are the seams the orchestrator is constructed over.
 type Deps struct {
 	Suites    SuiteReader
 	Providers ProviderReader
 	Runner    ArmRunner
 	Control   ConfigController
-	Clock     clock.Clock
+	// Cache, when set, is refreshed with the winning tuning after a successful
+	// write-back so the registry cache mirrors the file without a reboot.
+	Cache TuningCache
+	Clock clock.Clock
 	// Sleep waits between reindex-status polls; tests inject a no-op. Defaults to
 	// time.Sleep when nil.
 	Sleep func(time.Duration)
@@ -226,19 +240,39 @@ func (o *Orchestrator) Run(ctx context.Context, req *evalv1.SweepRequest) (*eval
 	// --- Write-back: persist a cleared winner when apply=true. ----------------
 	if req.GetApply() && result.GetWinnerTag() != "" && result.GetWinnerTag() != result.GetIncumbentTag() {
 		winner := winnerTuning(arms, result.GetWinnerTag())
-		_, written, werr := o.applyTuning(ctx, desc, token, winner)
+		resp, written, werr := o.applyTuning(ctx, desc, token, winner)
 		if werr != nil {
 			result.Recommendation += fmt.Sprintf("\nwrite-back FAILED: %v (provider unchanged)", werr)
 		} else {
 			result.Promoted = written
 			if written {
 				result.Recommendation += "\nwrite-back: persisted the winning tuning via config-write."
+				// Refresh the registry cache so search-hub reflects the new tuning
+				// immediately, not only after the provider's next boot re-registers.
+				if cerr := o.refreshTuningCache(ctx, desc, token, resp.GetEffective()); cerr != nil {
+					result.Recommendation += fmt.Sprintf("\nwrite-back: registry cache refresh deferred to next boot (%v).", cerr)
+				}
 			} else {
 				result.Recommendation += "\nwrite-back: no-op (provider already on the winning tuning)."
 			}
 		}
 	}
 	return result, nil
+}
+
+// refreshTuningCache re-upserts the provider descriptor with the freshly written
+// tuning so search-hub's registry cache mirrors the file's SSOT immediately. The
+// control token is presented as the existing-registration secret (an idempotent
+// update, not a new mint). Best-effort: a failure is surfaced on the
+// recommendation, never fatal — the provider's next boot re-registration heals it.
+func (o *Orchestrator) refreshTuningCache(ctx context.Context, desc *registryv1.ProviderDescriptor, token string, effective *registryv1.Tuning) error {
+	if o.deps.Cache == nil || effective == nil {
+		return nil
+	}
+	updated := proto.Clone(desc).(*registryv1.ProviderDescriptor)
+	updated.Tuning = effective
+	_, _, err := o.deps.Cache.Upsert(ctx, updated, token)
+	return err
 }
 
 // runIndexArm realizes one index-time arm: push its config live, wait for the

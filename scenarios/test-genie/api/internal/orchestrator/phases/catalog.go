@@ -151,6 +151,13 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		DefaultTimeout: 180 * time.Second,
 		Description:    "Delegates security posture validation to security-health (secrets, Go SAST, Go vuln-DB, JS deps) and maps findings into the FINDING_SOURCE_SECURITY channel that gates the ecosystem-manager R1 ladder rung.",
 	})
+	register(Spec{
+		Name:           Measures,
+		Runner:         runMeasuresPhase,
+		Optional:       true,
+		DefaultTimeout: 180 * time.Second,
+		Description:    "Delegates measures-coverage validation to measures-health (stateful-domain coverage + per-measure tier) and maps findings into the FINDING_SOURCE_MEASURES channel that feeds the ecosystem-manager soft `measures` ladder dimension.",
+	})
 	return catalog
 }
 

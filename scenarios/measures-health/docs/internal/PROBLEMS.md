@@ -178,13 +178,32 @@ corpus) rather than shipped unexercised.
      then `make endpoints`. Expect proto-gen churn (deleting notes proto regens
      `packages/proto/gen/**` — consistent with the existing regen note below).
 
-4. **Close-out:** capture `git-control-tower baseline snapshot --scenario
-   measures-health --name measures-p4` was NOT taken at phase start (the
-   scenario did not exist yet); take a fresh baseline now as the new floor.
-   Also: test-genie + ecosystem-manager baselines `measures-p4` WERE snapshotted
-   at phase start — run `baseline diff` for both at close-out. Outside-scenario
-   allowlist this phase touched: `packages/proto/schemas/{architecture,measures-health}/**`
-   (+ the broad `packages/proto/gen/**` regen — see the regen note below).
+4. ~~**Close-out**~~ **DONE 2026-06-08.** Captured a fresh measures-health floor
+   `measures-p4-gate7` at Gate-7 start. Diffs at close-out:
+   - **measures-health** `baseline diff measures-p4-gate7`: EXIT 0, Overall
+     `preexisting` — structure/tests/visuals/workflows ✓ no change; only the
+     **inherited preexisting `standards`** failure remains (the scenario-wide
+     react-vite scaffolding campaign, NOT from Gate 7).
+   - **test-genie** `baseline diff measures-p4`: ✓ clean (EXIT 0; 1 unit cleared).
+   - **ecosystem-manager** `baseline diff measures-p4`: EXIT 0 but flags a
+     **visuals regression** ("page no longer captured: /") + inherited
+     preexisting standards/playbooks. **NOT attributable to Gate 7** — Gate 7
+     modified zero files under `scenarios/ecosystem-manager`; the EM working tree
+     is being live-churned by its own autosteer/heartbeat loop concurrent with
+     this work (the make-test log showed "heartbeat supervised lease batch", and
+     the diff reports +3 commits / 660+ files / dirty tree since the 13:43
+     baseline). The regression is a visual-capture *absence* (EM API not live
+     during the snapshot), not a rendered-pixel diff from my changes.
+   - **Restart + smoke:** `vrooli scenario restart measures-health` → running &
+     healthy; `/health` healthy (db connected, v1.0.0); UI root HTTP 200,
+     `<title>Measures Health</title>`. orient passes `example-domain-removed`.
+   - Record: `rec-3a8b343696c734a8`. Outside-scenario allowlist touched:
+     `packages/proto/schemas/measures-health/**` (notes deletion) + the targeted
+     `packages/proto/gen/{go,typescript,python}/measures*health/v1/notes`
+     deletions (minimal-scope, NOT the broad `make generate` regen).
+
+   **Phase 4 is COMPLETE.** Next: Phase 5 (react-vite template reference
+   adoption) — see the plan §7 Phase 5.
 
 **Workaround / state today:** the `validation` half is fully green and usable
 (`measures-health validate scenario <name> [--probe] --json`,
