@@ -3,6 +3,7 @@ package notes
 import (
 	"context"
 	"strings"
+	"time"
 )
 
 // defaultListLimit caps the rows returned by Service.List when the
@@ -30,6 +31,13 @@ type Service interface {
 	// List substitutes defaultListLimit when limit <= 0; otherwise
 	// passes the caller's limit through unchanged.
 	List(ctx context.Context, limit int) ([]Note, error)
+
+	// CountInWindow returns how many notes were created in the half-open
+	// range [from, to). It is the application-layer entry point the
+	// `notes count` measure computes against (both the CountNotes RPC and
+	// the measures-go serve registry call through here, so the measure and
+	// the RPC can never diverge).
+	CountInWindow(ctx context.Context, from, to time.Time) (int, error)
 }
 
 type service struct {
@@ -63,4 +71,8 @@ func (s *service) List(ctx context.Context, limit int) ([]Note, error) {
 		limit = defaultListLimit
 	}
 	return s.repo.List(ctx, limit)
+}
+
+func (s *service) CountInWindow(ctx context.Context, from, to time.Time) (int, error) {
+	return s.repo.Count(ctx, from, to)
 }

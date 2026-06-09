@@ -4,6 +4,7 @@ import (
 	"context"
 	"runtime"
 	"testing"
+	"time"
 )
 
 // queryStore is a VectorStore whose Query returns a preset result set, so the
@@ -280,4 +281,72 @@ func waitJob(t *testing.T, svc *Service, id string) {
 		runtime.Gosched()
 	}
 	t.Fatalf("job %s did not reach a terminal state", id)
+}
+
+// blockingEmbedder blocks the first Embed call until unblocked, letting the
+// test cancel the job while the reconciler is mid-flight.
+type blockingEmbedder struct {
+	unblock chan struct{}
+	once    chan struct{} // closed when the first Embed is entered
+}
+
+func newBlockingEmbedder() *blockingEmbedder {
+	return &blockingEmbedder{
+		unblock: make(chan struct{}),
+		once:    make(chan struct{}),
+	}
+}
+
+func (b *blockingEmbedder) Embed(ctx context.Context, _ string) ([]float64, error) {
+	// Signal the first entry, then block until ctx is cancelled or unblock fires.
+	select {
+	case <-b.once:
+	default:
+		close(b.once)
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-b.unblock:
+		return []float64{0.1, 0.2, 0.3}, nil
+	}
+}
+
+func (b *blockingEmbedder) Available(context.Context) bool { return true }
+
+func TestServiceReindexCancel(t *testing.T) {
+	// Set up a corpus with one doc so the reconciler has real embed work to do.
+	src := &sliceSource{docs: []SourceDoc{doc("README.md", "cancel test content")}}
+	store := newMemStore()
+	emb := newBlockingEmbedder()
+	rec := newDocReconciler(src, store, emb)
+	svc := NewService(ServiceOptions{VectorStore: store, Reconciler: rec})
+
+	job, err := svc.Reindex(context.Background(), "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait until the blocking embedder is entered (job is mid-flight).
+	select {
+	case <-emb.once:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for embed to start")
+	}
+
+	// Cancel the job while it is running.
+	cancelled := svc.ReindexCancel(job.ID)
+	if !cancelled {
+		t.Fatalf("ReindexCancel should return true for a running job")
+	}
+
+	waitJob(t, svc, job.ID)
+
+	got, ok := svc.ReindexStatus(job.ID)
+	if !ok {
+		t.Fatalf("job not found after cancel")
+	}
+	if got.State != "cancelled" {
+		t.Fatalf("job state = %q, want cancelled", got.State)
+	}
 }

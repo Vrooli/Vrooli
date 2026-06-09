@@ -650,7 +650,7 @@ func (x *ResultMapping) GetMeasureField() string {
 
 // Per-leg score floor (query-time). A value of 0 means "use the regime
 // default" — the floor is not disabled, it falls back to aisearch-go's
-// regime-aware FloorForLeg calibration. Carried so the sweep can write a
+// regime-aware floor calibration. Carried so the sweep can write a
 // measured override back into search.json without touching code.
 type FloorConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`

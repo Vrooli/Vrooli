@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.measures;
+
+import "measures/v1/measures.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/measures;measures_v1";
+
+// =============================================================================
+// MEASURES DOMAIN
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain measures
+// @stability beta
+//
+// swarm-manager's declared analytical measures — the granular, individually
+// addressable replacement for the monolithic /stats blob (see
+// docs/plans measures-federated-metrics-layer). Each RPC answers ONE
+// question-family ("how many backlog items were completed this week"),
+// parameterized by the shared canonical vrooli.measures.v1.TimeWindow so that
+// natural-language date extraction targets a typed, deterministically-resolvable
+// field (no LLM) instead of a freeform string.
+//
+// Every method is read-only and run-eligible (governance.effect=read), so
+// search-hub may auto-execute it at high confidence. The same compute path
+// backs both these RPCs and the packages/measures-go serve registry mounted at
+// /measures (GET /measures/declarations + POST /measures/execute), so a measure
+// and its RPC can never report different numbers.
+//
+// All counts are computed over the append-only event log
+// (api/internal/eventlog) — the existing CQRS substrate — via real SQL
+// aggregates (SELECT COUNT(*) … WHERE timestamp IN [from, to)), never a
+// list-and-filter.
+//
+// Procedure paths:
+//   /vrooli.swarm_manager.v1.measures.MeasuresService/CountBacklogCompleted
+//   /vrooli.swarm_manager.v1.measures.MeasuresService/CountBacklogCreated
+//   /vrooli.swarm_manager.v1.measures.MeasuresService/CountExecutionsCompleted
+//   /vrooli.swarm_manager.v1.measures.MeasuresService/CountInitiativesCreated
+//   /vrooli.swarm_manager.v1.measures.MeasuresService/CountAgentSessionsCreated
+// =============================================================================
+
+// CountBacklogCompletedRequest scopes the backlog-completion count to a window.
+message CountBacklogCompletedRequest {
+  // Time window the count is scoped to. The shared canonical TimeWindow type
+  // makes this the `time_window` measure param: the manifest annotates a
+  // `this_week` default and packages/measures-go resolves the token to a
+  // concrete [from, to) range deterministically. An unset window resolves to
+  // the manifest default.
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+// CountBacklogCompletedResponse carries the scalar value_field `count`.
+message CountBacklogCompletedResponse {
+  // Number of backlog items whose status transitioned to "completed" within the
+  // requested window (counted from backlog.status_changed events).
+  int64 count = 1;
+}
+
+// CountBacklogCreatedRequest scopes the backlog-creation count to a window.
+message CountBacklogCreatedRequest {
+  // Time window the count is scoped to (see CountBacklogCompletedRequest).
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+// CountBacklogCreatedResponse carries the scalar value_field `count`.
+message CountBacklogCreatedResponse {
+  // Number of backlog items created within the requested window (counted from
+  // backlog.created events).
+  int64 count = 1;
+}
+
+// CountExecutionsCompletedRequest scopes the execution-completion count.
+message CountExecutionsCompletedRequest {
+  // Time window the count is scoped to (see CountBacklogCompletedRequest).
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+// CountExecutionsCompletedResponse carries the scalar value_field `count`.
+message CountExecutionsCompletedResponse {
+  // Number of executions that completed within the requested window (counted
+  // from execution.completed events).
+  int64 count = 1;
+}
+
+// CountInitiativesCreatedRequest scopes the initiative-creation count.
+message CountInitiativesCreatedRequest {
+  // Time window the count is scoped to (see CountBacklogCompletedRequest).
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+// CountInitiativesCreatedResponse carries the scalar value_field `count`.
+message CountInitiativesCreatedResponse {
+  // Number of initiatives created within the requested window (counted from
+  // initiative.created events).
+  int64 count = 1;
+}
+
+// CountAgentSessionsCreatedRequest scopes the agent-session-creation count.
+message CountAgentSessionsCreatedRequest {
+  // Time window the count is scoped to (see CountBacklogCompletedRequest).
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+// CountAgentSessionsCreatedResponse carries the scalar value_field `count`.
+message CountAgentSessionsCreatedResponse {
+  // Number of agent sessions created within the requested window (counted from
+  // agent_session.created events).
+  int64 count = 1;
+}
+
+// MeasuresService exposes swarm-manager's declared analytical measures as
+// read-only, run-eligible Connect-RPC methods. Each is bound from a manifest
+// `measure` block (cli/manifest.json) and shares its compute path with the
+// /measures serve registry.
+service MeasuresService {
+  // CountBacklogCompleted answers "how many backlog items were completed in
+  // <window>" — the marquee measure. Bound to the `backlog completed` measure.
+  rpc CountBacklogCompleted(CountBacklogCompletedRequest) returns (CountBacklogCompletedResponse);
+
+  // CountBacklogCreated answers "how many backlog items were created in
+  // <window>". Bound to the `backlog created` measure.
+  rpc CountBacklogCreated(CountBacklogCreatedRequest) returns (CountBacklogCreatedResponse);
+
+  // CountExecutionsCompleted answers "how many executions completed in
+  // <window>". Bound to the `execution completed` measure.
+  rpc CountExecutionsCompleted(CountExecutionsCompletedRequest) returns (CountExecutionsCompletedResponse);
+
+  // CountInitiativesCreated answers "how many initiatives were created in
+  // <window>". Bound to the `initiative created` measure.
+  rpc CountInitiativesCreated(CountInitiativesCreatedRequest) returns (CountInitiativesCreatedResponse);
+
+  // CountAgentSessionsCreated answers "how many agent sessions were created in
+  // <window>". Bound to the `agent_session created` measure.
+  rpc CountAgentSessionsCreated(CountAgentSessionsCreatedRequest) returns (CountAgentSessionsCreatedResponse);
+}

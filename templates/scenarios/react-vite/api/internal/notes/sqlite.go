@@ -84,6 +84,16 @@ FROM notes n
 ORDER BY n.created_at DESC, n.id DESC
 LIMIT ?
 `
+
+	// countNotesInWindowSQL counts notes whose created_at is in the
+	// half-open range [from, to). created_at is stored as RFC3339Nano
+	// (noteTimeFormat); that format sorts lexicographically in time order
+	// for a fixed zone, so a string range comparison is a correct filter.
+	countNotesInWindowSQL = `
+SELECT COUNT(*)
+FROM notes n
+WHERE n.created_at >= ? AND n.created_at < ?
+`
 )
 
 func (s *sqliteRepository) Create(ctx context.Context, n Note) (Note, error) {
@@ -144,6 +154,18 @@ func (s *sqliteRepository) List(ctx context.Context, limit int) ([]Note, error) 
 		return nil, fmt.Errorf("iterate notes: %w", err)
 	}
 	return notes, nil
+}
+
+func (s *sqliteRepository) Count(ctx context.Context, from, to time.Time) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, countNotesInWindowSQL,
+		from.UTC().Format(noteTimeFormat),
+		to.UTC().Format(noteTimeFormat),
+	).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count notes in [%s, %s): %w", from, to, err)
+	}
+	return n, nil
 }
 
 // rowScanner unifies *sql.Row and *sql.Rows under their common Scan

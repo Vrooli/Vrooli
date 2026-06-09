@@ -163,7 +163,7 @@ type SearchResult struct {
 	Binding string `protobuf:"bytes,9,opt,name=binding,proto3" json:"binding,omitempty"`
 	// Server-computed weak-match flag: true when this hit falls in the uncertain
 	// band for the regime that produced its score. Computed once in the service
-	// via the shared engine's regime-aware LabelWeak so CLI and UI render an
+	// via the shared engine's regime-aware weak labeling so CLI and UI render an
 	// identical "(weak)" badge without re-deriving a threshold.
 	Weak          bool `protobuf:"varint,10,opt,name=weak,proto3" json:"weak,omitempty"`
 	unknownFields protoimpl.UnknownFields

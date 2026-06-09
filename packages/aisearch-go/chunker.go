@@ -2,7 +2,7 @@ package aisearch
 
 // identityChunker maps one SourceDoc to exactly one Chunk. The 1:1 consumers
 // (cli-health commands, ui-health surfaces) use it; documentation uses the
-// markdown chunker (a KO-local impl, Phase 3). The point ID is assigned by the
+// shared markdown chunker (NewMarkdownChunker, markdown.go). The point ID is assigned by the
 // reconciler from the source's natural key, so a single-chunk source keeps the
 // un-suffixed ID an existing 1:1 collection already uses.
 type identityChunker struct{}

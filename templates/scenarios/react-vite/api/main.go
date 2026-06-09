@@ -124,6 +124,18 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
+
+	// /measures is the measures-go serve substrate: the central measures
+	// index (measures-health) harvests <prefix>/declarations and the
+	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
+	// one reference measure (notes.count); a real multi-domain scenario
+	// registers each domain's measures on one shared registry here.
+	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
+	if err != nil {
+		log.Fatalf("measures registry: %v", err)
+	}
+	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
+
 	rootMux.Handle("/", srv.Handler())
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the

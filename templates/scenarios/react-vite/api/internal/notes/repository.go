@@ -1,6 +1,9 @@
 package notes
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // Repository is the persistence seam the notes service depends on.
 // Production wires the sqlite-backed implementation from sqlite.go;
@@ -23,6 +26,13 @@ type Repository interface {
 	// CreatedAt. limit <= 0 returns no rows; callers requesting "all"
 	// pass an explicit upper bound.
 	List(ctx context.Context, limit int) ([]Note, error)
+
+	// Count returns the number of notes whose CreatedAt falls in the
+	// half-open range [from, to) — From inclusive, To exclusive, matching
+	// the measures-go time-window resolver. It backs the `notes count`
+	// measure: a real aggregate (SELECT COUNT(*)), not a List-and-filter,
+	// so the answer is exact regardless of row volume.
+	Count(ctx context.Context, from, to time.Time) (int, error)
 }
 
 // AttachmentsRepository is the persistence seam for note attachment

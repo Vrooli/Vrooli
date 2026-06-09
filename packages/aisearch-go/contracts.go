@@ -227,7 +227,7 @@ type HybridQuery struct {
 // SearchResult is THE result type for the whole read path — there is no
 // separate "hit" type. It starts life as a raw vector-store hit (only ID,
 // Score, Payload set), is reordered by ApplyRerank, filtered by
-// ApplyRelevanceFloor, weak-labeled by LabelWeak (which sets Weak), and finally
+// ApplyRelevanceFloor, weak-labeled by LabelWeakForMethod (which sets Weak), and finally
 // projected in place by an adopter's Projector (which fills the projection
 // fields below from Payload). Carrying one type end-to-end is deliberate: it is
 // why no adopter re-implements rerank reordering against a second "hit" type.
@@ -247,7 +247,7 @@ type SearchResult struct {
 	Snippet      string
 	Path         string
 	SourceID     string
-	// Weak is set by LabelWeak from the active reranker leg's regime; carried so
+	// Weak is set by LabelWeakForMethod from the active regime; carried so
 	// CLI and UI never re-derive (and never drift on) the weak/strong threshold.
 	Weak bool
 }

@@ -1,6 +1,7 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { NotesCard } from "../features/notes/NotesCard";
+import { NotesMeasureCard } from "../features/notes/NotesMeasureCard";
 import { useTranslation } from "../i18n";
 
 export function NotesPage() {
@@ -15,6 +16,7 @@ export function NotesPage() {
       <h2 id="notes-heading" className="text-2xl font-semibold">
         {t(strings.pages.notes.title)}
       </h2>
+      <NotesMeasureCard />
       <NotesCard />
     </section>
   );

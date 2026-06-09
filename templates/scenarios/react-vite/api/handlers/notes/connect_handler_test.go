@@ -17,16 +17,28 @@ import (
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
 	notesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes/notes_v1connect"
 
+	measuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures/v1"
+
 	internalnotes "{{SCENARIO_ID}}/internal/notes"
 	mocks "{{SCENARIO_ID}}/internal/notes/mocks"
+	clockmocks "{{SCENARIO_ID}}/internal/testutil/mocks"
 )
 
 func newNotesClient(t *testing.T, fake *mocks.FakeService, logger *log.Logger) notesconnect.NotesServiceClient {
 	t.Helper()
+	return newNotesClientWithClock(t, fake, logger, nil)
+}
+
+func newNotesClientWithClock(t *testing.T, fake *mocks.FakeService, logger *log.Logger, clk *clockmocks.FakeClock) notesconnect.NotesServiceClient {
+	t.Helper()
 	if logger == nil {
 		logger, _ = connectxtest.NewLogger(t)
 	}
-	path, handler := notesconnect.NewNotesServiceHandler(notes.NewConnectHandler(notes.Deps{Service: fake, Logger: logger}))
+	deps := notes.Deps{Service: fake, Logger: logger}
+	if clk != nil {
+		deps.Clock = clk
+	}
+	path, handler := notesconnect.NewNotesServiceHandler(notes.NewConnectHandler(deps))
 	server := connectxtest.StartTestServer(t, connectx.ServiceMount{Path: path, Handler: handler})
 	return notesconnect.NewNotesServiceClient(server.Client(), server.URL)
 }
@@ -82,6 +94,35 @@ func TestConnectHandlerGetReturnsNotFound(t *testing.T) {
 	_, err := client.GetNote(context.Background(), connect.NewRequest(&notesv1.GetNoteRequest{Id: "ghost"}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+func TestConnectHandlerCountResolvesWindow(t *testing.T) {
+	// Wednesday 2026-05-06 12:00 UTC; start of that ISO week is Monday 2026-05-04 00:00.
+	now := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
+	fake := &mocks.FakeService{CountOut: 7}
+	client := newNotesClientWithClock(t, fake, nil, clockmocks.NewFakeClock(now))
+
+	resp, err := client.CountNotes(context.Background(), connect.NewRequest(&notesv1.CountNotesRequest{
+		Window: &measuresv1.TimeWindow{Window: &measuresv1.TimeWindow_Token{Token: measuresv1.TimeWindowToken_TIME_WINDOW_TOKEN_THIS_WEEK}},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, int64(7), resp.Msg.Count)
+	require.Len(t, fake.CountWindows, 1)
+	require.Equal(t, time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC), fake.CountWindows[0][0].UTC())
+	require.Equal(t, now, fake.CountWindows[0][1].UTC())
+}
+
+func TestConnectHandlerCountDefaultsToThisWeekWhenUnset(t *testing.T) {
+	now := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
+	fake := &mocks.FakeService{CountOut: 3}
+	client := newNotesClientWithClock(t, fake, nil, clockmocks.NewFakeClock(now))
+
+	// No Window set: the handler defaults to this_week rather than erroring.
+	resp, err := client.CountNotes(context.Background(), connect.NewRequest(&notesv1.CountNotesRequest{}))
+	require.NoError(t, err)
+	require.Equal(t, int64(3), resp.Msg.Count)
+	require.Len(t, fake.CountWindows, 1)
+	require.Equal(t, time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC), fake.CountWindows[0][0].UTC())
 }
 
 func TestConnectHandlerGetInternalErrorLogs(t *testing.T) {

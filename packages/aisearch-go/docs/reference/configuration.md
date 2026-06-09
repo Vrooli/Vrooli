@@ -40,9 +40,13 @@ reads below.
 | `QDRANT_URL` | string | `http://127.0.0.1:6333` | Qdrant address. |
 | `QDRANT_API_KEY` | string | `""` | Qdrant auth. |
 | `EMBED_MODEL` | string | `nomic-embed-text` | Dense embedding model. **Changing it is a deliberate re-index** (the schema guard fails loudly on a model mismatch). |
+| `EMBED_TASK_PREFIX` | bool | `false` | Opt into asymmetric task-instruction prefixes (`search_query:`/`search_document:`) for models like nomic-embed-text. Measured +0.20 recall@5. Flipping it changes the embedding space and triggers an automatic full re-index on the next reconcile tick. Leave off for a guarded/symmetric baseline until you have measured it. |
 | `RERANK_ENABLED` | bool | `false` | **The one genuine lever.** See §3. |
+| `RERANK_BLEND` | bool | `false` | Fuse the reranker order with the retrieval order via `ApplyRerankRRF` instead of letting the reranker order win outright. Prevents a strongly-retrieved canonical result from being buried by literal-token lookalikes (measured +0.20 recall on the cli-health command corpus, no precision loss). Requires `RERANK_ENABLED`. The RRF fusion constant is `ServiceOptions.RerankRRFK` (≤0 → `DefaultRRFK = 60`). |
 | `RERANK_MODEL` | string | `llama3.2:3b` | LLM-fallback rerank model. Must be a *non-reasoning* instruct model (see §4). |
 | `RERANK_SHORTLIST` | int [1,500] | `50` | Over-fetch depth handed to the reranker: the query pulls this many candidates (or the page size, whichever is larger) so the reranker reorders a meaningful pool before the page is sliced. Higher = better recall into the rerank; negligible latency on the cross-encoder, real cost on the LLM leg. |
+| `RERANKER_URL` | string | `""` (falls back to resource env) | Cross-encoder reranker endpoint. When empty, the reranker resource's own unprefixed env (`RERANKER_BASE_URL`/`RERANKER_URL`/`RERANKER_HOST+PORT`) is used — preserving zero-config local use. Lets two scenarios on one host point at different reranker instances. |
+| `RERANKER_MODEL` | string | `""` (falls back to resource env) | Cross-encoder model identifier read by the reranker resource. Distinct from `RERANK_MODEL` (which selects the LLM *fallback* leg). When empty, the resource's own env applies. |
 | `RELEVANCE_MAX_GAP` | float | `0` (unset → regime) | **Override only.** See §2. |
 | `RELEVANCE_HARD_FLOOR` | float | `0` (unset → regime) | **Override only.** See §2. |
 
@@ -64,15 +68,18 @@ response already reports. So the thresholds are a **regime → band table that
 lives once in the package** (`relevance.go`, `floor.go`); an adopter inherits
 correct behavior with no configuration:
 
-- **`LabelWeak(leg, score) bool`** — the single home for the "weak vs strong"
-  decision. The service computes it **once** and carries a `weak` bool to every
-  consumer, so CLI and UI render an identical badge and never re-derive (or
-  drift on) a threshold.
-- **`FloorForLeg(leg, override) FloorConfig`** — returns the regime-appropriate
-  `{MaxGap, HardFloor}` for the active leg. The cross-encoder floor leans on
-  `HardFloor` (kill the ~0 gibberish) with a permissive `MaxGap` (don't
-  relatively cut a legitimately weak-but-real answer); cosine keeps the legacy
-  `{0.15, 0.35}`.
+- **`LabelWeakForMethod(method, leg string, score float64) bool`** — the single
+  home for the "weak vs strong" decision. The service computes it **once** and
+  carries a `weak` bool to every consumer, so CLI and UI render an identical badge
+  and never re-derive (or drift on) a threshold. Being method-aware, it classifies
+  a rerank-off hybrid leg on the fusion band instead of the cosine band.
+- **`FloorForMethodLeg(method, leg string, override FloorConfig) FloorConfig`** —
+  returns the regime-appropriate `{MaxGap, HardFloor}` for the retrieval method +
+  active reranker leg. The cross-encoder floor leans on `HardFloor` (kill the ~0
+  gibberish) with a permissive `MaxGap` (don't relatively cut a legitimately
+  weak-but-real answer); cosine keeps `{0.15, 0.35}`; the fusion band (rerank-off
+  hybrid, distinguished by `method == "hybrid"`) disables `HardFloor` entirely and
+  keeps only the relative `MaxGap`.
 
 **Why these aren't levers:** the regime is auto-detected, so there is nothing
 for an operator to tune per corpus — tuning would just risk mislabeling. The
@@ -85,7 +92,8 @@ deliberately disable the garbage floor).
 > Contract reminder: **floor *after* rerank.** A consumer that reranks must
 > apply `ApplyRelevanceFloor` on the *reranked* scores (the reranker drives junk
 > to ~0; flooring before rerank would let it still fill the page). cli-health
-> does this; `FloorForLeg(resp.Reranker, override)` picks the matching band.
+> does this; `FloorForMethodLeg(method, resp.Reranker, override)` picks the
+> matching band.
 
 ---
 

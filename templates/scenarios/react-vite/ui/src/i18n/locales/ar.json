@@ -64,7 +64,12 @@
     "uploadAttachment": "رفع مرفق",
     "attachmentFileLabel": "ملف المرفق",
     "uploadSuccess": "تم رفع {{name}}.",
-    "noFileSelected": "اختر ملفًا قبل الرفع."
+    "noFileSelected": "اختر ملفًا قبل الرفع.",
+    "measure": {
+      "title": "ملاحظات هذا الأسبوع",
+      "loading": "جارٍ العد…",
+      "thisWeek": "{{count}} ملاحظة أُنشئت هذا الأسبوع"
+    }
   },
   "errors": {
     "canceled": "Operation canceled.",

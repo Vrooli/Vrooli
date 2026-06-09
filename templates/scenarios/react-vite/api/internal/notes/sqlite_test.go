@@ -140,6 +140,38 @@ func TestSQLiteRepository_CreatePopulatesTimestamps(t *testing.T) {
 	require.Equal(t, tr.clock.Now(), created.CreatedAt)
 }
 
+// TestSQLiteRepository_CountInWindow pins the aggregate the notes.count
+// measure computes: COUNT(*) over the half-open [from, to) created_at range.
+// Notes are written at distinct clock instants, then the count is asserted to
+// include the lower bound and exclude the upper bound.
+func TestSQLiteRepository_CountInWindow(t *testing.T) {
+	tr := newSchemaDB(t)
+	ctx := context.Background()
+
+	// Three notes at 12:00, 12:01, 12:02 on 2026-05-01 (the seeded clock).
+	base := tr.clock.Now()
+	for i := 0; i < 3; i++ {
+		_, err := tr.repo.Create(ctx, notes.Note{Title: "n"})
+		require.NoError(t, err)
+		tr.clock.Advance(time.Minute)
+	}
+
+	// [12:00, 12:02) includes the first two, excludes the third (12:02).
+	n, err := tr.repo.Count(ctx, base, base.Add(2*time.Minute))
+	require.NoError(t, err)
+	require.Equal(t, 2, n)
+
+	// A window before any note returns zero, never an error.
+	n, err = tr.repo.Count(ctx, base.Add(-time.Hour), base)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	// A window covering all three.
+	n, err = tr.repo.Count(ctx, base, base.Add(time.Hour))
+	require.NoError(t, err)
+	require.Equal(t, 3, n)
+}
+
 func TestSQLiteRepository_AttachmentMetadataRoundTrip(t *testing.T) {
 	tr := newSchemaDB(t)
 	ctx := context.Background()

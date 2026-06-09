@@ -64,7 +64,12 @@
     "uploadAttachment": "Upload attachment",
     "attachmentFileLabel": "Attachment file",
     "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading."
+    "noFileSelected": "Select a file before uploading.",
+    "measure": {
+      "title": "Notes this week",
+      "loading": "Counting…",
+      "thisWeek": "{{count}} notes created this week"
+    }
   },
   "errors": {
     "canceled": "Operation canceled.",

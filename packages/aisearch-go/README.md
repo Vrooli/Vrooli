@@ -212,9 +212,7 @@ by method, since both it and dense report `Reranker=="none"`) keeps only the
 relative `MaxGap` and **disables the absolute HardFloor**, because a fused score
 is an uncalibrated rank signal, not a 0..1 relevance probability. This is why
 `ServiceOptions.ApplyFloor` is safe to leave ON even for a fused/doc corpus — it
-now means "run the floor at all", not "which band". (`FloorForLeg(leg, override)`
-remains as a method-agnostic shorthand, but classifies a fused leg as cosine —
-prefer `FloorForMethodLeg` when you know the method.) `override` is the consumer's
+now means "run the floor at all", not "which band". `override` is the consumer's
 `LoadConfig`-derived `{RelevanceMaxGap, RelevanceHardFloor}`, which default to `0`
 ("unset" → use the regime default) and only override when an operator sets the
 env var. See [`docs/reference/configuration.md`](docs/reference/configuration.md) §2.
@@ -287,7 +285,11 @@ commands, no precision loss — see the retrospective):**
   outright. A pure-reorder cross-encoder can *bury* a strongly-retrieved canonical
   result beneath literal-token lookalikes (measured −0.20 recall); blending keeps
   the reranker's junk rejection while preserving retrieval recall. If you run a
-  rerank on a corpus where recall matters, prefer blend.
+  rerank on a corpus where recall matters, prefer blend. The blend uses
+  `ApplyRerankRRF` with the `ServiceOptions.RerankRRFK` fusion constant (≤0 →
+  `DefaultRRFK = 60`, the value from the original RRF paper). Raise it to flatten
+  rank-position contribution; lower it to sharpen it. In practice the default is
+  the right starting point.
 
 **The full control surface — every knob, its range, default, and tradeoff, plus
 the regime-keyed weak/floor calibration (and why the thresholds are NOT levers),
@@ -296,8 +298,8 @@ adopt → calibrate → validate flow — lives in
 [`docs/reference/configuration.md`](docs/reference/configuration.md). Read that
 before tuning anything.** `RELEVANCE_MAX_GAP` / `RELEVANCE_HARD_FLOOR` are
 *overrides* (default 0 → the package picks the regime-appropriate band via
-`FloorForLeg`); the weak-match decision is owned by the regime-aware
-`LabelWeak(leg, score)`.
+`FloorForMethodLeg(method, leg, override)`); the weak-match decision is owned by
+the regime-aware `LabelWeakForMethod(method, leg, score)`.
 
 ## Measuring adoption quality (search-hub evals)
 

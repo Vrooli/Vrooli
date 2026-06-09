@@ -64,7 +64,7 @@ func WriteProviderTuning(path, id string, tuning TuningConfig, dryRun bool) (eff
 
 	// A no-op (equal tuning) or a dry run never touches the file.
 	if dryRun || reflect.DeepEqual(effective, current) {
-		if reflect.DeepEqual(effective, current) {
+		if !dryRun {
 			// Nothing changed: the effective tuning is the current one and no
 			// reindex is implied regardless of the dryRun flag.
 			return current, false, false, nil
@@ -119,7 +119,7 @@ func WriteProviderCorpus(path, id string, suite TestSuite, dryRun bool) (effecti
 	current := file.Providers[idx].Tests
 	// A no-op (equal corpus) or a dry run never touches the file.
 	if dryRun || reflect.DeepEqual(suite, current) {
-		if reflect.DeepEqual(suite, current) {
+		if !dryRun {
 			return current, false, nil
 		}
 		return suite, false, nil

@@ -3,14 +3,21 @@ package notes
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
+	measuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures/v1"
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
 	notesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes/notes_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
+
+// defaultWindowToken matches the manifest measure's `window` default so the
+// CLI and the search-hub auto-answer path resolve the same range when the
+// user omits --window.
+const defaultWindowToken = "this_week"
 
 // handlers bundles the closure over *cliapp.ScenarioApp so each
 // RunCtx-func has typed access to the API client without re-resolving it.
@@ -97,6 +104,52 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 		ResultsHeading: "Note",
 		Results:        []string{formatNote(resp.Msg.Note)},
 	})
+}
+
+// count calls the generated Connect-RPC Notes.CountNotes method — the
+// reference measure. It maps the --window token to the shared canonical
+// TimeWindow proto (defaulting to this_week, matching the manifest measure
+// default) so the same question answered through search-hub and through this
+// command resolve the identical range.
+func (h *handlers) count(ctx cliapp.RunContext) error {
+	window := strings.TrimSpace(ctx.Flag("window"))
+	if window == "" {
+		window = defaultWindowToken
+	}
+	token, err := timeWindowToken(window)
+	if err != nil {
+		return err
+	}
+	resp, err := h.client.CountNotes(context.Background(), connect.NewRequest(&notesv1.CountNotesRequest{
+		Window: &measuresv1.TimeWindow{Window: &measuresv1.TimeWindow_Token{Token: token}},
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("count notes", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no count response")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("%d note(s) created (%s).", resp.Msg.Count, window)},
+		ResultsHeading: "Notes created",
+		Results:        []string{fmt.Sprintf("%d (%s)", resp.Msg.Count, window)},
+		RetrievalHints: []string{
+			"`notes count --window last_30d` — widen the window",
+			"`notes list` — show the notes themselves",
+		},
+	})
+}
+
+// timeWindowToken maps a lowercase canonical token (this_week, last_7d, …) to
+// the generated proto enum. Unknown tokens are a usage error, never a silent
+// fallback — a wrong window would silently answer the wrong question.
+func timeWindowToken(token string) (measuresv1.TimeWindowToken, error) {
+	name := "TIME_WINDOW_TOKEN_" + strings.ToUpper(token)
+	v, ok := measuresv1.TimeWindowToken_value[name]
+	if !ok || measuresv1.TimeWindowToken(v) == measuresv1.TimeWindowToken_TIME_WINDOW_TOKEN_UNSPECIFIED {
+		return 0, fmt.Errorf("unknown time window %q (use one of: this_week, last_7d, last_30d, this_month, last_month, this_quarter)", token)
+	}
+	return measuresv1.TimeWindowToken(v), nil
 }
 
 // formatNote produces a one-line representation suitable for both

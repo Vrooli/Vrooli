@@ -321,6 +321,12 @@ const literalSelectors = {
     attachmentFile: "notes-attachment-file",
     attachmentButton: "notes-attachment-button",
     attachmentStatus: "notes-attachment-status",
+    measure: {
+      card: "notes-measure-card",
+      value: "notes-measure-value",
+      loading: "notes-measure-loading",
+      error: "notes-measure-error",
+    },
   },
   locale: {
     switcher: "locale-switcher",

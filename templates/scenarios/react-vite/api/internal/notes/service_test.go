@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"{{SCENARIO_ID}}/internal/notes"
 
@@ -11,6 +12,30 @@ import (
 
 	mocks "{{SCENARIO_ID}}/internal/notes/mocks"
 )
+
+func TestService_CountInWindow_DelegatesToRepository(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	repo.CountOut = 11
+	svc := notes.NewService(repo)
+
+	from := time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
+	n, err := svc.CountInWindow(context.Background(), from, to)
+	require.NoError(t, err)
+	require.Equal(t, 11, n)
+	require.Equal(t, [][2]time.Time{{from, to}}, repo.CountWindows,
+		"service must pass the window through unchanged")
+}
+
+func TestService_CountInWindow_PropagatesError(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	repo.CountErr = errors.New("boom")
+	svc := notes.NewService(repo)
+
+	_, err := svc.CountInWindow(context.Background(), time.Time{}, time.Time{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "boom")
+}
 
 func TestService_Create_RejectsEmptyTitle(t *testing.T) {
 	repo := mocks.NewFakeRepository()

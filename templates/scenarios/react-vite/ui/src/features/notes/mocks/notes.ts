@@ -38,8 +38,10 @@ export interface NotesMocks {
     listNotes: ReturnType<typeof vi.fn>;
     createNote: ReturnType<typeof vi.fn>;
     getNote: ReturnType<typeof vi.fn>;
+    countNotes: ReturnType<typeof vi.fn>;
   };
   uploadAttachment: ReturnType<typeof vi.fn>;
+  countNotesInWindow: ReturnType<typeof vi.fn>;
 }
 
 export const makeNotesMocks = (): NotesMocks => ({
@@ -53,6 +55,8 @@ export const makeNotesMocks = (): NotesMocks => ({
     getNote: vi
       .fn()
       .mockImplementation((input: { id: string }) => Promise.resolve({ note: makeNote({ id: input.id }) })),
+    countNotes: vi.fn().mockResolvedValue({ count: 0n }),
   },
   uploadAttachment: vi.fn().mockResolvedValue(makeAttachment()),
+  countNotesInWindow: vi.fn().mockResolvedValue(0),
 });

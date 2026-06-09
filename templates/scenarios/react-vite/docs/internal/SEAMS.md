@@ -115,20 +115,30 @@ and use matrix/trace helpers from the relevant testutil package.
 | | |
 |---|---|
 | **Seam** | Notes persistence (CRUD) |
-| **Interface** | `internal/notes/repository.go::Repository` (`Create`, `Get`, `List`) |
+| **Interface** | `internal/notes/repository.go::Repository` (`Create`, `Get`, `List`, `Count`) |
 | **Production wiring** | `handlers/notes/module.go::Module(...)` constructs `notes.NewSQLiteRepository(db, clk)` and passes it into `notes.NewService(repo)`. `main.go` only sees the returned `module.Module`; note-specific dependencies do not appear on `server.Deps`. Wire shape lives in `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/notes.proto`. |
-| **Test fake** | `internal/notes/mocks::FakeRepository` (co-located with the domain — in-memory slice, per-method error knobs `CreateErr` / `GetErr` / `ListErr`, atomic call counters). Used by `internal/notes/service_test.go` to drive the service against a controllable persistence layer. |
-| **Why it exists** | Repository owns the persistence contract — sqlite SQL today, anything else tomorrow. The handler depends on `notes.Service`, not directly on the repository, so a backend swap doesn't ripple through transport. The repository test in `internal/notes/sqlite_test.go` substitutes the real handle to pin SQL semantics (ordering, limit, RFC3339 round-trip). |
+| **Test fake** | `internal/notes/mocks::FakeRepository` (co-located with the domain — embeds `repokit.SliceRepo` for in-memory CRUD with per-method error knobs `CreateErr` / `GetErr` / `ListErr` + atomic call counters, plus a domain-specific `Count` knob `CountOut` / `CountErr` and a `CountWindows` recorder the generic substrate can't express). Used by `internal/notes/service_test.go` to drive the service against a controllable persistence layer. |
+| **Why it exists** | Repository owns the persistence contract — sqlite SQL today, anything else tomorrow. `Count` is a real aggregate (`SELECT COUNT(*) … WHERE created_at >= ? AND < ?`) backing the `notes count` measure, kept on the repository so the measure answer is exact regardless of row volume. The handler depends on `notes.Service`, not directly on the repository, so a backend swap doesn't ripple through transport. The repository test in `internal/notes/sqlite_test.go` substitutes the real handle to pin SQL semantics (ordering, limit, RFC3339 round-trip, the count range). |
 
 ### notes.Service (notes application layer)
 
 | | |
 |---|---|
 | **Seam** | Notes application surface (validation, defaults, cross-handler policy) |
-| **Interface** | `internal/notes/service.go::Service` (`Create(CreateInput) → Note`, `Get(id) → Note`, `List(limit) → []Note`) |
+| **Interface** | `internal/notes/service.go::Service` (`Create(CreateInput) → Note`, `Get(id) → Note`, `List(limit) → []Note`, `CountInWindow(from, to) → int`) |
 | **Production wiring** | `handlers/notes/module.go::Module(db, clk, logger)` constructs `notes.NewSQLiteRepository(db, clk)` then `notes.NewService(repo)` then `NewConnectHandler(Deps{Service: svc, Logger: logger})` — fully internal to the notes module. `main.go` only sees the `module.Module` returned from that constructor; per-domain services don't appear on `server.Deps`. The handler imports `internal/notes` for both the interface and the typed sentinels (`ErrInvalidNote`, `ErrNoteNotFound`) it translates at the transport edge. |
 | **Test fake** | `internal/notes/mocks::FakeService` (co-located with the domain — records `CreateInputs`, returns canned `CreateOut` / `GetByID` / `ListOut`, per-method error knobs). Used by `handlers/notes/connect_handler_test.go` to drive the handler without validation/repository plumbing in scope. |
 | **Why it exists** | Validation (`title required` after whitespace trim) and default substitution (`defaultListLimit = 100` when caller passes 0) are business policy, not transport policy. Putting them in the service keeps the handler thin and makes the same rules reachable from any future surface (batch jobs, scheduled imports, additional RPCs) without copy-paste. Two-mock split (`FakeRepository` for service tests, `FakeService` for handler tests) means handler tests don't seed sqlite-shaped state to assert routing. |
+
+### Measures serve registry (the `notes count` reference measure)
+
+| | |
+|---|---|
+| **Seam** | The measures-go serve substrate mounted at `/measures` |
+| **Interface** | `packages/measures-go::Registry` (`Register(decl, ComputeFunc)`, `Execute`, `Handler`) + the `ComputeFunc`, `Matcher`/`Executor`/`Completer` seams in `measures-go`. Per-param resolution is deterministic for the canonical `time_window` type (`measures.ResolveToken`, no LLM). |
+| **Production wiring** | `handlers/notes/measures.go::MeasuresHandler(db, clk)` builds its own `notes.Service` over the shared db, registers the `notes.count` declaration (`notesCountDeclaration()`) with a compute func that resolves the window token and calls `Service.CountInWindow`, and returns `Registry.Handler()`. `main.go` mounts it once: `rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))`. The same `Service.CountInWindow` backs the `CountNotes` Connect RPC, so the RPC and the measure can never report different numbers. |
+| **Test fake** | `measures-go` test doubles (`mocks.FakeService` for the compute func + `clockmocks.FakeClock` for deterministic windows). `handlers/notes/measures_test.go` registers the declaration and executes it through the real `Registry` — the unit-level mirror of the `measures-health` behavioral probe (asserts the scalar value, the resolved `[from, to)`, and stamped provenance). |
+| **Why it exists** | A **measure** is a named, typed, parameterized analytical query declared once so `search-hub` can match a natural-language question, fill params deterministically, and (for read-only, run-eligible measures) auto-answer. `notes.count` is the reference: a `time_window`-parameterized scalar at full tier. The manifest `measure` block (`cli/manifest.json`) + the bound proto request (`CountNotes`) are the static SSOT `cli-health` / `measures-health` validate; this registry is the runtime serve side `measures-health` harvests (`/measures/declarations`) and probes (`/measures/execute`). When you replace the notes example domain, delete this file and the one `main.go` mount line, then declare your own domain's measure. See `docs/concepts/MEASURES.md` (repo-level) and the `packages/measures-go` README. |
 
 ### notes.AttachmentsRepository (attachment metadata persistence)
 

@@ -10,28 +10,28 @@ func ids(results []SearchResult) []string {
 	return out
 }
 
-func TestFloorForLeg(t *testing.T) {
+func TestFloorForMethodLegOverrides(t *testing.T) {
 	t.Run("cross-encoder regime default", func(t *testing.T) {
-		got := FloorForLeg("cross-encoder:bge-reranker-v2-m3", FloorConfig{})
+		got := FloorForMethodLeg("", "cross-encoder:bge-reranker-v2-m3", FloorConfig{})
 		if got.MaxGap != CrossEncoderRelevanceMaxGap || got.HardFloor != CrossEncoderRelevanceHardFloor {
 			t.Fatalf("got %+v, want cross-encoder regime floor", got)
 		}
 	})
 	t.Run("llm regime default", func(t *testing.T) {
-		got := FloorForLeg("llm:llama3.2:3b", FloorConfig{})
+		got := FloorForMethodLeg("", "llm:llama3.2:3b", FloorConfig{})
 		if got.MaxGap != LLMRelevanceMaxGap || got.HardFloor != LLMRelevanceHardFloor {
 			t.Fatalf("got %+v, want llm regime floor", got)
 		}
 	})
 	t.Run("unknown leg falls back to cosine", func(t *testing.T) {
-		got := FloorForLeg("none", FloorConfig{})
+		got := FloorForMethodLeg("", "none", FloorConfig{})
 		if got.MaxGap != DefaultRelevanceMaxGap || got.HardFloor != DefaultRelevanceHardFloor {
 			t.Fatalf("got %+v, want cosine regime floor", got)
 		}
 	})
 	t.Run("override wins per field", func(t *testing.T) {
 		// MaxGap overridden, HardFloor left 0 (unset) → regime HardFloor kept.
-		got := FloorForLeg("cross-encoder:m", FloorConfig{MaxGap: 0.42})
+		got := FloorForMethodLeg("", "cross-encoder:m", FloorConfig{MaxGap: 0.42})
 		if got.MaxGap != 0.42 {
 			t.Errorf("MaxGap = %g, want override 0.42", got.MaxGap)
 		}
@@ -40,7 +40,7 @@ func TestFloorForLeg(t *testing.T) {
 		}
 	})
 	t.Run("negative hard floor override disables", func(t *testing.T) {
-		got := FloorForLeg("cross-encoder:m", FloorConfig{HardFloor: -1})
+		got := FloorForMethodLeg("", "cross-encoder:m", FloorConfig{HardFloor: -1})
 		if got.HardFloor != -1 {
 			t.Errorf("HardFloor = %g, want -1 (operator-disabled)", got.HardFloor)
 		}

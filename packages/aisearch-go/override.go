@@ -46,7 +46,7 @@ type SearchOverrides struct {
 	// [MinRerankShortlist, MaxRerankShortlist].
 	RerankShortlist *int `json:"rerank_shortlist,omitempty"`
 	// FloorMaxGap / FloorHardFloor override the relevance-floor band for this
-	// request. Clamped to [0,1]; 0 keeps the regime default (FloorForLeg).
+	// request. Clamped to [0,1]; 0 keeps the regime default (FloorForMethodLeg).
 	FloorMaxGap    *float64 `json:"floor_max_gap,omitempty"`
 	FloorHardFloor *float64 `json:"floor_hard_floor,omitempty"`
 }

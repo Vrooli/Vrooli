@@ -44,7 +44,7 @@ const (
 	// DefaultRelevanceMaxGap / DefaultRelevanceHardFloor tune ApplyRelevanceFloor
 	// (WS2) for the dense-cosine regime (the rerank-off path). MaxGap is the
 	// primary, query-adaptive gate; HardFloor is a garbage-only safety net.
-	// FloorForLeg returns these for an unrecognized / "none" leg.
+	// FloorForMethodLeg returns these for an unrecognized / "none" leg.
 	DefaultRelevanceMaxGap    = 0.15
 	DefaultRelevanceHardFloor = 0.35
 

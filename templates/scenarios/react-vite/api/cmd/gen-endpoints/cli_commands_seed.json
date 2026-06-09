@@ -22,6 +22,11 @@
       "endpoint_id": "notes_get"
     },
     {
+      "name": "notes count",
+      "description": "Count notes created in a time window (--window WINDOW); the reference measure",
+      "endpoint_id": "notes_count"
+    },
+    {
       "name": "notes attach",
       "description": "Upload an attachment for a note (--file PATH)",
       "endpoint_id": "notes_attach"

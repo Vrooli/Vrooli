@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	measuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures/v1"
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
 	notesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes/notes_v1connect"
 
@@ -34,6 +35,9 @@ type notesService struct {
 	getErr       error
 	createInputs []*notesv1.CreateNoteRequest
 	getIDs       []string
+	countResp    *notesv1.CountNotesResponse
+	countErr     error
+	countWindows []*measuresv1.TimeWindow
 }
 
 func (s *notesService) ListNotes(context.Context, *connect.Request[notesv1.ListNotesRequest]) (*connect.Response[notesv1.ListNotesResponse], error) {
@@ -70,6 +74,19 @@ func (s *notesService) GetNote(_ context.Context, req *connect.Request[notesv1.G
 		s.getResp = &notesv1.GetNoteResponse{}
 	}
 	return connect.NewResponse(s.getResp), nil
+}
+
+func (s *notesService) CountNotes(_ context.Context, req *connect.Request[notesv1.CountNotesRequest]) (*connect.Response[notesv1.CountNotesResponse], error) {
+	s.mu.Lock()
+	s.countWindows = append(s.countWindows, req.Msg.Window)
+	s.mu.Unlock()
+	if s.countErr != nil {
+		return nil, s.countErr
+	}
+	if s.countResp == nil {
+		s.countResp = &notesv1.CountNotesResponse{}
+	}
+	return connect.NewResponse(s.countResp), nil
 }
 
 func connectAPI(t *testing.T, svc *notesService) http.Handler {
@@ -230,6 +247,58 @@ func TestNotesGet_JSONIsProtoWireShape(t *testing.T) {
 	require.Equal(t, "found", got.Note.Title)
 }
 
+// TestNotesCount_SendsResolvedWindow pins the measure CLI path: the --window
+// token is mapped to the canonical TimeWindow proto and the count is rendered.
+func TestNotesCount_SendsResolvedWindow(t *testing.T) {
+	svc := &notesService{countResp: &notesv1.CountNotesResponse{Count: 4}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Flags: []cliapp.Flag{{Name: "window"}},
+	}, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"window": "last_30d"},
+	})
+
+	require.NoError(t, h.count(ctx))
+	require.Contains(t, out.String(), "4")
+
+	require.Len(t, svc.countWindows, 1)
+	require.Equal(t, measuresv1.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_30D, svc.countWindows[0].GetToken())
+}
+
+// TestNotesCount_DefaultsWindow proves an omitted --window defaults to
+// this_week (matching the manifest measure default) rather than erroring.
+func TestNotesCount_DefaultsWindow(t *testing.T) {
+	svc := &notesService{countResp: &notesv1.CountNotesResponse{Count: 1}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Flags: []cliapp.Flag{{Name: "window"}},
+	}, cliapptest.TestRunContextOptions{})
+
+	require.NoError(t, h.count(ctx))
+	require.Len(t, svc.countWindows, 1)
+	require.Equal(t, measuresv1.TimeWindowToken_TIME_WINDOW_TOKEN_THIS_WEEK, svc.countWindows[0].GetToken())
+}
+
+// TestNotesCount_RejectsUnknownWindow proves an unknown token is a usage error,
+// never a silent wrong-question answer.
+func TestNotesCount_RejectsUnknownWindow(t *testing.T) {
+	svc := &notesService{countResp: &notesv1.CountNotesResponse{Count: 0}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Flags: []cliapp.Flag{{Name: "window"}},
+	}, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"window": "yesterday"},
+	})
+
+	err := h.count(ctx)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unknown time window")
+	require.Empty(t, svc.countWindows, "must not call the server on an unresolvable window")
+}
+
 func TestNotesGet_ReportsNotFound(t *testing.T) {
 	svc := &notesService{getErr: connect.NewError(connect.CodeNotFound, io.ErrUnexpectedEOF)}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
@@ -349,7 +418,7 @@ func TestRegister_Wiring(t *testing.T) {
 	for _, sc := range group.Subcommands {
 		names = append(names, sc.Name)
 	}
-	require.ElementsMatch(t, []string{"list", "create", "get", "attach"}, names)
+	require.ElementsMatch(t, []string{"list", "create", "get", "count", "attach"}, names)
 	for _, sc := range group.Subcommands {
 		require.NotNil(t, sc.RunCtx, "subcommand %s should use RunCtx", sc.Name)
 	}

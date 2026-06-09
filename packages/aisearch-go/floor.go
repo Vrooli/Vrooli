@@ -15,14 +15,6 @@ type FloorConfig struct {
 	HardFloor float64
 }
 
-// FloorForLeg returns the regime-appropriate FloorConfig for the active reranker
-// leg (method-agnostic), with any explicitly-set field of override winning.
-// Prefer FloorForMethodLeg when the retrieval method is known so a rerank-off
-// RRF-fused leg gets the fusion band; a leg-only call classifies it as cosine.
-func FloorForLeg(leg string, override FloorConfig) FloorConfig {
-	return FloorForMethodLeg("", leg, override)
-}
-
 // FloorForMethodLeg returns the regime-appropriate FloorConfig for the given
 // retrieval method + active reranker leg, with any explicitly-set field of
 // override winning. The regime is auto-detected (cross-encoder / llm / fusion /

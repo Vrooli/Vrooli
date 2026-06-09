@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"{{SCENARIO_ID}}/internal/notes"
 
@@ -41,9 +42,17 @@ type FakeService struct {
 	ListOut []notes.Note
 	ListErr error
 
+	// CountOut is returned verbatim from CountInWindow on success;
+	// CountErr (if set) wins. CountWindows records each [from, to) the
+	// handler resolved so measure tests can assert on the window math.
+	CountOut     int
+	CountErr     error
+	CountWindows [][2]time.Time
+
 	CreateCalls atomic.Int64
 	GetCalls    atomic.Int64
 	ListCalls   atomic.Int64
+	CountCalls  atomic.Int64
 }
 
 func (f *FakeService) Create(ctx context.Context, in notes.CreateInput) (notes.Note, error) {
@@ -92,6 +101,17 @@ func (f *FakeService) List(ctx context.Context, limit int) ([]notes.Note, error)
 	out := make([]notes.Note, len(f.ListOut))
 	copy(out, f.ListOut)
 	return out, nil
+}
+
+func (f *FakeService) CountInWindow(ctx context.Context, from, to time.Time) (int, error) {
+	f.CountCalls.Add(1)
+	f.mu.Lock()
+	f.CountWindows = append(f.CountWindows, [2]time.Time{from, to})
+	f.mu.Unlock()
+	if f.CountErr != nil {
+		return 0, f.CountErr
+	}
+	return f.CountOut, nil
 }
 
 // Compile-time guarantee.

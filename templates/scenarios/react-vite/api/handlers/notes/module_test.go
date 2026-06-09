@@ -36,7 +36,7 @@ func TestModule_Shape(t *testing.T) {
 	require.NotNil(t, m.Mount, "Mount closure must be set")
 	require.Same(t, &notes.Endpoints[0], &m.Endpoints[0],
 		"Module.Endpoints must reference the package-level Endpoints slice")
-	require.Len(t, notes.Endpoints, 4, "notes ships list, create, get, attach")
+	require.Len(t, notes.Endpoints, 5, "notes ships list, create, get, count, attach")
 }
 
 func TestModule_RoutesAreReachable(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"{{SCENARIO_ID}}/internal/clock"
 	"{{SCENARIO_ID}}/internal/notes"
 
 	"connectrpc.com/connect"
@@ -14,7 +15,10 @@ import (
 // Deps wires the seams the Connect notes handler needs.
 type Deps struct {
 	Service notes.Service
-	Logger  *log.Logger
+	// Clock anchors the CountNotes measure's relative time-window resolution
+	// (e.g. "this_week"). Explicit so tests resolve windows deterministically.
+	Clock  clock.Clock
+	Logger *log.Logger
 }
 
 type connectHandler struct {
@@ -24,6 +28,9 @@ type connectHandler struct {
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
+	}
+	if d.Clock == nil {
+		d.Clock = clock.System{}
 	}
 	return &connectHandler{deps: d}
 }
@@ -69,4 +76,22 @@ func (h *connectHandler) GetNote(ctx context.Context, req *connect.Request[notes
 		return nil, connectErr
 	}
 	return connect.NewResponse(&notesv1.GetNoteResponse{Note: domainToProto(got)}), nil
+}
+
+// CountNotes answers the `notes count` measure: it resolves the request's
+// canonical TimeWindow to a concrete [from, to) range (defaulting to this_week
+// when unset) and returns the count of notes created in it. The same service
+// method backs the measures-go serve registry in measures.go, so the RPC and
+// the measure can never report different numbers.
+func (h *connectHandler) CountNotes(ctx context.Context, req *connect.Request[notesv1.CountNotesRequest]) (*connect.Response[notesv1.CountNotesResponse], error) {
+	rng, err := resolveCountWindow(req.Msg.GetWindow(), h.deps.Clock.Now())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	n, err := h.deps.Service.CountInWindow(ctx, rng.From, rng.To)
+	if err != nil {
+		h.deps.Logger.Printf("notes.CountNotes: %v", err)
+		return nil, notes.ToConnectError(err)
+	}
+	return connect.NewResponse(&notesv1.CountNotesResponse{Count: int64(n)}), nil
 }

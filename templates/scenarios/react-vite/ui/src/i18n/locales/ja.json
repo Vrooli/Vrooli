@@ -60,7 +60,12 @@
     "uploadAttachment": "添付ファイルをアップロード",
     "attachmentFileLabel": "添付ファイル",
     "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。"
+    "noFileSelected": "アップロードするファイルを選択してください。",
+    "measure": {
+      "title": "今週のノート",
+      "loading": "集計中…",
+      "thisWeek": "今週作成されたノート: {{count}} 件"
+    }
   },
   "errors": {
     "canceled": "Operation canceled.",

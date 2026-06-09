@@ -21,8 +21,8 @@ import (
 // corpus-specific shaping (which payload filter, which projection, which grep)
 // stays adopter-owned. The non-negotiable order it bakes in (plan §8):
 //
-//	over-fetch shortlist -> rerank (active leg) -> ApplyRelevanceFloor(FloorForLeg)
-//	AFTER rerank -> LabelWeak -> project/decorate/trim
+//	over-fetch shortlist -> rerank (active leg) -> ApplyRelevanceFloor(FloorForMethodLeg)
+//	AFTER rerank -> LabelWeakForMethod -> project/decorate/trim
 //
 // An adopter supplies a Source (for indexing) plus the seams below; it never
 // re-derives the pipeline.
@@ -101,7 +101,7 @@ type ServiceOptions struct {
 	// hybrid leg with rerank OFF produces ~0.01 scores the cosine HardFloor would
 	// wrongly annihilate. cli-health (dense + rerank) sets it true; a doc adopter
 	// running rerank-off hybrid sets it false. Floor is the operator override
-	// merged onto the regime default by FloorForLeg.
+	// merged onto the regime default by FloorForMethodLeg.
 	ApplyFloor bool
 	Floor      FloorConfig
 

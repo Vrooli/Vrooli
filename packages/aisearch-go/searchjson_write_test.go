@@ -167,6 +167,125 @@ func TestWriteProviderTuningUnknownProvider(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// WriteProviderCorpus tests
+// ---------------------------------------------------------------------------
+
+func sampleCorpus() TestSuite {
+	return TestSuite{
+		Name:        "demo suite",
+		Description: "round-trip corpus",
+		Cases: []TestCase{
+			{ID: "q1", Query: "restart a scenario", ExpectIDs: []string{"restart"}, ExpectWithinTopK: 3, Tags: []string{"strong"}},
+			{ID: "n1", Query: "asdf qwer", ExpectNoStrongHit: true, ExpectMaxScore: 0.1, Tags: []string{"gibberish"}},
+		},
+	}
+}
+
+func TestWriteProviderCorpusRoundTrip(t *testing.T) {
+	path := writeSampleFile(t)
+	suite := sampleCorpus()
+
+	eff, written, err := WriteProviderCorpus(path, "demo.commands", suite, false)
+	if err != nil {
+		t.Fatalf("WriteProviderCorpus: %v", err)
+	}
+	if !written {
+		t.Fatalf("a real change must report written=true")
+	}
+	if len(eff.Cases) != 2 || eff.Cases[0].ID != "q1" {
+		t.Fatalf("effective corpus wrong: %+v", eff)
+	}
+
+	// Reload and verify the tests block was persisted and tuning was untouched.
+	reloaded, err := LoadSearchFile(path)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	p, ok := reloaded.Provider("demo.commands")
+	if !ok {
+		t.Fatalf("provider missing after write")
+	}
+	if len(p.Tests.Cases) != 2 || p.Tests.Cases[0].ID != "q1" {
+		t.Fatalf("persisted corpus wrong: %+v", p.Tests)
+	}
+	// Tuning block must survive the rewrite.
+	if p.Tuning.Engine != EngineDense {
+		t.Fatalf("tuning block corrupted by corpus write: engine=%q", p.Tuning.Engine)
+	}
+	// Descriptor must survive.
+	if len(p.Endpoint) == 0 {
+		t.Fatalf("endpoint dropped by corpus write")
+	}
+}
+
+func TestWriteProviderCorpusDryRun(t *testing.T) {
+	path := writeSampleFile(t)
+	before, _ := os.ReadFile(path)
+
+	suite := sampleCorpus()
+	eff, written, err := WriteProviderCorpus(path, "demo.commands", suite, true)
+	if err != nil {
+		t.Fatalf("dry run: %v", err)
+	}
+	if written {
+		t.Fatalf("dry run must not write")
+	}
+	if len(eff.Cases) != 2 || eff.Cases[0].ID != "q1" {
+		t.Fatalf("dry run must still return the proposed corpus: %+v", eff)
+	}
+	after, _ := os.ReadFile(path)
+	if string(before) != string(after) {
+		t.Fatalf("dry run mutated the file on disk")
+	}
+}
+
+func TestWriteProviderCorpusNoOp(t *testing.T) {
+	path := writeSampleFile(t)
+	before, _ := os.ReadFile(path)
+
+	// Load the current corpus and submit it verbatim.
+	current, _ := LoadSearchFile(path)
+	p, _ := current.Provider("demo.commands")
+	_, written, err := WriteProviderCorpus(path, "demo.commands", p.Tests, false)
+	if err != nil {
+		t.Fatalf("no-op write: %v", err)
+	}
+	if written {
+		t.Fatalf("submitting the current corpus must be a no-op (written=false)")
+	}
+	after, _ := os.ReadFile(path)
+	if string(before) != string(after) {
+		t.Fatalf("no-op write mutated the file")
+	}
+}
+
+func TestWriteProviderCorpusUnknownProvider(t *testing.T) {
+	path := writeSampleFile(t)
+	_, _, err := WriteProviderCorpus(path, "does.not.exist", sampleCorpus(), false)
+	if err == nil {
+		t.Fatalf("unknown provider must error")
+	}
+	var notIn ErrProviderNotInFile
+	if !errors.As(err, &notIn) {
+		t.Fatalf("expected ErrProviderNotInFile, got %T: %v", err, err)
+	}
+}
+
+func TestWriteProviderCorpusValidationError(t *testing.T) {
+	path := writeSampleFile(t)
+	bad := TestSuite{Cases: []TestCase{
+		{ID: "q1", Query: ""}, // missing query — Validate rejects it
+	}}
+	_, written, err := WriteProviderCorpus(path, "demo.commands", bad, false)
+	if err == nil {
+		t.Fatalf("invalid corpus must be rejected")
+	}
+	if written {
+		t.Fatalf("invalid corpus must not be written")
+	}
+}
+
 func TestIndexTimeChanged(t *testing.T) {
 	base := CommandCorpusTuning()
 	// Query-time-only deltas are not index-time.

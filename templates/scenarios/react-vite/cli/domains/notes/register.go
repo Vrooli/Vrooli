@@ -34,6 +34,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"NotesService.ListNotes":  h.list,
 		"NotesService.CreateNote": h.create,
 		"NotesService.GetNote":    h.get,
+		"NotesService.CountNotes": h.count,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

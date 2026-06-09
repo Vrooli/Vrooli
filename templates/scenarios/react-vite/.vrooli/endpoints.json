@@ -25,6 +25,10 @@
       ],
       "cli_mapping": {
         "command": "{{SCENARIO_ID}} status"
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
       }
     },
     {
@@ -150,6 +154,51 @@
       }
     },
     {
+      "id": "notes_count",
+      "path": "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/CountNotes",
+      "method": "POST",
+      "summary": "Count notes in a time window",
+      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
+      "category": "notes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "count": "int64 (notes created in the window)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unresolvable or malformed time window"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Count this week",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "{{SCENARIO_ID}} notes count",
+        "args": [
+          "--window",
+          "<window>"
+        ]
+      }
+    },
+    {
       "id": "notes_attach",
       "path": "/api/v1/notes/{id}/attachments",
       "method": "POST",
@@ -198,6 +247,10 @@
           "--file",
           "<path>"
         ]
+      },
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message."
       }
     }
   ],
@@ -221,6 +274,11 @@
       "name": "notes get",
       "description": "Get a note by id",
       "endpoint_id": "notes_get"
+    },
+    {
+      "name": "notes count",
+      "description": "Count notes created in a time window (--window WINDOW); the reference measure",
+      "endpoint_id": "notes_count"
     },
     {
       "name": "notes attach",

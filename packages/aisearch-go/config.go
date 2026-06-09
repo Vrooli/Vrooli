@@ -54,7 +54,7 @@ type Config struct {
 	EmbedTaskPrefix bool
 	// RelevanceMaxGap / RelevanceHardFloor are consumer *overrides* for the
 	// ApplyRelevanceFloor band (WS2), read from <prefix>_RELEVANCE_MAX_GAP /
-	// _RELEVANCE_HARD_FLOOR. They default to 0 ("unset") so FloorForLeg supplies
+	// _RELEVANCE_HARD_FLOOR. They default to 0 ("unset") so FloorForMethodLeg supplies
 	// the regime-appropriate default; a non-zero value overrides it. The package
 	// owns the right band per regime — these exist only to override, not to seed.
 	RelevanceMaxGap    float64

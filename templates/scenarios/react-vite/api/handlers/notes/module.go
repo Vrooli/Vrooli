@@ -47,6 +47,7 @@ func ModuleWithBlobStore(db *database.RoutedDB, clk clock.Clock, blobs blobstore
 	attachmentsSvc := internalnotes.NewAttachmentsService(repo, attachmentsRepo)
 	connectPath, connectHandler := notesconnect.NewNotesServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
+		Clock:   clk,
 		Logger:  logger,
 	}))
 	attachmentsHandler := NewAttachmentsHandler(AttachmentsDeps{
@@ -196,6 +197,37 @@ var Endpoints = []module.EndpointDescriptor{
 		CLIMapping: &module.CLIMapping{
 			Command: "{{SCENARIO_ID}} notes get",
 			Args:    []string{"<id>"},
+		},
+	},
+	{
+		ID:          "notes_count",
+		Path:        notesconnect.NotesServiceCountNotesProcedure,
+		Method:      "POST",
+		Summary:     "Count notes in a time window",
+		Description: "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
+		Category:    "notes",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})",
+			},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"count": "int64 (notes created in the window)",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Unresolvable or malformed time window"},
+			{Status: 500, Code: "internal", Description: "Repository read failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Count this week", Curl: "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"},
+		},
+		CLIMapping: &module.CLIMapping{
+			Command: "{{SCENARIO_ID}} notes count",
+			Args:    []string{"--window", "<window>"},
 		},
 	},
 	{

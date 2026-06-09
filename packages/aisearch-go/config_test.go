@@ -29,7 +29,7 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if cfg.RerankShortlist != DefaultRerankShortlist {
 		t.Errorf("RerankShortlist = %d, want %d", cfg.RerankShortlist, DefaultRerankShortlist)
 	}
-	// Floor overrides default to 0 ("unset") so FloorForLeg supplies the regime
+	// Floor overrides default to 0 ("unset") so FloorForMethodLeg supplies the regime
 	// default rather than a hard-coded cosine value seeded by config.
 	if cfg.RelevanceMaxGap != 0 || cfg.RelevanceHardFloor != 0 {
 		t.Errorf("floor overrides = (%g, %g), want (0, 0) unset", cfg.RelevanceMaxGap, cfg.RelevanceHardFloor)

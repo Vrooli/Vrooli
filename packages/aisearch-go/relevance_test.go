@@ -16,8 +16,8 @@ func TestWeakThresholdPerRegime(t *testing.T) {
 		{"something-unknown", WeakThresholdCosine},
 	}
 	for _, tc := range cases {
-		if got := WeakThreshold(tc.leg); got != tc.want {
-			t.Errorf("WeakThreshold(%q) = %g, want %g", tc.leg, got, tc.want)
+		if got := WeakThresholdForMethod("", tc.leg); got != tc.want {
+			t.Errorf("WeakThresholdForMethod(%q,%q) = %g, want %g", "", tc.leg, got, tc.want)
 		}
 	}
 }
@@ -58,7 +58,7 @@ func TestLabelWeakForMethodFusion(t *testing.T) {
 	if LabelWeakForMethod("hybrid", "none", 0.35) {
 		t.Errorf("real fused hit 0.35 wrongly labeled weak under fusion band")
 	}
-	if !LabelWeak("none", 0.35) {
+	if !LabelWeakForMethod("dense", "none", 0.35) {
 		t.Errorf("sanity: 0.35 SHOULD be weak under the legacy cosine band (0.55)")
 	}
 	// The deep near-zero tail a fused query always returns is still flagged weak.
@@ -70,7 +70,7 @@ func TestLabelWeakForMethodFusion(t *testing.T) {
 	}
 }
 
-func TestLabelWeakBoundaries(t *testing.T) {
+func TestLabelWeakForMethodBoundaries(t *testing.T) {
 	cases := []struct {
 		name  string
 		leg   string
@@ -94,8 +94,8 @@ func TestLabelWeakBoundaries(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := LabelWeak(tc.leg, tc.score); got != tc.want {
-				t.Fatalf("LabelWeak(%q, %g) = %v, want %v", tc.leg, tc.score, got, tc.want)
+			if got := LabelWeakForMethod("", tc.leg, tc.score); got != tc.want {
+				t.Fatalf("LabelWeakForMethod(%q, %q, %g) = %v, want %v", "", tc.leg, tc.score, got, tc.want)
 			}
 		})
 	}
