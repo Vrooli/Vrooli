@@ -22,7 +22,7 @@ require (
 	github.com/go-chi/chi/v5 v5.0.11 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20251213004720-97cd9d5aeac2 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 )
 
 require (
@@ -68,8 +68,8 @@ require (
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/tools v0.10.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251213004720-97cd9d5aeac2 // indirect
-	google.golang.org/grpc v1.71.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
+	google.golang.org/grpc v1.79.3 // indirect
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core

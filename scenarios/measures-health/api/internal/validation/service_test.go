@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	measures "github.com/vrooli/measures-go"
-	"measures-health/internal/measurescan"
+	"github.com/vrooli/measures-go/manifestscan"
 )
 
 // --- fakes ---------------------------------------------------------------
@@ -19,6 +19,11 @@ type fakeDomains map[string][]DerivedDomain
 func (f fakeDomains) StatefulDomains(scenario string) ([]DerivedDomain, error) {
 	return f[scenario], nil
 }
+
+// Mode: a fakeDomains supplying derived domains models a conformant scenario
+// (a v1/domain/ folder). Fallback/illegal-declaration behaviour is exercised at
+// the pure Classify level (classify_test.go) where Mode is set directly.
+func (f fakeDomains) Mode(string) (Mode, error) { return ModeConformant, nil }
 
 // fakeSchema returns a fixed param schema per (service.method).
 type fakeSchema map[string][]measures.ParamSchema
@@ -89,7 +94,7 @@ func TestValidator_FullCoveragePasses(t *testing.T) {
 	if !rep.Passed {
 		t.Fatalf("expected pass; findings=%+v", rep.Findings)
 	}
-	if d := domainBy(rep, "backlog"); d == nil || d.Status != StatusCovered || d.Tier != measurescan.TierFull {
+	if d := domainBy(rep, "backlog"); d == nil || d.Status != StatusCovered || d.Tier != manifestscan.TierFull {
 		t.Fatalf("backlog: want covered/full, got %+v", d)
 	}
 	if d := domainBy(rep, "queue"); d == nil || d.Status != StatusWaived {

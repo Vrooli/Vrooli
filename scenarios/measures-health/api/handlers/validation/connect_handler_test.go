@@ -6,7 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	"measures-health/internal/measurescan"
+	"github.com/vrooli/measures-go/manifestscan"
 	internal "measures-health/internal/validation"
 
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/validation"
@@ -31,8 +31,8 @@ func TestValidateScenario_MapsReportToProto(t *testing.T) {
 		Passed:   false,
 		Domains: []internal.DomainCoverage{
 			{
-				Domain: "backlog", Status: internal.StatusCovered, MeasureCount: 1, Tier: measurescan.TierFull,
-				Measures: []internal.MeasureSummary{{Name: "backlog.completed", Tier: measurescan.TierFull, Effect: "read", QuestionCount: 2}},
+				Domain: "backlog", Status: internal.StatusCovered, MeasureCount: 1, Tier: manifestscan.TierFull,
+				Measures: []internal.MeasureSummary{{Name: "backlog.completed", Tier: manifestscan.TierFull, Effect: "read", QuestionCount: 2}},
 			},
 			{Domain: "captures", Status: internal.StatusUncovered},
 		},
@@ -70,7 +70,7 @@ func TestValidateScenario_MapsReportToProto(t *testing.T) {
 
 func TestListFleetCoverage_MapsEntries(t *testing.T) {
 	h := NewConnectHandler(Deps{Validator: fakeValidator{entries: []internal.FleetEntry{
-		{Scenario: "a", Passed: true, Expected: 2, Covered: 2, WorstTier: measurescan.TierFull, MeasureCount: 3},
+		{Scenario: "a", Passed: true, Expected: 2, Covered: 2, WorstTier: manifestscan.TierFull, MeasureCount: 3},
 		{Scenario: "b", Passed: false, Expected: 1, Uncovered: 1},
 	}}})
 	resp, err := h.ListFleetCoverage(context.Background(), connect.NewRequest(&validationv1.ListFleetCoverageRequest{}))

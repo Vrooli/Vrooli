@@ -324,6 +324,14 @@ const literalSelectors = {
       status: "fleet-detail-status",
     },
   },
+  measures: {
+    card: "measures-card",
+    loading: "measures-loading",
+    error: "measures-error",
+    windowSelect: "measures-window-select",
+    failedValue: "measures-failed-value",
+    passedValue: "measures-passed-value",
+  },
   locale: {
     switcher: "locale-switcher",
   },

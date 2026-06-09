@@ -106,6 +106,100 @@
           }
         }
       ]
+    },
+    {
+      "name": "measures",
+      "description": "measures-health's own declared analytical measures over its validation_run history (the gold-star dogfood)",
+      "commands": [
+        {
+          "name": "failed",
+          "description": "Count scenarios that failed measures validation in a window",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CountFailedValidations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "validation_run",
+            "intent": "How many scenarios failed measures validation in a time window.",
+            "questions": [
+              "how many scenarios failed measures validation this week",
+              "measures validation failures last month",
+              "how many scenarios failed the measures gate in the last 7 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "scenarios",
+              "summary_template": "{count} scenarios failed measures validation ({window})"
+            }
+          }
+        },
+        {
+          "name": "coverage",
+          "description": "Count scenarios that passed measures validation in a window (fleet measure-coverage over time)",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CountValidationCoverage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "validation_run",
+            "intent": "How many scenarios passed measures validation in a time window.",
+            "questions": [
+              "how many scenarios passed measures validation this week",
+              "measures coverage this month",
+              "how many scenarios had clean measures validation in the last 30 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "scenarios",
+              "summary_template": "{count} scenarios passed measures validation ({window})"
+            }
+          }
+        }
+      ]
     }
   ],
   "omitted": []

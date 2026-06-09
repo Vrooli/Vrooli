@@ -40,7 +40,11 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	name := ctx.Positional("name")
 	resp, err := h.client.ValidateScenario(context.Background(), connect.NewRequest(&validationv1.ValidateScenarioRequest{
 		Scenario: name,
-		Probe:    ctx.Flag("probe") == "true",
+		// BoolFlag, not Flag: a bool flag sets a presence bit, not the string
+		// "true" — Flag("probe") returns the empty default, so the old check was
+		// always false and --probe silently never reached the RPC (defeating the
+		// test-genie producer's behavioral probe).
+		Probe: ctx.BoolFlag("probe"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("validate scenario %q", name), err, nil)

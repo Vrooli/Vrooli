@@ -1,6 +1,7 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { FleetView } from "../features/fleet/FleetView";
+import { MeasuresCard } from "../features/measures/MeasuresCard";
 import { useTranslation } from "../i18n";
 
 /**
@@ -23,6 +24,7 @@ export function FleetPage() {
         {t(strings.pages.fleet.title)}
       </h2>
       <p className="text-app-muted-foreground">{t(strings.pages.fleet.description)}</p>
+      <MeasuresCard />
       <FleetView />
     </section>
   );

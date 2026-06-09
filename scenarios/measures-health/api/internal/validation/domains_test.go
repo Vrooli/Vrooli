@@ -51,6 +51,23 @@ func TestProtoDomainSource_NoDomainFolder(t *testing.T) {
 	}
 }
 
+func TestProtoDomainSource_Mode(t *testing.T) {
+	root := t.TempDir()
+	// A scenario with a v1/domain/ folder (even empty) is conformant.
+	confDir := filepath.Join(root, "packages", "proto", "schemas", "conf", "v1", "domain")
+	if err := os.MkdirAll(confDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := ProtoDomainSource{RepoRoot: root}
+	if m, err := p.Mode("conf"); err != nil || m != ModeConformant {
+		t.Fatalf("conf: want conformant, got %q err=%v", m, err)
+	}
+	// A scenario with no v1/domain/ folder is fallback.
+	if m, err := p.Mode("flat"); err != nil || m != ModeFallback {
+		t.Fatalf("flat: want fallback, got %q err=%v", m, err)
+	}
+}
+
 func TestNormalizeDomain(t *testing.T) {
 	cases := map[string]string{
 		"Agent-Session": "agent_session",

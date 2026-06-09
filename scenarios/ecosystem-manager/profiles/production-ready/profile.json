@@ -11,7 +11,8 @@
       "ui": 0.9,
       "performance": 0.9,
       "docs": 0.8,
-      "dependencies": 0.8
+      "dependencies": 0.8,
+      "measures": 0.8
     },
     "targets": {
       "max_open_severity": "info",
@@ -27,7 +28,8 @@
     "performance",
     "polish",
     "documentation-health",
-    "screaming-architecture-audit"
+    "screaming-architecture-audit",
+    "measures-adoption"
   ],
   "budget": {
     "max_iterations": 60,

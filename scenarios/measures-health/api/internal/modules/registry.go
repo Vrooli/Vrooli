@@ -23,10 +23,12 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "measures-health/handlers/health"
+	measuresH "measures-health/handlers/measures"
 	searchH "measures-health/handlers/search"
 	validationH "measures-health/handlers/validation"
 	localdb "measures-health/internal/database"
 
+	measuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/measures"
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/search"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/validation"
 )
@@ -38,6 +40,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, measuresH.Endpoints...)
 	out = append(out, searchH.Endpoints...)
 	out = append(out, validationH.Endpoints...)
 	return out
@@ -66,6 +69,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "measures", File: measuresv1.File_measures_health_v1_measures_measures_proto},
 		{Module: "search", File: searchv1.File_measures_health_v1_search_search_proto},
 		{Module: "validation", File: validationv1.File_measures_health_v1_validation_validation_proto},
 	}
@@ -82,5 +86,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(measuresH.Schema),
 	}
 }

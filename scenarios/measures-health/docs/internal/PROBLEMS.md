@@ -95,7 +95,7 @@ corpus) rather than shipped unexercised.
      (Phase 3's `routing.proto` carrier); the registration descriptor sets
      `result_mapping.measure_field: "measure"`.
    - Harvest **all** scenarios' manifest measure blocks (reuse
-     `internal/measurescan` — `Parse` + `Assemble`, same as `validation`), build
+     `manifestscan` — `Parse` + `Assemble`, same as `validation`), build
      an `aisearch-go` hybrid index embedding the `questions[]` via the
      **measures-go `MeasureComposer`** (`measures.MetaQuestions`/`MetaIntent`
      meta keys; store the serialized declaration as `SourceDoc.Body`).
@@ -212,7 +212,7 @@ dimension at soft R4.
 
 **Owner:** next Phase 4 continuation agent.
 
-**Refs:** `api/internal/validation/`, `api/internal/measurescan/`,
+**Refs:** `api/internal/validation/`, `packages/measures-go/manifestscan/`,
 `api/handlers/validation/`, `cli/domains/validate/`,
 `packages/proto/schemas/measures-health/v1/validation/`; producer:
 `scenarios/test-genie/api/internal/orchestrator/phases/phase_measures.go`,
@@ -250,6 +250,16 @@ a migration handoff with a planned retirement path back into
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
 | `docs/internal/SEAMS.md` + `ARCHITECTURE.md` + reference pages (`api-endpoints.md`, `cli-commands.md`, `ui-manifest.md`, `DATA.md`, `FLOWS.md`, …) | Still document the template `notes`/attachments worked-example domain (4 full seam entries in SEAMS.md; RESTReasonMultipartUpload "notes attachments" worked-example in ARCHITECTURE.md) that **Gate 7 deleted from code/proto/.vrooli on 2026-06-08**. Product code, `.vrooli`, and the proto schema dir are clean; only docs retain the examples. | Low — cosmetic/teaching drift, not load-bearing for the live `validation`/`search` domains. Matches the shipped `security-health` reference, which carries identical doc residue post-Gate-7 (41 notes refs in its SEAMS.md across 20 doc files) and still passed DoD. Gate 7's defined residue scope is `api/cli/ui/.vrooli/proto`, not docs. | Rewrite SEAMS.md's seam entries to document the real `validation`/`measureindex`/`search` seams and re-point the ARCHITECTURE/reference worked-examples. Best done as a dedicated docs pass (it is a Phase-4 *documentation* deliverable, not Gate-7 product-code removal). |
+
+## Open follow-ups
+
+| Area | Item | Notes |
+|---|---|---|
+| `internal/validation/substrate.go` | `measures.undeclared-substrate` is a **WARNING** today. | Escalatable to ERROR once trusted across the fleet. It starts at WARNING so it absorbs false positives while still eroding the EM `measures` dimension via warning-density. A fleet sweep (2026-06-09) was false-positive-clean on the validation-infra scenarios (measures-health/cli-health/security-health/swarm-manager/test-genie all detect 0). |
+| `internal/validation/substrate.go` | Proto-fallback substrate signal (a `v1/<entity>/` message with `id`+`*_at`+List/Count RPC) from the plan §3.1(b) is **deferred**. | The `created_at`-table signal alone swept the fleet clean, so the proto fallback was not needed for the honor-system teeth. Add it if a scenario persists countable entities with no SQL `CREATE TABLE` evidence (e.g. an external store) and slips through. |
+| Gold-star dogfood (2026-06-09) | **Ladder reached: L5 (federated).** measures-health is now conformant (`v1/domain/validation_run`), persists run history, declares two full-tier `validation_run` measures (`failed`/`coverage`), self-validates `--probe` → 0 findings / full tier / probePassed:true, and round-trips through search-hub (`how many scenarios failed measures validation this week` → auto-executed answer + provenance). | The CQRS `EventLog` read-model substrate was not needed — two `COUNT(*) WHERE ran_at ∈ [from,to)` SQL aggregates over `validation_runs` answer both measures. |
+| `cli/domains/validate/handlers.go` | Fixed a latent bug: `--probe` used `ctx.Flag("probe") == "true"` (a bool flag never yields the string `"true"`, so it was always false) → the CLI `--probe` silently never reached the RPC, defeating the test-genie producer's behavioral probe. Now `ctx.BoolFlag("probe")`. | Verified: installed CLI `validate scenario measures-health --probe --json` now reports `probePassed:true`. The installed binary was hot-patched; a lifecycle reinstall picks up the source fix. |
+| `ui/` proto-types link | The UI's `@vrooli/proto-types` pnpm `file:` copy predated the proto regen, so the new `measures-health/v1/measures` TS types had to be copied into the installed pnpm store copy for the UI build to resolve them. | Cosmetic/environmental: a clean `pnpm install` after the proto regen resolves it. The source TS gen (`packages/proto/gen/typescript/measures-health/v1/measures/`) is correct. |
 
 ## Cross-references
 

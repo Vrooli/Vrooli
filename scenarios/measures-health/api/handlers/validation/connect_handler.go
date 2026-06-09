@@ -12,7 +12,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	"measures-health/internal/measurescan"
+	"github.com/vrooli/measures-go/manifestscan"
+	"measures-health/internal/runhistory"
 	internal "measures-health/internal/validation"
 
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/validation"
@@ -25,9 +26,18 @@ type Validator interface {
 	ListFleetCoverage(ctx context.Context, scenarios []string) ([]internal.FleetEntry, error)
 }
 
+// RunRecorder persists a measures-validation run to the validation_run history.
+// Optional (nil = no persistence); production wires *runhistory.Repository. The
+// write happens here at the top-level ValidateScenario RPC ONLY — never inside
+// the per-scenario fleet rollup (ListFleetCoverage), which would amplify writes.
+type RunRecorder interface {
+	Record(ctx context.Context, run runhistory.Run) error
+}
+
 // Deps wires the Connect validation handler.
 type Deps struct {
 	Validator Validator
+	Recorder  RunRecorder
 	Logger    *log.Logger
 }
 
@@ -48,6 +58,20 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	if err != nil {
 		h.deps.Logger.Printf("validation.ValidateScenario(%q): %v", req.Msg.GetScenario(), err)
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	// Persist the run to the validation_run history (best-effort: a storage
+	// failure must not fail the validation RPC). Top-level only — the fleet
+	// rollup never reaches here, so writes are not amplified per scenario.
+	if h.deps.Recorder != nil {
+		errs, warns, _ := rep.Summary()
+		if rerr := h.deps.Recorder.Record(ctx, runhistory.Run{
+			Scenario:     rep.Scenario,
+			Passed:       rep.Passed,
+			ErrorCount:   errs,
+			WarningCount: warns,
+		}); rerr != nil {
+			h.deps.Logger.Printf("validation.ValidateScenario(%q): record run history: %v", rep.Scenario, rerr)
+		}
 	}
 	return connect.NewResponse(reportToProto(rep)), nil
 }
@@ -148,13 +172,13 @@ func statusToProto(s internal.DomainStatus) validationv1.DomainStatus {
 	}
 }
 
-func tierToProto(t measurescan.Tier) validationv1.Tier {
+func tierToProto(t manifestscan.Tier) validationv1.Tier {
 	switch t {
-	case measurescan.TierFull:
+	case manifestscan.TierFull:
 		return validationv1.Tier_TIER_FULL
-	case measurescan.TierPartial:
+	case manifestscan.TierPartial:
 		return validationv1.Tier_TIER_PARTIAL
-	case measurescan.TierFallback:
+	case manifestscan.TierFallback:
 		return validationv1.Tier_TIER_FALLBACK
 	default:
 		return validationv1.Tier_TIER_UNSPECIFIED

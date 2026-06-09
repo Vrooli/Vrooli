@@ -32,6 +32,70 @@
       }
     },
     {
+      "id": "measures_count_failed_validations",
+      "path": "/vrooli.measures_health.v1.measures.MeasuresService/CountFailedValidations",
+      "method": "POST",
+      "summary": "Count scenarios that failed measures validation in a window",
+      "description": "Answers \"how many scenarios failed measures validation this week\": a read-only, run-eligible, full-tier measure over the persisted validation_run history, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "count": "int64 (scalar value_field)"
+        }
+      },
+      "examples": [
+        {
+          "name": "Failed this week",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.measures.MeasuresService/CountFailedValidations -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "measures-health measures failed",
+        "args": [
+          "--window"
+        ]
+      }
+    },
+    {
+      "id": "measures_count_validation_coverage",
+      "path": "/vrooli.measures_health.v1.measures.MeasuresService/CountValidationCoverage",
+      "method": "POST",
+      "summary": "Count scenarios that passed measures validation in a window",
+      "description": "Answers \"how many scenarios passed measures validation this week\" — the fleet measure-coverage signal over time. Read-only, run-eligible, full-tier (canonical time_window). Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "count": "int64 (scalar value_field)"
+        }
+      },
+      "examples": [
+        {
+          "name": "Coverage this week",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.measures.MeasuresService/CountValidationCoverage -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "measures-health measures coverage",
+        "args": [
+          "--window"
+        ]
+      }
+    },
+    {
       "id": "search_search",
       "path": "/vrooli.measures_health.v1.search.SearchService/Search",
       "method": "POST",
@@ -207,6 +271,16 @@
       "name": "validate coverage",
       "description": "Roll up measure coverage across every discovered scenario (the fleet view)",
       "endpoint_id": "validation_list_fleet_coverage"
+    },
+    {
+      "name": "measures failed",
+      "description": "Count scenarios that failed measures validation in a window (--window); the validation_run.failed measure",
+      "endpoint_id": "measures_count_failed_validations"
+    },
+    {
+      "name": "measures coverage",
+      "description": "Count scenarios that passed measures validation in a window (--window); the validation_run.coverage measure",
+      "endpoint_id": "measures_count_validation_coverage"
     },
     {
       "name": "search query",

@@ -96,6 +96,22 @@
       "probeFailed": "الفحص ✗"
     }
   },
+  "measures": {
+    "title": "مقاييس التحقق",
+    "description": "عدد السيناريوهات التي فشلت ونجحت في التحقق من المقاييس خلال الفترة المحددة.",
+    "loading": "جارٍ تحميل المقاييس…",
+    "windowLabel": "الفترة الزمنية",
+    "failedLabel": "فشل {{count}} سيناريو",
+    "passedLabel": "نجح {{count}} سيناريو في التحقق من المقاييس",
+    "window": {
+      "thisWeek": "هذا الأسبوع",
+      "last7d": "آخر 7 أيام",
+      "last30d": "آخر 30 يومًا",
+      "thisMonth": "هذا الشهر",
+      "lastMonth": "الشهر الماضي",
+      "thisQuarter": "هذا الربع"
+    }
+  },
   "errors": {
     "canceled": "Operation canceled.",
     "unknown": "An unknown error occurred.",

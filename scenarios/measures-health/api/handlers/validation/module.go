@@ -15,11 +15,14 @@ import (
 // Module returns the validation domain's contribution to the API: the generated
 // Connect-RPC ValidationService handler. The Validator is constructed with the
 // production filesystem seams rooted at repoRoot (manifests + proto domain
-// folders + the committed descriptor image + a live behavioral prober).
-func Module(repoRoot string, logger *log.Logger) module.Module {
+// folders + the committed descriptor image + a live behavioral prober). recorder
+// (optional, may be nil) persists each ValidateScenario run to the
+// validation_run history.
+func Module(repoRoot string, recorder RunRecorder, logger *log.Logger) module.Module {
 	v := internal.NewFilesystemValidator(repoRoot)
 	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(NewConnectHandler(Deps{
 		Validator: v,
+		Recorder:  recorder,
 		Logger:    logger,
 	}))
 	return module.Module{

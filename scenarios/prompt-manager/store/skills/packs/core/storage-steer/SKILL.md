@@ -124,7 +124,9 @@ internal/<dom>/
   service.go
 ```
 
-**`schema.sql`** holds only this domain's tables. Forward-only declarative — `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, `ALTER TABLE … ADD COLUMN IF NOT EXISTS`. Idempotent re-runs are required: `EnsureSchemas` is called on every boot.
+**`schema.sql`** holds only this domain's tables. Forward-only declarative — `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`. Idempotent re-runs are required: `EnsureSchemas` is called on every boot.
+
+> **⚠ `EnsureSchemas` only ever *creates missing tables and indexes* — it never alters the columns of a table that already exists.** Do **not** put `ALTER TABLE … ADD COLUMN` in `schema.sql`. Two reasons: (1) `ADD COLUMN IF NOT EXISTS` is valid PostgreSQL but a **syntax error in SQLite** (our default engine), and a bare `ADD COLUMN` errors with "duplicate column name" on the second boot — either form crashes boot, since `EnsureSchemas` execs the file as one statement with no per-statement tolerance. (2) Adding the column only inside `CREATE TABLE IF NOT EXISTS` **silently does nothing** on a DB that already has the table. So *any* change to an existing table's columns is a migration, not a declarative edit — see §5. (`EnsureSchemas` now runs a post-apply drift check on SQLite — `PRAGMA table_info` vs the declared columns — and **fails boot loudly** if a declared column is missing, so a forgotten migration can't ship silently.)
 
 **`schema.go`** embeds the SQL via `//go:embed` and exports `func Schema() string`. The function is the seam; the file is its substrate.
 
@@ -220,9 +222,14 @@ The default. The repo never gains a `migrations/` folder. `internal/<dom>/schema
 
 **Use when:** scenario hasn't shipped to real users yet. Includes new scenarios, scenarios with only your own dev data, scenarios you've been using personally for weeks. Comfort evolving the schema is the whole point — you're allowed to change anything.
 
-**How to add, drop, rename, or change a column:** edit `internal/<dom>/schema.sql` to reflect the desired final shape. For additive changes (`ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`), the next boot's `EnsureSchemas` applies them and you're done.
+**The dividing line is the *granularity* of the change, not whether it's additive vs destructive:**
 
-**For destructive changes (drop, rename, type change) where you want to preserve your personal/local data**, write a one-shot script in `/tmp/<scenario-slug>/migrate-<short-descriptor>.<ext>`:
+- **A whole new table or new index** → free. Add the `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS` to `internal/<dom>/schema.sql`; the next boot's `EnsureSchemas` creates it. Done.
+- **Any change to the columns of an *existing* table — add, drop, rename, or retype, no exceptions** → **always a one-shot migration script.** `EnsureSchemas` cannot do this (it only creates *missing* tables/indexes; `CREATE TABLE IF NOT EXISTS` is a no-op on a table that already exists, so a new column added there silently never lands). Two steps, every time: **(1)** edit `internal/<dom>/schema.sql` to describe the desired final shape (so a fresh DB gets it via `CREATE TABLE`), **and (2)** write a one-shot migration script that brings an *existing* DB to that shape.
+
+> **Always migrate; never recreate.** Do **not** decide "this data is disposable, I'll just delete the DB." Agents are bad at that judgment and the cost of a wrong guess is destroyed data. Treat every existing-table column change as if the data must be preserved — write the migration. If the DB happened to be a rebuildable cache, the migration is harmlessly redundant; that's a cheap price for never having to make the call. (`EnsureSchemas` enforces this: on SQLite it drift-checks declared columns against the live table after applying and **fails boot loudly** if one is missing, naming the table and column — so a skipped migration surfaces immediately at boot instead of as a mysterious query failure later.)
+
+The one-shot script lives in `/tmp/<scenario-slug>/migrate-<short-descriptor>.<ext>`:
 
 ```
 /tmp/<scenario-slug>/migrate-add-status-column.sql
@@ -239,11 +246,11 @@ For multi-session work where `/tmp` clears on reboot, use `~/.cache/vrooli/<scen
 
 **Pattern:**
 1. Update `internal/<dom>/schema.sql` to describe the new desired state.
-2. Write the migration script in the temp location.
+2. Write the migration script in the temp location. **Make it safe to re-run** — guard the change (e.g. check `PRAGMA table_info(<table>)` before `ALTER TABLE … ADD COLUMN`, since a bare re-run errors with "duplicate column name"), or treat it as strictly run-once-then-delete. Idempotence removes a footgun if the script is accidentally run twice.
 3. Stop the scenario; run the script against the local DB; restart the scenario.
-4. Boot's `EnsureSchemas` confirms the new schema; the script is no longer needed; delete it.
+4. Boot's `EnsureSchemas` re-applies `schema.sql` and runs its drift check — if it passes, the existing DB now matches the declared shape and the script is no longer needed; delete it. If it still **fails boot** naming a missing column, the migration didn't cover that change — fix the script and re-run.
 
-**Why this exists:** so you can comfortably evolve the database after starting to use a scenario locally — without polluting the codebase with version-history files that no one will read. The script handles your personal data; the repo only ever describes the clean state.
+**Why this exists:** so you can comfortably evolve the database after starting to use a scenario locally — without polluting the codebase with version-history files that no one will read. The script migrates the existing local data into the new shape; the repo only ever describes the clean state. (When real users exist, this graduates to the versioned-migrations folder below — same idea, durable and ordered.)
 
 #### Under a Baseline Modes engagement — the managed migration folder
 

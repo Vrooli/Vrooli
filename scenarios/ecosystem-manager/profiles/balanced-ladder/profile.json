@@ -11,6 +11,7 @@
       "coverage": 0.9,
       "tidiness": 0.8,
       "performance": 0.8,
+      "measures": 0.8,
       "docs": 0.7
     },
     "targets": {
@@ -26,7 +27,8 @@
     "security",
     "performance",
     "polish",
-    "documentation-health"
+    "documentation-health",
+    "measures-adoption"
   ],
   "budget": {
     "max_iterations": 40,

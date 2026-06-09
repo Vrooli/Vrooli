@@ -7,12 +7,34 @@ import (
 	"strings"
 )
 
-// DomainSource derives a target scenario's stateful domains — the EXPECTED set.
-// Production scans the scenario's proto domain/ folder (ProtoDomainSource);
-// tests inject a fake. Keeping it a seam lets Classify stay pure and lets the
-// fleet rollup run against fixtures.
+// Mode is a scenario's measures-architecture maturity, decided purely by whether
+// it has adopted screaming architecture (a v1/domain/ proto folder).
+//
+//   - ModeConformant: packages/proto/schemas/<s>/v1/domain/ exists. The folder is
+//     the authoritative SSOT for stateful domains; declaring a NEW stateful domain
+//     via the manifest measures.domains[] is forbidden (illegal-domain-declaration).
+//   - ModeFallback: no v1/domain/ folder. The scenario must declare its stateful
+//     domains via measures.domains[]; it carries a standing architecture-fallback
+//     advisory nudging it toward adopting v1/domain/.
+//
+// Directory presence (not file count) is the switch, so an empty domain/ folder is
+// still conformant-with-zero-domains.
+type Mode string
+
+const (
+	ModeConformant Mode = "conformant"
+	ModeFallback   Mode = "fallback"
+)
+
+// DomainSource derives a target scenario's stateful domains — the EXPECTED set —
+// and reports its architecture Mode. Production scans the scenario's proto
+// domain/ folder (ProtoDomainSource); tests inject a fake. Keeping it a seam lets
+// Classify stay pure and lets the fleet rollup run against fixtures.
 type DomainSource interface {
 	StatefulDomains(scenario string) ([]DerivedDomain, error)
+	// Mode reports whether the scenario has a v1/domain/ folder (conformant) or
+	// not (fallback). See Mode.
+	Mode(scenario string) (Mode, error)
 }
 
 // statelessDomains is the built-in substrate filter: domain names that, by
@@ -74,4 +96,21 @@ func (p ProtoDomainSource) StatefulDomains(scenario string) ([]DerivedDomain, er
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out, nil
+}
+
+// Mode reports ModeConformant when the scenario has a v1/domain/ folder (even an
+// empty one) and ModeFallback otherwise. The directory's presence is the switch.
+func (p ProtoDomainSource) Mode(scenario string) (Mode, error) {
+	dir := filepath.Join(p.RepoRoot, "packages", "proto", "schemas", scenario, "v1", "domain")
+	info, err := os.Stat(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return ModeFallback, nil
+		}
+		return "", err
+	}
+	if !info.IsDir() {
+		return ModeFallback, nil
+	}
+	return ModeConformant, nil
 }

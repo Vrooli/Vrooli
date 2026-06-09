@@ -23,8 +23,10 @@ import (
 	_ "modernc.org/sqlite"
 
 	healthH "measures-health/handlers/health"
+	measuresH "measures-health/handlers/measures"
 	searchH "measures-health/handlers/search"
 	validationH "measures-health/handlers/validation"
+	"measures-health/internal/runhistory"
 	validationcore "measures-health/internal/validation"
 )
 
@@ -118,11 +120,22 @@ func main() {
 
 	repoRoot := validationcore.ResolveRepoRoot()
 
+	// runhistory persists measures-health's own validation_run entity — the
+	// substrate the `validation_run` measures aggregate over (the gold-star
+	// dogfood). The validation handler writes a row per top-level ValidateScenario;
+	// the measures handler reads counts over it.
+	runs := runhistory.New(db, nil)
+	measuresModule, err := measuresH.Module(runs, nil, log.Default())
+	if err != nil {
+		log.Fatalf("measures module init failed: %v", err)
+	}
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "measures-health-api", "1.0.0"),
-		validationH.Module(repoRoot, log.Default()),
+		validationH.Module(repoRoot, runs, log.Default()),
 		searchH.Module(repoRoot, log.Default()),
+		measuresModule,
 	)
 
 	// Self-register the central measures provider with search-hub from the

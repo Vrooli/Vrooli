@@ -9,10 +9,11 @@
     "api-steer",
     "cli-steer",
     "interoperability-steer",
-    "bundle-integration-steer"
+    "bundle-integration-steer",
+    "measures-adoption"
   ],
   "status": "active",
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-06-04T17:35:17Z",
-  "updatedAt": "2026-06-04T17:35:17Z"
+  "updatedAt": "2026-06-09T02:45:12Z"
 }

@@ -97,6 +97,24 @@
       "probeFailed": "probe ✗"
     }
   },
+  "measures": {
+    "title": "Validation measures",
+    "description": "How many scenarios failed and passed measures validation in the selected window.",
+    "loading": "Loading measures…",
+    "windowLabel": "Time window",
+    "failedLabel": "{{count}} scenarios failed",
+    "failedLabel_one": "{{count}} scenario failed",
+    "passedLabel": "{{count}} scenarios passed measures validation",
+    "passedLabel_one": "{{count}} scenario passed measures validation",
+    "window": {
+      "thisWeek": "This week",
+      "last7d": "Last 7 days",
+      "last30d": "Last 30 days",
+      "thisMonth": "This month",
+      "lastMonth": "Last month",
+      "thisQuarter": "This quarter"
+    }
+  },
   "errors": {
     "canceled": "Operation canceled.",
     "unknown": "An unknown error occurred.",

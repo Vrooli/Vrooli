@@ -3,14 +3,15 @@
   "schemaVersion": 1,
   "id": "configuration-observability",
   "name": "Configuration \u0026 observability",
-  "description": "Configuration and observability: designing tunable control surfaces and levers, and the signal and feedback surfaces that make behavior visible and steerable.",
+  "description": "Configuration and observability: designing tunable control surfaces and levers, the signal and feedback surfaces that make behavior visible and steerable, and the measures (named, typed, parameterized analytical queries) a scenario declares so its persisted state is queryable and answerable — adding measures to a scenario, grading measure coverage, analytical-query adoption.",
   "parentTopicId": "development",
   "skills": [
     "control-surface-tunable-levers-design",
-    "signal-and-feedback-surface-design"
+    "signal-and-feedback-surface-design",
+    "measures-adoption"
   ],
   "status": "active",
-  "revision": 1,
+  "revision": 3,
   "createdAt": "2026-06-04T17:35:22Z",
-  "updatedAt": "2026-06-04T17:35:22Z"
+  "updatedAt": "2026-06-09T02:48:16Z"
 }

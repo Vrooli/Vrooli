@@ -17,6 +17,16 @@
       "endpoint_id": "validation_list_fleet_coverage"
     },
     {
+      "name": "measures failed",
+      "description": "Count scenarios that failed measures validation in a window (--window); the validation_run.failed measure",
+      "endpoint_id": "measures_count_failed_validations"
+    },
+    {
+      "name": "measures coverage",
+      "description": "Count scenarios that passed measures validation in a window (--window); the validation_run.coverage measure",
+      "endpoint_id": "measures_count_validation_coverage"
+    },
+    {
       "name": "search query",
       "description": "Match an analytical question to a measure and return the computed answer (the search-hub measure provider)",
       "endpoint_id": "search_search"

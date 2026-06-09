@@ -18,7 +18,7 @@ import (
 	"context"
 
 	measures "github.com/vrooli/measures-go"
-	"measures-health/internal/measurescan"
+	"github.com/vrooli/measures-go/manifestscan"
 	"measures-health/internal/validation"
 )
 
@@ -41,11 +41,11 @@ type ScenarioLister interface {
 type Harvester struct {
 	manifests ManifestSource
 	scenarios ScenarioLister
-	schema    measurescan.SchemaSource
+	schema    manifestscan.SchemaSource
 }
 
 // NewHarvester constructs a Harvester over its seams.
-func NewHarvester(m ManifestSource, l ScenarioLister, s measurescan.SchemaSource) *Harvester {
+func NewHarvester(m ManifestSource, l ScenarioLister, s manifestscan.SchemaSource) *Harvester {
 	return &Harvester{manifests: m, scenarios: l, schema: s}
 }
 
@@ -56,7 +56,7 @@ func NewFilesystemHarvester(repoRoot string) *Harvester {
 	return NewHarvester(
 		validation.FilesystemManifestSource{RepoRoot: repoRoot},
 		validation.FilesystemScenarioLister{RepoRoot: repoRoot},
-		measurescan.NewDescriptorSchemaReader(repoRoot),
+		manifestscan.NewDescriptorSchemaReader(repoRoot),
 	)
 }
 
@@ -77,7 +77,7 @@ func (h *Harvester) Harvest(ctx context.Context) ([]measures.MeasureDeclaration,
 		if err != nil || len(raw) == 0 {
 			continue
 		}
-		mm, err := measurescan.Parse(raw)
+		mm, err := manifestscan.Parse(raw)
 		if err != nil {
 			continue
 		}

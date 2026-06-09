@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"measures-health/cli/domains/measures"
 	"measures-health/cli/domains/search"
 	"measures-health/cli/domains/validate"
 
@@ -45,5 +46,9 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{validateGroup, searchGroup}, nil
+	measuresGroup, err := measures.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{validateGroup, searchGroup, measuresGroup}, nil
 }

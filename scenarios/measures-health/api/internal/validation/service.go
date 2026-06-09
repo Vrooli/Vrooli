@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	measures "github.com/vrooli/measures-go"
-	"measures-health/internal/measurescan"
+	"github.com/vrooli/measures-go/manifestscan"
 )
 
 // ManifestSource reads a target scenario's raw cli/manifest.json bytes.
@@ -41,9 +41,10 @@ type ScenarioLister interface {
 type Validator struct {
 	manifests ManifestSource
 	domains   DomainSource
-	schema    measurescan.SchemaSource
+	schema    manifestscan.SchemaSource
 	prober    Prober
 	scenarios ScenarioLister
+	substrate SubstrateDetector
 }
 
 // Option configures a Validator.
@@ -55,8 +56,14 @@ func WithProber(p Prober) Option { return func(v *Validator) { v.prober = p } }
 // WithScenarioLister wires the fleet scenario enumerator.
 func WithScenarioLister(l ScenarioLister) Option { return func(v *Validator) { v.scenarios = l } }
 
+// WithSubstrateDetector wires the anti-under-declaration substrate cross-check
+// (otherwise it is skipped).
+func WithSubstrateDetector(s SubstrateDetector) Option {
+	return func(v *Validator) { v.substrate = s }
+}
+
 // NewValidator constructs a Validator over its required seams.
-func NewValidator(m ManifestSource, d DomainSource, s measurescan.SchemaSource, opts ...Option) *Validator {
+func NewValidator(m ManifestSource, d DomainSource, s manifestscan.SchemaSource, opts ...Option) *Validator {
 	v := &Validator{manifests: m, domains: d, schema: s}
 	for _, o := range opts {
 		o(v)
@@ -71,9 +78,10 @@ func NewFilesystemValidator(repoRoot string) *Validator {
 	return NewValidator(
 		FilesystemManifestSource{RepoRoot: repoRoot},
 		ProtoDomainSource{RepoRoot: repoRoot},
-		measurescan.NewDescriptorSchemaReader(repoRoot),
+		manifestscan.NewDescriptorSchemaReader(repoRoot),
 		WithProber(NewHTTPProber()),
 		WithScenarioLister(FilesystemScenarioLister{RepoRoot: repoRoot}),
+		WithSubstrateDetector(FilesystemSubstrateDetector{RepoRoot: repoRoot}),
 	)
 }
 
@@ -89,9 +97,9 @@ func (v *Validator) ValidateScenario(ctx context.Context, scenario string, probe
 	if err != nil {
 		return Report{}, err
 	}
-	mm := &measurescan.ManifestMeasures{}
+	mm := &manifestscan.ManifestMeasures{}
 	if len(raw) > 0 {
-		mm, err = measurescan.Parse(raw)
+		mm, err = manifestscan.Parse(raw)
 		if err != nil {
 			return Report{}, err
 		}
@@ -102,12 +110,27 @@ func (v *Validator) ValidateScenario(ctx context.Context, scenario string, probe
 		return Report{}, err
 	}
 
+	mode, err := v.domains.Mode(scenario)
+	if err != nil {
+		return Report{}, err
+	}
+
+	var detected []DetectedEntity
+	if v.substrate != nil {
+		detected, err = v.substrate.DetectedEntities(scenario)
+		if err != nil {
+			return Report{}, err
+		}
+	}
+
 	in := Inputs{
 		Scenario:  scenario,
+		Mode:      mode,
 		Domains:   derived,
 		Measures:  v.harvest(mm),
 		Omitted:   normalizeOmissions(mm.Omitted),
 		Overrides: normalizeOverrides(mm.Domains),
+		Detected:  detected,
 	}
 	rep := Classify(in)
 
@@ -120,7 +143,7 @@ func (v *Validator) ValidateScenario(ctx context.Context, scenario string, probe
 // harvest assembles each command's measure block against its proto schema and
 // grades its tier. Assembly errors are carried (not dropped) so Classify can
 // raise them as hard findings.
-func (v *Validator) harvest(mm *measurescan.ManifestMeasures) []HarvestedMeasure {
+func (v *Validator) harvest(mm *manifestscan.ManifestMeasures) []HarvestedMeasure {
 	out := make([]HarvestedMeasure, 0, len(mm.Commands))
 	for _, cm := range mm.Commands {
 		hm := HarvestedMeasure{
@@ -137,7 +160,7 @@ func (v *Validator) harvest(mm *measurescan.ManifestMeasures) []HarvestedMeasure
 			continue
 		}
 		hm.Decl = decl
-		hm.Tier = measurescan.GradeTier(decl)
+		hm.Tier = manifestscan.GradeTier(decl)
 		hm.TierNote = tierNote(decl)
 		out = append(out, hm)
 	}
@@ -147,7 +170,7 @@ func (v *Validator) harvest(mm *measurescan.ManifestMeasures) []HarvestedMeasure
 // runProbe behaviorally probes each successfully-assembled measure and folds the
 // results into the report (probe fields on the matching MeasureSummary + a hard
 // finding on a hollow declaration + a skipped note when the target is down).
-func (v *Validator) runProbe(ctx context.Context, scenario string, mm *measurescan.ManifestMeasures, rep *Report) {
+func (v *Validator) runProbe(ctx context.Context, scenario string, mm *manifestscan.ManifestMeasures, rep *Report) {
 	if v.prober == nil {
 		return
 	}
@@ -233,14 +256,14 @@ type FleetEntry struct {
 	Covered      int
 	Waived       int
 	Uncovered    int
-	WorstTier    measurescan.Tier
+	WorstTier    manifestscan.Tier
 	MeasureCount int
 }
 
 func rollup(rep Report) FleetEntry {
 	e := FleetEntry{Scenario: rep.Scenario, Passed: rep.Passed}
-	rank := map[measurescan.Tier]int{measurescan.TierFull: 0, measurescan.TierPartial: 1, measurescan.TierFallback: 2}
-	worst := measurescan.Tier("")
+	rank := map[manifestscan.Tier]int{manifestscan.TierFull: 0, manifestscan.TierPartial: 1, manifestscan.TierFallback: 2}
+	worst := manifestscan.Tier("")
 	for _, d := range rep.Domains {
 		switch d.Status {
 		case StatusCovered:
@@ -278,18 +301,18 @@ func tierNote(decl measures.MeasureDeclaration) string {
 	return "best-effort params: " + strings.Join(bare, ", ")
 }
 
-func normalizeOmissions(in []measurescan.Omission) []measurescan.Omission {
-	out := make([]measurescan.Omission, len(in))
+func normalizeOmissions(in []manifestscan.Omission) []manifestscan.Omission {
+	out := make([]manifestscan.Omission, len(in))
 	for i, o := range in {
-		out[i] = measurescan.Omission{Domain: normalizeDomain(o.Domain), Reason: o.Reason}
+		out[i] = manifestscan.Omission{Domain: normalizeDomain(o.Domain), Reason: o.Reason}
 	}
 	return out
 }
 
-func normalizeOverrides(in []measurescan.DomainOverride) []measurescan.DomainOverride {
-	out := make([]measurescan.DomainOverride, len(in))
+func normalizeOverrides(in []manifestscan.DomainOverride) []manifestscan.DomainOverride {
+	out := make([]manifestscan.DomainOverride, len(in))
 	for i, o := range in {
-		out[i] = measurescan.DomainOverride{Domain: normalizeDomain(o.Domain), Stateful: o.Stateful, Reason: o.Reason}
+		out[i] = manifestscan.DomainOverride{Domain: normalizeDomain(o.Domain), Stateful: o.Stateful, Reason: o.Reason}
 	}
 	return out
 }

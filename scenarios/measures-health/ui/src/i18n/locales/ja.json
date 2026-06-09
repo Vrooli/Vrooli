@@ -93,6 +93,22 @@
       "probeFailed": "プローブ ✗"
     }
   },
+  "measures": {
+    "title": "検証メジャー",
+    "description": "選択した期間内に、メジャー検証に失敗・合格したシナリオの数です。",
+    "loading": "メジャーを読み込み中…",
+    "windowLabel": "期間",
+    "failedLabel": "{{count}} 件のシナリオが失敗",
+    "passedLabel": "{{count}} 件のシナリオがメジャー検証に合格",
+    "window": {
+      "thisWeek": "今週",
+      "last7d": "過去7日間",
+      "last30d": "過去30日間",
+      "thisMonth": "今月",
+      "lastMonth": "先月",
+      "thisQuarter": "今四半期"
+    }
+  },
   "errors": {
     "canceled": "Operation canceled.",
     "unknown": "An unknown error occurred.",

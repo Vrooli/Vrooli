@@ -249,9 +249,9 @@ puts every filesystem/network read behind a seam, wired once in
 
 | | |
 |---|---|
-| **Seam** | Manifest source / domain source / proto schema / behavioral prober / scenario lister |
-| **Interface** | `internal/validation::ManifestSource` (`Manifest(scenario) []byte`), `::DomainSource` (`StatefulDomains(scenario) []DerivedDomain`), `internal/measurescan::SchemaSource` (`RequestParams(service,method)`), `internal/validation::Prober` (`Probe(ctx,scenario,decl) (ok,detail,skipped)`), `::ScenarioLister` (`Scenarios()`). |
-| **Production wiring** | `NewFilesystemValidator(repoRoot)` composes `FilesystemManifestSource` (reads `scenarios/<s>/cli/manifest.json`), `ProtoDomainSource` (scans `packages/proto/schemas/<s>/v1/domain/*.proto`), `measurescan.NewDescriptorSchemaReader` (the committed `image.binpb`), `HTTPProber` (reuses `measures.HTTPExecutor` + api-core discovery; gate-safe — never probes write/destructive), and `FilesystemScenarioLister`. |
+| **Seam** | Manifest source / domain source (+ Mode) / proto schema / behavioral prober / scenario lister / substrate detector |
+| **Interface** | `internal/validation::ManifestSource` (`Manifest(scenario) []byte`), `::DomainSource` (`StatefulDomains(scenario) []DerivedDomain` + `Mode(scenario) Mode` — conformant when a `v1/domain/` folder exists, else fallback), `manifestscan::SchemaSource` (`github.com/vrooli/measures-go/manifestscan`) (`RequestParams(service,method)`), `internal/validation::Prober` (`Probe(ctx,scenario,decl) (ok,detail,skipped)`), `::ScenarioLister` (`Scenarios()`), `::SubstrateDetector` (`DetectedEntities(scenario) []DetectedEntity` — persisted countable entities discovered from evidence). |
+| **Production wiring** | `NewFilesystemValidator(repoRoot)` composes `FilesystemManifestSource` (reads `scenarios/<s>/cli/manifest.json`), `ProtoDomainSource` (scans `packages/proto/schemas/<s>/v1/domain/*.proto`; its presence is the conformant/fallback Mode switch), `manifestscan.NewDescriptorSchemaReader` (the committed `image.binpb`), `HTTPProber` (reuses `measures.HTTPExecutor` + api-core discovery; gate-safe — never probes write/destructive), `FilesystemScenarioLister`, and `FilesystemSubstrateDetector`. **Substrate signal (deliberately conservative):** a `CREATE TABLE` (in `.sql` or Go-embedded SQL under `scenarios/<s>/api/`) with a **`created_at`** column (the canonical "rows accumulate over a window" signal — mutation stamps like `updated_at`/`last_*_at`/`last_seen` do NOT qualify), excluding singleton state rows (`CHECK (id = 1)`) and infrastructure tables (`events`/`event_log`/`schema_migrations`/…). An undeclared, unwaived detected entity → `measures.undeclared-substrate` WARNING. The proto `id`+`*_at`+List/Count fallback signal in the original plan is intentionally deferred (the `created_at`-table signal alone swept the fleet false-positive-clean). |
 | **Test fake** | In-package fakes in `service_test.go` (`fakeManifests`/`fakeDomains`/`fakeSchema`/`fakeProber`/`fakeLister`) drive the whole `ValidateScenario`/`ListFleetCoverage` path with no filesystem or network. The handler depends on a `Validator` interface so `connect_handler_test.go` injects a `fakeValidator`. |
 | **Why it exists** | Coverage grading must be deterministic and run against fixtures (the fleet rollup validates every scenario). Keeping `Classify` pure makes the classification table-testable; the seams let the probe + fleet exercise real-shaped inputs without a live cluster. |
 
@@ -266,10 +266,27 @@ corpus and the three seams the Engine needs, wired once in
 | | |
 |---|---|
 | **Seam** | Harvest sources / Matcher / Executor / param Extractor (Completer) / ollama availability |
-| **Interface** | `internal/measureindex::ManifestSource` + `::ScenarioLister` (harvest; structurally satisfied by the `validation` filesystem seams) and `internal/measurescan::SchemaSource`; `measures.Matcher` (`Match(ctx,question,limit) []Match`, impl `LexicalMatcher`); `measures.Executor` (the execution-proxy, prod = `measures.HTTPExecutor`); `measures.ParamExtractor` (prod = `measures.LLMExtractor` over `measures.Completer`); `Config.OllamaAvailable func(ctx) bool` (Status). |
+| **Interface** | `internal/measureindex::ManifestSource` + `::ScenarioLister` (harvest; structurally satisfied by the `validation` filesystem seams) and `manifestscan::SchemaSource` (`github.com/vrooli/measures-go/manifestscan`); `measures.Matcher` (`Match(ctx,question,limit) []Match`, impl `LexicalMatcher`); `measures.Executor` (the execution-proxy, prod = `measures.HTTPExecutor`); `measures.ParamExtractor` (prod = `measures.LLMExtractor` over `measures.Completer`); `Config.OllamaAvailable func(ctx) bool` (Status). |
 | **Production wiring** | `NewFilesystemHarvester(repoRoot).Harvest()` → `NewProvider(decls, Config{})`: `LexicalMatcher` over the corpus, `HTTPExecutor` resolving the owning scenario via api-core discovery + the conventional measures mount path (same resolution as the probe), `LLMExtractor` over the `resource-ollama gateway generate` completer (model `MEASURES_HEALTH_EXTRACT_MODEL`), threshold from `MEASURES_HEALTH_CONFIDENCE_THRESHOLD`. The Connect handler depends on a `Searcher` interface (`Query`/`Status`). |
 | **Test fake** | `provider_test.go` injects a `fakeExecutor` + `NoopExtractor` + stubbed `OllamaAvailable` to drive the gate offline (read auto-exec, write never-exec, missing-required → needs). `harvest_test.go` injects `fakeManifests`/`fakeLister`/`stubSchema`. `connect_handler_test.go` injects a `fakeSearcher` and asserts the **wire shape** (snake_case carrier) the search-hub adapter reads. |
 | **Why it exists** | The Matcher seam is what lets the *reusable* Engine live in `measures-go` while the *index* (today lexical; tomorrow aisearch+qdrant) lives here — swapping retrieval is a one-seam change. The executor/extractor seams keep the auto-execution gate testable without a live owning scenario or ollama. |
+
+### measures domain seams (the gold-star dogfood)
+
+measures-health declares its **own** full-tier measures over its persisted
+`validation_run` history — it eats the dogfood it enforces. It adopted screaming
+architecture (`packages/proto/schemas/measures-health/v1/domain/validation_run.proto`),
+which flips it to the conformant expectation mode, so it must (and does) cover its
+`validation_run` domain. The `measures` domain (`api/handlers/measures/`) surfaces
+the measures two ways over ONE shared compute path.
+
+| | |
+|---|---|
+| **Seam** | `measures.Counter` (the validation_run substrate) + the `now func() time.Time` clock |
+| **Interface** | `handlers/measures::Counter` (`CountFailed(ctx,from,to)` / `CountPassing(ctx,from,to)`) — the narrow read surface the measure compute funcs aggregate over; `runhistory.DB` (`ExecContext`/`QueryRowContext`, satisfied by both `*sql.DB` and the production `*database.RoutedDB`). |
+| **Production wiring** | `runhistory.New(db, nil)` (the `validation_runs` repository) backs both surfaces: `measures.RegisterRoutes` mounts the typed Connect `MeasuresService`, and `measures.MeasuresHandler` mounts the `measures-go` serve registry at `/measures` — both built from one `specs()` table sharing one `computeFn`, so a measure and its RPC can never report different numbers. The `validation` handler's `RunRecorder` (also `*runhistory.Repository`) writes one row per **top-level** `ValidateScenario` RPC (never inside the fleet rollup, which would amplify writes). |
+| **Test fake** | The compute path is table-tested with a fake `Counter`; the serve round-trip mirrors the behavioral probe. `runhistory` is exercised with a real in-memory `*sql.DB`. |
+| **Why it exists** | Surfacing the measure two ways from one compute fn is the swarm-manager dogfood pattern: the RPC (typed CLI/UI surface) and the `/measures` serve registry (the contract the probe + search-hub index call) must agree by construction. Gating the run-history write to the top-level RPC keeps the fleet rollup O(scenarios) reads, not O(scenarios) writes. |
 
 ## Adding a new seam
 
