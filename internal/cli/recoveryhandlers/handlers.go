@@ -132,6 +132,20 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			},
 			recoverycli.RenderEngagement,
 		),
+		recoverycli.CommandSetMode: rootcli.BindGlobalCommand(deps.Stdout,
+			func(ctx C, args []string) (recoveryapp.SetModeRequest, error) {
+				return recoverycli.ParseSetModeRequest(args)
+			},
+			func(ctx C, req recoveryapp.SetModeRequest) (cliout.Format, recoveryapp.EngagementView, error) {
+				format, service, err := newService(deps, ctx)
+				if err != nil {
+					return "", recoveryapp.EngagementView{}, err
+				}
+				resp, err := service.SetMode(req)
+				return format, resp, err
+			},
+			recoverycli.RenderEngagement,
+		),
 		recoverycli.CommandClean: rootcli.BindGlobalCommand(deps.Stdout,
 			func(ctx C, args []string) (recoveryapp.Ref, error) {
 				return recoverycli.ParseRefRequest(recoverycli.CommandClean, "recovery clean", args)

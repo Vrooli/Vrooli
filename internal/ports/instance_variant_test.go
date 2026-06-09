@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/portspec"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
@@ -75,10 +76,13 @@ func TestBuildEnvironmentVariantIsolatesPortsAndNamespace(t *testing.T) {
 	}
 }
 
-// TestAllocateSkipsFixedPortForNonLiveVariant proves the live-only fixed-port
-// policy: a non-live variant never claims a fixed port (so it can never preempt
-// or collide with the live instance on it), while the live instance does.
-func TestAllocateSkipsFixedPortForNonLiveVariant(t *testing.T) {
+// TestAllocateFallsBackToBandForNonLiveFixedPort proves the live-only fixed-port
+// policy AND its non-live fallback: the live instance keeps the constant fixed
+// port, while a non-live variant — which must never take or be preempted on that
+// constant — is allocated a role-appropriate port in the same canonical band
+// (here the API band) instead of being left without a port (skipping would leave
+// e.g. a shadow's UI unstartable and the scenario permanently degraded).
+func TestAllocateFallsBackToBandForNonLiveFixedPort(t *testing.T) {
 	root := t.TempDir()
 	home := root
 	writePortRegistry(t, root, nil)
@@ -88,7 +92,7 @@ func TestAllocateSkipsFixedPortForNonLiveVariant(t *testing.T) {
 		t.Fatalf("NewManager: %v", err)
 	}
 
-	fixed := 28123
+	fixed := 16000 // a fixed API port, inside the API band
 	manifest := scenario.ServiceManifest{
 		Ports: map[string]scenario.Port{
 			"api": {EnvVar: "API_PORT", Port: &fixed},
@@ -100,8 +104,15 @@ func TestAllocateSkipsFixedPortForNonLiveVariant(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildEnvironment(shadow fixed): %v", err)
 	}
-	if port, ok := env.AllocatedPorts["api"]; ok {
-		t.Fatalf("shadow allocated fixed api port %d; fixed ports are live-only", port)
+	got, ok := env.AllocatedPorts["api"]
+	if !ok || got == 0 {
+		t.Fatalf("shadow got no api port; a non-live fixed port must fall back to a band, not be skipped")
+	}
+	if got == fixed {
+		t.Fatalf("shadow took the live fixed port %d; it must avoid the constant", fixed)
+	}
+	if got < portspec.APIRangeStart || got > portspec.APIRangeEnd {
+		t.Fatalf("shadow api port %d not in API band %d-%d", got, portspec.APIRangeStart, portspec.APIRangeEnd)
 	}
 
 	live := scenario.Scenario{Slug: "alpha", Path: filepath.Join(root, "scenarios", "alpha"), Manifest: manifest}
@@ -111,5 +122,33 @@ func TestAllocateSkipsFixedPortForNonLiveVariant(t *testing.T) {
 	}
 	if liveEnv.AllocatedPorts["api"] != fixed {
 		t.Fatalf("live api port = %d, want fixed %d", liveEnv.AllocatedPorts["api"], fixed)
+	}
+}
+
+// TestFallbackBandForFixedPort covers the band selector: env-var role is the
+// primary signal, the fixed port's own canonical band is the fallback for
+// role-ambiguous names, and headroom is the last resort.
+func TestFallbackBandForFixedPort(t *testing.T) {
+	p := func(envVar, name string, port int) scenario.PortSummary {
+		return scenario.PortSummary{EnvVar: envVar, Name: name, FixedPort: &port}
+	}
+	cases := []struct {
+		name             string
+		summary          scenario.PortSummary
+		wantLo, wantHigh int
+	}{
+		{"ui by name", p("UI_PORT", "ui", 21241), portspec.UIRangeStart, portspec.UIRangeEnd},
+		{"api by name", p("API_PORT", "api", 9999), portspec.APIRangeStart, portspec.APIRangeEnd},
+		{"ws by name", p("WS_PORT", "ws", 12345), portspec.WSRangeStart, portspec.WSRangeEnd},
+		{"role-ambiguous name falls back to port band", p("PORT", "listener", 21500), portspec.UIRangeStart, portspec.UIRangeEnd},
+		{"unknown falls back to headroom", p("PORT", "listener", 8080), portspec.ReservedHeadroomStart, portspec.ReservedHeadroomEnd},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			lo, hi := fallbackBandForFixedPort(tc.summary)
+			if lo != tc.wantLo || hi != tc.wantHigh {
+				t.Fatalf("band = %d-%d, want %d-%d", lo, hi, tc.wantLo, tc.wantHigh)
+			}
+		})
 	}
 }

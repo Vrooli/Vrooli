@@ -135,6 +135,68 @@ func TestWriteEngagementPreservesCreatedAtOnRewrite(t *testing.T) {
 	}
 }
 
+func TestSetModeFlipsModePreservingFields(t *testing.T) {
+	created := time.Date(2026, 6, 5, 9, 0, 0, 0, time.UTC)
+	svc, _ := newTestService(t, created)
+	if _, err := svc.WriteEngagement(WriteRequest{
+		Scenario: "demo", Slug: "abc", Mode: "shadow", TTL: time.Hour, Anchor: "anchor-1",
+	}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	later := created.Add(30 * time.Minute)
+	svc.Clock = fixedClock(later)
+	view, err := svc.SetMode(SetModeRequest{Scenario: "demo", Slug: "abc", Mode: "live"})
+	if err != nil {
+		t.Fatalf("SetMode: %v", err)
+	}
+	if view.Mode != "live" {
+		t.Fatalf("mode not flipped: %q", view.Mode)
+	}
+	// Everything except the mode (and the renewed touch) is preserved — including
+	// the restore point on disk, the anchor, the variant, and CreatedAt. This is
+	// what lets promote re-point live without losing engagement metadata.
+	if !view.CreatedAt.Equal(created) {
+		t.Errorf("CreatedAt not preserved: %v", view.CreatedAt)
+	}
+	if !view.LastTouchedAt.Equal(later) {
+		t.Errorf("LastTouchedAt not renewed: %v", view.LastTouchedAt)
+	}
+	if view.AnchorBaselineName != "anchor-1" {
+		t.Errorf("anchor dropped: %q", view.AnchorBaselineName)
+	}
+	if view.RestorePointPath != svc.Store.RestorePointPath("demo", "abc") {
+		t.Errorf("restore point path changed: %q", view.RestorePointPath)
+	}
+
+	// Flip back is symmetric.
+	back, err := svc.SetMode(SetModeRequest{Scenario: "demo", Slug: "abc", Mode: "shadow"})
+	if err != nil {
+		t.Fatalf("SetMode back: %v", err)
+	}
+	if back.Mode != "shadow" {
+		t.Fatalf("flip back failed: %q", back.Mode)
+	}
+}
+
+func TestSetModeInvalidMode(t *testing.T) {
+	created := time.Date(2026, 6, 5, 9, 0, 0, 0, time.UTC)
+	svc, _ := newTestService(t, created)
+	if _, err := svc.WriteEngagement(WriteRequest{Scenario: "demo", Slug: "abc", Mode: "shadow"}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if _, err := svc.SetMode(SetModeRequest{Scenario: "demo", Slug: "abc", Mode: "bogus"}); err == nil {
+		t.Fatal("expected invalid-mode error")
+	}
+}
+
+func TestSetModeMissingEngagement(t *testing.T) {
+	svc, _ := newTestService(t, time.Now())
+	if _, err := svc.SetMode(SetModeRequest{Scenario: "demo", Slug: "nope", Mode: "live"}); err == nil {
+		t.Fatal("expected error flipping a non-existent engagement")
+	}
+}
+
 func TestWriteEngagementInvalidMode(t *testing.T) {
 	svc, _ := newTestService(t, time.Now())
 	if _, err := svc.WriteEngagement(WriteRequest{Scenario: "demo", Slug: "abc", Mode: "bogus"}); err == nil {

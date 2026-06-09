@@ -336,6 +336,11 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 	}
 	defer file.Close()
 
+	sourceDir, err := r.effectiveSourceDir(item)
+	if err != nil {
+		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
+	}
+
 	stepEnv := mergeEnv(os.Environ(), env)
 	stepEnv = setEnvValue(stepEnv, "VROOLI_PROCESS_ID", processID)
 	stepEnv = setEnvValue(stepEnv, "VROOLI_PHASE", phase)
@@ -347,7 +352,7 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 	// Week 6 removes project-level Bash orchestration, but scenario steps
 	// intentionally continue to run as user-authored shell commands.
 	cmd := shell.BashCommand(step.Run, shell.Spec{
-		Dir:    item.Path,
+		Dir:    sourceDir,
 		Env:    stepEnv,
 		Stdout: file,
 		Stderr: file,
@@ -367,7 +372,7 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 		Scenario:   item.Slug,
 		Step:       step.Name,
 		Command:    step.Run,
-		WorkingDir: item.Path,
+		WorkingDir: sourceDir,
 		LogFile:    logFile,
 		Port:       port,
 		StartedAt:  time.Now().UTC(),
@@ -399,13 +404,18 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 }
 
 func (r *Runner) runForegroundStep(item scenario.Scenario, phase, command string, env map[string]string, logWriter io.Writer) error {
+	sourceDir, err := r.effectiveSourceDir(item)
+	if err != nil {
+		return err
+	}
+
 	stepEnv := mergeEnv(os.Environ(), env)
 	stepEnv = setEnvValue(stepEnv, "LIFECYCLE_PHASE", phase)
 	stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_MANAGED", "true")
 
 	// Scenario lifecycle steps remain shell-defined by the service.json contract.
 	cmd := shell.BashCommand(command, shell.Spec{
-		Dir:    item.Path,
+		Dir:    sourceDir,
 		Env:    stepEnv,
 		Stdout: logWriter,
 		Stderr: logWriter,

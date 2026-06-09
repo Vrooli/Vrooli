@@ -16,6 +16,7 @@ import (
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/network"
+	"github.com/vrooli/vrooli/internal/portspec"
 	"github.com/vrooli/vrooli/internal/process"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -538,28 +539,33 @@ type portAllocation struct {
 }
 
 func (m *Manager) allocatePortDefinition(key scenarioruntime.InstanceKey, portSummary scenario.PortSummary, claimOptions RuntimeClaimOptions) (portAllocation, error) {
-	ns := key.Namespace()
 	if portSummary.FixedPort != nil {
-		// Fixed ports are a live-only privilege (§1a / P1): a constant port can
-		// only be honored by one instance, and that is reserved for live. A
-		// non-live variant skips the fixed definition entirely so it can never
-		// preempt or collide with the live instance on it. (The offset/range
-		// fallback that gives a shadow an alternate port is a deferred follow-up.)
-		if !key.IsLive() {
-			return portAllocation{}, nil
-		}
 		port := *portSummary.FixedPort
-		claim, claimed, err := m.acquireRuntimePortClaim(key, portSummary, port, claimOptions, true)
-		if err != nil {
-			return portAllocation{}, fmt.Errorf("fixed port %d for %s unavailable: %w", port, portSummary.Name, err)
-		}
-		if err := m.ensurePortBindable(port, key.Scenario); err != nil {
-			if claimed {
-				_, _ = claimOptions.Store.ReleasePortClaim(runtimeClaimContext(claimOptions), claim.ClaimID)
+		// Fixed ports are a live-only privilege (§1a / P1): a constant port can
+		// only be honored by one instance, and that is reserved for live.
+		if key.IsLive() {
+			claim, claimed, err := m.acquireRuntimePortClaim(key, portSummary, port, claimOptions, true)
+			if err != nil {
+				return portAllocation{}, fmt.Errorf("fixed port %d for %s unavailable: %w", port, portSummary.Name, err)
 			}
-			return portAllocation{}, fmt.Errorf("fixed port %d for %s unavailable: %w", port, portSummary.Name, err)
+			if err := m.ensurePortBindable(port, key.Scenario); err != nil {
+				if claimed {
+					_, _ = claimOptions.Store.ReleasePortClaim(runtimeClaimContext(claimOptions), claim.ClaimID)
+				}
+				return portAllocation{}, fmt.Errorf("fixed port %d for %s unavailable: %w", port, portSummary.Name, err)
+			}
+			return portAllocation{port: port, runtimeClaim: claim, newClaim: claimed}, nil
 		}
-		return portAllocation{port: port, runtimeClaim: claim, newClaim: claimed}, nil
+		// A non-live variant cannot take the constant (it belongs to live), but
+		// it must NOT be left without a port — skipping would leave e.g. a
+		// shadow's UI unstartable and the scenario permanently degraded. Fall
+		// back to a dynamically-allocated port in the SAME canonical band as the
+		// fixed port (a UI fixed port -> the UI band, an API fixed port -> the
+		// API band, etc. — see internal/portspec), so the variant keeps a
+		// role-appropriate port. The live fixed value itself is excluded so the
+		// variant can never collide with (or be preempted by) live.
+		bandStart, bandEnd := fallbackBandForFixedPort(portSummary)
+		return m.allocateFromBand(key, portSummary, claimOptions, bandStart, bandEnd, port)
 	}
 
 	if portSummary.Range == "" {
@@ -573,14 +579,26 @@ func (m *Manager) allocatePortDefinition(key scenarioruntime.InstanceKey, portSu
 	if end < start {
 		return portAllocation{}, fmt.Errorf("invalid range %q", portSummary.Range)
 	}
+	return m.allocateFromBand(key, portSummary, claimOptions, start, end, -1)
+}
 
+// allocateFromBand deterministically picks a free, bindable port in [start,end].
+// The first-choice port is seeded from the variant-aware PortSeed (bare slug for
+// live — so live ports never shift — "scenario@variant" otherwise) so different
+// variants prefer different ports. avoid (>= 0) is never selected; it keeps a
+// non-live variant off the live fixed port whose band it is borrowing.
+func (m *Manager) allocateFromBand(key scenarioruntime.InstanceKey, portSummary scenario.PortSummary, claimOptions RuntimeClaimOptions, start, end, avoid int) (portAllocation, error) {
+	if end < start {
+		return portAllocation{}, fmt.Errorf("invalid port band %d-%d for %s", start, end, portSummary.Name)
+	}
+	ns := key.Namespace()
 	size := end - start + 1
-	// Seed the deterministic first-choice port from the variant-aware PortSeed
-	// (bare slug for live — so live ports never shift — "scenario@variant"
-	// otherwise) so the two variants hash to different first-choice ports.
 	offset := int(crc32.ChecksumIEEE([]byte(ns.PortSeed+"_"+portSummary.Name)) % uint32(size))
 	for attempt := 0; attempt < size; attempt++ {
 		port := start + ((offset + attempt) % size)
+		if port == avoid {
+			continue
+		}
 		claim, claimed, err := m.acquireRuntimePortClaim(key, portSummary, port, claimOptions, false)
 		if err != nil {
 			continue
@@ -593,8 +611,54 @@ func (m *Manager) allocatePortDefinition(key scenarioruntime.InstanceKey, portSu
 		}
 		return portAllocation{port: port, runtimeClaim: claim, newClaim: claimed}, nil
 	}
+	return portAllocation{}, fmt.Errorf("no available ports in band %d-%d for %s", start, end, portSummary.Name)
+}
 
-	return portAllocation{}, fmt.Errorf("no available ports in range %s for %s", portSummary.Range, portSummary.Name)
+// fallbackBandForFixedPort returns the canonical port band a non-live variant
+// should borrow when the live instance owns a fixed port. The role declared by
+// the env var / name is the primary signal (API_PORT -> API band, UI_PORT -> UI
+// band, ... — the scenario's stated intent); a fixed port whose name is
+// role-ambiguous falls back to the canonical band its own value sits in (e.g. a
+// constant of 21241 -> the UI band), and finally to the reserved headroom band.
+func fallbackBandForFixedPort(portSummary scenario.PortSummary) (int, int) {
+	if role := roleFromPortName(portSummary.EnvVar, portSummary.Name); role != portspec.RoleUnknown {
+		return bandRangeForRole(role)
+	}
+	fixed := 0
+	if portSummary.FixedPort != nil {
+		fixed = *portSummary.FixedPort
+	}
+	if role, ok := portspec.CanonicalBand(fixed); ok {
+		return bandRangeForRole(role)
+	}
+	return portspec.ReservedHeadroomStart, portspec.ReservedHeadroomEnd
+}
+
+func bandRangeForRole(role portspec.CanonicalRole) (int, int) {
+	switch role {
+	case portspec.RoleAPI:
+		return portspec.APIRangeStart, portspec.APIRangeEnd
+	case portspec.RoleUI:
+		return portspec.UIRangeStart, portspec.UIRangeEnd
+	case portspec.RoleWS:
+		return portspec.WSRangeStart, portspec.WSRangeEnd
+	default:
+		return portspec.ReservedHeadroomStart, portspec.ReservedHeadroomEnd
+	}
+}
+
+func roleFromPortName(envVar, name string) portspec.CanonicalRole {
+	s := strings.ToLower(envVar + " " + name)
+	switch {
+	case strings.Contains(s, "ws") || strings.Contains(s, "websocket"):
+		return portspec.RoleWS
+	case strings.Contains(s, "ui"):
+		return portspec.RoleUI
+	case strings.Contains(s, "api"):
+		return portspec.RoleAPI
+	default:
+		return portspec.RoleUnknown
+	}
 }
 
 func (m *Manager) acquireRuntimePortClaim(key scenarioruntime.InstanceKey, portSummary scenario.PortSummary, port int, options RuntimeClaimOptions, fixed bool) (scenarioruntime.PortClaim, bool, error) {

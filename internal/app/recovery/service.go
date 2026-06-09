@@ -223,6 +223,45 @@ func (s Service) WriteEngagement(req WriteRequest) (EngagementView, error) {
 	return s.view(m), nil
 }
 
+// SetModeRequest flips an existing engagement's recorded mode in place.
+type SetModeRequest struct {
+	Scenario string
+	Slug     string
+	Mode     string
+}
+
+// SetMode changes ONLY the recorded mode of an existing engagement, preserving
+// every other field (variant, anchor, ambient var, shadow key, timestamps, TTL)
+// and the restore-point copy on disk. It is the non-lossy lever Baseline Modes
+// promote uses to re-point a serving instance without tearing the engagement
+// down: flipping a shadow engagement to live makes the lifecycle's
+// EngagementResolver stop routing live to the frozen copy (a live-mode
+// engagement creates no source-dir split — live runs the working tree directly,
+// protected only by the still-present restore point, which is exactly
+// ModeLive's definition), so a subsequent live restart picks up the blessed
+// working tree. Flipping back to shadow reverses it for an auto-rollback. Unlike
+// WriteEngagement it never rebuilds the manifest from request fields, so it
+// cannot silently drop engagement metadata during the transient promote window.
+func (s Service) SetMode(req SetModeRequest) (EngagementView, error) {
+	if err := requireRef(req.Scenario, req.Slug); err != nil {
+		return EngagementView{}, err
+	}
+	mode := baselinefloor.Mode(strings.ToLower(strings.TrimSpace(req.Mode)))
+	if !mode.Valid() {
+		return EngagementView{}, fmt.Errorf("recovery: invalid mode %q (want shadow|live)", req.Mode)
+	}
+	m, err := s.Store.ReadManifest(req.Scenario, req.Slug)
+	if err != nil {
+		return EngagementView{}, err
+	}
+	m.Mode = mode
+	m.LastTouchedAt = s.now()
+	if err := s.Store.WriteManifest(m); err != nil {
+		return EngagementView{}, err
+	}
+	return s.view(m), nil
+}
+
 // Ref names a single engagement by (scenario, slug).
 type Ref struct {
 	Scenario string

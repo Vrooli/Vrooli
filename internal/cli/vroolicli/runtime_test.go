@@ -276,6 +276,37 @@ func TestEnsureScenarioCLIWarnsWhenPreviousPathWasNonCanonical(t *testing.T) {
 	}
 }
 
+// TestEnsureScenarioCLIResolvesVariantToBareScenario guards the fix for the
+// shadow-start bug the P1 live spike surfaced: a `--instance shadow` start
+// arrives here as the instance slug "scenario@shadow", but the scenario CLI and
+// its source tree are variant-independent (scenarios/<scenario>), so CLI
+// resolution must use the bare scenario name — otherwise it looks for
+// scenarios/scenario@shadow and fails.
+func TestEnsureScenarioCLIResolvesVariantToBareScenario(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	app := newRuntimeTestApp(t, root)
+	app.HomeDirFn = func() (string, error) { return home, nil }
+
+	var gotName string
+	app.EnsureScenarioCLIFn = func(_, _, name string) error {
+		gotName = name
+		return nil
+	}
+	app.LookPathFn = func(file string) (string, error) {
+		return filepath.Join(home, ".vrooli", "bin", file), nil
+	}
+
+	ctx := &CommandContext{Root: root, Stdout: io.Discard, Stderr: io.Discard, app: app}
+	if err := app.ensureScenarioCLI(ctx, "alpha@shadow"); err != nil {
+		t.Fatalf("ensureScenarioCLI(alpha@shadow) error = %v", err)
+	}
+	if gotName != "alpha" {
+		t.Fatalf("scenario CLI ensure used %q; want bare scenario %q (the source tree is variant-independent)", gotName, "alpha")
+	}
+}
+
 func TestFormatScenarioCLIInstallWarningForPersistentMismatch(t *testing.T) {
 	msg := formatScenarioCLIInstallWarning(
 		cliinstall.InstallLocationStatus{},

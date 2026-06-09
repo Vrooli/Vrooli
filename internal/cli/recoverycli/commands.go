@@ -19,6 +19,7 @@ const (
 	CommandList      CommandID = "list"
 	CommandTouch     CommandID = "touch"
 	CommandSetTTL    CommandID = "set-ttl"
+	CommandSetMode   CommandID = "set-mode"
 	CommandClean     CommandID = "clean"
 	CommandMigrate   CommandID = "migrate"
 	CommandNamespace CommandID = "namespace"
@@ -132,6 +133,20 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Handler: CommandSetTTL,
 		},
 		{
+			Name:    string(CommandSetMode),
+			Summary: "Flip an engagement's mode in place (the non-lossy promote re-point lever; preserves the restore point)",
+			Group:   groupEngagement,
+			Args: commandtree.ArgSchema{
+				Options: []commandtree.OptionArg{
+					scenarioOption(),
+					slugOption(),
+					{Name: "--mode", ValueName: "mode", Description: "New mode (shadow|live)"},
+					commandtree.JSONOption(),
+				},
+			},
+			Handler: CommandSetMode,
+		},
+		{
 			Name:    string(CommandClean),
 			Summary: "Tear down an engagement (restore point + manifest)",
 			Group:   groupEngagement,
@@ -149,7 +164,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 					scenarioOption(),
 					slugOption(),
 					{Name: "--engine", ValueName: "engine", Description: "Storage engine (default sqlite; v1 supports sqlite only)"},
-					{Name: "--db-path", ValueName: "path", Description: "Target database file (required when scripts are present)"},
+					{Name: "--db-path", ValueName: "path", Description: "Target database file (SQLite auto-resolves from the scenario's data dir when omitted)"},
 					{Name: "--migrations-dir", ValueName: "path", Description: "Override the engagement's managed migrations folder"},
 					{Name: "--dry-run", Description: "Validate against a throwaway copy without mutating the real database"},
 					commandtree.JSONOption(),
@@ -282,6 +297,18 @@ func ParseSetTTLRequest(args []string) (recoveryapp.SetTTLRequest, error) {
 		Scenario: parsed.FlagValue("--scenario"),
 		Slug:     parsed.FlagValue("--slug"),
 		TTL:      ttl,
+	}, nil
+}
+
+func ParseSetModeRequest(args []string) (recoveryapp.SetModeRequest, error) {
+	parsed, err := parse(CommandSetMode, "recovery set-mode", args)
+	if err != nil {
+		return recoveryapp.SetModeRequest{}, err
+	}
+	return recoveryapp.SetModeRequest{
+		Scenario: parsed.FlagValue("--scenario"),
+		Slug:     parsed.FlagValue("--slug"),
+		Mode:     parsed.FlagValue("--mode"),
 	}, nil
 }
 

@@ -63,6 +63,11 @@ func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Sc
 		_ = store.Close()
 		return runtimeRegistrySession{}, fmt.Errorf("resolve host session: %w", err)
 	}
+	sourceDir, err := r.effectiveSourceDir(item)
+	if err != nil {
+		_ = store.Close()
+		return runtimeRegistrySession{}, err
+	}
 	ownerPID := os.Getpid()
 	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
 		Scenario:      item.Slug,
@@ -72,7 +77,7 @@ func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Sc
 		ScopePath:     r.Root,
 		OwnerKind:     scenarioruntime.OwnerKindLifecycle,
 		OwnerPID:      &ownerPID,
-		WorkingDir:    item.Path,
+		WorkingDir:    sourceDir,
 		HostBootID:    host.BootID,
 		HostSessionID: host.SessionID,
 	}, scenarioruntime.DefaultHeartbeatTTL)

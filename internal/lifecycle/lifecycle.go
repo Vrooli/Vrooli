@@ -44,6 +44,13 @@ type Runner struct {
 	Ports       *ports.Manager
 	Logger      *slog.Logger
 	Verbosity   Verbosity
+	// Engagements resolves Baseline Modes engagement state so the lifecycle can
+	// route a serving instance's run/build CWD to the frozen restore-point copy
+	// while an engagement is open (see effectiveSourceDir). Nil means "no
+	// engagement awareness" — every instance runs from its working tree, the
+	// pre-Baseline-Modes behavior. Injected at construction by the CLI edge so
+	// the lifecycle never imports internal/baselinefloor directly.
+	Engagements EngagementResolver
 	deps        lifecycleDeps
 }
 
@@ -239,6 +246,7 @@ func newRunnerWithDeps(root, home string, stdout, stderr io.Writer, deps lifecyc
 		Err:         stderr,
 		Ports:       manager,
 		Logger:      logx.WithSubsystem(baseLogger, "lifecycle"),
+		Engagements: defaultEngagementResolver,
 		deps:        deps,
 	}, nil
 }

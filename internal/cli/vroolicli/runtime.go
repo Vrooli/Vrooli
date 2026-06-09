@@ -433,6 +433,13 @@ func (app *App) ensureScenarioCLI(ctx *CommandContext, name string) error {
 	if strings.TrimSpace(name) == "" {
 		return nil
 	}
+	// The scenario CLI and its source tree are variant-independent: they live at
+	// scenarios/<scenario> regardless of which instance (live or a shadow) is
+	// being started. Resolve by the bare scenario name so `--instance shadow`
+	// (name "scenario@shadow") does not look for scenarios/scenario@shadow.
+	if key, parseErr := scenarioruntime.ParseInstanceKey(name, ""); parseErr == nil {
+		name = key.Scenario
+	}
 	home, err := ctx.HomeDir()
 	if err != nil {
 		return err
