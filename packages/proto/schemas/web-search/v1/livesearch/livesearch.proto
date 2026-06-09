@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package vrooli.web_search.v1.livesearch;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch;livesearch_v1";
+
+// LiveSearchService is the L0/L1 live web-search surface: it fans a query out to
+// the local SearXNG meta-search engine (L0) and, on request, runs an optional
+// snippet-only LLM synthesis pass over the results that were already returned
+// (L1). Synthesis never fetches: it summarizes the snippets in hand and cites
+// every claim back to a result, or abstains rather than fabricate. Raw results
+// are always returned even when synthesis is off or degraded — synthesis is
+// strictly additive on top of the L0 result list.
+service LiveSearchService {
+  // Search runs an L0 live web search (and optional L1 synthesis). A budget
+  // governor and an in-memory TTL cache front the SearXNG call; on budget
+  // exhaustion the response is returned degraded (degraded=true) without
+  // hitting SearXNG.
+  rpc Search(SearchRequest) returns (SearchResponse);
+}
+
+message SearchRequest {
+  // query is the user's web-search query.
+  string query = 1;
+  // limit caps the number of results returned. Defaults to a server-side value
+  // when unset or non-positive.
+  int32 limit = 2;
+  // synthesize requests the optional L1 snippet synthesis pass. Off by default:
+  // a bare Search returns raw results only.
+  bool synthesize = 3;
+}
+
+// SearchResult is one live web-search hit, normalized from the SearXNG result
+// shape. score is the RAW SearXNG relevance score (not re-normalized here).
+message SearchResult {
+  string url = 1;
+  string title = 2;
+  // snippet is the SearXNG result "content" field.
+  string snippet = 3;
+  // engine names the upstream engine SearXNG sourced the result from.
+  string engine = 4;
+  // score is the raw SearXNG relevance score.
+  double score = 5;
+  // category is the SearXNG result category (e.g. "general").
+  string category = 6;
+}
+
+// Citation links a synthesis claim back to the SearchResult that supports it.
+message Citation {
+  // result_index is the zero-based index into SearchResponse.results.
+  int32 result_index = 1;
+  string url = 2;
+  string title = 3;
+}
+
+// Synthesis is the optional L1 summary over the returned snippets.
+message Synthesis {
+  // text is the synthesized answer. Empty when abstained.
+  string text = 1;
+  // citations grounds every claim in text to a result. Always populated for a
+  // non-abstained synthesis.
+  repeated Citation citations = 2;
+  // abstained is set when the snippets were insufficient or in conflict; text
+  // is then empty or an explicit "sources insufficient or disagree" note.
+  bool abstained = 3;
+}
+
+message SearchResponse {
+  repeated SearchResult results = 1;
+  // synthesis is present only when the request set synthesize and the pass ran.
+  Synthesis synthesis = 2;
+  // cached is true when the results came from the in-memory TTL cache.
+  bool cached = 3;
+  // degraded is true when the budget governor declined the upstream call; the
+  // results list is then empty and degraded_reason explains why.
+  bool degraded = 4;
+  string degraded_reason = 5;
+}
