@@ -1,0 +1,89 @@
+{
+  "description": "Query the local SearXNG resource and normalize results into the search-hub `SearchHit` shape with no LLM involvement, serving as the fast path for external web queries.",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Query the locally deployed SearXNG resource and normalize raw JSON results into the search-hub SearchHit shape. This is the fast path for external web queries and must involve no LLM calls. Normalization includes field extraction (title, url, snippet, score), score-scale normalization to [0,1], deduplication by URL, and surfacing source engine metadata.",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "SearXNG Live Web Search Normalization (L0)",
+      "validation": [
+        {
+          "notes": "Given a SearXNG JSON response fixture, normalization produces SearchHit objects with all required fields populated and scores within [0,1]",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given a SearXNG response with missing optional fields (e.g., no snippet), normalization produces a valid SearchHit with null/empty defaults without panicking",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given a SearXNG response with duplicate URLs, normalization deduplicates entries retaining the highest-scored hit",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ResultMapping field extraction correctly maps SearXNG fields to SearchHit fields for all known engine response variants",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Score-scale normalization correctly maps arbitrary SearXNG score ranges to [0,1] across at least 5 fixture variations",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Issue a live query against the running SearXNG resource and verify the response normalizes into valid SearchHit objects with no LLM call made (verified via LLM call mock asserting zero invocations)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify that the L0 path returns results within the defined latency budget under normal SearXNG response times",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "L0 live-search round-trip latency (SearXNG query + normalization) must complete within 2000ms at p95 under normal conditions",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Normalization of a 20-result SearXNG response must complete in under 10ms CPU time",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A user issuing an explicit --type web query receives normalized web search results with no synthesis delay and no LLM involvement",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "L0 Live Web Search"
+}

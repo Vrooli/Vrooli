@@ -1,0 +1,80 @@
+{
+  "description": "Train the search-hub routing classifier to detect \"web-shaped\" queries and automatically include the live web provider, gated behind the proven cache and budget governor to manage rate-limit risk.",
+  "module_id": "MOD-P2-017",
+  "prd_ref": "OT-P2-002",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-003",
+        "REQ-P0-004",
+        "REQ-P0-007"
+      ],
+      "description": "[PLANNED/DEFERRED] Train or configure a query classifier (within the search-hub routing layer) to detect queries that are 'web-shaped' (e.g., contain current events indicators, explicit URL references, recency signals) and automatically include web-search.live in the federated provider set for those queries. This routing expansion is always gated behind the proven cache and budget governor to manage rate-limit risk. Classifier decisions must be logged for auditability.",
+      "id": "REQ-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "draft",
+      "title": "Classifier Auto-Routing of Web-Shaped Queries to Live Web Provider",
+      "validation": [
+        {
+          "notes": "Classifier returns web-shaped=true for a query containing a current-events indicator (e.g., 'latest', 'today', 'breaking')",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Classifier returns web-shaped=false for a general knowledge query with no recency signals",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Auto-routing to live-web is blocked when budget governor reports exhausted state, even for web-shaped queries",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Classifier routing decision is written to the routing audit log with query hash, decision, and confidence",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Issue a recency-signaled query against the classifier-enabled routing; verify web-search.live is included in the provider set and a SearXNG call is made (within budget)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Exhaust the budget governor, then issue a web-shaped query; verify no SearXNG call is made and the rate-limited response is returned",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Classifier inference adds at most 50ms to the routing decision path",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users asking time-sensitive questions automatically receive live web results without needing to explicitly use --type web",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Classifier Auto-Routing to Live Web"
+}

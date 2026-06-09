@@ -1,0 +1,68 @@
+{
+  "description": "Register `web-search.live` (SCOPE_EXTERNAL — rate-limited, reached only on explicit `--type web`/`--all` or fallback escalation) and `web-search.learnings` (SCOPE_PROJECT — local findings corpus, always safe to query, joins default routing) with self-registration at startup.",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "OT-P0-003",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "description": "At service startup, web-search must self-register two providers with the search-hub federation layer: (1) web-search.live with SCOPE_EXTERNAL, rate-limited, reachable only on explicit --type web / --all flags or fallback escalation; (2) web-search.learnings with SCOPE_PROJECT, safe to query on any default federated route. Registration must use the standard .vrooli/search.json provider descriptor format and the search-hub ResultMapping and control-token contract. Both providers must be registered before the service begins accepting requests.",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "draft",
+      "title": "Dual Search-Hub Provider Self-Registration at Startup",
+      "validation": [
+        {
+          "notes": "Provider descriptor for web-search.live has scope=SCOPE_EXTERNAL and explicit-only routing flag set to true",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Provider descriptor for web-search.learnings has scope=SCOPE_PROJECT and is included in default routing set",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Registration function is called during service initialization before the HTTP server begins accepting connections (verified via startup lifecycle order test)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Both provider descriptors conform to the .vrooli/search.json JSON schema (schema validation test)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "After service startup, querying the search-hub provider registry returns both web-search.live and web-search.learnings with correct scope metadata",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A default federated query issued after startup routes to web-search.learnings and does NOT invoke web-search.live (verified by asserting zero HTTP calls to SearXNG)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The system administrator can inspect the search-hub registry post-startup and confirm both providers are present with correct scope and routing constraints",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Dual Search-Hub Provider Registration"
+}

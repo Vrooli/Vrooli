@@ -1,0 +1,99 @@
+{
+  "description": "Ensure a default federated query routes to `web-search.learnings` and surfaces internalized findings without firing any live web request; live web joins only on explicit request or fallback escalation when project results are empty or weak.",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-003"
+      ],
+      "description": "Default federated queries must route exclusively to web-search.learnings (SCOPE_PROJECT) and must not issue any HTTP requests to SearXNG or external engines. The live-web provider (web-search.live) joins the federated set only when: (a) the query includes an explicit --type web or --all flag, or (b) fallback escalation is triggered because project-scoped results are empty or scored below the configured weakness threshold. Fallback escalation must be logged and the escalation reason surfaced in the result envelope.",
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "draft",
+      "title": "Scope-Aware Federated Query Routing — Learnings-First, Live-Web Gated",
+      "validation": [
+        {
+          "notes": "Routing decision function returns [web-search.learnings] for a default query with no flags set",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Routing decision function returns [web-search.learnings, web-search.live] when --type web flag is present",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Routing decision function returns [web-search.learnings, web-search.live] when --all flag is present",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Fallback escalation trigger fires when learnings result set is empty (zero hits)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Fallback escalation trigger fires when all learnings hits score below the configured weakness threshold",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Escalation reason field is populated in the result envelope when fallback occurs",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A default federated query against a populated learnings store issues exactly zero HTTP calls to SearXNG (HTTP mock asserts zero external calls)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A default federated query against an empty learnings store triggers fallback escalation and subsequently queries SearXNG (HTTP mock asserts exactly one SearXNG call with escalation reason in response)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Default federated query served entirely from learnings completes with zero external HTTP calls and within 500ms at p95",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Standard developer queries against internalized research findings do not consume any live-web rate-limit budget",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Fallback escalation to live web is observable in logs and result metadata for audit purposes",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Scope-Aware Federated Blending"
+}

@@ -1,0 +1,86 @@
+{
+  "description": "Fetch top-N result pages via the browserless resource, extract readable text, and produce a single-pass cited synthesis, exposed as discrete API endpoints and agent tools.",
+  "module_id": "MOD-P1-009",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-007"
+      ],
+      "description": "Fetch the top-N result page URLs from a prior L0 search via the browserless resource, extract readable body text (stripping navigation, ads, boilerplate), and produce a single-pass cited synthesis using the LLM over the extracted content. Expose this capability as discrete API endpoints and as agent tool definitions consumable by the L3 agent. Fetched page content must not be stored as findings (auto-capture is opt-in for L2).",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "draft",
+      "title": "L2 Page Fetch, Text Extraction, and Single-Pass Cited Synthesis",
+      "validation": [
+        {
+          "notes": "Text extraction strips known boilerplate patterns (nav, footer, cookie banners) from a set of HTML fixtures and returns only body content",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Text extraction returns a non-empty string for at least 90% of real-world article HTML fixtures",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Synthesis output from L2 contains inline citations referencing only URLs from the fetched page set (no hallucinated sources)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "L2 API endpoint schema validation: request must include query and top_n (1..10), response includes synthesis text, citations array, and raw extracted excerpts",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Issue an L2 request for a known query, verify browserless fetches exactly N pages, text extraction produces non-empty content for each, and synthesis output contains citations",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify fetched page content is NOT persisted as findings in the database when capture flag is absent (opt-out default for L2)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "L2 fetch + extract + synthesize for top-5 pages must complete within 15 seconds at p95 under normal network conditions",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A developer or agent can invoke the L2 endpoint and receive a cited synthesis grounded in full page content, not just snippets",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "L2 results are richer than L1 but incur higher latency — the tradeoff is documented in the API",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "L2 Fetch, Read, and Synthesize"
+}

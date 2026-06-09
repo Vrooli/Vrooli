@@ -1,0 +1,138 @@
+{
+  "_metadata": {
+    "entity": "web-search",
+    "generated_at": "2026-06-09T12:31:45-04:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-l0-live-web-search/module.json",
+    "02-l1-snippet-synthesis/module.json",
+    "03-dual-search-hub-provider-registration/module.json",
+    "04-scope-aware-federated-blending/module.json",
+    "05-findings-knowledge-store/module.json",
+    "06-findings-management-cli-commands/module.json",
+    "07-live-web-result-cache-and-budget-governo/module.json",
+    "08-core-ui/module.json",
+    "09-l2-fetch-read-and-synthesize/module.json",
+    "10-l3-iterative-research-agent/module.json",
+    "11-research-and-reconcile-loop/module.json",
+    "12-finding-auto-capture-policy/module.json",
+    "13-contradiction-handling-and-audit-trail/module.json",
+    "14-trust-and-freshness-metadata/module.json",
+    "15-dispute-review-queue-ui-surface/module.json",
+    "16-usage-telemetry-driven-curation/module.json",
+    "17-classifier-auto-routing-to-live-web/module.json",
+    "18-periodic-full-store-consistency-gc-run/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-l0-live-web-search",
+      "priority": "P0",
+      "title": "L0 Live Web Search"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-l1-snippet-synthesis",
+      "priority": "P0",
+      "title": "L1 Snippet Synthesis"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-dual-search-hub-provider-registration",
+      "priority": "P0",
+      "title": "Dual Search-Hub Provider Registration"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-scope-aware-federated-blending",
+      "priority": "P0",
+      "title": "Scope-Aware Federated Blending"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-findings-knowledge-store",
+      "priority": "P0",
+      "title": "Findings Knowledge Store"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-findings-management-cli-commands",
+      "priority": "P0",
+      "title": "Findings Management CLI Commands"
+    },
+    {
+      "id": "MOD-P0-007",
+      "path": "07-live-web-result-cache-and-budget-governo",
+      "priority": "P0",
+      "title": "Live-Web Result Cache and Budget Governor"
+    },
+    {
+      "id": "MOD-P0-008",
+      "path": "08-core-ui",
+      "priority": "P0",
+      "title": "Core UI"
+    },
+    {
+      "id": "MOD-P1-009",
+      "path": "09-l2-fetch-read-and-synthesize",
+      "priority": "P1",
+      "title": "L2 Fetch, Read, and Synthesize"
+    },
+    {
+      "id": "MOD-P1-010",
+      "path": "10-l3-iterative-research-agent",
+      "priority": "P1",
+      "title": "L3 Iterative Research Agent"
+    },
+    {
+      "id": "MOD-P1-011",
+      "path": "11-research-and-reconcile-loop",
+      "priority": "P1",
+      "title": "Research-and-Reconcile Loop"
+    },
+    {
+      "id": "MOD-P1-012",
+      "path": "12-finding-auto-capture-policy",
+      "priority": "P1",
+      "title": "Finding Auto-Capture Policy"
+    },
+    {
+      "id": "MOD-P1-013",
+      "path": "13-contradiction-handling-and-audit-trail",
+      "priority": "P1",
+      "title": "Contradiction Handling and Audit Trail"
+    },
+    {
+      "id": "MOD-P1-014",
+      "path": "14-trust-and-freshness-metadata",
+      "priority": "P1",
+      "title": "Trust and Freshness Metadata"
+    },
+    {
+      "id": "MOD-P1-015",
+      "path": "15-dispute-review-queue-ui-surface",
+      "priority": "P1",
+      "title": "Dispute Review Queue UI Surface"
+    },
+    {
+      "id": "MOD-P2-016",
+      "path": "16-usage-telemetry-driven-curation",
+      "priority": "P2",
+      "title": "Usage-Telemetry-Driven Curation"
+    },
+    {
+      "id": "MOD-P2-017",
+      "path": "17-classifier-auto-routing-to-live-web",
+      "priority": "P2",
+      "title": "Classifier Auto-Routing to Live Web"
+    },
+    {
+      "id": "MOD-P2-018",
+      "path": "18-periodic-full-store-consistency-gc-run",
+      "priority": "P2",
+      "title": "Periodic Full-Store Consistency GC Run"
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "description": "Expose CLI commands for browse/list, manual add, edit, supersede, flag, and prune of findings, usable by both human operators and (later) the L3 agent.",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "OT-P0-006",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-005"
+      ],
+      "description": "Expose CLI commands covering the full findings lifecycle: (1) list/browse — paginated list with filter by status/brief/query; (2) add — manually add a finding with claim, citations, and confidence; (3) edit — update claim, confidence, or citations on an existing active finding; (4) supersede — mark a finding as superseded, require a replacement finding ID or reason, archive the original row; (5) flag — mark a finding as disputed with a reason string; (6) prune — remove findings matching a filter (dry-run mode required), with confirmation prompt. All commands must be usable by both human operators via terminal and programmatically by the L3 agent as tool invocations.",
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "draft",
+      "title": "Findings Management CLI Commands",
+      "validation": [
+        {
+          "notes": "`findings list` with --status=active returns only active findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "`findings list` with --status=superseded returns only superseded findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "`findings add` with valid claim and at least one citation creates a new finding with status=active",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "`findings add` missing required claim field returns a validation error with descriptive message",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "`findings edit` on a superseded finding returns an error (cannot edit archived findings)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "`findings supersede` transitions finding status from active to superseded and writes audit record with reason",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "`findings flag` transitions finding status from active to disputed and records the dispute reason",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "`findings prune --dry-run` outputs matched findings count without mutating the database",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "`findings prune` without --dry-run requires confirmation prompt before executing deletions",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "L3 agent invokes `findings supersede` as a tool call and the finding status transitions correctly in the live database",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI `findings list` executed against a database with mixed-status findings returns correctly filtered results",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A human operator can fully manage the findings lifecycle (add, review, correct, supersede, flag) without direct database access",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The L3 agent can invoke all findings management commands as tools without requiring human intervention for routine curation",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Findings Management CLI Commands"
+}

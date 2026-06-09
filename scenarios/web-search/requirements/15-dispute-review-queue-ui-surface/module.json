@@ -1,0 +1,101 @@
+{
+  "description": "Provide a dedicated UI panel listing all flagged contradictions with status, conflicting sources, and resolution controls (resolve, re-research, dismiss).",
+  "module_id": "MOD-P1-015",
+  "prd_ref": "OT-P1-007",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-005",
+        "REQ-P1-006",
+        "REQ-P0-008"
+      ],
+      "description": "Provide a dedicated UI panel listing all findings flagged as contradictory/disputed. Each entry displays: finding claim, status, conflicting source URLs and their claims, age, confidence, and action controls. Resolution controls available per entry: (1) Resolve — mark as resolved, selecting which source wins (transitions finding to active or superseded); (2) Re-research — spawn a targeted L3 run to gather more evidence; (3) Dismiss — remove from dispute queue without resolving (finding remains disputed). Queue must reflect live database state and update without page reload.",
+      "id": "REQ-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "draft",
+      "title": "Dispute Review Queue UI Surface",
+      "validation": [
+        {
+          "notes": "Dispute queue panel renders an entry for each finding with status=disputed in the fixture dataset",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Each dispute queue entry displays both conflicting source URLs and their associated claim text",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Resolve action button is disabled when no winning source is selected",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Dismiss action transitions the queue entry to dismissed state without changing the finding status in the rendered state",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Re-research action button is present and invokable for each dispute entry",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Flag a finding as disputed via CLI; verify the dispute review queue UI panel shows the new entry without page reload",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Resolve a dispute via the UI Resolve control; verify the finding status updates in the database to the resolved state and the queue entry disappears from the open disputes list",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Trigger Re-research from the UI dispute panel; verify an L3 agent run is spawned with the disputed finding's topic as the query",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Dispute queue panel with up to 50 open disputes renders within 500ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "An operator can review, triage, and resolve all flagged knowledge contradictions from a single UI surface without CLI access",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The dispute queue provides full visibility into the health of the findings knowledge base",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Dispute Review Queue UI Surface"
+}

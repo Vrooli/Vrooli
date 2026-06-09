@@ -1,0 +1,87 @@
+{
+  "description": "Execute a scheduled, store-wide garbage-collection and consistency pass separate from the per-query reconcile step to prune permanently unresolvable or fully decayed findings.",
+  "module_id": "MOD-P2-018",
+  "prd_ref": "OT-P2-003",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-005",
+        "REQ-P1-005",
+        "REQ-P2-001"
+      ],
+      "description": "[PLANNED/DEFERRED] Execute a scheduled, store-wide garbage-collection and consistency pass separate from the per-query reconcile step. The GC run: (1) identifies findings that have been in superseded status beyond the configurable retention period and permanently archives them (moves to a cold archive table); (2) prunes fully decayed findings (confidence below minimum threshold and zero effectiveness for the full decay window); (3) identifies and resolves simple consistency anomalies (e.g., orphaned findings with no brief reference). GC runs are logged with a full report of actions taken.",
+      "id": "REQ-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "draft",
+      "title": "Periodic Full-Store Consistency GC Run",
+      "validation": [
+        {
+          "notes": "GC run identifies superseded findings older than retention threshold and moves them to cold archive table",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "GC run identifies findings with confidence below minimum threshold AND zero effectiveness and marks them for pruning",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "GC run identifies orphaned findings (brief_id references non-existent brief) and flags them",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "GC run produces a structured report listing counts of each action type taken",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "GC dry-run mode reports intended actions without mutating the database",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Seed database with expired superseded findings, decayed zero-effectiveness findings, and orphaned findings; run GC; verify each category is handled correctly and report is generated",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify that active findings with recent effectiveness events are not touched by the GC run",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "GC run over a 100,000-finding database completes within 5 minutes",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The findings database does not grow unboundedly; stale and unresolvable findings are periodically cleaned up to maintain store quality and query performance",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Periodic Full-Store Consistency GC Run"
+}

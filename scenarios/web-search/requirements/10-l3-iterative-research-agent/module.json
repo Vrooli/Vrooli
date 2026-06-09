@@ -1,0 +1,87 @@
+{
+  "description": "Spawn an agent-manager–managed research run that uses L2 endpoints and web-search CLI commands as tools, plans and decomposes the query, loops (search → read → find gaps → re-search), verifies across sources, and emits a cited brief, reusing existing agentic infrastructure with no hand-rolled loop plumbing.",
+  "module_id": "MOD-P1-010",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P1-001",
+        "REQ-P0-005",
+        "REQ-P0-006"
+      ],
+      "description": "Spawn a research run via the agent-manager lifecycle (no hand-rolled loop plumbing) that uses L2 endpoints and web-search CLI commands as registered tools. The agent plans and decomposes the input query, iterates through a search → read → gap-identification → re-search loop, verifies claims across multiple sources, and emits a cited brief upon completion. The agent reuses existing agentic infrastructure exclusively.",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "L3 Iterative Research Agent — Agent-Manager-Managed Research Run",
+      "validation": [
+        {
+          "notes": "Research plan decomposition produces at least two sub-queries for a complex multi-faceted input query",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Gap identification step produces a non-empty list of unresolved questions when initial search results have low coverage",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Agent tool registry for a research run includes L2 fetch endpoint and findings CLI commands as callable tools",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "L3 agent-manager run smoke test: spawn a research run, verify the agent invokes L2 tools at least once, completes within the configured iteration budget, and emits a brief with at least one finding",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify the L3 run uses agent-manager run lifecycle (spawn, step, complete) and does not implement its own loop",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify the agent re-searches at least once when gap identification produces unresolved questions in a controlled test scenario",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "L3 research run completes within a configurable maximum iteration budget (default: 10 loops) and does not run indefinitely",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A user can request a deep research run and receive a cited brief without manually orchestrating multiple searches",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The L3 agent produces more thorough results than a single L2 call by iterating over gaps",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "L3 Iterative Research Agent"
+}

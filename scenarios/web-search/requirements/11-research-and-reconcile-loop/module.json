@@ -1,0 +1,94 @@
+{
+  "description": "Configure the L3 agent as a librarian: Gather phase reads semantically near existing findings first (bounded sweep); Reconcile phase writes new findings, supersedes outdated ones, and flags contradictions; budget ordering answers the user first, then curates as a bounded post-step.",
+  "module_id": "MOD-P1-011",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P1-002",
+        "REQ-P0-005",
+        "REQ-P0-006"
+      ],
+      "description": "Configure the L3 agent to execute a two-phase loop: (1) Gather phase reads semantically near existing findings first (bounded sweep over the findings store) before initiating any web searches, to ground the run in prior knowledge and avoid redundant external queries; (2) Reconcile phase writes new findings, supersedes outdated findings (with provenance), and flags contradictions. Budget ordering ensures the user receives an answer first, followed by a bounded post-step curation pass that reconciles the findings store.",
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "draft",
+      "title": "Research-and-Reconcile Loop — Librarian Gather and Reconcile Phases",
+      "validation": [
+        {
+          "notes": "Gather phase issues a semantic query against the findings store before any web search call in the controlled test fixture",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Gather phase sweep is bounded: it processes at most N semantically near findings (configurable max, default 20) before proceeding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Reconcile phase correctly identifies a new finding that contradicts an existing active finding and flags it as disputed",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Reconcile phase supersedes an existing finding when the new evidence confidence exceeds the old finding's confidence by the configured threshold",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end research run on a topic with pre-seeded related findings: verify Gather phase reads prior findings, answer is returned to user before reconcile completes, and Reconcile phase updates finding statuses in the database",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify that the post-step reconcile phase does not block the user-facing answer delivery (answer arrives before reconcile log entry appears)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Gather phase bounded sweep must complete within 500ms for up to 20 findings",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Post-step reconcile pass must complete within 30 seconds for a typical run producing up to 10 new findings",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The findings store improves incrementally with each research run as outdated findings are superseded and contradictions are flagged for review",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users receive answers immediately without waiting for the full reconcile curation pass",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Research-and-Reconcile Loop"
+}

@@ -1,0 +1,101 @@
+{
+  "description": "Auto-capture findings by default in L3 runs, offer opt-in capture via flag for L2, and never persist findings for L0/L1; an LLM distillation pass at run end emits structured findings (claim + citations + confidence).",
+  "module_id": "MOD-P1-012",
+  "prd_ref": "OT-P1-004",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-005",
+        "REQ-P1-001",
+        "REQ-P1-002"
+      ],
+      "description": "Enforce a tiered finding capture policy: L3 research runs auto-capture findings by default (no opt-in required); L2 fetch+synthesize runs capture findings only when an explicit --capture flag is passed; L0 (live search) and L1 (snippet synthesis) runs never persist findings. At the end of an L3 run (or L2 with capture), an LLM distillation pass processes the run output and emits structured findings (claim + citations + confidence score) which are then written to the findings store.",
+      "id": "REQ-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "draft",
+      "title": "Finding Auto-Capture Policy — L3 Auto, L2 Opt-In, L0/L1 Never",
+      "validation": [
+        {
+          "notes": "L0 live-search path has no finding-write code path (static analysis / code path test)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "L1 synthesis path has no finding-write code path (static analysis / code path test)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "L2 without --capture flag: distillation pass is not invoked and zero findings are written",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "L2 with --capture flag: distillation pass is invoked and findings count in database increases",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "L3 run: distillation pass is invoked automatically at run end and at least one finding is written",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Distillation output schema validation: each emitted finding has claim (non-empty string), citations (array, min 1), and confidence (float in [0,1])",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run a complete L3 agent cycle and verify findings are present in the database post-completion without any explicit capture flag",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run an L2 query without --capture and verify the findings database row count is unchanged",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run an L2 query with --capture and verify new findings rows are present with correct provenance linking to the L2 run",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "L3 research runs automatically build up the findings knowledge base without requiring operators to manually capture findings",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "L0/L1 paths remain stateless and do not accumulate data in the findings store",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Finding Auto-Capture Policy"
+}

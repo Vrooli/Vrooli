@@ -1,0 +1,103 @@
+{
+  "description": "Own a SQLite database (via api-core storage utils) with semantic indexing via aisearch-go, where the atomic unit is a \"finding\" (cited claim + source citations + retrieval date + confidence + status) and the container is a \"brief\" (one research run, holding many findings + provenance).",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Own a SQLite database (using api-core storage utilities) that stores two entity types: (1) Finding — atomic unit comprising a cited claim, source citations (URLs + titles), retrieval date, confidence score [0,1], status (active/disputed/superseded), originating brief ID, and audit metadata; (2) Brief — research run container holding many findings plus provenance (query, run timestamp, agent/user, L3 run ID). Semantic indexing of findings is provided via aisearch-go (nomic embeddings via Qdrant) enabling semantic recall. No writes into knowledge-observatory.",
+      "id": "REQ-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "Findings Knowledge Store — SQLite Schema, CRUD, and Semantic Index",
+      "validation": [
+        {
+          "notes": "Finding schema validation: a finding row with missing required fields (claim, source_citations, retrieval_date) fails insertion with a descriptive error",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Finding confidence field accepts only values in [0,1] and rejects out-of-range values",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Finding status field accepts only the enum values {active, disputed, superseded} and rejects unknown values",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Brief schema validation: a brief row requires query and run_timestamp fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CRUD: create, read, update (edit fields), and soft-delete (supersede) operations each return the expected state on round-trip",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Audit metadata (mutated_by, mutation_reason, source_brief_id) is written on every finding mutation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Write a finding, trigger aisearch-go reindex, issue a semantic query, and verify the finding is recalled in the top-N results",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify that findings data is stored in the web-search-owned SQLite database and no writes occur in the knowledge-observatory store",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "aisearch-go Source/Service pattern mirrors cli-health integration pattern — verify registration and index-refresh lifecycle",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Semantic recall query over a 10,000-finding index returns top-10 results within 300ms at p95",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A research finding ingested from an L3 run is retrievable via both exact ID lookup and semantic similarity query",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Every finding carries full provenance (source URLs, retrieval date, originating brief) enabling human auditability",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Findings Knowledge Store"
+}
