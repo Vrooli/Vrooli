@@ -12,9 +12,10 @@ import (
 
 // TestQueryManifestCoversRoutingService asserts every RPC on RoutingService is
 // either bound to a CLI command or explicitly listed in the manifest's
-// omitted[] (Query is bound here; Status is omitted until Phase 7). Adding an
-// RPC to routing.proto without a binding or omission fails here — the CLI-side
-// parity guard mirroring the API's TestProtoConnectParity.
+// omitted[]. The query domain binds RoutingService.Query; the federation
+// domain binds RoutingService.Status (see federation/federation_manifest_test.go).
+// Adding an RPC to routing.proto without a binding or omission fails here —
+// the CLI-side parity guard mirroring the API's TestProtoConnectParity.
 func TestQueryManifestCoversRoutingService(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("..", "..", "manifest.json"))
 	if err != nil {

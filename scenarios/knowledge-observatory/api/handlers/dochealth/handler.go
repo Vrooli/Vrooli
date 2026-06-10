@@ -47,6 +47,9 @@ func (h *Handler) DocHealth(ctx context.Context, req *connect.Request[kov1.DocHe
 		StrictExternalLinks:      in.StrictExternalLinks,
 		RequireAllDocsRegistered: in.RequireAllDocsRegistered,
 		SkipExternalLinks:        in.SkipExternalLinks,
+		Scope:                    in.GetScope(),
+		Path:                     in.GetPath(),
+		Checks:                   in.GetChecks(),
 	}
 	result, err := h.service.DocHealth(ctx, in.GetScenarioName(), opts)
 	if err != nil {
@@ -183,6 +186,7 @@ func translateCounts(c dochealth.Counts) *kov1.DocHealthCounts {
 		MarkedRefsUnknown: int32(c.MarkedRefsUnknown),
 		DocsInManifest:    int32(c.DocsInManifest),
 		DocsNotInManifest: int32(c.DocsNotInManifest),
+		NumbersFlagged:    int32(c.NumbersFlagged),
 	}
 }
 

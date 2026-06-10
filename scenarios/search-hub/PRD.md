@@ -13,7 +13,7 @@
 - **Value promise**: Eliminates the meta-discovery problem (knowing which tool holds the answer). Federation makes search *reachable* across corpora; the metrics surface lets us *measure* whether discovery actually works and where it is under-used.
 
 ## 🏛️ Architecture invariants (non-negotiable, guarded by tests)
-- **Thin router.** It owns only registry · classifier · fan-out · reranker · metrics. It stores **no vectors and no corpus content** — only the provider registry + query telemetry (postgres). Architectural test asserts: no qdrant import, no corpus-content tables.
+- **Thin router.** It owns only registry · classifier · fan-out · reranker · metrics. It stores **no vectors and no corpus content** — only the provider registry + query telemetry (SQLite). Architectural test asserts: no qdrant import, no corpus-content tables.
 - **No conditional monolith.** Zero provider-specific code in the router. A new provider = one declarative registry row (descriptor + `ResultMapping`), no router source change.
 - **Non-destructive federation.** Registering a corpus never removes, replaces, or degrades that scenario's own in-scenario search (per-type or group-unified). Two layers coexist permanently.
 - **Retrieval lives in providers / `packages/aisearch-go`, not here.** The router federates providers' existing search endpoints as-is; it never indexes on a provider's behalf.
@@ -21,7 +21,7 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Provider registry + self-registration | `RegisterProvider`/`ListProviders`/`DeregisterProvider` (Connect + CLI) persist provider descriptors in postgres; a new provider is added by one declarative row.
+- [ ] OT-P0-001 | Provider registry + self-registration | `RegisterProvider`/`ListProviders`/`DeregisterProvider` (Connect + CLI) persist provider descriptors in SQLite; a new provider is added by one declarative row.
 - [ ] OT-P0-002 | Explicit-type federation | `query "<text>" --type a,b` (or `--all`) fans out to matching registered providers with bounded concurrency, per-provider timeout, and partial results; returns provenance-tagged hits grouped by provider.
 - [ ] OT-P0-003 | Graceful degradation | A down/stale provider is skipped with a surfaced warning and never fails the whole query; partial results return within timeout.
 - [ ] OT-P0-004 | Operator-friendly output | CLI names the corpora searched, per-corpus counts, expansion hints (`--all`/`--type`/`--limit`), and provenance on every hit; `--json` shape is stable for scripting.
@@ -42,13 +42,13 @@
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API (Connect RPC + mux fallback), React + Vite + Tailwind UI, Go CLI.
-- Data + storage expectations: **postgres** for registry + metrics (no qdrant — the router holds no vectors). The scaffold demo module is sqlite-backed and is removed when the real `registry`/`routing` domains land (Phase 3).
+- Data + storage expectations: **SQLite** (modernc.org/sqlite) for registry + metrics (no qdrant — the router holds no vectors). SQLite is the permanent, intentional choice: it keeps the router dependency-free from external database services and suits a federation-router whose data (registry rows + query telemetry) is local and append-friendly.
 - Integration strategy: federate providers over **HTTP + JSON only** (Connect RPCs are reachable via `POST {service}/{method}` with `application/json`; plain REST likewise) plus a CLI fallback. The router links **zero** provider Go clients; cross-scenario base URLs resolve at call-time via the backend resolver (never client-computed).
 - Models: classifier `qwen3:1.7b`, reranker = LLM-as-reranker via `qwen3:4b` (both already pulled), each behind a swappable interface — drop in a true cross-encoder later without changing the contract.
 - Non-goals / guardrails: does NOT index/cache corpus content, does NOT create `packages/aisearch-go` (the KO cutover plan does), does NOT build the gap providers themselves (their home scenarios do), does NOT remove or alter any scenario's existing search.
 
 ## 🤝 Dependencies & Launch Plan
-- Required resources: `postgres` (registry + metrics), `ollama` (classifier + reranker).
+- Required resources: `ollama` (classifier + reranker). Storage is SQLite (embedded, no external database service required).
 - Scenario dependencies (soft, degrade-if-absent): `cli-health`, `ui-health`, `swarm-manager`, `knowledge-observatory`, `prompt-manager`.
 - Operational risks: classifier mis-routing (mitigate: widen-on-uncertainty + measured recall gate); fan-out latency (bounded concurrency + per-provider timeout + partial results); data accretion (architectural test).
 - Launch sequencing: registry → explicit-type fan-out (useful from here) → classifier → rerank → metrics → register all live + stub gaps → UI/validation. Functional and useful from explicit-type federation onward.

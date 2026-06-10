@@ -35,6 +35,24 @@ func widenThreshold() float64 {
 	return defaultWidenThreshold
 }
 
+// defaultAutoExternalThreshold is the confidence floor a web-shaped query must
+// clear before the router folds SCOPE_EXTERNAL providers into automatic routing
+// (OT-P2-002). It is deliberately HIGHER than the widen threshold: opting into a
+// rate-limited / paid external corpus should require real confidence, not the
+// over-fetch-on-uncertainty default that governs project-scope widening.
+const defaultAutoExternalThreshold = 0.60
+
+// autoExternalThreshold resolves the web-shaped confidence floor for external
+// auto-routing, honoring an env override.
+func autoExternalThreshold() float64 {
+	if raw := strings.TrimSpace(os.Getenv("SEARCH_HUB_AUTO_EXTERNAL_THRESHOLD")); raw != "" {
+		if v, err := strconv.ParseFloat(raw, 64); err == nil && v >= 0 && v <= 1 {
+			return v
+		}
+	}
+	return defaultAutoExternalThreshold
+}
+
 // ProviderProfile is the registry-derived view of one routable leaf type that
 // the classifier reasons over. The router builds these from ACTIVE descriptors
 // and the classifier routes purely on the natural-language Description — never
@@ -57,6 +75,14 @@ type ClassifyResult struct {
 	Confidence float64
 	// Rationale is a short human-readable explanation surfaced by --explain.
 	Rationale string
+	// WebShaped is the classifier's GENERIC judgment that the query wants fresh,
+	// live, external-web information (e.g. current events, "latest", real-time
+	// facts) rather than only the project corpus. It is a property of the QUERY,
+	// not of any specific provider — the router uses it (when the operator has
+	// opted in) to fold SCOPE_EXTERNAL providers back into automatic routing,
+	// without the router ever knowing which provider is "the web". This keeps the
+	// thin-router invariant intact (OT-P2-002).
+	WebShaped bool
 }
 
 // Classifier maps a free-text query to the provider `type`s it should route to,

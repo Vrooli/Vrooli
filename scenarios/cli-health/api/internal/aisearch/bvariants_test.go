@@ -98,7 +98,7 @@ func TestRecallBVariants(t *testing.T) {
 			Collection:      collection,
 			RerankEnabled:   r.rerank,
 			Reranker:        reranker(),
-			RerankShortlist: cfg.RerankShortlist,
+			RerankShortlist: pkg.DefaultRerankShortlist,
 			DisableFloor:    r.floorOff,
 		})
 		recall, hits, misses := measureRecall(ctx, t, svc, corpus)

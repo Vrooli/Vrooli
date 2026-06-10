@@ -3,7 +3,7 @@ package validation
 import (
 	"log"
 
-	"cli-health/internal/measurescan"
+	"github.com/vrooli/measures-go/manifestscan"
 	"cli-health/internal/module"
 	"cli-health/internal/services/manifestvalidation"
 
@@ -28,7 +28,7 @@ func Module(logger *log.Logger, repoRoot string, reservedNames []string) module.
 		Manifests: manifestvalidation.NewFilesystemManifestLoader(repoRoot),
 		Schema:    manifestvalidation.NewJSONSchemaValidator(repoRoot),
 		Protos:    manifestvalidation.NewBufProtoLoader(repoRoot),
-		Measures:  measurescan.NewDescriptorSchemaReader(repoRoot),
+		Measures:  manifestscan.NewDescriptorSchemaReader(repoRoot),
 		Logger:    logger,
 	})
 	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(NewConnectHandler(Deps{

@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS query_telemetry (
   zero_result  INTEGER NOT NULL DEFAULT 0, -- 1 when result_count = 0
   degraded     INTEGER NOT NULL DEFAULT 0, -- 1 when any provider degraded
   reranked     INTEGER NOT NULL DEFAULT 0, -- 1 when a unified rerank was produced
+  auto_routed_external INTEGER NOT NULL DEFAULT 0, -- 1 when a web-shaped query auto-routed an external provider (OT-P2-002)
+  escalated    INTEGER NOT NULL DEFAULT 0, -- 1 when an empty project corpus escalated to external (OT-P2-002)
   latency_ms   INTEGER NOT NULL DEFAULT 0,
   created_at   TEXT NOT NULL
 );

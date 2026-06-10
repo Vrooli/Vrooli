@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"cli-health/internal/measurescan"
+	"github.com/vrooli/measures-go/manifestscan"
 
 	measures "github.com/vrooli/measures-go"
 )
@@ -33,7 +33,7 @@ func (s *Service) measureCheck(raw []byte, manifestPath string) []Finding {
 		return nil
 	}
 
-	parsed, err := measurescan.Parse(raw)
+	parsed, err := manifestscan.Parse(raw)
 	if err != nil {
 		// The schema validator already ran; a parse failure here means the
 		// measure surface is malformed in a way the schema missed.
@@ -48,7 +48,7 @@ func (s *Service) measureCheck(raw []byte, manifestPath string) []Finding {
 		return nil
 	}
 
-	cmds := append([]measurescan.CommandMeasure(nil), parsed.Commands...)
+	cmds := append([]manifestscan.CommandMeasure(nil), parsed.Commands...)
 	sort.Slice(cmds, func(i, j int) bool {
 		if cmds[i].Group != cmds[j].Group {
 			return cmds[i].Group < cmds[j].Group
@@ -70,7 +70,7 @@ func (s *Service) measureCheck(raw []byte, manifestPath string) []Finding {
 		}
 		sort.Strings(names)
 		for _, name := range names {
-			if !measurescan.KnownManifestParamType(types[name]) {
+			if !manifestscan.KnownManifestParamType(types[name]) {
 				findings = append(findings, Finding{
 					Severity:   SeverityError,
 					Code:       CodeMeasureUnknownType,
@@ -105,7 +105,7 @@ func (s *Service) measureCheck(raw []byte, manifestPath string) []Finding {
 			continue
 		}
 
-		tier := measurescan.GradeTier(decl)
+		tier := manifestscan.GradeTier(decl)
 		findings = append(findings, Finding{
 			Severity: SeverityInfo,
 			Code:     CodeMeasureTier,

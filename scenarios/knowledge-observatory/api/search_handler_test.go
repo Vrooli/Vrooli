@@ -38,14 +38,17 @@ func TestHandleSearch(t *testing.T) {
 		}
 	})
 
-	t.Run("rejects invalid ingested_after", func(t *testing.T) {
+	t.Run("ignores unknown fields gracefully", func(t *testing.T) {
+		// Legacy records-era fields (ingested_after, ingested_before, collection,
+		// namespaces, visibility, tags) are no longer in SearchRequest and are
+		// silently discarded by the JSON decoder.
 		raw, _ := json.Marshal(map[string]interface{}{"query": "test query", "ingested_after": "nope"})
 		req := httptest.NewRequest("POST", "/api/v1/knowledge/search", bytes.NewReader(raw))
 		rec := httptest.NewRecorder()
 
 		srv.handleSearch(rec, req)
-		if rec.Code != http.StatusBadRequest {
-			t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status=%d body=%s (expected 200; unknown fields should be silently discarded)", rec.Code, rec.Body.String())
 		}
 	})
 

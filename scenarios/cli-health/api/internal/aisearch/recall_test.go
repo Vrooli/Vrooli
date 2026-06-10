@@ -246,7 +246,7 @@ func TestCommandRecall(t *testing.T) {
 	recall := float64(hits) / float64(len(corpus.Cases))
 	t.Logf("recall@%d = %.3f (%d/%d), target %.2f", k, recall, hits, len(corpus.Cases), corpus.Scoring.RecallTarget)
 	if recall < corpus.Scoring.RecallTarget {
-		t.Fatalf("recall@%d = %.3f below target %.2f — calibrate .vrooli/search.json expected_paths from the MISS logs above, or investigate the index",
+		t.Fatalf("recall@%d = %.3f below target %.2f — calibrate .vrooli/search.json expect_ids from the MISS logs above, or investigate the index",
 			k, recall, corpus.Scoring.RecallTarget)
 	}
 }

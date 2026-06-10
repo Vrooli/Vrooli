@@ -70,7 +70,7 @@ type Options struct {
 	MaxEmbedsPerTick int
 	Threshold        float64
 	// Floor tunes the relative relevance cutoff applied to AI results (the
-	// operator override; FloorForLeg supplies the regime default).
+	// operator override; FloorForMethodLeg supplies the regime default).
 	Floor pkg.FloorConfig
 	// RerankEnabled gates the reranker pass; Reranker is the degradation chain
 	// (cross-encoder -> llm -> fused order). When disabled or nil, results keep
@@ -116,47 +116,66 @@ func NewService(opts Options) *Service {
 	return &Service{eng: buildEngine(opts)}
 }
 
-// buildEngine assembles one immutable engine bundle from explicit components.
+// buildEngine assembles one immutable engine bundle from the flat Options. This
+// is the test/experiment entry point (callers that index scratch strategies set
+// the engine components + tuning factors directly); it derives the shared
+// read-path base from Options and delegates to buildEngineFromBase. Production
+// (NewTunedService) bypasses it and feeds the base from the shared helper.
 func buildEngine(opts Options) *engine {
+	base := pkg.ServiceOptions{
+		Embedder:      opts.Embedder,
+		SparseEncoder: opts.Sparse,
+		VectorStore:   opts.VectorStore,
+		Reranker:      opts.Reranker,
+		RerankEnabled: opts.RerankEnabled,
+		RerankBlend:   opts.RerankBlend,
+		Shortlist:     opts.RerankShortlist,
+		ApplyFloor:    !opts.DisableFloor,
+		Floor:         opts.Floor,
+		Threshold:     opts.Threshold,
+	}
+	return buildEngineFromBase(base, opts)
+}
+
+// buildEngineFromBase assembles the engine from a read-path base (engine
+// components + tuning-derived query-time factors — e.g.
+// pkg.TunedEngine.ServiceOptions()) overlaid with cli-health's command-domain
+// seams: the command source/binding/reconciler, the rerank/fallback text, and
+// the per-request override policy. The Embedder/VectorStore/Sparse/Reranker and
+// every tuning factor come from base, so the production caller forwards ZERO
+// factor fields by hand (forget one and the Service silently runs misconfigured).
+// opts supplies only the structural wiring: the discovery source, the compose
+// strategy, the collection name, and the reconcile knobs.
+func buildEngineFromBase(base pkg.ServiceOptions, opts Options) *engine {
 	collection := opts.Collection
 	if collection == "" {
 		collection = DefaultCollection
 	}
 	source := newCommandSource(opts.Discovery, opts.Compose)
 
-	hybrid := opts.Sparse != nil
+	hybrid := base.SparseEncoder != nil
 	var binding pkg.SourceBinding
 	if hybrid {
 		// Single-chunk hybrid: identity chunk/compose (the Body is the pre-composed
 		// embedding text) plus the local sparse encoder for the BM25 leg.
-		binding = pkg.NewHybridBinding(commandKind, idPrefix, opts.VectorStore, source,
-			pkg.NewIdentityChunker(), pkg.NewIdentityComposer(), opts.Sparse)
+		binding = pkg.NewHybridBinding(commandKind, idPrefix, base.VectorStore, source,
+			pkg.NewIdentityChunker(), pkg.NewIdentityComposer(), base.SparseEncoder)
 	} else {
-		binding = pkg.NewDenseBinding(commandKind, idPrefix, opts.VectorStore, source)
+		binding = pkg.NewDenseBinding(commandKind, idPrefix, base.VectorStore, source)
 	}
-	rec := pkg.NewReconciler(opts.Embedder, []pkg.SourceBinding{binding}, opts.Parallelism)
+	rec := pkg.NewReconciler(base.Embedder, []pkg.SourceBinding{binding}, opts.Parallelism)
 	rec.MaxEmbedsPerTick = opts.MaxEmbedsPerTick
 
-	svc := pkg.NewService(pkg.ServiceOptions{
-		Embedder:      opts.Embedder,
-		SparseEncoder: opts.Sparse,
-		VectorStore:   opts.VectorStore,
-		Reconciler:    rec,
-		RerankEnabled: opts.RerankEnabled,
-		RerankBlend:   opts.RerankBlend,
-		Reranker:      opts.Reranker,
-		ApplyFloor:    !opts.DisableFloor,
-		Floor:         opts.Floor,
-		Threshold:     opts.Threshold,
-		Shortlist:     opts.RerankShortlist,
-		RerankText:    func(r pkg.SearchResult) string { return candidateText(r.Payload) },
-		TextFallback:  commandTextFallback(opts.Discovery),
-		// Allow the engine to honor per-request query-time overrides. This is the
-		// INNER layer only (it still clamps every factor to its taxonomy range);
-		// the OUTER token + experiment-flag gate lives in the search handler, so a
-		// public, tokenless request never reaches an applied override.
-		OverridePolicy: pkg.AllowOverrides(),
-	})
+	base.Reconciler = rec
+	base.RerankText = func(r pkg.SearchResult) string { return candidateText(r.Payload) }
+	base.TextFallback = commandTextFallback(opts.Discovery)
+	// Allow the engine to honor per-request query-time overrides. This is the
+	// INNER layer only (it still clamps every factor to its taxonomy range); the
+	// OUTER token + experiment-flag gate lives in the search handler, so a public,
+	// tokenless request never reaches an applied override.
+	base.OverridePolicy = pkg.AllowOverrides()
+	svc := pkg.NewService(base)
+
 	spec := pkg.CollectionSpec{
 		Name:          collection,
 		DenseSize:     pkg.DefaultVectorSize,
@@ -169,7 +188,7 @@ func buildEngine(opts Options) *engine {
 	}
 	return &engine{
 		svc:         svc,
-		vectorStore: opts.VectorStore,
+		vectorStore: base.VectorStore,
 		spec:        spec,
 		hybrid:      hybrid,
 	}
@@ -203,15 +222,11 @@ func NewTunedService(tuning pkg.TuningConfig, opts TunedOptions) *Service {
 	opts.EngineDeps.Collection = opts.Collection
 	build := func(t pkg.TuningConfig) *engine {
 		te := pkg.NewServiceForTuning(t, opts.EngineDeps)
-		return buildEngine(Options{
-			Embedder:         te.Embedder,
-			VectorStore:      te.VectorStore,
-			Sparse:           te.SparseEncoder,
-			Reranker:         te.Reranker,
-			RerankEnabled:    te.Tuning.RerankEnabled,
-			RerankBlend:      te.Tuning.RerankBlend,
-			RerankShortlist:  te.Tuning.RerankShortlist,
-			Floor:            te.Tuning.Floor.Config(),
+		// te.ServiceOptions() carries the engine components AND every query-time
+		// tuning factor (RerankEnabled/RerankBlend/Shortlist/Floor) derived from the
+		// resolved tuning — no factor is forwarded by hand here. opts supplies only
+		// the structural command-domain wiring.
+		return buildEngineFromBase(te.ServiceOptions(), Options{
 			Discovery:        opts.Discovery,
 			Parallelism:      opts.Parallelism,
 			MaxEmbedsPerTick: opts.MaxEmbedsPerTick,

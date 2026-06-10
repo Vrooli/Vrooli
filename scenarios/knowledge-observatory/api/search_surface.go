@@ -12,9 +12,11 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"net/http"
 	"strings"
+	"sync"
 
 	pkg "github.com/vrooli/aisearch-go"
 
@@ -26,6 +28,41 @@ import (
 // documentation corpus never starves Ollama (plan §4.2). Overridable via env;
 // a one-shot `reindex run` plans uncapped.
 const defaultDocEmbedsPerTick = 800
+
+// searchTokenHolder caches the control token search-hub mints for the
+// knowledge-observatory.docs provider at self-registration. The registration
+// goroutine calls Set when the hub echoes the token; the reindex handler's
+// gate reads it via Get on every authenticated request. A restart loses it
+// (memory only) and the next boot's re-registration re-acquires it — search-hub
+// persists the authoritative copy. Get returns "" until Set runs; the gate
+// treats an empty server-side token as "deny all" (not yet registered).
+type searchTokenHolder struct {
+	mu    sync.RWMutex
+	token string
+}
+
+func (h *searchTokenHolder) Set(token string) {
+	h.mu.Lock()
+	h.token = token
+	h.mu.Unlock()
+}
+
+func (h *searchTokenHolder) Get() string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.token
+}
+
+// validateControlToken returns true when the presented token matches the
+// server-side token using a constant-time comparison (prevents timing attacks).
+// Returns false when either token is empty (server not yet registered, or
+// caller omitted the token).
+func validateControlToken(serverToken, presented string) bool {
+	if serverToken == "" || presented == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(presented), []byte(serverToken)) == 1
+}
 
 // docSearchEngine is the read-path seam the api package depends on so handlers
 // stay testable with a fake (the concrete *aisearch.SearchService satisfies
@@ -209,6 +246,11 @@ func (s *Server) handleSearchStatus(w http.ResponseWriter, r *http.Request) {
 
 type reindexRunRequest struct {
 	DryRun bool `json:"dry_run,omitempty"`
+	// ControlToken, when present, authenticates the request as a search-hub
+	// triggered reindex. Validated against the in-memory token minted at
+	// self-registration. Unauthenticated calls (empty token) are still accepted
+	// as locally-initiated reindexes — search-hub is an optional dependency.
+	ControlToken string `json:"control_token,omitempty"`
 }
 
 type reindexRunResponse struct {
@@ -225,6 +267,25 @@ func (s *Server) handleReindexRun(w http.ResponseWriter, r *http.Request) {
 		// An empty body is allowed (defaults to a full async run).
 		_ = json.NewDecoder(r.Body).Decode(&req)
 	}
+
+	// When a control_token is presented, validate it against the in-memory
+	// token minted at self-registration. A mismatch is rejected with 403 so a
+	// rogue actor cannot trigger a reindex by guessing the endpoint. Requests
+	// that omit the token entirely are accepted as locally-initiated reindexes
+	// (search-hub is an optional dependency — the endpoint must remain usable
+	// without it). An empty server-side token (not yet registered) also rejects
+	// a presented token, because we cannot verify it.
+	if req.ControlToken != "" {
+		var serverToken string
+		if s != nil && s.searchToken != nil {
+			serverToken = s.searchToken.Get()
+		}
+		if !validateControlToken(serverToken, req.ControlToken) {
+			s.respondError(w, http.StatusForbidden, "Invalid control token")
+			return
+		}
+	}
+
 	if s == nil || s.docIndexer == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "Documentation indexer is unavailable")
 		return
@@ -369,24 +430,14 @@ func projectDocHits(hits []pkg.SearchResult) []docSearchHit {
 			Score:        h.Score,
 			Snippet:      h.Snippet,
 			Path:         h.Path,
-			Scenario:     payloadStr(h.Payload, "scenario"),
-			DocType:      payloadStr(h.Payload, "doc_type"),
-			Title:        payloadStr(h.Payload, "title"),
-			HeadingPath:  payloadStr(h.Payload, "heading_path"),
+			Scenario:     payloadString(h.Payload, "scenario"),
+			DocType:      payloadString(h.Payload, "doc_type"),
+			Title:        payloadString(h.Payload, "title"),
+			HeadingPath:  payloadString(h.Payload, "heading_path"),
 			Metadata:     h.Payload,
 		})
 	}
 	return out
-}
-
-func payloadStr(payload map[string]interface{}, key string) string {
-	if payload == nil {
-		return ""
-	}
-	if v, ok := payload[key].(string); ok {
-		return v
-	}
-	return ""
 }
 
 func writeJSON(w http.ResponseWriter, v interface{}) {

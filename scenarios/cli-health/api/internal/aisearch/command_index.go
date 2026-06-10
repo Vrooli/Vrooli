@@ -29,6 +29,13 @@ func composeCommandEmbeddingText(r CommandRecord) string {
 	if r.Description != "" {
 		parts = append(parts, r.Description)
 	}
+	// Parent-group prose carries the real-world vocabulary a user queries with
+	// (a leaf's own description is often terse machine syntax). Folding it in
+	// uniformly aligns command identity with natural query language — a generic
+	// retrieval improvement, not a per-command tweak.
+	if r.GroupDescription != "" {
+		parts = append(parts, r.GroupDescription)
+	}
 	if len(r.Flags) > 0 {
 		parts = append(parts, "Flags: "+strings.Join(r.Flags, ", "))
 	}

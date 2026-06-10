@@ -3,6 +3,7 @@ package aisearch
 import (
 	"context"
 	"errors"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -606,7 +607,7 @@ func TestReindexDryRun_DoesNotUpsert(t *testing.T) {
 
 func waitJob(t *testing.T, svc *Service, jobID string) {
 	t.Helper()
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 100_000; i++ {
 		job, ok := svc.ReindexStatus(jobID)
 		if !ok {
 			t.Fatalf("job %s missing", jobID)
@@ -614,18 +615,9 @@ func waitJob(t *testing.T, svc *Service, jobID string) {
 		if job.State == "succeeded" || job.State == "failed" || job.State == "cancelled" {
 			return
 		}
-		// 5ms * 200 = 1s budget — plenty for goroutines on test infra.
-		_ = stallNanos(5_000_000)
+		// Yield without a real sleep (the reconcile goroutine is CPU-bound and
+		// fast), mirroring packages/aisearch-go service_test.go waitJob.
+		runtime.Gosched()
 	}
 	t.Fatalf("job %s never terminated", jobID)
-}
-
-// stallNanos exists to avoid importing time at the top of the file just for a
-// short sleep loop. It's a no-op divisor.
-func stallNanos(n int64) int64 {
-	x := int64(0)
-	for i := int64(0); i < n; i++ {
-		x++
-	}
-	return x
 }

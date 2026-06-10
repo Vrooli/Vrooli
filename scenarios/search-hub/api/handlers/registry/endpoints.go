@@ -38,7 +38,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 500, Code: "internal", Description: "Registry write failure"},
 		},
 		Examples: []module.Example{
-			{Name: "Register provider", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/RegisterProvider -H 'Content-Type: application/json' -d '{\"descriptor\":{\"provider_id\":\"cli-health.commands\",\"provider_group\":\"cli-health\",\"bucket\":\"BUCKET_DO\",\"type\":\"command\",\"description\":\"CLI command corpus\"}}'"},
+			{Name: "Register provider", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/RegisterProvider -H 'Content-Type: application/json' -d '{\"descriptor\":{\"provider_id\":\"example-provider.commands\",\"provider_group\":\"example-provider\",\"bucket\":\"BUCKET_DO\",\"type\":\"command\",\"description\":\"CLI command corpus\"}}'"},
 		},
 		CLIMapping: &module.CLIMapping{
 			Command: "search-hub providers register",
@@ -99,7 +99,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 500, Code: "internal", Description: "Registry delete failure"},
 		},
 		Examples: []module.Example{
-			{Name: "Deregister provider", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/DeregisterProvider -H 'Content-Type: application/json' -d '{\"provider_id\":\"cli-health.commands\"}'"},
+			{Name: "Deregister provider", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/DeregisterProvider -H 'Content-Type: application/json' -d '{\"provider_id\":\"example-provider.commands\"}'"},
 		},
 		CLIMapping: &module.CLIMapping{
 			Command: "search-hub providers remove",

@@ -464,6 +464,22 @@ misleading "ADD COLUMN IF NOT EXISTS" guidance in `registry/schema.go` +
 `eval/schema.go` was corrected; the real fix is the deferred brownfield
 additive-migration mechanism (escalate per storage-steer §6) — see the bug.
 
+**Mitigation landed 2026-06-09 (the silent-failure half is closed).**
+`packages/api-core/database.EnsureSchemas` now runs a **post-apply schema-drift
+check** on SQLite: after applying schemas it parses the declared columns
+(`DeclaredColumns`) and compares them against the live table via
+`PRAGMA table_info`, **failing boot loudly** (naming `table.column`) if a
+declared column is missing — so a column added only to `CREATE TABLE IF NOT
+EXISTS` can no longer silently no-op a non-fresh DB. The check is SQLite-scoped
+(PRAGMA errors on other engines → skipped), conservative (validated against all
+112 repo `schema.sql` files with zero false positives), and best-effort (a
+write-only execer skips it). The `storage-steer` skill (§4.1, §5) was corrected
+in lockstep: `ADD COLUMN IF NOT EXISTS` removed from the declarative list, the
+"additive changes apply on next boot" claim deleted, and the rule restated as
+"**any change to an existing table's columns is always a one-shot migration —
+never recreate the DB**". **Still owed:** the brownfield versioned-migration
+substrate itself (storage-steer §6) for when a scenario crosses to real users.
+
 **Still OPEN:**
 1. **Index-time sweep** (`embed_task_prefix` arm, now unblocked by the in-process
    apply) + a `--apply` write-back demo (snapshot `search.json` to /tmp + restore;

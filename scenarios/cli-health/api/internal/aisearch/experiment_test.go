@@ -142,7 +142,7 @@ func TestRecallExperiment(t *testing.T) {
 			Sparse:          r.ix.sparse,
 			RerankEnabled:   r.rerank,
 			Reranker:        reranker(),
-			RerankShortlist: cfg.RerankShortlist,
+			RerankShortlist: pkg.DefaultRerankShortlist,
 		})
 		recall, hits, misses := measureRecall(ctx, t, svc, corpus)
 		results = append(results, result{r.name, recall, hits})

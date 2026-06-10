@@ -11,15 +11,16 @@ import (
 // constants, so adding or renaming an RPC in routing.proto breaks this file at
 // compile time. The global parity test (TestProtoConnectParity in
 // api/internal/modules/registry_test.go) walks the proto FileDescriptor and
-// asserts every rpc has exactly one entry here — including Status, which is
-// mounted but Unimplemented until Phase 7.
+// asserts every rpc has exactly one entry here — including Status, which
+// reports federation health (per-provider reachability + classifier/reranker
+// availability).
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "routing_query",
 		Path:        routingconnect.RoutingServiceQueryProcedure,
 		Method:      "POST",
 		Summary:     "Federated query across registered providers",
-		Description: "Fans out a query to providers selected by explicit --type, --all, or --group (Phase 4: no automatic classifier yet), maps each response through the generic adapter, and returns results grouped by provider. Degraded providers are skipped with a note, never failing the whole query.",
+		Description: "Fans out a query to providers selected by explicit --type, --all, or --group, or automatically via the Ollama classifier when no explicit selector is given; maps each response through the generic adapter, and returns results grouped by provider. Degraded providers are skipped with a note, never failing the whole query.",
 		Category:    "routing",
 		Request: &module.Schema{
 			Type: "object",
@@ -36,15 +37,15 @@ var Endpoints = []module.EndpointDescriptor{
 			Type: "object",
 			Properties: map[string]string{
 				"groups":           "array<ProviderResultGroup> — by-provider grouping (always populated)",
-				"ranked":           "array<SearchHit> — unified ranked list (populated once rerank lands, Phase 6)",
+				"ranked":           "array<SearchHit> — unified ranked list (populated when the reranker fuses the per-provider shortlists)",
 				"corpora_searched": "array<string> — providers hit",
 				"degraded":         "bool — any provider degraded",
-				"reranked":         "bool — false until Phase 6",
+				"reranked":         "bool — true when the unified list was reranked",
 				"latency_ms":       "int64",
 			},
 		},
 		Errors: []module.ErrorDesc{
-			{Status: 400, Code: "invalid_argument", Description: "Empty query, or no routing selector (pass --type/--all/--group; classifier is Phase 5)"},
+			{Status: 400, Code: "invalid_argument", Description: "Empty query, or no routing selector while no classifier is wired (pass --type/--all/--group)"},
 			{Status: 500, Code: "internal", Description: "Registry read failure"},
 		},
 		Examples: []module.Example{

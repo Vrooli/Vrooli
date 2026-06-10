@@ -23,7 +23,7 @@ require (
 	github.com/go-chi/chi/v5 v5.2.5 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20251213004720-97cd9d5aeac2 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 )
 
 replace github.com/vrooli/aisearch-go => ../../../packages/aisearch-go

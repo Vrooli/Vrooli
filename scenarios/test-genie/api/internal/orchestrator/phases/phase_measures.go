@@ -13,6 +13,7 @@ import (
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
 
+	"github.com/vrooli/api-core/discovery"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
@@ -63,15 +64,18 @@ type measuresReport struct {
 }
 
 // runMeasuresValidate executes `measures-health validate scenario <name> --json`
-// and returns the raw JSON output. A seam for tests, mirroring
-// runSecurityValidate. The static (no --probe) path is used so the producer does
-// not require the target scenario to be running.
-var runMeasuresValidate = func(ctx context.Context, scenario string) (stdout []byte, exitCode int, err error) {
+// (adding `--probe` when probe is true) and returns the raw JSON output. A seam
+// for tests, mirroring runSecurityValidate.
+var runMeasuresValidate = func(ctx context.Context, scenario string, probe bool) (stdout []byte, exitCode int, err error) {
 	bin, lookErr := exec.LookPath("measures-health")
 	if lookErr != nil {
 		return nil, 0, fmt.Errorf("locate measures-health CLI: %w (install via `vrooli scenario start measures-health`)", lookErr)
 	}
-	cmd := exec.CommandContext(ctx, bin, "validate", "scenario", scenario, "--json")
+	args := []string{"validate", "scenario", scenario, "--json"}
+	if probe {
+		args = append(args, "--probe")
+	}
+	cmd := exec.CommandContext(ctx, bin, args...)
 	out, runErr := cmd.Output()
 	if runErr != nil {
 		var ee *exec.ExitError
@@ -83,6 +87,19 @@ var runMeasuresValidate = func(ctx context.Context, scenario string) (stdout []b
 		return out, 0, runErr
 	}
 	return out, 0, nil
+}
+
+// measuresTargetReachable reports whether the target scenario's API is reachable,
+// so the producer can behaviorally probe (`--probe`) its declared measures rather
+// than just grading them statically. A seam for tests. When the target is down
+// the producer falls back to the static path — an unreachable target is a skip,
+// never a phase failure (test-genie sweeps non-running scenarios). Probing only
+// when reachable also avoids the probe's per-measure HTTP timeouts against a dead
+// endpoint; if the target races down between this check and the probe, the
+// measures-health prober self-degrades (skipped, no hollow-declaration).
+var measuresTargetReachable = func(ctx context.Context, scenario string) bool {
+	url, err := discovery.ResolveScenarioURLDefault(ctx, scenario)
+	return err == nil && strings.TrimSpace(url) != ""
 }
 
 type measuresRunResult struct {
@@ -125,9 +142,14 @@ func runMeasuresPhase(ctx context.Context, env workspace.Environment, logWriter 
 	summary.Scenario = env.ScenarioName
 	var archFindings []*architecturev1.ArchitectureFinding
 
+	// Probe behaviorally when the target scenario is reachable, so EM's `measures`
+	// rung reflects "actually answers" (a declared-but-unserved measure surfaces as
+	// a hollow-declaration ERROR), not merely "declared". Otherwise grade statically.
+	probe := measuresTargetReachable(ctx, env.ScenarioName)
+
 	report := RunPhase(ctx, logWriter, "measures",
 		func() (*measuresRunResult, error) {
-			stdout, exitCode, runErr := runMeasuresValidate(ctx, env.ScenarioName)
+			stdout, exitCode, runErr := runMeasuresValidate(ctx, env.ScenarioName, probe)
 			if runErr != nil {
 				return measuresSkip(fmt.Sprintf("measures-health CLI unavailable (%v) — start it via `vrooli scenario start measures-health`", runErr)), nil
 			}

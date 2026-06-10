@@ -45,7 +45,12 @@ type Sample struct {
 	ResultCount  int
 	Degraded     bool
 	Reranked     bool
-	LatencyMs    int64
+	// AutoRoutedExternal / Escalated record the OT-P2-002 auto-external decisions
+	// so the Insights surface can report the auto-routed-external and escalation
+	// rates for validation.
+	AutoRoutedExternal bool
+	Escalated          bool
+	LatencyMs          int64
 }
 
 // ProviderUsage is one provider's routed/hit totals over the Insights window.
@@ -64,9 +69,15 @@ type Insights struct {
 	ZeroResultQueries int64
 	DegradedQueries   int64
 	RerankedQueries   int64
-	LatencyP50Ms      int64
-	LatencyP95Ms      int64
-	ProviderUsage     []ProviderUsage
+	// AutoRoutedExternalQueries / EscalatedQueries are the OT-P2-002 validation
+	// counts: how many queries in the window folded an external provider in via
+	// the web-shaped path, and how many escalated to external on an empty project
+	// corpus. Both stay 0 while the opt-in flag is off.
+	AutoRoutedExternalQueries int64
+	EscalatedQueries          int64
+	LatencyP50Ms              int64
+	LatencyP95Ms              int64
+	ProviderUsage             []ProviderUsage
 }
 
 // Store is the telemetry persistence seam. Production wires the SQLite-backed
@@ -106,10 +117,11 @@ func (s *sqliteStore) Record(ctx context.Context, sample Sample) error {
 	}
 
 	res, err := s.db.ExecContext(ctx, `
-INSERT INTO query_telemetry (query_hash, routed_types, result_count, zero_result, degraded, reranked, latency_ms, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+INSERT INTO query_telemetry (query_hash, routed_types, result_count, zero_result, degraded, reranked, auto_routed_external, escalated, latency_ms, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		sample.QueryHash, strings.Join(sample.RoutedTypes, ","), sample.ResultCount, zero,
-		boolToInt(sample.Degraded), boolToInt(sample.Reranked), sample.LatencyMs, now)
+		boolToInt(sample.Degraded), boolToInt(sample.Reranked),
+		boolToInt(sample.AutoRoutedExternal), boolToInt(sample.Escalated), sample.LatencyMs, now)
 	if err != nil {
 		return fmt.Errorf("insert query_telemetry: %w", err)
 	}
@@ -137,9 +149,12 @@ SELECT
   COUNT(*),
   COALESCE(SUM(zero_result), 0),
   COALESCE(SUM(degraded), 0),
-  COALESCE(SUM(reranked), 0)
+  COALESCE(SUM(reranked), 0),
+  COALESCE(SUM(auto_routed_external), 0),
+  COALESCE(SUM(escalated), 0)
 FROM query_telemetry`+whereClause, args...)
-	if err := row.Scan(&out.TotalQueries, &out.ZeroResultQueries, &out.DegradedQueries, &out.RerankedQueries); err != nil {
+	if err := row.Scan(&out.TotalQueries, &out.ZeroResultQueries, &out.DegradedQueries, &out.RerankedQueries,
+		&out.AutoRoutedExternalQueries, &out.EscalatedQueries); err != nil {
 		return nil, fmt.Errorf("aggregate query_telemetry: %w", err)
 	}
 

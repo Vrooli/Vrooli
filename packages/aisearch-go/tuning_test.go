@@ -172,6 +172,52 @@ func TestNewServiceForTuningIsDataDriven(t *testing.T) {
 	}
 }
 
+// TestTunedEngineServiceOptions asserts the helper carries every query-time
+// read-path factor from the resolved tuning into ServiceOptions (so an adopter
+// can never silently drop one by hand-forwarding), wires the engine components,
+// and always runs the floor (regime-safe).
+func TestTunedEngineServiceOptions(t *testing.T) {
+	deps := EngineDeps{QdrantURL: "http://localhost:6333", Collection: "c"}
+	tuning := TuningConfig{
+		Engine:          EngineHybrid,
+		EmbedModel:      DefaultEmbedModel,
+		RerankEnabled:   true,
+		RerankBlend:     true,
+		RerankShortlist: 42,
+		Floor:           FloorTuning{MaxGap: 0.4, HardFloor: 0.1},
+	}
+	te := NewServiceForTuning(tuning, deps)
+	opts := te.ServiceOptions()
+
+	if !opts.RerankEnabled || !opts.RerankBlend {
+		t.Errorf("rerank flags not forwarded: %+v", opts)
+	}
+	if opts.Shortlist != 42 {
+		t.Errorf("shortlist not forwarded: got %d want 42", opts.Shortlist)
+	}
+	if !opts.ApplyFloor {
+		t.Error("ApplyFloor must be true (regime floor is always safe to run)")
+	}
+	if opts.Floor.MaxGap != 0.4 || opts.Floor.HardFloor != 0.1 {
+		t.Errorf("floor not forwarded: %+v", opts.Floor)
+	}
+	if opts.Embedder == nil || opts.VectorStore == nil || opts.Reranker == nil {
+		t.Error("engine components not wired into ServiceOptions")
+	}
+	if opts.SparseEncoder == nil {
+		t.Error("hybrid tuning must carry the sparse encoder into ServiceOptions")
+	}
+
+	// A dense tuning omits the sparse encoder but still forwards the factors.
+	dense := NewServiceForTuning(TuningConfig{Engine: EngineDense, EmbedModel: DefaultEmbedModel}, deps).ServiceOptions()
+	if dense.SparseEncoder != nil {
+		t.Error("dense tuning must not carry a sparse encoder")
+	}
+	if dense.Shortlist != DefaultRerankShortlist {
+		t.Errorf("dense shortlist default not resolved: %d", dense.Shortlist)
+	}
+}
+
 // TestNewServiceForTuningTaskPrefix asserts the embed-recipe (task prefix) flag
 // flows through to the embedder: with the prefix on, nomic embeds asymmetrically
 // (a non-empty recipe), so a collection re-embeds; with it off, the recipe is

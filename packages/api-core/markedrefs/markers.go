@@ -31,6 +31,7 @@ const (
 	MarkerRoute    = "route"
 	MarkerPackage  = "package"
 	MarkerLiteral  = "literal"
+	MarkerNum      = "num"
 )
 
 const (
@@ -61,6 +62,7 @@ var markerSpecs = []MarkerSpec{
 	{MarkerRoute, "HTTP, API, or UI route path."},
 	{MarkerPackage, "Package, module, or import path."},
 	{MarkerLiteral, "Intentionally literal value that should not be semantically validated."},
+	{MarkerNum, "Intentional, owner-backed number in prose (target/threshold/price/version/decision/sot) that should not be flagged as a drift-prone count."},
 }
 
 var qualifierSpecs = []QualifierSpec{

@@ -15,16 +15,23 @@ const DefaultCollection = "cli-health-commands"
 // source (manifest or --help fallback). It is the unit that gets embedded,
 // stored, and returned by Search.
 type CommandRecord struct {
-	Origin      string   `json:"origin"`
-	Group       string   `json:"group,omitempty"`
-	Name        string   `json:"name"`
-	FullPath    string   `json:"fullPath"` // "<scenario> <group> <name>" canonical command
-	Description string   `json:"description,omitempty"`
-	Flags       []string `json:"flags,omitempty"`
-	Positionals []string `json:"positionals,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-	Binding     string   `json:"binding,omitempty"` // "Service.Method" when source=manifest
-	Source      string   `json:"source"`            // "manifest" | "help" | "help-failed"
+	Origin      string `json:"origin"`
+	Group       string `json:"group,omitempty"`
+	Name        string `json:"name"`
+	FullPath    string `json:"fullPath"` // "<scenario> <group> <name>" canonical command
+	Description string `json:"description,omitempty"`
+	// GroupDescription is the nearest enclosing group's one-line summary. It
+	// carries the real-world vocabulary a user queries with (a leaf's own
+	// description is often terse machine syntax) and is folded into the
+	// embedding text (composeCommandEmbeddingText) on both the manifest and
+	// --help discovery paths. Empty when there is no group or it merely repeats
+	// the leaf's own description.
+	GroupDescription string   `json:"groupDescription,omitempty"`
+	Flags            []string `json:"flags,omitempty"`
+	Positionals      []string `json:"positionals,omitempty"`
+	Tags             []string `json:"tags,omitempty"`
+	Binding          string   `json:"binding,omitempty"` // "Service.Method" when source=manifest
+	Source           string   `json:"source"`            // "manifest" | "help" | "help-failed"
 	// Measure carries the parsed `measure` block + proto-derived param schema
 	// when this command declares one (source=manifest only). Nil otherwise. Its
 	// questions/intent are folded into the embedding text (appendMeasureText) so
@@ -90,7 +97,7 @@ type SearchHit struct {
 	Score        float64  `json:"score"`
 	ScorePercent int      `json:"scorePercent"`
 	// Weak is the regime-aware weak-match flag, computed once in Service.Search
-	// via the shared engine's pkg.LabelWeak(activeLeg, score). Carried to the
+	// via the shared engine's regime-aware weak labeling (pkg.LabelWeakForMethod). Carried to the
 	// proto so CLI and UI render an identical "(weak)" badge — neither client
 	// re-derives a threshold (the duplicated 0.55 constants are deleted).
 	Weak bool `json:"weak"`

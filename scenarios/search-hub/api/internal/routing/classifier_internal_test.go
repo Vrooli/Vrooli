@@ -29,6 +29,14 @@ func TestParseClassifierResponse_PlainJSON(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"record"}, res.Types)
 	require.InDelta(t, 0.42, res.Confidence, 1e-9)
+	require.False(t, res.WebShaped, "web_shaped absent defaults to false")
+}
+
+func TestParseClassifierResponse_WebShaped(t *testing.T) {
+	res, err := parseClassifierResponse([]byte(`{"types":["web"],"confidence":0.8,"web_shaped":true}`))
+	require.NoError(t, err)
+	require.True(t, res.WebShaped, "web_shaped:true is decoded (OT-P2-002)")
+	require.InDelta(t, 0.8, res.Confidence, 1e-9)
 }
 
 func TestParseClassifierResponse_ConfidenceClamped(t *testing.T) {

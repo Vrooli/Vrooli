@@ -478,7 +478,7 @@
       "examples": [
         {
           "name": "Register provider",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/RegisterProvider -H 'Content-Type: application/json' -d '{\"descriptor\":{\"provider_id\":\"cli-health.commands\",\"provider_group\":\"cli-health\",\"bucket\":\"BUCKET_DO\",\"type\":\"command\",\"description\":\"CLI command corpus\"}}'"
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/RegisterProvider -H 'Content-Type: application/json' -d '{\"descriptor\":{\"provider_id\":\"example-provider.commands\",\"provider_group\":\"example-provider\",\"bucket\":\"BUCKET_DO\",\"type\":\"command\",\"description\":\"CLI command corpus\"}}'"
         }
       ],
       "cli_mapping": {
@@ -556,7 +556,7 @@
       "examples": [
         {
           "name": "Deregister provider",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/DeregisterProvider -H 'Content-Type: application/json' -d '{\"provider_id\":\"cli-health.commands\"}'"
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/DeregisterProvider -H 'Content-Type: application/json' -d '{\"provider_id\":\"example-provider.commands\"}'"
         }
       ],
       "cli_mapping": {
@@ -571,7 +571,7 @@
       "path": "/vrooli.search_hub.v1.routing.RoutingService/Query",
       "method": "POST",
       "summary": "Federated query across registered providers",
-      "description": "Fans out a query to providers selected by explicit --type, --all, or --group (Phase 4: no automatic classifier yet), maps each response through the generic adapter, and returns results grouped by provider. Degraded providers are skipped with a note, never failing the whole query.",
+      "description": "Fans out a query to providers selected by explicit --type, --all, or --group, or automatically via the Ollama classifier when no explicit selector is given; maps each response through the generic adapter, and returns results grouped by provider. Degraded providers are skipped with a note, never failing the whole query.",
       "category": "routing",
       "request": {
         "type": "object",
@@ -591,15 +591,15 @@
           "degraded": "bool — any provider degraded",
           "groups": "array<ProviderResultGroup> — by-provider grouping (always populated)",
           "latency_ms": "int64",
-          "ranked": "array<SearchHit> — unified ranked list (populated once rerank lands, Phase 6)",
-          "reranked": "bool — false until Phase 6"
+          "ranked": "array<SearchHit> — unified ranked list (populated when the reranker fuses the per-provider shortlists)",
+          "reranked": "bool — true when the unified list was reranked"
         }
       },
       "errors": [
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Empty query, or no routing selector (pass --type/--all/--group; classifier is Phase 5)"
+          "description": "Empty query, or no routing selector while no classifier is wired (pass --type/--all/--group)"
         },
         {
           "status": 500,

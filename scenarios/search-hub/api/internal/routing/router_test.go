@@ -599,3 +599,97 @@ func TestRerankSkippedWhenNoHits(t *testing.T) {
 	require.False(t, resp.GetReranked())
 	require.False(t, resp.GetDegraded(), "an empty result set is not a degradation")
 }
+
+// --- scope-aware routing (external providers withheld from auto) ------------
+
+// webSearchLive is a SCOPE_EXTERNAL provider (live web search). It must be
+// withheld from automatic/classifier routing and reachable only via the
+// explicit --all / --type web selectors.
+func webSearchLive() *registryv1.ProviderDescriptor {
+	return &registryv1.ProviderDescriptor{
+		ProviderId:    "web-search.live",
+		ProviderGroup: "web-search",
+		Bucket:        registryv1.Bucket_BUCKET_KNOW,
+		Type:          "web",
+		Description:   "Live web search.",
+		Scope:         registryv1.Scope_SCOPE_EXTERNAL,
+		State:         registryv1.ProviderState_PROVIDER_STATE_ACTIVE,
+		Endpoint: httpJSON("web-search", "/vrooli.web_search.v1.livesearch.LiveSearchService/Search",
+			`{"query":"{{query}}","limit":{{limit}}}`),
+		ResultMapping: &registryv1.ResultMapping{
+			ResultsPath: "results", IdField: "url", TitleField: "title", ScoreField: "score",
+			SnippetField: "snippet", PathField: "url",
+			ScoreScale: registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1,
+		},
+	}
+}
+
+func TestAutoRouteWithholdsExternalScope(t *testing.T) {
+	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.9}}
+	lister := &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), webSearchLive()}}
+	resolver := staticResolver{urls: map[string]string{
+		"cli-health": "http://cli-health.test",
+		"web-search": "http://web-search.test",
+	}}
+	doer := routeDoer{byURL: map[string]cannedResponse{
+		"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {status: 200, body: `{"results":[{"name":"scenario restart","description":"Restart","score":0.9}]}`},
+	}}
+	r := routing.NewRouter(routing.Deps{Lister: lister, Resolver: resolver, Doer: doer, Classifier: clf})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "restart a scenario", Explain: true})
+	require.NoError(t, err)
+	require.NotContains(t, clf.gotalltyp, "web", "an external provider's type is not offered to the classifier")
+	require.Contains(t, resp.GetCorporaSearched(), "cli-health.commands")
+	require.NotContains(t, resp.GetCorporaSearched(), "web-search.live", "automatic routing must never hit an external provider")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "withheld 1 external")
+}
+
+func TestAutoRouteWidenStillExcludesExternalScope(t *testing.T) {
+	// Even on the widen-on-low-confidence path, the external provider is never
+	// in the candidate set, so widening cannot reach it.
+	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.1}}
+	lister := &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), webSearchLive()}}
+	resolver := staticResolver{urls: map[string]string{
+		"cli-health": "http://cli-health.test",
+		"web-search": "http://web-search.test",
+	}}
+	doer := routeDoer{byURL: map[string]cannedResponse{
+		"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {status: 200, body: `{"results":[]}`},
+	}}
+	r := routing.NewRouter(routing.Deps{Lister: lister, Resolver: resolver, Doer: doer, Classifier: clf})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "something vague"})
+	require.NoError(t, err)
+	require.NotContains(t, resp.GetCorporaSearched(), "web-search.live")
+}
+
+func TestExplicitAllReachesExternalScope(t *testing.T) {
+	lister := &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), webSearchLive()}}
+	resolver := staticResolver{urls: map[string]string{
+		"cli-health": "http://cli-health.test",
+		"web-search": "http://web-search.test",
+	}}
+	doer := routeDoer{byURL: map[string]cannedResponse{
+		"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search":         {status: 200, body: `{"results":[]}`},
+		"http://web-search.test/vrooli.web_search.v1.livesearch.LiveSearchService/Search": {status: 200, body: `{"results":[{"url":"https://x","title":"X","snippet":"s","score":0.5}]}`},
+	}}
+	r := routing.NewRouter(routing.Deps{Lister: lister, Resolver: resolver, Doer: doer})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true})
+	require.NoError(t, err)
+	require.Contains(t, resp.GetCorporaSearched(), "web-search.live", "--all reaches external providers")
+	require.Contains(t, resp.GetCorporaSearched(), "cli-health.commands")
+}
+
+func TestExplicitTypeWebReachesExternalScope(t *testing.T) {
+	lister := &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), webSearchLive()}}
+	resolver := staticResolver{urls: map[string]string{"web-search": "http://web-search.test"}}
+	doer := routeDoer{byURL: map[string]cannedResponse{
+		"http://web-search.test/vrooli.web_search.v1.livesearch.LiveSearchService/Search": {status: 200, body: `{"results":[{"url":"https://x","title":"X","snippet":"s","score":0.5}]}`},
+	}}
+	r := routing.NewRouter(routing.Deps{Lister: lister, Resolver: resolver, Doer: doer})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", Types: []string{"web"}})
+	require.NoError(t, err)
+	require.Equal(t, []string{"web-search.live"}, resp.GetCorporaSearched())
+}

@@ -55,19 +55,32 @@ type ServiceOptions struct {
 	Embedder    pkg.Embedder
 	Sparse      pkg.SparseEncoder
 	VectorStore pkg.VectorStore
-	// RerankEnabled is the explicit rerank-on/off lever (the shared convention —
-	// matches cli-health — instead of inferring it from a nil Reranker). The
-	// caller wires it from KO_DOCS_RERANK_ENABLED; see server.go.
-	RerankEnabled bool
-	Reranker      *pkg.RerankerChain
-	TextFallback  TextFallback
-	Reconciler    *pkg.Reconciler
+	// RerankEnabled / RerankBlend / RerankShortlist / Floor are the query-time
+	// tuning factors, threaded from the `.vrooli/search.json` SSOT (loadDocsTuning)
+	// so the file is load-bearing rather than decorative — KO honors the same
+	// factors cli-health does, differing only in genuine corpus structure (hybrid
+	// + markdown chunking vs dense single-chunk). RerankEnabled gates the rerank
+	// pass; RerankBlend fuses the rerank order with retrieval via RRF (no-op when
+	// rerank is off, as it is by default for this corpus); RerankShortlist is the
+	// over-fetch depth (the doc read path widens the shortlist so the PostFilter +
+	// authority Decorator have headroom); Floor is the operator floor override
+	// merged onto the regime default. The floor is always RUN (ApplyFloor true):
+	// the shared Service classifies KO's rerank-off fused leg into the fusion band
+	// (relative MaxGap only, no absolute cosine HardFloor), so running it is safe.
+	RerankEnabled   bool
+	RerankBlend     bool
+	RerankShortlist int
+	Floor           pkg.FloorConfig
+	Reranker        *pkg.RerankerChain
+	TextFallback    TextFallback
+	Reconciler      *pkg.Reconciler
 }
 
 // NewSearchService wires the documentation read path onto the shared engine.
 // Reranking is gated by the explicit RerankEnabled flag (the rerank-on/off
-// decision is the caller's — see KO_DOCS_RERANK_ENABLED in server.go), default
-// OFF for this corpus. The relevance floor is ON and correct: the doc corpus runs
+// decision is the caller's — threaded from the `.vrooli/search.json` SSOT
+// tuning via loadDocsTuning in server.go, not an env var), default OFF for this
+// corpus. The relevance floor is ON and correct: the doc corpus runs
 // RRF-fused hybrid, and the shared Service now classifies that rerank-off fused
 // leg into the fusion floor band (relative MaxGap only, the absolute cosine
 // HardFloor that would have annihilated real fused hits is disabled), so the
@@ -78,6 +91,10 @@ func NewSearchService(opts ServiceOptions) *pkg.Service {
 	if sparse == nil {
 		sparse = pkg.NewBM25SparseEncoder()
 	}
+	shortlist := opts.RerankShortlist
+	if shortlist <= 0 {
+		shortlist = docShortlist
+	}
 	return pkg.NewService(pkg.ServiceOptions{
 		Embedder:      opts.Embedder,
 		SparseEncoder: sparse,
@@ -85,8 +102,10 @@ func NewSearchService(opts ServiceOptions) *pkg.Service {
 		Reranker:      opts.Reranker,
 		Reconciler:    opts.Reconciler,
 		RerankEnabled: opts.RerankEnabled,
+		RerankBlend:   opts.RerankBlend,
 		ApplyFloor:    true,
-		Shortlist:     docShortlist,
+		Floor:         opts.Floor,
+		Shortlist:     shortlist,
 		PrefetchLimit: prefetchLimit,
 		DefaultLimit:  defaultSearchLimit,
 		MaxLimit:      maxSearchLimit,

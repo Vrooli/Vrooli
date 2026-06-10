@@ -14,6 +14,8 @@ package routing
 import (
 	"context"
 	"log"
+	"os"
+	"strings"
 
 	"search-hub/internal/clock"
 	"search-hub/internal/httpc"
@@ -42,13 +44,14 @@ import (
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder) module.Module {
 	store := internalregistry.NewSQLiteStore(db, clk)
 	router := internalrouting.NewRouter(internalrouting.Deps{
-		Lister:     store,
-		Resolver:   newScenarioResolver(),
-		Doer:       httpc.NewDefault(),
-		Classifier: internalrouting.NewOllamaClassifier(),
-		Reranker:   internalrouting.NewOllamaReranker(),
-		Recorder:   recorder,
-		Logger:     logger,
+		Lister:            store,
+		Resolver:          newScenarioResolver(),
+		Doer:              httpc.NewDefault(),
+		Classifier:        internalrouting.NewOllamaClassifier(),
+		Reranker:          internalrouting.NewOllamaReranker(),
+		Recorder:          recorder,
+		Logger:            logger,
+		AutoRouteExternal: autoRouteExternalEnabled(),
 	})
 	connectPath, connectHandler := routingconnect.NewRoutingServiceHandler(NewConnectHandler(Deps{
 		Router: router,
@@ -60,6 +63,20 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, recorder
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 		},
 		Endpoints: Endpoints,
+	}
+}
+
+// autoRouteExternalEnabled reads the OT-P2-002 opt-in flag from the environment.
+// DEFAULT FALSE: classifier-driven external auto-routing + fallback escalation
+// only fire when an operator explicitly sets SEARCH_HUB_AUTO_ROUTE_EXTERNAL to a
+// truthy value (1/true/yes/on). Keeps the thin-router default behavior — a plain
+// federated query never reaches a rate-limited external corpus on its own.
+func autoRouteExternalEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("SEARCH_HUB_AUTO_ROUTE_EXTERNAL"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
 	}
 }
 

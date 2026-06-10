@@ -115,29 +115,36 @@ func TestMapResultsPresenceField(t *testing.T) {
 	require.Equal(t, "Chat widget", hits[0].Title)
 }
 
-func TestMapResultsNestedPaths(t *testing.T) {
-	// swarm-manager-style payload: title nested under payload.title.
-	d := &registryv1.ProviderDescriptor{
-		ProviderId:    "swarm-manager.records",
-		ProviderGroup: "swarm-manager",
-		Type:          "record",
-		ResultMapping: &registryv1.ResultMapping{
-			ResultsPath: "results",
-			IdField:     "id",
-			TitleField:  "payload.title",
-			ScoreField:  "score",
-			PathField:   "id",
-			ScoreScale:  registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1,
-		},
-	}
-	body := []byte(`{"results":[{"id":"rec-1","score":0.66,"payload":{"title":"How to restart"}}]}`)
+func TestMapResultsRecordsLessonCarried(t *testing.T) {
+	// swarm-manager.records now federates through the RICH POST
+	// /api/v1/records/search endpoint, whose response is
+	// {hits:[{record:{...},score}]}. The descriptor maps the record's
+	// trigger→title and approach→snippet (nested dot-paths) so a federated hit
+	// carries the LESSON — how a prior agent solved the problem — not just an id
+	// (the regression this whole adoption loop fixes: the old thin /search/ai
+	// descriptor surfaced only record_id + scenario). Mirrors the result_mapping
+	// in swarm-manager's `.vrooli/search.json`.
+	d := recordsDescriptor()
+	body := []byte(`{"hits":[{"record":{` +
+		`"id":"rec-abc123","kind":"fix","scenario":"web-console",` +
+		`"trigger":"voice auto-stop silence race",` +
+		`"approach":"debounce the VAD stop events behind a 300ms timer so a mid-utterance silence dip never ends the turn",` +
+		`"outcome":"shipped"},"score":0.83}]}`)
 
 	hits, err := providers.MapResults(d, body)
 	require.NoError(t, err)
 	require.Len(t, hits, 1)
-	require.Equal(t, "rec-1", hits[0].Id)
-	require.Equal(t, "How to restart", hits[0].Title)
-	require.Equal(t, "rec-1", hits[0].Path)
+	require.Equal(t, "swarm-manager.records", hits[0].ProviderId)
+	require.Equal(t, "swarm-manager", hits[0].ProviderGroup)
+	require.Equal(t, "record", hits[0].Type)
+	require.Equal(t, "rec-abc123", hits[0].Id)
+	require.Equal(t, "rec-abc123", hits[0].Path)
+	require.Equal(t, "voice auto-stop silence race", hits[0].Title, "title nests from record.trigger")
+	require.Equal(t,
+		"debounce the VAD stop events behind a 300ms timer so a mid-utterance silence dip never ends the turn",
+		hits[0].Snippet,
+		"the approach (the lesson) must ride through as the snippet, not just an id")
+	require.InDelta(t, 0.83, hits[0].Score, 1e-9)
 }
 
 func TestMapResultsErrors(t *testing.T) {
@@ -201,6 +208,30 @@ func cliHealthCommandsDescriptor() *registryv1.ProviderDescriptor {
 			ScoreField:   "score",
 			SnippetField: "description",
 			PathField:    "name",
+			ScoreScale:   registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1,
+		},
+	}
+}
+
+// recordsDescriptor mirrors swarm-manager.records' result_mapping from its
+// `.vrooli/search.json`: the rich /api/v1/records/search response nests the
+// narrative under record.{id,trigger,approach}, so a federated hit carries the
+// lesson. Inlined here for the same reason as cliHealthCommandsDescriptor —
+// search-hub ships no provider descriptors; the real one self-registers from the
+// scenario's own SSOT at boot.
+func recordsDescriptor() *registryv1.ProviderDescriptor {
+	return &registryv1.ProviderDescriptor{
+		ProviderId:    "swarm-manager.records",
+		ProviderGroup: "swarm-manager",
+		Bucket:        registryv1.Bucket_BUCKET_KNOW,
+		Type:          "record",
+		ResultMapping: &registryv1.ResultMapping{
+			ResultsPath:  "hits",
+			IdField:      "record.id",
+			TitleField:   "record.trigger",
+			SnippetField: "record.approach",
+			ScoreField:   "score",
+			PathField:    "record.id",
 			ScoreScale:   registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1,
 		},
 	}

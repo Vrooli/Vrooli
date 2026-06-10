@@ -287,6 +287,36 @@ type TunedEngine struct {
 	Tuning        TuningConfig
 }
 
+// ServiceOptions returns the ServiceOptions an adopter should start from when
+// wiring the read-path Service for this tuned engine: the assembled engine
+// components (Embedder/SparseEncoder/VectorStore/Reranker) plus the query-time
+// read-path factors derived from the resolved TuningConfig (RerankEnabled,
+// RerankBlend, Shortlist, Floor) and ApplyFloor=true. It exists so an adopter
+// never hand-forwards te.Tuning.RerankEnabled/RerankBlend/RerankShortlist/Floor
+// into ServiceOptions one field at a time (forget one and the Service silently
+// runs misconfigured — rerank-off when the SSOT says on). The adopter overlays
+// its own seams (Reconciler/Project/Filter/PostFilter/Decorate/RerankText/
+// TextFallback/OverridePolicy) on the returned value and passes it to NewService.
+//
+// ApplyFloor is true unconditionally: the regime-aware floor (FloorForMethodLeg)
+// already disables the absolute HardFloor for fused/rerank-off-hybrid legs, so
+// running the floor is safe for every engine shape; "off" is no longer a regime
+// workaround an adopter must opt into. Floor carries the operator override
+// (max_gap/hard_floor) merged onto the regime default.
+func (e TunedEngine) ServiceOptions() ServiceOptions {
+	return ServiceOptions{
+		Embedder:      e.Embedder,
+		SparseEncoder: e.SparseEncoder,
+		VectorStore:   e.VectorStore,
+		Reranker:      e.Reranker,
+		RerankEnabled: e.Tuning.RerankEnabled,
+		RerankBlend:   e.Tuning.RerankBlend,
+		Shortlist:     e.Tuning.RerankShortlist,
+		ApplyFloor:    true,
+		Floor:         e.Tuning.Floor.Config(),
+	}
+}
+
 // NewServiceForTuning assembles the engine the TuningConfig describes — dense OR
 // hybrid, decided by data (Tuning.Engine), not by a code literal. It delegates to
 // the existing NewDenseEngine/NewHybridEngine assemblers so it cannot diverge

@@ -106,7 +106,7 @@ func TestRecallFinal(t *testing.T) {
 			RerankEnabled:   p.rerank,
 			RerankBlend:     p.blend,
 			Reranker:        reranker(),
-			RerankShortlist: cfg.RerankShortlist,
+			RerankShortlist: pkg.DefaultRerankShortlist,
 		})
 		recall, hits, _ := measureRecall(ctx, t, svc, corpus)
 

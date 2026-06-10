@@ -11,11 +11,11 @@
 // call-time via the cross-scenario URLResolver seam (never client-computed).
 //
 // Routing is explicit (--type/--all/--group) or automatic: when no selector is
-// given and a Classifier is wired (Phase 5), the router asks the classifier
+// given and a Classifier is wired, the router asks the classifier
 // which provider types to hit — reading only the registry's NL descriptions —
 // and widens on uncertainty (over-fetch, recall over precision) so the bare
 // `search-hub query "…"` routes on its own. Results are always grouped honestly
-// by provider for provenance; when a Reranker is wired (Phase 6) the fused
+// by provider for provenance; when a Reranker is wired the fused
 // shortlist is additionally reranked into one comparable cross-provider list,
 // degrading back to grouping-only if the reranker is unavailable.
 package routing
@@ -87,12 +87,12 @@ func (e ErrInvalidQuery) Error() string { return e.Reason }
 
 // Deps wires the router's seams. Lister/Resolver/Doer are required; the rest
 // default in NewRouter. Classifier is optional: when nil, a query with no
-// explicit selector is rejected (the Phase-4 contract); when set, such a query
-// is routed automatically (Phase 5). Reranker is optional: when nil, results
-// stay grouped by provider (honest Phase-4 grouping); when set, the fused
+// explicit selector is rejected; when set, such a query
+// is routed automatically. Reranker is optional: when nil, results
+// stay grouped by provider; when set, the fused
 // shortlist is reranked into one comparable list, degrading back to grouping if
-// the reranker fails (Phase 6). Recorder is optional: when set, each completed
-// query emits a TelemetrySample (Phase 7 metrics); when nil, no telemetry is
+// the reranker fails. Recorder is optional: when set, each completed
+// query emits a TelemetrySample; when nil, no telemetry is
 // recorded.
 type Deps struct {
 	Lister             ProviderLister
@@ -105,6 +105,14 @@ type Deps struct {
 	Concurrency        int
 	PerProviderTimeout time.Duration
 	RerankTimeout      time.Duration
+	// AutoRouteExternal gates OT-P2-002: when true, the automatic (classifier)
+	// path may fold SCOPE_EXTERNAL providers back into the fan-out — either
+	// because the classifier judged the query web-shaped (above
+	// autoExternalThreshold) or as a fallback escalation when the project corpus
+	// returned no hits. DEFAULT FALSE: a plain federated query never auto-hits a
+	// rate-limited/paid external corpus unless the operator opts in. Explicit
+	// --all/--type always reach external providers regardless of this flag.
+	AutoRouteExternal bool
 }
 
 // Router executes federated queries across registered providers.
@@ -149,8 +157,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	}
 	hasExplicit := req.GetAll() || len(nonEmpty(req.GetTypes())) > 0 || strings.TrimSpace(req.GetGroup()) != ""
 	if !hasExplicit && r.deps.Classifier == nil {
-		// No selector and no classifier wired ⇒ the Phase-4 contract: reject
-		// rather than silently widen.
+		// No selector and no classifier wired ⇒ reject rather than silently widen.
 		return nil, ErrInvalidQuery{Reason: "no routing target: pass explicit --type <types>, --all, or --group <scenario> (automatic routing requires a classifier)"}
 	}
 
@@ -169,17 +176,53 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	}
 
 	var (
-		targets         []*registryv1.ProviderDescriptor
-		autoExplain     []string
-		classifierError bool
+		targets            []*registryv1.ProviderDescriptor
+		autoExplain        []string
+		classifierError    bool
+		pendingExternal    []*registryv1.ProviderDescriptor
+		autoRoutedExternal bool
+		escalated          bool
 	)
 	if hasExplicit {
+		// Explicit selectors (--all / --type / --group) reach every active
+		// provider, including SCOPE_EXTERNAL ones — the operator asked for them.
 		targets = selectTargets(active, req)
 	} else {
-		targets, autoExplain, classifierError = r.autoSelect(ctx, active, query)
+		// Automatic/classifier routing never auto-hits an external (e.g.
+		// rate-limited / paid) corpus UNLESS the operator opted in
+		// (AutoRouteExternal) and the classifier judged the query web-shaped.
+		// External providers always stay reachable via the explicit path above.
+		autoCandidates, withheldExternal := partitionByScope(active)
+		var webShaped bool
+		targets, autoExplain, classifierError, webShaped = r.autoSelect(ctx, autoCandidates, query)
+		pendingExternal = withheldExternal
+		switch {
+		case r.deps.AutoRouteExternal && webShaped && len(withheldExternal) > 0:
+			// OT-P2-002: a confidently web-shaped query folds the withheld
+			// external provider(s) back into the fan-out — driven purely off
+			// descriptor scope + the generic web-shaped label (no per-provider
+			// code). Rate-safety is the provider's own governor's job.
+			targets = append(targets, withheldExternal...)
+			autoRoutedExternal = true
+			autoExplain = append(autoExplain, autoRoutedExternalLine(withheldExternal))
+		case len(withheldExternal) > 0:
+			autoExplain = append(autoExplain, withheldExternalLine(withheldExternal))
+		}
 	}
 
 	groups := r.fanOut(ctx, targets, query, limit)
+
+	// OT-P2-002 fallback escalation: if the project corpus returned nothing and
+	// the operator opted in, escalate to the withheld external provider(s) via
+	// the same governor-protected path (only on the automatic path, and only
+	// when we did not already auto-route external above).
+	if !hasExplicit && r.deps.AutoRouteExternal && !autoRoutedExternal && len(pendingExternal) > 0 && resultsWeak(groups) {
+		escalationGroups := r.fanOut(ctx, pendingExternal, query, limit)
+		groups = append(groups, escalationGroups...)
+		targets = append(targets, pendingExternal...)
+		escalated = true
+		autoExplain = append(autoExplain, escalationLine(pendingExternal))
+	}
 
 	ranked, reranked, rerankDegraded, rerankExplain := r.maybeRerank(ctx, query, groups)
 
@@ -209,7 +252,10 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	// swallows its own errors so a telemetry failure never affects the query).
 	// LatencyMs is already stamped, so recording time is not counted.
 	if r.deps.Recorder != nil {
-		r.deps.Recorder.Record(ctx, buildSample(query, targets, resp))
+		sample := buildSample(query, targets, resp)
+		sample.AutoRoutedExternal = autoRoutedExternal
+		sample.Escalated = escalated
+		r.deps.Recorder.Record(ctx, sample)
 	}
 	return resp, nil
 }
@@ -252,19 +298,20 @@ func (r *Router) maybeRerank(ctx context.Context, query string, groups []*routin
 // errors (model down, unparseable output) it widens to every active provider
 // and reports classifierError=true so the response is flagged degraded. The
 // widen-on-uncertainty policy (low confidence ⇒ broaden) lives in widenPolicy.
-func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDescriptor, query string) (targets []*registryv1.ProviderDescriptor, explain []string, classifierError bool) {
+func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDescriptor, query string) (targets []*registryv1.ProviderDescriptor, explain []string, classifierError, webShaped bool) {
 	available := availableTypes(active)
 	profiles := buildProfiles(active)
 
 	result, err := r.deps.Classifier.Classify(ctx, query, profiles)
 	if err != nil {
 		// Graceful degradation: route to everything and let the operator see the
-		// classifier failed (never a hard error).
+		// classifier failed (never a hard error). A failed classify is never
+		// treated as web-shaped — external opt-in requires a positive judgment.
 		r.deps.Logger.Printf("routing.autoSelect: classifier failed, widening to all active providers: %v", err)
 		return providersByType(active, available), []string{
 			"automatic routing requested (no explicit selector)",
 			fmt.Sprintf("classifier unavailable (%s) — widened to all active providers", oneLine(err.Error())),
-		}, true
+		}, true, false
 	}
 
 	chosen, widened := widenPolicy(result, available)
@@ -280,7 +327,10 @@ func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDe
 		routed += " (widened on uncertainty — over-fetching for recall)"
 	}
 	explain = append(explain, routed)
-	return targets, explain, false
+	// Web-shaped only counts when the classifier is confident enough to justify
+	// reaching a rate-limited/paid external corpus (a higher bar than widening).
+	webShaped = result.WebShaped && result.Confidence >= autoExternalThreshold()
+	return targets, explain, false, webShaped
 }
 
 // providersByType returns the active leaves whose type is in the chosen set,
@@ -348,6 +398,68 @@ func selectTargets(active []*registryv1.ProviderDescriptor, req *routingv1.Query
 		}
 	}
 	return out
+}
+
+// partitionByScope splits the active providers into the project-scope candidate
+// set the classifier/auto path may route to, and the SCOPE_EXTERNAL providers
+// withheld from automatic routing. SCOPE_UNSPECIFIED is treated as project-scope
+// (a provider that never declared a scope is assumed internal, not external) so
+// a legacy provider keeps its default-routable behavior. Order is preserved.
+func partitionByScope(active []*registryv1.ProviderDescriptor) (project, external []*registryv1.ProviderDescriptor) {
+	for _, p := range active {
+		if p.GetScope() == registryv1.Scope_SCOPE_EXTERNAL {
+			external = append(external, p)
+			continue
+		}
+		project = append(project, p)
+	}
+	return project, external
+}
+
+// withheldExternalLine is the --explain note emitted when external providers
+// were kept out of the automatic candidate set.
+func withheldExternalLine(external []*registryv1.ProviderDescriptor) string {
+	ids := make([]string, 0, len(external))
+	for _, p := range external {
+		ids = append(ids, p.GetProviderId())
+	}
+	return fmt.Sprintf("withheld %d external provider(s) from auto-routing (reach with --all or --type <type>): %s",
+		len(external), strings.Join(ids, ", "))
+}
+
+// autoRoutedExternalLine is the --explain note emitted when a web-shaped query
+// (with the operator opt-in) folded the external provider(s) into auto-routing.
+func autoRoutedExternalLine(external []*registryv1.ProviderDescriptor) string {
+	return fmt.Sprintf("auto-routed %d external provider(s) — query judged web-shaped (opt-in enabled): %s",
+		len(external), strings.Join(providerIDs(external), ", "))
+}
+
+// escalationLine is the --explain note emitted when the project corpus returned
+// no hits and the router escalated to the withheld external provider(s).
+func escalationLine(external []*registryv1.ProviderDescriptor) string {
+	return fmt.Sprintf("escalated to %d external provider(s) — project results were empty (opt-in enabled): %s",
+		len(external), strings.Join(providerIDs(external), ", "))
+}
+
+// providerIDs projects descriptors to their provider_id list.
+func providerIDs(ps []*registryv1.ProviderDescriptor) []string {
+	ids := make([]string, 0, len(ps))
+	for _, p := range ps {
+		ids = append(ids, p.GetProviderId())
+	}
+	return ids
+}
+
+// resultsWeak reports whether the fanned-out groups produced no usable hits: a
+// non-degraded group with at least one hit makes the round non-weak. It is the
+// trigger for OT-P2-002 fallback escalation (empty/weak project corpus).
+func resultsWeak(groups []*routingv1.ProviderResultGroup) bool {
+	for _, g := range groups {
+		if !g.GetDegraded() && len(g.GetHits()) > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // fanOut queries every target concurrently (bounded by Concurrency) and returns

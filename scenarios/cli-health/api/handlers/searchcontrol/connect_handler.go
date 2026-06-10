@@ -4,16 +4,16 @@
 // provider now speaks the same reindex + config-write RPCs so search-hub's sweep
 // can drive index-time experiments and write back a winning tuning uniformly.
 //
-// SECURITY MODEL (two independent layers; both must pass):
-//   - per-environment flag (Gate.Enabled, default OFF via CLI_HEALTH_SEARCH_
-//     CONTROL_ENABLED) — the whole control plane is dark unless an operator opts
-//     the environment in. Defense in depth: a misconfigured token can do nothing
-//     in an environment that never enabled the plane.
+// SECURITY MODEL (token-only):
 //   - control token (Gate.Token) — the per-provider secret search-hub minted at
-//     first registration. Every RPC carries it (control_token field); a mismatch
-//     is rejected with a constant-time compare. There is no token-free control
-//     verb; public search (routing.Query without overrides) is the only unauthed
-//     path and lives in the search handler, not here.
+//     first registration and is its only holder. Every control RPC carries it
+//     (control_token field); the gate compares the presented token against the
+//     cached one with subtle.ConstantTimeCompare and rejects any mismatch (an
+//     empty cached or presented token always denies). There is no env flag and
+//     no token-free control verb: a provider that does not want to be tuned at
+//     all simply omits its control endpoints in search.json. Public search
+//     (routing.Query without overrides) is the only unauthed path and lives in
+//     the search handler, not here.
 package searchcontrol
 
 import (

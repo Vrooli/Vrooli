@@ -50,7 +50,7 @@ func ParseHelpTree(ctx context.Context, run helpRunner, bin string, opts HelpTre
 	seen := make(map[string]struct{})
 	seen[helpSignature(rootOut)] = struct{}{}
 
-	records := walkHelpTree(ctx, run, bin, origin, nil, rootOut, 1, maxDepth, seen)
+	records := walkHelpTree(ctx, run, bin, origin, nil, "", rootOut, 1, maxDepth, seen)
 	if len(records) == 0 {
 		// Root had no parseable subcommands — treat the CLI itself as a leaf.
 		return []CommandRecord{rootLeafRecord(origin, rootOut)}
@@ -58,15 +58,19 @@ func ParseHelpTree(ctx context.Context, run helpRunner, bin string, opts HelpTre
 	return records
 }
 
-func walkHelpTree(ctx context.Context, run helpRunner, bin, origin string, parents []string, helpOut []byte, depth, maxDepth int, seen map[string]struct{}) []CommandRecord {
+// walkHelpTree recurses the --help tree. groupDesc is the nearest enclosing
+// group's one-line summary (the description of the parent entry we recursed
+// through); it is threaded down so every leaf can fold its group's real-world
+// vocabulary into its embedding text.
+func walkHelpTree(ctx context.Context, run helpRunner, bin, origin string, parents []string, groupDesc string, helpOut []byte, depth, maxDepth int, seen map[string]struct{}) []CommandRecord {
 	entries := parseHelpEntries(helpOut)
 	if len(entries) == 0 {
-		return []CommandRecord{leafRecord(origin, parents, helpOut)}
+		return []CommandRecord{leafRecord(origin, parents, groupDesc, helpOut)}
 	}
 	if depth >= maxDepth {
 		out := make([]CommandRecord, 0, len(entries))
 		for _, e := range entries {
-			out = append(out, leafRecordFromEntry(origin, parents, e))
+			out = append(out, leafRecordFromEntry(origin, parents, groupDesc, e))
 		}
 		return out
 	}
@@ -76,21 +80,27 @@ func walkHelpTree(ctx context.Context, run helpRunner, bin, origin string, paren
 		childPath := append(append([]string{}, parents...), e.Name)
 		childOut, err := run(ctx, bin, childPath)
 		if err != nil || strings.TrimSpace(string(childOut)) == "" {
-			out = append(out, leafRecordFromEntry(origin, parents, e))
+			out = append(out, leafRecordFromEntry(origin, parents, groupDesc, e))
 			continue
 		}
 		sig := helpSignature(childOut)
 		if _, dup := seen[sig]; dup {
 			// Same help text as an ancestor — likely a leaf whose --help echoes
 			// the parent. Treat as leaf.
-			out = append(out, leafRecordFromEntry(origin, parents, e))
+			out = append(out, leafRecordFromEntry(origin, parents, groupDesc, e))
 			continue
 		}
 		seen[sig] = struct{}{}
 
-		childRecords := walkHelpTree(ctx, run, bin, origin, childPath, childOut, depth+1, maxDepth, seen)
+		// e is the group we are descending into; its description becomes the
+		// group context for the leaves below it (keep the nearest non-empty one).
+		childGroupDesc := groupDesc
+		if strings.TrimSpace(e.Description) != "" {
+			childGroupDesc = e.Description
+		}
+		childRecords := walkHelpTree(ctx, run, bin, origin, childPath, childGroupDesc, childOut, depth+1, maxDepth, seen)
 		if len(childRecords) == 0 {
-			out = append(out, leafRecordFromEntry(origin, parents, e))
+			out = append(out, leafRecordFromEntry(origin, parents, groupDesc, e))
 			continue
 		}
 		out = append(out, childRecords...)
@@ -171,6 +181,17 @@ func parseHelpEntries(helpOut []byte) []helpEntry {
 		if !isCommandName(name) {
 			continue
 		}
+		// Skip the cli-core "help" pseudo-command: every CLI emits a `help`
+		// entry under its Meta section whose only purpose is to PRINT the help
+		// text (description like "Show this help message"). It is not a real
+		// operation — help is the `--help` flag — and indexing one near-identical
+		// "Show this help message" record per scenario pollutes the vector index
+		// with a generic semantic magnet that crowds out real commands. Real
+		// subcommands that merely share the name `help` (with a different,
+		// non-help-printing description) are kept.
+		if isHelpPseudoCommand(name, desc) {
+			continue
+		}
 		if _, dup := seen[name]; dup {
 			continue
 		}
@@ -184,6 +205,21 @@ var commandNameRE = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_.-]*$`)
 
 func isCommandName(s string) bool {
 	return commandNameRE.MatchString(s)
+}
+
+// isHelpPseudoCommand reports whether a parsed entry is the spurious `help`
+// pseudo-command emitted by cli-core CLIs (a `help` entry whose description just
+// says it prints/shows the help text). It is matched conservatively — name must
+// be exactly "help" AND the description must signal "show … help" — so a real
+// subcommand that happens to be named `help` but does something else is kept.
+func isHelpPseudoCommand(name, desc string) bool {
+	if strings.ToLower(strings.TrimSpace(name)) != "help" {
+		return false
+	}
+	d := strings.ToLower(desc)
+	return strings.Contains(d, "help") &&
+		(strings.Contains(d, "show") || strings.Contains(d, "print") ||
+			strings.Contains(d, "display") || strings.Contains(d, "this"))
 }
 
 func isSkipSection(header string) bool {
@@ -225,17 +261,30 @@ func rootLeafRecord(origin string, helpOut []byte) CommandRecord {
 	}
 }
 
-func leafRecord(origin string, parents []string, helpOut []byte) CommandRecord {
+func leafRecord(origin string, parents []string, groupDesc string, helpOut []byte) CommandRecord {
 	rec := newRecord(origin, parents)
 	rec.Description = helpDescription(helpOut)
+	rec.GroupDescription = groupContext(groupDesc, rec.Description)
 	return rec
 }
 
-func leafRecordFromEntry(origin string, parents []string, e helpEntry) CommandRecord {
+func leafRecordFromEntry(origin string, parents []string, groupDesc string, e helpEntry) CommandRecord {
 	path := append(append([]string{}, parents...), e.Name)
 	rec := newRecord(origin, path)
 	rec.Description = e.Description
+	rec.GroupDescription = groupContext(groupDesc, rec.Description)
 	return rec
+}
+
+// groupContext returns the parent-group summary to attach to a leaf, dropped
+// when empty or when it merely repeats the leaf's own description (no signal
+// gained, avoids duplicating text in the embedding).
+func groupContext(groupDesc, leafDesc string) string {
+	g := strings.TrimSpace(groupDesc)
+	if g == "" || g == strings.TrimSpace(leafDesc) {
+		return ""
+	}
+	return g
 }
 
 func newRecord(origin string, path []string) CommandRecord {

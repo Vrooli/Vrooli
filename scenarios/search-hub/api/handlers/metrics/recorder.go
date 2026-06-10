@@ -37,13 +37,15 @@ var _ internalrouting.TelemetryRecorder = (*TelemetryBridge)(nil)
 // persists it, swallowing (logging) any store error.
 func (b *TelemetryBridge) Record(ctx context.Context, s internalrouting.TelemetrySample) {
 	if err := b.store.Record(ctx, internalmetrics.Sample{
-		QueryHash:    s.QueryHash,
-		RoutedTypes:  s.RoutedTypes,
-		ProviderHits: s.ProviderHits,
-		ResultCount:  s.ResultCount,
-		Degraded:     s.Degraded,
-		Reranked:     s.Reranked,
-		LatencyMs:    s.LatencyMs,
+		QueryHash:          s.QueryHash,
+		RoutedTypes:        s.RoutedTypes,
+		ProviderHits:       s.ProviderHits,
+		ResultCount:        s.ResultCount,
+		Degraded:           s.Degraded,
+		Reranked:           s.Reranked,
+		AutoRoutedExternal: s.AutoRoutedExternal,
+		Escalated:          s.Escalated,
+		LatencyMs:          s.LatencyMs,
 	}); err != nil {
 		b.logger.Printf("metrics.TelemetryBridge.Record: %v", err)
 	}

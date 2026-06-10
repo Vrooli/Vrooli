@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
@@ -21,17 +20,14 @@ const (
 	defaultSearchThreshold = 0.3
 )
 
-// SearchRequest defines the input schema for semantic search
+// SearchRequest defines the input schema for semantic search.
+// Note: the legacy records-era filters (collection, namespaces, visibility,
+// tags, ingested_after, ingested_before) were removed in the Phase-7 cutover;
+// the only corpus is now vrooli-docs.
 type SearchRequest struct {
-	Query          string   `json:"query"`
-	Collection     string   `json:"collection,omitempty"`
-	Namespaces     []string `json:"namespaces,omitempty"`
-	Visibility     []string `json:"visibility,omitempty"`
-	Tags           []string `json:"tags,omitempty"`
-	IngestedAfter  string   `json:"ingested_after,omitempty"`
-	IngestedBefore string   `json:"ingested_before,omitempty"`
-	Limit          int      `json:"limit,omitempty"`
-	Threshold      float64  `json:"threshold,omitempty"`
+	Query     string  `json:"query"`
+	Limit     int     `json:"limit,omitempty"`
+	Threshold float64 `json:"threshold,omitempty"`
 }
 
 // SearchResult represents a single search result
@@ -49,52 +45,11 @@ type SearchResponse struct {
 	Took    int64          `json:"took_ms"`
 }
 
-// OllamaEmbeddingRequest represents a request to Ollama's embedding API
-type OllamaEmbeddingRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-}
-
-// OllamaEmbeddingResponse represents the response from Ollama
-type OllamaEmbeddingResponse struct {
-	Embedding []float64 `json:"embedding"`
-}
-
-// QdrantSearchRequest represents a vector search request to Qdrant
-type QdrantSearchRequest struct {
-	Vector         []float64 `json:"vector"`
-	Limit          int       `json:"limit"`
-	WithPayload    bool      `json:"with_payload"`
-	ScoreThreshold *float64  `json:"score_threshold,omitempty"`
-}
-
-// QdrantSearchResponse represents Qdrant's search response
-type QdrantSearchResponse struct {
-	Result []QdrantSearchResult `json:"result"`
-}
-
-// QdrantSearchResult represents a single result from Qdrant
-type QdrantSearchResult struct {
-	ID      interface{}            `json:"id"`
-	Score   float64                `json:"score"`
-	Payload map[string]interface{} `json:"payload"`
-}
-
 func validateAndNormalizeSearchRequest(req *SearchRequest) error {
 	req.Query = strings.TrimSpace(req.Query)
 	if req.Query == "" {
 		return errors.New("Query parameter is required")
 	}
-
-	req.Collection = strings.TrimSpace(req.Collection)
-	req.Namespaces = normalizeStringList(req.Namespaces)
-	req.Tags = normalizeStringList(req.Tags)
-	visibility, err := normalizeVisibilityListStrict(req.Visibility)
-	if err != nil {
-		return err
-	}
-	req.Visibility = visibility
-
 	if req.Limit <= 0 {
 		req.Limit = defaultSearchLimit
 	}
@@ -124,19 +79,6 @@ func normalizeStringList(values []string) []string {
 	return out
 }
 
-func parseRFC3339Millis(value string) (*int64, error) {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil, nil
-	}
-	parsed, err := time.Parse(time.RFC3339, value)
-	if err != nil {
-		return nil, err
-	}
-	ms := parsed.UnixMilli()
-	return &ms, nil
-}
-
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
@@ -153,18 +95,6 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 
 	if s == nil || s.docSearch == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "Search service unavailable")
-		return
-	}
-
-	// IngestedAfter/Before were records-era filters; the documentation corpus
-	// has no ingest timestamps, but keep validating the RFC3339 shape so
-	// malformed input is still rejected with a 400.
-	if _, err := parseRFC3339Millis(req.IngestedAfter); err != nil {
-		s.respondError(w, http.StatusBadRequest, "Invalid ingested_after (must be RFC3339)")
-		return
-	}
-	if _, err := parseRFC3339Millis(req.IngestedBefore); err != nil {
-		s.respondError(w, http.StatusBadRequest, "Invalid ingested_before (must be RFC3339)")
 		return
 	}
 
@@ -212,21 +142,6 @@ func maxInt64(a, b int64) int64 {
 		return a
 	}
 	return b
-}
-
-func sortAndLimitResults(results []SearchResult, limit int) []SearchResult {
-	if len(results) == 0 {
-		return []SearchResult{}
-	}
-
-	sort.SliceStable(results, func(i, j int) bool {
-		return results[i].Score > results[j].Score
-	})
-
-	if limit <= 0 || len(results) <= limit {
-		return results
-	}
-	return results[:limit]
 }
 
 // getCollections retrieves list of Qdrant collections

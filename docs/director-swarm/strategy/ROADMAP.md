@@ -6,7 +6,7 @@ This doc holds **positioning**: which initiatives exist, why they exist, and how
 
 ## Themes
 
-The portfolio organizes into four themes. Each maps to one or more of the ranking criteria in the philosophy. A healthy portfolio usually has active work in at least the first three simultaneously.
+The portfolio organizes into the themes below. Each maps to one or more of the ranking criteria in the philosophy. A healthy portfolio usually has active work across several themes simultaneously.
 
 ---
 

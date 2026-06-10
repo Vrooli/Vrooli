@@ -70,6 +70,9 @@ type Counts struct {
 
 	DocsInManifest    int
 	DocsNotInManifest int
+
+	// Number / derived-count lint.
+	NumbersFlagged int
 }
 
 // DocHealthResult is the combined output of every validator family.
@@ -94,11 +97,22 @@ type DocHealthResult struct {
 	Counts Counts
 }
 
-// DocHealthOptions controls per-call validator behavior. Fields are pointers
-// so callers (via the proto request) can leave any of them unset and inherit
-// the static server defaults.
+// DocHealthOptions controls per-call validator behavior. The *bool fields are
+// pointers so callers (via the proto request) can leave any of them unset and
+// inherit the static server defaults.
 type DocHealthOptions struct {
 	StrictExternalLinks      *bool
 	RequireAllDocsRegistered *bool
 	SkipExternalLinks        *bool
+
+	// Target selection. Scope is "" or "scenario" (default; target resolved
+	// from the scenario name) or "path" (Path is scanned directly). A path that
+	// resolves inside a scenario is promoted to that scenario (all checks);
+	// a project-level path runs only generic checks.
+	Scope string
+	Path  string
+
+	// Checks narrows the run to the named checks (see checkRegistry). Empty
+	// means all checks applicable to the target.
+	Checks []string
 }

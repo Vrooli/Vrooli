@@ -52,18 +52,20 @@ func TestRecordAndAggregate(t *testing.T) {
 		LatencyMs:    100,
 	}))
 	require.NoError(t, store.Record(ctx, metrics.Sample{
-		QueryHash:    "h2",
-		RoutedTypes:  []string{"command", "record"},
-		ProviderHits: map[string]int{"cli-health.commands": 3, "swarm-manager.records": 2},
-		ResultCount:  5,
-		Reranked:     true,
-		LatencyMs:    200,
+		QueryHash:          "h2",
+		RoutedTypes:        []string{"command", "record"},
+		ProviderHits:       map[string]int{"cli-health.commands": 3, "swarm-manager.records": 2},
+		ResultCount:        5,
+		Reranked:           true,
+		AutoRoutedExternal: true,
+		LatencyMs:          200,
 	}))
 	require.NoError(t, store.Record(ctx, metrics.Sample{
 		QueryHash:    "h3",
 		RoutedTypes:  []string{"command"},
 		ProviderHits: map[string]int{"cli-health.commands": 1},
 		ResultCount:  1,
+		Escalated:    true,
 		LatencyMs:    300,
 	}))
 
@@ -73,6 +75,8 @@ func TestRecordAndAggregate(t *testing.T) {
 	require.Equal(t, int64(1), got.ZeroResultQueries)
 	require.Equal(t, int64(1), got.DegradedQueries)
 	require.Equal(t, int64(1), got.RerankedQueries)
+	require.Equal(t, int64(1), got.AutoRoutedExternalQueries)
+	require.Equal(t, int64(1), got.EscalatedQueries)
 
 	// Nearest-rank over [100,200,300]: p50 → idx ceil(1.5)-1=1 → 200; p95 → idx 2 → 300.
 	require.Equal(t, int64(200), got.LatencyP50Ms)

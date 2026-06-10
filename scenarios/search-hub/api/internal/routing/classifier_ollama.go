@@ -102,6 +102,7 @@ type classifierJSON struct {
 	Types      []string `json:"types"`
 	Confidence float64  `json:"confidence"`
 	Reason     string   `json:"reason"`
+	WebShaped  bool     `json:"web_shaped"`
 }
 
 // buildClassifierPrompt renders the routing prompt. It lists each available
@@ -119,7 +120,8 @@ func buildClassifierPrompt(query string, profiles []ProviderProfile) string {
 	b.WriteString("- Return EVERY type that could plausibly contain a relevant result; prefer recall over precision.\n")
 	b.WriteString("- Use only type ids from the list above.\n")
 	b.WriteString("- confidence is your certainty in [0,1] that the chosen types are sufficient; use a LOW value (below 0.45) when unsure so the router widens its search.\n")
-	b.WriteString("- Output ONLY one JSON object, no prose: {\"types\":[\"<id>\",...],\"confidence\":<0..1>,\"reason\":\"<short>\"}\n\n")
+	b.WriteString("- web_shaped is true ONLY when the query wants fresh, live, public-web information (current events, \"latest\"/\"today\", real-time facts, things outside an internal corpus); false for questions answerable from internal/project knowledge.\n")
+	b.WriteString("- Output ONLY one JSON object, no prose: {\"types\":[\"<id>\",...],\"confidence\":<0..1>,\"reason\":\"<short>\",\"web_shaped\":<true|false>}\n\n")
 	fmt.Fprintf(&b, "Query: %s /no_think", query)
 	return b.String()
 }
@@ -134,7 +136,9 @@ func parseClassifierResponse(raw []byte) (ClassifyResult, error) {
 	if obj := ollama.ExtractJSONObject(text); obj != "" {
 		var decoded classifierJSON
 		if err := json.Unmarshal([]byte(obj), &decoded); err == nil {
-			return normalizeClassifier(decoded.Types, decoded.Confidence, decoded.Reason), nil
+			res := normalizeClassifier(decoded.Types, decoded.Confidence, decoded.Reason)
+			res.WebShaped = decoded.WebShaped
+			return res, nil
 		}
 	}
 

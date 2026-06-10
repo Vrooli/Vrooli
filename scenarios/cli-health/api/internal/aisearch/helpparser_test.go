@@ -213,11 +213,49 @@ func TestParseHelpTree_CategoryLabelsIgnored(t *testing.T) {
 			t.Errorf("category label %q leaked as command record", label)
 		}
 	}
-	// Actual commands must.
-	for _, want := range []string{"help", "version", "status", "skill"} {
+	// The cli-core `help` pseudo-command ("Show this help message") is filtered
+	// out — it is not a real operation and pollutes the index.
+	if names["help"] {
+		t.Errorf("help pseudo-command leaked as a command record; got names=%v", names)
+	}
+	// Actual commands must remain.
+	for _, want := range []string{"version", "status", "skill"} {
 		if !names[want] {
 			t.Errorf("missing command %q; got names=%v", want, names)
 		}
+	}
+}
+
+// TestParseHelpEntries_HelpPseudoCommandFiltered pins the precise filter: the
+// cli-core `help` entry (description "Show this help message") is dropped, but a
+// command named `help` with a genuinely different, non-help-printing description
+// is preserved.
+func TestParseHelpEntries_HelpPseudoCommandFiltered(t *testing.T) {
+	const withPseudo = `myapp CLI
+
+Commands:
+    help               Show this help message
+    deploy             Deploy the app
+`
+	got := parseHelpEntries([]byte(withPseudo))
+	for _, e := range got {
+		if e.Name == "help" {
+			t.Errorf("help pseudo-command not filtered: %+v", got)
+		}
+	}
+	if len(got) != 1 || got[0].Name != "deploy" {
+		t.Errorf("expected only deploy to survive, got %+v", got)
+	}
+
+	// A real subcommand named `help` that does something else is kept.
+	const realHelp = `support CLI
+
+Commands:
+    help               Open a support ticket for assistance
+`
+	got2 := parseHelpEntries([]byte(realHelp))
+	if len(got2) != 1 || got2[0].Name != "help" {
+		t.Errorf("real help subcommand was wrongly filtered, got %+v", got2)
 	}
 }
 

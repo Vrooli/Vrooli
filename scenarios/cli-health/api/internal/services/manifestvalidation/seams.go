@@ -7,8 +7,8 @@ import (
 )
 
 // MeasureSchemaReader resolves the proto-derived param schema for a measure
-// command's binding (the Phase 0 descriptor reader). measurescan.SchemaSource
-// and measurescan.DescriptorSchemaReader satisfy it. The seam is optional: when
+// command's binding (the Phase 0 descriptor reader). manifestscan.SchemaSource
+// and manifestscan.DescriptorSchemaReader satisfy it. The seam is optional: when
 // the service is constructed without one, measure validation is skipped (so a
 // scenario with no measure blocks, and unit tests that don't exercise measures,
 // are unaffected). Tests inject a stub to drive specific proto shapes.

@@ -24,12 +24,15 @@ at runtime and picks the right bands. The one decision a human/agent owns —
 
 ## 1. The operational control surface (`LoadConfig("<PREFIX>")`)
 
-These are the **wiring/operational** knobs (sync cadence, Qdrant address,
-reranker resource endpoints) plus the override forms of the search factors. Each
-is read from `<PREFIX>_<NAME>` (an empty prefix reads the bare name); malformed
-values log a warning and fall back to the default. The factor values themselves
-are owned by `search.json` (above) — a migrated adopter ignores the factor env
-reads below.
+These are the **wiring/operational** knobs ONLY: sync cadence, Qdrant address,
+the deployed embed model, and the reranker resource endpoints + fallback-leg
+model. Each is read from `<PREFIX>_<NAME>` (an empty prefix reads the bare name);
+malformed values log a warning and fall back to the default. The search *factors*
+(engine, `embed_task_prefix`, `rerank_enabled`/`rerank_blend`/`rerank_shortlist`,
+the floor band) are **no longer env vars** — they are owned by `search.json` /
+`TuningConfig` (above) and read via `NewServiceForTuning`; `LoadConfig` does not
+read them. (`EmbedTaskPrefix` remains a `Config` *field* — the
+`NewEmbedderForConfig` input — but the adopter fills it from the SSOT, not env.)
 
 | Env var | Type | Default | What it trades off |
 |---|---|---|---|
@@ -39,16 +42,16 @@ reads below.
 | `MAX_EMBEDS_PER_TICK` | int (0=∞) | `0` | Cap embeds per tick so a first full index never starves Ollama. The 1:1 command corpus leaves it at 0; the large doc corpus sets it. |
 | `QDRANT_URL` | string | `http://127.0.0.1:6333` | Qdrant address. |
 | `QDRANT_API_KEY` | string | `""` | Qdrant auth. |
-| `EMBED_MODEL` | string | `nomic-embed-text` | Dense embedding model. **Changing it is a deliberate re-index** (the schema guard fails loudly on a model mismatch). |
-| `EMBED_TASK_PREFIX` | bool | `false` | Opt into asymmetric task-instruction prefixes (`search_query:`/`search_document:`) for models like nomic-embed-text. Measured +0.20 recall@5. Flipping it changes the embedding space and triggers an automatic full re-index on the next reconcile tick. Leave off for a guarded/symmetric baseline until you have measured it. |
-| `RERANK_ENABLED` | bool | `false` | **The one genuine lever.** See §3. |
-| `RERANK_BLEND` | bool | `false` | Fuse the reranker order with the retrieval order via `ApplyRerankRRF` instead of letting the reranker order win outright. Prevents a strongly-retrieved canonical result from being buried by literal-token lookalikes (measured +0.20 recall on the cli-health command corpus, no precision loss). Requires `RERANK_ENABLED`. The RRF fusion constant is `ServiceOptions.RerankRRFK` (≤0 → `DefaultRRFK = 60`). |
+| `EMBED_MODEL` | string | `nomic-embed-text` | Dense embedding model (the deployed/installed model — operational). **Changing it is a deliberate re-index** (the schema guard fails loudly on a model mismatch). |
 | `RERANK_MODEL` | string | `llama3.2:3b` | LLM-fallback rerank model. Must be a *non-reasoning* instruct model (see §4). |
-| `RERANK_SHORTLIST` | int [1,500] | `50` | Over-fetch depth handed to the reranker: the query pulls this many candidates (or the page size, whichever is larger) so the reranker reorders a meaningful pool before the page is sliced. Higher = better recall into the rerank; negligible latency on the cross-encoder, real cost on the LLM leg. |
 | `RERANKER_URL` | string | `""` (falls back to resource env) | Cross-encoder reranker endpoint. When empty, the reranker resource's own unprefixed env (`RERANKER_BASE_URL`/`RERANKER_URL`/`RERANKER_HOST+PORT`) is used — preserving zero-config local use. Lets two scenarios on one host point at different reranker instances. |
 | `RERANKER_MODEL` | string | `""` (falls back to resource env) | Cross-encoder model identifier read by the reranker resource. Distinct from `RERANK_MODEL` (which selects the LLM *fallback* leg). When empty, the resource's own env applies. |
-| `RELEVANCE_MAX_GAP` | float | `0` (unset → regime) | **Override only.** See §2. |
-| `RELEVANCE_HARD_FLOOR` | float | `0` (unset → regime) | **Override only.** See §2. |
+
+The factors that used to appear here (`EMBED_TASK_PREFIX`, `RERANK_ENABLED`,
+`RERANK_BLEND`, `RERANK_SHORTLIST`, `RELEVANCE_MAX_GAP`, `RELEVANCE_HARD_FLOOR`)
+now live in the `tuning` block of `search.json` — see [`search-json.md`](search-json.md)
+for the per-knob dashboard, and §2/§3 below for how the floor band and the rerank
+lever behave.
 
 ---
 
@@ -83,11 +86,13 @@ correct behavior with no configuration:
 
 **Why these aren't levers:** the regime is auto-detected, so there is nothing
 for an operator to tune per corpus — tuning would just risk mislabeling. The
-`RELEVANCE_*` env vars exist **only as overrides** for an operator who has eval
-evidence that a specific corpus wants a different band; they default to `0`
-("unset"), in which case `FloorForLeg` supplies the regime default. A non-zero
-`MaxGap` or non-zero `HardFloor` wins per-field (set `HardFloor` negative to
-deliberately disable the garbage floor).
+`tuning.floor.{max_gap,hard_floor}` fields in `search.json` exist **only as
+overrides** for an operator who has eval evidence that a specific corpus wants a
+different band; they default to `0` ("unset"), in which case `FloorForMethodLeg`
+supplies the regime default. A non-zero `MaxGap` or non-zero `HardFloor` wins
+per-field (set `HardFloor` negative to deliberately disable the garbage floor).
+They reach the read path as `ServiceOptions.Floor` (the adopter threads
+`tuning.Floor.Config()`); the package no longer reads a `RELEVANCE_*` env var.
 
 > Contract reminder: **floor *after* rerank.** A consumer that reranks must
 > apply `ApplyRelevanceFloor` on the *reranked* scores (the reranker drives junk
@@ -97,7 +102,7 @@ deliberately disable the garbage floor).
 
 ---
 
-## 3. The one real lever — `RERANK_ENABLED` + its decision recipe
+## 3. The one real lever — `tuning.rerank_enabled` + its decision recipe
 
 Whether to rerank **can't** be auto-derived; it is a per-corpus call, because
 what reranking buys depends on the corpus:
@@ -147,8 +152,9 @@ boundary:
   cliff.
 - **Cross-encoder requests are auto-chunked** to ≤ 32 candidates per TEI
   `/rerank` call (the server's `--max-client-batch-size`; a larger batch is
-  answered with HTTP 413) and the scores merged. This decouples `RERANK_SHORTLIST`
-  from the server limit — a shortlist of 50 reranks correctly as two chunks.
+  answered with HTTP 413) and the scores merged. This decouples
+  `tuning.rerank_shortlist` from the server limit — a shortlist of 50 reranks
+  correctly as two chunks.
   Without this, a shortlist above 32 silently fell back to dense order while
   still *reporting* the cross-encoder as active — a regime mislabel.
 - **`RERANK_MODEL` must be a non-reasoning instruct model.** Measured 2026-06-05:
@@ -181,5 +187,4 @@ boundary:
    gate) after any retrieval change to catch regressions. The thresholds baked
    into the package were themselves chosen from this eval matrix on the live
    cli-health corpus; an adopter whose corpus disagrees overrides via the
-   `tuning.floor.*` fields (or the `RELEVANCE_*` env override) with its own run
-   IDs as justification.
+   `tuning.floor.*` fields in `search.json` with its own run IDs as justification.

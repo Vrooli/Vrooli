@@ -25,6 +25,14 @@ type TelemetrySample struct {
 	Degraded     bool
 	Reranked     bool
 	LatencyMs    int64
+	// AutoRoutedExternal is true when the automatic path folded a SCOPE_EXTERNAL
+	// provider into the fan-out because the query was judged web-shaped
+	// (OT-P2-002). Lets the metrics surface measure the auto-routed-external rate.
+	AutoRoutedExternal bool
+	// Escalated is true when the project corpus was empty/weak and the router
+	// escalated to a withheld external provider (OT-P2-002 fallback). Lets the
+	// metrics surface measure the escalation rate.
+	Escalated bool
 }
 
 // TelemetryRecorder is the telemetry write seam. Production wires a bridge over

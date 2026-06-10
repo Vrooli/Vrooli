@@ -3,7 +3,6 @@ package aisearch
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"cli-health/internal/measurescan"
+	"github.com/vrooli/measures-go/manifestscan"
 
 	"github.com/vrooli/cli-core/cliapp"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -58,24 +57,24 @@ type FilesystemDiscoverySource struct {
 	// MeasureSchema resolves proto param schemas for measure blocks. Optional:
 	// when nil it defaults (lazily) to a descriptor reader rooted at RepoRoot.
 	// Tests inject a stub to avoid touching the committed descriptor image.
-	MeasureSchema measurescan.SchemaSource
+	MeasureSchema manifestscan.SchemaSource
 
 	mu        sync.Mutex
 	helpCache map[string]helpCacheEntry // keyed by absolute binary path
 
 	measureOnce sync.Once
-	measureSrc  measurescan.SchemaSource
+	measureSrc  manifestscan.SchemaSource
 }
 
 // measureSchemaSource returns the configured SchemaSource, lazily defaulting to
 // a descriptor reader on RepoRoot (which itself loads the image lazily, so a
 // missing descriptor degrades gracefully rather than crashing indexing).
-func (d *FilesystemDiscoverySource) measureSchemaSource() measurescan.SchemaSource {
+func (d *FilesystemDiscoverySource) measureSchemaSource() manifestscan.SchemaSource {
 	if d.MeasureSchema != nil {
 		return d.MeasureSchema
 	}
 	d.measureOnce.Do(func() {
-		d.measureSrc = measurescan.NewDescriptorSchemaReader(d.RepoRoot)
+		d.measureSrc = manifestscan.NewDescriptorSchemaReader(d.RepoRoot)
 	})
 	return d.measureSrc
 }
@@ -191,8 +190,8 @@ func (d *FilesystemDiscoverySource) Discover(ctx context.Context, scenario strin
 // matching CommandRecord (by group+command). Best-effort: a parse failure or an
 // unresolvable proto schema leaves the records untouched / the tier ungraded so
 // indexing never crashes (plan §11).
-func attachMeasures(records []CommandRecord, raw []byte, src measurescan.SchemaSource) {
-	parsed, err := measurescan.Parse(raw)
+func attachMeasures(records []CommandRecord, raw []byte, src manifestscan.SchemaSource) {
+	parsed, err := manifestscan.Parse(raw)
 	if err != nil || len(parsed.Commands) == 0 {
 		return
 	}
@@ -213,7 +212,7 @@ func attachMeasures(records []CommandRecord, raw []byte, src measurescan.SchemaS
 // When assembly against the proto schema succeeds it carries the authoritative
 // param schema + graded tier; otherwise it degrades to the manifest-authored
 // params (names/annotations only) with an empty (ungraded) tier.
-func buildMeasureRecord(cm measurescan.CommandMeasure, src measurescan.SchemaSource) *MeasureRecord {
+func buildMeasureRecord(cm manifestscan.CommandMeasure, src manifestscan.SchemaSource) *MeasureRecord {
 	mr := &MeasureRecord{
 		Name:       cm.MeasureName(),
 		Domain:     cm.Domain,
@@ -225,7 +224,7 @@ func buildMeasureRecord(cm measurescan.CommandMeasure, src measurescan.SchemaSou
 		Effect:     string(cm.Governance.Effect),
 	}
 	if decl, err := cm.Assemble(src); err == nil {
-		mr.Tier = string(measurescan.GradeTier(decl))
+		mr.Tier = string(manifestscan.GradeTier(decl))
 		for _, name := range decl.ParamNames() {
 			p := decl.Params[name]
 			mr.Params = append(mr.Params, MeasureParamRecord{
@@ -269,6 +268,7 @@ func parseManifestRecords(scenario string, raw []byte) ([]CommandRecord, error) 
 	records := make([]CommandRecord, 0, 16)
 	for _, group := range m.Groups {
 		groupName := strings.TrimSpace(group.Name)
+		groupDesc := strings.TrimSpace(group.Description)
 		for _, cmd := range group.Commands {
 			rec := CommandRecord{
 				Origin:      scenario,
@@ -277,6 +277,10 @@ func parseManifestRecords(scenario string, raw []byte) ([]CommandRecord, error) 
 				Description: strings.TrimSpace(cmd.Description),
 				Source:      SourceManifest,
 			}
+			// Fold the group's prose into the leaf (same rule as the --help
+			// path: dropped when empty or a pure repeat of the leaf desc) so
+			// manifest-discovered commands carry the same query vocabulary.
+			rec.GroupDescription = groupContext(groupDesc, rec.Description)
 			rec.FullPath = canonicalFullPath(scenario, groupName, rec.Name)
 
 			for _, f := range cmd.Flags {
@@ -430,11 +434,4 @@ func truncateForEmbedding(s string, max int) string {
 		return s
 	}
 	return s[:max] + "…"
-}
-
-// MarshalForDebug is a small helper used by handlers when serializing the
-// payload for logs without leaking the raw embedding text.
-func MarshalForDebug(r CommandRecord) string {
-	b, _ := json.Marshal(r)
-	return string(b)
 }

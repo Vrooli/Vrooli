@@ -1,7 +1,14 @@
 package phases
 
 import (
+	"bytes"
+	"context"
+	"io"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"test-genie/internal/orchestrator/workspace"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
@@ -78,5 +85,82 @@ func TestMeasuresArchFindings_MapsSourceAndStableID(t *testing.T) {
 func TestParseMeasuresOutput_Empty(t *testing.T) {
 	if _, err := parseMeasuresOutput([]byte("  ")); err == nil {
 		t.Fatal("expected error on empty output")
+	}
+}
+
+// --- Phase 4: producer probe-if-reachable ---------------------------------
+
+func measuresEnv(t *testing.T) workspace.Environment {
+	t.Helper()
+	dir := t.TempDir()
+	env := workspace.Environment{ScenarioName: "demo", ScenarioDir: dir, TestDir: filepath.Join(dir, "test")}
+	if err := os.MkdirAll(env.TestDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return env
+}
+
+// swapMeasuresSeams overrides the reachability + validate seams for the duration
+// of a test, restoring them on cleanup.
+func swapMeasuresSeams(t *testing.T, reachable bool, validate func(probe bool) ([]byte, int, error)) {
+	t.Helper()
+	origReach := measuresTargetReachable
+	origRun := runMeasuresValidate
+	measuresTargetReachable = func(_ context.Context, _ string) bool { return reachable }
+	runMeasuresValidate = func(_ context.Context, _ string, probe bool) ([]byte, int, error) {
+		return validate(probe)
+	}
+	t.Cleanup(func() {
+		measuresTargetReachable = origReach
+		runMeasuresValidate = origRun
+	})
+}
+
+func TestRunMeasuresPhase_ProbesWhenReachable(t *testing.T) {
+	const hollow = `{"scenario":"demo","passed":false,` +
+		`"findings":[{"rule_id":"measures.hollow-declaration","severity":"SEVERITY_ERROR",` +
+		`"title":"Hollow measure declaration: notes.count","scanner":"probe","file_path":"cli/manifest.json"}],` +
+		`"summary":{"errors":1}}`
+	var gotProbe bool
+	swapMeasuresSeams(t, true, func(probe bool) ([]byte, int, error) {
+		gotProbe = probe
+		return []byte(hollow), 1, nil
+	})
+
+	var buf bytes.Buffer
+	report := runMeasuresPhase(context.Background(), measuresEnv(t), io.MultiWriter(&buf, io.Discard))
+	if !gotProbe {
+		t.Fatal("reachable target must take the --probe branch")
+	}
+	if report.Err == nil {
+		t.Fatal("a hollow-declaration ERROR must fail the phase")
+	}
+	var foundHollow bool
+	for _, f := range report.Findings {
+		if f.GetSource() == architecturev1.FindingSource_FINDING_SOURCE_MEASURES &&
+			f.GetCode() == "measures.hollow-declaration" {
+			foundHollow = true
+		}
+	}
+	if !foundHollow {
+		t.Fatalf("want a FINDING_SOURCE_MEASURES hollow-declaration, got %+v", report.Findings)
+	}
+}
+
+func TestRunMeasuresPhase_StaticWhenUnreachable(t *testing.T) {
+	const passing = `{"scenario":"demo","passed":true,"findings":[],"summary":{}}`
+	var gotProbe bool
+	swapMeasuresSeams(t, false, func(probe bool) ([]byte, int, error) {
+		gotProbe = probe
+		return []byte(passing), 0, nil
+	})
+
+	var buf bytes.Buffer
+	report := runMeasuresPhase(context.Background(), measuresEnv(t), io.MultiWriter(&buf, io.Discard))
+	if gotProbe {
+		t.Fatal("unreachable target must take the static (no --probe) branch")
+	}
+	if report.Err != nil {
+		t.Fatalf("unreachable target must not fail the phase; got %v", report.Err)
 	}
 }

@@ -383,6 +383,9 @@ func health(deps support.Dependencies, args []string) error {
 	args, jsonFromPositional := support.StripBoolFlag(args, "--json")
 	fs := flag.NewFlagSet("docs health", flag.ContinueOnError)
 	scenario := fs.String("scenario", "", "Scenario name")
+	scope := fs.String("scope", "", "Scope: scenario (default) or path")
+	path := fs.String("path", "", "Docs path to scan (for scope=path; absolute or repo-relative)")
+	checks := fs.String("checks", "", "Comma-separated checks to run (structure,content,links,refs,manifest,numbers); default all applicable")
 	jsonOut := fs.Bool("json", false, "Output raw JSON")
 	strictExternal := fs.Bool("strict-external-links", false, "Treat external link failures as failures (overrides server default)")
 	requireRegistered := fs.Bool("require-all-docs-registered", false, "Fail when scenario docs are missing from docs/manifest.json")
@@ -391,11 +394,20 @@ func health(deps support.Dependencies, args []string) error {
 		return err
 	}
 	scenarioValue := strings.TrimSpace(*scenario)
-	if scenarioValue == "" {
+	scopeValue := strings.ToLower(strings.TrimSpace(*scope))
+	pathValue := strings.TrimSpace(*path)
+	if scenarioValue == "" && scopeValue != "path" && pathValue == "" {
 		scenarioValue = strings.TrimSpace(strings.Join(fs.Args(), " "))
 	}
-	if scenarioValue == "" {
-		return fmt.Errorf("usage: docs health <scenario> [--scenario=name] [--strict-external-links] [--require-all-docs-registered] [--skip-external-links] [--json]")
+	if scopeValue == "path" || pathValue != "" {
+		if pathValue == "" {
+			return fmt.Errorf("usage: docs health --scope=path --path <dir|file> [--checks=...] [--json]")
+		}
+		if scopeValue == "" {
+			scopeValue = "path"
+		}
+	} else if scenarioValue == "" {
+		return fmt.Errorf("usage: docs health <scenario> [--scenario=name] [--scope=path --path=DIR] [--checks=structure,content,links,refs,manifest,numbers] [--strict-external-links] [--require-all-docs-registered] [--skip-external-links] [--json]")
 	}
 
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(deps.ScenarioApp())
@@ -405,6 +417,15 @@ func health(deps support.Dependencies, args []string) error {
 	client := kov1connect.NewKnowledgeObservatoryServiceClient(httpClient, baseURL)
 
 	req := &kov1.DocHealthRequest{ScenarioName: scenarioValue}
+	if scopeValue != "" {
+		req.Scope = &scopeValue
+	}
+	if pathValue != "" {
+		req.Path = &pathValue
+	}
+	if checkList := support.SplitCSV(*checks); len(checkList) > 0 {
+		req.Checks = checkList
+	}
 	if isFlagSet(fs, "strict-external-links") {
 		v := *strictExternal
 		req.StrictExternalLinks = &v

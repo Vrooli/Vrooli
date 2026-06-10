@@ -91,6 +91,11 @@ type Server struct {
 	docIndexer  *aisearch.Indexer
 	docSearch   docSearchEngine
 	docSyncLoop *pkg.SyncLoop
+
+	// searchToken caches the control token search-hub mints for the
+	// knowledge-observatory.docs provider at self-registration; the reindex
+	// handler validates token-gated requests against it. See searchTokenHolder.
+	searchToken *searchTokenHolder
 }
 
 // NewServer initializes configuration, database, and routes
@@ -122,9 +127,10 @@ func NewServer() (*Server, error) {
 	}
 
 	srv := &Server{
-		config: cfg,
-		db:     db,
-		router: mux.NewRouter(),
+		config:      cfg,
+		db:          db,
+		router:      mux.NewRouter(),
+		searchToken: &searchTokenHolder{},
 	}
 
 	srv.setupServices()
@@ -253,12 +259,15 @@ func (s *Server) setupServices() {
 				docReranker = aisearch.NewDefaultReranker()
 			}
 			searchSvc := aisearch.NewSearchService(aisearch.ServiceOptions{
-				Embedder:      docEmbedder,
-				VectorStore:   docStore,
-				RerankEnabled: docsTuning.RerankEnabled,
-				Reranker:      docReranker,
-				TextFallback:  fallback,
-				Reconciler:    indexer.Reconciler(),
+				Embedder:        docEmbedder,
+				VectorStore:     docStore,
+				RerankEnabled:   docsTuning.RerankEnabled,
+				RerankBlend:     docsTuning.RerankBlend,
+				RerankShortlist: docsTuning.RerankShortlist,
+				Floor:           docsTuning.Floor.Config(),
+				Reranker:        docReranker,
+				TextFallback:    fallback,
+				Reconciler:      indexer.Reconciler(),
 			})
 			s.docSearch = searchSvc
 			if s.docSearchService != nil {
@@ -637,6 +646,11 @@ func (s *Server) selfRegisterSearch() {
 		ScenarioID:     "knowledge-observatory",
 		SearchFilePath: path,
 		Logger:         log.Default(),
+		// Cache the control token search-hub mints so the reindex handler can
+		// validate token-gated requests, and echo it on re-registration so a
+		// different actor can't hijack the provider_id (mirrors cli-health).
+		OnControlToken: func(_ string, token string) { s.searchToken.Set(token) },
+		ControlToken:   func(string) string { return s.searchToken.Get() },
 	})
 }
 

@@ -249,9 +249,6 @@
     }
   },
   "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/cli-health.db",
-    "CLI_HEALTH_RERANK_ENABLED": "1",
-    "CLI_HEALTH_RERANK_BLEND": "1",
-    "CLI_HEALTH_EMBED_TASK_PREFIX": "1"
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/cli-health.db"
   }
 }
