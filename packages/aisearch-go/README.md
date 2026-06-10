@@ -222,8 +222,8 @@ env var. See [`docs/reference/configuration.md`](docs/reference/configuration.md
 `NewRerankerChain(crossEncoder, llm)` routes a rerank call to the first available
 leg (`chain.Active(ctx)`); when none is reachable it returns `(nil, nil)` so the
 caller keeps the upstream fused/dense order — reranking is a pure addition.
-Surface the active leg via `chain.ActiveName(ctx)`. `<prefix>_RERANK_MODEL`
-selects the LLM-fallback model (`DefaultRerankModel`); the cross-encoder URL is
+Surface the active leg via `chain.ActiveName(ctx)`. `<prefix>_RERANK_ROLE`
+selects the LLM-fallback role (`DefaultRerankRole`); the cross-encoder URL is
 resolved from the reranker resource's own `RERANKER_URL` env.
 
 ### Default off, opt in per consumer — reranking is corpus-dependent
@@ -270,7 +270,7 @@ off so a resource-less consumer degrades cleanly to dense order.
 `LoadConfig("<PREFIX>")` reads `<PREFIX>_` + `SYNC_INTERVAL`, `SYNC_DISABLED`,
 `RECONCILE_PARALLELISM`, `MAX_EMBEDS_PER_TICK`, `QDRANT_URL`, `QDRANT_API_KEY`,
 `EMBED_MODEL`, `EMBED_TASK_PREFIX`, `RERANK_ENABLED`, `RERANK_BLEND`,
-`RERANK_MODEL`, `RERANK_SHORTLIST`, `RELEVANCE_MAX_GAP`, `RELEVANCE_HARD_FLOOR`.
+`RERANK_ROLE`, `RERANK_SHORTLIST`, `RELEVANCE_MAX_GAP`, `RELEVANCE_HARD_FLOOR`.
 
 **Two recall levers added 2026-06-07 (measured +0.20 recall@5 on cli-health
 commands, no precision loss — see the retrospective):**

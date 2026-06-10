@@ -2,9 +2,22 @@ package aisearch
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"log"
 	"strings"
+
+	pkg "github.com/vrooli/aisearch-go"
 )
+
+// idPrefix namespaces ui-health's point IDs inside the shared engine so its
+// natural keys never collide with another consumer's. (scenario, file_path) is
+// the surface identity; surfaces are single-chunk dense sources.
+const idPrefix = "ui-health:"
+
+// surfaceKind is the logical collection the surface records belong to.
+const surfaceKind = "surface"
 
 // composeSurfaceEmbeddingText builds the input passed to the embedder. Short
 // and dense: identity first, then description, then provenance/widget hints.
@@ -27,10 +40,11 @@ func composeSurfaceEmbeddingText(r SurfaceRecord) string {
 	return strings.Join(parts, "\n\n")
 }
 
-// buildSurfacePayload returns the Qdrant payload for one surface, including
-// the payload_hash that drives the reconciler's drift detection.
-func buildSurfacePayload(r SurfaceRecord, embeddingText string) map[string]interface{} {
-	p := map[string]interface{}{
+// surfaceMeta returns the per-surface payload fields propagated into the chunk
+// payload by the shared engine (it appends body / source_id / payload_hash).
+// Provenance/Widget ride along as nested maps; payloadToHit projects them back.
+func surfaceMeta(r SurfaceRecord) map[string]any {
+	p := map[string]any{
 		"scenario":     r.Scenario,
 		"slot":         r.Slot,
 		"kind":         r.Kind,
@@ -39,7 +53,7 @@ func buildSurfacePayload(r SurfaceRecord, embeddingText string) map[string]inter
 		"file_path":    r.FilePath,
 	}
 	if r.Provenance != nil {
-		p["provenance"] = map[string]interface{}{
+		p["provenance"] = map[string]any{
 			"provenance":      r.Provenance.Provenance,
 			"library":         r.Provenance.Library,
 			"library_version": r.Provenance.LibraryVersion,
@@ -52,7 +66,7 @@ func buildSurfacePayload(r SurfaceRecord, embeddingText string) map[string]inter
 		}
 	}
 	if r.Widget != nil {
-		p["widget"] = map[string]interface{}{
+		p["widget"] = map[string]any{
 			"widget_id":         r.Widget.WidgetID,
 			"component_name":    r.Widget.ComponentName,
 			"props_schema_json": r.Widget.PropsSchemaJSON,
@@ -62,54 +76,72 @@ func buildSurfacePayload(r SurfaceRecord, embeddingText string) map[string]inter
 			"file_path":         r.Widget.FilePath,
 		}
 	}
-	p[payloadHashKey] = composePayloadHash(embeddingText, p)
 	return p
 }
 
-// NewSurfaceDescriptor wires a CollectionDescriptor for the surface
-// collection. LoadAll iterates every scenario via the discovery source.
-func NewSurfaceDescriptor(store VectorStore, src DiscoverySource) CollectionDescriptor {
-	return CollectionDescriptor{
-		Kind:  KindSurface,
-		Store: store,
-		LoadAll: func(ctx context.Context) ([]ItemSnapshot, error) {
-			scenarios, err := src.ListScenarios(ctx)
-			if err != nil {
-				return nil, err
-			}
-			out := make([]ItemSnapshot, 0, 128)
-			for _, scenario := range scenarios {
-				records, err := src.Discover(ctx, scenario)
-				if err != nil {
-					log.Printf("[ui-health/aisearch] discover %s: %v", scenario, err)
-					continue
-				}
-				for i := range records {
-					r := records[i]
-					out = append(out, &r)
-				}
-			}
-			return out, nil
-		},
-		ComposeText: func(snap ItemSnapshot) string {
-			return composeSurfaceEmbeddingText(*snap.(*SurfaceRecord))
-		},
-		BuildPayload: func(snap ItemSnapshot, text string) map[string]interface{} {
-			return buildSurfacePayload(*snap.(*SurfaceRecord), text)
-		},
-		PointID: func(snap ItemSnapshot) string {
-			r := snap.(*SurfaceRecord)
-			return PointIDForSurface(r.Scenario, r.FilePath)
-		},
-		DisplayName: func(snap ItemSnapshot) string {
-			r := snap.(*SurfaceRecord)
-			return r.Scenario + ":" + r.FilePath
-		},
+// surfaceContentHash is the source-level drift gate: a stable hash of the whole
+// record so a warm reconcile tick skips an unchanged surface before chunking or
+// embedding. Editing any field changes the hash.
+func surfaceContentHash(r SurfaceRecord) string {
+	b, _ := json.Marshal(r)
+	sum := sha256.Sum256(b)
+	return "sha256:" + hex.EncodeToString(sum[:8])
+}
+
+// surfaceToSourceDoc adapts one SurfaceRecord to the engine's SourceDoc. Body is
+// the pre-composed embedding text (the identity composer embeds it verbatim);
+// the surface fields ride along as Meta for result projection.
+func surfaceToSourceDoc(r SurfaceRecord) pkg.SourceDoc {
+	return pkg.SourceDoc{
+		ID:          r.Scenario + ":" + r.FilePath,
+		Kind:        surfaceKind,
+		ContentHash: surfaceContentHash(r),
+		Body:        composeSurfaceEmbeddingText(r),
+		Meta:        surfaceMeta(r),
 	}
 }
 
-// payloadToHit projects a vector-store payload back into a SearchHit.
-func payloadToHit(id string, score float64, payload map[string]interface{}) SearchHit {
+// surfaceSource adapts ui-health's discovery source to the engine's Source
+// interface: one SourceDoc per surface record across every scenario.
+type surfaceSource struct {
+	discovery DiscoverySource
+}
+
+func newSurfaceSource(d DiscoverySource) *surfaceSource {
+	return &surfaceSource{discovery: d}
+}
+
+// LoadAll enumerates every surface record as a SourceDoc. A discovery failure
+// for one scenario is logged and skipped — indexing never crashes.
+func (s *surfaceSource) LoadAll(ctx context.Context) ([]pkg.SourceDoc, error) {
+	scenarios, err := s.discovery.ListScenarios(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]pkg.SourceDoc, 0, 128)
+	for _, scenario := range scenarios {
+		records, err := s.discovery.Discover(ctx, scenario)
+		if err != nil {
+			log.Printf("[ui-health/aisearch] discover %s: %v", scenario, err)
+			continue
+		}
+		for i := range records {
+			out = append(out, surfaceToSourceDoc(records[i]))
+		}
+	}
+	return out, nil
+}
+
+// PointIDForSurface returns the deterministic Qdrant point ID for a surface.
+// Surfaces are single-chunk sources, so this is the un-suffixed UUIDv5 keyed on
+// (scenario, file_path).
+func PointIDForSurface(scenario, filePath string) string {
+	return pkg.PointIDFor(idPrefix, strings.TrimSpace(scenario)+":"+strings.TrimSpace(filePath), 0, 1)
+}
+
+// payloadToHit projects a vector-store payload back into a SearchHit. Returns an
+// empty hit when the payload is missing required fields — never panics.
+func payloadToHit(id string, score float64, payload map[string]any) SearchHit {
 	hit := SearchHit{ID: id, Score: score, ScorePercent: int(score*100 + 0.5)}
 	hit.Scenario, _ = payload["scenario"].(string)
 	hit.Slot, _ = payload["slot"].(string)
@@ -117,7 +149,7 @@ func payloadToHit(id string, score float64, payload map[string]interface{}) Sear
 	hit.DisplayName, _ = payload["display_name"].(string)
 	hit.Description, _ = payload["description"].(string)
 	hit.FilePath, _ = payload["file_path"].(string)
-	if raw, ok := payload["provenance"].(map[string]interface{}); ok {
+	if raw, ok := payload["provenance"].(map[string]any); ok {
 		p := &ProvenancePayload{}
 		p.Provenance, _ = raw["provenance"].(string)
 		p.Library, _ = raw["library"].(string)
@@ -130,7 +162,7 @@ func payloadToHit(id string, score float64, payload map[string]interface{}) Sear
 		p.FilePath, _ = raw["file_path"].(string)
 		hit.Provenance = p
 	}
-	if raw, ok := payload["widget"].(map[string]interface{}); ok {
+	if raw, ok := payload["widget"].(map[string]any); ok {
 		w := &WidgetPayload{}
 		w.WidgetID, _ = raw["widget_id"].(string)
 		w.ComponentName, _ = raw["component_name"].(string)
@@ -142,14 +174,4 @@ func payloadToHit(id string, score float64, payload map[string]interface{}) Sear
 		hit.Widget = w
 	}
 	return hit
-}
-
-// PointIDForSurface returns the deterministic UUIDv5 used as the Qdrant
-// point ID for a surface record. (scenario, file_path) is the identity key.
-func PointIDForSurface(scenario, filePath string) string {
-	id := strings.TrimSpace(scenario) + ":" + strings.TrimSpace(filePath)
-	if id == ":" {
-		id = "unknown"
-	}
-	return uuidV5(qdrantNamespace, "ui-health:"+id)
 }

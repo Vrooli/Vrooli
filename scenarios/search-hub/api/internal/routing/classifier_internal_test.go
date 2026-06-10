@@ -132,12 +132,12 @@ func TestAvailableTypes_DistinctSorted(t *testing.T) {
 // --- OllamaClassifier with a seamed runner ---------------------------------
 
 func TestOllamaClassifier_Classify_UsesRunnerOutput(t *testing.T) {
-	var gotModel, gotPrompt string
+	var gotRole, gotPrompt string
 	c := &OllamaClassifier{
-		model:     "qwen3:1.7b",
+		role:      "classify.routing",
 		maxTokens: classifierMaxTokens,
-		generate: func(_ context.Context, model, prompt string, _ int) ([]byte, error) {
-			gotModel, gotPrompt = model, prompt
+		generate: func(_ context.Context, role, prompt string, _ int) ([]byte, error) {
+			gotRole, gotPrompt = role, prompt
 			return []byte(`{"response":"{\"types\":[\"command\"],\"confidence\":0.9}"}`), nil
 		},
 	}
@@ -145,7 +145,7 @@ func TestOllamaClassifier_Classify_UsesRunnerOutput(t *testing.T) {
 		[]ProviderProfile{{Type: "command", Description: "CLI commands"}})
 	require.NoError(t, err)
 	require.Equal(t, []string{"command"}, res.Types)
-	require.Equal(t, "qwen3:1.7b", gotModel)
+	require.Equal(t, "classify.routing", gotRole)
 	require.Contains(t, gotPrompt, "CLI commands", "the provider description must reach the prompt")
 	require.Contains(t, gotPrompt, "restart a scenario")
 }

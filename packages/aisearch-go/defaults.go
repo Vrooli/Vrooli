@@ -9,6 +9,9 @@ const (
 	// at 768 dimensions (the stranded legacy 1024-dim KO collections used
 	// mxbai-embed-large; see the plan §1).
 	DefaultEmbedModel = "nomic-embed-text"
+	// DefaultEmbedRole is the shared Ollama policy role used for runtime
+	// embedding calls. DefaultEmbedModel remains collection metadata.
+	DefaultEmbedRole = "embedding.default"
 	// DefaultVectorSize is the nomic-embed-text dimension.
 	DefaultVectorSize = 768
 	// DefaultDenseDistance is the similarity metric for the dense vector.

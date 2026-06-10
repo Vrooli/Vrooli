@@ -42,7 +42,7 @@ kokoro::docker::get_docker_image() {
 # Returns: 0 if available, 1 otherwise
 #######################################
 kokoro::docker::is_gpu_available() {
-    system::is_command "nvidia-smi" && nvidia-smi >/dev/null 2>&1 && docker info | grep -q nvidia
+    system::host_inventory_bool "has_docker_addressable_nvidia_gpu"
 }
 
 #######################################

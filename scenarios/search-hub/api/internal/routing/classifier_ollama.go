@@ -24,10 +24,7 @@ var (
 	reasonRe      = regexp.MustCompile(`"reason"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"`)
 )
 
-// defaultClassifierModel is the local Ollama model that routes queries. qwen3:1.7b
-// is small, fast, already pulled (per the Phase 0 dependency decision), and emits
-// the JSON we ask for. Override with SEARCH_HUB_CLASSIFIER_MODEL.
-const defaultClassifierModel = "qwen3:1.7b"
+const defaultClassifierRole = "classify.routing"
 
 // classifierMaxTokens caps the generation. The model only emits a short JSON
 // object ({"types":[…],"confidence":…}); 256 is ample headroom.
@@ -35,7 +32,7 @@ const classifierMaxTokens = 256
 
 // generateFn shells out one completion (via internal/ollama). Seamed so tests
 // inject a deterministic runner instead of the real model.
-type generateFn func(ctx context.Context, model, prompt string, maxTokens int) ([]byte, error)
+type generateFn func(ctx context.Context, role, prompt string, maxTokens int) ([]byte, error)
 
 // availFn reports daemon reachability for the Phase 7 Status surface. Seamed for
 // tests.
@@ -47,21 +44,21 @@ type availFn func(ctx context.Context) bool
 // knowledge — swapping the registry's descriptions changes routing with no code
 // change here, holding the thin-router invariant.
 type OllamaClassifier struct {
-	model     string
+	role      string
 	maxTokens int
 	generate  generateFn
 	checkUp   availFn
 }
 
-// NewOllamaClassifier returns the CLI-backed classifier. Model resolves from
-// SEARCH_HUB_CLASSIFIER_MODEL or falls back to defaultClassifierModel.
+// NewOllamaClassifier returns the CLI-backed classifier. Role resolves from
+// SEARCH_HUB_CLASSIFIER_ROLE or falls back to defaultClassifierRole.
 func NewOllamaClassifier() *OllamaClassifier {
-	model := strings.TrimSpace(os.Getenv("SEARCH_HUB_CLASSIFIER_MODEL"))
-	if model == "" {
-		model = defaultClassifierModel
+	role := strings.TrimSpace(os.Getenv("SEARCH_HUB_CLASSIFIER_ROLE"))
+	if role == "" {
+		role = defaultClassifierRole
 	}
 	return &OllamaClassifier{
-		model:     model,
+		role:      role,
 		maxTokens: classifierMaxTokens,
 		generate:  ollama.Generate,
 		checkUp:   ollama.Available,
@@ -80,7 +77,7 @@ func (c *OllamaClassifier) Classify(ctx context.Context, query string, profiles 
 	}
 	prompt := buildClassifierPrompt(query, profiles)
 
-	out, err := c.generate(ctx, c.model, prompt, c.maxTokens)
+	out, err := c.generate(ctx, c.role, prompt, c.maxTokens)
 	if err != nil {
 		return ClassifyResult{}, fmt.Errorf("ollama generate: %w", err)
 	}
@@ -118,10 +115,12 @@ func buildClassifierPrompt(query string, profiles []ProviderProfile) string {
 	}
 	b.WriteString("\nRules:\n")
 	b.WriteString("- Return EVERY type that could plausibly contain a relevant result; prefer recall over precision.\n")
+	b.WriteString("- Match the query against what each corpus HOLDS per its description, not against surface keywords. A question about outside-world facts (software releases/versions/features, current events, products, vendors) matches every corpus whose description says it stores such external-world knowledge — include those alongside any other plausible types. Questions about THIS project's own code, configuration, or how past work here was done are NOT outside-world facts.\n")
 	b.WriteString("- Use only type ids from the list above.\n")
 	b.WriteString("- confidence is your certainty in [0,1] that the chosen types are sufficient; use a LOW value (below 0.45) when unsure so the router widens its search.\n")
 	b.WriteString("- web_shaped is true ONLY when the query wants fresh, live, public-web information (current events, \"latest\"/\"today\", real-time facts, things outside an internal corpus); false for questions answerable from internal/project knowledge.\n")
-	b.WriteString("- Output ONLY one JSON object, no prose: {\"types\":[\"<id>\",...],\"confidence\":<0..1>,\"reason\":\"<short>\",\"web_shaped\":<true|false>}\n\n")
+	b.WriteString("- Output ONLY one JSON object, no prose: {\"types\":[\"<id>\",...],\"confidence\":<0..1>,\"reason\":\"<short>\",\"web_shaped\":<true|false>}\n")
+	b.WriteString("- Keep reason under 8 words; never restate the query or the descriptions.\n\n")
 	fmt.Fprintf(&b, "Query: %s /no_think", query)
 	return b.String()
 }

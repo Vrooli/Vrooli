@@ -67,7 +67,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Method:      "POST",
 		Summary:     "Report search backend availability",
 		Description: "Reports whether ollama and qdrant are reachable, indexed doc count, and the most recent reconcile outcome.",
-		Category:   "search",
+		Category:    "search",
 		Response: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{

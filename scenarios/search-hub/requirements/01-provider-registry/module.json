@@ -1,42 +1,66 @@
 {
-  "module_id": "MOD-P0-001",
-  "prd_ref": "OT-P0-001",
-  "priority": "P0",
-  "description": "A postgres-backed provider registry with self-service registration. A scenario that owns a searchable corpus registers a declarative provider descriptor (leaf id, group, bucket, type, NL description, endpoint, result-mapping, scope, state). A new provider is added by one row — no router code change.",
+  "_metadata": {
+    "last_validated_at": "2026-06-10T13:22:10-04:00"
+  },
   "requirements": [
     {
       "id": "REQ-P0-001",
       "title": "Provider descriptor + validation",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "core",
-      "status": "implemented",
       "description": "The ProviderDescriptor message (registry proto) is implemented with validation: provider_id unique and group-qualified, NL description required (the classifier routes on it), endpoint present for ACTIVE providers, ResultMapping present for ACTIVE providers, scope defaults PROJECT, state in {ACTIVE, CAPABILITY_GAP}.",
       "validation": [
-        { "type": "test", "phase": "unit", "status": "pending", "notes": "An ACTIVE descriptor missing endpoint or result_mapping is rejected." },
-        { "type": "test", "phase": "unit", "status": "pending", "notes": "A CAPABILITY_GAP descriptor with no endpoint but with intended_home is accepted." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "An ACTIVE descriptor missing endpoint or result_mapping is rejected."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A CAPABILITY_GAP descriptor with no endpoint but with intended_home is accepted."
+        }
       ]
     },
     {
       "id": "REQ-P0-002",
       "title": "Registry CRUD (Connect + CLI)",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "core",
-      "status": "implemented",
       "description": "RegisterProvider (upsert), ListProviders (optional bucket/type/state filters), DeregisterProvider, exposed over Connect and as CLI `providers register|list|remove`. Registrations persist in postgres and survive restart.",
       "validation": [
-        { "type": "test", "phase": "unit", "status": "pending", "notes": "RegisterProvider upserts by provider_id; created flag false on second register." },
-        { "type": "test", "phase": "integration", "status": "pending", "notes": "ListProviders returns persisted rows after a simulated restart; filters narrow correctly." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "RegisterProvider upserts by provider_id; created flag false on second register."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "ListProviders returns persisted rows after a simulated restart; filters narrow correctly."
+        }
       ]
     },
     {
       "id": "REQ-P0-003",
       "title": "First provider registered via thin adapter",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "core",
-      "status": "implemented",
       "description": "cli-health.commands is registered via a declarative descriptor whose ResultMapping maps cli-health's existing Search response onto the unified SearchHit. No change to cli-health.",
       "validation": [
-        { "type": "test", "phase": "unit", "status": "pending", "notes": "Applying the cli-health.commands ResultMapping to a sample Search response yields well-formed SearchHits." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Applying the cli-health.commands ResultMapping to a sample Search response yields well-formed SearchHits."
+        }
       ]
     }
   ]

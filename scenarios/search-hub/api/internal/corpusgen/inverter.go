@@ -19,18 +19,14 @@ type Inverter interface {
 	InvertNegative(ctx context.Context, it Item) (query string, err error)
 }
 
-// defaultInverterModel is the local Ollama model that inverts items to queries.
-// qwen3:1.7b is the same small, already-pulled model the classifier/reranker use
-// (so no extra weight loads) and it honors /no_think. Override with
-// SEARCH_HUB_CORPUSGEN_MODEL.
-const defaultInverterModel = "qwen3:1.7b"
+const defaultInverterRole = "classify.routing"
 
 // inverterMaxTokens caps generation — one short query line needs little room.
 const inverterMaxTokens = 128
 
 // generateFn is the gateway seam (mirrors routing's): tests inject a runner
 // instead of shelling the real model.
-type generateFn func(ctx context.Context, model, prompt string, maxTokens int) ([]byte, error)
+type generateFn func(ctx context.Context, role, prompt string, maxTokens int) ([]byte, error)
 
 // OllamaInverter is the production Inverter: it asks the local model, for a
 // sampled item, "what would a user type to find THIS?" (positive) or "what
@@ -38,20 +34,20 @@ type generateFn func(ctx context.Context, model, prompt string, maxTokens int) (
 // only the item's own title/snippet/type, so it holds no provider-specific
 // knowledge.
 type OllamaInverter struct {
-	model     string
+	role      string
 	maxTokens int
 	generate  generateFn
 }
 
-// NewOllamaInverter returns the gateway-backed inverter. Model resolves from
-// SEARCH_HUB_CORPUSGEN_MODEL or falls back to defaultInverterModel.
+// NewOllamaInverter returns the gateway-backed inverter. Role resolves from
+// SEARCH_HUB_CORPUSGEN_ROLE or falls back to defaultInverterRole.
 func NewOllamaInverter() *OllamaInverter {
-	model := strings.TrimSpace(os.Getenv("SEARCH_HUB_CORPUSGEN_MODEL"))
-	if model == "" {
-		model = defaultInverterModel
+	role := strings.TrimSpace(os.Getenv("SEARCH_HUB_CORPUSGEN_ROLE"))
+	if role == "" {
+		role = defaultInverterRole
 	}
 	return &OllamaInverter{
-		model:     model,
+		role:      role,
 		maxTokens: inverterMaxTokens,
 		generate:  ollama.Generate,
 	}
@@ -69,7 +65,7 @@ func (o *OllamaInverter) InvertNegative(ctx context.Context, it Item) (string, e
 }
 
 func (o *OllamaInverter) ask(ctx context.Context, prompt string) (string, error) {
-	raw, err := o.generate(ctx, o.model, prompt, o.maxTokens)
+	raw, err := o.generate(ctx, o.role, prompt, o.maxTokens)
 	if err != nil {
 		return "", fmt.Errorf("ollama generate: %w", err)
 	}

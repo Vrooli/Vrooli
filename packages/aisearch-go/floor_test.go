@@ -18,7 +18,7 @@ func TestFloorForMethodLegOverrides(t *testing.T) {
 		}
 	})
 	t.Run("llm regime default", func(t *testing.T) {
-		got := FloorForMethodLeg("", "llm:llama3.2:3b", FloorConfig{})
+		got := FloorForMethodLeg("", "llm:rerank.llm_fallback", FloorConfig{})
 		if got.MaxGap != LLMRelevanceMaxGap || got.HardFloor != LLMRelevanceHardFloor {
 			t.Fatalf("got %+v, want llm regime floor", got)
 		}

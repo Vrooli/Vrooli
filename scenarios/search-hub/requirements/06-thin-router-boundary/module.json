@@ -1,30 +1,44 @@
 {
-  "module_id": "MOD-P0-006",
-  "prd_ref": "OT-P0-006",
-  "priority": "P0",
-  "description": "Architectural guardrails that keep the router thin. The router stores no vectors and no corpus content (only registry + metrics tables) and contains zero provider-specific code — a new provider is a registry row only. Enforced by tests, not convention.",
+  "_metadata": {
+    "last_validated_at": "2026-06-10T13:22:10-04:00"
+  },
   "requirements": [
     {
       "id": "REQ-P0-012",
       "title": "No data accretion (no qdrant, no corpus tables)",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "architecture",
-      "status": "implemented",
       "description": "An architectural test asserts the router module imports no qdrant client and declares no corpus-content tables — only registry and metrics tables.",
       "validation": [
-        { "type": "test", "phase": "unit", "status": "pending", "notes": "Source scan finds no qdrant import in the router/registry/routing packages." },
-        { "type": "test", "phase": "unit", "status": "pending", "notes": "Schema declares only registry + metrics tables (allow-list assertion)." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Source scan finds no qdrant import in the router/registry/routing packages."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Schema declares only registry + metrics tables (allow-list assertion)."
+        }
       ]
     },
     {
       "id": "REQ-P0-013",
       "title": "No provider-specific code (a row, not a branch)",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "architecture",
-      "status": "implemented",
       "description": "Adding a fixture provider requires only a registry row; the router has no `if type == ...` provider branches. A test registers a fixture provider and federates it with no router source change.",
       "validation": [
-        { "type": "test", "phase": "integration", "status": "pending", "notes": "A fixture provider added purely via RegisterProvider is reachable through Query with no code change." }
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "A fixture provider added purely via RegisterProvider is reachable through Query with no code change."
+        }
       ]
     }
   ]

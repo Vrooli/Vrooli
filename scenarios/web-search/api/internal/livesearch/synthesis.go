@@ -5,29 +5,25 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
+	"os/exec"
 	"strings"
 	"time"
-
-	"web-search/internal/httpc"
 )
 
-// DefaultOllamaURL is the Ollama base URL used when OLLAMA_URL is unset.
-const DefaultOllamaURL = "http://localhost:11434"
-
-// DefaultSynthesisModel is the chat model used for L1 snippet synthesis.
-const DefaultSynthesisModel = "llama3.2:3b"
+// DefaultSynthesisRole is the Ollama role used for L1 snippet synthesis.
+const DefaultSynthesisRole = "summarize.default"
 
 // abstainNote is the explicit text emitted when synthesis abstains.
 const abstainNote = "sources insufficient or disagree"
 
-// defaultSynthesisTimeout bounds a single L1 synthesis round-trip.
-const defaultSynthesisTimeout = 30 * time.Second
+// defaultSynthesisTimeout bounds a single L1 synthesis round-trip. Matches
+// L2's budget so cold local model loads do not immediately fail synthesis.
+const defaultSynthesisTimeout = 60 * time.Second
 
 // Synthesizer is the L1 seam: an optional LLM pass over the snippets already
 // returned by L0. It NEVER fetches new content — it summarizes the snippets in
 // hand and grounds every claim with a Citation, or abstains. Tests inject a
-// fake; production wraps the Ollama chat client.
+// fake; production wraps the Ollama gateway CLI.
 type Synthesizer interface {
 	// Synthesize summarizes results into a cited answer for query. It returns
 	// an abstaining Synthesis (Abstained=true) when the snippets are
@@ -35,59 +31,27 @@ type Synthesizer interface {
 	Synthesize(ctx context.Context, query string, results []Result) (*Synthesis, error)
 }
 
-// OllamaSynthesizer is the production Synthesizer: it POSTs a constrained chat
-// prompt to {BaseURL}/api/chat and parses a strict JSON reply into a cited (or
-// abstaining) Synthesis. It is snippet-only: the prompt carries the returned
-// snippets and forbids the model from using outside knowledge.
+// OllamaSynthesizer is the production Synthesizer: it sends a constrained
+// prompt through the shared Ollama gateway and parses a strict JSON reply into
+// a cited (or abstaining) Synthesis. It is snippet-only: the prompt carries the
+// returned snippets and forbids the model from using outside knowledge.
 type OllamaSynthesizer struct {
-	BaseURL string
-	Model   string
-	Doer    httpc.Doer
+	Role    string
+	Runner  func(ctx context.Context, args []string, stdin string) ([]byte, error)
 	Timeout time.Duration
 }
 
-// NewOllamaSynthesizer constructs an Ollama-backed synthesizer. Empty baseURL/
-// model fall back to the defaults; a nil doer falls back to a timeout-bounded
-// *http.Client.
-func NewOllamaSynthesizer(baseURL, model string, doer httpc.Doer) *OllamaSynthesizer {
-	baseURL = strings.TrimSpace(baseURL)
-	if baseURL == "" {
-		baseURL = DefaultOllamaURL
-	}
-	model = strings.TrimSpace(model)
-	if model == "" {
-		model = DefaultSynthesisModel
-	}
-	if doer == nil {
-		doer = &http.Client{Timeout: defaultSynthesisTimeout}
+// NewOllamaSynthesizer constructs an Ollama-backed synthesizer. Empty role
+// falls back to the default role.
+func NewOllamaSynthesizer(role string) *OllamaSynthesizer {
+	role = strings.TrimSpace(role)
+	if role == "" {
+		role = DefaultSynthesisRole
 	}
 	return &OllamaSynthesizer{
-		BaseURL: strings.TrimRight(baseURL, "/"),
-		Model:   model,
-		Doer:    doer,
+		Role:    role,
 		Timeout: defaultSynthesisTimeout,
 	}
-}
-
-// chatMessage is one Ollama /api/chat message.
-type chatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-// chatRequest is the Ollama /api/chat request body. stream is false so the
-// reply arrives as a single JSON object.
-type chatRequest struct {
-	Model    string             `json:"model"`
-	Messages []chatMessage      `json:"messages"`
-	Stream   bool               `json:"stream"`
-	Format   string             `json:"format"`
-	Options  map[string]float64 `json:"options"`
-}
-
-// chatResponse is the Ollama /api/chat response envelope (non-streamed).
-type chatResponse struct {
-	Message chatMessage `json:"message"`
 }
 
 // synthesisReply is the strict JSON shape the model is asked to emit.
@@ -111,41 +75,39 @@ func (s *OllamaSynthesizer) Synthesize(ctx context.Context, query string, result
 		defer cancel()
 	}
 
-	body := chatRequest{
-		Model: s.Model,
-		Messages: []chatMessage{
-			{Role: "system", Content: synthesisSystemPrompt},
-			{Role: "user", Content: buildSynthesisPrompt(query, results)},
-		},
-		Stream:  false,
-		Format:  "json",
-		Options: map[string]float64{"temperature": 0},
+	role := strings.TrimSpace(s.Role)
+	if role == "" {
+		role = DefaultSynthesisRole
 	}
-	payload, err := json.Marshal(body)
-	if err != nil {
-		return nil, fmt.Errorf("livesearch: marshal synthesis request: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.BaseURL+"/api/chat", bytes.NewReader(payload))
-	if err != nil {
-		return nil, fmt.Errorf("livesearch: build synthesis request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.Doer.Do(req)
+	prompt := synthesisSystemPrompt + "\n\n" + buildSynthesisPrompt(query, results)
+	out, err := s.run(ctx, []string{"gateway", "generate", "--role", role, "--json", "--temperature", "0", "--prompt-stdin"}, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("livesearch: synthesis request: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("livesearch: synthesis status %d", resp.StatusCode)
-	}
 
-	var env chatResponse
-	if err := json.NewDecoder(resp.Body).Decode(&env); err != nil {
+	var env struct {
+		Response string `json:"response"`
+	}
+	if err := json.NewDecoder(bytes.NewReader(bytes.TrimSpace(out))).Decode(&env); err != nil {
 		return nil, fmt.Errorf("livesearch: decode synthesis response: %w", err)
 	}
-	return parseSynthesisReply(env.Message.Content, results), nil
+	return parseSynthesisReply(env.Response, results), nil
+}
+
+func (s *OllamaSynthesizer) run(ctx context.Context, args []string, stdin string) ([]byte, error) {
+	if s.Runner != nil {
+		return s.Runner(ctx, args, stdin)
+	}
+	cmd := exec.CommandContext(ctx, "resource-ollama", args...)
+	cmd.Stdin = strings.NewReader(stdin)
+	out, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			return nil, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, err
+	}
+	return out, nil
 }
 
 // abstain returns the canonical abstaining synthesis.

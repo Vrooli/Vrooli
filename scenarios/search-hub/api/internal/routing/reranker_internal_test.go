@@ -104,12 +104,12 @@ func TestFuseGroups_FlattensAllHits(t *testing.T) {
 // --- OllamaReranker with a seamed runner -----------------------------------
 
 func TestOllamaReranker_Rerank_UsesRunnerOutputAndOrders(t *testing.T) {
-	var gotModel, gotPrompt string
+	var gotRole, gotPrompt string
 	c := &OllamaReranker{
-		model:     "qwen3:4b",
+		role:      "rerank.llm_fallback",
 		maxTokens: rerankerMaxTokens,
-		generate: func(_ context.Context, model, prompt string, _ int) ([]byte, error) {
-			gotModel, gotPrompt = model, prompt
+		generate: func(_ context.Context, role, prompt string, _ int) ([]byte, error) {
+			gotRole, gotPrompt = role, prompt
 			// Score the second candidate highest so it must rise to #1.
 			return []byte(`{"response":"{\"scores\":[{\"index\":0,\"score\":2},{\"index\":1,\"score\":9}]}"}`), nil
 		},
@@ -121,7 +121,7 @@ func TestOllamaReranker_Rerank_UsesRunnerOutputAndOrders(t *testing.T) {
 	ranked, err := c.Rerank(context.Background(), "restart a scenario", candidates)
 	require.NoError(t, err)
 	require.Equal(t, []string{"second", "first"}, ids(ranked), "the higher-scored candidate ranks first")
-	require.Equal(t, "qwen3:4b", gotModel)
+	require.Equal(t, "rerank.llm_fallback", gotRole)
 	require.Contains(t, gotPrompt, "restart a scenario")
 	require.Contains(t, gotPrompt, "scenario restart", "candidate titles reach the prompt")
 	require.Contains(t, gotPrompt, "[0]", "candidates are indexed in the prompt")

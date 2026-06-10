@@ -304,7 +304,7 @@ type RerankScore struct {
 
 // Reranker reorders the fused top-K shortlist. Two impls ship from the start
 // (user-approved 2026-06-03), behind this one interface:
-//   - LLMReranker:          DefaultRerankModel via `resource-ollama gateway
+//   - LLMReranker:          DefaultRerankRole via `resource-ollama gateway
 //     generate` (dependency-free, always-available fallback).
 //   - CrossEncoderReranker: BAAI/bge-reranker-v2-m3 served by the dedicated
 //     `reranker` TEI resource (Phase 4) via RERANKER_URL /rerank.

@@ -167,7 +167,7 @@ func main() {
 			Collection:    findingindex.DefaultCollection,
 			RerankerURL:   searchCfg.RerankerURL,
 			RerankerModel: searchCfg.RerankerModel,
-			RerankModel:   searchCfg.RerankModel,
+			RerankRole:    searchCfg.RerankRole,
 		},
 	})
 
@@ -207,7 +207,7 @@ func main() {
 		Client:      internallivesearch.NewHTTPSearxngClient(os.Getenv("SEARXNG_URL"), nil),
 		Cache:       internallivesearch.NewCache(tuning.CacheTTL, liveClock),
 		Governor:    internallivesearch.NewGovernor(tuning.GovernorCapacity, internallivesearch.DefaultGovernorWindow, liveClock),
-		Synthesizer: internallivesearch.NewOllamaSynthesizer(os.Getenv("OLLAMA_URL"), os.Getenv("OLLAMA_SYNTHESIS_MODEL"), nil),
+		Synthesizer: internallivesearch.NewOllamaSynthesizer(os.Getenv("OLLAMA_SYNTHESIS_ROLE")),
 		Logger:      logger,
 	})
 
@@ -245,7 +245,7 @@ func main() {
 	researchService := internalresearch.NewService(internalresearch.Deps{
 		Searcher:    internalresearch.LiveSearcher{Service: liveService},
 		Fetcher:     newL2Fetcher(tuning, logger),
-		Synthesizer: internalresearch.NewOllamaSynthesizer(os.Getenv("OLLAMA_URL"), os.Getenv("OLLAMA_SYNTHESIS_MODEL"), nil),
+		Synthesizer: internalresearch.NewOllamaSynthesizer(os.Getenv("OLLAMA_SYNTHESIS_ROLE")),
 		Excerpter:   excerpter,
 		Findings:    researchFindings,
 		// Bounded GATHER (OT-P1-003): the semantic findings index supplies nearby
@@ -318,6 +318,11 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
+		// RunL2 is synchronous and legitimately slow: sequential page fetches
+		// (15s budget each) plus an LLM synthesis (60s budget, longer when the
+		// model cold-loads on a CPU-resident ollama). The api-core default
+		// WriteTimeout of 30s would sever the connection mid-synthesis.
+		WriteTimeout: 5 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			cancelSync()
 			return db.Close()

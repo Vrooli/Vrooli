@@ -2,7 +2,8 @@ package livesearch
 
 import (
 	"context"
-	"net/http"
+	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -57,20 +58,16 @@ func TestParseSynthesisReplyDeduplicatesCitations(t *testing.T) {
 	require.Len(t, syn.Citations, 2)
 }
 
-// panicDoer fails the test if any HTTP request is attempted.
-type panicDoer struct{ t *testing.T }
-
-func (p panicDoer) Do(*http.Request) (*http.Response, error) {
-	p.t.Fatal("unexpected HTTP call: synthesis below the snippet threshold must abstain without calling the LLM")
-	return nil, nil
-}
-
 // TestSynthesizeAbstainsOnZeroResults pins the thin-coverage abstention: below
 // the minimum snippet threshold (no snippets at all) the synthesizer returns an
 // explicit abstain — with the canonical insufficient-sources note — and never
 // even reaches the LLM.
 func TestSynthesizeAbstainsOnZeroResults(t *testing.T) {
-	s := NewOllamaSynthesizer("", "", panicDoer{t})
+	s := NewOllamaSynthesizer("")
+	s.Runner = func(context.Context, []string, string) ([]byte, error) {
+		t.Fatal("unexpected gateway call: synthesis below the snippet threshold must abstain without calling the LLM")
+		return nil, nil
+	}
 
 	syn, err := s.Synthesize(context.Background(), "anything", nil)
 	require.NoError(t, err)
@@ -79,21 +76,18 @@ func TestSynthesizeAbstainsOnZeroResults(t *testing.T) {
 	require.Empty(t, syn.Citations)
 }
 
-// blockingDoer parks until the request context is cancelled, simulating a hung
+// blockingRunner parks until the request context is cancelled, simulating a hung
 // LLM backend. It returns the context error so the deadline is observable.
-type blockingDoer struct{}
-
-func (blockingDoer) Do(req *http.Request) (*http.Response, error) {
-	<-req.Context().Done()
-	return nil, req.Context().Err()
-}
-
 // TestSynthesizeHonorsTimeout is the bounded-latency guard for L1: synthesis is
 // deadline-bounded by the synthesizer's Timeout, so a hung LLM cannot stall the
 // search path indefinitely (the service then returns raw L0 results unharmed —
 // see TestServiceSynthesisFailureDoesNotBlockResults).
 func TestSynthesizeHonorsTimeout(t *testing.T) {
-	s := NewOllamaSynthesizer("http://synthesis.invalid", "test-model", blockingDoer{})
+	s := NewOllamaSynthesizer("summarize.default")
+	s.Runner = func(ctx context.Context, _ []string, _ string) ([]byte, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
 	s.Timeout = 50 * time.Millisecond
 
 	start := time.Now()
@@ -102,4 +96,26 @@ func TestSynthesizeHonorsTimeout(t *testing.T) {
 
 	require.Error(t, err, "a hung backend must surface as an error, not block")
 	require.Less(t, elapsed, 2*time.Second, "synthesis must return within its configured deadline, not hang")
+}
+
+func TestSynthesizeUsesGatewayRole(t *testing.T) {
+	var gotArgs []string
+	var gotStdin string
+	s := NewOllamaSynthesizer("summarize.default")
+	s.Runner = func(_ context.Context, args []string, stdin string) ([]byte, error) {
+		gotArgs = append([]string(nil), args...)
+		gotStdin = stdin
+		return []byte(`{"response":"{\"abstained\":false,\"text\":\"x\",\"citations\":[0]}"}`), nil
+	}
+
+	syn, err := s.Synthesize(context.Background(), "q", synthResults())
+	require.NoError(t, err)
+	require.False(t, syn.Abstained)
+	require.True(t, reflect.DeepEqual(gotArgs, []string{"gateway", "generate", "--role", "summarize.default", "--json", "--temperature", "0", "--prompt-stdin"}), fmt.Sprintf("args = %v", gotArgs))
+	require.Contains(t, gotStdin, "Use ONLY the provided snippets")
+	require.Contains(t, gotStdin, "Question: q")
+}
+
+func TestDefaultSynthesisRole(t *testing.T) {
+	require.Equal(t, "summarize.default", DefaultSynthesisRole)
 }

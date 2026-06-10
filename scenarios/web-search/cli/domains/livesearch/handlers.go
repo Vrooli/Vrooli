@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	livesearchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch"
@@ -19,8 +20,14 @@ type handlers struct {
 	client livesearchconnect.LiveSearchServiceClient
 }
 
+// searchClientTimeout bounds live-search RPCs. With --synthesis the Search
+// call carries the L1 LLM pass (60s server budget, longer when the model
+// cold-loads on a CPU-resident ollama), so the scenario default 30s client
+// would abort mid-synthesis.
+const searchClientTimeout = 2 * time.Minute
+
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, searchClientTimeout)
 	return &handlers{
 		core:   core,
 		client: livesearchconnect.NewLiveSearchServiceClient(httpClient, baseURL),

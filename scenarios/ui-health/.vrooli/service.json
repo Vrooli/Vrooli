@@ -233,10 +233,10 @@
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Local embedding model (nomic-embed-text) for UI-surface index generation.",
+        "description": "Local embedding role for UI-surface index generation.",
         "degraded_behavior": "Embedding generation is unavailable; text-mode search still works.",
-        "models": [
-          "nomic-embed-text"
+        "model_roles": [
+          "embedding.default"
         ]
       }
     }

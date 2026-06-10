@@ -158,12 +158,7 @@ kyutai_stt::model_loaded() {
 # Returns: 0 if available, 1 otherwise
 #######################################
 kyutai_stt::is_gpu_available() {
-    if system::is_command "nvidia-smi"; then
-        nvidia-smi >/dev/null 2>&1
-        return $?
-    fi
-
-    return 1
+    system::host_inventory_bool "has_docker_addressable_nvidia_gpu"
 }
 
 #######################################

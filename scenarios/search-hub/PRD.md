@@ -21,19 +21,19 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Provider registry + self-registration | `RegisterProvider`/`ListProviders`/`DeregisterProvider` (Connect + CLI) persist provider descriptors in SQLite; a new provider is added by one declarative row.
-- [ ] OT-P0-002 | Explicit-type federation | `query "<text>" --type a,b` (or `--all`) fans out to matching registered providers with bounded concurrency, per-provider timeout, and partial results; returns provenance-tagged hits grouped by provider.
-- [ ] OT-P0-003 | Graceful degradation | A down/stale provider is skipped with a surfaced warning and never fails the whole query; partial results return within timeout.
-- [ ] OT-P0-004 | Operator-friendly output | CLI names the corpora searched, per-corpus counts, expansion hints (`--all`/`--type`/`--limit`), and provenance on every hit; `--json` shape is stable for scripting.
-- [ ] OT-P0-005 | Routing accuracy (make-or-break) | Against labeled `testdata/routing_queries.json`, automatic routing achieves **recall ≥ 0.85** (uncertain ⇒ widen, not narrow); precision reported. `--type`/`--all` always override.
-- [ ] OT-P0-006 | Thin-router boundary held | Architectural tests prove no qdrant import / no corpus tables, and that adding a fixture provider requires only a registry row (no router source change).
+- [x] OT-P0-001 | Provider registry + self-registration | `RegisterProvider`/`ListProviders`/`DeregisterProvider` (Connect + CLI) persist provider descriptors in SQLite; a new provider is added by one declarative row.
+- [x] OT-P0-002 | Explicit-type federation | `query "<text>" --type a,b` (or `--all`) fans out to matching registered providers with bounded concurrency, per-provider timeout, and partial results; returns provenance-tagged hits grouped by provider.
+- [x] OT-P0-003 | Graceful degradation | A down/stale provider is skipped with a surfaced warning and never fails the whole query; partial results return within timeout.
+- [x] OT-P0-004 | Operator-friendly output | CLI names the corpora searched, per-corpus counts, expansion hints (`--all`/`--type`/`--limit`), and provenance on every hit; `--json` shape is stable for scripting.
+- [x] OT-P0-005 | Routing accuracy (make-or-break) | Against labeled `testdata/routing_queries.json`, automatic routing achieves **recall ≥ 0.85** (uncertain ⇒ widen, not narrow); precision reported. `--type`/`--all` always override.
+- [x] OT-P0-006 | Thin-router boundary held | Architectural tests prove no qdrant import / no corpus tables, and that adding a fixture provider requires only a registry row (no router source change).
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | Unified cross-provider ranking | Cross-encoder/LLM reranker fuses heterogeneous candidates into one comparable ranked list; rerank-on vs rerank-off MRR reported to justify its cost. Falls back to by-provider grouping + `degraded` flag when the reranker is unavailable.
-- [ ] OT-P1-002 | Measurement backbone | Per-query telemetry (classified types, providers hit, counts, latency p50/p95, zero-result rate, re-query/"again" count); insights surface flags under-utilized providers (registered but never routed-to) and zero-result queries.
-- [ ] OT-P1-003 | All live providers federated | cli-health.commands, ui-health.surfaces/.widgets, swarm-manager.records/.backlog/.initiative, prompt-manager.skill/.action, knowledge-observatory.docs (when its cutover lands) registered.
+- [x] OT-P1-001 | Unified cross-provider ranking | Cross-encoder/LLM reranker fuses heterogeneous candidates into one comparable ranked list; rerank-on vs rerank-off MRR reported to justify its cost. Falls back to by-provider grouping + `degraded` flag when the reranker is unavailable.
+- [x] OT-P1-002 | Measurement backbone | Per-query telemetry (classified types, providers hit, counts, latency p50/p95, zero-result rate, re-query/"again" count); insights surface flags under-utilized providers (registered but never routed-to) and zero-result queries.
+- [x] OT-P1-003 | All live providers federated | cli-health.commands, ui-health.surfaces/.widgets, swarm-manager.records/.backlog/.initiative, prompt-manager.skill/.action, knowledge-observatory.docs (when its cutover lands) registered.
 - [ ] OT-P1-004 | Gap corpora tracked | Every corpus with no search yet (scenarios, resources, code, contracts, runs, git-provenance, requirements, config, domain-map, metrics) is a `CAPABILITY_GAP` registry stub visible in `providers list`/`status` as the live Track-A checklist.
-- [ ] OT-P1-005 | Search UI | Query box, bucket/type facets, expand-search, per-result provenance + provider freshness, loading/error/empty states.
+- [x] OT-P1-005 | Search UI | Query box, bucket/type facets, expand-search, per-result provenance + provider freshness, loading/error/empty states.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | External-scope providers | The descriptor carries `scope=EXTERNAL` from day one; register paid/external corpora (papers, web) through the identical contract.

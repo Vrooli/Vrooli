@@ -6,9 +6,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
+
+const procMeminfo = "/proc/meminfo"
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -883,14 +886,15 @@ func TestCalculateMemoryBadMeminfo(t *testing.T) {
 func TestParseMeminfoField(t *testing.T) {
 	content := "MemTotal:       33554432 kB\nMemFree:        16777216 kB\nSwapTotal:      8388608 kB\n"
 
-	if v := parseMeminfoField(content, "MemTotal"); v != 33554432 {
+	mem, swap, err := hostinventory.ParseLinuxMeminfo(content)
+	if err != nil {
+		t.Fatalf("ParseLinuxMeminfo: %v", err)
+	}
+	if v := mem.TotalBytes / 1024; v != 33554432 {
 		t.Fatalf("MemTotal = %d, want 33554432", v)
 	}
-	if v := parseMeminfoField(content, "SwapTotal"); v != 8388608 {
+	if v := swap.TotalBytes / 1024; v != 8388608 {
 		t.Fatalf("SwapTotal = %d, want 8388608", v)
-	}
-	if v := parseMeminfoField(content, "Missing"); v != 0 {
-		t.Fatalf("Missing = %d, want 0", v)
 	}
 }
 

@@ -26,6 +26,12 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if cfg.EmbedModel != DefaultEmbedModel {
 		t.Errorf("EmbedModel = %q, want %q", cfg.EmbedModel, DefaultEmbedModel)
 	}
+	if cfg.EmbedRole != DefaultEmbedRole {
+		t.Errorf("EmbedRole = %q, want %q", cfg.EmbedRole, DefaultEmbedRole)
+	}
+	if cfg.RerankRole != DefaultRerankRole {
+		t.Errorf("RerankRole = %q, want %q", cfg.RerankRole, DefaultRerankRole)
+	}
 	// The search TUNING factors (rerank_*, floor band, embed_task_prefix) are no
 	// longer env-read here — they are owned by `.vrooli/search.json` / TuningConfig
 	// (config.go is the operational/wiring layer). Their coverage lives in
@@ -39,6 +45,8 @@ func TestLoadConfigReadsPrefixedEnv(t *testing.T) {
 	t.Setenv("DEMO_MAX_EMBEDS_PER_TICK", "250")
 	t.Setenv("DEMO_QDRANT_URL", "http://example:6333")
 	t.Setenv("DEMO_EMBED_MODEL", "custom-model")
+	t.Setenv("DEMO_EMBED_ROLE", "embedding.default")
+	t.Setenv("DEMO_RERANK_ROLE", "rerank.llm_fallback")
 
 	cfg := LoadConfig("DEMO")
 	if cfg.SyncInterval != 90*time.Second {
@@ -58,6 +66,12 @@ func TestLoadConfigReadsPrefixedEnv(t *testing.T) {
 	}
 	if cfg.EmbedModel != "custom-model" {
 		t.Errorf("EmbedModel = %q", cfg.EmbedModel)
+	}
+	if cfg.EmbedRole != "embedding.default" {
+		t.Errorf("EmbedRole = %q", cfg.EmbedRole)
+	}
+	if cfg.RerankRole != "rerank.llm_fallback" {
+		t.Errorf("RerankRole = %q", cfg.RerankRole)
 	}
 }
 

@@ -2,7 +2,10 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
 func withStubGPUProbe(t *testing.T, result bool) {
@@ -47,15 +50,27 @@ func TestRunGPUProbeUnknownProbeReturnsFalse(t *testing.T) {
 	}
 }
 
-func TestNvidiaProbeMissingNvidiaSmiReturnsFalse(t *testing.T) {
-	orig := lookPathCommandFn
-	lookPathCommandFn = func(string) (string, error) { return "", errFakeNotFound{} }
-	t.Cleanup(func() { lookPathCommandFn = orig })
-	if nvidiaProbe(context.Background()) {
-		t.Fatal("nvidiaProbe should return false when nvidia-smi is not on PATH")
+func TestNvidiaProbeUsesSharedHostInventory(t *testing.T) {
+	orig := collectHostInventory
+	collectHostInventory = func(context.Context) (hostinventory.Snapshot, error) {
+		return hostinventory.Snapshot{
+			GPUs:      []hostinventory.GPU{{Name: "NVIDIA RTX 4090", Source: "nvidia-smi"}},
+			DockerGPU: hostinventory.DockerGPU{NvidiaRuntime: true},
+		}, nil
+	}
+	t.Cleanup(func() { collectHostInventory = orig })
+	if !nvidiaProbe(context.Background()) {
+		t.Fatal("nvidiaProbe should return true for Docker-addressable NVIDIA GPUs")
 	}
 }
 
-type errFakeNotFound struct{}
-
-func (errFakeNotFound) Error() string { return "not found" }
+func TestNvidiaProbeReturnsFalseWhenSharedHostInventoryFails(t *testing.T) {
+	orig := collectHostInventory
+	collectHostInventory = func(context.Context) (hostinventory.Snapshot, error) {
+		return hostinventory.Snapshot{}, errors.New("probe failed")
+	}
+	t.Cleanup(func() { collectHostInventory = orig })
+	if nvidiaProbe(context.Background()) {
+		t.Fatal("nvidiaProbe should return false when shared host inventory fails")
+	}
+}

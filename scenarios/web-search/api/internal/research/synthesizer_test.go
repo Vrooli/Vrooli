@@ -1,6 +1,8 @@
 package research_test
 
 import (
+	"context"
+	"reflect"
 	"testing"
 
 	"web-search/internal/research"
@@ -48,4 +50,22 @@ func TestParseSynthesisReplyDropsOutOfRangeCitations(t *testing.T) {
 
 func TestParseSynthesisReplyUnparseableAbstains(t *testing.T) {
 	require.True(t, research.ParseSynthesisReply("not json at all", synthDocs).Abstained)
+}
+
+func TestSynthesizeUsesGatewayRole(t *testing.T) {
+	var gotArgs []string
+	var gotStdin string
+	s := research.NewOllamaSynthesizer("summarize.default")
+	s.Runner = func(_ context.Context, args []string, stdin string) ([]byte, error) {
+		gotArgs = append([]string(nil), args...)
+		gotStdin = stdin
+		return []byte(`{"response":"{\"abstained\":false,\"text\":\"x\",\"citations\":[0]}"}`), nil
+	}
+
+	syn, err := s.Synthesize(context.Background(), "q", synthDocs)
+	require.NoError(t, err)
+	require.False(t, syn.Abstained)
+	require.True(t, reflect.DeepEqual(gotArgs, []string{"gateway", "generate", "--role", "summarize.default", "--json", "--temperature", "0", "--prompt-stdin"}))
+	require.Contains(t, gotStdin, "Use ONLY the provided documents")
+	require.Contains(t, gotStdin, "Question: q")
 }

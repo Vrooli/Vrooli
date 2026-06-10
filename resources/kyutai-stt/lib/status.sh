@@ -112,11 +112,9 @@ kyutai_stt::status::collect_data() {
             local gpu_available="false"
             if kyutai_stt::is_gpu_available; then
                 gpu_available="true"
-                if command -v nvidia-smi &>/dev/null; then
-                    local gpu_info
-                    gpu_info=$(nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null | head -1 || echo "unknown")
-                    status_data+=("gpu_info" "$gpu_info")
-                fi
+                local gpu_info
+                gpu_info=$(system::host_inventory_field "first_gpu_summary" 2>/dev/null || echo "unknown")
+                status_data+=("gpu_info" "${gpu_info:-unknown}")
             fi
             status_data+=("gpu_available" "$gpu_available")
         fi

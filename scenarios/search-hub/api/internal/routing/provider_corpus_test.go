@@ -90,6 +90,7 @@ func TestProviderCorpusIDs(t *testing.T) {
 		"ui-health.surfaces",
 		"ui-health.widgets",
 		"vrooli-onboarding.config",
+		"web-search.learnings",
 	}, corpusIDs(t))
 }
 

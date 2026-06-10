@@ -212,16 +212,19 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 
 	groups := r.fanOut(ctx, targets, query, limit)
 
-	// OT-P2-002 fallback escalation: if the project corpus returned nothing and
-	// the operator opted in, escalate to the withheld external provider(s) via
-	// the same governor-protected path (only on the automatic path, and only
-	// when we did not already auto-route external above).
-	if !hasExplicit && r.deps.AutoRouteExternal && !autoRoutedExternal && len(pendingExternal) > 0 && resultsWeak(groups) {
-		escalationGroups := r.fanOut(ctx, pendingExternal, query, limit)
-		groups = append(groups, escalationGroups...)
-		targets = append(targets, pendingExternal...)
-		escalated = true
-		autoExplain = append(autoExplain, escalationLine(pendingExternal))
+	// OT-P2-002 fallback escalation: if the project corpus returned nothing —
+	// or only hits below the weakness threshold — and the operator opted in,
+	// escalate to the withheld external provider(s) via the same
+	// governor-protected path (only on the automatic path, and only when we
+	// did not already auto-route external above).
+	if !hasExplicit && r.deps.AutoRouteExternal && !autoRoutedExternal && len(pendingExternal) > 0 {
+		if weakReason := resultsWeakness(groups, autoExternalThreshold()); weakReason != "" {
+			escalationGroups := r.fanOut(ctx, pendingExternal, query, limit)
+			groups = append(groups, escalationGroups...)
+			targets = append(targets, pendingExternal...)
+			escalated = true
+			autoExplain = append(autoExplain, escalationLine(pendingExternal, weakReason))
+		}
 	}
 
 	ranked, reranked, rerankDegraded, rerankExplain := r.maybeRerank(ctx, query, groups)
@@ -434,11 +437,12 @@ func autoRoutedExternalLine(external []*registryv1.ProviderDescriptor) string {
 		len(external), strings.Join(providerIDs(external), ", "))
 }
 
-// escalationLine is the --explain note emitted when the project corpus returned
-// no hits and the router escalated to the withheld external provider(s).
-func escalationLine(external []*registryv1.ProviderDescriptor) string {
-	return fmt.Sprintf("escalated to %d external provider(s) — project results were empty (opt-in enabled): %s",
-		len(external), strings.Join(providerIDs(external), ", "))
+// escalationLine is the --explain note emitted when the project corpus came
+// back weak and the router escalated to the withheld external provider(s).
+// reason distinguishes the empty round from the all-below-threshold round.
+func escalationLine(external []*registryv1.ProviderDescriptor, reason string) string {
+	return fmt.Sprintf("escalated to %d external provider(s) — %s (opt-in enabled): %s",
+		len(external), reason, strings.Join(providerIDs(external), ", "))
 }
 
 // providerIDs projects descriptors to their provider_id list.
@@ -450,16 +454,37 @@ func providerIDs(ps []*registryv1.ProviderDescriptor) []string {
 	return ids
 }
 
-// resultsWeak reports whether the fanned-out groups produced no usable hits: a
-// non-degraded group with at least one hit makes the round non-weak. It is the
-// trigger for OT-P2-002 fallback escalation (empty/weak project corpus).
-func resultsWeak(groups []*routingv1.ProviderResultGroup) bool {
+// Weakness reasons surfaced in the escalation --explain line so an operator
+// can tell an empty round from a low-scoring one.
+const (
+	weakReasonEmpty          = "project results were empty"
+	weakReasonBelowThreshold = "all project results scored below the weakness threshold"
+)
+
+// resultsWeakness classifies the fanned-out project round for OT-P2-002
+// fallback escalation. It returns "" (non-weak) as soon as any hit in a
+// non-degraded group reaches threshold; otherwise weakReasonEmpty when the
+// round produced no hits at all, or weakReasonBelowThreshold when hits exist
+// but every one scored under threshold (normalized 0..1 scores — the same
+// regime as SEARCH_HUB_AUTO_EXTERNAL_THRESHOLD; unscored providers report 0,
+// which deliberately counts as weak: recall over precision behind the opt-in).
+func resultsWeakness(groups []*routingv1.ProviderResultGroup, threshold float64) string {
+	anyHit := false
 	for _, g := range groups {
-		if !g.GetDegraded() && len(g.GetHits()) > 0 {
-			return false
+		if g.GetDegraded() {
+			continue
+		}
+		for _, h := range g.GetHits() {
+			anyHit = true
+			if h.GetScore() >= threshold {
+				return ""
+			}
 		}
 	}
-	return true
+	if !anyHit {
+		return weakReasonEmpty
+	}
+	return weakReasonBelowThreshold
 }
 
 // fanOut queries every target concurrently (bounded by Concurrency) and returns

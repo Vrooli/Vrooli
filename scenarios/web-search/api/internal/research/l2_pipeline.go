@@ -3,6 +3,7 @@ package research
 import (
 	"context"
 	"strings"
+	"unicode/utf8"
 
 	"web-search/internal/findings"
 	"web-search/internal/livesearch"
@@ -148,13 +149,26 @@ const excerptPreviewChars = 800
 func excerptsForResponse(docs []Document) []DocumentExcerpt {
 	out := make([]DocumentExcerpt, len(docs))
 	for i, d := range docs {
-		text := d.Text
-		if len(text) > excerptPreviewChars {
-			text = text[:excerptPreviewChars]
-		}
-		out[i] = DocumentExcerpt{URL: d.URL, Title: d.Title, Excerpt: text}
+		out[i] = DocumentExcerpt{URL: d.URL, Title: d.Title, Excerpt: excerptPreview(d.Text)}
 	}
 	return out
+}
+
+// excerptPreview caps text at excerptPreviewChars bytes without ever emitting
+// invalid UTF-8. proto3 string fields require valid UTF-8 and the excerpt is
+// the only response field carrying raw fetched bytes — one bad byte fails the
+// marshal of the WHOLE RunL2Response. Two hazards are scrubbed: bytes the page
+// itself carried that aren't UTF-8, and a byte-cap cut landing mid-rune.
+func excerptPreview(text string) string {
+	text = strings.ToValidUTF8(text, "�")
+	if len(text) <= excerptPreviewChars {
+		return text
+	}
+	cut := excerptPreviewChars
+	for cut > 0 && !utf8.RuneStart(text[cut]) {
+		cut--
+	}
+	return text[:cut]
 }
 
 // captureSynthesis writes the cited L2 synthesis as a single FINDING_SOURCE_L2

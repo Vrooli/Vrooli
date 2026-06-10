@@ -2,16 +2,23 @@ package aisearch
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"log"
 	"sort"
 	"strings"
-	"sync"
-	"time"
 
-	"github.com/google/uuid"
+	pkg "github.com/vrooli/aisearch-go"
 )
+
+// DefaultCollection is the Qdrant collection ui-health indexes its surfaces
+// into. Single named-dense vector layout (the shared engine's CollectionSpec).
+const DefaultCollection = "ui-health-surface"
+
+// DefaultSearchThreshold drops dense hits whose cosine score is below ~0.55.
+// Empirically, scores from nomic-embed-text + the ui-surface corpus settle in
+// the 0.45–0.65 band; matches under 0.55 are effectively random and crowd out
+// the "(no matches)" signal a user needs when asking about something the corpus
+// does not contain. It is the dense-leg ScoreThreshold (operational wiring), not
+// a tuning factor — the SSOT search.json owns engine/rerank/floor.
+const DefaultSearchThreshold = 0.55
 
 // SearchMode tags how Search should retrieve results.
 type SearchMode string
@@ -22,70 +29,70 @@ const (
 	ModeText SearchMode = "text"
 )
 
-// Service is the ui-health AI-search orchestrator. It owns the embedder,
-// vector store, discovery source, and reconciler.
-type Service struct {
-	embedder    Embedder
-	vectorStore VectorStore
-	discovery   DiscoverySource
-	reconciler  *Reconciler
-
-	threshold float64
-
-	mu       sync.Mutex
-	jobs     map[string]*reindexJob
-	lastJob  string
-	lastSync time.Time
-}
-
-type reindexJob struct {
-	ID         string
-	State      string
-	Scenario   string
-	DryRun     bool
-	Plan       *DriftReport
-	Apply      *ApplyResult
-	Err        string
-	Warnings   []string
-	StartedAt  time.Time
-	FinishedAt time.Time
-	cancel     context.CancelFunc
-}
-
-// Options configure NewService.
+// Options carries the non-tuning wiring NewSearchService needs: the surface
+// discovery source, the reconcile knobs, the dense ScoreThreshold, and the
+// Qdrant endpoints. These are deployment facts, not search factors (those live
+// in search.json), so they stay outside the TuningConfig.
 type Options struct {
-	Embedder    Embedder
-	VectorStore VectorStore
-	Discovery   DiscoverySource
-	Parallelism int
-	Threshold   float64
+	Discovery        DiscoverySource
+	Parallelism      int
+	MaxEmbedsPerTick int
+	Threshold        float64
+	EngineDeps       pkg.EngineDeps
 }
 
-// NewService builds a Service with a Reconciler around the given seams.
-func NewService(opts Options) *Service {
-	desc := NewSurfaceDescriptor(opts.VectorStore, opts.Discovery)
-	rec := NewReconciler(opts.Embedder, []CollectionDescriptor{desc}, opts.Parallelism)
-	threshold := opts.Threshold
-	if threshold <= 0 {
-		threshold = 0.0
-	}
-	return &Service{
-		embedder:    opts.Embedder,
-		vectorStore: opts.VectorStore,
-		discovery:   opts.Discovery,
-		reconciler:  rec,
-		threshold:   threshold,
-		jobs:        make(map[string]*reindexJob),
-	}
+// Service is ui-health's thin command-domain wrapper over the shared read-path
+// engine (pkg.Service). It owns only surface-domain shaping (typed-hit
+// projection, discovery text fallback, ai/text mode vocab); the engine owns
+// embedding, the vector store, reconciliation, and the read pipeline.
+type Service struct {
+	svc         *pkg.Service
+	vectorStore pkg.VectorStore
+	spec        pkg.CollectionSpec
 }
 
-func (s *Service) Reconciler() *Reconciler { return s.reconciler }
+// NewSearchService assembles the Service FROM a TuningConfig (engine shape,
+// embed recipe, rerank policy, floor band) via the shared pkg.NewServiceForTuning
+// — the engine shape is chosen by data, not a code literal. ui-health's surfaces
+// are a dense single-chunk corpus; the dense ScoreThreshold (opts.Threshold)
+// trims sub-0.55 noise. The reranker is off by default for this corpus.
+func NewSearchService(tuning pkg.TuningConfig, opts Options) *Service {
+	if opts.EngineDeps.Collection == "" {
+		opts.EngineDeps.Collection = DefaultCollection
+	}
+	te := pkg.NewServiceForTuning(tuning, opts.EngineDeps)
+	base := te.ServiceOptions()
 
+	source := newSurfaceSource(opts.Discovery)
+	binding := pkg.NewDenseBinding(surfaceKind, idPrefix, base.VectorStore, source)
+	rec := pkg.NewReconciler(base.Embedder, []pkg.SourceBinding{binding}, opts.Parallelism)
+	rec.MaxEmbedsPerTick = opts.MaxEmbedsPerTick
+
+	base.Reconciler = rec
+	base.Threshold = opts.Threshold
+	base.TextFallback = surfaceTextFallback(opts.Discovery)
+	svc := pkg.NewService(base)
+
+	spec := pkg.CollectionSpec{
+		Name:          opts.EngineDeps.Collection,
+		DenseSize:     pkg.DefaultVectorSize,
+		DenseDistance: pkg.DefaultDenseDistance,
+		Model:         pkg.DefaultEmbedModel,
+	}
+	return &Service{svc: svc, vectorStore: base.VectorStore, spec: spec}
+}
+
+// Reconciler exposes the engine's reconciler (the sync loop resolves it each
+// tick via this).
+func (s *Service) Reconciler() *pkg.Reconciler { return s.svc.Reconciler() }
+
+// EnsureCollection is called once at startup; idempotent.
 func (s *Service) EnsureCollection(ctx context.Context) error {
-	return s.vectorStore.EnsureCollection(ctx)
+	return s.vectorStore.EnsureCollection(ctx, s.spec)
 }
 
-// Search performs retrieval with AI-first, text-fallback semantics.
+// Search performs retrieval with AI-first, text-fallback semantics, projecting
+// the shared engine's results back into ui-health's typed surface hits.
 func (s *Service) Search(ctx context.Context, query string, limit int, mode SearchMode) (*SearchResponse, error) {
 	if strings.TrimSpace(query) == "" {
 		return &SearchResponse{Query: query, Method: "text"}, nil
@@ -93,115 +100,122 @@ func (s *Service) Search(ctx context.Context, query string, limit int, mode Sear
 	if limit <= 0 {
 		limit = 10
 	}
-	if mode == "" {
-		mode = ModeAuto
-	}
-
-	if mode == ModeText {
-		return s.textSearch(ctx, query, limit)
-	}
-
-	if s.embedder == nil {
-		if mode == ModeAI {
-			return nil, errors.New("ai mode requested but embedder is not configured")
-		}
-		return s.textSearch(ctx, query, limit)
-	}
-
-	vec, err := s.embedder.Embed(ctx, query)
+	// SearchTyped projects each finished result into ui-health's typed surface hit
+	// at the engine boundary (the shared generic), so this surface owns no
+	// projection loop and cannot drift from the engine's result ordering.
+	hits, presp, err := pkg.SearchTyped(ctx, s.svc, pkg.SearchQuery{Query: query, Limit: limit, Mode: serviceMode(mode)},
+		func(r pkg.SearchResult) SearchHit {
+			return payloadToHit(r.ID, r.Score, r.Payload)
+		})
 	if err != nil {
-		if mode == ModeAI {
-			return nil, fmt.Errorf("embed query: %w", err)
-		}
-		log.Printf("[ui-health/aisearch] embed failed, falling back to text: %v", err)
-		return s.textSearch(ctx, query, limit)
+		return nil, err
 	}
-
-	results, err := s.vectorStore.Search(ctx, vec, limit, s.threshold)
-	if err != nil {
-		if mode == ModeAI {
-			return nil, fmt.Errorf("qdrant search: %w", err)
-		}
-		log.Printf("[ui-health/aisearch] vector search failed, falling back to text: %v", err)
-		return s.textSearch(ctx, query, limit)
-	}
-
-	hits := make([]SearchHit, 0, len(results))
-	for _, r := range results {
-		hits = append(hits, payloadToHit(r.ID, r.Score, r.Payload))
+	method := presp.Method
+	if method == "dense" {
+		method = "ai" // ui-health's wire vocab
 	}
 	return &SearchResponse{
 		Results: hits,
 		Total:   len(hits),
 		Query:   query,
-		Method:  "ai",
+		Method:  method,
 	}, nil
 }
 
-// textSearch implements substring scoring over freshly discovered records.
-func (s *Service) textSearch(ctx context.Context, query string, limit int) (*SearchResponse, error) {
-	scenarios, err := s.discovery.ListScenarios(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list scenarios: %w", err)
+// serviceMode maps ui-health's ai/text/auto vocab to the engine's mode set.
+// ui-health is dense-only, so "ai" is the dense leg.
+func serviceMode(m SearchMode) pkg.SearchMode {
+	switch m {
+	case ModeAI:
+		return pkg.ModeDense
+	case ModeText:
+		return pkg.ModeText
+	default:
+		return pkg.ModeAuto
 	}
-	terms := tokenize(query)
-	if len(terms) == 0 {
-		return &SearchResponse{Query: query, Method: "text"}, nil
-	}
+}
 
-	type scored struct {
-		hit   SearchHit
-		score float64
+// Status reports backend availability, mapping the engine's StatusReport into
+// ui-health's wire shape. ui-health's "available" requires BOTH ollama and qdrant
+// AND a non-empty corpus — an empty index returns zero results regardless of the
+// question, which is not a usable state even when the dependencies are reachable.
+func (s *Service) Status(ctx context.Context) StatusReport {
+	r := s.svc.Status(ctx)
+	return StatusReport{
+		Available:            r.Ollama && r.Qdrant && r.IndexedCount > 0,
+		Ollama:               r.Ollama,
+		Qdrant:               r.Qdrant,
+		IndexedCount:         r.IndexedCount,
+		LastReconcileAt:      r.LastReconcileAt,
+		LastReconcileOutcome: r.LastReconcileOutcome,
 	}
-	scoredHits := make([]scored, 0, 64)
-	for _, scenario := range scenarios {
-		records, err := s.discovery.Discover(ctx, scenario)
-		if err != nil {
-			continue
+}
+
+// Reindex / ReindexStatus / ReindexCancel / JobExport forward to the shared
+// engine's read-path service (the reindex handler's Reindexer adapter calls
+// these).
+func (s *Service) Reindex(ctx context.Context, scenario string, dryRun bool) (*pkg.ReindexJob, error) {
+	return s.svc.Reindex(ctx, scenario, dryRun)
+}
+
+func (s *Service) ReindexStatus(jobID string) (*pkg.ReindexJob, bool) {
+	return s.svc.ReindexStatus(jobID)
+}
+
+func (s *Service) ReindexCancel(jobID string) bool { return s.svc.ReindexCancel(jobID) }
+
+func (s *Service) JobExport(job *pkg.ReindexJob) map[string]any { return s.svc.JobExport(job) }
+
+// surfaceTextFallback is the offline-safe keyword leg over freshly discovered
+// surfaces (substring scoring). It returns pkg.SearchResult with the surface
+// fields in the payload so the shared engine's pipeline (and the typed
+// projection in Search) treat it identically to a vector hit. Used when ollama
+// or qdrant is unavailable.
+func surfaceTextFallback(discovery DiscoverySource) pkg.TextFallbackFunc {
+	return func(ctx context.Context, q pkg.SearchQuery) ([]pkg.SearchResult, error) {
+		terms := tokenize(q.Query)
+		if len(terms) == 0 {
+			return nil, nil
 		}
-		for _, r := range records {
-			score := scoreRecord(r, terms)
-			if score <= 0 {
+		scenarios, err := discovery.ListScenarios(ctx)
+		if err != nil {
+			return nil, err
+		}
+		type scored struct {
+			res   pkg.SearchResult
+			score float64
+			path  string
+		}
+		scoredHits := make([]scored, 0, 64)
+		for _, scenario := range scenarios {
+			records, err := discovery.Discover(ctx, scenario)
+			if err != nil {
 				continue
 			}
-			scoredHits = append(scoredHits, scored{
-				hit: SearchHit{
-					ID:           PointIDForSurface(r.Scenario, r.FilePath),
-					Scenario:     r.Scenario,
-					Slot:         r.Slot,
-					Kind:         r.Kind,
-					DisplayName:  r.DisplayName,
-					Description:  r.Description,
-					FilePath:     r.FilePath,
-					Provenance:   r.Provenance,
-					Widget:       r.Widget,
-					Score:        score,
-					ScorePercent: int(score*100 + 0.5),
-				},
-				score: score,
-			})
+			for _, r := range records {
+				score := scoreRecord(r, terms)
+				if score <= 0 {
+					continue
+				}
+				scoredHits = append(scoredHits, scored{
+					res:   pkg.SearchResult{ID: PointIDForSurface(r.Scenario, r.FilePath), Score: score, Payload: surfaceMeta(r)},
+					score: score,
+					path:  r.FilePath,
+				})
+			}
 		}
-	}
-
-	sort.Slice(scoredHits, func(i, j int) bool {
-		if scoredHits[i].score != scoredHits[j].score {
-			return scoredHits[i].score > scoredHits[j].score
+		sort.Slice(scoredHits, func(i, j int) bool {
+			if scoredHits[i].score != scoredHits[j].score {
+				return scoredHits[i].score > scoredHits[j].score
+			}
+			return scoredHits[i].path < scoredHits[j].path
+		})
+		out := make([]pkg.SearchResult, 0, len(scoredHits))
+		for _, sh := range scoredHits {
+			out = append(out, sh.res)
 		}
-		return scoredHits[i].hit.FilePath < scoredHits[j].hit.FilePath
-	})
-	if len(scoredHits) > limit {
-		scoredHits = scoredHits[:limit]
+		return out, nil
 	}
-	out := make([]SearchHit, 0, len(scoredHits))
-	for _, sh := range scoredHits {
-		out = append(out, sh.hit)
-	}
-	return &SearchResponse{
-		Results: out,
-		Total:   len(out),
-		Query:   query,
-		Method:  "text",
-	}, nil
 }
 
 func tokenize(q string) []string {
@@ -270,200 +284,4 @@ func scoreRecord(r SurfaceRecord, terms []string) float64 {
 		n = 0
 	}
 	return n
-}
-
-// Status reports backend availability and the indexed point count.
-func (s *Service) Status(ctx context.Context) StatusReport {
-	rep := StatusReport{}
-	if s.embedder != nil {
-		rep.Ollama = s.embedder.Available(ctx)
-	}
-	if s.vectorStore != nil {
-		rep.Qdrant = s.vectorStore.Available(ctx)
-		if rep.Qdrant {
-			if n, err := s.vectorStore.CountPoints(ctx); err == nil {
-				rep.IndexedCount = n
-			}
-		}
-	}
-	// Search is only "available" when backends are up AND the corpus has
-	// content. An empty corpus means queries will return zero results
-	// regardless of the question — that's not a usable state, even if the
-	// dependencies are technically reachable.
-	rep.Available = rep.Ollama && rep.Qdrant && rep.IndexedCount > 0
-	st := s.reconciler.Status()
-	if st.FinishedAt != "" {
-		rep.LastReconcileAt = st.FinishedAt
-	}
-	switch {
-	case st.LastError != "":
-		rep.LastReconcileOutcome = "error: " + st.LastError
-	case st.LastResult != nil:
-		var upserts, deletes, errs int
-		for _, c := range st.LastResult.Collections {
-			upserts += c.Upserted
-			deletes += c.Deleted
-		}
-		errs = len(st.LastResult.Errors)
-		rep.LastReconcileOutcome = fmt.Sprintf("upserts=%d deletes=%d errors=%d", upserts, deletes, errs)
-	}
-	return rep
-}
-
-// Reindex queues a single reconcile job.
-func (s *Service) Reindex(ctx context.Context, scenario string, dryRun bool) (*reindexJob, error) {
-	jobID := uuid.NewString()
-	jobCtx, cancel := context.WithCancel(context.Background())
-	job := &reindexJob{
-		ID:        jobID,
-		State:     "queued",
-		Scenario:  scenario,
-		DryRun:    dryRun,
-		StartedAt: time.Now(),
-		cancel:    cancel,
-	}
-
-	s.mu.Lock()
-	s.jobs[jobID] = job
-	s.lastJob = jobID
-	s.mu.Unlock()
-
-	go s.runReindex(jobCtx, job)
-	return job, nil
-}
-
-func (s *Service) runReindex(ctx context.Context, job *reindexJob) {
-	s.mu.Lock()
-	job.State = "running"
-	s.mu.Unlock()
-
-	defer func() {
-		s.mu.Lock()
-		job.FinishedAt = time.Now()
-		s.lastSync = job.FinishedAt
-		s.mu.Unlock()
-	}()
-
-	plan, err := s.reconciler.Plan(ctx)
-	s.mu.Lock()
-	job.Plan = plan
-	s.mu.Unlock()
-	if err != nil {
-		s.mu.Lock()
-		job.State = "failed"
-		job.Err = err.Error()
-		s.mu.Unlock()
-		return
-	}
-
-	if job.DryRun {
-		s.mu.Lock()
-		job.State = "succeeded"
-		s.mu.Unlock()
-		return
-	}
-
-	apply, err := s.reconciler.Apply(ctx, plan)
-
-	// Inspect post-apply corpus state to detect silent no-ops. If the apply
-	// succeeded but the corpus is still empty, the framework dispatcher
-	// (e.g., react-component-library) is almost certainly unreachable or
-	// returned zero surfaces. Surface that as a warning so the operator
-	// doesn't read "succeeded processed=0/0" and assume search is wired up.
-	var postCount int
-	if s.vectorStore != nil {
-		if n, cerr := s.vectorStore.CountPoints(ctx); cerr == nil {
-			postCount = n
-		}
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	job.Apply = apply
-	switch {
-	case err != nil:
-		if ctx.Err() != nil {
-			job.State = "cancelled"
-		} else {
-			job.State = "failed"
-			job.Err = err.Error()
-		}
-	default:
-		if postCount == 0 && !plan.HasWork() {
-			job.State = "succeeded_empty"
-			job.Warnings = append(job.Warnings,
-				"reindex produced an empty corpus; check that a framework dispatcher (e.g. react-component-library) is running and reachable, or that scenarios declare generation.template.id")
-		} else {
-			job.State = "succeeded"
-		}
-	}
-}
-
-func (s *Service) ReindexStatus(jobID string) (*reindexJob, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if jobID == "" {
-		jobID = s.lastJob
-	}
-	job, ok := s.jobs[jobID]
-	return job, ok
-}
-
-func (s *Service) ReindexCancel(jobID string) bool {
-	s.mu.Lock()
-	job, ok := s.jobs[jobID]
-	if !ok {
-		s.mu.Unlock()
-		return false
-	}
-	if job.State != "running" && job.State != "queued" {
-		s.mu.Unlock()
-		return false
-	}
-	s.mu.Unlock()
-	job.cancel()
-	s.reconciler.Cancel()
-	return true
-}
-
-func (s *Service) JobExport(job *reindexJob) map[string]interface{} {
-	if job == nil {
-		return nil
-	}
-	plannedUpserts := 0
-	plannedDeletes := 0
-	if job.Plan != nil {
-		for _, c := range job.Plan.Collections {
-			plannedUpserts += len(c.ToUpsert)
-			plannedDeletes += len(c.ToDelete)
-		}
-	}
-	processed := 0
-	total := plannedUpserts + plannedDeletes
-	if job.Apply != nil {
-		for _, c := range job.Apply.Collections {
-			processed += c.Upserted + c.Deleted
-		}
-	}
-	return map[string]interface{}{
-		"job_id":          job.ID,
-		"state":           job.State,
-		"scenario":        job.Scenario,
-		"dry_run":         job.DryRun,
-		"planned_upserts": plannedUpserts,
-		"planned_deletes": plannedDeletes,
-		"processed":       processed,
-		"total":           total,
-		"error":           job.Err,
-		"warnings":        append([]string(nil), job.Warnings...),
-		"started_at":      job.StartedAt.Format(time.RFC3339),
-		"finished_at":     formatIfNotZero(job.FinishedAt),
-	}
-}
-
-func formatIfNotZero(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.Format(time.RFC3339)
 }

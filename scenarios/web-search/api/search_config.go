@@ -7,13 +7,13 @@ import (
 )
 
 // defaultFindingsTuning is the dense search recipe for the findings corpus:
-// nomic embeddings with the asymmetric task prefix, cross-encoder rerank with
+// default dense embeddings with the asymmetric task prefix, cross-encoder rerank with
 // RRF blend (junk rejection without burying a strongly-retrieved claim), and
 // the zero floor band. It mirrors cli-health's measured-best production recipe.
 func defaultFindingsTuning() aisearchpkg.TuningConfig {
 	return aisearchpkg.TuningConfig{
 		Engine:          "dense",
-		EmbedModel:      "nomic-embed-text",
+		EmbedModel:      aisearchpkg.DefaultEmbedModel,
 		EmbedTaskPrefix: true,
 		RerankEnabled:   true,
 		RerankBlend:     true,

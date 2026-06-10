@@ -1,18 +1,13 @@
-// Package aisearch is the AI-powered semantic search for ui-health. It
-// indexes every scenario's UI surface (components, pages, features, hooks)
-// into a local Qdrant collection (ui-health-surface) and serves AI-first
-// semantic queries with deterministic text fallback.
-//
-// Structure mirrors cli-health/aisearch verbatim where reusable; ui-health
-// substitutes its own DiscoverySource (which dispatches to InventoryService
-// on per-framework component-library scenarios) for cli-health's CLI help
-// parser.
-//
-// Duplicate-before-extract: this package shares shape with cli-health on
-// purpose. Bug fixes flow there first, then are mirrored here.
+// Package aisearch is ui-health's thin consumer of the shared retrieval engine
+// in packages/aisearch-go. It owns only the ui-health-specific concerns: surface
+// discovery (discovery.go — dispatching to InventoryService on per-framework
+// component-library scenarios), the source adapter + result projection
+// (surface_index.go), and the search/reindex orchestration surface the Connect
+// handlers call (service.go). The index/store/reconcile core — embedding, the
+// Qdrant vector store, drift reconciliation, the sync loop, and env config —
+// lives in github.com/vrooli/aisearch-go, driven by the scenario-owned
+// .vrooli/search.json (the SSOT). Mirrors the cli-health adopter shape.
 package aisearch
-
-import "time"
 
 // SurfaceRecord is the canonical view of one UI surface (component, page,
 // feature, hook) returned by InventoryService.ScanScenario. It is the unit
@@ -83,76 +78,4 @@ type StatusReport struct {
 	IndexedCount         int    `json:"indexedCount"`
 	LastReconcileAt      string `json:"lastReconcileAt,omitempty"`
 	LastReconcileOutcome string `json:"lastReconcileOutcome,omitempty"`
-}
-
-// EntityKind names the collection a reconciler item belongs to.
-type EntityKind string
-
-const KindSurface EntityKind = "surface"
-
-// ItemRef is the reconciler's handle on a single planned item.
-type ItemRef struct {
-	Kind        EntityKind  `json:"kind"`
-	PointID     string      `json:"pointId"`
-	Name        string      `json:"name"`
-	PayloadHash string      `json:"payloadHash"`
-	Snapshot    interface{} `json:"-"`
-}
-
-// CollectionDriftReport captures Plan output for one collection.
-type CollectionDriftReport struct {
-	Kind           EntityKind `json:"kind"`
-	ToUpsert       []ItemRef  `json:"toUpsert,omitempty"`
-	ToDelete       []string   `json:"toDelete,omitempty"`
-	UnchangedCount int        `json:"unchangedCount"`
-	LegacyCount    int        `json:"legacyCount"`
-}
-
-// DriftReport is the full Plan output across all configured collections.
-type DriftReport struct {
-	PlannedAt   time.Time               `json:"plannedAt"`
-	Collections []CollectionDriftReport `json:"collections"`
-}
-
-func (d *DriftReport) HasWork() bool {
-	if d == nil {
-		return false
-	}
-	for _, c := range d.Collections {
-		if len(c.ToUpsert) > 0 || len(c.ToDelete) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
-type CollectionApplyResult struct {
-	Kind     EntityKind `json:"kind"`
-	Upserted int        `json:"upserted"`
-	Deleted  int        `json:"deleted"`
-}
-
-type ReconcileError struct {
-	Kind    EntityKind `json:"kind"`
-	PointID string     `json:"pointId,omitempty"`
-	Name    string     `json:"name,omitempty"`
-	Op      string     `json:"op"`
-	Err     string     `json:"err"`
-}
-
-type ApplyResult struct {
-	StartedAt   time.Time               `json:"startedAt"`
-	FinishedAt  time.Time               `json:"finishedAt"`
-	Collections []CollectionApplyResult `json:"collections"`
-	Errors      []ReconcileError        `json:"errors,omitempty"`
-}
-
-type ReconcileStatus struct {
-	Running    bool         `json:"running"`
-	StartedAt  string       `json:"startedAt,omitempty"`
-	FinishedAt string       `json:"finishedAt,omitempty"`
-	LastPlan   *DriftReport `json:"lastPlan,omitempty"`
-	LastResult *ApplyResult `json:"lastResult,omitempty"`
-	LastError  string       `json:"lastError,omitempty"`
-	Canceled   bool         `json:"canceled,omitempty"`
 }

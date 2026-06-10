@@ -1,31 +1,50 @@
 {
-  "module_id": "MOD-P0-005",
-  "prd_ref": "OT-P0-005",
-  "priority": "P0",
-  "description": "The make-or-break: a local Ollama classifier (qwen3:1.7b) maps a free query to ranked provider types, reading provider descriptions from the registry (no hardcoded routing). Uncertain queries WIDEN rather than narrow; --type/--all always override; --explain shows why providers were chosen.",
+  "_metadata": {
+    "last_validated_at": "2026-06-10T13:22:10-04:00"
+  },
   "requirements": [
     {
       "id": "REQ-P0-010",
       "title": "Description-driven classification",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "core",
-      "status": "implemented",
       "description": "The classifier ranks provider types using only the registry's NL descriptions and the query — no provider-specific routing code. It is swappable behind a Classifier interface.",
       "validation": [
-        { "type": "test", "phase": "unit", "status": "pending", "notes": "Against testdata/routing_queries.json (query -> expected types), routing recall >= 0.85; precision reported." },
-        { "type": "test", "phase": "unit", "status": "pending", "notes": "Adding a new registry row changes routing with no classifier code change." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Against testdata/routing_queries.json (query -\u003e expected types), routing recall \u003e= 0.85; precision reported."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Adding a new registry row changes routing with no classifier code change."
+        }
       ]
     },
     {
       "id": "REQ-P0-011",
       "title": "Widen-on-uncertainty + override",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "core",
-      "status": "implemented",
       "description": "When the classifier is uncertain it widens (more provider types) rather than dropping; explicit --type/--all always override the classifier; --explain returns the routing rationale.",
       "validation": [
-        { "type": "test", "phase": "unit", "status": "pending", "notes": "An ambiguous query routes to a wider set, not an empty/narrow set." },
-        { "type": "test", "phase": "unit", "status": "pending", "notes": "--type overrides classifier output exactly." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "An ambiguous query routes to a wider set, not an empty/narrow set."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "--type overrides classifier output exactly."
+        }
       ]
     }
   ]

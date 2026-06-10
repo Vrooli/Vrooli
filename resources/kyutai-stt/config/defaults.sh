@@ -74,12 +74,8 @@ defaults::export_config() {
 
     # GPU configuration (only set if not already defined)
     if [[ -z "${KYUTAI_STT_GPU_ENABLED:-}" ]]; then
-        # Auto-detect: nvidia-smi present + functional + Docker nvidia runtime.
-        # Uses command -v (not system::is_command) because utility libs aren't
-        # sourced yet when defaults.sh loads.
-        if command -v nvidia-smi >/dev/null 2>&1 \
-            && nvidia-smi >/dev/null 2>&1 \
-            && docker info 2>/dev/null | grep -q nvidia; then
+        if command -v vrooli >/dev/null 2>&1 \
+            && [[ "$(vrooli --no-stale-check host inventory --field has_docker_addressable_nvidia_gpu 2>/dev/null)" == "true" ]]; then
             readonly KYUTAI_STT_GPU_ENABLED="yes"
         else
             readonly KYUTAI_STT_GPU_ENABLED="no"

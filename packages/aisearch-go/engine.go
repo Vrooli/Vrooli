@@ -33,7 +33,7 @@ func NewDenseEngine(cfg Config, collection string) DenseEngine {
 		VectorStore: NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, collection),
 		Reranker: NewRerankerChain(
 			NewCrossEncoderReranker(cfg.RerankerURL, cfg.RerankerModel),
-			NewLLMReranker(cfg.RerankModel),
+			NewLLMReranker(cfg.RerankRole),
 		),
 		Spec: CollectionSpec{
 			Name:          collection,
@@ -73,7 +73,7 @@ func NewHybridEngine(cfg Config, collection string) HybridEngine {
 		SparseEncoder: NewBM25SparseEncoder(),
 		Reranker: NewRerankerChain(
 			NewCrossEncoderReranker(cfg.RerankerURL, cfg.RerankerModel),
-			NewLLMReranker(cfg.RerankModel),
+			NewLLMReranker(cfg.RerankRole),
 		),
 		Spec: CollectionSpec{
 			Name:           collection,

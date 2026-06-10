@@ -1,6 +1,7 @@
 package remotesessionprotection
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/dockerhost"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
@@ -41,8 +43,6 @@ const (
 	desktopSlicePath  = "/etc/systemd/system/user-1000.slice.d/50-memory-protect.conf"
 	workloadSlicePath = "/etc/systemd/system/workload.slice"
 	dockerDaemonJSON  = dockerhost.DaemonConfigPath
-
-	procMeminfo = "/proc/meminfo"
 )
 
 // display managers and GUI processes checked for desktop detection
@@ -153,7 +153,7 @@ func inspectDesktopProtection(host hostreqkit.Host) []string {
 
 	alloc, err := calculateMemory()
 	if err != nil {
-		return []string{"(unable to read " + procMeminfo + ")"}
+		return []string{"(unable to read host inventory memory)"}
 	}
 
 	var pending []string
@@ -354,16 +354,15 @@ func isDesktopInstalled() bool {
 // ── Memory calculation ───────────────────────────────────────────────────────
 
 func calculateMemory() (memoryAllocation, error) {
-	data, err := hostreqkit.ReadFileFn(procMeminfo)
+	snapshot, err := hostSnapshot()
 	if err != nil {
-		return memoryAllocation{}, fmt.Errorf("read %s: %w", procMeminfo, err)
+		return memoryAllocation{}, err
 	}
-	memKB := parseMeminfoField(string(data), "MemTotal")
-	if memKB == 0 {
-		return memoryAllocation{}, fmt.Errorf("could not parse MemTotal from %s", procMeminfo)
+	if snapshot.Memory.TotalBytes == 0 {
+		return memoryAllocation{}, fmt.Errorf("host inventory reported no total memory")
 	}
 
-	memMB := memKB / 1024
+	memMB := int(snapshot.Memory.TotalBytes / 1024 / 1024)
 
 	dMin := memMB * desktopMinPercent / 100
 	if dMin < desktopMinMB {
@@ -389,31 +388,36 @@ func calculateMemory() (memoryAllocation, error) {
 	}, nil
 }
 
-func parseMeminfoField(content, field string) int {
-	for _, line := range strings.Split(content, "\n") {
-		if !strings.HasPrefix(line, field+":") {
-			continue
-		}
-		parts := strings.Fields(line)
-		if len(parts) < 2 {
-			continue
-		}
-		val, err := strconv.Atoi(parts[1])
-		if err != nil {
-			continue
-		}
-		return val
-	}
-	return 0
-}
-
 func readCurrentSwapGB() int {
-	data, err := hostreqkit.ReadFileFn(procMeminfo)
+	snapshot, err := hostSnapshot()
 	if err != nil {
 		return 0
 	}
-	swapKB := parseMeminfoField(string(data), "SwapTotal")
-	return swapKB / 1024 / 1024
+	return int(snapshot.Swap.TotalBytes / 1024 / 1024 / 1024)
+}
+
+func hostSnapshot() (hostinventory.Snapshot, error) {
+	collector := hostinventory.SystemCollector()
+	collector.Commands = hostInventoryNoopCommandRunner{}
+	collector.Files = hostReqFileReader{}
+	collector.GOOS = "linux"
+	return collector.Collect(context.Background())
+}
+
+type hostReqFileReader struct{}
+
+func (hostReqFileReader) ReadFile(path string) ([]byte, error) {
+	return hostreqkit.ReadFileFn(path)
+}
+
+type hostInventoryNoopCommandRunner struct{}
+
+func (hostInventoryNoopCommandRunner) LookPath(string) (string, error) {
+	return "", os.ErrNotExist
+}
+
+func (hostInventoryNoopCommandRunner) Run(context.Context, string, ...string) ([]byte, error) {
+	return nil, os.ErrNotExist
 }
 
 // ── Content generators ───────────────────────────────────────────────────────

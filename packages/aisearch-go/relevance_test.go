@@ -8,7 +8,7 @@ func TestWeakThresholdPerRegime(t *testing.T) {
 		want float64
 	}{
 		{"cross-encoder:bge-reranker-v2-m3", WeakThresholdCrossEncoder},
-		{"llm:llama3.2:3b", WeakThresholdLLM},
+		{"llm:rerank.llm_fallback", WeakThresholdLLM},
 		{"none", WeakThresholdCosine},
 		{"", WeakThresholdCosine},
 		{"dense", WeakThresholdCosine},
@@ -84,9 +84,9 @@ func TestLabelWeakForMethodBoundaries(t *testing.T) {
 		{"xenc at boundary strong", "cross-encoder:m", WeakThresholdCrossEncoder, false},
 		{"xenc strong", "cross-encoder:m", 0.92, false},
 		// LLM 0..1 judge.
-		{"llm low weak", "llm:llama3.2:3b", 0.40, true},
-		{"llm at boundary strong", "llm:llama3.2:3b", WeakThresholdLLM, false},
-		{"llm high strong", "llm:llama3.2:3b", 0.85, false},
+		{"llm low weak", "llm:rerank.llm_fallback", 0.40, true},
+		{"llm at boundary strong", "llm:rerank.llm_fallback", WeakThresholdLLM, false},
+		{"llm high strong", "llm:rerank.llm_fallback", 0.85, false},
 		// Cosine (rerank-off) keeps the legacy 0.55 line.
 		{"cosine weak-real-ish weak", "none", 0.54, true},
 		{"cosine at boundary strong", "none", WeakThresholdCosine, false},

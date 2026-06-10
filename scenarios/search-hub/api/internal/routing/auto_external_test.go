@@ -136,6 +136,50 @@ func TestFallbackEscalationFlagOffStaysEmpty(t *testing.T) {
 	require.NotContains(t, resp.GetCorporaSearched(), "web-search.live", "no escalation when the flag is off")
 }
 
+// TestFallbackEscalationOnWeakScores [REQ:REQ-P0-004]: flag ON, the project
+// corpus answered but every hit scored below the weakness threshold
+// (SEARCH_HUB_AUTO_EXTERNAL_THRESHOLD, normalized-score regime) ⇒ the router
+// folds the withheld external provider in via the same path as the zero-hit
+// round, the --explain reason line distinguishes "below the weakness
+// threshold" from "empty", and telemetry records Escalated=true.
+func TestFallbackEscalationOnWeakScores(t *testing.T) {
+	weakCommandHit := `{"results":[{"name":"scenario restart","description":"Restart","score":0.2}]}`
+	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.95, WebShaped: false}}
+	lister, resolver, doer := scopeMixSetup(weakCommandHit, oneWebHit)
+	rec := &recordingRecorder{}
+	r := routing.NewRouter(routing.Deps{
+		Lister: lister, Resolver: resolver, Doer: doer, Classifier: clf,
+		Recorder: rec, AutoRouteExternal: true,
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "obscure thing", Explain: true})
+	require.NoError(t, err)
+	require.Contains(t, resp.GetCorporaSearched(), "web-search.live", "all-below-threshold project hits escalate to external")
+	explanation := strings.Join(resp.GetRoutingExplanation(), "\n")
+	require.Contains(t, explanation, "below the weakness threshold", "the reason line names the threshold cause")
+	require.NotContains(t, explanation, "project results were empty", "a low-scoring round is not reported as empty")
+	require.Len(t, rec.samples, 1)
+	require.True(t, rec.samples[0].Escalated, "telemetry records the escalation")
+	require.False(t, rec.samples[0].AutoRoutedExternal)
+}
+
+// TestFallbackEscalationFlagOffIgnoresWeakScores: flag OFF (default), weak
+// project scores ⇒ NO escalation — default behavior is byte-for-byte the
+// pre-feature withhold (parity guard for the weak-hit extension).
+func TestFallbackEscalationFlagOffIgnoresWeakScores(t *testing.T) {
+	weakCommandHit := `{"results":[{"name":"scenario restart","description":"Restart","score":0.2}]}`
+	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.95, WebShaped: false}}
+	lister, resolver, doer := scopeMixSetup(weakCommandHit, oneWebHit)
+	r := routing.NewRouter(routing.Deps{
+		Lister: lister, Resolver: resolver, Doer: doer, Classifier: clf,
+		// flag off
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "obscure thing"})
+	require.NoError(t, err)
+	require.NotContains(t, resp.GetCorporaSearched(), "web-search.live", "weak scores never escalate when the flag is off")
+}
+
 // TestNoEscalationWhenProjectHasHits: flag ON, project corpus answered ⇒ no
 // escalation (escalation only fires on an empty/weak project result).
 func TestNoEscalationWhenProjectHasHits(t *testing.T) {

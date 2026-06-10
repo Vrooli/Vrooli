@@ -54,11 +54,10 @@ func TestLLMRerankerRerank(t *testing.T) {
 	run := func(_ context.Context, args []string, stdin []byte) ([]byte, error) {
 		gotArgs = args
 		gotStdin = string(stdin)
-		// Simulate qwen3 reasoning preamble + the JSON array.
 		body, _ := json.Marshal(generateResponse{Response: `<think>ok</think>[{"index":1,"score":0.95},{"index":0,"score":0.2}]`})
 		return body, nil
 	}
-	r := NewLLMRerankerWithRunner("qwen3:4b", run)
+	r := NewLLMRerankerWithRunner("rerank.llm_fallback", run)
 	cands := []RerankCandidate{
 		{ID: "a", Text: "restart a scenario from the CLI"},
 		{ID: "b", Text: "how to restart a scenario lifecycle"},
@@ -74,7 +73,7 @@ func TestLLMRerankerRerank(t *testing.T) {
 	if scores[0].ID != "b" || scores[0].Score != 0.95 {
 		t.Fatalf("first score = %+v, want b/0.95", scores[0])
 	}
-	if r.Name() != "llm:qwen3:4b" {
+	if r.Name() != "llm:rerank.llm_fallback" {
 		t.Fatalf("Name = %q", r.Name())
 	}
 	// The prompt must reach generate via stdin and request JSON output.
@@ -83,14 +82,12 @@ func TestLLMRerankerRerank(t *testing.T) {
 	}
 }
 
-func TestDefaultRerankModelIsNonReasoning(t *testing.T) {
-	// Track D: the default must be the non-reasoning instruct model, not qwen3
-	// (which burns its token budget on a <think> preamble).
-	if DefaultRerankModel != "llama3.2:3b" {
-		t.Fatalf("DefaultRerankModel = %q, want llama3.2:3b", DefaultRerankModel)
+func TestDefaultRerankRole(t *testing.T) {
+	if DefaultRerankRole != "rerank.llm_fallback" {
+		t.Fatalf("DefaultRerankRole = %q, want rerank.llm_fallback", DefaultRerankRole)
 	}
-	if NewLLMReranker("").Name() != "llm:llama3.2:3b" {
-		t.Fatalf("empty model should default to llama3.2:3b, got %q", NewLLMReranker("").Name())
+	if NewLLMReranker("").Name() != "llm:rerank.llm_fallback" {
+		t.Fatalf("empty role should default to rerank.llm_fallback, got %q", NewLLMReranker("").Name())
 	}
 }
 
@@ -106,14 +103,12 @@ func TestRerankPromptHasNoReasoningHack(t *testing.T) {
 	}
 }
 
-func TestLLMRerankerParsesCleanLlamaOutput(t *testing.T) {
-	// llama3.2:3b emits clean, complete, correctly-ordered listwise JSON with no
-	// <think> block (the measured Track-D behavior).
+func TestLLMRerankerParsesCleanOutput(t *testing.T) {
 	run := func(_ context.Context, _ []string, _ []byte) ([]byte, error) {
 		body, _ := json.Marshal(generateResponse{Response: `[{"index":1,"score":0.86},{"index":0,"score":0.12}]`})
 		return body, nil
 	}
-	r := NewLLMRerankerWithRunner("llama3.2:3b", run)
+	r := NewLLMRerankerWithRunner("rerank.llm_fallback", run)
 	scores, err := r.Rerank(context.Background(), "restart a scenario",
 		[]RerankCandidate{{ID: "noise", Text: "x"}, {ID: "answer", Text: "vrooli scenario restart"}})
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -73,6 +74,12 @@ func TestClassifierRoutingRecall(t *testing.T) {
 			resolverURLs[hj.GetScenarioId()] = "http://" + hj.GetScenarioId() + ".test"
 		}
 	}
+	// Stable descriptor order ⇒ byte-identical classifier prompt across runs.
+	// The corpus loader returns a map; at temperature 0 the model is only
+	// deterministic for a fixed prompt, and a gate this close to its 0.85
+	// threshold must not coin-flip on Go map iteration order (production gets
+	// a stable order from the registry).
+	sort.Slice(descriptors, func(i, j int) bool { return descriptors[i].GetProviderId() < descriptors[j].GetProviderId() })
 
 	r := routing.NewRouter(routing.Deps{
 		Lister:     &fakeLister{providers: descriptors},
@@ -116,6 +123,85 @@ func TestClassifierRoutingRecall(t *testing.T) {
 	for _, q := range fx.Uncertain {
 		routed := routedTypes(t, r, q, idToType)
 		require.NotEmptyf(t, routed, "uncertain query %q dropped to no providers (should widen)", q)
+	}
+}
+
+// TestLearningsRoutingRecall pins the learnings-routing fix (web-search
+// hardening Phase 4, 2026-06-10): external-world factual queries — software
+// releases/versions/features, "what is the latest X" — must route to the
+// `learning` type (web-search.learnings holds the already-verified answers),
+// while pure project-code/config queries must NOT drag the learnings store
+// into the fan-out. Routing is description-driven, so this gate measures
+// whether the enriched web-search.learnings description (mirrored in
+// testdata/provider_corpus/web-search.learnings.json from the production
+// .vrooli/search.json) is concrete enough for the small classifier model.
+// Live-Ollama-gated like TestClassifierRoutingRecall.
+func TestLearningsRoutingRecall(t *testing.T) {
+	if os.Getenv("SEARCH_HUB_SKIP_OLLAMA") != "" {
+		t.Skip("SEARCH_HUB_SKIP_OLLAMA set")
+	}
+	clf := routing.NewOllamaClassifier()
+	availCtx, availCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer availCancel()
+	if !clf.Available(availCtx) {
+		t.Skip("resource-ollama unavailable — learnings routing gate requires the local Ollama daemon + classifier model")
+	}
+
+	// Assert on the CLASSIFIER's own type choice, not the routed fan-out: the
+	// router deliberately widens to every type on low confidence (recall over
+	// precision), which would both mask a missed inclusion and trip the
+	// exclusion half for reasons unrelated to the learnings description.
+	// Profiles are sorted by type so the rendered prompt is byte-identical
+	// across runs — the corpus loader returns a map, and at temperature 0 the
+	// model's answer is deterministic only for a fixed prompt (production gets
+	// a stable order from the registry's provider_id ordering).
+	seeds := loadProviderCorpus(t)
+	profiles := make([]routing.ProviderProfile, 0, len(seeds))
+	hasLearnings := false
+	for _, d := range seeds {
+		profiles = append(profiles, routing.ProviderProfile{
+			Type:        d.GetType(),
+			Group:       d.GetProviderGroup(),
+			Description: d.GetDescription(),
+		})
+		if d.GetProviderId() == "web-search.learnings" {
+			hasLearnings = true
+		}
+	}
+	require.True(t, hasLearnings, "the corpus must carry the learnings provider fixture")
+	sort.Slice(profiles, func(i, j int) bool { return profiles[i].Type < profiles[j].Type })
+
+	classify := func(q string) map[string]struct{} {
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		res, err := clf.Classify(ctx, q, profiles)
+		require.NoErrorf(t, err, "classify %q", q)
+		out := map[string]struct{}{}
+		for _, typ := range res.Types {
+			out[typ] = struct{}{}
+		}
+		return out
+	}
+
+	externalFactQueries := []string{
+		"key features of Go 1.26",
+		"what is the latest stable Rust version",
+		"what changed in the newest Node.js LTS release",
+	}
+	for _, q := range externalFactQueries {
+		types := classify(q)
+		_, ok := types["learning"]
+		require.Truef(t, ok, "external-fact query %q must include the learning type, classified %v", q, keys(types))
+	}
+
+	projectCodeQueries := []string{
+		"where is the retry logic in the api-core http client",
+		"which CLI command restarts a scenario",
+	}
+	for _, q := range projectCodeQueries {
+		types := classify(q)
+		_, ok := types["learning"]
+		require.Falsef(t, ok, "project-code query %q must NOT classify to the learnings store, classified %v", q, keys(types))
 	}
 }
 

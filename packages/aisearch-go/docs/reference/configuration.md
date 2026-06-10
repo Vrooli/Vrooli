@@ -43,9 +43,10 @@ read them. (`EmbedTaskPrefix` remains a `Config` *field* — the
 | `QDRANT_URL` | string | `http://127.0.0.1:6333` | Qdrant address. |
 | `QDRANT_API_KEY` | string | `""` | Qdrant auth. |
 | `EMBED_MODEL` | string | `nomic-embed-text` | Dense embedding model (the deployed/installed model — operational). **Changing it is a deliberate re-index** (the schema guard fails loudly on a model mismatch). |
-| `RERANK_MODEL` | string | `llama3.2:3b` | LLM-fallback rerank model. Must be a *non-reasoning* instruct model (see §4). |
+| `EMBED_ROLE` | string | `embedding.default` | Ollama policy role used for runtime embedding calls. |
+| `RERANK_ROLE` | string | `rerank.llm_fallback` | Ollama policy role used for the LLM fallback reranker. |
 | `RERANKER_URL` | string | `""` (falls back to resource env) | Cross-encoder reranker endpoint. When empty, the reranker resource's own unprefixed env (`RERANKER_BASE_URL`/`RERANKER_URL`/`RERANKER_HOST+PORT`) is used — preserving zero-config local use. Lets two scenarios on one host point at different reranker instances. |
-| `RERANKER_MODEL` | string | `""` (falls back to resource env) | Cross-encoder model identifier read by the reranker resource. Distinct from `RERANK_MODEL` (which selects the LLM *fallback* leg). When empty, the resource's own env applies. |
+| `RERANKER_MODEL` | string | `""` (falls back to resource env) | Cross-encoder model identifier read by the reranker resource. Distinct from `RERANK_ROLE` (which selects the LLM *fallback* leg). When empty, the resource's own env applies. |
 
 The factors that used to appear here (`EMBED_TASK_PREFIX`, `RERANK_ENABLED`,
 `RERANK_BLEND`, `RERANK_SHORTLIST`, `RELEVANCE_MAX_GAP`, `RELEVANCE_HARD_FLOOR`)
@@ -157,13 +158,10 @@ boundary:
   correctly as two chunks.
   Without this, a shortlist above 32 silently fell back to dense order while
   still *reporting* the cross-encoder as active — a regime mislabel.
-- **`RERANK_MODEL` must be a non-reasoning instruct model.** Measured 2026-06-05:
-  `qwen3:4b` burns its whole token budget on a `<think>` preamble (~38 s/query)
-  even with the `/no_think` hack; `llama3.2:3b` emits clean, complete,
-  correctly-ordered listwise JSON at ~2.8 s warm. The default is therefore
-  `llama3.2:3b`, making the LLM leg a viable CPU-only fallback for hosts without
-  the cross-encoder GPU resource. The score parser still strips `<think>` blocks
-  defensively in case a consumer points `RERANK_MODEL` at a reasoning model.
+- **`RERANK_ROLE` owns the LLM fallback.** Runtime model selection is resolved by
+  `resource-ollama` policy instead of repeated in adopters. The score parser
+  still strips `<think>` blocks defensively in case policy points the role at a
+  reasoning model.
 
 ---
 

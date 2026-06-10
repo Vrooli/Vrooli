@@ -88,7 +88,7 @@ func TestL2AnswerQualityEval(t *testing.T) {
 		Searcher: research.LiveSearcher{Service: live},
 		// HTTP-only fetch keeps the eval independent of browser-automation-studio.
 		Fetcher:     fetch.NewHTTPFetcher(20*time.Second, 0),
-		Synthesizer: research.NewOllamaSynthesizer(os.Getenv("OLLAMA_URL"), os.Getenv("OLLAMA_SYNTHESIS_MODEL"), nil),
+		Synthesizer: research.NewOllamaSynthesizer(os.Getenv("OLLAMA_SYNTHESIS_ROLE")),
 		Excerpter:   excerpter,
 	})
 
@@ -123,8 +123,8 @@ func TestL2AnswerQualityEval(t *testing.T) {
 		}
 	}
 
-	t.Logf("L2 eval (%s excerpting, model=%s): correct=%d wrong=%d abstained=%d of %d",
-		mode, envOr("OLLAMA_SYNTHESIS_MODEL", research.DefaultSynthesisModel), correct, wrong, abstained, len(l2EvalCases))
+	t.Logf("L2 eval (%s excerpting, role=%s): correct=%d wrong=%d abstained=%d of %d",
+		mode, envOr("OLLAMA_SYNTHESIS_ROLE", research.DefaultSynthesisRole), correct, wrong, abstained, len(l2EvalCases))
 	if correct == 0 {
 		t.Fatalf("zero correct answers — the L2 stack is not functioning (see per-case log above)")
 	}

@@ -27,10 +27,10 @@ const Bin = "resource-ollama"
 // --json` and returns the raw stdout envelope (use UnwrapResponse to read the
 // text). temperature is pinned to 0 for determinism; maxTokens caps the reply.
 // An error carries the gateway's stderr (one line) when present.
-func Generate(ctx context.Context, model, prompt string, maxTokens int) ([]byte, error) {
+func Generate(ctx context.Context, role, prompt string, maxTokens int) ([]byte, error) {
 	args := []string{
 		"gateway", "generate",
-		"--model", model,
+		"--role", role,
 		"--json",
 		"--max-tokens", fmt.Sprintf("%d", maxTokens),
 		"--temperature", "0",

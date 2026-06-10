@@ -40,7 +40,7 @@ func stubGen(reply string, seen *string) generateFn {
 
 func TestOllamaInverter_PositiveUnwrapsAndCleans(t *testing.T) {
 	var prompt string
-	inv := &OllamaInverter{model: "m", maxTokens: 64, generate: stubGen("<think></think>\nQuery: how to restart the api", &prompt)}
+	inv := &OllamaInverter{role: "classify.routing", maxTokens: 64, generate: stubGen("<think></think>\nQuery: how to restart the api", &prompt)}
 	q, err := inv.InvertPositive(context.Background(), Item{ID: "x", Title: "Restart API command", Type: "command"})
 	require.NoError(t, err)
 	require.Equal(t, "how to restart the api", q)
@@ -50,8 +50,8 @@ func TestOllamaInverter_PositiveUnwrapsAndCleans(t *testing.T) {
 
 func TestOllamaInverter_NegativePromptDiffersFromPositive(t *testing.T) {
 	var pos, neg string
-	invP := &OllamaInverter{model: "m", maxTokens: 64, generate: stubGen("q", &pos)}
-	invN := &OllamaInverter{model: "m", maxTokens: 64, generate: stubGen("q", &neg)}
+	invP := &OllamaInverter{role: "classify.routing", maxTokens: 64, generate: stubGen("q", &pos)}
+	invN := &OllamaInverter{role: "classify.routing", maxTokens: 64, generate: stubGen("q", &neg)}
 	_, _ = invP.InvertPositive(context.Background(), Item{ID: "x", Title: "t", Type: "command"})
 	_, _ = invN.InvertNegative(context.Background(), Item{ID: "x", Title: "t", Type: "command"})
 	require.NotEqual(t, pos, neg)
@@ -59,14 +59,14 @@ func TestOllamaInverter_NegativePromptDiffersFromPositive(t *testing.T) {
 }
 
 func TestOllamaInverter_EmptyReplyIsError(t *testing.T) {
-	inv := &OllamaInverter{model: "m", maxTokens: 64, generate: stubGen("   ", nil)}
+	inv := &OllamaInverter{role: "classify.routing", maxTokens: 64, generate: stubGen("   ", nil)}
 	_, err := inv.InvertPositive(context.Background(), Item{ID: "x", Title: "t"})
 	require.Error(t, err, "a model that returns no usable query is an error, not a silent empty case")
 }
 
 func TestNewOllamaInverter_DefaultModel(t *testing.T) {
-	t.Setenv("SEARCH_HUB_CORPUSGEN_MODEL", "")
-	require.Equal(t, defaultInverterModel, NewOllamaInverter().model)
-	t.Setenv("SEARCH_HUB_CORPUSGEN_MODEL", "custom:7b")
-	require.Equal(t, "custom:7b", NewOllamaInverter().model)
+	t.Setenv("SEARCH_HUB_CORPUSGEN_ROLE", "")
+	require.Equal(t, defaultInverterRole, NewOllamaInverter().role)
+	t.Setenv("SEARCH_HUB_CORPUSGEN_ROLE", "custom.role")
+	require.Equal(t, "custom.role", NewOllamaInverter().role)
 }

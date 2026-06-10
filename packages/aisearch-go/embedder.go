@@ -17,6 +17,7 @@ type EmbedRunner func(ctx context.Context, args []string, stdin []byte) ([]byte,
 type cliEmbedder struct {
 	bin   string
 	model string
+	role  string
 	run   EmbedRunner
 	// queryPrefix / docPrefix are the asymmetric task-instruction prefixes some
 	// embedding models require (see TaskPrefixesFor). Empty means symmetric.
@@ -60,6 +61,7 @@ func NewEmbedder(model string) Embedder {
 	return &cliEmbedder{
 		bin:   defaultEmbedderBin,
 		model: model,
+		role:  DefaultEmbedRole,
 		run:   runLocalCLI,
 	}
 }
@@ -74,12 +76,16 @@ func NewEmbedderForConfig(cfg Config) Embedder {
 	if strings.TrimSpace(model) == "" {
 		model = DefaultEmbedModel
 	}
+	role := strings.TrimSpace(cfg.EmbedRole)
+	if role == "" {
+		role = DefaultEmbedRole
+	}
 	if cfg.EmbedTaskPrefix {
 		if qp, dp := TaskPrefixesFor(model); qp != "" || dp != "" {
-			return NewEmbedderWithPrefixes(model, qp, dp)
+			return newEmbedderWithRoleAndPrefixes(model, role, qp, dp, runLocalCLI)
 		}
 	}
-	return NewEmbedder(model)
+	return newEmbedderWithRoleAndPrefixes(model, role, "", "", runLocalCLI)
 }
 
 // NewEmbedderWithPrefixes returns the production CLI-backed Embedder with the
@@ -93,6 +99,7 @@ func NewEmbedderWithPrefixes(model, queryPrefix, docPrefix string) Embedder {
 	return &cliEmbedder{
 		bin:         defaultEmbedderBin,
 		model:       model,
+		role:        DefaultEmbedRole,
 		run:         runLocalCLI,
 		queryPrefix: queryPrefix,
 		docPrefix:   docPrefix,
@@ -105,7 +112,7 @@ func NewEmbedderWithRunner(model string, run EmbedRunner) Embedder {
 	if strings.TrimSpace(model) == "" {
 		model = DefaultEmbedModel
 	}
-	return &cliEmbedder{bin: defaultEmbedderBin, model: model, run: run}
+	return &cliEmbedder{bin: defaultEmbedderBin, model: model, role: DefaultEmbedRole, run: run}
 }
 
 // NewEmbedderWithRunnerPrefixed returns an Embedder with an injected runner that
@@ -115,7 +122,17 @@ func NewEmbedderWithRunnerPrefixed(model string, run EmbedRunner) Embedder {
 		model = DefaultEmbedModel
 	}
 	qp, dp := TaskPrefixesFor(model)
-	return &cliEmbedder{bin: defaultEmbedderBin, model: model, run: run, queryPrefix: qp, docPrefix: dp}
+	return &cliEmbedder{bin: defaultEmbedderBin, model: model, role: DefaultEmbedRole, run: run, queryPrefix: qp, docPrefix: dp}
+}
+
+func newEmbedderWithRoleAndPrefixes(model, role, queryPrefix, docPrefix string, run EmbedRunner) Embedder {
+	if strings.TrimSpace(model) == "" {
+		model = DefaultEmbedModel
+	}
+	if strings.TrimSpace(role) == "" {
+		role = DefaultEmbedRole
+	}
+	return &cliEmbedder{bin: defaultEmbedderBin, model: model, role: role, run: run, queryPrefix: queryPrefix, docPrefix: docPrefix}
 }
 
 // runLocalCLI is the shared default subprocess runner behind both the embedder
@@ -167,7 +184,11 @@ func (e *cliEmbedder) embed(ctx context.Context, prefix, text string) ([]float64
 	if e.run == nil {
 		return nil, errors.New("embedder runner is not configured")
 	}
-	args := []string{e.bin, "gateway", "embed", "--model", e.model, "--json", "--input-stdin"}
+	role := strings.TrimSpace(e.role)
+	if role == "" {
+		role = DefaultEmbedRole
+	}
+	args := []string{e.bin, "gateway", "embed", "--role", role, "--json", "--input-stdin"}
 	out, err := e.run(ctx, args, []byte(prefix+text))
 	if err != nil {
 		return nil, fmt.Errorf("resource-ollama gateway embed: %w", err)

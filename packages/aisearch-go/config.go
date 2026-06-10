@@ -25,7 +25,7 @@ const DefaultSyncInterval = 5 * time.Minute
 //
 //   - WIRING/operational (the source of truth, always): sync cadence,
 //     parallelism, embed batch cap, Qdrant address, the deployed embed model, the
-//     reranker resource endpoints + fallback-leg model. Deployment facts, not
+//     embedding role, the reranker resource endpoints + fallback-leg role. Deployment facts, not
 //     search "factors". (EmbedTaskPrefix is the one tuning factor still PRESENT on
 //     the struct — only as the NewEmbedderForConfig input contract — but it is set
 //     from the SSOT by the adopter, never env-read here.)
@@ -51,17 +51,18 @@ type Config struct {
 	// migrated adopter passes tuning.EmbedTaskPrefix into a Config literal), kept
 	// on the struct only as the NewEmbedderForConfig input.
 	EmbedModel      string
+	EmbedRole       string
 	EmbedTaskPrefix bool
-	// RerankModel selects the LLM-fallback leg's model (operational: which model
-	// serves the degradation chain). Read from <prefix>_RERANK_MODEL.
-	RerankModel string
+	// RerankRole selects the LLM-fallback leg's Ollama policy role. Read from
+	// <prefix>_RERANK_ROLE.
+	RerankRole string
 	// RerankerURL / RerankerModel target the cross-encoder `reranker` resource.
 	// Read from <prefix>_RERANKER_URL / _RERANKER_MODEL, they let two scenarios on
 	// one host point at *different* rerankers. Both default to "" ("unset"): the
 	// cross-encoder then falls back to the resource's own unprefixed env
 	// (RERANKER_BASE_URL/RERANKER_URL/RERANKER_HOST+PORT, model RERANKER_MODEL),
-	// preserving zero-config local use. Distinct from RerankModel, which is the
-	// LLM *fallback* leg's model.
+	// preserving zero-config local use. Distinct from RerankRole, which is the
+	// LLM *fallback* leg's role.
 	// --- WIRING: reranker resource endpoints (operational, not a factor) ---
 	RerankerURL   string
 	RerankerModel string
@@ -86,7 +87,8 @@ func LoadConfig(prefix string) Config {
 		QdrantURL:            envString(key("QDRANT_URL"), DefaultQdrantURL),
 		QdrantAPIKey:         envString(key("QDRANT_API_KEY"), ""),
 		EmbedModel:           envString(key("EMBED_MODEL"), DefaultEmbedModel),
-		RerankModel:          envString(key("RERANK_MODEL"), DefaultRerankModel),
+		EmbedRole:            envString(key("EMBED_ROLE"), DefaultEmbedRole),
+		RerankRole:           envString(key("RERANK_ROLE"), DefaultRerankRole),
 		RerankerURL:          envString(key("RERANKER_URL"), ""),
 		RerankerModel:        envString(key("RERANKER_MODEL"), ""),
 	}

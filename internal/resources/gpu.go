@@ -3,9 +3,10 @@ package resources
 import (
 	"context"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
 // gpuOverrideEnvVar is the user-facing override for GPU probe behavior.
@@ -18,6 +19,8 @@ type gpuProbeFunc func(ctx context.Context, probe string) bool
 
 // gpuProbe is indirected for tests.
 var gpuProbe gpuProbeFunc = runGPUProbe
+
+var collectHostInventory = hostinventory.Collect
 
 // gpuOverride returns the VROOLI_GPU override value, lowercased and trimmed.
 // Returns "auto" when unset.
@@ -61,24 +64,14 @@ func runGPUProbe(ctx context.Context, probe string) bool {
 }
 
 // nvidiaProbe reports whether an nvidia GPU is addressable by docker. It
-// mirrors the legacy bash detection: nvidia-smi must be present and runnable,
-// and `docker info` output must mention the nvidia runtime.
+// uses the shared host inventory authority so resource overlays do not own
+// private host-probe logic.
 func nvidiaProbe(ctx context.Context) bool {
-	if _, err := lookPathCommandFn("nvidia-smi"); err != nil {
-		return false
-	}
-
 	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	if err := exec.CommandContext(probeCtx, "nvidia-smi").Run(); err != nil {
-		return false
-	}
-
-	dockerCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	out, err := exec.CommandContext(dockerCtx, "docker", "info").CombinedOutput()
+	snapshot, err := collectHostInventory(probeCtx)
 	if err != nil {
 		return false
 	}
-	return strings.Contains(strings.ToLower(string(out)), "nvidia")
+	return snapshot.HasDockerAddressableNvidiaGPU()
 }

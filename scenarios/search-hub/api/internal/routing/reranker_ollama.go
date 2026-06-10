@@ -27,7 +27,7 @@ var (
 	rerankScoresRe = regexp.MustCompile(`"scores"`)
 )
 
-// defaultRerankerModel is the local Ollama model that reranks candidates.
+// defaultRerankerRole is the local Ollama role that reranks candidates.
 //
 // Phase 0 nominated qwen3:4b as the LLM-as-reranker, but it is NOT viable
 // through the resource-ollama gateway: qwen3:4b does not honor the `/no_think`
@@ -40,8 +40,8 @@ var (
 // pragmatic LLM-as-reranker stand-in: when the approved bge-reranker-v2-m3
 // dedicated resource lands, point a new Reranker impl at it — the router
 // contract does not change (plan Appendix A.3 update). Override the model with
-// SEARCH_HUB_RERANKER_MODEL.
-const defaultRerankerModel = "qwen3:1.7b"
+// SEARCH_HUB_RERANKER_ROLE.
+const defaultRerankerRole = "rerank.llm_fallback"
 
 // rerankerMaxTokens caps the generation. The model emits one short score object
 // per candidate; 1024 leaves ample room for a few dozen candidates.
@@ -52,21 +52,21 @@ const rerankerMaxTokens = 1024
 // that. It holds no provider-specific knowledge — it reasons only over the
 // candidates' own title/snippet/type, so the thin-router invariant holds.
 type OllamaReranker struct {
-	model     string
+	role      string
 	maxTokens int
 	generate  generateFn
 	checkUp   availFn
 }
 
-// NewOllamaReranker returns the CLI-backed reranker. Model resolves from
-// SEARCH_HUB_RERANKER_MODEL or falls back to defaultRerankerModel.
+// NewOllamaReranker returns the CLI-backed reranker. Role resolves from
+// SEARCH_HUB_RERANKER_ROLE or falls back to defaultRerankerRole.
 func NewOllamaReranker() *OllamaReranker {
-	model := strings.TrimSpace(os.Getenv("SEARCH_HUB_RERANKER_MODEL"))
-	if model == "" {
-		model = defaultRerankerModel
+	role := strings.TrimSpace(os.Getenv("SEARCH_HUB_RERANKER_ROLE"))
+	if role == "" {
+		role = defaultRerankerRole
 	}
 	return &OllamaReranker{
-		model:     model,
+		role:      role,
 		maxTokens: rerankerMaxTokens,
 		generate:  ollama.Generate,
 		checkUp:   ollama.Available,
@@ -86,7 +86,7 @@ func (c *OllamaReranker) Rerank(ctx context.Context, query string, candidates []
 	}
 	prompt := buildRerankPrompt(query, candidates)
 
-	out, err := c.generate(ctx, c.model, prompt, c.maxTokens)
+	out, err := c.generate(ctx, c.role, prompt, c.maxTokens)
 	if err != nil {
 		return nil, fmt.Errorf("ollama generate: %w", err)
 	}

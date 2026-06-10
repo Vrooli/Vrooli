@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	researchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research"
@@ -19,8 +20,16 @@ type handlers struct {
 	client researchconnect.ResearchServiceClient
 }
 
+// researchClientTimeout bounds research RPCs. RunL2 is synchronous and
+// legitimately slow — sequential page fetches plus an LLM synthesis whose
+// model may cold-load on a CPU-resident ollama — so the scenario default 30s
+// client would abort the call while the server is still working (and cancel
+// the server's in-flight synthesis with it). Matches the server's
+// WriteTimeout budget.
+const researchClientTimeout = 5 * time.Minute
+
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, researchClientTimeout)
 	return &handlers{
 		core:   core,
 		client: researchconnect.NewResearchServiceClient(httpClient, baseURL),

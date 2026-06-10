@@ -69,7 +69,7 @@ func TestEmbedderWithEmptyPrefixesIsSymmetric(t *testing.T) {
 	// NewEmbedderWithRunner derives prefixes from the model, so to force symmetric
 	// we construct the prefixes explicitly via the unexported path used by
 	// NewEmbedderWithPrefixes — mirror it here with the runner seam.
-	e := &cliEmbedder{bin: defaultEmbedderBin, model: "nomic-embed-text", run: capturingRunner(&seen), queryPrefix: "", docPrefix: ""}
+	e := &cliEmbedder{bin: defaultEmbedderBin, model: "nomic-embed-text", role: DefaultEmbedRole, run: capturingRunner(&seen), queryPrefix: "", docPrefix: ""}
 	te := TaskEmbedder(e)
 	if _, err := te.EmbedQuery(context.Background(), "q"); err != nil {
 		t.Fatal(err)
@@ -79,6 +79,27 @@ func TestEmbedderWithEmptyPrefixesIsSymmetric(t *testing.T) {
 	}
 	if seen[0] != "q" || seen[1] != "d" {
 		t.Errorf("empty-prefix embedder must pass text verbatim, got %q", seen)
+	}
+}
+
+func TestCLIEmbedderUsesRole(t *testing.T) {
+	var gotArgs []string
+	run := func(_ context.Context, args []string, _ []byte) ([]byte, error) {
+		gotArgs = append([]string(nil), args...)
+		return []byte(`{"embedding":[0.1,0.2,0.3]}`), nil
+	}
+	e := newEmbedderWithRoleAndPrefixes(DefaultEmbedModel, "embedding.default", "", "", run)
+	if _, err := e.Embed(context.Background(), "ping"); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{defaultEmbedderBin, "gateway", "embed", "--role", "embedding.default", "--json", "--input-stdin"}
+	if len(gotArgs) != len(want) {
+		t.Fatalf("args = %v, want %v", gotArgs, want)
+	}
+	for i := range want {
+		if gotArgs[i] != want[i] {
+			t.Fatalf("args = %v, want %v", gotArgs, want)
+		}
 	}
 }
 

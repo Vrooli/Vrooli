@@ -270,7 +270,7 @@ type EngineDeps struct {
 	Collection    string
 	RerankerURL   string // cross-encoder resource URL ("" => resource default env)
 	RerankerModel string // cross-encoder model ("" => resource default)
-	RerankModel   string // LLM-fallback leg model ("" => DefaultRerankModel)
+	RerankRole    string // LLM-fallback leg role ("" => DefaultRerankRole)
 }
 
 // TunedEngine is the assembled bundle a tuning-driven adopter wires at boot. It
@@ -332,10 +332,10 @@ func NewServiceForTuning(tuning TuningConfig, deps EngineDeps) TunedEngine {
 		QdrantAPIKey:    deps.QdrantAPIKey,
 		RerankerURL:     deps.RerankerURL,
 		RerankerModel:   deps.RerankerModel,
-		RerankModel:     deps.RerankModel,
+		RerankRole:      deps.RerankRole,
 	}
-	if strings.TrimSpace(cfg.RerankModel) == "" {
-		cfg.RerankModel = DefaultRerankModel
+	if strings.TrimSpace(cfg.RerankRole) == "" {
+		cfg.RerankRole = DefaultRerankRole
 	}
 	switch tuning.Engine {
 	case EngineHybrid:

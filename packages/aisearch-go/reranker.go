@@ -19,20 +19,15 @@ import (
 // package — the search-hub plan reuses the exact same impls and the chain so
 // every federated leaf reranks consistently.
 //
-//   - LLMReranker:          a non-reasoning instruct model via
+//   - LLMReranker:          an Ollama policy role via
 //     `resource-ollama gateway generate` (dependency-free fallback for hosts
 //     without the cross-encoder GPU resource).
 //   - CrossEncoderReranker: BAAI/bge-reranker-v2-m3 served by the dedicated
 //     `reranker` TEI resource (Phase 4) via RERANKER_URL /rerank.
 //   - RerankerChain:        cross-encoder -> LLM -> fused (RRF) order.
 
-// DefaultRerankModel is the substrate-standard LLM-as-reranker model. It must be
-// a NON-reasoning instruct model: a probe (2026-06-05) showed qwen3:4b burns its
-// whole token budget on a <think> preamble (~38 s/query) even with /no_think,
-// while llama3.2:3b emits clean, complete, correctly-ordered listwise JSON at
-// ~2.8 s warm. The leg is the CPU-only fallback when the cross-encoder resource
-// is down — see Track D in the score-regime-calibration plan.
-const DefaultRerankModel = "llama3.2:3b"
+// DefaultRerankRole is the substrate-standard LLM-as-reranker role.
+const DefaultRerankRole = "rerank.llm_fallback"
 
 // rerankCandidateCharCap bounds each candidate's text in the LLM prompt so a
 // long doc chunk can't blow the context window (the cross-encoder resource has
@@ -49,7 +44,7 @@ const rerankCandidateCharCap = 700
 const maxCrossEncoderBatch = 32
 
 // =============================================================================
-// LLM-as-reranker (DefaultRerankModel via resource-ollama gateway generate)
+// LLM-as-reranker (DefaultRerankRole via resource-ollama gateway generate)
 // =============================================================================
 
 // GenerateRunner runs the text-generation subprocess. Injectable so tests
@@ -62,30 +57,30 @@ type GenerateRunner func(ctx context.Context, args []string, stdin []byte) ([]by
 // `resource-ollama gateway generate`. It is the dependency-free fallback: it
 // needs only Ollama (already required for embedding), no extra resource.
 type LLMReranker struct {
-	bin   string
-	model string
-	run   GenerateRunner
+	bin  string
+	role string
+	run  GenerateRunner
 }
 
 // NewLLMReranker returns the production LLM reranker (shells out to
-// resource-ollama). An empty model defaults to DefaultRerankModel.
-func NewLLMReranker(model string) *LLMReranker {
-	if strings.TrimSpace(model) == "" {
-		model = DefaultRerankModel
+// resource-ollama). An empty role defaults to DefaultRerankRole.
+func NewLLMReranker(role string) *LLMReranker {
+	if strings.TrimSpace(role) == "" {
+		role = DefaultRerankRole
 	}
-	return &LLMReranker{bin: defaultEmbedderBin, model: model, run: runLocalCLI}
+	return &LLMReranker{bin: defaultEmbedderBin, role: role, run: runLocalCLI}
 }
 
 // NewLLMRerankerWithRunner injects a runner (tests).
-func NewLLMRerankerWithRunner(model string, run GenerateRunner) *LLMReranker {
-	if strings.TrimSpace(model) == "" {
-		model = DefaultRerankModel
+func NewLLMRerankerWithRunner(role string, run GenerateRunner) *LLMReranker {
+	if strings.TrimSpace(role) == "" {
+		role = DefaultRerankRole
 	}
-	return &LLMReranker{bin: defaultEmbedderBin, model: model, run: run}
+	return &LLMReranker{bin: defaultEmbedderBin, role: role, run: run}
 }
 
 // Name identifies the active reranker for StatusReport / SearchResponse.
-func (r *LLMReranker) Name() string { return "llm:" + r.model }
+func (r *LLMReranker) Name() string { return "llm:" + r.role }
 
 // Available probes the model with a one-token generation. Cheap relative to a
 // full rerank and only consulted when the cross-encoder is down (the chain
@@ -99,7 +94,7 @@ func (r *LLMReranker) Available(ctx context.Context) bool {
 	}
 	probeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	args := []string{r.bin, "gateway", "generate", "--model", r.model, "--max-tokens", "1", "--json", "--prompt-stdin"}
+	args := []string{r.bin, "gateway", "generate", "--role", r.role, "--max-tokens", "1", "--json", "--prompt-stdin"}
 	_, err := r.run(probeCtx, args, []byte("ok"))
 	return err == nil
 }
@@ -124,7 +119,7 @@ func (r *LLMReranker) Rerank(ctx context.Context, query string, candidates []Rer
 		return nil, nil
 	}
 	prompt := buildRerankPrompt(query, candidates)
-	args := []string{r.bin, "gateway", "generate", "--model", r.model, "--max-tokens", "512", "--temperature", "0", "--json", "--prompt-stdin"}
+	args := []string{r.bin, "gateway", "generate", "--role", r.role, "--max-tokens", "512", "--temperature", "0", "--json", "--prompt-stdin"}
 	out, err := r.run(ctx, args, []byte(prompt))
 	if err != nil {
 		return nil, fmt.Errorf("resource-ollama gateway generate: %w", err)
@@ -152,10 +147,6 @@ func (r *LLMReranker) Rerank(ctx context.Context, query string, candidates []Rer
 
 func buildRerankPrompt(query string, candidates []RerankCandidate) string {
 	var b strings.Builder
-	// The default model is a non-reasoning instruct model (llama3.2:3b) that
-	// emits the bare JSON array directly, so no anti-reasoning directive is
-	// needed; parseLLMScores still strips any <think> block defensively in case a
-	// consumer points RERANK_MODEL at a reasoning model.
 	b.WriteString("You are a documentation-search relevance judge. Score how well each candidate passage answers the user query, from 0.0 (irrelevant) to 1.0 (directly answers it).\n\n")
 	b.WriteString("Query: ")
 	b.WriteString(strings.TrimSpace(query))

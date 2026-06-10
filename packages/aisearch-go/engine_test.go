@@ -10,7 +10,7 @@ func TestNewDenseEngineDerivesSpecFromDefaults(t *testing.T) {
 		QdrantURL:    "http://q",
 		QdrantAPIKey: "",
 		EmbedModel:   "nomic-embed-text",
-		RerankModel:  "qwen3:4b",
+		RerankRole:   "rerank.llm_fallback",
 	}
 	engine := NewDenseEngine(cfg, "my-collection")
 

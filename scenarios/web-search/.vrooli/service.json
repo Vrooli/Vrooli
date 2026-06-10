@@ -223,11 +223,11 @@
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Local LLMs: nomic-embed-text for the findings semantic index, and a small chat model for L1 snippet synthesis and L2/L3 finding distillation.",
+        "description": "Local Ollama roles for the findings semantic index, L1 snippet synthesis, and L2/L3 finding distillation.",
         "degraded_behavior": "Embeddings unavailable -> findings search falls back to text matching and reindex is deferred; synthesis unavailable -> raw hits are still returned (synthesis is always additive/opt-in).",
-        "models": [
-          "nomic-embed-text",
-          "qwen3:4b"
+        "model_roles": [
+          "embedding.default",
+          "summarize.default"
         ]
       },
       "qdrant": {

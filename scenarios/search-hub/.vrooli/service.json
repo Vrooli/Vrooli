@@ -218,9 +218,9 @@
         "purpose": "Classifier (free query -> ranked provider types) and reranker (fuse heterogeneous candidates into one comparable list). The router embeds nothing; embedding stays provider-side.",
         "description": "Local LLMs for routing classification and result reranking.",
         "degraded_behavior": "Reranker down -> by-provider grouping + degraded flag; classifier down -> explicit --type/--all still works. Both swappable behind interfaces.",
-        "models": [
-          "qwen3:1.7b",
-          "qwen3:4b"
+        "model_roles": [
+          "classify.routing",
+          "rerank.llm_fallback"
         ]
       }
     },

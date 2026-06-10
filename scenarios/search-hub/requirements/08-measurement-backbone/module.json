@@ -1,29 +1,38 @@
 {
-  "module_id": "MOD-P1-008",
-  "prd_ref": "OT-P1-002",
-  "priority": "P1",
-  "description": "The validation backbone. Per-query telemetry (postgres) records classified types, providers hit, result counts, latency, zero-result queries, and re-query/\"again\" count. An insights surface computes per-provider utilization, under-utilized providers (registered but never routed-to), zero-result rate, and p50/p95 latency.",
+  "_metadata": {
+    "last_validated_at": "2026-06-10T13:22:10-04:00"
+  },
   "requirements": [
     {
       "id": "REQ-P1-003",
       "title": "Per-query telemetry row",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "core",
-      "status": "implemented",
       "description": "Each query writes a telemetry row (query hashed/opt-in, classified types, providers hit, per-provider counts, latency_ms, zero-result flag). No corpus content is stored.",
       "validation": [
-        { "type": "test", "phase": "unit", "status": "pending", "notes": "A query produces one telemetry row with providers-hit, counts, and latency." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A query produces one telemetry row with providers-hit, counts, and latency."
+        }
       ]
     },
     {
       "id": "REQ-P1-004",
       "title": "Insights aggregates",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "core",
-      "status": "implemented",
       "description": "Status/insights compute per-provider utilization, under-utilized providers, zero-result rate, and p50/p95 latency from the telemetry table.",
       "validation": [
-        { "type": "test", "phase": "unit", "status": "pending", "notes": "Under-utilized and zero-result aggregates compute correctly over seeded telemetry." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Under-utilized and zero-result aggregates compute correctly over seeded telemetry."
+        }
       ]
     }
   ]

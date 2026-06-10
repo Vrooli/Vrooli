@@ -1,29 +1,38 @@
 {
-  "module_id": "MOD-P0-004",
-  "prd_ref": "OT-P0-004",
-  "priority": "P0",
-  "description": "CLI output names the corpora searched, per-corpus result counts, how to expand the search (--all / --type / --limit), and provenance (provider + path/id) on every hit. A stable --json shape supports scripting.",
+  "_metadata": {
+    "last_validated_at": "2026-06-10T13:22:10-04:00"
+  },
   "requirements": [
     {
       "id": "REQ-P0-008",
       "title": "Human-friendly query output",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "core",
-      "status": "implemented",
       "description": "Default CLI query output lists which corpora were searched, the count per corpus, expansion hints, and provenance on each hit. Degraded providers are called out.",
       "validation": [
-        { "type": "test", "phase": "unit", "status": "pending", "notes": "Rendered output contains corpora-searched list, per-corpus counts, expansion hints, and per-hit provenance." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Rendered output contains corpora-searched list, per-corpus counts, expansion hints, and per-hit provenance."
+        }
       ]
     },
     {
       "id": "REQ-P0-009",
       "title": "Stable --json shape",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "core",
-      "status": "implemented",
       "description": "query --json emits a stable, documented JSON structure (groups, ranked, corpora_searched, degraded, latency_ms) suitable for scripting and downstream agents.",
       "validation": [
-        { "type": "test", "phase": "unit", "status": "pending", "notes": "--json output validates against the documented schema and round-trips the same hits as the human view." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "--json output validates against the documented schema and round-trips the same hits as the human view."
+        }
       ]
     }
   ]

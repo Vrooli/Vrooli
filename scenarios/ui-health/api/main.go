@@ -13,11 +13,13 @@ import (
 	"ui-health/internal/modules"
 	"ui-health/internal/server"
 
+	aisearchpkg "github.com/vrooli/aisearch-go"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
+	searchregister "github.com/vrooli/searchregister-go"
 	_ "modernc.org/sqlite"
 
 	healthH "ui-health/handlers/health"
@@ -95,17 +97,27 @@ func main() {
 		log.Fatalf("resolve repo root: %v", err)
 	}
 
-	// AI search wiring: embedder + vector store + discovery + reconciler.
-	searchCfg := aisearch.LoadConfigFromEnv()
-	embedder := aisearch.NewEmbedder(searchCfg.EmbedModel)
-	vectorStore := aisearch.NewVectorStore(searchCfg.QdrantURL, searchCfg.QdrantAPIKey, aisearch.DefaultCollection, aisearch.DefaultVectorSize)
+	// AI search wiring: the scenario-owned `.vrooli/search.json` is the SSOT for
+	// the surface-search tuning factors (engine shape, embed recipe, rerank policy,
+	// floor band) — read here at boot. The shared engine (packages/aisearch-go)
+	// provides the embedder + vector store + reconciler + sync loop; LoadConfig
+	// supplies only the OPERATIONAL wiring (Qdrant address, sync cadence,
+	// parallelism). The surfaces corpus is dense single-chunk; NewSearchService
+	// picks the engine shape from the tuning DATA.
+	searchJSONPath := filepath.Join(repoRoot, "scenarios", "ui-health", ".vrooli", "search.json")
+	searchCfg := aisearchpkg.LoadConfig("UI_HEALTH")
+	tuning := loadSearchTuning(searchJSONPath, surfacesProviderID)
 	discovery := aisearch.NewFilesystemDiscoverySource(repoRoot)
-	aiService := aisearch.NewService(aisearch.Options{
-		Embedder:    embedder,
-		VectorStore: vectorStore,
-		Discovery:   discovery,
-		Parallelism: searchCfg.ReconcileParallelism,
-		Threshold:   searchCfg.SearchThreshold,
+	aiService := aisearch.NewSearchService(tuning, aisearch.Options{
+		Discovery:        discovery,
+		Parallelism:      searchCfg.ReconcileParallelism,
+		MaxEmbedsPerTick: searchCfg.MaxEmbedsPerTick,
+		Threshold:        aisearch.DefaultSearchThreshold,
+		EngineDeps: aisearchpkg.EngineDeps{
+			QdrantURL:    searchCfg.QdrantURL,
+			QdrantAPIKey: searchCfg.QdrantAPIKey,
+			Collection:   aisearch.DefaultCollection,
+		},
 	})
 
 	if err := aiService.EnsureCollection(context.Background()); err != nil {
@@ -113,8 +125,18 @@ func main() {
 	}
 
 	syncCtx, cancelSync := context.WithCancel(context.Background())
-	syncLoop := aisearch.NewSyncLoop(aiService.Reconciler())
+	syncLoop := aisearchpkg.NewSyncLoopFunc("ui-health", aiService.Reconciler, searchCfg)
 	go syncLoop.Start(syncCtx)
+
+	// Self-register the surfaces provider with search-hub from the same SSOT: the
+	// descriptor goes to the registry and the tests block is mirrored into the
+	// eval store. search-hub is an OPTIONAL dependency, so this runs in the
+	// background with bounded retry and degrades gracefully.
+	go searchregister.Register(syncCtx, searchregister.Config{
+		ScenarioID:     "ui-health",
+		SearchFilePath: searchJSONPath,
+		Logger:         logger,
+	})
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
@@ -133,4 +155,21 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// surfacesProviderID is the provider id ui-health owns in its search.json SSOT.
+const surfacesProviderID = "ui-health.surfaces"
+
+// loadSearchTuning reads the resolved tuning for the surfaces provider from the
+// scenario-owned search.json SSOT.
+func loadSearchTuning(path, providerID string) aisearchpkg.TuningConfig {
+	file, err := aisearchpkg.LoadSearchFile(path)
+	if err != nil {
+		log.Fatalf("load search tuning: %v", err)
+	}
+	provider, ok := file.Provider(providerID)
+	if !ok {
+		log.Fatalf("load search tuning: provider %q not found in %s", providerID, path)
+	}
+	return provider.ResolvedTuning()
 }
