@@ -35,6 +35,11 @@ type fakeExecutor struct {
 	// without standing up the real export pipeline.
 	ExportLayout map[string]string
 	ExportErr    error
+	// ExportFunc, when set, runs after ExportLayout files are written. It
+	// receives the fake itself (LastReq is already populated) so tests can
+	// derive content from the request — e.g. write a timeline.json keyed by
+	// the handler-generated evaluate node id for inline-DOM coverage.
+	ExportFunc func(f *fakeExecutor, outputDir string) error
 }
 
 func (f *fakeExecutor) ExecuteAdhocWorkflowAPIWithOptions(
@@ -80,6 +85,9 @@ func (f *fakeExecutor) ExportToFolder(
 		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
 			return err
 		}
+	}
+	if f.ExportFunc != nil {
+		return f.ExportFunc(f, outputDir)
 	}
 	return nil
 }

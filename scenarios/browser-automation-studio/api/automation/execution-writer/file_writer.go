@@ -444,6 +444,12 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 
 	// Apply configurable limits during sanitization
 	outcome = r.sanitizeOutcomeWithConfig(outcome, cfg)
+	// Drop extracted data up front when collection is disabled so every
+	// downstream sink (artifact, timeline aggregates preview) stays gated by
+	// the single profile switch.
+	if !cfg.CollectExtractedData {
+		outcome.ExtractedData = nil
+	}
 	result := r.getOrCreateResult(plan)
 	timeline := r.getOrCreateTimeline(plan)
 
@@ -1013,6 +1019,15 @@ func (r *FileWriter) appendProtoTimelineEntry(
 		entry.Aggregates.Status = basbase.StepStatus_STEP_STATUS_COMPLETED
 	} else {
 		entry.Aggregates.Status = basbase.StepStatus_STEP_STATUS_FAILED
+	}
+	// The whole read side (export timeline loader, markdown renderer,
+	// checkpoint variable accumulation) consumes ExtractedDataPreview, but
+	// nothing ever populated it — extracted data only survived inside a
+	// JsonValue-wrapped custom artifact. Set the aggregate directly so
+	// frames carry it. (ExtractedData is already nil here when the profile
+	// disables collection — see RecordStepOutcome.)
+	if len(outcome.ExtractedData) > 0 {
+		entry.Aggregates.ExtractedDataPreview = anyToJsonValue(outcome.ExtractedData)
 	}
 	if consoleArtifact != nil {
 		entry.Aggregates.ConsoleLogCount = int32(len(outcome.ConsoleLogs))

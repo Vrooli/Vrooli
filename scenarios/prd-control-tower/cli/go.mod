@@ -1,8 +1,10 @@
 module prd-control-tower/cli
 
-go 1.24.0
+go 1.25.0
 
 require github.com/vrooli/cli-core v0.0.0
+
+require github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 
 require (
 	connectrpc.com/connect v1.19.2 // indirect

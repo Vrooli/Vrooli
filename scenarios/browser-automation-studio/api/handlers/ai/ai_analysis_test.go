@@ -120,7 +120,7 @@ func TestAIElementAnalyzer_ExtractFailure(t *testing.T) {
 		log:          log,
 		domExtractor: mockDOM,
 		ollamaClient: mockOllama,
-		model:        "test-model",
+		role:         "chat.small",
 	}
 
 	_, err := analyzer.Analyze(context.Background(), "https://example.com", "search")
@@ -137,7 +137,7 @@ func TestAIElementAnalyzer_ParsesSuggestions(t *testing.T) {
 		log:          log,
 		domExtractor: mockDOM,
 		ollamaClient: mockOllama,
-		model:        "test-model",
+		role:         "chat.small",
 	}
 
 	results, err := analyzer.Analyze(context.Background(), "https://example.com", "search")
@@ -147,7 +147,7 @@ func TestAIElementAnalyzer_ParsesSuggestions(t *testing.T) {
 	assert.Equal(t, "Search", results[0].Text)
 	assert.Len(t, mockDOM.calls, 1)
 	assert.Len(t, mockOllama.QueriesCalled, 1)
-	assert.Equal(t, "test-model", mockOllama.QueriesCalled[0].Model)
+	assert.Equal(t, "chat.small", mockOllama.QueriesCalled[0].Role)
 }
 
 func TestAIElementAnalyzer_FallbackOnBadJSON(t *testing.T) {
@@ -159,7 +159,7 @@ func TestAIElementAnalyzer_FallbackOnBadJSON(t *testing.T) {
 		log:          log,
 		domExtractor: mockDOM,
 		ollamaClient: mockOllama,
-		model:        "test-model",
+		role:         "chat.small",
 	}
 
 	results, err := analyzer.Analyze(context.Background(), "https://example.com", "search")

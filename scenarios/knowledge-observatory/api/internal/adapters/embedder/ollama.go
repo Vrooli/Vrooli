@@ -16,7 +16,7 @@ import (
 // the Ollama daemon is funnelled through that CLI so the host-wide semaphore
 // can bound fleet-wide parallelism — never call the daemon directly.
 type Ollama struct {
-	Model string
+	Role string
 
 	// Runner is an optional seam for tests. Production callers leave it nil and
 	// the default exec-based runner is used.
@@ -24,12 +24,12 @@ type Ollama struct {
 }
 
 func (o *Ollama) Embed(ctx context.Context, text string) ([]float64, error) {
-	model := strings.TrimSpace(o.Model)
-	if model == "" {
-		model = "nomic-embed-text"
+	role := strings.TrimSpace(o.Role)
+	if role == "" {
+		role = "embedding.default"
 	}
 
-	args := []string{"gateway", "embed", "--model", model, "--json", "--input-stdin"}
+	args := []string{"gateway", "embed", "--role", role, "--json", "--input-stdin"}
 	out, err := o.run(ctx, args, text)
 	if err != nil {
 		return nil, fmt.Errorf("resource-ollama gateway embed failed: %w", err)

@@ -1,6 +1,6 @@
 module idea-generator-api
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/gorilla/handlers v1.5.2

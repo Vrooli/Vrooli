@@ -238,9 +238,8 @@
         "enabled": true,
         "required": false,
         "description": "AI workflow generation and debugging assistance",
-        "models": [
-          "llama3.2",
-          "llama3.2:3b"
+        "model_roles": [
+          "chat.small"
         ]
       },
       "openrouter": {

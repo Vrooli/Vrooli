@@ -1,6 +1,7 @@
 package recommendation
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -15,20 +16,19 @@ import (
 
 // OllamaExtractor uses the resource-ollama CLI to extract recommendations.
 type OllamaExtractor struct {
-	model       string
+	role        string
 	temperature string
 	maxTokens   string
 }
 
 // NewOllamaExtractor creates a new extractor using resource-ollama CLI.
 func NewOllamaExtractor() *OllamaExtractor {
-	// Use environment variable for model if set, otherwise default to qwen2.5-coder:14b
-	model := os.Getenv("OLLAMA_RECOMMENDATION_MODEL")
-	if model == "" {
-		model = "qwen2.5-coder:14b"
+	role := os.Getenv("OLLAMA_RECOMMENDATION_ROLE")
+	if role == "" {
+		role = "code.local"
 	}
 	return &OllamaExtractor{
-		model:       model,
+		role:        role,
 		temperature: "0.1",
 		maxTokens:   "2000",
 	}
@@ -49,20 +49,14 @@ func (e *OllamaExtractor) Extract(ctx context.Context, req domain.ExtractionRequ
 	// Build extraction prompt
 	prompt := e.buildPrompt(req.InvestigationText)
 
-	// Execute: resource-ollama query --model X --json "prompt"
-	// Note: temperature and max_tokens are set via environment variables
-	cmd := exec.CommandContext(ctx, "resource-ollama", "query",
-		"--model", e.model,
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
+		"--role", e.role,
 		"--json",
-		"--", // Use -- to separate flags from prompt (which may start with -)
-		prompt,
+		"--temperature", e.temperature,
+		"--max-tokens", e.maxTokens,
+		"--prompt-stdin",
 	)
-
-	// Set environment variables for temperature and max_tokens
-	cmd.Env = append(os.Environ(),
-		"TEMPERATURE="+e.temperature,
-		"MAX_TOKENS="+e.maxTokens,
-	)
+	cmd.Stdin = strings.NewReader(prompt)
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -79,8 +73,18 @@ func (e *OllamaExtractor) Extract(ctx context.Context, req domain.ExtractionRequ
 		}, nil
 	}
 
-	// The output from resource-ollama query is raw text (the LLM's response)
-	responseText := strings.TrimSpace(string(output))
+	var gatewayResponse struct {
+		Response string `json:"response"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(output), &gatewayResponse); err != nil {
+		return &domain.ExtractionResult{
+			Success:       false,
+			RawText:       req.InvestigationText,
+			ExtractedFrom: "summary",
+			Error:         fmt.Sprintf("failed to parse gateway response: %v", err),
+		}, nil
+	}
+	responseText := strings.TrimSpace(gatewayResponse.Response)
 
 	// Try to find JSON in the response (it might be wrapped in markdown code blocks)
 	jsonStr := extractJSON(responseText)

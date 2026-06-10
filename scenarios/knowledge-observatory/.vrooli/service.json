@@ -210,10 +210,10 @@
         "type": "ollama",
         "enabled": false,
         "required": false,
-        "description": "Dense embeddings (nomic-embed-text) for hybrid documentation search and the LLM-as-reranker fallback (qwen3:4b)",
-        "models": [
-          "nomic-embed-text",
-          "qwen3:4b"
+        "description": "Dense embeddings for hybrid documentation search and the LLM-as-reranker fallback",
+        "model_roles": [
+          "embedding.default",
+          "rerank.llm_fallback"
         ]
       },
       "reranker": {

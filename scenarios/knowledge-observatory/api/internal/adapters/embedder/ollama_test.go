@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestOllamaEmbedUsesDefaultModel(t *testing.T) {
+func TestOllamaEmbedUsesDefaultRole(t *testing.T) {
 	var capturedArgs []string
 	var capturedStdin string
 	client := &Ollama{
@@ -35,15 +35,15 @@ func TestOllamaEmbedUsesDefaultModel(t *testing.T) {
 	if !strings.Contains(joined, "gateway embed") {
 		t.Fatalf("expected gateway embed subcommand, got %q", joined)
 	}
-	if !strings.Contains(joined, "--model nomic-embed-text") {
-		t.Fatalf("expected default model in args, got %q", joined)
+	if !strings.Contains(joined, "--role embedding.default") {
+		t.Fatalf("expected default role in args, got %q", joined)
 	}
 }
 
-func TestOllamaEmbedPassesModel(t *testing.T) {
+func TestOllamaEmbedPassesRole(t *testing.T) {
 	var capturedArgs []string
 	client := &Ollama{
-		Model: "custom-embed",
+		Role: "custom.embedding",
 		Runner: func(_ context.Context, args []string, _ string) ([]byte, error) {
 			capturedArgs = args
 			return []byte(`{"embedding":[0.1]}`), nil
@@ -52,8 +52,8 @@ func TestOllamaEmbedPassesModel(t *testing.T) {
 	if _, err := client.Embed(context.Background(), "test"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(strings.Join(capturedArgs, " "), "--model custom-embed") {
-		t.Fatalf("expected --model custom-embed in args, got %v", capturedArgs)
+	if !strings.Contains(strings.Join(capturedArgs, " "), "--role custom.embedding") {
+		t.Fatalf("expected --role custom.embedding in args, got %v", capturedArgs)
 	}
 }
 

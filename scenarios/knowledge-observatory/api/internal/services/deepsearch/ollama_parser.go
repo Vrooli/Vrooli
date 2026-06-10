@@ -15,7 +15,7 @@ import (
 // agent output into JSON results. All daemon traffic is funnelled through the
 // CLI so the host-wide semaphore bounds fleet-wide parallelism.
 type OllamaParser struct {
-	Model string
+	Role string
 
 	// Runner is an optional seam for tests. Production callers leave it nil and
 	// the default exec-based runner is used.
@@ -23,13 +23,13 @@ type OllamaParser struct {
 }
 
 func (o *OllamaParser) Parse(ctx context.Context, raw string) ([]DeepSearchResult, error) {
-	model := strings.TrimSpace(o.Model)
-	if model == "" {
-		return nil, fmt.Errorf("ollama parser model not configured")
+	role := strings.TrimSpace(o.Role)
+	if role == "" {
+		return nil, fmt.Errorf("ollama parser role not configured")
 	}
 	prompt := buildOllamaPrompt(raw)
 
-	args := []string{"gateway", "generate", "--model", model, "--json", "--prompt-stdin"}
+	args := []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}
 	out, err := o.run(ctx, args, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("resource-ollama gateway generate failed: %w", err)

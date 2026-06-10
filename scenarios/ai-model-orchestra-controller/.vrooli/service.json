@@ -187,11 +187,10 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": [
-          "llama3.2:1b",
-          "llama3.2:3b",
-          "codellama:7b",
-          "nomic-embed-text"
+        "model_roles": [
+          "chat.small",
+          "code.local",
+          "embedding.default"
         ]
       },
       "postgres": {

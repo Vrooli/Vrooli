@@ -200,8 +200,8 @@
         "enabled": true,
         "required": false,
         "description": "Local LLM for recommendation extraction from investigation outputs",
-        "models": [
-          "qwen2.5-coder:14b"
+        "model_roles": [
+          "code.local"
         ]
       }
     },

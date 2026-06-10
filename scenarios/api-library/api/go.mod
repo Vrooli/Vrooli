@@ -1,11 +1,9 @@
 module github.com/vrooli/scenarios/api-library/api
 
-go 1.24.0
-
-toolchain go1.24.7
+go 1.25.0
 
 require (
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/lib/pq v1.10.9
 	github.com/redis/go-redis/v9 v9.15.0

@@ -12,11 +12,10 @@ import (
 )
 
 // OllamaClient provides an interface for interacting with Ollama LLM services
-// via the resource-ollama gateway CLI. The interface preserves the existing
-// shape so callers don't change.
+// via the resource-ollama gateway CLI.
 type OllamaClient interface {
 	// Query sends a prompt to Ollama and returns the response text.
-	Query(ctx context.Context, model, prompt string) (string, error)
+	Query(ctx context.Context, role, prompt string) (string, error)
 }
 
 // DefaultOllamaClient implements OllamaClient by shelling out to
@@ -48,17 +47,17 @@ func NewDefaultOllamaClient(log *logrus.Logger, opts ...OllamaClientOption) *Def
 }
 
 // Query sends a prompt to Ollama via the resource-ollama gateway CLI.
-func (c *DefaultOllamaClient) Query(ctx context.Context, model, prompt string) (string, error) {
+func (c *DefaultOllamaClient) Query(ctx context.Context, role, prompt string) (string, error) {
 	if strings.TrimSpace(prompt) == "" {
 		return "", fmt.Errorf("prompt is required")
 	}
-	if strings.TrimSpace(model) == "" {
-		model = "llama3.2:3b"
+	if strings.TrimSpace(role) == "" {
+		role = defaultOllamaRole
 	}
 
-	args := []string{"gateway", "generate", "--model", model, "--json", "--prompt-stdin"}
+	args := []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}
 	if c.log != nil {
-		c.log.WithFields(logrus.Fields{"model": model}).Debug("Sending request to resource-ollama gateway")
+		c.log.WithFields(logrus.Fields{"role": role}).Debug("Sending request to resource-ollama gateway")
 	}
 
 	out, err := c.run(ctx, args, prompt)
@@ -79,7 +78,7 @@ func (c *DefaultOllamaClient) Query(ctx context.Context, model, prompt string) (
 			preview = preview[:200]
 		}
 		c.log.WithFields(logrus.Fields{
-			"model":            model,
+			"role":             role,
 			"response_length":  len(decoded.Response),
 			"response_preview": preview,
 		}).Debug("Received gateway response")
@@ -112,7 +111,7 @@ type MockOllamaClient struct {
 
 // MockOllamaQuery records a query made to the mock client.
 type MockOllamaQuery struct {
-	Model  string
+	Role   string
 	Prompt string
 }
 
@@ -122,8 +121,8 @@ func NewMockOllamaClient(response string) *MockOllamaClient {
 }
 
 // Query records the query and returns the configured response or error.
-func (m *MockOllamaClient) Query(_ context.Context, model, prompt string) (string, error) {
-	m.QueriesCalled = append(m.QueriesCalled, MockOllamaQuery{Model: model, Prompt: prompt})
+func (m *MockOllamaClient) Query(_ context.Context, role, prompt string) (string, error) {
+	m.QueriesCalled = append(m.QueriesCalled, MockOllamaQuery{Role: role, Prompt: prompt})
 	if m.Err != nil {
 		return "", m.Err
 	}

@@ -2,6 +2,7 @@ package capture
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -28,6 +29,17 @@ var (
 	scenarioSlugRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 	truthyValues   = map[string]struct{}{"true": {}, "1": {}, "yes": {}}
 )
+
+// inlineDomMaxBytes caps CaptureResponse.dom_html so a pathological page
+// cannot balloon the RPC response. Truncation is silent (documented on the
+// proto field); readable-text consumers tolerate a cut-off tail by design.
+const inlineDomMaxBytes = 2 << 20
+
+// inlineDomExpression is evaluated in-page to read the rendered DOM. An
+// EVALUATE node is used (not EXTRACT) because the Playwright driver's extract
+// handler only does textContent today, while evaluate returns the raw
+// expression result through extracted_data.
+const inlineDomExpression = "document.documentElement.outerHTML"
 
 // Capture loads a URL once and produces every requested artifact from
 // that one session. Contract: plan
@@ -70,7 +82,7 @@ func (s *service) Capture(
 		}), nil
 	}
 
-	adhocReq := buildAdhocRequest(resolvedURL, msg, width, height)
+	adhocReq, domNodeID := buildAdhocRequest(resolvedURL, msg, width, height)
 	opts := &workflow.ExecuteOptions{}
 	for _, ct := range captures {
 		if ct == capturev1.CaptureType_CAPTURE_TYPE_VIDEO {
@@ -100,13 +112,57 @@ func (s *service) Capture(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("harvest artifacts: %w", err))
 	}
 
+	// Inline DOM is best-effort: a failed in-page read degrades to an empty
+	// dom_html (documented on the proto field) rather than failing a capture
+	// whose other artifacts are already on disk.
+	domHTML := ""
+	if domNodeID != "" {
+		domHTML, err = readInlineDom(executionOutDir, domNodeID)
+		if err != nil && s.deps.Logger != nil {
+			s.deps.Logger.WithError(err).Warn("capture: inline DOM read failed")
+		}
+	}
+
 	return connect.NewResponse(&capturev1.CaptureResponse{
 		ExecutionId: execID,
 		OutDir:      executionOutDir,
 		Artifacts:   artifacts,
 		DurationMs:  s.deps.Now().Sub(start).Milliseconds(),
 		DryRun:      false,
+		DomHtml:     domHTML,
 	}), nil
+}
+
+// readInlineDom pulls the evaluate node's expression result out of the
+// exported timeline.json. The driver's evaluate handler returns the raw
+// result under the "result" key of extracted_data, which the execution
+// writer persists verbatim as the frame's extracted_data_preview.
+func readInlineDom(outDir, nodeID string) (string, error) {
+	raw, err := os.ReadFile(filepath.Join(outDir, "timeline.json"))
+	if err != nil {
+		return "", fmt.Errorf("read timeline.json: %w", err)
+	}
+	var timeline struct {
+		Frames []struct {
+			NodeID               string         `json:"node_id"`
+			ExtractedDataPreview map[string]any `json:"extracted_data_preview"`
+		} `json:"frames"`
+	}
+	if err := json.Unmarshal(raw, &timeline); err != nil {
+		return "", fmt.Errorf("decode timeline.json: %w", err)
+	}
+	for _, frame := range timeline.Frames {
+		if frame.NodeID != nodeID {
+			continue
+		}
+		if value, ok := frame.ExtractedDataPreview["result"].(string); ok && value != "" {
+			if len(value) > inlineDomMaxBytes {
+				value = value[:inlineDomMaxBytes]
+			}
+			return value, nil
+		}
+	}
+	return "", errors.New("timeline has no DOM evaluate result")
 }
 
 // resolveURL accepts either a fully-qualified http(s) URL or the
@@ -225,7 +281,7 @@ func buildAdhocRequest(
 	resolvedURL string,
 	msg *capturev1.CaptureRequest,
 	width, height int32,
-) *basexecution.ExecuteAdhocRequest {
+) (*basexecution.ExecuteAdhocRequest, string) {
 	navigateNode := &workflowsv1.WorkflowNodeV2{
 		Id: uuid.NewString(),
 		Action: &actionsv1.ActionDefinition{
@@ -236,6 +292,28 @@ func buildAdhocRequest(
 		},
 	}
 
+	nodes := []*workflowsv1.WorkflowNodeV2{navigateNode}
+	var edges []*workflowsv1.WorkflowEdgeV2
+	domNodeID := ""
+	if msg.GetInlineDom() {
+		domNode := &workflowsv1.WorkflowNodeV2{
+			Id: uuid.NewString(),
+			Action: &actionsv1.ActionDefinition{
+				Type: actionsv1.ActionType_ACTION_TYPE_EVALUATE,
+				Params: &actionsv1.ActionDefinition_Evaluate{
+					Evaluate: &actionsv1.EvaluateParams{Expression: inlineDomExpression},
+				},
+			},
+		}
+		domNodeID = domNode.Id
+		nodes = append(nodes, domNode)
+		edges = append(edges, &workflowsv1.WorkflowEdgeV2{
+			Id:     uuid.NewString(),
+			Source: navigateNode.Id,
+			Target: domNode.Id,
+		})
+	}
+
 	flowName := "capture"
 	flowDesc := "capture @ " + resolvedURL
 	flow := &workflowsv1.WorkflowDefinitionV2{
@@ -243,7 +321,8 @@ func buildAdhocRequest(
 			Name:        &flowName,
 			Description: &flowDesc,
 		},
-		Nodes: []*workflowsv1.WorkflowNodeV2{navigateNode},
+		Nodes: nodes,
+		Edges: edges,
 	}
 
 	startURL := resolvedURL
@@ -261,7 +340,7 @@ func buildAdhocRequest(
 			ViewportHeight: &h,
 		},
 		WaitForCompletion: true,
-	}
+	}, domNodeID
 }
 
 func navigateParamsFor(url string, waitFor *capturev1.WaitFor) *actionsv1.NavigateParams {

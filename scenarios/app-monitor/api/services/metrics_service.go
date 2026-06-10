@@ -3,6 +3,7 @@ package services
 import (
 	"app-monitor-api/logger"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -187,28 +188,25 @@ func (s *MetricsService) getMemoryUsage(ctx context.Context) (float64, error) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	// Use /proc/meminfo for more accurate memory calculation
-	cmd := exec.CommandContext(ctxWithTimeout, "bash", "-c", `
-		awk '/MemTotal:/ {total=$2} /MemAvailable:/ {available=$2} END {
-			if (total > 0) printf "%.1f", 100*(1-available/total)
-		}' /proc/meminfo
-	`)
-
+	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "--no-stale-check", "host", "inventory", "--json")
 	output, err := cmd.Output()
 	if err != nil {
-		// Fallback to free command (reuse timeout context)
-		cmd = exec.CommandContext(ctxWithTimeout, "bash", "-c", "free -m | awk 'NR==2{printf \"%.1f\", $3*100/$2}'")
-		output, err = cmd.Output()
-		if err != nil {
-			return 0, fmt.Errorf("failed to get memory usage: %w", err)
-		}
+		return 0, fmt.Errorf("failed to get host inventory: %w", err)
 	}
 
-	memStr := strings.TrimSpace(string(output))
-	mem, err := strconv.ParseFloat(memStr, 64)
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse memory usage: %w", err)
+	var snapshot struct {
+		Memory struct {
+			TotalBytes     uint64 `json:"total_bytes"`
+			AvailableBytes uint64 `json:"available_bytes"`
+		} `json:"memory"`
 	}
+	if err := json.Unmarshal(output, &snapshot); err != nil {
+		return 0, fmt.Errorf("failed to parse host inventory: %w", err)
+	}
+	if snapshot.Memory.TotalBytes == 0 {
+		return 0, fmt.Errorf("host inventory did not report total memory")
+	}
+	mem := (float64(snapshot.Memory.TotalBytes-snapshot.Memory.AvailableBytes) / float64(snapshot.Memory.TotalBytes)) * 100
 
 	// Ensure value is within valid range
 	if mem < 0 {

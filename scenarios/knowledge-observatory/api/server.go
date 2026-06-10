@@ -55,8 +55,8 @@ type Config struct {
 	DatabaseURL            string
 	QdrantURL              string
 	QdrantAPIKey           string
-	OllamaEmbeddingModel   string
-	OllamaStructuredModel  string
+	OllamaEmbeddingRole    string
+	OllamaStructuredRole   string
 	ResourceQdrantCLI      string
 	ResourceCommandTimeout time.Duration
 	ScenariosRoot          string
@@ -104,8 +104,8 @@ func NewServer() (*Server, error) {
 		Port:                   requireEnv("API_PORT"),
 		QdrantURL:              strings.TrimSpace(os.Getenv("QDRANT_URL")),
 		QdrantAPIKey:           strings.TrimSpace(os.Getenv("QDRANT_API_KEY")),
-		OllamaEmbeddingModel:   strings.TrimSpace(os.Getenv("OLLAMA_EMBEDDING_MODEL")),
-		OllamaStructuredModel:  strings.TrimSpace(os.Getenv("OLLAMA_STRUCTURED_OUTPUT_MODEL")),
+		OllamaEmbeddingRole:    strings.TrimSpace(os.Getenv("OLLAMA_EMBEDDING_ROLE")),
+		OllamaStructuredRole:   strings.TrimSpace(os.Getenv("OLLAMA_STRUCTURED_OUTPUT_ROLE")),
 		ResourceQdrantCLI:      strings.TrimSpace(os.Getenv("RESOURCE_QDRANT_CLI")),
 		ResourceCommandTimeout: 5 * time.Second,
 		ScenariosRoot:          resolveScenariosRoot(),
@@ -157,7 +157,7 @@ func (s *Server) setupServices() {
 		APIKey:  s.qdrantAPIKey(),
 	}
 	emb := &embedder.Ollama{
-		Model: s.ollamaEmbeddingModel(),
+		Role: s.ollamaEmbeddingRole(),
 	}
 
 	var meta *metadatastore.Postgres
@@ -301,10 +301,10 @@ func (s *Server) setupServices() {
 			Fallback: deepsearch.FileSkillProvider{Path: skillPath},
 		}
 		var parser deepsearch.ResultParser = &deepsearch.JSONParser{}
-		if s.config.OllamaStructuredModel != "" {
+		if s.config.OllamaStructuredRole != "" {
 			parser = &deepsearch.JSONParser{
 				Fallback: &deepsearch.OllamaParser{
-					Model: s.config.OllamaStructuredModel,
+					Role: s.config.OllamaStructuredRole,
 				},
 			}
 		}
@@ -654,16 +654,16 @@ func (s *Server) selfRegisterSearch() {
 	})
 }
 
-func (s *Server) ollamaEmbeddingModel() string {
+func (s *Server) ollamaEmbeddingRole() string {
 	if s != nil && s.config != nil {
-		if value := strings.TrimSpace(s.config.OllamaEmbeddingModel); value != "" {
+		if value := strings.TrimSpace(s.config.OllamaEmbeddingRole); value != "" {
 			return value
 		}
 	}
-	if value := strings.TrimSpace(os.Getenv("OLLAMA_EMBEDDING_MODEL")); value != "" {
+	if value := strings.TrimSpace(os.Getenv("OLLAMA_EMBEDDING_ROLE")); value != "" {
 		return value
 	}
-	return "nomic-embed-text"
+	return "embedding.default"
 }
 
 func (s *Server) resourceQdrantCLI() string {

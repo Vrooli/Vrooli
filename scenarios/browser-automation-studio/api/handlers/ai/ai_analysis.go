@@ -37,7 +37,7 @@ type aiAnalysisConfig struct {
 	analyzer      ElementAnalyzer
 	domExtractor  DOMExtractor
 	ollamaClient  OllamaClient
-	model         string
+	role          string
 	timeout       time.Duration
 	creditService credits.CreditService
 }
@@ -59,10 +59,10 @@ func WithAIAnalysisOllamaClient(client OllamaClient) AIAnalysisOption {
 	}
 }
 
-// WithAIAnalysisModel sets the Ollama model to use for AI analysis.
-func WithAIAnalysisModel(model string) AIAnalysisOption {
+// WithAIAnalysisRole sets the Ollama role to use for AI analysis.
+func WithAIAnalysisRole(role string) AIAnalysisOption {
 	return func(cfg *aiAnalysisConfig) {
-		cfg.model = model
+		cfg.role = role
 	}
 }
 
@@ -90,7 +90,7 @@ func WithAIAnalysisCreditService(svc credits.CreditService) AIAnalysisOption {
 // NewAIAnalysisHandler creates a new AI analysis handler with optional configuration.
 func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler, opts ...AIAnalysisOption) *AIAnalysisHandler {
 	cfg := aiAnalysisConfig{
-		model:   "llama3.2:3b",
+		role:    defaultOllamaRole,
 		timeout: constants.AIAnalysisTimeout,
 	}
 
@@ -113,7 +113,7 @@ func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler, opts ...AI
 			log:          log,
 			domExtractor: domExtractor,
 			ollamaClient: ollamaClient,
-			model:        cfg.model,
+			role:         cfg.role,
 		}
 	}
 
@@ -196,10 +196,10 @@ type AIElementAnalyzer struct {
 	log          *logrus.Logger
 	domExtractor DOMExtractor
 	ollamaClient OllamaClient
-	model        string
+	role         string
 }
 
-// Analyze extracts the DOM for the given URL and asks the Ollama model for element suggestions.
+// Analyze extracts the DOM for the given URL and asks the configured Ollama role for element suggestions.
 func (a *AIElementAnalyzer) Analyze(ctx context.Context, url, intent string) ([]ElementInfo, error) {
 	if a.domExtractor == nil {
 		return nil, fmt.Errorf("DOM extractor not configured")
@@ -264,7 +264,7 @@ Example format:
 ]`, url, intent, domData)
 
 	// Query Ollama via the client interface
-	responseText, err := a.ollamaClient.Query(ctx, a.model, prompt)
+	responseText, err := a.ollamaClient.Query(ctx, a.role, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call ollama API: %w", err)
 	}
@@ -276,7 +276,7 @@ Example format:
 	}
 	if a.log != nil {
 		a.log.WithFields(logrus.Fields{
-			"model":            a.model,
+			"role":             a.role,
 			"response_length":  len(responseText),
 			"response_preview": responseText[:previewLen],
 		}).Info("Received Ollama response")
