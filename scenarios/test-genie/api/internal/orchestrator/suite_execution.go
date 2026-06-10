@@ -30,6 +30,7 @@ import (
 	playbooksconfig "test-genie/internal/playbooks/config"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
+	"test-genie/internal/shared/treedigest"
 )
 
 var (
@@ -313,9 +314,9 @@ func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 		// in current installs — leaving requirements sync a silent no-op on every
 		// execute. NewSyncer falls back to the native Go syncer so requirement/OT
 		// status is actually derived and surfaced in the report.
-		requirements:  requirements.NewSyncer(filepath.Dir(absRoot)),
-		phaseToggles:  newPhaseToggleStore(),
-		newRuntime:    targetruntime.New,
+		requirements: requirements.NewSyncer(filepath.Dir(absRoot)),
+		phaseToggles: newPhaseToggleStore(),
+		newRuntime:   targetruntime.New,
 	}, nil
 }
 
@@ -553,13 +554,26 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 	}
 
 	// Record the run as in-progress so it is enumerable mid-flight; finalize
-	// updates it to its terminal status.
+	// updates it to its terminal status. Git context and the tree digest are
+	// captured at run START (not finalize) so they identify the byte-state
+	// the phases actually executed against; both are best-effort and never
+	// block the run.
+	gitCtx := treedigest.CollectGitContext(planCtx.env.ScenarioDir)
+	digest, digestErr := treedigest.Compute(planCtx.env.ScenarioDir)
+	if digestErr != nil {
+		log.Printf("tree digest unavailable for run %s: %v", runID, digestErr)
+	}
 	if err := sharedruns.NewIndex(planCtx.env.ScenarioDir).Append(sharedruns.RunRecord{
-		RunID:       runID,
-		Scenario:    scenario,
-		StartedAt:   time.Now().UTC(),
-		Status:      sharedruns.StatusInProgress,
-		Diagnostics: resolveRunDiagnostics(req.DiagnosticsPreset),
+		RunID:           runID,
+		Scenario:        scenario,
+		StartedAt:       time.Now().UTC(),
+		Status:          sharedruns.StatusInProgress,
+		Diagnostics:     resolveRunDiagnostics(req.DiagnosticsPreset),
+		GitSha:          gitCtx.Sha,
+		GitBranch:       gitCtx.Branch,
+		GitDirty:        gitCtx.Dirty,
+		GitDirtySummary: gitCtx.DirtySummary,
+		TreeDigest:      digest,
 	}); err != nil {
 		log.Printf("failed to record run %s in index: %v", runID, err)
 	}

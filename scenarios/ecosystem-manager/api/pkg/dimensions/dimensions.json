@@ -30,7 +30,8 @@
     "FINDING_SOURCE_TIDINESS": "tidiness",
     "FINDING_SOURCE_COVERAGE": "coverage",
     "FINDING_SOURCE_SECURITY": "security",
-    "FINDING_SOURCE_MEASURES": "measures"
+    "FINDING_SOURCE_MEASURES": "measures",
+    "FINDING_SOURCE_BUSINESS": "business"
   },
   "testgenie_phase_map": {
     "structure": "structure",

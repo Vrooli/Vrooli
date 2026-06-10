@@ -56,18 +56,23 @@ type PhaseRecord struct {
 
 // RunRecord is the index entry for a single test-genie execution.
 type RunRecord struct {
-	RunID           string            `json:"run_id"`
-	Scenario        string            `json:"scenario"`
-	StartedAt       time.Time         `json:"started_at"`
-	CompletedAt     time.Time         `json:"completed_at,omitempty"`
-	Status          string            `json:"status"`
-	Phases          []PhaseRecord     `json:"phases,omitempty"`
-	GitSha          string            `json:"git_sha,omitempty"`
-	GitBranch       string            `json:"git_branch,omitempty"`
-	GitDirty        bool              `json:"git_dirty,omitempty"`
-	GitDirtySummary string            `json:"git_dirty_summary,omitempty"`
-	Diagnostics     DiagnosticsConfig `json:"diagnostics"`
-	Pins            []PinRecord       `json:"pins,omitempty"`
+	RunID           string        `json:"run_id"`
+	Scenario        string        `json:"scenario"`
+	StartedAt       time.Time     `json:"started_at"`
+	CompletedAt     time.Time     `json:"completed_at,omitempty"`
+	Status          string        `json:"status"`
+	Phases          []PhaseRecord `json:"phases,omitempty"`
+	GitSha          string        `json:"git_sha,omitempty"`
+	GitBranch       string        `json:"git_branch,omitempty"`
+	GitDirty        bool          `json:"git_dirty,omitempty"`
+	GitDirtySummary string        `json:"git_dirty_summary,omitempty"`
+	// TreeDigest is the scenario working-tree content digest (see
+	// internal/shared/treedigest) captured at run START, so it identifies
+	// the byte-state the phases actually executed against. Empty on runs
+	// that predate digest stamping ("unknown" freshness).
+	TreeDigest  string            `json:"tree_digest,omitempty"`
+	Diagnostics DiagnosticsConfig `json:"diagnostics"`
+	Pins        []PinRecord       `json:"pins,omitempty"`
 }
 
 // IsPinned reports whether the run is protected from retention GC.

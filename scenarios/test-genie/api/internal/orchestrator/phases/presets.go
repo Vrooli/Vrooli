@@ -27,8 +27,14 @@ func (p Preset) String() string { return string(p) }
 // comprehensive and it can never silently drift from the catalog. The curated
 // presets below are deliberate subsets and stay explicit.
 var curatedPresets = map[Preset][]Name{
-	PresetQuick: {Structure, Standards, Docs, Unit},
-	PresetSmoke: {Structure, Standards, Lint, Docs, Integration},
+	// Business is read-only requirements-registry validation (no runtime deps,
+	// seconds of wall time) and is deliberately part of every curated preset so
+	// requirements drift surfaces on fast feedback loops, not just comprehensive.
+	// It never triggers the requirements *sync* (which gates on all non-Optional
+	// phases — see orchestrator/requirements_decision.go), so quick/smoke stay
+	// side-effect-free.
+	PresetQuick: {Structure, Standards, Docs, Business, Unit},
+	PresetSmoke: {Structure, Standards, Lint, Docs, Business, Integration},
 	// architecture-audit is the per-surface conformance battery plus the
 	// structural cohesion axis — the single command the screaming-
 	// architecture skill points at. Excludes runtime phases (unit, smoke,
@@ -37,6 +43,24 @@ var curatedPresets = map[Preset][]Name{
 	PresetArchitectureAudit: {
 		Structure, Contracts, UIHealth, Docs, Standards, Architecture,
 	},
+}
+
+// FreshnessRequired returns the global required-phase set for run-freshness
+// checks (RunsService.CheckFreshness, the GCT advisory pre-commit step). It is
+// DEFINED as the quick preset's phase list — derived, never duplicated — so
+// "required" always means "what a quick run executes".
+//
+// This is deliberately a code-level SSOT and NOT configurable per scenario
+// (operator decision): a `.vrooli/testing.json` knob would let an agent delete
+// required phases to silence the freshness checker instead of running tests.
+// A repo-global change, if ever needed, is a code change to the quick preset.
+func FreshnessRequired() []string {
+	names := curatedPresets[PresetQuick]
+	out := make([]string, 0, len(names))
+	for _, n := range names {
+		out = append(out, n.String())
+	}
+	return out
 }
 
 // DefaultPresets returns the built-in presets as a name→phase-list map suitable

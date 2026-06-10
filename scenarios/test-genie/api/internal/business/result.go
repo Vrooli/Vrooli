@@ -3,6 +3,8 @@ package business
 import (
 	"fmt"
 
+	reqparsing "test-genie/internal/requirements/parsing"
+	"test-genie/internal/requirements/types"
 	"test-genie/internal/shared"
 )
 
@@ -44,8 +46,39 @@ var (
 	FailSystem           = shared.FailSystem
 )
 
-// RunResult is an alias for the generic shared.RunResult with ValidationSummary.
-type RunResult = shared.RunResult[ValidationSummary]
+// RunResult mirrors shared.RunResult[ValidationSummary] and additionally
+// carries the structured validation output (Issues + parsed Index) so the
+// business phase can produce typed ArchitectureFindings without re-running
+// discovery/parsing. It is a named struct (not the shared alias) because
+// the generic shared type cannot grow phase-specific fields.
+type RunResult struct {
+	// Success indicates whether all validations passed.
+	Success bool
+
+	// Error contains the first error encountered.
+	Error error
+
+	// FailureClass categorizes the type of failure.
+	FailureClass FailureClass
+
+	// Remediation provides guidance on how to fix the issue.
+	Remediation string
+
+	// Observations contains all validation observations.
+	Observations []Observation
+
+	// Summary provides validation counts.
+	Summary ValidationSummary
+
+	// Issues is the structured structural-validation output (one entry
+	// per rule violation), populated whenever validation ran.
+	Issues []types.ValidationIssue
+
+	// Index is the parsed requirements module index, populated whenever
+	// parsing succeeded. Downstream finding producers read requirement
+	// metadata (validations, prd_ref, tags, criticality) from it.
+	Index *reqparsing.ModuleIndex
+}
 
 // ValidationSummary tracks validation counts by category.
 type ValidationSummary struct {

@@ -52,7 +52,7 @@ func Register(runtime deps.Runtime) cliapp.CommandGroup {
 			{
 				Name:        "runs",
 				NeedsAPI:    true,
-				Description: "Inspect, pin, compare, and delete recorded test runs",
+				Description: "Inspect, pin, compare, delete, and check freshness of recorded test runs",
 				Run:         func(args []string) error { return runs.Run(runtime.APIClient, args) },
 			},
 			{

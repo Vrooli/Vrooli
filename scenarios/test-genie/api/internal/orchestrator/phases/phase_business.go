@@ -13,6 +13,7 @@ import (
 // This includes discovery, parsing, and structural validation of requirement modules.
 func runBusinessPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
 	var summary string
+	var runResult *business.RunResult
 
 	report := RunPhaseWithExpectations(ctx, env, logWriter, "business",
 		business.LoadExpectations,
@@ -27,6 +28,7 @@ func runBusinessPhase(ctx context.Context, env workspace.Environment, logWriter 
 		func(r *business.RunResult) PhaseResult[business.Observation] {
 			if r != nil {
 				summary = r.Summary.String()
+				runResult = r
 			}
 			return ExtractWithSummary(
 				r.Success,
@@ -39,6 +41,11 @@ func runBusinessPhase(ctx context.Context, env workspace.Environment, logWriter 
 			)
 		},
 	)
+
+	// Typed findings (source=BUSINESS) ride alongside the human-readable
+	// observations: structural issues plus registry-drift checks. Findings
+	// never change the phase's pass/fail — that stays with the validators.
+	report.Findings = businessFindings(env.ScenarioName, env.ScenarioDir, runResult)
 
 	writePhasePointer(env, "business", report, map[string]any{"summary": summary}, logWriter)
 	return report

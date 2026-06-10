@@ -18,8 +18,12 @@ import (
 // fakeClient implements runs_v1connect.RunsServiceClient with canned responses.
 type fakeClient struct {
 	runs_v1connect.RunsServiceClient
-	list    *runspb.ListRunsResponse
-	compare *runspb.CompareRunsResponse
+	list      *runspb.ListRunsResponse
+	compare   *runspb.CompareRunsResponse
+	freshness *runspb.CheckFreshnessResponse
+	// freshnessFn, when set, overrides the canned freshness response with a
+	// per-scenario answer (used by the --changed fan-out tests).
+	freshnessFn func(scenario string) (*runspb.CheckFreshnessResponse, error)
 }
 
 func (f *fakeClient) ListRuns(context.Context, *connect.Request[runspb.ListRunsRequest]) (*connect.Response[runspb.ListRunsResponse], error) {
@@ -106,5 +110,70 @@ func TestRunsCompareRequiresTwoIDs(t *testing.T) {
 	var buf bytes.Buffer
 	if err := runCompare(nil, []string{"--scenario", "demo", "only-one"}, &buf); err == nil {
 		t.Fatal("expected error for missing second runID")
+	}
+}
+
+func (f *fakeClient) CheckFreshness(_ context.Context, req *connect.Request[runspb.CheckFreshnessRequest]) (*connect.Response[runspb.CheckFreshnessResponse], error) {
+	if f.freshnessFn != nil {
+		resp, err := f.freshnessFn(req.Msg.GetScenario())
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(resp), nil
+	}
+	return connect.NewResponse(f.freshness), nil
+}
+
+func TestRunsFreshnessFreshExitsZero(t *testing.T) {
+	withFakeClient(t, &fakeClient{freshness: &runspb.CheckFreshnessResponse{
+		Scenario:   "demo",
+		TreeDigest: "td:abc",
+		Phases: []*runspb.PhaseFreshness{
+			{Phase: "unit", Status: "fresh", LastRunId: "r1"},
+			{Phase: "business", Status: "fresh", LastRunId: "r1"},
+		},
+	}})
+	var buf bytes.Buffer
+	if err := runFreshness(nil, []string{"--scenario", "demo"}, &buf); err != nil {
+		t.Fatalf("all-fresh must exit clean, got %v", err)
+	}
+	if !strings.Contains(buf.String(), "All 2 phase(s) fresh") {
+		t.Errorf("missing fresh summary: %q", buf.String())
+	}
+}
+
+func TestRunsFreshnessStaleExitsOneWithCommand(t *testing.T) {
+	withFakeClient(t, &fakeClient{freshness: &runspb.CheckFreshnessResponse{
+		Scenario:   "demo",
+		TreeDigest: "td:abc",
+		Phases: []*runspb.PhaseFreshness{
+			{Phase: "unit", Status: "stale", LastRunCompletedAt: "2026-06-09T00:00:00Z"},
+			{Phase: "business", Status: "unknown"},
+		},
+		SuggestedCommand: "test-genie execute demo --preset quick",
+	}})
+	var buf bytes.Buffer
+	err := runFreshness(nil, []string{"--scenario", "demo"}, &buf)
+	var ee *exitErr
+	if !errors.As(err, &ee) || ee.ExitCode() != exitRegression {
+		t.Fatalf("stale must exit %d, got %v", exitRegression, err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "test-genie execute demo --preset quick") {
+		t.Errorf("missing suggested command: %q", out)
+	}
+	if !strings.Contains(out, "last passed 2026-06-09T00:00:00Z") {
+		t.Errorf("missing last-passed context: %q", out)
+	}
+}
+
+func TestRunsFreshnessPositionalScenario(t *testing.T) {
+	withFakeClient(t, &fakeClient{freshness: &runspb.CheckFreshnessResponse{
+		Scenario: "demo",
+		Phases:   []*runspb.PhaseFreshness{{Phase: "unit", Status: "fresh"}},
+	}})
+	var buf bytes.Buffer
+	if err := runFreshness(nil, []string{"demo"}, &buf); err != nil {
+		t.Fatalf("positional scenario must work, got %v", err)
 	}
 }

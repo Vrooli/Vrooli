@@ -57,6 +57,8 @@ func Run(apiClient *cliutil.APIClient, args []string) error {
 		return runUnpin(apiClient, args[1:], os.Stdout)
 	case "compare":
 		return runCompare(apiClient, args[1:], os.Stdout)
+	case "freshness":
+		return runFreshness(apiClient, args[1:], os.Stdout)
 	case "help", "-h", "--help":
 		return printUsage(os.Stdout)
 	default:
@@ -74,6 +76,17 @@ Commands:
   pin      --scenario <s> <runID> --by <id> [--reason <text>]    Pin a run (protect from GC)
   unpin    --scenario <s> <runID> --by <id>                      Remove a pin
   compare  --scenario <s> <runID-a> <runID-b> [--phase <name>]   Compare two runs
+  freshness --scenario <s> [--phases a,b]                        Check whether required phases ran
+                                                                 against the scenario's current tree
+                                                                 (exit 1 if any phase is stale/unknown;
+                                                                 digest scope is the scenario dir only —
+                                                                 shared packages/* edits don't count)
+  freshness --changed                                            Same check for every scenario the
+                                                                 current git change-set touches
+                                                                 (advisory fan-out used by vrooli
+                                                                 hygiene; degrades to checked=false
+                                                                 instead of erroring; exit 1 only
+                                                                 when stale scenarios are found)
 
 Add --json to any command for machine-readable output.`)
 	return nil
@@ -344,6 +357,102 @@ func compareExit(verdict string) error {
 	default:
 		return nil
 	}
+}
+
+// runFreshness reports whether the required phases (default: the quick
+// preset — a global code-level SSOT, not per-scenario configurable) have run
+// against the scenario's CURRENT working tree. Exit 0 when everything is
+// fresh; exit 1 when any phase is stale or unknown so scripts can gate on it.
+// Documented v1 limitation: the digest scopes to the scenario directory only;
+// edits to shared packages/* do not invalidate freshness.
+func runFreshness(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
+	fs := flag.NewFlagSet("runs freshness", flag.ContinueOnError)
+	fs.SetOutput(w)
+	scenario := fs.String("scenario", "", "Scenario slug")
+	phasesCSV := fs.String("phases", "", "Comma-separated phases to check (default: the required set = quick preset)")
+	changed := fs.Bool("changed", false, "Check every scenario touched by the current git change-set (advisory: degrades to checked=false, never errors)")
+	jsonOut := fs.Bool("json", false, "Emit JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *changed {
+		if strings.TrimSpace(*scenario) != "" || len(fs.Args()) > 0 {
+			return errors.New("--changed checks the whole change-set; it cannot be combined with a scenario")
+		}
+		if strings.TrimSpace(*phasesCSV) != "" {
+			return errors.New("--changed always checks the required phase set; it cannot be combined with --phases")
+		}
+		return runFreshnessChanged(apiClient, *jsonOut, w)
+	}
+	scen := strings.TrimSpace(*scenario)
+	if scen == "" && len(fs.Args()) == 1 {
+		scen = strings.TrimSpace(fs.Args()[0])
+	}
+	scen, err := requireScenario(scen)
+	if err != nil {
+		return err
+	}
+	var phases []string
+	for _, p := range strings.Split(*phasesCSV, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			phases = append(phases, p)
+		}
+	}
+	cl, err := client(apiClient)
+	if err != nil {
+		return err
+	}
+	resp, err := cl.CheckFreshness(context.Background(), connect.NewRequest(&runspb.CheckFreshnessRequest{
+		Scenario: scen, Phases: phases,
+	}))
+	if err != nil {
+		return &exitErr{code: exitNotComparable, err: err}
+	}
+	if *jsonOut {
+		if err := writeJSON(w, resp.Msg); err != nil {
+			return err
+		}
+		return freshnessExit(resp.Msg)
+	}
+
+	stale := 0
+	for _, p := range resp.Msg.GetPhases() {
+		mark := "✓"
+		detail := ""
+		if p.GetStatus() != "fresh" {
+			mark = "✗"
+			stale++
+			if p.GetLastRunCompletedAt() != "" {
+				detail = fmt.Sprintf("  (last passed %s, before the latest changes)", p.GetLastRunCompletedAt())
+			}
+		}
+		fmt.Fprintf(w, "%s %-14s %s%s\n", mark, p.GetPhase(), p.GetStatus(), detail)
+	}
+	if stale == 0 {
+		fmt.Fprintf(w, "\nAll %d phase(s) fresh against the current tree.\n", len(resp.Msg.GetPhases()))
+		return nil
+	}
+	fmt.Fprintf(w, "\n%d phase(s) have not run against the current tree.\nRun: %s\n", stale, resp.Msg.GetSuggestedCommand())
+	return freshnessExit(resp.Msg)
+}
+
+func freshnessExit(msg *runspb.CheckFreshnessResponse) error {
+	for _, p := range msg.GetPhases() {
+		if p.GetStatus() != "fresh" {
+			return &exitErr{code: exitRegression, err: fmt.Errorf("%d phase(s) stale or unknown", countNotFresh(msg))}
+		}
+	}
+	return nil
+}
+
+func countNotFresh(msg *runspb.CheckFreshnessResponse) int {
+	n := 0
+	for _, p := range msg.GetPhases() {
+		if p.GetStatus() != "fresh" {
+			n++
+		}
+	}
+	return n
 }
 
 func writeJSON(w io.Writer, msg proto.Message) error {

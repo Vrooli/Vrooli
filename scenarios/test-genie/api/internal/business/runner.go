@@ -171,6 +171,8 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 			Remediation:  valResult.Remediation,
 			Observations: append(observations, valResult.Observations...),
 			Summary:      summary,
+			Issues:       valResult.Issues,
+			Index:        parseResult.Index,
 		}
 	}
 	observations = append(observations, valResult.Observations...)
@@ -188,6 +190,8 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		Success:      true,
 		Observations: observations,
 		Summary:      summary,
+		Issues:       valResult.Issues,
+		Index:        parseResult.Index,
 	}
 }
 

@@ -128,6 +128,7 @@ func (r *DuplicateIDRule) Check(ctx context.Context, rctx RuleContext) []types.V
 					Field:         "id",
 					Message:       "duplicate requirement ID (first seen in " + firstFile + ")",
 					Severity:      types.SeverityError,
+					Rule:          "duplicate_id",
 				})
 			} else {
 				seen[normalizedID] = module.FilePath
@@ -155,6 +156,7 @@ func (r *MissingIDRule) Check(ctx context.Context, rctx RuleContext) []types.Val
 					Field:         "id",
 					Message:       "requirement at index " + string(rune('0'+i)) + " is missing ID",
 					Severity:      types.SeverityError,
+					Rule:          "missing_id",
 				})
 			}
 		}
@@ -180,6 +182,7 @@ func (r *MissingTitleRule) Check(ctx context.Context, rctx RuleContext) []types.
 					Field:         "title",
 					Message:       "requirement is missing title",
 					Severity:      types.SeverityWarning,
+					Rule:          "missing_title",
 				})
 			}
 		}
@@ -298,6 +301,7 @@ func (r *InvalidReferenceRule) Check(ctx context.Context, rctx RuleContext) []ty
 						Field:         "validation.ref",
 						Message:       "validation ref is malformed (missing file path): " + val.Ref,
 						Severity:      types.SeverityWarning,
+						Rule:          "invalid_reference",
 					})
 					continue
 				}
@@ -327,6 +331,7 @@ func (r *InvalidReferenceRule) Check(ctx context.Context, rctx RuleContext) []ty
 							Field:         "validation.ref",
 							Message:       "validation references non-existent file: " + parsed.FilePath,
 							Severity:      types.SeverityWarning,
+							Rule:          "invalid_reference",
 						})
 					}
 				}
@@ -353,6 +358,7 @@ func (r *CycleDetectionRule) Check(ctx context.Context, rctx RuleContext) []type
 			Field:         "children",
 			Message:       "cycle detected in requirement hierarchy: " + strings.Join(cycle, " -> "),
 			Severity:      types.SeverityError,
+			Rule:          "cycle_detection",
 		})
 	}
 
@@ -377,6 +383,7 @@ func (r *OrphanedChildRule) Check(ctx context.Context, rctx RuleContext) []types
 						Field:         "children",
 						Message:       "references non-existent child requirement: " + childID,
 						Severity:      types.SeverityError,
+						Rule:          "orphaned_child",
 					})
 				}
 			}
@@ -389,6 +396,7 @@ func (r *OrphanedChildRule) Check(ctx context.Context, rctx RuleContext) []types
 						Field:         "depends_on",
 						Message:       "references non-existent dependency: " + depID,
 						Severity:      types.SeverityWarning,
+						Rule:          "orphaned_child",
 					})
 				}
 			}
@@ -423,6 +431,7 @@ func (r *InvalidStatusRule) Check(ctx context.Context, rctx RuleContext) []types
 					Field:         "status",
 					Message:       "invalid status value: " + string(req.Status),
 					Severity:      types.SeverityWarning,
+					Rule:          "invalid_status",
 				})
 			}
 		}

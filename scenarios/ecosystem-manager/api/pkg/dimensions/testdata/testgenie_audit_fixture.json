@@ -195,7 +195,19 @@
     {
       "name": "business",
       "status": "fail",
-      "findings": []
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 11,
+          "code": "business_req_no_validation:REQ-P0-001",
+          "severity": 3,
+          "locations": [
+            "requirements/core.json"
+          ],
+          "message": "Requirement REQ-P0-001 (P0) declares no validation — nothing ties it to evidence.",
+          "stable_id": "afid:0000000000000011"
+        }
+      ]
     },
     {
       "name": "performance",
