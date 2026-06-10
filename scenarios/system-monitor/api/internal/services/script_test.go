@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"system-monitor-api/internal/services/mocks"
-	"system-monitor-api/internal/testutil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/mocks"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/testutil"
 )
 
 func TestExecuteScript_Success(t *testing.T) {

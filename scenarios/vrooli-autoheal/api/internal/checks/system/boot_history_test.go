@@ -5,8 +5,9 @@ import (
 	"errors"
 	"testing"
 	"time"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/journal"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
 )
 
 // We cheat: instead of reimplementing journal arg parsing, we use the

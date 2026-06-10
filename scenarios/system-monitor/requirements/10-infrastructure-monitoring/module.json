@@ -1,50 +1,41 @@
 {
-  "description": "Infrastructure provider in api/internal/infrastructure/provider.go. Endpoint: GET /api/v1/metrics/infrastructure. Monitors database pools, HTTP pools, message queues, storage I/O. UI InfrastructureMonitor component.",
-  "module_id": "MOD-P0-010",
-  "prd_ref": "system-monitor-must-have-infrastructure-monitoring-database-pools-http-pools-message-queues-storage-io",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-10T16:00:19-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-001"
-      ],
-      "description": "System must monitor infrastructure components including database pools, HTTP pools, message queues, and storage I/O",
       "id": "REQ-P0-010",
-      "prd_ref": "system-monitor-must-have-infrastructure-monitoring-database-pools-http-pools-message-queues-storage-io",
-      "status": "implemented",
       "title": "Infrastructure Monitoring",
+      "status": "in_progress",
+      "prd_ref": "system-monitor-must-have-infrastructure-monitoring-database-pools-http-pools-message-queues-storage-io",
+      "category": "core",
+      "description": "System must monitor infrastructure components including database pools, HTTP pools, message queues, and storage I/O",
       "validation": [
         {
-          "notes": "Test infrastructure collectors",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test infrastructure collectors"
         },
         {
-          "notes": "Verify all component monitoring",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Verify all component monitoring"
         },
         {
-          "notes": "Collection interval \u003c 30s",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Collection interval \u003c 30s"
         },
         {
-          "notes": "Infrastructure metrics in dashboard",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Infrastructure metrics in dashboard"
         }
       ]
     }
-  ],
-  "title": "Infrastructure monitoring (database pools, HTTP pools, message queues, storage I/O)"
+  ]
 }

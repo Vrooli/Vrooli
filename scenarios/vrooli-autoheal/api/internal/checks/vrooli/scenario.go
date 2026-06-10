@@ -11,13 +11,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/healing/langrecover"
-	"vrooli-autoheal/internal/healing/strategies"
-	"vrooli-autoheal/internal/platform"
-	"vrooli-autoheal/internal/reporoot"
 
-	integration "vrooli-autoheal/internal/integrations/vrooli"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/healing/langrecover"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/healing/strategies"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/reporoot"
+
+	integration "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/integrations/vrooli"
 )
 
 // ScenarioCheck monitors a Vrooli scenario via CLI.

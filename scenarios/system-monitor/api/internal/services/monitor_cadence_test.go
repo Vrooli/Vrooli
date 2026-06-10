@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/infrastructure"
-	"system-monitor-api/internal/repository/memory"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/infrastructure"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/memory"
 )
 
 // TestMonitorService_ApplySettingsChangesCadence proves that a settings change

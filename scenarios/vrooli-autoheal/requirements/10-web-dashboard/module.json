@@ -1,106 +1,104 @@
 {
-  "module": "web-dashboard",
-  "description": "React dashboard for health visualization",
-  "prd_refs": [
-    "OT-P1-007"
-  ],
+  "_metadata": {
+    "last_validated_at": "2026-06-10T16:46:49-04:00"
+  },
   "requirements": [
     {
       "id": "UI-HEALTH-001",
       "title": "Current health status display",
-      "description": "Dashboard shows current status (ok/warning/critical) for all checks",
+      "status": "in_progress",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
+      "description": "Dashboard shows current status (ok/warning/critical) for all checks",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.test.tsx"
+          "status": "failing"
         }
-      ],
-      "status": "complete"
+      ]
     },
     {
       "id": "UI-HEALTH-002",
       "title": "Health status color coding",
-      "description": "Green for ok, amber for warning, red for critical",
+      "status": "in_progress",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
+      "description": "Green for ok, amber for warning, red for critical",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.test.tsx"
+          "status": "failing"
         }
-      ],
-      "status": "complete"
+      ]
     },
     {
       "id": "UI-EVENTS-001",
       "title": "Recent events timeline",
-      "description": "Show recent health check results and auto-heal actions",
+      "status": "in_progress",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
+      "description": "Show recent health check results and auto-heal actions",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.test.tsx"
+          "status": "failing"
         }
-      ],
-      "status": "complete"
+      ]
     },
     {
       "id": "UI-ACTIONS-001",
       "title": "Auto-heal action log",
-      "description": "Display log of automatic recovery actions taken",
+      "status": "pending",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
+      "description": "Display log of automatic recovery actions taken",
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "status": "planned",
           "ref": "ui/src/App.test.tsx",
+          "phase": "unit",
+          "status": "failing",
           "notes": "Action log UI pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "UI-REFRESH-001",
       "title": "Auto-refresh status",
-      "description": "Dashboard automatically refreshes status at configurable interval",
+      "status": "in_progress",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
+      "description": "Dashboard automatically refreshes status at configurable interval",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.test.tsx"
+          "status": "failing"
         }
-      ],
-      "status": "complete"
+      ]
     },
     {
       "id": "UI-RESPONSIVE-001",
       "title": "Responsive design",
-      "description": "Dashboard works on desktop and tablet screen sizes",
+      "status": "in_progress",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
+      "description": "Dashboard works on desktop and tablet screen sizes",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.test.tsx"
+          "status": "failing"
         }
-      ],
-      "status": "complete"
+      ]
     }
   ]
 }

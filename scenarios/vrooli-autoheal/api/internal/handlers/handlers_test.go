@@ -11,11 +11,12 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/incidents"
-	"vrooli-autoheal/internal/persistence"
-	"vrooli-autoheal/internal/platform"
-	"vrooli-autoheal/internal/testutil"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/persistence"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/testutil"
 
 	"github.com/gorilla/mux"
 )

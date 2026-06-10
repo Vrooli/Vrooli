@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	runtimeapi "scenario-to-desktop-runtime/api"
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	runtimeapi "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // HTTPRuntimeClient is the default HTTP-based implementation of RuntimeClient.

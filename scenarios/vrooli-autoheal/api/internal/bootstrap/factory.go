@@ -4,14 +4,15 @@ package bootstrap
 
 import (
 	"time"
-	"vrooli-autoheal/internal/checks"
-	hostchecks "vrooli-autoheal/internal/checks/host"
-	"vrooli-autoheal/internal/checks/infra"
-	"vrooli-autoheal/internal/checks/system"
-	"vrooli-autoheal/internal/checks/vrooli"
-	"vrooli-autoheal/internal/hostinventory"
-	"vrooli-autoheal/internal/platform"
-	"vrooli-autoheal/internal/userconfig"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	hostchecks "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/host"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/infra"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/system"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/vrooli"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
 )
 
 // CheckFactory defines the interface for creating health checks.

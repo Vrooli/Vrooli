@@ -4,7 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
-	"vrooli-autoheal/internal/platform"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // Integration tests that verify end-to-end auto-heal scenarios.

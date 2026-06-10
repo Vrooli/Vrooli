@@ -8,8 +8,10 @@ import (
 	"runtime"
 	"strings"
 	"time"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+
+	sharedhost "github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // MemoryCheck monitors RAM usage and detects memory pressure.
@@ -19,6 +21,7 @@ type MemoryCheck struct {
 	warningThreshold  int // percentage used
 	criticalThreshold int // percentage used
 	procReader        checks.ProcReader
+	hostCollector     hostSnapshotCollector
 	executor          checks.CommandExecutor
 }
 
@@ -41,6 +44,13 @@ func WithMemoryProcReader(reader checks.ProcReader) MemoryCheckOption {
 	}
 }
 
+func WithMemoryHostCollector(collector hostSnapshotCollector) MemoryCheckOption {
+	return func(c *MemoryCheck) {
+		c.hostCollector = collector
+		c.procReader = nil
+	}
+}
+
 // WithMemoryExecutor sets the command executor (for testing and recovery actions).
 // [REQ:TEST-SEAM-001]
 func WithMemoryExecutor(executor checks.CommandExecutor) MemoryCheckOption {
@@ -55,7 +65,7 @@ func NewMemoryCheck(opts ...MemoryCheckOption) *MemoryCheck {
 	c := &MemoryCheck{
 		warningThreshold:  80,
 		criticalThreshold: 90,
-		procReader:        checks.DefaultProcReader,
+		hostCollector:     defaultHostSnapshotCollector{},
 		executor:          checks.DefaultExecutor,
 	}
 	for _, opt := range opts {
@@ -90,8 +100,7 @@ func (c *MemoryCheck) Run(ctx context.Context) checks.Result {
 		return result
 	}
 
-	// Read memory information via injected reader
-	memInfo, err := c.procReader.ReadMeminfo()
+	memInfo, err := c.readMemoryInfo(ctx)
 	if err != nil {
 		result.Status = checks.StatusCritical
 		result.Message = "Failed to read memory information"
@@ -173,6 +182,32 @@ func (c *MemoryCheck) Run(ctx context.Context) checks.Result {
 	}
 
 	return result
+}
+
+func (c *MemoryCheck) readMemoryInfo(ctx context.Context) (*checks.MemInfo, error) {
+	if c.procReader != nil {
+		return c.procReader.ReadMeminfo()
+	}
+	collector := c.hostCollector
+	if collector == nil {
+		collector = defaultHostSnapshotCollector{}
+	}
+	snap, err := collector.Collect(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return memInfoFromSnapshot(snap), nil
+}
+
+func memInfoFromSnapshot(snap sharedhost.Snapshot) *checks.MemInfo {
+	return &checks.MemInfo{
+		MemTotal:     snap.Memory.TotalBytes / 1024,
+		MemAvailable: snap.Memory.AvailableBytes / 1024,
+		Buffers:      snap.Memory.BuffersBytes / 1024,
+		Cached:       snap.Memory.CachedBytes / 1024,
+		SwapTotal:    snap.Swap.TotalBytes / 1024,
+		SwapFree:     snap.Swap.FreeBytes / 1024,
+	}
 }
 
 // RecoveryActions returns available recovery actions for memory issues.
@@ -351,10 +386,18 @@ func (c *MemoryCheck) executeMemorySummary(ctx context.Context, start time.Time)
 	outputBuilder.Write(freeOutput)
 	outputBuilder.WriteString("\n")
 
-	// Detailed /proc/meminfo
 	outputBuilder.WriteString("=== Detailed Memory Info ===\n")
-	meminfoOutput, _ := c.executor.Output(ctx, "cat", "/proc/meminfo")
-	outputBuilder.Write(meminfoOutput)
+	if memInfo, err := c.readMemoryInfo(ctx); err == nil {
+		outputBuilder.WriteString(fmt.Sprintf("MemTotal: %d kB\n", memInfo.MemTotal))
+		outputBuilder.WriteString(fmt.Sprintf("MemFree: %d kB\n", memInfo.MemFree))
+		outputBuilder.WriteString(fmt.Sprintf("MemAvailable: %d kB\n", memInfo.MemAvailable))
+		outputBuilder.WriteString(fmt.Sprintf("Buffers: %d kB\n", memInfo.Buffers))
+		outputBuilder.WriteString(fmt.Sprintf("Cached: %d kB\n", memInfo.Cached))
+		outputBuilder.WriteString(fmt.Sprintf("SwapTotal: %d kB\n", memInfo.SwapTotal))
+		outputBuilder.WriteString(fmt.Sprintf("SwapFree: %d kB\n", memInfo.SwapFree))
+	} else {
+		outputBuilder.WriteString(fmt.Sprintf("failed to collect memory inventory: %v\n", err))
+	}
 	outputBuilder.WriteString("\n")
 
 	// Memory by type (slab, etc.)

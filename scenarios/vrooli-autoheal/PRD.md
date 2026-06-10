@@ -24,7 +24,7 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | CLI tick command | Single-shot bootstrap + health cycle via `vrooli-autoheal tick`
+- [x] OT-P0-001 | CLI tick command | Single-shot bootstrap + health cycle via `vrooli-autoheal tick`
 - [ ] OT-P0-002 | CLI loop command | Long-running mode with configurable interval via `vrooli-autoheal loop`
 - [ ] OT-P0-003 | Platform detection | Detect platform (linux/windows/macos/other) and capabilities (supportsRdp, supportsSystemd, etc.)
 - [ ] OT-P0-004 | Health check registry | Extensible registry pattern for registering/running health checks with intervals and platform filters
@@ -33,7 +33,7 @@
 - [ ] OT-P0-007 | Scenario health checks | Monitor configured scenarios with auto-restart on failure
 - [ ] OT-P0-008 | OS watchdog installer | Idempotently install/verify systemd/launchd/Windows service that keeps autoheal loop running
 - [ ] OT-P0-009 | Health result persistence | Store health check results with timestamps for status queries and UI display
-- [ ] OT-P0-010 | CLI status command | Show last-known health summary via `vrooli-autoheal status`
+- [x] OT-P0-010 | CLI status command | Show last-known health summary via `vrooli-autoheal status`
 
 ### 🟠 P1 – Should have post-launch
 

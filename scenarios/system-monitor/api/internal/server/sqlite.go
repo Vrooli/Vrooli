@@ -8,7 +8,7 @@ import (
 
 	"github.com/vrooli/api-core/storage"
 
-	sqliterepo "system-monitor-api/internal/repository/sqlite"
+	sqliterepo "github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/sqlite"
 )
 
 func connectSQLite() (*sqliterepo.Repository, error) {

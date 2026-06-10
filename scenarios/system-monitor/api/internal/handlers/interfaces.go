@@ -3,9 +3,9 @@ package handlers
 import (
 	"context"
 
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/repository"
-	"system-monitor-api/internal/services"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
 )
 
 // MonitorQuerier provides read access to system metrics.

@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
-	"system-monitor-api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 )
 
 // ---------------------------------------------------------------------------

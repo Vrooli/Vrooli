@@ -7,10 +7,10 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"system-monitor-api/internal/apierrors"
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/convert"
-	"system-monitor-api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
 )

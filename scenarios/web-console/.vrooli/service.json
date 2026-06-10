@@ -249,9 +249,8 @@
         "startup_policy": "try_start",
         "description": "Local LLM provider for AI command generation (primary; falls back to OpenRouter)",
         "degraded_behavior": "AI generation falls back to OpenRouter when Ollama is unavailable",
-        "models": [
-          "llama3.2",
-          "qwen3:4b"
+        "model_roles": [
+          "chat.default"
         ]
       }
     },

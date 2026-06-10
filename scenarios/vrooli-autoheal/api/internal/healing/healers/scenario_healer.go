@@ -5,8 +5,9 @@ package healers
 import (
 	"context"
 	"strings"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/healing/strategies"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/healing/strategies"
 )
 
 // ScenarioHealer provides healing actions for Vrooli scenarios.

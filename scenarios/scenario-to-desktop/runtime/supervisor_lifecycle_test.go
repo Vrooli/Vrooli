@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/telemetry"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/telemetry"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 // =============================================================================

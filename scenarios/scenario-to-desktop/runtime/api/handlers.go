@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"scenario-to-desktop-runtime/fileutil"
-	"scenario-to-desktop-runtime/gpu"
-	"scenario-to-desktop-runtime/health"
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/fileutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/gpu"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // BundleValidationResult contains the results of bundle validation.

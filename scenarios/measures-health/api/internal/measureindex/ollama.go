@@ -14,11 +14,7 @@ import (
 // is never hit directly and load stays governed in one place.
 const ollamaBin = "resource-ollama"
 
-// defaultExtractModel is the local model the constrained param extractor uses.
-// llama3.2:3b is small, fast, already pulled, and (per the aisearch score-regime
-// rehab) extracts reliably at low latency where a reasoning model (qwen3) is
-// slow. Override with MEASURES_HEALTH_EXTRACT_MODEL.
-const defaultExtractModel = "llama3.2:3b"
+const defaultExtractRole = "chat.small"
 
 // extractMaxTokens caps the extractor's reply. It only emits a short JSON object
 // ({"found":..,"value":..,"confidence":..}); 256 is ample headroom.
@@ -30,27 +26,26 @@ const extractMaxTokens = 256
 // response PARSING (unwrap envelope, strip <think>, decode strict JSON) — this
 // type is transport-only, holding no extraction-task knowledge.
 type ollamaCompleter struct {
-	model     string
+	role      string
 	maxTokens int
 	// run executes the gateway command; seamed so tests inject a deterministic
 	// runner instead of the real daemon.
-	run func(ctx context.Context, model, prompt string, maxTokens int) ([]byte, error)
+	run func(ctx context.Context, role, prompt string, maxTokens int) ([]byte, error)
 }
 
-// newOllamaCompleter returns the gateway-backed completer. Model resolves from
-// MEASURES_HEALTH_EXTRACT_MODEL or falls back to defaultExtractModel.
+// newOllamaCompleter returns the gateway-backed completer.
 func newOllamaCompleter() *ollamaCompleter {
-	model := strings.TrimSpace(os.Getenv("MEASURES_HEALTH_EXTRACT_MODEL"))
-	if model == "" {
-		model = defaultExtractModel
+	role := strings.TrimSpace(os.Getenv("MEASURES_HEALTH_EXTRACT_ROLE"))
+	if role == "" {
+		role = defaultExtractRole
 	}
-	return &ollamaCompleter{model: model, maxTokens: extractMaxTokens, run: ollamaGenerate}
+	return &ollamaCompleter{role: role, maxTokens: extractMaxTokens, run: ollamaGenerate}
 }
 
 // Complete runs one constrained completion and returns the raw gateway stdout
 // (the LLMExtractor unwraps + parses it).
 func (c *ollamaCompleter) Complete(ctx context.Context, prompt string) (string, error) {
-	out, err := c.run(ctx, c.model, prompt, c.maxTokens)
+	out, err := c.run(ctx, c.role, prompt, c.maxTokens)
 	if err != nil {
 		return "", err
 	}
@@ -66,10 +61,10 @@ func ollamaAvailable(ctx context.Context) bool {
 
 // ollamaGenerate shells one completion through the gateway with temperature
 // pinned to 0 for determinism. An error carries the gateway's stderr (one line).
-func ollamaGenerate(ctx context.Context, model, prompt string, maxTokens int) ([]byte, error) {
+func ollamaGenerate(ctx context.Context, role, prompt string, maxTokens int) ([]byte, error) {
 	args := []string{
 		"gateway", "generate",
-		"--model", model,
+		"--role", role,
 		"--json",
 		"--max-tokens", fmt.Sprintf("%d", maxTokens),
 		"--temperature", "0",

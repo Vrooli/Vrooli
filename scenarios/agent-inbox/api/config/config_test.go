@@ -48,8 +48,8 @@ func TestDefault_AIDefaults(t *testing.T) {
 func TestDefault_NamingDefaults(t *testing.T) {
 	cfg := config.Default()
 
-	if cfg.Integration.Naming.Model != "llama3.1:8b" {
-		t.Errorf("expected Naming.Model 'llama3.1:8b', got %v", cfg.Integration.Naming.Model)
+	if cfg.Integration.Naming.Role != "chat.small" {
+		t.Errorf("expected Naming.Role 'chat.small', got %v", cfg.Integration.Naming.Role)
 	}
 	if cfg.Integration.Naming.Temperature != 0.3 {
 		t.Errorf("expected Naming.Temperature 0.3, got %v", cfg.Integration.Naming.Temperature)

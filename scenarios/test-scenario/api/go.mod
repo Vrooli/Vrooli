@@ -1,6 +1,6 @@
 module test-scenario
 
-go 1.24.0
+go 1.25.0
 
 // No external dependencies - this is a simple test scenario
 require github.com/vrooli/api-core v0.0.0

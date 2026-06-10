@@ -181,12 +181,7 @@ whisper::is_healthy() {
 # Returns: 0 if available, 1 otherwise
 #######################################
 whisper::is_gpu_available() {
-    if system::is_command "nvidia-smi"; then
-        nvidia-smi >/dev/null 2>&1
-        return $?
-    fi
-    
-    return 1
+    system::host_inventory_bool "has_docker_addressable_nvidia_gpu"
 }
 
 #######################################

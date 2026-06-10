@@ -3,7 +3,7 @@ package bundle
 import (
 	"testing"
 
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 func TestExpandShorthandToHostArch(t *testing.T) {

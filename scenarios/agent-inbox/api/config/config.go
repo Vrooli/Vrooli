@@ -34,7 +34,7 @@ func Default() *Config {
 			OpenRouterTimeout:   120 * time.Second,
 			ModelCacheTTL:       5 * time.Minute,
 			Naming: NamingConfig{
-				Model:               getEnvOrDefault("OLLAMA_NAMING_MODEL", "llama3.1:8b"),
+				Role:                getEnvOrDefault("OLLAMA_NAMING_ROLE", "chat.small"),
 				Temperature:         0.3,
 				MaxTokens:           20,
 				SummaryMessageLimit: 10,

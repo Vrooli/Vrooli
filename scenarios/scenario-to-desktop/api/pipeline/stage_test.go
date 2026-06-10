@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	runtimeapi "scenario-to-desktop-runtime/api"
+	runtimeapi "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
 )
 
 // TestBuildStage tests the build stage.

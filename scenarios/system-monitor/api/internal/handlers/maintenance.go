@@ -9,11 +9,11 @@ import (
 	"strconv"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
-	"system-monitor-api/internal/apierrors"
-	"system-monitor-api/internal/convert"
-	"system-monitor-api/internal/httputil"
-	"system-monitor-api/internal/repository"
-	"system-monitor-api/internal/services"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
 )
 
 const defaultRetentionDays = 30

@@ -6,8 +6,9 @@ import (
 	"context"
 	"fmt"
 	"runtime"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // InodeCheck monitors inode usage on specified partitions.

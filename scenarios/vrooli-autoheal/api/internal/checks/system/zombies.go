@@ -10,8 +10,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // ZombieCheck detects zombie (defunct) processes that indicate resource leaks.

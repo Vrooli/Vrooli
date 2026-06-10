@@ -6,8 +6,9 @@ import (
 	"context"
 	"fmt"
 	"runtime"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // SwapCheck monitors swap usage as an indicator of memory pressure.
@@ -15,6 +16,7 @@ type SwapCheck struct {
 	warningThreshold  int // percentage
 	criticalThreshold int // percentage
 	procReader        checks.ProcReader
+	hostCollector     hostSnapshotCollector
 }
 
 // SwapCheckOption configures a SwapCheck.
@@ -36,13 +38,20 @@ func WithSwapProcReader(reader checks.ProcReader) SwapCheckOption {
 	}
 }
 
+func WithSwapHostCollector(collector hostSnapshotCollector) SwapCheckOption {
+	return func(c *SwapCheck) {
+		c.hostCollector = collector
+		c.procReader = nil
+	}
+}
+
 // NewSwapCheck creates a swap usage check.
 // Default thresholds: warning at 50%, critical at 80%
 func NewSwapCheck(opts ...SwapCheckOption) *SwapCheck {
 	c := &SwapCheck{
 		warningThreshold:  50,
 		criticalThreshold: 80,
-		procReader:        checks.DefaultProcReader,
+		hostCollector:     defaultHostSnapshotCollector{},
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -76,8 +85,7 @@ func (c *SwapCheck) Run(ctx context.Context) checks.Result {
 		return result
 	}
 
-	// Read swap information via injected reader
-	memInfo, err := c.procReader.ReadMeminfo()
+	memInfo, err := c.readMemoryInfo(ctx)
 	if err != nil {
 		result.Status = checks.StatusCritical
 		result.Message = "Failed to read swap information"
@@ -140,4 +148,19 @@ func (c *SwapCheck) Run(ctx context.Context) checks.Result {
 	}
 
 	return result
+}
+
+func (c *SwapCheck) readMemoryInfo(ctx context.Context) (*checks.MemInfo, error) {
+	if c.procReader != nil {
+		return c.procReader.ReadMeminfo()
+	}
+	collector := c.hostCollector
+	if collector == nil {
+		collector = defaultHostSnapshotCollector{}
+	}
+	snap, err := collector.Collect(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return memInfoFromSnapshot(snap), nil
 }

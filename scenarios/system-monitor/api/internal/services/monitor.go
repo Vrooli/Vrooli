@@ -8,11 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"system-monitor-api/internal/collectors"
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/infrastructure"
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/infrastructure"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 // MonitorService handles system monitoring operations

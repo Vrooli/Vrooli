@@ -8,7 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"vrooli-autoheal/internal/platform"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 const (

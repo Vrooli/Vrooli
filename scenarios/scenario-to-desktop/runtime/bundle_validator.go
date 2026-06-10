@@ -6,8 +6,8 @@ import (
 	goruntime "runtime"
 	"strings"
 
-	"scenario-to-desktop-runtime/api"
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // sha256Sum computes the SHA256 hash of data.

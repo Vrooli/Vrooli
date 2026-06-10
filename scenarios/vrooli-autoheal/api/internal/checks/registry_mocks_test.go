@@ -4,7 +4,8 @@ import (
 	"context"
 	"sync"
 	"time"
-	"vrooli-autoheal/internal/platform"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // mockCheck is a test implementation of Check interface.

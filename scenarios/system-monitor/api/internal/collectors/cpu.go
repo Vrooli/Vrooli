@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
 // CPUCollector collects CPU metrics
@@ -37,9 +39,19 @@ func NewCPUCollector() *CPUCollector {
 
 // Collect gathers CPU metrics
 func (c *CPUCollector) Collect(ctx context.Context) (*MetricData, error) {
+	snapshot, _ := hostinventory.Collect(ctx)
 	usage := c.getCPUUsage()
-	loadAvg := c.getLoadAverage()
+	loadAvg := c.getLoadAverage(snapshot)
 	contextSwitches := c.getContextSwitches()
+	cores := snapshot.CPU.Cores
+	goarch := snapshot.Arch
+	if goarch == "" {
+		goarch = runtime.GOARCH
+	}
+	goos := snapshot.OS
+	if goos == "" {
+		goos = runtime.GOOS
+	}
 
 	return &MetricData{
 		CollectorName: c.GetName(),
@@ -47,14 +59,14 @@ func (c *CPUCollector) Collect(ctx context.Context) (*MetricData, error) {
 		Type:          "cpu",
 		Values: map[string]interface{}{
 			"usage_percent":    usage,
-			"cores":            runtime.NumCPU(),
+			"cores":            cores,
 			"load_average":     loadAvg,
 			"context_switches": contextSwitches,
 			"goroutines":       runtime.NumGoroutine(),
 		},
 		Tags: map[string]string{
-			"arch": runtime.GOARCH,
-			"os":   runtime.GOOS,
+			"arch": goarch,
+			"os":   goos,
 		},
 	}, nil
 }
@@ -144,27 +156,15 @@ func (c *CPUCollector) getCPUUsage() float64 {
 	return usage
 }
 
-// getLoadAverage returns system load averages
-func (c *CPUCollector) getLoadAverage() []float64 {
-	if runtime.GOOS != "linux" {
+// getLoadAverage returns system load averages from the shared host snapshot.
+func (c *CPUCollector) getLoadAverage(snapshot hostinventory.Snapshot) []float64 {
+	if snapshot.Load.Load1 != 0 || snapshot.Load.Load5 != 0 || snapshot.Load.Load15 != 0 {
+		return []float64{snapshot.Load.Load1, snapshot.Load.Load5, snapshot.Load.Load15}
+	}
+	if snapshot.OS != "linux" && runtime.GOOS != "linux" {
 		return []float64{0.5, 0.5, 0.5}
 	}
-
-	output, err := os.ReadFile("/proc/loadavg")
-	if err != nil {
-		return []float64{0.0, 0.0, 0.0}
-	}
-
-	fields := strings.Fields(strings.TrimSpace(string(output)))
-	if len(fields) < 3 {
-		return []float64{0.0, 0.0, 0.0}
-	}
-
-	load1, _ := strconv.ParseFloat(fields[0], 64)
-	load5, _ := strconv.ParseFloat(fields[1], 64)
-	load15, _ := strconv.ParseFloat(fields[2], 64)
-
-	return []float64{load1, load5, load15}
+	return []float64{0.0, 0.0, 0.0}
 }
 
 // getContextSwitches returns the number of context switches

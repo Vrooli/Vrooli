@@ -13,8 +13,8 @@ import (
 
 	"github.com/vrooli/api-core/preflight"
 
-	bundleruntime "scenario-to-desktop-runtime"
-	"scenario-to-desktop-runtime/manifest"
+	bundleruntime "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 func main() {

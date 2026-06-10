@@ -7,7 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"vrooli-autoheal/internal/incidents"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 
 	"github.com/vrooli/api-core/storage"
 )

@@ -1,12 +1,12 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 	"log/slog"
 	"math"
 	"net/http"
@@ -873,7 +873,7 @@ func getAISuggestions(useCase string) []map[string]interface{} {
 }
 
 func fetchAISuggestions(useCase string) *AISuggestionResult {
-	model := getEnv("OLLAMA_MODEL", "llama3.2")
+	role := getEnv("OLLAMA_ROLE", "chat.small")
 
 	prompt := fmt.Sprintf(`Generate 2 color palettes for a %s use case.
 For each palette provide:
@@ -891,14 +891,14 @@ Respond in this exact JSON format:
 ]`, useCase)
 
 	result := &AISuggestionResult{
-		Model:  model,
+		Model:  role,
 		Prompt: prompt,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
-		"--model", model, "--json", "--prompt-stdin")
+		"--role", role, "--json", "--prompt-stdin")
 	cmd.Stdin = strings.NewReader(prompt)
 
 	startTime := time.Now()

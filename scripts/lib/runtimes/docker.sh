@@ -398,18 +398,18 @@ docker::calculate_resource_limits() {
     if ! system::is_command "bc"; then
         log::warning "bc not found, using fallback resource calculations"
         # Fallback: use awk for calculations
-        N=$(nproc)
+        N=$(system::get_cpu_cores)
         CPU_QUOTA=$(awk -v n="$N" 'BEGIN {printf "%d%%", (n - 0.5) * 100}')
-        MEM_LIMIT=$(free -m | awk '/^Mem:/{printf "%dM", int($2 * 0.8)}')
+        MEM_LIMIT=$(system::get_total_memory_mb | awk '{printf "%dM", int($1 * 0.8)}')
     else
         # Get total number of CPU cores and calculate CPU quota.
-        N=$(nproc)
+        N=$(system::get_cpu_cores)
         # Calculate quota: (N - 0.5) * 100. This value is later appended with '%' .
         QUOTA=$(echo "($N - 0.5) * 100" | bc)
         CPU_QUOTA="${QUOTA}%" 
 
         # Get total memory (in MB) and calculate 80% of it.
-        TOTAL_MEM=$(free -m | awk '/^Mem:/{print $2}')
+        TOTAL_MEM=$(system::get_total_memory_mb)
         MEM_LIMIT=$(echo "$TOTAL_MEM * 0.8" | bc | cut -d. -f1)M
     fi
 }
@@ -507,14 +507,12 @@ docker::configure_gpu_runtime() {
         return 0
     fi
 
-    # Check if nvidia-smi is available
-    if ! system::is_command "nvidia-smi"; then
+    if ! system::has_nvidia_gpu; then
         log::info "No NVIDIA GPU detected, skipping GPU runtime configuration"
         return 0
     fi
 
-    # Early check if GPU support is already working (before starting configuration)
-    if docker::run run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi >/dev/null 2>&1; then
+    if system::host_inventory_bool "has_docker_addressable_nvidia_gpu"; then
         log::success "Docker GPU runtime is already working"
         return 0
     fi
@@ -523,12 +521,7 @@ docker::configure_gpu_runtime() {
     
     # Check if nvidia-container-runtime is available (alternative to nvidia-docker2)
     if system::is_command "nvidia-container-runtime"; then
-        log::info "nvidia-container-runtime detected, testing GPU access..."
-        # Try with the runtime flag instead of --gpus
-        if docker::run run --rm --runtime=nvidia nvidia/cuda:11.0-base nvidia-smi >/dev/null 2>&1; then
-            log::success "Docker GPU runtime working with nvidia-container-runtime"
-            return 0
-        fi
+        log::info "nvidia-container-runtime detected"
     fi
     
     # Check if nvidia-docker2 is installed
@@ -561,11 +554,10 @@ docker::configure_gpu_runtime() {
         log::info "nvidia-docker2 is already installed"
     fi
     
-    # Test GPU access
-    if docker::run run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi >/dev/null 2>&1; then
+    if system::host_inventory_bool "has_docker_addressable_nvidia_gpu"; then
         log::success "Docker GPU runtime configured successfully"
     else
-        log::warning "GPU runtime configured but test failed. You may need to restart Docker."
+        log::warning "GPU runtime configured but shared host inventory does not see Docker GPU access yet. You may need to restart Docker."
     fi
 }
 

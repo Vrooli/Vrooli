@@ -5,9 +5,10 @@ package vrooli
 import (
 	"context"
 	"fmt"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
-	"vrooli-autoheal/internal/watchdog"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/watchdog"
 )
 
 // WatchdogCheck monitors the OS-level watchdog service status.

@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"scenario-to-desktop-runtime/api"
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/secrets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
 )
 
 // =============================================================================

@@ -1,6 +1,6 @@
 module tunnel-manager
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/gorilla/handlers v1.5.2
@@ -66,10 +66,9 @@ require (
 	go.opentelemetry.io/otel/sdk v1.39.0 // indirect
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 	google.golang.org/grpc v1.79.1 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core

@@ -25,14 +25,14 @@ type PlatformAdapter interface {
 
 // OptimizedContent represents platform-optimized content
 type OptimizedContent struct {
-	Platform     string   `json:"platform"`
-	Content      string   `json:"content"`
-	MediaURLs    []string `json:"media_urls"`
-	Hashtags     []string `json:"hashtags"`
-	CharCount    int      `json:"char_count"`
-	IsValid      bool     `json:"is_valid"`
-	Warnings     []string `json:"warnings,omitempty"`
-	Suggestions  []string `json:"suggestions,omitempty"`
+	Platform    string   `json:"platform"`
+	Content     string   `json:"content"`
+	MediaURLs   []string `json:"media_urls"`
+	Hashtags    []string `json:"hashtags"`
+	CharCount   int      `json:"char_count"`
+	IsValid     bool     `json:"is_valid"`
+	Warnings    []string `json:"warnings,omitempty"`
+	Suggestions []string `json:"suggestions,omitempty"`
 }
 
 // PostResult represents the result of posting to a platform
@@ -68,11 +68,11 @@ type TokenRefresh struct {
 
 // SocialCredentials holds OAuth credentials for a platform
 type SocialCredentials struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token,omitempty"`
+	AccessToken  string    `json:"access_token"`
+	RefreshToken string    `json:"refresh_token,omitempty"`
 	ExpiresAt    time.Time `json:"expires_at"`
-	UserID       string `json:"user_id"`
-	Username     string `json:"username"`
+	UserID       string    `json:"user_id"`
+	Username     string    `json:"username"`
 }
 
 // PlatformManager manages all platform adapters. Ollama traffic is funnelled
@@ -129,13 +129,13 @@ Original content: %s
 Platform-specific requirements:
 %s
 
-Return only the optimized content without any explanations or metadata.`, 
+Return only the optimized content without any explanations or metadata.`,
 		platform, content, pm.getPlatformRequirements(platform))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
-		"--model", "llama3.2", "--json", "--prompt-stdin")
+		"--role", "chat.small", "--json", "--prompt-stdin")
 	cmd.Stdin = strings.NewReader(prompt)
 	out, err := cmd.Output()
 	if err != nil {
@@ -162,19 +162,19 @@ func (pm *PlatformManager) getPlatformRequirements(platform string) string {
 - Include emojis for better engagement
 - Clear call-to-action if appropriate
 - Maintain conversational tone`,
-		
+
 		"instagram": `- Engaging caption with storytelling approach
 - Use 5-10 relevant hashtags at the end
 - Include emojis throughout for visual appeal
 - Ask questions to encourage comments
 - Maintain authentic, personal tone`,
-		
+
 		"linkedin": `- Professional tone while remaining engaging
 - Include industry-relevant insights or value
 - Use 1-3 professional hashtags
 - Structure with clear paragraphs
 - Include call-to-action for professional engagement`,
-		
+
 		"facebook": `- Conversational and community-focused tone
 - Encourage discussion and sharing
 - Can be longer-form content
@@ -235,7 +235,7 @@ func (t *TwitterAdapter) basicTwitterOptimization(content string) string {
 
 	// Truncate and add ellipsis
 	truncated := content[:270] + "..."
-	
+
 	// Try to truncate at word boundary
 	if lastSpace := strings.LastIndex(truncated[:270], " "); lastSpace > 200 {
 		truncated = content[:lastSpace] + "..."
@@ -248,7 +248,7 @@ func (t *TwitterAdapter) ValidateContent(content *OptimizedContent) error {
 	if len(content.Content) > 280 {
 		return fmt.Errorf("content exceeds 280 character limit (%d characters)", len(content.Content))
 	}
-	
+
 	if len(content.MediaURLs) > 4 {
 		return fmt.Errorf("twitter supports maximum 4 media attachments")
 	}
@@ -321,7 +321,7 @@ func (t *TwitterAdapter) Post(ctx context.Context, content *OptimizedContent, cr
 func (t *TwitterAdapter) GetEngagementMetrics(ctx context.Context, postID string, credentials *SocialCredentials) (*EngagementMetrics, error) {
 	// Twitter API v2 metrics endpoint
 	url := fmt.Sprintf("https://api.twitter.com/2/tweets/%s?tweet.fields=public_metrics,created_at", postID)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -339,9 +339,9 @@ func (t *TwitterAdapter) GetEngagementMetrics(ctx context.Context, postID string
 	// Implementation details for parsing Twitter metrics...
 
 	return &EngagementMetrics{
-		Platform:    "twitter",
-		PostID:      postID,
-		Timestamp:   time.Now().UTC().Format(time.RFC3339),
+		Platform:  "twitter",
+		PostID:    postID,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		// ... populate metrics
 	}, nil
 }
@@ -396,7 +396,7 @@ func (i *InstagramAdapter) ValidateContent(content *OptimizedContent) error {
 	if len(content.Content) > 2200 {
 		return fmt.Errorf("content exceeds Instagram's 2200 character limit")
 	}
-	
+
 	if len(content.Hashtags) > 30 {
 		return fmt.Errorf("Instagram supports maximum 30 hashtags")
 	}

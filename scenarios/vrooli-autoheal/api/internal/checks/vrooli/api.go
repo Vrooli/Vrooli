@@ -12,10 +12,11 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/journal"
-	"vrooli-autoheal/internal/platform"
-	"vrooli-autoheal/internal/reporoot"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/reporoot"
 )
 
 // APICheck monitors the main Vrooli API health endpoint.

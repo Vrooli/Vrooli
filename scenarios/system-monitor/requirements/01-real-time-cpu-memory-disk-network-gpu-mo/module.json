@@ -1,61 +1,53 @@
 {
-  "description": "6 collectors (CPU, memory, disk, network, process, GPU) in api/internal/collectors/. Exposed via /api/v1/metrics/current and /api/v1/metrics/detailed endpoints.",
-  "module_id": "MOD-P0-001",
-  "prd_ref": "system-monitor-must-have-real-time-cpu-memory-disk-network-gpu-monitoring",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-10T16:00:19-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P0-001",
+      "title": "Real-time System Metrics Collection",
+      "status": "in_progress",
+      "prd_ref": "system-monitor-must-have-real-time-cpu-memory-disk-network-gpu-monitoring",
       "category": "core",
       "description": "System must collect and expose real-time metrics for CPU, memory, disk, network, and GPU utilization with \u003c 100ms latency",
-      "id": "REQ-P0-001",
-      "prd_ref": "system-monitor-must-have-real-time-cpu-memory-disk-network-gpu-monitoring",
-      "status": "implemented",
-      "title": "Real-time System Metrics Collection",
       "validation": [
         {
-          "notes": "Test metric collector functions",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test metric collector functions"
         },
         {
-          "notes": "Verify all metric types are collected",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Verify all metric types are collected"
         },
         {
-          "notes": "Validate metrics flow through storage pipeline",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Validate metrics flow through storage pipeline"
         },
         {
-          "notes": "Collection latency \u003c 100ms",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Collection latency \u003c 100ms"
         },
         {
-          "notes": "Handle 1000+ metrics/second",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Handle 1000+ metrics/second"
         },
         {
-          "notes": "Metrics visible in dashboard within 5s",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Metrics visible in dashboard within 5s"
         }
       ]
     }
-  ],
-  "title": "Real-time CPU, memory, disk, network, GPU monitoring"
+  ]
 }

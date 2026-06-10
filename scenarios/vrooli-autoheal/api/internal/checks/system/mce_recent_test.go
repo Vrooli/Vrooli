@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"vrooli-autoheal/internal/checks"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
 func newMCEWithMock(installed bool) (*MCERecentCheck, *checks.MockExecutor) {

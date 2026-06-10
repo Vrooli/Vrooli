@@ -1,51 +1,41 @@
 {
-  "description": "Report service in api/internal/services/report.go. Endpoints: POST /api/v1/reports/generate (daily/weekly), GET /api/v1/reports, GET /api/v1/reports/{id}. Generates EnhancedSystemReport with executive summary, performance data, trends, and recommendations.",
-  "module_id": "MOD-P0-006",
-  "prd_ref": "system-monitor-must-have-report-generation-dailyweekly-via-api-endpoint",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-10T16:00:19-04:00"
+  },
   "requirements": [
     {
-      "category": "api",
-      "dependencies": [
-        "REQ-P0-001",
-        "REQ-P0-004"
-      ],
-      "description": "System must generate comprehensive daily and weekly reports via API endpoint",
       "id": "REQ-P0-006",
-      "prd_ref": "system-monitor-must-have-report-generation-dailyweekly-via-api-endpoint",
-      "status": "implemented",
       "title": "System Report Generation",
+      "status": "in_progress",
+      "prd_ref": "system-monitor-must-have-report-generation-dailyweekly-via-api-endpoint",
+      "category": "api",
+      "description": "System must generate comprehensive daily and weekly reports via API endpoint",
       "validation": [
         {
-          "notes": "Test report generation logic",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test report generation logic"
         },
         {
-          "notes": "Verify scheduled report creation",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Verify scheduled report creation"
         },
         {
-          "notes": "Report generation \u003c 30s",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Report generation \u003c 30s"
         },
         {
-          "notes": "Reports downloadable from UI",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Reports downloadable from UI"
         }
       ]
     }
-  ],
-  "title": "Report generation (daily/weekly via API endpoint)"
+  ]
 }

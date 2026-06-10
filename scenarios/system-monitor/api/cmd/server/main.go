@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/server"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/server"
 )
 
 func main() {

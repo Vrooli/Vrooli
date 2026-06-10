@@ -4,7 +4,7 @@ import (
 	"context"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"system-monitor-api/internal/agentmanager"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/agentmanager"
 )
 
 // AgentExecutor is a configurable test double for services.AgentExecutor.

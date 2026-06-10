@@ -7,9 +7,10 @@ import (
 	"runtime"
 	"strings"
 	"time"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/journal"
-	"vrooli-autoheal/internal/platform"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // ResolvedCheck monitors the systemd-resolved DNS service.

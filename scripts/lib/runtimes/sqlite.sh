@@ -123,7 +123,7 @@ sqlite::install_from_source() {
     }
     
     log::info "Compiling SQLite (this may take a few minutes)..."
-    make -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 1)" || {
+    make -j"$(system::get_cpu_cores)" || {
         log::error "Failed to compile SQLite"
         cd /tmp && rm -rf "$sqlite_dir" "$sqlite_tarball"
         return 1

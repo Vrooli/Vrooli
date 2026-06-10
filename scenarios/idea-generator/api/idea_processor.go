@@ -594,7 +594,7 @@ func (ip *IdeaProcessor) generateWithOllama(ctx context.Context, prompt string, 
 // parallelism — never call Ollama HTTP directly.
 func (ip *IdeaProcessor) generateWithOllamaRaw(ctx context.Context, prompt string) (string, error) {
 	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
-		"--model", "mistral:latest", "--json", "--prompt-stdin")
+		"--role", "chat.default", "--json", "--prompt-stdin")
 	cmd.Stdin = strings.NewReader(prompt)
 	out, err := cmd.Output()
 	if err != nil {
@@ -619,7 +619,7 @@ func (ip *IdeaProcessor) generateWithOllamaRaw(ctx context.Context, prompt strin
 
 // generateEmbedding creates a vector embedding for semantic search via the
 // resource-ollama gateway CLI. Returns the vector representation of input
-// text (nomic-embed-text model).
+// text.
 func (ip *IdeaProcessor) generateEmbedding(ctx context.Context, text string) ([]float64, error) {
 	if text == "" {
 		return nil, fmt.Errorf("cannot generate embedding for empty text")
@@ -631,7 +631,7 @@ func (ip *IdeaProcessor) generateEmbedding(ctx context.Context, text string) ([]
 	}
 
 	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "embed",
-		"--model", "nomic-embed-text:latest", "--json", "--input-stdin")
+		"--role", "embedding.default", "--json", "--input-stdin")
 	cmd.Stdin = strings.NewReader(text)
 	out, err := cmd.Output()
 	if err != nil {

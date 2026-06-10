@@ -3,7 +3,7 @@ package toolexecution
 import (
 	"testing"
 
-	"system-monitor-api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 )
 
 func TestNewErrorResultFromAPIError_Cooldown(t *testing.T) {

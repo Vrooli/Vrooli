@@ -11,7 +11,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"vrooli-autoheal/internal/platform"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 type fakeCommandResult struct {

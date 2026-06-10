@@ -1,77 +1,75 @@
 {
-  "module": "platform-detection",
-  "description": "Cross-platform detection and capability discovery",
-  "prd_refs": [
-    "OT-P0-003"
-  ],
+  "_metadata": {
+    "last_validated_at": "2026-06-10T16:46:49-04:00"
+  },
   "requirements": [
     {
       "id": "PLAT-DETECT-001",
       "title": "Detect platform type",
-      "description": "detectPlatform() returns linux, windows, macos, or other",
+      "status": "planned",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
+      "description": "detectPlatform() returns linux, windows, macos, or other",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "PLAT-DETECT-002",
       "title": "Detect platform capabilities",
-      "description": "getPlatformCapabilities() returns struct with supportsRdp, supportsSystemd, supportsLaunchd, hasDocker, isHeadlessServer",
+      "status": "planned",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
+      "description": "getPlatformCapabilities() returns struct with supportsRdp, supportsSystemd, supportsLaunchd, hasDocker, isHeadlessServer",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "PLAT-DETECT-003",
       "title": "Capability abstraction layer",
-      "description": "All platform-specific code uses detectPlatform/getPlatformCapabilities instead of direct process.platform checks",
+      "status": "planned",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
+      "description": "All platform-specific code uses detectPlatform/getPlatformCapabilities instead of direct process.platform checks",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "PLAT-DETECT-004",
       "title": "WSL detection",
-      "description": "Correctly identify WSL environment as Linux with Windows-like characteristics",
+      "status": "planned",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
+      "description": "Correctly identify WSL environment as Linux with Windows-like characteristics",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     }
   ]
 }

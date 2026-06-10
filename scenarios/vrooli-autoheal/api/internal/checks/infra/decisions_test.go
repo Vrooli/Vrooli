@@ -5,7 +5,8 @@ package infra
 
 import (
 	"testing"
-	"vrooli-autoheal/internal/platform"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // TestSelectRDPService tests the RDP service selection decision function

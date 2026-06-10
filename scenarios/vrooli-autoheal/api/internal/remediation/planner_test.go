@@ -7,7 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"vrooli-autoheal/internal/incidents"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 )
 
 func TestGenerateWritesNVIDIARemediationArtifactUnderUserState(t *testing.T) {

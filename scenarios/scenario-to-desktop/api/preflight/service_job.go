@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	bundleruntime "scenario-to-desktop-runtime"
-	runtimeapi "scenario-to-desktop-runtime/api"
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	bundleruntime "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime"
+	runtimeapi "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // RunPreflightJob executes asynchronous preflight validation.

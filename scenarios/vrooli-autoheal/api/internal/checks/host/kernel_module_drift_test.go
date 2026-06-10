@@ -2,8 +2,9 @@ package host
 
 import (
 	"testing"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/hostinventory"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
 )
 
 func TestKernelModuleDriftCriticalWhenRunningModuleTreeMissing(t *testing.T) {

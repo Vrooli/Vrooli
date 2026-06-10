@@ -50,7 +50,7 @@ Conversation:
 
 Title:`, conversationSummary)
 
-	out, err := c.generate(ctx, c.cfg.Model, prompt)
+	out, err := c.generate(ctx, c.cfg.Role, prompt)
 	if err != nil {
 		return "", err
 	}
@@ -72,16 +72,16 @@ Title:`, conversationSummary)
 // GenerateText sends a general-purpose text generation request.
 // The maxTokens parameter is currently advisory — gateway generate does not
 // expose a num_predict flag yet.
-func (c *OllamaClient) GenerateText(ctx context.Context, model, prompt string, _maxTokens int) (string, error) {
-	out, err := c.generate(ctx, model, prompt)
+func (c *OllamaClient) GenerateText(ctx context.Context, role, prompt string, _maxTokens int) (string, error) {
+	out, err := c.generate(ctx, role, prompt)
 	if err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(out), nil
 }
 
-func (c *OllamaClient) generate(ctx context.Context, model, prompt string) (string, error) {
-	args := []string{"gateway", "generate", "--model", model, "--json", "--prompt-stdin"}
+func (c *OllamaClient) generate(ctx context.Context, role, prompt string) (string, error) {
+	args := []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}
 	out, err := c.run(ctx, args, prompt)
 	if err != nil {
 		return "", fmt.Errorf("resource-ollama gateway generate failed: %w", err)

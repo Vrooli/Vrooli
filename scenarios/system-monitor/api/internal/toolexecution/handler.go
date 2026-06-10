@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"system-monitor-api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
 )
 
 // Handler handles HTTP requests for tool execution.

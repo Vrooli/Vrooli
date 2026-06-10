@@ -35,6 +35,22 @@ system::assert_command() {
     fi
 }
 
+system::host_inventory_field() {
+    local field="$1"
+    if ! system::is_command "vrooli"; then
+        return 1
+    fi
+    VROOLI_SOURCE_ROOT="${VROOLI_SOURCE_ROOT:-$APP_ROOT}" \
+        vrooli --no-stale-check host inventory --field "$field" 2>/dev/null
+}
+
+system::host_inventory_bool() {
+    local field="$1"
+    local value
+    value="$(system::host_inventory_field "$field" 2>/dev/null || true)"
+    [[ "$value" == "true" ]]
+}
+
 system::detect_pm() {
     if   system::is_command "apt-get"; then echo "apt-get"
     elif system::is_command "dnf"; then echo "dnf"
@@ -83,7 +99,7 @@ system::get_package_name() {
     
     case "$cmd" in
         # coreutils commands
-        nproc|mkdir|sed|grep|awk)
+        mkdir|sed|grep|awk)
             case "$pm" in
                 apt-get)   echo "coreutils" ;;
                 dnf|yum)   echo "coreutils" ;;
@@ -483,17 +499,7 @@ system::canonicalize() {
 
 # Check if NVIDIA GPU is present
 system::has_nvidia_gpu() {
-    # Check if nvidia-smi exists and can detect GPU
-    if system::is_command "nvidia-smi"; then
-        nvidia-smi >/dev/null 2>&1 && return 0
-    fi
-    
-    # Fallback: check lspci for NVIDIA devices
-    if system::is_command "lspci"; then
-        lspci | grep -i nvidia >/dev/null 2>&1 && return 0
-    fi
-    
-    return 1
+    system::host_inventory_bool "has_nvidia_gpu"
 }
 
 # Install NVIDIA Container Runtime
@@ -591,15 +597,15 @@ system::install_nvidia_runtime_pacman() {
 # Returns: Total memory in MB as integer
 #######################################
 system::get_total_memory_mb() {
-    if system::is_command "free"; then
-        free -m | awk '/^Mem:/{print $2}'
-    elif [[ -f /proc/meminfo ]]; then
-        # Fallback: parse /proc/meminfo
-        awk '/^MemTotal:/{printf "%.0f", $2/1024}' /proc/meminfo
-    else
-        # Default fallback if neither command works
-        echo "2048"
-    fi
+    system::host_inventory_field "memory_total_mb" || echo "2048"
+}
+
+#######################################
+# Get CPU core count
+# Returns: CPU cores as integer
+#######################################
+system::get_cpu_cores() {
+    system::host_inventory_field "cpu_cores" || echo "1"
 }
 
 #######################################

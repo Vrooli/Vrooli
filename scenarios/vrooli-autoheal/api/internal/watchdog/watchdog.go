@@ -12,8 +12,9 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"vrooli-autoheal/internal/platform"
-	"vrooli-autoheal/internal/reporoot"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/reporoot"
 )
 
 // WatchdogType represents the type of OS-level service manager

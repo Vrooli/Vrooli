@@ -5,8 +5,9 @@ package strategies
 import (
 	"context"
 	"time"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/journal"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
 )
 
 // SystemdStrategy provides common systemd service management actions.

@@ -21,22 +21,23 @@ type Embedder interface {
 type embedderRunner func(ctx context.Context, args []string, stdin []byte) ([]byte, error)
 
 type cliEmbedder struct {
-	bin   string
-	model string
-	run   embedderRunner
+	bin  string
+	role string
+	run  embedderRunner
 }
 
 const defaultEmbedderBin = "resource-ollama"
 
 // NewEmbedder returns the production CLI-backed Embedder.
-func NewEmbedder(model string) Embedder {
-	if strings.TrimSpace(model) == "" {
-		model = DefaultEmbedModel
+func NewEmbedder(role string) Embedder {
+	role = strings.TrimSpace(role)
+	if role == "" {
+		role = DefaultEmbedRole
 	}
 	return &cliEmbedder{
-		bin:   defaultEmbedderBin,
-		model: model,
-		run:   defaultRunner,
+		bin:  defaultEmbedderBin,
+		role: role,
+		run:  defaultRunner,
 	}
 }
 
@@ -66,7 +67,7 @@ func (e *cliEmbedder) Embed(ctx context.Context, text string) ([]float64, error)
 	if e.run == nil {
 		return nil, errors.New("embedder runner is not configured")
 	}
-	args := []string{e.bin, "gateway", "embed", "--model", e.model, "--json", "--input-stdin"}
+	args := []string{e.bin, "gateway", "embed", "--role", e.role, "--json", "--input-stdin"}
 	out, err := e.run(ctx, args, []byte(text))
 	if err != nil {
 		return nil, fmt.Errorf("resource-ollama gateway embed: %w", err)

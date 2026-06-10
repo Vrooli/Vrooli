@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 // MemoryRepository provides an in-memory implementation of all repositories

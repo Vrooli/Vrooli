@@ -6,10 +6,11 @@ import (
 	"context"
 	"database/sql"
 	"time"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/hostinventory"
-	"vrooli-autoheal/internal/incidents"
-	"vrooli-autoheal/internal/systemevents"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/systemevents"
 )
 
 // Store handles database operations for health check data.

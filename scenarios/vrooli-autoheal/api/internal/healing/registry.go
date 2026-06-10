@@ -5,7 +5,8 @@ package healing
 import (
 	"context"
 	"sync"
-	"vrooli-autoheal/internal/checks"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
 // Registry manages healers for checks.

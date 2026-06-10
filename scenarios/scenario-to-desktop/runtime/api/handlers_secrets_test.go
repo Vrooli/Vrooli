@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 func TestHandleShutdown(t *testing.T) {

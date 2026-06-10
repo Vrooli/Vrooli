@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"time"
 
-	"system-monitor-api/internal/services/journal"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/journal"
 )
 
 // BootEntry is one boot in the history with cleanliness annotation.

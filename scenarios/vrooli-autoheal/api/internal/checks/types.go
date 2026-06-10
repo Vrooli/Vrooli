@@ -5,7 +5,8 @@ package checks
 import (
 	"context"
 	"time"
-	"vrooli-autoheal/internal/platform"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // Status represents the result of a health check

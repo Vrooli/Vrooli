@@ -16,7 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"vrooli-autoheal/internal/checks"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
 // LogEntry is one structured journal record.

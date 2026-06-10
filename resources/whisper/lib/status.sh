@@ -109,11 +109,9 @@ whisper::status::collect_data() {
             local gpu_available="false"
             if whisper::is_gpu_available; then
                 gpu_available="true"
-                if command -v nvidia-smi &>/dev/null; then
-                    local gpu_info
-                    gpu_info=$(nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null | head -1 || echo "unknown")
-                    status_data+=("gpu_info" "$gpu_info")
-                fi
+                local gpu_info
+                gpu_info=$(system::host_inventory_field "first_gpu_summary" 2>/dev/null || echo "unknown")
+                status_data+=("gpu_info" "${gpu_info:-unknown}")
             fi
             status_data+=("gpu_available" "$gpu_available")
         fi
@@ -491,11 +489,10 @@ status::show_status() {
         echo "GPU Status:"
         if whisper::is_gpu_available; then
             log::success "  ✅ NVIDIA GPU is available"
-            if system::is_command "nvidia-smi"; then
-                local gpu_info=$(nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null | head -1)
-                if [[ -n "$gpu_info" ]]; then
-                    log::info "     GPU: $gpu_info"
-                fi
+            local gpu_info
+            gpu_info=$(system::host_inventory_field "first_gpu_summary" 2>/dev/null || true)
+            if [[ -n "$gpu_info" ]]; then
+                log::info "     GPU: $gpu_info"
             fi
         else
             log::warn "  ⚠️  GPU not available, will use CPU"

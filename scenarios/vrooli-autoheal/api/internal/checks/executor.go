@@ -11,7 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"vrooli-autoheal/internal/reporoot"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/reporoot"
 )
 
 // CommandExecutor abstracts command execution for testability.

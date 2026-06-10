@@ -4,8 +4,9 @@ import (
 	"context"
 	"sync"
 	"time"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // mockStore implements ResultLoader and ResultSaver for testing.

@@ -2,13 +2,13 @@ package preflight
 
 import (
 	"encoding/json"
-	"scenario-to-desktop-runtime/health"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
 	"time"
 
-	bundleruntime "scenario-to-desktop-runtime"
-	runtimeapi "scenario-to-desktop-runtime/api"
+	bundleruntime "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime"
+	runtimeapi "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
 
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // Request asks the API to dry-run the bundle runtime.

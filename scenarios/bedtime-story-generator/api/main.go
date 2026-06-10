@@ -305,20 +305,19 @@ Format: TITLE: [title]\nSTORY:\n## Page 1\n[story with ## Page N markers, calm a
 		req.Length, req.Theme, req.AgeGroup,
 		getCharacterPrompt(req.CharacterNames))
 
-	// Use faster model for better performance
-	model := os.Getenv("STORY_MODEL")
-	if model == "" {
-		model = "llama3.2:1b" // Much smaller and faster 1B model
+	role := os.Getenv("STORY_ROLE")
+	if role == "" {
+		role = "chat.small"
 	}
 
 	// All daemon traffic goes through resource-ollama gateway so the host-wide
 	// semaphore can bound fleet-wide parallelism.
-	log.Printf("Calling resource-ollama gateway generate with model %s", model)
+	log.Printf("Calling resource-ollama gateway generate with role %s", role)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
-		"--model", model, "--json", "--prompt-stdin")
+		"--role", role, "--json", "--prompt-stdin")
 	cmd.Stdin = strings.NewReader(prompt)
 	out, err := cmd.Output()
 	if err != nil {
@@ -815,4 +814,5 @@ func getThemesHandler(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(themes)
 }
+
 // Test change Mon Nov  3 01:06:22 AM EST 2025

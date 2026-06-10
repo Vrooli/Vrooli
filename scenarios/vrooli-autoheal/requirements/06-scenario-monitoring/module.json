@@ -1,111 +1,109 @@
 {
-  "module": "scenario-monitoring",
-  "description": "Health monitoring and auto-repair for Vrooli scenarios",
-  "prd_refs": [
-    "OT-P0-007"
-  ],
+  "_metadata": {
+    "last_validated_at": "2026-06-10T16:46:49-04:00"
+  },
   "requirements": [
     {
       "id": "SCEN-MON-001",
       "title": "Scenario status check via CLI",
-      "description": "Use vrooli scenario status <name> --json to check scenario health",
+      "status": "planned",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
+      "description": "Use vrooli scenario status \u003cname\u003e --json to check scenario health",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "SCEN-MON-002",
       "title": "Scenario health interpretation",
-      "description": "Parse status, api.available, ui.available from diagnostics",
+      "status": "planned",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
+      "description": "Parse status, api.available, ui.available from diagnostics",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "SCEN-MON-003",
       "title": "Auto-restart unhealthy scenarios",
-      "description": "If scenario is not running or endpoints unavailable, attempt restart via vrooli scenario restart",
+      "status": "planned",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
+      "description": "If scenario is not running or endpoints unavailable, attempt restart via vrooli scenario restart",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "SCEN-MON-004",
       "title": "Configurable scenario list",
-      "description": "List of monitored scenarios is configuration-driven",
+      "status": "planned",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
+      "description": "List of monitored scenarios is configuration-driven",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "SCEN-MON-005",
       "title": "Port cleanup before restart",
-      "description": "Clean up stale port listeners before restarting a scenario",
+      "status": "planned",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
+      "description": "Clean up stale port listeners before restarting a scenario",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "SCEN-MON-006",
       "title": "Restart verification",
-      "description": "After restart, verify scenario becomes healthy within timeout",
+      "status": "planned",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
+      "description": "After restart, verify scenario becomes healthy within timeout",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     }
   ]
 }

@@ -8,7 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"vrooli-autoheal/internal/checks"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"

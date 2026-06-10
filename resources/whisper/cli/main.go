@@ -6,7 +6,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 
-	"resource-whisper/cli/internal/recommend"
+	"github.com/vrooli/vrooli/resources/whisper/cli/internal/recommend"
 )
 
 const (

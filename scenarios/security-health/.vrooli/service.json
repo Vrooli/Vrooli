@@ -224,10 +224,10 @@
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Local embedding model (nomic-embed-text) for the dependency index.",
+        "description": "Local embedding role for the dependency index.",
         "degraded_behavior": "Embedding generation is unavailable; text-mode dependency search still works.",
-        "models": [
-          "nomic-embed-text"
+        "model_roles": [
+          "embedding.default"
         ]
       }
     }

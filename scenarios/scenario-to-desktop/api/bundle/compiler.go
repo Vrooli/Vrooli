@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // defaultRuntimeBuilder is the default implementation of RuntimeBuilder.

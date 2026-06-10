@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"system-monitor-api/internal/toolregistry"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/toolregistry"
 )
 
 // ToolsHandler handles HTTP requests for tool discovery.

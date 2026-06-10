@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"system-monitor-api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 // EstimateMetricRetention reports the in-memory rows older than cutoff.

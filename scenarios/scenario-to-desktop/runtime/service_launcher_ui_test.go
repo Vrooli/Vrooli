@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"scenario-to-desktop-runtime/assets"
-	"scenario-to-desktop-runtime/gpu"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/assets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/gpu"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 // =============================================================================

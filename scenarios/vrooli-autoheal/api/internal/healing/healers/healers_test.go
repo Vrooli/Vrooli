@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/healing"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/healing"
 )
 
 // mockExecutor implements checks.CommandExecutor for testing.

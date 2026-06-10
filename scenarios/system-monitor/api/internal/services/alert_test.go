@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/repository/memory"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/memory"
 )
 
 func newTestAlertService(t *testing.T, clk Clock, cooldownMinutes int) *AlertService {

@@ -5,8 +5,9 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/journal"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
 )
 
 func newPMRuntimeWithMock(avail bool, count int, queryErr error) (*PMRuntimeHogCheck, *checks.MockExecutor) {

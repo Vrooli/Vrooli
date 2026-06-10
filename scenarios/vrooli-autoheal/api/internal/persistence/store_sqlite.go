@@ -8,10 +8,11 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/hostinventory"
-	"vrooli-autoheal/internal/incidents"
-	"vrooli-autoheal/internal/systemevents"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/systemevents"
 )
 
 // rfc3339NanoCutoff returns now-windowHours as an RFC3339Nano UTC string,

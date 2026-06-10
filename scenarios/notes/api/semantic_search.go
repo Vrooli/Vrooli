@@ -55,16 +55,16 @@ type QdrantSearchResult struct {
 // daemon traffic goes through the CLI so the host-wide semaphore can bound
 // fleet-wide parallelism — never call Ollama HTTP directly.
 func getEmbedding(text string) ([]float64, error) {
-	model := os.Getenv("OLLAMA_EMBEDDING_MODEL")
-	if model == "" {
-		model = "nomic-embed-text"
+	role := os.Getenv("OLLAMA_EMBEDDING_ROLE")
+	if role == "" {
+		role = "embedding.default"
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "embed",
-		"--model", model, "--json", "--input-stdin")
+		"--role", role, "--json", "--input-stdin")
 	cmd.Stdin = strings.NewReader(text)
 	out, err := cmd.Output()
 	if err != nil {

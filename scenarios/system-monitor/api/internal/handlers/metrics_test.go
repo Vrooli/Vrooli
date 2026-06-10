@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"system-monitor-api/internal/config"
-	handlermocks "system-monitor-api/internal/handlers/mocks"
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/testutil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	handlermocks "github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers/mocks"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/testutil"
 )
 
 func TestGetCurrentMetrics_Success(t *testing.T) {

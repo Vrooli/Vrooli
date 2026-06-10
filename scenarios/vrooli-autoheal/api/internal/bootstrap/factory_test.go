@@ -6,9 +6,10 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
-	"vrooli-autoheal/internal/userconfig"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
 )
 
 // =============================================================================

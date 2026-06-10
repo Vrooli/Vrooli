@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"system-monitor-api/internal/repository"
-	"system-monitor-api/internal/repository/memory"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/memory"
 )
 
 func seedMetrics(t *testing.T, repo *memory.MemoryRepository, ages ...time.Duration) {

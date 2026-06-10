@@ -11,8 +11,7 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
-
-	"resource-whisper/cli/internal/hwprobe"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
 // envBudgetVar is the operator-visible knob. Read here, not in lib code,
@@ -22,7 +21,7 @@ const envBudgetVar = "WHISPER_RESOURCE_BUDGET_PCT"
 // Handlers owns the runtime dependencies for the recommend-model
 // subcommand. Tests inject a FakeProbe; production wires SystemProbe.
 type Handlers struct {
-	Probe  hwprobe.Probe
+	Probe  HostProbe
 	Stdout io.Writer
 	Stderr io.Writer
 	GetEnv func(string) string
@@ -30,10 +29,15 @@ type Handlers struct {
 	Now func() time.Time
 }
 
+type HostProbe interface {
+	Collect(ctx context.Context) (hostinventory.Snapshot, error)
+}
+
 // Default returns Handlers wired to the real OS probe.
 func Default() *Handlers {
+	probe := hostinventory.SystemCollector()
 	return &Handlers{
-		Probe:  &hwprobe.SystemProbe{},
+		Probe:  probe,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 		GetEnv: os.Getenv,
@@ -74,8 +78,8 @@ type host struct {
 }
 
 type gpu struct {
-	Name    string  `json:"name"`
-	VRAMGB  float64 `json:"vram_gb"`
+	Name   string  `json:"name"`
+	VRAMGB float64 `json:"vram_gb"`
 }
 
 // Run implements cliapp.Command.Run. Defaults to human output; --json
@@ -98,9 +102,9 @@ func (h *Handlers) Run(args []string) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	caps, err := h.Probe.Detect(ctx)
+	caps, err := h.Probe.Collect(ctx)
 	if err != nil {
-		return fmt.Errorf("hwprobe failed: %w", err)
+		return fmt.Errorf("host inventory failed: %w", err)
 	}
 
 	model, reason, err := Pick(caps, budgetPct)
@@ -132,7 +136,7 @@ func resolveBudgetPct(getEnv func(string) string) int {
 	return n
 }
 
-func writeJSON(w io.Writer, model Model, reason string, caps hwprobe.HostCapabilities, budgetPct int) error {
+func writeJSON(w io.Writer, model Model, reason string, caps hostinventory.Snapshot, budgetPct int) error {
 	r := jsonResult{
 		Model:     string(model),
 		Reason:    reason,
@@ -140,8 +144,8 @@ func writeJSON(w io.Writer, model Model, reason string, caps hwprobe.HostCapabil
 		Host: host{
 			OS:       caps.OS,
 			Arch:     caps.Arch,
-			CPUCores: caps.CPUCores,
-			RAMGB:    float64(caps.TotalRAMBytes) / float64(1<<30),
+			CPUCores: caps.CPU.Cores,
+			RAMGB:    float64(caps.Memory.TotalBytes) / float64(1<<30),
 		},
 	}
 	for _, g := range caps.GPUs {
@@ -165,7 +169,7 @@ func writeEnv(w io.Writer, model Model) error {
 	return err
 }
 
-func writeHuman(w io.Writer, model Model, reason string, caps hwprobe.HostCapabilities, explain bool) error {
+func writeHuman(w io.Writer, model Model, reason string, caps hostinventory.Snapshot, explain bool) error {
 	if _, err := fmt.Fprintf(w, "%s\n", model); err != nil {
 		return err
 	}
@@ -176,7 +180,7 @@ func writeHuman(w io.Writer, model Model, reason string, caps hwprobe.HostCapabi
 		return err
 	}
 	_, err := fmt.Fprintf(w, "  host:   os=%s arch=%s cpu_cores=%d ram=%.1f GB gpus=%d\n",
-		caps.OS, caps.Arch, caps.CPUCores,
-		float64(caps.TotalRAMBytes)/float64(1<<30), len(caps.GPUs))
+		caps.OS, caps.Arch, caps.CPU.Cores,
+		float64(caps.Memory.TotalBytes)/float64(1<<30), len(caps.GPUs))
 	return err
 }

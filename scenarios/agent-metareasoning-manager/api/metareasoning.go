@@ -20,14 +20,14 @@ import (
 
 // MetareasoningEngine orchestrates all reasoning workflows
 type MetareasoningEngine struct {
-	db              *sql.DB
-	httpClient      *http.Client
-	ollamaClient    *OllamaClient
-	vectorStore     *VectorStore
-	ctx             context.Context
-	cancel          context.CancelFunc
-	activeChains    map[string]*ReasoningChain
-	chainsMutex     sync.RWMutex
+	db           *sql.DB
+	httpClient   *http.Client
+	ollamaClient *OllamaClient
+	vectorStore  *VectorStore
+	ctx          context.Context
+	cancel       context.CancelFunc
+	activeChains map[string]*ReasoningChain
+	chainsMutex  sync.RWMutex
 }
 
 // ReasoningRequest represents an incoming reasoning request
@@ -44,18 +44,18 @@ type ReasoningRequest struct {
 
 // ReasoningResponse contains the analysis results
 type ReasoningResponse struct {
-	ID              string                 `json:"id"`
-	Type            string                 `json:"type"`
-	Analysis        interface{}            `json:"analysis"`
-	Scores          map[string]float64     `json:"scores,omitempty"`
-	Confidence      float64                `json:"confidence"`
-	RecommendationStrength float64        `json:"recommendation_strength,omitempty"`
-	Timestamp       time.Time              `json:"timestamp"`
-	Model           string                 `json:"model"`
-	ExecutionTime   int64                  `json:"execution_time_ms"`
-	Success         bool                   `json:"success"`
-	Error           string                 `json:"error,omitempty"`
-	VectorID        string                 `json:"vector_id,omitempty"`
+	ID                     string             `json:"id"`
+	Type                   string             `json:"type"`
+	Analysis               interface{}        `json:"analysis"`
+	Scores                 map[string]float64 `json:"scores,omitempty"`
+	Confidence             float64            `json:"confidence"`
+	RecommendationStrength float64            `json:"recommendation_strength,omitempty"`
+	Timestamp              time.Time          `json:"timestamp"`
+	Model                  string             `json:"model"`
+	ExecutionTime          int64              `json:"execution_time_ms"`
+	Success                bool               `json:"success"`
+	Error                  string             `json:"error,omitempty"`
+	VectorID               string             `json:"vector_id,omitempty"`
 }
 
 // ProsCons represents structured pros and cons analysis
@@ -75,22 +75,22 @@ type WeightedItem struct {
 
 // SWOTAnalysis represents strategic SWOT analysis
 type SWOTAnalysis struct {
-	Strengths      []WeightedItem `json:"strengths"`
-	Weaknesses     []WeightedItem `json:"weaknesses"`
-	Opportunities  []WeightedItem `json:"opportunities"`
-	Threats        []WeightedItem `json:"threats"`
-	Strategic      string         `json:"strategic_recommendation"`
-	Priority       string         `json:"priority_focus"`
-	Confidence     float64        `json:"confidence"`
+	Strengths     []WeightedItem `json:"strengths"`
+	Weaknesses    []WeightedItem `json:"weaknesses"`
+	Opportunities []WeightedItem `json:"opportunities"`
+	Threats       []WeightedItem `json:"threats"`
+	Strategic     string         `json:"strategic_recommendation"`
+	Priority      string         `json:"priority_focus"`
+	Confidence    float64        `json:"confidence"`
 }
 
 // RiskAssessment represents risk analysis
 type RiskAssessment struct {
-	Risks          []Risk    `json:"risks"`
-	Mitigations    []Risk    `json:"mitigations"`
-	OverallRisk    string    `json:"overall_risk_level"`
-	Recommendation string    `json:"recommendation"`
-	Confidence     float64   `json:"confidence"`
+	Risks          []Risk  `json:"risks"`
+	Mitigations    []Risk  `json:"mitigations"`
+	OverallRisk    string  `json:"overall_risk_level"`
+	Recommendation string  `json:"recommendation"`
+	Confidence     float64 `json:"confidence"`
 }
 
 // Risk represents a single risk or mitigation
@@ -104,26 +104,26 @@ type Risk struct {
 
 // SelfReview represents metacognitive analysis
 type SelfReview struct {
-	BiasesIdentified    []string `json:"biases_identified"`
-	AssumptionsChecked  []string `json:"assumptions_checked"`
-	AlternativeViews    []string `json:"alternative_views"`
-	LogicalFallacies    []string `json:"logical_fallacies"`
-	ConfidenceLevel     float64  `json:"confidence_level"`
-	RecommendedActions  []string `json:"recommended_actions"`
-	QualityAssessment   string   `json:"quality_assessment"`
+	BiasesIdentified   []string `json:"biases_identified"`
+	AssumptionsChecked []string `json:"assumptions_checked"`
+	AlternativeViews   []string `json:"alternative_views"`
+	LogicalFallacies   []string `json:"logical_fallacies"`
+	ConfidenceLevel    float64  `json:"confidence_level"`
+	RecommendedActions []string `json:"recommended_actions"`
+	QualityAssessment  string   `json:"quality_assessment"`
 }
 
 // ReasoningChain orchestrates multi-step reasoning
 type ReasoningChain struct {
-	ID          string            `json:"id"`
-	Type        string            `json:"type"`
-	Input       string            `json:"input"`
-	Steps       []ReasoningStep   `json:"steps"`
-	CurrentStep int               `json:"current_step"`
-	Results     []StepResult      `json:"results"`
-	Status      string            `json:"status"`
-	StartedAt   time.Time         `json:"started_at"`
-	CompletedAt *time.Time        `json:"completed_at,omitempty"`
+	ID          string             `json:"id"`
+	Type        string             `json:"type"`
+	Input       string             `json:"input"`
+	Steps       []ReasoningStep    `json:"steps"`
+	CurrentStep int                `json:"current_step"`
+	Results     []StepResult       `json:"results"`
+	Status      string             `json:"status"`
+	StartedAt   time.Time          `json:"started_at"`
+	CompletedAt *time.Time         `json:"completed_at,omitempty"`
 	FinalResult *ReasoningResponse `json:"final_result,omitempty"`
 }
 
@@ -149,14 +149,14 @@ type OllamaClient struct{}
 
 // VectorStore handles vector operations
 type VectorStore struct {
-	qdrantURL string
+	qdrantURL  string
 	httpClient *http.Client
 }
 
 // NewMetareasoningEngine creates a new metareasoning engine
 func NewMetareasoningEngine(db *sql.DB) *MetareasoningEngine {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	return &MetareasoningEngine{
 		db:           db,
 		httpClient:   &http.Client{Timeout: 120 * time.Second},
@@ -185,14 +185,14 @@ func NewVectorStore() *VectorStore {
 func (me *MetareasoningEngine) ProcessReasoning(req *ReasoningRequest) (*ReasoningResponse, error) {
 	startTime := time.Now()
 	id := uuid.New().String()
-	
+
 	log.Printf("Processing %s reasoning request: %s", req.Type, id)
-	
+
 	var result interface{}
 	var scores map[string]float64
 	var confidence float64
 	var err error
-	
+
 	switch req.Type {
 	case "pros_cons":
 		result, scores, confidence, err = me.analyzeProsCons(req)
@@ -207,7 +207,7 @@ func (me *MetareasoningEngine) ProcessReasoning(req *ReasoningRequest) (*Reasoni
 	default:
 		return nil, fmt.Errorf("unsupported reasoning type: %s", req.Type)
 	}
-	
+
 	response := &ReasoningResponse{
 		ID:            id,
 		Type:          req.Type,
@@ -219,7 +219,7 @@ func (me *MetareasoningEngine) ProcessReasoning(req *ReasoningRequest) (*Reasoni
 		ExecutionTime: time.Since(startTime).Milliseconds(),
 		Success:       err == nil,
 	}
-	
+
 	if err != nil {
 		response.Error = err.Error()
 		log.Printf("Reasoning request failed: %v", err)
@@ -229,7 +229,7 @@ func (me *MetareasoningEngine) ProcessReasoning(req *ReasoningRequest) (*Reasoni
 		vectorID := me.createVectorEmbedding(response)
 		response.VectorID = vectorID
 	}
-	
+
 	return response, nil
 }
 
@@ -254,37 +254,37 @@ Format as JSON with structure: {"pros": [{"item": "", "weight": 0, "explanation"
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	
+
 	var analysis ProsCons
 	if err := json.Unmarshal([]byte(response), &analysis); err != nil {
 		return nil, nil, 0, fmt.Errorf("failed to parse pros/cons response: %w", err)
 	}
-	
+
 	// Calculate scores
 	prosScore := 0.0
 	for _, pro := range analysis.Pros {
 		prosScore += pro.Weight
 	}
-	
+
 	consScore := 0.0
 	for _, con := range analysis.Cons {
 		consScore += con.Weight
 	}
-	
+
 	netScore := prosScore - consScore
 	totalScore := prosScore + consScore
 	recommendationStrength := 0.0
 	if totalScore > 0 {
 		recommendationStrength = math.Abs(netScore) / totalScore
 	}
-	
+
 	scores := map[string]float64{
-		"pros_total":             prosScore,
-		"cons_total":             consScore,
-		"net_score":              netScore,
+		"pros_total":              prosScore,
+		"cons_total":              consScore,
+		"net_score":               netScore,
 		"recommendation_strength": recommendationStrength,
 	}
-	
+
 	return analysis, scores, analysis.Confidence, nil
 }
 
@@ -310,18 +310,18 @@ Format as JSON: {"strengths": [{"item": "", "weight": 0, "explanation": ""}], "w
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	
+
 	var analysis SWOTAnalysis
 	if err := json.Unmarshal([]byte(response), &analysis); err != nil {
 		return nil, nil, 0, fmt.Errorf("failed to parse SWOT response: %w", err)
 	}
-	
+
 	// Calculate SWOT scores
 	strengthsScore := calculateItemsScore(analysis.Strengths)
 	weaknessesScore := calculateItemsScore(analysis.Weaknesses)
 	opportunitiesScore := calculateItemsScore(analysis.Opportunities)
 	threatsScore := calculateItemsScore(analysis.Threats)
-	
+
 	scores := map[string]float64{
 		"strengths":     strengthsScore,
 		"weaknesses":    weaknessesScore,
@@ -330,7 +330,7 @@ Format as JSON: {"strengths": [{"item": "", "weight": 0, "explanation": ""}], "w
 		"internal_net":  strengthsScore - weaknessesScore,
 		"external_net":  opportunitiesScore - threatsScore,
 	}
-	
+
 	return analysis, scores, analysis.Confidence, nil
 }
 
@@ -355,12 +355,12 @@ Format as JSON: {"risks": [{"description": "", "probability": 0, "impact": 0, "s
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	
+
 	var analysis RiskAssessment
 	if err := json.Unmarshal([]byte(response), &analysis); err != nil {
 		return nil, nil, 0, fmt.Errorf("failed to parse risk assessment response: %w", err)
 	}
-	
+
 	// Calculate risk scores
 	totalRisk := 0.0
 	highRisks := 0
@@ -371,14 +371,14 @@ Format as JSON: {"risks": [{"description": "", "probability": 0, "impact": 0, "s
 			highRisks++
 		}
 	}
-	
+
 	scores := map[string]float64{
-		"total_risk":       totalRisk,
-		"average_risk":     totalRisk / float64(len(analysis.Risks)),
-		"high_risk_count":  float64(highRisks),
+		"total_risk":            totalRisk,
+		"average_risk":          totalRisk / float64(len(analysis.Risks)),
+		"high_risk_count":       float64(highRisks),
 		"risk_mitigation_ratio": float64(len(analysis.Mitigations)) / float64(len(analysis.Risks)),
 	}
-	
+
 	return analysis, scores, analysis.Confidence, nil
 }
 
@@ -404,28 +404,28 @@ Format as JSON: {"biases_identified": [], "assumptions_checked": [], "alternativ
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	
+
 	var analysis SelfReview
 	if err := json.Unmarshal([]byte(response), &analysis); err != nil {
 		return nil, nil, 0, fmt.Errorf("failed to parse self-review response: %w", err)
 	}
-	
+
 	// Calculate metacognitive scores
 	scores := map[string]float64{
-		"biases_found":        float64(len(analysis.BiasesIdentified)),
-		"assumptions_checked": float64(len(analysis.AssumptionsChecked)),
+		"biases_found":            float64(len(analysis.BiasesIdentified)),
+		"assumptions_checked":     float64(len(analysis.AssumptionsChecked)),
 		"alternatives_considered": float64(len(analysis.AlternativeViews)),
-		"fallacies_detected":  float64(len(analysis.LogicalFallacies)),
-		"improvement_actions": float64(len(analysis.RecommendedActions)),
+		"fallacies_detected":      float64(len(analysis.LogicalFallacies)),
+		"improvement_actions":     float64(len(analysis.RecommendedActions)),
 	}
-	
+
 	return analysis, scores, analysis.ConfidenceLevel, nil
 }
 
 // startReasoningChain initiates a multi-step reasoning chain
 func (me *MetareasoningEngine) startReasoningChain(req *ReasoningRequest) (*ReasoningResponse, error) {
 	chainID := uuid.New().String()
-	
+
 	// Define predefined chains
 	chains := map[string][]ReasoningStep{
 		"comprehensive": {
@@ -445,7 +445,7 @@ func (me *MetareasoningEngine) startReasoningChain(req *ReasoningRequest) (*Reas
 			{Step: "risk_assessment", Type: "risk_assessment", Description: "Final risk evaluation"},
 		},
 	}
-	
+
 	var steps []ReasoningStep
 	if len(req.CustomChain) > 0 {
 		steps = req.CustomChain
@@ -456,7 +456,7 @@ func (me *MetareasoningEngine) startReasoningChain(req *ReasoningRequest) (*Reas
 		}
 		steps = chains[chainType]
 	}
-	
+
 	chain := &ReasoningChain{
 		ID:          chainID,
 		Type:        req.ChainType,
@@ -467,14 +467,14 @@ func (me *MetareasoningEngine) startReasoningChain(req *ReasoningRequest) (*Reas
 		Status:      "initiated",
 		StartedAt:   time.Now(),
 	}
-	
+
 	me.chainsMutex.Lock()
 	me.activeChains[chainID] = chain
 	me.chainsMutex.Unlock()
-	
+
 	// Start chain execution in background
 	go me.executeReasoningChain(chain, getModel(req.Model), req.Context)
-	
+
 	response := &ReasoningResponse{
 		ID:        chainID,
 		Type:      "reasoning_chain",
@@ -483,7 +483,7 @@ func (me *MetareasoningEngine) startReasoningChain(req *ReasoningRequest) (*Reas
 		Model:     getModel(req.Model),
 		Success:   true,
 	}
-	
+
 	return response, nil
 }
 
@@ -494,13 +494,13 @@ func (me *MetareasoningEngine) executeReasoningChain(chain *ReasoningChain, mode
 		delete(me.activeChains, chain.ID)
 		me.chainsMutex.Unlock()
 	}()
-	
+
 	for chain.CurrentStep < len(chain.Steps) {
 		step := chain.Steps[chain.CurrentStep]
 		stepStart := time.Now()
-		
+
 		log.Printf("Executing chain %s step %d: %s", chain.ID, chain.CurrentStep, step.Step)
-		
+
 		// Prepare step input
 		stepReq := &ReasoningRequest{
 			Input:   chain.Input,
@@ -508,7 +508,7 @@ func (me *MetareasoningEngine) executeReasoningChain(chain *ReasoningChain, mode
 			Model:   model,
 			Context: context,
 		}
-		
+
 		// Add context from previous steps
 		if len(chain.Results) > 0 {
 			previousResults := []string{}
@@ -518,55 +518,58 @@ func (me *MetareasoningEngine) executeReasoningChain(chain *ReasoningChain, mode
 			}
 			stepReq.Context = fmt.Sprintf("%s\n\nPrevious reasoning steps:\n%s", context, strings.Join(previousResults, "\n\n"))
 		}
-		
+
 		// Execute step
 		response, err := me.ProcessReasoning(stepReq)
-		
+
 		stepResult := StepResult{
 			Step:      step.Step,
 			Timestamp: time.Now(),
 			Duration:  time.Since(stepStart).Milliseconds(),
 		}
-		
+
 		if err != nil {
 			chain.Status = "failed"
 			stepResult.Result = map[string]string{"error": err.Error()}
 			chain.Results = append(chain.Results, stepResult)
 			return
 		}
-		
+
 		stepResult.Result = response.Analysis
 		chain.Results = append(chain.Results, stepResult)
 		chain.CurrentStep++
-		
+
 		chain.Status = "executing"
 		if chain.CurrentStep >= len(chain.Steps) {
 			chain.Status = "completed"
 			now := time.Now()
 			chain.CompletedAt = &now
-			
+
 			// Create final consolidated result
 			chain.FinalResult = &ReasoningResponse{
 				ID:        chain.ID + "_final",
-				Type:      "reasoning_chain_result", 
+				Type:      "reasoning_chain_result",
 				Analysis:  chain,
 				Timestamp: time.Now(),
 				Model:     model,
 				Success:   true,
 			}
-			
+
 			me.storeResult(chain.FinalResult)
 		}
 	}
 }
 
 // Generate calls resource-ollama gateway generate to produce AI responses.
-func (oc *OllamaClient) Generate(prompt, model string) (string, error) {
+func (oc *OllamaClient) Generate(prompt, role string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
+	if strings.TrimSpace(role) == "" {
+		role = "chat.default"
+	}
 
 	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
-		"--model", model, "--json", "--prompt-stdin")
+		"--role", role, "--json", "--prompt-stdin")
 	cmd.Stdin = strings.NewReader(prompt)
 
 	var stdout bytes.Buffer
@@ -598,7 +601,7 @@ func calculateItemsScore(items []WeightedItem) float64 {
 
 func getModel(model string) string {
 	if model == "" {
-		return "llama3.2"
+		return "chat.default"
 	}
 	return model
 }
@@ -614,7 +617,7 @@ func getEnv(key, defaultValue string) string {
 func (me *MetareasoningEngine) storeResult(response *ReasoningResponse) {
 	analysisJSON, _ := json.Marshal(response.Analysis)
 	scoresJSON, _ := json.Marshal(response.Scores)
-	
+
 	query := `
 		INSERT INTO reasoning_results (
 			id, type, analysis, scores, confidence, 
@@ -622,7 +625,7 @@ func (me *MetareasoningEngine) storeResult(response *ReasoningResponse) {
 			created_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
 	`
-	
+
 	me.db.Exec(query,
 		response.ID, response.Type, analysisJSON, scoresJSON,
 		response.Confidence, response.Model, response.ExecutionTime,
@@ -634,15 +637,15 @@ func (me *MetareasoningEngine) storeResult(response *ReasoningResponse) {
 func (me *MetareasoningEngine) createVectorEmbedding(response *ReasoningResponse) string {
 	// Create text representation for embedding
 	text := fmt.Sprintf("Reasoning Type: %s\nAnalysis: %s", response.Type, fmt.Sprintf("%v", response.Analysis))
-	
+
 	// Use Ollama's embedding model via the resource-ollama gateway CLI.
 	cmd := exec.Command("resource-ollama", "gateway", "embed",
-		"--model", "nomic-embed-text", "--json", "--input-stdin")
+		"--role", "embedding.default", "--json", "--input-stdin")
 	cmd.Stdin = strings.NewReader(text)
 	if err := cmd.Run(); err != nil {
 		log.Printf("Failed to create embedding: %v", err)
 		return ""
 	}
-	
+
 	return response.ID + "_embedding"
 }

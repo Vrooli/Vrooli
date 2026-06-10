@@ -3,7 +3,7 @@ package recommend
 import (
 	"fmt"
 
-	"resource-whisper/cli/internal/hwprobe"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
 // DefaultBudgetPct is the percentage of detected VRAM/RAM the
@@ -14,7 +14,7 @@ const DefaultBudgetPct = 50
 // Pick returns the recommended Whisper model for the host. The reason
 // string is human-readable and intended for the CLI's explain output.
 // Pure function: no I/O, no time, no env. Tested via table.
-func Pick(caps hwprobe.HostCapabilities, budgetPct int) (Model, string, error) {
+func Pick(caps hostinventory.Snapshot, budgetPct int) (Model, string, error) {
 	if budgetPct <= 0 || budgetPct > 100 {
 		return "", "", fmt.Errorf("recommend: budget_pct must be in (0,100], got %d", budgetPct)
 	}
@@ -36,19 +36,19 @@ func Pick(caps hwprobe.HostCapabilities, budgetPct int) (Model, string, error) {
 	}
 
 	// CPU path: gated on both RAM budget AND core count.
-	ramBudget := caps.TotalRAMBytes * uint64(budgetPct) / 100
+	ramBudget := caps.Memory.TotalBytes * uint64(budgetPct) / 100
 	tiers := []Model{ModelMedium, ModelSmall, ModelBase}
 	for _, m := range tiers {
-		if ramBudget >= CPURAMRequirement[m] && caps.CPUCores >= CPUCoreRequirement[m] {
+		if ramBudget >= CPURAMRequirement[m] && caps.CPU.Cores >= CPUCoreRequirement[m] {
 			return m, fmt.Sprintf("no GPU, ram_budget=%s, cpu_cores=%d → %s",
-				fmtGB(ramBudget), caps.CPUCores, m), nil
+				fmtGB(ramBudget), caps.CPU.Cores, m), nil
 		}
 	}
 	return ModelTiny, fmt.Sprintf("no GPU, ram_budget=%s, cpu_cores=%d → tiny (fallback)",
-		fmtGB(ramBudget), caps.CPUCores), nil
+		fmtGB(ramBudget), caps.CPU.Cores), nil
 }
 
-func bestGPUBudget(gpus []hwprobe.GPU, budgetPct int) (string, uint64) {
+func bestGPUBudget(gpus []hostinventory.GPU, budgetPct int) (string, uint64) {
 	var name string
 	var best uint64
 	for _, g := range gpus {

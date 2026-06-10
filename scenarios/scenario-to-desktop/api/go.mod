@@ -11,9 +11,9 @@ require (
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
-	golang.org/x/text v0.23.0
+	github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime v0.0.0
+	golang.org/x/text v0.32.0
 	google.golang.org/protobuf v1.36.11
-	scenario-to-desktop-runtime v0.0.0
 	software.sslmate.com/src/go-pkcs12 v0.4.0
 )
 
@@ -28,14 +28,17 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	golang.org/x/crypto v0.11.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20251213004720-97cd9d5aeac2 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 )
 
-replace scenario-to-desktop-runtime => ../runtime
+replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../runtime
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
-require github.com/vrooli/cli-core v0.0.0 // indirect
+require (
+	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/vrooli v0.0.0 // indirect
+)
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 

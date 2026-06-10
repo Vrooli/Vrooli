@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/storage"
-	"system-monitor-api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 )
 
 type rotatingFileWriter struct {

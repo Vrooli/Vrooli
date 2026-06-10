@@ -4,12 +4,12 @@ package config
 import (
 	"strings"
 
-	"scenario-to-desktop-runtime/gpu"
-	"scenario-to-desktop-runtime/health"
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/ports"
-	"scenario-to-desktop-runtime/secrets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/gpu"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/ports"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
 )
 
 // Options configures the Supervisor.

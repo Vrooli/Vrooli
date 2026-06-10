@@ -12,7 +12,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"system-monitor-api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 )
 
 func JSON(w http.ResponseWriter, data any) error {

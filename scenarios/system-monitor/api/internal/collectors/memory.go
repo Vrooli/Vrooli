@@ -3,11 +3,12 @@ package collectors
 import (
 	"context"
 	"fmt"
-	"os"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
 // MemoryCollector collects memory metrics
@@ -24,9 +25,10 @@ func NewMemoryCollector() *MemoryCollector {
 
 // Collect gathers memory metrics
 func (c *MemoryCollector) Collect(ctx context.Context) (*MetricData, error) {
-	memUsage := c.getMemoryUsage()
-	memDetails := c.getMemoryDetails()
-	swapInfo := c.getSwapUsage()
+	snapshot, _ := hostinventory.Collect(ctx)
+	memUsage := c.getMemoryUsage(snapshot)
+	memDetails := c.getMemoryDetails(snapshot)
+	swapInfo := c.getSwapUsage(snapshot)
 	topProcesses, _ := GetTopProcessesByMemory(5)
 
 	return &MetricData{
@@ -47,20 +49,9 @@ func (c *MemoryCollector) Collect(ctx context.Context) (*MetricData, error) {
 }
 
 // getMemoryUsage returns memory usage percentage
-func (c *MemoryCollector) getMemoryUsage() float64 {
-	if runtime.GOOS != "linux" {
-		return float64(45 + (time.Now().Second() % 20))
-	}
-
-	// Use (total - available) / total for accurate memory usage
-	// This accounts for memory that can't be reclaimed easily
-	meminfo, err := readMemInfo()
-	if err != nil {
-		return 30.0 // Default fallback
-	}
-
-	total := meminfo["MemTotal"]
-	available := meminfo["MemAvailable"]
+func (c *MemoryCollector) getMemoryUsage(snapshot hostinventory.Snapshot) float64 {
+	total := snapshot.Memory.TotalBytes
+	available := snapshot.Memory.AvailableBytes
 	if total <= 0 {
 		return 0.0
 	}
@@ -72,7 +63,7 @@ func (c *MemoryCollector) getMemoryUsage() float64 {
 }
 
 // getMemoryDetails returns detailed memory information
-func (c *MemoryCollector) getMemoryDetails() map[string]int64 {
+func (c *MemoryCollector) getMemoryDetails(snapshot hostinventory.Snapshot) map[string]int64 {
 	details := map[string]int64{
 		"total":     0,
 		"used":      0,
@@ -81,19 +72,10 @@ func (c *MemoryCollector) getMemoryDetails() map[string]int64 {
 		"buffers":   0,
 	}
 
-	if runtime.GOOS != "linux" {
-		return details
-	}
-
-	meminfo, err := readMemInfo()
-	if err != nil {
-		return details
-	}
-
-	details["total"] = meminfo["MemTotal"]
-	details["available"] = meminfo["MemAvailable"]
-	details["buffers"] = meminfo["Buffers"]
-	details["cached"] = meminfo["Cached"]
+	details["total"] = bytesToInt64(snapshot.Memory.TotalBytes)
+	details["available"] = bytesToInt64(snapshot.Memory.AvailableBytes)
+	details["buffers"] = bytesToInt64(snapshot.Memory.BuffersBytes)
+	details["cached"] = bytesToInt64(snapshot.Memory.CachedBytes)
 	if details["total"] > 0 && details["available"] > 0 {
 		details["used"] = details["total"] - details["available"]
 	}
@@ -102,24 +84,15 @@ func (c *MemoryCollector) getMemoryDetails() map[string]int64 {
 }
 
 // getSwapUsage returns swap usage information
-func (c *MemoryCollector) getSwapUsage() map[string]interface{} {
+func (c *MemoryCollector) getSwapUsage(snapshot hostinventory.Snapshot) map[string]interface{} {
 	swapInfo := map[string]interface{}{
 		"used":    int64(0),
 		"total":   int64(0),
 		"percent": float64(0),
 	}
 
-	if runtime.GOOS != "linux" {
-		return swapInfo
-	}
-
-	meminfo, err := readMemInfo()
-	if err != nil {
-		return swapInfo
-	}
-
-	total := meminfo["SwapTotal"]
-	free := meminfo["SwapFree"]
+	total := bytesToInt64(snapshot.Swap.TotalBytes)
+	free := bytesToInt64(snapshot.Swap.FreeBytes)
 	used := total - free
 	if used < 0 {
 		used = 0
@@ -176,39 +149,6 @@ func GetTopProcessesByMemory(limit int) ([]map[string]interface{}, error) {
 	return processes, nil
 }
 
-func readMemInfo() (map[string]int64, error) {
-	data, err := os.ReadFile("/proc/meminfo")
-	if err != nil {
-		return nil, err
-	}
-
-	meminfo := map[string]int64{
-		"MemTotal":     0,
-		"MemAvailable": 0,
-		"Buffers":      0,
-		"Cached":       0,
-		"SwapTotal":    0,
-		"SwapFree":     0,
-	}
-
-	for _, line := range strings.Split(string(data), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
-		}
-		key := strings.TrimSuffix(fields[0], ":")
-		value, err := strconv.ParseInt(fields[1], 10, 64)
-		if err != nil {
-			continue
-		}
-		if _, ok := meminfo[key]; ok {
-			meminfo[key] = value * 1024
-		}
-	}
-
-	return meminfo, nil
-}
-
 // GetMemoryGrowthPatterns analyzes memory growth patterns
 func GetMemoryGrowthPatterns() []map[string]interface{} {
 	// This would require historical data tracking
@@ -225,4 +165,11 @@ func GetMemoryGrowthPatterns() []map[string]interface{} {
 			"risk_level":         "low",
 		},
 	}
+}
+
+func bytesToInt64(value uint64) int64 {
+	if value > uint64(^uint64(0)>>1) {
+		return int64(^uint64(0) >> 1)
+	}
+	return int64(value)
 }

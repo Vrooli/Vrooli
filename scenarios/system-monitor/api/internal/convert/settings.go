@@ -1,7 +1,7 @@
 package convert
 
 import (
-	"system-monitor-api/internal/services"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
 
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
 )

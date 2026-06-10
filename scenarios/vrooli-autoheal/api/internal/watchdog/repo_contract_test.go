@@ -4,7 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"vrooli-autoheal/internal/platform"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 func TestResolveVrooliRootCanonicalizesContractDescendant(t *testing.T) {

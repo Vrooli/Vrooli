@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 func TestInjector_Apply_EnvTarget(t *testing.T) {

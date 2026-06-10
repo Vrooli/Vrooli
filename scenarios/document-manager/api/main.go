@@ -36,16 +36,16 @@ type Config struct {
 }
 
 type Application struct {
-	ID               string    `json:"id"`
-	Name             string    `json:"name"`
-	RepositoryURL    string    `json:"repository_url"`
-	DocumentationPath string   `json:"documentation_path"`
-	HealthScore      float64   `json:"health_score"`
-	Active           bool      `json:"active"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
-	AgentCount       int       `json:"agent_count,omitempty"`
-	Status           string    `json:"status,omitempty"`
+	ID                string    `json:"id"`
+	Name              string    `json:"name"`
+	RepositoryURL     string    `json:"repository_url"`
+	DocumentationPath string    `json:"documentation_path"`
+	HealthScore       float64   `json:"health_score"`
+	Active            bool      `json:"active"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+	AgentCount        int       `json:"agent_count,omitempty"`
+	Status            string    `json:"status,omitempty"`
 }
 
 type Agent struct {
@@ -65,18 +65,18 @@ type Agent struct {
 }
 
 type ImprovementQueue struct {
-	ID            string    `json:"id"`
-	AgentID       string    `json:"agent_id"`
-	ApplicationID string    `json:"application_id"`
-	Type          string    `json:"type"`
-	Title         string    `json:"title"`
-	Description   string    `json:"description"`
-	Severity      string    `json:"severity"`
-	Status        string    `json:"status"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-	AgentName     string    `json:"agent_name,omitempty"`
-	ApplicationName string  `json:"application_name,omitempty"`
+	ID              string    `json:"id"`
+	AgentID         string    `json:"agent_id"`
+	ApplicationID   string    `json:"application_id"`
+	Type            string    `json:"type"`
+	Title           string    `json:"title"`
+	Description     string    `json:"description"`
+	Severity        string    `json:"severity"`
+	Status          string    `json:"status"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	AgentName       string    `json:"agent_name,omitempty"`
+	ApplicationName string    `json:"application_name,omitempty"`
 }
 
 type SystemStatus struct {
@@ -91,12 +91,12 @@ type SearchRequest struct {
 }
 
 type SearchResult struct {
-	ID          string                 `json:"id"`
-	Score       float64                `json:"score"`
-	DocumentID  string                 `json:"document_id,omitempty"`
-	Content     string                 `json:"content,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
-	ApplicationName string             `json:"application_name,omitempty"`
+	ID              string                 `json:"id"`
+	Score           float64                `json:"score"`
+	DocumentID      string                 `json:"document_id,omitempty"`
+	Content         string                 `json:"content,omitempty"`
+	Metadata        map[string]interface{} `json:"metadata,omitempty"`
+	ApplicationName string                 `json:"application_name,omitempty"`
 }
 
 type SearchResponse struct {
@@ -137,9 +137,9 @@ type QdrantPoint struct {
 
 // QdrantSearchRequest represents a Qdrant search request
 type QdrantSearchRequest struct {
-	Vector []float64 `json:"vector"`
-	Limit  int       `json:"limit"`
-	WithPayload bool  `json:"with_payload"`
+	Vector      []float64 `json:"vector"`
+	Limit       int       `json:"limit"`
+	WithPayload bool      `json:"with_payload"`
 }
 
 // QdrantSearchResponse represents a Qdrant search response
@@ -160,7 +160,7 @@ func loadConfig() Config {
 	if port == "" {
 		log.Fatal("❌ API_PORT environment variable is required")
 	}
-	
+
 	// Database configuration - support both POSTGRES_URL and individual components
 	postgresURL := os.Getenv("POSTGRES_URL")
 	if postgresURL == "" {
@@ -170,15 +170,15 @@ func loadConfig() Config {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or individual connection parameters (host, port, user, password, database)")
 		}
-		
+
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
-	
+
 	// Optional service URLs - no defaults
 	// CORS configuration - default to localhost:UI_PORT if not specified
 	corsOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
@@ -223,23 +223,23 @@ func initDB() error {
 
 func dbStatusHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	status := SystemStatus{Service: "postgres", Status: "healthy"}
-	
+
 	if err := db.Ping(); err != nil {
 		status.Status = "unhealthy"
 		status.Details = err.Error()
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
-	
+
 	json.NewEncoder(w).Encode(status)
 }
 
 func vectorStatusHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	status := SystemStatus{Service: "qdrant", Status: "healthy"}
-	
+
 	resp, err := http.Get(config.QdrantURL + "/readyz")
 	if err != nil {
 		status.Status = "unhealthy"
@@ -250,19 +250,19 @@ func vectorStatusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-	
+
 	if resp.StatusCode != 200 {
 		status.Status = "unhealthy"
 		status.Details = fmt.Sprintf("HTTP %d", resp.StatusCode)
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
-	
+
 	json.NewEncoder(w).Encode(status)
 }
 
 func aiStatusHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	status := SystemStatus{Service: "ollama", Status: "healthy"}
 
 	cmd := exec.Command("resource-ollama", "status")
@@ -273,7 +273,7 @@ func aiStatusHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(status)
 		return
 	}
-	
+
 	json.NewEncoder(w).Encode(status)
 }
 
@@ -305,7 +305,7 @@ func getApplications(w http.ResponseWriter, r *http.Request) {
 		GROUP BY a.id
 		ORDER BY a.updated_at DESC
 	`
-	
+
 	rows, err := db.Query(query)
 	if err != nil {
 		log.Printf("Error querying applications: %v", err)
@@ -314,7 +314,7 @@ func getApplications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var applications []Application
 	for rows.Next() {
 		var app Application
@@ -329,7 +329,7 @@ func getApplications(w http.ResponseWriter, r *http.Request) {
 		}
 		applications = append(applications, app)
 	}
-	
+
 	json.NewEncoder(w).Encode(applications)
 }
 
@@ -340,13 +340,13 @@ func createApplication(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"})
 		return
 	}
-	
+
 	query := `
 		INSERT INTO applications (name, repository_url, documentation_path, health_score, active)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, created_at, updated_at
 	`
-	
+
 	err := db.QueryRow(query, app.Name, app.RepositoryURL, app.DocumentationPath, 0.0, true).Scan(
 		&app.ID, &app.CreatedAt, &app.UpdatedAt,
 	)
@@ -356,7 +356,7 @@ func createApplication(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create application"})
 		return
 	}
-	
+
 	app.HealthScore = 0.0
 	app.Active = true
 	w.WriteHeader(http.StatusCreated)
@@ -445,7 +445,7 @@ func getAgents(w http.ResponseWriter, r *http.Request) {
 		JOIN applications a ON ag.application_id = a.id
 		ORDER BY ag.created_at DESC
 	`
-	
+
 	rows, err := db.Query(query)
 	if err != nil {
 		log.Printf("Error querying agents: %v", err)
@@ -454,7 +454,7 @@ func getAgents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var agents []Agent
 	for rows.Next() {
 		var agent Agent
@@ -470,7 +470,7 @@ func getAgents(w http.ResponseWriter, r *http.Request) {
 		}
 		agents = append(agents, agent)
 	}
-	
+
 	json.NewEncoder(w).Encode(agents)
 }
 
@@ -481,20 +481,20 @@ func createAgent(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"})
 		return
 	}
-	
+
 	// Default configuration to empty JSON object if not provided
 	configJSON := agent.Configuration
 	if configJSON == "" {
 		configJSON = "{}"
 	}
-	
+
 	query := `
 		INSERT INTO agents (name, type, application_id, config, schedule_cron, auto_apply_threshold, enabled)
 		VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)
 		RETURNING id, created_at, COALESCE(last_run, created_at) as updated_at
 	`
-	
-	err := db.QueryRow(query, agent.Name, agent.Type, agent.ApplicationID, 
+
+	err := db.QueryRow(query, agent.Name, agent.Type, agent.ApplicationID,
 		configJSON, agent.ScheduleCron, agent.AutoApplyThreshold, true).Scan(
 		&agent.ID, &agent.CreatedAt, &agent.UpdatedAt,
 	)
@@ -504,7 +504,7 @@ func createAgent(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create agent"})
 		return
 	}
-	
+
 	agent.Enabled = true
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(agent)
@@ -588,7 +588,7 @@ func getQueue(w http.ResponseWriter, r *http.Request) {
 			END,
 			iq.created_at DESC
 	`
-	
+
 	rows, err := db.Query(query)
 	if err != nil {
 		log.Printf("Error querying queue: %v", err)
@@ -597,7 +597,7 @@ func getQueue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var items []ImprovementQueue
 	for rows.Next() {
 		var item ImprovementQueue
@@ -612,7 +612,7 @@ func getQueue(w http.ResponseWriter, r *http.Request) {
 		}
 		items = append(items, item)
 	}
-	
+
 	json.NewEncoder(w).Encode(items)
 }
 
@@ -623,14 +623,14 @@ func createQueueItem(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"})
 		return
 	}
-	
+
 	query := `
 		INSERT INTO improvement_queue (agent_id, application_id, type, title, description, severity, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, created_at as updated_at
 	`
-	
-	err := db.QueryRow(query, item.AgentID, item.ApplicationID, item.Type, 
+
+	err := db.QueryRow(query, item.AgentID, item.ApplicationID, item.Type,
 		item.Title, item.Description, item.Severity, "pending").Scan(
 		&item.ID, &item.CreatedAt, &item.UpdatedAt,
 	)
@@ -640,7 +640,7 @@ func createQueueItem(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create queue item"})
 		return
 	}
-	
+
 	item.Status = "pending"
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(item)
@@ -835,7 +835,7 @@ func generateOllamaEmbedding(text string) ([]float64, error) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "embed",
-		"--model", "nomic-embed-text", "--json", "--input-stdin")
+		"--role", "embedding.default", "--json", "--input-stdin")
 	cmd.Stdin = strings.NewReader(text)
 	out, err := cmd.Output()
 	if err != nil {
@@ -1102,20 +1102,20 @@ func main() {
 		log.Printf("Warning: Redis initialization failed: %v", err)
 	}
 	defer closeRedis()
-	
+
 	r := mux.NewRouter()
-	
+
 	// Add middleware
 	r.Use(corsMiddleware)
 	r.Use(loggingMiddleware)
-	
+
 	// Health and system endpoints - using standardized api-core/health
 	healthHandler := health.New().Version("2.0.0").Check(health.DB(db), health.Critical).Handler()
 	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/api/system/db-status", dbStatusHandler).Methods("GET")
 	r.HandleFunc("/api/system/vector-status", vectorStatusHandler).Methods("GET")
 	r.HandleFunc("/api/system/ai-status", aiStatusHandler).Methods("GET")
-	
+
 	// Main API endpoints
 	r.HandleFunc("/api/applications", applicationsHandler).Methods("GET", "POST", "DELETE", "OPTIONS")
 	r.HandleFunc("/api/agents", agentsHandler).Methods("GET", "POST", "DELETE", "OPTIONS")

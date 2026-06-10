@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/convert"
-	"system-monitor-api/internal/httputil"
-	"system-monitor-api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
 
 // MetricsHandler handles metrics-related requests

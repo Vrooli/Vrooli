@@ -2,13 +2,12 @@
 package gpu
 
 import (
-	"bytes"
 	"context"
-	goruntime "runtime"
 	"strings"
 	"time"
 
-	"scenario-to-desktop-runtime/infra"
+	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
 )
 
 // Status holds the result of GPU detection.
@@ -28,6 +27,7 @@ type Detector interface {
 type RealDetector struct {
 	CommandRunner infra.CommandRunner
 	EnvReader     infra.EnvReader
+	Collect       func(context.Context) (hostinventory.Snapshot, error)
 }
 
 // NewDetector creates a new RealDetector with the given dependencies.
@@ -39,10 +39,8 @@ func NewDetector(cmdRunner infra.CommandRunner, envReader infra.EnvReader) *Real
 }
 
 // Detect implements Detector interface.
-// It probes the system for GPU availability.
+// It uses the shared host inventory authority for GPU availability.
 // Detection can be overridden via the BUNDLE_GPU_AVAILABLE environment variable.
-// On Linux, it checks for nvidia-smi. On macOS, it uses system_profiler.
-// On Windows, it queries wmic.
 func (d *RealDetector) Detect() Status {
 	// Allow environment override for testing or forcing behavior.
 	override := strings.TrimSpace(d.EnvReader.Getenv("BUNDLE_GPU_AVAILABLE"))
@@ -53,62 +51,60 @@ func (d *RealDetector) Detect() Status {
 		return Status{Available: false, Method: "env_override", Reason: "forced unavailable via BUNDLE_GPU_AVAILABLE"}
 	}
 
-	// Check for NVIDIA GPU via nvidia-smi (works on Linux, Windows, and some macOS setups).
-	if path, err := d.CommandRunner.LookPath("nvidia-smi"); err == nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		if out, err := d.CommandRunner.Output(ctx, path, "--query-gpu=name", "--format=csv,noheader"); err == nil && len(bytes.TrimSpace(out)) > 0 {
-			return Status{Available: true, Method: "nvidia-smi", Reason: "nvidia gpu detected"}
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+	snapshot, err := d.collectSnapshot(ctx)
+	if err != nil {
+		return Status{Available: false, Method: "hostinventory", Reason: "host inventory collection failed"}
+	}
+	return statusFromSnapshot(snapshot)
+}
+
+func (d *RealDetector) collectSnapshot(ctx context.Context) (hostinventory.Snapshot, error) {
+	if d.Collect != nil {
+		return d.Collect(ctx)
+	}
+	collector := hostinventory.SystemCollector()
+	collector.Commands = inventoryCommandRunner{runner: d.CommandRunner}
+	return collector.Collect(ctx)
+}
+
+func statusFromSnapshot(snapshot hostinventory.Snapshot) Status {
+	if len(snapshot.GPUs) > 0 {
+		method := snapshot.GPUs[0].Source
+		if method == "" {
+			method = "hostinventory"
 		}
+		return Status{Available: true, Method: method, Reason: gpuReason(method)}
 	}
-
-	// Platform-specific fallbacks.
-	switch goruntime.GOOS {
-	case "darwin":
-		return d.detectGPUDarwin()
-	case "windows":
-		return d.detectGPUWindows()
-	}
-
 	return Status{Available: false, Method: "probe", Reason: "no GPU detected"}
 }
 
-// detectGPUDarwin checks for GPU on macOS using system_profiler.
-func (d *RealDetector) detectGPUDarwin() Status {
-	path, err := d.CommandRunner.LookPath("system_profiler")
-	if err != nil {
-		return Status{Available: false, Method: "probe", Reason: "system_profiler not found"}
+func gpuReason(method string) string {
+	switch method {
+	case "nvidia-smi":
+		return "nvidia gpu detected"
+	case "system_profiler":
+		return "GPU reported by system_profiler"
+	case "wmic":
+		return "GPU reported by wmic"
+	case "darwin-unified-memory":
+		return "Apple unified-memory GPU inferred"
+	default:
+		return "GPU reported by host inventory"
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	out, err := d.CommandRunner.Output(ctx, path, "SPDisplaysDataType")
-	if err != nil {
-		return Status{Available: false, Method: "system_profiler", Reason: "system_profiler failed"}
-	}
-	lower := bytes.ToLower(out)
-	if bytes.Contains(lower, []byte("chipset model")) || bytes.Contains(lower, []byte("gpu")) {
-		return Status{Available: true, Method: "system_profiler", Reason: "GPU reported by system_profiler"}
-	}
-	return Status{Available: false, Method: "system_profiler", Reason: "no GPU info in system_profiler output"}
 }
 
-// detectGPUWindows checks for GPU on Windows using wmic.
-func (d *RealDetector) detectGPUWindows() Status {
-	path, err := d.CommandRunner.LookPath("wmic")
-	if err != nil {
-		return Status{Available: false, Method: "probe", Reason: "wmic not found"}
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	out, err := d.CommandRunner.Output(ctx, path, "path", "win32_VideoController", "get", "name")
-	if err != nil {
-		return Status{Available: false, Method: "wmic", Reason: "wmic query failed"}
-	}
-	lower := bytes.ToLower(out)
-	if bytes.Contains(lower, []byte("nvidia")) || bytes.Contains(lower, []byte("amd")) || bytes.Contains(lower, []byte("intel")) {
-		return Status{Available: true, Method: "wmic", Reason: "GPU reported by wmic"}
-	}
-	return Status{Available: false, Method: "wmic", Reason: "no recognized GPU in wmic output"}
+type inventoryCommandRunner struct {
+	runner infra.CommandRunner
+}
+
+func (r inventoryCommandRunner) LookPath(file string) (string, error) {
+	return r.runner.LookPath(file)
+}
+
+func (r inventoryCommandRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return r.runner.Output(ctx, name, args...)
 }
 
 // Ensure RealDetector implements Detector.

@@ -10,8 +10,10 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"vrooli-autoheal/internal/hostobservability"
-	"vrooli-autoheal/internal/journal"
+
+	sharedhost "github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostobservability"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
 )
 
 func collectLinux(parent context.Context, c *DefaultCollector, inv *HostInventory) {
@@ -110,15 +112,12 @@ func parseProcModules(content string) []string {
 }
 
 func collectRuntimeTools(ctx context.Context, c *DefaultCollector) []RuntimeToolInfo {
-	var tools []RuntimeToolInfo
+	tools := runtimeToolsFromSharedSnapshot(ctx, c.sharedInventory)
 	for _, spec := range []struct {
 		name string
 		args []string
 	}{
-		{name: "nvidia-smi", args: []string{"--query-gpu=name,driver_version", "--format=csv,noheader"}},
-		{name: "docker", args: []string{"version", "--format", "{{.Server.Version}}"}},
 		{name: "podman", args: []string{"version", "--format", "{{.Server.Version}}"}},
-		{name: "rocm-smi", args: []string{"--showdriverversion"}},
 	} {
 		path, err := exec.LookPath(spec.name)
 		info := RuntimeToolInfo{Name: spec.name, Path: path}
@@ -137,6 +136,52 @@ func collectRuntimeTools(ctx context.Context, c *DefaultCollector) []RuntimeTool
 		tools = append(tools, info)
 	}
 	return tools
+}
+
+func runtimeToolsFromSharedSnapshot(ctx context.Context, collector sharedSnapshotCollector) []RuntimeToolInfo {
+	if collector == nil {
+		collector = defaultSharedSnapshotCollector{}
+	}
+	snap, err := collector.Collect(ctx)
+	if err != nil {
+		return []RuntimeToolInfo{{
+			Name:  "shared-hostinventory",
+			Error: truncateEvidence(err.Error(), 300),
+		}}
+	}
+	tools := make([]RuntimeToolInfo, 0, 2)
+	appendTool := func(name string, tool sharedhost.Tool, callable bool, version string) {
+		info := RuntimeToolInfo{
+			Name:     name,
+			Path:     tool.Path,
+			Callable: callable,
+			Version:  version,
+		}
+		if !tool.Present {
+			info.Error = "not found"
+		}
+		tools = append(tools, info)
+	}
+	if tool, ok := snap.RuntimeTools["nvidia-smi"]; ok {
+		appendTool("nvidia-smi", tool, snap.ProbeStatuses["nvidia_gpu"] == "ok", firstNVIDIADriverVersion(snap))
+	}
+	if tool, ok := snap.RuntimeTools["docker"]; ok {
+		version := ""
+		if snap.DockerGPU.NvidiaRuntime {
+			version = "nvidia runtime available"
+		}
+		appendTool("docker", tool, snap.ProbeStatuses["docker_gpu"] == "ok", version)
+	}
+	return tools
+}
+
+func firstNVIDIADriverVersion(snap sharedhost.Snapshot) string {
+	for _, gpu := range snap.GPUs {
+		if gpu.Source == "nvidia-smi" && gpu.DriverVersion != "" {
+			return gpu.DriverVersion
+		}
+	}
+	return ""
 }
 
 func collectKernelSignals(ctx context.Context, c *DefaultCollector) []HostSignal {

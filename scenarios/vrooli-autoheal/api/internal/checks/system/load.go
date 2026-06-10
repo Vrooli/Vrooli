@@ -3,16 +3,14 @@
 package system
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
-	"runtime"
-	"strconv"
 	"strings"
 	"time"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+
+	sharedhost "github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // LoadInfo contains system load average information
@@ -34,70 +32,24 @@ type LoadReader interface {
 	ReadLoadAvg() (*LoadInfo, error)
 }
 
-// RealLoadReader is the production implementation of LoadReader.
-type RealLoadReader struct{}
+type SharedLoadReader struct {
+	collector hostSnapshotCollector
+}
 
-// ReadLoadAvg reads load averages from /proc/loadavg.
-func (r *RealLoadReader) ReadLoadAvg() (*LoadInfo, error) {
-	file, err := os.Open("/proc/loadavg")
+func (r SharedLoadReader) ReadLoadAvg() (*LoadInfo, error) {
+	collector := r.collector
+	if collector == nil {
+		collector = defaultHostSnapshotCollector{}
+	}
+	snap, err := collector.Collect(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	if !scanner.Scan() {
-		return nil, fmt.Errorf("failed to read /proc/loadavg")
-	}
-
-	line := scanner.Text()
-	fields := strings.Fields(line)
-	if len(fields) < 5 {
-		return nil, fmt.Errorf("unexpected /proc/loadavg format: %s", line)
-	}
-
-	info := &LoadInfo{
-		NumCPUs: runtime.NumCPU(),
-	}
-
-	// Parse load averages
-	if v, err := strconv.ParseFloat(fields[0], 64); err == nil {
-		info.Load1 = v
-	}
-	if v, err := strconv.ParseFloat(fields[1], 64); err == nil {
-		info.Load5 = v
-	}
-	if v, err := strconv.ParseFloat(fields[2], 64); err == nil {
-		info.Load15 = v
-	}
-
-	// Parse running/total processes (format: "running/total")
-	procParts := strings.Split(fields[3], "/")
-	if len(procParts) == 2 {
-		if v, err := strconv.Atoi(procParts[0]); err == nil {
-			info.RunningProcs = v
-		}
-		if v, err := strconv.Atoi(procParts[1]); err == nil {
-			info.TotalProcs = v
-		}
-	}
-
-	// Parse last PID
-	if v, err := strconv.Atoi(fields[4]); err == nil {
-		info.LastPID = v
-	}
-
-	// Calculate normalized load (per CPU)
-	if info.NumCPUs > 0 {
-		info.NormalizedLoad1 = info.Load1 / float64(info.NumCPUs)
-		info.NormalizedLoad5 = info.Load5 / float64(info.NumCPUs)
-	}
-
-	return info, nil
+	return loadInfoFromSnapshot(snap), nil
 }
 
 // DefaultLoadReader is the global load reader used when none is injected.
-var DefaultLoadReader LoadReader = &RealLoadReader{}
+var DefaultLoadReader LoadReader = SharedLoadReader{}
 
 // LoadCheck monitors system load average.
 // Load average indicates the number of processes waiting for CPU time.
@@ -126,6 +78,12 @@ func WithLoadThresholds(warning, critical float64) LoadCheckOption {
 func WithLoadReader(reader LoadReader) LoadCheckOption {
 	return func(c *LoadCheck) {
 		c.loadReader = reader
+	}
+}
+
+func WithLoadHostCollector(collector hostSnapshotCollector) LoadCheckOption {
+	return func(c *LoadCheck) {
+		c.loadReader = SharedLoadReader{collector: collector}
 	}
 }
 
@@ -244,6 +202,20 @@ func (c *LoadCheck) Run(ctx context.Context) checks.Result {
 	return result
 }
 
+func loadInfoFromSnapshot(snap sharedhost.Snapshot) *LoadInfo {
+	return &LoadInfo{
+		Load1:           snap.Load.Load1,
+		Load5:           snap.Load.Load5,
+		Load15:          snap.Load.Load15,
+		RunningProcs:    snap.Load.RunningProcs,
+		TotalProcs:      snap.Load.TotalProcs,
+		LastPID:         snap.Load.LastPID,
+		NumCPUs:         snap.CPU.Cores,
+		NormalizedLoad1: snap.Load.NormalizedLoad1,
+		NormalizedLoad5: snap.Load.NormalizedLoad5,
+	}
+}
+
 // RecoveryActions returns available recovery actions for load issues.
 // [REQ:HEAL-ACTION-001]
 func (c *LoadCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
@@ -346,8 +318,11 @@ func (c *LoadCheck) executeTopCPU(ctx context.Context, start time.Time) checks.A
 
 	// Add current load info
 	outputBuilder.WriteString("\n\n=== Current Load ===\n")
-	loadOutput, _ := c.executor.Output(ctx, "cat", "/proc/loadavg")
-	outputBuilder.Write(loadOutput)
+	if loadInfo, err := c.loadReader.ReadLoadAvg(); err == nil {
+		outputBuilder.WriteString(formatLoadInfo(loadInfo))
+	} else {
+		outputBuilder.WriteString(fmt.Sprintf("failed to collect load inventory: %v\n", err))
+	}
 
 	result.Duration = time.Since(start)
 	result.Output = outputBuilder.String()
@@ -367,10 +342,11 @@ func (c *LoadCheck) executeLoadHistory(ctx context.Context, start time.Time) che
 	var outputBuilder strings.Builder
 	outputBuilder.WriteString("=== Current Load Average ===\n")
 
-	// Current load
-	loadOutput, _ := c.executor.Output(ctx, "cat", "/proc/loadavg")
-	outputBuilder.Write(loadOutput)
-	outputBuilder.WriteString("\n")
+	if loadInfo, err := c.loadReader.ReadLoadAvg(); err == nil {
+		outputBuilder.WriteString(formatLoadInfo(loadInfo))
+	} else {
+		outputBuilder.WriteString(fmt.Sprintf("failed to collect load inventory: %v\n", err))
+	}
 
 	// Uptime shows load averages with context
 	outputBuilder.WriteString("\n=== System Uptime ===\n")
@@ -432,6 +408,24 @@ func (c *LoadCheck) executeProcessTree(ctx context.Context, start time.Time) che
 	result.Success = true
 	result.Message = "Process tree retrieved"
 	return result
+}
+
+func formatLoadInfo(info *LoadInfo) string {
+	if info == nil {
+		return "load inventory unavailable\n"
+	}
+	return fmt.Sprintf(
+		"load1=%.2f load5=%.2f load15=%.2f running=%d total=%d lastPID=%d cpus=%d normalized1=%.2f normalized5=%.2f\n",
+		info.Load1,
+		info.Load5,
+		info.Load15,
+		info.RunningProcs,
+		info.TotalProcs,
+		info.LastPID,
+		info.NumCPUs,
+		info.NormalizedLoad1,
+		info.NormalizedLoad5,
+	)
 }
 
 // executeRunawayCheck identifies potential runaway processes

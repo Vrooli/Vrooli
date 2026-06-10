@@ -4,7 +4,7 @@ package deps
 import (
 	"errors"
 
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // ErrCyclicDependency indicates a cycle was detected in service dependencies.

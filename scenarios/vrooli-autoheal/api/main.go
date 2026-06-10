@@ -11,12 +11,13 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-	"vrooli-autoheal/internal/bootstrap"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/persistence"
-	"vrooli-autoheal/internal/platform"
-	"vrooli-autoheal/internal/systemevents"
-	"vrooli-autoheal/internal/userconfig"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/bootstrap"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/persistence"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/systemevents"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -24,8 +25,8 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	apiHandlers "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/handlers"
 	_ "modernc.org/sqlite"
-	apiHandlers "vrooli-autoheal/internal/handlers"
 )
 
 func main() {

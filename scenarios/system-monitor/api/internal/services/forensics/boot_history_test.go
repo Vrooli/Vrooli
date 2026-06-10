@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"system-monitor-api/internal/services/journal"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/journal"
 )
 
 // journalMockExec implements journal.CommandExecutor for tests of boot

@@ -21,9 +21,9 @@ import (
 	"net/http"
 	"time"
 
-	"system-monitor-api/internal/httputil"
-	"system-monitor-api/internal/services/autoheal"
-	"system-monitor-api/internal/services/forensics"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/autoheal"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/forensics"
 )
 
 // ForensicsService is the subset of *forensics.Service the handler needs.

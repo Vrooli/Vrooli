@@ -3,12 +3,13 @@ package handlers
 import (
 	"context"
 	"time"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/hostinventory"
-	"vrooli-autoheal/internal/incidents"
-	"vrooli-autoheal/internal/persistence"
-	"vrooli-autoheal/internal/platform"
-	"vrooli-autoheal/internal/systemevents"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/persistence"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/systemevents"
 )
 
 // mockStore implements StoreInterface for testing.

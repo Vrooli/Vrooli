@@ -5,9 +5,9 @@ package server
 import (
 	"github.com/gorilla/mux"
 
-	"system-monitor-api/internal/handlers"
-	"system-monitor-api/internal/toolexecution"
-	"system-monitor-api/internal/toolhandlers"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/toolexecution"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/toolhandlers"
 )
 
 func buildRouter(health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, maintenance *handlers.MaintenanceHandler, forensicsH *handlers.ForensicsHandler, logsH *handlers.LogsHandler, tools *toolhandlers.ToolsHandler, toolExec *toolexecution.Handler) *mux.Router {

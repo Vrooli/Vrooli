@@ -1,7 +1,7 @@
 package convert
 
 import (
-	"system-monitor-api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
 	"google.golang.org/protobuf/types/known/timestamppb"

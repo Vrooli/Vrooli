@@ -1,7 +1,7 @@
 // Package aisearch is the optional semantic-ranking overlay for the fleet
 // Dependency & Vulnerability Intelligence corpus. The SQLite corpus
 // (internal/dependencies) stays the source of truth; this package embeds each
-// dependency record with Ollama (nomic-embed-text) and upserts it into a
+// dependency record through the Ollama embedding role and upserts it into a
 // Qdrant collection so a free-text query can be ranked by vector similarity.
 //
 // Everything here is best-effort: when Ollama or Qdrant is unreachable, the
@@ -21,12 +21,12 @@ import (
 const (
 	EnvQdrantURL    = "SECURITY_HEALTH_QDRANT_URL"
 	EnvQdrantAPIKey = "SECURITY_HEALTH_QDRANT_API_KEY"
-	EnvOllamaModel  = "SECURITY_HEALTH_EMBED_MODEL"
+	EnvOllamaRole   = "SECURITY_HEALTH_EMBED_ROLE"
 	EnvDisabled     = "SECURITY_HEALTH_AISEARCH_DISABLED"
 
 	DefaultCollection = "security-health-deps"
 	DefaultVectorSize = 768
-	DefaultEmbedModel = "nomic-embed-text"
+	DefaultEmbedRole  = "embedding.default"
 	DefaultQdrantURL  = "http://127.0.0.1:6333"
 
 	// httpTimeout bounds every Qdrant request so a wedged backend can never
@@ -39,7 +39,7 @@ type Config struct {
 	Disabled   bool
 	QdrantURL  string
 	QdrantKey  string
-	EmbedModel string
+	EmbedRole  string
 	Collection string
 	VectorSize int
 }
@@ -51,7 +51,7 @@ func LoadConfigFromEnv() Config {
 		Disabled:   envBool(EnvDisabled),
 		QdrantURL:  envString(EnvQdrantURL, DefaultQdrantURL),
 		QdrantKey:  envString(EnvQdrantAPIKey, ""),
-		EmbedModel: envString(EnvOllamaModel, DefaultEmbedModel),
+		EmbedRole:  envString(EnvOllamaRole, DefaultEmbedRole),
 		Collection: DefaultCollection,
 		VectorSize: DefaultVectorSize,
 	}

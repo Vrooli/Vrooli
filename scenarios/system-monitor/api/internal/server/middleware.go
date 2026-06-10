@@ -6,8 +6,8 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/middleware"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/middleware"
 )
 
 func buildMiddleware(cfg *config.Config, router *mux.Router) http.Handler {

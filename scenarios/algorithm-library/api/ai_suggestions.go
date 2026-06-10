@@ -43,11 +43,11 @@ type AlgorithmSuggestion struct {
 
 // NewOllamaSuggestionClient creates a new Ollama client for suggestions.
 func NewOllamaSuggestionClient() *OllamaSuggestionClient {
-	model := os.Getenv("OLLAMA_MODEL")
-	if model == "" {
-		model = "llama3.2"
+	role := os.Getenv("OLLAMA_ROLE")
+	if role == "" {
+		role = "chat.small"
 	}
-	return &OllamaSuggestionClient{model: model}
+	return &OllamaSuggestionClient{model: role}
 }
 
 // IsAvailable checks if the resource-ollama daemon is reachable.
@@ -78,7 +78,7 @@ func (c *OllamaSuggestionClient) GetSuggestions(problemDesc string, maxSuggestio
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
-		"--model", c.model, "--json", "--prompt-stdin")
+		"--role", c.model, "--json", "--prompt-stdin")
 	cmd.Stdin = strings.NewReader(prompt)
 	out, err := cmd.Output()
 	if err != nil {

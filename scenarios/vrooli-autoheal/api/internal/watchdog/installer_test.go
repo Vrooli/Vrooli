@@ -10,7 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"vrooli-autoheal/internal/platform"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 func TestInstallOptions(t *testing.T) {

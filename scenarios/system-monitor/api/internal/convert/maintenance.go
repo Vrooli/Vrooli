@@ -4,7 +4,7 @@ import (
 	"time"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
-	"system-monitor-api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 func formatRFC3339(t time.Time) string {

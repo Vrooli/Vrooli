@@ -24,7 +24,7 @@ func TestLive_EmbedUpsertSearch(t *testing.T) {
 	defer cancel()
 
 	collection := "security-health-deps-livetest"
-	emb := NewEmbedder(DefaultEmbedModel)
+	emb := NewEmbedder(DefaultEmbedRole)
 	if !emb.Available(ctx) {
 		t.Fatal("ollama embedder unavailable — start the ollama resource")
 	}

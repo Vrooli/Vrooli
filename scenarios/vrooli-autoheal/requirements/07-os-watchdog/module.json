@@ -1,128 +1,126 @@
 {
-  "module": "os-watchdog",
-  "description": "OS-level service installation to keep autoheal running",
-  "prd_refs": [
-    "OT-P0-008"
-  ],
+  "_metadata": {
+    "last_validated_at": "2026-06-10T16:46:49-04:00"
+  },
   "requirements": [
     {
       "id": "WATCH-DETECT-001",
       "title": "Detect existing watchdog",
-      "description": "Check if OS-level watchdog is already installed and correctly configured",
+      "status": "planned",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
+      "description": "Check if OS-level watchdog is already installed and correctly configured",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "WATCH-LINUX-001",
       "title": "Linux systemd service",
-      "description": "Generate and install vrooli-autoheal.service with Restart=always and enable on boot",
+      "status": "planned",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
+      "description": "Generate and install vrooli-autoheal.service with Restart=always and enable on boot",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "WATCH-LINUX-002",
       "title": "Linux systemd verification",
-      "description": "Verify service has correct ExecStart pointing to vrooli-autoheal loop",
+      "status": "planned",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
+      "description": "Verify service has correct ExecStart pointing to vrooli-autoheal loop",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "WATCH-WIN-001",
       "title": "Windows service/scheduled task",
-      "description": "Install Windows Task Scheduler job or service that runs vrooli-autoheal loop on boot",
+      "status": "planned",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
+      "description": "Install Windows Task Scheduler job or service that runs vrooli-autoheal loop on boot",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "WATCH-MAC-001",
       "title": "macOS launchd plist",
-      "description": "Generate and install LaunchAgent plist with KeepAlive=true",
+      "status": "planned",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
+      "description": "Generate and install LaunchAgent plist with KeepAlive=true",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "WATCH-IDEMPOTENT-001",
       "title": "Idempotent installation",
-      "description": "Running watchdog installation multiple times produces identical configuration",
+      "status": "planned",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
+      "description": "Running watchdog installation multiple times produces identical configuration",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "WATCH-GRACEFUL-001",
       "title": "Graceful failure on unsupported platforms",
-      "description": "Log warning and continue if watchdog installation not supported on platform",
+      "status": "planned",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
+      "description": "Log warning and continue if watchdog installation not supported on platform",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/vrooli-autoheal.bats",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
           "notes": "CLI tests pending implementation"
         }
-      ],
-      "status": "pending"
+      ]
     }
   ]
 }

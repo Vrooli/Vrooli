@@ -80,10 +80,10 @@ type AIConfig struct {
 // NamingConfig controls the auto-naming feature powered by local Ollama.
 // Audience: Operators tuning naming quality vs speed.
 type NamingConfig struct {
-	// Model is the Ollama model for generating chat names.
-	// Set via OLLAMA_NAMING_MODEL env var.
-	// Default: "llama3.1:8b"
-	Model string
+	// Role is the Ollama policy role for generating chat names.
+	// Set via OLLAMA_NAMING_ROLE env var.
+	// Default: "chat.small"
+	Role string
 
 	// Temperature controls naming creativity (0.0 = deterministic, 1.0 = creative).
 	// Higher = more varied names, lower = more predictable names.

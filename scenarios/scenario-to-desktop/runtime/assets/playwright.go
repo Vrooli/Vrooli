@@ -5,10 +5,10 @@ import (
 	"strconv"
 	"strings"
 
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/ports"
-	"scenario-to-desktop-runtime/telemetry"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/ports"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/telemetry"
 )
 
 // PlaywrightConfig holds configuration for Playwright conventions.

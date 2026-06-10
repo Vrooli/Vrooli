@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"system-monitor-api/internal/services/autoheal"
-	"system-monitor-api/internal/services/forensics"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/autoheal"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/forensics"
 )
 
 type fakeForensics struct {

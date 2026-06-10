@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"system-monitor-api/internal/apierrors"
-	"system-monitor-api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
 
 // MonitorSvc abstracts the monitor service operations used by the executor.

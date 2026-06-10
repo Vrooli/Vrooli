@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"system-monitor-api/internal/apierrors"
-	"system-monitor-api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
 )
 
 // contextKey is a custom type for context keys

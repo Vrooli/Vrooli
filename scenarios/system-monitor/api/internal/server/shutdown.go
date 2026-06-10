@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"system-monitor-api/internal/services"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
 )
 
 func waitForShutdown(monitorSvc *services.MonitorService, investigationSvc *services.InvestigationService, retention *services.RetentionScheduler, srv *http.Server, repo io.Closer) {

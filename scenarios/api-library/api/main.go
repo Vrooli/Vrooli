@@ -123,7 +123,7 @@ type SemanticSearchClient struct {
 	QdrantURL        string
 	QdrantAPIKey     string
 	QdrantCollection string
-	OllamaModel      string
+	OllamaRole       string
 	HTTPClient       *http.Client
 }
 
@@ -584,13 +584,13 @@ func (c *SemanticSearchClient) generateEmbedding(ctx context.Context, text strin
 		return nil, fmt.Errorf("empty query")
 	}
 
-	model := c.OllamaModel
-	if model == "" {
-		model = "nomic-embed-text"
+	role := c.OllamaRole
+	if role == "" {
+		role = "embedding.default"
 	}
 
 	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "embed",
-		"--model", model, "--json", "--input-stdin")
+		"--role", role, "--json", "--input-stdin")
 	cmd.Stdin = strings.NewReader(text)
 	out, err := cmd.Output()
 	if err != nil {
@@ -1796,22 +1796,22 @@ func initSemanticSearchClient() *SemanticSearchClient {
 		collection = "api_embeddings"
 	}
 
-	model := strings.TrimSpace(os.Getenv("OLLAMA_EMBED_MODEL"))
-	if model == "" {
-		model = "nomic-embed-text"
+	role := strings.TrimSpace(os.Getenv("OLLAMA_EMBED_ROLE"))
+	if role == "" {
+		role = "embedding.default"
 	}
 
 	client := &SemanticSearchClient{
 		QdrantURL:        qdrantURL,
 		QdrantAPIKey:     strings.TrimSpace(os.Getenv("QDRANT_API_KEY")),
 		QdrantCollection: collection,
-		OllamaModel:      model,
+		OllamaRole:       role,
 		HTTPClient: &http.Client{
 			Timeout: 15 * time.Second,
 		},
 	}
 
-	log.Printf("🔍 Semantic search enabled (Qdrant: %s, Collection: %s, Model: %s)", client.QdrantURL, client.QdrantCollection, client.OllamaModel)
+	log.Printf("🔍 Semantic search enabled (Qdrant: %s, Collection: %s, Role: %s)", client.QdrantURL, client.QdrantCollection, client.OllamaRole)
 	return client
 }
 
@@ -3510,7 +3510,7 @@ func getCodeGenSpecHandler(w http.ResponseWriter, r *http.Request) {
 		authType   sql.NullString
 		version    sql.NullString
 	)
-	
+
 	err := db.QueryRow(`
 		SELECT id, name, provider, COALESCE(description, ''), COALESCE(base_url, ''), 
 		       documentation_url, pricing_url, COALESCE(category, 'general'), 
@@ -3521,7 +3521,7 @@ func getCodeGenSpecHandler(w http.ResponseWriter, r *http.Request) {
 		&docURL, &pricingURL, &api.Category,
 		&api.Status, &authType, &version,
 	)
-	
+
 	// Handle nullable fields
 	if docURL.Valid {
 		api.DocumentationURL = docURL.String

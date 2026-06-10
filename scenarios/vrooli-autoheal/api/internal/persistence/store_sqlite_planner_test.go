@@ -8,7 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"vrooli-autoheal/internal/checks"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
 // explainPlan returns the concatenated EXPLAIN QUERY PLAN output for a query.

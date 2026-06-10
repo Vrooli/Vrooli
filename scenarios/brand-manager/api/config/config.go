@@ -94,8 +94,8 @@ type Config struct {
 
 	// --- AI Provider ---
 
-	// OllamaModel overrides the default Ollama model for text generation.
-	// Env: BM_OLLAMA_MODEL
+	// OllamaModel carries the Ollama role for text generation.
+	// Env: BM_OLLAMA_ROLE
 	OllamaModel string
 
 	// OpenRouterAPIKey enables the OpenRouter cloud provider.
@@ -160,7 +160,7 @@ func Load() Config {
 	}
 
 	// AI provider config
-	if v := os.Getenv("BM_OLLAMA_MODEL"); v != "" {
+	if v := os.Getenv("BM_OLLAMA_ROLE"); v != "" {
 		cfg.OllamaModel = v
 	}
 	if v := os.Getenv("OPENROUTER_API_KEY"); v != "" {

@@ -16,20 +16,17 @@ import (
 // semaphore can bound fleet-wide parallelism — never call Ollama HTTP directly.
 // [REQ:BM-REQ-AI-CHAIN]
 type OllamaProvider struct {
-	Model string
+	Role string
 
 	// Runner is an optional seam for tests. Production callers leave it nil.
 	Runner func(ctx context.Context, args []string, stdin string) ([]byte, error)
 }
 
-// NewOllamaProvider creates a provider with the given default model.
-// The legacy baseURL parameter is accepted for caller compatibility but
-// ignored — gateway transport is owned by the resource CLI.
-func NewOllamaProvider(_baseURL, model string) *OllamaProvider {
-	if model == "" {
-		model = "llama3"
+func NewOllamaProvider(_baseURL, role string) *OllamaProvider {
+	if role == "" {
+		role = "chat.default"
 	}
-	return &OllamaProvider{Model: model}
+	return &OllamaProvider{Role: role}
 }
 
 // Name returns "ollama".
@@ -43,12 +40,12 @@ func (o *OllamaProvider) Available(ctx context.Context) bool {
 
 // GenerateText calls resource-ollama gateway generate. [REQ:BM-REQ-AI-TEXT]
 func (o *OllamaProvider) GenerateText(ctx context.Context, req TextRequest) (*TextResponse, error) {
-	model := req.Model
-	if model == "" {
-		model = o.Model
+	role := req.Model
+	if role == "" {
+		role = o.Role
 	}
 
-	args := []string{"gateway", "generate", "--model", model, "--json", "--prompt-stdin"}
+	args := []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}
 	out, err := o.run(ctx, args, req.Prompt)
 	if err != nil {
 		return nil, fmt.Errorf("resource-ollama gateway generate failed: %w", err)
@@ -62,7 +59,7 @@ func (o *OllamaProvider) GenerateText(ctx context.Context, req TextRequest) (*Te
 	return &TextResponse{
 		Text:     decoded.Response,
 		Provider: "ollama",
-		Model:    model,
+		Model:    role,
 	}, nil
 }
 

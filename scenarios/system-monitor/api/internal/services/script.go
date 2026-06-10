@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"system-monitor-api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 )
 
 // ScriptMeta holds parsed metadata from a script file header.

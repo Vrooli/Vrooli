@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"system-monitor-api/internal/repository/sqlite"
-	"system-monitor-api/internal/services"
-	"system-monitor-api/internal/testutil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/sqlite"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/testutil"
 )
 
 func newMaintenanceHandler(t *testing.T) *MaintenanceHandler {

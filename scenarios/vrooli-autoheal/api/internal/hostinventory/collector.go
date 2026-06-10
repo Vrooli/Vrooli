@@ -11,9 +11,11 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/journal"
-	"vrooli-autoheal/internal/platform"
+
+	sharedhost "github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 type FileSystem interface {
@@ -33,19 +35,31 @@ type Collector interface {
 }
 
 type CollectorOptions struct {
-	Platform   *platform.Capabilities
-	Executor   checks.CommandExecutor
-	FileSystem FileSystem
-	Journal    *journal.Reader
-	Now        func() time.Time
+	Platform        *platform.Capabilities
+	Executor        checks.CommandExecutor
+	FileSystem      FileSystem
+	Journal         *journal.Reader
+	SharedInventory sharedSnapshotCollector
+	Now             func() time.Time
 }
 
 type DefaultCollector struct {
-	platform *platform.Capabilities
-	exec     checks.CommandExecutor
-	fs       FileSystem
-	journal  *journal.Reader
-	now      func() time.Time
+	platform        *platform.Capabilities
+	exec            checks.CommandExecutor
+	fs              FileSystem
+	journal         *journal.Reader
+	sharedInventory sharedSnapshotCollector
+	now             func() time.Time
+}
+
+type sharedSnapshotCollector interface {
+	Collect(ctx context.Context) (sharedhost.Snapshot, error)
+}
+
+type defaultSharedSnapshotCollector struct{}
+
+func (defaultSharedSnapshotCollector) Collect(ctx context.Context) (sharedhost.Snapshot, error) {
+	return sharedhost.Collect(ctx)
 }
 
 func NewCollector(opts CollectorOptions) *DefaultCollector {
@@ -69,7 +83,11 @@ func NewCollector(opts CollectorOptions) *DefaultCollector {
 	if now == nil {
 		now = func() time.Time { return time.Now().UTC() }
 	}
-	return &DefaultCollector{platform: plat, exec: exec, fs: fs, journal: reader, now: now}
+	sharedInventory := opts.SharedInventory
+	if sharedInventory == nil {
+		sharedInventory = defaultSharedSnapshotCollector{}
+	}
+	return &DefaultCollector{platform: plat, exec: exec, fs: fs, journal: reader, sharedInventory: sharedInventory, now: now}
 }
 
 func (c *DefaultCollector) Collect(ctx context.Context) (HostInventory, error) {

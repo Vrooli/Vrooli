@@ -8,7 +8,7 @@ import (
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 
-	"system-monitor-api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
 
 // InvestigationToolProvider provides the AI-driven investigation tools.

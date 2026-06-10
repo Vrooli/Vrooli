@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"system-monitor-api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 // EstimateMetricRetention reports the rows a prune at cutoff would remove,

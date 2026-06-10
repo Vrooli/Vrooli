@@ -9,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 )
 
 // Provider abstracts a single AI provider for text generation.
@@ -49,72 +51,60 @@ func (c *Chain) Generate(ctx context.Context, systemPrompt, userPrompt string) (
 	return "", "", fmt.Errorf("no providers configured")
 }
 
-// OllamaProvider calls the local Ollama API using /api/chat for proper
-// system/user message separation.
+// OllamaProvider calls the shared Ollama gateway using a model role.
 type OllamaProvider struct {
-	BaseURL string
-	Model   string
-	Client  *http.Client
+	Role   string
+	Runner func(ctx context.Context, args []string, stdin string) ([]byte, error)
 }
 
 // NewOllamaProvider creates an Ollama provider with env-configurable settings.
 func NewOllamaProvider() *OllamaProvider {
-	baseURL := os.Getenv("OLLAMA_URL")
-	if baseURL == "" {
-		baseURL = "http://localhost:11434"
-	}
-	model := os.Getenv("WC_OLLAMA_MODEL")
-	if model == "" {
-		model = "llama3.2"
+	role := os.Getenv("WC_OLLAMA_ROLE")
+	if role == "" {
+		role = "chat.default"
 	}
 	return &OllamaProvider{
-		BaseURL: baseURL,
-		Model:   model,
-		Client:  &http.Client{Timeout: DefaultProviderTimeout},
+		Role: role,
 	}
 }
 
 func (o *OllamaProvider) Name() string { return "ollama" }
 
 func (o *OllamaProvider) Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
-	body := map[string]any{
-		"model": o.Model,
-		"messages": []map[string]string{
-			{"role": "system", "content": systemPrompt},
-			{"role": "user", "content": userPrompt},
-		},
-		"stream": false,
+	role := strings.TrimSpace(o.Role)
+	if role == "" {
+		role = "chat.default"
 	}
-	jsonBody, err := json.Marshal(body)
+	prompt := strings.TrimSpace(fmt.Sprintf("System:\n%s\n\nUser:\n%s", systemPrompt, userPrompt))
+	args := []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}
+	out, err := o.run(ctx, args, prompt)
 	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, o.BaseURL+"/api/chat", bytes.NewReader(jsonBody))
-	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := o.Client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if err := checkProviderResponse(resp, "ollama"); err != nil {
-		return "", err
+		return "", fmt.Errorf("resource-ollama gateway generate failed: %w", err)
 	}
 
 	var result struct {
-		Message struct {
-			Content string `json:"content"`
-		} `json:"message"`
+		Response string `json:"response"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
+	if err := json.Unmarshal(bytes.TrimSpace(out), &result); err != nil {
+		return "", fmt.Errorf("decode gateway response: %w", err)
 	}
-	return result.Message.Content, nil
+	return result.Response, nil
+}
+
+func (o *OllamaProvider) run(ctx context.Context, args []string, stdin string) ([]byte, error) {
+	if o.Runner != nil {
+		return o.Runner(ctx, args, stdin)
+	}
+	cmd := exec.CommandContext(ctx, "resource-ollama", args...)
+	cmd.Stdin = strings.NewReader(stdin)
+	out, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			return nil, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, err
+	}
+	return out, nil
 }
 
 // OpenRouterProvider calls the OpenRouter API as a fallback.

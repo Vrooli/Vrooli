@@ -11,9 +11,9 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"system-monitor-api/internal/apierrors"
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 const schema = `

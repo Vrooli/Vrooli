@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // DefaultService is the default implementation of Service.

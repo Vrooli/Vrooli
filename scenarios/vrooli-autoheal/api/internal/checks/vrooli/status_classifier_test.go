@@ -4,7 +4,8 @@ package vrooli
 
 import (
 	"testing"
-	"vrooli-autoheal/internal/checks"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
 func TestClassifyCLIOutput(t *testing.T) {

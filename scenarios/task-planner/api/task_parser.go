@@ -193,7 +193,12 @@ Rules:
 }
 
 func (s *TaskPlannerService) callOllamaGenerate(ctx context.Context, prompt, model, taskType string) (string, error) {
-	cmd := exec.CommandContext(ctx, vrooliCLIPath(), "resource", "ollama", "generate", prompt, "--model", model, "--type", taskType, "--quiet")
+	role := strings.TrimSpace(model)
+	if role == "" {
+		role = "chat.small"
+	}
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate", "--role", role, "--json", "--prompt-stdin")
+	cmd.Stdin = strings.NewReader(prompt)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -314,7 +319,8 @@ func (s *TaskPlannerService) generateTaskEmbedding(ctx context.Context, taskID u
 	// Generate embedding for the task
 	text := fmt.Sprintf("%s - %s", title, description)
 
-	cmd := exec.CommandContext(ctx, vrooliCLIPath(), "resource", "ollama", "embed", text, "--model", "nomic-embed-text", "--quiet")
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "embed", "--role", "embedding.default", "--json", "--input-stdin")
+	cmd.Stdin = strings.NewReader(text)
 
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout

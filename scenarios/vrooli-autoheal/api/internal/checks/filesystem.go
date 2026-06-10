@@ -4,11 +4,14 @@ package checks
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"syscall"
+
+	sharedhost "github.com/vrooli/vrooli/internal/hostinventory"
 )
 
 // StatfsResult contains filesystem statistics
@@ -53,7 +56,7 @@ func (r *RealFileSystemReader) Statfs(path string) (*StatfsResult, error) {
 // DefaultFileSystemReader is the global filesystem reader used when none is injected.
 var DefaultFileSystemReader FileSystemReader = &RealFileSystemReader{}
 
-// MemInfo contains memory information from /proc/meminfo
+// MemInfo contains memory information adapted from the shared host inventory.
 type MemInfo struct {
 	MemTotal     uint64 // Total RAM in KB
 	MemFree      uint64 // Free RAM in KB
@@ -79,7 +82,7 @@ type ProcessInfo struct {
 // This interface allows system checks to be unit tested without
 // actually accessing /proc.
 type ProcReader interface {
-	// ReadMeminfo returns memory information from /proc/meminfo
+	// ReadMeminfo returns memory information.
 	ReadMeminfo() (*MemInfo, error)
 	// ListProcesses returns information about all processes
 	ListProcesses() ([]ProcessInfo, error)
@@ -92,84 +95,20 @@ type ProcReader interface {
 // RealProcReader is the production implementation of ProcReader.
 type RealProcReader struct{}
 
-// ReadMeminfo reads memory and swap information from /proc/meminfo.
+// ReadMeminfo reads memory and swap information from the shared host inventory.
 func (r *RealProcReader) ReadMeminfo() (*MemInfo, error) {
-	file, err := os.Open("/proc/meminfo")
+	snap, err := sharedhost.Collect(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
-
-	info := &MemInfo{}
-	scanner := bufio.NewScanner(file)
-	var parseErrors []string
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
-		}
-
-		var val uint64
-		var err error
-		fieldName := fields[0]
-
-		switch fieldName {
-		case "MemTotal:":
-			val, err = strconv.ParseUint(fields[1], 10, 64)
-			if err == nil {
-				info.MemTotal = val
-			}
-		case "MemFree:":
-			val, err = strconv.ParseUint(fields[1], 10, 64)
-			if err == nil {
-				info.MemFree = val
-			}
-		case "MemAvailable:":
-			val, err = strconv.ParseUint(fields[1], 10, 64)
-			if err == nil {
-				info.MemAvailable = val
-			}
-		case "Buffers:":
-			val, err = strconv.ParseUint(fields[1], 10, 64)
-			if err == nil {
-				info.Buffers = val
-			}
-		case "Cached:":
-			val, err = strconv.ParseUint(fields[1], 10, 64)
-			if err == nil {
-				info.Cached = val
-			}
-		case "SwapTotal:":
-			val, err = strconv.ParseUint(fields[1], 10, 64)
-			if err == nil {
-				info.SwapTotal = val
-			}
-		case "SwapFree:":
-			val, err = strconv.ParseUint(fields[1], 10, 64)
-			if err == nil {
-				info.SwapFree = val
-			}
-		default:
-			continue
-		}
-
-		if err != nil {
-			parseErrors = append(parseErrors, fieldName+" "+err.Error())
-		}
-	}
-
-	if scanErr := scanner.Err(); scanErr != nil {
-		return info, scanErr
-	}
-
-	// Return parse errors if any critical fields failed
-	if info.MemTotal == 0 && len(parseErrors) > 0 {
-		return info, fmt.Errorf("failed to parse meminfo: %s", strings.Join(parseErrors, "; "))
-	}
-
-	return info, nil
+	return &MemInfo{
+		MemTotal:     snap.Memory.TotalBytes / 1024,
+		MemAvailable: snap.Memory.AvailableBytes / 1024,
+		Buffers:      snap.Memory.BuffersBytes / 1024,
+		Cached:       snap.Memory.CachedBytes / 1024,
+		SwapTotal:    snap.Swap.TotalBytes / 1024,
+		SwapFree:     snap.Swap.FreeBytes / 1024,
+	}, nil
 }
 
 // ListProcesses reads process information from /proc.

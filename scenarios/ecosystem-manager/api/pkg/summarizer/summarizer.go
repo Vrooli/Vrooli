@@ -3,6 +3,7 @@ package summarizer
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -103,32 +104,36 @@ func BuildPrompt(rawOutput string) string {
 	return strings.ReplaceAll(template, rawSectionPlaceholder, rawSection)
 }
 
-func runOllama(ctx context.Context, model, prompt string) (Result, error) {
-	model = strings.TrimSpace(model)
-	if model == "" {
-		model = "llama3.1:8b"
+func runOllama(ctx context.Context, role, prompt string) (Result, error) {
+	role = strings.TrimSpace(role)
+	if role == "" {
+		role = "summarize.default"
 	}
 
-	args := []string{"query"}
-	if model != "" {
-		args = append(args, "--model", model)
-	}
-	args = append(args, prompt)
+	args := []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}
 
 	cmd := exec.CommandContext(ctx, "resource-ollama", args...)
+	cmd.Stdin = strings.NewReader(prompt)
 	cmd.Env = os.Environ()
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return Result{}, fmt.Errorf("resource-ollama query failed: %w (output: %s)", err, strings.TrimSpace(string(output)))
+		return Result{}, fmt.Errorf("resource-ollama gateway generate failed: %w (output: %s)", err, strings.TrimSpace(string(output)))
 	}
 
 	trimmed := strings.TrimSpace(string(output))
 	if trimmed == "" {
-		return Result{}, errors.New("resource-ollama query returned empty output")
+		return Result{}, errors.New("resource-ollama gateway returned empty output")
 	}
 
-	return parseResult(trimmed)
+	var envelope struct {
+		Response string `json:"response"`
+	}
+	if err := json.Unmarshal([]byte(trimmed), &envelope); err != nil {
+		return Result{}, fmt.Errorf("decode resource-ollama gateway response: %w", err)
+	}
+
+	return parseResult(strings.TrimSpace(envelope.Response))
 }
 
 func runOpenRouter(ctx context.Context, model, prompt string) (Result, error) {

@@ -12,8 +12,8 @@ import (
 
 	"github.com/google/uuid"
 
-	bundleruntime "scenario-to-desktop-runtime"
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	bundleruntime "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // SupervisorFactory creates runtime supervisors for preflight sessions.

@@ -10,7 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"system-monitor-api/internal/services/journal"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/journal"
 )
 
 type fakeReader struct {

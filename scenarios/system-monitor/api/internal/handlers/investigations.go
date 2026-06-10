@@ -13,11 +13,11 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"system-monitor-api/internal/apierrors"
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/convert"
-	"system-monitor-api/internal/httputil"
-	"system-monitor-api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"

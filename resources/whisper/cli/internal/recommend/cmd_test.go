@@ -2,20 +2,29 @@ package recommend
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
 
-	"resource-whisper/cli/internal/hwprobe"
-	hwmocks "resource-whisper/cli/internal/hwprobe/mocks"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 )
+
+type fakeHostProbe struct {
+	snapshot hostinventory.Snapshot
+	err      error
+}
+
+func (f fakeHostProbe) Collect(context.Context) (hostinventory.Snapshot, error) {
+	return f.snapshot, f.err
+}
 
 func TestCmd_JSON_FrozenSchema(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	h := &Handlers{
-		Probe: &hwmocks.FakeProbe{Caps: hwprobe.HostCapabilities{
-			OS: "linux", Arch: "amd64", CPUCores: 16, TotalRAMBytes: 32 << 30,
-			GPUs: []hwprobe.GPU{{Name: "NVIDIA RTX 3070", VRAMBytes: 8 << 30}},
+		Probe: fakeHostProbe{snapshot: hostinventory.Snapshot{
+			OS: "linux", Arch: "amd64", CPU: hostinventory.CPU{Cores: 16}, Memory: hostinventory.Memory{TotalBytes: 32 << 30},
+			GPUs: []hostinventory.GPU{{Name: "NVIDIA RTX 3070", VRAMBytes: 8 << 30}},
 		}},
 		Stdout: stdout,
 		Stderr: &bytes.Buffer{},
@@ -42,7 +51,7 @@ func TestCmd_JSON_FrozenSchema(t *testing.T) {
 func TestCmd_HumanDefault(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	h := &Handlers{
-		Probe:  &hwmocks.FakeProbe{Caps: hwprobe.HostCapabilities{CPUCores: 2, TotalRAMBytes: 2 << 30}},
+		Probe:  fakeHostProbe{snapshot: hostinventory.Snapshot{CPU: hostinventory.CPU{Cores: 2}, Memory: hostinventory.Memory{TotalBytes: 2 << 30}}},
 		Stdout: stdout,
 		Stderr: &bytes.Buffer{},
 		GetEnv: func(string) string { return "" },
@@ -58,7 +67,7 @@ func TestCmd_HumanDefault(t *testing.T) {
 func TestCmd_HumanExplain(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	h := &Handlers{
-		Probe:  &hwmocks.FakeProbe{Caps: hwprobe.HostCapabilities{CPUCores: 2, TotalRAMBytes: 2 << 30}},
+		Probe:  fakeHostProbe{snapshot: hostinventory.Snapshot{CPU: hostinventory.CPU{Cores: 2}, Memory: hostinventory.Memory{TotalBytes: 2 << 30}}},
 		Stdout: stdout,
 		Stderr: &bytes.Buffer{},
 		GetEnv: func(string) string { return "" },
@@ -95,9 +104,9 @@ func TestResolveBudgetPct(t *testing.T) {
 func TestCmd_BudgetFlagOverridesEnv(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	h := &Handlers{
-		Probe: &hwmocks.FakeProbe{Caps: hwprobe.HostCapabilities{
-			CPUCores: 32, TotalRAMBytes: 64 << 30,
-			GPUs: []hwprobe.GPU{{Name: "RTX 4090", VRAMBytes: 24 << 30}},
+		Probe: fakeHostProbe{snapshot: hostinventory.Snapshot{
+			CPU: hostinventory.CPU{Cores: 32}, Memory: hostinventory.Memory{TotalBytes: 64 << 30},
+			GPUs: []hostinventory.GPU{{Name: "RTX 4090", VRAMBytes: 24 << 30}},
 		}},
 		Stdout: stdout,
 		Stderr: &bytes.Buffer{},

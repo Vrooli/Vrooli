@@ -4,7 +4,7 @@
 // (like agent-inbox) to execute tools exposed by this scenario.
 package toolexecution
 
-import "system-monitor-api/internal/apierrors"
+import "github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 
 // ExecuteRequest represents a request to execute a tool.
 type ExecuteRequest struct {

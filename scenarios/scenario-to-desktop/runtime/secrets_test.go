@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/secrets"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 // Note: Unit tests for secrets.Injector have been moved to secrets/inject_test.go.

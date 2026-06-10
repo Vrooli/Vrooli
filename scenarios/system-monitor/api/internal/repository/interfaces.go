@@ -6,7 +6,7 @@ import (
 	"context"
 	"time"
 
-	"system-monitor-api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
 
 // Repository aggregates all repository interfaces

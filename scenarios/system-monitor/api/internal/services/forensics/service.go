@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"system-monitor-api/internal/services/journal"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/journal"
 )
 
 // memoTTL is the shared cache duration for forensics endpoints.

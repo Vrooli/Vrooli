@@ -18,7 +18,7 @@ func runOllamaJSONGenerate(prompt string) (map[string]interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
-		"--model", "llama3.2", "--json", "--prompt-stdin")
+		"--role", "chat.small", "--json", "--prompt-stdin")
 	cmd.Stdin = strings.NewReader(prompt)
 	out, err := cmd.Output()
 	if err != nil {

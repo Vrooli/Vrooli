@@ -3,7 +3,7 @@ package mocks
 import (
 	"context"
 
-	"system-monitor-api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
 
 // MonitorQuerier is a configurable test double for handlers.MonitorQuerier.

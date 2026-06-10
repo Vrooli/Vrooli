@@ -6,7 +6,8 @@ import (
 	"context"
 	"testing"
 	"time"
-	"vrooli-autoheal/internal/platform"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // TestNewRegistry verifies registry initialization
@@ -1578,7 +1579,7 @@ func TestCalculateFailureCooldown_CapsAtMaxFailureCooldown(t *testing.T) {
 	}
 
 	// Extreme value must not overflow into negative durations.
-	if got := policy.CalculateFailureCooldown(1<<30); got != MaxFailureCooldown {
+	if got := policy.CalculateFailureCooldown(1 << 30); got != MaxFailureCooldown {
 		t.Errorf("very large failures: got %v, want %v", got, MaxFailureCooldown)
 	}
 }

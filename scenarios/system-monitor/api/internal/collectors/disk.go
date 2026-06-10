@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"system-monitor-api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
 
 // DiskCollector collects disk metrics

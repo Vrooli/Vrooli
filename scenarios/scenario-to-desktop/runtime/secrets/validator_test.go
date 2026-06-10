@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 func ptrBool(v bool) *bool { return &v }

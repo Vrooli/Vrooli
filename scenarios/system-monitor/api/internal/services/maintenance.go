@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"system-monitor-api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 // ErrConfirmationRequired is returned by destructive maintenance operations

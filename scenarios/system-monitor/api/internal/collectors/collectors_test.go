@@ -5,6 +5,9 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
 
 // TestCPUCollector_Collect tests CPU metrics collection
@@ -281,6 +284,43 @@ func TestGPUCollector_Collect(t *testing.T) {
 			t.Errorf("Expected collector name 'gpu', got %s", metrics.CollectorName)
 		}
 	})
+}
+
+func TestAdaptGPUInventory(t *testing.T) {
+	temp := 63.0
+	snapshot := hostinventory.Snapshot{
+		GPUs: []hostinventory.GPU{{
+			Index:              0,
+			UUID:               "GPU-1",
+			Name:               "NVIDIA RTX 4090",
+			DriverVersion:      "555.42",
+			VRAMBytes:          24564 * 1024 * 1024,
+			VRAMUsedBytes:      2048 * 1024 * 1024,
+			UtilizationPercent: 42,
+			TemperatureC:       &temp,
+		}},
+		GPUProcesses: []hostinventory.GPUProcess{{
+			GPUUUID:     "GPU-1",
+			PID:         123,
+			ProcessName: "python",
+			UsedBytes:   512 * 1024 * 1024,
+		}},
+	}
+
+	devices, summary, driver, model := adaptGPUInventory(snapshot)
+	if driver != "555.42" || model != "NVIDIA RTX 4090" {
+		t.Fatalf("driver/model = %q/%q", driver, model)
+	}
+	if summary.DeviceCount != 1 || summary.UsedMemoryMB != 2048 || summary.TotalMemoryMB != 24564 {
+		t.Fatalf("summary = %#v", summary)
+	}
+	if len(devices) != 1 {
+		t.Fatalf("devices = %#v", devices)
+	}
+	want := models.GPUProcessInfo{PID: 123, ProcessName: "python", MemoryUsedMB: 512}
+	if len(devices[0].Processes) != 1 || devices[0].Processes[0] != want {
+		t.Fatalf("processes = %#v", devices[0].Processes)
+	}
 }
 
 // TestBaseCollector tests base collector functionality

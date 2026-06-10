@@ -25,8 +25,8 @@ func runOllamaGateway(ctx context.Context, args []string, stdin string) ([]byte,
 	return out, nil
 }
 
-func ollamaGatewayEmbed(ctx context.Context, model, text string) ([]float64, error) {
-	out, err := runOllamaGateway(ctx, []string{"gateway", "embed", "--model", model, "--json", "--input-stdin"}, text)
+func ollamaGatewayEmbed(ctx context.Context, role, text string) ([]float64, error) {
+	out, err := runOllamaGateway(ctx, []string{"gateway", "embed", "--role", role, "--json", "--input-stdin"}, text)
 	if err != nil {
 		return nil, fmt.Errorf("resource-ollama gateway embed failed: %w", err)
 	}
@@ -39,8 +39,8 @@ func ollamaGatewayEmbed(ctx context.Context, model, text string) ([]float64, err
 	return decoded.Embedding, nil
 }
 
-func ollamaGatewayGenerate(ctx context.Context, model, prompt string) (string, error) {
-	out, err := runOllamaGateway(ctx, []string{"gateway", "generate", "--model", model, "--json", "--prompt-stdin"}, prompt)
+func ollamaGatewayGenerate(ctx context.Context, role, prompt string) (string, error) {
+	out, err := runOllamaGateway(ctx, []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}, prompt)
 	if err != nil {
 		return "", fmt.Errorf("resource-ollama gateway generate failed: %w", err)
 	}

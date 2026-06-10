@@ -1,4 +1,4 @@
-module vrooli-autoheal
+module github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api
 
 go 1.25.0
 
@@ -7,6 +7,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
+	github.com/vrooli/vrooli v0.0.0
 	golang.org/x/text v0.31.0
 	modernc.org/sqlite v1.50.1
 )

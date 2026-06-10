@@ -11,17 +11,18 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/hostinventory"
-	"vrooli-autoheal/internal/incidents"
-	"vrooli-autoheal/internal/persistence"
-	"vrooli-autoheal/internal/platform"
-	"vrooli-autoheal/internal/remediation"
-	"vrooli-autoheal/internal/systemevents"
-	"vrooli-autoheal/internal/watchdog"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/persistence"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/remediation"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/systemevents"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/watchdog"
 
 	"github.com/gorilla/mux"
-	apierrors "vrooli-autoheal/internal/errors"
+	apierrors "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/errors"
 )
 
 const (

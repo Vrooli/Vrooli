@@ -8,7 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"vrooli-autoheal/internal/checks"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
 // TestResourceCheckInterface verifies ResourceCheck implements Check
@@ -488,11 +489,11 @@ func TestScenarioCheckRun_DriftSignatureFromLifecycleLog(t *testing.T) {
 	// lifecycle run log, not the status output. The check must read the log
 	// tail and surface the appropriate recommendedAction.
 	tests := []struct {
-		name              string
-		logTail           string
-		expectedRoot      string
-		expectedAction    string
-		expectedSource    string
+		name           string
+		logTail        string
+		expectedRoot   string
+		expectedAction string
+		expectedSource string
 	}{
 		{
 			name:           "go-mod-tidy needed",

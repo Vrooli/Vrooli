@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 func newTestRepo(t *testing.T) *Repository {

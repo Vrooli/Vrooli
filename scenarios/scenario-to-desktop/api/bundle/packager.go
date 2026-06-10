@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // DefaultPackager is the default implementation of Packager.

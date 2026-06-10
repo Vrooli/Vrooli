@@ -6,7 +6,8 @@ import (
 	"context"
 	"strings"
 	"testing"
-	"vrooli-autoheal/internal/checks"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
 func TestOrphanCheckInterface(t *testing.T) {

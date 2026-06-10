@@ -104,7 +104,12 @@ Return a JSON object with 'suggested_pairs' array, each containing 'item_a_id', 
 }
 
 func (sp *SmartPairing) callOllamaGenerate(ctx context.Context, prompt, model, taskType string) (string, error) {
-	cmd := exec.CommandContext(ctx, vrooliCLIPath(), "resource", "ollama", "generate", prompt, "--model", model, "--type", taskType, "--quiet")
+	role := strings.TrimSpace(model)
+	if role == "" {
+		role = "chat.small"
+	}
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate", "--role", role, "--json", "--prompt-stdin")
+	cmd.Stdin = strings.NewReader(prompt)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

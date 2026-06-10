@@ -14,10 +14,10 @@ import (
 	"strings"
 	"time"
 
-	"scenario-to-desktop-runtime/assets"
-	"scenario-to-desktop-runtime/deps"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/strutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/assets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/deps"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/strutil"
 )
 
 // =============================================================================

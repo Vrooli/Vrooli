@@ -5,7 +5,8 @@ package vrooli
 import (
 	"regexp"
 	"strings"
-	"vrooli-autoheal/internal/checks"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
 // Explicit status patterns from Vrooli CLI output (highest priority)

@@ -8,7 +8,7 @@ import (
 	"scenario-to-desktop-api/preflight"
 	"scenario-to-desktop-api/shared/errors"
 
-	runtimeapi "scenario-to-desktop-runtime/api"
+	runtimeapi "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
 )
 
 // BundleabilityChecker checks if a scenario can run in bundled mode.
