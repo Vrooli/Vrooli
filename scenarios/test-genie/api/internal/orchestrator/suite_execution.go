@@ -30,7 +30,8 @@ import (
 	playbooksconfig "test-genie/internal/playbooks/config"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
-	"test-genie/internal/shared/treedigest"
+
+	"github.com/vrooli/freshness-go/treedigest"
 )
 
 var (

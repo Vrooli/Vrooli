@@ -333,7 +333,14 @@ type CaptureRequest struct {
 	// run-scoped directory under the executor's artifact root.
 	OutDir string `protobuf:"bytes,5,opt,name=out_dir,json=outDir,proto3" json:"out_dir,omitempty"`
 	// Echoed into the artifact bundle metadata for cross-referencing.
-	Label         string `protobuf:"bytes,6,opt,name=label,proto3" json:"label,omitempty"`
+	Label string `protobuf:"bytes,6,opt,name=label,proto3" json:"label,omitempty"`
+	// When true, the rendered page's outerHTML (post-wait_for) is returned
+	// inline in CaptureResponse.dom_html. This is the remote-friendly way to
+	// consume rendered HTML: artifact paths in CaptureArtifact are
+	// server-filesystem paths, useless to callers on another host. Independent
+	// of the `captures` list. The server caps the inline payload (currently
+	// 2 MiB) and truncates beyond it.
+	InlineDom     bool `protobuf:"varint,7,opt,name=inline_dom,json=inlineDom,proto3" json:"inline_dom,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -408,6 +415,13 @@ func (x *CaptureRequest) GetLabel() string {
 		return x.Label
 	}
 	return ""
+}
+
+func (x *CaptureRequest) GetInlineDom() bool {
+	if x != nil {
+		return x.InlineDom
+	}
+	return false
 }
 
 type CaptureArtifact struct {
@@ -494,7 +508,13 @@ type CaptureResponse struct {
 	// True if the request was short-circuited by the X-Dry-Run header —
 	// the response shape is otherwise identical so callers can validate
 	// their request without producing artifacts.
-	DryRun        bool `protobuf:"varint,5,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	DryRun bool `protobuf:"varint,5,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	// Rendered page outerHTML, populated only when CaptureRequest.inline_dom
+	// was set. Empty on dry-run or when the in-page DOM read failed (the
+	// capture itself still succeeds — callers needing the DOM must treat
+	// empty as a failed fetch). Size-capped server-side (2 MiB); truncation
+	// is silent, which readable-text extractors tolerate by design.
+	DomHtml       string `protobuf:"bytes,6,opt,name=dom_html,json=domHtml,proto3" json:"dom_html,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -564,6 +584,13 @@ func (x *CaptureResponse) GetDryRun() bool {
 	return false
 }
 
+func (x *CaptureResponse) GetDomHtml() string {
+	if x != nil {
+		return x.DomHtml
+	}
+	return ""
+}
+
 var File_browser_automation_studio_v1_capture_capture_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
@@ -585,7 +612,7 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\vnetworkidle\x18\x02 \x01(\bH\x00R\vnetworkidle\x12\x1f\n" +
 	"\n" +
 	"timeout_ms\x18\x03 \x01(\x05H\x00R\ttimeoutMsB\x06\n" +
-	"\x04spec\"\xc5\x02\n" +
+	"\x04spec\"\xe4\x02\n" +
 	"\x0eCaptureRequest\x12\x19\n" +
 	"\x03url\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\x12M\n" +
 	"\bcaptures\x18\x02 \x03(\x0e21.browser_automation_studio.v1.capture.CaptureTypeR\bcaptures\x12P\n" +
@@ -594,7 +621,9 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"dimensions\x12H\n" +
 	"\bwait_for\x18\x04 \x01(\v2-.browser_automation_studio.v1.capture.WaitForR\awaitFor\x12\x17\n" +
 	"\aout_dir\x18\x05 \x01(\tR\x06outDir\x12\x14\n" +
-	"\x05label\x18\x06 \x01(\tR\x05label\"\xa9\x02\n" +
+	"\x05label\x18\x06 \x01(\tR\x05label\x12\x1d\n" +
+	"\n" +
+	"inline_dom\x18\a \x01(\bR\tinlineDom\"\xa9\x02\n" +
 	"\x0fCaptureArtifact\x12E\n" +
 	"\x04type\x18\x01 \x01(\x0e21.browser_automation_studio.v1.capture.CaptureTypeR\x04type\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x1d\n" +
@@ -603,14 +632,15 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\bmetadata\x18\x04 \x03(\v2C.browser_automation_studio.v1.capture.CaptureArtifact.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xdc\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf7\x01\n" +
 	"\x0fCaptureResponse\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x17\n" +
 	"\aout_dir\x18\x02 \x01(\tR\x06outDir\x12S\n" +
 	"\tartifacts\x18\x03 \x03(\v25.browser_automation_studio.v1.capture.CaptureArtifactR\tartifacts\x12\x1f\n" +
 	"\vduration_ms\x18\x04 \x01(\x03R\n" +
 	"durationMs\x12\x17\n" +
-	"\adry_run\x18\x05 \x01(\bR\x06dryRun*\xcd\x01\n" +
+	"\adry_run\x18\x05 \x01(\bR\x06dryRun\x12\x19\n" +
+	"\bdom_html\x18\x06 \x01(\tR\adomHtml*\xcd\x01\n" +
 	"\vCaptureType\x12\x1c\n" +
 	"\x18CAPTURE_TYPE_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17CAPTURE_TYPE_SCREENSHOT\x10\x01\x12\x1d\n" +

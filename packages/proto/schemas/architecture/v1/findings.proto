@@ -77,6 +77,13 @@ enum FindingSource {
   // uncovered-stateful-domain / hollow-declaration → ERROR feeds the
   // ecosystem-manager soft `measures` ladder dimension (R4).
   FINDING_SOURCE_MEASURES = 10;
+  // BUSINESS: test-genie `business` phase — validates the scenario's
+  // requirements registry (requirements/*.json + PRD.md linkage) and
+  // emits typed drift findings (starter-template registries, orphaned
+  // refs, unvalidated P0 requirements, dangling validation refs).
+  // Advisory in v1: severities capped at ERROR, never BLOCKER. Feeds the
+  // ecosystem-manager `business` ladder dimension.
+  FINDING_SOURCE_BUSINESS = 11;
 }
 
 // FindingSeverity is the normalized severity ladder. Every producer maps

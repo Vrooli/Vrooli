@@ -89,6 +89,16 @@ func TestParseRequestSupportsDriftFlags(t *testing.T) {
 	}
 }
 
+func TestParseRequestSupportsNoFreshness(t *testing.T) {
+	req, err := ParseRequest([]string{"--no-freshness"})
+	if err != nil {
+		t.Fatalf("ParseRequest: %v", err)
+	}
+	if !req.NoFreshness {
+		t.Fatalf("NoFreshness = false, want true")
+	}
+}
+
 func TestRenderIncludesDriftSummary(t *testing.T) {
 	report := hygieneapp.Report{
 		Root: "/repo",

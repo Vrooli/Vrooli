@@ -22,6 +22,7 @@ type Request struct {
 	DriftOnly    bool
 	PnpmOnly     bool
 	NoDrift      bool
+	NoFreshness  bool
 }
 
 type OutputMode string
@@ -51,6 +52,7 @@ func CommandSpec() commandtree.Spec[string] {
 				{Name: "--drift-only", Description: "Run only the shared-package drift check"},
 				{Name: "--pnpm-only", Description: "Run only the pnpm workspace config checks"},
 				{Name: "--no-drift", Description: "Skip the shared-package drift check"},
+				{Name: "--no-freshness", Description: "Skip the advisory test-freshness check (changed scenarios vs test-genie runs)"},
 				commandtree.JSONOption(),
 			},
 		},
@@ -115,6 +117,7 @@ func ParseRequest(args []string) (Request, error) {
 		DriftOnly:    driftOnly,
 		PnpmOnly:     pnpmOnly,
 		NoDrift:      noDrift,
+		NoFreshness:  parsed.HasFlag("--no-freshness"),
 	}, nil
 }
 

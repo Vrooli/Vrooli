@@ -289,7 +289,12 @@ commands, no precision loss — see the retrospective):**
   `ApplyRerankRRF` with the `ServiceOptions.RerankRRFK` fusion constant (≤0 →
   `DefaultRRFK = 60`, the value from the original RRF paper). Raise it to flatten
   rank-position contribution; lower it to sharpen it. In practice the default is
-  the right starting point.
+  the right starting point. Weak labeling on this path is judged from the
+  reranker's RAW calibrated scores (in the leg's own regime), not the blended
+  magnitude: a blended score is a rank-fusion signal (~2/(K+1) at the top), so
+  comparing it against any absolute band mislabels everything — the 2026-06
+  web-search regression where every hit, near-exact matches included, rendered
+  "(weak)". Hits the reranker did not score are labeled weak.
 
 **The full control surface — every knob, its range, default, and tradeoff, plus
 the regime-keyed weak/floor calibration (and why the thresholds are NOT levers),

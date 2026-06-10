@@ -1,6 +1,7 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from web_search.v1.livesearch import livesearch_pb2 as _livesearch_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -42,16 +43,18 @@ class RunL2Request(_message.Message):
     def __init__(self, query: _Optional[str] = ..., top_n: _Optional[int] = ..., capture: _Optional[bool] = ...) -> None: ...
 
 class RunL2Response(_message.Message):
-    __slots__ = ("brief", "synthesis", "abstained", "captured_finding_ids")
+    __slots__ = ("brief", "synthesis", "abstained", "captured_finding_ids", "degraded_engines")
     BRIEF_FIELD_NUMBER: _ClassVar[int]
     SYNTHESIS_FIELD_NUMBER: _ClassVar[int]
     ABSTAINED_FIELD_NUMBER: _ClassVar[int]
     CAPTURED_FINDING_IDS_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_ENGINES_FIELD_NUMBER: _ClassVar[int]
     brief: Brief
     synthesis: str
     abstained: bool
     captured_finding_ids: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, brief: _Optional[_Union[Brief, _Mapping]] = ..., synthesis: _Optional[str] = ..., abstained: _Optional[bool] = ..., captured_finding_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+    degraded_engines: _containers.RepeatedCompositeFieldContainer[_livesearch_pb2.EngineIssue]
+    def __init__(self, brief: _Optional[_Union[Brief, _Mapping]] = ..., synthesis: _Optional[str] = ..., abstained: _Optional[bool] = ..., captured_finding_ids: _Optional[_Iterable[str]] = ..., degraded_engines: _Optional[_Iterable[_Union[_livesearch_pb2.EngineIssue, _Mapping]]] = ...) -> None: ...
 
 class RunL3Request(_message.Message):
     __slots__ = ("query",)

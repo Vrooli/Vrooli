@@ -385,7 +385,12 @@ func (s *Service) vectorSearch(ctx context.Context, q SearchQuery, hybrid bool, 
 		sortByScoreDesc(hits)
 	}
 
-	labelWeak(hits, floorMethod, floorLeg)
+	// The blend path labeled weakness from the reranker's raw scores inside
+	// applyRerankRRF (a blended rank-fusion score cannot express relevance);
+	// every other path is judged on the post-rerank score's own regime here.
+	if !(reranked && eff.rerankBlend) {
+		labelWeak(hits, floorMethod, floorLeg)
+	}
 
 	total := len(hits)
 	if len(hits) > q.Limit {
@@ -445,6 +450,17 @@ func (s *Service) applyRerank(ctx context.Context, query string, hits []SearchRe
 
 // applyRerankRRF scores the shortlist with the active leg and fuses its order
 // with the retrieval order via ApplyRerankRRF (the blend path).
+//
+// It also owns the WEAK LABEL for blended hits: the blended score is a pure
+// rank-fusion signal whose magnitude says nothing about relevance — on a tiny
+// corpus every hit (junk included) blends to within epsilon of 2/(K+1), so any
+// absolute threshold either flags everything weak (the bug this fixes: blend
+// scores ≈0.033 judged against the 0.20 fusion band tuned for qdrant
+// server-side RRF) or nothing. The reranker's RAW scores are calibrated for
+// exactly this question, and they are in hand here — so weakness is judged
+// from the raw score in the active leg's own regime, while the blended score
+// keeps owning the ORDER. Hits the reranker did not score at all are weak: a
+// shortlist member the leg declined to vouch for.
 func (s *Service) applyRerankRRF(ctx context.Context, query string, hits []SearchResult, active Reranker) ([]SearchResult, error) {
 	cands := make([]RerankCandidate, len(hits))
 	for i, h := range hits {
@@ -454,7 +470,18 @@ func (s *Service) applyRerankRRF(ctx context.Context, query string, hits []Searc
 	if err != nil {
 		return nil, err
 	}
-	return ApplyRerankRRF(hits, scores, s.rrfK), nil
+	blended := ApplyRerankRRF(hits, scores, s.rrfK)
+
+	rawByID := make(map[string]float64, len(scores))
+	for _, sc := range scores {
+		rawByID[sc.ID] = sc.Score
+	}
+	leg := active.Name()
+	for i := range blended {
+		raw, scored := rawByID[blended[i].ID]
+		blended[i].Weak = !scored || LabelWeakForMethod("dense", leg, raw)
+	}
+	return blended, nil
 }
 
 func (s *Service) rerankCandidateText(h SearchResult) string {

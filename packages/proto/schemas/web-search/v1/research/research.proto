@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.web_search.v1.research;
 
 import "google/protobuf/timestamp.proto";
+import "web-search/v1/livesearch/livesearch.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research;research_v1";
 
@@ -75,6 +76,12 @@ message RunL2Response {
   // captured_finding_ids lists the findings written when capture was set. Empty
   // when capture was off or nothing was distilled.
   repeated string captured_finding_ids = 4;
+  // degraded_engines lists upstream engines that did not contribute to the L0
+  // candidate search backing this run (mirrors
+  // livesearch.SearchResponse.degraded_engines). A weak synthesis with a
+  // non-empty list usually means the inputs were partial, not that the web
+  // lacks an answer.
+  repeated vrooli.web_search.v1.livesearch.EngineIssue degraded_engines = 5;
 }
 
 message RunL3Request {

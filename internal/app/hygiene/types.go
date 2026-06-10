@@ -82,4 +82,5 @@ type Request struct {
 	IncludeContract   bool
 	IncludeDrift      bool
 	IncludePnpmConfig bool
+	IncludeFreshness  bool
 }

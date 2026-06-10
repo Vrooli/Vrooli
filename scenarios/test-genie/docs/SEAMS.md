@@ -66,7 +66,7 @@ This document tracks the intentional seams that let Test Genie evolve without fo
 
 ### Tree digest (run freshness identity)
 
-- Package: `api/internal/shared/treedigest`
+- Package: `packages/freshness-go/treedigest` (shared module; extracted from `api/internal/shared/treedigest` so cached status readers compute the same identity)
 - Surface: `Compute()` / `ComputeWithRunner()` (injectable command runner), `CollectGitContext()`
 - Why it exists: "has this scenario's current change-set been tested?" needs a byte-exact identity for the working tree a run executed against. The digest spec (sha256 over sorted relpath+content hashes of git-enumerable files, generated/state dirs excluded) is frozen here so the run-start stamper, `RunsService.CheckFreshness`, and every consumer compare the same value. The change-set fan-out lives in the CLI (`test-genie runs freshness --changed`, `cli/runs/freshness_changed.go`): it maps the git change-set to scenarios and checks each concurrently, degrading to `{checked:false}` instead of erroring. `vrooli hygiene` consumes that JSON as its advisory `test_freshness` check (warning findings, non-blocking), which is how the pre-commit flow sees staleness — git-control-tower deliberately knows nothing about freshness. Documented v1 limitation: scope is the scenario dir only — shared `packages/*` edits do not invalidate freshness. The required-phase set the freshness check defaults to is `phases.FreshnessRequired()` (≡ the quick preset), a code-level SSOT that is deliberately NOT per-scenario configurable.
 

@@ -6,19 +6,39 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"syscall"
-	"time"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
+
+	"github.com/vrooli/freshness-go/runindex"
+)
+
+// The record types and status vocabulary stored in the index are the shared
+// read contract (github.com/vrooli/freshness-go/runindex) so freshness
+// verdicts and cached status readers decode exactly what this write side
+// stores. This package keeps the write/locking side internal and aliases the
+// shared types.
+type (
+	// DiagnosticsConfig is the serialized diagnostics profile a run was
+	// executed with. It is immutable once the run completes (Decision 4 in
+	// Plan A).
+	DiagnosticsConfig = runindex.DiagnosticsConfig
+	// PinRecord protects a run from retention GC while an external consumer
+	// (e.g. a git-control-tower baseline) references it.
+	PinRecord = runindex.PinRecord
+	// PhaseRecord is a compact per-phase summary stored in the index for fast
+	// enumeration without reading per-run phase-results files.
+	PhaseRecord = runindex.PhaseRecord
+	// RunRecord is the index entry for a single test-genie execution.
+	RunRecord = runindex.RunRecord
 )
 
 // Run status values recorded in the index.
 const (
-	StatusInProgress = "in_progress"
-	StatusPassed     = "passed"
-	StatusFailed     = "failed"
-	StatusAborted    = "aborted"
+	StatusInProgress = runindex.StatusInProgress
+	StatusPassed     = runindex.StatusPassed
+	StatusFailed     = runindex.StatusFailed
+	StatusAborted    = runindex.StatusAborted
 )
 
 // ErrRunNotFound is returned when a run ID is absent from the index.
@@ -26,57 +46,6 @@ var ErrRunNotFound = errors.New("run not found in index")
 
 // ErrRunPinned is returned when a delete is attempted on a pinned run without force.
 var ErrRunPinned = errors.New("run is pinned; unpin or use force to delete")
-
-// DiagnosticsConfig is the serialized diagnostics profile a run was executed
-// with. It is immutable once the run completes (Decision 4 in Plan A).
-type DiagnosticsConfig struct {
-	Video   bool `json:"video"`
-	Console bool `json:"console"`
-	Network bool `json:"network"`
-	HAR     bool `json:"har"`
-	Trace   bool `json:"trace"`
-	DOM     bool `json:"dom"`
-}
-
-// PinRecord protects a run from retention GC while an external consumer (e.g.
-// a git-control-tower baseline) references it.
-type PinRecord struct {
-	PinnedBy string    `json:"pinned_by"`
-	PinnedAt time.Time `json:"pinned_at"`
-	Reason   string    `json:"reason,omitempty"`
-}
-
-// PhaseRecord is a compact per-phase summary stored in the index for fast
-// enumeration without reading per-run phase-results files.
-type PhaseRecord struct {
-	Name            string `json:"name"`
-	Status          string `json:"status"`
-	DurationSeconds int    `json:"duration_seconds"`
-}
-
-// RunRecord is the index entry for a single test-genie execution.
-type RunRecord struct {
-	RunID           string        `json:"run_id"`
-	Scenario        string        `json:"scenario"`
-	StartedAt       time.Time     `json:"started_at"`
-	CompletedAt     time.Time     `json:"completed_at,omitempty"`
-	Status          string        `json:"status"`
-	Phases          []PhaseRecord `json:"phases,omitempty"`
-	GitSha          string        `json:"git_sha,omitempty"`
-	GitBranch       string        `json:"git_branch,omitempty"`
-	GitDirty        bool          `json:"git_dirty,omitempty"`
-	GitDirtySummary string        `json:"git_dirty_summary,omitempty"`
-	// TreeDigest is the scenario working-tree content digest (see
-	// internal/shared/treedigest) captured at run START, so it identifies
-	// the byte-state the phases actually executed against. Empty on runs
-	// that predate digest stamping ("unknown" freshness).
-	TreeDigest  string            `json:"tree_digest,omitempty"`
-	Diagnostics DiagnosticsConfig `json:"diagnostics"`
-	Pins        []PinRecord       `json:"pins,omitempty"`
-}
-
-// IsPinned reports whether the run is protected from retention GC.
-func (r RunRecord) IsPinned() bool { return len(r.Pins) > 0 }
 
 // Index is the append-only run index backed by coverage/runs.index.json. All
 // mutations serialize through an advisory flock on a sibling lock file so
@@ -164,12 +133,7 @@ func (i *Index) List() ([]RunRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.SliceStable(records, func(a, b int) bool {
-		if records[a].StartedAt.Equal(records[b].StartedAt) {
-			return records[a].RunID > records[b].RunID
-		}
-		return records[a].StartedAt.After(records[b].StartedAt)
-	})
+	runindex.SortNewestFirst(records)
 	return records, nil
 }
 

@@ -65,6 +65,15 @@ message Synthesis {
   bool abstained = 3;
 }
 
+// EngineIssue names one upstream metasearch engine that did not answer a
+// query, with the upstream-reported reason (suspended, CAPTCHA, parse
+// error, ...). Structured (not a display string) so UIs can badge it and
+// automation can count it.
+message EngineIssue {
+  string engine = 1;
+  string reason = 2;
+}
+
 message SearchResponse {
   repeated SearchResult results = 1;
   // synthesis is present only when the request set synthesize and the pass ran.
@@ -75,4 +84,8 @@ message SearchResponse {
   // results list is then empty and degraded_reason explains why.
   bool degraded = 4;
   string degraded_reason = 5;
+  // degraded_engines lists engines that did not contribute to THIS query
+  // (per-query signal from the metasearch layer). Results may be partial when
+  // non-empty; for cached responses this reflects the engines at fetch time.
+  repeated EngineIssue degraded_engines = 6;
 }

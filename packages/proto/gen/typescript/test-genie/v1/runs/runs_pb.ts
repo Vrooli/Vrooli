@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file test-genie/v1/runs/runs.proto.
  */
 export const file_test_genie_v1_runs_runs: GenFile = /*@__PURE__*/
-  fileDesc("Ch10ZXN0LWdlbmllL3YxL3J1bnMvcnVucy5wcm90bxIZdnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucyJrCg9EaWFnbm9zdGljc0luZm8SDQoFdmlkZW8YASABKAgSDwoHY29uc29sZRgCIAEoCBIPCgduZXR3b3JrGAMgASgIEgsKA2hhchgEIAEoCBINCgV0cmFjZRgFIAEoCBILCgNkb20YBiABKAgiPwoHUGluSW5mbxIRCglwaW5uZWRfYnkYASABKAkSEQoJcGlubmVkX2F0GAIgASgJEg4KBnJlYXNvbhgDIAEoCSJDCglQaGFzZUluZm8SDAoEbmFtZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSGAoQZHVyYXRpb25fc2Vjb25kcxgDIAEoASLhAgoHUnVuSW5mbxIOCgZydW5faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSEgoKc3RhcnRlZF9hdBgDIAEoCRIUCgxjb21wbGV0ZWRfYXQYBCABKAkSDgoGc3RhdHVzGAUgASgJEjQKBnBoYXNlcxgGIAMoCzIkLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGhhc2VJbmZvEg8KB2dpdF9zaGEYByABKAkSEgoKZ2l0X2JyYW5jaBgIIAEoCRIRCglnaXRfZGlydHkYCSABKAgSGQoRZ2l0X2RpcnR5X3N1bW1hcnkYCiABKAkSPwoLZGlhZ25vc3RpY3MYCyABKAsyKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkRpYWdub3N0aWNzSW5mbxIwCgRwaW5zGAwgAygLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5QaW5JbmZvIkIKD0xpc3RSdW5zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDQoFbGltaXQYAyABKAUiRAoQTGlzdFJ1bnNSZXNwb25zZRIwCgRydW5zGAEgAygLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5JbmZvIjEKDUdldFJ1blJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJIkEKDkdldFJ1blJlc3BvbnNlEi8KA3J1bhgBIAEoCzIiLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuSW5mbyJDChBEZWxldGVSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRINCgVmb3JjZRgDIAEoCCIkChFEZWxldGVSdW5SZXNwb25zZRIPCgdkZWxldGVkGAEgASgIIlQKDVBpblJ1blJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJEhEKCXBpbm5lZF9ieRgDIAEoCRIOCgZyZWFzb24YBCABKAkiQQoOUGluUnVuUmVzcG9uc2USLwoDcnVuGAEgASgLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5JbmZvIkYKD1VucGluUnVuUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkSEQoJcGlubmVkX2J5GAMgASgJIkMKEFVucGluUnVuUmVzcG9uc2USLwoDcnVuGAEgASgLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5JbmZvIlkKEkNvbXBhcmVSdW5zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIQCghydW5faWRfYRgCIAEoCRIQCghydW5faWRfYhgDIAEoCRINCgVwaGFzZRgEIAEoCSKyAQoJUGhhc2VEaWZmEg0KBXBoYXNlGAEgASgJEhAKCHN0YXR1c19hGAIgASgJEhAKCHN0YXR1c19iGAMgASgJEg8KB3ZlcmRpY3QYBCABKAkSEwoLcmVncmVzc2lvbnMYBSADKAkSFAoMbmV3X2ZhaWx1cmVzGAYgAygJEhwKFHByZWV4aXN0aW5nX2ZhaWx1cmVzGAcgAygJEhgKEGNsZWFyZWRfZmFpbHVyZXMYCCADKAkiXAoTQ29tcGFyZVJ1bnNSZXNwb25zZRI0CgZwaGFzZXMYASADKAsyJC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlBoYXNlRGlmZhIPCgd2ZXJkaWN0GAIgASgJIkoKF0dldFBoYXNlQXJ0aWZhY3RSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRINCgVwaGFzZRgDIAEoCSJBChhHZXRQaGFzZUFydGlmYWN0UmVzcG9uc2USDwoHY29udGVudBgBIAEoCRIUCgxjb250ZW50X3R5cGUYAiABKAkiQgoIUnVuVmlkZW8SEAoId29ya2Zsb3cYASABKAkSEAoIcmVsX3BhdGgYAiABKAkSEgoKc2l6ZV9ieXRlcxgDIAEoAyI4ChRMaXN0UnVuVmlkZW9zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkiTAoVTGlzdFJ1blZpZGVvc1Jlc3BvbnNlEjMKBnZpZGVvcxgBIAMoCzIjLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuVmlkZW8y3AYKC1J1bnNTZXJ2aWNlEmMKCExpc3RSdW5zEioudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5MaXN0UnVuc1JlcXVlc3QaKy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkxpc3RSdW5zUmVzcG9uc2USXQoGR2V0UnVuEigudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRSdW5SZXF1ZXN0GikudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRSdW5SZXNwb25zZRJmCglEZWxldGVSdW4SKy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkRlbGV0ZVJ1blJlcXVlc3QaLC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkRlbGV0ZVJ1blJlc3BvbnNlEl0KBlBpblJ1bhIoLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGluUnVuUmVxdWVzdBopLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGluUnVuUmVzcG9uc2USYwoIVW5waW5SdW4SKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlVucGluUnVuUmVxdWVzdBorLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuVW5waW5SdW5SZXNwb25zZRJsCgtDb21wYXJlUnVucxItLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuQ29tcGFyZVJ1bnNSZXF1ZXN0Gi4udnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5Db21wYXJlUnVuc1Jlc3BvbnNlEnsKEEdldFBoYXNlQXJ0aWZhY3QSMi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkdldFBoYXNlQXJ0aWZhY3RSZXF1ZXN0GjMudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRQaGFzZUFydGlmYWN0UmVzcG9uc2UScgoNTGlzdFJ1blZpZGVvcxIvLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuTGlzdFJ1blZpZGVvc1JlcXVlc3QaMC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkxpc3RSdW5WaWRlb3NSZXNwb25zZUJLWklnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Rlc3QtZ2VuaWUvdjEvcnVucztydW5zX3YxYgZwcm90bzM");
+  fileDesc("Ch10ZXN0LWdlbmllL3YxL3J1bnMvcnVucy5wcm90bxIZdnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucyJrCg9EaWFnbm9zdGljc0luZm8SDQoFdmlkZW8YASABKAgSDwoHY29uc29sZRgCIAEoCBIPCgduZXR3b3JrGAMgASgIEgsKA2hhchgEIAEoCBINCgV0cmFjZRgFIAEoCBILCgNkb20YBiABKAgiPwoHUGluSW5mbxIRCglwaW5uZWRfYnkYASABKAkSEQoJcGlubmVkX2F0GAIgASgJEg4KBnJlYXNvbhgDIAEoCSJDCglQaGFzZUluZm8SDAoEbmFtZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSGAoQZHVyYXRpb25fc2Vjb25kcxgDIAEoASL2AgoHUnVuSW5mbxIOCgZydW5faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSEgoKc3RhcnRlZF9hdBgDIAEoCRIUCgxjb21wbGV0ZWRfYXQYBCABKAkSDgoGc3RhdHVzGAUgASgJEjQKBnBoYXNlcxgGIAMoCzIkLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGhhc2VJbmZvEg8KB2dpdF9zaGEYByABKAkSEgoKZ2l0X2JyYW5jaBgIIAEoCRIRCglnaXRfZGlydHkYCSABKAgSGQoRZ2l0X2RpcnR5X3N1bW1hcnkYCiABKAkSPwoLZGlhZ25vc3RpY3MYCyABKAsyKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkRpYWdub3N0aWNzSW5mbxIwCgRwaW5zGAwgAygLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5QaW5JbmZvEhMKC3RyZWVfZGlnZXN0GA0gASgJIkIKD0xpc3RSdW5zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDQoFbGltaXQYAyABKAUiRAoQTGlzdFJ1bnNSZXNwb25zZRIwCgRydW5zGAEgAygLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5JbmZvIjEKDUdldFJ1blJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJIkEKDkdldFJ1blJlc3BvbnNlEi8KA3J1bhgBIAEoCzIiLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuSW5mbyJDChBEZWxldGVSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRINCgVmb3JjZRgDIAEoCCIkChFEZWxldGVSdW5SZXNwb25zZRIPCgdkZWxldGVkGAEgASgIIlQKDVBpblJ1blJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJEhEKCXBpbm5lZF9ieRgDIAEoCRIOCgZyZWFzb24YBCABKAkiQQoOUGluUnVuUmVzcG9uc2USLwoDcnVuGAEgASgLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5JbmZvIkYKD1VucGluUnVuUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkSEQoJcGlubmVkX2J5GAMgASgJIkMKEFVucGluUnVuUmVzcG9uc2USLwoDcnVuGAEgASgLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5JbmZvIlkKEkNvbXBhcmVSdW5zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIQCghydW5faWRfYRgCIAEoCRIQCghydW5faWRfYhgDIAEoCRINCgVwaGFzZRgEIAEoCSKyAQoJUGhhc2VEaWZmEg0KBXBoYXNlGAEgASgJEhAKCHN0YXR1c19hGAIgASgJEhAKCHN0YXR1c19iGAMgASgJEg8KB3ZlcmRpY3QYBCABKAkSEwoLcmVncmVzc2lvbnMYBSADKAkSFAoMbmV3X2ZhaWx1cmVzGAYgAygJEhwKFHByZWV4aXN0aW5nX2ZhaWx1cmVzGAcgAygJEhgKEGNsZWFyZWRfZmFpbHVyZXMYCCADKAkiXAoTQ29tcGFyZVJ1bnNSZXNwb25zZRI0CgZwaGFzZXMYASADKAsyJC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlBoYXNlRGlmZhIPCgd2ZXJkaWN0GAIgASgJIkoKF0dldFBoYXNlQXJ0aWZhY3RSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRINCgVwaGFzZRgDIAEoCSJBChhHZXRQaGFzZUFydGlmYWN0UmVzcG9uc2USDwoHY29udGVudBgBIAEoCRIUCgxjb250ZW50X3R5cGUYAiABKAkiQgoIUnVuVmlkZW8SEAoId29ya2Zsb3cYASABKAkSEAoIcmVsX3BhdGgYAiABKAkSEgoKc2l6ZV9ieXRlcxgDIAEoAyI4ChRMaXN0UnVuVmlkZW9zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkiTAoVTGlzdFJ1blZpZGVvc1Jlc3BvbnNlEjMKBnZpZGVvcxgBIAMoCzIjLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuVmlkZW8iOQoVQ2hlY2tGcmVzaG5lc3NSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnBoYXNlcxgCIAMoCSJjCg5QaGFzZUZyZXNobmVzcxINCgVwaGFzZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSEwoLbGFzdF9ydW5faWQYAyABKAkSHQoVbGFzdF9ydW5fY29tcGxldGVkX2F0GAQgASgJIpUBChZDaGVja0ZyZXNobmVzc1Jlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEhMKC3RyZWVfZGlnZXN0GAIgASgJEjkKBnBoYXNlcxgDIAMoCzIpLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGhhc2VGcmVzaG5lc3MSGQoRc3VnZ2VzdGVkX2NvbW1hbmQYBCABKAky0wcKC1J1bnNTZXJ2aWNlEmMKCExpc3RSdW5zEioudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5MaXN0UnVuc1JlcXVlc3QaKy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkxpc3RSdW5zUmVzcG9uc2USXQoGR2V0UnVuEigudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRSdW5SZXF1ZXN0GikudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRSdW5SZXNwb25zZRJmCglEZWxldGVSdW4SKy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkRlbGV0ZVJ1blJlcXVlc3QaLC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkRlbGV0ZVJ1blJlc3BvbnNlEl0KBlBpblJ1bhIoLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGluUnVuUmVxdWVzdBopLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGluUnVuUmVzcG9uc2USYwoIVW5waW5SdW4SKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlVucGluUnVuUmVxdWVzdBorLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuVW5waW5SdW5SZXNwb25zZRJsCgtDb21wYXJlUnVucxItLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuQ29tcGFyZVJ1bnNSZXF1ZXN0Gi4udnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5Db21wYXJlUnVuc1Jlc3BvbnNlEnsKEEdldFBoYXNlQXJ0aWZhY3QSMi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkdldFBoYXNlQXJ0aWZhY3RSZXF1ZXN0GjMudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRQaGFzZUFydGlmYWN0UmVzcG9uc2UScgoNTGlzdFJ1blZpZGVvcxIvLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuTGlzdFJ1blZpZGVvc1JlcXVlc3QaMC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkxpc3RSdW5WaWRlb3NSZXNwb25zZRJ1Cg5DaGVja0ZyZXNobmVzcxIwLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuQ2hlY2tGcmVzaG5lc3NSZXF1ZXN0GjEudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5DaGVja0ZyZXNobmVzc1Jlc3BvbnNlQktaSWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdGVzdC1nZW5pZS92MS9ydW5zO3J1bnNfdjFiBnByb3RvMw");
 
 /**
  * DiagnosticsInfo is the serialized diagnostics profile a run executed with.
@@ -189,6 +189,15 @@ export type RunInfo = Message<"vrooli.test_genie.v1.runs.RunInfo"> & {
    * @generated from field: repeated vrooli.test_genie.v1.runs.PinInfo pins = 12;
    */
   pins: PinInfo[];
+
+  /**
+   * tree_digest is the scenario working-tree content digest captured at run
+   * start ("td:"-prefixed sha256; see test-genie internal/shared/treedigest).
+   * Empty on runs that predate digest stamping.
+   *
+   * @generated from field: string tree_digest = 13;
+   */
+  treeDigest: string;
 };
 
 /**
@@ -678,6 +687,112 @@ export const ListRunVideosResponseSchema: GenMessage<ListRunVideosResponse> = /*
   messageDesc(file_test_genie_v1_runs_runs, 21);
 
 /**
+ * @generated from message vrooli.test_genie.v1.runs.CheckFreshnessRequest
+ */
+export type CheckFreshnessRequest = Message<"vrooli.test_genie.v1.runs.CheckFreshnessRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * phases to check. Empty = the global required set (test-genie's quick
+   * preset — a code-level SSOT, deliberately NOT per-scenario configurable).
+   *
+   * @generated from field: repeated string phases = 2;
+   */
+  phases: string[];
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.CheckFreshnessRequest.
+ * Use `create(CheckFreshnessRequestSchema)` to create a new message.
+ */
+export const CheckFreshnessRequestSchema: GenMessage<CheckFreshnessRequest> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 22);
+
+/**
+ * PhaseFreshness is the verdict for one phase.
+ *
+ * @generated from message vrooli.test_genie.v1.runs.PhaseFreshness
+ */
+export type PhaseFreshness = Message<"vrooli.test_genie.v1.runs.PhaseFreshness"> & {
+  /**
+   * @generated from field: string phase = 1;
+   */
+  phase: string;
+
+  /**
+   * status: fresh   — a run with the current tree digest ran this phase, passed
+   *         stale   — digest-stamped runs exist, but none passed this phase at
+   *                   the current digest
+   *         unknown — no digest-stamped runs exist for the scenario
+   *
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * newest run that passed this phase, if any
+   *
+   * @generated from field: string last_run_id = 3;
+   */
+  lastRunId: string;
+
+  /**
+   * RFC3339, empty if none/in-progress
+   *
+   * @generated from field: string last_run_completed_at = 4;
+   */
+  lastRunCompletedAt: string;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.PhaseFreshness.
+ * Use `create(PhaseFreshnessSchema)` to create a new message.
+ */
+export const PhaseFreshnessSchema: GenMessage<PhaseFreshness> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 23);
+
+/**
+ * @generated from message vrooli.test_genie.v1.runs.CheckFreshnessResponse
+ */
+export type CheckFreshnessResponse = Message<"vrooli.test_genie.v1.runs.CheckFreshnessResponse"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * tree_digest is the scenario's CURRENT working-tree digest the verdicts
+   * were computed against.
+   *
+   * @generated from field: string tree_digest = 2;
+   */
+  treeDigest: string;
+
+  /**
+   * @generated from field: repeated vrooli.test_genie.v1.runs.PhaseFreshness phases = 3;
+   */
+  phases: PhaseFreshness[];
+
+  /**
+   * suggested_command reproduces freshness for every stale/unknown phase
+   * (e.g. "test-genie execute <scenario> --preset quick").
+   *
+   * @generated from field: string suggested_command = 4;
+   */
+  suggestedCommand: string;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.CheckFreshnessResponse.
+ * Use `create(CheckFreshnessResponseSchema)` to create a new message.
+ */
+export const CheckFreshnessResponseSchema: GenMessage<CheckFreshnessResponse> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 24);
+
+/**
  * @generated from service vrooli.test_genie.v1.runs.RunsService
  */
 export const RunsService: GenService<{
@@ -763,6 +878,19 @@ export const RunsService: GenService<{
     methodKind: "unary";
     input: typeof ListRunVideosRequestSchema;
     output: typeof ListRunVideosResponseSchema;
+  },
+  /**
+   * CheckFreshness reports, per phase, whether some recorded run executed that
+   * phase (status passed) against the scenario's CURRENT working-tree digest.
+   * Read-only; consumed by git-control-tower's advisory pre-commit step and
+   * the `test-genie runs freshness` CLI verb.
+   *
+   * @generated from rpc vrooli.test_genie.v1.runs.RunsService.CheckFreshness
+   */
+  checkFreshness: {
+    methodKind: "unary";
+    input: typeof CheckFreshnessRequestSchema;
+    output: typeof CheckFreshnessResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_test_genie_v1_runs_runs, 0);

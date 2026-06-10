@@ -1,6 +1,9 @@
 package aisearch
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 // TestApplyRerankRRFDoesNotBuryStrongRetrieval is the core property the blend
 // exists for: a result the reranker scores LOW but retrieval ranked HIGH must
@@ -93,4 +96,102 @@ func indexOf(rs []SearchResult, id string) int {
 		}
 	}
 	return -1
+}
+
+// TestServiceBlendLabelsWeakFromRawRerankScores pins the blend-path weak
+// label: a blended hit's SCORE is a rank-fusion magnitude (~2/(K+1), far
+// below every absolute weak band — on a tiny corpus junk blends to within
+// epsilon of the top hit), so weakness must be judged from the reranker's
+// RAW calibrated scores in the leg's own regime. The regression this guards:
+// every blended hit (including near-exact matches) rendered "(weak)" because
+// the blended magnitude was compared against an absolute threshold.
+func TestServiceBlendLabelsWeakFromRawRerankScores(t *testing.T) {
+	store := &queryStore{available: true, results: []SearchResult{
+		docResult("go-version", 0.80, "current stable Go version is 1.26"),
+		docResult("eiffel", 0.55, "the Eiffel Tower is in Paris"),
+	}}
+	// Cross-encoder raw scores: the on-topic hit is high, the junk hit ~0.
+	rr := NewRerankerChain(&stubReranker{
+		name:      "cross-encoder:test",
+		available: true,
+		scores:    []RerankScore{{ID: "go-version", Score: 0.92}, {ID: "eiffel", Score: 0.02}},
+	})
+	svc := NewService(ServiceOptions{
+		Embedder:      &countingEmbedder{},
+		VectorStore:   store,
+		Reranker:      rr,
+		RerankEnabled: true,
+		RerankBlend:   true,
+		Project:       docProjector,
+		Shortlist:     50,
+	})
+
+	resp, err := svc.Search(context.Background(), SearchQuery{Query: "latest Go version", Mode: ModeDense, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Reranker != "blend:cross-encoder:test" {
+		t.Fatalf("reranker leg = %q, want blend:cross-encoder:test", resp.Reranker)
+	}
+	byID := map[string]SearchResult{}
+	for _, h := range resp.Results {
+		byID[h.ID] = h
+	}
+	top, ok := byID["go-version"]
+	if !ok {
+		t.Fatalf("go-version missing from results: %+v", resp.Results)
+	}
+	if top.Weak {
+		t.Fatalf("near-exact match labeled weak (raw 0.92 vs cross-encoder band): %+v", top)
+	}
+	junk, ok := byID["eiffel"]
+	if ok && !junk.Weak {
+		t.Fatalf("junk hit not labeled weak (raw 0.02): %+v", junk)
+	}
+	// The blended SCORE still owns the order and keeps its rank-fusion
+	// magnitude (~2/(K+1)) — only the label semantics changed.
+	if top.Score > 1.0/float64(DefaultRRFK)*2+0.001 {
+		t.Fatalf("blend score should stay a rank-fusion magnitude, got %f", top.Score)
+	}
+}
+
+// TestServiceBlendUnscoredHitIsWeak: a shortlist member the reranker declined
+// to score gets no vouching — it must be labeled weak rather than inheriting
+// strength from its retrieval rank.
+func TestServiceBlendUnscoredHitIsWeak(t *testing.T) {
+	store := &queryStore{available: true, results: []SearchResult{
+		docResult("scored", 0.80, "scored doc"),
+		docResult("unscored", 0.75, "unscored doc"),
+	}}
+	rr := NewRerankerChain(&stubReranker{
+		name:      "cross-encoder:test",
+		available: true,
+		scores:    []RerankScore{{ID: "scored", Score: 0.9}},
+	})
+	svc := NewService(ServiceOptions{
+		Embedder:      &countingEmbedder{},
+		VectorStore:   store,
+		Reranker:      rr,
+		RerankEnabled: true,
+		RerankBlend:   true,
+		Project:       docProjector,
+		Shortlist:     50,
+	})
+
+	resp, err := svc.Search(context.Background(), SearchQuery{Query: "doc", Mode: ModeDense, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, h := range resp.Results {
+		switch h.ID {
+		case "scored":
+			if h.Weak {
+				t.Fatalf("scored strong hit labeled weak: %+v", h)
+			}
+		case "unscored":
+			if !h.Weak {
+				t.Fatalf("unscored hit must be weak: %+v", h)
+			}
+		}
+	}
 }

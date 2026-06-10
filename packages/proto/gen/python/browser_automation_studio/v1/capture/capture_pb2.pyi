@@ -59,20 +59,22 @@ class WaitFor(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., networkidle: _Optional[bool] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class CaptureRequest(_message.Message):
-    __slots__ = ("url", "captures", "dimensions", "wait_for", "out_dir", "label")
+    __slots__ = ("url", "captures", "dimensions", "wait_for", "out_dir", "label", "inline_dom")
     URL_FIELD_NUMBER: _ClassVar[int]
     CAPTURES_FIELD_NUMBER: _ClassVar[int]
     DIMENSIONS_FIELD_NUMBER: _ClassVar[int]
     WAIT_FOR_FIELD_NUMBER: _ClassVar[int]
     OUT_DIR_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
+    INLINE_DOM_FIELD_NUMBER: _ClassVar[int]
     url: str
     captures: _containers.RepeatedScalarFieldContainer[CaptureType]
     dimensions: Dimensions
     wait_for: WaitFor
     out_dir: str
     label: str
-    def __init__(self, url: _Optional[str] = ..., captures: _Optional[_Iterable[_Union[CaptureType, str]]] = ..., dimensions: _Optional[_Union[Dimensions, _Mapping]] = ..., wait_for: _Optional[_Union[WaitFor, _Mapping]] = ..., out_dir: _Optional[str] = ..., label: _Optional[str] = ...) -> None: ...
+    inline_dom: bool
+    def __init__(self, url: _Optional[str] = ..., captures: _Optional[_Iterable[_Union[CaptureType, str]]] = ..., dimensions: _Optional[_Union[Dimensions, _Mapping]] = ..., wait_for: _Optional[_Union[WaitFor, _Mapping]] = ..., out_dir: _Optional[str] = ..., label: _Optional[str] = ..., inline_dom: _Optional[bool] = ...) -> None: ...
 
 class CaptureArtifact(_message.Message):
     __slots__ = ("type", "path", "size_bytes", "metadata")
@@ -94,15 +96,17 @@ class CaptureArtifact(_message.Message):
     def __init__(self, type: _Optional[_Union[CaptureType, str]] = ..., path: _Optional[str] = ..., size_bytes: _Optional[int] = ..., metadata: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class CaptureResponse(_message.Message):
-    __slots__ = ("execution_id", "out_dir", "artifacts", "duration_ms", "dry_run")
+    __slots__ = ("execution_id", "out_dir", "artifacts", "duration_ms", "dry_run", "dom_html")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     OUT_DIR_FIELD_NUMBER: _ClassVar[int]
     ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
     DURATION_MS_FIELD_NUMBER: _ClassVar[int]
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    DOM_HTML_FIELD_NUMBER: _ClassVar[int]
     execution_id: str
     out_dir: str
     artifacts: _containers.RepeatedCompositeFieldContainer[CaptureArtifact]
     duration_ms: int
     dry_run: bool
-    def __init__(self, execution_id: _Optional[str] = ..., out_dir: _Optional[str] = ..., artifacts: _Optional[_Iterable[_Union[CaptureArtifact, _Mapping]]] = ..., duration_ms: _Optional[int] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+    dom_html: str
+    def __init__(self, execution_id: _Optional[str] = ..., out_dir: _Optional[str] = ..., artifacts: _Optional[_Iterable[_Union[CaptureArtifact, _Mapping]]] = ..., duration_ms: _Optional[int] = ..., dry_run: _Optional[bool] = ..., dom_html: _Optional[str] = ...) -> None: ...

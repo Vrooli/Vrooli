@@ -51,6 +51,9 @@ const (
 	// RunsServiceListRunVideosProcedure is the fully-qualified name of the RunsService's ListRunVideos
 	// RPC.
 	RunsServiceListRunVideosProcedure = "/vrooli.test_genie.v1.runs.RunsService/ListRunVideos"
+	// RunsServiceCheckFreshnessProcedure is the fully-qualified name of the RunsService's
+	// CheckFreshness RPC.
+	RunsServiceCheckFreshnessProcedure = "/vrooli.test_genie.v1.runs.RunsService/CheckFreshness"
 )
 
 // RunsServiceClient is a client for the vrooli.test_genie.v1.runs.RunsService service.
@@ -74,6 +77,11 @@ type RunsServiceClient interface {
 	// round-trip through proto); the rel_path here is the handle that route
 	// takes. Consumed by git-control-tower's WorkflowReplayService.
 	ListRunVideos(context.Context, *connect.Request[runs.ListRunVideosRequest]) (*connect.Response[runs.ListRunVideosResponse], error)
+	// CheckFreshness reports, per phase, whether some recorded run executed that
+	// phase (status passed) against the scenario's CURRENT working-tree digest.
+	// Read-only; consumed by git-control-tower's advisory pre-commit step and
+	// the `test-genie runs freshness` CLI verb.
+	CheckFreshness(context.Context, *connect.Request[runs.CheckFreshnessRequest]) (*connect.Response[runs.CheckFreshnessResponse], error)
 }
 
 // NewRunsServiceClient constructs a client for the vrooli.test_genie.v1.runs.RunsService service.
@@ -135,6 +143,12 @@ func NewRunsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(runsServiceMethods.ByName("ListRunVideos")),
 			connect.WithClientOptions(opts...),
 		),
+		checkFreshness: connect.NewClient[runs.CheckFreshnessRequest, runs.CheckFreshnessResponse](
+			httpClient,
+			baseURL+RunsServiceCheckFreshnessProcedure,
+			connect.WithSchema(runsServiceMethods.ByName("CheckFreshness")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -148,6 +162,7 @@ type runsServiceClient struct {
 	compareRuns      *connect.Client[runs.CompareRunsRequest, runs.CompareRunsResponse]
 	getPhaseArtifact *connect.Client[runs.GetPhaseArtifactRequest, runs.GetPhaseArtifactResponse]
 	listRunVideos    *connect.Client[runs.ListRunVideosRequest, runs.ListRunVideosResponse]
+	checkFreshness   *connect.Client[runs.CheckFreshnessRequest, runs.CheckFreshnessResponse]
 }
 
 // ListRuns calls vrooli.test_genie.v1.runs.RunsService.ListRuns.
@@ -190,6 +205,11 @@ func (c *runsServiceClient) ListRunVideos(ctx context.Context, req *connect.Requ
 	return c.listRunVideos.CallUnary(ctx, req)
 }
 
+// CheckFreshness calls vrooli.test_genie.v1.runs.RunsService.CheckFreshness.
+func (c *runsServiceClient) CheckFreshness(ctx context.Context, req *connect.Request[runs.CheckFreshnessRequest]) (*connect.Response[runs.CheckFreshnessResponse], error) {
+	return c.checkFreshness.CallUnary(ctx, req)
+}
+
 // RunsServiceHandler is an implementation of the vrooli.test_genie.v1.runs.RunsService service.
 type RunsServiceHandler interface {
 	// ListRuns enumerates runs for a scenario, newest-first.
@@ -211,6 +231,11 @@ type RunsServiceHandler interface {
 	// round-trip through proto); the rel_path here is the handle that route
 	// takes. Consumed by git-control-tower's WorkflowReplayService.
 	ListRunVideos(context.Context, *connect.Request[runs.ListRunVideosRequest]) (*connect.Response[runs.ListRunVideosResponse], error)
+	// CheckFreshness reports, per phase, whether some recorded run executed that
+	// phase (status passed) against the scenario's CURRENT working-tree digest.
+	// Read-only; consumed by git-control-tower's advisory pre-commit step and
+	// the `test-genie runs freshness` CLI verb.
+	CheckFreshness(context.Context, *connect.Request[runs.CheckFreshnessRequest]) (*connect.Response[runs.CheckFreshnessResponse], error)
 }
 
 // NewRunsServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -268,6 +293,12 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(runsServiceMethods.ByName("ListRunVideos")),
 		connect.WithHandlerOptions(opts...),
 	)
+	runsServiceCheckFreshnessHandler := connect.NewUnaryHandler(
+		RunsServiceCheckFreshnessProcedure,
+		svc.CheckFreshness,
+		connect.WithSchema(runsServiceMethods.ByName("CheckFreshness")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.test_genie.v1.runs.RunsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RunsServiceListRunsProcedure:
@@ -286,6 +317,8 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 			runsServiceGetPhaseArtifactHandler.ServeHTTP(w, r)
 		case RunsServiceListRunVideosProcedure:
 			runsServiceListRunVideosHandler.ServeHTTP(w, r)
+		case RunsServiceCheckFreshnessProcedure:
+			runsServiceCheckFreshnessHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -325,4 +358,8 @@ func (UnimplementedRunsServiceHandler) GetPhaseArtifact(context.Context, *connec
 
 func (UnimplementedRunsServiceHandler) ListRunVideos(context.Context, *connect.Request[runs.ListRunVideosRequest]) (*connect.Response[runs.ListRunVideosResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.ListRunVideos is not implemented"))
+}
+
+func (UnimplementedRunsServiceHandler) CheckFreshness(context.Context, *connect.Request[runs.CheckFreshnessRequest]) (*connect.Response[runs.CheckFreshnessResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.CheckFreshness is not implemented"))
 }

@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)web-search/v1/livesearch/livesearch.proto\x12\x1fvrooli.web_search.v1.livesearch\"[\n\rSearchRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x1e\n\nsynthesize\x18\x03 \x01(\x08R\nsynthesize\"\x9a\x01\n\x0cSearchResult\x12\x10\n\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n\x07snippet\x18\x03 \x01(\tR\x07snippet\x12\x16\n\x06\x65ngine\x18\x04 \x01(\tR\x06\x65ngine\x12\x14\n\x05score\x18\x05 \x01(\x01R\x05score\x12\x1a\n\x08\x63\x61tegory\x18\x06 \x01(\tR\x08\x63\x61tegory\"U\n\x08\x43itation\x12!\n\x0cresult_index\x18\x01 \x01(\x05R\x0bresultIndex\x12\x10\n\x03url\x18\x02 \x01(\tR\x03url\x12\x14\n\x05title\x18\x03 \x01(\tR\x05title\"\x86\x01\n\tSynthesis\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\x12G\n\tcitations\x18\x02 \x03(\x0b\x32).vrooli.web_search.v1.livesearch.CitationR\tcitations\x12\x1c\n\tabstained\x18\x03 \x01(\x08R\tabstained\"\x80\x02\n\x0eSearchResponse\x12G\n\x07results\x18\x01 \x03(\x0b\x32-.vrooli.web_search.v1.livesearch.SearchResultR\x07results\x12H\n\tsynthesis\x18\x02 \x01(\x0b\x32*.vrooli.web_search.v1.livesearch.SynthesisR\tsynthesis\x12\x16\n\x06\x63\x61\x63hed\x18\x03 \x01(\x08R\x06\x63\x61\x63hed\x12\x1a\n\x08\x64\x65graded\x18\x04 \x01(\x08R\x08\x64\x65graded\x12\'\n\x0f\x64\x65graded_reason\x18\x05 \x01(\tR\x0e\x64\x65gradedReason2~\n\x11LiveSearchService\x12i\n\x06Search\x12..vrooli.web_search.v1.livesearch.SearchRequest\x1a/.vrooli.web_search.v1.livesearch.SearchResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch;livesearch_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)web-search/v1/livesearch/livesearch.proto\x12\x1fvrooli.web_search.v1.livesearch\"[\n\rSearchRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x1e\n\nsynthesize\x18\x03 \x01(\x08R\nsynthesize\"\x9a\x01\n\x0cSearchResult\x12\x10\n\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n\x07snippet\x18\x03 \x01(\tR\x07snippet\x12\x16\n\x06\x65ngine\x18\x04 \x01(\tR\x06\x65ngine\x12\x14\n\x05score\x18\x05 \x01(\x01R\x05score\x12\x1a\n\x08\x63\x61tegory\x18\x06 \x01(\tR\x08\x63\x61tegory\"U\n\x08\x43itation\x12!\n\x0cresult_index\x18\x01 \x01(\x05R\x0bresultIndex\x12\x10\n\x03url\x18\x02 \x01(\tR\x03url\x12\x14\n\x05title\x18\x03 \x01(\tR\x05title\"\x86\x01\n\tSynthesis\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\x12G\n\tcitations\x18\x02 \x03(\x0b\x32).vrooli.web_search.v1.livesearch.CitationR\tcitations\x12\x1c\n\tabstained\x18\x03 \x01(\x08R\tabstained\"=\n\x0b\x45ngineIssue\x12\x16\n\x06\x65ngine\x18\x01 \x01(\tR\x06\x65ngine\x12\x16\n\x06reason\x18\x02 \x01(\tR\x06reason\"\xd9\x02\n\x0eSearchResponse\x12G\n\x07results\x18\x01 \x03(\x0b\x32-.vrooli.web_search.v1.livesearch.SearchResultR\x07results\x12H\n\tsynthesis\x18\x02 \x01(\x0b\x32*.vrooli.web_search.v1.livesearch.SynthesisR\tsynthesis\x12\x16\n\x06\x63\x61\x63hed\x18\x03 \x01(\x08R\x06\x63\x61\x63hed\x12\x1a\n\x08\x64\x65graded\x18\x04 \x01(\x08R\x08\x64\x65graded\x12\'\n\x0f\x64\x65graded_reason\x18\x05 \x01(\tR\x0e\x64\x65gradedReason\x12W\n\x10\x64\x65graded_engines\x18\x06 \x03(\x0b\x32,.vrooli.web_search.v1.livesearch.EngineIssueR\x0f\x64\x65gradedEngines2~\n\x11LiveSearchService\x12i\n\x06Search\x12..vrooli.web_search.v1.livesearch.SearchRequest\x1a/.vrooli.web_search.v1.livesearch.SearchResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch;livesearch_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -40,8 +40,10 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_CITATION']._serialized_end=413
   _globals['_SYNTHESIS']._serialized_start=416
   _globals['_SYNTHESIS']._serialized_end=550
-  _globals['_SEARCHRESPONSE']._serialized_start=553
-  _globals['_SEARCHRESPONSE']._serialized_end=809
-  _globals['_LIVESEARCHSERVICE']._serialized_start=811
-  _globals['_LIVESEARCHSERVICE']._serialized_end=937
+  _globals['_ENGINEISSUE']._serialized_start=552
+  _globals['_ENGINEISSUE']._serialized_end=613
+  _globals['_SEARCHRESPONSE']._serialized_start=616
+  _globals['_SEARCHRESPONSE']._serialized_end=961
+  _globals['_LIVESEARCHSERVICE']._serialized_start=963
+  _globals['_LIVESEARCHSERVICE']._serialized_end=1089
 # @@protoc_insertion_point(module_scope)

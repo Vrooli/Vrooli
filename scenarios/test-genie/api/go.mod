@@ -11,6 +11,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/testcontainers/testcontainers-go v0.31.0
+	github.com/vrooli/freshness-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000
 	google.golang.org/protobuf v1.36.11
@@ -32,6 +33,8 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
+
+replace github.com/vrooli/freshness-go => ../../../packages/freshness-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 

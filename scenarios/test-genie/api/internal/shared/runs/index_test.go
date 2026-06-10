@@ -5,7 +5,21 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	sharedartifacts "test-genie/internal/shared/artifacts"
+
+	"github.com/vrooli/freshness-go/runindex"
 )
+
+// TestIndexPathMatchesFreshnessGo pins this write side's index location to the
+// shared read contract's: a drift would make freshness-go consumers read an
+// index test-genie never writes.
+func TestIndexPathMatchesFreshnessGo(t *testing.T) {
+	dir := t.TempDir()
+	if got, want := runindex.IndexPath(dir), sharedartifacts.RunsIndexPath(dir); got != want {
+		t.Fatalf("runindex.IndexPath = %q, test-genie writes %q", got, want)
+	}
+}
 
 func TestIndexAppendAndFindRoundTrip(t *testing.T) {
 	idx := NewIndex(t.TempDir())

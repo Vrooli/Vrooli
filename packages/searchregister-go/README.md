@@ -63,7 +63,8 @@ normal first-contact case).
 
 ## Consumers
 
-`scenarios/cli-health/api` (`cli-health.commands`) and
-`scenarios/knowledge-observatory/api` (`knowledge-observatory.docs`). Any scenario
-that adopts `.vrooli/search.json` gains self-registration (and, downstream,
-auto-tuning) by calling `Register` at boot.
+`scenarios/cli-health/api` (`cli-health.commands`),
+`scenarios/knowledge-observatory/api` (`knowledge-observatory.docs`), and
+`scenarios/ui-health/api` (`ui-health.surfaces`). Any scenario that adopts
+`.vrooli/search.json` gains self-registration (and, downstream, auto-tuning) by
+calling `Register` at boot.

@@ -52,16 +52,26 @@ class Synthesis(_message.Message):
     abstained: bool
     def __init__(self, text: _Optional[str] = ..., citations: _Optional[_Iterable[_Union[Citation, _Mapping]]] = ..., abstained: _Optional[bool] = ...) -> None: ...
 
+class EngineIssue(_message.Message):
+    __slots__ = ("engine", "reason")
+    ENGINE_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    engine: str
+    reason: str
+    def __init__(self, engine: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
 class SearchResponse(_message.Message):
-    __slots__ = ("results", "synthesis", "cached", "degraded", "degraded_reason")
+    __slots__ = ("results", "synthesis", "cached", "degraded", "degraded_reason", "degraded_engines")
     RESULTS_FIELD_NUMBER: _ClassVar[int]
     SYNTHESIS_FIELD_NUMBER: _ClassVar[int]
     CACHED_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_REASON_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_ENGINES_FIELD_NUMBER: _ClassVar[int]
     results: _containers.RepeatedCompositeFieldContainer[SearchResult]
     synthesis: Synthesis
     cached: bool
     degraded: bool
     degraded_reason: str
-    def __init__(self, results: _Optional[_Iterable[_Union[SearchResult, _Mapping]]] = ..., synthesis: _Optional[_Union[Synthesis, _Mapping]] = ..., cached: _Optional[bool] = ..., degraded: _Optional[bool] = ..., degraded_reason: _Optional[str] = ...) -> None: ...
+    degraded_engines: _containers.RepeatedCompositeFieldContainer[EngineIssue]
+    def __init__(self, results: _Optional[_Iterable[_Union[SearchResult, _Mapping]]] = ..., synthesis: _Optional[_Union[Synthesis, _Mapping]] = ..., cached: _Optional[bool] = ..., degraded: _Optional[bool] = ..., degraded_reason: _Optional[str] = ..., degraded_engines: _Optional[_Iterable[_Union[EngineIssue, _Mapping]]] = ...) -> None: ...

@@ -14,10 +14,10 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// defaultWindowToken matches the manifest measure's `window` default so the
+// defaultTimeWindow matches the manifest measure's `window` default so the
 // CLI and the search-hub auto-answer path resolve the same range when the
 // user omits --window.
-const defaultWindowToken = "this_week"
+const defaultTimeWindow = "this_week"
 
 // handlers bundles the closure over *cliapp.ScenarioApp so each
 // RunCtx-func has typed access to the API client without re-resolving it.
@@ -114,7 +114,7 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 func (h *handlers) count(ctx cliapp.RunContext) error {
 	window := strings.TrimSpace(ctx.Flag("window"))
 	if window == "" {
-		window = defaultWindowToken
+		window = defaultTimeWindow
 	}
 	token, err := timeWindowToken(window)
 	if err != nil {

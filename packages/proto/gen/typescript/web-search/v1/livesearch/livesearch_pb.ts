@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-search/v1/livesearch/livesearch.proto.
  */
 export const file_web_search_v1_livesearch_livesearch: GenFile = /*@__PURE__*/
-  fileDesc("Cil3ZWItc2VhcmNoL3YxL2xpdmVzZWFyY2gvbGl2ZXNlYXJjaC5wcm90bxIfdnJvb2xpLndlYl9zZWFyY2gudjEubGl2ZXNlYXJjaCJBCg1TZWFyY2hSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBWxpbWl0GAIgASgFEhIKCnN5bnRoZXNpemUYAyABKAgibAoMU2VhcmNoUmVzdWx0EgsKA3VybBgBIAEoCRINCgV0aXRsZRgCIAEoCRIPCgdzbmlwcGV0GAMgASgJEg4KBmVuZ2luZRgEIAEoCRINCgVzY29yZRgFIAEoARIQCghjYXRlZ29yeRgGIAEoCSI8CghDaXRhdGlvbhIUCgxyZXN1bHRfaW5kZXgYASABKAUSCwoDdXJsGAIgASgJEg0KBXRpdGxlGAMgASgJImoKCVN5bnRoZXNpcxIMCgR0ZXh0GAEgASgJEjwKCWNpdGF0aW9ucxgCIAMoCzIpLnZyb29saS53ZWJfc2VhcmNoLnYxLmxpdmVzZWFyY2guQ2l0YXRpb24SEQoJYWJzdGFpbmVkGAMgASgIIsoBCg5TZWFyY2hSZXNwb25zZRI+CgdyZXN1bHRzGAEgAygLMi0udnJvb2xpLndlYl9zZWFyY2gudjEubGl2ZXNlYXJjaC5TZWFyY2hSZXN1bHQSPQoJc3ludGhlc2lzGAIgASgLMioudnJvb2xpLndlYl9zZWFyY2gudjEubGl2ZXNlYXJjaC5TeW50aGVzaXMSDgoGY2FjaGVkGAMgASgIEhAKCGRlZ3JhZGVkGAQgASgIEhcKD2RlZ3JhZGVkX3JlYXNvbhgFIAEoCTJ+ChFMaXZlU2VhcmNoU2VydmljZRJpCgZTZWFyY2gSLi52cm9vbGkud2ViX3NlYXJjaC52MS5saXZlc2VhcmNoLlNlYXJjaFJlcXVlc3QaLy52cm9vbGkud2ViX3NlYXJjaC52MS5saXZlc2VhcmNoLlNlYXJjaFJlc3BvbnNlQldaVWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLXNlYXJjaC92MS9saXZlc2VhcmNoO2xpdmVzZWFyY2hfdjFiBnByb3RvMw");
+  fileDesc("Cil3ZWItc2VhcmNoL3YxL2xpdmVzZWFyY2gvbGl2ZXNlYXJjaC5wcm90bxIfdnJvb2xpLndlYl9zZWFyY2gudjEubGl2ZXNlYXJjaCJBCg1TZWFyY2hSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBWxpbWl0GAIgASgFEhIKCnN5bnRoZXNpemUYAyABKAgibAoMU2VhcmNoUmVzdWx0EgsKA3VybBgBIAEoCRINCgV0aXRsZRgCIAEoCRIPCgdzbmlwcGV0GAMgASgJEg4KBmVuZ2luZRgEIAEoCRINCgVzY29yZRgFIAEoARIQCghjYXRlZ29yeRgGIAEoCSI8CghDaXRhdGlvbhIUCgxyZXN1bHRfaW5kZXgYASABKAUSCwoDdXJsGAIgASgJEg0KBXRpdGxlGAMgASgJImoKCVN5bnRoZXNpcxIMCgR0ZXh0GAEgASgJEjwKCWNpdGF0aW9ucxgCIAMoCzIpLnZyb29saS53ZWJfc2VhcmNoLnYxLmxpdmVzZWFyY2guQ2l0YXRpb24SEQoJYWJzdGFpbmVkGAMgASgIIi0KC0VuZ2luZUlzc3VlEg4KBmVuZ2luZRgBIAEoCRIOCgZyZWFzb24YAiABKAkikgIKDlNlYXJjaFJlc3BvbnNlEj4KB3Jlc3VsdHMYASADKAsyLS52cm9vbGkud2ViX3NlYXJjaC52MS5saXZlc2VhcmNoLlNlYXJjaFJlc3VsdBI9CglzeW50aGVzaXMYAiABKAsyKi52cm9vbGkud2ViX3NlYXJjaC52MS5saXZlc2VhcmNoLlN5bnRoZXNpcxIOCgZjYWNoZWQYAyABKAgSEAoIZGVncmFkZWQYBCABKAgSFwoPZGVncmFkZWRfcmVhc29uGAUgASgJEkYKEGRlZ3JhZGVkX2VuZ2luZXMYBiADKAsyLC52cm9vbGkud2ViX3NlYXJjaC52MS5saXZlc2VhcmNoLkVuZ2luZUlzc3VlMn4KEUxpdmVTZWFyY2hTZXJ2aWNlEmkKBlNlYXJjaBIuLnZyb29saS53ZWJfc2VhcmNoLnYxLmxpdmVzZWFyY2guU2VhcmNoUmVxdWVzdBovLnZyb29saS53ZWJfc2VhcmNoLnYxLmxpdmVzZWFyY2guU2VhcmNoUmVzcG9uc2VCV1pVZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby93ZWItc2VhcmNoL3YxL2xpdmVzZWFyY2g7bGl2ZXNlYXJjaF92MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.web_search.v1.livesearch.SearchRequest
@@ -169,6 +169,33 @@ export const SynthesisSchema: GenMessage<Synthesis> = /*@__PURE__*/
   messageDesc(file_web_search_v1_livesearch_livesearch, 3);
 
 /**
+ * EngineIssue names one upstream metasearch engine that did not answer a
+ * query, with the upstream-reported reason (suspended, CAPTCHA, parse
+ * error, ...). Structured (not a display string) so UIs can badge it and
+ * automation can count it.
+ *
+ * @generated from message vrooli.web_search.v1.livesearch.EngineIssue
+ */
+export type EngineIssue = Message<"vrooli.web_search.v1.livesearch.EngineIssue"> & {
+  /**
+   * @generated from field: string engine = 1;
+   */
+  engine: string;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.livesearch.EngineIssue.
+ * Use `create(EngineIssueSchema)` to create a new message.
+ */
+export const EngineIssueSchema: GenMessage<EngineIssue> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_livesearch_livesearch, 4);
+
+/**
  * @generated from message vrooli.web_search.v1.livesearch.SearchResponse
  */
 export type SearchResponse = Message<"vrooli.web_search.v1.livesearch.SearchResponse"> & {
@@ -203,6 +230,15 @@ export type SearchResponse = Message<"vrooli.web_search.v1.livesearch.SearchResp
    * @generated from field: string degraded_reason = 5;
    */
   degradedReason: string;
+
+  /**
+   * degraded_engines lists engines that did not contribute to THIS query
+   * (per-query signal from the metasearch layer). Results may be partial when
+   * non-empty; for cached responses this reflects the engines at fetch time.
+   *
+   * @generated from field: repeated vrooli.web_search.v1.livesearch.EngineIssue degraded_engines = 6;
+   */
+  degradedEngines: EngineIssue[];
 };
 
 /**
@@ -210,7 +246,7 @@ export type SearchResponse = Message<"vrooli.web_search.v1.livesearch.SearchResp
  * Use `create(SearchResponseSchema)` to create a new message.
  */
 export const SearchResponseSchema: GenMessage<SearchResponse> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_livesearch_livesearch, 4);
+  messageDesc(file_web_search_v1_livesearch_livesearch, 5);
 
 /**
  * LiveSearchService is the L0/L1 live web-search surface: it fans a query out to

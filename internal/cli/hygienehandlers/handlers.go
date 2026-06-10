@@ -37,6 +37,7 @@ func Handler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 		includePlans := !req.ContractOnly && !req.DriftOnly && !req.PnpmOnly
 		includeDrift := !req.PlansOnly && !req.ContractOnly && !req.PnpmOnly && !req.NoDrift
 		includePnpmConfig := !req.PlansOnly && !req.ContractOnly && !req.DriftOnly
+		includeFreshness := !req.PlansOnly && !req.ContractOnly && !req.DriftOnly && !req.PnpmOnly && !req.NoFreshness
 		report, err := hygieneapp.Service{Root: deps.Root(ctx), Home: home}.Run(hygieneapp.Request{
 			FixSafe:           req.FixSafe,
 			Plans:             req.Plans,
@@ -45,6 +46,7 @@ func Handler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 			IncludeContract:   includeContract,
 			IncludeDrift:      includeDrift,
 			IncludePnpmConfig: includePnpmConfig,
+			IncludeFreshness:  includeFreshness,
 		})
 		if err != nil {
 			return err

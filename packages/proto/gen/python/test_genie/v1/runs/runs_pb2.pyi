@@ -43,7 +43,7 @@ class PhaseInfo(_message.Message):
     def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[float] = ...) -> None: ...
 
 class RunInfo(_message.Message):
-    __slots__ = ("run_id", "scenario", "started_at", "completed_at", "status", "phases", "git_sha", "git_branch", "git_dirty", "git_dirty_summary", "diagnostics", "pins")
+    __slots__ = ("run_id", "scenario", "started_at", "completed_at", "status", "phases", "git_sha", "git_branch", "git_dirty", "git_dirty_summary", "diagnostics", "pins", "tree_digest")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -56,6 +56,7 @@ class RunInfo(_message.Message):
     GIT_DIRTY_SUMMARY_FIELD_NUMBER: _ClassVar[int]
     DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
     PINS_FIELD_NUMBER: _ClassVar[int]
+    TREE_DIGEST_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     scenario: str
     started_at: str
@@ -68,7 +69,8 @@ class RunInfo(_message.Message):
     git_dirty_summary: str
     diagnostics: DiagnosticsInfo
     pins: _containers.RepeatedCompositeFieldContainer[PinInfo]
-    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., status: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[PhaseInfo, _Mapping]]] = ..., git_sha: _Optional[str] = ..., git_branch: _Optional[str] = ..., git_dirty: _Optional[bool] = ..., git_dirty_summary: _Optional[str] = ..., diagnostics: _Optional[_Union[DiagnosticsInfo, _Mapping]] = ..., pins: _Optional[_Iterable[_Union[PinInfo, _Mapping]]] = ...) -> None: ...
+    tree_digest: str
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., status: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[PhaseInfo, _Mapping]]] = ..., git_sha: _Optional[str] = ..., git_branch: _Optional[str] = ..., git_dirty: _Optional[bool] = ..., git_dirty_summary: _Optional[str] = ..., diagnostics: _Optional[_Union[DiagnosticsInfo, _Mapping]] = ..., pins: _Optional[_Iterable[_Union[PinInfo, _Mapping]]] = ..., tree_digest: _Optional[str] = ...) -> None: ...
 
 class ListRunsRequest(_message.Message):
     __slots__ = ("scenario", "status", "limit")
@@ -231,3 +233,35 @@ class ListRunVideosResponse(_message.Message):
     VIDEOS_FIELD_NUMBER: _ClassVar[int]
     videos: _containers.RepeatedCompositeFieldContainer[RunVideo]
     def __init__(self, videos: _Optional[_Iterable[_Union[RunVideo, _Mapping]]] = ...) -> None: ...
+
+class CheckFreshnessRequest(_message.Message):
+    __slots__ = ("scenario", "phases")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PHASES_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    phases: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, scenario: _Optional[str] = ..., phases: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class PhaseFreshness(_message.Message):
+    __slots__ = ("phase", "status", "last_run_id", "last_run_completed_at")
+    PHASE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    LAST_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    LAST_RUN_COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    phase: str
+    status: str
+    last_run_id: str
+    last_run_completed_at: str
+    def __init__(self, phase: _Optional[str] = ..., status: _Optional[str] = ..., last_run_id: _Optional[str] = ..., last_run_completed_at: _Optional[str] = ...) -> None: ...
+
+class CheckFreshnessResponse(_message.Message):
+    __slots__ = ("scenario", "tree_digest", "phases", "suggested_command")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    TREE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    PHASES_FIELD_NUMBER: _ClassVar[int]
+    SUGGESTED_COMMAND_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    tree_digest: str
+    phases: _containers.RepeatedCompositeFieldContainer[PhaseFreshness]
+    suggested_command: str
+    def __init__(self, scenario: _Optional[str] = ..., tree_digest: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[PhaseFreshness, _Mapping]]] = ..., suggested_command: _Optional[str] = ...) -> None: ...

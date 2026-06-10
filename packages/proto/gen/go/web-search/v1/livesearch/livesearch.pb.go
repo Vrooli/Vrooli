@@ -304,6 +304,62 @@ func (x *Synthesis) GetAbstained() bool {
 	return false
 }
 
+// EngineIssue names one upstream metasearch engine that did not answer a
+// query, with the upstream-reported reason (suspended, CAPTCHA, parse
+// error, ...). Structured (not a display string) so UIs can badge it and
+// automation can count it.
+type EngineIssue struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Engine        string                 `protobuf:"bytes,1,opt,name=engine,proto3" json:"engine,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EngineIssue) Reset() {
+	*x = EngineIssue{}
+	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EngineIssue) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EngineIssue) ProtoMessage() {}
+
+func (x *EngineIssue) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EngineIssue.ProtoReflect.Descriptor instead.
+func (*EngineIssue) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_livesearch_livesearch_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *EngineIssue) GetEngine() string {
+	if x != nil {
+		return x.Engine
+	}
+	return ""
+}
+
+func (x *EngineIssue) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 type SearchResponse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Results []*SearchResult        `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
@@ -315,13 +371,17 @@ type SearchResponse struct {
 	// results list is then empty and degraded_reason explains why.
 	Degraded       bool   `protobuf:"varint,4,opt,name=degraded,proto3" json:"degraded,omitempty"`
 	DegradedReason string `protobuf:"bytes,5,opt,name=degraded_reason,json=degradedReason,proto3" json:"degraded_reason,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// degraded_engines lists engines that did not contribute to THIS query
+	// (per-query signal from the metasearch layer). Results may be partial when
+	// non-empty; for cached responses this reflects the engines at fetch time.
+	DegradedEngines []*EngineIssue `protobuf:"bytes,6,rep,name=degraded_engines,json=degradedEngines,proto3" json:"degraded_engines,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *SearchResponse) Reset() {
 	*x = SearchResponse{}
-	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[4]
+	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -333,7 +393,7 @@ func (x *SearchResponse) String() string {
 func (*SearchResponse) ProtoMessage() {}
 
 func (x *SearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[4]
+	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -346,7 +406,7 @@ func (x *SearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchResponse.ProtoReflect.Descriptor instead.
 func (*SearchResponse) Descriptor() ([]byte, []int) {
-	return file_web_search_v1_livesearch_livesearch_proto_rawDescGZIP(), []int{4}
+	return file_web_search_v1_livesearch_livesearch_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SearchResponse) GetResults() []*SearchResult {
@@ -384,6 +444,13 @@ func (x *SearchResponse) GetDegradedReason() string {
 	return ""
 }
 
+func (x *SearchResponse) GetDegradedEngines() []*EngineIssue {
+	if x != nil {
+		return x.DegradedEngines
+	}
+	return nil
+}
+
 var File_web_search_v1_livesearch_livesearch_proto protoreflect.FileDescriptor
 
 const file_web_search_v1_livesearch_livesearch_proto_rawDesc = "" +
@@ -409,13 +476,17 @@ const file_web_search_v1_livesearch_livesearch_proto_rawDesc = "" +
 	"\tSynthesis\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12G\n" +
 	"\tcitations\x18\x02 \x03(\v2).vrooli.web_search.v1.livesearch.CitationR\tcitations\x12\x1c\n" +
-	"\tabstained\x18\x03 \x01(\bR\tabstained\"\x80\x02\n" +
+	"\tabstained\x18\x03 \x01(\bR\tabstained\"=\n" +
+	"\vEngineIssue\x12\x16\n" +
+	"\x06engine\x18\x01 \x01(\tR\x06engine\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"\xd9\x02\n" +
 	"\x0eSearchResponse\x12G\n" +
 	"\aresults\x18\x01 \x03(\v2-.vrooli.web_search.v1.livesearch.SearchResultR\aresults\x12H\n" +
 	"\tsynthesis\x18\x02 \x01(\v2*.vrooli.web_search.v1.livesearch.SynthesisR\tsynthesis\x12\x16\n" +
 	"\x06cached\x18\x03 \x01(\bR\x06cached\x12\x1a\n" +
 	"\bdegraded\x18\x04 \x01(\bR\bdegraded\x12'\n" +
-	"\x0fdegraded_reason\x18\x05 \x01(\tR\x0edegradedReason2~\n" +
+	"\x0fdegraded_reason\x18\x05 \x01(\tR\x0edegradedReason\x12W\n" +
+	"\x10degraded_engines\x18\x06 \x03(\v2,.vrooli.web_search.v1.livesearch.EngineIssueR\x0fdegradedEngines2~\n" +
 	"\x11LiveSearchService\x12i\n" +
 	"\x06Search\x12..vrooli.web_search.v1.livesearch.SearchRequest\x1a/.vrooli.web_search.v1.livesearch.SearchResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch;livesearch_v1b\x06proto3"
 
@@ -431,25 +502,27 @@ func file_web_search_v1_livesearch_livesearch_proto_rawDescGZIP() []byte {
 	return file_web_search_v1_livesearch_livesearch_proto_rawDescData
 }
 
-var file_web_search_v1_livesearch_livesearch_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_web_search_v1_livesearch_livesearch_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_web_search_v1_livesearch_livesearch_proto_goTypes = []any{
 	(*SearchRequest)(nil),  // 0: vrooli.web_search.v1.livesearch.SearchRequest
 	(*SearchResult)(nil),   // 1: vrooli.web_search.v1.livesearch.SearchResult
 	(*Citation)(nil),       // 2: vrooli.web_search.v1.livesearch.Citation
 	(*Synthesis)(nil),      // 3: vrooli.web_search.v1.livesearch.Synthesis
-	(*SearchResponse)(nil), // 4: vrooli.web_search.v1.livesearch.SearchResponse
+	(*EngineIssue)(nil),    // 4: vrooli.web_search.v1.livesearch.EngineIssue
+	(*SearchResponse)(nil), // 5: vrooli.web_search.v1.livesearch.SearchResponse
 }
 var file_web_search_v1_livesearch_livesearch_proto_depIdxs = []int32{
 	2, // 0: vrooli.web_search.v1.livesearch.Synthesis.citations:type_name -> vrooli.web_search.v1.livesearch.Citation
 	1, // 1: vrooli.web_search.v1.livesearch.SearchResponse.results:type_name -> vrooli.web_search.v1.livesearch.SearchResult
 	3, // 2: vrooli.web_search.v1.livesearch.SearchResponse.synthesis:type_name -> vrooli.web_search.v1.livesearch.Synthesis
-	0, // 3: vrooli.web_search.v1.livesearch.LiveSearchService.Search:input_type -> vrooli.web_search.v1.livesearch.SearchRequest
-	4, // 4: vrooli.web_search.v1.livesearch.LiveSearchService.Search:output_type -> vrooli.web_search.v1.livesearch.SearchResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 3: vrooli.web_search.v1.livesearch.SearchResponse.degraded_engines:type_name -> vrooli.web_search.v1.livesearch.EngineIssue
+	0, // 4: vrooli.web_search.v1.livesearch.LiveSearchService.Search:input_type -> vrooli.web_search.v1.livesearch.SearchRequest
+	5, // 5: vrooli.web_search.v1.livesearch.LiveSearchService.Search:output_type -> vrooli.web_search.v1.livesearch.SearchResponse
+	5, // [5:6] is the sub-list for method output_type
+	4, // [4:5] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_web_search_v1_livesearch_livesearch_proto_init() }
@@ -463,7 +536,7 @@ func file_web_search_v1_livesearch_livesearch_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_search_v1_livesearch_livesearch_proto_rawDesc), len(file_web_search_v1_livesearch_livesearch_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

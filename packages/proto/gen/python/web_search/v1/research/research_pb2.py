@@ -23,9 +23,10 @@ _sym_db = _symbol_database.Default()
 
 
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
+from web_search.v1.livesearch import livesearch_pb2 as web__search_dot_v1_dot_livesearch_dot_livesearch__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%web-search/v1/research/research.proto\x12\x1dvrooli.web_search.v1.research\x1a\x1fgoogle/protobuf/timestamp.proto\"U\n\x08\x43itation\x12!\n\x0cresult_index\x18\x01 \x01(\x05R\x0bresultIndex\x12\x10\n\x03url\x18\x02 \x01(\tR\x03url\x12\x14\n\x05title\x18\x03 \x01(\tR\x05title\"\x94\x01\n\x05\x42rief\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05level\x18\x02 \x01(\tR\x05level\x12\x18\n\x07summary\x18\x03 \x01(\tR\x07summary\x12\x45\n\tcitations\x18\x04 \x03(\x0b\x32\'.vrooli.web_search.v1.research.CitationR\tcitations\"S\n\x0cRunL2Request\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x13\n\x05top_n\x18\x02 \x01(\x05R\x04topN\x12\x18\n\x07\x63\x61pture\x18\x03 \x01(\x08R\x07\x63\x61pture\"\xb9\x01\n\rRunL2Response\x12:\n\x05\x62rief\x18\x01 \x01(\x0b\x32$.vrooli.web_search.v1.research.BriefR\x05\x62rief\x12\x1c\n\tsynthesis\x18\x02 \x01(\tR\tsynthesis\x12\x1c\n\tabstained\x18\x03 \x01(\x08R\tabstained\x12\x30\n\x14\x63\x61ptured_finding_ids\x18\x04 \x03(\tR\x12\x63\x61pturedFindingIds\"$\n\x0cRunL3Request\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\">\n\rRunL3Response\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\"1\n\x18GetResearchStatusRequest\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\"\xf9\x01\n\x19GetResearchStatusResponse\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n\x07summary\x18\x03 \x01(\tR\x07summary\x12\x39\n\nstarted_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12;\n\x0b\x66inished_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nfinishedAt\x12\x1b\n\terror_msg\x18\x06 \x01(\tR\x08\x65rrorMsg\"F\n\x1cGatherRelatedFindingsRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x10\n\x03max\x18\x02 \x01(\x05R\x03max\"\x94\x01\n\x0fGatheredFinding\x12\x1d\n\nfinding_id\x18\x01 \x01(\tR\tfindingId\x12\x14\n\x05\x63laim\x18\x02 \x01(\tR\x05\x63laim\x12\x1e\n\nconfidence\x18\x03 \x01(\x01R\nconfidence\x12\x16\n\x06status\x18\x04 \x01(\tR\x06status\x12\x14\n\x05score\x18\x05 \x01(\x01R\x05score\"\x8c\x01\n\x1dGatherRelatedFindingsResponse\x12J\n\x08\x66indings\x18\x01 \x03(\x0b\x32..vrooli.web_search.v1.research.GatheredFindingR\x08\x66indings\x12\x1f\n\x0b\x63\x61p_applied\x18\x02 \x01(\x05R\ncapApplied2\xf7\x03\n\x0fResearchService\x12\x62\n\x05RunL2\x12+.vrooli.web_search.v1.research.RunL2Request\x1a,.vrooli.web_search.v1.research.RunL2Response\x12\x62\n\x05RunL3\x12+.vrooli.web_search.v1.research.RunL3Request\x1a,.vrooli.web_search.v1.research.RunL3Response\x12\x86\x01\n\x11GetResearchStatus\x12\x37.vrooli.web_search.v1.research.GetResearchStatusRequest\x1a\x38.vrooli.web_search.v1.research.GetResearchStatusResponse\x12\x92\x01\n\x15GatherRelatedFindings\x12;.vrooli.web_search.v1.research.GatherRelatedFindingsRequest\x1a<.vrooli.web_search.v1.research.GatherRelatedFindingsResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research;research_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%web-search/v1/research/research.proto\x12\x1dvrooli.web_search.v1.research\x1a\x1fgoogle/protobuf/timestamp.proto\x1a)web-search/v1/livesearch/livesearch.proto\"U\n\x08\x43itation\x12!\n\x0cresult_index\x18\x01 \x01(\x05R\x0bresultIndex\x12\x10\n\x03url\x18\x02 \x01(\tR\x03url\x12\x14\n\x05title\x18\x03 \x01(\tR\x05title\"\x94\x01\n\x05\x42rief\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05level\x18\x02 \x01(\tR\x05level\x12\x18\n\x07summary\x18\x03 \x01(\tR\x07summary\x12\x45\n\tcitations\x18\x04 \x03(\x0b\x32\'.vrooli.web_search.v1.research.CitationR\tcitations\"S\n\x0cRunL2Request\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x13\n\x05top_n\x18\x02 \x01(\x05R\x04topN\x12\x18\n\x07\x63\x61pture\x18\x03 \x01(\x08R\x07\x63\x61pture\"\x92\x02\n\rRunL2Response\x12:\n\x05\x62rief\x18\x01 \x01(\x0b\x32$.vrooli.web_search.v1.research.BriefR\x05\x62rief\x12\x1c\n\tsynthesis\x18\x02 \x01(\tR\tsynthesis\x12\x1c\n\tabstained\x18\x03 \x01(\x08R\tabstained\x12\x30\n\x14\x63\x61ptured_finding_ids\x18\x04 \x03(\tR\x12\x63\x61pturedFindingIds\x12W\n\x10\x64\x65graded_engines\x18\x05 \x03(\x0b\x32,.vrooli.web_search.v1.livesearch.EngineIssueR\x0f\x64\x65gradedEngines\"$\n\x0cRunL3Request\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\">\n\rRunL3Response\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\"1\n\x18GetResearchStatusRequest\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\"\xf9\x01\n\x19GetResearchStatusResponse\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n\x07summary\x18\x03 \x01(\tR\x07summary\x12\x39\n\nstarted_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12;\n\x0b\x66inished_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nfinishedAt\x12\x1b\n\terror_msg\x18\x06 \x01(\tR\x08\x65rrorMsg\"F\n\x1cGatherRelatedFindingsRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x10\n\x03max\x18\x02 \x01(\x05R\x03max\"\x94\x01\n\x0fGatheredFinding\x12\x1d\n\nfinding_id\x18\x01 \x01(\tR\tfindingId\x12\x14\n\x05\x63laim\x18\x02 \x01(\tR\x05\x63laim\x12\x1e\n\nconfidence\x18\x03 \x01(\x01R\nconfidence\x12\x16\n\x06status\x18\x04 \x01(\tR\x06status\x12\x14\n\x05score\x18\x05 \x01(\x01R\x05score\"\x8c\x01\n\x1dGatherRelatedFindingsResponse\x12J\n\x08\x66indings\x18\x01 \x03(\x0b\x32..vrooli.web_search.v1.research.GatheredFindingR\x08\x66indings\x12\x1f\n\x0b\x63\x61p_applied\x18\x02 \x01(\x05R\ncapApplied2\xf7\x03\n\x0fResearchService\x12\x62\n\x05RunL2\x12+.vrooli.web_search.v1.research.RunL2Request\x1a,.vrooli.web_search.v1.research.RunL2Response\x12\x62\n\x05RunL3\x12+.vrooli.web_search.v1.research.RunL3Request\x1a,.vrooli.web_search.v1.research.RunL3Response\x12\x86\x01\n\x11GetResearchStatus\x12\x37.vrooli.web_search.v1.research.GetResearchStatusRequest\x1a\x38.vrooli.web_search.v1.research.GetResearchStatusResponse\x12\x92\x01\n\x15GatherRelatedFindings\x12;.vrooli.web_search.v1.research.GatherRelatedFindingsRequest\x1a<.vrooli.web_search.v1.research.GatherRelatedFindingsResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research;research_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,28 +34,28 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'web_search.v1.research.rese
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZQgithub.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research;research_v1'
-  _globals['_CITATION']._serialized_start=105
-  _globals['_CITATION']._serialized_end=190
-  _globals['_BRIEF']._serialized_start=193
-  _globals['_BRIEF']._serialized_end=341
-  _globals['_RUNL2REQUEST']._serialized_start=343
-  _globals['_RUNL2REQUEST']._serialized_end=426
-  _globals['_RUNL2RESPONSE']._serialized_start=429
-  _globals['_RUNL2RESPONSE']._serialized_end=614
-  _globals['_RUNL3REQUEST']._serialized_start=616
-  _globals['_RUNL3REQUEST']._serialized_end=652
-  _globals['_RUNL3RESPONSE']._serialized_start=654
-  _globals['_RUNL3RESPONSE']._serialized_end=716
-  _globals['_GETRESEARCHSTATUSREQUEST']._serialized_start=718
-  _globals['_GETRESEARCHSTATUSREQUEST']._serialized_end=767
-  _globals['_GETRESEARCHSTATUSRESPONSE']._serialized_start=770
-  _globals['_GETRESEARCHSTATUSRESPONSE']._serialized_end=1019
-  _globals['_GATHERRELATEDFINDINGSREQUEST']._serialized_start=1021
-  _globals['_GATHERRELATEDFINDINGSREQUEST']._serialized_end=1091
-  _globals['_GATHEREDFINDING']._serialized_start=1094
-  _globals['_GATHEREDFINDING']._serialized_end=1242
-  _globals['_GATHERRELATEDFINDINGSRESPONSE']._serialized_start=1245
-  _globals['_GATHERRELATEDFINDINGSRESPONSE']._serialized_end=1385
-  _globals['_RESEARCHSERVICE']._serialized_start=1388
-  _globals['_RESEARCHSERVICE']._serialized_end=1891
+  _globals['_CITATION']._serialized_start=148
+  _globals['_CITATION']._serialized_end=233
+  _globals['_BRIEF']._serialized_start=236
+  _globals['_BRIEF']._serialized_end=384
+  _globals['_RUNL2REQUEST']._serialized_start=386
+  _globals['_RUNL2REQUEST']._serialized_end=469
+  _globals['_RUNL2RESPONSE']._serialized_start=472
+  _globals['_RUNL2RESPONSE']._serialized_end=746
+  _globals['_RUNL3REQUEST']._serialized_start=748
+  _globals['_RUNL3REQUEST']._serialized_end=784
+  _globals['_RUNL3RESPONSE']._serialized_start=786
+  _globals['_RUNL3RESPONSE']._serialized_end=848
+  _globals['_GETRESEARCHSTATUSREQUEST']._serialized_start=850
+  _globals['_GETRESEARCHSTATUSREQUEST']._serialized_end=899
+  _globals['_GETRESEARCHSTATUSRESPONSE']._serialized_start=902
+  _globals['_GETRESEARCHSTATUSRESPONSE']._serialized_end=1151
+  _globals['_GATHERRELATEDFINDINGSREQUEST']._serialized_start=1153
+  _globals['_GATHERRELATEDFINDINGSREQUEST']._serialized_end=1223
+  _globals['_GATHEREDFINDING']._serialized_start=1226
+  _globals['_GATHEREDFINDING']._serialized_end=1374
+  _globals['_GATHERRELATEDFINDINGSRESPONSE']._serialized_start=1377
+  _globals['_GATHERRELATEDFINDINGSRESPONSE']._serialized_end=1517
+  _globals['_RESEARCHSERVICE']._serialized_start=1520
+  _globals['_RESEARCHSERVICE']._serialized_end=2023
 # @@protoc_insertion_point(module_scope)

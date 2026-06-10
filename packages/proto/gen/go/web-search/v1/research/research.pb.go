@@ -7,6 +7,7 @@
 package research_v1
 
 import (
+	livesearch "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -231,8 +232,14 @@ type RunL2Response struct {
 	// captured_finding_ids lists the findings written when capture was set. Empty
 	// when capture was off or nothing was distilled.
 	CapturedFindingIds []string `protobuf:"bytes,4,rep,name=captured_finding_ids,json=capturedFindingIds,proto3" json:"captured_finding_ids,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// degraded_engines lists upstream engines that did not contribute to the L0
+	// candidate search backing this run (mirrors
+	// livesearch.SearchResponse.degraded_engines). A weak synthesis with a
+	// non-empty list usually means the inputs were partial, not that the web
+	// lacks an answer.
+	DegradedEngines []*livesearch.EngineIssue `protobuf:"bytes,5,rep,name=degraded_engines,json=degradedEngines,proto3" json:"degraded_engines,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RunL2Response) Reset() {
@@ -289,6 +296,13 @@ func (x *RunL2Response) GetAbstained() bool {
 func (x *RunL2Response) GetCapturedFindingIds() []string {
 	if x != nil {
 		return x.CapturedFindingIds
+	}
+	return nil
+}
+
+func (x *RunL2Response) GetDegradedEngines() []*livesearch.EngineIssue {
+	if x != nil {
+		return x.DegradedEngines
 	}
 	return nil
 }
@@ -719,7 +733,7 @@ var File_web_search_v1_research_research_proto protoreflect.FileDescriptor
 
 const file_web_search_v1_research_research_proto_rawDesc = "" +
 	"\n" +
-	"%web-search/v1/research/research.proto\x12\x1dvrooli.web_search.v1.research\x1a\x1fgoogle/protobuf/timestamp.proto\"U\n" +
+	"%web-search/v1/research/research.proto\x12\x1dvrooli.web_search.v1.research\x1a\x1fgoogle/protobuf/timestamp.proto\x1a)web-search/v1/livesearch/livesearch.proto\"U\n" +
 	"\bCitation\x12!\n" +
 	"\fresult_index\x18\x01 \x01(\x05R\vresultIndex\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x14\n" +
@@ -732,12 +746,13 @@ const file_web_search_v1_research_research_proto_rawDesc = "" +
 	"\fRunL2Request\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x13\n" +
 	"\x05top_n\x18\x02 \x01(\x05R\x04topN\x12\x18\n" +
-	"\acapture\x18\x03 \x01(\bR\acapture\"\xb9\x01\n" +
+	"\acapture\x18\x03 \x01(\bR\acapture\"\x92\x02\n" +
 	"\rRunL2Response\x12:\n" +
 	"\x05brief\x18\x01 \x01(\v2$.vrooli.web_search.v1.research.BriefR\x05brief\x12\x1c\n" +
 	"\tsynthesis\x18\x02 \x01(\tR\tsynthesis\x12\x1c\n" +
 	"\tabstained\x18\x03 \x01(\bR\tabstained\x120\n" +
-	"\x14captured_finding_ids\x18\x04 \x03(\tR\x12capturedFindingIds\"$\n" +
+	"\x14captured_finding_ids\x18\x04 \x03(\tR\x12capturedFindingIds\x12W\n" +
+	"\x10degraded_engines\x18\x05 \x03(\v2,.vrooli.web_search.v1.livesearch.EngineIssueR\x0fdegradedEngines\"$\n" +
 	"\fRunL3Request\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\">\n" +
 	"\rRunL3Response\x12\x15\n" +
@@ -801,27 +816,29 @@ var file_web_search_v1_research_research_proto_goTypes = []any{
 	(*GatherRelatedFindingsRequest)(nil),  // 8: vrooli.web_search.v1.research.GatherRelatedFindingsRequest
 	(*GatheredFinding)(nil),               // 9: vrooli.web_search.v1.research.GatheredFinding
 	(*GatherRelatedFindingsResponse)(nil), // 10: vrooli.web_search.v1.research.GatherRelatedFindingsResponse
-	(*timestamppb.Timestamp)(nil),         // 11: google.protobuf.Timestamp
+	(*livesearch.EngineIssue)(nil),        // 11: vrooli.web_search.v1.livesearch.EngineIssue
+	(*timestamppb.Timestamp)(nil),         // 12: google.protobuf.Timestamp
 }
 var file_web_search_v1_research_research_proto_depIdxs = []int32{
 	0,  // 0: vrooli.web_search.v1.research.Brief.citations:type_name -> vrooli.web_search.v1.research.Citation
 	1,  // 1: vrooli.web_search.v1.research.RunL2Response.brief:type_name -> vrooli.web_search.v1.research.Brief
-	11, // 2: vrooli.web_search.v1.research.GetResearchStatusResponse.started_at:type_name -> google.protobuf.Timestamp
-	11, // 3: vrooli.web_search.v1.research.GetResearchStatusResponse.finished_at:type_name -> google.protobuf.Timestamp
-	9,  // 4: vrooli.web_search.v1.research.GatherRelatedFindingsResponse.findings:type_name -> vrooli.web_search.v1.research.GatheredFinding
-	2,  // 5: vrooli.web_search.v1.research.ResearchService.RunL2:input_type -> vrooli.web_search.v1.research.RunL2Request
-	4,  // 6: vrooli.web_search.v1.research.ResearchService.RunL3:input_type -> vrooli.web_search.v1.research.RunL3Request
-	6,  // 7: vrooli.web_search.v1.research.ResearchService.GetResearchStatus:input_type -> vrooli.web_search.v1.research.GetResearchStatusRequest
-	8,  // 8: vrooli.web_search.v1.research.ResearchService.GatherRelatedFindings:input_type -> vrooli.web_search.v1.research.GatherRelatedFindingsRequest
-	3,  // 9: vrooli.web_search.v1.research.ResearchService.RunL2:output_type -> vrooli.web_search.v1.research.RunL2Response
-	5,  // 10: vrooli.web_search.v1.research.ResearchService.RunL3:output_type -> vrooli.web_search.v1.research.RunL3Response
-	7,  // 11: vrooli.web_search.v1.research.ResearchService.GetResearchStatus:output_type -> vrooli.web_search.v1.research.GetResearchStatusResponse
-	10, // 12: vrooli.web_search.v1.research.ResearchService.GatherRelatedFindings:output_type -> vrooli.web_search.v1.research.GatherRelatedFindingsResponse
-	9,  // [9:13] is the sub-list for method output_type
-	5,  // [5:9] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	11, // 2: vrooli.web_search.v1.research.RunL2Response.degraded_engines:type_name -> vrooli.web_search.v1.livesearch.EngineIssue
+	12, // 3: vrooli.web_search.v1.research.GetResearchStatusResponse.started_at:type_name -> google.protobuf.Timestamp
+	12, // 4: vrooli.web_search.v1.research.GetResearchStatusResponse.finished_at:type_name -> google.protobuf.Timestamp
+	9,  // 5: vrooli.web_search.v1.research.GatherRelatedFindingsResponse.findings:type_name -> vrooli.web_search.v1.research.GatheredFinding
+	2,  // 6: vrooli.web_search.v1.research.ResearchService.RunL2:input_type -> vrooli.web_search.v1.research.RunL2Request
+	4,  // 7: vrooli.web_search.v1.research.ResearchService.RunL3:input_type -> vrooli.web_search.v1.research.RunL3Request
+	6,  // 8: vrooli.web_search.v1.research.ResearchService.GetResearchStatus:input_type -> vrooli.web_search.v1.research.GetResearchStatusRequest
+	8,  // 9: vrooli.web_search.v1.research.ResearchService.GatherRelatedFindings:input_type -> vrooli.web_search.v1.research.GatherRelatedFindingsRequest
+	3,  // 10: vrooli.web_search.v1.research.ResearchService.RunL2:output_type -> vrooli.web_search.v1.research.RunL2Response
+	5,  // 11: vrooli.web_search.v1.research.ResearchService.RunL3:output_type -> vrooli.web_search.v1.research.RunL3Response
+	7,  // 12: vrooli.web_search.v1.research.ResearchService.GetResearchStatus:output_type -> vrooli.web_search.v1.research.GetResearchStatusResponse
+	10, // 13: vrooli.web_search.v1.research.ResearchService.GatherRelatedFindings:output_type -> vrooli.web_search.v1.research.GatherRelatedFindingsResponse
+	10, // [10:14] is the sub-list for method output_type
+	6,  // [6:10] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_web_search_v1_research_research_proto_init() }

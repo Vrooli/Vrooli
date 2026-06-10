@@ -6,77 +6,38 @@ import (
 
 	"test-genie/internal/orchestrator/phases"
 	sharedruns "test-genie/internal/shared/runs"
+
+	freshness "github.com/vrooli/freshness-go"
 )
 
-func passedRun(id, digest string, phaseNames ...string) sharedruns.RunRecord {
+// The fresh/stale/unknown verdict semantics are owned (and tested) by the
+// shared freshness-go package. The tests here cover what stays test-genie's:
+// the wire conversion and the required-set SSOT.
+
+func TestToFreshnessResponseConvertsAllFields(t *testing.T) {
 	rec := sharedruns.RunRecord{
-		RunID:       id,
+		RunID:       "r1",
 		Status:      sharedruns.StatusPassed,
-		TreeDigest:  digest,
+		TreeDigest:  "td:x",
 		CompletedAt: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC),
+		Phases:      []sharedruns.PhaseRecord{{Name: "unit", Status: "passed"}},
 	}
-	for _, p := range phaseNames {
-		rec.Phases = append(rec.Phases, sharedruns.PhaseRecord{Name: p, Status: "passed"})
+	report := freshness.Check([]sharedruns.RunRecord{rec}, "td:x", []string{"unit", "business"})
+	resp := toFreshnessResponse(report)
+
+	if resp.GetTreeDigest() != "td:x" {
+		t.Fatalf("TreeDigest = %q", resp.GetTreeDigest())
 	}
-	return rec
-}
-
-func verdictsByPhase(t *testing.T, resp map[string]string, phase, want string) {
-	t.Helper()
-	if got := resp[phase]; got != want {
-		t.Errorf("phase %s: status = %q, want %q", phase, got, want)
+	if len(resp.GetPhases()) != 2 {
+		t.Fatalf("got %d phases, want 2", len(resp.GetPhases()))
 	}
-}
-
-func collect(records []sharedruns.RunRecord, digest string, names []string) map[string]string {
-	resp := checkFreshness(records, digest, names)
-	out := make(map[string]string)
-	for _, v := range resp.GetPhases() {
-		out[v.GetPhase()] = v.GetStatus()
+	unit := resp.GetPhases()[0]
+	if unit.GetPhase() != "unit" || unit.GetStatus() != freshness.StatusFresh ||
+		unit.GetLastRunId() != "r1" || unit.GetLastRunCompletedAt() != "2026-06-10T00:00:00Z" {
+		t.Fatalf("unit verdict not converted faithfully: %+v", unit)
 	}
-	return out
-}
-
-func TestCheckFreshnessFreshStaleUnknown(t *testing.T) {
-	current := "td:aaa"
-
-	// fresh: run at current digest passed unit; stale: business only passed at
-	// an older digest.
-	records := []sharedruns.RunRecord{
-		passedRun("r2", current, "unit"),
-		passedRun("r1", "td:old", "unit", "business"),
-	}
-	got := collect(records, current, []string{"unit", "business"})
-	verdictsByPhase(t, got, "unit", "fresh")
-	verdictsByPhase(t, got, "business", "stale")
-
-	// unknown: no digest-stamped runs at all (pre-digest history).
-	legacy := []sharedruns.RunRecord{passedRun("r0", "", "unit")}
-	got = collect(legacy, current, []string{"unit"})
-	verdictsByPhase(t, got, "unit", "unknown")
-
-	// empty index is also unknown.
-	got = collect(nil, current, []string{"unit"})
-	verdictsByPhase(t, got, "unit", "unknown")
-}
-
-func TestCheckFreshnessFailedPhaseIsNotFresh(t *testing.T) {
-	current := "td:aaa"
-	rec := passedRun("r1", current)
-	rec.Phases = []sharedruns.PhaseRecord{{Name: "unit", Status: "failed"}}
-	got := collect([]sharedruns.RunRecord{rec}, current, []string{"unit"})
-	verdictsByPhase(t, got, "unit", "stale")
-}
-
-func TestCheckFreshnessReportsNewestEvidence(t *testing.T) {
-	current := "td:aaa"
-	records := []sharedruns.RunRecord{ // newest-first
-		passedRun("r3", current, "unit"),
-		passedRun("r2", current, "unit"),
-	}
-	resp := checkFreshness(records, current, []string{"unit"})
-	if resp.GetPhases()[0].GetLastRunId() != "r3" {
-		t.Fatalf("expected newest run r3, got %q", resp.GetPhases()[0].GetLastRunId())
+	if business := resp.GetPhases()[1]; business.GetStatus() != freshness.StatusStale {
+		t.Fatalf("business verdict = %q, want stale", business.GetStatus())
 	}
 }
 
@@ -104,17 +65,20 @@ func TestFreshnessDefaultSetIsQuickPreset(t *testing.T) {
 	}
 }
 
-func TestSuggestedCommand(t *testing.T) {
-	resp := checkFreshness(nil, "td:x", []string{"unit", "business"})
-	if cmd := suggestedCommand("demo", resp.GetPhases(), true); cmd != "test-genie execute demo --preset quick" {
-		t.Fatalf("defaulted suggestion = %q", cmd)
+// TestRequiredSetMatchesFreshnessGo pins test-genie's quick-preset-derived
+// required set to the shared freshness-go mirror that no-service consumers
+// (scenario-completeness-scoring) use. If the quick preset changes, this fails
+// until freshness.RequiredPhases() is updated in lockstep — drift between the
+// two would make "stale" mean different things in different surfaces.
+func TestRequiredSetMatchesFreshnessGo(t *testing.T) {
+	want := phases.FreshnessRequired()
+	got := freshness.RequiredPhases()
+	if len(got) != len(want) {
+		t.Fatalf("freshness.RequiredPhases() = %v, want %v (test-genie quick preset)", got, want)
 	}
-	if cmd := suggestedCommand("demo", resp.GetPhases(), false); cmd != "test-genie execute demo unit business" {
-		t.Fatalf("explicit suggestion = %q", cmd)
-	}
-
-	fresh := checkFreshness([]sharedruns.RunRecord{passedRun("r1", "td:x", "unit")}, "td:x", []string{"unit"})
-	if cmd := suggestedCommand("demo", fresh.GetPhases(), true); cmd != "" {
-		t.Fatalf("all-fresh suggestion should be empty, got %q", cmd)
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("freshness.RequiredPhases() = %v, want %v (test-genie quick preset)", got, want)
+		}
 	}
 }

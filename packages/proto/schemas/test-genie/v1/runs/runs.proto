@@ -47,6 +47,11 @@ service RunsService {
   // round-trip through proto); the rel_path here is the handle that route
   // takes. Consumed by git-control-tower's WorkflowReplayService.
   rpc ListRunVideos(ListRunVideosRequest) returns (ListRunVideosResponse);
+  // CheckFreshness reports, per phase, whether some recorded run executed that
+  // phase (status passed) against the scenario's CURRENT working-tree digest.
+  // Read-only; consumed by git-control-tower's advisory pre-commit step and
+  // the `test-genie runs freshness` CLI verb.
+  rpc CheckFreshness(CheckFreshnessRequest) returns (CheckFreshnessResponse);
 }
 
 // DiagnosticsInfo is the serialized diagnostics profile a run executed with.
@@ -87,6 +92,10 @@ message RunInfo {
   string git_dirty_summary = 10;
   DiagnosticsInfo diagnostics = 11;
   repeated PinInfo pins = 12;
+  // tree_digest is the scenario working-tree content digest captured at run
+  // start ("td:"-prefixed sha256; see test-genie internal/shared/treedigest).
+  // Empty on runs that predate digest stamping.
+  string tree_digest = 13;
 }
 
 message ListRunsRequest {
@@ -192,4 +201,34 @@ message ListRunVideosRequest {
 
 message ListRunVideosResponse {
   repeated RunVideo videos = 1;
+}
+
+message CheckFreshnessRequest {
+  string scenario = 1;
+  // phases to check. Empty = the global required set (test-genie's quick
+  // preset — a code-level SSOT, deliberately NOT per-scenario configurable).
+  repeated string phases = 2;
+}
+
+// PhaseFreshness is the verdict for one phase.
+message PhaseFreshness {
+  string phase = 1;
+  // status: fresh   — a run with the current tree digest ran this phase, passed
+  //         stale   — digest-stamped runs exist, but none passed this phase at
+  //                   the current digest
+  //         unknown — no digest-stamped runs exist for the scenario
+  string status = 2;
+  string last_run_id = 3; // newest run that passed this phase, if any
+  string last_run_completed_at = 4; // RFC3339, empty if none/in-progress
+}
+
+message CheckFreshnessResponse {
+  string scenario = 1;
+  // tree_digest is the scenario's CURRENT working-tree digest the verdicts
+  // were computed against.
+  string tree_digest = 2;
+  repeated PhaseFreshness phases = 3;
+  // suggested_command reproduces freshness for every stale/unknown phase
+  // (e.g. "test-genie execute <scenario> --preset quick").
+  string suggested_command = 4;
 }
