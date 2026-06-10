@@ -28,6 +28,12 @@ service ResearchService {
   rpc RunL3(RunL3Request) returns (RunL3Response);
   // GetResearchStatus polls an L3 run by id.
   rpc GetResearchStatus(GetResearchStatusRequest) returns (GetResearchStatusResponse);
+  // GatherRelatedFindings returns the findings semantically NEAR a query — the
+  // bounded GATHER step of the research-and-reconcile loop (OT-P1-003). The
+  // sweep is "near the query", never a whole-store scan: the server enforces a
+  // hard cap (max 20) regardless of the requested max, so the L3 agent uses this
+  // endpoint instead of a free-form findings search.
+  rpc GatherRelatedFindings(GatherRelatedFindingsRequest) returns (GatherRelatedFindingsResponse);
 }
 
 // Citation links a synthesis claim back to the fetched page that supports it.
@@ -98,4 +104,33 @@ message GetResearchStatusResponse {
   google.protobuf.Timestamp finished_at = 5;
   // error_msg explains a failed run.
   string error_msg = 6;
+}
+
+message GatherRelatedFindingsRequest {
+  string query = 1;
+  // max requests an upper bound on how many nearby findings to return. The
+  // server clamps it to [1, 20]; an unset/non-positive value defaults to 20.
+  // The bound is enforced server-side — a caller cannot widen the sweep.
+  int32 max = 2;
+}
+
+// GatheredFinding is one finding semantically near the gather query, projected
+// to the fields the reconcile step needs (no full citation payload).
+message GatheredFinding {
+  string finding_id = 1;
+  string claim = 2;
+  double confidence = 3;
+  // status is the lifecycle state ("active" | "disputed"); superseded findings
+  // are excluded from the gather (they are not in the semantic index).
+  string status = 4;
+  // score is the semantic relevance of this finding to the query.
+  double score = 5;
+}
+
+message GatherRelatedFindingsResponse {
+  repeated GatheredFinding findings = 1;
+  // cap_applied is the effective bound the server enforced for this gather
+  // (after clamping the requested max), so callers can see the sweep was
+  // bounded.
+  int32 cap_applied = 2;
 }

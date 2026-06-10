@@ -42,4 +42,27 @@ type Repository interface {
 	// findings when an include-archived search is requested (they are not in
 	// the semantic index).
 	SearchArchivedLike(ctx context.Context, query string, limit int) ([]Finding, error)
+
+	// RecordSurfaced increments the surfaced counter for each id and stamps
+	// last_surfaced_at = now, creating the usage row if absent. This is the write
+	// side of OT-P2-001 usage telemetry; it touches only finding_usage, never the
+	// finding row or its audit trail. Called off the hot path by the async
+	// surfacing worker.
+	RecordSurfaced(ctx context.Context, ids []string) error
+	// RecordUsed increments the used counter for id (explicit "this finding was
+	// used" feedback), creating the usage row if absent. ErrFindingNotFound for
+	// an unknown id.
+	RecordUsed(ctx context.Context, id string) error
+	// GetUsage returns the usage counters for the given ids, keyed by id. Ids
+	// with no usage row are absent from the map (treated as the zero Usage).
+	GetUsage(ctx context.Context, ids []string) (map[string]Usage, error)
+	// ListDecayCandidates returns active findings that are NEVER surfaced (no
+	// usage row, or surfaced_count = 0) AND older than minAge, oldest-first,
+	// bounded by limit. This is the eligibility signal the GC (OT-P2-003)
+	// consumes: never-surfaced + fully-decayed ⇒ supersede candidate.
+	ListDecayCandidates(ctx context.Context, minAge time.Duration, limit int) ([]Finding, error)
+	// ListOrphanedFindings returns findings whose brief_id is non-empty but
+	// references no row in the briefs table — a provenance-consistency drift the
+	// GC (OT-P2-003) reports (never auto-deletes).
+	ListOrphanedFindings(ctx context.Context) ([]Finding, error)
 }

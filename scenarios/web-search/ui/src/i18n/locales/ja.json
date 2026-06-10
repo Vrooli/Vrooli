@@ -166,7 +166,17 @@
     "pruneApply": "今すぐ整理",
     "pruneError": "整理に失敗しました: {{message}}",
     "pruneDryRunResult": "{{count}} 件の発見事項が整理されます。",
-    "pruneApplied": "{{count}} 件の発見事項が整理されました。"
+    "pruneApplied": "{{count}} 件の発見事項が整理されました。",
+    "effectivenessHeading": "利用効果",
+    "effectivenessHint": "有効スコア = 経年減衰した信頼度 × 利用係数。一度も表示されず完全に減衰した発見事項はGCの置き換え候補です。",
+    "effectivenessLoading": "効果を読み込み中…",
+    "effectivenessError": "効果を読み込めませんでした: {{message}}",
+    "effectivenessEmpty": "まだランク付けする発見事項がありません。",
+    "effectivenessSurfaced": "表示 {{count}} 回",
+    "effectivenessUsed": "使用 {{count}} 回",
+    "effectivenessNeverSurfaced": "未表示",
+    "effectivenessLastSurfaced": "最終表示 {{when}}",
+    "effectivenessScore": "スコア {{value}}"
   },
   "disputes": {
     "loading": "係争を読み込み中…",

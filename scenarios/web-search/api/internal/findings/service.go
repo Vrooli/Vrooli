@@ -30,6 +30,26 @@ type Service interface {
 	GetMany(ctx context.Context, ids []string) (map[string]Finding, error)
 	LoadIndexable(ctx context.Context) ([]Finding, error)
 	SearchArchivedLike(ctx context.Context, query string, limit int) ([]Finding, error)
+
+	// ListEffectiveness returns active (and optionally disputed) findings paired
+	// with their usage telemetry, newest-first, bounded by limit. The caller
+	// computes the blended effective score from the pair on read (OT-P2-001).
+	ListEffectiveness(ctx context.Context, includeDisputed bool, limit int) ([]FindingUsage, error)
+	// RecordUsage records an explicit "this finding was used" signal and returns
+	// the finding. ErrFindingNotFound for an unknown id.
+	RecordUsage(ctx context.Context, id string) (Finding, error)
+
+	// ListDecayCandidates / ListOrphanedFindings expose the GC (OT-P2-003)
+	// eligibility queries at the application layer.
+	ListDecayCandidates(ctx context.Context, minAge time.Duration, limit int) ([]Finding, error)
+	ListOrphanedFindings(ctx context.Context) ([]Finding, error)
+}
+
+// FindingUsage pairs a finding with its usage telemetry counters — the read
+// model the effectiveness surface and the GC eligibility check consume.
+type FindingUsage struct {
+	Finding Finding
+	Usage   Usage
 }
 
 type service struct {
@@ -148,4 +168,46 @@ func (s *service) LoadIndexable(ctx context.Context) ([]Finding, error) {
 
 func (s *service) SearchArchivedLike(ctx context.Context, query string, limit int) ([]Finding, error) {
 	return s.repo.SearchArchivedLike(ctx, query, limit)
+}
+
+func (s *service) ListEffectiveness(ctx context.Context, includeDisputed bool, limit int) ([]FindingUsage, error) {
+	// Active-only by default; include disputed widens to active+disputed (the
+	// default List filter already excludes superseded).
+	filter := ListFilter{Status: StatusActive, Limit: limit}
+	if includeDisputed {
+		filter.Status = ""
+	}
+	list, err := s.repo.List(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(list))
+	for _, f := range list {
+		ids = append(ids, f.ID)
+	}
+	usage, err := s.repo.GetUsage(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]FindingUsage, 0, len(list))
+	for _, f := range list {
+		out = append(out, FindingUsage{Finding: f, Usage: usage[f.ID]})
+	}
+	return out, nil
+}
+
+func (s *service) RecordUsage(ctx context.Context, id string) (Finding, error) {
+	id = strings.TrimSpace(id)
+	if err := s.repo.RecordUsed(ctx, id); err != nil {
+		return Finding{}, err
+	}
+	return s.repo.Get(ctx, id)
+}
+
+func (s *service) ListDecayCandidates(ctx context.Context, minAge time.Duration, limit int) ([]Finding, error) {
+	return s.repo.ListDecayCandidates(ctx, minAge, limit)
+}
+
+func (s *service) ListOrphanedFindings(ctx context.Context) ([]Finding, error) {
+	return s.repo.ListOrphanedFindings(ctx)
 }

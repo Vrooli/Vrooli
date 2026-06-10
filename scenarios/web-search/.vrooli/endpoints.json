@@ -209,6 +209,50 @@
       }
     },
     {
+      "id": "findings_effectiveness",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/ListEffectiveness",
+      "method": "POST",
+      "summary": "List findings by usage effectiveness",
+      "description": "Pairs each finding with its usage telemetry (surfaced/used counts, last-surfaced age) and the blended effective score (age-decayed confidence × usage factor). The OT-P2-001 curation signal.",
+      "category": "findings",
+      "cli_mapping": {
+        "command": "web-search findings effectiveness",
+        "args": [
+          "--limit",
+          "<n>",
+          "--include-disputed"
+        ]
+      }
+    },
+    {
+      "id": "findings_record_usage",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/RecordUsage",
+      "method": "POST",
+      "summary": "Record explicit finding usage",
+      "description": "Records an explicit 'this finding was used' signal (distinct from the implicit surfacing counted automatically on search).",
+      "category": "findings",
+      "cli_mapping": {
+        "command": "web-search findings use",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "findings_gc",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/RunGC",
+      "method": "POST",
+      "summary": "Run the store-consistency GC",
+      "description": "Runs the periodic full-store consistency pass: soft-retires never-surfaced, fully-decayed findings (confidence-gated) and reports cold-archive candidates, stale disputes, and orphans. --dry-run reports without mutating. Never hard-deletes; never auto-resolves a dispute.",
+      "category": "findings",
+      "cli_mapping": {
+        "command": "web-search findings gc",
+        "args": [
+          "--dry-run"
+        ]
+      }
+    },
+    {
       "id": "livesearch_search",
       "path": "/vrooli.web_search.v1.livesearch.LiveSearchService/Search",
       "method": "POST",
@@ -267,6 +311,22 @@
         "command": "web-search research status",
         "args": [
           "<id>"
+        ]
+      }
+    },
+    {
+      "id": "research_gather",
+      "path": "/vrooli.web_search.v1.research.ResearchService/GatherRelatedFindings",
+      "method": "POST",
+      "summary": "Bounded GATHER of findings near a query",
+      "description": "Returns the findings semantically near the query for the GATHER step of the research-and-reconcile loop. The sweep is bounded server-side (hard cap 20) — the L3 agent uses this instead of a free-form findings search, so it never scans the whole store.",
+      "category": "research",
+      "cli_mapping": {
+        "command": "web-search research gather",
+        "args": [
+          "<query>",
+          "--max",
+          "<n>"
         ]
       }
     }
@@ -328,6 +388,21 @@
       "endpoint_id": "findings_count"
     },
     {
+      "name": "findings effectiveness",
+      "description": "List findings by usage effectiveness ([--limit N] [--include-disputed]); surfaced/used counts + blended score",
+      "endpoint_id": "findings_effectiveness"
+    },
+    {
+      "name": "findings use",
+      "description": "Record an explicit 'this finding was used' signal (ID)",
+      "endpoint_id": "findings_record_usage"
+    },
+    {
+      "name": "findings gc",
+      "description": "Run the store-consistency GC ([--dry-run]); soft-retire decayed + report drift",
+      "endpoint_id": "findings_gc"
+    },
+    {
       "name": "search",
       "description": "Live web search (QUERY [--limit N] [--synthesis]); L0 results with optional L1 snippet synthesis",
       "endpoint_id": "livesearch_search"
@@ -346,6 +421,11 @@
       "name": "research status",
       "description": "Poll an L3 research run (ID)",
       "endpoint_id": "research_status"
+    },
+    {
+      "name": "research gather",
+      "description": "Bounded GATHER of findings near a query (QUERY [--max N]); server-capped at 20",
+      "endpoint_id": "research_gather"
     },
     {
       "name": "disputes list",

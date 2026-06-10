@@ -171,7 +171,17 @@
     "pruneDryRunResult_zero": "لن يتم تقليم أي شيء.",
     "pruneApplied": "تم تقليم {{count}} نتيجة.",
     "pruneApplied_one": "تم تقليم نتيجة واحدة.",
-    "pruneApplied_zero": "لم يتم تقليم أي شيء."
+    "pruneApplied_zero": "لم يتم تقليم أي شيء.",
+    "effectivenessHeading": "فعالية الاستخدام",
+    "effectivenessHint": "النتيجة الفعّالة = الثقة المتناقصة مع العمر × معامل الاستخدام. النتائج التي لم تظهر قط والمتناقصة بالكامل هي مرشحات للاستبدال في جامع المهملات.",
+    "effectivenessLoading": "جارٍ تحميل الفعالية…",
+    "effectivenessError": "تعذّر تحميل الفعالية: {{message}}",
+    "effectivenessEmpty": "لا توجد نتائج للترتيب بعد.",
+    "effectivenessSurfaced": "ظهرت {{count}} مرة",
+    "effectivenessUsed": "استُخدمت {{count}} مرة",
+    "effectivenessNeverSurfaced": "لم تظهر قط",
+    "effectivenessLastSurfaced": "آخر ظهور {{when}}",
+    "effectivenessScore": "النتيجة {{value}}"
   },
   "disputes": {
     "loading": "جارٍ تحميل النزاعات…",

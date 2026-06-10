@@ -18,15 +18,18 @@ const GroupName = "findings"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"FindingsService.ListFindings":     h.list,
-		"FindingsService.GetFinding":       h.get,
-		"FindingsService.AddFinding":       h.add,
-		"FindingsService.EditFinding":      h.edit,
-		"FindingsService.SupersedeFinding": h.supersede,
-		"FindingsService.FlagFinding":      h.flag,
-		"FindingsService.PruneFindings":    h.prune,
-		"FindingsService.SearchFindings":   h.search,
-		"FindingsService.CountFindings":    h.count,
+		"FindingsService.ListFindings":      h.list,
+		"FindingsService.GetFinding":        h.get,
+		"FindingsService.AddFinding":        h.add,
+		"FindingsService.EditFinding":       h.edit,
+		"FindingsService.SupersedeFinding":  h.supersede,
+		"FindingsService.FlagFinding":       h.flag,
+		"FindingsService.PruneFindings":     h.prune,
+		"FindingsService.SearchFindings":    h.search,
+		"FindingsService.CountFindings":     h.count,
+		"FindingsService.ListEffectiveness": h.effectiveness,
+		"FindingsService.RecordUsage":       h.use,
+		"FindingsService.RunGC":             h.gc,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

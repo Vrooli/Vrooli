@@ -62,6 +62,18 @@ type Citation struct {
 	RetrievedAt time.Time
 }
 
+// Usage is the usage-telemetry counter for one finding (OT-P2-001): how often
+// it was surfaced (returned by a search), how often it was explicitly marked
+// used, and when it was last surfaced. A finding with no usage row is treated
+// as the zero Usage (never surfaced). Kept separate from Finding so surfacing
+// events never mutate the provenance-bearing finding row.
+type Usage struct {
+	FindingID      string
+	SurfacedCount  int
+	UsedCount      int
+	LastSurfacedAt time.Time
+}
+
 // Brief is the research artifact (L2/L3) a finding was distilled from.
 type Brief struct {
 	ID           string

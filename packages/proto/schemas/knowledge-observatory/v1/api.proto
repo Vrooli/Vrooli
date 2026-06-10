@@ -321,6 +321,9 @@ message DocHealthCounts {
   // Manifest coverage totals.
   int32 docs_in_manifest = 22;
   int32 docs_not_in_manifest = 23;
+
+  // Derived-number / drift-prone count lint totals.
+  int32 numbers_flagged = 24;
 }
 
 // DocHealthRequest invokes a full documentation-health check for a single
@@ -328,12 +331,12 @@ message DocHealthCounts {
 //
 // @usage rpc DocHealth on KnowledgeObservatoryService
 message DocHealthRequest {
-  // Name of the scenario directory (under the scenarios root).
-  // @constraint Must be non-empty and contain no path separators.
+  // Name of the scenario directory (under the scenarios root). Required for the
+  // default (scenario) scope; leave empty when scope = "path".
+  // @constraint When set, contains no path separators.
   string scenario_name = 1 [(buf.validate.field).string = {
-    min_len: 1
     max_len: 256
-    pattern: "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    pattern: "^([A-Za-z0-9][A-Za-z0-9._-]*)?$"
   }];
 
   // When true, external (http/https) links cause failures rather than
@@ -347,6 +350,20 @@ message DocHealthRequest {
 
   // When true, external link probing is skipped entirely (offline mode).
   optional bool skip_external_links = 4;
+
+  // Target scope: "" or "scenario" (default; resolved from scenario_name) or
+  // "path" (scan `path` directly). A path that resolves inside a scenario is
+  // promoted to that scenario (all checks); a project-level path runs only
+  // generic checks.
+  optional string scope = 5;
+
+  // Path to scan when scope = "path". Absolute, or relative to the repo root.
+  optional string path = 6;
+
+  // Narrow the run to these check names (see the check registry: structure,
+  // content, links, refs, manifest, numbers). Empty = all checks applicable to
+  // the target.
+  repeated string checks = 7;
 }
 
 // DocHealthResponse is the combined result of every validator family.

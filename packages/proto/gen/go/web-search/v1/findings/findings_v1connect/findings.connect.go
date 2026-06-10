@@ -66,6 +66,14 @@ const (
 	// FindingsServiceCountFindingsProcedure is the fully-qualified name of the FindingsService's
 	// CountFindings RPC.
 	FindingsServiceCountFindingsProcedure = "/vrooli.web_search.v1.findings.FindingsService/CountFindings"
+	// FindingsServiceListEffectivenessProcedure is the fully-qualified name of the FindingsService's
+	// ListEffectiveness RPC.
+	FindingsServiceListEffectivenessProcedure = "/vrooli.web_search.v1.findings.FindingsService/ListEffectiveness"
+	// FindingsServiceRecordUsageProcedure is the fully-qualified name of the FindingsService's
+	// RecordUsage RPC.
+	FindingsServiceRecordUsageProcedure = "/vrooli.web_search.v1.findings.FindingsService/RecordUsage"
+	// FindingsServiceRunGCProcedure is the fully-qualified name of the FindingsService's RunGC RPC.
+	FindingsServiceRunGCProcedure = "/vrooli.web_search.v1.findings.FindingsService/RunGC"
 )
 
 // FindingsServiceClient is a client for the vrooli.web_search.v1.findings.FindingsService service.
@@ -90,6 +98,21 @@ type FindingsServiceClient interface {
 	// CountFindings is the canonical measure: how many findings were captured in
 	// a time window.
 	CountFindings(context.Context, *connect.Request[findings.CountFindingsRequest]) (*connect.Response[findings.CountFindingsResponse], error)
+	// ListEffectiveness returns findings joined to their usage telemetry
+	// (OT-P2-001): how often each was surfaced/used, when last surfaced, and the
+	// blended effective score (age-decayed confidence × usage factor). It is the
+	// read side of the usage-telemetry-driven curation signal.
+	ListEffectiveness(context.Context, *connect.Request[findings.ListEffectivenessRequest]) (*connect.Response[findings.ListEffectivenessResponse], error)
+	// RecordUsage records an explicit "this finding was used" signal for a
+	// finding (e.g. an operator or downstream consumer acted on it), distinct
+	// from the implicit surfacing recorded automatically on search.
+	RecordUsage(context.Context, *connect.Request[findings.RecordUsageRequest]) (*connect.Response[findings.RecordUsageResponse], error)
+	// RunGC runs the periodic full-store consistency pass (OT-P2-003): it
+	// soft-retires never-surfaced, fully-decayed findings (confidence-gated) and
+	// reports cold-archive candidates, stale disputes, and orphans. With dry_run
+	// it reports the candidates without mutating anything. It never hard-deletes
+	// and never auto-resolves a dispute.
+	RunGC(context.Context, *connect.Request[findings.RunGCRequest]) (*connect.Response[findings.RunGCResponse], error)
 }
 
 // NewFindingsServiceClient constructs a client for the
@@ -170,22 +193,43 @@ func NewFindingsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(findingsServiceMethods.ByName("CountFindings")),
 			connect.WithClientOptions(opts...),
 		),
+		listEffectiveness: connect.NewClient[findings.ListEffectivenessRequest, findings.ListEffectivenessResponse](
+			httpClient,
+			baseURL+FindingsServiceListEffectivenessProcedure,
+			connect.WithSchema(findingsServiceMethods.ByName("ListEffectiveness")),
+			connect.WithClientOptions(opts...),
+		),
+		recordUsage: connect.NewClient[findings.RecordUsageRequest, findings.RecordUsageResponse](
+			httpClient,
+			baseURL+FindingsServiceRecordUsageProcedure,
+			connect.WithSchema(findingsServiceMethods.ByName("RecordUsage")),
+			connect.WithClientOptions(opts...),
+		),
+		runGC: connect.NewClient[findings.RunGCRequest, findings.RunGCResponse](
+			httpClient,
+			baseURL+FindingsServiceRunGCProcedure,
+			connect.WithSchema(findingsServiceMethods.ByName("RunGC")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // findingsServiceClient implements FindingsServiceClient.
 type findingsServiceClient struct {
-	listFindings     *connect.Client[findings.ListFindingsRequest, findings.ListFindingsResponse]
-	getFinding       *connect.Client[findings.GetFindingRequest, findings.GetFindingResponse]
-	addFinding       *connect.Client[findings.AddFindingRequest, findings.AddFindingResponse]
-	editFinding      *connect.Client[findings.EditFindingRequest, findings.EditFindingResponse]
-	supersedeFinding *connect.Client[findings.SupersedeFindingRequest, findings.SupersedeFindingResponse]
-	flagFinding      *connect.Client[findings.FlagFindingRequest, findings.FlagFindingResponse]
-	listDisputes     *connect.Client[findings.ListDisputesRequest, findings.ListDisputesResponse]
-	resolveDispute   *connect.Client[findings.ResolveDisputeRequest, findings.ResolveDisputeResponse]
-	pruneFindings    *connect.Client[findings.PruneFindingsRequest, findings.PruneFindingsResponse]
-	searchFindings   *connect.Client[findings.SearchFindingsRequest, findings.SearchFindingsResponse]
-	countFindings    *connect.Client[findings.CountFindingsRequest, findings.CountFindingsResponse]
+	listFindings      *connect.Client[findings.ListFindingsRequest, findings.ListFindingsResponse]
+	getFinding        *connect.Client[findings.GetFindingRequest, findings.GetFindingResponse]
+	addFinding        *connect.Client[findings.AddFindingRequest, findings.AddFindingResponse]
+	editFinding       *connect.Client[findings.EditFindingRequest, findings.EditFindingResponse]
+	supersedeFinding  *connect.Client[findings.SupersedeFindingRequest, findings.SupersedeFindingResponse]
+	flagFinding       *connect.Client[findings.FlagFindingRequest, findings.FlagFindingResponse]
+	listDisputes      *connect.Client[findings.ListDisputesRequest, findings.ListDisputesResponse]
+	resolveDispute    *connect.Client[findings.ResolveDisputeRequest, findings.ResolveDisputeResponse]
+	pruneFindings     *connect.Client[findings.PruneFindingsRequest, findings.PruneFindingsResponse]
+	searchFindings    *connect.Client[findings.SearchFindingsRequest, findings.SearchFindingsResponse]
+	countFindings     *connect.Client[findings.CountFindingsRequest, findings.CountFindingsResponse]
+	listEffectiveness *connect.Client[findings.ListEffectivenessRequest, findings.ListEffectivenessResponse]
+	recordUsage       *connect.Client[findings.RecordUsageRequest, findings.RecordUsageResponse]
+	runGC             *connect.Client[findings.RunGCRequest, findings.RunGCResponse]
 }
 
 // ListFindings calls vrooli.web_search.v1.findings.FindingsService.ListFindings.
@@ -243,6 +287,21 @@ func (c *findingsServiceClient) CountFindings(ctx context.Context, req *connect.
 	return c.countFindings.CallUnary(ctx, req)
 }
 
+// ListEffectiveness calls vrooli.web_search.v1.findings.FindingsService.ListEffectiveness.
+func (c *findingsServiceClient) ListEffectiveness(ctx context.Context, req *connect.Request[findings.ListEffectivenessRequest]) (*connect.Response[findings.ListEffectivenessResponse], error) {
+	return c.listEffectiveness.CallUnary(ctx, req)
+}
+
+// RecordUsage calls vrooli.web_search.v1.findings.FindingsService.RecordUsage.
+func (c *findingsServiceClient) RecordUsage(ctx context.Context, req *connect.Request[findings.RecordUsageRequest]) (*connect.Response[findings.RecordUsageResponse], error) {
+	return c.recordUsage.CallUnary(ctx, req)
+}
+
+// RunGC calls vrooli.web_search.v1.findings.FindingsService.RunGC.
+func (c *findingsServiceClient) RunGC(ctx context.Context, req *connect.Request[findings.RunGCRequest]) (*connect.Response[findings.RunGCResponse], error) {
+	return c.runGC.CallUnary(ctx, req)
+}
+
 // FindingsServiceHandler is an implementation of the vrooli.web_search.v1.findings.FindingsService
 // service.
 type FindingsServiceHandler interface {
@@ -266,6 +325,21 @@ type FindingsServiceHandler interface {
 	// CountFindings is the canonical measure: how many findings were captured in
 	// a time window.
 	CountFindings(context.Context, *connect.Request[findings.CountFindingsRequest]) (*connect.Response[findings.CountFindingsResponse], error)
+	// ListEffectiveness returns findings joined to their usage telemetry
+	// (OT-P2-001): how often each was surfaced/used, when last surfaced, and the
+	// blended effective score (age-decayed confidence × usage factor). It is the
+	// read side of the usage-telemetry-driven curation signal.
+	ListEffectiveness(context.Context, *connect.Request[findings.ListEffectivenessRequest]) (*connect.Response[findings.ListEffectivenessResponse], error)
+	// RecordUsage records an explicit "this finding was used" signal for a
+	// finding (e.g. an operator or downstream consumer acted on it), distinct
+	// from the implicit surfacing recorded automatically on search.
+	RecordUsage(context.Context, *connect.Request[findings.RecordUsageRequest]) (*connect.Response[findings.RecordUsageResponse], error)
+	// RunGC runs the periodic full-store consistency pass (OT-P2-003): it
+	// soft-retires never-surfaced, fully-decayed findings (confidence-gated) and
+	// reports cold-archive candidates, stale disputes, and orphans. With dry_run
+	// it reports the candidates without mutating anything. It never hard-deletes
+	// and never auto-resolves a dispute.
+	RunGC(context.Context, *connect.Request[findings.RunGCRequest]) (*connect.Response[findings.RunGCResponse], error)
 }
 
 // NewFindingsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -341,6 +415,24 @@ func NewFindingsServiceHandler(svc FindingsServiceHandler, opts ...connect.Handl
 		connect.WithSchema(findingsServiceMethods.ByName("CountFindings")),
 		connect.WithHandlerOptions(opts...),
 	)
+	findingsServiceListEffectivenessHandler := connect.NewUnaryHandler(
+		FindingsServiceListEffectivenessProcedure,
+		svc.ListEffectiveness,
+		connect.WithSchema(findingsServiceMethods.ByName("ListEffectiveness")),
+		connect.WithHandlerOptions(opts...),
+	)
+	findingsServiceRecordUsageHandler := connect.NewUnaryHandler(
+		FindingsServiceRecordUsageProcedure,
+		svc.RecordUsage,
+		connect.WithSchema(findingsServiceMethods.ByName("RecordUsage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	findingsServiceRunGCHandler := connect.NewUnaryHandler(
+		FindingsServiceRunGCProcedure,
+		svc.RunGC,
+		connect.WithSchema(findingsServiceMethods.ByName("RunGC")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.web_search.v1.findings.FindingsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case FindingsServiceListFindingsProcedure:
@@ -365,6 +457,12 @@ func NewFindingsServiceHandler(svc FindingsServiceHandler, opts ...connect.Handl
 			findingsServiceSearchFindingsHandler.ServeHTTP(w, r)
 		case FindingsServiceCountFindingsProcedure:
 			findingsServiceCountFindingsHandler.ServeHTTP(w, r)
+		case FindingsServiceListEffectivenessProcedure:
+			findingsServiceListEffectivenessHandler.ServeHTTP(w, r)
+		case FindingsServiceRecordUsageProcedure:
+			findingsServiceRecordUsageHandler.ServeHTTP(w, r)
+		case FindingsServiceRunGCProcedure:
+			findingsServiceRunGCHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -416,4 +514,16 @@ func (UnimplementedFindingsServiceHandler) SearchFindings(context.Context, *conn
 
 func (UnimplementedFindingsServiceHandler) CountFindings(context.Context, *connect.Request[findings.CountFindingsRequest]) (*connect.Response[findings.CountFindingsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.findings.FindingsService.CountFindings is not implemented"))
+}
+
+func (UnimplementedFindingsServiceHandler) ListEffectiveness(context.Context, *connect.Request[findings.ListEffectivenessRequest]) (*connect.Response[findings.ListEffectivenessResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.findings.FindingsService.ListEffectiveness is not implemented"))
+}
+
+func (UnimplementedFindingsServiceHandler) RecordUsage(context.Context, *connect.Request[findings.RecordUsageRequest]) (*connect.Response[findings.RecordUsageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.findings.FindingsService.RecordUsage is not implemented"))
+}
+
+func (UnimplementedFindingsServiceHandler) RunGC(context.Context, *connect.Request[findings.RunGCRequest]) (*connect.Response[findings.RunGCResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.findings.FindingsService.RunGC is not implemented"))
 }

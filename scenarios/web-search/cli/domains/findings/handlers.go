@@ -227,7 +227,99 @@ func (h *handlers) count(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) effectiveness(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListEffectiveness(context.Background(), connect.NewRequest(&findingsv1.ListEffectivenessRequest{
+		Limit:           parseInt32(ctx.Flag("limit")),
+		IncludeDisputed: ctx.BoolFlag("include-disputed"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("list finding effectiveness", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no effectiveness response")
+	}
+	results := make([]string, 0, len(resp.Msg.Items))
+	for _, it := range resp.Msg.Items {
+		results = append(results, formatEffectiveness(it))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("%d finding(s) by usage effectiveness (effective = age-decayed confidence × usage factor).", len(resp.Msg.Items))},
+		ResultsHeading: "Findings",
+		Results:        results,
+		RetrievalHints: []string{
+			"`findings use <id>` — record an explicit 'used' signal",
+			"never-surfaced + fully-decayed findings are the GC's supersede candidates",
+		},
+	})
+}
+
+func (h *handlers) use(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	resp, err := h.client.RecordUsage(context.Background(), connect.NewRequest(&findingsv1.RecordUsageRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("record usage for finding %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Finding == nil {
+		return fmt.Errorf("server returned no finding")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Recorded usage for finding %s.", resp.Msg.Finding.Id)},
+		Changes: []string{formatFinding(resp.Msg.Finding)},
+	})
+}
+
+func (h *handlers) gc(ctx cliapp.RunContext) error {
+	dryRun := ctx.BoolFlag("dry-run")
+	resp, err := h.client.RunGC(context.Background(), connect.NewRequest(&findingsv1.RunGCRequest{DryRun: dryRun}))
+	if err != nil {
+		return cliapp.WrapAPIError("run findings GC", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no GC response")
+	}
+	msg := resp.Msg
+	mode := "applied"
+	if msg.DryRun {
+		mode = "dry-run (nothing mutated)"
+	}
+	summary := []string{
+		fmt.Sprintf("Store-consistency GC %s.", mode),
+		fmt.Sprintf("Superseded (never-surfaced + decayed): %d", len(msg.SupersededDecayed)),
+		fmt.Sprintf("Cold-archive candidates (superseded past TTL, report only): %d", len(msg.ColdArchiveCandidates)),
+		fmt.Sprintf("Stale disputes (past TTL, flagged for human — never auto-resolved): %d", len(msg.StaleDisputes)),
+		fmt.Sprintf("Orphans (brief_id with no brief): %d", len(msg.Orphans)),
+	}
+	results := make([]string, 0)
+	for _, id := range msg.SupersededDecayed {
+		results = append(results, "superseded: "+id)
+	}
+	for _, id := range msg.StaleDisputes {
+		results = append(results, "stale-dispute: "+id)
+	}
+	for _, id := range msg.Orphans {
+		results = append(results, "orphan: "+id)
+	}
+	report := cliapp.MutationReport{Result: summary}
+	if len(results) > 0 {
+		report.Changes = results
+	}
+	return cliapp.RenderProtoMutation(ctx, msg, report)
+}
+
 // --- helpers ---
+
+func formatEffectiveness(it *findingsv1.FindingEffectiveness) string {
+	if it == nil || it.Finding == nil {
+		return "(nil)"
+	}
+	last := "never"
+	if it.LastSurfacedAt != nil {
+		last = it.LastSurfacedAt.AsTime().Format(time.RFC3339)
+	}
+	return fmt.Sprintf("%s — %s [surfaced=%d used=%d last_surfaced=%s eff_conf=%.2f usage_factor=%.2f score=%.3f]",
+		it.Finding.Id, it.Finding.Claim, it.SurfacedCount, it.UsedCount, last,
+		it.EffectiveConfidence, it.UsageFactor, it.EffectiveScore)
+}
 
 func parseInt32(s string) int32 {
 	n, err := strconv.Atoi(strings.TrimSpace(s))

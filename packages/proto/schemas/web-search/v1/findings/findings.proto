@@ -34,6 +34,21 @@ service FindingsService {
   // CountFindings is the canonical measure: how many findings were captured in
   // a time window.
   rpc CountFindings(CountFindingsRequest) returns (CountFindingsResponse);
+  // ListEffectiveness returns findings joined to their usage telemetry
+  // (OT-P2-001): how often each was surfaced/used, when last surfaced, and the
+  // blended effective score (age-decayed confidence × usage factor). It is the
+  // read side of the usage-telemetry-driven curation signal.
+  rpc ListEffectiveness(ListEffectivenessRequest) returns (ListEffectivenessResponse);
+  // RecordUsage records an explicit "this finding was used" signal for a
+  // finding (e.g. an operator or downstream consumer acted on it), distinct
+  // from the implicit surfacing recorded automatically on search.
+  rpc RecordUsage(RecordUsageRequest) returns (RecordUsageResponse);
+  // RunGC runs the periodic full-store consistency pass (OT-P2-003): it
+  // soft-retires never-surfaced, fully-decayed findings (confidence-gated) and
+  // reports cold-archive candidates, stale disputes, and orphans. With dry_run
+  // it reports the candidates without mutating anything. It never hard-deletes
+  // and never auto-resolves a dispute.
+  rpc RunGC(RunGCRequest) returns (RunGCResponse);
 }
 
 // FindingStatus is the lifecycle state of a finding.
@@ -220,4 +235,59 @@ message CountFindingsRequest {
 
 message CountFindingsResponse {
   int64 count = 1;
+}
+
+// FindingEffectiveness pairs a finding with its usage telemetry and the blended
+// trust score the curation signal reads.
+message FindingEffectiveness {
+  Finding finding = 1;
+  int32 surfaced_count = 2;
+  int32 used_count = 3;
+  // last_surfaced_at is unset when the finding has never been surfaced.
+  google.protobuf.Timestamp last_surfaced_at = 4;
+  // effective_confidence is the age-decayed stored confidence.
+  double effective_confidence = 5;
+  // usage_factor is the usage down-weight in [0.5, 1] (1 once ever surfaced).
+  double usage_factor = 6;
+  // effective_score is effective_confidence × usage_factor.
+  double effective_score = 7;
+}
+
+message ListEffectivenessRequest {
+  int32 limit = 1;
+  // include_disputed adds DISPUTED findings to the report (default active only).
+  bool include_disputed = 2;
+}
+
+message ListEffectivenessResponse {
+  repeated FindingEffectiveness items = 1;
+}
+
+message RecordUsageRequest {
+  string id = 1;
+}
+
+message RecordUsageResponse {
+  // finding echoes the finding whose usage was recorded.
+  Finding finding = 1;
+}
+
+message RunGCRequest {
+  // dry_run reports the candidates without mutating anything.
+  bool dry_run = 1;
+}
+
+message RunGCResponse {
+  bool dry_run = 1;
+  // superseded_decayed are the ids the GC retired (or, in a dry run, would
+  // retire): never-surfaced, fully-decayed, below the confidence floor.
+  repeated string superseded_decayed = 2;
+  // cold_archive_candidates are superseded findings past the cold-archive TTL
+  // (report only — the GC never hard-deletes).
+  repeated string cold_archive_candidates = 3;
+  // stale_disputes are disputes unresolved past the expiry TTL (flagged for a
+  // human — the GC never auto-resolves a dispute).
+  repeated string stale_disputes = 4;
+  // orphans are findings whose brief_id references a missing brief.
+  repeated string orphans = 5;
 }

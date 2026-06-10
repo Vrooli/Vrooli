@@ -111,6 +111,30 @@
               "summary_template": "{count} findings captured ({window})"
             }
           }
+        },
+        {
+          "name": "effectiveness",
+          "description": "List findings by usage effectiveness (surfaced/used counts, last-surfaced age, blended score)",
+          "flags": [
+            { "name": "limit", "description": "Max findings to return" },
+            { "name": "include-disputed", "bool": true, "description": "Include DISPUTED findings (default active only)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "FindingsService", "method": "ListEffectiveness" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "use",
+          "description": "Record an explicit 'this finding was used' signal",
+          "positionals": [ { "name": "id", "required": true, "description": "Finding id" } ],
+          "binding": { "kind": "connect-rpc", "service": "FindingsService", "method": "RecordUsage" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "gc",
+          "description": "Run the periodic store-consistency GC: soft-retire never-surfaced fully-decayed findings (confidence-gated) and report cold-archive/stale-dispute/orphan drift",
+          "flags": [ { "name": "dry-run", "bool": true, "description": "Report candidates without mutating anything" } ],
+          "binding": { "kind": "connect-rpc", "service": "FindingsService", "method": "RunGC" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     },
@@ -158,6 +182,14 @@
           "description": "Poll an L3 research run by id",
           "positionals": [ { "name": "id", "required": true, "description": "L3 run id" } ],
           "binding": { "kind": "connect-rpc", "service": "ResearchService", "method": "GetResearchStatus" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "gather",
+          "description": "GATHER: load the findings semantically near a query (bounded sweep, server-capped at 20) for the research-and-reconcile loop",
+          "positionals": [ { "name": "query", "required": true, "description": "Gather query" } ],
+          "flags": [ { "name": "max", "description": "Upper bound on nearby findings to return (clamped to 1..20; default 20)" } ],
+          "binding": { "kind": "connect-rpc", "service": "ResearchService", "method": "GatherRelatedFindings" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]

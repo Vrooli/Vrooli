@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"web-search/internal/clock"
 	"web-search/internal/findingindex"
@@ -209,18 +210,45 @@ func main() {
 	// findings store, attributed to the "agent" actor.
 	researchFindings := internalfindings.NewServiceWithActor(internalfindings.NewSQLiteRepository(db, clock.System{}), "agent")
 	researchService := internalresearch.NewService(internalresearch.Deps{
-		Searcher:     internalresearch.LiveSearcher{Service: liveService},
-		Fetcher:      internalresearch.NewBrowserlessFetcher(os.Getenv("BROWSERLESS_URL"), nil),
-		Synthesizer:  internalresearch.NewOllamaSynthesizer(os.Getenv("OLLAMA_URL"), os.Getenv("OLLAMA_SYNTHESIS_MODEL"), nil),
-		Findings:     researchFindings,
+		Searcher:    internalresearch.LiveSearcher{Service: liveService},
+		Fetcher:     internalresearch.NewBrowserlessFetcher(os.Getenv("BROWSERLESS_URL"), nil),
+		Synthesizer: internalresearch.NewOllamaSynthesizer(os.Getenv("OLLAMA_URL"), os.Getenv("OLLAMA_SYNTHESIS_MODEL"), nil),
+		Findings:    researchFindings,
+		// Bounded GATHER (OT-P1-003): the semantic findings index supplies nearby
+		// ids, the findings store hydrates them. The hard cap is enforced inside
+		// the research service, not here.
+		Gatherer: internalresearch.IndexGatherer{
+			Index: findingIndexAdapter{idx: searcher},
+			Store: researchFindings,
+		},
 		AgentManager: researchagent.NewService(researchagent.NewHTTPClient()),
 		Logger:       logger,
 	})
 
+	// Usage telemetry (OT-P2-001): the async surfacing recorder counts which
+	// findings a search returned, entirely off the hot path. It drains on the
+	// same sync context so it stops on shutdown.
+	usageRecorder := internalfindings.NewUsageRecorder(
+		internalfindings.NewSQLiteRepository(db, clock.System{}),
+		internalfindings.DefaultUsageBuffer, logger)
+	go usageRecorder.Run(syncCtx)
+
+	// Periodic store-consistency GC (OT-P2-003): a background sweep, separate from
+	// per-query reconcile, that soft-retires never-surfaced fully-decayed findings
+	// (confidence-gated) and reports cold-archive/stale-dispute/orphan drift. The
+	// interval is configurable via WEB_SEARCH_GC_INTERVAL (0/unset ⇒ disabled, so
+	// the on-demand `findings gc` CLI is the only path until an operator opts in).
+	if gcInterval := gcIntervalFromEnv(); gcInterval > 0 {
+		gcRunner := internalfindings.NewGCService(
+			internalfindings.NewService(internalfindings.NewSQLiteRepository(db, clock.System{})),
+			clock.System{}, internalfindings.GCConfig{})
+		go runGCLoop(syncCtx, gcRunner, gcInterval, logger)
+	}
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "web-search-api", "1.0.0"),
-		findingsH.Module(db, clock.System{}, searcher, logger),
+		findingsH.Module(db, clock.System{}, searcher, usageRecorder, logger),
 		livesearchH.Module(liveService, logger),
 		researchH.Module(researchService, logger),
 	)
@@ -257,4 +285,59 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// gcIntervalFromEnv reads the OT-P2-003 GC cadence from WEB_SEARCH_GC_INTERVAL
+// (a Go duration like "24h"). A zero/unset/invalid value disables the background
+// loop — the on-demand `findings gc` CLI still works.
+func gcIntervalFromEnv() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("WEB_SEARCH_GC_INTERVAL"))
+	if raw == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		return 0
+	}
+	return d
+}
+
+// runGCLoop runs the store-consistency GC on a ticker until ctx is cancelled.
+// Each run is best-effort: a failure is logged, never fatal.
+func runGCLoop(ctx context.Context, gc *internalfindings.GCService, interval time.Duration, logger *log.Logger) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			report, err := gc.Run(ctx, false)
+			if err != nil {
+				logger.Printf("[web-search] periodic GC failed: %v", err)
+				continue
+			}
+			logger.Printf("[web-search] periodic GC: superseded=%d cold-archive=%d stale-disputes=%d orphans=%d",
+				len(report.SupersededDecayed), len(report.ColdArchiveCandidates), len(report.StaleDisputes), len(report.Orphans))
+		}
+	}
+}
+
+// findingIndexAdapter bridges the concrete findingindex.Service to the research
+// package's SemanticIndex seam, projecting findingindex.Hit -> research.GatherHit
+// (id + score) so the research package stays decoupled from the index package.
+type findingIndexAdapter struct {
+	idx *findingindex.Service
+}
+
+func (a findingIndexAdapter) Search(ctx context.Context, query string, limit int) ([]internalresearch.GatherHit, error) {
+	hits, _, err := a.idx.Search(ctx, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]internalresearch.GatherHit, 0, len(hits))
+	for _, h := range hits {
+		out = append(out, internalresearch.GatherHit{FindingID: h.FindingID, Score: h.Score})
+	}
+	return out, nil
 }

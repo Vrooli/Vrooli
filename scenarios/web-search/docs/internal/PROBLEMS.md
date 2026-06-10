@@ -49,31 +49,24 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-06-09 — Scenario is documentation-only; nothing is implemented
+### 2026-06-09 — Scenario is documentation-only; nothing is implemented — RESOLVED
 
-**Symptom:** `make test` / orientation `scaffold-health` fails; only the template `notes`/`health` example code exists.
+**Status:** RESOLVED 2026-06-09. This entry described the post-workshop state; it was
+never updated after the two-agent build landed the full implementation. All P0 + P1
+domains (livesearch, findings, research, federation) are built, green, and live-validated,
+and the `notes` example was removed. Verified by 3 code audits + live runtime. Kept here
+(struck through) as the record of the doc-drift that misled subsequent agents.
 
-**Root cause:** This pass intentionally formalized the charter, requirements, and docs only — no product code, proto, or wiring was written (per the request to formalize design before implementing).
+**Original symptom:** `make test` / orientation `scaffold-health` fails; only the template
+`notes`/`health` example code exists. — No longer true.
 
-**Workaround:** Treat `PRD.md`, `requirements/`, and `docs/concepts/*` as the build spec. Begin implementation at Gate 6 (`docs/START-HERE.md`), starting with the `livesearch` domain.
+### 2026-06-09 — Verify the SearXNG resource is healthy on this host before P0 — RESOLVED
 
-**Real fix:** Implement the domains (livesearch → findings → research → federation), make them green, remove the `notes` example (Gate 7).
+**Status:** RESOLVED 2026-06-09. SearXNG confirmed healthy on this host: live `web-search
+search` returns real hits and the L1/L2/L3 paths exercise it end-to-end. No drift observed.
 
-**Owner:** unassigned.
-
-**Refs:** `docs/internal/PROGRESS.md` (2026-06-09 entry), `docs/START-HERE.md` Gates 6–7.
-
-### 2026-06-09 — Verify the SearXNG resource is healthy on this host before P0
-
-**Symptom:** Unknown — to be checked. The live-web path (L0/L1/L2) depends entirely on the SearXNG resource.
-
-**Root cause:** SearXNG (`resources/searxng/`) exists and appears maintained (image pinned, standards-compliant), but has not been touched in a while and has not been re-verified healthy on this host for this scenario.
-
-**Workaround:** Before building L0, run `vrooli resource start searxng` and confirm a live JSON query against `${SEARXNG_URL}/search?q=...&format=json`. Confirm it is at current resource standards.
-
-**Real fix:** Confirm SearXNG healthy/current; if drifted, bring it to standards (separate resource work, not this scenario).
-
-**Owner:** unassigned.
+**Original concern:** The live-web path (L0/L1/L2) depends entirely on the SearXNG resource,
+which had not been re-verified on this host. — Now verified.
 
 **Refs:** `docs/concepts/INTEGRATIONS.md`, `resources/searxng/`.
 
@@ -84,16 +77,56 @@ Use this shape so entries are scannable. Append newest at the bottom.
 **Root cause:** Lower-impact decisions that are cheap to defer.
 
 **Workaround / open items:**
-- Contradiction auto-resolution confidence threshold — concrete value TBD at implementation.
-- Reconciliation scope is "semantically near the query" (bounded), with a full-store consistency sweep deferred to P2 GC (OT-P2-003).
-- Usage-telemetry-driven curation (OT-P2-001) intentionally deferred; per-query reconcile + age-decay assumed sufficient initially.
-- Findings export / cross-instance sharing not designed (see DATA.md import/export).
+- Contradiction auto-resolution confidence threshold — RESOLVED: `HighConfidenceThreshold = 0.75` (`api/internal/research/l3_agent.go`), the SSOT for the supersede-vs-flag gate.
+- Reconciliation scope is "semantically near the query" (bounded) — RESOLVED at the API layer: `GatherRelatedFindings(ctx, query, max=20)` enforces the bound (OT-P1-003 hardening). Full-store consistency sweep shipped as OT-P2-003 GC.
+- Usage-telemetry-driven curation (OT-P2-001) — RESOLVED: effectiveness ledger (`finding_usage` side table + async surfacing capture) shipped.
+- Findings export / cross-instance sharing — STILL DEFERRED (see DATA.md import/export); out of scope for the completion plan.
 
-**Real fix:** Resolve each as its owning requirement is implemented.
+**Real fix:** Resolve each as its owning requirement is implemented. Only findings
+export / cross-instance sharing remains open.
 
 **Owner:** unassigned.
 
 **Refs:** `docs/internal/DECISIONS.md`, `PRD.md` P2 targets.
+
+### 2026-06-09 — `scenario test` standards phase RED on pre-existing scanner false-positives
+
+**Symptom:** `vrooli scenario test web-search` (and orient `scaffold-health`) fails on
+the `standards` phase: 44 findings, highest=critical, exceeds `fail_on=high`.
+
+**Root cause:** The HIGH+ findings are scanner-auditor false-positives / established
+conventions on idiomatic code, NOT defects:
+- 6× "Database Rows Not Closed" (`api/internal/findings/sqlite.go`) — the rows ARE
+  closed: every flagged query passes its `*sql.Rows` to `hydrate` → `scanFindingRows`,
+  which has `defer rows.Close()`. The scanner only looks for a literal `defer
+  rows.Close()` at the call site.
+- 1× "HTTP Client Without Timeout" (`api/internal/httpc/doer.go:34`) — that line is the
+  `var _ Doer = (*http.Client)(nil)` compile-time guard, not a client construction;
+  the real client is built in `main.go` with a timeout. (Known template false-positive,
+  see memory `feedback_react_vite_template_defects`.)
+- 1× "Hardcoded Password" (`cli/domains/findings/handlers.go:18`) — flags
+  `const defaultWindowToken = "this_week"`, a time-window token, not a credential.
+- 7× "Hardcoded Localhost" — the documented degraded-default URLs for SearXNG / Ollama /
+  browserless (the established degraded-behavior convention).
+
+**Evidence it is NOT from the completion work:** `git-control-tower baseline diff
+--scenario web-search --name web-search-completion` reports the standards failure as
+`preexisting (inherited from baseline)` — it was already RED in the baseline captured
+before any completion-plan code landed. `tests` (unit/integration/smoke) stay green and
+unchanged. The completion changes are independently clean under `golangci-lint`,
+`gofumpt`, `tsc`, and `eslint`.
+
+**Workaround:** Treat the standards phase as a known false-positive campaign; gate on the
+real `tests` phase (green) plus the four standard linters (green).
+
+**Real fix:** A scanner-auditor heuristics upgrade (see-through-indirection for
+rows.Close; distinguish compile-guards from constructions; stop flagging window tokens as
+passwords; recognize degraded-default localhost). Tracked via `report-bug`; this is a
+fleet-wide template/scanner campaign, not web-search-specific.
+
+**Owner:** unassigned (scanner-auditor / template owners).
+
+**Refs:** memory `feedback_react_vite_template_defects`; GCT baseline `web-search-completion`.
 
 ## Architecture Drift
 

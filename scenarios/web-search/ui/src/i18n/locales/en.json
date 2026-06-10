@@ -171,7 +171,17 @@
     "pruneDryRunResult_zero": "Nothing would be pruned.",
     "pruneApplied": "{{count}} findings pruned.",
     "pruneApplied_one": "1 finding pruned.",
-    "pruneApplied_zero": "Nothing was pruned."
+    "pruneApplied_zero": "Nothing was pruned.",
+    "effectivenessHeading": "Usage effectiveness",
+    "effectivenessHint": "Effective score = age-decayed confidence × usage factor. Never-surfaced, fully-decayed findings are the GC's supersede candidates.",
+    "effectivenessLoading": "Loading effectiveness…",
+    "effectivenessError": "Unable to load effectiveness: {{message}}",
+    "effectivenessEmpty": "No findings to rank yet.",
+    "effectivenessSurfaced": "Surfaced {{count}}×",
+    "effectivenessUsed": "Used {{count}}×",
+    "effectivenessNeverSurfaced": "Never surfaced",
+    "effectivenessLastSurfaced": "Last surfaced {{when}}",
+    "effectivenessScore": "Score {{value}}"
   },
   "disputes": {
     "loading": "Loading disputes…",

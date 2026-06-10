@@ -331,6 +331,139 @@ func (s *sqliteRepository) SearchArchivedLike(ctx context.Context, query string,
 	return s.hydrate(ctx, rows)
 }
 
+func (s *sqliteRepository) RecordSurfaced(ctx context.Context, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	stamp := s.now().Format(findingTimeFormat)
+	// UPSERT: create the usage row at count 1 or bump an existing one. An id that
+	// is not (or no longer) a real finding only ever produces an orphan usage row,
+	// which is invisible to both read paths (GetUsage is keyed by live finding
+	// ids; ListDecayCandidates LEFT JOINs from findings), so we do not pre-check
+	// existence on this async hot-ish path.
+	for _, id := range ids {
+		if strings.TrimSpace(id) == "" {
+			continue
+		}
+		_, err := s.db.ExecContext(ctx,
+			`INSERT INTO finding_usage (finding_id, surfaced_count, used_count, last_surfaced_at)
+			 VALUES (?, 1, 0, ?)
+			 ON CONFLICT(finding_id) DO UPDATE SET
+			   surfaced_count = surfaced_count + 1,
+			   last_surfaced_at = excluded.last_surfaced_at`,
+			id, stamp)
+		if err != nil {
+			return fmt.Errorf("record surfaced for finding %q: %w", id, err)
+		}
+	}
+	return nil
+}
+
+func (s *sqliteRepository) RecordUsed(ctx context.Context, id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return ErrInvalidFinding{Field: "id", Reason: "required"}
+	}
+	// Explicit "used" feedback validates the target exists (it is operator/UI
+	// driven, not a high-volume async path), so a bogus id is reported rather
+	// than silently creating an orphan counter.
+	var exists int
+	if err := s.db.QueryRowContext(ctx, `SELECT 1 FROM findings WHERE id = ?`, id).Scan(&exists); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrFindingNotFound{ID: id}
+		}
+		return fmt.Errorf("record used: lookup finding %q: %w", id, err)
+	}
+	stamp := s.now().Format(findingTimeFormat)
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO finding_usage (finding_id, surfaced_count, used_count, last_surfaced_at)
+		 VALUES (?, 0, 1, ?)
+		 ON CONFLICT(finding_id) DO UPDATE SET
+		   used_count = used_count + 1`,
+		id, stamp)
+	if err != nil {
+		return fmt.Errorf("record used for finding %q: %w", id, err)
+	}
+	return nil
+}
+
+func (s *sqliteRepository) GetUsage(ctx context.Context, ids []string) (map[string]Usage, error) {
+	out := make(map[string]Usage, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
+	args := make([]any, 0, len(ids))
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT finding_id, surfaced_count, used_count, last_surfaced_at FROM finding_usage WHERE finding_id IN (`+placeholders+`)`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("get usage: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var u Usage
+		var lastRaw string
+		if err := rows.Scan(&u.FindingID, &u.SurfacedCount, &u.UsedCount, &lastRaw); err != nil {
+			return nil, fmt.Errorf("scan usage: %w", err)
+		}
+		u.LastSurfacedAt, _ = time.Parse(findingTimeFormat, lastRaw)
+		out[u.FindingID] = u
+	}
+	return out, rows.Err()
+}
+
+func (s *sqliteRepository) ListDecayCandidates(ctx context.Context, minAge time.Duration, limit int) ([]Finding, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	// A candidate is ACTIVE, never surfaced (no usage row OR surfaced_count = 0),
+	// and older than minAge measured from retrieval_date (falling back to
+	// created_at via COALESCE on the empty string). The cutoff is a lexically-
+	// comparable RFC3339Nano stamp.
+	cutoff := s.now().Add(-minAge).Format(findingTimeFormat)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+withPrefix("f", selectFindingColumns)+`
+		   FROM findings f
+		   LEFT JOIN finding_usage u ON u.finding_id = f.id
+		  WHERE f.status = ?
+		    AND COALESCE(u.surfaced_count, 0) = 0
+		    AND (CASE WHEN f.retrieval_date != '' THEN f.retrieval_date ELSE f.created_at END) < ?
+		  ORDER BY (CASE WHEN f.retrieval_date != '' THEN f.retrieval_date ELSE f.created_at END) ASC
+		  LIMIT ?`,
+		StatusActive, cutoff, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list decay candidates: %w", err)
+	}
+	return s.hydrate(ctx, rows)
+}
+
+func (s *sqliteRepository) ListOrphanedFindings(ctx context.Context) ([]Finding, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+withPrefix("f", selectFindingColumns)+`
+		   FROM findings f
+		   LEFT JOIN briefs b ON b.id = f.brief_id
+		  WHERE f.brief_id != ''
+		    AND b.id IS NULL
+		  ORDER BY f.created_at DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("list orphaned findings: %w", err)
+	}
+	return s.hydrate(ctx, rows)
+}
+
+// withPrefix qualifies a comma-separated column list with a table alias so it
+// can be used in a JOIN select without ambiguity.
+func withPrefix(alias, columns string) string {
+	parts := strings.Split(columns, ", ")
+	for i, p := range parts {
+		parts[i] = alias + "." + strings.TrimSpace(p)
+	}
+	return strings.Join(parts, ", ")
+}
+
 // hydrate scans a finding result set and batch-loads citations for the rows.
 func (s *sqliteRepository) hydrate(ctx context.Context, rows *sql.Rows) ([]Finding, error) {
 	found, err := scanFindingRows(rows)

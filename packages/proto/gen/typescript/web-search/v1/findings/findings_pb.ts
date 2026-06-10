@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-search/v1/findings/findings.proto.
  */
 export const file_web_search_v1_findings_findings: GenFile = /*@__PURE__*/
-  fileDesc("CiV3ZWItc2VhcmNoL3YxL2ZpbmRpbmdzL2ZpbmRpbmdzLnByb3RvEh12cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncyJkCghDaXRhdGlvbhIKCgJpZBgBIAEoCRILCgN1cmwYAiABKAkSDQoFdGl0bGUYAyABKAkSMAoMcmV0cmlldmVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIrCg1DaXRhdGlvbklucHV0EgsKA3VybBgBIAEoCRINCgV0aXRsZRgCIAEoCSKdAQoFQnJpZWYSCgoCaWQYASABKAkSDQoFcXVlcnkYAiABKAkSDQoFbGV2ZWwYAyABKAkSDwoHc3VtbWFyeRgEIAEoCRIUCgxhZ2VudF9ydW5faWQYBSABKAkSMQoNcnVuX3RpbWVzdGFtcBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIbWV0YWRhdGEYByABKAki0gMKB0ZpbmRpbmcSCgoCaWQYASABKAkSDQoFY2xhaW0YAiABKAkSEAoIYnJpZWZfaWQYAyABKAkSEgoKY29uZmlkZW5jZRgEIAEoARI8CgZzdGF0dXMYBSABKA4yLC52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GaW5kaW5nU3RhdHVzEjIKDnJldHJpZXZhbF9kYXRlGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVxdWVyeRgHIAEoCRIVCg1zdXBlcnNlZGVkX2J5GAggASgJEhQKDGRpc3B1dGVfbm90ZRgJIAEoCRI8CgZzb3VyY2UYCiABKA4yLC52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GaW5kaW5nU291cmNlEjoKCWNpdGF0aW9ucxgLIAMoCzInLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLkNpdGF0aW9uEi4KCmNyZWF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInwKE0xpc3RGaW5kaW5nc1JlcXVlc3QSPAoGc3RhdHVzGAEgASgOMiwudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuRmluZGluZ1N0YXR1cxIYChBpbmNsdWRlX2FyY2hpdmVkGAIgASgIEg0KBWxpbWl0GAMgASgFIlAKFExpc3RGaW5kaW5nc1Jlc3BvbnNlEjgKCGZpbmRpbmdzGAEgAygLMiYudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuRmluZGluZyIfChFHZXRGaW5kaW5nUmVxdWVzdBIKCgJpZBgBIAEoCSJNChJHZXRGaW5kaW5nUmVzcG9uc2USNwoHZmluZGluZxgBIAEoCzImLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLkZpbmRpbmci1gEKEUFkZEZpbmRpbmdSZXF1ZXN0Eg0KBWNsYWltGAEgASgJEhIKCmNvbmZpZGVuY2UYAiABKAESDQoFcXVlcnkYAyABKAkSPAoGc291cmNlGAQgASgOMiwudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuRmluZGluZ1NvdXJjZRIQCghicmllZl9pZBgFIAEoCRI/CgljaXRhdGlvbnMYBiADKAsyLC52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5DaXRhdGlvbklucHV0Ik0KEkFkZEZpbmRpbmdSZXNwb25zZRI3CgdmaW5kaW5nGAEgASgLMiYudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuRmluZGluZyJDChJFZGl0RmluZGluZ1JlcXVlc3QSCgoCaWQYASABKAkSDQoFY2xhaW0YAiABKAkSEgoKY29uZmlkZW5jZRgDIAEoASJOChNFZGl0RmluZGluZ1Jlc3BvbnNlEjcKB2ZpbmRpbmcYASABKAsyJi52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GaW5kaW5nIkoKF1N1cGVyc2VkZUZpbmRpbmdSZXF1ZXN0EgoKAmlkGAEgASgJEhMKC3JlcGxhY2VtZW50GAIgASgJEg4KBnJlYXNvbhgDIAEoCSJTChhTdXBlcnNlZGVGaW5kaW5nUmVzcG9uc2USNwoHZmluZGluZxgBIAEoCzImLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLkZpbmRpbmciMAoSRmxhZ0ZpbmRpbmdSZXF1ZXN0EgoKAmlkGAEgASgJEg4KBnJlYXNvbhgCIAEoCSJOChNGbGFnRmluZGluZ1Jlc3BvbnNlEjcKB2ZpbmRpbmcYASABKAsyJi52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GaW5kaW5nIiQKE0xpc3REaXNwdXRlc1JlcXVlc3QSDQoFbGltaXQYASABKAUiUAoUTGlzdERpc3B1dGVzUmVzcG9uc2USOAoIZmluZGluZ3MYASADKAsyJi52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GaW5kaW5nIlwKFVJlc29sdmVEaXNwdXRlUmVxdWVzdBIKCgJpZBgBIAEoCRISCgpyZXNvbHV0aW9uGAIgASgJEhMKC3JlcGxhY2VtZW50GAMgASgJEg4KBnJlYXNvbhgEIAEoCSJRChZSZXNvbHZlRGlzcHV0ZVJlc3BvbnNlEjcKB2ZpbmRpbmcYASABKAsyJi52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GaW5kaW5nIicKFFBydW5lRmluZGluZ3NSZXF1ZXN0Eg8KB2RyeV9ydW4YASABKAgiPAoVUHJ1bmVGaW5kaW5nc1Jlc3BvbnNlEg4KBnBydW5lZBgBIAEoBRITCgtmaW5kaW5nX2lkcxgCIAMoCSJPChVTZWFyY2hGaW5kaW5nc1JlcXVlc3QSDQoFcXVlcnkYASABKAkSDQoFbGltaXQYAiABKAUSGAoQaW5jbHVkZV9hcmNoaXZlZBgDIAEoCCJiCgpGaW5kaW5nSGl0EjcKB2ZpbmRpbmcYASABKAsyJi52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GaW5kaW5nEg0KBXNjb3JlGAIgASgBEgwKBHdlYWsYAyABKAgiYQoWU2VhcmNoRmluZGluZ3NSZXNwb25zZRI3CgRoaXRzGAEgAygLMikudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuRmluZGluZ0hpdBIOCgZtZXRob2QYAiABKAkiRgoUQ291bnRGaW5kaW5nc1JlcXVlc3QSLgoGd2luZG93GAEgASgLMh4udnJvb2xpLm1lYXN1cmVzLnYxLlRpbWVXaW5kb3ciJgoVQ291bnRGaW5kaW5nc1Jlc3BvbnNlEg0KBWNvdW50GAEgASgDKoYBCg1GaW5kaW5nU3RhdHVzEh4KGkZJTkRJTkdfU1RBVFVTX1VOU1BFQ0lGSUVEEAASGQoVRklORElOR19TVEFUVVNfQUNUSVZFEAESGwoXRklORElOR19TVEFUVVNfRElTUFVURUQQAhIdChlGSU5ESU5HX1NUQVRVU19TVVBFUlNFREVEEAMqeAoNRmluZGluZ1NvdXJjZRIeChpGSU5ESU5HX1NPVVJDRV9VTlNQRUNJRklFRBAAEhkKFUZJTkRJTkdfU09VUkNFX01BTlVBTBABEhUKEUZJTkRJTkdfU09VUkNFX0wyEAISFQoRRklORElOR19TT1VSQ0VfTDMQAzLRCgoPRmluZGluZ3NTZXJ2aWNlEncKDExpc3RGaW5kaW5ncxIyLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLkxpc3RGaW5kaW5nc1JlcXVlc3QaMy52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5MaXN0RmluZGluZ3NSZXNwb25zZRJxCgpHZXRGaW5kaW5nEjAudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuR2V0RmluZGluZ1JlcXVlc3QaMS52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5HZXRGaW5kaW5nUmVzcG9uc2UScQoKQWRkRmluZGluZxIwLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLkFkZEZpbmRpbmdSZXF1ZXN0GjEudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuQWRkRmluZGluZ1Jlc3BvbnNlEnQKC0VkaXRGaW5kaW5nEjEudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuRWRpdEZpbmRpbmdSZXF1ZXN0GjIudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuRWRpdEZpbmRpbmdSZXNwb25zZRKDAQoQU3VwZXJzZWRlRmluZGluZxI2LnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLlN1cGVyc2VkZUZpbmRpbmdSZXF1ZXN0GjcudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuU3VwZXJzZWRlRmluZGluZ1Jlc3BvbnNlEnQKC0ZsYWdGaW5kaW5nEjEudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuRmxhZ0ZpbmRpbmdSZXF1ZXN0GjIudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuRmxhZ0ZpbmRpbmdSZXNwb25zZRJ3CgxMaXN0RGlzcHV0ZXMSMi52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5MaXN0RGlzcHV0ZXNSZXF1ZXN0GjMudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuTGlzdERpc3B1dGVzUmVzcG9uc2USfQoOUmVzb2x2ZURpc3B1dGUSNC52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5SZXNvbHZlRGlzcHV0ZVJlcXVlc3QaNS52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5SZXNvbHZlRGlzcHV0ZVJlc3BvbnNlEnoKDVBydW5lRmluZGluZ3MSMy52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5QcnVuZUZpbmRpbmdzUmVxdWVzdBo0LnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLlBydW5lRmluZGluZ3NSZXNwb25zZRJ9Cg5TZWFyY2hGaW5kaW5ncxI0LnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLlNlYXJjaEZpbmRpbmdzUmVxdWVzdBo1LnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLlNlYXJjaEZpbmRpbmdzUmVzcG9uc2USegoNQ291bnRGaW5kaW5ncxIzLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLkNvdW50RmluZGluZ3NSZXF1ZXN0GjQudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuQ291bnRGaW5kaW5nc1Jlc3BvbnNlQlNaUWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLXNlYXJjaC92MS9maW5kaW5ncztmaW5kaW5nc192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_measures_v1_measures]);
+  fileDesc("CiV3ZWItc2VhcmNoL3YxL2ZpbmRpbmdzL2ZpbmRpbmdzLnByb3RvEh12cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncyJkCghDaXRhdGlvbhIKCgJpZBgBIAEoCRILCgN1cmwYAiABKAkSDQoFdGl0bGUYAyABKAkSMAoMcmV0cmlldmVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIrCg1DaXRhdGlvbklucHV0EgsKA3VybBgBIAEoCRINCgV0aXRsZRgCIAEoCSKdAQoFQnJpZWYSCgoCaWQYASABKAkSDQoFcXVlcnkYAiABKAkSDQoFbGV2ZWwYAyABKAkSDwoHc3VtbWFyeRgEIAEoCRIUCgxhZ2VudF9ydW5faWQYBSABKAkSMQoNcnVuX3RpbWVzdGFtcBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIbWV0YWRhdGEYByABKAki0gMKB0ZpbmRpbmcSCgoCaWQYASABKAkSDQoFY2xhaW0YAiABKAkSEAoIYnJpZWZfaWQYAyABKAkSEgoKY29uZmlkZW5jZRgEIAEoARI8CgZzdGF0dXMYBSABKA4yLC52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GaW5kaW5nU3RhdHVzEjIKDnJldHJpZXZhbF9kYXRlGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVxdWVyeRgHIAEoCRIVCg1zdXBlcnNlZGVkX2J5GAggASgJEhQKDGRpc3B1dGVfbm90ZRgJIAEoCRI8CgZzb3VyY2UYCiABKA4yLC52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GaW5kaW5nU291cmNlEjoKCWNpdGF0aW9ucxgLIAMoCzInLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLkNpdGF0aW9uEi4KCmNyZWF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInwKE0xpc3RGaW5kaW5nc1JlcXVlc3QSPAoGc3RhdHVzGAEgASgOMiwudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuRmluZGluZ1N0YXR1cxIYChBpbmNsdWRlX2FyY2hpdmVkGAIgASgIEg0KBWxpbWl0GAMgASgFIlAKFExpc3RGaW5kaW5nc1Jlc3BvbnNlEjgKCGZpbmRpbmdzGAEgAygLMiYudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuRmluZGluZyIfChFHZXRGaW5kaW5nUmVxdWVzdBIKCgJpZBgBIAEoCSJNChJHZXRGaW5kaW5nUmVzcG9uc2USNwoHZmluZGluZxgBIAEoCzImLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLkZpbmRpbmci1gEKEUFkZEZpbmRpbmdSZXF1ZXN0Eg0KBWNsYWltGAEgASgJEhIKCmNvbmZpZGVuY2UYAiABKAESDQoFcXVlcnkYAyABKAkSPAoGc291cmNlGAQgASgOMiwudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuRmluZGluZ1NvdXJjZRIQCghicmllZl9pZBgFIAEoCRI/CgljaXRhdGlvbnMYBiADKAsyLC52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5DaXRhdGlvbklucHV0Ik0KEkFkZEZpbmRpbmdSZXNwb25zZRI3CgdmaW5kaW5nGAEgASgLMiYudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuRmluZGluZyJDChJFZGl0RmluZGluZ1JlcXVlc3QSCgoCaWQYASABKAkSDQoFY2xhaW0YAiABKAkSEgoKY29uZmlkZW5jZRgDIAEoASJOChNFZGl0RmluZGluZ1Jlc3BvbnNlEjcKB2ZpbmRpbmcYASABKAsyJi52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GaW5kaW5nIkoKF1N1cGVyc2VkZUZpbmRpbmdSZXF1ZXN0EgoKAmlkGAEgASgJEhMKC3JlcGxhY2VtZW50GAIgASgJEg4KBnJlYXNvbhgDIAEoCSJTChhTdXBlcnNlZGVGaW5kaW5nUmVzcG9uc2USNwoHZmluZGluZxgBIAEoCzImLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLkZpbmRpbmciMAoSRmxhZ0ZpbmRpbmdSZXF1ZXN0EgoKAmlkGAEgASgJEg4KBnJlYXNvbhgCIAEoCSJOChNGbGFnRmluZGluZ1Jlc3BvbnNlEjcKB2ZpbmRpbmcYASABKAsyJi52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GaW5kaW5nIiQKE0xpc3REaXNwdXRlc1JlcXVlc3QSDQoFbGltaXQYASABKAUiUAoUTGlzdERpc3B1dGVzUmVzcG9uc2USOAoIZmluZGluZ3MYASADKAsyJi52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GaW5kaW5nIlwKFVJlc29sdmVEaXNwdXRlUmVxdWVzdBIKCgJpZBgBIAEoCRISCgpyZXNvbHV0aW9uGAIgASgJEhMKC3JlcGxhY2VtZW50GAMgASgJEg4KBnJlYXNvbhgEIAEoCSJRChZSZXNvbHZlRGlzcHV0ZVJlc3BvbnNlEjcKB2ZpbmRpbmcYASABKAsyJi52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GaW5kaW5nIicKFFBydW5lRmluZGluZ3NSZXF1ZXN0Eg8KB2RyeV9ydW4YASABKAgiPAoVUHJ1bmVGaW5kaW5nc1Jlc3BvbnNlEg4KBnBydW5lZBgBIAEoBRITCgtmaW5kaW5nX2lkcxgCIAMoCSJPChVTZWFyY2hGaW5kaW5nc1JlcXVlc3QSDQoFcXVlcnkYASABKAkSDQoFbGltaXQYAiABKAUSGAoQaW5jbHVkZV9hcmNoaXZlZBgDIAEoCCJiCgpGaW5kaW5nSGl0EjcKB2ZpbmRpbmcYASABKAsyJi52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GaW5kaW5nEg0KBXNjb3JlGAIgASgBEgwKBHdlYWsYAyABKAgiYQoWU2VhcmNoRmluZGluZ3NSZXNwb25zZRI3CgRoaXRzGAEgAygLMikudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuRmluZGluZ0hpdBIOCgZtZXRob2QYAiABKAkiRgoUQ291bnRGaW5kaW5nc1JlcXVlc3QSLgoGd2luZG93GAEgASgLMh4udnJvb2xpLm1lYXN1cmVzLnYxLlRpbWVXaW5kb3ciJgoVQ291bnRGaW5kaW5nc1Jlc3BvbnNlEg0KBWNvdW50GAEgASgDIv4BChRGaW5kaW5nRWZmZWN0aXZlbmVzcxI3CgdmaW5kaW5nGAEgASgLMiYudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuRmluZGluZxIWCg5zdXJmYWNlZF9jb3VudBgCIAEoBRISCgp1c2VkX2NvdW50GAMgASgFEjQKEGxhc3Rfc3VyZmFjZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhwKFGVmZmVjdGl2ZV9jb25maWRlbmNlGAUgASgBEhQKDHVzYWdlX2ZhY3RvchgGIAEoARIXCg9lZmZlY3RpdmVfc2NvcmUYByABKAEiQwoYTGlzdEVmZmVjdGl2ZW5lc3NSZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEhgKEGluY2x1ZGVfZGlzcHV0ZWQYAiABKAgiXwoZTGlzdEVmZmVjdGl2ZW5lc3NSZXNwb25zZRJCCgVpdGVtcxgBIAMoCzIzLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLkZpbmRpbmdFZmZlY3RpdmVuZXNzIiAKElJlY29yZFVzYWdlUmVxdWVzdBIKCgJpZBgBIAEoCSJOChNSZWNvcmRVc2FnZVJlc3BvbnNlEjcKB2ZpbmRpbmcYASABKAsyJi52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GaW5kaW5nIh8KDFJ1bkdDUmVxdWVzdBIPCgdkcnlfcnVuGAEgASgIIoYBCg1SdW5HQ1Jlc3BvbnNlEg8KB2RyeV9ydW4YASABKAgSGgoSc3VwZXJzZWRlZF9kZWNheWVkGAIgAygJEh8KF2NvbGRfYXJjaGl2ZV9jYW5kaWRhdGVzGAMgAygJEhYKDnN0YWxlX2Rpc3B1dGVzGAQgAygJEg8KB29ycGhhbnMYBSADKAkqhgEKDUZpbmRpbmdTdGF0dXMSHgoaRklORElOR19TVEFUVVNfVU5TUEVDSUZJRUQQABIZChVGSU5ESU5HX1NUQVRVU19BQ1RJVkUQARIbChdGSU5ESU5HX1NUQVRVU19ESVNQVVRFRBACEh0KGUZJTkRJTkdfU1RBVFVTX1NVUEVSU0VERUQQAyp4Cg1GaW5kaW5nU291cmNlEh4KGkZJTkRJTkdfU09VUkNFX1VOU1BFQ0lGSUVEEAASGQoVRklORElOR19TT1VSQ0VfTUFOVUFMEAESFQoRRklORElOR19TT1VSQ0VfTDIQAhIVChFGSU5ESU5HX1NPVVJDRV9MMxADMrQNCg9GaW5kaW5nc1NlcnZpY2USdwoMTGlzdEZpbmRpbmdzEjIudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuTGlzdEZpbmRpbmdzUmVxdWVzdBozLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLkxpc3RGaW5kaW5nc1Jlc3BvbnNlEnEKCkdldEZpbmRpbmcSMC52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5HZXRGaW5kaW5nUmVxdWVzdBoxLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLkdldEZpbmRpbmdSZXNwb25zZRJxCgpBZGRGaW5kaW5nEjAudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuQWRkRmluZGluZ1JlcXVlc3QaMS52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5BZGRGaW5kaW5nUmVzcG9uc2USdAoLRWRpdEZpbmRpbmcSMS52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5FZGl0RmluZGluZ1JlcXVlc3QaMi52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5FZGl0RmluZGluZ1Jlc3BvbnNlEoMBChBTdXBlcnNlZGVGaW5kaW5nEjYudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuU3VwZXJzZWRlRmluZGluZ1JlcXVlc3QaNy52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5TdXBlcnNlZGVGaW5kaW5nUmVzcG9uc2USdAoLRmxhZ0ZpbmRpbmcSMS52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GbGFnRmluZGluZ1JlcXVlc3QaMi52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5GbGFnRmluZGluZ1Jlc3BvbnNlEncKDExpc3REaXNwdXRlcxIyLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLkxpc3REaXNwdXRlc1JlcXVlc3QaMy52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5MaXN0RGlzcHV0ZXNSZXNwb25zZRJ9Cg5SZXNvbHZlRGlzcHV0ZRI0LnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLlJlc29sdmVEaXNwdXRlUmVxdWVzdBo1LnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLlJlc29sdmVEaXNwdXRlUmVzcG9uc2USegoNUHJ1bmVGaW5kaW5ncxIzLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLlBydW5lRmluZGluZ3NSZXF1ZXN0GjQudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuUHJ1bmVGaW5kaW5nc1Jlc3BvbnNlEn0KDlNlYXJjaEZpbmRpbmdzEjQudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuU2VhcmNoRmluZGluZ3NSZXF1ZXN0GjUudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuU2VhcmNoRmluZGluZ3NSZXNwb25zZRJ6Cg1Db3VudEZpbmRpbmdzEjMudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuQ291bnRGaW5kaW5nc1JlcXVlc3QaNC52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5Db3VudEZpbmRpbmdzUmVzcG9uc2UShgEKEUxpc3RFZmZlY3RpdmVuZXNzEjcudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuTGlzdEVmZmVjdGl2ZW5lc3NSZXF1ZXN0GjgudnJvb2xpLndlYl9zZWFyY2gudjEuZmluZGluZ3MuTGlzdEVmZmVjdGl2ZW5lc3NSZXNwb25zZRJ0CgtSZWNvcmRVc2FnZRIxLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLlJlY29yZFVzYWdlUmVxdWVzdBoyLnZyb29saS53ZWJfc2VhcmNoLnYxLmZpbmRpbmdzLlJlY29yZFVzYWdlUmVzcG9uc2USYgoFUnVuR0MSKy52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5SdW5HQ1JlcXVlc3QaLC52cm9vbGkud2ViX3NlYXJjaC52MS5maW5kaW5ncy5SdW5HQ1Jlc3BvbnNlQlNaUWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLXNlYXJjaC92MS9maW5kaW5ncztmaW5kaW5nc192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_measures_v1_measures]);
 
 /**
  * Citation is one cited source backing a finding's claim.
@@ -733,6 +733,208 @@ export const CountFindingsResponseSchema: GenMessage<CountFindingsResponse> = /*
   messageDesc(file_web_search_v1_findings_findings, 26);
 
 /**
+ * FindingEffectiveness pairs a finding with its usage telemetry and the blended
+ * trust score the curation signal reads.
+ *
+ * @generated from message vrooli.web_search.v1.findings.FindingEffectiveness
+ */
+export type FindingEffectiveness = Message<"vrooli.web_search.v1.findings.FindingEffectiveness"> & {
+  /**
+   * @generated from field: vrooli.web_search.v1.findings.Finding finding = 1;
+   */
+  finding?: Finding | undefined;
+
+  /**
+   * @generated from field: int32 surfaced_count = 2;
+   */
+  surfacedCount: number;
+
+  /**
+   * @generated from field: int32 used_count = 3;
+   */
+  usedCount: number;
+
+  /**
+   * last_surfaced_at is unset when the finding has never been surfaced.
+   *
+   * @generated from field: google.protobuf.Timestamp last_surfaced_at = 4;
+   */
+  lastSurfacedAt?: Timestamp | undefined;
+
+  /**
+   * effective_confidence is the age-decayed stored confidence.
+   *
+   * @generated from field: double effective_confidence = 5;
+   */
+  effectiveConfidence: number;
+
+  /**
+   * usage_factor is the usage down-weight in [0.5, 1] (1 once ever surfaced).
+   *
+   * @generated from field: double usage_factor = 6;
+   */
+  usageFactor: number;
+
+  /**
+   * effective_score is effective_confidence × usage_factor.
+   *
+   * @generated from field: double effective_score = 7;
+   */
+  effectiveScore: number;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.findings.FindingEffectiveness.
+ * Use `create(FindingEffectivenessSchema)` to create a new message.
+ */
+export const FindingEffectivenessSchema: GenMessage<FindingEffectiveness> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_findings_findings, 27);
+
+/**
+ * @generated from message vrooli.web_search.v1.findings.ListEffectivenessRequest
+ */
+export type ListEffectivenessRequest = Message<"vrooli.web_search.v1.findings.ListEffectivenessRequest"> & {
+  /**
+   * @generated from field: int32 limit = 1;
+   */
+  limit: number;
+
+  /**
+   * include_disputed adds DISPUTED findings to the report (default active only).
+   *
+   * @generated from field: bool include_disputed = 2;
+   */
+  includeDisputed: boolean;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.findings.ListEffectivenessRequest.
+ * Use `create(ListEffectivenessRequestSchema)` to create a new message.
+ */
+export const ListEffectivenessRequestSchema: GenMessage<ListEffectivenessRequest> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_findings_findings, 28);
+
+/**
+ * @generated from message vrooli.web_search.v1.findings.ListEffectivenessResponse
+ */
+export type ListEffectivenessResponse = Message<"vrooli.web_search.v1.findings.ListEffectivenessResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.web_search.v1.findings.FindingEffectiveness items = 1;
+   */
+  items: FindingEffectiveness[];
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.findings.ListEffectivenessResponse.
+ * Use `create(ListEffectivenessResponseSchema)` to create a new message.
+ */
+export const ListEffectivenessResponseSchema: GenMessage<ListEffectivenessResponse> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_findings_findings, 29);
+
+/**
+ * @generated from message vrooli.web_search.v1.findings.RecordUsageRequest
+ */
+export type RecordUsageRequest = Message<"vrooli.web_search.v1.findings.RecordUsageRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.findings.RecordUsageRequest.
+ * Use `create(RecordUsageRequestSchema)` to create a new message.
+ */
+export const RecordUsageRequestSchema: GenMessage<RecordUsageRequest> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_findings_findings, 30);
+
+/**
+ * @generated from message vrooli.web_search.v1.findings.RecordUsageResponse
+ */
+export type RecordUsageResponse = Message<"vrooli.web_search.v1.findings.RecordUsageResponse"> & {
+  /**
+   * finding echoes the finding whose usage was recorded.
+   *
+   * @generated from field: vrooli.web_search.v1.findings.Finding finding = 1;
+   */
+  finding?: Finding | undefined;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.findings.RecordUsageResponse.
+ * Use `create(RecordUsageResponseSchema)` to create a new message.
+ */
+export const RecordUsageResponseSchema: GenMessage<RecordUsageResponse> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_findings_findings, 31);
+
+/**
+ * @generated from message vrooli.web_search.v1.findings.RunGCRequest
+ */
+export type RunGCRequest = Message<"vrooli.web_search.v1.findings.RunGCRequest"> & {
+  /**
+   * dry_run reports the candidates without mutating anything.
+   *
+   * @generated from field: bool dry_run = 1;
+   */
+  dryRun: boolean;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.findings.RunGCRequest.
+ * Use `create(RunGCRequestSchema)` to create a new message.
+ */
+export const RunGCRequestSchema: GenMessage<RunGCRequest> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_findings_findings, 32);
+
+/**
+ * @generated from message vrooli.web_search.v1.findings.RunGCResponse
+ */
+export type RunGCResponse = Message<"vrooli.web_search.v1.findings.RunGCResponse"> & {
+  /**
+   * @generated from field: bool dry_run = 1;
+   */
+  dryRun: boolean;
+
+  /**
+   * superseded_decayed are the ids the GC retired (or, in a dry run, would
+   * retire): never-surfaced, fully-decayed, below the confidence floor.
+   *
+   * @generated from field: repeated string superseded_decayed = 2;
+   */
+  supersededDecayed: string[];
+
+  /**
+   * cold_archive_candidates are superseded findings past the cold-archive TTL
+   * (report only — the GC never hard-deletes).
+   *
+   * @generated from field: repeated string cold_archive_candidates = 3;
+   */
+  coldArchiveCandidates: string[];
+
+  /**
+   * stale_disputes are disputes unresolved past the expiry TTL (flagged for a
+   * human — the GC never auto-resolves a dispute).
+   *
+   * @generated from field: repeated string stale_disputes = 4;
+   */
+  staleDisputes: string[];
+
+  /**
+   * orphans are findings whose brief_id references a missing brief.
+   *
+   * @generated from field: repeated string orphans = 5;
+   */
+  orphans: string[];
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.findings.RunGCResponse.
+ * Use `create(RunGCResponseSchema)` to create a new message.
+ */
+export const RunGCResponseSchema: GenMessage<RunGCResponse> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_findings_findings, 33);
+
+/**
  * FindingStatus is the lifecycle state of a finding.
  *
  * @generated from enum vrooli.web_search.v1.findings.FindingStatus
@@ -909,6 +1111,45 @@ export const FindingsService: GenService<{
     methodKind: "unary";
     input: typeof CountFindingsRequestSchema;
     output: typeof CountFindingsResponseSchema;
+  },
+  /**
+   * ListEffectiveness returns findings joined to their usage telemetry
+   * (OT-P2-001): how often each was surfaced/used, when last surfaced, and the
+   * blended effective score (age-decayed confidence × usage factor). It is the
+   * read side of the usage-telemetry-driven curation signal.
+   *
+   * @generated from rpc vrooli.web_search.v1.findings.FindingsService.ListEffectiveness
+   */
+  listEffectiveness: {
+    methodKind: "unary";
+    input: typeof ListEffectivenessRequestSchema;
+    output: typeof ListEffectivenessResponseSchema;
+  },
+  /**
+   * RecordUsage records an explicit "this finding was used" signal for a
+   * finding (e.g. an operator or downstream consumer acted on it), distinct
+   * from the implicit surfacing recorded automatically on search.
+   *
+   * @generated from rpc vrooli.web_search.v1.findings.FindingsService.RecordUsage
+   */
+  recordUsage: {
+    methodKind: "unary";
+    input: typeof RecordUsageRequestSchema;
+    output: typeof RecordUsageResponseSchema;
+  },
+  /**
+   * RunGC runs the periodic full-store consistency pass (OT-P2-003): it
+   * soft-retires never-surfaced, fully-decayed findings (confidence-gated) and
+   * reports cold-archive candidates, stale disputes, and orphans. With dry_run
+   * it reports the candidates without mutating anything. It never hard-deletes
+   * and never auto-resolves a dispute.
+   *
+   * @generated from rpc vrooli.web_search.v1.findings.FindingsService.RunGC
+   */
+  runGC: {
+    methodKind: "unary";
+    input: typeof RunGCRequestSchema;
+    output: typeof RunGCResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_web_search_v1_findings_findings, 0);

@@ -524,6 +524,197 @@ func (x *GetResearchStatusResponse) GetErrorMsg() string {
 	return ""
 }
 
+type GatherRelatedFindingsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Query string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	// max requests an upper bound on how many nearby findings to return. The
+	// server clamps it to [1, 20]; an unset/non-positive value defaults to 20.
+	// The bound is enforced server-side — a caller cannot widen the sweep.
+	Max           int32 `protobuf:"varint,2,opt,name=max,proto3" json:"max,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GatherRelatedFindingsRequest) Reset() {
+	*x = GatherRelatedFindingsRequest{}
+	mi := &file_web_search_v1_research_research_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GatherRelatedFindingsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GatherRelatedFindingsRequest) ProtoMessage() {}
+
+func (x *GatherRelatedFindingsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_research_research_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GatherRelatedFindingsRequest.ProtoReflect.Descriptor instead.
+func (*GatherRelatedFindingsRequest) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GatherRelatedFindingsRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *GatherRelatedFindingsRequest) GetMax() int32 {
+	if x != nil {
+		return x.Max
+	}
+	return 0
+}
+
+// GatheredFinding is one finding semantically near the gather query, projected
+// to the fields the reconcile step needs (no full citation payload).
+type GatheredFinding struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	FindingId  string                 `protobuf:"bytes,1,opt,name=finding_id,json=findingId,proto3" json:"finding_id,omitempty"`
+	Claim      string                 `protobuf:"bytes,2,opt,name=claim,proto3" json:"claim,omitempty"`
+	Confidence float64                `protobuf:"fixed64,3,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	// status is the lifecycle state ("active" | "disputed"); superseded findings
+	// are excluded from the gather (they are not in the semantic index).
+	Status string `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	// score is the semantic relevance of this finding to the query.
+	Score         float64 `protobuf:"fixed64,5,opt,name=score,proto3" json:"score,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GatheredFinding) Reset() {
+	*x = GatheredFinding{}
+	mi := &file_web_search_v1_research_research_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GatheredFinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GatheredFinding) ProtoMessage() {}
+
+func (x *GatheredFinding) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_research_research_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GatheredFinding.ProtoReflect.Descriptor instead.
+func (*GatheredFinding) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GatheredFinding) GetFindingId() string {
+	if x != nil {
+		return x.FindingId
+	}
+	return ""
+}
+
+func (x *GatheredFinding) GetClaim() string {
+	if x != nil {
+		return x.Claim
+	}
+	return ""
+}
+
+func (x *GatheredFinding) GetConfidence() float64 {
+	if x != nil {
+		return x.Confidence
+	}
+	return 0
+}
+
+func (x *GatheredFinding) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *GatheredFinding) GetScore() float64 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+type GatherRelatedFindingsResponse struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Findings []*GatheredFinding     `protobuf:"bytes,1,rep,name=findings,proto3" json:"findings,omitempty"`
+	// cap_applied is the effective bound the server enforced for this gather
+	// (after clamping the requested max), so callers can see the sweep was
+	// bounded.
+	CapApplied    int32 `protobuf:"varint,2,opt,name=cap_applied,json=capApplied,proto3" json:"cap_applied,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GatherRelatedFindingsResponse) Reset() {
+	*x = GatherRelatedFindingsResponse{}
+	mi := &file_web_search_v1_research_research_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GatherRelatedFindingsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GatherRelatedFindingsResponse) ProtoMessage() {}
+
+func (x *GatherRelatedFindingsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_research_research_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GatherRelatedFindingsResponse.ProtoReflect.Descriptor instead.
+func (*GatherRelatedFindingsResponse) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GatherRelatedFindingsResponse) GetFindings() []*GatheredFinding {
+	if x != nil {
+		return x.Findings
+	}
+	return nil
+}
+
+func (x *GatherRelatedFindingsResponse) GetCapApplied() int32 {
+	if x != nil {
+		return x.CapApplied
+	}
+	return 0
+}
+
 var File_web_search_v1_research_research_proto protoreflect.FileDescriptor
 
 const file_web_search_v1_research_research_proto_rawDesc = "" +
@@ -562,11 +753,28 @@ const file_web_search_v1_research_research_proto_rawDesc = "" +
 	"started_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12;\n" +
 	"\vfinished_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"finishedAt\x12\x1b\n" +
-	"\terror_msg\x18\x06 \x01(\tR\berrorMsg2\xe2\x02\n" +
+	"\terror_msg\x18\x06 \x01(\tR\berrorMsg\"F\n" +
+	"\x1cGatherRelatedFindingsRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12\x10\n" +
+	"\x03max\x18\x02 \x01(\x05R\x03max\"\x94\x01\n" +
+	"\x0fGatheredFinding\x12\x1d\n" +
+	"\n" +
+	"finding_id\x18\x01 \x01(\tR\tfindingId\x12\x14\n" +
+	"\x05claim\x18\x02 \x01(\tR\x05claim\x12\x1e\n" +
+	"\n" +
+	"confidence\x18\x03 \x01(\x01R\n" +
+	"confidence\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x14\n" +
+	"\x05score\x18\x05 \x01(\x01R\x05score\"\x8c\x01\n" +
+	"\x1dGatherRelatedFindingsResponse\x12J\n" +
+	"\bfindings\x18\x01 \x03(\v2..vrooli.web_search.v1.research.GatheredFindingR\bfindings\x12\x1f\n" +
+	"\vcap_applied\x18\x02 \x01(\x05R\n" +
+	"capApplied2\xf7\x03\n" +
 	"\x0fResearchService\x12b\n" +
 	"\x05RunL2\x12+.vrooli.web_search.v1.research.RunL2Request\x1a,.vrooli.web_search.v1.research.RunL2Response\x12b\n" +
 	"\x05RunL3\x12+.vrooli.web_search.v1.research.RunL3Request\x1a,.vrooli.web_search.v1.research.RunL3Response\x12\x86\x01\n" +
-	"\x11GetResearchStatus\x127.vrooli.web_search.v1.research.GetResearchStatusRequest\x1a8.vrooli.web_search.v1.research.GetResearchStatusResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research;research_v1b\x06proto3"
+	"\x11GetResearchStatus\x127.vrooli.web_search.v1.research.GetResearchStatusRequest\x1a8.vrooli.web_search.v1.research.GetResearchStatusResponse\x12\x92\x01\n" +
+	"\x15GatherRelatedFindings\x12;.vrooli.web_search.v1.research.GatherRelatedFindingsRequest\x1a<.vrooli.web_search.v1.research.GatherRelatedFindingsResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research;research_v1b\x06proto3"
 
 var (
 	file_web_search_v1_research_research_proto_rawDescOnce sync.Once
@@ -580,34 +788,40 @@ func file_web_search_v1_research_research_proto_rawDescGZIP() []byte {
 	return file_web_search_v1_research_research_proto_rawDescData
 }
 
-var file_web_search_v1_research_research_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_web_search_v1_research_research_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_web_search_v1_research_research_proto_goTypes = []any{
-	(*Citation)(nil),                  // 0: vrooli.web_search.v1.research.Citation
-	(*Brief)(nil),                     // 1: vrooli.web_search.v1.research.Brief
-	(*RunL2Request)(nil),              // 2: vrooli.web_search.v1.research.RunL2Request
-	(*RunL2Response)(nil),             // 3: vrooli.web_search.v1.research.RunL2Response
-	(*RunL3Request)(nil),              // 4: vrooli.web_search.v1.research.RunL3Request
-	(*RunL3Response)(nil),             // 5: vrooli.web_search.v1.research.RunL3Response
-	(*GetResearchStatusRequest)(nil),  // 6: vrooli.web_search.v1.research.GetResearchStatusRequest
-	(*GetResearchStatusResponse)(nil), // 7: vrooli.web_search.v1.research.GetResearchStatusResponse
-	(*timestamppb.Timestamp)(nil),     // 8: google.protobuf.Timestamp
+	(*Citation)(nil),                      // 0: vrooli.web_search.v1.research.Citation
+	(*Brief)(nil),                         // 1: vrooli.web_search.v1.research.Brief
+	(*RunL2Request)(nil),                  // 2: vrooli.web_search.v1.research.RunL2Request
+	(*RunL2Response)(nil),                 // 3: vrooli.web_search.v1.research.RunL2Response
+	(*RunL3Request)(nil),                  // 4: vrooli.web_search.v1.research.RunL3Request
+	(*RunL3Response)(nil),                 // 5: vrooli.web_search.v1.research.RunL3Response
+	(*GetResearchStatusRequest)(nil),      // 6: vrooli.web_search.v1.research.GetResearchStatusRequest
+	(*GetResearchStatusResponse)(nil),     // 7: vrooli.web_search.v1.research.GetResearchStatusResponse
+	(*GatherRelatedFindingsRequest)(nil),  // 8: vrooli.web_search.v1.research.GatherRelatedFindingsRequest
+	(*GatheredFinding)(nil),               // 9: vrooli.web_search.v1.research.GatheredFinding
+	(*GatherRelatedFindingsResponse)(nil), // 10: vrooli.web_search.v1.research.GatherRelatedFindingsResponse
+	(*timestamppb.Timestamp)(nil),         // 11: google.protobuf.Timestamp
 }
 var file_web_search_v1_research_research_proto_depIdxs = []int32{
-	0, // 0: vrooli.web_search.v1.research.Brief.citations:type_name -> vrooli.web_search.v1.research.Citation
-	1, // 1: vrooli.web_search.v1.research.RunL2Response.brief:type_name -> vrooli.web_search.v1.research.Brief
-	8, // 2: vrooli.web_search.v1.research.GetResearchStatusResponse.started_at:type_name -> google.protobuf.Timestamp
-	8, // 3: vrooli.web_search.v1.research.GetResearchStatusResponse.finished_at:type_name -> google.protobuf.Timestamp
-	2, // 4: vrooli.web_search.v1.research.ResearchService.RunL2:input_type -> vrooli.web_search.v1.research.RunL2Request
-	4, // 5: vrooli.web_search.v1.research.ResearchService.RunL3:input_type -> vrooli.web_search.v1.research.RunL3Request
-	6, // 6: vrooli.web_search.v1.research.ResearchService.GetResearchStatus:input_type -> vrooli.web_search.v1.research.GetResearchStatusRequest
-	3, // 7: vrooli.web_search.v1.research.ResearchService.RunL2:output_type -> vrooli.web_search.v1.research.RunL2Response
-	5, // 8: vrooli.web_search.v1.research.ResearchService.RunL3:output_type -> vrooli.web_search.v1.research.RunL3Response
-	7, // 9: vrooli.web_search.v1.research.ResearchService.GetResearchStatus:output_type -> vrooli.web_search.v1.research.GetResearchStatusResponse
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0,  // 0: vrooli.web_search.v1.research.Brief.citations:type_name -> vrooli.web_search.v1.research.Citation
+	1,  // 1: vrooli.web_search.v1.research.RunL2Response.brief:type_name -> vrooli.web_search.v1.research.Brief
+	11, // 2: vrooli.web_search.v1.research.GetResearchStatusResponse.started_at:type_name -> google.protobuf.Timestamp
+	11, // 3: vrooli.web_search.v1.research.GetResearchStatusResponse.finished_at:type_name -> google.protobuf.Timestamp
+	9,  // 4: vrooli.web_search.v1.research.GatherRelatedFindingsResponse.findings:type_name -> vrooli.web_search.v1.research.GatheredFinding
+	2,  // 5: vrooli.web_search.v1.research.ResearchService.RunL2:input_type -> vrooli.web_search.v1.research.RunL2Request
+	4,  // 6: vrooli.web_search.v1.research.ResearchService.RunL3:input_type -> vrooli.web_search.v1.research.RunL3Request
+	6,  // 7: vrooli.web_search.v1.research.ResearchService.GetResearchStatus:input_type -> vrooli.web_search.v1.research.GetResearchStatusRequest
+	8,  // 8: vrooli.web_search.v1.research.ResearchService.GatherRelatedFindings:input_type -> vrooli.web_search.v1.research.GatherRelatedFindingsRequest
+	3,  // 9: vrooli.web_search.v1.research.ResearchService.RunL2:output_type -> vrooli.web_search.v1.research.RunL2Response
+	5,  // 10: vrooli.web_search.v1.research.ResearchService.RunL3:output_type -> vrooli.web_search.v1.research.RunL3Response
+	7,  // 11: vrooli.web_search.v1.research.ResearchService.GetResearchStatus:output_type -> vrooli.web_search.v1.research.GetResearchStatusResponse
+	10, // 12: vrooli.web_search.v1.research.ResearchService.GatherRelatedFindings:output_type -> vrooli.web_search.v1.research.GatherRelatedFindingsResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_web_search_v1_research_research_proto_init() }
@@ -621,7 +835,7 @@ func file_web_search_v1_research_research_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_search_v1_research_research_proto_rawDesc), len(file_web_search_v1_research_research_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

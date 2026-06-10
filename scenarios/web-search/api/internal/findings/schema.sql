@@ -61,3 +61,21 @@ CREATE TABLE IF NOT EXISTS finding_audit (
 
 CREATE INDEX IF NOT EXISTS idx_finding_audit_finding
   ON finding_audit(finding_id, created_at DESC);
+
+-- finding_usage is the usage-telemetry side table (OT-P2-001). It is kept
+-- SEPARATE from the findings row so surfacing events never mutate the
+-- provenance-bearing finding (claim/confidence/audit stay immutable). A row is
+-- a running counter of how often a finding was surfaced (returned by search)
+-- and explicitly marked used, plus when it was last surfaced. A never-surfaced
+-- finding simply has no row (treated as zero). The row cascades on delete so a
+-- pruned finding's counters go with it.
+CREATE TABLE IF NOT EXISTS finding_usage (
+  finding_id       TEXT PRIMARY KEY,
+  surfaced_count   INTEGER NOT NULL DEFAULT 0,
+  used_count       INTEGER NOT NULL DEFAULT 0,
+  last_surfaced_at TEXT NOT NULL DEFAULT '',
+  FOREIGN KEY (finding_id) REFERENCES findings(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_finding_usage_surfaced
+  ON finding_usage(surfaced_count, last_surfaced_at);

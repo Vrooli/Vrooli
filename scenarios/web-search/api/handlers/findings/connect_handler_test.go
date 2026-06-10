@@ -93,3 +93,123 @@ func TestCountFindingsDefaultsWindow(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(1), resp.Msg.Count)
 }
+
+// recordingSurfacer captures the ids the handler enqueues, proving the search
+// path hands surfacing to the seam rather than writing synchronously.
+type recordingSurfacer struct {
+	calls [][]string
+}
+
+func (r *recordingSurfacer) Surfaced(ids []string) {
+	r.calls = append(r.calls, ids)
+}
+
+// TestSearchFindingsSurfacesAsync proves SearchFindings enqueues the surfaced
+// ids on the Surfacer seam (fire-and-forget) — never writing usage on the hot
+// path — and records only the semantic hits actually returned, not superseded
+// archived appends.
+func TestSearchFindingsSurfacesAsync(t *testing.T) {
+	ctx := context.Background()
+	svc := newFindingsService(t)
+	a, err := svc.Add(ctx, internalfindings.NewFinding{Claim: "surfaced one", Source: internalfindings.SourceManual})
+	require.NoError(t, err)
+	b, err := svc.Add(ctx, internalfindings.NewFinding{Claim: "surfaced two", Source: internalfindings.SourceManual})
+	require.NoError(t, err)
+
+	searcher := &fakeSearcher{method: "dense", hits: []findingindex.Hit{
+		{FindingID: a.ID, Score: 0.9},
+		{FindingID: b.ID, Score: 0.8},
+	}}
+	surfacer := &recordingSurfacer{}
+	h := handler.NewConnectHandler(handler.Deps{Service: svc, Searcher: searcher, Surfacer: surfacer, Clock: clock.System{}})
+
+	resp, err := h.SearchFindings(ctx, connect.NewRequest(&findingsv1.SearchFindingsRequest{Query: "surfaced", Limit: 10}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.Hits, 2)
+
+	// The seam saw exactly the returned hit ids — proof surfacing went through the
+	// async seam, not a synchronous repo write (no usage row exists yet).
+	require.Len(t, surfacer.calls, 1)
+	require.ElementsMatch(t, []string{a.ID, b.ID}, surfacer.calls[0])
+
+	// No synchronous usage write happened on the hot path.
+	eff, err := svc.ListEffectiveness(ctx, false, 10)
+	require.NoError(t, err)
+	for _, e := range eff {
+		require.Zero(t, e.Usage.SurfacedCount, "search must not write usage synchronously")
+	}
+}
+
+// TestListEffectivenessBlendsAndRecordUsage exercises the effectiveness read
+// path and the explicit RecordUsage write through the handler.
+func TestListEffectivenessBlendsAndRecordUsage(t *testing.T) {
+	ctx := context.Background()
+	svc := newFindingsService(t)
+	f, err := svc.Add(ctx, internalfindings.NewFinding{Claim: "effective claim", Confidence: 0.8, Source: internalfindings.SourceManual})
+	require.NoError(t, err)
+	h := handler.NewConnectHandler(handler.Deps{Service: svc, Clock: clock.System{}})
+
+	// Before any usage: factor 1.0 (fresh), effective_score == effective_confidence.
+	resp, err := h.ListEffectiveness(ctx, connect.NewRequest(&findingsv1.ListEffectivenessRequest{Limit: 10}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.Items, 1)
+	item := resp.Msg.Items[0]
+	require.InDelta(t, 1.0, item.UsageFactor, 1e-9)
+	require.InDelta(t, item.EffectiveConfidence, item.EffectiveScore, 1e-9)
+	require.Zero(t, item.SurfacedCount)
+
+	// RecordUsage bumps the used counter.
+	useResp, err := h.RecordUsage(ctx, connect.NewRequest(&findingsv1.RecordUsageRequest{Id: f.ID}))
+	require.NoError(t, err)
+	require.Equal(t, f.ID, useResp.Msg.Finding.Id)
+
+	resp, err = h.ListEffectiveness(ctx, connect.NewRequest(&findingsv1.ListEffectivenessRequest{Limit: 10}))
+	require.NoError(t, err)
+	require.Equal(t, int32(1), resp.Msg.Items[0].UsedCount)
+
+	// A bogus RecordUsage id is NotFound.
+	_, err = h.RecordUsage(ctx, connect.NewRequest(&findingsv1.RecordUsageRequest{Id: "nope"}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+// fakeGC is a GCRunner that returns a canned report and records the dry-run flag.
+type fakeGC struct {
+	report    internalfindings.GCReport
+	gotDryRun bool
+}
+
+func (g *fakeGC) Run(_ context.Context, dryRun bool) (internalfindings.GCReport, error) {
+	g.gotDryRun = dryRun
+	g.report.DryRun = dryRun
+	return g.report, nil
+}
+
+// TestRunGCProjectsReport asserts the handler threads the dry-run flag and maps
+// the report onto the wire response; and that an unconfigured GC is Unavailable.
+func TestRunGCProjectsReport(t *testing.T) {
+	ctx := context.Background()
+	svc := newFindingsService(t)
+	gc := &fakeGC{report: internalfindings.GCReport{
+		SupersededDecayed:     []string{"a"},
+		ColdArchiveCandidates: []string{"b"},
+		StaleDisputes:         []string{"c"},
+		Orphans:               []string{"d"},
+	}}
+	h := handler.NewConnectHandler(handler.Deps{Service: svc, GC: gc, Clock: clock.System{}})
+
+	resp, err := h.RunGC(ctx, connect.NewRequest(&findingsv1.RunGCRequest{DryRun: true}))
+	require.NoError(t, err)
+	require.True(t, gc.gotDryRun)
+	require.True(t, resp.Msg.DryRun)
+	require.Equal(t, []string{"a"}, resp.Msg.SupersededDecayed)
+	require.Equal(t, []string{"b"}, resp.Msg.ColdArchiveCandidates)
+	require.Equal(t, []string{"c"}, resp.Msg.StaleDisputes)
+	require.Equal(t, []string{"d"}, resp.Msg.Orphans)
+
+	// No GC wired ⇒ Unavailable.
+	hNoGC := handler.NewConnectHandler(handler.Deps{Service: svc, Clock: clock.System{}})
+	_, err = hNoGC.RunGC(ctx, connect.NewRequest(&findingsv1.RunGCRequest{}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+}

@@ -1680,6 +1680,418 @@ func (x *CountFindingsResponse) GetCount() int64 {
 	return 0
 }
 
+// FindingEffectiveness pairs a finding with its usage telemetry and the blended
+// trust score the curation signal reads.
+type FindingEffectiveness struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Finding       *Finding               `protobuf:"bytes,1,opt,name=finding,proto3" json:"finding,omitempty"`
+	SurfacedCount int32                  `protobuf:"varint,2,opt,name=surfaced_count,json=surfacedCount,proto3" json:"surfaced_count,omitempty"`
+	UsedCount     int32                  `protobuf:"varint,3,opt,name=used_count,json=usedCount,proto3" json:"used_count,omitempty"`
+	// last_surfaced_at is unset when the finding has never been surfaced.
+	LastSurfacedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_surfaced_at,json=lastSurfacedAt,proto3" json:"last_surfaced_at,omitempty"`
+	// effective_confidence is the age-decayed stored confidence.
+	EffectiveConfidence float64 `protobuf:"fixed64,5,opt,name=effective_confidence,json=effectiveConfidence,proto3" json:"effective_confidence,omitempty"`
+	// usage_factor is the usage down-weight in [0.5, 1] (1 once ever surfaced).
+	UsageFactor float64 `protobuf:"fixed64,6,opt,name=usage_factor,json=usageFactor,proto3" json:"usage_factor,omitempty"`
+	// effective_score is effective_confidence × usage_factor.
+	EffectiveScore float64 `protobuf:"fixed64,7,opt,name=effective_score,json=effectiveScore,proto3" json:"effective_score,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *FindingEffectiveness) Reset() {
+	*x = FindingEffectiveness{}
+	mi := &file_web_search_v1_findings_findings_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FindingEffectiveness) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FindingEffectiveness) ProtoMessage() {}
+
+func (x *FindingEffectiveness) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_findings_findings_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FindingEffectiveness.ProtoReflect.Descriptor instead.
+func (*FindingEffectiveness) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_findings_findings_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *FindingEffectiveness) GetFinding() *Finding {
+	if x != nil {
+		return x.Finding
+	}
+	return nil
+}
+
+func (x *FindingEffectiveness) GetSurfacedCount() int32 {
+	if x != nil {
+		return x.SurfacedCount
+	}
+	return 0
+}
+
+func (x *FindingEffectiveness) GetUsedCount() int32 {
+	if x != nil {
+		return x.UsedCount
+	}
+	return 0
+}
+
+func (x *FindingEffectiveness) GetLastSurfacedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastSurfacedAt
+	}
+	return nil
+}
+
+func (x *FindingEffectiveness) GetEffectiveConfidence() float64 {
+	if x != nil {
+		return x.EffectiveConfidence
+	}
+	return 0
+}
+
+func (x *FindingEffectiveness) GetUsageFactor() float64 {
+	if x != nil {
+		return x.UsageFactor
+	}
+	return 0
+}
+
+func (x *FindingEffectiveness) GetEffectiveScore() float64 {
+	if x != nil {
+		return x.EffectiveScore
+	}
+	return 0
+}
+
+type ListEffectivenessRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Limit int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	// include_disputed adds DISPUTED findings to the report (default active only).
+	IncludeDisputed bool `protobuf:"varint,2,opt,name=include_disputed,json=includeDisputed,proto3" json:"include_disputed,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ListEffectivenessRequest) Reset() {
+	*x = ListEffectivenessRequest{}
+	mi := &file_web_search_v1_findings_findings_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEffectivenessRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEffectivenessRequest) ProtoMessage() {}
+
+func (x *ListEffectivenessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_findings_findings_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEffectivenessRequest.ProtoReflect.Descriptor instead.
+func (*ListEffectivenessRequest) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_findings_findings_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *ListEffectivenessRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListEffectivenessRequest) GetIncludeDisputed() bool {
+	if x != nil {
+		return x.IncludeDisputed
+	}
+	return false
+}
+
+type ListEffectivenessResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Items         []*FindingEffectiveness `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEffectivenessResponse) Reset() {
+	*x = ListEffectivenessResponse{}
+	mi := &file_web_search_v1_findings_findings_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEffectivenessResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEffectivenessResponse) ProtoMessage() {}
+
+func (x *ListEffectivenessResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_findings_findings_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEffectivenessResponse.ProtoReflect.Descriptor instead.
+func (*ListEffectivenessResponse) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_findings_findings_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *ListEffectivenessResponse) GetItems() []*FindingEffectiveness {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+type RecordUsageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordUsageRequest) Reset() {
+	*x = RecordUsageRequest{}
+	mi := &file_web_search_v1_findings_findings_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordUsageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordUsageRequest) ProtoMessage() {}
+
+func (x *RecordUsageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_findings_findings_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordUsageRequest.ProtoReflect.Descriptor instead.
+func (*RecordUsageRequest) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_findings_findings_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *RecordUsageRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type RecordUsageResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// finding echoes the finding whose usage was recorded.
+	Finding       *Finding `protobuf:"bytes,1,opt,name=finding,proto3" json:"finding,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordUsageResponse) Reset() {
+	*x = RecordUsageResponse{}
+	mi := &file_web_search_v1_findings_findings_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordUsageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordUsageResponse) ProtoMessage() {}
+
+func (x *RecordUsageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_findings_findings_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordUsageResponse.ProtoReflect.Descriptor instead.
+func (*RecordUsageResponse) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_findings_findings_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *RecordUsageResponse) GetFinding() *Finding {
+	if x != nil {
+		return x.Finding
+	}
+	return nil
+}
+
+type RunGCRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// dry_run reports the candidates without mutating anything.
+	DryRun        bool `protobuf:"varint,1,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunGCRequest) Reset() {
+	*x = RunGCRequest{}
+	mi := &file_web_search_v1_findings_findings_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunGCRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunGCRequest) ProtoMessage() {}
+
+func (x *RunGCRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_findings_findings_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunGCRequest.ProtoReflect.Descriptor instead.
+func (*RunGCRequest) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_findings_findings_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *RunGCRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+type RunGCResponse struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	DryRun bool                   `protobuf:"varint,1,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	// superseded_decayed are the ids the GC retired (or, in a dry run, would
+	// retire): never-surfaced, fully-decayed, below the confidence floor.
+	SupersededDecayed []string `protobuf:"bytes,2,rep,name=superseded_decayed,json=supersededDecayed,proto3" json:"superseded_decayed,omitempty"`
+	// cold_archive_candidates are superseded findings past the cold-archive TTL
+	// (report only — the GC never hard-deletes).
+	ColdArchiveCandidates []string `protobuf:"bytes,3,rep,name=cold_archive_candidates,json=coldArchiveCandidates,proto3" json:"cold_archive_candidates,omitempty"`
+	// stale_disputes are disputes unresolved past the expiry TTL (flagged for a
+	// human — the GC never auto-resolves a dispute).
+	StaleDisputes []string `protobuf:"bytes,4,rep,name=stale_disputes,json=staleDisputes,proto3" json:"stale_disputes,omitempty"`
+	// orphans are findings whose brief_id references a missing brief.
+	Orphans       []string `protobuf:"bytes,5,rep,name=orphans,proto3" json:"orphans,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunGCResponse) Reset() {
+	*x = RunGCResponse{}
+	mi := &file_web_search_v1_findings_findings_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunGCResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunGCResponse) ProtoMessage() {}
+
+func (x *RunGCResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_findings_findings_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunGCResponse.ProtoReflect.Descriptor instead.
+func (*RunGCResponse) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_findings_findings_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *RunGCResponse) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+func (x *RunGCResponse) GetSupersededDecayed() []string {
+	if x != nil {
+		return x.SupersededDecayed
+	}
+	return nil
+}
+
+func (x *RunGCResponse) GetColdArchiveCandidates() []string {
+	if x != nil {
+		return x.ColdArchiveCandidates
+	}
+	return nil
+}
+
+func (x *RunGCResponse) GetStaleDisputes() []string {
+	if x != nil {
+		return x.StaleDisputes
+	}
+	return nil
+}
+
+func (x *RunGCResponse) GetOrphans() []string {
+	if x != nil {
+		return x.Orphans
+	}
+	return nil
+}
+
 var File_web_search_v1_findings_findings_proto protoreflect.FileDescriptor
 
 const file_web_search_v1_findings_findings_proto_rawDesc = "" +
@@ -1795,7 +2207,33 @@ const file_web_search_v1_findings_findings_proto_rawDesc = "" +
 	"\x14CountFindingsRequest\x126\n" +
 	"\x06window\x18\x01 \x01(\v2\x1e.vrooli.measures.v1.TimeWindowR\x06window\"-\n" +
 	"\x15CountFindingsResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x03R\x05count*\x86\x01\n" +
+	"\x05count\x18\x01 \x01(\x03R\x05count\"\xe3\x02\n" +
+	"\x14FindingEffectiveness\x12@\n" +
+	"\afinding\x18\x01 \x01(\v2&.vrooli.web_search.v1.findings.FindingR\afinding\x12%\n" +
+	"\x0esurfaced_count\x18\x02 \x01(\x05R\rsurfacedCount\x12\x1d\n" +
+	"\n" +
+	"used_count\x18\x03 \x01(\x05R\tusedCount\x12D\n" +
+	"\x10last_surfaced_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x0elastSurfacedAt\x121\n" +
+	"\x14effective_confidence\x18\x05 \x01(\x01R\x13effectiveConfidence\x12!\n" +
+	"\fusage_factor\x18\x06 \x01(\x01R\vusageFactor\x12'\n" +
+	"\x0feffective_score\x18\a \x01(\x01R\x0eeffectiveScore\"[\n" +
+	"\x18ListEffectivenessRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12)\n" +
+	"\x10include_disputed\x18\x02 \x01(\bR\x0fincludeDisputed\"f\n" +
+	"\x19ListEffectivenessResponse\x12I\n" +
+	"\x05items\x18\x01 \x03(\v23.vrooli.web_search.v1.findings.FindingEffectivenessR\x05items\"$\n" +
+	"\x12RecordUsageRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"W\n" +
+	"\x13RecordUsageResponse\x12@\n" +
+	"\afinding\x18\x01 \x01(\v2&.vrooli.web_search.v1.findings.FindingR\afinding\"'\n" +
+	"\fRunGCRequest\x12\x17\n" +
+	"\adry_run\x18\x01 \x01(\bR\x06dryRun\"\xd0\x01\n" +
+	"\rRunGCResponse\x12\x17\n" +
+	"\adry_run\x18\x01 \x01(\bR\x06dryRun\x12-\n" +
+	"\x12superseded_decayed\x18\x02 \x03(\tR\x11supersededDecayed\x126\n" +
+	"\x17cold_archive_candidates\x18\x03 \x03(\tR\x15coldArchiveCandidates\x12%\n" +
+	"\x0estale_disputes\x18\x04 \x03(\tR\rstaleDisputes\x12\x18\n" +
+	"\aorphans\x18\x05 \x03(\tR\aorphans*\x86\x01\n" +
 	"\rFindingStatus\x12\x1e\n" +
 	"\x1aFINDING_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15FINDING_STATUS_ACTIVE\x10\x01\x12\x1b\n" +
@@ -1805,8 +2243,7 @@ const file_web_search_v1_findings_findings_proto_rawDesc = "" +
 	"\x1aFINDING_SOURCE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15FINDING_SOURCE_MANUAL\x10\x01\x12\x15\n" +
 	"\x11FINDING_SOURCE_L2\x10\x02\x12\x15\n" +
-	"\x11FINDING_SOURCE_L3\x10\x032\xd1\n" +
-	"\n" +
+	"\x11FINDING_SOURCE_L3\x10\x032\xb4\r\n" +
 	"\x0fFindingsService\x12w\n" +
 	"\fListFindings\x122.vrooli.web_search.v1.findings.ListFindingsRequest\x1a3.vrooli.web_search.v1.findings.ListFindingsResponse\x12q\n" +
 	"\n" +
@@ -1820,7 +2257,10 @@ const file_web_search_v1_findings_findings_proto_rawDesc = "" +
 	"\x0eResolveDispute\x124.vrooli.web_search.v1.findings.ResolveDisputeRequest\x1a5.vrooli.web_search.v1.findings.ResolveDisputeResponse\x12z\n" +
 	"\rPruneFindings\x123.vrooli.web_search.v1.findings.PruneFindingsRequest\x1a4.vrooli.web_search.v1.findings.PruneFindingsResponse\x12}\n" +
 	"\x0eSearchFindings\x124.vrooli.web_search.v1.findings.SearchFindingsRequest\x1a5.vrooli.web_search.v1.findings.SearchFindingsResponse\x12z\n" +
-	"\rCountFindings\x123.vrooli.web_search.v1.findings.CountFindingsRequest\x1a4.vrooli.web_search.v1.findings.CountFindingsResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/findings;findings_v1b\x06proto3"
+	"\rCountFindings\x123.vrooli.web_search.v1.findings.CountFindingsRequest\x1a4.vrooli.web_search.v1.findings.CountFindingsResponse\x12\x86\x01\n" +
+	"\x11ListEffectiveness\x127.vrooli.web_search.v1.findings.ListEffectivenessRequest\x1a8.vrooli.web_search.v1.findings.ListEffectivenessResponse\x12t\n" +
+	"\vRecordUsage\x121.vrooli.web_search.v1.findings.RecordUsageRequest\x1a2.vrooli.web_search.v1.findings.RecordUsageResponse\x12b\n" +
+	"\x05RunGC\x12+.vrooli.web_search.v1.findings.RunGCRequest\x1a,.vrooli.web_search.v1.findings.RunGCResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/findings;findings_v1b\x06proto3"
 
 var (
 	file_web_search_v1_findings_findings_proto_rawDescOnce sync.Once
@@ -1835,49 +2275,56 @@ func file_web_search_v1_findings_findings_proto_rawDescGZIP() []byte {
 }
 
 var file_web_search_v1_findings_findings_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_web_search_v1_findings_findings_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_web_search_v1_findings_findings_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_web_search_v1_findings_findings_proto_goTypes = []any{
-	(FindingStatus)(0),               // 0: vrooli.web_search.v1.findings.FindingStatus
-	(FindingSource)(0),               // 1: vrooli.web_search.v1.findings.FindingSource
-	(*Citation)(nil),                 // 2: vrooli.web_search.v1.findings.Citation
-	(*CitationInput)(nil),            // 3: vrooli.web_search.v1.findings.CitationInput
-	(*Brief)(nil),                    // 4: vrooli.web_search.v1.findings.Brief
-	(*Finding)(nil),                  // 5: vrooli.web_search.v1.findings.Finding
-	(*ListFindingsRequest)(nil),      // 6: vrooli.web_search.v1.findings.ListFindingsRequest
-	(*ListFindingsResponse)(nil),     // 7: vrooli.web_search.v1.findings.ListFindingsResponse
-	(*GetFindingRequest)(nil),        // 8: vrooli.web_search.v1.findings.GetFindingRequest
-	(*GetFindingResponse)(nil),       // 9: vrooli.web_search.v1.findings.GetFindingResponse
-	(*AddFindingRequest)(nil),        // 10: vrooli.web_search.v1.findings.AddFindingRequest
-	(*AddFindingResponse)(nil),       // 11: vrooli.web_search.v1.findings.AddFindingResponse
-	(*EditFindingRequest)(nil),       // 12: vrooli.web_search.v1.findings.EditFindingRequest
-	(*EditFindingResponse)(nil),      // 13: vrooli.web_search.v1.findings.EditFindingResponse
-	(*SupersedeFindingRequest)(nil),  // 14: vrooli.web_search.v1.findings.SupersedeFindingRequest
-	(*SupersedeFindingResponse)(nil), // 15: vrooli.web_search.v1.findings.SupersedeFindingResponse
-	(*FlagFindingRequest)(nil),       // 16: vrooli.web_search.v1.findings.FlagFindingRequest
-	(*FlagFindingResponse)(nil),      // 17: vrooli.web_search.v1.findings.FlagFindingResponse
-	(*ListDisputesRequest)(nil),      // 18: vrooli.web_search.v1.findings.ListDisputesRequest
-	(*ListDisputesResponse)(nil),     // 19: vrooli.web_search.v1.findings.ListDisputesResponse
-	(*ResolveDisputeRequest)(nil),    // 20: vrooli.web_search.v1.findings.ResolveDisputeRequest
-	(*ResolveDisputeResponse)(nil),   // 21: vrooli.web_search.v1.findings.ResolveDisputeResponse
-	(*PruneFindingsRequest)(nil),     // 22: vrooli.web_search.v1.findings.PruneFindingsRequest
-	(*PruneFindingsResponse)(nil),    // 23: vrooli.web_search.v1.findings.PruneFindingsResponse
-	(*SearchFindingsRequest)(nil),    // 24: vrooli.web_search.v1.findings.SearchFindingsRequest
-	(*FindingHit)(nil),               // 25: vrooli.web_search.v1.findings.FindingHit
-	(*SearchFindingsResponse)(nil),   // 26: vrooli.web_search.v1.findings.SearchFindingsResponse
-	(*CountFindingsRequest)(nil),     // 27: vrooli.web_search.v1.findings.CountFindingsRequest
-	(*CountFindingsResponse)(nil),    // 28: vrooli.web_search.v1.findings.CountFindingsResponse
-	(*timestamppb.Timestamp)(nil),    // 29: google.protobuf.Timestamp
-	(*v1.TimeWindow)(nil),            // 30: vrooli.measures.v1.TimeWindow
+	(FindingStatus)(0),                // 0: vrooli.web_search.v1.findings.FindingStatus
+	(FindingSource)(0),                // 1: vrooli.web_search.v1.findings.FindingSource
+	(*Citation)(nil),                  // 2: vrooli.web_search.v1.findings.Citation
+	(*CitationInput)(nil),             // 3: vrooli.web_search.v1.findings.CitationInput
+	(*Brief)(nil),                     // 4: vrooli.web_search.v1.findings.Brief
+	(*Finding)(nil),                   // 5: vrooli.web_search.v1.findings.Finding
+	(*ListFindingsRequest)(nil),       // 6: vrooli.web_search.v1.findings.ListFindingsRequest
+	(*ListFindingsResponse)(nil),      // 7: vrooli.web_search.v1.findings.ListFindingsResponse
+	(*GetFindingRequest)(nil),         // 8: vrooli.web_search.v1.findings.GetFindingRequest
+	(*GetFindingResponse)(nil),        // 9: vrooli.web_search.v1.findings.GetFindingResponse
+	(*AddFindingRequest)(nil),         // 10: vrooli.web_search.v1.findings.AddFindingRequest
+	(*AddFindingResponse)(nil),        // 11: vrooli.web_search.v1.findings.AddFindingResponse
+	(*EditFindingRequest)(nil),        // 12: vrooli.web_search.v1.findings.EditFindingRequest
+	(*EditFindingResponse)(nil),       // 13: vrooli.web_search.v1.findings.EditFindingResponse
+	(*SupersedeFindingRequest)(nil),   // 14: vrooli.web_search.v1.findings.SupersedeFindingRequest
+	(*SupersedeFindingResponse)(nil),  // 15: vrooli.web_search.v1.findings.SupersedeFindingResponse
+	(*FlagFindingRequest)(nil),        // 16: vrooli.web_search.v1.findings.FlagFindingRequest
+	(*FlagFindingResponse)(nil),       // 17: vrooli.web_search.v1.findings.FlagFindingResponse
+	(*ListDisputesRequest)(nil),       // 18: vrooli.web_search.v1.findings.ListDisputesRequest
+	(*ListDisputesResponse)(nil),      // 19: vrooli.web_search.v1.findings.ListDisputesResponse
+	(*ResolveDisputeRequest)(nil),     // 20: vrooli.web_search.v1.findings.ResolveDisputeRequest
+	(*ResolveDisputeResponse)(nil),    // 21: vrooli.web_search.v1.findings.ResolveDisputeResponse
+	(*PruneFindingsRequest)(nil),      // 22: vrooli.web_search.v1.findings.PruneFindingsRequest
+	(*PruneFindingsResponse)(nil),     // 23: vrooli.web_search.v1.findings.PruneFindingsResponse
+	(*SearchFindingsRequest)(nil),     // 24: vrooli.web_search.v1.findings.SearchFindingsRequest
+	(*FindingHit)(nil),                // 25: vrooli.web_search.v1.findings.FindingHit
+	(*SearchFindingsResponse)(nil),    // 26: vrooli.web_search.v1.findings.SearchFindingsResponse
+	(*CountFindingsRequest)(nil),      // 27: vrooli.web_search.v1.findings.CountFindingsRequest
+	(*CountFindingsResponse)(nil),     // 28: vrooli.web_search.v1.findings.CountFindingsResponse
+	(*FindingEffectiveness)(nil),      // 29: vrooli.web_search.v1.findings.FindingEffectiveness
+	(*ListEffectivenessRequest)(nil),  // 30: vrooli.web_search.v1.findings.ListEffectivenessRequest
+	(*ListEffectivenessResponse)(nil), // 31: vrooli.web_search.v1.findings.ListEffectivenessResponse
+	(*RecordUsageRequest)(nil),        // 32: vrooli.web_search.v1.findings.RecordUsageRequest
+	(*RecordUsageResponse)(nil),       // 33: vrooli.web_search.v1.findings.RecordUsageResponse
+	(*RunGCRequest)(nil),              // 34: vrooli.web_search.v1.findings.RunGCRequest
+	(*RunGCResponse)(nil),             // 35: vrooli.web_search.v1.findings.RunGCResponse
+	(*timestamppb.Timestamp)(nil),     // 36: google.protobuf.Timestamp
+	(*v1.TimeWindow)(nil),             // 37: vrooli.measures.v1.TimeWindow
 }
 var file_web_search_v1_findings_findings_proto_depIdxs = []int32{
-	29, // 0: vrooli.web_search.v1.findings.Citation.retrieved_at:type_name -> google.protobuf.Timestamp
-	29, // 1: vrooli.web_search.v1.findings.Brief.run_timestamp:type_name -> google.protobuf.Timestamp
+	36, // 0: vrooli.web_search.v1.findings.Citation.retrieved_at:type_name -> google.protobuf.Timestamp
+	36, // 1: vrooli.web_search.v1.findings.Brief.run_timestamp:type_name -> google.protobuf.Timestamp
 	0,  // 2: vrooli.web_search.v1.findings.Finding.status:type_name -> vrooli.web_search.v1.findings.FindingStatus
-	29, // 3: vrooli.web_search.v1.findings.Finding.retrieval_date:type_name -> google.protobuf.Timestamp
+	36, // 3: vrooli.web_search.v1.findings.Finding.retrieval_date:type_name -> google.protobuf.Timestamp
 	1,  // 4: vrooli.web_search.v1.findings.Finding.source:type_name -> vrooli.web_search.v1.findings.FindingSource
 	2,  // 5: vrooli.web_search.v1.findings.Finding.citations:type_name -> vrooli.web_search.v1.findings.Citation
-	29, // 6: vrooli.web_search.v1.findings.Finding.created_at:type_name -> google.protobuf.Timestamp
-	29, // 7: vrooli.web_search.v1.findings.Finding.updated_at:type_name -> google.protobuf.Timestamp
+	36, // 6: vrooli.web_search.v1.findings.Finding.created_at:type_name -> google.protobuf.Timestamp
+	36, // 7: vrooli.web_search.v1.findings.Finding.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 8: vrooli.web_search.v1.findings.ListFindingsRequest.status:type_name -> vrooli.web_search.v1.findings.FindingStatus
 	5,  // 9: vrooli.web_search.v1.findings.ListFindingsResponse.findings:type_name -> vrooli.web_search.v1.findings.Finding
 	5,  // 10: vrooli.web_search.v1.findings.GetFindingResponse.finding:type_name -> vrooli.web_search.v1.findings.Finding
@@ -1891,34 +2338,44 @@ var file_web_search_v1_findings_findings_proto_depIdxs = []int32{
 	5,  // 18: vrooli.web_search.v1.findings.ResolveDisputeResponse.finding:type_name -> vrooli.web_search.v1.findings.Finding
 	5,  // 19: vrooli.web_search.v1.findings.FindingHit.finding:type_name -> vrooli.web_search.v1.findings.Finding
 	25, // 20: vrooli.web_search.v1.findings.SearchFindingsResponse.hits:type_name -> vrooli.web_search.v1.findings.FindingHit
-	30, // 21: vrooli.web_search.v1.findings.CountFindingsRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	6,  // 22: vrooli.web_search.v1.findings.FindingsService.ListFindings:input_type -> vrooli.web_search.v1.findings.ListFindingsRequest
-	8,  // 23: vrooli.web_search.v1.findings.FindingsService.GetFinding:input_type -> vrooli.web_search.v1.findings.GetFindingRequest
-	10, // 24: vrooli.web_search.v1.findings.FindingsService.AddFinding:input_type -> vrooli.web_search.v1.findings.AddFindingRequest
-	12, // 25: vrooli.web_search.v1.findings.FindingsService.EditFinding:input_type -> vrooli.web_search.v1.findings.EditFindingRequest
-	14, // 26: vrooli.web_search.v1.findings.FindingsService.SupersedeFinding:input_type -> vrooli.web_search.v1.findings.SupersedeFindingRequest
-	16, // 27: vrooli.web_search.v1.findings.FindingsService.FlagFinding:input_type -> vrooli.web_search.v1.findings.FlagFindingRequest
-	18, // 28: vrooli.web_search.v1.findings.FindingsService.ListDisputes:input_type -> vrooli.web_search.v1.findings.ListDisputesRequest
-	20, // 29: vrooli.web_search.v1.findings.FindingsService.ResolveDispute:input_type -> vrooli.web_search.v1.findings.ResolveDisputeRequest
-	22, // 30: vrooli.web_search.v1.findings.FindingsService.PruneFindings:input_type -> vrooli.web_search.v1.findings.PruneFindingsRequest
-	24, // 31: vrooli.web_search.v1.findings.FindingsService.SearchFindings:input_type -> vrooli.web_search.v1.findings.SearchFindingsRequest
-	27, // 32: vrooli.web_search.v1.findings.FindingsService.CountFindings:input_type -> vrooli.web_search.v1.findings.CountFindingsRequest
-	7,  // 33: vrooli.web_search.v1.findings.FindingsService.ListFindings:output_type -> vrooli.web_search.v1.findings.ListFindingsResponse
-	9,  // 34: vrooli.web_search.v1.findings.FindingsService.GetFinding:output_type -> vrooli.web_search.v1.findings.GetFindingResponse
-	11, // 35: vrooli.web_search.v1.findings.FindingsService.AddFinding:output_type -> vrooli.web_search.v1.findings.AddFindingResponse
-	13, // 36: vrooli.web_search.v1.findings.FindingsService.EditFinding:output_type -> vrooli.web_search.v1.findings.EditFindingResponse
-	15, // 37: vrooli.web_search.v1.findings.FindingsService.SupersedeFinding:output_type -> vrooli.web_search.v1.findings.SupersedeFindingResponse
-	17, // 38: vrooli.web_search.v1.findings.FindingsService.FlagFinding:output_type -> vrooli.web_search.v1.findings.FlagFindingResponse
-	19, // 39: vrooli.web_search.v1.findings.FindingsService.ListDisputes:output_type -> vrooli.web_search.v1.findings.ListDisputesResponse
-	21, // 40: vrooli.web_search.v1.findings.FindingsService.ResolveDispute:output_type -> vrooli.web_search.v1.findings.ResolveDisputeResponse
-	23, // 41: vrooli.web_search.v1.findings.FindingsService.PruneFindings:output_type -> vrooli.web_search.v1.findings.PruneFindingsResponse
-	26, // 42: vrooli.web_search.v1.findings.FindingsService.SearchFindings:output_type -> vrooli.web_search.v1.findings.SearchFindingsResponse
-	28, // 43: vrooli.web_search.v1.findings.FindingsService.CountFindings:output_type -> vrooli.web_search.v1.findings.CountFindingsResponse
-	33, // [33:44] is the sub-list for method output_type
-	22, // [22:33] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	37, // 21: vrooli.web_search.v1.findings.CountFindingsRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	5,  // 22: vrooli.web_search.v1.findings.FindingEffectiveness.finding:type_name -> vrooli.web_search.v1.findings.Finding
+	36, // 23: vrooli.web_search.v1.findings.FindingEffectiveness.last_surfaced_at:type_name -> google.protobuf.Timestamp
+	29, // 24: vrooli.web_search.v1.findings.ListEffectivenessResponse.items:type_name -> vrooli.web_search.v1.findings.FindingEffectiveness
+	5,  // 25: vrooli.web_search.v1.findings.RecordUsageResponse.finding:type_name -> vrooli.web_search.v1.findings.Finding
+	6,  // 26: vrooli.web_search.v1.findings.FindingsService.ListFindings:input_type -> vrooli.web_search.v1.findings.ListFindingsRequest
+	8,  // 27: vrooli.web_search.v1.findings.FindingsService.GetFinding:input_type -> vrooli.web_search.v1.findings.GetFindingRequest
+	10, // 28: vrooli.web_search.v1.findings.FindingsService.AddFinding:input_type -> vrooli.web_search.v1.findings.AddFindingRequest
+	12, // 29: vrooli.web_search.v1.findings.FindingsService.EditFinding:input_type -> vrooli.web_search.v1.findings.EditFindingRequest
+	14, // 30: vrooli.web_search.v1.findings.FindingsService.SupersedeFinding:input_type -> vrooli.web_search.v1.findings.SupersedeFindingRequest
+	16, // 31: vrooli.web_search.v1.findings.FindingsService.FlagFinding:input_type -> vrooli.web_search.v1.findings.FlagFindingRequest
+	18, // 32: vrooli.web_search.v1.findings.FindingsService.ListDisputes:input_type -> vrooli.web_search.v1.findings.ListDisputesRequest
+	20, // 33: vrooli.web_search.v1.findings.FindingsService.ResolveDispute:input_type -> vrooli.web_search.v1.findings.ResolveDisputeRequest
+	22, // 34: vrooli.web_search.v1.findings.FindingsService.PruneFindings:input_type -> vrooli.web_search.v1.findings.PruneFindingsRequest
+	24, // 35: vrooli.web_search.v1.findings.FindingsService.SearchFindings:input_type -> vrooli.web_search.v1.findings.SearchFindingsRequest
+	27, // 36: vrooli.web_search.v1.findings.FindingsService.CountFindings:input_type -> vrooli.web_search.v1.findings.CountFindingsRequest
+	30, // 37: vrooli.web_search.v1.findings.FindingsService.ListEffectiveness:input_type -> vrooli.web_search.v1.findings.ListEffectivenessRequest
+	32, // 38: vrooli.web_search.v1.findings.FindingsService.RecordUsage:input_type -> vrooli.web_search.v1.findings.RecordUsageRequest
+	34, // 39: vrooli.web_search.v1.findings.FindingsService.RunGC:input_type -> vrooli.web_search.v1.findings.RunGCRequest
+	7,  // 40: vrooli.web_search.v1.findings.FindingsService.ListFindings:output_type -> vrooli.web_search.v1.findings.ListFindingsResponse
+	9,  // 41: vrooli.web_search.v1.findings.FindingsService.GetFinding:output_type -> vrooli.web_search.v1.findings.GetFindingResponse
+	11, // 42: vrooli.web_search.v1.findings.FindingsService.AddFinding:output_type -> vrooli.web_search.v1.findings.AddFindingResponse
+	13, // 43: vrooli.web_search.v1.findings.FindingsService.EditFinding:output_type -> vrooli.web_search.v1.findings.EditFindingResponse
+	15, // 44: vrooli.web_search.v1.findings.FindingsService.SupersedeFinding:output_type -> vrooli.web_search.v1.findings.SupersedeFindingResponse
+	17, // 45: vrooli.web_search.v1.findings.FindingsService.FlagFinding:output_type -> vrooli.web_search.v1.findings.FlagFindingResponse
+	19, // 46: vrooli.web_search.v1.findings.FindingsService.ListDisputes:output_type -> vrooli.web_search.v1.findings.ListDisputesResponse
+	21, // 47: vrooli.web_search.v1.findings.FindingsService.ResolveDispute:output_type -> vrooli.web_search.v1.findings.ResolveDisputeResponse
+	23, // 48: vrooli.web_search.v1.findings.FindingsService.PruneFindings:output_type -> vrooli.web_search.v1.findings.PruneFindingsResponse
+	26, // 49: vrooli.web_search.v1.findings.FindingsService.SearchFindings:output_type -> vrooli.web_search.v1.findings.SearchFindingsResponse
+	28, // 50: vrooli.web_search.v1.findings.FindingsService.CountFindings:output_type -> vrooli.web_search.v1.findings.CountFindingsResponse
+	31, // 51: vrooli.web_search.v1.findings.FindingsService.ListEffectiveness:output_type -> vrooli.web_search.v1.findings.ListEffectivenessResponse
+	33, // 52: vrooli.web_search.v1.findings.FindingsService.RecordUsage:output_type -> vrooli.web_search.v1.findings.RecordUsageResponse
+	35, // 53: vrooli.web_search.v1.findings.FindingsService.RunGC:output_type -> vrooli.web_search.v1.findings.RunGCResponse
+	40, // [40:54] is the sub-list for method output_type
+	26, // [26:40] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_web_search_v1_findings_findings_proto_init() }
@@ -1932,7 +2389,7 @@ func file_web_search_v1_findings_findings_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_search_v1_findings_findings_proto_rawDesc), len(file_web_search_v1_findings_findings_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   27,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

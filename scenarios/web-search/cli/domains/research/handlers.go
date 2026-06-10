@@ -105,6 +105,35 @@ func (h *handlers) status(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) gather(ctx cliapp.RunContext) error {
+	query := ctx.Positional("query")
+	resp, err := h.client.GatherRelatedFindings(context.Background(), connect.NewRequest(&researchv1.GatherRelatedFindingsRequest{
+		Query: query,
+		Max:   parseInt32(ctx.Flag("max")),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("gather related findings", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no gather response")
+	}
+	msg := resp.Msg
+	summary := []string{fmt.Sprintf("Gathered %d finding(s) near %q (bounded sweep, cap %d).", len(msg.Findings), query, msg.CapApplied)}
+	results := make([]string, 0, len(msg.Findings))
+	for _, g := range msg.Findings {
+		results = append(results, fmt.Sprintf("%s — %s [status=%s confidence=%.2f score=%.3f]", g.FindingId, g.Claim, g.Status, g.Confidence, g.Score))
+	}
+	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+		Summary:        summary,
+		ResultsHeading: "Nearby Findings",
+		Results:        results,
+		RetrievalHints: []string{
+			"`research l2 <focused sub-query>` — research a gap the nearby findings don't cover",
+			"`findings supersede <old-id> --replacement <new-id>` — reconcile after answering",
+		},
+	})
+}
+
 func parseInt32(s string) int32 {
 	n, err := strconv.Atoi(strings.TrimSpace(s))
 	if err != nil {

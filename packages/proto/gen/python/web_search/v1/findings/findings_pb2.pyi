@@ -280,3 +280,67 @@ class CountFindingsResponse(_message.Message):
     COUNT_FIELD_NUMBER: _ClassVar[int]
     count: int
     def __init__(self, count: _Optional[int] = ...) -> None: ...
+
+class FindingEffectiveness(_message.Message):
+    __slots__ = ("finding", "surfaced_count", "used_count", "last_surfaced_at", "effective_confidence", "usage_factor", "effective_score")
+    FINDING_FIELD_NUMBER: _ClassVar[int]
+    SURFACED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    USED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    LAST_SURFACED_AT_FIELD_NUMBER: _ClassVar[int]
+    EFFECTIVE_CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    USAGE_FACTOR_FIELD_NUMBER: _ClassVar[int]
+    EFFECTIVE_SCORE_FIELD_NUMBER: _ClassVar[int]
+    finding: Finding
+    surfaced_count: int
+    used_count: int
+    last_surfaced_at: _timestamp_pb2.Timestamp
+    effective_confidence: float
+    usage_factor: float
+    effective_score: float
+    def __init__(self, finding: _Optional[_Union[Finding, _Mapping]] = ..., surfaced_count: _Optional[int] = ..., used_count: _Optional[int] = ..., last_surfaced_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., effective_confidence: _Optional[float] = ..., usage_factor: _Optional[float] = ..., effective_score: _Optional[float] = ...) -> None: ...
+
+class ListEffectivenessRequest(_message.Message):
+    __slots__ = ("limit", "include_disputed")
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_DISPUTED_FIELD_NUMBER: _ClassVar[int]
+    limit: int
+    include_disputed: bool
+    def __init__(self, limit: _Optional[int] = ..., include_disputed: _Optional[bool] = ...) -> None: ...
+
+class ListEffectivenessResponse(_message.Message):
+    __slots__ = ("items",)
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    items: _containers.RepeatedCompositeFieldContainer[FindingEffectiveness]
+    def __init__(self, items: _Optional[_Iterable[_Union[FindingEffectiveness, _Mapping]]] = ...) -> None: ...
+
+class RecordUsageRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class RecordUsageResponse(_message.Message):
+    __slots__ = ("finding",)
+    FINDING_FIELD_NUMBER: _ClassVar[int]
+    finding: Finding
+    def __init__(self, finding: _Optional[_Union[Finding, _Mapping]] = ...) -> None: ...
+
+class RunGCRequest(_message.Message):
+    __slots__ = ("dry_run",)
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    dry_run: bool
+    def __init__(self, dry_run: _Optional[bool] = ...) -> None: ...
+
+class RunGCResponse(_message.Message):
+    __slots__ = ("dry_run", "superseded_decayed", "cold_archive_candidates", "stale_disputes", "orphans")
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    SUPERSEDED_DECAYED_FIELD_NUMBER: _ClassVar[int]
+    COLD_ARCHIVE_CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    STALE_DISPUTES_FIELD_NUMBER: _ClassVar[int]
+    ORPHANS_FIELD_NUMBER: _ClassVar[int]
+    dry_run: bool
+    superseded_decayed: _containers.RepeatedScalarFieldContainer[str]
+    cold_archive_candidates: _containers.RepeatedScalarFieldContainer[str]
+    stale_disputes: _containers.RepeatedScalarFieldContainer[str]
+    orphans: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, dry_run: _Optional[bool] = ..., superseded_decayed: _Optional[_Iterable[str]] = ..., cold_archive_candidates: _Optional[_Iterable[str]] = ..., stale_disputes: _Optional[_Iterable[str]] = ..., orphans: _Optional[_Iterable[str]] = ...) -> None: ...

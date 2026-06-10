@@ -1045,8 +1045,10 @@ type DocHealthCounts struct {
 	// Manifest coverage totals.
 	DocsInManifest    int32 `protobuf:"varint,22,opt,name=docs_in_manifest,json=docsInManifest,proto3" json:"docs_in_manifest,omitempty"`
 	DocsNotInManifest int32 `protobuf:"varint,23,opt,name=docs_not_in_manifest,json=docsNotInManifest,proto3" json:"docs_not_in_manifest,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Derived-number / drift-prone count lint totals.
+	NumbersFlagged int32 `protobuf:"varint,24,opt,name=numbers_flagged,json=numbersFlagged,proto3" json:"numbers_flagged,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *DocHealthCounts) Reset() {
@@ -1240,14 +1242,22 @@ func (x *DocHealthCounts) GetDocsNotInManifest() int32 {
 	return 0
 }
 
+func (x *DocHealthCounts) GetNumbersFlagged() int32 {
+	if x != nil {
+		return x.NumbersFlagged
+	}
+	return 0
+}
+
 // DocHealthRequest invokes a full documentation-health check for a single
 // scenario.
 //
 // @usage rpc DocHealth on KnowledgeObservatoryService
 type DocHealthRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Name of the scenario directory (under the scenarios root).
-	// @constraint Must be non-empty and contain no path separators.
+	// Name of the scenario directory (under the scenarios root). Required for the
+	// default (scenario) scope; leave empty when scope = "path".
+	// @constraint When set, contains no path separators.
 	ScenarioName string `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	// When true, external (http/https) links cause failures rather than
 	// warnings. When unset, server default applies.
@@ -1258,8 +1268,19 @@ type DocHealthRequest struct {
 	RequireAllDocsRegistered *bool `protobuf:"varint,3,opt,name=require_all_docs_registered,json=requireAllDocsRegistered,proto3,oneof" json:"require_all_docs_registered,omitempty"`
 	// When true, external link probing is skipped entirely (offline mode).
 	SkipExternalLinks *bool `protobuf:"varint,4,opt,name=skip_external_links,json=skipExternalLinks,proto3,oneof" json:"skip_external_links,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Target scope: "" or "scenario" (default; resolved from scenario_name) or
+	// "path" (scan `path` directly). A path that resolves inside a scenario is
+	// promoted to that scenario (all checks); a project-level path runs only
+	// generic checks.
+	Scope *string `protobuf:"bytes,5,opt,name=scope,proto3,oneof" json:"scope,omitempty"`
+	// Path to scan when scope = "path". Absolute, or relative to the repo root.
+	Path *string `protobuf:"bytes,6,opt,name=path,proto3,oneof" json:"path,omitempty"`
+	// Narrow the run to these check names (see the check registry: structure,
+	// content, links, refs, manifest, numbers). Empty = all checks applicable to
+	// the target.
+	Checks        []string `protobuf:"bytes,7,rep,name=checks,proto3" json:"checks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DocHealthRequest) Reset() {
@@ -1318,6 +1339,27 @@ func (x *DocHealthRequest) GetSkipExternalLinks() bool {
 		return *x.SkipExternalLinks
 	}
 	return false
+}
+
+func (x *DocHealthRequest) GetScope() string {
+	if x != nil && x.Scope != nil {
+		return *x.Scope
+	}
+	return ""
+}
+
+func (x *DocHealthRequest) GetPath() string {
+	if x != nil && x.Path != nil {
+		return *x.Path
+	}
+	return ""
+}
+
+func (x *DocHealthRequest) GetChecks() []string {
+	if x != nil {
+		return x.Checks
+	}
+	return nil
 }
 
 // DocHealthResponse is the combined result of every validator family.
@@ -1629,7 +1671,7 @@ const file_knowledge_observatory_v1_api_proto_rawDesc = "" +
 	"completion\x88\x01\x01\x12\x1f\n" +
 	"\vrequired_by\x18\x05 \x03(\tR\n" +
 	"requiredByB\r\n" +
-	"\v_completion\"\xeb\a\n" +
+	"\v_completion\"\x94\b\n" +
 	"\x0fDocHealthCounts\x12#\n" +
 	"\rfiles_checked\x18\x01 \x01(\x05R\ffilesChecked\x12+\n" +
 	"\x11markdown_warnings\x18\x02 \x01(\x05R\x10markdownWarnings\x12+\n" +
@@ -1655,15 +1697,21 @@ const file_knowledge_observatory_v1_api_proto_rawDesc = "" +
 	"\x13marked_refs_skipped\x18\x14 \x01(\x05R\x11markedRefsSkipped\x12.\n" +
 	"\x13marked_refs_unknown\x18\x15 \x01(\x05R\x11markedRefsUnknown\x12(\n" +
 	"\x10docs_in_manifest\x18\x16 \x01(\x05R\x0edocsInManifest\x12/\n" +
-	"\x14docs_not_in_manifest\x18\x17 \x01(\x05R\x11docsNotInManifest\"\xe5\x02\n" +
-	"\x10DocHealthRequest\x12M\n" +
-	"\rscenario_name\x18\x01 \x01(\tB(\xbaH%r#\x10\x01\x18\x80\x022\x1c^[A-Za-z0-9][A-Za-z0-9._-]*$R\fscenarioName\x127\n" +
+	"\x14docs_not_in_manifest\x18\x17 \x01(\x05R\x11docsNotInManifest\x12'\n" +
+	"\x0fnumbers_flagged\x18\x18 \x01(\x05R\x0enumbersFlagged\"\xc5\x03\n" +
+	"\x10DocHealthRequest\x12N\n" +
+	"\rscenario_name\x18\x01 \x01(\tB)\xbaH&r$\x18\x80\x022\x1f^([A-Za-z0-9][A-Za-z0-9._-]*)?$R\fscenarioName\x127\n" +
 	"\x15strict_external_links\x18\x02 \x01(\bH\x00R\x13strictExternalLinks\x88\x01\x01\x12B\n" +
 	"\x1brequire_all_docs_registered\x18\x03 \x01(\bH\x01R\x18requireAllDocsRegistered\x88\x01\x01\x123\n" +
-	"\x13skip_external_links\x18\x04 \x01(\bH\x02R\x11skipExternalLinks\x88\x01\x01B\x18\n" +
+	"\x13skip_external_links\x18\x04 \x01(\bH\x02R\x11skipExternalLinks\x88\x01\x01\x12\x19\n" +
+	"\x05scope\x18\x05 \x01(\tH\x03R\x05scope\x88\x01\x01\x12\x17\n" +
+	"\x04path\x18\x06 \x01(\tH\x04R\x04path\x88\x01\x01\x12\x16\n" +
+	"\x06checks\x18\a \x03(\tR\x06checksB\x18\n" +
 	"\x16_strict_external_linksB\x1e\n" +
 	"\x1c_require_all_docs_registeredB\x16\n" +
-	"\x14_skip_external_links\"\xa2\b\n" +
+	"\x14_skip_external_linksB\b\n" +
+	"\x06_scopeB\a\n" +
+	"\x05_path\"\xa2\b\n" +
 	"\x11DocHealthResponse\x12,\n" +
 	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x121\n" +
 	"\x12source_template_id\x18\x02 \x01(\tH\x00R\x10sourceTemplateId\x88\x01\x01\x12(\n" +

@@ -19,12 +19,15 @@ import (
 // Connect-RPC service handler. The semantic searcher is injected by main.go
 // because it owns the qdrant/embedder wiring; tests pass a fake (or nil to
 // exercise the SQL-only paths).
-func Module(db *database.RoutedDB, clk clock.Clock, searcher Searcher, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk clock.Clock, searcher Searcher, surfacer Surfacer, logger *log.Logger) module.Module {
 	repo := internalfindings.NewSQLiteRepository(db, clk)
 	svc := internalfindings.NewService(repo)
+	gc := internalfindings.NewGCService(svc, clk, internalfindings.GCConfig{})
 	connectPath, connectHandler := findingsconnect.NewFindingsServiceHandler(NewConnectHandler(Deps{
 		Service:  svc,
 		Searcher: searcher,
+		Surfacer: surfacer,
+		GC:       gc,
 		Clock:    clk,
 		Logger:   logger,
 	}))
@@ -143,5 +146,32 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Counts findings captured within the requested canonical time window. Bound to the `findings count` measure.",
 		Category:    "findings",
 		CLIMapping:  &module.CLIMapping{Command: "web-search findings count", Args: []string{"--window", "<window>"}},
+	},
+	{
+		ID:          "findings_effectiveness",
+		Path:        findingsconnect.FindingsServiceListEffectivenessProcedure,
+		Method:      "POST",
+		Summary:     "List findings by usage effectiveness",
+		Description: "Pairs each finding with its usage telemetry (surfaced/used counts, last-surfaced age) and the blended effective score (age-decayed confidence × usage factor). The OT-P2-001 curation signal.",
+		Category:    "findings",
+		CLIMapping:  &module.CLIMapping{Command: "web-search findings effectiveness", Args: []string{"--limit", "<n>", "--include-disputed"}},
+	},
+	{
+		ID:          "findings_record_usage",
+		Path:        findingsconnect.FindingsServiceRecordUsageProcedure,
+		Method:      "POST",
+		Summary:     "Record explicit finding usage",
+		Description: "Records an explicit 'this finding was used' signal (distinct from the implicit surfacing counted automatically on search).",
+		Category:    "findings",
+		CLIMapping:  &module.CLIMapping{Command: "web-search findings use", Args: []string{"<id>"}},
+	},
+	{
+		ID:          "findings_gc",
+		Path:        findingsconnect.FindingsServiceRunGCProcedure,
+		Method:      "POST",
+		Summary:     "Run the store-consistency GC",
+		Description: "Runs the periodic full-store consistency pass: soft-retires never-surfaced, fully-decayed findings (confidence-gated) and reports cold-archive candidates, stale disputes, and orphans. --dry-run reports without mutating. Never hard-deletes; never auto-resolves a dispute.",
+		Category:    "findings",
+		CLIMapping:  &module.CLIMapping{Command: "web-search findings gc", Args: []string{"--dry-run"}},
 	},
 }

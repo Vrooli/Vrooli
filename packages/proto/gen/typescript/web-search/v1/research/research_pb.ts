@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-search/v1/research/research.proto.
  */
 export const file_web_search_v1_research_research: GenFile = /*@__PURE__*/
-  fileDesc("CiV3ZWItc2VhcmNoL3YxL3Jlc2VhcmNoL3Jlc2VhcmNoLnByb3RvEh12cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaCI8CghDaXRhdGlvbhIUCgxyZXN1bHRfaW5kZXgYASABKAUSCwoDdXJsGAIgASgJEg0KBXRpdGxlGAMgASgJInIKBUJyaWVmEg0KBXF1ZXJ5GAEgASgJEg0KBWxldmVsGAIgASgJEg8KB3N1bW1hcnkYAyABKAkSOgoJY2l0YXRpb25zGAQgAygLMicudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guQ2l0YXRpb24iPQoMUnVuTDJSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBXRvcF9uGAIgASgFEg8KB2NhcHR1cmUYAyABKAgiiAEKDVJ1bkwyUmVzcG9uc2USMwoFYnJpZWYYASABKAsyJC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5CcmllZhIRCglzeW50aGVzaXMYAiABKAkSEQoJYWJzdGFpbmVkGAMgASgIEhwKFGNhcHR1cmVkX2ZpbmRpbmdfaWRzGAQgAygJIh0KDFJ1bkwzUmVxdWVzdBINCgVxdWVyeRgBIAEoCSIvCg1SdW5MM1Jlc3BvbnNlEg4KBnJ1bl9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkiKgoYR2V0UmVzZWFyY2hTdGF0dXNSZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCSLAAQoZR2V0UmVzZWFyY2hTdGF0dXNSZXNwb25zZRIOCgZydW5faWQYASABKAkSDgoGc3RhdHVzGAIgASgJEg8KB3N1bW1hcnkYAyABKAkSLgoKc3RhcnRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLZmluaXNoZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCWVycm9yX21zZxgGIAEoCTLiAgoPUmVzZWFyY2hTZXJ2aWNlEmIKBVJ1bkwyEisudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUnVuTDJSZXF1ZXN0GiwudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUnVuTDJSZXNwb25zZRJiCgVSdW5MMxIrLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJ1bkwzUmVxdWVzdBosLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJ1bkwzUmVzcG9uc2UShgEKEUdldFJlc2VhcmNoU3RhdHVzEjcudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2V0UmVzZWFyY2hTdGF0dXNSZXF1ZXN0GjgudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2V0UmVzZWFyY2hTdGF0dXNSZXNwb25zZUJTWlFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1zZWFyY2gvdjEvcmVzZWFyY2g7cmVzZWFyY2hfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("CiV3ZWItc2VhcmNoL3YxL3Jlc2VhcmNoL3Jlc2VhcmNoLnByb3RvEh12cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaCI8CghDaXRhdGlvbhIUCgxyZXN1bHRfaW5kZXgYASABKAUSCwoDdXJsGAIgASgJEg0KBXRpdGxlGAMgASgJInIKBUJyaWVmEg0KBXF1ZXJ5GAEgASgJEg0KBWxldmVsGAIgASgJEg8KB3N1bW1hcnkYAyABKAkSOgoJY2l0YXRpb25zGAQgAygLMicudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guQ2l0YXRpb24iPQoMUnVuTDJSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBXRvcF9uGAIgASgFEg8KB2NhcHR1cmUYAyABKAgiiAEKDVJ1bkwyUmVzcG9uc2USMwoFYnJpZWYYASABKAsyJC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5CcmllZhIRCglzeW50aGVzaXMYAiABKAkSEQoJYWJzdGFpbmVkGAMgASgIEhwKFGNhcHR1cmVkX2ZpbmRpbmdfaWRzGAQgAygJIh0KDFJ1bkwzUmVxdWVzdBINCgVxdWVyeRgBIAEoCSIvCg1SdW5MM1Jlc3BvbnNlEg4KBnJ1bl9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkiKgoYR2V0UmVzZWFyY2hTdGF0dXNSZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCSLAAQoZR2V0UmVzZWFyY2hTdGF0dXNSZXNwb25zZRIOCgZydW5faWQYASABKAkSDgoGc3RhdHVzGAIgASgJEg8KB3N1bW1hcnkYAyABKAkSLgoKc3RhcnRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLZmluaXNoZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCWVycm9yX21zZxgGIAEoCSI6ChxHYXRoZXJSZWxhdGVkRmluZGluZ3NSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEgsKA21heBgCIAEoBSJnCg9HYXRoZXJlZEZpbmRpbmcSEgoKZmluZGluZ19pZBgBIAEoCRINCgVjbGFpbRgCIAEoCRISCgpjb25maWRlbmNlGAMgASgBEg4KBnN0YXR1cxgEIAEoCRINCgVzY29yZRgFIAEoASJ2Ch1HYXRoZXJSZWxhdGVkRmluZGluZ3NSZXNwb25zZRJACghmaW5kaW5ncxgBIAMoCzIuLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdhdGhlcmVkRmluZGluZxITCgtjYXBfYXBwbGllZBgCIAEoBTL3AwoPUmVzZWFyY2hTZXJ2aWNlEmIKBVJ1bkwyEisudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUnVuTDJSZXF1ZXN0GiwudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUnVuTDJSZXNwb25zZRJiCgVSdW5MMxIrLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJ1bkwzUmVxdWVzdBosLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJ1bkwzUmVzcG9uc2UShgEKEUdldFJlc2VhcmNoU3RhdHVzEjcudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2V0UmVzZWFyY2hTdGF0dXNSZXF1ZXN0GjgudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2V0UmVzZWFyY2hTdGF0dXNSZXNwb25zZRKSAQoVR2F0aGVyUmVsYXRlZEZpbmRpbmdzEjsudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2F0aGVyUmVsYXRlZEZpbmRpbmdzUmVxdWVzdBo8LnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdhdGhlclJlbGF0ZWRGaW5kaW5nc1Jlc3BvbnNlQlNaUWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLXNlYXJjaC92MS9yZXNlYXJjaDtyZXNlYXJjaF92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * Citation links a synthesis claim back to the fetched page that supports it.
@@ -270,6 +270,103 @@ export const GetResearchStatusResponseSchema: GenMessage<GetResearchStatusRespon
   messageDesc(file_web_search_v1_research_research, 7);
 
 /**
+ * @generated from message vrooli.web_search.v1.research.GatherRelatedFindingsRequest
+ */
+export type GatherRelatedFindingsRequest = Message<"vrooli.web_search.v1.research.GatherRelatedFindingsRequest"> & {
+  /**
+   * @generated from field: string query = 1;
+   */
+  query: string;
+
+  /**
+   * max requests an upper bound on how many nearby findings to return. The
+   * server clamps it to [1, 20]; an unset/non-positive value defaults to 20.
+   * The bound is enforced server-side — a caller cannot widen the sweep.
+   *
+   * @generated from field: int32 max = 2;
+   */
+  max: number;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.GatherRelatedFindingsRequest.
+ * Use `create(GatherRelatedFindingsRequestSchema)` to create a new message.
+ */
+export const GatherRelatedFindingsRequestSchema: GenMessage<GatherRelatedFindingsRequest> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 8);
+
+/**
+ * GatheredFinding is one finding semantically near the gather query, projected
+ * to the fields the reconcile step needs (no full citation payload).
+ *
+ * @generated from message vrooli.web_search.v1.research.GatheredFinding
+ */
+export type GatheredFinding = Message<"vrooli.web_search.v1.research.GatheredFinding"> & {
+  /**
+   * @generated from field: string finding_id = 1;
+   */
+  findingId: string;
+
+  /**
+   * @generated from field: string claim = 2;
+   */
+  claim: string;
+
+  /**
+   * @generated from field: double confidence = 3;
+   */
+  confidence: number;
+
+  /**
+   * status is the lifecycle state ("active" | "disputed"); superseded findings
+   * are excluded from the gather (they are not in the semantic index).
+   *
+   * @generated from field: string status = 4;
+   */
+  status: string;
+
+  /**
+   * score is the semantic relevance of this finding to the query.
+   *
+   * @generated from field: double score = 5;
+   */
+  score: number;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.GatheredFinding.
+ * Use `create(GatheredFindingSchema)` to create a new message.
+ */
+export const GatheredFindingSchema: GenMessage<GatheredFinding> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 9);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.GatherRelatedFindingsResponse
+ */
+export type GatherRelatedFindingsResponse = Message<"vrooli.web_search.v1.research.GatherRelatedFindingsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.web_search.v1.research.GatheredFinding findings = 1;
+   */
+  findings: GatheredFinding[];
+
+  /**
+   * cap_applied is the effective bound the server enforced for this gather
+   * (after clamping the requested max), so callers can see the sweep was
+   * bounded.
+   *
+   * @generated from field: int32 cap_applied = 2;
+   */
+  capApplied: number;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.GatherRelatedFindingsResponse.
+ * Use `create(GatherRelatedFindingsResponseSchema)` to create a new message.
+ */
+export const GatherRelatedFindingsResponseSchema: GenMessage<GatherRelatedFindingsResponse> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 10);
+
+/**
  * ResearchService is the L2/L3 deep-research surface that sits above the L0/L1
  * live-search path. L2 (RunL2) is a synchronous single-pass pipeline: it fetches
  * the top-N result pages, extracts readable text, and produces ONE cited
@@ -318,6 +415,20 @@ export const ResearchService: GenService<{
     methodKind: "unary";
     input: typeof GetResearchStatusRequestSchema;
     output: typeof GetResearchStatusResponseSchema;
+  },
+  /**
+   * GatherRelatedFindings returns the findings semantically NEAR a query — the
+   * bounded GATHER step of the research-and-reconcile loop (OT-P1-003). The
+   * sweep is "near the query", never a whole-store scan: the server enforces a
+   * hard cap (max 20) regardless of the requested max, so the L3 agent uses this
+   * endpoint instead of a free-form findings search.
+   *
+   * @generated from rpc vrooli.web_search.v1.research.ResearchService.GatherRelatedFindings
+   */
+  gatherRelatedFindings: {
+    methodKind: "unary";
+    input: typeof GatherRelatedFindingsRequestSchema;
+    output: typeof GatherRelatedFindingsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_web_search_v1_research_research, 0);

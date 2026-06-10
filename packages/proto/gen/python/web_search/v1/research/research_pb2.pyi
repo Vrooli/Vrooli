@@ -88,3 +88,33 @@ class GetResearchStatusResponse(_message.Message):
     finished_at: _timestamp_pb2.Timestamp
     error_msg: str
     def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., summary: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error_msg: _Optional[str] = ...) -> None: ...
+
+class GatherRelatedFindingsRequest(_message.Message):
+    __slots__ = ("query", "max")
+    QUERY_FIELD_NUMBER: _ClassVar[int]
+    MAX_FIELD_NUMBER: _ClassVar[int]
+    query: str
+    max: int
+    def __init__(self, query: _Optional[str] = ..., max: _Optional[int] = ...) -> None: ...
+
+class GatheredFinding(_message.Message):
+    __slots__ = ("finding_id", "claim", "confidence", "status", "score")
+    FINDING_ID_FIELD_NUMBER: _ClassVar[int]
+    CLAIM_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SCORE_FIELD_NUMBER: _ClassVar[int]
+    finding_id: str
+    claim: str
+    confidence: float
+    status: str
+    score: float
+    def __init__(self, finding_id: _Optional[str] = ..., claim: _Optional[str] = ..., confidence: _Optional[float] = ..., status: _Optional[str] = ..., score: _Optional[float] = ...) -> None: ...
+
+class GatherRelatedFindingsResponse(_message.Message):
+    __slots__ = ("findings", "cap_applied")
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    CAP_APPLIED_FIELD_NUMBER: _ClassVar[int]
+    findings: _containers.RepeatedCompositeFieldContainer[GatheredFinding]
+    cap_applied: int
+    def __init__(self, findings: _Optional[_Iterable[_Union[GatheredFinding, _Mapping]]] = ..., cap_applied: _Optional[int] = ...) -> None: ...

@@ -119,7 +119,7 @@ export type SearchResult = Message<"vrooli.cli_health.v1.search.SearchResult"> &
   /**
    * Server-computed weak-match flag: true when this hit falls in the uncertain
    * band for the regime that produced its score. Computed once in the service
-   * via the shared engine's regime-aware LabelWeak so CLI and UI render an
+   * via the shared engine's regime-aware weak labeling so CLI and UI render an
    * identical "(weak)" badge without re-deriving a threshold.
    *
    * @generated from field: bool weak = 10;

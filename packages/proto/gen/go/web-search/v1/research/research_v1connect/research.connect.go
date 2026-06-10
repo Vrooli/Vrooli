@@ -40,6 +40,9 @@ const (
 	// ResearchServiceGetResearchStatusProcedure is the fully-qualified name of the ResearchService's
 	// GetResearchStatus RPC.
 	ResearchServiceGetResearchStatusProcedure = "/vrooli.web_search.v1.research.ResearchService/GetResearchStatus"
+	// ResearchServiceGatherRelatedFindingsProcedure is the fully-qualified name of the
+	// ResearchService's GatherRelatedFindings RPC.
+	ResearchServiceGatherRelatedFindingsProcedure = "/vrooli.web_search.v1.research.ResearchService/GatherRelatedFindings"
 )
 
 // ResearchServiceClient is a client for the vrooli.web_search.v1.research.ResearchService service.
@@ -56,6 +59,12 @@ type ResearchServiceClient interface {
 	RunL3(context.Context, *connect.Request[research.RunL3Request]) (*connect.Response[research.RunL3Response], error)
 	// GetResearchStatus polls an L3 run by id.
 	GetResearchStatus(context.Context, *connect.Request[research.GetResearchStatusRequest]) (*connect.Response[research.GetResearchStatusResponse], error)
+	// GatherRelatedFindings returns the findings semantically NEAR a query — the
+	// bounded GATHER step of the research-and-reconcile loop (OT-P1-003). The
+	// sweep is "near the query", never a whole-store scan: the server enforces a
+	// hard cap (max 20) regardless of the requested max, so the L3 agent uses this
+	// endpoint instead of a free-form findings search.
+	GatherRelatedFindings(context.Context, *connect.Request[research.GatherRelatedFindingsRequest]) (*connect.Response[research.GatherRelatedFindingsResponse], error)
 }
 
 // NewResearchServiceClient constructs a client for the
@@ -88,14 +97,21 @@ func NewResearchServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(researchServiceMethods.ByName("GetResearchStatus")),
 			connect.WithClientOptions(opts...),
 		),
+		gatherRelatedFindings: connect.NewClient[research.GatherRelatedFindingsRequest, research.GatherRelatedFindingsResponse](
+			httpClient,
+			baseURL+ResearchServiceGatherRelatedFindingsProcedure,
+			connect.WithSchema(researchServiceMethods.ByName("GatherRelatedFindings")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // researchServiceClient implements ResearchServiceClient.
 type researchServiceClient struct {
-	runL2             *connect.Client[research.RunL2Request, research.RunL2Response]
-	runL3             *connect.Client[research.RunL3Request, research.RunL3Response]
-	getResearchStatus *connect.Client[research.GetResearchStatusRequest, research.GetResearchStatusResponse]
+	runL2                 *connect.Client[research.RunL2Request, research.RunL2Response]
+	runL3                 *connect.Client[research.RunL3Request, research.RunL3Response]
+	getResearchStatus     *connect.Client[research.GetResearchStatusRequest, research.GetResearchStatusResponse]
+	gatherRelatedFindings *connect.Client[research.GatherRelatedFindingsRequest, research.GatherRelatedFindingsResponse]
 }
 
 // RunL2 calls vrooli.web_search.v1.research.ResearchService.RunL2.
@@ -113,6 +129,11 @@ func (c *researchServiceClient) GetResearchStatus(ctx context.Context, req *conn
 	return c.getResearchStatus.CallUnary(ctx, req)
 }
 
+// GatherRelatedFindings calls vrooli.web_search.v1.research.ResearchService.GatherRelatedFindings.
+func (c *researchServiceClient) GatherRelatedFindings(ctx context.Context, req *connect.Request[research.GatherRelatedFindingsRequest]) (*connect.Response[research.GatherRelatedFindingsResponse], error) {
+	return c.gatherRelatedFindings.CallUnary(ctx, req)
+}
+
 // ResearchServiceHandler is an implementation of the vrooli.web_search.v1.research.ResearchService
 // service.
 type ResearchServiceHandler interface {
@@ -128,6 +149,12 @@ type ResearchServiceHandler interface {
 	RunL3(context.Context, *connect.Request[research.RunL3Request]) (*connect.Response[research.RunL3Response], error)
 	// GetResearchStatus polls an L3 run by id.
 	GetResearchStatus(context.Context, *connect.Request[research.GetResearchStatusRequest]) (*connect.Response[research.GetResearchStatusResponse], error)
+	// GatherRelatedFindings returns the findings semantically NEAR a query — the
+	// bounded GATHER step of the research-and-reconcile loop (OT-P1-003). The
+	// sweep is "near the query", never a whole-store scan: the server enforces a
+	// hard cap (max 20) regardless of the requested max, so the L3 agent uses this
+	// endpoint instead of a free-form findings search.
+	GatherRelatedFindings(context.Context, *connect.Request[research.GatherRelatedFindingsRequest]) (*connect.Response[research.GatherRelatedFindingsResponse], error)
 }
 
 // NewResearchServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -155,6 +182,12 @@ func NewResearchServiceHandler(svc ResearchServiceHandler, opts ...connect.Handl
 		connect.WithSchema(researchServiceMethods.ByName("GetResearchStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	researchServiceGatherRelatedFindingsHandler := connect.NewUnaryHandler(
+		ResearchServiceGatherRelatedFindingsProcedure,
+		svc.GatherRelatedFindings,
+		connect.WithSchema(researchServiceMethods.ByName("GatherRelatedFindings")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.web_search.v1.research.ResearchService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ResearchServiceRunL2Procedure:
@@ -163,6 +196,8 @@ func NewResearchServiceHandler(svc ResearchServiceHandler, opts ...connect.Handl
 			researchServiceRunL3Handler.ServeHTTP(w, r)
 		case ResearchServiceGetResearchStatusProcedure:
 			researchServiceGetResearchStatusHandler.ServeHTTP(w, r)
+		case ResearchServiceGatherRelatedFindingsProcedure:
+			researchServiceGatherRelatedFindingsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -182,4 +217,8 @@ func (UnimplementedResearchServiceHandler) RunL3(context.Context, *connect.Reque
 
 func (UnimplementedResearchServiceHandler) GetResearchStatus(context.Context, *connect.Request[research.GetResearchStatusRequest]) (*connect.Response[research.GetResearchStatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.GetResearchStatus is not implemented"))
+}
+
+func (UnimplementedResearchServiceHandler) GatherRelatedFindings(context.Context, *connect.Request[research.GatherRelatedFindingsRequest]) (*connect.Response[research.GatherRelatedFindingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.GatherRelatedFindings is not implemented"))
 }

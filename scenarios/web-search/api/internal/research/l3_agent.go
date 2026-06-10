@@ -16,6 +16,119 @@ import (
 // overwriting a contested claim. Named here so the gate is a single SSOT.
 const HighConfidenceThreshold = 0.75
 
+const (
+	// DefaultGatherFindings is the bounded GATHER size used when a caller omits a
+	// positive max.
+	DefaultGatherFindings = 20
+	// MaxGatherFindings is the HARD cap on the bounded GATHER sweep. OT-P1-003
+	// requires the gather to read findings "semantically near the query", never a
+	// whole-store scan; the cap is enforced server-side so a caller cannot widen
+	// the sweep.
+	MaxGatherFindings = 20
+)
+
+// GatheredFinding is one finding semantically near a gather query, projected to
+// the fields the reconcile step reasons over.
+type GatheredFinding struct {
+	FindingID  string
+	Claim      string
+	Confidence float64
+	// Status is the lifecycle state ("active" | "disputed").
+	Status string
+	// Score is the semantic relevance of this finding to the query.
+	Score float64
+}
+
+// clampGatherLimit enforces the bounded-sweep contract: an omitted/non-positive
+// max defaults to DefaultGatherFindings; any larger request is clamped to the
+// MaxGatherFindings hard cap.
+func clampGatherLimit(max int) int {
+	switch {
+	case max <= 0:
+		return DefaultGatherFindings
+	case max > MaxGatherFindings:
+		return MaxGatherFindings
+	default:
+		return max
+	}
+}
+
+// GatherRelatedFindings runs the bounded GATHER step of the
+// research-and-reconcile loop: it returns the findings semantically NEAR the
+// query, capped at MaxGatherFindings. The cap is enforced here (not left to the
+// caller or the agent's free-form search), so the L3 agent calls this endpoint
+// instead of an unbounded `findings search`. The returned slice is additionally
+// truncated to the cap defensively, so a misbehaving seam cannot widen the
+// sweep. Requires a wired Gatherer seam.
+func (s *Service) GatherRelatedFindings(ctx context.Context, query string, max int) ([]GatheredFinding, int, error) {
+	if s.gatherer == nil {
+		return nil, 0, fmt.Errorf("research: gather unavailable: findings index not configured")
+	}
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, 0, fmt.Errorf("research: gather query is required")
+	}
+	limit := clampGatherLimit(max)
+	out, err := s.gatherer.Gather(ctx, query, limit)
+	if err != nil {
+		return nil, limit, err
+	}
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, limit, nil
+}
+
+// CycleResult is the outcome of one bounded research-and-reconcile cycle.
+type CycleResult struct {
+	// Gathered is the bounded set of nearby findings the cycle read first.
+	Gathered []GatheredFinding
+	// Brief is the answer produced before any curation.
+	Brief Brief
+	// Reconciled records the gate's decision per proposed reconcile item.
+	Reconciled []ReconcileResult
+	// ReconcileSkipped is true when the bounded reconcile post-step was
+	// deliberately skipped because the answer step errored or produced no
+	// summary — the store is never curated off a failed or empty run.
+	ReconcileSkipped bool
+}
+
+// Answerer is the answer-first step of a research cycle: given the gathered
+// findings it produces the brief and the reconcile items the post-step will
+// apply. The cycle runs reconcile ONLY if this returns no error and a non-empty
+// summary.
+type Answerer func(ctx context.Context, gathered []GatheredFinding) (Brief, []ReconcileItem, error)
+
+// RunResearchCycle encodes the OT-P1-003 budget order deterministically so it is
+// unit-testable independent of the live agent loop: GATHER (bounded) -> answer
+// (produce the brief) -> RECONCILE (bounded post-step). The reconcile step runs
+// strictly AFTER a non-empty answer is produced; if the answer step errors or
+// yields no summary, reconcile is skipped and the store is left untouched. This
+// is the executable contract the L3 prompt mirrors.
+func (s *Service) RunResearchCycle(ctx context.Context, query string, answer Answerer) (CycleResult, error) {
+	if answer == nil {
+		return CycleResult{}, fmt.Errorf("research: cycle answerer is required")
+	}
+	gathered, _, err := s.GatherRelatedFindings(ctx, query, MaxGatherFindings)
+	if err != nil {
+		return CycleResult{}, err
+	}
+	brief, items, err := answer(ctx, gathered)
+	if err != nil {
+		// Answer-first: a failed answer means we never curate the store.
+		return CycleResult{Gathered: gathered, ReconcileSkipped: true}, err
+	}
+	if strings.TrimSpace(brief.Summary) == "" {
+		// Nothing was answered -> skip the bounded reconcile post-step.
+		return CycleResult{Gathered: gathered, Brief: brief, ReconcileSkipped: true}, nil
+	}
+	results, err := s.Reconcile(ctx, items)
+	if err != nil {
+		return CycleResult{Gathered: gathered, Brief: brief}, err
+	}
+	return CycleResult{Gathered: gathered, Brief: brief, Reconciled: results}, nil
+}
+
 // RunL3 starts an agent-manager run that performs the iterative
 // research-and-reconcile loop and returns the run handle. The loop semantics
 // (GATHER nearby findings -> research the gap with L2 tools -> RECONCILE:
@@ -52,7 +165,7 @@ func buildL3Prompt(query string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Research question: %s\n\n", query)
 	b.WriteString("You are an L3 research agent for the web-search scenario. Follow this loop:\n\n")
-	b.WriteString("1. GATHER: run `web-search findings search \"<query>\"` to load the NEARBY existing findings (bounded — do not scan the whole store).\n")
+	fmt.Fprintf(&b, "1. GATHER: run `web-search research gather \"<query>\"` to load the NEARBY existing findings. This is a BOUNDED sweep (the server caps it at %d findings semantically near the query) — use it instead of a free-form `findings search`; never scan the whole store.\n", MaxGatherFindings)
 	b.WriteString("2. RESEARCH the gap: use `web-search research l2 \"<focused sub-query>\"` (full-page fetch + cited synthesis) for what the existing findings do not already cover. Use `web-search search` for fresh candidate URLs.\n")
 	b.WriteString("3. RECONCILE (bounded post-step, answer first): distill what you learned into citation-backed claims and curate the store:\n")
 	fmt.Fprintf(&b, "   - When a new claim is well-supported and clearly contradicts an existing finding (confidence >= %.2f), SUPERSEDE the outdated finding via `web-search findings supersede <old-id> --replacement <new-id> --reason \"<why>\"`.\n", HighConfidenceThreshold)

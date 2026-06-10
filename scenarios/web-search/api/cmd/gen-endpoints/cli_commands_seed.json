@@ -57,6 +57,21 @@
       "endpoint_id": "findings_count"
     },
     {
+      "name": "findings effectiveness",
+      "description": "List findings by usage effectiveness ([--limit N] [--include-disputed]); surfaced/used counts + blended score",
+      "endpoint_id": "findings_effectiveness"
+    },
+    {
+      "name": "findings use",
+      "description": "Record an explicit 'this finding was used' signal (ID)",
+      "endpoint_id": "findings_record_usage"
+    },
+    {
+      "name": "findings gc",
+      "description": "Run the store-consistency GC ([--dry-run]); soft-retire decayed + report drift",
+      "endpoint_id": "findings_gc"
+    },
+    {
       "name": "search",
       "description": "Live web search (QUERY [--limit N] [--synthesis]); L0 results with optional L1 snippet synthesis",
       "endpoint_id": "livesearch_search"
@@ -75,6 +90,11 @@
       "name": "research status",
       "description": "Poll an L3 research run (ID)",
       "endpoint_id": "research_status"
+    },
+    {
+      "name": "research gather",
+      "description": "Bounded GATHER of findings near a query (QUERY [--max N]); server-capped at 20",
+      "endpoint_id": "research_gather"
     },
     {
       "name": "disputes list",

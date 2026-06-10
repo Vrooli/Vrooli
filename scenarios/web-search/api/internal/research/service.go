@@ -18,6 +18,14 @@ type FindingsService interface {
 	Flag(ctx context.Context, id, reason string) (findings.Finding, error)
 }
 
+// FindingsGatherer is the bounded semantic-gather seam: given a query it returns
+// the findings semantically NEAR it, already capped by the caller's limit. The
+// production impl wraps the findings semantic index + store; a test fake
+// satisfies it. A nil Gatherer makes GatherRelatedFindings unavailable.
+type FindingsGatherer interface {
+	Gather(ctx context.Context, query string, limit int) ([]GatheredFinding, error)
+}
+
 // Deps wires the research service's seams. All are optional: a nil Searcher /
 // Fetcher / Synthesizer makes L2 abstain (graceful when browserless/ollama are
 // down); a nil AgentManager makes L3 unavailable; a nil Findings disables
@@ -27,6 +35,7 @@ type Deps struct {
 	Fetcher      Fetcher
 	Synthesizer  Synthesizer
 	Findings     FindingsService
+	Gatherer     FindingsGatherer
 	AgentManager agentmanager.Service
 	Logger       *log.Logger
 }
@@ -38,6 +47,7 @@ type Service struct {
 	fetcher      Fetcher
 	synthesizer  Synthesizer
 	findings     FindingsService
+	gatherer     FindingsGatherer
 	agentManager agentmanager.Service
 	logger       *log.Logger
 }
@@ -53,6 +63,7 @@ func NewService(d Deps) *Service {
 		fetcher:      d.Fetcher,
 		synthesizer:  d.Synthesizer,
 		findings:     d.Findings,
+		gatherer:     d.Gatherer,
 		agentManager: d.AgentManager,
 		logger:       logger,
 	}

@@ -394,6 +394,12 @@ const literalSelectors = {
     pruneDryRun: "findings-prune-dry-run",
     pruneApply: "findings-prune-apply",
     pruneResult: "findings-prune-result",
+    effectivenessPanel: "findings-effectiveness-panel",
+    effectivenessList: "findings-effectiveness-list",
+    effectivenessItem: "findings-effectiveness-item",
+    effectivenessLoading: "findings-effectiveness-loading",
+    effectivenessError: "findings-effectiveness-error",
+    effectivenessEmpty: "findings-effectiveness-empty",
   },
   disputes: {
     panel: "disputes-panel",

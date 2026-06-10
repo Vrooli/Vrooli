@@ -193,7 +193,7 @@ class DocHealthMissingDoc(_message.Message):
     def __init__(self, doc_type: _Optional[str] = ..., path: _Optional[str] = ..., severity: _Optional[_Union[DocHealthSeverity, str]] = ..., completion: _Optional[str] = ..., required_by: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class DocHealthCounts(_message.Message):
-    __slots__ = ("files_checked", "markdown_warnings", "markdown_failures", "local_links", "external_links", "broken_links", "external_warnings", "external_failures", "mermaid_validated", "mermaid_failures", "absolute_path_hits", "absolute_failures", "code_files_scanned", "code_refs_found", "code_refs_broken", "doc_refs_found", "doc_refs_broken", "marked_refs_found", "marked_refs_broken", "marked_refs_skipped", "marked_refs_unknown", "docs_in_manifest", "docs_not_in_manifest")
+    __slots__ = ("files_checked", "markdown_warnings", "markdown_failures", "local_links", "external_links", "broken_links", "external_warnings", "external_failures", "mermaid_validated", "mermaid_failures", "absolute_path_hits", "absolute_failures", "code_files_scanned", "code_refs_found", "code_refs_broken", "doc_refs_found", "doc_refs_broken", "marked_refs_found", "marked_refs_broken", "marked_refs_skipped", "marked_refs_unknown", "docs_in_manifest", "docs_not_in_manifest", "numbers_flagged")
     FILES_CHECKED_FIELD_NUMBER: _ClassVar[int]
     MARKDOWN_WARNINGS_FIELD_NUMBER: _ClassVar[int]
     MARKDOWN_FAILURES_FIELD_NUMBER: _ClassVar[int]
@@ -217,6 +217,7 @@ class DocHealthCounts(_message.Message):
     MARKED_REFS_UNKNOWN_FIELD_NUMBER: _ClassVar[int]
     DOCS_IN_MANIFEST_FIELD_NUMBER: _ClassVar[int]
     DOCS_NOT_IN_MANIFEST_FIELD_NUMBER: _ClassVar[int]
+    NUMBERS_FLAGGED_FIELD_NUMBER: _ClassVar[int]
     files_checked: int
     markdown_warnings: int
     markdown_failures: int
@@ -240,19 +241,26 @@ class DocHealthCounts(_message.Message):
     marked_refs_unknown: int
     docs_in_manifest: int
     docs_not_in_manifest: int
-    def __init__(self, files_checked: _Optional[int] = ..., markdown_warnings: _Optional[int] = ..., markdown_failures: _Optional[int] = ..., local_links: _Optional[int] = ..., external_links: _Optional[int] = ..., broken_links: _Optional[int] = ..., external_warnings: _Optional[int] = ..., external_failures: _Optional[int] = ..., mermaid_validated: _Optional[int] = ..., mermaid_failures: _Optional[int] = ..., absolute_path_hits: _Optional[int] = ..., absolute_failures: _Optional[int] = ..., code_files_scanned: _Optional[int] = ..., code_refs_found: _Optional[int] = ..., code_refs_broken: _Optional[int] = ..., doc_refs_found: _Optional[int] = ..., doc_refs_broken: _Optional[int] = ..., marked_refs_found: _Optional[int] = ..., marked_refs_broken: _Optional[int] = ..., marked_refs_skipped: _Optional[int] = ..., marked_refs_unknown: _Optional[int] = ..., docs_in_manifest: _Optional[int] = ..., docs_not_in_manifest: _Optional[int] = ...) -> None: ...
+    numbers_flagged: int
+    def __init__(self, files_checked: _Optional[int] = ..., markdown_warnings: _Optional[int] = ..., markdown_failures: _Optional[int] = ..., local_links: _Optional[int] = ..., external_links: _Optional[int] = ..., broken_links: _Optional[int] = ..., external_warnings: _Optional[int] = ..., external_failures: _Optional[int] = ..., mermaid_validated: _Optional[int] = ..., mermaid_failures: _Optional[int] = ..., absolute_path_hits: _Optional[int] = ..., absolute_failures: _Optional[int] = ..., code_files_scanned: _Optional[int] = ..., code_refs_found: _Optional[int] = ..., code_refs_broken: _Optional[int] = ..., doc_refs_found: _Optional[int] = ..., doc_refs_broken: _Optional[int] = ..., marked_refs_found: _Optional[int] = ..., marked_refs_broken: _Optional[int] = ..., marked_refs_skipped: _Optional[int] = ..., marked_refs_unknown: _Optional[int] = ..., docs_in_manifest: _Optional[int] = ..., docs_not_in_manifest: _Optional[int] = ..., numbers_flagged: _Optional[int] = ...) -> None: ...
 
 class DocHealthRequest(_message.Message):
-    __slots__ = ("scenario_name", "strict_external_links", "require_all_docs_registered", "skip_external_links")
+    __slots__ = ("scenario_name", "strict_external_links", "require_all_docs_registered", "skip_external_links", "scope", "path", "checks")
     SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
     STRICT_EXTERNAL_LINKS_FIELD_NUMBER: _ClassVar[int]
     REQUIRE_ALL_DOCS_REGISTERED_FIELD_NUMBER: _ClassVar[int]
     SKIP_EXTERNAL_LINKS_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    CHECKS_FIELD_NUMBER: _ClassVar[int]
     scenario_name: str
     strict_external_links: bool
     require_all_docs_registered: bool
     skip_external_links: bool
-    def __init__(self, scenario_name: _Optional[str] = ..., strict_external_links: _Optional[bool] = ..., require_all_docs_registered: _Optional[bool] = ..., skip_external_links: _Optional[bool] = ...) -> None: ...
+    scope: str
+    path: str
+    checks: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, scenario_name: _Optional[str] = ..., strict_external_links: _Optional[bool] = ..., require_all_docs_registered: _Optional[bool] = ..., skip_external_links: _Optional[bool] = ..., scope: _Optional[str] = ..., path: _Optional[str] = ..., checks: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class DocHealthResponse(_message.Message):
     __slots__ = ("scenario_name", "source_template_id", "manifest_path", "manifest_status", "health_score", "total_docs", "misplaced_docs", "missing_docs", "extra_docs", "temporary_docs", "contract_findings", "content_findings", "reference_findings", "manifest_findings", "counts", "timestamp")

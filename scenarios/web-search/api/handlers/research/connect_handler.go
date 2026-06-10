@@ -88,6 +88,34 @@ func (h *connectHandler) GetResearchStatus(ctx context.Context, req *connect.Req
 	}), nil
 }
 
+// GatherRelatedFindings runs the bounded GATHER step (OT-P1-003): it returns the
+// findings semantically near the query, capped server-side. The applied cap is
+// echoed so callers can see the sweep was bounded.
+func (h *connectHandler) GatherRelatedFindings(ctx context.Context, req *connect.Request[researchv1.GatherRelatedFindingsRequest]) (*connect.Response[researchv1.GatherRelatedFindingsResponse], error) {
+	if h.deps.Service == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("research service not configured"))
+	}
+	gathered, capApplied, err := h.deps.Service.GatherRelatedFindings(ctx, req.Msg.GetQuery(), int(req.Msg.GetMax()))
+	if err != nil {
+		h.deps.Logger.Printf("research.GatherRelatedFindings: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := make([]*researchv1.GatheredFinding, 0, len(gathered))
+	for _, g := range gathered {
+		out = append(out, &researchv1.GatheredFinding{
+			FindingId:  g.FindingID,
+			Claim:      g.Claim,
+			Confidence: g.Confidence,
+			Status:     g.Status,
+			Score:      g.Score,
+		})
+	}
+	return connect.NewResponse(&researchv1.GatherRelatedFindingsResponse{
+		Findings:   out,
+		CapApplied: int32(capApplied),
+	}), nil
+}
+
 // mapAgentError maps an agent-manager-path error to a Connect code: an
 // unavailable upstream becomes Unavailable (callers retry / degrade), anything
 // else Internal.

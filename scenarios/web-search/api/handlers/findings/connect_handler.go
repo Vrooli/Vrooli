@@ -2,6 +2,7 @@ package findings
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"web-search/internal/clock"
@@ -9,6 +10,7 @@ import (
 	"web-search/internal/findings"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	findingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/findings"
 )
@@ -19,10 +21,26 @@ type Searcher interface {
 	Search(ctx context.Context, query string, limit int) ([]findingindex.Hit, string, error)
 }
 
+// Surfacer is the usage-telemetry seam (OT-P2-001): SearchFindings enqueues the
+// ids it surfaced for asynchronous counting. The production impl is
+// *findings.UsageRecorder; a nil Surfacer disables telemetry. The contract is
+// fire-and-forget — the call MUST NOT block or fail the search response.
+type Surfacer interface {
+	Surfaced(ids []string)
+}
+
+// GCRunner runs the OT-P2-003 store-consistency pass. The production impl is
+// *findings.GCService; a nil GC makes RunGC return Unavailable.
+type GCRunner interface {
+	Run(ctx context.Context, dryRun bool) (findings.GCReport, error)
+}
+
 // Deps wires the seams the Connect findings handler needs.
 type Deps struct {
 	Service  findings.Service
 	Searcher Searcher
+	Surfacer Surfacer
+	GC       GCRunner
 	// Clock anchors the CountFindings measure's relative time-window resolution.
 	Clock  clock.Clock
 	Logger *log.Logger
@@ -41,6 +59,21 @@ func NewConnectHandler(d Deps) *connectHandler {
 		d.Clock = clock.System{}
 	}
 	return &connectHandler{deps: d}
+}
+
+// recordSurfaced enqueues the ids of the surfaced hits for async usage counting.
+// No-op when no Surfacer is wired. Best-effort: it never blocks the response.
+func (h *connectHandler) recordSurfaced(hits []*findingsv1.FindingHit) {
+	if h.deps.Surfacer == nil || len(hits) == 0 {
+		return
+	}
+	ids := make([]string, 0, len(hits))
+	for _, hit := range hits {
+		if hit.GetFinding() != nil {
+			ids = append(ids, hit.GetFinding().GetId())
+		}
+	}
+	h.deps.Surfacer.Surfaced(ids)
 }
 
 func (h *connectHandler) logIfInternal(op string, err, connectErr error) {
@@ -214,6 +247,11 @@ func (h *connectHandler) SearchFindings(ctx context.Context, req *connect.Reques
 				Weak:    hit.Weak,
 			})
 		}
+		// Usage telemetry (OT-P2-001): record the findings this search surfaced.
+		// Fire-and-forget — never blocks or fails the response. Superseded/weak
+		// archived appends below are NOT counted as surfacings (they are a
+		// fallback, not a semantic match).
+		h.recordSurfaced(resp.Hits)
 	}
 	if req.Msg.GetIncludeArchived() {
 		archived, err := h.deps.Service.SearchArchivedLike(ctx, req.Msg.GetQuery(), limit)
@@ -246,4 +284,64 @@ func (h *connectHandler) CountFindings(ctx context.Context, req *connect.Request
 		return nil, findings.ToConnectError(err)
 	}
 	return connect.NewResponse(&findingsv1.CountFindingsResponse{Count: int64(n)}), nil
+}
+
+// ListEffectiveness returns findings paired with their usage telemetry and the
+// blended effective score (age-decayed confidence × usage factor), computed on
+// read against the handler clock (OT-P2-001).
+func (h *connectHandler) ListEffectiveness(ctx context.Context, req *connect.Request[findingsv1.ListEffectivenessRequest]) (*connect.Response[findingsv1.ListEffectivenessResponse], error) {
+	limit := int(req.Msg.GetLimit())
+	pairs, err := h.deps.Service.ListEffectiveness(ctx, req.Msg.GetIncludeDisputed(), limit)
+	if err != nil {
+		h.deps.Logger.Printf("findings.ListEffectiveness: %v", err)
+		return nil, findings.ToConnectError(err)
+	}
+	now := h.deps.Clock.Now()
+	resp := &findingsv1.ListEffectivenessResponse{}
+	for _, p := range pairs {
+		item := &findingsv1.FindingEffectiveness{
+			Finding:             domainToProto(p.Finding),
+			SurfacedCount:       int32(p.Usage.SurfacedCount),
+			UsedCount:           int32(p.Usage.UsedCount),
+			EffectiveConfidence: findings.EffectiveConfidence(p.Finding, now),
+			UsageFactor:         findings.UsageFactor(p.Usage, p.Finding, now),
+			EffectiveScore:      findings.EffectiveScore(p.Finding, p.Usage, now),
+		}
+		if !p.Usage.LastSurfacedAt.IsZero() {
+			item.LastSurfacedAt = timestamppb.New(p.Usage.LastSurfacedAt)
+		}
+		resp.Items = append(resp.Items, item)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+// RecordUsage records an explicit "used" signal for a finding.
+func (h *connectHandler) RecordUsage(ctx context.Context, req *connect.Request[findingsv1.RecordUsageRequest]) (*connect.Response[findingsv1.RecordUsageResponse], error) {
+	f, err := h.deps.Service.RecordUsage(ctx, req.Msg.GetId())
+	if err != nil {
+		connectErr := findings.ToConnectError(err)
+		h.logIfInternal("RecordUsage", err, connectErr)
+		return nil, connectErr
+	}
+	return connect.NewResponse(&findingsv1.RecordUsageResponse{Finding: domainToProto(f)}), nil
+}
+
+// RunGC runs the OT-P2-003 store-consistency pass (or, with dry_run, reports the
+// candidates without mutating).
+func (h *connectHandler) RunGC(ctx context.Context, req *connect.Request[findingsv1.RunGCRequest]) (*connect.Response[findingsv1.RunGCResponse], error) {
+	if h.deps.GC == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("findings GC not configured"))
+	}
+	report, err := h.deps.GC.Run(ctx, req.Msg.GetDryRun())
+	if err != nil {
+		h.deps.Logger.Printf("findings.RunGC: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&findingsv1.RunGCResponse{
+		DryRun:                report.DryRun,
+		SupersededDecayed:     report.SupersededDecayed,
+		ColdArchiveCandidates: report.ColdArchiveCandidates,
+		StaleDisputes:         report.StaleDisputes,
+		Orphans:               report.Orphans,
+	}), nil
 }

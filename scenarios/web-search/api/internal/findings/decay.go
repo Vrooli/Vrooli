@@ -13,6 +13,51 @@ import (
 // without rewriting history.
 const DecayHalfLife = 180 * 24 * time.Hour // ~6 months
 
+const (
+	// UsageGracePeriod is how long a never-surfaced finding is left unpenalized:
+	// a fresh finding simply has not had a chance to be surfaced yet, so its
+	// usage factor stays 1.0 until it is older than this.
+	UsageGracePeriod = 30 * 24 * time.Hour // ~1 month
+	// UsageHalfLife is the half-life of the usage penalty applied to a
+	// never-surfaced finding once it is past the grace period.
+	UsageHalfLife = 90 * 24 * time.Hour // ~3 months
+	// UsageFloor is the lowest the usage factor can drive a finding: usage
+	// telemetry only DOWN-WEIGHTS a never-surfaced claim, it never zeroes it out
+	// on its own (curation still goes through the confidence + supersede gate).
+	UsageFloor = 0.5
+)
+
+// UsageFactor is the OT-P2-001 usage signal in [UsageFloor, 1]: a finding that
+// has ever been surfaced (or explicitly used) is "proven" and keeps factor 1.0;
+// a never-surfaced finding keeps 1.0 until it is older than UsageGracePeriod,
+// then decays on UsageHalfLife toward UsageFloor. It is pure (no storage
+// mutation), mirroring the age-decay design.
+func UsageFactor(u Usage, f Finding, now time.Time) float64 {
+	if u.SurfacedCount > 0 || u.UsedCount > 0 {
+		return 1.0
+	}
+	age := Age(f, now)
+	if age <= UsageGracePeriod {
+		return 1.0
+	}
+	over := age - UsageGracePeriod
+	halfLives := over.Seconds() / UsageHalfLife.Seconds()
+	factor := math.Pow(0.5, halfLives)
+	if factor < UsageFloor {
+		return UsageFloor
+	}
+	return factor
+}
+
+// EffectiveScore blends age-decayed confidence with the usage factor — the
+// trust signal the effectiveness surface displays and the GC eligibility check
+// reads: effective = EffectiveConfidence × UsageFactor. A never-surfaced,
+// fully-decayed finding scores lowest; a recently-surfaced, fresh one scores
+// highest. Pure; storage is never mutated.
+func EffectiveScore(f Finding, u Usage, now time.Time) float64 {
+	return EffectiveConfidence(f, now) * UsageFactor(u, f, now)
+}
+
 // Age returns how old a finding is relative to now, measured from its retrieval
 // date (when the claim was last gathered) falling back to created_at. A
 // zero/future stamp yields a zero age.

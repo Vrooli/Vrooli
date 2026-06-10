@@ -1,5 +1,6 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
+import { EffectivenessPanel } from "../features/findings/EffectivenessPanel";
 import { FindingsPanel } from "../features/findings/FindingsPanel";
 import { useTranslation } from "../i18n";
 
@@ -23,6 +24,7 @@ export function FindingsPage() {
         <p className="text-app-muted-foreground">{t(strings.pages.findings.description)}</p>
       </div>
       <FindingsPanel />
+      <EffectivenessPanel />
     </section>
   );
 }

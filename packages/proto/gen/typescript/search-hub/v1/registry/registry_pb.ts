@@ -218,7 +218,7 @@ export const ResultMappingSchema: GenMessage<ResultMapping> = /*@__PURE__*/
 /**
  * Per-leg score floor (query-time). A value of 0 means "use the regime
  * default" — the floor is not disabled, it falls back to aisearch-go's
- * regime-aware FloorForLeg calibration. Carried so the sweep can write a
+ * regime-aware floor calibration. Carried so the sweep can write a
  * measured override back into search.json without touching code.
  *
  * @generated from message vrooli.search_hub.v1.registry.FloorConfig

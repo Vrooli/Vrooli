@@ -66,4 +66,13 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "research",
 		CLIMapping:  &module.CLIMapping{Command: "web-search research status", Args: []string{"<id>"}},
 	},
+	{
+		ID:          "research_gather",
+		Path:        researchconnect.ResearchServiceGatherRelatedFindingsProcedure,
+		Method:      "POST",
+		Summary:     "Bounded GATHER of findings near a query",
+		Description: "Returns the findings semantically near the query for the GATHER step of the research-and-reconcile loop. The sweep is bounded server-side (hard cap 20) — the L3 agent uses this instead of a free-form findings search, so it never scans the whole store.",
+		Category:    "research",
+		CLIMapping:  &module.CLIMapping{Command: "web-search research gather", Args: []string{"<query>", "--max", "<n>"}},
+	},
 }
