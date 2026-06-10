@@ -110,19 +110,10 @@
           },
           "additionalProperties": false
         },
-        "importance": {
-          "type": "string",
-          "enum": [
-            "critical",
-            "important",
-            "standard",
-            "experimental"
-          ]
-        },
         "system_required": {
           "type": "boolean",
           "default": false,
-          "description": "When true, this scenario is part of Vrooli's own operation (e.g. vrooli-onboarding, secrets-manager). Onboarding renders system-required scenarios as enabled and not user-toggleable. Distinct from 'importance', which is the user-facing priority axis."
+          "description": "When true, this scenario is part of Vrooli's own operation (e.g. vrooli-onboarding, secrets-manager). Onboarding renders system-required scenarios as enabled and not user-toggleable."
         }
       },
       "additionalProperties": false

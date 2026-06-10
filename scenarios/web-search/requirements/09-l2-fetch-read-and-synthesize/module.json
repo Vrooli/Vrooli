@@ -13,7 +13,7 @@
       "description": "Fetch the top-N result page URLs from a prior L0 search via the L2 fetch stack (plain HTTP first, per-URL escalation to a browser-automation-studio capture for JS-shell pages), extract readable body text (stripping navigation, ads, boilerplate), and produce a single-pass cited synthesis using the LLM over the extracted content. Expose this capability as discrete API endpoints and as agent tool definitions consumable by the L3 agent. Fetched page content must not be stored as findings (auto-capture is opt-in for L2).",
       "id": "REQ-P1-001",
       "prd_ref": "OT-P1-001",
-      "status": "draft",
+      "status": "complete",
       "title": "L2 Page Fetch, Text Extraction, and Single-Pass Cited Synthesis",
       "validation": [
         {
@@ -66,10 +66,10 @@
           "type": "test"
         },
         {
-          "notes": "L2 API endpoint schema validation: request must include query and top_n (1..10), response includes synthesis text, citations array, and raw extracted excerpts",
+          "notes": "L2 API endpoint schema validation: request must include query (empty -> InvalidArgument) and top_n clamped into 1..10; response includes synthesis text, citations array, the per-document excerpts actually sent to the model (excerpts field, transport-capped), and abstain_reason on abstention [the 'raw extracted excerpts' response field landed 2026-06-10 with the L2 observability pass: proto DocumentExcerpt + abstain_reason on RunL2Response]",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/research/connect_handler_test.go::TestRunL2SchemaValidation",
+          "status": "implemented",
           "type": "test"
         },
         {
@@ -101,7 +101,7 @@
           "type": "test"
         },
         {
-          "notes": "L2 results are richer than L1 but incur higher latency \u2014 the tradeoff is documented in the API",
+          "notes": "L2 results are richer than L1 but incur higher latency — the tradeoff is documented in the API",
           "phase": "business",
           "ref": "api/handlers/research/connect_handler_test.go::TestL2EndpointDocumentsRichnessLatencyTradeoff",
           "status": "implemented",

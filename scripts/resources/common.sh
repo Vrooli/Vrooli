@@ -27,8 +27,12 @@ source "${var_LIB_NETWORK_DIR}/ports.sh"
 source "${var_LIB_DIR}/runtimes/docker.sh"
 # shellcheck disable=SC1091
 source "${var_PORT_REGISTRY_FILE}"
-# shellcheck disable=SC1091
-source "${var_REPOSITORY_FILE}"
+# repository.sh was removed in the tool reorg (342e3d8bd4); all repository::
+# call sites below are already guarded, so only source it when present.
+if [[ -f "${var_REPOSITORY_FILE}" ]]; then
+    # shellcheck disable=SC1091
+    source "${var_REPOSITORY_FILE}"
+fi
 # shellcheck disable=SC1091
 source "${var_SYSTEM_COMMANDS_FILE}"
 # shellcheck disable=SC1091

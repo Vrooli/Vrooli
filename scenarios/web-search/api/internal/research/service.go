@@ -39,6 +39,12 @@ type Deps struct {
 	AgentManager agentmanager.Service
 	Logger       *log.Logger
 
+	// Excerpter selects what part of each fetched page the synthesis model
+	// reads. Nil falls back to positional truncation (the legacy behavior);
+	// main.go wires the relevance-aware excerpter unless the escape hatch
+	// lever turns it off.
+	Excerpter Excerpter
+
 	// ConfidenceGate overrides HighConfidenceThreshold for the L3 reconcile
 	// confidence gate. Zero (or any value outside (0,1]) keeps the default.
 	ConfidenceGate float64
@@ -57,6 +63,7 @@ type Service struct {
 	searcher       Searcher
 	fetcher        Fetcher
 	synthesizer    Synthesizer
+	excerpter      Excerpter
 	findings       FindingsService
 	gatherer       FindingsGatherer
 	agentManager   agentmanager.Service
@@ -84,10 +91,15 @@ func NewService(d Deps) *Service {
 	if maxLoops <= 0 {
 		maxLoops = DefaultMaxResearchLoops
 	}
+	excerpter := d.Excerpter
+	if excerpter == nil {
+		excerpter = PositionalExcerpter{}
+	}
 	return &Service{
 		searcher:       d.Searcher,
 		fetcher:        d.Fetcher,
 		synthesizer:    d.Synthesizer,
+		excerpter:      excerpter,
 		findings:       d.Findings,
 		gatherer:       d.Gatherer,
 		agentManager:   d.AgentManager,

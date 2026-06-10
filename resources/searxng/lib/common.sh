@@ -179,6 +179,34 @@ searxng::health_check_detailed() {
         # 5. Check HTTP health
         if curl -sf --max-time 5 "${SEARXNG_BASE_URL}/stats" >/dev/null 2>&1; then
             log::success "✅ HTTP health check passed"
+
+            # 5b. Engine-level health: /healthz and /stats stay 200 while every
+            # engine is suspended, so probe a canary query and read
+            # unresponsive_engines from the JSON payload.
+            if command -v jq >/dev/null 2>&1; then
+                local canary_json responsive_count unresponsive_list
+                canary_json=$(curl -sf --max-time 20 "${SEARXNG_BASE_URL}/search?q=current+world+news&format=json" 2>/dev/null || true)
+                if [[ -n "$canary_json" ]]; then
+                    responsive_count=$(echo "$canary_json" | jq -r '[.results[].engine] | unique | length' 2>/dev/null || echo "0")
+                    unresponsive_list=$(echo "$canary_json" | jq -r '.unresponsive_engines[]? | "\(.[0]): \(.[1])"' 2>/dev/null || true)
+                    if [[ "${responsive_count:-0}" -ge 2 ]]; then
+                        log::success "✅ Engine health: $responsive_count engines responsive"
+                    elif [[ "${responsive_count:-0}" -eq 1 ]]; then
+                        issues+=("Only 1 engine responsive - metasearch redundancy lost")
+                        status="degraded"
+                    else
+                        issues+=("No engines responded to canary query")
+                        status="degraded"
+                    fi
+                    if [[ -n "$unresponsive_list" ]]; then
+                        while IFS= read -r engine_issue; do
+                            warnings+=("Engine unresponsive - $engine_issue")
+                        done <<< "$unresponsive_list"
+                    fi
+                else
+                    warnings+=("Engine canary query failed - JSON API not reachable")
+                fi
+            fi
         else
             issues+=("HTTP health check failed - service not responding")
             status="degraded"

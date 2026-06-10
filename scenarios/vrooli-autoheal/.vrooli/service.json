@@ -24,7 +24,6 @@
       "typescript",
       "vite"
     ],
-    "importance": "critical",
     "maintainers": [
       {
         "name": "Vrooli Team",

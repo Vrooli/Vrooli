@@ -56,9 +56,7 @@
       "notes": "Configuration checks degrade gracefully when yq is unavailable"
     }
   ],
-  "dependencies": [
-    "redis"
-  ],
+  "dependencies": [],
   "ports": [
     {
       "name": "http",
@@ -74,7 +72,7 @@
     }
   ],
   "runtime": {
-    "image": "searxng/searxng:2025.1.31-157c9267e",
+    "image": "ghcr.io/searxng/searxng:2026.6.8-f3fab143b",
     "container_name": "searxng",
     "env": {
       "SEARXNG_BASE_URL": "http://localhost:8280",
@@ -84,6 +82,10 @@
       {
         "source": "${RESOURCE_CONFIG_DIR}",
         "target": "/etc/searxng"
+      },
+      {
+        "source": "${RESOURCE_DATA_DIR}",
+        "target": "/var/cache/searxng"
       }
     ]
   },
@@ -111,7 +113,7 @@
     "startup_order": 400,
     "startup_timeout_seconds": 20,
     "startup_time_estimate": "5-15s",
-    "dependencies": ["redis"],
+    "dependencies": [],
     "recovery_attempts": 2,
     "priority": "low"
   },

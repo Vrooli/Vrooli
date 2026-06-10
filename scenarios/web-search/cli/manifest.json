@@ -71,7 +71,10 @@
         {
           "name": "prune",
           "description": "Prune (archive) superseded findings",
-          "flags": [ { "name": "dry-run", "bool": true, "description": "Report what would be pruned without deleting" } ],
+          "flags": [
+            { "name": "dry-run", "bool": true, "description": "Report what would be pruned without deleting" },
+            { "name": "force", "bool": true, "description": "Required to execute deletions; without it the command refuses (preview with --dry-run)" }
+          ],
           "binding": { "kind": "connect-rpc", "service": "FindingsService", "method": "PruneFindings" },
           "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
         },

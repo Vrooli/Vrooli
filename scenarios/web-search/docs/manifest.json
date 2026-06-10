@@ -794,6 +794,29 @@
               "[TODO]"
             ]
           }
+        },
+        {
+          "path": "operations/LIVE_VALIDATION.md",
+          "docType": "live-validation",
+          "title": "Live Validation Runbook",
+          "aliases": [
+            "live-validate",
+            "manual-validation-runbook"
+          ],
+          "description": "Attended monthly runbook (scripts/live-validate.sh) that validates live-agent requirements (L3 run, auto-capture, learnings latency SLO) and logs 30-day manual evidence",
+          "audience": [
+            "operators",
+            "agents"
+          ],
+          "canonicalFor": [
+            "live-validation",
+            "manual-evidence"
+          ],
+          "maturity": "draft",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         }
       ]
     },

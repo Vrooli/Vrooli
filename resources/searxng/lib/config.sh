@@ -41,7 +41,6 @@ searxng::generate_config() {
     export SEARXNG_SECRET_KEY SEARXNG_BASE_URL
     export SEARXNG_REQUEST_TIMEOUT SEARXNG_MAX_REQUEST_TIMEOUT
     export SEARXNG_POOL_CONNECTIONS SEARXNG_POOL_MAXSIZE
-    export SEARXNG_REDIS_HOST SEARXNG_REDIS_PORT
     
     # Use envsubst if available, otherwise fall back to sed
     if command -v envsubst >/dev/null 2>&1; then
@@ -61,8 +60,10 @@ searxng::generate_config() {
         sed -i "s|\${SEARXNG_MAX_REQUEST_TIMEOUT}|$SEARXNG_MAX_REQUEST_TIMEOUT|g" "$temp_config"
         sed -i "s|\${SEARXNG_POOL_CONNECTIONS}|$SEARXNG_POOL_CONNECTIONS|g" "$temp_config"
         sed -i "s|\${SEARXNG_POOL_MAXSIZE}|$SEARXNG_POOL_MAXSIZE|g" "$temp_config"
-        sed -i "s|\${SEARXNG_REDIS_HOST}|$SEARXNG_REDIS_HOST|g" "$temp_config"
-        sed -i "s|\${SEARXNG_REDIS_PORT}|$SEARXNG_REDIS_PORT|g" "$temp_config"
+        sed -i "s|\${SEARXNG_LIMITER_ENABLED}|$SEARXNG_LIMITER_ENABLED|g" "$temp_config"
+        sed -i "s|\${SEARXNG_ENABLE_PUBLIC_ACCESS}|$SEARXNG_ENABLE_PUBLIC_ACCESS|g" "$temp_config"
+        sed -i "s|\${SEARXNG_ENABLE_METRICS}|$SEARXNG_ENABLE_METRICS|g" "$temp_config"
+        sed -i "s|\${SEARXNG_LOG_LEVEL}|$SEARXNG_LOG_LEVEL|g" "$temp_config"
     fi
     
     # Copy to final location (handle permission issues with docker if needed)
@@ -88,8 +89,13 @@ searxng::generate_config() {
     
     # Generate additional config files
     searxng::generate_limiter_config
-    searxng::generate_uwsgi_config
-    
+
+    # Drop a stale uwsgi.ini if a previous (pre-Granian) version generated one;
+    # searxng switched uWSGI→Granian in 2025.7 and the file is dead weight.
+    if [[ -f "$SEARXNG_DATA_DIR/uwsgi.ini" ]]; then
+        trash::safe_remove "$SEARXNG_DATA_DIR/uwsgi.ini" --temp || true
+    fi
+
     return 0
 }
 
@@ -143,68 +149,6 @@ searxng::generate_limiter_config() {
 }
 
 #######################################
-# Generate uWSGI configuration for Searxng
-#######################################
-searxng::generate_uwsgi_config() {
-    local config_file="$SEARXNG_DATA_DIR/uwsgi.ini"
-    
-    log::info "Generating uWSGI configuration..."
-    
-    # Create uwsgi.ini with proper HTTP binding
-    cat > "$config_file" << 'EOF'
-[uwsgi]
-# SearXNG uwsgi configuration
-
-# Who will run the code
-uid = searxng
-gid = searxng
-
-# HTTP socket - bind to port 8080
-http = :8080
-
-# Number of workers (uses number of CPU cores)
-workers = %k
-threads = 4
-
-# The right granted on the created socket
-chmod-socket = 666
-
-# Plugin to use and interpretor config
-single-interpreter = true
-master = true
-plugin = python3
-lazy-apps = true
-enable-threads = true
-
-# Module to import
-module = searx.webapp
-
-# Virtualenv and python path
-pythonpath = /usr/local/searxng/
-chdir = /usr/local/searxng/searx/
-
-# Disable request logging
-disable-logging = false
-log-5xx = true
-
-# Set process name
-auto-procname = true
-
-# Increase buffer size
-buffer-size = 8192
-
-# Max request size
-post-buffering = 8192
-EOF
-    
-    # Fix permissions if needed
-    chmod 644 "$config_file" 2>/dev/null || true
-    
-    log::success "uWSGI configuration generated: $config_file"
-    return 0
-}
-
-#######################################
 # Update SearXNG engines configuration
 # Arguments:
 #   $1 - comma-separated list of engines
@@ -231,7 +175,7 @@ searxng::update_engines() {
     # This is a simplified implementation
     # In a full implementation, you'd want to properly parse and modify the YAML
     log::warn "Engine configuration update requires manual editing of $config_file"
-    log::info "Supported engines: google, bing, duckduckgo, startpage, wikipedia"
+    log::info "Default engines: google, duckduckgo, brave, startpage, mojeek, wikipedia, wikidata"
     
     return 0
 }
@@ -438,24 +382,26 @@ searxng::list_engines() {
     echo "Currently configured engines:"
     grep -E "^  - name:" "$config_file" 2>/dev/null | sed 's/.*name: /  - /' || {
         echo "  - google"
-        echo "  - bing"
         echo "  - duckduckgo"
+        echo "  - brave"
         echo "  - startpage"
+        echo "  - mojeek"
         echo "  - wikipedia"
+        echo "  - wikidata"
     }
-    
+
     echo
     echo "Additional engines available to add:"
-    echo "  - qwant"
     echo "  - yahoo"
-    echo "  - brave"
-    echo "  - searx"
-    echo "  - yandex"
     echo "  - arxiv"
     echo "  - github"
     echo "  - stackoverflow"
     echo "  - wolframalpha"
     echo "  - youtube"
+    echo
+    echo "Known-broken engines (do not enable):"
+    echo "  - qwant (Datadome bot protection, upstream-unfixable)"
+    echo "  - bing (poor relevance, disabled by upstream default)"
     
     return 0
 }
@@ -534,7 +480,7 @@ searxng::remove_engine() {
     fi
     
     # Protect default engines
-    if [[ "$engine_name" =~ ^(google|bing|duckduckgo|startpage|wikipedia)$ ]]; then
+    if [[ "$engine_name" =~ ^(google|duckduckgo|brave|startpage|mojeek|wikipedia|wikidata)$ ]]; then
         log::error "Cannot remove default engine: $engine_name"
         return 1
     fi

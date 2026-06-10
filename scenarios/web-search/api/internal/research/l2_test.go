@@ -199,3 +199,55 @@ func TestRunL2AbstainsWhenSeamsMissing(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, out.Abstained)
 }
+
+// TestRunL2AbstainReasonsDistinguishCollapses asserts the four formerly
+// indistinguishable abstain causes each surface their own machine-readable
+// reason (OT-P1-001 observability).
+func TestRunL2AbstainReasonsDistinguishCollapses(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("no candidates", func(t *testing.T) {
+		svc := research.NewService(research.Deps{
+			Searcher:    &fakeSearcher{},
+			Fetcher:     &fakeFetcher{},
+			Synthesizer: &fakeSynthesizer{},
+		})
+		out, err := svc.RunL2(ctx, "q", 5, false)
+		require.NoError(t, err)
+		require.True(t, out.Abstained)
+		require.Equal(t, research.ReasonNoCandidates, out.AbstainReason)
+	})
+
+	t.Run("all fetches empty", func(t *testing.T) {
+		searcher := &fakeSearcher{candidates: []research.Candidate{{URL: "https://a.example", Title: "A"}}}
+		fetcher := &fakeFetcher{failErr: errors.New("fetch substrate down")}
+		svc := research.NewService(research.Deps{
+			Searcher:    searcher,
+			Fetcher:     fetcher,
+			Synthesizer: &fakeSynthesizer{},
+		})
+		out, err := svc.RunL2(ctx, "q", 5, false)
+		require.NoError(t, err)
+		require.True(t, out.Abstained)
+		require.Equal(t, research.ReasonAllFetchesEmpty, out.AbstainReason)
+	})
+
+	t.Run("model abstained", func(t *testing.T) {
+		searcher := &fakeSearcher{candidates: []research.Candidate{{URL: "https://a.example", Title: "A"}}}
+		fetcher := &fakeFetcher{textByURL: map[string]string{"https://a.example": "body"}}
+		syn := &fakeSynthesizer{result: research.AbstainWith(research.ReasonModelAbstained)}
+		svc := research.NewService(research.Deps{Searcher: searcher, Fetcher: fetcher, Synthesizer: syn})
+		out, err := svc.RunL2(ctx, "q", 5, false)
+		require.NoError(t, err)
+		require.True(t, out.Abstained)
+		require.Equal(t, research.ReasonModelAbstained, out.AbstainReason)
+		require.NotEmpty(t, out.Excerpts, "excerpts are observable even on a model abstention")
+	})
+
+	t.Run("parse-layer reasons", func(t *testing.T) {
+		docs := []research.Document{{URL: "https://a.example", Title: "A", Text: "body"}}
+		require.Equal(t, research.ReasonReplyUnparseable, research.ParseSynthesisReply("no json here", docs).AbstainReason)
+		require.Equal(t, research.ReasonModelAbstained, research.ParseSynthesisReply(`{"abstained":true,"text":"","citations":[]}`, docs).AbstainReason)
+		require.Equal(t, research.ReasonCitationsInvalid, research.ParseSynthesisReply(`{"abstained":false,"text":"claim","citations":[9]}`, docs).AbstainReason)
+	})
+}

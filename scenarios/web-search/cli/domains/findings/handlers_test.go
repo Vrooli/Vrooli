@@ -460,11 +460,40 @@ func TestOperatorManagesFindingsLifecycleEndToEnd(t *testing.T) {
 		"the supersede reason must reach the service for its audit row")
 
 	// Prune: the superseded original is removed; the replacement survives.
-	out, err = h.run(t, "prune", cliapptest.TestRunContextOptions{})
+	// Deletion requires the explicit --force flag (REQ-P0-006).
+	out, err = h.run(t, "prune", cliapptest.TestRunContextOptions{
+		BoolFlags: map[string]bool{"force": true},
+	})
 	require.NoError(t, err)
 	require.Contains(t, out, "Pruned 1 superseded finding(s).")
 	require.Nil(t, h.fake.get("f-1"))
 	require.NotNil(t, h.fake.get("f-2"))
+}
+
+// TestPruneWithoutForceRefuses: [REQ:REQ-P0-006] `findings prune` without
+// --dry-run and without --force must refuse before any RPC is issued — the
+// error names --force so the operator knows how to proceed. Interactive
+// confirmation prompts are deliberately NOT used: every findings command
+// must stay invocable programmatically (see
+// TestManagementCommandsRunProgrammaticallyWithoutPrompts), so the
+// destructive gate is an explicit flag, not a stdin prompt.
+func TestPruneWithoutForceRefuses(t *testing.T) {
+	h := newFindingsHarness(t)
+	gone := h.fake.seed("prune me", findingsv1.FindingStatus_FINDING_STATUS_SUPERSEDED)
+
+	_, err := h.run(t, "prune", cliapptest.TestRunContextOptions{})
+	require.Error(t, err, "prune without --force must refuse")
+	require.Contains(t, err.Error(), "--force", "the refusal must tell the operator about --force")
+	require.Empty(t, h.fake.pruneReqs, "no PruneFindings RPC may be issued on refusal")
+	require.NotNil(t, h.fake.get(gone), "nothing may be deleted on refusal")
+
+	// With --force the same invocation executes the deletion.
+	out, err := h.run(t, "prune", cliapptest.TestRunContextOptions{
+		BoolFlags: map[string]bool{"force": true},
+	})
+	require.NoError(t, err)
+	require.Contains(t, out, "Pruned 1 superseded finding(s).")
+	require.Nil(t, h.fake.get(gone), "--force must execute the prune")
 }
 
 // TestManagementCommandsRunProgrammaticallyWithoutPrompts is the agent-side

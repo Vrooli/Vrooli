@@ -90,6 +90,7 @@ change and on a deployment cadence.
 | Findings management | as needed | `web-search findings ...` (list / add / edit / supersede / flag / prune) — OT-P0-006 |
 | Resolve disputes | as queue grows | work the dispute review queue (resolve / re-research / dismiss) — OT-P1-005/007 |
 | Reconcile / reindex findings | after Qdrant recovery or drift | aisearch-go reconcile (rebuilds `web-search-findings` from SQLite) |
+| Live validation (manual evidence) | monthly (30-day TTL) | `make validate-live` — see [`LIVE_VALIDATION.md`](LIVE_VALIDATION.md); covers REQ-P1-002/REQ-P1-004/REQ-P0-004 |
 
 ## Escalation
 
@@ -101,6 +102,7 @@ completed work to [`../internal/PROGRESS.md`](../internal/PROGRESS.md).
 
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — deployment tiers and release checklist
 - [`OBSERVABILITY.md`](OBSERVABILITY.md) — logs, metrics, and health signals
+- [`LIVE_VALIDATION.md`](LIVE_VALIDATION.md) — attended runbook for live-agent requirements (manual evidence, 30-day TTL)
 - [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — dependency contracts + degraded-behavior matrix
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — common fixes
 - [`../reference/configuration.md`](../reference/configuration.md) — runtime configuration

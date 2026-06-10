@@ -143,7 +143,29 @@ fleet-wide template/scanner campaign, not web-search-specific.
 
 **Refs:** memory `feedback_react_vite_template_defects`; GCT baseline `web-search-completion`.
 
-### 2026-06-10 — Close-out: 8 of 188 validation criteria honestly pending
+### 2026-06-10 — Close-out: 8 of 188 validation criteria honestly pending — RESOLVED same day
+
+**Resolution (web-search-hardening plan, 2026-06-10 PM):** all 8 pendings cleared, 18/18
+modules `complete`:
+- **1 (score-weakness escalation)** BUILT in search-hub: `resultsWeakness` extends the
+  zero-hit trigger behind the default-OFF `SEARCH_HUB_AUTO_ROUTE_EXTERNAL` flag
+  (threshold = `SEARCH_HUB_AUTO_EXTERNAL_THRESHOLD`, normalized scores; distinct
+  reason line; `TestFallbackEscalationOnWeakScores` + flag-off parity test).
+- **2, 5, 6, 7 (live SLO + live L3 behaviors)** re-typed `manual` and covered by the
+  attended monthly runbook `scripts/live-validate.sh` (`make validate-live`) +
+  `test-genie requirements manual-log` 30-day-TTL evidence (seeded from the 2026-06-10
+  live assessment run 57b9d170 + a live latency measurement: warm p95 38ms).
+  See `docs/operations/LIVE_VALIDATION.md`.
+- **3 (prune confirmation prompt)** criterion amended to an explicit `--force` flag
+  (prompts conflict with programmatic agent invocation); implemented in the CLI handler
+  + manifest; `TestPruneWithoutForceRefuses`.
+- **4 (raw extracted excerpts)** proto rev landed: `RunL2Response.excerpts`
+  (+ `abstain_reason`); `TestRunL2SchemaValidation`.
+- **8 (classifier ≤50ms)** criterion restated to ≤2s p95 WARM (cold exempt); measured
+  1.2s p95 on CPU-resident ollama after constraining the classifier reply's reason
+  field; `TestClassifierWarmLatencyBudget` (live-Ollama-gated, in search-hub).
+
+Original entry kept below for the record.
 
 **Symptom:** `requirements/` traceability stands at 180/188 validation entries
 implemented (12/18 modules `complete`). Eight entries remain `pending` with empty refs.

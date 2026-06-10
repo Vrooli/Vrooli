@@ -7,7 +7,7 @@
       "provider_group": "web-search",
       "bucket": "BUCKET_KNOW",
       "type": "learning",
-      "description": "Self-curating, citation-backed findings distilled from prior web research. Route here to recall what the system already learned from the web about a topic (project-scope knowledge), rather than hitting the live internet.",
+      "description": "Cited research findings about the external world, distilled from prior web research and verified across sources: software release versions and feature lists (e.g. 'key features of Go 1.26', 'latest stable Rust version'), current events, third-party vendor and product facts, and other 'what is the latest X' answers. Route here for ANY external-world factual question — the store may already hold the verified, citation-backed answer (project-scope knowledge) without touching the live internet. Not for questions about this project's own code, scenarios, configuration, or how past work here was done.",
       "scope": "SCOPE_PROJECT",
       "endpoint": {
         "http_json": {

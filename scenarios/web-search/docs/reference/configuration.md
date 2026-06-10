@@ -77,10 +77,13 @@ NOT exposed, like the 1-minute governor window) is recorded in
 | `WEB_SEARCH_GOVERNOR_CAPACITY` | `60` (`livesearch.DefaultGovernorCapacity`) | int ≥ 1 | More live SearXNG calls allowed per rolling minute before the service degrades to "rate-limited". |
 | `WEB_SEARCH_CACHE_TTL` | `5m` (`livesearch.DefaultCacheTTL`) | Go duration > 0 | Identical live queries are served from cache longer — fresher-is-better vs. budget-is-scarce tradeoff. |
 | `WEB_SEARCH_GC_INTERVAL` | unset = background GC off | Go duration > 0 | Enables the periodic store-consistency GC loop at this cadence (`findings gc` CLI works either way). |
+| `WEB_SEARCH_SYNC_INTERVAL` | aisearch-go default (5m) | Go duration > 0 | Periodic findings-index reconcile cadence. Since the capture-kick landed, every successful findings write also kicks an immediate (2s-debounced) reconcile, so this interval is purely the **repair** cadence for drift (e.g. qdrant restored from backup) — do not shorten it to chase freshness. |
 | `WEB_SEARCH_FETCH_TIMEOUT` | `15s` (`fetch.DefaultHTTPTimeout`) | Go duration > 0 | One HTTP-leg L2 page fetch may take longer before being abandoned — helps slow origins, slows the whole L2 pass. |
 | `WEB_SEARCH_FETCH_MAX_BYTES` | `2097152` = 2 MiB (`fetch.DefaultMaxBodyBytes`) | int ≥ 1 | More of each fetched page body is read before extraction — longer articles survive intact, more memory/IO per page. |
 | `WEB_SEARCH_BROWSER_ESCALATION` | on | `off`/`false`/`0`/`no`/`disabled` to disable | Lever is the OFF switch: when disabled, the L2 fetch stack is HTTP-only and JS-shell pages contribute thin or no text (no browser-automation-studio call is ever made). |
 | `WEB_SEARCH_MIN_READABLE_CHARS` | `200` (`fetch.DefaultMinReadableChars`) | int ≥ 1 | Raises the JS-shell heuristic: HTTP-leg results with fewer extracted characters escalate to the browser leg — more escalations, better coverage of borderline pages, more 2–10s browser fetches. |
+| `WEB_SEARCH_SYNTH_EXCERPT_CHARS` | `6000` (`research.DefaultExcerptChars`) | int ≥ 1 | More of each fetched page reaches the synthesis model per document — richer grounding, larger prompts (watch the model's context window). |
+| `WEB_SEARCH_SYNTH_RELEVANT_EXCERPTS` | on | `off`/`false`/`0`/`no`/`disabled` to disable | Lever is the OFF switch: when disabled, L2 reverts to positional first-N-chars truncation instead of relevance-selected (chunk+embed) excerpts. Relevance mode self-degrades to positional when the embedder is unreachable, so OFF is only for debugging/measurement (the `TestL2AnswerQualityEval` harness uses it for the A/B baseline). |
 
 ### Scenario-prefixed CLI variables
 

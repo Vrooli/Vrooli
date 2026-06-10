@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-search/v1/research/research.proto.
  */
 export const file_web_search_v1_research_research: GenFile = /*@__PURE__*/
-  fileDesc("CiV3ZWItc2VhcmNoL3YxL3Jlc2VhcmNoL3Jlc2VhcmNoLnByb3RvEh12cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaCI8CghDaXRhdGlvbhIUCgxyZXN1bHRfaW5kZXgYASABKAUSCwoDdXJsGAIgASgJEg0KBXRpdGxlGAMgASgJInIKBUJyaWVmEg0KBXF1ZXJ5GAEgASgJEg0KBWxldmVsGAIgASgJEg8KB3N1bW1hcnkYAyABKAkSOgoJY2l0YXRpb25zGAQgAygLMicudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guQ2l0YXRpb24iPQoMUnVuTDJSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBXRvcF9uGAIgASgFEg8KB2NhcHR1cmUYAyABKAgi0AEKDVJ1bkwyUmVzcG9uc2USMwoFYnJpZWYYASABKAsyJC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5CcmllZhIRCglzeW50aGVzaXMYAiABKAkSEQoJYWJzdGFpbmVkGAMgASgIEhwKFGNhcHR1cmVkX2ZpbmRpbmdfaWRzGAQgAygJEkYKEGRlZ3JhZGVkX2VuZ2luZXMYBSADKAsyLC52cm9vbGkud2ViX3NlYXJjaC52MS5saXZlc2VhcmNoLkVuZ2luZUlzc3VlIh0KDFJ1bkwzUmVxdWVzdBINCgVxdWVyeRgBIAEoCSIvCg1SdW5MM1Jlc3BvbnNlEg4KBnJ1bl9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkiKgoYR2V0UmVzZWFyY2hTdGF0dXNSZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCSLAAQoZR2V0UmVzZWFyY2hTdGF0dXNSZXNwb25zZRIOCgZydW5faWQYASABKAkSDgoGc3RhdHVzGAIgASgJEg8KB3N1bW1hcnkYAyABKAkSLgoKc3RhcnRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLZmluaXNoZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCWVycm9yX21zZxgGIAEoCSI6ChxHYXRoZXJSZWxhdGVkRmluZGluZ3NSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEgsKA21heBgCIAEoBSJnCg9HYXRoZXJlZEZpbmRpbmcSEgoKZmluZGluZ19pZBgBIAEoCRINCgVjbGFpbRgCIAEoCRISCgpjb25maWRlbmNlGAMgASgBEg4KBnN0YXR1cxgEIAEoCRINCgVzY29yZRgFIAEoASJ2Ch1HYXRoZXJSZWxhdGVkRmluZGluZ3NSZXNwb25zZRJACghmaW5kaW5ncxgBIAMoCzIuLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdhdGhlcmVkRmluZGluZxITCgtjYXBfYXBwbGllZBgCIAEoBTL3AwoPUmVzZWFyY2hTZXJ2aWNlEmIKBVJ1bkwyEisudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUnVuTDJSZXF1ZXN0GiwudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUnVuTDJSZXNwb25zZRJiCgVSdW5MMxIrLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJ1bkwzUmVxdWVzdBosLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJ1bkwzUmVzcG9uc2UShgEKEUdldFJlc2VhcmNoU3RhdHVzEjcudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2V0UmVzZWFyY2hTdGF0dXNSZXF1ZXN0GjgudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2V0UmVzZWFyY2hTdGF0dXNSZXNwb25zZRKSAQoVR2F0aGVyUmVsYXRlZEZpbmRpbmdzEjsudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2F0aGVyUmVsYXRlZEZpbmRpbmdzUmVxdWVzdBo8LnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdhdGhlclJlbGF0ZWRGaW5kaW5nc1Jlc3BvbnNlQlNaUWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLXNlYXJjaC92MS9yZXNlYXJjaDtyZXNlYXJjaF92MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_web_search_v1_livesearch_livesearch]);
+  fileDesc("CiV3ZWItc2VhcmNoL3YxL3Jlc2VhcmNoL3Jlc2VhcmNoLnByb3RvEh12cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaCI8CghDaXRhdGlvbhIUCgxyZXN1bHRfaW5kZXgYASABKAUSCwoDdXJsGAIgASgJEg0KBXRpdGxlGAMgASgJInIKBUJyaWVmEg0KBXF1ZXJ5GAEgASgJEg0KBWxldmVsGAIgASgJEg8KB3N1bW1hcnkYAyABKAkSOgoJY2l0YXRpb25zGAQgAygLMicudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guQ2l0YXRpb24iPQoMUnVuTDJSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBXRvcF9uGAIgASgFEg8KB2NhcHR1cmUYAyABKAgiqgIKDVJ1bkwyUmVzcG9uc2USMwoFYnJpZWYYASABKAsyJC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5CcmllZhIRCglzeW50aGVzaXMYAiABKAkSEQoJYWJzdGFpbmVkGAMgASgIEhwKFGNhcHR1cmVkX2ZpbmRpbmdfaWRzGAQgAygJEkYKEGRlZ3JhZGVkX2VuZ2luZXMYBSADKAsyLC52cm9vbGkud2ViX3NlYXJjaC52MS5saXZlc2VhcmNoLkVuZ2luZUlzc3VlEhYKDmFic3RhaW5fcmVhc29uGAYgASgJEkAKCGV4Y2VycHRzGAcgAygLMi4udnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guRG9jdW1lbnRFeGNlcnB0Ij4KD0RvY3VtZW50RXhjZXJwdBILCgN1cmwYASABKAkSDQoFdGl0bGUYAiABKAkSDwoHZXhjZXJwdBgDIAEoCSIdCgxSdW5MM1JlcXVlc3QSDQoFcXVlcnkYASABKAkiLwoNUnVuTDNSZXNwb25zZRIOCgZydW5faWQYASABKAkSDgoGc3RhdHVzGAIgASgJIioKGEdldFJlc2VhcmNoU3RhdHVzUmVxdWVzdBIOCgZydW5faWQYASABKAkiwAEKGUdldFJlc2VhcmNoU3RhdHVzUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEi4KCnN0YXJ0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCgllcnJvcl9tc2cYBiABKAkiOgocR2F0aGVyUmVsYXRlZEZpbmRpbmdzUmVxdWVzdBINCgVxdWVyeRgBIAEoCRILCgNtYXgYAiABKAUiZwoPR2F0aGVyZWRGaW5kaW5nEhIKCmZpbmRpbmdfaWQYASABKAkSDQoFY2xhaW0YAiABKAkSEgoKY29uZmlkZW5jZRgDIAEoARIOCgZzdGF0dXMYBCABKAkSDQoFc2NvcmUYBSABKAEidgodR2F0aGVyUmVsYXRlZEZpbmRpbmdzUmVzcG9uc2USQAoIZmluZGluZ3MYASADKAsyLi52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HYXRoZXJlZEZpbmRpbmcSEwoLY2FwX2FwcGxpZWQYAiABKAUy9wMKD1Jlc2VhcmNoU2VydmljZRJiCgVSdW5MMhIrLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJ1bkwyUmVxdWVzdBosLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJ1bkwyUmVzcG9uc2USYgoFUnVuTDMSKy52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5SdW5MM1JlcXVlc3QaLC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5SdW5MM1Jlc3BvbnNlEoYBChFHZXRSZXNlYXJjaFN0YXR1cxI3LnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdldFJlc2VhcmNoU3RhdHVzUmVxdWVzdBo4LnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdldFJlc2VhcmNoU3RhdHVzUmVzcG9uc2USkgEKFUdhdGhlclJlbGF0ZWRGaW5kaW5ncxI7LnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdhdGhlclJlbGF0ZWRGaW5kaW5nc1JlcXVlc3QaPC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HYXRoZXJSZWxhdGVkRmluZGluZ3NSZXNwb25zZUJTWlFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1zZWFyY2gvdjEvcmVzZWFyY2g7cmVzZWFyY2hfdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_web_search_v1_livesearch_livesearch]);
 
 /**
  * Citation links a synthesis claim back to the fetched page that supports it.
@@ -162,6 +162,28 @@ export type RunL2Response = Message<"vrooli.web_search.v1.research.RunL2Response
    * @generated from field: repeated vrooli.web_search.v1.livesearch.EngineIssue degraded_engines = 5;
    */
   degradedEngines: EngineIssue[];
+
+  /**
+   * abstain_reason explains WHICH collapse produced an abstention (empty when
+   * abstained=false): "no_candidates" (the L0 search returned no usable
+   * pages), "all_fetches_empty" (candidates existed but every fetch failed or
+   * extracted no text), "model_abstained" (the model judged the documents
+   * insufficient or in conflict), "reply_unparseable" (no parseable JSON in
+   * the model reply), or "citations_invalid" (the answer was grounded in no
+   * valid document index — treated as fabrication).
+   *
+   * @generated from field: string abstain_reason = 6;
+   */
+  abstainReason: string;
+
+  /**
+   * excerpts mirrors, per fetched document, the text actually sent to the
+   * synthesis model (post relevance-selection/truncation, transport-capped) —
+   * the observability needed to debug a wrong or abstaining synthesis.
+   *
+   * @generated from field: repeated vrooli.web_search.v1.research.DocumentExcerpt excerpts = 7;
+   */
+  excerpts: DocumentExcerpt[];
 };
 
 /**
@@ -170,6 +192,36 @@ export type RunL2Response = Message<"vrooli.web_search.v1.research.RunL2Response
  */
 export const RunL2ResponseSchema: GenMessage<RunL2Response> = /*@__PURE__*/
   messageDesc(file_web_search_v1_research_research, 3);
+
+/**
+ * DocumentExcerpt is what the synthesis model actually read from one fetched
+ * document: the source url/title plus the (capped) excerpt text.
+ *
+ * @generated from message vrooli.web_search.v1.research.DocumentExcerpt
+ */
+export type DocumentExcerpt = Message<"vrooli.web_search.v1.research.DocumentExcerpt"> & {
+  /**
+   * @generated from field: string url = 1;
+   */
+  url: string;
+
+  /**
+   * @generated from field: string title = 2;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string excerpt = 3;
+   */
+  excerpt: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.DocumentExcerpt.
+ * Use `create(DocumentExcerptSchema)` to create a new message.
+ */
+export const DocumentExcerptSchema: GenMessage<DocumentExcerpt> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 4);
 
 /**
  * @generated from message vrooli.web_search.v1.research.RunL3Request
@@ -186,7 +238,7 @@ export type RunL3Request = Message<"vrooli.web_search.v1.research.RunL3Request">
  * Use `create(RunL3RequestSchema)` to create a new message.
  */
 export const RunL3RequestSchema: GenMessage<RunL3Request> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 4);
+  messageDesc(file_web_search_v1_research_research, 5);
 
 /**
  * @generated from message vrooli.web_search.v1.research.RunL3Response
@@ -212,7 +264,7 @@ export type RunL3Response = Message<"vrooli.web_search.v1.research.RunL3Response
  * Use `create(RunL3ResponseSchema)` to create a new message.
  */
 export const RunL3ResponseSchema: GenMessage<RunL3Response> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 5);
+  messageDesc(file_web_search_v1_research_research, 6);
 
 /**
  * @generated from message vrooli.web_search.v1.research.GetResearchStatusRequest
@@ -229,7 +281,7 @@ export type GetResearchStatusRequest = Message<"vrooli.web_search.v1.research.Ge
  * Use `create(GetResearchStatusRequestSchema)` to create a new message.
  */
 export const GetResearchStatusRequestSchema: GenMessage<GetResearchStatusRequest> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 6);
+  messageDesc(file_web_search_v1_research_research, 7);
 
 /**
  * @generated from message vrooli.web_search.v1.research.GetResearchStatusResponse
@@ -280,7 +332,7 @@ export type GetResearchStatusResponse = Message<"vrooli.web_search.v1.research.G
  * Use `create(GetResearchStatusResponseSchema)` to create a new message.
  */
 export const GetResearchStatusResponseSchema: GenMessage<GetResearchStatusResponse> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 7);
+  messageDesc(file_web_search_v1_research_research, 8);
 
 /**
  * @generated from message vrooli.web_search.v1.research.GatherRelatedFindingsRequest
@@ -306,7 +358,7 @@ export type GatherRelatedFindingsRequest = Message<"vrooli.web_search.v1.researc
  * Use `create(GatherRelatedFindingsRequestSchema)` to create a new message.
  */
 export const GatherRelatedFindingsRequestSchema: GenMessage<GatherRelatedFindingsRequest> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 8);
+  messageDesc(file_web_search_v1_research_research, 9);
 
 /**
  * GatheredFinding is one finding semantically near the gather query, projected
@@ -351,7 +403,7 @@ export type GatheredFinding = Message<"vrooli.web_search.v1.research.GatheredFin
  * Use `create(GatheredFindingSchema)` to create a new message.
  */
 export const GatheredFindingSchema: GenMessage<GatheredFinding> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 9);
+  messageDesc(file_web_search_v1_research_research, 10);
 
 /**
  * @generated from message vrooli.web_search.v1.research.GatherRelatedFindingsResponse
@@ -377,7 +429,7 @@ export type GatherRelatedFindingsResponse = Message<"vrooli.web_search.v1.resear
  * Use `create(GatherRelatedFindingsResponseSchema)` to create a new message.
  */
 export const GatherRelatedFindingsResponseSchema: GenMessage<GatherRelatedFindingsResponse> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 10);
+  messageDesc(file_web_search_v1_research_research, 11);
 
 /**
  * ResearchService is the L2/L3 deep-research surface that sits above the L0/L1

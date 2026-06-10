@@ -42,6 +42,7 @@ type Service struct {
 	vectorStore pkg.VectorStore
 	spec        pkg.CollectionSpec
 	reconciler  *pkg.Reconciler
+	embedder    pkg.Embedder
 }
 
 // Hit is one semantic-search result projected to the finding id + score.
@@ -79,8 +80,13 @@ func New(tuning pkg.TuningConfig, opts Options) *Service {
 		RerankText:    func(r pkg.SearchResult) string { return claimText(r.Payload) },
 	})
 
-	return &Service{svc: svc, vectorStore: te.VectorStore, spec: te.Spec, reconciler: rec}
+	return &Service{svc: svc, vectorStore: te.VectorStore, spec: te.Spec, reconciler: rec, embedder: te.Embedder}
 }
+
+// Embedder exposes the tuned embedder (same model + task-prefix recipe as the
+// index) for other query-relevance consumers — e.g. the L2 relevance-aware
+// excerpter — so they score in the same vector space the corpus lives in.
+func (s *Service) Embedder() pkg.Embedder { return s.embedder }
 
 // EnsureCollection creates the qdrant collection if absent. Best-effort at boot.
 func (s *Service) EnsureCollection(ctx context.Context) error {

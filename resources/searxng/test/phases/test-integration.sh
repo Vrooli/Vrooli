@@ -190,7 +190,7 @@ searxng::test::integration() {
     log::success "✓ SearXNG is accessible and responding"
     
     # Test 1: JSON search API with different queries
-    log::info "1/12 Testing JSON search API with multiple queries..."
+    log::info "1/13 Testing JSON search API with multiple queries..."
     local json_tests=0
     local json_passed=0
     
@@ -261,80 +261,51 @@ searxng::test::integration() {
         overall_status=1
     fi
     
-    # Test 2: Different output formats
-    log::info "2/12 Testing different output formats..."
-    local formats=("json" "xml" "csv")
-    local format_tests=0
-    local format_passed=0
-    
-    for format in "${formats[@]}"; do
-        format_tests=$((format_tests + 1))
-        local format_response
-        local format_success=false
-        
-        # Try each format with retry logic
-        for attempt in $(seq 1 $retry_count); do
-            if format_response=$(curl -sf --max-time 10 "${SEARXNG_BASE_URL}/search?q=test&format=${format}" 2>/dev/null); then
-                case "$format" in
-                    "json")
-                        if searxng::test::is_valid_json "$format_response"; then
-                            format_passed=$((format_passed + 1))
-                            format_success=true
-                            if [[ "$verbose" == "true" ]]; then
-                                log::info "  ✓ JSON format working"
-                            fi
-                        fi
-                        ;;
-                    "xml")
-                        if echo "$format_response" | grep -q "<?xml"; then
-                            format_passed=$((format_passed + 1))
-                            format_success=true
-                            if [[ "$verbose" == "true" ]]; then
-                                log::info "  ✓ XML format working"
-                            fi
-                        fi
-                        ;;
-                    "csv")
-                        if echo "$format_response" | grep -q ","; then
-                            format_passed=$((format_passed + 1))
-                            format_success=true
-                            if [[ "$verbose" == "true" ]]; then
-                                log::info "  ✓ CSV format working"
-                            fi
-                        fi
-                        ;;
-                esac
-                
-                if [[ "$format_success" == "true" ]]; then
-                    break
-                fi
+    # Test 2: Output format allowlist
+    # The configured allowlist is [html, json]; csv/rss/xml must be rejected
+    # so the JSON contract web-search depends on stays deliberate.
+    log::info "2/13 Testing output format allowlist..."
+    local json_format_ok=false
+    local format_response
+
+    for attempt in $(seq 1 $retry_count); do
+        if format_response=$(curl -sf --max-time 10 "${SEARXNG_BASE_URL}/search?q=test&format=json" 2>/dev/null); then
+            if searxng::test::is_valid_json "$format_response"; then
+                json_format_ok=true
+                break
             fi
-            
-            # Wait before retry (except on last attempt)
-            if [[ $attempt -lt $retry_count ]] && [[ "$format_success" != "true" ]]; then
-                if [[ "$verbose" == "true" ]]; then
-                    log::info "  $format format attempt $attempt failed, retrying..."
-                fi
-                sleep 1
+        fi
+        if [[ $attempt -lt $retry_count ]]; then
+            if [[ "$verbose" == "true" ]]; then
+                log::info "  json format attempt $attempt failed, retrying..."
             fi
-        done
-        
-        if [[ "$format_success" != "true" ]] && [[ "$verbose" == "true" ]]; then
-            log::warn "  ⚠ $format format failed after $retry_count attempts"
+            sleep 1
         fi
     done
-    
-    if [[ $format_passed -eq $format_tests ]]; then
-        log::success "✓ All output formats work ($format_passed/$format_tests formats)"
-    elif [[ $format_passed -gt 0 ]]; then
-        log::warn "⚠ Some output formats failed ($format_passed/$format_tests formats)"
+
+    local disallowed_rejected=0
+    local disallowed_formats=("csv" "rss")
+    for format in "${disallowed_formats[@]}"; do
+        local status_code
+        status_code=$(curl -s -w "%{http_code}" -o /dev/null --max-time 10 "${SEARXNG_BASE_URL}/search?q=test&format=${format}" 2>/dev/null || echo "000")
+        if [[ "$status_code" == "403" || "$status_code" == "400" ]]; then
+            disallowed_rejected=$((disallowed_rejected + 1))
+        elif [[ "$verbose" == "true" ]]; then
+            log::info "  ⚠ Disallowed format '$format' returned status $status_code (expected 403)"
+        fi
+    done
+
+    if [[ "$json_format_ok" == "true" ]] && [[ $disallowed_rejected -eq ${#disallowed_formats[@]} ]]; then
+        log::success "✓ Format allowlist enforced (json works, csv/rss rejected)"
+    elif [[ "$json_format_ok" == "true" ]]; then
+        log::warn "⚠ JSON works but disallowed formats not all rejected ($disallowed_rejected/${#disallowed_formats[@]})"
     else
-        log::error "✗ No output formats working"
+        log::error "✗ JSON format not working - web-search contract broken"
         overall_status=1
     fi
     
     # Test 3: Search categories
-    log::info "3/12 Testing search categories..."
+    log::info "3/13 Testing search categories..."
     local categories=("general" "images" "news")
     local category_tests=0
     local category_passed=0
@@ -377,7 +348,7 @@ searxng::test::integration() {
     fi
     
     # Test 4: Search pagination
-    log::info "4/12 Testing search pagination..."
+    log::info "4/13 Testing search pagination..."
     local page1_response page2_response
     local pagination_success=false
     
@@ -411,7 +382,7 @@ searxng::test::integration() {
     fi
     
     # Test 5: Safe search parameter
-    log::info "5/12 Testing safe search parameter..."
+    log::info "5/13 Testing safe search parameter..."
     local safesearch_response
     local safesearch_success=false
     
@@ -439,7 +410,7 @@ searxng::test::integration() {
     fi
     
     # Test 6: Language parameter
-    log::info "6/12 Testing language parameter..."
+    log::info "6/13 Testing language parameter..."
     local lang_response
     local lang_success=false
     
@@ -467,7 +438,7 @@ searxng::test::integration() {
     fi
     
     # Test 7: Stats endpoint detailed
-    log::info "7/12 Testing stats endpoint detailed..."
+    log::info "7/13 Testing stats endpoint detailed..."
     local stats_response
     local stats_success=false
     
@@ -508,7 +479,7 @@ searxng::test::integration() {
     fi
     
     # Test 8: Config endpoint
-    log::info "8/12 Testing config endpoint..."
+    log::info "8/13 Testing config endpoint..."
     local config_response
     local config_success=false
     
@@ -539,7 +510,7 @@ searxng::test::integration() {
     fi
     
     # Test 9: OpenSearch descriptor
-    log::info "9/12 Testing OpenSearch descriptor..."
+    log::info "9/13 Testing OpenSearch descriptor..."
     local opensearch_response
     if opensearch_response=$(curl -sf --max-time 5 "${SEARXNG_BASE_URL}/opensearch.xml" 2>/dev/null); then
         if echo "$opensearch_response" | grep -qi "opensearch\|description\|<url"; then
@@ -557,7 +528,7 @@ searxng::test::integration() {
     fi
     
     # Test 10: Rate limiting detection
-    log::info "10/12 Testing rate limiting behavior..."
+    log::info "10/13 Testing rate limiting behavior..."
     local rate_limit_detected=false
     local successful_requests=0
     
@@ -591,7 +562,7 @@ searxng::test::integration() {
     fi
     
     # Test 11: Container health during load
-    log::info "11/12 Testing container health during load..."
+    log::info "11/13 Testing container health during load..."
     local container_healthy=true
     
     # Check container status using direct Docker command
@@ -611,7 +582,7 @@ searxng::test::integration() {
     fi
     
     # Test 12: Privacy and security headers
-    log::info "12/12 Testing privacy and security headers..."
+    log::info "12/13 Testing privacy and security headers..."
     local headers_response
     if headers_response=$(curl -sf --max-time 5 -I "${SEARXNG_BASE_URL}" 2>/dev/null); then
         local security_headers=0
@@ -651,6 +622,58 @@ searxng::test::integration() {
         log::warn "⚠ Could not check privacy headers"
     fi
     
+    # Test 13: Engine coverage (the regression that motivated this test: a
+    # 17-month-stale image degraded the instance to bing-only and nothing
+    # noticed). A live query must draw from >=2 distinct engines.
+    log::info "13/13 Testing engine coverage (>=2 distinct engines)..."
+    local engine_coverage_ok=false
+    local engines_seen=0
+
+    for attempt in 1 2; do
+        local coverage_response
+        if coverage_response=$(curl -sf --max-time 20 "${SEARXNG_BASE_URL}/search?q=current+world+news&format=json" 2>/dev/null); then
+            if searxng::test::is_valid_json "$coverage_response" && [[ "$SEARXNG_USE_JQ_FALLBACK" == "false" ]]; then
+                engines_seen=$(echo "$coverage_response" | jq -r '[.results[].engine] | unique | length' 2>/dev/null || echo "0")
+                if [[ "$verbose" == "true" ]]; then
+                    local engine_names unresponsive_names
+                    engine_names=$(echo "$coverage_response" | jq -rc '[.results[].engine] | unique' 2>/dev/null || echo "[]")
+                    unresponsive_names=$(echo "$coverage_response" | jq -rc '.unresponsive_engines' 2>/dev/null || echo "[]")
+                    log::info "  Responsive engines: $engine_names"
+                    log::info "  Unresponsive engines: $unresponsive_names"
+                fi
+                if [[ "${engines_seen:-0}" -ge 2 ]]; then
+                    engine_coverage_ok=true
+                    break
+                fi
+            elif [[ "$SEARXNG_USE_JQ_FALLBACK" == "true" ]]; then
+                # Without jq we cannot count distinct engines reliably; accept
+                # a non-empty result set rather than fail spuriously.
+                local fallback_results
+                fallback_results=$(searxng::test::parse_json "$coverage_response" ".results | length")
+                if [[ "${fallback_results:-0}" -gt 0 ]]; then
+                    log::warn "⚠ jq unavailable - engine coverage downgraded to results-present check"
+                    engine_coverage_ok=true
+                    break
+                fi
+            fi
+        fi
+        # Tolerate transient engine suspensions with a single retry.
+        if [[ $attempt -eq 1 ]]; then
+            if [[ "$verbose" == "true" ]]; then
+                log::info "  Engine coverage attempt 1 saw ${engines_seen:-0} engines, retrying..."
+            fi
+            sleep 3
+        fi
+    done
+
+    if [[ "$engine_coverage_ok" == "true" ]]; then
+        log::success "✓ Engine coverage OK (${engines_seen:-multiple} distinct engines responding)"
+    else
+        log::error "✗ Engine coverage degraded: ${engines_seen:-0} distinct engines responded (need >=2)"
+        log::info "  Diagnose with: resource-searxng engine-health --json"
+        overall_status=1
+    fi
+
     echo ""
     if [[ $overall_status -eq 0 ]]; then
         log::success "🎉 SearXNG resource integration tests PASSED"

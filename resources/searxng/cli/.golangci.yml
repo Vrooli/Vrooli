@@ -13,6 +13,10 @@ linters:
     - unused
 
 linters-settings:
+  gofumpt:
+    # Without the module path, golangci's gofumpt misclassifies dotless
+    # module-local imports (resource-searxng/...) as standard library.
+    module-path: resource-searxng/cli
   revive:
     rules:
       - name: blank-imports

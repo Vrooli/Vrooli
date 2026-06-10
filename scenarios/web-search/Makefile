@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints
+.PHONY: help start run stop restart test validate-live logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints
 
 .DEFAULT_GOAL := help
 
@@ -55,6 +55,9 @@ logs: ## Show scenario logs
 
 test: ## Run scenario tests
 	@vrooli scenario test "$(SCENARIO_NAME)"
+
+validate-live: ## Attended live-validation runbook (L3 run + learnings SLO); logs 30-day manual evidence on success
+	@scripts/live-validate.sh
 
 clean: ## Clean build artifacts
 	@rm -rf ui/dist 2>/dev/null || true

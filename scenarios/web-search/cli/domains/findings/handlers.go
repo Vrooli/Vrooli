@@ -163,6 +163,9 @@ func (h *handlers) flag(ctx cliapp.RunContext) error {
 
 func (h *handlers) prune(ctx cliapp.RunContext) error {
 	dryRun := ctx.BoolFlag("dry-run")
+	if !dryRun && !ctx.BoolFlag("force") {
+		return fmt.Errorf("refusing to prune without --force: pruning permanently deletes superseded findings; preview with --dry-run, then re-run with --force to execute")
+	}
 	resp, err := h.client.PruneFindings(context.Background(), connect.NewRequest(&findingsv1.PruneFindingsRequest{DryRun: dryRun}))
 	if err != nil {
 		return cliapp.WrapAPIError("prune findings", err, nil)

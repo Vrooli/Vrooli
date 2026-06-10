@@ -17,7 +17,7 @@ SEARXNG_PORT="${SEARXNG_CUSTOM_PORT:-8280}"  # Will be replaced by registry valu
 SEARXNG_BASE_URL="http://localhost:${SEARXNG_PORT}"
 SEARXNG_DATA_DIR="${RESOURCE_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/vrooli/resources/searxng}"
 SEARXNG_CONTAINER_NAME="searxng"
-SEARXNG_DEFAULT_ENGINES="google,bing,duckduckgo,startpage"
+SEARXNG_DEFAULT_ENGINES="google,duckduckgo,brave,startpage,mojeek,wikipedia,wikidata"
 SEARXNG_REQUEST_TIMEOUT="3"
 SEARXNG_POOL_MAXSIZE="20"
 SEARXNG_RATE_LIMIT="10"
@@ -50,7 +50,7 @@ searxng::export_config() {
     
     # Container configuration
     SEARXNG_CONTAINER_NAME="searxng"
-    SEARXNG_IMAGE="${SEARXNG_CUSTOM_IMAGE:-searxng/searxng:2025.1.31-157c9267e}"
+    SEARXNG_IMAGE="${SEARXNG_CUSTOM_IMAGE:-ghcr.io/searxng/searxng:2026.6.8-f3fab143b}"
     SEARXNG_DATA_DIR="${RESOURCE_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/vrooli/resources/searxng}"
     
     # Network configuration
@@ -62,7 +62,7 @@ searxng::export_config() {
     SEARXNG_ENABLE_PUBLIC_ACCESS="${SEARXNG_ENABLE_PUBLIC_ACCESS:-no}"
     
     # Search engine configuration
-    SEARXNG_DEFAULT_ENGINES="${SEARXNG_DEFAULT_ENGINES:-google,bing,duckduckgo,startpage}"
+    SEARXNG_DEFAULT_ENGINES="${SEARXNG_DEFAULT_ENGINES:-google,duckduckgo,brave,startpage,mojeek,wikipedia,wikidata}"
     SEARXNG_SAFE_SEARCH="${SEARXNG_SAFE_SEARCH:-1}"
     SEARXNG_AUTOCOMPLETE="${SEARXNG_AUTOCOMPLETE:-}"  # Empty string for no autocomplete
     SEARXNG_DEFAULT_LANG="${SEARXNG_DEFAULT_LANG:-en}"
@@ -74,7 +74,9 @@ searxng::export_config() {
     SEARXNG_POOL_MAXSIZE="${SEARXNG_POOL_MAXSIZE:-20}"
     
     # Rate limiting configuration
-    SEARXNG_LIMITER_ENABLED="${SEARXNG_LIMITER_ENABLED:-yes}"
+    # Default OFF: the limiter requires a valkey backend (redis: was renamed valkey:
+    # upstream) and adds zero value for a single-user local instance.
+    SEARXNG_LIMITER_ENABLED="${SEARXNG_LIMITER_ENABLED:-no}"
     SEARXNG_RATE_LIMIT="${SEARXNG_RATE_LIMIT:-10}"  # requests per minute
     SEARXNG_RATE_LIMIT_WINDOW="${SEARXNG_RATE_LIMIT_WINDOW:-60}"  # seconds
     

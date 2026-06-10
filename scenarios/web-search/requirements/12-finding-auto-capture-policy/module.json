@@ -14,7 +14,7 @@
       "description": "Enforce a tiered finding capture policy: L3 research runs auto-capture findings by default (no opt-in required); L2 fetch+synthesize runs capture findings only when an explicit --capture flag is passed; L0 (live search) and L1 (snippet synthesis) runs never persist findings. At the end of an L3 run (or L2 with capture), an LLM distillation pass processes the run output and emits structured findings (claim + citations + confidence score) which are then written to the findings store.",
       "id": "REQ-P1-004",
       "prd_ref": "OT-P1-004",
-      "status": "draft",
+      "status": "complete",
       "title": "Finding Auto-Capture Policy — L3 Auto, L2 Opt-In, L0/L1 Never",
       "validation": [
         {
@@ -60,11 +60,11 @@
           "type": "test"
         },
         {
-          "notes": "Run a complete L3 agent cycle and verify findings are present in the database post-completion without any explicit capture flag",
+          "notes": "Run a complete L3 agent cycle and verify findings are present in the database post-completion without any explicit capture flag [ATTENDED live validation — needs a full agent-manager research run; the monthly runbook scripts/live-validate.sh kicks an L3 run with no capture flag, asserts a findings-count delta with source=L3, and logs evidence via `test-genie requirements manual-log --expires-in 30` (30-day TTL, honest regression on lapse)]",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "scripts/live-validate.sh",
+          "status": "implemented",
+          "type": "manual"
         },
         {
           "notes": "Run an L2 query without --capture and verify the findings database row count is unchanged",

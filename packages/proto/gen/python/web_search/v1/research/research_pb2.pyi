@@ -43,18 +43,32 @@ class RunL2Request(_message.Message):
     def __init__(self, query: _Optional[str] = ..., top_n: _Optional[int] = ..., capture: _Optional[bool] = ...) -> None: ...
 
 class RunL2Response(_message.Message):
-    __slots__ = ("brief", "synthesis", "abstained", "captured_finding_ids", "degraded_engines")
+    __slots__ = ("brief", "synthesis", "abstained", "captured_finding_ids", "degraded_engines", "abstain_reason", "excerpts")
     BRIEF_FIELD_NUMBER: _ClassVar[int]
     SYNTHESIS_FIELD_NUMBER: _ClassVar[int]
     ABSTAINED_FIELD_NUMBER: _ClassVar[int]
     CAPTURED_FINDING_IDS_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_ENGINES_FIELD_NUMBER: _ClassVar[int]
+    ABSTAIN_REASON_FIELD_NUMBER: _ClassVar[int]
+    EXCERPTS_FIELD_NUMBER: _ClassVar[int]
     brief: Brief
     synthesis: str
     abstained: bool
     captured_finding_ids: _containers.RepeatedScalarFieldContainer[str]
     degraded_engines: _containers.RepeatedCompositeFieldContainer[_livesearch_pb2.EngineIssue]
-    def __init__(self, brief: _Optional[_Union[Brief, _Mapping]] = ..., synthesis: _Optional[str] = ..., abstained: _Optional[bool] = ..., captured_finding_ids: _Optional[_Iterable[str]] = ..., degraded_engines: _Optional[_Iterable[_Union[_livesearch_pb2.EngineIssue, _Mapping]]] = ...) -> None: ...
+    abstain_reason: str
+    excerpts: _containers.RepeatedCompositeFieldContainer[DocumentExcerpt]
+    def __init__(self, brief: _Optional[_Union[Brief, _Mapping]] = ..., synthesis: _Optional[str] = ..., abstained: _Optional[bool] = ..., captured_finding_ids: _Optional[_Iterable[str]] = ..., degraded_engines: _Optional[_Iterable[_Union[_livesearch_pb2.EngineIssue, _Mapping]]] = ..., abstain_reason: _Optional[str] = ..., excerpts: _Optional[_Iterable[_Union[DocumentExcerpt, _Mapping]]] = ...) -> None: ...
+
+class DocumentExcerpt(_message.Message):
+    __slots__ = ("url", "title", "excerpt")
+    URL_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    EXCERPT_FIELD_NUMBER: _ClassVar[int]
+    url: str
+    title: str
+    excerpt: str
+    def __init__(self, url: _Optional[str] = ..., title: _Optional[str] = ..., excerpt: _Optional[str] = ...) -> None: ...
 
 class RunL3Request(_message.Message):
     __slots__ = ("query",)

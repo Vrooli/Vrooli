@@ -88,13 +88,26 @@ func (s *Service) runL2(ctx context.Context, query string, topN int, capture boo
 			continue
 		}
 		if strings.TrimSpace(text) == "" {
+			s.logger.Printf("research: L2 fetch %q returned no readable text (skipping)", c.URL)
 			continue
 		}
 		docs = append(docs, Document{URL: c.URL, Title: c.Title, Text: text})
 	}
 
+	// Excerpting decides what part of each fetched page the model reads
+	// (relevance-selected by default, positional under the escape hatch or on
+	// embedder degradation). Citation indices stay stable: the excerpter
+	// preserves document order.
+	var excerpts []DocumentExcerpt
 	syn := Abstain()
-	if len(docs) > 0 {
+	switch {
+	case len(cands) == 0:
+		syn = AbstainWith(ReasonNoCandidates)
+	case len(docs) == 0:
+		syn = AbstainWith(ReasonAllFetchesEmpty)
+	default:
+		docs = s.excerpter.Select(ctx, query, docs)
+		excerpts = excerptsForResponse(docs)
 		syn, err = s.synthesizer.Synthesize(ctx, query, docs)
 		if err != nil {
 			return L2Outcome{}, err
@@ -109,6 +122,8 @@ func (s *Service) runL2(ctx context.Context, query string, topN int, capture boo
 			Citations: syn.Citations,
 		},
 		Abstained:       syn.Abstained,
+		AbstainReason:   syn.AbstainReason,
+		Excerpts:        excerpts,
 		DegradedEngines: candSet.DegradedEngines,
 	}
 
@@ -122,6 +137,24 @@ func (s *Service) runL2(ctx context.Context, query string, topN int, capture boo
 		out.CapturedFindingIDs = ids
 	}
 	return out, nil
+}
+
+// excerptPreviewChars caps each per-document excerpt mirrored onto the
+// response — enough to see WHAT the model read without shipping whole pages.
+const excerptPreviewChars = 800
+
+// excerptsForResponse projects the (already excerpted) documents sent to the
+// model into the response-side observability mirror, transport-capped.
+func excerptsForResponse(docs []Document) []DocumentExcerpt {
+	out := make([]DocumentExcerpt, len(docs))
+	for i, d := range docs {
+		text := d.Text
+		if len(text) > excerptPreviewChars {
+			text = text[:excerptPreviewChars]
+		}
+		out[i] = DocumentExcerpt{URL: d.URL, Title: d.Title, Excerpt: text}
+	}
+	return out
 }
 
 // captureSynthesis writes the cited L2 synthesis as a single FINDING_SOURCE_L2

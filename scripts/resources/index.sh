@@ -19,8 +19,12 @@ trap 'echo ""; log::info "Resource installation interrupted by user. Exiting..."
 source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/args-cli.sh"
-# shellcheck disable=SC1091
-source "${var_REPOSITORY_FILE}"
+# repository.sh was removed in the tool reorg (342e3d8bd4); all repository::
+# call sites below are already guarded, so only source it when present.
+if [[ -f "${var_REPOSITORY_FILE}" ]]; then
+    # shellcheck disable=SC1091
+    source "${var_REPOSITORY_FILE}"
+fi
 
 # Available resources organized by category
 declare -A AVAILABLE_RESOURCES=(

@@ -43,7 +43,11 @@ func (h *handlers) l2(ctx cliapp.RunContext) error {
 	msg := resp.Msg
 	summary := []string{fmt.Sprintf("L2 research for %q.", query)}
 	if msg.Abstained {
-		summary = append(summary, "Synthesis abstained: sources insufficient or disagree.")
+		reason := strings.TrimSpace(msg.AbstainReason)
+		if reason == "" {
+			reason = "sources insufficient or disagree"
+		}
+		summary = append(summary, "Synthesis abstained: "+reason+".")
 	} else {
 		summary = append(summary, "Synthesis: "+strings.TrimSpace(msg.Synthesis))
 	}

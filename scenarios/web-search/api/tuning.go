@@ -47,6 +47,15 @@ type Tuning struct {
 	// JS-shell heuristic — an HTTP-leg result with fewer extracted characters
 	// escalates to the browser leg.
 	MinReadableChars int
+	// SynthExcerptChars overrides research.DefaultExcerptChars (6000): the
+	// per-document character budget the L2 excerpting step sends to the
+	// synthesis model.
+	SynthExcerptChars int
+	// RelevantExcerptsOff disables the relevance-aware (chunk+embed) L2
+	// excerpting (WEB_SEARCH_SYNTH_RELEVANT_EXCERPTS=off), reverting to
+	// positional first-N-chars truncation. Default is relevance-aware ON,
+	// degrading to positional automatically when the embedder is unreachable.
+	RelevantExcerptsOff bool
 }
 
 // tuningFromEnv reads the control surface. Malformed values are ignored (the
@@ -66,6 +75,10 @@ func tuningFromEnv() Tuning {
 		// on), the field is the off-switch so the zero value keeps the default.
 		BrowserEscalationOff: envOff("WEB_SEARCH_BROWSER_ESCALATION"),
 		MinReadableChars:     envInt("WEB_SEARCH_MIN_READABLE_CHARS"),
+		SynthExcerptChars:    envInt("WEB_SEARCH_SYNTH_EXCERPT_CHARS"),
+		// Same inverted sense as BrowserEscalationOff: relevance excerpting
+		// defaults ON; the lever is its off-switch.
+		RelevantExcerptsOff: envOff("WEB_SEARCH_SYNTH_RELEVANT_EXCERPTS"),
 	}
 }
 

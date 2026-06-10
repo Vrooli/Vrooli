@@ -18,10 +18,12 @@ import (
 // Module returns the findings domain's contribution to the API: the generated
 // Connect-RPC service handler. The semantic searcher is injected by main.go
 // because it owns the qdrant/embedder wiring; tests pass a fake (or nil to
-// exercise the SQL-only paths).
-func Module(db *database.RoutedDB, clk clock.Clock, searcher Searcher, surfacer Surfacer, logger *log.Logger) module.Module {
+// exercise the SQL-only paths). indexKick (nil-safe) fires after successful
+// content mutations so the semantic index reconciles within seconds of a
+// write instead of waiting out the periodic sync interval.
+func Module(db *database.RoutedDB, clk clock.Clock, searcher Searcher, surfacer Surfacer, indexKick func(), logger *log.Logger) module.Module {
 	repo := internalfindings.NewSQLiteRepository(db, clk)
-	svc := internalfindings.NewService(repo)
+	svc := internalfindings.WithMutationNotify(internalfindings.NewService(repo), indexKick)
 	gc := internalfindings.NewGCService(svc, clk, internalfindings.GCConfig{})
 	connectPath, connectHandler := findingsconnect.NewFindingsServiceHandler(NewConnectHandler(Deps{
 		Service:  svc,

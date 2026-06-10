@@ -15,8 +15,13 @@ import (
 // DefaultOllamaURL is the Ollama base URL used when OLLAMA_URL is unset.
 const DefaultOllamaURL = "http://localhost:11434"
 
-// DefaultSynthesisModel is the chat model used for L2 document synthesis.
-const DefaultSynthesisModel = "llama3.2:3b"
+// DefaultSynthesisModel is the chat model used for L2 document synthesis
+// (lever OLLAMA_SYNTHESIS_MODEL). Swapped llama3.2:3b → qwen3:4b on
+// 2026-06-10 by measurement, not vibe: the TestL2AnswerQualityEval harness
+// scored llama3.2:3b at 2/10 correct (8 abstentions — mostly reply_unparseable
+// and model_abstained) vs qwen3:4b at 7/10 correct, 1 abstention, on the same
+// 10-case mix with relevance excerpting.
+const DefaultSynthesisModel = "qwen3:4b"
 
 // abstainNote is the explicit text emitted when synthesis abstains.
 const abstainNote = "sources insufficient or disagree"
@@ -24,8 +29,11 @@ const abstainNote = "sources insufficient or disagree"
 // defaultSynthesisTimeout bounds a single L2 synthesis round-trip.
 const defaultSynthesisTimeout = 60 * time.Second
 
-// maxDocChars bounds how much of each fetched document is sent to the model so
-// a single long page can't blow the context window.
+// maxDocChars is the historical per-document cap on what is sent to the model
+// (a single long page must not blow the context window). The excerpting step
+// in the L2 pipeline now owns this budget (DefaultExcerptChars aliases it and
+// the WEB_SEARCH_SYNTH_EXCERPT_CHARS lever overrides it); buildSynthesisPrompt
+// no longer truncates so a raised budget is honored end-to-end.
 const maxDocChars = 6000
 
 // Synthesizer is the L2 seam: a single-pass LLM synthesis over the FULL fetched
@@ -100,7 +108,7 @@ type synthesisReply struct {
 // Synthesize runs the single-pass L2 synthesis over the fetched documents.
 func (s *OllamaSynthesizer) Synthesize(ctx context.Context, query string, docs []Document) (Synthesis, error) {
 	if len(docs) == 0 {
-		return Abstain(), nil
+		return AbstainWith(ReasonNoCandidates), nil
 	}
 	if s.Timeout > 0 {
 		var cancel context.CancelFunc
@@ -108,11 +116,18 @@ func (s *OllamaSynthesizer) Synthesize(ctx context.Context, query string, docs [
 		defer cancel()
 	}
 
+	userPrompt := buildSynthesisPrompt(query, docs)
+	// qwen3-family models burn tokens on chain-of-thought before the JSON;
+	// /no_think suppresses it (the strict-JSON format ignores think prose
+	// anyway, and ParseSynthesisReply scans for the first JSON object).
+	if strings.HasPrefix(s.Model, "qwen3") {
+		userPrompt += " /no_think"
+	}
 	body := chatRequest{
 		Model: s.Model,
 		Messages: []chatMessage{
 			{Role: "system", Content: synthesisSystemPrompt},
-			{Role: "user", Content: buildSynthesisPrompt(query, docs)},
+			{Role: "user", Content: userPrompt},
 		},
 		Stream:  false,
 		Format:  "json",
@@ -145,9 +160,16 @@ func (s *OllamaSynthesizer) Synthesize(ctx context.Context, query string, docs [
 	return ParseSynthesisReply(env.Message.Content, docs), nil
 }
 
-// Abstain returns the canonical abstaining synthesis.
+// Abstain returns the canonical abstaining synthesis with no specific reason.
+// Prefer AbstainWith at any site where the collapse cause is known.
 func Abstain() Synthesis {
 	return Synthesis{Text: abstainNote, Abstained: true}
+}
+
+// AbstainWith returns the canonical abstaining synthesis carrying the reason
+// for the collapse (observable on the RunL2 response and CLI summary).
+func AbstainWith(reason AbstainReason) Synthesis {
+	return Synthesis{Text: abstainNote, Abstained: true, AbstainReason: reason}
 }
 
 const synthesisSystemPrompt = "You synthesize full web-page text into a short, factual answer. " +
@@ -156,17 +178,14 @@ const synthesisSystemPrompt = "You synthesize full web-page text into a short, f
 	"If the documents are insufficient or disagree, abstain instead of guessing."
 
 // buildSynthesisPrompt renders the document-grounded synthesis prompt. Each
-// document is numbered so the model can cite by index; long bodies are
-// truncated to maxDocChars.
+// document is numbered so the model can cite by index. Documents arrive
+// pre-excerpted by the pipeline's Excerpter (which owns the per-doc budget),
+// so no truncation happens here.
 func buildSynthesisPrompt(query string, docs []Document) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Question: %s\n\nDocuments:\n", query)
 	for i, d := range docs {
-		text := d.Text
-		if len(text) > maxDocChars {
-			text = text[:maxDocChars]
-		}
-		fmt.Fprintf(&b, "[%d] %s (%s)\n%s\n\n", i, d.Title, d.URL, text)
+		fmt.Fprintf(&b, "[%d] %s (%s)\n%s\n\n", i, d.Title, d.URL, d.Text)
 	}
 	b.WriteString("Output ONLY one JSON object, no prose:\n")
 	b.WriteString(`{"abstained":<bool>,"text":"<answer or empty>","citations":[<document indices used>]}` + "\n")
@@ -181,14 +200,14 @@ func buildSynthesisPrompt(query string, docs []Document) string {
 func ParseSynthesisReply(raw string, docs []Document) Synthesis {
 	obj := firstJSONObject(raw)
 	if obj == "" {
-		return Abstain()
+		return AbstainWith(ReasonReplyUnparseable)
 	}
 	var reply synthesisReply
 	if err := json.Unmarshal([]byte(obj), &reply); err != nil {
-		return Abstain()
+		return AbstainWith(ReasonReplyUnparseable)
 	}
 	if reply.Abstained || strings.TrimSpace(reply.Text) == "" {
-		return Abstain()
+		return AbstainWith(ReasonModelAbstained)
 	}
 
 	cites := make([]Citation, 0, len(reply.Citations))
@@ -207,7 +226,7 @@ func ParseSynthesisReply(raw string, docs []Document) Synthesis {
 	// Always-cited contract: a claim with no valid grounding is treated as a
 	// fabrication and abstains.
 	if len(cites) == 0 {
-		return Abstain()
+		return AbstainWith(ReasonCitationsInvalid)
 	}
 	return Synthesis{Text: strings.TrimSpace(reply.Text), Citations: cites}
 }

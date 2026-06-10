@@ -2,13 +2,14 @@ version: "3.8"
 
 services:
   searxng:
-    image: ${SEARXNG_IMAGE:-searxng/searxng:2025.1.31-157c9267e}
+    image: ${SEARXNG_IMAGE:-ghcr.io/searxng/searxng:2026.6.8-f3fab143b}
     container_name: ${SEARXNG_CONTAINER_NAME:-searxng}
     hostname: searxng
     ports:
       - "${SEARXNG_BIND_ADDRESS:-127.0.0.1}:${SEARXNG_PORT:-8280}:8080"
     volumes:
       - "${SEARXNG_DATA_DIR:-${RESOURCE_CONFIG_DIR:-$HOME/.config/vrooli/resources/searxng}}:/etc/searxng:rw"
+      - searxng-cache:/var/cache/searxng
     environment:
       - SEARXNG_BASE_URL=${SEARXNG_BASE_URL:-http://localhost:8280}
       - SEARXNG_SECRET=${SEARXNG_SECRET_KEY}
@@ -68,3 +69,6 @@ networks:
   searxng-network:
     name: ${SEARXNG_NETWORK_NAME:-searxng-network}
     external: true
+
+volumes:
+  searxng-cache:

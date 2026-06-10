@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -40,6 +41,11 @@ func (h *connectHandler) RunL2(ctx context.Context, req *connect.Request[researc
 	if h.deps.Service == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("research service not configured"))
 	}
+	// Request schema (REQ-P1-001): query is required; top_n is clamped into
+	// 1..10 by the service (non-positive → default, >10 → max).
+	if strings.TrimSpace(req.Msg.GetQuery()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("query is required"))
+	}
 	out, err := h.deps.Service.RunL2(ctx, req.Msg.GetQuery(), int(req.Msg.GetTopN()), req.Msg.GetCapture())
 	if err != nil {
 		h.deps.Logger.Printf("research.RunL2: %v", err)
@@ -49,7 +55,11 @@ func (h *connectHandler) RunL2(ctx context.Context, req *connect.Request[researc
 		Brief:              briefToProto(out.Brief),
 		Synthesis:          out.Brief.Summary,
 		Abstained:          out.Abstained,
+		AbstainReason:      string(out.AbstainReason),
 		CapturedFindingIds: out.CapturedFindingIDs,
+	}
+	for _, e := range out.Excerpts {
+		resp.Excerpts = append(resp.Excerpts, &researchv1.DocumentExcerpt{Url: e.URL, Title: e.Title, Excerpt: e.Excerpt})
 	}
 	for _, issue := range out.DegradedEngines {
 		resp.DegradedEngines = append(resp.DegradedEngines, &livesearchv1.EngineIssue{Engine: issue.Engine, Reason: issue.Reason})

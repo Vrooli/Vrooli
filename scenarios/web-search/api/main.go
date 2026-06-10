@@ -222,11 +222,31 @@ func main() {
 	// HTTP-only fetch and abstains only if every page fails, L3 surfaces
 	// Unavailable). Capture (L3 always, L2 opt-in) writes to the same findings
 	// store, attributed to the "agent" actor.
-	researchFindings := internalfindings.NewServiceWithActor(internalfindings.NewSQLiteRepository(db, clock.System{}), "agent")
+	// Wrap with the index kick: an L2 --capture or L3 distillation write
+	// becomes searchable within the kick debounce (back-to-back L3 runs can
+	// GATHER each other's fresh findings) instead of waiting out the sync
+	// interval, which stays on as the repair cadence.
+	researchFindings := internalfindings.WithMutationNotify(
+		internalfindings.NewServiceWithActor(internalfindings.NewSQLiteRepository(db, clock.System{}), "agent"),
+		syncLoop.Kick)
+	// L2 excerpting: relevance-aware by default (reusing the findings index's
+	// tuned embedder so chunk scoring lives in the same vector space), with
+	// the escape-hatch lever reverting to positional truncation. The
+	// relevance excerpter itself degrades to positional when the embedder is
+	// unreachable, so this wiring never makes L2 less available.
+	var excerpter internalresearch.Excerpter = internalresearch.RelevantExcerpter{
+		Embedder: searcher.Embedder(),
+		Budget:   tuning.SynthExcerptChars,
+		Logger:   logger,
+	}
+	if tuning.RelevantExcerptsOff {
+		excerpter = internalresearch.PositionalExcerpter{Budget: tuning.SynthExcerptChars}
+	}
 	researchService := internalresearch.NewService(internalresearch.Deps{
 		Searcher:    internalresearch.LiveSearcher{Service: liveService},
 		Fetcher:     newL2Fetcher(tuning, logger),
 		Synthesizer: internalresearch.NewOllamaSynthesizer(os.Getenv("OLLAMA_URL"), os.Getenv("OLLAMA_SYNTHESIS_MODEL"), nil),
+		Excerpter:   excerpter,
 		Findings:    researchFindings,
 		// Bounded GATHER (OT-P1-003): the semantic findings index supplies nearby
 		// ids, the findings store hydrates them. The hard cap is enforced inside
@@ -258,7 +278,9 @@ func main() {
 	// the on-demand `findings gc` CLI is the only path until an operator opts in).
 	if gcInterval := gcIntervalFromEnv(); gcInterval > 0 {
 		gcRunner := internalfindings.NewGCService(
-			internalfindings.NewService(internalfindings.NewSQLiteRepository(db, clock.System{})),
+			internalfindings.WithMutationNotify(
+				internalfindings.NewService(internalfindings.NewSQLiteRepository(db, clock.System{})),
+				syncLoop.Kick),
 			clock.System{}, internalfindings.GCConfig{})
 		go runGCLoop(syncCtx, gcRunner, gcInterval, logger)
 	}
@@ -266,7 +288,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "web-search-api", "1.0.0"),
-		findingsH.Module(db, clock.System{}, searcher, usageRecorder, logger),
+		findingsH.Module(db, clock.System{}, searcher, usageRecorder, syncLoop.Kick, logger),
 		livesearchH.Module(liveService, logger),
 		researchH.Module(researchService, logger),
 	)

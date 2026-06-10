@@ -82,6 +82,26 @@ message RunL2Response {
   // non-empty list usually means the inputs were partial, not that the web
   // lacks an answer.
   repeated vrooli.web_search.v1.livesearch.EngineIssue degraded_engines = 5;
+  // abstain_reason explains WHICH collapse produced an abstention (empty when
+  // abstained=false): "no_candidates" (the L0 search returned no usable
+  // pages), "all_fetches_empty" (candidates existed but every fetch failed or
+  // extracted no text), "model_abstained" (the model judged the documents
+  // insufficient or in conflict), "reply_unparseable" (no parseable JSON in
+  // the model reply), or "citations_invalid" (the answer was grounded in no
+  // valid document index — treated as fabrication).
+  string abstain_reason = 6;
+  // excerpts mirrors, per fetched document, the text actually sent to the
+  // synthesis model (post relevance-selection/truncation, transport-capped) —
+  // the observability needed to debug a wrong or abstaining synthesis.
+  repeated DocumentExcerpt excerpts = 7;
+}
+
+// DocumentExcerpt is what the synthesis model actually read from one fetched
+// document: the source url/title plus the (capped) excerpt text.
+message DocumentExcerpt {
+  string url = 1;
+  string title = 2;
+  string excerpt = 3;
 }
 
 message RunL3Request {
