@@ -63,10 +63,10 @@ Validate NVIDIA setup:
   ./manage.sh --action validate-nvidia
 
 For NVIDIA GPU issues:
-1. Ensure drivers are installed: nvidia-smi
+1. Ensure drivers are visible: vrooli host inventory --field has_nvidia_gpu
 2. Install Container Runtime if missing
 3. Restart Docker after configuration
-4. Test with: docker run --rm --gpus all nvidia/cuda:11.8-base-ubuntu20.04 nvidia-smi
+4. Test with: vrooli host inventory --field has_docker_addressable_nvidia_gpu
 
 API USAGE
 ---------

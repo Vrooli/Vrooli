@@ -35,7 +35,7 @@
       "command": "resource-ollama"
     },
     "freshness": {
-      "inputs": ["cli/**", "cli/internal/**", "docs/**", "README.md", "resource.json"]
+      "inputs": ["cli/**", "cli/internal/**", "docs/**", "README.md", "resource.json", "model-policy.json"]
     }
   },
   "template": "docker-service",
@@ -85,10 +85,31 @@
     "description": "Scenario-specific Ollama dependency settings.",
     "properties": {
       "model": {
-        "type": "string"
+        "type": "string",
+        "description": "Deprecated singular concrete model reference. Prefer model_roles; use models only for documented direct exceptions."
+      },
+      "model_roles": {
+        "type": "array",
+        "description": "Logical Ollama model roles resolved through resources/ollama/model-policy.json.",
+        "items": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "properties": {
+                "role": { "type": "string" },
+                "reason": { "type": "string" },
+                "required": { "type": "boolean" }
+              },
+              "required": ["role"],
+              "additionalProperties": false
+            }
+          ]
+        }
       },
       "models": {
         "type": "array",
+        "description": "Concrete model exceptions. Prefer model_roles; object entries should include reason and owner.",
         "items": {
           "oneOf": [
             { "type": "string" },
@@ -98,7 +119,11 @@
                 "name": { "type": "string" },
                 "tag": { "type": "string" },
                 "size": { "type": "string" },
-                "quantization": { "type": "string" }
+                "quantization": { "type": "string" },
+                "reason": { "type": "string" },
+                "owner": { "type": "string" },
+                "review_after": { "type": "string", "format": "date" },
+                "required": { "type": "boolean" }
               },
               "required": ["name"],
               "additionalProperties": false

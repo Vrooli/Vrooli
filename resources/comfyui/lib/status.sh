@@ -122,10 +122,10 @@ comfyui::status::collect_data() {
         # GPU status if available (optimized)
         if [[ "$gpu_type" == "nvidia" ]] && common::is_running && [[ "$skip_expensive_ops" == "false" ]]; then
             local gpu_accessible="false"
-            if timeout 2s docker exec "$COMFYUI_CONTAINER_NAME" nvidia-smi >/dev/null 2>&1; then
+            if system::host_inventory_bool "has_docker_addressable_nvidia_gpu"; then
                 gpu_accessible="true"
                 local gpu_info
-                gpu_info=$(timeout 2s docker exec "$COMFYUI_CONTAINER_NAME" nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv,noheader 2>/dev/null | head -1 || echo "unknown")
+                gpu_info=$(system::host_inventory_field "first_gpu_summary" 2>/dev/null || echo "unknown")
                 status_data+=("gpu_info" "$gpu_info")
             fi
             status_data+=("gpu_accessible" "$gpu_accessible")
@@ -300,7 +300,7 @@ comfyui::status() {
 # Detect GPU type (silent version for data collection)
 #######################################
 status::detect_gpu_silent() {
-    if command -v nvidia-smi >/dev/null 2>&1; then
+    if system::has_nvidia_gpu; then
         echo "nvidia"
     elif command -v rocm-smi >/dev/null 2>&1; then
         echo "amd"

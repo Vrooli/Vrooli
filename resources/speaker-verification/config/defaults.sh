@@ -68,12 +68,8 @@ defaults::export_config() {
 
     # GPU configuration (only set if not already defined)
     if [[ -z "${SPEAKER_VERIFICATION_GPU_ENABLED:-}" ]]; then
-        # CPU is the default path. GPU is opt-in: enabled only when an NVIDIA
-        # stack is present AND Docker exposes the nvidia runtime. Uses command -v
-        # because utility libs aren't sourced when defaults.sh loads.
-        if command -v nvidia-smi >/dev/null 2>&1 \
-            && nvidia-smi >/dev/null 2>&1 \
-            && docker info 2>/dev/null | grep -q nvidia; then
+        if command -v vrooli >/dev/null 2>&1 \
+            && [[ "$(vrooli --no-stale-check host inventory --field has_docker_addressable_nvidia_gpu 2>/dev/null)" == "true" ]]; then
             readonly SPEAKER_VERIFICATION_GPU_ENABLED="yes"
         else
             readonly SPEAKER_VERIFICATION_GPU_ENABLED="no"

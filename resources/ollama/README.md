@@ -20,6 +20,7 @@ Managed Ollama runtime for local model serving and inference workloads.
 This resource is being aligned to the updated `docker-service` structure.
 
 - `resource.json` is the declarative authority for lifecycle, runtime, ports, exports, health, and freshness metadata.
+- `model-policy.json` is the declarative authority for Ollama roles, concrete model catalog entries, capacity estimates, and estimate provenance.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the default home for Ollama-specific Go logic when the manifest and shared control plane are not enough.
 - `lib/` still contains retained shell behavior during the migration. That behavior should move into `cli/internal/...` over time rather than back into `cli/main.go`.
@@ -55,6 +56,22 @@ curl http://localhost:11434/api/tags
 
 ## Model provisioning
 
+`model-policy.json` defines the shared model roles that scenarios should use
+instead of hard-coding concrete model names:
+
+| Role | Current model | Purpose |
+|---|---|---|
+| `embedding.default` | `nomic-embed-text:latest` | 768-dimensional semantic search embeddings |
+| `chat.small` | `llama3.2:3b` | low-memory local generation |
+| `chat.default` | `qwen3:4b` | default local chat/synthesis |
+| `summarize.default` | `qwen3:4b` | text distillation and summaries |
+| `rerank.llm_fallback` | `qwen3:4b` | fallback reranking when the reranker resource is unavailable |
+| `code.local` | `qwen2.5-coder:14b` | local code-specialized generation |
+
+The catalog includes static capacity estimates today. Each estimate carries
+provenance and confidence so later `/api/show`, `/api/ps`, and measured-profile
+ingestion can update the same fields without changing the schema.
+
 Scenarios declare the Ollama models they need in their `.vrooli/service.json`
 under the `ollama` dependency block:
 
@@ -64,26 +81,48 @@ under the `ollama` dependency block:
   "enabled": true,
   "required": false,
   "startup_policy": "try_start",
-  "models": ["qwen3:4b", {"name": "nomic-embed-text", "tag": "latest"}]
+  "model_roles": [
+    "embedding.default",
+    {"role": "chat.default", "reason": "answer synthesis"}
+  ]
 }
 ```
 
-On `vrooli scenario start`, the orchestrator sees the extra `models` key,
-confirms this resource advertises `supports_ensure` in `resource.json`, and
-calls `resource-ollama ensure --config-base64 <base64-json>`. The ensure verb:
+Direct concrete models remain an escape hatch, not the preferred path. Use
+`models` only with exception metadata:
 
-1. Lists installed tags via `GET /api/tags` (fast, ~10ms).
-2. Computes the missing set.
-3. Streams `POST /api/pull` for each missing model, relaying progress to the
+```json
+"models": [
+  {
+    "name": "qwen2.5-coder",
+    "tag": "14b",
+    "reason": "code-specialized local generation",
+    "owner": "agent-manager",
+    "review_after": "2026-09-01"
+  }
+]
+```
+
+The singular `model` field is deprecated and is kept only so old manifests can
+surface a warning instead of failing abruptly.
+
+On `vrooli scenario start`, the orchestrator passes the Ollama dependency block
+to `resource-ollama ensure --config-base64 <base64-json>`. The ensure verb:
+
+1. Resolves `model_roles` through `model-policy.json`.
+2. Emits warnings for deprecated `model` usage and direct `models` exceptions.
+3. Lists installed tags via `GET /api/tags` (fast, ~10ms).
+4. Computes the missing set.
+5. Streams `POST /api/pull` for each missing model, relaying progress to the
    lifecycle console.
-4. Exits 0 once every requested model is present (or reports which pulls
+6. Exits 0 once every requested model is present (or reports which pulls
    failed while keeping the scenario start best-effort via the usual
    `startup_policy` semantics).
 
 Direct invocation (e.g. while debugging):
 
 ```bash
-resource-ollama ensure --config-base64 $(echo -n '{"models":["qwen3:4b"]}' | base64)
+resource-ollama ensure --config-base64 $(echo -n '{"model_roles":["chat.default"]}' | base64)
 ```
 
 All log lines from the ensure path are prefixed with `ollama-ensure:` so
@@ -103,6 +142,25 @@ The 12 GiB cap is intended to keep one 7-8B model resident plus headroom; raise
 it on hosts with more RAM, lower it on smaller boxes. Keep `OLLAMA_NUM_PARALLEL`
 in step with the gateway semaphore (see below) — they are deliberately tied.
 
+## Capacity planning
+
+Use the planner before adding a new Ollama dependency or when reviewing model
+churn across scenarios:
+
+```bash
+resource-ollama capacity plan --scenario prompt-manager
+resource-ollama capacity plan --all-scenarios --json
+```
+
+The planner reads scenario `.vrooli/service.json` Ollama dependency blocks,
+resolves `model_roles` through `model-policy.json`, adds documented direct
+model exceptions, samples the shared host inventory, and best-effort reads
+Ollama `/api/tags` plus `/api/ps`. It reports distinct model demand, installed
+and loaded models, estimated disk/RAM/VRAM usage, policy estimate provenance,
+runtime settings, and warnings for direct models, low-confidence estimates, and
+likely unload/reload churn. It exits non-zero when resident model estimates
+exceed the configured runtime or host policy budget.
+
 ## Gateway access (callers)
 
 Scenarios MUST reach Ollama through the resource CLI, not by constructing
@@ -112,9 +170,13 @@ fleet of scenarios cannot overwhelm the daemon even when individual scenarios
 forget to bound their own fan-out:
 
 ```bash
-resource-ollama gateway embed    --model nomic-embed-text --json --input "hello"
-resource-ollama gateway generate --model llama3.2:1b      --json --prompt "say hi"
+resource-ollama gateway embed    --role embedding.default --json --input "hello"
+resource-ollama gateway generate --role chat.default      --json --prompt "say hi"
 ```
+
+`--role` and `--model` are mutually exclusive. Use `--role` for normal
+scenario runtime calls so model changes stay centralized in `model-policy.json`.
+Keep `--model` only for explicit direct-model exceptions and tests.
 
 If `resource-ollama` is not on `$PATH` or the daemon is unhealthy, the gateway
 fails fast with a structured error. There is no HTTP fallback by design.

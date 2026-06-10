@@ -16,8 +16,7 @@ source "${var_TRASH_FILE}"
 # Detect GPU type without logging (for use in conditionals)
 #######################################
 gpu::detect_gpu_silent() {
-    # Check for NVIDIA GPU
-    if system::is_command "nvidia-smi" && nvidia-smi >/dev/null 2>&1; then
+    if system::has_nvidia_gpu; then
         echo "nvidia"
         return 0
     fi
@@ -26,17 +25,6 @@ gpu::detect_gpu_silent() {
     if system::is_command "rocm-smi" && rocm-smi >/dev/null 2>&1; then
         echo "amd"
         return 0
-    fi
-    
-    # Check via lspci if available
-    if system::is_command "lspci"; then
-        if lspci 2>/dev/null | grep -iE "(nvidia|geforce|rtx|gtx|quadro)" >/dev/null; then
-            echo "nvidia"
-            return 0
-        elif lspci 2>/dev/null | grep -iE "(amd|radeon|vega)" | grep -i vga >/dev/null; then
-            echo "amd"
-            return 0
-        fi
     fi
     
     # Default to CPU
@@ -56,11 +44,10 @@ gpu::detect_gpu() {
     case "$detected_gpu" in
         nvidia)
             log::success "NVIDIA GPU detected"
-            if nvidia-smi >/dev/null 2>&1; then
-                log::info "NVIDIA driver is installed and functional"
-                nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader || true
-            else
-                log::warn "NVIDIA GPU detected but nvidia-smi not functional"
+            local gpu_info
+            gpu_info=$(system::host_inventory_field "first_gpu_summary" 2>/dev/null || true)
+            if [[ -n "$gpu_info" ]]; then
+                log::info "GPU: $gpu_info"
             fi
             ;;
         amd)
@@ -133,24 +120,7 @@ gpu::is_nvidia_runtime_installed() {
 # Check if Docker is configured for NVIDIA
 #######################################
 gpu::is_docker_nvidia_configured() {
-    # Method 1: Check docker info for nvidia runtime
-    if docker::run info 2>/dev/null | grep -q "nvidia"; then
-        return 0
-    fi
-    
-    # Method 2: Check daemon.json
-    if [[ -f /etc/docker/daemon.json ]]; then
-        if grep -q "nvidia-container-runtime" /etc/docker/daemon.json 2>/dev/null; then
-            return 0
-        fi
-    fi
-    
-    # Method 3: Try to run a test container
-    if docker::run run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu20.04 nvidia-smi >/dev/null 2>&1; then
-        return 0
-    fi
-    
-    return 1
+    system::host_inventory_bool "has_docker_nvidia_runtime"
 }
 
 #######################################
@@ -158,32 +128,14 @@ gpu::is_docker_nvidia_configured() {
 #######################################
 gpu::test_nvidia_runtime() {
     log::info "Testing NVIDIA runtime..."
-    
-    # First check if runtime is available
-    if ! docker::run info 2>/dev/null | grep -q nvidia; then
-        log::debug "NVIDIA runtime not found in docker info"
-        return 1
-    fi
-    
-    # Try a simple GPU test
-    log::info "Running NVIDIA GPU test container..."
-    
-    if docker::run run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu20.04 nvidia-smi; then
+
+    if system::host_inventory_bool "has_docker_addressable_nvidia_gpu"; then
         log::success "✅ NVIDIA GPU is accessible in Docker"
         return 0
-    else
-        log::error "❌ Failed to access GPU in Docker container"
-        
-        # Try alternative test
-        log::info "Trying alternative GPU test..."
-        if docker::run run --rm --runtime=nvidia nvidia/cuda:12.1.0-base-ubuntu20.04 nvidia-smi 2>/dev/null; then
-            log::success "✅ NVIDIA GPU accessible with --runtime=nvidia flag"
-            log::warn "Note: You may need to use --runtime=nvidia instead of --gpus all"
-            return 0
-        fi
-        
-        return 1
     fi
+
+    log::error "❌ Shared host inventory does not see Docker GPU access"
+    return 1
 }
 
 #######################################
@@ -196,15 +148,11 @@ gpu::validate_nvidia_requirements() {
     
     # 1. Check NVIDIA driver
     log::info "Checking NVIDIA driver..."
-    if nvidia-smi >/dev/null 2>&1; then
-        local driver_version
-        driver_version=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader,nounits | head -n1)
-        log::success "✅ NVIDIA driver installed: $driver_version"
-        
-        # Show GPU information
-        nvidia-smi --query-gpu=name,memory.total --format=csv,noheader | while IFS=',' read -r gpu_name gpu_memory; do
-            log::info "   GPU: $gpu_name (${gpu_memory})"
-        done
+    if system::has_nvidia_gpu; then
+        log::success "✅ NVIDIA driver installed and visible to shared host inventory"
+        local gpu_info
+        gpu_info=$(system::host_inventory_field "first_gpu_summary" 2>/dev/null || true)
+        [[ -n "$gpu_info" ]] && log::info "   GPU: $gpu_info"
     else
         log::error "❌ NVIDIA driver not functional"
         log::info "   Install NVIDIA drivers from: https://www.nvidia.com/Download/index.aspx"
@@ -481,7 +429,7 @@ gpu::show_manual_installation_guide() {
     echo "   sudo systemctl restart docker"
     echo
     echo "6. Verify installation:"
-    echo "   docker run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu20.04 nvidia-smi"
+    echo "   vrooli host inventory --field has_docker_addressable_nvidia_gpu"
     echo
     log::info "After manual installation, run this script again to continue ComfyUI setup."
 }
@@ -657,7 +605,7 @@ gpu::show_driver_installation_guide() {
     echo
     echo "After installing drivers:"
     echo "1. Reboot your system"
-    echo "2. Verify with: nvidia-smi"
+    echo "2. Verify with: vrooli host inventory --field has_nvidia_gpu"
     echo "3. Run this script again"
 }
 
@@ -670,16 +618,16 @@ gpu::show_troubleshooting_guide() {
     echo "If GPU access is not working, try these steps:"
     echo
     echo "1. Verify NVIDIA drivers:"
-    echo "   nvidia-smi"
+    echo "   vrooli host inventory --field has_nvidia_gpu"
     echo
     echo "2. Check Docker daemon status:"
     echo "   sudo systemctl status docker"
     echo
     echo "3. Test GPU in Docker:"
-    echo "   docker run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu20.04 nvidia-smi"
+    echo "   vrooli host inventory --field has_docker_addressable_nvidia_gpu"
     echo
     echo "4. Check Docker runtime configuration:"
-    echo "   docker info | grep -i nvidia"
+    echo "   vrooli host inventory --field has_docker_nvidia_runtime"
     echo
     echo "5. If using WSL2, ensure GPU support is enabled:"
     echo "   - Update to latest Windows 11 or Windows 10 (Build 21H2 or later)"
@@ -705,7 +653,7 @@ gpu::handle_nvidia_failure() {
     
     if [[ "$detected_gpu" == "nvidia" ]]; then
         # NVIDIA GPU present but setup failed
-        if ! nvidia-smi >/dev/null 2>&1; then
+        if ! system::has_nvidia_gpu; then
             log::error "NVIDIA GPU detected but drivers not functional"
             gpu::show_driver_installation_guide
         elif ! gpu::is_nvidia_runtime_installed; then
@@ -750,16 +698,8 @@ gpu::get_gpu_info() {
     
     case "$gpu_type" in
         nvidia)
-            if nvidia-smi >/dev/null 2>&1; then
-                echo "NVIDIA GPU Details:"
-                nvidia-smi --query-gpu=name,driver_version,memory.total,compute_cap --format=csv
-                echo
-                echo "Current GPU Usage:"
-                nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv
-            else
-                echo "NVIDIA GPU detected but nvidia-smi not available"
-                echo "Please install NVIDIA drivers"
-            fi
+            echo "NVIDIA GPU Details:"
+            system::host_inventory_field "first_gpu_summary" || echo "unknown"
             
             echo
             echo "Docker NVIDIA Runtime Status:"
@@ -785,13 +725,10 @@ gpu::get_gpu_info() {
             echo "No supported GPU detected"
             echo
             echo "CPU Information:"
-            if [[ -f /proc/cpuinfo ]]; then
-                echo "Model: $(grep "model name" /proc/cpuinfo | head -1 | cut -d: -f2 | xargs)"
-                echo "Cores: $(grep -c "processor" /proc/cpuinfo)"
-            fi
+            echo "Cores: $(system::get_cpu_cores)"
             echo
             echo "Available Memory:"
-            free -h | grep "^Mem:"
+            echo "$(system::get_total_memory_mb) MB"
             echo
             log::warn "ComfyUI will run in CPU mode - expect slow performance"
             ;;

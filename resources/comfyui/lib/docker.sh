@@ -67,7 +67,7 @@ comfyui::docker::start_container() {
     local docker_opts=()
     case "${GPU_TYPE}" in
         nvidia)
-            if docker info 2>/dev/null | grep -E "(Runtimes:.*nvidia|Default Runtime: nvidia)" >/dev/null; then
+            if system::host_inventory_bool "has_docker_nvidia_runtime"; then
                 docker_opts+=("--gpus" "all")
                 env_vars+=("NVIDIA_VISIBLE_DEVICES=all" "NVIDIA_DRIVER_CAPABILITIES=all")
                 [[ -n "$COMFYUI_VRAM_LIMIT" ]] && env_vars+=("PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb=$((COMFYUI_VRAM_LIMIT * 1024))")

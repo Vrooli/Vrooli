@@ -5,11 +5,13 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/common.sh"
+source "${VROOLI_ROOT}/scripts/lib/utils/var.sh"
+source "${var_SYSTEM_COMMANDS_FILE}"
 
 # Check GPU availability
 check_gpu_available() {
-    if command -v nvidia-smi &> /dev/null; then
-        nvidia-smi --query-gpu=name,memory.total,compute_cap --format=csv,noheader 2>/dev/null || echo "none"
+    if system::has_nvidia_gpu; then
+        system::host_inventory_field "first_gpu_summary" 2>/dev/null || echo "none"
     else
         echo "none"
     fi

@@ -1,6 +1,6 @@
 // Package ensure implements `resource-ollama ensure`: it reads a scenario's
-// ollama dependency config (models list) and pulls any models that aren't
-// already installed on the local Ollama instance.
+// ollama dependency config (model roles and direct model exceptions) and pulls
+// any resolved models that aren't already installed on the local Ollama instance.
 package ensure
 
 import (
@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -31,7 +33,7 @@ func CommandGroup() cliapp.CommandGroup {
 		Commands: []cliapp.Command{
 			{
 				Name:        "ensure",
-				Description: "Pull models declared in a scenario's ollama dependency config",
+				Description: "Resolve and pull models declared in a scenario's ollama dependency config",
 				Usage:       "resource-ollama ensure --config-base64 <base64-json>",
 				Run:         runCLI,
 			},
@@ -91,18 +93,24 @@ func runCLI(args []string) error {
 // Run is the testable entry point: given a parsed config, a client, and a
 // writer, it lists installed tags, diffs, and pulls the missing ones.
 func Run(ctx context.Context, cfg Config, client *Client, stdout io.Writer) error {
-	if len(cfg.Models) == 0 {
+	resolution, err := resolveConfigModels(cfg)
+	if err != nil {
+		return err
+	}
+	for _, warning := range resolution.Warnings {
+		fmt.Fprintf(stdout, "%s warning: %s\n", logPrefix, warning)
+	}
+	if len(resolution.Models) == 0 {
 		fmt.Fprintf(stdout, "%s no models requested; nothing to do\n", logPrefix)
 		return nil
 	}
 
-	refs := make([]string, 0, len(cfg.Models))
-	for _, m := range cfg.Models {
-		ref := m.Ref()
-		if ref == "" {
-			continue
+	refs := make([]string, 0, len(resolution.Models))
+	for _, m := range resolution.Models {
+		refs = append(refs, m.Ref)
+		if m.Source == "role" {
+			fmt.Fprintf(stdout, "%s resolved role %s -> %s\n", logPrefix, m.Role, m.Ref)
 		}
-		refs = append(refs, ref)
 	}
 	if len(refs) == 0 {
 		fmt.Fprintf(stdout, "%s config listed only empty model specs; nothing to do\n", logPrefix)
@@ -147,6 +155,21 @@ func Run(ctx context.Context, cfg Config, client *Client, stdout io.Writer) erro
 		return fmt.Errorf("%d model pull(s) failed: %w", len(errs), errors.Join(errs...))
 	}
 	return nil
+}
+
+func resolveConfigModels(cfg Config) (policy.Resolution, error) {
+	if len(cfg.ModelRoles) == 0 && len(cfg.Models) == 0 && strings.TrimSpace(cfg.Model) == "" {
+		return policy.Resolution{}, nil
+	}
+	p, _, err := policy.LoadDefaultFile(os.Getenv)
+	if err != nil {
+		return policy.Resolution{}, err
+	}
+	resolution, err := p.Resolve(cfg.ResolveRequest())
+	if err != nil {
+		return policy.Resolution{}, err
+	}
+	return resolution, nil
 }
 
 func withLatestTag(ref string) string {

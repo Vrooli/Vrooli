@@ -19,7 +19,8 @@ import (
 	"strings"
 	"time"
 
-	"resource-ollama/cli/internal/ensure"
+	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
+	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil/hostsem"
@@ -77,14 +78,14 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 		Subcommands: []cliapp.Command{
 			{
 				Name:        "embed",
-				Description: "Compute an embedding vector for --input (or stdin) using --model",
-				Usage:       "resource-ollama gateway embed --model <name> [--json] [--input <text> | --input-stdin]",
+				Description: "Compute an embedding vector for --input (or stdin) using --role or --model",
+				Usage:       "resource-ollama gateway embed --role embedding.default [--json] [--input <text> | --input-stdin]",
 				Run:         h.Embed,
 			},
 			{
 				Name:        "generate",
-				Description: "Generate a completion for --prompt (or stdin) using --model",
-				Usage:       "resource-ollama gateway generate --model <name> [--json] [--max-tokens <n>] [--temperature <f>] [--prompt <text> | --prompt-stdin]",
+				Description: "Generate a completion for --prompt (or stdin) using --role or --model",
+				Usage:       "resource-ollama gateway generate --role chat.default [--json] [--max-tokens <n>] [--temperature <f>] [--prompt <text> | --prompt-stdin]",
 				Run:         h.Generate,
 			},
 		},
@@ -97,14 +98,16 @@ func (h *Handlers) Embed(args []string) error {
 	fs := flag.NewFlagSet("gateway embed", flag.ContinueOnError)
 	fs.SetOutput(h.Stderr)
 	model := fs.String("model", "", "Ollama model reference (e.g. nomic-embed-text)")
+	role := fs.String("role", "", "Ollama model role from model-policy.json (e.g. embedding.default)")
 	input := fs.String("input", "", "Inline text to embed")
 	fromStdin := fs.Bool("input-stdin", false, "Read input text from stdin")
 	asJSON := fs.Bool("json", false, "Emit a single JSON object {\"embedding\":[...]} on stdout")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if strings.TrimSpace(*model) == "" {
-		return fmt.Errorf("--model is required")
+	selectedModel, err := h.resolveModel(*model, *role, "embedding")
+	if err != nil {
+		return err
 	}
 	text, err := h.resolveInput(*input, *fromStdin, "input")
 	if err != nil {
@@ -117,7 +120,7 @@ func (h *Handlers) Embed(args []string) error {
 	}
 	defer release()
 
-	vec, err := h.NewClient().Embed(ctx, *model, text)
+	vec, err := h.NewClient().Embed(ctx, selectedModel, text)
 	if err != nil {
 		return err
 	}
@@ -140,6 +143,7 @@ func (h *Handlers) Generate(args []string) error {
 	fs := flag.NewFlagSet("gateway generate", flag.ContinueOnError)
 	fs.SetOutput(h.Stderr)
 	model := fs.String("model", "", "Ollama model reference")
+	role := fs.String("role", "", "Ollama model role from model-policy.json (e.g. chat.default)")
 	prompt := fs.String("prompt", "", "Inline prompt text")
 	fromStdin := fs.Bool("prompt-stdin", false, "Read prompt from stdin")
 	maxTokens := fs.Int("max-tokens", 0, "Maximum tokens to generate; omitted when <= 0")
@@ -148,8 +152,9 @@ func (h *Handlers) Generate(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if strings.TrimSpace(*model) == "" {
-		return fmt.Errorf("--model is required")
+	selectedModel, err := h.resolveModel(*model, *role, "generate")
+	if err != nil {
+		return err
 	}
 	text, err := h.resolveInput(*prompt, *fromStdin, "prompt")
 	if err != nil {
@@ -162,7 +167,7 @@ func (h *Handlers) Generate(args []string) error {
 	}
 	defer release()
 
-	req := ensure.GenerateRequest{Model: *model, Prompt: text}
+	req := ensure.GenerateRequest{Model: selectedModel, Prompt: text}
 	if *maxTokens > 0 {
 		req.NumPredict = maxTokens
 	}
@@ -184,6 +189,53 @@ func (h *Handlers) Generate(args []string) error {
 }
 
 // --- shared -------------------------------------------------------------------
+
+func (h *Handlers) resolveModel(model, role, requiredCapability string) (string, error) {
+	model = strings.TrimSpace(model)
+	role = strings.TrimSpace(role)
+	if model == "" && role == "" {
+		return "", fmt.Errorf("--role or --model is required")
+	}
+	if model != "" && role != "" {
+		return "", fmt.Errorf("--role and --model are mutually exclusive")
+	}
+	if model != "" {
+		return model, nil
+	}
+
+	p, _, err := policy.LoadDefaultFile(h.GetEnv)
+	if err != nil {
+		return "", err
+	}
+	resolution, err := p.Resolve(policy.ResolveRequest{
+		ModelRoles: []policy.RoleRequest{{Role: role}},
+	})
+	if err != nil {
+		return "", err
+	}
+	if len(resolution.Models) == 0 {
+		return "", fmt.Errorf("role %q resolved no models", role)
+	}
+	ref := resolution.Models[0].Ref
+	modelPolicy, ok := p.Models[ref]
+	if !ok {
+		return "", fmt.Errorf("role %q resolved unknown model %q", role, ref)
+	}
+	if !hasCapability(modelPolicy.Capabilities, requiredCapability) {
+		return "", fmt.Errorf("role %q resolves to %q without %s capability", role, ref, requiredCapability)
+	}
+	return ref, nil
+}
+
+func hasCapability(capabilities []string, want string) bool {
+	want = strings.TrimSpace(want)
+	for _, capability := range capabilities {
+		if strings.TrimSpace(capability) == want {
+			return true
+		}
+	}
+	return false
+}
 
 func (h *Handlers) resolveInput(inline string, fromStdin bool, name string) (string, error) {
 	if inline != "" && fromStdin {

@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
 )
 
 type fakeOllama struct {
@@ -110,7 +112,7 @@ func TestRun_AllModelsAlreadyInstalled(t *testing.T) {
 	client, srv := newTestClient(t, fake)
 	defer srv.Close()
 
-	cfg := Config{Models: []ModelSpec{{Name: "qwen3:4b"}, {Name: "nomic-embed-text"}}}
+	cfg := Config{Models: []policy.DirectModelRequest{{Name: "qwen3:4b"}, {Name: "nomic-embed-text"}}}
 	var buf bytes.Buffer
 	if err := Run(context.Background(), cfg, client, &buf); err != nil {
 		t.Fatalf("Run: %v", err)
@@ -133,7 +135,7 @@ func TestRun_PullsOnlyMissing(t *testing.T) {
 	client, srv := newTestClient(t, fake)
 	defer srv.Close()
 
-	cfg := Config{Models: []ModelSpec{{Name: "qwen3:4b"}, {Name: "nomic-embed-text:latest"}}}
+	cfg := Config{Models: []policy.DirectModelRequest{{Name: "qwen3:4b"}, {Name: "nomic-embed-text:latest"}}}
 	var buf bytes.Buffer
 	if err := Run(context.Background(), cfg, client, &buf); err != nil {
 		t.Fatalf("Run: %v", err)
@@ -158,7 +160,7 @@ func TestRun_PullFailureIsReported(t *testing.T) {
 	client, srv := newTestClient(t, fake)
 	defer srv.Close()
 
-	cfg := Config{Models: []ModelSpec{{Name: "broken:1.0"}}}
+	cfg := Config{Models: []policy.DirectModelRequest{{Name: "broken:1.0"}}}
 	var buf bytes.Buffer
 	err := Run(context.Background(), cfg, client, &buf)
 	if err == nil {
@@ -206,7 +208,7 @@ func TestRun_ContextCancelAbortsPull(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
-	err := Run(ctx, Config{Models: []ModelSpec{{Name: "slow"}}}, client, &bytes.Buffer{})
+	err := Run(ctx, Config{Models: []policy.DirectModelRequest{{Name: "slow"}}}, client, &bytes.Buffer{})
 	if err == nil {
 		t.Fatal("expected error when ctx is cancelled")
 	}
@@ -214,10 +216,19 @@ func TestRun_ContextCancelAbortsPull(t *testing.T) {
 }
 
 func TestParseConfig_AcceptsStringsAndObjects(t *testing.T) {
-	raw := []byte(`{"models": ["qwen3:4b", {"name":"nomic-embed-text","tag":"latest"}]}`)
+	raw := []byte(`{"model_roles": ["embedding.default", {"role":"chat.default","reason":"answer synthesis","required":false}], "models": ["qwen3:4b", {"name":"nomic-embed-text","tag":"latest","reason":"fixture","owner":"test"}]}`)
 	cfg, err := ParseConfig(raw)
 	if err != nil {
 		t.Fatalf("ParseConfig: %v", err)
+	}
+	if len(cfg.ModelRoles) != 2 {
+		t.Fatalf("expected 2 model roles, got %d", len(cfg.ModelRoles))
+	}
+	if cfg.ModelRoles[0].Role != "embedding.default" {
+		t.Errorf("model_roles[0] = %#v", cfg.ModelRoles[0])
+	}
+	if cfg.ModelRoles[1].IsRequired() {
+		t.Errorf("model_roles[1] required = true, want false")
 	}
 	if len(cfg.Models) != 2 {
 		t.Fatalf("expected 2 models, got %d", len(cfg.Models))
@@ -227,6 +238,33 @@ func TestParseConfig_AcceptsStringsAndObjects(t *testing.T) {
 	}
 	if got := cfg.Models[1].Ref(); got != "nomic-embed-text:latest" {
 		t.Errorf("model[1] ref = %q, want nomic-embed-text:latest", got)
+	}
+}
+
+func TestRun_ResolvesRolesBeforePulling(t *testing.T) {
+	fake := &fakeOllama{
+		installed: map[string]bool{},
+		pullScripts: map[string][]string{
+			"nomic-embed-text:latest": {`{"status":"pulling manifest"}`, `{"status":"success"}`},
+		},
+	}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+
+	cfg := Config{ModelRoles: []policy.RoleRequest{{Role: "embedding.default"}}}
+	var buf bytes.Buffer
+	if err := Run(context.Background(), cfg, client, &buf); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if fake.pullCalls != 1 {
+		t.Fatalf("expected exactly one pull, got %d", fake.pullCalls)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "resolved role embedding.default -> nomic-embed-text:latest") {
+		t.Fatalf("missing role resolution log: %q", out)
+	}
+	if !strings.Contains(out, "pull nomic-embed-text:latest OK") {
+		t.Fatalf("missing pull success log: %q", out)
 	}
 }
 

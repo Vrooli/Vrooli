@@ -29,7 +29,7 @@ readonly SPEAKER_VERIFICATION_NETWORK_NAME="speaker-verification-network"
 # Returns: 0 if available, 1 otherwise
 #######################################
 speaker_verification::docker::is_gpu_available() {
-    system::is_command "nvidia-smi" && nvidia-smi >/dev/null 2>&1 && docker info | grep -q nvidia
+    system::host_inventory_bool "has_docker_addressable_nvidia_gpu"
 }
 
 #######################################

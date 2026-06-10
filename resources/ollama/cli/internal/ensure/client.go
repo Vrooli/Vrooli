@@ -79,6 +79,74 @@ func (c *Client) ListTags(ctx context.Context) (map[string]bool, error) {
 	return out, nil
 }
 
+type RunningModel struct {
+	Name          string `json:"name"`
+	Model         string `json:"model,omitempty"`
+	Size          int64  `json:"size,omitempty"`
+	SizeVRAM      int64  `json:"size_vram,omitempty"`
+	Processor     string `json:"processor,omitempty"`
+	Until         string `json:"until,omitempty"`
+	ExpiresAt     string `json:"expires_at,omitempty"`
+	Digest        string `json:"digest,omitempty"`
+	DetailsFamily string `json:"details_family,omitempty"`
+}
+
+type psResponse struct {
+	Models []struct {
+		Name      string `json:"name"`
+		Model     string `json:"model"`
+		Size      int64  `json:"size"`
+		SizeVRAM  int64  `json:"size_vram"`
+		Processor string `json:"processor"`
+		Until     string `json:"until"`
+		ExpiresAt string `json:"expires_at"`
+		Digest    string `json:"digest"`
+		Details   struct {
+			Family string `json:"family"`
+		} `json:"details"`
+	} `json:"models"`
+}
+
+// ListRunning returns models currently loaded by Ollama according to /api/ps.
+func (c *Client) ListRunning(ctx context.Context) ([]RunningModel, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/api/ps", nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("list running models: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return nil, fmt.Errorf("list running models: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var parsed psResponse
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return nil, fmt.Errorf("decode running models: %w", err)
+	}
+	out := make([]RunningModel, 0, len(parsed.Models))
+	for _, m := range parsed.Models {
+		name := m.Name
+		if name == "" {
+			name = m.Model
+		}
+		out = append(out, RunningModel{
+			Name:          name,
+			Model:         m.Model,
+			Size:          m.Size,
+			SizeVRAM:      m.SizeVRAM,
+			Processor:     m.Processor,
+			Until:         m.Until,
+			ExpiresAt:     m.ExpiresAt,
+			Digest:        m.Digest,
+			DetailsFamily: m.Details.Family,
+		})
+	}
+	return out, nil
+}
+
 // PullProgress is emitted for each status line Ollama streams during a pull.
 type PullProgress struct {
 	Status    string `json:"status"`

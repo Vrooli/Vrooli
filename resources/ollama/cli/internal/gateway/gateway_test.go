@@ -7,13 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"resource-ollama/cli/internal/ensure"
+	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
 
 	"github.com/vrooli/cli-core/cliutil/hostsem"
 )
@@ -80,8 +81,50 @@ func TestEmbedJSONOutput(t *testing.T) {
 func TestEmbedRequiresModel(t *testing.T) {
 	h, _, _ := newHandlers(t, &fakeClient{}, nil)
 	err := h.Embed([]string{"--input", "hi"})
-	if err == nil || !strings.Contains(err.Error(), "--model") {
-		t.Fatalf("expected --model error, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "--role or --model") {
+		t.Fatalf("expected model selection error, got %v", err)
+	}
+}
+
+func TestEmbedRoleResolvesModel(t *testing.T) {
+	client := &fakeClient{
+		embed: func(_ context.Context, model, input string) ([]float64, error) {
+			if model != "nomic-embed-text:latest" {
+				t.Errorf("model = %q", model)
+			}
+			if input != "hello" {
+				t.Errorf("input = %q", input)
+			}
+			return []float64{0.1}, nil
+		},
+	}
+	h, _, _ := newHandlers(t, client, policyEnv(t))
+	if err := h.Embed([]string{"--role", "embedding.default", "--input", "hello", "--json"}); err != nil {
+		t.Fatalf("Embed: %v", err)
+	}
+}
+
+func TestEmbedRejectsGenerateRole(t *testing.T) {
+	h, _, _ := newHandlers(t, &fakeClient{}, policyEnv(t))
+	err := h.Embed([]string{"--role", "chat.default", "--input", "hello"})
+	if err == nil || !strings.Contains(err.Error(), "without embedding capability") {
+		t.Fatalf("expected capability error, got %v", err)
+	}
+}
+
+func TestEmbedRejectsRoleAndModelTogether(t *testing.T) {
+	h, _, _ := newHandlers(t, &fakeClient{}, policyEnv(t))
+	err := h.Embed([]string{"--role", "embedding.default", "--model", "nomic-embed-text", "--input", "hello"})
+	if err == nil || !strings.Contains(err.Error(), "mutually exclusive") {
+		t.Fatalf("expected mutual exclusion error, got %v", err)
+	}
+}
+
+func TestEmbedRejectsUnknownRole(t *testing.T) {
+	h, _, _ := newHandlers(t, &fakeClient{}, policyEnv(t))
+	err := h.Embed([]string{"--role", "missing.role", "--input", "hello"})
+	if err == nil || !strings.Contains(err.Error(), `unknown model role "missing.role"`) {
+		t.Fatalf("expected unknown role error, got %v", err)
 	}
 }
 
@@ -129,6 +172,24 @@ func TestGenerateJSONOutput(t *testing.T) {
 	}
 	if got.EvalCount != 7 {
 		t.Fatalf("eval_count = %d, want 7", got.EvalCount)
+	}
+}
+
+func TestGenerateRoleResolvesModel(t *testing.T) {
+	client := &fakeClient{
+		generate: func(_ context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+			if in.Model != "qwen3:4b" {
+				t.Errorf("model = %q", in.Model)
+			}
+			if in.Prompt != "hi" {
+				t.Errorf("prompt = %q", in.Prompt)
+			}
+			return ensure.GenerateResponse{Response: "hello!", EvalCount: 1}, nil
+		},
+	}
+	h, _, _ := newHandlers(t, client, policyEnv(t))
+	if err := h.Generate([]string{"--role", "chat.default", "--prompt", "hi", "--json"}); err != nil {
+		t.Fatalf("Generate: %v", err)
 	}
 }
 
@@ -229,4 +290,13 @@ func TestAcquireRespectsContextDeadline(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "acquire host semaphore") {
 		t.Fatalf("expected acquire timeout error, got %v", err)
 	}
+}
+
+func policyEnv(t *testing.T) map[string]string {
+	t.Helper()
+	path, err := filepath.Abs(filepath.Join("..", "..", "..", "model-policy.json"))
+	if err != nil {
+		t.Fatalf("policy path: %v", err)
+	}
+	return map[string]string{"OLLAMA_MODEL_POLICY_PATH": path}
 }
