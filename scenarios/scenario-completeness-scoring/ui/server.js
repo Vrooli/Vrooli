@@ -1,19 +1,6 @@
-let startScenarioServer
-try {
-  ({ startScenarioServer } = await import('@vrooli/api-base/server'))
-} catch (error) {
-  const isMissingPerfModule =
-    error?.code === 'ERR_MODULE_NOT_FOUND' &&
-    typeof error?.message === 'string' &&
-    error.message.includes('@vrooli/api-base/dist/server/perf.js')
+import { proxyToApi, startScenarioServer } from '@vrooli/api-base/server'
 
-  if (!isMissingPerfModule) {
-    throw error
-  }
-
-  // Fallback for stale file-dependency installs where server/perf.js is absent.
-  ({ startScenarioServer } = await import('../../../packages/api-base/dist/server/template.js'))
-}
+const connectRpcPath = /^\/vrooli\.scenario_completeness_scoring\.v1\./
 
 startScenarioServer({
   uiPort: process.env.UI_PORT,
@@ -21,4 +8,16 @@ startScenarioServer({
   distDir: './dist',
   serviceName: 'scenario-completeness-scoring',
   corsOrigins: '*',
+  setupRoutes(app) {
+    app.use((req, res, next) => {
+      if (!connectRpcPath.test(req.path)) {
+        next()
+        return
+      }
+
+      proxyToApi(req, res, req.originalUrl || req.url, {
+        apiPort: process.env.API_PORT,
+      }).catch(next)
+    })
+  },
 })

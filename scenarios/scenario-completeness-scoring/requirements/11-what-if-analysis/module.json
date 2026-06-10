@@ -1,0 +1,64 @@
+{
+  "description": "Simulate metric changes and report projected score delta (port from the old implementation only if it stays cheap on the new signal set).",
+  "module_id": "MOD-P2-011",
+  "prd_ref": "OT-P2-002",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-003"
+      ],
+      "description": "[DEFERRED] A what-if analysis capability must allow callers to supply hypothetical metric overrides (e.g. 'assume coverage = 85%') and receive a projected score delta relative to the current score. This feature should only be implemented if it can be ported from the legacy implementation and remain computationally cheap (sub-second) using the new signal set without introducing any new network calls or storage dependencies. If the porting cost is deemed high or the computation cannot remain cheap, this requirement remains deferred.",
+      "id": "REQ-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "draft",
+      "title": "What-If Score Delta Simulation from Metric Changes",
+      "validation": [
+        {
+          "notes": "api/internal/scoring/what_if_test.go [REQ:OT-P2-002]: given current score fixture and hypothetical override map, assert projected_score and delta fields are mathematically consistent",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/scoring/what_if_test.go: empty overrides map → projected_score equals current score, delta equals 0",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/scoring/what_if_test.go: overrides that would push score above 100 → projected_score capped at 100",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cli golden test: `score what-if \u003cscenario\u003e --set coverage=100` returns JSON with projected_score and delta fields",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "What-if simulation must complete in \u003c500ms warm (must stay cheap relative to full score read)",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Engineers can model the impact of planned improvements before investing effort, enabling data-driven prioritization",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "What-If Analysis"
+}

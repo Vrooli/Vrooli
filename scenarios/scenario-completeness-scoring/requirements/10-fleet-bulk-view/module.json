@@ -1,0 +1,65 @@
+{
+  "description": "List scores across all scenarios (bulk read of the same cached path) so catalog consumers (e.g. swarm-manager) can re-point from the legacy `scores --json` contract.",
+  "module_id": "MOD-P2-010",
+  "prd_ref": "OT-P2-001",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-006"
+      ],
+      "description": "[DRAFT] A bulk list operation must read scores for all scenarios by iterating the same cached filesystem artifact path used by the single-scenario score read path. The output must be compatible with the legacy `scores --json` contract so that existing consumers such as swarm-manager can re-point to this implementation without breaking changes. Each entry in the bulk list must include at minimum: scenario identifier, composite score, maturity rung, and freshness summary. The bulk read must remain entirely filesystem-based with no network calls on the core path.",
+      "id": "REQ-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "draft",
+      "title": "Fleet Bulk Score View Across All Scenarios from Cached Artifacts",
+      "validation": [
+        {
+          "notes": "api/internal/scoring/bulk_score_test.go [REQ:OT-P2-001]: fixture dir with N scenario subdirs → bulk result contains N entries each with id, composite_score, rung, freshness_summary",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/scoring/bulk_score_test.go: one malformed scenario dir among valid dirs → circuit breaker fires for that entry, other entries returned successfully",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cli golden test: `score list --json` output is valid JSON array matching legacy `scores --json` schema (field names and types)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "swarm-manager compatibility test: swarm-manager pointed at new bulk endpoint returns same data shape as legacy scores endpoint",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Bulk read of 50 scenarios must complete within 5s on a warm filesystem",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Catalog consumers such as swarm-manager can migrate from the legacy scores contract to the new implementation without any data contract changes",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Fleet Bulk View"
+}

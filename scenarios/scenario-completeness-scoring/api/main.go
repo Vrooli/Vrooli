@@ -1,12 +1,3 @@
-// Package main provides the entry point for the Scenario Completeness Scoring API.
-// This file is intentionally minimal - it handles only server bootstrapping and
-// route configuration. All business logic is delegated to domain-organized
-// handler packages (handlers/scores.go, handlers/config.go, etc.)
-//
-// Architecture: "Screaming Architecture"
-// - The top-level structure reflects the domain (scores, config, health, analysis)
-// - HTTP handling is infrastructure that serves the domain
-// - Each handler file groups endpoints by the domain concept they serve
 package main
 
 import (
@@ -15,256 +6,155 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
-	"time"
 
-	"scenario-completeness-scoring/pkg/analysis"
-	"scenario-completeness-scoring/pkg/circuitbreaker"
-	"scenario-completeness-scoring/pkg/collectors"
-	"scenario-completeness-scoring/pkg/config"
-	"scenario-completeness-scoring/pkg/handlers"
-	pkghealth "scenario-completeness-scoring/pkg/health"
-	"scenario-completeness-scoring/pkg/history"
+	"scenario-completeness-scoring/internal/clock"
+	"scenario-completeness-scoring/internal/modules"
+	"scenario-completeness-scoring/internal/server"
 
-	gorillahndlrs "github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
+	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
-	repocontract "github.com/vrooli/repo-contract-go"
+	_ "modernc.org/sqlite"
+
+	healthH "scenario-completeness-scoring/handlers/health"
+	notesH "scenario-completeness-scoring/handlers/notes"
+	scoringH "scenario-completeness-scoring/handlers/scoring"
+	internalscoring "scenario-completeness-scoring/internal/scoring"
 )
 
-// ServerConfig holds runtime configuration for the server
-type ServerConfig struct {
-	Port       string
-	VrooliRoot string
-}
-
-// Server orchestrates the HTTP server and its dependencies
-type Server struct {
-	config    *ServerConfig
-	router    *mux.Router
-	handlers  *handlers.Context
-	historyDB *history.DB
-}
-
-// NewServer initializes the server with all required dependencies
-// [REQ:SCS-CB-001] Initialize circuit breaker with default config
-// [REQ:SCS-HEALTH-001] Initialize health tracker
-// [REQ:SCS-CFG-004] Initialize config loader
-// [REQ:SCS-HIST-001] Initialize history database and repository
-// [REQ:SCS-ANALYSIS-001] Initialize what-if analyzer
-// [REQ:SCS-ANALYSIS-003] Initialize bulk refresher
-func NewServer() (*Server, error) {
-	vrooliRoot, err := resolveVrooliRoot()
-	if err != nil {
-		return nil, fmt.Errorf("resolve repo root: %w", err)
+// sqliteDSN resolves the SQLite database file path and wraps it in a DSN
+// with the canonical pragma string. Resolution order:
+//
+//  1. SQLITE_PATH env — the canonical override.
+//  2. SQLITE_DB env — alias accepted for symmetry with other scenarios.
+//  3. storage.NewResolver(ProfileAuto) — the storage-steer-mandated
+//     filesystem-safe-by-default location.
+//
+// The path scope is the variant-aware namespace (storage.ScenarioNamespace),
+// not the bare slug: under a Baseline Modes shadow engagement the lifecycle
+// injects VROOLI_STORAGE_NAMESPACE, so the shadow's SQLite file lands beside
+// "<scenario>_shadow" and never shares live's database. Outside the lifecycle
+// (local `go run`, tests) it falls back to the compile-time slug, so live paths
+// are unchanged. This is why a generated scenario is shadow-safe with zero
+// per-scenario work — see packages/api-core/storage/namespace.go.
+//
+// The pragmas mirror agent-inbox; tweak in lockstep with
+// internal/testutil/db.NewSQLite so production and tests open files the
+// same way.
+func sqliteDSN() (string, error) {
+	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
+		return sqliteFileDSN(path)
 	}
-	cfg := &ServerConfig{
-		VrooliRoot: vrooliRoot,
+	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
+		return sqliteFileDSN(path)
 	}
 
-	// Initialize circuit breaker registry with default config
-	cbRegistry := circuitbreaker.NewRegistry(circuitbreaker.DefaultConfig())
-
-	// Initialize history database
-	// [REQ:SCS-HIST-002] SQLite database for history storage
-	dataDir, err := resolveHistoryDataDir(cfg.VrooliRoot)
-	if err != nil {
-		return nil, fmt.Errorf("resolve history data dir: %w", err)
-	}
-	historyDB, err := history.NewDB(dataDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize history database: %w", err)
-	}
-	historyRepo := history.NewRepository(historyDB)
-	trendAnalyzer := history.NewTrendAnalyzer(historyRepo, 5) // Stall after 5 unchanged
-
-	// Initialize metrics collector with circuit breaker integration
-	// [REQ:SCS-CORE-003] Graceful degradation via circuit breaker
-	collector := collectors.NewMetricsCollectorWithCircuitBreaker(cfg.VrooliRoot, cbRegistry)
-	configLoader := config.NewLoader(cfg.VrooliRoot)
-
-	// Create handler context with all dependencies
-	handlerCtx := handlers.NewContext(
-		cfg.VrooliRoot,
-		collector,
-		cbRegistry,
-		pkghealth.NewTracker(cbRegistry),
-		configLoader,
-		historyDB,
-		historyRepo,
-		trendAnalyzer,
-		analysis.NewWhatIfAnalyzer(collector),
-		analysis.NewBulkRefresher(cfg.VrooliRoot, collector, historyRepo),
-	)
-
-	srv := &Server{
-		config:    cfg,
-		router:    mux.NewRouter(),
-		handlers:  handlerCtx,
-		historyDB: historyDB,
-	}
-
-	srv.setupRoutes()
-	return srv, nil
-}
-
-func resolveVrooliRoot() (string, error) {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
-		return repocontract.FindRepoRootFromPath(root)
-	}
-	return repocontract.ResolveRepoRoot()
-}
-
-func resolveHistoryDataDir(vrooliRoot string) (string, error) {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
 		AppID:   "vrooli",
 		Profile: storage.ProfileAuto,
 	})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("create storage resolver: %w", err)
 	}
-	dir, err := storage.EnsureClassDir(resolver, storage.Options{ScenarioID: "scenario-completeness-scoring"}, storage.ClassData, 0)
+	scenarioID, err := storage.ScenarioNamespace("scenario-completeness-scoring")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("resolve scenario-completeness-scoring storage namespace: %w", err)
 	}
-	return dir, nil
-}
-
-// setupRoutes configures all API routes, organized by domain concept
-func (s *Server) setupRoutes() {
-	s.router.Use(loggingMiddleware)
-	s.router.Use(corsMiddleware)
-
-	h := s.handlers
-
-	// ─────────────────────────────────────────────────────────────────────
-	// Health & Infrastructure (basic service health)
-	// ─────────────────────────────────────────────────────────────────────
-	// Use api-core/health for standardized response format
-	healthHandler := health.New().
-		Version("1.0.0").
-		Handler()
-	s.router.HandleFunc("/health", healthHandler).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET", "OPTIONS")
-
-	// ─────────────────────────────────────────────────────────────────────
-	// Scores Domain (core business: calculating & retrieving scores)
-	// [REQ:SCS-CORE-002]
-	// ─────────────────────────────────────────────────────────────────────
-	s.router.HandleFunc("/api/v1/scores", h.HandleListScores).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/scores/{scenario}", h.HandleGetScore).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/scores/{scenario}/calculate", h.HandleCalculateScore).Methods("POST", "OPTIONS")
-	s.router.HandleFunc("/api/v1/scores/{scenario}/validation-analysis", h.HandleValidationAnalysis).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/recommendations/{scenario}", h.HandleGetRecommendations).Methods("GET", "OPTIONS")
-
-	// ─────────────────────────────────────────────────────────────────────
-	// Configuration Domain (global scoring settings)
-	// [REQ:SCS-CFG-001] [REQ:SCS-CFG-004]
-	// ─────────────────────────────────────────────────────────────────────
-	s.router.HandleFunc("/api/v1/config", h.HandleGetConfig).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/config", h.HandleUpdateConfig).Methods("PUT", "OPTIONS")
-	s.router.HandleFunc("/api/v1/config/schema", h.HandleGetConfigSchema).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/config/reset", h.HandleResetConfig).Methods("POST", "OPTIONS")
-	s.router.HandleFunc("/api/v1/config/thresholds", h.HandleGetThresholds).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/config/thresholds/{category}", h.HandleGetCategoryThresholds).Methods("GET", "OPTIONS")
-
-	// ─────────────────────────────────────────────────────────────────────
-	// Health Monitoring Domain (collector health & circuit breakers)
-	// [REQ:SCS-HEALTH-001] [REQ:SCS-CB-004]
-	// ─────────────────────────────────────────────────────────────────────
-	s.router.HandleFunc("/api/v1/health/collectors", h.HandleGetCollectorHealth).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/health/collectors/{name}/test", h.HandleTestCollector).Methods("POST", "OPTIONS")
-	s.router.HandleFunc("/api/v1/health/circuit-breaker", h.HandleGetCircuitBreakers).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/health/circuit-breaker/reset", h.HandleResetAllCircuitBreakers).Methods("POST", "OPTIONS")
-	s.router.HandleFunc("/api/v1/health/circuit-breaker/{collector}/reset", h.HandleResetCircuitBreaker).Methods("POST", "OPTIONS")
-
-	// ─────────────────────────────────────────────────────────────────────
-	// Analysis Domain (history, trends, what-if, comparisons)
-	// [REQ:SCS-HIST-001] [REQ:SCS-HIST-003] [REQ:SCS-ANALYSIS-001] [REQ:SCS-ANALYSIS-003] [REQ:SCS-ANALYSIS-004]
-	// ─────────────────────────────────────────────────────────────────────
-	s.router.HandleFunc("/api/v1/scores/{scenario}/history", h.HandleGetHistory).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/scores/{scenario}/trends", h.HandleGetTrends).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/trends", h.HandleGetAllTrends).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/scores/{scenario}/what-if", h.HandleWhatIf).Methods("POST", "OPTIONS")
-	s.router.HandleFunc("/api/v1/scores/refresh-all", h.HandleBulkRefresh).Methods("POST", "OPTIONS")
-	s.router.HandleFunc("/api/v1/compare", h.HandleCompare).Methods("POST", "OPTIONS")
-	s.router.HandleFunc("/api/v1/analysis/components", h.HandleListAnalysisComponents).Methods("GET", "OPTIONS")
-}
-
-// Router returns the HTTP handler for use with server.Run
-func (s *Server) Router() http.Handler {
-	return gorillahndlrs.RecoveryHandler()(s.router)
-}
-
-// Cleanup releases resources when the server shuts down
-func (s *Server) Cleanup() error {
-	// Close history database
-	if s.historyDB != nil {
-		if err := s.historyDB.Close(); err != nil {
-			log.Printf("failed to close history database: %v", err)
-		}
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: scenarioID},
+		storage.ClassData,
+		"scenario-completeness-scoring.db",
+	)
+	if err != nil {
+		return "", fmt.Errorf("resolve scenario-completeness-scoring db path: %w", err)
 	}
-	log.Println("server stopped")
-	return nil
+	return sqliteFileDSN(path)
 }
 
-// corsMiddleware adds CORS headers for cross-origin requests
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-// loggingMiddleware prints request logs with timing
-func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
-	})
-}
-
-// getEnvWithDefault retrieves an environment variable with a fallback default
-func getEnvWithDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
+func sqliteFileDSN(path string) (string, error) {
+	if strings.HasPrefix(path, "file:") {
+		return path, nil
 	}
-	return defaultValue
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", fmt.Errorf("prepare sqlite directory: %w", err)
+	}
+	return fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
+		path,
+	), nil
 }
 
 func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "scenario-completeness-scoring",
-	}) {
-		return // Process was re-exec'd after rebuild
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "scenario-completeness-scoring"}) {
+		return
 	}
 
-	srv, err := NewServer()
+	dsn, err := sqliteDSN()
 	if err != nil {
-		log.Fatalf("failed to initialize server: %v", err)
+		log.Fatalf("sqlite configuration failed: %v", err)
 	}
 
-	log.Printf("starting server | service=scenario-completeness-scoring-api vrooli_root=%s", srv.config.VrooliRoot)
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		log.Fatalf("Database connection failed: %v", err)
+	}
 
-	if err := server.Run(server.Config{
-		Handler: srv.Router(),
-		Cleanup: func(ctx context.Context) error {
-			return srv.Cleanup()
-		},
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
+
+	scorer, err := internalscoring.New()
+	if err != nil {
+		log.Fatalf("scoring service init failed: %v", err)
+	}
+
+	srv := server.New(
+		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		healthH.Module(db, "scenario-completeness-scoring-api", "1.0.0"),
+		notesH.Module(db, clock.System{}, log.Default()),
+		scoringH.Module(scorer, log.Default()),
+	)
+
+	// Top-level mux that mounts the API handler plus, when in development
+	// mode, the dev-only RoutingService used by test-genie to install a
+	// runtime test DB pool without restarting this scenario.
+	rootMux := http.NewServeMux()
+	devrouting.Register(rootMux, db)
+
+	// /measures is the measures-go serve substrate: the central measures
+	// index (measures-health) harvests <prefix>/declarations and the
+	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
+	// one reference measure (notes.count); a real multi-domain scenario
+	// registers each domain's measures on one shared registry here.
+	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
+	if err != nil {
+		log.Fatalf("measures registry: %v", err)
+	}
+	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
+
+	rootMux.Handle("/", srv.Handler())
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the
+	// installed test pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
-		log.Fatalf("server error: %v", err)
+		log.Fatalf("Server error: %v", err)
 	}
 }

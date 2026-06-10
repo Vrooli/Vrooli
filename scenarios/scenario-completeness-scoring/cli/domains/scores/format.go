@@ -1,0 +1,150 @@
+package scores
+
+import (
+	"fmt"
+	"strings"
+
+	scoringv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/scoring"
+)
+
+const rule = "────────────────────────────────────────────────────────"
+
+// FormatReport renders the human status report. Section order mirrors the
+// product contract: maturity headline (as of digest), composite score with
+// per-group metric lines, freshness verdicts with the refresh command,
+// recommendations + action plan, and any collector degradations last.
+func FormatReport(msg *scoringv1.GetScoreResponse) string {
+	var b strings.Builder
+
+	digest := msg.GetFreshness().GetCurrentDigest()
+	digestLabel := digest
+	if digestLabel == "" {
+		digestLabel = "unavailable (" + firstNonEmpty(msg.GetFreshness().GetDigestError(), "no digest") + ")"
+	}
+
+	// ── Maturity headline ────────────────────────────────────────────
+	fmt.Fprintf(&b, "🪜 MATURITY — %s (%s)\n", msg.GetScenario(), msg.GetCategory())
+	b.WriteString(rule + "\n")
+	mat := msg.GetMaturity()
+	if mat.GetLadderClean() {
+		b.WriteString("  Ladder:       ✅ clean through R4\n")
+	} else {
+		fmt.Fprintf(&b, "  Working rung: %s\n", firstNonEmpty(mat.GetWorkingRung(), "R0"))
+		fmt.Fprintf(&b, "  Satisfied:    %s\n", firstNonEmpty(mat.GetSatisfiedThrough(), "none"))
+	}
+	fmt.Fprintf(&b, "  Build:        %s\n", passIcon(mat.GetBuildPassing()))
+	fmt.Fprintf(&b, "  As of digest: %s\n", digestLabel)
+	for _, d := range mat.GetDimensions() {
+		icon := "⚠️ "
+		if d.GetErrorPlus() == 0 {
+			icon = "✅"
+		}
+		approx := ""
+		if d.GetApproximate() {
+			approx = " (approximated from phase status)"
+		}
+		fmt.Fprintf(&b, "  %s %s: %d error+, %d open%s\n", icon, d.GetDimension(), d.GetErrorPlus(), d.GetTotal(), approx)
+	}
+
+	// ── Composite score ──────────────────────────────────────────────
+	comp := msg.GetComposite()
+	fmt.Fprintf(&b, "\n📊 COMPLETENESS SCORE: %d/100 (%s)\n", comp.GetScore(), comp.GetClassification())
+	b.WriteString(rule + "\n")
+	fmt.Fprintf(&b, "  %s\n", comp.GetClassificationLabel())
+	for _, g := range comp.GetGroups() {
+		fmt.Fprintf(&b, "\n  %s (%s/%s):\n", g.GetLabel(), trimFloat(g.GetScore()), trimFloat(g.GetMax()))
+		for _, m := range g.GetMetrics() {
+			icon := "⚠️ "
+			switch {
+			case m.GetPoints() >= m.GetMaxPoints():
+				icon = "✅"
+			case m.GetPoints() == 0:
+				icon = "❌"
+			}
+			line := fmt.Sprintf("    %s %s: %s → %s/%s pts", icon, m.GetLabel(), m.GetObserved(), trimFloat(m.GetPoints()), trimFloat(m.GetMaxPoints()))
+			if m.GetThreshold() != "" {
+				line += fmt.Sprintf(" [%s]", m.GetThreshold())
+			}
+			b.WriteString(line + "\n")
+		}
+	}
+
+	// ── Freshness ────────────────────────────────────────────────────
+	fresh := msg.GetFreshness()
+	b.WriteString("\n⏱  FRESHNESS\n" + rule + "\n")
+	for _, p := range fresh.GetPhases() {
+		icon, detail := "❓", "no evidence"
+		switch p.GetVerdict() {
+		case "fresh":
+			icon = "✅"
+			detail = fmt.Sprintf("run %s", p.GetLastRunId())
+		case "stale":
+			icon = "⚠️ "
+			if p.GetLastRunId() != "" {
+				detail = fmt.Sprintf("last passed in %s at %s", p.GetLastRunId(), firstNonEmpty(p.GetLastDigest(), "unstamped digest"))
+			} else {
+				detail = "never passed at any digest"
+			}
+		}
+		fmt.Fprintf(&b, "  %s %-10s %-8s %s\n", icon, p.GetPhase(), p.GetVerdict(), detail)
+	}
+	if cmd := fresh.GetSuggestedCommand(); cmd != "" {
+		fmt.Fprintf(&b, "  Refresh: %s\n", cmd)
+	}
+
+	// ── Recommendations + action plan ────────────────────────────────
+	if recs := msg.GetRecommendations(); len(recs) > 0 {
+		b.WriteString("\n🎯 RECOMMENDATIONS\n" + rule + "\n")
+		for i, r := range recs {
+			suffix := ""
+			if r.GetImpactPoints() > 0 {
+				suffix = fmt.Sprintf(" (+%s pts)", trimFloat(r.GetImpactPoints()))
+			}
+			fmt.Fprintf(&b, "  %d. [%s] %s%s\n", i+1, r.GetPriority(), r.GetDescription(), suffix)
+		}
+	}
+	if plan := msg.GetActionPlan(); len(plan) > 0 {
+		b.WriteString("\n🗺  ACTION PLAN\n" + rule + "\n")
+		projected := float64(comp.GetScore())
+		for i, p := range plan {
+			fmt.Fprintf(&b, "  Phase %d: %s (+%s pts estimated)\n", i+1, p.GetTitle(), trimFloat(p.GetEstimatedPoints()))
+			for _, a := range p.GetActions() {
+				fmt.Fprintf(&b, "    • %s\n", a)
+			}
+			projected += p.GetEstimatedPoints()
+		}
+		fmt.Fprintf(&b, "  Estimated score after fixes: ~%d/100\n", int(projected))
+	}
+
+	// ── Degradations ─────────────────────────────────────────────────
+	if degs := msg.GetDegradations(); len(degs) > 0 {
+		b.WriteString("\n⚠️  DEGRADED COLLECTION\n" + rule + "\n")
+		for _, d := range degs {
+			fmt.Fprintf(&b, "  %s collector %s: %s\n", d.GetCollector(), d.GetState(), d.GetReason())
+		}
+	}
+
+	return b.String()
+}
+
+func passIcon(ok bool) string {
+	if ok {
+		return "✅ passing"
+	}
+	return "❌ not passing"
+}
+
+func trimFloat(v float64) string {
+	s := fmt.Sprintf("%.1f", v)
+	s = strings.TrimSuffix(s, ".0")
+	return s
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}

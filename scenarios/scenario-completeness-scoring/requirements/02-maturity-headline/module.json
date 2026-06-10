@@ -1,0 +1,78 @@
+{
+  "description": "Output leads with the maturity rung R0–R4 computed via the shared maturity-go ladder gate predicates over per-dimension error/open counts decoded from cached phase-results findings, labeled \"as of digest td:…\" — never presented as ecosystem-manager's live state.",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Every score response must lead with the maturity rung label (R0–R4) computed by invoking the shared maturity-go ladder gate predicates. The rung must be derived from per-dimension error and open counts decoded from cached phase-results findings (proto ArchitectureFinding decode with EM-format fallback). The headline must be labeled 'as of digest td:…' using the digest stamped on the recorded runs, and must never be presented as ecosystem-manager's live state. No local copy of the maturity ladder logic is permitted — only packages/maturity-go must be used.",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "draft",
+      "title": "Maturity Rung Headline Derived from Cached Phase Results via Shared Ladder Gates",
+      "validation": [
+        {
+          "notes": "api/internal/scoring/rung_headline_test.go [REQ:OT-P0-002]: table tests pinning rung derivation — fixture findings sets that land on each boundary R0/R1/R2/R3/R4, assert correct rung label returned",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/scoring/rung_headline_test.go: verify headline string contains 'as of digest td:' prefix with non-empty digest value",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/scoring/rung_headline_test.go: verify maturity-go package functions are called (not reimplemented) by checking import path in source",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/signals/phase_results_decoder_test.go: table test for proto ArchitectureFinding decode succeeds on proto-format fixture and falls back gracefully to EM-format fixture",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cmd/score/score_integration_test.go: end-to-end GetScore response asserts rung field is one of R0–R4 and digest label is present and non-empty",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cli golden test: `score get \u003cscenario\u003e` output first non-blank line matches regex `^R[0-4]\\b.*as of digest td:[a-f0-9]+`",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Maturity rung label is consistent with the shared maturity-go definition so all tooling reports the same rung for the same scenario state",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Label clearly communicates the rung reflects a point-in-time snapshot, not live ecosystem state",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Maturity Headline"
+}
