@@ -11,7 +11,8 @@ import (
 
 // SteerMode defines the different improvement dimensions agents can focus on.
 // These remain prompt-routing labels (which skill family to render); the
-// controller's dimension vocabulary lives in pkg/dimensions.
+// controller's dimension vocabulary lives in the shared maturity-go/dimensions
+// package (packages/maturity-go).
 type SteerMode string
 
 const (
@@ -265,8 +266,8 @@ type DTVObjective struct {
 }
 
 // LadderObjective is the maturity-ladder objective-block. The ladder definition
-// (rungs + gates) is canonical in pkg/ladder; this block only tunes how a profile
-// pursues it.
+// (rungs + gates) is canonical in the shared maturity-go/ladder package; this
+// block only tunes how a profile pursues it.
 type LadderObjective struct {
 	// Enabled turns rung-governed selection on. false/absent ⇒ pure greedy.
 	Enabled bool `json:"enabled"`

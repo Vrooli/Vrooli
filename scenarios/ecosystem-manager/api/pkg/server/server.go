@@ -29,6 +29,7 @@ import (
 	"github.com/ecosystem-manager/api/internal/module"
 	"github.com/ecosystem-manager/api/pkg/autosteer"
 	"github.com/ecosystem-manager/api/pkg/handlers"
+	"github.com/ecosystem-manager/api/pkg/importance"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
 	"github.com/ecosystem-manager/api/pkg/recycler"
@@ -71,6 +72,7 @@ type Application struct {
 	autoSteerHandlers      *autosteer.AutoSteerHandlers
 	skillsSyncHandlers     *handlers.SkillsSyncHandlers
 	visitedTrackerHandlers *handlers.VisitedTrackerHandlers
+	importanceHandlers     *handlers.ImportanceHandlers
 
 	// Paths
 	scenarioRoot string
@@ -269,6 +271,8 @@ func (a *Application) initializeComponents() error {
 	log.Println("✅ Recycler daemon started")
 	systemlog.Info("Recycler daemon started")
 
+	importanceService := importance.NewDefaultService(a.projectRoot)
+
 	// Initialize queue processor
 	a.processor = queue.NewProcessorWithDefaults(
 		a.storage,
@@ -276,6 +280,7 @@ func (a *Application) initializeComponents() error {
 		a.wsManager.GetBroadcastChannel(),
 		a.taskRecycler,
 	)
+	a.processor.SetSchedulingSignalProviders(queue.ServiceImportanceProvider{Service: importanceService}, nil)
 	a.taskRecycler.SetWakeFunc(a.processor.Wake)
 	log.Println("✅ Queue processor initialized")
 	systemlog.Info("Queue processor initialized")
@@ -345,6 +350,7 @@ func (a *Application) initializeComponents() error {
 	a.promptsHandlers = handlers.NewPromptsHandlers(a.assembler)
 	a.insightHandlers = handlers.NewInsightHandlers(a.processor, filepath.Dir(a.scenarioRoot))
 	a.visitedTrackerHandlers = handlers.NewVisitedTrackerHandlers(a.projectRoot)
+	a.importanceHandlers = handlers.NewImportanceHandlers(importanceService)
 	a.autoSteerHandlers = autosteer.NewAutoSteerHandlers(a.autoSteerProfileService, a.autoSteerExecutionEngine, a.autoSteerHistoryService)
 	a.skillsSyncHandlers = handlers.NewSkillsSyncHandlers(promptEnhancer.GetPromptLoader())
 	log.Println("✅ HTTP handlers initialized")
@@ -377,6 +383,7 @@ func (a *Application) setupRoutes() http.Handler {
 	a.registerAutoSteerRoutes(api)
 	a.registerSkillsRoutes(api)
 	a.registerVisitedTrackerRoutes(api)
+	a.registerImportanceRoutes(api)
 
 	// Connect-RPC domains mount on the ROOT router (their procedure paths are
 	// /vrooli.ecosystem_manager.v1.<domain>.<Service>/<Method>, not under /api).
@@ -545,6 +552,10 @@ func (a *Application) registerVisitedTrackerRoutes(api *mux.Router) {
 	api.HandleFunc("/visited-tracker/campaigns/{id}", a.visitedTrackerHandlers.GetCampaignHandler).Methods("GET")
 	api.HandleFunc("/visited-tracker/campaigns/{id}", a.visitedTrackerHandlers.DeleteCampaignHandler).Methods("DELETE")
 	api.HandleFunc("/visited-tracker/campaigns/{id}/reset", a.visitedTrackerHandlers.ResetCampaignHandler).Methods("POST")
+}
+
+func (a *Application) registerImportanceRoutes(api *mux.Router) {
+	api.HandleFunc("/importance", a.importanceHandlers.GetImportanceHandler).Methods("GET")
 }
 
 type requestIDContextKey struct{}

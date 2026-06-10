@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
 	"github.com/ecosystem-manager/api/pkg/effectiveness"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/maturity-go/dimensions"
 )
 
 // ErrorResponse represents a structured error response

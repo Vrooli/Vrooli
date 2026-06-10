@@ -143,14 +143,15 @@ Check the **Settings** active toggle in the UI. To resume processing:
 curl -s -X POST http://localhost:30500/api/queue/start
 ```
 
-### PRD metric `MetricUnavailableError`
+### PRD metric confusion
 
-The PRD/completeness metric is supplied by the
-`scenario-completeness-scoring` scenario. If it is down, that metric is
-unavailable. Confirm it is running:
+Ecosystem Manager's PRD completion metric is read locally from the target
+scenario's `PRD.md`; it does not require `scenario-completeness-scoring`
+to be running. Use SCS when you need the separate cached maturity/
+freshness/completeness view:
 
 ```bash
-vrooli scenario status scenario-completeness-scoring
+scenario-completeness-scoring score get <scenario>
 ```
 
 ### Auto-steer not advancing

@@ -39,6 +39,9 @@ func TestGetSettings(t *testing.T) {
 	if settings.Active != DefaultActive {
 		t.Errorf("Expected Active=%v, got %v", DefaultActive, settings.Active)
 	}
+	if settings.ImportanceAwareScheduling != DefaultImportanceAwareScheduling {
+		t.Errorf("Expected ImportanceAwareScheduling=%v, got %v", DefaultImportanceAwareScheduling, settings.ImportanceAwareScheduling)
+	}
 	if settings.CondensedMode != DefaultCondensedMode {
 		t.Errorf("Expected CondensedMode=%v, got %v", DefaultCondensedMode, settings.CondensedMode)
 	}
@@ -51,16 +54,17 @@ func TestUpdateSettings(t *testing.T) {
 
 	// Create new settings
 	newSettings := Settings{
-		Theme:           "dark",
-		Slots:           3,
-		CooldownSeconds: 60,
-		Active:          true,
-		MaxTurns:        50,
-		AllowedTools:    "Read,Write,Edit",
-		SkipPermissions: false,
-		TaskTimeout:     120,
-		IdleTimeoutCap:  90,
-		CondensedMode:   true,
+		Theme:                     "dark",
+		Slots:                     3,
+		CooldownSeconds:           60,
+		Active:                    true,
+		ImportanceAwareScheduling: true,
+		MaxTurns:                  50,
+		AllowedTools:              "Read,Write,Edit",
+		SkipPermissions:           false,
+		TaskTimeout:               120,
+		IdleTimeoutCap:            90,
+		CondensedMode:             true,
 		Recycler: RecyclerSettings{
 			EnabledFor:          "both",
 			IntervalSeconds:     600,
@@ -86,6 +90,9 @@ func TestUpdateSettings(t *testing.T) {
 	}
 	if !retrieved.Active {
 		t.Error("Expected Active=true, got false")
+	}
+	if !retrieved.ImportanceAwareScheduling {
+		t.Error("Expected ImportanceAwareScheduling=true, got false")
 	}
 	if retrieved.MaxTurns != 50 {
 		t.Errorf("Expected MaxTurns=50, got %d", retrieved.MaxTurns)
@@ -126,16 +133,17 @@ func TestUpdateSettings(t *testing.T) {
 func TestResetSettings(t *testing.T) {
 	// Modify settings
 	UpdateSettings(Settings{
-		Theme:           "dark",
-		Slots:           5,
-		CooldownSeconds: 120,
-		Active:          true,
-		MaxTurns:        80,
-		AllowedTools:    "Read",
-		SkipPermissions: false,
-		TaskTimeout:     240,
-		IdleTimeoutCap:  180,
-		CondensedMode:   true,
+		Theme:                     "dark",
+		Slots:                     5,
+		CooldownSeconds:           120,
+		Active:                    true,
+		ImportanceAwareScheduling: true,
+		MaxTurns:                  80,
+		AllowedTools:              "Read",
+		SkipPermissions:           false,
+		TaskTimeout:               240,
+		IdleTimeoutCap:            180,
+		CondensedMode:             true,
 	})
 
 	// Reset
@@ -150,6 +158,9 @@ func TestResetSettings(t *testing.T) {
 	}
 	if reset.Active != DefaultActive {
 		t.Errorf("Expected Active=%v after reset, got %v", DefaultActive, reset.Active)
+	}
+	if reset.ImportanceAwareScheduling != DefaultImportanceAwareScheduling {
+		t.Errorf("Expected ImportanceAwareScheduling=%v after reset, got %v", DefaultImportanceAwareScheduling, reset.ImportanceAwareScheduling)
 	}
 	if reset.MaxTurns != DefaultMaxTurns {
 		t.Errorf("Expected MaxTurns=%d after reset, got %d", DefaultMaxTurns, reset.MaxTurns)
@@ -380,13 +391,14 @@ func TestValidateAndNormalize(t *testing.T) {
 	previous.Recycler.IntervalSeconds = 120
 
 	input := Settings{
-		Slots:           2,
-		CooldownSeconds: 45,
-		MaxTurns:        60,
-		TaskTimeout:     90,
-		IdleTimeoutCap:  0, // should fall back to previous
-		AllowedTools:    "Read,Bash",
-		SkipPermissions: true,
+		Slots:                     2,
+		CooldownSeconds:           45,
+		ImportanceAwareScheduling: true,
+		MaxTurns:                  60,
+		TaskTimeout:               90,
+		IdleTimeoutCap:            0, // should fall back to previous
+		AllowedTools:              "Read,Bash",
+		SkipPermissions:           true,
 		Recycler: RecyclerSettings{
 			EnabledFor:          "",
 			IntervalSeconds:     0,
@@ -416,6 +428,9 @@ func TestValidateAndNormalize(t *testing.T) {
 	}
 	if result.CooldownSeconds != 45 {
 		t.Fatalf("expected CooldownSeconds to be 45, got %d", result.CooldownSeconds)
+	}
+	if !result.ImportanceAwareScheduling {
+		t.Fatal("expected ImportanceAwareScheduling to preserve explicit opt-in")
 	}
 }
 

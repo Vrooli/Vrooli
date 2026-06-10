@@ -2,9 +2,11 @@
 
 This document is the prose half of the **improvement-dimension vocabulary**.
 The machine-readable single source of truth is
-[`../../api/pkg/dimensions/dimensions.json`](../../api/pkg/dimensions/dimensions.json);
-this file explains *why* the vocabulary exists and how the two mapping tables
-are derived. If the two ever disagree, the JSON wins and this prose is stale.
+[`packages/maturity-go/dimensions/dimensions.json`](../../../../packages/maturity-go/dimensions/dimensions.json)
+(the shared maturity-go package, extracted from this scenario so cached status
+readers compute with the same vocabulary); this file explains *why* the
+vocabulary exists and how the two mapping tables are derived. If the two ever
+disagree, the JSON wins and this prose is stale.
 
 ## Why a shared vocabulary
 

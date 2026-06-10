@@ -22,7 +22,7 @@ Tier-1 local stack.
 
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
-| Tier-1 local Vrooli stack | active | Vrooli lifecycle, Go, Node/pnpm, PostgreSQL (`vrooli-postgres-main`), agent-manager + scenario-completeness-scoring running | None — this is the only supported tier today. |
+| Tier-1 local Vrooli stack | active | Vrooli lifecycle, Go, Node/pnpm, PostgreSQL (`vrooli-postgres-main`), agent-manager running; scenario-completeness-scoring optional for cached status views | None — this is the only supported tier today. |
 | Desktop/mobile app | out of scope | Cross-platform runtime, packaged UI/API | Internal control-plane service; not packaged for end-user devices. |
 | Managed cloud/SaaS | out of scope | Hosted runtime, multi-tenant auth, hosted Postgres | Not an externally sold product; see the [Deployment Hub](../../../../docs/deployment/README.md) for future-tier direction. |
 | Enterprise/self-host | out of scope | Install docs, support model | Ships only inside a full Vrooli installation. |
@@ -39,7 +39,9 @@ Tier-1 local stack.
 - **Hard dependencies (must be running)**:
   - `agent-manager` — executes the agent runs that perform generation and
     improvement work.
-  - `scenario-completeness-scoring` — produces PRD completion scores.
+- **Optional readers**:
+  - `scenario-completeness-scoring` — fast cached maturity/freshness/
+    completeness status for operators and reports.
 - **Filesystem state**: `profiles/` (auto-steer profile JSON +
   `metadata.json`) and `queue/<status>/` (task queue YAML).
 
@@ -61,8 +63,9 @@ entirely through the scenario lifecycle. There is no standalone artifact.
 - [ ] `make test` passes (`vrooli scenario test ecosystem-manager`).
 - [ ] PostgreSQL `vrooli-postgres-main` is reachable and the
       `vrooli_ecosystem_manager` schema is current.
-- [ ] `agent-manager` and `scenario-completeness-scoring` are running and
-      healthy.
+- [ ] `agent-manager` is running and healthy.
+- [ ] Optional: `scenario-completeness-scoring` is healthy when cached
+      status views are part of the validation.
 - [ ] `GET /health` reports API + DB healthy.
 - [ ] `docs/manifest.json` maturity reflects current docs.
 - [ ] `RUNBOOK.md` and `OBSERVABILITY.md` are current.

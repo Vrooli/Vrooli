@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
 	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/vrooli/maturity-go/dimensions"
 )
 
 // setupPostgres spins up a throwaway postgres with the effectiveness schema. It

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
 	"github.com/ecosystem-manager/api/pkg/effectiveness"
+	"github.com/vrooli/maturity-go/dimensions"
 )
 
 type stubProfileService struct {

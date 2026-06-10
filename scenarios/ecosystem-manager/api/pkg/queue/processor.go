@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/agentmanager"
+	"github.com/ecosystem-manager/api/pkg/importance"
 	"github.com/ecosystem-manager/api/pkg/internal/paths"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/recycler"
@@ -136,6 +137,12 @@ type Processor struct {
 	// Timeout watchdog for enforcing task timeouts
 	watchdog *TimeoutWatchdog
 
+	// Optional scheduling signal providers. Nil providers return neutral values,
+	// preserving the current priority-first scheduler unless the queue setting
+	// explicitly enables importance-aware ordering.
+	importanceProvider  ImportanceProvider
+	maturityGapProvider MaturityGapProvider
+
 	// Execution limit tracking (runtime only, not persisted)
 	executionsCompletedMu sync.Mutex
 	executionsCompleted   int
@@ -153,6 +160,50 @@ type slotSnapshot struct {
 	Available int
 }
 
+// ImportanceProvider returns a normalized [0,1] derived importance score for a
+// scenario. The bool reports whether the score came from real signal.
+type ImportanceProvider interface {
+	Importance(ctx context.Context, scenario string) (float64, bool, error)
+}
+
+// MaturityGapProvider returns a normalized [0,1] maturity gap for a pending
+// task. The bool reports whether the score came from real signal.
+type MaturityGapProvider interface {
+	MaturityGap(ctx context.Context, task tasks.TaskItem) (float64, bool, error)
+}
+
+type schedulingCandidate struct {
+	index      int
+	task       *tasks.TaskItem
+	priority   int
+	score      float64
+	importance float64
+	gap        float64
+	degraded   bool
+}
+
+// ServiceImportanceProvider adapts the derived importance report to the queue
+// scheduler's single-scenario lookup seam.
+type ServiceImportanceProvider struct {
+	Service *importance.Service
+}
+
+func (p ServiceImportanceProvider) Importance(ctx context.Context, scenario string) (float64, bool, error) {
+	if p.Service == nil {
+		return 0, false, nil
+	}
+	report, err := p.Service.Report(ctx, false)
+	if err != nil {
+		return 0, false, err
+	}
+	for _, score := range report.Scores {
+		if score.Scenario == scenario {
+			return score.Score, true, nil
+		}
+	}
+	return 0, false, nil
+}
+
 // ProcessorDeps contains all dependencies for the Processor.
 // Using a deps struct allows for clean dependency injection and testability.
 type ProcessorDeps struct {
@@ -168,6 +219,8 @@ type ProcessorDeps struct {
 	RateLimiter      *RateLimiter
 	TaskLogger       *TaskLogger
 	SteeringRegistry steering.RegistryAPI
+	Importance       ImportanceProvider
+	MaturityGap      MaturityGapProvider
 
 	// Configuration
 	VrooliRoot   string
@@ -215,22 +268,24 @@ func NewProcessor(deps ProcessorDeps) *Processor {
 
 	// Create the processor
 	p := &Processor{
-		stopChannel:    make(chan bool, 1), // Buffered to prevent deadlock when Stop() holds mutex
-		wakeCh:         make(chan struct{}, 1),
-		storage:        deps.Storage,
-		assembler:      deps.Assembler,
-		registry:       registry,
-		broadcast:      deps.Broadcast,
-		rateLimiter:    rateLimiter,
-		taskLogger:     taskLogger,
-		recycler:       deps.Recycler,
-		agentSvc:       deps.AgentSvc,
-		historyManager: historyManager,
-		ctx:            ctx,
-		cancel:         cancel,
-		vrooliRoot:     vrooliRoot,
-		scenarioRoot:   scenarioRoot,
-		taskLogsDir:    taskLogsDir,
+		stopChannel:         make(chan bool, 1), // Buffered to prevent deadlock when Stop() holds mutex
+		wakeCh:              make(chan struct{}, 1),
+		storage:             deps.Storage,
+		assembler:           deps.Assembler,
+		registry:            registry,
+		broadcast:           deps.Broadcast,
+		rateLimiter:         rateLimiter,
+		taskLogger:          taskLogger,
+		recycler:            deps.Recycler,
+		agentSvc:            deps.AgentSvc,
+		historyManager:      historyManager,
+		ctx:                 ctx,
+		cancel:              cancel,
+		vrooliRoot:          vrooliRoot,
+		scenarioRoot:        scenarioRoot,
+		taskLogsDir:         taskLogsDir,
+		importanceProvider:  deps.Importance,
+		maturityGapProvider: deps.MaturityGap,
 	}
 
 	// Create ExecutionManager with shared dependencies (including HistoryManager)
@@ -326,6 +381,13 @@ func (qp *Processor) InitializeWorkers() {
 // SetCoordinator injects a central coordinator for lifecycle-aware transitions.
 func (qp *Processor) SetCoordinator(coord *tasks.Coordinator) {
 	qp.coord = coord
+}
+
+// SetSchedulingSignalProviders injects optional scheduler ranking signals.
+// Passing nil for either provider keeps that signal neutral.
+func (qp *Processor) SetSchedulingSignalProviders(importanceProvider ImportanceProvider, maturityGapProvider MaturityGapProvider) {
+	qp.importanceProvider = importanceProvider
+	qp.maturityGapProvider = maturityGapProvider
 }
 
 // startTaskExecution moves a task into in-progress (if needed) and launches execution.
@@ -630,6 +692,118 @@ func (qp *Processor) processLoop() {
 	}
 }
 
+func (qp *Processor) selectPendingTask(pendingTasks []tasks.TaskItem) schedulingCandidate {
+	importanceAware := settings.GetSettings().ImportanceAwareScheduling
+	var selected schedulingCandidate
+	for i := range pendingTasks {
+		task := &pendingTasks[i]
+		if !task.ProcessorAutoRequeue {
+			continue
+		}
+		candidate := schedulingCandidate{
+			index:      i,
+			task:       task,
+			priority:   taskPriority(task.Priority),
+			importance: neutralSchedulingScore,
+			gap:        neutralSchedulingScore,
+		}
+		if importanceAware {
+			candidate.importance, candidate.degraded = qp.taskImportance(*task)
+			gap, gapDegraded := qp.taskMaturityGap(*task)
+			candidate.gap = gap
+			candidate.degraded = candidate.degraded || gapDegraded
+			candidate.score = candidate.importance * candidate.gap
+		}
+		if selected.task == nil || betterSchedulingCandidate(candidate, selected, importanceAware) {
+			selected = candidate
+		}
+	}
+	return selected
+}
+
+const neutralSchedulingScore = 0.5
+
+func taskPriority(priority string) int {
+	switch priority {
+	case "critical":
+		return 4
+	case "high":
+		return 3
+	case "medium":
+		return 2
+	case "low":
+		return 1
+	default:
+		return 0
+	}
+}
+
+func betterSchedulingCandidate(candidate, selected schedulingCandidate, importanceAware bool) bool {
+	if importanceAware && candidate.score != selected.score {
+		return candidate.score > selected.score
+	}
+	if candidate.priority != selected.priority {
+		return candidate.priority > selected.priority
+	}
+	return false
+}
+
+func (qp *Processor) taskImportance(task tasks.TaskItem) (float64, bool) {
+	if qp == nil || qp.importanceProvider == nil {
+		return neutralSchedulingScore, true
+	}
+	target := schedulingTarget(task)
+	if target == "" {
+		return neutralSchedulingScore, true
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	score, ok, err := qp.importanceProvider.Importance(ctx, target)
+	if err != nil || !ok {
+		if err != nil {
+			systemlog.Warnf("Queue importance lookup degraded for %s: %v", target, err)
+		}
+		return neutralSchedulingScore, true
+	}
+	return clampSchedulingScore(score), false
+}
+
+func (qp *Processor) taskMaturityGap(task tasks.TaskItem) (float64, bool) {
+	if qp == nil || qp.maturityGapProvider == nil {
+		return neutralSchedulingScore, true
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	score, ok, err := qp.maturityGapProvider.MaturityGap(ctx, task)
+	if err != nil || !ok {
+		if err != nil {
+			systemlog.Warnf("Queue maturity-gap lookup degraded for %s: %v", task.ID, err)
+		}
+		return neutralSchedulingScore, true
+	}
+	return clampSchedulingScore(score), false
+}
+
+func schedulingTarget(task tasks.TaskItem) string {
+	if task.Target != "" {
+		return task.Target
+	}
+	if len(task.Targets) > 0 {
+		return task.Targets[0]
+	}
+	return ""
+}
+
+func clampSchedulingScore(score float64) float64 {
+	if score < 0 {
+		return 0
+	}
+	if score > 1 {
+		return 1
+	}
+	return score
+}
+
 // ProcessQueue processes pending tasks and manually moved in-progress tasks
 func (qp *Processor) ProcessQueue() {
 	// Check if paused (maintenance mode)
@@ -690,38 +864,26 @@ func (qp *Processor) ProcessQueue() {
 		return
 	}
 
-	// Sort tasks by priority (critical > high > medium > low)
-	priorityOrder := map[string]int{
-		"critical": 4,
-		"high":     3,
-		"medium":   2,
-		"low":      1,
-	}
-
 	for availableSlots := snap.Available; availableSlots > 0; availableSlots-- {
-		// Find highest priority task from all ready tasks
-		var selectedTask *tasks.TaskItem
-		var selectedIdx int
-		highestPriority := 0
-
-		for i, task := range pendingTasks {
-			if !task.ProcessorAutoRequeue {
-				continue
-			}
-			priority := priorityOrder[task.Priority]
-			if priority > highestPriority {
-				highestPriority = priority
-				selectedTask = &pendingTasks[i]
-				selectedIdx = i
-			}
-		}
-
-		if selectedTask == nil {
+		candidate := qp.selectPendingTask(pendingTasks)
+		if candidate.task == nil {
 			return
 		}
 
+		selectedTask := candidate.task
 		log.Printf("Processing task: %s - %s (from pending)", selectedTask.ID, selectedTask.Title)
-		systemlog.Debugf("Queue selecting %s from pending (priority %s)", selectedTask.ID, selectedTask.Priority)
+		if settings.GetSettings().ImportanceAwareScheduling {
+			systemlog.Debugf(
+				"Queue selecting %s from pending (importance %.4f, maturity_gap %.4f, scheduling_score %.4f, priority %s)",
+				selectedTask.ID,
+				candidate.importance,
+				candidate.gap,
+				candidate.score,
+				selectedTask.Priority,
+			)
+		} else {
+			systemlog.Debugf("Queue selecting %s from pending (priority %s)", selectedTask.ID, selectedTask.Priority)
+		}
 
 		if err := qp.startTaskExecution(selectedTask, "pending", externalActive, tasks.TransitionContext{Intent: tasks.IntentAuto}); err != nil {
 			log.Printf("Failed to start task %s: %v", selectedTask.ID, err)
@@ -732,7 +894,7 @@ func (qp *Processor) ProcessQueue() {
 		snap.Running++
 
 		// Remove the selected task from the local slice to avoid reselection in the same pass
-		pendingTasks = append(pendingTasks[:selectedIdx], pendingTasks[selectedIdx+1:]...)
+		pendingTasks = append(pendingTasks[:candidate.index], pendingTasks[candidate.index+1:]...)
 		if len(pendingTasks) == 0 {
 			return
 		}

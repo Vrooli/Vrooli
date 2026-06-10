@@ -1,6 +1,6 @@
 package findings
 
-import "github.com/ecosystem-manager/api/pkg/dimensions"
+import "github.com/vrooli/maturity-go/dimensions"
 
 // Diff is the per-dimension change in the open-findings set across one
 // controller iteration, computed by stable finding ID. It is the signal credit

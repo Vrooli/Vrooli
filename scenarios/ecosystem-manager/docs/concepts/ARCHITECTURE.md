@@ -87,7 +87,8 @@ The scenario does not own:
 PRD completion percentage — a key control-loop metric — is computed
 today by parsing each target's `PRD.md` locally
 (`api/pkg/discovery/scenarios.go`), not by a wired
-`scenario-completeness-scoring` call. See
+`scenario-completeness-scoring` call. Maturity ladder policy is shared
+with cached status readers through `packages/maturity-go`. See
 [`INTEGRATIONS.md`](INTEGRATIONS.md) for the full, honest dependency
 inventory.
 
@@ -127,6 +128,7 @@ business-vocabulary-free and used by unrelated domains.
 | `api/pkg/server/` | Compose handlers and middleware into one HTTP server; route registration. | API entrypoint, all handler groups. |
 | `api/pkg/systemlog/` | Date-stamped structured audit log. | All domains; served via `GET /api/logs`. |
 | `api/pkg/agentmanager/` | Outbound agent-manager client (run start/stop/stream). | Queue processor, auto-steer execution. |
+| `api/pkg/importance/` | Derived scenario importance composer from centrality, core proximity, recency, and `system_required`; never a static manifest field. | `GET /api/importance`; future scheduler ordering. |
 | `api/pkg/websocket/` | Live UI push. | Queue/task state changes. |
 | `api/pkg/internal/*` (paths, slices, timeutil) | Generic utilities. | Cross-domain. |
 

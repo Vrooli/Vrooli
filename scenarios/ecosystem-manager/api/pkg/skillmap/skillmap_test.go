@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
+	"github.com/vrooli/maturity-go/dimensions"
 )
 
 func sampleCatalog() *FakeCatalog {

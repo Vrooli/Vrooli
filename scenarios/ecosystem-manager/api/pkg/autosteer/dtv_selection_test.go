@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
 	"github.com/ecosystem-manager/api/pkg/dtv"
 	"github.com/ecosystem-manager/api/pkg/effectiveness"
+	"github.com/vrooli/maturity-go/dimensions"
 )
 
 func snapshotOf(fits map[string]dtv.Fitness) FitnessSnapshot { return NewFitnessSnapshot(fits) }

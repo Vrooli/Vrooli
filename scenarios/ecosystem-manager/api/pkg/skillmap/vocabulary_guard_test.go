@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
+	"github.com/vrooli/maturity-go/dimensions"
 )
 
 // skillJSON is the minimal shape we need from a prompt-manager skill.json: its
@@ -74,7 +74,7 @@ func TestSkillTargetDimensionsInVocabulary(t *testing.T) {
 			declared++
 			if !dimensions.IsValid(dimensions.Dimension(raw)) {
 				rel, _ := filepath.Rel(packs, path)
-				t.Errorf("skill %q (%s) declares targetDimension %q which is not in the dimensions SSOT (pkg/dimensions/dimensions.json); the controller would silently drop it — fix the typo or add the dimension to the SSOT",
+				t.Errorf("skill %q (%s) declares targetDimension %q which is not in the dimensions SSOT (packages/maturity-go/dimensions/dimensions.json); the controller would silently drop it — fix the typo or add the dimension to the SSOT",
 					s.ID, rel, raw)
 			}
 		}

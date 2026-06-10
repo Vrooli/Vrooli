@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/autosteer/gameguard"
-	"github.com/ecosystem-manager/api/pkg/dimensions"
 	"github.com/ecosystem-manager/api/pkg/dtv"
 	"github.com/ecosystem-manager/api/pkg/effectiveness"
 	"github.com/ecosystem-manager/api/pkg/findings"
 	"github.com/ecosystem-manager/api/pkg/skillmap"
+	"github.com/vrooli/maturity-go/dimensions"
 )
 
 // defaultAuditPreset is used when a profile does not pin one.

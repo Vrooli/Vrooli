@@ -48,9 +48,9 @@ Verify after start:
 - Queue: `curl -s http://localhost:30500/api/queue/status`
 
 The lifecycle owns process naming, ports, health checks, and logs.
-Ecosystem Manager also requires `agent-manager` and
-`scenario-completeness-scoring` to be running — start those first if they
-are down.
+Ecosystem Manager also requires `agent-manager` for task execution.
+`scenario-completeness-scoring` is optional for fast cached status reads
+and test-genie report supplements.
 
 ## Common Incidents
 
@@ -61,7 +61,7 @@ are down.
 | Tasks never execute / stuck queued | `GET /api/queue/status`; is the queue processor running? | `POST /api/queue/start`; if a run is wedged, `POST /api/queue/processes/terminate` | Verify agent-manager is healthy — it executes the runs. |
 | Rate-limit backoff stalls queue | `GET /api/queue/status` shows backoff | `POST /api/queue/reset-rate-limit` | If recurring, lower concurrency in Settings. |
 | Need to pause all work safely | current state in UI | `POST /api/maintenance/state` to enter maintenance mode | — |
-| PRD scores missing/stale | scenario-completeness-scoring health | Start/restart scenario-completeness-scoring | It produces `prd_completion_*` values. |
+| Cached completeness view missing/stale | scenario-completeness-scoring health; `scenario-completeness-scoring score get <scenario>` | Start/restart scenario-completeness-scoring or refresh the target's test-genie run | EM queue execution does not depend on this reader. |
 | Stuck/zombie agent process | `GET /api/processes/running` | `POST /api/queue/processes/terminate` | Inspect agent-manager run logs. |
 
 ## Backup / Restore
@@ -96,8 +96,10 @@ Record known operational issues in
 [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) and append meaningful
 completed work to [`../internal/PROGRESS.md`](../internal/PROGRESS.md).
 File defects outside scope via `report-bug`. Because Ecosystem Manager
-depends on `agent-manager` and `scenario-completeness-scoring`, triage
-whether a failure originates in those scenarios before escalating here.
+depends on `agent-manager` for execution, triage whether a failure
+originates there before escalating here. Use
+`scenario-completeness-scoring` separately when the issue is the cached
+status reader.
 
 ## Cross-References
 

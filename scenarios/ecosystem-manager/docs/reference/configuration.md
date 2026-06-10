@@ -83,9 +83,24 @@ Single source of truth for the lifecycle. Schema version `2.0.0`.
 | `prompt-manager` | no | Steering prompts for Auto-Steer (graceful degradation) |
 | `visited-tracker` | no | Campaign tracking, proxied via `/api/visited-tracker/*` |
 
-> The fact sheet also names `scenario-completeness-scoring` for PRD
-> completion scoring; it is consumed at runtime but is **not** declared
-> in `dependencies.scenarios` in the current manifest.
+> `scenario-completeness-scoring` is intentionally not listed as a required
+> scenario dependency. It is the fast cached status reader over shared
+> maturity/freshness packages, while Ecosystem Manager computes its current
+> PRD completion metric locally from target `PRD.md` files.
+
+## Runtime settings
+
+`GET/PUT /api/settings` manages persisted operator settings. The queue
+processor always starts inactive after process restart; activating it is
+an explicit operator action.
+
+| Field | Default | Purpose |
+|---|---|---|
+| `active` | `false` | Enables queue processing when the processor is also running. |
+| `slots` | `1` | Concurrent task slots. |
+| `cooldown_seconds` | `30` | Delay between automatic queue actions. |
+| `execution_limit` | `0` | Auto-stop after this many completed executions; `0` means unlimited. |
+| `importance_aware_scheduling` | `false` | Default-off queue ordering: when enabled, pending scenario tasks are ranked by derived scenario importance x maturity gap, with task priority as the tie-breaker. Missing signals degrade to neutral. |
 
 ## Database & schema bootstrap
 

@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
 	"github.com/ecosystem-manager/api/pkg/dtv"
 	"github.com/ecosystem-manager/api/pkg/effectiveness"
+	"github.com/vrooli/maturity-go/dimensions"
 )
 
 // ── EM-P2: proceed-cap-flag degraded-gate policy ────────────────────────────

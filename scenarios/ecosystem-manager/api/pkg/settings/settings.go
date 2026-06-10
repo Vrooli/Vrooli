@@ -32,6 +32,9 @@ type Settings struct {
 	CooldownSeconds int  `json:"cooldown_seconds"`
 	ExecutionLimit  int  `json:"execution_limit"` // Auto-stop after this many task completions (0 = unlimited)
 	Active          bool `json:"active"`
+	// ImportanceAwareScheduling changes pending-task selection from task
+	// priority-first to derived scenario importance x maturity gap. Default-off.
+	ImportanceAwareScheduling bool `json:"importance_aware_scheduling"`
 
 	// Agent settings
 	MaxTurns        int    `json:"max_turns"`
@@ -52,18 +55,19 @@ var persistencePath string
 // This is the single source of truth for default settings.
 func newDefaultSettings() Settings {
 	return Settings{
-		Theme:           "light",
-		CondensedMode:   DefaultCondensedMode,
-		Slots:           DefaultSlots,
-		CooldownSeconds: DefaultCooldownSeconds,
-		ExecutionLimit:  DefaultExecutionLimit,
-		Active:          DefaultActive, // ALWAYS start/reset inactive for safety
-		MaxTurns:        DefaultMaxTurns,
-		AllowedTools:    DefaultAllowedTools,
-		SkipPermissions: DefaultSkipPermissions,
-		TaskTimeout:     DefaultTaskTimeout,
-		IdleTimeoutCap:  DefaultIdleTimeoutCap,
-		RunnerType:      DefaultRunnerType,
+		Theme:                     "light",
+		CondensedMode:             DefaultCondensedMode,
+		Slots:                     DefaultSlots,
+		CooldownSeconds:           DefaultCooldownSeconds,
+		ExecutionLimit:            DefaultExecutionLimit,
+		Active:                    DefaultActive, // ALWAYS start/reset inactive for safety
+		ImportanceAwareScheduling: DefaultImportanceAwareScheduling,
+		MaxTurns:                  DefaultMaxTurns,
+		AllowedTools:              DefaultAllowedTools,
+		SkipPermissions:           DefaultSkipPermissions,
+		TaskTimeout:               DefaultTaskTimeout,
+		IdleTimeoutCap:            DefaultIdleTimeoutCap,
+		RunnerType:                DefaultRunnerType,
 		Recycler: RecyclerSettings{
 			EnabledFor:          DefaultRecyclerEnabledFor,
 			IntervalSeconds:     DefaultRecyclerInterval,

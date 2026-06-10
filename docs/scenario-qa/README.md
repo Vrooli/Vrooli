@@ -26,7 +26,7 @@ scenario-qa runs three members:
 
 | Member | Role | Primary signal |
 |---|---|---|
-| `quality-auditor` | Judgment-based structural audits using a rotation of seven audit lenses | `topic[example]:quality-audit/<scenario-id>/<skill-id>` knowledge entries |
+| `quality-auditor` | Judgment-based structural audits using a rotation of audit lenses | `topic[example]:quality-audit/<scenario-id>/<skill-id>` knowledge entries |
 | `bug-investigator` | Drains `bug-inbox/*` (universal-source), applies investigation techniques, writes audit log | `bug-investigation-report/<slug>` knowledge entries |
 | `qa-contrarian` | Challenges QA outcomes (audits, investigations) — surfaces gaps in reasoning | `challenge-report/*` knowledge entries |
 

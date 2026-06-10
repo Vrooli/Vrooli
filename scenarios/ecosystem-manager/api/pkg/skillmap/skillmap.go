@@ -4,7 +4,8 @@
 // that selection consults: given the heaviest open dimension and a profile's
 // allowed-skill set, which skills can close it?
 //
-// The vocabulary itself is owned by pkg/dimensions; this package validates
+// The vocabulary itself is owned by the shared maturity-go/dimensions package;
+// this package validates
 // declarations against it (out-of-vocabulary dimensions are dropped and warned,
 // skills left with no valid dimension are excluded and warned).
 package skillmap
@@ -13,7 +14,7 @@ import (
 	"log"
 	"sort"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
+	"github.com/vrooli/maturity-go/dimensions"
 )
 
 // SkillDeclaration is one skill's declared dimension coverage, as read from the

@@ -203,6 +203,19 @@ task or to the whole system. Handlers:
 | `GET /api/insights/system` | System-level insights |
 | `POST /api/insights/system/generate` | Generate system-level insights |
 
+### Importance
+
+Derived scenario importance scores for fleet maintenance ordering. The
+composer combines scenario-dependency-analyzer centrality, core-set proximity,
+recent swarm-manager operations, and the `system_required` manifest floor.
+Missing optional inputs degrade to neutral scores and are listed in the
+response.
+
+| Method & path | Purpose |
+|---|---|
+| `GET /api/importance` | Cached derived importance scores for all scenarios |
+| `GET /api/importance?refresh=true` | Force a fresh read of optional inputs |
+
 ### Logs, Skills & visited-tracker proxy
 
 | Method & path | Purpose |

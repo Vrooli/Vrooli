@@ -73,7 +73,7 @@ in [`DATA.md`](DATA.md).
 - Internal structure: controller orchestrator (`execution_orchestrator.go`),
   greedy `Selector` (`selector.go`), gradient `Terminator` (`terminator.go`),
   findings ingestion (`pkg/findings`), skill→dimension resolver
-  (`pkg/skillmap`), dimension vocabulary (`pkg/dimensions`), decision-trace
+  (`pkg/skillmap`), dimension vocabulary (shared `packages/maturity-go/dimensions`), decision-trace
   store (`decision_trace.go`), state manager (Postgres), profile repository
   (filesystem), gap-metrics collectors (`metrics*.go`).
 - Status: **v1 effectiveness-weighted controller shipped** — findings
@@ -102,7 +102,8 @@ in [`DATA.md`](DATA.md).
 ### settings
 
 - Purpose: processor tuning — concurrency, auto-requeue, runner/model
-  selection propagated to agent-manager profiles.
+  selection propagated to agent-manager profiles, and the default-off
+  importance-aware queue ordering flag.
 - Surfaces: `GET/PUT /api/settings`, `POST /api/settings/reset`,
   `GET /api/settings/recycler/models`.
 
@@ -111,7 +112,8 @@ in [`DATA.md`](DATA.md).
 - Purpose: enumerate improvable scenarios/resources and report each
   target's PRD completion (parsed from its `PRD.md`).
 - Note: PRD completion is computed locally here, not via a wired
-  `scenario-completeness-scoring` call — see
+  `scenario-completeness-scoring` call; SCS is the operator-facing cached
+  status reader over shared maturity/freshness packages — see
   [`INTEGRATIONS.md`](INTEGRATIONS.md).
 - Surfaces: `GET /api/{resources,scenarios}`, `GET /api/operations`,
   `GET /api/categories`.
@@ -141,7 +143,7 @@ in [`DATA.md`](DATA.md).
 |---|---|---|
 | Task | The unit of generation/improvement work. | tasks domain |
 | Profile | An auto-steer objective function: dimension weights, target thresholds, allowed-skill set, budget. | auto-steer; [`CONTROL-MODEL.md`](CONTROL-MODEL.md) |
-| Dimension | A canonical improvement axis both findings and skills map to. | auto-steer; `pkg/dimensions` |
+| Dimension | A canonical improvement axis both findings and skills map to. | shared `packages/maturity-go/dimensions` |
 | Finding | An open `test-genie` problem resolved to a dimension + severity; the controller's primary state. | auto-steer; `pkg/findings` |
 | Gap metric | A scalar measurement (e.g. operational-targets %) used for the objective's operational target. | auto-steer |
 | Seam | Test-substitutable boundary wired once in production. | [`../internal/SEAMS.md`](../internal/SEAMS.md) |

@@ -60,16 +60,17 @@ var ValidRunnerTypes = []string{"claude-code", "codex", "opencode"}
 
 // Default settings values
 const (
-	DefaultSlots           = 1
-	DefaultCooldownSeconds = 30
-	DefaultMaxTurns        = 80
-	DefaultTaskTimeout     = 30
-	DefaultIdleTimeoutCap  = DefaultTaskTimeout
-	DefaultAllowedTools    = "Read,Write,Edit,Bash,LS,Glob,Grep"
-	DefaultSkipPermissions = true
-	DefaultActive          = false
-	DefaultCondensedMode   = false
-	DefaultRunnerType      = "claude-code"
+	DefaultSlots                     = 1
+	DefaultCooldownSeconds           = 30
+	DefaultMaxTurns                  = 80
+	DefaultTaskTimeout               = 30
+	DefaultIdleTimeoutCap            = DefaultTaskTimeout
+	DefaultAllowedTools              = "Read,Write,Edit,Bash,LS,Glob,Grep"
+	DefaultSkipPermissions           = true
+	DefaultActive                    = false
+	DefaultImportanceAwareScheduling = false
+	DefaultCondensedMode             = false
+	DefaultRunnerType                = "claude-code"
 
 	// Execution limit default (0 = unlimited)
 	DefaultExecutionLimit = 0

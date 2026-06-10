@@ -3,9 +3,9 @@ package autosteer
 import (
 	"sort"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
 	"github.com/ecosystem-manager/api/pkg/findings"
-	"github.com/ecosystem-manager/api/pkg/ladder"
+	"github.com/vrooli/maturity-go/dimensions"
+	"github.com/vrooli/maturity-go/ladder"
 )
 
 // errorSeverityRank is the findingRank value at/above which a finding counts as

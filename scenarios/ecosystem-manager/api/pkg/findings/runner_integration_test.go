@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
+	"github.com/vrooli/maturity-go/dimensions"
 )
 
 // TestLiveTestGenieAudit parses a real test-genie audit. It is gated behind

@@ -10,7 +10,7 @@ package effectiveness
 import (
 	"time"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
+	"github.com/vrooli/maturity-go/dimensions"
 )
 
 // Stat is one (skill, dimension) row of the lifetime effectiveness ledger. The

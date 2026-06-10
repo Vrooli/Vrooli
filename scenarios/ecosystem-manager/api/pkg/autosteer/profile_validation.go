@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
-	"github.com/ecosystem-manager/api/pkg/ladder"
+	"github.com/vrooli/maturity-go/dimensions"
+	"github.com/vrooli/maturity-go/ladder"
 )
 
 // validMaxOpenSeverity is the accepted set of max-open-severity target values.
@@ -76,8 +76,8 @@ func ValidateProfile(profile *AutoSteerProfile) error {
 		return fmt.Errorf("budget.reaudit_cadence must be non-negative")
 	}
 
-	// Maturity ladder (optional). The rung definitions are canonical in pkg/ladder;
-	// here we only validate the profile's tuning of them.
+	// Maturity ladder (optional). The rung definitions are canonical in the shared
+	// maturity-go/ladder package; here we only validate the profile's tuning of them.
 	if l := profile.Ladder; l != nil {
 		if strings.TrimSpace(l.TopRung) != "" {
 			if _, ok := ladder.ParseRung(l.TopRung); !ok {

@@ -64,9 +64,10 @@ the scenario — do not skip it.
   port allocation, and health checks.
 - **Respect the dependencies.** Ecosystem-manager needs Postgres
   (`vrooli-postgres-main`) and the running scenarios `agent-manager`
-  (executes tasks) and `scenario-completeness-scoring` (supplies the
-  PRD/completeness metric). If those are down, the queue stalls or
-  metrics go unavailable — see [`guides/troubleshooting.md`](guides/troubleshooting.md).
+  (executes tasks). `scenario-completeness-scoring` is useful as the
+  fast cached operator reader for maturity/freshness/completeness, but
+  EM's queue does not require it to run — see
+  [`guides/troubleshooting.md`](guides/troubleshooting.md).
 - **Change business logic in `api/pkg/`.** The UI and CLI are thin;
   fixing behavior there is almost always wrong. Add the capability to
   the API, then surface it through the CLI/UI.

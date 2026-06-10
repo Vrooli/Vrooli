@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
+	"github.com/vrooli/maturity-go/dimensions"
 )
 
 // CreateSchema creates the skill_dimension_effectiveness table. It is idempotent

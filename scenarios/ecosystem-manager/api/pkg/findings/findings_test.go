@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
+	"github.com/vrooli/maturity-go/dimensions"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 

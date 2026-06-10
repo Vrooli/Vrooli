@@ -17,9 +17,9 @@ and resources. Before going deep, read
 - **Node 20+ and pnpm 9+** for the UI bundle
 - **Postgres** running as `vrooli-postgres-main` (provides the
   `vrooli_ecosystem_manager` database)
-- The scenarios **`agent-manager`** (executes tasks) and
-  **`scenario-completeness-scoring`** (supplies the PRD/completeness
-  metric) running
+- The scenario **`agent-manager`** running (executes tasks)
+- Optional: **`scenario-completeness-scoring`** running when you want the
+  fast cached status dashboard/CLI alongside EM
 
 If `vrooli` is not on your `PATH`, run `make setup` from the workspace
 root once.

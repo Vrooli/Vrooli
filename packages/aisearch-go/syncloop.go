@@ -5,8 +5,14 @@ import (
 	"errors"
 	"log"
 	"runtime/debug"
+	"sync"
 	"time"
 )
+
+// DefaultKickDebounce is the window a kicked SyncLoop waits before
+// reconciling, absorbing further kicks so a burst of writes (e.g. an L3 run
+// capturing several findings in seconds) coalesces into one reconcile.
+const DefaultKickDebounce = 2 * time.Second
 
 // SyncLoop drives Reconciler.RunOnce on a configurable interval. Name is the
 // log prefix (the consuming scenario, e.g. "cli-health"). It is singleton-safe
@@ -30,17 +36,26 @@ type SyncLoop struct {
 	Disabled bool
 	Name     string
 	Clock    func() time.Time
+
+	// KickDebounce is how long a kicked loop waits (absorbing further kicks)
+	// before reconciling. Zero means reconcile immediately on kick. Set by the
+	// constructors to DefaultKickDebounce.
+	KickDebounce time.Duration
+
+	kickOnce sync.Once
+	kickC    chan struct{}
 }
 
 // NewSyncLoop builds a SyncLoop bound to a fixed reconciler — the common case for
 // a consumer whose engine never changes after boot (KO docs, swarm-manager).
 func NewSyncLoop(name string, r *Reconciler, cfg Config) *SyncLoop {
 	return &SyncLoop{
-		Reconciler: r,
-		Interval:   cfg.SyncInterval,
-		Disabled:   cfg.SyncDisabled,
-		Name:       name,
-		Clock:      time.Now,
+		Reconciler:   r,
+		Interval:     cfg.SyncInterval,
+		Disabled:     cfg.SyncDisabled,
+		Name:         name,
+		Clock:        time.Now,
+		KickDebounce: DefaultKickDebounce,
 	}
 }
 
@@ -49,11 +64,35 @@ func NewSyncLoop(name string, r *Reconciler, cfg Config) *SyncLoop {
 // index-time tuning apply). resolve may return nil during a swap (no-op tick).
 func NewSyncLoopFunc(name string, resolve func() *Reconciler, cfg Config) *SyncLoop {
 	return &SyncLoop{
-		Resolve:  resolve,
-		Interval: cfg.SyncInterval,
-		Disabled: cfg.SyncDisabled,
-		Name:     name,
-		Clock:    time.Now,
+		Resolve:      resolve,
+		Interval:     cfg.SyncInterval,
+		Disabled:     cfg.SyncDisabled,
+		Name:         name,
+		Clock:        time.Now,
+		KickDebounce: DefaultKickDebounce,
+	}
+}
+
+// kick returns the lazily-created kick channel. Capacity 1: while a kick is
+// already pending, further kicks coalesce into it (Kick never blocks).
+func (s *SyncLoop) kick() chan struct{} {
+	s.kickOnce.Do(func() { s.kickC = make(chan struct{}, 1) })
+	return s.kickC
+}
+
+// Kick requests an out-of-band reconcile soon (after KickDebounce, so a burst
+// of writes coalesces into one). Call it after a successful write to indexed
+// content to remove the sync interval from index-freshness latency; the
+// periodic loop remains the repair path. Non-blocking and safe on a nil loop
+// or one whose Start never ran (the pending kick is simply never consumed) —
+// callers never need to care whether the loop is live.
+func (s *SyncLoop) Kick() {
+	if s == nil {
+		return
+	}
+	select {
+	case s.kick() <- struct{}{}:
+	default: // a kick is already pending — coalesce
 	}
 }
 
@@ -114,6 +153,33 @@ func (s *SyncLoop) Start(ctx context.Context) {
 			return
 		case <-t.C:
 			s.tick(ctx)
+		case <-s.kick():
+			if !s.debounceKicks(ctx) {
+				return
+			}
+			s.tick(ctx)
+		}
+	}
+}
+
+// debounceKicks waits KickDebounce after the first kick, absorbing further
+// kicks so a write burst coalesces into one reconcile. Returns false when ctx
+// was canceled while waiting.
+func (s *SyncLoop) debounceKicks(ctx context.Context) bool {
+	if s.KickDebounce <= 0 {
+		return true
+	}
+	timer := time.NewTimer(s.KickDebounce)
+	defer timer.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			s.logf("sync_loop stopping: %v", ctx.Err())
+			return false
+		case <-s.kick():
+			// absorb — the pending reconcile covers this kick too
+		case <-timer.C:
+			return true
 		}
 	}
 }

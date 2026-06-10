@@ -1,8 +1,8 @@
 package autosteer
 
 import (
-	"github.com/ecosystem-manager/api/pkg/dimensions"
 	"github.com/ecosystem-manager/api/pkg/dtv"
+	"github.com/vrooli/maturity-go/dimensions"
 )
 
 // FitnessSnapshot is a per-task, point-in-time view of DTV skill fitness keyed

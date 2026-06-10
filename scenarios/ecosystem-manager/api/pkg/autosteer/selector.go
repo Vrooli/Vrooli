@@ -6,11 +6,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
 	"github.com/ecosystem-manager/api/pkg/effectiveness"
 	"github.com/ecosystem-manager/api/pkg/findings"
-	"github.com/ecosystem-manager/api/pkg/ladder"
 	"github.com/ecosystem-manager/api/pkg/skillmap"
+	"github.com/vrooli/maturity-go/dimensions"
+	"github.com/vrooli/maturity-go/ladder"
 )
 
 // SkillResolver is the subset of skillmap.Resolver the selector needs. It is an

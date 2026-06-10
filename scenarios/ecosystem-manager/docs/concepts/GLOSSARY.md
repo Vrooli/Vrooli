@@ -53,7 +53,7 @@ and what do I care about most," not a script.
 
 **Dimension** — A canonical improvement axis (`standards`, `tests`,
 `structure`, …) that both test-genie findings and skill declarations map
-to. The vocabulary SSOT. [CODE: api/pkg/dimensions/dimensions.go]
+to. The vocabulary SSOT. [CODE: packages/maturity-go/dimensions/dimensions.go]
 
 **Findings vector** — The controller's primary state: open test-genie
 findings bucketed by dimension and weighted by severity.

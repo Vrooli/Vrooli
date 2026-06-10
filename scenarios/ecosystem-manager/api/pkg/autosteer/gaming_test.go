@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/ecosystem-manager/api/pkg/autosteer/gameguard"
-	"github.com/ecosystem-manager/api/pkg/dimensions"
 	"github.com/ecosystem-manager/api/pkg/effectiveness"
 	"github.com/ecosystem-manager/api/pkg/findings"
+	"github.com/vrooli/maturity-go/dimensions"
 )
 
 // recordingStore captures the last credit event so the gaming-credit assertions

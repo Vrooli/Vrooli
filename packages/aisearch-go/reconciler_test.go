@@ -23,6 +23,14 @@ type memStore struct {
 
 func newMemStore() *memStore { return &memStore{points: map[string]Point{}} }
 
+// upsertCount reads the upsert counter under the lock — for tests that observe
+// the store from a goroutine concurrent with a running SyncLoop.
+func (m *memStore) upsertCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.upserts
+}
+
 func (m *memStore) EnsureCollection(context.Context, CollectionSpec) error { return nil }
 
 func (m *memStore) Upsert(_ context.Context, p Point) error {

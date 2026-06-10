@@ -54,17 +54,17 @@ and `dependencies.scenarios`.
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
 | agent-manager | **required** | The execution boundary — every agent run (start/stop/stream) goes through agent-manager. Ecosystem-manager never spawns agents directly. | Run lifecycle API |
-| scenario-completeness-scoring | metric source (see note) | PRD completion percentage is used as a run metric (`prd_completion_before`/`prd_completion_after`). | Completion-percentage read |
+| scenario-dependency-analyzer | optional importance signal | The derived-importance API can consume graph centrality when available; missing data degrades to neutral and never blocks queue execution. | `GET /api/v1/graph/centrality` |
+| scenario-completeness-scoring | operator-facing reader | Fast cached maturity/freshness/completeness status for humans and report supplements. Ecosystem Manager does not call it in the queue hot path. | `score get`, ScoreService |
 | prompt-manager | required for steering | Steering prompts/skills for Auto Steer. | Skills sync API |
 | visited-tracker | optional | Tracks visited resources/scenarios for campaign management; proxied via API. | Visited-tracking API |
 
 > **Note on completeness scoring.** PRD completion is consumed today by
 > parsing each scenario's `PRD.md` locally (`GetScenarioPRDStatus` in
-> `api/pkg/discovery/scenarios.go`). The scenario-completeness-scoring
-> capability is the intended authoritative source for that percentage, but
-> it is **not currently declared in `.vrooli/service.json`**. Treat it as
-> the metric's logical owner; wire it explicitly before relying on it as a
-> live dependency.
+> `api/pkg/discovery/scenarios.go`). Maturity ladder policy is shared through
+> `packages/maturity-go`; scenario-completeness-scoring uses the same package
+> over cached artifacts, but remains a reader, not an Ecosystem Manager
+> runtime dependency.
 
 ## Third-Party Services
 
@@ -78,7 +78,7 @@ and `dependencies.scenarios`.
 | Dependency | Failure Signal | Expected Behavior | Tests |
 |---|---|---|---|
 | agent-manager down | Run start/stream errors | Tasks cannot execute; queue **stalls** (entries stay in `queue/pending`/`in-progress`). | task-runner tests |
-| scenario-completeness-scoring / PRD unavailable | PRD percentage cannot be read | PRD metric unavailable; a stop condition referencing it raises `MetricUnavailableError`. | stop-condition tests |
+| scenario-dependency-analyzer down | Importance report includes degraded centrality | Importance-aware scheduling uses neutral centrality; default-off queue behavior is unchanged. | importance/scheduler tests |
 | PostgreSQL down | `PingContext` error | `/health` reports unhealthy dependency; execution state cannot persist. | health handler tests |
 | prompt-manager down | Skills sync error | Steering prompts unavailable; Auto Steer degrades gracefully. | steering tests |
 | openrouter missing key | No `OPENROUTER_API_KEY` | OpenRouter recycler runs + model discovery disabled; core flow unaffected. | n/a |

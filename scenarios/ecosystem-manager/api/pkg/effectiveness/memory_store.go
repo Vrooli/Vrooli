@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
+	"github.com/vrooli/maturity-go/dimensions"
 )
 
 // MemoryStore is an in-memory effectiveness ledger. It is the test double for

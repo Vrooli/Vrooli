@@ -3,10 +3,10 @@ package autosteer
 import (
 	"testing"
 
-	"github.com/ecosystem-manager/api/pkg/dimensions"
 	"github.com/ecosystem-manager/api/pkg/findings"
-	"github.com/ecosystem-manager/api/pkg/ladder"
 	"github.com/ecosystem-manager/api/pkg/skillmap"
+	"github.com/vrooli/maturity-go/dimensions"
+	"github.com/vrooli/maturity-go/ladder"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 

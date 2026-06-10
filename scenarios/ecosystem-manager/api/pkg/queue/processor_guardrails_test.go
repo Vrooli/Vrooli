@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,6 +11,24 @@ import (
 	"github.com/ecosystem-manager/api/pkg/settings"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
+
+type mockImportanceProvider struct {
+	scores map[string]float64
+}
+
+func (m mockImportanceProvider) Importance(_ context.Context, scenario string) (float64, bool, error) {
+	score, ok := m.scores[scenario]
+	return score, ok, nil
+}
+
+type mockMaturityGapProvider struct {
+	scores map[string]float64
+}
+
+func (m mockMaturityGapProvider) MaturityGap(_ context.Context, task tasks.TaskItem) (float64, bool, error) {
+	score, ok := m.scores[task.ID]
+	return score, ok, nil
+}
 
 // newGuardrailProcessor creates a processor with real storage backed by a temp directory,
 // suitable for testing ForceStartTask and StartTaskIfSlotAvailable.
@@ -70,6 +89,77 @@ func savePendingTask(t *testing.T, storage *tasks.Storage, id string) tasks.Task
 		t.Fatalf("save task %s: %v", id, err)
 	}
 	return task
+}
+
+func TestSelectPendingTask_DefaultUsesExistingPriorityOrdering(t *testing.T) {
+	processor, _ := newGuardrailProcessor(t)
+	processor.SetSchedulingSignalProviders(
+		mockImportanceProvider{scores: map[string]float64{"low-importance": 0.1, "high-importance": 1}},
+		mockMaturityGapProvider{scores: map[string]float64{"critical-task": 0.1, "medium-task": 1}},
+	)
+
+	restore := ensureSettings(t, func(s settings.Settings) settings.Settings {
+		s.ImportanceAwareScheduling = false
+		return s
+	})
+	defer restore()
+
+	pending := []tasks.TaskItem{
+		{
+			ID:                   "medium-task",
+			Target:               "high-importance",
+			Priority:             "medium",
+			ProcessorAutoRequeue: true,
+		},
+		{
+			ID:                   "critical-task",
+			Target:               "low-importance",
+			Priority:             "critical",
+			ProcessorAutoRequeue: true,
+		},
+	}
+
+	selected := processor.selectPendingTask(pending)
+	if selected.task == nil || selected.task.ID != "critical-task" {
+		t.Fatalf("selected %v, want critical-task", selected.task)
+	}
+}
+
+func TestSelectPendingTask_ImportanceAwareUsesImportanceTimesMaturityGap(t *testing.T) {
+	processor, _ := newGuardrailProcessor(t)
+	processor.SetSchedulingSignalProviders(
+		mockImportanceProvider{scores: map[string]float64{"low-importance": 0.2, "high-importance": 0.9}},
+		mockMaturityGapProvider{scores: map[string]float64{"critical-task": 0.2, "medium-task": 0.9}},
+	)
+
+	restore := ensureSettings(t, func(s settings.Settings) settings.Settings {
+		s.ImportanceAwareScheduling = true
+		return s
+	})
+	defer restore()
+
+	pending := []tasks.TaskItem{
+		{
+			ID:                   "critical-task",
+			Target:               "low-importance",
+			Priority:             "critical",
+			ProcessorAutoRequeue: true,
+		},
+		{
+			ID:                   "medium-task",
+			Target:               "high-importance",
+			Priority:             "medium",
+			ProcessorAutoRequeue: true,
+		},
+	}
+
+	selected := processor.selectPendingTask(pending)
+	if selected.task == nil || selected.task.ID != "medium-task" {
+		t.Fatalf("selected %v, want medium-task", selected.task)
+	}
+	if selected.score != 0.81 {
+		t.Fatalf("score = %v, want 0.81", selected.score)
+	}
 }
 
 // --- ForceStartTask tests ---
