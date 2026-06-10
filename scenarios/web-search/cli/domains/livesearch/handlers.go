@@ -3,7 +3,6 @@ package livesearch
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -11,6 +10,8 @@ import (
 	livesearchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch/livesearch_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+
+	"web-search/cli/internal/cliutil"
 )
 
 type handlers struct {
@@ -30,7 +31,7 @@ func (h *handlers) search(ctx cliapp.RunContext) error {
 	query := ctx.Positional("query")
 	resp, err := h.client.Search(context.Background(), connect.NewRequest(&livesearchv1.SearchRequest{
 		Query:      query,
-		Limit:      parseInt32(ctx.Flag("limit")),
+		Limit:      cliutil.ParseInt32(ctx.Flag("limit")),
 		Synthesize: ctx.BoolFlag("synthesis"),
 	}))
 	if err != nil {
@@ -50,6 +51,9 @@ func (h *handlers) search(ctx cliapp.RunContext) error {
 	if msg.Degraded {
 		summary = append(summary, fmt.Sprintf("Degraded: %s", msg.DegradedReason))
 	}
+	if warning := formatEngineWarning(msg.DegradedEngines); warning != "" {
+		summary = append(summary, warning)
+	}
 	if syn := msg.Synthesis; syn != nil {
 		summary = append(summary, formatSynthesis(syn))
 	}
@@ -67,12 +71,24 @@ func (h *handlers) search(ctx cliapp.RunContext) error {
 
 // --- helpers ---
 
-func parseInt32(s string) int32 {
-	n, err := strconv.Atoi(strings.TrimSpace(s))
-	if err != nil {
-		return 0
+// formatEngineWarning renders the per-query engine-degradation signal as a
+// single warning line ("results may be partial"), or "" when every engine
+// answered.
+func formatEngineWarning(issues []*livesearchv1.EngineIssue) string {
+	if len(issues) == 0 {
+		return ""
 	}
-	return int32(n)
+	parts := make([]string, 0, len(issues))
+	for _, issue := range issues {
+		if issue == nil {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%s: %s", issue.Engine, issue.Reason))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("⚠ %d engine(s) unavailable (%s) — results may be partial.", len(parts), strings.Join(parts, "; "))
 }
 
 func provenanceSuffix(msg *livesearchv1.SearchResponse) string {

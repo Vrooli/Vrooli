@@ -3,7 +3,6 @@ package research
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -11,6 +10,8 @@ import (
 	researchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research/research_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+
+	"web-search/cli/internal/cliutil"
 )
 
 type handlers struct {
@@ -30,7 +31,7 @@ func (h *handlers) l2(ctx cliapp.RunContext) error {
 	query := ctx.Positional("query")
 	resp, err := h.client.RunL2(context.Background(), connect.NewRequest(&researchv1.RunL2Request{
 		Query:   query,
-		TopN:    parseInt32(ctx.Flag("top-n")),
+		TopN:    cliutil.ParseInt32(ctx.Flag("top-n")),
 		Capture: ctx.BoolFlag("capture"),
 	}))
 	if err != nil {
@@ -48,6 +49,18 @@ func (h *handlers) l2(ctx cliapp.RunContext) error {
 	}
 	if len(msg.CapturedFindingIds) > 0 {
 		summary = append(summary, fmt.Sprintf("Captured %d finding(s): %s", len(msg.CapturedFindingIds), strings.Join(msg.CapturedFindingIds, ", ")))
+	}
+	if len(msg.DegradedEngines) > 0 {
+		parts := make([]string, 0, len(msg.DegradedEngines))
+		for _, issue := range msg.DegradedEngines {
+			if issue == nil {
+				continue
+			}
+			parts = append(parts, fmt.Sprintf("%s: %s", issue.Engine, issue.Reason))
+		}
+		if len(parts) > 0 {
+			summary = append(summary, fmt.Sprintf("⚠ %d engine(s) unavailable during candidate search (%s) — inputs may be partial.", len(parts), strings.Join(parts, "; ")))
+		}
 	}
 	results := make([]string, 0)
 	if msg.Brief != nil {
@@ -109,7 +122,7 @@ func (h *handlers) gather(ctx cliapp.RunContext) error {
 	query := ctx.Positional("query")
 	resp, err := h.client.GatherRelatedFindings(context.Background(), connect.NewRequest(&researchv1.GatherRelatedFindingsRequest{
 		Query: query,
-		Max:   parseInt32(ctx.Flag("max")),
+		Max:   cliutil.ParseInt32(ctx.Flag("max")),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("gather related findings", err, nil)
@@ -132,12 +145,4 @@ func (h *handlers) gather(ctx cliapp.RunContext) error {
 			"`findings supersede <old-id> --replacement <new-id>` — reconcile after answering",
 		},
 	})
-}
-
-func parseInt32(s string) int32 {
-	n, err := strconv.Atoi(strings.TrimSpace(s))
-	if err != nil {
-		return 0
-	}
-	return int32(n)
 }

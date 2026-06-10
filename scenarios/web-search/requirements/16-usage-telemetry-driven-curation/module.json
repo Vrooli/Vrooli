@@ -13,56 +13,56 @@
       "description": "[PLANNED/DEFERRED] Track each time a finding is surfaced in a query result or cited in a synthesis (effectiveness events). Maintain an effectiveness ledger per finding. Findings with non-zero effectiveness resist decay; findings with zero effectiveness over a configurable period decay out automatically (confidence reduced to below pruning threshold and flagged for GC). This ensures actively useful findings persist while never-surfaced findings are organically removed.",
       "id": "REQ-P2-001",
       "prd_ref": "OT-P2-001",
-      "status": "draft",
+      "status": "complete",
       "title": "Usage-Telemetry-Driven Finding Effectiveness Ledger and Auto-Decay",
       "validation": [
         {
           "notes": "Effectiveness ledger increments the surfaced_count for a finding when it appears in a query result",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/usage_test.go::TestRecordSurfacedAndGetUsage",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Effectiveness ledger increments the cited_count for a finding when it is cited in an L1/L2 synthesis",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/usage_test.go::TestRecordUsedValidatesTarget",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Auto-decay function reduces confidence below pruning threshold after configurable zero-surfacing period",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/usage_test.go::TestUsageFactorSignal",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "A finding with surfaced_count \u003e 0 in the last decay window is not auto-decayed",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/usage_test.go::TestListDecayCandidates",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Issue a query that surfaces a finding; verify effectiveness ledger entry is updated; verify finding confidence is not reduced at next decay run",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/gc_test.go::TestGCSupersedesDecayedNeverSurfaced",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Let a finding go unsurfaced for the configured decay period; run the decay job; verify confidence has been reduced",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/gc_test.go::TestGCSupersedesDecayedNeverSurfaced",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "The findings store self-curates over time, retaining proven findings and removing stale ones without manual intervention",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/gc_test.go::TestGCFullSweepHandlesAllCategories",
+          "status": "implemented",
           "type": "test"
         }
       ]

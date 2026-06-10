@@ -7,11 +7,11 @@ The lifecycle (`vrooli scenario start`, `make start`) sets every
 required variable automatically. You only need this reference when
 running a binary by hand or when a scenario adds a new variable.
 
-> **Scaffold status (2026-06-09):** The dependency-wiring variables in
-> **Resource wiring** below are the *intended* config surface from
-> `PRD.md` / [`INTEGRATIONS.md`](../concepts/INTEGRATIONS.md). They are
-> consumed as each domain is implemented; the platform-level variables
-> (`API_PORT`, `UI_PORT`, `SQLITE_PATH`) are live from the scaffold.
+> **Status (2026-06-10):** all domains are implemented; the resource
+> wiring below is live (`SEARXNG_URL`, `OLLAMA_URL`, `BROWSERLESS_URL`,
+> and the aisearch wiring are read in `api/main.go`), as are the
+> platform-level variables (`API_PORT`, `UI_PORT`, `SQLITE_PATH`) and
+> the tuning levers.
 
 ## Environment variables
 
@@ -43,25 +43,44 @@ The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect
 RPC namespace to the API process using the lifecycle-provided `API_PORT`.
 
-### Resource wiring (intended)
+### Resource wiring
 
 web-search talks to several local resources and to search-hub. The
 lifecycle injects each resource's endpoint from its
-`.vrooli/service.json` dependency declaration; the exact env-var names
-are finalized when each domain lands, but the intended shape is:
+`.vrooli/service.json` dependency declaration:
 
-| Variable (intended) | Used by | Default / source | Purpose |
+| Variable | Used by | Default / source | Purpose |
 |---|---|---|---|
 | `SEARXNG_URL` | livesearch (L0/L1), research (L2 source) | local SearXNG resource endpoint | Live web search JSON API. If unreachable, `web-search.live` degrades to unavailable; learnings unaffected. |
 | `QDRANT_URL` | findings | local Qdrant resource endpoint | Semantic index (collection `web-search-findings`) via aisearch-go. If unreachable, recall falls back to text matching. |
 | `OLLAMA_URL` | findings (embeddings), livesearch/research (synthesis, distillation) | local Ollama resource endpoint | `nomic-embed-text` embeddings + small chat model. If unreachable, no embeddings/synthesis; raw hits still returned. |
 | `RERANKER_URL` | findings (ranking) | local reranker resource endpoint | TEI cross-encoder (bge-reranker-v2-m3). Falls back to raw dense order. |
-| `BROWSERLESS_URL` *(P1)* | research (L2 fetch/extract) | local browserless resource endpoint | Headless page fetch + readable-text extraction. P1; disabled until L2 lands. |
+| browser-automation-studio discovery | research (L2 browser escalation) | scenario discovery (`discovery.ResolveScenarioURLDefault`) | Browser leg of the L2 fetch stack: `CaptureService.Capture` (Connect-RPC, `inline_dom=true`) for pages the HTTP leg cannot read. If unreachable, L2 degrades to HTTP-only fetch; L0/L1 unaffected. |
 | search-hub registration target | federation | lifecycle / search-hub discovery | Self-registers `web-search.live` + `web-search.learnings` from `.vrooli/search.json`; control token gates mutating verbs (reindex/config/query-overrides). |
 
-Cache TTL and budget-governor window/rate (OT-P0-007) are tuning knobs
-that will also surface as env or `.vrooli/search.json` tuning fields once
-livesearch is implemented; documented here when finalized.
+### Tuning levers (boot-time)
+
+The scenario's control surface: six env levers parsed once at startup
+by `api/tuning.go`. An unset, malformed, or out-of-range value falls
+back to the compiled default (boot is never blocked by a bad knob);
+the defaults remain the SSOT in their owning packages. Changes require
+a restart. Rationale for the surface (and for the knobs deliberately
+NOT exposed, like the 1-minute governor window) is recorded in
+[`DECISIONS.md`](../internal/DECISIONS.md).
+
+| Variable | Default | Range | Effect when raised |
+|---|---|---|---|
+| `WEB_SEARCH_HIGH_CONFIDENCE_THRESHOLD` | `0.75` (`research.HighConfidenceThreshold`) | `(0, 1]` | L3 reconcile becomes more conservative: more contradictions are FLAGGED as disputes instead of SUPERSEDING existing findings. |
+| `WEB_SEARCH_DECAY_HALF_LIFE` | `4320h` = 180d (`findings.DecayHalfLife`) | Go duration > 0 | Findings stay trusted longer; the GC supersede min-age (2× half-life) stretches with it. |
+| `WEB_SEARCH_MAX_GATHER_FINDINGS` | `20` (`research.MaxGatherFindings`) | int ≥ 1 | The bounded GATHER sweep reads more nearby findings per L3 cycle — more reconcile context, more read cost. |
+| `WEB_SEARCH_L3_MAX_LOOPS` | `10` (`research.DefaultMaxResearchLoops`) | int ≥ 1 | The L3 task contract allows more search→read→gap→re-search loops before the agent must converge — deeper research, longer/costlier runs. Prompt-level budget; the hard run timeout is agent-manager's. |
+| `WEB_SEARCH_GOVERNOR_CAPACITY` | `60` (`livesearch.DefaultGovernorCapacity`) | int ≥ 1 | More live SearXNG calls allowed per rolling minute before the service degrades to "rate-limited". |
+| `WEB_SEARCH_CACHE_TTL` | `5m` (`livesearch.DefaultCacheTTL`) | Go duration > 0 | Identical live queries are served from cache longer — fresher-is-better vs. budget-is-scarce tradeoff. |
+| `WEB_SEARCH_GC_INTERVAL` | unset = background GC off | Go duration > 0 | Enables the periodic store-consistency GC loop at this cadence (`findings gc` CLI works either way). |
+| `WEB_SEARCH_FETCH_TIMEOUT` | `15s` (`fetch.DefaultHTTPTimeout`) | Go duration > 0 | One HTTP-leg L2 page fetch may take longer before being abandoned — helps slow origins, slows the whole L2 pass. |
+| `WEB_SEARCH_FETCH_MAX_BYTES` | `2097152` = 2 MiB (`fetch.DefaultMaxBodyBytes`) | int ≥ 1 | More of each fetched page body is read before extraction — longer articles survive intact, more memory/IO per page. |
+| `WEB_SEARCH_BROWSER_ESCALATION` | on | `off`/`false`/`0`/`no`/`disabled` to disable | Lever is the OFF switch: when disabled, the L2 fetch stack is HTTP-only and JS-shell pages contribute thin or no text (no browser-automation-studio call is ever made). |
+| `WEB_SEARCH_MIN_READABLE_CHARS` | `200` (`fetch.DefaultMinReadableChars`) | int ≥ 1 | Raises the JS-shell heuristic: HTTP-leg results with fewer extracted characters escalate to the browser leg — more escalations, better coverage of borderline pages, more 2–10s browser fetches. |
 
 ### Scenario-prefixed CLI variables
 
@@ -102,9 +121,9 @@ Single source of truth for everything the lifecycle needs to know.
 
 Unlike the bare template (`dependencies.resources: {}`), web-search
 declares real resources here: `searxng`, `ollama`, `qdrant`, and
-`reranker` (enabled, `try_start`), plus `browserless` (disabled, P1).
-Scenario dependencies (`search-hub`, and P1 `agent-manager`) are
-declared alongside. SQLite remains in-process. See
+`reranker` (enabled, `try_start`). Scenario dependencies
+(`browser-automation-studio` for the L2 browser-escalation leg,
+`search-hub`, and `agent-manager`) are declared alongside. SQLite remains in-process. See
 [`INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) for the full dependency
 contract and failure behavior.
 

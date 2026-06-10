@@ -19,12 +19,13 @@ import (
 // self-registration. A scenario that owns a `.vrooli/search.json` with a `tests`
 // block self-registers its corpus at boot (searchregister.Register → the eval
 // store mirrors the file — corpusStoreMirrorsFile), and so needs no seed here:
-// knowledge-observatory graduated this way (its starter seed was migrated into
-// scenarios/knowledge-observatory/.vrooli/search.json and deleted). The remaining
-// seeds (swarm-manager.records, ui-health.surfaces) persist ONLY because those
-// scenarios do not yet self-register a search provider at all (no search.json, no
-// boot wiring); migrating them is provider-adoption work tracked separately. When
-// the last scenario adopts, this whole mechanism is deleted.
+// knowledge-observatory and ui-health both graduated this way (their starter
+// seeds were migrated into the respective scenario's .vrooli/search.json and
+// deleted). The ONE remaining seed (swarm-manager.records) persists ONLY because
+// swarm-manager does not yet self-register a search provider at all — its search
+// is a 3-domain + shadow-variant system whose migration is tracked as a separate
+// sub-plan. When swarm-manager adopts, this whole mechanism (seeds/ + the embed +
+// RegisterSeeds) is deleted and the genericity invariant becomes "seeds/ is empty".
 //
 //go:embed seeds/*.json
 var seedFS embed.FS

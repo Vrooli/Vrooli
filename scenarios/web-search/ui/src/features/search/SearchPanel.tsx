@@ -204,6 +204,14 @@ function LiveResults({ response }: { response: SearchResponse }) {
           })}
         </p>
       )}
+      {response.degradedEngines.length > 0 && (
+        <p data-testid={selectors.search.engineWarning} className="text-sm text-app-warning">
+          {t(strings.search.engineWarning, {
+            count: response.degradedEngines.length,
+            engines: response.degradedEngines.map((e) => `${e.engine}: ${e.reason}`).join("; "),
+          })}
+        </p>
+      )}
       {response.synthesis && <SynthesisBlock synthesis={response.synthesis} />}
       {response.results.length === 0 ? (
         <p data-testid={selectors.search.empty} className="text-sm text-app-muted-foreground">

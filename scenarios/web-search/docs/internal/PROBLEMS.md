@@ -89,9 +89,24 @@ export / cross-instance sharing remains open.
 
 **Refs:** `docs/internal/DECISIONS.md`, `PRD.md` P2 targets.
 
-### 2026-06-09 — `scenario test` standards phase RED on pre-existing scanner false-positives
+### 2026-06-09 — `scenario test` standards phase RED on pre-existing scanner false-positives — RESOLVED
 
-**Symptom:** `vrooli scenario test web-search` (and orient `scaffold-health`) fails on
+**Status:** RESOLVED 2026-06-10 (close-out pass). Every HIGH+ blocking finding was fixed
+AT SOURCE — no suppressions, no `fail_on` change: the doer.go doc comment was reworded so
+the rule regex no longer matches comment text (fixed in `templates/scenarios/react-vite`
+too), `defaultWindowToken` was renamed `defaultTimeWindow` (template's notes domain too),
+the six rows-not-closed sites were realigned to call-site `defer rows.Close()` (helper no
+longer closes), and the four copy-pasted `parseInt32` helpers (REAL gosec G109/G115
+overflow) were replaced by one bounds-clamping `cli/internal/cliutil.ParseInt32`.
+Re-scan: highest severity dropped CRITICAL→medium (36 non-blocking findings);
+`test-genie execute web-search --phases standards` PASSES. Fleet sweep for sibling
+scenarios carrying the two template FPs + scanner-heuristic gaps filed as
+`knw-1781057345488241711`. Original entry kept below for the record — note its
+rows-not-closed analysis ("rows ARE closed via the helper") was correct about behavior
+but the fix realigned ownership to the scanner-visible idiom anyway, which is also the
+template idiom.
+
+**Original symptom:** `vrooli scenario test web-search` (and orient `scaffold-health`) fails on
 the `standards` phase: 44 findings, highest=critical, exceeds `fail_on=high`.
 
 **Root cause:** The HIGH+ findings are scanner-auditor false-positives / established
@@ -128,6 +143,54 @@ fleet-wide template/scanner campaign, not web-search-specific.
 
 **Refs:** memory `feedback_react_vite_template_defects`; GCT baseline `web-search-completion`.
 
+### 2026-06-10 — Close-out: 8 of 188 validation criteria honestly pending
+
+**Symptom:** `requirements/` traceability stands at 180/188 validation entries
+implemented (12/18 modules `complete`). Eight entries remain `pending` with empty refs.
+
+**Root cause:** Each describes behavior that genuinely does not exist or cannot be
+asserted hermetically — wiring a ref would be a checkmark, not a validation:
+1. **04 — score-weakness fallback escalation**: search-hub's `resultsWeak` fires only on
+   zero usable hits; no score-threshold trigger exists (PRD OT-P0-004 says "empty or
+   weak"). Cross-scenario gap — bug `knw-1781057385122348797`.
+2. **04 — default-query 500ms p95**: a live SLO; needs a live federated benchmark
+   harness, not a unit test.
+3. **06 — `findings prune` confirmation prompt**: cli-core parses
+   `requires_confirmation` governance metadata but enforces it nowhere; web-search's
+   manifest marks prune `run_eligible: false` instead. Platform (cli-core) gap.
+4. **09 — L2 response carrying "raw extracted excerpts"**: `RunL2Response` has no such
+   field; adding one is a proto contract change (deliberately frozen at close-out).
+5. **10 — live L3 smoke** (spawn run, agent invokes L2 tools, emits brief): needs an
+   attended live agent-manager run; spawn/poll plumbing IS covered hermetically.
+6. **10 — agent re-searches on gaps**: live agent-loop behavior; prompt half covered by
+   `TestRunL3EncodesGapIterationBeyondSingleL2`.
+7. **12 — full live L3 cycle writes findings**: same live-run dependency; the
+   deterministic halves (prompt encodes auto-capture; reconcile writes via real store)
+   are covered.
+8. **17 — classifier inference ≤50ms**: the classifier is an Ollama LLM call (hundreds
+   of ms); the budget is unrealistic as written. Needs a heuristic fast-path or a
+   revised budget. Confidence-in-telemetry sibling gap filed as
+   `knw-1781057386103680228`.
+
+**Workaround:** None needed — the registry is honest; consumers should read `pending`
+as "deferred", not "missing test for existing behavior".
+
+**Real fix:** 1+8 land in search-hub (bugs filed); 3 lands in cli-core; 4 needs a proto
+rev; 2+5+6+7 need a live-validation harness (an attended L3 A/B run would clear three at
+once).
+
+**Also deliberately left (below `fail_on=high`, non-blocking):** ~35 medium/low standards
+findings — 7× hardcoded-localhost degraded-defaults (documented convention), OWASP
+env-validation, unstructured-logging, gosec G104 on `rows.Close()`, UI type-safety
+warnings in tests, missing `findingindex` test file flag (now stale — the close-out added
+`index_test.go`).
+
+**Owner:** unassigned.
+
+**Refs:** `requirements/*/module.json` pending entries (each carries an inline
+bracketed note); bugs `knw-1781057345488241711`, `knw-1781057385122348797`,
+`knw-1781057386103680228`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.
@@ -145,3 +208,47 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+### 2026-06-10 — L2 fetch substrate greenfield-rewritten; BAS inline-DOM contract notes
+
+**Symptom (historical):** Every production L2 fetch 404'd (`research: content
+status 404`), so L2 always abstained — while all seam-injected tests stayed
+green.
+
+**Root cause:** The deleted `BrowserlessFetcher` POSTed `/chrome/content`; the
+deployed browserless served `/content`. A substrate route bug is invisible to
+seam tests by construction.
+
+**Fix:** `internal/research/fetch/` (HTTP-first `HTTPFetcher` →
+`EscalatingFetcher` → `BASFetcher` via browser-automation-studio
+`CaptureService.Capture` with `inline_dom=true`). A NON-hermetic live smoke
+(`fetch/live_smoke_test.go`) pins the transport contract from now on. See
+DECISIONS.md 2026-06-10.
+
+**Constraints worth knowing:**
+- BAS Capture's `inline_dom` is served by an in-page EVALUATE node
+  (`document.documentElement.outerHTML`) because the Playwright driver's
+  EXTRACT handler only does `textContent` today; the response is capped at
+  2 MiB (truncation is silent — fine for readable-text extraction).
+- The BAS capture handler reads the DOM from the exported `timeline.json`
+  frame's `extracted_data_preview` — a field the BAS execution writer never
+  populated before 2026-06-10 (fixed in `file_writer.go`; the whole BAS read
+  side depended on it).
+- Browser escalation fires per-URL on HTTP failure OR thin extracted text
+  (`WEB_SEARCH_MIN_READABLE_CHARS`, default 200). With BAS down, L2 degrades
+  to HTTP-only and logs `browser leg failed` — verified live 2026-06-10.
+
+### 2026-06-10 — searxng result quality depends on the resource's image freshness
+
+**Symptom:** L0/L2 inputs degrade to junk when the searxng resource rots (it
+sat 17 months stale and served bing-only).
+
+**Root cause:** Rolling-release engine scrapers; liveness-only healthcheck.
+
+**Fix/monitoring:** Resource overhauled 2026-06-10 (image 2026.6.8, engine set
+google/ddg/brave/startpage/mojeek/wikipedia/wikidata, suspension self-healing,
+`resource-searxng engine-health` probe + integration-test engine-coverage
+gate). web-search now surfaces the per-query `unresponsive_engines` signal as
+`degraded_engines` (proto) + CLI warning + UI badge, so future degradation is
+visible instead of silent. Engine recovery is upstream's problem; ours is
+honesty about it.

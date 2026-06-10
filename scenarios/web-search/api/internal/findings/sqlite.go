@@ -130,6 +130,7 @@ func (s *sqliteRepository) GetMany(ctx context.Context, ids []string) (map[strin
 	if err != nil {
 		return nil, fmt.Errorf("get many findings: %w", err)
 	}
+	defer rows.Close()
 	found, err := scanFindingRows(rows)
 	if err != nil {
 		return nil, err
@@ -175,14 +176,23 @@ func (s *sqliteRepository) List(ctx context.Context, f ListFilter) ([]Finding, e
 	if err != nil {
 		return nil, fmt.Errorf("list findings: %w", err)
 	}
+	defer rows.Close()
 	return s.hydrate(ctx, rows)
 }
 
 func (s *sqliteRepository) Edit(ctx context.Context, id string, in EditInput, actor string) (Finding, error) {
-	if _, err := s.Get(ctx, id); err != nil {
+	existing, err := s.Get(ctx, id)
+	if err != nil {
 		return Finding{}, err
 	}
-	_, err := s.db.ExecContext(ctx,
+	// A superseded finding is archived history: its claim/confidence are the
+	// audit record of what was believed and replaced. Editing it would rewrite
+	// history, so it is rejected — write a new finding (or resolve the
+	// supersession) instead.
+	if existing.Status == StatusSuperseded {
+		return Finding{}, ErrInvalidFinding{Field: "status", Reason: "finding is superseded (archived) and cannot be edited"}
+	}
+	_, err = s.db.ExecContext(ctx,
 		`UPDATE findings SET claim = ?, confidence = ?, updated_at = ? WHERE id = ?`,
 		in.Claim, in.Confidence, s.now().Format(findingTimeFormat), id,
 	)
@@ -314,6 +324,7 @@ func (s *sqliteRepository) LoadIndexable(ctx context.Context) ([]Finding, error)
 	if err != nil {
 		return nil, fmt.Errorf("load indexable findings: %w", err)
 	}
+	defer rows.Close()
 	return s.hydrate(ctx, rows)
 }
 
@@ -328,6 +339,7 @@ func (s *sqliteRepository) SearchArchivedLike(ctx context.Context, query string,
 	if err != nil {
 		return nil, fmt.Errorf("search archived findings: %w", err)
 	}
+	defer rows.Close()
 	return s.hydrate(ctx, rows)
 }
 
@@ -437,6 +449,7 @@ func (s *sqliteRepository) ListDecayCandidates(ctx context.Context, minAge time.
 	if err != nil {
 		return nil, fmt.Errorf("list decay candidates: %w", err)
 	}
+	defer rows.Close()
 	return s.hydrate(ctx, rows)
 }
 
@@ -451,6 +464,7 @@ func (s *sqliteRepository) ListOrphanedFindings(ctx context.Context) ([]Finding,
 	if err != nil {
 		return nil, fmt.Errorf("list orphaned findings: %w", err)
 	}
+	defer rows.Close()
 	return s.hydrate(ctx, rows)
 }
 
@@ -547,8 +561,9 @@ func scanFinding(sc rowScanner) (Finding, error) {
 	return f, nil
 }
 
+// scanFindingRows drains a finding result set. The caller owns rows and
+// must close them (open-and-close in the same function).
 func scanFindingRows(rows *sql.Rows) ([]Finding, error) {
-	defer rows.Close()
 	var out []Finding
 	for rows.Next() {
 		f, err := scanFinding(rows)

@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	livesearchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch"
 	researchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research"
 
 	internalresearch "web-search/internal/research"
@@ -44,12 +45,16 @@ func (h *connectHandler) RunL2(ctx context.Context, req *connect.Request[researc
 		h.deps.Logger.Printf("research.RunL2: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&researchv1.RunL2Response{
+	resp := &researchv1.RunL2Response{
 		Brief:              briefToProto(out.Brief),
 		Synthesis:          out.Brief.Summary,
 		Abstained:          out.Abstained,
 		CapturedFindingIds: out.CapturedFindingIDs,
-	}), nil
+	}
+	for _, issue := range out.DegradedEngines {
+		resp.DegradedEngines = append(resp.DegradedEngines, &livesearchv1.EngineIssue{Engine: issue.Engine, Reason: issue.Reason})
+	}
+	return connect.NewResponse(resp), nil
 }
 
 // RunL3 starts an agent-manager run for the iterative research-and-reconcile

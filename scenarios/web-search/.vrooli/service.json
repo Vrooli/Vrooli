@@ -245,17 +245,16 @@
         "startup_policy": "try_start",
         "description": "Cross-encoder reranker (BAAI/bge-reranker-v2-m3 via TEI) that reorders the findings shortlist for the strongest ordering.",
         "degraded_behavior": "Reranking falls back to raw dense (cosine) order; findings search still returns results, only the final ordering is less precise."
-      },
-      "browserless": {
-        "type": "browserless",
-        "enabled": true,
-        "required": false,
-        "startup_policy": "try_start",
-        "description": "Headless browser for L2/L3 page fetch + readable-text extraction. Backs the L2 fetch-and-synthesize path (OT-P1-001): web-search POSTs result-page URLs to its /content endpoint and extracts readable body text for full-page cited synthesis.",
-        "degraded_behavior": "Without browserless, L2/L3 fall back to snippet-only synthesis (L1 behavior); no full-page content extraction."
       }
     },
     "scenarios": {
+      "browser-automation-studio": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Browser escalation leg of the L2 fetch stack (greenfield 2026-06, replacing the deleted browserless resource coupling). L2 fetches pages with plain HTTP first; when a page fails or extracts as a JS shell, web-search calls BAS CaptureService.Capture (Connect-RPC, inline_dom=true) for the rendered outerHTML. Disable the leg with WEB_SEARCH_BROWSER_ESCALATION=off.",
+        "degraded_behavior": "Without browser-automation-studio, L2 fetch is HTTP-only: server-rendered pages still synthesize normally; JS-shell pages contribute thin or no text, and L2 abstains only if every candidate page fails."
+      },
       "search-hub": {
         "enabled": true,
         "required": false,

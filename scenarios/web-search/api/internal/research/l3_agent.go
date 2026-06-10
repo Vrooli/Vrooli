@@ -25,6 +25,12 @@ const (
 	// whole-store scan; the cap is enforced server-side so a caller cannot widen
 	// the sweep.
 	MaxGatherFindings = 20
+	// DefaultMaxResearchLoops is the iteration budget written into the L3 task
+	// contract: the agent must converge (answer with what it has) within this
+	// many search→read→gap→re-search loops rather than iterate indefinitely.
+	// It is a prompt-level directive — the hard run lifecycle bound (timeout /
+	// cancellation) is owned by agent-manager per the L3 design decision.
+	DefaultMaxResearchLoops = 10
 )
 
 // GatheredFinding is one finding semantically near a gather query, projected to
@@ -40,14 +46,19 @@ type GatheredFinding struct {
 }
 
 // clampGatherLimit enforces the bounded-sweep contract: an omitted/non-positive
-// max defaults to DefaultGatherFindings; any larger request is clamped to the
-// MaxGatherFindings hard cap.
-func clampGatherLimit(max int) int {
+// max defaults to DefaultGatherFindings (itself bounded by the cap); any larger
+// request is clamped to the service's gather cap (MaxGatherFindings unless
+// overridden via Deps.GatherCap).
+func (s *Service) clampGatherLimit(max int) int {
+	def := DefaultGatherFindings
+	if def > s.gatherCap {
+		def = s.gatherCap
+	}
 	switch {
 	case max <= 0:
-		return DefaultGatherFindings
-	case max > MaxGatherFindings:
-		return MaxGatherFindings
+		return def
+	case max > s.gatherCap:
+		return s.gatherCap
 	default:
 		return max
 	}
@@ -68,7 +79,7 @@ func (s *Service) GatherRelatedFindings(ctx context.Context, query string, max i
 	if query == "" {
 		return nil, 0, fmt.Errorf("research: gather query is required")
 	}
-	limit := clampGatherLimit(max)
+	limit := s.clampGatherLimit(max)
 	out, err := s.gatherer.Gather(ctx, query, limit)
 	if err != nil {
 		return nil, limit, err
@@ -109,7 +120,7 @@ func (s *Service) RunResearchCycle(ctx context.Context, query string, answer Ans
 	if answer == nil {
 		return CycleResult{}, fmt.Errorf("research: cycle answerer is required")
 	}
-	gathered, _, err := s.GatherRelatedFindings(ctx, query, MaxGatherFindings)
+	gathered, _, err := s.GatherRelatedFindings(ctx, query, s.gatherCap)
 	if err != nil {
 		return CycleResult{}, err
 	}
@@ -146,7 +157,7 @@ func (s *Service) RunL3(ctx context.Context, query string) (agentmanager.RunResu
 	return s.agentManager.Spawn(ctx, agentmanager.SpawnRequest{
 		Query:  query,
 		Title:  "L3 research: " + query,
-		Prompt: buildL3Prompt(query),
+		Prompt: buildL3Prompt(query, s.gatherCap, s.confidenceGate, s.maxLoops),
 	})
 }
 
@@ -159,19 +170,21 @@ func (s *Service) GetResearchStatus(ctx context.Context, runID string) (agentman
 }
 
 // buildL3Prompt renders the L3 research-and-reconcile task prompt. It encodes
-// the GATHER -> RESEARCH -> RECONCILE loop and the confidence-gated curation
-// policy the bounded post-step must follow.
-func buildL3Prompt(query string) string {
+// the GATHER -> RESEARCH -> RECONCILE loop, the iteration budget, and the
+// confidence-gated curation policy the bounded post-step must follow. The
+// tuning values are passed in so the prompt always mirrors the service's
+// effective configuration.
+func buildL3Prompt(query string, gatherCap int, confidenceGate float64, maxLoops int) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Research question: %s\n\n", query)
 	b.WriteString("You are an L3 research agent for the web-search scenario. Follow this loop:\n\n")
-	fmt.Fprintf(&b, "1. GATHER: run `web-search research gather \"<query>\"` to load the NEARBY existing findings. This is a BOUNDED sweep (the server caps it at %d findings semantically near the query) — use it instead of a free-form `findings search`; never scan the whole store.\n", MaxGatherFindings)
+	fmt.Fprintf(&b, "1. GATHER: run `web-search research gather \"<query>\"` to load the NEARBY existing findings. This is a BOUNDED sweep (the server caps it at %d findings semantically near the query) — use it instead of a free-form `findings search`; never scan the whole store.\n", gatherCap)
 	b.WriteString("2. RESEARCH the gap: use `web-search research l2 \"<focused sub-query>\"` (full-page fetch + cited synthesis) for what the existing findings do not already cover. Use `web-search search` for fresh candidate URLs.\n")
 	b.WriteString("3. RECONCILE (bounded post-step, answer first): distill what you learned into citation-backed claims and curate the store:\n")
-	fmt.Fprintf(&b, "   - When a new claim is well-supported and clearly contradicts an existing finding (confidence >= %.2f), SUPERSEDE the outdated finding via `web-search findings supersede <old-id> --replacement <new-id> --reason \"<why>\"`.\n", HighConfidenceThreshold)
+	fmt.Fprintf(&b, "   - When a new claim is well-supported and clearly contradicts an existing finding (confidence >= %.2f), SUPERSEDE the outdated finding via `web-search findings supersede <old-id> --replacement <new-id> --reason \"<why>\"`.\n", confidenceGate)
 	b.WriteString("   - When sources conflict and you are NOT confident, FLAG the contested finding via `web-search findings flag <id> --reason \"<contradiction>\"` (it moves to DISPUTED). NEVER silently overwrite a contested claim.\n")
 	b.WriteString("   - Write new citation-backed claims via `web-search findings add --claim \"...\" --confidence <0..1> --source l3 --citations \"url|title,...\"`.\n\n")
-	b.WriteString("Ground every claim in a citation. Abstain rather than fabricate. Keep curation bounded — answer the question first, then reconcile.\n")
+	fmt.Fprintf(&b, "Ground every claim in a citation. Abstain rather than fabricate. Keep curation bounded — answer the question first, then reconcile. ITERATION BUDGET: perform at most %d research loops (search -> read -> find gaps -> re-search); when the budget is spent, emit the brief from what you have rather than iterating further.\n", maxLoops)
 	return b.String()
 }
 
@@ -233,7 +246,7 @@ func (s *Service) Reconcile(ctx context.Context, items []ReconcileItem) ([]Recon
 		switch {
 		case !it.Contradicts:
 			results = append(results, ReconcileResult{ExistingID: id, Action: ActionNone})
-		case it.Confidence >= HighConfidenceThreshold:
+		case it.Confidence >= s.confidenceGate:
 			reason := it.Reason
 			if strings.TrimSpace(reason) == "" {
 				reason = "superseded by higher-confidence L3 finding"

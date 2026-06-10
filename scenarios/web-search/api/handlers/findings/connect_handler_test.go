@@ -3,6 +3,7 @@ package findings_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -16,6 +17,7 @@ import (
 	"web-search/internal/findingindex"
 	internalfindings "web-search/internal/findings"
 	testdb "web-search/internal/testutil/db"
+	"web-search/internal/testutil/mocks"
 )
 
 // fakeSearcher returns canned hits in order, simulating the semantic index.
@@ -29,13 +31,20 @@ func (f *fakeSearcher) Search(ctx context.Context, query string, limit int) ([]f
 }
 
 func newFindingsService(t *testing.T) internalfindings.Service {
+	return newFindingsServiceAtClock(t, clock.System{})
+}
+
+// newFindingsServiceAtClock builds the findings service over a fresh SQLite DB
+// whose row timestamps come from clk, so handler-level decay assertions are
+// deterministic.
+func newFindingsServiceAtClock(t *testing.T, clk clock.Clock) internalfindings.Service {
 	t.Helper()
 	d := testdb.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(internalfindings.Schema),
 	))
-	return internalfindings.NewService(internalfindings.NewSQLiteRepository(d, clock.System{}))
+	return internalfindings.NewService(internalfindings.NewSQLiteRepository(d, clk))
 }
 
 func TestSearchFindingsProjectsAndExcludesSuperseded(t *testing.T) {
@@ -171,6 +180,98 @@ func TestListEffectivenessBlendsAndRecordUsage(t *testing.T) {
 	_, err = h.RecordUsage(ctx, connect.NewRequest(&findingsv1.RecordUsageRequest{Id: "nope"}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+// TestListDisputesProjectsDisputeQueueEntries pins the dispute review queue
+// surface: ListDisputes returns ONLY disputed findings, each carrying the
+// reviewable fields — finding id, the contradiction description (dispute
+// note), the conflicting source citations, status DISPUTED, and created_at.
+func TestListDisputesProjectsDisputeQueueEntries(t *testing.T) {
+	ctx := context.Background()
+	svc := newFindingsService(t)
+
+	disputed, err := svc.Add(ctx, internalfindings.NewFinding{
+		Claim: "contested claim",
+		Citations: []internalfindings.NewCitation{
+			{URL: "https://one.example", Title: "Source One"},
+			{URL: "https://two.example", Title: "Source Two"},
+		},
+	})
+	require.NoError(t, err)
+	_, err = svc.Flag(ctx, disputed.ID, "source one contradicts source two")
+	require.NoError(t, err)
+	_, err = svc.Add(ctx, internalfindings.NewFinding{Claim: "uncontested"})
+	require.NoError(t, err)
+
+	h := handler.NewConnectHandler(handler.Deps{Service: svc, Clock: clock.System{}})
+	resp, err := h.ListDisputes(ctx, connect.NewRequest(&findingsv1.ListDisputesRequest{Limit: 10}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.Findings, 1, "only disputed findings enter the review queue")
+
+	entry := resp.Msg.Findings[0]
+	require.Equal(t, disputed.ID, entry.Id)
+	require.Equal(t, findingsv1.FindingStatus_FINDING_STATUS_DISPUTED, entry.Status)
+	require.Equal(t, "source one contradicts source two", entry.DisputeNote)
+	require.Len(t, entry.Citations, 2, "the conflicting source references ride along")
+	require.NotNil(t, entry.CreatedAt)
+}
+
+// TestSearchSurfacesDisputedWithConflictSignal asserts the default search
+// surface returns disputed findings WITH their conflict signal — status
+// DISPUTED plus the dispute note and both conflicting source citations — so
+// every consumer can render the "sources conflict" warning.
+func TestSearchSurfacesDisputedWithConflictSignal(t *testing.T) {
+	ctx := context.Background()
+	svc := newFindingsService(t)
+
+	f, err := svc.Add(ctx, internalfindings.NewFinding{
+		Claim: "the contested rate is 4 percent",
+		Citations: []internalfindings.NewCitation{
+			{URL: "https://bank.example", Title: "Bank"},
+			{URL: "https://press.example", Title: "Press"},
+		},
+	})
+	require.NoError(t, err)
+	_, err = svc.Flag(ctx, f.ID, "bank and press disagree")
+	require.NoError(t, err)
+
+	searcher := &fakeSearcher{method: "dense", hits: []findingindex.Hit{{FindingID: f.ID, Score: 0.8}}}
+	h := handler.NewConnectHandler(handler.Deps{Service: svc, Searcher: searcher, Clock: clock.System{}})
+
+	resp, err := h.SearchFindings(ctx, connect.NewRequest(&findingsv1.SearchFindingsRequest{Query: "contested rate", Limit: 5}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.Hits, 1, "disputed findings stay in the default results")
+	got := resp.Msg.Hits[0].Finding
+	require.Equal(t, findingsv1.FindingStatus_FINDING_STATUS_DISPUTED, got.Status, "the conflict warning signal")
+	require.Equal(t, "bank and press disagree", got.DisputeNote)
+	require.Len(t, got.Citations, 2, "both conflicting sources are returned")
+}
+
+// TestListEffectivenessReturnsDecayedConfidence pins age decay on the read
+// path: a finding stored 180 days (one half-life) ago is returned with an
+// effective confidence of about half its stored confidence. Storage is never
+// mutated — the decayed value is computed at read time against the clock.
+func TestListEffectivenessReturnsDecayedConfidence(t *testing.T) {
+	ctx := context.Background()
+	created := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	clk := mocks.NewFakeClock(created)
+	svc := newFindingsServiceAtClock(t, clk)
+
+	f, err := svc.Add(ctx, internalfindings.NewFinding{Claim: "aging claim", Confidence: 0.8})
+	require.NoError(t, err)
+
+	clk.SetNow(created.Add(internalfindings.DecayHalfLife))
+	h := handler.NewConnectHandler(handler.Deps{Service: svc, Clock: clk})
+
+	resp, err := h.ListEffectiveness(ctx, connect.NewRequest(&findingsv1.ListEffectivenessRequest{Limit: 10}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.Items, 1)
+	item := resp.Msg.Items[0]
+	require.Equal(t, f.ID, item.Finding.Id)
+	require.InDelta(t, 0.8, item.Finding.Confidence, 1e-9, "stored confidence is untouched")
+	require.InDelta(t, 0.4, item.EffectiveConfidence, 1e-3, "one half-life decays the read value to half")
+	require.Less(t, item.EffectiveConfidence, item.Finding.Confidence,
+		"an aged finding reads below its stored confidence")
 }
 
 // fakeGC is a GCRunner that returns a canned report and records the dry-run flag.

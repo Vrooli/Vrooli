@@ -27,7 +27,7 @@ type FindingsGatherer interface {
 }
 
 // Deps wires the research service's seams. All are optional: a nil Searcher /
-// Fetcher / Synthesizer makes L2 abstain (graceful when browserless/ollama are
+// Fetcher / Synthesizer makes L2 abstain (graceful when the fetch stack/ollama are
 // down); a nil AgentManager makes L3 unavailable; a nil Findings disables
 // capture. main.go constructs the production impls from env; tests inject fakes.
 type Deps struct {
@@ -38,18 +38,32 @@ type Deps struct {
 	Gatherer     FindingsGatherer
 	AgentManager agentmanager.Service
 	Logger       *log.Logger
+
+	// ConfidenceGate overrides HighConfidenceThreshold for the L3 reconcile
+	// confidence gate. Zero (or any value outside (0,1]) keeps the default.
+	ConfidenceGate float64
+	// GatherCap overrides MaxGatherFindings, the hard cap on the bounded
+	// GATHER sweep. Zero or negative keeps the default.
+	GatherCap int
+	// MaxResearchLoops overrides DefaultMaxResearchLoops, the iteration
+	// budget written into the L3 task contract. Zero or negative keeps the
+	// default.
+	MaxResearchLoops int
 }
 
 // Service orchestrates the L2 (synchronous fetch/read/synthesize) and L3
 // (agent-manager run) research paths over its injected seams.
 type Service struct {
-	searcher     Searcher
-	fetcher      Fetcher
-	synthesizer  Synthesizer
-	findings     FindingsService
-	gatherer     FindingsGatherer
-	agentManager agentmanager.Service
-	logger       *log.Logger
+	searcher       Searcher
+	fetcher        Fetcher
+	synthesizer    Synthesizer
+	findings       FindingsService
+	gatherer       FindingsGatherer
+	agentManager   agentmanager.Service
+	logger         *log.Logger
+	confidenceGate float64
+	gatherCap      int
+	maxLoops       int
 }
 
 // NewService constructs the research service.
@@ -58,14 +72,29 @@ func NewService(d Deps) *Service {
 	if logger == nil {
 		logger = log.Default()
 	}
+	gate := d.ConfidenceGate
+	if gate <= 0 || gate > 1 {
+		gate = HighConfidenceThreshold
+	}
+	gatherCap := d.GatherCap
+	if gatherCap <= 0 {
+		gatherCap = MaxGatherFindings
+	}
+	maxLoops := d.MaxResearchLoops
+	if maxLoops <= 0 {
+		maxLoops = DefaultMaxResearchLoops
+	}
 	return &Service{
-		searcher:     d.Searcher,
-		fetcher:      d.Fetcher,
-		synthesizer:  d.Synthesizer,
-		findings:     d.Findings,
-		gatherer:     d.Gatherer,
-		agentManager: d.AgentManager,
-		logger:       logger,
+		searcher:       d.Searcher,
+		fetcher:        d.Fetcher,
+		synthesizer:    d.Synthesizer,
+		findings:       d.Findings,
+		gatherer:       d.Gatherer,
+		agentManager:   d.AgentManager,
+		logger:         logger,
+		confidenceGate: gate,
+		gatherCap:      gatherCap,
+		maxLoops:       maxLoops,
 	}
 }
 

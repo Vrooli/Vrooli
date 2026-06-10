@@ -16,8 +16,8 @@
 // reinvention is hours.
 //
 // Add the field to server.Deps when wiring the first consumer; the
-// idiomatic shape is `Doer httpc.Doer` with `&http.Client{Timeout:
-// 10 * time.Second}` constructed in main.go.
+// idiomatic shape is `Doer httpc.Doer` backed by an `http.Client`
+// with a `Timeout` (e.g. 10 * time.Second) constructed in main.go.
 package httpc
 
 import "net/http"
@@ -31,5 +31,6 @@ type Doer interface {
 }
 
 // Compile-time guarantee that *http.Client satisfies Doer. Production
-// callers pass `&http.Client{...}` directly — no wrapper required.
+// callers pass a pointer to a plain `http.Client` (with its `Timeout`
+// set) directly — no wrapper required.
 var _ Doer = (*http.Client)(nil)

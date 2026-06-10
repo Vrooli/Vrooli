@@ -3,7 +3,9 @@ package research_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"web-search/internal/clock"
 	localdb "web-search/internal/database"
@@ -107,6 +109,64 @@ func TestRunL2CaptureWritesL2SourcedFinding(t *testing.T) {
 	require.Equal(t, "https://a.example", got.Citations[0].URL)
 }
 
+// TestRunL2NoCaptureByDefault asserts the L2 opt-in capture contract: with the
+// capture flag absent (false), fetched page content and the synthesis are NOT
+// persisted as findings even though a findings store is wired.
+func TestRunL2NoCaptureByDefault(t *testing.T) {
+	ctx := context.Background()
+	searcher := &fakeSearcher{candidates: []research.Candidate{{URL: "https://a.example", Title: "A"}}}
+	fetcher := &fakeFetcher{textByURL: map[string]string{"https://a.example": "full page body"}}
+	syn := &fakeSynthesizer{result: research.Synthesis{
+		Text:      "a grounded answer",
+		Citations: []research.Citation{{ResultIndex: 0, URL: "https://a.example", Title: "A"}},
+	}}
+	fsvc := newFindingsService(t)
+	svc := research.NewService(research.Deps{Searcher: searcher, Fetcher: fetcher, Synthesizer: syn, Findings: fsvc})
+
+	out, err := svc.RunL2(ctx, "q", 3, false) // capture absent
+	require.NoError(t, err)
+	require.False(t, out.Abstained)
+	require.Empty(t, out.CapturedFindingIDs)
+
+	all, err := fsvc.List(ctx, findings.ListFilter{})
+	require.NoError(t, err)
+	require.Empty(t, all, "L2 must not persist findings unless capture is requested")
+}
+
+// TestRunL2TopFiveWithinLatencyBudget is the REQ-P1-001 performance gate over
+// the package fakes: the top-5 fetch -> extract -> synthesize pipeline performs
+// exactly the bounded work (5 fetches, one synthesis pass) and its orchestration
+// adds no pathological overhead (sleeps, retry storms). The production 15s p95
+// budget is dominated by network/LLM time, which fakes deliberately exclude, so
+// the in-process bound asserted here is far stricter.
+func TestRunL2TopFiveWithinLatencyBudget(t *testing.T) {
+	ctx := context.Background()
+	cands := make([]research.Candidate, 0, 5)
+	texts := make(map[string]string, 5)
+	for i := 0; i < 5; i++ {
+		url := fmt.Sprintf("https://p%d.example", i)
+		cands = append(cands, research.Candidate{URL: url, Title: fmt.Sprintf("P%d", i)})
+		texts[url] = fmt.Sprintf("body of page %d", i)
+	}
+	searcher := &fakeSearcher{candidates: cands}
+	fetcher := &fakeFetcher{textByURL: texts}
+	syn := &fakeSynthesizer{result: research.Synthesis{
+		Text:      "synthesized over five pages",
+		Citations: []research.Citation{{ResultIndex: 0, URL: cands[0].URL, Title: cands[0].Title}},
+	}}
+	svc := research.NewService(research.Deps{Searcher: searcher, Fetcher: fetcher, Synthesizer: syn})
+
+	start := time.Now()
+	out, err := svc.RunL2(ctx, "q", 5, false)
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	require.False(t, out.Abstained)
+	require.Len(t, fetcher.fetched, 5, "top-5 request fetches exactly 5 pages")
+	require.Len(t, syn.gotDocs, 5, "all five extracted documents reach the single synthesis pass")
+	require.Less(t, elapsed, 2*time.Second, "L2 pipeline orchestration overhead must stay well inside the 15s p95 budget")
+}
+
 // TestRunL2ToleratesFetchFailures asserts a per-page fetch failure is skipped
 // and synthesis runs over whatever was retrieved.
 func TestRunL2ToleratesFetchFailures(t *testing.T) {
@@ -117,7 +177,7 @@ func TestRunL2ToleratesFetchFailures(t *testing.T) {
 	}}
 	fetcher := &fakeFetcher{
 		textByURL: map[string]string{"https://ok.example": "good body"},
-		failErr:   errors.New("browserless down"),
+		failErr:   errors.New("fetch substrate down"),
 	}
 	syn := &fakeSynthesizer{result: research.Synthesis{
 		Text:      "grounded in the one good page",
@@ -132,7 +192,7 @@ func TestRunL2ToleratesFetchFailures(t *testing.T) {
 }
 
 // TestRunL2AbstainsWhenSeamsMissing asserts L2 degrades gracefully (abstains)
-// when the seams it needs are not wired (e.g. browserless down at boot).
+// when the seams it needs are not wired (e.g. the fetch stack down at boot).
 func TestRunL2AbstainsWhenSeamsMissing(t *testing.T) {
 	svc := research.NewService(research.Deps{})
 	out, err := svc.RunL2(context.Background(), "q", 5, false)

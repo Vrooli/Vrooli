@@ -38,6 +38,11 @@ type SearchOutcome struct {
 	Cached         bool
 	Degraded       bool
 	DegradedReason string
+	// DegradedEngines lists upstream engines that did not answer this query
+	// (per-query signal from SearXNG). Results may be partial when non-empty.
+	// On cache hits this reflects the engines at fetch time — acceptable,
+	// the TTL bounds the staleness.
+	DegradedEngines []EngineIssue
 }
 
 // normalize maps a SearXNG RawResult onto the domain Result. The SearXNG
@@ -53,11 +58,24 @@ func normalize(r RawResult) Result {
 	}
 }
 
-// normalizeAll maps a slice of raw results onto domain results in order.
+// normalizeAll maps a slice of raw results onto domain results in order,
+// deduplicating by URL: SearXNG fans one query out to many engines, so the
+// same page often comes back several times. The highest-scored hit for a URL
+// wins (keeping its engine attribution); order follows each URL's first
+// appearance so upstream relevance ordering is preserved.
 func normalizeAll(raw []RawResult) []Result {
 	out := make([]Result, 0, len(raw))
+	seen := make(map[string]int, len(raw))
 	for _, r := range raw {
-		out = append(out, normalize(r))
+		n := normalize(r)
+		if i, dup := seen[n.URL]; dup {
+			if n.Score > out[i].Score {
+				out[i] = n
+			}
+			continue
+		}
+		seen[n.URL] = len(out)
+		out = append(out, n)
 	}
 	return out
 }

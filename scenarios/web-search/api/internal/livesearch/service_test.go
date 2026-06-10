@@ -13,23 +13,29 @@ import (
 )
 
 // fakeClient is a SearxngClient seam that records calls and returns canned raw
-// results. callCount lets a test assert the upstream was (not) hit.
+// results. callCount lets a test assert the upstream was (not) hit; delay
+// simulates a normal upstream response time for latency-budget tests.
 type fakeClient struct {
-	results   []livesearch.RawResult
-	err       error
-	callCount int
-	lastQuery string
-	lastLimit int
+	results      []livesearch.RawResult
+	engineIssues []livesearch.EngineIssue
+	err          error
+	delay        time.Duration
+	callCount    int
+	lastQuery    string
+	lastLimit    int
 }
 
-func (f *fakeClient) Search(_ context.Context, query string, limit int) ([]livesearch.RawResult, error) {
+func (f *fakeClient) Search(_ context.Context, query string, limit int) (livesearch.SearchPage, error) {
 	f.callCount++
 	f.lastQuery = query
 	f.lastLimit = limit
-	if f.err != nil {
-		return nil, f.err
+	if f.delay > 0 {
+		time.Sleep(f.delay)
 	}
-	return f.results, nil
+	if f.err != nil {
+		return livesearch.SearchPage{}, f.err
+	}
+	return livesearch.SearchPage{Results: f.results, UnresponsiveEngines: f.engineIssues}, nil
 }
 
 // fakeSynthesizer is a Synthesizer seam returning a canned synthesis.
@@ -193,6 +199,68 @@ func TestServiceSynthesisCitedWhenRequested(t *testing.T) {
 	require.Len(t, out.Results, 2)
 }
 
+// TestServiceL0PathMakesNoLLMCalls pins the L0 contract end-to-end through the
+// service: a plain (non-synthesize) query returns fully normalized results AND
+// the synthesizer seam records zero invocations — the fast path involves no LLM
+// even when one is wired.
+func TestServiceL0PathMakesNoLLMCalls(t *testing.T) {
+	client := &fakeClient{results: sampleRaw()}
+	syn := &fakeSynthesizer{out: &livesearch.Synthesis{Text: "never"}}
+	svc := livesearch.NewService(livesearch.Deps{Client: client, Synthesizer: syn})
+
+	out, err := svc.Search(context.Background(), livesearch.SearchInput{Query: "anthropic claude", Limit: 5})
+	require.NoError(t, err)
+	require.Equal(t, 0, syn.callCount, "L0 path must make zero LLM calls")
+	require.Nil(t, out.Synthesis)
+
+	// The response is the normalized SearchHit shape, not raw SearXNG JSON.
+	require.Len(t, out.Results, 2)
+	require.Equal(t, "https://anthropic.com", out.Results[0].URL)
+	require.Equal(t, "Anthropic", out.Results[0].Title)
+	require.Equal(t, "Claude maker", out.Results[0].Snippet)
+	require.Equal(t, "google", out.Results[0].Engine)
+}
+
+// TestServiceL0LatencyBudgetWithNormalUpstream is the bounded-budget guard for
+// the L0 round-trip: given a normal upstream response time (simulated 10ms),
+// the whole query+normalization path completes well inside the 2000ms budget —
+// no hidden sleeps, retries, or accidental LLM work on the fast path.
+func TestServiceL0LatencyBudgetWithNormalUpstream(t *testing.T) {
+	client := &fakeClient{results: sampleRaw(), delay: 10 * time.Millisecond}
+	svc := livesearch.NewService(livesearch.Deps{Client: client})
+
+	start := time.Now()
+	out, err := svc.Search(context.Background(), livesearch.SearchInput{Query: "anthropic", Limit: 5})
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	require.Len(t, out.Results, 2)
+	require.Less(t, elapsed, 2*time.Second, "L0 path must stay within the 2000ms latency budget given a normal upstream")
+}
+
+// TestServiceSynthesisLeavesRawHitsIdentical pins structural additivity at the
+// strictest level: the raw hits returned WITH synthesis are deep-equal to the
+// hits returned WITHOUT it — synthesis appends, it never mutates, reorders, or
+// removes a raw result.
+func TestServiceSynthesisLeavesRawHitsIdentical(t *testing.T) {
+	syn := &fakeSynthesizer{out: &livesearch.Synthesis{
+		Text:      "Anthropic makes Claude.",
+		Citations: []livesearch.Citation{{ResultIndex: 0, URL: "https://anthropic.com", Title: "Anthropic"}},
+	}}
+
+	plain, err := livesearch.NewService(livesearch.Deps{Client: &fakeClient{results: sampleRaw()}}).
+		Search(context.Background(), livesearch.SearchInput{Query: "q", Limit: 5})
+	require.NoError(t, err)
+	require.Nil(t, plain.Synthesis)
+
+	synth, err := livesearch.NewService(livesearch.Deps{Client: &fakeClient{results: sampleRaw()}, Synthesizer: syn}).
+		Search(context.Background(), livesearch.SearchInput{Query: "q", Limit: 5, Synthesize: true})
+	require.NoError(t, err)
+	require.NotNil(t, synth.Synthesis)
+
+	require.Equal(t, plain.Results, synth.Results, "raw hits must be identical with and without synthesis")
+}
+
 func TestServiceSynthesisFailureDoesNotBlockResults(t *testing.T) {
 	client := &fakeClient{results: sampleRaw()}
 	syn := &fakeSynthesizer{err: errors.New("ollama down")}
@@ -202,4 +270,43 @@ func TestServiceSynthesisFailureDoesNotBlockResults(t *testing.T) {
 	require.NoError(t, err, "synthesis failure must not fail the search")
 	require.Nil(t, out.Synthesis)
 	require.Len(t, out.Results, 2)
+}
+
+// TestSearchThreadsDegradedEngines pins the degradation signal end-to-end at
+// the service layer: a fresh search surfaces the client's unresponsive
+// engines, and a cache hit replays the snapshot recorded at fetch time.
+func TestSearchThreadsDegradedEngines(t *testing.T) {
+	issues := []livesearch.EngineIssue{{Engine: "duckduckgo", Reason: "CAPTCHA"}}
+	client := &fakeClient{
+		results:      []livesearch.RawResult{{URL: "https://a.example", Title: "A"}},
+		engineIssues: issues,
+	}
+	clk := mocks.NewFakeClock(time.Time{})
+	svc := livesearch.NewService(livesearch.Deps{
+		Client: client,
+		Cache:  livesearch.NewCache(time.Minute, clk),
+	})
+
+	out, err := svc.Search(context.Background(), livesearch.SearchInput{Query: "q", Limit: 5})
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(out.DegradedEngines) != 1 || out.DegradedEngines[0].Engine != "duckduckgo" {
+		t.Fatalf("expected degraded engines on fresh search, got %+v", out.DegradedEngines)
+	}
+
+	// Second call hits the cache; the engine snapshot rides along.
+	out, err = svc.Search(context.Background(), livesearch.SearchInput{Query: "q", Limit: 5})
+	if err != nil {
+		t.Fatalf("cached Search: %v", err)
+	}
+	if !out.Cached {
+		t.Fatal("expected cache hit on second search")
+	}
+	if len(out.DegradedEngines) != 1 || out.DegradedEngines[0].Reason != "CAPTCHA" {
+		t.Fatalf("expected cached degraded engines, got %+v", out.DegradedEngines)
+	}
+	if client.callCount != 1 {
+		t.Fatalf("expected single upstream call, got %d", client.callCount)
+	}
 }

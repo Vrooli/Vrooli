@@ -9,7 +9,7 @@
       "title": "Reranked unified list",
       "prd_ref": "OT-P1-001",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "The reranker scores the fused shortlist into one comparable ranked list across providers, behind a Reranker interface. rerank-on vs rerank-off MRR is reported on testdata/search_queries.json to justify its cost.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "Rerank produces the expected ordering on a fixture shortlist." },
@@ -21,7 +21,7 @@
       "title": "Reranker-down degradation",
       "prd_ref": "OT-P1-001",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "When the reranker is unavailable, the router falls back to by-provider grouping and sets a degraded flag in status/response — the query still succeeds.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "With the reranker forced unavailable, Query returns grouped results and reranked=false + degraded=true." }

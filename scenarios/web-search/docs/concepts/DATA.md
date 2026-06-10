@@ -96,8 +96,8 @@ drop/rename/backfill plan here and the tradeoff in
 
 | Path | Format | Owner | Status |
 |---|---|---|---|
-| Manual finding add | CLI/API input | findings | Planned (OT-P0-006) — operator-authored finding + citation. |
-| Findings export | TBD | findings | Deferred — add if cross-instance sharing is needed. |
+| Manual finding add | CLI/API input | findings | Shipped (OT-P0-006) — operator-authored finding + citation via `findings add`. |
+| Findings export | JSONL of finding + citations + audit (proposed) | findings | DEFERRED by decision (2026-06-10, [`DECISIONS.md`](../internal/DECISIONS.md)). Seam: `Repository.LoadIndexable` already yields every non-superseded finding; the audit table is append-only. A future P2 export composes those two reads — no schema change needed. |
 
 ## Retention And Deletion
 

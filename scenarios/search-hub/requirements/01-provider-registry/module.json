@@ -9,7 +9,7 @@
       "title": "Provider descriptor + validation",
       "prd_ref": "OT-P0-001",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "The ProviderDescriptor message (registry proto) is implemented with validation: provider_id unique and group-qualified, NL description required (the classifier routes on it), endpoint present for ACTIVE providers, ResultMapping present for ACTIVE providers, scope defaults PROJECT, state in {ACTIVE, CAPABILITY_GAP}.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "An ACTIVE descriptor missing endpoint or result_mapping is rejected." },
@@ -21,7 +21,7 @@
       "title": "Registry CRUD (Connect + CLI)",
       "prd_ref": "OT-P0-001",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "RegisterProvider (upsert), ListProviders (optional bucket/type/state filters), DeregisterProvider, exposed over Connect and as CLI `providers register|list|remove`. Registrations persist in postgres and survive restart.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "RegisterProvider upserts by provider_id; created flag false on second register." },
@@ -33,7 +33,7 @@
       "title": "First provider registered via thin adapter",
       "prd_ref": "OT-P0-001",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "cli-health.commands is registered via a declarative descriptor whose ResultMapping maps cli-health's existing Search response onto the unified SearchHit. No change to cli-health.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "Applying the cli-health.commands ResultMapping to a sample Search response yields well-formed SearchHits." }

@@ -14,11 +14,21 @@ type Candidate struct {
 	Title string
 }
 
+// CandidateSet is one L0 candidate query's payload: the pages worth fetching
+// plus the engine-degradation signal that rode the underlying live search.
+type CandidateSet struct {
+	Candidates []Candidate
+	// DegradedEngines mirrors livesearch.SearchOutcome.DegradedEngines: the
+	// upstream engines that did not answer the candidate query. A weak L2
+	// synthesis with a non-empty list usually means partial inputs.
+	DegradedEngines []livesearch.EngineIssue
+}
+
 // Searcher is the L2 candidate-URL seam: it returns the top-N L0 results for a
 // query. The production impl wraps the live-search Service; tests inject a fake.
 type Searcher interface {
 	// Candidates returns up to topN candidate pages for query, best-first.
-	Candidates(ctx context.Context, query string, topN int) ([]Candidate, error)
+	Candidates(ctx context.Context, query string, topN int) (CandidateSet, error)
 }
 
 // LiveSearcher adapts the internal live-search Service to the Searcher seam.
@@ -27,13 +37,13 @@ type LiveSearcher struct {
 }
 
 // Candidates runs an L0 live search and projects the results to candidate URLs.
-func (l LiveSearcher) Candidates(ctx context.Context, query string, topN int) ([]Candidate, error) {
+func (l LiveSearcher) Candidates(ctx context.Context, query string, topN int) (CandidateSet, error) {
 	if l.Service == nil {
-		return nil, nil
+		return CandidateSet{}, nil
 	}
 	out, err := l.Service.Search(ctx, livesearch.SearchInput{Query: query, Limit: topN})
 	if err != nil {
-		return nil, err
+		return CandidateSet{}, err
 	}
 	cands := make([]Candidate, 0, len(out.Results))
 	for _, r := range out.Results {
@@ -45,7 +55,7 @@ func (l LiveSearcher) Candidates(ctx context.Context, query string, topN int) ([
 			break
 		}
 	}
-	return cands, nil
+	return CandidateSet{Candidates: cands, DegradedEngines: out.DegradedEngines}, nil
 }
 
 // runL2 executes the synchronous L2 pipeline: candidates -> fetch each ->
@@ -64,10 +74,11 @@ func (s *Service) runL2(ctx context.Context, query string, topN int, capture boo
 		topN = MaxTopN
 	}
 
-	cands, err := s.searcher.Candidates(ctx, query, topN)
+	candSet, err := s.searcher.Candidates(ctx, query, topN)
 	if err != nil {
 		return L2Outcome{}, err
 	}
+	cands := candSet.Candidates
 
 	docs := make([]Document, 0, len(cands))
 	for _, c := range cands {
@@ -97,7 +108,8 @@ func (s *Service) runL2(ctx context.Context, query string, topN int, capture boo
 			Summary:   syn.Text,
 			Citations: syn.Citations,
 		},
-		Abstained: syn.Abstained,
+		Abstained:       syn.Abstained,
+		DegradedEngines: candSet.DegradedEngines,
 	}
 
 	// Auto-capture is opt-in for L2 and never fires on an abstention (there is no

@@ -2,6 +2,7 @@ package research_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -18,8 +19,8 @@ import (
 
 type fakeSearcher struct{ cands []internalresearch.Candidate }
 
-func (f fakeSearcher) Candidates(_ context.Context, _ string, _ int) ([]internalresearch.Candidate, error) {
-	return f.cands, nil
+func (f fakeSearcher) Candidates(_ context.Context, _ string, _ int) (internalresearch.CandidateSet, error) {
+	return internalresearch.CandidateSet{Candidates: f.cands}, nil
 }
 
 type fakeFetcher struct{ text string }
@@ -88,6 +89,26 @@ func TestRunL3AndStatusProjectToProto(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "complete", st.Msg.Status)
 	require.Equal(t, "ok", st.Msg.Summary)
+}
+
+// TestL2EndpointDocumentsRichnessLatencyTradeoff pins the REQ-P1-001 business
+// contract that the API surface itself documents the L2-vs-L1 tradeoff: richer
+// full-page grounding at higher latency. The endpoint descriptor is what the
+// CLI manifest, docs codegen, and agent tool definitions are derived from, so
+// the tradeoff statement living here means every consumer surface carries it.
+func TestL2EndpointDocumentsRichnessLatencyTradeoff(t *testing.T) {
+	var l2Desc string
+	for _, ep := range handler.Endpoints {
+		if ep.ID == "research_l2" {
+			l2Desc = ep.Description
+		}
+	}
+	require.NotEmpty(t, l2Desc, "research_l2 endpoint descriptor must exist")
+
+	desc := strings.ToLower(l2Desc)
+	require.Contains(t, desc, "richer than l1", "the L2 endpoint must document that it is richer than L1")
+	require.Contains(t, desc, "higher latency", "the L2 endpoint must document the latency cost of that richness")
+	require.Contains(t, desc, "full page content", "the richness claim is grounded in full-page (not snippet) synthesis")
 }
 
 // TestRunL3UnavailableSurfacesUnavailable asserts an agent-manager-down error

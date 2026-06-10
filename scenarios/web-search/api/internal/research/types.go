@@ -1,5 +1,7 @@
 package research
 
+import "web-search/internal/livesearch"
+
 // Levels recorded on a Brief.
 const (
 	LevelL2 = "l2"
@@ -52,4 +54,7 @@ type L2Outcome struct {
 	Brief              Brief
 	Abstained          bool
 	CapturedFindingIDs []string
+	// DegradedEngines lists upstream engines that did not answer the L0
+	// candidate query backing this run (partial-inputs signal).
+	DegradedEngines []livesearch.EngineIssue
 }

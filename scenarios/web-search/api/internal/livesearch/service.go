@@ -69,10 +69,12 @@ func (s *Service) Search(ctx context.Context, in SearchInput) (SearchOutcome, er
 		limit = DefaultLimit
 	}
 
-	// Cache hit serves without spending budget or touching SearXNG.
+	// Cache hit serves without spending budget or touching SearXNG. The
+	// engine-degradation snapshot stored with the entry rides along.
 	if s.cache != nil {
-		if cached, ok := s.cache.Get(query, limit); ok {
-			return s.withSynthesis(ctx, query, cached, SearchOutcome{Results: cached, Cached: true}, in.Synthesize), nil
+		if cached, engineIssues, ok := s.cache.Get(query, limit); ok {
+			out := SearchOutcome{Results: cached, Cached: true, DegradedEngines: engineIssues}
+			return s.withSynthesis(ctx, query, cached, out, in.Synthesize), nil
 		}
 	}
 
@@ -86,16 +88,17 @@ func (s *Service) Search(ctx context.Context, in SearchInput) (SearchOutcome, er
 		}, nil
 	}
 
-	raw, err := s.client.Search(ctx, query, limit)
+	page, err := s.client.Search(ctx, query, limit)
 	if err != nil {
 		return SearchOutcome{}, err
 	}
-	results := normalizeAll(raw)
+	results := normalizeAll(page.Results)
 	if s.cache != nil {
-		s.cache.Put(query, limit, results)
+		s.cache.Put(query, limit, results, page.UnresponsiveEngines)
 	}
 
-	return s.withSynthesis(ctx, query, results, SearchOutcome{Results: results}, in.Synthesize), nil
+	out := SearchOutcome{Results: results, DegradedEngines: page.UnresponsiveEngines}
+	return s.withSynthesis(ctx, query, results, out, in.Synthesize), nil
 }
 
 // withSynthesis attaches the optional L1 synthesis to an outcome. Synthesis is

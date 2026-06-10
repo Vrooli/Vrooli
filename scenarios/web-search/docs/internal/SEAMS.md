@@ -250,6 +250,16 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
+### research.Fetcher (L2 page fetch) + the fetch-leg stack
+
+| | |
+|---|---|
+| **Seam** | L2 page fetch: URL → readable body text |
+| **Interface** | `internal/research/fetcher.go::Fetcher` (`Fetch(ctx, url) (text, error)`) — deliberately transport-free |
+| **Production wiring** | `main.go::newL2Fetcher` assembles `internal/research/fetch::EscalatingFetcher`: `HTTPFetcher` (plain GET + content-type gate + body cap + `ExtractReadableText`) first, per-URL escalation to `BASFetcher` (browser-automation-studio `CaptureService.Capture`, Connect-RPC, `inline_dom=true`, discovery-resolved) on HTTP failure or thin-content (JS-shell heuristic, `WEB_SEARCH_MIN_READABLE_CHARS`). `WEB_SEARCH_BROWSER_ESCALATION=off` removes the browser leg. |
+| **Test fake** | L2 pipeline tests inject a fake `research.Fetcher` (unchanged by the substrate swap). Inside `fetch/`: `fakeLeg` (escalation matrix), `fakeCaptureClient` via the `fetch.CaptureClient`/`ClientResolver` seams (BAS leg), `httptest` servers (HTTP leg). |
+| **Why it exists** | The 2026-06 live assessment found a substrate route bug (deleted browserless coupling POSTed a path the deployed service never served) that *no seam-injected test could catch* — every L2 fetch 404'd in production while tests stayed green. The substrate now lives behind its own package with a **non-hermetic live smoke** (`fetch/live_smoke_test.go`, skip-guarded offline) so transport contracts are pinned against reality, and the browser dependency is a scenario (BAS) rather than a raw browser resource. |
+
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching

@@ -47,10 +47,11 @@ func (h *connectHandler) Search(ctx context.Context, req *connect.Request[livese
 	}
 
 	resp := &livesearchv1.SearchResponse{
-		Results:        make([]*livesearchv1.SearchResult, 0, len(outcome.Results)),
-		Cached:         outcome.Cached,
-		Degraded:       outcome.Degraded,
-		DegradedReason: outcome.DegradedReason,
+		Results:         make([]*livesearchv1.SearchResult, 0, len(outcome.Results)),
+		Cached:          outcome.Cached,
+		Degraded:        outcome.Degraded,
+		DegradedReason:  outcome.DegradedReason,
+		DegradedEngines: engineIssuesToProto(outcome.DegradedEngines),
 	}
 	for _, r := range outcome.Results {
 		resp.Results = append(resp.Results, resultToProto(r))
@@ -59,6 +60,19 @@ func (h *connectHandler) Search(ctx context.Context, req *connect.Request[livese
 		resp.Synthesis = synthesisToProto(outcome.Synthesis)
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// engineIssuesToProto maps the per-query engine-degradation signal onto the
+// wire shape (nil-safe: empty input yields nil, not an empty slice).
+func engineIssuesToProto(issues []internallivesearch.EngineIssue) []*livesearchv1.EngineIssue {
+	if len(issues) == 0 {
+		return nil
+	}
+	out := make([]*livesearchv1.EngineIssue, 0, len(issues))
+	for _, issue := range issues {
+		out = append(out, &livesearchv1.EngineIssue{Engine: issue.Engine, Reason: issue.Reason})
+	}
+	return out
 }
 
 func resultToProto(r internallivesearch.Result) *livesearchv1.SearchResult {

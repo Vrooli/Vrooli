@@ -82,6 +82,7 @@
     "resultEngine": "عبر {{engine}}",
     "openResult": "افتح النتيجة في علامة تبويب جديدة",
     "degraded": "تدهور البحث المباشر: {{reason}}",
+    "engineWarning": "{{count}} من محركات البحث غير متاحة ({{engines}}) — قد تكون النتائج جزئية.",
     "synthesisHeading": "الإجابة المركّبة",
     "synthesisAbstained": "كانت المصادر غير كافية أو متضاربة، لذا لم تُركّب أي إجابة.",
     "synthesisCitations": "المصادر"
@@ -133,6 +134,7 @@
     "citationsLabel": "الاستشهادات",
     "disputeNoteLabel": "ملاحظة النزاع: {{note}}",
     "supersededByLabel": "مُستبدل بواسطة {{id}}",
+    "ageLabel": "تم الاسترجاع {{age}}",
     "addHeading": "إضافة نتيجة",
     "addClaimLabel": "الادعاء",
     "addClaimPlaceholder": "الادعاء الذي تؤكده هذه النتيجة…",
@@ -196,7 +198,12 @@
     "reasonPlaceholder": "سبب الحل",
     "resolveSubmit": "تطبيق الحل",
     "cancel": "إلغاء",
-    "resolveError": "تعذّر الحل: {{message}}"
+    "resolveError": "تعذّر الحل: {{message}}",
+    "dismissAction": "تجاهل",
+    "dismissError": "تعذّر التجاهل: {{message}}",
+    "reresearchAction": "إعادة البحث",
+    "reresearchStarted": "بدأ تشغيل L3: {{runId}}",
+    "reresearchError": "تعذّر بدء إعادة البحث: {{message}}"
   },
   "notifications": {
     "summary": "{{count}} إشعارات",

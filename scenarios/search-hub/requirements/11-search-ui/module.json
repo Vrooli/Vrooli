@@ -9,7 +9,7 @@
       "title": "Faceted search page with provenance + freshness",
       "prd_ref": "OT-P1-005",
       "category": "ui",
-      "status": "draft",
+      "status": "implemented",
       "description": "The UI exposes a query box, bucket/type facets, an expand-search control, per-result provenance (provider + path/id), per-provider freshness/health, and clear loading/error/empty/degraded states.",
       "validation": [
         { "type": "test", "phase": "ui", "status": "pending", "notes": "Submitting a query renders grouped/ranked results with provenance; a degraded provider shows its warning." },

@@ -13,84 +13,84 @@
       "description": "Every finding carries: citations (URL + title + retrieval date), originating query, originating brief ID, confidence score, and status. Confidence decays over time using a configurable age-decay function (e.g., exponential decay with configurable half-life). Displayed findings show human-readable age. Status enforcement: active findings are returned by default; disputed findings are returned with a visible 'sources conflict' warning and both conflicting sources; superseded findings are excluded from default results and retrievable only with --include-archived. Blended search (learnings + live) applies these filters consistently.",
       "id": "REQ-P1-006",
       "prd_ref": "OT-P1-006",
-      "status": "draft",
+      "status": "complete",
       "title": "Trust and Freshness Metadata — Citations, Confidence Decay, Status Visibility",
       "validation": [
         {
           "notes": "Age-decay function returns a lower confidence value for a finding created 90 days ago vs. 1 day ago, given the same initial confidence",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/decay_test.go::TestEffectiveConfidenceDecaysWithAge",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Age-decay function never returns a negative confidence value",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/decay_test.go::TestEffectiveConfidenceNeverNegative",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Default findings query excludes rows with status=superseded",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/sqlite_test.go::TestListExcludesSupersededByDefault",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Default findings query includes rows with status=active and status=disputed",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/sqlite_test.go::TestDefaultListIncludesActiveAndDisputed",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Disputed finding in query results includes both conflicting source references and a conflict_warning flag=true",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/findings/connect_handler_test.go::TestSearchSurfacesDisputedWithConflictSignal",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Findings query with --include-archived flag includes rows with status=superseded",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/findings/connect_handler_test.go::TestSearchFindingsProjectsAndExcludesSuperseded",
+          "status": "implemented",
           "type": "test"
         },
         {
-          "notes": "Displayed age field is human-readable (e.g., '3 days ago', '2 months ago') and correct relative to current timestamp",
+          "notes": "Displayed age field is human-readable (e.g., '3 days ago', '2 months ago') and correct relative to current timestamp [FindingCard renders 'Retrieved <relative time>' measured from retrieval_date falling back to created_at (mirrors the server's findings.Age), with the exact ISO stamp in the tooltip]",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "ui/src/features/findings/FindingCard.test.tsx",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Blended federated query returning both learnings and live-web hits applies status filter: superseded findings absent, disputed findings present with warning",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/findings/connect_handler_test.go::TestSearchFindingsProjectsAndExcludesSuperseded",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "A finding created 180 days ago has a lower effective confidence than its stored confidence due to age decay, and this decayed value is returned in the query result",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/findings/connect_handler_test.go::TestListEffectivenessReturnsDecayedConfidence",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Users are never silently misled by outdated or conflicting findings — superseded findings are invisible by default and disputed findings carry explicit warnings",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/findings/connect_handler_test.go::TestSearchSurfacesDisputedWithConflictSignal",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "The decay in confidence over time naturally surfaces the need to refresh older research findings",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/findings/connect_handler_test.go::TestListEffectivenessReturnsDecayedConfidence",
+          "status": "implemented",
           "type": "test"
         }
       ]

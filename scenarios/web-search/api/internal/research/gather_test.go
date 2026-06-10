@@ -3,7 +3,9 @@ package research_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"web-search/internal/findings"
 	"web-search/internal/research"
@@ -74,6 +76,36 @@ func TestGatherRelatedFindingsTruncatesOverReturn(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 5, capApplied)
 	require.Len(t, out, 5, "result is truncated to the bound regardless of seam over-return")
+}
+
+// TestGatherRelatedFindingsConfigurableCap asserts the sweep bound is
+// configuration-driven (Deps.GatherCap, fed by WEB_SEARCH_MAX_GATHER_FINDINGS):
+// a configured cap tightens both the default and the clamp, and an invalid cap
+// falls back to the compiled default of 20.
+func TestGatherRelatedFindingsConfigurableCap(t *testing.T) {
+	ctx := context.Background()
+	cases := []struct {
+		name      string
+		cap       int
+		reqMax    int
+		wantLimit int
+	}{
+		{"configured cap bounds the default", 5, 0, 5},
+		{"configured cap clamps a too-large request", 5, 100, 5},
+		{"smaller request honored under configured cap", 5, 3, 3},
+		{"zero cap falls back to default 20", 0, 1000, research.MaxGatherFindings},
+		{"negative cap falls back to default 20", -3, 0, research.MaxGatherFindings},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := &fakeGatherer{}
+			svc := research.NewService(research.Deps{Gatherer: g, GatherCap: tc.cap})
+			_, capApplied, err := svc.GatherRelatedFindings(ctx, "q", tc.reqMax)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantLimit, g.gotLimit)
+			require.Equal(t, tc.wantLimit, capApplied)
+		})
+	}
 }
 
 // TestGatherRelatedFindingsRequiresWiringAndQuery asserts the bounded gather
@@ -226,4 +258,176 @@ func TestIndexGathererPreservesOrderAndSkipsMissing(t *testing.T) {
 	require.Equal(t, 0.9, out[0].Score, "score carried from the hit")
 	require.Equal(t, findings.StatusDisputed, out[0].Status)
 	require.Equal(t, "a", out[1].FindingID)
+}
+
+// recordingFindings is a research.FindingsService that records the ORDER of
+// store mutations (and can fail supersedes), so tests can assert the answer
+// precedes any curation.
+type recordingFindings struct {
+	events       *[]string
+	supersedeErr error
+}
+
+func (r *recordingFindings) Add(_ context.Context, _ findings.NewFinding) (findings.Finding, error) {
+	*r.events = append(*r.events, "add")
+	return findings.Finding{ID: "new"}, nil
+}
+
+func (r *recordingFindings) Supersede(_ context.Context, id, _, _ string) (findings.Finding, error) {
+	if r.supersedeErr != nil {
+		return findings.Finding{}, r.supersedeErr
+	}
+	*r.events = append(*r.events, "supersede:"+id)
+	return findings.Finding{ID: id}, nil
+}
+
+func (r *recordingFindings) Flag(_ context.Context, id, _ string) (findings.Finding, error) {
+	*r.events = append(*r.events, "flag:"+id)
+	return findings.Finding{ID: id}, nil
+}
+
+// TestRunResearchCycleAnswerBeforeReconcileMutation pins the non-blocking
+// budget-order contract at the mutation level: the answer is produced BEFORE
+// any reconcile mutation touches the findings store, so curation can never
+// delay (or gate) the user-facing answer.
+func TestRunResearchCycleAnswerBeforeReconcileMutation(t *testing.T) {
+	var events []string
+	rec := &recordingFindings{events: &events}
+	svc := research.NewService(research.Deps{Gatherer: &fakeGatherer{}, Findings: rec})
+
+	_, err := svc.RunResearchCycle(context.Background(), "q", func(_ context.Context, _ []research.GatheredFinding) (research.Brief, []research.ReconcileItem, error) {
+		events = append(events, "answer")
+		return research.Brief{Query: "q", Level: research.LevelL3, Summary: "the answer"},
+			[]research.ReconcileItem{{ExistingID: "old", Confidence: 0.9, Contradicts: true}}, nil
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"answer", "supersede:old"}, events,
+		"the answer must exist before the first reconcile mutation appears")
+}
+
+// TestRunResearchCycleAnswerSurvivesReconcileFailure asserts the user still
+// receives the answer when the bounded curation post-step fails: the brief is
+// carried on the result even though the cycle reports the reconcile error.
+func TestRunResearchCycleAnswerSurvivesReconcileFailure(t *testing.T) {
+	var events []string
+	rec := &recordingFindings{events: &events, supersedeErr: errors.New("store locked")}
+	svc := research.NewService(research.Deps{Gatherer: &fakeGatherer{}, Findings: rec})
+
+	res, err := svc.RunResearchCycle(context.Background(), "q", func(_ context.Context, _ []research.GatheredFinding) (research.Brief, []research.ReconcileItem, error) {
+		return research.Brief{Query: "q", Level: research.LevelL3, Summary: "the answer"},
+			[]research.ReconcileItem{{ExistingID: "old", Confidence: 0.9, Contradicts: true}}, nil
+	})
+	require.Error(t, err, "the reconcile failure is reported")
+	require.Equal(t, "the answer", res.Brief.Summary, "the answer is delivered despite the failed curation pass")
+}
+
+// TestResearchCycleEndToEndSeededFindings is the OT-P1-003 integration path
+// over a REAL SQLite findings store and the PRODUCTION IndexGatherer: a topic
+// with pre-seeded related findings is gathered first (the answer step sees the
+// priors), the answer is produced, and the reconcile post-step then updates
+// finding statuses in the database.
+func TestResearchCycleEndToEndSeededFindings(t *testing.T) {
+	ctx := context.Background()
+	fsvc := newFindingsService(t)
+
+	// Pre-seed related findings.
+	outdated, err := fsvc.Add(ctx, findings.NewFinding{Claim: "the old fact", Confidence: 0.5})
+	require.NoError(t, err)
+	related, err := fsvc.Add(ctx, findings.NewFinding{Claim: "a related fact", Confidence: 0.7})
+	require.NoError(t, err)
+
+	idx := &fakeSemanticIndex{hits: []research.GatherHit{
+		{FindingID: outdated.ID, Score: 0.9},
+		{FindingID: related.ID, Score: 0.8},
+	}}
+	gatherer := research.IndexGatherer{Index: idx, Store: fsvc}
+	svc := research.NewService(research.Deps{Gatherer: gatherer, Findings: fsvc})
+
+	var gatheredClaims []string
+	res, err := svc.RunResearchCycle(ctx, "what is the fact now", func(_ context.Context, gathered []research.GatheredFinding) (research.Brief, []research.ReconcileItem, error) {
+		for _, gf := range gathered {
+			gatheredClaims = append(gatheredClaims, gf.Claim)
+		}
+		return research.Brief{Query: "what is the fact now", Level: research.LevelL3, Summary: "the updated answer"},
+			[]research.ReconcileItem{{ExistingID: outdated.ID, Confidence: 0.9, Contradicts: true, Reason: "fresher evidence"}}, nil
+	})
+	require.NoError(t, err)
+
+	// Gather read the pre-seeded priors (relevance order) before the answer.
+	require.Equal(t, []string{"the old fact", "a related fact"}, gatheredClaims)
+	require.Equal(t, "the updated answer", res.Brief.Summary)
+	require.False(t, res.ReconcileSkipped)
+
+	// The reconcile post-step updated statuses in the database.
+	gotOutdated, err := fsvc.Get(ctx, outdated.ID)
+	require.NoError(t, err)
+	require.Equal(t, findings.StatusSuperseded, gotOutdated.Status)
+	gotRelated, err := fsvc.Get(ctx, related.ID)
+	require.NoError(t, err)
+	require.Equal(t, findings.StatusActive, gotRelated.Status, "the non-contradicted prior is untouched")
+}
+
+// TestSuccessiveResearchCyclesCurateStore asserts the librarian loop improves
+// the store INCREMENTALLY: run 1 supersedes an outdated finding, run 2 flags a
+// contested one, and the curation accumulates across runs.
+func TestSuccessiveResearchCyclesCurateStore(t *testing.T) {
+	ctx := context.Background()
+	fsvc := newFindingsService(t)
+	outdated, err := fsvc.Add(ctx, findings.NewFinding{Claim: "outdated claim", Confidence: 0.5})
+	require.NoError(t, err)
+	contested, err := fsvc.Add(ctx, findings.NewFinding{Claim: "contested claim", Confidence: 0.5})
+	require.NoError(t, err)
+
+	svc := research.NewService(research.Deps{Gatherer: &fakeGatherer{returnN: 1}, Findings: fsvc})
+
+	// Run 1: strong new evidence retires the outdated finding.
+	_, err = svc.RunResearchCycle(ctx, "first question", func(_ context.Context, _ []research.GatheredFinding) (research.Brief, []research.ReconcileItem, error) {
+		return research.Brief{Query: "first question", Level: research.LevelL3, Summary: "first answer"},
+			[]research.ReconcileItem{{ExistingID: outdated.ID, Confidence: 0.9, Contradicts: true}}, nil
+	})
+	require.NoError(t, err)
+	got, err := fsvc.Get(ctx, outdated.ID)
+	require.NoError(t, err)
+	require.Equal(t, findings.StatusSuperseded, got.Status)
+
+	// Run 2: a weak contradiction flags the contested finding for review.
+	_, err = svc.RunResearchCycle(ctx, "second question", func(_ context.Context, _ []research.GatheredFinding) (research.Brief, []research.ReconcileItem, error) {
+		return research.Brief{Query: "second question", Level: research.LevelL3, Summary: "second answer"},
+			[]research.ReconcileItem{{ExistingID: contested.ID, Confidence: 0.4, Contradicts: true, Reason: "conflicting source"}}, nil
+	})
+	require.NoError(t, err)
+
+	// Curation accumulated: run 1's supersede persists, run 2 added the flag.
+	got, err = fsvc.Get(ctx, outdated.ID)
+	require.NoError(t, err)
+	require.Equal(t, findings.StatusSuperseded, got.Status)
+	got, err = fsvc.Get(ctx, contested.ID)
+	require.NoError(t, err)
+	require.Equal(t, findings.StatusDisputed, got.Status)
+}
+
+// TestGatherBoundedSweepWithinBudget is the OT-P1-003 performance gate for the
+// GATHER step: a full bounded sweep — 20 findings hydrated from a real SQLite
+// store via the production IndexGatherer — must complete within 500ms.
+func TestGatherBoundedSweepWithinBudget(t *testing.T) {
+	ctx := context.Background()
+	fsvc := newFindingsService(t)
+
+	hits := make([]research.GatherHit, 0, research.MaxGatherFindings)
+	for i := 0; i < research.MaxGatherFindings; i++ {
+		f, err := fsvc.Add(ctx, findings.NewFinding{Claim: fmt.Sprintf("seeded claim %d", i), Confidence: 0.6})
+		require.NoError(t, err)
+		hits = append(hits, research.GatherHit{FindingID: f.ID, Score: 1 - float64(i)/100})
+	}
+	gatherer := research.IndexGatherer{Index: &fakeSemanticIndex{hits: hits}, Store: fsvc}
+	svc := research.NewService(research.Deps{Gatherer: gatherer})
+
+	start := time.Now()
+	out, capApplied, err := svc.GatherRelatedFindings(ctx, "seeded claim", research.MaxGatherFindings)
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	require.Equal(t, research.MaxGatherFindings, capApplied)
+	require.Len(t, out, research.MaxGatherFindings)
+	require.Less(t, elapsed, 500*time.Millisecond, "bounded 20-finding sweep must complete within 500ms")
 }

@@ -13,7 +13,9 @@ import (
 const (
 	// DefaultGCDecayMinAge is how old a never-surfaced active finding must be
 	// before it is a supersede candidate (two confidence half-lives — genuinely
-	// stale, not merely unused for a while).
+	// stale, not merely unused for a while). When the half-life is overridden
+	// at boot, withDefaults derives the min-age from the effective half-life
+	// instead of this constant.
 	DefaultGCDecayMinAge = 2 * DecayHalfLife
 	// DefaultGCConfidenceFloor is the effective-confidence ceiling a decay
 	// candidate must be BELOW to be retired. A still-trusted (slowly-decaying,
@@ -42,7 +44,9 @@ type GCConfig struct {
 
 func (c GCConfig) withDefaults() GCConfig {
 	if c.DecayMinAge <= 0 {
-		c.DecayMinAge = DefaultGCDecayMinAge
+		// Two effective half-lives, so the GC min-age tracks a boot-time
+		// WEB_SEARCH_DECAY_HALF_LIFE override instead of going stale.
+		c.DecayMinAge = 2 * EffectiveDecayHalfLife()
 	}
 	if c.ConfidenceFloor <= 0 {
 		c.ConfidenceFloor = DefaultGCConfidenceFloor

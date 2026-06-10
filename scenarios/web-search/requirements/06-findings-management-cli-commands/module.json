@@ -18,57 +18,57 @@
         {
           "notes": "`findings list` with --status=active returns only active findings",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "cli/domains/findings/handlers_test.go::TestListStatusActiveFiltersToActiveOnly",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "`findings list` with --status=superseded returns only superseded findings",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "cli/domains/findings/handlers_test.go::TestListStatusSupersededFiltersToSupersededOnly",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "`findings add` with valid claim and at least one citation creates a new finding with status=active",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "cli/domains/findings/handlers_test.go::TestAddWithClaimAndCitationCreatesActiveFinding",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "`findings add` missing required claim field returns a validation error with descriptive message",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "cli/domains/findings/handlers_test.go::TestAddMissingClaimReturnsValidationError",
+          "status": "implemented",
           "type": "test"
         },
         {
-          "notes": "`findings edit` on a superseded finding returns an error (cannot edit archived findings)",
+          "notes": "`findings edit` on a superseded finding returns an error (cannot edit archived findings) [guard implemented at the repository seam (every caller path — CLI, RPC, agent — inherits it): Edit rejects status=superseded with a validation error, preserving the archived row]",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/sqlite_test.go::TestEditSupersededRejected",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "`findings supersede` transitions finding status from active to superseded and writes audit record with reason",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/sqlite_test.go::TestSupersedeNeverDeletes",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "`findings flag` transitions finding status from active to disputed and records the dispute reason",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/sqlite_test.go::TestFlagSetsDisputed",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "`findings prune --dry-run` outputs matched findings count without mutating the database",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "cli/domains/findings/handlers_test.go::TestPruneDryRunReportsCountWithoutMutating",
+          "status": "implemented",
           "type": "test"
         },
         {
@@ -81,29 +81,29 @@
         {
           "notes": "L3 agent invokes `findings supersede` as a tool call and the finding status transitions correctly in the live database",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/l3_test.go::TestReconcileConfidenceGate",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "CLI `findings list` executed against a database with mixed-status findings returns correctly filtered results",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "cli/domains/findings/handlers_test.go::TestListMixedStatusStoreFiltersCorrectly",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "A human operator can fully manage the findings lifecycle (add, review, correct, supersede, flag) without direct database access",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "cli/domains/findings/handlers_test.go::TestOperatorManagesFindingsLifecycleEndToEnd",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "The L3 agent can invoke all findings management commands as tools without requiring human intervention for routine curation",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "cli/domains/findings/handlers_test.go::TestManagementCommandsRunProgrammaticallyWithoutPrompts",
+          "status": "implemented",
           "type": "test"
         }
       ]

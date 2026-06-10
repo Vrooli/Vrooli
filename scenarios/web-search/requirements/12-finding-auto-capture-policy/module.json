@@ -20,43 +20,43 @@
         {
           "notes": "L0 live-search path has no finding-write code path (static analysis / code path test)",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/e2e_findings_test.go::TestL0AndL1PathsHaveNoFindingWritePath",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "L1 synthesis path has no finding-write code path (static analysis / code path test)",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/e2e_findings_test.go::TestL0AndL1PathsHaveNoFindingWritePath",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "L2 without --capture flag: distillation pass is not invoked and zero findings are written",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/e2e_findings_test.go::TestL2WithoutCaptureWritesNoFindings",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "L2 with --capture flag: distillation pass is invoked and findings count in database increases",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/l2_test.go::TestRunL2CaptureWritesL2SourcedFinding",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "L3 run: distillation pass is invoked automatically at run end and at least one finding is written",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/e2e_findings_test.go::TestL3PromptEncodesAutoCaptureByDefault",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Distillation output schema validation: each emitted finding has claim (non-empty string), citations (array, min 1), and confidence (float in [0,1])",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/e2e_findings_test.go::TestL2CaptureEmitsSchemaValidFinding",
+          "status": "implemented",
           "type": "test"
         },
         {
@@ -69,29 +69,29 @@
         {
           "notes": "Run an L2 query without --capture and verify the findings database row count is unchanged",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/e2e_findings_test.go::TestL2WithoutCaptureWritesNoFindings",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Run an L2 query with --capture and verify new findings rows are present with correct provenance linking to the L2 run",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/l2_test.go::TestRunL2CaptureWritesL2SourcedFinding",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "L3 research runs automatically build up the findings knowledge base without requiring operators to manually capture findings",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/e2e_findings_test.go::TestL3PromptEncodesAutoCaptureByDefault",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "L0/L1 paths remain stateless and do not accumulate data in the findings store",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/e2e_findings_test.go::TestL0AndL1PathsHaveNoFindingWritePath",
+          "status": "implemented",
           "type": "test"
         }
       ]

@@ -1,5 +1,5 @@
 {
-  "description": "Fetch top-N result pages via the browserless resource, extract readable text, and produce a single-pass cited synthesis, exposed as discrete API endpoints and agent tools.",
+  "description": "Fetch top-N result pages via the HTTP-first fetch stack (escalating per-URL to a browser-automation-studio capture), extract readable text, and produce a single-pass cited synthesis, exposed as discrete API endpoints and agent tools.",
   "module_id": "MOD-P1-009",
   "prd_ref": "OT-P1-001",
   "priority": "P1",
@@ -10,7 +10,7 @@
         "REQ-P0-001",
         "REQ-P0-007"
       ],
-      "description": "Fetch the top-N result page URLs from a prior L0 search via the browserless resource, extract readable body text (stripping navigation, ads, boilerplate), and produce a single-pass cited synthesis using the LLM over the extracted content. Expose this capability as discrete API endpoints and as agent tool definitions consumable by the L3 agent. Fetched page content must not be stored as findings (auto-capture is opt-in for L2).",
+      "description": "Fetch the top-N result page URLs from a prior L0 search via the L2 fetch stack (plain HTTP first, per-URL escalation to a browser-automation-studio capture for JS-shell pages), extract readable body text (stripping navigation, ads, boilerplate), and produce a single-pass cited synthesis using the LLM over the extracted content. Expose this capability as discrete API endpoints and as agent tool definitions consumable by the L3 agent. Fetched page content must not be stored as findings (auto-capture is opt-in for L2).",
       "id": "REQ-P1-001",
       "prd_ref": "OT-P1-001",
       "status": "draft",
@@ -19,22 +19,50 @@
         {
           "notes": "Text extraction strips known boilerplate patterns (nav, footer, cookie banners) from a set of HTML fixtures and returns only body content",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/extract_test.go::TestExtractReadableTextStripsBoilerplate",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Text extraction returns a non-empty string for at least 90% of real-world article HTML fixtures",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/extract_test.go::TestExtractReadableTextNonEmptyAcrossArticleFixtures",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Synthesis output from L2 contains inline citations referencing only URLs from the fetched page set (no hallucinated sources)",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/synthesizer_test.go::TestParseSynthesisReplyDropsOutOfRangeCitations",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "HTTP fetch leg: status/content-type gating, body-size capping, redirect following, and readable-text extraction pinned against a live httptest server",
+          "phase": "unit",
+          "ref": "api/internal/research/fetch/http_test.go::TestHTTPFetcherExtractsReadableText",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Escalation decision matrix: good HTTP content never escalates; HTTP failure or thin (JS-shell) content escalates to the browser leg; browser-leg failure degrades to the HTTP result; no browser leg means HTTP-only",
+          "phase": "unit",
+          "ref": "api/internal/research/fetch/escalate_test.go::TestEscalatingFetcherThinContentEscalates",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Browser escalation leg drives browser-automation-studio CaptureService.Capture with inline_dom=true (no artifact-path/filesystem coupling) and extracts readable text from the returned DOM",
+          "phase": "unit",
+          "ref": "api/internal/research/fetch/bas_test.go::TestBASFetcherExtractsReadableTextFromInlineDom",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "NON-HERMETIC live smoke: the production HTTP fetch leg retrieves a real public URL and extracts non-empty text (lesson from the 2026-06 browserless route-mismatch bug that seam tests could not catch); skip-guarded for offline/-short runs",
+          "phase": "integration",
+          "ref": "api/internal/research/fetch/live_smoke_test.go::TestLiveSmokeHTTPFetcher",
+          "status": "implemented",
           "type": "test"
         },
         {
@@ -45,38 +73,38 @@
           "type": "test"
         },
         {
-          "notes": "Issue an L2 request for a known query, verify browserless fetches exactly N pages, text extraction produces non-empty content for each, and synthesis output contains citations",
+          "notes": "Issue an L2 request for a known query, verify the fetch stack fetches exactly N pages, text extraction produces non-empty content for each, and synthesis output contains citations",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/l2_test.go::TestRunL2CitedOutput",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Verify fetched page content is NOT persisted as findings in the database when capture flag is absent (opt-out default for L2)",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/l2_test.go::TestRunL2NoCaptureByDefault",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "L2 fetch + extract + synthesize for top-5 pages must complete within 15 seconds at p95 under normal network conditions",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/l2_test.go::TestRunL2TopFiveWithinLatencyBudget",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "A developer or agent can invoke the L2 endpoint and receive a cited synthesis grounded in full page content, not just snippets",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/research/connect_handler_test.go::TestRunL2ProjectsBriefToProto",
+          "status": "implemented",
           "type": "test"
         },
         {
-          "notes": "L2 results are richer than L1 but incur higher latency — the tradeoff is documented in the API",
+          "notes": "L2 results are richer than L1 but incur higher latency \u2014 the tradeoff is documented in the API",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/research/connect_handler_test.go::TestL2EndpointDocumentsRichnessLatencyTradeoff",
+          "status": "implemented",
           "type": "test"
         }
       ]

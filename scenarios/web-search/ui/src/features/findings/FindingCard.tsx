@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { timestampDate } from "@bufbuild/protobuf/wkt";
 
 import { findingsClient } from "../../api/clients";
 import { Button } from "../../components/ui/button";
@@ -9,10 +10,38 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { errorMessage } from "../../lib/errorMessage";
 import { useTranslation } from "../../i18n";
+import { formatRelativeTime } from "../../i18n/format";
 import { FindingStatus, type Finding } from "@vrooli/proto-types/web-search/v1/findings/findings_pb";
 import { StatusBadge } from "./StatusBadge";
 
 type ActiveForm = "none" | "edit" | "supersede" | "flag";
+
+const AGE_UNITS: ReadonlyArray<readonly [Intl.RelativeTimeFormatUnit, number]> = [
+  ["year", 365 * 24 * 60 * 60 * 1000],
+  ["month", 30 * 24 * 60 * 60 * 1000],
+  ["day", 24 * 60 * 60 * 1000],
+  ["hour", 60 * 60 * 1000],
+  ["minute", 60 * 1000],
+];
+
+/**
+ * findingAge measures how old a finding is from its retrieval date (when the
+ * claim was last gathered), falling back to created_at — mirroring the
+ * server's `findings.Age`. The trust-freshness contract (OT-P1-006) requires
+ * the age to be displayed visibly alongside the decaying confidence. Returns
+ * null when the finding carries no usable stamp.
+ */
+function findingAge(finding: Finding): { anchor: Date; value: number; unit: Intl.RelativeTimeFormatUnit } | null {
+  const stamp = finding.retrievalDate ?? finding.createdAt;
+  if (!stamp) return null;
+  const anchor = timestampDate(stamp);
+  const elapsed = Date.now() - anchor.getTime();
+  if (elapsed < 0) return null;
+  for (const [unit, ms] of AGE_UNITS) {
+    if (elapsed >= ms) return { anchor, value: Math.floor(elapsed / ms), unit };
+  }
+  return { anchor, value: 0, unit: "minute" };
+}
 
 /**
  * FindingCard renders one finding and its management actions: inline edit
@@ -30,6 +59,7 @@ export function FindingCard({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<ActiveForm>("none");
+  const age = findingAge(finding);
 
   const invalidate = () => {
     setForm("none");
@@ -70,6 +100,15 @@ export function FindingCard({
       <p className="text-xs text-app-muted-foreground">
         {t(strings.findings.confidenceLabel, { value: finding.confidence.toFixed(2) })}
         {finding.query && <span className="ms-3">{t(strings.findings.queryLabel, { query: finding.query })}</span>}
+        {age && (
+          <span
+            className="ms-3"
+            data-testid={selectors.findings.age}
+            title={age.anchor.toISOString()}
+          >
+            {t(strings.findings.ageLabel, { age: formatRelativeTime(-age.value, age.unit) })}
+          </span>
+        )}
       </p>
 
       {finding.status === FindingStatus.DISPUTED && finding.disputeNote && (

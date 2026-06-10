@@ -12,10 +12,13 @@ import (
 // DefaultCacheTTL is the freshness window for a cached live-search result.
 const DefaultCacheTTL = 5 * time.Minute
 
-// cacheEntry is one stored result set with its expiry instant.
+// cacheEntry is one stored result set with its expiry instant. Engine
+// degradation rides the entry so a cached response honestly reports the
+// engines as they were at fetch time.
 type cacheEntry struct {
-	results   []Result
-	expiresAt time.Time
+	results      []Result
+	engineIssues []EngineIssue
+	expiresAt    time.Time
 }
 
 // Cache is an in-memory TTL cache keyed by the normalized query+limit. It is
@@ -52,30 +55,32 @@ func cacheKey(query string, limit int) string {
 	return fmt.Sprintf("%s\x00%d", strings.ToLower(strings.TrimSpace(query)), limit)
 }
 
-// Get returns the cached results for query+limit when a non-expired entry
-// exists. ok=false on a miss or an expired entry (which is evicted).
-func (c *Cache) Get(query string, limit int) (results []Result, ok bool) {
+// Get returns the cached results (and the engine issues recorded with them)
+// for query+limit when a non-expired entry exists. ok=false on a miss or an
+// expired entry (which is evicted).
+func (c *Cache) Get(query string, limit int) (results []Result, engineIssues []EngineIssue, ok bool) {
 	key := cacheKey(query, limit)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	entry, found := c.entries[key]
 	if !found {
-		return nil, false
+		return nil, nil, false
 	}
 	if !c.clock.Now().Before(entry.expiresAt) {
 		delete(c.entries, key)
-		return nil, false
+		return nil, nil, false
 	}
-	return entry.results, true
+	return entry.results, entry.engineIssues, true
 }
 
 // Put stores results for query+limit with a fresh TTL measured from now.
-func (c *Cache) Put(query string, limit int, results []Result) {
+func (c *Cache) Put(query string, limit int, results []Result, engineIssues []EngineIssue) {
 	key := cacheKey(query, limit)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.entries[key] = cacheEntry{
-		results:   results,
-		expiresAt: c.clock.Now().Add(c.ttl),
+		results:      results,
+		engineIssues: engineIssues,
+		expiresAt:    c.clock.Now().Add(c.ttl),
 	}
 }

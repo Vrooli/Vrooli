@@ -9,7 +9,7 @@
       "title": "All live leaves registered",
       "prd_ref": "OT-P1-003",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "The eight live leaves (plus KO docs when ready) are registered with valid descriptors and ResultMappings per Appendix A.5 of the plan; each registers without modifying its owning scenario's existing search.",
       "validation": [
         { "type": "test", "phase": "integration", "status": "pending", "notes": "ListProviders returns all live leaves with ACTIVE state and valid mappings." },

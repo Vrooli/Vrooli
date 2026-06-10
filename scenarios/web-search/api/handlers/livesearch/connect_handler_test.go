@@ -15,11 +15,12 @@ import (
 
 // fakeClient is a SearxngClient seam for the handler test.
 type fakeClient struct {
-	results []internallivesearch.RawResult
+	results      []internallivesearch.RawResult
+	engineIssues []internallivesearch.EngineIssue
 }
 
-func (f *fakeClient) Search(_ context.Context, _ string, _ int) ([]internallivesearch.RawResult, error) {
-	return f.results, nil
+func (f *fakeClient) Search(_ context.Context, _ string, _ int) (internallivesearch.SearchPage, error) {
+	return internallivesearch.SearchPage{Results: f.results, UnresponsiveEngines: f.engineIssues}, nil
 }
 
 // fakeSynthesizer returns a canned synthesis.
@@ -71,6 +72,33 @@ func TestSearchSurfacesCitedSynthesis(t *testing.T) {
 	require.Equal(t, "Anthropic makes Claude.", resp.Msg.Synthesis.Text)
 	require.Len(t, resp.Msg.Synthesis.Citations, 1)
 	require.Equal(t, int32(0), resp.Msg.Synthesis.Citations[0].ResultIndex)
+	// The synthesis is ADDITIVE: the raw hits ride in the same envelope, in a
+	// separate field, never displaced by the optional answer.
+	require.Len(t, resp.Msg.Results, 1, "raw hits must accompany the synthesis in the same response envelope")
+	require.Equal(t, "https://anthropic.com", resp.Msg.Results[0].Url)
+}
+
+// TestSearchSurfacesAbstainSignal pins the conflict contract at the wire: when
+// the synthesizer abstains (conflicting/thin sources), the client receives an
+// EXPLICIT abstained=true signal — never a misleading answer — while the raw
+// hits remain available for the user to judge themselves.
+func TestSearchSurfacesAbstainSignal(t *testing.T) {
+	client := &fakeClient{results: []internallivesearch.RawResult{
+		{URL: "https://a.com", Title: "A", Content: "Claude is made by Anthropic."},
+		{URL: "https://b.com", Title: "B", Content: "Claude is made by OpenAI."},
+	}}
+	syn := &fakeSynthesizer{out: &internallivesearch.Synthesis{
+		Text:      "sources insufficient or disagree",
+		Abstained: true,
+	}}
+	h := handler.NewConnectHandler(*newHandler(client, syn))
+
+	resp, err := h.Search(context.Background(), connect.NewRequest(&livesearchv1.SearchRequest{Query: "who makes claude", Synthesize: true}))
+	require.NoError(t, err)
+	require.NotNil(t, resp.Msg.Synthesis)
+	require.True(t, resp.Msg.Synthesis.Abstained, "conflicting sources must surface an explicit abstain signal")
+	require.Empty(t, resp.Msg.Synthesis.Citations)
+	require.Len(t, resp.Msg.Results, 2, "raw hits still flow when synthesis abstains")
 }
 
 func TestSearchDegradedOnBudgetExhaustion(t *testing.T) {

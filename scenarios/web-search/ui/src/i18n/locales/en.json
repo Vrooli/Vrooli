@@ -82,6 +82,7 @@
     "resultEngine": "via {{engine}}",
     "openResult": "Open result in a new tab",
     "degraded": "Live search degraded: {{reason}}",
+    "engineWarning": "{{count}} search engine(s) unavailable ({{engines}}) — results may be partial.",
     "synthesisHeading": "Synthesized answer",
     "synthesisAbstained": "The sources were insufficient or in conflict, so no answer was synthesized.",
     "synthesisCitations": "Sources"
@@ -133,6 +134,7 @@
     "citationsLabel": "Citations",
     "disputeNoteLabel": "Dispute note: {{note}}",
     "supersededByLabel": "Superseded by {{id}}",
+    "ageLabel": "Retrieved {{age}}",
     "addHeading": "Add a finding",
     "addClaimLabel": "Claim",
     "addClaimPlaceholder": "The claim this finding asserts…",
@@ -196,7 +198,12 @@
     "reasonPlaceholder": "Reason for the resolution",
     "resolveSubmit": "Apply resolution",
     "cancel": "Cancel",
-    "resolveError": "Could not resolve: {{message}}"
+    "resolveError": "Could not resolve: {{message}}",
+    "dismissAction": "Dismiss",
+    "dismissError": "Could not dismiss: {{message}}",
+    "reresearchAction": "Re-research",
+    "reresearchStarted": "L3 run started: {{runId}}",
+    "reresearchError": "Could not start re-research: {{message}}"
   },
   "notifications": {
     "summary": "{{count}} notifications",

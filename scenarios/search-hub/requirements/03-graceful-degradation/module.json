@@ -9,7 +9,7 @@
       "title": "Down/stale provider never fails the query",
       "prd_ref": "OT-P0-003",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "When a provider is unreachable or reports stale freshness, its ProviderResultGroup is marked degraded with a human note (e.g. \"unreachable — skipped\" / \"last sync 3h ago\") and the query still returns successfully with the remaining providers' results.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "An unreachable provider yields a degraded group + note; the response degraded flag is set; other providers' hits are present." },

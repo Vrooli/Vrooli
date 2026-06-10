@@ -81,6 +81,7 @@
     "resultEngine": "{{engine}} 経由",
     "openResult": "結果を新しいタブで開く",
     "degraded": "ライブ検索が劣化しました: {{reason}}",
+    "engineWarning": "{{count}} 件の検索エンジンが応答していません（{{engines}}）— 結果が不完全な可能性があります。",
     "synthesisHeading": "合成された回答",
     "synthesisAbstained": "ソースが不十分か矛盾していたため、回答は合成されませんでした。",
     "synthesisCitations": "ソース"
@@ -132,6 +133,7 @@
     "citationsLabel": "引用",
     "disputeNoteLabel": "係争メモ: {{note}}",
     "supersededByLabel": "{{id}} により置換",
+    "ageLabel": "取得: {{age}}",
     "addHeading": "発見事項を追加",
     "addClaimLabel": "主張",
     "addClaimPlaceholder": "この発見事項が主張する内容…",
@@ -191,7 +193,12 @@
     "reasonPlaceholder": "解決の理由",
     "resolveSubmit": "解決を適用",
     "cancel": "キャンセル",
-    "resolveError": "解決できませんでした: {{message}}"
+    "resolveError": "解決できませんでした: {{message}}",
+    "dismissAction": "却下",
+    "dismissError": "却下できませんでした: {{message}}",
+    "reresearchAction": "再調査",
+    "reresearchStarted": "L3 実行を開始しました: {{runId}}",
+    "reresearchError": "再調査を開始できませんでした: {{message}}"
   },
   "notifications": {
     "summary": "{{count}} 件の通知"

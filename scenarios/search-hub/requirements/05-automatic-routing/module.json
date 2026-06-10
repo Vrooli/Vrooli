@@ -9,7 +9,7 @@
       "title": "Description-driven classification",
       "prd_ref": "OT-P0-005",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "The classifier ranks provider types using only the registry's NL descriptions and the query — no provider-specific routing code. It is swappable behind a Classifier interface.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "Against testdata/routing_queries.json (query -> expected types), routing recall >= 0.85; precision reported." },
@@ -21,7 +21,7 @@
       "title": "Widen-on-uncertainty + override",
       "prd_ref": "OT-P0-005",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "When the classifier is uncertain it widens (more provider types) rather than dropping; explicit --type/--all always override the classifier; --explain returns the routing rationale.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "An ambiguous query routes to a wider set, not an empty/narrow set." },

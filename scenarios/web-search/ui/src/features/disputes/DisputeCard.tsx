@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { findingsClient } from "../../api/clients";
+import { findingsClient, researchClient } from "../../api/clients";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
@@ -15,11 +15,22 @@ import { StatusBadge } from "../findings/StatusBadge";
 type Resolution = "keep" | "supersede";
 
 /**
+ * Audit reason recorded server-side when a dispute is dismissed from the
+ * review queue. Dismiss is modeled as resolution "keep" — the server clears
+ * the dispute and returns the finding to ACTIVE; there is no separate
+ * "dismissed" status by design. Server-bound, not user-facing copy.
+ */
+const DISMISS_REASON = "dismissed from review queue";
+
+/**
  * DisputeCard renders one DISPUTED finding as a conflict card: the contested
- * claim, its dispute note (why sources conflict), its citations, and a resolve
- * action. Resolution "keep" returns the finding to ACTIVE; "supersede" retires
- * it in favor of a replacement id. Both write an audit row server-side and
- * invalidate the queue so the card disappears once resolved.
+ * claim, its dispute note (why sources conflict), its citations, and the
+ * resolution controls. Resolve: "keep" returns the finding to ACTIVE,
+ * "supersede" retires it in favor of a replacement id — both write an audit
+ * row server-side and invalidate the queue so the card disappears once
+ * resolved. Dismiss is a one-click "keep" with a canned audit reason.
+ * Re-research spawns an L3 agent run for the disputed claim via
+ * ResearchService.RunL3 and surfaces the returned run id inline.
  */
 export function DisputeCard({ finding, queueKey }: { finding: Finding; queueKey: readonly unknown[] }) {
   const { t } = useTranslation();
@@ -41,6 +52,23 @@ export function DisputeCard({ finding, queueKey }: { finding: Finding; queueKey:
       setOpen(false);
       void queryClient.invalidateQueries({ queryKey: queueKey });
     },
+  });
+
+  const dismissMutation = useMutation({
+    mutationFn: async () =>
+      findingsClient.resolveDispute({
+        id: finding.id,
+        resolution: "keep",
+        replacement: "",
+        reason: DISMISS_REASON,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queueKey });
+    },
+  });
+
+  const reresearchMutation = useMutation({
+    mutationFn: async () => researchClient.runL3({ query: finding.claim }),
   });
 
   return (
@@ -78,7 +106,7 @@ export function DisputeCard({ finding, queueKey }: { finding: Finding; queueKey:
       )}
 
       {!open && (
-        <div className="mt-1">
+        <div className="mt-1 flex flex-wrap items-center gap-2">
           <Button
             data-testid={selectors.disputes.resolveButton}
             variant="outline"
@@ -87,7 +115,45 @@ export function DisputeCard({ finding, queueKey }: { finding: Finding; queueKey:
           >
             {t(strings.disputes.resolveAction)}
           </Button>
+          <Button
+            data-testid={selectors.disputes.reresearchButton}
+            variant="outline"
+            size="sm"
+            className="border-app-primary/50 text-app-primary hover:bg-app-primary/10"
+            disabled={reresearchMutation.isPending}
+            onClick={() => reresearchMutation.mutate()}
+          >
+            {t(strings.disputes.reresearchAction)}
+          </Button>
+          <Button
+            data-testid={selectors.disputes.dismissButton}
+            variant="outline"
+            size="sm"
+            className="border-transparent text-app-muted-foreground hover:bg-app-surface-muted"
+            disabled={dismissMutation.isPending}
+            onClick={() => dismissMutation.mutate()}
+          >
+            {t(strings.disputes.dismissAction)}
+          </Button>
         </div>
+      )}
+
+      {dismissMutation.error != null && (
+        <p data-testid={selectors.disputes.dismissError} className="text-xs text-app-danger">
+          {t(strings.disputes.dismissError, { message: errorMessage(dismissMutation.error, t) })}
+        </p>
+      )}
+
+      {reresearchMutation.data != null && (
+        <p data-testid={selectors.disputes.reresearchStatus} className="text-xs text-app-muted-foreground">
+          {t(strings.disputes.reresearchStarted, { runId: reresearchMutation.data.runId })}
+        </p>
+      )}
+
+      {reresearchMutation.error != null && (
+        <p data-testid={selectors.disputes.reresearchError} className="text-xs text-app-danger">
+          {t(strings.disputes.reresearchError, { message: errorMessage(reresearchMutation.error, t) })}
+        </p>
       )}
 
       {open && (
@@ -149,7 +215,10 @@ export function DisputeCard({ finding, queueKey }: { finding: Finding; queueKey:
               data-testid={selectors.disputes.resolveSubmit}
               type="submit"
               size="sm"
-              disabled={resolveMutation.isPending}
+              disabled={
+                resolveMutation.isPending ||
+                (resolution === "supersede" && replacement.trim() === "")
+              }
             >
               {t(strings.disputes.resolveSubmit)}
             </Button>

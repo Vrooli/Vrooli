@@ -37,6 +37,21 @@ func TestEffectiveConfidenceFallsBackToCreatedAt(t *testing.T) {
 	require.InDelta(t, 0.5, findings.EffectiveConfidence(f, now), 1e-6)
 }
 
+// TestEffectiveConfidenceNeverNegative asserts decay can never push the
+// effective confidence below zero, even at extreme ages or with a corrupt
+// (negative) stored confidence: the result is always clamped into [0,1].
+func TestEffectiveConfidenceNeverNegative(t *testing.T) {
+	now := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+
+	ancient := findings.Finding{Confidence: 1.0, RetrievalDate: now.Add(-100 * findings.DecayHalfLife)}
+	got := findings.EffectiveConfidence(ancient, now)
+	require.GreaterOrEqual(t, got, 0.0)
+	require.LessOrEqual(t, got, 1.0)
+
+	corrupt := findings.Finding{Confidence: -0.5, RetrievalDate: now.Add(-findings.DecayHalfLife)}
+	require.GreaterOrEqual(t, findings.EffectiveConfidence(corrupt, now), 0.0)
+}
+
 func TestEffectiveConfidenceZeroAndFutureStamps(t *testing.T) {
 	now := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 

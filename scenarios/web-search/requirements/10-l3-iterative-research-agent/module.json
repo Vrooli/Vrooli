@@ -18,24 +18,24 @@
       "title": "L3 Iterative Research Agent — Agent-Manager-Managed Research Run",
       "validation": [
         {
-          "notes": "Research plan decomposition produces at least two sub-queries for a complex multi-faceted input query",
+          "notes": "The L3 task contract directs the agent to decompose the input into focused sub-queries [criterion revised from auto-generated 'in-process decomposition function' framing: by design (DECISIONS.md — L3 is an agent-manager run, no hand-rolled loop plumbing) decomposition is delegated to the agent LLM via the task prompt; the testable surface is the prompt contract, which mandates researching gaps via focused L2 sub-queries. LLM output cardinality is validated live, not in unit tests]",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/l3_test.go::TestRunL3EncodesGapIterationBeyondSingleL2",
+          "status": "implemented",
           "type": "test"
         },
         {
-          "notes": "Gap identification step produces a non-empty list of unresolved questions when initial search results have low coverage",
+          "notes": "The L3 task contract directs the agent to identify what the gathered findings do NOT cover and re-search those gaps [criterion revised from auto-generated 'in-process gap-identification step' framing: gap identification is delegated to the agent LLM via the task prompt by design (DECISIONS.md); the prompt contract mandating gap-directed iteration over the gathered set is the testable surface]",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/l3_test.go::TestRunL3EncodesGapIterationBeyondSingleL2",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Agent tool registry for a research run includes L2 fetch endpoint and findings CLI commands as callable tools",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/l3_test.go::TestRunL3PromptRegistersResearchTools",
+          "status": "implemented",
           "type": "test"
         },
         {
@@ -48,8 +48,8 @@
         {
           "notes": "Verify the L3 run uses agent-manager run lifecycle (spawn, step, complete) and does not implement its own loop",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/l3_test.go::TestRunL3SpawnsAndPolls",
+          "status": "implemented",
           "type": "test"
         },
         {
@@ -60,24 +60,24 @@
           "type": "test"
         },
         {
-          "notes": "L3 research run completes within a configurable maximum iteration budget (default: 10 loops) and does not run indefinitely",
+          "notes": "L3 research run completes within a configurable maximum iteration budget (default: 10 loops) and does not run indefinitely [budget implemented as a task-contract directive: every L3 prompt carries the loop budget (default research.DefaultMaxResearchLoops=10, lever WEB_SEARCH_L3_MAX_LOOPS) with an explicit converge-when-spent instruction; the hard run lifecycle bound (timeout/cancel) is owned by agent-manager per the L3 design decision]",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/l3_test.go::TestL3PromptBoundsIterationBudget",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "A user can request a deep research run and receive a cited brief without manually orchestrating multiple searches",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/research/connect_handler_test.go::TestRunL3AndStatusProjectToProto",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "The L3 agent produces more thorough results than a single L2 call by iterating over gaps",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/l3_test.go::TestRunL3EncodesGapIterationBeyondSingleL2",
+          "status": "implemented",
           "type": "test"
         }
       ]

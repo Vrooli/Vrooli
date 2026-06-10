@@ -71,6 +71,47 @@ What landed (web-search-scenario-completion plan):
 
 Per-phase detail + the substantive decisions are in execute record `rec-9f2610c3a99e6c33`.
 
+### 2026-06-10 — Completion & close-out pass (traceability + standards gate + control surface)
+
+Drove the scenario from "code complete" to verifiably complete:
+
+- **Requirements traceability**: 180/188 validation entries wired to real, read-and-verified
+  tests (`pkg/file_test.go::TestName` refs; UI entries ref test files); 12/18 modules
+  `complete`. ~30 new tests written across api (findings schema/CRUD/audit, findingindex
+  first-ever tests, livesearch cache/governor/dedup, research budgets/cycles, searchreg
+  descriptors/registration), cli (findings lifecycle over a real Connect transport), and
+  ui (SnippetCard, SearchPage flow, dispute controls, age display). 8 entries left
+  honestly `pending` — see PROBLEMS.md 2026-06-10 entry (live-run dependencies +
+  cross-scenario gaps; 3 bugs filed).
+- **Standards gate GREEN at source**: doer.go comment FP + `defaultWindowToken` rename
+  (BOTH web-search and `templates/scenarios/react-vite`), rows-Close ownership realigned
+  to call sites, shared bounds-clamped `cliutil.ParseInt32` replacing 4 gosec G109/G115
+  copies. Re-scan highest severity CRITICAL→medium; `--phases standards` PASSES. Zero
+  suppressions.
+- **Small in-target features closed during wiring**: URL dedup in L0 normalization
+  (REQ-P0-001), edit-superseded guard at the repository seam (REQ-P0-006), dispute-queue
+  dismiss/re-research/resolve-guard controls (OT-P1-007, UI-side over existing RPCs),
+  visible human-readable finding age (OT-P1-006), L3 iteration budget in the task
+  contract (REQ-P1-002).
+- **Control surface**: six boot-time `WEB_SEARCH_*` levers (`api/tuning.go`) — confidence
+  gate / decay half-life / gather cap / L3 max loops / governor capacity / cache TTL —
+  documented in `docs/reference/configuration.md`; findings-export decision recorded
+  (DEFERRED) in DECISIONS.md + DATA.md seam.
+- **search-hub OT-P2-002 verified whole**: full suite green, thin-router invariant
+  intact, auto-route default-OFF, live two-query scope check re-verified (default
+  withholds `web-search.live`; explicit `--type web` returns hits), GCT diff exit 0.
+- **Security + measures phases also fixed** (surfaced by the full suite, beyond the
+  plan's standards scope): gosec G109 in the new `cliutil.ParseInt32` resolved by the
+  provably range-safe `strconv.ParseInt(s, 10, 32)` form (ErrRange returns the clamped
+  value — exact clamp semantics preserved, tests unchanged); 2× gitleaks generic-api-key
+  FPs on the gitignored generated `.build-fingerprint.json` (hash entries for
+  `client.go` files) allowlisted by path in a new scenario-local `.gitleaks.toml`;
+  measures `findings.count` "malformed declaration" root-caused to web-search's
+  FindingsService MISSING from the proto descriptor image — fixed by
+  `make descriptor` in `packages/proto` (+ measures-health restart: the service caches
+  the image at boot). End state: `test-genie execute web-search` ALL 18 phases green;
+  orient 8/8 incl. scaffold-health; GCT diff "no regressions (1 cleared: standards)".
+
 ## Entry Template
 
 Use this table shape when appending entries.

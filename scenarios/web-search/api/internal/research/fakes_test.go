@@ -3,29 +3,31 @@ package research_test
 import (
 	"context"
 
+	"web-search/internal/livesearch"
 	"web-search/internal/research"
 	"web-search/internal/research/agentmanager"
 )
 
 // fakeSearcher returns canned candidates and records the requested topN.
 type fakeSearcher struct {
-	candidates []research.Candidate
-	err        error
-	gotTopN    int
-	gotQuery   string
+	candidates      []research.Candidate
+	degradedEngines []livesearch.EngineIssue
+	err             error
+	gotTopN         int
+	gotQuery        string
 }
 
-func (f *fakeSearcher) Candidates(_ context.Context, query string, topN int) ([]research.Candidate, error) {
+func (f *fakeSearcher) Candidates(_ context.Context, query string, topN int) (research.CandidateSet, error) {
 	f.gotQuery = query
 	f.gotTopN = topN
 	if f.err != nil {
-		return nil, f.err
+		return research.CandidateSet{}, f.err
 	}
 	out := f.candidates
 	if topN > 0 && len(out) > topN {
 		out = out[:topN]
 	}
-	return out, nil
+	return research.CandidateSet{Candidates: out, DegradedEngines: f.degradedEngines}, nil
 }
 
 // fakeFetcher returns canned text per URL; URLs not in the map return failErr

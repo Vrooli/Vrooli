@@ -9,7 +9,7 @@
       "title": "Human-friendly query output",
       "prd_ref": "OT-P0-004",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "Default CLI query output lists which corpora were searched, the count per corpus, expansion hints, and provenance on each hit. Degraded providers are called out.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "Rendered output contains corpora-searched list, per-corpus counts, expansion hints, and per-hit provenance." }
@@ -20,7 +20,7 @@
       "title": "Stable --json shape",
       "prd_ref": "OT-P0-004",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "query --json emits a stable, documented JSON structure (groups, ranked, corpora_searched, degraded, latency_ms) suitable for scripting and downstream agents.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "--json output validates against the documented schema and round-trips the same hits as the human view." }

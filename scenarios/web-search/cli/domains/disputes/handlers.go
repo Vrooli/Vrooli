@@ -3,7 +3,6 @@ package disputes
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +11,8 @@ import (
 	findingsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/findings/findings_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+
+	"web-search/cli/internal/cliutil"
 )
 
 type handlers struct {
@@ -31,7 +32,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 // lifecycle state — the review queue's read side.
 func (h *handlers) list(ctx cliapp.RunContext) error {
 	resp, err := h.client.ListDisputes(context.Background(), connect.NewRequest(&findingsv1.ListDisputesRequest{
-		Limit: parseInt32(ctx.Flag("limit")),
+		Limit: cliutil.ParseInt32(ctx.Flag("limit")),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("list disputed findings", err, nil)
@@ -72,14 +73,6 @@ func (h *handlers) resolve(ctx cliapp.RunContext) error {
 		Result:  []string{fmt.Sprintf("Resolved dispute on finding %s (now %s).", resp.Msg.Finding.Id, resp.Msg.Finding.Status.String())},
 		Changes: []string{formatFinding(resp.Msg.Finding)},
 	})
-}
-
-func parseInt32(s string) int32 {
-	n, err := strconv.Atoi(strings.TrimSpace(s))
-	if err != nil {
-		return 0
-	}
-	return int32(n)
 }
 
 func formatFinding(f *findingsv1.Finding) string {

@@ -34,6 +34,7 @@ import (
 	internallivesearch "web-search/internal/livesearch"
 	internalresearch "web-search/internal/research"
 	researchagent "web-search/internal/research/agentmanager"
+	researchfetch "web-search/internal/research/fetch"
 )
 
 // findingsProviderID is the search-hub provider id whose tuning block in
@@ -130,6 +131,16 @@ func main() {
 
 	logger := log.Default()
 
+	// Boot-time control surface (docs/reference/configuration.md):
+	// WEB_SEARCH_-prefixed levers, each zero when unset so the compiled
+	// defaults in the owning packages stay the SSOT. The decay half-life is
+	// applied before any service is constructed so the GC min-age default
+	// derives from the effective value.
+	tuning := tuningFromEnv()
+	if tuning.DecayHalfLife > 0 {
+		internalfindings.SetDecayHalfLife(tuning.DecayHalfLife)
+	}
+
 	// AI search wiring for the findings knowledge store. The scenario-owned
 	// .vrooli/search.json is the SSOT for the search tuning (engine shape, embed
 	// recipe, rerank policy, floor band); the shared aisearch-go engine provides
@@ -194,24 +205,27 @@ func main() {
 	liveClock := clock.System{}
 	liveService := internallivesearch.NewService(internallivesearch.Deps{
 		Client:      internallivesearch.NewHTTPSearxngClient(os.Getenv("SEARXNG_URL"), nil),
-		Cache:       internallivesearch.NewCache(internallivesearch.DefaultCacheTTL, liveClock),
-		Governor:    internallivesearch.NewGovernor(internallivesearch.DefaultGovernorCapacity, internallivesearch.DefaultGovernorWindow, liveClock),
+		Cache:       internallivesearch.NewCache(tuning.CacheTTL, liveClock),
+		Governor:    internallivesearch.NewGovernor(tuning.GovernorCapacity, internallivesearch.DefaultGovernorWindow, liveClock),
 		Synthesizer: internallivesearch.NewOllamaSynthesizer(os.Getenv("OLLAMA_URL"), os.Getenv("OLLAMA_SYNTHESIS_MODEL"), nil),
 		Logger:      logger,
 	})
 
 	// L2/L3 deep research. L2 reuses the live-search service for candidate URLs,
-	// the browserless resource for full-page fetch + readable-text extraction,
-	// and an Ollama chat model for the single-pass cited synthesis. L3 hands the
-	// iterative research-and-reconcile loop to an agent-manager run. Every seam is
-	// constructed from env with graceful defaults; all are best-effort, so the API
-	// still serves when browserless/agent-manager are down (L2 abstains, L3
-	// surfaces Unavailable). Capture (L3 always, L2 opt-in) writes to the same
-	// findings store, attributed to the "agent" actor.
+	// the HTTP-first fetch stack (with per-URL escalation to a
+	// browser-automation-studio capture for JS-shell pages) for full-page
+	// readable text, and an Ollama chat model for the single-pass cited
+	// synthesis. L3 hands the iterative research-and-reconcile loop to an
+	// agent-manager run. Every seam is constructed from env with graceful
+	// defaults; all are best-effort, so the API still serves when
+	// browser-automation-studio/agent-manager are down (L2 degrades to
+	// HTTP-only fetch and abstains only if every page fails, L3 surfaces
+	// Unavailable). Capture (L3 always, L2 opt-in) writes to the same findings
+	// store, attributed to the "agent" actor.
 	researchFindings := internalfindings.NewServiceWithActor(internalfindings.NewSQLiteRepository(db, clock.System{}), "agent")
 	researchService := internalresearch.NewService(internalresearch.Deps{
 		Searcher:    internalresearch.LiveSearcher{Service: liveService},
-		Fetcher:     internalresearch.NewBrowserlessFetcher(os.Getenv("BROWSERLESS_URL"), nil),
+		Fetcher:     newL2Fetcher(tuning, logger),
 		Synthesizer: internalresearch.NewOllamaSynthesizer(os.Getenv("OLLAMA_URL"), os.Getenv("OLLAMA_SYNTHESIS_MODEL"), nil),
 		Findings:    researchFindings,
 		// Bounded GATHER (OT-P1-003): the semantic findings index supplies nearby
@@ -223,6 +237,10 @@ func main() {
 		},
 		AgentManager: researchagent.NewService(researchagent.NewHTTPClient()),
 		Logger:       logger,
+
+		ConfidenceGate:   tuning.ConfidenceGate,
+		GatherCap:        tuning.GatherCap,
+		MaxResearchLoops: tuning.MaxResearchLoops,
 	})
 
 	// Usage telemetry (OT-P2-001): the async surfacing recorder counts which
@@ -320,6 +338,25 @@ func runGCLoop(ctx context.Context, gc *internalfindings.GCService, interval tim
 			logger.Printf("[web-search] periodic GC: superseded=%d cold-archive=%d stale-disputes=%d orphans=%d",
 				len(report.SupersededDecayed), len(report.ColdArchiveCandidates), len(report.StaleDisputes), len(report.Orphans))
 		}
+	}
+}
+
+// newL2Fetcher assembles the L2 fetch stack: a plain HTTP leg first, with
+// per-URL escalation to a browser-automation-studio capture (the greenfield
+// replacement for the deleted browserless coupling — browser rendering goes
+// through the BAS scenario only). Escalation is default-ON and degrades
+// gracefully to HTTP-only when BAS is unreachable;
+// WEB_SEARCH_BROWSER_ESCALATION=off removes the browser leg entirely.
+func newL2Fetcher(tuning Tuning, logger *log.Logger) internalresearch.Fetcher {
+	var browserLeg researchfetch.Fetcher
+	if !tuning.BrowserEscalationOff {
+		browserLeg = researchfetch.NewBASFetcher()
+	}
+	return &researchfetch.EscalatingFetcher{
+		HTTP:             researchfetch.NewHTTPFetcher(tuning.FetchTimeout, int64(tuning.FetchMaxBytes)),
+		Browser:          browserLeg,
+		MinReadableChars: tuning.MinReadableChars,
+		Logger:           logger,
 	}
 }
 

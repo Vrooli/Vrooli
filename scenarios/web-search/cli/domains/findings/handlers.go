@@ -13,9 +13,11 @@ import (
 	findingsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/findings/findings_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+
+	"web-search/cli/internal/cliutil"
 )
 
-const defaultWindowToken = "this_week"
+const defaultTimeWindow = "this_week"
 
 type handlers struct {
 	core   *cliapp.ScenarioApp
@@ -38,7 +40,7 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	resp, err := h.client.ListFindings(context.Background(), connect.NewRequest(&findingsv1.ListFindingsRequest{
 		Status:          status,
 		IncludeArchived: ctx.BoolFlag("include-archived"),
-		Limit:           parseInt32(ctx.Flag("limit")),
+		Limit:           cliutil.ParseInt32(ctx.Flag("limit")),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("list findings", err, nil)
@@ -182,7 +184,7 @@ func (h *handlers) search(ctx cliapp.RunContext) error {
 	query := ctx.Positional("query")
 	resp, err := h.client.SearchFindings(context.Background(), connect.NewRequest(&findingsv1.SearchFindingsRequest{
 		Query:           query,
-		Limit:           parseInt32(ctx.Flag("limit")),
+		Limit:           cliutil.ParseInt32(ctx.Flag("limit")),
 		IncludeArchived: ctx.BoolFlag("include-archived"),
 	}))
 	if err != nil {
@@ -205,7 +207,7 @@ func (h *handlers) search(ctx cliapp.RunContext) error {
 func (h *handlers) count(ctx cliapp.RunContext) error {
 	window := strings.TrimSpace(ctx.Flag("window"))
 	if window == "" {
-		window = defaultWindowToken
+		window = defaultTimeWindow
 	}
 	token, err := timeWindowToken(window)
 	if err != nil {
@@ -229,7 +231,7 @@ func (h *handlers) count(ctx cliapp.RunContext) error {
 
 func (h *handlers) effectiveness(ctx cliapp.RunContext) error {
 	resp, err := h.client.ListEffectiveness(context.Background(), connect.NewRequest(&findingsv1.ListEffectivenessRequest{
-		Limit:           parseInt32(ctx.Flag("limit")),
+		Limit:           cliutil.ParseInt32(ctx.Flag("limit")),
 		IncludeDisputed: ctx.BoolFlag("include-disputed"),
 	}))
 	if err != nil {
@@ -319,14 +321,6 @@ func formatEffectiveness(it *findingsv1.FindingEffectiveness) string {
 	return fmt.Sprintf("%s — %s [surfaced=%d used=%d last_surfaced=%s eff_conf=%.2f usage_factor=%.2f score=%.3f]",
 		it.Finding.Id, it.Finding.Claim, it.SurfacedCount, it.UsedCount, last,
 		it.EffectiveConfidence, it.UsageFactor, it.EffectiveScore)
-}
-
-func parseInt32(s string) int32 {
-	n, err := strconv.Atoi(strings.TrimSpace(s))
-	if err != nil {
-		return 0
-	}
-	return int32(n)
 }
 
 func parseFloat(s string) float64 {

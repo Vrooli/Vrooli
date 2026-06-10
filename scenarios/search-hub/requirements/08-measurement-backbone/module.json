@@ -9,7 +9,7 @@
       "title": "Per-query telemetry row",
       "prd_ref": "OT-P1-002",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "Each query writes a telemetry row (query hashed/opt-in, classified types, providers hit, per-provider counts, latency_ms, zero-result flag). No corpus content is stored.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "A query produces one telemetry row with providers-hit, counts, and latency." }
@@ -20,7 +20,7 @@
       "title": "Insights aggregates",
       "prd_ref": "OT-P1-002",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "Status/insights compute per-provider utilization, under-utilized providers, zero-result rate, and p50/p95 latency from the telemetry table.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "Under-utilized and zero-result aggregates compute correctly over seeded telemetry." }

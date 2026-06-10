@@ -106,11 +106,14 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
-	// Register the eval suites search-hub ships (idempotent upsert by suite_id)
-	// so a fresh boot has the baseline suites and their run history is populated
-	// as soon as a suite is run. Provider descriptors are still operator/CLI
-	// registered (a suite only references a provider_id; the runner resolves it
-	// at run time).
+	// Register the SHRINKING set of starter eval suites search-hub still ships
+	// (idempotent upsert by suite_id) for the one provider that has not yet
+	// adopted corpus self-registration (swarm-manager.records). Adopted providers
+	// (cli-health, knowledge-observatory, ui-health) self-register both their
+	// descriptor AND their tests corpus from their own .vrooli/search.json at
+	// boot, so they need no seed here; a suite only references a provider_id and
+	// the runner resolves it at run time. When swarm-manager adopts, this call and
+	// the eval/seeds mechanism are deleted. See internal/eval/seeds.go.
 	if err := eval.RegisterSeeds(context.Background(), eval.NewSQLiteStore(db, clock.System{})); err != nil {
 		log.Fatalf("eval seed registration failed: %v", err)
 	}

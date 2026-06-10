@@ -5,6 +5,7 @@ import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { create } from "@bufbuild/protobuf";
+import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import {
   FindingSchema,
   FindingSource,
@@ -21,6 +22,9 @@ vi.mock("../../api/clients", () => ({
 }));
 
 import { findingsClient } from "../../api/clients";
+import { setLocale } from "../../i18n";
+import { interp } from "../../test-utils";
+import en from "../../i18n/locales/en.json";
 import { FindingCard } from "./FindingCard";
 
 const baseFinding = create(FindingSchema, {
@@ -130,5 +134,28 @@ describe("FindingCard", () => {
     expect(screen.getByTestId(selectors.findings.statusBadge)).toHaveTextContent(
       strings.findings.statusActive,
     );
+  });
+
+  it("displays a human-readable age measured from the retrieval date (OT-P1-006)", async () => {
+    // Real English so the interpolated relative-time string is visible
+    // (cimode renders the bare key path without interpolation).
+    await setLocale("en");
+    const retrieved = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const aged = create(FindingSchema, {
+      ...baseFinding,
+      retrievalDate: timestampFromDate(retrieved),
+    });
+
+    renderWithProviders(<FindingCard finding={aged} findingsKey={findingsKey} />);
+
+    const age = screen.getByTestId(selectors.findings.age);
+    expect(age).toHaveTextContent(interp(en.findings.ageLabel, { age: "3 months ago" }));
+    // The precise stamp stays inspectable via the tooltip.
+    expect(age).toHaveAttribute("title", retrieved.toISOString());
+  });
+
+  it("omits the age line when the finding carries no usable timestamp", () => {
+    renderWithProviders(<FindingCard finding={baseFinding} findingsKey={findingsKey} />);
+    expect(screen.queryByTestId(selectors.findings.age)).not.toBeInTheDocument();
   });
 });

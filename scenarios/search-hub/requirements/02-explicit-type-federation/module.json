@@ -9,7 +9,7 @@
       "title": "Bounded concurrent fan-out with provenance",
       "prd_ref": "OT-P0-002",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "Query fans out to every registered provider whose type matches the requested --type tokens (or all active providers under --all), bounded by a concurrency cap and a per-provider timeout. Each returned hit carries provider_id, provider_group, type, and a path/id locator.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "Query --type a,b only calls providers of types a and b." },
@@ -21,7 +21,7 @@
       "title": "Declarative result-mapping (no per-provider code)",
       "prd_ref": "OT-P0-002",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "The fan-out applies each provider's declarative ResultMapping (JSON-path field selectors + score scale + optional filter_field/filter_value for multi-leaf-on-one-endpoint) to map heterogeneous responses onto unified SearchHits. Scores normalize to a common [0,1] band before any ranking.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "A REST and a Connect-via-JSON provider both map onto identical SearchHit shape via their mappings alone." },
@@ -33,7 +33,7 @@
       "title": "Multi-provider fan-out proven",
       "prd_ref": "OT-P0-002",
       "category": "core",
-      "status": "draft",
+      "status": "implemented",
       "description": "At least three providers (cli-health.commands, ui-health.surfaces, swarm-manager.records) are registered and federated end-to-end so a single query reaches multiple corpora and returns grouped results.",
       "validation": [
         { "type": "test", "phase": "integration", "status": "pending", "notes": "query \"restart a scenario\" --type command,doc returns grouped hits from the matching providers." }

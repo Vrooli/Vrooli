@@ -44,7 +44,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        researchconnect.ResearchServiceRunL2Procedure,
 		Method:      "POST",
 		Summary:     "L2 fetch, read, and single-pass cited synthesis",
-		Description: "Fetches the top-N result pages via browserless, extracts readable text, and produces one always-cited synthesis grounded in full page content (richer than L1 snippet synthesis, at higher latency). With --capture, distills the synthesis into the findings store (L2 capture is opt-in).",
+		Description: "Fetches the top-N result pages (HTTP-first, escalating to a browser-automation-studio capture for JS-heavy pages), extracts readable text, and produces one always-cited synthesis grounded in full page content (richer than L1 snippet synthesis, at higher latency). With --capture, distills the synthesis into the findings store (L2 capture is opt-in).",
 		Category:    "research",
 		CLIMapping:  &module.CLIMapping{Command: "web-search research l2", Args: []string{"<query>", "--top-n", "<n>", "--capture"}},
 	},

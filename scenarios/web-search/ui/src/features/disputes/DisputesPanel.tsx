@@ -9,8 +9,9 @@ import { DisputeCard } from "./DisputeCard";
 
 /**
  * DisputesPanel is the dispute review queue: every DISPUTED finding rendered as
- * a conflict card with a resolve action. It is the read+resolve surface over
- * FindingsService.ListDisputes / ResolveDispute.
+ * a conflict card with resolve, re-research, and dismiss controls. It is the
+ * read+triage surface over FindingsService.ListDisputes / ResolveDispute plus
+ * ResearchService.RunL3 for re-research.
  */
 export function DisputesPanel() {
   const { t } = useTranslation();

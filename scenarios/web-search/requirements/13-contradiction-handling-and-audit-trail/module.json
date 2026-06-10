@@ -14,84 +14,84 @@
       "description": "Findings must never be hard-deleted; superseded rows are archived with full provenance (superseded_by finding ID, supersession reason, timestamp, actor) for recoverability and auditability. Agent-initiated mutations (supersede, prune) are gated behind configured confidence thresholds — mutations below threshold are queued for human review rather than applied automatically. Flagged contradictions are surfaced as first-class reviewable objects in a dispute review queue, resolvable by human command, targeted research, or new evidence.",
       "id": "REQ-P1-005",
       "prd_ref": "OT-P1-005",
-      "status": "draft",
+      "status": "complete",
       "title": "Contradiction Handling, Soft-Delete Audit Trail, and Confidence-Gated Agent Mutations",
       "validation": [
         {
           "notes": "Hard-delete operation on a finding returns an error (no DELETE statement executes on the findings table)",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/sqlite_test.go::TestPruneNeverDeletesActiveOrDisputed",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Supersede operation writes an archived row with superseded_by, reason, timestamp, and actor fields populated",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/sqlite_test.go::TestAuditMetadataCarriesActorReasonAndBrief",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Archived (superseded) finding is retrievable by ID with status=superseded",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/sqlite_test.go::TestSupersedeNeverDeletes",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Agent supersede request with confidence below threshold is rejected and a dispute queue entry is created instead",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/l3_test.go::TestReconcileConfidenceGate",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Agent prune request with confidence below threshold is rejected and logged for human review",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/gc_test.go::TestGCReportsColdArchiveStaleDisputesOrphans",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Dispute queue entry schema contains: finding_id, contradiction_description, conflicting_source_ids, status (open/resolved/dismissed), created_at",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/findings/connect_handler_test.go::TestListDisputesProjectsDisputeQueueEntries",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Agent attempts to supersede a finding with confidence 0.3 (below threshold of 0.7); verify no supersession occurs and a dispute queue entry is created",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/l3_test.go::TestReconcileGateThresholdBoundary",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Human operator resolves a dispute queue entry via CLI; verify the targeted finding transitions to superseded status with human actor recorded in audit trail",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/resolve_test.go::TestResolveDisputeSupersedeRetires",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Verify that a full findings database export includes all superseded rows with complete provenance chains",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/sqlite_test.go::TestListExcludesSupersededByDefault",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Audit trail allows an operator to reconstruct the full history of any finding from creation through all mutations to its current state",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/findings/sqlite_test.go::TestAuditMetadataCarriesActorReasonAndBrief",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Confidence-gated agent mutations prevent low-confidence automated changes from corrupting the findings store without human oversight",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/research/l3_test.go::TestReconcileConfidenceGate",
+          "status": "implemented",
           "type": "test"
         }
       ]

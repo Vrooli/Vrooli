@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
@@ -28,6 +28,7 @@ const liveResponse = {
   cached: false,
   degraded: false,
   degradedReason: "",
+  degradedEngines: [],
 };
 
 describe("SearchPanel — live web", () => {
@@ -82,6 +83,61 @@ describe("SearchPanel — live web", () => {
     expect(await screen.findByTestId(selectors.search.synthesis)).toBeInTheDocument();
   });
 
+  it("omits the synthesis block when the envelope has no synthesis", async () => {
+    vi.mocked(liveSearchClient.search).mockResolvedValue(liveResponse as never);
+
+    renderWithProviders(<SearchPanel />);
+    fireEvent.change(screen.getByTestId(selectors.search.input), {
+      target: { value: "vrooli" },
+    });
+    fireEvent.click(screen.getByTestId(selectors.search.submit));
+
+    expect(await screen.findAllByTestId(selectors.search.result)).toHaveLength(1);
+    expect(screen.queryByTestId(selectors.search.synthesis)).not.toBeInTheDocument();
+  });
+
+  it("renders synthesis citation links matching the result source URLs", async () => {
+    vi.mocked(liveSearchClient.search).mockResolvedValue({
+      ...liveResponse,
+      synthesis: {
+        text: "A synthesized answer.",
+        citations: [{ url: "https://example.com", title: "Example" }],
+        abstained: false,
+      },
+    } as never);
+
+    renderWithProviders(<SearchPanel />);
+    fireEvent.click(screen.getByTestId(selectors.search.synthesizeToggle));
+    fireEvent.change(screen.getByTestId(selectors.search.input), {
+      target: { value: "vrooli" },
+    });
+    fireEvent.click(screen.getByTestId(selectors.search.submit));
+
+    const synthesis = await screen.findByTestId(selectors.search.synthesis);
+    const citationLinks = within(synthesis).getAllByRole("link");
+    expect(citationLinks).toHaveLength(1);
+    // The citation must point at the same source URL as the SearchHit set
+    // (liveResponse.results[0].url).
+    expect(citationLinks[0]).toHaveAttribute("href", "https://example.com");
+  });
+
+  it("renders results within 200ms of the search response resolving", async () => {
+    let resolvedAt = 0;
+    vi.mocked(liveSearchClient.search).mockImplementation(() => {
+      resolvedAt = performance.now();
+      return Promise.resolve(liveResponse as never);
+    });
+
+    renderWithProviders(<SearchPanel />);
+    fireEvent.change(screen.getByTestId(selectors.search.input), {
+      target: { value: "vrooli" },
+    });
+    fireEvent.click(screen.getByTestId(selectors.search.submit));
+
+    await screen.findAllByTestId(selectors.search.result);
+    expect(performance.now() - resolvedAt).toBeLessThan(200);
+  });
+
   it("surfaces degraded_reason when the response is degraded", async () => {
     vi.mocked(liveSearchClient.search).mockResolvedValue({
       ...liveResponse,
@@ -98,6 +154,26 @@ describe("SearchPanel — live web", () => {
 
     expect(await screen.findByTestId(selectors.search.degraded)).toHaveTextContent(
       strings.search.degraded,
+    );
+  });
+
+  it("badges per-engine degradation when engines were unresponsive", async () => {
+    vi.mocked(liveSearchClient.search).mockResolvedValue({
+      ...liveResponse,
+      degradedEngines: [
+        { engine: "duckduckgo", reason: "CAPTCHA" },
+        { engine: "qwant", reason: "parsing error" },
+      ],
+    } as never);
+
+    renderWithProviders(<SearchPanel />);
+    fireEvent.change(screen.getByTestId(selectors.search.input), {
+      target: { value: "vrooli" },
+    });
+    fireEvent.click(screen.getByTestId(selectors.search.submit));
+
+    expect(await screen.findByTestId(selectors.search.engineWarning)).toHaveTextContent(
+      strings.search.engineWarning,
     );
   });
 

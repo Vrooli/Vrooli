@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 
 import { makeApiMocks, makeHealthResponse, renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
@@ -40,6 +40,22 @@ describe("OpsPanel", () => {
     });
     expect(screen.getByText(strings.ops.dependencyConnected)).toBeInTheDocument();
     expect(screen.getByText(strings.ops.dependencyDisconnected)).toBeInTheDocument();
+  });
+
+  it("marks SearXNG disconnected when its health entry reports an error", async () => {
+    vi.mocked(fetchHealth).mockResolvedValue(
+      makeHealthResponse({
+        dependencies: {
+          searxng: { connected: false, latencyMs: 0, error: "connection refused", database: "" },
+        },
+      }),
+    );
+
+    renderWithProviders(<OpsPanel />);
+
+    const row = await screen.findByTestId(selectors.ops.dependency);
+    expect(row).toHaveAttribute("data-dependency", "searxng");
+    expect(within(row).getByText(strings.ops.dependencyDisconnected)).toBeInTheDocument();
   });
 
   it("shows the empty last-query state before any live search", () => {

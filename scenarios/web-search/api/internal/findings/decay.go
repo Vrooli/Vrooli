@@ -13,6 +13,25 @@ import (
 // without rewriting history.
 const DecayHalfLife = 180 * 24 * time.Hour // ~6 months
 
+// decayHalfLife is the effective half-life the read path uses. It defaults to
+// DecayHalfLife and may be overridden ONCE at boot (before serving traffic)
+// via SetDecayHalfLife — it is not safe to mutate concurrently with reads.
+var decayHalfLife = DecayHalfLife
+
+// SetDecayHalfLife overrides the effective confidence half-life. It is a
+// boot-time lever (WEB_SEARCH_DECAY_HALF_LIFE in main.go): non-positive values
+// are ignored. It returns the effective half-life after the call.
+func SetDecayHalfLife(d time.Duration) time.Duration {
+	if d > 0 {
+		decayHalfLife = d
+	}
+	return decayHalfLife
+}
+
+// EffectiveDecayHalfLife returns the half-life currently applied by
+// EffectiveConfidence (and from which the GC derives its default min-age).
+func EffectiveDecayHalfLife() time.Duration { return decayHalfLife }
+
 const (
 	// UsageGracePeriod is how long a never-surfaced finding is left unpenalized:
 	// a fresh finding simply has not had a chance to be surfaced yet, so its
@@ -89,7 +108,7 @@ func EffectiveConfidence(f Finding, now time.Time) float64 {
 	if age <= 0 {
 		return clampConfidence(f.Confidence)
 	}
-	halfLives := age.Seconds() / DecayHalfLife.Seconds()
+	halfLives := age.Seconds() / decayHalfLife.Seconds()
 	factor := math.Pow(0.5, halfLives)
 	return clampConfidence(f.Confidence * factor)
 }
