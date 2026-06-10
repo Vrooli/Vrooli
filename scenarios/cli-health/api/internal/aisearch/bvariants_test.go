@@ -46,7 +46,7 @@ func TestRecallBVariants(t *testing.T) {
 	reranker := func() *pkg.RerankerChain {
 		return pkg.NewRerankerChain(
 			pkg.NewCrossEncoderReranker(cfg.RerankerURL, cfg.RerankerModel),
-			pkg.NewLLMReranker(cfg.RerankModel),
+			pkg.NewLLMReranker(cfg.RerankRole),
 		)
 	}
 	prefixed := pkg.NewEmbedderForConfig(pkg.Config{EmbedModel: cfg.EmbedModel, EmbedTaskPrefix: true})

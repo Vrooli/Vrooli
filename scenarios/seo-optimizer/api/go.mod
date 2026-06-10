@@ -1,6 +1,6 @@
 module seo-optimizer-api
 
-go 1.24.0
+go 1.25.0
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 

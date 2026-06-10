@@ -147,7 +147,7 @@ func main() {
 			Collection:    aisearch.DefaultCollection,
 			RerankerURL:   searchCfg.RerankerURL,
 			RerankerModel: searchCfg.RerankerModel,
-			RerankModel:   searchCfg.RerankModel,
+			RerankRole:    searchCfg.RerankRole,
 		},
 	})
 

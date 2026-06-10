@@ -174,7 +174,7 @@ func TestCommandRecall(t *testing.T) {
 		Collection:    recallGateCollection,
 		RerankerURL:   cfg.RerankerURL,
 		RerankerModel: cfg.RerankerModel,
-		RerankModel:   cfg.RerankModel,
+		RerankRole:    cfg.RerankRole,
 	})
 	discovery := NewFilesystemDiscoverySource(repoRoot)
 	discovery.ExternalCLIs = []ExternalCLI{{Name: "vrooli", Binary: "vrooli"}}

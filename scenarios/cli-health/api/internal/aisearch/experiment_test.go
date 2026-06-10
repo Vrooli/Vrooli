@@ -61,12 +61,12 @@ func TestRecallExperiment(t *testing.T) {
 	reranker := func() *pkg.RerankerChain {
 		return pkg.NewRerankerChain(
 			pkg.NewCrossEncoderReranker(cfg.RerankerURL, cfg.RerankerModel),
-			pkg.NewLLMReranker(cfg.RerankModel),
+			pkg.NewLLMReranker(cfg.RerankRole),
 		)
 	}
 
 	noPrefix := pkg.NewEmbedderWithPrefixes(cfg.EmbedModel, "", "")
-	prefixed := pkg.NewEmbedderForConfig(pkg.Config{EmbedModel: cfg.EmbedModel, EmbedTaskPrefix: true}) // auto nomic search_query:/search_document:
+	prefixed := pkg.NewEmbedderForConfig(pkg.Config{EmbedModel: cfg.EmbedModel, EmbedRole: cfg.EmbedRole, EmbedTaskPrefix: true})
 	bm25 := pkg.NewBM25SparseEncoder()
 
 	// Index strategies (the embedding-time variables). Each is built once into its
