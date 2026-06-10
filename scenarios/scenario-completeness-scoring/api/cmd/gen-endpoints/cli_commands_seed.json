@@ -7,31 +7,6 @@
       "endpoint_id": "health"
     },
     {
-      "name": "notes list",
-      "description": "List all notes (newest-first, default limit 100)",
-      "endpoint_id": "notes_list"
-    },
-    {
-      "name": "notes create",
-      "description": "Create a note (--title TITLE [--body BODY])",
-      "endpoint_id": "notes_create"
-    },
-    {
-      "name": "notes get",
-      "description": "Get a note by id",
-      "endpoint_id": "notes_get"
-    },
-    {
-      "name": "notes count",
-      "description": "Count notes created in a time window (--window WINDOW); the reference measure",
-      "endpoint_id": "notes_count"
-    },
-    {
-      "name": "notes attach",
-      "description": "Upload an attachment for a note (--file PATH)",
-      "endpoint_id": "notes_attach"
-    },
-    {
       "name": "score get",
       "description": "Fast cached status for a scenario: maturity rung as of tree digest, 0-100 composite with breakdown, recommendations with point impact, action plan, per-phase freshness verdicts (--json for machine output)",
       "endpoint_id": "scoring_get"

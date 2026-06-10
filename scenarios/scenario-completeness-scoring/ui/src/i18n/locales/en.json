@@ -8,7 +8,6 @@
     "bottomNavLabel": "Quick navigation",
     "nav": {
       "dashboard": "Dashboard",
-      "notes": "Notes",
       "settings": "Settings"
     },
     "mainLabel": "Main content"
@@ -24,11 +23,7 @@
   "pages": {
     "dashboard": {
       "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
-    },
-    "notes": {
-      "title": "Notes"
+      "description": "Fast cached status for any scenario: maturity rung, completeness score, and per-phase test freshness — every number labeled with the tree digest it was computed against."
     },
     "settings": {
       "title": "Settings",
@@ -52,22 +47,69 @@
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
   },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
+  "scoring": {
+    "form": {
+      "label": "Scenario",
+      "placeholder": "e.g. web-search",
+      "submit": "Get score"
+    },
+    "loading": "Computing score…",
+    "empty": "Enter a scenario directory name to see its cached maturity rung, completeness score, and test freshness.",
+    "calculatedAtLabel": "Calculated:",
+    "maturity": {
+      "title": "Maturity",
+      "ladderClean": "Ladder clean through R4",
+      "workingRungLabel": "Working rung:",
+      "satisfiedThroughLabel": "Satisfied through:",
+      "none": "none",
+      "buildLabel": "Build:",
+      "buildPassing": "passing",
+      "buildFailing": "not passing",
+      "digestLabel": "As of digest:",
+      "digestUnavailable": "unavailable",
+      "dimensionHeader": "Dimension",
+      "errorPlusHeader": "Error+",
+      "openHeader": "Open",
+      "approximate": "approximated from phase status"
+    },
+    "composite": {
+      "title": "Completeness score",
+      "outOf": "{{score}}/100",
+      "groupPoints": "{{points}} of {{max}} pts",
+      "metricPoints": "{{points}}/{{max}} pts"
+    },
+    "freshness": {
+      "title": "Freshness",
+      "verdict": {
+        "fresh": "fresh",
+        "stale": "stale",
+        "unknown": "unknown"
+      },
+      "lastRun": "run {{id}}",
+      "lastPassed": "last passed in {{id}} at {{digest}}",
+      "unstampedDigest": "unstamped digest",
+      "neverPassed": "never passed at any digest",
+      "noEvidence": "no evidence",
+      "refreshLabel": "Refresh:"
+    },
+    "recommendations": {
+      "title": "Recommendations",
+      "impact": "+{{points}} pts",
+      "priority": {
+        "high": "high",
+        "medium": "medium",
+        "low": "low"
+      }
+    },
+    "actionPlan": {
+      "title": "Action plan",
+      "phaseTitle": "Phase {{index}}: {{title}}",
+      "estimated": "+{{points}} pts estimated",
+      "projected": "Estimated score after fixes: ~{{score}}/100"
+    },
+    "degradations": {
+      "title": "Degraded collection",
+      "line": "{{collector}} collector {{state}}: {{reason}}"
     }
   },
   "errors": {

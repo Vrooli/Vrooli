@@ -33,6 +33,13 @@ func writePhasePointer(env workspace.Environment, phaseName string, report RunRe
 	if len(report.Observations) > 0 {
 		payload["observations"] = ObservationsToStrings(report.Observations)
 	}
+	if len(report.Findings) > 0 {
+		// Persist the normalized findings alongside the summary so cached-
+		// artifact readers (scenario-completeness-scoring) can count findings
+		// per dimension without re-running the suite. Same encoding/json
+		// contract as ExecutionResult.Findings: enums marshal as proto ints.
+		payload["findings"] = report.Findings
+	}
 	for k, v := range extras {
 		if v != nil {
 			payload[k] = v

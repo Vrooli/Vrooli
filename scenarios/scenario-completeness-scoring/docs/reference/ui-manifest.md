@@ -42,7 +42,7 @@ through this slot.
 | `{ComponentName}` | PascalCase. | `Button`, `SidebarShell` |
 | `{componentName}` / `{camelName}` | camelCase. | `useGamepad`, `errorMessage` |
 | `{kebab-name}` | kebab-case. | `bottom-nav`, `error-boundary` |
-| `{feature}` | Feature folder; must be supplied when `requiresFeature: true`. | `notes`, `health` |
+| `{feature}` | Feature folder; must be supplied when `requiresFeature: true`. | `scoring`, `health` |
 | `{locale}` | Locale code. Only used by `i18n-strings`. | `en`, `ja`, `ar` |
 
 ## Resolution Order (Adoption Resolver)

@@ -35,6 +35,7 @@ type Printer struct {
 	planPhaseByKey       map[string]execTypes.PlanPhase
 	planWarnings         []string
 	streamedObservations bool // true if observations were already streamed via SSE (live output shown)
+	scoreRunner          ScoreRunner
 }
 
 // New builds a printer instance.
@@ -72,6 +73,14 @@ func New(
 	}
 }
 
+// SetScoreRunner wires the completeness-supplement subprocess seam. The
+// supplement is OFF by default (nil runner) so unit tests stay hermetic;
+// the production command path opts in with RunScoreCLI and tests substitute
+// a fake.
+func (p *Printer) SetScoreRunner(runner ScoreRunner) {
+	p.scoreRunner = runner
+}
+
 // Print renders the full execution report.
 func (p *Printer) Print(resp execTypes.Response) {
 	p.printHeader(resp)
@@ -82,6 +91,7 @@ func (p *Printer) Print(resp execTypes.Response) {
 	p.printPhaseResults(resp.Phases)
 	p.printSummary(resp)
 	p.printRequirementsSummary(resp)
+	p.printCompletenessSummary()
 	p.printFailureDigest(resp.Phases)
 	p.printQuickFixGuide(resp.Phases)
 	p.printDebugGuides(resp.Phases)
@@ -135,6 +145,7 @@ func (p *Printer) PrintResults(resp execTypes.Response) {
 	p.printPhaseResults(resp.Phases)
 	p.printSummary(resp)
 	p.printRequirementsSummary(resp)
+	p.printCompletenessSummary()
 	p.printFailureDigest(resp.Phases)
 	p.printQuickFixGuide(resp.Phases)
 	p.printDebugGuides(resp.Phases)

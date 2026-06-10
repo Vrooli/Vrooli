@@ -66,8 +66,8 @@ func TestUIEndpointExtraction(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "ui/src/App.tsx", `
 export const App = () => {
-	fetch('/api/v1/notes');
-	fetch('/api/v1/notes'); // duplicate: counted once
+	fetch('/api/v1/tasks');
+	fetch('/api/v1/tasks'); // duplicate: counted once
 	axios.get('/api/v1/users');
 	buildApiUrl('/api/v1/search');
 	const h = '/health';

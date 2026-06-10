@@ -50,8 +50,9 @@ Or check the URL directly:
 vrooli scenario port scenario-completeness-scoring UI_PORT
 ```
 
-You should see the example UI rendering live `/health` data and a
-notes pane backed by the local SQLite store.
+You should see the scoring dashboard: enter any scenario directory
+name (e.g. `web-search`) to render its cached maturity rung, composite
+score, and per-phase test freshness, plus the live `/health` card.
 
 ## 4 — Talk to the API
 
@@ -60,8 +61,8 @@ automatically):
 
 ```bash
 scenario-completeness-scoring status
-scenario-completeness-scoring notes list
-scenario-completeness-scoring notes create --title "First note" --body "Hello"
+scenario-completeness-scoring score get web-search
+scenario-completeness-scoring score get web-search --json
 ```
 
 Or directly via HTTP:
@@ -69,9 +70,9 @@ Or directly via HTTP:
 ```bash
 API_PORT=$(vrooli scenario port scenario-completeness-scoring API_PORT)
 curl -s "http://localhost:${API_PORT}/health"
-curl -s -X POST "http://localhost:${API_PORT}/vrooli.scenario_completeness_scoring.v1.notes.NotesService/ListNotes" \
+curl -s -X POST "http://localhost:${API_PORT}/vrooli.scenario_completeness_scoring.v1.scoring.ScoreService/GetScore" \
   -H 'Content-Type: application/json' \
-  -d '{}'
+  -d '{"scenario":"web-search"}'
 ```
 
 ## 5 — Run the tests

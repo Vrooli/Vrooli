@@ -23,11 +23,9 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "scenario-completeness-scoring/handlers/health"
-	notesH "scenario-completeness-scoring/handlers/notes"
 	scoringH "scenario-completeness-scoring/handlers/scoring"
 	localdb "scenario-completeness-scoring/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/notes"
 	scoringv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/scoring"
 )
 
@@ -38,7 +36,6 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...)
 	out = append(out, scoringH.Endpoints...)
 	return out
 }
@@ -66,7 +63,6 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_scenario_completeness_scoring_v1_notes_notes_proto},
 		{Module: "scoring", File: scoringv1.File_scenario_completeness_scoring_v1_scoring_scoring_proto},
 	}
 }
@@ -75,14 +71,13 @@ func AllProtoFiles() []ProtoFileEntry {
 // schema (always first; cross-cutting infrastructure runs before any
 // domain table). Consumed by main.go's database.EnsureSchemas call.
 //
-// Order matters: system → health → notes → … (domains alphabetical).
+// Order matters: system → health → scoring → … (domains alphabetical).
 // Postgres scenarios that put `CREATE EXTENSION ...` in system.sql rely
 // on system running before any domain that references the extension.
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema),
 		apidb.SchemaProviderFunc(scoringH.Schema),
 	}
 }

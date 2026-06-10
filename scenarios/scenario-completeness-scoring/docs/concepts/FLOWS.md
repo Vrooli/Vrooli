@@ -23,7 +23,6 @@ workflow model.
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
 | Score read | scoring (orchestrating signals + freshness) | `score get <scenario>` CLI / `GetScore` RPC / UI dashboard load. | Assembled score payload: rung "as of digest td:…", composite + classification, breakdown, recommendations, action plan, freshness verdicts + refresh command, degradation notices. | Stateless read; collectors run per request behind circuit breakers; nothing persisted. | Unit tests per collector and scorer; integration test over a temp scenario dir; CLI golden-output test; perf gate <1s warm. |
-| Attachment upload | notes | User/CLI uploads a file for a note. | Blob is stored and metadata is persisted. | Stateful upload request with validation and failure paths. | Level 5 workflow tests (template example — removed with the notes domain at Gate 7). |
 
 ## Flow Details
 
@@ -55,40 +54,11 @@ workflow model.
   the <1s budget is met by the artifacts being small and local).
 - Tests: see Flow Inventory row.
 
-### Attachment upload
-
-- Owner domain: notes.
-- Trigger: multipart upload request from UI or CLI.
-- Inputs: note id, file key/name, file bytes, content type, file size.
-- Steps:
-  1. Parse multipart request.
-  2. Validate note id and file metadata.
-  3. Store opaque bytes through BlobStore.
-  4. Persist attachment metadata through notes repository seam.
-  5. Return proto-typed metadata response.
-- Outputs: uploaded attachment metadata or typed error response.
-- Failure modes: missing note id, missing file, invalid metadata, blob
-  write failure, metadata persistence failure.
-- Retry/cancel behavior: caller may retry after transport/storage
-  failure; duplicate handling belongs to the owning real domain when
-  product requirements demand it.
-- Tests: `api/handlers/notes/attachments_handler_test.go`,
-  `api/internal/notes/attachments_service_test.go`,
-  `api/internal/notes/flow/flow_test.go`,
-  `ui/src/features/notes/AttachmentUpload.test.tsx`, and
-  `ui/src/features/notes/flow/flow.test.ts`.
-- Generated subpackages: `api/internal/notes/flow/generated/`
-  (`model.qnt`, `artifact.json`, `runtime.go`, `replay.go`) and
-  `ui/src/features/notes/flow/generated/` (`model.qnt`, `artifact.json`,
-  `runtime.ts`, `replay.helper.ts`).
-- Requirements: template starter only.
-
 ## State Machines
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| notes / attachment upload API | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | `*.flow.json` contract, generated Quint model, generated formal artifact replay, side-effect cleanup tests |
-| notes / attachment upload UI | idle, selected, uploading, succeeded, failed | start before select, stale completion after reset/reselect, retry without file context | `*.flow.json` contract, generated Quint model, generated formal artifact replay, attempt-id stale completion tests |
+| None today. The score read is a stateless request/response flow; no domain owns ordered lifecycle state. | — | — | Add a `flow/` model (see Production Shape) when a domain grows stateful behavior. |
 
 ## Maturity Ladder
 

@@ -21,7 +21,7 @@ RPC bindings, governance metadata) is declared in
 `cliapp.LoadFromManifest`, which:
 
 - builds each domain's `SubcommandGroup` from its manifest group
-- wires each command's `binding.method` (e.g. `NotesService.ListNotes`)
+- wires each command's `binding.method` (e.g. `ScoreService.GetScore`)
   to a handler registered in the domain's `register.go` bindings map
 - fails loudly on missing handlers, dead handlers, or unknown groups
 
@@ -37,10 +37,9 @@ to derive action certainty automatically; scenarios that adopt the
 manifest don't need hand-classified action-safety lists.
 
 `binding.kind` is currently `connect-rpc` only. REST-exception
-commands (the canonical example is `notes attach`, which uses
-multipart upload) are appended to the loaded group outside the manifest
-path in the domain's `register.go` and documented in the manifest's
-`omitted[]` array.
+commands (e.g. a multipart upload verb) are appended to the loaded
+group outside the manifest path in the domain's `register.go` and
+documented in the manifest's `omitted[]` array.
 
 For environment-variable precedence and CLI config-file shape, see
 [`configuration.md`](configuration.md).
@@ -89,55 +88,27 @@ Read values back without an argument:
 scenario-completeness-scoring configure api_base
 ```
 
-## Scenario commands — `notes` (CRUD reference)
+## Scenario commands — `score`
 
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario.
+### `scenario-completeness-scoring score get <scenario> [--json]`
 
-### `scenario-completeness-scoring notes list`
-
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
-
-```bash
-scenario-completeness-scoring notes list
-scenario-completeness-scoring notes list --json
-```
-
-### `scenario-completeness-scoring notes create --title <title> [--body <body>]`
-
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
+The product surface: fast cached status for any scenario. Calls the
+generated Connect-RPC `ScoreService/GetScore` method and renders the
+full report — maturity rung "as of digest td:…", composite score with
+per-group metric lines, per-phase freshness verdicts with the refresh
+command, recommendations with point impact, the action plan, and any
+collector degradations. Uses the **data-retrieval contract**:
+`Summary → Results → Retrieval Hints`.
 
 ```bash
-scenario-completeness-scoring notes create --title "First note" --body "Hello world"
+scenario-completeness-scoring score get web-search
+scenario-completeness-scoring score get web-search --json
 ```
 
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
-
-### `scenario-completeness-scoring notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
-
-```bash
-scenario-completeness-scoring notes get abc123
-```
-
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
-
-### `scenario-completeness-scoring notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
-
-```bash
-scenario-completeness-scoring notes attach abc123 --file ./example.png
-```
+An unknown scenario surfaces as `not_found`; the CLI translates the
+typed Connect code to an actionable error message. `--json` emits the
+proto JSON response shape for machine consumers (e.g. the test-genie
+report supplement).
 
 ## Output contracts
 
@@ -159,8 +130,8 @@ helpers).
 
 ## Adding a new command
 
-For a new domain, copy the notes command group first, then replace it
-once your real domain is green.
+For a new domain, copy the `scores` command group layout (manifest
+group + `register.go` bindings + handlers).
 
 For a command inside an existing domain:
 
@@ -204,11 +175,10 @@ For a command inside an existing domain:
 
 ## Command structure principles
 
-- **Subcommand groups** (`notes list`, `notes create`) over flat
-  verbs (`list-notes`, `create-note`). Discoverability via `--help`
-  is the goal.
-- **Positional for required, flags for optional.** `notes get <id>`
-  not `notes get --id <id>`.
+- **Subcommand groups** (`score get`) over flat verbs (`get-score`).
+  Discoverability via `--help` is the goal.
+- **Positional for required, flags for optional.** `score get <scenario>`
+  not `score get --scenario <scenario>`.
 - **One command per API endpoint.** If you find yourself making two
   endpoint calls, the API is missing a use-case.
 - **Error messages must be actionable.** "API unreachable" is bad;

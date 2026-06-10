@@ -96,6 +96,9 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		nil,
 		nil,
 	)
+	// Best-effort COMPLETENESS supplement from the fast cached status layer
+	// (2s budget; silently absent when the scoring CLI is missing or slow).
+	pr.SetScoreRunner(report.RunScoreCLI)
 	if previewReady {
 		pr.SetPlanPreview(preview)
 	}

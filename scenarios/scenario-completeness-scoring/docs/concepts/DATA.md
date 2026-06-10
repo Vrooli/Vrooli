@@ -73,7 +73,7 @@ backfills, add a scenario-specific migration plan here and update
 
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
-| Template notes data | Domain removal or future product delete behavior | Local development data only | Real scenarios must define product-specific deletion semantics. |
+| None — the scenario persists no product data (scores computed on demand; reads are against other scenarios' artifacts). | n/a | n/a | Define retention semantics if score history ever ships (explicit v1 non-goal). |
 
 ## Privacy Notes
 

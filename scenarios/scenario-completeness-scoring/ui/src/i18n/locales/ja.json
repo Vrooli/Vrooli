@@ -8,7 +8,6 @@
     "bottomNavLabel": "クイックナビゲーション",
     "nav": {
       "dashboard": "ダッシュボード",
-      "notes": "ノート",
       "settings": "設定"
     },
     "mainLabel": "メインコンテンツ"
@@ -24,11 +23,7 @@
   "pages": {
     "dashboard": {
       "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
-    },
-    "notes": {
-      "title": "ノート"
+      "description": "任意のシナリオの高速キャッシュ済みステータス: 成熟度ラング、完成度スコア、フェーズごとのテスト鮮度。すべての数値は算出時のツリーダイジェストでラベル付けされます。"
     },
     "settings": {
       "title": "設定",
@@ -49,21 +44,69 @@
   "notifications": {
     "summary": "{{count}} 件の通知"
   },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "createdAtLabel": "作成:",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。",
-    "measure": {
-      "title": "今週のノート",
-      "loading": "集計中…",
-      "thisWeek": "今週作成されたノート: {{count}} 件"
+  "scoring": {
+    "form": {
+      "label": "シナリオ",
+      "placeholder": "例: web-search",
+      "submit": "スコアを取得"
+    },
+    "loading": "スコアを計算中…",
+    "empty": "シナリオのディレクトリ名を入力すると、キャッシュ済みの成熟度ラング、完成度スコア、テスト鮮度が表示されます。",
+    "calculatedAtLabel": "計算日時:",
+    "maturity": {
+      "title": "成熟度",
+      "ladderClean": "R4 までラダークリーン",
+      "workingRungLabel": "作業中のラング:",
+      "satisfiedThroughLabel": "達成済み:",
+      "none": "なし",
+      "buildLabel": "ビルド:",
+      "buildPassing": "成功",
+      "buildFailing": "失敗",
+      "digestLabel": "ダイジェスト時点:",
+      "digestUnavailable": "利用不可",
+      "dimensionHeader": "ディメンション",
+      "errorPlusHeader": "エラー以上",
+      "openHeader": "未解決",
+      "approximate": "フェーズステータスからの概算"
+    },
+    "composite": {
+      "title": "完成度スコア",
+      "outOf": "{{score}}/100",
+      "groupPoints": "{{points}} / {{max}} pt",
+      "metricPoints": "{{points}}/{{max}} pt"
+    },
+    "freshness": {
+      "title": "鮮度",
+      "verdict": {
+        "fresh": "最新",
+        "stale": "陳腐化",
+        "unknown": "不明"
+      },
+      "lastRun": "実行 {{id}}",
+      "lastPassed": "{{id}} で最後に成功 ({{digest}})",
+      "unstampedDigest": "ダイジェスト未記録",
+      "neverPassed": "どのダイジェストでも成功していません",
+      "noEvidence": "証跡なし",
+      "refreshLabel": "更新コマンド:"
+    },
+    "recommendations": {
+      "title": "推奨事項",
+      "impact": "+{{points}} pt",
+      "priority": {
+        "high": "高",
+        "medium": "中",
+        "low": "低"
+      }
+    },
+    "actionPlan": {
+      "title": "アクションプラン",
+      "phaseTitle": "フェーズ {{index}}: {{title}}",
+      "estimated": "推定 +{{points}} pt",
+      "projected": "修正後の推定スコア: 約 {{score}}/100"
+    },
+    "degradations": {
+      "title": "収集の劣化",
+      "line": "{{collector}} コレクター {{state}}: {{reason}}"
     }
   },
   "errors": {

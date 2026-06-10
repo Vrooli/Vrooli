@@ -17,8 +17,8 @@ Use this document to answer:
 
 | Data | Sensitivity | Owner | Notes |
 |---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
+| Score payloads | low | scoring | Derived from other scenarios' already-local cached artifacts; nothing persisted, nothing leaves the host. |
+| Target scenario artifacts (read-only) | low | target scenarios | Read-only access to requirements/coverage/service manifests under the local repo checkout. |
 
 ## Auth And Authorization
 

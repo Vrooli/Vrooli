@@ -1,11 +1,12 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { HealthCard } from "../features/health/HealthCard";
+import { ScoreDashboard } from "../features/scoring/ScoreDashboard";
 import { useTranslation } from "../i18n";
 
 /**
- * Dashboard / home page. Composes the health card plus stat placeholders.
- * Replace the cards with real surfaces when the scenario grows them.
+ * Dashboard / home page: the scoring dashboard (this scenario's primary
+ * surface) plus the API health card.
  */
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -20,20 +21,9 @@ export function DashboardPage() {
         {t(strings.pages.dashboard.title)}
       </h2>
       <p className="text-app-muted-foreground">{t(strings.pages.dashboard.description)}</p>
-      <div className="grid gap-4 md:grid-cols-3">
+      <ScoreDashboard />
+      <div className="max-w-md">
         <HealthCard />
-        <div className="rounded-panel border border-app-border bg-app-surface p-4">
-          <p className="text-xs uppercase text-app-muted-foreground">
-            {t(strings.pages.dashboard.statPlaceholderLabel)}
-          </p>
-          <p className="mt-2 text-2xl font-semibold">—</p>
-        </div>
-        <div className="rounded-panel border border-app-border bg-app-surface p-4">
-          <p className="text-xs uppercase text-app-muted-foreground">
-            {t(strings.pages.dashboard.statPlaceholderLabel)}
-          </p>
-          <p className="mt-2 text-2xl font-semibold">—</p>
-        </div>
       </div>
     </section>
   );

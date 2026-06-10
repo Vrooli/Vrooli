@@ -8,7 +8,6 @@
     "bottomNavLabel": "التنقل السريع",
     "nav": {
       "dashboard": "لوحة التحكم",
-      "notes": "الملاحظات",
       "settings": "الإعدادات"
     },
     "mainLabel": "المحتوى الرئيسي"
@@ -24,11 +23,7 @@
   "pages": {
     "dashboard": {
       "title": "لوحة التحكم",
-      "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
-      "statPlaceholderLabel": "إحصائية"
-    },
-    "notes": {
-      "title": "الملاحظات"
+      "description": "حالة مخزّنة سريعة لأي سيناريو: درجة النضج، ودرجة الاكتمال، وحداثة الاختبارات لكل مرحلة — كل رقم موسوم بملخّص الشجرة الذي حُسب على أساسه."
     },
     "settings": {
       "title": "الإعدادات",
@@ -52,22 +47,69 @@
     "summary_zero": "لا توجد إشعارات",
     "summary_one": "إشعار واحد"
   },
-  "notes": {
-    "title": "الملاحظات",
-    "loading": "جارٍ تحميل الملاحظات…",
-    "empty": "لا توجد ملاحظات بعد.",
-    "create": "إنشاء ملاحظة",
-    "createdAtLabel": "تاريخ الإنشاء:",
-    "attachmentsLabel": "{{count}} مرفقات",
-    "attachmentsLabel_one": "مرفق واحد",
-    "uploadAttachment": "رفع مرفق",
-    "attachmentFileLabel": "ملف المرفق",
-    "uploadSuccess": "تم رفع {{name}}.",
-    "noFileSelected": "اختر ملفًا قبل الرفع.",
-    "measure": {
-      "title": "ملاحظات هذا الأسبوع",
-      "loading": "جارٍ العد…",
-      "thisWeek": "{{count}} ملاحظة أُنشئت هذا الأسبوع"
+  "scoring": {
+    "form": {
+      "label": "السيناريو",
+      "placeholder": "مثال: web-search",
+      "submit": "احسب الدرجة"
+    },
+    "loading": "جارٍ حساب الدرجة…",
+    "empty": "أدخل اسم مجلد السيناريو لعرض درجة النضج المخزّنة ودرجة الاكتمال وحداثة الاختبارات.",
+    "calculatedAtLabel": "وقت الحساب:",
+    "maturity": {
+      "title": "النضج",
+      "ladderClean": "السلّم نظيف حتى R4",
+      "workingRungLabel": "الدرجة الحالية:",
+      "satisfiedThroughLabel": "مُستوفى حتى:",
+      "none": "لا شيء",
+      "buildLabel": "البناء:",
+      "buildPassing": "ناجح",
+      "buildFailing": "غير ناجح",
+      "digestLabel": "حسب الملخّص:",
+      "digestUnavailable": "غير متاح",
+      "dimensionHeader": "البُعد",
+      "errorPlusHeader": "أخطاء فأعلى",
+      "openHeader": "مفتوحة",
+      "approximate": "تقديري من حالة المرحلة"
+    },
+    "composite": {
+      "title": "درجة الاكتمال",
+      "outOf": "{{score}}/100",
+      "groupPoints": "{{points}} من {{max}} نقطة",
+      "metricPoints": "{{points}}/{{max}} نقطة"
+    },
+    "freshness": {
+      "title": "الحداثة",
+      "verdict": {
+        "fresh": "حديث",
+        "stale": "قديم",
+        "unknown": "غير معروف"
+      },
+      "lastRun": "تشغيل {{id}}",
+      "lastPassed": "آخر نجاح في {{id}} عند {{digest}}",
+      "unstampedDigest": "ملخّص غير مسجّل",
+      "neverPassed": "لم ينجح عند أي ملخّص",
+      "noEvidence": "لا يوجد دليل",
+      "refreshLabel": "أمر التحديث:"
+    },
+    "recommendations": {
+      "title": "التوصيات",
+      "impact": "+{{points}} نقطة",
+      "priority": {
+        "high": "مرتفعة",
+        "medium": "متوسطة",
+        "low": "منخفضة"
+      }
+    },
+    "actionPlan": {
+      "title": "خطة العمل",
+      "phaseTitle": "المرحلة {{index}}: {{title}}",
+      "estimated": "تقدير +{{points}} نقطة",
+      "projected": "الدرجة المتوقعة بعد الإصلاحات: ~{{score}}/100"
+    },
+    "degradations": {
+      "title": "تدهور في جمع البيانات",
+      "line": "مجمّع {{collector}} بحالة {{state}}: {{reason}}"
     }
   },
   "errors": {

@@ -318,31 +318,31 @@ and scenario tests.
 
 ### Gate 7 — Remove The Example Domain
 
-- [ ] Delete `api/internal/notes`, `api/handlers/notes`,
+- [x] Delete `api/internal/notes`, `api/handlers/notes`,
       `cli/domains/notes`, `ui/src/features/notes`,
       `ui/src/api/notes.ts`, and `ui/src/api/notes.test.ts`.
-- [ ] Remove `notes` imports, module registrations, schema entries, CLI
+- [x] Remove `notes` imports, module registrations, schema entries, CLI
       registration, and `<NotesCard />` render.
-- [ ] Remove `notes` command rows from
+- [x] Remove `notes` command rows from
       `api/cmd/gen-endpoints/cli_commands_seed.json`, then run
       `make endpoints`.
-- [ ] Remove notes-specific i18n keys and run `pnpm strings:gen` from
+- [x] Remove notes-specific i18n keys and run `pnpm strings:gen` from
       `ui/`.
-- [ ] Remove the `notes` block from `ui/src/consts/selectors.ts`.
-- [ ] Verify no product residue remains with focused searches for
+- [x] Remove the `notes` block from `ui/src/consts/selectors.ts`.
+- [x] Verify no product residue remains with focused searches for
       `notes`, `Notes`, and `NOTES` in `api/`, `cli/`, `ui/src/`,
       `.vrooli/`, and the scenario's proto schema directory.
-- [ ] Run `make test`.
+- [x] Run `make test`.
 
 **Exit criteria:** only health plus real scenario domains remain.
 
 ### Gate 8 — Progress Handoff
 
-- [ ] Append a concise row to `docs/internal/PROGRESS.md` after
+- [x] Append a concise row to `docs/internal/PROGRESS.md` after
       meaningful changes.
-- [ ] Record known gaps or intentional deviations in
+- [x] Record known gaps or intentional deviations in
       `docs/internal/PROBLEMS.md`.
-- [ ] Include validation evidence in the final handoff.
+- [x] Include validation evidence in the final handoff.
 
 **Exit criteria:** future agents can reconstruct what happened, what is
 complete, and what remains.

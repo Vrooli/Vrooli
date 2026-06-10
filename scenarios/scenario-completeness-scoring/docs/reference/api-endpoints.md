@@ -52,112 +52,39 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
-## Notes (CRUD reference)
+## Scoring
 
-The `notes` domain is the canonical worked example. Copy its layering
-when adding the first non-trivial mutation in your scenario.
+### `POST /vrooli.scenario_completeness_scoring.v1.scoring.ScoreService/GetScore`
 
-### `POST /vrooli.scenario_completeness_scoring.v1.notes.NotesService/ListNotes`
-
-List notes through the generated Connect-RPC service, newest-first.
+Compute the full cached status payload for one scenario: maturity rung
+"as of digest td:…", 0–100 composite with classification and per-group
+breakdown, prioritized recommendations with point impact, the phased
+action plan, per-phase freshness verdicts with a copy-pastable refresh
+command, and any collector degradations. Zero network on the server's
+read path; warm latency budget is <1s.
 
 | | |
 |---|---|
-| **Auth** | None (template default; scenarios add auth as needed) |
-| **Response** | `ListNotesResponse { notes: Note[] }` (capped at 100 by `notes.Service`) |
-| **Errors** | `500 internal` — repository read failure |
-| **CLI** | `scenario-completeness-scoring notes list` |
+| **Auth** | None |
+| **Request** | `GetScoreRequest { scenario: string }` — directory name under the scenarios root |
+| **Response** | `GetScoreResponse { scenario, category, maturity, composite, freshness, recommendations[], action_plan[], degradations[], calculated_at }` |
+| **Errors** | `not_found` — unknown scenario<br>`internal` — unexpected assembly failure (collector failures degrade instead of erroring) |
+| **CLI** | `scenario-completeness-scoring score get <scenario> [--json]` |
 
 ```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.scenario_completeness_scoring.v1.notes.NotesService/ListNotes" \
+curl -X POST "http://localhost:${API_PORT}/vrooli.scenario_completeness_scoring.v1.scoring.ScoreService/GetScore" \
   -H 'Content-Type: application/json' \
-  -d '{}'
+  -d '{"scenario":"web-search"}'
 ```
 
 UI and CLI code should normally use the generated client instead of
-calling this path by hand.
-
-### `POST /vrooli.scenario_completeness_scoring.v1.notes.NotesService/CreateNote`
-
-Create a note through the generated Connect-RPC service.
-
-| | |
-|---|---|
-| **Auth** | None (template default) |
-| **Request** | `CreateNoteRequest { title: string (required), body: string (optional) }` |
-| **Response** | `CreateNoteResponse { note: Note }` |
-| **Errors** | `invalid_argument` — missing/whitespace-only title<br>`internal` — repository write failure |
-| **CLI** | `scenario-completeness-scoring notes create --title <title> [--body <body>]` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.scenario_completeness_scoring.v1.notes.NotesService/CreateNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"title":"first","body":"hello"}'
-```
-
-Title validation (non-empty after whitespace trim) lives in
-`internal/notes/service.go`, **not** the handler. The Connect handler
-only translates `notes.ErrInvalidNote` into `invalid_argument`.
-
-### `POST /vrooli.scenario_completeness_scoring.v1.notes.NotesService/GetNote`
-
-Fetch a note by id through the generated Connect-RPC service.
-
-| | |
-|---|---|
-| **Auth** | None (template default) |
-| **Request** | `GetNoteRequest { id: string }` |
-| **Response** | `GetNoteResponse { note: Note }` |
-| **Errors** | `not_found` — no note with that id<br>`internal` — repository read failure |
-| **CLI** | `scenario-completeness-scoring notes get <id>` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.scenario_completeness_scoring.v1.notes.NotesService/GetNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"id":"abc123"}'
-```
-
-`notes.ErrNoteNotFound` returned by the service is translated into the
-typed `not_found` Connect error at the handler edge.
-
-### `POST /api/v1/notes/{id}/attachments`
-
-Upload opaque file bytes through the documented REST multipart exception.
-The response is still proto-typed metadata.
-
-| | |
-|---|---|
-| **Auth** | None (template default) |
-| **Path params** | `id` — note identifier |
-| **Request** | `multipart/form-data` with `file` part |
-| **Response** | `UploadAttachmentResponse { attachment: Attachment }` |
-| **Errors** | `400 invalid_request` — malformed multipart or missing file<br>`404 not_found` — no note with that id<br>`500 internal` — blob or metadata persistence failure |
-| **CLI** | `scenario-completeness-scoring notes attach <id> --file <path>` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/api/v1/notes/abc123/attachments" \
-  -F file=@./example.png
-```
-
-### `Note` shape
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | string (UUID) | Server-generated |
-| `title` | string | Required, non-empty after trim |
-| `body` | string | Optional |
-| `created_at` | `google.protobuf.Timestamp` | Server-set on create |
-| `updated_at` | `google.protobuf.Timestamp` | Server-set on create / future update |
-| `attachment_keys` | `string[]` | Keys of uploaded note attachments |
-
-Defined in `packages/proto/schemas/scenario-completeness-scoring/v1/notes/notes.proto`.
+calling this path by hand. The full payload shape is documented
+field-by-field in
+`packages/proto/schemas/scenario-completeness-scoring/v1/scoring/scoring.proto`.
 
 ---
 
 ## Adding a new endpoint
-
-For a new domain, copy the notes vertical slice first, then replace it
-once your real domain is green.
 
 For an endpoint inside an existing domain:
 

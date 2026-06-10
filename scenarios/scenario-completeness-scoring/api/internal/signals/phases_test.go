@@ -167,7 +167,7 @@ func TestPhasesMalformedFileSkipped(t *testing.T) {
 	writeFile(t, root, "coverage/runs/20260610-000000-aaaa/phase-results/broken.json", `{`)
 	writeFile(t, root, "coverage/runs/20260610-000000-aaaa/phase-results/unit.json",
 		`{"phase":"unit","status":"passed","updated_at":"2026-06-10T00:00:00Z"}`)
-	writeFile(t, root, "coverage/runs/20260610-000000-aaaa/phase-results/notes.txt", "not json")
+	writeFile(t, root, "coverage/runs/20260610-000000-aaaa/phase-results/readme.txt", "not json")
 
 	sig, err := collectPhases(t, root)
 	if err != nil {

@@ -308,24 +308,41 @@ const literalSelectors = {
   notifications: {
     summary: "notifications-summary",
   },
-  notes: {
-    card: "notes-card",
-    list: "notes-list",
-    loading: "notes-loading",
-    empty: "notes-empty",
-    error: "notes-error",
-    createButton: "notes-create-button",
-    createdAt: "notes-created-at",
-    attachmentCount: "notes-attachment-count",
-    attachmentUpload: "notes-attachment-upload",
-    attachmentFile: "notes-attachment-file",
-    attachmentButton: "notes-attachment-button",
-    attachmentStatus: "notes-attachment-status",
-    measure: {
-      card: "notes-measure-card",
-      value: "notes-measure-value",
-      loading: "notes-measure-loading",
-      error: "notes-measure-error",
+  scoring: {
+    dashboard: "scoring-dashboard",
+    form: "scoring-form",
+    input: "scoring-input",
+    submit: "scoring-submit",
+    loading: "scoring-loading",
+    error: "scoring-error",
+    empty: "scoring-empty",
+    maturity: {
+      card: "scoring-maturity-card",
+      workingRung: "scoring-maturity-working-rung",
+      ladderClean: "scoring-maturity-ladder-clean",
+      satisfiedThrough: "scoring-maturity-satisfied-through",
+      build: "scoring-maturity-build",
+      digest: "scoring-maturity-digest",
+      dimensions: "scoring-maturity-dimensions",
+    },
+    composite: {
+      card: "scoring-composite-card",
+      score: "scoring-composite-score",
+      classification: "scoring-composite-classification",
+    },
+    freshness: {
+      card: "scoring-freshness-card",
+      refreshCommand: "scoring-freshness-refresh-command",
+    },
+    recommendations: {
+      card: "scoring-recommendations-card",
+    },
+    actionPlan: {
+      card: "scoring-action-plan-card",
+      projected: "scoring-action-plan-projected",
+    },
+    degradations: {
+      card: "scoring-degradations-card",
     },
   },
   locale: {
@@ -344,7 +361,6 @@ const literalSelectors = {
   },
   pages: {
     dashboard: "page-dashboard",
-    notes: "page-notes",
     settings: "page-settings",
   },
   errorBoundary: {
@@ -362,6 +378,18 @@ const literalSelectors = {
 // is a TypeScript error when "fr" isn't a supported locale. The runtime enum
 // validation in `normalizeParams` provides the same guarantee at call time.
 const dynamicSelectorDefinitions = {
+  scoring: {
+    freshnessPhaseRow: defineDynamicSelector({
+      description: "Freshness verdict row by required-phase name",
+      testIdPattern: "scoring-freshness-phase-${phase}",
+      params: { phase: { type: "string" } },
+    }),
+    compositeGroup: defineDynamicSelector({
+      description: "Composite score group section by stable group id",
+      testIdPattern: "scoring-composite-group-${id}",
+      params: { id: { type: "enum", values: ["quality", "coverage", "quantity", "ui"] as const } },
+    }),
+  },
   locale: {
     toggle: defineDynamicSelector({
       description: "Locale toggle button by language code",
@@ -373,12 +401,12 @@ const dynamicSelectorDefinitions = {
     sidebarLink: defineDynamicSelector({
       description: "Sidebar navigation link by canonical nav key",
       testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "notes", "settings"] as const } },
+      params: { key: { type: "enum", values: ["dashboard", "settings"] as const } },
     }),
     bottomNavLink: defineDynamicSelector({
       description: "Bottom-nav link by canonical nav key",
       testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "notes", "settings"] as const } },
+      params: { key: { type: "enum", values: ["dashboard", "settings"] as const } },
     }),
   },
   settingsPage: {

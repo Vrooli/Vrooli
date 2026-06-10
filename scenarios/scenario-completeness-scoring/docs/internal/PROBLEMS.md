@@ -129,6 +129,18 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Owner:** unassigned (scenario-status-layer plan Phase 3).
 
+### 2026-06-10 — No BAS proof for the routed test-database path
+
+**Symptom:** `bas/cases/` is empty; the template's `routed-database/proves-test-pool-routing.json` example was deleted at Gate 7.
+
+**Root cause:** The example asserted on the deleted notes list view, and this scenario has no DB-backed UI view to retarget it to (the score read path is filesystem-only; SQLite backs only the health probe).
+
+**Workaround:** None needed today — the routed-DB middleware is template infrastructure with no product consumer here.
+
+**Real fix:** If a DB-backed surface ever ships (e.g. score history), recreate the case against that view's selector + a `bas/seeds/` fixture, then run `test-genie registry build`.
+
+**Owner:** unassigned.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

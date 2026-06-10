@@ -1,5 +1,5 @@
 // Package module defines the domain-module seam: each feature in the API
-// (notes, health, …) returns a Module from its handlers package, and main.go
+// (scoring, health, …) returns a Module from its handlers package, and main.go
 // passes the slice into server.New. The server iterates and calls Mount on
 // each — there is no central routes.go, no per-domain field on server.Deps,
 // and no manual editing of .vrooli/endpoints.json.
@@ -13,7 +13,7 @@ import "github.com/gorilla/mux"
 
 // Module is the contract every API feature exposes to the server.
 //
-//   - Name is for diagnostics ("notes", "health", "tasks"). Free-form;
+//   - Name is for diagnostics ("scoring", "health", "tasks"). Free-form;
 //     server does not interpret it.
 //   - Mount registers the module's routes (and any subrouter middleware)
 //     on the production router. Called once during server.New.
@@ -30,7 +30,7 @@ type Module struct {
 // .vrooli/endpoints.json. JSON tags are deliberately matched so a slice
 // of these marshals byte-comparable to the hand-authored shape Pass-2
 // established. Optional fields use omitempty so health (no request, no
-// errors) and notes (full set) round-trip the same way.
+// errors) and scoring (full set) round-trip the same way.
 type EndpointDescriptor struct {
 	ID            string         `json:"id"`
 	Path          string         `json:"path"`
@@ -64,7 +64,6 @@ const (
 	// bytes via multipart/form-data. The proto-typed response payload is
 	// still the source of truth for the metadata shape; only the request
 	// transport is REST because proto cannot express multipart uploads.
-	// The notes attachments endpoint is the canonical worked example.
 	RESTReasonMultipartUpload RESTReason = "multipart_upload"
 
 	// RESTReasonWebhookReceiver covers endpoints whose request shape is
@@ -120,7 +119,7 @@ type Example struct {
 
 // CLIMapping links the endpoint to the scenario CLI command that mirrors
 // it. Command uses scenario-completeness-scoring as the binary name placeholder, e.g.
-// "scenario-completeness-scoring notes list". Args lists positional/flag tokens for
+// "scenario-completeness-scoring score get". Args lists positional/flag tokens for
 // commands that take parameters.
 type CLIMapping struct {
 	Command string   `json:"command"`

@@ -4,9 +4,6 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-`notes` is a worked example from the template, not product scope.
-Replace it after the first real domain is green.
-
 ## Purpose Of This Document
 
 Use this document to answer:
@@ -29,7 +26,9 @@ belong in [`DATA.md`](DATA.md).
 | scoring | Assemble signals into the maturity rung (maturity-go ladder), 0–100 composite, classification, recommendations with point impact, and the action plan; owns the ScoreService wire contract. | Reporting / query | No persisted data; scores computed on demand. | API, CLI, UI | OT-P0-001..006, OT-P1-002/003, OT-P2-001/002. | `api/internal/scoring/`, `api/handlers/scoring/`, `cli/domains/scores/`, `ui/src/features/scoring/`, `packages/proto/schemas/scenario-completeness-scoring/v1/scoring/` |
 | importance | Best-effort importance enrichment from scenario-dependency-analyzer centrality and swarm-manager recency under a hard 1s combined budget; silently omitted on miss. | Integration / enrichment | No persisted data. | internal (consumed by scoring output) | OT-P1-001. | `api/internal/importance/` (deferred to the importance pass) |
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/scenario-completeness-scoring/v1/health/` |
-| notes | Worked CRUD reference with attachment upload exception. **Scheduled for removal at Gate 7** once the scoring slice is green. | CRUD / entity | Notes and attachment metadata. | API, CLI, UI | Template starter only. | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/scenario-completeness-scoring/v1/notes/` |
+
+The template's `notes` worked example was removed at Gate 7 (orientation
+exit criterion); only health plus real product domains remain.
 
 ## Domain Details
 
@@ -115,25 +114,6 @@ belong in [`DATA.md`](DATA.md).
 - Requirements: starter scaffold health only.
 - Tests: handler, module, UI feature, and accessibility tests.
 - Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
-
-### notes
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Primary archetype: CRUD / entity.
-- Secondary traits: binary/blob attachment upload, upload workflow.
-- Owns: note records, attachment metadata, note validation, note
-  service/repository seams, UI note interactions, CLI notes commands.
-- Does not own: product scope for a generated scenario.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
-- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
-- Requirements: template starter only; replace with PRD-specific
-  requirements.
-- Tests: repository, service, handler, CLI, UI, accessibility, and
-  workflow tests.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
 
 ## Shared Concepts
 

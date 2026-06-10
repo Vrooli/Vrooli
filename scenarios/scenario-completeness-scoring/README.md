@@ -72,13 +72,13 @@ the standard full-stack Vrooli scenario shape:
 
 ## Placeholders vs. Durable Scaffolding
 
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
+The template's `notes` worked example has been removed (orientation
+Gate 7); the scoring domain is the product. Remaining template
+scaffolding that may evolve with the product:
 
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- The `AppShell` and the centered single-panel home page in `ui/src/`.
-- The bare-minimum settings surface (currently just locale switching).
+- The `AppShell` layout in `ui/src/`.
+- The bare-minimum settings surface (currently just theme + locale
+  switching).
 
 Treat these as **durable seams** to preserve, even as you rewrite the
 visual layout:
@@ -96,8 +96,7 @@ an `EndpointDescriptor`, stop — use a proto service method instead.
 Codegen rejects literal Paths that lack an explicit `RESTException`
 tag; the four allowed REST reasons (multipart upload, webhook
 receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
+`api/internal/module/module.go`.
 
 [`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
 workflow in full.
