@@ -9,14 +9,16 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";
 import { useTranslation } from "../../i18n";
-import { fetchScore } from "../../api/scoring";
+import { fetchScore, fetchScores, fetchScoreTrend } from "../../api/scoring";
 import { errorMessage } from "../../lib/errorMessage";
 
 import { CompositeCard } from "./CompositeCard";
+import { FleetTable } from "./FleetTable";
 import { FreshnessCard } from "./FreshnessCard";
 import { ImportanceCard } from "./ImportanceCard";
 import { MaturityCard } from "./MaturityCard";
 import { RecommendationsCard } from "./RecommendationsCard";
+import { TrendCard } from "./TrendCard";
 
 /**
  * ScoreDashboard is this scenario's primary surface: pick a scenario,
@@ -33,11 +35,23 @@ export function ScoreDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const scenario = searchParams.get("scenario") ?? "";
   const [draft, setDraft] = useState(scenario);
+  const [fleetPageToken, setFleetPageToken] = useState("");
 
   const scoreQuery = useQuery({
     queryKey: ["score", scenario],
     queryFn: () => fetchScore(scenario),
     enabled: scenario !== "",
+  });
+
+  const trendQuery = useQuery({
+    queryKey: ["scoreTrend", scenario],
+    queryFn: () => fetchScoreTrend(scenario),
+    enabled: scenario !== "",
+  });
+
+  const fleetQuery = useQuery({
+    queryKey: ["scoreFleet", fleetPageToken],
+    queryFn: () => fetchScores({ pageToken: fleetPageToken, pageSize: 10 }),
   });
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -47,6 +61,7 @@ export function ScoreDashboard() {
   };
 
   const data = scoreQuery.data;
+  const fleet = fleetQuery.data;
 
   return (
     <div data-testid={selectors.scoring.dashboard} className="flex flex-col gap-4">
@@ -113,6 +128,7 @@ export function ScoreDashboard() {
             )}
             {data.freshness && <FreshnessCard freshness={data.freshness} />}
             {data.importance && <ImportanceCard importance={data.importance} />}
+            <TrendCard snapshots={trendQuery.data?.snapshots ?? []} trend={data.trend} />
             {data.recommendations.length > 0 && data.composite && (
               <RecommendationsCard
                 recommendations={data.recommendations}
@@ -145,6 +161,17 @@ export function ScoreDashboard() {
           )}
         </>
       )}
+      <FleetTable
+        rows={fleet?.scores ?? []}
+        hasNextPage={(fleet?.nextPageToken ?? "") !== ""}
+        loading={fleetQuery.isFetching}
+        onNextPage={() => {
+          const next = fleet?.nextPageToken ?? "";
+          if (next !== "") {
+            setFleetPageToken(next);
+          }
+        }}
+      />
     </div>
   );
 }

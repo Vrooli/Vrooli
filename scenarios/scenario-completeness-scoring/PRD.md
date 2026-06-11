@@ -33,18 +33,18 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 - [ ] OT-P1-003 | Status Dashboard UI | Thin read-only dashboard rendering the same GetScore payload (score, rung, breakdown, freshness, recommendations) with loading/error/empty states per template standards.
 
 ### 🟢 P2 – Future / expansion
-- [ ] OT-P2-001 | Fleet Bulk View | List scores across all scenarios (bulk read of the same cached path) so catalog consumers (e.g. swarm-manager) can re-point from the legacy `scores --json` contract.
+- [x] OT-P2-001 | Fleet Bulk View | List latest persisted scores across all scenarios through `ScoreService.ListScores` and `score list`, with server-side sort/filter/pagination over score snapshots so catalog consumers such as swarm-manager can use the proto contract without legacy JSON compatibility; expose fleet snapshot aggregates as measures for federation.
 - [ ] OT-P2-002 | What-If Analysis | Simulate metric changes and report projected score delta (port from the old implementation only if it stays cheap on the new signal set).
 
 ## 🧱 Tech Direction Snapshot
 
 Preferred stacks: Go Connect-RPC API following react-vite template v1.0.1 standards — proto-first contracts under `packages/proto/schemas/scenario-completeness-scoring/v1`, screaming architecture under `api/internal/<domain>`. Go CLI over generated Connect clients. React + Vite + Tailwind for the status dashboard UI. Domains: `signals` (collector registry over cached artifacts: requirements registry + sync metadata, phase-results findings decoded to proto ArchitectureFinding and mapped through the maturity-go dimension vocabulary, service manifest, UI heuristics), `freshness` (tree-digest computation + runs.index.json verdicts via freshness-go), `scoring` (signal assembly → ladder rung + composite + classification + recommendations + action plan).
 
-Preferred storage: No database in v1. Scores are computed on demand from the target scenario's files; no score history or trends (explicit non-goal). SQLite only if a future need is proven.
+Preferred storage: SQLite is owned by the scoring domain for digest-deduplicated `score_snapshots`. The background sweeper is the single writer; `GetScore` remains a pure read, and fleet-shaped reads (`ListScores`, UI fleet table, measures) must be O(query) over persisted state rather than O(fleet) recomputation.
 
 Integration strategy: Shared pure-logic packages (maturity-go, freshness-go) — shared code, not shared services. Optional network enrichment (dep-analyzer, swarm-manager) is best-effort with hard budgets. The old REST/gorilla-mux API and legacy JSON field names are NOT preserved (greenfield rule; consumers re-point to the new proto contract).
 
-Non-goals: No lifecycle event ledger, no score history/trends, no search-hub provider registration, no scenario-qa findings bridge, no per-scenario freshness phase configuration (anti-gaming operator decision), no service calls from ecosystem-manager's control loop into this scenario. Digest scope is scenario-dir-only in v1 (documented limitation: edits to shared packages/* do not stale-ify dependent scenarios).
+Non-goals: No lifecycle event ledger, no bespoke search-hub provider registration beyond measures federation, no scenario-qa findings bridge, no per-scenario freshness phase configuration (anti-gaming operator decision), no service calls from ecosystem-manager's control loop into this scenario, and no legacy bulk-JSON compatibility shim. Digest scope is scenario-dir-only in v1 (documented limitation: edits to shared packages/* do not stale-ify dependent scenarios).
 
 ## 🤝 Dependencies & Launch Plan
 
@@ -67,6 +67,6 @@ Accessibility: Template accessibility floors enforced — axe-clean landmark str
 ## 📎 Appendix
 
 - Shared packages: `packages/maturity-go` (ladder gate predicates, maturity vocabulary), `packages/freshness-go` (tree-digest computation, staleness verdict logic).
-- Proto contract location: `packages/proto/schemas/scenario-completeness-scoring/v1` — ScoreService / GetScore RPC.
+- Proto contract location: `packages/proto/schemas/scenario-completeness-scoring/v1` — ScoreService plus MeasuresService RPCs.
 - Cached artifact sources consumed by the `signals` domain: `coverage/runs.index.json` (run index), phase-results findings files (decoded to ArchitectureFinding proto), requirements registry, service manifest, UI heuristics.
 - Digest scope limitation (v1): scenario directory only; edits to `packages/*` do not stale-ify dependent scenario digests — documented known limitation for v1.

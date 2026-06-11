@@ -7,14 +7,21 @@ import {
   type DimensionCount,
   type FreshnessBlock,
   type GetScoreResponse,
+  type GetScoreTrendResponse,
   type ImportanceComponents,
   type ImportanceSignals,
   type ImportanceSummary,
+  type ListScoresResponse,
   type MaturityHeadline,
   type MetricLine,
   type PhaseFreshness,
   type Recommendation,
   type ScoreGroup,
+  ScoreSortBy,
+  type ScoreRow,
+  type ScoreSnapshot,
+  SortOrder,
+  type TrendSummary,
 } from "@vrooli/proto-types/scenario-completeness-scoring/v1/scoring/scoring_pb";
 
 import { transport } from "./client";
@@ -31,6 +38,25 @@ export async function fetchScore(scenario: string): Promise<GetScoreResponse> {
   return scoringClient.getScore({ scenario });
 }
 
+export async function fetchScoreTrend(
+  scenario: string,
+  limit = 12,
+): Promise<GetScoreTrendResponse> {
+  return scoringClient.getScoreTrend({ scenario, limit });
+}
+
+export async function fetchScores(options: {
+  pageToken?: string;
+  pageSize?: number;
+} = {}): Promise<ListScoresResponse> {
+  return scoringClient.listScores({
+    sortBy: ScoreSortBy.PRIORITY,
+    order: SortOrder.DESC,
+    pageSize: options.pageSize ?? 10,
+    pageToken: options.pageToken ?? "",
+  });
+}
+
 export type {
   ActionPhase,
   CollectorDegradation,
@@ -38,12 +64,17 @@ export type {
   DimensionCount,
   FreshnessBlock,
   GetScoreResponse,
+  GetScoreTrendResponse,
   ImportanceComponents,
   ImportanceSignals,
   ImportanceSummary,
+  ListScoresResponse,
   MaturityHeadline,
   MetricLine,
   PhaseFreshness,
   Recommendation,
   ScoreGroup,
+  ScoreRow,
+  ScoreSnapshot,
+  TrendSummary,
 };

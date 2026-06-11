@@ -3,8 +3,10 @@ package scores
 import (
 	"strings"
 	"testing"
+	"time"
 
 	scoringv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/scoring"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func sampleResponse() *scoringv1.GetScoreResponse {
@@ -33,6 +35,11 @@ func sampleResponse() *scoringv1.GetScoreResponse {
 					},
 				},
 			},
+		},
+		Trend: &scoringv1.TrendSummary{
+			PreviousScore:        65,
+			PreviousCalculatedAt: timestamppb.New(time.Date(2026, 6, 8, 12, 0, 0, 0, time.UTC)),
+			Delta:                7,
 		},
 		Freshness: &scoringv1.FreshnessBlock{
 			CurrentDigest:    "td:1d6f1c94aaaa",
@@ -81,6 +88,7 @@ func TestFormatReportSections(t *testing.T) {
 		"As of digest: td:1d6f1c94aaaa",
 		"standards: 2 error+, 5 open (approximated from phase status)",
 		"📊 COMPLETENESS SCORE: 72/100 (mostly_complete)",
+		"Trend: ↑7 since 2026-06-08 (previous 65/100)",
 		"Quality (40/50):",
 		"Requirements: 34 total, 30 passing (88%) → 17.6/20 pts",
 		"📍 IMPORTANCE",
@@ -109,6 +117,21 @@ func TestFormatReportSections(t *testing.T) {
 			t.Fatalf("missing or out-of-order section %q in:\n%s", want, out)
 		}
 		idx += next
+	}
+}
+
+func TestFormatReportTrendNegativeDelta(t *testing.T) {
+	msg := sampleResponse()
+	msg.Composite.Score = 60
+	msg.Trend = &scoringv1.TrendSummary{
+		PreviousScore:        72,
+		PreviousCalculatedAt: timestamppb.New(time.Date(2026, 6, 8, 12, 0, 0, 0, time.UTC)),
+		Delta:                -12,
+	}
+
+	out := FormatReport(msg)
+	if !strings.Contains(out, "Trend: ↓12 since 2026-06-08 (previous 72/100)") {
+		t.Fatalf("missing negative trend line:\n%s", out)
 	}
 }
 

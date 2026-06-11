@@ -190,8 +190,8 @@ reference domains. Replace this table as the scenario becomes real.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Reference-ready | Domain-owned scoring/signals/freshness/importance stack, module registry, per-domain schema, documented seams. | No score history or trends in v1. |
-| UI | Reference-ready | Feature folders, typed API clients, selector/i18n registries, modeltest helpers. | Real scenarios may need routing/state patterns once multiple screens exist. |
+| API | Reference-ready | Domain-owned scoring/signals/freshness/importance stack, routed snapshot store/sweeper, measures federation surface, module registry, per-domain schema, documented seams. | Full scenario/GCT validation still pending. |
+| UI | Reference-ready | Feature folders, typed API clients, selector/i18n registries, modeltest helpers, dashboard trend card, persisted fleet table, BAS routed-database proof against the fleet table. | Full scenario/GCT validation still pending. |
 | CLI | Reference-ready | Domain command groups wrap API calls and render reports. | New domains must add commands intentionally; CLI should remain thin. |
 | Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints. | Scenario-specific stubs must be filled or marked not-applicable. |
 

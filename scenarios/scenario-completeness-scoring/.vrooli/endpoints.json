@@ -32,6 +32,54 @@
       }
     },
     {
+      "id": "measures_count_fleet_below_rung",
+      "path": "/vrooli.scenario_completeness_scoring.v1.measures.MeasuresService/CountFleetBelowRung",
+      "method": "POST",
+      "summary": "Count scenarios below a maturity rung",
+      "description": "Counts latest score snapshots per scenario inside a time window whose working rung is below the requested threshold.",
+      "category": "measures"
+    },
+    {
+      "id": "measures_average_composite",
+      "path": "/vrooli.scenario_completeness_scoring.v1.measures.MeasuresService/AverageComposite",
+      "method": "POST",
+      "summary": "Average fleet composite score",
+      "description": "Averages the latest composite score per scenario inside a time window.",
+      "category": "measures"
+    },
+    {
+      "id": "measures_score_series",
+      "path": "/vrooli.scenario_completeness_scoring.v1.measures.MeasuresService/ScoreSeries",
+      "method": "POST",
+      "summary": "Fleet score series",
+      "description": "Returns a daily fleet-average completeness score series over persisted score snapshots.",
+      "category": "measures"
+    },
+    {
+      "id": "measures_declarations",
+      "path": "/measures/declarations",
+      "method": "GET",
+      "summary": "List declared measures",
+      "description": "Measures-go registry declarations harvested by measures-health and search-hub.",
+      "category": "measures",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "measures-go serves a framework-neutral harvest endpoint consumed without a generated client."
+      }
+    },
+    {
+      "id": "measures_execute",
+      "path": "/measures/execute",
+      "method": "POST",
+      "summary": "Execute a declared measure",
+      "description": "Measures-go registry execution endpoint used by measures-health behavioral probes and search-hub federation.",
+      "category": "measures",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "measures-go serves a uniform JSON execution endpoint shared across scenarios."
+      }
+    },
+    {
       "id": "scoring_get",
       "path": "/vrooli.scenario_completeness_scoring.v1.scoring.ScoreService/GetScore",
       "method": "POST",

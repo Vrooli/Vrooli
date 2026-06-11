@@ -4,7 +4,7 @@
       "name": "seo_content",
       "config": {
         "vectors": {
-          "size": 768,
+          "embedding_role": "embedding.default",
           "distance": "Cosine"
         },
         "optimizers_config": {
@@ -18,7 +18,7 @@
       "name": "competitor_content",
       "config": {
         "vectors": {
-          "size": 768,
+          "embedding_role": "embedding.default",
           "distance": "Cosine"
         },
         "optimizers_config": {
@@ -32,7 +32,7 @@
       "name": "keyword_clusters",
       "config": {
         "vectors": {
-          "size": 768,
+          "embedding_role": "embedding.default",
           "distance": "Cosine"
         },
         "optimizers_config": {

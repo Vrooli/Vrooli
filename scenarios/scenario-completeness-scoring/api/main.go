@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"scenario-completeness-scoring/internal/clock"
 	"scenario-completeness-scoring/internal/modules"
@@ -22,6 +24,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	healthH "scenario-completeness-scoring/handlers/health"
+	measuresH "scenario-completeness-scoring/handlers/measures"
 	scoringH "scenario-completeness-scoring/handlers/scoring"
 	internalscoring "scenario-completeness-scoring/internal/scoring"
 )
@@ -118,12 +121,40 @@ func main() {
 	if err != nil {
 		log.Fatalf("scoring service init failed: %v", err)
 	}
-	snapshots := internalscoring.NewSQLiteSnapshotRepository(db.Primary())
+	sweepScorer, err := internalscoring.New(internalscoring.WithImportance(nil))
+	if err != nil {
+		log.Fatalf("sweep scoring service init failed: %v", err)
+	}
+	snapshots := internalscoring.NewSQLiteSnapshotRepository(db)
+	sweepCtx, cancelSweep := context.WithCancel(context.Background())
+	sweepInterval := scoreSweepIntervalFromEnv()
+	sweeper, err := internalscoring.NewSweeper(internalscoring.SweeperConfig{
+		ScenariosRoot: scorer.ScenariosRoot(),
+		Repository:    snapshots,
+		Scorer:        sweepScorer,
+		Logger:        log.Default(),
+		Concurrency:   scoreSweepConcurrencyFromEnv(),
+		Interval:      sweepInterval,
+		InitialJitter: scoreSweepStartJitterFromEnv(sweepInterval),
+	})
+	if err != nil {
+		log.Fatalf("score sweeper init failed: %v", err)
+	}
+	sweepDone := make(chan struct{})
+	if !scoreSweepDisabledFromEnv() {
+		go func() {
+			defer close(sweepDone)
+			sweeper.RunLoop(sweepCtx)
+		}()
+	} else {
+		close(sweepDone)
+	}
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "scenario-completeness-scoring-api", "1.0.0"),
 		scoringH.Module(scorer, snapshots, log.Default()),
+		measuresH.Module(snapshots, time.Now),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -141,8 +172,76 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			cancelSweep()
+			select {
+			case <-sweepDone:
+			case <-ctx.Done():
+			}
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
+	}
+}
+
+func scoreSweepIntervalFromEnv() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("SCS_SCORE_SWEEP_INTERVAL"))
+	if raw == "" {
+		return time.Hour
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		return time.Hour
+	}
+	return d
+}
+
+func scoreSweepConcurrencyFromEnv() int {
+	raw := strings.TrimSpace(os.Getenv("SCS_SCORE_SWEEP_CONCURRENCY"))
+	if raw == "" {
+		return 4
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n <= 0 {
+		return 4
+	}
+	if n > 64 {
+		return 64
+	}
+	return n
+}
+
+func scoreSweepStartJitterFromEnv(interval time.Duration) time.Duration {
+	raw := strings.TrimSpace(os.Getenv("SCS_SCORE_SWEEP_START_JITTER"))
+	if raw != "" {
+		d, err := time.ParseDuration(raw)
+		if err == nil && d >= 0 {
+			return d
+		}
+	}
+	if interval <= 0 {
+		interval = time.Hour
+	}
+	maxJitter := interval / 10
+	if maxJitter > time.Minute {
+		maxJitter = time.Minute
+	}
+	if maxJitter <= 0 {
+		return 0
+	}
+	seed := time.Now().UnixNano() + int64(os.Getpid())
+	if seed < 0 {
+		seed = -seed
+	}
+	return time.Duration(seed % int64(maxJitter+1))
+}
+
+func scoreSweepDisabledFromEnv() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("SCS_SCORE_SWEEP_DISABLED"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
 	}
 }

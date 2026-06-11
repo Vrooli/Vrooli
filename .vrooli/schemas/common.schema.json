@@ -167,8 +167,8 @@
         "path": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$",
-          "description": "Slash-normalized path of this entry, relative to its container's base (the runtime home, or a resource durable_data base). No leading slash, drive letter, or parent traversal."
+          "pattern": "^[^\\\\]+$",
+          "description": "Slash-normalized path of this entry, relative to its container's base (the runtime home, or a resource durable_data base). No backslashes. Leading slashes, drive letters, and parent traversal are enforced by repo-contract/resource validators rather than this portable JSON Schema regex."
         },
         "kind": {
           "type": "string",

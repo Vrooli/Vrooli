@@ -53,6 +53,23 @@
     "loading": "スコアを計算中…",
     "empty": "シナリオのディレクトリ名を入力すると、キャッシュ済みの成熟度ラング、完成度スコア、テスト鮮度が表示されます。",
     "calculatedAtLabel": "計算日時:",
+    "trend": {
+      "title": "スコア推移",
+      "since": "{{date}} の {{score}}/100 から",
+      "empty": "前回のダイジェストはまだありません。",
+      "unknownDate": "日付不明"
+    },
+    "fleet": {
+      "title": "フリート優先度",
+      "scenario": "シナリオ",
+      "score": "スコア",
+      "rung": "ラング",
+      "priority": "優先度",
+      "calculated": "計算日時",
+      "next": "次のページ",
+      "empty": "永続化されたスコアスナップショットはまだありません。",
+      "unknownDate": "不明"
+    },
     "maturity": {
       "title": "成熟度",
       "ladderClean": "R4 までラダークリーン",

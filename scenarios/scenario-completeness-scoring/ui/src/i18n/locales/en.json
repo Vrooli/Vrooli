@@ -56,6 +56,23 @@
     "loading": "Computing score…",
     "empty": "Enter a scenario directory name to see its cached maturity rung, completeness score, and test freshness.",
     "calculatedAtLabel": "Calculated:",
+    "trend": {
+      "title": "Score trend",
+      "since": "since {{score}}/100 on {{date}}",
+      "empty": "No prior digest yet.",
+      "unknownDate": "unknown date"
+    },
+    "fleet": {
+      "title": "Fleet priority",
+      "scenario": "Scenario",
+      "score": "Score",
+      "rung": "Rung",
+      "priority": "Priority",
+      "calculated": "Calculated",
+      "next": "Next page",
+      "empty": "No persisted score snapshots yet.",
+      "unknownDate": "unknown"
+    },
     "maturity": {
       "title": "Maturity",
       "ladderClean": "Ladder clean through R4",

@@ -12,8 +12,29 @@ import {
 export const API_BASE = resolveApiBase();
 const REST_API_BASE = resolveApiBase({ appendSuffix: true });
 const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
+const TEST_MODE_PARAM = "vrooli_test_mode";
+const TEST_MODE_HEADER = "X-Vrooli-Test-Mode";
 
-export const transport = createScenarioConnectTransport({ baseUrl: API_BASE });
+function shouldSendTestModeHeader(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  return new URLSearchParams(window.location.search).get(TEST_MODE_PARAM) === "1";
+}
+
+const connectFetch: typeof fetch = (input, init = {}) => {
+  if (!shouldSendTestModeHeader()) {
+    return fetch(input, init);
+  }
+  const headers = new Headers(init.headers);
+  headers.set(TEST_MODE_HEADER, "1");
+  return fetch(input, { ...init, headers });
+};
+
+export const transport = createScenarioConnectTransport({
+  baseUrl: API_BASE,
+  fetch: connectFetch,
+});
 
 /**
  * Typed error thrown when the API returns a non-2xx response. The

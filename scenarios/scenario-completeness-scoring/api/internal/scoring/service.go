@@ -74,6 +74,10 @@ func New(opts ...Option) (*Service, error) {
 	return s, nil
 }
 
+func (s *Service) ScenariosRoot() string {
+	return s.scenariosRoot
+}
+
 func resolveVrooliRoot() (string, error) {
 	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
 		return repocontract.FindRepoRootFromPath(root)

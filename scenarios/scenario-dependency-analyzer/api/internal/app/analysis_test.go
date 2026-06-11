@@ -977,7 +977,7 @@ func TestExtractDeclaredResourcesWithSeams(t *testing.T) {
 			"ollama": {
 				Type:    "ai",
 				Enabled: true,
-				Models:  []string{"llama2", "codellama"},
+				Models:  []string{"fixture-chat-model", "fixture-code-model"},
 			},
 		}
 

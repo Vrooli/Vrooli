@@ -27,8 +27,7 @@ domain needs them. Document those decisions in
 
 ## Data Ownership
 
-This scenario persists **no product data of its own** (no score history in
-v1 — explicit non-goal). All product reads are from the *target* scenario's
+This scenario reads most score inputs from the *target* scenario's
 cached artifacts, which other tools own and write:
 
 | Read Path (relative to target scenario) | Owner/Writer | Read By Domain | Notes |
@@ -42,15 +41,13 @@ cached artifacts, which other tools own and write:
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
-| Notes | notes | SQLite | `api/internal/notes/schema.sql` | Until deleted by future product behavior | Template reference data; remove with notes domain. |
-| Attachment metadata | notes | SQLite | `api/internal/notes/schema.sql` | Until parent note or attachment is deleted by future product behavior | Metadata only; bytes are stored through BlobStore. |
-| Attachment bytes | notes | Filesystem BlobStore by default | BlobStore implementation in notes handler module | Same lifecycle as metadata | Opaque bytes stay outside proto payloads. |
+| Score snapshots | scoring | SQLite | `api/internal/scoring/schema.sql` | Retained until an explicit compaction/retention policy ships. | Digest-deduplicated history written by the background sweeper and explicit page-bounded recomputes; read by `GetScore` deltas, trend, fleet list, and measures. |
 
 ## Schema Map
 
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
-| notes tables | notes | `api/internal/notes/schema.sql` | notes repository/service/handlers |
+| `score_snapshots` | scoring | `api/internal/scoring/schema.sql` | scoring repository, sweeper, `ScoreService`, measures |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
 ## Migrations And Compatibility
@@ -73,7 +70,7 @@ backfills, add a scenario-specific migration plan here and update
 
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
-| None — the scenario persists no product data (scores computed on demand; reads are against other scenarios' artifacts). | n/a | n/a | Define retention semantics if score history ever ships (explicit v1 non-goal). |
+| `score_snapshots` | None today. | Keep all digest-distinct snapshots for trend and fleet-measure reads. | Define compaction once snapshot volume is measured across a large fleet. |
 
 ## Privacy Notes
 

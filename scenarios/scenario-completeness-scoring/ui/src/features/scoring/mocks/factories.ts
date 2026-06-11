@@ -21,23 +21,33 @@ import {
   DimensionCountSchema,
   FreshnessBlockSchema,
   GetScoreResponseSchema,
+  GetScoreTrendResponseSchema,
   ImportanceComponentsSchema,
   ImportanceSignalsSchema,
   ImportanceSummarySchema,
+  ListScoresResponseSchema,
   MaturityHeadlineSchema,
   MetricLineSchema,
   PhaseFreshnessSchema,
   RecommendationSchema,
   ScoreGroupSchema,
+  ScoreRowSchema,
+  ScoreSnapshotSchema,
+  TrendSummarySchema,
   type ActionPhase,
   type CollectorDegradation,
   type CompositeScore,
   type FreshnessBlock,
   type GetScoreResponse,
+  type GetScoreTrendResponse,
   type ImportanceSummary,
+  type ListScoresResponse,
   type MaturityHeadline,
   type PhaseFreshness,
   type Recommendation,
+  type ScoreRow,
+  type ScoreSnapshot,
+  type TrendSummary,
 } from "@vrooli/proto-types/scenario-completeness-scoring/v1/scoring/scoring_pb";
 
 export type {
@@ -46,10 +56,15 @@ export type {
   CompositeScore,
   FreshnessBlock,
   GetScoreResponse,
+  GetScoreTrendResponse,
   ImportanceSummary,
+  ListScoresResponse,
   MaturityHeadline,
   PhaseFreshness,
   Recommendation,
+  ScoreRow,
+  ScoreSnapshot,
+  TrendSummary,
 };
 
 export const makeMaturityHeadline = (
@@ -175,6 +190,81 @@ export const makeCollectorDegradation = (
     ...overrides,
   });
 
+export const makeTrendSummary = (
+  overrides: MessageInitShape<typeof TrendSummarySchema> = {},
+): TrendSummary =>
+  create(TrendSummarySchema, {
+    previousScore: 75,
+    previousCalculatedAt: timestampFromDate(new Date("2026-06-08T12:00:00.000Z")),
+    delta: 7,
+    ...overrides,
+  });
+
+export const makeScoreSnapshot = (
+  overrides: MessageInitShape<typeof ScoreSnapshotSchema> = {},
+): ScoreSnapshot =>
+  create(ScoreSnapshotSchema, {
+    scenario: "web-search",
+    category: "utility",
+    digest: "td:abc123",
+    score: 82,
+    classification: "mostly_complete",
+    workingRung: "R1 Safe & standards-clean",
+    source: "sweep",
+    calculatedAt: timestampFromDate(new Date("2026-06-10T12:34:56.000Z")),
+    ...overrides,
+  });
+
+export const makeGetScoreTrendResponse = (
+  overrides: MessageInitShape<typeof GetScoreTrendResponseSchema> = {},
+): GetScoreTrendResponse =>
+  create(GetScoreTrendResponseSchema, {
+    scenario: "web-search",
+    snapshots: [
+      makeScoreSnapshot(),
+      makeScoreSnapshot({
+        digest: "td:older",
+        score: 75,
+        calculatedAt: timestampFromDate(new Date("2026-06-08T12:00:00.000Z")),
+      }),
+    ],
+    ...overrides,
+  });
+
+export const makeScoreRow = (
+  overrides: MessageInitShape<typeof ScoreRowSchema> = {},
+): ScoreRow =>
+  create(ScoreRowSchema, {
+    scenario: "web-search",
+    category: "utility",
+    score: 82,
+    classification: "mostly_complete",
+    workingRung: "R1 Safe & standards-clean",
+    importance: 0.8,
+    priority: 2.4,
+    calculatedAt: timestampFromDate(new Date("2026-06-10T12:34:56.000Z")),
+    digest: "td:abc123",
+    ...overrides,
+  });
+
+export const makeListScoresResponse = (
+  overrides: MessageInitShape<typeof ListScoresResponseSchema> = {},
+): ListScoresResponse =>
+  create(ListScoresResponseSchema, {
+    scores: [
+      makeScoreRow(),
+      makeScoreRow({
+        scenario: "cli-health",
+        category: "platform",
+        score: 68,
+        workingRung: "R2 Validated",
+        priority: 1.2,
+      }),
+    ],
+    nextPageToken: "2",
+    ...overrides,
+  });
+
 export const makeGetScoreResponse = (
   overrides: MessageInitShape<typeof GetScoreResponseSchema> = {},
 ): GetScoreResponse =>
@@ -189,5 +279,6 @@ export const makeGetScoreResponse = (
     actionPlan: [makeActionPhase()],
     degradations: [],
     calculatedAt: timestampFromDate(new Date("2026-06-10T12:34:56.000Z")),
+    trend: makeTrendSummary(),
     ...overrides,
   });

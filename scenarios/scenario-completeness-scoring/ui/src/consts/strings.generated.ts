@@ -68,6 +68,23 @@ export const strings = {
     loading: "scoring.loading",
     empty: "scoring.empty",
     calculatedAtLabel: "scoring.calculatedAtLabel",
+    trend: {
+      title: "scoring.trend.title",
+      since: "scoring.trend.since",
+      empty: "scoring.trend.empty",
+      unknownDate: "scoring.trend.unknownDate",
+    },
+    fleet: {
+      title: "scoring.fleet.title",
+      scenario: "scoring.fleet.scenario",
+      score: "scoring.fleet.score",
+      rung: "scoring.fleet.rung",
+      priority: "scoring.fleet.priority",
+      calculated: "scoring.fleet.calculated",
+      next: "scoring.fleet.next",
+      empty: "scoring.fleet.empty",
+      unknownDate: "scoring.fleet.unknownDate",
+    },
     maturity: {
       title: "scoring.maturity.title",
       ladderClean: "scoring.maturity.ladderClean",

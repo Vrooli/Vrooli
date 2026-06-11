@@ -4,6 +4,8 @@ Fast cached scenario status, maturity, and next-focus reader.
 
 ```bash
 scenario-completeness-scoring score get <scenario> [--json]
+scenario-completeness-scoring score trend <scenario> [--limit 20] [--json]
+scenario-completeness-scoring score list [--sort score|rung|last-scored|scenario|priority] [--limit 25] [--json]
 ```
 
 One command answers "what is the current state of scenario X and what
@@ -26,6 +28,18 @@ hard-budgeted and omitted on miss:
 - **Optional importance enrichment** from scenario-dependency-analyzer
   centrality and swarm-manager recent activity, shown only when at least
   one source responds inside the budget.
+- **Digest-deduplicated score history** persisted by the API sweeper so
+  reports can show previous-score deltas and `score trend` can return a
+  per-scenario series. The sweeper is controlled by
+  `SCS_SCORE_SWEEP_INTERVAL`, `SCS_SCORE_SWEEP_CONCURRENCY`,
+  `SCS_SCORE_SWEEP_START_JITTER`, and `SCS_SCORE_SWEEP_DISABLED`.
+- **Fleet-scale bulk view** through `ScoreService.ListScores` / `score list`,
+  served from latest persisted snapshots with server-side sort, filter, and
+  pagination. The normal path is O(query) over stored rows and never computes
+  the full fleet on demand.
+- **Federated fleet measures** for measures-health/search-hub consumers:
+  count below rung, average composite, and score series, all served from the
+  snapshot store.
 - **Degradation honesty:** every signal collector runs behind a circuit
   breaker; malformed artifacts disable that collector and surface in the
   output instead of crashing the read.
@@ -41,7 +55,7 @@ the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`) — domains `signals` (cached-artifact collectors),
   `freshness` (digest + verdicts), `importance` (optional enrichment),
-  `scoring` (assembly + ScoreService)
+  `scoring` (assembly + ScoreService + snapshot store/sweeper)
 - React + TypeScript + Vite UI (`ui/`)
 - CLI wrapper (`cli/`)
 - Lifecycle + health wiring (`.vrooli/service.json`)

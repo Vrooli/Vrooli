@@ -29,6 +29,233 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "trend",
+          "description": "Get persisted score history for a scenario",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario directory name (e.g. cli-health)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum snapshots to return"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScoreService",
+            "method": "GetScoreTrend"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List latest persisted scenario scores with server-side sort, filter, and pagination",
+          "flags": [
+            {
+              "name": "sort",
+              "description": "Sort key: score, rung, last-scored, scenario, priority"
+            },
+            {
+              "name": "order",
+              "description": "Sort order: asc or desc"
+            },
+            {
+              "name": "limit",
+              "description": "Page size"
+            },
+            {
+              "name": "page-token",
+              "description": "Opaque next-page token from a previous response"
+            },
+            {
+              "name": "rung",
+              "description": "Filter by working rung"
+            },
+            {
+              "name": "min-score",
+              "description": "Minimum composite score"
+            },
+            {
+              "name": "max-score",
+              "description": "Maximum composite score"
+            },
+            {
+              "name": "category",
+              "description": "Filter by scenario category"
+            },
+            {
+              "name": "recompute",
+              "bool": true,
+              "description": "Request slow recompute for the returned page only; server caps recompute pages at 50 rows"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScoreService",
+            "method": "ListScores"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "scoring",
+      "description": "Federated analytical measures over persisted score snapshots",
+      "commands": [
+        {
+          "name": "fleet-below-rung",
+          "description": "Count scenarios whose latest snapshot in a time window is below a maturity rung threshold.",
+          "flags": [
+            {
+              "name": "window",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
+            },
+            {
+              "name": "rung",
+              "description": "Rung threshold enum (RUNG_THRESHOLD_R0 through RUNG_THRESHOLD_R4)."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CountFleetBelowRung"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "scoring",
+            "intent": "How many scenarios are below a maturity rung threshold in a time window.",
+            "questions": [
+              "how many scenarios are below rung R2",
+              "count scenarios still below R3 this month",
+              "how many scenarios are under R1 in the last 30 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              },
+              "rung": {
+                "type": "enum",
+                "default": "RUNG_THRESHOLD_R2"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "scenarios",
+              "summary_template": "{count} scenarios below {rung} ({window})"
+            }
+          }
+        },
+        {
+          "name": "average-composite",
+          "description": "Average latest composite score across scenarios scored in a time window.",
+          "flags": [
+            {
+              "name": "window",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "AverageComposite"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "scoring",
+            "intent": "Average latest composite score across scenarios scored in a time window.",
+            "questions": [
+              "what is the average scenario completeness score this week",
+              "average composite score this month",
+              "fleet average completeness in the last 30 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "average",
+              "unit": "score",
+              "summary_template": "{average} average composite score ({window})"
+            }
+          }
+        },
+        {
+          "name": "score-series",
+          "description": "Fleet-average scenario completeness score series over a time window.",
+          "flags": [
+            {
+              "name": "window",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "ScoreSeries"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "scoring",
+            "intent": "Fleet-average scenario completeness score series over a time window.",
+            "questions": [
+              "show scenario completeness score trend this month",
+              "fleet score history over the last 30 days",
+              "score series for scenario completeness this week"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "series",
+              "value_field": "average",
+              "unit": "score",
+              "summary_template": "fleet score series ({window})"
+            }
+          }
         }
       ]
     }
@@ -36,11 +263,11 @@
   "measures": {
     "domains": [
       {
-        "domain": "scoring",
+        "domain": "score_snapshots",
         "stateful": false,
-        "reason": "Read-only status reader over other scenarios' cached artifacts; no persisted countable state of its own."
+        "reason": "Implementation table owned by the scoring domain; scoring.* measures cover its historical value."
       }
-    ]
-  },
-  "omitted": []
+    ],
+    "omitted": []
+  }
 }

@@ -19,7 +19,9 @@ const GroupName = "score"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"ScoreService.GetScore": h.get,
+		"ScoreService.GetScore":      h.get,
+		"ScoreService.GetScoreTrend": h.trend,
+		"ScoreService.ListScores":    h.list,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

@@ -26,6 +26,38 @@ func (s *stubScorer) GetScore(scenario string) (internalscoring.Result, error) {
 	return s.result, s.err
 }
 
+type stubSnapshots struct {
+	previous internalscoring.Snapshot
+	has      bool
+	err      error
+	page     internalscoring.ListResult
+	upserts  []internalscoring.Snapshot
+
+	gotScenario string
+	gotDigest   string
+	gotList     internalscoring.ListQuery
+}
+
+func (s *stubSnapshots) LatestDifferingDigest(ctx context.Context, scenario, digest string) (internalscoring.Snapshot, bool, error) {
+	s.gotScenario = scenario
+	s.gotDigest = digest
+	return s.previous, s.has, s.err
+}
+
+func (s *stubSnapshots) SeriesFor(ctx context.Context, q internalscoring.TrendQuery) ([]internalscoring.Snapshot, error) {
+	return nil, nil
+}
+
+func (s *stubSnapshots) ListPage(ctx context.Context, q internalscoring.ListQuery) (internalscoring.ListResult, error) {
+	s.gotList = q
+	return s.page, nil
+}
+
+func (s *stubSnapshots) UpsertSnapshot(ctx context.Context, snap internalscoring.Snapshot) (bool, error) {
+	s.upserts = append(s.upserts, snap)
+	return true, nil
+}
+
 func TestGetScoreConvertsDomainResult(t *testing.T) {
 	now := time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
 	stub := &stubScorer{result: internalscoring.Result{
@@ -134,6 +166,66 @@ func TestGetScoreConvertsDomainResult(t *testing.T) {
 	}
 }
 
+func TestGetScoreAttachesTrendFromLatestDifferingDigest(t *testing.T) {
+	now := time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
+	previousAt := now.Add(-48 * time.Hour)
+	stub := &stubScorer{result: internalscoring.Result{
+		Scenario: "fixture",
+		Composite: internalscoring.Composite{
+			Score:          72,
+			Classification: "mostly_complete",
+		},
+		Freshness:    freshness.Result{Digest: "td:new"},
+		CalculatedAt: now,
+	}}
+	snapshots := &stubSnapshots{
+		previous: internalscoring.Snapshot{
+			Scenario:  "fixture",
+			Digest:    "td:old",
+			Composite: 65,
+			CreatedAt: previousAt,
+		},
+		has: true,
+	}
+
+	h := NewConnectHandler(Deps{Scorer: stub, Snapshots: snapshots})
+	resp, err := h.GetScore(context.Background(), connect.NewRequest(&scoringv1.GetScoreRequest{Scenario: "fixture"}))
+	if err != nil {
+		t.Fatalf("GetScore: %v", err)
+	}
+	if snapshots.gotScenario != "fixture" || snapshots.gotDigest != "td:new" {
+		t.Fatalf("trend lookup = (%q, %q), want fixture/td:new", snapshots.gotScenario, snapshots.gotDigest)
+	}
+	trend := resp.Msg.GetTrend()
+	if trend == nil {
+		t.Fatalf("trend omitted")
+	}
+	if trend.GetPreviousScore() != 65 || trend.GetDelta() != 7 {
+		t.Fatalf("trend score math wrong: %v", trend)
+	}
+	if trend.GetPreviousCalculatedAt().AsTime() != previousAt {
+		t.Fatalf("trend timestamp wrong: %v", trend.GetPreviousCalculatedAt())
+	}
+}
+
+func TestGetScoreOmitsTrendWhenNoDifferingSnapshot(t *testing.T) {
+	stub := &stubScorer{result: internalscoring.Result{
+		Scenario:     "fixture",
+		Composite:    internalscoring.Composite{Score: 72},
+		Freshness:    freshness.Result{Digest: "td:new"},
+		CalculatedAt: time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC),
+	}}
+	h := NewConnectHandler(Deps{Scorer: stub, Snapshots: &stubSnapshots{}})
+
+	resp, err := h.GetScore(context.Background(), connect.NewRequest(&scoringv1.GetScoreRequest{Scenario: "fixture"}))
+	if err != nil {
+		t.Fatalf("GetScore: %v", err)
+	}
+	if resp.Msg.GetTrend() != nil {
+		t.Fatalf("unexpected trend: %v", resp.Msg.GetTrend())
+	}
+}
+
 func TestGetScoreUnknownScenarioIsNotFound(t *testing.T) {
 	stub := &stubScorer{err: internalscoring.ErrUnknownScenario}
 	h := NewConnectHandler(Deps{Scorer: stub})
@@ -141,5 +233,62 @@ func TestGetScoreUnknownScenarioIsNotFound(t *testing.T) {
 	_, err := h.GetScore(context.Background(), connect.NewRequest(&scoringv1.GetScoreRequest{Scenario: "nope"}))
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("code = %v, want NotFound", connect.CodeOf(err))
+	}
+}
+
+func TestListScoresRecomputeIsBoundedToReturnedPage(t *testing.T) {
+	now := time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
+	snapshots := &stubSnapshots{
+		page: internalscoring.ListResult{
+			Snapshots: []internalscoring.Snapshot{
+				{
+					Scenario:       "alpha",
+					Category:       "utility",
+					Digest:         "td:old",
+					Composite:      40,
+					Classification: "foundation_laid",
+					WorkingRung:    "R1",
+					CreatedAt:      now.Add(-time.Hour),
+				},
+			},
+			HasNext:    true,
+			NextOffset: 1,
+		},
+	}
+	stub := &stubScorer{result: internalscoring.Result{
+		Scenario: "alpha",
+		Category: "utility",
+		Composite: internalscoring.Composite{
+			Score:          90,
+			Classification: "nearly_ready",
+		},
+		Maturity:     internalscoring.Maturity{WorkingRung: "R3"},
+		Freshness:    freshness.Result{Digest: "td:new"},
+		CalculatedAt: now,
+	}}
+	h := NewConnectHandler(Deps{Scorer: stub, Snapshots: snapshots})
+
+	resp, err := h.ListScores(context.Background(), connect.NewRequest(&scoringv1.ListScoresRequest{
+		PageSize:  500,
+		Recompute: true,
+	}))
+	if err != nil {
+		t.Fatalf("ListScores: %v", err)
+	}
+	if snapshots.gotList.Limit != maxRecomputePageSize {
+		t.Fatalf("ListPage limit = %d, want recompute cap %d", snapshots.gotList.Limit, maxRecomputePageSize)
+	}
+	if stub.got != "alpha" {
+		t.Fatalf("scorer called with %q, want alpha", stub.got)
+	}
+	if len(snapshots.upserts) != 1 || snapshots.upserts[0].Digest != "td:new" || snapshots.upserts[0].Source != "recompute" {
+		t.Fatalf("upserts = %+v, want recomputed snapshot persisted", snapshots.upserts)
+	}
+	rows := resp.Msg.GetScores()
+	if len(rows) != 1 || rows[0].GetScore() != 90 || rows[0].GetDigest() != "td:new" {
+		t.Fatalf("rows = %+v, want recomputed row", rows)
+	}
+	if resp.Msg.GetNextPageToken() == "" {
+		t.Fatalf("next page token omitted")
 	}
 }

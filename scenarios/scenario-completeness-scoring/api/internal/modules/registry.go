@@ -23,9 +23,11 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "scenario-completeness-scoring/handlers/health"
+	measuresH "scenario-completeness-scoring/handlers/measures"
 	scoringH "scenario-completeness-scoring/handlers/scoring"
 	localdb "scenario-completeness-scoring/internal/database"
 
+	measuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/measures"
 	scoringv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/scoring"
 )
 
@@ -36,6 +38,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, measuresH.Endpoints...)
 	out = append(out, scoringH.Endpoints...)
 	return out
 }
@@ -63,6 +66,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "measures", File: measuresv1.File_scenario_completeness_scoring_v1_measures_measures_proto},
 		{Module: "scoring", File: scoringv1.File_scenario_completeness_scoring_v1_scoring_scoring_proto},
 	}
 }

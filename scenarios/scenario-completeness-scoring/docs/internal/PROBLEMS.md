@@ -63,19 +63,11 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `vrooli plans show scenario-status-layer-…` §12.
 
-### 2026-06-10 — Deferred: score history / trends
-
-**Symptom:** No way to ask "is this scenario improving?" — every GetScore is a point-in-time read; nothing is persisted (the old SQLite history store was deliberately not ported).
-
-**Real fix:** Add persistence + a trends surface only when a consumer demonstrates need (plan §12 non-goal for v1).
-
-**Owner:** unassigned.
-
 ### 2026-06-10 — Deferred: search-hub provider registration
 
 **Symptom:** `search-hub query "how complete is X"` does not route to this scenario.
 
-**Real fix:** Register a `.vrooli/search.json` provider once the score contract has settled (plan §12 non-goal for v1).
+**Real fix:** Keep direct provider registration out of scope unless a consumer demonstrates a need beyond measures federation. The scenario now exposes score measures through measures-health; a separate search-hub timeout observed in that federation path is tracked in `topic:bug-inbox/unexpected-error/search-hub-measure-query-timeout`.
 
 **Owner:** unassigned.
 
@@ -93,18 +85,6 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `packages/freshness-go/treedigest/treedigest.go`.
 
-### 2026-06-10 — swarm-manager still shells the legacy bulk CLI contract
-
-**Symptom:** swarm-manager's `CLICompletenessSource` runs `scenario-completeness-scoring scores --json` (legacy bulk verb); since the greenfield rewrite that verb does not exist, so its catalog enrichment silently degrades (CompletenessScore omitted — tolerated by design on its side; the dependency is declared optional/disabled).
-
-**Workaround:** None needed; degradation is graceful.
-
-**Real fix:** Implement the P2 fleet bulk view (OT-P2-001) and re-point `scenarios/swarm-manager/api/internal/scenarios/completeness_source.go` to it.
-
-**Owner:** unassigned.
-
-**Refs:** `scenarios/swarm-manager/api/internal/scenarios/completeness_source.go:36`.
-
 ### 2026-06-10 — Per-finding detail only exists for runs recorded after today
 
 **Symptom:** Maturity dimension counts show "(approximated from phase status)" for most scenarios.
@@ -118,18 +98,6 @@ Use this shape so entries are scannable. Append newest at the bottom.
 **Owner:** unassigned.
 
 **Refs:** `scenarios/test-genie/api/internal/orchestrator/phases/phase_pointers.go`.
-
-### 2026-06-10 — No BAS proof for the routed test-database path
-
-**Symptom:** `bas/cases/` is empty; the template's `routed-database/proves-test-pool-routing.json` example was deleted at Gate 7.
-
-**Root cause:** The example asserted on the deleted notes list view, and this scenario has no DB-backed UI view to retarget it to (the score read path is filesystem-only; SQLite backs only the health probe).
-
-**Workaround:** None needed today — the routed-DB middleware is template infrastructure with no product consumer here.
-
-**Real fix:** If a DB-backed surface ever ships (e.g. score history), recreate the case against that view's selector + a `bas/seeds/` fixture, then run `test-genie registry build`.
-
-**Owner:** unassigned.
 
 ## Architecture Drift
 

@@ -3,6 +3,7 @@ package scoring
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"math"
 
@@ -21,9 +22,13 @@ type Scorer interface {
 }
 
 type SnapshotRepository interface {
+	LatestDifferingDigest(ctx context.Context, scenario, digest string) (internalscoring.Snapshot, bool, error)
 	SeriesFor(ctx context.Context, q internalscoring.TrendQuery) ([]internalscoring.Snapshot, error)
 	ListPage(ctx context.Context, q internalscoring.ListQuery) (internalscoring.ListResult, error)
+	UpsertSnapshot(ctx context.Context, snap internalscoring.Snapshot) (bool, error)
 }
+
+const maxRecomputePageSize = 50
 
 // Deps wires the Connect scoring handler.
 type Deps struct {
@@ -53,7 +58,28 @@ func (h *connectHandler) GetScore(ctx context.Context, req *connect.Request[scor
 		h.deps.Logger.Printf("scoring.GetScore: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(resultToProto(result)), nil
+	out := resultToProto(result)
+	h.attachTrend(ctx, out, result)
+	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) attachTrend(ctx context.Context, out *scoringv1.GetScoreResponse, result internalscoring.Result) {
+	if h.deps.Snapshots == nil || result.Freshness.Digest == "" {
+		return
+	}
+	previous, ok, err := h.deps.Snapshots.LatestDifferingDigest(ctx, result.Scenario, result.Freshness.Digest)
+	if err != nil {
+		h.deps.Logger.Printf("scoring.GetScore trend lookup: %v", err)
+		return
+	}
+	if !ok {
+		return
+	}
+	out.Trend = &scoringv1.TrendSummary{
+		PreviousScore:        boundedInt32(previous.Composite),
+		PreviousCalculatedAt: timestamppb.New(previous.CreatedAt),
+		Delta:                boundedInt32(result.Composite.Score - previous.Composite),
+	}
 }
 
 func (h *connectHandler) GetScoreTrend(ctx context.Context, req *connect.Request[scoringv1.GetScoreTrendRequest]) (*connect.Response[scoringv1.GetScoreTrendResponse], error) {
@@ -103,10 +129,20 @@ func (h *connectHandler) ListScores(ctx context.Context, req *connect.Request[sc
 		v := int(req.Msg.GetMaxScore())
 		q.MaxScore = &v
 	}
+	if req.Msg.GetRecompute() && (q.Limit <= 0 || q.Limit > maxRecomputePageSize) {
+		q.Limit = maxRecomputePageSize
+	}
 	page, err := h.deps.Snapshots.ListPage(ctx, q)
 	if err != nil {
 		h.deps.Logger.Printf("scoring.ListScores: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if req.Msg.GetRecompute() {
+		page.Snapshots, err = h.recomputeListPage(ctx, page.Snapshots)
+		if err != nil {
+			h.deps.Logger.Printf("scoring.ListScores recompute: %v", err)
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
 	}
 	out := &scoringv1.ListScoresResponse{}
 	for _, snap := range page.Snapshots {
@@ -116,6 +152,28 @@ func (h *connectHandler) ListScores(ctx context.Context, req *connect.Request[sc
 		out.NextPageToken = internalscoring.EncodePageOffset(page.NextOffset)
 	}
 	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) recomputeListPage(ctx context.Context, rows []internalscoring.Snapshot) ([]internalscoring.Snapshot, error) {
+	out := make([]internalscoring.Snapshot, 0, len(rows))
+	for _, row := range rows {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		result, err := h.deps.Scorer.GetScore(row.Scenario)
+		if err != nil {
+			return nil, fmt.Errorf("score %s: %w", row.Scenario, err)
+		}
+		snap, err := internalscoring.SnapshotFromResult(result, row.Digest, "recompute")
+		if err != nil {
+			return nil, fmt.Errorf("snapshot %s: %w", row.Scenario, err)
+		}
+		if _, err := h.deps.Snapshots.UpsertSnapshot(ctx, snap); err != nil {
+			return nil, fmt.Errorf("persist %s: %w", row.Scenario, err)
+		}
+		out = append(out, snap)
+	}
+	return out, nil
 }
 
 // resultToProto converts the domain result to the wire contract. Purely

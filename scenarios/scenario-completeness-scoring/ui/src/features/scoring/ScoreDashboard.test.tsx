@@ -14,6 +14,7 @@ import { renderWithProviders } from "../../test-utils";
 import {
   makeFreshnessBlock,
   makeGetScoreResponse,
+  makeListScoresResponse,
   makeMaturityHeadline,
   makeCollectorDegradation,
 } from "./mocks/factories";
@@ -38,17 +39,21 @@ describe("ScoreDashboard", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the empty prompt and fires no query without a scenario param", async () => {
-    const { fetchScore } = await import("../../api/scoring");
+  it("renders the empty prompt and fires no scenario score query without a scenario param", async () => {
+    const { fetchScore, fetchScoreTrend, fetchScores } = await import("../../api/scoring");
 
     renderWithProviders(<ScoreDashboard />);
 
     expect(screen.getByTestId(selectors.scoring.empty)).toBeInTheDocument();
     expect(vi.mocked(fetchScore)).not.toHaveBeenCalled();
+    expect(vi.mocked(fetchScoreTrend)).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(vi.mocked(fetchScores)).toHaveBeenCalledWith({ pageToken: "", pageSize: 10 });
+    });
   });
 
   it("renders the full payload for the scenario in the search param", async () => {
-    const { fetchScore } = await import("../../api/scoring");
+    const { fetchScore, fetchScoreTrend, fetchScores } = await import("../../api/scoring");
     vi.mocked(fetchScore).mockResolvedValueOnce(makeGetScoreResponse());
 
     renderWithProviders(<ScoreDashboard />, { routerEntries: ["/?scenario=web-search"] });
@@ -57,6 +62,8 @@ describe("ScoreDashboard", () => {
       expect(screen.getByTestId(selectors.scoring.composite.card)).toBeInTheDocument();
     });
     expect(vi.mocked(fetchScore)).toHaveBeenCalledWith("web-search");
+    expect(vi.mocked(fetchScoreTrend)).toHaveBeenCalledWith("web-search");
+    expect(vi.mocked(fetchScores)).toHaveBeenCalledWith({ pageToken: "", pageSize: 10 });
     expect(screen.getByTestId(selectors.scoring.composite.score).textContent).toContain("82/100");
     expect(screen.getByTestId(selectors.scoring.maturity.workingRung).textContent).toContain(
       "R1 Safe & standards-clean",
@@ -76,7 +83,29 @@ describe("ScoreDashboard", () => {
       "Fix the 2 standards errors blocking R1.",
     );
     expect(screen.getByTestId(selectors.scoring.actionPlan.projected)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.scoring.trend.delta).textContent).toContain("+7");
+    expect(screen.getByTestId(selectors.scoring.trend.series).children).toHaveLength(2);
+    expect(screen.getByTestId(selectors.scoring.fleet.table).textContent).toContain("cli-health");
     expect(screen.queryByTestId(selectors.scoring.degradations.card)).not.toBeInTheDocument();
+  });
+
+  it("pages the fleet table through ListScores next_page_token", async () => {
+    const { fetchScores } = await import("../../api/scoring");
+    vi.mocked(fetchScores)
+      .mockResolvedValueOnce(makeListScoresResponse({ nextPageToken: "next-page" }))
+      .mockResolvedValueOnce(makeListScoresResponse({ nextPageToken: "" }));
+    const user = userEvent.setup();
+
+    renderWithProviders(<ScoreDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.scoring.fleet.next)).toBeEnabled();
+    });
+    await user.click(screen.getByTestId(selectors.scoring.fleet.next));
+
+    await waitFor(() => {
+      expect(vi.mocked(fetchScores)).toHaveBeenLastCalledWith({ pageToken: "next-page", pageSize: 10 });
+    });
   });
 
   it("submits the typed scenario name and queries it", async () => {

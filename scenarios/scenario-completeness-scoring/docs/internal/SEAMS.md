@@ -185,10 +185,70 @@ and use matrix/trace helpers from the relevant testutil package.
 | | |
 |---|---|
 | **Seam** | Domain-owned SQL contribution |
-| **Interface** | `internal/<domain>/schema.go::Schema() string` (consumed via the handler package's `Schema` re-export, then `api-core/database.SchemaProvider`). The scoring domain persists nothing, so today only the (empty) system schema applies. |
+| **Interface** | `internal/<domain>/schema.go::Schema() string` (consumed via the handler package's `Schema` re-export, then `api-core/database.SchemaProvider`). The scoring domain owns `score_snapshots` through `internal/scoring/schema.sql`. |
 | **Production wiring** | `internal/modules/registry.go::AllSchemas()` lists each domain's `apidb.SchemaProviderFunc(<dom>H.Schema)`; applied at boot via `apidb.EnsureSchemas`. |
 | **Test fake** | Domain repository tests compose `db.NewSQLite(t)` + `apidb.EnsureSchemas(...)` with the system + own-domain providers, never the central registry. |
 | **Why it exists** | Domain ownership of the schema. Adding a column lands in the same diff as the Go change; deleting `internal/<domain>/` deletes the table definition with it, so removed domains do not leave tables created on boot. The handler-package `Schema` re-export keeps the registry's import surface narrow — it imports handler packages, not their internal peers. |
+
+### Score snapshots repository
+
+| | |
+|---|---|
+| **Seam** | Score history persistence |
+| **Interface** | `internal/scoring/repository.go::SnapshotRepository` (`LatestFor`, `LatestDifferingDigest`, `SeriesFor`, `UpsertSnapshot`, `ListPage`) |
+| **Production wiring** | `main.go` constructs `scoring.NewSQLiteSnapshotRepository(db)` with the `*database.RoutedDB` handle and passes it to the scoring Connect module, measures module, and background sweeper. Boot schema application still uses `db.Primary()` because schema creation is not request-routed. |
+| **Test fake** | Repository tests use `internal/testutil/db.NewSQLite` plus the real schema; sweeper tests use a domain-local in-memory fake in `internal/scoring/sweeper_test.go`. |
+| **Why it exists** | The fleet list/trend read paths must be O(query) over persisted state, while the background sweeper remains the single writer. Keeping the repository interface in the scoring domain lets tests prove digest-deduping and pagination without coupling handlers or workers to SQLite. |
+
+### Measures registry surface
+
+| | |
+|---|---|
+| **Seam** | Measures-health discovery/execution boundary |
+| **Interface** | `api/handlers/measures/measures.go::Store` plus `measures-go/serve.Registry` declarations for `scoring.fleet-below-rung`, `scoring.average-composite`, and `scoring.score-series`. |
+| **Production wiring** | `main.go` passes the concrete snapshot repository into `measures.Module(...)`; the module mounts `/measures/declarations`, `/measures/execute`, and the generated `MeasuresService` Connect handlers. |
+| **Test fake** | `api/handlers/measures/measures_test.go` uses an in-memory fake store and a fixed clock to prove declarations, registry execution, provenance, default windows, and Connect parity. |
+| **Why it exists** | Measures are an inter-scenario federation contract, but they must remain backed by the scoring domain's persisted read model. The seam keeps measures-health/search-hub integration from reaching into SQLite directly and preserves O(query) fleet behavior. |
+
+### Score sweep scenario lister
+
+| | |
+|---|---|
+| **Seam** | Fleet enumeration for background score snapshots |
+| **Interface** | `internal/scoring/sweeper.go::ScenarioLister` (`ListScenarios(root)`) |
+| **Production wiring** | `scoring.DirectoryScenarioLister` lists first-level directories under the resolved scenarios root. `main.go` uses it through `NewSweeper` defaults. |
+| **Test fake** | `internal/scoring/sweeper_test.go::fakeScenarioLister` supplies deterministic fleets. |
+| **Why it exists** | The sweeper must be testable without depending on the operator's local scenario directory count or names. |
+
+### Score sweep digest computer
+
+| | |
+|---|---|
+| **Seam** | Digest-first score-skip decision |
+| **Interface** | `internal/scoring/sweeper.go::DigestComputer` (`ComputeDigest(root)`) |
+| **Production wiring** | `scoring.TreeDigestComputer` delegates to `freshness-go/treedigest.Compute`. `main.go` uses it through `NewSweeper` defaults. |
+| **Test fake** | `internal/scoring/sweeper_test.go::fakeDigester` returns fixed digests or injected errors. |
+| **Why it exists** | The fleet-scale invariant depends on skipping unchanged scenarios before score computation. Tests need to prove unchanged digests do not call the scorer. |
+
+### Score sweep scorer
+
+| | |
+|---|---|
+| **Seam** | Per-scenario score computation inside the background sweeper |
+| **Interface** | `internal/scoring/sweeper.go::SweepScorer` (`GetScore(scenario)`) |
+| **Production wiring** | `main.go` constructs a scoring `Service` with optional importance enrichment disabled for sweep writes and passes it to `NewSweeper`. |
+| **Test fake** | `internal/scoring/sweeper_test.go::fakeSweepScorer` records call counts, blocks for single-flight tests, and returns fixed score results. |
+| **Why it exists** | The sweeper owns persistence policy, not score math. The seam keeps digest-skip and single-writer behavior independently testable. |
+
+### Score sweep timing
+
+| | |
+|---|---|
+| **Seam** | Background sweep cadence and startup staggering |
+| **Interface** | `internal/scoring/sweeper.go::SweeperConfig` (`Interval`, `InitialJitter`) |
+| **Production wiring** | `main.go` reads `SCS_SCORE_SWEEP_INTERVAL` and `SCS_SCORE_SWEEP_START_JITTER`; absent an explicit start jitter, it chooses a per-process startup delay up to one tenth of the interval, capped at one minute. |
+| **Test fake** | `internal/scoring/sweeper_test.go::TestSweeperRunLoopHonorsInitialJitter` uses a short configured jitter and fixed interval to prove no score work starts before the startup delay. |
+| **Why it exists** | Fleet sweeps are background maintenance. Startup staggering avoids a thundering herd when multiple scenario API processes restart together, while preserving fast deterministic tests through explicit timing injection. |
 
 ### Doer (outbound HTTP)
 

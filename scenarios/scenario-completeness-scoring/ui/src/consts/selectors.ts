@@ -349,6 +349,17 @@ const literalSelectors = {
     degradations: {
       card: "scoring-degradations-card",
     },
+    trend: {
+      card: "scoring-trend-card",
+      delta: "scoring-trend-delta",
+      series: "scoring-trend-series",
+    },
+    fleet: {
+      card: "scoring-fleet-card",
+      table: "scoring-fleet-table",
+      next: "scoring-fleet-next",
+      empty: "scoring-fleet-empty",
+    },
   },
   locale: {
     switcher: "locale-switcher",

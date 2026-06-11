@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // Manifest is the parsed scenario UI manifest. Mirrors
@@ -107,7 +109,10 @@ func (l *FSLoader) Load(scenario string) (Manifest, error) {
 	if l == nil || l.RepoRoot == "" {
 		return Manifest{}, errors.New("uimanifest: loader has no repo root")
 	}
-	svcPath := filepath.Join(l.RepoRoot, "scenarios", scenario, ".vrooli", "service.json")
+	svcPath, err := repocontract.ScenarioServiceManifestPath(l.RepoRoot, scenario)
+	if err != nil {
+		return Manifest{}, err
+	}
 	raw, err := os.ReadFile(svcPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {

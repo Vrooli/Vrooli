@@ -51,6 +51,17 @@ func FormatReport(msg *scoringv1.GetScoreResponse) string {
 	fmt.Fprintf(&b, "\n📊 COMPLETENESS SCORE: %d/100 (%s)\n", comp.GetScore(), comp.GetClassification())
 	b.WriteString(rule + "\n")
 	fmt.Fprintf(&b, "  %s\n", comp.GetClassificationLabel())
+	if trend := msg.GetTrend(); trend != nil {
+		when := "unknown"
+		if trend.GetPreviousCalculatedAt() != nil {
+			when = trend.GetPreviousCalculatedAt().AsTime().Format("2006-01-02")
+		}
+		fmt.Fprintf(&b, "  Trend: %s since %s (previous %d/100)\n",
+			formatDelta(trend.GetDelta()),
+			when,
+			trend.GetPreviousScore(),
+		)
+	}
 	for _, g := range comp.GetGroups() {
 		fmt.Fprintf(&b, "\n  %s (%s/%s):\n", g.GetLabel(), trimFloat(g.GetScore()), trimFloat(g.GetMax()))
 		for _, m := range g.GetMetrics() {
@@ -152,6 +163,64 @@ func FormatReport(msg *scoringv1.GetScoreResponse) string {
 	return b.String()
 }
 
+func FormatTrend(msg *scoringv1.GetScoreTrendResponse) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Score trend — %s\n", msg.GetScenario())
+	b.WriteString(rule + "\n")
+	if len(msg.GetSnapshots()) == 0 {
+		b.WriteString("  No persisted snapshots yet.\n")
+		return b.String()
+	}
+	for _, snap := range msg.GetSnapshots() {
+		when := "unknown"
+		if snap.GetCalculatedAt() != nil {
+			when = snap.GetCalculatedAt().AsTime().Format("2006-01-02 15:04")
+		}
+		importance := ""
+		if snap.GetImportancePresent() {
+			importance = fmt.Sprintf(" importance=%s", trimFloat(snap.GetImportance()))
+		}
+		fmt.Fprintf(&b, "  %s  %3d/100  %-18s rung=%s digest=%s%s\n",
+			when,
+			snap.GetScore(),
+			snap.GetClassification(),
+			firstNonEmpty(snap.GetWorkingRung(), "clean"),
+			firstNonEmpty(snap.GetDigest(), "unknown"),
+			importance,
+		)
+	}
+	return b.String()
+}
+
+func FormatList(msg *scoringv1.ListScoresResponse) string {
+	var b strings.Builder
+	b.WriteString("Scenario scores\n")
+	b.WriteString(rule + "\n")
+	if len(msg.GetScores()) == 0 {
+		b.WriteString("  No persisted snapshots yet.\n")
+		return b.String()
+	}
+	fmt.Fprintf(&b, "  %-32s %5s  %-18s %-10s %-10s %s\n", "SCENARIO", "SCORE", "CLASSIFICATION", "RUNG", "PRIORITY", "CALCULATED")
+	for _, row := range msg.GetScores() {
+		when := "unknown"
+		if row.GetCalculatedAt() != nil {
+			when = row.GetCalculatedAt().AsTime().Format("2006-01-02 15:04")
+		}
+		fmt.Fprintf(&b, "  %-32s %3d/100  %-18s %-10s %-10s %s\n",
+			row.GetScenario(),
+			row.GetScore(),
+			row.GetClassification(),
+			firstNonEmpty(row.GetWorkingRung(), "clean"),
+			trimFloat(row.GetPriority()),
+			when,
+		)
+	}
+	if token := msg.GetNextPageToken(); token != "" {
+		fmt.Fprintf(&b, "  Next page token: %s\n", token)
+	}
+	return b.String()
+}
+
 func passIcon(ok bool) string {
 	if ok {
 		return "✅ passing"
@@ -163,6 +232,17 @@ func trimFloat(v float64) string {
 	s := fmt.Sprintf("%.1f", v)
 	s = strings.TrimSuffix(s, ".0")
 	return s
+}
+
+func formatDelta(delta int32) string {
+	switch {
+	case delta > 0:
+		return fmt.Sprintf("↑%d", delta)
+	case delta < 0:
+		return fmt.Sprintf("↓%d", -delta)
+	default:
+		return "0"
+	}
 }
 
 func firstNonEmpty(values ...string) string {
