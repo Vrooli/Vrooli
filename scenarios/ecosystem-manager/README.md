@@ -24,7 +24,7 @@ board for visibility and control.
   closed-loop controller — see the control model.)
 - **A Kanban board UI** — pending / in-progress / completed / failed /
   blocked, with steering configuration and execution history.
-- **Persistent run history and metrics** — Postgres-backed analytics on
+- **Persistent run history and metrics** — SQLite-backed analytics on
   throughput, success rate, and PRD-completion improvement.
 - **A REST API and a thin CLI** — drive tasks, queue, steering, and logs
   programmatically.

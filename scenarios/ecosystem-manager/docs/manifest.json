@@ -750,7 +750,7 @@
               "API and CLI",
               "Build and dependencies",
               "Tests",
-              "Storage (Postgres + filesystem)",
+              "Storage (SQLite + filesystem)",
               "Auto-steer and the queue",
               "When to add a new entry here",
               "Cross-references"

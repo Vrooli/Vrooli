@@ -50,7 +50,7 @@ non-deterministic loop behavior into table-driven unit tests.
 | **Interface** | [CODE: api/pkg/autosteer/repositories.go]::`ProfileRepository` (`GetProfile`, `CreateProfile`, `UpdateProfile`, `DeleteProfile`, `ListProfiles`) |
 | **Production wiring** | `FileProfileRepository` ([CODE: api/pkg/autosteer/profile_repository_fs.go]::`NewFileProfileRepository(rootDir)`) — filesystem-backed YAML under `profiles/`. Asserted with `var _ ProfileRepository = (*FileProfileRepository)(nil)`. |
 | **Test fake** | In-memory mock in [CODE: api/pkg/autosteer/repositories_mock.go]. The filesystem impl has its own round-trip test ([CODE: api/pkg/autosteer/profile_repository_fs_test.go]) that pins YAML read/write semantics. |
-| **Why it exists** | Profile storage is a YAML-on-disk detail today; the orchestrator depends on the interface, so a store swap (postgres, remote) doesn't ripple into the control loop. Tests that exercise phase/profile lookup don't touch the filesystem. |
+| **Why it exists** | Profile storage is a YAML-on-disk detail today; the orchestrator depends on the interface, so a hypothetical store swap (e.g. remote service) wouldn't ripple into the control loop. Tests that exercise phase/profile lookup don't touch the filesystem. |
 
 ### ExecutionStateRepository (per-task loop state)
 
@@ -58,7 +58,7 @@ non-deterministic loop behavior into table-driven unit tests.
 |---|---|
 | **Seam** | Persistence + state manipulation for `ProfileExecutionState` (iteration counters, current phase, metrics snapshot) |
 | **Interface** | [CODE: api/pkg/autosteer/repositories.go]::`ExecutionStateRepository` (`Get`, `Save`, `Delete`, plus state helpers `InitializeState`, `IncrementIteration`, `AdvanceToNextPhase`, `RecordPhaseCompletion`, `FinalizeExecution`) |
-| **Production wiring** | `ExecutionStateManager` over Postgres ([CODE: api/pkg/autosteer/execution_state_repository_postgres.go], db `vrooli_ecosystem_manager`). Asserted with `var _ ExecutionStateRepository = (*ExecutionStateManager)(nil)`. |
+| **Production wiring** | `ExecutionStateManager` over SQLite ([CODE: api/pkg/autosteer/execution_state_manager.go], table `profile_execution_state` from [CODE: api/pkg/autosteer/schema.sql]). Asserted with `var _ ExecutionStateRepository = (*ExecutionStateManager)(nil)`. |
 | **Test fake** | `MockExecutionStateRepository` (in-memory) in [CODE: api/pkg/autosteer/repositories_mock.go]. |
 | **Why it exists** | The loop's controller state (where are we in the phase, how many iterations) is the thing the orchestrator reads and mutates every tick. Faking it in-memory lets `execution_orchestrator_unit_test.go` drive phase advancement, requeue-vs-stop, and finalization without a database. |
 
@@ -68,7 +68,7 @@ non-deterministic loop behavior into table-driven unit tests.
 |---|---|
 | **Seam** | Persistence of completed profile executions + feedback + analytics |
 | **Interface** | [CODE: api/pkg/autosteer/repositories.go]::`ExecutionHistoryRepository` (`GetHistory`, `GetExecution`, `SubmitFeedback`, `SubmitFeedbackEntry`, `GetProfileAnalytics`) |
-| **Production wiring** | `HistoryService` over Postgres ([CODE: api/pkg/autosteer/history_service.go]). Asserted with `var _ ExecutionHistoryRepository = (*HistoryService)(nil)`. |
+| **Production wiring** | `HistoryService` over SQLite ([CODE: api/pkg/autosteer/history_service.go], tables `profile_executions` / `execution_feedback_entries`). Asserted with `var _ ExecutionHistoryRepository = (*HistoryService)(nil)`. |
 | **Test fake** | Substituted via the in-memory mock family in [CODE: api/pkg/autosteer/repositories_mock.go]; history handler tests use it. |
 | **Why it exists** | Separates the write-then-analyze surface (history, feedback, analytics) from live loop state. Replaying history in a test doesn't perturb the running-execution table. |
 
@@ -108,7 +108,7 @@ non-deterministic loop behavior into table-driven unit tests.
 |---|---|
 | **Seam** | Queue task persistence and in-flight run tracking |
 | **Interface** | `tasks.StorageAPI` (consumed across [CODE: api/pkg/queue/processor.go], `execution_manager.go`, `insight_manager.go`); run tracking via `ExecutionRegistry` ([CODE: api/pkg/queue/execution_registry.go]) |
-| **Production wiring** | Filesystem YAML store under `queue/<status>/` plus the postgres execution state; `NewExecutionRegistry()` holds the live `taskID → runID` map. |
+| **Production wiring** | Filesystem YAML store under `queue/<status>/` plus the SQLite execution state; `NewExecutionRegistry()` holds the live `taskID → runID` map. |
 | **Test fake** | In-memory storage substituted through `tasks.StorageAPI`; `ExecutionRegistry` is constructed real (it is pure in-memory state) in [CODE: api/pkg/queue/autosteer_integration_test.go]. |
 | **Why it exists** | The requeue-vs-stop decision ([CODE: api/pkg/queue/autosteer_integration.go (180-227)]) is queue policy that reads task flags (`ProcessorAutoRequeue`, `AutoSteerProfileID`). Faking storage lets the integration test seed exact task shapes and assert the recycle decision without a real queue on disk. |
 
@@ -128,9 +128,9 @@ non-deterministic loop behavior into table-driven unit tests.
 |---|---|
 | **Seam** | Per-`(skill, dimension)` effectiveness ledger the bandit reads (selection) and credit assignment writes (after each iteration) |
 | **Interface** | [CODE: api/pkg/effectiveness/effectiveness.go]::`Store` (`Get`, `Bulk`, `Record`, `List`) |
-| **Production wiring** | `PostgresStore` ([CODE: api/pkg/effectiveness/postgres_store.go], table `skill_dimension_effectiveness`, created via `effectiveness.CreateSchema` from `autosteer.EnsureTablesExist`); injected into the orchestrator in `NewExecutionOrchestratorDefault`. Asserted with `var _ Store = (*PostgresStore)(nil)`. |
+| **Production wiring** | `SQLiteStore` ([CODE: api/pkg/effectiveness/sqlite_store.go], table `skill_dimension_effectiveness` from [CODE: api/pkg/effectiveness/schema.sql], applied via `dbschema.AllSchemas()` + `database.EnsureSchemas` at boot); injected into the orchestrator in `NewExecutionOrchestratorDefault`. Asserted with `var _ Store = (*SQLiteStore)(nil)`. |
 | **Test fake** | `MemoryStore` ([CODE: api/pkg/effectiveness/memory_store.go]) — concurrency-safe in-memory ledger with an injectable clock; used by selector/credit tests. |
-| **Why it exists** | Keeps the bandit math out of `autosteer` so it is unit-testable in isolation, and lets selection/credit tests seed a deterministic efficacy history without Postgres. The derived efficacy (shrinkage prior) is computed on read, never stored, so the policy can evolve without a migration. |
+| **Why it exists** | Keeps the bandit math out of `autosteer` so it is unit-testable in isolation, and lets selection/credit tests seed a deterministic efficacy history without a database. The derived efficacy (shrinkage prior) is computed on read, never stored, so the policy can evolve without a migration. |
 
 ### RunCost source (token cost into the controller) — v1
 
@@ -203,7 +203,7 @@ mechanical:
 |---|---|---|---|
 | Transport | Newer scenarios use proto + Connect-RPC; ecosystem-manager predates that and is REST/JSON over mux. | Documented deviation, not drift to fix opportunistically. New endpoints stay REST/JSON for internal consistency until a deliberate migration. | See [../internal/DECISIONS.md](../internal/DECISIONS.md) and [ERROR-HANDLING.md](ERROR-HANDLING.md). |
 | Loop = controller | The auto-steer loop was historically described procedurally (start → iterate → advance). | Reframed as a closed-loop controller: `MetricsProvider` is the sensor, agent-manager is the actuator, `PhaseCoordinator`/`ConditionEvaluator` are the control law, `ExecutionStateRepository` holds controller state. | Mental model lives in [../concepts/CONTROL-MODEL.md](../concepts/CONTROL-MODEL.md); keep seam responsibilities mapped to controller roles. |
-| Mixed persistence | Profiles on filesystem YAML, execution state/history in Postgres. | Intentional: profiles are human-editable templates; loop state is transactional. Both sit behind their own repository seam so the split is invisible to the orchestrator. | If a store moves, change only the production impl + its round-trip test; the interface and fakes stay. |
+| Mixed persistence | Profiles on filesystem YAML, execution state/history in SQLite. | Intentional: profiles are human-editable templates; loop state is transactional. Both sit behind their own repository seam so the split is invisible to the orchestrator. | If a store moves, change only the production impl + its round-trip test; the interface and fakes stay. |
 
 ### DiscoveryService (discovery domain — Connect-RPC reference)
 

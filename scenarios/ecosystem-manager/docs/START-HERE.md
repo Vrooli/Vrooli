@@ -31,9 +31,10 @@ The shape of the system:
   UI** (kanban board) and the **CLI** are thin clients over it.
 
 Surfaces: API + UI served at the dashboard `http://localhost:30500`;
-state in Postgres (`vrooli_ecosystem_manager`) plus filesystem
-(`profiles/` for auto-steer profile definitions, `queue/<status>/`
-YAML for task state).
+state in an embedded SQLite file (under the storage data root, resolved
+via `api/pkg/storagepaths`) plus filesystem (git-tracked `profiles/` for
+auto-steer profile definitions, runtime `queue/<status>/` YAML for task
+state under the data root).
 
 ## Read These First
 
@@ -62,9 +63,10 @@ the scenario — do not skip it.
   the scenario Makefile (`make start|stop|logs|test`). Never run
   `./api/ecosystem-manager-api` directly — it bypasses process naming,
   port allocation, and health checks.
-- **Respect the dependencies.** Ecosystem-manager needs Postgres
-  (`vrooli-postgres-main`) and the running scenarios `agent-manager`
-  (executes tasks). `scenario-completeness-scoring` is useful as the
+- **Respect the dependencies.** Ecosystem-manager needs the running
+  scenario `agent-manager` (executes tasks); its own state lives in an
+  embedded SQLite file, so there is no database resource to run.
+  `scenario-completeness-scoring` is useful as the
   fast cached operator reader for maturity/freshness/completeness, but
   EM's queue does not require it to run — see
   [`guides/troubleshooting.md`](guides/troubleshooting.md).
@@ -99,7 +101,7 @@ the scenario — do not skip it.
   pure logic.
 - **UI and CLI are thin.** They configure tasks and visualize state
   over the HTTP API. Profile *definitions* live on disk (`profiles/`);
-  active auto-steer *state* lives in Postgres. Don't duplicate control
+  active auto-steer *state* lives in SQLite. Don't duplicate control
   logic in the clients.
 
 ## Cross-references

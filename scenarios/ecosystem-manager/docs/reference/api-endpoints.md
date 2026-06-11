@@ -59,9 +59,10 @@ Handled by [CODE: api/pkg/server/server.go] (`a.wsManager.HandleWebSocket`).
 ## Tasks & Queue
 
 Tasks model resource/scenario **generation** and **improvement** work.
-The on-disk queue is stored as YAML under `queue/<status>/`; execution
-history and analytics persist to Postgres (`task_executions`,
-`operation_metrics`). Handlers:
+The runtime queue is stored as YAML under `queue/<status>/` in the
+storage data root; execution history and analytics persist to the
+embedded SQLite database (`profile_executions`, `decision_trace`).
+Handlers:
 [CODE: api/pkg/server/server.go] (`registerTaskRoutes`,
 `registerPromptRoutes`, `registerQueueRoutes`).
 
@@ -121,8 +122,8 @@ curl -X POST http://localhost:30500/api/tasks \
 Auto-Steer drives iterative, phase-based agent runs against a task using
 a tunable **profile**. Profiles are stored on the filesystem under
 `profiles/<id-or-name>/profile.json`, indexed by `profiles/metadata.json`.
-Run state and history persist to Postgres (`profile_executions`,
-`profile_execution_state`, `steering_queue_state`,
+Run state and history persist to the embedded SQLite database
+(`profile_executions`, `profile_execution_state`, `steering_queue_state`,
 `execution_feedback_entries`). Handlers:
 [CODE: api/pkg/server/server.go] (`registerAutoSteerRoutes`).
 

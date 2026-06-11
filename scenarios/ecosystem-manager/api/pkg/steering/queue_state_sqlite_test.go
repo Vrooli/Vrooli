@@ -1,6 +1,10 @@
 package steering
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ecosystem-manager/api/pkg/internal/testdb"
+)
 
 func mustSaveQueueState(t *testing.T, repo QueueStateRepository, state *QueueState) {
 	t.Helper()
@@ -9,8 +13,8 @@ func mustSaveQueueState(t *testing.T, repo QueueStateRepository, state *QueueSta
 	}
 }
 
-func TestPostgresQueueStateRepository_NilDB(t *testing.T) {
-	repo := NewPostgresQueueStateRepository(nil)
+func TestSQLiteQueueStateRepository_NilDB(t *testing.T) {
+	repo := NewSQLiteQueueStateRepository(nil)
 	state := NewQueueState("task-1", 2)
 
 	if _, err := repo.Get("task-1"); err == nil {
@@ -21,6 +25,42 @@ func TestPostgresQueueStateRepository_NilDB(t *testing.T) {
 	}
 	if err := repo.Delete("task-1"); err == nil {
 		t.Fatal("Delete() expected error for nil DB")
+	}
+}
+
+func TestSQLiteQueueStateRepository_RoundTrip(t *testing.T) {
+	repo := NewSQLiteQueueStateRepository(testdb.NewSQLite(t, Schema()))
+
+	mustSaveQueueState(t, repo, NewQueueState("task-1", 3))
+
+	if err := repo.SetPosition("task-1", 2); err != nil {
+		t.Fatalf("SetPosition() error = %v", err)
+	}
+	got, err := repo.Get("task-1")
+	if err != nil || got == nil {
+		t.Fatalf("Get() = (%v, %v)", got, err)
+	}
+	if got.CurrentIndex != 2 {
+		t.Fatalf("CurrentIndex = %d, want 2", got.CurrentIndex)
+	}
+
+	if err := repo.ResetPosition("task-1"); err != nil {
+		t.Fatalf("ResetPosition() error = %v", err)
+	}
+	if got, _ := repo.Get("task-1"); got.CurrentIndex != 0 {
+		t.Fatalf("after reset CurrentIndex = %d, want 0", got.CurrentIndex)
+	}
+
+	if err := repo.Delete("task-1"); err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+	if got, _ := repo.Get("task-1"); got != nil {
+		t.Fatal("Delete() did not remove state")
+	}
+
+	// SetPosition on an absent task surfaces a not-found error.
+	if err := repo.SetPosition("ghost", 1); err == nil {
+		t.Fatal("SetPosition() on missing task should error")
 	}
 }
 

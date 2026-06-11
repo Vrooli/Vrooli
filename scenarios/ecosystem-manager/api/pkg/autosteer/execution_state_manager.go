@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sort"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // ExecutionStateManager handles persistence of the controller's execution
@@ -30,7 +32,7 @@ func (m *ExecutionStateManager) Get(taskID string) (*ProfileExecutionState, erro
 		SELECT task_id, profile_id, iteration, current_skill, current_rationale,
 		       findings, score_history, trace, metrics, started_at, last_updated
 		FROM profile_execution_state
-		WHERE task_id = $1
+		WHERE task_id = ?
 	`
 
 	var state ProfileExecutionState
@@ -105,17 +107,17 @@ func (m *ExecutionStateManager) Save(state *ProfileExecutionState) error {
 		INSERT INTO profile_execution_state (
 			task_id, profile_id, iteration, current_skill, current_rationale,
 			findings, score_history, trace, metrics, started_at, last_updated
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (task_id) DO UPDATE SET
-			profile_id = EXCLUDED.profile_id,
-			iteration = EXCLUDED.iteration,
-			current_skill = EXCLUDED.current_skill,
-			current_rationale = EXCLUDED.current_rationale,
-			findings = EXCLUDED.findings,
-			score_history = EXCLUDED.score_history,
-			trace = EXCLUDED.trace,
-			metrics = EXCLUDED.metrics,
-			last_updated = EXCLUDED.last_updated
+			profile_id = excluded.profile_id,
+			iteration = excluded.iteration,
+			current_skill = excluded.current_skill,
+			current_rationale = excluded.current_rationale,
+			findings = excluded.findings,
+			score_history = excluded.score_history,
+			trace = excluded.trace,
+			metrics = excluded.metrics,
+			last_updated = excluded.last_updated
 	`
 
 	_, err = m.db.Exec(query,
@@ -140,7 +142,7 @@ func (m *ExecutionStateManager) Save(state *ProfileExecutionState) error {
 
 // Delete removes the execution state for a task.
 func (m *ExecutionStateManager) Delete(taskID string) error {
-	query := `DELETE FROM profile_execution_state WHERE task_id = $1`
+	query := `DELETE FROM profile_execution_state WHERE task_id = ?`
 	if _, err := m.db.Exec(query, taskID); err != nil {
 		return fmt.Errorf("failed to delete execution state for task %s: %w", taskID, err)
 	}
@@ -180,14 +182,16 @@ func (m *ExecutionStateManager) FinalizeExecution(state *ProfileExecutionState, 
 
 	query := `
 		INSERT INTO profile_executions (
-			profile_id, task_id, scenario_name, start_metrics, end_metrics,
+			id, profile_id, task_id, scenario_name, start_metrics, end_metrics,
 			phase_breakdown, total_iterations, total_duration_ms, executed_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	// Gap metrics are not the primary state; start and end carry the latest
+	// SQLite has no gen_random_uuid() default; the id is app-generated. Gap
+	// metrics are not the primary state; start and end carry the latest
 	// snapshot for analytics continuity.
 	if _, err := m.db.Exec(query,
+		uuid.NewString(),
 		state.ProfileID,
 		state.TaskID,
 		scenarioName,
@@ -196,7 +200,7 @@ func (m *ExecutionStateManager) FinalizeExecution(state *ProfileExecutionState, 
 		breakdownJSON,
 		state.Iteration,
 		totalDuration,
-		time.Now(),
+		time.Now().UTC(),
 	); err != nil {
 		return fmt.Errorf("failed to insert profile execution: %w", err)
 	}

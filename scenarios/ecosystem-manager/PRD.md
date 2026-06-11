@@ -32,7 +32,7 @@
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API (`api-core`/`cli-core`/`connectrpc.com/connect`), React + Vite + Tailwind UI, proto-first contracts under `packages/proto`.
-- Data + storage expectations: filesystem-backed queue (`queue/{pending,...}`), `config/settings.json` for settings, sqlite/postgres for findings/effectiveness as applicable.
+- Data + storage expectations: all runtime state resolves through `api-core/storage` classes under `<data-root>/vrooli/<namespace>/` — filesystem-backed queue (`queue/{pending,...}` under `ClassData`), `settings.json` under `ClassConfig`, and an embedded SQLite DB (`ClassData`) for findings/effectiveness/history. No Postgres.
 - Integration strategy: proto-typed Connect-RPC clients consumed by UI + CLI; agent-manager for agent execution; shared workflows > resource CLI > direct API.
 - Non-goals / guardrails: no big-bang multi-domain transport migration (one reference domain per plan); no compatibility shims within a migrated domain; no disabling lint/security rules to pass gates.
 

@@ -18,10 +18,10 @@ Use this document to answer:
 
 | Signal | Type | Source | Purpose | Threshold |
 |---|---|---|---|---|
-| `GET /health` | health | API | API + DB (`vrooli_ecosystem_manager`) reachability | healthy |
+| `GET /health` | health | API | API + embedded SQLite handle reachability | healthy |
 | `GET /api/queue/status` | operational | queue processor | Processor running, depth, backoff state | processor running, no stuck backoff |
-| Task throughput & success rate | product | `operation_metrics` (trigger-aggregated daily) | Work completed per operation type | success rate trending up per operation |
-| PRD completion improvement | product | `task_executions.prd_completion_before/after` | Did an improvement run raise PRD score? | after ≥ before |
+| Task throughput & success rate | product | `profile_executions` (run records, aggregated on read) | Work completed per operation type | success rate trending up per operation |
+| PRD completion improvement | product | `profile_executions.start_metrics`/`end_metrics` | Did an improvement run raise PRD score? | end ≥ start |
 | Auto-steer convergence | product | `profile_executions.phase_breakdown` + `user_rating` feedback | Loops converging, not thrashing | phases progressing, ratings positive |
 | Live task/queue updates | operational | WebSocket `/ws` | Real-time UI state of tasks/queue | pushes events while processor runs |
 
@@ -31,18 +31,18 @@ Use this document to answer:
 |---|---|---|---|
 | System audit log | `api/pkg/systemlog` | UI log view, or `GET /api/logs` | Structured audit of system actions. |
 | Scenario logs | lifecycle-managed processes | `make logs` | Date-stamped files in the scenario `logs/` dir. |
-| Per-task execution history | Postgres `task_executions` | UI task views / DB query | Includes status, timings, PRD before/after. |
+| Per-task execution history | SQLite `profile_executions` | UI task views / DB query | Includes timings (`total_duration_ms`), start/end metrics, iteration counts. |
 | Agent run output | agent-manager | agent-manager logs / `logs/task-runs/` | Runs execute in agent-manager; correlate from there. |
 
 ## Metrics
 
-All metrics today are stored in Postgres and surfaced via the API/UI;
-there is **no external metrics backend**.
+All metrics today are stored in the embedded SQLite database and surfaced
+via the API/UI; there is **no external metrics backend**.
 
 | Metric | Status | Source | Notes |
 |---|---|---|---|
-| Operation throughput / success rate | active | `operation_metrics` | Daily trigger-aggregated by operation type. |
-| PRD completion delta | active | `task_executions.prd_completion_before/after` | Improvement-loop effectiveness. |
+| Operation throughput / success rate | active | `profile_executions` | Aggregated on read from run records. |
+| PRD completion delta | active | `profile_executions.start_metrics`/`end_metrics` | Improvement-loop effectiveness. |
 | Auto-steer convergence | active | `profile_executions.phase_breakdown`, `execution_feedback_entries` | Phase progression + user ratings. |
 | Queue depth / backoff | active | `GET /api/queue/status`, `steering_queue_state` | Live operational state. |
 

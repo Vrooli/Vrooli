@@ -10,95 +10,105 @@ Use this document to answer:
 
 - What data does ecosystem-manager persist?
 - Which domain owns each data shape?
-- Where is the source of truth — PostgreSQL or the filesystem?
+- Where is the source of truth — SQLite or the filesystem?
 - What is the retention/deletion story?
 - How are schema changes handled?
 
 ## Storage Overview
 
-Ecosystem-manager uses **two** storage substrates, not one.
+Ecosystem-manager persists **all runtime state through
+`github.com/vrooli/api-core/storage`**, never inside the scenario source
+tree. The single production seam that resolves storage locations is
+[CODE: `api/pkg/storagepaths`]; it builds a `storage.Resolver` and the
+variant-aware `storage.ScenarioNamespace("ecosystem-manager")`, so a
+Baseline Modes shadow engagement (which injects `VROOLI_STORAGE_NAMESPACE`)
+lands every storage class beside `ecosystem-manager_shadow` and never shares
+live's database, queue, or logs.
 
-| Substrate | What lives there | Source of truth for |
-|---|---|---|
-| PostgreSQL — database `vrooli_ecosystem_manager` | Run history, daily metric aggregates, live auto-steer/steering execution state, execution feedback | Anything *produced by* a run (history, in-flight state, metrics) |
-| Filesystem stores | Auto-steer profiles, the task queue, system logs | Anything *human-authored or operationally durable* (config + queue + logs) |
+| Substrate | Storage class | What lives there | Source of truth for |
+|---|---|---|---|
+| **SQLite** — `<data-root>/vrooli/<namespace>/ecosystem-manager.db` | `ClassData` | Run history, live auto-steer/steering execution state, per-iteration decision traces, effectiveness ledger, execution feedback | Anything *produced by* a run (history, in-flight state, metrics) |
+| **Filesystem queue** — `<data-root>/vrooli/<namespace>/queue/<status>/*.yaml` | `ClassData` | The task queue | Task lifecycle (status = directory) |
+| **System logs** — `<logs-root>/vrooli/<namespace>/` | `ClassLogs` | Audit log + per-task-run execution logs (`task-runs/`) | Operational history |
+| **Settings** — `<config-root>/vrooli/<namespace>/settings.json` | `ClassConfig` | Mutable operator settings | Runtime configuration |
+| **Profiles** — `profiles/<id-or-name>/` (scenario tree) | n/a (source) | Auto-steer profile JSON + `metadata.json` | Human-authored, version-controlled config |
 
-The Postgres schema is defined in
-[`initialization/postgres/schema.sql`](../../initialization/postgres/schema.sql)
-and applied idempotently on startup. The split is deliberate: profiles and
-the queue are version-controllable, hand-editable config that intentionally
-stays **out of the database** so they can be reviewed, diffed, and committed.
+The split is deliberate: **profiles and prompts are source assets** that stay
+git-tracked in the scenario tree so they can be reviewed, diffed, and
+committed; **everything a run produces is runtime state** that lives under the
+storage root and is covered by data-backup-manager.
 
-[CODE: `initialization/postgres/schema.sql`] defines all tables, triggers,
-and views. [CODE: `profiles/metadata.json`] indexes filesystem profiles.
+SQLite is opened through [CODE: `api/pkg/storagepaths`]`.SQLiteDSN()` (WAL,
+`foreign_keys=ON`, `busy_timeout=10000`, single-writer pool) and the
+domain-owned schemas are applied at boot by `database.EnsureSchemas` via
+[CODE: `api/pkg/dbschema`]`.AllSchemas()`. There is no Postgres dependency.
 
 ## Data Ownership
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
-| `task_executions` | analytics | Postgres | `schema.sql` | Indefinite | One row per task run; timing, status, PRD before/after. |
-| `operation_metrics` | analytics | Postgres | `schema.sql` | Indefinite | Daily-bucketed aggregation; maintained by trigger `update_operation_metrics()`, never written by app code directly. |
-| `profile_executions` | auto-steer | Postgres | `schema.sql` | Indefinite | UUID PK, one per task (`UNIQUE(task_id)`); `start_metrics`/`end_metrics`/`phase_breakdown` JSONB, `total_iterations`, `user_rating`/`user_comments`. |
-| `profile_execution_state` | auto-steer | Postgres | `schema.sql` | Until execution completes (then folded into history) | `task_id` PK; `current_phase_index`, `current_phase_iteration`, `auto_steer_iteration`, `phase_history`/`metrics`/`phase_start_metrics` JSONB; `last_updated` maintained by trigger. |
-| `steering_queue_state` | steering | Postgres | `schema.sql` | Until queue drains | `task_id` PK; `queue` JSONB (ordered steer-mode strings), `current_index`. |
-| `execution_feedback_entries` | insights | Postgres | `schema.sql` | Indefinite | UUID PK; `category`/`severity`/`suggested_action`/`comments`/`metadata`; indexed by `execution_task_id`. |
-| Auto-steer profiles | auto-steer | Filesystem | `profiles/<id-or-name>/profile.json` | Until deleted by an operator | Human-authored, version-controlled config; indexed by `profiles/metadata.json`. Intentionally NOT in the DB. |
-| Task queue | tasks | Filesystem | `queue/<status>/` (YAML) | Until task is purged | Directory name *is* the status; status transitions are atomic file moves between directories. |
-| System logs | operations | Filesystem | `logs/<date>.log` | Indefinite (no rotation today) | Date-stamped operational logs. |
+| `profile_executions` | auto-steer | SQLite | `api/pkg/autosteer/schema.sql` | Indefinite | Text PK (app-generated UUID), one per task (`UNIQUE(task_id)`); `start_metrics`/`end_metrics`/`phase_breakdown` JSON text, `total_iterations`, `user_rating`/`user_comments`. |
+| `profile_execution_state` | auto-steer | SQLite | `api/pkg/autosteer/schema.sql` | Until execution completes (then folded into history) | `task_id` PK (objective-controller shape); `iteration`, `current_skill`/`current_rationale`, `findings`/`score_history`/`trace`/`metrics` JSON text; `last_updated` maintained in application code. |
+| `decision_trace` | auto-steer | SQLite | `api/pkg/autosteer/schema.sql` | Indefinite | One row per controller iteration; persists reasoning after the live `state.Trace` is dropped on finalize. |
+| `skill_dimension_effectiveness` | effectiveness | SQLite | `api/pkg/effectiveness/schema.sql` | Indefinite | Composite PK `(skill_id, dimension)`; commutative credit-event counters; `last_run_at` advanced via `max(...)` upsert. |
+| `steering_queue_state` | steering | SQLite | `api/pkg/steering/schema.sql` | Until queue drains | `task_id` PK; `current_index` plus RFC3339 `created_at`/`updated_at`. |
+| `execution_feedback_entries` | insights/auto-steer | SQLite | `api/pkg/autosteer/schema.sql` | Indefinite | Text PK (app-generated UUID); `category`/`severity`/`suggested_action`/`comments`/`metadata`; indexed by `execution_task_id`. |
+| Auto-steer profiles | auto-steer | Filesystem (scenario tree) | `profiles/<id-or-name>/profile.json` | Until deleted by an operator | Human-authored, version-controlled config; indexed by `profiles/metadata.json`. Intentionally NOT in the DB and NOT under the storage root. |
+| Task queue | tasks | Filesystem (`ClassData`) | `<data-root>/…/queue/<status>/` (YAML) | Until task is purged | Directory name *is* the status; transitions are atomic file moves. |
+| System logs | operations | Filesystem (`ClassLogs`) | `<logs-root>/…/<date>.log` + `task-runs/` | Indefinite (no rotation today) | Date-stamped audit log and per-task-run execution logs. |
+| Settings | settings | Filesystem (`ClassConfig`) | `<config-root>/…/settings.json` | Until overwritten | Mutable runtime settings persisted on change. |
 
 ## Schema Map
 
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
-| `task_executions` | analytics | `schema.sql` | analytics repository/handlers; insert trigger feeds metrics |
-| `operation_metrics` | analytics | `schema.sql` | metrics views/queries; written only by trigger |
-| `profile_executions` | auto-steer | `schema.sql` | auto-steer history service |
-| `profile_execution_state` | auto-steer | `schema.sql` | auto-steer controller (live state) |
-| `steering_queue_state` | steering | `schema.sql` | steering queue runner |
-| `execution_feedback_entries` | insights | `schema.sql` | execution-feedback handlers |
-| `task_execution_summary` (view) | analytics | `schema.sql` | reporting/UI stats |
-| `recent_task_activity` (view) | analytics | `schema.sql` | dashboard recent-activity feed |
+| `profile_executions` | auto-steer | `api/pkg/autosteer/schema.sql` | auto-steer history service |
+| `profile_execution_state` | auto-steer | `api/pkg/autosteer/schema.sql` | auto-steer controller (live state) |
+| `decision_trace` | auto-steer | `api/pkg/autosteer/schema.sql` | decision-trace store |
+| `execution_feedback_entries` | auto-steer | `api/pkg/autosteer/schema.sql` | execution-feedback handlers |
+| `skill_dimension_effectiveness` | effectiveness | `api/pkg/effectiveness/schema.sql` | effectiveness ledger |
+| `steering_queue_state` | steering | `api/pkg/steering/schema.sql` | steering queue runner |
 | `profile.json` + `metadata.json` | auto-steer | `profiles/` | profile loader/editor |
-| queue YAML | tasks | `queue/<status>/` | task queue manager |
+| queue YAML | tasks | `<data-root>/…/queue/<status>/` | task queue manager |
 
 ## Migrations And Compatibility
 
-The Postgres schema is **idempotent bootstrap**, applied on every startup.
-All tables use `CREATE TABLE IF NOT EXISTS`; triggers/functions/views use
-`CREATE OR REPLACE` (functions/views) and `DROP TRIGGER IF EXISTS` +
-`CREATE TRIGGER` (triggers). Two triggers are load-bearing:
+Schema ownership is **per-domain and declarative**: each domain ships a
+`schema.sql` next to its code and a `Schema()` function; the central
+[CODE: `api/pkg/dbschema`]`.AllSchemas()` registry orders them and
+`database.EnsureSchemas` applies them on every boot. All tables use
+`CREATE TABLE IF NOT EXISTS`, so re-application is a no-op. There are no
+triggers, functions, or views — invariants that previously lived in PL/pgSQL
+(e.g. `last_updated` maintenance) are now enforced in application code.
 
-- `trigger_update_operation_metrics` (`BEFORE INSERT OR UPDATE` on
-  `task_executions`) computes `duration_minutes` and upserts the daily
-  `operation_metrics` row.
-- `trigger_profile_execution_state_updated` keeps
-  `profile_execution_state.last_updated` current.
+`EnsureSchemas` runs a post-apply drift check on SQLite (`PRAGMA table_info`
+vs the declared columns) and **fails boot loudly** if a pre-existing table is
+missing a declared column. Because `CREATE TABLE IF NOT EXISTS` cannot add a
+column to a table that already exists, **any change to an existing table's
+columns is a one-shot migration, not a declarative edit** — see the
+`storage-steer` skill §5. Document column drops/renames/backfills in
+[`../internal/DECISIONS.md`](../internal/DECISIONS.md).
 
-There is **no formal migration tool**. Column drops, renames, or
-backfills are manual and must be documented in
-[`../internal/DECISIONS.md`](../internal/DECISIONS.md) with the tradeoff.
-Because bootstrap is `IF NOT EXISTS`, adding a column to an existing
-deployment is a manual `ALTER TABLE` — the schema file alone will not
-alter a table that already exists.
+This was a hard cut-over from PostgreSQL: there is no Postgres compatibility
+mode, no dual-read, and no importer for old repo-local queue YAML.
 
 ## Import / Export
 
 | Path | Format | Owner | Status |
 |---|---|---|---|
 | `profiles/<id-or-name>/profile.json` | JSON | auto-steer | Profiles are git-tracked files; "import/export" is copying the directory. |
-| `queue/<status>/*.yaml` | YAML | tasks | Queue entries are portable files; moving a file changes its status. |
-| Run history / metrics | n/a | analytics | No structured export endpoint today. Add when a reporting requirement appears. |
+| `<data-root>/…/queue/<status>/*.yaml` | YAML | tasks | Queue entries are portable files; moving a file changes its status. |
+| Run history / metrics | n/a | auto-steer | No structured export endpoint today. Add when a reporting requirement appears. |
 
 ## Retention And Deletion
 
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
-| `task_executions` / `operation_metrics` | Manual only | Retained indefinitely for analytics/learning | **No auto-purge.** Tables grow unbounded; a retention policy is not yet implemented. |
-| `profile_executions` | Manual only | Indefinite | No auto-purge. |
+| `profile_executions` / `decision_trace` / `execution_feedback_entries` | Manual only | Indefinite for analytics/learning | **No auto-purge.** Tables grow unbounded; a retention policy is not yet implemented. |
+| `skill_dimension_effectiveness` | Manual only | Indefinite | Bounded by skill×dimension cardinality. |
 | `profile_execution_state` / `steering_queue_state` | Completion of the run/queue | Transient by nature | Orphaned rows from interrupted runs are not garbage-collected automatically. |
-| `execution_feedback_entries` | Manual only | Indefinite | No auto-purge. |
 | Profiles | Operator deletes the directory | Until deleted | n/a |
-| System logs | Manual only | Indefinite | **No log rotation.** `logs/` grows without bound. |
+| System logs | Manual only | Indefinite | **No log rotation.** The logs dir grows without bound. |
 
 ## Privacy Notes
 

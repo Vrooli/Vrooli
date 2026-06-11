@@ -42,7 +42,7 @@ const (
 
 // NewExecutionOrchestratorDefault wires a production ExecutionOrchestrator:
 // test-genie as the audit runner, prompt-manager's catalog as the skill→dimension
-// source, and Postgres-backed state/trace. Operates in degraded mode if
+// source, and SQLite-backed state/trace. Operates in degraded mode if
 // prompt-manager is unavailable (no eligible skills → loop terminates early).
 func NewExecutionOrchestratorDefault(profileRepo ProfileRepository, db *sql.DB, projectRoot string) *ExecutionOrchestrator {
 	promptEnhancer := NewPromptEnhancer()
@@ -56,7 +56,7 @@ func NewExecutionOrchestratorDefault(profileRepo ProfileRepository, db *sql.DB, 
 		promptEnhancer,
 		NewMetricsCollector(projectRoot),
 		NewTraceStore(db),
-		effectiveness.NewPostgresStore(db),
+		effectiveness.NewSQLiteStore(db),
 	)
 	// Wire the P2 DTV read seam. The client fails open (a DTV outage yields
 	// UNKNOWN fitness ⇒ allow-all + uniform prior), so this never risks the loop.

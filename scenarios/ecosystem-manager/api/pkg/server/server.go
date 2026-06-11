@@ -21,13 +21,14 @@ import (
 
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq" // postgres driver registration
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
+	_ "modernc.org/sqlite" // sqlite driver registration (pure-Go, CGO-free)
 
 	discoveryhandler "github.com/ecosystem-manager/api/handlers/discovery"
 	"github.com/ecosystem-manager/api/internal/module"
 	"github.com/ecosystem-manager/api/pkg/autosteer"
+	"github.com/ecosystem-manager/api/pkg/dbschema"
 	"github.com/ecosystem-manager/api/pkg/handlers"
 	"github.com/ecosystem-manager/api/pkg/importance"
 	"github.com/ecosystem-manager/api/pkg/prompts"
@@ -35,6 +36,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/recycler"
 	"github.com/ecosystem-manager/api/pkg/settings"
 	"github.com/ecosystem-manager/api/pkg/steering"
+	"github.com/ecosystem-manager/api/pkg/storagepaths"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
@@ -77,6 +79,10 @@ type Application struct {
 	// Paths
 	scenarioRoot string
 	projectRoot  string
+	// storagePaths resolves runtime storage (queue, db, logs, settings) through
+	// api-core/storage; the scenario tree holds only source assets (prompts,
+	// profiles), never runtime state.
+	storagePaths storagepaths.Paths
 
 	// Server settings
 	port           string
@@ -102,12 +108,18 @@ func New(cfg Config) (*Application, error) {
 		return nil, err
 	}
 
-	systemlog.InitWithBaseDir(scenarioRoot)
+	storagePaths, err := storagepaths.Resolve()
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve storage paths: %w", err)
+	}
+
+	systemlog.InitWithLogDir(storagePaths.SystemLogDir)
 	systemlog.Info("API startup initiated")
 
 	app := &Application{
 		scenarioRoot:   scenarioRoot,
 		projectRoot:    projectRoot,
+		storagePaths:   storagePaths,
 		port:           cfg.Port,
 		allowedOrigins: cfg.AllowedOrigins,
 		shutdownOnce:   sync.Once{},
@@ -197,22 +209,28 @@ func resolvePaths() (string, string, error) {
 	return scenarioRoot, projectRoot, nil
 }
 
-// initializeDatabase initializes the PostgreSQL database connection
+// initializeDatabase opens the SQLite database under storage.ClassData and
+// applies the domain-owned schemas. SQLite is single-writer, so the pool is
+// capped at one connection (WAL + busy_timeout absorb read concurrency).
 func (a *Application) initializeDatabase() error {
-	// Connect to database with automatic retry and backoff.
-	// Reads POSTGRES_* environment variables set by the lifecycle system.
-	var err error
+	dsn, err := a.storagePaths.SQLiteDSN()
+	if err != nil {
+		return fmt.Errorf("failed to resolve sqlite dsn: %w", err)
+	}
+
 	a.db, err = database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Set connection pool settings
-	a.db.SetMaxOpenConns(25)
-	a.db.SetMaxIdleConns(5)
-	a.db.SetConnMaxLifetime(5 * time.Minute)
+	if err := database.EnsureSchemas(context.Background(), a.db, dbschema.AllSchemas()...); err != nil {
+		return fmt.Errorf("failed to apply database schemas: %w", err)
+	}
 
 	log.Println("✅ Database connection established")
 	systemlog.Info("Database connection established")
@@ -222,7 +240,7 @@ func (a *Application) initializeDatabase() error {
 
 // initializeComponents initializes all core system components
 func (a *Application) initializeComponents() error {
-	queueDir := filepath.Join(a.scenarioRoot, "queue")
+	queueDir := a.storagePaths.QueueDir
 	promptsDir := filepath.Join(a.scenarioRoot, "prompts")
 
 	// Ensure queue directories exist (aligned with valid queue statuses)
@@ -233,7 +251,10 @@ func (a *Application) initializeComponents() error {
 		}
 	}
 
-	settings.SetPersistencePath(filepath.Join(a.scenarioRoot, "config", "settings.json"))
+	if err := os.MkdirAll(filepath.Dir(a.storagePaths.SettingsPath), 0o755); err != nil {
+		return fmt.Errorf("create settings dir: %w", err)
+	}
+	settings.SetPersistencePath(a.storagePaths.SettingsPath)
 	if err := settings.LoadFromDisk(); err != nil {
 		log.Printf("Warning: could not load persisted settings, using defaults: %v", err)
 	}
@@ -273,24 +294,23 @@ func (a *Application) initializeComponents() error {
 
 	importanceService := importance.NewDefaultService(a.projectRoot)
 
-	// Initialize queue processor
+	// Initialize queue processor. Task-run logs are passed explicitly from the
+	// storage seam (storage.ClassLogs) so log placement no longer derives from
+	// the queue dir.
 	a.processor = queue.NewProcessorWithDefaults(
 		a.storage,
 		a.assembler,
 		a.wsManager.GetBroadcastChannel(),
 		a.taskRecycler,
+		a.storagePaths.TaskRunLogDir,
 	)
 	a.processor.SetSchedulingSignalProviders(queue.ServiceImportanceProvider{Service: importanceService}, nil)
 	a.taskRecycler.SetWakeFunc(a.processor.Wake)
 	log.Println("✅ Queue processor initialized")
 	systemlog.Info("Queue processor initialized")
 
-	// Initialize Auto Steer components
-	if err := autosteer.EnsureTablesExist(a.db); err != nil {
-		return fmt.Errorf("auto steer database tables missing: %w", err)
-	}
-
-	// Log table counts for debugging
+	// Auto Steer schemas are applied centrally in initializeDatabase via
+	// database.EnsureSchemas (see pkg/dbschema). Here we just report counts.
 	counts, err := autosteer.GetTableCounts(a.db)
 	if err != nil {
 		log.Printf("Warning: Could not get table counts: %v", err)
@@ -318,7 +338,7 @@ func (a *Application) initializeComponents() error {
 
 	// Initialize unified steering registry
 	promptEnhancer := autosteer.NewPromptEnhancer()
-	queueStateRepo := steering.NewPostgresQueueStateRepository(a.db)
+	queueStateRepo := steering.NewSQLiteQueueStateRepository(a.db)
 	steeringRegistry := steering.NewRegistry(map[steering.SteeringStrategy]steering.SteeringProvider{
 		steering.StrategyProfile: steering.NewProfileProvider(autoSteerIntegration),
 		steering.StrategyQueue:   steering.NewQueueProvider(queueStateRepo, promptEnhancer),

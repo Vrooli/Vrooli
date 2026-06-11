@@ -242,10 +242,12 @@ func NewProcessor(deps ProcessorDeps) *Processor {
 	if scenarioRoot == "" && deps.Storage != nil {
 		scenarioRoot = filepath.Dir(deps.Storage.GetQueueDir())
 	}
+	// Task-run logs are an explicit dependency, resolved by the caller through
+	// the storage seam (storage.ClassLogs/task-runs). They are intentionally NOT
+	// derived from the queue dir or scenario root: queue placement and log
+	// placement are independent storage classes (see the storage hard cut-over).
+	// Callers that exercise task-run logging must supply TaskLogsDir.
 	taskLogsDir := deps.TaskLogsDir
-	if taskLogsDir == "" && deps.Storage != nil {
-		taskLogsDir = filepath.Join(deps.Storage.GetQueueDir(), "..", "logs", "task-runs")
-	}
 
 	// Create default implementations for optional dependencies
 	registry := deps.Registry
@@ -321,7 +323,7 @@ func NewProcessor(deps ProcessorDeps) *Processor {
 // NewProcessorWithDefaults creates a processor with default implementations for all optional dependencies.
 // This is the convenience constructor for production use that mirrors the original behavior.
 // Background workers ARE started automatically for backward compatibility.
-func NewProcessorWithDefaults(storage tasks.StorageAPI, assembler *prompts.Assembler, broadcast chan<- any, rec recycler.RecyclerAPI) *Processor {
+func NewProcessorWithDefaults(storage tasks.StorageAPI, assembler *prompts.Assembler, broadcast chan<- any, rec recycler.RecyclerAPI, taskLogsDir string) *Processor {
 	vrooliRoot := paths.DetectVrooliRoot()
 
 	// Create agent service with default config
@@ -333,11 +335,12 @@ func NewProcessorWithDefaults(storage tasks.StorageAPI, assembler *prompts.Assem
 	})
 
 	processor := NewProcessor(ProcessorDeps{
-		Storage:   storage,
-		Assembler: assembler,
-		Broadcast: broadcast,
-		Recycler:  rec,
-		AgentSvc:  agentSvc,
+		Storage:     storage,
+		Assembler:   assembler,
+		Broadcast:   broadcast,
+		Recycler:    rec,
+		AgentSvc:    agentSvc,
+		TaskLogsDir: taskLogsDir,
 	})
 
 	// Initialize background workers for backward compatibility

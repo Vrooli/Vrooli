@@ -25,7 +25,7 @@ Use this document to answer:
 |---|---|---|---|
 | Auto-steer profiles (`profiles/*/profile.json`, `metadata.json`) | low | ecosystem-manager | Human-authored, version-controlled config (objective functions). No secrets. |
 | Task queue (`queue/<status>/*.yaml`) | low | ecosystem-manager | Execution requests and history; directory name encodes status. |
-| Execution state / history (Postgres `vrooli_ecosystem_manager`) | low | ecosystem-manager | Operation runs, metrics, iteration counts. No PII. |
+| Execution state / history (embedded SQLite under the storage data root) | low | ecosystem-manager | Operation runs, metrics, iteration counts. No PII. |
 | Agent-applied code diffs | high (integrity) | agent-manager | The actual blast radius. Confidentiality is low; **integrity is the concern** — these mutate the monorepo. Diff capture/review is delegated to agent-manager's sandbox + downstream review, not enforced here. |
 
 ## Auth And Authorization
@@ -46,7 +46,7 @@ model is ever added it belongs at the API/service layer.
 
 | Secret | Source | Required? | Notes |
 |---|---|---|---|
-| Postgres credentials | lifecycle / environment | yes | Provisioned by the Vrooli lifecycle for `vrooli_ecosystem_manager`. Not stored in this scenario. |
+| Database credentials | — | no | The runtime store is an embedded SQLite file on local disk; there are no database credentials to provision or store. |
 | Agent runner credentials (model/API keys) | agent-manager | yes (for loops) | Owned and injected by `agent-manager`; ecosystem-manager never handles them directly. |
 | `CORS_ALLOWED_ORIGINS` | environment | no (defaults to `*`) | Not a secret, but a security-relevant control. `[CODE: api/main.go]` parses it; empty → wildcard. |
 

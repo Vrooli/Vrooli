@@ -1,7 +1,6 @@
 package autosteer
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -9,97 +8,24 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/lib/pq"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/ecosystem-manager/api/pkg/effectiveness"
+	"github.com/ecosystem-manager/api/pkg/internal/testdb"
 )
 
-// PostgresContainer wraps a testcontainers postgres instance
-type PostgresContainer struct {
-	container *postgres.PostgresContainer
-	db        *sql.DB
-	connStr   string
+// testDB holds a temp SQLite database with the controller's schema applied.
+type testDB struct {
+	db *sql.DB
 }
 
-// SetupTestDatabase creates a PostgreSQL testcontainer and returns a connection
-func SetupTestDatabase(t *testing.T) (*PostgresContainer, func()) {
+// SetupTestDatabase opens a temp SQLite database with the controller's tables
+// (and the effectiveness ledger it shares startup DDL with) applied. The second
+// return value is a no-op cleanup retained for caller symmetry — t.Cleanup
+// already closes the DB. It never returns nil, so callers' Docker-skip guards
+// are simply dead under SQLite.
+func SetupTestDatabase(t *testing.T) (*testDB, func()) {
 	t.Helper()
-
-	ctx := context.Background()
-
-	// Create PostgreSQL container
-	pgContainer, err := postgres.RunContainer(ctx,
-		testcontainers.WithImage("postgres:15-alpine"),
-		postgres.WithDatabase("testdb"),
-		postgres.WithUsername("testuser"),
-		postgres.WithPassword("testpass"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(60*time.Second)),
-	)
-	if err != nil {
-		t.Skipf("Could not start postgres container: %v (Docker may not be available)", err)
-		return nil, nil
-	}
-
-	// Get connection string
-	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		if termErr := pgContainer.Terminate(ctx); termErr != nil {
-			t.Logf("Failed to terminate postgres container: %v", termErr)
-		}
-		t.Fatalf("Failed to get connection string: %v", err)
-	}
-
-	// Connect to database
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		if termErr := pgContainer.Terminate(ctx); termErr != nil {
-			t.Logf("Failed to terminate postgres container: %v", termErr)
-		}
-		t.Fatalf("Failed to connect to database: %v", err)
-	}
-
-	// Wait for database to be ready
-	if err := db.Ping(); err != nil {
-		db.Close()
-		if termErr := pgContainer.Terminate(ctx); termErr != nil {
-			t.Logf("Failed to terminate postgres container: %v", termErr)
-		}
-		t.Fatalf("Failed to ping database: %v", err)
-	}
-
-	// Create schema
-	if err := createTestSchema(db); err != nil {
-		db.Close()
-		if termErr := pgContainer.Terminate(ctx); termErr != nil {
-			t.Logf("Failed to terminate postgres container: %v", termErr)
-		}
-		t.Fatalf("Failed to create schema: %v", err)
-	}
-
-	container := &PostgresContainer{
-		container: pgContainer,
-		db:        db,
-		connStr:   connStr,
-	}
-
-	cleanup := func() {
-		db.Close()
-		if err := pgContainer.Terminate(ctx); err != nil {
-			t.Logf("Failed to terminate postgres container: %v", err)
-		}
-	}
-
-	return container, cleanup
-}
-
-// createTestSchema creates the controller's tables (the same self-healing DDL
-// the API uses at startup).
-func createTestSchema(db *sql.DB) error {
-	return EnsureTablesExist(db)
+	db := testdb.NewSQLite(t, Schema(), effectiveness.Schema())
+	return &testDB{db: db}, func() {}
 }
 
 // CreateTestProfile creates a simple objective-function test profile. The mode

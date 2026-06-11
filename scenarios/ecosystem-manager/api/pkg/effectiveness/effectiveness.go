@@ -49,7 +49,7 @@ type CreditEvent struct {
 // Store is the effectiveness ledger's read/write boundary.
 //
 // seam: Store is the controller's effectiveness ledger. Production wires
-// PostgresStore (backed by skill_dimension_effectiveness); tests wire MemoryStore.
+// SQLiteStore (backed by skill_dimension_effectiveness); tests wire MemoryStore.
 type Store interface {
 	// Get returns the (skill, dimension) stat and whether a row exists (no row =
 	// never observed = cold start).

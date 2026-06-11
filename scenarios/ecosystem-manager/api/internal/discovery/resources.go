@@ -32,32 +32,24 @@ func discoverResources(runner commandRunner) ([]tasks.ResourceInfo, error) {
 		}
 	}
 
-	var vrooliResources []map[string]any
-	if err := json.Unmarshal(output, &vrooliResources); err != nil {
+	vrooliResources, err := unmarshalResourceList(output)
+	if err != nil {
 		log.Printf("Error: Failed to parse vrooli resource list output: %v", err)
 		return resources, err
 	}
 
 	for _, vr := range vrooliResources {
-		resourceName := getStringField(vr, "Name")
+		resourceName := getStringField(vr, "name")
 		if resourceName != "" {
-			status := getStringField(vr, "Status")
-			isRegistered := status != "[UNREGISTERED]" && status != "[MISSING]"
-
 			resource := tasks.ResourceInfo{
 				Name:        resourceName,
-				Path:        getStringField(vr, "Path"),
-				Port:        getIntField(vr, "Port"),
+				Path:        getStringField(vr, "path"),
+				Port:        getIntField(vr, "port"),
 				Category:    inferResourceCategory(resourceName), // Still infer category from name
-				Description: getStringField(vr, "Description"),
-				Version:     getStringField(vr, "Version"),
-				Healthy:     getBoolField(vr, "Running"),
-				Status:      status,
-			}
-
-			// If no version provided and unregistered, mark it
-			if resource.Version == "" && !isRegistered {
-				resource.Version = "unregistered"
+				Description: getStringField(vr, "description"),
+				Version:     getStringField(vr, "version"),
+				Healthy:     getBoolField(vr, "enabled"),
+				Status:      resourceStatus(vr),
 			}
 
 			resources = append(resources, resource)
@@ -71,6 +63,42 @@ func discoverResources(runner commandRunner) ([]tasks.ResourceInfo, error) {
 
 	log.Printf("Discovered %d resources from vrooli CLI", len(resources))
 	return resources, nil
+}
+
+// unmarshalResourceList parses `vrooli resource list --json` output. The CLI
+// emits a wrapped object `{"resources": [...]}`; older builds emitted a bare
+// array. Accept either so a CLI format change does not silently empty the
+// create-task picker.
+func unmarshalResourceList(output []byte) ([]map[string]any, error) {
+	var wrapped struct {
+		Resources []map[string]any `json:"resources"`
+	}
+	if err := json.Unmarshal(output, &wrapped); err == nil && wrapped.Resources != nil {
+		return wrapped.Resources, nil
+	}
+
+	var bare []map[string]any
+	if err := json.Unmarshal(output, &bare); err != nil {
+		return nil, err
+	}
+	return bare, nil
+}
+
+// resourceStatus derives a human-facing status string from the registration
+// flags the CLI reports (it no longer emits a literal status field).
+func resourceStatus(vr map[string]any) string {
+	if exists, ok := vr["exists"]; ok {
+		if b, _ := exists.(bool); !b {
+			return "[MISSING]"
+		}
+	}
+	if !getBoolField(vr, "registered") {
+		return "[UNREGISTERED]"
+	}
+	if !getBoolField(vr, "enabled") {
+		return "disabled"
+	}
+	return "enabled"
 }
 
 // Helper functions for safe field extraction

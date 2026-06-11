@@ -136,8 +136,13 @@ func (tl *TaskLogger) Finalize(taskID string, completed bool) {
 	}
 }
 
-// Clear removes the log buffer for a task.
+// Clear removes the log buffer for a task. It is a no-op on a nil receiver,
+// which happens when the processor was constructed without a task-run log
+// directory (logging disabled) — callers should not have to guard.
 func (tl *TaskLogger) Clear(taskID string) {
+	if tl == nil {
+		return
+	}
 	tl.mu.Lock()
 	delete(tl.logs, taskID)
 	tl.mu.Unlock()

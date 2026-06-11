@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // HistoryService handles historical performance tracking
@@ -39,29 +41,25 @@ func (s *HistoryService) GetHistory(filters HistoryFilters) ([]ProfilePerformanc
 	`
 
 	var args []interface{}
-	argIndex := 1
 
 	if filters.ProfileID != "" {
-		query += fmt.Sprintf(" AND profile_id = $%d", argIndex)
+		query += " AND profile_id = ?"
 		args = append(args, filters.ProfileID)
-		argIndex++
 	}
 
 	if filters.ScenarioName != "" {
-		query += fmt.Sprintf(" AND scenario_name = $%d", argIndex)
+		query += " AND scenario_name = ?"
 		args = append(args, filters.ScenarioName)
-		argIndex++
 	}
 
 	if filters.StartDate != nil {
-		query += fmt.Sprintf(" AND executed_at >= $%d", argIndex)
-		args = append(args, filters.StartDate)
-		argIndex++
+		query += " AND executed_at >= ?"
+		args = append(args, filters.StartDate.UTC())
 	}
 
 	if filters.EndDate != nil {
-		query += fmt.Sprintf(" AND executed_at <= $%d", argIndex)
-		args = append(args, filters.EndDate)
+		query += " AND executed_at <= ?"
+		args = append(args, filters.EndDate.UTC())
 	}
 
 	query += " ORDER BY executed_at DESC"
@@ -70,7 +68,6 @@ func (s *HistoryService) GetHistory(filters HistoryFilters) ([]ProfilePerformanc
 	if err != nil {
 		return nil, fmt.Errorf("failed to query history: %w", err)
 	}
-	defer rows.Close()
 
 	// Initialize to empty slice (not nil) so it serializes as [] instead of null
 	history := make([]ProfilePerformance, 0)
@@ -98,19 +95,23 @@ func (s *HistoryService) GetHistory(filters HistoryFilters) ([]ProfilePerformanc
 			&perf.ExecutedAt,
 		)
 		if err != nil {
+			rows.Close()
 			return nil, fmt.Errorf("failed to scan history row: %w", err)
 		}
 
 		// Unmarshal JSON fields
 		if err := json.Unmarshal(startMetricsJSON, &perf.StartMetrics); err != nil {
+			rows.Close()
 			return nil, fmt.Errorf("failed to unmarshal start metrics: %w", err)
 		}
 
 		if err := json.Unmarshal(endMetricsJSON, &perf.EndMetrics); err != nil {
+			rows.Close()
 			return nil, fmt.Errorf("failed to unmarshal end metrics: %w", err)
 		}
 
 		if err := json.Unmarshal(phaseBreakdownJSON, &perf.PhaseBreakdown); err != nil {
+			rows.Close()
 			return nil, fmt.Errorf("failed to unmarshal phase breakdown: %w", err)
 		}
 
@@ -123,19 +124,28 @@ func (s *HistoryService) GetHistory(filters HistoryFilters) ([]ProfilePerformanc
 			}
 		}
 
-		if perf.ExecutionID != "" {
-			entries, err := s.loadFeedbackEntries(perf.ExecutionID)
-			if err != nil {
-				return nil, err
-			}
-			perf.FeedbackEntries = entries
-		}
-
 		history = append(history, perf)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating history: %w", err)
+	errRows := rows.Err()
+	// Release the connection BEFORE the per-row feedback queries below. The
+	// production pool is single-connection (SQLite), so issuing a nested query
+	// while these rows are still open would deadlock waiting on the only conn.
+	rows.Close()
+	if errRows != nil {
+		return nil, fmt.Errorf("error iterating history: %w", errRows)
+	}
+
+	// Enrich with structured feedback entries now that the outer cursor is closed.
+	for i := range history {
+		if history[i].ExecutionID == "" {
+			continue
+		}
+		entries, err := s.loadFeedbackEntries(history[i].ExecutionID)
+		if err != nil {
+			return nil, err
+		}
+		history[i].FeedbackEntries = entries
 	}
 
 	return history, nil
@@ -149,7 +159,7 @@ func (s *HistoryService) loadFeedbackEntries(executionID string) ([]ExecutionFee
 	query := `
 		SELECT id, category, severity, suggested_action, comments, metadata, created_at
 		FROM execution_feedback_entries
-		WHERE execution_task_id = $1
+		WHERE execution_task_id = ?
 		ORDER BY created_at DESC
 	`
 
@@ -210,7 +220,7 @@ func (s *HistoryService) GetExecution(executionID string) (*ProfilePerformance, 
 		       end_metrics, phase_breakdown, total_iterations, total_duration_ms,
 		       user_rating, user_comments, user_feedback_at, executed_at
 		FROM profile_executions
-		WHERE task_id = $1
+		WHERE task_id = ?
 	`
 
 	var perf ProfilePerformance
@@ -279,11 +289,11 @@ func (s *HistoryService) GetExecution(executionID string) (*ProfilePerformance, 
 func (s *HistoryService) SubmitFeedback(executionID string, rating int, comments string) error {
 	query := `
 		UPDATE profile_executions
-		SET user_rating = $1, user_comments = $2, user_feedback_at = $3
-		WHERE task_id = $4
+		SET user_rating = ?, user_comments = ?, user_feedback_at = ?
+		WHERE task_id = ?
 	`
 
-	result, err := s.db.Exec(query, rating, comments, time.Now(), executionID)
+	result, err := s.db.Exec(query, rating, comments, time.Now().UTC(), executionID)
 	if err != nil {
 		return fmt.Errorf("failed to update feedback: %w", err)
 	}
@@ -326,14 +336,17 @@ func (s *HistoryService) SubmitFeedbackEntry(executionID string, req ExecutionFe
 		metadataValue = string(payload)
 	}
 
-	var entry ExecutionFeedbackEntry
-	err := s.db.QueryRow(`
+	// SQLite has no gen_random_uuid()/RETURNING contract here; the id and
+	// created_at are app-generated so the insert is a plain statement.
+	entry := ExecutionFeedbackEntry{
+		ID:        uuid.NewString(),
+		CreatedAt: time.Now().UTC(),
+	}
+	if _, err := s.db.Exec(`
 		INSERT INTO execution_feedback_entries (
-			execution_task_id, category, severity, suggested_action, comments, metadata
-		) VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, created_at
-	`, execID, category, severity, req.SuggestedAction, req.Comments, metadataValue).Scan(&entry.ID, &entry.CreatedAt)
-	if err != nil {
+			id, execution_task_id, category, severity, suggested_action, comments, metadata, created_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, entry.ID, execID, category, severity, req.SuggestedAction, req.Comments, metadataValue, entry.CreatedAt); err != nil {
 		return nil, fmt.Errorf("failed to insert feedback entry: %w", err)
 	}
 

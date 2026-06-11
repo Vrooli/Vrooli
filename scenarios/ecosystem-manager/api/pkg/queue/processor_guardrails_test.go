@@ -61,11 +61,12 @@ func newGuardrailProcessor(t *testing.T) (*Processor, *tasks.Storage) {
 	mockRecycler := &MockRecycler{}
 
 	processor := NewProcessor(ProcessorDeps{
-		Storage:   storage,
-		Assembler: assembler,
-		Broadcast: broadcast,
-		Registry:  mockRegistry,
-		Recycler:  mockRecycler,
+		Storage:     storage,
+		Assembler:   assembler,
+		Broadcast:   broadcast,
+		Registry:    mockRegistry,
+		Recycler:    mockRecycler,
+		TaskLogsDir: filepath.Join(tempDir, "logs", "task-runs"),
 	})
 
 	return processor, storage

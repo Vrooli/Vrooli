@@ -53,9 +53,24 @@ func Init() {
 
 // InitWithBaseDir initializes logging using the provided base directory (scenario root).
 // Logs will be written to <baseDir>/logs.
+//
+// Prefer InitWithLogDir when the caller has already resolved the log directory
+// through the storage seam (storage.ClassLogs); InitWithBaseDir's <baseDir>/logs
+// convention assumes baseDir is a scenario root, which is no longer true after
+// the storage hard cut-over.
 func InitWithBaseDir(baseDir string) {
+	InitWithLogDir(resolveLogDir(baseDir))
+}
+
+// InitWithLogDir initializes logging using an already-resolved log directory.
+// The directory is used as-is (no "/logs" suffix is appended), so callers pass
+// the resolved storage.ClassLogs path directly.
+func InitWithLogDir(dir string) {
 	initOnce.Do(func() {
-		logDir = resolveLogDir(baseDir)
+		logDir = dir
+		if logDir == "" {
+			logDir = resolveLogDir("")
+		}
 		if err := os.MkdirAll(logDir, 0o755); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to create log dir: %v\n", err)
 			return

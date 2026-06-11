@@ -43,7 +43,7 @@ func (s *TraceStore) Append(taskID, profileID, scenarioName string, e DecisionTr
 			score_before, score_after, realized_delta, tokens_used,
 			dtv_verdict, dtv_prior, dtv_excluded, dtv_gate_override, dtv_degraded,
 			gate_degraded_cause, predicted_reduction, current_rung
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+		) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 	`
 	_, err = s.db.Exec(query,
 		taskID, profileID, scenarioName, e.Iteration, e.ChosenSkill,
@@ -58,9 +58,9 @@ func (s *TraceStore) Append(taskID, profileID, scenarioName string, e DecisionTr
 	return nil
 }
 
-// jsonOrNull returns a NULL-able arg for a JSONB column: a nil/empty byte slice
-// becomes SQL NULL (lib/pq sends a typed nil []byte as the empty string, which
-// is invalid JSON), otherwise the bytes pass through.
+// jsonOrNull returns a NULL-able arg for a JSON TEXT column: a nil/empty byte
+// slice becomes SQL NULL (an empty []byte would otherwise store as an empty
+// string, which is invalid JSON), otherwise the bytes pass through.
 func jsonOrNull(b []byte) any {
 	if len(b) == 0 {
 		return nil
@@ -93,10 +93,10 @@ func (s *TraceStore) SetRealized(taskID string, e DecisionTraceEntry) error {
 	}
 	query := `
 		UPDATE decision_trace
-		SET score_after = $1, realized_delta = $2, tokens_used = $3,
-		    closed_by_dimension = $4, introduced_by_dimension = $5,
-		    regressed = $6, veto_applied = $7, gaming_cause = $8
-		WHERE task_id = $9 AND iteration = $10
+		SET score_after = ?, realized_delta = ?, tokens_used = ?,
+		    closed_by_dimension = ?, introduced_by_dimension = ?,
+		    regressed = ?, veto_applied = ?, gaming_cause = ?
+		WHERE task_id = ? AND iteration = ?
 	`
 	if _, err := s.db.Exec(query, e.ScoreAfter, e.RealizedDelta, e.TokensUsed,
 		jsonOrNull(closedJSON), jsonOrNull(introducedJSON), e.Regressed, e.VetoApplied,
@@ -112,7 +112,7 @@ func (s *TraceStore) SetHalt(taskID string, iteration int, reason string) error 
 		return nil
 	}
 	if _, err := s.db.Exec(
-		`UPDATE decision_trace SET halt_reason = $1 WHERE task_id = $2 AND iteration = $3`,
+		`UPDATE decision_trace SET halt_reason = ? WHERE task_id = ? AND iteration = ?`,
 		reason, taskID, iteration,
 	); err != nil {
 		return fmt.Errorf("set halt reason: %w", err)
@@ -144,7 +144,7 @@ func (s *TraceStore) GetTrace(taskID string) ([]DecisionTraceEntry, error) {
 		       dtv_degraded, gate_degraded_cause, predicted_reduction,
 		       gaming_cause, current_rung, created_at
 		FROM decision_trace
-		WHERE task_id = $1
+		WHERE task_id = ?
 		ORDER BY iteration ASC
 	`
 	rows, err := s.db.Query(query, taskID)

@@ -22,7 +22,7 @@ behavior — the controller is only as available as its inputs.
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| PostgreSQL | resource | yes | analytics, auto-steer, steering, insights | DB `vrooli_ecosystem_manager`; `schema.sql` bootstrap | `/health` unhealthy; execution state cannot persist. |
+| Embedded SQLite | local file (not a resource) | n/a | analytics, auto-steer, steering, insights | `api/pkg/storagepaths.SQLiteDSN()`; domain-owned schemas applied at boot via `database.EnsureSchemas` | `/health` unhealthy if the storage data root is not writable; execution state cannot persist. |
 | agent-manager | scenario | yes | tasks, auto-steer | Start/stop/stream every agent run | Tasks cannot execute; queue stalls. |
 | prompt-manager | resource/scenario | yes (for steering) | auto-steer (skills) | `GET /api/skills`, `POST /api/skills/sync` | Steering prompts/skills unavailable; graceful degradation. |
 | claude-code | resource | yes | execution | AI model backing agent runs | Generation/improvement runs cannot proceed. |
@@ -40,7 +40,7 @@ and `dependencies.scenarios`.
 
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
-| PostgreSQL | required | Source of truth for run history, metrics, and live execution state. | n/a |
+| Embedded SQLite (`api-core/storage`) | built-in | Source of truth for run history, metrics, and live execution state — a local file under the resolved storage root, not an external resource. | If multi-writer/server-DB needs ever arise. |
 | prompt-manager | required for steering | Skills catalog sync (`GET /api/skills`, `POST /api/skills/sync`) feeds Auto Steer prompts. | If steering moves off the skills catalog. |
 | claude-code | required | Backs agent generation/improvement runs. | n/a |
 | qdrant | required | Semantic similarity for discovery. | n/a |
@@ -79,7 +79,7 @@ and `dependencies.scenarios`.
 |---|---|---|---|
 | agent-manager down | Run start/stream errors | Tasks cannot execute; queue **stalls** (entries stay in `queue/pending`/`in-progress`). | task-runner tests |
 | scenario-dependency-analyzer down | Importance report includes degraded centrality | Importance-aware scheduling uses neutral centrality; default-off queue behavior is unchanged. | importance/scheduler tests |
-| PostgreSQL down | `PingContext` error | `/health` reports unhealthy dependency; execution state cannot persist. | health handler tests |
+| SQLite open/ping failure | `PingContext` error (e.g. unwritable storage root) | `/health` reports unhealthy dependency; execution state cannot persist. | health handler tests |
 | prompt-manager down | Skills sync error | Steering prompts unavailable; Auto Steer degrades gracefully. | steering tests |
 | openrouter missing key | No `OPENROUTER_API_KEY` | OpenRouter recycler runs + model discovery disabled; core flow unaffected. | n/a |
 

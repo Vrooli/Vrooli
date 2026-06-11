@@ -33,9 +33,10 @@ func setupTestExecutionProcessor(t *testing.T) (*Processor, func()) {
 	broadcast := make(chan any, 10)
 
 	processor := NewProcessor(ProcessorDeps{
-		Storage:   storage,
-		Assembler: assembler,
-		Broadcast: broadcast,
+		Storage:     storage,
+		Assembler:   assembler,
+		Broadcast:   broadcast,
+		TaskLogsDir: filepath.Join(tmpDir, "logs", "task-runs"),
 	})
 
 	cleanup := func() {

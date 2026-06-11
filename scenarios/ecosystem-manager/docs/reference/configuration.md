@@ -1,9 +1,9 @@
 # Configuration — Ecosystem Manager
 
 How Ecosystem Manager is configured — env vars consumed by the
-binaries, the `.vrooli/service.json` manifest, the PostgreSQL schema,
-the on-disk auto-steer profiles registry, and the per-user CLI config
-file.
+binaries, the `.vrooli/service.json` manifest, the embedded SQLite
+database and its domain-owned schemas, the on-disk auto-steer profiles
+registry, and the per-user CLI config file.
 
 The lifecycle (`vrooli scenario start ecosystem-manager`, `make start`)
 sets every required variable automatically. You only need this
@@ -13,7 +13,7 @@ reference when running a binary by hand or adding a new variable.
 |---|---|
 | **Lifecycle port** | `30500` (API + UI dashboard) |
 | **Dashboard** | `http://localhost:30500` |
-| **Database** | PostgreSQL `vrooli_ecosystem_manager` |
+| **Database** | Embedded SQLite — `<data-root>/vrooli/<namespace>/ecosystem-manager.db` |
 
 ## Environment variables
 
@@ -23,12 +23,13 @@ reference when running a binary by hand or adding a new variable.
 |---|---|---|
 | `API_PORT` | `15000-19999` | Port for the Go API server (lifecycle port `30500`) |
 | `UI_PORT` | `21110` (declared) | Port for the production UI server |
-| `POSTGRES_*` | — | Connection params for `vrooli_ecosystem_manager`, read by `database.Connect` in [CODE: api/pkg/server/server.go] (`initializeDatabase`) |
 
 ### Optional overrides
 
 | Variable | Default | Purpose |
 |---|---|---|
+| `SQLITE_PATH` | storage-resolved `<data-root>/vrooli/<namespace>/ecosystem-manager.db` | Override the SQLite database file path. Canonical operator/test override, read by `SQLiteDSN()` in [CODE: api/pkg/storagepaths/paths.go] |
+| `SQLITE_DB` | — | Alias for `SQLITE_PATH` (accepted for symmetry with other scenarios); used only when `SQLITE_PATH` is unset |
 | `CORS_ALLOWED_ORIGINS` | `*` | Comma-separated allowed origins for API CORS. Empty falls back to `*`. Consumed via `allowedOrigins` in [CODE: api/pkg/server/server.go] |
 | `OPENROUTER_API_KEY` | unset | Enables OpenRouter-backed recycler runs and model discovery; absent → that path is degraded, not fatal |
 
@@ -67,7 +68,6 @@ Single source of truth for the lifecycle. Schema version `2.0.0`.
 
 | Resource | Required | Role |
 |---|---|---|
-| `postgres` | yes | Task queue history + analytics + auto-steer state |
 | `qdrant` | yes | Semantic search / similarity matching |
 | `claude-code` | yes | AI for resource/scenario generation |
 | `ollama` | yes | Local models (`llama3.1:8b`, `llama3.2:3b`) |
@@ -104,29 +104,32 @@ an explicit operator action.
 
 ## Database & schema bootstrap
 
-PostgreSQL database `vrooli_ecosystem_manager`. The schema is declared
-in [CODE: initialization/postgres/schema.sql] and applied idempotently
-(`CREATE EXTENSION/TABLE IF NOT EXISTS`). `database.Connect` reads
-`POSTGRES_*` env vars and configures a 25/5 connection pool
-([CODE: api/pkg/server/server.go], `initializeDatabase`).
+Embedded SQLite, opened through [CODE: api/pkg/storagepaths]`.SQLiteDSN()`
+(WAL, foreign keys on) at `<data-root>/vrooli/<namespace>/ecosystem-manager.db`
+(`storage.ClassData`). The schema is **domain-owned**: each domain ships
+its own `schema.sql` with a `Schema()` func, registered in
+[CODE: api/pkg/dbschema]`.AllSchemas()` and applied idempotently at boot
+(`CREATE TABLE IF NOT EXISTS`) by `database.EnsureSchemas`. There is no
+Postgres connection or pool.
 
-| Table | Purpose |
-|---|---|
-| `task_executions` | Execution history for analytics & learning |
-| `operation_metrics` | Aggregate operation analytics |
-| `profile_executions` | Auto-steer run records |
-| `profile_execution_state` | Live auto-steer run state |
-| `steering_queue_state` | Steering queue persistence |
-| `execution_feedback_entries` | Per-run feedback entries |
+| Table | Schema file | Purpose |
+|---|---|---|
+| `profile_executions` | `api/pkg/autosteer/schema.sql` | Auto-steer run records / history & analytics |
+| `profile_execution_state` | `api/pkg/autosteer/schema.sql` | Live auto-steer run state |
+| `decision_trace` | `api/pkg/autosteer/schema.sql` | Per-iteration controller decision trace |
+| `execution_feedback_entries` | `api/pkg/autosteer/schema.sql` | Per-run feedback entries |
+| `skill_dimension_effectiveness` | `api/pkg/effectiveness/schema.sql` | Per-(skill, dimension) effectiveness ledger |
+| `steering_queue_state` | `api/pkg/steering/schema.sql` | Steering queue persistence |
 
-Filesystem state lives alongside the database: the task queue is YAML
-under `queue/<status>/`, and auto-steer profiles under
-`profiles/<id-or-name>/profile.json`.
+Filesystem state lives alongside the database: the runtime task queue is
+YAML under `<data-root>/vrooli/<namespace>/queue/<status>/`, and
+git-tracked auto-steer profiles under `profiles/<id-or-name>/profile.json`
+in the scenario tree.
 
 ## Profiles registry
 
-Auto-steer profiles are stored on disk (not in Postgres), under
-[CODE: profiles]:
+Auto-steer profiles are git-tracked source assets stored on disk (not in
+the database), under [CODE: profiles]:
 
 ```
 profiles/
@@ -135,8 +138,8 @@ profiles/
 ```
 
 `metadata.json` is the index; the API resolves a profile id/name to its
-`profile.json`. Run state for an active profile execution is the
-Postgres half (`profile_execution_state` / `steering_queue_state`).
+`profile.json`. Run state for an active profile execution is the SQLite
+half (`profile_execution_state` / `steering_queue_state`).
 Repo path: `scenarios/ecosystem-manager/profiles/`.
 
 ## CLI config file

@@ -24,7 +24,7 @@ in [`DATA.md`](DATA.md).
 
 | Domain | Purpose | Owns Data | Surfaces | Source Paths |
 |---|---|---|---|---|
-| tasks | The unit of work: type (scenario/resource) × operation (generator/improver), target, priority, status. | `task_executions`; queue YAML | API, CLI, UI | `api/pkg/tasks/`, `cli/` task group, `ui/src/components/kanban/` |
+| tasks | The unit of work: type (scenario/resource) × operation (generator/improver), target, priority, status. | queue YAML (run history lives in auto-steer `profile_executions`) | API, CLI, UI | `api/pkg/tasks/`, `cli/` task group, `ui/src/components/kanban/` |
 | queue | Schedule, execute, rate-limit, and track task runs via agent-manager. | queue `<status>/` dirs; execution registry | API, CLI, UI | `api/pkg/queue/` |
 | auto-steer | The closed-loop **controller**: objective profiles, diagnose (findings)→select→measure→terminate, decision trace, history, analytics. | `profile_execution_state`, `profile_executions`, `decision_trace`; `profiles/*.json` | API, CLI, UI | `api/pkg/autosteer/`, `api/pkg/{findings,skillmap,dimensions}/`, `profiles/`, `ui/src/components/steer/` |
 | steering | Selects the steering mode (profile / queue / manual / none) for a task. | `steering_queue_state` | API, UI | `api/pkg/steering/` |
@@ -40,7 +40,8 @@ in [`DATA.md`](DATA.md).
 
 - Purpose: represent one improvement/generation job. Type × operation ×
   target × priority × status; status is the queue directory name.
-- Owns: task records and run history (`task_executions`), task validation.
+- Owns: task records and validation; run history is recorded by
+  auto-steer (`profile_executions`).
 - Does not own: how a task is executed (queue) or steered (auto-steer).
 - Surfaces: `GET/POST /api/tasks`, `PUT /api/tasks/{id}/status`; CLI
   `task` group (`add`/`improve`/`list`/`show`/`status`/`delete`); UI
@@ -74,7 +75,7 @@ in [`DATA.md`](DATA.md).
   greedy `Selector` (`selector.go`), gradient `Terminator` (`terminator.go`),
   findings ingestion (`pkg/findings`), skill→dimension resolver
   (`pkg/skillmap`), dimension vocabulary (shared `packages/maturity-go/dimensions`), decision-trace
-  store (`decision_trace.go`), state manager (Postgres), profile repository
+  store (`decision_trace.go`), state manager (SQLite), profile repository
   (filesystem), gap-metrics collectors (`metrics*.go`).
 - Status: **v1 effectiveness-weighted controller shipped** — findings
   state, declared skill→dimension map, reduction-per-token bandit selection

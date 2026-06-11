@@ -56,8 +56,8 @@ and test-genie report supplements.
 
 | Symptom | Checks | Fix | Escalation |
 |---|---|---|---|
-| Scenario does not start | `vrooli scenario status`, `make logs` | `vrooli scenario restart ecosystem-manager`; confirm `vrooli-postgres-main` is up | Record recurring failures in `../internal/PROBLEMS.md`. |
-| `/health` reports DB unreachable | Postgres container `vrooli-postgres-main`, db `vrooli_ecosystem_manager` | Start Postgres; re-run `make setup` to re-apply idempotent schema | Check container logs; escalate if data dir is corrupt. |
+| Scenario does not start | `vrooli scenario status`, `make logs` | `vrooli scenario restart ecosystem-manager` | Record recurring failures in `../internal/PROBLEMS.md`. |
+| `/health` reports DB unreachable | The SQLite file `<data-root>/vrooli/<namespace>/ecosystem-manager.db` (resolve with `vrooli recovery namespace --scenario ecosystem-manager --json`) | Restart the API to re-open the DB and re-apply schemas; ensure the storage data dir is writable | Escalate if the SQLite file is corrupt — restore from data-backup-manager. |
 | Tasks never execute / stuck queued | `GET /api/queue/status`; is the queue processor running? | `POST /api/queue/start`; if a run is wedged, `POST /api/queue/processes/terminate` | Verify agent-manager is healthy — it executes the runs. |
 | Rate-limit backoff stalls queue | `GET /api/queue/status` shows backoff | `POST /api/queue/reset-rate-limit` | If recurring, lower concurrency in Settings. |
 | Need to pause all work safely | current state in UI | `POST /api/maintenance/state` to enter maintenance mode | — |
@@ -66,17 +66,22 @@ and test-genie report supplements.
 
 ## Backup / Restore
 
-Ecosystem Manager has two durable stores: the PostgreSQL database and the
-on-disk profile/queue files.
+All of Ecosystem Manager's runtime state — the SQLite database **and** the
+task queue YAML — lives under the resolved storage root
+(`<data-root>/vrooli/<namespace>/`, where `<data-root>` and `<namespace>`
+come from `vrooli recovery namespace --scenario ecosystem-manager --json`).
+That single root is the backup unit, and it is covered by
+**data-backup-manager**; there are no bespoke scenario-folder copy steps.
 
 | Data | Backup Procedure | Restore Procedure | Status |
 |---|---|---|---|
-| Postgres db `vrooli_ecosystem_manager` (tables `task_executions`, `operation_metrics`, `profile_executions`, `profile_execution_state`, `steering_queue_state`, `execution_feedback_entries`) | `docker exec vrooli-postgres-main pg_dump -U vrooli vrooli_ecosystem_manager > backup.sql` | `docker exec -i vrooli-postgres-main psql -U vrooli -d vrooli_ecosystem_manager < backup.sql` | active |
-| `profiles/` dir (auto-steer profile JSON + `metadata.json`) | Copy the directory while the queue processor is stopped | Restore the directory in place | active |
-| `queue/<status>/` task YAML | Copy the `queue/` tree | Restore the `queue/` tree | active |
+| Storage data root (SQLite DB `ecosystem-manager.db` + `queue/<status>/*.yaml`) | Covered by data-backup-manager. Verify with `data-backup-manager coverage report`; register the scenario's targets with `data-backup-manager safety register-targets --scenario ecosystem-manager` if not already visible. | `data-backup-manager` restore of the registered targets (stop the API first) | active |
+| `profiles/` dir (auto-steer profile JSON + `metadata.json`) | Git-tracked source asset in the scenario tree — backed up by version control, not the storage root. | `git checkout` / restore the directory | active |
 
-Schema re-application is safe (idempotent `IF NOT EXISTS`); restore data
-only when rolling back a destructive change.
+The SQLite schema is re-applied idempotently on boot (`CREATE TABLE IF NOT
+EXISTS`); restore data only when rolling back a destructive change. The task
+queue is no longer source-controlled — interrupted/in-flight tasks are
+recovered from the storage root, not from the repo.
 
 ## Maintenance Tasks
 
@@ -88,7 +93,7 @@ only when rolling back a destructive change.
 | Stop/start queue processor | as needed | `POST /api/queue/stop` / `POST /api/queue/start` |
 | Reset rate-limit backoff | when throttled | `POST /api/queue/reset-rate-limit` |
 | Adjust concurrency / auto-requeue | as load dictates | Settings page in the UI |
-| Inspect logs | as needed | `make logs` (date-stamped files in the scenario `logs/` dir) |
+| Inspect logs | as needed | `make logs`, or the date-stamped audit files under the resolved `ClassLogs` dir (`vrooli recovery namespace --scenario ecosystem-manager --json`) |
 
 ## Escalation
 

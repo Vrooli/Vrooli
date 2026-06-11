@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"bytes"
-	"context"
-	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -15,16 +13,13 @@ import (
 
 	"github.com/ecosystem-manager/api/pkg/autosteer"
 	"github.com/ecosystem-manager/api/pkg/insights"
+	"github.com/ecosystem-manager/api/pkg/internal/testdb"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
 	"github.com/ecosystem-manager/api/pkg/recycler"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // Test helpers
@@ -115,9 +110,10 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 
 	broadcast := make(chan any, 10)
 	processor := queue.NewProcessor(queue.ProcessorDeps{
-		Storage:   storage,
-		Assembler: assembler,
-		Broadcast: broadcast,
+		Storage:     storage,
+		Assembler:   assembler,
+		Broadcast:   broadcast,
+		TaskLogsDir: filepath.Join(tempDir, "logs", "task-runs"),
 	})
 	t.Cleanup(processor.Stop)
 	wsManager := websocket.NewManager()
@@ -315,8 +311,6 @@ func TestHealthCheckHandler(t *testing.T) {
 }
 
 func TestHealthCheckHandler_WithDatabaseConnected(t *testing.T) {
-	ctx := context.Background()
-
 	tempDir := t.TempDir()
 	queueDir := filepath.Join(tempDir, "queue")
 	for _, status := range []string{"pending", "in-progress"} {
@@ -325,38 +319,8 @@ func TestHealthCheckHandler_WithDatabaseConnected(t *testing.T) {
 		}
 	}
 
-	pgContainer, err := postgres.RunContainer(ctx,
-		testcontainers.WithImage("postgres:15-alpine"),
-		postgres.WithDatabase("testdb"),
-		postgres.WithUsername("testuser"),
-		postgres.WithPassword("testpass"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(60*time.Second),
-		),
-	)
-	if err != nil {
-		t.Skipf("skipping DB health test; postgres container unavailable: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = pgContainer.Terminate(ctx)
-	})
-
-	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		t.Fatalf("failed to get connection string: %v", err)
-	}
-
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		t.Fatalf("failed to open db: %v", err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-
-	if err := db.PingContext(ctx); err != nil {
-		t.Fatalf("failed to ping db: %v", err)
-	}
+	// A live SQLite handle: the health check pings it, exactly as production does.
+	db := testdb.NewSQLite(t)
 
 	h := NewHealthHandlers(nil, nil, queueDir, db, "db-version")
 

@@ -35,9 +35,10 @@ workspace root, then open a new shell.
 
 ### `/health` reports unhealthy
 
-The health endpoint reports both API and database status. If it is
-unhealthy, the most common cause is Postgres (see
-[Storage](#storage-postgres--filesystem)). Check logs:
+The health endpoint reports both API and database status. The database
+is an embedded SQLite file, so an unhealthy `/health` usually means the
+storage data root is not writable (see
+[Storage](#storage-sqlite--filesystem)). Check logs:
 
 ```bash
 curl -s http://localhost:30500/health
@@ -55,11 +56,11 @@ is stale.
 
 ### `make setup` fails building the API
 
-`make setup` builds the Go API, installs UI/CLI dependencies, and
-creates the `vrooli_ecosystem_manager` Postgres database. A build
+`make setup` builds the Go API and installs UI/CLI dependencies. A build
 failure is usually a Go toolchain mismatch — confirm your Go version
-matches `api/go.mod` and `cli/go.mod`. If the database step fails,
-Postgres (`vrooli-postgres-main`) is not reachable.
+matches `api/go.mod` and `cli/go.mod`. There is no separate database
+step: the embedded SQLite file is created and its schemas applied at API
+boot via `database.EnsureSchemas`.
 
 ### UI build / lint failures in tests
 
@@ -81,25 +82,28 @@ Distinguish "mine vs pre-existing": use a
 failure is from your change. Never `git stash` to do this — concurrent
 agents share the tree.
 
-## Storage (Postgres + filesystem)
+## Storage (SQLite + filesystem)
 
-Ecosystem Manager keeps active state in Postgres and definitions on the
-filesystem:
+Ecosystem Manager keeps active state in an embedded SQLite file and
+definitions on the filesystem:
 
-- **Postgres** `vrooli_ecosystem_manager` — task state, auto-steer
+- **SQLite** — `<data-root>/vrooli/<namespace>/ecosystem-manager.db`
+  (resolved through `api/pkg/storagepaths`) holds task/auto-steer
   execution state and history.
-- **Filesystem** — `profiles/` (auto-steer profile definitions) and
-  `queue/<status>/` YAML (task state mirrors).
+- **Filesystem** — git-tracked `profiles/` (auto-steer profile
+  definitions) in the scenario tree, plus the runtime task queue YAML
+  under `<data-root>/vrooli/<namespace>/queue/<status>/`.
 
-### Postgres not reachable
+### Storage data root not writable
 
-If `vrooli-postgres-main` is down, `/health` reports unhealthy and
-state does not persist across restarts. Confirm the Postgres resource
-is running, then restart the scenario.
+If the storage data root cannot be created or written, the SQLite file
+cannot open, `/health` reports unhealthy, and state does not persist
+across restarts. Confirm the data root exists and is writable, then
+restart the scenario.
 
 ### Auto-steer state missing for a task
 
-Profile *definitions* live on disk; active *state* lives in Postgres.
+Profile *definitions* live on disk; active *state* lives in SQLite.
 If state is missing:
 
 1. Verify the task actually has a profile attached.

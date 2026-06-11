@@ -15,8 +15,6 @@ and resources. Before going deep, read
 - **Vrooli CLI** on `PATH` (run `vrooli help` to confirm)
 - **Go** matching `api/go.mod` and `cli/go.mod`
 - **Node 20+ and pnpm 9+** for the UI bundle
-- **Postgres** running as `vrooli-postgres-main` (provides the
-  `vrooli_ecosystem_manager` database)
 - The scenario **`agent-manager`** running (executes tasks)
 - Optional: **`scenario-completeness-scoring`** running when you want the
   fast cached status dashboard/CLI alongside EM
@@ -32,9 +30,10 @@ From this scenario's directory:
 make setup
 ```
 
-This builds the API, installs UI/CLI dependencies, and creates the
-Postgres database `vrooli_ecosystem_manager`. Run it once after
-checkout, and again whenever dependencies change.
+This builds the API and installs UI/CLI dependencies. The runtime store
+is an embedded SQLite file created on first API boot (no separate
+database to provision). Run setup once after checkout, and again
+whenever dependencies change.
 
 ## 2 — Start
 

@@ -49,10 +49,10 @@ Go core, plus two external execution dependencies.
                   ┌─────────────────────────────┼─────────────────────────────┐
                   ▼                             ▼                              ▼
          ┌─────────────────┐        ┌──────────────────────┐        ┌──────────────────┐
-         │ PostgreSQL      │        │ Filesystem stores    │        │ Scenario deps    │
-         │ vrooli_         │        │ profiles/*.json      │        │ agent-manager    │
-         │ ecosystem_      │        │ queue/<status>/*.yaml│        │ (executes every  │
-         │ manager         │        │ logs/<date>.log      │        │ agent run)       │
+         │ Embedded SQLite │        │ Filesystem stores    │        │ Scenario deps    │
+         │ ecosystem-      │        │ profiles/*.json (git)│        │ agent-manager    │
+         │ manager.db      │        │ queue/<status>/*.yaml│        │ (executes every  │
+         │ (data root)     │        │ logs/<date>.log      │        │ agent run)       │
          └─────────────────┘        └──────────────────────┘        └──────────────────┘
 ```
 
@@ -73,9 +73,9 @@ The scenario owns:
 - source under `api/`, `ui/`, and `cli/`,
 - generated-scenario docs under `docs/`,
 - lifecycle metadata under `.vrooli/`,
-- the auto-steer profile registry under `profiles/`,
-- the task queue under `queue/<status>/`,
-- the Postgres schema under `initialization/postgres/schema.sql`,
+- the git-tracked auto-steer profile registry under `profiles/`,
+- the domain-owned SQLite schemas under
+  `api/pkg/{autosteer,effectiveness,steering}/schema.sql`,
 - proto schemas under `packages/proto/schemas/ecosystem-manager/`.
 
 The scenario does not own:
@@ -160,7 +160,7 @@ auto-steer code under `api/pkg/autosteer/`.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API core | Production | Unified task/queue/auto-steer service; Postgres + filesystem stores; broad handler + unit test coverage. | REST/JSON transport instead of Connect-RPC. |
+| API core | Production | Unified task/queue/auto-steer service; embedded SQLite + filesystem stores; broad handler + unit test coverage. | REST/JSON transport instead of Connect-RPC. |
 | Control loop | Transitional | Auto-steer runs metric-gated multi-phase profiles live. | Open-loop schedule, not yet the closed-loop controller in [`CONTROL-MODEL.md`](CONTROL-MODEL.md). |
 | UI | Production | Kanban board, steering panels, execution views, live `/ws`. | Has not adopted the slot/adoption-resolver UI manifest (see [`UI-ARCHITECTURE.md`](UI-ARCHITECTURE.md)). |
 | CLI | Production | Task/steer/queue/logs command groups over the API. | Thin by design. |
@@ -171,7 +171,7 @@ auto-steer code under `api/pkg/autosteer/`.
 | Date | Deviation | Reason | Revisit Trigger |
 |---|---|---|---|
 | pre-2026 | REST/JSON HTTP transport instead of proto/Connect-RPC | Scenario predates the Connect-RPC standard | Transport migration (backlog); see [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) |
-| pre-2026 | Auto-steer profiles stored on the filesystem, not in Postgres | Profiles are human-authored, version-controlled config | If profiles become user-generated at runtime |
+| pre-2026 | Auto-steer profiles stored on the filesystem (git-tracked), not in the database | Profiles are human-authored, version-controlled config | If profiles become user-generated at runtime |
 | pre-2026 | UI has not adopted the slot/adoption-resolver manifest | Scenario predates the UI manifest system | If the UI is regenerated from the template |
 | 2026-05-30 | Docs describe the closed-loop controller ahead of implementation | Pin the model and vocabulary before code hardens | Implementation tracked in [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) |
 

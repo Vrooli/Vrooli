@@ -50,7 +50,7 @@
       "id": "EM-P1-002",
       "category": "auto-steer",
       "title": "Per-(skill, dimension) effectiveness ledger",
-      "description": "A Postgres-backed effectiveness ledger (skill_dimension_effectiveness) tracks lifetime closed/introduced findings, runs, and token cost per (skill, dimension), with a derived shrinkage-blended efficacy computed on read.",
+      "description": "A SQLite-backed effectiveness ledger (skill_dimension_effectiveness) tracks lifetime closed/introduced findings, runs, and token cost per (skill, dimension), with a derived shrinkage-blended efficacy computed on read.",
       "prd_ref": "Auto-Steer Controller (v1)",
       "status": "complete",
       "tags": [
@@ -68,8 +68,8 @@
         },
         {
           "type": "test",
-          "ref": "api/pkg/effectiveness/postgres_store_test.go",
-          "phase": "integration",
+          "ref": "api/pkg/effectiveness/sqlite_store_test.go",
+          "phase": "unit",
           "status": "implemented"
         }
       ]

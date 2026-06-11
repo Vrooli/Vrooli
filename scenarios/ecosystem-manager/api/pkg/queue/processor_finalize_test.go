@@ -47,10 +47,11 @@ func newTestProcessorWithRecycler(t *testing.T) (*Processor, *recycler.Recycler,
 	rec := recycler.New(storage, nil)
 	rec.Start()
 	processor := NewProcessor(ProcessorDeps{
-		Storage:   storage,
-		Assembler: assembler,
-		Broadcast: broadcast,
-		Recycler:  rec,
+		Storage:     storage,
+		Assembler:   assembler,
+		Broadcast:   broadcast,
+		Recycler:    rec,
+		TaskLogsDir: filepath.Join(tempDir, "logs", "task-runs"),
 	})
 
 	cleanup := func() {

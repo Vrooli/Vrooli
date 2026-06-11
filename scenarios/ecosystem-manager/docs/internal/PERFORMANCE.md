@@ -34,8 +34,8 @@ Use this document to answer:
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| Iteration durations | Recorded per operation | Postgres `operation_metrics` `[CODE: initialization/postgres/schema.sql]` | 2026-05-30 |
-| Auto-steer iteration counts | Recorded per phase/task | execution state (Postgres) | 2026-05-30 |
+| Iteration durations | Recorded per run (`total_duration_ms`) and per iteration | SQLite `profile_executions` / `decision_trace` `[CODE: api/pkg/autosteer/schema.sql]` | 2026-05-30 |
+| Auto-steer iteration counts | Recorded per phase/task | execution state (SQLite `profile_execution_state` / `profile_executions.total_iterations`) | 2026-05-30 |
 | Absolute per-iteration wall-clock | Not yet captured as a fixed number; dominated by target build/test time | — | 2026-05-30 |
 
 ## Known Constraints
@@ -52,8 +52,8 @@ Use this document to answer:
 
 ## Regression Procedure
 
-1. Watch `operation_metrics` durations in Postgres for drift in
-   per-operation timing.
+1. Watch `profile_executions.total_duration_ms` (and per-iteration
+   `decision_trace`) in SQLite for drift in run/iteration timing.
 2. Watch auto-steer iteration counts per phase/task — an unexpected rise
    means a `stop_condition` regressed or a target's metrics stopped
    converging.

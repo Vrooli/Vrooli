@@ -67,7 +67,7 @@ here compounds across all downstream products.
   factory" tooling — none captured as direct comps yet.
 - **Willingness-to-pay evidence:** none captured.
 - **Cost drivers:** agent runs dispatched through `agent-manager`
-  (model/gateway usage), Postgres storage, and operator time.
+  (model/gateway usage), local storage, and operator time.
 
 ## Validation Plan
 

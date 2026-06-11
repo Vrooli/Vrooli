@@ -24,7 +24,7 @@ Use this document to answer:
 | Flow | Domain | Trigger | Outcome | Statefulness | Maturity |
 |---|---|---|---|---|---|
 | Task lifecycle | tasks / queue | Task created or status changed | Task reaches a terminal status | Status = queue directory name; transitions are atomic file moves | Level 1 (inventory) |
-| Auto-steer control loop | auto-steer / queue | A steered task is picked up | Profile completes, halts on a quality gate, or hits the iteration cap | Per-task execution state in Postgres; phase/iteration counters | Level 1 (inventory) |
+| Auto-steer control loop | auto-steer / queue | A steered task is picked up | Profile completes, halts on a quality gate, or hits the iteration cap | Per-task execution state in SQLite; phase/iteration counters | Level 1 (inventory) |
 | Skill catalog sync | prompts | Manual or scheduled sync | Local steer-skill cache refreshed | Cache freshness | Level 0 (in-code) |
 
 ## Flow Details
@@ -141,7 +141,7 @@ directly in domain code:
 
 - Decision logic: `api/pkg/autosteer/{execution_orchestrator,phase_coordinator,evaluator,iteration_evaluator}.go`.
 - Execution + requeue: `api/pkg/queue/autosteer_integration.go`.
-- Persisted state: Postgres `profile_execution_state` /
+- Persisted state: SQLite `profile_execution_state` /
   `profile_executions` (see [`DATA.md`](DATA.md)).
 
 The side-effect boundaries around these flows (agent-manager client,

@@ -22,9 +22,9 @@ Tier-1 local stack.
 
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
-| Tier-1 local Vrooli stack | active | Vrooli lifecycle, Go, Node/pnpm, PostgreSQL (`vrooli-postgres-main`), agent-manager running; scenario-completeness-scoring optional for cached status views | None — this is the only supported tier today. |
+| Tier-1 local Vrooli stack | active | Vrooli lifecycle, Go, Node/pnpm, a writable storage data root (embedded SQLite — no database resource), agent-manager running; scenario-completeness-scoring optional for cached status views | None — this is the only supported tier today. |
 | Desktop/mobile app | out of scope | Cross-platform runtime, packaged UI/API | Internal control-plane service; not packaged for end-user devices. |
-| Managed cloud/SaaS | out of scope | Hosted runtime, multi-tenant auth, hosted Postgres | Not an externally sold product; see the [Deployment Hub](../../../../docs/deployment/README.md) for future-tier direction. |
+| Managed cloud/SaaS | out of scope | Hosted runtime, multi-tenant auth, hosted data store | Not an externally sold product; see the [Deployment Hub](../../../../docs/deployment/README.md) for future-tier direction. |
 | Enterprise/self-host | out of scope | Install docs, support model | Ships only inside a full Vrooli installation. |
 
 ## Runtime Requirements
@@ -33,17 +33,20 @@ Tier-1 local stack.
 - **API**: served under `http://localhost:30500/api`; port assigned by
   lifecycle via `API_PORT` (UI fixed at `21110`).
 - **Health**: `GET /health` reports API + DB reachability.
-- **Database**: PostgreSQL database `vrooli_ecosystem_manager`, hosted in
-  container `vrooli-postgres-main`. Schema is initialized from
-  [`initialization/postgres/schema.sql`](../../initialization/postgres/schema.sql).
+- **Database**: embedded SQLite file at
+  `<data-root>/vrooli/<namespace>/ecosystem-manager.db` (resolved via
+  `api/pkg/storagepaths`). Domain-owned schemas
+  (`api/pkg/{autosteer,effectiveness,steering}/schema.sql`) are applied
+  at API boot by `database.EnsureSchemas`.
 - **Hard dependencies (must be running)**:
   - `agent-manager` — executes the agent runs that perform generation and
     improvement work.
 - **Optional readers**:
   - `scenario-completeness-scoring` — fast cached maturity/freshness/
     completeness status for operators and reports.
-- **Filesystem state**: `profiles/` (auto-steer profile JSON +
-  `metadata.json`) and `queue/<status>/` (task queue YAML).
+- **Filesystem state**: git-tracked `profiles/` (auto-steer profile JSON +
+  `metadata.json`) in the scenario tree, and the runtime task queue YAML
+  under `<data-root>/vrooli/<namespace>/queue/<status>/`.
 
 ## Packaging
 
@@ -55,14 +58,14 @@ entirely through the scenario lifecycle. There is no standalone artifact.
 | API | Go binary built by the scenario lifecycle (`make build` / `vrooli scenario`). Never direct-exec the binary. |
 | UI | Vite production bundle served by the lifecycle-managed UI server. |
 | CLI | Go CLI installed through the scenario manifest install hooks. |
-| Schema | `initialization/postgres/schema.sql` applied at setup; idempotent (`CREATE TABLE ... IF NOT EXISTS`). |
+| Schema | Domain-owned `api/pkg/{autosteer,effectiveness,steering}/schema.sql`, applied at API boot via `database.EnsureSchemas`; idempotent (`CREATE TABLE ... IF NOT EXISTS`). |
 
 ## Release Checklist
 
 - [ ] `make setup` passes.
 - [ ] `make test` passes (`vrooli scenario test ecosystem-manager`).
-- [ ] PostgreSQL `vrooli-postgres-main` is reachable and the
-      `vrooli_ecosystem_manager` schema is current.
+- [ ] The storage data root is writable; the embedded SQLite schema is
+      applied at boot (no external database to provision).
 - [ ] `agent-manager` is running and healthy.
 - [ ] Optional: `scenario-completeness-scoring` is healthy when cached
       status views are part of the validation.
@@ -75,12 +78,14 @@ entirely through the scenario lifecycle. There is no standalone artifact.
 Rollback is source-control based:
 
 1. Revert the scenario code to the previous known-good commit.
-2. Re-run `make setup` to rebuild the API/UI/CLI and re-apply the schema.
+2. Re-run `make setup` to rebuild the API/UI/CLI; schemas re-apply at the
+   next API boot.
 
-The PostgreSQL schema is idempotent (`CREATE EXTENSION/TABLE/INDEX ... IF
-NOT EXISTS`), so re-running setup against an existing database is safe and
-does not drop or recreate durable state. Restore durable data from backup
-only if a destructive change is being rolled back (see
+The domain-owned SQLite schemas are idempotent (`CREATE TABLE/INDEX ... IF
+NOT EXISTS`), so re-applying them against the existing database file is
+safe and does not drop or recreate durable state. Restore durable data
+from backup (data-backup-manager coverage of the storage root) only if a
+destructive change is being rolled back (see
 [`RUNBOOK.md`](RUNBOOK.md) → Backup / Restore).
 
 ## Cross-References

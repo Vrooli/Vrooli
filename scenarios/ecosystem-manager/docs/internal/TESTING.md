@@ -181,8 +181,8 @@ branches exercised, not just the happy path.
   that reintroduces the non-determinism the sensor seam removes.
 - Don't assert loop behavior through the HTTP layer when a unit test on
   the orchestrator/coordinator is more direct.
-- Don't seed a real filesystem queue (`queue/<status>/`) or real
-  Postgres when the in-memory storage fake and
+- Don't seed a real filesystem queue (`queue/<status>/`) or a real
+  SQLite file when the in-memory storage fake and
   `MockExecutionStateRepository` express the same precondition.
 - Don't treat coverage percentage as completeness — enumerate stop
   reasons and requeue outcomes explicitly.

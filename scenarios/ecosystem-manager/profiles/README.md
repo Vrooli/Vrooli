@@ -27,5 +27,5 @@ Templates live in the same registry with `kind: "template"` and are returned by:
 - `GET /api/auto-steer/templates`
 
 ## Notes
-- Execution history and runtime state remain in Postgres.
+- Execution history and runtime state live in the embedded SQLite store (`api-core/storage`), not in the git-tracked profile files.
 - Profile IDs must remain stable (tasks reference `auto_steer_profile_id`).

@@ -45,13 +45,16 @@ var statusOrder = func() map[string]int {
 	return order
 }()
 
-// Storage handles file-based task persistence
-// DESIGN DECISION: File-based task storage is intentional and provides several benefits:
-// 1. Manual task editing - developers can directly edit .yaml files for debugging/testing
-// 2. Git version control - task history and changes are tracked in source control
-// 3. Multi-scenario collaboration - other scenarios can create/modify tasks via file system
-// 4. Transparency - task state is always visible and inspectable without special tools
-// 5. Atomic operations - file renames provide atomic status transitions
+// Storage handles file-based task persistence.
+//
+// DESIGN DECISION: The task lifecycle is file-oriented (atomic renames between
+// status directories), so the runtime queue stays YAML-backed. The files live
+// under the resolved storage.ClassData root (see pkg/storagepaths), NOT in the
+// scenario source tree — runtime queue state is never source-controlled.
+// Benefits retained:
+//  1. Inspectability - task state is visible/editable for debugging without special tools.
+//  2. Multi-scenario collaboration - other scenarios can create/modify tasks via the filesystem.
+//  3. Atomic operations - file renames provide atomic status transitions.
 type Storage struct {
 	QueueDir string
 

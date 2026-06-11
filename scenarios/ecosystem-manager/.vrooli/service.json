@@ -125,26 +125,10 @@
             "type": "ui-bundle",
             "bundle_path": "ui/dist/index.html",
             "source_dir": "ui/src"
-          },
-          {
-            "type": "directories",
-            "targets": [
-              "queue/pending",
-              "queue/in-progress",
-              "queue/completed",
-              "queue/failed",
-              "data",
-              "logs"
-            ]
           }
         ]
       },
       "steps": [
-        {
-          "name": "create-directories",
-          "run": "mkdir -p queue/{pending,in-progress,completed,failed,templates} data logs",
-          "description": "Create required directory structure"
-        },
         {
           "name": "build-api",
           "run": "cd api && if [ ! -f go.sum ]; then go mod tidy; fi && go build -o ecosystem-manager-api main.go",
@@ -223,11 +207,6 @@
           "name": "stop-ui",
           "run": "pkill -f \"scenarios/ecosystem-manager.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/ecosystem-manager.*vite\" 2>/dev/null || true",
           "description": "Stop UI process"
-        },
-        {
-          "name": "cleanup-stale-tasks",
-          "run": "find queue/in-progress -name \"*.yaml\" -mmin +120 2>/dev/null | xargs -I {} mv {} queue/pending/ || true",
-          "description": "Move stale in-progress tasks back to pending"
         }
       ]
     }
@@ -239,12 +218,6 @@
         "enabled": true,
         "required": true,
         "description": "AI for resource and scenario generation"
-      },
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Task queue and metadata storage"
       },
       "qdrant": {
         "type": "qdrant",

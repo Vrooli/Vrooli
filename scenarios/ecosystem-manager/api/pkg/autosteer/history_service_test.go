@@ -7,52 +7,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
+
+	"github.com/ecosystem-manager/api/pkg/internal/testdb"
 )
 
+// setupHistoryTestDB opens a temp SQLite database with the autosteer schema
+// (the same DDL the API applies at boot via database.EnsureSchemas).
 func setupHistoryTestDB(t *testing.T) (*sql.DB, func()) {
 	t.Helper()
-
-	connStr := "host=localhost port=5432 user=ecosystem_manager password=ecosystem_manager_pass dbname=ecosystem_manager_test sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		t.Skipf("Skipping test: cannot connect to test database: %v", err)
-		return nil, nil
-	}
-
-	if err := db.Ping(); err != nil {
-		t.Skipf("Skipping test: database not available: %v", err)
-		return nil, nil
-	}
-
-	setupSQL := `
-		CREATE TABLE IF NOT EXISTS profile_executions (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			profile_id VARCHAR(255) NOT NULL,
-			task_id UUID NOT NULL,
-			scenario_name VARCHAR(255) NOT NULL,
-			start_metrics JSONB,
-			end_metrics JSONB,
-			phase_breakdown JSONB,
-			total_iterations INTEGER,
-			total_duration_ms BIGINT,
-			user_rating INTEGER,
-			user_comments TEXT,
-			user_feedback_at TIMESTAMP,
-			executed_at TIMESTAMP DEFAULT NOW()
-		);
-	`
-
-	if _, err := db.Exec(setupSQL); err != nil {
-		t.Fatalf("Failed to create test tables: %v", err)
-	}
-
-	cleanup := func() {
-		_, _ = db.Exec("TRUNCATE profile_executions CASCADE")
-		db.Close()
-	}
-
-	return db, cleanup
+	return testdb.NewSQLite(t, Schema()), func() {}
 }
 
 func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioName string, withFeedback bool) string {
@@ -107,12 +70,13 @@ func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioNam
 
 	query := `
 		INSERT INTO profile_executions (
-			profile_id, task_id, scenario_name, start_metrics, end_metrics,
+			id, profile_id, task_id, scenario_name, start_metrics, end_metrics,
 			phase_breakdown, total_iterations, total_duration_ms, executed_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err := db.Exec(query,
+		uuid.NewString(),
 		profileID,
 		taskID,
 		scenarioName,
@@ -121,7 +85,7 @@ func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioNam
 		phaseBreakdownJSON,
 		15,
 		900000, // 15 minutes
-		time.Now(),
+		time.Now().UTC(),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create test execution: %v", err)
@@ -130,10 +94,10 @@ func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioNam
 	if withFeedback {
 		feedbackQuery := `
 			UPDATE profile_executions
-			SET user_rating = $1, user_comments = $2, user_feedback_at = $3
-			WHERE task_id = $4
+			SET user_rating = ?, user_comments = ?, user_feedback_at = ?
+			WHERE task_id = ?
 		`
-		_, err = db.Exec(feedbackQuery, 5, "Excellent results!", time.Now(), taskID)
+		_, err = db.Exec(feedbackQuery, 5, "Excellent results!", time.Now().UTC(), taskID)
 		if err != nil {
 			t.Fatalf("Failed to add feedback: %v", err)
 		}
