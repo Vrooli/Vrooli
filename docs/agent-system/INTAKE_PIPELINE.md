@@ -70,13 +70,13 @@ Producers (operator, vision-walk, cross-team handoff) add entries via:
 
 ```bash
 prompt-manager team knowledge-add <team> \
-  --by=<source-id> \
   --topic="<inbox-name>/<signal-type>/<short-slug>" \
+  --caller-note="<source-id or routing context>" \
   --content="<raw note + honesty/confidence flags + optional suggested-method>" \
   --source="<original-url-if-known>"
 ```
 
-`--by` identifies the source (e.g., `vision-walk`, `researcher`, `operator`); `--source` carries the original URL when available.
+`--caller-note` carries source context (e.g., `vision-walk`, `researcher`, `operator`); `--source` carries the original URL when available. Knowledge entries are attributed automatically by runtime context; do not pass a `--by` flag to `knowledge-add`.
 
 Each entry must preserve: source URL when available, raw operator note, confidence/honesty flags, and a proposed next method (or a reason no follow-up is warranted). Signal-type lives in the topic prefix, not the content.
 

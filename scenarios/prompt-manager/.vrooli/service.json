@@ -203,11 +203,11 @@
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Local LLM for AI search embeddings (nomic-embed-text) and prompt testing (llama3.2)",
+        "description": "Local Ollama roles for AI search embeddings and prompt testing",
         "degraded_behavior": "Local embedding generation and prompt-evaluation flows are unavailable",
-        "models": [
-          "nomic-embed-text",
-          "llama3.2"
+        "model_roles": [
+          "embedding.default",
+          "chat.small"
         ]
       }
     }

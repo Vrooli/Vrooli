@@ -21,8 +21,8 @@
     },
     "ollama": {
       "url": "http://localhost:11434",
-      "embedding_model": "nomic-embed-text",
-      "chat_model": "llama3.2"
+      "embedding_model": "embedding.default",
+      "chat_model": "chat.small"
     }
   },
   "features": {

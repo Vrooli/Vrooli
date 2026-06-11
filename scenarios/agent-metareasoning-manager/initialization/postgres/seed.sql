@@ -19,7 +19,7 @@ INSERT INTO workflow_registry (
      'Weighted advantages vs disadvantages with scoring',
      'analytical',
      ARRAY['decision-making', 'evaluation', 'comparison'],
-     '{"models": ["llama3.2", "mistral"], "output_format": "structured_json", "supports_context": true}'::jsonb,
+     '{"models": ["chat.default"], "output_format": "structured_json", "supports_context": true}'::jsonb,
      '{"input": {"type": "string", "required": true}, "context": {"type": "string", "required": false}, "model": {"type": "string", "required": false}}'::jsonb,
      '{"pros": {"type": "array"}, "cons": {"type": "array"}, "recommendation": {"type": "string"}, "confidence": {"type": "number"}}'::jsonb),
      
@@ -29,7 +29,7 @@ INSERT INTO workflow_registry (
      'Strategic Strengths, Weaknesses, Opportunities, Threats analysis',
      'strategic',
      ARRAY['strategic', 'planning', 'analysis', 'business'],
-     '{"models": ["llama3.2", "mistral"], "output_format": "structured_json", "supports_context": true}'::jsonb,
+     '{"models": ["chat.default"], "output_format": "structured_json", "supports_context": true}'::jsonb,
      '{"input": {"type": "string", "required": true}, "context": {"type": "string", "required": false}}'::jsonb,
      '{"strengths": {"type": "array"}, "weaknesses": {"type": "array"}, "opportunities": {"type": "array"}, "threats": {"type": "array"}}'::jsonb),
      
@@ -39,7 +39,7 @@ INSERT INTO workflow_registry (
      'Probability × Impact analysis with mitigation strategies',
      'risk',
      ARRAY['risk', 'mitigation', 'assessment', 'planning'],
-     '{"models": ["llama3.2", "codellama"], "output_format": "structured_json", "risk_matrix": true}'::jsonb,
+     '{"models": ["chat.default"], "output_format": "structured_json", "risk_matrix": true}'::jsonb,
      '{"action": {"type": "string", "required": true}, "constraints": {"type": "string", "required": false}}'::jsonb,
      '{"risks": {"type": "array"}, "overall_risk": {"type": "string"}, "mitigations": {"type": "array"}}'::jsonb),
      
@@ -49,7 +49,7 @@ INSERT INTO workflow_registry (
      'Recursive reasoning validation and improvement',
      'metacognitive',
      ARRAY['metacognitive', 'self-improvement', 'validation', 'iterative'],
-     '{"models": ["llama3.2"], "iterations": 3, "supports_custom_iterations": true}'::jsonb,
+     '{"models": ["chat.default"], "iterations": 3, "supports_custom_iterations": true}'::jsonb,
      '{"decision": {"type": "string", "required": true}, "iterations": {"type": "number", "required": false}}'::jsonb,
      '{"initial_assessment": {"type": "object"}, "final_assessment": {"type": "object"}, "improvements": {"type": "array"}}'::jsonb),
      
@@ -59,7 +59,7 @@ INSERT INTO workflow_registry (
      'Orchestrated execution of multiple reasoning patterns',
      'orchestration',
      ARRAY['orchestration', 'complex', 'multi-step', 'comprehensive'],
-     '{"models": ["llama3.2"], "chaining": true, "parallel_execution": false}'::jsonb,
+     '{"models": ["chat.default"], "chaining": true, "parallel_execution": false}'::jsonb,
      '{"input": {"type": "string", "required": true}, "chain_type": {"type": "string", "required": false}}'::jsonb,
      '{"chain_results": {"type": "array"}, "synthesis": {"type": "object"}}'::jsonb),
      

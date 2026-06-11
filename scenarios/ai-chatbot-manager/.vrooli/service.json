@@ -191,8 +191,8 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": [
-          "llama3.2"
+        "model_roles": [
+          "chat.default"
         ],
         "purpose": "AI-powered conversation engine for chatbots"
       },

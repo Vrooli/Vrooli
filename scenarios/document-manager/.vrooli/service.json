@@ -134,8 +134,8 @@
         },
         {
           "name": "verify-models",
-          "run": "curl -sf http://localhost:${RESOURCE_PORTS[ollama]}/api/tags | grep -E '(llama3.2|nomic-embed-text)' || echo 'Pulling required models...' && curl -X POST http://localhost:${RESOURCE_PORTS[ollama]}/api/pull -d '{\"name\": \"llama3.2\"}' & curl -X POST http://localhost:${RESOURCE_PORTS[ollama]}/api/pull -d '{\"name\": \"nomic-embed-text\"}' &",
-          "description": "Verify and pull required AI models"
+          "run": "resource-ollama status",
+          "description": "Verify the Ollama resource is reachable; declared model roles are provisioned by resource-ollama ensure"
         },
         {
           "name": "install-ui-deps",
@@ -256,8 +256,8 @@
         "enabled": true,
         "required": true,
         "startup_policy": "must_start",
-        "models": [
-          "nomic-embed-text"
+        "model_roles": [
+          "embedding.default"
         ]
       },
       "unstructured-io": {

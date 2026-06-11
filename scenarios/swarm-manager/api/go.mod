@@ -10,9 +10,12 @@ require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
+	github.com/vrooli/aisearch-go v0.0.0
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/cli-core v0.0.0
+	github.com/vrooli/measures-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
+	github.com/vrooli/searchregister-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/sync v0.20.0
 	google.golang.org/protobuf v1.36.11
@@ -33,9 +36,9 @@ require (
 	github.com/stoewer/go-strcase v1.3.1 // indirect
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
 	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20251213004720-97cd9d5aeac2 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251213004720-97cd9d5aeac2 // indirect
+	golang.org/x/text v0.32.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
@@ -45,7 +48,13 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
+replace github.com/vrooli/measures-go => ../../../packages/measures-go
+
+replace github.com/vrooli/aisearch-go => ../../../packages/aisearch-go
+
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 

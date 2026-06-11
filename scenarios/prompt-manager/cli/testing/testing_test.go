@@ -36,11 +36,11 @@ func TestRunRequiresSkillIDBeforeAPI(t *stdtesting.T) {
 	ctx.RequireNoRequests()
 }
 
-func TestRunSendsModelVariablesAndPrintsResponse(t *stdtesting.T) {
+func TestRunSendsRoleVariablesAndPrintsResponse(t *stdtesting.T) {
 	ctx := clitest.NewContext(t)
 	ctx.Respond("POST", "/skills/skill-1/test", TestResponse{
 		TestID:       "test-1",
-		Model:        "llama3.2",
+		Role:         "chat.small",
 		Response:     "Generated answer",
 		ResponseTime: 42,
 		TokenCount:   128,
@@ -50,7 +50,7 @@ func TestRunSendsModelVariablesAndPrintsResponse(t *stdtesting.T) {
 	stdout, _, err := clitest.Output(t, func() error {
 		return route(ctx, []string{
 			"run", "skill-1",
-			"--model", "mistral",
+			"--role", "chat.small",
 			"--vars", "topic=planning, tone=direct",
 			"--max-tokens", "250",
 			"--temperature", "0.2",
@@ -59,7 +59,7 @@ func TestRunSendsModelVariablesAndPrintsResponse(t *stdtesting.T) {
 	if err != nil {
 		t.Fatalf("run test: %v", err)
 	}
-	if !strings.Contains(stdout, "Testing skill skill-1 with mistral") || !strings.Contains(stdout, "Generated answer") {
+	if !strings.Contains(stdout, "Testing skill skill-1 with chat.small") || !strings.Contains(stdout, "Generated answer") {
 		t.Fatalf("unexpected output:\n%s", stdout)
 	}
 
@@ -71,7 +71,7 @@ func TestRunSendsModelVariablesAndPrintsResponse(t *stdtesting.T) {
 	if !ok {
 		t.Fatalf("unexpected payload type %T", req.Payload)
 	}
-	if payload.Model != "mistral" || payload.Variables["topic"] != "planning" || payload.Variables["tone"] != "direct" {
+	if payload.Role != "chat.small" || payload.Variables["topic"] != "planning" || payload.Variables["tone"] != "direct" {
 		t.Fatalf("unexpected payload: %+v", payload)
 	}
 	if payload.MaxTokens == nil || *payload.MaxTokens != 250 || payload.Temperature == nil || *payload.Temperature != 0.2 {

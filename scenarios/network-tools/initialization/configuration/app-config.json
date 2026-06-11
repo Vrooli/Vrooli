@@ -41,15 +41,15 @@
   },
   
   "ai": {
-    "default_model": "llama3.1:8b",
+    "default_model": "chat.default",
     "temperature": 0.7,
     "max_tokens": 2048,
     "timeout_seconds": 30,
     "retry_attempts": 3,
     "models": {
-      "text": ["llama3.1:8b", "qwen2.5-coder:7b"],
+      "text": ["chat.default", "code.local"],
       "vision": ["llava:7b", "llama3.2-vision:11b"],
-      "embedding": ["nomic-embed-text:latest"]
+      "embedding": ["embedding.default"]
     }
   },
   

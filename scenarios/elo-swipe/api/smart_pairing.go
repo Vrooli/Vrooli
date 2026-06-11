@@ -72,7 +72,7 @@ Items: %s
 Return a JSON object with 'suggested_pairs' array, each containing 'item_a_id', 'item_b_id', and 'priority' (0-100).`, string(itemsData))
 
 	// Call Ollama for AI analysis
-	aiResponse, err := sp.callOllamaGenerate(ctx, prompt, "llama3.2", "analysis")
+	aiResponse, err := sp.callOllamaGenerate(ctx, prompt, "chat.small", "analysis")
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate AI analysis: %w", err)
 	}
@@ -103,8 +103,8 @@ Return a JSON object with 'suggested_pairs' array, each containing 'item_a_id', 
 	}, nil
 }
 
-func (sp *SmartPairing) callOllamaGenerate(ctx context.Context, prompt, model, taskType string) (string, error) {
-	role := strings.TrimSpace(model)
+func (sp *SmartPairing) callOllamaGenerate(ctx context.Context, prompt, role, taskType string) (string, error) {
+	role = strings.TrimSpace(role)
 	if role == "" {
 		role = "chat.small"
 	}

@@ -225,8 +225,8 @@
         "required": true,
         "startup_policy": "must_start",
         "description": "Natural language processing for chat interface",
-        "models": [
-          "llama3.2"
+        "model_roles": [
+          "chat.small"
         ]
       }
     },

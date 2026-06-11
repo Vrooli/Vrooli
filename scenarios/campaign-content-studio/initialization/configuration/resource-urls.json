@@ -38,9 +38,9 @@
         "base_url": "http://localhost:${RESOURCE_PORTS[ollama]}",
         "api_prefix": "/api",
         "models": {
-          "text_generation": "llama3.2",
-          "embeddings": "nomic-embed-text",
-          "code_generation": "codellama"
+          "text_generation": "chat.default",
+          "embeddings": "embedding.default",
+          "code_generation": "code.local"
         },
         "health_endpoint": "/api/tags"
       }

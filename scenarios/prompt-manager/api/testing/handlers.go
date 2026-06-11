@@ -60,8 +60,8 @@ func (h *Handlers) Test(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Default values
-	if req.Model == "" {
-		req.Model = "llama3.2"
+	if req.Role == "" {
+		req.Role = "chat.small"
 	}
 	maxTokens := 1000
 	if req.MaxTokens != nil {
@@ -79,7 +79,7 @@ func (h *Handlers) Test(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Call LLM
-	llmResp, responseTime, err := h.llmClient.Generate(req.Model, finalContent, maxTokens, temperature)
+	llmResp, responseTime, err := h.llmClient.Generate(req.Role, finalContent, maxTokens, temperature)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -93,7 +93,7 @@ func (h *Handlers) Test(w http.ResponseWriter, r *http.Request) {
 	result := &TestResult{
 		ID:           testID,
 		SkillID:      id,
-		Model:        req.Model,
+		Role:         req.Role,
 		InputVars:    &varsStr,
 		Response:     &llmResp.Response,
 		ResponseTime: &responseTime,
@@ -107,7 +107,7 @@ func (h *Handlers) Test(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(TestResponse{
 		TestID:       testID,
-		Model:        req.Model,
+		Role:         req.Role,
 		Response:     llmResp.Response,
 		ResponseTime: responseTime,
 		TokenCount:   llmResp.EvalCount,

@@ -11,7 +11,7 @@ CREATE TABLE chatbots (
     description TEXT,
     personality TEXT NOT NULL DEFAULT 'You are a helpful assistant.',
     knowledge_base TEXT,
-    model_config JSONB DEFAULT '{"model": "llama3.2", "temperature": 0.7, "max_tokens": 1000}',
+    model_config JSONB DEFAULT '{"model": "chat.default", "temperature": 0.7, "max_tokens": 1000}',
     widget_config JSONB DEFAULT '{"theme": "light", "position": "bottom-right", "primaryColor": "#007bff"}',
     escalation_config JSONB DEFAULT '{"enabled": false, "threshold": 0.5, "webhook_url": null, "email": null}',
     is_active BOOLEAN DEFAULT true,

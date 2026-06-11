@@ -684,7 +684,7 @@ func (d *DiscoveryService) AnalyzeWorkflow(w http.ResponseWriter, r *http.Reques
 	}
 
 	if req.Model == "" {
-		payload["model"] = "llama3.2" // Default model
+		payload["model"] = "chat.default" // Default Ollama role
 	}
 
 	// Create a mock HTTP request for execution

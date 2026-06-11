@@ -106,8 +106,8 @@
         "health_check_endpoint": "http://localhost:11434/api/tags",
         "api_endpoint": "http://localhost:11434/api",
         "models": {
-          "primary_llm": "llama3.2",
-          "embedding_model": "nomic-embed-text"
+          "primary_llm": "chat.small",
+          "embedding_model": "embedding.default"
         },
         "endpoints": {
           "generate": "http://localhost:11434/api/generate",

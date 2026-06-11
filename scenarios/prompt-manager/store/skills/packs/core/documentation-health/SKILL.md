@@ -267,8 +267,19 @@ The audit checks:
 - **Manifest registration**: orphaned docs not listed in manifest.json
 - **Deduplication**: duplicate heading titles across doc files
 - **PRD alignment**: operational targets (OT-*) without corresponding docs
+- **Derived counts**: drift-prone hardcoded numbers in prose (the `numbers` check, surfaced by `docs health`)
 
 Use `--json` for machine-readable output.
+
+`docs health` checks are tagged **generic** (apply to any docs) vs **scenario** (need a scenario contract). Targeting works two ways:
+
+```bash
+knowledge-observatory docs health {{SCENARIO}}                 # all checks for a scenario
+knowledge-observatory docs health --scope=path --path docs/    # generic checks over project-level docs
+knowledge-observatory docs health {{SCENARIO}} --checks=numbers # narrow to one check
+```
+
+A scenario (or a path inside one) runs every check; a project-level path (`docs/`, `VISION.md`, `docs/<team>/`) runs only the generic checks. The `numbers` check is generic, so it runs in both — and runs automatically in every scenario's test-genie docs phase at warning severity.
 
 #### Red Flags Checklist
 
@@ -330,7 +341,7 @@ You **must**:
 **Avoid:**
 * Documentation that restates the code without adding context
 * Over-documenting trivial functions
-* Creating documentation that will immediately become stale
+* Creating documentation that will immediately become stale — in particular, **don't freeze a derived current-state count or enumeration in prose** ("N teams", "30+ resources", "the four X"). It is a projection of a source of truth that drifts the moment the SoT changes. Omit it, or point at the SoT (a directory / registry / canonical list); reserve an inline number for cases where it is genuinely load-bearing for the reader, and then prefer generating or guarding it. Numbers that have an owner and a reason — targets, thresholds, prices, version pins, design decisions — are fine: they change by decision, they don't silently drift. **The derived-count lint enforces this**: `docs health` runs a `numbers` check that flags untagged counts in prose at warning severity. To keep an owner-backed number, tag it with the `num[<category>]` marker (`num[target]:1000`, `num[threshold]:100`, categories ∈ target/threshold/price/version/decision/sot — see `path:docs/reference/machine-readable-references.md`). Default to rewording out; tagging is the documented exception, and a `num` marker with no category is itself flagged.
 * Duplicating information that belongs in a single source of truth
 
 **Known-issue ledgers are tracked gaps, not clutter.** `docs/internal/PROBLEMS.md` and `docs/internal/PROGRESS.md` are core internal docs (the "Always — never skip" rows above). **Never delete one to "clean up" a scenario** — that erases the only record that the gap or the history exists. Entries leave a ledger because the work was *done* (then you update/migrate the entry), never because the file was *removed*. Deleting a ledger reads as metric-gaming and the controller flags it (see `improvement-do-and-dont`).

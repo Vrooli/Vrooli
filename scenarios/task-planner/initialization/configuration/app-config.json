@@ -10,7 +10,7 @@
   },
   "task_processing": {
     "parsing": {
-      "default_model": "llama3.2",
+      "default_model": "chat.small",
       "temperature": 0.3,
       "max_tokens": 2048,
       "retry_attempts": 3,

@@ -2,7 +2,7 @@
   "ai_features": {
     "text_generation": {
       "enabled": {{ "true" if "ollama" in resources.required else "false" }},
-      "models": {{ '["llama3.1:8b", "qwen2.5-coder:7b"]' if "ollama" in resources.required else "[]" }},
+      "models": {{ '["chat.default", "code.local"]' if "ollama" in resources.required else "[]" }},
       "max_tokens": 2048,
       "temperature_range": [0.1, 1.0]
     },

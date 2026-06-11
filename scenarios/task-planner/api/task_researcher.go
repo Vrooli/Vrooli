@@ -18,7 +18,7 @@ type TaskResearchRequest struct {
 }
 
 type TaskResearchResult struct {
-	Success          bool                   `json:"success"`
+	Success         bool                   `json:"success"`
 	TaskID          uuid.UUID              `json:"task_id"`
 	ResearchSummary string                 `json:"research_summary"`
 	Requirements    []string               `json:"requirements"`
@@ -114,7 +114,7 @@ func (s *TaskPlannerService) performTaskResearch(ctx context.Context, task *Task
 	prompt := s.buildResearchPrompt(task, context)
 
 	// Get AI research
-	aiResponse, err := s.callOllamaGenerate(ctx, prompt, "llama3.2", "analysis")
+	aiResponse, err := s.callOllamaGenerate(ctx, prompt, "chat.small", "analysis")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get AI research: %w", err)
 	}
@@ -174,8 +174,8 @@ Tags: %s
 
 APPLICATION CONTEXT:
 App Name: %s
-App Type: %s`, 
-		task.Title, task.Description, task.Priority, task.Status, 
+App Type: %s`,
+		task.Title, task.Description, task.Priority, task.Status,
 		strings.Join(task.Tags, ", "), context.AppContext.Name, context.AppContext.Type))
 
 	if len(context.RelatedTasks) > 0 {
@@ -231,7 +231,7 @@ func (s *TaskPlannerService) parseResearchResults(aiResponse string, taskID uuid
 	// Clean and extract JSON
 	cleanResponse := strings.TrimSpace(aiResponse)
 	cleanResponse = strings.Trim(cleanResponse, "`")
-	
+
 	// Try to parse as JSON
 	var researchData map[string]interface{}
 	if err := json.Unmarshal([]byte(cleanResponse), &researchData); err != nil {
@@ -250,9 +250,9 @@ func (s *TaskPlannerService) parseResearchResults(aiResponse string, taskID uuid
 
 	// Extract fields with defaults
 	result := &TaskResearchResult{
-		Success:        true,
-		TaskID:        taskID,
-		ResearchData:  researchData,
+		Success:      true,
+		TaskID:       taskID,
+		ResearchData: researchData,
 	}
 
 	// Parse specific fields
@@ -343,9 +343,9 @@ func (s *TaskPlannerService) getTaskByID(taskID uuid.UUID) (*Task, error) {
 
 	var task Task
 	var tagsJSON []byte
-	
+
 	err := s.db.QueryRow(query, taskID).Scan(
-		&task.ID, &task.Title, &task.Description, &task.Status, 
+		&task.ID, &task.Title, &task.Description, &task.Status,
 		&task.Priority, &tagsJSON, &task.AppID, &task.AppName,
 		&task.CreatedAt, &task.UpdatedAt,
 	)
@@ -371,7 +371,7 @@ func (s *TaskPlannerService) getAppByID(appID uuid.UUID) (*App, error) {
 		&app.ID, &app.Name, &app.DisplayName, &app.Type,
 		&app.TotalTasks, &app.CompletedTasks, &app.CreatedAt, &app.UpdatedAt,
 	)
-	
+
 	return &app, err
 }
 
@@ -415,7 +415,7 @@ func (s *TaskPlannerService) findRelatedTasks(task *Task) ([]Task, error) {
 	for rows.Next() {
 		var t Task
 		var tagsJSON []byte
-		
+
 		err := rows.Scan(
 			&t.ID, &t.Title, &t.Description, &t.Status, &t.Priority,
 			&tagsJSON, &t.AppID, &t.AppName, &t.CreatedAt, &t.UpdatedAt,
@@ -455,7 +455,7 @@ func (s *TaskPlannerService) getRecentCompletedTasks(appID uuid.UUID, limit int)
 	for rows.Next() {
 		var task Task
 		var tagsJSON []byte
-		
+
 		err := rows.Scan(
 			&task.ID, &task.Title, &task.Description, &task.Status, &task.Priority,
 			&tagsJSON, &task.AppID, &task.AppName, &task.CreatedAt, &task.UpdatedAt,
@@ -479,23 +479,23 @@ func (s *TaskPlannerService) updateTaskWithResearch(taskID uuid.UUID, result *Ta
 	researchMetadata := map[string]interface{}{
 		"research_completed_at": time.Now().Unix(),
 		"research_summary":      result.ResearchSummary,
-		"requirements":         result.Requirements,
-		"dependencies":         result.Dependencies,
-		"recommendations":      result.Recommendations,
-		"complexity":           result.Complexity,
-		"ai_estimated_hours":   result.EstimatedHours,
-		"research_data":        result.ResearchData,
+		"requirements":          result.Requirements,
+		"dependencies":          result.Dependencies,
+		"recommendations":       result.Recommendations,
+		"complexity":            result.Complexity,
+		"ai_estimated_hours":    result.EstimatedHours,
+		"research_data":         result.ResearchData,
 	}
 
 	metadataJSON, _ := json.Marshal(researchMetadata)
-	
+
 	query := `
 		UPDATE tasks 
 		SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
 		    estimated_hours = $2,
 		    updated_at = CURRENT_TIMESTAMP
 		WHERE id = $3`
-	
+
 	_, err := s.db.Exec(query, metadataJSON, result.EstimatedHours, taskID)
 	return err
 }

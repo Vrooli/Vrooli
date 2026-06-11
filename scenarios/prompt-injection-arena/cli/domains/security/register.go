@@ -27,7 +27,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 func runTestAgent(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("security test-agent")
 	systemPrompt := fs.String("system-prompt", "", "System prompt for the agent")
-	model := fs.String("model", "llama3.2", "Ollama model name")
+	model := fs.String("model", "chat.small", "Ollama model role")
 	temperature := fs.Float64("temperature", 0.7, "Sampling temperature")
 	maxTokens := fs.Int("max-tokens", 1000, "Maximum tokens in the response")
 	maxExecution := fs.Int("max-execution-time", 30000, "Per-test execution budget in milliseconds")
@@ -46,7 +46,7 @@ func runTestAgent(core *cliapp.ScenarioApp, args []string) error {
 		payload = raw
 	} else {
 		if *systemPrompt == "" {
-			return fmt.Errorf("usage: security test-agent --system-prompt TEXT [--model NAME] [--temperature FLOAT] [--max-tokens INT] [--max-execution-time MS] [--body-file PATH]")
+			return fmt.Errorf("usage: security test-agent --system-prompt TEXT [--model ROLE] [--temperature FLOAT] [--max-tokens INT] [--max-execution-time MS] [--body-file PATH]")
 		}
 		payload = map[string]interface{}{
 			"agent_config": map[string]interface{}{

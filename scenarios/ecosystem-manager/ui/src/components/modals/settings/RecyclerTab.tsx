@@ -22,11 +22,8 @@ const MODEL_PROVIDERS = [
 ];
 
 const OLLAMA_MODELS = [
-  'llama3.2:1b',
-  'llama3.2:3b',
-  'phi3:mini',
-  'qwen2.5:0.5b',
-  'qwen2.5:1.5b',
+  'chat.default',
+  'chat.small',
 ];
 
 const OPENROUTER_MODELS = [
@@ -169,7 +166,7 @@ export function RecyclerTab({ settings, onChange, constraints }: RecyclerTabProp
 
         {/* Model Name */}
         <div className="space-y-2">
-          <Label htmlFor="recycler-model">Model Name</Label>
+          <Label htmlFor="recycler-model">Model Role</Label>
           <Select
             value={settings.model_name}
             onValueChange={(val) => updateSetting('model_name', val)}
@@ -188,7 +185,7 @@ export function RecyclerTab({ settings, onChange, constraints }: RecyclerTabProp
           </Select>
           {settings.model_name === 'custom' && (
             <Input
-              placeholder="Enter custom model name"
+              placeholder="Enter custom role"
               value={settings.model_name}
               onChange={(e) => updateSetting('model_name', e.target.value)}
             />

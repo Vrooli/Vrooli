@@ -209,8 +209,9 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": [
-          "mistral"
+        "model_roles": [
+          "chat.default",
+          "embedding.default"
         ]
       },
       "postgres": {

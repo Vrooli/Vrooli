@@ -25,9 +25,9 @@
       "base_url": "http://localhost:11434",
       "api_url": "http://localhost:11434/api",
       "models": {
-        "text_generation": "llama3.2",
-        "embeddings": "nomic-embed-text",
-        "code_analysis": "codellama:7b"
+        "text_generation": "chat.default",
+        "embeddings": "embedding.default",
+        "code_analysis": "code.local"
       },
       "default_options": {
         "temperature": 0.3,

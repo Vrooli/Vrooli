@@ -234,8 +234,9 @@
         "startup_policy": "try_start",
         "description": "Local embedding model (nomic-embed-text) for measure-question index generation, plus a small chat model for constrained param extraction.",
         "degraded_behavior": "Embedding + constrained extraction unavailable; the engine resolves deterministic (time_window) params and abstains (needs[]) on the rest.",
-        "models": [
-          "nomic-embed-text"
+        "model_roles": [
+          "embedding.default",
+          "chat.small"
         ]
       }
     }

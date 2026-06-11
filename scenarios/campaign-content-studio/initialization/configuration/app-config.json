@@ -19,7 +19,7 @@
     },
     "content_generation": {
       "enabled": true,
-      "default_model": "llama3.2",
+      "default_model": "chat.default",
       "max_content_length": 10000,
       "include_seo_optimization": true,
       "auto_save_generated": true

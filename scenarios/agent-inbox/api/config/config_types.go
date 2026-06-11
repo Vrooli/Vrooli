@@ -159,9 +159,9 @@ type SkillSuggestConfig struct {
 	// Default: true
 	Enabled bool
 
-	// Model is the Ollama model for generating search queries.
+	// Model is the Ollama role for generating search queries.
 	// Set via SKILL_SUGGEST_MODEL env var.
-	// Default: "llama3.1:8b"
+	// Default: "chat.small"
 	Model string
 
 	// MaxMessages is the number of recent chat messages to include in context.

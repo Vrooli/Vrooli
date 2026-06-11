@@ -217,8 +217,8 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": [
-          "llama3.2:latest"
+        "model_roles": [
+          "chat.small"
         ],
         "purpose": "foliage predictions and pattern analysis"
       },

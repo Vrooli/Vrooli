@@ -229,6 +229,7 @@ type RecordPayload struct {
 	Kind         string   `json:"kind"`
 	Scenario     string   `json:"scenario"`
 	BacklogRef   string   `json:"backlog_ref,omitempty"`
+	InitiativeID string   `json:"initiative_id,omitempty"`
 	Supersedes   string   `json:"supersedes,omitempty"`
 	SupersededBy string   `json:"superseded_by,omitempty"`
 	Outcome      string   `json:"outcome,omitempty"`

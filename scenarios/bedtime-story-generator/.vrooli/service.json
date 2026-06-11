@@ -240,8 +240,8 @@
         "enabled": true,
         "required": true,
         "purpose": "Generate age-appropriate bedtime stories",
-        "models": [
-          "llama3.2:1b"
+        "model_roles": [
+          "chat.small"
         ],
         "configuration": {
           "temperature": 0.8,

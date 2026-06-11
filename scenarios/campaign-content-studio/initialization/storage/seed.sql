@@ -218,11 +218,11 @@ INSERT INTO campaign_content_studio.resource_metrics (
 ) VALUES 
     ('ai', 'ollama', 'text_generation', 2340, true, 580, 0.0058,
      (SELECT id FROM campaign_content_studio.user_sessions WHERE session_id = 'demo-session-001'),
-     '{"model": "llama3.1:8b", "prompt_length": 420, "context_documents": 1}'::jsonb),
+     '{"model": "chat.default", "prompt_length": 420, "context_documents": 1}'::jsonb),
     
     ('ai', 'ollama', 'embedding_generation', 450, true, null, 0.001,
      (SELECT id FROM campaign_content_studio.user_sessions WHERE session_id = 'demo-session-001'),
-     '{"model": "nomic-embed-text", "text_chunks": 3}'::jsonb),
+     '{"model": "embedding.default", "text_chunks": 3}'::jsonb),
     
     ('storage', 'qdrant', 'vector_search', 85, true, null, 0.0001,
      (SELECT id FROM campaign_content_studio.user_sessions WHERE session_id = 'demo-session-001'),

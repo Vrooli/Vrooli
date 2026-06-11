@@ -63,7 +63,7 @@ func resultToProto(r internalscoring.Result) *scoringv1.GetScoreResponse {
 			BuildPassing:     r.Maturity.BuildPassing,
 		},
 		Composite: &scoringv1.CompositeScore{
-			Score:               int32(r.Composite.Score),
+			Score:               boundedInt32(r.Composite.Score),
 			Classification:      r.Composite.Classification,
 			ClassificationLabel: r.Composite.ClassificationLabel,
 		},
@@ -78,8 +78,8 @@ func resultToProto(r internalscoring.Result) *scoringv1.GetScoreResponse {
 	for _, d := range r.Maturity.Dimensions {
 		out.Maturity.Dimensions = append(out.Maturity.Dimensions, &scoringv1.DimensionCount{
 			Dimension:   d.Dimension,
-			ErrorPlus:   int32(d.ErrorPlus),
-			Total:       int32(d.Total),
+			ErrorPlus:   boundedInt32(d.ErrorPlus),
+			Total:       boundedInt32(d.Total),
 			Approximate: d.Approximate,
 		})
 	}

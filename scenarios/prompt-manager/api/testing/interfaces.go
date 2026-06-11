@@ -21,5 +21,5 @@ type LLMClient interface {
 
 	// Generate runs a prompt through the LLM and returns the response.
 	// Returns (response, responseTimeMs, error).
-	Generate(model, prompt string, maxTokens int, temperature float64) (*OllamaResponse, float64, error)
+	Generate(role, prompt string, maxTokens int, temperature float64) (*OllamaResponse, float64, error)
 }

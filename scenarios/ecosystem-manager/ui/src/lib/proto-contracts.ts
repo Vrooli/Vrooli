@@ -329,7 +329,7 @@ const DEFAULT_SETTINGS: Settings = {
     max_retries: 3,
     retry_delay_seconds: 2,
     model_provider: "ollama",
-    model_name: "llama3.1:8b",
+    model_name: "chat.default",
     completion_threshold: 3,
     failure_threshold: 5,
   },

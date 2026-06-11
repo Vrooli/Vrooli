@@ -262,8 +262,8 @@
         "enabled": true,
         "required": true,
         "purpose": "AI-powered content optimization and platform-specific adaptation",
-        "models": [
-          "llama3.2"
+        "model_roles": [
+          "chat.small"
         ]
       }
     }

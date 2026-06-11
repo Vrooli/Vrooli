@@ -57,8 +57,8 @@ Override per-entry by adding `refresh_after_days: <n>` to the front-matter; the 
 4. **Enqueue stale scans.**
    ```bash
    prompt-manager team knowledge-add monetization \
-     --by=benchmark-staleness-sweep \
      --topic="validation-inbox/benchmark-staleness/<scan-slug>" \
+     --caller-note="benchmark-staleness-sweep" \
      --content="$(cat <<EOF
    request_type: benchmark-staleness
    source: benchmark-staleness-sweep

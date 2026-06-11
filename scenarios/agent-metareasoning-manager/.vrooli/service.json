@@ -196,9 +196,9 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": [
-          "llama3.2",
-          "nomic-embed-text"
+        "model_roles": [
+          "chat.default",
+          "embedding.default"
         ]
       },
       "postgres": {

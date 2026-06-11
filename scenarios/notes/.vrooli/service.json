@@ -237,8 +237,8 @@
         "enabled": true,
         "required": true,
         "purpose": "AI-powered note suggestions and summarization",
-        "models": [
-          "nomic-embed-text"
+        "model_roles": [
+          "embedding.default"
         ]
       }
     }

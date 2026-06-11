@@ -84,7 +84,7 @@ func Default() *Config {
 		},
 		SkillSuggest: SkillSuggestConfig{
 			Enabled:         getEnvBool("SKILL_SUGGEST_ENABLED", true),
-			Model:           getEnvOrDefault("SKILL_SUGGEST_MODEL", "llama3.1:8b"),
+			Model:           getEnvOrDefault("SKILL_SUGGEST_MODEL", "chat.small"),
 			MaxMessages:     getEnvInt("SKILL_SUGGEST_MAX_MESSAGES", 10),
 			MaxContentLen:   getEnvInt("SKILL_SUGGEST_MAX_CONTENT_LEN", 300),
 			CacheTTLSeconds: getEnvInt("SKILL_SUGGEST_CACHE_TTL", 60),

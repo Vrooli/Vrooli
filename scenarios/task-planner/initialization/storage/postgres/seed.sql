@@ -267,7 +267,7 @@ INSERT INTO task_transitions (task_id, from_status, to_status, triggered_by, tri
 
 -- Sample Agent Runs (AI Processing History)
 INSERT INTO agent_runs (task_id, action, agent_name, model_used, successful, tokens_used, execution_time_ms, cost_usd, confidence, started_at, completed_at) VALUES
-((SELECT id FROM tasks WHERE title = 'Add social media sharing buttons'), 'parse', 'text-parser', 'llama3.2', true, 450, 2300, 0.0012, 0.85, '2024-01-10 09:15:00', '2024-01-10 09:15:02'),
+((SELECT id FROM tasks WHERE title = 'Add social media sharing buttons'), 'parse', 'text-parser', 'chat.small', true, 450, 2300, 0.0012, 0.85, '2024-01-10 09:15:00', '2024-01-10 09:15:02'),
 ((SELECT id FROM tasks WHERE title = 'Add social media sharing buttons'), 'research', 'research-coordinator', 'multi-agent', true, 2800, 45000, 0.0420, 0.90, '2024-01-12 14:20:00', '2024-01-12 14:22:15'),
 ((SELECT id FROM tasks WHERE title = 'Add social media sharing buttons'), 'implement', 'claude-code', 'claude-3-opus-20240229', true, 6200, 180000, 0.0930, 0.92, '2024-01-15 10:30:00', '2024-01-15 14:28:00'),
 

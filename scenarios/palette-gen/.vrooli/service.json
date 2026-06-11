@@ -218,8 +218,8 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": [
-          "llama3.2"
+        "model_roles": [
+          "chat.small"
         ]
       },
       "redis": {

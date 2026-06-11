@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS tags (
 CREATE TABLE IF NOT EXISTS test_results (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     skill_id VARCHAR(100) NOT NULL,
-    model VARCHAR(100) NOT NULL DEFAULT 'ollama/llama3.2',
+    model VARCHAR(100) NOT NULL DEFAULT 'ollama/chat.small',
     input_variables JSONB,
     response TEXT,
     response_time FLOAT,

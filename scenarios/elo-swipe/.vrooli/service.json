@@ -210,8 +210,8 @@
         "enabled": true,
         "required": false,
         "purpose": "AI-powered smart pairing suggestions for more efficient ranking",
-        "models": [
-          "llama3.2"
+        "model_roles": [
+          "chat.small"
         ]
       }
     }

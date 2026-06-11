@@ -43,7 +43,7 @@ func (s *Server) CreateChatbotHandler(w http.ResponseWriter, r *http.Request) {
 
 	if req.ModelConfig == nil {
 		req.ModelConfig = map[string]interface{}{
-			"model":       "llama3.2",
+			"model":       "chat.default",
 			"temperature": 0.7,
 			"max_tokens":  1000,
 		}

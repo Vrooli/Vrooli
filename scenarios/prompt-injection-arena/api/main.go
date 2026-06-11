@@ -1,13 +1,13 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 	"net/http"
 	"strconv"
 	"time"
@@ -419,7 +419,7 @@ func testAgent(c *gin.Context) {
 
 	// Set defaults
 	if request.AgentConfig.ModelName == "" {
-		request.AgentConfig.ModelName = "llama3.2"
+		request.AgentConfig.ModelName = "chat.small"
 	}
 	if request.AgentConfig.Temperature == 0 {
 		request.AgentConfig.Temperature = 0.7

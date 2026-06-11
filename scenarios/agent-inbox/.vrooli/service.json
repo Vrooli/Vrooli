@@ -170,8 +170,8 @@
         "enabled": true,
         "required": true,
         "description": "Local LLM for automatic chat naming",
-        "models": [
-          "llama3.1:8b"
+        "model_roles": [
+          "chat.default"
         ]
       },
       "openrouter": {

@@ -15,7 +15,7 @@ INSERT INTO chatbots (
     'High-converting sales chatbot for SaaS products',
     'You are an expert sales assistant helping prospects discover how our software can solve their business problems. You are enthusiastic but not pushy, always ask qualifying questions, and focus on understanding customer needs before presenting solutions. Always try to capture contact information for follow-up.',
     'Our SaaS platform offers project management, team collaboration, and analytics tools. Pricing starts at $29/month for teams up to 10 users. Key features include: real-time collaboration, automated reporting, integrations with 50+ tools, mobile apps, and enterprise-grade security. We offer a 14-day free trial.',
-    '{"model": "llama3.2", "temperature": 0.7, "max_tokens": 800}',
+    '{"model": "chat.default", "temperature": 0.7, "max_tokens": 800}',
     '{"theme": "professional", "position": "bottom-right", "primaryColor": "#2563eb", "greeting": "Hi! I''m here to help you discover how our platform can streamline your team''s workflow. What challenges is your team facing?"}'
 ),
 (
@@ -23,7 +23,7 @@ INSERT INTO chatbots (
     'Customer support chatbot for technical assistance',
     'You are a helpful technical support assistant. You are patient, clear, and thorough in your explanations. Always try to understand the user''s technical level and adjust your language accordingly. If you cannot solve an issue, offer to connect them with a human agent.',
     'Common issues include: password resets (direct users to forgot password page), billing questions (explain our pricing tiers), feature requests (collect feedback), bug reports (ask for steps to reproduce), and integration help (we support Slack, Microsoft Teams, Google Workspace, Salesforce, and HubSpot).',
-    '{"model": "mistral", "temperature": 0.5, "max_tokens": 600}',
+    '{"model": "chat.default", "temperature": 0.5, "max_tokens": 600}',
     '{"theme": "support", "position": "bottom-left", "primaryColor": "#059669", "greeting": "Welcome to our support center! I''m here to help you with any questions or issues. How can I assist you today?"}'
 ),
 (
@@ -31,7 +31,7 @@ INSERT INTO chatbots (
     'B2B lead qualification and appointment setting',
     'You are a professional lead qualification specialist. Your goal is to understand prospect needs, budget, timeline, and decision-making process. You are consultative and focus on building rapport while gathering qualification information. Always aim to schedule a demo or consultation call.',
     'We provide enterprise software solutions for companies with 100+ employees. Our solutions include: CRM systems ($50K-200K), data analytics platforms ($30K-150K), and custom integrations. Typical implementation takes 3-6 months. We serve Fortune 500 companies and growing mid-market businesses.',
-    '{"model": "llama3.2", "temperature": 0.6, "max_tokens": 900}',
+    '{"model": "chat.default", "temperature": 0.6, "max_tokens": 900}',
     '{"theme": "enterprise", "position": "center", "primaryColor": "#7c3aed", "greeting": "Hello! I help connect growing businesses with solutions that scale. What brings you here today?"}'
 ),
 (
@@ -39,7 +39,7 @@ INSERT INTO chatbots (
     'Product recommendation and shopping support',
     'You are an enthusiastic shopping assistant who loves helping customers find the perfect products. You ask about preferences, usage needs, and budget to make personalized recommendations. You create excitement about products while being honest about features and limitations.',
     'We sell premium outdoor gear including: hiking boots ($150-400), backpacks ($80-300), tents ($200-800), and camping accessories. All products come with a lifetime warranty. We offer free shipping over $100 and 30-day returns. Popular brands include Patagonia, REI Co-op, and our house brand.',
-    '{"model": "llama3.2", "temperature": 0.8, "max_tokens": 700}',
+    '{"model": "chat.default", "temperature": 0.8, "max_tokens": 700}',
     '{"theme": "ecommerce", "position": "bottom-right", "primaryColor": "#dc2626", "greeting": "Ready for your next adventure? I''m here to help you find the perfect gear! What outdoor activities are you planning?"}'
 );
 

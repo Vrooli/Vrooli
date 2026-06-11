@@ -84,7 +84,7 @@ const (
 	DefaultRecyclerBatchSize           = 5
 	DefaultRecyclerLimit               = 50
 	DefaultRecyclerModelProvider       = "ollama"
-	DefaultRecyclerModelID             = "llama3.1:8b"
+	DefaultRecyclerModelID             = "chat.default"
 	DefaultRecyclerCompletionThreshold = 3
 	DefaultRecyclerFailureThreshold    = 5
 )

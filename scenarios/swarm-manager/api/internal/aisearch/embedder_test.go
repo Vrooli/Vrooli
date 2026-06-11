@@ -28,7 +28,7 @@ func TestEmbedder_Embed_Success(t *testing.T) {
 	want := []float64{0.1, 0.2, 0.3, 0.4}
 	r := &fakeEmbedRunner{stdout: []byte(`{"embedding":[0.1,0.2,0.3,0.4]}` + "\n")}
 
-	e := newEmbedderWithRunner("nomic-embed-text", r.run)
+	e := newEmbedderWithRunner("embedding.default", r.run)
 	got, err := e.Embed(context.Background(), "hello world")
 	if err != nil {
 		t.Fatalf("Embed: %v", err)
@@ -36,7 +36,7 @@ func TestEmbedder_Embed_Success(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Embed = %v, want %v", got, want)
 	}
-	wantArgs := []string{"resource-ollama", "gateway", "embed", "--model", "nomic-embed-text", "--json", "--input-stdin"}
+	wantArgs := []string{"resource-ollama", "gateway", "embed", "--role", "embedding.default", "--json", "--input-stdin"}
 	if !reflect.DeepEqual(r.gotArgs, wantArgs) {
 		t.Fatalf("argv = %v, want %v", r.gotArgs, wantArgs)
 	}
@@ -71,22 +71,22 @@ func TestEmbedder_Embed_EmptyVector(t *testing.T) {
 	}
 }
 
-func TestEmbedder_DefaultModel(t *testing.T) {
+func TestEmbedder_DefaultRole(t *testing.T) {
 	r := &fakeEmbedRunner{stdout: []byte(`{"embedding":[0.1]}`)}
 	e := newEmbedderWithRunner("", r.run)
 	if _, err := e.Embed(context.Background(), "x"); err != nil {
 		t.Fatalf("Embed: %v", err)
 	}
-	// model flag is the value after "--model"
+	// role flag is the value after "--role"
 	for i, a := range r.gotArgs {
-		if a == "--model" && i+1 < len(r.gotArgs) {
-			if r.gotArgs[i+1] != "nomic-embed-text" {
-				t.Fatalf("default model = %q, want nomic-embed-text", r.gotArgs[i+1])
+		if a == "--role" && i+1 < len(r.gotArgs) {
+			if r.gotArgs[i+1] != "embedding.default" {
+				t.Fatalf("default role = %q, want embedding.default", r.gotArgs[i+1])
 			}
 			return
 		}
 	}
-	t.Fatal("--model flag not found in argv")
+	t.Fatal("--role flag not found in argv")
 }
 
 func TestEmbedder_Available_Success(t *testing.T) {

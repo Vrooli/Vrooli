@@ -158,8 +158,8 @@ New capture (no queue entry, e.g., proactive scan):
 
 ```bash
 prompt-manager team knowledge-add monetization \
-  --by=market-validator \
   --topic="monetization/market-scan/<comp>-pricing-<YYYYMMDD>-<id4>" \
+  --caller-note="market-validator" \
   --content="<full content>" \
   --source="<url>"
 ```

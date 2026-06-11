@@ -119,7 +119,7 @@
         "enabled": true,
         "timeout": 20000,
         "service": "ollama",
-        "model": "nomic-embed-text",
+        "model": "embedding.default",
         "required": false
       },
       {
@@ -133,7 +133,7 @@
         "enabled": true,
         "timeout": 25000,
         "service": "ollama",
-        "model": "llama3.2",
+        "model": "chat.default",
         "required": false
       }
     ]

@@ -12,7 +12,7 @@ func TestOllamaClientDisabledWhenNotEnabled(t *testing.T) {
 	if client.IsEnabled() {
 		t.Fatal("expected disabled configuration to disable Ollama client")
 	}
-	if _, _, err := client.Generate("model", "prompt", 10, 0.1); err == nil {
+	if _, _, err := client.Generate("chat.small", "prompt", 10, 0.1); err == nil {
 		t.Fatal("expected disabled client to reject generation")
 	}
 }
@@ -33,7 +33,7 @@ func TestOllamaClientGenerateUsesGateway(t *testing.T) {
 		return []byte(`{"response":"ok","eval_count":12}`), nil
 	})
 
-	resp, _, err := client.Generate("llama3.2:1b", "hello", 123, 0.25)
+	resp, _, err := client.Generate("chat.small", "hello", 123, 0.25)
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestOllamaClientGenerateUsesGateway(t *testing.T) {
 		"resource-ollama-test",
 		"gateway",
 		"generate",
-		"--model", "llama3.2:1b",
+		"--role", "chat.small",
 		"--json",
 		"--prompt-stdin",
 		"--max-tokens", "123",
@@ -63,7 +63,7 @@ func TestOllamaClientGenerateSurfacesGatewayError(t *testing.T) {
 		return nil, errors.New("gateway failed")
 	})
 
-	if _, _, err := client.Generate("model", "prompt", 10, 0.1); err == nil {
+	if _, _, err := client.Generate("chat.small", "prompt", 10, 0.1); err == nil {
 		t.Fatal("expected gateway error")
 	}
 }

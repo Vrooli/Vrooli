@@ -99,7 +99,7 @@
                 "warning",
                 "critical"
             ],
-            "model": "llama3.2:3b",
+            "model": "chat.small",
             "timeout_seconds": 300,
             "max_concurrent": 2
         },
@@ -228,7 +228,7 @@
         "ollama": {
             "enabled": true,
             "base_url": "http://localhost:11434",
-            "model": "llama3.2:3b",
+            "model": "chat.small",
             "timeout_seconds": 300
         },
         "codex": {

@@ -85,14 +85,14 @@
 
   "model_preferences": {
     "text_parsing": {
-      "primary": "llama3.2",
-      "fallback": "llama3.1",
+      "primary": "chat.small",
+      "fallback": "chat.default",
       "temperature": 0.3,
       "max_tokens": 2048
     },
     "research_analysis": {
-      "primary": "llama3.2", 
-      "fallback": "llama3.1",
+      "primary": "chat.small",
+      "fallback": "chat.default",
       "temperature": 0.2,
       "max_tokens": 4096
     },

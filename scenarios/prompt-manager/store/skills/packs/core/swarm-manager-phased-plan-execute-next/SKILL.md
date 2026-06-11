@@ -18,6 +18,7 @@ Prior rounds:
 
 Rules:
 
+- **Recall prior work first** (AGENTS.md §4): before implementing a phase, `search-hub query "<phase intent>" --type record,skill,doc`. A `record` hit shows how a similar slice was solved before (trigger + approach) — build on it and cite it, or stop and reconcile a near-duplicate rather than redo it. Fall back to `swarm-manager records search "<intent>"` if search-hub is unavailable.
 - Prioritize correctness and maintainability over breadth.
 - Run focused validation for touched areas.
 - Do not edit backlog `spec.json` files directly.

@@ -8,7 +8,7 @@ import "time"
 type TestResult struct {
 	ID           string    `json:"id"`
 	SkillID      string    `json:"skillId"`
-	Model        string    `json:"model"`
+	Role         string    `json:"role"`
 	InputVars    *string   `json:"inputVariables,omitempty"`
 	Response     *string   `json:"response,omitempty"`
 	ResponseTime *float64  `json:"responseTime,omitempty"`
@@ -20,7 +20,7 @@ type TestResult struct {
 
 // TestRequest is the request body for testing a skill.
 type TestRequest struct {
-	Model       string            `json:"model"`
+	Role        string            `json:"role"`
 	Variables   map[string]string `json:"variables"`
 	MaxTokens   *int              `json:"maxTokens"`
 	Temperature *float64          `json:"temperature"`
@@ -29,7 +29,7 @@ type TestRequest struct {
 // TestResponse is returned after running a skill test.
 type TestResponse struct {
 	TestID       string    `json:"testId"`
-	Model        string    `json:"model"`
+	Role         string    `json:"role"`
 	Response     string    `json:"response"`
 	ResponseTime float64   `json:"responseTime"`
 	TokenCount   int       `json:"tokenCount"`

@@ -180,8 +180,8 @@
         "required": true,
         "startup_policy": "must_start",
         "purpose": "AI-powered code generation for Android app templates and build scripts",
-        "models": [
-          "llama3.2"
+        "model_roles": [
+          "chat.small"
         ]
       },
       "minio": {

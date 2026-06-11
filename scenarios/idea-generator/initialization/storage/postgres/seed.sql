@@ -71,7 +71,7 @@ INSERT INTO ideas (id, campaign_id, title, content, category, tags, generation_p
     'automation',
     ARRAY['AI', 'accounting', 'OCR', 'workflow'],
     'Generate innovative SaaS ideas for small business productivity',
-    'llama3.2',
+    'chat.default',
     'refined',
     '550e8400-e29b-41d4-a716-446655440001'
 ),
@@ -83,7 +83,7 @@ INSERT INTO ideas (id, campaign_id, title, content, category, tags, generation_p
     'collaboration',
     ARRAY['knowledge management', 'graph database', 'team collaboration'],
     'Create tools to help small businesses work more efficiently',
-    'llama3.2',
+    'chat.default',
     'draft',
     '550e8400-e29b-41d4-a716-446655440001'
 ),
@@ -95,7 +95,7 @@ INSERT INTO ideas (id, campaign_id, title, content, category, tags, generation_p
     'sustainability',
     ARRAY['carbon tracking', 'API', 'ESG reporting', 'supply chain'],
     'Develop environmental solutions that help businesses become more sustainable',
-    'llama3.2',
+    'chat.default',
     'refined',
     '550e8400-e29b-41d4-a716-446655440002'
 ),
@@ -107,7 +107,7 @@ INSERT INTO ideas (id, campaign_id, title, content, category, tags, generation_p
     'sharing economy',
     ARRAY['resource sharing', 'local community', 'waste reduction'],
     'Create solutions for sustainable resource usage',
-    'mistral',
+    'chat.default',
     'draft',
     '550e8400-e29b-41d4-a716-446655440002'
 ),
@@ -119,7 +119,7 @@ INSERT INTO ideas (id, campaign_id, title, content, category, tags, generation_p
     'personalized learning',
     ARRAY['AI tutor', 'adaptive learning', 'multimodal', 'curriculum'],
     'Design AI-powered educational tools for personalized learning',
-    'llama3.2',
+    'chat.default',
     'refined',
     '550e8400-e29b-41d4-a716-446655440003'
 ),
@@ -131,7 +131,7 @@ INSERT INTO ideas (id, campaign_id, title, content, category, tags, generation_p
     'career development',
     ARRAY['skill analysis', 'career guidance', 'job market', 'learning paths'],
     'Create tools to help people prepare for future job markets',
-    'mistral',
+    'chat.default',
     'draft',
     '550e8400-e29b-41d4-a716-446655440003'
 );
@@ -203,7 +203,7 @@ INSERT INTO agent_interactions (id, idea_id, session_id, interaction_type, agent
     'revise',
     'Refine this invoice processing idea specifically for small restaurants, considering their unique operational needs and constraints.',
     'Restaurant-Focused Invoice Processing Assistant: An AI-powered tool specifically designed for small restaurants that handles supplier invoices, ingredient cost tracking, and food cost management. Features include: seasonal price variation tracking, supplier relationship scoring, food waste calculation from over-ordering, menu profitability analysis, and integration with POS systems for real-time cost tracking.',
-    'llama3.2',
+    'chat.default',
     '{"refinement_iterations": 1, "focus_areas": ["industry_specific", "cost_management"]}'
 ),
 (
@@ -213,7 +213,7 @@ INSERT INTO agent_interactions (id, idea_id, session_id, interaction_type, agent
     'critique',
     'Provide constructive criticism of this carbon footprint API idea, focusing on potential implementation challenges and market obstacles.',
     'Key challenges: 1) Data standardization - carbon calculations vary by methodology and region, 2) Integration complexity - existing ERP systems may lack necessary data granularity, 3) Verification requirements - customers will need third-party validation for credible reporting, 4) Competitive landscape - large players like Microsoft and Google already offer similar services, 5) Pricing model - need to balance accuracy with cost for smaller businesses.',
-    'mistral',
+    'chat.default',
     '{"critique_focus": ["implementation", "market_competition"], "improvement_suggestions": 3}'
 );
 

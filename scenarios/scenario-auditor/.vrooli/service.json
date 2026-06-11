@@ -196,9 +196,9 @@
         "enabled": true,
         "required": true,
         "description": "Auto-detected via analyzer (heuristic)",
-        "models": [
-          "llama3.1:8b",
-          "nomic-embed-text"
+        "model_roles": [
+          "chat.default",
+          "embedding.default"
         ]
       },
       "qdrant": {

@@ -30,7 +30,7 @@ func (r *Repository) Save(result *TestResult) error {
 	_, err := r.db.Exec(`
 		INSERT INTO test_results (id, skill_id, model, input_variables, response, response_time, token_count, tested_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
-	`, result.ID, result.SkillID, result.Model, string(varsJSON), result.Response, result.ResponseTime, result.TokenCount)
+	`, result.ID, result.SkillID, result.Role, string(varsJSON), result.Response, result.ResponseTime, result.TokenCount)
 
 	return err
 }
@@ -58,7 +58,7 @@ func (r *Repository) GetHistory(skillID string, limit int) ([]TestResult, error)
 	var results []TestResult
 	for rows.Next() {
 		var tr TestResult
-		if err := rows.Scan(&tr.ID, &tr.SkillID, &tr.Model, &tr.InputVars, &tr.Response, &tr.ResponseTime, &tr.TokenCount, &tr.Rating, &tr.Notes, &tr.TestedAt); err != nil {
+		if err := rows.Scan(&tr.ID, &tr.SkillID, &tr.Role, &tr.InputVars, &tr.Response, &tr.ResponseTime, &tr.TokenCount, &tr.Rating, &tr.Notes, &tr.TestedAt); err != nil {
 			continue
 		}
 		results = append(results, tr)

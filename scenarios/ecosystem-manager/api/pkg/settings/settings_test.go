@@ -403,7 +403,7 @@ func TestValidateAndNormalize(t *testing.T) {
 			EnabledFor:          "",
 			IntervalSeconds:     0,
 			ModelProvider:       "ollama",
-			ModelName:           "llama3.1:8b",
+			ModelName:           "chat.default",
 			CompletionThreshold: 4,
 			FailureThreshold:    6,
 		},

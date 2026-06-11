@@ -239,8 +239,8 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": [
-          "llama3.2"
+        "model_roles": [
+          "chat.small"
         ],
         "purpose": "AI-powered analysis for market research, competitor analysis, and decision support"
       },

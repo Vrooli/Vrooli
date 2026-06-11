@@ -156,7 +156,7 @@ func (q *QdrantClient) SearchSimilar(collectionName string, vector []float32, li
 func GenerateEmbedding(text string) ([]float32, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	vec, err := ollamaGatewayEmbed(ctx, "nomic-embed-text", text)
+	vec, err := ollamaGatewayEmbed(ctx, "embedding.default", text)
 	if err != nil {
 		return nil, err
 	}

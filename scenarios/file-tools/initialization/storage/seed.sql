@@ -82,7 +82,7 @@ INSERT INTO {{ scenario_id }}.resource_metrics (
     {% if "ollama" in resources.required %}
     ('ai', 'ollama', 'text_generation', 1200, true, 150, 0.001,
      (SELECT id FROM {{ scenario_id }}.user_sessions WHERE session_id = 'demo-session-001'),
-     '{"model": "llama3.1:8b", "prompt_length": 50}'::jsonb),
+     '{"model": "chat.default", "prompt_length": 50}'::jsonb),
     {% endif %}
     
     {% if "whisper" in resources.required %}

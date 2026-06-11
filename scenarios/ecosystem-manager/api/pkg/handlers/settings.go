@@ -188,7 +188,7 @@ func (h *SettingsHandlers) GetRecyclerModelsHandler(w http.ResponseWriter, r *ht
 
 	switch provider {
 	case "ollama":
-		models, err = listOllamaModels()
+		models = ollamaRoleOptions()
 	case "openrouter":
 		models, err = listOpenRouterModels()
 	default:
@@ -239,45 +239,6 @@ func (h *SettingsHandlers) ResetSettingsHandler(w http.ResponseWriter, r *http.R
 	}, http.StatusOK)
 
 	log.Println("Settings reset to defaults")
-}
-
-func listOllamaModels() ([]modelOption, error) {
-	output, err := runSettingsCommand("resource-ollama", "content", "list")
-	if err != nil {
-		return defaultOllamaModels(), fmt.Errorf("resource-ollama content list failed: %w (output: %s)", err, strings.TrimSpace(string(output)))
-	}
-
-	lines := strings.Split(strings.ReplaceAll(string(output), "\r\n", "\n"), "\n")
-	models := make([]modelOption, 0, len(lines))
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
-		fields := strings.Fields(trimmed)
-		if len(fields) == 0 {
-			continue
-		}
-		if strings.EqualFold(fields[0], "name") {
-			continue
-		}
-		name := fields[0]
-		models = append(models, modelOption{
-			ID:       name,
-			Label:    name,
-			Provider: "ollama",
-		})
-	}
-
-	if len(models) == 0 {
-		return defaultOllamaModels(), fmt.Errorf("resource-ollama returned no models")
-	}
-
-	sort.SliceStable(models, func(i, j int) bool {
-		return strings.ToLower(models[i].Label) < strings.ToLower(models[j].Label)
-	})
-
-	return models, nil
 }
 
 func listOpenRouterModels() ([]modelOption, error) {
@@ -334,10 +295,10 @@ func listOpenRouterModels() ([]modelOption, error) {
 	return models, nil
 }
 
-func defaultOllamaModels() []modelOption {
+func ollamaRoleOptions() []modelOption {
 	return []modelOption{
-		{ID: "llama3.1:8b", Label: "llama3.1:8b", Provider: "ollama"},
-		{ID: "llama3.2:3b", Label: "llama3.2:3b", Provider: "ollama"},
+		{ID: "chat.default", Label: "chat.default", Provider: "ollama"},
+		{ID: "chat.small", Label: "chat.small", Provider: "ollama"},
 	}
 }
 

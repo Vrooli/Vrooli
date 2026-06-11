@@ -36,8 +36,8 @@ INSERT INTO app_config (config_key, config_value, config_type, description, is_s
     ('storage.versioning_enabled', 'true'::jsonb, 'setting', 'Enable document versioning', false),
     
     -- AI configuration
-    ('ai.default_model', '"llama3.1:8b"'::jsonb, 'setting', 'Default AI model for processing', false),
-    ('ai.embedding_model', '"nomic-embed-text"'::jsonb, 'setting', 'Model for generating embeddings', false),
+    ('ai.default_model', '"chat.default"'::jsonb, 'setting', 'Default AI role for processing', false),
+    ('ai.embedding_model', '"embedding.default"'::jsonb, 'setting', 'Role for generating embeddings', false),
     ('ai.temperature', '0.7'::jsonb, 'setting', 'AI temperature setting', false),
     ('ai.max_tokens', '4096'::jsonb, 'setting', 'Maximum tokens for AI processing', false),
     
@@ -131,7 +131,7 @@ INSERT INTO workflows (
                 "operation": "generate",
                 "parameters": {
                     "prompt": "Summarize the following document in 3-5 key points",
-                    "model": "llama3.1:8b"
+                    "model": "chat.default"
                 }
             }
         ]
@@ -313,7 +313,7 @@ INSERT INTO workflows (
                 "operation": "generate",
                 "parameters": {
                     "prompt_template": "Translate the following text to {target_language}. Preserve formatting and technical terms.",
-                    "model": "llama3.1:8b"
+                    "model": "chat.default"
                 }
             }
         ]

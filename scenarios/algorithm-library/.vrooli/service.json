@@ -239,8 +239,8 @@
         "enabled": true,
         "required": false,
         "purpose": "Generate algorithm explanations and suggest solutions for problems",
-        "models": [
-          "llama3.2"
+        "model_roles": [
+          "chat.small"
         ]
       }
     },

@@ -49,8 +49,8 @@
     "refinement_instructions": "Focus on: {{focus_areas}}\nAvoid: {{avoid_areas}}\nSuccess Criteria: {{success_criteria}}"
   },
   "model_preferences": {
-    "creative_tasks": "llama3.2",
-    "analytical_tasks": "mistral",
-    "fallback_model": "llama3.2"
+    "creative_tasks": "chat.default",
+    "analytical_tasks": "chat.default",
+    "fallback_model": "chat.default"
   }
 }

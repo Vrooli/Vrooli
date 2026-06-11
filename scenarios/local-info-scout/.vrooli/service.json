@@ -170,8 +170,8 @@
         "enabled": true,
         "required": true,
         "description": "Auto-detected via analyzer (heuristic)",
-        "models": [
-          "llama3.2:latest"
+        "model_roles": [
+          "chat.small"
         ]
       }
     },

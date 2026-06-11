@@ -130,7 +130,7 @@ func runCreate(core *cliapp.ScenarioApp, args []string) error {
 	personality := fs.String("personality", "", "Chatbot personality instruction")
 	description := fs.String("description", "", "Chatbot description")
 	knowledgeBase := fs.String("knowledge-base", "", "Knowledge base text")
-	model := fs.String("model", "", "Model name (e.g. llama3.2); populates model_config.model")
+	model := fs.String("model", "", "Model role (e.g. chat.default); populates model_config.model")
 	bodyFile := fs.String("body-file", "", "Path to full CreateChatbotRequest JSON (overrides flags)")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {

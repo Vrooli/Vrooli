@@ -137,7 +137,7 @@ Rules:
 - Return ONLY the JSON array, no other text`, rawText)
 
 	// Generate response using Ollama CLI
-	response, err := s.callOllamaGenerate(ctx, prompt, "llama3.2", "reasoning")
+	response, err := s.callOllamaGenerate(ctx, prompt, "chat.small", "reasoning")
 	if err != nil {
 		return nil, fmt.Errorf("failed to call Ollama: %w", err)
 	}
@@ -192,8 +192,8 @@ Rules:
 	}, nil
 }
 
-func (s *TaskPlannerService) callOllamaGenerate(ctx context.Context, prompt, model, taskType string) (string, error) {
-	role := strings.TrimSpace(model)
+func (s *TaskPlannerService) callOllamaGenerate(ctx context.Context, prompt, role, taskType string) (string, error) {
+	role = strings.TrimSpace(role)
 	if role == "" {
 		role = "chat.small"
 	}
