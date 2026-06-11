@@ -13,8 +13,8 @@ import (
 const DefaultCollection = "ui-health-surface"
 
 // DefaultSearchThreshold drops dense hits whose cosine score is below ~0.55.
-// Empirically, scores from nomic-embed-text + the ui-surface corpus settle in
-// the 0.45–0.65 band; matches under 0.55 are effectively random and crowd out
+// Empirically, scores from the default embedding role + the ui-surface corpus
+// settle in the 0.45–0.65 band; matches under 0.55 are effectively random and crowd out
 // the "(no matches)" signal a user needs when asking about something the corpus
 // does not contain. It is the dense-leg ScoreThreshold (operational wiring), not
 // a tuning factor — the SSOT search.json owns engine/rerank/floor.

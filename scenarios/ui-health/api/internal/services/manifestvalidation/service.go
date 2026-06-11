@@ -19,6 +19,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // Severity classifies a Finding.
@@ -191,7 +193,15 @@ type uiManifest struct {
 // ui/manifest.json. Returns (nil, "", findings) on errors so the caller can
 // surface them as Findings rather than aborting validation.
 func (s *Service) loadTemplateManifest(scenario string) (*uiManifest, string, []Finding) {
-	svcPath := filepath.Join(s.RepoRoot, "scenarios", scenario, ".vrooli", "service.json")
+	svcPath, err := repocontract.ScenarioServiceManifestPath(s.RepoRoot, scenario)
+	if err != nil {
+		return nil, "", []Finding{{
+			Severity: SeverityError,
+			Code:     "service_json_path_invalid",
+			Location: scenario,
+			Message:  fmt.Sprintf("resolve service.json path: %v", err),
+		}}
+	}
 	raw, err := os.ReadFile(svcPath)
 	if err != nil {
 		return nil, "", []Finding{{

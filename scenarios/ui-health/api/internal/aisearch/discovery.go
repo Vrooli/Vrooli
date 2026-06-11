@@ -12,6 +12,7 @@ import (
 
 	"ui-health/integrations/reactcomponentlibrary"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	contractsprovenancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/contracts/provenance"
 	contractswidgetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/contracts/widget"
 	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/inventory"
@@ -187,7 +188,10 @@ func (d *FilesystemDiscoverySource) clientFor(rule FrameworkDispatchRule) (Inven
 // those scenarios are silently skipped so missing-service-json is not a
 // dispatch error.
 func readTemplateID(repoRoot, scenario string) (string, error) {
-	path := filepath.Join(repoRoot, "scenarios", scenario, ".vrooli", "service.json")
+	path, err := repocontract.ScenarioServiceManifestPath(repoRoot, scenario)
+	if err != nil {
+		return "", err
+	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {

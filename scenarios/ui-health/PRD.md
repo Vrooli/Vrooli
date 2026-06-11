@@ -16,7 +16,7 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 ### 🔴 P0 – Must ship for viability
 - [ ] OT-P0-001 | Deterministic manifest validation | `ui-health validate scenario <name> --json` validates `ui/manifest.json` + overlay against the `scenario-ui-manifest/v1` JSON schema, the on-disk slot directories, and the template-vs-overlay rules; emits a structured `Report` with `Finding`s for schema violations, missing slot directories, unknown slot names in overlays, missing template references, orphan files, and overlapping slot pathPatterns; exits 0 on a clean scenario.
 - [ ] OT-P0-002 | Semantic UI-surface search | `ui-health search query "<text>"` returns ranked UI-surface results (components, pages, features, hooks) across all adopting scenarios in AI mode, with `ComponentProvenance` fields (CUSTOM / ADOPTED_UNMODIFIED / ADOPTED_MODIFIED / UNKNOWN), library, library_version, source_sha256, and drift_hash where applicable; `--mode text` falls back to substring matching when Ollama or Qdrant is unavailable.
-- [ ] OT-P0-003 | On-demand reindexing with framework dispatch | `ui-health reindex run` walks every scenario, dispatches `InventoryService.ScanScenario` to the appropriate per-framework component-library scenario (today: `react-component-library`), aggregates `ScanResponse`, embeds each `SurfaceRecord` via Ollama `nomic-embed-text`, and upserts to Qdrant collection `ui-health-surface`.
+- [ ] OT-P0-003 | On-demand reindexing with framework dispatch | `ui-health reindex run` walks every scenario, dispatches `InventoryService.ScanScenario` to the appropriate per-framework component-library scenario (today: `react-component-library`), aggregates `ScanResponse`, embeds each `SurfaceRecord` via the Ollama `embedding.default` role, and upserts to Qdrant collection `ui-health-surface`.
 - [ ] OT-P0-004 | ComponentProvenance contract is single source of truth | `ComponentProvenance` proto in `packages/proto/schemas/ui-health/v1/contracts/provenance.proto` defines the canonical adoption-metadata shape. The SQLite store in `react-component-library` is authoritative; the JSDoc block on adopted source files is the heal-from signal. Both round-trip losslessly with the proto message.
 - [ ] OT-P0-005 | test-genie phase_ui_health integration | `test-genie` registers a new `phase_ui_health` (after `phase_contracts`) that shells out to `ui-health validate scenario <name> --json` and surfaces findings as Observations.
 
@@ -33,14 +33,14 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 ## 🧱 Tech Direction Snapshot
 Preferred stacks: Go API with Connect-RPC and proto contracts; Go CLI built on `packages/cli-core`; React + Vite + Tailwind UI from the `vrooli-default` design kit, with adoptions from `react-component-library`.
 
-Preferred storage: Qdrant collection `ui-health-surface` (768-dimensional vectors, cosine similarity, payload-hash drift detection) for vector search; Ollama serving `nomic-embed-text` for embedding generation. No scenario-local relational store inside ui-health itself; the authoritative adoption SQLite store remains in `react-component-library`.
+Preferred storage: Qdrant collection `ui-health-surface` (role-resolved dense vectors, cosine similarity, payload-hash drift detection) for vector search; Ollama embeddings resolved through `embedding.default`. No scenario-local relational store inside ui-health itself; the authoritative adoption SQLite store remains in `react-component-library`.
 
 Integration strategy: All cross-scenario invocation goes over Connect-RPC. `ui-health` imports `react-component-library`'s generated Connect client. `react-component-library` imports ui-health's proto contract messages (`ComponentProvenance`, `WidgetDeclaration`). The `InventoryService` interface is defined in ui-health's proto and implemented by per-framework component-library scenarios — one-way compile-time dependency, runtime call over RPC.
 
 Non-goals: No widget renderer or agent-inbox-side widget code (contracts only). No framework-specific parsing inside `scenarios/ui-health/` (lives behind `InventoryService.ScanScenario` in component-library scenarios). No shared `uimanifest` Go package (two consumers does not justify extraction). No compatibility shims for the `react-component-library` JSDoc → SQLite shape change (greenfield). No CLI verbs beyond those listed in operational targets. No `make breaking` invocations during feature work.
 
 ## 🤝 Dependencies & Launch Plan
-Required resources: Ollama (serving `nomic-embed-text`); Qdrant (collection `ui-health-surface`). Both must be available in the Tier 1 local stack before Phase 3 work begins.
+Required resources: Ollama (with the `embedding.default` role available); Qdrant (collection `ui-health-surface`). Both must be available in the Tier 1 local stack before Phase 3 work begins.
 
 Scenario dependencies: `react-component-library` (implements `InventoryService.ScanScenario` for React scenarios; receives the JSDoc-emitter and SQLite-store updates that align it with the `ComponentProvenance` proto). `test-genie` (downstream consumer of the new `phase_ui_health`).
 

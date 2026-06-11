@@ -10,7 +10,7 @@
         "REQ-P0-006",
         "REQ-P0-007"
       ],
-      "description": "The CLI command `ui-health search query \"\u003ctext\u003e\"` must return ranked UI-surface results (components, pages, features, hooks) across all adopting scenarios. In AI mode (default), results are ranked via Qdrant vector similarity using Ollama nomic-embed-text embeddings. Each result must include ComponentProvenance fields: adoption status (CUSTOM / ADOPTED_UNMODIFIED / ADOPTED_MODIFIED / UNKNOWN), library, library_version, source_sha256, and drift_hash. When `--mode text` is specified, or when Ollama or Qdrant is unavailable, the command falls back to substring matching.",
+      "description": "The CLI command `ui-health search query \"\u003ctext\u003e\"` must return ranked UI-surface results (components, pages, features, hooks) across all adopting scenarios. In AI mode (default), results are ranked via Qdrant vector similarity using embeddings from the Ollama `embedding.default` role. Each result must include ComponentProvenance fields: adoption status (CUSTOM / ADOPTED_UNMODIFIED / ADOPTED_MODIFIED / UNKNOWN), library, library_version, source_sha256, and drift_hash. When `--mode text` is specified, or when Ollama or Qdrant is unavailable, the command falls back to substring matching.",
       "id": "REQ-P0-003",
       "prd_ref": "OT-P0-002",
       "status": "draft",

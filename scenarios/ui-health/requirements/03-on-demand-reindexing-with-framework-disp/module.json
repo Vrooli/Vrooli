@@ -1,5 +1,5 @@
 {
-  "description": "`ui-health reindex run` walks every scenario, dispatches `InventoryService.ScanScenario` to the appropriate per-framework component-library scenario (today: `react-component-library`), aggregates `ScanResponse`, embeds each `SurfaceRecord` via Ollama `nomic-embed-text`, and upserts to Qdrant collection `ui-health-surface`.",
+  "description": "`ui-health reindex run` walks every scenario, dispatches `InventoryService.ScanScenario` to the appropriate per-framework component-library scenario (today: `react-component-library`), aggregates `ScanResponse`, embeds each `SurfaceRecord` via the Ollama `embedding.default` role, and upserts to Qdrant collection `ui-health-surface`.",
   "module_id": "MOD-P0-003",
   "prd_ref": "OT-P0-003",
   "priority": "P0",
@@ -10,7 +10,7 @@
         "REQ-P0-003",
         "REQ-P2-001"
       ],
-      "description": "The CLI command `ui-health reindex run` must walk every registered scenario, dispatch `InventoryService.ScanScenario` to the appropriate per-framework component-library scenario (initially `react-component-library`), aggregate the returned `ScanResponse`, embed each `SurfaceRecord` via Ollama `nomic-embed-text`, and upsert the resulting vectors and payloads to the Qdrant collection `ui-health-surface`.",
+      "description": "The CLI command `ui-health reindex run` must walk every registered scenario, dispatch `InventoryService.ScanScenario` to the appropriate per-framework component-library scenario (initially `react-component-library`), aggregate the returned `ScanResponse`, embed each `SurfaceRecord` via the Ollama `embedding.default` role, and upsert the resulting vectors and payloads to the Qdrant collection `ui-health-surface`.",
       "id": "REQ-P0-004",
       "prd_ref": "OT-P0-003",
       "status": "draft",
@@ -31,7 +31,7 @@
           "type": "test"
         },
         {
-          "notes": "Each SurfaceRecord is embedded individually via Ollama nomic-embed-text before upsert",
+          "notes": "Each SurfaceRecord is embedded individually via the Ollama embedding role before upsert",
           "phase": "unit",
           "ref": "",
           "status": "pending",
